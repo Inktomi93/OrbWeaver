@@ -273,6 +273,16 @@ describe("assemblePrompt — section walk", () => {
     const out = assemblePrompt(config, ctxOf({ nowMs: 1_750_000_000_000, timezone: "UTC" }));
     expect(out.trace.staticCacheBusters).toContain("date");
   });
+
+  test("a volatile macro in another present human's persona description is reported as a cache-buster", () => {
+    const config = configOf([marker({ marker: "persona", name: "persona" }), marker({ marker: "chat_history" })]);
+    const alice = { name: "Alice", description: "ALICE-DESC" };
+    const withBob = ctxOf({ activePersona: alice, people: [{ name: "Bob", description: "Bob's lucky number is {{random::1::2}}" }] });
+
+    expect(assemblePrompt(config, withBob).trace.staticCacheBusters).toContain("random");
+    // Control: the voice persona alone carries no volatile source.
+    expect(assemblePrompt(config, ctxOf({ activePersona: alice })).trace.staticCacheBusters).toEqual([]);
+  });
 });
 
 // `injection_trigger` section-gating (`shouldTrigger`/`generationTypeBucket`, assemble.ts ~L499-515):
@@ -738,6 +748,24 @@ describe("assemblePromptWithSlices — per-source budget attribution", () => {
     });
 
     expect(assemblePromptWithSlices(config, ctx).slices).toEqual([{ source: "steering", label: "Aria", text: "Aria is limping." }]);
+  });
+
+  test("the persona marker's people block splits per PERSON — the voice and every other human carry their own name", () => {
+    const config = configOf([marker({ marker: "persona", name: "persona" }), marker({ marker: "chat_history" })]);
+    const ctx = ctxOf({
+      activePersona: { name: "Alice", description: "ALICE-DESC" },
+      people: [
+        { name: "Bob", description: "BOB-DESC" },
+        { name: "Cara", description: "CARA-DESC" },
+      ],
+    });
+
+    const { prompt, slices } = assemblePromptWithSlices(config, ctx);
+
+    expect(slices.map((s) => s.label)).toEqual(["Alice (persona)", "Bob (persona)", "Cara (persona)"]);
+    expect(slices.every((s) => s.source === "cards")).toBe(true);
+    // The split is accounting only: the parts join back into the delivered section.
+    expect(prompt.static).toBe(slices.map((s) => s.text).join("\n\n"));
   });
 
   test("the prompt half is byte-identical to plain assemblePrompt (slices are an extra product, not a fork)", () => {
