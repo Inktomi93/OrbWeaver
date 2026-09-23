@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { DEFAULT_CHARACTER_CARDS } from "../../../packages/server/src/domain/character/seeder/cards.ts";
 import { RIG_DIR, SEED_CHATS_DIR, ST_RUNTIME_DIR } from "./rig-paths.ts";
+import { writeV2Png } from "./write-v2-png.ts";
 
 const stCharsDir = path.join(ST_RUNTIME_DIR, "data/default-user/characters");
 const stChatsDir = path.join(ST_RUNTIME_DIR, "data/default-user/chats");
@@ -10,10 +11,6 @@ const avatarsDir = path.resolve(RIG_DIR, "../../../packages/default-content/avat
 
 fs.mkdirSync(stCharsDir, { recursive: true });
 fs.mkdirSync(stChatsDir, { recursive: true });
-
-// Load the CJS module once before the loop
-// @ts-expect-error: CJS module without types
-const { writeV2Png } = await import("./write-v2-png.cjs");
 
 for (const card of DEFAULT_CHARACTER_CARDS) {
   const c = card.input;

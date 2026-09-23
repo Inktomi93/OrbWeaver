@@ -30,10 +30,10 @@ function withScratchDir<T>(fn: (dir: string) => T): T {
 
 function plantNativeMembershipRepo(repoRoot: string, scratch: string, files: Readonly<Record<string, string>>): void {
   execFixtureGit(scratch, ["init", "--quiet", "--template=", "--initial-branch=main"]);
-  writeFileSync(join(scratch, ".gitignore"), "node_modules\ndeps/\nscripts/ts7.cjs\n");
+  writeFileSync(join(scratch, ".gitignore"), "node_modules\ndeps/\nscripts/ts7.ts\n");
   symlinkSync(join(repoRoot, "node_modules"), join(scratch, "node_modules"), "dir");
   mkdirSync(join(scratch, "scripts"), { recursive: true });
-  symlinkSync(join(repoRoot, "scripts", "ts7.cjs"), join(scratch, "scripts", "ts7.cjs"), "file");
+  symlinkSync(join(repoRoot, "scripts", "ts7.ts"), join(scratch, "scripts", "ts7.ts"), "file");
   for (const [rel, text] of Object.entries(files)) {
     const path = join(scratch, rel);
     mkdirSync(join(path, ".."), { recursive: true });
@@ -330,7 +330,7 @@ test("broken, empty and malformed native closure observations are tool errors", 
     "packages/kit/tsconfig.json": '{"extends":"../../tsconfig.base.json","include":["src"]}',
     "packages/kit/src/value.ts": "export {};\n",
   });
-  const script = join(scratch, "scripts", "ts7.cjs");
+  const script = join(scratch, "scripts", "ts7.ts");
   rmSync(script);
   writeFileSync(script, 'process.stdout.write("relative.ts\\n");\n');
   expect(runMembershipQuietly(scratch)).toBe(2);

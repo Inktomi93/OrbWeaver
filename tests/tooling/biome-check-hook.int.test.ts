@@ -127,15 +127,15 @@ if [[ "$*" == *"typecheck-plan"* ]]; then
   printf '{"mode":"primary","coverage":"advisory-primary-programs","programs":["tsconfig.tests-dom.json"],"subjects":[{"path":"%s","disposition":"selected","selectedPrograms":["tsconfig.tests-dom.json"]}]}\n' "$subject"
   exit 0
 fi
-if [[ "$*" == *"scripts/ts7.cjs"* ]] && [ "\${HOOK_TEST_MODE:-}" = "plan-preamble-diagnostic" ]; then
+if [[ "$*" == *"scripts/ts7.ts"* ]] && [ "\${HOOK_TEST_MODE:-}" = "plan-preamble-diagnostic" ]; then
   printf 'tests/client/subject.dom.test.ts(3,9): error TS2322: Type string is not assignable to number.\n'
   exit 1
 fi
-if [[ "$*" == *"scripts/ts7.cjs"* ]] && [ "\${HOOK_TEST_MODE:-}" = "consumer-diagnostic" ]; then
+if [[ "$*" == *"scripts/ts7.ts"* ]] && [ "\${HOOK_TEST_MODE:-}" = "consumer-diagnostic" ]; then
   printf 'tests/client/unchanged-consumer.ts(7,3): error TS2322: Type string is not assignable to number.\n'
   exit 1
 fi
-if [[ "$*" == *"scripts/ts7.cjs"* ]] && [ "\${HOOK_TEST_MODE:-}" = "unknown-program" ]; then
+if [[ "$*" == *"scripts/ts7.ts"* ]] && [ "\${HOOK_TEST_MODE:-}" = "unknown-program" ]; then
   printf 'project config does not exist\n' >&2
   exit 2
 fi
@@ -567,7 +567,7 @@ test("a pnpm wrapper preamble above the JSON payload cannot skip the typecheck o
   expect(noise.stderr).toContain("checks without a verdict");
   expect(noise.stderr).toContain("typecheck planner printed no JSON payload");
   expect(noise.stderr).toContain("Done in 1.6s using pnpm v11.15.1");
-  expect(readFileSync(noiseLog, "utf8")).not.toContain("ts7.cjs");
+  expect(readFileSync(noiseLog, "utf8")).not.toContain("ts7.ts");
 
   const packageFile = join(checkout.worktree, "packages/client/src/source.ts");
   mkdirSync(join(checkout.worktree, "packages/client/src"), { recursive: true });

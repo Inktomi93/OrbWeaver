@@ -911,7 +911,7 @@ test("lint:eslint scopedArgv: tooling AND every test dir are in the eslint surfa
   // partitions by compiler owner and invokes the same adapter once per sequential child.
   expect(stage("lint:eslint").scopedArgv?.(sel)).toEqual([
     "node",
-    "scripts/eslint.cjs",
+    "scripts/eslint.ts",
     "--max-warnings",
     "0",
     "--no-warn-ignored",

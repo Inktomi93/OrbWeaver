@@ -328,25 +328,35 @@ export function createSemanticWorkspace(options: SemanticWorkspaceOptions): Sema
   return workspace;
 }
 
-/** The gate harness's governed TS/TSX corpus. Individual descriptors still fence their own scanRoot; the
- *  foreign SillyTavern runtime capture is excluded before parsing because Orbweaver does not own it. */
+/** The gate harness's governed TS/TSX corpus: EVERY authored TypeScript file the repository tracks. Individual
+ *  descriptors still fence their own population; the foreign SillyTavern runtime capture is excluded before
+ *  parsing because Orbweaver does not own it. The repo-root files, the package files outside `src/` and
+ *  `playwright/` joined on 2026-09-23 (work item 0036): the suppressions policy judges everything this corpus
+ *  loads, so a tracked file missing here is an ungoverned directive. `tests/tooling/verify/contract/population.test.ts`
+ *  reds when a tracked TypeScript file falls outside these globs. */
 export function harnessGlobs(root: string): readonly string[] {
   return [
+    `${root}/*.ts`,
+    `${root}/packages/*/*.ts`,
+    `${root}/packages/*/bundles/**/*.ts`,
     `${root}/packages/*/src/**/*.ts`,
     `${root}/packages/*/src/**/*.tsx`,
+    `${root}/playwright/**/*.ts`,
+    `${root}/playwright/**/*.tsx`,
     `${root}/tests/**/*.ts`,
     `${root}/tests/**/*.tsx`,
     `${root}/tooling/src/**/*.ts`,
     `${root}/tooling/src/**/*.tsx`,
     `${root}/scripts/**/*.ts`,
     `${root}/scripts/**/*.tsx`,
+    `!${root}/playwright/.cache/**`,
     `!${root}/scripts/probes/st-goldens/sillytavern-runtime/**`,
   ];
 }
 
-/** The SEARCH scope adds package-root entrypoints, MTS sources, and the Playwright CT harness. */
+/** The SEARCH scope adds MTS sources to the harness corpus. */
 export function searchGlobs(root: string): readonly string[] {
-  return [...harnessGlobs(root), `${root}/packages/*/*.ts`, `${root}/packages/*/src/**/*.mts`, `${root}/tests/**/*.mts`, `${root}/playwright/**/*.tsx`];
+  return [...harnessGlobs(root), `${root}/packages/*/src/**/*.mts`, `${root}/tests/**/*.mts`];
 }
 
 /** Build a workspace Project. The `types:false` arm is the shared pure-AST project the gate run uses. */
