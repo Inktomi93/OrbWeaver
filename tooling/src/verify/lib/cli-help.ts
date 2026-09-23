@@ -37,7 +37,7 @@ export const VERB_HELP: Readonly<Record<VerifyVerb, string>> = {
   "asset-refs": "usage: node tooling/src/verify/cli.ts asset-refs\n  Reconciles every live FK→assets.id column against the asset-ref classification registry.",
   "orphan-ratchet": "usage: node tooling/src/verify/cli.ts orphan-ratchet [--update]\n  The orphan-export ratchet; --update rewrites its committed baseline.",
   "boot-chunk":
-    "usage: node tooling/src/verify/cli.ts boot-chunk\n  Builds the client, measures its boot chunk against the committed ceiling, and checks that the emitted html links the app stylesheet.",
+    "usage: node tooling/src/verify/cli.ts boot-chunk\n  Builds the client, measures its boot chunk against the committed ceiling, checks that the emitted html links the app stylesheet, and checks that no emitted chunk carries a DEV-only client instrument.",
   "ledgers-fresh":
     "usage: node tooling/src/verify/cli.ts ledgers-fresh\n  Reds when a committed single-writer ledger (the caught-failure census and its siblings) differs from a fresh derivation. Writes nothing; names the differing rows and the regen command.",
   "ledger-claims": LEDGER_CLAIMS_HELP,
