@@ -9,9 +9,7 @@ import type {
   AssemblySource,
   ChatContentPart,
   GroupConfig,
-  InviteView,
   MessageView,
-  ParticipantView,
   ReactionEmoji,
   SpeakerRef,
   TokenProvenance,
@@ -33,7 +31,8 @@ import type { MemoryConfig, MemoryRecallInputs } from "./memory.ts";
 import type { ReactAsCharacterParams, RequestTurnParams } from "./params.ts";
 import type { ChatDetail, ChatVariables } from "./views.ts";
 
-export type { TurnIntent } from "@orb/contracts/chat";
+// The invite results are wire nodes: their strict schemas are the invite procedures' tRPC output parsers.
+export type { CreateInviteResult, RedeemInviteResult, TurnIntent } from "@orb/contracts/chat";
 
 /** The output axis: per-speaker (one message per speaker) vs narrator (one call voices all the seated characters).
  *
@@ -499,19 +498,6 @@ export interface ReapResult {
 
 /** `getVariables` — the ChoiceBlock variable map. */
 export type VariablesResult = ChatVariables;
-
-/** `createInvite` — the persisted invite plus the raw token returned once for the share link. The token is
- *  stored hashed; it never appears in an InviteView. */
-export interface CreateInviteResult {
-  readonly invite: InviteView;
-  readonly token: string;
-}
-
-/** `redeemInvite` — the now-joined chat + the caller's new roster row. */
-export interface RedeemInviteResult {
-  readonly chat: ChatDetail;
-  readonly participant: ParticipantView;
-}
 
 /** `reactAsCharacter` (B7/MR5) — the `react` tool's answer, shaped for a MODEL to narrate: every refusal
  *  is `ok:false` with words (errors-as-data — a thrown error would read as a platform fault, and "no
