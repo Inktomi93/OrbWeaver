@@ -157,6 +157,61 @@ test("a non-stage origin that comes up degraded still refuses on the first navig
   }
 });
 
+// @instrument-proof: #1837 — `pnpm snap /settings` (a URL segment the router 404s on) came back BOOT-DEAD
+// with "query cache is EMPTY", read by two lanes as an app failure. The route resolves cleanly to the
+// root's not-found boundary (`routes/__root.tsx`), which settles `data-app-ready` on an empty cache — the
+// exact shape the dataless tripwire exists to catch — so the discriminator has to be the app's own
+// `data-app-failure` declare, checked BEFORE the dataless read.
+const NOT_FOUND_DOCUMENT =
+  '<!doctype html><html lang="en" data-app-ready=""><body><main data-app-failure="not-found">not found</main><script>globalThis.__orb={queries:()=>[]};</script></body></html>';
+
+async function notFoundServer(): Promise<{ readonly base: string; readonly documents: () => number; readonly close: () => Promise<void> }> {
+  let documents = 0;
+  const server = createServer((_request, response) => {
+    documents += 1;
+    response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+    response.end(NOT_FOUND_DOCUMENT);
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address() as AddressInfo;
+  return {
+    base: `http://127.0.0.1:${String(address.port)}`,
+    documents: (): number => documents,
+    close: async (): Promise<void> => {
+      server.closeAllConnections();
+      await new Promise<void>((resolve, reject) => server.close((error) => (error === undefined ? resolve() : reject(error))));
+    },
+  };
+}
+
+test("a not-found render reports NOT-FOUND, never the dataless/BOOT-DEAD wording", { timeout: BROWSER_TIMEOUT_MS }, async () => {
+  const server = await notFoundServer();
+  try {
+    const navError = await driveOnce(["/settings"], server.base);
+
+    expect(navError, "the app's own declare must win the classification").toContain("NOT-FOUND");
+    expect(navError, "never the dataless boot-placeholder wording this shape used to trip").not.toContain("query cache is EMPTY");
+    expect(navError, "never a bare 'app never mounted' reading either").not.toContain("MID-HYDRATION");
+  } finally {
+    await server.close();
+  }
+});
+
+// @instrument-absence-proof: the isolated retry exists ONLY for a genuinely cold stage. A not-found render
+// is deterministic — retrying reproduces the same boundary — so the warm-up pass must not fire, and the
+// stage must not be torn down as BOOT-DEAD for a route that was never going to resolve.
+test("--isolated does not retry or mark the stage BOOT-DEAD for a not-found render", { timeout: BROWSER_TIMEOUT_MS }, async () => {
+  const server = await notFoundServer();
+  try {
+    const navError = await driveOnce(["/settings", "--isolated"], server.base);
+
+    expect(navError, "still classified as not-found under --isolated").toContain("NOT-FOUND");
+    expect(server.documents(), "no warm-up navigation for a deterministic not-found render").toBe(1);
+  } finally {
+    await server.close();
+  }
+});
+
 // @instrument-proof: #2445 — snap could not dispatch a TOUCH tap. `--click` is a CDP MOUSE dispatch even
 // under `--mobile`, so it fires pointerenter/mouseover and opens hover-only affordances a finger never can:
 // a side-eye pass on a settings pane read 104/104 tap candidates clean while 15 HintTriggers were inert on
