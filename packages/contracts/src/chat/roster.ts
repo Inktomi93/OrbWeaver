@@ -329,7 +329,9 @@ export const participantViewSchema = z.strictObject({
   avatarAssetId: typeIdSchema(ID_PREFIX.asset).nullable(),
   avatarHash: z.string().nullable(),
   renderPolicy: renderPolicySchema.exactOptional(),
+  // Lenient on purpose: strips and heals a stale stored blob so it cannot fail a committed join; no secrets here.
   themeOverride: themeOverrideSchema.nullable().exactOptional(),
+  // Lenient on purpose: strips and heals a stale stored blob so it cannot fail a committed join; no secrets here.
   backgroundOverride: themeBackgroundSchema.nullable().exactOptional(),
 }) satisfies z.ZodType<ParticipantView>;
 
