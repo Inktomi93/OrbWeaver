@@ -666,7 +666,7 @@
       "reason": "CLASSIFIER, not a failure — \"does this model-emitted blob parse to an object\" is the question, and `false` IS the answer (the pair degrades to announced text, which the caller renders). Reporting it would raise a user-facing error for a turn that runs correctly. Ends if this ever gates something other than the structural-vs-text choice."
     },
     {
-      "siteId": "packages/inference/src/backends/anthropic-messages/index.ts::listModels::err::1",
+      "siteId": "packages/inference/src/backends/anthropic-messages/index.ts::listAnthropicModels::err::1",
       "verdict": "deliberate-absorb",
       "reason": "optional model discovery owns refusal as `listed:false` with the scrubbed reason; generation remains usable with an explicit model. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if callers require a successful catalog."
     },

@@ -289,7 +289,9 @@ for (const add of PROVIDER_ADDS) {
     await pickProvider(page, dialog, add.provider.label);
 
     await expect(dialog.getByLabel("Server URL", { exact: true })).toHaveCount(add.baseUrl === null ? 0 : 1);
-    await expect(dialog.getByRole("button", { name: "List models" })).toHaveCount(add.baseUrl === null ? 0 : 1);
+    // An endpoint lists under its URL and a hosted API-key provider under its key; a subscription token lists only
+    // once saved.
+    await expect(dialog.getByRole("button", { name: "List models" })).toHaveCount(add.provider.auth === "oauthToken" ? 0 : 1);
     await expect(dialog.getByRole("button", { name: "Copy the command claude setup-token" })).toHaveCount(add.provider.auth === "oauthToken" ? 1 : 0);
     const keyField = KEY_FIELD_LABELS[add.provider.auth];
     await expect(dialog.getByLabel(/^(API key|API key \(optional\)|Setup token)$/)).toHaveCount(keyField === null ? 0 : 1);
@@ -483,6 +485,68 @@ test("the built-in provider lists the models this device runs as soon as it is p
     .toMatchObject({ providerId: "local-light", credentialId: null, baseUrl: null, model: "jinaai/jina-clip-v2", modelListed: true });
 });
 
+// A KEY BELONGS TO THE PROVIDER IT WAS PASTED FOR. Switching the provider empties the key and URL fields, so a key
+// typed for one vendor is never saved under, or sent to, another.
+test("switching the provider empties the key and the server URL typed for the previous one", async ({ mount, page }) => {
+  const trpc = await stubConnectionsPane(page);
+  const component = await mount(<ConnectionsAuthoringStory width={870} />);
+  const dialog = await openAddDialog(page);
+  await pickProvider(page, dialog, "OpenAI");
+  const key = dialog.getByLabel("API key", { exact: true });
+  await key.fill(SECRET);
+  // The control: the key really is in the field before the switch.
+  await expect(key).toHaveValue(SECRET);
+  await pickProvider(page, dialog, "Anthropic");
+  await expect(dialog.getByLabel("API key", { exact: true })).toHaveValue("");
+
+  await pickProvider(page, dialog, "vLLM");
+  await dialog.getByLabel("Server URL", { exact: true }).fill(VLLM_URL);
+  await pickProvider(page, dialog, "Ollama");
+  await expect(dialog.getByLabel("Server URL", { exact: true })).toHaveValue("");
+  await expect(component.getByTestId("held-secrets")).toHaveText("0");
+  expect(trpc.count("credentials.add")).toBe(0);
+});
+
+// A HOSTED PROVIDER LISTS UNDER ITS PASTED KEY, before anything is saved. The read is a POST (the key rides a body,
+// never a URL), the pick is saved as listed, and nothing holds the key afterwards.
+test("a hosted draft lists its models under the pasted key, and the listed pick is saved as listed", async ({ mount, page }) => {
+  const trpc = await stubConnectionsPane(page, { draftCatalogModels: catalogOf([catalogEntry(OPUS, "Claude Opus 5"), catalogEntry("openai/gpt-6")]) });
+  const component = await mount(<ConnectionsAuthoringStory width={870} />);
+  const dialog = await openAddDialog(page);
+  await pickProvider(page, dialog, "OpenRouter");
+  const list = dialog.getByRole("button", { name: "List models" });
+  // Nothing to list under before a key is pasted.
+  await expect(list).toBeDisabled();
+  await dialog.getByLabel("API key", { exact: true }).fill(SECRET);
+  const listRequest = page.waitForRequest((request) => request.url().includes("connection.draftCatalogModels"));
+  await list.click();
+  const sent = await listRequest;
+  expect(sent.method()).toBe("POST");
+  expect(sent.url()).not.toContain(SECRET);
+  await expect.poll(() => trpc.lastInput("connection.draftCatalogModels")).toEqual({ providerId: "openrouter", key: SECRET });
+
+  await dialog.getByRole("option", { name: /Claude Opus 5/ }).click();
+  await submit(dialog);
+  await expect(dialog).toBeHidden();
+  await expect
+    .poll(() => trpc.lastInput("connection.create"))
+    .toMatchObject({ providerId: "openrouter", credentialId: "user_credential_ctminted001", model: OPUS, modelListed: true });
+  await expect(component.getByTestId("held-secrets")).toHaveText("0");
+  await expect.poll(() => page.content()).not.toContain(SECRET);
+});
+
+test("a hosted list that fails says why and falls back to a typed id", async ({ mount, page }) => {
+  await stubConnectionsPane(page, { draftCatalogModels: { listed: false, reason: "openrouter.ai answered 401." } });
+  await mount(<ConnectionsAuthoringStory width={870} />);
+  const dialog = await openAddDialog(page);
+  await pickProvider(page, dialog, "OpenRouter");
+  await dialog.getByLabel("API key", { exact: true }).fill(SECRET);
+  await dialog.getByRole("button", { name: "List models" }).click();
+  await expect(dialog.getByRole("textbox", { name: "Model" })).toHaveAccessibleDescription(
+    "Couldn't list OpenRouter's models — openrouter.ai answered 401. Type the id; it'll be sent as-is.",
+  );
+});
+
 // ── the state matrix, at the two settings-body widths and a phone ───────────────────────────────────────
 
 for (const { arm, width, device } of AUTHORING_ARMS) {
@@ -573,15 +637,13 @@ for (const { arm, width, device } of AUTHORING_ARMS) {
       await expect(page.getByRole("option", { name: "OpenRouter", exact: true })).toBeEnabled();
     });
 
-    test(`${arm}: typed fallback — a hosted draft types its id and is told where the listed picker lives`, async ({ mount, page }) => {
+    test(`${arm}: typed fallback — a hosted draft types its id and is told it can list under its key`, async ({ mount, page }) => {
       const trpc = await stubConnectionsPane(page, { providers: ALL_AVAILABLE });
       await mount(<ConnectionsAuthoringStory width={width} />);
       const dialog = await openAddDialog(page);
       await pickProvider(page, dialog, "Anthropic");
       const model = dialog.getByRole("textbox", { name: "Model" });
-      await expect(model).toHaveAccessibleDescription(
-        "Type the model id as Anthropic spells it. Once the connection is added, “Add another model on this key” in its menu lists the models the key can use.",
-      );
+      await expect(model).toHaveAccessibleDescription("Paste your key and list the models it can use, or type the id as Anthropic spells it.");
       // The example is in the provider's own spelling, not one id for every provider.
       await expect(model).toHaveAttribute("placeholder", "e.g. claude-opus-5");
       // The notice is sentences, so it is set at the prose step, not the 10.5px gloss step.

@@ -1,10 +1,13 @@
-// The add dialog's "List models" step for an endpoint draft: the SERVER-SIDE `GET <baseUrl>/v1/models`
-// (§7.4, a browser cannot reach a user's loopback box), read under the draft's provider. Advisory — it never blocks submit; its answer feeds the
-// model picker, and an empty or failed list is the picker's typed arm with its reason and a retry.
+// The add dialog's "List models" step for a draft that is read on demand (§7.4): an endpoint's SERVER-SIDE
+// `GET <baseUrl>/v1/models` (a browser cannot reach a user's loopback box), or a hosted provider's list under the
+// key pasted for it. Both go through `connection.draftCatalogModels`, a POST, under the draft's provider.
+// Advisory — it never blocks submit; its answer feeds the model picker, and an empty or failed list is the
+// picker's typed arm with its reason and a retry.
 //
 // THE DRAFT'S KEY RIDES THE DIAL. Before the key is saved it is the pasted draft; after a partial failure the
 // dialog holds the saved row instead, so a re-list names that row by id rather than dialing without the key
-// the server needs (a 401 that would read as "the server has no models").
+// the server needs (a 401 that would read as "the server has no models"). Once the answer lands, the mutation's
+// retained variables (which carry the key) are dropped.
 //
 // THE BUTTON STAYS FOCUSABLE WHILE PENDING (`loading`, which renders `aria-disabled`): a natively disabled
 // button drops focus to the document, and the picker then takes the caret when the list lands.
@@ -28,11 +31,12 @@ export interface DraftListing {
   readonly source: ModelPickerProps["source"];
 }
 
-export interface EndpointModelsCheckProps {
+export interface DraftModelsCheckProps {
   readonly trpc: Trpc;
   readonly invalidation: Invalidation;
   readonly providerId: ProviderDef["id"];
-  readonly baseUrl: string;
+  /** The endpoint's typed server URL; `null` for a hosted provider, which fixes its own. */
+  readonly baseUrl: string | null;
   readonly keyValue: string;
   /** The key this dialog already saved, once a connection write failed after the mint. */
   readonly heldCredentialId: UserCredentialId | null;
@@ -50,7 +54,7 @@ function dialAuth(keyValue: string, heldCredentialId: UserCredentialId | null): 
   return heldCredentialId === null ? {} : { credentialId: heldCredentialId };
 }
 
-export function EndpointModelsCheck({
+export function DraftModelsCheck({
   trpc,
   invalidation,
   providerId,
@@ -59,18 +63,20 @@ export function EndpointModelsCheck({
   heldCredentialId,
   onListing,
   onUrlRefusal,
-}: EndpointModelsCheckProps): ReactElement {
+}: DraftModelsCheckProps): ReactElement {
   const list = useDraftCatalogModels({ trpc, invalidation });
+  const auth = dialAuth(keyValue, heldCredentialId);
+  // An endpoint needs its URL (its key is optional); a hosted list needs the key it is read under.
+  const ready = baseUrl === null ? Object.keys(auth).length > 0 : baseUrl.trim() !== "";
 
   const runCheck = (): void => {
-    const draftBaseUrl = baseUrl.trim();
-    if (draftBaseUrl === "") {
+    if (!ready) {
       return;
     }
-    const forDraft = draftKeyOf({ providerId, baseUrl, key: keyValue });
+    const forDraft = draftKeyOf({ providerId, baseUrl: baseUrl ?? "", key: keyValue });
     onListing({ forDraft, source: { status: "loading" } });
     void list
-      .mutateAsync({ providerId, baseUrl: draftBaseUrl, ...dialAuth(keyValue, heldCredentialId) })
+      .mutateAsync({ providerId, ...(baseUrl === null ? {} : { baseUrl: baseUrl.trim() }), ...auth })
       .then((result): void => onListing({ forDraft, source: modelListSource(result, runCheck) }))
       .catch((err: unknown): void => {
         onListing({ forDraft, source: failedCatalogSource(err, runCheck) });
@@ -84,7 +90,7 @@ export function EndpointModelsCheck({
 
   return (
     <Row align="center" gap="field">
-      <Button disabled={baseUrl.trim() === ""} intent="secondary" loading={list.isPending} onClick={runCheck} size="sm">
+      <Button disabled={!ready} intent="secondary" loading={list.isPending} onClick={runCheck} size="sm">
         List models
       </Button>
     </Row>
