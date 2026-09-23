@@ -5,7 +5,7 @@
 // way. Consumed by EVERY bound field — the raw `useFieldContext(` door is sealed to this ONE home
 // (G28 `bound-field-via-hook`), so a new bound field cannot re-hand-roll the wiring.
 //
-// THE ONE DELIBERATE DEVIATION FROM THE BASE UI HANDBOOK (vendor/base-ui/handbook/forms.md, "TanStack
+// THE ONE DELIBERATE DEVIATION FROM THE BASE UI HANDBOOK (https://base-ui.com/react/handbook/forms, "TanStack
 // Form → Integrate components"). The handbook maps `invalid={!field.state.meta.isValid}` straight onto
 // `<Field.Root>`. We map `error` (which `@orb/ui/field` turns into `invalid`) from `touchedFieldError`
 // instead — the SAME errors, gated on `isTouched`. Reason: with raw `isValid`, a required field is invalid

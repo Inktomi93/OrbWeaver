@@ -100,7 +100,7 @@ function DrawerModal({ body, container, def, onOpenChange }: DrawerModalProps): 
   // IF A FUTURE BODY PINS AN INPUT TO THE SHEET'S FOOT, it reads `var(--drawer-keyboard-inset, 0px)` —
   // WITH the `0px` fallback, always. The provider only sets that variable while the keyboard is aligned,
   // so a bare `var(--drawer-keyboard-inset)` is invalid before the first alignment and after cleanup
-  // (docs/vendor/base-ui/components/drawer.md). No body does today; this is the standing contract for the
+  // (https://base-ui.com/react/components/drawer). No body does today; this is the standing contract for the
   // first one that tries.
   return (
     <Drawer open={true} onOpenChange={onDrawerOpenChange} side="bottom">

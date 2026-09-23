@@ -38,8 +38,6 @@ const VENDOR_FILES = {
   ...VENDOR_SURFACE_FIXTURE,
   ...CLEAN_PRODUCT_CSS,
   [SOURCE_ANCHOR]: 'export const probe = <div className="w-(--anchor-width)" />;\n',
-  "docs/vendor/base-ui/INDEX.md": "# Base UI docs mirror — v9.9.9\n",
-  "docs/vendor/base-ui/components/probe.md": "| `--anchor-width` | `number` | proof |\n",
   "packages/ui/node_modules/@base-ui/react/select/SelectCssVars.d.ts": 'export enum SelectCssVars { width = "--anchor-width" }\n',
 } as const;
 
