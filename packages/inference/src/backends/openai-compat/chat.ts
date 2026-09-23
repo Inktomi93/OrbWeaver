@@ -155,10 +155,14 @@ function openRouterReasoning(reasoning: ResolvedReasoning): JSONObject {
   if (reasoning.budgetTokens !== undefined) {
     return { max_tokens: reasoning.budgetTokens };
   }
-  // OpenRouter's own `reasoning.effort` takes every level the funnel can resolve, `max` included, and forwards
-  // it upstream verbatim; only the V4 vocabulary (`wireEffortOf`) lacks `max`. The funnel already refused a level
-  // the model does not list.
-  return { effort: reasoning.effort ?? "high" };
+  // `max` rides verbatim only where it was measured: on the adaptive (Claude) rows OpenRouter forwards it upstream
+  // as `output_config.effort: "max"` (gen-1790144375-ED228ncR3pymYMrZ25L3). Every other model keeps the V4 mapping
+  // it always had (`max` → `xhigh`), because a catalog with no allowlist folds to every level and cannot prove
+  // the upstream takes `max`.
+  if (reasoning.effort === undefined) {
+    return { effort: "high" };
+  }
+  return { effort: reasoning.mode === "adaptive" ? reasoning.effort : wireEffortOf(reasoning.effort) };
 }
 
 /** The openai-compatible transport: effort rides V4 `reasoning` iff the row spells `reasoning_effort`; a
