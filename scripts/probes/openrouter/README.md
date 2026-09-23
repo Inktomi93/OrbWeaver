@@ -16,6 +16,7 @@ readable. Subject docs: `docs/history/design/openrouter-provider-findings.md` ·
 | `or7` | is replaying a reasoning block a hard 400? | $0.02 |
 | `or7b` | is dropping reasoning still safe on a multi-hop tool chain? | $0.06 |
 | `or8` | which layout of adjacent same-role rows keeps the prior call's cache entry readable? (both wires; needs `ANTHROPIC_PROBE_KEY` or `ANTHROPIC_API_KEY`) | $0.04 OR + ~$0.04 native |
+| `or9` | with signed thinking carried on each reply, which same-role-run layout is accepted and keeps the cache? (three wires, sonnet-5 and opus-5-5; `OR9_WIRES`/`OR9_MODELS`/`OR9_VARIANTS` narrow a re-run) | ~$0.8 OR + ~$0.7 native |
 
 ```sh
 node scripts/probes/openrouter/run.ts                 # the batch (skips probes with a completed run)
