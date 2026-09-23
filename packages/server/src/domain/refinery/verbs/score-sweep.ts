@@ -38,9 +38,9 @@ import type { RefineryScorePayload, RefineryScoreSweepResult, RefinerySelection 
 import { REFINERY_STAGE_PAYLOADS } from "@orb/contracts/refinery";
 import type { RoleClients, StructuredOptions } from "@orb/contracts/role-clients";
 import type { ReportProgress } from "@orb/contracts/workloads";
+import type { SideGenSampling } from "@orb/inference";
 import { runStructuredTurn } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
-import type { SideGenSampling } from "@orb/kit/side-gen-posture";
 import { estimateTokens } from "@orb/kit/tokens";
 import type { RefineryScoreTarget } from "#domain/character";
 import { getLog } from "#foundation/observability";

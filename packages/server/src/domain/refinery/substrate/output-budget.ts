@@ -26,8 +26,8 @@
 import type { SideGenPosture } from "@orb/contracts/preset";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { RefineryRewriteMode, RefineryStage } from "@orb/contracts/refinery";
-import type { SideGenSampling } from "@orb/kit/side-gen-posture";
-import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
+import type { SideGenSampling } from "@orb/inference";
+import { resolveSideGenSampling } from "@orb/inference";
 import { estimateTokens } from "@orb/kit/tokens";
 import type { StageBudgetFitArgs, StageBudgetMisfit, StageEstimateSubject, StageOutputBudgetArgs, StageSamplingArgs } from "../contract/prompts.ts";
 import type { RefinerySessionView } from "../contract/results.ts";

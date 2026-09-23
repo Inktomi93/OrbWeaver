@@ -8,14 +8,14 @@
 //   • resolveChatPresetParams(chatId)  — the chat HOST's default preset params (chat-scoped sites: smart
 //     arbitration, quiet-generate/compaction, extract-quiet). Hostless/stale room ⇒ the floor (no rung).
 //
-// The result is the pure `SideGenSampling` subset the `@orb/kit/side-gen-posture` resolver folds — a preset's
+// The result is the pure `SideGenSampling` subset the `@orb/inference` side-gen resolver folds — a preset's
 // full `UserIntent` is structurally a superset, so `.params` is handed through verbatim (the resolver reads
 // only temperature/topP/maxOutputTokens and ignores the rest). Owns no business logic.
 
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import type { SideGenSampling } from "@orb/inference";
 import type { ChatId, PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { SideGenSampling } from "@orb/kit/side-gen-posture";
 import type { PresetService } from "#domain/preset";
 import { PresetNotFoundError } from "#domain/preset";
 import type { SettingsService } from "#domain/settings";

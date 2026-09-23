@@ -6,10 +6,9 @@
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { refinerySchemaDocumentSchema } from "@orb/contracts/refinery";
 import type { StructuredOptions } from "@orb/contracts/role-clients";
-import { runStructuredTurn, StructuredOutputError } from "@orb/inference";
+import { resolveSideGenSampling, runStructuredTurn, StructuredOutputError } from "@orb/inference";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { liftJsonSchema, projectJsonSchema } from "@orb/kit/json-schema";
-import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
 import type { RefineryContext } from "../context.ts";
 import { RefineryRunFailedError } from "../contract/errors.ts";
 import type { RefineryService } from "../contract/service.ts";

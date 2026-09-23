@@ -9,10 +9,9 @@
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { ResponseFormat, StructuredOptions } from "@orb/contracts/role-clients";
-import { runStructuredTurn, StructuredOutputError } from "@orb/inference";
+import { resolveSideGenSampling, runStructuredTurn, StructuredOutputError } from "@orb/inference";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
-import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
 import { z } from "zod";
 import type { DiscoveryContext } from "../context.ts";
 import type { AskCardAnswer, CharacterComparison, CharacterComparisonDeep, ComparisonNarrative } from "../contract/results.ts";

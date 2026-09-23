@@ -15,7 +15,7 @@ import type { ProviderExecutor } from "../contract/backend.ts";
 import { ProviderError } from "../contract/errors.ts";
 import type { ResolvedEmbedKnobs } from "../contract/resolve.ts";
 import type { Resolved } from "../contract/resolved.ts";
-import type { EmbedRequest, RoleClientsWithSignal, SideGenSampling, StructuredCallOptions, SummarizeCallOptions } from "../contract/roles.ts";
+import type { EmbedRequest, RoleClientsWithSignal, StructuredCallOptions, SummarizeCallOptions, TaskSampling } from "../contract/roles.ts";
 import type { RoleClientsFor } from "../contract/runtime.ts";
 import type { BindingActor, InferenceDeps } from "../deps.ts";
 import { resolveEmbed } from "../funnel/resolve-embed.ts";
@@ -28,7 +28,7 @@ type DeriveTask = (typeof DERIVE_TASKS)[number];
 
 /** The caller's options onto the backend request. The role surface speaks `maxOutputTokens` (the posture
  *  vocabulary); the backend request keeps `maxTokens`, so this is the one place the name changes. */
-function samplerFields(opts: SummarizeCallOptions | undefined): SideGenSampling {
+function samplerFields(opts: SummarizeCallOptions | undefined): TaskSampling {
   return {
     ...(opts?.maxOutputTokens !== undefined ? { maxTokens: opts.maxOutputTokens } : {}),
     ...(opts?.temperature !== undefined ? { temperature: opts.temperature } : {}),

@@ -9,6 +9,7 @@ import type { RoleClients } from "@orb/contracts/role-clients";
 import type { UserSettings } from "@orb/contracts/settings";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
+import type { SideGenSampling } from "@orb/inference";
 import type {
   CharacterId,
   CharacterKeywordProfileId,
@@ -19,7 +20,6 @@ import type {
   ThemeClusterId,
   UserId,
 } from "@orb/kit/ids";
-import type { SideGenSampling } from "@orb/kit/side-gen-posture";
 // Type-only cross-feature SHAPE imports (depcruise domain-no-cross-feature: type-only across features is
 // allowed; the runtime op is wired at the entry composition root). discovery imports no embeddings/tag/stats
 // runtime — only the SHAPE of the injected ops it composes.
