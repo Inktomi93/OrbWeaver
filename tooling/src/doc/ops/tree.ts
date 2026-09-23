@@ -98,10 +98,30 @@ export function writeDoc(path: string, source: string, repoRoot = root): void {
   writeFileSync(abs, formattedDoc(source));
 }
 
-/** Every tracked TEXT file's path, for the literal path rewrite `archive` does. */
+/** Every tracked TEXT file's path, for the path rewrites `archive` and a retitling `set` do. */
 export function trackedTextFiles(repoRoot = root): readonly string[] {
   const out = git(repoRoot, ["ls-files", "-z"]);
   return out === null ? [] : out.split("\0").filter((path) => path !== "" && /\.(?:md|ts|tsx|js|cjs|mjs|json|yaml|yml|sh)$/u.test(path));
+}
+
+/** The tracked text files plus the governed docs, which a fresh mint may not have tracked yet. */
+export function textFiles(repoRoot = root): readonly string[] {
+  return [...new Set([...trackedTextFiles(repoRoot), ...governedPaths(repoRoot)])].filter((path) => existsSync(join(repoRoot, path)));
+}
+
+/** Apply `rewrite` to every text file and write the ones it changes; returns their paths. */
+export function rewriteTextFiles(rewrite: (path: string, source: string) => string, repoRoot = root): readonly string[] {
+  const touched: string[] = [];
+  for (const path of textFiles(repoRoot)) {
+    const abs = join(repoRoot, path);
+    const source = readFileSync(abs, "utf8");
+    const next = rewrite(path, source);
+    if (next !== source) {
+      writeFileSync(abs, next);
+      touched.push(path);
+    }
+  }
+  return touched;
 }
 
 export function isMainBranch(repoRoot = root): boolean {

@@ -21,8 +21,10 @@ Every structural change goes through `pnpm doc` (run `pnpm doc help` for the ver
 and supersession, work-item transitions and landing, archiving, `review`, and the generated indexes
 (`README.md` in each home, a plan's `tasks.md`). A mint takes its section text and state as flags
 (`item` takes `--what --why --done --lane --blocked`, or `--from <file.json>` for a batch; `new adr|plan`
-take a flag per section) and refuses text the check would red. Never edit a generated file or a
-frontmatter block by hand. `pnpm check:agents` reds a stale index, a missing section, a size cap, a
+take a flag per section) and refuses text the check would red. `set` also changes `--kind` and
+`--title` (renaming the file and its links) and clears a field with `none`; `remove <id…>` deletes a
+mistaken item; `status --kind` fixes a law doc's kind. Never edit a generated file or a frontmatter
+block by hand. `pnpm check:agents` reds a stale index, a missing section, a size cap, a
 dead link or path, and a writing-rule finding; its message names the fixing command.
 
 ## Frontmatter

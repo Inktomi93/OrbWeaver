@@ -52,7 +52,18 @@ test("set takes a leading run of ids, the state last, and only the flags it was 
     status: "superseded",
     paths: ["docs/adr/0001-a.md"],
     by: "docs/adr/0002-b.md",
+    docKind: null,
   });
+  expect(parseDocCommand(["status", "active", "docs/law/x.md", "--kind", "law"])).toEqual({
+    kind: "status",
+    status: "active",
+    paths: ["docs/law/x.md"],
+    by: null,
+    docKind: "law",
+  });
+  expect(parseDocCommand(["set", "3", "--kind", "work", "--plan", "none"])).toEqual({ kind: "set", ids: [3], patch: { kind: "work", plan: null } });
+  expect(parseDocCommand(["set", "3", "open", "--title", "A new title"])).toEqual({ kind: "set", ids: [3], patch: { state: "open", title: "A new title" } });
+  expect(parseDocCommand(["remove", "3", "4"])).toEqual({ kind: "remove", ids: [3, 4] });
   expect(parseDocCommand(["review", "docs/law/*.md"])).toEqual({ kind: "review", patterns: ["docs/law/*.md"] });
   expect(parseDocCommand(["due"])).toEqual({ kind: "due", patterns: [] });
   expect(parseDocCommand([])).toEqual({ kind: "help" });
@@ -70,6 +81,11 @@ test("misuse is a UsageError: an unknown verb, a bad slug, a missing required fl
     ["set", "1", "done", "--bogus", "y"],
     ["set", "one", "done"],
     ["set", "1", "sideways"],
+    ["set", "1"],
+    ["set", "1", "2", "--title", "One title for two items"],
+    ["set", "1", "--kind", "adr"],
+    ["remove"],
+    ["remove", "x"],
   ]) {
     expect(() => parseDocCommand(argv)).toThrow(UsageError);
   }
