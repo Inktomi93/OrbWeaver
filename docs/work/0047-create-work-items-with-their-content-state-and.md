@@ -11,6 +11,7 @@ area: tooling
 ## What
 
 Extend `pnpm doc item`:
+
 - It takes `--what`, `--why` and `--done`, plus the state flags `--blocked`, `--lane` and `--plan`, so one
   call writes a complete item.
 - It takes `--from <file.json>`: an array of items created in one batch, all or nothing, with one index

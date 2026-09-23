@@ -1,10 +1,9 @@
 ---
 kind: tooling
-status: blocked
+status: open
 updated: 2026-09-23
 priority: P2
 area: verify
-blocked: on 43
 ---
 
 # Write a real-corpus liveness pin for every final policy that lacks one

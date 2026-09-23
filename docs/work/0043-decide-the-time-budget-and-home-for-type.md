@@ -12,6 +12,15 @@ area: verify
 
 Decide where the real-corpus pins for `analysis: "types"` policies run. One type-graph corpus over `@client` pushed the existing suite past the integration timeout. Options: one shared type-graph corpus in its own `.repo.int` file with its own budget; that file in `--full` only; or per-family files. Recommended default: one shared corpus, its own file, run in `--full`.
 
+Owner ruling: mirror the verify runtime's shared design in the test. Verify loads each compiler world
+once and runs every policy through one walker. The pins should work the same way:
+
+- One liveness runner builds each distinct corpus once per run, including one shared type graph per
+  world.
+- It runs every pin against the corpus it shares, instead of a project per file or per family.
+- The pins stay data (`RealCorpusLivenessArm` rows) that the runner collects.
+- The tier is set by the measured cost of that single shared run after it is built.
+
 ## Why
 
 Item 0042 cannot finish the type-aware policies until this is ruled. The mechanism already supports `types: true`; only the schedule is open.
