@@ -28,8 +28,7 @@ export const TAG_FOLDER_TYPES = ["NONE", "OPEN", "CLOSED"] as const;
 // `case` of an exhaustive switch over the `z.infer` alias as `lint/suspicious/noUnnecessaryConditions`
 // "unreachable" (`character-list-view.ts`'s `groupStartsOpen` is the live dispatch); the probe that called
 // this fixed ran under /tmp, where zod does not resolve, against `lint/correctness/noUnreachable`. Reproduce
-// from an untracked file under `packages/contracts/src/` (recorded:
-// `docs/work/0033-retract-the-stale-biome-inference-rationale-on-the.md`). `satisfies` is only a one-way
+// from an untracked file under `packages/contracts/src/`. `satisfies` is only a one-way
 // assignability check; the `zod-output-twin-parity` gate proves exact parity.
 export type TagFolderType = (typeof TAG_FOLDER_TYPES)[number];
 export const tagFolderTypeSchema = z.enum(TAG_FOLDER_TYPES) satisfies z.ZodType<TagFolderType>;
