@@ -210,6 +210,32 @@ test("the grant screen names every declared permission, its consequence, and the
   await expect(page.getByText("It will be installed turned off.", { exact: false })).toBeVisible();
 });
 
+test("the grant screen shows the owner-ruled ui.frame consent line verbatim, naming the granted-data reach (#106)", async ({ mount, page }) => {
+  // A consent artifact, not tunable copy: frames relay host calls, so the line must say a frame can use this
+  // plugin's other granted data and send it out over a channel no policy closes. Pinned whole, so a softened
+  // edit goes red here.
+  await routeTrpc(page, { "plugin.list": () => [], "plugin.listSurfaces": () => [], "sessions.me": () => USER_VIEWER });
+  await mount(<PluginsSurfaceStory />);
+  await pickBundle(page, {
+    id: "frame-plugin",
+    name: "Frame Plugin",
+    version: "1.0.0",
+    hostVersion: 1,
+    entry: "main.js",
+    description: "Draws its own board.",
+    capabilities: ["ui.surface", "ui.frame"],
+  });
+
+  await expect(page.getByText("Frame Plugin 1.0.0")).toBeVisible();
+  await expect(page.getByText("Show its own screens in an isolated frame")).toBeVisible();
+  await expect(
+    page.getByText(
+      "runs its own interface code in an isolated frame — it can draw anything inside its box, use anything else this plugin is allowed to read, and send it out through browser channels no policy closes.",
+      { exact: false },
+    ),
+  ).toBeVisible();
+});
+
 test("the grant screen shows the ui.surface consent line when a plugin declares its own surfaces (#679 U0)", async ({ mount, page }) => {
   // THE U0 DONE-CRITERIA: a plugin declaring `ui.surface` reaches the consent screen with the new line, in the
   // person's own words — the whole point of landing the capability member ahead of its rendering surface (U1).
