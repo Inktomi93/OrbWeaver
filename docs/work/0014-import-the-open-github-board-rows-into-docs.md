@@ -1,10 +1,11 @@
 ---
 kind: work
-status: open
+status: done
 updated: 2026-09-23
 priority: P1
 area: docs
 plan: doc-migration
+evidence: 3b2331d4159b4c6d383f6367cbd6d82f1f12a75b
 ---
 
 # Import the open GitHub board rows into docs/work before the board tool is removed
@@ -31,4 +32,6 @@ lists both sets. `pnpm doc overview` shows the imported rows. Item 0013 can star
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The closing commit's body holds the import table: each open board row with its new item, or the reason
+it was not imported. Imported: items 0048 to 0060. Not imported: rows the tree already satisfies, a
+stale census, and a watch whose only control is recorded in `packages/kit/src/card-frame/index.ts`.
