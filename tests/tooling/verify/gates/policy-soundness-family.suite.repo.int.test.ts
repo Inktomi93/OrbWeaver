@@ -21,7 +21,13 @@ import { Node, Project, SyntaxKind, Type } from "ts-morph";
 import { vi } from "vitest";
 import { getWorkspace } from "../../../../tooling/src/_shared/ts-workspace.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
-import { finalProbeModule, ORDINARY_TRUNK, POLICY_CONTRACT_PATH, POLICY_CONTRACT_STUB } from "../../../../tooling/src/verify/gates/_proof/policy-soundness.ts";
+import {
+  finalProbeModule,
+  HARD_TRUNK,
+  ORDINARY_TRUNK,
+  POLICY_CONTRACT_PATH,
+  POLICY_CONTRACT_STUB,
+} from "../../../../tooling/src/verify/gates/_proof/policy-soundness.ts";
 import { gate as policyBindingResolution } from "../../../../tooling/src/verify/gates/policy-binding-resolution.ts";
 import { gate as policyFamilyReaders } from "../../../../tooling/src/verify/gates/policy-family-readers.ts";
 import { gate as policyFixtureSubstrate } from "../../../../tooling/src/verify/gates/policy-fixture-substrate.ts";
@@ -389,12 +395,18 @@ test.each([
   expect(result.authority.withheldPolicyIds).toEqual(expected.refusal ? [policyLegacyImports.id] : []);
 });
 
+// The subject is a planted policy whose proof row builds `messageIncludes` from the real `PACKAGE_NAMES`. A
+// live gate cannot be the subject: once its row stops reading the vocabulary, the opaque-effect control below
+// has nothing to reach and reds with the gate under test intact.
+const VOCABULARY_PROBE_FIELDS = `${HARD_TRUNK}
+  mustFlag: [{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1, messageIncludes: \`tests/{\${PACKAGE_NAMES.join(",")}}/\` }, why: "w" }],`;
+
 test("policy-proof-expectations reads the actual package vocabulary and refuses an opaque effect on its source", ({ repoRoot }) => {
-  const policyPath = "tooling/src/verify/gates/test-layout.ts";
+  const policyPath = "tooling/src/verify/gates/probe.ts";
   const vocabularyPath = "tooling/src/_shared/project-worlds.ts";
   const files = {
     [POLICY_CONTRACT_PATH]: POLICY_CONTRACT_STUB,
-    [policyPath]: readFileSync(join(repoRoot, policyPath), "utf8"),
+    [policyPath]: finalProbeModule(VOCABULARY_PROBE_FIELDS, 'import { PACKAGE_NAMES } from "../../_shared/project-worlds.ts";\n'),
     [vocabularyPath]: readFileSync(join(repoRoot, vocabularyPath), "utf8"),
     "tooling/src/_shared/test-kinds.ts": readFileSync(join(repoRoot, "tooling/src/_shared/test-kinds.ts"), "utf8"),
   };

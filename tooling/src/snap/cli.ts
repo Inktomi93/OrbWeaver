@@ -25,6 +25,7 @@ import {
   runSessionAdmin,
   runSessionCall,
   SNAP_HELP,
+  sessionRouteErrors,
   snap,
   snapContexts,
   snapMatrix,
@@ -104,7 +105,7 @@ export async function main(opts: Args, argv: readonly string[]): Promise<number>
   if (reportExit !== null) {
     return reportExit;
   }
-  opts.errors.push(...modalModeErrors(opts, argv));
+  opts.errors.push(...modalModeErrors(opts, argv), ...sessionRouteErrors(opts));
   const cliExit = printCliPreamble(opts);
   if (cliExit !== null) {
     return cliExit;
