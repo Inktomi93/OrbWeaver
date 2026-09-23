@@ -7,7 +7,7 @@
 
 import type { CredentialView } from "@orb/contracts/credentials";
 import type { ProviderId } from "@orb/contracts/inference";
-import type { UserId } from "@orb/kit/ids";
+import type { UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { CredentialsService } from "@orb/server/domain/credentials";
 import { logger } from "@orb/server/foundation/observability";
@@ -91,5 +91,18 @@ describe("credentials — CredentialView output boundary", () => {
     const logged = `${(cause as Error).message} ${JSON.stringify(cause)}`;
     expect(logged).toContain("ciphertext");
     expect(logged).not.toContain(SEALED_SECRET);
+  });
+
+  test("a secret mapped into the id field is refused without the log echoing it", async () => {
+    const log = vi.spyOn(logger, "error");
+    // Shaped to reach typeid-js's prefix-mismatch path, whose own message echoes everything before the last `_`.
+    const secretId = `sk_live_${SEALED_SECRET.replaceAll("-", "_")}_01jz0000000000000000000000`;
+    const misMapped = { ...VIEW, id: castId<UserCredentialId>(secretId) };
+    const list = vi.fn<CredentialsService["list"]>(async () => [misMapped]);
+
+    await expect(caller(ctxWith({ list })).credentials.list()).toThrowTRPCError("INTERNAL_SERVER_ERROR");
+    const [bindings] = log.mock.calls[0] as [Record<string, unknown>, ...unknown[]];
+    const cause = bindings["err"] as Error;
+    expect(`${cause.message} ${JSON.stringify(cause)}`).not.toContain("sealed_ciphertext");
   });
 });
