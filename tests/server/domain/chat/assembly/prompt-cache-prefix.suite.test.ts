@@ -1,14 +1,18 @@
 // The prompt-cache prefix invariant across two calls of one chat: every block call N marked, and every block
 // above it, reappears byte for byte and ends at the same place in call N+1. Each case builds both calls
-// through the real SHAPE and resolves the marked rows with the runner's own depth counter, so a squash that
-// moves a cached block reds here.
+// through the real SHAPE (and the real PROMPT_HISTORY leg) and resolves the marked rows with the runner's own
+// depth counter, so a squash or a depth-scoped rewrite that moves a cached block reds here.
 
 import type { ChatInjection } from "@orb/contracts/chat";
 import type { RoleHandling } from "@orb/contracts/inference";
 import { rowIndexAtCacheDepth } from "@orb/inference";
 import type { CharacterId, MessageId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { describe } from "vitest";
+import type { ProcessMacroOptions } from "@orb/kit/macro";
+import type { RegexHistoryDepth } from "@orb/kit/regex";
+import { HISTORY_DEPTH_PLACEMENT } from "@orb/kit/regex";
+import { describe, vi } from "vitest";
+import { applyPromptHistoryRegex } from "../../../../../packages/server/src/domain/chat/assembly/history-regex.ts";
 import { BEFORE_HISTORY_DEPTH } from "../../../../../packages/server/src/domain/chat/assembly/injections.ts";
 import { shape } from "../../../../../packages/server/src/domain/chat/assembly/shape.ts";
 import { convertsToEmptyWireRow } from "../../../../../packages/server/src/domain/chat/substrate/wire-history.ts";
@@ -200,5 +204,43 @@ describe("a solo chat is byte-identical on a caching wire (golden)", () => {
     expect(blocks(call(true).history)).toEqual(golden);
     expect(blocks(call(false).history)).toEqual(golden);
     expect(call(true).cacheBreakpointFromEnd).toBe(call(false).cacheBreakpointFromEnd);
+  });
+});
+
+describe("a depth-scoped PROMPT_HISTORY script never rewrites a block above the pin (F6)", () => {
+  const macroCtx: ProcessMacroOptions = { char: "Aria", user: "Alex", persona: "", scenario: "", env: {} };
+  const regexEnv = (historyDepth: RegexHistoryDepth): Parameters<typeof applyPromptHistoryRegex>[1] => ({
+    scripts: [{ enabled: true, placement: [HISTORY_DEPTH_PLACEMENT], findRegex: "secret", replaceString: "[cut]", historyDepth }],
+    macroCtx,
+    applyReplace: (text, regex, replacer): string => text.replace(regex, replacer),
+    onScriptFailure: vi.fn(),
+  });
+  const turnRows = (count: number): CanonRow[] =>
+    Array.from({ length: count }, (_, index) =>
+      index % 2 === 0 ? canonRow("user", `u${index} secret`, "Alex") : canonRow("assistant", `a${index} secret`, "Aria", MARA),
+    );
+  const history = turnRows(12);
+
+  // A bounded window (rows leave it as the history grows) and a floor-only window (rows enter it).
+  for (const historyDepth of [
+    { min: 0, max: 4 },
+    { min: 1, max: 2 },
+    { min: 3, max: null },
+  ] satisfies RegexHistoryDepth[]) {
+    test(`window ${JSON.stringify(historyDepth)}: the next send repeats the cached prefix`, () => {
+      const send = (count: number): Shaped =>
+        shape(
+          claudeCall(applyPromptHistoryRegex(history.slice(0, count), regexEnv(historyDepth)), {
+            floor: "strict",
+            speakers: { user: "Alex", assistant: "Aria" },
+          }),
+        );
+      expect(prefixLeaks([send(7), send(9), send(11)])).toEqual([]);
+    });
+  }
+
+  test("the rewrite still reaches the rows inside its window", () => {
+    const rows = applyPromptHistoryRegex(history.slice(0, 7), regexEnv({ min: 0, max: 1 }));
+    expect(rows.map((row) => row.content)).toEqual(["u0 secret", "a1 secret", "u2 secret", "a3 secret", "u4 secret", "a5 [cut]", "u6 [cut]"]);
   });
 });
