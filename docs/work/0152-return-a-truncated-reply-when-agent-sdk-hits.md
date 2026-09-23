@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: done
 updated: 2026-09-23
 priority: P3
 area: inference
+evidence: 71680dc3a
 ---
 
 # Return a truncated reply when agent-sdk hits the output cap
