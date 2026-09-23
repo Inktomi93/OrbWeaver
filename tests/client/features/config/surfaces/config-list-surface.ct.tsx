@@ -361,7 +361,7 @@ test("the retired launcher landing is gone, and the nothing-active arm is the se
 // said in words that regex scripts had none, "their portable unit being the card that carries them". That
 // was the `{ ruled }` cell's reasoning, and the owner's ruling ended it. TAGS still have none, which is what
 // keeps this test load-bearing: the band must not grow a dead trigger for a collection with no door.
-// D121(D) SURVIVES WITH A CHANGED INPUT (#1725). Its ruling is `band=Import · kebab=Export`, and the band
+// D212 SURVIVES WITH A CHANGED INPUT (#1725). Its ruling is `band=Import · kebab=Export`, and the band
 // was named because in this workspace the group band WAS the collection's only chrome. The library has a
 // pane now, so Import is its control row's overflow item — one home, in the pane the reader is looking at,
 // and still never a bare button beside the primary. What the ruling actually protects is untouched: Import

@@ -1,5 +1,5 @@
 // The ONE offset→authored-position reader for a TEXT-SCAN policy — the shared computation of the
-// citation family (`d-citation-integrity`, `pd-citation-integrity`, `dangling-doc-cite`).
+// citation family (`d-citation-integrity`, `dangling-doc-cite`).
 //
 // WHY IT IS SHARED AND NOT THREE SPELLINGS. All three judge a lexeme found by scanning RAW TEXT rather
 // than by visiting a node, so none of them has a node to report and none can use the node overload's

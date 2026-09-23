@@ -6,7 +6,7 @@
 // no exemption grammar at all. This header may not spell a live example path — the gate would flag itself.
 //
 // FAMILY: `text-citation`, the shared reader `lib/text-cite-scan.ts#scanTextCitations`, with
-// `d-citation-integrity` and `pd-citation-integrity`. All three scan RAW TEXT and need the same
+// `d-citation-integrity`. Both scan RAW TEXT and need the same
 // offset→authored-position answer; this module is the one whose text is COMMENT text on both sides.
 //
 // POPULATION PORT (legacy SHA `1f5e25c00`, verified byte-identical to HEAD at conversion). Arm A walked
