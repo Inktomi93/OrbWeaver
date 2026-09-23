@@ -33,6 +33,8 @@
 import type { AutomationAction } from "@orb/contracts/automation";
 import { ANALYSIS_REWRITE_ISSUE_MAX, ANALYSIS_REWRITE_MAX, ANALYSIS_SCORE_MAX } from "@orb/contracts/automation";
 import type { AutomationRuleId, ChatId, MessageId, MessageVariantId, UserId, WorldBookId } from "@orb/kit/ids";
+import type { WireReady } from "@orb/kit/json-schema";
+import { projectJsonSchema } from "@orb/kit/json-schema";
 import { z } from "zod";
 
 /** The `run_analysis` arm as stored/dispatched (the parsed schema member — one home, derived). */
@@ -208,7 +210,7 @@ const payloadBase = {
  *  disabled ones. Piping through this stable envelope gives the body-bearing factory an exact authored output
  *  without changing bytes; route-specific requiredness remains the public generic overload's narrower face.
  *  Its identity transforms only narrow the arrays to readonly, so it is the PARSE face and is never
- *  projected; the wire is {@link buildAnalysisWireSchema}. */
+ *  projected; the wire is {@link projectAnalysisWireSchema}. */
 const analysisPayloadEnvelopeSchema = z.object({
   ...payloadBase,
   twistOps: twistOpsSchema.transform((ops): AnalysisPayload["twistOps"] => ops),
@@ -250,10 +252,10 @@ type AnalysisWireRouteShape = Partial<{
 type AnalysisWireShape = typeof payloadBase & AnalysisWireRouteShape;
 
 /** Build the pass's WIRE object FROM the enabled routes: exactly the fields the model may emit, each one
- *  required. Its projected JSON Schema is the wire `responseFormat` (an enforcing vehicle cannot emit a
- *  disabled field), and it is the input half of {@link buildAnalysisPayloadSchema}, so both halves of the
- *  needle wall stay one composition. It holds no transform, because `z.toJSONSchema` throws on one. */
-export function buildAnalysisWireSchema(routes: AnalysisRoutes): z.ZodObject<AnalysisWireShape> {
+ *  required. It is the input half of {@link buildAnalysisPayloadSchema} and the source of
+ *  {@link projectAnalysisWireSchema}, so both halves of the needle wall stay one composition. It holds no
+ *  transform, because `z.toJSONSchema` throws on one. */
+function buildAnalysisWireObject(routes: AnalysisRoutes): z.ZodObject<AnalysisWireShape> {
   const routeShape: AnalysisWireRouteShape = {};
   if (routes.steer !== undefined) {
     routeShape.guidance = analysisGuidanceSchema;
@@ -273,6 +275,13 @@ export function buildAnalysisWireSchema(routes: AnalysisRoutes): z.ZodObject<Ana
   return z.object({ ...payloadBase, ...routeShape });
 }
 
+/** The pass's wire `responseFormat` schema FOR the enabled routes: an enforcing vehicle cannot emit a
+ *  disabled field (the needle's wire half). Projected from the wire object, never from the payload pipe,
+ *  whose output face is the all-optional envelope. */
+export function projectAnalysisWireSchema(routes: AnalysisRoutes): WireReady {
+  return projectJsonSchema(buildAnalysisWireObject(routes));
+}
+
 /** Build the pass's payload validator FROM the enabled routes: the wire object piped into the envelope. The
  *  zod is the server-side wall (a non-enforcing vehicle's stray field is stripped here before any applier
  *  runs — the needle pin's model-independent receipt). Never project this one; its output face is the
@@ -283,7 +292,7 @@ export function buildAnalysisWireSchema(routes: AnalysisRoutes): z.ZodObject<Ana
 // proves. End this split when TypeScript can infer the value-dependent route shape without a 32-arm branch set.
 export function buildAnalysisPayloadSchema<TRoutes extends AnalysisRoutes>(routes: TRoutes): z.ZodType<AnalysisPayloadForRoutes<TRoutes>>;
 export function buildAnalysisPayloadSchema<TRoutes extends AnalysisRoutes>(routes: TRoutes): z.ZodType<AnalysisPayload | AnalysisPayloadForRoutes<TRoutes>> {
-  return buildAnalysisWireSchema(routes).pipe(analysisPayloadEnvelopeSchema);
+  return buildAnalysisWireObject(routes).pipe(analysisPayloadEnvelopeSchema);
 }
 
 /** The parsed pass payload. Route-gated fields are optional at the TYPE level (they exist only when their

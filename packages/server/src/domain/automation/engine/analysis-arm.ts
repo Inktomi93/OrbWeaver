@@ -49,7 +49,6 @@ import type { ProseOverrides } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import { runStructuredTurn, StructuredOutputError } from "@orb/inference";
-import { projectJsonSchema } from "@orb/kit/json-schema";
 import type { VarOp } from "@orb/kit/macro";
 import { neutralizeMacros, setVarKey } from "@orb/kit/macro";
 import { sha256Hex } from "@orb/server/kit/content-hash";
@@ -71,8 +70,8 @@ import {
   ANALYSIS_PROTECT_TAIL,
   ANALYSIS_SETTLED_SLICE_MAX,
   buildAnalysisPayloadSchema,
-  buildAnalysisWireSchema,
   mergeAnalysisState,
+  projectAnalysisWireSchema,
 } from "../contract/analysis.ts";
 import type { ArmExecutorDeps, ArmOutcome, ChatScopedDispatchFrame } from "../contract/ops.ts";
 import { latestAuditableReply, listAnalysisWindow, maxVisibleSeq } from "../persistence/canon-reads.ts";
@@ -467,7 +466,7 @@ function runModelPass(
   args: { readonly routes: AnalysisRoutes; readonly systemPrompt: string; readonly userPrompt: string },
 ): Promise<AnalysisPayload> {
   const payloadSchema = buildAnalysisPayloadSchema(args.routes);
-  const responseFormat: ResponseFormat = { name: RESPONSE_FORMAT_NAME, schema: projectJsonSchema(buildAnalysisWireSchema(args.routes)) };
+  const responseFormat: ResponseFormat = { name: RESPONSE_FORMAT_NAME, schema: projectAnalysisWireSchema(args.routes) };
   return runStructuredTurn<AnalysisPayload>({
     payloadSchema,
     run: (correction) =>

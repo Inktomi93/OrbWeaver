@@ -6,7 +6,6 @@
 // schema projects from).
 
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { projectJsonSchema } from "@orb/kit/json-schema";
 import { expectTypeOf } from "vitest";
 import type { z } from "zod";
 import type { AnalysisPayload, AnalysisRoutes, AnalysisState } from "../../../../../packages/server/src/domain/automation/contract/analysis.ts";
@@ -16,10 +15,10 @@ import {
   ANALYSIS_TWIST_CAP,
   ANALYSIS_TWIST_MAX,
   buildAnalysisPayloadSchema,
-  buildAnalysisWireSchema,
   EMPTY_ANALYSIS_STATE,
   mergeAnalysisState,
   parseAnalysisState,
+  projectAnalysisWireSchema,
 } from "../../../../../packages/server/src/domain/automation/contract/analysis.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
@@ -298,12 +297,12 @@ test("buildAnalysisPayloadSchema: every enabled route field remains required in 
   }
 });
 
-test("buildAnalysisWireSchema projects to the wire: exactly the authored routes' fields, all required", () => {
+test("projectAnalysisWireSchema: exactly the authored routes' fields, all required", () => {
   const base = ["arcStatus", "updatedArc", "successorArc", "twistOps"];
-  const all = projectJsonSchema(buildAnalysisWireSchema(ALL_ROUTES));
+  const all = projectAnalysisWireSchema(ALL_ROUTES);
   expect(Object.keys(all["properties"] as Record<string, unknown>).sort()).toEqual([...base, "guidance", "lore", "rewrite", "score", "suggestions"].sort());
   expect([...(all["required"] as string[])].sort()).toEqual([...base, "guidance", "lore", "rewrite", "score", "suggestions"].sort());
   // The needle's wire half: an un-authored vars route leaves `score` off the grammar entirely.
-  const steerOnly = projectJsonSchema(buildAnalysisWireSchema({ steer: { apply: "direct" } }));
+  const steerOnly = projectAnalysisWireSchema({ steer: { apply: "direct" } });
   expect(Object.keys(steerOnly["properties"] as Record<string, unknown>).sort()).toEqual([...base, "guidance"].sort());
 });
