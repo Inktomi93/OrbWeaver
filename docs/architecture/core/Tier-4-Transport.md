@@ -65,7 +65,7 @@ Wire schemas DERIVE from contract tuples (`z.enum(WORKLOAD_STATUSES)`, `chatApiS
 
 8. **The per-procedure tracing span (the trace root).** `tracingMiddleware` is FIRST so a 401/429 from a lower gate still shows the procedure name + outcome. A typed domain error resolves the span OK (the error is data, badged as an attribute); only an uncaught mid-handler throw marks it error. Every downstream db/provider span nests into `trpc.<path>`.
 
-9. **`listEndpointModels`/`inspectEndpoint` are `.mutation()` despite being reads.** They call a user-supplied `baseUrl` (SSRF surface), so they keep the CSRF gate tRPC applies to mutations. Do NOT demote to `.query()`.
+9. **`draftCatalogModels`/`inspectEndpoint` are `.mutation()` despite being reads.** They call a user-supplied `baseUrl` (SSRF surface), so they keep the CSRF gate tRPC applies to mutations. Do NOT demote to `.query()`.
 
 10. **Vector-write authority.** Embedding runs via the `embed-corpus`/`embed-assets` workload — per-user `singular` (a user re-embeds their OWN producers; the enumeration is owner-scoped) or box-owner `bulk` (all owners). Producer FKs are validated against the resolved owner, and the vector row carries NO `ownerId` to derive or spoof (D20 — `embeddings.store` takes producer FK refs, not an owner), so a caller-supplied-owner write is structurally impossible; owner-scope on READ derives via the producer FK (D20/D23).
 

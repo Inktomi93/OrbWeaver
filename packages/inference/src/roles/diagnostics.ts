@@ -8,9 +8,9 @@ import type { ProviderDiagnostics } from "../contract/diagnostics.ts";
 import type { Resolved } from "../contract/resolved.ts";
 import { requireBackend, requireMethod } from "../registry/dispatch.ts";
 
-type DiagnosticFn<Req extends { readonly connection: Resolved }, Res> = (req: Req) => Promise<Res>;
+type DiagnosticFn<Req extends { readonly connection: Pick<Resolved, "wire"> }, Res> = (req: Req) => Promise<Res>;
 
-function bind<Req extends { readonly connection: Resolved }, Res>(
+function bind<Req extends { readonly connection: Pick<Resolved, "wire"> }, Res>(
   registry: BackendRegistry,
   task: string,
   pick: (backend: ProviderBackend) => DiagnosticFn<Req, Res> | undefined,

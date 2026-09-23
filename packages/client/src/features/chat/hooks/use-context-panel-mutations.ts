@@ -17,6 +17,7 @@ import type { ChatId, ChatInjectionId } from "@orb/kit/ids";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
+import { trpcErrorReason } from "#lib";
 
 type ChatDetail = inferOutput<Trpc["chat"]["getChat"]>;
 
@@ -113,16 +114,6 @@ interface SetUserMacroValuesVars {
 
 type UserMacroPicks = inferOutput<Trpc["chat"]["getUserMacroPicks"]>;
 
-/** The refusal reason off a tRPC error's `data.reason` (the transport formatter's honest domain code,
- *  `transport/trpc/error-mapping.ts`), else `""`. The `use-refinery-mutations` / `turn-abort-notice` reader —
- *  the client keys on the structured wire field, never on message text. */
-function reasonOf(error: unknown): string {
-  const data = typeof error === "object" && error !== null && "data" in error ? (error as { data: unknown }).data : null;
-  return typeof data === "object" && data !== null && "reason" in data && typeof (data as { reason: unknown }).reason === "string"
-    ? (data as { reason: string }).reason
-    : "";
-}
-
 /**
  * `true` when a `setUserMacroValues` flush was refused because a `single-select`/`multi-select` pick names a
  * value the input does not declare (#1356). The refusal is TOTAL — the verb is a whole-column flush, so
@@ -130,7 +121,7 @@ function reasonOf(error: unknown): string {
  * pane renders it beside the control that was moved (WCAG 3.3.1) rather than letting it read as a fault.
  */
 export function isUnknownMacroPick(error: unknown): boolean {
-  return reasonOf(error) === USER_MACRO_UNKNOWN_PICK_OP_CODE;
+  return trpcErrorReason(error) === USER_MACRO_UNKNOWN_PICK_OP_CODE;
 }
 
 /**

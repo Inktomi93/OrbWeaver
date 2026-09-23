@@ -83,7 +83,8 @@ packages/inference/src/
 ├── resolve/          resolve-task.ts · precedence.ts (the binding fold) · availability.ts · coherence.ts · heal.ts
 ├── capability/       synthesize.ts (the evidence fold) · families.ts · floor.ts · sources/{advertised,
 │                     curated, measured} — the `declared` tier comes off the connection row, not a source dir
-├── catalog/          openrouter.ts · endpoint.ts · mirror.ts (the snapshot + TTL mirror)
+├── catalog/          listing.ts (the one model-list read, saved row or draft) · openrouter.ts · endpoint.ts ·
+│                     mirror.ts (the snapshot + TTL mirror)
 ├── funnel/           resolve-chat.ts · resolve-embed.ts — (intent × capability) → wire knobs
 ├── roles/            executor.ts · role-clients.ts · diagnostics.ts
 └── backends/         openai-compat/ · anthropic-messages/ · agent-sdk/ (+ session/) · local-light/ ·
