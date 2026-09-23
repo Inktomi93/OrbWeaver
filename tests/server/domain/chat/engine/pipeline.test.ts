@@ -9,6 +9,7 @@ import { DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_PROMPT_CONFIG, pipelineStepKey, RECE
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { ChatToolExecution, Resolved, ToolCallInput } from "@orb/inference";
+import { rowIndexAtCacheDepth } from "@orb/inference";
 import type { ContentImageRef, ContentSpan } from "@orb/kit/content";
 import { tokenizeContent } from "@orb/kit/content";
 import type { AssetId, CharacterId, ChatId, ChatTurnId, MessageId, ModelId, PersonaId, UserId } from "@orb/kit/ids";
@@ -16,6 +17,7 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { executeRegexScripts } from "@orb/kit/regex";
 import { getLog } from "@orb/server/foundation/observability";
 import { describe, vi } from "vitest";
+import { HISTORY_TRIM_CHUNK_FRACTION, historyTurnTokens } from "../../../../../packages/server/src/domain/chat/assembly/history-budget.ts";
 import { BEFORE_HISTORY_DEPTH } from "../../../../../packages/server/src/domain/chat/assembly/injections.ts";
 import { buildTurnUserMacros } from "../../../../../packages/server/src/domain/chat/assembly/user-macros.ts";
 import type { ChatToolOps, RunChatTurnOp } from "../../../../../packages/server/src/domain/chat/contract/context.ts";
@@ -149,6 +151,27 @@ function baseArgs(over: Partial<PipelineArgs> = {}): {
     ...over,
   };
   return { args, deltas };
+}
+
+type PipelineResult = Awaited<ReturnType<typeof runTurnPipeline>>;
+
+/** The history rows a prompt cache writes on this turn: every row up to the deepest breakpoint the runner places.
+ *  The runner pins depth d and d+2 (`computeCacheBreakpointPlacements`); the deeper one drops off a short history. */
+function cachedHead(result: PipelineResult): TurnRequest["history"] {
+  const depth = result.request.cacheBreakpointFromEnd;
+  if (depth === null) {
+    return [];
+  }
+  const rows = result.request.history;
+  const at = rowIndexAtCacheDepth(rows, depth + 2) ?? rowIndexAtCacheDepth(rows, depth);
+  return rows.slice(0, (at ?? -1) + 1);
+}
+
+/** Anthropic's cache is an exact prefix: turn N+1 reads turn N's history cache only when every row up to N's
+ *  deepest breakpoint repeats byte for byte, so each cached block still ends where it ended. */
+function readsPriorCache(prior: PipelineResult, next: PipelineResult): boolean {
+  const head = cachedHead(prior);
+  return head.length > 0 && JSON.stringify(next.request.history.slice(0, head.length)) === JSON.stringify(head);
 }
 
 describe("runTurnPipeline — reduce", () => {
@@ -520,21 +543,22 @@ describe("runTurnPipeline — request shaping + fit", () => {
     expect(result.droppedCount).toBeGreaterThan(0);
   });
 
+  const marker: ChatInjection = { position: "in_chat", depth: BEFORE_HISTORY_DEPTH, role: "user", content: "[Start a new chat]", origin: "new-chat-marker" };
+  const text = (m: TurnRequest["history"][number] | undefined): string => (m?.content ?? []).map((p) => (p.type === "text" ? p.text : "")).join("");
+  const slottedWithin = (window: number): typeof CONNECTION => ({
+    ...CONNECTION,
+    capability: makeCapability(
+      makeGenerationCapability({
+        ...CAPABILITY,
+        context: { window },
+        turns: { assistantPrefill: false, midConversationSystem: true, historySystemRows: true, roleHandlingFloor: "slotted", explicitPromptCache: true },
+      }),
+    ),
+  });
+
   // The new-chat marker marks the start of whatever history is delivered. It is the oldest row, so the fit
   // trimmed it first and the delivered history opened mid-conversation with no marker.
   describe("the new-chat marker survives the window fit", () => {
-    const marker: ChatInjection = { position: "in_chat", depth: BEFORE_HISTORY_DEPTH, role: "user", content: "[Start a new chat]", origin: "new-chat-marker" };
-    const text = (m: TurnRequest["history"][number] | undefined): string => (m?.content ?? []).map((p) => (p.type === "text" ? p.text : "")).join("");
-    const slottedWithin = (window: number): typeof CONNECTION => ({
-      ...CONNECTION,
-      capability: makeCapability(
-        makeGenerationCapability({
-          ...CAPABILITY,
-          context: { window },
-          turns: { assistantPrefill: false, midConversationSystem: true, historySystemRows: true, roleHandlingFloor: "slotted", explicitPromptCache: true },
-        }),
-      ),
-    });
     const slotted = slottedWithin(400);
 
     test("an over-budget chat still opens on the marker, and the breakpoint is placed", async () => {
@@ -567,6 +591,70 @@ describe("runTurnPipeline — request shaping + fit", () => {
       expect(result.droppedCount).toBe(0);
       expect(text(result.request.history[0])).toBe("[Start a new chat]");
       expect(typeof result.request.cacheBreakpointFromEnd).toBe("number");
+    });
+  });
+
+  // A chat at its context cap trims every turn. The cache is an exact prefix, so a head that moves every turn
+  // leaves only the static block cached; the fit trims in chunks and holds the head until the next chunk.
+  describe("a capped chat holds its trimmed head across turns", () => {
+    const cap = 4000;
+    const output = 128;
+    const turns = 40;
+    const first = 201;
+    const filler = "several words that spend tokens on every single row here";
+    const all = Array.from({ length: first + 2 * turns }, (_, i) => rowOf(i % 2 === 0 ? "user" : "assistant", `turn ${i} ${filler}`));
+    const turnAt = (t: number, canon: readonly MessageView[] = all.slice(0, first + 2 * t)): Promise<PipelineResult> =>
+      runTurnPipeline(
+        baseArgs({
+          canon: [...canon],
+          connection: slottedWithin(200_000),
+          intent: { maxContextTokens: cap, maxOutputTokens: output } satisfies UserIntent,
+          assembleContext: ctxOf({ chatInjections: [marker] }),
+        }).args,
+      );
+
+    test("the head bytes up to the deepest breakpoint repeat inside a chunk and move once per chunk, and the cap holds every turn", async () => {
+      const results: PipelineResult[] = [];
+      for (let t = 0; t <= turns; t += 1) {
+        results.push(await turnAt(t));
+      }
+      const overCap = results.flatMap((result, t) =>
+        result.droppedCount > 0 && result.fitUsedTokens <= cap && text(result.request.history[0]).startsWith("[Start a new chat]") ? [] : [t],
+      );
+      expect(overCap).toEqual([]);
+      // The boundary stamp feeds the next turn's recall live-window cutoff and the managed-compaction coverage
+      // point, so it must name the canon row the kept history opens on, on every turn, across each chunk move.
+      const boundaryDrift = results.flatMap((result, t) => {
+        const firstKept = all[result.droppedCount];
+        const opening = result.request.history.find((m) => text(m) !== "[Start a new chat]");
+        return result.contextBoundaryMessageId === firstKept?.id && text(opening).endsWith(firstKept.content) ? [] : [t];
+      });
+      expect(boundaryDrift).toEqual([]);
+      const transitions = results.slice(1).map((next, i) => {
+        const prior = results[i] ?? next;
+        return { turn: i + 1, moved: prior.droppedCount !== next.droppedCount, readsPrior: readsPriorCache(prior, next) };
+      });
+      // A held head is read back from the cache; a moved head is not. Nothing else may break the prefix.
+      expect(transitions.filter((step) => step.moved === step.readsPrior)).toEqual([]);
+      // Each turn adds two rows; the head moves only when that growth crosses a chunk boundary.
+      const chunk = Math.round(HISTORY_TRIM_CHUNK_FRACTION * (cap - output));
+      const growth = turns * 2 * historyTurnTokens({ content: `turn ${first} ${filler}` });
+      const moves = transitions.filter((step) => step.moved);
+      expect(moves.length).toBeGreaterThan(0);
+      expect(moves.length).toBeLessThanOrEqual(Math.ceil(growth / chunk));
+    });
+
+    test("a chat under its cap is left exactly as SHAPE delivered it", async () => {
+      const result = await turnAt(0, all.slice(0, 5));
+      expect(result.droppedCount).toBe(0);
+      expect(result.request.cacheBreakpointFromEnd).toBe(1);
+      expect(result.request.history).toEqual([
+        { role: "user", content: [{ type: "text", text: `[Start a new chat]\n\nturn 0 ${filler}` }] },
+        { role: "assistant", content: [{ type: "text", text: `turn 1 ${filler}` }] },
+        { role: "user", content: [{ type: "text", text: `turn 2 ${filler}` }] },
+        { role: "assistant", content: [{ type: "text", text: `turn 3 ${filler}` }] },
+        { role: "user", content: [{ type: "text", text: `turn 4 ${filler}` }] },
+      ]);
     });
   });
 
@@ -2363,7 +2451,7 @@ describe("runTurnPipeline — the §3 content-class wire plane", () => {
     expect(JSON.stringify(result.request.history)).toContain("multi-KB");
   });
 
-  test("M2 keep-last-X: X=0 stubs every card; X=1 keeps only the NEWEST full; X=2 the newest two (counted from the tail)", async () => {
+  test("M2 keep-last-X: X=0 stubs every card; X=1 keeps only the NEWEST full; X=2 holds a third card until two can stub", async () => {
     const cardBody = (n: number): string => `:::card title="c${n}"\n<p>blob${n}</p>\n:::`;
     // Alternating roles so SHAPE keeps three separate rows (same-role runs squash into one body).
     const canon = [userRow(cardBody(1)), rowOf("assistant", cardBody(2)), userRow(cardBody(3))];
@@ -2376,8 +2464,43 @@ describe("runTurnPipeline — the §3 content-class wire plane", () => {
     const x1 = await runTurnPipeline(baseArgs({ canon, cardKeepLastX: 1 }).args);
     expect(textsOf(x1.request.history)).toEqual(["[card: c1]", "[card: c2]", cardBody(3)]);
 
+    // The window stubs whole chunks of X, so one card past X stays full until a second one joins it.
     const x2 = await runTurnPipeline(baseArgs({ canon, cardKeepLastX: 2 }).args);
-    expect(textsOf(x2.request.history)).toEqual(["[card: c1]", cardBody(2), cardBody(3)]);
+    expect(textsOf(x2.request.history)).toEqual([cardBody(1), cardBody(2), cardBody(3)]);
+  });
+
+  // A stored card that leaves the keep-last-X window rewrites its row, and that row sits above the cache
+  // breakpoint. The window stubs whole chunks of X cards, so the rewrite lands once per X card-bearing turns.
+  describe("the keep-last-X window across card-bearing turns", () => {
+    const turns = 8;
+    const cardBody = (n: number): string => `:::card title="c${n}"\n<p>blob${n}</p>\n:::`;
+    const all = Array.from({ length: turns }, (_, k) => [userRow(`u${k}`), rowOf("assistant", cardBody(k))]).flat();
+    const runTurns = async (cardKeepLastX: number): Promise<PipelineResult[]> => {
+      const results: PipelineResult[] = [];
+      for (let t = 1; t <= turns; t += 1) {
+        results.push(await runTurnPipeline(baseArgs({ canon: [...all.slice(0, 2 * t), userRow(`u${t}`)], cardKeepLastX }).args));
+      }
+      return results;
+    };
+    const fullCards = (result: PipelineResult): number[] =>
+      Array.from({ length: turns }, (_, n) => n).filter((n) => historyText(result.request).includes(`<p>blob${n}</p>`));
+    const prefixBreaks = (results: readonly PipelineResult[]): number[] =>
+      results.slice(1).flatMap((next, i) => (readsPriorCache(results[i] ?? next, next) ? [] : [i + 2]));
+
+    test("X=2 keeps the newest two cards whole and stubs older cards two at a time", async () => {
+      const results = await runTurns(2);
+      // Turns 4, 6 and 8 each stub two cards; no other turn rewrites the cached prefix.
+      expect({ full: results.map(fullCards), breaks: prefixBreaks(results) }).toEqual({
+        full: [[0], [0, 1], [0, 1, 2], [2, 3], [2, 3, 4], [4, 5], [4, 5, 6], [6, 7]],
+        breaks: [4, 6, 8],
+      });
+    });
+
+    test("X=0 stubs every stored card and never rewrites the cached prefix", async () => {
+      const results = await runTurns(0);
+      expect(results.map(fullCards)).toEqual(Array.from({ length: turns }, () => []));
+      expect(prefixBreaks(results)).toEqual([]);
+    });
   });
 
   // A card the ASSEMBLY authored this turn is INSTRUCTION, not stored content: it must reach the model

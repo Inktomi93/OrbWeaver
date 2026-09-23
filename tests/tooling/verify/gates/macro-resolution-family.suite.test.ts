@@ -6,6 +6,7 @@ import { gate as health } from "../../../../tooling/src/verify/gates/macro-resol
 import { gate as home } from "../../../../tooling/src/verify/gates/macro-resolution-home.ts";
 import { coordinateGateAuthority } from "../../../../tooling/src/verify/lib/gate-authority.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { authorityOwnerResult } from "../../../../tooling/src/verify/lib/policy-pass-receipts.ts";
 import { reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -38,12 +39,7 @@ test("the four central macro homes have exact production keys and bind once", ()
   expect(result.authority.authorityAlarms.filter((alarm) => alarm.kind !== "ordinary-waiver")).toEqual([]);
   expect(result.authority.effectiveFindings).toEqual([]);
   expect(result.authority.reviewedGrantConsumption).toEqual(grants.map(({ id }) => ({ id, count: 1 })));
-  const owners: readonly GateOwnerResult[] = result.policies.map((policy) => ({
-    policyId: policy.id,
-    populationFiles: policy.population.effectiveSourcePaths,
-    owner: policy.owner,
-    findings: policy.findings,
-  }));
+  const owners: readonly GateOwnerResult[] = result.policies.map(authorityOwnerResult);
   const reconcile = (ownerResults: readonly GateOwnerResult[], rows: readonly ReviewedGateGrant[]): ReturnType<typeof coordinateGateAuthority> =>
     coordinateGateAuthority({
       knownPolicies: POLICIES,

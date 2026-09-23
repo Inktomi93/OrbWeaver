@@ -215,8 +215,8 @@ export function HostConsoleScalars({ chatId, config }: { readonly chatId: ChatId
                 </form.AppField>
               )}
             </form.AppField>
-            {/* The card WIRE knob, applicability-shown with its teaching parent: how many of the
-                newest cards ride the prompt in full before older ones collapse to their `[card: title]` stub.
+            {/* The card WIRE knob, applicability-shown with its teaching parent: the newest X cards always
+                ride the prompt in full, and older ones collapse to their `[card: title]` stub X at a time.
                 The RENDER is untouched either way — this is prompt budget, not visibility. */}
             <form.AppField name="immersiveHtml">
               {(htmlField): ReactElement | null =>
@@ -225,7 +225,7 @@ export function HostConsoleScalars({ chatId, config }: { readonly chatId: ChatId
                     {(field): ReactElement => (
                       <field.NumberField
                         label="Cards kept whole in the prompt"
-                        description={`How many of the newest cards ride the prompt in full; older ones collapse to a one-line stub. ${RPG_CARD_KEEP_LAST_DEFAULT} = collapse them all immediately — the cheapest and most cache-stable. Each kept card costs its full length on every turn.`}
+                        description={`This many of the newest cards always stay in full. Older cards collapse to a one-line stub, this many at a time. ${RPG_CARD_KEEP_LAST_DEFAULT} collapses every card right away, which costs the least. Each full card costs its whole length on every turn.`}
                         placeholder={`${RPG_CARD_KEEP_LAST_DEFAULT} (default)`}
                         min={0}
                       />

@@ -40,9 +40,16 @@ export type GateOwnerCompletion =
   | { readonly status: "failure"; readonly population: "incomplete"; readonly reason: string }
   | { readonly status: "incomplete"; readonly population: "incomplete"; readonly reason: string };
 
+/** Whether the owner walked its whole declared population or a requested subset of it. A `success` owner is
+ *  complete over its effective population either way; only `whole` coverage can prove a reviewed grant stale,
+ *  because a grant's finding may sit outside a subset. */
+export const GATE_OWNER_COVERAGES = ["whole", "subset"] as const;
+export type GateOwnerCoverage = (typeof GATE_OWNER_COVERAGES)[number];
+
 export interface GateOwnerResult {
   readonly policyId: string;
   readonly populationFiles: readonly string[];
+  readonly coverage: GateOwnerCoverage;
   readonly owner: GateOwnerCompletion;
   readonly findings: readonly RawGateFinding[];
 }
@@ -134,6 +141,12 @@ export const GATE_AUTHORITY_TOOL_ERROR_KINDS = [
  *  never referenced by its own name at any call site. */
 export type GateAuthorityToolErrorKind = (typeof GATE_AUTHORITY_TOOL_ERROR_KINDS)[number];
 
+/** A zero-consumption grant a subset owner could not judge: neither live nor stale. */
+export interface UnjudgedReviewedGrant {
+  readonly policyId: string;
+  readonly grantId: string;
+}
+
 export interface GateAuthorityToolError {
   readonly kind: GateAuthorityToolErrorKind;
   readonly message: string;
@@ -163,6 +176,7 @@ export interface GateAuthorityBatchResult {
   readonly waivedFindings: readonly WaivedGateFinding[];
   readonly grantedFindings: readonly GrantedGateFinding[];
   readonly authorityAlarms: readonly GateAuthorityAlarm[];
+  readonly unjudgedReviewedGrants: readonly UnjudgedReviewedGrant[];
   readonly toolErrors: readonly GateAuthorityToolError[];
   readonly withheldPolicyIds: readonly string[];
   readonly ordinaryConsumption: readonly AuthorityConsumption[];

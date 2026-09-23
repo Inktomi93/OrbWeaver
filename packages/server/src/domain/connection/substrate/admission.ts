@@ -1,18 +1,22 @@
 // The write-seam refusals a connection row AND a draft of one both pass before anything is stored or dialed:
-// the provider is registered, an endpoint row names an admitted http(s) server (a hosted one names none),
-// and a named credential is the caller's. One home, so `create`/`update` and the draft catalog reads cannot
-// disagree about what a legal draft is — a draft that lists models is a draft that saves.
+// the provider is one the caller may use, an endpoint row names an admitted http(s) server (a hosted one
+// names none), and a named credential is the caller's. One home, so `create`/`update` and the draft catalog
+// reads cannot disagree about what a legal draft is — a draft that lists models is a draft that saves.
 
 import type { ProviderDef } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
+import { ProviderUnknownError } from "../contract/errors.ts";
 import type { ConnectionContext } from "../contract/service.ts";
 
-export function requireProvider(ctx: ConnectionContext, providerId: string): ProviderDef {
-  const provider = ctx.runtime.providers.registry.get(providerId);
+/** The registry row `ownerId` may use (D147: a plugin row only for the owner of an enabled install that
+ *  contributes it). A plugin provider's `baseUrl` is its author's host, so this refusal is what keeps one
+ *  user's typed key from being dialed at another user's plugin. */
+export function requireProvider(ctx: ConnectionContext, ownerId: UserId, providerId: string): ProviderDef {
+  const provider = ctx.runtime.providers.registry.get(providerId, ownerId);
   if (provider === undefined) {
-    throw new DomainOperationError(CONNECTION_OP_CODES.providerUnknown, `"${providerId}" is not a registered provider.`);
+    throw new ProviderUnknownError(providerId);
   }
   return provider;
 }
