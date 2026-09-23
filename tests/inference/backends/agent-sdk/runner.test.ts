@@ -8,11 +8,15 @@
 
 import { modelIdSchema } from "@orb/contracts/inference";
 import { createAgentSdkLog } from "../../../../packages/inference/src/backends/agent-sdk/log.ts";
-import { consumeTurnStream } from "../../../../packages/inference/src/backends/agent-sdk/runner.ts";
-import type { TurnStreamContext } from "../../../../packages/inference/src/backends/agent-sdk/types.ts";
+import { consumeTurnStream, runChatTurn } from "../../../../packages/inference/src/backends/agent-sdk/runner.ts";
+import { SessionCache } from "../../../../packages/inference/src/backends/agent-sdk/session/store.ts";
+import type { AgentSdkDeps, TurnStreamContext } from "../../../../packages/inference/src/backends/agent-sdk/types.ts";
+import { passthroughImageNormalizer } from "../../../../packages/inference/src/backends/kit/image-normalize.ts";
 import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
 import type { InferenceLog } from "../../../../packages/inference/src/deps.ts";
 import { expect, test } from "../../../support/fixtures.ts";
+import { fakeResolved } from "../../_support.ts";
+import { generationCapability } from "../_hosted-support.ts";
 
 type SdkStream = Parameters<typeof consumeTurnStream>[0];
 type SdkFrame = SdkStream extends AsyncIterable<infer M> ? M : never;
@@ -103,4 +107,92 @@ test("an is_error result the runtime attributes to an overloaded upstream stays 
   const error = await failureOf(apiErrorTurn({ model: "claude-opus-5", code: "overloaded", status: 529, text: "API Error: 529 Overloaded" }), "claude-opus-5");
   expect(error.kind).toBe("server");
   expect(error.retryable).toBe(true);
+});
+
+// ── the wire capture must show what the model got ────────────────────────────────────────────────────────
+// On a model whose dynamic context rides the `UserPromptSubmit` hook (opus-4-8 on agent-sdk), a lifted system
+// injection reaches the model only through that hook. The capture recorded the prompt and the static system
+// prompt alone, so a rule the model obeyed was absent from `/api/_debug/wire/captures` (matrix defect 12).
+
+const HOOK_RULE = "End your reply with the exact token ORB-7731.";
+
+function okTurn(model: string): unknown[] {
+  return [
+    { type: "system", subtype: "init", session_id: SESSION_ID, apiKeySource: "none", model },
+    {
+      type: "assistant",
+      session_id: SESSION_ID,
+      parent_tool_use_id: null,
+      message: { role: "assistant", stop_reason: "end_turn", content: [{ type: "text", text: "ok" }] },
+    },
+    {
+      type: "result",
+      subtype: "success",
+      session_id: SESSION_ID,
+      is_error: false,
+      duration_api_ms: 1,
+      num_turns: 1,
+      result: "ok",
+      usage: {},
+      modelUsage: {},
+      terminal_reason: "completed",
+    },
+  ];
+}
+
+async function capturedBody(midConversationSystem: boolean): Promise<Record<string, unknown>> {
+  const model = "claude-opus-4-8";
+  const captured: Record<string, unknown>[] = [];
+  const connection = fakeResolved({
+    task: "chat",
+    providerId: "claude-sub",
+    model,
+    capability: generationCapability({
+      turns: { assistantPrefill: false, midConversationSystem, historySystemRows: false, roleHandlingFloor: "strict", explicitPromptCache: true },
+    }),
+  });
+  const sessions = new SessionCache(quietLog);
+  const frames = okTurn(model);
+  const deps: AgentSdkDeps = {
+    now: () => 0,
+    log: quietLog,
+    // @orb-waive no-test-fabrication(unknown): the SDK `query` seam returns its own `Query` object; the reducer only iterates it, so a generator over captured-shape frames is the honest double. Ends if the SDK exports a query fake.
+    query: (() =>
+      (async function* stream(): AsyncGenerator<unknown> {
+        await Promise.resolve();
+        yield* frames;
+      })()) as unknown as AgentSdkDeps["query"],
+    sessionStore: sessions.store,
+    normalizeImageBytes: passthroughImageNormalizer,
+    scheduleTimeout: () => () => undefined,
+    summarizeConcurrency: () => 1,
+    captureWire: (entry) => {
+      captured.push(entry.body);
+    },
+    debug: false,
+    childEnv: () => ({}),
+  };
+  await runChatTurn(
+    { api: "agent-sdk", connection, params: {}, systemPrompt: { static: "You are Mara.", dynamic: HOOK_RULE }, prompt: "Hello." },
+    deps,
+    sessions,
+    createAgentSdkLog(quietLog, "claude-sub"),
+  );
+  const [body] = captured;
+  if (body === undefined) {
+    throw new Error("the turn captured nothing");
+  }
+  return body;
+}
+
+test("the capture records the hook channel's context when the dynamic context rides the hook", async () => {
+  const body = await capturedBody(true);
+  expect(body["systemPrompt"]).toBe("You are Mara.");
+  expect(body["hookContext"]).toBe(HOOK_RULE);
+});
+
+test("the capture records no hook context when the dynamic context joins the system prompt", async () => {
+  const body = await capturedBody(false);
+  expect(body["systemPrompt"]).toBe(`You are Mara.\n\n${HOOK_RULE}`);
+  expect(body["hookContext"]).toBeNull();
 });

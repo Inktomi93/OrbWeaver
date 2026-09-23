@@ -32,7 +32,15 @@ import type { AgentSdkLog } from "./log.ts";
 import { toSdkOutputFormat } from "./output-schema.ts";
 import type { SeededSessionDecision, SessionCache } from "./session/index.ts";
 import { isTerminalToolCall, terminalToolOptions, toTerminalCall } from "./terminal-tools.ts";
-import { buildSystemPrompt, disciplineOptions, dynamicContextOptions, MCP_NAMESPACE, observabilityOptions, toSdkGeneration } from "./translate.ts";
+import {
+  buildSystemPrompt,
+  disciplineOptions,
+  dynamicContextOptions,
+  hookContextOf,
+  MCP_NAMESPACE,
+  observabilityOptions,
+  toSdkGeneration,
+} from "./translate.ts";
 import type { AgentSdkDeps, TurnStreamContext } from "./types.ts";
 import { assertInitFrameShape, classifyAssistantError, classifyResultSubtype, classifyTerminalReason } from "./verify.ts";
 
@@ -151,7 +159,7 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
   const abortController = linkAbort(req.signal);
   const chatId = req.chatId;
   const terminal = terminalToolOptions(req.terminalTools ?? [], gen.turnId, log);
-  captureAgentSdkWire(req, deps, { systemPrompt, resume, gen, terminalMounted: terminal !== null });
+  captureAgentSdkWire(req, deps, { systemPrompt, dynamicHook, resume, gen, terminalMounted: terminal !== null });
   const stream = deps.query({
     prompt: req.prompt,
     options: {
@@ -199,11 +207,19 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
   return appendWarnings(result, gen.warnings, deps.now(), req.onEvent);
 }
 
-// Capture the SDK QUERY INPUT — the literal Anthropic body is built INSIDE the bundled subprocess.
+// Capture the SDK QUERY INPUT — the literal Anthropic body is built INSIDE the bundled subprocess. `hookContext`
+// is the text the `UserPromptSubmit` hook injects beside the prompt: on a hook-channel model it is where a lifted
+// system injection reaches the model, so a capture without it hides what the model was told.
 function captureAgentSdkWire(
   req: AgentSdkChatRequest,
   deps: AgentSdkDeps,
-  ctx: { systemPrompt: string | undefined; resume: string | undefined; gen: ReturnType<typeof toSdkGeneration>; terminalMounted: boolean },
+  ctx: {
+    systemPrompt: string | undefined;
+    dynamicHook: Pick<Options, "hooks">;
+    resume: string | undefined;
+    gen: ReturnType<typeof toSdkGeneration>;
+    terminalMounted: boolean;
+  },
 ): void {
   deps.captureWire?.({
     chatId: req.chatId,
@@ -214,6 +230,7 @@ function captureAgentSdkWire(
     body: {
       prompt: req.prompt,
       systemPrompt: ctx.systemPrompt ?? null,
+      hookContext: ctx.dynamicHook.hooks === undefined ? null : hookContextOf(req.systemPrompt.dynamic),
       model: req.connection.model,
       resumed: ctx.resume !== undefined,
       maxTokens: ctx.gen.envOverrides.maxOutputTokens ?? null,
