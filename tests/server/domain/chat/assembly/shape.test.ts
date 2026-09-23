@@ -91,7 +91,7 @@ describe("shape — the breakpoint", () => {
 
   // D66-C (W6) — the prefix-stable fix supersedes the old ABORT #2 for this case. A depth-1 assistant
   // injection landing same-role against the last stable canon row is RE-FRAMED at the splice to a user
-  // operator note (`[Note from user: …]`), so it NEVER folds into the cached prefix. The stable prefix is
+  // row in the neutral assistant-note frame (no speaker label), so it NEVER folds into the cached prefix. The stable prefix is
   // byte-identical → the breakpoint is now VALID (offset 1), not aborted, and the whole-conversation
   // re-bill (part 01 §1c) is prevented.
   test("W6 prefix-stable: a depth-1 assistant injection re-frames to a user note; the breakpoint HOLDS (offset 1)", () => {
@@ -102,7 +102,7 @@ describe("shape — the breakpoint", () => {
       { role: "assistant", content: "greeting" },
       { role: "user", content: "u1" },
       { role: "assistant", content: "a1 tip" },
-      { role: "user", content: "[Note from user: cont]\n\nu2 volatile" },
+      { role: "user", content: "[Take the following into special consideration for your next message: cont]\n\nu2 volatile" },
     ]);
   });
 
@@ -384,7 +384,7 @@ describe("shape — W5 assistantPrefill gates the trailing-user invariant", () =
     // riding on the volatile user tail. Either way it is NEVER a trailing assistant prefill row.
     expect(out.history.at(-1)).toEqual({
       role: "user",
-      content: "[Note from user: The night was]\n\nu2 volatile",
+      content: "[Take the following into special consideration for your next message: The night was]\n\nu2 volatile",
     });
     expect(out.history.at(-1)?.role).toBe("user");
   });
@@ -444,7 +444,7 @@ describe("shape — W6 role-handling strategy + prefix-stable goldens", () => {
     expect(withNote.cacheBreakpointFromEnd).toBe(1);
     expect(withNote.history.at(-1)).toEqual({
       role: "user",
-      content: "[Note from user: steer]\n\nu2 volatile",
+      content: "[Take the following into special consideration for your next message: steer]\n\nu2 volatile",
     });
   });
 });
@@ -463,7 +463,7 @@ describe("shape — midConversationSystem gates the depth-0 system-injection del
   test("not capable (default): byte-identical demote — the note folds into the adjacent user tail (regression pin)", () => {
     const out = shape(soloInput({ injections: [sysInj] }));
     expect(out.history.at(-1)?.role).toBe("user");
-    expect(out.history.at(-1)?.content).toBe("u2 volatile\n\n[Note from system: GM note]");
+    expect(out.history.at(-1)?.content).toBe("u2 volatile\n\n[Take the following into special consideration: GM note]");
   });
 
   test("capable + no user tail on an assistant-final canon: the CONTINUATION_NUDGE still lands (ends-on-user reads past system rows)", () => {
@@ -481,7 +481,7 @@ describe("shape — midConversationSystem gates the depth-0 system-injection del
 // ── MID-HISTORY SYSTEM INJECTIONS (the depth>0 arm of `turns.historySystemRows`) ─────────────────────
 // The DEFECT this pins: an author's note (`origin:"authors-note"`, role system, ST's default depth 4) and a
 // depth-N world-info entry are the real producers of a MID-CONVERSATION system row, and both demoted to
-// `[Note from system: …]` user rows on EVERY wire — including one measured to carry mid-array system rows —
+// `[Take the following into special consideration: …]` user rows on EVERY wire — including one measured to carry mid-array system rows —
 // because the splice hard-coded "depth > 0 always demotes". `historySystemRows` is the measured fact that
 // answers exactly this question (mid-array, not the tail channel), so it gates this arm too; the tail arm
 // stays on `midConversationSystem` (D69: one fact per question, never inferred from its sibling).
@@ -503,7 +503,7 @@ describe("shape — historySystemRows also gates a DEPTH>0 system injection (aut
     const unset = shape(soloInput({ injections: [deepSys] }));
     expect(unset.history).toEqual(off.history);
     expect(unset.history.some((r) => r.role === "system")).toBe(false);
-    expect(unset.history.some((r) => r.content.includes("[Note from system: GM note]"))).toBe(true);
+    expect(unset.history.some((r) => r.content.includes("[Take the following into special consideration: GM note]"))).toBe(true);
   });
 
   test("the TAIL arm is still its own bit: midConversationSystem alone does NOT promote a depth>0 row (D69)", () => {
@@ -523,7 +523,7 @@ describe("shape — historySystemRows also gates a DEPTH>0 system injection (aut
 
 // ── INJECT-NAMED-AS-PLAYER — the end-to-end pin ───────────────────────────────────────────────────
 // The reported live wire (chat_01kz6qesv6fk6bq1gmr8kc0wcf, OpenRouter/Sonnet — no mid-conversation
-// system): the rpg instruction channel arrived as `Nate: [Note from system: # Game state …]`, i.e. the
+// system): the rpg instruction channel arrived as `Nate: [Take the following into special consideration: # Game state …]`, i.e. the
 // game state, card teach and steering license delivered as if the PLAYER had written them. Measured then:
 // final user message 3,037 chars, 2× `Nate:` labels.
 //
@@ -551,7 +551,7 @@ describe("INJECT-NAMED-AS-PLAYER — a demoted system injection is never labelle
     expect(labels).toHaveLength(1);
     // And the label that IS present belongs to the player's text, not to the note.
     expect(tail?.content).toContain(`${SPEAKERS.user}: u2 volatile`);
-    expect(tail?.content).not.toMatch(new RegExp(`${SPEAKERS.user}:\\s*\\[Note from system`, "u"));
+    expect(tail?.content).not.toMatch(new RegExp(`${SPEAKERS.user}:\\s*\\[Take the following into special consideration`, "u"));
   });
 
   test("the marker is INTERNAL — no wire row leaks a `speakerless` field", () => {

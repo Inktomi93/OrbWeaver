@@ -221,12 +221,16 @@
       "sha256": "2a79415d20cd3676a63aa6641ee8170d59d1f9cf50a2908aa212d1cc2e30bb00"
     },
     "chat.injection.systemNote": {
-      "version": 1,
-      "sha256": "5b879eb6f3c681a60e109c7b1f3f40588926e4e33c8949f29acf0839088ce5f8"
+      "version": 2,
+      "sha256": "50bf2eebbd792c0790e1681371c6c52ccde50d606f76c3747b2b60a2ca9d53e5"
     },
     "chat.injection.userNote": {
       "version": 1,
       "sha256": "fc7e041da8fd731f7d935a701b7b727db26b72a9ad4264f41c0acd17d35055aa"
+    },
+    "chat.injection.assistantNote": {
+      "version": 1,
+      "sha256": "23ab3c1a3cabcf41123ba06a2a56c84441d3a97249522ad655a36152b8b27e14"
     },
     "chat.assembly.continuationNudge": {
       "version": 1,

@@ -1001,7 +1001,7 @@ describe("runTurnPipeline — roleHandling is the PRESET knob, clamped at SHAPE"
 
 // BUILD-QUEUE #3: the `squashSystemMessages` PROMPT knob (`params.advanced`, ST-imported from
 // `squash_system_messages`) is now a live SHAPE reader — consecutive system-note runs merge into ONE
-// `[Note from system: …]` bracket BEFORE the system→user framing, orthogonal to `roleHandling`. Two
+// `[Take the following into special consideration: …]` bracket BEFORE the system→user framing, orthogonal to `roleHandling`. Two
 // adjacent depth-0 system injections are the observable: ON ⇒ ONE bracket (merge-before-convert), OFF ⇒
 // TWO brackets even though the strict floor still row-merges them (the distinction proves the KNOB, not
 // the role-squash, drove the fold). A broken re-thread would read a now-absent field → default OFF →
@@ -1015,7 +1015,7 @@ describe("runTurnPipeline — squashSystemMessages is the PRESET knob, folded at
     ...DEFAULT_PROMPT_CONFIG,
     params: { ...DEFAULT_PROMPT_CONFIG.params, advanced: { squashSystemMessages } },
   });
-  const systemBrackets = (req: TurnRequest): number => (historyText(req).match(/\[Note from system:/g) ?? []).length;
+  const systemBrackets = (req: TurnRequest): number => (historyText(req).match(/\[Take the following into special consideration:/g) ?? []).length;
 
   test("preset squashSystemMessages:true ⇒ the two system notes fold into ONE bracket (preset value reached SHAPE)", async () => {
     const { args } = baseArgs({
@@ -1023,7 +1023,7 @@ describe("runTurnPipeline — squashSystemMessages is the PRESET knob, folded at
     });
     const result = await runTurnPipeline(args);
     expect(systemBrackets(result.request)).toBe(1);
-    expect(historyText(result.request)).toContain("[Note from system: sys-alpha\n\nsys-beta]");
+    expect(historyText(result.request)).toContain("[Take the following into special consideration: sys-alpha\n\nsys-beta]");
   });
 
   test("preset squashSystemMessages absent ⇒ the notes stay as TWO separate brackets (byte-identical to today)", async () => {
