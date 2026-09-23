@@ -2941,7 +2941,7 @@
       "reason": "A confirmed standalone non-Git root deliberately falls through to the explicit workspace-sourced inventory receipt below; repository probe failures and every failure in a real worktree still propagate. Ends if this arm can swallow a real Git error or the fallback stops recording its distinct workspace authority."
     },
     {
-      "siteId": "tooling/src/verify/lib/resource-declaration.ts::resolveResourceOwnerPathResolution::error::1",
+      "siteId": "tooling/src/verify/lib/resource-declaration.ts::resolveResourceOwnerPathWalk::error::1",
       "verdict": "deliberate-absorb",
       "reason": "Acquisition failure is retained by owner so pure planning refuses and the structure-bound planner can let the dispatcher emit its canonical incomplete owner row and withheld authority. Ends if the failure map no longer drives both refusal paths."
     },
