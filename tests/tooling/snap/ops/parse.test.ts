@@ -149,6 +149,30 @@ test("--goto's help summary names only target forms the parser accepts, and the 
   expect(() => parseGotoTarget("connections.connections.add-connection")).toThrow("dotted address with no namespace");
 });
 
+// @instrument-proof: #1837 — `pnpm snap /settings` (settings folded into `config` at #866) rendered the
+// router's not-found page and reported BOOT-DEAD with "query cache is EMPTY", which two lanes read as an
+// app failure and chased as a P0. The positional route names a rail section (`routes/router.tsx`
+// `/$section`), so a segment `SECTION_IDS` does not carry is refused HERE, before the browser ever
+// launches, naming the real vocabulary instead of letting the run misdiagnose itself downstream.
+test("an unknown positional section refuses by name with exit 3, naming the vocabulary and --goto", () => {
+  const parsed = parseSnapArgs(["/settings"]);
+  expect(parsed.errors).toContainEqual(expect.stringContaining('unknown section "settings"'));
+  expect(parsed.errors).toContainEqual(expect.stringContaining("config"));
+  expect(parsed.errors).toContainEqual(expect.stringContaining("--goto config:<group>"));
+
+  const result = runSnap(["/settings"]);
+  expect(result.status, result.stdout).toBe(3);
+  expect(result.stdout).toContain('unknown section "settings"');
+});
+
+test("a live section, a retired-but-healed section, the bare root and a non-route target all parse clean", () => {
+  // Controls in the other direction, on the SAME check: a real section, a retired id the client still
+  // heals (`RETIRED_SECTION_HEAL`), and the two route shapes that carry no section segment at all.
+  for (const argv of [["/chats"], ["/config"], ["/worldInfo"], ["/"], []]) {
+    expect(parseSnapArgs(argv).errors, argv.join(" ") || "(no route)").toEqual([]);
+  }
+});
+
 // ── the design-audit arm's grammar (#1315) ───────────────────────────────────────────────────────────
 // The two flags the folded scan brought with it. `--fail-on` is a REQUIRED-VALUE flag over a closed
 // severity ladder, and a bad value has to be CLI misuse rather than a silent default: the alternative is
