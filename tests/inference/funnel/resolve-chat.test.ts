@@ -182,6 +182,19 @@ test("default effort: a non-adaptive reasoning model keeps its catalog-advertise
   expect(resolveChat({} satisfies UserIntent, offByDefault).reasoning.enabled).toBe(false);
 });
 
+// A budget-mode model with no explicit budget used to get the range MAX for any effort — `low` on haiku-4-5 sent
+// `budget_tokens: 63000`. The effort now picks a point in the range, low < medium < high, `max` at the top.
+test("budget mode: the effort level picks the budget when none is set, and an explicit budget still wins", () => {
+  const cap = generation({ reasoning: { mode: "budget", enabled: true, budgetRange: { min: 1024, max: 63_000 } } });
+  const budgetFor = (effort: UserIntent["effort"]): number | undefined => resolveChat({ effort } satisfies UserIntent, cap).reasoning.budgetTokens;
+  const ladder = (["minimal", "low", "medium", "high", "xhigh", "max"] as const).map(budgetFor);
+  expect(ladder).toEqual([...ladder].sort((a, b) => (a ?? 0) - (b ?? 0)));
+  expect(new Set(ladder).size).toBe(ladder.length);
+  expect(budgetFor("low")).toBeLessThan(8000);
+  expect(budgetFor("max")).toBe(63_000);
+  expect(resolveChat({ effort: "low", thinkingBudgetTokens: 2048 } satisfies UserIntent, cap).reasoning.budgetTokens).toBe(2048);
+});
+
 test("replyMedia: the DEFAULT (absent / text) asks for nothing and warns about nothing, on either model", () => {
   expect(resolveChat({} satisfies UserIntent, generation({ output: IMAGE_OUT })).replyImages).toBe(false);
   const textOnly = resolveChat({ replyMedia: "text" } satisfies UserIntent, generation());
