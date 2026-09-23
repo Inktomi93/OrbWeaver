@@ -612,7 +612,9 @@ class TurnAccumulator {
 
 function handleAssistant(acc: TurnAccumulator, message: Narrow<"assistant">): void {
   acc.stopReason = message.message.stop_reason ?? acc.stopReason;
-  acc.assistantError = message.error ?? acc.assistantError;
+  // The code belongs to the model call this frame reports: a later clean frame clears an earlier leg's code,
+  // so only the synthetic error frame that immediately precedes a failed result can classify it.
+  acc.assistantError = message.error;
   acc.requestId = message.request_id ?? acc.requestId;
   for (const block of message.message.content) {
     if (block.type === "text") {
