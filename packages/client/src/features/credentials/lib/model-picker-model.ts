@@ -125,7 +125,7 @@ export function filterByChips<T extends PickerEntry>(entries: readonly T[], chip
 // ── provider grouping (the section plan) ──────────────────────────────────────────────────────────────
 
 /** One provider/vendor section of the picker list. */
-export interface ModelGroup<T> {
+interface ModelGroup<T> {
   /** The bucket key: an id's vendor prefix (lowercased), `""` for a slash-less id, or the flat list's key. */
   readonly key: string;
   /** `null` for the one headless section of a list whose vendors each hold a single model. */

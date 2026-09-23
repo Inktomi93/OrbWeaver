@@ -66,7 +66,7 @@ export type MirrorWarm<T> = { readonly ok: true; readonly value: T } | { readonl
 
 /** The secret a model-list read dials with: the CALLER's saved credential by id (re-read through the credentials
  *  domain, never hand-minted), or a raw key typed into a draft that has not been saved yet. */
-export type CatalogSecret = { readonly credentialId: UserCredentialId | null } | { readonly key: string };
+type CatalogSecret = { readonly credentialId: UserCredentialId | null } | { readonly key: string };
 
 /** A model-list read for a connection that may not exist yet. A saved row reads through the same shape, so
  *  there is one catalog read. `baseUrl` is an `auth: endpoint` row's own server; a hosted provider's fixed URL
