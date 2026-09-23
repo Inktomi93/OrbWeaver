@@ -213,14 +213,22 @@ const noToolRenderers: ReturnType<typeof createContributorRegistry<ToolRenderer>
 
 /** A message's tool block, with (or, at `registered: false`, without) the plugin plane's card renderer at the
  *  door. The CT drives the DATA (`plugin.listSurfaces`), so the arms differ only in what the plugin feature
- *  has to say — which is exactly the property under test. */
+ *  has to say — which is exactly the property under test. `activeChatId` opens that room first, as the transcript
+ *  the card sits in always is the active chat. */
 export function PluginToolCardStory({
   records,
   registered = true,
+  activeChatId,
 }: {
   readonly records: readonly ToolCallRecord[];
   readonly registered?: boolean;
+  readonly activeChatId?: ChatId;
 }): ReactElement {
+  useEffect(() => {
+    if (activeChatId !== undefined) {
+      selectChat(activeChatId);
+    }
+  }, [activeChatId]);
   return (
     <CtDataProviders>
       <div style={{ width: TRANSCRIPT_WIDTH }}>
