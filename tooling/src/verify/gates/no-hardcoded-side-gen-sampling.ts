@@ -50,7 +50,7 @@ const MESSAGE =
 
 const FIX =
   "read the floor from SIDE_GEN_POSTURES.<kind> and fold it through resolveSideGenSampling(floor, presetParams); " +
-  "map to the seam with toSummarizeOptions where the seam takes `maxTokens`. A deliberate site is waived " +
+  "pass the resolved posture to the seam as-is. A deliberate site is waived " +
   "with `@orb-waive no-hardcoded-side-gen-sampling(<position>): <reason>` on the line above, where " +
   "<position> is the hardcoded sampling param's own key name (e.g. `temperature`, `maxOutputTokens`, `topP`).";
 
