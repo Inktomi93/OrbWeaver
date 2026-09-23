@@ -59,7 +59,7 @@ export type { ChatOpCode } from "./contract/errors.ts";
 export { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "./contract/errors.ts";
 // The turn's identity axis (`ResolveForeignInputsOp`'s `trigger`) — the composition root dispatches over it
 // to bind prompt-config `{{user}}`, so the union has to reach entry.
-export type { TurnTrigger } from "./contract/foreign.ts";
+export type { HumanSeatPersona, ResolvedPersonas, ResolveForeignInputsOp, TurnTrigger, TurnVoice } from "./contract/foreign.ts";
 export type { BulkImportChats, ChatImportContext } from "./contract/import.ts";
 export type {
   MemoryConfig,

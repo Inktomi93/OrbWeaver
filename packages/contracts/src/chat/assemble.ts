@@ -584,16 +584,17 @@ export interface AssembleContext {
   authorsNoteSource?: string;
   /** `{{user}}` in CARD-derived sections — the chat-open ("anchor") persona. */
   pinnedPersona?: AssemblePersona | null;
-  /** `{{user}}` in USER-authored sections — the speaking participant's active persona. */
+  /** `{{user}}` in USER-authored sections and SHAPE's `speakers.user` — the room's anchor human's current seat
+   *  persona (the trigger's only on an impersonate draft), so the cached prompt does not depend on who pressed
+   *  send. */
   activePersona?: AssemblePersona | null;
-  /** WHOSE persona {@link AssembleContext.activePersona} is — the live human driving this turn. It exists for
-   *  ONE rule, in SHAPE: a canon user row carrying NO persona stamp may borrow this turn's `{{user}}` name
-   *  only when the row is that same human's OWN row; every other null-stamped row floors to the
-   *  unresolvable-persona name instead of wearing a stranger's identity on the wire. This is the server twin
-   *  of the client's fail-closed render rule (`client/features/chat/lib/attribution.ts` `resolveUserAttribution`
-   *  — the `authorUserId === viewerUserId` gate). Null/absent (a drain/auto turn, a preview, any hand-built
-   *  ctx) ⇒ NO row borrows it, which is the fail-closed side. */
-  triggerUserId?: UserId | null | undefined;
+  /** WHOSE persona {@link AssembleContext.activePersona} is. It exists for ONE rule, in SHAPE: a canon user row
+   *  carrying NO persona stamp may borrow the `{{user}}` name only when the row is that same human's OWN row;
+   *  every other null-stamped row floors to the unresolvable-persona name instead of wearing a stranger's
+   *  identity on the wire. This is the server twin of the client's fail-closed render rule
+   *  (`client/features/chat/lib/attribution.ts` `resolveUserAttribution` — the `authorUserId === viewerUserId`
+   *  gate). Null/absent (any hand-built ctx) ⇒ NO row borrows it, which is the fail-closed side. */
+  activePersonaUserId?: UserId | null | undefined;
   /** True when the room seats more than one present human. SHAPE then labels every canon user row, so no
    *  row's label depends on who pressed send. Absent ⇒ a solo room. */
   multiHuman?: boolean | undefined;

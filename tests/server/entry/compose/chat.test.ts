@@ -12,7 +12,7 @@ import { AGENT_CONTINUATION_PROMPT_STUB, createInferenceRuntime, DEFAULT_EMBED_M
 import type { AssetId, ChatId, ChatTurnId, MessageId, ModelId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { TurnMessage, TurnRequest, TurnStreamChunk } from "@orb/server/domain/chat";
-import { activePersonaIdFor, buildChatToolOps, createRunChatTurnBridge, createTaskWindowReaders } from "@orb/server/entry/compose";
+import { activePersonaIdFor, buildChatToolOps, createRunChatTurnBridge, createTaskWindowReaders, voicePersonaFor } from "@orb/server/entry/compose";
 import { describe } from "vitest";
 import { z } from "zod";
 import type { ChatToolExecFrame, ChatToolOps } from "../../../../packages/server/src/domain/chat/contract/context.ts";
@@ -80,6 +80,63 @@ describe("activePersonaIdFor — the TurnTrigger binding", () => {
     expect(() => activePersonaIdFor({ anchorPersonaId })).toBeDefined();
     // @ts-expect-error — the room's present-human persona ids are not an input to this binding any more.
     expect(activePersonaIdFor({ trigger: { kind: "none" }, anchorPersonaId, personaIds: [anchorPersonaId] })).toBe(anchorPersonaId);
+  });
+});
+
+// THE VOICE BINDING (D122 as amended): a canon turn speaks for the room's ANCHOR human, so who pressed send
+// never moves the cached prompt; only an impersonate draft (`trigger`) speaks as the presser.
+describe("voicePersonaFor — whose persona a turn's {{user}} is", () => {
+  const host = castId<UserId>("user_host");
+  const member = castId<UserId>("user_member");
+  const hostSeat = castId<PersonaId>("persona_host_seat");
+  const memberSeat = castId<PersonaId>("persona_member_seat");
+  const anchorPersonaId = castId<PersonaId>("persona_anchor");
+  const humanSeats = [
+    { userId: host, personaId: hostSeat },
+    { userId: member, personaId: memberSeat },
+  ];
+  const emptyHostSeat = [
+    { userId: host, personaId: null },
+    { userId: member, personaId: memberSeat },
+  ];
+  const memberSends = { kind: "human", userId: member, personaId: memberSeat } as const;
+
+  test("anchor voice: the anchor persona's owner speaks, with their CURRENT seat persona, whoever sent", () => {
+    const bound = voicePersonaFor({ voice: "anchor", trigger: memberSends, anchorPersonaId, anchorOwnerId: host, runAsUserId: host, humanSeats });
+    expect(bound).toEqual({ personaId: hostSeat, userId: host });
+    expect(voicePersonaFor({ voice: "anchor", trigger: { kind: "none" }, anchorPersonaId, anchorOwnerId: host, runAsUserId: host, humanSeats })).toEqual(bound);
+  });
+
+  test("anchor voice: a member-owned anchor makes that member the voice", () => {
+    expect(voicePersonaFor({ voice: "anchor", trigger: { kind: "none" }, anchorPersonaId, anchorOwnerId: member, runAsUserId: host, humanSeats })).toEqual({
+      personaId: memberSeat,
+      userId: member,
+    });
+  });
+
+  test("anchor voice: an unresolved anchor falls to the frozen host, and the host's empty seat is the kit floor", () => {
+    expect(
+      voicePersonaFor({ voice: "anchor", trigger: memberSends, anchorPersonaId, anchorOwnerId: null, runAsUserId: host, humanSeats: emptyHostSeat }),
+    ).toEqual({
+      personaId: null,
+      userId: host,
+    });
+  });
+
+  test("anchor voice: an anchor human with an empty seat speaks as the anchor persona they own, never a bystander's", () => {
+    expect(
+      voicePersonaFor({ voice: "anchor", trigger: memberSends, anchorPersonaId, anchorOwnerId: host, runAsUserId: host, humanSeats: emptyHostSeat }),
+    ).toEqual({
+      personaId: anchorPersonaId,
+      userId: host,
+    });
+  });
+
+  test("trigger voice (an impersonate draft): the presser speaks, on the unchanged trigger binding", () => {
+    expect(voicePersonaFor({ voice: "trigger", trigger: memberSends, anchorPersonaId, anchorOwnerId: host, runAsUserId: host, humanSeats })).toEqual({
+      personaId: memberSeat,
+      userId: member,
+    });
   });
 });
 
@@ -541,7 +598,7 @@ describe("tool delivery — the real tool-use service behind the neutral offer",
         character: { name: "Aria", description: "a knight" },
         promptConfig: DEFAULT_PROMPT_CONFIG,
         activePersona: { name: "Alex", description: "the user" },
-        triggerUserId: castId<UserId>("user_host"),
+        activePersonaUserId: castId<UserId>("user_host"),
         recentMessages: [],
       },
       canon: [],

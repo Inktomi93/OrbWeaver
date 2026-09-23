@@ -23,6 +23,7 @@
 import type { ParticipantKind } from "@orb/contracts/chat";
 import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import type { ChatContext } from "../contract/context.ts";
+import type { HumanSeatPersona } from "../contract/foreign.ts";
 import { classifyParticipant, isBackingUserEnabled } from "../persistence/participant.ts";
 
 /** The columns the human-seat lens reads — structural, so the raw `chat_participants` row (`loadParticipants`)
@@ -74,6 +75,17 @@ export function seatsMultipleHumans(presentHumanUserIds: readonly UserId[]): boo
  *  `chat_participants` row passes unchanged. */
 interface PersonaSeat extends HumanSeat {
   readonly activePersonaId: PersonaId | null;
+}
+
+/** Each consented human seat and the persona it holds — the FOREIGN resolver picks the anchor human's seat
+ *  persona from it (`ResolveForeignInputsOp.humanSeats`). Pass the same consent set the persona read is gated
+ *  on, so a seat the room may not resolve never reaches the resolver. PURE. */
+export function humanSeatPersonasOf(participants: readonly PersonaSeat[], consentSet: readonly UserId[]): readonly HumanSeatPersona[] {
+  const consented = new Set(consentSet);
+  return participants.flatMap((seat) => {
+    const actor = classifyParticipant(seat);
+    return actor?.kind === "human" && consented.has(actor.userId) ? [{ userId: actor.userId, personaId: seat.activePersonaId }] : [];
+  });
 }
 
 /** The room's ACTIVE-PERSONA set for one round: each ONLINE human seat's `activePersonaId`.
