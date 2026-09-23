@@ -20,7 +20,8 @@
 //      text part. OpenRouter forwards a marker to Anthropic only from a content part and drops a message-level
 //      one (measured: gen-1790134941-TdEvy3D9exFNfO6cf830 read only the system block; the content-part A/B,
 //      gen-1790135929 vs gen-1790135933, read the history). The provider converter writes assistant and tool
-//      rows as strings with a message-level marker, and the history breakpoints land on those rows.
+//      rows as strings with a message-level marker, and the history breakpoints land on those rows. A row with
+//      no text part (a tool-call row) passes its marker to the nearest earlier row with text.
 // Warnings are collected on a per-call sink the caller folds into the turn's `warning` events (D41).
 
 import type { Dialect, EndpointFeatures } from "@orb/contracts/inference";
@@ -189,27 +190,46 @@ function applyOutputCapSpelling(body: Record<string, unknown>, args: ShapeArgs):
   return { ...rest, [MAX_COMPLETION_TOKENS_KEY]: cap };
 }
 
-/** Rule 9 for one row: the marker onto the last text part, the message-level key removed. A row with no text
- *  to carry it is left as the converter wrote it. */
-function markerOnContentPart(message: unknown): unknown {
-  if (!isRecord(message) || message[CACHE_CONTROL_KEY] === undefined) {
-    return message;
-  }
-  const { [CACHE_CONTROL_KEY]: marker, ...rest } = message;
-  const parts = contentParts(message["content"]);
-  const last = parts.findLastIndex((part) => isRecord(part) && part["type"] === TEXT_TYPE);
-  if (last === -1) {
-    return message;
-  }
-  return { ...rest, content: parts.map((part, index) => (index === last && isRecord(part) ? { ...part, [CACHE_CONTROL_KEY]: marker } : part)) };
+function isTextPart(part: unknown): part is Record<string, unknown> {
+  return isRecord(part) && part["type"] === TEXT_TYPE;
 }
 
+/** Rule 9, walked from the end. A message-level marker moves onto its row's last text part. A row with no text
+ *  (an assistant tool-call row, `content: null`) cannot hold one — an empty text block with `cache_control` is
+ *  refused — so its marker moves to the nearest EARLIER row with text: a shorter prefix of the same history,
+ *  still a valid cache entry (measured: gen-1790145899-YEYx8CfmJdExgPTOB9u4 dropped, gen-1790145901-ZwS0tawK8pqSw284khqj
+ *  forwarded). A row that already carries a part marker absorbs a moved one; two never stack. */
 function applyCacheMarkerSpelling(body: Record<string, unknown>, args: ShapeArgs): Record<string, unknown> {
   const messages = body["messages"];
   if (args.dialect !== "openrouter" || !Array.isArray(messages)) {
     return body;
   }
-  return { ...body, messages: messages.map(markerOnContentPart) };
+  const out: unknown[] = [...messages];
+  let pending: unknown;
+  for (let i = out.length - 1; i >= 0; i -= 1) {
+    const message = out[i];
+    if (!isRecord(message)) {
+      continue;
+    }
+    const { [CACHE_CONTROL_KEY]: own, ...rest } = message;
+    const marker = own ?? pending;
+    if (marker === undefined) {
+      continue;
+    }
+    const parts = contentParts(message["content"]);
+    const last = parts.findLastIndex(isTextPart);
+    if (last === -1) {
+      out[i] = rest;
+      pending = marker;
+      continue;
+    }
+    pending = undefined;
+    const marked = parts.some((part) => isTextPart(part) && part[CACHE_CONTROL_KEY] !== undefined);
+    out[i] = marked
+      ? { ...rest, content: parts }
+      : { ...rest, content: parts.map((part, index) => (index === last && isTextPart(part) ? { ...part, [CACHE_CONTROL_KEY]: marker } : part)) };
+  }
+  return { ...body, messages: out };
 }
 
 /** The whole shaper, in rule order. Pure: returns a new object, never mutates the SDK's argument. */
