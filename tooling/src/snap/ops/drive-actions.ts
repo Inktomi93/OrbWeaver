@@ -7,6 +7,7 @@ import { navResultShape } from "@orb/tooling/_shared/page-validate";
 import type { Page } from "@playwright/test";
 import { print } from "../../_shared/artifacts.ts";
 import { settle } from "../../_shared/browser.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { buildNavScript } from "../../_shared/nav.ts";
 import type { FileActionReceipt } from "../../_shared/upload.ts";
 import { driveFileDrop, driveFileUpload, fileActionReceiptLine } from "../../_shared/upload.ts";
@@ -16,6 +17,8 @@ import { HOVER_REVEAL_MS, STEP_SETTLE_MS, STEP_TIMEOUT_MS, WAIT_SELECTOR_TIMEOUT
 import { CHURN_LINE, isContextChurn } from "../lib/eval-text.ts";
 import { captureEvals } from "./arms/eval.ts";
 import { navDriveFailure, stepDriveFailure, stepLabel } from "./drive-failure-naming.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 const WHEEL_BURST_SETTLE_MS = 30;
 
