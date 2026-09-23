@@ -98,7 +98,8 @@ describe("resolveEffective — provenance", () => {
       reasoning: { mode: "budget", enabled: true, defaultEffort: "medium", budgetRange: { min: 1024, max: 4096 } },
     });
     const effective = await resolveWith({}, capability);
-    expect(effective.knobs.thinkingBudgetTokens).toStrictEqual({ value: 4096, provenance: "modelDefault" });
+    // The model's default effort picks the point in its range: `medium` is the geometric middle of 1024..4096.
+    expect(effective.knobs.thinkingBudgetTokens).toStrictEqual({ value: 2048, provenance: "modelDefault" });
   });
 
   test("an unset output cap reads the ENGINE FLOOR the wire actually falls back to", async () => {

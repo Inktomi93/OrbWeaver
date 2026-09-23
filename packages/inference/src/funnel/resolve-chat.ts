@@ -100,12 +100,20 @@ function resolveEffort(effort: UserIntent["effort"], levels: readonly EffortLeve
   return effort;
 }
 
-function resolveBudget(requested: number | undefined, range: Range | undefined): number | undefined {
-  const value = requested ?? range?.max;
-  if (value === undefined) {
-    return;
+/** The budget an effort level asks for when the caller set none: a geometric step through the model's range by
+ *  the level's place in `EFFORT_LEVELS`, so each level roughly doubles the one below and `max` is the range top.
+ *  A linear step would still hand `low` a third of a 63k range; geometric keeps the low levels near the floor. */
+function budgetForEffort(effort: UserIntent["effort"], range: Range): number {
+  const index = effort === undefined || effort === EFFORT_OFF ? EFFORT_LEVELS.length - 1 : EFFORT_LEVELS.indexOf(effort);
+  const fraction = (index + 1) / EFFORT_LEVELS.length;
+  return Math.round(range.min * (range.max / range.min) ** fraction);
+}
+
+function resolveBudget(requested: number | undefined, range: Range | undefined, effort: UserIntent["effort"]): number | undefined {
+  if (range === undefined) {
+    return requested;
   }
-  return range === undefined ? value : clampRange(value, range);
+  return clampRange(requested ?? budgetForEffort(effort, range), range);
 }
 
 // The minimum visible/structured output kept BELOW `maxOutputTokens` when a budget-mode reasoning budget
@@ -243,7 +251,7 @@ function resolveReasoning(
   const display = resolveDisplay(params.thinkingDisplay, r.displayModes, warnings) ?? defaultDisplay(r);
   const displayPart = display !== undefined ? { display } : {};
   if (r.mode === "budget") {
-    const rawBudget = resolveBudget(params.thinkingBudgetTokens, r.budgetRange);
+    const rawBudget = resolveBudget(params.thinkingBudgetTokens, r.budgetRange, effort);
     const budgetTokens = rawBudget !== undefined ? clampBudgetToOutput(rawBudget, maxOutputTokens, r.budgetRange, warnings) : undefined;
     return { mode: r.mode, enabled, ...(budgetTokens !== undefined ? { budgetTokens } : {}), ...displayPart };
   }
