@@ -150,9 +150,10 @@ without a path are in that folder.
 | A client feature surface | the header of `UI-Architecture-and-Layout.md` (its reading order), `client-architecture-lockdown.md` |
 | An `@orb/ui` primitive | `ui-package-design.md`, `UI-Primitives-and-Reuse.md` §13.7–§13.8 |
 | Types, unions, dispatch | `Spine-TypeScript-and-Patterns.md` |
-| A ledger decision | `Documentation-Law.md` "Ledger-entry style", then mint it with `pnpm doc new adr <slug>` |
+| A ledger decision | `.claude/rules/writing.md` "Decisions", then mint it with `pnpm doc new adr <slug>` |
 | A doc | `.claude/rules/writing.md`, `.claude/rules/docs.md` (`pnpm doc help` for the verbs) |
-| An instruction file or a code comment | `.claude/rules/writing.md` |
+| An instruction file | `.claude/rules/writing.md` |
+| A code comment | `.claude/rules/comments.md` |
 | Which word names a concept | `docs/design/vocabulary-map.md` |
 | Where a concept lives | `docs/architecture/core/AGENTS.md` §6 (domain map), `Core-0-Architecture-and-Structure.md` §6 (partitioning) |
 | A parked design set | `docs/architecture/proposed/INDEX.md` |
@@ -179,6 +180,7 @@ without a path are in that folder.
 
 - `.claude/rules/browser-tests.md`: `tests/**/*.ct.tsx`, `tests/e2e/**`, `tests/support/browser/**`, `playwright*.config.ts`
 - `.claude/rules/chat.md`: `packages/server/src/domain/chat/**`
+- `.claude/rules/comments.md`: `packages/**`, `tooling/**`, `tests/**`, `scripts/**`
 - `.claude/rules/contracts-and-kit.md`: `packages/contracts/**`, `packages/kit/**`
 - `.claude/rules/db.md`: `packages/db/**`
 - `.claude/rules/docs.md`: `docs/**`

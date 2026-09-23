@@ -32,8 +32,8 @@ Every structural choice here exists because of that fact, not in spite of it.
 
 Docs and comments are written for an agent, not a person — optimized for token budget, retrieval, and
 drift-resistance. Code + types are the source of truth; prose carries only the irreducible cross-cutting
-WHY; a wrong doc is worse than none; built code has no prose doc — the code **is** the doc. The full law:
-[`Documentation-Law.md`](architecture/core/Documentation-Law.md).
+WHY; a wrong doc is worse than none; built code has no prose doc — the code **is** the doc. The rules:
+[`writing.md`](../.claude/rules/writing.md) for docs and [`comments.md`](../.claude/rules/comments.md) for code comments.
 
 ## The north star
 

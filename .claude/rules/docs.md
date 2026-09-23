@@ -27,7 +27,17 @@ writing-rule finding; its message names the fixing command.
 Every `docs/**` file carries `kind`, `status` and `updated`. `updated` is the one sanctioned date and
 doubles as the review mark: `pnpm doc due` lists docs whose cited code changed after it, and
 `pnpm doc review <path|glob…>` sets it in batch. The legacy tree keeps its dated-by-design exemption
-until it moves.
+until it moves. The governed kinds, statuses and keys are `KIND_RULES` in `tooling/src/doc/lib/rules.ts`;
+the legacy tree's vocabulary is `tooling/src/doc-catalog/lib/vocab.ts`.
+
+## Moving or deleting a doc
+
+Supersede with `pnpm doc status superseded <path> --by <path>` and archive with `pnpm doc archive`. For a
+path move, `git mv` the file, rewrite its full-path citers in the same commit with an exact prefix
+replacement, and fix the moved file's own relative links. Search `packages`, `tooling`, `tests`, `scripts`,
+`.claude`, `AGENTS.md`, the root configs and `docs/` with `rg`. Keep section numbers, because code cites
+them. `pnpm check:structure` (`dangling-doc-cite`, `dangling-refs`, `dangling-ref-citations`) proves the
+sweep. Dated records under a history or reviews tree keep the path that was true when they were written.
 
 ## Work items
 

@@ -316,7 +316,7 @@ describe("dangling-refs — the derived corpus reaches living law outside docs/ 
       ...isolatedCorpus(),
       [FROZEN_DOC]: `---\nkind: history\nstatus: active\n---\n\nIt used to live at \`${CORPUS_GHOST}\`.\n`,
     });
-    // Documentation-Law.md §"Relocation & retirement" step 5: frozen evidence keeps the path that was true
+    // .claude/rules/docs.md §"Moving or deleting a doc": frozen evidence keeps the path that was true
     // then and is NOT repointed, so resolving its cites would red a doc for obeying the law.
     expect(
       isolatedFindings(root, CITATION_GATE).filter((found) => found.startsWith(`${FROZEN_DOC}:`)),

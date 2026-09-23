@@ -1,5 +1,5 @@
 // Gate: dangling-doc-cite (#873) — a source COMMENT naming a `docs/**.md` that does not exist. Code DOES
-// cite docs (Documentation-Law.md §Relocation & retirement, amended 2026-08-30: ~250 comment sites), so a
+// cite docs (.claude/rules/docs.md §Moving or deleting a doc), so a
 // doc move that skips the citer sweep leaves a pointer to nowhere — the exact lie the previous archival
 // pass left in eight comments. COMMENTS-INTENDED: comments ARE the subject, and scoping to them is what
 // keeps a gate/test FIXTURE STRING (a deliberately-absent doc path inside a proof map) out of scope with
@@ -141,7 +141,7 @@ const SLASH_LINE = "//";
 const COMMENT_CHAR = " ";
 
 const MESSAGE =
-  "a source COMMENT cites a `docs/**.md` path that does not exist. Code DOES cite docs (Documentation-Law.md §Relocation & retirement, amended 2026-08-30), so a move owes the citer sweep — and a comment pointing at a doc that is gone is drift the amnesiac reader cannot tell from a real home. Only COMMENTS are in scope: a fixture/example path inside a string literal is deliberately not a cite.";
+  "a source COMMENT cites a `docs/**.md` path that does not exist. Code DOES cite docs (.claude/rules/docs.md §Moving or deleting a doc), so a move owes the citer sweep — and a comment pointing at a doc that is gone is drift the amnesiac reader cannot tell from a real home. Only COMMENTS are in scope: a fixture/example path inside a string literal is deliberately not a cite.";
 const BLIND_MESSAGE =
   "dangling-doc-cite derived ZERO non-project files from the tracked inventory — its root-config + public-asset derivation is blind, so every lie living outside the ts-morph workspace (an eslint.config.js comment, a shipped .svg) reads as clean. Re-point the derivation in tooling/src/verify/gates/dangling-doc-cite.ts.";
 
@@ -264,7 +264,7 @@ function reportCite(
         line: cite.line,
         column: cite.column,
         token: cite.ref,
-        message: `comment cites doc \`${cite.ref}\` — no tracked \`.md\` file resolves it (by exact/suffix path or by basename). Use the doc's real repo-relative path, or fix the doc name. (Documentation-Law.md §Relocation)`,
+        message: `comment cites doc \`${cite.ref}\` — no tracked \`.md\` file resolves it (by exact/suffix path or by basename). Use the doc's real repo-relative path, or fix the doc name. (.claude/rules/docs.md §Moving or deleting a doc)`,
       });
     }
     return;
@@ -274,7 +274,7 @@ function reportCite(
       line: cite.line,
       column: cite.column,
       token: cite.ref,
-      message: `comment cites \`${cite.ref}\` — no such doc exists. A doc move owes its citer sweep (Documentation-Law.md §Relocation & retirement step 2); a pointer to nowhere is worse than no pointer.`,
+      message: `comment cites \`${cite.ref}\` — no such doc exists. A doc move owes its citer sweep (.claude/rules/docs.md §Moving or deleting a doc); a pointer to nowhere is worse than no pointer.`,
     });
   }
 }
@@ -395,10 +395,10 @@ export const gate = defineGate({
         // census found lived exactly here, so a project-only gate is a false clean at those sites. The
         // silent `packages/kit/src/anchor.ts` is the population ANCHOR every row needs: a fixture that
         // admits zero source paths is a `[population]` tool error, never a finding.
-        "eslint.config.js": "// See docs/Documentation-Law.md §Enforcement.\nexport default [];\n",
+        "eslint.config.js": "// See docs/Gone-Law.md §Enforcement.\nexport default [];\n",
         "packages/kit/src/anchor.ts": "export const anchor = 1;\n",
       },
-      expect: { count: 1, token: "docs/Documentation-Law.md" },
+      expect: { count: 1, token: "docs/Gone-Law.md" },
       why: "arm B: a root config the ts-morph workspace never carries — the eslint.config.js class, invisible to a project-only scan and now derived from the git index",
     },
     {

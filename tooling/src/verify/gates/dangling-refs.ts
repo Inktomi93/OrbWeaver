@@ -48,8 +48,9 @@ const BARE_ROOTS: readonly string[] = ["docs/architecture/core", "docs/architect
 // A `*.md` token inside a prose string: a path segment run ending in `.md`. Anchored on a non-token char so
 // we don't slice a longer path; the char class allows dir separators so a `core/Foo` + `.md` style path is
 // ONE token (this comment may not spell that contiguously — `dangling-doc-cite`'s widened bare/path grammar
-// would flag it right back).
-const MD_TOKEN_RE = /([\w][\w./-]*\.md)/gu;
+// would flag it right back). A leading dot that opens a token (a dot-directory such as `.claude`) belongs to
+// it; a dot after another dot or a slash does not, so a `../` prefix still drops as before.
+const MD_TOKEN_RE = /((?:(?<![\w./])\.(?=\w))?\w[\w./-]*\.md)/gu;
 // A markdown link target ending in `.md`, with an optional `#anchor` (arm 2): `[text](path` + `.md#x)`.
 const MD_LINK_RE = /\]\(([^)\s]+?\.md)(?:#[^)\s]*)?\)/gu;
 // A token carrying a glob / brace-expansion / placeholder is a PROSE PATTERN, not a literal cite — skip it
@@ -346,7 +347,7 @@ function referenceViolations(descriptors: readonly DescriptorCite[], links: read
     .map(({ file, field, ref }) => ({ file, line: 0, message: ARM1_MSG(field, ref) }));
   const linkViolations = links
     .filter(({ file, ref }) => !resolvesAny(paths, linkCandidates(file, ref)))
-    .map(({ file, ref }) => ({ file, line: 0, message: `${ARM2_MSG(ref)} — Documentation-Law.md` }));
+    .map(({ file, ref }) => ({ file, line: 0, message: `${ARM2_MSG(ref)} — .claude/rules/docs.md §Moving or deleting a doc` }));
   return [...descriptorViolations, ...linkViolations];
 }
 
@@ -527,6 +528,13 @@ export const gate = defineGate({
         "docs/architecture/core/__probe.md": "---\nkind: law\n---\n\nSee [target](__g_link-target.md) and the `UI-*.md` set.\n",
       },
       why: "arm 2: a link to a planted sibling resolves; a `UI-*.md` glob is a prose pattern, not a literal link — clean",
+    },
+    {
+      files: {
+        ".claude/rules/__g_rule.md": '---\npaths:\n  - "x/**"\n---\n\nplanted.\n',
+        "tooling/src/verify/gates/__probe.ts": 'export const gate = { name: "__probe", message: "see .claude/rules/__g_rule.md" };\n',
+      },
+      why: "arm 1: a cite under a dot-directory keeps its leading dot — `.claude/rules/…` resolves as written instead of being cut to `claude/rules/…`",
     },
   ].map(resourceProof),
 });
