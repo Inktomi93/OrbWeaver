@@ -124,7 +124,8 @@ export function formatOutcome(outcome: CaseOutcome): readonly string[] {
   if (!("worst" in outcome)) {
     return [`${head} ${outcome.reason}`];
   }
-  const line = `${head} ${pairFields(outcome.worst)} floor=${outcome.floor.toFixed(RATIO_DIGITS)} pairs=${outcome.pairs.length}`;
+  const known = outcome.verdict === "FAIL" && outcome.knownCause !== undefined ? ` known-cause="${outcome.knownCause}"` : "";
+  const line = `${head} ${pairFields(outcome.worst)} floor=${outcome.floor.toFixed(RATIO_DIGITS)} pairs=${outcome.pairs.length}${known}`;
   const details = outcome.verdict === "FAIL" ? outcome.pairs.map((pair, i) => `${PAIR_INDENT}pair ${i + 1}: ${pairFields(pair)}`) : [];
   return [line, ...details];
 }
