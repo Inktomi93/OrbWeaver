@@ -36,6 +36,18 @@ test("a writing-rule finding, a dead path and a structural finding all reach the
   ]);
 });
 
+test("a relative code-span path resolves against its own file: a missing target reds with file and line, a live one passes", async ({ plantedTree }) => {
+  const root = await plantedTree({ ...LEGACY, "docs/Mission.md": MISSION, "docs/design/live.md": "# Live\n" });
+  newAdr("one", "One", root, TODAY);
+  const { writeFileSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  writeFileSync(
+    join(root, "docs/adr/0001-one.md"),
+    "---\nkind: adr\nstatus: active\nupdated: 2026-09-23\n---\n\n# One\n\nSee `../design/live.md`.\nSee `../design/x.md:4`.\n\n## Context\n\n## Decision\n\n## Alternatives rejected\n\n## Consequences\n",
+  );
+  expect(docLayerProblems(root)).toEqual(["docs/adr/0001-one.md:10: path does not exist: ../design/x.md"]);
+});
+
 test("the walk sees a nested item folder and a non-markdown file under a governed tree (F12)", async ({ plantedTree }) => {
   const root = await plantedTree({ ...LEGACY, "docs/Mission.md": MISSION, "docs/adr/notes.txt": "stray\n" });
   newItem({ title: "T", kind: "work", priority: null, area: null, plan: null, lane: null }, root, TODAY);
