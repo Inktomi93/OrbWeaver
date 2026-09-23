@@ -70,6 +70,8 @@ interface CanonRow {
   characterId?: CharacterId | null;
   messageId?: MessageId | undefined;
   kind?: MessageKind | undefined;
+  /** A character's line the scoped fold re-roled to `user`; its speaker already rides inline. */
+  folded?: true;
   /** A depth-scoped `PROMPT_HISTORY` script can still rewrite this row on a later turn (`assembly/history-regex`),
    *  so the cache never pins it. */
   depthVolatile?: true | undefined;
@@ -98,6 +100,9 @@ interface ShapeInput {
   scopedTargetId: CharacterId | null;
   namesBehavior: NamesBehavior;
   speakers: { user: string; assistant: string };
+  /** The room seats more than one present human (`AssembleContext.multiHuman`) — the name-stamp labels every
+   *  canon user row. Absent ⇒ a solo room. */
+  multiHuman?: boolean | undefined;
   /** The group nudge (`[Write the next reply only as X.]`), set only on a multi-speaker round. */
   groupNudge: string | null;
   resolveContent?: (content: string) => string;
@@ -188,6 +193,7 @@ function scopeHistoryToTarget(canon: readonly CanonRow[], targetId: CharacterId)
         // Purpose survives the fold: the WIRE role changed, the row did not stop being what it is (D129's
         // three orthogonal axes — the fold moves DELIVERY, never PURPOSE).
         kind: m.kind,
+        folded: true,
         depthVolatile: m.depthVolatile,
       };
     }
@@ -561,7 +567,11 @@ export function shape(input: ShapeInput): ShapeOutput {
     prose: input.prose,
   });
   const squashed = runSquash(injected);
-  const namedInput = applyNamesBehavior(injected, input.namesBehavior, input.speakers, { multiCharacter, mergesAdjacent: merges });
+  const namedInput = applyNamesBehavior(injected, input.namesBehavior, input.speakers, {
+    multiCharacter,
+    multiHuman: input.multiHuman === true,
+    mergesAdjacent: merges,
+  });
   const named = runSquash(namedInput);
 
   // A multi-speaker round's group nudge, or the continuation cue for a turn that would otherwise end on the
@@ -620,22 +630,22 @@ export function shape(input: ShapeInput): ShapeOutput {
  * `resolveUserAttribution`: the `authorUserId === viewerUserId` gate, "fail closed: name nobody rather than
  * name wrongly"). Everyone else gets {@link UNRESOLVED_USER_NAME}, the same word the reader sees on screen.
  *
- * Fail-closed on purpose: an UNKNOWN author or an unknown trigger (a drain/auto turn, a preview, any
- * hand-built ctx) takes the floor rather than the borrow. The one case that still borrows — the trigger's OWN
- * unstamped row — is unchanged from before this guard, and is byte-identical in a solo personaless chat where
- * `speakers.user` is already the "User" floor.
+ * The key is the human whose persona `speakers.user` is (`AssembleContext.activePersonaUserId`, the room's
+ * anchor human), never the trigger, so a row's label does not change with who pressed send. Fail-closed on
+ * purpose: an UNKNOWN author or owner (any hand-built ctx) takes the floor rather than the borrow. A solo
+ * personaless chat is byte-identical: `speakers.user` is already the "User" floor.
  */
 function userRowAuthorName(
   row: { readonly personaId: PersonaId | null; readonly authorUserId: UserId | null },
   macroNames: HistoryMacroNames,
-  triggerUserId: UserId | null,
+  activePersonaUserId: UserId | null,
 ): string | null {
   const stamped = row.personaId === null ? undefined : macroNames.personaNamesById.get(row.personaId);
   if (stamped !== undefined) {
     return stamped.name;
   }
   // No usable identity of its own (never stamped, or stamped with a since-deleted persona).
-  const ownRow = row.authorUserId !== null && row.authorUserId === triggerUserId;
+  const ownRow = row.authorUserId !== null && row.authorUserId === activePersonaUserId;
   return ownRow ? null : DEFAULT_PERSONA_NAME;
 }
 
@@ -669,13 +679,15 @@ function compactionCoveredThroughSeq(ctx: AssembleContext): number {
  *  One field read, one answer. Byte-identical for every real narrator row, which is the only row the strip
  *  was ever for. */
 function assistantShapeRow(m: MessageView, ctx: AssembleContext, macroNames: HistoryMacroNames, nameById: ReadonlyMap<CharacterId, string>): CanonRow {
-  const authorName = m.characterId !== null ? (nameById.get(m.characterId) ?? null) : null;
+  const rosterName = m.characterId !== null ? (nameById.get(m.characterId) ?? null) : null;
+  // A departed character's row keeps its own stamped name, so its label never borrows whoever speaks now.
+  const authorName = rosterName ?? (m.characterId !== null ? (macroNames.characterNamesById.get(m.characterId)?.name ?? null) : null);
   const body = m.kind === "narrator" ? speakerTagsToPlain(m.content) : m.content;
   return {
     role: "assistant",
     content: renderHistoryMacros(body, { characterId: m.characterId, personaId: m.personaId }, ctx, {
       producer: macroNames,
-      speakerCharName: authorName ?? undefined,
+      speakerCharName: rosterName ?? undefined,
     }),
     characterId: m.characterId,
     authorName,
@@ -690,7 +702,7 @@ function userShapeRow(m: MessageView, ctx: AssembleContext, macroNames: HistoryM
   return {
     role: "user",
     content: renderHistoryMacros(m.content, { characterId: m.characterId, personaId: m.personaId }, ctx, { producer: macroNames }),
-    authorName: userRowAuthorName(m, macroNames, ctx.triggerUserId ?? null),
+    authorName: userRowAuthorName(m, macroNames, ctx.activePersonaUserId ?? null),
     messageId: m.id,
     kind: m.kind,
   };

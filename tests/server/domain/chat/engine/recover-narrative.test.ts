@@ -67,7 +67,7 @@ function ctxOf(): AssembleContext {
     character: { name: "Aria", description: "a bold knight" },
     promptConfig: DEFAULT_PROMPT_CONFIG,
     activePersona: { name: "Alex", description: "the user" },
-    triggerUserId: FIXTURE_HUMAN,
+    activePersonaUserId: FIXTURE_HUMAN,
     recentMessages: [],
   };
 }

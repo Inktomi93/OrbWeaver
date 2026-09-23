@@ -1,9 +1,7 @@
-// Ruling: prompt-config `{{user}}` (the assemble ctx's ACTIVE persona) binds to the TRIGGERING human's
-// persona — whose turn drives the assemble — NOT `personaIds[0]` (the presence-order-arbitrary first present
-// human) and NOT the chat anchor. The composition root dispatches over the `TurnTrigger` union
-// (entry/compose/chat.ts `activePersonaIdFor`); this proves the VERB half — each turn verb threads the
-// triggering human's identity + seat persona as `trigger` into `resolveForeignInputs` — by spying on the
-// FOREIGN resolver's args.
+// Each turn verb threads the triggering human's identity + seat persona as `trigger` into
+// `resolveForeignInputs` — proven by spying on the FOREIGN resolver's args. The trigger binds prompt-config
+// `{{user}}` only on a `trigger`-voice turn (an impersonate draft); a canon turn binds the anchor human's seat
+// persona (entry/compose/chat.ts `voicePersonaFor`, D122 as amended). Never `personaIds[0]`.
 
 import type { AssemblePersona } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";

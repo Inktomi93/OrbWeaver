@@ -58,9 +58,10 @@ export function resolveEntryScope(metadata: unknown, hasKeys: boolean): "always"
   return hasKeys ? "keyword" : "always";
 }
 
-/** Which WI anchor bucket an always-scope, system-half entry joins (ST worldInfoBefore/After). Reads
- *  `metadata.position` in isolation; defaults to `before` (ST default). Only consulted when the active
- *  preset has the matching anchor marker — otherwise the entry uses default placement. */
+/** Which WI anchor bucket a system-half entry joins (ST worldInfoBefore/After): an always-scope entry in the
+ *  static half, a keyword-fired one in the per-turn half. Reads `metadata.position` in isolation; defaults to
+ *  `before` (ST default). Only consulted when the active preset has the matching anchor marker — otherwise the
+ *  entry uses default placement. */
 export function resolveEntryPosition(metadata: unknown): EntryPosition {
   const parsed = z.enum(ENTRY_POSITIONS).safeParse(metadataField(metadata, "position"));
   return parsed.success ? parsed.data : "before";

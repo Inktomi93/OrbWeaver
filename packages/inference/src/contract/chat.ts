@@ -179,6 +179,10 @@ export type ChatRequest =
   | (ChatRequestCommon & {
       readonly api: "agent-sdk";
       readonly prompt: string;
+      /** The system rows below the history (a depth-0 system injection the capability kept), lifted off the
+       *  transcript. The runner delivers them beside the prompt through the `UserPromptSubmit` hook, their own
+       *  position. Absent ⇒ none. */
+      readonly tailSystem?: string | undefined;
       /** Model-visible transcript before this turn, for canon-derived session seeding (D8). */
       readonly seed?: readonly AgentSeedTurn[] | undefined;
       /** The in-process MCP tool server — the STATEFUL wire's tool channel; absent ⇒ the tool-less base. */

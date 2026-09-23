@@ -150,14 +150,16 @@ describe("toChatRequest — the Agent SDK", () => {
     expect(req).not.toHaveProperty("tools");
   });
 
-  test("the history becomes seed + prompt, the system band lifts onto the dynamic half, and the array knobs drop", () => {
+  test("the history becomes seed + prompt, the system band lifts onto the tail hook text, and the array knobs drop", () => {
     const req = toChatRequest(turnOf("agent-sdk"));
     expect("seed" in req ? req.seed : undefined).toEqual([
       { role: "user", content: [{ type: "text", text: "hello" }] },
       { role: "assistant", content: [{ type: "text", text: "hi" }] },
     ]);
     expect("prompt" in req ? req.prompt : undefined).toBe("and then?");
-    expect(req.systemPrompt).toEqual({ static: "STATIC", dynamic: "DYNAMIC\n\nGM note" });
+    // The system-region halves stay where the prompt put them; only the rows below the history ride the hook.
+    expect(req.systemPrompt).toEqual({ static: "STATIC", dynamic: "DYNAMIC" });
+    expect("tailSystem" in req ? req.tailSystem : undefined).toBe("GM note");
     expect(req).not.toHaveProperty("history");
     expect(req).not.toHaveProperty("cacheBreakpointDepth");
     expect(req).not.toHaveProperty("reasoningTags");
