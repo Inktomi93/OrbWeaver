@@ -16,6 +16,8 @@ Input values live per chat in `chats.user_macro_values`, a nested macro→input�
 
 ## Consequences
 
+A fork carries the parent's `userMacroValues` verbatim (`domain/chat/verbs/fork.ts`), the same as ChoiceBlock picks under ADR 0046 — a fork continues the same setup.
+
 `ForeignInputs` carries no user-macro values field. Each room keeps its own picks, so one room can set a grim tone while another sets a comic one. ChoiceBlock picks and user-macro picks are both per-chat room state, so one client pane can edit both. Chat export and import carry the `user_macro_values` column through the chat bundle. User macros in user-authored text resolve at commit through the freeze registry; identity macros stay raw.
 
 ## Alternatives rejected
