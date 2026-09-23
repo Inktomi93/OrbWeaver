@@ -1,4 +1,4 @@
-// Policy: test-presence-inference (core/Spine-Testing.md §5) — the inference package's bounded test
+// Policy: test-presence-inference (docs/law/Spine-Testing.md §5) — the inference package's bounded test
 // topology. Exact module tests answer isolated behavior; declared suite categories answer behavior that is
 // intentionally cross-wire or composed. Any runtime source outside those categories falls back to an exact
 // module mirror. Type-only contracts and barrels have no runtime behavior to assert. The inference-test mirror

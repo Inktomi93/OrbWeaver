@@ -128,7 +128,7 @@ deliverable; the app image (D1-D4) can land first and independently.
 
 **D6 — Burn the known debt BEFORE the pentest so findings are news.** Per the I-11 list
 (`docs/history/retro-workboard-2026-08-08.md:1533-1539`): the AUTHFIX-2 `/api/_debug/*` hole
-(`docs/architecture/core/Core-Audits-and-Debt.md`; the fix is lane DEBUGGATE, already dispatched
+(`docs/law/Core-Audits-and-Debt.md`; the fix is lane DEBUGGATE, already dispatched
 per the STATE block), `DEBUG_TOKEN`/`WIRE_CAPTURE` armed in live `.env`, secrets at repo root, the
 1GB body upload surface. These are pre-conditions, not pentest findings.
 

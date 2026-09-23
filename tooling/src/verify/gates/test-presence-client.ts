@@ -1,4 +1,4 @@
-// Policy: test-presence-client (core/Spine-Testing.md §5) — the `@orb/client` + non-primitive `@orb/ui`
+// Policy: test-presence-client (docs/law/Spine-Testing.md §5) — the `@orb/client` + non-primitive `@orb/ui`
 // reach `test-presence` lacks. §5's rule is that a test is required where an untested change silently
 // breaks behavior DOWNSTREAM, not blanket per-file coverage, so the policy has three clauses:
 //   A. a client `data/` `forms/` `forms/editor/` `state/` DIRECT child with a callable export needs a

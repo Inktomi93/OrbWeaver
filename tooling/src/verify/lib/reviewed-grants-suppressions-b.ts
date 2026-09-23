@@ -268,6 +268,15 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
       "the ruling itself is reversed, or the last governed tests site under `@ts-expect-error` disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
   },
   {
+    id: "suppressions:source-lint-style-use-consistent-method-signatures",
+    policyId: "suppressions",
+    subject: "lint/style/useConsistentMethodSignatures",
+    operation: "source",
+    why: "RULING — `platform.d.ts` AUGMENTS lib's `Map<K,V>`/`WeakMap<K,V>` with the V8 `getOrInsert`/`getOrInsertComputed` members. Every other member of those interfaces is method-style and therefore BIVARIANT; a property-style member merged in makes the whole interface invariant and revoked assignabilities the standard library grants (measured 2026-08-03: three real sites went red). The file header records the measurement. Admitted to this policy by work item 0036, which widened the population to the repo-root declarations.",
+    endsWhen:
+      "TypeScript's lib ships `getOrInsert`/`getOrInsertComputed` and the `platform.d.ts` blocks are deleted, or biome gains a bivariance-aware exemption for augmentations.",
+  },
+  {
     id: "suppressions:tests-useConsistentMethodSignatures",
     policyId: "suppressions",
     subject: "lint/style/useConsistentMethodSignatures",

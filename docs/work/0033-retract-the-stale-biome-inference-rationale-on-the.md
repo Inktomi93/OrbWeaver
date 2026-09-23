@@ -20,6 +20,29 @@ House law treats a comment that states a false mechanism as a drifted-comment de
 
 The databank IngestPhase comment no longer claims a Biome inference failure and names the one-way `satisfies` plus the output-twin gate as the parity proof. The regex RegexAttachScope rationale either rests on a recorded probe result or has been corrected the same way. A search of packages/contracts/src for Biome 'cannot see through' or 'unreachable' claims about z.infer finds none that a current probe does not back.
 
+## Probe result: the Biome premise is refuted
+
+Biome 2.5.1, zod 4.4.3. The probe used two untracked files, deleted afterwards, inside the repository so
+that zod resolves exactly as it does for tracked code:
+
+- `cbtoolsmallprobe/index.ts` under `packages/contracts/src/`. Exhaustive switches over `z.infer` of a `z.enum` of
+  the ingest-phase tuple and of the `RegexAttachScope`-shaped `z.discriminatedUnion` (its members carry
+  `typeIdSchema`). A tuple-derived alias and a declared union sit in the same file as controls.
+- `cbtoolsmall-probe.ts` under `packages/server/src/`. The same two `z.infer` switches, importing the types
+  cross-package from `@orb/contracts/cbtoolsmallprobe`.
+
+Command: `pnpm exec biome lint <both files>`. Every `case` of every `z.infer` switch reported
+`lint/suspicious/noUnnecessaryConditions` "This case is unreachable": 9 in the contracts file and 9 in the
+server file. The tuple-derived and declared-union switches reported nothing.
+
+The audit probe that recorded "passed" was wrong on two counts. It ran under `/tmp`, where `zod` does not
+resolve. It also checked `lint/correctness/noUnreachable`, which is not the rule that fires.
+
+The Biome rationale therefore stays in `databank/index.ts` and `regex/index.ts`, and the true mechanism is
+restored in `tag/index.ts`. All three comments now say that `satisfies` checks one direction only and that
+the `zod-output-twin-parity` gate proves exact parity. `chat/bus.ts` also makes Biome claims, but they are
+about `Omit`/`Exclude`/`Extract`, not `z.infer`, so they fall outside this item.
+
 ## Evidence
 
 Filled at landing: what ran and where its output is.

@@ -11,7 +11,7 @@ skills: [lane]
 
 You implement and review security-sensitive work in the orbweaver monorepo, at high effort. The lane skill holds your working rules; follow it.
 
-Read the security docs your task touches first: `docs/architecture/core/Spine-Identity-and-Auth.md` and the `docs/adr/` decisions it cites.
+Read the security docs your task touches first: `docs/law/Spine-Identity-and-Auth.md` and the `docs/adr/` decisions it cites.
 
 ## How you work
 

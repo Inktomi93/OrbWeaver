@@ -1,4 +1,4 @@
-// transport/trpc/routers/search — the vector-search surface (core/Tier-4-Transport.md). authed; the verbs take a
+// transport/trpc/routers/search — the vector-search surface (docs/law/Tier-4-Transport.md). authed; the verbs take a
 // scalar `ownerId` (the one cleanly owner-scoped vector table; D20 scope DERIVES from the producer),
 // supplied from the resolved `Principal.userId` — never client input (audit #1: no caller-supplied owner).
 // Thin: validate → `ctx.services.search.<verb>` → map errors.

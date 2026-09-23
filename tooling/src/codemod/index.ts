@@ -1,5 +1,5 @@
 // codemod's programmatic front door — the master ts-morph toolkit (ts-morph v28; verify with
-// `cat node_modules/ts-morph/package.json`). One tool, one API (docs/architecture/core/Core-Tooling-Law.md §2.5).
+// `cat node_modules/ts-morph/package.json`). One tool, one API (docs/law/Core-Tooling-Law.md §2.5).
 //
 // Why this tool exists: every fresh agent that touches ts-morph re-derives the basics — project
 // bootstrap, the stale-node footgun, the alias-path gap, callers vs importers, clean import surgery,

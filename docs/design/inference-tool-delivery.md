@@ -91,7 +91,7 @@ exactly as they are.
   `toAgentToolServer`; `project-mcp.ts` and the `CreateAgentToolServer` type are deleted.
 - `packages/server/src/entry/compose/chat.ts` and `compose/index.ts` — the bridge calls `toChatRequest`;
   the split helpers leave the compose barrel.
-- `docs/architecture/core/Tier-3b-Providers.md` — the seed split is inference's, not the entry bridge's.
+- `docs/law/Tier-3b-Providers.md` — the seed split is inference's, not the entry bridge's.
 
 ## Test plan
 

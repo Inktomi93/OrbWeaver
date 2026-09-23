@@ -1,4 +1,4 @@
-// Seeded, deterministic id generator (core/Spine-Testing.md §3 — no unseeded ids under tests/). Mints
+// Seeded, deterministic id generator (docs/law/Spine-Testing.md §3 — no unseeded ids under tests/). Mints
 // a REAL `prefix_<base32>` TypeID shape via `typeid-js`'s own encoder, not a `prefix_000001` placeholder:
 // a portable-file boundary (`@orb/server/kit/serde/gallery`, `.../databank`) round-trips an id through
 // `typeIdSchema`, which validates the full TypeID shape and SILENTLY DROPS a row that fails it

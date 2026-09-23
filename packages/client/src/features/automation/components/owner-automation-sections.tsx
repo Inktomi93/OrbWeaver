@@ -9,7 +9,7 @@
 //   2. the PICKER is handed `chatId: null`, which filters the catalogue to the presets that declare
 //      `scope: "global"` and hands the mint a chat-less scope;
 //   3. it owns the OWNER rate ceiling — the belt every chat-less rule of this author counts against, which
-//      has no per-chat equivalent because `automation_budgets` is keyed by chat.
+//      has no per-chat equivalent because the per-chat belt is a fixed ceiling no one edits.
 //
 // NO LIVE FEED, said out loud rather than left to be noticed. `AutomationBusEvent` is the per-CHAT bus, so
 // an owner-global rule's fire reaches no subscriber and this list has nothing to subscribe to; it reconciles

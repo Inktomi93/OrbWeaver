@@ -38,7 +38,7 @@ import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 
 const MESSAGE =
-  'raw content width class (w-N / max-w-N / w-[len]) — content widths ride the container scale: wrap in `<Container size="sm|md|lg">` (→ max-w-cq-*), never a hardcoded length. See docs/architecture/core/UI-Architecture-and-Layout.md §4.';
+  'raw content width class (w-N / max-w-N / w-[len]) — content widths ride the container scale: wrap in `<Container size="sm|md|lg">` (→ max-w-cq-*), never a hardcoded length. See docs/law/UI-Architecture-and-Layout.md §4.';
 
 const WIDTH_RE = /^(?:(?:max-|min-)?w-\[[^\]]+\]|(?:max-)?w-(?:[1-9]\d*|\d+\.\d+))$/u;
 const WHITESPACE_RE = /\s+/u;

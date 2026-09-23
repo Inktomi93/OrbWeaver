@@ -15,7 +15,7 @@ evidence: 09853cd59
 Re-check each open finding in the AST audit's running finding ledger
 against the current tree. Open means status `valid-finding` or `review-pending`, or a row in either
 ingestion backlog. Create a `docs/work` item for each finding that still holds, and record the ones the
-tree already fixed with their commit. Then delete `docs/reviews/ast-codebase-audit/` and the documents
+tree already fixed with their commit. Then delete the AST codebase audit folder under docs/reviews and the documents
 kept only because it cited them.
 
 ## Why

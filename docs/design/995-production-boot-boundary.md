@@ -32,8 +32,8 @@ animation imports to the mixed readiness/debug module, reconnecting those rails 
 entry.
 
 The current architecture law already decides the fork. The development handle assembly must remain
-behind the one literal DEV dynamic door (`docs/architecture/core/client-architecture-lockdown.md:84`),
-and `main.tsx` owns production boot wiring (`docs/architecture/core/client-architecture-lockdown.md:419`).
+behind the one literal DEV dynamic door (`docs/law/client-architecture-lockdown.md:84`),
+and `main.tsx` owns production boot wiring (`docs/law/client-architecture-lockdown.md:419`).
 No owner-sacred copy or push decision is involved.
 
 After implementing that split, a clean production build measured 818,188 bytes: 696,149 bytes in
@@ -105,8 +105,8 @@ The shared shape fans out to these current sites:
   `packages/client/src/features/app-shell/components/boot-veil.tsx`,
   `tooling/src/ui-audit/lib/evidence.ts`, `tooling/src/ui-audit/lib/budgets.ts`, and
   `tooling/src/snap/ops/drive.ts`;
-- active architecture: `docs/architecture/core/client-architecture-lockdown.md` and the existing
-  `agent-bridge-lock` row in `docs/architecture/core/Core-Enforcement-Active-Gates.md`.
+- active architecture: `docs/law/client-architecture-lockdown.md` and the existing
+  `agent-bridge-lock` row in `docs/law/Core-Enforcement-Active-Gates.md`.
 
 Type-only dev handle imports in `agent-nav`, `agent-seed`, and `agent-rpg` remain on
 `agent-bridge.ts`; they consume debug handle types, not readiness. Historical reviews, completed

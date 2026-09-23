@@ -1,4 +1,4 @@
-// THE FRESHNESS GUARANTEE of `scripts/ts7.cjs`, as a committed regression pin (#2193 — the missing half of
+// THE FRESHNESS GUARANTEE of `scripts/ts7.ts`, as a committed regression pin (#2193 — the missing half of
 // docs/history/gate-runtime-worked-cases-2026-09.md §"Archived world-program guarantee table" row 14, "Fresh type verdicts": *warm/changed/restored produce
 // green/red/green without deleting caches; long and short forced incremental flags cannot bypass the
 // wrapper*).
@@ -82,7 +82,7 @@ interface CompilerRun {
 
 /** Run the REAL wrapper — the file the two Vitest type projects and `pnpm typecheck` both invoke. */
 function runWrapper(repoRoot: string, program: Program): CompilerRun {
-  const result = spawnSync(process.execPath, [join(repoRoot, "scripts", "ts7.cjs"), ...vitestShapedArgv(program.buildInfo, program.tsconfig)], {
+  const result = spawnSync(process.execPath, [join(repoRoot, "scripts", "ts7.ts"), ...vitestShapedArgv(program.buildInfo, program.tsconfig)], {
     cwd: repoRoot,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],

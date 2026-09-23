@@ -1,4 +1,4 @@
-// Home CT stories (core/Spine-Testing.md §7 — CT mounts ONLY from a non-test module). The whole point of
+// Home CT stories (docs/law/Spine-Testing.md §7 — CT mounts ONLY from a non-test module). The whole point of
 // the home section is the DOOR seam, so these stories hand-build a `home-tiles` contributor registry of
 // FAKES and drive the REAL `HomeSurface` — proving order, `useVisible` gating, the dormant arm, and the
 // zero-tile empty state against the shipped grid, not a bespoke double.

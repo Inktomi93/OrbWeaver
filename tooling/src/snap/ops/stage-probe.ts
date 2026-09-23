@@ -1,5 +1,5 @@
 // WHAT IS RUNNING, AND WHOSE IS IT — the observation half of the isolated stage, split out of ops/stage.ts
-// when that file crossed the tooling line cap (docs/architecture/core/Core-Tooling-Law.md §4.3). One command family:
+// when that file crossed the tooling line cap (docs/law/Core-Tooling-Law.md §4.3). One command family:
 // read the band ports' owners (ONE `ss` for the whole table), read the box's ESTABLISHED connections so a
 // band can be asked whether anything is actually DRIVING it (#1163's interaction signal), decide whether a
 // bound port belongs to a STAGE, age a process, kill a process group, take the THREE health probes of

@@ -27,7 +27,7 @@ const ROOT = join(import.meta.dirname, "..", "..", "..", "..");
 /** The measured #2505 failure: Stryker crashed in sandbox setup after instrumenting 1177 mutants, node
  *  exited 1 on the uncaught rejection, and NOT ONE mutant ran. */
 const CRASHED = [
-  "$ nice -n 19 stryker run stryker.gate.config.js",
+  "$ nice -n 19 stryker run stryker.gate.config.ts",
   "INFO ProjectReader No incremental result file found at reports/stryker-gate-incremental.json, a full mutation testing run will be performed.",
   "INFO ProjectReader Found 4 of 10431 file(s) to be mutated.",
   "INFO Instrumenter Instrumented 4 source file(s) with 1177 mutant(s)",

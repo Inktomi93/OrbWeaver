@@ -202,6 +202,7 @@ describe("ast command output over bounded projects", () => {
     writeFixture(scratch, "packages/client/vite.config.ts", "export const packageRootOnly = 1;\n");
     writeFixture(scratch, "packages/client/src/extra.mts", "export const mtsOnly = 1;\n");
     writeFixture(scratch, "playwright/probe.tsx", "export const playwrightOnly = <main />;\n");
+    writeFixture(scratch, "root.config.ts", "export const rootOnly = 1;\n");
     writeFixture(scratch, "scripts/probes/st-goldens/sillytavern-runtime/ignored.ts", "export const ignoredCapture = 1;\n");
 
     const standard = getWorkspace({ root: scratch, types: false });
@@ -211,16 +212,19 @@ describe("ast command output over bounded projects", () => {
         .getSourceFiles()
         .map((source) => source.getFilePath().slice(scratch.length + 1))
         .sort();
-    expect(relativePaths(standard)).toEqual(["packages/client/src/main.ts", "scripts/dev/probe.ts", "tests/client/main.test.ts", "tooling/src/probe.ts"]);
-    expect(relativePaths(wide)).toEqual([
-      "packages/client/src/extra.mts",
+    // The package-root and playwright files are in the STANDARD corpus since work item 0036: the suppressions
+    // policy judges every file the harness loads, so the harness loads every authored TypeScript file.
+    const standardPaths = [
       "packages/client/src/main.ts",
       "packages/client/vite.config.ts",
       "playwright/probe.tsx",
+      "root.config.ts",
       "scripts/dev/probe.ts",
       "tests/client/main.test.ts",
       "tooling/src/probe.ts",
-    ]);
+    ];
+    expect(relativePaths(standard)).toEqual(standardPaths);
+    expect(relativePaths(wide)).toEqual(["packages/client/src/extra.mts", ...standardPaths]);
     expect(CORPUS_SYNTACTIC).toContain("scripts/**/*.ts");
     expect(CORPUS_SYNTACTIC).toContain("tooling/src/**/*.ts");
     expect(CORPUS_TYPED).toBe("native-program-authored-roots(per-tsconfig)");

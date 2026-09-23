@@ -267,7 +267,7 @@ than a stale permission, and the census above is where it will show.
   a name check REDs the homonym row; ownership widened to "any descriptor that reaches the identity" REDs
   the warning-debt-sibling row; ownership read from the FILE again REDs the unused-const row.
 
-- **Type programs** — the program this lane ran is TOOLING TS7 (`scripts/ts7.cjs` with `-p tooling/tsconfig.json`),
+- **Type programs** — the program this lane ran is TOOLING TS7 (`scripts/ts7.ts` with `-p tooling/tsconfig.json`),
   clean. `types:graph` (the root `tsconfig.json` program) is RED on this tree with 12 errors in five files
   — `tests/tooling/verify/lib/{policy-loader,policy-plan,render.int,resource-declaration}.test.ts` and
   `tests/tooling/verify/ops/scoped.int.test.ts` — and every one of them is the known-red legacy-loader

@@ -34,7 +34,7 @@ tree was never ported. This is a build-surface feature, not a wire.
 read via `git show` per file (never checkout/cp). Law read IN FULL: the constitution (`AGENTS.md`), the
 executor doctrine, `../history/design/list-pane-projection-proposal.md` §11–§13 (the ratified row/action grammar),
 `UI-Density-Law.md` §3 (the tier map + the chrome diet), `home-section-spec.md` (the sibling rail
-program), `Core-Docs-Formatting-Law.md`, and the D85 citation set.
+program), the docs formatting law, and the D85 citation set.
 
 **Mocks (the owner rules from pixels):** `docs/design/mocks/databank-surface/library.html` (the
 documents library at instrument tier — the LIST pane, both HOME arms side by side, the CONTENT detail,

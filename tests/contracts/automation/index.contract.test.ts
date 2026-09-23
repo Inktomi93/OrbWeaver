@@ -7,7 +7,6 @@ import type { AutomationActionType, ChatTriggerType, DomainTriggerType, TriggerF
 import {
   AUTOMATION_ACTION_TYPES,
   AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR,
-  AUTOMATION_CHAT_BUDGET_DEFAULTS,
   AUTOMATION_FIRE_OUTCOMES,
   AUTOMATION_OWNER_BUDGET_DEFAULTS,
   AUTOMATION_TRIGGER_BUSES,
@@ -447,11 +446,10 @@ describe("triggerBusOf", () => {
   });
 });
 
-// #1430 — the two fire-rate belts have a CEILING. The constant is the one home; the domain verbs hold the
+// #1430 — the owner fire-rate belt has a CEILING. The constant is the one home; the domain verb holds the
 // authoritative bound and the tRPC schema mirrors it.
-test("the budget ceiling is a whole number above both plane defaults and above the per-rule cap", () => {
+test("the budget ceiling is a whole number above the owner plane default", () => {
   expect(Number.isInteger(AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR)).toBe(true);
-  // A ceiling at or below a default would make the shipped default itself unsettable.
-  expect(AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR).toBeGreaterThan(AUTOMATION_CHAT_BUDGET_DEFAULTS.maxFiresPerHour);
+  // A ceiling at or below the default would make the shipped default itself unsettable.
   expect(AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR).toBeGreaterThan(AUTOMATION_OWNER_BUDGET_DEFAULTS.maxFiresPerHour);
 });

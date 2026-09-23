@@ -1,5 +1,5 @@
 // transport/trpc/routers/connection — the connections + Model-roles + catalog + diagnostics surface
-// (core/Tier-4-Transport.md; inference program §3.3/§5.3a). Thin: validate → `ctx.services.connection.<verb>`
+// (docs/law/Tier-4-Transport.md; inference program §3.3/§5.3a). Thin: validate → `ctx.services.connection.<verb>`
 // → map errors. The turn-time `resolve`/`availability` verbs are internal (chat's turn path) — NOT exposed.
 // Every row read or written is the CALLER's (`principal.userId` is the owner predicate at the domain).
 //

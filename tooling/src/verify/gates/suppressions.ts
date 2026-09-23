@@ -134,6 +134,23 @@
 // and final `population` admits 7,497. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
 // `docs/__cbbhr_out_control.ts` (virtual) rejected by both.
+//
+// THE WIDENING, 2026-09-23 (work item 0036, owner ruling outcome A). `@authored` is a union of NAMED ROOTS, and
+// no root names the repo root's own files (`knip.ts`, `platform.d.ts`, the vitest/playwright/stryker configs),
+// a package's files outside `src/` (`packages/ui/token-contract.ts`, `packages/client/vite.config.ts`), or
+// `playwright/`. Those files held live directives that no grant licensed and no gate read, and the old
+// population admitted them for no stated reason. The population is now every authored TypeScript file the gate
+// corpus loads (`of: "all"`), and the corpus (`_shared/ts-workspace.ts#harnessGlobs`) was widened in the same
+// change to load those files. `caught-failure-ownership` rejected `of: "all"` because its declared FENCE held only
+// by the corpus's accident. This policy has no fence except the captured runtime. Its intent IS "whatever the
+// repository authors", and the corpus is held to that claim by
+// `tests/tooling/verify/contract/population.test.ts`: every tracked TypeScript file must be one the corpus loads.
+// The non-TypeScript scripts were converted to TypeScript first (`scripts/{ts7,eslint,depcruise,
+// vitest-supervised}.ts`, `scripts/probes/st-goldens/write-v2-png.ts`, `stryker{,.gate}.config.ts`). The JS files
+// that remain are JS because their loader cannot load TypeScript, and each says why in its own header or its
+// package's (`eslint.config.js`, `.dependency-cruiser.cjs`, the showcase QuickJS guest bundles). The policy
+// source vocabulary is `.ts`/`.tsx` only (`contract/population.ts#LoadableExt`), so their directives remain
+// outside this gate.
 import { defineGate } from "../contract/policy.ts";
 import type { GovernedScope } from "../contract/suppressions.ts";
 import type { ReviewedGrantFileCandidate } from "../lib/reviewed-grant-findings.ts";
@@ -183,10 +200,14 @@ export const gate = defineGate({
   family: "suppressions",
   authority: "reviewed-grant",
   severity: "error",
-  // The legacy `harnessGlobs ∩ scanRoot` set, losslessly: `@authored` includes every shipped package root.
+  // EVERY authored TypeScript file the gate corpus loads (work item 0036 — see the header's WIDENING note).
   // `notUnder` is the captured foreign SillyTavern runtime, which Orbweaver does not
   // author and therefore does not rule on — the authored generator BESIDE it stays governed.
-  population: { in: ["@authored"], notUnder: ["scripts/probes/st-goldens/sillytavern-runtime/**"] },
+  population: {
+    of: "all",
+    why: "a suppression is a foreign analyzer's permission wherever it sits, so a repo-root config, a package build file and a script are judged exactly like package source",
+    notUnder: ["scripts/probes/st-goldens/sillytavern-runtime/**"],
+  },
   analysis: "syntax",
   // A per-class verdict cannot compose over a subset: a scoped run seeing one file of a class would report
   // that class from one site, and — worse — grant liveness is a whole-population question, so a partial run
@@ -266,6 +287,18 @@ export const gate = defineGate({
       },
       expect: { count: 1, messageIncludes: "Subject: lint/style/useNamingConvention, operation: source" },
       why: "the authored st-goldens generator stays governed despite its captured-runtime NEIGHBOUR — the population subtracts the runtime DIRECTORY, never the authored script beside it (carried from legacy; its twin `mustPass` row is the fence's other half)",
+    },
+    {
+      mode: "source",
+      files: { "knip.ts": "// biome-ignore lint/style/noDefaultExport: config loader\nexport const a = 1;\n" },
+      expect: { count: 1, messageIncludes: "Subject: lint/style/noDefaultExport, operation: source, site(s): knip.ts:1 (biome-ignore)." },
+      why: "work item 0036 — a REPO-ROOT authored file is governed. No named root claims the repo root, so the `@authored` population this policy used to declare skipped this file, and its live directive went unlicensed",
+    },
+    {
+      mode: "source",
+      files: { "packages/ui/token-contract.ts": "// biome-ignore lint/performance/noNamespaceImport: CJS interop\nexport const a = 1;\n" },
+      expect: { count: 1, messageIncludes: "Subject: lint/performance/noNamespaceImport, operation: source" },
+      why: "work item 0036 — a package file OUTSIDE `src/` is governed. The package roots name `packages/<name>/src/` only, so a build or verify module at the package root was judged by no suppression policy",
     },
     {
       mode: "source",

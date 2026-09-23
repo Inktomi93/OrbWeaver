@@ -1,6 +1,6 @@
 packages:
   - packages/*
-  # The tool fleet (@orb/tooling) — ABOVE the cake, never imported by packages/* (docs/architecture/core/Core-Tooling-Law.md).
+  # The tool fleet (@orb/tooling) — ABOVE the cake, never imported by packages/* (docs/law/Core-Tooling-Law.md).
   - tooling
 
 # The node-26 floor is a WALL, not a wish (node-26 adoption program §1.3, 2026-08-03). All seven manifests
@@ -161,7 +161,7 @@ catalog:
   # jose: the JWKS/JWT VERIFY side of forward-header auth (infra/auth/jwks — createLocalJWKSet/
   # createRemoteJWKSet + jwtVerify with a pinned RS256/ES256 allowlist). Already in the tree as an
   # openid-client transitive; promoted to a direct @orb/server dep to name the verify surface
-  # (core/Tier-5-Entry.md: mint = openid-client at entry, verify = jose at infra).
+  # (docs/law/Tier-5-Entry.md: mint = openid-client at entry, verify = jose at infra).
   jose: ^6.2.3
   "@trpc/server": ^11.18.0
   # undici: the global-dispatcher seam for the SSRF egress firewall (infra/network/egress —
@@ -299,7 +299,7 @@ catalog:
   # toPlainText: markdown→plaintext previews via the same unified pipeline as Streamdown (D54).
   remark: ^15.0.1
   # docs formatter (tooling/src/doc-catalog/ops/format.ts): frontmatter passthrough + compact GFM tables
-  # (tablePipeAlign:false) — law in docs/architecture/core/Core-Docs-Formatting-Law.md.
+  # (tablePipeAlign:false) — the style is .claude/rules/writing.md §Markdown.
   "remark-frontmatter": ^5.0.0
   "remark-gfm": ^4.0.1
   # DTCG token codegen (docs said v4; current major is 5 — ESM/async, DTCG first-class).
@@ -330,7 +330,7 @@ catalog:
   # better-tailwindcss: validates class strings against the classes the v4 engine ACTUALLY registers
   # for our @theme (entryPoint = @orb/ui globals.css). Correctness rules only (biome owns class style/order).
   eslint-plugin-better-tailwindcss: ^4.7.0
-  # tsdoc/syntax — validates TSDoc comment syntax (the Documentation-Law doc-comment gate). No eslint peer dep.
+  # tsdoc/syntax — validates TSDoc comment syntax (the doc-comment gate, .claude/rules/comments.md). No eslint peer dep.
   eslint-plugin-tsdoc: ^0.5.2
   # jsx-a11y — EXACT, not a caret, and that is the point (#1331). eslint.config.js spreads its `strict`
   # bundle, `lint:eslint` runs with `--max-warnings 0`, so any rule a 6.x MINOR adds to that bundle would

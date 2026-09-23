@@ -1,4 +1,4 @@
-// character.list — the keyset-paged library read (core/Tier-4-Transport.md). Thin: validate the optional
+// character.list — the keyset-paged library read (docs/law/Tier-4-Transport.md). Thin: validate the optional
 // `{cursor, limit, search, starred, archived, includeTagIds, excludeTagIds}` wire shape →
 // `ctx.services.character.list` with the resolved principal → return the `{items, nextCursor, totalCount}`
 // page verbatim. Driven through the real ladder via `createCaller` (authed).

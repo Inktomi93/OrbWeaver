@@ -39,7 +39,7 @@ interface Violation {
   readonly message: string;
 }
 
-const CORE_DOCS_REL = "docs/architecture/core";
+const CORE_DOCS_REL = "docs/law";
 const DOC_REL = `${CORE_DOCS_REL}/Core-Enforcement-Active-Gates.md`;
 const GATES_DIR_REL = "tooling/src/verify/gates";
 const COUNT_RE = /\((?<count>\d+) registered gates\)/u;
@@ -130,7 +130,7 @@ const CELL_END_RE = /(?<!\\)\|/u;
 
 const DOC_ACTIVE_MISSING = (name: string, contract: GateContractKind): string =>
   `active gate "${name}" (${CONTRACT_NOUN[contract]}) has no row in ${DOC_REL}'s Layer-3 ACTIVE ` +
-  "table — add it (docs/architecture/core/Core-Enforcement-Active-Gates.md).";
+  "table — add it (docs/law/Core-Enforcement-Active-Gates.md).";
 const DOC_ACTIVE_ORPHAN = (name: string): string =>
   `${DOC_REL} Layer-3 ACTIVE table names "${name}" but no active gate of that name exists — neither a ` +
   'status:"active" legacy descriptor nor a canonical defineGate policy (tooling/src/verify/gates/) — remove the ' +
@@ -138,7 +138,7 @@ const DOC_ACTIVE_ORPHAN = (name: string): string =>
 // Only a LEGACY descriptor can be dormant (a final policy has no status), so this arm needs no contract noun.
 const DOC_DORMANT_MISSING = (name: string): string =>
   `dormant gate "${name}" (its descriptor is status:"dormant") has no row in ${DOC_REL}'s Layer-3 ` +
-  "DORMANT table — add it (docs/architecture/core/Core-Enforcement-Active-Gates.md).";
+  "DORMANT table — add it (docs/law/Core-Enforcement-Active-Gates.md).";
 const DOC_DORMANT_ORPHAN = (name: string): string =>
   `${DOC_REL} Layer-3 DORMANT table names "${name}" but no dormant descriptor of that name exists ` +
   '(tooling/src/verify/gates/) — remove the row, or set the gate\'s status to "dormant".';
@@ -150,7 +150,7 @@ const SECOND_COUNT_HOME = (rel: string): string =>
 const COUNT_CONTRACT_MISMATCH = (docCount: number, legacy: number, final: number): string =>
   `${DOC_REL} declares "${docCount} registered gates" but there are ${legacy + final} active gate modules ` +
   `(${legacy} status:"active" legacy descriptors + ${final} final defineGate policies, tooling/src/verify/gates/) — ` +
-  "update the count line (docs/architecture/core/Core-Enforcement-Active-Gates.md).";
+  "update the count line (docs/law/Core-Enforcement-Active-Gates.md).";
 
 const MIRROR_DRIFT = (name: string): string =>
   `${DOC_REL}'s row for "${name}" declares itself a MIRROR of the gate's runtime \`message\` ` +
@@ -311,7 +311,7 @@ function contractCountViolations(doc: string, legacyActive: number, final: numbe
       {
         file: DOC_REL,
         line: 0,
-        message: `${DOC_REL} has no "(N registered gates)" count line to check against the active gate roster (docs/architecture/core/Core-Enforcement-Active-Gates.md).`,
+        message: `${DOC_REL} has no "(N registered gates)" count line to check against the active gate roster (docs/law/Core-Enforcement-Active-Gates.md).`,
       },
     ];
   }
@@ -322,7 +322,7 @@ function contractCountViolations(doc: string, legacyActive: number, final: numbe
 /** The count has ONE home. A SECOND copy of it in another core law doc is ungated by construction (this
  *  gate reads exactly one file), and `client-architecture-lockdown.md` carried "133 registered gates" for a
  *  month past the real 207 — a law doc lying about the enforcement inventory. Any other
- *  `docs/architecture/core/*.md` stating a NUMBER of registered gates is RED: cite the doc, never
+ *  `docs/law/*.md` stating a NUMBER of registered gates is RED: cite the doc, never
  *  restate the figure. */
 function secondCountHomeViolations(documents: readonly MarkdownDocument[]): Violation[] {
   const out: Violation[] = [];
@@ -414,8 +414,8 @@ export const gate = defineGate({
   facts: [],
   resources: [{ kind: "ledger", id: "gate-enforcement-roster" }, { kind: "documents" }],
   message:
-    'Core-Enforcement-Active-Gates.md disagrees with the discovered gate roster — its ACTIVE table must list exactly the status:"active" legacy descriptors plus every canonical defineGate policy, its DORMANT table exactly the status:"dormant" descriptors, and its "(N registered gates)" count must equal that active total; that count has ONE home, so no other docs/architecture/core doc may state a figure for it; and a row whose description MIRRORS the gate\'s runtime `message` declares it with the `(@mirrors-message)` marker and then matches byte-for-byte, in both directions (Core-Enforcement-Active-Gates.md).',
-  fix: "add/remove the doc row for the gate (a legacy descriptor's row follows its status — ACTIVE vs DORMANT; a defineGate policy's row is always ACTIVE), update the \"(N registered gates)\" count to the active-legacy + final total in docs/architecture/core/Core-Enforcement-Active-Gates.md, and in any other core doc CITE that line instead of restating the number. For a MIRROR row: repair the description to the descriptor's message byte-for-byte and keep the `(@mirrors-message)` marker at the end of the cell, or drop the marker and write an independent summary — a copy that does not say it is a copy is the row that drifts.",
+    'Core-Enforcement-Active-Gates.md disagrees with the discovered gate roster — its ACTIVE table must list exactly the status:"active" legacy descriptors plus every canonical defineGate policy, its DORMANT table exactly the status:"dormant" descriptors, and its "(N registered gates)" count must equal that active total; that count has ONE home, so no other docs/law doc may state a figure for it; and a row whose description MIRRORS the gate\'s runtime `message` declares it with the `(@mirrors-message)` marker and then matches byte-for-byte, in both directions (Core-Enforcement-Active-Gates.md).',
+  fix: "add/remove the doc row for the gate (a legacy descriptor's row follows its status — ACTIVE vs DORMANT; a defineGate policy's row is always ACTIVE), update the \"(N registered gates)\" count to the active-legacy + final total in docs/law/Core-Enforcement-Active-Gates.md, and in any other core doc CITE that line instead of restating the number. For a MIRROR row: repair the description to the descriptor's message byte-for-byte and keep the `(@mirrors-message)` marker at the end of the cell, or drop the marker and write an independent summary — a copy that does not say it is a copy is the row that drifts.",
   create: (ctx) => {
     const descriptors: DescriptorMeta[] = [];
     return {
@@ -437,8 +437,7 @@ export const gate = defineGate({
       files: {
         [PROOF_CATALOG]: '{"documents":[]}\n',
         "tooling/src/verify/gates/x.ts": 'export const gate = { name: "x", status: "active" };\n',
-        "docs/architecture/core/Core-Enforcement-Active-Gates.md":
-          "## Layer 3 — Structural gates\n\n(0 registered gates)\n\n### Layer 3 — DORMANT structural gates\n",
+        "docs/law/Core-Enforcement-Active-Gates.md": "## Layer 3 — Structural gates\n\n(0 registered gates)\n\n### Layer 3 — DORMANT structural gates\n",
       },
       expect: { count: 2, messageIncludes: "ACTIVE table" },
       why: "an active descriptor `x` with no ACTIVE-table row (and a count that ignores it) — the doc lies about the registry",
@@ -449,7 +448,7 @@ export const gate = defineGate({
         [PROOF_CATALOG]: '{"documents":[]}\n',
         // No active descriptors, but the ACTIVE table names `ghost` — a doc row for a gate that doesn't exist.
         "tooling/src/verify/gates/x.ts": 'export const gate = { name: "x", status: "dormant" };\n',
-        "docs/architecture/core/Core-Enforcement-Active-Gates.md":
+        "docs/law/Core-Enforcement-Active-Gates.md":
           "## Layer 3 — Structural gates\n\n(0 registered gates)\n\n| `ghost` | names no descriptor |\n\n### Layer 3 — DORMANT structural gates\n\n| `x` | dormant x |\n",
       },
       expect: { count: 1, messageIncludes: "no active gate of that name exists" },
@@ -495,8 +494,7 @@ export const gate = defineGate({
         [PROOF_CATALOG]: '{"documents":[]}\n',
         // A dormant descriptor `x` absent from the DORMANT table — DOC_DORMANT_MISSING.
         "tooling/src/verify/gates/x.ts": 'export const gate = { name: "x", status: "dormant" };\n',
-        "docs/architecture/core/Core-Enforcement-Active-Gates.md":
-          "## Layer 3 — Structural gates\n\n(0 registered gates)\n\n### Layer 3 — DORMANT structural gates\n",
+        "docs/law/Core-Enforcement-Active-Gates.md": "## Layer 3 — Structural gates\n\n(0 registered gates)\n\n### Layer 3 — DORMANT structural gates\n",
       },
       expect: { count: 1, messageIncludes: "DORMANT table" },
       why: "a dormant descriptor `x` with no DORMANT-table row — the DOC_DORMANT_MISSING arm (distinct message)",
@@ -507,7 +505,7 @@ export const gate = defineGate({
         [PROOF_CATALOG]: '{"documents":[]}\n',
         // The DORMANT table names `phantom` with no dormant descriptor — DOC_DORMANT_ORPHAN.
         "tooling/src/verify/gates/x.ts": 'export const gate = { name: "x", status: "dormant" };\n',
-        "docs/architecture/core/Core-Enforcement-Active-Gates.md":
+        "docs/law/Core-Enforcement-Active-Gates.md":
           "## Layer 3 — Structural gates\n\n(0 registered gates)\n\n### Layer 3 — DORMANT structural gates\n\n| `x` | dormant x |\n| `phantom` | names no descriptor |\n",
       },
       expect: { count: 1, messageIncludes: "no dormant descriptor of that name exists" },
@@ -519,7 +517,7 @@ export const gate = defineGate({
         [PROOF_CATALOG]: '{"documents":[]}\n',
         // The ACTIVE table + descriptor agree, but the count line is wrong (says 0, one active) — COUNT mismatch.
         "tooling/src/verify/gates/x.ts": 'export const gate = { name: "x", status: "active" };\n',
-        "docs/architecture/core/Core-Enforcement-Active-Gates.md":
+        "docs/law/Core-Enforcement-Active-Gates.md":
           "## Layer 3 — Structural gates\n\n(0 registered gates)\n\n| `x` | enforces x |\n\n### Layer 3 — DORMANT structural gates\n",
       },
       expect: { count: 1, messageIncludes: "registered gates" },
@@ -532,9 +530,9 @@ export const gate = defineGate({
         // A SECOND core doc restating the figure. Everything else agrees, so this arm is the only red —
         // and it is spelled the way the live rot was (`**133 registered gates**`, no parentheses).
         "tooling/src/verify/gates/x.ts": 'export const gate = { name: "x", status: "active" };\n',
-        "docs/architecture/core/Core-Enforcement-Active-Gates.md":
+        "docs/law/Core-Enforcement-Active-Gates.md":
           "## Layer 3 — Structural gates\n\n(1 registered gates)\n\n| `x` | enforces x |\n\n### Layer 3 — DORMANT structural gates\n",
-        "docs/architecture/core/client-architecture-lockdown.md": "the authoritative live count is **133 registered gates** (2026-07-16).\n",
+        "docs/law/client-architecture-lockdown.md": "the authoritative live count is **133 registered gates** (2026-07-16).\n",
       },
       expect: { count: 1, messageIncludes: "ONE home" },
       why: "the live rot, replayed: a second core doc froze the count at 133 while the registry held 207 — one home for the figure, cited everywhere else",
@@ -587,7 +585,7 @@ export const gate = defineGate({
     {
       files: {
         "tooling/src/verify/gates/x.ts": 'export const gate = { name: "x", status: "active" };\n',
-        "docs/architecture/core/Core-Enforcement-Active-Gates.md":
+        "docs/law/Core-Enforcement-Active-Gates.md":
           "## Layer 3 — Structural gates\n\n(1 registered gates)\n\n| `x` | enforces x |\n\n### Layer 3 — DORMANT structural gates\n",
       },
       why: "the ACTIVE table lists exactly the one active descriptor and the count matches — the doc agrees with the registry, passes",
@@ -606,10 +604,9 @@ export const gate = defineGate({
       files: {
         // The correct way for another core doc to talk about the inventory: CITE the one home, no figure.
         "tooling/src/verify/gates/x.ts": 'export const gate = { name: "x", status: "active" };\n',
-        "docs/architecture/core/Core-Enforcement-Active-Gates.md":
+        "docs/law/Core-Enforcement-Active-Gates.md":
           "## Layer 3 — Structural gates\n\n(1 registered gates)\n\n| `x` | enforces x |\n\n### Layer 3 — DORMANT structural gates\n",
-        "docs/architecture/core/client-architecture-lockdown.md":
-          "the live count is `docs/architecture/core/Core-Enforcement-Active-Gates.md`'s own registered-gates line.\n",
+        "docs/law/client-architecture-lockdown.md": "the live count is `docs/law/Core-Enforcement-Active-Gates.md`'s own registered-gates line.\n",
       },
       why: "a citation carries no figure to rot — this row is the written difference between referencing the count and copying it",
     },
@@ -632,7 +629,7 @@ export const gate = defineGate({
   ].map(resourceProof),
   mustRefuse: [
     resourceProof({
-      files: { [GATE_FILE]: LEGACY_X, "docs/architecture/core/__registry_resource_anchor.md": "# anchor\n" },
+      files: { [GATE_FILE]: LEGACY_X, "docs/law/__registry_resource_anchor.md": "# anchor\n" },
       expect: { messageIncludes: "resource declaration ledger:gate-enforcement-roster is missing" },
       why: "a missing enforcement roster is a refused evidence plane, never a clean registry with zero rows",
     }),

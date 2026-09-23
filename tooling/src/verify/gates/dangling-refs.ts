@@ -43,13 +43,14 @@ interface Violation {
 }
 
 // The bare-name resolution roots, IN ORDER (arm 1 docRow convention + arm 2 fallback after the sibling try).
-const BARE_ROOTS: readonly string[] = ["docs/architecture/core", "docs/architecture/history", "docs/architecture/proposed", "."];
+const BARE_ROOTS: readonly string[] = ["docs/law", "docs/architecture/history", "docs/architecture/proposed", "."];
 
 // A `*.md` token inside a prose string: a path segment run ending in `.md`. Anchored on a non-token char so
 // we don't slice a longer path; the char class allows dir separators so a `core/Foo` + `.md` style path is
 // ONE token (this comment may not spell that contiguously — `dangling-doc-cite`'s widened bare/path grammar
-// would flag it right back).
-const MD_TOKEN_RE = /([\w][\w./-]*\.md)/gu;
+// would flag it right back). A leading dot that opens a token (a dot-directory such as `.claude`) belongs to
+// it; a dot after another dot or a slash does not, so a `../` prefix still drops as before.
+const MD_TOKEN_RE = /((?:(?<![\w./])\.(?=\w))?\w[\w./-]*\.md)/gu;
 // A markdown link target ending in `.md`, with an optional `#anchor` (arm 2): `[text](path` + `.md#x)`.
 const MD_LINK_RE = /\]\(([^)\s]+?\.md)(?:#[^)\s]*)?\)/gu;
 // A token carrying a glob / brace-expansion / placeholder is a PROSE PATTERN, not a literal cite — skip it
@@ -309,11 +310,11 @@ interface CarriedProof {
   readonly why: string;
 }
 
-const PROOF_DOC = "docs/architecture/core/__dangling_refs_resource_anchor.md";
+const PROOF_DOC = "docs/law/__dangling_refs_resource_anchor.md";
 const PROOF_FILES = {
   [PROOF_DOC]: "---\nkind: law\n---\n\nResource proof anchor.\n",
   [CATALOG_REL]:
-    '{"documents":[{"path":"docs/architecture/core/__dangling_refs_resource_anchor.md","lane":"core","frontmatter":{"fields":{"status":"active"}},"receipt":{"authority":"normative"}}]}\n',
+    '{"documents":[{"path":"docs/law/__dangling_refs_resource_anchor.md","lane":"core","frontmatter":{"fields":{"status":"active"}},"receipt":{"authority":"normative"}}]}\n',
   [GITIGNORE_REL]: "dist/\n",
   "packages/kit/src/__dangling_refs_resource_anchor.ts": "export const DANGLING_REFS_RESOURCE_ANCHOR = true;\n",
   "tooling/src/__dangling_refs_resource_anchor.ts": "export const danglingRefsResourceAnchor = true;\n",
@@ -346,7 +347,7 @@ function referenceViolations(descriptors: readonly DescriptorCite[], links: read
     .map(({ file, field, ref }) => ({ file, line: 0, message: ARM1_MSG(field, ref) }));
   const linkViolations = links
     .filter(({ file, ref }) => !resolvesAny(paths, linkCandidates(file, ref)))
-    .map(({ file, ref }) => ({ file, line: 0, message: `${ARM2_MSG(ref)} — Documentation-Law.md` }));
+    .map(({ file, ref }) => ({ file, line: 0, message: `${ARM2_MSG(ref)} — .claude/rules/docs.md §Moving or deleting a doc` }));
   return [...descriptorViolations, ...linkViolations];
 }
 
@@ -459,7 +460,7 @@ export const gate = defineGate({
       files: {
         ...PROOF_FILES,
         // arm 2: a markdown LINK in a core doc pointing at a missing sibling.
-        "docs/architecture/core/__probe.md": "---\nkind: law\n---\n\nSee [the ghost](ghost-sibling-xyz.md).\n",
+        "docs/law/__probe.md": "---\nkind: law\n---\n\nSee [the ghost](ghost-sibling-xyz.md).\n",
       },
       expect: { count: 1, messageIncludes: "resolves to no file" },
       why: "arm 2: a markdown link in core/ targets a doc that resolves nowhere — a dead navigational pointer",
@@ -472,7 +473,7 @@ export const gate = defineGate({
         // NOT name the absent-by-design path. Other stale-row findings ride along here by construction — this
         // row is matched on its MESSAGE, and the PASS half is un-provable in a mini-project (the anchor turns
         // every stale arm on), so it lives in tests/tooling/verify/gates/dangling-refs-absent-by-design.int.test.ts.
-        "docs/architecture/core/AGENTS.md": "---\nkind: law\n---\n\nplanted anchor.\n",
+        "docs/law/Constitution.md": "---\nkind: law\n---\n\nplanted anchor.\n",
         ".gitignore": "node_modules/\nreports/\n",
       },
       expect: { count: 5, messageIncludes: "no longer named by a literal" },
@@ -484,7 +485,7 @@ export const gate = defineGate({
         ...PROOF_FILES,
         // §4.6 for the ONE hand-named member set: the anchor is planted, so a LAW_OUTSIDE_DOCS path that
         // resolves to nothing must RED rather than shrink the corpus in silence.
-        "docs/architecture/core/AGENTS.md": "---\nkind: law\n---\n\nplanted anchor.\n",
+        "docs/law/Constitution.md": "---\nkind: law\n---\n\nplanted anchor.\n",
       },
       expect: { count: 4, messageIncludes: "named by LAW_OUTSIDE_DOCS" },
       why: "§4.6 blindness tripwire: a literally-named law doc that stops resolving is REPORTED, never silently dropped from the corpus",
@@ -495,7 +496,7 @@ export const gate = defineGate({
         ...PROOF_FILES,
         // The other blindness half: a catalog that resolves ZERO living homes would silently return arms
         // 2-4 to the hand-named directories — a placebo with a healthy-looking file count.
-        "docs/architecture/core/AGENTS.md": "---\nkind: law\n---\n\nplanted anchor.\n",
+        "docs/law/Constitution.md": "---\nkind: law\n---\n\nplanted anchor.\n",
         "tooling/src/verify/gates/GATE-AUTHORING.md": "---\nkind: law\n---\n\nplanted.\n",
         "tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md": "---\nkind: law\n---\n\nplanted.\n",
         "docs/catalog/catalog.json":
@@ -512,8 +513,8 @@ export const gate = defineGate({
       files: {
         // arm 1: the docRow names a planted bare doc; the message's `.md` token STRADDLES a `+` boundary and
         // must be joined before tokenizing (a per-fragment scan would false-flag the `-target.md` tail).
-        "docs/architecture/core/__g_ref_a.md": "---\nkind: law\n---\n\nplanted.\n",
-        "docs/architecture/core/__g_split-target.md": "---\nkind: law\n---\n\nplanted.\n",
+        "docs/law/__g_ref_a.md": "---\nkind: law\n---\n\nplanted.\n",
+        "docs/law/__g_split-target.md": "---\nkind: law\n---\n\nplanted.\n",
         "tooling/src/verify/gates/__probe.ts":
           'export const gate = { name: "__probe", docRow: "__g_ref_a.md", message: "see (__g_split-" + "target.md §6b)" };\n',
       },
@@ -522,11 +523,18 @@ export const gate = defineGate({
     {
       // SELF-CONTAINED: the linked sibling is planted in this same example's tree.
       files: {
-        "docs/architecture/core/__g_link-target.md": "---\nkind: law\n---\n\nplanted.\n",
+        "docs/law/__g_link-target.md": "---\nkind: law\n---\n\nplanted.\n",
         // arm 2: a real relative link (planted sibling) + a glob-pattern token (not a literal cite) both pass.
-        "docs/architecture/core/__probe.md": "---\nkind: law\n---\n\nSee [target](__g_link-target.md) and the `UI-*.md` set.\n",
+        "docs/law/__probe.md": "---\nkind: law\n---\n\nSee [target](__g_link-target.md) and the `UI-*.md` set.\n",
       },
       why: "arm 2: a link to a planted sibling resolves; a `UI-*.md` glob is a prose pattern, not a literal link — clean",
+    },
+    {
+      files: {
+        ".claude/rules/__g_rule.md": '---\npaths:\n  - "x/**"\n---\n\nplanted.\n',
+        "tooling/src/verify/gates/__probe.ts": 'export const gate = { name: "__probe", message: "see .claude/rules/__g_rule.md" };\n',
+      },
+      why: "arm 1: a cite under a dot-directory keeps its leading dot — `.claude/rules/…` resolves as written instead of being cut to `claude/rules/…`",
     },
   ].map(resourceProof),
 });

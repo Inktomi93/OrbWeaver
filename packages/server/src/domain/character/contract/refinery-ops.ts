@@ -1,6 +1,6 @@
 // domain/character/contract/refinery-ops — the TYPES of the two character-owned ops the refinery domain
 // consumes (R1 — docs/history/design/refinery-r0.md §9.3). Cross-feature dependency is never a sideways import
-// (AGENTS §2): refinery declares these shapes type-only and the runtime ops are wired at `entry/compose`
+// (Constitution.md §2): refinery declares these shapes type-only and the runtime ops are wired at `entry/compose`
 // from THIS domain's persistence factories — `characters.*` keeps exactly one writer (F6).
 
 import type { CharacterCard } from "@orb/contracts/character";

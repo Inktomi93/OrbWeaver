@@ -11,5 +11,5 @@ program's coarse disposition and sprint issue; GitHub Project 1 owns activation 
 lifecycle state (D139/D140). A parked program is unscheduled, not abandoned, and must revalidate its
 shape when activated. Internal status prose is non-authoritative.
 
-Code and tests own realized behavior. Current cross-cutting law lives in [`../core/`](../core/); resolved
+Code and tests own realized behavior. Current cross-cutting law lives in [`../../law/`](../../law/); resolved
 records live in [`../history/`](../history/).

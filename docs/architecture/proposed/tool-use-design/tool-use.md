@@ -65,7 +65,7 @@ toggles in the params panel (iterate `ModelCapability` descriptor).
 ## 2. The wire `tool` role — where it lands, and why NOT `MESSAGE_ROLES` (§8 correction)
 
 **The `tool` role lands on the infra wire axis `ChatHistoryMessage.role`, NOT on `MESSAGE_ROLES`.**
-This corrects the open-watch note in `core/Spine-TypeScript-and-Patterns.md §8`.
+This corrects the open-watch note in `docs/law/Spine-TypeScript-and-Patterns.md §8`.
 
 Three reasons:
 
@@ -305,7 +305,7 @@ export const WARNING_CODES = [
 - **D41** — `WARNING_CODES` one-home tuple
 - **D32** — `MESSAGE_ROLES` home + ST bimap (reason `tool` does NOT widen it)
 - **D46** — plugin `can()` surface the tool registry reconciles with
-- `core/Tier-3b-Providers.md` — sealed backends; the drop-with-warning membrane; the agent role
+- `docs/law/Tier-3b-Providers.md` — sealed backends; the drop-with-warning membrane; the agent role
 - `domains/chat.md` (gutted — the code is the doc; git history) — the turn pipeline owns orchestration; the loop is the domain's
-- `core/Spine-TypeScript-and-Patterns.md §8` — the `tool`-role open-watch note (RESOLVED here)
+- `docs/law/Spine-TypeScript-and-Patterns.md §8` — the `tool`-role open-watch note (RESOLVED here)
 - `proposed/tool-use/tool-use.md` — the full evidence base (ST source audit, neo findings, ST architecture critique)

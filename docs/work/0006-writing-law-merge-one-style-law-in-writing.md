@@ -11,7 +11,7 @@ plan: doc-migration
 
 ## What
 
-Fold what survives of `docs/architecture/core/Documentation-Law.md` and `docs/architecture/core/Core-Docs-Formatting-Law.md` into `.claude/rules/writing.md` and delete both: the comment decision procedure and the TSDoc tag verdicts become a short "Code comments" section or a path-scoped rule for `packages/**`; the markdown construct verdicts and the compact-table mechanics become one "Docs" section; the relocation checklist becomes a line pointing at the `doc` tool's verbs; the frontmatter schema becomes a pointer at `tooling/src/doc-catalog/lib/vocab.ts` (or its successor after the catalog leaves); the evidence section is deleted. `.claude/rules/docs.md` keeps only what is not style: the checks, the parked-set warning while `docs/architecture/proposed/` exists.
+Done (cb-law): the legacy documentation law and docs formatting law are folded in and deleted. The comment decision steps, the type-instead table, the comment budgets and the TSDoc tag verdicts are the path-scoped rule `.claude/rules/comments.md` (code trees). The markdown construct verdicts and the formatter mechanics are the "Markdown" section of `.claude/rules/writing.md`, and the ADR style is its "Decisions" section. The relocation checklist and the frontmatter pointers (`tooling/src/doc/lib/rules.ts`, `tooling/src/doc-catalog/lib/vocab.ts`) are in `.claude/rules/docs.md`. The evidence section is deleted.
 
 ## Why
 

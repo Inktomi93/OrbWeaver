@@ -8,7 +8,7 @@ updated: 2026-07-03
 
 > **Status: COMMITTED (D58, 2026-07-01) — prescriptive design; the ledger D-entry wins on any conflict.** The complete client design for RPG mode: where the game
 > UI lives in the shell, what renders each server-computed fact, and how freshness flows. Built
-> against orbweaver client law (`core/UI-Architecture-and-Layout.md` D42/D43/D44/D54 — feature-slice,
+> against orbweaver client law (`docs/law/UI-Architecture-and-Layout.md` D42/D43/D44/D54 — feature-slice,
 > container-driven layout, `@orb/ui` seals, the gate battery) and the server design (docs 01/03/04/05
 > in this directory — vocabulary here matches those docs EXACTLY: tool names like `skill_check`,
 > events like `snapshotPatched`, views like `RpgHudView`). Marinara's client is mined for WHAT a
@@ -575,7 +575,7 @@ gains the "Who runs the game?" radio (AI · Me · A friend…) per doc 12 §7.
 ## 17. Cross-refs
 
 01 (the loop this UI serves) · 03 §2.3/§8/§12 (locks, widgets, views) · 04 (the math the client must
-NOT own) · 05 §3/§5/§6/§7 (tools, bus, dice text, address modes) · `core/UI-Architecture-and-Layout.md`
+NOT own) · 05 §3/§5/§6/§7 (tools, bus, dice text, address modes) · `docs/law/UI-Architecture-and-Layout.md`
 (shell, slices, tokens) · `UI-Gates-and-Lessons.md` §11 (seams + gates) · `UI-Primitives-and-Reuse.md`
 §13 (the primitive catalog this doc composes) · `UI-Theming-and-Content.md` §12 (D44 trust tiers,
 `ThemeScope`, `MessageMedia`).

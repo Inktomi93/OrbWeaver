@@ -279,5 +279,5 @@ S4 case; null-dimension bytes rejected by default, pass with `requireDimensions:
 
 - `gallery-design.md` §5/§6 (G6 = this work item; review-flag 2 resolved by the kit home) ·
   `databank-design` (scrapers) · `UI-Theming-and-Content.md` §12.3 (the D44 client/server line) ·
-  `core/Tier-3-Infra.md` (the staged seam this hardens) · doc 02/03 (the hub consumers) ·
+  `docs/law/Tier-3-Infra.md` (the staged seam this hardens) · doc 02/03 (the hub consumers) ·
   marinara `utils/security.ts` (the verified evidence base).

@@ -3,7 +3,7 @@
 //
 // WHY IT LIVES HERE (the `room-reach` / `visible-rooms` posture): the answer joins settings' active pick,
 // rpg's `rpg_games.gmPresetId`, and chat's membership — and `domain/preset` may import none of them
-// (AGENTS §2). So preset DECLARES the op (`ResolvePresetUsageOp`, its `contract/service.ts`) and this file
+// (Constitution.md §2). So preset DECLARES the op (`ResolvePresetUsageOp`, its `contract/service.ts`) and this file
 // is the ONE runtime; the caller-gate stays in the verb.
 //
 // ── WHAT A "BINDING" IS ON THIS TREE, re-derived rather than assumed (the finding #279 owes) ──

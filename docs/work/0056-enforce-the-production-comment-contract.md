@@ -12,7 +12,7 @@ blocked: wake gone docs/plans/doc-migration/design.md
 ## What
 
 Production comments in `packages/*/src/**` follow the comment rules in
-`docs/architecture/core/Documentation-Law.md` and rule 6 of `.claude/rules/writing.md`. Keep useful TSDoc
+`.claude/rules/comments.md` and rule 6 of `.claude/rules/writing.md`. Keep useful TSDoc
 on exported APIs. Keep comments that give a reason, a security rationale, a cross-file invariant or a
 warning. Remove comments that narrate code, restate types, are stale, cite volatile coordinates, or compare
 the code to other apps or older code. Rewrite a comparison as a present-tense constraint when its reason

@@ -1,4 +1,4 @@
-// theme-swatch CT fixtures (core/Spine-Testing.md §7 — CT mounts ONLY from a non-test module). The theme
+// theme-swatch CT fixtures (docs/law/Spine-Testing.md §7 — CT mounts ONLY from a non-test module). The theme
 // INPUT tokens live here, not in the .ct file: §13.7 bans color literals in a primitive's CT because an
 // ASSERTED color must come from TOKENS — these are not assertions, they are the theme-under-test's own
 // stored values (the same bytes a `themes` row carries), and the CT asserts only cross-mount EQUALITY of

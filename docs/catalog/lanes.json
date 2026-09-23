@@ -2,10 +2,6 @@
   "schemaVersion": 2,
   "lanes": [
     {
-      "id": "architecture-core",
-      "patterns": ["docs/architecture/core/**/*.md"]
-    },
-    {
       "id": "architecture-history",
       "patterns": ["docs/architecture/history/**/*.md"]
     },

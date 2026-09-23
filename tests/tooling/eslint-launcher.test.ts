@@ -20,7 +20,7 @@ function runLauncher(outcome: "0" | "1" | "2" | "signal" | "spawn-error", dedica
   const scratch = mkdtempSync(join(tmpdir(), "orb-eslint-launcher-"));
   const preload = join(scratch, "spawn.cjs");
   writeFileSync(preload, PRELOAD);
-  const result = spawnSync(process.execPath, ["--require", preload, join(process.cwd(), "scripts/eslint.cjs"), "--version"], {
+  const result = spawnSync(process.execPath, ["--require", preload, join(process.cwd(), "scripts/eslint.ts"), "--version"], {
     cwd: process.cwd(),
     env: inheritedProcessEnv(
       Object.fromEntries([["ORB_ESLINT_TEST_OUTCOME", outcome], ...(dedicatedBox === undefined ? [] : [["ORB_DEDICATED_BOX", dedicatedBox]])]),

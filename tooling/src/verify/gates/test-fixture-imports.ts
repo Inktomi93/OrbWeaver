@@ -1,4 +1,4 @@
-// core/Spine-Testing.md §4 + Core-Tooling-Law.md §4.8 — fixture doctrine. A test enters `test`/`it`/`expect`
+// docs/law/Spine-Testing.md §4 + Core-Tooling-Law.md §4.8 — fixture doctrine. A test enters `test`/`it`/`expect`
 // through the COMPOSED door, never a runner package directly; under `tests/tooling/` the door must be the
 // one that installs the RESULT snapshot serializer, because entering through the plain door bakes
 // unnormalized inline snapshots. Both halves are read structurally through `lib/test-runner-door.ts`: the
@@ -47,7 +47,7 @@ const TOOLING_MIRROR = "tests/tooling/";
 const MESSAGE =
   "a test/it/expect binding bypasses the composed fixture — import from 'support/fixtures' (or, under " +
   "tests/tooling/, 'support/tool-fixtures', the door that installs the RESULT snapshot serializer) " +
-  "(core/Spine-Testing.md §4; docs/architecture/core/Core-Tooling-Law.md §4.8).";
+  "(docs/law/Spine-Testing.md §4; docs/law/Core-Tooling-Law.md §4.8).";
 
 const FIX =
   "import { test, expect } from the composed fixture door — 'support/fixtures' everywhere, " +
@@ -223,7 +223,7 @@ export const gate = defineGate({
         "tests/tooling/types.test-d.ts": 'import { expect, test } from "vitest";\nexport const t = [test, expect];\n',
         "tests/tooling/quiet.test.ts": "export const quiet = 1;\n",
       },
-      why: "a `.test-d.ts` is a tsc-only type project that never touches the runtime fixture — outside the population by design (core/Spine-Testing.md §1)",
+      why: "a `.test-d.ts` is a tsc-only type project that never touches the runtime fixture — outside the population by design (docs/law/Spine-Testing.md §1)",
     },
     {
       mode: "types",

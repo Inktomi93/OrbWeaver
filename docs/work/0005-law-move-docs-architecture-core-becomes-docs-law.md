@@ -11,7 +11,9 @@ plan: doc-migration
 
 ## What
 
-`git mv` every surviving file of `docs/architecture/core/` to `docs/law/`, section numbers untouched, and in the same commit rewrite the full-path citations by literal prefix: the 229 code sites (`Core-Tooling-Law.md` alone is 96 of them), the doc-side links, `AGENTS.md`, `.claude/rules/*.md`, `.claude/skills/**`, and the tooling constants `CORE_ANCHOR`, `LINK_SCAN_DIRS`, `AUDIT_SCAN_DIRS` (`tooling/src/verify/lib/dangling-ref-corpus.ts`, `tooling/src/verify/lib/dangling-ref-citations.ts`), `CORE_DOCS` in `tooling/src/verify/gates/d-citation-integrity.ts`, the `core-audits-debt` and `gate-enforcement-roster` ledger paths in `tooling/src/verify/contract/resource-document.ts`, the law root in `tooling/src/doc-catalog/ops/tree.ts`, `DOCS_MD_RE` in `tooling/src/verify/lib/selection.ts`, and `docs/catalog/lanes.json`. Each moved file must pass the law rules (frontmatter, the 48 KiB cap, no dead links) or the lane reports the red. The constitution `docs/architecture/core/AGENTS.md` folds into the root `AGENTS.md` and the rules it points at, or moves as law; the lane decides and says which.
+Done (cb-law): every file of the legacy core law folder moved to `docs/law/` with section numbers untouched, and its citers were rewritten in the same commit: full-path and relative citations, the `core/<doc>.md` shorthand, the moved files' own relative links, and the tooling constants (`CORE_ANCHOR`, `LINK_SCAN_DIRS`, `AUDIT_SCAN_DIRS`, `CITER_DOC_TREES`, `BARE_ROOTS`, the `core-audits-debt` and `gate-enforcement-roster` ledger paths). The catalog lane and its authority rows left with the folder, because the catalog does not index `docs/law/`. The constitution moved as law, as `docs/law/Constitution.md`: root `AGENTS.md` has no room under the always-on budget for the domain map, and a file named `AGENTS.md` under `docs/law/` would load as a nested instruction file. Its section citations (`AGENTS §N`) now read `Constitution.md §N`. Dated records under the history and reviews trees keep their old paths.
+
+The moved law still breaks writing rules 1, 2 and 4 and the law size cap; those reds are the next cleanup and split items.
 
 ## Why
 
@@ -19,7 +21,7 @@ plan: doc-migration
 
 ## Done when
 
-`docs/architecture/core/` is gone; `pnpm check:structure` is green on `dangling-doc-cite`, `dangling-refs`, `dangling-ref-citations` and `d-citation-integrity`; `pnpm check:agents` is green over `docs/law/`; `pnpm check:doc-catalog` is green or the catalog has already been removed.
+The legacy core law folder is gone; `pnpm check:structure` is green on `dangling-doc-cite`, `dangling-refs`, `dangling-ref-citations` and `d-citation-integrity`; `pnpm check:agents` is green over `docs/law/`; `pnpm check:doc-catalog` is green or the catalog has already been removed.
 
 ## Evidence
 

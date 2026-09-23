@@ -23,7 +23,7 @@
 // NOT HERE, DELIBERATELY: `[frame]` (LoAF over budget, script-attributed) and `[input]` (slow
 // interaction) are OLDER than this pack and live in `long-task-tracer.ts`, which already observed both
 // entry types. They were retagged into this vocabulary in place rather than re-emitted here — a second
-// observer for one signal is the "two homes for one concept" AGENTS §3 merges, and it would have
+// observer for one signal is the "two homes for one concept" Constitution.md §3 merges, and it would have
 // double-logged every long frame in the app.
 //
 // Dev-only by construction: installed from agent-bridge.ts, which early-returns when !IS_DEV. Never

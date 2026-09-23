@@ -7,7 +7,7 @@ updated: 2026-09-20
 # THE VOCABULARY MAP — one concept, one word
 
 > **THE SOURCE OF TRUTH FOR WHICH WORD NAMES WHICH CONCEPT.** Everything else — D151, the
-> `AGENTS.md` §3 register paragraph, a lane brief, a review — CITES this file. Nothing copies its
+> `Constitution.md` §3 register paragraph, a lane brief, a review — CITES this file. Nothing copies its
 > rows: a table with two homes drifts the moment a word changes, and that drift is exactly what
 > produced #914 (three rename waves each worked from a slice of a dated REVIEW doc, and the union of
 > the slices did not cover the tree).
@@ -138,7 +138,7 @@ which is exactly why it is reused (a room-scoped rack that says `Everywhere` two
 | A chat-tier script the CURRENT host does not own (#1739 — attached by a previous host) | **previous host** (a mark, never a button) | — | minted #1742; **landed**. The mark names what the sitting host cannot do: `enabled` is the LIBRARY row's and stays owner-gated, so the row draws no switch. It is NOT a statement about the room — `detachFromChat` gates on the ROOM alone (#1739 removed its script-ownership re-check, the `chat_books` posture), so the row's menu offers **Detach from this chat** and only that. The rationale minted here first — "the new host can neither switch it nor detach it" — was HALF retired by that fix; the mark survives, its INPUT changed |
 | One executable find/replace rule in the regex library (#1777, found missing by the #1762 handoff confirm) | **Regex script** (a document's noun form; the library section is **Regex scripts**) | `RegexScriptRow` / `RegexScriptId` (`contracts/src/regex/index.ts`) | landed, CONFORMING — retroactively ruled, not minted here. Predates #1742 (the D121-E library build, `5671aba6b`); this row exists because the section built on top of it had no entry naming the SCRIPT itself, only the section (row above) and its sub-parts. Receipts: the library's own group label `features/regex/lib/regex-group.tsx:22` (`"Regex scripts"`), the collection's aria-labels `features/regex/components/regex-collection-rows.tsx:182,208`, the CRUD toasts `features/regex/hooks/use-regex-library.ts:18,24,30,38`, the handoff confirm's own line `features/notifications/components/handoff-accept-confirm.tsx:52` (`countLine(offer.regexScripts, "regex script", "regex scripts")`), and the member-row hand-off label (row below). Bare **script** is used CONTEXTUALLY once a Regex-scoped heading is already on screen (e.g. `regex-collection-rows.tsx:281` "Deleting a script…") — that is the same house style as `world-info`'s bare "book" (see the world book row), never a second mint |
 
-## The rpg register (D151 · `AGENTS.md` §3)
+## The rpg register (D151 · `Constitution.md` §3)
 
 Game-register words — `party`, `npcs`, `quest`, `encounter`, `journal`-as-game-log — live inside the
 rpg domain and its surfaces and may **never** name a non-game concept. Conversely **an rpg surface
@@ -207,7 +207,7 @@ over `@ai-sdk/anthropic` and is NOT the subscription's subprocess, which is a di
 
 ## Enforcement
 
-**Prose-enforced by owner ruling — there is no gate** (`AGENTS.md` §3 states this for the register
+**Prose-enforced by owner ruling — there is no gate** (`Constitution.md` §3 states this for the register
 boundary, and it holds for the whole map). The honesty mechanism is therefore the sweep: a crossed
 word is a drifted-comment defect, fixed on sight, and a rename PROGRAM's waves must be cut so their
 UNION provably covers the surface — with an explicit owner for any file two waves both fence off

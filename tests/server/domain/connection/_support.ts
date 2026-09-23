@@ -2,7 +2,7 @@
 // Builds a real-db `ConnectionContext` over the REAL `@orb/inference` runtime: the domain's own
 // `createConnectionPorts(db)` are the runtime's four persistence ports, so a verb's write is the row the
 // resolver later reads — the seam a hand-stubbed runtime would hide. Faked at the EDGES only
-// (core/Spine-Testing.md §3): `fetch` (the one true external I/O), the credential resolve (the credentials
+// (docs/law/Spine-Testing.md §3): `fetch` (the one true external I/O), the credential resolve (the credentials
 // domain owns the secret), and the three cross-domain ownership reads the composition root injects.
 //
 // Determinism: a frozen clock + counter-minted ids (no `Date.now()`, no unseeded typeid — `test-determinism`).

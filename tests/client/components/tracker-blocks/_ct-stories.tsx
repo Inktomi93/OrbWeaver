@@ -1,4 +1,4 @@
-// `_ct-stories.tsx` — the tracker-blocks CT story module (core/Spine-Testing.md §7: a CT only mounts
+// `_ct-stories.tsx` — the tracker-blocks CT story module (docs/law/Spine-Testing.md §7: a CT only mounts
 // from a NON-test module). One story so far: the TWO-WRITER scenario for the tracker value cell (#1485),
 // which the tracker-blocks CT cannot express by mounting the primitive directly — it needs a parent that
 // changes the value WHILE the editor is open.

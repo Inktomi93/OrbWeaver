@@ -122,7 +122,7 @@ export const gate = defineGate({
         "tests/.nul-proof-anchor.txt": "clean",
         "scripts/.nul-proof-anchor.txt": "clean",
         "docs/.nul-proof-anchor.txt": "clean",
-        "docs/architecture/core/__probe.md": "---\nkind: law\n---\n\nprose with a \u0000 in it.\n",
+        "docs/law/__probe.md": "---\nkind: law\n---\n\nprose with a \u0000 in it.\n",
       },
       expect: { count: 1 },
       why: "a NUL in a doc — markdown is a tracked text source too, and a binary-classified law doc reviews as `Bin` exactly like code",

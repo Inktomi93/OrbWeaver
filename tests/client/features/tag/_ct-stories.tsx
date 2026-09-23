@@ -1,4 +1,4 @@
-// tag feature CT stories (core/Spine-Testing.md §7 — CT mounts ONLY from a non-test module). The stories
+// tag feature CT stories (docs/law/Spine-Testing.md §7 — CT mounts ONLY from a non-test module). The stories
 // reach feature internals the front door doesn't re-export (the settings/workloads _ct-stories.tsx
 // precedent): the tag collection's rows and member editor are mounted by the CONFIG host through
 // `tagCollection`, never exported standalone.

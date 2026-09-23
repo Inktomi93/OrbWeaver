@@ -1,4 +1,4 @@
-// Discovery (Corpus section) CT stories (core/Spine-Testing.md §7 — CT mounts ONLY from a non-test
+// Discovery (Corpus section) CT stories (docs/law/Spine-Testing.md §7 — CT mounts ONLY from a non-test
 // module). Surfaces come through the feature front door, wrapped in the real client data layer
 // (CtDataProviders — Query + real tRPC over the routeTrpc-stubbed network).
 

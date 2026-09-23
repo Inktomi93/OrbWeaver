@@ -622,7 +622,7 @@ const HEAVY_TOOLS = {
 };
 // The same tools wearing a script path, reached through a bare `node`.
 const HEAVY_NODE_SCRIPTS = [
-  [/(?:^|\/)scripts\/eslint\.cjs$/, "`pnpm lint:eslint`"],
+  [/(?:^|\/)scripts\/eslint\.ts$/, "`pnpm lint:eslint`"],
   [/(?:^|\/)tooling\/src\/ast\/cli\.ts$/, "`pnpm ast <lens>` (the bare spelling runs an in-process ts-morph lens at 4 GiB)"],
 ];
 const HEAVY_VERIFY_CLI = /(?:^|\/)tooling\/src\/verify\/cli\.ts$/;
@@ -2671,7 +2671,7 @@ const BRIEFING = [
   "  `git show HEAD:<path>` to read an old version), whole-tree `biome check --write` fix-alls, and",
   "  `cd` into a worktree (the Bash cwd PERSISTS across calls — use `git -C <abs-path>`).",
   "· DENIES a HEAVY TOOL run through a spelling with no heap floor — `npx eslint|tsc|stryker|jscpd|knip|",
-  "  depcruise|tsx`, `node_modules/.bin/<tool>`, a bare `node scripts/eslint.cjs` or `node tooling/src/",
+  "  depcruise|tsx`, `node_modules/.bin/<tool>`, a bare `node scripts/eslint.ts` or `node tooling/src/",
   "  {verify,ast}/cli.ts <verb>` — and names the floored door (`pnpm lint:eslint`, `pnpm typecheck`,",
   "  `pnpm check:structure`, `pnpm ast`, …). A bare node child gets 4 GiB and OOMs; anything through pnpm",
   "  gets 16 GiB. `pnpm exec <tool>` is floored too, so it always passes. Same tier for a `--workers=N`",

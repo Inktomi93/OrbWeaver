@@ -79,7 +79,7 @@ const MESSAGE =
   "home — a DB row is `typeof <table>.$inferSelect` in `db`, a cross-boundary wire shape is `contracts` — and a " +
   "hand-written copy goes silently stale the day the owner grows a field (two structurally-identical types stay " +
   "assignable, so tsc never tells you). Derive it. See packages/server/src/domain/rpg/contract/service.ts for the " +
-  "`$inferSelect` form and docs/architecture/core/Spine-TypeScript-and-Patterns.md for the home table.";
+  "`$inferSelect` form and docs/law/Spine-TypeScript-and-Patterns.md for the home table.";
 
 const FIX =
   "replace the hand-written body with a derive: `export type X = <ContractsX>` (importing the sibling " +
