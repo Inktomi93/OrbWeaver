@@ -1,10 +1,11 @@
 ---
 kind: work
-status: open
+status: done
 updated: 2026-09-23
 priority: P1
 area: docs
 plan: doc-migration
+evidence: 3b2331d4159b4c6d383f6367cbd6d82f1f12a75b
 ---
 
 # Import the open GitHub board rows into docs/work before the board tool is removed
