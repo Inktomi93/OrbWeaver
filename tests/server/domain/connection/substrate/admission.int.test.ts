@@ -13,8 +13,9 @@ import { BYO_BASE_URL, BYO_PROVIDER, makeHarness, seedOwner } from "../_support.
 test("requireProvider returns a registered provider and throws providerUnknown otherwise", async () => {
   const db = await freshDb();
   const h = await makeHarness(db);
-  expect(requireProvider(h.ctx, "openrouter")).toMatchObject({ id: "openrouter" });
-  expect(() => requireProvider(h.ctx, "no-such-provider")).toThrowError(expect.objectContaining({ code: CONNECTION_OP_CODES.providerUnknown }));
+  const owner = await seedOwner(db);
+  expect(requireProvider(h.ctx, owner.userId, "openrouter")).toMatchObject({ id: "openrouter" });
+  expect(() => requireProvider(h.ctx, owner.userId, "no-such-provider")).toThrowError(expect.objectContaining({ code: CONNECTION_OP_CODES.providerUnknown }));
 });
 
 test("requireBaseUrl refuses a fixed-endpoint provider carrying a base URL, and passes it with none", () => {
@@ -27,10 +28,11 @@ test("requireBaseUrl refuses a fixed-endpoint provider carrying a base URL, and 
 
 test("requireBaseUrl on an endpoint provider requires a URL and admits or refuses it by the deployment's rule", async () => {
   const db = await freshDb();
+  const owner = await seedOwner(db);
   const refused = await makeHarness(db, { admission: () => "refused" });
   const invalid = await makeHarness(db, { admission: () => "invalid" });
   const admitted = await makeHarness(db, { admission: () => "admitted" });
-  const provider = requireProvider(admitted.ctx, BYO_PROVIDER);
+  const provider = requireProvider(admitted.ctx, owner.userId, BYO_PROVIDER);
 
   expect(() => requireBaseUrl(admitted.ctx, provider, null)).toThrowError(expect.objectContaining({ code: CONNECTION_OP_CODES.baseUrlShape }));
   expect(() => requireBaseUrl(invalid.ctx, provider, "ftp://example.test")).toThrowError(expect.objectContaining({ code: CONNECTION_OP_CODES.baseUrlInvalid }));
