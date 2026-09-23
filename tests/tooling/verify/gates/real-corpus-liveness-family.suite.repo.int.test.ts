@@ -30,12 +30,17 @@
 // for 82 arms yet; the budgets below are quiet-box bases that `scaledBudget` stretches under load. At 109
 // arms the baseline was scoped to the arms whose silence is a measurement (an `add` arm is silent by
 // construction): measured back to back at loadavg 27-36, the scoped pass over 24 policies took 153s and the
-// old whole-roster pass over 109 took 290s. It stays in the `repository` project (`.suite.repo.int`,
-// inside `--full`'s `tests:tooling`), with per-test budgets rather than the project's 30s default.
-// SPLITTING THIS FILE PER CHUNK BUYS NOTHING HERE: that project runs its files one at a time
+// old whole-roster pass over 109 took 290s. The whole file at 109 arms, detached at c2f212f2b with loadavg
+// 34 rising to 48: 117 tests green in 697s of test time (718s wall) — baseline 151s, every overlaid pass
+// together 449s, the four controls 94s.
+//
+// OWNER RULING (2026-09-23): this suite stays ONE serial file inside `--full` and gets no parallel project.
+// That is the reason it is not split per chunk: the `repository` project runs its files one at a time
 // (`fileParallelism: false`, vitest.config.ts; Core-Tooling-Law.md serialises repository-resource tests), so N
-// files would each pay a corpus load and a baseline, in series. Solo passes are the growth term: each
-// rewriting arm that plants a distinct overlay costs one program rebuild.
+// files would each pay a corpus load and a baseline, in series. Cost is cut inside the file instead: the add
+// arms share one pass, rewriting arms with one overlay set share one, and the baseline measures only the arms
+// whose silence is not structural. Solo passes are the growth term: each rewriting arm that plants a
+// distinct overlay costs one program rebuild.
 
 import { gate as queryBoundaryReservation } from "../../../../tooling/src/verify/gates/query-boundary-reservation.ts";
 import { gate as queryBoundaryReservationHealth } from "../../../../tooling/src/verify/gates/query-boundary-reservation-health.ts";
@@ -62,11 +67,13 @@ const CHUNKS = {
 } as const;
 const ARMS: readonly RealCorpusLivenessArm[] = Object.values(CHUNKS).flat();
 
-// Quiet-box ceilings, each ~2.5x the slowest measured case above; `scaledBudget` stretches them under
-// measured load so a contended box never reads as a false RED. The per-arm tests carry the BATCH budget:
-// they only read a kept verdict, but a filtered run that starts at one of them proves every batch first.
-const BASELINE_BASE_MS = 180_000;
-const BATCHES_BASE_MS = 300_000;
+// Base ceilings that `scaledBudget` stretches under measured load, so a contended box never reads as a
+// false RED. No quiet-box figure exists past 47 arms, so each base clears the slowest LOADED measurement
+// above on its own (baseline 151s, overlaid passes 449s) with room for the next chunk. The per-arm tests
+// carry the BATCH budget: they only read a kept verdict, but a filtered run that starts at one of them
+// proves every batch first.
+const BASELINE_BASE_MS = 300_000;
+const BATCHES_BASE_MS = 900_000;
 const CONTROL_BASE_MS = 60_000;
 
 let runner: RealCorpusLivenessRunner | undefined;
