@@ -1,30 +1,37 @@
-// Generator for docs/reviews/caught-failure-ownership/population.json — the durable, LOSSLESS census of
-// every caught-failure site the `caught-failure-ownership` policy finds, with the ownership verdict each
-// one currently resolves to. It is a REVIEW RECORD, not a ratchet: no gate reads it, it suppresses nothing,
-// and there is no budget to hide behind (issue #751 — the owner banned any bulk allowlist/baseline here).
-// Every field is DERIVED (#569 — a derived classification beats a declared one), so no hand edit can mint a
-// verdict the tree does not earn, and `tests/tooling/verify/gates/caught-failure-ownership.test.ts` reds the
-// day the committed file and a fresh derivation disagree in EITHER direction.
+// Generator for tooling/src/verify/gates/caught-failure-ownership.population.json — the durable, LOSSLESS
+// census of every caught-failure site the `caught-failure-ownership` policy finds, with the ownership verdict
+// each one currently resolves to. It is a REVIEW RECORD, not a ratchet: it suppresses nothing and there is no
+// budget to hide behind (issue #751 — the owner banned any bulk allowlist/baseline here). Every field is
+// DERIVED (#569 — a derived classification beats a declared one), so no hand edit can mint a verdict the tree
+// does not earn: `ledgers:fresh` reds the day the committed file and a fresh derivation disagree in EITHER
+// direction, and `caught-failure-ownership-health` reds on a `siteId` the tree and the file do not share.
 //
-// ── TWO READERS, ONE PRODUCER, AND NEITHER OWNS A PARSER (#1584) ─────────────────────────────────────────
+// ── THE COMMITTED ROW IS THE JUDGMENT; THE COORDINATES ARE READ-TIME (work item 0009) ─────────────────────
+// `deriveCaughtFailureSites` is the live read: every site with its line, column, snippet and marker line.
+// `deriveCaughtFailurePopulation` projects it onto what is committed — `siteId`, `verdict`, `reason` — so an
+// insertion above a site changes nothing on disk. A consumer that needs a coordinate derives it here, from
+// the tree, never from the file.
+//
+// ── ONE PRODUCER, AND NO PARSER OF ITS OWN (#1584) ───────────────────────────────────────────────────────
 // The SITES come from the shared classifier `lib/caught-failure.ts` — the same `catchClauseSite` /
-// `promiseAbsorberSite` the policy reports from, so the artifact and the policy can never disagree about
-// what a site is. The WAIVER verdict comes from the CENTRAL ordinary-waiver engine
-// (`lib/ordinary-waiver.ts`) run over the same sources: this file does not parse a marker, does not own a
-// grammar, and cannot honour one the production engine would refuse. It only lifts the REASON text out of
-// a marker the engine already accepted as well-formed.
+// `promiseAbsorberSite` the policy reports from, and the same `keyCaughtFailureSites` identity the health
+// policy joins on, so the artifact and the policies can never disagree about what a site is. The WAIVER
+// verdict comes from the CENTRAL ordinary-waiver engine (`lib/ordinary-waiver.ts`) run over the same sources:
+// this file does not parse a marker, does not own a grammar, and cannot honour one the production engine
+// would refuse. It only lifts the REASON text out of a marker the engine already accepted as well-formed.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import type { SourceFile } from "ts-morph";
-import type { CaughtFailurePopulation, CaughtFailureRow, CaughtFailureVerdict } from "../../contract/caught-failure.ts";
+import type { CaughtFailureArm, CaughtFailurePopulation, CaughtFailureRow, CaughtFailureVerdict } from "../../contract/caught-failure.ts";
 import { CAUGHT_FAILURE_ARMS } from "../../contract/caught-failure.ts";
 import type { CoordinatedGateFinding } from "../../contract/gate-authority.ts";
 import type { OrdinaryWaiverSource } from "../../contract/ordinary-waiver-source.ts";
+import { JSON_RESOURCE_PATHS } from "../../contract/resource-json.ts";
 import { gate } from "../../gates/caught-failure-ownership.ts";
-import { caughtFailureReviewSites } from "../../lib/caught-failure.ts";
+import { caughtFailureReviewSites, keyCaughtFailureSites } from "../../lib/caught-failure.ts";
 import { createOrdinaryWaiverEngine } from "../../lib/ordinary-waiver.ts";
 import { compilePopulation } from "../../lib/population-resolver.ts";
 // NOT `harness.ts`'s `getProject` — MEASURED 2026-08-28: its fileset is deliberately narrower than
@@ -35,28 +42,30 @@ import { projectCtx } from "../../lib/project-context.ts";
 
 refuseDirectInvocation(import.meta.url, "node tooling/src/verify/cli.ts baseline caught-failure-population");
 
-export const POPULATION_REL = "docs/reviews/caught-failure-ownership/population.json";
+export const POPULATION_REL = JSON_RESOURCE_PATHS["caught-failure-population"];
 
 function relPath(root: string, abs: string): string {
   return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
 }
 
 interface DerivedSite {
+  readonly siteId: string;
   readonly path: string;
-  readonly arm: string;
+  readonly arm: CaughtFailureArm;
   readonly position: string;
+  readonly ordinal: number;
   readonly line: number;
   readonly column: number;
   readonly snippet: string;
 }
 
-/** Every site in one file, already carrying the EXACT coordinates and token the policy reports — which is
- *  also the position a `@orb-waive` marker must name. A site whose anchor is underivable REFUSES loudly: a
- *  census row naming no position would read exactly like a waivable site that nobody waived. */
+/** Every site in one file, keyed and already carrying the EXACT coordinates and token the policy reports —
+ *  which is also the position a `@orb-waive` marker must name. A site whose anchor is underivable REFUSES
+ *  loudly: a census row naming no position would read exactly like a waivable site that nobody waived. */
 function derivedSites(sf: SourceFile, path: string): readonly DerivedSite[] {
   const lines = sf.getFullText().split(/\r?\n/u);
-  return caughtFailureReviewSites(sf).map((site) => {
-    if (site.anchor === undefined) {
+  return keyCaughtFailureSites(path, caughtFailureReviewSites(sf)).map(({ site, siteId, ordinal }) => {
+    if (site.anchor === undefined || siteId === undefined) {
       throw new Error(
         `caught-failure-population: the site at ${path}:${site.node.getStartLineNumber()} has no derivable waiver position. ` +
           "The census cannot record a position the classifier did not produce — extend the anchor fallback in " +
@@ -64,7 +73,7 @@ function derivedSites(sf: SourceFile, path: string): readonly DerivedSite[] {
       );
     }
     const { line, column } = sf.getLineAndColumnAtPos(site.node.getStart() + site.anchor.offset);
-    return { path, arm: site.arm, position: site.anchor.token, line, column, snippet: (lines[line - 1] ?? "").trim() };
+    return { siteId, path, arm: site.arm, position: site.anchor.token, ordinal, line, column, snippet: (lines[line - 1] ?? "").trim() };
   });
 }
 
@@ -90,8 +99,8 @@ function waiverReason(sf: SourceFile, markerLine: number): string {
   return reason;
 }
 
-/** Re-derive the whole census from the tree. */
-export function deriveCaughtFailurePopulation(root: string): CaughtFailurePopulation {
+/** Every live site with its coordinates, read from the tree NOW — the read-time half of the census. */
+export function deriveCaughtFailureSites(root: string): readonly CaughtFailureRow[] {
   const includes = compilePopulation(gate.population);
   const files = projectCtx(root)
     .files.map((sf) => ({ sf, path: relPath(root, sf.getFilePath()) }))
@@ -110,43 +119,44 @@ export function deriveCaughtFailurePopulation(root: string): CaughtFailurePopula
   }));
   const match = createOrdinaryWaiverEngine({ sources, knownPolicies: [{ id: gate.id, authority: gate.authority, severity: gate.severity }] }).match(findings);
 
-  const rows: CaughtFailureRow[] = [];
-  const ordinals = new Map<string, number>();
-  for (const [index, site] of sites.entries()) {
-    const key = `${site.path}::${site.position}`;
-    const ordinal = (ordinals.get(key) ?? 0) + 1;
-    ordinals.set(key, ordinal);
-    const waiverId = match.waiverIds[index] ?? null;
-    const markerLine = waiverId === null ? null : Number(waiverId.split(":").at(-2));
-    const verdict: CaughtFailureVerdict = markerLine === null ? "unproven" : "deliberate-absorb";
-    rows.push({
-      siteId: `${key}::${ordinal}`,
-      path: site.path,
-      line: site.line,
-      column: site.column,
-      grammar: site.arm,
-      position: site.position,
-      ordinal,
-      snippet: site.snippet,
-      verdict,
-      reason: markerLine === null ? null : waiverReason(byPath.get(site.path) as SourceFile, markerLine),
-      markerLine,
-    });
-  }
-  rows.sort((a, b) => a.siteId.localeCompare(b.siteId));
+  return sites
+    .map((site, index): CaughtFailureRow => {
+      const waiverId = match.waiverIds[index] ?? null;
+      const markerLine = waiverId === null ? null : Number(waiverId.split(":").at(-2));
+      return {
+        siteId: site.siteId,
+        verdict: markerLine === null ? "unproven" : "deliberate-absorb",
+        reason: markerLine === null ? null : waiverReason(byPath.get(site.path) as SourceFile, markerLine),
+        path: site.path,
+        line: site.line,
+        column: site.column,
+        grammar: site.arm,
+        position: site.position,
+        ordinal: site.ordinal,
+        snippet: site.snippet,
+        markerLine,
+      };
+    })
+    .toSorted((a, b) => a.siteId.localeCompare(b.siteId));
+}
+
+/** The committed census: the live sites projected onto their judgments, plus the totals. No coordinate is
+ *  written, so it is stable under every line move that keeps each site's `siteId`. */
+export function deriveCaughtFailurePopulation(root: string): CaughtFailurePopulation {
+  const sites = deriveCaughtFailureSites(root);
   const byVerdict: Record<CaughtFailureVerdict, number> = { "deliberate-absorb": 0, unproven: 0 };
   // Seeded from the homed arm tuple: an arm that produces ZERO rows must still appear with a 0, or the
   // census silently loses a detector arm instead of showing it went quiet.
   const byGrammar: Record<string, number> = Object.fromEntries(CAUGHT_FAILURE_ARMS.map((arm) => [arm, 0]));
-  for (const row of rows) {
-    byVerdict[row.verdict] += 1;
-    byGrammar[row.grammar] = (byGrammar[row.grammar] ?? 0) + 1;
+  for (const site of sites) {
+    byVerdict[site.verdict] += 1;
+    byGrammar[site.grammar] = (byGrammar[site.grammar] ?? 0) + 1;
   }
   return {
     gate: gate.id,
     generatedBy: "tooling/src/verify/ops/gen/caught-failure-population.ts",
-    totals: { sites: rows.length, reported: byVerdict.unproven, byVerdict, byGrammar },
-    rows,
+    totals: { sites: sites.length, reported: byVerdict.unproven, byVerdict, byGrammar },
+    rows: sites.map(({ siteId, verdict, reason }) => ({ siteId, verdict, reason })),
   };
 }
 

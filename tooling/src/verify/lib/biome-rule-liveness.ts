@@ -307,7 +307,7 @@ export function judgeReport(grants: readonly RuleGrant[], stdout: string): { rea
  *  NO `@orb-waive caught-failure-ownership` MARKER BELONGS HERE, and one was deleted from this spot
  *  (#2196). `{ cause }` chaining IS ownership in the shared reader's vocabulary (lib/caught-failure.ts),
  *  so this `catch` is not a caught-failure SITE at all: the derived census
- *  (docs/reviews/caught-failure-ownership/population.json) holds exactly one row for this module, the
+ *  (tooling/src/verify/gates/caught-failure-ownership.population.json) holds exactly one row for this module, the
  *  EPERM absorb in `isDeadProbe`, and never this one. The marker waived nothing. It still ALARMED —
  *  `unbound-trivia`, because the engine found no finding inside the marker's carrier and then matched its
  *  `error` position against that other site's finding elsewhere in the file. Relocating it (the obvious

@@ -45,7 +45,7 @@ The work items under `docs/work/` carrying `plan: doc-migration` hold each task'
 | `docs/architecture/core/Documentation-Law.md`, `docs/architecture/core/Core-Docs-Formatting-Law.md`, `.claude/rules/writing.md`, `.claude/rules/docs.md` | writing-law merge |
 | `docs/history/**`, `docs/architecture/history/**`, `docs/history/design/**` | history collapse |
 | `docs/reviews/**`, `docs/history/reviews/**`, `.gitignore` | reviews out |
-| `docs/reviews/caught-failure-ownership/population.json`, `tooling/src/verify/gates/caught-failure-ownership.ts`, `tooling/src/verify/ops/gen/caught-failure-population.ts` | population file |
+| `tooling/src/verify/gates/caught-failure-ownership.population.json`, `tooling/src/verify/gates/caught-failure-ownership.ts`, `tooling/src/verify/ops/gen/caught-failure-population.ts` | population file |
 | `docs/vendor/**`, `docs/catalog/lanes.json`, `docs/catalog/receipts/vendor.json` | vendor out |
 | `docs/design/**`, `docs/architecture/proposed/**`, `docs/architecture/proposed/INDEX.md` | design triage |
 | `docs/catalog/**`, `tooling/src/doc-catalog/**`, `tests/tooling/doc-catalog/**`, `tooling/src/verify/lib/registry.ts` (`docs:catalog`), `tooling/src/verify/lib/registry-triggers.ts`, `package.json` | catalog removal |
