@@ -272,7 +272,7 @@ function reportHarnessExtension(anchors: Anchors, report: Report): void {
   const parsed = parseCssStylesheet(anchors.get("ct-extension-css")?.text ?? "");
   const sources = parsed.statements.filter((statement) => statement.name === "source").map((statement) => quotedStatementArgument(statement));
   // TWO CLAUSES, TWO MESSAGES. A single message across both makes `messageIncludes` undiscriminating
-  // between the rows that pin them (the transplant test in `docs/law/resource-policy-contract.md` §7), and the
+  // between the rows that pin them (the transplant test in `docs/law/resource-policy-contract.md` §3.5), and the
   // counts are equal, so nothing would carry either row.
   if (sources.length !== 1 || sources[0] !== HARNESS_SOURCE) {
     report(

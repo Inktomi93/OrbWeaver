@@ -4,20 +4,17 @@ status: active
 updated: 2026-09-23
 ---
 
-# The resource-policy contract — what a closed-ResourceHost policy OWES (#2011, [gate-runtime-standardization.md](gate-runtime-standardization.md) §2 resource plane)
+# The resource-policy contract — what a closed-ResourceHost policy OWES
 
-The one written answer to the question the gate-runtime program (#1584) had answered in pieces and never
-synthesized: **given that the runtime refuses a non-ready populated-kind declaration before policy creation, while
-demand-owned and installed-package declarations acquire through bound policy doors, what does a resource policy owe?** The pieces are on the tree (`lib/resource-declaration.ts`,
-`lib/resource-policy.ts`, `lib/policy-pass.ts`, [gate-runtime-standardization.md](gate-runtime-standardization.md) §3); this document is the synthesis,
-the alternatives it rejected, and the measured proof rules a conversion lane copies. It binds every
-`analysis: "resource"` policy. Where it disagrees with a module, the module is wrong; where it disagrees with
-[gate-runtime-standardization.md](gate-runtime-standardization.md) in full, the guide wins and this document is
-stale — say so on the row.
-
-Lessons consulted from the shared memory store before designing: `gate-migration-1584-lessons-hub.md`,
-`gate-authoring-lessons-hub.md`, `instruments-lie-verify-the-verifier.md`, `gate-blind-spots-are-spelling-shaped.md`,
-`new-doc-catalog-two-commit-stack.md`, `ledger-and-doc-catalog-hub.md`.
+**Given that the runtime refuses a non-ready populated-kind declaration before policy creation, while
+demand-owned and installed-package declarations acquire through bound policy doors, what does a resource
+policy owe?** The mechanism lives on the tree (`lib/resource-declaration.ts`, `lib/resource-policy.ts`,
+`lib/policy-pass.ts`, [gate-runtime-standardization.md](gate-runtime-standardization.md) §3); this
+document is the synthesis and the proof rules a conversion lane copies. It binds every
+`analysis: "resource"` policy. Where it disagrees with a module, the module is wrong; where it disagrees
+with [gate-runtime-standardization.md](gate-runtime-standardization.md) in full, the guide wins and this
+document is stale — say so on the row. The alternatives this contract rejected are in
+[ADR 0221](../adr/0221-resource-policy-contract-rejected-alternatives.md).
 
 ## 1. The answer in one paragraph
 
@@ -48,11 +45,11 @@ judge a **ready but degenerate** resource value; if its own declared resource is
 | The binding fence: an undeclared door read throws; populated paths must remain inside the effective resource population; demand and installed-package doors enforce their kind-specific inputs; each consumed populated/installed resource source produces one per-owner receipt, including cache hits; demand acquisitions produce individually sequenced receipts. Non-ready pre-create declaration resolution produces no policy receipt | `tooling/src/verify/lib/resource-policy.ts` (`accept`, `acceptDemand`, `fencedText`, `fencedExactFiles`) |
 | An UNCONSUMED declaration is a receipt-phase refusal | `tooling/src/verify/lib/policy-pass.ts:736-743` |
 | `readyResourceValue` — the one narrowing after acquisition; acquisition timing differs by kind | `tooling/src/verify/lib/resource-declaration.ts:21-35` |
-| A finding anchored outside the resource population is an `[evaluate]` tool error (`finding file is outside the effective population`) — measured by cutting `ui-exports-map-complete`'s A2 `continue` | `tooling/src/verify/lib/policy-pass.ts` report sink; cut receipt in §7 |
+| A finding anchored outside the resource population is an `[evaluate]` tool error (`finding file is outside the effective population`) | `tooling/src/verify/lib/policy-pass.ts` report sink |
 | A resource policy may be hybrid: `resolvePopulation()` independently resolves source and resource populations and combines them; resource analysis does not imply `population: { of: "none" }` | `tooling/src/verify/lib/policy-pass.ts:307-341`; `lib/policy-validation.ts:320-335` |
 | Demand kinds (`authored-path`, `authored-text`) and `installed-package` contribute no population path and acquire through their bound doors | `tooling/src/verify/lib/resource-declaration.ts:187-195` |
 
-**Measured refusal wording (2026-09-12, this worktree at `831576613`, driven through `runPolicyPass`):**
+**Refusal wording, driven through `runPolicyPass`:**
 
 ```
 tree missing      resource declaration authored-tree:server is missing: resource tree has no members: packages/server/src
@@ -90,32 +87,22 @@ RED, and the one that is prose-only is called out as the gap.
    (`policy-pass.ts:736-743`). Consequence for a policy that reads a resource only for its PATH (an anchor):
    the read still happens, and the header says why (`server-layout`'s manifest).
 2. **Narrow through `readyResourceValue`, never a branch.** Enforcer: TYPE for the narrowing itself (`.value`
-   does not exist on the union) AND, since #2019, LINT — `policy-soundness` ARM E4 reds a
-   `ctx.resources.<door>(…)` result that is not the direct argument of `readyResourceValue`, plus the alias
-   escape (`ctx.resources` bound to a name), with the guard resolved by IMPORT ORIGIN so a local lookalike
-   cannot acquit. **There is NO hand-off exception** (#2148): a carve admitting the host handed whole to an
-   imported `lib/` reader shipped in `bf9beb617` and was removed, because E4's population is the gates tree —
-   the instant the host crossed into `lib/`, nothing policed what the reader did with it, so the guard stopped
-   exactly where the escape began. The stricter shape is that a shared reader takes the NARROWED VALUE and the
-   caller reads its own door; this contract's own `readTsconfigRoster`/`readAcquiredConfigText` were inverted
-   into `tsconfigRosterPaths` + `tsconfigRosterFrom` and `acquiredConfigText` to match. The retired carve is
-   pinned as a `mustFlag` on the bytes it used to admit, so the removal is an assertion rather than an absence. **This clause is no longer prose-only**; the earlier text here ("no `policy-soundness`
-   meta-policy reads `ctx.resources`") described the tree before that arm landed. §5 alt C remains the
-   stronger ladder tier and remains a recorded fork. For populated kinds a non-ready guard is unreachable
-   after run resolution. Demand-owned and installed-package reads can receive a non-ready value and therefore
-   narrow directly at the call site; returning from that reachable branch is a forbidden silent-clean path.
-   In both cases the policy must use the shared helper rather than re-spell a `throw` per module. **Every resource policy reads through the helper today, and NO
-   resource policy carries an executable not-ready branch** — closed by `0fab76771` (four sites) and
-   `2bacd5ef9` (five); `depcruise-grant-liveness` was already loud.
+   does not exist on the union) AND LINT — `policy-soundness` ARM E4 reds a `ctx.resources.<door>(…)`
+   result that is not the direct argument of `readyResourceValue`, plus the alias escape (`ctx.resources`
+   bound to a name), with the guard resolved by IMPORT ORIGIN so a local lookalike cannot acquit. **There
+   is no hand-off exception**: a shared reader takes the narrowed value and the caller reads its own
+   door — a shared reader that received the whole host and narrowed internally is out of E4's reach the
+   instant it crosses into `lib/`, so the guard stops exactly where that escape would begin. For populated
+   kinds a non-ready guard is unreachable after run resolution. Demand-owned and installed-package reads
+   can receive a non-ready value and therefore narrow directly at the call site; returning from that
+   reachable branch is a forbidden silent-clean path. In both cases the policy must use the shared helper
+   rather than re-spell a `throw` per module. Every resource policy reads through the helper, and no
+   resource policy carries an executable not-ready branch.
 
    **Re-derive that census, never quote it** — `ast-grep -p 'readyResourceValue($$$)'` for the sites, against
    the `analysis: "resource"` module list, with a planted negative control (`readyResourceValueNOPE` → 0) so a
-   zero means *measured* rather than *could not search*. This sentence originally read *"ten of ten … 16
-   sites"* and was **stale on the day it was written**: `runner-config-path-liveness` converted five minutes
-   earlier in the same merge train and carries four more, making it 11 of 11 / 20. The number rots at every
-   merge; the derivation does not. **A census-shaped sentence in a doc lanes copy names its derivation, not
-   its result** — the direction of this claim only ever strengthens as the corpus converts, and quoting the
-   number is how a reader concludes the opposite.
+   zero means *measured* rather than *could not search*. **A census-shaped sentence in a doc a lane copies
+   names its derivation, not its result** — the count rots at every merge; the derivation does not.
 3. **Anchor inside your effective source/resource population.** Enforcer: RUNTIME (`[evaluate]` tool error). This is why a
    missing-TIER finding reports at the server manifest (declared, read, inside the population) and not at the
    gate's own source file as the legacy descriptor did.
@@ -142,11 +129,15 @@ RED, and the one that is prose-only is called out as the gap.
    supplied plan whose population disagrees. This preserves §3.4's whole-population deferral while preventing
    a resource-only change from producing a successful clean over zero source subjects.
 5. **Proof rows satisfy EVERY declaration used by the fixture and isolate ONE arm.** Enforcer: `structure:policy-conformance`
-   for execution; the `count: 99` plant for exactness (a row whose count is not exact dies when planted). Rules
-   measured on this family: a row missing a declared resource is a `[population]` tool error, not a finding (so
-   `depcruise-grant-liveness` spreads `PACKAGE_FIXTURE_FILES` into every row); a `messageIncludes` is
-   admissible only if TRANSPLANTING it onto every sibling row reds that row; two rows sharing one report call
-   cannot be message-discriminated and must either be one row or split the message (§7, `mustFlag[3]`/`[4]`).
+   for execution. Plant `count: 99` on a `mustFlag` row as the exactness control: every count is exact, so
+   the plant fails with `but got 1` on a healthy row, and a row that stays green under the plant is not
+   pinning what it claims to. A row missing a declared resource is a `[population]` tool error, not a
+   finding (so `depcruise-grant-liveness` spreads `PACKAGE_FIXTURE_FILES` into every row). A
+   `messageIncludes` is admissible only if the transplant test passes: moving it onto every sibling row
+   must red that row. Two rows sharing one report call cannot be message-discriminated and must either be
+   one row or split the message. When a cut proves two checks mutually redundant (one can never fire
+   without the other already having fired), delete the redundant one and document why rather than keeping
+   a row that cannot fail.
 6. **Prove every reachable acquisition refusal at the narrowest truthful tier.** For EACH declared resource,
    derive the non-ready statuses its actual reader can emit and pin EACH reachable status; do not copy a
    generic status roster or infer coverage from another kind. Also pin the complete run's resource-receipt
@@ -171,7 +162,7 @@ The fact-provider accuser pattern works because a provider's non-ready state is 
 provider must not receipt its own census ([gate-runtime-standardization.md](gate-runtime-standardization.md) §3), so `bus-fact-health` receives `status !== "ready"` and
 reports it as ONE finding instead of crashing every bus policy. That asymmetry is designed and is not touched
 by this contract — `bus-fact-health` is `analysis: "types"`, `facts: [busProducerFact]`, `resources: []`; it is
-not a resource policy, and the `2bacd5ef9` lane was right to leave its branch alone.
+not a resource policy, and its `status !== "ready"` branch is correct to leave alone.
 
 The runtime separates readiness from semantic health. A non-ready **populated** declaration is recorded as a
 population tool error and withholds each owner before `create`. A non-ready **demand-owned or
@@ -183,82 +174,3 @@ state, provided it uses the same declaration/binding contract and anchors inside
 It cannot convert provider failure into a product finding: if its populated resource is non-ready, the runtime
 withholds that sibling too; if a later-acquired value is non-ready, reader-side narrowing refuses. The health
 policy owns semantic judgments over ready values, not a second provider-failure channel.
-
-## 5. Alternatives weighed and rejected
-
-| Arm | Verdict | Why |
-| - | - | - |
-| **A** — in-module `if (fact.status !== "ready") return;` | REJECTED (was live in 9 of 10; closed) | Unreachable (fact 2) AND it teaches the next lane that a silent return answers a broken resource — the #1979 class. Proven dead by deleting a fixture's manifest: `PASS TOOL ERROR [population] … is missing`, never a green zero |
-| **B** — in-module `throw` re-spelled per policy | REJECTED | Same semantics as the helper with 16 copies of the refusal law; the first copy someone writes as `return` is the defect back. One home, beside the refusal it asserts |
-| **C** — compile-time narrowing: type `ctx.resources` as a READY-ONLY host (`ResourceFact<T>` → `T`), throw inside `bindPolicyResources` | REJECTED for THIS lane; RECORDED as fork 1 | The strongest ladder tier (§2.2) and it makes the silent return unrepresentable. Cost: `contract/policy.ts` (`GatePolicyContext.resources`), a mapped host type, the binding, all ten modules, the conformance runner's types — a contract edit mid-program with five lanes live, against a shape [gate-runtime-standardization.md](gate-runtime-standardization.md) §3 RULED on 2026-09-12. The union on the policy-visible surface is dead information for policies, but the same `ResourceHost` type is what `resolveResourceDeclarations` reads. Default: keep the ruled helper; land a `policy-soundness` arm that REDs a `ctx.resources.<door>(…)` result not passed straight to `readyResourceValue` (lint-tier, cheap, catches the return shape and the re-spelled throw) |
-| **D** — declare `ui-source` instead of `packages` for `ui-exports-map-complete` ([gate-runtime-standardization.md](gate-runtime-standardization.md) §7 item 1 smallest contract) | REJECTED with receipt | `"./token-contract": "./token-contract.ts"` lives outside `src`; the A3 arm would false-RED the real manifest. `packages` is the smallest CLOSED id (frozen vocabulary). The header records this so the next reader does not "fix" it |
-| **E** — a `mustFlag` row for a refusal | REJECTED | A refusal is neither `mustFlag` nor `mustPass`. Use optional `mustRefuse` when the proof grammar can express the bad state; retain `runPolicyPass` pins for states it cannot |
-| **F** — repair one incumbent and declare the plane covered | REJECTED (owner framing correction 2026-09-12) | The deliverable is fixing refuted modules, not filling a cell. Both incumbents are repaired to the same bar; the one with the weaker pin set (`ui-exports-map-complete`, no [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.3 pin) gets the fuller pin set |
-
-## 6. Coupled-site inventory for this lane
-
-| Site | Action |
-| - | - |
-| `tooling/src/verify/gates/server-layout.ts` | header: POPULATION PORT + legacy SHA + declared limits with rows; one new `mustFlag` (six missing tiers, `count: 6`) |
-| `tooling/src/verify/gates/ui-exports-map-complete.ts` | delete the dead `path.length > 0` fence (mutually redundant with the `startsWith(prefix)` filter — cut clean); SPLIT the dead-target message so a non-`./` specifier and a vanished target are message-discriminable; one new `mustFlag` (absent `exports` key → per-module A1, `count: 2`); header as above |
-| `tests/tooling/verify/gates/resource-layout-wave-1.suite.test.ts` | [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.3 pins for `ui-exports-map-complete` (complete + receipts, manifest missing, manifest malformed, `exports` non-string) and the two tree-side pins for `server-layout` (missing, empty) plus its receipt pair |
-| `docs/law/Core-Enforcement-Active-Gates.md:111` | the A3 split and the absent-vs-non-string `exports` verdicts, as mechanisms |
-| [gate-runtime-standardization.md](gate-runtime-standardization.md) §2 plane table, the refuted 2026-09-11 exemplar report §3, playbook #1979 row | NOT this lane's: CONFIRMED is the verifier's word and the cell is the orchestrator's write; proposed text in the report |
-| `lib/resource-declaration.ts`, `contract/resource.ts`, `lib/reviewed-grants.ts`, any `fix:` string | untouched (fence) |
-
-## 7. The measured proof tables (2026-09-12, worktree at `831576613`, every variant minted from the LIVE module with exact-count anchors and run through `verifyPolicyProofs`)
-
-**Instrument control.** Planting `count: 99` on each of the seven `mustFlag` rows fails every one with
-`but got 1` — every count is exact, and the instrument can fail. Planting `throw` on `relative === ""` inside
-`server-layout.topEntry` leaves all rows green: the tree walk never emits the root (`ops/resource-reader.ts`
-`walk` emits `childPath` only), which is the header's "children only" claim, proven rather than read.
-
-### §6.1 cuts — direction is always "flag MORE"; a clean cut is classified, never counted
-
-| Module | Narrowing | Replaced with | Rows that died | Bucket |
-| - | - | - | - | - |
-| `server-layout` | `relative.includes("/") ? undefined : relative` | `relative` | `mustFlag[0]` (got 7) · `mustFlag[1]` (6) · `mustPass[0]` (6) | ENFORCED |
-| `server-layout` | `!LEGAL_ENTRIES.has(entry)` (the A1 rule) | `true` | all three | the rule, not a fence |
-| `server-layout` | `!present.has(entry)` (the A2 rule) | `true` | all three | the rule, not a fence |
-| `server-layout` | `startsWith(SERVER_SOURCE/)` · `relative.length > 0` | (deleted at `0fab76771`) | — | MUTUALLY REDUNDANT, deleted; root-emission control above proves no fixture can reach them |
-| `ui-exports-map-complete` | `entry.kind === "directory"` in `childDirectories` | dropped | `mustPass[1]` (`styles/globals.css` became a "module" with no index) | ENFORCED at the FAMILY-CHILD position; the DEPTH-1 position is UNFALSIFIABLE (a depth-1 file's "children" are the empty set, so an unfenced file produces no finding) — documented, not faked |
-| `ui-exports-map-complete` | `entry.kind === "file"` in `modules()` | dropped | none | UNFALSIFIABLE by construction: it would matter only for a DIRECTORY named `index.ts` |
-| `ui-exports-map-complete` | `path.length > 0` | dropped | none | DEAD DECORATION — mutually redundant with `startsWith(prefix)` (an entry equal to the parent fails the prefix test, so the remainder is never empty). DELETED this lane, per the `server-layout` precedent |
-| `ui-exports-map-complete` | `!path.includes("/")` | dropped | `mustFlag[0..4]` · `mustPass[0,1]` | ENFORCED |
-| `ui-exports-map-complete` | `files.has(topIndex)` short-circuit | `false` | `mustPass[2]` | ENFORCED |
-| `ui-exports-map-complete` | `target.startsWith("./")` | always resolve | `mustFlag[4]` went GREEN (got 0) | ENFORCED — WRONG-DIRECTION class: the row the cut turns green, not one asserting a bogus input is reported |
-| `ui-exports-map-complete` | the A2 `continue` (A2 precedes A1) | dropped | `mustFlag[2]` — as an `[evaluate]` TOOL ERROR, the A1 anchor (`…/meter/index.ts`) does not exist in the fixture | ENFORCED (and the death is itself the population-anchor fence firing) |
-| `ui-exports-map-complete` | A1 / A3 rules | `true` | all eight | the rules |
-
-### Transplants — every `messageIncludes` moved onto every sibling row
-
-All 13 transplants RED the receiving row **except one**: `mustFlag[3]`'s `"does not exist"` onto `mustFlag[4]`
-stays green, because both rows fire the same `reportDeadTargets` call and the message did not distinguish "the
-specifier is not `./`-relative" from "the file is gone". `mustFlag[4]`'s own discriminator onto `mustFlag[3]`
-reds. **Fix: split the message** so an unparseable specifier says so; then both directions red (re-measured
-after the build, receipt in the report). `server-layout`'s two discriminators red each other's row.
-
-## 8. Forks escalated (ask-and-continue; defaults stated)
-
-1. **Helper vs compile-time narrowing (alt C).** Default: keep the ruled `readyResourceValue`; file a row for a
-   `policy-soundness` arm over `ctx.resources.<door>(…)` results. Not built here (outside the fence: the
-   soundness family belongs to #1971).
-2. **This document's catalog receipt.** A new `docs/**` file owes a receipt commit citing the doc's sha
-   (memory: `new-doc-catalog-two-commit-stack`), against a one-commit lane law. Precedent on the tree:
-   the 2026-09-12 exemplar audit landed uncatalogued at `8929f53fb` while `check:doc-catalog` sits on the
-   known-red list (then-current known-red inventory). Default: land the doc in the lane's one commit, report the owed receipt, let the
-   orchestrator's batch receipt pass adopt it (the `c5a6733e4` shape).
-3. **The absent-`exports`-key verdict.** `{}` → per-module A1 findings is the PROVIDER's normalization
-   (`stringMap(undefined) → {}`), shared with `scripts` and the dependency maps; a policy cannot and should not
-   tell an absent key from an empty map. Default: pin it as the finding it is; do not touch the provider.
-
-## 9. #1979 disposition (re-derived on this tree, not remembered)
-
-CLOSED at `2bacd5ef9` (2026-09-11 19:21): `client-structure`, `feature-structure`, `verify-registry-parity`,
-`eslint-grant-liveness`, `no-raw-color-in-css` converted to `readyResourceValue`; the four exemplar-family
-modules had converted at `0fab76771` (17:19); `depcruise-grant-liveness` was already loud. Census 2026-09-12:
-ten `analysis: "resource"` modules (literal grep, count 10), sixteen `readyResourceValue(...)` call sites across
-exactly those ten (`ast-grep -l ts`, 171 `defineGate` modules scanned; `-l tsx` scanned 0 because no gate is
-`.tsx`), and ONE `$F.status !== "ready"` in `gates/` — `bus-fact-health.ts:25`, the fact-family accuser
-(§4), which is not a #1979 site and must not be "fixed". The playbook's "six sites remain" row is stale by that
-commit.
