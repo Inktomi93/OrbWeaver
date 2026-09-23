@@ -332,13 +332,4 @@ export const REVIEWED_GRANTS_Z_TO_CITATIONS: readonly ReviewedGateGrant[] = [
     endsWhen:
       "the owning doc (UI-Density-Law.md) is repaired to repoint, strike, or rider this reference; the finding disappears and central zero-use reconciliation stales this row.",
   },
-  {
-    id: "dangling-ref-citations:tooling-shared-appearance-ts",
-    policyId: "dangling-ref-citations",
-    subject: "tooling/_shared/appearance.ts",
-    operation: "dangling-path-cite",
-    why: "appearance.ts was restructured into the _shared/appearance-matrix.ts family; the config-revamp design doc names the pre-restructure path",
-    endsWhen:
-      "the owning doc (DESIGN.md) is repaired to repoint, strike, or rider this reference; the finding disappears and central zero-use reconciliation stales this row.",
-  },
 ];

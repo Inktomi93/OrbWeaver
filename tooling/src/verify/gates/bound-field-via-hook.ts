@@ -30,7 +30,7 @@ const CONTEXT_HOME: ProjectHomeDeclaration = { path: "packages/client/src/forms/
 const MESSAGE =
   "a bound field reaches the raw `useFieldContext` form context directly — every bound field's context read, " +
   "touch-gated error and `<Field>` prop bundle live in ONE home. Use `useBoundField<T>(shell)` from " +
-  "./use-bound-field instead (D72 — a machine ships WITH its seal).";
+  "./use-bound-field instead (D72 — a machine ships WITH its seal). Home: packages/client/src/forms/editor/bound-fields/use-bound-field.ts";
 const UNREADABLE =
   "a bound field names `useFieldContext` through a binding the shared readers cannot place, so whether it is the form toolkit's own context hook CANNOT be established. Reported rather than passed: the spelling alone is not the identity. Give the binding a readable import origin; the three-answer rule is tooling/src/verify/lib/origin-verdict.ts (#944).";
 const FIX =

@@ -2,8 +2,8 @@
 // client-feature-front-door). Home owns its SECTION (the factory the door calls with the `home-tiles`
 // registry) plus the home-owned TILES: the section-jump grid (shell-derived content with no other owner)
 // and the DORMANT doorways for features that are not in the tree yet (home-owned until the owning feature exists, because an empty `features/buddy/` dir is G23-RED). Since
-// #834 those doorways are buddy PLUS the roadmap tuple (`lib/roadmap.ts`), which mirrors the FUTURE +
-// PARTIAL rows of `docs/architecture/proposed/INDEX.md` under a disk-reading parity test.
+// #834 those doorways are buddy PLUS the roadmap tuple (`lib/roadmap.ts`), which mirrors the open
+// program items under `docs/work/` under a disk-reading parity test.
 //
 // Every OTHER tile is exported by the feature that owns its data + intent; home imports none of them.
 // (The automation dormant doorway was retired with B3 — its own contract said it stays "until B3", and

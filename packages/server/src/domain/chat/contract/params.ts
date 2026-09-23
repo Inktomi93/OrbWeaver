@@ -594,8 +594,8 @@ type RegexAllowLever =
    *  lever and never has to send back a map it might have raced. */
   | { readonly kind: "tier"; readonly tier: RegexTierKey; readonly enabled: boolean };
 
-/** `setRegexAllow` — host-only write of ONE of the room's regex levers (#1742,
- *  `docs/design/mocks/regex-section/DESIGN.md` §3). Host authority for the `setOfferChoices` reason and not
+/** `setRegexAllow` — host-only write of ONE of the room's regex levers (#1742).
+ *  Host authority for the `setOfferChoices` reason and not
  *  the display-scripts one: these levers govern PROMPT CONTENT for everyone in the room (they decide which
  *  scripts the shared assembly runs), so they are room state, never a viewer preference. Returns the stored
  *  post-write allow so the caller's optimistic state and the server's blob can never disagree. */

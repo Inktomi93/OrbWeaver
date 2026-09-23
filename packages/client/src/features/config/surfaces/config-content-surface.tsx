@@ -244,7 +244,7 @@ function ContentArm({ groups, selection, active, collection }: ContentArmProps):
 }
 
 /**
- * THE EXIT ALONE — what the host draws while the member's own drill row cannot exist (DESIGN.md §3.4).
+ * THE EXIT ALONE — what the host draws while the member's own drill row cannot exist (the mock design §3.4).
  *
  * ═══ THE ROW MOVED TO THE MEMBER SURFACE; THE EXIT'S RULING SURVIVED (#1747) ══════════════════════════
  * The boards draw ONE row — `← Back to <library>` · the member's NAME · the member's own verbs — and this

@@ -18,7 +18,7 @@ import { defineGate } from "../contract/policy.ts";
 import { readTailwindClassTokens } from "../lib/tailwind-class-token.ts";
 
 const MESSAGE =
-  "off-token default-scale radius/shadow utility — resolves against " +
+  "off-token default-scale radius/shadow utility (tokens: packages/ui/src/tokens/tokens.json) — resolves against " +
   "Tailwind's stock scale, not the DTCG theme: use a themed radius (rounded-base/control/card/full) " +
   "or shadow (shadow-glow/overlay/prose), per tokens.json.";
 

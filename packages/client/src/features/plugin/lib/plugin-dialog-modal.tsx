@@ -1,4 +1,4 @@
-// The `pluginDialog` modal as ONE co-located definition (client-architecture-lockdown.md §6d 
+// The `pluginDialog` modal as ONE co-located definition (client-architecture-lockdown.md §6d
 // #679 U5, §4.5a). `surface` placement — opened by a round-trip OUTCOME via `openPluginDialog` (a `#state`
 // action carrying which (plugin, surface)), never a rail/topbar affordance. `onClose` drops the subject.
 //

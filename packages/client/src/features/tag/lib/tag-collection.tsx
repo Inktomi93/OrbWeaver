@@ -22,7 +22,7 @@ export const tagCollection: CollectionContribution = {
   insights: { useInsights: useTagInsights },
   useMemberTitle: useTagMemberTitle,
   create: { label: "New tag", useRun: useCreateTagMember },
-  // THE SORT IS THE HOST'S CHROME AND THE TAG LIBRARY'S DATA (#1725, DESIGN.md §3.2, board 02's
+  // THE SORT IS THE HOST'S CHROME AND THE TAG LIBRARY'S DATA (#1725, the mock design §3.2, board 02's
   // `Most used ▾`). It used to be a `<Select>` the ROWS drew one line under the host's band — the second
   // chrome grammar C-4 forbids, and the reason the board moves it up into the control row. Only the control
   // moved: the mode's home is still `state/tag-library-store.ts` and the comparator still runs inside

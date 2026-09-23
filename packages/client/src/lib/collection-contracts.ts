@@ -48,11 +48,11 @@ import type { ReactNode } from "react";
  *  IT NO LONGER GATES THE FILTER (#1725, owner ruling 2026-09-05). It had two readers and two jobs: this
  *  threshold, and "a group earns the host's FILTER input". The filter half died with its premise — three
  *  collapsible bands shared ONE list scroll column, so 32px of chrome per band was worth spending only past
- *  a glance, and the library has its own pane now (DESIGN.md §3.2). The filter is always drawn; what
+ *  a glance, and the library has its own pane now (the mock design §3.2). The filter is always drawn; what
  *  survives here is a RENDERING budget, which never depended on the geometry that changed. */
 export const COLLECTION_LARGE_GROUP = 30;
 
-/** ═══ `COLLECTION_WINDOW_MAX_HEIGHT` WAS RE-BOUND, NOT RETUNED, AND THEN DELETED (#1725, DESIGN.md §5.4) ══
+/** ═══ `COLLECTION_WINDOW_MAX_HEIGHT` WAS RE-BOUND, NOT RETUNED, AND THEN DELETED (#1725, the mock design §5.4) ══
  *  It was `"max-h-96"` — a 384px CAP, spelled once for all three row files. Its premise: three collapsible
  *  bands shared ONE list scroll column, so an uncapped first library pushed every sibling band below the
  *  fold. The owner moved the members into their own pane, so there are no siblings to protect.
@@ -153,7 +153,7 @@ export interface CollectionDetailView {
 /** What the host hands the member's EDITOR specifically ({@link CollectionContribution.detail}) — the
  *  detail view plus the ONE thing the editor needs and cannot know: which library it was drilled into from.
  *
- *  ═══ WHY THE EDITOR GETS A FIELD THE CONTEXT ARM DOES NOT (#1747, DESIGN.md §3.4) ═══════════════════
+ *  ═══ WHY THE EDITOR GETS A FIELD THE CONTEXT ARM DOES NOT (#1747, the mock design §3.4) ═══════════════════
  *  The boards draw ONE drill row — `← Back to <library>` · the member's NAME · the member's own verbs — and
  *  the member surface is the only party that can draw it, because the NAME has exactly one author: every
  *  surface already renders it as its own `h2`, and a host heading over the four printed it twice (measured:
@@ -295,7 +295,7 @@ export interface CollectionContribution {
    *  flag, and render your own bar + checkbox rows inside `list` — the band half is already built. */
   readonly bulkSelect?: { readonly label: string; readonly useMode: () => { readonly active: boolean; readonly toggle: () => void } };
   /** The library's READING ORDER, declared as DATA exactly like {@link bulkSelect} — the host draws ONE
-   *  `Select` in the control row (DESIGN.md §3.2, board 02's `Most used ▾`) and the CONTRIBUTION owns the
+   *  `Select` in the control row (the mock design §3.2, board 02's `Most used ▾`) and the CONTRIBUTION owns the
    *  mode, the option set and the comparator behind it.
    *
    *  WHAT MOVED AND WHAT DID NOT. Only the CHROME is the host's: a sort control is a band-class control, and
@@ -324,7 +324,7 @@ export interface CollectionContribution {
     };
   };
   /** LIBRARY-LEVEL verbs — the ones that act on the library rather than on a member — drawn by the host in
-   *  the control row's overflow kebab beside {@link importFile} (DESIGN.md §3.2; tags: "Prune unused tags").
+   *  the control row's overflow kebab beside {@link importFile} (the mock design §3.2; tags: "Prune unused tags").
    *
    *  A MEMBER verb is NOT one of these. Delete, Duplicate and Export are per-member and live in the row's
    *  own kebab, owner-rendered (D121-D). What qualifies here is a verb whose subject is the whole library,

@@ -37,7 +37,7 @@ const MESSAGE =
   "a hand-rolled `renderError` arm on QueryBoundary — the read-error surface is `QueryErrorState` " +
   "(`Couldn't load <label>.` plus a real refetch Retry), and QueryBoundary DEFAULTS to it. Render " +
   "`renderError={(_error, retry) => <QueryErrorState label=… onRetry={retry} />}` or drop the prop " +
-  "(D72 — a machine ships WITH its seal).";
+  "(D72 — a machine ships WITH its seal). Home: packages/client/src/data/query-error-state.tsx";
 const UNREADABLE =
   "this `renderError` arm sits on something spelled like QueryBoundary whose binding the shared readers cannot place, so whether the battery contract applies CANNOT be established. Reported rather than passed: the spelling alone is not the identity. Give the binding a readable import origin; the three-answer rule is tooling/src/verify/lib/origin-verdict.ts (#944).";
 const FIX =

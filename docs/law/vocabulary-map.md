@@ -110,7 +110,7 @@ against a SILENT id edit stranding every host's stamp, and this edit is neither 
 ## The regex register (#1742 — the room's Regex section)
 
 The words the room's **Regex** section speaks. Minted 2026-09-05 with the owner-approved design
-(`docs/design/mocks/regex-section/DESIGN.md` §4, "regex approved" on v2), and recorded here BEFORE the
+("regex approved" on the v2 canvas), and recorded here BEFORE the
 strings exist because that is this file's own instruction — *"when a word changes, it changes HERE
 first"*. **The section's server half landed with the mint; its client half is the #1742 build.** A row
 whose carrier column says *unbuilt* is a word this map has already DECIDED, not a word still open: the

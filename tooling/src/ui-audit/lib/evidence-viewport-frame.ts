@@ -3,7 +3,7 @@
 // lines under Core-Tooling-Law's hard cap; the ladder it joins, and the ladder's ORDER, are owned by
 // snap/ops/design-audit-walk.ts exactly as every other channel's are.
 //
-// THE DEFECT IT CLOSES. `snap --file docs/design/mocks/connections/model-roles.html --design-audit
+// THE DEFECT IT CLOSES. `snap --file <connections mock> --design-audit
 // --mobile` emitted 24 P1 `text-overflow` rows and exited 1; the identical document at `--viewport
 // 1400x1000` emitted zero and exited 0. A reviewer reading the first run has no way to tell that the
 // page was crushed: the mock's boards declare `width: 870px` and rendered at 382px/469px because they

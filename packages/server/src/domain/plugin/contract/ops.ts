@@ -317,7 +317,7 @@ export interface PluginHostOps {
     readonly raise: RaisePluginSuggestion;
     readonly voidForPlugin: VoidPluginSuggestions;
   };
-  /** The declarative UI-surface state seam (`host.ui.setState`, capability `ui.surface` 
+  /** The declarative UI-surface state seam (`host.ui.setState`, capability `ui.surface`
    *  U1; the chatId dimension is row 777). `setState` publishes a surface's whole replacement state: the compose
    *  op writes the per-(pluginId, surfaceId, chatId?) in-memory state row (the S4-suggestion-store precedent —
    *  respawn wipes; durable state is the plugin's own `storage.kv` job) and emits the per-user

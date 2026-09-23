@@ -59,7 +59,7 @@ const STAMPER_POPULATION = "config anchor stamper";
 
 const MESSAGE =
   "a file stamps `configAnchorId(…)` but no ConfigSectionContribution reaches it — a section painted OUTSIDE the " +
-  "registry has an anchor the config LIST, the scroll spy and the search can never derive a row for it.";
+  "registry has an anchor the config LIST, the scroll spy and the search can never derive a row for it. Registry: packages/client/src/state/config-group-registry.ts";
 const FIX =
   "register the anchored section as a ConfigSectionContribution whose `body` renders the component that stamps the anchor (or pass the anchor in from the contribution); a file that merely READS anchors needs an exact reviewed grant.";
 

@@ -1,6 +1,5 @@
 // THE CONTEXT BRACKET — the ONE column every `kind:"tabs"` CONTEXT pane renders (owner-ruled 2026-08-30, #860:
-// "the RPG room's head-and-foot split is the INTENDED shape of the context panel"; the mock is
-// `docs/design/mocks/context-bracket/`). It is the rpg HUD's column (`rpg-hud.tsx`, HUD-1 §7, 2026-08-01)
+// "the RPG room's head-and-foot split is the INTENDED shape of the context panel"; D150). It is the rpg HUD's column (`rpg-hud.tsx`, HUD-1 §7, 2026-08-01)
 // moved into the shell tier and made universal: a normal room, a game room and a character all wear it, and
 // there is no second renderer left for the strip to fork through (#845 measured the fork; this ends it).
 //

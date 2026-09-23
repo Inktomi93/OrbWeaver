@@ -253,8 +253,8 @@ export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background
         </QueryBoundary>
       </DisclosureSection>
       {/* REGEX (#1742) — "what regex runs in this room, in run order, and every lever that changes it", the
-          sibling of Injections and World books it was designed as (`docs/design/mocks/regex-section/DESIGN.md`,
-          owner-approved 2026-09-05). It sits with the member-readable racks and NOT in the host band for the
+          sibling of Injections and World books it was designed as
+          (owner-approved 2026-09-05). It sits with the member-readable racks and NOT in the host band for the
           Documents/World books reason: the room's own tier is member-READABLE (`regex.listForChat` is
           `requireChatMember` — the attached scripts are room-public prompt content), so a member sees the
           rows and simply gets no switches, no attach and no detach (the §8.1 permission-OMIT at row level).

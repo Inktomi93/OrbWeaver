@@ -1,5 +1,5 @@
-// CT: Settings → Connections → the connection EDITOR (inference program §5.3a, step 9; drawn at
-// `docs/design/mocks/connections/editor.html`). The four disclosure tiers, driven at BOTH load-bearing
+// CT: Settings → Connections → the connection EDITOR (inference program §5.3a, step 9; drawn
+// as the step-3b editor mock). The four disclosure tiers, driven at BOTH load-bearing
 // settings-body widths — 870 with the context panel closed, 486 with it open (§13 step 3b).
 //
 // WHAT THIS FILE IS FOR, in one line each:
@@ -7,7 +7,7 @@
 //     the tiers, and it holds by CONSTRUCTION (collapsing is width-independent) rather than by squeezing —
 //     so it is worth pinning at both widths, because a regression here is a regression of the architecture.
 //   • THE TIERS HAVE A REAL A11Y CONTRACT. The mock's `.tierhead` is a `div` with `cursor: pointer` — no
-//     `aria-expanded`, no button role, no keyboard — and DESIGN.md §5.2 names it "the single most likely
+//     `aria-expanded`, no button role, no keyboard — and the mock design §5.2 names it "the single most likely
 //     thing to be copied verbatim". These assert the button role, `aria-expanded` and Enter-to-open.
 //   • EVERY §5.3a COPY STRING RENDERS VERBATIM. Not "the pane says so" — the exact sentence.
 //   • THE QUIRK KEY RULE IS OBSERVABLE. A quirk key stays raw only when that string IS the wire's, so
@@ -132,7 +132,7 @@ function tier(page: Page, name: string): Locator {
 
 // §5.3a: "a user who has touched nothing sees FOUR fields — provider, the key-or-URL, model, and the
 // auto-minted `label` — and a 'how it's used' line". FOUR, not three: the same tier mandates `label` one
-// paragraph down, and the render is what falsified the sentence (DESIGN.md §6-2).
+// paragraph down, and the render is what falsified the sentence (the mock design §6-2).
 for (const [arm, Story] of [
   ["870", ConnectionEditorStory],
   ["486", ConnectionEditorNarrowStory],
@@ -162,7 +162,7 @@ for (const [arm, Story] of [
 }
 
 // THE A11Y CONTRACT THE MOCK HAS NONE OF. A `div` with `cursor: pointer` is unreachable by keyboard and
-// says nothing about its state; this is the thing DESIGN.md §5.2 says step 9 owes.
+// says nothing about its state; this is the thing the mock design §5.2 says step 9 owes.
 test("a tier header is a BUTTON with aria-expanded, and opens from the keyboard", async ({ mount, page }) => {
   await stubEditor(page);
   const component = await mount(<ConnectionEditorStory />);
@@ -203,7 +203,7 @@ test("the four block names are §5.3a's words, never the schema's", async ({ mou
   }
 });
 
-// ── the quirk key rule (§5.3a's owed amendment, DESIGN.md §6-3) ────────────────────────────────────────
+// ── the quirk key rule (§5.3a's owed amendment, the mock design §6-3) ────────────────────────────────────────
 
 test("a quirk key stays RAW only when that string is the wire's — `prefill` survives, `reasoningKeys` does not", async ({ mount, page }) => {
   await stubEditor(page);
@@ -262,7 +262,7 @@ test("Override reveals a real labelled control and writes ONE field into `declar
 
 // ── the Purpose tier ───────────────────────────────────────────────────────────────────────────────────
 
-// §5.3a's owed ruling (DESIGN.md §6-5): a cannot-serve verdict is MUTED with `✗` and its reason, never
+// §5.3a's owed ruling (the mock design §6-5): a cannot-serve verdict is MUTED with `✗` and its reason, never
 // destructive. A chat model that cannot embed is not broken — it is every chat model in existence.
 test("a cannot-serve badge is muted with its reason, and destructive colour is spent on nothing", async ({ mount, page }) => {
   await stubEditor(page);

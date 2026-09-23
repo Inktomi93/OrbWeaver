@@ -11,7 +11,7 @@ import { readTailwindClassTokens } from "../lib/tailwind-class-token.ts";
 import { waivableCoordinate } from "../lib/waivable-coordinate.ts";
 
 const MESSAGE =
-  "arbitrary Tailwind value on a layout/size/type utility — off-token " +
+  "arbitrary Tailwind value on a layout/size/type utility (tokens: packages/ui/src/tokens/tokens.json) — off-token " +
   "brackets bypass the design system; use a token utility (or extend tokens.json if none fits).";
 
 /** Scoped utility prefixes: w, h, min-w, min-h, max-w, max-h, size, the p/m

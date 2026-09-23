@@ -263,7 +263,7 @@ export const REVIEWED_GRANTS_DBSTRUCTUREPRODUCERHOME_DANGLINGREFCITATIONS: reado
     operation: "dangling-symbol-cite",
     why: "the two tier-home tables (`raw-spacing-tier`, `raw-typography-tier`) were renamed `TIER_IMPLEMENTATION_HOMES` at 7b3d15bc4 (#2176) because a probe emptying them changed zero findings: scan-scope data, not an exemption ledger. The dated family conversion records (`home-client-family-1584.md`, `home-server-family-1584.md`, `v-audit-wave8-2026-09-12.md`) name the old constant as the shape they converted, which is a §6.4 receipt, not drift. Same class as the two rows above (a6740edc3).",
     endsWhen:
-      "those three records move under docs/history/ (a dated record outside the living-doc corpus is outside this policy's population), or the sites are rewritten to name the constant without backticks — either way the row is then consumed zero times and reds stale.",
+      "those three records are deleted, or the sites are rewritten to name the constant without backticks — either way the row is then consumed zero times and reds stale.",
   },
   // THE #252 DUPLICATE-ACTION DOOR RULINGS (#1584, 2026-09-13). They replace
   // `duplicate-action-doors.baseline.json` (six RATIFIED count rows whose `cite` list was the real ruling) and the

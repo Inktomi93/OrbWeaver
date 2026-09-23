@@ -18,9 +18,9 @@
 // tile's own `region`, never a list here. Home consumes the registry BLIND through `makeHomeSection`.
 //
 // THE ROADMAP BLOCK IS ONE MEMBER, SPREAD (#834): `homeRoadmapTiles` is home's curated mirror of the
-// FUTURE + PARTIAL rows of `docs/architecture/proposed/INDEX.md`, and its own file is the one home for both
+// open program items under `docs/work/`, and its own file is the one home for both
 // the list and its orders. It is spread rather than enumerated here precisely so the door never becomes a
-// second copy of that table — adding a program is an edit to `features/home/lib/roadmap.ts` and nothing else.
+// second copy of that list — adding a program is an edit to `features/home/lib/roadmap.ts` and nothing else.
 
 import { chatAlsoOpenTile, chatMastheadTile, chatQuickPicksTile, chatRecentsTile, chatTempChatTile } from "#features/chat";
 import { databankDocumentsTile } from "#features/databank";

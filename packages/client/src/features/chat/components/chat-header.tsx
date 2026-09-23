@@ -221,7 +221,7 @@ function CharacterAvatars({ characters }: { readonly characters: readonly Charac
 }
 
 // The CONTEXT-panel band identity (`ChatContextHeader`, north-star §4 N4/P4) was DELETED with CP-1's
-// header de-dup (the topbar owns identity; the band reduces to neutral chrome 
+// header de-dup (the topbar owns identity; the band reduces to neutral chrome
 // §1 Q3). CP-4's scene banner is a NEW component, not a resurrection — git history holds the old one.
 //
 // `DraftChatHeader` (the pre-send twin: founding-card avatars, `draftChatTitle`, a `1 + characters` seat count,

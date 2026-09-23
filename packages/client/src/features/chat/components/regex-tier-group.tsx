@@ -1,5 +1,5 @@
 // ONE TIER GROUP of the room's Regex section — `Everywhere` · `From the preset · <name>` · `From <character>`
-// (one per seat) · `This chat`, in RUN ORDER (`docs/design/mocks/regex-section/DESIGN.md` §3).
+// (one per seat) · `This chat`, in RUN ORDER.
 //
 // A PLAIN `Section`, NOT A DISCLOSURE, and that is the v2 shape: the groups are already inside a closed-by-
 // default disclosure, and a second layer of doors would put every lever behind two taps and hide the run

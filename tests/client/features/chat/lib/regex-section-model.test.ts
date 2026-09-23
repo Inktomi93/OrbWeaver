@@ -1,6 +1,6 @@
 // The Regex section's one rendering decision, tested as the pure function it is (#1742): WHERE a script that
 // two tiers of this room hold draws, and what the three counts say. Everything else in the section is the
-// server's answer copied through (`docs/design/mocks/regex-section/DESIGN.md` §7.1 — the client never
+// server's answer copied through (the client never
 // re-unions and never re-ranks), so there is nothing else here to test.
 //
 // The case that matters is the LAST one: the earliest tier switched OFF while a later one still runs the same
