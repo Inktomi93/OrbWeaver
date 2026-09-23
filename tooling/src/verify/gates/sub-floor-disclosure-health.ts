@@ -38,7 +38,7 @@ import { COLLAPSIBLE_VARIANTS_HOME, FLOOR_ARM, SUB_FLOOR_ARM } from "../lib/coll
 const ARMS: readonly string[] = [SUB_FLOOR_ARM, FLOOR_ARM];
 
 const MESSAGE =
-  `a collapsible size arm is no longer declared in ${COLLAPSIBLE_VARIANTS_HOME} — the vocabulary sub-floor-disclosure judges ` +
+  `a collapsible size member is no longer declared in ${COLLAPSIBLE_VARIANTS_HOME} — the vocabulary sub-floor-disclosure judges ` +
   "(`text` the sub-floor opt-out, `control` the floor default) rotted; re-derive it in lib/collapsible-size-vocabulary.ts or restore the arm.";
 
 export const gate = defineGate({

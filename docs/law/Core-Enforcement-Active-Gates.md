@@ -74,9 +74,9 @@ in its own module header, never restated here.
 | `bound-field-via-hook` | — | reviewed-grant/error | @client\* | a bound field reaches the raw… |
 | `bounded-list-limit` | — | ordinary/error | @server,@contracts\* | an unbounded limit in a list/paged… |
 | `brand-in-name-position` | id-brand-flow | ordinary/error | @client,@ui,@server,@db,@contracts,@kit,@inference,@tests | a parameter or field uses bare string… |
-| `bus-belt-total` | bus-definition | hard/error | @contracts,@client,@server | bus belt is not TOTAL over its union… |
+| `bus-belt-total` | bus-definition | hard/error | @contracts,@client,@server | bus set is not TOTAL over its union —… |
 | `bus-channel-primitive` | — | reviewed-grant/error | @server\* | new EventEmitter() under… |
-| `bus-consumer-belt` | bus-definition | hard/error | @contracts,@client,@server | belted bus union has NO consumer belt… |
+| `bus-consumer-belt` | bus-definition | hard/error | @contracts,@client,@server | a bus union has NO consumer coverage… |
 | `bus-definition-belts` | bus-definition | hard/error | @contracts,@client,@server | bus event union in @orb/contracts… |
 | `bus-fact-health` | bus-fact | hard/error | @contracts,@server | shared bus fact is incomplete — bus… |
 | `bus-on-data-no-store-write` | — | ordinary/error | @client\* | raw store write (.setState) inside a… |
@@ -159,7 +159,7 @@ in its own module header, never restated here.
 | `form-factory-for-multifield` | editor-form-factory | ordinary/error | @client\* | a feature component hand-rolls ≥3… |
 | `freeze-provenance-write-pairing` | freeze-provenance | ordinary/error | @packages | a message_variants write that touches… |
 | `freeze-provenance-write-pairing-health` | freeze-provenance | hard/error | @packages | the freeze-provenance write-pairing… |
-| `gate-ignore-inventory` | — | hard/error | @authored\* | a retired @orb-gate-ignore marker… |
+| `gate-ignore-inventory` | — | hard/error | @authored\* | a dead @orb-gate-ignore marker… |
 | `gate-modernization` | — | hard/error | @tooling\* | a gate file breaks the gate-authoring… |
 | `home-tile-registry-completeness` | registry-definitions | ordinary/error | @client | a home tile is dishonest: a… |
 | `infra-auth-no-userid` | — | ordinary/error | @server\* | userId is forbidden under… |
@@ -300,7 +300,7 @@ in its own module header, never restated here.
 | `receded-ink-integrity` | tailwind-class-token | ordinary/error | @client,@ui | RECEDED_INK is carried behind a… |
 | `registry-assembly-at-door-only` | — | ordinary/error | @client\* | createRegistry()/createContributorRegi… |
 | `registry-context-via-mint` | react-origin | ordinary/error | @client | a createContext typed over a registry… |
-| `render-error-via-battery` | — | reviewed-grant/error | @client | a hand-rolled renderError arm on… |
+| `render-error-via-battery` | — | reviewed-grant/error | @client | a hand-rolled renderError prop on… |
 | `rest-transform-grid` | static-class-expression | hard/error | @client,@ui | A REST-state transform that cannot… |
 | `route-imports-no-feature` | — | reviewed-grant/error | @client | a route imports a feature front door… |
 | `route-trpc-lifo-order` | — | ordinary/error | @tests\* | a page.route("\*\*/api/trpc...", …) is… |
@@ -332,7 +332,7 @@ in its own module header, never restated here.
 | `stale-draft-decision-health` | draft-commit | hard/error | @client,@db\* | the draft decision home no longer… |
 | `state-files` | — | ordinary/error | @client\* | the minted store handle is exported… |
 | `sub-floor-disclosure` | — | ordinary/error | @client,@ui | a size="text" CollapsibleTrigger with… |
-| `sub-floor-disclosure-health` | sub-floor-disclosure | hard/error | @ui\* | a collapsible size arm is no longer… |
+| `sub-floor-disclosure-health` | sub-floor-disclosure | hard/error | @ui\* | a collapsible size member is no… |
 | `suppressions` | — | reviewed-grant/error | all | a foreign-tool suppression directive… |
 | `surface-a11y-focus` | surface-composition | ordinary/error | @client\* | surface is missing A11y focus… |
 | `surface-in-a-container` | surface-composition | ordinary/error | @client\* | surface establishes raw structural… |
@@ -386,7 +386,7 @@ in its own module header, never restated here.
 | `ui-primitive-structure` | ui-primitive | ordinary/error | @ui | UI source re-exports private variants… |
 | `ui-size-via-variant` | tailwind-class-token | ordinary/error | @client,@ui | sizes come from variants — a… |
 | `ui-skin-fragment-purity` | ui-skin-fragment-tier | ordinary/error | @ui | a static string outside… |
-| `ui-variant-axes-stamped` | — | hard/error | @ui | @orb/ui variant-axis stamp (#1080): a… |
+| `ui-variant-axes-stamped` | — | hard/error | @ui | @orb/ui variant-axis stamp: a tv()… |
 | `ui-variant-axes-stamped-health` | ui-variant-axes-stamped | hard/error | @ui\* | packages/ui/src/lib/variant-attrs.ts… |
 | `untrusted-regex-safe-exec` | — | hard/error | @server\* | the canonical world-info regex-key… |
 | `user-bus-deferred-member` | bus-fact | hard/error | @contracts,@server | owner-deferred UserBusEvent member… |
