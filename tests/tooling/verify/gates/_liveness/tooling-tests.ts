@@ -59,7 +59,7 @@ interface ProbeGate {
 const STANDARD_MUST_FLAG = '[{ mode: "source", files: { "packages/client/src/a.ts": "x" }, expect: { count: 1 }, why: "w" }]';
 
 /** A final-policy module under the gate corpus, shaped like the gate-authoring rows' `probe.ts`. */
-function probeGate({
+export function probeGate({
   id,
   head = "",
   family = id,
