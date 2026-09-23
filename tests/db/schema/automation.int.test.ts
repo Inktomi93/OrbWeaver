@@ -2,7 +2,7 @@
 // (FK PRAGMA ON). Covers: the enum test-mirrors (trigger_bus ← AUTOMATION_TRIGGER_BUSES, stored outcome ←
 // public outcomes + internal reservation); automation_rules round-trip (born disabled, action blob, defaults) + the
 // paired bus↔tuple trigger CHECK (a cross-bus trigger name is unrepresentable) + the 120-char name
-// CHECK; automation_budgets defaults; automation_fires FK CASCADE off the rule; automation_rule_state —
+// CHECK; automation_fires FK CASCADE off the rule; automation_rule_state —
 // rule-id natural PK (one row per rule), CASCADE off the rule, the guidance default + the
 // ANALYSIS_GUIDANCE_MAX-mirrored CHECK; global_variables — composite (ownerId, key) PK (same key across
 // owners coexists; same owner+key collides), the 128-char key CHECK, and the 64 KiB BYTE-accurate value
@@ -11,7 +11,7 @@
 import type { ChatTriggerType } from "@orb/contracts/automation";
 import { ANALYSIS_GUIDANCE_MAX, AUTOMATION_FIRE_OUTCOMES, AUTOMATION_TRIGGER_BUSES } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";
-import { AUTOMATION_FIRE_STORAGE_OUTCOMES, automationBudgets, automationFires, automationRuleState, automationRules, chats, globalVariables } from "@orb/db";
+import { AUTOMATION_FIRE_STORAGE_OUTCOMES, automationFires, automationRuleState, automationRules, chats, globalVariables } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/kit";
 import type { AutomationFireId, AutomationRuleId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -147,7 +147,7 @@ test("automation_rules.chat_id is nullable from birth (the owner-global v2 seam)
   expect(remaining[0]?.chatId).toBeNull();
 });
 
-// ── automation_fires + automation_budgets ──────────────────────────────────────────────────────────────
+// ── automation_fires ────────────────────────────────────────────────────────────────────────────────────
 
 test("automation_fires round-trips and CASCADEs off its rule", async () => {
   const db = await freshDb();
@@ -170,15 +170,6 @@ test("automation_fires round-trips and CASCADEs off its rule", async () => {
 
   await db.delete(automationRules).where(eq(automationRules.id, rule.id));
   expect(await db.select().from(automationFires)).toHaveLength(0);
-});
-
-test("automation_budgets borns the fire-rate cap (one row per chat)", async () => {
-  const db = await freshDb();
-  const { chatId } = await seedOwnerAndChat(db, "budget_rt");
-  await db.insert(automationBudgets).values({ chatId });
-
-  const rows = await db.select().from(automationBudgets);
-  expect(rows[0]?.maxFiresPerHour).toBe(120);
 });
 
 // ── automation_rule_state: the S5 analysis-arm state row ───────────────────────────────────────────────

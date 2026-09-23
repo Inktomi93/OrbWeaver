@@ -14,7 +14,7 @@
 // cross-feature op bundle (a capturing `requestTurn`), because "the op did not fire" is the assertion.
 
 import type { VariableWriteResult } from "@orb/contracts/chat";
-import { automationBudgets, automationFires, chatParticipants } from "@orb/db";
+import { automationFires, chatParticipants } from "@orb/db";
 import type { AutomationSuggestionId, ChatId, PluginId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { AutomationOps, AutomationTurnRequest, ExecutePluginSuggestion } from "@orb/server/domain/automation";
@@ -374,7 +374,7 @@ describe("the authority matrix", () => {
 });
 
 describe("the rate-refusal invitation (RULED F4)", () => {
-  /** Enable a SPEND rule and slam the chat's fire-rate ceiling shut. */
+  /** Enable a SPEND rule with its fire-rate ceiling slammed shut. */
   async function enableRateCappedSpendRule(fx: Awaited<ReturnType<typeof ruleFixture>>): Promise<ChatId> {
     const rule = await fx.svc.createRule({
       principal: principal(fx.host),
@@ -382,11 +382,11 @@ describe("the rate-refusal invitation (RULED F4)", () => {
       name: "pacing",
       trigger: { bus: "chat", type: "chatOpened" },
       actions: [{ type: "trigger_turn", guidedTemplate: "Nudge the pacing." }],
+      // A per-rule ceiling of ZERO — the loop-safety belt the host themselves sets.
+      maxFiresPerHour: 0,
     });
     await fx.svc.setRuleEnabled({ principal: principal(fx.host), ruleId: rule.id, enabled: true });
     await fx.ctx.enabled.reload();
-    // A per-chat ceiling of ZERO — the loop-safety belt the host themselves sets.
-    await fx.db.insert(automationBudgets).values({ chatId: fx.chatId, maxFiresPerHour: 0, updatedAt: FIXED_NOW_MS });
     return fx.chatId;
   }
 
@@ -427,10 +427,10 @@ describe("the rate-refusal invitation (RULED F4)", () => {
       name: "bookkeeping",
       trigger: { bus: "chat", type: "chatOpened" },
       actions: [{ type: "set_variable", scope: "chat", key: "opened", op: "inc" }],
+      maxFiresPerHour: 0,
     });
     await fixture.svc.setRuleEnabled({ principal: principal(fixture.host), ruleId: rule.id, enabled: true });
     await fixture.ctx.enabled.reload();
-    await fixture.db.insert(automationBudgets).values({ chatId: fixture.chatId, maxFiresPerHour: 0, updatedAt: FIXED_NOW_MS });
 
     await fireChatOpened(fixture);
 
