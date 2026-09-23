@@ -25,7 +25,11 @@ const DEPCRUISE_SOURCE_RE = /\.(?:ts|tsx|js|jsx|mts|cts)$/u;
 function isDepcruisePath(path: string): boolean {
   return DEPCRUISE_SOURCE_RE.test(path) && (path.startsWith("packages/") || path.startsWith("tooling/") || isWorldHelperPath(path));
 }
-const DOCS_MD_RE = /^docs\/architecture\/.*\.md$/u;
+// The formatter's living trees under docs/ (`doc-catalog/ops/format.ts` LIVING_TREES, minus the parked
+// set): the architecture corpus plus the four trees the `doc` tool governs (`doc-catalog/lib/vocab.ts`
+// DOC_TOOL_TREES). Spelled here because a `#doc-catalog` import would chain-load the formatter into every
+// selection.
+const DOCS_MD_RE = /^docs\/(?:architecture|adr|plans|work|law)\/.*\.md$/u;
 const DOCS_PROPOSED_RE = /^docs\/architecture\/proposed\//u;
 const SCOPE_GLOB_TAIL_RE = /\/\*\*$/u;
 const TRAILING_SLASH_RE = /\/+$/u;
@@ -168,7 +172,7 @@ function resolveScope(glob: string, root: string): Selection {
     runtimeSubjects,
     eslintPaths: ESLINT_RE.test(`${prefix}/x.ts`) ? [prefix] : [],
     depcruisePaths: isDepcruisePath(`${prefix}/x.ts`) ? [prefix] : [],
-    docsPaths: prefix.startsWith("docs/architecture") ? [prefix] : [],
+    docsPaths: DOCS_MD_RE.test(`${prefix}/x.md`) ? [prefix] : [],
     tsconfigs: typecheck.programs,
     // The sweep triggers are prefix-tests, so a folder scope under a declared blast-radius (e.g.
     // `--scope packages/ui/src/tokens`) escalates to the matching sweep; a scope with no trigger is skip

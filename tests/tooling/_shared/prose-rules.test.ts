@@ -1,8 +1,8 @@
-// The instruction-layer text rules on strings: what counts as prose, what the history and word rules
+// The writing-charter text rules on strings: what counts as prose, what the history and word rules
 // catch, what the glossary allows, and which spans are checked as repository paths. Every negative case
 // sits beside a positive control that proves the same rule fires on the planted spelling.
-import { backtickedRepoPaths, glossaryWords, markdownLinkTargets, proseFindings, proseOnly } from "../../../../tooling/src/agent-sync/index.ts";
-import { expect, test } from "../../../support/tool-fixtures.ts";
+import { backtickedRepoPaths, glossaryWords, markdownLinkTargets, proseFindings, proseOnly } from "../../../tooling/src/_shared/prose-rules.ts";
+import { expect, test } from "../../support/tool-fixtures.ts";
 
 const NONE: ReadonlySet<string> = new Set();
 
@@ -32,6 +32,27 @@ test("banned house words are findings in singular and plural forms", () => {
     'r.md:1: banned word "receipt"',
     'r.md:1: banned word "rung"',
   ]);
+});
+
+test("an inventory count is a finding; a budget and a plain number are not", () => {
+  expect(proseFindings("r.md", "There are 12 rules and 1,400 files here.", NONE)).toEqual(['r.md:1: an inventory count ("12 rules")']);
+  expect(proseFindings("r.md", "Stays under 200 lines; 3 seconds; step 4 files the row.", NONE)).toEqual(['r.md:1: an inventory count ("4 files")']);
+  expect(proseFindings("r.md", "Stays under 200 lines; 3 seconds.", NONE)).toEqual([]);
+});
+
+test("a frontmatter block and a markdown link target are data, not prose", () => {
+  const source = [
+    "---",
+    "kind: plan",
+    "updated: 2026-09-23",
+    "---",
+    "",
+    "See [old](archive/2026-09-01-old/design.md) and [x](#12).",
+    "Landed 2026-09-01.",
+  ].join("\n");
+  expect(proseFindings("r.md", source, NONE)).toEqual(['r.md:7: a date ("2026-09-01")']);
+  expect(proseOnly(source).split("\n")).toHaveLength(7);
+  expect(proseOnly("---\nnot closed\n").startsWith("   \n")).toBe(true);
 });
 
 test("a word inside a longer word is not the banned word", () => {

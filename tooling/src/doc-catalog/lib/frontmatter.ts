@@ -17,23 +17,6 @@ import {
   VENDOR_PREFIX,
 } from "./vocab.ts";
 
-const NEWLINE_BYTE = 10;
-
-/** Line count over RAW BYTES (never a decoded string) — the catalog's `lines` stat must match what a
- *  byte-oriented reader sees, and a trailing newline does not open a new line. */
-export function countLines(content: Buffer): number {
-  if (content.length === 0) {
-    return 0;
-  }
-  let lines = 0;
-  for (const byte of content) {
-    if (byte === NEWLINE_BYTE) {
-      lines += 1;
-    }
-  }
-  return content.at(-1) === NEWLINE_BYTE ? lines : lines + 1;
-}
-
 export function parseFrontmatter(source: string, path = "document.md"): Frontmatter {
   if (!source.startsWith("---\n")) {
     return { present: false, malformed: false, fields: {}, errors: [] };
