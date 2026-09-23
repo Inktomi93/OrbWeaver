@@ -1,4 +1,4 @@
-// S1 — THE in-chat control band (interaction-direction-spec.md §3-S1): the ONE surface every transient
+// S1 — THE in-chat control band: the ONE surface every transient
 // control near the transcript renders through (rule chips, suggestion/confirm cards, a game's dice ask).
 // Mounted once per room at the `above-composer` anchor by `lib/chat-controls-contribution.tsx`.
 //

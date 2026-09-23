@@ -23,7 +23,7 @@ A suppression outside the population needs no grant and is checked by no gate. A
 
 ## Done when
 
-One of two outcomes holds. (A) The suppressions population admits the repo-root authored files, the package files outside src, and the .cjs, .mjs and .js scripts. Every directive found there is either removed or covered by a source grant row, and the gate passes. (B) The suppressions gate header and docs/design/962-blanket-suppression-control-plane.md state which authored files are excluded and why. In both cases, the workspace-root `why` in tests/tooling/verify/contract/population.test.ts is corrected so that it no longer claims every authored file is under a population root.
+One of two outcomes holds. (A) The suppressions population admits the repo-root authored files, the package files outside src, and the .cjs, .mjs and .js scripts. Every directive found there is either removed or covered by a source grant row, and the gate passes. (B) The suppressions gate header and the no-blanket-suppression gate header state which authored files are excluded and why. In both cases, the workspace-root `why` in tests/tooling/verify/contract/population.test.ts is corrected so that it no longer claims every authored file is under a population root.
 
 ## Evidence
 

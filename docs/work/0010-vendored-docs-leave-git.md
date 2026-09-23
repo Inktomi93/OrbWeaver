@@ -17,7 +17,7 @@ and the folder is gitignored; their catalog rows are dropped; their live prose c
 upstream site or the installed package instead of the deleted bytes.
 
 The ai-sdk and vite mirrors had no gate reader, so they were dead weight; their two live citers
-(`tests/inference/backends/v4/result.test.ts`, `docs/design/inference-record-truth-2026-09-20.md`) now
+(`tests/inference/backends/v4/result.test.ts`) now
 cite the installed `@openrouter/ai-sdk-provider` package.
 
 The base-ui mirror was different: it was committed **gate input**, folded by

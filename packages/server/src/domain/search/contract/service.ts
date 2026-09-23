@@ -43,7 +43,7 @@ import type {
   UnifiedSearchResult,
 } from "./results.ts";
 
-/** The databank scope-junction resolver, INJECTED into search at compose (DB5, databank-design/05 §3.2).
+/** The databank scope-junction resolver, INJECTED into search at compose.
  *  The union SQL has ONE home in `domain/databank` (`persistence/scope.ts`) — search never re-implements
  *  it, so when host-only widens to membership-gated ONE file changes and search is untouched. */
 export type ResolveActiveDocumentIdsOp = (scope: { readonly chatId: ChatId } | { readonly ownerId: UserId }) => Promise<readonly DocumentId[]>;

@@ -1,4 +1,4 @@
-// The tag MEMBER EDITOR — CONTENT for one selected tag (config-rail-spec.md §2 C-7 / fork F-11 arm (a)).
+// The tag MEMBER EDITOR — CONTENT for one selected tag (C-7 / fork F-11 arm (a)).
 //
 // This is the other half of the row split: every EDITING control that used to be crammed into the 330px
 // settings row lives here, at full width, with room for its label — rename · both colour pickers · folder
@@ -116,7 +116,7 @@ function TagMemberEditor({
         ref={surfaceRef}
         tabIndex={-1}
       >
-        {/* THE DRILL ROW (#1747, DESIGN.md §3.4, board 03): `← Back to <library>` · the name · this tag's
+        {/* THE DRILL ROW (#1747, the mock design §3.4, board 03): `← Back to <library>` · the name · this tag's
             own verbs — of which a tag has NONE (§3.4 names each collection's set and tags' is empty: Merge
             is a field below because it needs the target picker, Delete is the row's kebab, D121(D)). The
             usage census rides `meta` beside the name it is about — a FACT, not a verb. */}

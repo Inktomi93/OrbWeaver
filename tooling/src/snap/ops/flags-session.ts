@@ -1,4 +1,4 @@
-// The session flag family (docs/design/1208-instrument-substrate.md §4.4), spread into ops/flags-handlers.ts's
+// The session flag family, spread into ops/flags-handlers.ts's
 // one dispatch table the way ops/flags-stage.ts is: one ops/ file per command family. `--session <name>`
 // drives (boots on first use); the four admin modes print and exit (mutually exclusive — enforced in
 // ops/parse.ts); `--session-ttl` is a boot property; `--session-daemon <name>` is the DAEMON'S OWN entry,

@@ -21,7 +21,7 @@
 // space flips a green pass into a named refusal, which is what rules out "the fixture simply had nothing to
 // find". No specifier-resolution control is owed — resource rows import nothing.
 //
-// THE MATRIX IS ONE PIN PER DECLARATION PER REACHABLE STATUS (`docs/design/resource-policy-contract.md`
+// THE MATRIX IS ONE PIN PER DECLARATION PER REACHABLE STATUS (`docs/law/resource-policy-contract.md`
 // obligation 6), and three cells were missing until #2130: `unresolved` on BOTH `mirror-index` declarations
 // and `empty` on `package-test`. Those three are the arms that cannot be built from an overlay — an overlay
 // entry is text, so it is never a symlink, and it cannot make a directory EXIST while staying empty — so

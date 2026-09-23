@@ -1,4 +1,4 @@
-// One game-tab body wrapper (Context-Panel-Program §4.4) — resolves the takeover panel state (suspending on
+// One game-tab body wrapper — resolves the takeover panel state (suspending on
 // the rpg reads) and renders the tab's content. The scene banner rides the HUD's OWN band above the rails
 // (`rpg-hud.tsx` → `RpgHeaderBand`).
 //

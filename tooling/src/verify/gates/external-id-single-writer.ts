@@ -15,7 +15,7 @@
 // FAMILY: this per-node detector and `external-id-single-writer-health.ts` (the whole-population carve-out
 // proof) BOTH read `verify/lib/external-id-writer.ts` — the one shared reader for the write-shape predicate,
 // the two sanctioned files, and the atomic-claim-writer name (a family means a shared `lib/` reader, never a
-// shared theme, gate-runtime-standardization.md). `hard`: there is no marker vocabulary here — a third
+// shared theme, docs/law/gate-runtime-standardization.md). `hard`: there is no marker vocabulary here — a third
 // caller is either one of the two sanctioned files or a defect, never a reviewable exemption.
 // COMMENT POSTURE: comment-SAFE — pure node-kind subscription, no file text is matched.
 //

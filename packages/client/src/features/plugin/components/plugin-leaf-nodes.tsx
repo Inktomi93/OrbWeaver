@@ -1,4 +1,4 @@
-// The LEAF node renderers (plugin-ui-plane #679 U1, §4.3) — the display leaves and the form/action leaves —
+// The LEAF node renderers — the display leaves and the form/action leaves —
 // split out of `plugin-surface-renderer.tsx`, which owns the walk, the caps and the container dispatch.
 //
 // THE SPLIT FOLLOWS `plugin-browse-nodes.tsx`: the one exported entry `SurfaceLeaf` takes the CONCRETE values a

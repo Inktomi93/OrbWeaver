@@ -44,7 +44,7 @@ import { EMPTY_ROOM_OVERRIDES_FORM, fromRoomOverridesForm, toRoomOverridesForm }
 // the boundary OWNS the entity key: it keys its private Session by `entityId`, so a chat switch with the
 // tab open (this editor mounts under `ContextTabsPanel`, which keys by TAB id only) is a full
 // teardown/remount seeded from the new chat's server row. Wrong key placement is unspellable — the lane-h
-// wrapper-split that hand-keyed `RoomOverridesFormBody` is superseded (autosave-form-doctrine.md §1, §8).
+// wrapper-split that hand-keyed `RoomOverridesFormBody` is superseded (D78).
 // No module `config.save`: the persist fn closes over the live tRPC client (a React-context value
 // unreachable here) — the SURFACE supplies `save` per-instance. No draft mirror (the server row is the
 // durable store; a crash-mirror would duplicate synced truth — the appearance-form precedent).

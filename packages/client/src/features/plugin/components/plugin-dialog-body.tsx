@@ -1,4 +1,4 @@
-// The `pluginDialog` modal's BODY (plugin-ui-plane #679 U5, §4.5a) — the plugin-attributed house modal a
+// The `pluginDialog` modal's BODY — the plugin-attributed house modal a
 // `dialog`-anchored surface renders inside.
 //
 // THE SHELL IS THE HOUSE'S AND THE TITLE IS ATTRIBUTED. `ModalHost` draws the Dialog; this body draws the same

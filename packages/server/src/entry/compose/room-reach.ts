@@ -1,5 +1,5 @@
-// entry/compose/room-reach — THE ENTITY→ROOM REACH ENGINE
-// (design: `docs/design/entity-room-member-freshness-bridge.md` §3.5). An owner-plane entity edit (a character card, a persona, a lorebook) lands on the editor's
+// entry/compose/room-reach — THE ENTITY→ROOM REACH ENGINE.
+// An owner-plane entity edit (a character card, a persona, a lorebook) lands on the editor's
 // own devices through the user bus; this is the OTHER audience plane — the rooms where OTHER humans are sitting
 // on a member-visible projection of that entity. One `DomainEvent` in, one `roomEntityChanged` per reached room
 // out, live-only (no `chat_events` row).

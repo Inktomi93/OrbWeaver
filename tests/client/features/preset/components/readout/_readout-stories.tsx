@@ -1,4 +1,4 @@
-// CT story module for the preset CONTEXT READOUT's D8 chat BINDING (preset-surface-redesign §7.1). A CT
+// CT story module for the preset CONTEXT READOUT's D8 chat BINDING. A CT
 // only mounts from a NON-test module (Spine-Testing §7), so the mount + the store drive live here.
 //
 // The REAL `<PresetReadout>` is mounted the way the composition root mounts it (the `single` context body),

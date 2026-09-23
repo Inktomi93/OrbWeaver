@@ -5,7 +5,7 @@
 // a separate query on the same listMessages key MessageListSurface already suspends on internally — one
 // shared cache entry, not a second round-trip.
 //
-// COMMITTED-ONLY (chat-creation-draft-mode-replacement.md §4.1, R1). This pane used to hold a `ChatHandle`
+// COMMITTED-ONLY (D166). This pane used to hold a `ChatHandle`
 // in local state so it could flip draft→committed mid-first-turn without remounting, and every child took a
 // phase branch. A chat row exists from the creation click, so the handle is a prop, the id is stable for the
 // pane's life, and the twin surfaces (`DraftChatHeader`, `DraftGreetingThread`, the draft
@@ -191,7 +191,7 @@ export function ChatRoomSurface({ handle, busDeps, onChatForked, surfaceContribu
               vertical stack, so it takes the same centred box — otherwise a contribution renders at its own
               content width against the left edge of the pane while the two things it sits between centre. */}
           {aboveComposerContributions.length === 0 ? null : (
-            // `empty:hidden` is the SILENT-CONTRIBUTOR collapse (S1, interaction-direction-spec §3-S1): a
+            // `empty:hidden` is the SILENT-CONTRIBUTOR collapse: a
             // contribution that is mounted but currently paints nothing (the control band with no live
             // control — its source fibers render null) leaves this wrapper with zero child NODES, and an
             // empty flex child still costs the column one `gap="block"` step between the transcript and the

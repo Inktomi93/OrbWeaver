@@ -53,7 +53,7 @@ function memberAnchorOptions(chat: ChatDetail): readonly { readonly personaId: P
 }
 
 export interface PersonaThisChatSectionProps {
-  /** The Config mount's `this-chat` anchor (config-revamp-design §6.8.2 — the contribution passes it; the
+  /** The Config mount's `this-chat` anchor (the contribution passes it; the
    *  "pinned" part is a search LEAF under this section, not a second id) — absent in the rail popover and
    *  the You sheet, so the shared component never duplicates an id across its three mounts. */
   readonly anchorId?: string;

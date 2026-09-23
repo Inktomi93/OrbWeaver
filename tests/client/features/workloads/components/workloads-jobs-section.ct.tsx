@@ -746,7 +746,7 @@ test("a LIVE terminal event refetches the list — Running flips to Succeeded wi
 // THE S5 CLAIM. Before the fold this pane opened ONE BROWSER CONNECTION PER ACTIVE ROW, on top of the
 // tab's standing chat/rpg/user streams — three watched runs plus a second tab sat at the browser's
 // ~6-per-origin ceiling with the user doing nothing unusual (the 2026-08-01 starvation incident,
-// docs/history/design/sse-multiplex-spec.md §1). Rooms cost attach round-trips; connections stay at one.
+// D118). Rooms cost attach round-trips; connections stay at one.
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════
 test("THREE active rows attach THREE rooms over exactly ONE socket; a finished run gives its room back", async ({ mount, page }) => {
   let listCalls = 0;

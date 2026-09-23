@@ -7,7 +7,7 @@
 // flash on a normal load), and every surface inherits it here — zero per-feature edits.
 //
 // THE RESERVATION SEAM (#885, lifted from home-tile.tsx's TileFallback/TileBody — this file is now the
-// ONE home; docs/design/885-884-boundary-reservation-and-touch-floor.md). A boundary that passes
+// ONE home). A boundary that passes
 // `reserveKey` opts into measure-then-remember: the fallback is wrapped in the box this device saw the
 // child SETTLE at last time (`surface-box-store`, localStorage — synchronous, so the very first commit
 // already carries it) and the settled child is measured back into the store on every commit. The tiles

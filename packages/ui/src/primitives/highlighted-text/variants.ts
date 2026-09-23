@@ -12,7 +12,7 @@ export const highlightedTextVariants = tv({
   // what a mark MEANS ("this run is the hit") does not change with the surrounding voice.
   //
   // `default` is byte-identical to the pre-axis skin: body-voice prose, the search/find-in-page reader.
-  // `code` is the resolved-TEMPLATE readout (preset-surface-redesign.md §13): a rendered prompt fragment with
+  // `code` is the resolved-TEMPLATE readout: a rendered prompt fragment with
   // its `{{input}}` tokens marked is machine text, not prose — mono so the braces and whitespace it preserves
   // line up, micro + muted because the readout sits under the editor it explains and must not outshout it.
   variants: {

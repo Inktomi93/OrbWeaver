@@ -1,4 +1,4 @@
-// persistence/journal — the VARIANT-AWARE archive + the lineage projection (rpg-design/05 §2.5). .int: real
+// persistence/journal — the VARIANT-AWARE archive + the lineage projection (docs/plans/rpg/design.md). .int: real
 // FK. Model entries stamp their producing variant (CASCADE); hand entries stamp NULL (every lineage). The
 // READ projects the active lineage (variantId IS NULL OR variant = its slot's selectedVariantId) — a swipe
 // changes what renders with ZERO writes.

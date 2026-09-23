@@ -51,10 +51,10 @@ test("a tree whose generated files match a fresh render is clean", () => {
 
 test("an unknown top-level folder and a vanished legacy row are both findings (two-sided)", () => {
   const snapshot = tree(CLEAN);
-  const root = [...snapshot.root.filter((entry) => entry.name !== "history"), { name: "notes", directory: true }];
+  const root = [...snapshot.root.filter((entry) => entry.name !== "reviews"), { name: "notes", directory: true }];
   const problems = docProblems({ ...snapshot, root });
   expect(problems.some((line) => line.startsWith("docs/notes: not a docs home"))).toBe(true);
-  expect(problems.some((line) => line.startsWith("docs/history: named by LEGACY_ROOTS"))).toBe(true);
+  expect(problems.some((line) => line.startsWith("docs/reviews: named by LEGACY_ROOTS"))).toBe(true);
 });
 
 test("a stale generated index is a finding that names the regenerating command", () => {
@@ -148,7 +148,7 @@ test("an orphan tasks.md, a nested item folder and a non-markdown file under a g
 
 test("the doc tool's kinds and states never widen the legacy catalog's vocabulary", async () => {
   const { frontmatterErrors, parseFrontmatter } = await import("../../../../tooling/src/doc-catalog/index.ts");
-  const legacy = "docs/design/x.md";
+  const legacy = "docs/reviews/x.md";
   expect(frontmatterErrors(legacy, parseFrontmatter("---\nkind: bug\nstatus: doing\nupdated: 2026-09-23\nlane: cb-x\n---\n", legacy))).toEqual([
     `${legacy}: unsupported frontmatter key lane`,
     `${legacy}: invalid frontmatter kind bug`,

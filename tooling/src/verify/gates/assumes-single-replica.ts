@@ -139,8 +139,8 @@ export const gate = defineGate({
   family: "assumes-single-replica",
   authority: "ordinary",
   severity: "error",
-  // `@inference` ADDED 2026-09-20 (lane cb-gate-reach, the §12 EXTRACTION AUDIT of
-  // `docs/design/orbweaver-inference-package.md`). ~104 source files left `packages/server/src/infra/providers/`
+  // `@inference` ADDED 2026-09-20 (lane cb-gate-reach, the inference EXTRACTION AUDIT).
+  // ~104 source files left `packages/server/src/infra/providers/`
   // for the new `@orb/inference` workspace package, and every `@server`-scoped policy stopped judging them the
   // day they moved, silently. NAMED IN §12's WIDEN SET BY THE PROGRAM ITSELF, with its reason: the registry's runtime rows live in
   // `provider_rows`, not a module-level map, precisely so nothing in the package needs the annotation. The package

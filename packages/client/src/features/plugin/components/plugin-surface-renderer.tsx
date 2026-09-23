@@ -1,5 +1,5 @@
-// plugin-surface-renderer — the ONE first-party renderer for the declarative plugin-surface vocabulary
-// (plugin-ui-plane #679 U1, §4.3). It maps every closed node kind to a sealed `@orb/ui` primitive: a plugin
+// plugin-surface-renderer — the ONE first-party renderer for the declarative plugin-surface vocabulary.
+// It maps every closed node kind to a sealed `@orb/ui` primitive: a plugin
 // composes house components as DATA and never touches the DOM, so tokens/theme/a11y/density come free and the
 // vocabulary cannot express raw HTML, host chrome, a modal, or a write channel.
 //
@@ -92,7 +92,7 @@ function warnPrimaryRefused(message: string): void {
   }
 }
 
-/** The TIER-C SINK — where a scripted surface's interactions go instead of the server (plugin-ui-plane #679 U4).
+/** The TIER-C SINK — where a scripted surface's interactions go instead of the server.
  *  Absent (the Tier-S default) the renderer owns everything: it reads `getSurfaceState` for the `$state`
  *  bindings and submits actions through `invokeUiAction`. Present, the OWNER owns both: the tree came from a
  *  client guest that holds its own state, and an interaction is delivered INTO that guest with no network in

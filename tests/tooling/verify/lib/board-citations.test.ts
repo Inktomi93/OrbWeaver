@@ -53,7 +53,7 @@ const STATES: BoardStates = new Map<number, BoardIssueRow>([
   [OFF_BOARD_ROW, row(OFF_BOARD_ROW, "OPEN", "", false)],
   [SUBJECT_L5, row(SUBJECT_L5, "CLOSED", "**Where:** cb-v-parity-instruments L5 · `tooling/src/verify/contract/population.ts:74`")],
   [SUBJECT_L4, row(SUBJECT_L4, "CLOSED", "**Where:** cb-v-parity-instruments L4 · `tooling/src/verify/gates/conversion-refusal-liveness.ts:161`")],
-  [OTHER_WAVE, row(OTHER_WAVE, "CLOSED", "**Where:** cb-v-fix-wave-1 L1 · `docs/design/gate-runtime-read-first.md:51`")],
+  [OTHER_WAVE, row(OTHER_WAVE, "CLOSED", "**Where:** cb-v-fix-wave-1 L1 · `docs/law/gate-runtime-read-first.md:51`")],
 ]);
 
 /** A descriptor carrying only the fields the citation derivation reads. */

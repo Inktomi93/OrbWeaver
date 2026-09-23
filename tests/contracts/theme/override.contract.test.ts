@@ -1,4 +1,4 @@
-// The ThemeOverride WIRE clamp (D44 §12.1 / themes-design §3.1): safe values pass, injection
+// The ThemeOverride WIRE clamp: safe values pass, injection
 // vectors DEGRADE per-field (never a whole-blob reject — the lenient posture), unknown keys strip.
 
 import { themeOverrideSchema } from "@orb/contracts/theme";

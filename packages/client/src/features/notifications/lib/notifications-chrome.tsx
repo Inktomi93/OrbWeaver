@@ -1,5 +1,5 @@
-// notificationsChrome — the registered topbar.trail widget for the notifications bell
-// (shell-chrome-unification.md §A). IT HAS NO VISIBILITY GATE: the bell mounts for every authed principal.
+// notificationsChrome — the registered topbar.trail widget for the notifications bell.
+// IT HAS NO VISIBILITY GATE: the bell mounts for every authed principal.
 //
 // #1627 (2026-09-05) retired the gate this entry was born with. `useVisible` read `multiHumanCapable`
 // because the inbox backend was multi-human-only (PD-106 — every notification SOURCE was

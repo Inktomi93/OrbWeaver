@@ -18,7 +18,7 @@ type ChatSummarySeat = ChatSummaryItem["participantPortraits"][number];
 // from `#lib`.
 
 // `draftChatTitle` + `NEW_CHAT_TITLE` ("New chat") were DELETED 2026-08-14 with draft mode
-// (chat-creation-draft-mode-replacement.md §4.9): they named a room that had no row yet, from its founding
+// (D166): they named a room that had no row yet, from its founding
 // cards. Every room has a row from the creation click, so `deriveChatTitle` — over the real roster — is the
 // one answer, and its "Untitled chat" fallback is honest for a blank room that legitimately exists.
 

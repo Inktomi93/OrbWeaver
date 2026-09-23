@@ -2,7 +2,7 @@
 // db (FK enforcement ON). Covers: the global KV round-trip (JSON value) + the key PK collision, the
 // user_settings round-trip with the load-bearing schema_version COLUMN (default + threaded as
 // storedVersion into parseUserSettings), the userId PK/FK + its cascade-on-user-delete, and the `themes`
-// table's owner-cascade + lenient-parse-at-the-read-seam invariant (themes-design.md §6 invariants 5/7).
+// table's owner-cascade + lenient-parse-at-the-read-seam invariant.
 
 import { DEFAULT_USER_SETTINGS, parseUserSettings, USER_SETTINGS_SCHEMA_VERSION } from "@orb/contracts/settings";
 import { themeOverrideSchema } from "@orb/contracts/theme";

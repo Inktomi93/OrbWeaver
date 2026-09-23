@@ -1,4 +1,4 @@
-// verb: createExtractQuiet — the imagery quiet-extraction shaper (imagery-design/02 §2), homed in chat. Proves
+// verb: createExtractQuiet — the imagery quiet-extraction shaper, homed in chat. Proves
 // against a real db: it windows the recent canon, resolves the template's {{char}} against the subject/roster
 // card (chat's ONE MacroContext), runs the summarize side-LLM, and returns the raw reply text + that call's
 // spend. The summarize role + getCard are fakes (the shaper declares their ports; compose binds the real ones).

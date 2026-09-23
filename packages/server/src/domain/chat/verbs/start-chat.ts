@@ -12,7 +12,7 @@
 // Absent policy resolves by roster size (1 ⇒ first-message, >1 ⇒ greet-all, 0 ⇒ none). `generate` is NOT a
 // creation-time arm (the wire schema excludes it, `transport/trpc/routers/chat.ts`'s `startChatSchema`) —
 // "guide the opening" is an ordinary post-creation `chat.generate` action against the real room now
-// (chat-creation-draft-mode-replacement.md §4.4/R2 retired the fused generated-opening +
+// (D166 retired the fused generated-opening +
 // `openingFailure` degrade apparatus (START-1) along with the rest of the creation-time draft carry:
 // R1 made every client caller create the real room before mounting, so a creation-fused generation and
 // its "the room committed but the opening failed" DATA outcome were unreachable product surface).

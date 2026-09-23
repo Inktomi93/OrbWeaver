@@ -845,7 +845,7 @@ describe("add character to chat — the participant-insert chokepoint", () => {
   });
 });
 
-// F6 (chat-creation-draft-mode-replacement.md §4.8/§5): a character added while the GREETING WINDOW is still
+// F6 (D166): a character added while the GREETING WINDOW is still
 // open greets, preserving the affordance the deleted draft plane had (a panel-added member's greeting row
 // appeared before the first send). After the window closes it is today's silent join, byte-identically. The
 // window predicate is the one `setSeededGreeting` refuses on — "no user-role canon row".

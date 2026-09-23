@@ -1,4 +1,4 @@
-// substrate: size — the semantic size presets + the per-mode default (imagery-design/02 §6). Substrate lands
+// substrate: size — the semantic size presets + the per-mode default. Substrate lands
 // with I1; the request-passing rides I2 (doc 05 FORK 2), so this pins the shape the runner will read.
 
 import { describe } from "vitest";

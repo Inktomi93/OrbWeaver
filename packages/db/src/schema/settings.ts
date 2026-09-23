@@ -13,7 +13,7 @@
 // does. Without it every blob probes as v1 and all lifts re-run on every read (corrupting data the
 // moment a lift is non-idempotent). Defaulted to the current version so a fresh seed is self-consistent.
 //
-// `themes` (TypeID PK) — the D44 §12.1 user theme library (`history/themes-design.md` §2). Seed
+// `themes` (TypeID PK) — the D44 §12.1 user theme library. Seed
 // palettes (Hearth/Mocha/Light) are rows with `owner_id IS NULL` (the `presets` two-row-kind precedent,
 // `db/schema/preset.ts`): non-deletable/non-editable by construction, since `fetchOwned(caller)` can
 // never match a NULL owner. CASCADE on `owner_id` (the D21 single-owned family norm — presets' RESTRICT

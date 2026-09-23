@@ -1,4 +1,4 @@
-// SNAP_HELP's arm blocks, DERIVED (docs/design/1208-instrument-substrate.md §6). `contract/help.ts` places
+// SNAP_HELP's arm blocks, DERIVED. `contract/help.ts` places
 // each arm's own `help` text into the section it belongs to; this module is the bookkeeping that makes
 // "an arm cannot ship without its operator row" TRUE rather than aspirational:
 //

@@ -1,6 +1,6 @@
 // C5 — the OWNER-GLOBAL automation sections: the bodies of the Automation config group's two contributed
-// sections (interaction-direction-spec §7 C5, "the global rules surface: list + picker + budget";
-// config-revamp-design.md §6.8 — each is an anchored, heading-bearing `<Section>` with its OWN
+// sections (C5, "the global rules surface: list + picker + budget";
+// each is an anchored, heading-bearing `<Section>` with its OWN
 // `QueryBoundary`, so a slow or failed budget read cannot blank the rule list beside it and the reverse).
 //
 // WHAT MAKES THEM A DIFFERENT SURFACE FROM THE CHAT RULES SECTION is exactly three things, and everything

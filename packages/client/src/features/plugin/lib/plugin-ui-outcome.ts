@@ -1,4 +1,4 @@
-// The ONE client-side applier for a plugin round-trip's UI OUTCOME (plugin-ui-plane #679 U5, §4.5a). Every
+// The ONE client-side applier for a plugin round-trip's UI OUTCOME. Every
 // surface that can run guest code — a DSL button, a `/plugin` dispatch, the Plugins chrome menu — hands the
 // mutation's result here, and this file decides what a person sees.
 //

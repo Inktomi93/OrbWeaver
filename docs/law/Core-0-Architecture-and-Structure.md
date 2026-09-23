@@ -11,8 +11,7 @@ updated: 2026-09-20
 
 **North star:** you can figure out where anything lives, and what may import what, **from the file tree
 alone** — you *derive* the layout instead of *remembering* it. The structure is self-documenting and the
-boundaries are physics, not policy. (Why the codebase is shaped this way — the neo-tavern rot the remake
-fixed — is history: `history/core-0-structure-archaeology-record.md`.)
+boundaries are physics, not policy.
 
 ---
 
@@ -242,7 +241,7 @@ finding anything is a path derivation, and "where does this go?" has exactly one
 > All 13 are ENFORCED (dep-cruiser rules and the ts-morph gates in `tooling/src/verify/gates/`, plus
 > `tsc` for the union-dispatch row, which has no gate file); `no-internal-mocks` stays advisory in `Spine-Testing.md §3`, not a hard gate.
 > **This table is the constitution; the full live-gate catalog is `Core-Enforcement-Active-Gates.md`**
-> (the single enforcement source of truth; deferred/rejected gates: `../architecture/history/Core-Enforcement-Deferred-Dropped.md`).
+> (the single enforcement source of truth; deferred/rejected gates: `docs/law/Core-Enforcement-Deferred-Dropped.md`).
 
 ## 8. Cross-cutting invariants (the laws no single file shows)
 

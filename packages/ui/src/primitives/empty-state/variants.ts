@@ -1,7 +1,7 @@
 import { tv } from "#lib";
 
 // The empty-state skin — a centered teaching stack on the section rhythm (ui-package-design §6.1).
-// The DESIGN.md "Weave" moment: (decoration | icon) → title → description → action, copy owned by the
+// The mock design's "Weave" moment: (decoration | icon) → title → description → action, copy owned by the
 // caller. `decoration` (D62) is the brand-glyph slot — UNSTYLED (no forced text color) so a WeaveGlyph
 // keeps its own Ember tint, vs `icon` which is muted chrome; it WINS over `icon` when both are passed.
 // WHERE it renders sets the voice, and the surface answers that itself (§4b axis 1 — a container query,

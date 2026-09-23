@@ -313,7 +313,7 @@ test("PRODUCTION PATH: every REAL derived selector-hook slice — parenthesis-wr
 // plus `baseui-state-data-attributes`; this policy's own declaration was never touched). `json` is a
 // POPULATED resource kind, so a non-ready `json:baseui-manifest` withholds the OWNER at the POPULATION
 // phase, before `evaluate` ever runs — the same shape `baseui-and-surface-family.suite.repo.int.test.ts:256-294`
-// pins for the other five consumers. `resource-policy-contract.md` §3.6: one pin per declared resource per
+// pins for the other five consumers. `docs/law/resource-policy-contract.md` §3.6: one pin per declared resource per
 // REACHABLE non-ready status. `ops/resource-json.ts`'s header states the closed set: `missing | empty |
 // unresolved` (the third being an unparseable-but-present file) — never a fourth.
 //

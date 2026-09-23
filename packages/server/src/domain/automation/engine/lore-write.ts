@@ -45,8 +45,8 @@ export function applyRuleLoreWrite(deps: Pick<ArmExecutorDeps, "db" | "ops">, ar
 }
 
 async function writeUnderTheBelts(deps: Pick<ArmExecutorDeps, "db" | "ops">, args: RuleLoreWriteArgs): Promise<RuleLoreWriteOutcome> {
-  // THE CONSENT GATE, one question answered by the rule's own SCOPE (the RULED book-ownership call,
-  // interaction-direction-spec §3-S3). A ROOM's rule asks the room: the attachment IS its consent, and it is
+  // THE CONSENT GATE, one question answered by the rule's own SCOPE (the RULED book-ownership
+  // call). A ROOM's rule asks the room: the attachment IS its consent, and it is
   // re-read HERE (not trusted from the mint) so a book detached between fire and confirm refuses. A GLOBAL
   // rule has no room to ask, so its write is a LIBRARY write into the author's OWN book and OWNERSHIP is that
   // consent — books are top-level single-owned (D23), and rooms consume a book only through their own scope

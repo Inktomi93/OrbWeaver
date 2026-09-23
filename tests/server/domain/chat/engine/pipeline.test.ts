@@ -254,7 +254,7 @@ describe("runTurnPipeline — reduce", () => {
   });
 });
 
-describe("runTurnPipeline — the D50 assembled_dynamic PromptTransform point (automation-design/04 §6)", () => {
+describe("runTurnPipeline — the D50 assembled_dynamic PromptTransform point", () => {
   test("transforms the DYNAMIC half only; the static (cache-stable) half stays byte-identical", async () => {
     // Baseline: no transform → the built halves.
     const baseline = await runTurnPipeline(baseArgs().args);
@@ -1050,7 +1050,7 @@ describe("runTurnPipeline — roleHandling is the PRESET knob, clamped at SHAPE"
   });
 });
 
-// BUILD-QUEUE #3: the `squashSystemMessages` PROMPT knob (`params.advanced`, ST-imported from
+// The `squashSystemMessages` PROMPT knob (`params.advanced`, ST-imported from
 // `squash_system_messages`) is now a live SHAPE reader — consecutive system-note runs merge into ONE
 // `[Take the following into special consideration: …]` bracket BEFORE the system→user framing, orthogonal to `roleHandling`. Two
 // adjacent depth-0 system injections are the observable: ON ⇒ ONE bracket (merge-before-convert), OFF ⇒
@@ -1671,7 +1671,7 @@ describe("runTurnPipeline — RECEIVE <think> demux (D47 #3)", () => {
   });
 });
 
-// ── The D48 recurse loop (tool-use-design/03 §2 — the 05 §T4 goldens) ────────────────────────────
+// ── The D48 recurse loop (the goldens) ────────────────────────────────────────────
 // A REAL resolved descriptor for a tool-capable OpenRouter model (§U0 checkpoint: the loop's capability
 // gate keys on the real synthesis output, not a synthetic literal). The OR arm sets `tools.parallel:true`;
 // the loop gate reads only the PRESENCE of `capability.tools`, so the parallel flag is inert here.

@@ -45,7 +45,7 @@
 // WHERE A BROKEN RESOURCE REFUSES — not here. A declared resource that comes back
 // missing/empty/unresolved/malformed makes `resolveResourceDeclarations` (`lib/resource-declaration.ts`)
 // THROW during the POPULATION phase and the receipt phase withholds every consumer, both before
-// `create`/`evaluate` run (guide §3's acquisition-refusal rule, `docs/design/resource-policy-contract.md` §4). The ADR tree
+// `create`/`evaluate` run (guide §3's acquisition-refusal rule, `docs/law/resource-policy-contract.md` §4). The ADR tree
 // is a `ledger` and NOT a `documents` member because it is an IDENTITY: with it absent — or holding no
 // decision at all — every judgment here is INVERTED rather than merely uncertain, so it must refuse the
 // whole run (`contract/resource-document.ts`). The citer corpus is the other door on purpose — a corpus
@@ -65,8 +65,8 @@ import type { MarkdownDocument } from "../contract/resource-document.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 import { scanTextCitations } from "../lib/text-cite-scan.ts";
 
-/** The doc trees whose prose is judged: the core law set and the ADR tree itself. `history/**` is outside
- *  on purpose — archaeology legitimately cites dead and renumbered entries (`mustPass[5]`). */
+/** The doc trees whose prose is judged: the core law set and the ADR tree itself. `docs/reviews/**` is
+ *  outside on purpose — a dated review legitimately cites dead and renumbered entries (`mustPass[5]`). */
 const CITER_DOC_TREES = ["docs/law/", "docs/adr/"] as const;
 /** The number an ADR file name carries (`0086-<slug>.md` → 86). The ledger door serves members only, so
  *  this reads the id; it does not judge the grammar. */
@@ -263,10 +263,10 @@ export const gate = defineGate({
       mode: "resource",
       files: {
         "docs/adr/0001-an-entry.md": "# An entry\n",
-        "docs/architecture/history/Archaeology.md": "---\nkind: history\n---\n\nMain-era D777 and D888 are cited here as archaeology.\n",
+        "docs/reviews/Archaeology.md": "---\nkind: review\n---\n\nMain-era D777 and D888 are cited here as archaeology.\n",
         "packages/contracts/src/ok.ts": "// per D1 — minted.\nexport const x = 1;\n",
       },
-      why: "THE NARROWING ROW for the citer-tree prefixes: `history/**` legitimately cites dead and renumbered entries, so widening the corpus filter to the whole docs tree reds this row",
+      why: "THE NARROWING ROW for the citer-tree prefixes: a dated review legitimately cites dead and renumbered entries, so widening the corpus filter to the whole docs tree reds this row",
     },
   ],
 });

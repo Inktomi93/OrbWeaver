@@ -1,5 +1,4 @@
-// The `/plugin <slug> <name> <rest>` GRAMMAR + the #791 TYPED-ARG grammar — one pure parser home
-// (plugin-ui-plane #679 U5, §4.5).
+// The `/plugin <slug> <name> <rest>` GRAMMAR + the #791 TYPED-ARG grammar — one pure parser home.
 //
 // WHY ONE STATIC DISPATCHER AND NOT A COMMAND PER PLUGIN. The slash registry is assembled ONCE at the door (G8)
 // and its members are fixed first-party contributions; a per-plugin token would mean the door grows when a

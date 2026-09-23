@@ -4,7 +4,7 @@ import type { ImageCaptionMeta, ImageLens } from "@orb/contracts/embeddings";
 import { IMAGE_LENSES } from "@orb/contracts/embeddings";
 import type { AssetId, CharacterId, ChatId, DocumentId, UserId } from "@orb/kit/ids";
 
-/** The producer classes whose content the store verb embeds. `document` (databank-design/05 §1) is the 4th
+/** The producer classes whose content the store verb embeds. `document` is the 4th
  *  member — a databank source document's chunks feeding the 5th vector table.
  * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
@@ -20,7 +20,7 @@ export const SOURCE_LENSES = [...TEXT_LENSES, ...IMAGE_LENSES] as const;
 export type SourceLens = (typeof TEXT_LENSES)[number] | ImageLens;
 
 /** The primary vector tables `embeddings` owns — the single registry all callers derive from. `document_chunks`
- *  is the 5th table (databank-design/05 §1; PD-139(c) — the runtime tuple gains it so the model-change purge
+ *  is the 5th table (PD-139(c) — the runtime tuple gains it so the model-change purge
  *  and hub-score seams cover it uniformly). */
 export const VECTOR_TABLES = ["character_embeddings", "image_embeddings", "chat_digests", "chat_segments", "document_chunks"] as const;
 export type VectorTable = (typeof VECTOR_TABLES)[number];
@@ -134,7 +134,7 @@ export interface DigestStoreParams {
   readonly dim: number;
 }
 
-/** Embed a databank document chunk (databank-design/05 §2.1). `content` is the chunk slice (kit/chunk output,
+/** Embed a databank document chunk. `content` is the chunk slice (kit/chunk output,
  *  incl. any overlap prefix) — the embed input; the store hashes it for the staleness gate. `(model, dim)` is
  *  the caller-supplied active embed space; the `fkRefs` locate the chunk in its producer document. No
  *  `ownerId` (D20 — owner derives via `documents.ownerId`); no `hubScore` (discovery-only). Unique key:
@@ -159,7 +159,7 @@ export interface DocumentChunkStoreParams {
  *  written in BATCHES through `storeSegments` (#172), the one place their corpus-wide embed flood lives. */
 export type StoreParams = CardTextStoreParams | ImageRawStoreParams | ImageCaptionedStoreParams | DigestStoreParams | DocumentChunkStoreParams;
 
-/** `pruneDocumentChunks` input (databank-design/05 §2.4) — the reindex-shrink seam. After the ingest upserts
+/** `pruneDocumentChunks` input — the reindex-shrink seam. After the ingest upserts
  *  every current chunk (hash-gated no-ops keep it cheap), this deletes the strays: tail rows
  *  (`chunkIdx >= keepCount`, a shrunk chunk set) AND rows in a retired `(model)` space (`model != model`).
  *  The delete lives HERE — the table owner — because databank never touches `document_chunks` directly

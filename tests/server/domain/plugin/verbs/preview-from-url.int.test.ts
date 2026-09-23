@@ -1,4 +1,4 @@
-// verb test: previewFromUrl (plugin-ui-plane #679 U8, seam 15 — the consent-screen + update-version primitive).
+// verb test: previewFromUrl (U8, seam 15 — the consent-screen + update-version primitive).
 // READ-ONLY: fetch a bundle through the EGRESS GUARD and return its MANIFEST; nothing persists. The walls this
 // file pins, red-first where the wall is the point:
 //   - THE EGRESS GUARD IS THE WALL: any fetch failure — the SSRF-block shape included — collapses to a LEAK-FREE

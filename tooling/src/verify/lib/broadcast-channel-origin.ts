@@ -21,7 +21,7 @@ import type { BroadcastChannelVerdict } from "../contract/origin-verdict.ts";
 import { classifyOriginRefusal, referenceNamesExport } from "./origin-verdict.ts";
 import { readsAmbientGlobalPath } from "./project-home-origin.ts";
 
-/** The ONE sanctioned home (staleness-and-session-freshness.md §4.3). Scanned, never subtracted: the
+/** The ONE sanctioned home. Scanned, never subtracted: the
  *  occurrence policy skips it by exact path and the health policy proves it still constructs. */
 export const SESSION_CHANNEL_HOME = "packages/client/src/lib/session-channel.ts";
 /** The real-tree anchor (§4.5) the health tripwire self-guards on: the lib barrel, present on every real

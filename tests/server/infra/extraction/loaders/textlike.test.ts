@@ -1,4 +1,4 @@
-// infra/extraction/loaders/textlike — the loader-free text/markdown formats (databank-design/04 §2). Decodes
+// infra/extraction/loaders/textlike — the loader-free text/markdown formats. Decodes
 // STRICT UTF-8 (invalid bytes throw — the dispatch wraps that as ExtractionFailedError) and keeps markdown
 // syntax verbatim. Normalization is the dispatch's job, so this asserts the raw decode only.
 

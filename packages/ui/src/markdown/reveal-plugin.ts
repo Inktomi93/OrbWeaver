@@ -1,5 +1,5 @@
 // The #42 streamed-word reveal plugin — the seal's OWN replacement for Streamdown's `animated` arm
-// (docs/history/design/streaming-reveal-42.md). Wraps every prose word of a streaming block in
+// (D168). Wraps every prose word of a streaming block in
 // `<span data-orb-reveal style="animation-delay:-<age>ms">`; `ui/src/styles/globals.css` animates
 // `[data-orb-reveal]` with the `orb-word-reveal` opacity fade (`--motion-base` · `--ease-out-expo` ·
 // `fill both`).

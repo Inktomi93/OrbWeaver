@@ -91,7 +91,7 @@ const STALE_DOMAIN_FILE =
  *  - rpg: `bus.ts`, `staging.ts`, `snapshot-edit.ts`, `flush-barrier.ts`, `game-mint.ts`, `trace.ts` —
  *    the per-CHAT SSE bus, the Option-A per-turn tool-write staging singleton, the hand-edit I/O seam,
  *    the lite-game birth mechanism, the in-flight-flush barrier, and the R-OBS flight recorder
- *    (rpg-design/05, /10).
+ *    (docs/plans/rpg/design.md, /10).
  *  - stats: `reconcile-in-flight.ts` (the per-USER single-flight gate for the awaited `stats.reconcile`
  *    verb, owner ruling 2026-08-02). */
 const DOMAIN_SPECIFIC_ALLOWED_ROOT_FILES: Readonly<Record<string, readonly string[]>> = {

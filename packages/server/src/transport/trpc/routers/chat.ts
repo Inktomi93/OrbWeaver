@@ -6,7 +6,7 @@
 // attach syntheses — moved verbatim to `transport/trpc/stream/sources/chat.ts` (read its header for the
 // stream law). This router keeps exactly ONE subscription: `impersonateStream`, which is permanently exempt
 // from the fold (request-scoped, user-gesture-initiated, at most one at a time — its abort semantics ARE the
-// socket teardown; docs/history/design/sse-multiplex-spec.md §14 decision 2, enforced by the
+// socket teardown; D118, enforced by the
 // `single-stream-transport` gate).
 
 import { ASSET_LIST_LIMIT_MAX, assetIdSchema } from "@orb/contracts/assets";
@@ -41,7 +41,7 @@ import { toolRecurseLimitSchema } from "#domain/chat";
 import { withSubscriptionErrors } from "../subscriptions.ts";
 import { authedProcedure, t } from "../trpc.ts";
 
-// `startChat` — CREATION-INTENT inputs only (chat-creation-draft-mode-replacement.md §4.1/R2). The former
+// `startChat` — CREATION-INTENT inputs only (D166). The former
 // nine-field "draft carry" (seedGreetings/rosterOverrides/groupConfig/roomOverrides/guided, plus the
 // `generate` opening arm + its `openingFailure` degrade) is GONE: R1 made every client caller create the
 // real room before mounting, so those creation-time payloads were unreachable product surface. Post-create
@@ -322,7 +322,7 @@ const listReactionsSchema = z.object({ chatId: typeIdSchema(ID_PREFIX.chat) });
 
 // speakerCharacterId/guided mirror `PreviewAssemblyParams` (a hypothetical per-speaker turn); `guided`
 // rides the DERIVED `guidedSteerSchema` (F6 — the same wire boundary as `send`/`generate` above).
-// `presetOverride` (D121-G / preset-surface-redesign §7.1) is the preset editor's BOUND Prompt readout:
+// `presetOverride` (D121-G) is the preset editor's BOUND Prompt readout:
 // assemble this room as if that preset were active, so its rack rows can be priced for real. It is resolved
 // owned-or-system under the HOST by the landed `presetOverride` seam (the `previewActionTemplates` rule), so
 // it cannot reach outside the host's library; the host gate itself is `requireHost` INSIDE the verb.
@@ -333,7 +333,7 @@ const previewAssemblySchema = z.object({
   presetOverride: typeIdSchema(ID_PREFIX.preset).optional(),
 });
 
-// `previewActionTemplates` (D8 / preset-surface-redesign §7.1) — the preset editor's BOUND readout: every
+// `previewActionTemplates` — the preset editor's BOUND readout: every
 // ACTION template of `presetId`, resolved against this chat. Host-gated (`requireHost`) INSIDE the verb
 // (matrix `previewActionTemplates: "host"` — a rendered template carries full-fidelity card bytes). The
 // `presetId` OVERRIDE is resolved owned-or-system under the HOST by the landed `presetOverride` seam, so it

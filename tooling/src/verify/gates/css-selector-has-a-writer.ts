@@ -421,7 +421,7 @@ export const gate = defineGate({
         [BASE_UI_MANIFEST_PATH]: EMPTY_BASE_UI_MANIFEST,
       },
       expect: { messageIncludes: "vendor-css-surface" },
-      why: "a corpus whose installed vendor surface is incomplete (Base UI installed, Streamdown absent) REFUSES at the evaluate-phase door read — the runtime is the accuser (resource-policy-contract.md §4), and the policy owns no not-ready branch that could return a clean zero instead. The committed manifest and the Base UI package ARE supplied so the refusal names the vendor door rather than the json door (population phase) or the installed-package door (read first in `vendorCensus`)",
+      why: "a corpus whose installed vendor surface is incomplete (Base UI installed, Streamdown absent) REFUSES at the evaluate-phase door read — the runtime is the accuser (docs/law/resource-policy-contract.md §4), and the policy owns no not-ready branch that could return a clean zero instead. The committed manifest and the Base UI package ARE supplied so the refusal names the vendor door rather than the json door (population phase) or the installed-package door (read first in `vendorCensus`)",
     },
   ],
 });

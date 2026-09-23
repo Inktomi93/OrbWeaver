@@ -87,7 +87,7 @@ export interface ConfigHostStoryProps {
 
 /** The config HOST: the LIST and CONTENT panes side by side over the real registries, in a fixed box, the
  *  way the shell mounts them (LIST docked at its default width, CONTENT filling the rest). The ONLY way to
- *  mount a `sections` skimmer since config-revamp-design.md §6.8 — a group has no surface of its own. */
+ *  mount a `sections` skimmer — a group has no surface of its own. */
 export function ConfigHostStory({ target, sub, width = 900, height = 560, placeholder = false, mobile = false, children }: ConfigHostStoryProps): ReactElement {
   useState(() => {
     __resetConfigNav();

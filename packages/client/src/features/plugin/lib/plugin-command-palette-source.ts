@@ -1,5 +1,5 @@
 // pluginCommandPaletteSource — the DYNAMIC command-palette source that fans the caller's registered plugin
-// commands into first-class palette rows (plugin-ui-plane #679 U8, §4.5/§5 row 9). ONE first-party contributor
+// commands into first-class palette rows. ONE first-party contributor
 // for the whole platform: the per-plugin, per-command fan happens INSIDE `useRows` off `plugin.listCommands`,
 // so the palette-source registry never grows when a person installs something (the one-assembly law, G8).
 //

@@ -1,4 +1,4 @@
-// verb: invokeUiCommand — the COMMAND round-trip (plugin-ui-plane #679 U5, §4.5). `/plugin <slug> <name> …` in
+// verb: invokeUiCommand — the COMMAND round-trip. `/plugin <slug> <name> …` in
 // the composer and the "Plugins" chrome menu both land here; the verb re-enters the command's `onRun` in the
 // resident guest and returns the drained UI outcome (toasts + at most one dialog open).
 //

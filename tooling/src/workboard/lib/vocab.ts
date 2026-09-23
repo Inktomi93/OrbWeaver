@@ -33,8 +33,8 @@ export const EVIDENCE_MAX_LENGTH = 1024;
 
 export const LIFECYCLE_FIELDS = new Set(["status", "evidence", "lane", "wake condition", "disposition", "dod"]);
 
-/** The Project TEXT field pairing an issue-body dod-fenced block with its mint-time stamp (#923;
- *  docs/design/work-item-dod.md). Lifecycle-controlled (`set` refuses it above): the stamp is only
+/** The Project TEXT field pairing an issue-body dod-fenced block with its mint-time stamp (#923).
+ *  Lifecycle-controlled (`set` refuses it above): the stamp is only
  *  ever written by a path that just watched the command FAIL — the red-first mint. */
 export const DOD_FIELD = "DoD";
 /** Per-DoD wall-clock ceiling, at mint AND at close — a batched `land` of N rows is bounded at

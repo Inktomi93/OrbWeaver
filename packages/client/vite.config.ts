@@ -30,7 +30,7 @@ const DEV_SERVER_PORT = Number(process.env["VITE_PORT"]) || 5173;
 
 const API_PROXY_TARGET = process.env["VITE_API_TARGET"] ?? "http://127.0.0.1:8788";
 
-// ── The DEV app-document CSP (client-tooling-setup.md §7.5 DEV row + §9) ──────────────────────────────
+// ── The DEV app-document CSP ──────────────────────────────────────────────────────
 // In dev VITE is the front door — it serves `index.html`, so ITS header is the document's CSP and the
 // server's `securityHeaders()` middleware never touches the page (it governs `/api` responses + the
 // prod SPA serve). That made the app-tier "Block external media" AppSetting a PLACEBO in dev: turning it
@@ -387,8 +387,7 @@ async function withCompilerTransformCache(pluginPromise: ReturnType<typeof babel
 
 // @orb/client build — fully es2025, React-Compiler full-compile from day one (D54). Entry is
 // index.html + src/main.tsx with a hand-written code-based route tree (src/routes/ — no file-based
-// codegen, UI-Arch §6.1). Every non-default option below is annotated with its why; the full
-// rationale + cites live in history/client-tooling-setup.md §7.
+// codegen, UI-Arch §6.1). Every non-default option below is annotated with its why.
 //
 // Intra-package imports use the package.json `#*` subpath field (resolved natively by Vite) — there is
 // NO `@`/tsconfig-paths alias (orbweaver principle #2). No `base` (served at root), no version

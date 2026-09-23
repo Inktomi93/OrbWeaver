@@ -862,7 +862,7 @@ function PromptMacroSuggestionsProbe(): ReactElement {
 }
 
 /** CarriedAppearanceCastStory — the ONE home of "whose card dresses this room". ONE ARM since
- *  `chat-creation-draft-mode-replacement.md` §4.1 R1: a room has a row from the creation CLICK, so the
+ *  D166 R1: a room has a row from the creation CLICK, so the
  *  COMMITTED roster (`chat.getChat`) is the only source and the pre-send DRAFT resolver over founding
  *  CARDS (`character.get` per id) is deleted — do not restore a card-reading branch here. NON-suspense on
  *  purpose: appearance is decoration, so an unresolved OR FAILED read must report `undefined` (the
@@ -886,8 +886,8 @@ function CarriedAppearanceCastReader({ chatId }: { readonly chatId: ChatId | nul
   return <output data-testid="carried-cast">{readout}</output>;
 }
 
-/** `useSessionRecovery` — the ONE mount that arms the session machinery (staleness-and-session-freshness.md
- *  §4.4). It is a wiring hook with no pixels, so the story renders the two facts a CT can see: the
+/** `useSessionRecovery` — the ONE mount that arms the session machinery.
+ *  It is a wiring hook with no pixels, so the story renders the two facts a CT can see: the
  *  durable-local namespace it BOUND (proof the per-user rebind ran off `sessions.me`, F1) and the fact that
  *  the mount itself neither suspends nor navigates. A regression here is silent by construction — an
  *  un-bound namespace keeps writing the legacy key and the next identity inherits it. */
@@ -1035,7 +1035,7 @@ export function SessionSwapStory(): ReactElement {
   );
 }
 
-// ── CREATE-A-CHAT + THE HUSK REAPER (chat-creation-draft-mode-replacement.md §4.1/§4.6, R1) ────────
+// ── CREATE-A-CHAT + THE HUSK REAPER (D166) ────────
 
 const HUSK_CHAT_ID = castId<ChatId>("chat_ct_husk_probe");
 
@@ -1137,7 +1137,7 @@ export function HuskReaperStory(): ReactElement {
   );
 }
 
-// ── The plugin DISPLAY-transform seam (plugin-ui-plane #679 U6, seam 14) ──────────────────────────────────
+// ── The plugin DISPLAY-transform seam (U6, seam 14) ──────────────────────────────────
 // `usePluginDisplayText` is the last step of the row render: it takes what the house pipeline produced and
 // hands back what the viewer's own plugins made of it. Its two load-bearing properties are BOTH about cost
 // and silence, so the story renders the ANSWER and the `.ct.tsx` drives the DATA:

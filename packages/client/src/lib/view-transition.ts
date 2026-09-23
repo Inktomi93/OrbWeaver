@@ -1,6 +1,6 @@
 // The HAND-ROLLED View Transition seam (UI-Arch §4a). The router's built-in VT fires only on URL
 // commits — our pane swaps are reducer state changes at a constant `/`, so the router literally
-// cannot drive them (UI-Lib-TanStack-Router.md C#3); this util is the one legal wrapper. Respects
+// cannot drive them; this util is the one legal wrapper. Respects
 // `prefers-reduced-motion` once here so no call site re-derives the check.
 // WHAT the transition captures is NOT decided here — it is CSS, and it lives in ONE block in
 // `features/app-shell/surfaces/shell.css` ("THE VIEW TRANSITION IS SCOPED TO THE CONTENT PANE", #176):

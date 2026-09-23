@@ -1,5 +1,5 @@
-// domain/automation/substrate/plugin-subscribers — the plugin `events.on` fan-out (plugin-design/04 §P4; the
-// automation-design 01 §2 TriggerFact is the delivered shape). A plugin's `events.on` handler is a NON-RULE
+// domain/automation/substrate/plugin-subscribers — the plugin `events.on` fan-out (the
+//  01 §2 TriggerFact is the delivered shape). A plugin's `events.on` handler is a NON-RULE
 // consumer of the SAME resolved `TriggerFact` the rule dispatch consumes. The membrane host (infra/plugin-host,
 // injected UP at compose) registers a subscriber into this in-process registry; the watcher front door
 // (`substrate/handle-event`) fans every resolved fact to the matching, AUTHORIZED subscribers.
@@ -62,7 +62,7 @@ interface VisibilityDeps {
 }
 
 /**
- * The plugin fan-out's leak-free VISIBILITY gate (plugin-design/04 §P4): may `installer` SEE this fact?
+ * The plugin fan-out's leak-free VISIBILITY gate: may `installer` SEE this fact?
  *
  * CHAT-SCOPED fact → chat's `resolveViewerVisibility` op, which answers membership AND the D16 history floor
  * as ONE value. Membership alone is NOT the verdict: this gate used to be `loadCallerRole(...) !== undefined`,

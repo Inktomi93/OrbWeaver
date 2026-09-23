@@ -1,5 +1,5 @@
 // createRegistryContext — the ONE mint for a registry React context (client-architecture-lockdown.md
-// §5–§8, derive-modernization-audit.md §W3). The four registries (section/modal/settings-pane/chrome)
+// §5–§8). The four registries (section/modal/settings-pane/chrome)
 // share a byte-identical context+read-hook+provider trio over a `Registry`/`ContributorRegistry` value;
 // this mint IS that trio, so a new registry is a one-line call instead of a hand-rolled trio that drifts.
 // Sealed by G26 `registry-context-via-mint`: a `createContext` typed over a `*Registry` OUTSIDE this file

@@ -1,4 +1,4 @@
-// <RingGauge> CT — the decorative pool orb (Context-Panel-Program §4.5 / §4.9). Its job: a ring GAUGE
+// <RingGauge> CT — the decorative pool orb. Its job: a ring GAUGE
 // (arc = value/max, never a bare circled number), the value glyph inside, and the accessible datum as a
 // visually-hidden `label value/max` line (the ring itself is aria-hidden). Assert the arc-stroke ramp
 // token, the sr-only datum, and the aria-hidden svg — never a hardcoded px/hex.

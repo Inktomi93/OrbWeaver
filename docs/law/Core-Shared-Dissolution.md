@@ -6,7 +6,7 @@ updated: 2026-07-13
 
 # Orbweaver — Shared-Dissolution: the kit-purity law + surviving invariants
 
-> The `_shared`/`shared/_kit` drawer dissolution is **DONE** — every symbol has a home in the built code. The resolved per-file symbol map (§1–§8, §10) moved to [`../architecture/history/Shared-Drawer-Dissolution-Map.md`](../architecture/history/Shared-Drawer-Dissolution-Map.md) with **§ numbering preserved** — code comments citing `shared-dissolution §N` and docs citing `Core-Legacy-Migration-and-Gaps.md §N` resolve there. This file keeps only what is still law: the kit-purity ruling (§0) and the load-bearing invariants (§9).
+> The `_shared`/`shared/_kit` drawer dissolution is **DONE** — every symbol has a home in the built code. The resolved per-file symbol map (§1–§8, §10) is in git history. This file keeps only what is still law: the kit-purity ruling (§0) and the load-bearing invariants (§9).
 
 ## 0. The kit-purity ruling (LOCKED 2026-06-25 — Nate confirmed)
 

@@ -69,7 +69,7 @@ export interface MessageRowProps {
   readonly onChatForked?: ((chatId: ChatId) => void) | undefined;
   /** Present ⇒ this row is a SEEDED GREETING still inside its malleability window: the swipe slot pages the
    *  card's alternates through `chat.setSeededGreeting` instead of the row's own generated variants
-   *  (chat-creation-draft-mode-replacement.md §4.8/F6). Absent ⇒ the ordinary variant strip. */
+   *  (D166). Absent ⇒ the ordinary variant strip. */
   readonly greeting?: GreetingBinding | undefined;
   readonly autoFixMarkdown?: boolean | undefined;
   /** D121-E/F1: the VIEWER's own enabled DISPLAY-placement scripts, resolved ONCE by the list surface

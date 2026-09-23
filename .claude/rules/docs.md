@@ -68,9 +68,3 @@ there). A floor touching docs runs all four. A legacy document added, removed or
 
 A scripted find-and-replace against a formatted doc asserts the match count is 1 before replacing. The
 formatter rewrites characters such as `~`, so an unverified anchor can silently do nothing.
-
-## `docs/architecture/proposed/`
-
-Rebuild reference, not current plan or status; its own status lines can be stale. Check a claim against
-the code and tests before relying on it, and never edit a status line to match reality. A dispatch into a
-set reads every file in it, `README.md` first.

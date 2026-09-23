@@ -231,7 +231,7 @@ function createSetGroupConfig(ctx: ChatContext, emit: EmitChatEvent, claimChat: 
     const { chat } = await requireHost(ctx, principal, chatId);
     await claimChat(chatId);
     const parsed = groupConfigSchema.parse(config);
-    // SEAL (D60 AP4a, agent-principal-design/05 §2 — F5): a GAME chat whose GM seat is AGENT-held may not be
+    // SEAL (D60 AP4a, docs/plans/agent-principals/design.md — F5): a GAME chat whose GM seat is AGENT-held may not be
     // flipped OFF narrator+merged (to `per-speaker`). narrator+merged keeps the GM tool loop on the narrator
     // turn; per-speaker would let a player-CHARACTER turn carry GM-authority tools at an agent-GM table. This
     // makes the previously config-COUPLED invariant STRUCTURAL — the honest path is unseat-then-flip (assign the
@@ -620,7 +620,7 @@ function createGetRoomOverridesForChat(ctx: ChatContext): ChatService["getRoomOv
 }
 
 /**
- * F6 (chat-creation-draft-mode-replacement.md §4.8/§5, arm (a)) — the IN-WINDOW join greeting. A character
+ * F6 (D166, arm (a)) — the IN-WINDOW join greeting. A character
  * added while the room's greeting window is still open greets, exactly as a founding member does; after the
  * window closes the join stays silent (today's late-add semantics). This preserves the one affordance the
  * deleted draft plane had here: a panel-added member's greeting row appeared before the first send, and
@@ -801,8 +801,8 @@ function createAddCharacterToChat(ctx: ChatContext, emit: EmitChatEvent, claimCh
  *  — the same stamp the host-handoff character-drop uses), then emits chatUpdated. IDEMPOTENT: an absent or
  *  already-left character is a no-op (the `kick`/`addCharacterToChat` idiom — never a coded refusal). leftSeq is
  *  the WITNESSING boundary (D55): from the stamp the pruned character stops witnessing this chat's canon — the
- *  intended semantic for a cast member peeled out of a scene fork (a doorway for the parked rpg-design's
- *  scene-cast prune, `rpg-design/07 §2.2`, not a live consumer today). */
+ *  intended semantic for a cast member peeled out of a scene fork (a doorway for the parked docs/plans/rpg/design.md's
+ *  scene-cast prune, `docs/plans/rpg/design.md``, not a live consumer today). */
 function createRemoveCharacterFromChat(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["removeCharacterFromChat"] {
   return async ({ principal, chatId, characterId }: RemoveCharacterFromChatParams): Promise<void> => {
     await requireHost(ctx, principal, chatId);

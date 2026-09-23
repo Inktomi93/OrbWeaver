@@ -1,7 +1,7 @@
 // The WEAVER'S BODY — the procedural painter, split from web-weave-spider.ts (that module is now the
 // pose ENGINE: where she is and what she is doing; this one is what she looks like doing it).
 //
-// Araneid anatomy v2 (weave-lab-upgrades.md §3): eight THREE-segment legs — femur, tibia, tarsus —
+// Araneid anatomy v2: eight THREE-segment legs — femur, tibia, tarsus —
 // grouped the way an orb-weaver's are (I/II forward, III/IV back, a gap at the flank) and scaled per
 // pair (I and IV longest, III shortest), walking an ALTERNATING TETRAPOD (the diagonal four lift
 // together, which is what makes a spider read as a spider rather than a wobbling asterisk); a

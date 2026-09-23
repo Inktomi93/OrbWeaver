@@ -183,7 +183,7 @@ export function MessageList<T>({
     count: items.length,
     getScrollElement: () => scrollRef.current,
     // EVERY LENGTH HANDED TO THE VIRTUALIZER IS AN INTEGER, AND THAT IS A CRISPNESS INVARIANT (#1362 —
-    // integer-line-boxes.md Law 3), not defensiveness. `directDomUpdatesMode: "position"` makes
+    // docs/law/integer-line-boxes.md Law 3), not defensiveness. `directDomUpdatesMode: "position"` makes
     // react-virtual write `el.style.top = ${item.start}px` on every row, and `item.start` is the running
     // sum of paddingStart + Σ(size + gap). virtual-core already rounds MEASURED sizes (its own
     // `measureElement` does `Math.round(borderBoxSize)`), so the only fractional input is what the caller

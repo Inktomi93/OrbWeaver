@@ -2,8 +2,8 @@
 // machinery. Composed into BOTH page programs (the main walk, ops/walker.ts, and the forced-state
 // pass, ops/hover.ts) so the three ex-blind sites — the hover-contrast prefilter, the
 // animated-img-hover stylesheet scan, and the glow census — answer "does this selector carry
-// interaction-state paint, and via which mechanism" through ONE predicate (design:
-// docs/design/state-paint-census.md). This segment DECLARES functions and vocabulary only; all
+// interaction-state paint, and via which mechanism" through ONE predicate.
+// This segment DECLARES functions and vocabulary only; all
 // census EXECUTION stays in the consuming segments, so its presence in the main walk costs nothing.
 // Raw JS in a template literal (no backticks / dollar-brace — see _shared/browser.ts for why a
 // string, not a function). Provenance + attribution: ops/walker.ts.
@@ -44,7 +44,7 @@ export const WALKER_STATE_PAINT = `  // ── shared interaction-state-paint pr
    *  subject is an ANCESTOR the compound never names. With only \`hasStateHover\`'s one "anywhere"
    *  boolean, that shape built a pair whose subject resolved to the PAINTED element; the forcer held
    *  \`:hover\` there, nothing repainted, and the pass published \`excluded(noHoverChange)\` — a
-   *  measurement claim about a rule it never engaged. docs/design/state-paint-census.md, Polarity. */
+   *  measurement claim about a rule it never engaged. */
   function stateHoverScan(text) {
     var depth = 0;
     var quote = "";
@@ -72,7 +72,7 @@ export const WALKER_STATE_PAINT = `  // ── shared interaction-state-paint pr
   function stripStatePseudoElements(sel) { return sel.replace(STATE_PSEUDO_ELEMENT_STRIP_RE, "").trim(); }
 
   // THE CLASSIFIED BASE-UI STATE-ATTRIBUTE VOCABULARY — the one judgment call, made once
-  // (docs/design/state-paint-census.md carries the full in/out table with the OUT reasons).
+  // (carries the full in/out table with the OUT reasons).
   // IN = a state of the control that user INTERACTION drives, whose paint the app shows while the
   // page structure is otherwise unchanged. Deliberately OUT: data-unchecked (the rest arm of
   // checked — present by default, judged at rest), data-disabled (WCAG 1.4.3 inactive-exempt,

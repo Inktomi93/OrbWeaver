@@ -1,4 +1,4 @@
-// verb: pruneDocumentChunks — databank-design/05 §2.4, the reindex-shrink seam. The databank ingest upserts
+// verb: pruneDocumentChunks, the reindex-shrink seam. The databank ingest upserts
 // every current chunk of a document (hash-gated no-ops keep it cheap), THEN calls this to reclaim the strays:
 // tail rows (`chunkIdx >= keepCount`, a shrunk chunk set) AND rows in a retired `(model)` space, scoped to
 // the one document. Store-then-prune (never clear-then-store) preserves the no-op economy.

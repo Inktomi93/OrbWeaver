@@ -2,7 +2,7 @@
 // id — and which, before this file, had no family test anywhere in `tests/tooling/verify/gates/` (#1994,
 // re-derived 2026-09-12 by grepping each id across that directory with a `no-inline-types` positive
 // control). They are grouped here by that fact and nothing else; the header says so plainly rather than
-// inventing a shared theme, because §7 item 4 of docs/design/gate-runtime-standardization.md is explicit that a
+// inventing a shared theme, because §7 item 4 of docs/law/gate-runtime-standardization.md is explicit that a
 // theme is not a family.
 //
 //   baseui-render-prop-composition  — `asChild` (Radix's idiom) in @client/@ui JSX or a props signature.

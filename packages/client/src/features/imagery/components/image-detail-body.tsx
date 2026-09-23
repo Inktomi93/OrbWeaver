@@ -1,4 +1,4 @@
-// The `imageDetail` modal body (interaction-direction-spec.md §7 B5) — the lightbox: the image large, its
+// The `imageDetail` modal body — the lightbox: the image large, its
 // provenance strip, and the two content shortcuts (Edit → the img2img modal; Set as background → the D63
 // carried-background applier). The image renders through the `@orb/ui/message-media` primitive (own-origin
 // asset, always allowed), never a hand-rolled <img>. Set-as-background resolves the asset's hash/mime via

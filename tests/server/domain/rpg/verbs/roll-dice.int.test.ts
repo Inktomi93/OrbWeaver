@@ -1,4 +1,4 @@
-// verbs/dice — rollDice (rpg-design/05 §4.4, §6.2). Server CSPRNG (injected `randomInt`, scripted here for
+// verbs/dice — rollDice (docs/plans/rpg/design.md). Server CSPRNG (injected `randomInt`, scripted here for
 // determinism), bake-once: the roll is server-authoritative, zero durable state, and the composer stamp is
 // returned. Notation parsing (`NdM+K`) + bounds. Member-gated (covered in the authority matrix).
 

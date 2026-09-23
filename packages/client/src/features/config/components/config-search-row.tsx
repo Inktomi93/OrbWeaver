@@ -1,4 +1,4 @@
-// One search-result / token-menu row (config-revamp-design.md §3.3) — the `CommandItem` frame with the ONE
+// One search-result / token-menu row — the `CommandItem` frame with the ONE
 // two-slot anatomy every hit shares: the marked label (the caller's `HighlightedText`, so a hit shows WHY it
 // matched) and the muted CONTEXT beside it (the owning group's label, a token's hint). Split from the input
 // so the results list, the token menu and the dynamic member rows cannot drift into three row grammars.

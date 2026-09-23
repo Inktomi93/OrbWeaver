@@ -367,7 +367,7 @@ test("the ghost row stays mounted with its streamed text after Stop (stopping ph
   await expect(component.getByText("Ping?")).toBeVisible();
 });
 
-// THE BUG-1 REGRESSION PIN IS RETIRED (chat-creation-draft-mode-replacement.md §4.1, R1). It mounted a
+// THE BUG-1 REGRESSION PIN IS RETIRED (D166). It mounted a
 // DRAFT surface and flipped it draft→committed within ONE mount — the real first-send shape — and asserted
 // the just-created chat's room attached with `sinceSeq: 0` so the server replayed the head deltas that had
 // raced past the fresh attach. That transition is now unrepresentable (a chat row exists from the creation

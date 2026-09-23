@@ -1,5 +1,5 @@
-// The connection EDITOR's pure model (inference program §5.3a, step 9 · the step-3b mock
-// `docs/design/mocks/connections/editor.html`): the TIER-LEVEL derived content — the inferred-kind verdict,
+// The connection EDITOR's pure model (inference program §5.3a, step 9 · the step-3b
+// mock): the TIER-LEVEL derived content — the inferred-kind verdict,
 // the task-requirement badge rail, the two tier count badges, the Extras rows and their belt gloss, and the
 // private-endpoint admission predicate. No JSX, no hooks — every function here is a fold over data already
 // on the wire.
@@ -119,7 +119,7 @@ export function declaredOverrideCount(declared: DeclaredCapability | null): numb
 }
 
 /** The Diagnostics tier's badge count. NOT "overridden": an Extras field and a transport map are ADDITIONS,
- *  not overrides of anything, so the badge reads "N set" (DESIGN.md §2.4). */
+ *  not overrides of anything, so the badge reads "N set" (the mock design §2.4). */
 export function diagnosticsSetCount(extras: Readonly<Record<string, unknown>> | null, transport: Readonly<Record<string, unknown>> | null): number {
   return Object.keys(extras ?? {}).length + Object.keys(transport ?? {}).length;
 }

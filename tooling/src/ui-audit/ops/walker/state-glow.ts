@@ -1,8 +1,8 @@
 // ui-audit in-page walker — segment: the GLOW-LAYER vocabulary. One home for the three questions both
 // glow consumers ask — is this pseudo a dedicated glow LAYER, does this element's forced shadow equal the
 // ratified `--shadow-cta-glow` token, and what did a forced state ADD over the rest snapshot — read by the
-// static census (ops/walker/census-glow.ts) and by the forced-state pass (ops/hover.ts). Design:
-// docs/design/state-paint-census.md. Raw JS in a template literal (no backticks / dollar-brace — see
+// static census (ops/walker/census-glow.ts) and by the forced-state pass (ops/hover.ts).
+// Raw JS in a template literal (no backticks / dollar-brace — see
 // _shared/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.
 //
 // IT IS A SIBLING OF state-paint.ts, NOT AN ARM OF IT (#2494, docs/law/Core-Tooling-Law.md
