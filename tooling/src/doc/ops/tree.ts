@@ -1,5 +1,5 @@
 // Everything that TOUCHES the tree or git for the doc tool: the governed-docs walk, document reads and
-// formatted writes, the registry anchors, and the git facts the pure rules judge. Every reader takes
+// formatted writes, the registry facts, and the git facts the pure rules judge. Every reader takes
 // the repository root so the tests drive it on a planted tree; git-dependent readers fail soft to an
 // empty fact, never to a throw, because a missing branch is a drift finding and not a tool crash.
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -10,17 +10,18 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { runNicedSync } from "../../_shared/proc.ts";
 import { inheritedProcessEnv } from "../../_shared/process-env.ts";
 import type { DocsRootEntry, DocTree, GovernedDoc } from "../contract/types.ts";
-import { reservedRange } from "../lib/ledger.ts";
+import { allItems } from "../lib/generated.ts";
+import { REGISTRY_PATH } from "../lib/rules.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm doc <verb>");
 
 export const root = REPO_ROOT;
 const DOCS_DIR = "docs";
 const MISSION_PATH = "docs/Mission.md";
-const REGISTRY_PATH = "docs/architecture/core/Core-Path-Registry.md";
 const MAIN = "main";
 /** How far back `drift` reads `main` for `Closes:` trailers — enough for a day of merge trains. */
 const RECENT_MAIN_COMMITS = "200";
+const NEXT_FREE_NOTE_RE = /Next free number is D(\d+)\+/u;
 
 export function today(): string {
   return new Date().toISOString().slice(0, "YYYY-MM-DD".length);
@@ -31,7 +32,8 @@ function git(repoRoot: string, args: readonly string[]): string | null {
   return result.status === 0 ? result.stdout : null;
 }
 
-function walkMarkdown(repoRoot: string, rel: string): readonly string[] {
+/** Every file under `rel`, any extension, sorted; a walk that read `.md` only would never see a stray. */
+function walkFiles(repoRoot: string, rel: string): readonly string[] {
   const abs = join(repoRoot, rel);
   if (!existsSync(abs)) {
     return [];
@@ -40,18 +42,23 @@ function walkMarkdown(repoRoot: string, rel: string): readonly string[] {
   for (const entry of readdirSync(abs, { withFileTypes: true }).toSorted((left, right) => left.name.localeCompare(right.name))) {
     const path = `${rel}${entry.name}`;
     if (entry.isDirectory()) {
-      found.push(...walkMarkdown(repoRoot, `${path}/`));
-    } else if (entry.name.endsWith(".md")) {
+      found.push(...walkFiles(repoRoot, `${path}/`));
+    } else {
       found.push(path);
     }
   }
   return found;
 }
 
-/** Every markdown file under the governed trees plus the mission doc, from the FILESYSTEM: a freshly
- *  minted, not-yet-tracked file must be judged too, or a lane could commit a broken one. */
+/** Every file under the governed trees, from the FILESYSTEM: a freshly minted, not-yet-tracked file must
+ *  be judged too, or a lane could commit a broken one. */
+function governedFiles(repoRoot = root): readonly string[] {
+  return DOC_TOOL_TREE_PREFIXES.flatMap((prefix) => walkFiles(repoRoot, prefix));
+}
+
+/** The markdown files under the governed trees plus the mission doc. */
 export function governedPaths(repoRoot = root): readonly string[] {
-  const paths = DOC_TOOL_TREE_PREFIXES.flatMap((prefix) => walkMarkdown(repoRoot, prefix));
+  const paths = governedFiles(repoRoot).filter((path) => path.endsWith(".md"));
   return existsSync(join(repoRoot, MISSION_PATH)) ? [...paths, MISSION_PATH] : paths;
 }
 
@@ -67,18 +74,26 @@ function docsRoot(repoRoot: string): readonly DocsRootEntry[] {
   return readdirSync(abs, { withFileTypes: true }).map((entry) => ({ name: entry.name, directory: entry.isDirectory() }));
 }
 
-/** The registry's anchored ids and reserved range, or empty when the legacy registry is gone. */
-export function registryFacts(repoRoot = root): Pick<DocTree, "registryIds" | "reserved"> {
+/** The registry's anchored ids and its next-free note, or empty when the legacy registry is gone. */
+export function registryFacts(repoRoot = root): Pick<DocTree, "registryIds" | "nextFreeNote"> {
   const abs = join(repoRoot, REGISTRY_PATH);
   if (!existsSync(abs)) {
-    return { registryIds: new Set(), reserved: null };
+    return { registryIds: new Set(), nextFreeNote: null };
   }
-  const ids = new Set([...stableRulingAnchors(repoRoot).keys()].map(Number));
-  return { registryIds: ids, reserved: reservedRange(readFileSync(abs, "utf8")) };
+  const note = NEXT_FREE_NOTE_RE.exec(readFileSync(abs, "utf8"))?.[1];
+  return { registryIds: new Set([...stableRulingAnchors(repoRoot).keys()].map(Number)), nextFreeNote: note === undefined ? null : Number(note) };
 }
 
 export function readDocTree(repoRoot = root): DocTree {
-  return { root: docsRoot(repoRoot), docs: governedPaths(repoRoot).map((path) => readDoc(path, repoRoot)), ...registryFacts(repoRoot) };
+  const docs = governedPaths(repoRoot).map((path) => readDoc(path, repoRoot));
+  const evidence = new Set(allItems(docs).flatMap((item) => (item.state === "done" && item.evidence !== null ? [item.evidence] : [])));
+  return {
+    root: docsRoot(repoRoot),
+    docs,
+    files: governedFiles(repoRoot),
+    ...registryFacts(repoRoot),
+    evidenceOnMain: new Set([...evidence].filter((sha) => commitOnMain(sha, repoRoot))),
+  };
 }
 
 /** Write a document through the repo's own formatter so a minted or rewritten file is born canonical.
@@ -97,12 +112,8 @@ export function trackedTextFiles(repoRoot = root): readonly string[] {
   return out === null ? [] : out.split("\0").filter((path) => path !== "" && /\.(?:md|ts|tsx|js|cjs|mjs|json|yaml|yml|sh)$/u.test(path));
 }
 
-export function currentBranch(repoRoot = root): string | null {
-  return git(repoRoot, ["rev-parse", "--abbrev-ref", "HEAD"])?.trim() ?? null;
-}
-
 export function isMainBranch(repoRoot = root): boolean {
-  return currentBranch(repoRoot) === MAIN;
+  return git(repoRoot, ["rev-parse", "--abbrev-ref", "HEAD"])?.trim() === MAIN;
 }
 
 /** True when `sha` names a commit reachable from `main`. */
@@ -162,19 +173,19 @@ export function changesSince(since: string, repoRoot = root): string {
   return git(repoRoot, ["log", `--since=${since}`, "--name-only", "--format=%cs"]) ?? "";
 }
 
-/** Run a wake command; true when it exits 0. Never throws — a broken command is an unmet condition. */
-export function wakeMet(command: string, repoRoot = root): boolean {
-  return runNicedSync("bash", ["-lc", command], { cwd: repoRoot }).status === 0;
+/** The one tree fact a wake condition may ask: does this repository path exist. */
+export function pathExists(path: string, repoRoot = root): boolean {
+  return existsSync(join(repoRoot, path));
 }
 
-/** Stage paths and commit with the house message contract (a hook's own commit, on `main` only). The
- *  child inherits the process environment for PATH and git identity; the standing exception spelling
- *  (`LEFTHOOK_EXCLUDE=check`) is what lets a hook's commit skip the whole-tree check and keep the
- *  message contract. */
+/** Stage the named paths and commit THEM ALONE (a pathspec commit ignores the rest of the index, so a
+ *  sibling's staged file on the shared main checkout never rides a hook's commit). The child inherits the
+ *  process environment for PATH and git identity; the standing exception spelling (`LEFTHOOK_EXCLUDE=check`)
+ *  is what lets a hook's commit skip the whole-tree check and keep the message contract. */
 export function commitPaths(paths: readonly string[], message: string, repoRoot = root): boolean {
   if (git(repoRoot, ["add", "--", ...paths]) === null) {
     return false;
   }
   const env = inheritedProcessEnv({ ["LEFTHOOK_EXCLUDE"]: "check" });
-  return runNicedSync("git", ["commit", "-q", "-m", message], { cwd: repoRoot, env }).status === 0;
+  return runNicedSync("git", ["commit", "-q", "-m", message, "--", ...paths], { cwd: repoRoot, env }).status === 0;
 }

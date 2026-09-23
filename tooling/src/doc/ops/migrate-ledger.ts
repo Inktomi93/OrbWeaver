@@ -10,13 +10,12 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { Ruling, RulingRange } from "../contract/types.ts";
 import { adrSlug, parseRegistry, renderAdr, withoutRulings } from "../lib/ledger.ts";
 import { numberedName } from "../lib/names.ts";
+import { REGISTRY_PATH } from "../lib/rules.ts";
 import { regenerateIndexes } from "./indexes.ts";
 import type { WriteOutcome } from "./items.ts";
 import { root, today, writeDoc } from "./tree.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm doc migrate-ledger --range <a-b|all> [--apply]");
-
-export const REGISTRY_PATH = "docs/architecture/core/Core-Path-Registry.md";
 
 export interface MigrationPlan {
   readonly writes: readonly { readonly ruling: Ruling; readonly path: string }[];

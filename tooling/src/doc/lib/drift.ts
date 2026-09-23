@@ -1,15 +1,17 @@
 // The orchestrator's drift nag as a pure rule over resolved git facts (`ops/tree.ts` gathers them). Four
 // checks, each line carrying the exact fixing command; an empty result means the item state and the
 // tree agree, and the SessionStart hook then prints nothing at all.
-import type { DriftFacts, WorkItem } from "../contract/types.ts";
+import type { Blocker, DriftFacts, WorkItem } from "../contract/types.ts";
 import { parseBlocker } from "./items.ts";
 
+/** A lane is its EXACT branch name (`.claude/rules/docs.md`): live when a worktree is on that branch
+ *  or the branch is not yet merged. A substring match read every `codex/*` corpse as a live lane. */
 function laneIsLive(item: WorkItem, facts: DriftFacts): boolean {
   const lane = item.lane;
   if (lane === null) {
     return false;
   }
-  return facts.worktreeBranches.some((branch) => branch.includes(lane)) || facts.unmergedBranches.some((branch) => branch.includes(lane));
+  return facts.worktreeBranches.includes(lane) || facts.unmergedBranches.includes(lane);
 }
 
 function staleDoing(facts: DriftFacts): readonly string[] {
@@ -21,6 +23,9 @@ function staleDoing(facts: DriftFacts): readonly string[] {
     );
 }
 
+/** A `main` commit whose trailer names an item that is not done. The common cause is named in the line:
+ *  git runs no `post-merge` hook when a conflicted merge is concluded by `git commit`, so the auto-land
+ *  never fired and the orchestrator lands by hand. */
 function unlanded(facts: DriftFacts): readonly string[] {
   const byId = new Map(facts.items.map((item) => [item.id, item] as const));
   const seen = new Set<number>();
@@ -32,7 +37,7 @@ function unlanded(facts: DriftFacts): readonly string[] {
     }
     if (pending.length > 0) {
       lines.push(
-        `main commit ${commit.sha} closes ${pending.map(String).join(", ")} but the item is not done — pnpm doc land ${pending.map(String).join(" ")} --evidence ${commit.sha}`,
+        `main commit ${commit.sha} closes ${pending.map(String).join(", ")} but the item is not done (a conflict-resolved merge runs no post-merge hook) — pnpm doc land ${pending.map(String).join(" ")} --evidence ${commit.sha}`,
       );
     }
   }
@@ -62,16 +67,17 @@ export function driftLines(facts: DriftFacts): readonly string[] {
   return [...staleDoing(facts), ...unlanded(facts), ...blockerDone(facts), ...woken(facts)];
 }
 
-/** The wake commands to run, keyed by item id — the one impure step, resolved by the caller. */
-export function wakeCommands(items: readonly WorkItem[]): ReadonlyMap<number, string> {
-  const commands = new Map<number, string>();
+/** The wake conditions of the blocked items, keyed by item id — resolved against the TREE by the
+ *  caller (a path exists or is gone), never by running anything. */
+export function wakeConditions(items: readonly WorkItem[]): ReadonlyMap<number, Extract<Blocker, { readonly kind: "wake" }>> {
+  const conditions = new Map<number, Extract<Blocker, { readonly kind: "wake" }>>();
   for (const item of items) {
     const blocker = item.state === "blocked" && item.blocked !== null ? parseBlocker(item.blocked) : null;
     if (blocker?.kind === "wake") {
-      commands.set(item.id, blocker.command);
+      conditions.set(item.id, blocker);
     }
   }
-  return commands;
+  return conditions;
 }
 
 /** The `Closes: 12, 14` trailer of one commit message, as ids. Absent = empty. */

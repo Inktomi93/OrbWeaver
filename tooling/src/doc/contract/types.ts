@@ -17,7 +17,7 @@ export interface DocsRootEntry {
   readonly directory: boolean;
 }
 
-/** The reserved D-number window the registry declares in its own note. */
+/** The reserved D-number window (the registry's own note, and `#doc-catalog`'s constants). */
 export interface RulingRange {
   readonly lo: number;
   readonly hi: number;
@@ -27,9 +27,14 @@ export interface RulingRange {
 export interface DocTree {
   readonly root: readonly DocsRootEntry[];
   readonly docs: readonly GovernedDoc[];
+  /** EVERY file under the governed trees, markdown or not, so a stray or a nested file is judged. */
+  readonly files: readonly string[];
   /** D numbers anchored in the legacy registry (both row shapes). */
   readonly registryIds: ReadonlySet<number>;
-  readonly reserved: RulingRange | null;
+  /** The number the registry's "Next free number is D<n>+" note announces, or null without a note. */
+  readonly nextFreeNote: number | null;
+  /** The `evidence` commits of done items that git proves reachable from `main`. */
+  readonly evidenceOnMain: ReadonlySet<string>;
 }
 
 /** One ledger ruling as the splitter reads it. `body` is the ruling's markdown after its anchor. */
@@ -46,7 +51,12 @@ export interface RegistryParse {
   readonly reserved: RulingRange | null;
 }
 
-export type Blocker = { readonly kind: "owner" } | { readonly kind: "on"; readonly id: number } | { readonly kind: "wake"; readonly command: string };
+/** The closed blocker vocabulary. A wake condition names a repository path and the presence that wakes
+ *  the item; there is deliberately no command form, because a committed doc must never run a shell. */
+export type Blocker =
+  | { readonly kind: "owner" }
+  | { readonly kind: "on"; readonly id: number }
+  | { readonly kind: "wake"; readonly presence: "path" | "gone"; readonly path: string };
 
 /** A parsed work item. Optional fields are `null` when absent; the state's companions are checked by
  *  `lib/items.ts#itemShapeProblems`, never at parse. */
@@ -59,6 +69,7 @@ export interface WorkItem {
   readonly updated: string;
   readonly priority: string | null;
   readonly area: string | null;
+  /** The EXACT branch name the lane works on; `drift` matches it against the live worktrees. */
   readonly lane: string | null;
   readonly blocked: string | null;
   readonly plan: string | null;
@@ -103,7 +114,7 @@ export interface DriftFacts {
   readonly unmergedBranches: readonly string[];
   /** `Closes:` ids per recent `main` commit, newest first. */
   readonly closedOnMain: readonly { readonly sha: string; readonly ids: readonly number[] }[];
-  /** Wake commands that exited 0 when run, keyed by item id. */
+  /** Items whose wake condition the tree meets, by id. */
   readonly wokenItems: ReadonlySet<number>;
 }
 

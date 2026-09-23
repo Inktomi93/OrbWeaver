@@ -118,11 +118,16 @@ post-checkout:
         NO_COLOR: "1"
 
 # AUTO-LAND for the in-repo work items (docs/work/, `docs/plans/doc-system/design.md`). After a merge
-# INTO main, `pnpm doc land --merged` reads the `Closes: 12, 14` trailers of the commits the merge brought
-# in (ORIG_HEAD..HEAD), marks those items done with the merge commit as evidence, regenerates the indexes
-# and commits the item files under the message contract (with the whole-tree check excluded, the standing
-# exception spelling). On any other branch, or when no merged commit carries a trailer, it writes and
-# prints nothing. Lanes never write item state; this hook is the one writer on the landing path.
+# INTO main that `git merge` itself completes (a fast-forward or a clean `--no-ff`), `pnpm doc land
+# --merged` reads the `Closes: 12, 14` trailers of the commits the merge brought in (ORIG_HEAD..HEAD),
+# marks those items done with the merge commit as evidence, regenerates the indexes and commits ONLY the
+# item files (a pathspec commit, so a sibling's staged file never rides along) under the message contract
+# (with the whole-tree check excluded, the standing exception spelling). On any other branch, or when no
+# merged commit carries a trailer, it writes and prints nothing. An unknown id in a trailer refuses the
+# whole batch and names the by-hand landing.
+# THE GAP git LEAVES: a CONFLICTED merge concluded by `git commit` runs NO post-merge hook, so nothing
+# auto-lands; the SessionStart drift nag (`pnpm doc drift`) names such a commit with its `pnpm doc land …
+# --evidence <sha>` line, and the orchestrator lands by hand. Lanes never write item state.
 post-merge:
   commands:
     land-work-items:

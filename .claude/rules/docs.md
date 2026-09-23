@@ -31,16 +31,23 @@ until it moves.
 
 ## Work items
 
-States are `open`, `doing` (with `lane`), `blocked` (with `blocked: owner | on <id> | wake <command>`)
-and `done` (with `evidence`, a commit on `main`). Any transition is legal; the checker validates the
-final shape. Lanes never write item state: add a `Closes: 12, 14` trailer and the post-merge hook lands
-the items. `pnpm doc overview` is the column view; `pnpm doc drift` names each inconsistency with its fix.
+States are `open`, `doing` (with `lane`), `blocked` (with `blocked: owner | on <id> | wake path <repo
+path> | wake gone <repo path>`) and `done` (with `evidence`, a commit the checker proves is on `main`).
+`lane` is the EXACT branch name the lane works on (`git rev-parse --abbrev-ref HEAD` in its worktree);
+`drift` matches it against the live worktrees and the unmerged branches. A wake condition names a
+repository path and wakes the item when that path exists (`path`) or no longer does (`gone`); nothing in
+an item is ever executed. Any transition is legal; the checker validates the final shape. Lanes never
+write item state: add a `Closes: 12, 14` trailer and the post-merge hook lands the items (a conflicted
+merge concluded by `git commit` runs no hook; `drift` then names the by-hand landing). `pnpm doc
+overview` is the column view; `pnpm doc drift` names each inconsistency with its fix.
 
 ## Checks
 
 `pnpm check:agents` (the governed tree), `pnpm check:docs` (the formatter), `pnpm check:structure`
-(dangling references and D citations), `pnpm check:doc-catalog` (the legacy tree only). A floor touching
-docs runs all four.
+(dangling references and D citations), `pnpm check:doc-catalog` (the legacy tree's inventory: one lane
+and one authority row per document, frontmatter debt; no content hash, so a prose edit reds nothing
+there). A floor touching docs runs all four. A legacy document added, removed or re-kinded owes
+`pnpm doc-catalog:sync` and `pnpm doc-catalog:write`.
 
 ## Editing a formatted doc
 
@@ -52,8 +59,3 @@ formatter rewrites characters such as `~`, so an unverified anchor can silently 
 Rebuild reference, not current plan or status; its own status lines can be stale. Check a claim against
 the code and tests before relying on it, and never edit a status line to match reality. A dispatch into a
 set reads every file in it, `README.md` first.
-
-## `docs/catalog/receipts/**`
-
-After rebasing a branch that added rows to these files, remap any `verifiedCommit` value that now points
-at an orphaned sha to its rebased equivalent before treating the merge as done.
