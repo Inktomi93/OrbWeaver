@@ -12,7 +12,7 @@ Every supported auth mode is proven in a running container and the deployed surf
 
 ## Shape
 
-**Already built:** one app-only image (`Dockerfile`, target `runtime`), `docker-compose.yaml` with one service, the entrypoint that generates a first-boot password (`docker/entrypoint.sh`), and the user guide `docker/README.md`. Local engines are the deployer's own server in every setup (`ENGINES_POSTURE=adopt-only` with `VLLM_ENGINE_HOST`). The default is `AUTH_MODE=local`; `single-user` works only with host networking, because a bridge-published port never delivers a loopback peer.
+**Already built:** one app-only image (`Dockerfile`, target `runtime`), `docker-compose.yaml` with one service, the entrypoint that generates a first-boot password (`docker/entrypoint.sh`), and the user guide `docker/README.md`. Local engines are the deployer's own server in every setup (`ENGINES_POSTURE=adopt-only` with `VLLM_ENGINE_HOST`). The default is `AUTH_MODE=single-user`. `AUTH_FALLBACK_TRUSTED_PEERS` (`packages/server/src/foundation/env/index.ts`, `infra/auth/config.ts`) lets `single-user` admit a published bridge port: the entrypoint refuses to boot with the peer set on a non-loopback, non-trusted `ORB_BIND`, and the shipped `docker/orbweaver.env` sets the docker bridge CIDRs by default. The container trust model itself — the peer-gated owner fallback, the `AUTH_FALLBACK=owner` + production + SSO boot-fatal guard, and the deleted `TRUSTED_LOCAL_HOSTS` gate — is standing law in `docs/law/Tier-3-Infra.md` and `docs/law/Tier-2-Foundation.md`, not a plan-only design; this plan does not restate it.
 
 The constraints the proof checks, per mode:
 
@@ -27,7 +27,6 @@ The image stays non-root and denies source maps. Publishing the port never grant
 
 ## Open questions
 
-- Does single-user mode get a trusted-peer opt-in for a published port, or stay host-network only? Tracked in `docs/work/0053-finish-the-production-deployment-auth-posture-live-auth.md`.
 - Which auth modes are supported for strangers, and with which fallback default?
 
 ## Rejected
