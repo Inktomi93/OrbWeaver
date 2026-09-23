@@ -81,8 +81,6 @@ None.
 
 ## Blocked
 
-- [0012](0012-catalog-and-attestation-removal.md) P2 Catalog and attestation removal `doc-migration` (on 11)
-- [0013](0013-board-tool-removal-pnpm-work-item-and-its.md) P2 Board tool removal: pnpm work:item and its spellings `doc-migration` (on 12)
 - [0048](0048-agent-principal-program.md) P1 Agent-principal program `agent-principals` (owner)
 - [0049](0049-expressions-program.md) P1 Expressions program `expressions` (owner)
 - [0050](0050-rpg-domain-program-remaining-scope.md) P1 RPG domain program, remaining scope `rpg` (owner)
