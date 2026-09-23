@@ -215,7 +215,7 @@ function checkFeature({ entries, name, domains, surfaceText }: CheckFeatureInput
   if (!(RESERVED.has(name) || domains.has(name))) {
     out.push({
       path: dir,
-      message: `'${name}' is neither a reserved UI-only slice (${[...RESERVED].join("/")}) nor a mirror of a real packages/server/src/domain/<name>. Rename it to the domain it serves, or add it to RESERVED if it's UI-only (UI-Architecture-and-Layout.md §2.1 + AGENTS.md §6).`,
+      message: `'${name}' is neither a reserved UI-only slice (${[...RESERVED].join("/")}) nor a mirror of a real packages/server/src/domain/<name>. Rename it to the domain it serves, or add it to RESERVED if it's UI-only (UI-Architecture-and-Layout.md §2.1 + Constitution.md §6).`,
     });
   }
   for (const entry of directChildren(entries, dir)) {

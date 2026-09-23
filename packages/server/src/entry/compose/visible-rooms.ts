@@ -5,7 +5,7 @@
 // WHY IT LIVES AT THE COMPOSITION ROOT, and can live nowhere else (the `room-reach.ts` posture, and the same
 // reasoning that built it here for regex in the first place): rooms carry no `ownerId` (D18), so their scope
 // is `chat_participants` and their identity data is chat's — and regex, databank and preset each read
-// neither. A domain may not import a sibling domain's runtime (AGENTS §2), so the DOMAINS declare the op on
+// neither. A domain may not import a sibling domain's runtime (Constitution.md §2), so the DOMAINS declare the op on
 // their DI bundle (`@orb/contracts/chat`'s `ResolveVisibleRoomsOp`, one type, no near-pairs) and this ONE
 // factory is wired into each of them at compose.
 //

@@ -36,7 +36,7 @@ refusal), `instruments-lie-verify-the-verifier.md`, `gate-blind-spots-are-spelli
 - **Harness hygiene for cuts:** a cut is applied to a sibling scratch module in `gates/` (relative imports
   resolve), the anchor must occur EXACTLY ONCE in the file (module headers and `why` strings quote their own
   fences), and the scratch file is `rmSync`'d in a `finally`.
-- **Coupled sites every group touches:** the roster (`docs/architecture/core/Core-Enforcement-Active-Gates.md`
+- **Coupled sites every group touches:** the roster (`docs/law/Core-Enforcement-Active-Gates.md`
   — one row rewritten per converted module, one row ADDED per split sibling, and the declared count line,
   277 at the base) and any `tests/tooling/**` suite naming the id as a string literal (measured per group
   below). (The third site was `docs/test-baseline/manifest.json`, DELETED with `monotonic-tests` (#2217) — nothing to regenerate; test presence is DERIVED.)
@@ -216,7 +216,7 @@ refusal) and is asserted as such; position delta on every file-level finding: le
 | `tooling/src/_shared/ts-workspace.ts` | add `moduleScopeCalls`; header comment corrected |
 | `tests/tooling/verify/gates/session-channel-family.suite.test.ts` | NEW: conformance, [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.2, [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.3, [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.4 |
 | `tests/tooling/verify/gates/tooling-ops-direct-invocation.test.ts` | NEW: conformance, [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.3 pins, [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.4 |
-| `docs/architecture/core/Core-Enforcement-Active-Gates.md` | two rows rewritten, one row added, count 277 → 278 |
+| `docs/law/Core-Enforcement-Active-Gates.md` | two rows rewritten, one row added, count 277 → 278 |
 | `tests/tooling/_shared/entrypoint.int.test.ts` | unchanged; its "one home" comment stays true through `moduleScopeCalls` |
 
 Marker reconciliation: no private grammar and zero live central markers for either id — nothing to translate.
@@ -607,7 +607,7 @@ honest declaration, and it names the reader rather than a topic.
 | `gates/tooling-ops-direct-invocation.ts` · `tooling-argv-front-door(-health).ts` | family strings → `tooling-program-entry` / `process-member`; roster rows follow |
 | the 8 clock drift sites | routed through `scaledBudget` (tests) / `budget` (tooling libs); `tests/tooling/tool-guard.int.test.ts` gains the translated waiver |
 | roster | the plumbing row replaced by ten rows; count +9 |
-| `docs/architecture/core/Core-Tooling-Law.md` §4.4 | mechanism sentences truth-repaired |
+| `docs/law/Core-Tooling-Law.md` §4.4 | mechanism sentences truth-repaired |
 | `tests/tooling/verify/gates/tooling-plumbing-family.suite.test.ts` | NEW: conformance ×10, [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.2 arm for the clock policy, [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.2 grant identity per grant policy, [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.3 pins (home receipts, exact-file refusals, deferral), [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.4 differential over all 36 legacy examples through the union, plus the real-tree replay of the 12-finding baseline |
 | `tests/tooling/gate-spelling-twins.baseline.json` | untouched — a legacy-roster ledger that retires at cutover (already red for 54 converted gates; its `tooling-shared-plumbing` row is one more) |
 

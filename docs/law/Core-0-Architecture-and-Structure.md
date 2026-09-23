@@ -97,7 +97,7 @@ tsc is the type ORACLE and nothing emits), and our `exports`→`.ts` map already
 go-to-def + boundary
 enforcement without them. **Revisit triggers** (only then): we start publishing a package to npm, or
 per-package `tsc --noEmit` gets slow enough to want incremental `tsc -b` caching. (TS house style +
-the staged-config triggers live in `core/Spine-TypeScript-and-Patterns.md`.)
+the staged-config triggers live in `docs/law/Spine-TypeScript-and-Patterns.md`.)
 
 ---
 
@@ -178,7 +178,7 @@ is RED.
 ## 5. Tests — one central tree, mirroring `src` 1:1
 
 **The mirror rule (one line, fully enforceable):** a test for `packages/<pkg>/src/<path>.ts` lives at
-`tests/<pkg>/<path>.<kind>.test.ts`. **Path = prefix-swap** (`packages/X/src/` ↔ `tests/X/`); the
+`tests/<pkg>/<path>.<kind>.test.ts`. **Path = prefix-swap** (`packages/<pkg>/src/` ↔ `tests/<pkg>/`); the
 `test-layout` gate exempts the non-mirror trees `support/` + `e2e/` and the `.suite` kinds;
 `tooling/` is CONDITIONAL — `tests/tooling/<dir>/` mirrors `tooling/src/<dir>/` whenever that tool dir
 exists (§9), and only flat files + dirs with no tool twin stay exempt. **Kind by suffix**: `.test.ts` (unit) · `.int.test.ts` (integration/db) ·
@@ -242,7 +242,7 @@ finding anything is a path derivation, and "where does this go?" has exactly one
 > All 13 are ENFORCED (dep-cruiser rules and the ts-morph gates in `tooling/src/verify/gates/`, plus
 > `tsc` for the union-dispatch row, which has no gate file); `no-internal-mocks` stays advisory in `Spine-Testing.md §3`, not a hard gate.
 > **This table is the constitution; the full live-gate catalog is `Core-Enforcement-Active-Gates.md`**
-> (the single enforcement source of truth; deferred/rejected gates: `../history/Core-Enforcement-Deferred-Dropped.md`).
+> (the single enforcement source of truth; deferred/rejected gates: `../architecture/history/Core-Enforcement-Deferred-Dropped.md`).
 
 ## 8. Cross-cutting invariants (the laws no single file shows)
 
@@ -325,5 +325,5 @@ into `tooling/src/<tool>/` under the template, original deleted — never a comp
 
 > The detail home is `Core-Tooling-Law.md` (the tool roster, the plumbing floor, the per-gate
 > contracts, the coupled-site census, the move playbook) plus the code's own file headers. Gate authoring law:
-> `../../../tooling/src/verify/gates/GATE-AUTHORING.md`. Live gate catalog:
+> `../../tooling/src/verify/gates/GATE-AUTHORING.md`. Live gate catalog:
 > `Core-Enforcement-Active-Gates.md`.

@@ -1,4 +1,4 @@
-// Gate: table-scoping-class — EVERY schema table declares HOW a caller's tenancy reaches it (AGENTS §1
+// Gate: table-scoping-class — EVERY schema table declares HOW a caller's tenancy reaches it (Constitution.md §1
 // "ownership is INHERITED, not stamped"; D18/D20/D23). Five classes: ownerId · membership · junction ·
 // parent · global. A new table with no row is RED AT BIRTH; a row naming no live table is RED (stale); a row
 // whose class CONTRADICTS the derived schema shape (an `ownerId` class with no ownerId column, a
@@ -44,7 +44,7 @@ export const ROOM_TABLE = "chats";
 const MESSAGE =
   "every schema table must declare HOW a caller's tenancy reaches it — the scoping class (ownerId / " +
   "membership / junction / parent / global) that an authorization predicate is built from. Ownership is " +
-  "INHERITED, not stamped (AGENTS §1): a table without an `ownerId` is not unscoped, its scope derives " +
+  "INHERITED, not stamped (Constitution.md §1): a table without an `ownerId` is not unscoped, its scope derives " +
   "through the FK chain — but WHICH chain has to be written down, once, where a reader and a gate can both " +
   "see it. Add a row to TABLE_SCOPING_ROWS in tooling/src/verify/lib/tenancy-scope.ts. " +
   'A bare `"table"` token = UNCLASSIFIED (no row yet). Any other message = an INCOHERENCE: the row ' +

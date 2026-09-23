@@ -1,4 +1,4 @@
-// `_ct-stories.tsx` — the client-CT story convention (core/Spine-Testing.md §7: CT only mounts
+// `_ct-stories.tsx` — the client-CT story convention (docs/law/Spine-Testing.md §7: CT only mounts
 // from a non-test module). One story module per mirror directory; each story wraps its root in
 // <CtDataProviders> (Query + the real tRPC client — tests/support/browser/ct-data-providers.tsx explains
 // why that seam is story-side, not beforeMount). The `.ct.tsx` beside this file mounts ONLY these

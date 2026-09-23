@@ -92,7 +92,7 @@ assets (D21).
    (doc 04 §2). Providers — `image_edit_dropped` joins `WARNING_CODES` with two real emit sites
    (doc 03 §2).
 7. **Citation correction:** the external-fetch SSRF prerequisite (`safeFetch`) is documented in
-   `core/Tier-3-Infra.md` (the staged `infra/network/egress.ts` seam), not gallery.md — doc 04 §7
+   `docs/law/Tier-3-Infra.md` (the staged `infra/network/egress.ts` seam), not gallery.md — doc 04 §7
    cites the real home.
 8. **PD flag:** imagery's registry flag is **PD-93** (the D49/BUILD-PLAN `PD-54` on imagery is a
    verified copy-paste stale — `Core-SillyTavern-Feature-Map.md` §note 1).

@@ -1,5 +1,5 @@
 ---
-kind: reference
+kind: law
 status: active
 updated: 2026-07-13
 ---
@@ -7,7 +7,7 @@ updated: 2026-07-13
 # Planning-and-Checklists
 
 > **Live obligations only** — everything else (the §A/§B2/§C3/§D1–D3/D5 landed rows + the 2026-06-25
-> council-review record) is frozen at `../history/planning-council-record.md`. The rows below are the
+> council-review record) is frozen at `../architecture/history/planning-council-record.md`. The rows below are the
 > only ones still ALIVE: **B1** (blocked:later), **D4's open half**, **§C1/§C2** (standing testing law,
 > cited by `Spine-Testing.md`), and **§E** (the permanent owned-risk acceptance record).
 
@@ -37,7 +37,7 @@ updated: 2026-07-13
 BUILT, served its purpose, and **RIPPED OUT 2026-08-22** (owner ruling, #428: "we exceeded neo a while
 ago" — the floor is obsolete). Gone from the tree: the `.parity` suite, its steady-clone driver, the
 captured neo reference fixture, the `parity` vitest project and the `tests:parity` verify stage. Git
-preserves all of it; the campaign record is [`../history/neo-orb-parity-audit.md`](../history/neo-orb-parity-audit.md).
+preserves all of it; the campaign record is [`../architecture/history/neo-orb-parity-audit.md`](../architecture/history/neo-orb-parity-audit.md).
 
 While it ran it byte-validated the PARITY surface only (assembled prompt + cache placement + token
 tallies). Memory was never in scope — it is a rewrite that intentionally retrieves differently and got

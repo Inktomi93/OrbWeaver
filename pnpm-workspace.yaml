@@ -1,6 +1,6 @@
 packages:
   - packages/*
-  # The tool fleet (@orb/tooling) — ABOVE the cake, never imported by packages/* (docs/architecture/core/Core-Tooling-Law.md).
+  # The tool fleet (@orb/tooling) — ABOVE the cake, never imported by packages/* (docs/law/Core-Tooling-Law.md).
   - tooling
 
 # The node-26 floor is a WALL, not a wish (node-26 adoption program §1.3, 2026-08-03). All seven manifests
@@ -161,7 +161,7 @@ catalog:
   # jose: the JWKS/JWT VERIFY side of forward-header auth (infra/auth/jwks — createLocalJWKSet/
   # createRemoteJWKSet + jwtVerify with a pinned RS256/ES256 allowlist). Already in the tree as an
   # openid-client transitive; promoted to a direct @orb/server dep to name the verify surface
-  # (core/Tier-5-Entry.md: mint = openid-client at entry, verify = jose at infra).
+  # (docs/law/Tier-5-Entry.md: mint = openid-client at entry, verify = jose at infra).
   jose: ^6.2.3
   "@trpc/server": ^11.18.0
   # undici: the global-dispatcher seam for the SSRF egress firewall (infra/network/egress —

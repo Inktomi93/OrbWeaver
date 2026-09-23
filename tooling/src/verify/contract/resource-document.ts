@@ -102,10 +102,10 @@ export const LEDGER_DEFINITIONS = {
    *  reading half of it is how a live id reads as an orphan cite (`gates/pd-citation-integrity.ts:15-19`). */
   "core-audits-debt": {
     nature: "markdown",
-    paths: ["docs/architecture/core/Core-Audits-and-Debt.md", "docs/architecture/history/Core-Debt-Cleared-Ledger.md"],
+    paths: ["docs/law/Core-Audits-and-Debt.md", "docs/architecture/history/Core-Debt-Cleared-Ledger.md"],
   },
   /** The enforcement roster `enforcement-registry-parity` reconciles the descriptor corpus against. */
-  "gate-enforcement-roster": { nature: "markdown", paths: ["docs/architecture/core/Core-Enforcement-Active-Gates.md"] },
+  "gate-enforcement-roster": { nature: "markdown", paths: ["docs/law/Core-Enforcement-Active-Gates.md"] },
 } as const satisfies Readonly<Record<string, LedgerDefinition>>;
 
 export type LedgerId = keyof typeof LEDGER_DEFINITIONS;

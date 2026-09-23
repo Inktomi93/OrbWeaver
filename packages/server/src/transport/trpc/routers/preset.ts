@@ -1,4 +1,4 @@
-// transport/trpc/routers/preset — the generation-config surface (core/Tier-4-Transport.md). authed; the verbs
+// transport/trpc/routers/preset — the generation-config surface (docs/law/Tier-4-Transport.md). authed; the verbs
 // take a scalar `userId` (preset is single-owner — `ownerId === userId`, no resource-role), supplied from
 // the resolved `Principal.userId` (never client input). `resolveEffective` is the one exception: it passes
 // the whole `Principal`, because its capability half resolves the CALLER's own connection.

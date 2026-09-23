@@ -115,7 +115,7 @@ export type MemoryDefaults = z.infer<typeof memoryDefaultsSchema>;
 // `| undefined`, so strip it with `NonNullable`.
 export type ResolvedMemoryDefaults = { [K in keyof MemoryDefaults]-?: NonNullable<MemoryDefaults[K]> };
 
-// The baked-in memoryDefaults FLOOR — the core/Knowledge-Cluster.md §5 grounded numbers (every knob present),
+// The baked-in memoryDefaults FLOOR — the docs/law/Knowledge-Cluster.md §5 grounded numbers (every knob present),
 // the ONE home for the values the schema `.describe()` strings document. The server resolver
 // (domain/chat/memory/constants.ts DEFAULTS) derives from this; the admin surface reads it to show the floor
 // beneath an override. Every field non-optional: this IS the floor an absent override falls through to.

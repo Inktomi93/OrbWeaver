@@ -46,7 +46,7 @@ refuseDirectInvocation(import.meta.url, "pnpm check:board-citations");
 export const LEDGERS = ["docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md"] as const;
 /** Both enforcement rosters. Resolution only — the openness half is refused, and the refusal's evidence is
  *  in `lib/board-citations.ts`'s class table. */
-export const ROSTERS = ["docs/architecture/core/Core-Enforcement-Active-Gates.md", "docs/architecture/history/Core-Enforcement-Deferred-Dropped.md"] as const;
+export const ROSTERS = ["docs/law/Core-Enforcement-Active-Gates.md", "docs/architecture/history/Core-Enforcement-Deferred-Dropped.md"] as const;
 
 function read(root: string, rel: string): CitedDocument {
   const abs = join(root, rel);

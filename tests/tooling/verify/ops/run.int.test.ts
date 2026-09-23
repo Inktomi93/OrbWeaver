@@ -593,14 +593,14 @@ test(
     // sees the packages/ file; docs sees the .md.
     const sel = resolveSelection({
       kind: "file",
-      paths: ["packages/ui/src/primitives/button/variants.ts", "docs/architecture/core/AGENTS.md"],
+      paths: ["packages/ui/src/primitives/button/variants.ts", "docs/law/Constitution.md"],
     });
     expect(sel.eslintPaths).toContain("packages/ui/src/primitives/button/variants.ts");
     expect(sel.tsconfigs).toContain("packages/ui/tsconfig.json");
     expect(sel.depcruisePaths).toContain("packages/ui/src/primitives/button/variants.ts");
-    expect(sel.docsPaths).toContain("docs/architecture/core/AGENTS.md");
+    expect(sel.docsPaths).toContain("docs/law/Constitution.md");
     // A docs file is NOT in the eslint/tsc/depcruise surfaces.
-    expect(sel.eslintPaths).not.toContain("docs/architecture/core/AGENTS.md");
+    expect(sel.eslintPaths).not.toContain("docs/law/Constitution.md");
   },
   // Affected planning asks native TS7 for every program closure on a cold snapshot. The first selection in
   // a process pays that startup; later selections reuse the content-keyed membership snapshot. Spelled
@@ -754,7 +754,7 @@ test("types:native scopedArgv forwards every affected program and skips a docs-o
   expect(stage("types:native").scopedArgv?.(pkgSel)).toEqual(["pnpm", "typecheck", ...pkgSel.tsconfigs.flatMap((config) => ["--config", config])]);
   const testSel = resolveSelection({ kind: "file", paths: ["tests/tooling/x.int.test.ts"] });
   expect(stage("types:native").scopedArgv?.(testSel)).toEqual(["pnpm", "typecheck", ...testSel.tsconfigs.flatMap((config) => ["--config", config])]);
-  const docs = resolveSelection({ kind: "file", paths: ["docs/architecture/core/AGENTS.md"] });
+  const docs = resolveSelection({ kind: "file", paths: ["docs/law/Constitution.md"] });
   expect(stage("types:native").scopedArgv?.(docs)).toBe("skip-empty");
 });
 
@@ -894,7 +894,7 @@ test("lint:eslint scopedArgv: skip-empty when no file is in the eslint surface",
   // A docs file is outside every eslint `files` pattern AND outside the script's argv — the honest
   // no-op. (This pin USED to use a `tooling/src/**` path; tooling joined the eslint surface on
   // 2026-08-22 (#459), so that path now correctly RESOLVES — see the pin directly below.)
-  const sel = resolveSelection({ kind: "file", paths: ["docs/architecture/core/AGENTS.md"] });
+  const sel = resolveSelection({ kind: "file", paths: ["docs/law/Constitution.md"] });
   expect(stage("lint:eslint").scopedArgv?.(sel)).toBe("skip-empty");
 });
 
@@ -1137,7 +1137,7 @@ test("parse: valid tier flags resolve to the right tier (default = static, scope
   expect(asTier(["--tier", "push"])).toBe("push");
   // Use a docs-only scope here: this row owns tier selection, while the dedicated --package=db case above
   // owns package affected-planning under AFFECTED_PLAN_TIMEOUT.
-  expect(asTier(["--file", "docs/architecture/core/AGENTS.md"])).toBe("changed"); // a scope flag implies the changed (inner-loop) tier
+  expect(asTier(["--file", "docs/law/Constitution.md"])).toBe("changed"); // a scope flag implies the changed (inner-loop) tier
   expect(asTier(["--changed", "git"])).toBe("changed");
 });
 

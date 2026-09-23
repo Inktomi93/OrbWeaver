@@ -6,7 +6,7 @@ updated: 2026-08-03
 
 # Orbweaver — Spine: TypeScript & Patterns (Types, Schemas, Dispatch)
 
-Canonical doc for spine §7.4 (types & schemas) and §7.5 (string-union dispatch) — cited elsewhere as "the §7.4 rule" / "spine §7.5"; `AGENTS.md` §5 points here. The gates are LIVE: `no-inline-types` (`tooling/src/verify/gates/`), `no-inline-union-redecl` (`tooling/src/verify/gates/`), `exhaustive-dispatch` (compile-time by construction — the mapped-`Record`/`assertNever` pattern below; constitution row in `Core-0-Architecture-and-Structure.md §7`).
+Canonical doc for spine §7.4 (types & schemas) and §7.5 (string-union dispatch) — cited elsewhere as "the §7.4 rule" / "spine §7.5"; `Constitution.md` §5 points here. The gates are LIVE: `no-inline-types` (`tooling/src/verify/gates/`), `no-inline-union-redecl` (`tooling/src/verify/gates/`), `exhaustive-dispatch` (compile-time by construction — the mapped-`Record`/`assertNever` pattern below; constitution row in `Core-0-Architecture-and-Structure.md §7`).
 
 ## Types & schemas — one home, one direction, no inline (spine §7.4)
 
@@ -100,7 +100,7 @@ From the handbook's `.d.ts` do's-and-don'ts — worth enforcing even though we a
 
 ## 9. Platform primitives — the ADOPT / CONSIDER / AVOID register
 
-**The platform is node 26 / V8 14.6, and the modern spelling is THE spelling** (owner-ruled posture, `../../history/design/node-26-adoption-program.md`). This register is not "adopt when convenient": a hand-rolled equivalent of anything in ADOPT is a defect, and the burn-down that removed the existing ones is that program's W3/W4. Typing floor: `tsconfig.base.json` carries `lib: ["es2025", "esnext.disposable"]` and the repo-root `platform.d.ts` declares the V8 14.6 surfaces TypeScript's libs do not ship yet (`Map`/`WeakMap.getOrInsert(Computed)`, `Error.isError`, `Iterator.concat`) — delete a block there when the lib catches up; the duplicate-declaration error IS the reminder.
+**The platform is node 26 / V8 14.6, and the modern spelling is THE spelling** (owner-ruled posture, `../history/design/node-26-adoption-program.md`). This register is not "adopt when convenient": a hand-rolled equivalent of anything in ADOPT is a defect, and the burn-down that removed the existing ones is that program's W3/W4. Typing floor: `tsconfig.base.json` carries `lib: ["es2025", "esnext.disposable"]` and the repo-root `platform.d.ts` declares the V8 14.6 surfaces TypeScript's libs do not ship yet (`Map`/`WeakMap.getOrInsert(Computed)`, `Error.isError`, `Iterator.concat`) — delete a block there when the lib catches up; the duplicate-declaration error IS the reminder.
 
 **ADOPT.** `node:timers/promises` `setTimeout` (never `new Promise` + `setTimeout` sleeps) · `x.toSorted(fn)` (never `[...x].sort(fn)`) · Set algebra `union`/`intersection`/`difference`/`isSubsetOf` · `Object.groupBy` / `Map.groupBy` · `Promise.withResolvers` · `Map.getOrInsert` / `getOrInsertComputed` · `RegExp.escape` — never a hand-rolled `escapeRegExp`; the program's W4 deletes the kit one and its consumers · `Error.isError` at unknown-boundaries — specifically the `kit/error-message` seam, so ~50 consumers inherit cross-realm correctness · `.at(-1)` · `findLast` · `Array.fromAsync` (accumulate-then-return only) · Iterator helpers when the chain is iterator-terminal · `using` / `await using` for every disposal-shaped resource ⚙️ (biome `useDisposables`) · `AbortSignal.timeout` / `AbortSignal.any` per the rubric below · `structuredClone` · `util.parseEnv`.
 
@@ -122,7 +122,7 @@ From the handbook's `.d.ts` do's-and-don'ts — worth enforcing even though we a
 The coupling an import-graph CANNOT see: runtime branching on string-union "kind" keys. Without a
 canonical home an axis gets re-spelled inline at every dispatch site, so adding one variant turns into a
 scavenger hunt across dozens of files — the neo-tavern pain that motivated this rule, quantified per-axis
-in `../history/spine-typescript-archaeology-record.md`.
+in `../architecture/history/spine-typescript-archaeology-record.md`.
 
 **The GOLD STANDARD to copy:** `workloads.kind` dispatches through `WorkloadContributions:
 { readonly [K in WorkloadKind]: WorkloadContribution<K> }`, asserted exhaustive + duplicate-free by

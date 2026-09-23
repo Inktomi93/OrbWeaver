@@ -1,4 +1,4 @@
-// config feature CT stories (core/Spine-Testing.md §7 — CT mounts ONLY from a non-test module).
+// config feature CT stories (docs/law/Spine-Testing.md §7 — CT mounts ONLY from a non-test module).
 //
 // The stories mount the REAL config host panes (LIST · CONTENT · CONTEXT) over the REAL door registries: the
 // 13-group `config-groups` registry (`ctRealConfigGroups`, total over CONFIG_GROUP_IDS — the nine settings

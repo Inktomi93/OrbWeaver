@@ -129,7 +129,7 @@ const FIX =
   "part a disposition WITH a reason: `exposed` (the seal renders it — baseui-anatomy-completeness proves " +
   "that claim), `sealed-away` (deliberately not rendered; say why AND what would end it), or `n-a` (nothing " +
   "in @orb/ui wraps this component). Record the human half of the same ruling in " +
-  "docs/architecture/core/ui-package-design.md, keyed on the identical `Component.Part` string.";
+  "docs/law/ui-package-design.md, keyed on the identical `Component.Part` string.";
 
 const DRIFT = (what: string): string => `${what} — the manifest and the installed package disagree; regenerate (\`${GEN}\`) and adjudicate the delta.`;
 const UNRESOLVED = (key: string): string =>

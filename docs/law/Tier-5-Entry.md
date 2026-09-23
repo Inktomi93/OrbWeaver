@@ -24,7 +24,7 @@ packages/server/src/entry/
 ├── lifecycle.ts              boot/shutdown protocol (per D5: entry, NOT foundation)
 ├── app.ts                    the Hono builder (middleware order, ingress-allowlist, mount tRPC + http)
 ├── rate-limit-gate.ts        builds the RateLimitGate impl (limiter instances need db; bucket POLICY lives here;
-│                             transport declares only the port — core/Tier-4-Transport.md §"rate-limit").
+│                             transport declares only the port — docs/law/Tier-4-Transport.md §"rate-limit").
 │                             Second policy site: http/auth-routes.ts owns its own login-IP throttle,
 │                             adjacent to the route it guards.
 ├── auth/seam.ts              THE AUTH SEAM — the ONE Principal construction site: wires infra/auth (verify)
@@ -71,7 +71,7 @@ Inventory lists are illustrative — the tree on disk is the truth.
 Versions live in the pnpm catalog (`packages/server/package.json`); two why-notes are load-bearing:
 
 - `@hono/node-server` — the Node HTTP listener; the `httpServer` object `lifecycle.ts` takes injected IS this lib's `serve()` return.
-- `openid-client` v6 — the OIDC **mint** flow only (discovery, PKCE, code exchange) at `http/auth-routes.ts`. The **verify** side (JWKS) is `infra/auth`'s `jose` (`core/Tier-3-Infra.md`) — client-side mint lands at entry, never infra.
+- `openid-client` v6 — the OIDC **mint** flow only (discovery, PKCE, code exchange) at `http/auth-routes.ts`. The **verify** side (JWKS) is `infra/auth`'s `jose` (`docs/law/Tier-3-Infra.md`) — client-side mint lands at entry, never infra.
 
 ## The injection model (how the cake stays clean without sideways imports)
 
@@ -81,7 +81,7 @@ Every cross-feature dependency is a **typed op declared in the consumer domain's
 
 The split is load-bearing: **only `seedOwner` runs pre-compose** (compose binds the owner role-clients against the owner id — the boot chicken-egg), and **every other seed runs post-compose** because it consumes a composed service/seeder. `entry/lifecycle.ts` is the truth.
 
-1. **`installEgressFirewall()`** — the FIRST boot step (swaps undici's global dispatcher before anything else can open a socket; `core/Tier-3-Infra.md`).
+1. **`installEgressFirewall()`** — the FIRST boot step (swaps undici's global dispatcher before anything else can open a socket; `docs/law/Tier-3-Infra.md`).
 2. **env** (`foundation/env`) — the one `process.env` read (at module load); `superRefine` boot-fatality per `AUTH_MODE`.
 3. **migrate** — `backupBeforeMigrate` → chain-aware baseline drift check (boot-FATAL on a db whose applied migration is in no shipped journal entry — D163; the pre-launch auto-reset is retired, `pnpm seed:demo --fresh` is the only wipe) → migrations → `assertReferentialIntegrity`.
 4. **seed-owner (pre-compose)** — resolves the owner id the compose graph binds against, via a TRANSIENT sessions service (compose owns the real one). The ONLY pre-compose seed.

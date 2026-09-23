@@ -56,7 +56,7 @@ import { jsxAttributeLiterals, mappedSlots, UI_SOURCE_ROOT } from "../lib/densit
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 
 const MESSAGE =
-  "the tier SLOT MAP and the primitives that emit its slots disagree (docs/architecture/core/UI-Density-Law.md " +
+  "the tier SLOT MAP and the primitives that emit its slots disagree (docs/law/UI-Density-Law.md " +
   "§4.2/§5.1 arm A6): either a tier-mapped `data-slot` name is stamped outside packages/ui/src/ — it would " +
   "inherit tier padding and type without the primitive that owns the slot — or packages/ui/src/styles/tiers.css " +
   "maps a slot no file under packages/ui/src/ emits, a mapped-but-dead rule that paints nothing while the " +

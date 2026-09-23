@@ -16,7 +16,7 @@ Make the `check:agents` path check resolve a relative path written in a code spa
 
 ## Why
 
-The ledger split moved rows from `docs/architecture/core/` to `docs/adr/`. Relative paths in code spans
+The ledger split moved rows from the legacy core registry to `docs/adr/`. Relative paths in code spans
 then pointed nowhere, and every check stayed green. Today only link targets and repo-root paths are
 checked.
 

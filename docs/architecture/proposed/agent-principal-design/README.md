@@ -19,7 +19,7 @@ updated: 2026-08-14
 > `domain/admin/guard.ts`, the D19 turn-identity triple in `chat/engine/turn-identity.ts`, the
 > XOR'd roster in `db/schema/chat.ts` — all built, all read in full for this design). Everything
 > here is prescriptive and self-contained: a builder with ONLY this doc set + the orbweaver law
-> docs (AGENTS-1/2/3, `core/Spine-Identity-and-Auth.md`, the domain docs it cites) can build the
+> docs (AGENTS-1/2/3, `docs/law/Spine-Identity-and-Auth.md`, the domain docs it cites) can build the
 > whole system. Every decision carries its WHY + the rejected alternative; every lean carries a
 > committed default + the criterion that finalizes it.
 

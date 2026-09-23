@@ -27,7 +27,7 @@ A consumer-named schema file hides its real producer (the port-from-neo antipatt
 
 ## Cross-tier composition (who reads `db`)
 
-`@orb/db`'s declared deps are only `kit` + `contracts` — a `db→server` import is impossible at resolve-time. **The line is OWNERSHIP, not slot**: a domain touches the tables IT owns, and reaches another domain's DATA through an injected op (AGENTS §2 — cross-feature dependency is never a sideways import). Ownership is read off the schema layout: `schema/<feature>.ts` belongs to `domain/<feature>/` (producer-names-the-schema, above), with the non-domain producers mapped by the `db-structure` gate.
+`@orb/db`'s declared deps are only `kit` + `contracts` — a `db→server` import is impossible at resolve-time. **The line is OWNERSHIP, not slot**: a domain touches the tables IT owns, and reaches another domain's DATA through an injected op (Constitution.md §2 — cross-feature dependency is never a sideways import). Ownership is read off the schema layout: `schema/<feature>.ts` belongs to `domain/<feature>/` (producer-names-the-schema, above), with the non-domain producers mapped by the `db-structure` gate.
 
 Four sanctioned consumer patterns, all downward:
 
@@ -123,7 +123,7 @@ reds (regime 2, step 5).
 
 Enforcement of that regime was the `baseline-single-migration` gate (exactly one `.sql`, exactly one
 journal entry) and its runtime twin `DB_LAUNCHED` in `entry/boot/migrate.ts`. The gate is DELETED (its row
-is in `../history/Core-Enforcement-Deferred-Dropped.md` §"Retired"); the constant is `true`.
+is in `../architecture/history/Core-Enforcement-Deferred-Dropped.md` §"Retired"); the constant is `true`.
 
 ### Regime 2 — POST-LAUNCH (TODAY, since 2026-09-18): forward-only incremental migrations
 

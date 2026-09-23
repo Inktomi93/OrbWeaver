@@ -1,4 +1,4 @@
-// transport/trpc/routers/world-info — the books/entries + scope-junction surface (core/Tier-4-Transport.md).
+// transport/trpc/routers/world-info — the books/entries + scope-junction surface (docs/law/Tier-4-Transport.md).
 // authed; owner-scoped. Thin: validate → `ctx.services.worldInfo.<verb>` → map errors. Input shapes + the
 // `role` axis derive from `@orb/contracts/world-info`. The chat-attachment scope is MEMBERSHIP-scoped (D18):
 // the verb's own injected chat guard rules — attach/detach are host-gated (room-wide prompt content), list is

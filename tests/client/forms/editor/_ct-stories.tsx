@@ -1,4 +1,4 @@
-// `_ct-stories.tsx` — the forms-mirror CT story module (core/Spine-Testing.md §7: CT only mounts from a
+// `_ct-stories.tsx` — the forms-mirror CT story module (docs/law/Spine-Testing.md §7: CT only mounts from a
 // NON-test module). Holds the stories the sibling CTs mount: the shared `AutosaveStatus` affordance, the
 // button-gated `createSavedEntityForm` draft-mirror scenarios, and the D78 session-boundary
 // `createAutosaveEntityForm` regressions (CT-1..6, autosave-form-doctrine.md §10 — see the divider below).

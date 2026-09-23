@@ -1,4 +1,4 @@
-// BackgroundSourceField CT fixture (core/Spine-Testing.md §7 — CT mounts ONLY from a non-test module):
+// BackgroundSourceField CT fixture (docs/law/Spine-Testing.md §7 — CT mounts ONLY from a non-test module):
 // the shared picker over the data layer, with the discrete `onChange` value echoed into an <output> so
 // the CT asserts the FULL ThemeBackground each tap yields (the call sites mutate with exactly this value).
 

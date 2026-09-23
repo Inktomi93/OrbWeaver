@@ -1,5 +1,5 @@
 // The isolated-stage flag family, spread into ops/flags.ts's one dispatch table. Split out when that
-// table crossed the tooling line cap (docs/architecture/core/Core-Tooling-Law.md §4.3) — one ops/ file per command
+// table crossed the tooling line cap (docs/law/Core-Tooling-Law.md §4.3) — one ops/ file per command
 // family, and these seven flags are all about ONE subsystem: which source the stage serves
 // (--isolated/--ref/--fresh/--dirty) and the three admin modes that print and exit
 // (--stage-status/--stage-down/--stage-sweep, mutually exclusive — enforced in ops/parse.ts).

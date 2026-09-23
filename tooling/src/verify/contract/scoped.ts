@@ -1,6 +1,6 @@
 // Result shapes for the non-gate verify verbs: the SCOPED policy run and its selector, the db
 // schema-vs-baseline reconcile, the client boot-chunk ratchet, and the committed-ledger freshness
-// stage. Homed here per the five-slot type law (docs/architecture/core/Core-Tooling-Law.md §2.5).
+// stage. Homed here per the five-slot type law (docs/law/Core-Tooling-Law.md §2.5).
 import type { AnySQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
 import type { GatePolicy } from "./policy.ts";
 import type { PolicyPassResult } from "./policy-pass.ts";

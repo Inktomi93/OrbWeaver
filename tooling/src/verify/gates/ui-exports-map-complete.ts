@@ -67,7 +67,7 @@ const UI_SOURCE = `${UI_PACKAGE}/src`;
 const UI_MANIFEST = `${UI_PACKAGE}/package.json`;
 const INDEX = "index.ts";
 const MESSAGE =
-  "the @orb/ui exports map does not match the module tree (core/ui-package-design.md) — every module needs its exact export, every family member needs index.ts, and every export target must exist.";
+  "the @orb/ui exports map does not match the module tree (docs/law/ui-package-design.md) — every module needs its exact export, every family member needs index.ts, and every export target must exist.";
 
 interface ModuleDir {
   readonly key: string;
@@ -143,7 +143,7 @@ function reportModuleProblems(ctx: GatePolicyContext, entries: readonly Resource
       ctx.report.file(module.directoryPath, {
         line: 1,
         column: 1,
-        message: `${module.directoryPath} has no ${INDEX}; it has no exportable front door (core/ui-package-design.md).`,
+        message: `${module.directoryPath} has no ${INDEX}; it has no exportable front door (docs/law/ui-package-design.md).`,
       });
       continue;
     }
@@ -153,7 +153,7 @@ function reportModuleProblems(ctx: GatePolicyContext, entries: readonly Resource
       ctx.report.file(module.indexPath, {
         line: 1,
         column: 1,
-        message: `${UI_MANIFEST} exports has ${detail} for ${JSON.stringify(module.key)} (core/ui-package-design.md).`,
+        message: `${UI_MANIFEST} exports has ${detail} for ${JSON.stringify(module.key)} (docs/law/ui-package-design.md).`,
       });
     }
   }
@@ -171,7 +171,7 @@ function reportDeadTargets(ctx: GatePolicyContext, entries: readonly ResourceTre
       ctx.report.file(UI_MANIFEST, {
         line: 1,
         column: 1,
-        message: `exports entry ${JSON.stringify(key)} points at ${JSON.stringify(target)}, which is not a package-relative "./" specifier and resolves to nothing this package owns (core/ui-package-design.md).`,
+        message: `exports entry ${JSON.stringify(key)} points at ${JSON.stringify(target)}, which is not a package-relative "./" specifier and resolves to nothing this package owns (docs/law/ui-package-design.md).`,
       });
       continue;
     }
@@ -179,7 +179,7 @@ function reportDeadTargets(ctx: GatePolicyContext, entries: readonly ResourceTre
       ctx.report.file(UI_MANIFEST, {
         line: 1,
         column: 1,
-        message: `exports entry ${JSON.stringify(key)} points at ${JSON.stringify(target)}, which does not exist (core/ui-package-design.md).`,
+        message: `exports entry ${JSON.stringify(key)} points at ${JSON.stringify(target)}, which does not exist (docs/law/ui-package-design.md).`,
       });
     }
   }

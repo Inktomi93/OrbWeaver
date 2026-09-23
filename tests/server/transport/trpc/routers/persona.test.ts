@@ -1,4 +1,4 @@
-// persona.setActivePersona — the PD-99 wire-through (core/Tier-4-Transport.md). The router is a THIN
+// persona.setActivePersona — the PD-99 wire-through (docs/law/Tier-4-Transport.md). The router is a THIN
 // driver: validate the branded-id triple (personaId NULLABLE — null clears the slot) → delegate to
 // `ctx.services.persona.setActivePersona` with `principal = ctx.auth` (the verb owns the host-or-self
 // gate + the owner-scoped persona existence check). Driven through the real ladder via `createCaller`.

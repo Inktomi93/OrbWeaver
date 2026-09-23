@@ -1,4 +1,4 @@
-// Policy: no-inline-union-redecl (core/Spine-TypeScript-and-Patterns.md §7.5) — a string-union AXIS is
+// Policy: no-inline-union-redecl (docs/law/Spine-TypeScript-and-Patterns.md §7.5) — a string-union AXIS is
 // declared ONCE as an `as const` tuple and the union derived; never re-spelled. Two arms, one authority:
 // (A) an inline string-literal union TYPE ALIAS of ≥3 members. (B) any inline string-literal SET — a union
 // in a property/return/argument position, or a `z.enum([...])` array — whose members EXACTLY equal a

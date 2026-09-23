@@ -15,7 +15,7 @@ updated: 2026-08-22
 Codex subscription ENDED (not renewing); Claude is the sole agent system. The 2026-08-21 fix train
 (board #382-#387, all Done) merged and its drain `pnpm check` is GREEN on main; the behavioral
 battery run was aborted for load and is OWED. Since then merged: #390 host-seat unique index
-pending-merge check, #393 P0 design doc (`docs/architecture/core/Core-Tooling-Law.md` — the tooling-package
+pending-merge check, #393 P0 design doc (`docs/law/Core-Tooling-Law.md` — the tooling-package
 program, owner review of its four open questions PENDING), #395 kit/time on Temporal (luxon residual
 \= `{{datetimeformat}}` vocabulary, documented in macro/registry.ts header).
 
@@ -74,7 +74,7 @@ whole-tree check, then P2 snap pilot in-lane); stryker-v10 calibration (agent a5
 watching sv10-calib.log for EXIT — its report brings score + recommended `break` as commit 2, then
 orchestrator merges #394; evidence must record upstream-drafts-stay-local posture). Queued Ready:
 \#388 #391 #392 #398 #400 #404 #405 #406. Plan of record for the tooling program: P0 doc
-`docs/architecture/core/Core-Tooling-Law.md` (owner-APPROVED) + plan file `~/.claude/plans/jolly-churning-dove.md`
+`docs/law/Core-Tooling-Law.md` (owner-APPROVED) + plan file `~/.claude/plans/jolly-churning-dove.md`
 (P0-P9). Untracked residue (3 side-eye docs + .codex/config.toml) = #400's scope, leave in place.
 
 VACATION POSTURE (2026-08-22 → owner returns; supersedes earlier deltas): OVERNIGHT MODE IS STANDING
@@ -109,7 +109,7 @@ hold durable law, programs, evidence, and history.
 | Need | One home |
 | - | - |
 | Mutable status, priority, dependencies, lane, review, evidence | [Project 1](https://github.com/users/Inktomi93/projects/1) + its issues |
-| Architecture and standing product rulings | `docs/architecture/core/` and the D-ledger |
+| Architecture and standing product rulings | `docs/law/` and the D-ledger |
 | Agent delegation, worktree, merge, and overnight process | `.claude/rules/orchestration.md` (root `AGENTS.md` imports every Claude Markdown rule for Codex) |
 | Committed future programs | `docs/architecture/proposed/INDEX.md` + one Project sprint issue per program |
 | Re-derived reviews and reports | `docs/reviews/`, routed to a Work, Decision, or Program issue |

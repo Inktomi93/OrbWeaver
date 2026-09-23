@@ -3,7 +3,7 @@
 // could and could not honestly cover.
 //
 // The window/honesty ENGINE is `@orb/kit/evidence-window`, shared with the server half so the two can never
-// disagree about what "~5 minutes ago" covers (AGENTS §1 engine-vs-data). This module owns only the CLIENT
+// disagree about what "~5 minutes ago" covers (Constitution.md §1 engine-vs-data). This module owns only the CLIENT
 // data: which `__orb` read feeds which slice, and on which clock.
 //
 // Deliberately reader-injected and DOM-free (the `client-error-report.ts` posture): the component passes the

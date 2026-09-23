@@ -20,7 +20,7 @@
 // `motion-animation-record.ts`; the surface label stays here because layout shifts and animation records
 // share it. `[frame]`/`[input]`/`[reflow]` EMIT
 // from `long-task-tracer.ts`, but the FRAMES they judge come from the one observer installed here
-// (`subscribeLongAnimationFrames`). One emitter per signal (AGENTS §3); one OBSERVER per entry type is
+// (`subscribeLongAnimationFrames`). One emitter per signal (Constitution.md §3); one OBSERVER per entry type is
 // the same rule one level down — until P7 this file and the tracer each ran their own.
 //
 // TWO TOTALS, AND THIS IS THE POINT. The Layout Instability spec zeroes `hadRecentInput` shifts

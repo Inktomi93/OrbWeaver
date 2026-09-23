@@ -6,7 +6,7 @@ updated: 2026-09-22
 
 # `@orb/tooling` — tooling-tree law
 
-> The detail home for the tooling tree. `Core-0-Architecture-and-Structure.md` §9 is the summary and the entry point; this doc owns the roster, the plumbing floor, the per-gate contracts, the coupled-site census, and the move playbook. Gate authoring starts at `../../design/gate-runtime-read-first.md`; `../../../tooling/src/verify/gates/GATE-AUTHORING.md` is the final authoring guide and links the verbatim legacy archive. Live gate catalog: `Core-Enforcement-Active-Gates.md`. The research zone's roster: `../../../scripts/README.md`.
+> The detail home for the tooling tree. `Core-0-Architecture-and-Structure.md` §9 is the summary and the entry point; this doc owns the roster, the plumbing floor, the per-gate contracts, the coupled-site census, and the move playbook. Gate authoring starts at `../design/gate-runtime-read-first.md`; `../../tooling/src/verify/gates/GATE-AUTHORING.md` is the final authoring guide and links the verbatim legacy archive. Live gate catalog: `Core-Enforcement-Active-Gates.md`. The research zone's roster: `../../scripts/README.md`.
 
 ## 1. Standing rulings (owner — do not relitigate)
 
@@ -146,7 +146,7 @@ Playwright/Chromium/DevTools is one generated-tuple change and owes the planted 
 
 Explicitly throwaway probes, one-shot lenses, launcher shims, operator scripts. KISS/YAGNI apply there and only there. It MAY import `@orb/tooling` — the one-way glass is against `packages/**`, never against the research zone. It keeps its blanket biome relaxations and knip entry globs.
 
-**Research retention rationale lives in `../../../scripts/README.md`.** A research implementation that becomes load-bearing for verification is PROMOTED into `tooling/src/<tool>/` under the template, original deleted, never a compat stub. The process-adapter boundary in §2.6 is distinct from research promotion; it does not exempt launchers from their compiler, lint or behavioral checks.
+**Research retention rationale lives in `../../scripts/README.md`.** A research implementation that becomes load-bearing for verification is PROMOTED into `tooling/src/<tool>/` under the template, original deleted, never a compat stub. The process-adapter boundary in §2.6 is distinct from research promotion; it does not exempt launchers from their compiler, lint or behavioral checks.
 
 ### 2.8 In-app sensors do NOT move
 
@@ -211,7 +211,7 @@ Worked precedents for step 3: `no-raw-clock` was FENCED with a `mustPass` row (t
 
 ## 4. Enforcement
 
-The live roster derives from the loader. Final policies follow `../../design/gate-runtime-standardization.md` and the final `../../../tooling/src/verify/gates/GATE-AUTHORING.md`; legacy descriptor maintenance uses that guide’s verbatim archive. **Live violations found at any landing are FIXED in that lane** — no debt baselines are minted for tooling.
+The live roster derives from the loader. Final policies follow `../design/gate-runtime-standardization.md` and the final `../../tooling/src/verify/gates/GATE-AUTHORING.md`; legacy descriptor maintenance uses that guide’s verbatim archive. **Live violations found at any landing are FIXED in that lane** — no debt baselines are minted for tooling.
 
 ### 4.1 `tooling-slot-template`
 
@@ -360,7 +360,7 @@ Type assertions use the type-test kinds defined by `tooling/src/_shared/test-kin
 
 The scoped lane floor and shared-host scheduling live in the `lane` skill
 (`.claude/skills/lane/SKILL.md`), sections “Running tools” and “Floor”. Gate-program integration
-follows `../../design/gate-runtime-orchestrator-playbook.md`; a lane must not launch whole-tree checks
+follows `../design/gate-runtime-orchestrator-playbook.md`; a lane must not launch whole-tree checks
 alongside the integration train.
 
 Run scoped Biome and ESLint, the behavioral suites for the changed contract, and every affected native

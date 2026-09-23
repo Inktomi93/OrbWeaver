@@ -1,6 +1,6 @@
 // Policy: density-tier — every density-law occurrence in `packages/{client,ui}/src` is either licensed by
 // an exact reviewed grant naming its FILE and the ACT it performs, or a finding with no door
-// (docs/architecture/core/UI-Density-Law.md §5.1). There is no third state and no path is subtracted.
+// (docs/law/UI-Density-Law.md §5.1). There is no third state and no path is subtracted.
 //
 // FOUR ARMS, one authority, one verdict per `(file, act)`:
 //   A1 elevated-radius — `rounded-card` at a class-string site. The ELEVATED family D6 rules it correct for
@@ -122,7 +122,7 @@ import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
 import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
 
 const MESSAGE =
-  "density-tier violation (docs/architecture/core/UI-Density-Law.md §3/§5.1): `rounded-card` outside the " +
+  "density-tier violation (docs/law/UI-Density-Law.md §3/§5.1): `rounded-card` outside the " +
   "ELEVATED family (D6 — it is the floating-island step: modal/popover/drawer/toast/composer/chat bubble), " +
   "a border+radius+background box nested inside another one (CD2 — one box deep, maximum), a feature " +
   "passing the @orb/ui-internal type axes instead of `voice` (§2.3), or a second writer of " +

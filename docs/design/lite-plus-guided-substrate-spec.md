@@ -830,7 +830,7 @@ battery on the quiesced tree; artifacts read from `reports/`, never re-run.
   baseline regen + integrity fixtures + `seed:demo`.
 - **New ids**: `ID_PREFIX` entries + brand exports + (used-by) `typeIdSchema` mints.
 - **New domain**: domain dir (8-slot) + compose block + `services.ts` wiring + contracts barrel +
-  the AGENTS.md §6 additive-domains line + a workboard row + knip/ast liveness sweep.
+  the Constitution.md §6 additive-domains line + a workboard row + knip/ast liveness sweep.
 - **New tools**: compose registration + the MODE_POLICY tuple + the projection tests + the
   05-§3-style count note in `contract/tools.ts`'s header (the count home convention).
 - **New bus**: contract union + satisfies-belt + coverage-gate arm + client channel + invalidation

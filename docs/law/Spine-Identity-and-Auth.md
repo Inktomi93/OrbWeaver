@@ -6,7 +6,7 @@ updated: 2026-08-30
 
 # Orbweaver — Spine: Identity, Auth, and Permission
 
-Canonical doc for spine §7.1 (`AGENTS.md` §5 points here), and THE permissions-model page (D121 clause B): §1–§2b are the mechanics, §2c–§2e are the model a reviewer reasons from. Agent-principal detail: ledger D60 is the DESIGN of record; §4 states what is actually on the tree.
+Canonical doc for spine §7.1 (`Constitution.md` §5 points here), and THE permissions-model page (D121 clause B): §1–§2b are the mechanics, §2c–§2e are the model a reviewer reasons from. Agent-principal detail: ledger D60 is the DESIGN of record; §4 states what is actually on the tree.
 
 ## 1. Resolution — one pipeline, one mint
 
@@ -117,7 +117,7 @@ The sanctioned `Principal`/credential construction + cookie sites — everything
 - **What IS on the tree (the reserved seams):** `USER_KINDS` carries `agent` as a tuple member (never an `isAgent` boolean) and the `users_agent_shape` CHECK makes an agent row loginless/`role='user'`/owned BY DDL (`packages/db/src/schema/users.ts`); `chat_participants_kind_shape` carries the dormant `agent` (userId-backed) and `observer` (both-null) arms (`packages/db/src/schema/chat.ts`); `rosterMemberSpecSchema` documents where those arms graft back; the deny SEAM is pre-named in `admin/guard.ts` + `chat/guard.ts`. Every live `Principal` is human.
 - **COMMITTED (not yet built) — the capability factor re-lands with the seat wave:** the agent ceiling (a `canAgent` successor over a CLOSED action union, decided at the kernel) + its containment suite + `ChatMembership` widening to carry `kind` (the construction sites are the compile-forced update set — `decide.ts`, `chat/guard.ts`, `resolve-stream-authority.ts`, the tool-use ceiling check). Until then, buddy's borrowed-owner posture (D17) is the shipping posture.
 - **The constraint the seat wave inherits (D121 clause A, the agents rider):** chat tools execute under the HOST principal, so an agent initiator would otherwise inherit the host's full tool ceiling. It never does — **an initiator's ceiling derives from its OWN capability factor at the point of initiation, never by inheritance through a turn's execution context.**
-- Design of record: ledger D60 + the agent-principal design set parked in `../proposed/` (see its `INDEX.md`) — a parked set is not quotable as build authority, and D60 describes the DESIGN, not the tree.
+- Design of record: ledger D60 + the agent-principal design set parked in `../architecture/proposed/` (see its `INDEX.md`) — a parked set is not quotable as build authority, and D60 describes the DESIGN, not the tree.
 
 ## BFF session ≠ SDK chat session
 
@@ -125,7 +125,7 @@ Two unrelated concepts sharing a word: the BFF browser session (`sessions` table
 
 ## Persona — three axes, three homes
 
-The human principal's presentation identity (map: `AGENTS.md` §6):
+The human principal's presentation identity (map: `Constitution.md` §6):
 
 | Axis | Home | Meaning |
 | - | - | - |

@@ -6,7 +6,7 @@
 // the flattened pages — then sees only the window, so a match on row 200 is invisible while the list claims
 // to be searchable. The three fixes all DELETED the cap (a virtualized list is already DOM-bounded and
 // summary rows are light) and moved the lens SERVER-side onto the keyset, which is the standing law in
-// `docs/architecture/core/client-architecture-lockdown.md`: a paged list's search/sort/filter is a WIRE
+// `docs/law/client-architecture-lockdown.md`: a paged list's search/sort/filter is a WIRE
 // param, and the sort IS the keyset key.
 //
 // EXTINCT AT LANDING, DELIBERATELY, AND STILL EXTINCT AT CONVERSION. Re-derived 2026-09-12: zero `maxPages`
@@ -98,7 +98,7 @@ const MESSAGE =
   "`maxPages` WINDOWS an infinite query's cache, and this surface cannot survive the window: with no recoverable `getPreviousPageParam` the evicted HEAD page can never be re-fetched (rows disappear off the top as the user scrolls — the 2026-08-13 dogfood P1 on the character library, and the same shape in databank and the chat list), and any CLIENT-SIDE lens over the flattened pages silently searches only the window. All three live surfaces answered this by DELETING the cap. (client-architecture-lockdown.md)";
 
 const FIX =
-  "delete `maxPages` — a virtualized list is already DOM-bounded and summary rows are light — and push the lens SERVER-side onto the keyset (search/sort/filter as wire params; the sort IS the keyset key, docs/architecture/core/client-architecture-lockdown.md). The worked shapes are packages/client/src/features/character/surfaces/character-library-surface.tsx and packages/client/src/features/databank/surfaces/databank-library-surface.tsx, whose headers record the removal and why. A deliberate window waives that occurrence with `@orb-waive windowed-infinite-query(maxPages): <reason + end condition>` — the position is the cap's own PROPERTY NAME, `maxPages`, because the finding anchors on the property assignment and BOTH arms now share it.";
+  "delete `maxPages` — a virtualized list is already DOM-bounded and summary rows are light — and push the lens SERVER-side onto the keyset (search/sort/filter as wire params; the sort IS the keyset key, docs/law/client-architecture-lockdown.md). The worked shapes are packages/client/src/features/character/surfaces/character-library-surface.tsx and packages/client/src/features/databank/surfaces/databank-library-surface.tsx, whose headers record the removal and why. A deliberate window waives that occurrence with `@orb-waive windowed-infinite-query(maxPages): <reason + end condition>` — the position is the cap's own PROPERTY NAME, `maxPages`, because the finding anchors on the property assignment and BOTH arms now share it.";
 
 /** The property named `name` on this object literal, if it is one. */
 function propertyOf(object: MorphNode | undefined, name: string): MorphNode | undefined {

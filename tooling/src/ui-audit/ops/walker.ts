@@ -131,7 +131,7 @@ ${WALKER_MUTATION_CARRIES}  var preWalkObserver = new MutationObserver(function 
 // INITIALIZED before WALKER_CENSUS_DECOR and WALKER_CENSUS_GLOW read it — the exact "var hoists
 // UNDEFINED" ordering rule stated above. The pair is TWO files because state-paint.ts reached the
 // `tooling-size` cap and the glow vocabulary was its one self-contained third (#2494,
-// docs/architecture/core/Core-Tooling-Law.md §4.3); the composition order makes that split free, as for
+// docs/law/Core-Tooling-Law.md §4.3); the composition order makes that split free, as for
 // WALKER_OBSCURED_REACH above.
 export const COLLECT_SAMPLES_JS = `(async () => {
 ${PRE_WALK_SETTLE}${WALKER_CORE}${WALKER_CENSUS_FRAME}${WALKER_TARGET_IDENTITY}${WALKER_RESOLVE}${WALKER_STATE_PAINT}${WALKER_STATE_GLOW}${WALKER_CENSUS_TEXT}${WALKER_HIT_EXTENT}${WALKER_ACCESSIBLE_NAME}${WALKER_CENSUS_INTERACTIVE}${WALKER_CENSUS_INTERACTIVE_NAVIGABILITY}${WALKER_CENSUS_BORDER}${WALKER_CENSUS_DECOR}${WALKER_CENSUS_ACCENT}${WALKER_CENSUS_GLOW}${WALKER_CENSUS_QUALITY}${WALKER_CENSUS_COLLISION}${WALKER_OBSCURED_REACH}${WALKER_CENSUS_OCCLUSION}${WALKER_CENSUS_COHORT}${WALKER_CENSUS_SELECTION}${WALKER_CENSUS_REGION}${WALKER_CENSUS_TIER}${WALKER_CENSUS_GRID}${WALKER_RETURNS}})()`;

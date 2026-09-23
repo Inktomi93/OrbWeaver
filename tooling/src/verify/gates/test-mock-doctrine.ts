@@ -1,4 +1,4 @@
-// core/Spine-Testing.md §3 — `vi.mock` is banned for INTERNAL modules; it is legitimate only for an
+// docs/law/Spine-Testing.md §3 — `vi.mock` is banned for INTERNAL modules; it is legitimate only for an
 // unavoidable third-party node edge, and fakes belong at the composition root. Two identities, both
 // canonical: the mocker is Vitest's `vi` resolved through the shared module-origin reader (a local object
 // named `vi` is not it, and `vi["mock"]` is the same call), and the TARGET is read through the shared
@@ -31,7 +31,7 @@ const VITEST_MODULE = "vitest";
 const MOCK_MEMBERS = new Set(["mock", "doMock"]);
 const INTERNAL_PREFIXES = [".", "packages/", "@orb/", "#"];
 
-const MESSAGE = "vi.mock on an internal module — fake at the edges, inject at the composition root (core/Spine-Testing.md §3).";
+const MESSAGE = "vi.mock on an internal module — fake at the edges, inject at the composition root (docs/law/Spine-Testing.md §3).";
 
 const FIX =
   "inject the fake at the composition root; vi.mock is legal only for an unavoidable third-party node edge. " +

@@ -6,7 +6,7 @@ updated: 2026-08-22
 
 # Orbweaver — Spine: Config, Settings, and Serialization
 
-Canonical doc for spine §7.2 (settings/config) and §7.3 (serialization) — `AGENTS.md` §5 points here. BUILT — current law.
+Canonical doc for spine §7.2 (settings/config) and §7.3 (serialization) — `Constitution.md` §5 points here. BUILT — current law.
 
 ## Settings / config / the env FOUR natures (spine §7.2)
 

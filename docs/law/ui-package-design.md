@@ -12,13 +12,13 @@ updated: 2026-09-18
 > **AS-BUILT LAW.** `@orb/ui` is fully built (`packages/ui/src` is the inventory;
 > `packages/ui/package.json#exports` is the public surface); the §6.2 client factories are built too
 > (`packages/client/src/{forms,data,state}`). The frontend cake leaf (`kit ← contracts ← ui ← client`,
-> D42). **The law this doc executes is `core/UI-*.md` + ledger D42/D43/D44/D52/D54/D58/D62/D66; those
+> D42). **The law this doc executes is `docs/law/UI-*.md` + ledger D42/D43/D44/D52/D54/D58/D62/D66; those
 > win on any conflict.** This doc owns the concrete package decisions the law leaves open + the factory
 > inventory with homes/signatures/obligations. **For anything built, the code is the doc**
 > (`packages/ui/src` + the CT suite) — this doc carries only the cross-cutting WHY. Code file headers
 > cite these §-numbers as spec provenance: the numbering is load-bearing, never renumber, never move
-> this file. The structural contract graduated to `core/UI-Primitives-and-Reuse.md` §13.7–§13.9. The
-> build journey + resolved deltas: `../history/ui-package-design-archaeology-record.md`.
+> this file. The structural contract graduated to `docs/law/UI-Primitives-and-Reuse.md` §13.7–§13.9. The
+> build journey + resolved deltas: `../architecture/history/ui-package-design-archaeology-record.md`.
 
 ## 1. Position in the cake + the physics
 
@@ -296,13 +296,13 @@ entry importing `@orb/ui/styles/globals.css` so token utilities resolve in-brows
 Built green-to-commit per chunk in waves 0 (scaffold) → 1 (pure primitives) → 2 (security trio +
 markdown) → 3 (the display/form gap), then the un-parked carve-out (message-list · stream · command ·
 sortable · charts · macro-textarea + the carve-out set) and the §6.2 client factories. All done
-(2026-07). The wave contents + checkpoints: `../history/ui-package-design-archaeology-record.md`.
+(2026-07). The wave contents + checkpoints: `../architecture/history/ui-package-design-archaeology-record.md`.
 Standing bar for any NEW primitive is §13, not this wave list.
 
 ## 10. Recorded deltas (live WHYs; the resolved list is history)
 
 The build's decision-level deltas were resolved and moved to
-`../history/ui-package-design-archaeology-record.md`. Two WHYs stay live because they still constrain
+`../architecture/history/ui-package-design-archaeology-record.md`. Two WHYs stay live because they still constrain
 the code:
 
 - **`Meter` is a HYBRID over Base UI's `meter`:** `Meter.Root` supplies the a11y shell (`role="meter"`
@@ -322,13 +322,13 @@ of `markdown/policy.ts` — no doc copy needed.
 ## 11. Gate coverage — the active-gate registry is the truth
 
 The LIVE gate set (which grit/dep-cruiser/`tooling/src/verify/gates` rules are wired) is standing law in
-`../core/Core-Enforcement-Active-Gates.md` — read it there, not here (one home). The load-bearing
+`Core-Enforcement-Active-Gates.md` — read it there, not here (one home). The load-bearing
 ui-side belts: the cake/seal rules of §8; the `no-raw-value` token family widened to `packages/ui/src`
 
 - `tv()` arms; `design-token-parity` is SUPERSEDED-BY-CONSTRUCTION (the §4 codegen + freshness test);
   `touch-target-floor` is ◐ PARTIAL (token floor test-locked; the per-pointer per-component check rides
   the design-audit probe, D62 P1). The dated 2026-07-02 coverage audit ("nothing wired is dark") is
-  `../history/ui-package-design-archaeology-record.md`.
+  `../architecture/history/ui-package-design-archaeology-record.md`.
 
 ## 12. Neo-parity primitive coverage — DONE
 
@@ -340,7 +340,7 @@ referenced by ≥1 committed design; domain components live in `client/features`
 pattern (chat-crew 07) is a FEATURE over `@orb/ui/diff`, not a ui primitive; `weave-glyph` is
 app-level (`client/src/components/weave-glyph.tsx`, §13.9) and enters through the `#components`
 public door. The derivation table + the deliberately-excluded
-list (`resizable`/`sheet`/`label`/…) are in `../history/ui-package-design-archaeology-record.md`.
+list (`resizable`/`sheet`/`label`/…) are in `../architecture/history/ui-package-design-archaeology-record.md`.
 
 ## 13. Primitive authoring rules (the recurring-mistake gates — BINDING)
 

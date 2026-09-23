@@ -81,7 +81,7 @@ export function createBackfillAvatars(ctx: AssetsContext): AssetsService["backfi
 
     if (links.length > 0) {
       // The pointer write is CHARACTER's (`characters.avatarAssetId`) — delegated through the injected
-      // owning-domain op, never an assets-side UPDATE (AGENTS §2; Tier-1-DB.md §"Cross-tier composition").
+      // owning-domain op, never an assets-side UPDATE (Constitution.md §2; Tier-1-DB.md §"Cross-tier composition").
       await ctx.linkCharacterAvatars({ ownerId, links });
     }
     return { scanned: cards.length, linked: links.length, mismatched, dryRun: false };

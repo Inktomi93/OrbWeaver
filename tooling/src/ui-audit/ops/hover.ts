@@ -56,7 +56,7 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
  *  walker.ts exports that fragment separately. WALKER_STATE_PAINT + WALKER_STATE_GLOW sit after RESOLVE,
  *  in that order, and before the census halves — the same var-initialization ordering COLLECT_SAMPLES_JS
  *  obeys, and the glow half is what this pass's forced glow read calls (a SIBLING file since #2494, because
- *  state-paint.ts reached the `tooling-size` cap; docs/architecture/core/Core-Tooling-Law.md §4.3) — and
+ *  state-paint.ts reached the `tooling-size` cap; docs/law/Core-Tooling-Law.md §4.3) — and
  *  WALKER_GROUP_VARIANT (#1084) sits between them: it READS state-paint's strippers and is composed
  *  ONLY here, because the main walk builds no state pairs and would carry the bytes for nothing.
  *  The census itself is THREE segments in strict order — rules+pairs (HOVER_CENSUS), the denominator +

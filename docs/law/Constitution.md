@@ -25,7 +25,7 @@ reading router. Read only the docs the router names for your task.
 - An engine is pure and lives in `kit`. The data it runs on lives in a domain. One engine gives every caller the same behavior.
 - A table without an `ownerId` is still scoped. Scope comes from the Principal through the FK chain to the root row.
 - Walk that chain before you report missing scope (`Spine-Identity-and-Auth.md` §2b).
-- Parked design sets live in `../proposed/`. `../proposed/INDEX.md` maps each one to its program.
+- Parked design sets live in `../architecture/proposed/`. `../architecture/proposed/INDEX.md` maps each one to its program.
 
 ## 2. One-directional flow
 
@@ -37,7 +37,7 @@ states is not enforced. Detail: `Core-0-Architecture-and-Structure.md` §2–§3
 
 Root `AGENTS.md` "Where code goes" owns the placement table. The full outcome table and the partitioning
 rule are in `Core-0-Architecture-and-Structure.md` §6. Look up which word names a concept in
-`../../design/vocabulary-map.md`; never decide it locally.
+`../design/vocabulary-map.md`; never decide it locally.
 
 ## 4. Build and verify
 
@@ -107,7 +107,7 @@ Each domain lives at `packages/server/src/domain/<name>/` and follows the folder
 ### Participants, agents and identity
 
 Read `Spine-Identity-and-Auth.md`. Agent principals are designed but not built; the design set is parked
-in `../proposed/`.
+in `../architecture/proposed/`.
 
 ### Knowledge and derived data
 
@@ -126,11 +126,11 @@ exports map has one entry, so no domain can reach a backend.
 | Topic | Home |
 | - | - |
 | Packages, server tiers, the domain template, partitioning, the legibility gates | `Core-0-Architecture-and-Structure.md` |
-| The tooling tree above the packages | `Core-0-Architecture-and-Structure.md` §9, then `Core-Tooling-Law.md`, `../../../scripts/README.md` |
-| The decision ledger | `../../adr/README.md` (one decision per file) |
+| The tooling tree above the packages | `Core-0-Architecture-and-Structure.md` §9, then `Core-Tooling-Law.md`, `../../scripts/README.md` |
+| The decision ledger | `../adr/README.md` (one decision per file) |
 | Active gates | `Core-Enforcement-Active-Gates.md` |
-| Writing a gate | `../../design/gate-runtime-read-first.md`, then `../../../tooling/src/verify/gates/GATE-AUTHORING.md` |
-| Writing a ui-audit rule | `../../../tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md` |
+| Writing a gate | `../design/gate-runtime-read-first.md`, then `../../tooling/src/verify/gates/GATE-AUTHORING.md` |
+| Writing a ui-audit rule | `../../tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md` |
 | Planning and checklists | `Core-Planning-and-Checklists.md` |
 | Verification design and report layout | `UNIFIED-VERIFICATION-DESIGN.md` |
 | Server tier law | `Tier-1-DB.md`, `Tier-2-Foundation.md`, `Tier-3-Infra.md`, `Tier-3b-Providers.md`, `Tier-4-Transport.md`, `Tier-5-Entry.md` |
@@ -139,9 +139,9 @@ exports map has one entry, so no domain can reach a backend.
 | Legacy migration and SillyTavern parity | `Core-Legacy-Migration-and-Gaps.md`, `Core-SillyTavern-Feature-Map.md` |
 | Open debt | `Core-Audits-and-Debt.md` |
 | Docs and comments | `.claude/rules/writing.md`, `.claude/rules/comments.md`, `.claude/rules/docs.md` |
-| Which word names a concept | `../../design/vocabulary-map.md` |
-| Mission | `../../Mission.md` |
-| Resolved history (reference only) | `../history/` |
+| Which word names a concept | `../design/vocabulary-map.md` |
+| Mission | `../Mission.md` |
+| Resolved history (reference only) | `../architecture/history/` |
 
 ## L. Lane discipline
 

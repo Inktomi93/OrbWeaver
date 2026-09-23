@@ -1,4 +1,4 @@
-// transport/trpc/routers/settings — the user + app settings surface (core/Tier-4-Transport.md). UserSettings
+// transport/trpc/routers/settings — the user + app settings surface (docs/law/Tier-4-Transport.md). UserSettings
 // verbs are authed (owner-scoped by `principal.userId`); AppSettings + the raw global-KV verbs are
 // admin-gated AT THE ROUTER (the verbs themselves take the bare KV pair). Thin:
 // validate → `ctx.services.settings.<verb>` → map errors. Schemas derive from `@orb/contracts/settings` +

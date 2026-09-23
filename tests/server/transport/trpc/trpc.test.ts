@@ -1,5 +1,5 @@
 // The procedure ladder — the 2-layer auth gates + the injected rate-limit seam, driven through the real
-// `appRouter` via `createCaller` (core/Tier-4-Transport.md). Proves: authedProcedure rejects anon;
+// `appRouter` via `createCaller` (docs/law/Tier-4-Transport.md). Proves: authedProcedure rejects anon;
 // adminProcedure rejects a plain user but passes owner ∪ admin (LAYER-1, no db); a representative router
 // delegates to the injected service verb with the Principal; the CSRF gate fires on cookie mutations only;
 // the injected rate-limit gate's throw maps to TOO_MANY_REQUESTS; the multi-human belt (PD-106) 404s the

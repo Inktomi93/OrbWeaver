@@ -1,4 +1,4 @@
-// Policy: tooling-child-process-door (docs/architecture/core/Core-Tooling-Law.md §4.4, arms F + F2 of the
+// Policy: tooling-child-process-door (docs/law/Core-Tooling-Law.md §4.4, arms F + F2 of the
 // retired `tooling-shared-plumbing`) — every tooling spawn rides the nice -19 homelab floor through the ONE
 // subprocess home, `_shared/proc.ts`: a `node:child_process` import anywhere else under `tooling/src/**` is a
 // raw spawn that bypasses the floor (arm F), and a call to one of the home's FULL-PRIORITY doors
@@ -57,7 +57,7 @@ const IMPORT_OPERATION = "child-process-import";
 const SPAWN_OPERATION = "full-priority-spawn";
 
 const MESSAGE =
-  "a subprocess outside the ONE home — every tooling spawn rides the nice -19 homelab floor through _shared/proc.ts (`spawnNiced`/`runNicedSync`/`spawnNicedChild`): a direct `node:child_process` import bypasses the floor, and a call to a FULL-PRIORITY door (`spawnFullPrioritySync`/`spawnFullPriorityChild`, the un-niced exceptions for a process a human waits on or that IS the workload) is licensed per caller by an exact reviewed grant, never ambient (docs/architecture/core/Core-Tooling-Law.md §4.4).";
+  "a subprocess outside the ONE home — every tooling spawn rides the nice -19 homelab floor through _shared/proc.ts (`spawnNiced`/`runNicedSync`/`spawnNicedChild`): a direct `node:child_process` import bypasses the floor, and a call to a FULL-PRIORITY door (`spawnFullPrioritySync`/`spawnFullPriorityChild`, the un-niced exceptions for a process a human waits on or that IS the workload) is licensed per caller by an exact reviewed grant, never ambient (docs/law/Core-Tooling-Law.md §4.4).";
 const UNREADABLE =
   "a call spelled like a full-priority spawn door whose callee the shared readers cannot place, so whether it is proc.ts's un-niced door CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
 const FIX =

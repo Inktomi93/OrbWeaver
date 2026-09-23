@@ -7,7 +7,7 @@
 // operator's live dev stack holds — and killing/booting it from a test would take the box down mid-run.
 // [[never-run-engine-launcher-live]] in spirit: the launcher is proven by argv/env snapshots + the pure
 // decision logic; the first real production launch is the owner's. This file's home is tests/tooling/ per
-// core/Spine-Testing.md §2 (a test of a scripts/ tool), same as snap-stage.test.ts / snap-flags.test.ts.
+// docs/law/Spine-Testing.md §2 (a test of a scripts/ tool), same as snap-stage.test.ts / snap-flags.test.ts.
 import { readFileSync } from "node:fs";
 import type { DevStackIdentity, ObservedInstance, ProdRecord } from "../../../tooling/src/stack/index.ts";
 import {
