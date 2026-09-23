@@ -59,7 +59,7 @@ test("SEARCH FIDELITY: a lone tilde keeps its grep hits, and a strikethrough run
 
 test("SEARCH FIDELITY: a backslash INSIDE a code span is literal content and survives untouched", ({ scratch }) => {
   // The de-escaping must never reach code. In a code span `\_` is a literal backslash-underscore (this is
-  // the exact spelling `Core-Docs-Formatting-Law.md` uses as its own example), so dropping it would BE the
+  // the exact spelling `.claude/rules/writing.md` uses as its own example), so dropping it would BE the
   // lossy edit. Running the rule in the `text` handler makes that unreachable by construction.
   const body = `${FRONTMATTER}Escapes in output (\`F32\\_BLOB\`, \`2\\*3\`) are the serializer's own.\n`;
 

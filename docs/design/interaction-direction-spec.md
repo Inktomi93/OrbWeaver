@@ -705,7 +705,7 @@ five-lens panel: 39 findings adjudicated, 6 structural refolds; plus the 2026-08
 lineage it superseded), `interaction-ia-placement.md` (every home above; one adversarial round,
 7 findings folded), `automation-platform-axes.md` (the platform axes born-whole audit + the
 stale-claim lens: 41 claims checked, 6 stale — every one a build-state tense from a doc or
-comment; the proposed Documentation-Law rule lives there as §7), and
+comment; the proposed documentation-law rule lives there as §7), and
 `plugin-automation-juice.md` (three fable generations; two fun-honesty passes + a completed
 two-lens law/cost round: 16 findings, twelve survivors changed; the graveyard arguments). The
 corpus was built against the full commissioned reading set (the pain inventory, the carve spec,

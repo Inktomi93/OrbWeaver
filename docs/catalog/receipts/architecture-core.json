@@ -19,10 +19,6 @@
       "authority": "historical"
     },
     {
-      "path": "docs/architecture/core/Core-Docs-Formatting-Law.md",
-      "authority": "normative"
-    },
-    {
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
       "authority": "operational"
     },
@@ -48,10 +44,6 @@
     },
     {
       "path": "docs/architecture/core/Core-Tooling-Law.md",
-      "authority": "normative"
-    },
-    {
-      "path": "docs/architecture/core/Documentation-Law.md",
       "authority": "normative"
     },
     {

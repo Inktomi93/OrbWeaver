@@ -54,7 +54,7 @@
 //        enumeration. See the TRIPWIRE at the block itself for what the pin is load-bearing for.
 //
 //  10. eslint-plugin-tsdoc — `tsdoc/syntax`, the official TSDoc parser: malformed doc comments and
-//      non-standard tags are a gate, which is how Documentation-Law's comment grammar is enforced.
+//      non-standard tags are a gate, which is how the TSDoc rules in .claude/rules/comments.md are enforced.
 //      ON for shipped source (ui/client), the typed-API packages, and tooling/src + tests/tooling.
 //
 // What we INTENTIONALLY DROP (Biome owns them, or ergonomic-only):
@@ -315,7 +315,7 @@ const ASYNC_SAFETY_RULES = {
   "@typescript-eslint/no-deprecated": "error",
 };
 
-// Generic typed correctness + Documentation-Law checks cover every non-browser package source. This
+// Generic typed correctness + TSDoc checks cover every non-browser package source. This
 // includes showcase-plugins' standalone guest packer, without placing its guest runtime content in an
 // app-specific brand/domain group. ui/client retain their browser/React policy above.
 const TSDOC_SURFACE = NON_BROWSER_PACKAGE_SRC;
@@ -442,7 +442,7 @@ export default tseslint.config(
     // @deprecated enforcement (type-aware, shipped source only): any USE of a @deprecated symbol
     // (ours OR a third-party API) errors — the doctrine's tag becomes a gate, not an editor strikethrough.
     // tsdoc/syntax joined at the client-foundation wave (2026-07-03): ui/client now carry a real
-    // exported-API surface (the factories/seals), so their doc comments get the same Documentation-Law
+    // exported-API surface (the factories/seals), so their doc comments get the same TSDoc
     // gate as server/kit/db/contracts.
     files: SHIPPED_SRC,
     plugins: { "@typescript-eslint": tseslint.plugin, tsdoc },
@@ -458,11 +458,11 @@ export default tseslint.config(
     },
   },
   {
-    // The Documentation-Law doc-comment gates on the typed API surface — both hard gates. `no-deprecated`
+    // The TSDoc doc-comment gates on the typed API surface — both hard gates. `no-deprecated`
     // (type-aware, rides the parser block above) rejects any USE of a `@deprecated` symbol. `tsdoc/syntax`
     // (eslint-plugin-tsdoc — the official parser) rejects malformed doc comments + non-standard tags: a
     // `{...}` prose token wants backticks (TSDoc reads `{` as an inline-tag opener), a bare `@orb/...`
-    // package name wants `{@link}`. See docs/architecture/core/Documentation-Law.md §Enforcement.
+    // package name wants `{@link}`. The tag rules: .claude/rules/comments.md §TSDoc.
     files: TSDOC_SURFACE,
     plugins: { "@typescript-eslint": tseslint.plugin, tsdoc },
     rules: {
@@ -623,7 +623,7 @@ export default tseslint.config(
     rules: { "@typescript-eslint/require-await": "error" },
   },
   {
-    // The Documentation-Law doc-comment gate over the tooling surface (#472, the first family of the
+    // The TSDoc doc-comment gate over the tooling surface (#472, the first family of the
     // deferred wave — see the SAFETY_SURFACE header for the four fix classes). Same rule the typed-API
     // packages carry above: tooling's file headers ARE its per-domain law (the per-domain prose was
     // gutted), so a malformed doc comment there is exactly as load-bearing as one in `packages/server`.

@@ -463,7 +463,7 @@ Read IN FULL this session: `contracts/src/user-bus/index.ts` · `contracts/src/c
 `client/data/bus/chat-event-seq-guard.ts` · `tooling/src/verify/gates/domain-freshness-plane.ts` ·
 `tooling/src/verify/gates/membership-fan-guard.ts` · `substrate/chat-detail.ts` · `substrate/participant-name.ts` ·
 `world-info/verbs/entries/update.ts` · `Knowledge-Cluster.md` · `Spine-Identity-and-Auth.md` ·
-`Documentation-Law.md`. Read in relevant part (offsets cited inline): `entry/compose/services.ts` ·
+the documentation law. Read in relevant part (offsets cited inline): `entry/compose/services.ts` ·
 `entry/compose/search-discovery.ts` · `entry/compose/chat.ts` (`resolveUserPublics`) ·
 `entry/compose/portability-runner.ts` · `domain/chat/service.ts` (`loadParticipantViews`) ·
 `domain/chat/verbs/read.ts` (`getMemberCard`) · `domain/chat/verbs/chat-lifecycle.ts` (R1-4a) ·

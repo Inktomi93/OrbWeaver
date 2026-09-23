@@ -1,5 +1,5 @@
 // The catalog's closed vocabularies, tree coordinates, and grammars — one home, so a new frontmatter
-// kind or authority class is a single reviewed edit (Documentation-Law: the authored schema grows only
+// kind or authority class is a single reviewed edit (the authored schema grows only
 // through this validation with a ledgered reason).
 
 export const SCHEMA_VERSION = 2;

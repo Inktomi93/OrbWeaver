@@ -168,7 +168,7 @@ embeddings/search "ONE engine" → `Knowledge-Cluster.md`; AAD belt → `Spine-I
 
 - FLAG\[PD-101..107] at-seam comments (registry rows exist; add the in-code `FLAG` when each seam is next touched; 97/98/99 cleared 2026-07-03; 100 cleared 2026-07-04).
 - `Core-Shared-Dissolution.md` — migration doc: kit-purity law stays core, the symbol map → history/.
-- ~~**AGENTS-1/2/3 trim + merge**~~ — DONE 2026-07-03: trimmed to doctrine+index, then MERGED into ONE `core/AGENTS.md` (§1-8, domains.md folded in). Pain Ledger → `history/Pain-Ledger.md`; AST-scan → `history/Grounded-Intelligence-AST-Scan.md`; string-union dispatch → `Spine-TypeScript-and-Patterns.md`. Documentation-Law moved into `core/`.
+- ~~**AGENTS-1/2/3 trim + merge**~~ — DONE 2026-07-03: trimmed to doctrine+index, then MERGED into ONE `core/AGENTS.md` (§1-8, domains.md folded in). Pain Ledger → `history/Pain-Ledger.md`; AST-scan → `history/Grounded-Intelligence-AST-Scan.md`; string-union dispatch → `Spine-TypeScript-and-Patterns.md`.
 - Corpus-wide `pnpm format:docs` sweep → flip `check:docs` to blocking → add frontmatter to surviving docs.
 - ~~`tsdoc/syntax` cleanup → flip warn→error~~ — DONE 2026-07-03: 255 violations across 45 files cleaned, `tsdoc/syntax` is now `error` on server/kit/db/contracts.
 

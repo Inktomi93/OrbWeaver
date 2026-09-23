@@ -79,7 +79,7 @@ belt tests) + the user role-handling knob surfaced (W10) + the optional first-pa
   of `isAnthropicModel(req.model)` + the hardcoded 1024 (behavior-neutral — the flag is anthropic-family,
   ruling 3, so it emits exactly where the model-id sniff did). **Emit the R1 PAIR** (`depth` AND
   `depth+2`) — the current single-breakpoint code is the regression (part 01 §1d / part 02 §5d) — and
-  **fix the drifted `shape.ts:131-133` header** to match the emitted pair (Documentation-Law: drift is a
+  **fix the drifted `shape.ts:131-133` header** to match the emitted pair (the comment law: drift is a
   defect). Hoist `placeHistoryCacheBreakpoint` → `backends/kit/` (the OR runner imports it back — the
   part 02 §5d prep). Behavior change: Haiku 4.5 stops undercaching (floor 4096); long convos keep the
   cache hit the single breakpoint dropped. Verify: existing OR cache tests + a per-model floor arm + a

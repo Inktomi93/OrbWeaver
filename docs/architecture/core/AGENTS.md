@@ -138,7 +138,7 @@ exports map has one entry, so no domain can reach a backend.
 | Client composition | `client-architecture-lockdown.md` |
 | Legacy migration and SillyTavern parity | `Core-Legacy-Migration-and-Gaps.md`, `Core-SillyTavern-Feature-Map.md` |
 | Open debt | `Core-Audits-and-Debt.md` |
-| Docs and comments | `Documentation-Law.md`, `Core-Docs-Formatting-Law.md`, `.claude/rules/writing.md` |
+| Docs and comments | `.claude/rules/writing.md`, `.claude/rules/comments.md`, `.claude/rules/docs.md` |
 | Which word names a concept | `../../design/vocabulary-map.md` |
 | Mission | `../../Mission.md` |
 | Resolved history (reference only) | `../history/` |

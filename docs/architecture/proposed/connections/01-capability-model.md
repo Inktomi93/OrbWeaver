@@ -84,7 +84,7 @@ rolling PAIR is the runner's job (it pins `depth` AND `depth+2` from this single
 (`shape.ts:131-133`). **But the runner places ONE** (`placeHistoryCacheBreakpoint`,
 `chat-completions.ts:79-84` — a single `cache_control` block at one index). So the single-breakpoint
 code is the REGRESSION, and the `shape.ts:131-133` header is DRIFTED (claims a pair the code doesn't
-emit — a defect per Documentation-Law). A wave (part 04 W3) closes both: emit the pair, fix the header.
+emit — a defect per the comment law). A wave (part 04 W3) closes both: emit the pair, fix the header.
 
 ### 1e. The wire-shape frame — where OR is (and isn't) capability-rich
 

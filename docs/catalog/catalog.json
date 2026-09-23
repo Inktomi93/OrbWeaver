@@ -106,19 +106,6 @@
       }
     },
     {
-      "path": "docs/architecture/core/Core-Docs-Formatting-Law.md",
-      "lane": "architecture-core",
-      "frontmatter": {
-        "fields": {
-          "kind": "law",
-          "status": "active"
-        }
-      },
-      "receipt": {
-        "authority": "normative"
-      }
-    },
-    {
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
       "lane": "architecture-core",
       "frontmatter": {
@@ -198,19 +185,6 @@
     },
     {
       "path": "docs/architecture/core/Core-Tooling-Law.md",
-      "lane": "architecture-core",
-      "frontmatter": {
-        "fields": {
-          "kind": "law",
-          "status": "active"
-        }
-      },
-      "receipt": {
-        "authority": "normative"
-      }
-    },
-    {
-      "path": "docs/architecture/core/Documentation-Law.md",
       "lane": "architecture-core",
       "frontmatter": {
         "fields": {

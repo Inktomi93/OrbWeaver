@@ -181,7 +181,7 @@ About 40% of the rows carry dates or issue numbers in their prose, so a migrated
 | `.claude/rules/docs.md` | points at `writing.md` for style and lists the `pnpm doc` verbs; the `pnpm work:item` references leave |
 | `AGENTS.md` | the rule list line for `writing.md` must match its new `paths:` |
 | `docs/architecture/core/Core-Tooling-Law.md` | the tool roster row for `doc/` |
-| `docs/architecture/core/Documentation-Law.md` | the frontmatter kind list |
+| `tooling/src/doc-catalog/lib/vocab.ts` | the frontmatter kind list |
 | `scripts/commit-msg-check.sh` | validates a `Closes:` trailer |
 | `lefthook.yml` | `post-merge` runs `pnpm doc land --merged` |
 | `.claude/hooks/session-onboard.sh` | the drift nag block |
