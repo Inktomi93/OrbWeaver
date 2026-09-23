@@ -198,6 +198,11 @@ function TypedModelField({
           <Text className={view.warns ? "text-warning" : undefined} data-slot="model-picker-notice" voice="gloss">
             {notice}
           </Text>
+          {error === null ? null : (
+            <Text className="text-destructive" role="alert" voice="gloss">
+              {error}
+            </Text>
+          )}
         </>
       )}
       {view.retry === null ? null : (

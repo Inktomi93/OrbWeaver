@@ -128,6 +128,9 @@ export interface InferenceRuntime {
       readonly key?: string | undefined;
       readonly headers?: Readonly<Record<string, string>> | undefined;
     }) => Promise<readonly ModelCatalogEntry[]>;
+    /** A `builtin` provider's closed model set (the curated rows), or `null` for a `url` provider, whose list
+     *  can lag the provider and so admits a typed id. The write seam refuses an id outside a closed set. */
+    readonly builtin: (providerId: string) => readonly ModelCatalogEntry[] | null;
     /** Force a live re-fetch of a provider's mirror (the OpenRouter enrichment; the daemon catalog needs a
      *  connection and refreshes on its next `models` read after `invalidate`). Returns the mirror's entry
      *  count when one was warmed, `null` when the strategy has no process-wide mirror. */
@@ -344,6 +347,10 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
     roleClientsFor,
     catalogs: {
       models: catalogModels,
+      builtin: (providerId): readonly ModelCatalogEntry[] | null => {
+        const provider = requireProvider(registry, providerId);
+        return provider.catalog === "builtin" ? builtinCatalog(provider) : null;
+      },
       endpoint: async (args): Promise<readonly ModelCatalogEntry[]> => {
         const secret =
           args.key ??

@@ -54,7 +54,8 @@ export const useUseForEverything = createEntityMutation<inferInput<Trpc["connect
  *  is not http(s), a private address this deployment does not admit, a key that is not the caller's), which
  *  the toast names while the picker shows the same message inline. */
 export const useListEndpointModels = createEntityMutation<inferInput<Trpc["connection"]["listEndpointModels"]>, EndpointModels>({
-  options: (trpc) => trpc.connection.listEndpointModels.mutationOptions(),
+  // `gcTime: 0` for the same reason as `useAddCredential`: the variables can carry a draft key.
+  options: (trpc) => ({ ...trpc.connection.listEndpointModels.mutationOptions(), gcTime: 0 }),
   invalidates: () => [],
   errorToast: "Couldn't list that server's models.",
 });

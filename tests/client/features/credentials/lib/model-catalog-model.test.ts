@@ -90,9 +90,15 @@ test("a read list that gave nothing is the typed arm with its consequence, and a
   });
 });
 
-test("with no list read, typing is offered whatever the policy; a list and its loading frame are the searchable arm", () => {
-  expect(modelPickerView({ status: "unlisted", reason: "Type it." }, { listOwner: "Built-in", typedAllowed: false })).toMatchObject({
+test("with no list read, the policy still decides typing; a list and its loading frame are the searchable arm", () => {
+  expect(modelPickerView({ status: "unlisted", reason: "Pick it." }, { listOwner: "Built-in", typedAllowed: false })).toMatchObject({
+    notice: "Pick it.",
+    warns: true,
+    typingOffered: false,
+  });
+  expect(modelPickerView({ status: "unlisted", reason: "Type it." }, { listOwner: "OpenRouter", typedAllowed: true })).toMatchObject({
     notice: "Type it.",
+    warns: false,
     typingOffered: true,
   });
   expect(modelPickerView({ status: "loading" }, { listOwner: "x", typedAllowed: true })).toMatchObject({ models: null, notice: null });

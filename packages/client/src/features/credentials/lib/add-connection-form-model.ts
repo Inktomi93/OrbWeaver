@@ -69,7 +69,8 @@ const DRAFT_MODEL_REASONS: Record<ProviderAuth, (provider: ProviderDef) => strin
   endpoint: () => "Type the model id your server serves, or list them from the URL above.",
   apiKey: KEYED_DRAFT_REASON,
   oauthToken: KEYED_DRAFT_REASON,
-  none: () => `Type the built-in model's id. Once the connection is added, “${addModelActionLabel("builtin")}” in its menu lists the built-in models.`,
+  none: () =>
+    `Built-in models are picked from their list, and this dialog has none to show. Use “${addModelActionLabel("builtin")}” in a built-in connection's menu.`,
 };
 
 export function draftModelReason(provider: ProviderDef): string {

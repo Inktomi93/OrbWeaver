@@ -18,6 +18,8 @@ export const CONNECTION_OP_CODES = {
   baseUrlInvalid: "connection_base_url_invalid",
   /** The `baseUrl` resolves to a private/loopback host the deployment allowlist does not admit (F12). */
   baseUrlRefused: "connection_base_url_refused",
+  /** A `builtin` catalog is the closed set the in-process runtime can load; the model id is not in it. */
+  modelNotInCatalog: "connection_model_not_in_catalog",
   /** The named credential is not the caller's (or does not exist — collapsed, no existence oracle). */
   credentialForeign: "connection_credential_foreign",
   /** The task's `spend` is `background` and the row's `allowBackground` is off (`canFund`, F5). */

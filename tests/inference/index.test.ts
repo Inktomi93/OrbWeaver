@@ -238,6 +238,16 @@ test("catalogs.models: the builtin strategy lists the curated local-light rows w
   expect(refusal).toMatchObject({ kind: "invalid", message: `connection ${connection.id} not found` });
 });
 
+test("catalogs.builtin: a builtin provider answers the same closed set its rows list; a url provider has none", async () => {
+  const s = scene();
+  const runtime = await createInferenceRuntime(s.deps);
+  const closed = runtime.catalogs.builtin("local-light");
+  expect(closed?.map((m) => m.id)).toContain(DEFAULT_EMBED_MODEL);
+  expect(closed?.map((m) => m.id)).toContain(DEFAULT_RERANK_MODEL);
+  expect(runtime.catalogs.builtin("openrouter")).toBeNull();
+  expect(() => runtime.catalogs.builtin("no-such-provider")).toThrow('provider "no-such-provider" is not registered');
+});
+
 test("capabilities.for reads one descriptor + the tasks a row serves, for the owner only", async () => {
   const s = scene();
   const ids = seedLocalLight(s, s.aliceId);
