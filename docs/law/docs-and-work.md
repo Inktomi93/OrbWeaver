@@ -46,7 +46,10 @@ several ids or paths, so one call can change a batch.
 | Start a program | `pnpm doc new plan <slug> --title "<t>"` |
 | File work | `pnpm doc item "<title>" --kind bug\|work\|decision\|tooling --priority P0..P3 --area <a> [--plan <slug>] [--lane <branch>\|--blocked <reason>] --what <text> --why <text> --done <text>`, or a batch with `pnpm doc item --from <file.json>` |
 | Supersede an ADR | `pnpm doc status superseded <old> --by <new>` |
+| Fix a law doc's kind | `pnpm doc status active <path> --kind law` |
 | Change item state | `pnpm doc set <id…> open\|doing\|blocked\|done [--lane <branch>] [--blocked <reason>]` |
+| Edit an item | `pnpm doc set <id> [--kind <k>] [--title "<t>"] [--plan none]`; a new title renames the file and rewrites every link to it |
+| Delete a mistaken item | `pnpm doc remove <id…>`; refuses while another doc links to it or an item is blocked on it |
 | Land items by hand | `pnpm doc land <id…> --evidence <sha>` |
 | Archive a finished plan | `pnpm doc archive <plan-slug>` |
 | See the board | `pnpm doc overview` |

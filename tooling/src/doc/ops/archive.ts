@@ -2,7 +2,7 @@
 // with its done items, set it `archived`, and rewrite the old folder path in every tracked text file so
 // no link or citation dangles. A done item with no plan is deleted when named; git keeps it. A plan with
 // unfinished items refuses — archiving is not a way to lose work.
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, renameSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { DOC_TOOL_TREES } from "#doc-catalog";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
@@ -12,28 +12,15 @@ import { basenameOf } from "../lib/names.ts";
 import { regenerateIndexes } from "./indexes.ts";
 import type { WriteOutcome } from "./items.ts";
 import { loadItems } from "./items.ts";
-import { readDoc, root, today, trackedTextFiles, writeDoc } from "./tree.ts";
+import { readDoc, rewriteTextFiles, root, today, writeDoc } from "./tree.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm doc archive <plan-slug|item-id…>");
 
 const ID_RE = /^\d+$/u;
 
-/** Replace every occurrence of `from` with `to` in the tracked text files that carry it. */
+/** Replace every occurrence of `from` with `to` in the text files that carry it. */
 function rewritePaths(from: string, to: string, repoRoot: string): readonly string[] {
-  const touched: string[] = [];
-  for (const path of trackedTextFiles(repoRoot)) {
-    const abs = join(repoRoot, path);
-    if (!existsSync(abs)) {
-      continue;
-    }
-    const source = readFileSync(abs, "utf8");
-    if (!source.includes(from)) {
-      continue;
-    }
-    writeFileSync(abs, source.replaceAll(from, to));
-    touched.push(path);
-  }
-  return touched;
+  return rewriteTextFiles((_path, source) => source.replaceAll(from, to), repoRoot);
 }
 
 function archivePlan(slug: string, repoRoot: string, date: string): WriteOutcome {

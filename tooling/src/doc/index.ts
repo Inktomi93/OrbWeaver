@@ -5,6 +5,7 @@ export type {
   Blocker,
   DescribedDoc,
   DocCommand,
+  DocEdit,
   DocTree,
   DriftFacts,
   GovernedDoc,
@@ -30,11 +31,12 @@ export { docProblems, KIND_RULES, LEGACY_ROOTS, nextFreeRulingId } from "./lib/r
 export { adrTemplate, itemTemplate, planTemplate } from "./lib/templates.ts";
 export { archive } from "./ops/archive.ts";
 export { drift, driftFacts, overview } from "./ops/board.ts";
-export { docFileCount, docLayerProblems, pendingDocProblems } from "./ops/check.ts";
+export { docFileCount, docLayerProblems, introducedDocProblems, pendingDocProblems } from "./ops/check.ts";
 export { regenerateIndexes } from "./ops/indexes.ts";
 export type { WriteOutcome } from "./ops/items.ts";
 export { landItems, landMerged, loadItems, newItem, newItems, newItemsFrom, setItems } from "./ops/items.ts";
 export { newAdr, newPlan, nextAdrId } from "./ops/new.ts";
+export { removeItems } from "./ops/remove.ts";
 export { due, review } from "./ops/review.ts";
 export { runDocCommand } from "./ops/run.ts";
 export { setStatus } from "./ops/status.ts";
