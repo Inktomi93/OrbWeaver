@@ -185,7 +185,7 @@ export interface PluginBridge {
    *  by construction). So the domain hands the admission down as a closure, exactly as it hands `netHosts`
    *  down as data, and infra calls it without knowing whose budget it just spent.
    *
-   *  WHAT IT CLOSES (the D46 review's tracked finding, `2026-08-24-d46-membrane-review.md` §8): `safeFetch`
+   *  WHAT IT CLOSES (the D46 review's tracked finding, 2026-08-24 §8): `safeFetch`
    *  bounds each REQUEST — deadline, byte cap, redirect budget — and the manifest bounds the target SET, but
    *  nothing bounded the RATE. A plugin subscribing to `messageCommitted` egresses once per committed message,
    *  forever; the ≤32-in-flight cap is a concurrency bound and says nothing about how many calls per hour.

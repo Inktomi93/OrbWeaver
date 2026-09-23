@@ -16,7 +16,7 @@ Replace the doc sprawl with four homes (`docs/law/`, `docs/adr/`, `docs/plans/`,
 | - | - | - |
 | ~2,000 tracked files under `docs/` | `git ls-files docs` in this worktree counts a little over two thousand; the vendored-doc mirrors this plan formerly named (`docs/work/0010-vendored-docs-leave-git.md`, now deleted) were roughly a third, `docs/history/` and `docs/reviews/` together about half | holds |
 | history has three homes | `docs/history/`, `docs/architecture/history/`, `docs/history/design/` all exist | holds |
-| reviews have two homes | `docs/reviews/` and `docs/history/reviews/` (the audit per-lane folders live under the second) | holds |
+| reviews have two homes | formerly `docs/reviews/` and a second historical subtree under `docs/history/` (the audit per-lane folders lived there); the reviews item (`docs/work/0008-reviews-leave-docs.md`) emptied the second one entirely | held, no longer current |
 | `docs/design/` is a flat drawer of about sixty files | sixty-two flat files plus a `mocks/` subtree of about a hundred | holds |
 | the D-ledger is ~163 rows in a few huge files | `Core-Path-Registry.md` holds ids D1 to D163 with a reserved gap D79 to D105, in TWO row shapes: bullet rows (`- **D<n>** — …`) under range headings, and per-ruling `## D<n>` headings with a bold restatement and continuation lines. One id (D119) has two bullet anchors. The longest single row is about 12 KiB; four rows exceed 8 KiB | holds, with two shapes the splitter must parse |
 | new ADRs start at `0001` while the ledger keeps its numbers | D1 exists, so `docs/adr/0001-*` would collide with D1's future home | REFUTED: new ADRs continue the ledger's id space (next free is D164, read from both sources); the numbering fork is below |

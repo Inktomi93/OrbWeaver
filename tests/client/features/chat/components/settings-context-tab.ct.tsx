@@ -1254,7 +1254,7 @@ test("#829: the count chip's arrival does not resize the kicker's own line box",
 // The #821 residue: with the injection rows collapsed the tab STILL settled at 2,836px desktop over
 // fourteen sections (Host controls' eight alone are 1,880px), so Documents and World books were still below
 // the fold and a host at the top of the pane had fourteen destinations and no map (side-eye
-// `docs/reviews/side-eye/2026-08-30-this-chat-cls.md` §7, re-verified §7 "Still below the fold": Lorebooks
+// 2026-08-30 §7, re-verified §7 "Still below the fold": Lorebooks
 // settles at top 929 on a 932px mobile viewport). Each pin below asserts through the affordance a host
 // touches — the kicker's own button — never through the store.
 

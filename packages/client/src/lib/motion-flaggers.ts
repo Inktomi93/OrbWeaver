@@ -159,7 +159,7 @@ function raise({ tag, key, offender, detail, overBudget, animation }: RaiseArgs)
 // THE INTERACTIVE-STATE COLOUR CARVE-OUT (owner ruling 2026-08-22, #456; motion guide §3.7). §3.7 read
 // "transform/opacity only" without qualification, so the ONE core Card primitive's `hover:bg-accent`
 // (`packages/ui/src/primitives/card/variants.ts`) made this channel print OVER BUDGET on every
-// interactive-card hover, app-wide (receipt: docs/history/reviews/side-eye/2026-08-22-rail-home.md P3-2) — a
+// interactive-card hover, app-wide (receipt: 2026-08-22 P3-2) — a
 // flagger accusing RATIFIED behaviour, which is the lying-instrument class. The amended law: a PAINT-ONLY
 // colour transition driven by an interactive STATE (hover/active/focus) is allowed; anything that moves
 // geometry stays flagged.

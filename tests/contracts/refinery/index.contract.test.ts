@@ -47,8 +47,7 @@ const CARD_TEXT_MAX = 100_000;
 const CREATED_AT = 1_700_000_000_000;
 const UPDATED_AT = 1_700_100_000_000;
 
-// The model-authored-payload ceilings (security pass 2026-08-08 — docs/reviews/security/
-// 2026-08-08-refinery-r0-security-pass.md gap 1). The constants are unexported in the contract, so every
+// The model-authored-payload ceilings (security pass 2026-08-08, gap 1). The constants are unexported in the contract, so every
 // one is pinned BEHAVIORALLY at-cap/over-cap, the REWRITE_TEXT_MAX precedent above.
 //
 // CRITIQUE PROSE IS DUAL-BOUND (owner ruling 2026-08-08 — "we are thinking in chars but it needs to be

@@ -952,7 +952,7 @@ export function WalkerForwardingLabelStory(): ReactElement {
 }
 
 /** THE #816 STAGE — the saved-casts picker row at its real mobile mount (366px dialog / 316px row,
- *  docs/reviews/side-eye/2026-08-29-saved-casts-rules.md §3 P1-1), rebuilt from the two CSS mechanisms
+ * 2026-08-29 §3 P1-1), rebuilt from the two CSS mechanisms
  *  that produced the review's P1:
  *
  *   · the NAME is `flex-1 min-w-0` + truncate, so a shrink-0 cluster beside it takes the whole row and
@@ -995,7 +995,7 @@ export function WalkerCastRowStory({ badges }: { badges: number }): ReactElement
 
 /** The truncation stage (#825). `text-overflow` used to fire on `scrollWidth > clientWidth` ALONE, which
  *  is the shape of every correctly truncating label in the app — it minted a P1 against the topbar chat
- *  title (`docs/reviews/side-eye/2026-08-30-this-chat-cls.md` §6 retraction 6). Each row here is one arm
+ * title (2026-08-30 §6 retraction 6). Each row here is one arm
  *  of the honest rule: an ellipsis silences, a `title` carrying the full value silences, a bare clip does
  *  not — and the ellipsis may live on the CLIPPING ANCESTOR while the spilling node is its inline child,
  *  which is the app's actual markup shape. The last row is #816's family: a label at 0px is

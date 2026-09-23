@@ -1,7 +1,7 @@
 // schema/refinery — card-refinery pipeline sessions + the append-only run log (producer: domain/refinery
 // — R1; rides the baseline as a BASELINE_RIDER until that domain lands, per the db-structure gate's
-// designed pre-producer mechanism). Design: docs/history/design/refinery-r0.md; the owner-signed port study is
-// docs/history/reviews/stickler/2026-08-08-card-refinery-port-study.md §5.2/§6.
+// designed pre-producer mechanism). Design: docs/history/design/refinery-r0.md; the owner-signed port study
+// (2026-08-08, §5.2/§6) landed the shape below.
 //
 // OWNERSHIP IS DERIVED, NOT STAMPED (D23): a session is anchored by `character_id NOT NULL → characters`
 // (single-owner canon), so it carries NO `owner_id` — the same DERIVE class as gallery_items /

@@ -23,7 +23,7 @@
 // The empty-states mock draws each step behind a big `01`/`02`/`03` numeral (docs/history/design/mocks/refinery/
 // empty-states.html:165), and this component shipped it verbatim as a `<Text voice="datum">`. The R3
 // graduation side-eye filed it as a house-taste question
-// (docs/history/reviews/side-eye/2026-08-09-refinery-graduation.md P3: "01/02/03 markers
+// (2026-08-09 P3: "01/02/03 markers
 // (mock-sanctioned — house-taste question)"), and the owner ruled,
 // verbatim: **"01/02/03 markers = REDRAW without numbers (the §6 ban stays absolute; mock loses this
 // one)"**. A mock is evidence, not authority — where it and the house ban disagree, the ban wins.

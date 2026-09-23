@@ -2059,7 +2059,7 @@ export const make = (): { imageEmbedModel: string } => ({
     ]);
   });
 
-  // ── the #210 triage's producer shapes (docs/history/reviews/misc/2026-08-19-lens-triage-210.md §4) ──────────
+  // ── the #210 triage's producer shapes (2026-08-19 §4) ──────────
   // Each of the four below retired a measured block of the 70 hits that buried the two real defects. The
   // fixtures are the real shapes, not sketches: the card serde's element-access emit, TanStack Form's plain
   // string attribute, a contracts file consuming its own foreign wire schema, and a `.default()` chain.

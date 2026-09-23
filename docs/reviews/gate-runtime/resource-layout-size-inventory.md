@@ -78,7 +78,7 @@ The delivered foundation already carries the required ready/missing/empty/unreso
 
 ## Cold review
 
-`docs/reviews/stickler/2026-09-05-resource-layout-size-inventory.md` independently confirmed the 53-policy census, duplicate-free 13+40 partition, zero-currently-eligible verdict, common proof refusal, missing-provider classifications, live host counts, LOC deltas, 89-test focused run, and 1,447-finding contract census. It found one P1 report defect: the first owner-ruling insertion described the `.ts`/`.tsx` destination without naming the delivered planner's `.mts` admission. The current report corrects that drift distinction. Final cold-review result: **CONFIRMED, zero outstanding findings.**
+The 2026-09-05 stickler resource-layout-size-inventory review independently confirmed the 53-policy census, duplicate-free 13+40 partition, zero-currently-eligible verdict, common proof refusal, missing-provider classifications, live host counts, LOC deltas, 89-test focused run, and 1,447-finding contract census. It found one P1 report defect: the first owner-ruling insertion described the `.ts`/`.tsx` destination without naming the delivered planner's `.mts` admission. The current report corrects that drift distinction. Final cold-review result: **CONFIRMED, zero outstanding findings.**
 
 ## Scope retained
 

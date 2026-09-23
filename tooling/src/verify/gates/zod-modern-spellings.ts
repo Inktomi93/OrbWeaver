@@ -1,4 +1,4 @@
-// Policy: zod-modern-spellings (docs/history/reviews/stickler/2026-08-02-zod-leverage-audit.md §F2/F5/F7) —
+// Policy: zod-modern-spellings (2026-08-02 §F2/F5/F7) —
 // the anti-backslide ratchet for three superseded zod spellings whose remedies already landed on the tree.
 // The gate exists so the old spelling cannot creep back through a copy-paste from an older file or an
 // agent's zod-3 muscle memory.
@@ -65,14 +65,15 @@ const MIN_LITERAL_UNION_MEMBERS = 2;
 
 const MESSAGE =
   "a superseded zod spelling — the 4.4.3 leverage audit ruled each of these and its remedy already landed " +
-  "(docs/history/reviews/stickler/2026-08-02-zod-leverage-audit.md). `strict`: `.strict()` on a `z.object(…)` " +
+  "(2026-08-02). `strict`: `.strict` on a `z.object(…)` " +
   "is legacy-compat (F2 — the documented reason to avoid `z.strictObject` claimed it inflates the inferred " +
   "type with an index-signature tag; that is FALSE on 4.4.3, where `$strict` is byte-identical to `$strip`). " +
   "`union`: an all-literal `z.union` emits a nested `invalid_union` where multi-value `z.literal([…])` emits " +
   "one option-naming `invalid_value` (F7) — same accepted set, same inferred type, an actionable refusal. " +
   '`enum`: a `z.enum(["true","false"])` hand-rolls `z.stringbool` (F5), and the PARAMS are the point since ' +
   "a bare `z.stringbool()` is case-INSENSITIVE and also accepts `1/0/yes/no/on/off`, silently widening a " +
-  "knob whose old vocabulary was a LOUD boot refusal. Every one is semantics-preserving.";
+  "knob whose old vocabulary was a LOUD boot refusal. Every one is semantics-preserving " +
+  "(tooling/src/verify/gates/zod-modern-spellings.ts).";
 const FIX =
   "respell it: `z.object({…}).strict()` → `z.strictObject({…})`; `z.union([z.literal(a), z.literal(b)])` → " +
   "`z.literal([a, b])`; an env boolean → the pinned `envBool` codec in packages/server/src/foundation/env/index.ts. " +

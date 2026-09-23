@@ -5,7 +5,7 @@
 // WHY IT EXISTS: a gate that reads only the DIRECT array elements silently loses every member that moved
 // behind a composition edge, and the file scan stays healthy while the denominator shrinks — the #942 case is
 // `CHROME_ZONES = [...RAIL_ZONES, "topbar.trail"]`, where a direct reader sees 1 of 4 zones and a parallel
-// `rail.nav`/`rail.brand` map escapes (docs/reviews/stickler/2026-08-31-gate-member-discovery-rehome-audit.md).
+// `rail.nav`/`rail.brand` map escapes (2026-08-31).
 // It resolves EXACTLY the shapes the source law sanctions — a string literal element (through any
 // `as`/`satisfies`/paren wrapper) and a spread of an identifier bound to another such tuple, local or
 // imported — and it FAILS LOUD (throws ⇒ a ToolError attributed to the calling gate, exit 2) on every other

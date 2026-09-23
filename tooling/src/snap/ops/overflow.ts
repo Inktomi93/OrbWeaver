@@ -4,7 +4,7 @@
 // pushed off the LEFT or TOP edge of a box does not grow the scroll box at all, so the delta reads 0 on
 // a frame where a control is painted outside its container and cut. Measured: a `nowrap` `justify-end`
 // footer put "Blank chat" 35px left of a dialog's edge while this assertion printed `PASS overflow=0x0`
-// (docs/history/reviews/side-eye/2026-08-22-verify-271-334.md). A whole defect class — every left/top clip,
+// (2026-08-22). A whole defect class — every left/top clip,
 // which is what `justify-end`, `items-end`, `margin-left:auto` and RTL produce — was invisible.
 //
 // So the scroll arm stays (the honest measure of reachable spill) and a per-descendant rect sweep joins

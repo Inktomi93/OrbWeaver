@@ -47,7 +47,7 @@ export const WALKER_CENSUS_QUALITY = `  // ── heading order (impeccable skip
   // scrollWidth > clientWidth, which is what every CORRECTLY truncating label in the app looks like.
   // Measured cost of the raw form: a P1 against the topbar chat title (overflow:hidden;
   // text-overflow:ellipsis; white-space:nowrap; scrollWidth 201 / clientWidth 116), i.e. the house
-  // idiom (docs/reviews/side-eye/2026-08-30-this-chat-cls.md §6 retraction 6 / §9-I1).
+  // idiom (2026-08-30 §6 retraction 6 / §9-I1).
   // text-overflow only paints where the box CLIPS, and the clipping box is often an ancestor (the
   // <div class="truncate"><span>…</span></div> shape puts the ellipsis on the div and leaves the
   // inline child with clientWidth 0 — the inline arm below), so the ellipsis is read off the nearest

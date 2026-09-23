@@ -182,7 +182,7 @@ that half is left to the integration owner.
   The full list for the fold: `tooling/src/verify/gates/GATE-AUTHORING.md:416`,
   `docs/architecture/core/Core-Enforcement-Active-Gates.md:157`,
   `docs/design/pane-standardization-design.md:332`,
-  `docs/reviews/verifier/2026-09-02-941-semantic-denominator-closure.md:110`,
+  the 2026-09-02 #941 semantic-denominator-closure verifier review :110,
   `docs/reviews/gate-runtime/uncovered-gate-conversion-census.md:157` and `:162`,
   `docs/catalog/catalog.json:537` with its `docs/catalog/receipts/` twin, and the one prose comment at
   the former `tests/tooling/check-gates.int.test.ts:1179`, today `tests/tooling/check-gates.repo.int.test.ts`.

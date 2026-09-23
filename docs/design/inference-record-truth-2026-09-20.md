@@ -6,8 +6,8 @@ updated: 2026-09-20
 
 # Inference record truth — the design behind lane `cb-audit-record`
 
-The build record for rows A4 · A5 · A6 · A8 · B1 · B3 · B5 · B6 · B7 · B8 · H1(a) · H2 · H3 of
-[`../reviews/stickler/2026-09-19-inference-ai-sdk-integration-audit.md`](../reviews/stickler/2026-09-19-inference-ai-sdk-integration-audit.md).
+The build record for rows A4 · A5 · A6 · A8 · B1 · B3 · B5 · B6 · B7 · B8 · H1(a) · H2 · H3 of the
+2026-09-19 inference/ai-sdk integration stickler audit.
 Written BEFORE the edits (phase 1 → phase 2); the code is the doc from here on, this file is the delta and the
 reasoning. Program law: [`orbweaver-inference-package.md`](orbweaver-inference-package.md) §5.3b/§5.3c
 (the record), §6.2 (the evidence ladder), §8.7 (presets across providers), §15c-18 (the BUILD LOG — one

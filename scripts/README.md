@@ -65,7 +65,7 @@ campaign's capture rig, was removed with the neo parity rip — #428, git preser
 
 ### `probes/rpg-extraction/` — 2026-08-22 disposition (#426)
 
-Per `docs/history/reviews/tooling/2026-08-22-research-zone-assessment.md`'s deletion shortlist, six
+Per 2026-08-22's deletion shortlist, six
 harnesses were deleted 2026-08-22 (four self-declared `ARCHIVED 2026-08-02 — pre-R2R3 vocabulary …
 do NOT run against the current contracts`, two superseded by `openrouter/f5-effort-translation.ts`'s
 more rigorous, committed answer): `run.ts`, `run-coverage.ts`, `native-wire-probe.ts`,
