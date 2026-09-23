@@ -139,8 +139,6 @@ export {
   cardTrustSchema,
   contentSpansToBlocks,
   messageContentBlockSchema,
-  messageMediaKindSchema,
-  messageMediaSrcSchema,
 } from "./content-blocks.ts";
 export type { ContentClassPolicy } from "./content-classes.ts";
 export { CONTENT_CLASS_POLICY } from "./content-classes.ts";
@@ -290,6 +288,7 @@ export type {
   CarriedAppearance,
   CarriedAppearanceMember,
   CarriedBackground,
+  CharacterMemberSpec,
   CreateInviteInput,
   DeploymentRenderPolicy,
   HandoffOffer,
@@ -306,6 +305,7 @@ export type {
   RedeemInviteInput,
   RenderPolicy,
   RenderPolicyOverride,
+  RosterMemberSpec,
   SeatKnobs,
 } from "./roster.ts";
 export {
