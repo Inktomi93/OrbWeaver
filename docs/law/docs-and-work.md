@@ -24,6 +24,7 @@ The code is the doc for anything the code shows. A domain's behavior lives in it
 not in a prose file.
 
 Pick the home by the question the text answers:
+
 - "What must always hold?" goes to law.
 - "What did we decide, and what did we reject?" goes to an ADR.
 - "How do we build this program?" goes to a plan.
@@ -73,6 +74,7 @@ conflict runs no hook. The drift check then names the items to land by hand.
 
 At session start, the onboarding hook prints the drift check. It prints nothing when the state is
 consistent. Otherwise it prints one line per problem, each with the command that fixes it:
+
 - a `doing` item with no live branch;
 - a `Closes:` trailer on `main` that nothing landed;
 - a blocker that is done;
