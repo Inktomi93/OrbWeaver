@@ -9,7 +9,7 @@ import {
   renderTranscript,
   sliceBlocks,
   speakerLabel,
-} from "../../../../../../../packages/server/src/domain/chat/memory/build/substrate/transcript.ts";
+} from "../../../../../../../packages/server/src/domain/chat/memory/generate/substrate/transcript.ts";
 import type { MsgRow } from "../../../../../../../packages/server/src/domain/chat/memory/types.ts";
 import { expect, test } from "../../../../../../support/fixtures.ts";
 
@@ -47,7 +47,7 @@ function macroCtx(over?: {
 
 const EMPTY_CTX = macroCtx();
 
-describe("memory/build/substrate/transcript", () => {
+describe("memory/generate/substrate/transcript", () => {
   test("sliceBlocks yields only COMPLETE fixed-width blocks (the trailing partial is dropped)", () => {
     const rows = Array.from({ length: 5 }, (_, i) => row(i + 1));
     const blocks = sliceBlocks(rows, 2);

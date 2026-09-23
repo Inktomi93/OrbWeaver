@@ -1,8 +1,8 @@
 import { describe } from "vitest";
-import { parseDigest } from "../../../../../../../packages/server/src/domain/chat/memory/build/substrate/parse.ts";
+import { parseDigest } from "../../../../../../../packages/server/src/domain/chat/memory/generate/substrate/parse.ts";
 import { expect, test } from "../../../../../../support/fixtures.ts";
 
-describe("memory/build/substrate/parse", () => {
+describe("memory/generate/substrate/parse", () => {
   test("parses the three-part digest (anchor · facts · keywords)", () => {
     const raw = "[Aria — the docks]\nAria found the ledger.\nShe lied to Cole.\nkeywords: Aria, ledger, Cole";
     const d = parseDigest(raw);

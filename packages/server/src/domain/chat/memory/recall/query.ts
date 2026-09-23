@@ -8,7 +8,7 @@
 import type { MemoryQueryOptions } from "@orb/contracts/search";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import type { RowMacroNameContext, RowPersonaName } from "@orb/kit/macro";
-import { renderTranscript } from "../build/substrate/transcript.ts";
+import { renderTranscript } from "../generate/substrate/transcript.ts";
 import type { MemoryScope, MsgRow, ResolvedMemoryConfig } from "../types.ts";
 
 /** Build the recall query for mixB/mixC: the egocentric (name-prefixed) text over the recent `queryWindow`

@@ -3,7 +3,7 @@ import type { CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { logger } from "@orb/server/foundation/observability";
 import { beforeEach, describe, vi } from "vitest";
-import { generateSegments } from "../../../../../../packages/server/src/domain/chat/memory/build/segments.ts";
+import { generateSegments } from "../../../../../../packages/server/src/domain/chat/memory/generate/segments.ts";
 import { freshDb } from "../../../../../support/db.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
 import { makeChatContext, seedCharacter, seedChat, seedMessage, seedUser } from "../../_support.ts";
@@ -23,7 +23,7 @@ beforeEach(async () => {
   await seedCharacter(db, owner, "aria"); // FK target for messages.characterId
 });
 
-describe("memory/build/segments", () => {
+describe("memory/generate/segments", () => {
   test("stores a verbatim segment per complete aged-out block (lens segment + seq-span)", async () => {
     const chatId = await seedChat(db, "s");
     await seedTurns(db, chatId, aria, 4);

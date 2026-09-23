@@ -1089,7 +1089,7 @@ export interface StoreSegmentParams {
 }
 
 /** The space the embeddings boundary actually stamped — the RETURN half of the write ops below, distinct from
- *  the {@link MemoryEmbedSpace} a pass PLANNED against (`build/digests.ts assertStoreSpace` compares them).
+ *  the {@link MemoryEmbedSpace} a pass PLANNED against (`generate/digests.ts assertStoreSpace` compares them).
  *  It stays HERE and not in `memory.ts`: it is the return type of two `ChatContext` ops, and the composition
  *  root builds the value (`entry/compose/chat.ts memorySegmentReceipts`), so it belongs to the DI bundle's
  *  vocabulary rather than the subsystem's. */

@@ -1,4 +1,4 @@
-// domain/chat/memory/build/substrate/token-guard — fit a summarizer call to the user's ACTUAL context
+// domain/chat/memory/generate/substrate/token-guard — fit a summarizer call to the user's ACTUAL context
 // (core/Knowledge-Cluster.md §3a/§10). PURE CPU, deterministic (no clock/random, no I/O). A summarizer is a `chat`-turn
 // on the user's own backend, so the context is whatever that backend has (a tiny local main, 32k, or hosted
 // 200k). `blockSize 8 ≈ 3k tok` fits any reasonable summarizer, but the GUARD is the real safety — a giant

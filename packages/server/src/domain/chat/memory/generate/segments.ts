@@ -1,4 +1,4 @@
-// domain/chat/memory/build/segments — the VERBATIM segment builder (§2a). Every COMPLETE, aged-out block's
+// domain/chat/memory/generate/segments — the VERBATIM segment builder (§2a). Every COMPLETE, aged-out block's
 // raw transcript is embedded THROUGH `ctx.embeddingsStoreSegments` (lens `segment`) — the ground-truth a
 // digest hit resolves back to (seq-span → canon). Segments are NOT scope-keyed (`chat_segments` is
 // `(chatId, blockIdx, chunkIdx)` — shared per chat, regardless of group bucketing); the row stores the

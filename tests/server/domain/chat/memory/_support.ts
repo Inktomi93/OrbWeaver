@@ -33,8 +33,8 @@ export function testGenerationId(ownerId: UserId): EmbedGenerationId {
  *  A FK-valid character row must be seeded (`seedCharacter(db, owner, "group")`) before seeding shared digests. */
 export const GROUP_CHAR = castId<CharacterId>("character_group");
 
-/** Seed `n` assistant messages (seq 1..n) voiced by `characterId` — byte-identical across build/segments,
- *  build/digests (both closed over module-level `db`/`aria`; hoisted to take both as params). */
+/** Seed `n` assistant messages (seq 1..n) voiced by `characterId` — byte-identical across generate/segments,
+ *  generate/digests (both closed over module-level `db`/`aria`; hoisted to take both as params). */
 export async function seedTurns(db: Db, chatId: ChatId, characterId: CharacterId, n: number): Promise<void> {
   for (let seq = 1; seq <= n; seq += 1) {
     await seedMessage(db, chatId, seq, { characterId, content: `turn ${seq}` });
@@ -42,7 +42,7 @@ export async function seedTurns(db: Db, chatId: ChatId, characterId: CharacterId
 }
 
 /** The shared-bucket `MemoryScope` (group-as-character, non-group flag false) — byte-identical across
- *  build/digests and recall/recall. */
+ *  generate/digests and recall/recall. */
 export function sharedScope(chatId: ChatId): MemoryScope {
   return { chatId, scopedCharacterId: GROUP_CHAR, isGroup: false };
 }

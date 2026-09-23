@@ -1,4 +1,4 @@
-// domain/chat/memory/build/substrate/transcript — the pure block substrate: slice canon into fixed-width
+// domain/chat/memory/generate/substrate/transcript — the pure block substrate: slice canon into fixed-width
 // blocks, render a block transcript (for the summarizer prompt), and compute the block content-hash (the
 // staleness/collapse key). PURE CPU — `node:crypto.createHash` is hashing, not I/O (the embeddings
 // substrate/hash.ts precedent); zero clock, zero randomness (D46). Memory rolls its OWN hash (it cannot

@@ -26,8 +26,8 @@ import type { ChatContext } from "../../../../../packages/server/src/domain/chat
 import type { QuietGenerateParams } from "../../../../../packages/server/src/domain/chat/contract/context.ts";
 import type { TurnMessage, TurnPrep, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
 import { createTurnEngine } from "../../../../../packages/server/src/domain/chat/engine/engine.ts";
-import { generateDigests } from "../../../../../packages/server/src/domain/chat/memory/build/digests.ts";
-import { generateSegments } from "../../../../../packages/server/src/domain/chat/memory/build/segments.ts";
+import { generateDigests } from "../../../../../packages/server/src/domain/chat/memory/generate/digests.ts";
+import { generateSegments } from "../../../../../packages/server/src/domain/chat/memory/generate/segments.ts";
 import { loadWitnessHorizons } from "../../../../../packages/server/src/domain/chat/memory/persistence/queries.ts";
 import { recallMemory } from "../../../../../packages/server/src/domain/chat/memory/recall/recall.ts";
 import { createCompaction } from "../../../../../packages/server/src/domain/chat/verbs/compaction.ts";
