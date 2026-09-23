@@ -73,8 +73,10 @@
 //               "resource"` subject), not through the ts-morph project, so no project overlay reaches it. The
 //               overlay rides the production reader's OWN seam (`ResourceHostOptions.overlay`, the one
 //               conformance's resource rows use): `source` is the whole text, `append` is the real file's disk
-//               text plus a planted tail. The finding must land AT THAT PATH, as for ADD. It changes what every
-//               policy in the pass reads, so a resource arm never shares a pass.
+//               text plus a planted tail, `replace` is one exact edit of it, `delete` takes a file or directory
+//               out of the reader's view. The finding must land AT THAT PATH, as for ADD, except for a `delete`,
+//               which asserts over the whole run as REMOVE does. It changes what every policy in the pass reads,
+//               so a resource arm never shares a pass.
 import { existsSync, readFileSync } from "node:fs";
 import type { GatePolicy } from "@orb/tooling/verify";
 import { projectCtx, reviewedGrantsFor, runPolicyPass } from "@orb/tooling/verify";
@@ -109,6 +111,20 @@ export type RealCorpusOverlay =
       readonly path: string;
       /** Appended to the EXISTING file's disk text, so the arm plants into the real file without restating it. */
       readonly append: string;
+    }
+  | {
+      readonly kind: "resource";
+      readonly path: string;
+      /** `[search, replacement]` on the EXISTING file's disk text, for a subject no append can reach (a JSON
+       *  document, a config's one array). `search` must occur EXACTLY ONCE, or the arm throws: an edit that
+       *  matched nothing, or matched somewhere else too, would plant something other than what it states. */
+      readonly replace: readonly [string, string];
+    }
+  | {
+      readonly kind: "resource";
+      /** A file, or a directory, taken out of every ResourceHost view (the reader's own deletion). */
+      readonly path: string;
+      readonly delete: true;
     };
 
 export interface RealCorpusLivenessArm {
@@ -136,6 +152,11 @@ export interface RealCorpusLivenessArm {
    *  with the overlay taking the licensed subject away those grants must go STALE, so consumption is shown
    *  to come from the policy reading that subject. `messageIncludes` then matches the stale alarms. */
   readonly grantConsumption?: true;
+  /** Paths, beyond the arm's own overlay paths, where the planted defect is REPORTED — for a policy that
+   *  anchors its finding on the subject's owner rather than on the planted file (a DevTools asset reported
+   *  at its `pin.json`, a stray file reported at its feature DIRECTORY). Still a path scope: the baseline
+   *  must be silent there too, so a finding the tree already carries at that path is refused. */
+  readonly reportsAt?: readonly string[];
 }
 
 /** What ONE arm's overlaid pass said about it, attributed by (policy id, overlay path). */
@@ -191,14 +212,16 @@ function refusals(result: PassResult): readonly string[] {
 /** The messages in an arm's assertion SCOPE — at an overlay path for `add`, the whole run for `neutralise`
  *  and `remove` — read from the effective findings, or the granted ones for a `granted` arm. */
 function inScope(result: PassResult, arm: RealCorpusLivenessArm): readonly string[] {
-  const wholeRun = arm.overlays.some((overlay) => overlay.kind === "neutralise" || overlay.kind === "remove");
+  const wholeRun = arm.overlays.some(
+    (overlay) => overlay.kind === "neutralise" || overlay.kind === "remove" || (overlay.kind === "resource" && "delete" in overlay),
+  );
   const reported = arm.granted === true ? result.authority.grantedFindings.map(({ finding }) => finding) : result.authority.effectiveFindings;
   return (
     reported
       .filter((finding) => finding.policyId === arm.policy.id)
       // A blindness tripwire anchors its finding on a CONSTANT, not on the file whose subject vanished, so
       // scoping a `neutralise`/`remove` arm to the touched path would assert on an empty set forever.
-      .filter((finding) => wholeRun || arm.overlays.some((overlay) => overlay.path === finding.file))
+      .filter((finding) => wholeRun || arm.overlays.some((overlay) => overlay.path === finding.file) || (arm.reportsAt ?? []).includes(finding.file))
       // A finding's own `message` is OPTIONAL, and a policy that passes none is not anonymous — the sink
       // presents the POLICY's `message` for it, which is the text a reader actually sees. Falling back to a
       // "(no message)" placeholder instead made `windowed-infinite-query-health`'s arm unassertable: it
@@ -296,20 +319,32 @@ type ResourceOverlayEntry = Extract<RealCorpusOverlay, { readonly kind: "resourc
 
 /** One resource overlay's text. An `append` names a file that must already exist on disk: appending to
  *  nothing would plant a whole new file and pass for the wrong reason. */
-function resourceText(repoRoot: string, arm: RealCorpusLivenessArm, entry: ResourceOverlayEntry): string {
-  if (!("append" in entry)) {
+function resourceText(repoRoot: string, arm: RealCorpusLivenessArm, entry: ResourceOverlayEntry): string | null {
+  if ("delete" in entry) {
+    return null;
+  }
+  if ("source" in entry) {
     return entry.source;
   }
   const absolute = `${repoRoot}/${entry.path}`;
   if (!existsSync(absolute)) {
-    throw new Error(`${arm.policy.id}: resource overlay appends to ${entry.path}, which is not on disk`);
+    throw new Error(`${arm.policy.id}: resource overlay edits ${entry.path}, which is not on disk`);
   }
-  return `${readFileSync(absolute, "utf8")}${entry.append}`;
+  const text = readFileSync(absolute, "utf8");
+  if ("append" in entry) {
+    return `${text}${entry.append}`;
+  }
+  const [search, replacement] = entry.replace;
+  const occurrences = text.split(search).length - 1;
+  if (occurrences !== 1) {
+    throw new Error(`${arm.policy.id}: resource overlay on ${entry.path} must match its search text exactly once, and matched ${String(occurrences)} times`);
+  }
+  return text.replace(search, () => replacement);
 }
 
 /** The ResourceHost overlay a batch's `resource` overlays make, keyed by repo-relative path. */
-function resourceOverlay(repoRoot: string, arms: readonly RealCorpusLivenessArm[]): Readonly<Record<string, string>> {
-  const overlay: Record<string, string> = {};
+function resourceOverlay(repoRoot: string, arms: readonly RealCorpusLivenessArm[]): Readonly<Record<string, string | null>> {
+  const overlay: Record<string, string | null> = {};
   for (const arm of arms) {
     for (const entry of arm.overlays.filter((candidate): candidate is ResourceOverlayEntry => candidate.kind === "resource")) {
       if (entry.path in overlay) {
@@ -445,7 +480,7 @@ export function openRealCorpusLiveness(repoRoot: string, arms: readonly RealCorp
     corpus ??= projectCtx(repoRoot).project;
     return corpus;
   };
-  const pass = (selected: readonly GatePolicy[], overlay: Readonly<Record<string, string>> = {}): PassResult =>
+  const pass = (selected: readonly GatePolicy[], overlay: Readonly<Record<string, string | null>> = {}): PassResult =>
     runPolicyPass({
       knownPolicies: policies,
       policies: selected,
