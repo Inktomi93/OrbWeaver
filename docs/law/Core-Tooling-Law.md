@@ -120,6 +120,7 @@ the `design-audit` / `record` / `perf-meter` / `motion-audit` pnpm scripts.
 | `ui-audit/` | the design/a11y walker + its rule families — the ENGINE behind Snap's `--design-audit` arm (#1315); it has no program and no `cli.ts` (an engine dir, entered through `index.ts` — §4.1) | (none — `snap --design-audit`) |
 | `render-trace/` | render/tail/fire — three ops behind one dispatcher | `trace:render` `trace:tail` `trace:fire` |
 | `wire-tap/` | the server-wire incident toolkit (sse · captures · trpc) | `sse-tap` |
+| `cache-check/` | the live prompt-cache check per route and turn shape, on an isolated stage; run on demand and before releases, never in CI or `pnpm check` | `cache:check` |
 | `ast/` | the structural-search + rot-lens engine | `ast` · `check:respell/swallowed/typeonly/columns/regkeys/chains` |
 | `codemod/` | the ts-morph codemod kit | `codemod` |
 | `verify/` | the whole verification system + the gate corpus + `GATE-AUTHORING.md` | `check` `verify` `check:structure` `check:show` `gate:new` `prose:baseline` `check:type-ownership` `check:tests-execution-membership` `check:db-baseline` `check:orphan-ratchet` |
