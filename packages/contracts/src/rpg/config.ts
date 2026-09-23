@@ -59,7 +59,8 @@ export const rpgGameFeaturesSchema = z.object({
   // Governs whether the teaching ASKS for interactivity (animations/scripts), never the render: a card
   // the model emits renders in the same sandbox regardless (§4.2 — the toggle shapes the PROMPT).
   immersiveHtmlInteractive: z.boolean().default(true),
-  // The X most-recent cards ride the wire FULL; older cards collapse to the `[card: title]` stub.
+  // At least the X most-recent cards ride the wire FULL; older cards collapse to the `[card: title]` stub
+  // X at a time, so the prompt cache breaks once per X cards.
   // 0 (default) = immediate total collapse (the cache-stable, budget-honest posture).
   cardKeepLastX: z.number().int().min(0).default(RPG_CARD_KEEP_LAST_DEFAULT),
   // CYOA as a first-class MODE (§5.4): ON composes the choices-fence teaching into the reminder so the
