@@ -12,7 +12,7 @@
 // `no-manual-memo-compiler-health` HAS NO ARM: its subject is the INSTALLED React Compiler under
 // `packages/client/node_modules/`, and the ResourceHost's overlay refuses to mutate a non-authored tree (the
 // production reader's own rule), so no overlay can take the denylist away. Its liveness needs an installed-package
-// overlay the runner does not have.
+// overlay the runner does not have (docs/work/0145).
 import { gate as auditClientTests } from "../../../../../tooling/src/verify/gates/audit-client-tests.ts";
 import { gate as ctNoOneshotLiveReadAssert } from "../../../../../tooling/src/verify/gates/ct-no-oneshot-live-read-assert.ts";
 import { gate as ctPollScheduleAndPaint } from "../../../../../tooling/src/verify/gates/ct-poll-schedule-and-paint.ts";
