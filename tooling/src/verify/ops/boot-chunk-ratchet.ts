@@ -31,6 +31,18 @@
 // that is absent from disk, or an unrecognized asset reference all mean the instrument could not measure —
 // a vite `output.entryFileNames` change, a chunking change, a missing build — and it exits 2 (the run is
 // NOT a verdict). A "0 bytes, under ceiling ✓" would have been a fence that silently stopped fencing.
+//
+// THE APP STYLESHEET RIDES THE SAME BUILD (#1752, work item 0029). The client's CSS reaches the bundle only
+// through `main.tsx`'s bare `import "./styles/index.ts"`, and a bundler that believes that module is
+// side-effect-free drops it: a `sideEffects` allowlist on `@orb/client` did exactly that, and production
+// shipped with NO app stylesheet for five days. The authored-graph checks (`sanctioned-css-homes`,
+// `playwright-css-topology`) stayed green because the graph was right and the OUTPUT was wrong, so only the
+// emitted dist can prove retention. `measureAppStylesheet` reads the `rel="stylesheet"` links the emitted html
+// declares and requires the linked sheets, together, to carry every `APP_STYLESHEET_SENTINELS` entry — one
+// construct per sheet the front door reaches, each named with its authoring source. No linked sheet, or a missing
+// sentinel, is a VIOLATION (exit 1). An unreadable html, a stylesheet link outside `/assets/*.css`, or a linked
+// sheet absent from disk is UNMEASURABLE (exit 2). The static half, the `client-package-no-side-effects` gate,
+// reds the field itself under `pnpm check`; this half catches every OTHER way the bundler can lose the sheet.
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
@@ -38,7 +50,7 @@ import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { budget } from "@orb/tooling/_shared/load-budget";
 import { spawnNiced } from "@orb/tooling/_shared/proc";
-import type { BootChunkFile, BootChunkVerdict } from "../contract/scoped.ts";
+import type { AppStylesheetSentinel, AppStylesheetVerdict, BootChunkFile, BootChunkVerdict } from "../contract/scoped.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:boot-chunk");
 
@@ -60,6 +72,17 @@ const ASSET_REF_PREFIX = "/assets/";
 const ASSET_JS_REF_RE = /^\/assets\/([A-Za-z0-9._-]+\.js)$/u;
 /** EVERY built-js mention anywhere in the html — the under-count tripwire (see the header). */
 const ASSET_JS_MENTION_RE = /\/assets\/[A-Za-z0-9._-]+\.js/gu;
+const REL_STYLESHEET_RE = /\brel\s*=\s*["']stylesheet["']/iu;
+const ASSET_CSS_REF_RE = /^\/assets\/([A-Za-z0-9._-]+\.css)$/u;
+
+/** One construct per sheet the CSS front door reaches, with the source that authors it. The patterns
+ *  match both the authored source and the minified build (`tests/tooling/verify/ops/boot-chunk-ratchet.test.ts`
+ *  pins each against its `source` on the real tree, so a rename reds there before it reds a push). */
+export const APP_STYLESHEET_SENTINELS: readonly AppStylesheetSentinel[] = [
+  { label: ".shell-grid {", pattern: /\.shell-grid\s*\{/u, source: "packages/client/src/features/app-shell/surfaces/shell.css" },
+  { label: "@keyframes orb-weave-shimmer", pattern: /@keyframes\s+orb-weave-shimmer\b/u, source: "packages/client/src/styles/globals.css" },
+  { label: "--color-background:", pattern: /--color-background\s*:/u, source: "packages/ui/src/styles/theme.css" },
+];
 /** A production vite build of the client; the timeout is a ceiling on a WEDGE, not a budget (see the
  *  15.45s measurement above) — generous enough to survive a cold tree under multi-lane load. */
 // A CEILING, load-scaled through the one policy (#1232): the literal is the QUIET-BOX base.
@@ -244,6 +267,45 @@ export function measureBootChunk(root: string, ceilingBytes: number = BOOT_CHUNK
   };
 }
 
+/** Read the built dist and judge its APP STYLESHEET (see the header). Separate from the build for the same
+ *  reason as `measureBootChunk`: the suite drives it over planted dist trees. */
+export function measureAppStylesheet(root: string): AppStylesheetVerdict {
+  const unmeasurable = (why: string): AppStylesheetVerdict => ({ stylesheets: [], missing: [], unmeasurable: why });
+  let html: string;
+  // @orb-waive caught-failure-ownership(catch): captured and routed to the `unmeasurable()` verdict on the next line, never a pass. Ends if that unmeasurable() routing is removed.
+  try {
+    html = readFileSync(join(root, INDEX_HTML_REL), "utf8");
+  } catch {
+    return unmeasurable(`${INDEX_HTML_REL} is unreadable — the linked stylesheets are whatever the emitted html declares`);
+  }
+
+  const stylesheets: string[] = [];
+  for (const [, tag = "", attrs = ""] of html.matchAll(TAG_RE)) {
+    if (tag.toLowerCase() !== "link" || !REL_STYLESHEET_RE.test(attrs)) {
+      continue;
+    }
+    const ref = HREF_ATTR_RE.exec(attrs)?.[1];
+    const name = ref === undefined ? undefined : ASSET_CSS_REF_RE.exec(ref)?.[1];
+    if (name === undefined) {
+      // A sheet this parser cannot read might be the one carrying the sentinels; judging without it could
+      // accuse a healthy build, and widening the pattern to "whatever is there" could acquit a broken one.
+      return unmeasurable(`${INDEX_HTML_REL} links stylesheet ${ref ?? "<no href>"}, which is not ${ASSET_REF_PREFIX}<name>.css`);
+    }
+    stylesheets.push(name);
+  }
+
+  let text = "";
+  for (const name of stylesheets) {
+    // @orb-waive caught-failure-ownership(catch): captured and routed to the `unmeasurable()` verdict on the next line, never a pass. Ends if that unmeasurable() routing is removed.
+    try {
+      text += readFileSync(join(root, ASSETS_REL, name), "utf8");
+    } catch {
+      return unmeasurable(`${INDEX_HTML_REL} links ${ASSET_REF_PREFIX}${name}, which is absent from ${ASSETS_REL}`);
+    }
+  }
+  return { stylesheets, missing: APP_STYLESHEET_SENTINELS.filter((sentinel) => !sentinel.pattern.test(text)), unmeasurable: null };
+}
+
 const PERCENT = 100;
 const PCT_DIGITS = 2;
 
@@ -274,7 +336,35 @@ function reportUnmeasurable(verdict: BootChunkVerdict): number {
   return EXIT.toolError;
 }
 
-/** The `boot-chunk` verb: build the client, then judge the emitted BOOT SET against the ceiling. */
+function reportAppStylesheet(verdict: AppStylesheetVerdict): number {
+  if (verdict.unmeasurable !== null) {
+    process.stdout.write(`app-stylesheet — TOOL ERROR: ${verdict.unmeasurable}\n`);
+    process.stdout.write("  The stylesheet could not be judged, so this run is not a verdict (exit 2).\n");
+    return EXIT.toolError;
+  }
+  if (verdict.stylesheets.length > 0 && verdict.missing.length === 0) {
+    process.stdout.write(`app-stylesheet — ${verdict.stylesheets.join(", ")} carries all ${APP_STYLESHEET_SENTINELS.length} front-door sentinels ✓\n`);
+    return EXIT.clean;
+  }
+  process.stdout.write(
+    verdict.stylesheets.length === 0
+      ? "app-stylesheet — ✗ the emitted index.html links NO /assets/*.css stylesheet\n"
+      : `app-stylesheet — ✗ the linked stylesheet(s) ${verdict.stylesheets.join(", ")} lack front-door sentinel(s):\n`,
+  );
+  for (const sentinel of verdict.missing) {
+    process.stdout.write(`      missing \`${sentinel.label}\` (authored in ${sentinel.source})\n`);
+  }
+  process.stdout.write(
+    "  FIX: the production build dropped the app's CSS (#1752). Check that `packages/client/src/main.tsx` still\n" +
+      "  imports `./styles/index.ts`, that the front door still imports the named source, and that\n" +
+      "  `packages/client/package.json` declares no `sideEffects`. If a sentinel's construct was renamed on\n" +
+      "  purpose, update APP_STYLESHEET_SENTINELS in tooling/src/verify/ops/boot-chunk-ratchet.ts.\n",
+  );
+  return EXIT.violations;
+}
+
+/** The `boot-chunk` verb: build the client, then judge the emitted BOOT SET against the ceiling and the
+ *  emitted APP STYLESHEET against its sentinels. The worse of the two verdicts is the exit code. */
 export async function runBootChunkRatchet(root: string): Promise<number> {
   const build = await spawnNiced("pnpm", ["--filter", "@orb/client", "build"], { cwd: root, timeoutMs: BUILD_TIMEOUT_MS });
   if (build.code !== 0) {
@@ -284,8 +374,12 @@ export async function runBootChunkRatchet(root: string): Promise<number> {
     process.stdout.write(`${build.stderr.trimEnd()}\n`);
     return EXIT.toolError;
   }
+  const bootExit = judgeBootChunk(measureBootChunk(root));
+  const stylesheetExit = reportAppStylesheet(measureAppStylesheet(root));
+  return Math.max(bootExit, stylesheetExit);
+}
 
-  const verdict = measureBootChunk(root);
+function judgeBootChunk(verdict: BootChunkVerdict): number {
   if (verdict.bytes === null) {
     return reportUnmeasurable(verdict);
   }
