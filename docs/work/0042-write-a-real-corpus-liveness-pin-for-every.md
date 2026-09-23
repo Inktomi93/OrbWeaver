@@ -56,7 +56,21 @@ shared pass, so the entanglement check proves it alone. `real-corpus-liveness-ma
 Chunks 5 and 6 (lane cb-pins). The 40 leftover `@client` and `@ui` policies gained pins in
 `_liveness/client-ui.ts`, and the 17 leftover `@authored` policies gained pins in `_liveness/authored.ts`. These
 are the policies with narrowed populations that the exact-population chunks skipped. None was blind on the real
-tree. One verify-corpus fact came out of it. The structure run's project carries no compiler options, so its
-default lib does not declare the ES2015 `Map`. `persistence-no-in-memory-state` therefore reports a planted
-`new Map()` as an unresolvable constructor, not as the ambient global. It still reports, and that verdict is the
-one pinned. `real-corpus-liveness-manifest`: 214 unpinned before, 157 after.
+tree. One real-tree discrepancy came out of it. `persistence-no-in-memory-state` reports a planted bare
+`new Map()` as an unresolvable constructor, not as the ambient global. The real `Map` does resolve to
+lib.es2015, but it also carries the repo's global augmentations (`platform.d.ts` and ts-reset), which the
+fixture project lacks. The policy still reports, and that verdict is the one pinned. An earlier "no ES2015 lib"
+explanation was wrong. `real-corpus-liveness-manifest`: 214 unpinned before, 157 after.
+
+Chunks 7 and 8 (lane cb-pins). The leftover `@product`, `@db` and `@server`+`@inference` policies gained pins in
+`_liveness/product-db-server.ts`, and the leftover `@tooling` and `@tests` policies gained pins in
+`_liveness/tooling-tests.ts`. Two policies have no pin:
+
+- `byte-check-cast` is BLIND on the real tree. Its own `mustFlag` row, planted verbatim at a real schema path,
+  reports nothing. Real drizzle's `sql` has two declarations (the function and its merged namespace), so the
+  shared module-origin reader answers "unresolved: ambiguous", and the policy never recognises a `sql.raw` or
+  `sql` tagged CHECK. The fix belongs in the origin reader.
+- `no-manual-memo-compiler-health` reads the installed React Compiler under `node_modules`, which the
+  ResourceHost overlay refuses to mutate.
+
+`real-corpus-liveness-manifest`: 157 unpinned before, 101 after.
