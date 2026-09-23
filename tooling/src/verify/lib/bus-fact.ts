@@ -49,8 +49,8 @@ interface QueryState {
  *  `recordReadyBusFact` throws for every ordinary consumer of a non-ready census. Filing them as receipt
  *  refusals made one cause produce both a violation and a "the checker is broken" verdict, and the tool
  *  error WON: `bus-fact-health` mustFlag[0] — the empty-corpus blind-instrument arm — could never reach
- *  `evaluate` (#1955). Same ruling as the schema fact family's, recorded at
- *  `docs/reviews/gate-runtime/schema-fact-family-1584.md`: a fail-closed finding does not also count
+ *  `evaluate` (#1955). Same ruling as the schema fact family's (its #1584 conversion
+ *  record): a fail-closed finding does not also count
  *  `unresolved` in the receipt.
  *
  *  What the refusal still bites: a walked population of zero sources — the provider genuinely could not

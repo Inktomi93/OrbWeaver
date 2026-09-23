@@ -292,7 +292,7 @@ export const gate = defineGate({
       mode: "types",
       files: { "packages/server/src/domain/hub/nested.ts": 'import process from "node:process";\nexport const x = process.env.env;\n' },
       expect: { count: 1, messageIncludes: "process-env-read:env" },
-      why: "THE MEMBER-PATH FENCE ON THE MODULE BRANCH, and the only row that dies without it: a key that happens to be spelled `env` gives BOTH `process.env` and `process.env.env` a resolved member named `env` off the SAME `node:process` door, so the candidate prefilter admits both and only `path.length === 1` rejects the outer one. Dropping that half makes the outer read a SECOND finding under the bare operation (count 1 → 2) — the module's other rows all resolve a one-hop path and cannot discriminate it (wave-8 D2, `v-audit-wave8-2026-09-12.md:162`)",
+      why: "THE MEMBER-PATH FENCE ON THE MODULE BRANCH, and the only row that dies without it: a key that happens to be spelled `env` gives BOTH `process.env` and `process.env.env` a resolved member named `env` off the SAME `node:process` door, so the candidate prefilter admits both and only `path.length === 1` rejects the outer one. Dropping that half makes the outer read a SECOND finding under the bare operation (count 1 → 2) — the module's other rows all resolve a one-hop path and cannot discriminate it (wave-8 D2, gate-runtime audit wave 8",
     },
   ],
   mustPass: [
@@ -335,7 +335,7 @@ export const gate = defineGate({
         "packages/server/src/domain/hub/cfg.ts": 'const cfg = { env: { SOME_VAR: "x" } };\nexport default cfg;\n',
         "packages/server/src/domain/hub/cfg-read.ts": 'import cfg from "./cfg.ts";\nexport const x = cfg.env.SOME_VAR;\n',
       },
-      why: 'THE DOOR COMPARISON, PINNED — the module-branch twin of the `procezz` lookalike above, and the only row that dies without `PROCESS_DOORS.includes(…)`. A PROJECT module\'s DEFAULT export carrying an `env` bag is the exact shape the resolved module branch judges (`import process from "node:process"` is a default import too), so it reaches the branch with a one-element `env` member path and is rejected ONLY by the specifier. Deleting that half turns this row red; before it, the sole clause of the identity reader any declared row enforced was the refusal classifier (wave-8 D2, `v-audit-wave8-2026-09-12.md:162`)',
+      why: 'THE DOOR COMPARISON, PINNED — the module-branch twin of the `procezz` lookalike above, and the only row that dies without `PROCESS_DOORS.includes(…)`. A PROJECT module\'s DEFAULT export carrying an `env` bag is the exact shape the resolved module branch judges (`import process from "node:process"` is a default import too), so it reaches the branch with a one-element `env` member path and is rejected ONLY by the specifier. Deleting that half turns this row red; before it, the sole clause of the identity reader any declared row enforced was the refusal classifier (wave-8 D2, gate-runtime audit wave 8',
     },
     {
       mode: "types",

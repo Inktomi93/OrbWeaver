@@ -14,7 +14,7 @@ const MESSAGE =
   "and no focus refetch its surface freezes at the first fetch. The token and subject are the query key. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 const FIX =
   "add the narrowest reachable pathFilter/queryFilter row in the invalidation seam, or take one exact central " +
-  "reviewed grant documenting the independent freshness driver. automation.listChatActivity is warning debt owned by #1965.";
+  "reviewed grant documenting the independent freshness driver. automation.listChatActivity is warning debt owned by work item 66.";
 
 /** WHERE THE FINDING ANCHORS. A dotted chain carries its key verbatim (`trpc.ghost.frozenRead.queryOptions`
  *  contains `ghost.frozenRead`), so the key IS the authored token. A bracket-spelled chain names the same key

@@ -12,7 +12,7 @@
 // so every such site is one import away from going dark.
 //
 // AND THE IMPORT DOES NOT HAVE TO BE A VENDOR ONE. Measured 2026-09-12
-// (`docs/reviews/gate-runtime/v-audit-wave2-2026-09-12.md` D1): an ordinary `packages/ui/src/…` const imported
+// (gate-runtime audit wave 2, finding D1): an ordinary `packages/ui/src/…` const imported
 // into a `@client` definition reproduces the throw in all four registry-definition policies, and a same-named
 // exported tuple anywhere in `@client` reproduces it in `warning-code-coverage` — no `.d.ts`, no
 // `node_modules`, one hop out of the population. The phase differs too (`[evaluate]` there, `[visit]` in the
