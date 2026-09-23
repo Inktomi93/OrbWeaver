@@ -38,8 +38,8 @@ full loop (`pnpm stack`) is Linux-shaped. macOS can run the tests and `pnpm star
 
 ## Read first
 
-- **`docs/architecture/core/AGENTS.md`** — the cold-start reading router and current architecture map.
-- **`docs/architecture/core/Core-0-Architecture-and-Structure.md`** — the constitution: package layout, server tiers, per-feature
+- **`docs/law/Constitution.md`** — the cold-start reading router and current architecture map.
+- **`docs/law/Core-0-Architecture-and-Structure.md`** — the constitution: package layout, server tiers, per-feature
   template, central test mirror, the partitioning rule, and the 13 enforcement gates.
 
 ## Core bets

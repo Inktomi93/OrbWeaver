@@ -20,7 +20,7 @@ Replace the doc sprawl with four homes (`docs/law/`, `docs/adr/`, `docs/plans/`,
 | `docs/design/` is a flat drawer of about sixty files | sixty-two flat files plus a `mocks/` subtree of about a hundred | holds |
 | the D-ledger is ~163 rows in a few huge files | the legacy registry file held ids D1 to D163 with a reserved gap D79 to D105, in TWO row shapes: bullet rows (`- **D<n>** — …`) under range headings, and per-ruling `## D<n>` headings with a bold restatement and continuation lines. One id (D119) has two bullet anchors. The longest single row is about 12 KiB; four rows exceed 8 KiB | holds, with two shapes the splitter must parse |
 | new ADRs start at `0001` while the ledger keeps its numbers | D1 exists, so `docs/adr/0001-*` would collide with D1's future home | REFUTED: new ADRs continue the ledger's id space (next free is D164, read from both sources); the numbering fork is below |
-| code cites doc section numbers and D rows, and `check:structure` reds on a moved heading | code carries about five thousand bare `D<n>` citations across roughly eighteen hundred source files (138 distinct ids), about eleven thousand `§` section citations, and about a thousand `docs/**.md` path citations (236 distinct paths; 229 of them under `docs/architecture/core/`). The `d-citation-integrity` gate resolves `D<n>` against the registry's bullet anchors; `dangling-doc-cite` resolves path and basename cites against tracked files | holds; the citer cost is priced in §Ledger split |
+| code cites doc section numbers and D rows, and `check:structure` reds on a moved heading | code carries about five thousand bare `D<n>` citations across roughly eighteen hundred source files (138 distinct ids), about eleven thousand `§` section citations, and about a thousand `docs/**.md` path citations (236 distinct paths; 229 of them under `docs/law/`). The `d-citation-integrity` gate resolves `D<n>` against the registry's bullet anchors; `dangling-doc-cite` resolves path and basename cites against tracked files | holds; the citer cost is priced in §Ledger split |
 | the catalog churns on every edit | the catalog tree is about 5 MB of JSON; `catalog.json` is a generated 3 MB file committed in the tree; each attestation row pins a whole-file hash, a commit, and an append-only prose `evidence` array | held; the owner ruled the attestation out at once (this lane), so the rows now carry a path and an authority only |
 | the GitHub board is being torn down | `tooling/src/workboard/` is the GitHub client; nothing in the tree depends on it except its own tests and the rule files that name `pnpm work:item` | holds |
 
@@ -30,7 +30,7 @@ Replace the doc sprawl with four homes (`docs/law/`, `docs/adr/`, `docs/plans/`,
 
 | Home | Kind | Files | Status values |
 | - | - | - | - |
-| `docs/law/<Name>.md` | `law` | today's `docs/architecture/core/` after migration | `active`, `superseded` |
+| `docs/law/<Name>.md` | `law` | the legacy core law folder, moved | `active`, `superseded` |
 | `docs/adr/NNNN-<slug>.md` | `adr` | one decision per file, immutable, supersede-don't-edit; NNNN is the D number | `active`, `superseded` |
 | `docs/plans/<slug>/design.md` | `plan` | the design; forks and coupled sites live here | `active`, `complete` |
 | `docs/plans/<slug>/tasks.md` | generated | the plan's work items as a checklist, written by `pnpm doc` | none (generated) |
@@ -142,7 +142,7 @@ About 40% of the rows carry dates or issue numbers in their prose, so a migrated
 
 ### Law move
 
-`docs/architecture/core/` becomes `docs/law/` by path swap, section numbers untouched, so basename citations resolve unchanged and the 229 full-path code citations plus the tooling constants (`resource-document.ts`, `dangling-ref-corpus.ts`, `dangling-ref-citations.ts`, `d-citation-integrity.ts`, `doc-catalog/lib/vocab.ts`, `doc-catalog/ops/tree.ts`, `verify/lib/selection.ts`, `docs/catalog/lanes.json`) are one mechanical prefix rewrite. `check:structure` is the proof.
+The legacy core law folder becomes `docs/law/` by path swap, section numbers untouched, so basename citations resolve unchanged and the 229 full-path code citations plus the tooling constants (`resource-document.ts`, `dangling-ref-corpus.ts`, `dangling-ref-citations.ts`, `d-citation-integrity.ts`, `doc-catalog/lib/vocab.ts`, `doc-catalog/ops/tree.ts`, `verify/lib/selection.ts`, `docs/catalog/lanes.json`) are one mechanical prefix rewrite. `check:structure` is the proof.
 
 ## Rejected
 
@@ -180,8 +180,8 @@ About 40% of the rows carry dates or issue numbers in their prose, so a migrated
 | `.claude/rules/writing.md` | `paths:` gains `docs/**`; a Docs section states the deltas |
 | `.claude/rules/docs.md` | points at `writing.md` for style and lists the `pnpm doc` verbs; the `pnpm work:item` references leave |
 | `AGENTS.md` | the rule list line for `writing.md` must match its new `paths:` |
-| `docs/architecture/core/Core-Tooling-Law.md` | the tool roster row for `doc/` |
-| `docs/architecture/core/Documentation-Law.md` | the frontmatter kind list |
+| `docs/law/Core-Tooling-Law.md` | the tool roster row for `doc/` |
+| `tooling/src/doc-catalog/lib/vocab.ts` | the frontmatter kind list |
 | `scripts/commit-msg-check.sh` | validates a `Closes:` trailer |
 | `lefthook.yml` | `post-merge` runs `pnpm doc land --merged` |
 | `.claude/hooks/session-onboard.sh` | the drift nag block |

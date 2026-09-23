@@ -2,7 +2,7 @@
 // CT-1..6). Each mounts the REAL session boundary over a save SPY; the F1/F2 live P0 reproductions
 // become permanent pins. CT (not headless) because every scenario is a RENDER + STORE-SUBSCRIPTION +
 // TEARDOWN interaction that only reproduces with the real React scheduler, real timers, and a live DOM
-// (core/Spine-Testing.md §7). Real timers + Playwright auto-retrying `expect` (fake timers drift vs
+// (docs/law/Spine-Testing.md §7). Real timers + Playwright auto-retrying `expect` (fake timers drift vs
 // React 19). Observation is the ONE-testid channel (§7 last-resort locator, sanctioned for a probe);
 // the inputs/buttons use getByLabel/getByRole.
 

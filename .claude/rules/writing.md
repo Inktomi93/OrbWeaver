@@ -7,9 +7,9 @@ paths:
 
 # Writing instruction files and docs
 
-Rules for every instruction file (`AGENTS.md`, `.claude/rules`, agents, skills, memory), for code
-comments, and for every doc under `docs/**`. The docs mechanics (the tree, `pnpm doc`, frontmatter)
-are in `.claude/rules/docs.md`.
+Rules for every instruction file (`AGENTS.md`, `.claude/rules`, agents, skills, memory) and for every
+doc under `docs/**`. The docs mechanics (the tree, `pnpm doc`, frontmatter) are in
+`.claude/rules/docs.md`. Code comments follow `.claude/rules/comments.md`.
 
 Owner-voice sections — personality, communication, and philosophy written in the owner's own words —
 are exempt from this style. Never rewrite them into plain style. Wrap one in `<!-- owner-voice -->` and
@@ -33,7 +33,7 @@ legacy docs folders are exempt from rules 1, 2 and 4 until they migrate.
    boundary instead.
 5. Say what to do. Keep a prohibition only when the failure is real and current, and give the reason
    in one clause.
-6. Code speaks for itself. A comment exists only for a non-obvious reason.
+6. Code speaks for itself. A comment exists only for a non-obvious reason (`.claude/rules/comments.md`).
 
 ## Writing standard (adapted from ASD-STE100)
 
@@ -56,6 +56,27 @@ legacy docs folders are exempt from rules 1, 2 and 4 until they migrate.
 11. Edit in place. Deleting is normal. Never write a correction beside the original.
 12. Always-on text stays small. `AGENTS.md` with its imports, plus any rule without `paths:`, stays
     under 200 lines. `AGENTS.md` lists every rule file with its `paths:` globs, for Codex. Every rule uses list-form `paths:` frontmatter. Procedures are skills. Agent bodies stay short.
+
+## Markdown
+
+The reader sees raw bytes, not a rendered page. A construct earns its place by being searchable, checked
+by a tool, or denser than prose.
+
+- Tables are compact GFM pipe tables: one space around each cell, `| - |` delimiter rows, no alignment padding.
+- Code blocks are fenced and carry a language tag.
+- Headings are ATX and name the fact they hold.
+- Use a GitHub alert (`> [!WARNING]`) only for a real warning, on one line.
+- Use a task list (`- [ ]`) only in `docs/plans/` and `docs/work/`.
+- Never use footnotes, definition lists, inline HTML other than the owner-voice markers, decorative rules, emoji headings, badges or ASCII art.
+- Do not wrap lines for style. The formatter keeps line breaks as written.
+- `pnpm format:docs <files>` writes the one style and `pnpm check:docs` checks it. Never format markdown with Prettier. A backslash escape the formatter writes, such as `F32\_BLOB`, is expected.
+
+## Decisions
+
+- An ADR's Decision states the standing ruling, the constraint that protects it, and its homes.
+- A superseded ruling's text moves into its successor. The history of the change stays out of the ADR.
+- Write a planned design as "not yet built", never in the present tense.
+- A list that grows with the code names its tuple or registry as the truth.
 
 ## Memory and reports
 

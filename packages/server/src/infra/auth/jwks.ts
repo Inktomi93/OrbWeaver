@@ -1,5 +1,5 @@
 // The JWT/JWKS VERIFY side of forward-header auth (mint stays entry/openid-client; verify is infra/jose —
-// core/Tier-5-Entry.md). authentik forwards `X-Authentik-Jwt` alongside `X-Authentik-Meta-Jwks`, the
+// docs/law/Tier-5-Entry.md). authentik forwards `X-Authentik-Jwt` alongside `X-Authentik-Meta-Jwks`, the
 // latter being either the JWKS JSON literal or an https URL to it. This module builds a jose key-set from
 // whichever shape arrives and verifies the JWT against it with a pinned alg allowlist, then maps the
 // verified payload to a ForwardJwtClaims. It is the `verifyForwardJwt` port injected at the seam.

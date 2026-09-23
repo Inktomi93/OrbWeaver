@@ -1,4 +1,4 @@
-// Policy: tooling-browser-door (docs/architecture/core/Core-Tooling-Law.md §4.4, arms B + H of the retired
+// Policy: tooling-browser-door (docs/law/Core-Tooling-Law.md §4.4, arms B + H of the retired
 // `tooling-shared-plumbing`) — a Playwright browser is reached ONE way each: LAUNCHED by
 // `_shared/browser.ts#launchProbeSession` and ATTACHED by `attachProbeSession`, the one door onto a session
 // daemon's browser (docs/design/1208-instrument-substrate.md §3.4). A `<engine>.launch(`,
@@ -48,7 +48,7 @@ const LAUNCH_OPERATION = "browser-launch";
 const ATTACH_OPERATION = "browser-attach";
 
 const MESSAGE =
-  "a second Playwright door — a browser is LAUNCHED only by `launchProbeSession` and ATTACHED only by `attachProbeSession` (_shared/browser.ts); a `<engine>.launch(` elsewhere is a second bootstrap that misses the marked args/env and the run-marker, and a `<engine>.connect(`/`connectOverCDP(` elsewhere is a second ProbeSession shape reaching a session daemon's browser around the one door (docs/architecture/core/Core-Tooling-Law.md §4.4; docs/design/1208-instrument-substrate.md §3.4).";
+  "a second Playwright door — a browser is LAUNCHED only by `launchProbeSession` and ATTACHED only by `attachProbeSession` (_shared/browser.ts); a `<engine>.launch(` elsewhere is a second bootstrap that misses the marked args/env and the run-marker, and a `<engine>.connect(`/`connectOverCDP(` elsewhere is a second ProbeSession shape reaching a session daemon's browser around the one door (docs/law/Core-Tooling-Law.md §4.4; docs/design/1208-instrument-substrate.md §3.4).";
 const UNREADABLE =
   "a call spelled like a Playwright browser-type door whose receiver the shared readers cannot place, so whether it launches or attaches a Playwright browser CANNOT be established. Reported rather than passed: the spelling alone is not the identity. Give the binding a readable import origin; the three-answer rule is tooling/src/verify/lib/origin-verdict.ts (#944).";
 const FIX =

@@ -6,7 +6,7 @@
 // `characters.avatarAssetId` — another domain's column. Tier-1-DB.md §"Cross-tier composition" allows a
 // cross-domain READ in `persistence/` but routes every cross-domain WRITE through the OWNING domain's own
 // persistence helper (`domain/import` writes six domains' canon and imports `@orb/db` zero times), and
-// AGENTS §2 makes the delivery an INJECTED op, never a sideways import. So the write lives here and assets
+// Constitution.md §2 makes the delivery an INJECTED op, never a sideways import. So the write lives here and assets
 // receives it as `AssetsContext.linkCharacterAvatars`, wired at `entry/compose/assets-character.ts`.
 //
 // A PURPOSE-BUILT context (NOT the full `CharacterContext`): the relink needs only `db` — no audit, no

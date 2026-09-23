@@ -101,7 +101,7 @@ import { reportReviewedGrantFileCandidates } from "../lib/reviewed-grant-finding
 const MESSAGE =
   "one tRPC mutation is invoked from more than one component inside a single rail section, and no reviewed " +
   "grant names that exact door set — the same verb has grown a door on a plane that already has one (the " +
-  'rule-10 "same action, same home" IA class). See docs/architecture/core/UI-Architecture-and-Layout.md §4.3.';
+  'rule-10 "same action, same home" IA class). See docs/law/UI-Architecture-and-Layout.md §4.3.';
 
 /** Required by the shared reporter and UNREACHABLE here, stated plainly rather than implied: this policy
  *  never marks a candidate unreadable. A vocabulary shape the tuple reader cannot establish THROWS out of

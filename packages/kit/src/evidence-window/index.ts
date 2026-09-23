@@ -1,7 +1,7 @@
 // EVIDENCE WINDOW (#1095) — the pure "what does '~N minutes ago' honestly cover" engine, shared by the two
 // halves of a bug report: the browser filters `__orb`'s rings with it, the server filters its own in-memory
 // flight recorders with it. ONE engine so the two halves can never disagree about what a window means or about
-// when a ring has already dropped the thing being asked about (AGENTS §1, engine vs data: this is the engine;
+// when a ring has already dropped the thing being asked about (Constitution.md §1, engine vs data: this is the engine;
 // the rings are the data).
 //
 // THE HONESTY CONTRACT (owner amendment 2026-09-02 — population law, applied to a capture instrument):

@@ -1,5 +1,5 @@
 // transport/trpc/routers/notifications — the per-user durable inbox CRUD surface (PD-23;
-// core/Tier-4-Transport.md §"per-user notifications subscription"). The verbs delegate to the
+// docs/law/Tier-4-Transport.md §"per-user notifications subscription"). The verbs delegate to the
 // `notifications` domain (caller-scoped — every read/write is scoped to `principal.userId` inside the
 // verb).
 //

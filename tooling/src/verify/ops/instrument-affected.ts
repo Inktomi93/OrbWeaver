@@ -155,7 +155,7 @@ function runSpecs(root: string, specs: readonly string[]): number {
   // harness from a red after the fact — and both were getting a file that was never written.
   const res = runNicedSync(
     process.execPath,
-    [`${root}/scripts/vitest-supervised.mjs`, "run", ...specs, "--runtime-only", "--reporter=default", "--reporter=json"],
+    [`${root}/scripts/vitest-supervised.ts`, "run", ...specs, "--runtime-only", "--reporter=default", "--reporter=json"],
     {
       cwd: root,
       stdio: "inherit",

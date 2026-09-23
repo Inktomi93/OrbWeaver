@@ -11,6 +11,9 @@ import type { KnipConfig } from "knip";
 // Deliberate-API escape hatch: tag an export `/** @public */` and it is exempt from unused-
 // export reporting (tags below) — the honest way to keep a real public surface, instead of
 // ignores nobody re-audits.
+//
+// A LITERAL negative pattern (`!path`, no glob character) must name a git-tracked file; knip's own hints
+// never report a negation that matches nothing. `pnpm check:knip-negative-liveness` enforces it.
 const config = {
   tags: ["-@public"],
   // The trailing ! applies only in production mode: tooling stays fully checked by the default run,
@@ -60,12 +63,15 @@ const config = {
       ignoreBinaries: ["orb-nonexistent-binary-xyz-123", "orb-fake-probe-bin"],
       // pino-pretty is spawned as a BINARY by tooling/src/stack/dev.sh (the dev-log pretty-pipe), never imported —
       // invisible to import analysis. It's a root devDependency because the dev script lives at the repo root.
-      // ts7 (npm:typescript@7) is resolved by PATH STRING in scripts/ts7.cjs (node_modules/ts7/bin/tsc) —
+      // ts7 (npm:typescript@7) is resolved by PATH STRING in scripts/ts7.ts (node_modules/ts7/bin/tsc) —
       // invisible to import analysis.
       // @typescript/native (npm:typescript@7) is imported by stryker's typescript-checker itself when
       // experimentalNativePreview is on (its loader imports `@typescript/native/unstable/sync`) — a
       // node_modules-internal consumer knip cannot see. Rides the checker patch + pin set on any bump.
       ignoreDependencies: ["pino-pretty", "ts7", "@typescript/native"],
+      // knip's Stryker plugin only globs `.js`/`.mjs`/`.cjs`/`.json` configs; naming the `.ts` configs is
+      // what lets it read `testRunner`/`checkers` and credit the runner and checker packages.
+      stryker: { config: ["stryker.config.ts", "stryker.gate.config.ts"] },
       // These imports execute inside the captured browser runtime, not against repository-relative modules.
       ignoreUnresolved: ["./scripts/openai.js", "./scripts/extensions.js", "./scripts/tool-calling.js"],
     },
@@ -148,17 +154,7 @@ const config = {
     "packages/client": {
       // main.tsx is auto-detected as an entry from index.html's <script type="module"> tag.
       entry: ["index.html"],
-      // The second pattern SUBTRACTS the transcript reading-port budget from the SHIPPABLE view only (#2426,
-      // owner-ruled 2026-09-19): it is a zero-import `.ts` leaf whose one consumer is a playwright-ct spec —
-      // deliberately not a const inside `chat-controls-band.tsx`, because a CT spec's node side cannot import
-      // a `.tsx` (playwright-ct rewrites named imports from a component file into generated component consts
-      // and the spec then collects ZERO tests). So it has no production importer BY CONSTRUCTION, and the
-      // production view calls the file dead. Subtracted from `project` rather than parked in `ignore`: an
-      // `ignore` row cannot carry the `!` production marker, so it would read as redundant in the DEFAULT
-      // view (where the spec does reach the file) and `treatConfigHintsAsErrors` would red the default run.
-      // The default view still judges the file; the band's header cites it; its enforcer is
-      // `tests/client/features/chat/components/chat-controls-band.ct.tsx`.
-      project: ["src/**/*.{ts,tsx}!", "!src/features/chat/lib/chat-reading-port.ts!"],
+      project: ["src/**/*.{ts,tsx}!"],
       // Tailwind v4: the vite plugin (@tailwindcss/vite) requires the bare `tailwindcss` package
       // resolvable at build; nothing imports it directly.
       ignoreDependencies: ["tailwindcss"],
@@ -166,5 +162,5 @@ const config = {
   },
 } satisfies KnipConfig;
 
-// biome-ignore lint/style/noDefaultExport: knip's config loader requires the default export.
+// knip's config loader requires the default export; biome.json's config-file block admits it for this file.
 export default config;

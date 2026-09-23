@@ -1,5 +1,5 @@
 // The docs formatter — the ONE writer of markdown style for the LIVING doc corpus (scope below).
-// Law: docs/architecture/core/Core-Docs-Formatting-Law.md. The point: the architecture docs are read by
+// Style: .claude/rules/writing.md §Markdown. The point: the architecture docs are read by
 // AGENTS, not humans — alignment-padded GFM tables (cells padded with dozens-to-hundreds of spaces so
 // pipes line up) are pure token waste. This emits COMPACT tables (single space around cell content,
 // `| - |` delimiter rows, no pipe alignment), passes YAML frontmatter through verbatim, and preserves
@@ -30,7 +30,7 @@
 //     claude-b, 2026-09-12). `docs/history/**` (558) is excluded by omission, but
 //     `docs/architecture/history/**` (70) nests INSIDE a living tree, so prefix-matching had admitted it
 //     while this header claimed otherwise. Both now live in ONE named list, `FROZEN_TREES`, enforced at
-//     BOTH doors. Documentation-Law §"Relocation & retirement": a frozen doc is a record of what was
+//     BOTH doors. .claude/rules/docs.md §"Moving or deleting a doc": a frozen doc is a record of what was
 //     written then, and reformatting it edits history to no reader's benefit.
 // Measured 2026-09-12: those exclusions are 211 of the 349 unformatted files outside the old scope, and
 // the archaeology correction takes the barrier's pending reformat from 215 files to ~145.
@@ -95,7 +95,7 @@ const EXCLUDED = /^docs\/architecture\/proposed\//u;
  * EXPLICITLY on the command line rather than resolved from the default set.
  *
  * The #2144 widening covers LIVING trees only. A frozen doc is a record of what was written then;
- * reformatting it edits history to no reader's benefit (Documentation-Law §"Relocation & retirement").
+ * reformatting it edits history to no reader's benefit (.claude/rules/docs.md §"Moving or deleting a doc").
  */
 const FROZEN_TREES = ["docs/history/", "docs/architecture/history/"] as const;
 
@@ -219,7 +219,7 @@ function visibleAt(text: string, index: number): string {
  * not the observed one. `fidelityKey` is the backstop either way.
  *
  * It runs in the `text` handler, so an inline-code or fenced-code value cannot reach it: a `\_` inside a
- * code span is a LITERAL backslash (`Core-Docs-Formatting-Law.md` §"Backslash escapes" documents exactly
+ * code span is a LITERAL backslash (`.claude/rules/writing.md` §Markdown quotes exactly
  * that spelling) and removing it would be the lossy edit this function exists to prevent.
  *
  * `edge` is `info.before`/`info.after` — the output characters on either side of THIS node, which the

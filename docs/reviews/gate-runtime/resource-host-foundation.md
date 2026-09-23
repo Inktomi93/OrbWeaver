@@ -80,7 +80,7 @@ pnpm test:scoped tests/tooling/verify/lib/population-resolver.test.ts tests/tool
 pnpm check:docs docs/reviews/gate-runtime/resource-host-foundation.md
 ```
 
-The scoped type programs extend `tooling/tsconfig.json` for changed source roots and `tsconfig.json` for the resource test roots, with empty `include`, explicit `files`, and the root `reset.d.ts`/`platform.d.ts` ambient pair. Both use the existing `scripts/ts7.cjs` wrapper and retain the real import closure; neither is a whole-tree verification claim.
+The scoped type programs extend `tooling/tsconfig.json` for changed source roots and `tsconfig.json` for the resource test roots, with empty `include`, explicit `files`, and the root `reset.d.ts`/`platform.d.ts` ambient pair. Both use the existing `scripts/ts7.ts` wrapper and retain the real import closure; neither is a whole-tree verification claim.
 
 ## Composed integration repair
 

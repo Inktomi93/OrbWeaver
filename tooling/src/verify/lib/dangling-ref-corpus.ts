@@ -6,9 +6,9 @@ const LAW_AUTHORITIES: ReadonlySet<string> = new Set(["normative", "current-refe
 const DESIGN_AUTHORITY = "design";
 const LIVING_STATUS = "active";
 const PARKED_SET_LANE = "architecture-proposed";
-const LINK_SCAN_DIRS: readonly string[] = ["docs/architecture/core", "docs/architecture/proposed"];
+const LINK_SCAN_DIRS: readonly string[] = ["docs/law", "docs/architecture/proposed"];
 /** The D-ledger (`docs/adr/`) is law and sits outside the catalog, so it is admitted by directory. */
-const AUDIT_SCAN_DIRS: readonly string[] = ["docs/architecture/core", "docs/adr"];
+const AUDIT_SCAN_DIRS: readonly string[] = ["docs/law", "docs/adr"];
 
 export const CATALOG_REL = "docs/catalog/catalog.json";
 export const LAW_OUTSIDE_DOCS: readonly string[] = ["tooling/src/verify/gates/GATE-AUTHORING.md", "tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md"];

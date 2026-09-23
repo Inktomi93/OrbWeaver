@@ -231,7 +231,7 @@ export interface PluginHostV1 {
     /** Surface quick-reply chips (the automation bus event) — capability: chat.quick_reply */
     surfaceQuickReply: (chat: ChatHandle, choices: readonly { label: string; sendText: string }[]) => Promise<void>;
     /** Request an autonomous turn — capability: turn.trigger. Budget/consent-gated EXACTLY like the
-     *  trigger_turn action: debits the chat's automation_budgets, carries
+     *  trigger_turn action: counts against the chat's fire-rate cap, carries
      *  initiator:"plugin" + automationDepth, and hits D17 unchanged. */
     requestTurn: (chat: ChatHandle, p?: { speakerCharacterId?: string; guided?: string }) => Promise<void>;
   };

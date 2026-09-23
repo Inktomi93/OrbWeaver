@@ -1,4 +1,4 @@
-// Gate: feature-structure (core/Core-0-Architecture-and-Structure.md §7) — every domain feature follows the
+// Gate: feature-structure (docs/law/Core-0-Architecture-and-Structure.md §7) — every domain feature follows the
 // per-feature template (index.ts / service.ts / context.ts / contract/ / verbs/). persistence/ and
 // substrate/ are per-feature (export has no persistence/; chat/workloads have no substrate/), so they are
 // NOT required here. ResourceHost derives the live `packages/server/src/domain` tree; a missing/loose entry

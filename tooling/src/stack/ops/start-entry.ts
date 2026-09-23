@@ -1,5 +1,5 @@
 // The spawn target the root `start` script runs — `pnpm start`. It is a plain entry, not a `cli.ts`:
-// `stack` is a BASH-FRONTED tool (docs/architecture/core/Core-Tooling-Law.md §4.1 BASH_FRONTED_TOOLS) and
+// `stack` is a BASH-FRONTED tool (docs/law/Core-Tooling-Law.md §4.1 BASH_FRONTED_TOOLS) and
 // owns no argv door of its own, so this file is the front door for the one verb a non-Linux operator can
 // actually run. It is deliberately NOT reached through stack.sh — the whole point is that no bash, no
 // setsid and no `ss` stand between a stranger and the app (reviewed grant

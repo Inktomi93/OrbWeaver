@@ -1,4 +1,4 @@
-// tests/support/matchers — the custom matchers (core/Spine-Testing.md §4: hard cap 5; each must encode an
+// tests/support/matchers — the custom matchers (docs/law/Spine-Testing.md §4: hard cap 5; each must encode an
 // invariant whose diff message beats a generic assertion). ONE module: runtime impl + the TS `declare
 // module` augmentation. Registered by side-effect import from `support/fixtures.ts` (the barrel every
 // test imports `test`/`expect` from — gate: test-fixture-imports), so any test using the composed `test`
@@ -13,7 +13,7 @@
 //   • toExitWith(code) — the tooling exit contract (0 clean · 1 violations · 2 tool-broke · 3 misuse,
 //     @orb/tooling/_shared/exit-contract) over a runCli result: names BOTH codes by contract name and
 //     prints stdout/stderr tails on mismatch — a bare `expect(res.code).toBe(0)` failure prints `1 ≠ 0`
-//     and nothing else, which is why the class exists (docs/architecture/core/Core-Tooling-Law.md §5.2).
+//     and nothing else, which is why the class exists (docs/law/Core-Tooling-Law.md §5.2).
 //
 // CROSS-REALM NOTE: `@trpc/server` is NOT a root dependency (only `packages/server` declares it), so this
 // file cannot `instanceof TRPCError`. It duck-types `e.name === "TRPCError" && typeof e.code === "string"`

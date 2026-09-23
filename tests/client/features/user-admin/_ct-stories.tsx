@@ -1,4 +1,4 @@
-// user-admin feature CT stories (core/Spine-Testing.md §7 — CT mounts ONLY from a non-test module). The
+// user-admin feature CT stories (docs/law/Spine-Testing.md §7 — CT mounts ONLY from a non-test module). The
 // stories reach feature internals the front door doesn't re-export (the section BODIES are mounted by the
 // settings host through the contribution defs) — the settings _ct-stories.tsx precedent.
 

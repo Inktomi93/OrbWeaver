@@ -10,6 +10,21 @@ import { unwrapExpression } from "./ast-read.ts";
 export const DRAFT_DECISION_HOME = "packages/client/src/lib/edit-session.ts";
 export const DRAFT_TREE_ANCHOR = "packages/db/src/schema/index.ts";
 
+/** The occurrence policy's diagnostic and remedy. They name `DRAFT_DECISION_HOME` by reference because the
+ *  `-health` sibling exists to keep exactly that path actionable. */
+export const DRAFT_COMMIT_MESSAGE =
+  "a once-seeded draft is being committed under `draft !== <the live value>`. That guard exists to suppress " +
+  "a pointless write, but the live value MOVES: when a second writer lands one while the editor is open, the " +
+  "comparison passes for a reason that has nothing to do with the user and the branch writes the opened-with " +
+  `text back over what arrived. Judge the draft against WHAT IT OPENED WITH, via \`resolveCommit\` in ${DRAFT_DECISION_HOME}.`;
+
+export const DRAFT_COMMIT_FIX =
+  "seed an `openedFrom` snapshot beside the draft and commit through `resolveCommit(session, live)` " +
+  `(${DRAFT_DECISION_HOME}) — it separates 'nothing typed', 'an ordinary commit', and 'two ` +
+  "writers, surfaced' instead of collapsing them into one comparison. A deliberate exception is waived with " +
+  "`// @orb-waive stale-draft-commit(<position>): <reason>` above the comparison, where <position> is the " +
+  "reported draft-state variable name, e.g. `draft`.";
+
 export function draftDecisionHomeMissing(paths: ReadonlySet<string>): boolean {
   return paths.has(DRAFT_TREE_ANCHOR) && !paths.has(DRAFT_DECISION_HOME);
 }
@@ -112,7 +127,12 @@ export function createDraftCommitHooks(ctx: GatePolicyContext): GatePolicyHooks 
         for (const comparison of file.comparisons) {
           const draft = staleDraft(comparison, file);
           if (draft !== undefined) {
-            ctx.report.node(comparison, { token: draft, offset: Math.max(comparison.getText().indexOf(draft), 0) });
+            ctx.report.node(comparison, {
+              token: draft,
+              offset: Math.max(comparison.getText().indexOf(draft), 0),
+              message: DRAFT_COMMIT_MESSAGE,
+              fix: DRAFT_COMMIT_FIX,
+            });
           }
         }
       }

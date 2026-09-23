@@ -2,7 +2,8 @@
 // a UsageError so the cli maps it to exit 3 (misuse). Every list-taking verb reads a leading run of ids
 // or paths, so `set 12 14 17 done` is one call.
 import { UsageError } from "../../_shared/run-tool.ts";
-import type { DocCommand, ItemPatch } from "../contract/types.ts";
+import type { DocCommand, ItemPatch, SectionContent } from "../contract/types.ts";
+import { ADR_SECTION_FLAGS, ITEM_SECTION_FLAGS, PLAN_SECTION_FLAGS } from "../contract/types.ts";
 import { isItemKind, isItemState } from "./items.ts";
 import { isSlug } from "./names.ts";
 
@@ -10,10 +11,16 @@ const ID_RE = /^\d+$/u;
 
 export const USAGE = [
   "usage: pnpm doc <verb> …",
-  "  new adr <slug> [--title <t>]        new plan <slug> [--title <t>]",
-  "  item <title> --kind bug|work|decision|tooling [--priority P0..P3] [--area a] [--plan slug] [--lane x]",
-  "  status <status> <path…> [--by <path>]",
-  "  set <id…> <open|doing|blocked|done> [--lane x] [--blocked <reason>] [--priority P] [--area a] [--plan s] [--reviewed x] [--evidence sha]",
+  "  new adr <slug> [--title <t>] [--context <text>] [--decision <text>] [--consequences <text>] [--alternatives <text>]",
+  "  new plan <slug> [--title <t>] [--goal <text>] [--shape <text>] [--rejected <text>] [--coupled <text>] [--test-plan <text>]",
+  "  item <title> --kind bug|work|decision|tooling [--priority P0..P3] [--area a] [--plan slug] [--lane x | --blocked <reason>]",
+  "       [--what <text>] [--why <text>] [--done <text>]",
+  "  item --from <file.json>             a JSON array of items (title, kind, priority, area, plan, lane, blocked,",
+  "                                      what, why, done), written all-or-nothing",
+  "  status <status> <path…> [--by <path>] [--kind <k>]",
+  "  set <id…> [open|doing|blocked|done] [--kind k] [--title <t> (one id)] [--lane x] [--blocked <reason>] [--priority P] [--area a]",
+  "       [--plan s] [--reviewed x] [--evidence sha]      (--<field> - or --<field> none clears a field)",
+  "  remove <id…>                        delete items filed by mistake",
   "  land <id…> --evidence <sha>       land --merged",
   "  archive <plan-slug|item-id…>      index      review <path|glob…>      due [glob…]",
   "  overview      drift",
@@ -78,19 +85,57 @@ function slugArg(value: string | undefined, verb: string): string {
   return value;
 }
 
+function contentFlagNames(flags: readonly string[]): readonly string[] {
+  return flags.map((flag) => `--${flag}`);
+}
+
+/** The section text a mint carries: `--<flag> <text>` per content flag the kind's template declares. */
+function parseContent<F extends string>(args: readonly string[], flags: readonly F[]): SectionContent<F> {
+  const content: { [K in F]?: string } = {};
+  for (const flag of flags) {
+    const value = flagValue(args, `--${flag}`);
+    if (value !== null) {
+      content[flag] = value;
+    }
+  }
+  return content;
+}
+
+const ADR_FLAGS = ADR_SECTION_FLAGS;
+const PLAN_FLAGS = PLAN_SECTION_FLAGS;
+const ITEM_CONTENT_FLAGS = ITEM_SECTION_FLAGS;
+
 function parseNew(args: readonly string[]): DocCommand {
   const [kind, slug, ...rest] = args;
-  refuseUnknownFlags(rest, ["--title"], "new");
   if (kind !== "adr" && kind !== "plan") {
     throw new UsageError(`new takes adr or plan\n${USAGE}`);
   }
-  return { kind: kind === "adr" ? "new-adr" : "new-plan", slug: slugArg(slug, "new"), title: flagValue(rest, "--title") };
+  const title = flagValue(rest, "--title");
+  if (kind === "adr") {
+    refuseUnknownFlags(rest, ["--title", ...contentFlagNames(ADR_FLAGS)], "new adr");
+    return { kind: "new-adr", slug: slugArg(slug, "new"), title, content: parseContent(rest, ADR_FLAGS) };
+  }
+  refuseUnknownFlags(rest, ["--title", ...contentFlagNames(PLAN_FLAGS)], "new plan");
+  return { kind: "new-plan", slug: slugArg(slug, "new"), title, content: parseContent(rest, PLAN_FLAGS) };
 }
 
-const ITEM_FLAGS = ["--kind", "--priority", "--area", "--plan", "--lane"];
+const FROM_FLAG = "--from";
+const ITEM_FLAGS = ["--kind", "--priority", "--area", "--plan", "--lane", "--blocked", ...contentFlagNames(ITEM_CONTENT_FLAGS), FROM_FLAG];
+
+/** `item --from <file>` stands alone: every field of every item lives in the file. */
+function parseItemBatch(args: readonly string[]): DocCommand {
+  const from = requiredFlag(args, FROM_FLAG);
+  if (args.length !== 2) {
+    throw new UsageError(`item ${FROM_FLAG} takes no title and no other flag — every field lives in the file\n${USAGE}`);
+  }
+  return { kind: "item-batch", from };
+}
 
 function parseItem(args: readonly string[]): DocCommand {
   refuseUnknownFlags(args, ITEM_FLAGS, "item");
+  if (args.includes(FROM_FLAG)) {
+    return parseItemBatch(args);
+  }
   const title = positionals(args, ITEM_FLAGS).join(" ").trim();
   if (title === "") {
     throw new UsageError(`item takes a title\n${USAGE}`);
@@ -101,16 +146,20 @@ function parseItem(args: readonly string[]): DocCommand {
   }
   return {
     kind: "item",
-    title,
-    itemKind,
-    priority: flagValue(args, "--priority"),
-    area: flagValue(args, "--area"),
-    plan: flagValue(args, "--plan"),
-    lane: flagValue(args, "--lane"),
+    input: {
+      title,
+      kind: itemKind,
+      priority: flagValue(args, "--priority"),
+      area: flagValue(args, "--area"),
+      plan: flagValue(args, "--plan"),
+      lane: flagValue(args, "--lane"),
+      blocked: flagValue(args, "--blocked"),
+      content: parseContent(args, ITEM_CONTENT_FLAGS),
+    },
   };
 }
 
-type PatchKey = Exclude<keyof ItemPatch, "state">;
+type PatchKey = Exclude<keyof ItemPatch, "state" | "kind" | "title">;
 const PATCH_FLAGS: readonly (readonly [string, PatchKey])[] = [
   ["--lane", "lane"],
   ["--blocked", "blocked"],
@@ -120,29 +169,48 @@ const PATCH_FLAGS: readonly (readonly [string, PatchKey])[] = [
   ["--reviewed", "reviewed"],
   ["--evidence", "evidence"],
 ];
-const SET_FLAGS = PATCH_FLAGS.map(([flag]) => flag);
+const SET_FLAGS = [...PATCH_FLAGS.map(([flag]) => flag), "--kind", "--title"];
+/** The values that clear a field, so neither can name a plan, a lane or a reviewer. */
+const CLEAR_VALUES: readonly string[] = ["-", "none"];
 
-/** The field writes a `set` carries. `--flag -` clears a field (a bare `-` is never a real value here);
- *  an absent flag leaves the field alone, so the patch holds only the keys the operator named. */
+/** The field writes a `set` carries. `--flag -` or `--flag none` clears a field; an absent flag leaves
+ *  the field alone, so the patch holds only the keys the operator named. */
 function parsePatch(args: readonly string[]): ItemPatch {
   const out: { -readonly [K in PatchKey]?: ItemPatch[K] } = {};
   for (const [flag, key] of PATCH_FLAGS) {
     const value = flagValue(args, flag);
     if (value !== null) {
-      out[key] = value === "-" ? null : value;
+      out[key] = CLEAR_VALUES.includes(value) ? null : value;
     }
   }
   return out;
 }
 
+/** `--kind` and `--title`, which change what an item is rather than where it stands. */
+function parseIdentity(args: readonly string[], idCount: number): Pick<ItemPatch, "kind" | "title"> {
+  const kind = flagValue(args, "--kind");
+  const title = flagValue(args, "--title");
+  if (kind !== null && !isItemKind(kind)) {
+    throw new UsageError("--kind must be bug, work, decision or tooling");
+  }
+  if (title !== null && idCount !== 1) {
+    throw new UsageError(`--title renames one item — name exactly one id\n${USAGE}`);
+  }
+  return { ...(kind === null ? {} : { kind }), ...(title === null ? {} : { title: title.trim() }) };
+}
+
+/** The state is optional so a field-only edit (`set 12 --kind work`) needs no state. */
 function parseSet(args: readonly string[]): DocCommand {
   refuseUnknownFlags(args, SET_FLAGS, "set");
   const tokens = positionals(args, SET_FLAGS);
-  const state = tokens.at(-1);
-  if (!isItemState(state)) {
-    throw new UsageError(`set ends with the state: open, doing, blocked or done\n${USAGE}`);
+  const last = tokens.at(-1);
+  const state = isItemState(last) ? last : undefined;
+  const idList = ids(state === undefined ? tokens : tokens.slice(0, -1), "set");
+  const patch: ItemPatch = { ...(state === undefined ? {} : { state }), ...parseIdentity(args, idList.length), ...parsePatch(args) };
+  if (Object.keys(patch).length === 0) {
+    throw new UsageError(`set names a state or at least one field\n${USAGE}`);
   }
-  return { kind: "set", ids: ids(tokens.slice(0, -1), "set"), patch: { state, ...parsePatch(args) } };
+  return { kind: "set", ids: idList, patch };
 }
 
 function parseLand(args: readonly string[]): DocCommand {
@@ -153,13 +221,20 @@ function parseLand(args: readonly string[]): DocCommand {
   return { kind: "land", ids: ids(positionals(args, ["--evidence"]), "land"), evidence: requiredFlag(args, "--evidence") };
 }
 
+const STATUS_FLAGS = ["--by", "--kind"];
+
 function parseStatus(args: readonly string[]): DocCommand {
-  refuseUnknownFlags(args, ["--by"], "status");
-  const [status, ...paths] = positionals(args, ["--by"]);
+  refuseUnknownFlags(args, STATUS_FLAGS, "status");
+  const [status, ...paths] = positionals(args, STATUS_FLAGS);
   if (status === undefined || paths.length === 0) {
     throw new UsageError(`status takes a status and one or more paths\n${USAGE}`);
   }
-  return { kind: "status", status, paths, by: flagValue(args, "--by") };
+  return { kind: "status", status, paths, by: flagValue(args, "--by"), docKind: flagValue(args, "--kind") };
+}
+
+function parseRemove(args: readonly string[]): DocCommand {
+  refuseUnknownFlags(args, [], "remove");
+  return { kind: "remove", ids: ids(args, "remove") };
 }
 
 function parseListVerb(name: "archive" | "review" | "due", args: readonly string[]): DocCommand {
@@ -190,6 +265,7 @@ const VERBS: ReadonlyMap<string, Parser> = new Map<string, Parser>([
   ["item", parseItem],
   ["status", parseStatus],
   ["set", parseSet],
+  ["remove", parseRemove],
   ["land", parseLand],
   ["archive", (tail): DocCommand => parseListVerb("archive", tail)],
   ["review", (tail): DocCommand => parseListVerb("review", tail)],

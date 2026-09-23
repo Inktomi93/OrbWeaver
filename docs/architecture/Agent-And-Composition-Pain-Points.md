@@ -52,7 +52,7 @@ updated: 2026-08-14
   and a ceiling (`canAgent`). The same token spans identity, execution, seating, and authorization.
 
 - **\[CODE]** **"session" means two unrelated things**, so much so that a spine rule exists solely to
-  keep them apart — `core/Spine-Identity-and-Auth.md §"BFF session ≠ SDK chat session"`. One is the
+  keep them apart — `docs/law/Spine-Identity-and-Auth.md §"BFF session ≠ SDK chat session"`. One is the
   auth/login session (`domain/sessions/`); the other is the agent-sdk transcript resume cache
   (`infra/providers/backends/agent-sdk/session/`).
 

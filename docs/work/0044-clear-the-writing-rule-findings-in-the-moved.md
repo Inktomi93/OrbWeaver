@@ -12,7 +12,7 @@ plan: doc-migration
 
 ## What
 
-After item 0005 moves `docs/architecture/core/` into `docs/law/`, clear its writing-rule findings (dates, issue numbers, history words, banned words) with the same workflow as the ADR cleanup: Sonnet rewrites, and Opus checks each file against its original for lost meaning. Keep a file at full length rather than lose a rule.
+After item 0005 moves the legacy core law folder into `docs/law/`, clear its writing-rule findings (dates, issue numbers, history words, banned words) with the same workflow as the ADR cleanup: Sonnet rewrites, and Opus checks each file against its original for lost meaning. Keep a file at full length rather than lose a rule.
 
 ## Why
 

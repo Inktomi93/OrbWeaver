@@ -1,4 +1,4 @@
-// Databank feature CT stories (core/Spine-Testing.md §7 — a CT mounts ONLY from a non-test module). The
+// Databank feature CT stories (docs/law/Spine-Testing.md §7 — a CT mounts ONLY from a non-test module). The
 // front door exports the SECTION DEFINITION (the shell mounts its surfaces in production), so the surfaces
 // are deep-imported the way the world-info / regex / tag stories deep-import theirs. Every story wraps the
 // real client data layer (<CtDataProviders> — Query + the real tRPC client over the routeTrpc-stubbed

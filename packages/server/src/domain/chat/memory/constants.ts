@@ -1,5 +1,5 @@
 // domain/chat/memory/constants — the baked-in memory tuning + the config resolver. DEFAULTS are the
-// core/Knowledge-Cluster.md §5 GROUNDED numbers (neo tuned them against real
+// docs/law/Knowledge-Cluster.md §5 GROUNDED numbers (neo tuned them against real
 // imported ST chats): `blockSize 8 · fanOut 4 · verbatimWindow 8 · maxTier 3` — tier-1 fills at 32 messages,
 // tier-2 at 128, tier-3 at 512, so tiering actually engages at typical lengths, and `blockSize 8 ≈ 3k tok`
 // fits a tiny local summarizer (the token-guard is the real safety — §3a). The numbers MIRROR the
@@ -11,7 +11,7 @@
 import { DEFAULT_MEMORY_DEFAULTS } from "@orb/contracts/settings";
 import type { MemoryConfig, ResolvedMemoryConfig } from "./types.ts";
 
-/** The baked-in resolver floor — the core/Knowledge-Cluster.md §5 grounded defaults. ONE home: the values
+/** The baked-in resolver floor — the docs/law/Knowledge-Cluster.md §5 grounded defaults. ONE home: the values
  *  live in `@orb/contracts/settings` `DEFAULT_MEMORY_DEFAULTS` (so the admin surface reads the same floor it
  *  displays); this re-exports under the subsystem's `ResolvedMemoryConfig` type (every knob present).
  * @public Test-anchored module surface; focused tests pin this production-local behavior.

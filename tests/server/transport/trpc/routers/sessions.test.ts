@@ -1,4 +1,4 @@
-// sessions.me — the canonical viewer-identity read (core/Tier-4-Transport.md). Unlike the other router
+// sessions.me — the canonical viewer-identity read (docs/law/Tier-4-Transport.md). Unlike the other router
 // tests, this procedure calls NO `ctx.services` verb: it is a PURE projection of the resolved `Principal`
 // (`ctx.auth`) into a `ViewerView` (`userId`/`handle`/`globalRole`), so identity is never re-queried below
 // the seam (Spine-Identity-and-Auth invariant #2). These tests drive the real middleware ladder via

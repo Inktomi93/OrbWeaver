@@ -5,17 +5,38 @@ import { parseDocCommand } from "../../../../tooling/src/doc/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("the minting verbs", () => {
-  expect(parseDocCommand(["new", "adr", "a-slug", "--title", "A title"])).toEqual({ kind: "new-adr", slug: "a-slug", title: "A title" });
-  expect(parseDocCommand(["new", "plan", "p"])).toEqual({ kind: "new-plan", slug: "p", title: null });
+  expect(parseDocCommand(["new", "adr", "a-slug", "--title", "A title", "--decision", "Do it.", "--alternatives", "None."])).toEqual({
+    kind: "new-adr",
+    slug: "a-slug",
+    title: "A title",
+    content: { decision: "Do it.", alternatives: "None." },
+  });
+  expect(parseDocCommand(["new", "plan", "p", "--test-plan", "One test."])).toEqual({
+    kind: "new-plan",
+    slug: "p",
+    title: null,
+    content: { "test-plan": "One test." },
+  });
   expect(parseDocCommand(["item", "Fix", "the", "thing", "--kind", "bug", "--priority", "P1", "--lane", "cb-x"])).toEqual({
     kind: "item",
-    title: "Fix the thing",
-    itemKind: "bug",
-    priority: "P1",
-    area: null,
-    plan: null,
-    lane: "cb-x",
+    input: { title: "Fix the thing", kind: "bug", priority: "P1", area: null, plan: null, lane: "cb-x", blocked: null, content: {} },
   });
+  expect(
+    parseDocCommand(["item", "Wait", "--kind", "work", "--blocked", "on 3", "--what", "The change.", "--why", "The symptom.", "--done", "The bar."]),
+  ).toEqual({
+    kind: "item",
+    input: {
+      title: "Wait",
+      kind: "work",
+      priority: null,
+      area: null,
+      plan: null,
+      lane: null,
+      blocked: "on 3",
+      content: { what: "The change.", why: "The symptom.", done: "The bar." },
+    },
+  });
+  expect(parseDocCommand(["item", "--from", "items.json"])).toEqual({ kind: "item-batch", from: "items.json" });
 });
 
 test("set takes a leading run of ids, the state last, and only the flags it was given", () => {
@@ -31,7 +52,18 @@ test("set takes a leading run of ids, the state last, and only the flags it was 
     status: "superseded",
     paths: ["docs/adr/0001-a.md"],
     by: "docs/adr/0002-b.md",
+    docKind: null,
   });
+  expect(parseDocCommand(["status", "active", "docs/law/x.md", "--kind", "law"])).toEqual({
+    kind: "status",
+    status: "active",
+    paths: ["docs/law/x.md"],
+    by: null,
+    docKind: "law",
+  });
+  expect(parseDocCommand(["set", "3", "--kind", "work", "--plan", "none"])).toEqual({ kind: "set", ids: [3], patch: { kind: "work", plan: null } });
+  expect(parseDocCommand(["set", "3", "open", "--title", "A new title"])).toEqual({ kind: "set", ids: [3], patch: { state: "open", title: "A new title" } });
+  expect(parseDocCommand(["remove", "3", "4"])).toEqual({ kind: "remove", ids: [3, 4] });
   expect(parseDocCommand(["review", "docs/law/*.md"])).toEqual({ kind: "review", patterns: ["docs/law/*.md"] });
   expect(parseDocCommand(["due"])).toEqual({ kind: "due", patterns: [] });
   expect(parseDocCommand([])).toEqual({ kind: "help" });
@@ -42,9 +74,18 @@ test("misuse is a UsageError: an unknown verb, a bad slug, a missing required fl
     ["frobnicate"],
     ["new", "adr", "Not A Slug"],
     ["item", "x"],
+    ["item", "--from", "items.json", "--kind", "work"],
+    ["item", "Title", "--from", "items.json"],
+    ["new", "adr", "a", "--goal", "a plan flag"],
+    ["new", "plan", "p", "--decision", "an ADR flag"],
     ["set", "1", "done", "--bogus", "y"],
     ["set", "one", "done"],
     ["set", "1", "sideways"],
+    ["set", "1"],
+    ["set", "1", "2", "--title", "One title for two items"],
+    ["set", "1", "--kind", "adr"],
+    ["remove"],
+    ["remove", "x"],
   ]) {
     expect(() => parseDocCommand(argv)).toThrow(UsageError);
   }

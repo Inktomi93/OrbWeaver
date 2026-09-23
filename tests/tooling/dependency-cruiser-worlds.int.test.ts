@@ -43,8 +43,8 @@ test("native dependency rules reject upward helper-world edges and retain compat
   mkdirSync(join(scratch, "packages"));
   mkdirSync(join(scratch, "tooling"));
   symlinkSync(join(repoRoot, "node_modules"), join(scratch, "node_modules"), "dir");
-  copyFileSync(join(repoRoot, "scripts/depcruise.mjs"), join(scratch, "scripts/depcruise.mjs"));
-  const adapted = runNicedSync(process.execPath, ["scripts/depcruise.mjs", "--config", join(repoRoot, ".dependency-cruiser.cjs"), "--output-type", "json"], {
+  copyFileSync(join(repoRoot, "scripts/depcruise.ts"), join(scratch, "scripts/depcruise.ts"));
+  const adapted = runNicedSync(process.execPath, ["scripts/depcruise.ts", "--config", join(repoRoot, ".dependency-cruiser.cjs"), "--output-type", "json"], {
     cwd: scratch,
   });
   expect(adapted.status, adapted.stderr).toBe(0);
@@ -53,7 +53,7 @@ test("native dependency rules reject upward helper-world edges and retain compat
   expect(adapterReport.summary.totalCruised).toBe(Object.keys(files).length);
   expect(report.summary.totalCruised).toBe(Object.keys(files).length);
   expect(report.summary.violations.filter((violation) => violation.rule.name === "no-orphans")).toEqual([]);
-  const gating = runNicedSync(process.execPath, ["scripts/depcruise.mjs", "--config", join(repoRoot, ".dependency-cruiser.cjs"), "--output-type", "err-long"], {
+  const gating = runNicedSync(process.execPath, ["scripts/depcruise.ts", "--config", join(repoRoot, ".dependency-cruiser.cjs"), "--output-type", "err-long"], {
     cwd: scratch,
   });
   const nativeGating = runNicedSync(

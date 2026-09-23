@@ -31,6 +31,22 @@ test("loads validated package scripts, dependency classes, and exports", async (
   });
 });
 
+test("package metadata reports sideEffects PRESENCE for every value shape, and absence as false", async ({ plantedTree }) => {
+  const declared = (sideEffects?: boolean | readonly string[]): Promise<string> =>
+    plantedTree({ "packages/client/package.json": JSON.stringify({ name: "@orb/client", ...(sideEffects === undefined ? {} : { sideEffects }) }) });
+  const read = async (root: Promise<string>): Promise<boolean | undefined> => {
+    const result = loadPackageMetadata(createResourceReader({ root: await root }), "client");
+    return result.status === "ready" ? result.value.declaresSideEffects : undefined;
+  };
+  // `true` is still a declaration: the ban is on the field, because any value hands the bundler a policy.
+  expect([await read(declared(false)), await read(declared(true)), await read(declared(["**/*.css"])), await read(declared())]).toEqual([
+    true,
+    true,
+    true,
+    false,
+  ]);
+});
+
 test("package metadata refuses malformed JSON, missing identity, malformed fact maps, and forged ids", async ({ plantedTree }) => {
   const malformed = await plantedTree({ "packages/ui/package.json": "{" });
   const missingName = await plantedTree({ "packages/ui/package.json": JSON.stringify({ private: true }) });

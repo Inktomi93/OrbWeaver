@@ -133,6 +133,25 @@ test("THE POPULATION FENCE holds against a real anchor, and the captured foreign
   expect(authority.effectiveFindings).toEqual([]);
 });
 
+test("work item 0036: a directive in a repo-root config, a package file outside src, a root declaration and a converted script is judged", () => {
+  // The four coordinates the population used to leave out, one per class the item named. Each carries its
+  // own rule so a dropped coordinate shows up as a missing SUBJECT, not merely as a smaller count; a
+  // population that still stopped at the named roots reports only the `scripts/` one.
+  const { authority, toolErrors } = passOf({
+    "knip.ts": "// biome-ignore lint/style/noDefaultExport: probe\nexport const a = 1;\n",
+    "packages/ui/token-contract.ts": "// biome-ignore lint/performance/noNamespaceImport: probe\nexport const b = 2;\n",
+    "platform.d.ts": "interface Map<K, V> {\n  // biome-ignore lint/style/useConsistentMethodSignatures: probe\n  probe(key: K): V;\n}\n",
+    "scripts/vitest-supervised.ts": "// biome-ignore lint/style/noProcessEnv: probe\nexport const c = 3;\n",
+  });
+  expect(toolErrors).toEqual([]);
+  expect(authority.effectiveFindings.map((finding) => [finding.subject, finding.operation]).toSorted()).toEqual([
+    ["lint/performance/noNamespaceImport", "source"],
+    ["lint/style/noDefaultExport", "source"],
+    ["lint/style/noProcessEnv", "source"],
+    ["lint/style/useConsistentMethodSignatures", "source"],
+  ]);
+});
+
 test("every shipped `suppressions` grant is spelled for THIS policy's identity axes, not a file path", () => {
   // The one consumer that diverges from `lib/reviewed-grant-findings.ts`'s file-subject convention (ruled
   // 2026-09-12). A row that drifted back to a path subject would be stale on arrival and alarm on the real

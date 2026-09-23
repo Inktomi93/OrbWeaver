@@ -1,4 +1,4 @@
-// Policy: tooling-front-door (docs/architecture/core/Core-Tooling-Law.md §4.2) — cross-tool imports enter through
+// Policy: tooling-front-door (docs/law/Core-Tooling-Law.md §4.2) — cross-tool imports enter through
 // the sibling's index.ts only (`#<tool>` or `…/<tool>/index.ts`); `_shared/*` is per-MODULE by design (no
 // barrel — a _shared index would chain-load playwright/ts-morph for every consumer); cli.ts consumes its
 // own tool ONLY through ./index.ts (+ _shared) — the cli fronts the programmatic API, never ops/lib
@@ -43,7 +43,7 @@ import { defineGate } from "../contract/policy.ts";
 import { isToolCli, resolveRelativeImport, TOOLING_PREFIX, toolOf } from "../lib/tooling-import-door.ts";
 
 const MESSAGE =
-  "a @orb/tooling import bypasses a front door — cross-tool enters through the sibling's index.ts; cli.ts consumes only its own index.ts (+ _shared) (docs/architecture/core/Core-Tooling-Law.md §4.2). A relative escape out of tooling/ is judged by tooling-root-config-import.";
+  "a @orb/tooling import bypasses a front door — cross-tool enters through the sibling's index.ts; cli.ts consumes only its own index.ts (+ _shared) (docs/law/Core-Tooling-Law.md §4.2). A relative escape out of tooling/ is judged by tooling-root-config-import.";
 
 const FIX =
   "import the sibling's index.ts (or #<tool>); re-export what the cli needs from the tool's index.ts. A deliberate " +

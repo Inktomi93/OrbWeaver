@@ -1,6 +1,6 @@
 // The frontmatter reader + its schema check — PURE (source string in, Frontmatter out), which is what
 // lets the corpus rules be unit-tested without a tree. Deliberately NOT a YAML parser: the authored
-// schema is FLAT `key: value` (Documentation-Law), and a real YAML reader would happily accept nested
+// schema is FLAT `key: value`, and a real YAML reader would happily accept nested
 // shapes the catalog cannot represent.
 import type { Frontmatter } from "../contract/types.ts";
 import {

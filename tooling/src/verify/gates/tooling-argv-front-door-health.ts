@@ -46,7 +46,7 @@ const ARGV_MEMBER = "argv";
 // and the claim was empty in all five. `count` + `line` are the real assertions; the discriminating work
 // is done by each row's own FIXTURE, which its `why` names.
 const MESSAGE =
-  "blind gate — no tool cli.ts was seen reading process.argv on a real-tree run, so the argv-reader matcher recognises nothing and every arm of tooling-argv-front-door is vacuously green. Re-derive the read shape in lib/process-member-origin.ts (docs/architecture/core/Core-Tooling-Law.md §4.9).";
+  "blind gate — no tool cli.ts was seen reading process.argv on a real-tree run, so the argv-reader matcher recognises nothing and every arm of tooling-argv-front-door is vacuously green. Re-derive the read shape in lib/process-member-origin.ts (docs/law/Core-Tooling-Law.md §4.9).";
 
 export const gate = defineGate({
   id: "tooling-argv-front-door-health",

@@ -1,4 +1,4 @@
-// transport/trpc/routers/sessions — the auth-session surface (core/Tier-4-Transport.md). Two procedures:
+// transport/trpc/routers/sessions — the auth-session surface (docs/law/Tier-4-Transport.md). Two procedures:
 //   • `me` — the canonical viewer-identity read ("who am I": `userId`/`handle`/`globalRole`). Projected
 //     DIRECTLY from the request `Principal` (`ctx.auth`), NOT a `ctx.services.sessions` verb — identity is
 //     resolved ONCE at `entry/auth/seam.ts` (Spine-Identity-and-Auth invariant #2: nothing below the seam

@@ -3,7 +3,7 @@
 // raw FormApi call it wraps (the headless `create-saved-entity-form.test.ts` sibling pins that
 // underlying library contract; this closes the gap to the actual `promote()` wrapper). A browser/CT
 // lane (not headless) because `form.Subscribe` needs a real render to observe `isDirty` reactively
-// (core/Spine-Testing.md §7).
+// (docs/law/Spine-Testing.md §7).
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { SavedDraftMirrorStory, SavedDraftRestoreStory, SavedDraftUnmountFlushStory, SavedEntityPromoteStory } from "./_ct-stories.tsx";

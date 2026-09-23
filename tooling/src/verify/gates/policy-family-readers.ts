@@ -15,9 +15,13 @@
 // dependency common to every member would accuse connected siblings for an unrelated outlier. Singletons
 // have no partner and remain outside this question; their meaningful singleton reason is review-owned.
 //
-// Whole-population ordinary/warning transition, workItem2187: retain the complete census while its findings
-// drain, then promote to hard/error at the tested final chunk (§5). A partial or unreadable family census
-// refuses. The self-registration pin prevents a dead descriptor reader from certifying an empty census.
+// SEVERITY: `hard`/`error` since #0038 (2026-09-23). Born `ordinary`/`warning` + workItem 2187 to drain its
+// census, with the flip due in the commit that took its own count to zero. #0038 took it 19 → 0 (eight families
+// given a shared `lib/` reader, four members re-declared as singletons with their reasons) and flipped in the
+// same commit, measured with `pnpm check:structure --check policy-family-readers`. `hard` closes the
+// `@orb-waive` door: a family string with no shared reader behind it is fixed, never deferred.
+// A partial or unreadable family census refuses. The self-registration pin prevents a dead descriptor reader
+// from certifying an empty census.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). NONE:
 // this module was BORN FINAL at `6eadf5d3a` —
@@ -47,8 +51,7 @@ const MESSAGE =
 const FIX =
   "Share the meaningful computation or canonical subject/vocabulary declaration in tooling/src/verify/lib/ and consume it from production hooks. " +
   "If the policies answer unrelated questions, give this member its own family and record the singleton reason. " +
-  "Do not add an unused import or a nominal wrapper to satisfy this check. During the warning transition, a deliberate deferral uses " +
-  "`// @orb-waive policy-family-readers(family): <reason and its end condition>` at the reported family property.";
+  "Do not add an unused import or a nominal wrapper to satisfy this check.";
 const BLIND =
   `BLINDNESS: ${SELF} is in the effective population and does not read as a final policy — the descriptor reader ` +
   "(lib/policy-descriptor-read.ts finalDescriptorOf) is dead, so every module would read out of scope, the family census would collapse to " +
@@ -178,13 +181,6 @@ const PROBE = (family: string, ...libs: readonly string[]): string =>
     `${ORDINARY_TRUNK.replace("ctx.report.node(node)", `[${readerCalls(libs)}, ctx.report.node(node)]`)}\n  fix: "f",\n  mustPass: [{ mode: "source", files: { "packages/client/src/b.ts": "y" }, why: "w" }],`,
     libs.map((lib) => `import { readShared as ${readerBinding(lib)} } from "${lib}";\n`).join(""),
   ).replace(`family: "${PROBE_ID}",`, `family: "${family}",`);
-/** The probe with the escape hatch on the line above its `family` — the §4.2 positive identity arm's fixture.
- *  The position is the token `judgeFamilies` reports, so the marker names the coordinate the finding carries. */
-const WAIVED = (family: string): string =>
-  PROBE(family).replace(
-    `family: "${family}",`,
-    `// @orb-waive policy-family-readers(family): the planted probe defers its shared reader; ends when the family's reader lands in lib/.\n  family: "${family}",`,
-  );
 const LIBS = { [SHARED_LIB_PATH]: LIB_STUB, [OTHER_LIB_PATH]: LIB_STUB };
 
 /** Complete production-reference controls are separate from proof fixture construction. */
@@ -195,9 +191,8 @@ const SHARED_IMPORT = 'import { readShared } from "../lib/shared-probe.ts";';
 export const gate = defineGate({
   id: "policy-family-readers",
   family: "policy-soundness",
-  authority: "ordinary",
-  severity: "warning",
-  workItem: 2187,
+  authority: "hard",
+  severity: "error",
   population: { in: ["@tooling"], under: ["tooling/src/verify/gates/**"], notUnder: ["tooling/src/verify/gates/_proof/**"] },
   analysis: "types",
   // The verdict is a CENSUS over the whole family: a narrowed selection holding one member of a pair would
@@ -410,15 +405,6 @@ export const gate = defineGate({
       mode: "types",
       files: familyFixture(PROBE("lonely"), { ...LIBS, [siblingPath("elsewhere")]: SIBLING("elsewhere", "other-family", "../lib/shared-probe.ts") }),
       why: "A SINGLETON IS OUT OF THE POPULATION BY CONSTRUCTION, not by an exemption anybody maintains: a family of one has no sibling to share a reader with, so the question does not arise and the module is never asked. Drop the `>= SHARED_BY` members test and this row reds — a lone policy would be accused of not sharing with nobody. §5b's 'declared singleton with its reason' is the header half of the same decision, and it stays a hand read",
-    },
-    {
-      mode: "types",
-      files: familyFixture(WAIVED("trio"), {
-        ...LIBS,
-        [siblingPath("trio-a")]: SIBLING("trio-a", "trio", "../lib/shared-probe.ts"),
-        [siblingPath("trio-b")]: SIBLING("trio-b", "trio", "../lib/shared-probe.ts"),
-      }),
-      why: "THE §4.2 POSITIVE IDENTITY ARM, in-module — and it is the THREE-member fixture on purpose: in a PAIR both members are accused (sharing is symmetric), so the marker in one file would leave the sibling's finding standing and the row would be red for a reason that has nothing to do with waiver identity. Two connected siblings plus the waived outlier isolates the one finding the marker must suppress. the correct `@orb-waive policy-family-readers(family)` marker at the REPORTED position suppresses the finding, which is what makes the `ordinary` tier's escape hatch real rather than a promise in `fix` prose. Its discrimination control (a marker naming a DEAD position must ALARM) lives in the family test through `runPolicyPass`, because §4.2 forbids a negative arm here: under `knownPolicies: [policy]` it would ride the unknown-policy short-circuit and prove nothing",
     },
   ],
   mustRefuse: [

@@ -8,7 +8,7 @@
 //
 // `requireParticipant` (membership) → ChatNotFoundError (leak-free). `requireHost` (you ARE a member but not
 // the host) → ChatOperationError("not_host") — the existence is already known to a member, so this is an
-// authority refusal, not a leak. (Authoritative auth surface: core/Spine-Identity-and-Auth.md.)
+// authority refusal, not a leak. (Authoritative auth surface: docs/law/Spine-Identity-and-Auth.md.)
 
 import { TURN_ABORTED_OP_CODE, TURN_LOCKED_OP_CODE, USER_MACRO_UNKNOWN_PICK_OP_CODE } from "@orb/contracts/chat";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";

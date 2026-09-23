@@ -1,4 +1,4 @@
-// Policy: tooling-cli-entry (docs/architecture/core/Core-Tooling-Law.md §4.4, arm E of the retired
+// Policy: tooling-cli-entry (docs/law/Core-Tooling-Law.md §4.4, arm E of the retired
 // `tooling-shared-plumbing`) — every tool `cli.ts` enters through `runTool` (_shared/run-tool.ts), the
 // exit-honesty runner that owns crash≠verdict, pipe-drain and never-downgrade. A cli.ts that hand-rolls its
 // own entry exits with whatever node decided, and a crash reads as "violations found". Comment posture:
@@ -51,7 +51,7 @@ const RUNNER_HOME = { path: "tooling/src/_shared/run-tool.ts", names: ["runTool"
 const RUNNER_RECEIPT = "program-entry home: run-tool";
 
 const MESSAGE =
-  'a tool cli.ts must enter through runTool (_shared/run-tool.ts) — the exit-honesty runner owns crash≠verdict, pipe-drain and never-downgrade, and a hand-rolled entry exits with whatever node decided, so a crash reads as "violations found" (docs/architecture/core/Core-Tooling-Law.md §4.4).';
+  'a tool cli.ts must enter through runTool (_shared/run-tool.ts) — the exit-honesty runner owns crash≠verdict, pipe-drain and never-downgrade, and a hand-rolled entry exits with whatever node decided, so a crash reads as "violations found" (docs/law/Core-Tooling-Law.md §4.4).';
 const FIX = "end the cli.ts in `await runTool(main)` (_shared/run-tool.ts), where `main` returns the EXIT member; the runner classifies every other outcome.";
 
 const missing = (rel: string): string =>

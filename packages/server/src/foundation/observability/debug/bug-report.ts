@@ -23,7 +23,7 @@
 //     by `motion-stats.ts` (LoAF scripts carry `forcedStyleAndLayoutDuration`) and the motion flaggers.
 //
 // WHERE IT LIVES: foundation/observability, beside `/api/_debug` — the debug surface is observability, not a
-// domain (AGENTS §6). The domain-owned recorders arrive as the SAME structural-injection ports the debug routes
+// domain (Constitution.md §6). The domain-owned recorders arrive as the SAME structural-injection ports the debug routes
 // already take (`RpgTraceInspector`/`MemoryRecallInspector`), so this tier still imports zero domains.
 //
 // THE GATE IS THE BOUNDARY. This route registers inside `/api/_debug/*`, so the two-tier gate in `routes.ts`

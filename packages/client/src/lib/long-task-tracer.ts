@@ -9,7 +9,7 @@
 // THIS FILE OWNS THE `[frame]`/`[input]`/`[reflow]` CHANNELS, NOT THE LoAF OBSERVER. It installs the
 // event-timing observer itself; its long frames arrive from `motion-stats.ts`'s single
 // `long-animation-frame` observer via `subscribeLongAnimationFrames` (P7 — this file used to install a
-// second observer over the same entries). One signal, one emitter (AGENTS §3); one entry type, one
+// second observer over the same entries). One signal, one emitter (Constitution.md §3); one entry type, one
 // observer. The channels, and why each is its own tag:
 //   [frame]   a frame over `longFrameMs`, attributed to its costliest script. WHAT blocked.
 //   [reflow]  a SCRIPT in that frame blocked on synchronous style/layout (per-script

@@ -1,6 +1,6 @@
 // The flag table itself: one handler per flag (Record dispatch), driven by parseSnapArgs (ops/parse.ts)
 // in argv order. Split out of ops/flags.ts when that file crossed the tooling line cap
-// (docs/architecture/core/Core-Tooling-Law.md §4.3) — the table is the single biggest seam in that file.
+// (docs/law/Core-Tooling-Law.md §4.3) — the table is the single biggest seam in that file.
 //
 // WHAT IS **NOT** HERE ANY MORE: the twenty-five ARM flags (--text/--map/--eval/--contrast/--cascade/
 // --expect-*/--no-shot/--crop/--requests/--lighthouse/…). Each now rides its own `ArmDef.flags` row

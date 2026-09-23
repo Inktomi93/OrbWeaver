@@ -1,4 +1,4 @@
-// Policy: assumes-single-replica (core/Tier-2-Foundation.md esoteric #5) — module-scope mutable per-process
+// Policy: assumes-single-replica (docs/law/Tier-2-Foundation.md esoteric #5) — module-scope mutable per-process
 // state must live in a file carrying an `ASSUMES(single-replica)` annotation. Three flagged shapes: (1) a
 // `new Map/Set/WeakMap/WeakSet()`, non-literal-seeded; (2) a module-scope array accumulator later mutated
 // via push/shift/splice/unshift ANYWHERE in the module; (3) a module-scope instance of a class DECLARED IN
@@ -52,7 +52,7 @@ const MESSAGE =
   "module-scope mutable per-process state (a `new Map/Set/WeakMap/WeakSet()`, an array accumulator mutated " +
   "via push/shift/splice/unshift, or an instance of a locally-declared mutable-field class) is per-process " +
   "in-memory state — annotate the file with ASSUMES(single-replica) + name a DB-backed replacement seam, or " +
-  "move it out of module scope (core/Tier-2-Foundation.md esoteric #5).";
+  "move it out of module scope (docs/law/Tier-2-Foundation.md esoteric #5).";
 const FIX =
   "annotate the file with an ASSUMES(single-replica) comment naming the DB-backed replacement seam, or move " +
   "the state out of module scope. A deliberate exception not worth annotating waives with " +
