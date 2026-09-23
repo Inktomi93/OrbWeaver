@@ -19,6 +19,7 @@ import type { AssembleContext } from "@orb/contracts/chat";
 import { DEFAULT_FORMAT_STRINGS } from "@orb/contracts/preset";
 import type { MessageRole } from "@orb/kit/message-role";
 import { buildPrompt, resolveNudgeText, shapeTurn } from "../../../packages/server/src/domain/chat/substrate/assembly-access.ts";
+import { convertsToEmptyWireRow } from "../../../packages/server/src/domain/chat/substrate/wire-history.ts";
 import type { ImpersonateFixture } from "./fixtures.ts";
 import { configFor } from "./fixtures.ts";
 
@@ -70,6 +71,7 @@ export function buildRequest(fx: ImpersonateFixture): BuiltRequest {
     namesBehavior: ctx.promptConfig.namesBehavior ?? "default",
     speakers: { user: fx.persona.name, assistant: ctx.character.name },
     groupNudge: null,
+    convertsToEmptyWireRow,
   });
 
   const system = [assembled.static.trim(), assembled.dynamic.trim()].filter((part) => part.length > 0).join("\n\n");

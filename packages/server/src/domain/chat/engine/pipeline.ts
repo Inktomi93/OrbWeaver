@@ -79,7 +79,7 @@ import {
   toShapeCanon,
   voiceContextForSpeaker,
 } from "../substrate/assembly-access.ts";
-import { buildWireHistory, dropEmptyWireRows, wireCostRows } from "../substrate/wire-history.ts";
+import { buildWireHistory, convertsToEmptyWireRow, dropEmptyWireRows, wireCostRows } from "../substrate/wire-history.ts";
 
 /** What `runTurnPipeline` consumes — the immutable assemble ctx + the loaded canon + the resolved connection
  *  + the turn axes. Stays UNEXPORTED (`no-inline-types`: an exported type belongs in `contract/`, and this is
@@ -665,6 +665,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     squashSystemMessages: effectiveIntent.advanced?.squashSystemMessages,
     // The room host's note frames (PROSE-1) rode onto the ctx at build; SHAPE frames the spliced injections.
     prose: ctx.prose,
+    convertsToEmptyWireRow,
   });
 
   // REQUEST (conversion half) — the one seam where the shaped string body becomes content-parts (§3.5, the WIRE plane of the

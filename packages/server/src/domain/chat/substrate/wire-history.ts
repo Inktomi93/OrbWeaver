@@ -242,6 +242,36 @@ function spanToWirePart(span: ContentSpan, env: WirePartsEnv, row: WireRowFacts)
   return Promise.resolve(handler(span, env, row));
 }
 
+/** Which spans convert to NOTHING — the `null` arms of {@link WIRE_PART_HANDLERS}, answered before the
+ *  conversion runs, because SHAPE judges a system row's slot by the rows the wire will deliver. Every other
+ *  class always leaves a part: an image resolves, drops to its alt placeholder, or collapses to its marker.
+ *  Keyed by span kind like the handlers, and pinned to them by the pipeline binding test. */
+const SPAN_CONVERTS_TO_NOTHING: { readonly [K in ContentSpanKind]: (span: SpanOfKind<K>) => boolean } = {
+  text: (span) => span.text.length === 0,
+  choices: () => true,
+  hidden: () => false,
+  "unknown-directive": () => false,
+  card: () => false,
+  image: () => false,
+};
+
+function spanConvertsToNothing(span: ContentSpan): boolean {
+  // The same per-member narrowing loss as `spanToWirePart`'s dynamic key lookup.
+  const check = SPAN_CONVERTS_TO_NOTHING[span.kind] as (checked: ContentSpan) => boolean;
+  return check(span);
+}
+
+/** A shaped row body that converts to an empty wire row, so {@link dropEmptyWireRows} removes it. SHAPE reads
+ *  this to skip such a row when it judges a system row's neighbours (`assembly/shape` deliverSystemRows). */
+export function convertsToEmptyWireRow(content: string): boolean {
+  return tokenizeContent(content, { committed: true }).every(spanConvertsToNothing);
+}
+
+/** Test-only seam: the empty-conversion table is bound to the handlers span kind by span kind.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
+export const __spanConvertsToNothingForTest = spanConvertsToNothing;
+
 /** Test-only seam: the CONTENT_CLASS_POLICY/dispatch binding test calls the real dispatch directly (no
  *  reason to reassemble a full turn to exercise one span → wire-part rule).
  * @public Test-anchored module surface; focused tests pin this production-local behavior.
