@@ -24,82 +24,11 @@ Fixture proof rows prove a policy's logic but not that it reads the real tree. A
 
 Filled at landing: what ran and where its output is.
 
-Chunk 1 (lane cb-pins). The one runner (item 0043's ruling) is
-`tests/tooling/verify/gates/real-corpus-liveness-family.suite.repo.int.test.ts` over
-`tests/support/real-corpus-liveness.ts`; pins are data in `tests/tooling/verify/gates/_liveness/*.ts`. The ten
-earlier pins moved onto it, and the 37 unpinned policies whose population is exactly `@client` gained pins
-(`_liveness/client-app.ts`). All 47 pins pass both directions, and a planted dead control is refused. No
-policy in the chunk was blind on the real tree. `real-corpus-liveness-manifest`: 341 unpinned before, 304
-after (`pnpm check:structure --check real-corpus-liveness-manifest`).
+Built by lane cb-pins. One runner, `tests/tooling/verify/gates/real-corpus-liveness-family.suite.repo.int.test.ts` over `tests/support/real-corpus-liveness.ts`, with the pins as data in `tests/tooling/verify/gates/_liveness/*.ts`. Overlay kinds: `add`, `neutralise`, `remove`, `resource`, `replace`, `delete`, `edit`, plus `reportsAt` and grant-consumption pins. Every pin passes in both directions, and a planted dead control is refused for each kind. The whole file passed with every pin wired in, one serial file inside `--full` per the owner ruling in item 0043.
 
-Chunk 2 (lane cb-pins). The 34 unpinned policies whose population is `@client` + `@ui` gained pins in
-`_liveness/frontend.ts`. All pass both directions on the batched runner. The runner gained a `resource`
-overlay for stylesheet and token-vault subjects, carried by the production reader's own overlay, and a
-planted resource control is refused. No policy in the chunk was blind on the real tree.
-`css-family-direct-client-mechanism` has no pin: its only reports are the three recipes the central grant
-table licenses, so no overlay can make it report anything new. Its liveness shows as grant consumption,
-which an arm cannot yet assert. `real-corpus-liveness-manifest`: 305 unpinned before, 271 after.
+Blind policies found and fixed: `byte-check-cast` (the shared origin reader refused drizzle's merged `sql`; fixed under item 0107) and `persistence-no-in-memory-state`'s identity verdict on augmented globals (item 0107).
 
-Chunk 3 (lane cb-pins). The 26 unpinned policies whose population is `@tooling` or `@authored` gained pins
-in `_liveness/tooling-and-authored.ts`. None was blind on the real tree. A `grantConsumption` arm now pins
-`css-family-direct-client-mechanism`. On the real tree its three central grants must be consumed, and with the
-client sheet's recipes taken away they must go stale. A planted control that leaves the recipes in place is
-refused. The baseline pass now measures only the arms whose silence is not structural.
-`real-corpus-liveness-manifest`: 271 unpinned before, 244 after.
+Still unpinned, per `pnpm check:structure --check real-corpus-liveness-manifest`:
 
-Chunk 4 (lane cb-pins). The 30 unpinned policies whose population is `@server` alone gained pins in
-`_liveness/server-app.ts`. None was blind on the real tree. `plugin-dump-guard` judges only the membrane
-module, so its pin rewrites that module. `verb-naming` also reports every other verbs-directory pin in the
-shared pass, so the entanglement check proves it alone. `real-corpus-liveness-manifest`: 244 unpinned before,
-214 after.
-
-Chunks 5 and 6 (lane cb-pins). The 40 leftover `@client` and `@ui` policies gained pins in
-`_liveness/client-ui.ts`, and the 17 leftover `@authored` policies gained pins in `_liveness/authored.ts`. These
-are the policies with narrowed populations that the exact-population chunks skipped. None was blind on the real
-tree. One real-tree discrepancy came out of it. `persistence-no-in-memory-state` reports a planted bare
-`new Map()` as an unresolvable constructor, not as the ambient global. The real `Map` does resolve to
-lib.es2015, but it also carries the repo's global augmentations (`platform.d.ts` and ts-reset), which the
-fixture project lacks. The policy still reports, and that verdict is the one pinned. An earlier "no ES2015 lib"
-explanation was wrong. `real-corpus-liveness-manifest`: 214 unpinned before, 157 after.
-
-Chunks 7 and 8 (lane cb-pins). The leftover `@product`, `@db` and `@server`+`@inference` policies gained pins in
-`_liveness/product-db-server.ts`, and the leftover `@tooling` and `@tests` policies gained pins in
-`_liveness/tooling-tests.ts`. Two policies have no pin:
-
-- `byte-check-cast` is BLIND on the real tree. Its own `mustFlag` row, planted verbatim at a real schema path,
-  reports nothing. Real drizzle's `sql` has two declarations (the function and its merged namespace), so the
-  shared module-origin reader answers "unresolved: ambiguous", and the policy never recognises a `sql.raw` or
-  `sql` tagged CHECK. The fix belongs in the origin reader.
-- `no-manual-memo-compiler-health` reads the installed React Compiler under `node_modules`, which the
-  ResourceHost overlay refuses to mutate.
-
-`real-corpus-liveness-manifest`: 157 unpinned before, 101 after.
-
-Chunk 9 (lane cb-pins). The 32 resource-only policies (`population: { of: "none" }`) gained pins in
-`_liveness/resources.ts`. Every plant rides the ResourceHost's own overlay. The runner gained two things for
-this chunk:
-
-- `replace`, one exact edit of a real config, manifest or JSON file, and `delete`, which takes a directory out
-  of the reader's view.
-- An arm-level `reportsAt`, for a policy that reports at the subject's owner rather than at the planted file.
-
-None of the 32 was blind on the real tree. Item 0145 tracks `no-manual-memo-compiler-health`, which needs an
-installed-package overlay. `real-corpus-liveness-manifest`: 101 unpinned before, 69 after.
-
-Chunk 10 (lane cb-pins). The multi-root policies gained pins in `_liveness/multi-root-a.ts` and
-`_liveness/multi-root-b.ts`. The runner gained an `edit` overlay: one exact search/replace of a real project
-file, for a defect that is a member of a real declaration (a field on `EffectiveAppConfig`, a code on
-`PLAIN_CHAT_WARNING_CODES`, a row in `INSTRUMENT_TOOLS`). Edit arms prove alone, so a plant that leaves the shared
-bus fact incomplete no longer withholds every bus consumer in its batch. A resource-analysis policy that lists
-the tree through the ResourceHost gets its new file in both views, or its two denominators disagree and it
-refuses. Three multi-root policies have no pin:
-
-- `open-json-column-key-parity-deferred` has lost its subject. `VariantMetadata` closed
-  `messageVariants.metadata` and the stats rollup no longer json_extracts `reasoning_duration`. Reopening the
-  column in memory, with an open-typed writer and a raw key reader, still left it silent. The warning looks
-  retirable with work item 67, which the owner of that item should confirm.
-- `open-json-column-key-parity-health` and `css-var-defined-health` count every JSON column, or every product
-  stylesheet and class root. No bounded overlay empties those counts.
-
-`real-corpus-liveness-manifest`: 69 unpinned before, 5 after (the three above, `byte-check-cast` and
-`no-manual-memo-compiler-health`).
+- `no-manual-memo-compiler-health`: needs an installed-package overlay (item 0145).
+- `open-json-column-key-parity-health` and `css-var-defined-health`: they count every JSON column or every product stylesheet, and no bounded overlay empties those counts.
