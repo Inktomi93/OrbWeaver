@@ -112,7 +112,7 @@ export function createCatalogListing(deps: CatalogListingDeps): (draft: CatalogD
   };
 
   return async (draft): Promise<ModelListing> => {
-    const provider = deps.registry.get(draft.providerId);
+    const provider = deps.registry.get(draft.providerId, draft.principal.userId);
     if (provider === undefined) {
       throw new ProviderError({ kind: "invalid", retryable: false, message: `provider "${draft.providerId}" is not registered` });
     }

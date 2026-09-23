@@ -57,9 +57,9 @@ test("`providerStore` round-trips a row and its removal, stamping the injected c
     metered: false,
   };
   expect(await ports.providerStore.putAdmin(row, admin)).toBe(true);
-  expect(await ports.providerStore.list()).toEqual([row]);
+  expect(await ports.providerStore.list()).toEqual({ rows: [row], installs: [] });
   expect(await ports.providerStore.removeAdmin(id)).toBe(true);
-  expect(await ports.providerStore.list()).toEqual([]);
+  expect(await ports.providerStore.list()).toEqual({ rows: [], installs: [] });
 });
 
 test("`snapshotStore` is the KV the mirrors warm through", async () => {

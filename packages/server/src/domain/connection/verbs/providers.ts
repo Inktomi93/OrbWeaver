@@ -1,5 +1,6 @@
 // verbs: providersAvailable · registerProvider · dropProvider — the registry door (§5.9-1). `available` is what
-// the picker may OFFER (a row on an unbuilt wire is listed disabled with its cause, never hidden); `register`
+// the picker may OFFER the caller (a row on an unbuilt wire is listed disabled with its cause, never hidden; a
+// plugin row is listed only to the owner of an enabled install contributing it, D147); `register`
 // refuses a built-in id inside the runtime (a plugin row can never shadow one) and persists through the
 // `provider_rows` port; `drop` is plugin deactivation / admin removal — connections on it read `no-connection`.
 

@@ -194,12 +194,13 @@ test("rerank on an endpoint row with no declared rerankPath reads requirement-un
   expect(declared.resolved.features.rerankPath).toBe("/v1/rerank");
 });
 
-test("providers.available lists every row; claude-sub reads runtime-missing without the claude executable", async () => {
+test("providers.available lists every row the caller may use; claude-sub reads runtime-missing without the claude executable", async () => {
   const withoutClaude = await createInferenceRuntime(scene().deps);
-  const rows = withoutClaude.providers.available(principal(newUserId()));
+  const caller = principal(newUserId());
+  const rows = withoutClaude.providers.available(caller);
   expect(rows.map((r) => r.provider.id).toSorted()).toEqual(
     withoutClaude.providers.registry
-      .list()
+      .list(caller.userId)
       .map((r) => r.id)
       .toSorted(),
   );
@@ -223,11 +224,11 @@ test("a claude-sub binding without the runtime reads runtime-missing, not no-con
 test("catalogs.builtin: a builtin provider answers the same closed set its rows list; a url provider has none", async () => {
   const s = scene();
   const runtime = await createInferenceRuntime(s.deps);
-  const closed = runtime.catalogs.builtin("local-light");
+  const closed = runtime.catalogs.builtin("local-light", s.aliceId);
   expect(closed?.map((m) => m.id)).toContain(DEFAULT_EMBED_MODEL);
   expect(closed?.map((m) => m.id)).toContain(DEFAULT_RERANK_MODEL);
-  expect(runtime.catalogs.builtin("openrouter")).toBeNull();
-  expect(() => runtime.catalogs.builtin("no-such-provider")).toThrow('provider "no-such-provider" is not registered');
+  expect(runtime.catalogs.builtin("openrouter", s.aliceId)).toBeNull();
+  expect(() => runtime.catalogs.builtin("no-such-provider", s.aliceId)).toThrow('provider "no-such-provider" is not registered');
 });
 
 test("capabilities.for reads one descriptor + the tasks a row serves, for the owner only", async () => {
@@ -333,11 +334,13 @@ test("providers.register refuses a built-in id and a mis-namespaced plugin row; 
   await expect(runtime.providers.register(bad, { plugin: newPluginId(), pluginName: "acme" })).rejects.toMatchObject({ kind: "invalid" });
   const good = { ...bad, id: "plugin:acme/relay" };
   const pluginId = newPluginId();
+  s.stores.providerStore.pluginOwners.set(pluginId, s.aliceId);
   const row = await runtime.providers.register(good, { plugin: pluginId, pluginName: "acme" });
-  expect(runtime.providers.registry.get(row.id)?.label).toBe("Relay");
+  expect(runtime.providers.registry.get(row.id, s.aliceId)?.label).toBe("Relay");
+  expect(runtime.providers.registry.get(row.id, s.bobId)).toBeUndefined();
   expect(s.stores.providerStore.rows.has(row.id)).toBe(true);
   await runtime.providers.dropPlugin(pluginId);
-  expect(runtime.providers.registry.get(row.id)).toBeUndefined();
+  expect(runtime.providers.registry.get(row.id, s.aliceId)).toBeUndefined();
   expect(s.stores.providerStore.rows.has(row.id)).toBe(true);
 });
 
@@ -357,6 +360,8 @@ test("a registry refresh failure compensates the durable plugin contribution bef
   };
   const runtime = await createInferenceRuntime({ ...s.deps, providerStore });
   const pluginId = newPluginId();
+  // The installer is known, so the post-restart absence below is the rollback's doing and not an unowned row.
+  durable.pluginOwners.set(pluginId, s.aliceId);
   const row = {
     id: "plugin:acme/rollback",
     label: "Rollback",
@@ -373,5 +378,5 @@ test("a registry refresh failure compensates the durable plugin contribution bef
   expect(durable.rows.has(row.id)).toBe(true);
 
   const restarted = await createInferenceRuntime(s.deps);
-  expect(restarted.providers.registry.get(row.id)).toBeUndefined();
+  expect(restarted.providers.registry.get(row.id, s.aliceId)).toBeUndefined();
 });
