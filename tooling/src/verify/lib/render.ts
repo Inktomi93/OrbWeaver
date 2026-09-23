@@ -93,6 +93,11 @@ function renderPolicyBlock(report: StructurePolicyReport): readonly string[] {
   for (const a of report.authority.alarms) {
     out.push(`  ⚠ authority alarm [${a.kind}] ${a.policyId}: ${a.message}`);
   }
+  for (const [policyId, grants] of Map.groupBy(report.authority.unjudgedReviewedGrants, (grant) => grant.policyId)) {
+    out.push(
+      `  ⚠ grant liveness NOT judged ${policyId}: ${grants.length} reviewed grant(s) unconsumed by this subset run are neither live nor stale; the whole-tree run judges them`,
+    );
+  }
   for (const r of report.waiverCarrierRefusals) {
     out.push(`  ⚠ waiver carrier ${r.path} (${r.format}) ${r.status}: ${r.reason}`);
   }

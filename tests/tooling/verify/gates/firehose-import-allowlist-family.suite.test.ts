@@ -6,6 +6,7 @@ import { gate as firehose } from "../../../../tooling/src/verify/gates/firehose-
 import { gate as health } from "../../../../tooling/src/verify/gates/firehose-import-allowlist-health.ts";
 import { coordinateGateAuthority } from "../../../../tooling/src/verify/lib/gate-authority.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { authorityOwnerResult } from "../../../../tooling/src/verify/lib/policy-pass-receipts.ts";
 import { reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -56,12 +57,7 @@ test("the production composition-root and barrel references are exactly the two 
   expect(result.policies[1]?.findings).toEqual([]);
   // The old definition-path regex was never a finding permission; declaration liveness now belongs to health.
   expect(result.policies[0]?.findings.some(({ subject }) => subject === DEFINITION)).toBe(false);
-  const owners: readonly GateOwnerResult[] = result.policies.map((policy) => ({
-    policyId: policy.id,
-    populationFiles: policy.population.effectiveSourcePaths,
-    owner: policy.owner,
-    findings: policy.findings,
-  }));
+  const owners: readonly GateOwnerResult[] = result.policies.map(authorityOwnerResult);
   const reconcile = (ownerResults: readonly GateOwnerResult[], rows: readonly ReviewedGateGrant[]): ReturnType<typeof coordinateGateAuthority> =>
     coordinateGateAuthority({
       knownPolicies: POLICIES,
