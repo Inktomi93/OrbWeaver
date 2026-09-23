@@ -39,7 +39,7 @@ export interface CatalogRefreshOutcome {
   readonly models: number | null;
 }
 
-/** The PD-139a trigger's CONDITION, snapshotted: `routable task -> resolved (model[@dtype]) space tag`, with
+/** The embed-space trigger's CONDITION, snapshotted: `routable task -> resolved (model[@dtype]) space tag`, with
  *  `null` where nothing resolves (unbound / unservable / unfundable — a task with no vectors to strand).
  *  PARTIAL by construction: `substrate/embed-space.ts` fills exactly the VECTOR tasks, so a lookup for any
  *  other routable task is `undefined` rather than a lie about a space it never resolved. */

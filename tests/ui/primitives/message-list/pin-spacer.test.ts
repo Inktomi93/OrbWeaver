@@ -1,4 +1,4 @@
-// Unit: the pin-prompt spacer predicate (PD-147). Pure (node), imported DIRECTLY (relative) — pin-spacer.ts
+// Unit: the pin-prompt spacer predicate. Pure (node), imported DIRECTLY (relative) — pin-spacer.ts
 // is DOM-free so it keeps the node-only aggregator program honest (the tokens.build.ts / snap.ts precedent).
 // Proves a short reply keeps the spacer (so the pinned prompt can climb to the top) and it collapses once
 // the reply below the pin fills a viewport.

@@ -45,7 +45,7 @@ export interface StoreParams extends AssetsActorParams {
   /** Verify the claimed mime against the magic bytes (invariant #6 — the upload boundary passes `true`).
    *  Omitted/`false` for trusted non-HTTP callers (DR rebuild, future import backfill). */
   readonly enforceMagic?: boolean;
-  /** PD-94 — the hard cap on the byte length accepted into the CAS. Rejected BEFORE the blob is written
+  /** The hard cap on the byte length accepted into the CAS. Rejected BEFORE the blob is written
    *  (the store's own belt, over and above the HTTP route's body cap). Omitted = no store-level cap (trusted
    *  callers whose input is already bounded). The asset-bearing upload/import paths pass it. */
   readonly maxBytes?: number;

@@ -32,7 +32,7 @@ function nextCredentialId(): UserCredentialId {
   return castId<UserCredentialId>(`user_credential_${credentialIdCounter}`);
 }
 
-/** A recorded `audit` op call (PD-142) — tests assert every credential mutation writes a durable row. */
+/** A recorded `audit` op call — tests assert every credential mutation writes a durable row. */
 interface AuditCall {
   readonly entry: Parameters<CredentialContext["audit"]>[0];
   readonly at: number;
@@ -41,7 +41,7 @@ interface AuditCall {
 /** The harness: the CredentialContext + the recorders/setters for the faked injected ops. */
 export interface CredentialHarness {
   readonly ctx: CredentialContext;
-  /** The recorded `audit` op calls (PD-142 — assert each mutation writes a durable audit row). */
+  /** The recorded `audit` op calls — assert each mutation writes a durable audit row. */
   readonly audits: AuditCall[];
   /** Advance the injected clock (e.g. past the 60s health throttle window). */
   readonly advance: (ms: number) => void;

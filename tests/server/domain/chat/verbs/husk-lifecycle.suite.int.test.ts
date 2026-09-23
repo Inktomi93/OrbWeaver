@@ -6,13 +6,13 @@
 //
 // The model under test (design doc §4.2-§4.7, all seven forks owner-ratified):
 //   • `startChat` mints a HUSK — `chats.started_at` NULL. Nothing else mints one; a fork/import is born claimed.
-//   • A husk is INVISIBLE in `listMemberChats` for EVERYONE including its creator (the PD-65 `temporary` twin).
+//   • A husk is INVISIBLE in `listMemberChats` for EVERYONE including its creator (the `temporary` twin).
 //   • The first real activity CLAIMS it: a user line, a generated turn, or any explicit host/member config
 //     write (F4(a) — the owner's "or did something with"). The stamp is idempotent and one-way.
 //   • The CREATION stats deltas fire at CLAIM, not at creation (§4.7) — husk churn must not inflate
 //     chat-created economics, and a husk must not consume a character's first-chat bump.
 //   • A husk is reaped: `reapHusk` on nav-away (host-only, server re-checks) and the TTL belt inside
-//     `reapTemporaryChats`. Every husk reap fans `chatDeleted` (the deliberate PD-65 divergence — a husk CAN
+//     `reapTemporaryChats`. Every husk reap fans `chatDeleted` (the deliberate divergence — a husk CAN
 //     be the open room on the creating device, so its removal must reach that device) — on the LIVE-ONLY
 //     lane, AFTER `RETURNING` proves the room actually died (R1-4a; see the interleave arms below).
 //
@@ -318,7 +318,7 @@ describe("firstness — a husk never consumes a character's first-chat bump (§4
 });
 
 describe("reap — the nav-away verb and the TTL belt", () => {
-  test("reapHusk drops an unclaimed room, fans chatDeleted live (the PD-65 divergence), and no-ops on a CLAIMED one", async () => {
+  test("reapHusk drops an unclaimed room, fans chatDeleted live (the divergence), and no-ops on a CLAIMED one", async () => {
     const { host, chatId } = await seedHusk("e");
     const life = lifecycle(makeChatContext(db));
 

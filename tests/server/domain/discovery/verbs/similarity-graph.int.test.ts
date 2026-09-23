@@ -1,4 +1,4 @@
-// Integration: PD-40 similarityGraph — DISCOVERY-NATIVE all-pairs card cosine → nodes + edges (zero search).
+// Integration: similarityGraph — DISCOVERY-NATIVE all-pairs card cosine → nodes + edges (zero search).
 // Every within-space pair over `minSimilarity` is an edge; nodes are the highest-degree characters, capped;
 // name + distilled genre per node; owner-scoped (audit #1); synthetic characters excluded.
 

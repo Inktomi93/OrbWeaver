@@ -53,7 +53,7 @@ export function JumpToLatestRegressionStory(): ReactElement {
   // click) in the next — the exact turn-settle race where the turn-phase store beats the canon query.
   const [live, setLive] = useState(false);
   // Drives the pin-prompt suppression path: while armed, the pill must stay at-tail regardless of the
-  // spacer-inflated geometry (PD-147 false-positive fix).
+  // spacer-inflated geometry (pin-prompt false-positive fix).
   const [pinActive, setPinActive] = useState(false);
   const listHandleRef = useRef<MessageListHandle>(null);
   const jump = useJumpToLatest({ messagesCount: count, live, pinActive, listHandleRef });

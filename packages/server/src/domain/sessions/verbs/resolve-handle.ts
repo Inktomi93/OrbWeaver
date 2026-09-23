@@ -1,6 +1,6 @@
-// verb: resolveHandle (PD-66) — the EXACT handle→userId lookup for targeted chat invites
+// verb: resolveHandle — the EXACT handle→userId lookup for targeted chat invites
 // ("targeted-by-handle (exact resolveHandle, no listing, rate-limited)"). Sessions is the sanctioned
-// `users` reader (the no-direct-users-read chokepoint — the loadUserById/PD-73 precedent); chat receives
+// `users` reader (the no-direct-users-read chokepoint — the loadUserById precedent); chat receives
 // this as an injected op. A DISABLED row collapses to null (an un-invitable account is indistinguishable
 // from an unknown handle — the provisionIdentity/authenticate posture). Exact match only — no listing,
 // no prefix search (the transport rate-limits the probe surface).

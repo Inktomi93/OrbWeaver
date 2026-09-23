@@ -1,9 +1,9 @@
-// Contribution test: chat's two corpus sweeps. `memory-backfill` (PD-41) folds the segment/digest counts and
+// Contribution test: chat's two corpus sweeps. `memory-backfill` folds the segment/digest counts and
 // then calls its TERMINAL — the injected op that records the `memory` scope's `embed_space_state` completion
-// and, PD-139(b), reclaims the OLD chat-memory embed space. The terminal runs on BOTH arms and is handed the
+// and reclaims the OLD chat-memory embed space. The terminal runs on BOTH arms and is handed the
 // ENUMERATION SCOPE (#2517), which is what the op fans over; it is still suppressed on an aborted run and on
 // a run with per-chat failures (the space must stay a strict superset, never a gap).
-// `group-character-backfill` (PD-41/D38) projects its mint counts.
+// `group-character-backfill` (D38) projects its mint counts.
 
 import type { WorkloadRunContext } from "@orb/contracts/workloads";
 import type { EmbedGenerationId, UserId } from "@orb/kit/ids";

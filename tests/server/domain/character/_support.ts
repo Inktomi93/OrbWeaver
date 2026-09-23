@@ -124,7 +124,7 @@ export function makeHarness(db: Db, overrides: { readonly materializeBackground?
       tagDetaches.push(args);
       return Promise.resolve(tagDetachResult);
     },
-    // PD-141: the REAL world-info carry (db-bound, deterministic) so a test can assert junction rows land —
+    // the REAL world-info carry (db-bound, deterministic) so a test can assert junction rows land —
     // faithful to compose, which wires this same persistence factory.
     copyCharacterBooks: createCopyCharacterBooks({ db, now: (): number => clock.now() }),
     // PD user-bus lane: records the emit so a test can assert `charactersChanged` fires after a durable write.

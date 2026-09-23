@@ -161,13 +161,13 @@ export interface GetVariantWireParams extends ChatScopedParams {
 }
 
 /** `getShapeTrace` — the content-free SHAPE trace for the next-turn shaping of the current canon (host/admin
- *  inspector; PD-132). `speakerCharacterId` picks the primary speaker the peek shapes for (as `peekPrompt`). */
+ *  inspector). `speakerCharacterId` picks the primary speaker the peek shapes for (as `peekPrompt`). */
 export interface GetShapeTraceParams extends ChatScopedParams {
   readonly speakerCharacterId?: CharacterId | null | undefined;
 }
 
 /** `previewContextFit` — the present-tense fit budget for the current canon + the host's effective preset/
- *  capability (the transcript divider's live source; PD-#7). `speakerCharacterId` picks the primary speaker
+ *  capability (the transcript divider's live source). `speakerCharacterId` picks the primary speaker
  *  the fit shapes for (as `getShapeTrace`), so the preview matches the boundary the next real turn stamps. */
 export interface PreviewContextFitParams extends ChatScopedParams {
   readonly speakerCharacterId?: CharacterId | null | undefined;

@@ -328,7 +328,7 @@ const USER_TRACKED_KEYS = [
   // chat capability; the catalog reads under the same router must NOT be dropped — they cold-fetch).
   "chatCapability",
   // The transcript divider's fit budget also refetches on a settings/preset change (the resolved capability +
-  // effective params drive the fit) — PD-#7.
+  // effective params drive the fit).
   "previewContextFit",
   // The Preview tab's assembled-prompt read — it rides wherever `previewContextFit` does (the fit is that
   // assembly's budget), so a preset/settings edit repaints the preview instead of freezing it at first fetch.

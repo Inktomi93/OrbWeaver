@@ -14,7 +14,7 @@ describe("remove", () => {
     expect(await svc.list({ principal: principal(owner) })).toHaveLength(0);
   });
 
-  test("a real delete audits credential.remove attributed to the owner (PD-142)", async () => {
+  test("a real delete audits credential.remove attributed to the owner", async () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const { svc, owner, cred } = await seedCredential(db, h);

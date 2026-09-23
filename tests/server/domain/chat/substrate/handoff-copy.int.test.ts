@@ -89,7 +89,7 @@ function principal(userId: UserId): Principal {
   return makePrincipal(userId, { handle: castId<Handle>("h") });
 }
 
-/** The PD-24 emit-op contract: record the event AND commit the producer's unexecuted co-statements. */
+/** The emit-op contract: record the event AND commit the producer's unexecuted co-statements. */
 function recordingEmit(notes: NotificationEvent[]): (event: NotificationEvent, coStatements?: readonly unknown[]) => Promise<void> {
   return async (event, coStatements) => {
     notes.push(event);

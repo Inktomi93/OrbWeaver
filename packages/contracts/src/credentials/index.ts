@@ -3,10 +3,10 @@
 // Two axes: CredentialSource is the DISPATCH axis (resolver+runner arm); CredentialProvider is the
 // broader STORAGE axis (a row may persist with no resolver arm yet).
 // AES-256-GCM AAD invariant: at-rest ciphertext is bound to `${userId}|${provider}`, so CRED_PROVIDERS
-// must stay byte-stable. The BYO model profile is the flat `model`/`contextWindow` metadata pair (PD-12
-// closed: no nested `CustomModelProfile` type — the runner reads the resolved `ModelCapability`, never a
+// must stay byte-stable. The BYO model profile is the flat `model`/`contextWindow` metadata pair (no
+// nested `CustomModelProfile` type — the runner reads the resolved `ModelCapability`, never a
 // baked profile object); the per-endpoint request/response transforms are `includeBody`/`excludeBody`/
-// `responseMap` (PD-13).
+// `responseMap`.
 
 import type { UserCredentialId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";

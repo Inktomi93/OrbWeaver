@@ -50,7 +50,7 @@ const OWNER_ONLY_DIR = 0o700;
 // MULTI-USER concern — on a single-owner self-hosted box the owner's own upload is not a threat. NOTE the
 // .zip/bundle route is NOT an escape hatch here: it caps at 256 MiB COMPRESSED and only accepts an ORB
 // backup layout (no ST sniff), so the multipart tree route is the sole whole-ST-folder ingest.
-// Per-file cap — the same per-blob bound the PD-94 asset store + the zip per-entry belt enforce (64 MiB).
+// Per-file cap — the same per-blob bound the asset store + the zip per-entry belt enforce (64 MiB).
 // File-count ceiling — the zip extractor's per-archive entry cap (50k); the collect.ts MAX_DIR_ENTRIES (100k)
 // is the loop-guard shape, this is the route-level DoS bound on a single upload.
 

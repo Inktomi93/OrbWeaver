@@ -1,4 +1,4 @@
-// foundation/observability/memory-log — the PD-72 chat-memory log sink. `recordMemoryLog` is a thin
+// foundation/observability/memory-log — the chat-memory log sink. `recordMemoryLog` is a thin
 // `memory:true`-tagged `getLog().debug(...)` call (the recordClientError/securityEvent shape); the pino
 // ring is already fed by the ringStream, so this pins the RECORD SHAPE only: the `memory:true` tag, the
 // `event` string as the log MESSAGE, and structured fields spread through as log fields. `logger.debug` is

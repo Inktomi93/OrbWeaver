@@ -68,7 +68,7 @@ export interface ConnectionContext {
     readonly result: CredentialHealth;
     readonly localEndpoint: boolean;
   }) => Promise<CredentialHealth>;
-  /** PD-139a re-raised (§10-4): the caller's embed / imageEmbed space MAY have changed — the settings-blob
+  /** The embed-space trigger re-raised (§10-4): the caller's embed / imageEmbed space MAY have changed — the settings-blob
    *  trigger this replaces enqueued the purge+reindex; the composition root binds the same op here. */
   readonly onEmbedSpaceChanged: (ownerId: UserId) => void;
 }

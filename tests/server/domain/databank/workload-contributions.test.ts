@@ -1,7 +1,7 @@
 // Contribution test: databank's two RAG kinds. `databank-ingest` is the ONE `interactive`-lane job in the
 // registry (a user is waiting on it — RAG is unavailable until it lands), which is the whole reason the lane
 // axis exists. `databank-reindex` floors its mode and then calls its TERMINAL — the injected op that records
-// the `documents` scope's `embed_space_state` completion and, PD-139(c), reclaims the OLD document embed
+// the `documents` scope's `embed_space_state` completion and reclaims the OLD document embed
 // space. The terminal runs on BOTH enumeration arms and is handed the scope it must fan over (#2517); it is
 // still suppressed on abort, and on a per-DOCUMENT pass, which re-derives one row and can claim no scope.
 
@@ -37,7 +37,7 @@ const SWEEP_RECEIPT = {
  * TYPED, NEVER CAST. This used to be `as unknown as DatabankWorkloadDeps`, which is how
  * `beginDocumentVectorSweep` — added to the contract and wired at `entry/compose/services.ts` — was simply
  * absent here: the cast said "trust me", the double answered `undefined`, and the two PURGE-semantics tests
- * (the guard on PD-139(c) silent vector loss) died in a `TypeError` instead of asserting. The literal below
+ * (the guard on silent vector loss) died in a `TypeError` instead of asserting. The literal below
  * is `satisfies DatabankWorkloadDeps` with nothing suppressing it, so the NEXT member added to that contract
  * is a named compile error HERE, at construction, rather than a runtime surprise inside a verb — the
  * enforcement ladder's compile-time rung, which fires before the suite is even allowed to run.
@@ -98,7 +98,7 @@ describe("databank-reindex", () => {
     await contributions[1].run(bulkCtx, { scope: { kind: "owner" } }, vi.fn(), sig());
     expect(deps.beginDocumentVectorSweep).toHaveBeenCalledExactlyOnceWith(null);
     // BY VALUE, not just by count: the reclaim is only safe for the generations the sweep OPENED — a purge
-    // handed anything else (or nothing) deletes rows the re-embed never replaced. That is the PD-139(c)
+    // handed anything else (or nothing) deletes rows the re-embed never replaced. That is the
     // silent-data-loss edge this pair exists to hold.
     expect(deps.purgeDocumentVectors).toHaveBeenCalledExactlyOnceWith([SWEEP_RECEIPT]);
   });

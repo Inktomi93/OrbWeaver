@@ -3,7 +3,7 @@
 // DocumentNotFoundError → NOT_FOUND. Input shapes (origin/reindex axes) derive from `@orb/contracts/databank`.
 //
 // `upload` is NOT here: it takes raw bytes, so it rides the `POST /api/databank/upload` multipart route
-// (entry/http/upload.ts) — the PD-136 doc-ingest façade. `scrapeWeb` (DB7) IS here — it takes a url string, not
+// (entry/http/upload.ts), the databank producer's binary front door. `scrapeWeb` (DB7) IS here — it takes a url string, not
 // bytes; the fetch rides the compose-bound ANY_HOST safeFetch guard, a refused/failed fetch surfaces as a
 // leak-free BAD_REQUEST (`ScrapeFailedError`). The chat GATHER op + the search.documents lens are later waves
 // (DB5/DB6). The character-scope attach/detach verbs are DB8 (owner-gated on BOTH sides).

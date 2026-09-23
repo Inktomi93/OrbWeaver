@@ -71,7 +71,7 @@ export type AttachCardTagOp = (args: { readonly ownerId: UserId; readonly charac
 
 export type DetachCardTagOp = (args: { readonly ownerId: UserId; readonly characterId: CharacterId; readonly tagName: string }) => Promise<boolean>;
 
-/** Carries the source character's attached world-info book REFERENCES onto the duplicate (PD-141): fresh
+/** Carries the source character's attached world-info book REFERENCES onto the duplicate: fresh
  *  character_books rows pointing at the SAME books; world-info owns the junction write. Zero attachments =
  *  no-op. Internal to the DI bundle (the runtime op is world-info's `CopyCharacterBooks`, wired at compose).
  *  `ownerId` is the owned-source gate — the op re-checks BOTH ends rather than trusting the call site. */

@@ -435,7 +435,7 @@ export interface ShapeTrace {
 
 /** The present-tense context-fit budget for a chat's CURRENT canon against the host's effective preset +
  *  resolved capability — the source the transcript's context-boundary divider reads so the line tracks knob
- *  changes live (PD-#7). Computed by the SAME `fitHistoryToWindow` + kit estimator the engine's turn pipeline
+ *  changes live. Computed by the SAME `fitHistoryToWindow` + kit estimator the engine's turn pipeline
  *  runs, so `boundaryMessageId` equals the `contextBoundaryMessageId` the next real turn would stamp on canon.
  *  `boundaryMessageId` is the earliest KEPT message id (null = everything fits / no id-bearing kept row).
  *  `usedTokens` = the kept history's estimated cost; `ceilingTokens` = min(window, maxContextTokens);

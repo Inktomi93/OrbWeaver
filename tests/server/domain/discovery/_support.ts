@@ -257,7 +257,7 @@ export function makeDiscoveryHarness(
   const hubScores = overrides.hubScores ?? makeHubScoreRecorder();
   const summarize = overrides.summarize ?? makeSummarizeRecorder();
   const tagAttach = makeTagAttachRecorder();
-  // The injected `stats` economics seam (PD-22) — default to the REAL stats reads over the SAME db (the
+  // The injected `stats` economics seam — default to the REAL stats reads over the SAME db (the
   // "inject the real dep at the root" doctrine; the composition root wires `stats.characterEconomics`).
   const stats = createStatsService(db, () => STATS_NOW);
   const ctx: DiscoveryContext = {

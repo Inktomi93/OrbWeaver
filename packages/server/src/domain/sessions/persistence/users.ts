@@ -50,7 +50,7 @@ const PROVISION_COLS = {
   enabled: users.enabled,
 } as const;
 
-/** `authenticate` lookup (PD-83): the local-login credential row for a handle. `passwordHash` is null for
+/** `authenticate` lookup: the local-login credential row for a handle. `passwordHash` is null for
  *  an SSO-only row (fails verification against the dummy hash — never a fast reject). */
 export async function selectAuthByHandle(db: Db, handle: Handle): Promise<{ id: UserId; passwordHash: string | null; enabled: boolean } | undefined> {
   const rows = await db.select({ id: users.id, passwordHash: users.passwordHash, enabled: users.enabled }).from(users).where(eq(users.handle, handle)).limit(1);

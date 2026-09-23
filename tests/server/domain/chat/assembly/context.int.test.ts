@@ -973,7 +973,7 @@ describe("buildAssembleContext — the WORLD_INFO leg runs the RESOLVED host-tie
   });
 });
 
-describe("buildAssembleContext — guided steering (the chat design doc §6, PD-63)", () => {
+describe("buildAssembleContext — guided steering (the chat design doc §6)", () => {
   test("system placement (the default): the action template resolves to ctx.guidedInstruction — template macros live, untrusted {{input}} neutralized", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");

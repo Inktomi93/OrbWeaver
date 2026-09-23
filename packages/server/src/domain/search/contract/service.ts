@@ -5,7 +5,7 @@
 // embedModel), a required dep the entry root wires at boot. search reads the vector tables directly via
 // @orb/db (allowed by design — it's the bulk reader) and never calls embeddings verbs.
 //
-// The unified `search(UnifiedSearchParams)` verb is a DISPATCH over the sibling verbs (PD-38, verbs/search.ts):
+// The unified `search(UnifiedSearchParams)` verb is a DISPATCH over the sibling verbs (verbs/search.ts):
 // it adds one genuinely new capability — the by-character cross-chat digest scan via the
 // chat_digest_speakers OR-branch — and otherwise delegates.
 

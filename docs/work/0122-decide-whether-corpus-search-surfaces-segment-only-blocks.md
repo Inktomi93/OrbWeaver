@@ -8,7 +8,7 @@ updated: 2026-09-23
 
 ## What
 
-packages/server/src/domain/search/verbs/corpus.ts:5-6 (FLAG\[PD-35]): a segment forms a BlockKey only when a tier-0 digest matches it. Verbatim segments with no digest yet are dropped, so the most recent, not-yet-digested chat content is invisible to cross-chat corpus search. Decide whether that is intended or whether corpus should surface segment-only blocks under a segment-derived BlockKey.
+packages/server/src/domain/search/verbs/corpus.ts:5-6: a segment forms a BlockKey only when a tier-0 digest matches it. Verbatim segments with no digest yet are dropped, so the most recent, not-yet-digested chat content is invisible to cross-chat corpus search. Decide whether that is intended or whether corpus should surface segment-only blocks under a segment-derived BlockKey.
 
 ## Why
 

@@ -32,7 +32,7 @@ export interface SettingsHarness {
   readonly deps: SettingsServiceDeps;
   readonly audits: AuditCall[];
   readonly clock: ReturnType<typeof createFrozenClock>;
-  /** PD-139a recorder: asserts an embed/imageEmbed model change enqueued the reindex (once), and a routing
+  /** Embed-space trigger recorder: asserts an embed/imageEmbed model change enqueued the reindex (once), and a routing
    *  patch that doesn't touch those ids does NOT. */
   readonly onEmbedModelChanged: Mock<() => void>;
 }

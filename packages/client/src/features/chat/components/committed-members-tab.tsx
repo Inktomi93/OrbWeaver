@@ -77,7 +77,7 @@ export function CommittedMembersTab({ chatId, chat, isHost, multiHumanCapable }:
 
   const respondingCharacterId = useTurnSpeakerCharacterId(chatId);
   // Live presence for the People rows (#1039). Gated on the deployment's multi-human capability for the same
-  // reason `people` is: the procedure rides the PD-106 belt and is refused as nonexistent below it, and a
+  // reason `people` is: the procedure rides the multi-human-capability belt and is refused as nonexistent below it, and a
   // single-human box has no other human to be present. A `null` here (unresolved / refused / errored) is
   // UNKNOWN, not offline — see `useRosterPresence`.
   const onlineUserIds = useRosterPresence(chat.participants, multiHumanCapable);

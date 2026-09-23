@@ -485,7 +485,7 @@ export type ChatBusEvent =
   | { type: "messageCommitted"; chatId: ChatId; messageId: MessageId; view?: MessageView }
   | { type: "messageEdited"; chatId: ChatId; messageId: MessageId; view?: MessageView }
   // A slot's `excludedFromPrompt` flag flipped (hidden from assembly / restored) — a pure slot-flag change,
-  // no content edit; the fresh view carries the flag (PD-86: the dedicated carrier, not `messageEdited`).
+  // no content edit; the fresh view carries the flag (the dedicated carrier, not `messageEdited`).
   | { type: "messageHidden"; chatId: ChatId; messageId: MessageId; view?: MessageView }
   | { type: "variantSelected"; chatId: ChatId; messageId: MessageId; view?: MessageView }
   | { type: "messagesDeleted"; chatId: ChatId; messageIds: MessageId[] }

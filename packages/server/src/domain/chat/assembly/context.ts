@@ -541,7 +541,7 @@ function composeSteerInput(toggles: readonly string[] | undefined, freeText: str
  *  of vanishing, the resolved text falls back to a depth-0 system-role injection — the SAME ChatInjection
  *  channel every other steer rides (the audit's convergence design) — and flips `guidedPlacedAsInjection`
  *  so the engine emits a LOUD `guided_placed_as_injection` warning (D41; the config-editor marker chip
- *  keeps warning at author time). PD-63's one-placement rule holds: still exactly one delivery. */
+ *  keeps warning at author time). The one-placement rule holds: still exactly one delivery. */
 function resolveGuidedSteer(base: AssembleContext, input: BuildAssembleContextInput, steerInput: string): { candidates: InjectionCandidate[] } {
   const steer = input.guided;
   if (steer === undefined) {

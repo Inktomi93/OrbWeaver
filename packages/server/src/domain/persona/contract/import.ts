@@ -1,5 +1,5 @@
 // domain/persona/contract/import — the `PersonaImportContext` DI bundle + op type for the persona-OWNED
-// bulk-import WRITE (`createBulkImportPersonas`, Option B; PD-77). A PURPOSE-BUILT context (NOT the full
+// bulk-import WRITE (`createBulkImportPersonas`, Option B). A PURPOSE-BUILT context (NOT the full
 // `PersonaContext`): the bulk path needs only db + clock + the persona id minter — no audit/user-bus/chat
 // guards. Homed under `contract/` (the `types-in-contract`/`no-context-returntype` gate); explicit
 // interface, never `ReturnType<typeof …>`.

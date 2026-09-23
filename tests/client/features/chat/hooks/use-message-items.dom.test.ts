@@ -1,4 +1,4 @@
-// Unit: `lastUserRowIndex` — the pin-prompt scroll target (PD-147). Pure over the merged canon+ghost item
+// Unit: `lastUserRowIndex` — the pin-prompt scroll target. Pure over the merged canon+ghost item
 // list; the surface pins whatever index this returns to the viewport top on a new send. The helper is typed
 // structurally, so these fixtures need only `{ kind, view: { id, role } }` — no full MessageView value.
 import type { MessageView } from "@orb/contracts/chat";

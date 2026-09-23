@@ -1,4 +1,4 @@
-// schema/gallery — curated per-character media (gallery v2; D49 item 2 / PD-55; producer: domain/assets).
+// schema/gallery — curated per-character media (gallery v2; D49 item 2; producer: domain/assets).
 // The user↔image↔character CURATION layer over the `assets` byte index: `assets` stays the CAS metadata,
 // `gallery_items` owns "this image is in my gallery, optionally as this character's". Distinct from imagery
 // PROVENANCE (machine-written, one per generation) — curation is user-picked; conflating them would make

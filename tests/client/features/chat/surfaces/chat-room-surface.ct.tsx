@@ -25,7 +25,7 @@ import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ChatRoomGreetingWindowStory, ChatRoomSurfaceStory, ChatSurfaceContributorStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures.ts";
 
-// The divider's present-tense preview (PD-#7). Every map stubs it with a VALID resolved shape — the
+// The divider's present-tense preview. Every map stubs it with a VALID resolved shape — the
 // harness's unlisted-proc default (`data: null`) is out-of-contract for this query and crashes the
 // surface (integration find, 2026-07-24). boundaryMessageId null = "everything fits" (no divider).
 const PREVIEW_FIT_STUB: TrpcRoutes<"chat.previewContextFit"> = {

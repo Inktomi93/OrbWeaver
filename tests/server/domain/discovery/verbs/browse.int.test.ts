@@ -1,4 +1,4 @@
-// Integration: the PD-40 distill READ-half — the filterable distilled catalog (`browseCharacters`) +
+// Integration: the distill READ-half — the filterable distilled catalog (`browseCharacters`) +
 // the facet dropdowns (`characterFacets`). Proofs:
 //   • owner isolation (audit #1) — a foreign owner sees none of another user's distilled cards.
 //   • the facet filters (genre/tone/tag) + the case-insensitive `q` substring narrow in SQL.

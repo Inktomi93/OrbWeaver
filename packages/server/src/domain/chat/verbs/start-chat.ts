@@ -25,7 +25,7 @@
 //
 // FLAG[chatOpened]: `startChat` emits only `chatCreated`. `chatOpened` is NOT a domain emit — it is
 // synthesized per-subscription at the participant stream-attach (transport/trpc/routers/chat.ts's
-// `chatEventStream`, PD-134): a local per-viewer yield, never published on the bus, never logged to
+// `chatEventStream`): a local per-viewer yield, never published on the bus, never logged to
 // `chat_events`. This verb deliberately stays silent on it (the marker guarding against a stray emit here).
 //
 // R0 §4.2: `startChat` mints a HUSK (`chats.startedAt IS NULL`) and never claims it — creation alone is

@@ -1,6 +1,6 @@
 // Mirror test for @orb/server/kit/serde/card — the ONE card serde core: the tolerant IN-flatten
-// (cardFromJson), the shared content hash (cardContentHash, PD-33), and the strict OUT-emitter
-// (buildCardV3 + exportBookEntry, PD-44). Asserts the multi-spec normalize (V3 / V1 / Pygmalion), the
+// (cardFromJson), the shared content hash (cardContentHash), and the strict OUT-emitter
+// (buildCardV3 + exportBookEntry). Asserts the multi-spec normalize (V3 / V1 / Pygmalion), the
 // typed-promotion mapping (depthPrompt / greetings / residual extensions), the hash invariants the dedup
 // relies on (key-order independence + the deliberate provenance EXCLUSION), and the load-bearing
 // round-trip: buildCardV3 → cardFromJson is lossless over the card content fields (the one-serde-core
@@ -135,7 +135,7 @@ describe("cardFromJson", () => {
   });
 });
 
-describe("V3 content promotions + residualData (card-import expansion / PD-127)", () => {
+describe("V3 content promotions + residualData (card-import expansion)", () => {
   test("cardFromJson promotes nickname/source/creation_date/modification_date to typed columns", () => {
     const v3 = {
       spec: "chara_card_v3",
@@ -433,7 +433,7 @@ describe("cardContentHash", () => {
   });
 });
 
-// ── the OUT half: buildCardV3 + exportBookEntry (PD-44) ────────────────────────────────────────────────
+// ── the OUT half: buildCardV3 + exportBookEntry ────────────────────────────────────────────────────────
 
 const REGEX_SCRIPT = regexScriptSchema.parse({
   // A real `regex_script_…` TypeID: the schema's id became prefix-STRICT with the D121-E library lift, so
@@ -669,7 +669,7 @@ describe("exportBookEntry", () => {
   });
 });
 
-// ── the lorebook IN half: extractLorebook / selectBestCharacterBook / loreEntryColumns/Metadata (PD-77) ──
+// ── the lorebook IN half: extractLorebook / selectBestCharacterBook / loreEntryColumns/Metadata ──────────
 
 describe("extractLorebook", () => {
   test("accepts entries as a LIST or a keyed DICT, dropping non-objects", () => {

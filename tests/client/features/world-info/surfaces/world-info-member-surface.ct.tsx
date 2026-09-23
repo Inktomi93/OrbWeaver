@@ -3,7 +3,7 @@
 // Drives the production path: the host-opaque `memberId` is re-branded against `worldInfo.listBooksWithUsage`
 // (the roster's own cache), then `worldInfo.getBook` + `worldInfo.listEntries` (priority DESC = Alpha, Bravo,
 // Charlie) render the book view. Three subjects: the GONE arm (the book was deleted under the editor), the
-// entry drill, and the sortable entry list (PD-138) — a keyboard-drag of Alpha's grip DOWN past Bravo must
+// entry drill, and the sortable entry list — a keyboard-drag of Alpha's grip DOWN past Bravo must
 // fire `worldInfo.applyEntryOrder` with the new id order. Keyboard drag (not pointer) is the deterministic CT
 // path: @dnd-kit's KeyboardSensor picks up on Space, moves 10px per ArrowDown, drops on Space (its own
 // defaults). DEF-14: every assertion is web-first / expect.poll — no bare live-DOM read.

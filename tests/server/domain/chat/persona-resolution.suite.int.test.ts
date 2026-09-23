@@ -20,7 +20,7 @@
 //     assembly/context.int.test.ts "BOTH-PERSONAS" + "persona description placement" describes.
 //   • the chat-open seed chain (explicit > connected > current > default, every rung) — verbs/start-chat.int.test.ts.
 //   • setChatAnchorPersona host-gate / ownership / null-clears — verbs/chat-lifecycle.int.test.ts.
-//   • send-time personaId stamp (PD-100: explicit ?? active) — verbs/turn.int.test.ts.
+//   • send-time personaId stamp (explicit ?? active) — verbs/turn.int.test.ts.
 //   • reattributePersona as the sole history re-stamper — verbs/edit.int.test.ts.
 import type { CharacterCard } from "@orb/contracts/character";
 import type { ChatBusEvent } from "@orb/contracts/chat";

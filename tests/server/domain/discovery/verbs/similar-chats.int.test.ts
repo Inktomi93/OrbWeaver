@@ -1,4 +1,4 @@
-// Integration: PD-40 similarChats — DISCOVERY-NATIVE "more like THIS chat" by segment-centroid cosine, IN-RAM
+// Integration: similarChats — DISCOVERY-NATIVE "more like THIS chat" by segment-centroid cosine, IN-RAM
 // (centroid derived at request time, NOT stored — ledger line 78); zero search. Owner-scoped via present-host
 // (audit #1 / D18); TITLE-only hits (D28); self excluded; similarity-descending.
 

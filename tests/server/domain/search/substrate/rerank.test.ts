@@ -1,7 +1,7 @@
 // substrate/rerank — applyRerank (pure orchestration; the rerank call is an arg). Asserts: the reorder
 // follows the runner's hit order; UNSCORABLE candidates (no sourceText) are kept and placed AFTER the
 // ranked ones (recall-preserving); scorable the runner OMITS keep their incoming order after the ranked
-// ones; the result caps to topN; and a rerank rejection (the PD-11 hosted not-supported throw)
+// ones; the result caps to topN; and a rerank rejection (the hosted not-supported throw)
 // PROPAGATES — search owns no silent CSLS fallback.
 
 import type { RoleClients } from "@orb/contracts/role-clients";

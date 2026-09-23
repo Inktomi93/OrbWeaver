@@ -339,7 +339,7 @@ interface BuiltTurnContext {
   /** The round-level recall inputs staged for the engine's per-speaker witnessed re-run (D6); `null` when
    *  there is no character to key on (memory off / an empty roster) ⇒ the engine keeps round-level `memory`. */
   readonly memoryRecall: MemoryRecallInputs | null;
-  /** The host's resolved turn-behavior arm (PD-146) — the custom stops the prep threads onto the request
+  /** The host's resolved turn-behavior arm — the custom stops the prep threads onto the request
    *  + the auto-continue/auto-swipe knobs the send post-round hook gates on. Defaulted to all-off. */
   readonly chatBehavior: ChatBehaviorInputs;
   /** The tool names a game turn's GATHER contributed (docs/plans/rpg/design.md) — threaded onto the round base →
@@ -1264,14 +1264,14 @@ async function assertPersonaOwnedIfExplicit(ctx: ChatContext, principalUserId: U
   }
 }
 
-// ── PD-146 post-round auto-behaviors (server home for the schema-real UserSettings.chat auto-* knobs) ──
+// ── Post-round auto-behaviors (server home for the schema-real UserSettings.chat auto-* knobs) ──
 // neo honors these CLIENT-side (use-chat-verbs) by re-issuing continue/swipe after the send resolves; orb is
 // server-authoritative, so the send verb runs them in-band and joins the follow-up rows onto its outcome.
 // continueOnSend has NO arm here — it is a purely CLIENT behavior (the composer calls chat.continueTurn on an
 // empty send; verified against neo, whose continueOnSend lives only in use-pref-sections/the composer). Its
 // server-read field stays inert BY DESIGN.
 
-// The bound on each auto-behavior is now the host's PD-146 knob (`UserSettings.chat.autoContinueRounds` /
+// The bound on each auto-behavior is now the host's knob (`UserSettings.chat.autoContinueRounds` /
 // `autoSwipe.maxRetries`, default 1 — the neo-parity ONE-follow-up floor, byte-identical), threaded via
 // `ChatBehaviorInputs` and read in the loops below. A model that keeps hitting the length cap wants a bigger
 // `maxOutputTokens`, and one that keeps producing rejects wants a different prompt — the ceiling (5) caps a
@@ -1362,7 +1362,7 @@ async function runAutoContinue(auto: AutoBehaviorDeps, frame: AutoFrame, tip: Me
 }
 
 /**
- * The PD-146 post-round auto-behaviors, run at the verb level AFTER the engine released its per-chat lock
+ * The post-round auto-behaviors, run at the verb level AFTER the engine released its per-chat lock
  * (each follow-up re-acquires it fresh): auto-swipe takes PRECEDENCE over auto-continue — they are mutually
  * exclusive (a too-short reply isn't a length-capped one). Returns the committed follow-up rows oldest-first,
  * so the send joins them onto its outcome. Gated on the host's settings — all-off ⇒ [] ⇒ byte-identical.
@@ -1393,7 +1393,7 @@ async function runAutoBehaviors(
 
 /** Joins the AI round's outcome to the just-committed user row into the send's `TurnOutcome`. A round that
  *  aborted mid-flight (caller cancel / lock-stale) returns the aborted truth with the rows that landed before
- *  it — NO PD-146 follow-up on a cancelled round (`runAutoBehaviors` short-circuits on the aborted signal
+ *  it — NO follow-up on a cancelled round (`runAutoBehaviors` short-circuits on the aborted signal
  *  anyway; this makes the intent explicit and carries the abort reason). Otherwise runs the host's post-round
  *  auto-behaviors and joins their rows. */
 async function assembleSendResult(
@@ -1414,7 +1414,7 @@ async function assembleSendResult(
       ...(args.round.abortReason !== undefined ? { abortReason: args.round.abortReason } : {}),
     };
   }
-  // PD-146 post-round auto-behaviors: auto-swipe (too-short/blacklisted reply) takes precedence over
+  // Post-round auto-behaviors: auto-swipe (too-short/blacklisted reply) takes precedence over
   // auto-continue (length-capped reply) — a reply can't be both. Gated on the host's settings (all-off ⇒ no
   // follow-up, byte-identical), bounded, abort-aware; every follow-up row joins the send's result.
   const followUps = await runAutoBehaviors(auto, {
@@ -1571,7 +1571,7 @@ async function commitUserTurn(
 }
 
 /** `send` — persist the user message, build the one immutable assemble ctx, arbitrate the responders, drive
- *  the round, then (if autoMode) chain AI→AI, then (PD-146) run the host's post-round auto-behaviors.
+ *  the round, then (if autoMode) chain AI→AI, then run the host's post-round auto-behaviors.
  *  Member-gated; AI turns run as the host. */
 function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): ChatService["send"] {
   return async ({ principal, chatId, content, personaId, attachmentAssetIds, intent, guided }: SendParams): Promise<TurnOutcome> => {
@@ -1772,7 +1772,7 @@ interface TurnBase {
   /** The round-level recall inputs for the engine's per-speaker witnessed re-run (D6); threaded onto each
    *  auxiliary prep. `null` ⇒ no per-speaker recall (round-level `memory` stands). */
   readonly memoryRecall: MemoryRecallInputs | null;
-  /** The host's resolved turn-behavior arm (PD-146) — the custom stops each auxiliary prep threads onto
+  /** The host's resolved turn-behavior arm — the custom stops each auxiliary prep threads onto
    *  the request. Defaulted to all-off. */
   readonly chatBehavior: ChatBehaviorInputs;
   /** A game turn's gather-contributed tool names (docs/plans/rpg/design.md) — threaded onto each auxiliary prep's
@@ -2683,7 +2683,7 @@ export function createRequestTurn(ctx: ChatContext, deps: TurnDeps): RequestTurn
  *  internal (injected into `startChat`, not on `ChatService`); the engine path is a `kind:"opening"` runTurn
  *  with the opening instruction on `appendUserTurn`. */
 export function createTurn(ctx: ChatContext, deps: TurnDeps): TurnVerbs {
-  // Built once so `send`'s PD-146 post-round auto-behaviors re-enter the SAME swipe/continue verbs the
+  // Built once so `send`'s post-round auto-behaviors re-enter the SAME swipe/continue verbs the
   // service exposes (one home; the follow-ups clear every belt exactly like a manual swipe/continue).
   const swipe = createSwipe(ctx, deps);
   const continueTurn = createContinueTurn(ctx, deps);

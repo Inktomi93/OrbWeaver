@@ -1,4 +1,4 @@
-// `useContinueTurn` — the composer's EMPTY-Enter turn actions (PD-146 continue + W-E generate). With
+// `useContinueTurn` — the composer's EMPTY-Enter turn actions (continue + W-E generate). With
 // `continueOnSend`, an empty Send on an assistant-tailed transcript extends that reply via `chat.continueTurn`
 // (the same verb the wand's fireContinue drives). With `generateOnEmptySend` (W-E), an empty Send on a
 // committed NON-assistant tail prompts a fresh reply via `chat.generate` — the fork-at-user-tail / empty-chat

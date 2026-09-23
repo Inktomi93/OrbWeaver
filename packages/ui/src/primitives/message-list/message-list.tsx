@@ -332,7 +332,7 @@ export function MessageList<T>({
       getDistanceFromEnd: () => virtualizer.getDistanceFromEnd(),
       scrollToEnd: () => {
         setFollowing(true);
-        // An explicit jump abandons an active pin (PD-147): clear the pinned index + collapse the
+        // An explicit jump abandons an active pin: clear the pinned index + collapse the
         // spacer BEFORE the end offset is computed, else getMaxScrollOffset() (= scrollHeight -
         // clientHeight) counts the spacer void and the jump lands past the last real row into it.
         // Defer one frame so paddingEnd=0 lands in the scroll height first (mirrors pinToIndex).

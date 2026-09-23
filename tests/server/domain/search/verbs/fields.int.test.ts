@@ -1,4 +1,4 @@
-// verb: fields / suggest — the lexical BM25 engine (PD-37). Asserts the complementary (non-vector)
+// verb: fields / suggest — the lexical BM25 engine. Asserts the complementary (non-vector)
 // retrieval surface against a real db: lexical matching, the name>description field boost, prefix matching,
 // owner isolation (the index corpus is one owner's cards), autocomplete suggestions, and the per-owner
 // TTL cache (a card added within the TTL window is NOT seen until the entry rebuilds).

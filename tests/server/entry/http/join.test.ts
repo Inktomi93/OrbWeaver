@@ -1,5 +1,5 @@
 // entry/http/join — the /join/:token invite landing (FINAL-Auth-Modes §7 P1). Pins the two behaviors:
-// not multi-human capable → the leak-free 404 (the PD-106 unmounted shape, read per request off the
+// not multi-human capable → the leak-free 404 (the unmounted shape, read per request off the
 // injected capability — a runtime `LOCAL_MULTI_USER` flip takes effect immediately); capable → a 302
 // into the SPA root carrying the token as a URL-encoded `join` search param (the client runs the real
 // preview-then-confirm over the gated tRPC surface). Mock-app pattern (healthz.test.ts).

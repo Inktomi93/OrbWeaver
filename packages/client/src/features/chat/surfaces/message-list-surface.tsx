@@ -231,7 +231,7 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
   // signal, which desyncs from position once virtual-core writes scrollTop during a re-measure.
   const listHandleRef = useRef<MessageListHandle>(null);
 
-  // pin-prompt scroll mode (PD-147): on each NEW user message (a send), pin it to the viewport top and
+  // pin-prompt scroll mode: on each NEW user message (a send), pin it to the viewport top and
   // let the reply stream below. The primitive owns the pin/spacer; the surface only names which row is the
   // prompt. The seed guard means opening a chat lands at the tail (no pin) — only a fresh send fires it.
   const pinMode = behaviorPrefs.streamScrollMode === "pin-prompt";
@@ -258,7 +258,7 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
   // now — D124 retired the rpg state-anchor slot, an empty-body assistant row that was filtered out of the
   // rendered list yet still answered this question, stripping the arrows off the last visible reply.
   const lastAssistantId = live ? undefined : messages.findLast((row) => row.role === "assistant")?.id;
-  // The transcript divider's PRESENT-TENSE source (PD-#7): previewContextFit runs the same fit the next real
+  // The transcript divider's PRESENT-TENSE source: previewContextFit runs the same fit the next real
   // turn would, so the line tracks preset/settings knob changes live (it's invalidated on canon-terminal bus
   // events + settings/preset changes via the central seam). Non-suspense so it never blocks the transcript;
   // until it resolves (or if it errors) the canon-stamp resolver — the per-generation provenance — is the

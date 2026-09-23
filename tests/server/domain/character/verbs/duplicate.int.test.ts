@@ -1,6 +1,6 @@
 // verb: duplicate — clone into a fresh local card. Load-bearing: a free `<handle>-copy[-n]` is derived,
 // content is copied, import provenance is CLEARED (the clone is app-authored), character.updated emits, and
-// (PD-141) the source's attached world-info book REFERENCES are CARRIED onto the clone (the books are never
+// the source's attached world-info book REFERENCES are CARRIED onto the clone (the books are never
 // cloned — new junction rows point at the SAME books).
 
 import { createCharacterSchema } from "@orb/contracts/character";
@@ -17,7 +17,7 @@ import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedRawCharacter, seedUser } from "../_support.ts";
 
-/** Seed an owned world book + attach it to a character at `role` (PD-141 carry fixtures). */
+/** Seed an owned world book + attach it to a character at `role` (carry fixtures). */
 async function seedAttachedBook(
   db: Db,
   args: { readonly bookId: string; readonly ownerId: UserId; readonly characterId: CharacterId; readonly role: WorldBookRole },
@@ -119,7 +119,7 @@ describe("duplicate", () => {
     expect(copy.themeOverride).toEqual({ accent: "oklch(0.7 0.14 250)" });
   });
 
-  test("PD-141 — carries the source's attached book REFERENCES onto the clone (same books, new junction rows)", async () => {
+  test("carries the source's attached book REFERENCES onto the clone (same books, new junction rows)", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
@@ -161,7 +161,7 @@ describe("duplicate", () => {
     );
   });
 
-  test("PD-141 — a source with zero attached books duplicates clean (no junction rows carried)", async () => {
+  test("a source with zero attached books duplicates clean (no junction rows carried)", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });

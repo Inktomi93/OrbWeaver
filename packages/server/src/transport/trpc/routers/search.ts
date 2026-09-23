@@ -71,7 +71,7 @@ export const searchRouter = t.router({
     }),
   ),
 
-  // PD-38 unified dispatch: query + target + scope → the matching verb's hits, tagged by `over`. Owner =
+  // Unified dispatch: query + target + scope → the matching verb's hits, tagged by `over`. Owner =
   // resolved principal (audit #1). Any ids in `scope` are owner-belted in the domain (cross-tenant-swept).
   search: authedProcedure.input(unifiedSearchInput).query(({ ctx, input }) =>
     ctx.services.search.search({

@@ -158,7 +158,7 @@ function toChatInput(args: {
     updatedAt: sendDates.length > 0 ? Math.max(...sendDates) : createdAt,
     parentRef: null,
     // Deliberately FALSE: an example is not the user's own conversation, and must not drag the seeded pack
-    // into their memory index on first boot (PD-78's backfill enqueue gates on this).
+    // into their memory index on first boot (the backfill enqueue gates on this).
     isRealConversation: false,
     characterIds: seats.slice(1).map((s) => s.characterId),
     // The curated plate joins the room-behavior blob HERE rather than in the manifest: an example with no

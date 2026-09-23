@@ -57,7 +57,7 @@ test("CHAT_BUS_EVENT_TYPES is the exhaustive discriminator set incl. the embedde
   expect(isChatBusEventType("roomEntityChanged")).toBe(true);
   expect(isChatBusEventType("memoryRecall")).toBe(true);
   expect(isChatBusEventType("reactionsChanged")).toBe(true);
-  // 24 chat-owned (incl. the D45 `warning`, the PD-86 `messageHidden`, the pre-arbitration `turnAccepted`,
+  // 24 chat-owned (incl. the D45 `warning`, the `messageHidden`, the pre-arbitration `turnAccepted`,
   // the entity→room bridge's `roomEntityChanged`, the #313 `memoryRecall`, the B6 `reactionsChanged`)
   // + 6 WI variants.
   expect(Object.keys(CHAT_BUS_EVENT_TYPES)).toHaveLength(30);

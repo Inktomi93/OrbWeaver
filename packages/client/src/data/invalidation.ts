@@ -208,7 +208,7 @@ const USER_BUS_FILTERS: UserBusFilterMap = {
   charactersChanged: (_e, trpc) => [trpc.character.pathFilter(), trpc.chat.getMemberCard.pathFilter(), trpc.regex.listScriptUsage.pathFilter()],
   personasChanged: (_e, trpc) => [trpc.persona.pathFilter()],
   // A preset edit changes the effective params (maxOutput/maxContext) the fit reserves against, so the
-  // transcript divider's budget must refetch too (the boundary tracks knob changes live, PD-#7) — and the
+  // transcript divider's budget must refetch too (the boundary tracks knob changes live) — and the
   // preset OWNS the prompt's section order/content, so the prompt preview is stale on the same edit.
   // `getUserMacroPicks`/`getVariablePicks` ride a preset edit too: their DECLARATIONS halves ARE the active
   // preset's `userMacros`/`variables` (adding/removing a macro input or a ChoiceBlock changes which controls

@@ -147,7 +147,7 @@ beforeEach(async () => {
  *  rows, in write order. `canonMessageDelta`/`swipeVariantDelta` are the declared mirrors of the rebuild's
  *  `foldMessage`/`foldSwipe`; `chatCreatedDelta({newCharacter: true})` supplies the chat/character library
  *  counts the message folds don't own (reconcile derives them from the character/chat tables — esoteric
- *  #10). PD-96: `newCharacter` is the REAL builder output (the `start-chat` first-chat probe sets it) —
+ *  #10). `newCharacter` is the REAL builder output (the `start-chat` first-chat probe sets it) —
  *  no hand-spread masking the wiring. */
 function liveDeltas(): StatsDelta[] {
   return [

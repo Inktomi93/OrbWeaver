@@ -1,4 +1,4 @@
-// Integration: PD-40 insights (pure-semantics half) — themeDrift (story-time theme prevalence over msgMidAt
+// Integration: insights (pure-semantics half) — themeDrift (story-time theme prevalence over msgMidAt
 // month buckets) + unusedCharacters (collected-but-never-played). Both owner-scoped (audit #1).
 
 import type { Db } from "@orb/db";

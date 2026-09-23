@@ -1,4 +1,4 @@
-// THE PD-139a TRIGGER'S CONDITION (§10-4): what `(model[@dtype])` space each of a principal's vector tasks
+// THE EMBED-SPACE TRIGGER'S CONDITION (§10-4): what `(model[@dtype])` space each of a principal's vector tasks
 // resolves to RIGHT NOW. The purge+reindex must fire on an actual SPACE change and nothing else, so the
 // write verbs snapshot this before their write and compare it after.
 //

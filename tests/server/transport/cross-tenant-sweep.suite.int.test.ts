@@ -119,7 +119,7 @@ const MARK = {
   // itself twice. `list` is PROBED (not EXEMPT) per the WHERE-partition rule: drop the ownerId predicate
   // and every user reads one shared party list.
   rosterPreset: "AlphaSecretParty",
-  // #1627 — a durable row in A's INBOX. The inbox trio lost its PD-106 multi-human belt when single-human
+  // #1627 — a durable row in A's INBOX. The inbox trio lost its multi-human belt when single-human
   // notification sources landed, so the `recipient_user_id` WHERE-clause partition
   // (`domain/notifications/persistence/queries.ts`) is now the ONLY thing between two principals' inboxes —
   // the WHERE-partition rule (a dropped predicate makes every user read ONE shared inbox, which no parameter
@@ -1173,7 +1173,7 @@ const PROBES: readonly Probe[] = [
   // ── invites / human-membership (FINAL-Auth-Modes §7 P1 — host/member-gated inside the verbs; the
   //    token-carrying verbs are token-authenticated: a guessed token is a leak-free NOT_FOUND, and a
   //    targeted/foreign invite collapses to the same shape). The fixture context is multi-human capable,
-  //    so the PD-106 belt is OPEN and the real authority gates are what these probes exercise. ──
+  //    so the belt is OPEN and the real authority gates are what these probes exercise. ──
   {
     path: "invites.createInvite",
     call: (c, i) => c.invites.createInvite({ chatId: i.chatId, input: {} }),
@@ -1488,13 +1488,13 @@ const PROBES: readonly Probe[] = [
   //    disclosure's real teeth are elsewhere and are named here so they are not re-derived: the wire boundary
   //    (anonymous refusal, the ask cap, the one-key body) is
   //    tests/server/transport/trpc/routers/notifications.test.ts, the projection (no `lastSeenAt`, absent ==
-  //    offline-or-withheld) is tests/server/transport/trpc/presence-disclosure.test.ts, and the PD-106 belt is
+  //    offline-or-withheld) is tests/server/transport/trpc/presence-disclosure.test.ts, and the belt is
   //    trpc.test.ts's `beltSurfaces` table. If the audience ever narrows to room membership, THIS probe flips
   //    to a leak-free NOT_FOUND/empty expectation. ──
   { path: "notifications.presence", call: (c) => c.notifications.presence({ userIds: [OWNER_USER_ID] }) },
 
   // ── notifications — THE INBOX TRIO (#1627). These were EXEMPT("self-scoped … multi-human belt") while the
-  //    PD-106 belt refused the whole router on any deployment that could not seat a second human. The belt is
+  //    belt refused the whole router on any deployment that could not seat a second human. The belt is
   //    gone (single-human sources exist: a crash-disabled plugin, an auto-disabled automation rule), so the
   //    `recipient_user_id` WHERE-clause partition is the ONLY belt left — and that is precisely the shape
   //    EXEMPT cannot express: no parameter carries a foreign id for `list`/`markAllRead`, yet dropping the
@@ -2381,7 +2381,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     // verb, which is exactly why the trio's only belt is the recipient predicate. The `automation-notice`
     // member is the one variant carrying free text, so the marker rides its rendered `message`; it points at
     // A's owner-global rule, the same chat-less lane whose auto-disable notice a single-user deployment
-    // could not read while the PD-106 belt was on. `seq` is the per-recipient cursor (unique with the
+    // could not read while the belt was on. `seq` is the per-recipient cursor (unique with the
     // recipient), and the row is born UNREAD + UNDISMISSED — both are post-sweep witnesses below.
     const notificationId = mintTypeId(ID_PREFIX.notification);
     await db.insert(notifications).values({

@@ -373,7 +373,7 @@ test("message_variants toolCalls (ToolCallRecord[] json) + apiErrorStatus round-
   const messageId = castId<MessageId>("message_genrec");
   await db.insert(messages).values({ id: messageId, chatId, seq: 1, role: "assistant" });
   const variantId = castId<MessageVariantId>("message_variant_genrec");
-  // A failed generation: an HTTP status diagnostics signal + the D48 tool-call records (PD-54 retype — the
+  // A failed generation: an HTTP status diagnostics signal + the D48 tool-call records (retype — the
   // column is now `.$type<readonly ToolCallRecord[]>()`; the driver round-trips the DTO shape).
   const apiErrorStatus = 429;
   const toolCalls: readonly ToolCallRecord[] = [

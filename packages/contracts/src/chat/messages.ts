@@ -468,11 +468,11 @@ export interface MessageView {
   ttftMs: number | null;
   /** Generation-window bounds (epoch-ms) for this swipe — the wall time the turn engine began/finished
    *  the model call. Both null on a non-generated row (user/system/draft-greeting). `gf − gs` (when both
-   *  present and ordered) is the generation duration the `showGenerationTimer` chip reads (PD-130). */
+   *  present and ordered) is the generation duration the `showGenerationTimer` chip reads. */
   genStartedAt: number | null;
   genFinishedAt: number | null;
   /** The upstream generation handle (OpenRouter's `gen-…`) this shown swipe billed under — the key a quiet
-   *  per-message cost readout settles with via `connection.generationCost` (PD-137), resolved against
+   *  per-message cost readout settles with via `connection.generationCost`, resolved against
    *  `connectionId`. Null where the transport reports none (agent-sdk / endpoint rows / user/system rows). */
   generationId: string | null;
   /** WHICH of the funder's connection rows generated this swipe (inference program §5.3b) — SET NULL after the

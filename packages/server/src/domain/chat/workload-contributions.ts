@@ -1,10 +1,10 @@
 // domain/chat — the domain's OWN background work, raised as `WorkloadContribution`s (the workloads
 // junk-drawer exit: domains raise seams, the worker skims them). Two kinds, both corpus sweeps over chat's
 // canon: `memory-backfill` (the memory subsystem's segment/digest rebuild) and `group-character-backfill`
-// (PD-41/D38 — mint the synthetic group character for every multi-character room that lacks one).
+// (D38 — mint the synthetic group character for every multi-character room that lacks one).
 //
 // The ops are the SAME chat-ctx-bound sweeps compose already built; only their home changed. The one
-// cross-domain reach — the memory scope's `embed_space_state` completion plus the PD-139(b)
+// cross-domain reach — the memory scope's `embed_space_state` completion plus the
 // old-embed-space reclaim — is an INJECTED op at chat's door (`purgeMemoryVectors`), which is exactly what
 // the retired hub existed to avoid building. That op ENUMERATES the scope it is handed (#2517), so the
 // bulk/singular distinction is a fan-out property of the op and not a fence on calling it.
@@ -52,7 +52,7 @@ export function createChatWorkloadContributions(deps: ChatWorkloadDeps): ChatCon
             `${counts.failed > 0 ? `, ${counts.failed} chats FAILED (skipped — see error log)` : ""}`,
         });
         // THE SWEEP'S TERMINAL — record `embed_space_state`'s `memory` completion for the scope this run
-        // actually covered, and (PD-139(b)) reclaim the rows stranded in any OTHER embed space once cards,
+        // actually covered, and reclaim the rows stranded in any OTHER embed space once cards,
         // memory and documents all name the same target generation.
         //
         // #2517 — THE RULING SURVIVES, ITS INPUT CHANGED. This was BULK-ONLY, on the reasoning that "a model
@@ -71,7 +71,7 @@ export function createChatWorkloadContributions(deps: ChatWorkloadDeps): ChatCon
         // same `(generation, epoch)`, and every DELETE it then runs derives its row set from THIS owner's
         // characters / hosted chats / documents (`persistence/space-state.ts retiredVectorStatements`). So a
         // per-owner run reclaims exactly that owner's own old space — which is the SAME guarantee
-        // `embed-corpus.ts`'s PD-104 per-owner card purge has always relied on ("a bulk pass covers every
+        // `embed-corpus.ts`'s per-owner card purge has always relied on ("a bulk pass covers every
         // owner, a singular pass exactly one, and neither can reach a neighbour's live space"). The "global
         // old space" the fence was written against is reachable only through the op's cross-owner FAN-OUT,
         // and that fan-out is still decided by the enumeration scope alone.

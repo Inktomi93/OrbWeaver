@@ -1,4 +1,4 @@
-// The chat_events APPEND writer (persistence/events.ts — the PD-88 extraction from bus.ts). Proves against
+// The chat_events APPEND writer (persistence/events.ts, extracted from bus.ts). Proves against
 // a real libSQL db: the correlated-subquery per-chat seq is monotonic and per-chat independent, the full
 // room-public payload round-trips, and the durable rows are exactly what `loadChatEventReplay` replays.
 

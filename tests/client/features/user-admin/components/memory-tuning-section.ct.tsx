@@ -77,7 +77,7 @@ test("all five modes teach benefit + cost in the open picker, with clean accessi
   await expect(page.getByText(RAW_MODE_LABEL)).toHaveCount(0);
 });
 
-// #321 / PD-35: the "Recency bias" control was REMOVED (owner ruling 2026-08-22 — his probe measured no recall
+// docs/work/0122: the "Recency bias" control was REMOVED (owner ruling — his probe measured no recall
 // gain), so the test that pinned its experimental-copy honesty went with it. The fence that replaces it is
 // negative: the retired control must not come back without its ruling.
 test("the retired Recency bias control is absent from the section (#321)", async ({ mount, page }) => {

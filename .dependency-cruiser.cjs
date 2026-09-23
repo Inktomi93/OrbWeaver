@@ -354,7 +354,7 @@ module.exports = {
     {
       name: "search-minisearch-seal",
       comment:
-        "minisearch (server side) is sealed to domain/search/substrate/field-index.ts — the ONE lexical BM25 engine home (PD-37). Any other server module importing it is a seal breach; the vector verbs scan the DB, not minisearch.",
+        "minisearch (server side) is sealed to domain/search/substrate/field-index.ts — the ONE lexical BM25 engine home. Any other server module importing it is a seal breach; the vector verbs scan the DB, not minisearch.",
       severity: "error",
       from: {
         path: "^packages/server/",

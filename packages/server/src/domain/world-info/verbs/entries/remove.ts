@@ -2,7 +2,7 @@
 // never a bare `eq(id)`). DELETE … WHERE id=? AND worldBookId IN (caller's books) RETURNING folds the gate +
 // the deletion into one round-trip; an empty result = not owned / not found → typed NotFound.
 //
-// PD-89: a removed entry leaves the WI pool of every chat the book is attached to — fan out `wiEntryDetached`
+// A removed entry leaves the WI pool of every chat the book is attached to — fan out `wiEntryDetached`
 // over `listChatIdsForBook`, read off the deleted row's `worldBookId` (the RETURNING clause below), so the
 // fan-out target is known WITHOUT a pre-delete read. Empty fan-out (book attached to zero chats) is correct.
 

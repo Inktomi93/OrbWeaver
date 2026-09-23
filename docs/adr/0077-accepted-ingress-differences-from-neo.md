@@ -12,7 +12,7 @@ Not recorded in the ledger row.
 
 ## Decision
 
-**Ingress deltas vs neo are ACCEPTED: empty-body 403 + XFF-only (no `X-Real-IP`).** The IP-allowlist 403 returns an empty body (neo returned `{error:"Forbidden."}`) — only non-allowlisted peers ever see it, and an empty body hands a scanner nothing. The forwarded-client-IP resolver honors ONE canonical header — `X-Forwarded-For`, gated on the trusted TCP peer (PD-52 precedence) — never `X-Real-IP`; a second spoofable header is parsing surface with zero capability (every reverse proxy can emit XFF). Deployment consequence: a fronting proxy MUST be configured to send `X-Forwarded-For`. Do not re-flag either delta as a parity gap.
+**Ingress deltas vs neo are ACCEPTED: empty-body 403 + XFF-only (no `X-Real-IP`).** The IP-allowlist 403 returns an empty body (neo returned `{error:"Forbidden."}`) — only non-allowlisted peers ever see it, and an empty body hands a scanner nothing. The forwarded-client-IP resolver honors ONE canonical header — `X-Forwarded-For`, gated on the trusted TCP peer — never `X-Real-IP`; a second spoofable header is parsing surface with zero capability (every reverse proxy can emit XFF). Deployment consequence: a fronting proxy MUST be configured to send `X-Forwarded-For`. Do not re-flag either delta as a parity gap.
 
 ## Consequences
 

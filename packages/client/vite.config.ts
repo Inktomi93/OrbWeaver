@@ -664,7 +664,7 @@ export default defineConfig({
       // caller can edit the list in place.
       deny: [...devFsDeny(WORKSPACE_ROOT)],
     },
-    // Forward browser console → terminal (dev half of PD-58 client observability).
+    // Forward browser console → terminal (dev half of client observability).
     forwardConsole: true,
     // NO `headers: { "Content-Security-Policy": … }` here ON PURPOSE — the `orb:dev-csp-mirror` plugin
     // owns the dev document CSP (see CSP_DEV_FALLBACK above). Vite's own header middleware runs AFTER

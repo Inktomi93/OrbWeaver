@@ -1,4 +1,4 @@
-// verb: importPersonas (PD-77) — translate a profile's settings.json personas → the canonical
+// verb: importPersonas — translate a profile's settings.json personas → the canonical
 // `BulkImportPersonaInput` and delegate the WRITE to the injected persona-owned `bulkImportPersonas` op
 // (Option B — `import` performs NO db access). Then POPULATE the cross-verb `personaByUserName` map (from the
 // op's `idByName`) so the chat importers can attribute their `user_name`s. MUST run BEFORE the chat importers

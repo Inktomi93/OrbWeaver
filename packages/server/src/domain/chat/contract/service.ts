@@ -190,8 +190,8 @@ export interface ChatService {
   readonly previewSection: (params: PreviewSectionParams) => Promise<SectionPreview>;
   /** The assembled prompt for the NEXT real turn (no generation). */
   readonly peekPrompt: (params: PeekPromptParams) => Promise<AssembledPrompt>;
-  /** The content-free SHAPE trace for the next-turn shaping of the current canon (host/admin inspector,
-   *  PD-132). Re-runs SHAPE on demand — no content, nothing persists. */
+  /** The content-free SHAPE trace for the next-turn shaping of the current canon (host/admin inspector).
+   *  Re-runs SHAPE on demand — no content, nothing persists. */
   readonly getShapeTrace: (params: GetShapeTraceParams) => Promise<ShapeTrace>;
   /** The per-variant WIRE RECORD — what ONE PAST generation actually sent (`peekPrompt`'s retrospective
    *  twin): the persisted `promptSnapshot` + `params` + `macroDraws`. HOST-gated for exactly the reason
@@ -199,7 +199,7 @@ export interface ChatService {
    *  assembled history). Pure read — nothing re-renders, nothing persists. */
   readonly getVariantWire: (params: GetVariantWireParams) => Promise<VariantWireView>;
   /** The present-tense context-fit budget for the current canon against the host's effective preset +
-   *  capability (PD-#7). Member-gated; runs the SAME fit the next real turn would, so `boundaryMessageId`
+   *  capability. Member-gated; runs the SAME fit the next real turn would, so `boundaryMessageId`
    *  equals the canon boundary that turn stamps. Nothing persists — the transcript divider's live source. */
   readonly previewContextFit: (params: PreviewContextFitParams) => Promise<ContextFitPreview>;
   /** Paged canon read — each slot joined to its selected variant + the page's macro name producer. */
@@ -351,7 +351,7 @@ export interface ChatService {
   readonly addCharacterToChat: (params: AddCharacterToChatParams) => Promise<ParticipantView>;
   /** Remove a character seat from the roster (host-only) — the symmetric drop for `addCharacterToChat`.
    *  leftSeq-stamps the present character seat; an absent/already-left character is an idempotent no-op. Has
-   *  a tRPC row today; the docs/plans/rpg/design.md scene-cast prune (parked, `docs/plans/rpg/design.md``) is a future INJECTED
+   *  a tRPC row today; the scene-cast prune (parked, `docs/plans/rpg/design.md`) is a future INJECTED
    *  consumer of this same verb, not a caller that exists yet. */
   readonly removeCharacterFromChat: (params: RemoveCharacterFromChatParams) => Promise<void>;
 
@@ -401,7 +401,7 @@ export interface ChatService {
   readonly getRoomOverridesForChat: (params: GetRoomOverridesForChatParams) => Promise<RoomOverrides>;
 
   /** The ONE AI-seat knob write (host-only; D80) — participantId-keyed, kind-blind. Patches a PRESENT
-   *  AI-driven seat's (`character` today; `agent` grafts back on per PD-17) `talkativeness`/`disabled` (both
+   *  AI-driven seat's (`character` today; `agent` grafts back on per docs/work/0048) `talkativeness`/`disabled` (both
    *  optional; empty patch = no-op returning the current view). Replaces the retired per-kind forking
    *  (`setParticipantDisabled`/`setParticipantTalkativeness`/`setAgentSeatDisabled`) — one home, so no arm can
    *  be skipped again when the agent kind returns. A muted/tuned seat stays seated; cards/WI still contribute. */

@@ -241,7 +241,7 @@ export const updateRegexScriptSchema = regexScriptBehaviorFields.extend({ name: 
 
 export type UpdateRegexScriptInput = z.infer<typeof updateRegexScriptSchema>;
 
-// PD-144 twin: a portable/exported CARD carries orbweaver-namespaced REFERENCES to the library scripts it is
+// twin: a portable/exported CARD carries orbweaver-namespaced REFERENCES to the library scripts it is
 // attached to, alongside the by-value `regex_scripts` ST payload. On a same-install re-import the references
 // re-link to the existing rows (zero duplicate rows); on a foreign install they resolve to nothing and the
 // by-value payload lifts instead. Library scripts are never cloned through the reference channel.

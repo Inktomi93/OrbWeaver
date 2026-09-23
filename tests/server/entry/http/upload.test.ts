@@ -132,8 +132,8 @@ const okAssets: UploadAssetsPort = {
 
 // A character port that always creates a fresh row (the import-route happy path). The handle-suffix
 // disambiguation loop is pinned in the run-profile-import + domain import-character suites; `findByHandle`
-// is an unused no-op stub here (it always misses, so create always fires — #1470 dropped the earlier
-// PD-108 handle-match edit-in-place, so `ImportCharacterPort` no longer carries an `update` op).
+// is an unused no-op stub here (it always misses, so create always fires — the earlier handle-match
+// edit-in-place is gone, so `ImportCharacterPort` no longer carries an `update` op).
 const creatingCharacter: ImportCharacterPort = {
   create: (): Promise<{ id: CharacterId }> => Promise.resolve({ id: castId<CharacterId>("chr_1") }),
   findByImportHash: (): Promise<null> => Promise.resolve(null),
@@ -226,7 +226,7 @@ describe("registerUpload — asset upload", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual(STORED);
     expect(calls).toHaveLength(1);
-    // PD-94: the route passes the store's maxBytes belt (64 MiB route cap; maxImageBytes is looser here so
+    // The route passes the store's maxBytes belt (64 MiB route cap; maxImageBytes is looser here so
     // the route cap wins) alongside enforceMagic.
     expect(calls[0]).toEqual({
       kind: "avatar",

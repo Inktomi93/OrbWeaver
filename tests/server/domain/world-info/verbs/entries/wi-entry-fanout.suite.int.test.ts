@@ -1,4 +1,4 @@
-// verbs/entries — PD-89 fan-out. A `.suite.int.test.ts` (not a 1:1 mirror — test-layout gate exemption): the
+// verbs/entries — entry-level WI fan-out. A `.suite.int.test.ts` (not a 1:1 mirror — test-layout gate exemption): the
 // behavior under test spans THREE source modules (create/update/remove.ts), all fanning the SAME
 // `listChatIdsForBook` query, not one module in isolation.
 //
@@ -16,7 +16,7 @@ import { freshDb } from "../../../../../support/db.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
 import { makeHarness, principal, seedChat, seedUser } from "../../_support.ts";
 
-describe("entry verbs — PD-89 wiEntry* fan-out", () => {
+describe("entry verbs — wiEntry* fan-out", () => {
   test("createEntry fans wiEntryAttached over every chat the book is attached to", async () => {
     const db = await freshDb();
     const harness = makeHarness(db, { requireChatHost: () => Promise.resolve() });

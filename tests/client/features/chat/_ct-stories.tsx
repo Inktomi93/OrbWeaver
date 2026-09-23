@@ -654,7 +654,7 @@ interface MessageEditTextareaStoryInnerProps {
   readonly message: MessageView;
 }
 
-/** Drives the external edit-draft store (PD-119) so the textarea mounts already "in edit mode" —
+/** Drives the external edit-draft store so the textarea mounts already "in edit mode" —
  *  the same store `<MessageActionsRow>`'s Edit button flips in the real row. */
 function MessageEditTextareaStoryInner({ message }: MessageEditTextareaStoryInnerProps): ReactElement {
   useEffect(() => {
@@ -1356,7 +1356,7 @@ export function MessageListStoppingStory(): ReactElement {
 export interface ComposerStoryProps {
   /** The tail turn role — `"assistant"` (+ `tailAssistantMessageId`) makes continue-on-empty eligible. */
   readonly tailRole?: MessageRole | null;
-  /** The tail assistant message id continue-on-empty targets (PD-146). */
+  /** The tail assistant message id continue-on-empty targets. */
   readonly tailAssistantMessageId?: MessageId | null;
 }
 
@@ -3106,7 +3106,7 @@ export function RoomImageDetailStory({ reservedSrc }: RoomImageDetailStoryProps)
   );
 }
 
-// ── Metadata / cost stories (WS3, PD-137) ─────────────────────────────────────────────────────────
+// ── Metadata / cost stories (WS3) ─────────────────────────────────────────────────────────────────
 
 const FROZEN_META_AT = 1_750_000_000_000;
 
@@ -3140,7 +3140,7 @@ export function MessageMetadataRowStory({
   );
 }
 
-/** `MessageCostReadout` in isolation — the PD-137 paid-fetch gate. The story supplies the WHOLE settleable
+/** `MessageCostReadout` in isolation — the paid-fetch gate. The story supplies the WHOLE settleable
  *  triple (`generationId` + `connectionId` + an openrouter-dialect `provider`), because the readout renders
  *  nothing unless all three hold; the `.ct.tsx` routes (or withholds) `connection.generationCost` to drive the
  *  reveal → loading → settled / error labels, and asserts the fetch fires ONLY after the click. `provider` is

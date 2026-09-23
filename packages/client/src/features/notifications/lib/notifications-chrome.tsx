@@ -2,12 +2,12 @@
 // IT HAS NO VISIBILITY GATE: the bell mounts for every authed principal.
 //
 // #1627 (2026-09-05) retired the gate this entry was born with. `useVisible` read `multiHumanCapable`
-// because the inbox backend was multi-human-only (PD-106 — every notification SOURCE was
+// because the inbox backend was multi-human-only (every notification SOURCE was
 // invite/kick/host-handoff, and the router 404'd on a single-user deployment). That premise is dead:
 // `plugin-disabled` (a plugin the crash policy auto-disabled) and `automation-notice` (a rule that
 // auto-disabled itself) write durable rows on a single-user box, and the plugin CONSENT prompt (#924/#1041)
 // rides this bell too — so the trio widened to `authedProcedure` and the inbox room's attach belt came off.
-// PD-106's ruling survives where it still applies: `notifications.presence` and the invites router are still
+// That ruling survives where it still applies: `notifications.presence` and the invites router are still
 // belted, which is why the character bar's People section and the /join landing still consult the capability.
 //
 // The #476 no-flash machinery went with the gate. An unconditional widget cannot flash-then-yank and cannot

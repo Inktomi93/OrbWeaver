@@ -17,7 +17,7 @@ describe("markRevoked", () => {
     expect(rows[0]?.revokedAt).not.toBeNull();
   });
 
-  test("audits credential.markRevoked as SYSTEM-attributed (actorUserId null — no owner proven) (PD-142)", async () => {
+  test("audits credential.markRevoked as SYSTEM-attributed (actorUserId null — no owner proven)", async () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const { svc, cred, owner } = await seedCredential(db, h);

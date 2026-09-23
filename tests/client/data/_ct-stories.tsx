@@ -258,7 +258,7 @@ export function GatedQueryStory({ chatId }: { readonly chatId: ChatId | null }):
   );
 }
 
-// ── useInvalidation — the hoisted React accessor (data/use-invalidation.ts, PD-124): proves the
+// ── useInvalidation — the hoisted React accessor (data/use-invalidation.ts): proves the
 //    hook itself wires the LIVE `useTRPC()`/`useQueryClient()` context into `createInvalidation`
 //    end-to-end (never a hand-built `{ queryClient, trpc }` pair), the exact seam every feature
 //    (chat + settings) now shares instead of each re-deriving it. ─────────────────────────────────

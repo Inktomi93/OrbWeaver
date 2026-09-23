@@ -109,7 +109,7 @@ interface RunTurnPipelineArgs {
   readonly canon: readonly MessageView[];
   readonly connection: Resolved<"chat">;
   readonly intent: UserIntent;
-  /** The host's `UserSettings.chat.customStoppingStrings` (PD-146), folded into the request's stop set
+  /** The host's `UserSettings.chat.customStoppingStrings`, folded into the request's stop set
    *  (Set-deduped after the intent's own stops). Absent/empty ⇒ the request `intent` is untouched. */
   readonly extraStopSequences?: readonly string[] | undefined;
   readonly kind: TurnKind;
@@ -509,9 +509,9 @@ function foldAdvanced(base: UserIntent["advanced"], override: UserIntent["advanc
   return { ...base, ...override };
 }
 
-/** Folds the EFFECTIVE generation params at the ONE seam (PD-148) — the value `resolveSampling` and the
+/** Folds the EFFECTIVE generation params at the ONE seam — the value `resolveSampling` and the
  *  fit-budget read: the preset's `params` is the BASE, the per-turn `UserIntent` OVERRIDES field-wise, and
- *  the stop set is the UNION of preset stop + per-turn stop + the host's custom stops (PD-146), Set-deduped.
+ *  the stop set is the UNION of preset stop + per-turn stop + the host's custom stops, Set-deduped.
  *  When the preset carries no params AND there are no custom stops, the per-turn intent is returned BY
  *  REFERENCE — byte-identical to a chat on the DEFAULT preset (whose `params` is `{}`). */
 function foldGenerationParams(base: UserIntent, override: UserIntent, extras: readonly string[] | undefined): UserIntent {
@@ -616,8 +616,8 @@ function speakerContexts(args: RunTurnPipelineArgs): {
 export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPipelineResult> {
   const { layout, voice: ctx, cue } = speakerContexts(args);
 
-  // FOLD (PD-148) — the effective generation params: the preset's `params` is the BASE, the per-turn
-  // `UserIntent` overrides field-wise, and the host's custom stops (PD-146) join the merged stop set. This is
+  // FOLD — the effective generation params: the preset's `params` is the BASE, the per-turn
+  // `UserIntent` overrides field-wise, and the host's custom stops join the merged stop set. This is
   // the ONE value SHAPE (roleHandling), FIT (budget), and REQUEST (wire intent) read — never `ctx.promptConfig.params`
   // or `args.intent` directly, so a preset's sampling/stop settings actually reach the wire.
   // MATERIALIZE the effective output length ONCE (the single source of truth): both FIT (fitBudget's

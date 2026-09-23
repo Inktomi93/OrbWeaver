@@ -36,7 +36,7 @@ function principal(userId: UserId): ReturnType<typeof makePrincipal> {
   return makePrincipal(userId, { handle: castId<Handle>(userId) });
 }
 
-// hashToken/newInviteId now ride the ctx (PD-61) — makeChatContext supplies the same `h:${token}` fake
+// hashToken/newInviteId now ride the ctx — makeChatContext supplies the same `h:${token}` fake
 // hasher + a deterministic chat_invite minter; deps carry only the bus emit + the roster resolver.
 function makeDeps(): {
   emit: () => Promise<void>;
@@ -157,7 +157,7 @@ describe("createInvite — host mints a share-link; the token is stored HASHED",
     expect((err as ChatOperationError).code).toBe("not_host");
   });
 
-  test("a targeted-by-handle invite resolves the target and stores invitedUserId (PD-66)", async () => {
+  test("a targeted-by-handle invite resolves the target and stores invitedUserId", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const bob = await seedUser(db, castId<Handle>("bob"));
     const chatId = await seedChat(db, "a");
@@ -172,7 +172,7 @@ describe("createInvite — host mints a share-link; the token is stored HASHED",
     expect(invite.invitedUserId).toBe(bob);
   });
 
-  test("an unknown/disabled target handle is a coded invite_target_unknown refusal (PD-66)", async () => {
+  test("an unknown/disabled target handle is a coded invite_target_unknown refusal", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
@@ -190,7 +190,7 @@ describe("createInvite — host mints a share-link; the token is stored HASHED",
   });
 });
 
-describe("createInvite — PD-105 the targeted-invite notification", () => {
+describe("createInvite — the targeted-invite notification", () => {
   function recordingCtx(notes: NotificationEvent[]): ReturnType<typeof makeChatContext> {
     return makeChatContext(db, {
       resolveHandle: (h) => Promise.resolve(h === "bob" ? castId<UserId>("user_bob") : null),

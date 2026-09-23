@@ -1,4 +1,4 @@
-// Integration: PD-40 image cross-modal + caption-facet analytics — portraitAlignment (PAIRED in-RAM cosine of
+// Integration: image cross-modal + caption-facet analytics — portraitAlignment (PAIRED in-RAM cosine of
 // card vs avatar), imageFacets (caption_meta distributions), charactersByImageFacet (facet drill, §7.5
 // allowlisted dispatch). Owner-scoped; shared avatars excluded.
 

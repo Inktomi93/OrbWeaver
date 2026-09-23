@@ -31,7 +31,7 @@ export interface NewChatIntent {
   readonly characterIds?: readonly CharacterId[] | undefined;
   readonly anchorPersonaId?: PersonaId | null | undefined;
   readonly title?: string | null | undefined;
-  /** ST "Temporary Chat" (PD-65) — start this room EPHEMERAL: it runs turns normally but never joins the
+  /** ST "Temporary Chat" — start this room EPHEMERAL: it runs turns normally but never joins the
    *  chats list, and it is swept once past the user's own TTL. A CREATION intent, not editable config:
    *  `startChat` is the only writer of the column, and a fork is born non-temporary.
    *  @defaultValue undefined (a plain, permanent new chat). */

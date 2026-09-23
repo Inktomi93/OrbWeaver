@@ -1,4 +1,4 @@
-// Integration: PD-40 analyze (semantic understanding) — compareCharactersDeep (facet diff DECORATED with a
+// Integration: analyze (semantic understanding) — compareCharactersDeep (facet diff DECORATED with a
 // grounded LLM narrative) + askCard (grounded Q&A over a character's recent PLAYED scenes). Both owner-belt
 // via characters.ownerId (a foreign/undistilled card short-circuits to null BEFORE any summarize call). The
 // LLM is the scripted `summarize` recorder — a test asserts the narrative parse + that the pass fired.
