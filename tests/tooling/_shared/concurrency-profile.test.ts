@@ -61,15 +61,13 @@ test("both committed profiles parse, and every cap is a usable positive integer"
 
 test("SHARED is the default and carries the exact numbers the doctrine text promises", () => {
   const shared = parseConcurrencyProfile(BODY, "shared");
-  // These six are quoted BY VALUE in .claude/rules/lane-standing-facts.md and .claude/agent-doctrine.md
-  // ("lanes pass no --maxWorkers/--workers; the defaults ARE the shared-host values"). Changing one here
-  // without changing the prose makes the prose a lie, which is what this pin is for.
+  // The lane skill (.claude/skills/lane/SKILL.md) points at tooling/concurrency-profile.json for these
+  // values instead of quoting them ("pass a worker flag only to go below the values"). These pins keep the
+  // shared-host defaults from drifting silently.
   expect(shared.vitestMaxWorkers, "vitest maxWorkers default").toBe(4);
   // 2 -> 4 by OWNER RULING 2026-09-06 (#1848). The measured CT suite is ~160 WORKER-minutes (488 files /
   // 5121 cases), so 2 workers made the push bar ~95 min and 4 makes it ~51; the box-wide bound is
   // `ctRunnersHostWide` (<=8 Chromiums) plus the cpu-fence quota, not this per-run number.
-  // COUPLED PROSE: .claude/rules/lane-standing-facts.md quotes the shared CT value by literal ("vitest 4,
-  // CT 4"); it was repaired in the #1848 fold commit. `.claude/agent-doctrine.md` carries no CT literal.
   expect(shared.ctWorkers, "playwright CT workers default").toBe(4);
   expect(shared.ts7Checkers, "ts7 --checkers default").toBe(4);
   expect(shared.pnpmWorkspaceConcurrency, "pnpm -r --workspace-concurrency default").toBe(1);

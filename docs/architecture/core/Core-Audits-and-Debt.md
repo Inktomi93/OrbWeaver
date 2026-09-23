@@ -217,7 +217,7 @@ token is configured, i.e. a conditional control rather than no bypass.
 mode `webServerEnv`s and read by one `debugHeaders()` helper in `tests/e2e/support/trpc.ts`, which now
 credentials all three witnesses (`fetchWireCaptures` / `inspectChatDb` / `fetchDebugErrors`).
 
-**Enforcers (the finding's real lesson — the exemption behind this gate was prose-only, constitution §2.3):**
+**Enforcers (the finding's real lesson — the exemption behind this gate was prose-only, constitution §2):**
 
 - `tests/server/entry/debug-gate.suite.test.ts` — the admission invariant across every AUTH_MODE × Host ×
   token-state, through the REAL seam and the REAL registrar, asserting refusals by **body** (a bare status

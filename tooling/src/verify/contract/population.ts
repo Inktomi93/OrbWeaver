@@ -71,7 +71,7 @@ export type AuthoredMembership = { readonly authored: true } | { readonly author
  *  added to `POPULATION_ROOTS` on 2026-09-11 it silently did not join, and `packages/showcase-plugins/src`
  *  fell outside every policy declaring `@authored` with no author ever deciding that. The set is now
  *  DERIVED from this map and the map is EXHAUSTIVE over `PopulationRoot`, so the enforcer is tsc itself
- *  (constitution §2.2 rung 2): a new root that is not classified here fails the exhaustive annotation
+ *  (constitution §2, the type check): a new root that is not classified here fails the exhaustive annotation
  *  below with a missing-property error naming the root. The decision cannot be skipped, only made and stated.
  *
  *  OWNER DECISION 2026-09-21: shipped `@showcase` and `@default-content` sources are authored product
@@ -129,7 +129,7 @@ export type ProductMembership = { readonly product: true } | { readonly product:
  *  so a set named for one of its members would not identify its subject
  *  (`docs/history/type-worlds-program-2026-09-10.md` line 82).
  *
- *  EXHAUSTIVE over `PopulationRoot` by the `satisfies` below, so the enforcer is tsc (constitution §2.2 rung
+ *  EXHAUSTIVE over `PopulationRoot` by the `satisfies` below, so the enforcer is tsc (constitution §2, the type
  *  2): a new root that is not classified here fails with a missing-property error naming the root, exactly as
  *  `AUTHORED_MEMBERSHIP` does. The decision cannot be skipped, only made and stated — and a new package now
  *  costs TWO stated decisions rather than silently joining or silently missing either set.
@@ -158,7 +158,7 @@ const PRODUCT_MEMBERSHIP = {
   "@tests": {
     product: false,
     why:
-      "the CENTRAL test mirror (constitution §0.2) mirrors product sources rather than being them, and several " +
+      'the CENTRAL test mirror (CLAUDE.md "Test layout") mirrors product sources rather than being them, and several ' +
       "declarers exclude it for a load-bearing reason of their own — scanning tests reds their own proofs " +
       "(`freeze-provenance.ts`'s declared limit). A policy whose subject is a test declares `@tests` itself",
   },

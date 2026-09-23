@@ -95,13 +95,13 @@
     },
     {
       "path": "docs/design/1208-instrument-substrate.md",
-      "assignedSha256": "e90bc94b8afd917a212712e0415730e4ab21d8e41b3ae127e5086ba049878d9a",
+      "assignedSha256": "790b9a36afe71b7b9af95905723367b1f2cf4b9c37ea6f7b352bd83fd14066aa",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "e90bc94b8afd917a212712e0415730e4ab21d8e41b3ae127e5086ba049878d9a",
-      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
-      "verifiedAt": "2026-09-19",
+      "verifiedSha256": "790b9a36afe71b7b9af95905723367b1f2cf4b9c37ea6f7b352bd83fd14066aa",
+      "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
+      "verifiedAt": "2026-09-22",
       "evidence": [
         "Full document read by the scoped documentation lane; current changes checked against cfb9cea2fea7a109cd65c44485ada4d30437fc5c. Repository-resource citations and native execution guidance reflect 46b658696/cfb9cea2f; independent scheduling and compiler-executor controls passed. Exact ambient enforcement and remaining native-config integration are still separate program requirements.",
         "type-worlds phase 1 (#1351): `tests/support/ct/<file>` spellings repointed to `tests/support/{browser,node}/<file>` after the helper split",
@@ -160,7 +160,7 @@
         }
       ],
       "summary": "Landed instrument substrate program (#1208): stateful Snap sessions, registered stage bands, shared browser/environment/artifact seams, a total five-tool CLI grammar, Lighthouse and request-log arms, load-aware watchdogs, one-browser matrix contexts, and the reconciled phase 0–4 control set.",
-      "verifiedCanonicalSha256": "e90bc94b8afd917a212712e0415730e4ab21d8e41b3ae127e5086ba049878d9a"
+      "verifiedCanonicalSha256": "790b9a36afe71b7b9af95905723367b1f2cf4b9c37ea6f7b352bd83fd14066aa"
     },
     {
       "path": "docs/design/1208-request-result-truth-repair.md",
@@ -240,13 +240,13 @@
     },
     {
       "path": "docs/design/1238-plugin-distribution.md",
-      "assignedSha256": "350cad3e488d1d15ad7d2cb4954f948b0da53321021359c4a7be8b8b482639a5",
+      "assignedSha256": "a9294fa271a9cebc10290f039a45a4c46976c247ffe2629000d5a997746585f0",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "350cad3e488d1d15ad7d2cb4954f948b0da53321021359c4a7be8b8b482639a5",
-      "verifiedCommit": "62e021bb765859cb51c63083b339f426bd6b3713",
-      "verifiedAt": "2026-09-18",
+      "verifiedSha256": "a9294fa271a9cebc10290f039a45a4c46976c247ffe2629000d5a997746585f0",
+      "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
+      "verifiedAt": "2026-09-22",
       "claims": [
         {
           "claim": "The teaching plugins live in the server package's entry tier and their guest .js sources are typechecked by NO program (allowJs is false repo-wide); only the SDK mirror is pinned, and the seeds ride the image's whole-src copy — the rot and reachability the ruling names are structural.",
@@ -327,7 +327,7 @@
         "authored born-reviewed by the designing lane at fe7e41eed: full reads of the plugin domain's install/upgrade/url-verb family, the substrate funnel, the seeder + packer, the contracts manifest/lifecycle homes, the db CHECKs, the client install card + bundle reader, and the SillyTavern reference (src/endpoints/extensions.js install/update/branches flow) — receipts inline in the doc",
         "owner rulings 2026-09-02 quoted verbatim in the doc's commission block (new package; no forced zips; app-does-the-clone; disclaimer text without a separate click; no container-build asset moving)"
       ],
-      "verifiedCanonicalSha256": "350cad3e488d1d15ad7d2cb4954f948b0da53321021359c4a7be8b8b482639a5"
+      "verifiedCanonicalSha256": "a9294fa271a9cebc10290f039a45a4c46976c247ffe2629000d5a997746585f0"
     },
     {
       "path": "docs/design/1308-browser-evidence-retention.md",
@@ -1085,13 +1085,13 @@
     },
     {
       "path": "docs/design/entity-room-member-freshness-bridge.md",
-      "assignedSha256": "567a89d7ce5c40e9d524125dc494710ae33eddbe494faf0e15e5f3dfe35e1c0c",
+      "assignedSha256": "f757f8527085318f97679f5410138851766a943fe934e5f31c4437113393a808",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "567a89d7ce5c40e9d524125dc494710ae33eddbe494faf0e15e5f3dfe35e1c0c",
-      "verifiedCommit": "ad4db75c6edb141ced392fae6f2aee9e156d4262",
-      "verifiedAt": "2026-09-20",
+      "verifiedSha256": "f757f8527085318f97679f5410138851766a943fe934e5f31c4437113393a808",
+      "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
+      "verifiedAt": "2026-09-22",
       "evidence": [
         "docs/design/entity-room-member-freshness-bridge.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
         "docs/architecture/core/Core-Path-Registry.md:523-533 (D139-D141 authority boundary)",
@@ -1117,17 +1117,17 @@
           ]
         }
       ],
-      "verifiedCanonicalSha256": "567a89d7ce5c40e9d524125dc494710ae33eddbe494faf0e15e5f3dfe35e1c0c"
+      "verifiedCanonicalSha256": "f757f8527085318f97679f5410138851766a943fe934e5f31c4437113393a808"
     },
     {
       "path": "docs/design/gate-config-system.md",
-      "assignedSha256": "8d55a673f0e5c73502b655336129d0f06aa09a62ccf31b191f28cc9e90f9c420",
+      "assignedSha256": "81d820b260941728483aeedef79b607861af084a40a0fb4aefef113182117b10",
       "disposition": "superseded",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "8d55a673f0e5c73502b655336129d0f06aa09a62ccf31b191f28cc9e90f9c420",
-      "verifiedCommit": "cf7ce412c444942b602ec1a200b91383f64ea18d",
-      "verifiedAt": "2026-09-13",
+      "verifiedSha256": "81d820b260941728483aeedef79b607861af084a40a0fb4aefef113182117b10",
+      "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
+      "verifiedAt": "2026-09-22",
       "evidence": [
         "docs/design/gate-config-system.md:1-295 read in full for #2067 first-review receipt; the document marks itself superseded by gate-runtime-standardization.md and retains its measurements and rejected dispatch-fence design as historical design input.",
         "2026-09-13 integrated #2071/Q11 refresh at cf7ce412c444942b602ec1a200b91383f64ea18d. Final document full reads retained by exact Git-blob equality to lane79c317527; final generated read-first and Q11 disposition reread in full. All ten document bytes are committed at this verification SHA. Independent closing #2071 review CONFIRMED conservation; scoped Q11 review CONFIRMED corrections. Eight authored-doc format checks and native read-first-costs --check (9 derived) passed. No whole consolidated barrier or lifecycle closure is claimed.",
@@ -1144,7 +1144,8 @@
           ]
         }
       ],
-      "summary": "Superseded design for a declarative gate dispatch fence. Retained for its measured scope taxonomy, explicit limits, and rejected alternatives; it is not current runtime law."
+      "summary": "Superseded design for a declarative gate dispatch fence. Retained for its measured scope taxonomy, explicit limits, and rejected alternatives; it is not current runtime law.",
+      "verifiedCanonicalSha256": "81d820b260941728483aeedef79b607861af084a40a0fb4aefef113182117b10"
     },
     {
       "path": "docs/design/gate-runtime-orchestrator-playbook.md",
@@ -1304,6 +1305,44 @@
             {
               "kind": "issue",
               "target": "#55"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "docs/design/impeccable-adoption.md",
+      "assignedSha256": "799b145965e80355014bb36c0b5ca394e8ac747f86ffe6fd788c96a7abe364b8",
+      "disposition": "current",
+      "authority": "current-reference",
+      "fullRead": true,
+      "verifiedSha256": "799b145965e80355014bb36c0b5ca394e8ac747f86ffe6fd788c96a7abe364b8",
+      "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
+      "verifiedAt": "2026-09-22",
+      "evidence": [
+        "Relocated from .claude/skills/side-eye-design-review/reference/impeccable-adoption.md and rewritten to the instruction charter at d0e004fa5d160506528653c886bfaf2bfd6fc9cc; full read of the new text. The ui-audit citers (lib/collect.ts, ops/walker.ts) point here in the same commit."
+      ],
+      "summary": "Adoption record for the impeccable detector rules: license and attribution, why the rules were adapted in place, and the adopt/adapt/reject triage per rule.",
+      "claims": [
+        {
+          "claim": "The adapted detector logic carries a per-file attribution header that names this record.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "tooling/src/ui-audit/lib/collect.ts:12"
+            },
+            {
+              "kind": "code",
+              "target": "tooling/src/ui-audit/ops/walker.ts:29"
+            }
+          ]
+        },
+        {
+          "claim": "The adapted rules are tested under tests/tooling/ui-audit.",
+          "evidence": [
+            {
+              "kind": "test",
+              "target": "tests/tooling/ui-audit/lib/css-color.test.ts:1"
             }
           ]
         }
@@ -1764,6 +1803,52 @@
       "summary": "The #866 S3/S4 canvas contract: apply-not-mode Looks in three frequency tiers (shipped cards / Your-themes list / one builder door, builder-only color), the full Personas migration with the pin/active mechanics as the one frozen thing, the rail-foot quick switcher (pin-not-crown, Applies scope, re-attribute) and the kept You sheet; content rows terse with the context pane as the About/Applies/Learn teacher."
     },
     {
+      "path": "docs/design/mocks/connections/DESIGN.md",
+      "assignedSha256": "5a5af1d3355bddf0fa8c2d049073a2d44d63142fd98273937b15ffe68bc30043",
+      "disposition": "current",
+      "authority": "design",
+      "fullRead": true,
+      "verifiedSha256": "5a5af1d3355bddf0fa8c2d049073a2d44d63142fd98273937b15ffe68bc30043",
+      "verifiedCommit": "ad4db75c6edb141ced392fae6f2aee9e156d4262",
+      "verifiedAt": "2026-09-20",
+      "evidence": [
+        "docs/design/mocks/connections/DESIGN.md:1-347 read in full 2026-09-20 by lane cb-heal-catalog while clearing the check:doc-catalog stage for #2494. The step-3b drawing set's argument document: what only a render answered (the 486 fit, the five reflows, the four-rule list-in-a-settings-body question), the eight decisions it makes that the inference program's §5.3a left open, the four-arm resolve readout, the §5.3a copy inventory board by board, the six things a static mock structurally cannot answer, and the five corrections it owes §5.3a.",
+        "Spot-verified against the tree at the receipting commit: the coarse-pointer floor §1 says the drawing inherits is the shipped `TOUCH_TARGET_PSEUDO` (packages/ui/src/lib/selection-control.ts:11), and the eight belt keys §7.2 cites for the Extras gloss are `BELT_OWNED_BODY_KEYS` at the exact line the document names.",
+        "ONE citation in §7.1 is stale on today's tree and is recorded here rather than silently repaired: the readout it places at `connections-roles-section.tsx:97` is `packages/client/src/features/credentials/components/connections-roles-section.tsx:222` (the file the document names under `lib/` is a 14-line re-export). The sentence it quotes — `A turn uses {…}.` — is verbatim correct."
+      ],
+      "claims": [
+        {
+          "claim": "The coarse-pointer hit floor §1 says every drawn control inherits is a real shipped mechanism, not a mock assertion: `TOUCH_TARGET_PSEUDO` is the pointer-conditional pseudo every `@orb/ui` selection control composes.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/ui/src/lib/selection-control.ts:11"
+            }
+          ]
+        },
+        {
+          "claim": "The belt keys §7.2 hands step 9 for the Extras authoring gloss resolve where the document says they do.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/contracts/src/inference/features.ts:108"
+            }
+          ]
+        },
+        {
+          "claim": "The persisted-resolve readout §3 rules into four arms has exactly one client home today, and it renders the steady arm's sentence verbatim — so the four-arm ruling is a widening of a live surface, not a greenfield draw.",
+          "evidence": [
+            {
+              "kind": "code",
+              "target": "packages/client/src/features/credentials/components/connections-roles-section.tsx:222"
+            }
+          ]
+        }
+      ],
+      "summary": "The argument document behind the three Connections step-3b `--file` mocks (list · editor · model-roles). It records what only a render could answer — the editor fits the 486 settings body by tier collapse rather than squeezing, five things reflow (two of which an earlier revision never drew), a flat user-owned row inside a settings body does not read as a second nav under four rules — and makes eight decisions §5.3a left open, including a four-arm resolve readout, task badges that speak the role labels, `Edit` as the row's own primary rather than a menu item, and a capability rail that says `can't serve` in muted rather than destructive red. It also states six gaps a static drawing cannot close (the width-adaptation mechanism, the disclosure tiers' a11y contract, operable switches, focus order through the fields, any light/high-contrast reading, and that a design-audit over a multi-board mock reports the drawing) and the five corrections it owes the inference program's §5.3a.",
+      "verifiedCanonicalSha256": "5a5af1d3355bddf0fa8c2d049073a2d44d63142fd98273937b15ffe68bc30043"
+    },
+    {
       "path": "docs/design/mocks/context-bracket/DESIGN.md",
       "assignedSha256": "86fad456db4038c8a2afa5f0962645593e4f5455de3c2a5c79f1a81084b27233",
       "disposition": "current",
@@ -1814,52 +1899,6 @@
       ],
       "summary": "docs/design/mocks — frozen design drawings: full content read against frozen tree; landed-state record retained as historical evidence.",
       "verifiedCanonicalSha256": "fa8237fe957f923ef362df661924926645594997de272a5f519c8b46314662ba"
-    },
-    {
-      "path": "docs/design/mocks/connections/DESIGN.md",
-      "assignedSha256": "5a5af1d3355bddf0fa8c2d049073a2d44d63142fd98273937b15ffe68bc30043",
-      "disposition": "current",
-      "authority": "design",
-      "fullRead": true,
-      "verifiedSha256": "5a5af1d3355bddf0fa8c2d049073a2d44d63142fd98273937b15ffe68bc30043",
-      "verifiedCommit": "ad4db75c6edb141ced392fae6f2aee9e156d4262",
-      "verifiedAt": "2026-09-20",
-      "evidence": [
-        "docs/design/mocks/connections/DESIGN.md:1-347 read in full 2026-09-20 by lane cb-heal-catalog while clearing the check:doc-catalog stage for #2494. The step-3b drawing set's argument document: what only a render answered (the 486 fit, the five reflows, the four-rule list-in-a-settings-body question), the eight decisions it makes that the inference program's §5.3a left open, the four-arm resolve readout, the §5.3a copy inventory board by board, the six things a static mock structurally cannot answer, and the five corrections it owes §5.3a.",
-        "Spot-verified against the tree at the receipting commit: the coarse-pointer floor §1 says the drawing inherits is the shipped `TOUCH_TARGET_PSEUDO` (packages/ui/src/lib/selection-control.ts:11), and the eight belt keys §7.2 cites for the Extras gloss are `BELT_OWNED_BODY_KEYS` at the exact line the document names.",
-        "ONE citation in §7.1 is stale on today's tree and is recorded here rather than silently repaired: the readout it places at `connections-roles-section.tsx:97` is `packages/client/src/features/credentials/components/connections-roles-section.tsx:222` (the file the document names under `lib/` is a 14-line re-export). The sentence it quotes — `A turn uses {…}.` — is verbatim correct."
-      ],
-      "claims": [
-        {
-          "claim": "The coarse-pointer hit floor §1 says every drawn control inherits is a real shipped mechanism, not a mock assertion: `TOUCH_TARGET_PSEUDO` is the pointer-conditional pseudo every `@orb/ui` selection control composes.",
-          "evidence": [
-            {
-              "kind": "code",
-              "target": "packages/ui/src/lib/selection-control.ts:11"
-            }
-          ]
-        },
-        {
-          "claim": "The belt keys §7.2 hands step 9 for the Extras authoring gloss resolve where the document says they do.",
-          "evidence": [
-            {
-              "kind": "code",
-              "target": "packages/contracts/src/inference/features.ts:108"
-            }
-          ]
-        },
-        {
-          "claim": "The persisted-resolve readout §3 rules into four arms has exactly one client home today, and it renders the steady arm's sentence verbatim — so the four-arm ruling is a widening of a live surface, not a greenfield draw.",
-          "evidence": [
-            {
-              "kind": "code",
-              "target": "packages/client/src/features/credentials/components/connections-roles-section.tsx:222"
-            }
-          ]
-        }
-      ],
-      "summary": "The argument document behind the three Connections step-3b `--file` mocks (list · editor · model-roles). It records what only a render could answer — the editor fits the 486 settings body by tier collapse rather than squeezing, five things reflow (two of which an earlier revision never drew), a flat user-owned row inside a settings body does not read as a second nav under four rules — and makes eight decisions §5.3a left open, including a four-arm resolve readout, task badges that speak the role labels, `Edit` as the row's own primary rather than a menu item, and a capability rail that says `can't serve` in muted rather than destructive red. It also states six gaps a static drawing cannot close (the width-adaptation mechanism, the disclosure tiers' a11y contract, operable switches, focus order through the fields, any light/high-contrast reading, and that a design-audit over a multi-board mock reports the drawing) and the five corrections it owes the inference program's §5.3a.",
-      "verifiedCanonicalSha256": "5a5af1d3355bddf0fa8c2d049073a2d44d63142fd98273937b15ffe68bc30043"
     },
     {
       "path": "docs/design/mocks/regex-section/DESIGN.md",
@@ -1995,13 +2034,13 @@
     },
     {
       "path": "docs/design/mocks/regex-section/REVIEW-stickler.md",
-      "assignedSha256": "7584f5cb75f795055467e847073f52795afb9c3d591d0e0c172951ed8489bfb0",
+      "assignedSha256": "b40dad65959628fc511b20c2fe0b5feb270171c8136fcd001c71ff667554b915",
       "disposition": "current",
       "authority": "review",
       "fullRead": true,
-      "verifiedSha256": "7584f5cb75f795055467e847073f52795afb9c3d591d0e0c172951ed8489bfb0",
-      "verifiedCommit": "174cc2961a0010352021a34ecbdb93d321308f42",
-      "verifiedAt": "2026-09-06",
+      "verifiedSha256": "b40dad65959628fc511b20c2fe0b5feb270171c8136fcd001c71ff667554b915",
+      "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
+      "verifiedAt": "2026-09-22",
       "evidence": [
         "type-worlds phase 1 (#1351): `tests/support/ct/<file>` spellings repointed to `tests/support/{browser,node}/<file>` after the helper split",
         "Read in full by the orchestrator at the fold: frozen review evidence of v1; #1739 filed from it as a prerequisite/arm of step 4."
@@ -2021,7 +2060,8 @@
           ]
         }
       ],
-      "summary": "Stickler review of the regex section mock v1 (IA vs law, coupled sites): the findings v2 answered, plus #1739 (chat-tier regex survives a host handoff but the new host cannot switch/detach it)."
+      "summary": "Stickler review of the regex section mock v1 (IA vs law, coupled sites): the findings v2 answered, plus #1739 (chat-tier regex survives a host handoff but the new host cannot switch/detach it).",
+      "verifiedCanonicalSha256": "b40dad65959628fc511b20c2fe0b5feb270171c8136fcd001c71ff667554b915"
     },
     {
       "path": "docs/design/mocks/regex-section/STUDY.md",
@@ -2177,12 +2217,12 @@
     },
     {
       "path": "docs/design/orbweaver-inference-package.md",
-      "assignedSha256": "04df0c4cf0443280aea8906be80ee65165f3d1b948f2c680961293ec0fd82996",
+      "assignedSha256": "ac1deae8116cfa27d1d1c280cb93cc88cdf563de6f08a645aedc7c2c45b491c6",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "04df0c4cf0443280aea8906be80ee65165f3d1b948f2c680961293ec0fd82996",
-      "verifiedCommit": "8f7ed4c4b98c112429c3918483f3a172f66ae184",
+      "verifiedSha256": "ac1deae8116cfa27d1d1c280cb93cc88cdf563de6f08a645aedc7c2c45b491c6",
+      "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
       "verifiedAt": "2026-09-22",
       "evidence": [
         "re-attested at 29a8b0eaa by lane cb-record-tail: §15c item 18 gained the RECORD-TRUTH TAIL bullet (the B7 client gate, the refusal/rate_limit compose ruling, the retired budgetExceeded code, the eight repaired comments, the re-pinned drain drop). SCOPE OF THIS RE-ATTESTATION, stated rather than implied: the receipt's sha was ALREADY stale at this lane's branch point — 215 lines had landed since bd99e9ad3 across 9ef00397d/100ee1db9/fe77a1f36/2e2871dd6/e0cc98c3a/a45c5f746, every one an APPEND to §8.8/§14/§15c, and none of those lanes re-attested. This lane read §5.3b, §5.3c, §8.5b and §15c-18 in full and appended within §15c-18; it did not re-read the other ~2600 lines. A full re-read is owed by the barrier.",
@@ -2220,16 +2260,16 @@
           ]
         }
       ],
-      "verifiedCanonicalSha256": "04df0c4cf0443280aea8906be80ee65165f3d1b948f2c680961293ec0fd82996"
+      "verifiedCanonicalSha256": "ac1deae8116cfa27d1d1c280cb93cc88cdf563de6f08a645aedc7c2c45b491c6"
     },
     {
       "path": "docs/design/pane-standardization-design.md",
-      "assignedSha256": "b0ec5cf35579513607c7d5969c7dbbfc6f8090cd8271537dcfab02fb8de4a9d7",
+      "assignedSha256": "494def7a9b14e4b8ed76a3e75d437004e3dc8b6afad0da8c5e6653e99aa05517",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "b0ec5cf35579513607c7d5969c7dbbfc6f8090cd8271537dcfab02fb8de4a9d7",
-      "verifiedCommit": "81d19ad83f9e7ce1b7bd89ed42a72b2abb361387",
+      "verifiedSha256": "494def7a9b14e4b8ed76a3e75d437004e3dc8b6afad0da8c5e6653e99aa05517",
+      "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
       "verifiedAt": "2026-09-22",
       "claims": [
         {
@@ -2310,17 +2350,17 @@
         "docs/design/config-revamp-design.md:724-817 (the section 8 species contract this design's divergence grammar generalizes)",
         "docs/architecture/core/client-architecture-lockdown.md sections 6a/6b/11/14 (the registry law, three-states law and browse adjudication the standards extend)"
       ],
-      "verifiedCanonicalSha256": "b0ec5cf35579513607c7d5969c7dbbfc6f8090cd8271537dcfab02fb8de4a9d7"
+      "verifiedCanonicalSha256": "494def7a9b14e4b8ed76a3e75d437004e3dc8b6afad0da8c5e6653e99aa05517"
     },
     {
       "path": "docs/design/parked-options-config-port.md",
-      "assignedSha256": "ba64418ec539a817dbaf286d9908465046f98a072f0cfada99bf585a08fb173c",
+      "assignedSha256": "eed47d2255a5fd25cf480ce0f1e91775f578301dcf1b1ee80e54996831eaa502",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "0aa1e88f41cea3ae89ffae5885b1b74a87e9ad6f10ab9715c53cbcf681a41bed",
-      "verifiedCommit": "a0f648df2ebdd1491690355e2a5e7ff333fb2b6d",
-      "verifiedAt": "2026-09-13",
+      "verifiedSha256": "eed47d2255a5fd25cf480ce0f1e91775f578301dcf1b1ee80e54996831eaa502",
+      "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
+      "verifiedAt": "2026-09-22",
       "evidence": [
         "Full document read by the #2067 repair lane; source-fidelity delimiter repair independently reviewed through b6c1065b3. Historical measurements, authority and issue qualifiers are retained rather than reasserted as current implementation behavior.",
         "docs/design/parked-options-config-port.md:1 (design-options; decision-input)",
@@ -2342,7 +2382,8 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "eed47d2255a5fd25cf480ce0f1e91775f578301dcf1b1ee80e54996831eaa502"
     },
     {
       "path": "docs/design/parked-options-ops-posture.md",
@@ -2379,13 +2420,13 @@
     },
     {
       "path": "docs/design/parked-options-persona-prose.md",
-      "assignedSha256": "72e0f21197cd5b9825e08ed2256ba687d7c01b9af6a6b226bd587d7c14b9f7dd",
+      "assignedSha256": "1c3b6093c7afd3b73141c822aaf1649f9631a25b9e93352ed51e79725884d613",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "72e0f21197cd5b9825e08ed2256ba687d7c01b9af6a6b226bd587d7c14b9f7dd",
-      "verifiedCommit": "79e8ffb1f3ae551fbf605c42fb5d583e147ef6bd",
-      "verifiedAt": "2026-08-30",
+      "verifiedSha256": "1c3b6093c7afd3b73141c822aaf1649f9631a25b9e93352ed51e79725884d613",
+      "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
+      "verifiedAt": "2026-09-22",
       "evidence": [
         "docs/design/parked-options-persona-prose.md:1 full read after the workboard split; changed routing/citations checked against Project 1, D139-D141, and current code/test evidence",
         "git:68271889b1746b513defea44b0787bab7a89176f contains the exact current document blob",
@@ -2408,7 +2449,8 @@
             }
           ]
         }
-      ]
+      ],
+      "verifiedCanonicalSha256": "1c3b6093c7afd3b73141c822aaf1649f9631a25b9e93352ed51e79725884d613"
     },
     {
       "path": "docs/design/parked-options-tag-contract.md",
@@ -2570,13 +2612,13 @@
     },
     {
       "path": "docs/design/resource-policy-contract.md",
-      "assignedSha256": "61c8fca484706abefab60f9770b7b10cac4f8a58cfd69c1120aee8472262d9c5",
+      "assignedSha256": "42009c30cc738dbb849c0748754972c3d99cdbe49fae29b06517d0e54be58eaf",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "61c8fca484706abefab60f9770b7b10cac4f8a58cfd69c1120aee8472262d9c5",
-      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
-      "verifiedAt": "2026-09-19",
+      "verifiedSha256": "42009c30cc738dbb849c0748754972c3d99cdbe49fae29b06517d0e54be58eaf",
+      "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
+      "verifiedAt": "2026-09-22",
       "evidence": [
         "Full revised document and load-bearing runtime read by independent reviewer; accepted after correcting receipt cardinality. Historical measurements remain dated. Root scoped docs formatting and comment Biome/ESLint passed; no runtime change.",
         "2026-09-13 consolidation: complete document reads and independent citation/source-diff audit; standing law, procedure, reading router and dated worked cases now have separate homes. Scoped Markdown and agent checks passed; native tooling/root programs passed, and refusal-envelope, text-citation and focused policy-soundness controls passed. Read-first costs were generated after committing priced bytes. Catalog-wide freshness, remaining program defects and integrated acceptance are not claimed complete."
@@ -2601,7 +2643,7 @@
           ]
         }
       ],
-      "verifiedCanonicalSha256": "61c8fca484706abefab60f9770b7b10cac4f8a58cfd69c1120aee8472262d9c5"
+      "verifiedCanonicalSha256": "42009c30cc738dbb849c0748754972c3d99cdbe49fae29b06517d0e54be58eaf"
     },
     {
       "path": "docs/design/rpg-extraction-one-call-spike.md",
@@ -2898,13 +2940,13 @@
     },
     {
       "path": "docs/design/vocabulary-map.md",
-      "assignedSha256": "4c04b5bc65c53cb68e48d5f4e67a010b78cc4d7d48b80aa94efc597bdeacc9dc",
+      "assignedSha256": "5e14cd9a9f0de97118d520779df4c764c401f8b29309d5784cd9d8fea49c0495",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "4c04b5bc65c53cb68e48d5f4e67a010b78cc4d7d48b80aa94efc597bdeacc9dc",
-      "verifiedCommit": "4c688c915c97f2e31abe5ecb898e35eb932bd1c4",
-      "verifiedAt": "2026-09-21",
+      "verifiedSha256": "5e14cd9a9f0de97118d520779df4c764c401f8b29309d5784cd9d8fea49c0495",
+      "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
+      "verifiedAt": "2026-09-22",
       "evidence": [
         "#1774 prose half (cb-rpg-prose): row 155 status + residue updated at the fold commit",
         "#1774 persona+compose halves (cb-roster-tail): row 155 LANDED for all three halves; stale RosterRefIndex/PersonaRosterView targets corrected",
@@ -2969,7 +3011,7 @@
         }
       ],
       "summary": "The living concept→word map: room seats are Characters, the saved template is a Roster (code rosterPreset, conforming), roster is reserved and never spent as English for a list, the rpg register is fenced with the chat word winning at the boundary, and castId is deliberately no-action. Prose-enforced by owner ruling with no gate; the enforcement section records the wave-union defect that produced it.",
-      "verifiedCanonicalSha256": "4c04b5bc65c53cb68e48d5f4e67a010b78cc4d7d48b80aa94efc597bdeacc9dc"
+      "verifiedCanonicalSha256": "5e14cd9a9f0de97118d520779df4c764c401f8b29309d5784cd9d8fea49c0495"
     },
     {
       "path": "docs/design/work-item-dod.md",

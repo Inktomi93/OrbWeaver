@@ -288,7 +288,7 @@ table). Against the tree:
 | `Open in library` from a CONTEXT pane (§3) | UI-Arch §4.2 physics 1 ("never navigation"); shipped CONTEXT-arm doors exist: `databank-active-in.tsx:142,149` (`setActiveSection`), `databank-context-body.tsx:152` (`openConfigTo`); destination `selectCollectionMember` (`config-selection-store.ts:30`); `regex-context-body.tsx:24-28`'s "no door" was about destinations that did not exist | holds — a secondary menu item, not a nav row |
 | Un-flatten the character slice (§6) | `resolve-sources.ts:31` flattens; `contract/resolve.ts:28` "IN ROSTER ORDER" | required, not optional — F3 |
 | #1733 lands first (§6) | issue OPEN; `attach-to-chat.ts:26`; `bus.ts:372`; `room-reach.ts:136-140` | holds |
-| `chat.listEffectiveRegex` homed in `domain/chat`, row type in `@orb/contracts/regex` reusing `RegexAttachScope` (§6) | `domain/regex/contract/resolve.ts:4-5` "Chat still owns the UNION … this op resolves, it never unions"; `RegexAttachScope` at `contracts/src/regex/index.ts:271-282`; cross-boundary shape → contracts (AGENTS §0.2) | holds; F2 reshapes the row |
+| `chat.listEffectiveRegex` homed in `domain/chat`, row type in `@orb/contracts/regex` reusing `RegexAttachScope` (§6) | `domain/regex/contract/resolve.ts:4-5` "Chat still owns the UNION … this op resolves, it never unions"; `RegexAttachScope` at `contracts/src/regex/index.ts:271-282`; cross-boundary shape → contracts (`CLAUDE.md` "Type homes and unions") | holds; F2 reshapes the row |
 
 ## 3. The §5 refusals — supported, contradicted, or taste
 

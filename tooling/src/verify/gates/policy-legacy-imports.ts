@@ -344,7 +344,7 @@ function judgeDoor(door: ModuleDoor): DoorVerdict | undefined {
  *  (`config-static-read.ts:17`, `policy-conformance.ts:14`) and NEITHER targets a forbidden home — so this
  *  fence lands at zero findings and zero false positives, and its cost is two resolutions. */
 function launderedThrough(shim: SourceFile, visited: Set<SourceFile>): DoorVerdict | undefined {
-  // ONE TAIL RETURN (the house accumulator idiom, `.claude/rules/gates-and-tooling.md`): `biome`'s
+  // ONE TAIL RETURN (the house accumulator idiom, `.claude/rules/tooling.md`): `biome`'s
   // `noUselessUndefined` deletes a trailing `return undefined;` and tsc's `noImplicitReturns` then reds the
   // fall-through.
   let found: DoorVerdict | undefined;

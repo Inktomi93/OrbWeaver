@@ -9,7 +9,7 @@
 // Apache License 2.0), MODIFIED for orbweaver: thresholds re-bound to the live token ramp
 // (`@orb/ui/tokens`), owner-sacred effect axes exempted, severities mapped to our P0–P3.
 // Full rule triage + license statement:
-// .claude/skills/side-eye-design-review/reference/impeccable-adoption.md
+// docs/design/impeccable-adoption.md
 //
 // ── THE RUNG ASSIGNMENT TABLE ────────────────────────────────────────────────────────────────────────
 // COLLECTION STRATEGIES (owner ruling 2026-09-01: no gate — rule shape is a judgment call a checker

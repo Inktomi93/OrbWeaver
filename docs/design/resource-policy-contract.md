@@ -82,7 +82,7 @@ refuses. A policy cannot tell the two apart and must not try — the distinction
 
 ## 3. The seven obligations, each with its enforcer
 
-Constitution §2.3: a placement names its enforcer. Each obligation below names the tier that makes a violation
+Constitution §2: a placement names its enforcer. Each obligation below names the tier that makes a violation
 RED, and the one that is prose-only is called out as the gap.
 
 1. **Declare what you read; read what you declare.** Enforcer: RUNTIME — an undeclared read throws at the

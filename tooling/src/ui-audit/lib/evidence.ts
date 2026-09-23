@@ -21,7 +21,7 @@ import type { DomPopulation } from "../contract/types.ts";
  *  (contract/samples-populations.ts `RelationalSamples`): the array-valued keys, which excludes
  *  `relationalAccounting` because that is the census's bookkeeping, not a censused element.
  *
- *  A mapped-type Record over that union is the enforcement (constitution §5.5): the next relational
+ *  A mapped-type Record over that union is the enforcement (Spine-TypeScript-and-Patterns.md "String-union dispatch discipline"): the next relational
  *  family REDs tsc here with a missing property instead of silently going uncounted, which is exactly
  *  how the whole family went uncounted in the first place. */
 type RelationalSampleFamily = {
@@ -156,7 +156,7 @@ export function censusTotal(samples: RawSamples): number {
 export function censusCapGap(samples: RawSamples): EvidenceGap | null {
   // Walked through the CLOSED family tuple rather than the object's own keys: the message order is then
   // the contract's, not a serialization accident, and the tuple gains the reader that makes it
-  // enforcement instead of a list (constitution §2.3 — a prose-only boundary is a wish).
+  // enforcement instead of a list (constitution §2 — a prose-only boundary is a wish).
   const truncated = CENSUS_CAP_FAMILIES.flatMap((family) => {
     const row = samples.censusCaps[family];
     return row === undefined || row.dropped === 0 ? [] : [`${family}: ${String(row.dropped)} past a bound of ${String(row.cap)}`];

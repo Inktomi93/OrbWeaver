@@ -2,7 +2,7 @@
 //
 // The two names are the house TIER names, not the vendor names, because that is what every brief and every
 // standing fact already says: "node suites = `pnpm test:scoped`, CT = `pnpm test:ct`"
-// (.claude/rules/lane-standing-facts.md). Which vendor binary each tier spawns is an implementation fact
+// (.claude/skills/lane/SKILL.md). Which vendor binary each tier spawns is an implementation fact
 // that lives in ops/scoped-test.ts and is free to change; the tier name is the stable surface.
 export const SCOPED_TEST_RUNNERS = ["node", "ct"] as const;
 

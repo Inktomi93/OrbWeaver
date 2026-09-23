@@ -66,7 +66,7 @@ export interface ReservedPort {
 // ── the reserved rows, by name (this is the consumer surface) ─────────────────────────────────────────
 
 /** The dev stack `pnpm stack up` binds (mirrors `stack.sh` BACKEND_PORT/VITE_PORT + vite.config strictPort).
- *  `:5173` serves MAIN, never a lane's branch (constitution §L.6) — a lane measures a stage band instead. */
+ *  `:5173` serves MAIN, never a lane's branch (the lane skill, "Rendered proof") — a lane measures a stage band instead. */
 export const DEV_PORTS: PortPair = { server: 8788, vite: 5173 };
 
 /** The multi-user fixture stack (`multi-user-fixture.sh`) — an OFFSET pair so it can run beside dev. */
@@ -139,8 +139,8 @@ export function reservedPort(port: number): ReservedPort | undefined {
 
 // ── the allocatable stage bands ───────────────────────────────────────────────────────────────────────
 
-/** How many stage bands exist. Ten is the concurrency ceiling a band exhaustion message quotes; the cap on
- *  lanes is three (`.claude/rules/lane-standing-facts.md`), so this leaves headroom for a lane holding a
+/** How many stage bands exist. Ten is the concurrency ceiling a band exhaustion message quotes; the lane cap
+ *  (`.claude/skills/orchestrator/SKILL.md`) is far lower, so this leaves headroom for a lane holding a
  *  second stage at another ref without the range ever being the binding constraint. */
 export const STAGE_BAND_COUNT = 10;
 

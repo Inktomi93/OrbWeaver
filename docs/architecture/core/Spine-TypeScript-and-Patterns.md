@@ -6,7 +6,7 @@ updated: 2026-08-03
 
 # Orbweaver — Spine: TypeScript & Patterns (Types, Schemas, Dispatch)
 
-Canonical doc for spine §7.4 (types & schemas) and §7.5 (string-union dispatch) — cited elsewhere as "the §7.4 rule" / "spine §7.5"; `AGENTS.md` §5.4/§5.5 point here. The gates are LIVE: `no-inline-types` (`tooling/src/verify/gates/`), `no-inline-union-redecl` (`tooling/src/verify/gates/`), `exhaustive-dispatch` (compile-time by construction — the mapped-`Record`/`assertNever` pattern below; constitution row in `Core-0-Architecture-and-Structure.md §7`).
+Canonical doc for spine §7.4 (types & schemas) and §7.5 (string-union dispatch) — cited elsewhere as "the §7.4 rule" / "spine §7.5"; `AGENTS.md` §5 points here. The gates are LIVE: `no-inline-types` (`tooling/src/verify/gates/`), `no-inline-union-redecl` (`tooling/src/verify/gates/`), `exhaustive-dispatch` (compile-time by construction — the mapped-`Record`/`assertNever` pattern below; constitution row in `Core-0-Architecture-and-Structure.md §7`).
 
 ## Types & schemas — one home, one direction, no inline (spine §7.4)
 

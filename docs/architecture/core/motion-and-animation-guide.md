@@ -541,7 +541,7 @@ per-block `dir` wrapper and drops to a new line).
 ## 5. The Base UI animation/styling contract (house law — #1088)
 
 Three binding rules that complete §1's description as enforceable law. Each names its enforcer per
-constitution §2.3 (a prose-only boundary is a wish). The instrument-side match tables (#1064/#1065) are
+constitution §2 (a prose-only boundary is a wish). The instrument-side match tables (#1064/#1065) are
 already locked; this section is the law + gate half.
 
 ### 5.1 Transitions over keyframes for lifecycle motion

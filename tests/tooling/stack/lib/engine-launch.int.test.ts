@@ -6,7 +6,7 @@
 // (`spawnFullPriorityChild("setsid", …)`) so the process topology under test is the real one: setsid execs
 // in place, the child's pid IS its pgid, and the group signal is what takes its descendants with it.
 // Nothing here is vLLM, no port is bound, and the real launcher is never invoked
-// (`.claude/rules/lane-standing-facts.md` — the engine launcher is never executed to inspect it).
+// (CLAUDE.md "Engines" — the engine launcher is never executed to inspect it).
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";

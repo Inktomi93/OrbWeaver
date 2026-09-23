@@ -19,7 +19,7 @@
 //
 // TWO CALLERS, ONE PREDICATE — a change to the husk/temporary/archived law lands for both at once.
 //
-// THE ENFORCER (constitution §2.3 — a placement names the tier that REDs its violation). The one-directional
+// THE ENFORCER (constitution §2 — a placement names the tier that REDs its violation). The one-directional
 // package cake is the enforcer of the HOME: `db` sits below both `server` domains, so `character` reaching
 // for `chat`'s copy of these predicates would be a sideways domain import that dependency-cruiser reds, and
 // `chat` reaching UP for anything does not resolve at all. What the cake CANNOT catch is a domain quietly

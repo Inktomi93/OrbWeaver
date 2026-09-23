@@ -52,7 +52,7 @@ export interface SwallowedCandidate {
 // marker / a vendored-file home / raw comment-line mentions — then states a verdict.
 //
 // IT IS A CANDIDATE LENS, like `swallowed`/`typeonly-alive`/`chains` — the verdict is a human's, never a
-// delete signal ("unwired ≠ worthless", constitution §1). Evidence PRIORITY, not accumulation: a single
+// delete signal ("unwired ≠ worthless", CLAUDE.md "Build the full shape"). Evidence PRIORITY, not accumulation: a single
 // production reference outranks everything else (ALIVE); a namespace-only reach may still be load-bearing
 // THROUGH the swallowing API (SWALLOWED-ONLY); a reasoned `@public`-family marker is the author's
 // unadjudicated keep claim (TAGGED-KEEP in this conservative lens; the ratchet separately judges legality);

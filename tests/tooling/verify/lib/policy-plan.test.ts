@@ -850,8 +850,8 @@ test.describe("final policy planner", () => {
   // for, and nothing swept it.
   //
   // READ THIS BEFORE TRUSTING ITS GREEN: the repository tracks ZERO `.mts`/`.cts` today, so the PLANNER
-  // loop below currently has no subject and is vacuous. That is a DERIVED empty, not an asserted one
-  // (constitution §4), and it is deliberately left self-engaging rather than deleted — the day a module
+  // loop below currently has no subject and is vacuous. That is a DERIVED empty, not an asserted one,
+  // and it is deliberately left self-engaging rather than deleted — the day a module
   // script lands, this arm judges it with no edit. What still runs on EVERY tree is the census control
   // and the contract assertion; the fence's behavioural proof is the synthetic scope rows above.
   test("no tracked compiler-member module script enters policy source population", { timeout: scaledBudget(5000) }, ({ repoRoot }) => {

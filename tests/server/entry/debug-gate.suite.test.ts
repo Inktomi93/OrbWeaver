@@ -34,7 +34,7 @@
 //
 // The routes behind the gate are DELIBERATELY un-scoped host reads (`@owner-scope-ok`, D20): the gate is
 // their entire boundary, and this suite is that assumption's ENFORCER. A prose-only boundary is a wish
-// (constitution §2.3).
+// (constitution §2).
 //
 // EVERY DENY ASSERTS THE BODY, not just "not 200": a bare status check cannot tell the gate's own 404
 // ("debug API disabled") apart from a route that was never registered, and a leaked request that reached a

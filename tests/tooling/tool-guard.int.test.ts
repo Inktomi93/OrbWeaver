@@ -280,7 +280,7 @@ const ROWS: Row[] = [
   ["deny", "git-destructive", "git checkout ."],
   ["deny", "git-destructive", "git checkout main -- tests/ui/x.ct.tsx"],
   // GLOBAL OPTIONS before the subcommand (#497). Every row above used a BARE `git`, so the rule was blind
-  // to `git -C <worktree>` — the spelling §L ORDERS every lane to use on every git call. Six real corpus
+  // to `git -C <worktree>` — the spelling the lane skill ORDERS every lane to use on every git call. Six real corpus
   // rows passed this way (reports/tool-guard/decisions.jsonl), including the reported repro. The value
   // token may be literal, quoted (blanked to whitespace), or a variable, and may be preceded/followed by
   // other global options.
@@ -398,7 +398,7 @@ const ROWS: Row[] = [
   // ---- #1946 item 1: THE WRAPPER PREFIX THE HOUSE ORDERS. PW_ANCHOR named only WRAP_PREFIX's old
   // vocabulary (`VAR=…`, `timeout`, `nice`), so `env -C <wt> ./node_modules/.bin/playwright test …` PASSED
   // un-floored while `env -C <wt> npx playwright …` and `env -C <wt> pnpm playwright …` both bit — and
-  // `env -C <wt>` is the spelling .claude/rules/lane-standing-facts.md tells every lane to use, i.e. the
+  // `env -C <wt>` is the spelling .claude/skills/lane/SKILL.md tells every lane to use, i.e. the
   // one shape nobody was taught to type was the one the guard caught. The anchor now reads the SHARED
   // vocabulary (COMMAND_WRAPPERS), as does the rewrite head, so the prefix survives into the sanctioned
   // call rather than costing the run a deny. ----

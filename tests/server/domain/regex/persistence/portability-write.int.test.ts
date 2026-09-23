@@ -392,7 +392,7 @@ describe("the single-script export door", () => {
 
 // #1414 seam 4: the ATTACHMENT TARGET. These factories are wired at compose and consumed by import, so their
 // SIGNATURE is the whole promise the next wiring inherits — "every current caller passes an owned id" is a
-// comment, not a placement (AGENTS §2.3). The script side was already owner-gated by `loadOwnedScriptsByIds`
+// comment, not a placement (constitution §2). The script side was already owner-gated by `loadOwnedScriptsByIds`
 // / `listOwnedScripts`; the character and preset sides now run the domain's own `persistence/ownership` gates,
 // the same ones the hand-attach verbs have always used.
 describe("#1414 — the attachment TARGET is owner-gated, not just the scripts", () => {

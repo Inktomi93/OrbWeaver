@@ -121,7 +121,7 @@ one-description subset of a character, minted by a lossy one-way copy.**
 identity/resolution/copy layers — and it should be preceded by the kind-polymorphic cast (D), which is already
 the ruled next step and unblocks the real papercut without touching the sacred layer.**
 
-Why C over B: the repo's own law (`AGENTS.md §0.2`, "a type/shape has exactly ONE home") already wants the
+Why C over B: the repo's own law (`CLAUDE.md` "Type homes and unions": never re-declare a shape a lower package owns) already wants the
 name+description+avatar+starred shape to have one home instead of being re-spelled in `persona.ts` and
 `character.ts`. That shape is a pure isomorphic value → `kit`/`contracts`. Both domains compose it. Tables,
 producers, ownership, and resolution role stay SEPARATE — which is exactly what D122/D131/persona-sacred

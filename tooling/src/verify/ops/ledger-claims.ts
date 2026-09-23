@@ -21,7 +21,7 @@
 //   - `origin/main..HEAD` — the range already contains a commit whose `ledger rows OWED: #2201 #2203` names
 //     ids that appear in ZERO ledger rows (`grep -c '^|.*#2201\b' <the ledger>` → 0; positive control
 //     `#2214` → 1). Arm (b) would red on it FOREVER, and history cannot be edited: a stage whose only green
-//     door is rewriting the past, which constitution §4 bans outright.
+//     door is rewriting the past, which the lane skill bans outright.
 //   - `merge-base(main, HEAD)..HEAD` — on main's own checkout the range is EMPTY (green always); on a lane it
 //     is that lane's EARLIER commits, and under the one-commit-per-lane law that is zero. A stage that
 //     measures nothing.

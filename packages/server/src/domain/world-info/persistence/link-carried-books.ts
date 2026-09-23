@@ -12,7 +12,7 @@
 //     importer's character. Books are NEVER cloned — references only.
 //   • TARGET: `characterId` is likewise verified as the importer's own before any junction row is written.
 //     Its only live caller mints that character under the same principal a few lines earlier, so this was
-//     never exploitable — but "safe because of who calls it" is a comment, not a placement (AGENTS §2.3),
+//     never exploitable — but "safe because of who calls it" is a comment, not a placement (constitution §2),
 //     and an injected op's signature is the whole promise the NEXT wiring inherits.
 
 import type { Db } from "@orb/db";

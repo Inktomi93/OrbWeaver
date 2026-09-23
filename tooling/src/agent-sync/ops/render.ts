@@ -14,7 +14,7 @@ const TOML_LITERAL_DELIMITER = "'''";
 
 function codexPreamble(agent: ClaudeAgent, filename: string): string {
   const lines = [
-    "Codex compatibility: this role body is shared with Claude Code. The TOML model and reasoning-effort settings are authoritative; treat Claude model names and tool names below as intent labels and use the Codex tools available in this session. The Codex reading map in `AGENTS.md` governs shared repository pre-reading: treat blanket shared-body directions to read the whole constitution or doctrine before starting as Claude-host wording, inspect the bounded task and relevant source first, then read complete applicable sections and linked constraints before the decisions or changes they govern. Preserve every specialist read requirement below.",
+    "Codex compatibility: this role body is shared with Claude Code. The TOML model and reasoning-effort settings win. Read Claude model and tool names below as intent labels, and use the Codex tools in this session. `AGENTS.md` names the files to read first.",
   ];
   const paths = agent.skills.map((skill) => {
     const path = `.agents/skills/${skill}/SKILL.md`;
@@ -24,7 +24,7 @@ function codexPreamble(agent: ClaudeAgent, filename: string): string {
     return `\`${path}\``;
   });
   if (paths.length > 0) {
-    lines.push(`Read ${paths.join(", ")} in full before applying the shared role instructions below.`);
+    lines.push(`Read ${paths.join(", ")} in full before you apply the role instructions below.`);
   }
   return `${lines.join(" ")}\n\n`;
 }

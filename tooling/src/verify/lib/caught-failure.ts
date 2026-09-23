@@ -160,7 +160,7 @@ function workAnchorCandidates(call: CallExpression, invocation: PromiseRejection
 
 /** The first candidate the marker grammar can actually hold. ONE TAIL RETURN over an accumulator — biome's
  *  `noUselessUndefined` deletes a trailing `return undefined;` and tsc's `noImplicitReturns` then reds the
- *  fall-through, and this is the sanctioned shape out of that pincer (.claude/rules/gates-and-tooling.md).
+ *  fall-through, and this is the sanctioned shape out of that pincer (.claude/rules/tooling.md).
  *  `??=` still short-circuits, so a later candidate is never evaluated once one has anchored. */
 export function firstAnchor(reported: Node, candidates: readonly Node[]): CaughtFailureAnchor | undefined {
   let found: CaughtFailureAnchor | undefined;

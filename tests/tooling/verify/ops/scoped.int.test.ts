@@ -33,7 +33,7 @@ import { scaledBudget } from "../../_load-budget.ts";
 // against the pre-fix source — they read stdout/stderr and the exit code, never the new parse):
 //   A. the comma form is ACCEPTED as a UNION — adding a folder can only ADD files, never zero them out;
 //   B. a selector that resolves to NO files is EXIT 2 ("nothing was checked"), never a green wall —
-//      .claude/rules/gates-and-tooling.md: a bare zero is "I couldn't measure", never "it isn't there".
+//      a bare zero is "I couldn't measure", never "it isn't there".
 // The misuse arm (an empty comma segment) is the third: a typo'd scope is refused at exit 3 before any
 // project is built. Every arm is a PLANTED CONTROL for the others — a fix that refused everything would
 // fail A, and a fix that accepted everything would fail B and C.

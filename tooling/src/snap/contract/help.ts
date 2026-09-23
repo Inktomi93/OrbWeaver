@@ -78,7 +78,8 @@ mid-chain runs mid-chain; --map/--aria/--contrast/--expect-* observe the settled
     latest = the chat list's top row; current = the room open right now (no list query — the one to
     use after creating a room, since a fresh room is unlisted until the list refetches)
   SPA state: --goto/--open-chat/--context-tab drive client state through __orb; they are not URL paths.
-    --expect-url checks only the browser URL (normally / or /login), never a section, room, tab or modal.
+    --expect-url checks only the browser URL (it settles at / or /login; /$section redirects to /),
+    never a section, room, tab or modal.
   --panel <name>=<docked|overlay|collapsed>   drive the shell's panel layout — also the docked↔collapsed
                             FLIP transition (use-shell-track-flip.ts + shell.css's shell-main-flip)
   --focus <on|off>          the shell's zen/focus-mode toggle
@@ -91,7 +92,7 @@ mid-chain runs mid-chain; --map/--aria/--contrast/--expect-* observe the settled
   chain for tags that cannot exist, so snap REFUSES it. For rendered text write text=<phrase>.
 
 Load emulation (CDP; applied to EVERY page BEFORE it navigates, so boot is measured under the arm):
-  --cpu-throttle <n>      Emulation.setCPUThrottlingRate — 1 = off, 4 = the standard "under load" arm
+  --cpu-throttle <n>      Emulation.setCPUThrottlingRate — 1 = off, 4 = the standard load-test throttle
   --network <profile>     Network.emulateNetworkConditions with DevTools' own presets:
                           ${NETWORK_PROFILE_SPELLINGS.join(" | ")}
   WHY: a layout shift within 500ms of a real click carries hadRecentInput and is EXCLUDED from CLS, so

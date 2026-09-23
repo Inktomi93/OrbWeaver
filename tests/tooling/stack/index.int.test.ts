@@ -350,7 +350,7 @@ test("clear-absent still REFUSES when a survivor really outlived the leader (#11
 //
 // NO HARDWARE IS TOUCHED HERE. `ENGINES_START_PROBE=1` is the shell twin of engines.ts's
 // `ENGINES_DISPATCH_PROBE` (see tests/tooling/stack/ops/engines.int.test.ts and the standing ban in
-// .claude/rules/lane-standing-facts.md): it skips the venv bootstrap, the reconcile AND the spawn, and
+// CLAUDE.md "Engines"): it skips the venv bootstrap, the reconcile AND the spawn, and
 // runs ONLY the wait/verdict loop against whatever `VLLM_*_PORT` names — here, three throwaway http
 // servers. `ENGINES_BOOT_TIMEOUT=0` makes the deadline deterministic: the wait loop never iterates, so
 // every arm below measures the VERDICT the deadline produces, not a race against a timer.
@@ -736,7 +736,7 @@ test("the resolution order is host > VLLM_DISABLED > .env pin > default, and the
 // four failure arms and the absent-binary arm ALL answered `GPU code=0 text=GPU idle`.
 //
 // The one caller is force_teardown, which SIGKILLs the live dev stack and the whole vLLM fleet before it
-// ever asks — so it can never be driven here (`.claude/rules/lane-standing-facts.md`: the engines and the
+// ever asks — so it can never be driven here (`.claude/skills/lane/SKILL.md`: the engines and the
 // live stack are off limits to a lane). `STACK_GPU_PROBE=1` is the seam, the `STACK_DISPATCH_PROBE`
 // convention: print the verdict, exit, spawn nothing, touch no port.
 const GPU_PROBE_LINE_RE = /^GPU code=(\d) text=(.*)$/mu;

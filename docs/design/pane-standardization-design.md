@@ -12,7 +12,7 @@ set manually vs what should be standardized things need to be consistent"*
 This is a design (`kind: design`, draft): ZERO production code rides this document. It converts the
 measured pane-idiom matrix (#1191's second comment; full report `cb-pane-matrix-report.md`, session
 scratchpad 2026-09-02) plus a source-complete read of every `SectionDefinition` into a per-axis standard,
-each with its enforcement tier NAMED (constitution §2.3: a prose-only boundary is a wish). The build is a
+each with its enforcement tier NAMED (constitution §2: a prose-only boundary is a wish). The build is a
 later program dispatched from §6. The D-ledger and `client-architecture-lockdown.md` win on any conflict.
 
 Prior-art lessons consulted (shared memory store, by filename): `lock-the-extensible-shape.md` (the
@@ -66,7 +66,7 @@ The measured drift maps EXACTLY onto the enforcement tier each axis sits at toda
   prose law (§11) → analytics dead-ends, the shared shell renders text.
 
 So the standard for each axis is placed at the HIGHEST tier its legitimate variance profile allows
-(constitution §2.2 applied to the pane system): zero legitimate variance → the shell renders it
+(constitution §2 applied to the pane system): zero legitimate variance → the shell renders it
 (STRUCTURAL); per-section data, zero legitimate absence → a required definition field (TYPE-FORCED),
 with any legitimate opt-out spelled as a REASON-CARRYING arm in the house `{planned: "<reason>"}`
 grammar — an explicit decision, never an absence; genuine per-section composition → CONVENTION + GATE,
@@ -346,8 +346,8 @@ The §3 changes touch, by class:
    build); this document graduates from draft when the program lands.
 
 **Typecheck floors for the build lanes:** per-package `pnpm typecheck` (owns ui/client src AND
-`tests/**/*.ct.tsx`) + `types:graph` (owns `tests/`+`scripts/`) — the three-program truth table in
-`lane-standing-facts.md`; the registry change is exactly the shared-value class that hides stale
+`tests/**/*.ct.tsx`) + `types:graph` (owns `tests/`+`scripts/`) — the program selection in the `lane`
+skill "Typecheck"; the registry change is exactly the shared-value class that hides stale
 fixtures in unrelated suites.
 
 ## 6. Migration — per-section delta table and sweep order (#1191 question 6)

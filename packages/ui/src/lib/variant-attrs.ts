@@ -32,7 +32,7 @@
 // a rule that paints off a `data-variant`/`data-size`/`data-intent`/`data-tone` selector would turn a
 // census channel into a skin and is not what this is for.
 //
-// ENFORCER (a prose-only boundary is a wish, AGENTS §2.3): the `ui-variant-axes-stamped` gate — a `tv()`
+// ENFORCER (a prose-only boundary is a wish, constitution §2): the `ui-variant-axes-stamped` gate — a `tv()`
 // recipe in `packages/ui/src` declaring a stamped axis must reach the DOM through one of these two doors,
 // with the not-yet-stamped remainder carried as a shrink-only committed ratchet.
 import { cn } from "./class-merge.ts";

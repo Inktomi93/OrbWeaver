@@ -247,7 +247,7 @@ export const SHOT_ARM = {
       kind: "required-value",
       pageTargetable: false,
       group: "Pixels",
-      summary: "capture ONE element, auto-cropped — the cheapest pixel receipt",
+      summary: "capture one element, auto-cropped — the cheapest pixel case",
       handler: (a, rest): void => {
         a.shotOf = rest.shift() ?? null;
       },

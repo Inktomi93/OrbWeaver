@@ -15,7 +15,7 @@ import { contractFieldsOf } from "./fields.ts";
 // shape that no file under `packages/client/src` spells.
 //
 // THE OWNER FENCE IS THE NAME + TWO HOMES. A `*View`/`*Summary` declared under `packages/contracts/src`
-// (the cross-boundary wire home, constitution §0.2) or under `packages/server/src` (a domain's
+// (the cross-boundary wire home, CLAUDE.md "Type homes and unions") or under `packages/server/src` (a domain's
 // `contract/views.ts` — projected to the client through the tRPC proxy, which is an inference no import
 // edge can see). Everything else is out of scope by construction: a shape neither home declares is not a
 // projection the UI could render.
@@ -40,7 +40,7 @@ import { contractFieldsOf } from "./fields.ts";
 // A DELIBERATE server-only field carries `// @view-server-only: <reason>` on the field (a line comment or a
 // JSDoc block — both are leading comment ranges). The reason is REQUIRED, and the marker is TWO-SIDED: a
 // marker on a field the client now DOES read is reported STALE and exits 1, so the exemption cannot rot
-// into a lie. CANDIDATE lens, never a delete signal — "unwired ≠ worthless" (constitution §1): the verdict
+// into a lie. CANDIDATE lens, never a delete signal — "unwired ≠ worthless" (CLAUDE.md "Build the full shape"): the verdict
 // on a hit is WIRE IT, MARK IT, or DELETE IT, and only a human makes it.
 const VIEW_SERVER_ONLY_RE = /@view-server-only:\s*\S/u;
 
