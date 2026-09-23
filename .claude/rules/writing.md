@@ -1,21 +1,20 @@
 ---
 paths:
   - ".claude/**"
-  - "CLAUDE.md"
   - "AGENTS.md"
 ---
 
 # Writing instruction files
 
-Rules for every instruction file: `CLAUDE.md`, `.claude/rules`, agents, skills, memory, and code
+Rules for every instruction file: `AGENTS.md`, `.claude/rules`, agents, skills, memory, and code
 comments. Docs under `docs/**` follow their own style doc; see `.claude/rules/docs.md`.
 
 Owner-voice sections — personality, communication, and philosophy written in the owner's own words —
 are exempt from this style. Never rewrite them into plain style. Wrap one in `<!-- owner-voice -->` and
 `<!-- /owner-voice -->` so the check skips it.
 
-`pnpm check:agents` checks `CLAUDE.md`, `AGENTS.md` and every `.claude/**` Markdown file against rules 1, 4
-and 12, and checks that every link and backticked repository path exists. It skips code spans and code
+`pnpm check:agents` checks `AGENTS.md` and every `.claude/**` Markdown file against rules 1, 4 and 12,
+and checks that every link and backticked repository path exists. It skips code spans and code
 blocks, so quote a literal name in backticks.
 
 ## Writing
@@ -27,7 +26,8 @@ blocks, so quote a literal name in backticks.
 3. Lean. Plain, short sentences. Say it once. No all-caps emphasis, no stacked clauses, no self-praise.
    When in doubt, cut.
 4. Banned words: `load-bearing`, and house slang (`belt`, `fence`, `arm`, `lens`, `receipt`, `rung`)
-   unless the glossary defines it.
+   unless the `AGENTS.md` glossary defines it. Write evidence, case, review, guard, step, control and
+   boundary instead.
 5. Say what to do. Keep a prohibition only when the failure is real and current, and give the reason
    in one clause.
 6. Code speaks for itself. A comment exists only for a non-obvious reason.
@@ -51,11 +51,11 @@ blocks, so quote a literal name in backticks.
 9. Every rule is checkable or carries a reason. Otherwise delete it.
 10. Add a rule only when a mistake repeats. A one-off gets fixed in code.
 11. Edit in place. Deleting is normal. Never write a correction beside the original.
-12. Always-on text stays small. `CLAUDE.md` with its imports, plus any rule without `paths:`, stays
-    under 200 lines. Every rule uses list-form `paths:` frontmatter. Procedures are skills. Agent bodies stay short.
+12. Always-on text stays small. `AGENTS.md` with its imports, plus any rule without `paths:`, stays
+    under 200 lines. `AGENTS.md` lists every rule file with its `paths:` globs, for Codex. Every rule uses list-form `paths:` frontmatter. Procedures are skills. Agent bodies stay short.
 
 ## Memory and reports
 
 13. Memory holds only facts the code cannot show. Rule-shaped lessons become path-scoped rules.
-    Subagents get no memory.
+    Roles get no memory.
 14. Reports and commit messages lead with the outcome and stay short.

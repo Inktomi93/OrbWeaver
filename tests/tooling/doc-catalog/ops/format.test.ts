@@ -223,30 +223,21 @@ test("WIDENING: class 2 is admitted, and only the bytes this repo does not AUTHO
   expect(targets.filter((path) => path.startsWith("tooling/src/snap/lib/devtools-frontend/"))).toStrictEqual([]);
 });
 
-test("CLASS 3: every root entry point is admitted — including the generated-block file", () => {
-  // Widened by PATH, not by the pair the row enumerated: `README.md` is a third root file matching the
-  // row's own description, and enumerating would have missed it the way omission missed the second
-  // archaeology tree.
-  //
-  // `AGENTS.md` was briefly FENCED (#2173) because its lines 1-37 are written by `pnpm agents:sync`,
-  // whose array emitted no blank line at either marker seam — the exact two blanks this formatter
-  // inserts — while its freshness is the REGISTERED `check:agents` stage, so two enforced stages could
-  // not be green at once. #2175 fixed the GENERATOR rather than widening the exclusion. Asserting
-  // `AGENTS.md` is PRESENT is what stops the fence creeping back the next time the two disagree.
+test("CLASS 3: every root entry point is admitted, including the always-on AGENTS.md", () => {
+  // Widened by PATH, not by enumeration, so a new root file is owned from birth. `AGENTS.md` is also read
+  // by the `check:agents` stage; asserting it is PRESENT stops an exclusion creeping in the next time the
+  // two stages disagree about its bytes.
   const targets = formatTargets([]);
 
-  // The REPO-RELATIVE spelling `git ls-files` emits, which is what `CLASS_3_ROOT` matches against — the
-  // `./CLAUDE.md` used in prose (and in format.ts's own header) is a disambiguator for the reader, never a
-  // path this producer can return.
-  expect(targets).toContain("CLAUDE.md");
+  // The REPO-RELATIVE spelling `git ls-files` emits, which is what `CLASS_3_ROOT` matches against.
   expect(targets).toContain("README.md");
   expect(targets).toContain("AGENTS.md");
 });
 
 test("CLASS 3: the `@` import directive survives a REAL write, not just an empty pass", ({ scratch }) => {
-  // `./CLAUDE.md` line 1 is `@docs/architecture/core/AGENTS.md` — a directive the harness resolves, not
-  // prose. The file happens to be canonical today, so "the formatter proposed nothing" would prove
-  // nothing about what happens when it DOES write. So the defect is planted ELSEWHERE (a `\~` the
+  // A root entry point may open with an `@path` import — a directive the harness resolves, not
+  // prose. "The formatter proposed nothing" on a clean file would prove nothing about what happens when
+  // it DOES write. So the defect is planted ELSEWHERE (a `\~` the
   // formatter removes, far from line 1) and the assertion is that the write happened AND line 1 came
   // through byte-exact. A blank line inserted above or below it would fail this too, since it pins the
   // first two lines. Same construction for `README.md`'s own first line.
