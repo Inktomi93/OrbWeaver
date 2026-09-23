@@ -373,6 +373,56 @@ test("byte-equality (openrouter dialect): the FULL request body for a minimal de
   });
 });
 
+// OpenRouter forwards `cache_control` to Anthropic only from a CONTENT PART. A marker at message level on
+// string content is dropped upstream, so the history is never cached (measured: gen-1790134941-TdEvy3D9exFNfO6cf830
+// sent breakpoints on two assistant rows and read only the system block; the content-part A/B read the history,
+// gen-1790135929 vs gen-1790135933). The provider converter spells an assistant row as a string with a
+// message-level marker, and history breakpoints at depth d and d+2 land on assistant rows in an ordinary chat.
+test("OR Anthropic history breakpoints ride the content part, never the message", async () => {
+  const connection = fakeResolved({
+    task: "chat",
+    providerId: "openrouter",
+    model: "anthropic/claude-sonnet-5",
+    capability: generationCapability({
+      turns: {
+        assistantPrefill: false,
+        midConversationSystem: false,
+        historySystemRows: false,
+        roleHandlingFloor: "strict",
+        explicitPromptCache: true,
+        cacheMinTokens: 1,
+      },
+    }),
+    secret: fakeApiKeySecret("sk-or-not-a-real-key"),
+  });
+  const text = (value: string): [{ type: "text"; text: string }] => [{ type: "text", text: value }];
+  const body = await sentBody(
+    orRequest({
+      connection,
+      tools: undefined,
+      cacheBreakpointDepth: 1,
+      history: [
+        { role: "assistant", content: text("Greeting.") },
+        { role: "user", content: text("u1") },
+        { role: "assistant", content: text("a1") },
+        { role: "user", content: text("u2") },
+        { role: "assistant", content: text("a2") },
+        { role: "user", content: text("u3") },
+      ],
+    }),
+  );
+  const messages = body["messages"] as Record<string, unknown>[];
+  for (const message of messages) {
+    expect(message, `${String(message["role"])} row carries a message-level marker`).not.toHaveProperty("cache_control");
+  }
+  const marked = messages.flatMap((message, index) =>
+    Array.isArray(message["content"]) && (message["content"] as Record<string, unknown>[]).some((part) => part["cache_control"] !== undefined) ? [index] : [],
+  );
+  // system (0) plus depth 1 (a2, index 5) and depth 3 (a1, index 3).
+  expect(marked).toEqual([0, 3, 5]);
+  expect(messages[5]).toEqual({ role: "assistant", content: [{ type: "text", text: "a2", cache_control: { type: "ephemeral", ttl: "1h" } }] });
+});
+
 test("C3: `web_search_options` rides when declared, and the body carries nothing when it is not", async () => {
   const withOptions = await sentBody(orRequest({ tools: undefined, connection: extrasConnection({ web_search_options: { max_results: 5, engine: "exa" } }) }));
   expect(withOptions["web_search_options"]).toMatchObject({ max_results: 5, engine: "exa" });
