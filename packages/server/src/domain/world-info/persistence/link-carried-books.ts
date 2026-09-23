@@ -1,5 +1,5 @@
 // domain/world-info/persistence/link-carried-books — the world-info-owned character_books RE-LINK for
-// character IMPORT (PD-144). The portability twin of duplicate-carry: a portable card carries attached-book
+// character IMPORT. The portability twin of duplicate-carry: a portable card carries attached-book
 // REFERENCES (`{worldBookId, role}`), and after the imported character row lands this op re-points each id
 // at the new character via a fresh character_books row. A named exception to "persistence is queries only":
 // the import/character domains never write character_books themselves (world-info owns that junction, D28),

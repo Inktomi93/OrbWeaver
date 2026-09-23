@@ -17,9 +17,9 @@
 // `authedProcedure`. So this room takes the `user` room's posture: `authorizeAttach` is a no-op and there is
 // no per-yield re-gate (there never was one).
 //
-// IT USED TO CARRY THE PD-106 MULTI-HUMAN BELT, relocated here from `multiHumanProcedure` when the stream
+// IT CARRIES THE MULTI-HUMAN BELT, relocated here from `multiHumanProcedure` when the stream
 // folded into the socket (the socket itself had to stay `authedProcedure` so a single-user deployment kept
-// its user/chat/rpg rooms, which made the belt a per-ROOM concern). PD-106's RULING survives — its INPUT
+// its user/chat/rpg rooms, which made the belt a per-ROOM concern). The RULING survives — its INPUT
 // changed: the belt existed because every notification SOURCE was multi-human, and single-human sources
 // now exist (`plugin-disabled` from the crash policy, `automation-notice` from an auto-disabling rule,
 // plus the plugin consent prompt), so a single-user deployment was accumulating durable rows its only

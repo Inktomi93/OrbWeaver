@@ -1,4 +1,4 @@
-// Integration: PD-40 image embedding-analytics — imageDuplicates (cards sharing near-identical art) +
+// Integration: image embedding-analytics — imageDuplicates (cards sharing near-identical art) +
 // visualArchetypes (art-style k-means clusters). Owner-scoped; shared/default avatars (≥3 refs) excluded;
 // per-space; in-RAM cosine/kmeans.
 

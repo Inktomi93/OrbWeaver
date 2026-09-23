@@ -1,4 +1,4 @@
-// verb: listImageAssetIds — the embeddings embed pass's enumeration read (PD-53). UN-PRINCIPAL by design
+// verb: listImageAssetIds — the embeddings embed pass's enumeration read. UN-PRINCIPAL by design
 // (D20): the vector substrate carries NO `ownerId`, so the catch-up sweep (a trusted SYSTEM consumer, never a
 // user-facing surface) enumerates image assets with no `can()` gate — the same deliberate exception
 // `loadAssetBytes` documents. `ownerId` scopes to ONE owner (the workloads SINGULAR sweep: embed MY assets),

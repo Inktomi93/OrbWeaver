@@ -94,7 +94,7 @@ export interface SuggestParams {
   readonly limit: number;
 }
 
-// ── the unified search() dispatch (PD-38) ─────────────────────────────────────
+// ── the unified search() dispatch ─────────────────────────────────────
 
 /** WHERE a unified search runs. `owner` = the whole corpus (all the user's cards/chats); `chat` = one
  *  authorized chat (the egocentric `scopedCharacterId` is the verbatim-lens POV, required by the

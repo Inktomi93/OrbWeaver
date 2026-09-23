@@ -87,12 +87,12 @@ describe("getMetadata", () => {
   });
 });
 
-// PD-107 / D21 — the roster-avatar REFERENCE-CHECK closes the known-bytes oracle. The fallback returns an
+// D21 — the roster-avatar REFERENCE-CHECK closes the known-bytes oracle. The fallback returns an
 // owner ONLY IF the hash is the `avatarAssetId` of a CHARACTER rostered (present) in a chat the caller is a
 // PRESENT member of. These cases prove the positive path AND that the four oracle-closing conditions all
 // yield `undefined` (indistinguishable from a plain miss). The caller NEVER owns the target hash, so the
 // owner-scoped path always misses first and the fallback is what's under test.
-describe("getMetadata — PD-107 roster-avatar reference-check", () => {
+describe("getMetadata — roster-avatar reference-check", () => {
   // Seeds: `charOwner` owns a character whose avatar is a stored PNG; `caller` is a separate user. Returns
   // the pieces each case tweaks. The chat + rosterings are seeded per-case (they're what varies).
   async function seedAvatar(db: Db, h: AssetsHarness): Promise<AvatarScenario> {
@@ -206,11 +206,11 @@ describe("getMetadata — PD-107 roster-avatar reference-check", () => {
   });
 });
 
-// PD-28 widened (2026-07-07): the SIBLING persona arm — a multi-human group chat's OTHER member's persona
-// avatar must resolve for co-participants too (not just a rostered character's), or their avatar 404s and
-// falls back to initials. Same reference-check discipline: the join proves the asset IS that co-participant's
-// CURRENT persona avatar, never a bare hash→owner oracle.
-describe("getMetadata — PD-28 persona-sibling reference-check (multi-human group)", () => {
+// The SIBLING persona arm: a multi-human group chat's OTHER member's persona avatar must resolve for
+// co-participants too (not just a rostered character's), or their avatar 404s and falls back to initials.
+// Same reference-check discipline: the join proves the asset IS that co-participant's CURRENT persona
+// avatar, never a bare hash→owner oracle.
+describe("getMetadata — persona-sibling reference-check (multi-human group)", () => {
   test("a co-participant's persona avatar in a shared group chat resolves for the other member", async () => {
     const db = await freshDb();
     const h = await makeHarness(db);

@@ -271,7 +271,7 @@ export interface TurnEconomics {
   readonly finishReason?: NormalizedFinishReason | null;
   readonly stopReason?: string | null;
   readonly terminalReason?: string | null;
-  /** The upstream OpenRouter generation handle (`gen-…`) this turn billed under — the PD-137 cost key,
+  /** The upstream OpenRouter generation handle (`gen-…`) this turn billed under — the cost key,
    *  folded onto the variant. Absent/null on a backend that doesn't surface one (agent-sdk / responses). */
   readonly generationId?: string | null;
   /** The wire-opaque facts the normalized fields above cannot carry, ALREADY narrowed by the runtime to the
@@ -326,7 +326,7 @@ export interface TurnPrep {
   readonly automationDepth?: number | undefined;
   readonly kind: TurnKind;
   readonly intent: UserIntent;
-  /** The host's `UserSettings.chat.customStoppingStrings` (PD-146), merged into the generation request's
+  /** The host's `UserSettings.chat.customStoppingStrings`, merged into the generation request's
    *  stop set at the pipeline REQUEST seam (never mutating `intent`). Absent/empty ⇒ the request stop is
    *  exactly `intent.stop` — byte-identical to a host who never set custom stops. */
   readonly extraStopSequences?: readonly string[] | undefined;

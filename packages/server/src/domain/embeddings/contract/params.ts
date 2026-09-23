@@ -20,7 +20,7 @@ export const SOURCE_LENSES = [...TEXT_LENSES, ...IMAGE_LENSES] as const;
 export type SourceLens = (typeof TEXT_LENSES)[number] | ImageLens;
 
 /** The primary vector tables `embeddings` owns — the single registry all callers derive from. `document_chunks`
- *  is the 5th table (PD-139(c) — the runtime tuple gains it so the model-change purge
+ *  is the 5th table (the runtime tuple gains it so the model-change purge
  *  and hub-score seams cover it uniformly). */
 export const VECTOR_TABLES = ["character_embeddings", "image_embeddings", "chat_digests", "chat_segments", "document_chunks"] as const;
 export type VectorTable = (typeof VECTOR_TABLES)[number];

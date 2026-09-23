@@ -1,4 +1,4 @@
-// Integration: PD-40 cooccurrence compute — keyword×keyword pairs + per-character keyword profiles over an
+// Integration: cooccurrence compute — keyword×keyword pairs + per-character keyword profiles over an
 // owner's tier-0 digest keywords. Proofs:
 //   • unordered pairs (canonical A<B) tally once per digest; profiles credit the witnessing character.
 //   • hub-token filter — a keyword present in > hubFraction of the owner's digests is dropped.

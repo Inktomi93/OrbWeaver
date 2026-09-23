@@ -51,7 +51,7 @@ beforeEach(async () => {
   emitted = [];
 });
 
-/** A recording emit-op fake that HONORS the PD-24 contract: it records the event AND commits the producer's
+/** A recording emit-op fake that HONORS the contract: it records the event AND commits the producer's
  *  unexecuted co-statements (the op owns the commit — without this the membership transition never lands). */
 function recordingEmit(notes: NotificationEvent[]): (event: NotificationEvent, coStatements?: readonly unknown[]) => Promise<void> {
   return async (event, coStatements) => {
@@ -752,7 +752,7 @@ describe("add character to chat — the participant-insert chokepoint", () => {
     expect(emitted).toEqual([{ type: "chatUpdated", chatId }]);
   });
 
-  test("a foreign/unknown character is refused NOT_FOUND — no ghost seat (PD-21)", async () => {
+  test("a foreign/unknown character is refused NOT_FOUND — no ghost seat", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
@@ -1431,7 +1431,7 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
     expect((err as ChatOperationError).code).toBe("not_turn_owner");
   });
 
-  // D64 (F4/PD-21 ruling): host authority MOVES to a non-card-owner — the handoff SUCCEEDS, transferring the
+  // D64 (F4 ruling): host authority MOVES to a non-card-owner — the handoff SUCCEEDS, transferring the
   // room + history but DROPPING the outgoing host's character seats (leaving the humans; the new owner adds
   // their own). Driven at the verb layer with seeded non-owner principals (multi-human membership is unwired).
   test("handoff to a non-owner SUCCEEDS: the outgoing host's characters are dropped, the owner's kept, humans remain", async () => {
@@ -1716,7 +1716,7 @@ describe("audit wiring — the membership/config mutations write best-effort aud
   });
 });
 
-describe("setParticipantActivePersona — the chat-domain write persona.setActivePersona calls (PD-120)", () => {
+describe("setParticipantActivePersona — the chat-domain write persona.setActivePersona calls", () => {
   test("flips a present human's activePersonaId + emits personaSwitched with from/to", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");

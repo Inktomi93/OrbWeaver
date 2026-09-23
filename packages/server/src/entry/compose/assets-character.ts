@@ -304,7 +304,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     },
     attachCardTag: tag.attachCardTagByName,
     detachCardTag: tag.detachCardTagByName,
-    // PD-141: world-info owns the character_books junction — the duplicate carry is its persistence factory,
+    // World-info owns the character_books junction — the duplicate carry is its persistence factory,
     // wired here directly (world-info's full service composes after chat, below).
     copyCharacterBooks: createCopyCharacterBooks({ db, now }),
     // Greeting studio (audit §3). resolveGreetingTemplate reads the CALLER's active-preset guided template

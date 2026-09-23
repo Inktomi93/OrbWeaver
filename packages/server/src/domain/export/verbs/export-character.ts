@@ -99,7 +99,7 @@ export function createExportCharacter(ctx: ExportContext): ExportService["export
       .innerJoin(worldEntries, eq(characterBooks.worldBookId, worldEntries.worldBookId))
       .where(eq(characterBooks.characterId, characterId));
 
-    // PD-144: bundle the attached-book REFERENCES (`{worldBookId, role}` per junction row) — carried so a
+    // Bundle the attached-book REFERENCES (`{worldBookId, role}` per junction row) — carried so a
     // same-install re-import restores the EXACT book links + roles (the embedded `character_book` above is a
     // content clone for foreign installs; the references are the identity channel). Read directly off
     // `character_books` — export's own law is to read `@orb/db` schema directly (it already reads this table

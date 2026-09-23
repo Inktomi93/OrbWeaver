@@ -58,7 +58,7 @@ export interface UploadDeps {
   readonly tag: ImportTagPort;
   /** So an imported card's `character_book` actually lands (without it embedded books are dropped). */
   readonly worldInfo: ImportWorldInfoPort;
-  /** PD-136: the doc-ingest façade — the databank producer's binary front door (bytes → extract → chunk). */
+  /** The databank producer's binary front door (bytes → extract → chunk). */
   readonly databank: Pick<DatabankService, "upload">;
   /** The admin-tunable effective `maxImageBytes` — the asset route clamps an IMAGE-kind upload to the tighter
    *  of the route cap and this (the same per-request accessor the character/imagery asset stores use). A
@@ -134,7 +134,7 @@ export function registerUpload(app: Hono<PrincipalEnv>, deps: UploadDeps): void 
     return c.json(stored);
   });
 
-  // PD-136 the doc-ingest façade: a single source document → databank.upload (CAS store → extract → row →
+  // The databank doc-upload route: a single source document → databank.upload (CAS store → extract → row →
   // enqueue ingest). Same belts as the asset route (auth → CSRF → body cap). `name` field falls back to the
   // uploaded filename; the store's own `maxBytes`/magic-sniff run inside databank.upload's assets.store call.
   app.post(DATABANK_UPLOAD_ROUTE, authCsrfGuard, bodyCap(DATABANK_UPLOAD_MAX_BYTES), async (c) => {

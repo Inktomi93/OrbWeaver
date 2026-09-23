@@ -788,7 +788,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   };
 
   // The chat's PRESENT host (role='host', leftSeq NULL) — the room authority whose settings/library the
-  // room draws from (D19; every roster character is host-owned per PD-21). `null` ⇒ a hostless/stale room.
+  // room draws from (D19; every roster character is host-owned). `null` ⇒ a hostless/stale room.
   const resolveChatHostUserId = async (chatId: ChatId): Promise<UserId | null> => {
     const hostRows = await db
       .select({ userId: chatParticipants.userId })
@@ -1342,7 +1342,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     },
     // The owner-wide corpus lens. MemoryQueryOptions deliberately carries no owner, so the owner is
     // resolved FROM CONTEXT here: the chat's present host (D19 — the room authority; every roster character
-    // is host-owned per PD-21, so the host's corpus IS this room's corpus). Hostless/stale room ⇒ empty
+    // is host-owned, so the host's corpus IS this room's corpus). Hostless/stale room ⇒ empty
     // (leak-free unknown-owner, the resolvePromptVariables posture); an empty queryText propagates the
     // corpus verb's own SEARCH_EMPTY_QUERY refusal (flag-don't-fake).
     searchCorpus: async (query) => {
@@ -1441,7 +1441,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         scanDepth: us.worldInfo.scanDepth,
         injectionTokenBudget: us.worldInfo.tokenBudget,
         memoryConfig,
-        // PD-146: the host's turn-behavior arm the engine honors (custom stops + auto-continue/auto-swipe).
+        // The host's turn-behavior arm the engine honors (custom stops + auto-continue/auto-swipe).
         chatBehavior: {
           autoContinue: us.chat.autoContinue,
           autoContinueRounds: us.chat.autoContinueRounds,

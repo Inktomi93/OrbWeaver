@@ -1,5 +1,6 @@
 // transport/trpc/router — the loose top-level procs living directly on `appRouter` (not a
-// per-domain router.ts under routers/). `health`/`echo` are trivial diagnostics; `clientError` (PD-58)
+// per-domain router.ts under routers/). `health`/`echo` are trivial diagnostics; `clientError`
+// is the one with real behavior:
 // is the one with real behavior: it must stay reachable with NO auth (a render throw can happen before
 // auth resolves, or because auth itself is broken) and it must bound the wire payload. The sink's own
 // logging behavior (truncation, the clientError:true tag, the clientRequestId rename) is covered by
@@ -11,7 +12,7 @@ import { describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "./_support.ts";
 
-describe("clientError (PD-58 — the client error boundary's report verb)", () => {
+describe("clientError (the client error boundary's report verb)", () => {
   test("a well-formed report is accepted with NO auth and answers { ok: true }", async () => {
     const ctx = makeContext({ auth: null });
     const result = await caller(ctx).clientError({

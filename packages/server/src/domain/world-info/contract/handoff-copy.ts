@@ -1,7 +1,7 @@
 // domain/world-info/contract/handoff-copy — the `WorldInfoHandoffCopyContext` DI bundle + op type for the
 // world-info-owned lore copy the host-handoff property offer executes.
 //
-// WHY A COPY AND NOT A CARRY. `character.duplicate`'s book carry (PD-141) re-points fresh junctions at the
+// WHY A COPY AND NOT A CARRY. `character.duplicate`'s book carry re-points fresh junctions at the
 // SAME books, which is right for a clone inside ONE library. It is exactly WRONG across owners: the
 // character-book POOL is owner-filtered (`listCharacterBooks` … `eq(worldBooks.ownerId, ownerId)`), so a
 // copied card pointing at the departed host's books loses its entire lore SILENTLY — the card reads fine, the

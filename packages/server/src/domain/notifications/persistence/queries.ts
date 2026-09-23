@@ -104,7 +104,7 @@ export async function dismissActiveOfType(
   return await buildDismissActiveOfType(db, recipientUserId, type, now);
 }
 
-/** What rides the INSERT's own batch. `coStatements` is the PD-24 producer seam (membership transitions);
+/** What rides the INSERT's own batch. `coStatements` is the producer seam (membership transitions);
  *  `supersedeActiveOfSameType` is the #1041 singleton seam. Both are statements the INSERT must commit
  *  WITH, never before or after — which is why they are options here rather than two calls at the verb. */
 interface InsertNotificationExtras {

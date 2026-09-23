@@ -43,7 +43,7 @@ export const tagRouter = t.router({
   // chip never re-keys (and never refetches) it.
   listTagFilterVocabulary: authedProcedure.query(({ ctx }) => ctx.services.tag.listTagFilterVocabulary({ principal: ctx.auth })),
 
-  // The Accept/Reject review queue: the owner's STAGED (`pending`) character-tag suggestions (PD-40 distill +
+  // The Accept/Reject review queue: the owner's STAGED (`pending`) character-tag suggestions (distill +
   // import staged card tags). `characterId` narrows to one editor's suggestions; absent = the whole inbox.
   listPendingSuggestions: authedProcedure.input(z.object({ characterId: typeIdSchema(ID_PREFIX.character).optional() }).optional()).query(({ ctx, input }) =>
     ctx.services.tag.listPendingSuggestions({

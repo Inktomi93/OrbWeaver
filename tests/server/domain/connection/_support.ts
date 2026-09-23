@@ -73,7 +73,7 @@ export interface ConnectionHarness {
   readonly svc: ConnectionService;
   readonly runtime: InferenceRuntime;
   readonly audits: AuditCall[];
-  /** Every `onEmbedSpaceChanged(ownerId)` the verbs raised (the PD-139a purge+reindex trigger). */
+  /** Every `onEmbedSpaceChanged(ownerId)` the verbs raised (the embed-space purge+reindex trigger). */
   readonly embedSpaceChanges: UserId[];
   /** Every `recordProbeOutcome` the probe verb handed the credentials domain. */
   readonly probeRecords: Parameters<ConnectionContext["recordProbeOutcome"]>[0][];

@@ -110,7 +110,7 @@ export async function makeHarness(db: Db): Promise<AssetsHarness> {
         .limit(1);
       return rows.length > 0;
     },
-    // PD-107 roster-avatar reference-check, wired as the REAL query (mirrors the compose-root impl,
+    // roster-avatar reference-check, wired as the REAL query (mirrors the compose-root impl,
     // `entry/compose/services.ts`) so the security property — a rostered character's OR a co-participant
     // human's PERSONA avatar in a chat the caller is present in, NOT a bare hash oracle — is exercised
     // against the real seeded DB, not a fake.
@@ -311,13 +311,13 @@ interface SeedParticipantOverrides {
   readonly role?: ParticipantRole;
   /** Set to mark the participant as DEPARTED (the present-membership gate keys on `leftSeq IS NULL`). */
   readonly leftSeq?: number;
-  /** A human seat's CURRENT persona (the PD-107 persona-sibling reference-check gates on this). */
+  /** A human seat's CURRENT persona (the persona-sibling reference-check gates on this). */
   readonly activePersonaId?: PersonaId;
 }
 
 /** Insert a `chat_participants` row of the given `kind` (human/agent → userId, character → characterId).
  *  Supports the multi-human / multi-character / departed-member rosters the `seedChat` factory's single
- *  `withHost`/`withCharacter` opt-ins can't express (PD-107 needs those). */
+ *  `withHost`/`withCharacter` opt-ins can't express. */
 export async function seedParticipant(db: Db, chatId: ChatId, kind: ParticipantKind, overrides: SeedParticipantOverrides = {}): Promise<void> {
   await db.insert(chatParticipants).values({
     id: castId<ChatParticipantId>(overrides.id ?? `chat_participant_${kind}_${chatId}`),
@@ -343,7 +343,7 @@ interface SeedPersonaOverrides {
   readonly name?: string;
 }
 
-/** Insert a minimal `personas` row owned by `ownerId` (the PD-107 persona-sibling reference-check target).
+/** Insert a minimal `personas` row owned by `ownerId` (the persona-sibling reference-check target).
  *  Only the notNull/no-default columns are supplied. Returns the branded id. */
 export async function seedPersona(db: Db, ownerId: UserId, overrides: SeedPersonaOverrides = {}): Promise<PersonaId> {
   const id = castId<PersonaId>(overrides.id ?? `persona_${overrides.name ?? "x"}`);

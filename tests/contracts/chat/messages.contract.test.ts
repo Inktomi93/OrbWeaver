@@ -153,7 +153,7 @@ test("MessageView is the slot joined with its selected variant (content + econom
   expect(view.selectedVariantId).toBe(SAMPLE_VARIANT_ID);
 });
 
-// ── toolCallRecordSchema (D48/PD-54 T1) — the db read-seam parse for `message_variants.toolCalls` ────
+// ── toolCallRecordSchema (D48 T1) — the db read-seam parse for `message_variants.toolCalls` ────
 test("toolCallRecordSchema round-trips an executed record AND the recorded-unexecuted shape", () => {
   const executed = {
     toolCallId: "call_abc123",

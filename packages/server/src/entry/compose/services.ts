@@ -309,7 +309,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // neither may import `domain/connection`.
   const seedUserConnections = createLocalLightUserSeed({ db, now });
   const sessions = createSessionsService({ db, now, sessionSecret: deps.sessionSecret, seedUserConnections });
-  // PD-139(a) RE-RAISED (§10-4): a connection/binding write that changes an owner's embed or imageEmbed SPACE
+  // A connection/binding write that changes an owner's embed or imageEmbed SPACE
   // must enqueue the purge+reindex. `workloads` is built far below (the search-discovery seam), so this holder
   // is late-bound after it exists; the connection ctx derefs it at request time (a pane write), never during
   // boot. Until then it is an inert no-op.
@@ -542,7 +542,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     pluginOwnedBy: async (pluginId, userId) => (await fetchOwned(db, plugins, pluginId, userId)) !== undefined,
     endpointAdmission,
     recordProbeOutcome: credentials.recordProbeOutcome,
-    // PD-139(a) re-raised (§10-4) — the late-bound holder above, derefed at request time.
+    // The late-bound holder above, derefed at request time.
     onEmbedSpaceChanged: () => enqueueEmbedReindex(),
   };
   const connection = createConnectionService(connectionCtx);
@@ -680,7 +680,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   });
   const { embeddings, indexer, persona, resolvePersonasForParticipants, presetCtx, preset, stats, search, discovery, notifications, workloads } =
     searchDiscovery;
-  // PD-139(a): bind the embed-model-change → bulk purge+reindex enqueue now that `workloads` exists.
+  // Bind the embed-model-change → bulk purge+reindex enqueue now that `workloads` exists.
   enqueueEmbedReindex = searchDiscovery.enqueueEmbedReindex;
 
   // ── the refinery seam (R1) — the card-refinery pipeline over the summarize rung. Needs `character`

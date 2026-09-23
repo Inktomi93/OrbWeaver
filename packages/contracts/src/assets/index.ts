@@ -11,7 +11,7 @@ import { z } from "zod";
  *  a persona avatar; `export` = a future generated export (unwired in v1); `generated` = a model-generated
  *  image from a chat turn; `gallery` = a curated gallery image; `attachment` = a user-attached inline
  *  chat image or video (mp4/webm/gif, #317); `document` = a databank source document's original bytes; `background` = a user-uploaded
- *  decorative app background (PD-131 — pinned by the `appearance.backgroundAssetId` JSON field, GC-rooted
+ *  decorative app background (pinned by the `appearance.backgroundAssetId` JSON field, GC-rooted
  *  via the settings live-source scan, NOT an FK column); `plugin` = an installed plugin's bundle bytes.
  *  The db `assets.kind` enum derives from this tuple. */
 export const ASSET_KINDS = ["card", "avatar", "export", "generated", "gallery", "attachment", "document", "background", "plugin"] as const;

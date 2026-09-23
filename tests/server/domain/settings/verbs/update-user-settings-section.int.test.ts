@@ -200,6 +200,6 @@ describe("updateUserSettingsSection", () => {
   });
 });
 
-// PD-139a — an embed/imageEmbed model change is the trigger the PD-104 purge+reindex machine was missing.
+// an embed/imageEmbed model change is the trigger the purge+reindex machine was missing.
 // The verb captures the two model ids pre-merge and fires the injected `onEmbedModelChanged` ONLY on an
 // actual change of either; the compose root wires that op to a bulk index/all/force reindex.

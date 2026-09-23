@@ -1,4 +1,4 @@
-// substrate/backfill — the PD-41 corpus sweeps. Pins the ENUMERATION (the sweep's own job — the per-chat
+// substrate/backfill — the corpus sweeps. Pins the ENUMERATION (the sweep's own job — the per-chat
 // build logic is pinned by the memory build suites): segments visit every chat; digest buckets mirror the
 // engine's post-turn scopes (`__group__` bucket ONLY for >1-character rooms, then every seated character);
 // the group-character sweep mints ONLY for group rooms lacking one (idempotent, host-owned); the signal
@@ -345,7 +345,7 @@ describe("backfillMemory — the chat × scope enumeration", () => {
   test("PER-CHAT ISOLATION is NOT a silent skip: a poisoned chat is COUNTED in `failed`, the rest still process (#41)", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     // Two group rooms; the FIRST poisons its group-bucket resolve (a mint failure). Without isolation its
-    // throw would abort the WHOLE PD-41 corpus sweep before the healthy room is ever reached.
+    // throw would abort the WHOLE corpus sweep before the healthy room is ever reached.
     const p1 = await seedCharacter(db, host, "p1");
     const p2 = await seedCharacter(db, host, "p2");
     const h1 = await seedCharacter(db, host, "h1");

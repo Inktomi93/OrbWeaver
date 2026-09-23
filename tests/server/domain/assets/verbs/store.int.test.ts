@@ -165,7 +165,7 @@ describe("store", () => {
     ).rejects.toThrow(MISMATCH_RE);
   });
 
-  test("PD-94: rejects bytes over maxBytes BEFORE the CAS write (stores nothing, no emit)", async () => {
+  test("rejects bytes over maxBytes BEFORE the CAS write (stores nothing, no emit)", async () => {
     const db = await freshDb();
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);

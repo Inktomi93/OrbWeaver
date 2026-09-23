@@ -9,7 +9,7 @@
 // which owns the accepted-type vocabulary and both byte ceilings — the picker's `accept` attribute only
 // filters the OS dialog, so drop/paste need that gate made explicit rather than re-spelled per gesture.
 //
-// EMPTY-ENTER (PD-146 continue + W-E generate): a bare Enter on an empty composer either extends the tail
+// EMPTY-ENTER (continue + W-E generate): a bare Enter on an empty composer either extends the tail
 // assistant reply (`continueOnSend`) or prompts a fresh reply on a committed non-assistant tail
 // (`generateOnEmptySend`) — the pure `resolveEmptySendAction` picks the arm; the ▷ Response icon is the
 // always-visible equivalent.

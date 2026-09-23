@@ -2,7 +2,7 @@
 // `appRouter` via `createCaller` (docs/law/Tier-4-Transport.md). Proves: authedProcedure rejects anon;
 // adminProcedure rejects a plain user but passes owner ∪ admin (LAYER-1, no db); a representative router
 // delegates to the injected service verb with the Principal; the CSRF gate fires on cookie mutations only;
-// the injected rate-limit gate's throw maps to TOO_MANY_REQUESTS; the multi-human belt (PD-106) 404s the
+// the injected rate-limit gate's throw maps to TOO_MANY_REQUESTS; the multi-human belt 404s the
 // documented single-user-refused surface list (the invites router + `notifications.presence` — the inbox
 // CRUD trio LEFT that list with #1627) and stays open in multi-user mode; the errorFormatter's
 // PROD-LEAK belt keeps `stack` off the wire shape in EVERY env; and its UNCLASSIFIED-MESSAGE belt keeps an
@@ -74,7 +74,7 @@ describe("adminProcedure (LAYER-1, owner ∪ admin, no db round-trip)", () => {
 });
 
 describe("a representative router delegates to the injected service verb", () => {
-  test("admin.listUsers calls ctx.services.admin.listUsers with the Principal (PD-3)", async () => {
+  test("admin.listUsers calls ctx.services.admin.listUsers with the Principal", async () => {
     const listUsers = vi.fn<AdminService["listUsers"]>();
     const ctx = makeContext({ auth: principal("admin"), services: { admin: { listUsers } } });
     await caller(ctx).admin.listUsers();
@@ -240,9 +240,9 @@ function inviteSurface(verb: keyof ChatService, drive: (ctx: Context) => Promise
 const INVITE_RESULTS = inviteResults(castId<UserId>("user_user"));
 
 // The full multi-human surface list at transport today — the invites/membership router (FINAL-Auth-Modes
-// §7 P1 — the PD-106 burn-down) + `notifications.presence`.
+// §7 P1) + `notifications.presence`.
 //
-// NEITHER THE INBOX CRUD TRIO NOR THE INBOX STREAM IS ON THIS LIST ANY MORE (#1627). PD-106's ruling
+// NEITHER THE INBOX CRUD TRIO NOR THE INBOX STREAM IS ON THIS LIST ANY MORE (#1627). The belt's ruling
 // survives, its INPUT changed: the belt covered the inbox because every notification SOURCE was
 // multi-human, and single-human sources now exist (`plugin-disabled`, `automation-notice`, the plugin
 // consent prompt), so the belt was hiding durable rows from the only human on a single-user box. The trio
@@ -277,7 +277,7 @@ const beltSurfaces: readonly BeltSurface[] = [
   },
 ];
 
-describe("multiHumanProcedure — the multi-human capability 404 belt (PD-106 / B4)", () => {
+describe("multiHumanProcedure — the multi-human capability 404 belt (B4)", () => {
   for (const surface of beltSurfaces) {
     test(`${surface.path}: not multi-human capable → NOT_FOUND (the surface looks unmounted)`, async () => {
       const { services, presence, probe } = surface.make();

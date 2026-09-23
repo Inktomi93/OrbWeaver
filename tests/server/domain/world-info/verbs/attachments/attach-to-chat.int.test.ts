@@ -1,4 +1,4 @@
-// verb: attachToChat (PD-30) — the chat-book join. Load-bearing: the INJECTED `requireChatHost` gate fires
+// verb: attachToChat — the chat-book join. Load-bearing: the INJECTED `requireChatHost` gate fires
 // (a guard rejection propagates and NOTHING writes/emits/audits); the book ownership gate fires (a foreign
 // book is NotFound); idempotent on the composite key — only the REAL insert emits `wiBookAttached` + audits
 // (a re-attach is silent: no phantom pool-invalidation event, no duplicate audit row).

@@ -1,4 +1,4 @@
-// sessions.authenticate (PD-83) — the local password login resolution, against a real libSQL db and the
+// sessions.authenticate — the local password login resolution, against a real libSQL db and the
 // REAL scrypt hasher (the same pepper the context binds). Pins the four leak-free-null failure shapes
 // (unknown handle / SSO-only null hash / wrong password / disabled row), the happy path, and the trimmed
 // handle (a stored row never carries whitespace — the ensureUser discipline).

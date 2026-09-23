@@ -180,7 +180,7 @@ export interface BookAttachmentTargets {
   readonly personaIds: readonly PersonaId[];
 }
 
-// Entry-level variants are emitted by domain/world-info/verbs/entries/{create,update,remove} (PD-89 done).
+// Entry-level variants are emitted by domain/world-info/verbs/entries/{create,update,remove}.
 
 /** One resolved lore entry to bulk-import. `keys` is null-collapsed by the writer (empty =\> NULL);
  *  `metadata` is validated through `entryMetadataSchema` at the write seam, never trusted raw. */

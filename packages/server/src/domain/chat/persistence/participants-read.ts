@@ -91,7 +91,7 @@ export async function loadParticipants(db: Db, chatId: ChatId, includePast = fal
 }
 
 /**
- * Does this character hold a `chat_participants` seat in any OTHER chat? The PD-96 first-chat existence
+ * Does this character hold a `chat_participants` seat in any OTHER chat? The first-chat existence
  * probe: `startChat` asks it BEFORE the new room's roster rows commit, so `false` ⇒ this creation is the
  * character's FIRST chat (`StatsDelta.newCharacter`). PAST seats count (`leftSeq` is NOT filtered) — the
  * stats rebuild's per-character chat aggregation joins `chat_participants` without a presence filter, and

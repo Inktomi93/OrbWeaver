@@ -34,7 +34,7 @@ import { createRequestTurn, createTurn } from "./verbs/turn.ts";
  *  only `human`/`character` are live kinds: character → the live card name, else the removed-character label;
  *  human → publics displayName, else its handle, else the removed-member label. The `agent` arm (→ the
  *  AgentCardView soul name, else the sourceKind label for an unhatched buddy) and `observer` (unseatable, never
- *  read) graft back on per PD-17/AP3-2 when the agent-principal design set returns. */
+ *  read) graft back on when the agent-principal program returns (docs/work/0048). */
 function resolveSeatDisplayName(
   r: Awaited<ReturnType<typeof loadParticipants>>[number],
   resolved: {

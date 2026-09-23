@@ -1,4 +1,4 @@
-// infra/network/ingress (PD-91) — the ingress edge belt's pure cores. Pins the PD-52 anti-spoof rule
+// infra/network/ingress — the ingress edge belt's pure cores. Pins the anti-spoof rule
 // (XFF is honored ONLY behind a trusted peer — an untrusted client can never spoof its rate-limit /
 // allowlist identity) and the allowlist decision (loopback/private always allowed; null ip degrades to
 // allowed — a belt, not the auth layer). The Hono middleware/context wrappers are thin shells over these.
@@ -14,7 +14,7 @@ describe("parseAllowlist", () => {
   });
 });
 
-describe("resolveClientIp — the PD-52 peer-vs-XFF trust precedence", () => {
+describe("resolveClientIp — the peer-vs-XFF trust precedence", () => {
   test("an UNTRUSTED public peer's x-forwarded-for is IGNORED (the spoof pin)", () => {
     expect(resolveClientIp({ peer: "198.51.100.9", forwarded: "1.2.3.4", trustedProxies: [] })).toBe("198.51.100.9");
   });

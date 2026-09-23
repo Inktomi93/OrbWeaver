@@ -1,4 +1,4 @@
-// Integration: PD-22 messages-economics — the stats-OWNED economics projection (the seam's Tier 2). Asserts
+// Integration: messages-economics — the stats-OWNED economics projection (the seam's Tier 2). Asserts
 // the D26-correct aggregation (economics from the SELECTED variant only — a non-selected swipe never
 // counts), owner scoping (a foreign owner's turns never leak), and the per-(character, model) split.
 

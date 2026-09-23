@@ -25,7 +25,7 @@ interface ParsedCard {
   readonly tags: readonly string[];
   /** Embedded ST character_book mapped to the canonical bulk-import shape, or null when the card ships none. */
   readonly book: BulkImportLorebookInput | null;
-  /** PD-144: carried attached-book REFERENCES (`{worldBookId, role}`), re-linked by id on import. Empty for a
+  /** Carried attached-book REFERENCES (`{worldBookId, role}`), re-linked by id on import. Empty for a
    *  foreign ST card / an orbweaver card with no attached books. Each ref is validated (invalid ones dropped). */
   readonly attachedBooks: readonly AttachedBookRef[];
   /** D121-E twin of `attachedBooks`: carried attached-SCRIPT references (`{regexScriptId}`), re-linked by id
@@ -62,7 +62,7 @@ function extractBulkImportLorebook(raw: unknown): BulkImportLorebookInput | null
   return { name, description, entries };
 }
 
-// PD-144: pull the orbweaver-namespaced attached-book references off `data.orbweaver_attached_books` (V3
+// pull the orbweaver-namespaced attached-book references off `data.orbweaver_attached_books` (V3
 // nests real fields under `data`; a bare root is tolerated). Each candidate is validated through the
 // canonical schema — a foreign/malformed entry is dropped, never thrown. The ownership gate runs later at
 // the re-link op; this only shapes the ids + roles.

@@ -1,4 +1,4 @@
-// verb: discover — character discovery by best-segment neighbourhood (PD-35, the third retrieval lens).
+// verb: discover — character discovery by best-segment neighbourhood (the third retrieval lens). See docs/work/0122.
 // Asserts against a real db + a scripted role-clients bundle: the owner-wide verbatim scan groups matching
 // lived-scene segments by character with evidence; the SCOPED-PRODUCER credit (solo blocks) AND — THE
 // LOAD-BEARING CASE — the GROUP CO-STAR credit (a group block credits every speaker, not just the egocentric

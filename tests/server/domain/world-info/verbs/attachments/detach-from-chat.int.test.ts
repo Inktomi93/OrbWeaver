@@ -1,4 +1,4 @@
-// verb: detachFromChat (PD-30) — idempotent removal under the INJECTED host gate. Load-bearing: only a REAL
+// verb: detachFromChat — idempotent removal under the INJECTED host gate. Load-bearing: only a REAL
 // removal emits `wiBookDetached` + audits (`detached:false` is silent); the book owner is NOT re-checked
 // (host authority over room config — a prior host's book stays cleanable after a handoff).
 

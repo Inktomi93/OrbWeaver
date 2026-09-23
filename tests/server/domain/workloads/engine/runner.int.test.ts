@@ -1,5 +1,5 @@
 // Engine test: runWorkload — the per-row state machine. Pins the success lifecycle (claim → succeeded +
-// result + bus events), failure (→ failed + the PD-113 WORKLOAD_FAILED audit through the injected op),
+// result + bus events), failure (→ failed + the WORKLOAD_FAILED audit through the injected op),
 // the claim-loser early-return, the cancelling→cancelled PIN (an aborted run that returned normally), and
 // the reaper-vs-zombie guard (a row reaped mid-run is not resurrected). Timers are disabled
 // (makeRunnerDeps `*Ms: 0`) so the run is synchronous + deterministic.
@@ -81,7 +81,7 @@ describe("runWorkload", () => {
     expect(await loadWorkloadStatus(db, id)).toBe("failed");
     expect((await loadWorkload(db, CONTRIBUTIONS, id))?.error).toContain("boom");
     expect(getRecentWorkloadEvents(id).map((e) => e.type)).toContain("failed");
-    // PD-113: the terminal runtime failure lands exactly ONE audit through the injected op.
+    // the terminal runtime failure lands exactly ONE audit through the injected op.
     expect(audit).toHaveBeenCalledExactlyOnceWith(
       {
         actorUserId: row.ownerId,

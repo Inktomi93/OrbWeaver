@@ -175,7 +175,7 @@ test("the reader-scrolled-up guard holds for a BARE scroll event (scrollbar/AT �
   await expect(component.getByTestId("is-at-end")).toHaveText("false");
 });
 
-// PD-147 pin-prompt placement (the deterministic half; the live streaming FEEL is a side-eye pass). The
+// Pin-prompt placement (the deterministic half; the live streaming FEEL is a side-eye pass). The
 // pinned row's top must land at the scroll viewport's top after `pinToIndex` — returns that px delta.
 async function rowTopDelta(component: import("@playwright/experimental-ct-react").MountResult, rowLabel: string): Promise<number> {
   const scrollBox = await component.locator('[data-slot="message-list-scroll"]').boundingBox();
@@ -222,7 +222,7 @@ test("pin-prompt: the bottom spacer lets a NEAR-END row still reach the top (sho
 
 // The other half of "the mode does something": under `follow` the SAME pinToIndex call is a real no-op —
 // the sticky tail keeps owning placement, so the target row does NOT climb to the top and the list stays
-// pinned to the last row. This is what makes `follow` byte-identical to the pre-PD-147 seal.
+// pinned to the last row. This is what makes `follow` byte-identical to the pre-pin-prompt seal.
 test("follow mode: pinToIndex is inert — the list stays at the tail", async ({ mount }) => {
   const component = await mount(<PinPromptList count={500} rowHeightPx={ROW_HEIGHT_PX} listHeightPx={LIST_HEIGHT_PX} pinIndex={250} scrollMode="follow" />);
   await expect(component.getByText("Message 499", { exact: true })).toBeVisible();
@@ -233,7 +233,7 @@ test("follow mode: pinToIndex is inert — the list stays at the tail", async ({
   expect(await rowBottomDelta(component, "Message 499")).toBeLessThan(LIST_HEIGHT_PX);
 });
 
-// PD-147 void-jump regression: scrollToEnd computes the end offset from getMaxScrollOffset() =
+// Void-jump regression: scrollToEnd computes the end offset from getMaxScrollOffset() =
 // scrollHeight - clientHeight, which INCLUDES the live pin spacer — so a jump while pinned landed in the
 // trailing void, pushing the real content above the fold. The fix: an explicit jump abandons the pin
 // (clears the spacer) BEFORE the offset is computed, landing on the last REAL row.
@@ -357,7 +357,7 @@ test("the follow-on-append scroll is instant (not smooth) under prefers-reduced-
   expect(behaviors.at(-1)).toBe("auto");
 });
 
-// PD-119 mechanism (Task #26): the SAME rangeExtractor escape hatch already sealed + CT-proven on
+// mechanism (Task #26): the SAME rangeExtractor escape hatch already sealed + CT-proven on
 // virtual-list, wired through this seal too.
 test("rangeExtractor passthrough: a forced index stays mounted even off-screen of the bottom-anchored viewport", async ({ mount }) => {
   const component = await mount(<RangeExtractorMessageList itemCount={200} />);
@@ -367,7 +367,7 @@ test("rangeExtractor passthrough: a forced index stays mounted even off-screen o
   await expect(component.getByText("Message 0", { exact: true })).toHaveCount(1);
 });
 
-// PD-119 keep-mounted path (item-space `keepMounted` predicate). The stateful row holds ONLY local
+// keep-mounted path (item-space `keepMounted` predicate). The stateful row holds ONLY local
 // React state (a controlled input); off-screen unmount destroys it. These two tests prove the
 // MECHANISM: the typed value SURVIVES a scroll-to-tail-and-back iff `keepMounted` matches the row.
 const KEEP_MOUNTED_ITEMS = 200;

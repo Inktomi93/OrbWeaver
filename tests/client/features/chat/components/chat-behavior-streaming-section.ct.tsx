@@ -50,7 +50,7 @@ test("toggling auto-collapse reasoning patches reasoningAutoCollapse with ONLY t
   expect("enterSends" in (lastPatch(trpc) ?? {})).toBe(false);
 });
 
-test("picking Pin patches streamScrollMode with ONLY this section's owned keys (PD-147)", async ({ mount, page }) => {
+test("picking Pin patches streamScrollMode with ONLY this section's owned keys", async ({ mount, page }) => {
   const trpc = await stub(page);
   await mount(<ChatStreamingSectionStory />);
   await page.getByRole("combobox", { name: "While a reply streams" }).click();

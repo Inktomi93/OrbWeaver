@@ -5,7 +5,7 @@
 // assets.store + tag.attachCardTagByName, and parses pure), so the harness needs no `freshDb` — the fakes
 // record their calls so the verb tests assert the flatten/provenance/dedup/handle-suffix/tag-attach
 // behaviour. `setExisting` seeds the byte-identical dedup oracle; `setExistingHandle` seeds the per-owner
-// handle EXISTENCE oracle `freeHandle`'s collision-suffix loop reads (#1470 replaced the PD-108 handle-MATCH
+// handle EXISTENCE oracle `freeHandle`'s collision-suffix loop reads (#1470 replaced the handle-MATCH
 // edit-in-place this used to back — see `domain/import/contract/service.ts`'s `FindCharacterByHandle`).
 
 import type { AttachedBookRef, CreateCharacterInput } from "@orb/contracts/character";
@@ -76,7 +76,7 @@ export interface ImportHarness {
   readonly tagAttaches: TagAttachCall[];
   /** Every embedded-lorebook import the verb issued (the injected `importLorebook` op, W1). */
   readonly lorebooks: LorebookCall[];
-  /** Every attached-book re-link the verb issued (the injected `linkCarriedBooks` op, PD-144). */
+  /** Every attached-book re-link the verb issued (the injected `linkCarriedBooks` op). */
   readonly linkBooks: LinkBooksCall[];
   /** Set what the fake `linkCarriedBooks` returns for the NEXT calls (default: links every carried ref). The
    *  verb skips the embedded-clone fallback when `linked > 0`, so this drives the same-vs-foreign-install split. */
@@ -178,10 +178,10 @@ export function makeHarness(): ImportHarness {
   };
 }
 
-// ── the PROFILE-wave harness (Option B; PD-77): a `ctx.profile` over RECORDING FAKES — the chats/personas
+// ── the PROFILE-wave harness (Option B): a `ctx.profile` over RECORDING FAKES — the chats/personas
 // verbs perform NO db access, they translate ST → the canonical bulk-import input and delegate the WRITE to
 // the injected `bulkImportChats`/`bulkImportPersonas` ops. The import VERB tests exercise the ST→input mapping
-// + the PD-78 backfill gate against these fakes; the db-write correctness is pinned in the chat/persona
+// + the backfill gate against these fakes; the db-write correctness is pinned in the chat/persona
 // persistence mirror int-tests. No `freshDb` for import (import fabricates no db).
 
 /** A fixed clock for the profile harness (deterministic — no unseeded time under tests/). */
@@ -207,7 +207,7 @@ export interface ProfileHarness {
   readonly chatCalls: BulkChatsCall[];
   /** Every `bulkImportPersonas` call the verb issued. */
   readonly personaCalls: BulkPersonasCall[];
-  /** Every `enqueueBackfill` call (the PD-78 gate assertion surface). */
+  /** Every `enqueueBackfill` call (the backfill gate assertion surface). */
   readonly backfills: { readonly ownerId: UserId }[];
   /** Every inline `reconcileStats` call. */
   readonly reconciles: { readonly ownerId: UserId }[];

@@ -64,7 +64,7 @@ export const CHAT_VERB_AUTHORITY = {
   // asking for the whole prompt. The preview family is a host instrument: RENDERED ⇒ `host`.
   previewSection: "host",
   peekPrompt: "host", // the full next-turn prompt reveals merged member cards at FULL — host/admin only
-  getShapeTrace: "host", // the SHAPE-phase debug trace (content-free counts) is a host/admin inspector surface (PD-132)
+  getShapeTrace: "host", // the SHAPE-phase debug trace (content-free counts) is a host/admin inspector surface
   // The per-variant WIRE RECORD — the RETROSPECTIVE member of the preview family, and host for the SAME
   // reason `peekPrompt` is: a stored `promptSnapshot` is a real assembled prompt, so it carries the roster's
   // cards at FULL fidelity (the D22 `memberCardVisibility` bypass), the hidden-class spans the §3.6 member

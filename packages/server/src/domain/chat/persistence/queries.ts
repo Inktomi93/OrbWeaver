@@ -66,7 +66,7 @@ interface ChatRow {
   title: string | null;
   starred: boolean;
   archived: boolean;
-  /** ST "Temporary Chat" (PD-65) — hidden from `listMemberChats`, swept once past the host's TTL. */
+  /** ST "Temporary Chat" — hidden from `listMemberChats`, swept once past the host's TTL. */
   temporary: boolean;
   parentChatId: ChatId | null;
   forkedAt: number | null;

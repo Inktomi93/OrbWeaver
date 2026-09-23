@@ -105,7 +105,7 @@ export interface ChatScenarioOptions {
   readonly injectionTokenBudget?: number;
   /** The resolved memory tuning (FOREIGN); absent ⇒ the engine's baked defaults. */
   readonly memoryConfig?: MemoryConfig | null;
-  /** The host's turn-behavior arm (FOREIGN — `UserSettings.chat`; PD-146). Default all-off ⇒ no custom
+  /** The host's turn-behavior arm (FOREIGN — `UserSettings.chat`). Default all-off ⇒ no custom
    *  stops, no auto-continue, no auto-swipe (byte-identical to today). */
   readonly chatBehavior?: ChatBehaviorInputs;
   /** The resolved connection every turn runs on (its capability's `turns` facts drive SHAPE's system-row

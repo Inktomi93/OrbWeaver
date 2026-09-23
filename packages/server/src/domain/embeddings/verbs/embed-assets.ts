@@ -6,7 +6,7 @@
 // captioning: a fully-embedded asset is a pure two-read skip. `force` bypasses the pre-check and threads
 // into `store`. Cooperative abort between assets; an embed failure propagates.
 //
-// PD-104 — the REINDEX half of purge+reindex for the image space (mirrors embed-corpus). After a complete
+// The REINDEX half of purge+reindex for the image space (mirrors embed-corpus). After a complete
 // BULK sweep re-embeds every asset into the owner's active image `(model, dim)` space, it RECORDS the
 // completion (`embed_space_state`, scope `images` — §10-5) and then PURGES `image_embeddings` rows in any
 // OTHER space. BULK-ONLY (ownerId === null); skipped on abort so the space is never left with a gap.
@@ -175,7 +175,7 @@ export function createEmbedAssets(ctx: EmbeddingsContext, deps: EmbedAssetsDeps)
       }
       onProgress?.(embedded + skipped, assetIds.length);
     }
-    // PD-104 purge (reclaim each touched owner's old image space) — only after a complete sweep, never on
+    // Purge (reclaim each touched owner's old image space) — only after a complete sweep, never on
     // abort. A no-op for an owner whose imageEmbed binding did not change since the last index.
     if (!signal.aborted) {
       await completeImageSweep(ctx, ownerId, receipts);

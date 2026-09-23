@@ -1,4 +1,4 @@
-// PD-137 — the per-message settled-cost affordance. `connection.generationCost` is a PAID upstream
+// The per-message settled-cost affordance. `connection.generationCost` is a PAID upstream
 // call (OpenRouter's `GET /generation`), resolved against the connection row that generated the swipe, so it
 // is NEVER fired on load: this renders a quiet click-to-reveal trigger, and only a
 // user click builds the query key (via `useGatedQuery`'s skipToken gate). The settled cost is immutable, so

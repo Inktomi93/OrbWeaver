@@ -40,7 +40,7 @@ export type DomainEventType = (typeof DOMAIN_EVENT_TYPES)[number];
  *  `contentChanged` discriminates a real CONTENT write (create/import/restore, or an `update` that changed a
  *  card field) from an identity-FLAG-only edit (star/archive/trustHtml/theme — `card-merge.ts:flagEdits`): the
  *  embeddings indexer re-embeds ONLY when `contentChanged` is true, so toggling a star never touches the model
- *  (owner ruling — starring is not a content change, backfill belongs to content events + the PD-53 sweep). The
+ *  (owner ruling — starring is not a content change, backfill belongs to content events + the bulk sweep). The
  *  field is ADDITIVE: the multi-human chat-bus fan (`emit-character-updated.ts`) ignores it and fires on EVERY
  *  edit (a co-member's open room must hear a theme/flag change too — a different consumer with a different need). */
 export interface CharacterUpdatedEvent {

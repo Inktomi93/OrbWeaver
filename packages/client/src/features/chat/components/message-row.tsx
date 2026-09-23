@@ -90,7 +90,7 @@ export interface MessageRowProps {
   /** True for the one row that is the "last-in-context" boundary; renders a quiet divider above it. */
   readonly contextBoundary?: boolean;
   /** The present-tense fit budget label ("N of M used · R reserved") shown on the boundary divider when the
-   *  previewFit query has resolved; absent ⇒ the bare "In context from here" line (PD-#7). */
+   *  previewFit query has resolved; absent ⇒ the bare "In context from here" line. */
   readonly contextBoundaryLabel?: string | undefined;
   /** The LINEAR-tier compaction summary covering the span ABOVE the boundary (previewFit `compactSummary`),
    *  or null. Non-null ⇒ the divider reports older messages are compacted into a summary + offers a peek at

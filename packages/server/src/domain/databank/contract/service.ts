@@ -262,7 +262,7 @@ export interface DatabankIngest {
 
 /** What the domain's `WorkloadContribution` factory needs from the composition root (the two RAG kinds).
  *  `purgeDocumentVectors` is the ONE cross-domain reach — the `documents` scope's `embed_space_state`
- *  completion plus the PD-139(c) old-embed-space reclaim, whose DELETE lives in embeddings/persistence (the
+ *  completion plus the old-embed-space reclaim, whose DELETE lives in embeddings/persistence (the
  *  ONE vector write path), injected here as a typed op. */
 export interface DatabankWorkloadDeps {
   readonly databankIngest: DatabankIngest;

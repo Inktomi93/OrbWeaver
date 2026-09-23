@@ -26,7 +26,7 @@ export interface ChatDetail {
   readonly title: string | null;
   readonly starred: boolean;
   readonly archived: boolean;
-  /** ST "Temporary Chat" (PD-65) — this room is ephemeral: hidden from `listChats` and swept once past
+  /** ST "Temporary Chat" — this room is ephemeral: hidden from `listChats` and swept once past
    *  the host's TTL. Exposed because the flag is CREATION-ONLY: a user who only learns their room was
    *  temporary after the first send cannot fix it, so the room must keep saying so. Read-only here — the
    *  only writer is `startChat` (`chat-detail.ts` projects it; no verb updates the column). */

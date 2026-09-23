@@ -1,6 +1,6 @@
 // verb: listPendingSuggestions — the owner-scoped read of STAGED (`status:'pending'`) character-tag
 // suggestions (the Accept/Reject review queue). The read half of the two-surface `character_tags.status`
-// model: PD-40's distill pass + import's card-tag carry stage `pending` rows; this enumerates them (joined to
+// model: the distill pass + import's card-tag carry stage `pending` rows; this enumerates them (joined to
 // the tag row so the review UI has name + colors — {@link TagSuggestionView}). `characterId` narrows to one
 // editor's suggestions; absent = the owner's whole pending inbox. Owner-scoped via `characters.ownerId` (the
 // junction carries no ownerId, D23) — a foreign character's suggestions are never returned. READ-ONLY: Accept

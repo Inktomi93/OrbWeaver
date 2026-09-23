@@ -339,7 +339,7 @@ describe("read — listings (membership-scoped, D18)", () => {
     expect(all.map((c) => c.id).sort()).toEqual([archived, live].sort());
   });
 
-  test("listChats ALWAYS hides temporary chats (ST Temporary Chat, PD-65)", async () => {
+  test("listChats ALWAYS hides temporary chats (ST Temporary Chat)", async () => {
     const me = await seedUser(db, castId<Handle>("me"));
     const normal = await seedChat(db, "normal");
     const temp = await seedChat(db, "temp", { temporary: true });
@@ -1431,7 +1431,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     expect((previewErr as ChatOperationError).code).toBe("not_host");
   });
 
-  test("previewAssembly routes a guided steer through the SAME assembly a real turn gets (PD-63)", async () => {
+  test("previewAssembly routes a guided steer through the SAME assembly a real turn gets", async () => {
     const me = await seedUser(db, castId<Handle>("me"));
     const chatId = await seedRoom("room", me);
 
@@ -2352,7 +2352,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     const { getShapeTrace } = createRead(makeChatContext(db), makeDeps());
     const trace = await getShapeTrace({ principal: principal(me), chatId });
 
-    // Row COUNTS per stage, no content bytes — the content-free projection (PD-132).
+    // Row COUNTS per stage, no content bytes — the content-free projection.
     expect(trace.stageCounts.withTail).toBe(2);
     expect(typeof trace.squashMerges).toBe("number");
     expect(SHAPE_BREAKPOINT_DECISIONS).toContain(trace.breakpointDecision);

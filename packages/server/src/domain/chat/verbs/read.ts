@@ -1300,7 +1300,7 @@ function createPeekPrompt(ctx: ChatContext, deps: ReadDeps): ChatService["peekPr
   };
 }
 
-/** `getShapeTrace` — the content-free SHAPE trace for the next-turn shaping of the current canon (PD-132).
+/** `getShapeTrace` — the content-free SHAPE trace for the next-turn shaping of the current canon.
  *  HOST/ADMIN (`requireHost`): the SHAPE-phase debug surface, gate-classified `host` in the auth matrix.
  *  Re-runs SHAPE on demand (the same `buildPrompt` → `toShapeCanon` → `shapeTurn` a real turn's peek uses),
  *  then projects the stage snapshots + the resolved breakpoint offset onto the content-free `ShapeTrace` —
@@ -1352,7 +1352,7 @@ function createGetVariantWire(ctx: ChatContext): ChatService["getVariantWire"] {
 }
 
 /** `previewContextFit` — the PRESENT-TENSE fit budget for the current canon against the host's effective
- *  preset + resolved capability (PD-#7). MEMBER-gated (`requireParticipant`): unlike `getShapeTrace` it
+ *  preset + resolved capability. MEMBER-gated (`requireParticipant`): unlike `getShapeTrace` it
  *  returns no per-stage row counts (no merged-card leak) — only the boundary id + budget numbers the
  *  transcript divider renders. Reuses the SAME `resolvePreviewInputs` → `buildPrompt` → `toShapeCanon` →
  *  `shapeTurn` preamble the SHAPE trace uses, then runs the SAME `fitHistory` over the SAME budget

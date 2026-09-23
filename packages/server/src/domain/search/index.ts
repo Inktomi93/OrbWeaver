@@ -1,7 +1,7 @@
 // domain/search — FRONT DOOR: the only legal external import; re-exports the public surface. The within-space
 // vector retrieval engine (`knn`/`findCharacters`), the chat-memory lenses (`digests`/`segments`/`corpus`),
-// the cross-modal `images` + lexical `fields`/`suggest`, the PD-35 discovery lens (`discover`) + its
-// seed-vector siblings (`similarCharacters`/`similarArt`), and the unified `search()` dispatch (PD-38) over
+// the cross-modal `images` + lexical `fields`/`suggest`, the discovery lens (`discover`, docs/work/0122) + its
+// seed-vector siblings (`similarCharacters`/`similarArt`), and the unified `search()` dispatch over
 // the `SearchScope`/`SearchTarget` axes.
 
 export type { SearchContext } from "./context.ts";

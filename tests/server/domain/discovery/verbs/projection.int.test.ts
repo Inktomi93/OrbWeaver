@@ -1,4 +1,4 @@
-// Integration: PD-40 corpusProjection — a 2D PCA of the owner's card embeddings (the "corpus galaxy"),
+// Integration: corpusProjection — a 2D PCA of the owner's card embeddings (the "corpus galaxy"),
 // labelled name + genre; owner-scoped (audit #1); fewer than 3 cards → [].
 
 import type { Db } from "@orb/db";

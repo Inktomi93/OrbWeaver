@@ -344,14 +344,14 @@ describe("runTurnPipeline — request shaping + fit", () => {
     expect(typeof result.cacheBreakpointFromEnd === "number" || result.cacheBreakpointFromEnd === null).toBe(true);
   });
 
-  test("PD-146: the host's custom stopping strings fold into the request intent's stop set (dedup, intent-first)", async () => {
+  test("the host's custom stopping strings fold into the request intent's stop set (dedup, intent-first)", async () => {
     const { args } = baseArgs({ intent: { stop: ["<END>"] } satisfies UserIntent, extraStopSequences: ["<END>", "\nUser:"] });
     const result = await runTurnPipeline(args);
     // resolveSampling reads request.intent.stop — the preset/intent stops come first, then the host's, Set-deduped.
     expect(result.request.intent.stop).toEqual(["<END>", "\nUser:"]);
   });
 
-  test("PD-146: no custom stops leaves the request intent untouched but for the materialized maxOutputTokens", async () => {
+  test("no custom stops leaves the request intent untouched but for the materialized maxOutputTokens", async () => {
     const intent: UserIntent = { stop: ["<END>"] };
     const withEmpty = await runTurnPipeline(baseArgs({ intent, extraStopSequences: [] }).args);
     const withNone = await runTurnPipeline(baseArgs({ intent }).args);
@@ -1027,7 +1027,7 @@ describe("runTurnPipeline — history macro resolution", () => {
   test("a stored {{user}} in a history row resolves via the PRODUCER to THAT row's own stamped persona — never the active NOR the pinned anchor", async () => {
     // Chat anchored to Nyx (pinned); the current speaker's active persona is Zara; the row is stamped
     // personaId=Mara (the Chat-Macro-Resolution.md §6 3-way-distinct fixture). The stamp wins over BOTH
-    // axes — PD-100: the row's personaId is the macro subject now, not just attribution chrome.
+    // axes — the row's personaId is the macro subject now, not just attribution chrome.
     const ctx = ctxOf({
       pinnedPersona: { name: "Nyx", description: "the frozen anchor POV" },
       activePersona: { name: "Zara", description: "the live active persona" },
@@ -1202,7 +1202,7 @@ describe("runTurnPipeline — squashSystemMessages is the PRESET knob, folded at
   });
 });
 
-describe("runTurnPipeline — PD-148: the preset params fold into the wire request", () => {
+describe("runTurnPipeline — the preset params fold into the wire request", () => {
   const presetParams = (params: UserIntent): PromptConfig => ({ ...DEFAULT_PROMPT_CONFIG, params });
 
   test("preset `params` are the BASE — a preset's sampling knobs reach the wire intent with no per-turn override", async () => {

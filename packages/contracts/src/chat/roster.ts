@@ -21,7 +21,7 @@ import { participantKindSchema } from "./participants.ts";
 // and the group-macro context. The LIFECYCLE logic is `domain/chat`; these are just the wire shapes.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
-/** The `participantRoleSchema` Zod enum over the ONE-HOME `host|member` axis. ONE HOME (PD-59): the tuple +
+/** The `participantRoleSchema` Zod enum over the ONE-HOME `host|member` axis. ONE HOME: the tuple +
  *  `ParticipantRole` type are DEFINED in `@orb/contracts/identity` (`can()` reads them; identity is the DAG
  *  root) — every consumer imports them from there (no second name, no alias); this only derives the schema.
  *
@@ -458,7 +458,7 @@ export function resolveCarriedBackground(
 
 /** The membership-gated, level-clamped PUBLIC card projection (D22 — Part III §11). Fields above the
  *  effective `visibility` level are `null` (the ONE producer is chat's `clampMemberCard` —
- *  substrate/auth/clamp.ts, PD-111 — keyed to `chatMetadata.group.memberCardVisibility`; the host always
+ *  substrate/auth/clamp.ts — keyed to `chatMetadata.group.memberCardVisibility`; the host always
  *  gets `full`). Read-only +
  *  while-present; viewing ≠ owning (edit/clone/export stay owner-only). Self-contained — it is a clamped
  *  PROJECTION, not the full `CharacterCard`, so `chat` needs no `→ character` edge for it. */

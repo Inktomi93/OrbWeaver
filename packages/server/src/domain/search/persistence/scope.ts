@@ -15,7 +15,7 @@ interface DigestScopeParams {
   readonly chatIds?: readonly ChatId[] | undefined;
   readonly ownerId?: UserId | undefined;
   readonly scopedCharacterId?: CharacterId | undefined;
-  /** The membership-widened by-character cross-chat scope (D16, PD-38): match digests this character
+  /** The membership-widened by-character cross-chat scope (D16): match digests this character
    *  egocentrically produced OR co-star blocks where it was merely PRESENT (a `chat_digest_speakers`
    *  row). Filtering on `scopedCharacterId` alone silently drops the co-star blocks. Mutually exclusive
    *  with `scopedCharacterId` (this widens; that narrows). */

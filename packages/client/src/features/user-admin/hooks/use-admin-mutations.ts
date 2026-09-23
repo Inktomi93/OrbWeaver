@@ -78,7 +78,7 @@ export const useRefreshCatalog = createEntityMutation<inferInput<Trpc["connectio
   errorToast: "Couldn't refresh the model catalog.",
 });
 
-/** PD-90 — the inline single-card embed (admin-only; drives the GPU embed engine). Reconciles nothing;
+/** The inline single-card embed (admin-only; drives the GPU embed engine). Reconciles nothing;
  *  the caller renders the returned ok inline. */
 export const useEmbedCharacterCard = createEntityMutation<inferInput<Trpc["admin"]["embedCharacterCard"]>, { readonly ok: true }>({
   options: (trpc) => trpc.admin.embedCharacterCard.mutationOptions(),

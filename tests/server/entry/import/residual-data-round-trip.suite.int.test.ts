@@ -1,4 +1,4 @@
-// PD-127 — the REAL DB-mediated import→export round-trip for `residualData`. Wave 4 proved the serde
+// The REAL DB-mediated import→export round-trip for `residualData`. Wave 4 proved the serde
 // halves in isolation (`cardFromJson`/`buildCardV3` unit tests, `tests/server/kit/serde/card/index.test.ts`);
 // this proves the actual flow a user hits: `runProfileImport` (the entry composition driver) wired to the
 // REAL `createCharacterService` writes the parsed card's `residualData` into the `characters.residual_data`
@@ -22,7 +22,7 @@ import { expect, test } from "../../../support/fixtures.ts";
 import { makeHarness as makeCharacterHarness, seedUser } from "../../domain/character/_support.ts";
 import { makeHarness as makeExportHarness } from "../../domain/export/_support.ts";
 
-// A bare V3 JSON card carrying: a GENUINELY-unknown `data.*` key (`custom_x` — the PD-127 residual survival
+// A bare V3 JSON card carrying: a GENUINELY-unknown `data.*` key (`custom_x` — the residual survival
 // gap), the now-TYPED-column fields (`source`/`nickname` — promoted out of residual, V3 promotion Phase A),
 // and `group_only_greetings` (folded into the greetings array as a `groupOnly:true` entry — V3 promotion
 // Phase B, re-split on export). No PNG, so no avatar store fires.
@@ -53,7 +53,7 @@ const noopTag: ImportTagPort = {
   attachCardTagByName: (): Promise<boolean> => Promise.resolve(true),
 };
 
-describe("residualData survives the DB-mediated import→export round-trip (PD-127)", () => {
+describe("residualData survives the DB-mediated import→export round-trip", () => {
   test("import writes residualData to the characters row; export re-emits it at the card's data root", async () => {
     const db = await freshDb();
     const ownerId = await seedUser(db, { handle: castId<Handle>("residual-owner") });

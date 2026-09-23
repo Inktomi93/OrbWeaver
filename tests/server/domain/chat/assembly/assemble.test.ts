@@ -523,7 +523,7 @@ describe("assemblePrompt — ASSEMBLE post-process (collapseNewlines)", () => {
   });
 });
 
-describe("assemblePrompt — PD-140/D25: implicit compact_summary prepend", () => {
+describe("assemblePrompt — D25: implicit compact_summary prepend", () => {
   test("a preset with no compact_summary section still delivers ctx.compactSummary (stateless-runner safety net)", () => {
     const config = configOf([marker({ marker: "main_prompt", template: "sys" }), marker({ marker: "chat_history" })]);
     const out = assemblePrompt(config, ctxOf({ compactSummary: "the summary so far" }));
@@ -1318,7 +1318,7 @@ describe("assemblePrompt — section gating and placement", () => {
   });
 });
 
-// THE IMPLICIT COMPACT SUMMARY (PD-140/D25) — WHERE the synthesized section lands. Its position decides
+// THE IMPLICIT COMPACT SUMMARY (D25) — WHERE the synthesized section lands. Its position decides
 // whether a compacted chat's summary reaches a stateless runner inside the system block or after history.
 describe("assemblePrompt — implicit compact_summary placement", () => {
   test("a NULL compactSummary is inert — no crash, no synthesis", () => {
@@ -1352,7 +1352,7 @@ describe("assemblePrompt — implicit compact_summary placement", () => {
 
   // #1462 — the synthesis used to stand down for any ENABLED `compact_summary` section. A section whose
   // `trigger` excludes this turn's generation type is dropped by the walk, so "enabled" was not the question:
-  // the compacted chat's summary reached the model NOWHERE, which is the exact silent break PD-140 exists to
+  // the compacted chat's summary reached the model NOWHERE, which is the exact silent break this guarantee exists to
   // prevent.
   test("an enabled but TRIGGER-MISMATCHED compact_summary does not suppress the synthesis", () => {
     const config = configOf([

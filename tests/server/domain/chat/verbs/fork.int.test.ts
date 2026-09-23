@@ -470,7 +470,7 @@ describe("forkChat — D27 deep copy", () => {
   });
 });
 
-describe("forkChat — D64 character-drop on a non-owner fork (F4/PD-21 ruling)", () => {
+describe("forkChat — D64 character-drop on a non-owner fork (F4 ruling)", () => {
   test("a non-owner fork SUCCEEDS: it drops the un-owned character seats, keeps the forker's characters + the whole history", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const member = await seedUser(db, castId<Handle>("member"));

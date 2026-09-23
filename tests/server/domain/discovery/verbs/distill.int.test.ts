@@ -1,4 +1,4 @@
-// Integration: the PD-40 distill producer — the character-summary + staged-tag-suggestion write-half.
+// Integration: the distill producer — the character-summary + staged-tag-suggestion write-half.
 // Load-bearing proofs:
 //   • THE SWAPPABLE ROLE: distill runs on the INJECTED `summarize` thunk (the same seam the memory digest
 //     summarizer uses). A FAKE summarize client drives the output — swapping it changes what's produced,

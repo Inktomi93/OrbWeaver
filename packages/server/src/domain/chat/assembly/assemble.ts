@@ -619,7 +619,7 @@ function computeOriginals(config: PromptConfig, ctx: AssembleContext, registry: 
 
 const SYNTHETIC_COMPACT_SUMMARY_ID = "__synthetic-compact-summary";
 
-/** PD-140/D25: a compacted chat's summary must reach STATELESS runners even when the active preset omits a
+/** D25: a compacted chat's summary must reach STATELESS runners even when the active preset omits a
  *  `compact_summary` section (the neo C1 cache-anchor invariant). The assembler — not the preset author —
  *  guarantees delivery: when `ctx.compactSummary` is set and no ACTIVE `compact_summary` section exists,
  *  synthesize one immediately before the `chat_history` pivot (end of section list if there's no pivot).

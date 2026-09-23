@@ -1,4 +1,4 @@
-// verb: listImageAssetIds — the PD-53 bulk embed pass's UN-PRINCIPAL enumeration read (D20). Load-bearing:
+// verb: listImageAssetIds — the bulk embed pass's UN-PRINCIPAL enumeration read (D20). Load-bearing:
 // it spans ALL owners (the sweep is a trusted SYSTEM consumer — no owner scope), and it filters to image
 // mimes at the source (`mime LIKE 'image/%'`) so a non-image asset — an export zip — never reaches the
 // imageEmbed role.

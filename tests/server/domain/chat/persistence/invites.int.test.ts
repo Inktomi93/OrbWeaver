@@ -83,7 +83,7 @@ describe("persistence/invites — reads + lifecycle", () => {
     expect((await findInviteByTokenHash(db, "hash_i"))?.status).toBe("revoked");
   });
 
-  test("declineInviteById flips ONLY the caller's own pending targeted invite (PD-67)", async () => {
+  test("declineInviteById flips ONLY the caller's own pending targeted invite", async () => {
     const chatId = await seedChat(db, "a");
     const target = await seedUser(db, castId<Handle>("target"));
     const other = await seedUser(db, castId<Handle>("other"));

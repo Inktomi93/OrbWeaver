@@ -230,7 +230,7 @@ describe("startChat — canon-mutator stats push (stats.md)", () => {
     expect(await db.select().from(messages).where(eq(messages.chatId, chat.id))).toHaveLength(1);
   });
 
-  test("PD-96 firstness is DEFERRED too: two creations in a row push nothing, so no husk can spend a character's first-chat bump", async () => {
+  test("R0 §4.7 firstness is deferred too: two creations in a row push nothing, so no husk can spend a character's first-chat bump", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     const bryn = await seedCharacter(db, host, "bryn");
@@ -362,7 +362,7 @@ describe("startChat — lazy room creation + opening", () => {
   test("none: seeds nothing; opening is null; only chatCreated fires; metadata records the policy", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
-    // getCard IS reached on every path now (the PD-21 founding-character ownership validation) — but the `none`
+    // getCard IS reached on every path now (the founding-character ownership validation) — but the `none`
     // policy still seeds nothing from it.
     const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "hi")) });
 
@@ -394,7 +394,7 @@ describe("startChat — lazy room creation + opening", () => {
     expect(roster.every((r) => r.joinSeq === 0)).toBe(true);
   });
 
-  test("a foreign/unknown founding character is refused NOT_FOUND — no ghost roster row (PD-21)", async () => {
+  test("a foreign/unknown founding character is refused NOT_FOUND — no ghost roster row", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     // The owner-scoped card read: a foreign character resolves null (foreign == missing, leak-free).
     const ctx = makeChatContext(db, { getCard: () => Promise.resolve(null) });
@@ -410,7 +410,7 @@ describe("startChat — lazy room creation + opening", () => {
     expect(await db.select().from(chatParticipants)).toHaveLength(0);
   });
 
-  test("temporary: the flag lands on the row (ST Temporary Chat, PD-65); absent ⇒ persistent", async () => {
+  test("temporary: the flag lands on the row (ST Temporary Chat); absent ⇒ persistent", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "hi")) });
@@ -684,7 +684,7 @@ describe("startChat — founding injections (creation-time only)", () => {
   });
 });
 
-describe("startChat — PD-65 temporary rooms are HIDDEN from the library", () => {
+describe("startChat — temporary rooms are HIDDEN from the library", () => {
   // The flag landing on the row is covered above; what the client half depends on — and what nobody had
   // asserted — is that a temporary room never appears in `listChats`. That exclusion is the ENTIRE reason
   // the launcher can offer a temp room without polluting the chats list, and it must hold in BOTH branches

@@ -389,7 +389,7 @@ describe("createTurnEngine — happy path", () => {
     expect(h.chatChangedFans).toEqual([{ chatId, options: undefined }]);
   });
 
-  test("PD-117: a turn with NO reasoning channel never emits reasoningStreamDone", async () => {
+  test("a turn with NO reasoning channel never emits reasoningStreamDone", async () => {
     const chatId = await seedChat(db, "noreason");
     const h = harness(db); // OK_TURN carries no "reasoning" chunk kind
 
@@ -398,7 +398,7 @@ describe("createTurnEngine — happy path", () => {
     expect(types(h.events)).not.toContain("reasoningStreamDone");
   });
 
-  test("PD-117: a turn WITH a reasoning channel emits reasoningStreamDone BEFORE turnCompleted", async () => {
+  test("a turn WITH a reasoning channel emits reasoningStreamDone BEFORE turnCompleted", async () => {
     const chatId = await seedChat(db, "reason");
     const h = harness(db, {
       runChatTurn: scripted([
@@ -500,7 +500,7 @@ describe("createTurnEngine — happy path", () => {
     return row?.reasoning;
   }
 
-  test("D50 pt-2 (PD-117): a turn whose assembled WI pool fired entries emits worldInfoActivated with them", async () => {
+  test("D50 pt-2: a turn whose assembled WI pool fired entries emits worldInfoActivated with them", async () => {
     const chatId = await seedChat(db, "wi");
     const firedId = castId<WorldEntryId>("world_entry_dragon");
     const h = harness(db);

@@ -1,4 +1,4 @@
-// verb: collectGarbage — mark-sweep GC over the WHOLE per-user CAS against the live reference set (PD-26).
+// verb: collectGarbage — mark-sweep GC over the WHOLE per-user CAS against the live reference set.
 // For every blob on disk: it is LIVE iff an `assets` row carries its hash AND that asset id is referenced by
 // at least one asset-ref registry column (`persistence/asset-refs.ts`). A non-live blob older than the GRACE
 // window (mtime — guards the put→link gap: an in-flight import may have stored bytes it hasn't linked yet;

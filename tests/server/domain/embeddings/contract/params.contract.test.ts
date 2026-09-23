@@ -3,7 +3,7 @@
 // additions — `chat-block` kind, `segment` / `digest` lenses, docs/law/Knowledge-Cluster.md §1/§2) so the store
 // switch's exhaustive dispatch + the db lens columns stay in lockstep with the one home.
 //
-// The PD-34 `StoreParams` arms (DigestStoreParams / SegmentStoreParams) are PURE TS interfaces — there is
+// The `StoreParams` arms (DigestStoreParams / SegmentStoreParams) are PURE TS interfaces — there is
 // no zod schema to parse through, so their write shape is already `tsc`-enforced at every real producer;
 // a runtime "build a literal, assert its own fields back" block would be a tautology (no production call in
 // the loop) with zero coverage `tsc` doesn't already give. Removed 2026-07-10.

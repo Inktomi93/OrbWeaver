@@ -251,9 +251,8 @@ async function finalizeFailure(deps: WorkloadRunnerDeps, row: WorkloadRunnableRo
       at: deps.now(),
       error,
     });
-    // PD-113: the D1 audit-surface condition — a terminal runtime failure leaves an audit row, not just
-    // pino + the failed row. Best-effort (logAudit suppress-and-drop); `ownerId` null = system-triggered.
-    // PD-113: a terminal runtime failure leaves an audit row, not just pino + the failed row.
+    // A terminal runtime failure leaves an audit row, not just pino + the failed row (D1 audit-surface
+    // condition). Best-effort (logAudit suppress-and-drop); `ownerId` null = system-triggered.
     await deps.audit(
       {
         actorUserId: row.ownerId,

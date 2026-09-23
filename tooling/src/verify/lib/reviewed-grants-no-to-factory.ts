@@ -175,7 +175,7 @@ export const REVIEWED_GRANTS_NO_TO_FACTORY: readonly ReviewedGateGrant[] = [
     policyId: "no-untyped-soft-ref",
     subject: "message_variants.generationId",
     operation: "soft-reference",
-    why: "the upstream OpenRouter generation handle (`gen-…`) a variant was billed under — an EXTERNAL provider id (`connection.orGenerationCost`'s key, PD-137), not a reference to any orbweaver table (D24).",
+    why: "the upstream OpenRouter generation handle (`gen-…`) a variant was billed under — an EXTERNAL provider id (`connection.orGenerationCost`'s key), not a reference to any orbweaver table (D24).",
     endsWhen: "generation records are persisted as orbweaver rows, at which point the column can carry a real FK.",
   },
   {
@@ -440,7 +440,7 @@ export const REVIEWED_GRANTS_NO_TO_FACTORY: readonly ReviewedGateGrant[] = [
     policyId: "selection-store-via-factory",
     subject: "packages/client/src/state/message-selection-store.ts",
     operation: "raw-gated-store-mint",
-    why: "the ONE `*-selection-store.ts` that is not a single-id drill: message selection is a bulk multi-select (presence in a Set keyed by message id, PD-119), a shape the drill factory does not model.",
+    why: "the ONE `*-selection-store.ts` that is not a single-id drill: message selection is a bulk multi-select (presence in a Set keyed by message id), a shape the drill factory does not model.",
     endsWhen: "the drill factory models bulk selection and this store migrates onto it.",
   },
 ];

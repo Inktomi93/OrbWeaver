@@ -114,7 +114,7 @@ export type BulkImportSeatKnobs = SeatKnobs & { readonly characterId: CharacterI
  *  prose rides in {@link injections} from BOTH arms (an ST `note_prompt` is converted to one row by the ST
  *  mapper), and does NOT round-trip back out through the jsonl leg (export has no unambiguous inverse from a
  *  LIST of injections into ST's single `note_prompt` slot); `isRealConversation` gates the memory-backfill
- *  enqueue (PD-78). */
+ *  enqueue. */
 export interface BulkImportChatInput {
   readonly title: string;
   readonly importedFrom: string;
@@ -178,7 +178,7 @@ export interface ImportedChatIdentity {
 }
 
 /** The tallies `createBulkImportChats` returns for one bulk-import run. `realConversationWritten` is the
- *  PD-78 backfill gate (import enqueues ONE `memory-backfill` when true). */
+ *  backfill gate (import enqueues ONE `memory-backfill` when true). */
 export interface BulkImportChatsResult {
   /** The canonical identity resolved for EVERY input, in input order, whether this call wrote it or the scoped
    * import claim found it already present. This is the retry/re-link surface for cross-domain overlays; unlike

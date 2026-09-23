@@ -76,7 +76,7 @@ export function makeContext(parts: {
   /** W7a — WHICH cookie session this request came in on. Defaults to `null` (the sessionless admission arms);
    *  the per-SESSION socket-eviction tests set it, because it is what `stream.connect` stamps on the cell. */
   sessionId?: SessionId | null;
-  /** Defaults TRUE (multi-human capable) so the multi-human surfaces stay reachable; the PD-106 belt
+  /** Defaults TRUE (multi-human capable) so the multi-human surfaces stay reachable; the belt
    *  tests set it FALSE to exercise the 404 refusal. */
   multiHumanCapable?: boolean;
   csrfHeaderPresent?: boolean;
