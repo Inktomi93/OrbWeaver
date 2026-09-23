@@ -11,7 +11,7 @@ plan: doc-migration
 
 ## What
 
-Re-check each open finding in `docs/reviews/ast-codebase-audit/world-tools-running-finding-ledger.json`
+Re-check each open finding in the AST audit's running finding ledger
 against the current tree. Open means status `valid-finding` or `review-pending`, or a row in either
 ingestion backlog. Create a `docs/work` item for each finding that still holds, and record the ones the
 tree already fixed with their commit. Then delete `docs/reviews/ast-codebase-audit/` and the documents
