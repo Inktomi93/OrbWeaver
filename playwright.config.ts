@@ -76,7 +76,7 @@ export default defineConfig({
   // baseline predates the e2e seed/warm-up writes this config's own globalSetup performs against the
   // stack's DB, never against this repo's working tree. Its returned teardown runs LAST, after every
   // spec and after the e2e seed's own teardown (if any), for the same reason.
-  globalSetup: [resolve(import.meta.dirname, "tooling/src/_shared/working-tree-guard.ts"), "./tests/e2e/support/global-setup.ts"],
+  globalSetup: ["./tooling/src/_shared/working-tree-guard.ts", "./tests/e2e/support/global-setup.ts"],
   outputDir: "reports/e2e-results", // reports/ is gitignored
   fullyParallel: false,
   workers: 1, // serial — avoids libSQL :memory: state collisions once the stack is wired
