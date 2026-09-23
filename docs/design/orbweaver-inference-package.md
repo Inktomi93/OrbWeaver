@@ -2743,7 +2743,7 @@ it is a SERVER-side fetch inside the F12 admission — the pane calls a `connect
       - *The admin `vllm` verbs, `VllmSupervisorPort`, `AdminEngineStatus`, the engine router procedures* are
         deleted (§4); the verbs-tier `kind.ts` and `toResolvedView` moved to `packages/server/src/domain/connection/substrate/` (the
         `domain-no-cross-verb` cruiser rule); the JSON-schema sanitizer has TWO homes today —
-        `@orb/kit/json-schema` `scrubWireSchema` (per wire mode) and the agent-sdk `sanitizeAnthropicOutputSchema`
+        `@orb/contracts/inference` `scrubWireSchema` (per wire mode) and the agent-sdk `sanitizeAnthropicOutputSchema`
         — not the `backends/kit/clean-json-schema.ts` §4 named; a merge is a follow-up.
 
       - *The CLIENT COMPILE PASS (the pre-step-9 minimum, landed 2026-09-20)*: `packages/client` typechecks

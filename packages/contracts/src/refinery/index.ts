@@ -61,7 +61,7 @@ const REWRITE_TEXT_MAX = 100_000;
 // keyword — so it survives `projectJsonSchema` as `maxLength`/`maxItems` and is GRAMMAR-ENFORCED on the
 // guided-decoding wire, while the hosted wires strip the KEYWORD, relay the bound to the model in that
 // node's `description` (`[Constraints: maxLength: 16000]`, task #40) and let the zod belt re-impose it on
-// the reply (`kit/json-schema/wire-subset` states that contract). Critique prose additionally carries the ONE
+// the reply (`contracts/inference/wire-subset.ts` states that contract). Critique prose additionally carries the ONE
 // sanctioned refinement (the token cap — see the header).
 
 /** The product cap for one free-prose critique string (`summary`, `soulAssessment`, a per-field critique),
