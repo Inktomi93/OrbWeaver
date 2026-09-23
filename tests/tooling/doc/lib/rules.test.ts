@@ -6,7 +6,7 @@ import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const TODAY = "2026-09-23";
 const ADR = "docs/adr/0164-docs-plans-adrs.md";
-const PLAN = "docs/plans/doc-system/design.md";
+const PLAN = "docs/plans/widgets/design.md";
 const ITEM = "docs/work/0001-ledger-split.md";
 const MISSION = "docs/Mission.md";
 
@@ -32,8 +32,8 @@ function tree(docs: Readonly<Record<string, string>>, overrides: Partial<DocTree
 
 const CLEAN = {
   [ADR]: adrTemplate("Docs, plans and ADRs", TODAY),
-  [PLAN]: planTemplate("Doc system", TODAY),
-  [ITEM]: itemSource({ priority: "P1", area: "docs", plan: "doc-system" }),
+  [PLAN]: planTemplate("Widgets", TODAY),
+  [ITEM]: itemSource({ priority: "P1", area: "docs", plan: "widgets" }),
   [MISSION]: "---\nkind: law\nstatus: active\nupdated: 2026-07-03\n---\n\n# Mission\n\nWhy.\n",
 };
 
@@ -84,8 +84,8 @@ test("a required section is demanded by kind and a cap is enforced by kind", () 
 test("a plan needs its own folder with a design; there is no archive folder, and an item never lives in a plan folder", () => {
   const loose = tree({ ...CLEAN, "docs/plans/loose.md": planTemplate("Loose", TODAY) });
   expect(docProblems(loose)).toContain("docs/plans/loose.md: a plan lives in its own folder: docs/plans/<slug>/design.md");
-  const extra = tree({ ...CLEAN, "docs/plans/doc-system/notes.md": planTemplate("Notes", TODAY) });
-  expect(docProblems(extra)).toContain("docs/plans/doc-system/notes.md: a plan folder holds design.md and tasks.md only");
+  const extra = tree({ ...CLEAN, "docs/plans/widgets/notes.md": planTemplate("Notes", TODAY) });
+  expect(docProblems(extra)).toContain("docs/plans/widgets/notes.md: a plan folder holds design.md and tasks.md only");
   const archived = tree({ ...CLEAN, "docs/plans/archive/2026-09-01-old/design.md": planTemplate("Old", TODAY).replace("status: active", "status: archived") });
   expect(docProblems(archived)).toEqual(
     expect.arrayContaining([
@@ -93,12 +93,12 @@ test("a plan needs its own folder with a design; there is no archive folder, and
       "docs/plans/archive/2026-09-01-old/design.md: status archived is not one of active | parked for kind plan",
     ]),
   );
-  const moved = tree({ ...CLEAN, "docs/plans/doc-system/0002-moved.md": itemSource() });
-  expect(docProblems(moved)).toContain("docs/plans/doc-system/0002-moved.md: a plan folder holds design.md and tasks.md only");
+  const moved = tree({ ...CLEAN, "docs/plans/widgets/0002-moved.md": itemSource() });
+  expect(docProblems(moved)).toContain("docs/plans/widgets/0002-moved.md: a plan folder holds design.md and tasks.md only");
 });
 
 test("a parked plan carries a wake condition in the blocker grammar, and only a parked plan carries one", () => {
-  const parked = (blocked: string): string => planTemplate("Doc system", TODAY).replace("status: active", `status: parked\nblocked: ${blocked}`);
+  const parked = (blocked: string): string => planTemplate("Widgets", TODAY).replace("status: active", `status: parked\nblocked: ${blocked}`);
   expect(docProblems(tree({ ...CLEAN, [PLAN]: parked("owner") }))).toEqual([]);
   expect(docProblems(tree({ ...CLEAN, [PLAN]: parked("wake path docs/adr/0200-x.md") }))).toEqual([]);
   expect(docProblems(tree({ ...CLEAN, [PLAN]: parked("on 1") }))).toEqual([]);
@@ -106,11 +106,11 @@ test("a parked plan carries a wake condition in the blocker grammar, and only a 
   expect(docProblems(tree({ ...CLEAN, [PLAN]: parked("someday") }))).toEqual([
     `${PLAN}: a parked plan carries a reason: blocked: owner | on <id> | wake path <repo path> | wake gone <repo path>`,
   ]);
-  const bare = planTemplate("Doc system", TODAY).replace("status: active", "status: parked");
+  const bare = planTemplate("Widgets", TODAY).replace("status: active", "status: parked");
   expect(docProblems(tree({ ...CLEAN, [PLAN]: bare }))).toEqual([
     `${PLAN}: a parked plan carries a reason: blocked: owner | on <id> | wake path <repo path> | wake gone <repo path>`,
   ]);
-  const activeWithReason = planTemplate("Doc system", TODAY).replace("status: active", "status: active\nblocked: owner");
+  const activeWithReason = planTemplate("Widgets", TODAY).replace("status: active", "status: active\nblocked: owner");
   expect(docProblems(tree({ ...CLEAN, [PLAN]: activeWithReason }))).toEqual([
     `${PLAN}: only a parked plan carries blocked — pnpm doc status active ${PLAN} clears it`,
   ]);
@@ -151,9 +151,9 @@ test("two work items sharing one id is a finding, and so is done evidence that i
 
 test("an orphan tasks.md, a nested item folder and a non-markdown file under a governed tree are findings", () => {
   const orphan = tree(CLEAN);
-  const docs = [...orphan.docs, { path: "docs/plans/doc-system/tasks.md", source: "---\nkind: index\nstatus: active\n---\n\n# old\n" }];
+  const docs = [...orphan.docs, { path: "docs/plans/widgets/tasks.md", source: "---\nkind: index\nstatus: active\n---\n\n# old\n" }];
   expect(docProblems({ ...orphan, docs: [...docs].filter((doc) => doc.path !== ITEM), files: docs.map((doc) => doc.path) })).toContain(
-    "docs/plans/doc-system/tasks.md: orphan generated file, its plan has no items — pnpm doc index deletes it",
+    "docs/plans/widgets/tasks.md: orphan generated file, its plan has no items — pnpm doc index deletes it",
   );
   const nested = tree({ ...CLEAN, "docs/work/sub/0002-x.md": itemSource() });
   expect(docProblems(nested)).toContain("docs/work/sub/0002-x.md: docs/work/ is flat — an item is docs/work/NNNN-<slug>.md");
