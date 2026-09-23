@@ -4,7 +4,7 @@ status: superseded
 updated: 2026-07-13
 ---
 
-# Core-Laws-and-Precedents — planning-era archaeology record
+# The ledger index doc — planning-era archaeology record
 
 > Frozen 2026-07-13, extracted from the ledger index doc retired at the ledger split. The 2026-06-25/26 greenfield planning + reconciliation body of that doc (its §1–§6). The STANDING rulings these produced live in `../../adr/` (the D-ledger), the `Spine-*`/`Tier-*`/`Knowledge-Cluster` docs, and the built code + its file headers; this file is the how-we-got-here record only, not live law.
 
