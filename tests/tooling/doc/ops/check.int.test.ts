@@ -54,7 +54,7 @@ test("a writing-rule finding, a dead path and a structural finding all reach the
 
 test("a relative code-span path resolves against its own file: a missing target reds with file and line, a live one passes", async ({ plantedTree }) => {
   const root = await plantedTree({ ...LEGACY, "docs/Mission.md": MISSION, "docs/design/live.md": "# Live\n" });
-  newAdr("one", "One", root, TODAY);
+  newAdr({ slug: "one", title: "One" }, root, TODAY);
   const { writeFileSync } = await import("node:fs");
   const { join } = await import("node:path");
   writeFileSync(
