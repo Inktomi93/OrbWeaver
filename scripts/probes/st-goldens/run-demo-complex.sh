@@ -11,7 +11,7 @@ mkdir -p "$FIXTURES_DIR" "$DATA_ROOT/output" "$DATA_ROOT/orbweaver-output"
 
 # Fail-closed guard: a swallowed capture failure used to let compare-runner.ts read STALE output from a
 # prior run as if it were fresh evidence. RUN_STAMP marks "now"; every capture below must produce (or
-# re-touch) its output file NEWER than this stamp, or the run aborts before comparison.
+# re-touch) its output file NEWER than this stamp, or the run aborts.
 RUN_STAMP="$(mktemp)"
 FAILURES=0
 check_capture() {
@@ -113,12 +113,9 @@ done
 
 if [ "$FAILURES" -gt 0 ]; then
   rm -f "$RUN_STAMP"
-  echo "FATAL: $FAILURES capture(s) missing or stale — aborting before comparison." >&2
+  echo "FATAL: $FAILURES capture(s) missing or stale — aborting." >&2
   exit 1
 fi
 rm -f "$RUN_STAMP"
 
-echo "Running capture-orbweaver.ts to generate Orbweaver golden payloads..."
-node "$RIG_DIR/capture-orbweaver.ts"
-echo "Running compare-runner.ts to compare ST and Orbweaver outputs..."
-node "$RIG_DIR/compare-runner.ts"
+echo "ST arm done. There is no ORB-arm script; see README.md \"The ORB arm\"."
