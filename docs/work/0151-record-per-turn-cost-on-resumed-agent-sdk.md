@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: done
 updated: 2026-09-23
 priority: P2
 area: inference
+evidence: 41815d9b5
 ---
 
 # Record per-turn cost on resumed agent-sdk sessions

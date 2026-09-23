@@ -22,6 +22,7 @@ import { resolvedScrubSet } from "../kit/sanitize.ts";
 import type { AgentSdkLog } from "./log.ts";
 import { toSdkOutputFormat } from "./output-schema.ts";
 import { consumeTurnStream, linkAbort } from "./runner.ts";
+import { NO_SAVED_TOTALS } from "./session/index.ts";
 import { disciplineOptions, MCP_NAMESPACE, observabilityOptions, TERMINAL_MCP_NAMESPACE } from "./translate.ts";
 import type { AgentSdkDeps } from "./types.ts";
 
@@ -149,7 +150,15 @@ export async function runAgentTurn(req: AgentTurnRequest, deps: AgentSdkDeps, lo
   // The agent task spells no effort/thinking knob — the runtime's own default ran, which is unrecorded (null).
   const result = await consumeTurnStream(
     stream,
-    { model: connection.model, providerId: connection.providerId, resumed: false, now: deps.now, appliedEffort: null, secrets: resolvedScrubSet(connection) },
+    {
+      model: connection.model,
+      providerId: connection.providerId,
+      resumed: false,
+      savedTotals: NO_SAVED_TOTALS,
+      now: deps.now,
+      appliedEffort: null,
+      secrets: resolvedScrubSet(connection),
+    },
     log,
   );
   const mcpServerHealth = await probeMcpHealth(stream, deps, log);

@@ -408,6 +408,6 @@ test.describe("at the 486 width", () => {
     const before = (await search.boundingBox())?.y;
     await search.fill("vendor/not-listed");
     await expect(dialog.getByRole("button", { name: "Use “vendor/not-listed” as typed" })).toBeVisible();
-    expect((await search.boundingBox())?.y).toBe(before);
+    await expect.poll(async () => (await search.boundingBox())?.y).toBe(before);
   });
 });

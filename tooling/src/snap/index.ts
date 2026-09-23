@@ -120,7 +120,7 @@ export { NETWORK_PROFILES, NO_CPU_THROTTLE, parseNetworkProfile, throttleResultV
 // it is installed before any run arm exists.
 export { auditSettledPage } from "./ops/arms/lighthouse.ts";
 export { resolveContextsMode, snapContexts } from "./ops/contexts.ts";
-export { splitTrailingEvals } from "./ops/drive.ts";
+export { splitTrailingEvals } from "./ops/drive-actions.ts";
 export { resolveFixtureTarget } from "./ops/fixture.ts";
 export type { SnapFlagDescriptor } from "./ops/flag-grammar.ts";
 export { SNAP_FLAG_GROUP_ORDER, snapFlagDescriptors } from "./ops/flag-grammar.ts";
