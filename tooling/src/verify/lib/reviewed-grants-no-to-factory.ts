@@ -283,6 +283,14 @@ export const REVIEWED_GRANTS_NO_TO_FACTORY: readonly ReviewedGateGrant[] = [
     endsWhen: "the band becomes a retryable read of its own, or the pane stops owning a single announced failure.",
   },
   {
+    id: "render-error-via-battery:add-model-on-key-dialog",
+    policyId: "render-error-via-battery",
+    subject: "packages/client/src/features/credentials/components/add-model-on-key-dialog.tsx",
+    operation: "custom-render-error",
+    why: "a failed or empty catalog is the picker's typed arm, never an error boundary for the dialog: the arm re-renders `ModelPicker` in its failed-catalog source so a model can still be named by id where policy permits it, instead of replacing the whole form with a Couldn't-load card.",
+    endsWhen: "the typed-id fallback moves off `QueryBoundary`'s failed-read arm, or the picker itself grows its own retry-and-fallback surface.",
+  },
+  {
     id: "route-imports-no-feature:app-root-app-shell",
     policyId: "route-imports-no-feature",
     subject: "packages/client/src/routes/app-root.tsx",

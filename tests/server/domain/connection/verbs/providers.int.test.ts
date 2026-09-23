@@ -53,9 +53,9 @@ describe("registerProvider / dropProvider", () => {
       pluginName: "provider-test",
       rows: [{ ...PLUGIN_ROW, id: CONTRIBUTED_ID }],
     });
-    expect(h.svc.registry.get(CONTRIBUTED_ID)).toMatchObject({ id: CONTRIBUTED_ID, label: "Acme" });
+    expect(h.svc.registry.get(CONTRIBUTED_ID, owner.userId)).toMatchObject({ id: CONTRIBUTED_ID, label: "Acme" });
     await h.svc.dropPluginProviders({ pluginId: PLUGIN_ID });
-    expect(h.svc.registry.get(CONTRIBUTED_ID)).toBeUndefined();
+    expect(h.svc.registry.get(CONTRIBUTED_ID, owner.userId)).toBeUndefined();
   });
 
   test("a registered row joins the registry, persists, and is offered by the picker", async () => {
@@ -63,11 +63,11 @@ describe("registerProvider / dropProvider", () => {
     const h = await makeHarness(db);
     const owner = await seedOwner(db);
     await h.svc.registerProvider({ row: PLUGIN_ROW, origin: { admin: owner.userId } });
-    expect(h.svc.registry.get("acme-endpoint")).toMatchObject({ id: "acme-endpoint", label: "Acme" });
+    expect(h.svc.registry.get("acme-endpoint", owner.userId)).toMatchObject({ id: "acme-endpoint", label: "Acme" });
     expect((await h.svc.providersAvailable({ principal: owner.principal })).some((row) => row.provider.id === "acme-endpoint")).toBe(true);
     // The row is PERSISTED: a fresh runtime over the same db reads it back at construction.
     const reborn = await makeHarness(db);
-    expect(reborn.svc.registry.get("acme-endpoint")).toBeDefined();
+    expect(reborn.svc.registry.get("acme-endpoint", owner.userId)).toBeDefined();
   });
 
   test("a runtime row may not shadow a built-in id", async () => {
@@ -76,7 +76,7 @@ describe("registerProvider / dropProvider", () => {
     const owner = await seedOwner(db);
     await expect(h.svc.registerProvider({ row: { ...PLUGIN_ROW, id: "openrouter" }, origin: { admin: owner.userId } })).rejects.toThrow();
     // The built-in is intact: its own label, not the impostor's.
-    expect(h.svc.registry.get("openrouter")).toMatchObject({ label: "OpenRouter" });
+    expect(h.svc.registry.get("openrouter", owner.userId)).toMatchObject({ label: "OpenRouter" });
   });
 
   test("a malformed row is refused by the registry's own schema, not stored half-parsed", async () => {
@@ -84,7 +84,7 @@ describe("registerProvider / dropProvider", () => {
     const h = await makeHarness(db);
     const owner = await seedOwner(db);
     await expect(h.svc.registerProvider({ row: { id: "broken" }, origin: { admin: owner.userId } })).rejects.toThrow();
-    expect(h.svc.registry.get("broken")).toBeUndefined();
+    expect(h.svc.registry.get("broken", owner.userId)).toBeUndefined();
   });
 
   test("dropping a provider removes it from the registry and from the persisted rows", async () => {
@@ -93,9 +93,9 @@ describe("registerProvider / dropProvider", () => {
     const owner = await seedOwner(db);
     await h.svc.registerProvider({ row: PLUGIN_ROW, origin: { admin: owner.userId } });
     await h.svc.dropProvider({ providerId: ACME_ID });
-    expect(h.svc.registry.get("acme-endpoint")).toBeUndefined();
+    expect(h.svc.registry.get("acme-endpoint", owner.userId)).toBeUndefined();
     const reborn = await makeHarness(db);
-    expect(reborn.svc.registry.get("acme-endpoint")).toBeUndefined();
+    expect(reborn.svc.registry.get("acme-endpoint", owner.userId)).toBeUndefined();
   });
 
   test("a connection on a dropped provider reads `no-connection` instead of resolving", async () => {

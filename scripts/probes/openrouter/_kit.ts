@@ -194,6 +194,10 @@ export function usageOf(json: OrResponse): UsageSummary {
 
 let spend = 0;
 export const totalSpend = () => spend;
+/** For a probe that calls OpenRouter outside {@link orCall} (the streaming-only debug echo), so the batch total stays true. */
+export const addSpend = (cost: number) => {
+  spend += cost;
+};
 
 export async function orCall(body: OrRequestBody, key: string): Promise<OrCallResult> {
   const started = Date.now();
