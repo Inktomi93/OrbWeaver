@@ -29,6 +29,7 @@
     "knip": "knip",
     "knip:prod": "knip --production --strict",
     "review:mirror": "node tooling/src/review-mirror/cli.ts",
+    "probe:f4-cache-proof": "node scripts/probes/f4-cache-proof.ts",
     "probe:history-system-rows": "node scripts/probes/history-system-rows.ts",
     "plugin:pack": "node scripts/pack-plugin.ts",
     "sse-tap": "node --experimental-eventsource tooling/src/wire-tap/cli.ts sse",
