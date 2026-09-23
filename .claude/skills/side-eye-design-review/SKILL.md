@@ -5,7 +5,7 @@ description: "Review Orbweaver UI/UX, visual design, usability, and accessibilit
 
 # side-eye design-review laws (§0-§18)
 
-Adapted from the `impeccable` design language (pbakaus/impeccable, Apache-2.0), Nielsen/NN-g heuristics, and Orbweaver law. Apply this checklist; name the rule a finding breaks. `reference/design-context.md` maps to the generated design truth and the owner product voice. `docs/design/impeccable-adoption.md` is the upstream triage and attribution record; the live rule set is `DESIGN_AUDIT_RULES` in `tooling/src/ui-audit/contract/rules.ts` — cite that file, never a remembered count. The side-eye role preloads this skill together with `snap-driving`, which owns mechanics, flags, exit codes, and the stage/db/route facts — read it too, never restated here.
+Adapted from the `impeccable` design language (pbakaus/impeccable, Apache-2.0), Nielsen/NN-g heuristics, and Orbweaver law. Apply this checklist; name the rule a finding breaks. `reference/design-context.md` maps the generated design truth and the product voice. `docs/design/impeccable-adoption.md` records the upstream triage and attribution; the live rule set is `DESIGN_AUDIT_RULES` in `tooling/src/ui-audit/contract/rules.ts` — cite that file, not a count. The side-eye role also preloads `snap-driving`, which owns mechanics, flags, exit codes, and stage/db facts — read it too, not restated here.
 
 ## §0 Our laws (check these first)
 
@@ -48,7 +48,7 @@ Adapted from the `impeccable` design language (pbakaus/impeccable, Apache-2.0), 
 - Intentional, not a uniform section-fade reflex. Ease-out exponential; no bounce/elastic. Do not animate layout properties; do not gate content visibility on a class-triggered transition (it never fires on hidden tabs or headless).
 - `@media (prefers-reduced-motion: reduce)` is mandatory for every animation. A global killer in `packages/ui/src/styles/globals.css` covers transitions; a new keyframe animation still needs its own opt-out.
 - Never animate an `<img>` on hover.
-- **Coordinated motion — the desync trap.** When an element slides or transforms, the layout it displaces must move in sync (same duration/easing) or be instant. `__orb.motion()` does not flag a hybrid (element gliding while the space it vacated snaps at `0s`) — it drops no frame; it is a visual desync. Verify `transition-duration` parity between the moving element and the container/track/sibling it reflows, and watch the content, not the moving element.
+- **Coordinated motion.** When an element slides or transforms, the layout it displaces must move in sync (same duration/easing) or be instant. `__orb.motion()` does not flag a hybrid (element gliding while the space it vacated snaps at `0s`) — it drops no frame; it is a visual desync. Verify `transition-duration` parity between the moving element and the container/track/sibling it reflows, and watch the content, not the moving element.
 
 ## §5 Interaction & states
 
@@ -56,11 +56,11 @@ Adapted from the `impeccable` design language (pbakaus/impeccable, Apache-2.0), 
 - Provide the exits: cancel/undo/back/escape; Esc closes modals.
 - Cover every state — empty (useful guidance, not just "No results"), loading, error (plain language, near the source, preserves work), success. Confirm destructive actions; smart defaults; autosave/draft recovery.
 
-## §6 Absolute bans / AI-slop antipatterns (flag on sight)
+## §6 Bans / AI-slop antipatterns (flag on sight)
 
-`side-tab` accent border · `border-accent-on-rounded` · `overused-font` (Inter/Roboto default) · `single-font` for everything · `flat-type-hierarchy` · `gradient-text` · `ai-color-palette` (generic indigo/violet SaaS) · `cream-palette` · `nested-cards` · `monotonous-spacing` · `bounce-easing` · `dark-glow` · `icon-tile-stack` · `italic-serif-display` · `hero-eyebrow-chip` · `repeated-section-kickers` · numbered section markers · `em-dash-overuse` · `marketing-buzzword` · aphoristic-cadence copy. Many fire deterministically in `pnpm snap <route> --design-audit` (origin-tagged `impeccable`; full triage in `docs/design/impeccable-adoption.md`). Two named divergences from upstream: the kicker voice (caps micro label + hairline rule as a section name) is ratified law here (`Section.kicker`); and hairline-border with soft-shadow is the sanctioned `--shadow-overlay` elevation recipe, not a tell. Copy-cadence tells (em-dash, buzzwords, aphorisms) apply to UI chrome copy only, never to model or user prose in the transcript.
+`side-tab` accent border · `border-accent-on-rounded` · `overused-font` (Inter/Roboto default) · `single-font` for everything · `flat-type-hierarchy` · `gradient-text` · `ai-color-palette` (generic indigo/violet SaaS) · `cream-palette` · `nested-cards` · `monotonous-spacing` · `bounce-easing` · `dark-glow` · `icon-tile-stack` · `italic-serif-display` · `hero-eyebrow-chip` · `repeated-section-kickers` · numbered section markers · `em-dash-overuse` · `marketing-buzzword` · aphoristic-cadence copy. Many fire deterministically in `pnpm snap <route> --design-audit` (origin-tagged `impeccable`; full triage in `docs/design/impeccable-adoption.md`). Two ratified divergences from upstream: the kicker voice (caps micro label + hairline rule as a section name) is law here (`Section.kicker`); hairline-border with soft-shadow is the sanctioned `--shadow-overlay` elevation recipe, not a tell. Copy-cadence tells (em-dash, buzzwords, aphorisms) apply to UI chrome copy only, never to model or user prose in the transcript.
 
-## §7 Nielsen's 10 heuristics — scoring rubric (0-4, honest)
+## §7 Nielsen's 10 heuristics — scoring rubric (0-4)
 
 `0` absent/broken · `2` partial with real gaps · `4` genuinely excellent. Score what the evidence shows; this rubric states no prior about where a surface usually lands.
 
@@ -75,9 +75,9 @@ Adapted from the `impeccable` design language (pbakaus/impeccable, Apache-2.0), 
 9. Error recovery — plain-language errors, specific problem plus actionable fix, near the source.
 10. Help and documentation — findable, contextual, task-focused, concise.
 
-Bands (calibration only, never a gate): 36-40 excellent · 28-35 good · 20-27 mid · 12-19 poor · 0-11 critical. Every issue the walkthrough identifies gets fixed or filed regardless of the band; a "mid" surface with unfixed identified issues is not done. Do not score-chase — no re-review loops hunting points, no inventing findings to justify a number. The finding list is the deliverable; the score is a one-line summary of it.
+Bands (calibration only, never a gate): 36-40 excellent · 28-35 good · 20-27 mid · 12-19 poor · 0-11 critical. Fix or file every issue the walkthrough identifies regardless of the band; a "mid" surface with unfixed findings is not done. Do not score-chase — no re-review loops hunting points, no inventing findings to justify a number. The finding list is the deliverable; the score is a one-line summary of it.
 
-The score covers only active rendered surfaces. React Activity keeps inactive sections in hidden DOM; those do not enter the visual, geometry, operability, accessibility, or Nielsen count. Inventory retained sections with `pnpm snap <route> --map --include-hidden` for coverage discovery only, then activate each through its real control and score the settled, rendered result. Report every retained section as ACTIVATED+RAN or SKIPPED-with-reason.
+The score covers only active rendered surfaces. React Activity keeps inactive sections in hidden DOM; those do not enter the visual, geometry, operability, accessibility, or Nielsen count. Inventory retained sections with `pnpm snap <route> --map --include-hidden` for discovery only, then activate each through its real control and score the settled, rendered result. Report every retained section as ACTIVATED+RAN or SKIPPED-with-reason.
 
 ## §8 Cognitive-load checklist (working memory ≤ 4)
 
@@ -95,7 +95,7 @@ At every decision point, count competing visible options: 4 or fewer is fine, 5-
 
 `P0` blocking (cannot complete, unreadable, inaccessible) · `P1` major (fix before release) · `P2` minor (a workaround exists) · `P3` polish. Test: would a user contact support? Yes means at least P1.
 
-## §11 The appearance effect axes (intentional — never slop-flag; verify each)
+## §11 The appearance effect axes (intentional — never flag as slop; verify each)
 
 New user-tunable, token/accent-driven effects. Check they render right and are not mistaken for AI-slop. Toggle an axis via the Appearance settings pane, or by reading the attribute at its real host (root `<html>` for theme/blur/shadow/texture/font-scale variables; `.shell-grid` for `data-elevation`/`data-density`/`data-list-mode`/`data-context-mode`/`data-focus-mode`/`data-reduced-motion`/`data-has-bg-image`) — read them with `snap --eval`, never from memory, and never assume a handle is on the root.
 
@@ -159,64 +159,19 @@ One word prescribes a fix with a law-bound meaning: `reference/design-verbs.md` 
 
 ## §16 The review method (two independent tracks — do not collapse them)
 
-Form your subjective read first, on its own. Then run the objective instruments. Then synthesize.
-Pay special attention to anything the instruments caught that your eyes forgave. That reconciliation
-is where the real defects surface.
+Form your subjective read first, on its own. Then run the objective instruments. Then synthesize. Pay special attention to anything the instruments caught that your eyes forgave. That reconciliation is where the real defects surface.
 
-**Track A — design-director review.** Judge the live surface against §0-§15 above, from your own eyes:
-the AI-slop/craft verdict (§6), Nielsen's 10 heuristics scored 0-4 (§7), the cognitive-load check (§8),
-2-3 persona walkthroughs always including Sam (§9), and the reading-surface/house-law check (§0). Write
-Track A down before you look at the detector output.
+**Track A — design-director review.** Judge the live surface against §0-§15 above, from your own eyes: the AI-slop/craft verdict (§6), Nielsen's 10 heuristics scored 0-4 (§7), the cognitive-load check (§8), 2-3 persona walkthroughs always including Sam (§9), and the reading-surface/house-law check (§0). Write Track A down before you look at the detector output.
 
-**Track B — objective instruments.** Mechanics, flags, and exit codes are the `snap-driving` skill's
-job; read it before probing. Drive `pnpm snap` and its cases to collect:
+**Track B — objective instruments.** Mechanics, flags, and exit codes are the `snap-driving` skill's job; read it before probing. Drive `pnpm snap` and its cases to collect: the selector map, ARIA tree, and WCAG contrast; `--design-audit` (desktop and `--mobile`); a motion/perf pass on the primary action; Lighthouse desktop and mobile; the `__orb` suite (`.motion()`, `.perf()`, `.renders()`); a console triage table (every warning or error is virtualizer-excluded, known and cited, or an open finding — "it's dev mode" is banned unless argued as truly unavoidable); the PNGs, actually looked at; a keyboard walk (`--key Tab` chain plus `--expect-focus`); the appearance cases (at minimum `defaults` and `maximal` from `tooling/src/_shared/appearance-presets.json`, plus `compact`/`reading` on density-sensitive surfaces, plus a light-theme case on light-sensitive findings); the pane-state cases on any surface with collapsible panes (both open, list collapsed, context hidden, both hidden, desktop and mobile); the retained-section inventory (`--map --include-hidden` for discovery, then an ordinary rendered pass on each activated section).
 
-- the selector map, ARIA tree, and WCAG contrast;
-- `--design-audit` (desktop and `--mobile`);
-- a motion/perf pass on the primary action;
-- Lighthouse desktop and mobile;
-- the `__orb` suite (`.motion()`, `.perf()`, `.renders()`);
-- a console triage table — every warning or error is virtualizer-excluded, known and cited, or an open
-  finding; "it's dev mode" is a banned disposition unless argued as truly unavoidable;
-- the PNGs, actually looked at;
-- a keyboard walk (`--key Tab` chain plus `--expect-focus`);
-- the appearance cases: at minimum `defaults` and `maximal` from
-  `tooling/src/_shared/appearance-presets.json`, plus `compact`/`reading` on density-sensitive
-  surfaces, plus a light-theme case on light-sensitive findings;
-- the pane-state cases on any surface with collapsible panes (both open, list collapsed, context
-  hidden, both hidden, at desktop and mobile);
-- the retained-section inventory: `--map --include-hidden` for discovery, then an ordinary rendered
-  pass on each activated section.
+**Scope discipline.** A focused review works the brief's ranked targets depth-first, in rank order. The laws apply to those named targets; they are not a checklist to complete. A full audit — an unscoped "review this surface" brief — runs the whole method, Nielsen table included. Breadth never substitutes for the named targets' depth. The instrument coverage table is mandatory on a full audit, and a focused review prints it too: one row per instrument, RAN (evidence path) or SKIPPED (stated reason). A skipped row with no reason makes the review incomplete.
 
-**Scope discipline.** A focused review works the brief's ranked targets depth-first, in rank order.
-The laws apply to those named targets; they are not a checklist to complete. A full audit — an
-unscoped "review this surface" brief — runs the whole method, Nielsen table included. Breadth never
-substitutes for the named targets' depth. The instrument coverage table is mandatory on a full audit,
-and a focused review prints it too: one row per instrument, RAN (evidence path) or SKIPPED (stated
-reason). A skipped row with no reason makes the review incomplete.
+**Reading `--design-audit` output.** The RESULT line carries `population-verdict=complete|NO-VERDICT`. Read it before the findings. NO-VERDICT means a rule applied and the instrument could not judge it — the run is not clean, it could not see. Reading zero findings under a NO-VERDICT population as a clean pass is a common misread of this instrument. `excluded` means measured facts proved a rule inapplicable — complete evidence, never a gap. `withheld` means absence of measurement. Its tap-target and aria-name findings are frequently false positives: Base UI's hidden 1x1 inputs, `aria-labelledby` switch names, box-vs-hit-area mismatches on `size="inline"`/`size="glyph-*"` buttons, off-viewport hosts. Verify each with `--aria`/`--map` before reporting; never forward the raw count.
 
-**Reading `--design-audit` output.** The RESULT line carries `population-verdict=complete|NO-VERDICT`.
-Read it before the findings. NO-VERDICT means a rule applied and the instrument could not judge it —
-the run is not clean, it could not see. Reading zero findings under a NO-VERDICT population as a clean
-pass is a common misread of this instrument. `excluded` means measured facts proved a rule
-inapplicable — complete evidence, never a gap. `withheld` means absence of measurement. Its tap-target
-and aria-name findings are frequently false positives: Base UI's hidden 1x1 inputs, `aria-labelledby`
-switch names, box-vs-hit-area mismatches on `size="inline"`/`size="glyph-*"` buttons, off-viewport
-hosts. Verify each with `--aria`/`--map` before reporting; never forward the raw count.
+**Instrument honesty.** Your eye is not a colorimeter. Every color/polarity claim rests on `--contrast`, computed styles, or a decoded framebuffer pixel, never on how a render "looks." Never slice a `box-shadow` string; Tailwind emits empty default layers before the real one. A rule family reporting zero findings on a live surface is a reason to probe the sampler, not to celebrate. Your own probe fleet shares an origin-scoped SSE budget with the live app: a matrix case plus a `--pages`/`--contexts` run, or two probes overlapping, produces a storm of dropped-stream errors. Budget browsers per case, expect them, and retract them with evidence rather than filing them as findings. Canvas charts are invisible to every DOM instrument; screenshots are the evidence there.
 
-**Instrument honesty.** Your eye is not a colorimeter. Every color/polarity claim rests on
-`--contrast`, computed styles, or a decoded framebuffer pixel, never on how a render "looks." Never
-slice a `box-shadow` string; Tailwind emits empty default layers before the real one. A rule family
-reporting zero findings on a live surface is a reason to probe the sampler, not to celebrate. Your own
-probe fleet shares an origin-scoped SSE budget with the live app: a matrix case plus a
-`--pages`/`--contexts` run, or two probes overlapping, produces a storm of dropped-stream errors.
-Budget browsers per case, expect them, and retract them with evidence rather than filing them as
-findings. Canvas charts are invisible to every DOM instrument; screenshots are the evidence there.
-
-**Synthesis.** Weave Track A and Track B into one verdict. Call out explicitly: where your eyes and
-the detector agree; what the detector caught that you forgave — that is the most useful line in the
-report; and any detector false positive, with the reason. Never concatenate the two tracks; reconcile
-them.
+**Synthesis.** Weave Track A and Track B into one verdict. Call out explicitly: where your eyes and the detector agree; what the detector caught that you forgave — that is the most useful line in the report; and any detector false positive, with the reason. Never concatenate the two tracks; reconcile them.
 
 ## §17 Rendered-probe traps
 
