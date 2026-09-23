@@ -100,10 +100,10 @@ const MESSAGE =
   "OVER THE EVENT'S OWN TYPE IDENTITY (its `extends` bases, intersection constituents and aliased union " +
   "arms), so a field may be reported at its DECLARING site in an imported carrier file; a NAMED type a " +
   "field REFERENCES is deliberately NOT resolved (a referenced payload like MessageView is separately " +
-  "homed), while what a field spells INLINE is read. See docs/adr/0016-d16.md.";
+  "homed), while what a field spells INLINE is read. See docs/adr/0016-group-chat-data-never-branch.md.";
 
 const UNREADABLE =
-  "a bus-event payload field could not be identified at all — the wire shape is unreadable, which under D16 is itself the violation. See docs/adr/0016-d16.md.";
+  "a bus-event payload field could not be identified at all — the wire shape is unreadable, which under D16 is itself the violation. See docs/adr/0016-group-chat-data-never-branch.md.";
 
 const FIX =
   "carry a branded id (re-read canon by id) instead of a secret; or, for a proven-safe id/scalar, add an exact `(subject, operation)` row to tooling/src/verify/lib/reviewed-grants.ts with its D-cite, `why` and `endsWhen`.";

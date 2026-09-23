@@ -116,5 +116,4 @@ export type DocCommand =
   | { readonly kind: "review"; readonly patterns: readonly string[] }
   | { readonly kind: "due"; readonly patterns: readonly string[] }
   | { readonly kind: "overview" }
-  | { readonly kind: "drift" }
-  | { readonly kind: "migrate-ledger" };
+  | { readonly kind: "drift" };

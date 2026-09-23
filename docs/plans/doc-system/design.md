@@ -87,7 +87,6 @@ Status is frontmatter only; an ADR has no `## Status` section (fork 2 below).
 | `due [glob…]` | the soft freshness report (§Freshness); always exit 0 |
 | `overview` | the column view: open (triage first), doing, blocked, done count |
 | `drift` | the orchestrator nag; prints nothing when consistent, else one line per drift with the fixing command |
-| `migrate-ledger --range <a-b\|all> [--apply]` | splits registry rows into ADR files (§Ledger split); dry run by default |
 
 There is no `doc check`; the check is `pnpm check:agents` (ruling 6).
 
@@ -135,9 +134,9 @@ Lanes never write item state. They add a commit trailer `Closes: 12, 14`; `scrip
 
 A done item with no plan is deleted by `pnpm doc archive` when named; git keeps it. A done item with a plan moves into the plan's archive folder with the plan.
 
-### Ledger split (`migrate-ledger`)
+### Ledger split
 
-The registry keeps its D numbers; each ruling becomes `docs/adr/NNNN-<slug>.md` with the ruling's title as the H1, its text under `## Decision`, and the other three sections carrying the sentence "Not recorded in the ledger row." until the migration lane fills or deletes them. The parser handles both row shapes and refuses a duplicate anchor. Ids never change, so the five thousand bare `D<n>` code citations cost nothing. The split lands as ONE commit (`--range all`): the `d-citation-integrity` gate's ledger resource (`tooling/src/verify/contract/resource-document.ts`) is re-pointed from the registry file to the ADR tree, where an id resolves from a filename; the registry is deleted; registry-prefixed citations (61 code sites, about 180 doc sites) are rewritten to the bare id; and `doc-catalog/lib/vocab.ts`'s registry path goes with the attestation rows. No union resolver and no interval where both homes are valid (owner ruling). `--range` exists to size a lane's prose work on a scratch branch, never to keep the tree green between batches.
+The registry keeps its D numbers; each ruling becomes `docs/adr/NNNN-<slug>.md` with the ruling's title as the H1, its text under `## Decision`, and the other three sections carrying the sentence "Not recorded in the ledger row." until the migration lane fills or deletes them. The parser handles both row shapes and refuses a duplicate anchor. Ids never change, so the five thousand bare `D<n>` code citations cost nothing. The split lands as ONE commit: the `d-citation-integrity` gate's ledger resource (`tooling/src/verify/contract/resource-document.ts`) is re-pointed from the registry file to the ADR tree, where an id resolves from a filename; the registry is deleted; registry-prefixed citations (61 code sites, about 180 doc sites) are rewritten to the bare id; and `doc-catalog/lib/vocab.ts`'s registry path goes with the attestation rows. No union resolver and no interval where both homes are valid (owner ruling).
 
 About 40% of the rows carry dates or issue numbers in their prose, so a migrated ADR fails writing rule 1 until its prose is cleaned, and that red is the to-do list (owner ruling: no grandfather exemption). Four rows exceed the ADR cap and are trimmed under the ledger-entry style, which already forbids provenance trails.
 
@@ -156,7 +155,7 @@ About 40% of the rows carry dates or issue numbers in their prose, so a migrated
 | keeping GitHub Projects | API-throttled, rotted, and off the tree; in-flight state must live in the repo |
 | a second checker (`pnpm doc check`) | ruling 6: one checker; the doc tool exports its rules and `check:agents` runs them |
 | extending `tooling/src/doc-catalog/` instead of a new `doc/` tool | the catalog is the model being removed; the survivor owns the verbs, and it imports the catalog's frontmatter reader and formatter until those move |
-| a union D-id resolver (registry anchors plus ADR filenames) during the split | an owner ruling: no compatibility shim; the split is one commit that re-points the `d-citation-integrity` ledger resource at the ADR tree, deletes the registry and rewrites its citers. `--range` sizes a lane's prose work, never keeps the tree green between batches |
+| a union D-id resolver (registry anchors plus ADR filenames) during the split | an owner ruling: no compatibility shim; the split is one commit that re-points the `d-citation-integrity` ledger resource at the ADR tree, deletes the registry and rewrites its citers |
 | a `reviewed: <sha>` frontmatter key for soft freshness | a sha is orphaned by every rebase and needs a second field beside `updated`; a date is enough for a warning tier and is the one sanctioned date already |
 | a `describes:` frontmatter list of paths | the paths are already in the body as backticked citations; a second list drifts from the first |
 | a `## Status` section in ADRs | frontmatter `status` already holds it; two homes drift |
@@ -197,7 +196,6 @@ Every test plants a tree in scratch (`plantedTree`) or drives a pure function; n
 | Test | Proves |
 | - | - |
 | `tests/tooling/doc/lib/rules.test.ts` | per-kind frontmatter, sections, caps, folder admission, item state shape, ADR id uniqueness and reserved range; each rule red on a planted violation and green on the control |
-| `tests/tooling/doc/ops/migrate-ledger.test.ts` | the splitter refuses once the registry is gone and writes nothing |
 | `tests/tooling/doc/lib/indexes.test.ts` | index and `tasks.md` rendering is deterministic and byte-stable |
 | `tests/tooling/doc/ops/verbs.suite.int.test.ts` | each write verb on a planted tree: the file it writes, the indexes it regenerates, the refusal when the target exists or the id is unknown; `archive` rewrites the old path in a planted citer |
 | `tests/tooling/doc/ops/board.int.test.ts` | `land` refuses a sha not on `main`; each of the four drift lines fires on a planted repository and stays silent on the consistent control |

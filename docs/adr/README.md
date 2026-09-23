@@ -11,87 +11,87 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 
 | Id | Decision | Status |
 | - | - | - |
-| D1 | [D1](0001-d1.md) | active |
-| D2 | [D2](0002-d2.md) | active |
-| D3 | [D3](0003-d3.md) | active |
-| D4 | [D4](0004-d4.md) | active |
-| D5 | [D5](0005-d5.md) | active |
-| D6 | [D6](0006-d6.md) | active |
-| D7 | [D7](0007-d7.md) | active |
-| D8 | [D8](0008-d8.md) | active |
-| D9 | [D9](0009-d9.md) | active |
-| D10 | [D10](0010-d10.md) | active |
-| D11 | [D11](0011-d11.md) | active |
-| D12 | [D12](0012-d12.md) | active |
-| D13 | [D13](0013-d13.md) | active |
-| D14 | [D14](0014-d14.md) | active |
-| D15 | [D15](0015-d15.md) | active |
-| D16 | [D16](0016-d16.md) | active |
-| D17 | [D17](0017-d17.md) | active |
-| D18 | [D18](0018-d18.md) | active |
-| D19 | [D19](0019-d19.md) | active |
-| D20 | [D20](0020-d20.md) | active |
-| D21 | [D21](0021-d21.md) | active |
-| D22 | [D22](0022-d22.md) | active |
-| D23 | [D23](0023-d23.md) | active |
-| D24 | [D24](0024-d24.md) | active |
-| D25 | [D25](0025-d25.md) | active |
-| D26 | [D26](0026-d26.md) | active |
-| D27 | [D27](0027-d27.md) | active |
-| D28 | [D28](0028-d28.md) | active |
-| D29 | [D29](0029-d29.md) | active |
-| D30 | [D30](0030-d30.md) | active |
-| D31 | [D31](0031-d31.md) | active |
-| D32 | [D32](0032-d32.md) | active |
-| D33 | [D33](0033-d33.md) | active |
-| D34 | [D34](0034-d34.md) | active |
-| D35 | [D35](0035-d35.md) | active |
-| D36 | [D36](0036-d36.md) | active |
-| D37 | [D37](0037-d37.md) | active |
-| D38 | [D38](0038-d38.md) | active |
-| D39 | [D39](0039-d39.md) | active |
-| D40 | [D40](0040-d40.md) | active |
-| D41 | [D41](0041-d41.md) | active |
-| D42 | [D42](0042-d42.md) | active |
-| D43 | [D43](0043-d43.md) | active |
-| D44 | [D44](0044-d44.md) | active |
-| D45 | [D45](0045-d45.md) | active |
-| D46 | [D46](0046-d46.md) | active |
-| D47 | [D47](0047-d47.md) | active |
-| D48 | [D48](0048-d48.md) | active |
-| D49 | [D49](0049-d49.md) | active |
-| D50 | [D50](0050-d50.md) | active |
-| D51 | [D51](0051-d51.md) | active |
-| D52 | [D52](0052-d52.md) | active |
-| D53 | [D53](0053-d53.md) | active |
-| D54 | [D54](0054-d54.md) | active |
-| D55 | [D55](0055-d55.md) | active |
-| D56 | [D56](0056-d56.md) | active |
-| D57 | [D57](0057-d57.md) | active |
-| D58 | [D58](0058-d58.md) | active |
-| D59 | [D59](0059-d59.md) | active |
-| D60 | [D60](0060-d60.md) | active |
-| D61 | [D61](0061-d61.md) | active |
-| D62 | [D62](0062-d62.md) | active |
-| D63 | [D63](0063-d63.md) | active |
-| D64 | [D64](0064-d64.md) | active |
-| D65 | [D65](0065-d65.md) | active |
+| D1 | [The auth seam is the one Principal construction site](0001-auth-seam-one-principal-construction-site.md) | active |
+| D2 | [The entry folder layout is locked](0002-entry-folder-layout-locked.md) | active |
+| D3 | [Bulk import is an upload route plus a driver](0003-bulk-import-upload-route-plus-driver.md) | active |
+| D4 | [The workload runner env builder is superseded](0004-workload-runner-env-builder-superseded.md) | active |
+| D5 | [Lifecycle lives in entry, not foundation](0005-lifecycle-lives-in-entry-not-foundation.md) | active |
+| D6 | [Image variant transforms are infra behind an injected op](0006-image-variant-transforms-infra-behind-injected-op.md) | active |
+| D7 | [vLLM is a provider row, not a server module](0007-vllm-provider-row-not-server-module.md) | active |
+| D8 | [The Agent SDK backend lives in the inference package](0008-agent-sdk-backend-lives-in-inference-package.md) | active |
+| D9 | [Content hash is node-only server kit](0009-content-hash-node-only-server-kit.md) | active |
+| D10 | [Replay buffer and stats tally are kit primitives](0010-replay-buffer-and-stats-tally-kit-primitives.md) | active |
+| D11 | [The asset hash guard lives in kit assets](0011-asset-hash-guard-lives-in-kit-assets.md) | active |
+| D12 | [Identity and session contracts are split](0012-identity-and-session-contracts-split.md) | active |
+| D13 | [Kit tests follow the mirror rule](0013-kit-tests-follow-mirror-rule.md) | active |
+| D14 | [Substrate and persistence are optional feature slots](0014-substrate-and-persistence-optional-feature-slots.md) | active |
+| D15 | [Every importable module is a directory module](0015-every-importable-module-directory-module.md) | active |
+| D16 | [Group chat is data, never a branch](0016-group-chat-data-never-branch.md) | active |
+| D17 | [Global roles are owner, admin and user](0017-global-roles-owner-admin-and-user.md) | active |
+| D18 | [Chats are membership-scoped with no owner column](0018-chats-membership-scoped-with-no-owner-column.md) | active |
+| D19 | [Turn identity has three distinct concepts](0019-turn-identity-has-three-distinct-concepts.md) | active |
+| D20 | [Vector rows derive ownership from their producer](0020-vector-rows-derive-ownership-from-producer.md) | active |
+| D21 | [Assets are per-user single-owned](0021-assets-per-user-single-owned.md) | active |
+| D22 | [Member card visibility is a host-set room dial](0022-member-card-visibility-host-set-room-dial.md) | active |
+| D23 | [Stamp an owner only when unreachable by FK](0023-stamp-owner-only-when-unreachable-by-fk.md) | active |
+| D24 | [No polymorphic association tables](0024-no-polymorphic-association-tables.md) | active |
+| D25 | [Chats carry no backend session state](0025-chats-carry-no-backend-session-state.md) | active |
+| D26 | [Messages are slots and variants hold the generation](0026-messages-slots-and-variants-hold-generation.md) | active |
+| D27 | [Forks are copies with a parent link](0027-forks-copies-with-parent-link.md) | active |
+| D28 | [The character card is one live row with snapshots](0028-character-card-one-live-row-with-snapshots.md) | active |
+| D29 | [Chat export requires the host](0029-chat-export-requires-host.md) | active |
+| D30 | [Chat tags are a per-user overlay](0030-chat-tags-per-user-overlay.md) | active |
+| D31 | [Provider identity is registry data](0031-provider-identity-registry-data.md) | active |
+| D32 | [Kit owns the message role axis](0032-kit-owns-message-role-axis.md) | active |
+| D33 | [Guided actions live only on the preset](0033-guided-actions-live-only-on-preset.md) | active |
+| D34 | [A db enum derives from a contracts tuple](0034-db-enum-derives-from-contracts-tuple.md) | active |
+| D35 | [Rate limit buckets get their own schema file](0035-rate-limit-buckets-get-own-schema-file.md) | active |
+| D36 | [Memory is global with a user opt-out](0036-memory-global-with-user-opt-out.md) | active |
+| D37 | [Schema audit standing rules](0037-schema-audit-standing-rules.md) | active |
+| D38 | [Domain events are a closed union carrying ids](0038-domain-events-closed-union-carrying-ids.md) | active |
+| D39 | [Local light inference is its own wire](0039-local-light-inference-own-wire.md) | active |
+| D40 | [Infra auth never yields a user id](0040-infra-auth-never-yields-user-id.md) | active |
+| D41 | [Chat warnings are structured events](0041-chat-warnings-structured-events.md) | active |
+| D42 | [The UI package is the domain-agnostic component layer](0042-ui-package-domain-agnostic-component-layer.md) | active |
+| D43 | [Standing meta-rules from the neo client audit](0043-standing-meta-rules-from-neo-client-audit.md) | active |
+| D44 | [Theming and rich content use trust tiers](0044-theming-and-rich-content-use-trust-tiers.md) | active |
+| D45 | [Vision input is gated by model capability](0045-vision-input-gated-by-model-capability.md) | active |
+| D46 | [Scripting variables live on two planes](0046-scripting-variables-live-on-two-planes.md) | active |
+| D47 | [Seven SillyTavern gaps are committed](0047-seven-sillytavern-gaps-committed.md) | active |
+| D48 | [Tool calling and structured output ride capabilities](0048-tool-calling-and-structured-output-ride-capabilities.md) | active |
+| D49 | [The SillyTavern gap register is closed](0049-sillytavern-gap-register-closed.md) | active |
+| D50 | [Event bus parity members](0050-event-bus-parity-members.md) | active |
+| D51 | [Content parts are built once at the request seam](0051-content-parts-built-once-at-request-seam.md) | active |
+| D52 | [ECharts is the one chart primitive](0052-echarts-one-chart-primitive.md) | active |
+| D53 | [Regex scripts have three joint-attached sources](0053-regex-scripts-have-three-joint-attached-sources.md) | active |
+| D54 | [Client features converge to config plus renderers](0054-client-features-converge-to-config-plus-renderers.md) | active |
+| D55 | [The memory system defaults and principles](0055-memory-system-defaults-and-principles.md) | active |
+| D56 | [There is no simple send](0056-there-no-simple-send.md) | active |
+| D57 | [Input recovery is client state only](0057-input-recovery-client-state-only.md) | active |
+| D58 | [RPG mode is a committed feature domain](0058-rpg-mode-committed-feature-domain.md) | active |
+| D59 | [The crew design is kept as design of record](0059-crew-design-kept-as-design-of-record.md) | active |
+| D60 | [Agents are first-class principals](0060-agents-first-class-principals.md) | active |
+| D61 | [Marinara borrow dispositions](0061-marinara-borrow-dispositions.md) | active |
+| D62 | [The UI and UX revamp rulings](0062-ui-and-ux-revamp-rulings.md) | active |
+| D63 | [The app background image is an appearance setting](0063-app-background-image-appearance-setting.md) | active |
+| D64 | [Handoff and fork drop the prior host's characters](0064-handoff-and-fork-drop-prior-host-characters.md) | active |
+| D65 | [Admin roles can derive from OIDC groups](0065-admin-roles-can-derive-from-oidc-groups.md) | active |
 | D66 | [UI law and program authority are separate](0066-ui-law-and-program-authority-are-separate.md) | active |
-| D67 | [D67](0067-d67.md) | active |
-| D68 | [D68](0068-d68.md) | active |
-| D69 | [D69](0069-d69.md) | active |
-| D70 | [D70](0070-d70.md) | active |
-| D71 | [D71](0071-d71.md) | active |
-| D72 | [D72](0072-d72.md) | active |
-| D73 | [D73](0073-d73.md) | active |
-| D74 | [D74](0074-d74.md) | active |
-| D75 | [D75](0075-d75.md) | active |
-| D76 | [D76](0076-d76.md) | active |
-| D77 | [D77](0077-d77.md) | active |
-| D78 | [D78](0078-d78.md) | active |
+| D67 | [Anthropic API-key inference is a provider row](0067-anthropic-api-key-inference-provider-row.md) | active |
+| D68 | [Sampling completeness rides the capability descriptor](0068-sampling-completeness-rides-capability-descriptor.md) | active |
+| D69 | [Turn shaping is a capability axis](0069-turn-shaping-capability-axis.md) | active |
+| D70 | [Client architecture lockdown is law](0070-client-architecture-lockdown-law.md) | active |
+| D71 | [The theme palette pipeline](0071-theme-palette-pipeline.md) | active |
+| D72 | [A shared machine ships with its seal](0072-shared-machine-ships-with-seal.md) | active |
+| D73 | [Shell clusters are registries](0073-shell-clusters-registries.md) | active |
+| D74 | [You contains identity, which contains account](0074-you-contains-identity-which-contains-account.md) | active |
+| D75 | [The debug surface is read-only introspection](0075-debug-surface-read-only-introspection.md) | active |
+| D76 | [Healthz stays minimal](0076-healthz-stays-minimal.md) | active |
+| D77 | [Accepted ingress differences from neo](0077-accepted-ingress-differences-from-neo.md) | active |
+| D78 | [Autosave forms mount through the factory session](0078-autosave-forms-mount-through-factory-session.md) | active |
 | D86 | [The rpg stat-profile spine + the lite/full mode axis (AMENDS D58; spec home: the rpg-design set — doc 13 + the 03/04/05/10 amendments)](0086-the-rpg-stat-profile-spine-the-lite-full.md) | active |
-| D106 | [D106](0106-d106.md) | active |
-| D107 | [D107](0107-d107.md) | active |
+| D106 | [Chat read visibility uses a presence-interval clamp](0106-chat-read-visibility-uses-presence-interval-clamp.md) | active |
+| D107 | [A declared knob is wired or cited as dormant](0107-declared-knob-wired-or-cited-as-dormant.md) | active |
 | D108 | [The retro brings rpg back as the LITE-PLUS-GUIDED substrate (W1 domain vertical); AMENDS D86's lite arm + the D58/D86 single-turn write model with the two-mode extraction delivery fork (owner sign-off 2026-07-26)](0108-the-retro-brings-rpg-back-as-the-lite.md) | active |
 | D109 | [The rpg-lite exchange is TWO turns (the character turn + the state round); out-of-turn model calls INHERIT the turn's resolved connection + consent; `structured` is the constrained-generation primitive; vLLM is chat-completions-only (AMENDS D108's cheap arm; proven live end-to-end both modes, commit `fc85f1c0`)](0109-the-rpg-lite-exchange-is-two-turns-the.md) | active |
 | D110 | [Parity-plus makes the 7 marinara-reference features first-class-and-better, built FOUNDATION-FIRST so each dramatic feature is register-a-row not build-a-subsystem (blueprint: `docs/history/design/parity-plus-program-spec.md`, owner-ratified v2.2; this entry anchors the LANDED foundation — P0/P1/P2/MG/ME/MU — and reserves the feature waves P3–P6 as named doorways)](0110-parity-plus-makes-the-7-marinara-reference-features.md) | active |
@@ -108,11 +108,11 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D121 | [the close-out ruling for the preset and actor-state programs. Seven clauses (A–G); each stands alone](0121-the-close-out-ruling-for-the-preset-and.md) | active |
 | D122 | [Multi-human persona resolution: the room-plane read, membership-gated](0122-multi-human-persona-resolution-the-room-plane-read.md) | active |
 | D123 | [Theme doors + the card-embeddable appearance partition (TD)](0123-theme-doors-the-card-embeddable-appearance-partition-td.md) | active |
-| D124 | [D124](0124-d124.md) | active |
+| D124 | [Hand-written rpg state stays off messages](0124-hand-written-rpg-state-stays-off-messages.md) | active |
 | D125 | [D121-E's order table gains a FIFTH leg: `PROMPT_HISTORY`, the ephemeral prompt-build pass](0125-d121-e-s-order-table-gains-a-fifth.md) | active |
-| D126 | [D126](0126-d126.md) | active |
-| D127 | [D127](0127-d127.md) | active |
-| D128 | [D128](0128-d128.md) | active |
+| D126 | [The structured-output wire shape is an app setting](0126-structured-output-wire-shape-app-setting.md) | active |
+| D127 | [The compiler owns memoization](0127-compiler-owns-memoization.md) | active |
+| D128 | [A sealed third-party surface gets a committed manifest](0128-sealed-third-party-surface-gets-committed-manifest.md) | active |
 | D129 | [A canon row's PURPOSE is a DECLARED per-row fact (`messages.kind`), never inferred from role × attribution × the room's current config; and a row held out of the prompt is held out of every plane DERIVED from canon](0129-a-canon-row-s-purpose-is-a-declared.md) | active |
 | D130 | [A mid-flight HAND EDIT and the turn's own state write RECONCILE; the reconciliation is a three-way REBASE of the round's PATCHES onto the hand head, and the hand row's AUTO-LOCKS are the arbiter](0130-a-mid-flight-hand-edit-and-the-turn.md) | active |
 | D131 | \[A host handoff carries an OPT-IN, CLASS-LEVEL, POINT-IN-TIME property offer. AMENDS \[\[D64]]:]\(0131-a-host-handoff-carries-an-opt-in-class.md) | active |
@@ -126,7 +126,7 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D139 | [one work graph, one documentation catalog, no wiki](0139-one-work-graph-one-documentation-catalog-no-wiki.md) | active |
 | D140 | [mutable state, recovery context, process, and provenance have four distinct homes](0140-mutable-state-recovery-context-process-and-provenance-have.md) | active |
 | D141 | [code comments carry only irreducible current WHY](0141-code-comments-carry-only-irreducible-current-why.md) | active |
-| D142 | [(RETIRED 2026-09-19) — the BORN chat default was `vllm` × `chat-completions` for EVERY principal; the owner-conditional agent-sdk default is DEAD](0142-retired-2026-09-19-the-born-chat-default.md) | active |
+| D142 | [The chat default for new principals](0142-chat-default-for-new-principals.md) | active |
 | D143 | [the vLLM source ERRS OPEN: capability is per-checkpoint and undetectable, user settings are trusted, and `customParameters` reaches the vllm wire (AMENDS the 2026-07-24 BYOK-only ruling of `20ac4154c`)](0143-the-vllm-source-errs-open-capability-is-per.md) | active |
 | D144 | [the reading-surface derive law: one palette root per plate AND ink; `--color-scrim` is RETIRED (no alias) because a token names ONE polarity semantic](0144-the-reading-surface-derive-law-one-palette-root.md) | active |
 | D145 | [what a chat's model is TOLD it can do is ONE per-turn collection, and `domain/<x>/teaching-contribution.ts` is the ratified 11th feature-root slot that feeds it](0145-what-a-chat-s-model-is-told-it.md) | active |

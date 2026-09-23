@@ -32,8 +32,6 @@ test("set takes a leading run of ids, the state last, and only the flags it was 
     paths: ["docs/adr/0001-a.md"],
     by: "docs/adr/0002-b.md",
   });
-  // Retired verb: any arguments reach its refusal, so an old plan's spelling never reads as misuse.
-  expect(parseDocCommand(["migrate-ledger", "--range", "all", "--apply"])).toEqual({ kind: "migrate-ledger" });
   expect(parseDocCommand(["review", "docs/law/*.md"])).toEqual({ kind: "review", patterns: ["docs/law/*.md"] });
   expect(parseDocCommand(["due"])).toEqual({ kind: "due", patterns: [] });
   expect(parseDocCommand([])).toEqual({ kind: "help" });

@@ -30,7 +30,6 @@ export { docFileCount, docLayerProblems } from "./ops/check.ts";
 export { regenerateIndexes } from "./ops/indexes.ts";
 export type { WriteOutcome } from "./ops/items.ts";
 export { landItems, landMerged, loadItems, newItem, setItems } from "./ops/items.ts";
-export { migrateLedger } from "./ops/migrate-ledger.ts";
 export { newAdr, newPlan, nextAdrId } from "./ops/new.ts";
 export { due, review } from "./ops/review.ts";
 export { runDocCommand } from "./ops/run.ts";

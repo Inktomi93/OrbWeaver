@@ -1,0 +1,23 @@
+---
+kind: adr
+status: active
+updated: 2026-09-23
+---
+
+# ECharts is the one chart primitive
+
+## Context
+
+Not recorded in the ledger row.
+
+## Decision
+
+Charts: Apache ECharts (`echarts` + `echarts-for-react`) is THE chart primitive, sealed behind `@orb/ui/charts`; nivo is dropped (supersedes D43's keep-nivo). Constraint: ECharts renders to Canvas, so the seal must resolve DTCG tokens to concrete values (`getComputedStyle`) and inject them into the option, re-reading on theme switch — the internal token-theme injection is load-bearing. `@orb/ui/meter` owns 1-D bars (plain CSS). If the similarity graph outgrows the `force` layout, that ONE chart may split to Reagraph/react-force-graph behind the same seal.
+
+## Consequences
+
+Not recorded in the ledger row.
+
+## Alternatives rejected
+
+Not recorded in the ledger row.

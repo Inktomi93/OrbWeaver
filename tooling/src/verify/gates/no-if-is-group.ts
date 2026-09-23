@@ -45,7 +45,7 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message:
-    "`isGroup`-style boolean branches on group-vs-solo identity — the design forbids it (solo is the degenerate case of group). Gate on the explicit COUNT of the room's characters, NO-OPing at one (so byte-identity holds). See docs/adr/0016-d16.md (unified group chat).",
+    "`isGroup`-style boolean branches on group-vs-solo identity — the design forbids it (solo is the degenerate case of group). Gate on the explicit COUNT of the room's characters, NO-OPing at one (so byte-identity holds). See docs/adr/0016-group-chat-data-never-branch.md (unified group chat).",
   fix: "gate on the room's character COUNT and no-op at one, instead of a group-vs-solo boolean. A foreign shape that must carry the spelling waives that occurrence with `@orb-waive no-if-is-group(<name>): <reason + end condition>`, where `<name>` is the BANNED SPELLING itself: both arms pass no token, so the sink derives the first identifier of the reported node's own text — the BINDING NAME for a declaration (never its initializer) and the condition identifier for an `if`/ternary.",
   create: (ctx) => ({
     visitors: [

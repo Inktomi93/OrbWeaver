@@ -1,0 +1,23 @@
+---
+kind: adr
+status: active
+updated: 2026-09-23
+---
+
+# Guided actions live only on the preset
+
+## Context
+
+Not recorded in the ledger row.
+
+## Decision
+
+Guided-action definitions live ONLY on the preset (`contracts/preset`: `GuidedActionsConfig`/`DEFAULT_GUIDED_ACTIONS`/`PromptConfig.guidedActions`, co-located with every other default model-facing template). There is NO `AppSettings.guidedActions` and no settings-side resolution; consumers do `activePreset.guidedActions ?? DEFAULT_GUIDED_ACTIONS`.
+
+## Consequences
+
+Not recorded in the ledger row.
+
+## Alternatives rejected
+
+Not recorded in the ledger row.
