@@ -1,19 +1,21 @@
-// engine/budget-gate — the three pre-op fire-RATE belts: cooldown, per-rule/hour, per-SCOPE/hour (chat vs
-// owner-global, C5's two-tables-one-policy). A refusal is not an error (budget_refused stays healthy); each
-// belt's ceiling is pinned independently so a future change to one cannot silently widen another.
+// engine/budget-gate — the three pre-op fire-RATE belts: cooldown, per-rule/hour, per-SCOPE/hour (the fixed
+// per-chat ceiling vs the owner-editable owner-global one, C5's two-scopes-one-policy). A refusal is not an
+// error (budget_refused stays healthy); each belt's ceiling is pinned independently so a future change to one
+// cannot silently widen another.
 
+import { AUTOMATION_CHAT_MAX_FIRES_PER_HOUR } from "@orb/contracts/automation";
 import { automationRules } from "@orb/db";
 import type { AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
 import { mintTypeId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { checkBudget } from "../../../../../packages/server/src/domain/automation/engine/budget-gate.ts";
-import { upsertBudget, upsertOwnerBudget } from "../../../../../packages/server/src/domain/automation/persistence/budgets.ts";
+import { upsertOwnerBudget } from "../../../../../packages/server/src/domain/automation/persistence/budgets.ts";
 import { insertFire } from "../../../../../packages/server/src/domain/automation/persistence/fires.ts";
 import { insertRule } from "../../../../../packages/server/src/domain/automation/persistence/rules.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { FIXED_NOW_MS, seedHostChat, seedUser } from "../_support.ts";
+import { FIXED_NOW_MS, seedChatFires, seedHostChat, seedUser } from "../_support.ts";
 
 async function seedRule(
   db: Parameters<typeof insertRule>[0],
@@ -91,29 +93,22 @@ describe("checkBudget", () => {
     expect(verdict).toEqual({ ok: false, detail: "rule_hourly" });
   });
 
-  test("a chat-scope ceiling refuses ANY rule of that chat with detail 'chat_hourly' (the second table, same policy)", async () => {
+  test("the chat-scope belt refuses ANY rule of that chat with 'chat_hourly' at the fixed ceiling, and not one fire before", async () => {
     const db = await freshDb();
     const owner = await seedUser(db);
     const chatId = await seedHostChat(db, owner);
-    const first = await seedRule(db, owner, chatId);
-    const second = await seedRule(db, owner, chatId);
-    await upsertBudget(db, chatId, { maxFiresPerHour: 1 }, FIXED_NOW_MS);
-    await insertFire(db, {
-      id: mintTypeId("automation_fire"),
-      ruleId: first,
-      chatId,
-      triggerType: "messageCommitted",
-      outcome: "fired",
-      detail: null,
-      automationDepth: 0,
-      firedAt: FIXED_NOW_MS,
-    });
-    const [rule] = await db.select().from(automationRules).where(eq(automationRules.id, second));
+    // The fires land on a DIFFERENT rule of the same chat, so only the chat belt can be what refuses.
+    const filler = await seedRule(db, owner, chatId);
+    const next = await seedRule(db, owner, chatId);
+    const [rule] = await db.select().from(automationRules).where(eq(automationRules.id, next));
     if (rule === undefined) {
       expect.unreachable();
     }
-    const verdict = await checkBudget(db, { rule, scope: chatId, nowMs: FIXED_NOW_MS + 1000 });
-    expect(verdict).toEqual({ ok: false, detail: "chat_hourly" });
+    const nowMs = FIXED_NOW_MS + AUTOMATION_CHAT_MAX_FIRES_PER_HOUR;
+    await seedChatFires(db, { ruleId: filler, chatId, count: AUTOMATION_CHAT_MAX_FIRES_PER_HOUR - 1, firedAt: FIXED_NOW_MS });
+    expect(await checkBudget(db, { rule, scope: chatId, nowMs })).toEqual({ ok: true });
+    await seedChatFires(db, { ruleId: filler, chatId, count: 1, firedAt: nowMs - 1 });
+    expect(await checkBudget(db, { rule, scope: chatId, nowMs })).toEqual({ ok: false, detail: "chat_hourly" });
   });
 
   test("the owner-GLOBAL scope counts only the author's OWN chat-less fires — a busy chat rule never starves it", async () => {
@@ -141,19 +136,6 @@ describe("checkBudget", () => {
       expect.unreachable();
     }
     const verdict = await checkBudget(db, { rule, scope: null, nowMs: FIXED_NOW_MS + 1000 });
-    expect(verdict).toEqual({ ok: true });
-  });
-
-  test("an absent budget row dispatches as the DDL default — the gate and the projection can never disagree", async () => {
-    const db = await freshDb();
-    const owner = await seedUser(db);
-    const chatId = await seedHostChat(db, owner);
-    const ruleId = await seedRule(db, owner, chatId);
-    const [rule] = await db.select().from(automationRules).where(eq(automationRules.id, ruleId));
-    if (rule === undefined) {
-      expect.unreachable();
-    }
-    const verdict = await checkBudget(db, { rule, scope: chatId, nowMs: FIXED_NOW_MS });
     expect(verdict).toEqual({ ok: true });
   });
 });
