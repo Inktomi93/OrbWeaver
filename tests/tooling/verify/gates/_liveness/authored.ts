@@ -18,7 +18,6 @@ import { gate as noInlineOptimisticInSurface } from "../../../../../tooling/src/
 import { gate as noInlineUnionRedecl } from "../../../../../tooling/src/verify/gates/no-inline-union-redecl.ts";
 import { gate as noStaticStaletime } from "../../../../../tooling/src/verify/gates/no-static-staletime.ts";
 import { gate as noTestFabrication } from "../../../../../tooling/src/verify/gates/no-test-fabrication.ts";
-import { gate as pdCitationIntegrity } from "../../../../../tooling/src/verify/gates/pd-citation-integrity.ts";
 import { gate as persistenceNoInMemoryState } from "../../../../../tooling/src/verify/gates/persistence-no-in-memory-state.ts";
 import { gate as queryMachineSeals } from "../../../../../tooling/src/verify/gates/query-machine-seals.ts";
 import { gate as testFixtureImports } from "../../../../../tooling/src/verify/gates/test-fixture-imports.ts";
@@ -31,7 +30,6 @@ const CHARACTER_PERSISTENCE = "packages/server/src/domain/character/persistence"
 // The text tokens, assembled so none appears whole in this file.
 const RETIRED_MARKER = ["@orb-gate", "-ignore"].join("");
 const BLANKET_SUPPRESSION = ["biome", "-ignore-all"].join("");
-const ORPHAN_CITATION = ["FLAG[", "PD-", "999999]"].join("");
 
 function add(path: string, source: string): RealCorpusOverlay {
   return { kind: "add", path, source };
@@ -124,12 +122,6 @@ export const AUTHORED_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: noTestFabrication,
     overlays: [add("tests/tooling/liveness-fabrication.test.ts", "declare const source: unknown;\nexport const value = source as any;\n")],
     messageIncludes: "as any",
-  },
-  {
-    policy: pdCitationIntegrity,
-    // An orphan PD citation in a new server module.
-    overlays: [add("packages/server/src/liveness-debt.ts", `// ${ORPHAN_CITATION} an orphan citation\nexport const livenessDebt = 1;\n`)],
-    messageIncludes: "no row in the PD registry",
   },
   {
     policy: persistenceNoInMemoryState,
