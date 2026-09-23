@@ -172,6 +172,12 @@ function AddConnectionFormBody({ trpc, invalidation, onDone, pickerItems, provid
     }
     const label = values.label.trim();
     const credential = await addCredential.mutateAsync({ provider: provider.id, key, ...(label !== "" ? { label } : {}) });
+    // From here the dialog holds the ROW, never the secret: the mutation's retained variables are dropped
+    // (`clearError` is the mutation's `reset`), the form field is emptied, and an endpoint listing taken for
+    // the keyed draft is re-keyed to the emptied field so the retry still judges the pick against that list.
+    addCredential.clearError();
+    const mintedDraft = draftKeyOf(values.baseUrl, values.key);
+    setListing((current) => (current !== null && current.forDraft === mintedDraft ? { ...current, forDraft: draftKeyOf(values.baseUrl, "") } : current));
     form.setFieldValue("key", "");
     form.setFieldValue("keyHeld", true);
     return credential;
@@ -412,7 +418,9 @@ function EndpointModelsCheck({
     void list
       .mutateAsync({ baseUrl: draftBaseUrl, ...(key !== "" ? { key } : {}) })
       .then((result): void => onListing({ forDraft, source: endpointListSource(result) }))
-      .catch((err: unknown): void => onListing({ forDraft, source: { status: "failed", reason: errorMessage(err), retry: runCheck } }));
+      .catch((err: unknown): void => onListing({ forDraft, source: { status: "failed", reason: errorMessage(err), retry: runCheck } }))
+      // The answer now lives in the listing; drop the mutation's retained variables, which carry the draft key.
+      .finally(list.clearError);
   };
 
   return (

@@ -18,11 +18,13 @@ import type { ProviderAuth } from "@orb/contracts/inference";
 import { BUILTIN_PROVIDERS } from "@orb/contracts/inference";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
+import type { TrpcResponder } from "../../../../support/node/route-trpc.ts";
 import { trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import {
   ALL_AVAILABLE,
   AUTHORING_ARMS,
   catalogEntry,
+  connectionRow,
   dialogNamed,
   expectInsideViewport,
   openRowMenu,
@@ -79,34 +81,26 @@ test("a full add mints the key, then creates the connection BY ID, and nothing h
   await expect.poll(() => trpc.unstubbed()).toEqual([]);
 });
 
-test("a partial failure says the key IS saved and the connection is NOT, and the retry does not mint again", async ({ mount, page }) => {
+/** A `connection.create` that refuses its first call and stores the second — the partial-failure script. */
+function failFirstCreate(): TrpcResponder<"connection.create"> {
   let creates = 0;
-  const trpc = await stubConnectionsPane(page, {
-    createConnection: (input) => {
-      creates += 1;
-      return creates === 1
-        ? trpcError({ code: "BAD_REQUEST", message: "the provider refused the model id" })
-        : {
-            id: "user_connection_ctcreated01",
-            ownerId: "user_ct_conn_author",
-            label: "OpenRouter · anthropic/claude-opus-5",
-            providerId: input.providerId,
-            providerLabel: "OpenRouter",
-            credentialId: input.credentialId,
-            baseUrl: null,
-            model: input.model,
-            api: "auto",
-            declared: null,
-            extras: null,
-            transport: null,
-            modelListed: false,
-            allowBackground: false,
-            tasks: ["chat"],
-            createdAt: 0,
-            updatedAt: 0,
-          };
-    },
-  });
+  return (input) => {
+    creates += 1;
+    return creates === 1
+      ? trpcError({ code: "BAD_REQUEST", message: "the provider refused the model id" })
+      : connectionRow({
+          id: "user_connection_ctcreated01",
+          providerId: input.providerId,
+          credentialId: input.credentialId,
+          baseUrl: input.baseUrl,
+          model: input.model,
+          modelListed: input.modelListed ?? true,
+        });
+  };
+}
+
+test("a partial failure says the key IS saved and the connection is NOT, and the retry does not mint again", async ({ mount, page }) => {
+  const trpc = await stubConnectionsPane(page, { createConnection: failFirstCreate() });
   const component = await mount(<ConnectionsAuthoringStory width={870} />);
 
   const dialog = await openAddDialog(page);
@@ -123,6 +117,8 @@ test("a partial failure says the key IS saved and the connection is NOT, and the
   await expect(dialog.getByLabel("API key", { exact: true })).toHaveCount(0);
   await expect(dialog.getByText("Key saved as “default”. It won't be shown again.")).toBeVisible();
   await expect.poll(() => page.content()).not.toContain(SECRET);
+  // …and no mutation still carries it while the notice is open: the mint's retained variables are dropped.
+  await expect(component.getByTestId("held-secrets")).toHaveText("0");
   // The provider is locked to the saved key's provider.
   await expect(dialog.getByRole("combobox", { name: "Provider" })).toBeDisabled();
 
@@ -135,6 +131,52 @@ test("a partial failure says the key IS saved and the connection is NOT, and the
   await expect(component.getByTestId("held-secrets")).toHaveText("0");
 });
 
+// A KEYED ENDPOINT keeps its list across the partial failure. The listing is taken for the draft (URL + key);
+// the mint empties the key field, and the listing is re-keyed with it — so this test is also the control for
+// "the pasted secret is cleared": a mint that left the key in the form would no longer match the re-keyed
+// listing, and the retry would drop the list and save the pick unlisted.
+test("a keyed endpoint's partial-failure retry keeps the list and saves the listed pick as listed", async ({ mount, page }) => {
+  const trpc = await stubConnectionsPane(page, {
+    createConnection: failFirstCreate(),
+    listEndpointModels: { listed: true, models: [catalogEntry("Qwen/Qwen3-32B"), catalogEntry("Qwen/Qwen3-8B")], reason: null },
+  });
+  const component = await mount(<ConnectionsAuthoringStory width={870} />);
+  const dialog = await openAddDialog(page);
+  await pickProvider(page, dialog, "vLLM");
+  await dialog.getByLabel("Server URL", { exact: true }).fill(VLLM_URL);
+  await dialog.getByLabel("API key (optional)", { exact: true }).fill(SECRET);
+  await dialog.getByRole("button", { name: "List models" }).click();
+  await dialog.getByRole("option", { name: "Qwen/Qwen3-8B" }).click();
+  await submit(dialog);
+
+  await expect(dialog.getByRole("alert").filter({ hasText: "Your key was saved as" })).toBeVisible();
+  await expect(dialog.getByRole("option")).toHaveCount(2);
+  await expect(dialog.getByRole("status").filter({ hasText: "Picked:" })).toHaveText("Picked: Qwen/Qwen3-8B");
+  await expect(component.getByTestId("held-secrets")).toHaveText("0");
+
+  await submit(dialog);
+  await expect(dialog).toBeHidden();
+  await expect.poll(() => trpc.inputs("connection.create").map((input) => (input as { readonly modelListed: boolean }).modelListed)).toEqual([true, true]);
+  await expect.poll(() => trpc.count("credentials.add")).toBe(1);
+});
+
+test("a keyed endpoint add with its list read leaves no key in any mutation", async ({ mount, page }) => {
+  await stubConnectionsPane(page, { listEndpointModels: { listed: true, models: [catalogEntry("Qwen/Qwen3-8B")], reason: null } });
+  const component = await mount(<ConnectionsAuthoringStory width={870} />);
+  const dialog = await openAddDialog(page);
+  await pickProvider(page, dialog, "vLLM");
+  await dialog.getByLabel("Server URL", { exact: true }).fill(VLLM_URL);
+  await dialog.getByLabel("API key (optional)", { exact: true }).fill(SECRET);
+  await dialog.getByRole("button", { name: "List models" }).click();
+  await dialog.getByRole("option", { name: "Qwen/Qwen3-8B" }).click();
+  // The list answer is in hand; the list mutation's variables (which carried the key) are already gone.
+  await expect(component.getByTestId("held-secrets")).toHaveText("0");
+  await submit(dialog);
+  await expect(dialog).toBeHidden();
+  await expect(component.getByTestId("held-secrets")).toHaveText("0");
+  await expect.poll(() => page.content()).not.toContain(SECRET);
+});
+
 // ── every built-in provider ─────────────────────────────────────────────────────────────────────────────
 
 /** The key field each auth kind shows, by its label (`null` = no key field at all). */
@@ -145,12 +187,13 @@ const KEY_FIELD_LABELS: Record<ProviderAuth, string | null> = {
   none: null,
 };
 
-/** What each auth kind asks for, and what its add sends. */
-const PROVIDER_ADDS = BUILTIN_PROVIDERS.map((provider) => ({
+/** What each auth kind asks for, and what its add sends. The built-in provider is not here: its catalog is
+ *  closed and the add dialog has no list for it, so it refuses the typed id (its own test below). */
+const PROVIDER_ADDS = BUILTIN_PROVIDERS.filter((provider) => provider.catalog === "url").map((provider) => ({
   provider,
   key: provider.auth === "apiKey" || provider.auth === "oauthToken" ? `ct-${provider.id}-secret` : null,
   baseUrl: provider.auth === "endpoint" ? VLLM_URL : null,
-  model: provider.auth === "none" ? "Xenova/bge-small-en-v1.5" : "ct-model",
+  model: "ct-model",
 }));
 
 for (const add of PROVIDER_ADDS) {
@@ -298,17 +341,35 @@ test("an endpoint lists its models and the pick is saved as listed; a failed lis
   await expect.poll(() => trpc.lastInput("connection.create")).toMatchObject({ model: "Qwen/Qwen3-32B-AWQ", modelListed: false });
 });
 
-test("the built-in provider adds with no key at all, and its row offers the built-in picker", async ({ mount, page }) => {
-  const trpc = await stubConnectionsPane(page);
+test("the built-in provider refuses a typed id in the add dialog and points at its row's built-in picker", async ({ mount, page }) => {
+  const trpc = await stubConnectionsPane(page, {
+    connections: [
+      connectionRow({
+        id: "user_connection_ctauthor0002",
+        label: "Built-in (this device) · Xenova/bge-small-en-v1.5",
+        providerId: "local-light",
+        providerLabel: "Built-in (this device)",
+        credentialId: null,
+        model: "Xenova/bge-small-en-v1.5",
+        tasks: ["embed"],
+      }),
+    ],
+  });
   await mount(<ConnectionsAuthoringStory width={870} />);
   const dialog = await openAddDialog(page);
   await pickProvider(page, dialog, "Built-in (this device)");
   await expect(dialog.getByLabel(/API key|Setup token/)).toHaveCount(0);
-  await dialog.getByRole("textbox", { name: "Model" }).fill("Xenova/bge-small-en-v1.5");
+  await expect(dialog.getByRole("textbox", { name: "Model" })).toHaveCount(0);
+  await expect(
+    dialog.getByText(
+      "Built-in models are picked from their list, and this dialog has none to show. Use “Add another built-in model” in a built-in connection's menu.",
+    ),
+  ).toBeVisible();
   await submit(dialog);
+  await expect(dialog.getByRole("alert")).toHaveText("Pick a model or type its id.");
+  await expect.poll(() => trpc.count("connection.create")).toBe(0);
+  await dialog.getByRole("button", { name: "Cancel" }).click();
   await expect(dialog).toBeHidden();
-  await expect.poll(() => trpc.count("credentials.add")).toBe(0);
-  await expect.poll(() => trpc.lastInput("connection.create")).toMatchObject({ providerId: "local-light", credentialId: null });
 
   await openRowMenu(page, "Built-in (this device) · Xenova/bge-small-en-v1.5");
   await expect(page.getByRole("menuitem", { name: /Add another built-in model/ })).toBeVisible();

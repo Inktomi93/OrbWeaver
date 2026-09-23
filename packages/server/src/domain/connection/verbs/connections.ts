@@ -47,6 +47,15 @@ function requireModelId(raw: string): ModelId {
   return parsed.data;
 }
 
+/** A `builtin` catalog is the closed set the in-process runtime can load, so an id outside it can only be a
+ *  typo; a `url` catalog can lag its provider and admits any id (saved `modelListed: false`, §7.4). */
+function requireCatalogModel(ctx: ConnectionContext, provider: ProviderDef, model: ModelId): void {
+  const closed = ctx.runtime.catalogs.builtin(provider.id);
+  if (closed !== null && !closed.some((entry) => entry.id === model)) {
+    throw new DomainOperationError(CONNECTION_OP_CODES.modelNotInCatalog, `${provider.label} does not run "${model}" — pick one of its listed models.`);
+  }
+}
+
 function requireApi(provider: ProviderDef, api: ConnectionApi): void {
   if (api !== "auto" && !provider.apis.includes(api)) {
     throw new DomainOperationError(CONNECTION_OP_CODES.apiIncoherent, `${provider.label} does not speak "${api}".`);
@@ -138,6 +147,7 @@ function createCreate(ctx: ConnectionContext): ConnectionService["create"] {
     requireBaseUrl(ctx, provider, params.baseUrl);
     await requireCredential(ctx, ownerId, params.credentialId);
     const model = requireModelId(params.model);
+    requireCatalogModel(ctx, provider, model);
     const label = mintLabel(provider, model, await listOwnedLabels(ctx.db, ownerId), params.label);
     const now = ctx.now();
     const id = ctx.newConnectionId();
@@ -182,6 +192,10 @@ async function validatedPatch(
   const credentialId = patch.credentialId ?? row.credentialId;
   await requireCredential(ctx, ownerId, credentialId);
   const model = patch.model === undefined ? row.model : requireModelId(patch.model);
+  // Judged only when the patch moves the model or the provider: an unrelated edit never re-decides a stored id.
+  if (patch.model !== undefined || patch.providerId !== undefined) {
+    requireCatalogModel(ctx, provider, model);
+  }
   return {
     ...(patch.label !== undefined ? { label: patch.label.trim() } : {}),
     providerId: provider.id,

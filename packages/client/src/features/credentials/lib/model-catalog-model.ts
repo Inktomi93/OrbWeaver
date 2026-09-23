@@ -76,8 +76,8 @@ function emptyListView(notice: string, typedAllowed: boolean, retry: (() => void
   return { models: null, notice: `${notice} ${tail}`, warns: true, typingOffered: typedAllowed, retry };
 }
 
-/** The picker's arm for a source. With no list read at all there is nothing to hold an id against, so the
- *  unlisted arm offers typing whatever the policy; the caller's reason already says what to type. */
+/** The picker's arm for a source. The unlisted arm follows the policy too: a closed catalog refuses a typed
+ *  id even with no list in hand, because the only id it could hold is a typo (the write seam refuses it). */
 export function modelPickerView(source: ModelCatalogSource, args: { readonly listOwner: string; readonly typedAllowed: boolean }): ModelPickerView {
   switch (source.status) {
     case "loading":
@@ -89,7 +89,7 @@ export function modelPickerView(source: ModelCatalogSource, args: { readonly lis
     case "failed":
       return emptyListView(`Couldn't list ${args.listOwner}'s models — ${source.reason}.`, args.typedAllowed, source.retry);
     case "unlisted":
-      return { models: null, notice: source.reason, warns: false, typingOffered: true, retry: null };
+      return { models: null, notice: source.reason, warns: !args.typedAllowed, typingOffered: args.typedAllowed, retry: null };
   }
 }
 
