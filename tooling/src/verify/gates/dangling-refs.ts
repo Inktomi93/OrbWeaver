@@ -9,10 +9,10 @@
 // descendants. Authority rows and gate-family fixture strings are excluded from UPPER_SNAKE declaration
 // evidence so a reviewed grant or its proof cannot manufacture the declaration that makes itself clean.
 //
-// The law corpus derives from docs/catalog/catalog.json (active normative/current/operational homes) plus
-// docs/law and docs/adr; the design corpus is each plan's design document. Dated reviews do not
-// participate. The two named law files outside docs are explicit because the catalog cannot derive them.
-// Missing members and an empty derived catalog are hard blindness findings.
+// The law corpus derives from each document's own frontmatter (status active, kind law/reference) under
+// docs/law and docs/Mission.md, plus docs/adr unconditionally; the design corpus is each plan's design
+// document. Dated reviews do not participate. The two named law files outside docs are explicit because
+// no directory walk can derive them. A missing member of that named set is a hard blindness finding.
 //
 // BINDING RESOLUTION (#2163): descriptor const aliases resolve through _shared/reference-fact.ts
 // resolveStableExpression. Bare descriptor names resolve docs/law, then repository root;
@@ -26,7 +26,7 @@ import { defineGate } from "../contract/policy.ts";
 import type { PathStatusIndex } from "../lib/dangling-ref-citations.ts";
 import { CORE_ANCHOR } from "../lib/dangling-ref-citations.ts";
 import type { DanglingRefCorpora } from "../lib/dangling-ref-corpus.ts";
-import { CATALOG_REL, danglingRefCorpora, danglingRefTextIndex, LAW_OUTSIDE_DOCS } from "../lib/dangling-ref-corpus.ts";
+import { ANCHOR_PATH, danglingRefCorpora, danglingRefTextIndex, LAW_OUTSIDE_DOCS } from "../lib/dangling-ref-corpus.ts";
 import { finalDescriptorOf } from "../lib/policy-descriptor-read.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 
@@ -190,15 +190,10 @@ const ARM2_MSG = (ref: string): string =>
   `markdown link \`(${ref})\` resolves to no file (relative to this doc, then docs/law/, then ` +
   "root). A dead doc link is drift — repoint it to the real home or delete the link.";
 
-const BLIND_CATALOG_MSG =
-  `the doc-catalog census (${CATALOG_REL}) resolved ZERO living law documents, so arms 2-4 would judge only the ` +
-  "hand-named directories — the blindness this gate's derived corpus exists to prevent (GATE-AUTHORING.md §4.6). Re-run " +
-  "`pnpm doc-catalog:write`, or fix the class rule in tooling/src/verify/gates/dangling-refs.ts `catalogued`.";
-
 const LAW_OUTSIDE_MISSING_MSG = (rel: string): string =>
   `\`${rel}\` is named by LAW_OUTSIDE_DOCS in tooling/src/verify/gates/dangling-refs.ts (law the constitution's §7 index ` +
-  "cites, living outside docs/ where the catalog cannot see it) and no longer resolves — the widened corpus lost a member " +
-  "silently. Repoint the constant to the doc's new home, or delete the row if the doc is gone.";
+  "cites, living outside docs/ where no directory walk can see it) and no longer resolves — the widened corpus lost a " +
+  "member silently. Repoint the constant to the doc's new home, or delete the row if the doc is gone.";
 
 interface LinkCite {
   readonly file: string;
@@ -224,7 +219,7 @@ function docLinkCites(textByPath: ReadonlyMap<string, string>, files: readonly s
 
 function statusIndex(ctx: GatePolicyContext, selectors: readonly string[]): PathStatusIndex {
   const demanded = [...new Set(selectors)];
-  const identities = readyResourceValue(ctx.resources.authoredPaths(demanded.length > 0 ? demanded : [CATALOG_REL])).identities;
+  const identities = readyResourceValue(ctx.resources.authoredPaths(demanded.length > 0 ? demanded : [ANCHOR_PATH])).identities;
   return new Map(identities.map((identity) => [identity.selector, identity.status]));
 }
 
@@ -236,9 +231,8 @@ interface CarriedProof {
 
 const PROOF_DOC = "docs/law/__dangling_refs_resource_anchor.md";
 const PROOF_FILES = {
-  [PROOF_DOC]: "---\nkind: law\n---\n\nResource proof anchor.\n",
-  [CATALOG_REL]:
-    '{"documents":[{"path":"docs/law/__dangling_refs_resource_anchor.md","lane":"core","frontmatter":{"fields":{"status":"active"}},"receipt":{"authority":"normative"}}]}\n',
+  [PROOF_DOC]: "---\nkind: law\nstatus: active\n---\n\nResource proof anchor.\n",
+  [ANCHOR_PATH]: "---\nkind: law\nstatus: active\n---\n\nMission anchor.\n",
   "packages/kit/src/__dangling_refs_resource_anchor.ts": "export const DANGLING_REFS_RESOURCE_ANCHOR = true;\n",
   "tooling/src/__dangling_refs_resource_anchor.ts": "export const danglingRefsResourceAnchor = true;\n",
 } as const;
@@ -275,21 +269,17 @@ function referenceViolations(descriptors: readonly DescriptorCite[], links: read
 }
 
 function livenessViolations(docs: DanglingRefCorpora): readonly Violation[] {
-  return [
-    ...docs.lawOutsideDocsMissing.map((rel) => ({ file: CORE_ANCHOR, line: 0, message: LAW_OUTSIDE_MISSING_MSG(rel) })),
-    ...(docs.catalogued === 0 ? [{ file: CATALOG_REL, line: 0, message: BLIND_CATALOG_MSG }] : []),
-  ];
+  return docs.lawOutsideDocsMissing.map((rel) => ({ file: CORE_ANCHOR, line: 0, message: LAW_OUTSIDE_MISSING_MSG(rel) }));
 }
 
 function evaluateDanglingRefs(ctx: GatePolicyContext, descriptorRefs: readonly DescriptorCite[]): void {
   const documentFacts = readyResourceValue(ctx.resources.documents());
-  const catalog = readyResourceValue(ctx.resources.json("doc-catalog"));
   const toolingEntries = readyResourceValue(ctx.resources.authoredTree("tooling"));
   const outsidePaths = LAW_OUTSIDE_DOCS.filter((path) => toolingEntries.some((entry) => entry.kind === "file" && entry.path === path));
-  const outsideText = readyResourceValue(ctx.resources.authoredText(outsidePaths.length > 0 ? outsidePaths : [CATALOG_REL]));
+  const outsideText = readyResourceValue(ctx.resources.authoredText(outsidePaths.length > 0 ? outsidePaths : [ANCHOR_PATH]));
   const texts = danglingRefTextIndex(documentFacts, outsideText);
   const docPaths = documentFacts.documents.map((document) => document.path);
-  const docs = danglingRefCorpora(catalog.value, docPaths, outsidePaths);
+  const docs = danglingRefCorpora(documentFacts.documents, outsidePaths);
   const links = docLinkCites(texts, docs.links);
   const selectors = [...descriptorRefs.flatMap(({ ref }) => rootCandidates(ref)), ...links.flatMap(({ file, ref }) => linkCandidates(file, ref))];
   const paths = statusIndex(ctx, selectors);
@@ -314,19 +304,13 @@ export const gate = defineGate({
   analysis: "resource",
   execution: "entire-population",
   facts: [],
-  resources: [
-    { kind: "documents" },
-    { kind: "json", id: "doc-catalog" },
-    { kind: "authored-tree", id: "tooling" },
-    { kind: "authored-text" },
-    { kind: "authored-path" },
-  ],
+  resources: [{ kind: "documents" }, { kind: "authored-tree", id: "tooling" }, { kind: "authored-text" }, { kind: "authored-path" }],
   message:
     "a doc-path pointer leads nowhere — a gate descriptor's docRow/message/fix names a `*.md` that resolves " +
     "to no file, or a markdown link in the LINK corpus targets a missing doc. The derived corpus and its named " +
-    "law outside docs are hard health arms. Corpora are DERIVED " +
-    "from docs/catalog/catalog.json — every LIVING law home (status active + a law authority), each plan's design document, plus " +
-    "the law markdown outside docs/ (tooling/src/verify/gates/GATE-AUTHORING.md, " +
+    "law outside docs are hard health arms. Corpora are DERIVED from frontmatter — every LIVING law home under " +
+    "docs/law/ or docs/Mission.md (status active + kind law/reference), every docs/adr/ decision, each plan's " +
+    "design document, plus the law markdown outside docs/ (tooling/src/verify/gates/GATE-AUTHORING.md, " +
     "tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md); dated reviews " +
     "are out by class. The `dangling-ref-citations` sibling owns grantable backticked path/symbol findings. " +
     "See Core-Enforcement-Active-Gates.md.",
@@ -371,21 +355,6 @@ export const gate = defineGate({
       },
       expect: { count: 2, messageIncludes: "named by LAW_OUTSIDE_DOCS" },
       why: "§4.6 blindness tripwire: a literally-named law doc that stops resolving is REPORTED, never silently dropped from the corpus",
-    },
-    {
-      mode: "resource" as const,
-      files: {
-        ...PROOF_FILES,
-        // The other blindness half: a catalog that resolves ZERO living homes would silently return arms
-        // 2-4 to the hand-named directories — a placebo with a healthy-looking file count.
-        "docs/law/Constitution.md": "---\nkind: law\n---\n\nplanted anchor.\n",
-        "tooling/src/verify/gates/GATE-AUTHORING.md": "---\nkind: law\n---\n\nplanted.\n",
-        "tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md": "---\nkind: law\n---\n\nplanted.\n",
-        "docs/catalog/catalog.json":
-          '{"documents":[{"path":"docs/history/x.md","lane":"history","frontmatter":{"fields":{"status":"active"}},"receipt":{"authority":"historical"}}]}\n',
-      },
-      expect: { count: 1, messageIncludes: "resolved ZERO living law documents" },
-      why: "the derived corpus must fail LOUD when its census comes back empty — a silently empty derivation is the blind-gate placebo, not a clean tree",
     },
   ],
   mustPass: [

@@ -500,12 +500,11 @@ const RETIRED_COMMANDS = ["pnpm design-audit", "pnpm motion-audit", "pnpm perf-m
 /** WHERE A RETIRED SPELLING IS STILL TRUE. The owner's ruling (2026-09-04) is that an unlaunched product
  *  grep-fixes the spellings rather than shipping a door — but it draws the line at a RECIPE A READER
  *  WOULD TYPE. A DATED RECEIPT is a statement about what was run on its date, and rewriting it would
- *  falsify the record rather than fix it; the generated doc catalog is derived FROM those receipts and
- *  cannot be edited by hand at all. `.claude/`/`.codex/` are excluded for a different reason and it is
- *  not a semantic one: they are the orchestrator's files, outside every lane's write scope (the fold's
+ *  falsify the record rather than fix it. `.claude/`/`.codex/` are excluded for a different reason and it
+ *  is not a semantic one: they are the orchestrator's files, outside every lane's write scope (the fold's
  *  brief lists them for the orchestrator instead), so this sweep would be asserting over a corpus it is
  *  forbidden to repair. Each prefix is the WHOLE reason it is here — do not add one without one. */
-const RECEIPT_PREFIXES = ["docs/catalog/", ".claude/", ".codex/"] as const;
+const RECEIPT_PREFIXES = [".claude/", ".codex/"] as const;
 
 /** A LINE THAT NAMES THE SPELLING AS DEAD IS NOT A RECIPE. "the retired pnpm design-audit" is exactly
  *  the sentence the fold's own headers and doc edits needed to write, and a sweep that refused it would
