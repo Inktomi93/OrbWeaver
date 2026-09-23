@@ -13,9 +13,8 @@ explains what each home is for and how work items flow.
 Four homes plus `docs/Mission.md`: `docs/law/` (standing law), `docs/adr/` (one decision per file,
 immutable), `docs/plans/<slug>/design.md` (a program), `docs/work/` (one work item per file). A landed
 item and a finished plan are deleted; git keeps them, and a plan's lasting knowledge moves to an ADR or
-law first. `docs/law/docs-and-work.md` says when a piece of knowledge is an ADR and when it is law. The
-other folders under `docs/` are legacy and migrate under `docs/plans/doc-migration/design.md`; do not add
-a file to them.
+law first. `docs/law/docs-and-work.md` says when a piece of knowledge is an ADR and when it is law. There
+is no other folder under `docs/`; do not add one.
 
 ## Write prose, not structure
 
@@ -34,9 +33,9 @@ dead link or path, and a writing-rule finding; its message names the fixing comm
 
 Every `docs/**` file carries `kind`, `status` and `updated`. `updated` is the one sanctioned date and
 doubles as the review mark: `pnpm doc due` lists docs whose cited code changed after it, and
-`pnpm doc review <path|glob…>` sets it in batch. The legacy tree keeps its dated-by-design exemption
-until it moves. The governed kinds, statuses and keys are `KIND_RULES` in `tooling/src/doc/lib/rules.ts`;
-the legacy tree's vocabulary is `tooling/src/doc-catalog/lib/vocab.ts`.
+`pnpm doc review <path|glob…>` sets it in batch. The governed kinds, statuses and keys are `KIND_RULES`
+in `tooling/src/doc/lib/rules.ts`; the closed vocabularies (kinds, states, the D window) are
+`tooling/src/doc/contract/vocab.ts`.
 
 ## Moving or deleting a doc
 
@@ -64,10 +63,7 @@ overview` is the column view; `pnpm doc drift` names each inconsistency with its
 ## Checks
 
 `pnpm check:agents` (the governed tree), `pnpm check:docs` (the formatter), `pnpm check:structure`
-(dangling references and D citations), `pnpm check:doc-catalog` (the legacy tree's inventory: one lane
-and one authority row per document, frontmatter debt; no content hash, so a prose edit reds nothing
-there). A floor touching docs runs all four. A legacy document added, removed or re-kinded owes
-`pnpm doc-catalog:sync` and `pnpm doc-catalog:write`.
+(dangling references and D citations). A floor touching docs runs all three.
 
 ## Editing a formatted doc
 

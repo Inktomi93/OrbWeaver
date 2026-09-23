@@ -80,8 +80,8 @@
 // A LIVENESS-AND-OUTCOME RECEIPT AND NOT CATCH PARITY. `97e68be91` states no differential and lands none
 // as a test, and §4.6 (#2000) stopped accepting silence; this is the record it owes, all three axes named
 // separately, driven on ONE corpus at `ce8e5174f`.
-//   · FINDINGS. FINAL side through `runPolicyPass` over the real root: raw 1 —
-//     `biome.json:845 docs/catalog/catalog.tmp.*.json` — granted 1 (`biome-grant-liveness:catalog-tmp`,
+//   · FINDINGS. FINAL side through `runPolicyPass` over the real root: raw 1 — a `biome.json` override
+//     row naming a since-removed catalog temp-file glob — granted 1 (a since-retired grant row,
 //     consumed exactly once), effective 0, owner `success`/`complete`, `authorityAlarms []` measured with a
 //     planted stale grant that DID alarm.
 //     LEGACY side: the frozen descriptor at `c97de9d2f`, header-import-shimmed into a scratch module

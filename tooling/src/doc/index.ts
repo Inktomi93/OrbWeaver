@@ -8,6 +8,7 @@ export type {
   DocEdit,
   DocTree,
   DriftFacts,
+  Frontmatter,
   GovernedDoc,
   ItemKind,
   ItemPatch,
@@ -20,9 +21,21 @@ export type {
   WorkItem,
 } from "./contract/types.ts";
 export { ADR_SECTION_FLAGS, ITEM_SECTION_FLAGS, PLAN_SECTION_FLAGS } from "./contract/types.ts";
+export {
+  ADR_KIND,
+  DATE_RE,
+  DOC_TOOL_TREE_PREFIXES,
+  DOC_TOOL_TREES,
+  FIRST_RESERVED_RULING,
+  ITEM_KINDS,
+  ITEM_STATES,
+  LAST_RESERVED_RULING,
+  PLAN_KIND,
+} from "./contract/vocab.ts";
 export { closesTrailer, driftLines, planWakeConditions, wakeConditions } from "./lib/drift.ts";
 export type { DueDoc } from "./lib/due.ts";
 export { changesFromLog, describedDoc, dueDocs, earliestUpdated } from "./lib/due.ts";
+export { parseFrontmatter } from "./lib/frontmatter.ts";
 export { renderFrontmatter, sectionsOf, splitDocument, titleOf, withFields } from "./lib/frontmatter-write.ts";
 export { allItems, expectedGeneratedFiles } from "./lib/generated.ts";
 export { isGeneratedPath, planSlugOf, renderAdrIndex, renderPlanIndex, renderTasks, renderWorkIndex } from "./lib/indexes.ts";
@@ -34,6 +47,8 @@ export { docProblems, KIND_RULES, nextFreeRulingId, PARKED } from "./lib/rules.t
 export { adrTemplate, itemTemplate, lawTemplate, planTemplate } from "./lib/templates.ts";
 export { drift, driftFacts, loadPlans, overview } from "./ops/board.ts";
 export { docFileCount, docLayerProblems, introducedDocProblems, pendingDocProblems } from "./ops/check.ts";
+export type { FormatOutcome, FormatRefusal } from "./ops/format.ts";
+export { formatDocs, formatMarkdown, formatTargets } from "./ops/format.ts";
 export { regenerateIndexes } from "./ops/indexes.ts";
 export type { WriteOutcome } from "./ops/items.ts";
 export { loadItems, newItem, newItems, newItemsFrom, setItems } from "./ops/items.ts";

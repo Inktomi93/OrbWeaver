@@ -1,8 +1,8 @@
 // PATH TRIGGERS FOR THE WHOLE-ONLY STATIC STAGES (#2277) — "a commit touching X owes check Y", as DATA.
 //
-// THE MECHANISM ALREADY EXISTED, IMPLEMENTED ONCE AND GENERALISED NOWHERE. `docs:catalog` carried a lone
-// `DOC_CATALOG_PATH_RE` in the registry and a bespoke `scopedArgv` reading "if the changed selection
-// contains a matching path, run the WHOLE command; otherwise skip". Every other whole-only static stage had
+// THE MECHANISM ALREADY EXISTED, IMPLEMENTED ONCE AND GENERALISED NOWHERE. The retired `docs:catalog`
+// stage carried a lone path regex in the registry and a bespoke `scopedArgv` reading "if the changed
+// selection contains a matching path, run the WHOLE command; otherwise skip". Every other whole-only static stage had
 // no `scopedArgv` at all, so a scoped tier deferred it UNCONDITIONALLY — which is why #2266
 // (`check:agents` red on main through several folds) and the `lint:eslint` tsdoc reds were both invisible:
 // the #1584 hook bypass suppresses the commit-tier run, and nothing else keyed those stages to the paths
@@ -55,19 +55,14 @@ export interface StageTrigger {
 
 /**
  * EVERY STAGE THAT RUNS ITS WHOLE COMMAND OR NOT AT ALL, with its trigger or its stated absence. That is
- * the twelve whole-only static rows plus `docs:catalog`, whose lone hand-rolled version of this mechanism
- * moved in here so the accounting has ONE home. Repo-relative,
- * forward-slashed paths — the same shape `Selection.paths` carries.
+ * the twelve whole-only static rows. Repo-relative, forward-slashed paths — the same shape
+ * `Selection.paths` carries.
  *
  * Each `why` names the SUBJECT from the stage's own registry header, because that header is where the
  * stage already said what it reads; a trigger derived from anything else is a second opinion about the
  * same question and the two would drift.
  */
 export const WHOLE_COMMAND_PATH_TRIGGERS: Readonly<Record<string, StageTrigger>> = {
-  "docs:catalog": {
-    paths: /^(?:docs\/.*\.md|docs\/catalog\/.*|tooling\/src\/doc-catalog\/.*)$/u,
-    why: "THE ORIGINAL, moved here verbatim from `registry.ts`'s lone `DOC_CATALOG_PATH_RE`: an added, removed or re-kinded document changes the inventory or the frontmatter ratchet, and the catalog tool itself defines the row shape. (The content-hash receipt this row used to guard is gone by owner ruling; the pattern stays a complete over-approximation.)",
-  },
   "lint:hook-syntax": {
     paths: /^\.claude\/hooks\//u,
     why: "its subject is literally `.claude/hooks/*.mjs` — the glob its own argv spells. Nothing else can change the verdict.",

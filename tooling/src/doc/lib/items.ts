@@ -3,9 +3,9 @@
 // which is what lets the orchestrator batch `set 12 14 17 done` without walking a lifecycle. Also the
 // `item --from` batch file's schema.
 import { z } from "zod";
-import { DATE_RE, DOC_TOOL_TREES, ITEM_KINDS, ITEM_STATES } from "#doc-catalog";
 import type { Blocker, ItemKind, ItemPatch, ItemSectionFlag, ItemState, NewItemInput, WorkItem } from "../contract/types.ts";
 import { ITEM_SECTION_FLAGS } from "../contract/types.ts";
+import { DATE_RE, DOC_TOOL_TREES, ITEM_KINDS, ITEM_STATES } from "../contract/vocab.ts";
 import { splitDocument, titleOf, withFields, withTitle } from "./frontmatter-write.ts";
 import { basenameOf, padId, parseNumberedName } from "./names.ts";
 

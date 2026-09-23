@@ -6,9 +6,9 @@
 // path does not admit, or a parked plan without a reason, refuses there.
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { PLAN_KIND } from "#doc-catalog";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { DocEdit } from "../contract/types.ts";
+import { PLAN_KIND } from "../contract/vocab.ts";
 import { splitDocument, withFields } from "../lib/frontmatter-write.ts";
 import { KIND_RULES, PARKED } from "../lib/rules.ts";
 import { introducedDocProblems } from "./check.ts";

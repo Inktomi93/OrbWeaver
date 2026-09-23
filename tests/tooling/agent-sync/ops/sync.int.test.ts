@@ -4,7 +4,7 @@
 import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync } from "node:fs";
 import { join, relative } from "node:path";
 import { codexAgentSyncProblems, parseClaudeAgent, parseRulePaths, ROLE_MODELS, ruleListLine } from "../../../../tooling/src/agent-sync/index.ts";
-import { formatMarkdown } from "../../../../tooling/src/doc-catalog/index.ts";
+import { formatMarkdown } from "../../../../tooling/src/doc/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..", "..", "..");

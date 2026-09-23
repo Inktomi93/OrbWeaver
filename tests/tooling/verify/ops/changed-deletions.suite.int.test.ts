@@ -91,8 +91,7 @@ test("git-changed classification keeps deletions for semantic stages and removes
   }
   expect(scoped("lint:eslint", selection)).toEqual(expect.arrayContaining([files.added, files.modified, files.renameNew]));
   expect(scoped("imports:depcruise", selection)).toEqual(expect.arrayContaining([files.added, files.modified, files.renameNew]));
-  expect(scoped("docs:format", selection)).toEqual(["node", "tooling/src/doc-catalog/cli.ts", "format", "--check", files.docModified]);
-  expect(scoped("docs:catalog", selection)).toEqual(["pnpm", "check:doc-catalog"]);
+  expect(scoped("docs:format", selection)).toEqual(["node", "tooling/src/doc/cli.ts", "format", "--check", files.docModified]);
 
   const structure = scoped("structure:full", selection);
   expect(structure).toEqual(expect.arrayContaining([files.deleted, files.renameOld, files.docDeleted, files.testDeleted]));

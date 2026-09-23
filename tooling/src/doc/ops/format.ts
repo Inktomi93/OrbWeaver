@@ -55,11 +55,11 @@ import remarkGfm from "remark-gfm";
 import { REPO_ROOT } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { execNicedSync } from "../../_shared/proc.ts";
+import { DOC_TOOL_TREE_PREFIXES } from "../contract/vocab.ts";
 import type { MarkdownNode } from "../lib/format-fidelity.ts";
 import { ambiguousTemplateLiteralRefusal, escapeDeltaRefusal, fidelityKey, overflowRefusal } from "../lib/format-fidelity.ts";
-import { DOC_TOOL_TREE_PREFIXES } from "../lib/vocab.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm check:docs (node tooling/src/doc-catalog/cli.ts <verb>)");
+refuseDirectInvocation(import.meta.url, "pnpm doc format <--check|--write>");
 
 /** The LIVING trees this formatter owns. Prefix-matched against repo-relative tracked paths. The `doc`
  *  tool's trees are living by construction: every write there goes through `formatMarkdown` first. */

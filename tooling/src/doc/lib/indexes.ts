@@ -2,8 +2,8 @@
 // summaries, byte-deterministic, so `pnpm doc index` writes them and the checker proves the tree carries
 // exactly what a fresh render would produce. A generated file carries `kind: index` and no `updated`
 // (its date would make every day's render differ from the committed bytes).
-import { DOC_TOOL_TREES, FIRST_RESERVED_RULING, LAST_RESERVED_RULING } from "#doc-catalog";
 import type { DocSummary, WorkItem } from "../contract/types.ts";
+import { DOC_TOOL_TREES, FIRST_RESERVED_RULING, LAST_RESERVED_RULING } from "../contract/vocab.ts";
 import { renderFrontmatter } from "./frontmatter-write.ts";
 import { basenameOf, padId, parseNumberedName } from "./names.ts";
 

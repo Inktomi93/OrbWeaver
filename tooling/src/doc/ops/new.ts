@@ -3,9 +3,9 @@
 // an overwrite; so is a file the docs check would red, which writes nothing and names the findings.
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { DOC_TOOL_TREES } from "#doc-catalog";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { AdrSectionFlag, NewDocInput, PlanSectionFlag } from "../contract/types.ts";
+import { DOC_TOOL_TREES } from "../contract/vocab.ts";
 import { DESIGN_FILE } from "../lib/indexes.ts";
 import { basenameOf, numberedName, parseNumberedName } from "../lib/names.ts";
 import { nextFreeRulingId } from "../lib/rules.ts";
