@@ -126,7 +126,7 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D139 | [one work graph, one documentation catalog, no wiki](0139-one-work-graph-one-documentation-catalog-no-wiki.md) | active |
 | D140 | [mutable state, recovery context, process, and provenance have four distinct homes](0140-mutable-state-recovery-context-process-and-provenance-have.md) | active |
 | D141 | [code comments carry only irreducible current WHY](0141-code-comments-carry-only-irreducible-current-why.md) | active |
-| D142 | [The chat default for new principals](0142-chat-default-for-new-principals.md) | active |
+| D142 | [The chat default for new principals](0142-chat-default-for-new-principals.md) | superseded |
 | D143 | [the vLLM source ERRS OPEN: capability is per-checkpoint and undetectable, user settings are trusted, and `customParameters` reaches the vllm wire (AMENDS the 2026-07-24 BYOK-only ruling of `20ac4154c`)](0143-the-vllm-source-errs-open-capability-is-per.md) | active |
 | D144 | [the reading-surface derive law: one palette root per plate AND ink; `--color-scrim` is RETIRED (no alias) because a token names ONE polarity semantic](0144-the-reading-surface-derive-law-one-palette-root.md) | active |
 | D145 | [what a chat's model is TOLD it can do is ONE per-turn collection, and `domain/<x>/teaching-contribution.ts` is the ratified 11th feature-root slot that feeds it](0145-what-a-chat-s-model-is-told-it.md) | active |

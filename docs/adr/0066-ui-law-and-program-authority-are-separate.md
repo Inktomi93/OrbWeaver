@@ -13,7 +13,7 @@ Not recorded in the ledger row.
 ## Decision
 
 Current UI rules live in the core UI-law set;
-[`../proposed/INDEX.md`](../architecture/proposed/INDEX.md) maps committed future programs to their sprint issues.
+[`../architecture/proposed/INDEX.md`](../architecture/proposed/INDEX.md) maps committed future programs to their sprint issues.
 The UI-cohesion design is superseded and has no lifecycle authority. GitHub Project 1 owns current work
 state; code and tests own built behavior (D139/D140).
 
