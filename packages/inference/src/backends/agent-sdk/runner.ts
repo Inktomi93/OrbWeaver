@@ -26,6 +26,7 @@ import type { AgentSdkSessionId } from "../../contract/identity.ts";
 import { agentSdkSessionIdSchema } from "../../contract/identity.ts";
 import type { ResolvedWarning } from "../../contract/resolve.ts";
 import { resolveDynamicContext } from "../../funnel/resolve-chat.ts";
+import { classifyHttpStatus } from "../kit/error-classify.ts";
 import { agentSdkVariantMetadata } from "../kit/provider-metadata.ts";
 import type { AgentSdkLog } from "./log.ts";
 import { toSdkOutputFormat } from "./output-schema.ts";
@@ -417,6 +418,9 @@ class TurnAccumulator {
   reasoningTokens: number | null = null;
   redactedThinkingBlocks = 0;
   lastRetryError: SDKAssistantMessageError | undefined;
+  /** The code on the runtime's synthetic API-error assistant frame, and the upstream request id it names. */
+  assistantError: SDKAssistantMessageError | undefined;
+  requestId: string | undefined;
   readonly terminalToolCalls: ToolCallInput[] = [];
   readonly events: ChatEvent[] = [];
   readonly usageAcc: UsageAcc = {
@@ -582,6 +586,8 @@ class TurnAccumulator {
 
 function handleAssistant(acc: TurnAccumulator, message: Narrow<"assistant">): void {
   acc.stopReason = message.message.stop_reason ?? acc.stopReason;
+  acc.assistantError = message.error ?? acc.assistantError;
+  acc.requestId = message.request_id ?? acc.requestId;
   for (const block of message.message.content) {
     if (block.type === "text") {
       acc.reply += block.text;
@@ -803,48 +809,60 @@ function handleResult(acc: TurnAccumulator, message: Narrow<"result">): void {
     acc.durationApiMs = message.duration_api_ms;
     acc.apiErrorStatus = message.api_error_status ?? null;
     acc.meta.warmSpareClaimed = message.warm_spare_claimed ?? null;
-    if (message.is_error) {
-      throw new ProviderError({
-        kind: "server",
-        retryable: true,
-        message: "agent-sdk: result success-subtype flagged is_error",
-        model: acc.ctx.model,
-        ...(acc.errorSessionId !== undefined ? { sessionId: acc.errorSessionId } : {}),
-      });
+    if (!message.is_error) {
+      return;
     }
-    return;
   }
   throw buildResultError(acc, message);
 }
 
-type ErrorResult = Narrow<"result"> & { subtype: Exclude<Narrow<"result">["subtype"], "success"> };
-
+// Classify a failed turn, most specific evidence first. A `success` result flagged `is_error` is the runtime's
+// synthetic API-error turn (a model its CLI version cannot serve, a model that does not exist): the assistant
+// frame before it names the SDK error code, and the result carries the upstream HTTP status. `unknown` is the
+// code the runtime stamps when it has no better word, so the status outranks it.
 function classifyResult(
   acc: TurnAccumulator,
-  message: ErrorResult,
+  message: Narrow<"result">,
 ): { readonly classified: ReturnType<typeof classifyAssistantError>; readonly detail: string } {
   const rateLimited = acc.rateLimit?.status === "rejected" || acc.lastRetryError === "rate_limit";
-  const specific: SDKAssistantMessageError | undefined = rateLimited ? "rate_limit" : acc.lastRetryError;
-  if (specific !== undefined) {
+  const specific: SDKAssistantMessageError | undefined = rateLimited ? "rate_limit" : (acc.assistantError ?? acc.lastRetryError);
+  if (specific !== undefined && specific !== "unknown") {
     return { classified: classifyAssistantError(specific), detail: specific };
+  }
+  const status = message.subtype === "success" ? message.api_error_status : undefined;
+  if (typeof status === "number") {
+    return { classified: classifyHttpStatus(status), detail: `http_${status}` };
   }
   if (message.terminal_reason !== undefined) {
     return { classified: classifyTerminalReason(message.terminal_reason), detail: message.terminal_reason };
   }
+  if (message.subtype === "success") {
+    return { classified: { kind: "server", retryable: true }, detail: "is_error" };
+  }
   return { classified: classifyResultSubtype(message.subtype), detail: message.subtype };
 }
 
-function buildResultError(acc: TurnAccumulator, message: ErrorResult): ProviderError {
+/** The runtime's own words for the failure: the error result's `errors`, or the flagged success's `result`
+ *  text. `invalid` carries its message to the user, so this is what explains a rejected model. */
+function failureText(message: Narrow<"result">): string {
+  const parts = message.subtype === "success" ? [message.result] : message.errors;
+  const text = parts.filter((part) => part.length > 0).join("; ");
+  return text.length > 0 ? `: ${text}` : "";
+}
+
+function buildResultError(acc: TurnAccumulator, message: Narrow<"result">): ProviderError {
   const { classified, detail } = classifyResult(acc, message);
-  const errorDetail = message.errors.length > 0 ? `: ${message.errors.join("; ")}` : "";
+  const status = message.subtype === "success" ? message.api_error_status : undefined;
   return new ProviderError({
     kind: classified.kind,
     retryable: classified.retryable,
-    message: `agent-sdk: turn failed (${message.subtype})${errorDetail}`,
+    message: `agent-sdk: turn failed (${message.subtype === "success" ? detail : message.subtype})${failureText(message)}`,
     model: acc.ctx.model,
     detail,
     ...(acc.errorSessionId !== undefined ? { sessionId: acc.errorSessionId } : {}),
     ...(message.terminal_reason !== undefined ? { terminalReason: message.terminal_reason } : {}),
+    ...(typeof status === "number" ? { apiErrorStatus: status } : {}),
+    ...(acc.requestId !== undefined ? { requestId: acc.requestId } : {}),
     ...(classified.kind === "rate_limit" && acc.rateLimit?.resetsAt !== undefined ? { resetsAt: acc.rateLimit.resetsAt } : {}),
   });
 }
