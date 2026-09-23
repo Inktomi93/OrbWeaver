@@ -40,3 +40,8 @@ The ledger split is one commit that re-points the D-citation gate at the ADR tre
 - A second checker (`pnpm doc check`): one checker; the doc tool exports its rules and `pnpm check:agents` runs them.
 - A hash or commit pin per document for freshness: a whole-file hash reds on a one-line edit and a commit is orphaned by every rebase; a date is enough for a warning tier.
 - A union D-id resolver while the ledger splits: a shim; the split is one commit.
+- Extending the legacy catalog tool instead of a new `doc/` tool: the catalog is the model being removed; the survivor owns the verbs and only borrowed the catalog's frontmatter reader and formatter until those moved.
+- A `describes:` frontmatter list of paths: the paths are already in the body as backticked citations, and a second list would drift from the first.
+- A `## Status` section on an ADR: frontmatter `status` already holds it, and a second home for the same fact drifts.
+- Work items as lines in a plan's `tasks.md`: no room for the four required sections or a blocker reason, and two lanes editing one `tasks.md` collide.
+- The post-merge hook leaving its writes uncommitted: an uncommitted `main` blocks the next merge, so the hook commits under the standing commit contract with the whole-tree check excluded.

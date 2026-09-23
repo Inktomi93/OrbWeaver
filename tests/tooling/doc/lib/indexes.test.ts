@@ -65,10 +65,10 @@ test("a plan's tasks.md ticks done items and links relative to the plan folder",
 });
 
 test("plan slugs derive from the plan folder; generated paths are recognised", () => {
-  expect(planSlugOf("docs/plans/doc-system/design.md")).toBe("doc-system");
+  expect(planSlugOf("docs/plans/widgets/design.md")).toBe("widgets");
   expect(planSlugOf("docs/plans/README.md")).toBeNull();
   expect(planSlugOf("docs/adr/0164-x.md")).toBeNull();
-  expect(isGeneratedPath("docs/plans/doc-system/tasks.md")).toBe(true);
+  expect(isGeneratedPath("docs/plans/widgets/tasks.md")).toBe(true);
   expect(isGeneratedPath("docs/law/README.md")).toBe(true);
-  expect(isGeneratedPath("docs/plans/doc-system/design.md")).toBe(false);
+  expect(isGeneratedPath("docs/plans/widgets/design.md")).toBe(false);
 });
