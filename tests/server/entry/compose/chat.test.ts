@@ -7,17 +7,17 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { ProviderId } from "@orb/contracts/inference";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
-import type { ChatEvent, ChatRequest, ChatResult, ToolCallInput, WarningCode } from "@orb/inference";
+import type { ChatEvent, ChatRequest, ChatResult, WarningCode } from "@orb/inference";
 import { AGENT_CONTINUATION_PROMPT_STUB } from "@orb/inference";
 import type { AssetId, ChatId, ChatTurnId, MessageId, ModelId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { TurnMessage, TurnRequest, TurnStreamChunk } from "@orb/server/domain/chat";
-import { activePersonaIdFor, createRunChatTurnBridge } from "@orb/server/entry/compose";
+import { activePersonaIdFor, buildChatToolOps, createRunChatTurnBridge } from "@orb/server/entry/compose";
 import { describe } from "vitest";
 import { z } from "zod";
-import type { ChatToolOps } from "../../../../packages/server/src/domain/chat/contract/context.ts";
+import type { ChatToolExecFrame, ChatToolOps } from "../../../../packages/server/src/domain/chat/contract/context.ts";
 import { runTurnPipeline } from "../../../../packages/server/src/domain/chat/engine/pipeline.ts";
-import type { ResolvedToolSet, ToolExecutionContext, ToolUseService } from "../../../../packages/server/src/domain/tool-use/index.ts";
+import type { ToolExecutionContext, ToolUseService } from "../../../../packages/server/src/domain/tool-use/index.ts";
 import { createToolUseService } from "../../../../packages/server/src/domain/tool-use/index.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { makeCapability, makeGenerationCapability, makeResolved } from "../../../support/factories/resolved-connection.ts";
@@ -480,20 +480,25 @@ describe("tool delivery — the real tool-use service behind the neutral offer",
     return svc;
   }
 
-  /** The tool ops wired the way `buildChatToolOps` wires them: the host's authority is RESOLVED by the injected
-   *  lookup, and the opaque `ChatToolSet` is the registry's own `ResolvedToolSet`. */
-  function opsOver(svc: ToolUseService, resolveHost: () => Promise<Principal>, exec: ToolExecutionContext): ChatToolOps {
-    const asSet = (set: unknown): ResolvedToolSet => set as ResolvedToolSet;
-    const ops = {
-      resolveTools: (driverUserId: UserId, names: readonly string[]) => svc.resolveTools(driverUserId, names),
-      toToolDefinitions: (set: unknown) => svc.toToolDefinitions(asSet(set)),
-      prepareExecution: async (set: unknown) => {
-        const principal = await resolveHost();
-        return (calls: readonly ToolCallInput[]) => svc.executeToolCalls(asSet(set), calls, { ...exec, principal });
-      },
-    };
-    return ops;
-  }
+  /** The turn's exec frame — what the pipeline hands `prepareExecution`, and so what the production adapter
+   *  builds the tool execution context from. */
+  const frame: ChatToolExecFrame = {
+    runAsUserId: castId<UserId>("user_host"),
+    triggeredBy: castId<UserId>("user_host"),
+    chatId: castId<ChatId>("chat_tool_delivery"),
+    membership: null,
+    turnId: castId<ChatTurnId>("chat_turn_tool_delivery"),
+  };
+
+  /** The execution context the production adapter derives from {@link frame} under `principal` — the direct
+   *  execute path's twin for the record-parity pin. */
+  const execFromFrame = (principal: Principal): ToolExecutionContext => ({
+    principal,
+    triggeredBy: frame.triggeredBy,
+    chatId: frame.chatId,
+    membership: frame.membership,
+    turnId: frame.turnId,
+  });
 
   /** A runner that plays the Agent SDK: it mounts nothing itself, calls each scripted tool through the mounted
    *  server, and records what the SDK would hand the model. On an array wire it only counts the call. */
@@ -521,6 +526,7 @@ describe("tool delivery — the real tool-use service behind the neutral offer",
     api: "agent-sdk" | "chat-completions",
     tools: ChatToolOps,
     runChatTurn: (req: ChatRequest) => Promise<ChatResult>,
+    attachedToolNames: readonly string[] = ["echo_tool", "gated_tool"],
   ): ReturnType<typeof runTurnPipeline> {
     return runTurnPipeline({
       now: () => FROZEN_AT_MS,
@@ -544,15 +550,9 @@ describe("tool delivery — the real tool-use service behind the neutral offer",
       chatId: castId<ChatId>("chat_tool_delivery"),
       onDelta: () => undefined,
       tools,
-      attachedToolNames: ["echo_tool", "gated_tool"],
+      attachedToolNames,
       toolRecurseLimit: 3,
-      toolExecFrame: {
-        runAsUserId: castId<UserId>("user_host"),
-        triggeredBy: castId<UserId>("user_host"),
-        chatId: castId<ChatId>("chat_tool_delivery"),
-        membership: null,
-        turnId: castId<ChatTurnId>("chat_turn_tool_delivery"),
-      },
+      toolExecFrame: frame,
     });
   }
 
@@ -564,18 +564,53 @@ describe("tool delivery — the real tool-use service behind the neutral offer",
     test(`${api}: a failed host-authority lookup fails the turn BEFORE the model is called`, async () => {
       const runner = sdkLikeRunner([{ name: "echo_tool", args: { text: "hi" } }]);
       const lookupFailed = (): Promise<Principal> => Promise.reject(new Error("principal lookup failed: DB down"));
-      await expect(turnWith(api, opsOver(registry(), lookupFailed, execOf()), runner.runChatTurn)).rejects.toThrow("principal lookup failed: DB down");
+      await expect(turnWith(api, buildChatToolOps(registry(), lookupFailed), runner.runChatTurn)).rejects.toThrow("principal lookup failed: DB down");
       expect(runner.seen.runs).toBe(0);
       expect(runner.seen.results).toEqual([]);
     });
   }
 
+  // The production adapter itself: the lookup settles inside `prepareExecution`, so a failure rejects THAT call
+  // and no executor ever exists; a successful lookup is spent once and every later call reuses it.
+  test("prepareExecution resolves the host before it returns an executor — a failed lookup rejects prepareExecution itself", async () => {
+    const svc = registry();
+    const failing = buildChatToolOps(svc, () => Promise.reject(new Error("principal lookup failed: DB down")));
+    await expect(failing.prepareExecution(failing.resolveTools(frame.runAsUserId, ["echo_tool"]), frame)).rejects.toThrow("principal lookup failed: DB down");
+
+    const lookups: UserId[] = [];
+    const principal = execOf().principal;
+    const ops = buildChatToolOps(svc, (userId) => {
+      lookups.push(userId);
+      return Promise.resolve(principal);
+    });
+    const execute = await ops.prepareExecution(ops.resolveTools(frame.runAsUserId, ["echo_tool"]), frame);
+    expect(lookups).toEqual([frame.runAsUserId]);
+    const call = { toolCallId: "call_1", name: "echo_tool", arguments: JSON.stringify({ text: "hi" }) };
+    await execute([call]);
+    await execute([call]);
+    expect(lookups).toEqual([frame.runAsUserId]);
+  });
+
+  for (const api of ["agent-sdk", "chat-completions"] as const) {
+    test(`${api}: a turn with no tools never calls the host lookup`, async () => {
+      const lookups: UserId[] = [];
+      const runner = sdkLikeRunner([]);
+      const ops = buildChatToolOps(registry(), (userId) => {
+        lookups.push(userId);
+        return Promise.resolve(execOf().principal);
+      });
+      await turnWith(api, ops, runner.runChatTurn, []);
+      expect(runner.seen.runs).toBe(1);
+      expect(lookups).toEqual([]);
+    });
+  }
+
   test("the permission gate fires through the mounted server — an errors-as-data denial the model reads, and a kept record", async () => {
-    const exec = execOf();
+    const principal = execOf().principal;
     const runner = sdkLikeRunner([{ name: "gated_tool", args: {} }]);
     const result = await turnWith(
       "agent-sdk",
-      opsOver(registry(), () => Promise.resolve(exec.principal), exec),
+      buildChatToolOps(registry(), () => Promise.resolve(principal)),
       runner.runChatTurn,
     );
     expect(runner.seen.results).toEqual([{ content: [{ type: "text", text: JSON.stringify({ error: "not permitted: gated_tool" }) }], isError: true }]);
@@ -583,7 +618,7 @@ describe("tool delivery — the real tool-use service behind the neutral offer",
   });
 
   test("record parity: a call through the mounted server is byte-equal to the same call on the direct execute path", async () => {
-    const exec = execOf();
+    const principal = execOf().principal;
     const svc = registry();
     const runner = sdkLikeRunner([
       { name: "echo_tool", args: { text: "hi" } },
@@ -591,17 +626,17 @@ describe("tool delivery — the real tool-use service behind the neutral offer",
     ]);
     const result = await turnWith(
       "agent-sdk",
-      opsOver(svc, () => Promise.resolve(exec.principal), exec),
+      buildChatToolOps(svc, () => Promise.resolve(principal)),
       runner.runChatTurn,
     );
     // The mount numbers calls across every tool on the server; mirror its ids on the direct calls.
     const direct = await svc.executeToolCalls(
-      svc.resolveTools(castId<UserId>("user_host"), ["echo_tool", "gated_tool"]),
+      svc.resolveTools(frame.runAsUserId, ["echo_tool", "gated_tool"]),
       [
         { toolCallId: "mcp_echo_tool_1", name: "echo_tool", arguments: JSON.stringify({ text: "hi" }) },
         { toolCallId: "mcp_gated_tool_2", name: "gated_tool", arguments: "{}" },
       ],
-      exec,
+      execFromFrame(principal),
     );
     expect(result.toolRecords).toEqual(direct);
     expect(runner.seen.results[0]).toEqual({ content: [{ type: "text", text: JSON.stringify({ text: "hi" }) }] });

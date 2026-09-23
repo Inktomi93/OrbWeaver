@@ -329,8 +329,10 @@ function memorySegmentReceipts(rows: readonly EmbeddingSegmentRow[], results: Aw
  *
  * D152: an in-turn tool therefore executes under the HOST Principal — there is no per-speaker authority
  * swap at this seam, so attaching a mutating tool to a non-human speak turn is zero-human host authority.
+ *
+ * Exported so the compose pins drive THIS adapter rather than a hand mirror of it.
  */
-function buildChatToolOps(toolUse: ToolUseService, resolveHostPrincipal: (userId: UserId) => Promise<Principal>): ChatToolOps {
+export function buildChatToolOps(toolUse: ToolUseService, resolveHostPrincipal: (userId: UserId) => Promise<Principal>): ChatToolOps {
   // biome-ignore lint/suspicious/noExplicitAny: the opaque ChatToolSet round-trip (see the header note).
   const asResolvedSet = (set: ChatToolSet): ResolvedToolSet => set as any as ResolvedToolSet;
   return {
