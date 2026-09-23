@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdir, readFile, readlink, writeFile } from "node:fs/promises";
+import { mkdir, readlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, test } from "../support/tool-fixtures.ts";
 
@@ -8,11 +8,9 @@ const INVENTORY_ROWS = 200_000;
 test("worktree bootstrap drains a large inventory before linking from its first checkout", async ({ fakeBin, repoRoot, scratch }) => {
   const mainRoot = join(scratch, "main");
   const laneRoot = join(scratch, "lane");
-  const memoryReceipt = join(scratch, "memory-root");
-  await mkdir(join(laneRoot, "scripts"), { recursive: true });
+  await mkdir(laneRoot, { recursive: true });
   await mkdir(mainRoot, { recursive: true });
   await writeFile(join(mainRoot, ".env"), "ORBIT=ready\n", "utf8");
-  await writeFile(join(laneRoot, "scripts/agent-memory-link.sh"), `printf '%s\\n' "$1" > '${memoryReceipt}'\n`, "utf8");
 
   await fakeBin(
     "git",
@@ -45,7 +43,6 @@ fi
   expect(repairedBootstrap.status).toBe(0);
   expect(repairedBootstrap.stderr).toBe("");
   expect(await readlink(join(laneRoot, ".env"))).toBe(join(mainRoot, ".env"));
-  expect(await readFile(memoryReceipt, "utf8")).toBe(`${laneRoot}\n`);
   expect(repairedBootstrap.stdout).toContain(`linked .env → ${mainRoot}/.env`);
-  expect(repairedBootstrap.stdout).toContain("worktree-bootstrap: done — deps + hooks + agent memory ready");
+  expect(repairedBootstrap.stdout).toContain("worktree-bootstrap: done — deps + hooks ready");
 });
