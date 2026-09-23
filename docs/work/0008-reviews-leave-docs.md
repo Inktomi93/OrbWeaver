@@ -25,9 +25,10 @@ is deleted down to three survivors, each a real dependency this pass proved, not
   directory into it, re-point the two tools' path constants, and archive the plan through `pnpm doc
   archive` once the program finishes.
 - `docs/reviews/ast-codebase-audit/` — the control plane of an unfinished audit with open findings
-  (its running ledger and its goal file, and every file those two cite by path — the great majority of the
-  tree; a small remainder of scratch log/timing artifacts stayed with it rather than being picked apart).
-  Remaining work: its open findings become individual work items, then the tree goes.
+  (its running ledger and its goal file, and every file cited anywhere under the tree by repo-relative
+  path — a scripted sweep of every citation caught seven that had been deleted along with the trees that
+  formerly held them, restored from the pre-migration commit at their original paths). Remaining work: its
+  open findings become individual work items, then the tree goes.
 - `docs/reviews/caught-failure-ownership/` — a sibling lane's item; not touched here.
 
 Every other citation is rewritten or dropped: dozens of code-comment citations of a deleted review now

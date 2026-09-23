@@ -123,6 +123,6 @@ measured receipt).
 Four one-shot lenses with zero invocations in any visible transcript window, each with its output
 consumed when it ran: `probes/find-react-element-casts.ts`, `probes/find-shitty-casts.ts`,
 `lens/kit-candidates.ts` (+ its `lens:kit-candidates` pnpm alias), and
-`audit/build-repository-audit-manifest.mjs` (its output is committed under
-`docs/history/reviews/repository-audit-2026-08-13/`). Recover any of them with
+`audit/build-repository-audit-manifest.mjs` (its output was the 2026-08-13 repository audit, since
+deleted with the reviews-leave-docs migration). Recover any of them with
 `git log --diff-filter=D --oneline -- scripts/<path>` → `git show <sha>^:scripts/<path>`.

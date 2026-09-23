@@ -3,6 +3,10 @@
   "lane": "reviews",
   "entries": [
     {
+      "path": "docs/reviews/2026-09-20-inference-reindex-generation-design.md",
+      "authority": "design"
+    },
+    {
       "path": "docs/reviews/ast-codebase-audit/world-tools-brand-boundary-audit.md",
       "authority": "unclassified"
     },
@@ -589,6 +593,10 @@
     {
       "path": "docs/reviews/gate-runtime/x-warning-barrier-2026-09-13.md",
       "authority": "unclassified"
+    },
+    {
+      "path": "docs/reviews/trpc-procedure-liveness-2026-09-08.md",
+      "authority": "review"
     }
   ]
 }

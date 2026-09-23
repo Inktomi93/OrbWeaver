@@ -177,7 +177,7 @@ concern (§4.8).
 > a deterministic landing is ceremony — both are H1 feedback (visibility of system status), and neither
 > costs a frame. Arrival keeps its silence; the pane still swaps like any chat switch. Closability, the
 > `contextTab` continuity seam and the tab-fallback resolver are all unchanged — the start writes the same
-> shared seam a user's own tab click writes. Receipts: `docs/reviews/side-eye/2026-08-30-rpg-start-exit.md`
+> shared seam a user's own tab click writes. Receipts: the 2026-08-30 side-eye rpg-start-exit review
 > (§"The §4.1 fork"); pinned by `tests/client/features/chat/components/chat-options-menu.ct.tsx`.
 
 The takeover is **not a state the user enters** — it is what the CONTEXT pane resolves to when the

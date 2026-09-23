@@ -65,7 +65,7 @@ const MIN_LITERAL_UNION_MEMBERS = 2;
 
 const MESSAGE =
   "a superseded zod spelling — the 4.4.3 leverage audit ruled each of these and its remedy already landed " +
-  "(2026-08-02). `strict`: `.strict` on a `z.object(…)` " +
+  "(2026-08-02). `strict`: `.strict()` on a `z.object(…)` " +
   "is legacy-compat (F2 — the documented reason to avoid `z.strictObject` claimed it inflates the inferred " +
   "type with an index-signature tag; that is FALSE on 4.4.3, where `$strict` is byte-identical to `$strip`). " +
   "`union`: an all-literal `z.union` emits a nested `invalid_union` where multi-value `z.literal([…])` emits " +

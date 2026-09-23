@@ -187,7 +187,7 @@ Also verified consistent: the create `+` on the door + a primary "New …" in CO
 
 **Docs / ledger**
 
-- `docs/design/config-revamp-design.md` §8.3 rows 1, 2, 4 (band click · where members live · `aria-current`), §8.1a, §8.6 (the landing = the library now); `docs/reviews/misc/2026-09-05-config-list-pane-divergence.md` §8.2 bullets 1, 2, 5 and §8.3 (voice-budget scope); `config-list-group.tsx:44-51` (the budget's scope sentence); `Core-Path-Registry.md:338` D121(D) if Import moves (F10). No D-row states the collection LANDING shape — I did not re-grep the whole registry for one beyond D121/D66 (see §5).
+- `docs/design/config-revamp-design.md` §8.3 rows 1, 2, 4 (band click · where members live · `aria-current`), §8.1a, §8.6 (the landing = the library now); the 2026-09-05 config-list-pane-divergence review §8.2 bullets 1, 2, 5 and §8.3 (voice-budget scope); `config-list-group.tsx:44-51` (the budget's scope sentence); `Core-Path-Registry.md:338` D121(D) if Import moves (F10). No D-row states the collection LANDING shape — I did not re-grep the whole registry for one beyond D121/D66 (see §5).
 
 **Tests (exist on the tree — `git ls-files`)**
 

@@ -14,8 +14,8 @@ mixes source-terminal discovery with CSS policy in a 1,959-line module
 counterexamples. The implementation below preserves those controls and replaces the duplicate evaluator
 with the repaired #961 neutral substrate.
 
-The source doctrine remains the six-home ruling in
-`docs/reviews/stickler/2026-08-30-css-census-doctrine-and-enforcement.md:811-981`; this lane does not
+The source doctrine remains the six-home ruling in the 2026-08-30 css-census-doctrine-and-enforcement
+stickler review, :811-981; this lane does not
 change the census, home ownership, CSS source order, or product CSS. The cold #951 comment is the behavioral
 specification for the seven dispatcher-level counterexamples. The repaired substrate's own boundary is
 recorded in `docs/design/961-static-class-provenance-repair.md`: consumers choose a real terminal, while
