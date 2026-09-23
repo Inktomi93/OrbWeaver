@@ -140,23 +140,15 @@ export function headCommit(repoRoot = root): string | null {
   return git(repoRoot, ["rev-parse", "HEAD"])?.trim() ?? null;
 }
 
-/** True when HEAD itself is a merge commit (a second parent exists): `--no-ff --no-commit` finished by
- *  `git commit`, or a conflict resolved the same way. A `git merge` that commits on its own — fast-forward
- *  or a clean auto-commit — never reaches here through post-commit; only post-merge fires for it. */
-function isMergeCommitHead(repoRoot: string): boolean {
-  return git(repoRoot, ["rev-parse", "--verify", "-q", "HEAD^2"]) !== null;
-}
-
-/** The commits a merge just brought in, oldest first. HEAD itself is a merge commit (`--no-commit` or a
- *  conflict resolution, both finished by a separate `git commit`) reads `HEAD^1..HEAD` — the merge
- *  commit's own second-parent range, correct by construction and independent of `ORIG_HEAD`, which git
- *  updates as a side effect of the merge attempt and which this door has no business trusting once the
- *  hook that made the commit is a step removed from that attempt. Otherwise (a `git merge` that completed
- *  the commit itself: fast-forward or a clean auto-commit) reads `ORIG_HEAD..HEAD`, the range post-merge
- *  has always used. Empty when git cannot say. */
-export function mergedCommits(repoRoot = root): readonly { readonly sha: string; readonly message: string }[] {
-  const range = isMergeCommitHead(repoRoot) ? "HEAD^1..HEAD" : "ORIG_HEAD..HEAD";
-  return commitList(repoRoot, [range]);
+/** The commits a merge just brought in, oldest first. The range is picked by which hook is asking, never
+ *  by HEAD's shape: `headMerge` (post-commit, the door for a merge finished by a separate `git commit` —
+ *  `--no-commit` or a conflict resolution) reads `HEAD^1..HEAD`, the merge commit's own second-parent
+ *  range. Its absence (post-merge) reads `ORIG_HEAD..HEAD`. Shape is not a safe proxy for which hook fired:
+ *  a fast-forward onto a branch whose TIP already is a merge commit still fires post-merge, and
+ *  `HEAD^1..HEAD` there would see only that merge's second-parent side and drop every id the fast-forward
+ *  carried in on the first-parent side. Empty when git cannot say. */
+export function mergedCommits(repoRoot = root, headMerge = false): readonly { readonly sha: string; readonly message: string }[] {
+  return commitList(repoRoot, [headMerge ? "HEAD^1..HEAD" : "ORIG_HEAD..HEAD"]);
 }
 
 /** Recent `main` commits with their full messages, newest first. */

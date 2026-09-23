@@ -110,7 +110,7 @@ export function runDocCommand(command: DocCommand): ExitCode {
     case "land":
       return report("land", landItems(command.ids, command.evidence));
     case "land-merged":
-      return report("land --merged", landMerged());
+      return report("land --merged", landMerged(undefined, undefined, command.headMerge));
     case "index":
       return report("index", { written: regenerateIndexes(), refusals: [] });
     case "review":
