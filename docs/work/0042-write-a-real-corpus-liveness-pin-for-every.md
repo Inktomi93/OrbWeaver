@@ -39,3 +39,10 @@ planted resource control is refused. No policy in the chunk was blind on the rea
 `css-family-direct-client-mechanism` has no pin: its only reports are the three recipes the central grant
 table licenses, so no overlay can make it report anything new. Its liveness shows as grant consumption,
 which an arm cannot yet assert. `real-corpus-liveness-manifest`: 305 unpinned before, 271 after.
+
+Chunk 3 (lane cb-pins). The 26 unpinned policies whose population is `@tooling` or `@authored` gained pins
+in `_liveness/tooling-and-authored.ts`. None was blind on the real tree. A `grantConsumption` arm now pins
+`css-family-direct-client-mechanism`. On the real tree its three central grants must be consumed, and with the
+client sheet's recipes taken away they must go stale. A planted control that leaves the recipes in place is
+refused. The baseline pass now measures only the arms whose silence is not structural.
+`real-corpus-liveness-manifest`: 271 unpinned before, 244 after.

@@ -35,9 +35,11 @@
 // declared population is admitted exactly like a real one. If that ever changes, every arm fails loudly
 // rather than passing vacuously, because the overlaid run would stop reporting.
 //
-// TWO DIRECTIONS OR IT PROVES NOTHING. Every armed policy runs WITHOUT its overlay (the shared baseline),
-// where it must be silent in its arm's scope, and once WITH it, where it must report. A one-directional arm
-// that only ever asserts a finding cannot tell a live policy from one that reports on everything.
+// TWO DIRECTIONS OR IT PROVES NOTHING. Every arm must be silent in its scope WITHOUT its overlay and must
+// report WITH it. A one-directional arm that only ever asserts a finding cannot tell a live policy from one
+// that reports on everything. For an `add` arm the first direction holds by construction — its scope is a
+// path that does not exist until the overlay plants it (`captureOriginals` throws if it does) — so only the
+// arms that rewrite, remove, read a resource or consume grants are measured in the shared baseline pass.
 //
 // THE OVERLAID DIRECTION IS BATCHED, BECAUSE THE TYPE PROGRAM IS THE COST (leg 2 of docs/work/0043). Every
 // overlay invalidates the shared program, so one pass per arm rebuilt it once per arm — measured at 6-26s a
@@ -126,6 +128,14 @@ export interface RealCorpusLivenessArm {
    *  the assertion reads that channel instead. A grant licenses a report; it does not make one, so a dead
    *  policy is exactly as silent in this channel as in the effective one. */
   readonly granted?: true;
+  /** `true` for a REVIEWED-GRANT policy whose EVERY report on the real tree is licensed and whose reports
+   *  cannot be multiplied by any overlay (`css-family-direct-client-mechanism` reports exactly three
+   *  hardcoded recipes, all granted), so no new finding can ever be planted. Its liveness is GRANT
+   *  CONSUMPTION, the channel verify itself uses: on the real tree every central grant for the policy must
+   *  be consumed (a dead policy consumes none, which is precisely the `stale-reviewed-grant` alarm), and
+   *  with the overlay taking the licensed subject away those grants must go STALE, so consumption is shown
+   *  to come from the policy reading that subject. `messageIncludes` then matches the stale alarms. */
+  readonly grantConsumption?: true;
 }
 
 /** What ONE arm's overlaid pass said about it, attributed by (policy id, overlay path). */
@@ -141,15 +151,22 @@ export interface RealCorpusArmVerdict {
   /** Members whose file this arm's policy ALSO reported on in the shared pass, which forced the solo
    *  re-proof this verdict came from. Empty for a verdict proved in its batch. */
   readonly entangledWith: readonly string[];
+  /** The `stale-reviewed-grant` alarms the pass raised for the arm's policy, as `<grant id>: <message>`. */
+  readonly staleGrants: readonly string[];
 }
 
 /** The runner over ONE shared corpus. Heavy work is lazy: nothing loads until the first call, so declaring
  *  the runner at module scope costs a test file nothing. */
 export interface RealCorpusLivenessRunner {
-  /** EVERY arm's policy in ONE pass, as the structure run does: refusal-free, and silent in each arm's own
-   *  assertion scope. The shared first direction. Returns the policy ids the pass RAN, so a caller can assert
-   *  the denominator — a pass that silently dropped a policy would otherwise read as that policy's silence. */
+  /** The shared first direction, in ONE pass as the structure run does, over every arm whose silence is a
+   *  measurement: refusal-free, silent in its own assertion scope, and (for a `grantConsumption` arm) every
+   *  central grant consumed. An `add` arm is NOT in it — its scope is a path the overlay creates, so it is
+   *  silent there by construction and running its policy to confirm that is pure cost; its refusals are
+   *  still checked, in the overlaid pass. Returns the policy ids the pass RAN, so a caller can assert the
+   *  denominator — a pass that silently dropped a policy would otherwise read as that policy's silence. */
   assertBaseline: () => readonly string[];
+  /** The arms `assertBaseline` measures. */
+  baselineArms: () => readonly RealCorpusLivenessArm[];
   /** Every arm's overlaid verdict, from the planned batches (`planLivenessBatches`), proved ONCE and kept. */
   proveAll: () => ReadonlyMap<string, RealCorpusArmVerdict>;
   /** One arm's verdict out of `proveAll`. */
@@ -379,9 +396,19 @@ function reportedPaths(result: PassResult, policyId: string): ReadonlySet<string
   );
 }
 
-/** Assert ONE arm's verdict — the second direction, read off whichever pass proved it. Returns the in-scope
- *  messages. */
-export function assertArmVerdict(arm: RealCorpusLivenessArm, verdict: RealCorpusArmVerdict): readonly string[] {
+/** The overlaid direction for a `grantConsumption` arm: the policy's grants went stale. */
+function assertStaleGrants(arm: RealCorpusLivenessArm, verdict: RealCorpusArmVerdict): readonly string[] {
+  expect(verdict.refusals, `${arm.policy.id}: the OVERLAID run refused, so its verdict is not a measurement`).toEqual([]);
+  expect(
+    verdict.staleGrants.length,
+    `${arm.policy.id}: its grants stayed consumed with the licensed subject taken away, so the consumption is not the policy's own reading`,
+  ).toBeGreaterThan(0);
+  expect(verdict.staleGrants.join("\n"), `${arm.policy.id}: grants went stale, but not the expected one`).toContain(arm.messageIncludes);
+  return verdict.staleGrants;
+}
+
+/** The overlaid direction for every other arm: the policy reported in the arm's scope, with its verdict. */
+function assertReported(arm: RealCorpusLivenessArm, verdict: RealCorpusArmVerdict): readonly string[] {
   expect(verdict.refusals, `${arm.policy.id}: the OVERLAID run refused, so its verdict is not a measurement`).toEqual([]);
   expect(
     verdict.messages.length,
@@ -389,6 +416,12 @@ export function assertArmVerdict(arm: RealCorpusLivenessArm, verdict: RealCorpus
   ).toBeGreaterThan(0);
   expect(verdict.messages.join("\n"), `${arm.policy.id}: the control fired, but not with the expected verdict`).toContain(arm.messageIncludes);
   return verdict.messages;
+}
+
+/** Assert ONE arm's verdict — the second direction, read off whichever pass proved it. Returns the messages
+ *  the assertion matched. */
+export function assertArmVerdict(arm: RealCorpusLivenessArm, verdict: RealCorpusArmVerdict): readonly string[] {
+  return arm.grantConsumption === true ? assertStaleGrants(arm, verdict) : assertReported(arm, verdict);
 }
 
 /** Open the ONE liveness runner over `arms`. A policy carries at most one arm: two arms for one id would
@@ -488,6 +521,9 @@ export function openRealCorpusLiveness(repoRoot: string, arms: readonly RealCorp
         ),
         batch: batch.map((member) => member.policy.id),
         entangledWith: [],
+        staleGrants: result.authority.authorityAlarms
+          .filter((alarm) => alarm.kind === "stale-reviewed-grant" && alarm.policyId === arm.policy.id)
+          .map((alarm) => ("grantId" in alarm ? `${alarm.grantId}: ${alarm.message}` : alarm.message)),
       });
     }
     return verdicts;
@@ -509,12 +545,27 @@ export function openRealCorpusLiveness(repoRoot: string, arms: readonly RealCorp
 
   return {
     assertBaseline: (): readonly string[] => {
-      const baseline = pass(policies);
+      const measured = arms.filter((arm) => !isBatchable(arm));
+      const baseline = pass(measured.map((arm) => arm.policy));
       expect(refusals(baseline), "the shared BASELINE pass refused, so its silence is not evidence").toEqual([]);
-      const speaking = Object.fromEntries(arms.map((arm) => [arm.policy.id, inScope(baseline, arm)] as const).filter(([, messages]) => messages.length > 0));
+      const speaking = Object.fromEntries(
+        measured.map((arm) => [arm.policy.id, inScope(baseline, arm)] as const).filter(([, messages]) => messages.length > 0),
+      );
       expect(speaking, "these policies already report in their arm's scope before any overlay, so the overlay proves nothing").toEqual({});
+      const consumed = new Map(baseline.authority.reviewedGrantConsumption.map(({ id, count }) => [id, count]));
+      const unconsumed = Object.fromEntries(
+        measured
+          .filter((arm) => arm.grantConsumption === true)
+          .map((arm) => {
+            const grants = reviewedGrantsFor([arm.policy]).map(({ id }) => id);
+            return [arm.policy.id, grants.length === 0 ? ["(no central grant to consume)"] : grants.filter((id) => (consumed.get(id) ?? 0) === 0)] as const;
+          })
+          .filter(([, missing]) => missing.length > 0),
+      );
+      expect(unconsumed, "these grant-consumption arms' policies left central grants unconsumed on the real tree — the policy is dead").toEqual({});
       return baseline.policies.map((result) => result.id);
     },
+    baselineArms: (): readonly RealCorpusLivenessArm[] => arms.filter((arm) => !isBatchable(arm)),
     proveAll,
     verdict: (arm: RealCorpusLivenessArm): RealCorpusArmVerdict => {
       const found = proveAll().get(arm.policy.id);
