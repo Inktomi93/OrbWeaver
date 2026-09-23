@@ -13,7 +13,7 @@
 // in client source including the door files — a mutating registration API is banned wherever it is declared
 // (§5 rule 1). Subtracting the door from this policy's population would have made that arm blind inside
 // `main.tsx` and every `compose/` module, so it moved to `no-mutating-register-api` with the wider
-// population rather than losing coverage. Same family, same authority.
+// population rather than losing coverage. Same authority; its own singleton family (see FAMILY below).
 //
 // IDENTITY, NOT SPELLING: the factories are the EXPORTED DECLARATIONS in `client/src/lib/registry.ts`,
 // resolved through the shared project-home reader, so an alias or a re-export is the same assembly while a
@@ -23,18 +23,10 @@
 // row, because `classifyProjectHomeOrigin` is what decides, and `lib/project-home-origin.ts` is a shared
 // PRIMITIVE seventeen policies read rather than a family key.
 //
-// FAMILY `registry-assembly-at-door-only` — a two-member SPLIT family, NOT a singleton: its sibling arm
-// (`register()` anywhere in client source) split into `no-mutating-register-api`, which carries this same
-// `family` string over a wider population. The two share no `lib/` reader deliberately — that arm resolves
-// nothing while this one resolves a factory callee's identity — and the family string is what keeps them
-// visible as one law. Nothing else judges where a registry is assembled.
-// §2 REPAIR CANDIDATE (lane cb-b-header-residue, 2026-09-13; verifier cb-v-header-residue L1/L4), the text above
-// kept: measured, the two members share NO production dependency in `lib/` — `no-mutating-register-api` imports
-// nothing from `lib/`. Standardization §2 now reads "Each multi-member policy shares a canonical declaration with at
-// least one sibling" and "A singleton names why no meaningful shared dependency exists", so the "split family"
-// sanction cited here does not satisfy it. This is a family-classification repair candidate under the ledger's
-// existing owning rows (`registry-assembly-at-door-only` w5, #2005; the split-family census reading, #2187),
-// preserving §2; the family string is code and is not changed by this header note.
+// FAMILY: a declared SINGLETON since #0038. The `register()` ban split into `no-mutating-register-api` and
+// carried this family string until #0038, but the two share no reader — that arm resolves nothing, this one
+// resolves a factory callee's identity to the registry home — so the string named a topic, not a shared
+// computation (standardization §2). Nothing else judges where a registry is assembled.
 // POPULATION PORT: an INTENTIONAL CORRECTION, stated above. The legacy `scanRoot:
 // (p) => p.startsWith("packages/client/src/")` (68c8f42d6) becomes `@client` MINUS the door, because the
 // door is a structural class the law itself names and carrying it as a run-time check would have kept the

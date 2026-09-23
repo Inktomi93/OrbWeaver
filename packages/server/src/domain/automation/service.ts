@@ -12,7 +12,6 @@ import { createCreateRuleFromPreset } from "./verbs/create-rule-from-preset.ts";
 import { createDeleteGlobalVariable } from "./verbs/delete-global-variable.ts";
 import { createDeleteRule } from "./verbs/delete-rule.ts";
 import { createDismissSuggestion } from "./verbs/dismiss-suggestion.ts";
-import { createGetBudgets } from "./verbs/get-budgets.ts";
 import { createGetGlobalVariable } from "./verbs/get-global-variable.ts";
 import { createGetOwnerBudgets } from "./verbs/get-owner-budgets.ts";
 import { createListChatActivity } from "./verbs/list-chat-activity.ts";
@@ -24,7 +23,6 @@ import { createListRules } from "./verbs/list-rules.ts";
 import { createReorderRules } from "./verbs/reorder-rules.ts";
 import { createResolveStreamAuthority } from "./verbs/resolve-stream-authority.ts";
 import { createRunRuleNow } from "./verbs/run-rule-now.ts";
-import { createSetBudgets } from "./verbs/set-budgets.ts";
 import { createSetGlobalVariable } from "./verbs/set-global-variable.ts";
 import { createSetOwnerBudgets } from "./verbs/set-owner-budgets.ts";
 import { createSetRuleEnabled } from "./verbs/set-rule-enabled.ts";
@@ -56,8 +54,6 @@ export function createAutomationService(ctx: AutomationContext): AutomationServi
     listOwnerRules: createListOwnerRules(ctx),
     listFires: createListFires(ctx),
     listChatActivity: createListChatActivity(ctx),
-    setBudgets: createSetBudgets(ctx),
-    getBudgets: createGetBudgets(ctx),
     getOwnerBudgets: createGetOwnerBudgets(ctx),
     setOwnerBudgets: createSetOwnerBudgets(ctx),
     testRule: createTestRule(ctx),

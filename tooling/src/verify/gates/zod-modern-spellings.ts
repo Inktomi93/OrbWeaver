@@ -23,7 +23,8 @@
 // `zod-error-issues-home`, same family.
 //
 // IDENTITY, NOT SPELLING: every arm resolves its callee through the shared module-origin reader to the
-// `zod` door. The legacy reader compared the callee's TEXT against a hardcoded `z` namespace, so
+// `zod` door, via `lib/zod-origin.ts#isZodCall` — the package identity `zod-error-issues-home` also judges by
+// (its `declaredByZod`), which is what makes the two one family. The legacy reader compared the callee's TEXT against a hardcoded `z` namespace, so
 // `import * as zod`, `import { union }`, an aliased `import { z as s }` and every computed member spelling
 // were silently exempt, while a project object that happened to be spelled `z` would have matched.
 //
@@ -50,10 +51,11 @@
 // value is the copy-paste it refuses tomorrow, not the sites it finds today.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { readMemberReference, resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
+import { readMemberReference } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
+import type { ZodCandidateCall } from "../lib/zod-origin.ts";
+import { isZodCall, zodCandidateCall } from "../lib/zod-origin.ts";
 
-const ZOD_DOOR = "zod";
 const OBJECT = "object";
 const STRICT = "strict";
 const UNION = "union";
@@ -82,40 +84,6 @@ const FIX =
   "`strict`, `union` or `enum`, bare and unquoted, never `z.union`, never `literal` (the union's members are " +
   "not findings) and never the whole call. One line can carry two arms, and the two markers differ only in " +
   "that token.";
-
-/** The member a candidate call names, with the node the finding anchors on — prefilter only. */
-interface CandidateCall {
-  readonly name: string;
-  readonly nameNode: MorphNode;
-}
-
-function candidateCall(node: MorphNode): CandidateCall | undefined {
-  if (!Node.isCallExpression(node)) {
-    return;
-  }
-  const callee = node.getExpression();
-  if (Node.isIdentifier(callee)) {
-    return { name: callee.getText(), nameNode: callee };
-  }
-  const member = readMemberReference(callee);
-  return member.kind === "resolved" ? { name: member.value.name, nameNode: member.value.nameNode } : undefined;
-}
-
-/** Is this call `<zod>.<method>(…)` — the export resolved through the `zod` door, in any spelling? */
-function isZodCall(node: MorphNode, method: string): boolean {
-  const candidate = candidateCall(node);
-  if (candidate?.name !== method || !Node.isCallExpression(node)) {
-    return false;
-  }
-  const origin = resolveModuleMemberOrigin(node.getExpression());
-  if (origin.kind === "unresolved") {
-    return false;
-  }
-  const { moduleSpecifier, exportedName, memberPath, canonical } = origin.value;
-  const terminal = memberPath.at(-1) ?? exportedName;
-  const doors = new Set<string>([moduleSpecifier, ...(canonical.kind === "external-door" ? [canonical.moduleSpecifier] : [])]);
-  return terminal === method && doors.has(ZOD_DOOR);
-}
 
 /** The sole argument of a call, when it is an array literal. */
 function soleArrayArgument(node: MorphNode): readonly MorphNode[] | undefined {
@@ -161,8 +129,8 @@ function isBooleanStringEnum(node: MorphNode): boolean {
 
 /** The arm this call violates and the node the finding anchors on — the token is the authored method name,
  *  which is what an `@orb-waive` position names. */
-function supersededArm(node: MorphNode): CandidateCall | undefined {
-  const candidate = candidateCall(node);
+function supersededArm(node: MorphNode): ZodCandidateCall | undefined {
+  const candidate = zodCandidateCall(node);
   if (candidate === undefined) {
     return;
   }
@@ -345,7 +313,7 @@ export const gate = defineGate({
           "export const union = (arms: readonly unknown[]): unknown => arms;\nexport const literal = (value: unknown): unknown => value;\n",
         "packages/contracts/src/x.ts": 'import { literal, union } from "./shapes.ts";\nexport const s = union([literal("a"), literal("b")]);\n',
       },
-      why: "THE DOOR TEST, which the header's whole identity claim rests on and which nothing used to exercise: a project module that exports `union` and `literal` produces a call the candidate prefilter accepts and the ORIGIN reader resolves — to `packages/contracts/src/shapes.ts`, not to the `zod` door. Cut `doors.has(ZOD_DOOR)` and this row reds. The existing counterfactual (`mustPass[4]`) uses a LOCAL object, which the origin reader refuses outright; this one RESOLVES and is still not zod, which is the harder half",
+      why: "THE DOOR TEST, which the header's whole identity claim rests on and which nothing used to exercise: a project module that exports `union` and `literal` produces a call the candidate prefilter accepts and the ORIGIN reader resolves — to `packages/contracts/src/shapes.ts`, not to the `zod` door. Cut the door test in `lib/zod-origin.ts#isZodCall` and this row reds. The existing counterfactual (`mustPass[4]`) uses a LOCAL object, which the origin reader refuses outright; this one RESOLVES and is still not zod, which is the harder half",
     },
     {
       mode: "types",

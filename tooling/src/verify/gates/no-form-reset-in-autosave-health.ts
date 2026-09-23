@@ -1,6 +1,7 @@
 // Policy: no-form-reset-in-autosave-health — the TYPE-STRIP tripwire for the sibling
 // `no-form-reset-in-autosave` occurrence policy (family `editor-form-factory`, whose shared reader
-// `lib/editor-form-factory.ts` also names this policy's exact subject `EDITOR_FORM_CONTRACT_FILE`; the
+// `lib/editor-form-factory.ts` names this policy's exact subject `EDITOR_FORM_CONTRACT_FILE` and the stripped
+// member `AUTOSAVE_STRIPPED_MEMBER`, which the occurrence sibling arms on too; the
 // family, population and §12.7 carry-forward receipts are recorded on the occurrence sibling). The autosave session's form surface is
 // declared `Omit<AppFormInstance<TValues>, "reset">` in `forms/editor/autosave-contract.ts`, and that
 // strip is the ONLY thing standing between a call site and the #1144 isDirty loop before the occurrence
@@ -42,10 +43,10 @@
 // `packages/contracts/src/assets/__cbbhr_out_index.ts` (virtual) rejected by both.
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import { EDITOR_FORM_CONTRACT_FILE } from "../lib/editor-form-factory.ts";
+import { AUTOSAVE_STRIPPED_MEMBER, EDITOR_FORM_CONTRACT_FILE } from "../lib/editor-form-factory.ts";
 
 const OMIT = "Omit";
-const STRIPPED = '"reset"';
+const STRIPPED = `"${AUTOSAVE_STRIPPED_MEMBER}"`;
 
 const MESSAGE =
   'the reset type-strip (Omit<…, "reset">) is gone from the autosave factory\'s returned surface — ' +

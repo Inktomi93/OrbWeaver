@@ -1,4 +1,4 @@
-// automation.{listRules,createRuleFromPreset,runRuleNow,…} — the live rule-lifecycle wire-through (core/Tier-4-Transport.md).
+// automation.{listRules,createRuleFromPreset,runRuleNow,…} — the live rule-lifecycle wire-through (docs/law/Tier-4-Transport.md).
 // The router is a THIN driver: it validates the wire schema, injects `principal: ctx.auth` (NEVER from input —
 // the acting identity is the resolved Principal), and delegates to `ctx.services.automation.<verb>`. The trigger/
 // preset VOCABULARY rides `@orb/contracts/automation` (not re-spelled). These assert the pass-through (the mapped

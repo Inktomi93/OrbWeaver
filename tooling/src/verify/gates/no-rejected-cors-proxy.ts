@@ -35,9 +35,10 @@
 // `packages/server/src/domain/admin/__cbbhr_in_context.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 //
-// FAMILY `no-raw-egress` — a SPLIT (by authority) from the excluded-lane `no-raw-egress`, and the string is NOT
-// backed by a shared `lib/` dependency: measured, this module imports nothing from `lib/`. That is the §2 /
-// `policy-family-readers` (#2187) finding shape, recorded rather than dressed as a reader.
+// FAMILY: a declared SINGLETON since #0038 (it was filed under `no-raw-egress`, which shares no reader with it).
+// `no-raw-egress` resolves a `fetch` reference's IDENTITY to the ambient global; this policy judges a LITERAL
+// host spelling in five string node kinds and resolves nothing. The two enforce halves of one ADR (D61/B5a),
+// not one computation, so a family string over them named a topic rather than a shared reader (§2).
 import type { Node as MorphNode } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
@@ -80,7 +81,7 @@ function bannedOffset(node: MorphNode): number {
 
 export const gate = defineGate({
   id: "no-rejected-cors-proxy",
-  family: "no-raw-egress",
+  family: "no-rejected-cors-proxy",
   authority: "hard",
   severity: "error",
   // `@inference` ADDED 2026-09-20 (lane cb-gate-reach, the §12 EXTRACTION AUDIT of

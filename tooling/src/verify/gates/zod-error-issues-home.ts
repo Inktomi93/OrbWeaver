@@ -34,6 +34,9 @@
 // `mustFlag[4]`'s `messageIncludes` is the only row that can tell it apart from the ordinary verdict — both
 // arms emit exactly ONE finding, so a bare `{ count: 1 }` would pass whether the arm fires or is dead.
 //
+// FAMILY `zod-modern-spellings`: the package identity is `lib/zod-origin.ts` — `declaredByZod` here and
+// `isZodCall` in the sibling name one `ZOD_PACKAGE` (#0038).
+//
 // BOTH ARMS NOW ASK A SHARED READER (#2097, closed here with #2194's second half): the member arm through
 // `resolveTypeMemberOrigin` and the destructure arm through `resolveTypePropertyOrigin` — the binding-pattern
 // twin added to `lib/type-member-origin.ts` in the same commit, because a `BindingElement` has no
@@ -59,10 +62,10 @@ import { readMemberReference } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
 import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
-import { declaredByPackage, resolveTypeMemberOrigin, resolveTypePropertyOrigin } from "../lib/type-member-origin.ts";
+import { resolveTypeMemberOrigin, resolveTypePropertyOrigin } from "../lib/type-member-origin.ts";
+import { declaredByZod } from "../lib/zod-origin.ts";
 
 const ISSUES = "issues";
-const ZOD_PACKAGE = "zod";
 const OPERATION = "error-issues-read";
 
 const MESSAGE =
@@ -94,7 +97,7 @@ function homeVerdict(declarations: readonly MorphNode[]): IssuesVerdict {
   if (declarations.length === 0) {
     return "unreadable";
   }
-  return declaredByPackage(declarations, ZOD_PACKAGE) ? "zod" : "other";
+  return declaredByZod(declarations) ? "zod" : "other";
 }
 
 /** `parsed.error.issues`, `failure["issues"]`, `err?.issues` — one member read spelled `issues`. */
@@ -282,7 +285,7 @@ export const gate = defineGate({
         "packages/contracts/src/other-member.ts":
           'import type { ZodError } from "zod";\nexport function summarize(parsed: { error: ZodError }): string {\n  return parsed.error.message;\n}\n',
       },
-      why: "THE MEMBER-NAME CLAUSE of `classifyIssuesMemberRead` (`member.value.name === ISSUES`), the converse of the two counterfactuals above and the half neither reaches: this read IS declared by the installed zod package, so `homeVerdict` through `declaredByPackage` says zod — only the NAME test rejects it. Reading `ZodError.message` is not the path-losing `issues` join this law is about. Cut the name test and this row flags",
+      why: "THE MEMBER-NAME CLAUSE of `classifyIssuesMemberRead` (`member.value.name === ISSUES`), the converse of the two counterfactuals above and the half neither reaches: this read IS declared by the installed zod package, so `homeVerdict` through `declaredByZod` says zod — only the NAME test rejects it. Reading `ZodError.message` is not the path-losing `issues` join this law is about. Cut the name test and this row flags",
     },
     {
       mode: "types",
@@ -292,7 +295,7 @@ export const gate = defineGate({
         "packages/contracts/src/destructure-other.ts":
           'import type { ZodError } from "zod";\nexport function summarize(parsed: { error: ZodError }): string {\n  const failure = parsed.error;\n  const { message } = failure;\n  return message;\n}\n',
       },
-      why: "the destructured twin of the clause above (`property !== ISSUES` in `classifyIssuesDestructure`), which is a SEPARATE test in a separate function: the binding resolves to a zod-declared member, so `declaredByPackage` says yes, and only the property-name comparison rejects it. Cut that comparison and this row flags — the member-read cut beside it leaves this row green, so the two clauses are pinned by disjoint rows",
+      why: "the destructured twin of the clause above (`property !== ISSUES` in `classifyIssuesDestructure`), which is a SEPARATE test in a separate function: the binding resolves to a zod-declared member, so `declaredByZod` says yes, and only the property-name comparison rejects it. Cut that comparison and this row flags — the member-read cut beside it leaves this row green, so the two clauses are pinned by disjoint rows",
     },
   ],
 });

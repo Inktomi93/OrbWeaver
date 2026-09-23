@@ -1,4 +1,4 @@
-// Policy: test-presence (core/Spine-Testing.md §5) — required tests on the surfaces where an untested
+// Policy: test-presence (docs/law/Spine-Testing.md §5) — required tests on the surfaces where an untested
 // change silently breaks behavior. The DOMAIN arm is DEMAND-BY-DEFAULT (#767) and the entry/ + transport/
 // TIER arm is the same shape (#773): a file with runtime logic owes a mirror test unless its SHAPE exempts
 // it (index/service/context/error-declaration/D58 stub in domain; a declaration file, a router shell with
@@ -180,17 +180,17 @@ const BLIND_TIERS =
   "moved or was renamed, this gate reports ✓ over an unscanned corpus.";
 
 const MSG = {
-  verb: "verb has no test — add a .test.ts or .int.test.ts at its mirror (core/Spine-Testing.md §5).",
-  persistence: "persistence file has no .int.test.ts at its mirror (core/Spine-Testing.md §5).",
-  contract: "contract schema has no .contract.test.ts at its mirror (core/Spine-Testing.md §5).",
-  sharedContract: "shared contract schema has no .contract.test.ts at its mirror (core/Spine-Testing.md §5).",
+  verb: "verb has no test — add a .test.ts or .int.test.ts at its mirror (docs/law/Spine-Testing.md §5).",
+  persistence: "persistence file has no .int.test.ts at its mirror (docs/law/Spine-Testing.md §5).",
+  contract: "contract schema has no .contract.test.ts at its mirror (docs/law/Spine-Testing.md §5).",
+  sharedContract: "shared contract schema has no .contract.test.ts at its mirror (docs/law/Spine-Testing.md §5).",
   infra:
-    "infra/foundation file with runtime logic has no test — security belts/adapters/dispatchers get a .test.ts or .int.test.ts at their mirror (core/Spine-Testing.md §5). Pure-type + index files are exempt.",
+    "infra/foundation file with runtime logic has no test — security belts/adapters/dispatchers get a .test.ts or .int.test.ts at their mirror (docs/law/Spine-Testing.md §5). Pure-type + index files are exempt.",
   runner:
-    "workloads runner with real logic has no test — add a .test.ts or .int.test.ts at its mirror (core/Spine-Testing.md §5). A D58 no-op stub (reports + returns `{ deferred: true }`, no `ctx.env` call) is exempt until it's filled in.",
+    "workloads runner with real logic has no test — add a .test.ts or .int.test.ts at its mirror (docs/law/Spine-Testing.md §5). A D58 no-op stub (reports + returns `{ deferred: true }`, no `ctx.env` call) is exempt until it's filled in.",
   domain:
-    "domain file with runtime logic has no test — every substrate/ helper, named subsystem and guard owes a .test.ts or .int.test.ts at its mirror (core/Spine-Testing.md §5). Exempt BY SHAPE: index.ts, the zero-logic service.ts + context.ts roots, and a contract/ file declaring only error classes.",
-  tier: "entry/transport file with runtime logic has no test — a boot step, composition seam, HTTP registrar, job driver, bus or ladder primitive owes a .test.ts or .int.test.ts at its mirror (core/Spine-Testing.md §5). Exempt BY SHAPE: index.ts barrels, a .d.ts declaration file, a tRPC router shell (no callable export — its logic is the domain verb's), and a PASS-THROUGH wiring file whose every exported callable is one delegating call or one DI-bundle object literal over its own parameters.",
+    "domain file with runtime logic has no test — every substrate/ helper, named subsystem and guard owes a .test.ts or .int.test.ts at its mirror (docs/law/Spine-Testing.md §5). Exempt BY SHAPE: index.ts, the zero-logic service.ts + context.ts roots, and a contract/ file declaring only error classes.",
+  tier: "entry/transport file with runtime logic has no test — a boot step, composition seam, HTTP registrar, job driver, bus or ladder primitive owes a .test.ts or .int.test.ts at its mirror (docs/law/Spine-Testing.md §5). Exempt BY SHAPE: index.ts barrels, a .d.ts declaration file, a tRPC router shell (no callable export — its logic is the domain verb's), and a PASS-THROUGH wiring file whose every exported callable is one delegating call or one DI-bundle object literal over its own parameters.",
 } as const;
 
 const BEHAVIOR_TEST_FAMILIES = ["unit", "integration"] as const satisfies readonly TestFamily[];
@@ -328,8 +328,8 @@ function pushDomainResidual(tests: ReadonlySet<string>, rel: string, sf: SourceF
 
 // ── THE #773 TIER ARM: entry/ + transport/, demand-by-default with a PASS-THROUGH exemption ────────────────
 // The tier law is the exemption's whole justification: `entry/` "owns no business logic — only wiring/boot/
-// HTTP-edge" (core/Tier-5-Entry.md invariant 1) and a transport router is "validate → call the verb → map the
-// error, zero business logic" (core/Tier-4-Transport.md). So the shape that must stay free here is WIRING, and
+// HTTP-edge" (docs/law/Tier-5-Entry.md invariant 1) and a transport router is "validate → call the verb → map the
+// error, zero business logic" (docs/law/Tier-4-Transport.md). So the shape that must stay free here is WIRING, and
 // it is derived from the body, never from a path list or a basename: a file is exempt when EVERY exported
 // callable reduces to ONE expression that is a delegating call, a DI-bundle object literal, or a factory
 // returning one of those over its own parameters. Anything else — a branch, a second statement, a computed
@@ -546,7 +546,7 @@ export const gate = defineGate({
   facts: [],
   resources: [{ kind: "mirror-index", id: "package-test" }],
   message:
-    "a presence-gated source file has no mirror test — a domain verb / persistence / contract-schema / other domain-runtime-logic / infra-runtime-logic file must carry its test at tests/<mirror> (core/Spine-Testing.md §5).",
+    "a presence-gated source file has no mirror test — a domain verb / persistence / contract-schema / other domain-runtime-logic / infra-runtime-logic file must carry its test at tests/<mirror> (docs/law/Spine-Testing.md §5).",
   fix: "add the required test at the mirror path (tests/server/<rest> or tests/contracts/<rest>) — a .test/.int.test/.contract.test per the surface.",
   create: (ctx) => {
     const state: ScanState = { findings: [], domainLogicFiles: 0, tierLogicFiles: 0 };
@@ -894,7 +894,7 @@ export const gate = defineGate({
           "export function createContext(parts: Parts): Context {\n  return { auth: parts.auth, services: parts.services, rateLimit: parts.rateLimit, clientIp: parts.clientIp };\n}\n",
         "tests/server/transport/trpc/other.test.ts": "export {};\n",
       },
-      why: 'DECLARED LIMIT — THE DI-BUNDLE SHAPE, the transport twin of the domain `context.ts` exemption, derived from the BODY rather than the basename: a packaging function that returns its own arguments (`core/Tier-4-Transport.md`: "Pure packaging: no db, no header parsing, no identity resolution")',
+      why: 'DECLARED LIMIT — THE DI-BUNDLE SHAPE, the transport twin of the domain `context.ts` exemption, derived from the BODY rather than the basename: a packaging function that returns its own arguments (`docs/law/Tier-4-Transport.md`: "Pure packaging: no db, no header parsing, no identity resolution")',
     },
     {
       mode: "resource",
@@ -903,7 +903,7 @@ export const gate = defineGate({
           "export const chatRouter = router({\n  send: authedProcedure.input(sendSchema).mutation(({ ctx, input }) => ctx.services.chat.send(input)),\n});\n",
         "tests/server/transport/trpc/routers/other.test.ts": "export {};\n",
       },
-      why: "DECLARED LIMIT — THE ROUTER SHELL: `core/Tier-4-Transport.md` gives a router zero business logic (validate → call the verb → map the error), and it needs no predicate of its own because a `router({…})` call binds no callable export, so `hasCallableExport` already leaves it alone. The row exists so a future change to that helper cannot silently start demanding a test on all 24 shells",
+      why: "DECLARED LIMIT — THE ROUTER SHELL: `docs/law/Tier-4-Transport.md` gives a router zero business logic (validate → call the verb → map the error), and it needs no predicate of its own because a `router({…})` call binds no callable export, so `hasCallableExport` already leaves it alone. The row exists so a future change to that helper cannot silently start demanding a test on all 24 shells",
     },
     {
       mode: "resource",

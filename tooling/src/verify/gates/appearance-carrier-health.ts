@@ -72,4 +72,17 @@ export const gate = defineGate({
       why: "one schema leaf, its owner, a legal carrier/portal pair, distinct arms, and a live named consumer all agree",
     },
   ],
+  mustRefuse: [
+    {
+      mode: "source",
+      files: {
+        [SCHEMA_FILE]: 'import { z } from "zod"; export const appearanceSettingsSchema = z.object({});',
+        [MANIFEST_FILE]:
+          'const C={file:"packages/client/src/x.ts",symbol:"AppShell"}; export const APPEARANCE_OWNER_KEYS={sizing:["width"]}; export const APPEARANCE_CARRIER_MANIFEST={width:{owner:"sizing",carriers:["shell-grid"],consumer:C,lifecycle:"hydrated",portal:"grid-only",requiredDistinctArms:[60,90]}}; export const APPEARANCE_CARRIER_OBSERVABLES={width:{kind:"inline-style",selector:"x",signal:"--width"}};',
+        "packages/client/src/x.ts": "export function AppShell(){ const width = 90; return width; }",
+      },
+      expect: { messageIncludes: "appearanceSettingsSchema resolved to zero leaves" },
+      why: "THE SUPPLY REFUSAL (law §6.3): mustPass[0] with an empty schema object. The schema is the graph's denominator, so a walk that collects zero leaves refuses the shared appearance fact — never a clean graph over no keys",
+    },
+  ],
 });

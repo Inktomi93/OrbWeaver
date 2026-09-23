@@ -3,17 +3,16 @@
 // the `(rule_id, fired_at)` index — not the rate_limit_buckets primitive, which can't express the per-rule
 // dynamic caps and would split the source of truth from the fire ledger): the per-rule
 // cooldown (off completed + held fire-ledger admissions), the per-rule/hour ceiling, and the per-SCOPE/hour
-// ceiling — the host-editable `automation_budgets` row for a chat rule, the owner-editable
-// `automation_owner_budgets` row
-// for a chat-less one (both default 120). This is the belt that bounds a runaway rule from hammering a paid
-// API. A refusal is NOT an error — the dispatch records `budget_refused` and the rule stays healthy. (The
-// per-day $/spend-action ceilings were stripped for enterprise spend enforcement.)
+// ceiling — the fixed `AUTOMATION_CHAT_MAX_FIRES_PER_HOUR` for a chat rule, the owner-editable
+// `automation_owner_budgets` row for a chat-less one (default 120). This is the belt that bounds a runaway
+// rule from hammering a paid API. A refusal is NOT an error — the dispatch records `budget_refused` and the
+// rule stays healthy. (The per-day $/spend-action ceilings were stripped for enterprise spend enforcement.)
 
-import { AUTOMATION_CHAT_BUDGET_DEFAULTS, AUTOMATION_OWNER_BUDGET_DEFAULTS } from "@orb/contracts/automation";
+import { AUTOMATION_CHAT_MAX_FIRES_PER_HOUR, AUTOMATION_OWNER_BUDGET_DEFAULTS } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
 import type { BudgetVerdict, RuleRow } from "../contract/ops.ts";
-import { selectBudget, selectOwnerBudget } from "../persistence/budgets.ts";
+import { selectOwnerBudget } from "../persistence/budgets.ts";
 import {
   countChatBudgetAdmissionsSince,
   countOwnerGlobalBudgetAdmissionsSince,
@@ -30,11 +29,11 @@ const OK: BudgetVerdict = { ok: true };
  *  the shared cooldown/per-rule half above it is written once and the scope fork is the only thing that
  *  branches.
  *
- *  TWO TABLES, ONE POLICY (C5). The per-chat belt keys on `chat_id` and the per-owner belt on `owner_id`,
- *  because `automation_budgets`'s PK IS the chat id: a NULL-scope row is unrepresentable, and a synthetic
- *  sentinel key would be the D24 soft-ref class. Both read the SAME fire log (an absent budget row is
- *  dispatched as its DDL default, so the projection and the gate can never disagree), and both refuse
- *  identically — a `budget_refused` is not an error and the rule stays healthy. */
+ *  TWO SCOPES, ONE POLICY (C5). The per-chat belt counts a chat's fires against the fixed
+ *  `AUTOMATION_CHAT_MAX_FIRES_PER_HOUR`; the per-owner belt counts the author's chat-less fires against their
+ *  `automation_owner_budgets` row (an absent row is dispatched as its DDL default, so the projection and the
+ *  gate can never disagree). Both read the SAME fire log and refuse identically — a `budget_refused` is not an
+ *  error and the rule stays healthy. The same ceilings bind `reserveFireBudget`'s atomic INSERT. */
 async function checkScopeBudget(db: Db, rule: RuleRow, chatId: ChatId | null, windowStart: number): Promise<BudgetVerdict> {
   if (chatId === null) {
     const owner = await selectOwnerBudget(db, rule.ownerId);
@@ -45,10 +44,8 @@ async function checkScopeBudget(db: Db, rule: RuleRow, chatId: ChatId | null, wi
     const ownerFires = await countOwnerGlobalBudgetAdmissionsSince(db, rule.ownerId, windowStart);
     return ownerFires >= ownerCap ? { ok: false, detail: "owner_hourly" } : OK;
   }
-  const budget = await selectBudget(db, chatId);
-  const chatCap = budget?.maxFiresPerHour ?? AUTOMATION_CHAT_BUDGET_DEFAULTS.maxFiresPerHour;
   const chatFires = await countChatBudgetAdmissionsSince(db, chatId, windowStart);
-  return chatFires >= chatCap ? { ok: false, detail: "chat_hourly" } : OK;
+  return chatFires >= AUTOMATION_CHAT_MAX_FIRES_PER_HOUR ? { ok: false, detail: "chat_hourly" } : OK;
 }
 
 /** Gate a rule against its cooldown + per-rule/hour + per-SCOPE/hour ceilings. Completed fires and held

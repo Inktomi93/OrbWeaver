@@ -64,6 +64,15 @@ export function withFields(source: string, patch: Readonly<Record<string, string
   return `${renderFrontmatter(next)}\n${body.replace(/^\n+/u, "")}`;
 }
 
+/** The document with its first `# ` heading replaced; a body with no heading is returned as given. */
+export function withTitle(source: string, title: string): string {
+  const { body } = splitDocument(source);
+  if (!HEADING_RE.test(body)) {
+    return source;
+  }
+  return `${source.slice(0, source.length - body.length)}${body.replace(HEADING_RE, () => `# ${title}`)}`;
+}
+
 /** The first `# ` heading of a body, or null. */
 export function titleOf(body: string): string | null {
   return HEADING_RE.exec(body)?.[1] ?? null;

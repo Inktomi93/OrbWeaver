@@ -84,20 +84,44 @@ export function readDocTree(repoRoot = root): DocTree {
   };
 }
 
-/** Write a document through the repo's own formatter so a minted or rewritten file is born canonical.
- *  A formatter REFUSAL (a defect in the prose the tool did not touch) writes the bytes as given — the
+/** A document as the repo's own formatter writes it, so a minted or rewritten file is born canonical.
+ *  A formatter REFUSAL (a defect in the prose the tool did not touch) keeps the bytes as given — the
  *  format check reports the defect by name; losing the structural write would hide it. */
-export function writeDoc(path: string, source: string, repoRoot = root): void {
+export function formattedDoc(source: string): string {
   const { output, refusal } = formatMarkdown(source);
-  const abs = join(repoRoot, path);
-  mkdirSync(dirname(abs), { recursive: true });
-  writeFileSync(abs, refusal === null ? output : source);
+  return refusal === null ? output : source;
 }
 
-/** Every tracked TEXT file's path, for the literal path rewrite `archive` does. */
-export function trackedTextFiles(repoRoot = root): readonly string[] {
+export function writeDoc(path: string, source: string, repoRoot = root): void {
+  const abs = join(repoRoot, path);
+  mkdirSync(dirname(abs), { recursive: true });
+  writeFileSync(abs, formattedDoc(source));
+}
+
+/** Every tracked TEXT file's path, for the path rewrites `archive` and a retitling `set` do. */
+function trackedTextFiles(repoRoot = root): readonly string[] {
   const out = git(repoRoot, ["ls-files", "-z"]);
   return out === null ? [] : out.split("\0").filter((path) => path !== "" && /\.(?:md|ts|tsx|js|cjs|mjs|json|yaml|yml|sh)$/u.test(path));
+}
+
+/** The tracked text files plus the governed docs, which a fresh mint may not have tracked yet. */
+export function textFiles(repoRoot = root): readonly string[] {
+  return [...new Set([...trackedTextFiles(repoRoot), ...governedPaths(repoRoot)])].filter((path) => existsSync(join(repoRoot, path)));
+}
+
+/** Apply `rewrite` to every text file and write the ones it changes; returns their paths. */
+export function rewriteTextFiles(rewrite: (path: string, source: string) => string, repoRoot = root): readonly string[] {
+  const touched: string[] = [];
+  for (const path of textFiles(repoRoot)) {
+    const abs = join(repoRoot, path);
+    const source = readFileSync(abs, "utf8");
+    const next = rewrite(path, source);
+    if (next !== source) {
+      writeFileSync(abs, next);
+      touched.push(path);
+    }
+  }
+  return touched;
 }
 
 export function isMainBranch(repoRoot = root): boolean {

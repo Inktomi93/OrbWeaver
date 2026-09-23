@@ -3,7 +3,7 @@
 // cross-checkout ownership rules PER ROW, the heartbeat, the teardown consent and the #1186 band claim,
 // plus a smoke that the stage dir lands under a gitignored path. The imperative worktree/install/boot
 // orchestration is deliberately NOT exercised here (it spins a real stack — out of the CI-tier's remit;
-// this file's home is tests/tooling/ per core/Spine-Testing.md §2, a test of a scripts/ tool).
+// this file's home is tests/tooling/ per docs/law/Spine-Testing.md §2, a test of a scripts/ tool).
 //
 // THE TABLE'S OWN RULES MOVED (#1276): the allocator, the limits, the strand/TTL rule with its live-session
 // fence and the three-probe health verdict are lib/stage-bands.ts's, pinned at

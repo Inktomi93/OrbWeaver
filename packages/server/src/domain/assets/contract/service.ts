@@ -52,7 +52,7 @@ export interface AssetsContext {
   /** Gallery import re-link: the owner's own character id carrying `handle`, or null if none exists. Optional. */
   readonly findCharacterByHandle?: (args: { readonly ownerId: UserId; readonly handle: CharacterHandle }) => Promise<CharacterId | null>;
   /** The character-owned avatar-pointer WRITE `backfillAvatars` delegates to (`characters.avatarAssetId` is
-   *  CHARACTER's column — a cross-domain write routes through the owning domain, AGENTS §2 / Tier-1-DB.md
+   *  CHARACTER's column — a cross-domain write routes through the owning domain, Constitution.md §2 / Tier-1-DB.md
    *  §"Cross-tier composition"). REQUIRED, not optional: an absent op would silently turn the relink into a
    *  no-op that still reports `linked: n`. Locally declared (structural), never a sideways type import. */
   readonly linkCharacterAvatars: LinkCharacterAvatarsOp;

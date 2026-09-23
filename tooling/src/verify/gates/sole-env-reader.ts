@@ -87,7 +87,7 @@ const PROCESS_DOORS: readonly string[] = ["node:process", "process"];
 
 const MESSAGE =
   "reads process.env outside foundation/env — env is the SOLE reader: import the frozen `env` and " +
-  "dot-access a typed key (core/Tier-2-Foundation.md inv #1).";
+  "dot-access a typed key (docs/law/Tier-2-Foundation.md inv #1).";
 const FIX = "import the frozen `env` from foundation/env and dot-access a typed key; foundation/env is the ONE place that touches process.env.";
 
 /** Is this `env` member read taken off the real `process` — the ambient global or the `node:process` default

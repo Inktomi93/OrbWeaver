@@ -2,8 +2,8 @@
 // rename). Discovery EMBEDS NOTHING and writes no vector row — it reads the embeddings store read-only,
 // computes its signals in-RAM, and writes ONLY these OWN rollup tables (+ the `hub_score` column on the
 // embeddings rows via the injected `embeddings.writeHubScores` seam, which is NOT here). Authoritative
-// spec: the domain module (`packages/server/src/domain/discovery/`) + `core/Knowledge-Cluster.md` §7 +
-// `core/Tier-1-DB.md` + the ledger (D23/D24). Seven tables: duplicate_character_pairs · duplicate_chat_pairs · keyword_cooccurrence ·
+// spec: the domain module (`packages/server/src/domain/discovery/`) + `docs/law/Knowledge-Cluster.md` §7 +
+// `docs/law/Tier-1-DB.md` + the ledger (D23/D24). Seven tables: duplicate_character_pairs · duplicate_chat_pairs · keyword_cooccurrence ·
 // character_keyword_profiles · character_summaries · theme_clusters · digest_theme_assignments.
 //
 // THE LOAD-BEARING DECISIONS encoded here:

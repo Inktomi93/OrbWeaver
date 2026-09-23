@@ -15,43 +15,23 @@
 //   • `warning-code-coverage`'s own before/after paragraph, which recorded a measurement nothing re-runs.
 // A refusal nobody pins is a clean pass over an empty denominator — #944's whole class.
 //
-// ═══ SEVERITY: `ordinary` / `warning` NOW, `hard` / `error` AT A NAMED EVENT ═══
+// ═══ SEVERITY: `hard` / `error` SINCE #0038 (2026-09-23) ═══
 //
-// The audit row that ordered this module (policing-surface-audit-2026-09-12.md:566) specifies the tier as
-// *"`ordinary`/`warning` + a `workItem`, or `hard`/`error` once the burn-down is short"*, and the validator makes
-// that the only legal reading: `lib/policy-validation.ts:419` REFUSES `hard` + `warning` AT LOAD (#2025) —
-// *"unsuppressible and non-blocking at once means neither"* — so there is no soft `hard` landing. At mint this
-// module reds ≤ 92 of 98 derived-population consumers; a `hard`/`error` landing would put 92 blocking findings on
-// the commit bar in one commit, which is not a burn-down, it is a stop.
+// Born `ordinary`/`warning` + a `workItem` (policing-surface-audit-2026-09-12.md:566) because it red 92 of 98
+// derived-population consumers at mint, and a blocking landing would have been a stop, not a burn-down. The
+// flip condition was the commit that takes THIS POLICY'S OWN effective count to zero. That count first hit
+// zero on 2026-09-13 (#2327: sixteen consumers pinned, one false accusation retired by the #2330 repair
+// below) and the flip was held back, so the warning tier let fifteen new derived-population consumers land
+// unpinned in the following ten days — the nine `ui-tier-permissions` consumers, both `appearance-carrier`
+// members, `dialog-via-composite`, `ledger-symbol-liveness`, `playwright-lane-outside-fast-check` and
+// `open-json-column-key-parity-deferred`. #0038 pinned all fifteen (six `mustRefuse` rows, two family
+// tests) and flipped in the same commit: 15 → 0, measured with `pnpm check:structure --check
+// policy-refusal-coverage`. The held-back zero is the lesson — a count at zero under `warning` does not stay
+// there, because nothing blocks the next consumer.
 //
-// THE OWNER IS #2327 SINCE 2026-09-13. This module was born pointing at #2184, the row that ORDERED it, and
-// #2184 closed on the module's LANDING receipt while 17 consumers were still to drain — so the debt sat with no
-// live owner until #2327 was minted for the burn-down itself. #2070's barrier
-// (`lib/workitem-liveness.ts`) is what MEASURES that now, asking the board whether this number is open.
-//
-// THE FLIP CONDITION IS AN EVENT, NOT AN ASPIRATION, AND IT IS UNCHANGED BY THE REPOINT: flip to `hard` +
-// `error` (and drop `workItem`) in the commit
-// that takes THIS POLICY'S OWN EFFECTIVE COUNT TO ZERO on a whole-corpus run. The count IS the burn-down, so the
-// condition is readable off `reports/check-structure.json` — nobody has to remember it. RE-MEASURED at `80b0693cb`
-// with the #2274 repair below: 60 → 17. The 43 that discharged were pinned all along by real family tests the dead
-// recognizer could not see, so the drop is a READER fix, not a burn-down; 17 is the real remaining debt.
-//
-// THE COUNT REACHED ZERO ON 2026-09-13 AND THE FLIP DID NOT HAPPEN IN THAT COMMIT — read this before
-// concluding the condition above was ignored. The burn-down was discharged by #2327 (sixteen consumers
-// pinned across five commits: `verify-registry-parity`, the three authored-tree consumers, the two
-// registry-fact consumers, and the ten `drizzle-schema` fact consumers) and by the #2330 recognizer repair
-// below, which retired the seventeenth as a FALSE accusation. 17 → 16 → 13 → 11 → 1 → 0, each step measured
-// by name with `pnpm check:structure --check policy-refusal-coverage`. Flipping `ordinary`/`warning` to
-// `hard`/`error` and dropping `workItem` is an OWNER decision that was deliberately held back from the
-// zeroing commit rather than forgotten: a zero one hour old is not yet evidence that the corpus stays at
-// zero, and the flip also closes the `@orb-waive` door the section below describes as watched-while-draining.
-// SO THE ROW STAYS `ordinary`/`warning` **WITH** ITS `workItem` UNTIL THAT FLIP — the two move together and
-// neither moves alone. `warning` with no `workItem` is not a third state this module may sit in even for one
-// commit: `lib/policy-module.ts:51` refuses it AT LOAD (measured 2026-09-13 by deleting the key —
-// `pnpm check:structure --check policy-refusal-coverage` exits 2, *"descriptor.workItem must be an own
-// enumerable property when severity is warning"*, and the corpus never loads), so a zeroing commit that
-// dropped only the pointer could not even run. WHICH number the pointer names is decided one paragraph up
-// and never here; this paragraph owns the STATE, not the id.
+// `hard` closes the `@orb-waive` door: the fix for a missing refusal pin is to write the pin, never to defer
+// it. `error` makes a new unpinned consumer block the commit bar, and `lib/policy-validation.ts`
+// (`assertSeverityWorkItem`) forbids a `workItem` on an error-tier descriptor, so the pointer is gone with it.
 //
 // AND THE #2330 REPAIR, WHICH IS #2274 ONE SPELLING OVER. The recognizer read the driven set through
 // `bindsParameter`, which cannot see a SHORTHAND property's value binding (`{ knownPolicies: policies,
@@ -61,11 +41,6 @@
 // one-token probe (`policies` → `policies: policies`): 11 → 10, restored, 11. The lesson is the same one the
 // section above paid for: THE PROOF SET ONLY EVER SPELLED THE SHAPE ONE WAY, so its own fixtures could not
 // see the gap. Both the repaired shape and the still-unreachable OBJECT-PATTERN shape are now rows.
-//
-// AND THE DOOR THE WARNING TIER OPENS IS WATCHED. `ordinary` means a consumer can `@orb-waive` this finding
-// instead of writing the pin. That waiver is reconciled centrally into the policy's `waived` count, and
-// `pnpm check:structure-delta` (#2110) prints `waived` before → after per policy — so waiving instead of fixing
-// MOVES A NUMBER the barrier already reads. The door is open during the drain; it is not unobserved.
 //
 // WHAT SATISFIES THE RULE, and why the test half is recognised the way it is. `mustRefuse` is read through
 // the shared shallow array reader, including stable const/import aliases and array spreads. A present
@@ -125,8 +100,7 @@
 // `descriptorValue`, `descriptorProperty`, `policyIdOfPath`) — the same descriptor reader
 // `policy-waiver-identity` and `policy-waiver-spelling` resolve through. NOT a singleton and NOT a `-health`
 // split: it differs from its siblings in SUBJECT (the refusal proof rather than the waiver arm), not in
-// authority, so it is one more policy under the shared `family` string. Its severity DOES differ while the
-// burn-down drains, which the section above states as a dated, checkable event rather than a permanent shape.
+// authority, so it is one more policy under the shared `family` string.
 // POPULATION PORT: NO legacy population — this policy is BORN FINAL, added at `575e48d5a`
 // (`git show 575e48d5a^:tooling/src/verify/gates/policy-refusal-coverage.ts` → `exists on disk, but not in`).
 // Nothing was ported: no legacy descriptor ever asked who owed a refusal proof, which is the gap #2184 names
@@ -179,14 +153,8 @@ const FIX =
   "test under `tests/tooling/verify/gates/` that IMPORTS this module, and assert those. THE ROUTE IS THE PRODUCTION SIGNATURE, spelled " +
   "exactly: `runPolicyPass({ knownPolicies: [gate], policies: [gate], root, project, reviewedGrants: [], failOnWarnings: false })` inside a " +
   "`test(…)`, with `gate` imported from this module — a local `pass(policy, …)` helper is read through to its call sites, so the shape you " +
-  "already write is the shape that counts. One or the other, never neither. " +
-  // THE ESCAPE HATCH, SPELLED EXACTLY — and the POSITION is not a guess: it is the token this policy reports,
-  // which is the name of the `facts` or `resources` property that created the obligation (see `judgeCorpus`).
-  // A `fix` that promises a waiver without naming the position a marker must carry is a promise the operator
-  // cannot act on, and it is the shape `policy-waiver-spelling` reds (§5b.3).
-  "While the burn-down drains this policy is `ordinary`, so a deliberate deferral can be waived at the reported field: " +
-  "`// @orb-waive policy-refusal-coverage(resources): <reason and its end condition>` — or `(facts)` when the obligation came " +
-  "from the fact declaration. The position is ALWAYS the reported field name, never a path or a line number.";
+  "already write is the shape that counts. One or the other, never neither.";
+
 const BLIND =
   `BLINDNESS: ${SELF} is in the effective population and does not read as a final policy — the descriptor reader ` +
   "(lib/policy-descriptor-read.ts finalDescriptorOf) is dead, so every module would read out of scope and this policy would report ✓ over " +
@@ -494,11 +462,6 @@ const DRIVEN_THROUGH_DESTRUCTURED = `  function pass({ policies }: { policies: r
  *  and `[{…}]` to a human, which is the shape of every fixture that proves nothing. */
 const EMPTY_RESOURCES = "resources: [],";
 const DERIVED_RESOURCES = 'resources: [{ kind: "tracked", why: "the planted probe\'s derived population" }],';
-/** The SAME derived declaration with the escape hatch on the line above it — the §4.2 positive identity arm's
- *  fixture. The position (`resources`) is the token `judgeCorpus` reports, so the marker names the coordinate
- *  the finding actually carries rather than one an author guessed; a marker naming anything else is the
- *  dead-position alarm the family test drives. */
-const WAIVED_RESOURCES = `// @orb-waive policy-refusal-coverage(resources): the planted probe defers its refusal pin; ends when the probe carries a mustRefuse row.\n  ${DERIVED_RESOURCES}`;
 const DERIVING = (extra: string, resources: string = DERIVED_RESOURCES): string =>
   finalProbeModule(
     `${ORDINARY_TRUNK.replace(EMPTY_RESOURCES, resources)}\n  fix: "f",\n  mustPass: [{ mode: "source", files: { "packages/client/src/b.ts": "y" }, why: "w" }],${extra}`,
@@ -507,9 +470,8 @@ const DERIVING = (extra: string, resources: string = DERIVED_RESOURCES): string 
 export const gate = defineGate({
   id: "policy-refusal-coverage",
   family: "policy-soundness",
-  authority: "ordinary",
-  severity: "warning",
-  workItem: 2327,
+  authority: "hard",
+  severity: "error",
   // The gate corpus PLUS the family tests that may carry the pin — the join is the whole verdict, which is the
   // same reason `policy-waiver-identity` spans both roots.
   population: {
@@ -695,11 +657,6 @@ export const gate = defineGate({
       mode: "types",
       files: familyFixture(DERIVING(""), { [PIN_TEST_PATH]: PIN_TEST(DRIVEN_THROUGH_SPREAD) }),
       why: "THE ALIAS-AND-SPREAD SHAPE: the driven set is `[...family]` over a const the file declares. Two branches of the walk in one row — the spread element, and the alias behind it resolved through `stableTerminal`. Cut either and this row alone reds",
-    },
-    {
-      mode: "types",
-      files: familyFixture(DERIVING("", WAIVED_RESOURCES)),
-      why: "THE §4.2 POSITIVE IDENTITY ARM, in-module: the correct `@orb-waive policy-refusal-coverage(resources)` marker at the REPORTED position suppresses the finding. It is what makes the `ordinary` tier's escape hatch REAL rather than a promise in `fix` prose — the shape `policy-waiver-identity` requires of every ordinary policy and `policy-waiver-spelling` requires of every `fix`. Its discrimination control (a marker naming a DEAD position must ALARM) lives in the family test through `runPolicyPass`, because §4.2 forbids a negative arm here: under `knownPolicies: [policy]` it would ride the unknown-policy short-circuit and prove nothing",
     },
     {
       mode: "types",

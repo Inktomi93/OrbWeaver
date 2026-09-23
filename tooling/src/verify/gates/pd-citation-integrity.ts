@@ -146,7 +146,7 @@ export const gate = defineGate({
     {
       mode: "resource",
       files: {
-        "docs/architecture/core/Core-Audits-and-Debt.md": "| PD-1 | something |\n",
+        "docs/law/Core-Audits-and-Debt.md": "| PD-1 | something |\n",
         "docs/architecture/history/Core-Debt-Cleared-Ledger.md": "| PD-2 | cleared |\n",
         "packages/server/src/x.ts": "// FLAG[PD-999] an orphan citation\nexport const x = 1;\n",
       },
@@ -156,7 +156,7 @@ export const gate = defineGate({
     {
       mode: "resource",
       files: {
-        "docs/architecture/core/Core-Audits-and-Debt.md": "| PD-7 | active debt |\n| PD-7 | a second row with the same id |\n",
+        "docs/law/Core-Audits-and-Debt.md": "| PD-7 | active debt |\n| PD-7 | a second row with the same id |\n",
         "docs/architecture/history/Core-Debt-Cleared-Ledger.md": "| PD-2 | cleared |\n",
         "packages/server/src/x.ts": "export const x = 1;\n",
       },
@@ -166,7 +166,7 @@ export const gate = defineGate({
     {
       mode: "resource",
       files: {
-        "docs/architecture/core/Core-Audits-and-Debt.md": "| PD-7 | active debt |\n",
+        "docs/law/Core-Audits-and-Debt.md": "| PD-7 | active debt |\n",
         "docs/architecture/history/Core-Debt-Cleared-Ledger.md": "| PD-7 | the same id, cleared |\n",
         "packages/server/src/x.ts": "export const x = 1;\n",
       },
@@ -176,7 +176,7 @@ export const gate = defineGate({
     {
       mode: "resource",
       files: {
-        "docs/architecture/core/Core-Audits-and-Debt.md": "| PD-1 | something |\n",
+        "docs/law/Core-Audits-and-Debt.md": "| PD-1 | something |\n",
         "docs/architecture/history/Core-Debt-Cleared-Ledger.md": "| PD-2 | cleared |\n",
         "tests/tooling/x.ts": "// FLAG[PD-998] an orphan in the test corpus\nexport const x = 1;\n",
       },
@@ -188,7 +188,7 @@ export const gate = defineGate({
     {
       mode: "resource",
       files: {
-        "docs/architecture/core/Core-Audits-and-Debt.md": "| PD-1 | something |\n",
+        "docs/law/Core-Audits-and-Debt.md": "| PD-1 | something |\n",
         "docs/architecture/history/Core-Debt-Cleared-Ledger.md": "| PD-2 | cleared |\n",
         "packages/server/src/x.ts": "// FLAG[PD-1] active, FLAG[PD-2] cleared — both resolve.\nexport const x = 1;\n",
       },
@@ -197,7 +197,7 @@ export const gate = defineGate({
     {
       mode: "resource",
       files: {
-        "docs/architecture/core/Core-Audits-and-Debt.md": "| PD-1 | something |\n",
+        "docs/law/Core-Audits-and-Debt.md": "| PD-1 | something |\n",
         "docs/architecture/history/Core-Debt-Cleared-Ledger.md": "| PD-2 | cleared |\n",
         "packages/server/src/ok.ts": "export const ok = 1;\n",
         "tooling/src/verify/gates/example-policy.ts": 'export const proof = { files: { "x.ts": "// FLAG[PD-999]" } };\n',
@@ -207,7 +207,7 @@ export const gate = defineGate({
     {
       mode: "resource",
       files: {
-        "docs/architecture/core/Core-Audits-and-Debt.md": "| PD-1 | something |\n| PD-10 | a longer id that must not collide with PD-1 |\n",
+        "docs/law/Core-Audits-and-Debt.md": "| PD-1 | something |\n| PD-10 | a longer id that must not collide with PD-1 |\n",
         "docs/architecture/history/Core-Debt-Cleared-Ledger.md": "| PD-2 | cleared |\n",
         "packages/server/src/x.ts": "// FLAG[PD-10] resolves to its own row, not to PD-1's.\nexport const x = 1;\n",
       },
@@ -216,7 +216,7 @@ export const gate = defineGate({
     {
       mode: "resource",
       files: {
-        "docs/architecture/core/Core-Audits-and-Debt.md": "| PD-1 | the one real row |\n| PD-1x | a table cell that is NOT a PD id |\n",
+        "docs/law/Core-Audits-and-Debt.md": "| PD-1 | the one real row |\n| PD-1x | a table cell that is NOT a PD id |\n",
         "docs/architecture/history/Core-Debt-Cleared-Ledger.md": "| PD-2 | cleared |\n",
         "packages/server/src/x.ts": "// FLAG[PD-1] resolves to the single PD-1 row.\nexport const x = 1;\n",
       },
@@ -225,7 +225,7 @@ export const gate = defineGate({
     {
       mode: "resource",
       files: {
-        "docs/architecture/core/Core-Audits-and-Debt.md": "| PD-1 | something |\n",
+        "docs/law/Core-Audits-and-Debt.md": "| PD-1 | something |\n",
         "docs/architecture/history/Core-Debt-Cleared-Ledger.md": "| PD-2 | cleared |\n",
         "packages/server/src/prose.ts":
           "// PD-999 is discussed in prose here, and a table row | PD-999 | in a code sample is not a registry row.\nexport const x = 1;\n",
@@ -235,7 +235,7 @@ export const gate = defineGate({
     {
       mode: "resource",
       files: {
-        "docs/architecture/core/Core-Audits-and-Debt.md": "| PD-1 | something |\n",
+        "docs/law/Core-Audits-and-Debt.md": "| PD-1 | something |\n",
         "docs/architecture/history/Core-Debt-Cleared-Ledger.md": "| PD-2 | cleared |\n",
         "packages/server/src/x.ts": "export const x = 1;\n",
       },

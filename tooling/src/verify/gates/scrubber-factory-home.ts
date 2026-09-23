@@ -14,13 +14,11 @@
 // receipt to zero members and REFUSES the run (the directory moved). The directory existing while none of
 // its modules exports the factory is a FINDING (the export moved or was renamed). Neither can be silenced.
 //
-// FAMILY `scrubber-home` — the shared computation is the factory's declaration home
-// (`scrubber-home.ts`'s `SCRUBBER_SYMBOL` + `SCRUBBER_HOME.pathInfix`), re-stated here as `SCRUBBER_SYMBOL`
-// + `HOME_INFIX` because the two halves of one trust boundary must name the SAME directory or this
-// completeness arm stops covering the reference policy. The split is by AUTHORITY — reviewed-grant
+// FAMILY `scrubber-home` — the shared computation is the factory's declaration home, `lib/scrubber-home.ts`
+// (`SCRUBBER_SYMBOL` + `SCRUBBER_HOME.pathInfix`), imported by both halves because the two halves of one trust
+// boundary must name the SAME directory or this completeness arm stops covering the reference policy. The split is by AUTHORITY — reviewed-grant
 // permission there, hard completeness here — which the contract requires to be two policy ids under one
-// `family` string. This policy resolves no origin at all and consumes no shared reader; that is the
-// SPLIT'S point, not a thin contract.
+// `family` string. This policy resolves no origin at all; the declaration home is the only thing it shares.
 // POPULATION PORT: this policy has NO legacy population of its own — it did not exist at `9808b93c0^`
 // (`git show 9808b93c0^:tooling/src/verify/gates/scrubber-factory-home.ts` → `exists on disk, but not in`).
 // It is the DEFINITION half carved out of `scrubber-home`'s legacy `PACKAGES_SRC` scan at the conversion,
@@ -39,9 +37,8 @@
 // `scripts/codemods/__cbbhr_out_rename-roster-participants.ts` (virtual) rejected by both.
 import type { SourceFile } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
+import { SCRUBBER_HOME, SCRUBBER_SYMBOL } from "../lib/scrubber-home.ts";
 
-const SCRUBBER_SYMBOL = "createHiddenSpanStreamScrubber";
-const HOME_INFIX = "/packages/kit/src/content/";
 const HOME_RECEIPT = "kit content home";
 
 const MESSAGE =
@@ -52,7 +49,7 @@ const FIX =
   "keep the stateful hidden-span scrubber factory exported from packages/kit/src/content/, or move `scrubber-home`'s declared home with it in the same commit.";
 
 function isHomeFile(file: SourceFile): boolean {
-  return file.getFilePath().replaceAll("\\", "/").includes(HOME_INFIX);
+  return file.getFilePath().replaceAll("\\", "/").includes(SCRUBBER_HOME.pathInfix);
 }
 
 export const gate = defineGate({

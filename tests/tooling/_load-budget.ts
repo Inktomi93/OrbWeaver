@@ -55,7 +55,7 @@ export {
 // The reporter-visible channel for a LOAD-SUSPECT arm, declared where the label lives. `TaskMeta` is
 // vitest's own augmentation point and `meta` is a per-test field the json reporter serializes for a PASSING
 // test as well as a skipped one — so this augmentation is not decoration, it is the whole reason the label
-// is legible in `reports/test-report.json` at all (see `labelRateLoad` + scripts/vitest-supervised.mjs).
+// is legible in `reports/test-report.json` at all (see `labelRateLoad` + scripts/vitest-supervised.ts).
 declare module "vitest" {
   interface TaskMeta {
     /** The #1040 load reason, set by `labelRateLoad` when the box was loaded while the arm measured

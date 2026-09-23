@@ -7,7 +7,7 @@
 // MEMBERSHIP-scoped (D18) through the injected guards.
 //
 // The ENGINE is not here and never will be: `@orb/kit/regex` executes, `@orb/server/kit/regex` is the
-// node:vm watchdog. This domain owns the DATA the engine runs on (AGENTS §1 "engine vs data").
+// node:vm watchdog. This domain owns the DATA the engine runs on (Constitution.md §1 "engine vs data").
 
 import type { RegexContext } from "./context.ts";
 import type { RegexService } from "./contract/service.ts";

@@ -3,7 +3,7 @@
 //   captures  (`wire-tap captures …`)    read the wire-capture recorder (requests / --outcomes)
 //   trpc      (`wire-tap trpc <proc> …`) the uncookied dev tRPC harvest
 // Argv parse + dispatch ONLY (the five-slot cap); the programmatic surface is ./index.ts.
-// Incident instrument, idle-by-design (docs/architecture/core/Core-Tooling-Law.md §4.5): the CI proof is a
+// Incident instrument, idle-by-design (docs/law/Core-Tooling-Law.md §4.5): the CI proof is a
 // loopback fixture server, never the dev stack.
 // ZERO HYGIENE (#409): a tap's empty population is a LEGITIMATE outcome (a quiet-but-healthy room, a
 // recorder that is simply off), so this tool does NOT exit 2 on one — it SAYS so instead: `sse` prints

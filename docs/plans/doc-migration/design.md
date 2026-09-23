@@ -16,7 +16,7 @@ One bounded lane per task, in the order `tasks.md` lists. Each lane moves a set 
 
 The standing rules every lane inherits:
 
-1. Before a move, run the citer sweep from `docs/architecture/core/Documentation-Law.md` (the relocation section) over `packages`, `tooling`, `tests`, `scripts`, `.claude`, `AGENTS.md` and the root configs; `pnpm check:structure` (`dangling-doc-cite`, `dangling-refs`, `dangling-ref-citations`, `d-citation-integrity`) is the proof, not the method.
+1. Before a move, run the citer sweep from `.claude/rules/docs.md` ("Moving or deleting a doc") over `packages`, `tooling`, `tests`, `scripts`, `.claude`, `AGENTS.md` and the root configs; `pnpm check:structure` (`dangling-doc-cite`, `dangling-refs`, `dangling-ref-citations`, `d-citation-integrity`) is the proof, not the method.
 2. A path-stable move keeps section numbers; `§` citations by basename resolve unchanged. Only full-path citations are rewritten, by literal prefix.
 3. The tooling constants that spell a legacy path are coupled sites of the lane that moves that path: `tooling/src/verify/contract/resource-document.ts`, `tooling/src/verify/lib/dangling-ref-corpus.ts`, `tooling/src/verify/lib/dangling-ref-citations.ts`, `tooling/src/verify/gates/d-citation-integrity.ts`, `tooling/src/verify/lib/selection.ts`, `tooling/src/doc-catalog/lib/vocab.ts`, `tooling/src/doc-catalog/ops/tree.ts`, `tooling/src/doc-catalog/ops/format.ts`, `docs/catalog/lanes.json`.
 4. Frozen evidence is deleted, not moved: dated reviews and audit folders are claims about a commit that git already holds.
@@ -40,9 +40,9 @@ The work items under `docs/work/` carrying `plan: doc-migration` hold each task'
 | - | - |
 | `docs/adr/` (the ledger split wrote one decision per file and deleted the registry and its index doc) | ledger split |
 | `tooling/src/verify/contract/resource-document.ts` (the ledger resource), `tooling/src/verify/gates/d-citation-integrity.ts` | ledger split |
-| `docs/architecture/core/*.md`, `AGENTS.md`, `.claude/rules/*.md`, `.claude/skills/**` (path citations) | law move |
+| `docs/law/*.md`, `AGENTS.md`, `.claude/rules/*.md`, `.claude/skills/**` (path citations) | law move |
 | `tooling/src/verify/lib/dangling-ref-corpus.ts`, `tooling/src/verify/lib/dangling-ref-citations.ts`, `tooling/src/verify/lib/selection.ts` | law move |
-| `docs/architecture/core/Documentation-Law.md`, `docs/architecture/core/Core-Docs-Formatting-Law.md`, `.claude/rules/writing.md`, `.claude/rules/docs.md` | writing-law merge |
+| `.claude/rules/writing.md`, `.claude/rules/comments.md`, `.claude/rules/docs.md` (the two legacy style laws fold in and are deleted) | writing-law merge |
 | `docs/history/**`, `docs/architecture/history/**`, `docs/history/design/**` | history collapse |
 | `docs/reviews/**`, `docs/history/reviews/**`, `.gitignore` | reviews out |
 | `tooling/src/verify/gates/caught-failure-ownership.population.json`, `tooling/src/verify/gates/caught-failure-ownership.ts`, `tooling/src/verify/ops/gen/caught-failure-population.ts` | population file |
@@ -53,4 +53,4 @@ The work items under `docs/work/` carrying `plan: doc-migration` hold each task'
 
 ## Test plan
 
-Every lane's floor: `pnpm check:agents`, `pnpm check:docs`, `pnpm check:structure`, `pnpm typecheck --config tooling/tsconfig.json` when a tooling constant moved, and `pnpm test:scoped` over the suites that pin the moved constants (`tests/tooling/verify/gates/text-citation-family.suite.test.ts`, `tests/tooling/doc-catalog/**`, `tests/tooling/doc/**`). A lane that deletes a gate resource id runs the whole `check:structure` and reads its `population` counts against the previous run's, per the widening protocol in `docs/architecture/core/Core-Tooling-Law.md`.
+Every lane's floor: `pnpm check:agents`, `pnpm check:docs`, `pnpm check:structure`, `pnpm typecheck --config tooling/tsconfig.json` when a tooling constant moved, and `pnpm test:scoped` over the suites that pin the moved constants (`tests/tooling/verify/gates/text-citation-family.suite.test.ts`, `tests/tooling/doc-catalog/**`, `tests/tooling/doc/**`). A lane that deletes a gate resource id runs the whole `check:structure` and reads its `population` counts against the previous run's, per the widening protocol in `docs/law/Core-Tooling-Law.md`.

@@ -64,7 +64,16 @@ function packageFacts(value: unknown, id: PackageResourceId, path: string): Pack
     return;
   }
   const dependencies: PackageDependencyFacts = { runtime, development, peer, optional };
-  return { id, path, name: source["name"], private: source["private"] === true, scripts, dependencies, exports };
+  return {
+    id,
+    path,
+    name: source["name"],
+    private: source["private"] === true,
+    scripts,
+    dependencies,
+    exports,
+    declaresSideEffects: Object.hasOwn(source, "sideEffects"),
+  };
 }
 
 export function loadPackageMetadata(reader: ResourceReader, id: PackageResourceId): ResourceLoad<PackageMetadata> {

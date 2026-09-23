@@ -1,4 +1,4 @@
-// Guard for scripts/vitest-supervised.mjs (issues #345, #1012) — the sharded hang-watchdog runner behind
+// Guard for scripts/vitest-supervised.ts (issues #345, #1012) — the sharded hang-watchdog runner behind
 // `pnpm test`. A research-zone script test (test-layout exempts flat tests/tooling/ files that cover
 // scripts/), it drives the supervisor against a FAKE vitest via ORB_VITEST_BIN and asserts:
 //   1. a clean child (exit 0) is mirrored;
@@ -39,7 +39,7 @@ import { afterAll, beforeAll } from "vitest";
 import { expect, test } from "../support/tool-fixtures.ts";
 import { scaledBudget } from "./_load-budget.ts";
 
-const SUPERVISOR = join(process.cwd(), "scripts", "vitest-supervised.mjs");
+const SUPERVISOR = join(process.cwd(), "scripts", "vitest-supervised.ts");
 
 // The busy-mode grandchild's source, hoisted out of FAKE below so this gate marker can be a REAL comment
 // (a `//` inside a template literal is string content, not a comment). It burns CPU for a measured

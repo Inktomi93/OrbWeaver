@@ -3,7 +3,7 @@
 // (D23/D24), "the world-info pattern — one store, attached at scopes" (`Core-0-Architecture-and-Structure.md`
 // §6, which says verbatim that regex reuses it). The three embed-by-value carriers it replaces
 // (`UserSettings.regex.scripts`, `PromptConfig.regexScripts`, `characters.regex_scripts`) are GONE,
-// NO-LEGACY, on the same regenerated baseline. Tier spec: `core/Tier-1-DB.md`.
+// NO-LEGACY, on the same regenerated baseline. Tier spec: `docs/law/Tier-1-DB.md`.
 //
 // THE LOAD-BEARING DECISIONS encoded here:
 //   • D23 — `regex_scripts.ownerId` is KEPT: a script is the user's authored artifact with no owning parent

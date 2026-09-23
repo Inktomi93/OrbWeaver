@@ -448,7 +448,7 @@ function enrichExecuteResult(result: unknown): void {
  *  through but ARE BOUND TO THE TARGET — load-bearing: libSQL's Sqlite3Client uses TC39 private fields
  *  (`#checkNotClosed()`) that throw a TypeError when invoked with the Proxy as `this`. Returning
  *  `value.bind(target)` for every function keeps the brand check happy so `migrate()`/`close()`/`sync()`
- *  keep working (core/Tier-2-Foundation.md esoteric #8). Generic so it stays decoupled from libSQL's exact shape
+ *  keep working (docs/law/Tier-2-Foundation.md esoteric #8). Generic so it stays decoupled from libSQL's exact shape
  *  while remaining assignable to `@orb/db`'s `LibSqlWrap`. Injected into `createDb` at `entry/`. */
 export function wrapLibSqlClient<T extends object>(client: T): T {
   return new Proxy(client, {

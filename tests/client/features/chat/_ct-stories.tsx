@@ -1,4 +1,4 @@
-// Chat message-list CT stories (core/Spine-Testing.md §7 — CT mounts ONLY from a non-test module).
+// Chat message-list CT stories (docs/law/Spine-Testing.md §7 — CT mounts ONLY from a non-test module).
 // The surface/anchor come through the feature front door; the leaf components come via relative path
 // into the package (stories legitimately compose feature INTERNALS the front door doesn't re-export).
 // Fixtures are plain `MessageView`/`ChatBusEvent` literals (the support/factories are DB-row builders

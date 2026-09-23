@@ -99,7 +99,7 @@ function repoRelative(root: string, file: string, config: string): string | unde
 
 /** One native program's authored import closure. Cold by construction: incremental state is never read. */
 function readProgramClosure(root: string, program: CompilerProgram): ReadonlySet<string> {
-  const wrapper = join(root, "scripts", "ts7.cjs");
+  const wrapper = join(root, "scripts", "ts7.ts");
   const result = runNicedSync("pnpm", ["exec", "node", wrapper, "--noEmit", "--pretty", "false", "--listFilesOnly", "-p", program.config], {
     cwd: root,
     maxBuffer: LIST_FILES_MAX_BUFFER,

@@ -1,4 +1,4 @@
-// infra/auth — FRONT DOOR. The sealed, db-free auth VERIFICATION executor (core/Tier-3-Infra.md + spine
+// infra/auth — FRONT DOOR. The sealed, db-free auth VERIFICATION executor (docs/law/Tier-3-Infra.md + spine
 // Spine-Identity-and-Auth.md §1/§3). This tier does VERIFICATION ONLY: `resolve(headers, deps)` turns a
 // request's headers into an `IdentityResolution` — the pre-row `ResolvedIdentity` (NO `userId`, NO
 // `role` — invariant #3) + the per-request signals (`via`, `hasCsrfHeader`) — dispatching on

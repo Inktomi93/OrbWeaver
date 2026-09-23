@@ -2,7 +2,7 @@ import type { AdjustedKnob, ChatBusEvent, ChatContentPart, ChatWarning, InviteVi
 import type { UserIntent } from "@orb/contracts/preset";
 import { expectTypeOf, test } from "vitest";
 
-// Type-level pins for the chat contract (moved out of `.contract.test.ts` per core/Spine-Testing.md §1 — the
+// Type-level pins for the chat contract (moved out of `.contract.test.ts` per docs/law/Spine-Testing.md §1 — the
 // contract lane typechecks under noUnusedLocals, so `type _X = …` aliases belong in the `.test-d.ts` lane).
 
 /** Distributes over each union member M; `K extends keyof M` is `false` for every member unless one

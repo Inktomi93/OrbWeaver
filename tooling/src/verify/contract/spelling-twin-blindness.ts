@@ -1,5 +1,5 @@
 // The shape ops/spelling-twin-blindness.ts returns. Homed here because the five-slot template puts every
-// exported shape in contract/ (docs/architecture/core/Core-Tooling-Law.md §2.5) and `no-inline-types`
+// exported shape in contract/ (docs/law/Core-Tooling-Law.md §2.5) and `no-inline-types`
 // enforces it.
 
 /** The two respellings `lib/spelling-twins.ts` produces, as the census's arm vocabulary. A gate is "blind"

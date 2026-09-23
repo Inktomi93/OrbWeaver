@@ -1,4 +1,4 @@
-// Plugin client CT stories (core/Spine-Testing.md §7 — CT mounts ONLY from a non-test module).
+// Plugin client CT stories (docs/law/Spine-Testing.md §7 — CT mounts ONLY from a non-test module).
 // Exports ONLY components (a mixed component+constant export breaks playwright-ct's named-import rewrite),
 // and imports through the SAME `@orb/client/*` aliases the providers use — a relative import into
 // `packages/client/src` gets a DIFFERENT React context instance and the tree mounts blank.

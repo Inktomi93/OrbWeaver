@@ -1,4 +1,4 @@
-// Policy: tooling-process-exit-home (docs/architecture/core/Core-Tooling-Law.md §4.4, arm D of the retired
+// Policy: tooling-process-exit-home (docs/law/Core-Tooling-Law.md §4.4, arm D of the retired
 // `tooling-shared-plumbing`) — the process EXITS in ONE home, `_shared/run-tool.ts` (the exit-honesty
 // runner: crash≠verdict, pipe-drain, never-downgrade). A `process.exit(` anywhere else under `tooling/src/**`
 // drops unflushed stdout mid-report AND dodges the runner's exit classification. Comment posture:
@@ -42,7 +42,7 @@ const EXIT_MEMBER = "exit";
 const OPERATION = "process-exit";
 
 const MESSAGE =
-  "a bare process.exit outside the exit-honesty runner — `process.exit()` drops unflushed stdout (a large report truncates mid-line) AND dodges the runner's crash≠verdict / never-downgrade classification; the ONE exit lives in _shared/run-tool.ts, and every other path sets `process.exitCode` or returns its EXIT member and lets the loop drain (docs/architecture/core/Core-Tooling-Law.md §4.4).";
+  "a bare process.exit outside the exit-honesty runner — `process.exit()` drops unflushed stdout (a large report truncates mid-line) AND dodges the runner's crash≠verdict / never-downgrade classification; the ONE exit lives in _shared/run-tool.ts, and every other path sets `process.exitCode` or returns its EXIT member and lets the loop drain (docs/law/Core-Tooling-Law.md §4.4).";
 const UNREADABLE =
   "a call spelled like process.exit whose receiver the shared readers cannot place, so whether it exits the real process CANNOT be established. Reported rather than passed: the spelling alone is not the identity. Give the binding a readable import origin; the three-answer rule is tooling/src/verify/lib/origin-verdict.ts (#944).";
 const FIX =

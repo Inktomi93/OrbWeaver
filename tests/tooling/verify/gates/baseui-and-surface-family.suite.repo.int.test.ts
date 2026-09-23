@@ -599,7 +599,7 @@ describe("§2309 — a changed LEDGER re-judges every seal, and a changed SEAL s
     });
 
     test(`${policy.id}: a request naming neither axis is still not-applicable — availability is not applicability`, ({ scratch }) => {
-      const result = scopedPass(policy, scratch, DERIVES_MANIFEST_JSON, ["docs/architecture/core/AGENTS.md"]);
+      const result = scopedPass(policy, scratch, DERIVES_MANIFEST_JSON, ["docs/law/Constitution.md"]);
 
       expect(result.toolErrors).toEqual([]);
       expect(result.policies[0]?.owner).toMatchObject({ status: "not-applicable" });

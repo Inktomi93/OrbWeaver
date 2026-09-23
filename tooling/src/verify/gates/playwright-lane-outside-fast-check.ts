@@ -182,6 +182,14 @@ export const gate = defineGate({
       why: "THE FALSE-POSITIVE CONTROL: `.dom.test.ts` is a browser-SUBJECT suffix that runs in Node, and `.test-d.ts` is a typecheck kind — neither is a Playwright suffix, and a predicate widened to 'anything dom/browser-ish' reds here",
     },
   ],
+  mustRefuse: [
+    {
+      mode: "resource",
+      files: { [TEST_KINDS]: runtimeMap() },
+      expect: { messageIncludes: "exact-file:vitest-config is missing" },
+      why: "THE SUPPLY REFUSAL (law §6.3): mustPass[0] minus `vitest.config.ts`. ARM B's one subject is a declared exact-file resource, so its absence refuses the owner at the population phase — never a clean ARM B over a config nobody read",
+    },
+  ],
 });
 
 /** The RUNTIME_BY_FAMILY map every ARM A row plants, with the named families overridden. Spelled here

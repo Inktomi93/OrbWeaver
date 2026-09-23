@@ -57,5 +57,5 @@ export async function loadAvatarBackfillCandidates(db: Db, ownerId: UserId | nul
 // `domain/character/persistence/avatar-link-write.ts` (2026-08-02): `characters` is CHARACTER's table, and a
 // cross-domain write routes through the OWNING domain's persistence helper, delivered as an injected op
 // (`AssetsContext.linkCharacterAvatars`, wired at `entry/compose/assets-character.ts`) — Tier-1-DB.md
-// §"Cross-tier composition", AGENTS §2. The READ above stays: `persistence/` IS the sanctioned home for a
+// §"Cross-tier composition", Constitution.md §2. The READ above stays: `persistence/` IS the sanctioned home for a
 // cross-domain read, and the candidate scan is assets' own sweep.

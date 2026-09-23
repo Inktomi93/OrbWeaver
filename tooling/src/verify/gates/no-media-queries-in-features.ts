@@ -43,7 +43,7 @@ import { defineGate } from "../contract/policy.ts";
 import { readTailwindClassTokens } from "../lib/tailwind-class-token.ts";
 
 const MESSAGE =
-  "viewport breakpoint variant (sm:/md:/lg:/xl:/2xl:, their min-/max- twins, or an arbitrary min-[…]:/max-[…]:) in a packages/{client,ui}/src string literal — a feature adapts to its CONTAINER, not the viewport: use a `@container` variant (@md:) or `<Container size>`. Viewport `@media` lives only in features/app-shell. The scan is UNFENCED: every string literal and every template literal in the population is read — tagged or not, and a substituted template one static span at a time — not only a className. See docs/architecture/core/UI-Architecture-and-Layout.md §4b.";
+  "viewport breakpoint variant (sm:/md:/lg:/xl:/2xl:, their min-/max- twins, or an arbitrary min-[…]:/max-[…]:) in a packages/{client,ui}/src string literal — a feature adapts to its CONTAINER, not the viewport: use a `@container` variant (@md:) or `<Container size>`. Viewport `@media` lives only in features/app-shell. The scan is UNFENCED: every string literal and every template literal in the population is read — tagged or not, and a substituted template one static span at a time — not only a className. See docs/law/UI-Architecture-and-Layout.md §4b.";
 
 const MEDIA_QUERY_RE = /^(?:(?:max-|min-)?(?:sm|md|lg|xl|2xl)|(?:min|max)-\[[^\]]+\]):/u;
 export const gate = defineGate({

@@ -31,7 +31,7 @@ const KEBAB_RE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u;
 const NAME_TOKEN = "__NAME__";
 const GATES_DIR = "tooling/src/verify/gates";
 const LAW = "docs/design/gate-runtime-standardization.md";
-const ENFORCEMENT_DOC = "docs/architecture/core/Core-Enforcement-Active-Gates.md";
+const ENFORCEMENT_DOC = "docs/law/Core-Enforcement-Active-Gates.md";
 const FAMILY_TESTS = "tests/tooling/verify/gates";
 
 const TEMPLATE = `// Gate: __NAME__ — <ONE line: what shape is banned and WHY it is a defect, not a preference>.
