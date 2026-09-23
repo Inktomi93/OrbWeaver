@@ -2423,7 +2423,7 @@ describe("runTurnPipeline — the §3 content-class wire plane", () => {
     expect(JSON.stringify(result.request.history)).toContain("multi-KB");
   });
 
-  test("M2 keep-last-X: X=0 stubs every card; X=1 keeps only the NEWEST full; X=2 the newest two (counted from the tail)", async () => {
+  test("M2 keep-last-X: X=0 stubs every card; X=1 keeps only the NEWEST full; X=2 holds a third card until two can stub", async () => {
     const cardBody = (n: number): string => `:::card title="c${n}"\n<p>blob${n}</p>\n:::`;
     // Alternating roles so SHAPE keeps three separate rows (same-role runs squash into one body).
     const canon = [userRow(cardBody(1)), rowOf("assistant", cardBody(2)), userRow(cardBody(3))];
@@ -2436,8 +2436,43 @@ describe("runTurnPipeline — the §3 content-class wire plane", () => {
     const x1 = await runTurnPipeline(baseArgs({ canon, cardKeepLastX: 1 }).args);
     expect(textsOf(x1.request.history)).toEqual(["[card: c1]", "[card: c2]", cardBody(3)]);
 
+    // The window stubs whole chunks of X, so one card past X stays full until a second one joins it.
     const x2 = await runTurnPipeline(baseArgs({ canon, cardKeepLastX: 2 }).args);
-    expect(textsOf(x2.request.history)).toEqual(["[card: c1]", cardBody(2), cardBody(3)]);
+    expect(textsOf(x2.request.history)).toEqual([cardBody(1), cardBody(2), cardBody(3)]);
+  });
+
+  // A stored card that leaves the keep-last-X window rewrites its row, and that row sits above the cache
+  // breakpoint. The window stubs whole chunks of X cards, so the rewrite lands once per X card-bearing turns.
+  describe("the keep-last-X window across card-bearing turns", () => {
+    const turns = 8;
+    const cardBody = (n: number): string => `:::card title="c${n}"\n<p>blob${n}</p>\n:::`;
+    const all = Array.from({ length: turns }, (_, k) => [userRow(`u${k}`), rowOf("assistant", cardBody(k))]).flat();
+    const runTurns = async (cardKeepLastX: number): Promise<PipelineResult[]> => {
+      const results: PipelineResult[] = [];
+      for (let t = 1; t <= turns; t += 1) {
+        results.push(await runTurnPipeline(baseArgs({ canon: [...all.slice(0, 2 * t), userRow(`u${t}`)], cardKeepLastX }).args));
+      }
+      return results;
+    };
+    const fullCards = (result: PipelineResult): number[] =>
+      Array.from({ length: turns }, (_, n) => n).filter((n) => historyText(result.request).includes(`<p>blob${n}</p>`));
+    const prefixBreaks = (results: readonly PipelineResult[]): number[] =>
+      results.slice(1).flatMap((next, i) => (readsPriorCache(results[i] ?? next, next) ? [] : [i + 2]));
+
+    test("X=2 keeps the newest two cards whole and stubs older cards two at a time", async () => {
+      const results = await runTurns(2);
+      // Turns 4, 6 and 8 each stub two cards; no other turn rewrites the cached prefix.
+      expect({ full: results.map(fullCards), breaks: prefixBreaks(results) }).toEqual({
+        full: [[0], [0, 1], [0, 1, 2], [2, 3], [2, 3, 4], [4, 5], [4, 5, 6], [6, 7]],
+        breaks: [4, 6, 8],
+      });
+    });
+
+    test("X=0 stubs every stored card and never rewrites the cached prefix", async () => {
+      const results = await runTurns(0);
+      expect(results.map(fullCards)).toEqual(Array.from({ length: turns }, () => []));
+      expect(prefixBreaks(results)).toEqual([]);
+    });
   });
 
   // A card the ASSEMBLY authored this turn is INSTRUCTION, not stored content: it must reach the model
