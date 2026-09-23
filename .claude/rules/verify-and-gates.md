@@ -19,7 +19,7 @@ The command list and stage table live in `AGENTS.md`. This file covers gate auth
 5. A hard or error-tier policy has no waiver. Fix a red live finding in the landing commit, or state it as a fork to the orchestrator.
 6. A whole-project stale or ratchet case must guard on `ctx.scope.kind === "project"`. A scoped run does not prove it saw the whole tree.
 7. Retiring a gate touches the module, its allowlist entries, the resource-tree roster test, the enforcement-registry doc row and count, and a row in the deferred-dropped history.
-8. `@orb-gate-ignore` markers bind to the line directly above the flagged code. A blank line, or any comment between marker and target, un-marks it.
+8. The one waiver marker is `@orb-waive <policy-id>(<position>): <reason>`, honored only by an `ordinary` policy: `hard` rejects every suppression and `reviewed-grant` takes a central grant row. It binds to the authored carrier of the reported position (GATE-AUTHORING §4.3); `@orb-waive-file` binds that policy's findings anywhere in the file. `@orb-gate-ignore` is not a marker; `policy-soundness` reports a final policy that parses it.
 9. Probe rules live in the `lane` skill; this file adds nothing beyond it.
 10. When a gate matches one syntactic spelling of a defect, check the others too: named function, bound method, `.call`/`.apply`, re-export. Resolve to the declaration before judging.
 11. A member-reading gate needs separate identity and field walkers. Teach a new type shape to both; they fail in opposite directions.

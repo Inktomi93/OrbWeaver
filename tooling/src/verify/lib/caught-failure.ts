@@ -2,8 +2,8 @@
 // ownership. Given one delivered `CatchClause` or `CallExpression`, this reader answers whether the site
 // absorbs a failure with no machine-visible owner, and WHERE a waiver marker must be anchored.
 //
-// ── WHY THIS IS A SHARED READER AND NOT A GATE-PRIVATE ONE (#1584, census blocker at
-//    docs/reviews/gate-runtime/uncovered-gate-conversion-census.md:182: "must split reusable failure facts")
+// ── WHY THIS IS A SHARED READER AND NOT A GATE-PRIVATE ONE (#1584, the conversion census's blocker for
+//    this gate: "must split reusable failure facts")
 // THREE consumers read the SAME producer, and that is the whole point: `gates/caught-failure-ownership.ts`
 // reports from it, `ops/gen/caught-failure-population.ts` derives the durable census at
 // tooling/src/verify/gates/caught-failure-ownership.population.json from it, and

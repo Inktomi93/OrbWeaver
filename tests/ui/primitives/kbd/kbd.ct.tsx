@@ -10,6 +10,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 // micro is authored in rem; computed font-size resolves to px (root = 16px — the text.ct precedent).
 const ROOT_PX = 16;
 const microPx = `${Number.parseFloat(TOKENS["text.micro"].value) * ROOT_PX}px`;
+const codePx = `${Number.parseFloat(TOKENS["text.code"].value) * ROOT_PX}px`;
 
 test("renders a <kbd> with the muted surface + muted-foreground text", async ({ mount }) => {
   const kbd = await mount(<Kbd>⌘K</Kbd>);
@@ -31,4 +32,10 @@ test("rides the micro type-scale token and the mono font stack", async ({ mount 
 test("passes className through and renders caller copy", async ({ mount, page }) => {
   await mount(<Kbd className="ml-row">Esc</Kbd>);
   await expect(page.getByText("Esc")).toBeVisible();
+});
+
+test("the command size sets a typed command at the code step, the size of the prose around it", async ({ mount }) => {
+  const kbd = await mount(<Kbd size="command">claude setup-token</Kbd>);
+  await expect(kbd).toHaveCSS("font-size", codePx);
+  await expect(kbd).toHaveCSS("letter-spacing", "normal");
 });

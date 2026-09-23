@@ -6,10 +6,8 @@ updated: 2026-09-23
 
 # Gate-runtime standardization law
 
-This file owns the standing contract and proof law for #1584. Procedure lives in
-[`gate-runtime-orchestrator-playbook.md`](gate-runtime-orchestrator-playbook.md); the bounded onboarding index lives in
-[`gate-runtime-read-first.md`](gate-runtime-read-first.md); dated measurements and incidents live in
-[`../history/gate-runtime-worked-cases-2026-09.md`](../history/gate-runtime-worked-cases-2026-09.md). The D-ledger wins
+This file owns the standing contract and proof law for #1584. The bounded onboarding index lives in
+[`gate-runtime-read-first.md`](gate-runtime-read-first.md). The D-ledger wins
 every conflict. Code, types, tests, and file headers are evidence of current behavior; an implementation that violates
 the intended guarantee is a defect and does not weaken this law by existing.
 
@@ -205,8 +203,8 @@ look live or stale.
 
 Authority and severity are independent. `hard` + `warning` is valid only for an owner-authorized,
 time-bounded transition whose findings must remain unsuppressible; `ordinary` + `warning` is valid only
-when an actual waiver door is intended. Every warning carries a positive live `workItem`. Hard warning
-findings remain effective and cannot be waived or granted. Warning findings contribute zero to the shipped
+when an actual waiver door is intended. Every warning carries a `workItem` naming a `docs/work` item that is
+not done (`warning-workitem-liveness`). Hard warning findings remain effective and cannot be waived or granted. Warning findings contribute zero to the shipped
 default blocking count and become blocking when `--fail-on-warnings` is selected; ordinary and
 reviewed-grant findings retain the suppression door their authority declares.
 
@@ -225,8 +223,7 @@ no policy or fixture maintains an expected declaration count. Canonical validati
 including required token history: inability to derive is exit 2; successfully derived but missing or different output
 is exit 1. The coordinating primary's whole-stage controls on integrated main `1ef220c20` observed same-count drift,
 loss of the theme verdict when its stage edge was cut, and malformed-token refusal. These are primary-run receipts,
-not final integration acceptance; the dated evidence and code/data limitation are in
-[the theme-freshness disposition](../reviews/gate-runtime/theme-freshness-doc-disposition-2026-09-13.md).
+not final integration acceptance.
 
 The only sanctioned non-derivable cardinality guard is `depcruise-grant-liveness-health.BACKREF_BUDGET`. It covers the
 `$1` backreference dependency-cruiser rules whose bound member set exists only at cruise time and cannot be

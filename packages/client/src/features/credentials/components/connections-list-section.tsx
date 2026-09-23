@@ -14,6 +14,10 @@
 // NAMES the roles it will write, so the undo is knowable BEFORE the click rather than after it (there is no
 // default to fall back to — §7.2 F2/F16).
 //
+// "ADD ANOTHER MODEL ON THIS KEY" IS THE MENU'S SECOND §5.3a ACTION. It is offered only where it can work:
+// a hosted row whose key is gone has no catalog to list and no key to share (`addModelScope`), and its words
+// follow what the new row shares — the key, the server, or only the built-in provider.
+//
 // THE REMOVE CONFIRM IS THE HOUSE `ConfirmDialog` AND ONLY ITS DESCRIPTION MOVED. The shipped sentence was
 // correct and UNQUANTIFIED — it could not tell a user whether they were about to break one role or five,
 // which is the only thing they need in order to decide — and it omitted the one fact that stops a user
@@ -37,14 +41,18 @@ import type { Invalidation, Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { configAnchorId } from "#state";
 import { useRemoveConnection, useUpdateConnection, useUseForEverything } from "../hooks/use-connections-mutations.ts";
+import { CONNECTION_FORM_COPY } from "../lib/add-connection-form-model.ts";
+import { addModelActionGloss, addModelActionLabel, addModelScope } from "../lib/add-model-on-key-form-model.ts";
 import { boundRoleLabels, connectionRoleLabels, connectionSummary, joinRoleLabels, sweepRoleLabels } from "../lib/connections-model.ts";
 import { CONNECTIONS_LIST_SUBCATEGORY } from "../lib/connections-nav.ts";
 import { AddConnectionDialog } from "./add-connection-dialog.tsx";
+import { AddModelOnKeyDialog } from "./add-model-on-key-dialog.tsx";
 import { ConnectionEditor } from "./connection-editor.tsx";
 
 type ConnectionListItem = inferOutput<Trpc["connection"]["list"]>[number];
 type BindingView = inferOutput<Trpc["connection"]["listBindings"]>[number];
 type CredentialListItem = inferOutput<Trpc["credentials"]["list"]>[number];
+type ProviderDef = inferOutput<Trpc["connection"]["providersAvailable"]>[number]["provider"];
 
 export function ConnectionsListSection(): ReactElement {
   return (
@@ -68,6 +76,8 @@ function ConnectionsBody(): ReactElement {
   // derivable from anything else already on the row.
   const { data: bindings } = useSuspenseQuery(trpc.connection.listBindings.queryOptions());
   const { data: credentials } = useSuspenseQuery(trpc.credentials.list.queryOptions());
+  // The registry rows decide which rows can offer "Add another model" and in which words (`addModelScope`).
+  const { data: available } = useSuspenseQuery(trpc.connection.providersAvailable.queryOptions());
   const [addOpen, setAddOpen] = useState(false);
   // THE EDITOR IS A PANE SWAP INSIDE THE SECTION, not a dialog — the mock's band (Back · title · Done) is a
   // view replacing the list, which is what keeps the four tiers inside the settings body at 486 instead of
@@ -115,6 +125,7 @@ function ConnectionsBody(): ReactElement {
               connection={connection}
               bindings={bindings}
               credentials={credentials}
+              provider={available.find((row) => row.provider.id === connection.providerId)?.provider ?? null}
               trpc={trpc}
               invalidation={invalidation}
               onEdit={setEditingId}
@@ -151,6 +162,7 @@ function ConnectionRow({
   connection,
   bindings,
   credentials,
+  provider,
   trpc,
   invalidation,
   onEdit,
@@ -158,6 +170,8 @@ function ConnectionRow({
   readonly connection: ConnectionListItem;
   readonly bindings: readonly BindingView[];
   readonly credentials: readonly CredentialListItem[];
+  /** The row's registry entry; `null` when the registry no longer lists its provider. */
+  readonly provider: ProviderDef | null;
   readonly trpc: Trpc;
   readonly invalidation: Invalidation;
   readonly onEdit: (connectionId: ConnectionListItem["id"]) => void;
@@ -166,6 +180,8 @@ function ConnectionRow({
   const remove = useRemoveConnection(deps);
   const update = useUpdateConnection(deps);
   const applyEverywhere = useUseForEverything(deps);
+  const [addModelOpen, setAddModelOpen] = useState(false);
+  const addModel = provider === null ? null : addModelScope({ auth: provider.auth, credentialId: connection.credentialId });
 
   const name = connectionSummary(connection);
   const key = keyClause(connection, credentials);
@@ -180,7 +196,7 @@ function ConnectionRow({
   // is also why the shipped one-word "background" gloss had to go.
   // The Model-roles REPAIR switch is the opposite case and spells its subject visibly: it sits in a role
   // row and writes a DIFFERENT row's flag, so there is no context to inherit.
-  const switchLabel = "Allow background work";
+  const switchLabel = CONNECTION_FORM_COPY.backgroundLabel;
   const switchName = `${switchLabel} on ${name}`;
 
   return (
@@ -251,11 +267,32 @@ function ConnectionRow({
                   Sets {joinRoleLabels(sweepRoles)} to this connection. You can change any of them after.
                 </Text>
               </MenuItem>
+              {provider === null || addModel === null ? null : (
+                <MenuItem className="flex-col items-start" onClick={(): void => setAddModelOpen(true)}>
+                  <Text voice="label" as="span" ink="inherit">
+                    {addModelActionLabel(addModel)}
+                  </Text>
+                  <Text voice="gloss" as="span">
+                    {addModelActionGloss(addModel, provider.label)}
+                  </Text>
+                </MenuItem>
+              )}
             </RowActionsMenu>
           </>
         }
       />
       <ConnectionBadges connection={connection} />
+      {provider === null || addModel === null ? null : (
+        <AddModelOnKeyDialog
+          connection={connection}
+          invalidation={invalidation}
+          onOpenChange={setAddModelOpen}
+          open={addModelOpen}
+          provider={provider}
+          scope={addModel}
+          trpc={trpc}
+        />
+      )}
     </Stack>
   );
 }

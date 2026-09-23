@@ -11,6 +11,7 @@
 //      the endpoint posture floors → the features fold;
 //   7. the requirement verdict and `canFund` — VERDICTS on the result, never throws.
 
+import type { ResolvedSecret } from "@orb/contracts/credentials";
 import type { Principal } from "@orb/contracts/identity";
 import type {
   AgentSdkModel,
@@ -39,7 +40,7 @@ import type { Mirror } from "../catalog/mirror.ts";
 import { ProviderError } from "../contract/errors.ts";
 import type { ResolvedWarning } from "../contract/resolve.ts";
 import type { Resolved } from "../contract/resolved.ts";
-import type { EndpointModel } from "../contract/runtime.ts";
+import type { EndpointModel, SpawnIdentity } from "../contract/runtime.ts";
 import type { BindingActor, InferenceDeps } from "../deps.ts";
 import type { ProviderRegistry } from "../registry/providers.ts";
 import { resolveApi } from "./coherence.ts";
@@ -63,7 +64,7 @@ export interface ResolverContext {
   readonly agentSdkCatalog: Mirror<AgentSdkModel[]>;
   readonly warmOpenRouter: () => Promise<void>;
   readonly warmEndpoint: (connection: UserConnection, provider: ProviderDef, secret: string | null) => Promise<void>;
-  readonly warmAgentSdk: (connection: UserConnection) => Promise<void>;
+  readonly warmAgentSdk: (identity: SpawnIdentity) => Promise<void>;
 }
 
 export class NoConnectionError extends ProviderError {
@@ -132,19 +133,19 @@ function factsModelFor(ctx: ResolverContext, provider: ProviderDef, model: Model
   return alias === undefined ? model : modelIdSchema.parse(alias);
 }
 
-async function warmFor(ctx: ResolverContext, provider: ProviderDef, connection: UserConnection, secret: string | null): Promise<void> {
+async function warmFor(ctx: ResolverContext, provider: ProviderDef, connection: UserConnection, credential: ResolvedSecret): Promise<void> {
   if (provider.catalog === "builtin") {
     return;
   }
   if (provider.wire === "agent-sdk") {
-    await ctx.warmAgentSdk(connection);
+    await ctx.warmAgentSdk({ ownerId: connection.ownerId, credential });
     return;
   }
   if (provider.dialect === "openrouter") {
     await ctx.warmOpenRouter();
     return;
   }
-  await ctx.warmEndpoint(connection, provider, secret);
+  await ctx.warmEndpoint(connection, provider, credential.secret);
 }
 
 export interface ResolveOutcome {
@@ -240,7 +241,7 @@ async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeB
   }
   const api = resolveApi(provider, connection, kind);
   const credential = await ctx.deps.resolveCredential({ credentialId: connection.credentialId, ownerId: connection.ownerId, providerId: provider.id });
-  await warmFor(ctx, provider, connection, credential.secret);
+  await warmFor(ctx, provider, connection, credential);
   const model = normalizeModelId(connection.model, provider.wire === "agent-sdk" ? ctx.agentSdkCatalog.get() : null);
   const factsModel = factsModelFor(ctx, provider, model);
   const family = detectModelFamily(factsModel);

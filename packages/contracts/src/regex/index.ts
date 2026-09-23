@@ -269,7 +269,7 @@ export const ATTACHED_REGEX_SCRIPTS_WIRE_KEY = "orbweaver_attached_regex_scripts
 // does not, and flagged every `case` of a switch over the inferred type as unreachable. Re-measured on Biome
 // 2.5.1 (2026-09-23): still every `case`, `lint/suspicious/noUnnecessaryConditions`, single-file and
 // cross-module, from untracked files under `packages/contracts/src/` and `packages/server/src/` (never /tmp,
-// where zod does not resolve; recorded in `docs/work/0033-retract-the-stale-biome-inference-rationale-on-the.md`).
+// where zod does not resolve).
 // ONE declared union keeps BOTH tools seeing the same four arms. The `satisfies` below is a ONE-WAY
 // assignability check; the `zod-output-twin-parity` gate proves the schema output equals this union exactly.
 export type RegexAttachScope =

@@ -2,10 +2,6 @@
   "schemaVersion": 2,
   "lanes": [
     {
-      "id": "reviews",
-      "patterns": ["docs/reviews/**/*.md"]
-    },
-    {
       "id": "root-operational",
       "patterns": ["docs/*.md"]
     }

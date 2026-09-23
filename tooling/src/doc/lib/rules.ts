@@ -1,6 +1,6 @@
 // The structural rules for the governed docs tree, PURE over a `DocTree` snapshot: allowed folders,
 // per-kind frontmatter, required sections, size caps, flat trees and stray files, work-item shape and
-// id uniqueness, ADR id uniqueness, and generated-file freshness.
+// id uniqueness, a parked plan's wake condition, ADR id uniqueness, and generated-file freshness.
 // `pnpm check:agents` runs them (through `ops/check.ts`); the writing rules 1, 2 and 4 over the same
 // docs come from `_shared/prose-rules.ts` and are composed there, not here.
 import {
@@ -14,11 +14,11 @@ import {
   PLAN_KIND,
   parseFrontmatter,
 } from "#doc-catalog";
-import type { DocTree, GovernedDoc } from "../contract/types.ts";
+import type { DocTree, GovernedDoc, WorkItem } from "../contract/types.ts";
 import { sectionsOf, splitDocument } from "./frontmatter-write.ts";
 import { expectedGeneratedFiles } from "./generated.ts";
-import { DESIGN_FILE, isGeneratedPath, PLAN_ARCHIVE_DIR, planSlugOf, TASKS_FILE } from "./indexes.ts";
-import { isItemPath, itemShapeProblems, parseItem } from "./items.ts";
+import { DESIGN_FILE, isGeneratedPath, TASKS_FILE } from "./indexes.ts";
+import { blockerProblem, isItemPath, itemShapeProblems, parseItem } from "./items.ts";
 import { basenameOf, parseNumberedName } from "./names.ts";
 import { ADR_SECTIONS, ITEM_SECTIONS, PLAN_SECTIONS, sectionNames } from "./templates.ts";
 
@@ -31,22 +31,12 @@ const LAW_CAP = 49_152;
 const MISSION_PATH = "docs/Mission.md";
 const CATALOG_DIR = "catalog";
 const INDEX_KIND = "index";
-const ARCHIVED = "archived";
-const ARCHIVE_FOLDER_RE = /^\d{4}-\d{2}-\d{2}-[a-z0-9]+(?:-[a-z0-9]+)*$/u;
+/** A plan waiting on something: it carries a `blocked` wake condition in the item blocker grammar. */
+export const PARKED = "parked";
 const REQUIRED_KEYS = ["kind", "status", "updated"] as const;
 /** The reserved D window. `pnpm doc new adr` never mints into it; a main-era ruling is re-minted there with
  *  its ORIGINAL number (D86 is one), so an ADR file inside the window is legal. */
 const RESERVED = { lo: FIRST_RESERVED_RULING, hi: LAST_RESERVED_RULING } as const;
-
-/** The legacy top-level entries of `docs/`, kept until each migrates. SHRINK-ONLY and two-sided: a row
- *  whose entry is gone is itself a finding, so the list cannot outlive what it exempts. */
-export const LEGACY_ROOTS: readonly string[] = [
-  "reviews",
-  "retro-workboard.md",
-  "Qwen_Offline_Investigation.md",
-  "client-smalls-lane.md",
-  "barrel-star-reexport-residue.md",
-];
 
 interface KindRule {
   readonly sections: readonly string[];
@@ -61,8 +51,10 @@ const SUPERSESSION_KEYS = ["supersedes", "superseded-by"];
 /** Per-kind rules. Keys are the OPTIONAL keys a kind may carry beyond `kind`/`status`/`updated`. This map
  *  is the governed tree's whole kind vocabulary; the legacy catalog's `VALID_KINDS` is untouched by it. */
 export const KIND_RULES: ReadonlyMap<string, KindRule> = new Map([
-  [ADR_KIND, { sections: sectionNames(ADR_SECTIONS), cap: ADR_CAP, statuses: ["active", "superseded"], keys: SUPERSESSION_KEYS }],
-  [PLAN_KIND, { sections: sectionNames(PLAN_SECTIONS), cap: PLAN_CAP, statuses: ["active", "complete", ARCHIVED], keys: [] }],
+  // A `rejected` ADR records a decision considered and turned down, so it is not proposed again.
+  [ADR_KIND, { sections: sectionNames(ADR_SECTIONS), cap: ADR_CAP, statuses: ["active", "superseded", "rejected"], keys: SUPERSESSION_KEYS }],
+  // A finished plan is deleted, not kept: its lasting knowledge moves to an ADR or law first.
+  [PLAN_KIND, { sections: sectionNames(PLAN_SECTIONS), cap: PLAN_CAP, statuses: ["active", PARKED], keys: ["blocked"] }],
   ["law", { sections: [], cap: LAW_CAP, statuses: ["active", "superseded"], keys: SUPERSESSION_KEYS }],
   ["reference", { sections: [], cap: LAW_CAP, statuses: ["active"], keys: [] }],
   ["index", { sections: [], cap: LAW_CAP, statuses: ["active"], keys: [] }],
@@ -80,7 +72,7 @@ function kindsFor(path: string): readonly string[] {
   if (path.startsWith(DOC_TOOL_TREES.adr)) {
     return [ADR_KIND];
   }
-  if (path.startsWith(DOC_TOOL_TREES.work) || (path.startsWith(PLAN_ARCHIVE_DIR) && parseNumberedName(basenameOf(path)) !== null)) {
+  if (path.startsWith(DOC_TOOL_TREES.work)) {
     return [...ITEM_KINDS];
   }
   if (path.startsWith(DOC_TOOL_TREES.plans)) {
@@ -94,25 +86,13 @@ function kindsFor(path: string): readonly string[] {
 }
 
 function rootProblems(tree: DocTree): readonly string[] {
-  const allowed = new Set([
-    ...Object.values(DOC_TOOL_TREES).map((prefix) => prefix.slice("docs/".length, -1)),
-    basenameOf(MISSION_PATH),
-    CATALOG_DIR,
-    ...LEGACY_ROOTS,
-  ]);
-  const present = new Set(tree.root.map((entry) => entry.name));
-  const problems = tree.root
+  const allowed = new Set([...Object.values(DOC_TOOL_TREES).map((prefix) => prefix.slice("docs/".length, -1)), basenameOf(MISSION_PATH), CATALOG_DIR]);
+  return tree.root
     .filter((entry) => !allowed.has(entry.name))
     .map(
       (entry) =>
         `docs/${entry.name}: not a docs home — put a decision under ${DOC_TOOL_TREES.adr}, a program under ${DOC_TOOL_TREES.plans}, an item under ${DOC_TOOL_TREES.work}, law under ${DOC_TOOL_TREES.law}`,
     );
-  return [
-    ...problems,
-    ...LEGACY_ROOTS.filter((name) => !present.has(name)).map(
-      (name) => `docs/${name}: named by LEGACY_ROOTS in tooling/src/doc/lib/rules.ts and gone — delete the row`,
-    ),
-  ];
 }
 
 /** The three flat trees and the file shape each one holds (a plan folder's depth is judged with the plan rules). */
@@ -208,51 +188,47 @@ function bodyProblems(doc: GovernedDoc): readonly string[] {
   return problems;
 }
 
-interface PlanEntry {
-  readonly doc: GovernedDoc;
-  readonly parts: readonly string[];
-  readonly archived: boolean;
-  readonly folder: string;
-  readonly name: string;
-}
-
-function planEntry(doc: GovernedDoc): PlanEntry {
-  const parts = doc.path.slice(DOC_TOOL_TREES.plans.length).split("/");
-  const archived = parts[0] === "archive";
-  return { doc, parts, archived, folder: archived ? parts.slice(0, 2).join("/") : (parts[0] ?? ""), name: parts.at(-1) ?? "" };
-}
-
 const PLAN_DEPTH = 2;
-const ARCHIVE_DEPTH = 3;
 
-function planEntryProblems({ doc, parts, archived, name }: PlanEntry): readonly string[] {
+function planEntryProblems(doc: GovernedDoc): readonly string[] {
+  const parts = doc.path.slice(DOC_TOOL_TREES.plans.length).split("/");
   if (parts.length === 1) {
     return [`${doc.path}: a plan lives in its own folder: ${DOC_TOOL_TREES.plans}<slug>/${DESIGN_FILE}`];
   }
-  const problems: string[] = [];
-  const nested = parts.length > (archived ? ARCHIVE_DEPTH : PLAN_DEPTH);
-  if (nested || (name !== DESIGN_FILE && !(archived && parseNumberedName(name) !== null))) {
-    problems.push(`${doc.path}: a plan folder holds ${DESIGN_FILE} and ${TASKS_FILE} only`);
-  }
-  if (archived && !ARCHIVE_FOLDER_RE.test(parts[1] ?? "")) {
-    problems.push(`${doc.path}: an archived plan folder is YYYY-MM-DD-<slug>`);
-  }
-  if (archived && name === DESIGN_FILE && splitDocument(doc.source).fields?.["status"] !== ARCHIVED) {
-    problems.push(`${doc.path}: an archived plan's status is ${ARCHIVED}`);
-  }
-  return problems;
+  return parts.length > PLAN_DEPTH || parts.at(-1) !== DESIGN_FILE ? [`${doc.path}: a plan folder holds ${DESIGN_FILE} and ${TASKS_FILE} only`] : [];
 }
 
-/** A plan folder holds `design.md` (plus the generated `tasks.md`); an archive folder is dated and its
- *  design is `archived`. */
+/** A plan folder holds `design.md` (plus the generated `tasks.md`). */
 function planFolderProblems(tree: DocTree): readonly string[] {
-  const entries = tree.docs.filter((doc) => doc.path.startsWith(DOC_TOOL_TREES.plans) && !isGeneratedPath(doc.path)).map(planEntry);
+  const entries = tree.docs.filter((doc) => doc.path.startsWith(DOC_TOOL_TREES.plans) && !isGeneratedPath(doc.path));
   const paths = new Set(tree.docs.map((doc) => doc.path));
-  const folders = new Set(entries.filter((entry) => entry.parts.length > 1).map((entry) => entry.folder));
+  const folders = new Set(
+    entries.flatMap((doc) => {
+      const parts = doc.path.slice(DOC_TOOL_TREES.plans.length).split("/");
+      return parts.length > 1 ? [parts[0] ?? ""] : [];
+    }),
+  );
   const missing = [...folders]
     .filter((folder) => !paths.has(`${DOC_TOOL_TREES.plans}${folder}/${DESIGN_FILE}`))
     .map((folder) => `${DOC_TOOL_TREES.plans}${folder}/: no ${DESIGN_FILE} — a plan folder without a design is not a plan`);
   return [...entries.flatMap(planEntryProblems), ...missing];
+}
+
+/** A `parked` plan carries its wake condition in `blocked`; any other plan carries none. */
+function planStateProblems(tree: DocTree, items: readonly WorkItem[]): readonly string[] {
+  const known = new Set(items.map((item) => item.id));
+  return tree.docs.flatMap((doc) => {
+    const fields = splitDocument(doc.source).fields;
+    if (fields?.["kind"] !== PLAN_KIND) {
+      return [];
+    }
+    const blocked = fields["blocked"] ?? null;
+    if (fields["status"] !== PARKED) {
+      return blocked === null ? [] : [`${doc.path}: only a ${PARKED} plan carries blocked — pnpm doc status active ${doc.path} clears it`];
+    }
+    const problem = blockerProblem(blocked, known, `a ${PARKED} plan`);
+    return problem === null ? [] : [`${doc.path}: ${problem}`];
+  });
 }
 
 function adrIds(tree: DocTree): readonly { readonly path: string; readonly id: number | null }[] {
@@ -287,17 +263,18 @@ export function nextFreeRulingId(adrIdList: readonly number[]): number {
   return next >= RESERVED.lo && next <= RESERVED.hi ? RESERVED.hi + 1 : next;
 }
 
-function itemProblems(tree: DocTree): readonly string[] {
-  const items = tree.docs.flatMap((doc) =>
-    (isItemPath(doc.path) || planSlugOf(doc.path) !== null) && parseNumberedName(basenameOf(doc.path)) !== null ? [parseItem(doc.path, doc.source)] : [],
-  );
-  const known = new Set(items.flatMap((item) => (item === null ? [] : [item.id])));
+function treeItems(tree: DocTree): readonly WorkItem[] {
+  return tree.docs.flatMap((doc) => {
+    const item = isItemPath(doc.path) ? parseItem(doc.path, doc.source) : null;
+    return item === null ? [] : [item];
+  });
+}
+
+function itemProblems(items: readonly WorkItem[], tree: DocTree): readonly string[] {
+  const known = new Set(items.map((item) => item.id));
   const seen = new Map<number, string>();
   const problems: string[] = [];
   for (const item of items) {
-    if (item === null) {
-      continue;
-    }
     const twin = seen.get(item.id);
     if (twin !== undefined) {
       problems.push(`${item.path}: id ${String(item.id)} is already ${twin} — two lanes minted the same next id; renumber one with git mv and pnpm doc index`);
@@ -324,13 +301,15 @@ export function docProblems(tree: DocTree): readonly string[] {
   const missingGenerated = [...expected.keys()]
     .filter((path) => !tree.docs.some((doc) => doc.path === path))
     .map((path) => `${path}: missing generated file — run pnpm doc index`);
+  const items = treeItems(tree);
   return [
     ...rootProblems(tree),
     ...layoutProblems(tree),
     ...perDoc,
     ...missingGenerated,
     ...planFolderProblems(tree),
+    ...planStateProblems(tree, items),
     ...adrIdProblems(tree),
-    ...itemProblems(tree),
+    ...itemProblems(items, tree),
   ];
 }

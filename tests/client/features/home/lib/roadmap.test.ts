@@ -10,8 +10,8 @@
 // THE PARSER'S OWN CONTROL comes first: a frontmatter read that stops matching returns an empty item list,
 // and every assertion below would then pass vacuously (⊆ ∅ is trivially true) — the exact "silent zero"
 // shape a negative claim is never allowed to rest on. So the first test pins that the parse found more
-// items than the tuple holds, found a finished one, and found at least one program before anything else
-// is asked.
+// items than the tuple holds, in more than one state, and at least one program before anything else is
+// asked.
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -79,7 +79,7 @@ const byNumber = (a: number, b: number): number => a - b;
 
 test("CONTROL — the work items actually parsed (a broken read would pass every pin below vacuously)", () => {
   expect(items.length).toBeGreaterThan(HOME_ROADMAP.length);
-  expect(items.some((item) => item.status === DONE_STATUS)).toBe(true);
+  expect(new Set(items.map((item) => item.status)).size, "the parse must reach items in more than one state").toBeGreaterThan(1);
   expect(openPrograms.length).toBeGreaterThan(0);
 });
 

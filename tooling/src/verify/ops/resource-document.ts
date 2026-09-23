@@ -171,7 +171,7 @@ function ledgerMarkdown(reader: ResourceReader, id: LedgerId, paths: readonly st
   for (const path of paths) {
     const text = reader.read(path);
     // A NAMED registry member that is absent or unreadable REFUSES: every judgment built on a half-read
-    // registry is inverted, not merely incomplete (`resource-gate-access-patterns.md` §5).
+    // registry is inverted, not merely incomplete (the ResourceHost access-pattern ruling §5).
     if (text.status !== "ready") {
       return { status: text.status, paths, members: documents.length, reason: `ledger ${id} member ${path} is unavailable: ${text.reason}` };
     }

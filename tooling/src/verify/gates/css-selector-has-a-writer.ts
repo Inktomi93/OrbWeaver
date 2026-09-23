@@ -16,7 +16,7 @@
 // lexeme (`lib/gate-ignore.ts:180,196`) rather than a source coordinate; under this contract it does not.
 // So the anchor MOVED (§4.6 category 6) onto the authored slice the hook fact now publishes:
 // `.shell-wrapper`, `[data-density="birdie"]`. MARKER CENSUS 0 = 0 = 0 (measured 2026-09-12 over 7,725
-// tracked source files with a 1,196-hit positive control, `css-family-audit-2026-09-12.md`), so the move
+// tracked source files with a 1,196-hit positive control, the 2026-09-12 CSS-family audit), so the move
 // orphans no waiver. The legacy bare `@orb-gate-ignore css-selector-has-a-writer:` door existed and does
 // not survive; nothing used it.
 //
@@ -200,7 +200,7 @@ export const gate = defineGate({
       // ERROR — the finding never reported at all. The denominator is the SHEET COUNT, which is ≥ 1
       // past the resource guard by construction; the census rides the receipt SOURCE string
       // (§12.3's "-health consumers receipt a CONSTANT", one layer out; refuted-and-repaired on the
-      // sibling CSS train by `v-css-train-3-2026-09-13.md`).
+      // sibling CSS train by the CSS train-3 verifier review).
       const inventory = readyResourceValue(ctx.resources.cssInventory("product"));
       ctx.receipt({
         kind: "population",
@@ -276,7 +276,7 @@ export const gate = defineGate({
         "'getInitializer')`) rather than flagging — which is guide §6.1's TYPE-OBLIGATION shape and NOT " +
         "evidence of redundancy. §4.1 then binds: write the row that would discriminate and RUN it. It passes " +
         "at tip and reds under the cut, so the fence is UNENFORCED-now-pinned, never mutually redundant " +
-        "(refuted by `v-css-family-2026-09-13.md` ledger row 2, #2305)",
+        "(refuted by the 2026-09-13 CSS-family verifier review ledger row 2, #2305)",
     },
     {
       mode: "resource",

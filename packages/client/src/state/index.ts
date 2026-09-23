@@ -340,6 +340,13 @@ export {
   useDrilledPresetTemplateId,
   useSelectedPresetTemplateId,
 } from "./preset-template-selection-store.ts";
+export {
+  __readRecentModelsForTest,
+  __resetAllRecentModels,
+  pushRecentModel,
+  RECENT_MODELS_CAP,
+  useRecentModels,
+} from "./recent-models-store.ts";
 export { requestRefineryLandingFocus, useRefineryLandingFocusRequest } from "./refinery-landing-focus-store.ts";
 export {
   refinerySectionSelection,

@@ -20,11 +20,10 @@
 // `--check` (`pnpm check:docs`) and `--write` (`pnpm format:docs`) both resolve through `formatTargets`, so
 // a tree missing here is missing from BOTH: it is neither checked nor formattable, and `pnpm format:docs`
 // silently declines to touch it. That was the defect — the scope was one docs subtree alone, so the
-// review output and the program guides were outside both doors while reading exactly like docs the
-// formatter owned.
+// program guides were outside both doors while reading exactly like docs the formatter owned.
 //
-// WHICH TREES: `docs/reviews/**` (live review output, written by lanes daily) and the `doc` tool's own
-// trees (law, ADRs, plans, work items), which every write already routes through `formatMarkdown`.
+// WHICH TREES: the `doc` tool's own trees (law, ADRs, plans, work items), which every write already
+// routes through `formatMarkdown`.
 //
 // The corpus is TRACKED files, the same source of truth the catalog uses (`ops/tree.ts#trackedDocs`) — an
 // untracked draft is not a document, and a glob would sweep one in.
@@ -64,7 +63,7 @@ refuseDirectInvocation(import.meta.url, "pnpm check:docs (node tooling/src/doc-c
 
 /** The LIVING trees this formatter owns. Prefix-matched against repo-relative tracked paths. The `doc`
  *  tool's trees are living by construction: every write there goes through `formatMarkdown` first. */
-const LIVING_TREES = ["docs/reviews/", ...DOC_TOOL_TREE_PREFIXES] as const;
+const LIVING_TREES = [...DOC_TOOL_TREE_PREFIXES] as const;
 
 /**
  * CLASS 1 of the population widening (#2161; owner ruling on #2144, 2026-09-12: widen CHECK AND FORMAT
@@ -186,7 +185,7 @@ function visibleAt(text: string, index: number): string {
  *
  * `edge` is `info.before`/`info.after` — the output characters on either side of THIS node, which the
  * node's own value cannot show. Without them the first character of a text node has no left neighbour
- * and the rule misreads it: measured on `refutation-ledger-2026-09-12.md`, a `delete` node opening with
+ * and the rule misreads it: measured on the gate-runtime refutation ledger, a `delete` node opening with
  * `\~110` un-escaped to `~110` directly after the `~~` the parent had just emitted, and `~~~110` re-parsed
  * as something else. That refusal is the reason this function takes an edge at all.
  */

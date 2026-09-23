@@ -6,9 +6,9 @@
 // FIELD-WISE patch (an absent key is NOT overwritten), and the PD-139a embed-space trigger's exact condition.
 
 import type { Principal } from "@orb/contracts/identity";
+import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
 import type { UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { CONNECTION_OP_CODES } from "@orb/server/domain/connection";
 import { endpointAdmission, publishPrivateEndpointAllowlist } from "@orb/server/infra/network";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -127,6 +127,39 @@ describe("create", () => {
     ).rejects.toMatchObject({ code: CONNECTION_OP_CODES.taskUnservable });
   });
 
+  test("a builtin catalog is closed: an id outside it is refused before persistence, a listed one is stored", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    const owner = await seedOwner(db);
+    await expect(
+      h.svc.create({ principal: owner.principal, providerId: "local-light", credentialId: null, baseUrl: null, model: "Xenova/not-a-shipped-model" }),
+    ).rejects.toMatchObject({ code: CONNECTION_OP_CODES.modelNotInCatalog });
+    expect(await h.svc.list({ principal: owner.principal })).toEqual([]);
+    const stored = await h.svc.create({
+      principal: owner.principal,
+      providerId: "local-light",
+      credentialId: null,
+      baseUrl: null,
+      model: "jinaai/jina-clip-v2",
+    });
+    expect(stored.model).toBe("jinaai/jina-clip-v2");
+  });
+
+  test("a url catalog admits an id its list may lag — the closed-set refusal is builtin-only", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    const owner = await seedOwner(db);
+    const view = await h.svc.create({
+      principal: owner.principal,
+      providerId: BYO_PROVIDER,
+      credentialId: null,
+      baseUrl: BYO_BASE_URL,
+      model: "not-in-any-list",
+      modelListed: false,
+    });
+    expect(view).toMatchObject({ model: "not-in-any-list", modelListed: false });
+  });
+
   test("writes one durable audit row naming the provider and model", async () => {
     const db = await freshDb();
     const h = await makeHarness(db);
@@ -193,6 +226,23 @@ describe("update", () => {
       allowBackground: true,
       baseUrl: BYO_BASE_URL,
     });
+  });
+
+  test("a patch that moves a builtin row's model outside its catalog is refused and the stored model stands", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    const owner = await seedOwner(db);
+    const created = await h.svc.create({
+      principal: owner.principal,
+      providerId: "local-light",
+      credentialId: null,
+      baseUrl: null,
+      model: "jinaai/jina-clip-v2",
+    });
+    await expect(h.svc.update({ principal: owner.principal, connectionId: created.id, patch: { model: "Xenova/typo-model" } })).rejects.toMatchObject({
+      code: CONNECTION_OP_CODES.modelNotInCatalog,
+    });
+    expect((await h.svc.get({ principal: owner.principal, connectionId: created.id })).model).toBe("jinaai/jina-clip-v2");
   });
 
   test("a stranger cannot patch the row, and the stored row is untouched", async () => {

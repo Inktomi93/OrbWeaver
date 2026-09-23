@@ -1,5 +1,5 @@
 // Conformance entry for `no-raw-color-in-css`, plus the §4.5 refusal/receipt pins its resource-backed
-// verdict owes and had none of (v-audit-wave4-2026-09-12.md: the family carried ONE §4.5 pin across nine
+// verdict owes and had none of (gate-runtime audit wave 4: the family carried ONE §4.5 pin across nine
 // modules, and this is the only one whose verdict rests on a declared RESOURCE).
 //
 // WHY A PROOF ROW CANNOT EXPRESS THIS. The policy reads its whole subject through

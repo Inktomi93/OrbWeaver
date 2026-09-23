@@ -70,7 +70,7 @@ export function ModelField({
   // NON-suspense on purpose: a catalog read DIALS the provider (or the user's own box), and a failed dial is
   // the typed-id arm, not an error boundary for the whole editor.
   const catalog = useQuery({ ...trpc.connection.catalogModels.queryOptions({ connectionId }), retry: false });
-  const listed = catalog.data ?? [];
+  const listed = catalog.data?.listed === true ? catalog.data.models : [];
 
   return (
     <Stack gap="tight">

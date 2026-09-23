@@ -68,11 +68,9 @@ import {
 } from "../../ui-audit/index.ts";
 import type { Args } from "../contract/types.ts";
 import { designAuditSelectorProofCap } from "../lib/budgets.ts";
+import { READ_FAILURE_SURFACE_JS } from "../lib/failure-surface.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
-
-/** The app's failure-surface declare, read as a plain expression (no page function to serialize). */
-const READ_FAILURE_SURFACE_JS = "(document.querySelector('[data-app-failure]') || { getAttribute: () => null }).getAttribute('data-app-failure')";
 
 /** One EMITTED finding selector and how many elements it actually resolves to, proven in NODE (#1326).
  *  The walker's `describe()` climbs at most six steps and returns the path whether or not it is unique;

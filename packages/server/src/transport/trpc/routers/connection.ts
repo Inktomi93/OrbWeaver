@@ -3,10 +3,10 @@
 // → map errors. The turn-time `resolve`/`availability` verbs are internal (chat's turn path) — NOT exposed.
 // Every row read or written is the CALLER's (`principal.userId` is the owner predicate at the domain).
 //
-// Esoteric #9: `listEndpointModels`, `probe`, `verifyAuth`, `inspectEndpoint` and `refreshCatalog` are
-// `.mutation()` despite being read-shaped — each dials an endpoint (a user-supplied `baseUrl` is an SSRF
-// surface; the F12 admission + the egress guard judge it) or spends a tiny generation, so they keep the
-// CSRF gate tRPC applies to mutations. Do NOT demote to `.query()`.
+// Esoteric #9: `draftCatalogModels`, `probe`, `verifyAuth`, `inspectEndpoint` and `refreshCatalog` are
+// `.mutation()` despite being read-shaped — each dials an endpoint (a user-supplied
+// `baseUrl` is an SSRF surface; the F12 admission + the egress guard judge it) or spends a tiny generation, so
+// they keep the CSRF gate tRPC applies to mutations. Do NOT demote to `.query()`.
 
 import {
   connectionApiSchema,
@@ -15,6 +15,7 @@ import {
   connectionTransportSchema,
   declaredCapabilitySchema,
   modelIdSchema,
+  modelListingSchema,
   providerIdSchema,
   routableTaskSchema,
 } from "@orb/contracts/inference";
@@ -97,20 +98,24 @@ export const connectionRouter = t.router({
   // ── catalogs
   catalogModels: authedProcedure
     .input(z.object({ connectionId }))
+    .output(modelListingSchema)
     .query(({ ctx, input }) => ctx.services.connection.catalogModels({ principal: ctx.auth, connectionId: input.connectionId })),
 
-  // SERVER-SIDE `GET <baseUrl>/v1/models` for an endpoint row being AUTHORED (a browser cannot reach a user's
-  // loopback box, §7.4) — a saved key by id (the caller's) or a raw draft key.
-  listEndpointModels: authedProcedure
+  // The add dialog's model list for a row that does not exist yet, fetched SERVER-SIDE (a browser cannot reach a
+  // user's loopback box, §7.4): the provider being authored, its key (a saved credential by id, the caller's,
+  // or the raw draft key), and an endpoint row's own server. Dials out, hence a mutation.
+  draftCatalogModels: authedProcedure
     .input(
       z.object({
-        baseUrl: z.string().min(1),
+        providerId: providerIdSchema,
         credentialId: typeIdSchema(ID_PREFIX.userCredential).optional(),
         key: z.string().optional(),
+        baseUrl: z.string().min(1).optional(),
         headers: z.record(z.string(), z.string()).optional(),
       }),
     )
-    .mutation(({ ctx, input }) => ctx.services.connection.listEndpointModels({ principal: ctx.auth, ...input })),
+    .output(modelListingSchema)
+    .mutation(({ ctx, input }) => ctx.services.connection.draftCatalogModels({ principal: ctx.auth, ...input })),
 
   refreshCatalog: adminProcedure
     .input(z.object({ providerId: providerIdSchema }))

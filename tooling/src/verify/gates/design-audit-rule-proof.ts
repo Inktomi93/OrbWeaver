@@ -27,7 +27,7 @@
 // to orphan, so the move costs nothing and the diagnostics gain a real coordinate.
 //
 // TWO DELIBERATE CATCH DELTAS, both from retiring `lib/ast-read.ts`'s `unwrapExpression`/`readStringValue`
-// for the shared authored-value reader (the program exists to delete that module; `shared-semantic-readers.md`
+// for the shared authored-value reader (the program exists to delete that module; the shared-semantic-readers map
 // calls its capped readers "not the new fact boundary"):
 //   WIDENED ACQUITTAL — a proof array or registry row reached through an immutable local or imported
 //   binding now RESOLVES (`mustPass[2]`), where the legacy direct-literal reader called it malformed. This

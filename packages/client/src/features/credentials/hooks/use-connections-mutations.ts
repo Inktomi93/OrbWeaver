@@ -9,16 +9,25 @@ import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
 
 type ConnectionView = inferOutput<Trpc["connection"]["get"]>;
-type EndpointModels = inferOutput<Trpc["connection"]["listEndpointModels"]>;
+type DraftModelListing = inferOutput<Trpc["connection"]["draftCatalogModels"]>;
 type CredentialView = inferOutput<Trpc["credentials"]["add"]>;
 
 const connectionReads = (trpc: Trpc): ReturnType<Trpc["connection"]["pathFilter"]>[] => [trpc.connection.pathFilter()];
 
+const createConnectionOptions = (trpc: Trpc): ReturnType<Trpc["connection"]["create"]["mutationOptions"]> => trpc.connection.create.mutationOptions();
+
 /** Create a connection row (label auto-minted server-side when omitted). */
 export const useCreateConnection = createEntityMutation<inferInput<Trpc["connection"]["create"]>, ConnectionView>({
-  options: (trpc) => trpc.connection.create.mutationOptions(),
+  options: createConnectionOptions,
   invalidates: connectionReads,
   errorToast: "Couldn't add that connection.",
+});
+
+/** The add dialog's create. No toast: the dialog states every failure of its submit inline, in the
+ *  dialog, because a toast sits under the modal's scrim and a second one says the same thing again. */
+export const useCreateConnectionOwned = createEntityMutation<inferInput<Trpc["connection"]["create"]>, ConnectionView>({
+  options: createConnectionOptions,
+  invalidates: connectionReads,
 });
 
 /** A FIELD-WISE patch on one row (ground5 M6: never a GET→whole-blob PUT). */
@@ -49,18 +58,36 @@ export const useUseForEverything = createEntityMutation<inferInput<Trpc["connect
   errorToast: "Couldn't apply that connection to your roles.",
 });
 
-/** The SERVER-SIDE `GET <baseUrl>/v1/models` for an endpoint row being authored (§7.4). A failed dial is the
- *  typed-id fallback WITH its reason — the verb never throws for it, so no errorToast. */
-export const useListEndpointModels = createEntityMutation<inferInput<Trpc["connection"]["listEndpointModels"]>, EndpointModels>({
-  options: (trpc) => trpc.connection.listEndpointModels.mutationOptions(),
+/** The add dialog's model list for a draft that has no row yet (§7.4): an endpoint's SERVER-SIDE
+ *  `GET <baseUrl>/v1/models`, or the built-in provider's own list. A failed dial is the typed-id fallback WITH
+ *  its reason and never throws; what does throw is a refusal before the dial (a URL that is not http(s), a
+ *  private address this deployment does not admit, a key that is not the caller's), which the toast names
+ *  while the picker shows the same message inline. */
+export const useDraftCatalogModels = createEntityMutation<inferInput<Trpc["connection"]["draftCatalogModels"]>, DraftModelListing>({
+  // `gcTime: 0` for the same reason as `useAddCredential`: the variables can carry a draft key.
+  options: (trpc) => ({ ...trpc.connection.draftCatalogModels.mutationOptions(), gcTime: 0 }),
   invalidates: () => [],
+  errorToast: "Couldn't list that provider's models.",
+});
+
+/** `gcTime: 0`: the mutation cache keeps a settled mutation's VARIABLES — here the plaintext key — for the
+ *  default five minutes after its form unmounts, so this one is dropped the moment nothing observes it. */
+const addCredentialOptions = (trpc: Trpc): ReturnType<Trpc["credentials"]["add"]["mutationOptions"]> => ({
+  ...trpc.credentials.add.mutationOptions(),
+  gcTime: 0,
 });
 
 /** Add a provider key (plaintext key in, redacted row out). */
 export const useAddCredential = createEntityMutation<inferInput<Trpc["credentials"]["add"]>, CredentialView>({
-  options: (trpc) => trpc.credentials.add.mutationOptions(),
+  options: addCredentialOptions,
   invalidates: (trpc) => [trpc.credentials.list.pathFilter()],
   errorToast: "Couldn't save that key — check the value and try again.",
+});
+
+/** The add dialog's key mint — `useCreateConnectionOwned`'s twin: the dialog states the failure inline. */
+export const useAddCredentialOwned = createEntityMutation<inferInput<Trpc["credentials"]["add"]>, CredentialView>({
+  options: addCredentialOptions,
+  invalidates: (trpc) => [trpc.credentials.list.pathFilter()],
 });
 
 /** The USER-FACING revoke (invariant #6) — the user pre-empts the next turn's 401 when they know a key was

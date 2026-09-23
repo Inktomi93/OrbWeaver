@@ -6,7 +6,7 @@
 // RED too (`client-architecture-lockdown.md` froze at 133 while the registry held 207). Both directions RED.
 // The source population is the loader's gate-module corpus; the named enforcement ledger and living-document
 // index provide the Markdown inputs. No private Project or checkout filesystem read is involved.
-// BOTH CONTRACTS, BY IDENTITY (#1584 mixed runtime, docs/reviews/gate-runtime/mixed-runtime-front-door.md §5): a
+// BOTH CONTRACTS, BY IDENTITY (#1584 mixed runtime, the front-door ruling §5): a
 // module is FINAL when its `gate` initializer is a call whose callee resolves — by import origin, through
 // `lib/gate-contract-origin.ts#isCanonicalDefineGate` — to `contract/policy.ts`'s `defineGate`, never by the
 // spelling of the callee; a same-named local or re-branded `defineGate` is not the contract and its module

@@ -63,7 +63,7 @@ describe("the owner happy path", () => {
 });
 
 // ── THE PROVIDER TRANSPORT SEAM ────────────────────────────────────────────────────────────────────────
-// `connection.listEndpointModels` is the ONE front-door verb that dials a provider with no connection row to
+// `connection.draftCatalogModels` is the ONE front-door verb that dials a provider with no connection row to
 // seed: the pane's server-side `GET <baseUrl>/v1/models` for an endpoint being authored. It never throws — a
 // failed dial is the typed-id fallback — so it reports what the composed graph's transport DID without the
 // test needing a seeded connection. The runtime SCRUBS a provider's error text on the way out, which is why
@@ -75,6 +75,7 @@ describe("the owner happy path", () => {
 // runs. A composed-real test therefore could not spy the transport, and one silently reached a real vLLM
 // engine listening on this box and asserted against its real answer.
 const DRAFT_ENDPOINT = "https://models.example.invalid/v1";
+const DRAFT_PROVIDER = "custom-openai";
 
 describe("the composed graph's provider transport", () => {
   test("the default transport refuses, naming the request it would have made", async ({ providerFetch }) => {
@@ -84,8 +85,8 @@ describe("the composed graph's provider transport", () => {
   });
 
   test("an unscripted dial through the front door fails rather than reaching the network", async ({ ownerCaller }) => {
-    const result = await ownerCaller.connection.listEndpointModels({ baseUrl: DRAFT_ENDPOINT });
-    expect(result).toStrictEqual({ listed: false, models: [], reason: "endpoint models: transport failure" });
+    const result = await ownerCaller.connection.draftCatalogModels({ providerId: DRAFT_PROVIDER, baseUrl: DRAFT_ENDPOINT });
+    expect(result).toStrictEqual({ listed: false, reason: "endpoint models: transport failure" });
   });
 });
 
@@ -109,8 +110,7 @@ describe("a suite that drives the wire substitutes the transport", () => {
   // is ignored, the graph dials `models.example.invalid` FOR REAL, and this arm fails by TIMING OUT on the
   // network rather than by reading a wrong value.
   scripted("an overridden providerFetch is the transport the runtime captured at compose time", async ({ ownerCaller }) => {
-    const result = await ownerCaller.connection.listEndpointModels({ baseUrl: DRAFT_ENDPOINT });
-    expect(result.listed).toBe(true);
-    expect(result.models.map((model) => model.id)).toEqual(["scripted-model"]);
+    const result = await ownerCaller.connection.draftCatalogModels({ providerId: DRAFT_PROVIDER, baseUrl: DRAFT_ENDPOINT });
+    expect(result.listed && result.models.map((model) => model.id)).toEqual(["scripted-model"]);
   });
 });

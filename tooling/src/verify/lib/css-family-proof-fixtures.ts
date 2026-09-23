@@ -95,7 +95,7 @@ export const OWNERSHIP_FIXTURE: Readonly<Record<string, string>> = { ...CLEAN_PR
  *
  *  THIS COMMENT PROMISED `CLIENT_BLUR_FILL.size * 2` = 4 FOR ONE LEG TOO LONG, over constants the same
  *  commit had shrunk to 2 — a retired expression, in the retired shape, contradicted by the
- *  `ONE CARRIER EACH` note five lines below it (`v-css-unit-2-2026-09-13.md` ledger row 4).
+ *  `ONE CARRIER EACH` note five lines below it (the CSS unit-2 verifier review ledger row 4).
  *
  *  A health row that wants ONE seam incomplete overrides ONE of these; every other row spreads them so the
  *  coverage arm is silent and whatever else the row exercises is the only thing its count can be about. */

@@ -5,7 +5,7 @@
 // ("would a user expect this to follow them across devices? then it belongs in the synced user_settings
 // blob, and this is the wrong tool").
 //
-// DEVICE_LOCAL_REGISTRY IS AUTHORITATIVE DATA, NOT AN EXEMPTION TABLE (exception census: "13 device-local
+// DEVICE_LOCAL_REGISTRY IS AUTHORITATIVE DATA, NOT AN EXEMPTION TABLE (exception census: "14 device-local
 // store identities" under hard policy and authoritative runtime data). It is the ruling itself — which
 // state the tree decided is per-device — so it stays in the module as typed rows carrying their `why`,
 // and the policy is HARD: the escape is re-deciding §12.1 for that store, never a comment at the call
@@ -164,6 +164,12 @@ export const DEVICE_LOCAL_REGISTRY: Readonly<Record<string, DeviceLocalClassific
       "posture on THIS screen, the `character-library` browse-prefs precedent (§12.1). It is not a synced " +
       "preference: 'I'm scanning alphabetically right now' does not follow a user to another device, and it " +
       "writes on every dropdown change, which is traffic the user_settings blob should not carry",
+  },
+  "recent-models": {
+    why:
+      "the per-provider Recent-models MRU in the connections model picker — 'what I recently picked on THIS " +
+      "machine' is a convenience affordance, never synced routing truth (the model a connection uses is its own " +
+      "server-side column, written by connection.create/update)",
   },
   "character-card": {
     why:
@@ -372,8 +378,8 @@ export const gate = defineGate({
         "packages/client/src/state/create-persisted-store.ts": "export declare function createPersistedStore(name: string, initial: () => unknown): unknown;\n",
         "packages/client/src/state/create-entity-draft-store.ts": "export declare function createEntityDraftStore(options: { name: string }): unknown;\n",
       },
-      expect: { count: 13, messageIncludes: "classifies nothing" },
-      why: "THE STALE ARM, mode (B): the real-tree anchor is loaded and NO call site persists any registered name — a ruling that outlives its subject must RED rather than sit there looking authoritative. The `count` is the RATCHET'S COMPLETENESS and is the whole point of naming it here (§4.1): the registry holds 13 registered names and this fixture persists none of them, so ALL THIRTEEN must red. Without the count the row passed on one stale row as readily as on thirteen — it would have stayed green while twelve dead rulings sat in the registry looking authoritative, which is precisely the failure this arm exists to catch. Re-derive the number when the registry's membership changes; a red here is the registry moving, not a defect",
+      expect: { count: 14, messageIncludes: "classifies nothing" },
+      why: "THE STALE ARM, mode (B): the real-tree anchor is loaded and NO call site persists any registered name — a ruling that outlives its subject must RED rather than sit there looking authoritative. The `count` is the RATCHET'S COMPLETENESS and is the whole point of naming it here (§4.1): the registry holds 14 registered names and this fixture persists none of them, so ALL FOURTEEN must red. Without the count the row passed on one stale row as readily as on fourteen — it would have stayed green while thirteen dead rulings sat in the registry looking authoritative, which is precisely the failure this arm exists to catch. Re-derive the number when the registry's membership changes; a red here is the registry moving, not a defect",
     },
     {
       mode: "types",

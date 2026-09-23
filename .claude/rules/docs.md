@@ -11,20 +11,23 @@ explains what each home is for and how work items flow.
 ## The tree
 
 Four homes plus `docs/Mission.md`: `docs/law/` (standing law), `docs/adr/` (one decision per file,
-immutable), `docs/plans/<slug>/design.md` (a program), `docs/work/` (one work item per file). A done
-plan moves to the archive folder under `docs/plans/`. The other folders under `docs/` are legacy and
-migrate under `docs/plans/doc-migration/design.md`; do not add a file to them.
+immutable), `docs/plans/<slug>/design.md` (a program), `docs/work/` (one work item per file). A landed
+item and a finished plan are deleted; git keeps them, and a plan's lasting knowledge moves to an ADR or
+law first. `docs/law/docs-and-work.md` says when a piece of knowledge is an ADR and when it is law. The
+other folders under `docs/` are legacy and migrate under `docs/plans/doc-migration/design.md`; do not add
+a file to them.
 
 ## Write prose, not structure
 
 Every structural change goes through `pnpm doc` (run `pnpm doc help` for the verbs): minting, status
-and supersession, work-item transitions and landing, archiving, `review`, and the generated indexes
+and supersession, work-item transitions and landing, deletion, `review`, and the generated indexes
 (`README.md` in each home, a plan's `tasks.md`). A mint takes its section text and state as flags
 (`item` takes `--what --why --done --lane --blocked`, or `--from <file.json>` for a batch; `new adr|plan`
-take a flag per section) and refuses text the check would red. `set` also changes `--kind` and
-`--title` (renaming the file and its links) and clears a field with `none`; `remove <id…>` deletes a
-mistaken item; `status --kind` fixes a law doc's kind. Never edit a generated file or a frontmatter
-block by hand. `pnpm check:agents` reds a stale index, a missing section, a size cap, a
+take a flag per section; `new law <slug>` mints a law doc) and refuses text the check would red. `set`
+also changes `--kind` and `--title` (renaming the file and its links) and clears a field with `none`;
+`remove <id|path…>` deletes any governed doc nothing cites; `status --kind` fixes a law doc's kind;
+`status rejected` marks an ADR turned down; `status parked <plan> --blocked <reason>` parks a plan. Never
+edit a generated file or a frontmatter block by hand. `pnpm check:agents` reds a stale index, a missing section, a size cap, a
 dead link or path, and a writing-rule finding; its message names the fixing command.
 
 ## Frontmatter
@@ -37,8 +40,8 @@ the legacy tree's vocabulary is `tooling/src/doc-catalog/lib/vocab.ts`.
 
 ## Moving or deleting a doc
 
-Supersede with `pnpm doc status superseded <path> --by <path>` and archive with `pnpm doc archive`. For a
-path move, `git mv` the file, rewrite its full-path citers in the same commit with an exact prefix
+Supersede with `pnpm doc status superseded <path> --by <path>` and delete with `pnpm doc remove`, which
+refuses while a link, a path or a `D<n>` citation still names the doc. For a path move, `git mv` the file, rewrite its full-path citers in the same commit with an exact prefix
 replacement, and fix the moved file's own relative links. Search `packages`, `tooling`, `tests`, `scripts`,
 `.claude`, `AGENTS.md`, the root configs and `docs/` with `rg`. Keep section numbers, because code cites
 them. `pnpm check:structure` (`dangling-doc-cite`, `dangling-refs`, `dangling-ref-citations`) proves the
@@ -46,8 +49,10 @@ sweep. Dated records under a history or reviews tree keep the path that was true
 
 ## Work items
 
-States are `open`, `doing` (with `lane`), `blocked` (with `blocked: owner | on <id> | wake path <repo
-path> | wake gone <repo path>`) and `done` (with `evidence`, a commit the checker proves is on `main`).
+States are `open`, `doing` (with `lane`) and `blocked` (with `blocked: owner | on <id> | wake path <repo
+path> | wake gone <repo path>`). Landing deletes the item and commits its title, evidence and What text as
+the record; `done` (with `evidence`) survives only on items landed before that. A parked plan uses the same
+`blocked` grammar.
 `lane` is the EXACT branch name the lane works on (`git rev-parse --abbrev-ref HEAD` in its worktree);
 `drift` matches it against the live worktrees and the unmerged branches. A wake condition names a
 repository path and wakes the item when that path exists (`path`) or no longer does (`gone`); nothing in

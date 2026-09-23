@@ -29,13 +29,7 @@ const FAMILY_GRANTS = REVIEWED_GRANTS.filter(({ policyId }) => policyId === CITA
 // from the tree while Core-Enforcement-Active-Gates.md kept naming them. They are live grants, not
 // translations of a legacy private row, so the arm below names them separately. The `TRANSLATED_GRANTS`
 // partition this list used to feed is gone with the set-equality assertion it served (#2397).
-const POST_CONVERSION_GRANT_IDS: ReadonlySet<string> = new Set([
-  "dangling-ref-citations:elevated-allow",
-  "dangling-ref-citations:exempt-procedures",
-  // minted 2026-09-14 (f5cde0569) for the citation the tier-home table rename retired — post-conversion,
-  // never one of the 22 rows the legacy tables carried across.
-  "dangling-ref-citations:sanctioned-homes",
-]);
+const POST_CONVERSION_GRANT_IDS: ReadonlySet<string> = new Set(["dangling-ref-citations:elevated-allow", "dangling-ref-citations:exempt-procedures"]);
 const DIFFERENTIAL_ANCHOR = "docs/law/__dangling_refs_differential_anchor.md";
 const DIFFERENTIAL_PACKAGE_ANCHOR = "packages/kit/src/__dangling_refs_differential_anchor.ts";
 const DIFFERENTIAL_TOOLING_ANCHOR = "tooling/src/__dangling_refs_differential_anchor.ts";
@@ -151,7 +145,6 @@ describe("dangling-ref-citations — central reviewed authority replaces the leg
     expect(FAMILY_GRANTS.filter(({ id }) => POST_CONVERSION_GRANT_IDS.has(id)).map(({ subject, operation }) => [subject, operation])).toEqual([
       ["ELEVATED_ALLOW", "dangling-symbol-cite"],
       ["EXEMPT_PROCEDURES", "dangling-symbol-cite"],
-      ["SANCTIONED_HOMES", "dangling-symbol-cite"],
     ]);
 
     const result = runDanglingRefs(repoRoot);
