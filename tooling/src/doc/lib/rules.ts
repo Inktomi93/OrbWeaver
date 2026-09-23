@@ -45,10 +45,6 @@ export const LEGACY_ROOTS: readonly string[] = [
   "design",
   "history",
   "reviews",
-  "retro-workboard.md",
-  "Qwen_Offline_Investigation.md",
-  "client-smalls-lane.md",
-  "barrel-star-reexport-residue.md",
 ];
 
 interface KindRule {
