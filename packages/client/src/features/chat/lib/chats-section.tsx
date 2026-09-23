@@ -110,7 +110,7 @@ export function chatContextTabs(
   ];
 }
 
-/** The chat section's contributor seams as ONE named-field bundle (client-architecture-lockdown.md §12
+/** The chat section's contributor seams as ONE named-field bundle (client-architecture-state-and-gates.md §12
  *  row 5, gate `section-factory-contribution-bundle`): a fifth seam is a FIELD here, not another positional
  *  parameter churned through the door and both CT overrides. */
 interface ChatsSectionContributors {

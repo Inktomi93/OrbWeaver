@@ -1,4 +1,4 @@
-// Policy: route-imports-no-feature (client-architecture-lockdown.md §6 / §16 G1, arm 3b) — a route is a
+// Policy: route-imports-no-feature (client-architecture-lockdown.md §6 / client-architecture-state-and-gates.md §16 G1, arm 3b) — a route is a
 // THIN MOUNT. It may not import a feature's front door; features reach the shell through the registries,
 // and a route that imports one has re-formed the god-map through the module graph instead of a prop.
 //
@@ -40,7 +40,7 @@ const ROUTE_POPULATION = "route module";
 const MESSAGE =
   "a route imports a feature front door — a route is a thin mount, and a feature reaches the shell through the " +
   "section/modal/chrome registries. Composing a feature at a route is the god-map re-formed through the module " +
-  "graph (client-architecture-lockdown.md §6 / §16 G1).";
+  "graph (client-architecture-lockdown.md §6 / client-architecture-state-and-gates.md §16 G1).";
 const FIX = "mount the registry-assembled shell instead, or record an exact reviewed grant for a route that is genuinely a composition root.";
 
 interface Candidate {

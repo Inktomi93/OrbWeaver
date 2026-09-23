@@ -323,13 +323,4 @@ export const REVIEWED_GRANTS_Z_TO_CITATIONS: readonly ReviewedGateGrant[] = [
     why: "The CT story reproduces the app MutationCache error-toast channel and must drive a raw mutation without inserting the production entity-mutation belt into the behavior under test.",
     endsWhen: "the CT story stops importing useMutation or the tested global mutation-error channel moves to a different harness",
   },
-  {
-    id: "dangling-ref-citations:tooling-src-verify-ops-gen-density-ts",
-    policyId: "dangling-ref-citations",
-    subject: "tooling/src/verify/ops/gen/density.ts",
-    operation: "dangling-path-cite",
-    why: "density generator was restructured into tooling/src/verify/gates/density-tier.ts + lib/density-tier.ts; the law doc still names the pre-restructure path",
-    endsWhen:
-      "the owning doc (UI-Density-Law.md) is repaired to repoint, strike, or rider this reference; the finding disappears and central zero-use reconciliation stales this row.",
-  },
 ];

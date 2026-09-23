@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-19
+updated: 2026-09-23
 ---
 
 # Orbweaver — `foundation`: the base tier (env-read · observability · residual config)
@@ -16,7 +16,7 @@ updated: 2026-09-19
 - **`observability/middleware.ts`** — the per-request Hono middleware: `X-Request-Id` (charset-guarded), request-root span, request-scoped logger, one structured `request` line + ring record. Skips `/api/_debug/*` so introspection doesn't evict real traces.
 - **`observability/audit.ts`** — `logAudit` (best-effort; suppress → count → drop) + `getAuditFailureSnapshot`. Writes the `audit_logs` row; never breaks the primary channel.
 - **`observability/debug/`** — the `/api/_debug` surface: the two-tier auth gate (admin-cookie short-circuit → `DEBUG_TOKEN` fallback), the registrar, the structural ports (`AssetInspector`, `AdminAuthChecker`), and the read-only DB probes (`inspect/`: `stats` · `integrity` · `inspect-chat`) reading `@orb/db` DOWN (a lower package — no `DbInspector` port needed). The 8-slot domain template does not apply: a foundation read-surface, not a feature.
-- **`config/`** — the process constants that are not env. Build identity is not one of them, and is not `APP_VERSION`: it lives in `version/`, read once at boot and reported on `/healthz`, the boot line and bug reports. That is all — no `app-config.ts`, no `layer()`, no `EffectiveAppConfig` resolver.
+- **`config/`** — the process constants that are not env. Build identity is not one of them, and is not APP_VERSION: it lives in `version/`, read once at boot and reported on `/healthz`, the boot line and bug reports. That is all — no `app-config.ts`, no `layer()`, no `EffectiveAppConfig` resolver.
 
 NOT owned: the AppSettings floor-merge (→ `domain/settings` `effective-config/`; the `EffectiveAppConfig` type → `@orb/contracts/settings`); agent-sdk runtime config, nature (c) (→ the agent-sdk backend); `errorMessage` and other pure primitives (→ `@orb/kit`); the `CREDENTIALS_KEY_AUTO` auto-key boot path (→ `infra/crypto`; env only supplies the raw `CREDENTIALS_KEY`, validated in crypto, not at boot — a missing key must DEGRADE, never crash); the boot/shutdown protocol (→ `entry/lifecycle.ts`, D5 — invoked once with injected deps, read by entry only, so it fails the read-down-by-all test).
 
