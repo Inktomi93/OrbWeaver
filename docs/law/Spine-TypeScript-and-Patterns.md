@@ -10,7 +10,7 @@ Canonical doc for spine §7.4 (types & schemas) and §7.5 (string-union dispatch
 
 ## Types & schemas — one home, one direction, no inline (spine §7.4)
 
-The rule: **one home per shape, derived by who needs it; flows DOWN only.** (Neo's failure mode: the home was ambiguous, so shapes duplicated and inline types sprouted everywhere.)
+The rule: **one home per shape, derived by who needs it; flows DOWN only.** An ambiguous home lets a shape duplicate and inline types sprout at every call site.
 
 | Shape kind | Home | Consumers (down only) |
 | - | - | - |
@@ -101,11 +101,11 @@ From the handbook's `.d.ts` do's-and-don'ts — worth enforcing even though we a
 
 ## 9. Platform primitives — the ADOPT / CONSIDER / AVOID register
 
-**The platform is node 26 / V8 14.6, and the modern spelling is THE spelling** (owner-ruled posture). This register is not "adopt when convenient": a hand-rolled equivalent of anything in ADOPT is a defect, and the burn-down that removed the existing ones is that program's W3/W4. Typing floor: `tsconfig.base.json` carries `lib: ["es2025", "esnext.disposable"]` and the repo-root `platform.d.ts` declares the V8 14.6 surfaces TypeScript's libs do not ship yet (`Map`/`WeakMap.getOrInsert(Computed)`, `Error.isError`, `Iterator.concat`) — delete a block there when the lib catches up; the duplicate-declaration error IS the reminder.
+**The platform is node 26 / V8 14.6, and the modern spelling is THE spelling** (owner-ruled posture). This register is not "adopt when convenient": a hand-rolled equivalent of anything in ADOPT is a defect. Typing floor: `tsconfig.base.json` carries `lib: ["es2025", "esnext.disposable"]` and the repo-root `platform.d.ts` declares the V8 14.6 surfaces TypeScript's libs do not ship yet (`Map`/`WeakMap.getOrInsert(Computed)`, `Error.isError`, `Iterator.concat`) — delete a block there when the lib catches up; the duplicate-declaration error IS the reminder.
 
 **ADOPT.** `node:timers/promises` `setTimeout` (never `new Promise` + `setTimeout` sleeps) · `x.toSorted(fn)` (never `[...x].sort(fn)`) · Set algebra `union`/`intersection`/`difference`/`isSubsetOf` · `Object.groupBy` / `Map.groupBy` · `Promise.withResolvers` · `Map.getOrInsert` / `getOrInsertComputed` · `RegExp.escape` — never a hand-rolled `escapeRegExp`; the program's W4 deletes the kit one and its consumers · `Error.isError` at unknown-boundaries — specifically the `kit/error-message` seam, so ~50 consumers inherit cross-realm correctness · `.at(-1)` · `findLast` · `Array.fromAsync` (accumulate-then-return only) · Iterator helpers when the chain is iterator-terminal · `using` / `await using` for every disposal-shaped resource ⚙️ (biome `useDisposables`) · `AbortSignal.timeout` / `AbortSignal.any` per the rubric below · `structuredClone` · `util.parseEnv`.
 
-**CONSIDER.** `getOrInsertComputed` vs plain `getOrInsert` — the computed arm only when the factory has cost or effects · Iterator helpers on a sort-terminal chain: the sort materializes anyway, so convert only a filter/map prefix that drops a real intermediate array, else keep · get-or-set shapes whose SET path differs from the GET path (TTL, eviction) stay hand-written.
+**CONSIDER.** `getOrInsertComputed` vs plain `getOrInsert` — use the computed form only when the factory has cost or effects · Iterator helpers on a sort-terminal chain: the sort materializes anyway, so convert only a filter/map prefix that drops a real intermediate array, else keep · get-or-set shapes whose SET path differs from the GET path (TTL, eviction) stay hand-written.
 
 **AVOID.**
 
@@ -149,14 +149,14 @@ How tool configuration is derived:
 ## String-union dispatch discipline (spine §7.5)
 
 The coupling an import-graph CANNOT see: runtime branching on string-union "kind" keys. Without a
-canonical home an axis gets re-spelled inline at every dispatch site, so adding one variant turns into a
-scavenger hunt across dozens of files — the neo-tavern pain that motivated this rule.
+canonical home an axis gets re-spelled inline at every dispatch site, so adding one variant means finding
+and updating every dispatch site by hand.
 
-**The GOLD STANDARD to copy:** `workloads.kind` dispatches through `WorkloadContributions:
-{ readonly [K in WorkloadKind]: WorkloadContribution<K> }`, asserted exhaustive + duplicate-free by
-`keyByKind` at the compose door (`entry/compose/workload-contributions.ts`, D117 — the former
-`substrate/dispatch.ts` `RUNNERS` hub is deleted) — a **mapped-type Record**, so a missing kind is
-a hard compile error. `routing.api`/`source` runner switches use typed-return / `assertNever`.
+**The pattern to copy:** `workloads.kind` dispatches through `WorkloadContributions:
+{ readonly [K in WorkloadKind]: WorkloadContribution<K> }`, asserted exhaustive and duplicate-free by
+`keyByKind` at the compose door (`entry/compose/workload-contributions.ts`, D117) — a **mapped-type
+Record**, so a missing kind is a hard compile error. `routing.api`/`source` runner switches use
+typed-return / `assertNever`.
 
 **The rule:** every axis has (a) ONE importable canonical union/tuple (no inline re-spelling — gated),
 and (b) a mapped-type Record or exhaustive `assertNever` dispatch (a new member fails the build).

@@ -15,8 +15,7 @@
 // check runs offline on every structure run instead of at a barrier someone has to remember.
 // FAMILY: policy-soundness, tooling/src/verify/lib/policy-descriptor-read.ts#finalDescriptorOf — every member
 // judges the final descriptors of the gate corpus through that reader.
-// POPULATION: the top-level gate modules, the same subject `enforcement-registry-parity` reads; `_proof/`
-// holds shared fixture sources, not policies.
+// POPULATION: the top-level gate modules; `_proof/` holds shared fixture sources, not policies.
 // RETIRED MARKERS: none (new policy).
 import type { ObjectLiteralExpression } from "ts-morph";
 import { Node } from "ts-morph";

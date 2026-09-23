@@ -108,8 +108,6 @@ export const LEDGER_DEFINITIONS = {
     nature: "markdown",
     paths: ["docs/law/Core-Audits-and-Debt.md", "docs/law/Core-Debt-Cleared-Ledger.md"],
   },
-  /** The enforcement roster `enforcement-registry-parity` reconciles the descriptor corpus against. */
-  "gate-enforcement-roster": { nature: "markdown", paths: ["docs/law/Core-Enforcement-Active-Gates.md"] },
 } as const satisfies Readonly<Record<string, LedgerDefinition>>;
 
 export type LedgerId = keyof typeof LEDGER_DEFINITIONS;

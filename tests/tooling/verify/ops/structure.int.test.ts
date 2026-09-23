@@ -407,7 +407,8 @@ test("a gate that OOMs under a planted heap ceiling exits non-zero and leaves th
 //   accounting identity; and the anti-drift arm (every active gate file under tooling/src/verify/gates is
 //   run by report.ts) — which on the all-final corpus IS `unregistered === []`: the loader is the registry, every registered final policy
 //    is dispatched (only the retired legacy contract had a `status` filter to drop one), and the doc-side
-//    half is `enforcement-registry-parity`.
+//    half is now the generated law doc's own `ledgers:fresh` byte check (work item 0045) — a hand-kept
+//    copy that could drift is gone, so there is nothing left for a reconciling gate to catch.
 //
 // The other two final-subject arms went to their own owners rather than here, because the property is not
 // this file's: the population denominator on every rendered final line is the RENDERER's
