@@ -114,6 +114,10 @@ interface ShapeInput {
   /** The room host's PROSE-1 overrides (`assembleContext.prose`) — the two injection note frames. Absent ⇒
    *  the shipped frames, byte-identical. */
   prose?: ProseOverrides | undefined;
+  /** Whether a row body converts to an empty wire row, which the conversion then drops
+   *  (`substrate/wire-history` convertsToEmptyWireRow). Such a row is no neighbour when a system row's slot is
+   *  judged. Required, so no caller judges slots against rows the wire never delivers. */
+  convertsToEmptyWireRow: (content: string) => boolean;
 }
 
 interface ShapeOutput {
@@ -210,9 +214,10 @@ function foldEntry(entry: DeliveryEntry, reason: ShapeFoldReason, prose: ProseOv
   entry.folded = reason;
 }
 
-/** The role of the nearest live non-system row in `entries` (walked in the order given), or undefined. */
-function nearestRole(entries: readonly DeliveryEntry[]): DeliveredRole | undefined {
-  return entries.find((entry) => isLive(entry) && entry.row.role !== "system")?.row.role;
+/** The role of the nearest non-system row in `entries` (walked in the order given) that reaches the wire, or
+ *  undefined. A row that converts to nothing is dropped after SHAPE, so it is never the neighbour. */
+function nearestRole(entries: readonly DeliveryEntry[], convertsToEmpty: (content: string) => boolean): DeliveredRole | undefined {
+  return entries.find((entry) => isLive(entry) && entry.row.role !== "system" && !convertsToEmpty(entry.row.content))?.row.role;
 }
 
 /** Why a run INSIDE the history folds, or null when it stays a system row. The legal slot (`slotted`): the
@@ -256,6 +261,7 @@ interface DeliveryOptions {
   readonly groupNudge: string | null;
   readonly assistantPrefill: boolean;
   readonly prose: ProseOverrides | undefined;
+  readonly convertsToEmptyWireRow: (content: string) => boolean;
 }
 
 /** Fold every run INSIDE the history that the level or the model does not take. Every verdict is taken before
@@ -266,7 +272,9 @@ function foldMidArrayRuns(entries: readonly DeliveryEntry[], lastNonSystem: numb
     if (index >= lastNonSystem || entry.row.role !== "system" || !isLive(entry)) {
       return null;
     }
-    return midArrayFold(placement, nearestRole(entries.slice(0, index).toReversed()), nearestRole(entries.slice(index + 1)), opts.historySystemRows);
+    const before = nearestRole(entries.slice(0, index).toReversed(), opts.convertsToEmptyWireRow);
+    const after = nearestRole(entries.slice(index + 1), opts.convertsToEmptyWireRow);
+    return midArrayFold(placement, before, after, opts.historySystemRows);
   });
   entries.forEach((entry, index) => {
     const reason = reasons[index];
@@ -535,6 +543,7 @@ export function shape(input: ShapeInput): ShapeOutput {
     groupNudge: input.groupNudge,
     assistantPrefill: input.assistantPrefill === true,
     prose: input.prose,
+    convertsToEmptyWireRow: input.convertsToEmptyWireRow,
   });
   const deliveredRows = delivery.entries.map((entry) => entry.row);
   const history = runSquash(deliveredRows);

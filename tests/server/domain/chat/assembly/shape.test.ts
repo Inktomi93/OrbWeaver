@@ -19,6 +19,7 @@ import { describe } from "vitest";
 import { BEFORE_HISTORY_DEPTH } from "../../../../../packages/server/src/domain/chat/assembly/injections.ts";
 import { computeHistoryBreakpoint, shape, toShapeCanon } from "../../../../../packages/server/src/domain/chat/assembly/shape.ts";
 import type { HistoryMacroNames } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
+import { convertsToEmptyWireRow } from "../../../../../packages/server/src/domain/chat/substrate/wire-history.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const ARIA = castId<CharacterId>("character_aria");
@@ -47,6 +48,7 @@ function soloInput(over: Partial<Parameters<typeof shape>[0]> = {}): Parameters<
     namesBehavior: "default",
     speakers: SPEAKERS,
     groupNudge: null,
+    convertsToEmptyWireRow,
     ...over,
   };
 }
@@ -335,6 +337,31 @@ describe("computeHistoryBreakpoint — direct math", () => {
       offsetFromEnd: 2,
       decision: "placed",
     });
+  });
+});
+
+// ── A system row's slot is judged on the rows the wire delivers ─────────────────────────────────────────
+describe("shape — a neighbour that converts to nothing is not a neighbour", () => {
+  const choicesOnly = ":::choices\n1. Enter the crypt\n2. Flee\n:::";
+  const canon = [
+    { role: "assistant" as const, content: "You stand at the gate.", authorName: "Aria", characterId: ARIA },
+    { role: "user" as const, content: "I look around.", authorName: "User" },
+    { role: "assistant" as const, content: choicesOnly, authorName: "Aria", characterId: ARIA },
+    { role: "user" as const, content: "I flee.", authorName: "User" },
+  ];
+  const slotted = { midConversationSystem: true, historySystemRows: true, roleHandlingFloor: "slotted" as const };
+  const note = inChat({ role: "system", depth: 2, content: "Author's note: keep it tense." });
+
+  test("a note before a choices-only reply folds, because the wire would deliver it before a user row", () => {
+    const out = shape(soloInput({ canon, appendUserTurn: null, injections: [note], ...slotted }));
+    expect(out.history.filter((row) => row.role === "system")).toEqual([]);
+    expect(out.stages.delivered.find((row) => row.folded !== undefined)?.folded).toBe("slot");
+  });
+
+  test("the same note before a reply with prose stays a system row (the control)", () => {
+    const prose = canon.map((row) => (row.content === choicesOnly ? { ...row, content: "She waits." } : row));
+    const out = shape(soloInput({ canon: prose, appendUserTurn: null, injections: [note], ...slotted }));
+    expect(out.history.map((row) => row.role)).toEqual(["assistant", "user", "system", "assistant", "user"]);
   });
 });
 
@@ -707,6 +734,7 @@ function shapeCell(cell: Cell): ReturnType<typeof shape> {
     namesBehavior: cell.namesBehavior,
     speakers: SPEAKERS,
     groupNudge: null,
+    convertsToEmptyWireRow,
     roleHandling: cell.roleHandling,
     // Left at the default floor deliberately — `roleHandlingFloor` unset means `strict`, and the clamp
     // takes max(floor, knob), so the KNOB alone cannot go looser than strict. That is the shipped
@@ -875,6 +903,7 @@ describe("P5 MULTI-HUMAN — two people speaking back-to-back", () => {
     // FLOOR — a backend that tolerates adjacent same-role rows. There the OpenAI-spec `name` field is the
     // better shape (no bytes injected into content) and it is preserved.
     const out = shape({
+      convertsToEmptyWireRow,
       canon: twoHumans,
       appendUserTurn: null,
       injections: [],
@@ -948,6 +977,7 @@ describe("toShapeCanon — the null-persona-stamp guard (a row never borrows a s
   test("end-to-end on the wire: exactly ONE line is spoken as the host", () => {
     const canon = [userRow(hostUser, hostPersona, "host line"), userRow(memberUser, null, "member line")];
     const out = shape({
+      convertsToEmptyWireRow,
       canon: toShapeCanon(canon, ctxFor(hostUser), macroNames, null),
       appendUserTurn: null,
       injections: [],

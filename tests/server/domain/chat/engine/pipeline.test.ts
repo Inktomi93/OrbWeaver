@@ -24,7 +24,7 @@ import { runTurnPipeline } from "../../../../../packages/server/src/domain/chat/
 // The span→wire-part dispatch moved to `substrate/wire-history.ts` with the rest of CONVERT (#1540): the read
 // verb's previews must price the SAME converted rows this pipeline prices, so the conversion is no longer an
 // engine-private step. The behaviour under test is unchanged — the pipeline still runs it, in the same place.
-import { __spanToWirePartForTest } from "../../../../../packages/server/src/domain/chat/substrate/wire-history.ts";
+import { __spanConvertsToNothingForTest, __spanToWirePartForTest } from "../../../../../packages/server/src/domain/chat/substrate/wire-history.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { makeCapability, makeGenerationCapability, makeResolved } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -2181,6 +2181,31 @@ describe("runTurnPipeline — the §3 content-class wire plane", () => {
     expect(result.request.history.map((m) => m.content)).toContainEqual([{ type: "text", text: "You run." }]);
   });
 
+  // SHAPE judges a system row's slot by its neighbours; a neighbour that converts to nothing on the wire is not
+  // one. The choices-only assistant row is dropped after SHAPE, so a note kept between it and a user row would
+  // reach the direct wire as `[user, system, user]`.
+  test("a system note is judged against the rows the wire delivers — a choices-only neighbour does not count", async () => {
+    const choicesOnly = ":::choices\n1. Enter the crypt\n2. Flee\n:::";
+    const canon = [rowOf("assistant", "You stand at the gate."), userRow("I look around."), rowOf("assistant", choicesOnly), userRow("I flee.")];
+    const note: ChatInjection = { position: "in_chat", depth: 2, role: "system", content: "Author's note: keep it tense." };
+    const { args } = baseArgs({
+      canon,
+      connection: {
+        ...CONNECTION,
+        capability: makeCapability({
+          ...CAPABILITY,
+          turns: { assistantPrefill: false, midConversationSystem: true, historySystemRows: true, roleHandlingFloor: "slotted", explicitPromptCache: false },
+        }),
+      },
+      assembleContext: ctxOf({ chatInjections: [note] }),
+    });
+    const history = (await runTurnPipeline(args)).request.history;
+    const text = (m: TurnRequest["history"][number]): string => m.content.map((p) => (p.type === "text" ? p.text : "")).join("");
+    const slots = history.flatMap((m, i) => (m.role === "system" ? [`${history[i - 1]?.role}>${history[i + 1]?.role}`] : []));
+    expect(slots.filter((slot) => slot !== "user>assistant")).toEqual([]);
+    expect(history.some((m) => text(m).includes("Author's note: keep it tense."))).toBe(true);
+  });
+
   // #1543 — GREEN BEFORE THE FIX, and the label is the finding. The §8 breakpoint is an OFFSET FROM THE
   // END, so a mid-array drop CAN in principle move it off the row SHAPE measured. On this path it cannot:
   // `computeHistoryBreakpoint` sets `stableCount = withTail.length - 1`, so the stable prefix is everything
@@ -2717,6 +2742,22 @@ describe("spanToWirePart — CONTENT_CLASS_POLICY binding", () => {
       wireRow,
     );
     expect(part).toBeNull();
+  });
+
+  test("the empty-conversion table SHAPE reads agrees with the dispatch, span kind by span kind", async () => {
+    const spans: ContentSpan[] = [
+      { kind: "text", text: "hello" },
+      { kind: "text", text: "" },
+      { kind: "choices", options: ["Go north"], raw: ":::choices\nGo north\n:::" },
+      { kind: "hidden", tag: "lie", attrs: {}, raw: "<lie>x</lie>" },
+      { kind: "unknown-directive", raw: "<gmnote>n</gmnote>" },
+      { kind: "card", title: "T", body: "…", origin: "fence", raw: ':::card title="T"\n…\n:::' },
+      { kind: "image", alt: "a cat", ref: { kind: "external", url: "https://example.test/cat.png" } },
+    ];
+    for (const span of spans) {
+      const part = await __spanToWirePartForTest(span, wireEnv, wireRow);
+      expect({ kind: span.kind, empty: __spanConvertsToNothingForTest(span) }).toEqual({ kind: span.kind, empty: part === null });
+    }
   });
 
   test('wire:"stub" (card) collapses OUTSIDE the keep-last-X window', async () => {
