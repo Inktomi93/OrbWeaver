@@ -174,32 +174,18 @@ function isClass2File(path: string): boolean {
 }
 
 /**
- * CLASS 3 (#2173): the tracked markdown at the REPO ROOT — the entry points every session loads. A PATH
- * rule, not an enumeration: the row named `./CLAUDE.md` and `AGENTS.md`, but `README.md` is a third root
- * file matching the row's own description ("the last tracked hand-authored markdown outside `docs/`"),
- * and enumerating would have missed it exactly the way omission missed the second archaeology tree.
+ * CLASS 3 (#2173): the tracked markdown at the REPO ROOT — the entry points every session loads
+ * (`AGENTS.md`, `README.md`). A PATH rule, not an enumeration, so a new root file is owned from birth.
  *
- * `./CLAUDE.md` opens with `@docs/architecture/core/AGENTS.md` — a harness DIRECTIVE the loader resolves,
- * not prose. It survives a format byte-for-byte (it is an ordinary paragraph to CommonMark, and nothing
- * in the serializer escapes a leading `@`), and the family test proves that against a file made dirty
- * ELSEWHERE rather than against today's happens-to-be-clean bytes.
+ * A root entry point may carry an `@path` import line — a harness DIRECTIVE the loader resolves, not
+ * prose. It survives a format byte-for-byte (it is an ordinary paragraph to CommonMark, and nothing in the
+ * serializer escapes a leading `@`), and the family test proves that against a file made dirty ELSEWHERE.
+ *
+ * Root `AGENTS.md` is also read by `check:agents` (its rule list and line budget). Both stages accept the
+ * same bytes because the file is hand-written canonical markdown; when a formatter and a generator
+ * disagree about bytes, move the generator — an exclusion buys silence and costs coverage forever.
  */
 const CLASS_3_ROOT = /^[^/]+\.md$/u;
-
-/**
- * ROOT `AGENTS.md` IS ADMITTED, and getting there is the point worth recording (#2173 follow-up).
- *
- * It was fenced out of this population because its lines 1-37 are a GENERATED BLOCK written by
- * `pnpm agents:sync`, whose array emitted no blank line at either marker seam — precisely the two blanks
- * this formatter inserts. Both sides are enforced stages (`check:docs` here; `check:agents` via
- * `sync.ts` → `package.json` → `verify/lib/registry.ts`), so the two could not be green in one tree and
- * the file's ~33 hand-authored lines went unchecked as the price.
- *
- * The fix was in the GENERATOR, not in a wider exclusion: `agent-sync/ops/sync.ts` now emits those two
- * blanks, so its output IS canonical markdown and the exclusion is gone rather than permanent. The rule
- * this leaves behind: when a formatter and a generator disagree about bytes, the generator is usually
- * the one that should move — an exclusion buys silence and costs coverage forever.
- */
 
 /** True for the root entry-point markdown this formatter owns. */
 function isClass3File(path: string): boolean {

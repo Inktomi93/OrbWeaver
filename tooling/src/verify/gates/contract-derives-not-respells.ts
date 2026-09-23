@@ -1,5 +1,5 @@
 // Gate: contract-derives-not-respells — a server domain's `contract/` DERIVES its shapes; it never
-// re-spells one a lower package already owns (CLAUDE.md "Type homes and unions": a type/shape has exactly ONE home, by who needs
+// re-spells one a lower package already owns (AGENTS.md "Type homes and unions": a type/shape has exactly ONE home, by who needs
 // it": DB row → `db` via `$inferSelect`; cross-boundary wire → `contracts`; domain-internal → that domain's
 // `contract/`). A re-spelled shape is not a duplicate that merely costs bytes: it is a shape that goes
 // SILENTLY STALE the day the owner grows a field, and tsc cannot tell you (two structurally-identical types
@@ -75,7 +75,7 @@ import { DOMAIN_CONTRACT_RE, handWrittenShapes, matchedTable, tableNames } from 
 const CONTRACTS_DIR_RE = /^packages\/contracts\/src\/(?<domain>[^/]+)\//u;
 
 const MESSAGE =
-  'a domain `contract/` re-spells a shape a lower package already owns. CLAUDE.md "Type homes and unions": a shape has exactly ONE ' +
+  'a domain `contract/` re-spells a shape a lower package already owns. AGENTS.md "Type homes and unions": a shape has exactly ONE ' +
   "home — a DB row is `typeof <table>.$inferSelect` in `db`, a cross-boundary wire shape is `contracts` — and a " +
   "hand-written copy goes silently stale the day the owner grows a field (two structurally-identical types stay " +
   "assignable, so tsc never tells you). Derive it. See packages/server/src/domain/rpg/contract/service.ts for the " +
@@ -251,7 +251,7 @@ export const gate = defineGate({
         "packages/contracts/src/chat/roster.ts": "export interface RosterMemberSpec {\n  readonly kind: string;\n}\n",
         "packages/server/src/domain/chat/contract/params.ts": "export interface JoinChatParams {\n  readonly chatId: string;\n}\n",
       },
-      why: 'a domain-internal shape @orb/contracts does NOT own — the domain `contract/` is exactly where it belongs (CLAUDE.md "Type homes and unions", the domain-internal row)',
+      why: 'a domain-internal shape @orb/contracts does NOT own — the domain `contract/` is exactly where it belongs (AGENTS.md "Type homes and unions", the domain-internal row)',
     },
     {
       mode: "source",

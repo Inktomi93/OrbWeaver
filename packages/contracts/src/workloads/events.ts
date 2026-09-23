@@ -1,6 +1,6 @@
 // `@orb/contracts/workloads` — the workload LIFECYCLE EVENT union + the failure shape it carries.
 //
-// IT HOMES HERE BECAUSE IT IS A WIRE SHAPE (CLAUDE.md "Type homes and unions", and the precondition SSE-1 §14 decision 3 named
+// IT HOMES HERE BECAUSE IT IS A WIRE SHAPE (AGENTS.md "Type homes and unions", and the precondition SSE-1 §14 decision 3 named
 // for stage S5). It started at `domain/workloads/contract/workload-events.ts`, which was honest while the only
 // reader was the server's own `workloads.subscribe` generator: the client hook could not import it, so it
 // hand-rolled a narrow structural VIEW of the two fields it read and cast the rest away. Now the events ride

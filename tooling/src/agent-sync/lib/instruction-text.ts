@@ -20,7 +20,7 @@ const HISTORY_RULES: readonly { readonly label: string; readonly pattern: RegExp
   { label: '"retired"', pattern: /\bretired\b/iu },
 ];
 
-/** The banned house words (`.claude/rules/writing.md` rule 4). A word the `CLAUDE.md` glossary defines is
+/** The banned house words (`.claude/rules/writing.md` rule 4). A word the `AGENTS.md` glossary defines is
  *  allowed, so the glossary, not this list, decides what counts as house vocabulary. */
 export const BANNED_INSTRUCTION_WORDS: readonly string[] = ["load-bearing", "belt", "fence", "arm", "lens", "receipt", "rung"];
 
@@ -54,7 +54,7 @@ export function proseOnly(source: string): string {
   return out.join("\n");
 }
 
-/** The words the `CLAUDE.md` "Glossary" table defines, lowercased. */
+/** The words the `AGENTS.md` "Glossary" table defines, lowercased. */
 export function glossaryWords(claudeSource: string): ReadonlySet<string> {
   const words = new Set<string>();
   const start = claudeSource.search(/^## Glossary\s*$/mu);

@@ -1121,13 +1121,13 @@
     },
     {
       "path": "docs/design/gate-config-system.md",
-      "assignedSha256": "81d820b260941728483aeedef79b607861af084a40a0fb4aefef113182117b10",
+      "assignedSha256": "62c0b7d0329b55ab908b409e31175e7ba4015acd51fc6e7dce62252606e3e1bc",
       "disposition": "superseded",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "81d820b260941728483aeedef79b607861af084a40a0fb4aefef113182117b10",
-      "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
-      "verifiedAt": "2026-09-22",
+      "verifiedSha256": "62c0b7d0329b55ab908b409e31175e7ba4015acd51fc6e7dce62252606e3e1bc",
+      "verifiedCommit": "25e700f9999eaac62a27a886e19cf240ac04866b",
+      "verifiedAt": "2026-09-23",
       "evidence": [
         "docs/design/gate-config-system.md:1-295 read in full for #2067 first-review receipt; the document marks itself superseded by gate-runtime-standardization.md and retains its measurements and rejected dispatch-fence design as historical design input.",
         "2026-09-13 integrated #2071/Q11 refresh at cf7ce412c444942b602ec1a200b91383f64ea18d. Final document full reads retained by exact Git-blob equality to lane79c317527; final generated read-first and Q11 disposition reread in full. All ten document bytes are committed at this verification SHA. Independent closing #2071 review CONFIRMED conservation; scoped Q11 review CONFIRMED corrections. Eight authored-doc format checks and native read-first-costs --check (9 derived) passed. No whole consolidated barrier or lifecycle closure is claimed.",
@@ -1145,7 +1145,7 @@
         }
       ],
       "summary": "Superseded design for a declarative gate dispatch fence. Retained for its measured scope taxonomy, explicit limits, and rejected alternatives; it is not current runtime law.",
-      "verifiedCanonicalSha256": "81d820b260941728483aeedef79b607861af084a40a0fb4aefef113182117b10"
+      "verifiedCanonicalSha256": "62c0b7d0329b55ab908b409e31175e7ba4015acd51fc6e7dce62252606e3e1bc"
     },
     {
       "path": "docs/design/gate-runtime-orchestrator-playbook.md",
@@ -2354,13 +2354,13 @@
     },
     {
       "path": "docs/design/parked-options-config-port.md",
-      "assignedSha256": "eed47d2255a5fd25cf480ce0f1e91775f578301dcf1b1ee80e54996831eaa502",
+      "assignedSha256": "427028f9abdf418c623431c605873b3cfe9792d0619974e96db9911ce130acdd",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "eed47d2255a5fd25cf480ce0f1e91775f578301dcf1b1ee80e54996831eaa502",
-      "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
-      "verifiedAt": "2026-09-22",
+      "verifiedSha256": "427028f9abdf418c623431c605873b3cfe9792d0619974e96db9911ce130acdd",
+      "verifiedCommit": "25e700f9999eaac62a27a886e19cf240ac04866b",
+      "verifiedAt": "2026-09-23",
       "evidence": [
         "Full document read by the #2067 repair lane; source-fidelity delimiter repair independently reviewed through b6c1065b3. Historical measurements, authority and issue qualifiers are retained rather than reasserted as current implementation behavior.",
         "docs/design/parked-options-config-port.md:1 (design-options; decision-input)",
@@ -2383,7 +2383,7 @@
           ]
         }
       ],
-      "verifiedCanonicalSha256": "eed47d2255a5fd25cf480ce0f1e91775f578301dcf1b1ee80e54996831eaa502"
+      "verifiedCanonicalSha256": "427028f9abdf418c623431c605873b3cfe9792d0619974e96db9911ce130acdd"
     },
     {
       "path": "docs/design/parked-options-ops-posture.md",
@@ -2420,13 +2420,13 @@
     },
     {
       "path": "docs/design/parked-options-persona-prose.md",
-      "assignedSha256": "1c3b6093c7afd3b73141c822aaf1649f9631a25b9e93352ed51e79725884d613",
+      "assignedSha256": "8eccc61f60e29dc82a27ffa9997fd530bb9a9a441476cd2777a408d27ec9cfa3",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "1c3b6093c7afd3b73141c822aaf1649f9631a25b9e93352ed51e79725884d613",
-      "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
-      "verifiedAt": "2026-09-22",
+      "verifiedSha256": "8eccc61f60e29dc82a27ffa9997fd530bb9a9a441476cd2777a408d27ec9cfa3",
+      "verifiedCommit": "25e700f9999eaac62a27a886e19cf240ac04866b",
+      "verifiedAt": "2026-09-23",
       "evidence": [
         "docs/design/parked-options-persona-prose.md:1 full read after the workboard split; changed routing/citations checked against Project 1, D139-D141, and current code/test evidence",
         "git:68271889b1746b513defea44b0787bab7a89176f contains the exact current document blob",
@@ -2450,7 +2450,7 @@
           ]
         }
       ],
-      "verifiedCanonicalSha256": "1c3b6093c7afd3b73141c822aaf1649f9631a25b9e93352ed51e79725884d613"
+      "verifiedCanonicalSha256": "8eccc61f60e29dc82a27ffa9997fd530bb9a9a441476cd2777a408d27ec9cfa3"
     },
     {
       "path": "docs/design/parked-options-tag-contract.md",
@@ -2940,13 +2940,13 @@
     },
     {
       "path": "docs/design/vocabulary-map.md",
-      "assignedSha256": "5e14cd9a9f0de97118d520779df4c764c401f8b29309d5784cd9d8fea49c0495",
+      "assignedSha256": "8f2783a583452cb89584363d95f1d315d0fee04a829b9e839d36c4cc221933d4",
       "disposition": "current",
       "authority": "design",
       "fullRead": true,
-      "verifiedSha256": "5e14cd9a9f0de97118d520779df4c764c401f8b29309d5784cd9d8fea49c0495",
-      "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
-      "verifiedAt": "2026-09-22",
+      "verifiedSha256": "8f2783a583452cb89584363d95f1d315d0fee04a829b9e839d36c4cc221933d4",
+      "verifiedCommit": "25e700f9999eaac62a27a886e19cf240ac04866b",
+      "verifiedAt": "2026-09-23",
       "evidence": [
         "#1774 prose half (cb-rpg-prose): row 155 status + residue updated at the fold commit",
         "#1774 persona+compose halves (cb-roster-tail): row 155 LANDED for all three halves; stale RosterRefIndex/PersonaRosterView targets corrected",
@@ -3011,7 +3011,7 @@
         }
       ],
       "summary": "The living concept→word map: room seats are Characters, the saved template is a Roster (code rosterPreset, conforming), roster is reserved and never spent as English for a list, the rpg register is fenced with the chat word winning at the boundary, and castId is deliberately no-action. Prose-enforced by owner ruling with no gate; the enforcement section records the wave-union defect that produced it.",
-      "verifiedCanonicalSha256": "5e14cd9a9f0de97118d520779df4c764c401f8b29309d5784cd9d8fea49c0495"
+      "verifiedCanonicalSha256": "8f2783a583452cb89584363d95f1d315d0fee04a829b9e839d36c4cc221933d4"
     },
     {
       "path": "docs/design/work-item-dod.md",

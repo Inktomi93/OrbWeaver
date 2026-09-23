@@ -26,7 +26,7 @@ capability; file the gap.
    `CONTRAST`, `MAP`, `ARIA`, `FINDING`, `ARG ERROR`, `NAV ERROR`/`NAV FAILED`, `SESSION
    DEAD`/`SESSION BUSY`, `THEME SHIM WARNING` on stderr, `*REFUSED`, and more). Grep the prefix to pull
    what you need from a long log.
-4. **Redirect every run to a log and read the log** (CLAUDE.md, "Read the harness artifacts" applies
+4. **Redirect every run to a log and read the log** (`AGENTS.md`, "Read the harness artifacts" applies
    to a snap run too):
 
    ```bash

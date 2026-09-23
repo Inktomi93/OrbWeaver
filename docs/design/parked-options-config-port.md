@@ -8,7 +8,7 @@ updated: 2026-08-14
 
 Decision-input for three parked/deferred items. Investigate-only: no code changed. Each item gives the
 current state with `path:line` receipts (code AND docs), the real options, and a RECOMMENDATION marked as
-the do-it-right-once arm with its WHY. KISS/YAGNI are SUSPENDED for architecture here (`CLAUDE.md` "Build the full shape"), so
+the do-it-right-once arm with its WHY. KISS/YAGNI are SUSPENDED for architecture here (`AGENTS.md` "Posture"), so
 "more work" is not by itself a reason to reject the extensible arm — but a **speculative seam extension**
 with no committed consumer is still YAGNI, and that distinction decides items 1 and 3.
 
@@ -100,7 +100,7 @@ today by DESIGN, not by omission.
 When the owner feels it, the right-once shape is: extend `CollectionContribution` with (a) an optional
 view-projected context arm carrying a header COMPONENT (not a title string), and (b) an optional
 per-collection panel-default hint; then convert `presetsSection` into a preset collection and delete the
-standalone section in the same commit (no half-migration — `CLAUDE.md` "No escape hatches"). That is a
+standalone section in the same commit (no half-migration — `AGENTS.md` "No escape hatches"). That is a
 real ~day of work across the seam + presets, not one array member — and stating that honestly now is worth
 more than either premature arm.
 

@@ -13,7 +13,7 @@ updated: 2026-09-20
 > the slices did not cover the tree).
 >
 > **Derivation, not taste.** The word for a concept follows the tier that OWNS the concept
-> (`CLAUDE.md` "Package direction"). The full derivation, the priced
+> (`AGENTS.md` "Package direction"). The full derivation, the priced
 > options and the eight owner forks are the frozen record at
 > `docs/reviews/stickler/2026-08-30-vocab-unification.md`; this file is the LIVING result. When a
 > word changes, it changes HERE first.

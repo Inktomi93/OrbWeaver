@@ -38,7 +38,7 @@
 // project-wide; that narrowing is FORCED by law §3 (no project-wide traversal) and is classified, not
 // hidden. `final − legacy` = EMPTY. Two legacy scope clauses were measured INERT and deleted: `!isTest(fp)`
 // (`/\.test\.tsx?$/`) admits 0 of the 3284 `.ts`/`.tsx` files under the four roots because tests are
-// central (CLAUDE.md "Test layout"), and arm E's `!CONTRACTS_SRC.test(fp)` subtracted from a `SERVER_SRC` set the
+// central (AGENTS.md "Test layout"), and arm E's `!CONTRACTS_SRC.test(fp)` subtracted from a `SERVER_SRC` set the
 // two regexes make disjoint.
 //
 // RETIRED PRIVATE-MARKER CENSUS: ZERO. This gate never owned a custom marker grammar and had ZERO live

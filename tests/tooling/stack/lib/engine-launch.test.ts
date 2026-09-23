@@ -112,7 +112,7 @@ test("gen is adoptable under both its bare and org-qualified served model names"
 // false`, and only identity failures reached `EXIT.toolError` — so an engine that DIED during boot fell
 // through to `EXIT.clean` and the launcher printed `booted 2/3` while telling the operator the fleet was
 // up. These pin the classification, which is where the collapse happened; the launcher itself is a
-// PROGRAM that spawns real vLLM and is never run from a test (CLAUDE.md "Engines").
+// PROGRAM that spawns real vLLM and is never run from a test (AGENTS.md "Engines").
 
 test("an engine that EXITED during boot FAILS the fleet and is named (#1494)", () => {
   const outcome = classifyEngineBoot("gen", "spawn", { wait: "exited", identityCaptured: false });

@@ -5,13 +5,13 @@
   "entries": [
     {
       "path": "docs/architecture/core/AGENTS.md",
-      "assignedSha256": "96a3141eb8518d826da6a0ad96e739f7f2088fac6dfece8fd9e2c85eb2c9c776",
+      "assignedSha256": "e0b2d34cbf678fac70657b0b54d461fec8d7640b2a370209b8dd663afae525e3",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "96a3141eb8518d826da6a0ad96e739f7f2088fac6dfece8fd9e2c85eb2c9c776",
-      "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
-      "verifiedAt": "2026-09-22",
+      "verifiedSha256": "e0b2d34cbf678fac70657b0b54d461fec8d7640b2a370209b8dd663afae525e3",
+      "verifiedCommit": "25e700f9999eaac62a27a886e19cf240ac04866b",
+      "verifiedAt": "2026-09-23",
       "evidence": [
         "Rewritten at d0e004fa5d160506528653c886bfaf2bfd6fc9cc (lean instruction layer): full read of the new file. CLAUDE.md is no longer an importer; every live citation of a dropped section (§0.x, §2.x, §4 content, §5.x, §L.x) was repointed in the same commit.",
         "Owner ruling 2026-09-10: lanes may commit normally in their assigned worktree or clone, including configured hook checks. Explicit iteration stays scoped; hook bypass requires a specific user/coordinator exception with its reason and executed or owed checks. Main integration and push remain coordinator/owner operations. Coupled doctrine, role and runbook guidance was reconciled without changing hook commands.",
@@ -56,8 +56,8 @@
           ]
         }
       ],
-      "summary": "Lean constitution: doctrine, one-directional flow, placement, cross-cutting thread homes, the domain map and the index of law. CLAUDE.md owns the always-on core and reading router; the lane and orchestrator skills own lane and dispatch rules.",
-      "verifiedCanonicalSha256": "96a3141eb8518d826da6a0ad96e739f7f2088fac6dfece8fd9e2c85eb2c9c776"
+      "summary": "Lean constitution: doctrine, one-directional flow, placement, cross-cutting thread homes, the domain map and the index of law. Root AGENTS.md owns the always-on core and reading router; the lane and orchestrator skills own lane and dispatch rules.",
+      "verifiedCanonicalSha256": "e0b2d34cbf678fac70657b0b54d461fec8d7640b2a370209b8dd663afae525e3"
     },
     {
       "path": "docs/architecture/core/Chat-Macro-Resolution.md",
@@ -173,13 +173,13 @@
     },
     {
       "path": "docs/architecture/core/Core-Enforcement-Active-Gates.md",
-      "assignedSha256": "cbf4a5fd213a505c68d4360e9ff475b7cbd07db8f4a4ba076b587640f9e1fcc1",
+      "assignedSha256": "574889b7bfbafea0566e09407b5957b42c899a38907df286364415a54085f53c",
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "cbf4a5fd213a505c68d4360e9ff475b7cbd07db8f4a4ba076b587640f9e1fcc1",
-      "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
-      "verifiedAt": "2026-09-22",
+      "verifiedSha256": "574889b7bfbafea0566e09407b5957b42c899a38907df286364415a54085f53c",
+      "verifiedCommit": "25e700f9999eaac62a27a886e19cf240ac04866b",
+      "verifiedAt": "2026-09-23",
       "evidence": [
         "Bounded #2312 citation correction; existing reviewed CSS-family changes and earlier evidence remain attributable to their own receipts. Selected dangling-refs drive clean over199 docs: reports/runs/structure/main-72765-2026-09-13T06-11-26-874Z/check-structure.json. This receipt does not certify the whole gate roster or close ongoing CSS verification.",
         "Full document read by the registration lane; changed rows reviewed against source by the orchestrator. Browser-contract real-tree fixture red/clean, 15 behavioral tests and independent semantic review; hook/router/config snapshot 137 behavioral tests and security approval. Full legacy structure still refuses the separate mixed-descriptor cutover.",
@@ -347,7 +347,7 @@
         }
       ],
       "summary": "Active enforcement catalog, fully read as text; current Q11 health-row correction verified against canonical generation and namespace-health ownership. Prior per-row evidence remains attributed; no new whole-roster implementation certification.",
-      "verifiedCanonicalSha256": "cbf4a5fd213a505c68d4360e9ff475b7cbd07db8f4a4ba076b587640f9e1fcc1"
+      "verifiedCanonicalSha256": "574889b7bfbafea0566e09407b5957b42c899a38907df286364415a54085f53c"
     },
     {
       "path": "docs/architecture/core/Core-Laws-and-Precedents.md",
@@ -398,13 +398,13 @@
     },
     {
       "path": "docs/architecture/core/Core-Path-Registry.md",
-      "assignedSha256": "24b9ef177078f2e886b82c9efd0d386ea1994dfbc0b650a4923b4eb625e9284c",
+      "assignedSha256": "8965ba9fa97fb852aa8076f41130a8bb69f8d4172b35834d5f46b87c1e8498d0",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "24b9ef177078f2e886b82c9efd0d386ea1994dfbc0b650a4923b4eb625e9284c",
-      "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
-      "verifiedAt": "2026-09-22",
+      "verifiedSha256": "8965ba9fa97fb852aa8076f41130a8bb69f8d4172b35834d5f46b87c1e8498d0",
+      "verifiedCommit": "25e700f9999eaac62a27a886e19cf240ac04866b",
+      "verifiedAt": "2026-09-23",
       "evidence": [
         "Bounded D61 repair independently investigated under #2312; root read the complete relevant entry and exact diff. Prior whole-document read and claims below are retained, not repeated. Final selected dangling-refs drive over199 docs was clean: reports/runs/structure/main-72765-2026-09-13T06-11-26-874Z/check-structure.json. Historical note is a separate line so it does not suppress current citations.",
         "bounded re-attestation at 0f28e6b15: the existing full-read 174cc2961 receipt covers #1351's helper-world path move; current source retains tests/support/browser/ct-data-providers.tsx and the old tests/support/ct path is absent; #1351 remains the live program",
@@ -491,7 +491,7 @@
         }
       ],
       "summary": "D61 distinguishes the proposed hub feature from its removed implementation while preserving existing egress and roster claims.",
-      "verifiedCanonicalSha256": "24b9ef177078f2e886b82c9efd0d386ea1994dfbc0b650a4923b4eb625e9284c"
+      "verifiedCanonicalSha256": "8965ba9fa97fb852aa8076f41130a8bb69f8d4172b35834d5f46b87c1e8498d0"
     },
     {
       "path": "docs/architecture/core/Core-Planning-and-Checklists.md",
@@ -626,13 +626,13 @@
     },
     {
       "path": "docs/architecture/core/Documentation-Law.md",
-      "assignedSha256": "bd87ec7ac811f1208eec36206ede22bab26f6a017c8cc763e5b0d50e0a802bcd",
+      "assignedSha256": "2c1efd4bb668308d055c66b07764194144d639de7cbaff692e6841a90a86b368",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "bd87ec7ac811f1208eec36206ede22bab26f6a017c8cc763e5b0d50e0a802bcd",
-      "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
-      "verifiedAt": "2026-09-22",
+      "verifiedSha256": "2c1efd4bb668308d055c66b07764194144d639de7cbaff692e6841a90a86b368",
+      "verifiedCommit": "25e700f9999eaac62a27a886e19cf240ac04866b",
+      "verifiedAt": "2026-09-23",
       "evidence": [
         "Full document read and bounded enforcement correction at ee4a545f6: ESLint derives non-browser package coverage from PACKAGE_WORLDS; native resolution for packages/showcase-plugins/src/index.ts enables tsdoc/syntax and @typescript-eslint/no-deprecated as errors with the TypeScript parser and project service. pnpm check executes lint:eslint. Removed the stale four-package/showcase omission and retired types:graph claim; TypeScript compilation remains distinct from TSDoc syntax checking.",
         "2ff1248088a97d83053f7c9d38b4d6da0055805f re-words the second TSDOC_SURFACE cite on the #1571 bullet (train 79 dangling-refs)",
@@ -672,7 +672,7 @@
         }
       ],
       "summary": "Active documentation and comment law with TSDoc enforcement delegated to the current ESLint coverage authority, including the typed showcase packer.",
-      "verifiedCanonicalSha256": "bd87ec7ac811f1208eec36206ede22bab26f6a017c8cc763e5b0d50e0a802bcd"
+      "verifiedCanonicalSha256": "2c1efd4bb668308d055c66b07764194144d639de7cbaff692e6841a90a86b368"
     },
     {
       "path": "docs/architecture/core/Knowledge-Cluster.md",
@@ -1325,13 +1325,13 @@
     },
     {
       "path": "docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md",
-      "assignedSha256": "f2828ffa693f6f74ddba005c1e1a16920f606d00e05c1f93f914f8e36b34a001",
+      "assignedSha256": "5e071419ca8ee8bc1f947c6dbbdfb052bb47586f3fe0045cb58ac8e031a804e8",
       "disposition": "current",
       "authority": "current-reference",
       "fullRead": true,
-      "verifiedSha256": "f2828ffa693f6f74ddba005c1e1a16920f606d00e05c1f93f914f8e36b34a001",
-      "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
-      "verifiedAt": "2026-09-22",
+      "verifiedSha256": "5e071419ca8ee8bc1f947c6dbbdfb052bb47586f3fe0045cb58ac8e031a804e8",
+      "verifiedCommit": "25e700f9999eaac62a27a886e19cf240ac04866b",
+      "verifiedAt": "2026-09-23",
       "evidence": [
         "Full document read by root and independent operations reviewer for #2323. Corrected current operational pointers, successful finish semantics, CT owner, parity prefix, Vitest project names, and affected native compiler routing through 9c451ed6f. Scoped docs check and source review pass. Historical timings and whole-runtime behavior were not replayed; prior evidence remains dated provenance.",
         "Full document read by the reconciliation lane; independent review accepted ee165b3a7, 8f765deda and final11a359f84 cleanup. Root checked final scope changes against registry/ledgers-fresh source; document formatting passed. Prior evidence below remains historical and is not a new whole-runtime certification.",
@@ -1411,7 +1411,7 @@
         }
       ],
       "summary": "Current tier membership is owned by the executable registry; this document retains purpose, execution semantics and historical measurements without a copied current stage roster.",
-      "verifiedCanonicalSha256": "f2828ffa693f6f74ddba005c1e1a16920f606d00e05c1f93f914f8e36b34a001"
+      "verifiedCanonicalSha256": "5e071419ca8ee8bc1f947c6dbbdfb052bb47586f3fe0045cb58ac8e031a804e8"
     },
     {
       "path": "docs/architecture/core/client-architecture-lockdown.md",

@@ -8,7 +8,7 @@ paths:
 
 ## Running verify
 
-The command list and stage table live in `CLAUDE.md`. This file covers gate authoring only.
+The command list and stage table live in `AGENTS.md`. This file covers gate authoring only.
 
 ## Authoring or changing a gate
 

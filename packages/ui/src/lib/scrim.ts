@@ -42,7 +42,7 @@ import { OVERLAY_MOTION } from "./overlay-motion.ts";
 // clean. Red-first receipts: deleting the supports arm reds the fragment test; replacing menu's
 // `SCRIM("popover")` with a hand-rolled `fixed inset-0 bg-backdrop` reds the reach test. The earlier
 // pointer here named `tests/ui/styles/css-structure.suite.test.ts`, whose subject is raw CSS TEXT in
-// stylesheets; this is a TypeScript constant, so the mirror (CLAUDE.md "Test layout") is the home.
+// stylesheets; this is a TypeScript constant, so the mirror (AGENTS.md "Test layout") is the home.
 export const SCRIM_BASE = "fixed inset-0 min-h-dvh bg-backdrop supports-[-webkit-touch-callout:none]:absolute";
 
 export const SCRIM = (tier: "popover" | "modal"): string => `${SCRIM_BASE} z-(--z-${tier}) ${OVERLAY_MOTION.backdropFade(tier === "modal" ? "base" : "fast")}`;

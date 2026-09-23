@@ -9,7 +9,7 @@ updated: 2026-09-18
 > The ONE verification surface. `pnpm verify` is the single entry that runs every check the repo can run —
 > lint, types, structure, imports, deps, docs, tests, browser, quality — over four tiers, one scope
 > convention, one exit contract, one summary artifact, generalized over a self-describing stage registry.
-> `CLAUDE.md` "Verification tiers" states the doctrine ("iterate on `--changed`, claim done only after `pnpm check`, pre-push is
+> Root `AGENTS.md` "Verification tiers" states the doctrine ("iterate on `--changed`, claim done only after `pnpm check`, pre-push is
 > `--push`, the works is `--full`"); this doc is its as-built spec. The CODE is truth on any conflict:
 > `tooling/src/verify/ops/{run,scoped,tests-type-membership,tests-execution-membership}.ts`,
 > `tooling/src/verify/lib/{registry,selection,run-render}.ts`,
@@ -178,7 +178,7 @@ concurrently"* and *"unique markers inherit the worktree name"*.
 checkout — two lanes, a lane and the orchestrator, a `pnpm check` and a sibling's `check:structure` —
 clobbered each other. Measured live that day: three concurrent `check:structure` runs on main, and
 `reports/check-structure.json` flipped from a complete 248-gate verdict to another run's in-flight stub
-inside 30s. The read-the-artifact-never-the-pipe law (`CLAUDE.md` "Read the harness artifacts") assumes the artifact is YOURS; under
+inside 30s. The read-the-artifact-never-the-pipe law (root `AGENTS.md` "Read the harness artifacts") assumes the artifact is YOURS; under
 multi-lane load it silently was not.
 
 **Run identity.** `<checkout>-<pid>-<timestamp>`, minted ONCE per invocation
@@ -331,7 +331,7 @@ resolves ONCE into a `Selection`, the superset every stage's `scopedArgv` reads 
 - **`--strict-scope`:** a whole-only stage at a scoped tier REFUSES (exit 3) instead of deferring — for a
   caller who wants a scoped run to fail loudly rather than silently skip the whole-project gates.
 - **A SCOPED green is NOT done.** It defers every whole-project gate (the exact gates that catch
-  half-registration across maps). The whole `pnpm check` (= `--static`) is the verdict — `CLAUDE.md` "Verification tiers".
+  half-registration across maps). The whole `pnpm check` (= `--static`) is the verdict — root `AGENTS.md` "Verification tiers".
 
 ### 3.6 The parity gates
 
