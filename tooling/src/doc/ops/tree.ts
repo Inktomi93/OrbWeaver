@@ -21,8 +21,6 @@ export const root = REPO_ROOT;
 const DOCS_DIR = "docs";
 const MISSION_PATH = "docs/Mission.md";
 const MAIN = "main";
-/** How far back `drift` reads `main` for `Closes:` trailers — enough for a day of merge trains. */
-const RECENT_MAIN_COMMITS = "200";
 
 export function today(): string {
   return new Date().toISOString().slice(0, "YYYY-MM-DD".length);
@@ -151,9 +149,15 @@ export function mergedCommits(repoRoot = root, headMerge = false): readonly { re
   return commitList(repoRoot, [headMerge ? "HEAD^1..HEAD" : "ORIG_HEAD..HEAD"]);
 }
 
-/** Recent `main` commits with their full messages, newest first. */
-export function recentMainCommits(repoRoot = root): readonly { readonly sha: string; readonly message: string }[] {
-  return commitList(repoRoot, [MAIN, "-n", RECENT_MAIN_COMMITS]);
+/** Every `main` commit carrying a `Closes:` trailer, newest first — the question `drift` actually asks is
+ *  "which open item does some commit on `main` close", so this answers it directly instead of guessing a
+ *  window: no count can outlive an arbitrarily long merge train, so any fixed window silently drops a
+ *  closer that lands past it. `--grep` runs the same anchored line match `closesTrailer` does, in git's
+ *  own C code, over the whole branch — on this repository's ~8k-commit history that costs under 0.1s,
+ *  well inside a session-start hook's budget, so no bound by commit count or by an item's origin commit
+ *  is needed. */
+export function closingCommits(repoRoot = root): readonly { readonly sha: string; readonly message: string }[] {
+  return commitList(repoRoot, [MAIN, "--grep=^Closes:", "-E"]);
 }
 
 function commitList(repoRoot: string, range: readonly string[]): readonly { readonly sha: string; readonly message: string }[] {
