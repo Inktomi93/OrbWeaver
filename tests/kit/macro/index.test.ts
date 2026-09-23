@@ -4,6 +4,7 @@ import type { GlobalVarWrite, MacroDiagnostic, ProcessMacroOptions } from "@orb/
 import {
   createDefaultRegistry,
   createMacroContext,
+  createNamesOnlyRegistry,
   evaluateMacros,
   globalMacroRegistry,
   parseMacros,
@@ -167,6 +168,16 @@ test("processMacros re-processes nested identity macros inside {{scenario}} (not
   const scenario = "{{user}} keeps running into {{char}} at the 24-hour konbini.";
   expect(processMacros("{{scenario}}", opts({ scenario }))).toBe("Bob keeps running into Alice at the 24-hour konbini.");
   expect(processMacros("{{charscenario}}", opts({ scenario }))).toBe("Bob keeps running into Alice at the 24-hour konbini.");
+});
+
+// {{persona}} is the persona DESCRIPTION, which is prose its author writes about {{user}} (the seeded default
+// reads "…you're simply {{user}}…"). The persona marker's template is `{{persona}}`, so a raw substitution put
+// literal `{{user}}` braces in every system prompt that carried a persona. Both registries that know the name
+// must re-process it: the live one and the stored-history names-only one.
+test("processMacros re-processes nested identity macros inside {{persona}}", () => {
+  const persona = "Until you edit this, you're simply {{user}}, here to meet {{char}}.";
+  expect(processMacros("{{persona}}", opts({ persona }))).toBe("Until you edit this, you're simply Bob, here to meet Alice.");
+  expect(processMacros("{{persona}}", opts({ persona }), createNamesOnlyRegistry())).toBe("Until you edit this, you're simply Bob, here to meet Alice.");
 });
 
 test("processMacros resolves a nested macro in an argument then reads it back", () => {
