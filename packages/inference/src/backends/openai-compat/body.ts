@@ -22,6 +22,11 @@
 //      gen-1790135929 vs gen-1790135933, read the history). The provider converter writes assistant and tool
 //      rows as strings with a message-level marker, and the history breakpoints land on those rows. A row with
 //      no text part (a tool-call row) passes its marker to the nearest earlier row with text.
+//  10. the same-role fold (after rule 9, only when the turn caches by explicit Anthropic block markers,
+//      `cachesByAnthropicMarkers`): consecutive plain user or assistant rows become ONE message with one text
+//      part per row, each row's marker still on its own last part. SHAPE keeps the stored rows of a run apart on
+//      such a wire, so a marked row keeps its bytes and its end when the run grows; this fold keeps the wire
+//      alternating without joining their text. It adds and removes no row, so the tail is whatever SHAPE sent.
 // Warnings are collected on a per-call sink the caller folds into the turn's `warning` events (D41).
 
 import type { Dialect, EndpointFeatures } from "@orb/contracts/inference";
@@ -67,6 +72,8 @@ export interface ShapeArgs {
   readonly dialect: Dialect;
   /** The capability half of the prefill decision (`acceptsAssistantPrefill`); the array half is the plan's. */
   readonly prefillAllowed: boolean;
+  /** Rule 10 runs: the turn caches by explicit Anthropic block markers (`cachesByAnthropicMarkers`). */
+  readonly foldSameRole: boolean;
   readonly replyImages: boolean;
   readonly warnings: ResolvedWarning[];
 }
@@ -232,6 +239,36 @@ function applyCacheMarkerSpelling(body: Record<string, unknown>, args: ShapeArgs
   return { ...body, messages: out };
 }
 
+const FOLDABLE_ROLES: ReadonlySet<unknown> = new Set(["user", "assistant"]);
+const PLAIN_ROW_KEYS: ReadonlySet<string> = new Set(["role", "content"]);
+
+// A row that carries anything beside its role and text (a `name`, tool calls, replayed reasoning, a tool id)
+// keeps its own message: folding would merge fields that belong to one row onto the whole run. The
+// openai-compatible converter spells an absent field as an `undefined` key, which is not a field.
+function isPlainTurn(message: unknown): message is Record<string, unknown> {
+  return (
+    isRecord(message) && FOLDABLE_ROLES.has(message["role"]) && Object.entries(message).every(([key, value]) => value === undefined || PLAIN_ROW_KEYS.has(key))
+  );
+}
+
+/** Rule 10: fold consecutive plain same-role rows into one message of parts, one text part per row. */
+function applySameRoleFold(body: Record<string, unknown>, args: ShapeArgs): Record<string, unknown> {
+  const messages = body["messages"];
+  if (!(args.foldSameRole && Array.isArray(messages))) {
+    return body;
+  }
+  const out: unknown[] = [];
+  for (const message of messages) {
+    const previous = out.at(-1);
+    if (isPlainTurn(message) && isPlainTurn(previous) && previous["role"] === message["role"]) {
+      out[out.length - 1] = { ...previous, content: [...contentParts(previous["content"]), ...contentParts(message["content"])] };
+      continue;
+    }
+    out.push(message);
+  }
+  return out.length === messages.length ? body : { ...body, messages: out };
+}
+
 /** The whole shaper, in rule order. Pure: returns a new object, never mutates the SDK's argument. */
 export function shapeOutboundBody(raw: Record<string, unknown>, args: ShapeArgs): Record<string, unknown> {
   let body = mergeExtras(raw, args);
@@ -243,5 +280,5 @@ export function shapeOutboundBody(raw: Record<string, unknown>, args: ShapeArgs)
   if (args.replyImages) {
     body = { ...body, [MODALITIES_KEY]: [...REPLY_MODALITIES] };
   }
-  return applyCacheMarkerSpelling(applyOutputCapSpelling(applyEffortSpelling(body, args), args), args);
+  return applySameRoleFold(applyCacheMarkerSpelling(applyOutputCapSpelling(applyEffortSpelling(body, args), args), args), args);
 }

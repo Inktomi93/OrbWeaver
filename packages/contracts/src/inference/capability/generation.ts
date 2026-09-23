@@ -49,7 +49,9 @@ export const reasoningDisplayModeSchema = z.enum(REASONING_DISPLAY_MODES) satisf
  *  to the one before it:
  *
  *  • `none`        — pass rows through; a system row stays a system row wherever the model takes one.
- *  • `merge`       — join adjacent same-role rows with a blank line.
+ *  • `merge`       — join adjacent same-role rows with a blank line. Where the turn caches by explicit block
+ *                    markers the run stays one turn, but each stored row stays its own block, so a cached block
+ *                    never grows.
  *  • `slotted`     — merge, and keep a system run only in its legal slot: the row before it is a user or tool
  *                    row, and the run ends the array or precedes an assistant row. Every other run folds.
  *  • `semi-strict` — merge, and fold every system row into user text.

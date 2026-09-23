@@ -30,8 +30,14 @@ export const MERGE_SEPARATOR = "\n\n";
  * THIS delivered row" to report a merged row's provenance honestly: a squash that folds an injected row into
  * an adjacent canon turn is precisely the INJECT-NAMED-AS-PLAYER shape, and re-deriving the rule at the trace
  * would be a second home free to drift from the wire it claims to describe.
+ *
+ * `canonApart`: a run holds at most one stored row (a row with a `messageId`); the next stored row opens a new
+ * run. Injections and cues still join the stored row beside them.
  */
-export function squashRuns<T extends { role: MessageRole; content: string; name?: string }>(history: readonly T[]): readonly (readonly number[])[] {
+export function squashRuns<T extends { role: MessageRole; content: string; name?: string; messageId?: MessageId | undefined }>(
+  history: readonly T[],
+  opts: { readonly canonApart: boolean } = { canonApart: false },
+): readonly (readonly number[])[] {
   const runs: number[][] = [];
   history.forEach((msg, index) => {
     if (msg.content.trim().length === 0) {
@@ -39,7 +45,8 @@ export function squashRuns<T extends { role: MessageRole; content: string; name?
     }
     const openRun = runs.at(-1);
     const head = openRun === undefined ? undefined : history[openRun[0] ?? -1];
-    if (openRun !== undefined && head !== undefined && head.role === msg.role && !distinctCompletionName(head, msg)) {
+    const storedAlready = opts.canonApart && msg.messageId !== undefined && openRun?.some((at) => history[at]?.messageId !== undefined) === true;
+    if (openRun !== undefined && head !== undefined && head.role === msg.role && !distinctCompletionName(head, msg) && !storedAlready) {
       openRun.push(index);
       return;
     }
@@ -52,10 +59,13 @@ export function squashRuns<T extends { role: MessageRole; content: string; name?
  *  Drops empty/whitespace-only items before squashing. The first row of a same-role run keeps its extra
  *  fields; merged-in rows contribute only their content. Two adjacent rows carrying distinct completion
  *  `name` fields are not merged. `system` rows (capability-kept depth-0 injections) merge only with each
- *  other — a system row never folds into a user/assistant neighbor. */
-export function squashSameRole<T extends { role: MessageRole; content: string; name?: string; messageId?: MessageId | undefined }>(history: readonly T[]): T[] {
+ *  other — a system row never folds into a user/assistant neighbor. `canonApart` is {@link squashRuns}'s. */
+export function squashSameRole<T extends { role: MessageRole; content: string; name?: string; messageId?: MessageId | undefined }>(
+  history: readonly T[],
+  opts: { readonly canonApart: boolean } = { canonApart: false },
+): T[] {
   const result: T[] = [];
-  for (const run of squashRuns(history)) {
+  for (const run of squashRuns(history, opts)) {
     const rows = run.flatMap((index) => history[index] ?? []);
     const head = rows[0];
     if (head === undefined) {
