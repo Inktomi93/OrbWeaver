@@ -11,12 +11,20 @@ import type { ChatEvent, ChatRequest, ChatResult, WarningCode } from "@orb/infer
 import { AGENT_CONTINUATION_PROMPT_STUB, createInferenceRuntime, DEFAULT_EMBED_MODEL } from "@orb/inference";
 import type { AssetId, ChatId, ChatTurnId, MessageId, ModelId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { TurnMessage, TurnRequest, TurnStreamChunk } from "@orb/server/domain/chat";
-import { activePersonaIdFor, buildChatToolOps, createRunChatTurnBridge, createTaskWindowReaders, voicePersonaFor } from "@orb/server/entry/compose";
+import type { HumanSeatPersona, TurnMessage, TurnRequest, TurnStreamChunk } from "@orb/server/domain/chat";
+import {
+  activePersonaIdFor,
+  buildChatToolOps,
+  createRunChatTurnBridge,
+  createTaskWindowReaders,
+  createTurnPersonaResolver,
+  voicePersonaFor,
+} from "@orb/server/entry/compose";
 import { describe } from "vitest";
 import { z } from "zod";
 import type { ChatToolExecFrame, ChatToolOps } from "../../../../packages/server/src/domain/chat/contract/context.ts";
 import { runTurnPipeline } from "../../../../packages/server/src/domain/chat/engine/pipeline.ts";
+import type { PersonaListView } from "../../../../packages/server/src/domain/persona/contract/views.ts";
 import type { ToolExecutionContext, ToolUseService } from "../../../../packages/server/src/domain/tool-use/index.ts";
 import { createToolUseService } from "../../../../packages/server/src/domain/tool-use/index.ts";
 import { fakeConnection, fakeDeps, fakeModelCache, memoryStores, newUserId } from "../../../inference/_support.ts";
@@ -137,6 +145,78 @@ describe("voicePersonaFor — whose persona a turn's {{user}} is", () => {
       personaId: memberSeat,
       userId: member,
     });
+  });
+});
+
+// The people projection: every consented seat persona except the voice human's, in seat (join) order. The
+// fake read honours `allowedOwnerIds` exactly as the persona domain's consent-gated read does.
+describe("createTurnPersonaResolver — the people projection", () => {
+  const host = castId<UserId>("user_host");
+  const bob = castId<UserId>("user_bob");
+  const cara = castId<UserId>("user_cara");
+  const dave = castId<UserId>("user_dave");
+  const personaRows: ReadonlyMap<PersonaId, PersonaListView> = new Map(
+    (
+      [
+        ["persona_alice", host, "Alice"],
+        ["persona_bob", bob, "Bob"],
+        ["persona_cara", cara, "Cara"],
+      ] as const
+    ).map(([id, ownerId, name]) => [castId<PersonaId>(id), { id: castId<PersonaId>(id), ownerId, name, description: `${name}-DESC`, metadata: null }]),
+  );
+  const resolve = createTurnPersonaResolver(({ personaIds, allowedOwnerIds }) =>
+    Promise.resolve(
+      new Map(
+        personaIds.flatMap((id): [PersonaId, PersonaListView][] => {
+          const hit = personaRows.get(id);
+          return hit !== undefined && allowedOwnerIds.includes(hit.ownerId) ? [[id, hit]] : [];
+        }),
+      ),
+    ),
+  );
+  const seat = (userId: UserId, personaId: string | null): HumanSeatPersona => ({
+    userId,
+    personaId: personaId === null ? null : castId<PersonaId>(personaId),
+  });
+  const base = { anchorPersonaId: castId<PersonaId>("persona_alice"), runAsUserId: host, trigger: { kind: "none" } as const, voice: "anchor" as const };
+  const names = (people: readonly { readonly name: string }[] | undefined): readonly string[] | undefined => people?.map((p) => p.name);
+
+  test("every other seat persona, in seat order, with the voice human excluded and a persona-less seat skipped", async () => {
+    const out = await resolve({
+      ...base,
+      presentHumanUserIds: [host, bob, cara, dave],
+      humanSeats: [seat(cara, "persona_cara"), seat(host, "persona_alice"), seat(dave, null), seat(bob, "persona_bob")],
+    });
+
+    expect(out.active?.name).toBe("Alice");
+    expect(names(out.people)).toEqual(["Cara", "Bob"]);
+    expect(out.people?.[0]).toEqual({ name: "Cara", description: "Cara-DESC", placement: { kind: "in_prompt" } });
+  });
+
+  test("a departed owner's persona never projects (the consent gate), even when a stale seat still names it", async () => {
+    const out = await resolve({ ...base, presentHumanUserIds: [host], humanSeats: [seat(host, "persona_alice"), seat(bob, "persona_bob")] });
+
+    expect(out.people).toBeUndefined();
+  });
+
+  test("an impersonate draft makes the presser the voice, and the anchor human takes an entry", async () => {
+    const out = await resolve({
+      ...base,
+      voice: "trigger",
+      trigger: { kind: "human", userId: bob, personaId: castId<PersonaId>("persona_bob") },
+      presentHumanUserIds: [host, bob],
+      humanSeats: [seat(host, "persona_alice"), seat(bob, "persona_bob")],
+    });
+
+    expect(out.active?.name).toBe("Bob");
+    expect(names(out.people)).toEqual(["Alice"]);
+  });
+
+  test("a solo room projects no people", async () => {
+    const out = await resolve({ ...base, presentHumanUserIds: [host], humanSeats: [seat(host, "persona_alice")] });
+    const alice = { name: "Alice", description: "Alice-DESC", placement: { kind: "in_prompt" } };
+
+    expect(out).toEqual({ anchor: alice, active: alice, activeUserId: host });
   });
 });
 

@@ -120,7 +120,7 @@ function minter<P extends string>(prefix: P): () => TypeIdOf<P> {
  *     hands a member the host's identity on the wire.
  *   • `none` (deferred drain / auto turn) → the chat ANCHOR. The anchor is the chat-invariant identity (D51
  *     rider); binding to `personaIds[0]` instead would address the prompt to a presence-order-arbitrary
- *     bystander, and falling to the kit floor would address "User" in a room whose `{{user}}` is well-defined.
+ *     bystander, and falling to the kit floor would address `DEFAULT_PERSONA_NAME` in a room whose `{{user}}` is well-defined.
  *
  * THERE IS NO ABSENT ARM (owner ruling, 2026-08-07 — the `personaIds[0]` fallback is RETIRED). It used to
  * exist for trigger-less contexts (previews, host instruments) and bound `{{user}}` to "whoever joined
@@ -192,8 +192,10 @@ function assertNeverVoice(voice: never): never {
 }
 
 /** The persona half of the FOREIGN read: one consent-gated persona read over the anchor, the trigger's persona
- *  and every seat persona, then {@link voicePersonaFor}. The composition root's `resolveForeignInputs` is its
- *  one production caller. */
+ *  and every seat persona, then {@link voicePersonaFor}. Every other seat's resolved persona projects into
+ *  `people` in seat order, so the block moves only on a join, a leave, a swap or a re-anchor. Personas are
+ *  single-owned and `setActivePersona` seats only the target's own, so no two seats hold one persona. The
+ *  composition root's `resolveForeignInputs` is its one production caller. */
 export function createTurnPersonaResolver(
   resolvePersonasForParticipants: ResolvePersonasForParticipants,
 ): (
@@ -211,7 +213,16 @@ export function createTurnPersonaResolver(
     };
     const anchorOwnerId = args.anchorPersonaId === null ? null : (resolved.get(args.anchorPersonaId)?.ownerId ?? null);
     const voice = voicePersonaFor({ ...args, anchorOwnerId });
-    return { anchor: project(args.anchorPersonaId), active: project(voice.personaId), activeUserId: voice.userId };
+    const people = args.humanSeats.flatMap((seat) => {
+      const persona = seat.userId === voice.userId ? null : project(seat.personaId);
+      return persona === null ? [] : [persona];
+    });
+    return {
+      anchor: project(args.anchorPersonaId),
+      active: project(voice.personaId),
+      activeUserId: voice.userId,
+      ...(people.length > 0 ? { people } : {}),
+    };
   };
 }
 

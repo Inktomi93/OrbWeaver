@@ -14,6 +14,7 @@ import type { ContentImageRef, ContentSpan } from "@orb/kit/content";
 import { tokenizeContent } from "@orb/kit/content";
 import type { AssetId, CharacterId, ChatId, ChatTurnId, MessageId, ModelId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { executeRegexScripts } from "@orb/kit/regex";
 import { getLog } from "@orb/server/foundation/observability";
 import { describe, vi } from "vitest";
@@ -1314,6 +1315,24 @@ describe("runTurnPipeline — the wire name-stamp axis (F4)", () => {
     });
     const result = await runTurnPipeline(args);
     expect(result.request.history.find((m) => m.name !== undefined)?.name).toBe("Alex");
+  });
+
+  // A persona-less voice human's own rows must carry the same floor every other unresolved human row carries
+  // (`assembly/shape` and the macro layer both floor to it), or one prompt names the same kind of human twice.
+  test("a persona-less voice human's speakers.user is the unresolved-persona floor, not a second spelling", async () => {
+    const { args } = baseArgs({
+      connection: {
+        ...CONNECTION,
+        capability: makeCapability({
+          ...CAPABILITY,
+          turns: { assistantPrefill: false, midConversationSystem: false, historySystemRows: false, roleHandlingFloor: "none", explicitPromptCache: false },
+        }),
+      },
+      assembleContext: ctxOf({ activePersona: null, promptConfig: { ...DEFAULT_PROMPT_CONFIG, namesBehavior: "completion" } }),
+      canon: [userRow("u1")],
+    });
+    const result = await runTurnPipeline(args);
+    expect(result.request.history.find((m) => m.name !== undefined)?.name).toBe(DEFAULT_PERSONA_NAME);
   });
 });
 
