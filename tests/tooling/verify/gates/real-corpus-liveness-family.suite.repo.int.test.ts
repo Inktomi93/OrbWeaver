@@ -41,6 +41,13 @@
 // arms share one pass, rewriting arms with one overlay set share one, and the baseline measures only the arms
 // whose silence is not structural. Solo passes are the growth term: each rewriting arm that plants a
 // distinct overlay costs one program rebuild.
+//
+// THE FILE OUTLASTS THE SUPERVISOR'S NO-OUTPUT CEILING. At 347 arms (1fa08a626) the whole file ran past the
+// 1800s ceiling twice and was killed, because vitest prints a file's results only when the file ends. Per
+// batch, measured at loadavg 18-23: baseline 83s, the one 256-arm add pass 719s (47 of its arms entangled
+// and re-proved alone inside it), the 89 solo passes 418s together, none over 30s. So the overlaid-batch
+// test logs one line per settled batch: the ceiling still catches any one batch that hangs, and the file
+// stays one serial file under the ruling above.
 
 import { gate as queryBoundaryReservation } from "../../../../tooling/src/verify/gates/query-boundary-reservation.ts";
 import { gate as queryBoundaryReservationHealth } from "../../../../tooling/src/verify/gates/query-boundary-reservation-health.ts";
@@ -85,11 +92,11 @@ const ARMS: readonly RealCorpusLivenessArm[] = Object.values(CHUNKS).flat();
 
 // Base ceilings that `scaledBudget` stretches under measured load, so a contended box never reads as a
 // false RED. No quiet-box figure exists past 47 arms, so each base clears the slowest LOADED measurement
-// above on its own (baseline 151s, overlaid passes 449s) with room for the next chunk. The per-arm tests
+// above on its own (baseline 151s; overlaid passes 1137s at 347 arms) with room for the next chunk. The per-arm tests
 // carry the BATCH budget: they only read a kept verdict, but a filtered run that starts at one of them
 // proves every batch first.
 const BASELINE_BASE_MS = 300_000;
-const BATCHES_BASE_MS = 900_000;
+const BATCHES_BASE_MS = 1_500_000;
 const CONTROL_BASE_MS = 60_000;
 
 let runner: RealCorpusLivenessRunner | undefined;
@@ -146,7 +153,12 @@ test("every measured arm's policy is refusal-free and silent in its scope on the
 });
 
 test("the overlaid batches produce a verdict for every arm", { timeout: scaledBudget(BATCHES_BASE_MS) }, ({ repoRoot }) => {
-  const verdicts = liveness(repoRoot).proveAll();
+  // One line per settled batch: this test alone outlasts the supervisor's no-output ceiling (measured in the header).
+  const verdicts = liveness(repoRoot).proveAll(({ index, of, arms, ms }) => {
+    console.log(
+      `liveness batch ${String(index + 1)}/${String(of)}: ${String(arms.length)} arm(s), ${String(ms)}ms (${arms[0] ?? ""}${arms.length > 1 ? ", ..." : ""})`,
+    );
+  });
   expect([...verdicts.keys()].toSorted()).toEqual(ARMS.map((arm) => arm.policy.id).toSorted());
 });
 

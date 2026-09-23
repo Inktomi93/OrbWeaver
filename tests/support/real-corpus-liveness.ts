@@ -201,12 +201,21 @@ export interface RealCorpusLivenessRunner {
   assertBaseline: () => readonly string[];
   /** The arms `assertBaseline` measures. */
   baselineArms: () => readonly RealCorpusLivenessArm[];
-  /** Every arm's overlaid verdict, from the planned batches (`planLivenessBatches`), proved ONCE and kept. */
-  proveAll: () => ReadonlyMap<string, RealCorpusArmVerdict>;
+  /** Every arm's overlaid verdict, from the planned batches (`planLivenessBatches`), proved ONCE and kept.
+   *  `onBatch` hears each batch as it settles: the whole proof outlasts the test supervisor's no-output
+   *  ceiling, and one line per batch keeps a hung batch the only thing that ceiling can catch. */
+  proveAll: (onBatch?: (progress: LivenessBatchProgress) => void) => ReadonlyMap<string, RealCorpusArmVerdict>;
   /** One arm's verdict out of `proveAll`. */
   verdict: (arm: RealCorpusLivenessArm) => RealCorpusArmVerdict;
   /** One EXPLICIT batch, proved now and not kept — the door the runner's own controls drive. */
   proveBatch: (batch: readonly RealCorpusLivenessArm[]) => ReadonlyMap<string, RealCorpusArmVerdict>;
+}
+
+export interface LivenessBatchProgress {
+  readonly index: number;
+  readonly of: number;
+  readonly arms: readonly string[];
+  readonly ms: number;
 }
 
 type PassResult = ReturnType<typeof runPolicyPass>;
@@ -586,13 +595,16 @@ export function openRealCorpusLiveness(repoRoot: string, arms: readonly RealCorp
   };
 
   let proved: ReadonlyMap<string, RealCorpusArmVerdict> | undefined;
-  const proveAll = (): ReadonlyMap<string, RealCorpusArmVerdict> => {
+  const proveAll = (onBatch?: (progress: LivenessBatchProgress) => void): ReadonlyMap<string, RealCorpusArmVerdict> => {
     if (proved === undefined) {
       const all = new Map<string, RealCorpusArmVerdict>();
-      for (const batch of planLivenessBatches(arms)) {
+      const batches = planLivenessBatches(arms);
+      for (const [index, batch] of batches.entries()) {
+        const started = performance.now();
         for (const [id, verdict] of proveBatch(batch)) {
           all.set(id, verdict);
         }
+        onBatch?.({ index, of: batches.length, arms: batch.map((arm) => arm.policy.id), ms: Math.round(performance.now() - started) });
       }
       proved = all;
     }
