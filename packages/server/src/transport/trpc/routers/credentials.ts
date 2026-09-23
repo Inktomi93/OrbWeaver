@@ -8,14 +8,19 @@
 // is no `setActive` here; health, endpoint model listing and inspection live on the connection router (a
 // probe is a property of the row that dials, never of the key alone). `provider` is a registry id validated
 // at the domain (the id is half the AAD — an unknown id would seal a key nothing can open).
+//
+// OUTPUT: `list` and `add` parse their result through the strict `credentialViewSchema`. The domain projection
+// already drops every secret column; the parser is the second guard. An extra key fails the call as an
+// INTERNAL_SERVER_ERROR, which the ladder logs with the key names (never the values) and the formatter
+// answers with its fixed unclassified-fault message.
 
-import { providerMetadataSchema } from "@orb/contracts/credentials";
+import { credentialViewSchema, providerMetadataSchema } from "@orb/contracts/credentials";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
 
 export const credentialsRouter = t.router({
-  list: authedProcedure.query(({ ctx }) => ctx.services.credentials.list({ principal: ctx.auth })),
+  list: authedProcedure.output(z.array(credentialViewSchema)).query(({ ctx }) => ctx.services.credentials.list({ principal: ctx.auth })),
 
   /** CREDENTIAL-STORAGE-SILENT-FAIL — "can this deployment keep a key at all?", asked BEFORE one is typed.
    *  Param-free and row-free (a deployment capability, identical for every caller), so it is `authed` with no
@@ -31,6 +36,7 @@ export const credentialsRouter = t.router({
         metadata: providerMetadataSchema.optional(),
       }),
     )
+    .output(credentialViewSchema)
     .mutation(({ ctx, input }) =>
       ctx.services.credentials.add({
         principal: ctx.auth,

@@ -1,26 +1,9 @@
-// domain/credentials/contract/views — the credential read-model. CredentialView never carries a secret
-// field (ciphertext/iv/tag) or the plaintext key; toCredentialView in persistence/queries.ts is the only
-// projection that produces it. Domain-internal (client gets it by tRPC inference, not a deep import).
+// domain/credentials/contract/views — the credential read-models. `CredentialView` is a wire shape whose one
+// home is `@orb/contracts/credentials` (its strict schema is the tRPC output parser); it is re-exported here
+// type-only so the domain's verbs and service contract keep one import site. `toCredentialView` in
+// persistence/queries.ts is its only producer.
 
-import type { CredRevokedReason } from "@orb/contracts/credentials";
-import type { ProviderId } from "@orb/contracts/inference";
-import type { UserCredentialId } from "@orb/kit/ids";
-
-export interface CredentialView {
-  readonly id: UserCredentialId;
-  /** The provider REGISTRY id the key was sealed for (half the AAD). */
-  readonly provider: ProviderId;
-  /** Nullable at the column; add always writes one (default "default"). */
-  readonly label: string | null;
-  readonly revokedAt: number | null;
-  /** WHY it was revoked, so the Connections pane can say which of the three things happened instead of a
-   *  bare Revoked chip. Non-null exactly when `revokedAt` is (both are written in one statement and cleared
-   *  together) — a null here on a revoked row means a writer bypassed `setRevokedById`, and the surface
-   *  renders NOTHING rather than guessing a cause. */
-  readonly revokedReason: CredRevokedReason | null;
-  readonly createdAt: number;
-  readonly updatedAt: number;
-}
+export type { CredentialView } from "@orb/contracts/credentials";
 
 /** The DEPLOYMENT's credential-storage capability (`storageStatus`) — `false` when no `CREDENTIALS_KEY` is
  *  configured, in which case every write verb refuses (`credentials_disabled`) and the UI must refuse the
