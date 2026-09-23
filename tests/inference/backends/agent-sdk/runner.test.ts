@@ -308,6 +308,96 @@ test("a resumed turn whose saved total is unreadable records its cost as unrecor
   expect(turn.usage.costProvenance).toBe("unrecorded");
 });
 
+// ── a reply that reaches the output cap ──────────────────────────────────────────────────────────────────
+// The runtime continues a capped reply up to three times, withholding each leg's failure notice, then surfaces
+// one synthetic `max_output_tokens` frame and an `is_error` result. The live narrator turn wrote 1200 tokens
+// across four calls under a 300-token cap (turn_15, numTurns 4).
+const CAP = 300;
+const CAP_NOTICE = `API Error: Claude's response exceeded the ${CAP} output token maximum. To configure this behavior, set the CLAUDE_CODE_MAX_OUTPUT_TOKENS environment variable.`;
+const LEGS = ["Mara trims the wick and the lamp flares. ", "Wren ties the ferry off below the rocks. ", "The fog rolls in over both of them."];
+
+function cappedTurn(legs: readonly string[]): SdkStream {
+  const model = "claude-sonnet-5";
+  return streamOf([
+    { type: "system", subtype: "init", session_id: SESSION_ID, apiKeySource: "none", model },
+    ...legs.map((text) => ({
+      type: "assistant",
+      session_id: SESSION_ID,
+      parent_tool_use_id: null,
+      message: { role: "assistant", content: [{ type: "text", text }] },
+    })),
+    {
+      type: "assistant",
+      session_id: SESSION_ID,
+      parent_tool_use_id: null,
+      error: "max_output_tokens",
+      message: { model: "<synthetic>", role: "assistant", stop_reason: "stop_sequence", content: [{ type: "text", text: CAP_NOTICE }] },
+    },
+    {
+      type: "result",
+      subtype: "success",
+      session_id: SESSION_ID,
+      is_error: true,
+      duration_api_ms: 1,
+      num_turns: 4,
+      result: CAP_NOTICE,
+      stop_reason: "stop_sequence",
+      usage: { input_tokens: 1940, output_tokens: 4 * CAP, cache_read_input_tokens: 0, cache_creation_input_tokens: 75_872 },
+      modelUsage: {},
+      permission_denials: [],
+      terminal_reason: "api_error",
+    },
+  ]);
+}
+
+test("a capped reply comes back truncated with a length finish, without the runtime's notice", async () => {
+  const turn = await consumeTurnStream(
+    cappedTurn(LEGS),
+    { ...ctx("claude-sonnet-5"), configuredMaxOutputTokens: CAP },
+    createAgentSdkLog(quietLog, "claude-sub"),
+  );
+  expect(turn.reply).toBe(LEGS.join("").trim());
+  expect(turn.reply).not.toContain("output token maximum");
+  expect(turn.finishReason).toBe("length");
+  // The continuations wrote past the requested cap, and the record says so.
+  expect(turn.usage.tokensOut).toBeGreaterThan(CAP);
+  expect(turn.providerMetadata).toMatchObject({ provider: "claude-sub", outputCapReached: true, numTurns: 4 });
+});
+
+// A reply that ends inside the continuations completes normally. Live, a 400-token cap produced a 1464-token
+// reply over several calls with finish `stop`; only each capped call's `message_delta` shows the cap was hit.
+test("a reply the runtime continued past the cap and then finished records outputCapReached", async () => {
+  const model = "claude-sonnet-5";
+  const cappedLegStop = {
+    type: "stream_event",
+    session_id: SESSION_ID,
+    event: { type: "message_delta", delta: { stop_reason: "max_tokens", stop_sequence: null }, usage: { output_tokens: CAP } },
+  };
+  const frames: unknown[] = [];
+  for await (const frame of resumedTurn()) {
+    frames.push(frame);
+  }
+  const [init, ...rest] = frames;
+  const turn = await consumeTurnStream(
+    streamOf([init, cappedLegStop, ...rest]),
+    { ...ctx(model), configuredMaxOutputTokens: CAP },
+    createAgentSdkLog(quietLog, "claude-sub"),
+  );
+  expect(turn.finishReason).toBe("stop");
+  expect(turn.providerMetadata).toMatchObject({ outputCapReached: true });
+});
+
+test("a capped turn that wrote no text is still a max_output failure", async () => {
+  const error = await failureOf(cappedTurn([]), "claude-sonnet-5");
+  expect(error.kind).toBe("max_output");
+});
+
+test("a reply that ended on its own records no output-cap mark", async () => {
+  const turn = await consumeTurnStream(resumedTurn(), ctx("claude-sonnet-5"), createAgentSdkLog(quietLog, "claude-sub"));
+  expect(turn.finishReason).toBe("stop");
+  expect(turn.providerMetadata).not.toHaveProperty("outputCapReached");
+});
+
 test("a result with an empty usage records no billed tokens rather than a zero", async () => {
   const turn = await consumeTurnStream(streamOf(okTurn("claude-sonnet-5")), ctx("claude-sonnet-5"), createAgentSdkLog(quietLog, "claude-sub"));
   expect(turn.usage.tokensIn).toBeNull();

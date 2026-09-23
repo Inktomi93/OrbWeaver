@@ -174,6 +174,9 @@ const namedProviderMetadataSchema = z.discriminatedUnion("provider", [
     warmSpareClaimed: z.boolean().optional(),
     durationApiMs: z.number().optional(),
     numTurns: z.number().optional(),
+    /** A model call stopped on the output cap and the runtime continued the reply, so `tokens_out` can exceed the
+     *  requested cap; the reply is also truncated when the finish reason is `length`. Absent otherwise. */
+    outputCapReached: z.literal(true).optional(),
     // @orb-waive no-raw-id(sdkSessionId): the Anthropic Agent SDK's OWN opaque session handle, echoed back verbatim as provenance — never an orbweaver-minted brand, and structurally never a TypeID (§5.3c class 4, the `toolCallId` precedent at line ~393). Kit's `SessionId` is `TypeIdOf<"session">`, the BFF session ROW id: a different vocabulary that happens to share the word. ENDS WHEN the SDK's handle stops being a foreign opaque string.
     sdkSessionId: z.string().optional(),
     servedModel: z.string().optional(),

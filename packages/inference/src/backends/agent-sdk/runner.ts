@@ -4,6 +4,12 @@
 // fold, and the agent-sdk-only facts (the 5m/1h cache split, warm-spare, `modelUsage`, the SDK session id)
 // under `providerMetadata[<providerId>]`. Cost on a subscription is `estimated` — the SDK's `costUSD` is what
 // the turn WOULD have billed at API prices; no invoice exists.
+//
+// OUTPUT CAP: a reply that reaches `CLAUDE_CODE_MAX_OUTPUT_TOKENS` is continued by the bundled runtime up to three
+// times (a hard-coded recovery limit, measured in 0.3.280, with no env or option to change it), each call
+// re-reading the prompt. A reply that ends inside those calls completes normally, longer than the cap; one that
+// does not fails the turn, and the runner returns the text the calls wrote as a truncated reply, like every other
+// wire. Either way the turn carries `outputCapReached`, because the reply ran past the requested cap.
 
 import type {
   HookCallbackMatcher,
@@ -62,6 +68,9 @@ const STRUCTURED_MIN_TURNS = 2;
 // A TERMINAL-tool turn floors at 2 as the degrade budget: a failed stop costs a CALL, never a BEAT (D112 (2b)).
 const TERMINAL_MIN_TURNS = 2;
 const TRUNCATED_TERMINAL_REASON = "stream_truncated";
+const OUTPUT_CAP_ERROR: SDKAssistantMessageError = "max_output_tokens";
+// The Messages API's own stop word for a capped reply; the shared finish fold maps it to `length`.
+const OUTPUT_CAP_STOP_REASON = "max_tokens";
 
 function chatMaxTurns(req: AgentSdkChatRequest): number {
   const toolTurns = req.toolServer !== undefined ? 1 + (req.toolTurnLimit ?? DEFAULT_CHAT_TOOL_ROUNDS) : 1;
@@ -452,6 +461,8 @@ class TurnAccumulator {
   rateLimit: RateLimitSnapshot | null = null;
   reasoningTokens: number | null = null;
   redactedThinkingBlocks = 0;
+  /** A model call stopped on the output cap, so the runtime continued the reply (see the file header). */
+  outputCapReached = false;
   lastRetryError: SDKAssistantMessageError | undefined;
   /** The code on the runtime's synthetic API-error assistant frame, and the upstream request id it names. */
   assistantError: SDKAssistantMessageError | undefined;
@@ -564,6 +575,7 @@ class TurnAccumulator {
       servedModel: this.meta.servedModel,
       durationApiMs: this.durationApiMs,
       numTurns: this.numTurns,
+      outputCapReached: this.outputCapReached,
     });
     return {
       reply: structuredReply ?? this.reply.trim(),
@@ -630,8 +642,10 @@ function handleAssistant(acc: TurnAccumulator, message: Narrow<"assistant">): vo
   // so only the synthetic error frame that immediately precedes a failed result can classify it.
   acc.assistantError = message.error;
   acc.requestId = message.request_id ?? acc.requestId;
+  // A frame carrying an error code is the runtime's synthetic failure notice, not model output.
+  const synthetic = message.error !== undefined;
   for (const block of message.message.content) {
-    if (block.type === "text") {
+    if (block.type === "text" && !synthetic) {
       acc.reply += block.text;
     } else if (block.type === "tool_use") {
       captureTerminalCall(acc, block);
@@ -874,6 +888,12 @@ function handleResult(acc: TurnAccumulator, message: Narrow<"result">): void {
     if (!message.is_error) {
       return;
     }
+    if (acc.assistantError === OUTPUT_CAP_ERROR && acc.reply.trim().length > 0) {
+      // The reply reached the cap and the runtime gave up continuing it: keep what it wrote, truncated.
+      acc.outputCapReached = true;
+      acc.stopReason = OUTPUT_CAP_STOP_REASON;
+      return;
+    }
   }
   throw buildResultError(acc, message);
 }
@@ -937,6 +957,11 @@ function buildResultError(acc: TurnAccumulator, message: Narrow<"result">): Prov
 
 function handleStreamEvent(acc: TurnAccumulator, message: Narrow<"stream_event">): void {
   const raw = message.event;
+  // The assistant frames carry no stop reason while streaming; a leg's own stop arrives on its `message_delta`.
+  if (raw.type === "message_delta" && raw.delta.stop_reason === OUTPUT_CAP_STOP_REASON) {
+    acc.outputCapReached = true;
+    return;
+  }
   if (raw.type !== "content_block_delta") {
     return;
   }
