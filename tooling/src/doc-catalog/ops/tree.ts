@@ -1,27 +1,23 @@
-// Everything that TOUCHES the tree: git queries, document reads, the lane→path resolution, and the
-// biome-normalised JSON writer. The pure rules (lib/) take their input from here, never the reverse.
-import { createHash } from "node:crypto";
-import { existsSync, globSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { extname, join } from "node:path";
+// Everything that TOUCHES the tree: the tracked-document read, the lane→path resolution, the registry's
+// ruling anchors, and the biome-normalised JSON writer. The pure rules (lib/) take their input from here,
+// never the reverse.
+import { globSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { REPO_ROOT, runId } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { execNicedSync, execNicedSyncBuffer } from "../../_shared/proc.ts";
-import type { Doc, EvidenceSources, Lane, LaneConfig, Receipt, ReceiptEntry, ReceiptFacts } from "../contract/types.ts";
-import { countLines, frontmatterErrors, parseFrontmatter } from "../lib/frontmatter.ts";
+import { execNicedSync } from "../../_shared/proc.ts";
+import type { Doc, Lane, LaneConfig, Receipt } from "../contract/types.ts";
+import { frontmatterErrors, parseFrontmatter } from "../lib/frontmatter.ts";
 import {
   CATALOG_DIR,
-  COMMIT_RE,
   CORE_PATH_REGISTRY_PATH,
   DOC_TOOL_TREE_PREFIXES,
   LEDGER_ENTRY_BOLD_RE,
   LEDGER_ENTRY_HEADING_RE,
-  NUMERIC_HEADING_RE,
   OUTPUT_PATH,
   RECEIPTS_DIR,
-  TEXT_EVIDENCE_EXTENSIONS,
   VENDOR_PREFIX,
 } from "../lib/vocab.ts";
-import { formatMarkdown } from "./format.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:docs (node tooling/src/doc-catalog/cli.ts <verb>)");
 
@@ -31,24 +27,16 @@ export function json<T>(path: string, repoRoot = root): T {
   return JSON.parse(readFileSync(join(repoRoot, path), "utf8")) as T;
 }
 
-function sha256(content: Buffer | string): string {
-  return createHash("sha256").update(content).digest("hex");
-}
-
 /** Serialize through the repo's OWN formatter so the generated catalog is byte-stable against
  *  `pnpm format`. Formats a TEMP FILE inside docs/catalog (so biome.json's maxSize override matches)
  *  with the biome BINARY invoked directly — never `pnpm exec` + stdin: the double-hop with a
  *  synchronous `input` buffer throws ENOBUFS past ~1 MiB, and the stdin route was also the
- *  silent-empty-output path when the payload crossed `files.maxSize` (both measured 2026-08-15).
+ *  silent-empty-output path when the payload crossed `files.maxSize`.
  *
- *  THE TEMP NAME IS PER-INVOCATION (#1029). It used to be the fixed `docs/catalog/catalog.tmp.json`, so two
- *  concurrent `doc-catalog:write`/`--check` runs on one checkout wrote and formatted the SAME scratch file:
- *  each read back whatever the other had just written, and the `finally` of the first to finish deleted the
- *  second's input mid-flight. Same class as the `reports/` clobber the run-slot layout closes, one
- *  directory over — the fix is the same, a name only this run can produce. */
+ *  THE TEMP NAME IS PER-INVOCATION (#1029): two concurrent runs on one checkout must never share a
+ *  scratch file. */
 export function stableJson(value: unknown, repoRoot = root): string {
   const source = `${JSON.stringify(value, null, 2)}\n`;
-  // Stays INSIDE docs/catalog so biome.json's per-directory `files.maxSize` override still matches it.
   const tmp = join(repoRoot, `${CATALOG_DIR}/catalog.tmp.${runId(repoRoot)}.json`);
   try {
     writeFileSync(tmp, source);
@@ -65,230 +53,9 @@ export function stableJson(value: unknown, repoRoot = root): string {
   }
 }
 
-function gitOutput(args: readonly string[], cwd = root, isolateGitEnvironment = false): string | null {
-  // @orb-waive caught-failure-ownership(catch): every caller (receiptFacts) treats a git command failure as "this receipt fact is unverified", not as a tool crash — null downgrades verifiedCommitExists/IsAncestor/blob to false/null rather than aborting the whole catalog build. Ends if a caller starts treating null as "verified".
-  try {
-    return execNicedSync(
-      isolateGitEnvironment ? "env" : "git",
-      isolateGitEnvironment ? ["-u", "GIT_DIR", "-u", "GIT_WORK_TREE", "-u", "GIT_INDEX_FILE", "git", ...args] : args,
-      {
-        cwd,
-      },
-    );
-  } catch {
-    return null;
-  }
-}
-
-/** Scalar Git output is whitespace-insensitive; NUL-delimited path readers use gitOutput directly. */
-function gitResult(args: readonly string[], cwd = root, isolateGitEnvironment = false): string | null {
-  return gitOutput(args, cwd, isolateGitEnvironment)?.trim() ?? null;
-}
-
-function gitBlob(args: readonly string[], cwd = root, isolateGitEnvironment = false): Buffer | null {
-  // @orb-waive caught-failure-ownership(catch): same optional-read contract as gitOutput above — a failed verified-commit or candidate-index read returns null and the receipt stays unverified. Ends if a caller starts treating null as "verified".
-  try {
-    return execNicedSyncBuffer(
-      isolateGitEnvironment ? "env" : "git",
-      isolateGitEnvironment ? ["-u", "GIT_DIR", "-u", "GIT_WORK_TREE", "-u", "GIT_INDEX_FILE", "git", ...args] : args,
-      { cwd },
-    );
-  } catch {
-    return null;
-  }
-}
-
-/** Line counts for every tracked TEXT file — the denominator every `path:line` evidence target is
- *  bounds-checked against, resolved once per run. */
-export function localEvidenceLines(repoRoot = root, isolateGitEnvironment = false): ReadonlyMap<string, number> {
-  const paths = execNicedSync(
-    isolateGitEnvironment ? "env" : "git",
-    isolateGitEnvironment ? ["-u", "GIT_DIR", "-u", "GIT_WORK_TREE", "-u", "GIT_INDEX_FILE", "git", "ls-files", "-z"] : ["ls-files", "-z"],
-    { cwd: repoRoot },
-  )
-    .split("\0")
-    .filter((path) => path !== "" && TEXT_EVIDENCE_EXTENSIONS.has(extname(path)) && existsSync(join(repoRoot, path)));
-  return new Map(paths.map((path) => [path, countLines(readFileSync(join(repoRoot, path)))] as const));
-}
-
-/** The commit a re-attestation names (#1996). Null when HEAD does not resolve — an unborn branch or a
- *  broken checkout — which the attest verb reports rather than writing a receipt nothing can verify. */
-export function headCommit(repoRoot = root, isolateGitEnvironment = false): string | null {
-  return gitResult(["rev-parse", "HEAD"], repoRoot, isolateGitEnvironment)?.trim() ?? null;
-}
-
-/** The attestation DATE, as UTC YYYY-MM-DD. One home, so the verb's only clock read is here and the
- *  plan itself stays a pure function of its inputs. */
-export function today(): string {
-  return (new Date().toISOString().split("T")[0] ?? "") as string;
-}
-
-export function headAncestors(repoRoot = root, isolateGitEnvironment = false): ReadonlySet<string> {
-  return new Set(
-    gitResult(["rev-list", "HEAD"], repoRoot, isolateGitEnvironment)
-      ?.split("\n")
-      .filter((commit) => commit !== "") ?? [],
-  );
-}
-
-interface ReceiptFactsInput {
-  readonly entry: ReceiptEntry;
-  readonly doc: Doc;
-  readonly receiptSourcePath: string | undefined;
-  readonly candidateTouchesReceiptPair: boolean;
-  readonly candidateChangedPaths: ReadonlySet<string> | null;
-  readonly candidateEvidencePathsDifferFromIndex: ReadonlySet<string> | null;
-  readonly sources: EvidenceSources;
-  readonly repoRoot: string;
-  readonly isolateGitEnvironment?: boolean;
-}
-
-/** Paths whose candidate-index bytes differ from HEAD. Git honors a hook's temporary GIT_INDEX_FILE. */
-export function indexChangedPaths(repoRoot = root, isolateGitEnvironment = false): ReadonlySet<string> | null {
-  // @orb-waive caught-failure-ownership(catch): null means the candidate-path census is unavailable; every receipt pair is then treated as touched and must pass the exact-index proof, so failure widens verification instead of reading clean. Ends if null stops selecting every pair.
-  try {
-    return new Set(
-      execNicedSync(
-        isolateGitEnvironment ? "env" : "git",
-        isolateGitEnvironment
-          ? ["-u", "GIT_DIR", "-u", "GIT_WORK_TREE", "-u", "GIT_INDEX_FILE", "git", "diff", "--cached", "--name-only", "-z", "--"]
-          : ["diff", "--cached", "--name-only", "-z", "--"],
-        { cwd: repoRoot },
-      )
-        .split("\0")
-        .filter((path) => path !== ""),
-    );
-  } catch {
-    return null;
-  }
-}
-
-/** Paths whose worktree entries differ from the candidate index. One cached census closes typed evidence
- *  without spawning one Git process per evidence target. */
-export function worktreeIndexChangedPaths(repoRoot = root, isolateGitEnvironment = false): ReadonlySet<string> | null {
-  const output = gitOutput(["diff-files", "--name-only", "-z", "--"], repoRoot, isolateGitEnvironment);
-  return output === null ? null : new Set(output.split("\0").filter((path) => path !== ""));
-}
-
-/** Exact candidate-index versus working-file comparison by Git blob OID; avoids capturing large blobs. */
-export function indexFileMatchesWorkingTree(path: string, repoRoot = root, isolateGitEnvironment = false): boolean {
-  const indexOid = gitResult(["rev-parse", `:${path}`], repoRoot, isolateGitEnvironment);
-  const workingOid = gitResult(["hash-object", path], repoRoot, isolateGitEnvironment);
-  return indexOid !== null && indexOid === workingOid;
-}
-
-/** Tracked files in the candidate index below one path; null is an unreadable candidate, never empty. */
-export function indexTrackedPaths(path: string, repoRoot = root, isolateGitEnvironment = false): ReadonlySet<string> | null {
-  const output = gitResult(["ls-files", "-z", "--", path], repoRoot, isolateGitEnvironment);
-  return output === null ? null : new Set(output.split("\0").filter((candidate) => candidate !== ""));
-}
-
-function indexCarriesCurrentPair(input: ReceiptFactsInput): boolean {
-  const { doc, entry, isolateGitEnvironment, receiptSourcePath, repoRoot } = input;
-  if (receiptSourcePath === undefined) {
-    return false;
-  }
-  const receipt = readFileSync(join(repoRoot, receiptSourcePath));
-  const documentBlob = gitBlob(["show", `:${entry.path}`], repoRoot, isolateGitEnvironment);
-  const receiptBlob = gitBlob(["show", `:${receiptSourcePath}`], repoRoot, isolateGitEnvironment);
-  return documentBlob !== null && receiptBlob !== null && sha256(documentBlob) === doc.sha256 && sha256(receiptBlob) === sha256(receipt);
-}
-
-function receiptFactsAtRoot(input: ReceiptFactsInput): ReceiptFacts {
-  const {
-    candidateChangedPaths,
-    candidateEvidencePathsDifferFromIndex,
-    candidateTouchesReceiptPair,
-    doc,
-    entry,
-    isolateGitEnvironment,
-    receiptSourcePath,
-    repoRoot,
-    sources,
-  } = input;
-  const commit = entry.verifiedCommit;
-  const verifiedCommitExists =
-    commit !== null && COMMIT_RE.test(commit) && gitResult(["cat-file", "-e", `${commit}^{commit}`], repoRoot, isolateGitEnvironment) !== null;
-  const verifiedCommitIsAncestor =
-    verifiedCommitExists && gitResult(["merge-base", "--is-ancestor", commit as string, "HEAD"], repoRoot, isolateGitEnvironment) !== null;
-  const blob = verifiedCommitExists ? gitBlob(["show", `${commit}:${entry.path}`], repoRoot, isolateGitEnvironment) : null;
-  const verifiedBlobSha256 = blob === null ? null : sha256(blob);
-  const verifiedBlobCanonicalSha256 = blob === null ? null : canonicalSha256(blob.toString("utf8"));
-  return {
-    currentSha256: doc.sha256,
-    currentCanonicalSha256: doc.canonicalSha256,
-    verifiedBlobCanonicalSha256,
-    verifiedBlobSha256,
-    currentReceiptSnapshotExists:
-      (entry.verifiedSha256 !== verifiedBlobSha256 || candidateTouchesReceiptPair) && receiptSourcePath !== undefined && indexCarriesCurrentPair(input),
-    candidateTouchesReceiptPair,
-    candidateChangedPaths,
-    candidateEvidencePathsDifferFromIndex,
-    verifiedCommitExists,
-    verifiedCommitIsAncestor,
-    localEvidence: sources.localEvidence,
-    lawSections: sources.lawSections,
-    provenanceCommits: sources.ancestors,
-    rulingAnchors: sources.rulingAnchors,
-  };
-}
-
-export function receiptFacts(
-  entry: ReceiptEntry,
-  doc: Doc,
-  receiptSource: {
-    readonly path: string | undefined;
-    readonly candidateTouchesPair: boolean;
-    readonly candidateChangedPaths: ReadonlySet<string> | null;
-    readonly candidateEvidencePathsDifferFromIndex: ReadonlySet<string> | null;
-    readonly repoRoot?: string;
-    readonly isolateGitEnvironment?: boolean;
-  },
-  sources: EvidenceSources,
-): ReceiptFacts {
-  return receiptFactsAtRoot({
-    entry,
-    doc,
-    receiptSourcePath: receiptSource.path,
-    candidateTouchesReceiptPair: receiptSource.candidateTouchesPair,
-    candidateChangedPaths: receiptSource.candidateChangedPaths,
-    candidateEvidencePathsDifferFromIndex: receiptSource.candidateEvidencePathsDifferFromIndex,
-    sources,
-    repoRoot: receiptSource.repoRoot ?? root,
-    isolateGitEnvironment: receiptSource.isolateGitEnvironment ?? false,
-  });
-}
-
-/** Isolated-Git proof seam for the candidate-index snapshot contract; production always uses `root`. */
-export function __receiptFactsForTest(
-  input: Omit<ReceiptFactsInput, "candidateChangedPaths" | "candidateEvidencePathsDifferFromIndex" | "candidateTouchesReceiptPair">,
-): ReceiptFacts {
-  const changed = indexChangedPaths(input.repoRoot, input.isolateGitEnvironment);
-  return receiptFactsAtRoot({
-    ...input,
-    candidateChangedPaths: changed,
-    candidateTouchesReceiptPair:
-      changed === null || changed.has(input.entry.path) || (input.receiptSourcePath !== undefined && changed.has(input.receiptSourcePath)),
-    candidateEvidencePathsDifferFromIndex: worktreeIndexChangedPaths(input.repoRoot, input.isolateGitEnvironment),
-  });
-}
-
-/** The sha256 of a document's CANONICAL form — the bytes the repo's own markdown formatter would produce.
- *  Null when the formatter refuses (the document has a defect like a split code span, #2067/#2235) or
- *  when the format throws unexpectedly. */
-function canonicalSha256(content: string): string | null {
-  // @orb-waive caught-failure-ownership(catch): a formatter crash is not a catalog crash — the canonical arm is unavailable and only the raw hash decides. Ends if null stops meaning "unavailable".
-  try {
-    const { output, refusal } = formatMarkdown(content);
-    return refusal === null ? sha256(output) : null;
-  } catch {
-    return null;
-  }
-}
-
 /** The catalog's corpus = TRACKED markdown under docs/ (git, not a glob — an untracked draft is not a
  *  document, and a deleted-but-unstaged one is) MINUS the trees the `doc` tool governs: those carry no
- *  lane row and no attestation by design (`lib/vocab.ts#DOC_TOOL_TREES`), and `pnpm check:agents` is their checker. */
+ *  lane row by design (`lib/vocab.ts#DOC_TOOL_TREES`), and `pnpm check:agents` is their checker. */
 function trackedDocs(repoRoot = root, isolateGitEnvironment = false): readonly string[] {
   return execNicedSync(
     isolateGitEnvironment ? "env" : "git",
@@ -304,15 +71,10 @@ function trackedDocs(repoRoot = root, isolateGitEnvironment = false): readonly s
 
 export function documents(repoRoot = root, isolateGitEnvironment = false): readonly Doc[] {
   return trackedDocs(repoRoot, isolateGitEnvironment).map((path) => {
-    const content = readFileSync(join(repoRoot, path));
-    const frontmatter = parseFrontmatter(content.toString("utf8"), path);
+    const frontmatter = parseFrontmatter(readFileSync(join(repoRoot, path), "utf8"), path);
     const vendor = path.startsWith(VENDOR_PREFIX);
     return {
       path,
-      lines: countLines(content),
-      bytes: content.length,
-      sha256: sha256(content),
-      canonicalSha256: null,
       frontmatter: {
         ...frontmatter,
         malformed: vendor ? false : frontmatter.malformed,
@@ -322,42 +84,9 @@ export function documents(repoRoot = root, isolateGitEnvironment = false): reado
   });
 }
 
-/** Enrich documents with their CANONICAL sha256 — the hash of the markdown-formatted bytes. Expensive
- *  (runs the remark formatter over every document) so it is a separate step from `documents()`, called
- *  only by the paths that need the canonical comparison (catalog generation and receipt truth checks).
- *  When `only` is provided, only the named paths are enriched — the rest keep `canonicalSha256: null`. */
-export function withCanonicalHashes(docs: readonly Doc[], repoRoot = root, only?: ReadonlySet<string>): readonly Doc[] {
-  return docs.map((doc) => {
-    if (only !== undefined && !only.has(doc.path)) {
-      return doc;
-    }
-    const content = readFileSync(join(repoRoot, doc.path), "utf8");
-    return { ...doc, canonicalSha256: canonicalSha256(content) };
-  });
-}
-
-/** `<law doc> §<n>` targets resolve against ACTIVE core law only, and must be UNAMBIGUOUS — a doc with
- *  two `## 3.` headings makes every `§3` citation into it un-anchorable. */
-export function stableLawSections(docs: readonly Doc[], repoRoot = root): ReadonlyMap<string, ReadonlyMap<string, number>> {
-  const sections = new Map<string, ReadonlyMap<string, number>>();
-  for (const doc of docs) {
-    if (!doc.path.startsWith("docs/architecture/core/") || doc.frontmatter.fields["kind"] !== "law" || doc.frontmatter.fields["status"] !== "active") {
-      continue;
-    }
-    const counts = new Map<string, number>();
-    for (const line of readFileSync(join(repoRoot, doc.path), "utf8").split("\n")) {
-      const section = NUMERIC_HEADING_RE.exec(line)?.[1];
-      if (section !== undefined) {
-        counts.set(section, (counts.get(section) ?? 0) + 1);
-      }
-    }
-    sections.set(doc.path, counts);
-  }
-  return sections;
-}
-
 /** D-number anchors in the ledger. A `## D<n>` heading immediately followed by its own `- **D<n>` bold
- *  restatement is ONE anchor, not two — the ledger's house entry shape. */
+ *  restatement is ONE anchor, not two — the ledger's house entry shape. The `doc` tool reads this to keep
+ *  a new ADR from colliding with a row that has not migrated. */
 export function stableRulingAnchors(repoRoot = root): ReadonlyMap<string, number> {
   const counts = new Map<string, number>();
   let headedRuling: string | undefined;
@@ -387,21 +116,21 @@ export function stableRulingAnchors(repoRoot = root): ReadonlyMap<string, number
   return counts;
 }
 
-function pathsForLane(lane: Lane): ReadonlySet<string> {
-  const included = new Set(lane.patterns.flatMap((pattern) => globSync(pattern, { cwd: root })));
+function pathsForLane(lane: Lane, repoRoot: string): ReadonlySet<string> {
+  const included = new Set(lane.patterns.flatMap((pattern) => globSync(pattern, { cwd: repoRoot })));
   for (const pattern of lane.excludePatterns ?? []) {
-    for (const path of globSync(pattern, { cwd: root })) {
+    for (const path of globSync(pattern, { cwd: repoRoot })) {
       included.delete(path);
     }
   }
   return included;
 }
 
-/** EXACTLY one lane owns each document (D139). Zero or two owners is a config error, not a warning. */
-export function laneAssignments(config: LaneConfig, docs: readonly Doc[]): ReadonlyMap<string, Lane> {
+/** EXACTLY one lane owns each document. Zero or two owners is a config error, not a warning. */
+export function laneAssignments(config: LaneConfig, docs: readonly Doc[], repoRoot = root): ReadonlyMap<string, Lane> {
   const matches = new Map<string, Lane[]>();
   for (const lane of config.lanes) {
-    for (const path of pathsForLane(lane)) {
+    for (const path of pathsForLane(lane, repoRoot)) {
       matches.set(path, [...(matches.get(path) ?? []), lane]);
     }
   }

@@ -6,6 +6,7 @@ import { DOC_TOOL_TREES } from "#doc-catalog";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { DESIGN_FILE } from "../lib/indexes.ts";
 import { basenameOf, numberedName, parseNumberedName } from "../lib/names.ts";
+import { nextFreeRulingId } from "../lib/rules.ts";
 import { adrTemplate, planTemplate } from "../lib/templates.ts";
 import { regenerateIndexes } from "./indexes.ts";
 import type { WriteOutcome } from "./items.ts";
@@ -24,18 +25,13 @@ function titleFrom(slug: string, title: string | null): string {
 /** The next free ADR id: one past the highest id in the registry or the ADR tree, skipping the reserved
  *  window — the union is what keeps a new decision from colliding with a row that has not migrated yet. */
 export function nextAdrId(repoRoot = root): number {
-  const { registryIds, reserved } = registryFacts(repoRoot);
   const adrIds = governedPaths(repoRoot)
     .filter((path) => path.startsWith(DOC_TOOL_TREES.adr))
     .flatMap((path) => {
       const name = parseNumberedName(basenameOf(path));
       return name === null ? [] : [name.id];
     });
-  let next = Math.max(0, ...registryIds, ...adrIds) + 1;
-  if (reserved !== null && next >= reserved.lo && next <= reserved.hi) {
-    next = reserved.hi + 1;
-  }
-  return next;
+  return nextFreeRulingId(registryFacts(repoRoot).registryIds, adrIds);
 }
 
 export function newAdr(slug: string, title: string | null, repoRoot = root, date = today()): WriteOutcome {

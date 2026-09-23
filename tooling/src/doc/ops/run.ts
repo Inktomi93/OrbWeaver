@@ -19,13 +19,20 @@ import { setStatus } from "./status.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm doc <verb>");
 
+/** ONE truthful outcome: the written paths first, then the skips, then the refusals. "NOTHING WRITTEN" is
+ *  said only when nothing was; a refusal that arrives beside writes (a failed landing commit) is reported
+ *  as exactly that. */
 function report(verb: string, outcome: WriteOutcome): ExitCode {
-  if (outcome.refusals.length > 0) {
-    warn(`doc ${verb} — NOTHING WRITTEN; ${String(outcome.refusals.length)} refusal(s):\n${outcome.refusals.map((line) => `  ${line}`).join("\n")}`);
-    return EXIT.violations;
-  }
   for (const path of outcome.written) {
     print(path);
+  }
+  for (const line of outcome.skipped ?? []) {
+    print(`skipped ${line}`);
+  }
+  if (outcome.refusals.length > 0) {
+    const banner = outcome.written.length === 0 ? "NOTHING WRITTEN" : `wrote ${String(outcome.written.length)} file(s), then refused`;
+    warn(`doc ${verb} — ${banner}; ${String(outcome.refusals.length)} refusal(s):\n${outcome.refusals.map((line) => `  ${line}`).join("\n")}`);
+    return EXIT.violations;
   }
   print(`doc ${verb} — wrote ${String(outcome.written.length)} file(s)`);
   return EXIT.clean;

@@ -31,10 +31,14 @@ test("a file outside the grammar, or with an unknown kind or state, is not an it
   expect(parseItem(PATH, "# no block\n")).toBeNull();
 });
 
-test("the blocker grammar: owner, on <id>, wake <command>; anything else is no blocker", () => {
+test("the blocker grammar is closed: owner, on <id>, wake path|gone <repo path>; a shell command is no blocker", () => {
   expect(parseBlocker("owner")).toEqual({ kind: "owner" });
   expect(parseBlocker("on 12")).toEqual({ kind: "on", id: 12 });
-  expect(parseBlocker("wake test -f reports/done")).toEqual({ kind: "wake", command: "test -f reports/done" });
+  expect(parseBlocker("wake path reports/done.json")).toEqual({ kind: "wake", presence: "path", path: "reports/done.json" });
+  expect(parseBlocker("wake gone docs/vendor")).toEqual({ kind: "wake", presence: "gone", path: "docs/vendor" });
+  expect(parseBlocker("wake test -f reports/done")).toBeNull();
+  expect(parseBlocker("wake path ../outside")).toBeNull();
+  expect(parseBlocker("wake path /etc/passwd")).toBeNull();
   expect(parseBlocker("waiting on nate")).toBeNull();
 });
 

@@ -1,131 +1,26 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "lane": "root-operational",
-  "issue": 8,
   "entries": [
     {
       "path": "docs/Mission.md",
-      "assignedSha256": "7d38f28a537e1c5f72f260e36a0e2c44818349ec7c7a3607ab7f03e540e248f7",
-      "disposition": "current",
-      "authority": "normative",
-      "fullRead": true,
-      "verifiedSha256": "7d38f28a537e1c5f72f260e36a0e2c44818349ec7c7a3607ab7f03e540e248f7",
-      "verifiedCommit": "ed99947358e8884cb7050971c424cfdfb9a19476",
-      "verifiedAt": "2026-09-19",
-      "evidence": ["docs/Mission.md:1", "git log --oneline -5 -- docs", "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"],
-      "claims": [
-        {
-          "claim": "Durable truth is in Git.",
-          "evidence": [
-            {
-              "kind": "ruling",
-              "target": "D139"
-            }
-          ]
-        }
-      ],
-      "summary": "Full-read current authority; fact-check receipt refreshed against current main.",
-      "verifiedCanonicalSha256": "7d38f28a537e1c5f72f260e36a0e2c44818349ec7c7a3607ab7f03e540e248f7"
+      "authority": "normative"
     },
     {
       "path": "docs/Qwen_Offline_Investigation.md",
-      "assignedSha256": "d6fd2acdf31c065758f3e83d8d70cc36d9fb696e997abe380db9f8e9b4e9654d",
-      "disposition": "archive",
-      "authority": "historical",
-      "fullRead": true,
-      "verifiedSha256": "d6fd2acdf31c065758f3e83d8d70cc36d9fb696e997abe380db9f8e9b4e9654d",
-      "verifiedCommit": "3cd7306d3e85e17c31f46c7cd46207cf2a121c1d",
-      "verifiedAt": "2026-08-30",
-      "evidence": [
-        "docs/Qwen_Offline_Investigation.md:1",
-        "git log --oneline -5 -- docs",
-        "docs/architecture/core/Documentation-Law.md: catalog receipt requirements",
-        "docs/Qwen_Offline_Investigation.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)"
-      ],
-      "summary": "Full-read historical operational artifact retained for provenance; not current build authority."
+      "authority": "historical"
     },
     {
       "path": "docs/barrel-star-reexport-residue.md",
-      "assignedSha256": "82e394e183b575ad8d0ff6b27ad271fa2f466dc155390ceb4be86e4d048f30a4",
-      "disposition": "archive",
-      "authority": "historical",
-      "fullRead": true,
-      "verifiedSha256": "82e394e183b575ad8d0ff6b27ad271fa2f466dc155390ceb4be86e4d048f30a4",
-      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
-      "verifiedAt": "2026-08-15",
-      "evidence": [
-        "docs/barrel-star-reexport-residue.md:1 full read; current edit is a provenance/lifecycle or repaired historical citation, not present implementation authority",
-        "docs/architecture/core/Core-Path-Registry.md:523-533 (D139-D141 authority boundary)",
-        "git:68271889b1746b513defea44b0787bab7a89176f contains the exact archived blob"
-      ],
-      "summary": "Full-read historical artifact retained for provenance; relocated citations were semantically re-derived and it is not current work or implementation authority."
+      "authority": "historical"
     },
     {
       "path": "docs/client-smalls-lane.md",
-      "assignedSha256": "a4b39ae9943cb314d80bf059b40a9f7c4f191943688b90c7eb236ff7490c98f3",
-      "disposition": "archive",
-      "authority": "historical",
-      "fullRead": true,
-      "verifiedSha256": "a4b39ae9943cb314d80bf059b40a9f7c4f191943688b90c7eb236ff7490c98f3",
-      "verifiedCommit": "e9fa8b10bf6cb8ebbcdebef9786cd71c8d13b6a8",
-      "verifiedAt": "2026-08-15",
-      "evidence": ["docs/client-smalls-lane.md:1", "git log --oneline -5 -- docs", "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"],
-      "summary": "Full-read historical operational artifact retained for provenance; not current build authority."
+      "authority": "historical"
     },
     {
       "path": "docs/retro-workboard.md",
-      "assignedSha256": "89e916292c4ab636921e13d782c03c90d155084cf23961f002bee6559f2bc597",
-      "disposition": "current",
-      "authority": "operational",
-      "fullRead": true,
-      "verifiedSha256": "89e916292c4ab636921e13d782c03c90d155084cf23961f002bee6559f2bc597",
-      "verifiedCommit": "1f5e25c00ec2ee921bc70591bf84e8268b255030",
-      "verifiedAt": "2026-08-30",
-      "evidence": [
-        "docs/retro-workboard.md:1-45 full read; recovery steps, authority map, hard stops, and direct Claude-rule import routing checked against D139-D140 and Project 1",
-        "docs/architecture/proposed/INDEX.md:17-37 maps each unfinished committed program to its Project sprint",
-        "git:039e33ca3afee08a73754bd0a9ee3d5958d74fe4 contains the exact recovery-index blob",
-        "docs/retro-workboard.md: re-attested at 3cd7306d3e85e17c31f46c7cd46207cf2a121c1d — retired to docs/history per Documentation-Law §Relocation & retirement (2026-08-30 retirement pass)",
-        "docs/retro-workboard.md: re-attested at 1f5e25c00ec2ee921bc70591bf84e8268b255030 — the #876/#873 citer sweep: doc-path repoints from the tooling-package → Core-Tooling-Law.md and density-pass-spec → UI-Density-Law.md relocations and the seven mock-set retirements. Comment/link lines only; no claim moved."
-      ],
-      "claims": [
-        {
-          "claim": "GitHub Project 1 owns mutable work; this file is only the cold-start recovery index.",
-          "evidence": [
-            {
-              "kind": "ruling",
-              "target": "D140"
-            },
-            {
-              "kind": "issue",
-              "target": "#1"
-            }
-          ]
-        },
-        {
-          "claim": "Committed future programs route through the proposed index and their owning sprint issues.",
-          "evidence": [
-            {
-              "kind": "issue",
-              "target": "#4"
-            },
-            {
-              "kind": "ruling",
-              "target": "D139"
-            }
-          ]
-        },
-        {
-          "claim": "Verification tiers are defined by the executable registry rather than prose folklore.",
-          "evidence": [
-            {
-              "kind": "code",
-              "target": "tooling/src/verify/lib/registry.ts:228"
-            }
-          ]
-        }
-      ],
-      "summary": "Short operational recovery index: Project lifecycle, durable authority homes, agent-process routing, and hard stops only; no backlog or mirrored status."
+      "authority": "operational"
     }
   ]
 }

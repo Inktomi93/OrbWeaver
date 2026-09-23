@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-10
+updated: 2026-09-22
 ---
 
 # Documentation & Comments Law
@@ -147,22 +147,20 @@ Change code → fix or delete its comment **in the same change**. A lying commen
 - **Frontmatter (required on authored docs, deliberately minimal):**
   ```yaml
   ---
-  kind: law | spec | reference | history | design | review | artifact | vendor | runbook | program | handoff | research | index | adr | plan | bug | work | decision | tooling
-  status: active | draft | parked | complete | superseded | archived | snapshot | open | doing | blocked | done
+  kind: law | spec | reference | history | design | review | artifact | vendor | runbook | program | handoff | research | index
+  status: active | draft | parked | complete | superseded | archived | snapshot
   supersedes: <path>   # optional
   updated: YYYY-MM-DD
   ---
   ```
-  The `adr`/`plan` kinds, the four work-item kinds, the four item states and the item keys (`superseded-by`, `priority`, `area`, `lane`, `blocked`, `plan`, `evidence`, `reviewed`) belong to the `doc` tool's trees (`docs/adr/`, `docs/plans/`, `docs/work/`, `docs/law/`), which `pnpm check:agents` checks and this catalog does not index — the design is `docs/plans/doc-system/design.md`, the ruling `docs/adr/0164-docs-plans-adrs.md`.
-  Vendor mirrors retain upstream frontmatter verbatim; their catalog receipt carries Orbweaver lifecycle/provenance. Do NOT grow the authored schema casually — every field is corpus-wide maintenance. `tags:`/`owner:`/`toc:` stay rejected: retrieval uses headings/catalog search, ownership uses CODEOWNERS + GitHub, and mutable state belongs in Project 1. A new field enters only through `tooling/src/doc-catalog/lib/frontmatter.ts` validation with a ledgered reason.
+  That is the LEGACY tree's vocabulary. The `doc` tool's trees (`docs/adr/`, `docs/plans/`, `docs/work/`, `docs/law/`) carry their own — the `adr` and `plan` kinds, the four work-item kinds and states, and the item keys — validated by `tooling/src/doc/lib/rules.ts` through `pnpm check:agents`, never by this catalog, which does not index them; the design is `docs/plans/doc-system/design.md`, the ruling `docs/adr/0164-docs-plans-adrs.md`.
+  Vendor mirrors retain upstream frontmatter verbatim; their inventory row carries the `vendor` authority. Do NOT grow the authored schema casually — every field is corpus-wide maintenance. `tags:`/`owner:`/`toc:` stay rejected: retrieval uses headings/catalog search, ownership uses CODEOWNERS + GitHub, and mutable state belongs in Project 1. A new field enters only through `tooling/src/doc-catalog/lib/frontmatter.ts` validation with a ledgered reason.
 
-### Catalog and fact-check receipts (D139)
+### The legacy inventory (D139, amended)
 
-- **Every tracked Markdown document has exactly one lane and receipt row.** `docs/catalog/lanes.json` owns the non-overlapping assignment; `docs/catalog/receipts/*.json` owns the durable review result; `docs/catalog/catalog.json` is generated and disposable.
-- **A completed receipt is a claim against exact bytes.** It requires `fullRead: true`, the document SHA-256, a full verification commit, verification date, evidence, authority class, summary, and disposition. Any content edit invalidates it by hash; re-read and re-verify before refreshing the receipt.
-- **Fact-check means current evidence, not plausible prose.** Verify live claims against current code, types, tests, gates, git history, local links, cited sources, and the D-ledger as applicable. Existence, filename, frontmatter, an old review, or a passing formatter is not truth evidence.
-- **Migration debt only decreases.** `docs/catalog/state.json` ratchets pending receipts and frontmatter defects. A new document must enter its lane and be verified in the same change; it may not raise the floor. `pnpm doc-catalog:sync` adds a missing row, `pnpm doc-catalog:ratchet` lowers proven debt, and `pnpm check:doc-catalog` validates the whole corpus.
-- **GitHub owns the lifecycle, git owns the durable result.** Issue #1 and its sub-issues carry lane status, dependencies, review, and verification progress. Receipts link the evidence; prose does not mirror issue status. No GitHub Wiki.
+- **Every tracked Markdown document under the legacy tree has exactly one lane and one authority row.** `docs/catalog/lanes.json` owns the non-overlapping assignment; `docs/catalog/receipts/*.json` carries one `{ path, authority }` row per document — the human classification the citation gates read (`normative`/`current-reference`/`operational` = law, `design` = design); `docs/catalog/catalog.json` is the generated inventory (path, lane, kind, status, authority) and disposable.
+- **Nothing in the inventory is a content hash.** The hash-bound attestation (a SHA per document, a verification commit, prose evidence, the pending ratchet) is removed by owner ruling — it churned on every edit — so a prose edit or a review-date bump changes nothing under `docs/catalog/`; a document added, removed, re-kinded or reclassified regenerates the inventory with `pnpm doc-catalog:write`. Freshness is the `doc` tool's two tiers (`docs/adr/0164-docs-plans-adrs.md`): hard citation gates, and `pnpm doc due` as a warning.
+- **Frontmatter debt only decreases.** `docs/catalog/state.json` ratchets missing, invalid and malformed frontmatter. `pnpm doc-catalog:sync` adopts a new document as `unclassified`, `pnpm doc-catalog:ratchet` lowers proven debt, and `pnpm check:doc-catalog` validates the whole legacy corpus. The `doc` tool's trees are outside it.
 
 ### Markdown construct verdicts (machine-parseability + token cost)
 
@@ -195,7 +193,7 @@ Change code → fix or delete its comment **in the same change**. A lying commen
 ## Enforcement (what makes this law)
 
 - `pnpm format:docs` / `check:docs` — compact tables + frontmatter (mechanics in `Core-Docs-Formatting-Law.md`).
-- `pnpm check:doc-catalog` — exact document↔lane↔receipt coverage, hash freshness, receipt schema, generated catalog, and monotonic migration floors.
+- `pnpm check:doc-catalog` — exact document↔lane↔authority coverage over the legacy tree, the generated inventory, and the monotonic frontmatter-debt floor. No content hash.
 - `pd-citation-integrity` — every in-code `FLAG[PD-n]` ↔ a registry row.
 - `dangling-doc-cite` — a source COMMENT naming a `docs/**.md` that does not exist is RED. The backstop that makes §Relocation step 2 unskippable: the next archival pass structurally cannot leave a lie. Its twin `dangling-refs` owns the DOCS side (gate descriptors + markdown links + backtick path/symbol cites in `core/`).
 - Structural gates + a standing review rule: an inconsistent comment or doc is a **defect**, not a nit. The decision procedure in §Code comments is the review checklist.

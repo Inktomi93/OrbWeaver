@@ -15,7 +15,7 @@ export type {
   RulingRange,
   WorkItem,
 } from "./contract/types.ts";
-export { closesTrailer, driftLines, wakeCommands } from "./lib/drift.ts";
+export { closesTrailer, driftLines, wakeConditions } from "./lib/drift.ts";
 export type { DueDoc } from "./lib/due.ts";
 export { changesFromLog, describedDoc, dueDocs, earliestUpdated } from "./lib/due.ts";
 export { renderFrontmatter, sectionsOf, splitDocument, titleOf, withFields } from "./lib/frontmatter-write.ts";
@@ -25,13 +25,13 @@ export { applyPatch, itemShapeProblems, parseBlocker, parseItem } from "./lib/it
 export { adrSlug, parseRegistry, renderAdr, reservedRange, withoutRulings } from "./lib/ledger.ts";
 export { numberedName, padId, parseNumberedName, slugify } from "./lib/names.ts";
 export { parseDocCommand, USAGE } from "./lib/parse.ts";
-export { docProblems, KIND_RULES, LEGACY_ROOTS } from "./lib/rules.ts";
+export { docProblems, KIND_RULES, LEGACY_ROOTS, nextFreeRulingId } from "./lib/rules.ts";
 export { adrTemplate, itemTemplate, planTemplate } from "./lib/templates.ts";
 export { archive } from "./ops/archive.ts";
 export { drift, driftFacts, overview, overviewLines } from "./ops/board.ts";
 export { docFileCount, docLayerProblems } from "./ops/check.ts";
 export { regenerateIndexes } from "./ops/indexes.ts";
-export type { WriteOutcome } from "./ops/items.ts";
+export type { LandOutcome, WriteOutcome } from "./ops/items.ts";
 export { landItems, landMerged, loadItems, newItem, setItems } from "./ops/items.ts";
 export type { MigrationPlan } from "./ops/migrate-ledger.ts";
 export { migrateLedger, planMigration } from "./ops/migrate-ledger.ts";

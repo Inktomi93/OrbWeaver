@@ -2,10 +2,10 @@
 // empty column is a fact and not an omission) and `drift` (the orchestrator nag over resolved git facts).
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { DriftFacts, WorkItem } from "../contract/types.ts";
-import { closesTrailer, driftLines, wakeCommands } from "../lib/drift.ts";
+import { closesTrailer, driftLines, wakeConditions } from "../lib/drift.ts";
 import { padId } from "../lib/names.ts";
 import { loadItems } from "./items.ts";
-import { recentMainCommits, root, unmergedBranches, wakeMet, worktreeBranches } from "./tree.ts";
+import { pathExists, recentMainCommits, root, unmergedBranches, worktreeBranches } from "./tree.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm doc <overview|drift>");
 
@@ -55,9 +55,10 @@ export function overview(repoRoot = root): readonly string[] {
 
 export function driftFacts(repoRoot = root): DriftFacts {
   const items = loadItems(repoRoot);
+  // A wake condition is a tree fact (a path present or gone), never something to run.
   const woken = new Set<number>();
-  for (const [id, command] of wakeCommands(items)) {
-    if (wakeMet(command, repoRoot)) {
+  for (const [id, condition] of wakeConditions(items)) {
+    if (pathExists(condition.path, repoRoot) === (condition.presence === "path")) {
       woken.add(id);
     }
   }

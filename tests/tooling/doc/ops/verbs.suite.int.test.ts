@@ -100,6 +100,16 @@ test("review sets updated on a glob of docs in one write, and index regenerates 
   expect(regenerateIndexes(root)).toEqual([]);
 });
 
+test("index deletes a plan's tasks.md once its last item leaves the plan (F11)", async ({ plantedTree }) => {
+  const root = await plantedTree({});
+  newPlan("p", "P", root, TODAY);
+  newItem({ title: "Task", kind: "work", priority: null, area: null, plan: "p", lane: null }, root, TODAY);
+  expect(existsSync(join(root, "docs/plans/p/tasks.md"))).toBe(true);
+  const moved = setItems([1], { state: "open", plan: null }, root, TODAY);
+  expect(moved.written).toContain("docs/plans/p/tasks.md");
+  expect(existsSync(join(root, "docs/plans/p/tasks.md"))).toBe(false);
+});
+
 test("archive moves a finished plan and its done items into the dated archive folder and rewrites the old path everywhere tracked", async ({ plantedTree }) => {
   const root = await plantedTree({ "packages/kit/src/x.ts": "// See docs/plans/p/design.md for the shape.\nexport const x = 1;\n" });
   const { execFixtureGit } = await import("../../../../tooling/src/_shared/git-fixture.ts");

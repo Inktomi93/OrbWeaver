@@ -11,17 +11,23 @@ import { closesTrailer } from "../lib/drift.ts";
 import { allItems } from "../lib/generated.ts";
 import { DESIGN_FILE } from "../lib/indexes.ts";
 import { applyPatch, itemShapeProblems, nextItemId, parseItem } from "../lib/items.ts";
-import { numberedName, slugify } from "../lib/names.ts";
+import { ID_WIDTH, numberedName, slugify } from "../lib/names.ts";
 import { itemTemplate } from "../lib/templates.ts";
 import { regenerateIndexes } from "./indexes.ts";
 import { commitOnMain, commitPaths, governedPaths, headCommit, isMainBranch, mergedCommits, readDoc, root, today, writeDoc } from "./tree.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm doc <item|set|land>");
 
-/** The outcome every write verb reports: what it wrote, or why it wrote nothing. */
+/** The outcome every write verb reports: what it wrote, or why it wrote nothing. A landing verb also
+ *  names what it SKIPPED (an item already done), which is neither a write nor a refusal. */
 export interface WriteOutcome {
   readonly written: readonly string[];
   readonly refusals: readonly string[];
+  readonly skipped?: readonly string[];
+}
+
+export interface LandOutcome extends WriteOutcome {
+  readonly skipped: readonly string[];
 }
 
 export function loadItems(repoRoot = root): readonly WorkItem[] {
@@ -99,41 +105,72 @@ export function setItems(ids: readonly number[], patch: ItemPatch, repoRoot = ro
   return { written: [...writes.map((write) => write.path), ...regenerateIndexes(repoRoot)], refusals: [] };
 }
 
-/** `done` plus evidence, with the evidence proven reachable from `main` first. */
-export function landItems(ids: readonly number[], evidence: string, repoRoot = root, date = today()): WriteOutcome {
+const SHORT_SHA = 12;
+
+/** `done` plus evidence, with the evidence proven reachable from `main` first. IDEMPOTENT: an item that
+ *  is already done is skipped and keeps its original evidence, so a repeated trailer (a redo, a warm leg)
+ *  never rewrites a landing or mints a second landing commit. */
+export function landItems(ids: readonly number[], evidence: string, repoRoot = root, date = today()): LandOutcome {
   if (!commitOnMain(evidence, repoRoot)) {
-    return { written: [], refusals: [`${evidence}: not a commit reachable from main — land names the merge or the landed commit itself`] };
+    return { written: [], refusals: [`${evidence}: not a commit reachable from main — land names the merge or the landed commit itself`], skipped: [] };
   }
-  return setItems(ids, { state: "done", evidence }, repoRoot, date);
+  const done = new Map(
+    loadItems(repoRoot)
+      .filter((item) => item.state === "done")
+      .map((item) => [item.id, item] as const),
+  );
+  const skipped = ids.flatMap((id) => {
+    const item = done.get(id);
+    return item === undefined ? [] : [`${item.path}: already done at ${(item.evidence ?? "").slice(0, SHORT_SHA)}`];
+  });
+  const pending = ids.filter((id) => !done.has(id));
+  if (pending.length === 0) {
+    return { written: [], refusals: [], skipped };
+  }
+  return { ...setItems(pending, { state: "done", evidence }, repoRoot, date), skipped };
 }
 
 const HOOK_TRAILER = "Co-Authored-By: pnpm doc <doc-tool@orbweaver.invalid>";
 
 /** The post-merge door. On `main`, read the `Closes:` trailers of the commits the merge brought in, land
  *  those ids with the merge commit as evidence, and commit the item files. Anywhere else, or with no
- *  trailer, it does nothing and says nothing. */
-export function landMerged(repoRoot = root, date = today()): WriteOutcome {
+ *  trailer, it does nothing and says nothing. ALL-OR-NOTHING: an id no item carries refuses the whole
+ *  trailer set before any write, and the refusal names the by-hand landing for the ids that do exist. */
+export function landMerged(repoRoot = root, date = today()): LandOutcome {
   if (!isMainBranch(repoRoot)) {
-    return { written: [], refusals: [] };
+    return { written: [], refusals: [], skipped: [] };
   }
   const ids = [...new Set(mergedCommits(repoRoot).flatMap((commit) => closesTrailer(commit.message)))];
   const head = headCommit(repoRoot);
   if (ids.length === 0 || head === null) {
-    return { written: [], refusals: [] };
+    return { written: [], refusals: [], skipped: [] };
   }
   const known = new Set(loadItems(repoRoot).map((item) => item.id));
-  const landable = ids.filter((id) => known.has(id));
-  const unknown = ids
-    .filter((id) => !known.has(id))
-    .map((id) => `${String(id)}: a merged commit closes it but no such item exists under ${DOC_TOOL_TREES.work}`);
-  if (landable.length === 0) {
-    return { written: [], refusals: unknown };
+  const unknown = ids.filter((id) => !known.has(id));
+  if (unknown.length > 0) {
+    const byHand = ids.filter((id) => known.has(id));
+    const fix = byHand.length === 0 ? "" : `, then pnpm doc land ${byHand.map(String).join(" ")} --evidence ${head}`;
+    return {
+      written: [],
+      refusals: unknown.map(
+        (id) => `${String(id)}: a merged commit closes it but no such item exists under ${DOC_TOOL_TREES.work} — fix the trailer's id${fix}`,
+      ),
+      skipped: [],
+    };
   }
-  const outcome = landItems(landable, head, repoRoot, date);
-  if (outcome.refusals.length > 0) {
-    return { written: [], refusals: [...outcome.refusals, ...unknown] };
+  const outcome = landItems(ids, head, repoRoot, date);
+  if (outcome.refusals.length > 0 || outcome.written.length === 0) {
+    return outcome;
   }
-  const message = `chore(work): land ${landable.map(String).join(", ")}\n\n${HOOK_TRAILER}`;
-  const committed = commitPaths(outcome.written, message, repoRoot);
-  return { written: outcome.written, refusals: committed ? unknown : [...unknown, "the landing commit failed — commit the item files by hand"] };
+  const landed = ids.filter((id) => !outcome.skipped.some((line) => line.includes(`/${String(id).padStart(ID_WIDTH, "0")}-`)));
+  const message = `chore(work): land ${landed.map(String).join(", ")}\n\n${HOOK_TRAILER}`;
+  if (!commitPaths(outcome.written, message, repoRoot)) {
+    return {
+      ...outcome,
+      refusals: [
+        `the landing commit failed — the item files are written; commit them by hand: git commit -m "chore(work): land ${landed.map(String).join(", ")}" -- ${outcome.written.join(" ")}`,
+      ],
+    };
+  }
+  return outcome;
 }

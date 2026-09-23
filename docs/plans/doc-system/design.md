@@ -21,7 +21,7 @@ Replace the doc sprawl with four homes (`docs/law/`, `docs/adr/`, `docs/plans/`,
 | the D-ledger is ~163 rows in a few huge files | `Core-Path-Registry.md` holds ids D1 to D163 with a reserved gap D79 to D105, in TWO row shapes: bullet rows (`- **D<n>** — …`) under range headings, and per-ruling `## D<n>` headings with a bold restatement and continuation lines. One id (D119) has two bullet anchors. The longest single row is about 12 KiB; four rows exceed 8 KiB | holds, with two shapes the splitter must parse |
 | new ADRs start at `0001` while the ledger keeps its numbers | D1 exists, so `docs/adr/0001-*` would collide with D1's future home | REFUTED: new ADRs continue the ledger's id space (next free is D164, read from both sources); the numbering fork is below |
 | code cites doc section numbers and D rows, and `check:structure` reds on a moved heading | code carries about five thousand bare `D<n>` citations across roughly eighteen hundred source files (138 distinct ids), about eleven thousand `§` section citations, and about a thousand `docs/**.md` path citations (236 distinct paths; 229 of them under `docs/architecture/core/`). The `d-citation-integrity` gate resolves `D<n>` against the registry's bullet anchors; `dangling-doc-cite` resolves path and basename cites against tracked files | holds; the citer cost is priced in §Ledger split |
-| the catalog churns on every edit | the catalog tree is about 5 MB of JSON; `catalog.json` is a generated 3 MB file committed in the tree; each attestation row pins a whole-file hash, a commit, and an append-only prose `evidence` array | holds |
+| the catalog churns on every edit | the catalog tree is about 5 MB of JSON; `catalog.json` is a generated 3 MB file committed in the tree; each attestation row pins a whole-file hash, a commit, and an append-only prose `evidence` array | held; the owner ruled the attestation out at once (this lane), so the rows now carry a path and an authority only |
 | the GitHub board is being torn down | `tooling/src/workboard/` is the GitHub client; nothing in the tree depends on it except its own tests and the rule files that name `pnpm work:item` | holds |
 
 ## Shape
@@ -51,8 +51,8 @@ Flat `key: value` YAML, parsed by the existing reader in `tooling/src/doc-catalo
 | `superseded-by` | `adr`, `law` | the path of the replacement; written by `pnpm doc status superseded --by` |
 | `priority` | items | `P0` to `P3`; absent means triage |
 | `area` | items | one lowercase token |
-| `lane` | items | required while `doing` |
-| `blocked` | items | `owner`, `on <id>`, or `wake <command>`; required while `blocked` |
+| `lane` | items | the exact branch name the lane works on; required while `doing`, matched exactly by `drift` |
+| `blocked` | items | `owner`, `on <id>`, `wake path <repo path>` or `wake gone <repo path>`; required while `blocked`; nothing in it is ever executed |
 | `plan` | items | the plan slug the item belongs to |
 | `evidence` | items | a commit that exists on `main`; required while `done` |
 | `reviewed` | items | a commit or a reviewer name; a field, never a state |
@@ -111,7 +111,7 @@ Over the whole `docs/` tree:
 
 8. allowed folders: a top-level entry under `docs/` is one of the four homes, `Mission.md`, `catalog/`, or a legacy folder from a shrink-only list in `rules.ts`; a legacy row whose folder is gone is itself a finding (two-sided).
 
-Legacy folders keep their dated-by-design exemption for rules 1, 2, 4 until they move. `docs/catalog/` and the legacy tree keep `pnpm check:doc-catalog` until the attestation model retires (§Freshness).
+Legacy folders keep their dated-by-design exemption for rules 1, 2, 4 until they move. `docs/catalog/` and the legacy tree keep `pnpm check:doc-catalog` as an inventory and frontmatter check only until the last legacy folder moves (§Freshness).
 
 Rule 2 is new in the checker: a number followed by an inventory noun (`files`, `tests`, `rules`, `lessons`, `workers`, `gates`, `docs`, `documents`) in prose. Measured over every instruction file before adding it: zero hits, so it lands without a baseline.
 
@@ -121,7 +121,7 @@ Hard (red): mechanical claims. Every cited path, symbol, heading, script and D/A
 
 Soft (warning, never red): semantic drift. A doc's described code is the set of backticked repository paths in its body, read at check time by the existing `backtickedRepoPaths` reader. A doc is due when any of those paths has a commit on the current branch after the doc's `updated` date. `pnpm doc due` computes it with one `git log --since=<earliest updated> --name-only` pass and a prefix match, and prints one line per due doc with its fixing command (`pnpm doc review <path>`). It never appears in `pnpm check`.
 
-Review state is `updated`, written by `pnpm doc review` in batch. No whole-file hash, no per-doc commit, no prose evidence array. The attestation rows under `docs/catalog/receipts/` and the generated `catalog.json` retire with the legacy tree: the new tree is outside the catalog corpus from the first commit, so no new document ever needs a lane row, an attestation or a regenerated catalog. The retirement of the catalog itself, and the population file of the `caught-failure-ownership` gate (keep the human verdict and reason keyed by `siteId`, derive line and column live), are scheduled tasks in the migration plan.
+Review state is `updated`, written by `pnpm doc review` in batch. No whole-file hash, no per-doc commit, no prose evidence array. The attestation under `docs/catalog/receipts/` is gone in this lane (owner ruling): a row is a path and an authority, a legacy prose edit reds nothing there, and the new tree is outside the catalog corpus from the first commit, so no new document ever needs a lane row or a regenerated catalog. The retirement of the inventory itself, and the population file of the `caught-failure-ownership` gate (keep the human verdict and reason keyed by `siteId`, derive line and column live), are scheduled tasks in the migration plan.
 
 ### Work items (the board replacement)
 
@@ -143,7 +143,7 @@ About 40% of the rows carry dates or issue numbers in their prose, so a migrated
 
 ### Law move
 
-`docs/architecture/core/` becomes `docs/law/` by path swap, section numbers untouched, so basename citations resolve unchanged and the 229 full-path code citations plus the tooling constants (`resource-document.ts`, `dangling-ref-corpus.ts`, `dangling-ref-citations.ts`, `d-citation-integrity.ts`, `doc-catalog/lib/vocab.ts`, `doc-catalog/lib/receipt-rules.ts`, `doc-catalog/ops/tree.ts`, `verify/lib/selection.ts`, `docs/catalog/lanes.json`) are one mechanical prefix rewrite. `check:structure` is the proof.
+`docs/architecture/core/` becomes `docs/law/` by path swap, section numbers untouched, so basename citations resolve unchanged and the 229 full-path code citations plus the tooling constants (`resource-document.ts`, `dangling-ref-corpus.ts`, `dangling-ref-citations.ts`, `d-citation-integrity.ts`, `doc-catalog/lib/vocab.ts`, `doc-catalog/ops/tree.ts`, `verify/lib/selection.ts`, `docs/catalog/lanes.json`) are one mechanical prefix rewrite. `check:structure` is the proof.
 
 ## Rejected
 
@@ -187,7 +187,8 @@ About 40% of the rows carry dates or issue numbers in their prose, so a migrated
 | `lefthook.yml` | `post-merge` runs `pnpm doc land --merged` |
 | `.claude/hooks/session-onboard.sh` | the drift nag block |
 | `tests/tooling/doc/**`, `tests/tooling/agent-sync/**`, `tests/tooling/doc-catalog/**` | the tests |
-| `docs/catalog/receipts/architecture-core.json` | re-attestation of the two edited law docs (the last time this cost is paid for a doc-system change) |
+| `docs/catalog/receipts/*.json`, `lanes.json`, `state.json`, `catalog.json` | rows reduced to path and authority, no issue numbers, no pending ratchet category, inventory regenerated |
+| `tooling/src/doc-catalog/**` | attest verb, hash rules and every git-derived fact deleted; the tool is the inventory, the frontmatter validator and the formatter |
 
 ## Test plan
 

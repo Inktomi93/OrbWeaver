@@ -9,9 +9,13 @@ import { basenameOf, parseNumberedName } from "./names.ts";
 const PRIORITY_RE = /^P[0-3]$/u;
 const AREA_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 const ON_RE = /^on (\d+)$/u;
-const WAKE_RE = /^wake (.+)$/u;
-/** A full commit id. The checker proves it exists on `main`; the shape is judged here. */
+/** `wake path <repo path>` (met when the path exists) or `wake gone <repo path>` (met when it does not).
+ *  The path is repository-relative and may not climb out; nothing here is ever executed. */
+const WAKE_RE = /^wake (path|gone) ([^\s/][^\s]*)$/u;
+/** A full commit id. The shape is judged here; `rules.ts` proves it reachable from `main` through the
+ *  `evidenceOnMain` facts the tree walk resolves with git. */
 const COMMIT_RE = /^[a-f0-9]{7,40}$/u;
+const BLOCKER_GRAMMAR = "blocked: owner | on <id> | wake path <repo path> | wake gone <repo path>";
 
 export function isItemKind(value: string | undefined): value is ItemKind {
   return ITEM_KINDS.some((kind) => kind === value);
@@ -34,8 +38,11 @@ export function parseBlocker(value: string): Blocker | null {
   if (on !== undefined) {
     return { kind: "on", id: Number(on) };
   }
-  const wake = WAKE_RE.exec(value)?.[1];
-  return wake === undefined ? null : { kind: "wake", command: wake.trim() };
+  const wake = WAKE_RE.exec(value);
+  if (wake === null || wake[2] === undefined || wake[2].split("/").includes("..")) {
+    return null;
+  }
+  return { kind: "wake", presence: wake[1] === "gone" ? "gone" : "path", path: wake[2] };
 }
 
 /** `null` when the file is not an item (wrong tree, no block, unknown kind or state); the schema rules
@@ -81,7 +88,7 @@ function fieldGrammarProblems(item: WorkItem): readonly string[] {
 function blockedProblem(item: WorkItem, known: ReadonlySet<number>): string | null {
   const blocker = item.blocked === null ? null : parseBlocker(item.blocked);
   if (blocker === null) {
-    return "a blocked item carries a reason: blocked: owner | on <id> | wake <command>";
+    return `a blocked item carries a reason: ${BLOCKER_GRAMMAR}`;
   }
   if (blocker.kind === "on" && !known.has(blocker.id)) {
     return `blocked on ${String(blocker.id)}, which is not an item under ${DOC_TOOL_TREES.work}`;

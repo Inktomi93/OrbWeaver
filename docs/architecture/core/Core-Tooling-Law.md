@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-20
+updated: 2026-09-22
 ---
 
 # `@orb/tooling` — tooling-tree law
@@ -124,7 +124,7 @@ the `design-audit` / `record` / `perf-meter` / `motion-audit` pnpm scripts.
 | `codemod/` | the ts-morph codemod kit | `codemod` |
 | `verify/` | the whole verification system + the gate corpus + `GATE-AUTHORING.md` | `check` `verify` `check:structure` `check:show` `gate:new` `prose:baseline` `check:type-ownership` `check:tests-execution-membership` `check:db-baseline` `check:orphan-ratchet` |
 | `workboard/` | GitHub Project 1 lifecycle | `work:item` |
-| `doc-catalog/` | the doc catalog + the markdown formatter (two verbs) | `doc-catalog:*` `check:docs` `format:docs` `check:doc-catalog` |
+| `doc-catalog/` | the legacy tree's inventory (one lane and one authority row per document, frontmatter validated, no content hash) + the markdown formatter | `doc-catalog:*` `check:docs` `format:docs` `check:doc-catalog` |
 | `doc/` | the docs system's structural writer — ADR/plan/item minting, status and supersession, work-item transitions and landing, archiving with link rewrites, the generated indexes, the soft freshness report, the ledger splitter; its rules are what `check:agents` runs over `docs/**` (`docs/plans/doc-system/design.md`) | `doc` |
 | `agent-sync/` | Codex agent-manifest sync + the instruction-layer and docs-tree check | `agents:sync` `check:agents` |
 | `seed/` | demo · chat · multi-user seeding (three verbs) | `seed:demo` |
@@ -188,7 +188,7 @@ A tool move, rename, or new tool touches these. Each row is a place a path or a 
 | `tests/tooling/**` path literals | swept per move — but the `runCli` fixture (§5.1) kills the class going forward: tests name TOOLS, not paths |
 | `tooling/src/verify/lib/selection.ts` | the graph-tree classifier and `depcruisePaths` must both admit `tooling/` |
 | `_shared/ts-workspace.ts` `harnessGlobs` | the shared walk's scope — §3.2 governs any widening |
-| doc-catalog receipts | evidence targets citing a moved path RED at `pnpm check:doc-catalog`. Sweep `/usr/bin/grep -rn '"target": "…"' docs/catalog/receipts/` and RE-DERIVE each hit row (never re-prefix) |
+| doc-catalog rows | a moved legacy document's `{ path, authority }` row moves with it (`pnpm doc-catalog:sync` adopts the new path; the stale row is removed by hand), then `pnpm doc-catalog:write` regenerates the inventory |
 | law-doc + `.claude/` cites | `pnpm check:docs` + `dangling-refs` are the fences. Lanes never edit `.claude/` — flag those for the orchestrator |
 | `tests/**/*.ct.tsx` importers | a moved file with test-side importers may affect compiler programs outside its nearest config; run every native program selected by affected-mode routing through `pnpm typecheck --config <path>` |
 | comment/prose cites of the moved BASENAME | live code + `status: active` docs are updated; dated reviews and `history/` are frozen evidence and are never rewritten |
@@ -412,10 +412,10 @@ The ordered checklist for promoting or relocating a tool. Every step was paid fo
     - old-path: `rg -n '<old path>'` over `package.json`, configs, `tests/`, `docs/` — expect zero;
     - CT-side: `rg -n '<old path>' tests/ --glob '*.ct.tsx'` + per-package client tsc when anything test-side imported it;
     - comment/prose cites: `rg -n '<basename>'` repo-wide — live code and `status: active` docs are updated; dated reviews and `history/` are frozen;
-    - catalog receipts: `/usr/bin/grep -rn '"target": "<old prefix>' docs/catalog/receipts/` — re-derive each hit row;
+    - catalog rows: `rg -n '<old path>' docs/catalog/receipts/` — move the row to the new path, then `pnpm doc-catalog:write`;
     - the OLD ZONE PREFIX across the gate corpus (§3.1's zone-keyed-fence row);
     - recipe lines in active docs: a `node scripts/…` invocation becomes the pnpm front door.
-12. **Doc edits and their attestation land atomically through the normal commit hook:** stage the current document, its complete lane-receipt file and the regenerated catalog together. `verifiedSha256` binds the receipt to the current document bytes; `verifiedCommit` names the existing ancestor checkout/evidence base the review used. `check:doc-catalog` requires the exact current document + receipt pair to coexist in the candidate Git index (which equals HEAD when no changes are staged; legacy receipts whose document bytes live at `verifiedCommit` remain valid), so staging only one side is RED. Bump `updated:` and run scoped `pnpm check:docs` in the floor.
+12. **A legacy doc edit owes nothing to the catalog.** The inventory carries no content hash (owner ruling; `docs/adr/0164-docs-plans-adrs.md`), so editing a legacy document's prose changes nothing under `docs/catalog/`. Adding, removing or re-kinding one owes `pnpm doc-catalog:sync` and `pnpm doc-catalog:write` in the same commit. Bump `updated:` and run scoped `pnpm check:docs` in the floor.
 13. **Then §6's floor, then the LIVE run.**
 
 ### 9.1 Proof idioms that are now standard

@@ -14,15 +14,20 @@ function itemSource(fields: Readonly<Record<string, string>> = {}): string {
   return itemTemplate({ kind: "work", status: "open", updated: TODAY, ...fields }, "Ledger split");
 }
 
+const ON_MAIN = "0123456789abcdef0123456789abcdef01234567";
+
 /** A tree whose generated files are exactly what a fresh render produces, so it is clean by construction. */
 function tree(docs: Readonly<Record<string, string>>, overrides: Partial<DocTree> = {}): DocTree {
   const authored: GovernedDoc[] = Object.entries(docs).map(([path, source]) => ({ path, source }));
   const generated: GovernedDoc[] = [...expectedGeneratedFiles(authored)].map(([path, source]) => ({ path, source }));
+  const all = [...authored, ...generated];
   return {
     root: [...LEGACY_ROOTS, "adr", "plans", "work", "law", "Mission.md", "catalog"].map((name) => ({ name, directory: !name.endsWith(".md") })),
-    docs: [...authored, ...generated],
+    docs: all,
+    files: all.map((doc) => doc.path),
     registryIds: new Set([1, 163]),
-    reserved: { lo: 79, hi: 105 },
+    nextFreeNote: 165,
+    evidenceOnMain: new Set([ON_MAIN]),
     ...overrides,
   };
 }
@@ -105,11 +110,56 @@ test("an ADR id must be unique, unreserved and not still anchored in the legacy 
   expect(docProblems(named)).toContain("docs/adr/notes.md: an ADR file is NNNN-<slug>.md — mint one with pnpm doc new adr <slug>");
 });
 
+test("the registry's next-free note must be one past the highest id across the registry and the ADR tree", () => {
+  const stale = tree(CLEAN, { nextFreeNote: 163 });
+  expect(docProblems(stale)).toEqual([
+    "docs/architecture/core/Core-Path-Registry.md: the next-free note says D163+ but the next free id is D165 — edit the note",
+  ]);
+  expect(docProblems(tree(CLEAN, { nextFreeNote: null }))).toEqual([]);
+});
+
+test("two work items sharing one id is a finding, and so is done evidence that is not on main", () => {
+  const twin = tree({ ...CLEAN, "docs/work/0001-other.md": itemSource() });
+  expect(docProblems(twin)).toEqual([
+    `docs/work/0001-other.md: id 1 is already ${ITEM} — two lanes minted the same next id; renumber one with git mv and pnpm doc index`,
+  ]);
+  const offMain = tree({ ...CLEAN, [ITEM]: itemSource({ status: "done", evidence: "abcdef1234567" }) });
+  expect(docProblems(offMain)).toEqual([`${ITEM}: evidence abcdef1234567 is not a commit on main — pnpm doc land <id> --evidence <sha> names one`]);
+  const onMain = tree({ ...CLEAN, [ITEM]: itemSource({ status: "done", evidence: ON_MAIN }) });
+  expect(docProblems(onMain)).toEqual([]);
+});
+
+test("an orphan tasks.md, a nested item folder and a non-markdown file under a governed tree are findings", () => {
+  const orphan = tree(CLEAN);
+  const docs = [...orphan.docs, { path: "docs/plans/doc-system/tasks.md", source: "---\nkind: index\nstatus: active\n---\n\n# old\n" }];
+  expect(docProblems({ ...orphan, docs: [...docs].filter((doc) => doc.path !== ITEM), files: docs.map((doc) => doc.path) })).toContain(
+    "docs/plans/doc-system/tasks.md: orphan generated file, its plan has no items — pnpm doc index deletes it",
+  );
+  const nested = tree({ ...CLEAN, "docs/work/sub/0002-x.md": itemSource() });
+  expect(docProblems(nested)).toContain("docs/work/sub/0002-x.md: docs/work/ is flat — an item is docs/work/NNNN-<slug>.md");
+  const stray = tree(CLEAN, { files: [...tree(CLEAN).files, "docs/adr/notes.txt"] });
+  expect(docProblems(stray)).toContain("docs/adr/notes.txt: only markdown lives under a governed tree — move or delete it");
+});
+
+test("the doc tool's kinds and states never widen the legacy catalog's vocabulary", async () => {
+  const { frontmatterErrors, parseFrontmatter } = await import("../../../../tooling/src/doc-catalog/index.ts");
+  const legacy = "docs/design/x.md";
+  expect(frontmatterErrors(legacy, parseFrontmatter("---\nkind: bug\nstatus: doing\nupdated: 2026-09-23\nlane: cb-x\n---\n", legacy))).toEqual([
+    `${legacy}: unsupported frontmatter key lane`,
+    `${legacy}: invalid frontmatter kind bug`,
+    `${legacy}: invalid frontmatter status doing`,
+  ]);
+});
+
 test("a work item's final shape is judged: doing needs a lane, blocked needs a reason naming an item, done needs evidence", () => {
   const doing = tree({ ...CLEAN, [ITEM]: itemSource({ status: "doing" }) });
   expect(docProblems(doing)).toEqual([`${ITEM}: a doing item names its lane: pnpm doc set <id> doing --lane <lane>`]);
   const blockedBare = tree({ ...CLEAN, [ITEM]: itemSource({ status: "blocked" }) });
-  expect(docProblems(blockedBare)).toEqual([`${ITEM}: a blocked item carries a reason: blocked: owner | on <id> | wake <command>`]);
+  expect(docProblems(blockedBare)).toEqual([
+    `${ITEM}: a blocked item carries a reason: blocked: owner | on <id> | wake path <repo path> | wake gone <repo path>`,
+  ]);
+  const shell = tree({ ...CLEAN, [ITEM]: itemSource({ status: "blocked", blocked: "wake test -f x" }) });
+  expect(docProblems(shell)).toEqual([`${ITEM}: a blocked item carries a reason: blocked: owner | on <id> | wake path <repo path> | wake gone <repo path>`]);
   const blockedGhost = tree({ ...CLEAN, [ITEM]: itemSource({ status: "blocked", blocked: "on 42" }) });
   expect(docProblems(blockedGhost)).toEqual([`${ITEM}: blocked on 42, which is not an item under docs/work/`]);
   const done = tree({ ...CLEAN, [ITEM]: itemSource({ status: "done" }) });

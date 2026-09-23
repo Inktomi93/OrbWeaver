@@ -36,6 +36,18 @@ test("a writing-rule finding, a dead path and a structural finding all reach the
   ]);
 });
 
+test("the walk sees a nested item folder and a non-markdown file under a governed tree (F12)", async ({ plantedTree }) => {
+  const root = await plantedTree({ ...LEGACY, "docs/Mission.md": MISSION, "docs/adr/notes.txt": "stray\n" });
+  newItem({ title: "T", kind: "work", priority: null, area: null, plan: null, lane: null }, root, TODAY);
+  const { mkdirSync, renameSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  mkdirSync(join(root, "docs/work/sub"));
+  renameSync(join(root, "docs/work/0001-t.md"), join(root, "docs/work/sub/0001-t.md"));
+  const problems = docLayerProblems(root);
+  expect(problems).toContain("docs/adr/notes.txt: only markdown lives under a governed tree — move or delete it");
+  expect(problems).toContain("docs/work/sub/0001-t.md: docs/work/ is flat — an item is docs/work/NNNN-<slug>.md");
+});
+
 test("the real repository's governed docs are clean", ({ repoRoot }) => {
   expect(docFileCount(repoRoot)).toBeGreaterThan(0);
   expect(docLayerProblems(repoRoot)).toEqual([]);
