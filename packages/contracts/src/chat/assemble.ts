@@ -369,6 +369,18 @@ export type ShapeBreakpointDecision = (typeof SHAPE_BREAKPOINT_DECISIONS)[number
 export const SHAPE_ROW_SOURCES = ["canon", "assembled", "merged"] as const;
 export type ShapeRowSource = (typeof SHAPE_ROW_SOURCES)[number];
 
+/** WHY a system-role row reached the wire as user text instead of a real `system` row — the fold axis of
+ *  {@link ShapeTraceRow}:
+ *   • `level`     — the turn's message-handling level folds every system row (`semi-strict`, `strict`);
+ *   • `slot`      — the level keeps a system run only in its legal slot, and this run sat outside it (the row
+ *                   before is not a user row, or the row after is not an assistant row);
+ *   • `tail`      — the run ended the history, and the model takes no system row there
+ *                   (`turns.midConversationSystem`);
+ *   • `mid-array` — the run sat inside the history, and the model takes no system row there
+ *                   (`turns.historySystemRows`). */
+export const SHAPE_FOLD_REASONS = ["level", "slot", "tail", "mid-array"] as const;
+export type ShapeFoldReason = (typeof SHAPE_FOLD_REASONS)[number];
+
 /** ONE DELIVERED WIRE ROW, content-FREE (`ShapeTrace.rows`) — the ordered projection of the history the model
  *  actually receives. The stage COUNTS beside it say how many rows each stage held; this says WHICH rows, in
  *  what order, in whose voice. Roles, speaker labels, provenance and a character COUNT only — never the bytes
@@ -391,6 +403,8 @@ export interface ShapeTraceRow {
   kind?: MessageKind;
   /** The delivered content's LENGTH in characters. A size, not a sample. */
   chars: number;
+  /** Present ⇒ a system-role row folded into this user row, and why. A merged row reports its first fold. */
+  folded?: ShapeFoldReason;
 }
 
 /** The content-free SHAPE-stage trace (`buildShapeTrace`) — the debug projection of how a turn's canon was
