@@ -14,7 +14,9 @@
 // remains structurally unable to see chrome; `buildIdentityAvatarMaps` is the ONLY chrome carrier.
 
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
+import { z } from "zod";
 
 /** The closed chat-identity-kind axis. `agent` is the D60 one-arm add: adding it REDS the policy record, both
  *  projections' `assertNever` tails, the loader's per-kind source table and `identityKey` — the five decision
@@ -49,6 +51,25 @@ export interface ChatPersonaIdentity {
 /** The per-arm payload difference (persona carries `description`, character does not) is the policy
  *  difference DECLARED IN THE TYPE, exactly as `MESSAGE_KIND_POLICY` rows differ per kind. */
 export type ChatIdentity = ChatCharacterIdentity | ChatPersonaIdentity;
+
+/** The strict runtime twin of {@link ChatIdentity}, a nested member of the `ChatDetail` output parser. Each arm
+ *  is strict, so the per-arm policy difference is enforced at runtime too: a character entry carrying a
+ *  `description` (a card's text is not member-consented) fails the parse. */
+export const chatIdentitySchema = z.discriminatedUnion("kind", [
+  z.strictObject({
+    kind: z.literal("character"),
+    id: typeIdSchema(ID_PREFIX.character),
+    name: z.string(),
+    avatarHash: z.string().nullable(),
+  }) satisfies z.ZodType<ChatCharacterIdentity>,
+  z.strictObject({
+    kind: z.literal("persona"),
+    id: typeIdSchema(ID_PREFIX.persona),
+    name: z.string(),
+    description: z.string(),
+    avatarHash: z.string().nullable(),
+  }) satisfies z.ZodType<ChatPersonaIdentity>,
+]) satisfies z.ZodType<ChatIdentity>;
 
 /** ONE chat-identity kind's cross-consumer policy. Rule for future fields (the D129 idiom): a policy field joins
  *  only WITH its reader — a verdict nobody consumes is decoration. */

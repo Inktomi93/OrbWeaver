@@ -5,8 +5,10 @@
 //     re-queries identity), and the cookie path already re-reads `role`/`handle` from the `users` row when
 //     minting the `Principal`, so the fields are request-fresh with ZERO extra DB round-trip (the same
 //     "gate on plain `Principal` fields, no db round-trip" posture `../trpc.ts` states). The `ViewerView`
-//     SHAPE homes in `#domain/sessions`; this router only projects into it. Many client surfaces dedupe on
-//     this one query (the shared tRPC/Query cache) instead of smearing viewer info onto every per-chat read.
+//     SHAPE homes in `@orb/contracts/identity`; this router only projects into it, and parses the projection
+//     through the strict `viewerViewSchema` so a refactor that spreads the Principal fails the call instead
+//     of publishing `externalId`/`via`. Many client surfaces dedupe on this one query (the shared
+//     tRPC/Query cache) instead of smearing viewer info onto every per-chat read.
 //
 // The per-user entity-changed live stream used to live here as `streamUserEvents`. It FOLDED into the
 // multiplexed socket at SSE-1 S1: it is now the `user` ROOM (`transport/trpc/stream/sources/user.ts`), which
@@ -16,13 +18,14 @@
 // SCOPE: `me` reflects ONLY the caller (`ctx.auth`) — derived from the request principal, NEVER from client
 // input. A caller can only ever read its OWN identity; there is no input to widen it.
 
-import type { ViewerView } from "#domain/sessions";
+import type { ViewerView } from "@orb/contracts/identity";
+import { viewerViewSchema } from "@orb/contracts/identity";
 import { authedProcedure, t } from "../trpc.ts";
 
 export const sessionsRouter = t.router({
   // The canonical viewer read — a pure projection of the resolved `Principal` (see file header). No verb,
   // no db round-trip: `role`→`globalRole` and `handle` are already request-fresh on `ctx.auth`.
-  me: authedProcedure.query(
+  me: authedProcedure.output(viewerViewSchema).query(
     ({ ctx }): ViewerView => ({
       userId: ctx.auth.userId,
       handle: ctx.auth.handle,

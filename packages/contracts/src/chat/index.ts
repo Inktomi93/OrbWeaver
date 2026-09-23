@@ -8,6 +8,7 @@
 //   • bus.ts            — the stream delta, the `ChatBusEvent` union, warning codes, turn origin, D50 transform
 //   • metadata.ts       — the `chats.metadata` sub-blobs (roomOverrides/group/opening/visibility/steer)
 //   • roster.ts         — the unified-roster wire (D16/D22/D80): roster/seat/invite/render-policy/history-floor
+//   • detail.ts         — the full chat read (`ChatDetail`) + the invite join result that carries it
 //   • content-blocks.ts — the D44 §12.4 render blocks + `contentSpansToBlocks`
 //   • card-frame.ts     — the trust-gated card-frame doorway wire (mint request/response + the route)
 //   • content-classes.ts — the content-class visibility registry (`CONTENT_CLASS_POLICY`)
@@ -142,6 +143,8 @@ export {
 } from "./content-blocks.ts";
 export type { ContentClassPolicy } from "./content-classes.ts";
 export { CONTENT_CLASS_POLICY } from "./content-classes.ts";
+export type { ChatDetail, RedeemInviteResult } from "./detail.ts";
+export { chatDetailSchema, redeemInviteResultSchema } from "./detail.ts";
 export type { ChatListCursor } from "./listing.ts";
 export { CHAT_LIST_MAX_LIMIT, chatListCursorSchema } from "./listing.ts";
 // `MacroFreeze` (the single occurrence) is NOT re-exported here — kit owns that shape and consumers import it
@@ -247,6 +250,7 @@ export {
   buildIdentityNameContext,
   CHAT_IDENTITY_KIND_POLICY,
   CHAT_IDENTITY_KINDS,
+  chatIdentitySchema,
   identityKey,
 } from "./producers.ts";
 // The PROSE-1 app-tier slot table (census 74-81) — `#prose` imports it to compose `PROSE_SLOTS`.
@@ -290,6 +294,7 @@ export type {
   CarriedBackground,
   CharacterMemberSpec,
   CreateInviteInput,
+  CreateInviteResult,
   DeploymentRenderPolicy,
   HandoffOffer,
   HandoffOfferContents,
@@ -313,21 +318,26 @@ export {
   allowsInteractiveCards,
   carriedAppearanceFromParticipants,
   characterMemberSpecSchema,
+  createInviteResultSchema,
   createInviteSchema,
   HTML_TRUST_STEPS,
   handoffOfferContentsSchema,
   handoffOfferSchema,
   historyFloor,
   INVITE_STATUSES,
+  invitePreviewSchema,
   inviteStatusSchema,
+  inviteViewSchema,
   JOIN_HISTORY_VISIBILITIES,
   joinHistoryVisibilitySchema,
   NO_HANDOFF_OFFER,
   NO_HANDOFF_OFFER_CONTENTS,
   participantRoleSchema,
+  participantViewSchema,
   previewInviteSchema,
   redeemInviteSchema,
   renderPolicyOverrideForStep,
+  renderPolicySchema,
   rendersTrustedHtml,
   resolveCarriedBackground,
   resolveCarriedBackgroundForAppearance,

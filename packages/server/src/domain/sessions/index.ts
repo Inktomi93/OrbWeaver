@@ -9,7 +9,6 @@ export type { SessionView } from "@orb/contracts/session";
 // WHOSE half to evict those users' live sockets (W7a).
 export type { RevokedSessionsSummary, UserPrincipalFields } from "./contract/results.ts";
 export type { SessionsService } from "./contract/service.ts";
-export type { ViewerView } from "./contract/views.ts";
 export { createOidcStore } from "./persistence/oidc-store.ts";
 export { createSessionsService } from "./service.ts";
 // Exported so entry's boot owner-seed and the login-derived role path can never fork.
