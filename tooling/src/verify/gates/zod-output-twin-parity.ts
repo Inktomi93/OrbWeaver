@@ -16,6 +16,7 @@ import type { Expression, Node as MorphNode, Type } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import type { ZodOutputTwinRead } from "../contract/zod-output-twin.ts";
+import { symbolDeclarations } from "../lib/symbol-declarations.ts";
 import { readAnnotatedZodOutputTwin, readContextualZodOutputTwin, readExpressionZodOutputTwin, zodTypeReferenceIdentity } from "../lib/zod-output-twin.ts";
 
 const MESSAGE =
@@ -103,11 +104,8 @@ function argumentDerivesOwnerTypeParameter(call: import("ts-morph").CallExpressi
     return false;
   }
   const output = declaration.getParameters()[index]?.getType().getTypeArguments()[0];
-  return (
-    output
-      ?.getSymbol()
-      ?.getDeclarations()
-      .some((candidate) => Node.isTypeParameterDeclaration(candidate) && candidate.getAncestors().includes(declaration)) ?? false
+  return symbolDeclarations(output?.getSymbol()).some(
+    (candidate) => Node.isTypeParameterDeclaration(candidate) && candidate.getAncestors().includes(declaration),
   );
 }
 
@@ -119,10 +117,7 @@ function typeDependsOnOwnerParameter(type: Type, owner: MorphNode, location: Mor
     }
     seen.add(candidateType.compilerType);
     if (
-      candidateType
-        .getSymbol()
-        ?.getDeclarations()
-        .some((candidate) => Node.isTypeParameterDeclaration(candidate) && candidate.getAncestors().includes(owner)) === true
+      symbolDeclarations(candidateType.getSymbol()).some((candidate) => Node.isTypeParameterDeclaration(candidate) && candidate.getAncestors().includes(owner))
     ) {
       return true;
     }

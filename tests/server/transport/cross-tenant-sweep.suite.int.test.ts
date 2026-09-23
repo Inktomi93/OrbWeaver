@@ -337,9 +337,8 @@ interface Probe {
   readonly refusal?: Refusal;
 }
 
-// Synthesized secondary ids — `brandedId` is `z.string().min(1)` (no prefix check), and the OWNER/MEMBER
-// gate is the chokepoint (it rejects before any secondary-id existence check), so a stranger sees NOT_FOUND
-// regardless of whether these resolve to a real row.
+// Synthesized secondary ids — the OWNER/MEMBER gate is the chokepoint (it rejects before any secondary-id
+// existence check), so a stranger sees NOT_FOUND regardless of whether these resolve to a real row.
 // MINTED, never readable literals: every one crosses a `typeIdSchema` tRPC input, and a malformed id bounces at
 // input validation (BAD_REQUEST) before the probe ever reaches the ownership gate it exists to test.
 const FAKE = {
