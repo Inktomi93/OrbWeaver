@@ -150,6 +150,49 @@ test("a model the runtime cannot find is model_unavailable, not a transient serv
   expect(error.apiErrorStatus).toBe(404);
 });
 
+// A turn can run several model calls. An error code on an EARLIER call's assistant frame belongs to that call:
+// once a later call answered cleanly, a final unrelated failure classifies from its own evidence.
+test("an earlier leg's error code does not classify a later, unrelated failure", async () => {
+  const frames = [
+    { type: "system", subtype: "init", session_id: SESSION_ID, apiKeySource: "none", model: "claude-opus-5" },
+    {
+      type: "assistant",
+      session_id: SESSION_ID,
+      parent_tool_use_id: null,
+      error: "model_not_found",
+      message: { role: "assistant", content: [{ type: "text", text: "leg 1 failed" }] },
+    },
+    {
+      type: "assistant",
+      session_id: SESSION_ID,
+      parent_tool_use_id: null,
+      message: { role: "assistant", stop_reason: "end_turn", content: [{ type: "text", text: "leg 2 answered" }] },
+    },
+    {
+      type: "result",
+      subtype: "error_during_execution",
+      session_id: SESSION_ID,
+      is_error: true,
+      num_turns: 2,
+      errors: [],
+      usage: {},
+      modelUsage: {},
+      terminal_reason: "model_error",
+    },
+  ];
+  async function* gen(): AsyncGenerator<SdkFrame> {
+    await Promise.resolve();
+    for (const frame of frames) {
+      // @orb-waive no-test-fabrication(unknown): hand-built SDK frames trimmed to what the reducer reads. Ends if the SDK exports a frame factory.
+      yield frame as unknown as SdkFrame;
+    }
+  }
+  const error = await failureOf(gen(), "claude-opus-5");
+  expect(error.kind).toBe("server");
+  expect(error.retryable).toBe(true);
+  expect(error.detail).toBe("model_error");
+});
+
 test("an is_error result the runtime attributes to an overloaded upstream stays retryable", async () => {
   const error = await failureOf(apiErrorTurn({ model: "claude-opus-5", code: "overloaded", status: 529, text: "API Error: 529 Overloaded" }), "claude-opus-5");
   expect(error.kind).toBe("server");
