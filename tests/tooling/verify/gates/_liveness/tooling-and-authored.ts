@@ -46,7 +46,6 @@ const TOOL_CLIS = [
   "bug-reports",
   "cache-check",
   "codemod",
-  "doc-catalog",
   "doc",
   "model-ab",
   "mutation-arid",
@@ -57,7 +56,6 @@ const TOOL_CLIS = [
   "snap",
   "verify",
   "wire-tap",
-  "workboard",
 ] as const;
 
 function add(path: string, source: string): RealCorpusOverlay {
