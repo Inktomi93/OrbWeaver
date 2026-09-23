@@ -35,6 +35,7 @@ import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import type { CaughtFailureJudgment, CaughtFailurePopulation } from "../contract/caught-failure.ts";
 import { THEME } from "../contract/css-family.ts";
 import type { LedgerFreshness } from "../contract/scoped.ts";
+import { ACTIVE_GATES_INDEX_REL, deriveActiveGatesIndex } from "./gen/active-gates-index.ts";
 import { deriveCaughtFailurePopulation, POPULATION_REL } from "./gen/caught-failure-population.ts";
 import { deriveSnapFlagsIndexMarkdown, SNAP_FLAGS_INDEX_REL } from "./gen/snap-flags-index.ts";
 import { deriveThemeCss, THEME_BASELINE, THEME_REGEN } from "./gen/theme-css.ts";
@@ -42,6 +43,7 @@ import { deriveTypeConfigFiles } from "./gen/type-configs.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:ledgers-fresh");
 
+const REGEN_ACTIVE_GATES_INDEX = "pnpm exec node tooling/src/verify/cli.ts baseline active-gates-index";
 const REGEN_CENSUS = "pnpm exec node tooling/src/verify/cli.ts baseline caught-failure-population";
 const REGEN_SNAP_FLAGS_INDEX = "pnpm exec node tooling/src/verify/cli.ts baseline snap-flags-index";
 const REGEN_TYPE_CONFIGS = "pnpm exec node tooling/src/verify/cli.ts baseline type-configs";
@@ -133,6 +135,21 @@ export function snapFlagsIndexDrift(root: string): LedgerFreshness {
   return { ...base, drift: committedText === derivedText ? [] : ["the committed file differs from a fresh derivation (byte-for-byte)"] };
 }
 
+/** The generated law doc vs a fresh derivation off the SAME loaded gate roster `check:structure` runs
+ *  (work item 0045) — byte-for-byte, like the snap flag index: the whole file is generated, never a block
+ *  inside a hand-edited doc. */
+async function activeGatesIndexDrift(root: string): Promise<LedgerFreshness> {
+  const abs = join(root, ACTIVE_GATES_INDEX_REL);
+  const derivedText = await deriveActiveGatesIndex(root);
+  const derivedRows = derivedText.split("\n").filter((line) => line.startsWith("| `")).length;
+  const base = { ledger: ACTIVE_GATES_INDEX_REL, regen: REGEN_ACTIVE_GATES_INDEX, derived: derivedRows } as const;
+  if (!existsSync(abs)) {
+    return { ...base, drift: [MISSING(REGEN_ACTIVE_GATES_INDEX)] };
+  }
+  const committedText = readFileSync(abs, "utf8");
+  return { ...base, drift: committedText === derivedText ? [] : ["the committed file differs from a fresh derivation (byte-for-byte)"] };
+}
+
 /** #2230: the generator owns the complete file, including rules outside the `@theme` block. A declaration
  * count cannot catch same-count edits, changed values, or a stale pointer/seed block. */
 async function themeCssDrift(root: string): Promise<LedgerFreshness> {
@@ -212,7 +229,7 @@ export async function ledgerFreshness(root: string): Promise<readonly LedgerFres
   const census = censusDrift(readCommitted<CaughtFailurePopulation>(root, POPULATION_REL), deriveCaughtFailurePopulation(root));
   const snapFlagsIndex = snapFlagsIndexDrift(root);
   const typeConfigs = typeConfigsDrift(root);
-  return [census, snapFlagsIndex, typeConfigs, await themeCssDrift(root), deferredRosterDrift(root)];
+  return [census, snapFlagsIndex, typeConfigs, await themeCssDrift(root), await activeGatesIndexDrift(root), deferredRosterDrift(root)];
 }
 
 /** A derivation that came back EMPTY is blindness, not cleanliness: a broken `scanRoot`, a `git ls-files`
@@ -270,6 +287,7 @@ export async function runLedgersFresh(root: string): Promise<number> {
 /** The `baseline <kind> --check` arm — the SAME derivation the writer runs, diffed instead of written.
  *  One home per ledger, two doors: `baseline <kind>` writes, `baseline <kind> --check` judges. */
 export const LEDGER_CHECKS: Readonly<Record<string, (root: string) => number | Promise<number>>> = {
+  "active-gates-index": async (root) => verdict([await activeGatesIndexDrift(root)]),
   "caught-failure-population": (root) =>
     verdict([censusDrift(readCommitted<CaughtFailurePopulation>(root, POPULATION_REL), deriveCaughtFailurePopulation(root))]),
   "snap-flags-index": (root) => verdict([snapFlagsIndexDrift(root)]),
