@@ -418,7 +418,7 @@ CT with a stubbed tRPC cannot prove that (\[\[ct-stub-lie-live-drive-catches]], 
 > **RULED (owner, 2026-08-01) — ALL RESOLVED; the program is build-ready:**
 > **Q1:** mint `features/tag` + `features/regex`, each owning its pane in `surface` mode ("they are probably
 > going into their own features. i dont like that they are in settings") — the §6.1 O3 amendment is RATIFIED
-> and minted as **D114** (`Core-Path-Registry.md`). **Q2:** `system` MERGES into `admin` at stage 4 (system's
+> and minted as **D114**. **Q2:** `system` MERGES into `admin` at stage 4 (system's
 > sections become the first group; deep links re-pointed). **Q3:** aggregate footer + inline error at the
 > failing section, as specced (side-eye on stage 1 checks it). **Q4:** sub-level deep links
 > (`openSettingsTo(category, subId)`) land IN THE PROGRAM (stage 0/1, while the anchor machinery is open).

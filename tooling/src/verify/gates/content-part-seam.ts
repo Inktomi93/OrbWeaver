@@ -1,4 +1,4 @@
-// Policy: content-part-seam (Core-Path-Registry.md D51) — the multimodal content-part shape is threaded at
+// Policy: content-part-seam (D51) — the multimodal content-part shape is threaded at
 // the engine WIRE SEAM; content stays a `string` everywhere upstream. `ChatContentPart` is produced at one
 // CONVERT step (`domain/chat/substrate/wire-history.ts`), assembled by the engine request seam, carried by
 // the domain-side request DTO, and consumed only by the sealed runner tier. Everything else stays
@@ -73,7 +73,7 @@ const MESSAGE =
   "`ChatContentPart` is named outside the D51 seam set (the CONVERT producer domain/chat/substrate/" +
   "wire-history.ts · the engine request seam domain/chat/engine/pipeline.ts · the request DTO " +
   "domain/chat/contract/results.ts · the sealed infra/providers consumers) — content-parts are produced ONCE " +
-  "at the request seam's conversion and everything upstream stays `content: string` (Core-Path-Registry.md D51).";
+  "at the request seam's conversion and everything upstream stays `content: string` (D51).";
 const FIX =
   "keep `content: string` upstream; ChatContentPart is produced ONCE at the request seam's CONVERT step (domain/chat/substrate/wire-history.ts) and consumed only by the sealed runner tier.";
 

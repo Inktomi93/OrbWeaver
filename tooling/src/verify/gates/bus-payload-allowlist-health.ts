@@ -1,4 +1,4 @@
-// Policy: bus-payload-allowlist-health (Core-Laws-and-Precedents.md D16) — the UNSUPPRESSIBLE half of the
+// Policy: bus-payload-allowlist-health (D16) — the UNSUPPRESSIBLE half of the
 // bus-payload firewall: every way the shared wire-shape reader can fail to ESTABLISH a bus member's shape,
 // plus the two tripwires that catch the reader going blind.
 //
@@ -94,7 +94,7 @@ const MESSAGE =
   "`unknown`/`any` field, or a mapped type whose key space is not a finite string-literal union declares no " +
   "key vocabulary at all, so nothing anywhere can scan what rides inside it — spell the keys out. The house " +
   "`{ [K in <union>]: <template> }[<union>]` distribution IS read (its index erases the keys, so the wire " +
-  "fields are the template's), provided the union resolves. See Core-Laws-and-Precedents.md D16.";
+  "fields are the template's), provided the union resolves. See docs/adr/0016-group-chat-data-never-branch.md.";
 
 const EMPTY_ROOT_PREFIX =
   "this bus root resolved to ZERO wire members — it yielded no field, deferred to no other named root, and " +

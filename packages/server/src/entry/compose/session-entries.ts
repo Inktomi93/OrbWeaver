@@ -1,5 +1,5 @@
 // The D8 `session_entries` write-path (issue #71): the ONLY `@orb/db` touch this concern gets — the
-// agent-sdk backend is a sealed executor (never imports `@orb/db`/a domain, `Core-Path-Registry.md` D8 +
+// agent-sdk backend is a sealed executor (never imports `@orb/db`/a domain, D8 +
 // the `infra/**` "NEVER @orb/db" file-header invariant), so the compose root builds the real
 // `db.insert`/`db.update` ops here and injects them DOWN as a `SessionEntryWriter` (session/store.ts).
 //

@@ -70,7 +70,7 @@ export interface ToolbarInputProps extends Omit<ComponentProps<typeof BaseToolba
 /**
  * A text control that participates in the toolbar's keyboard model. Compose a richer control through
  * Base UI's `render` prop — `<ToolbarInput render={<NumberField.Input />} />` is the documented
- * NumberField-in-a-toolbar shape (components/toolbar.md §"Using with NumberField"). Use ONE per
+ * NumberField-in-a-toolbar shape (https://base-ui.com/react/components/toolbar, "Using with NumberField"). Use ONE per
  * horizontal toolbar, LAST: arrow keys drive both the caret and the roving tabindex.
  */
 export function ToolbarInput({ className, ...props }: ToolbarInputProps): ReactElement {

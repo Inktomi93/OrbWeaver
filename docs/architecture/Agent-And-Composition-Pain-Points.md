@@ -14,7 +14,7 @@ updated: 2026-08-14
 >
 > **STILL LIVE (docs-hygiene pass, 2026-08-02).** Kept here, not archived — most sections still
 > describe the tree. What HAS been answered since, so nobody re-files it:
-> **§7 workloads god-domain → ANSWERED by D117** (`Core-Path-Registry.md`) — the junk drawer is gone
+> **§7 workloads god-domain → ANSWERED by D117** — the junk drawer is gone
 > (58→30 files, 8 owner-domain `workload-contributions.ts` factories assembled at
 > `entry/compose/workload-contributions.ts`; the 13 `Workload<X>Env` bundles died with it). §7's
 > import/export split partially followed it (databank + import re-homed in stage D).

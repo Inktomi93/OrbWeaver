@@ -11,7 +11,7 @@ updated: 2026-07-13
 # Orbweaver — build plan (the ordered runbook)
 
 > **Status: the single sequential guide — what to build, in what order, with the checkpoint that proves
-> each phase done.** If anything here disagrees with the ledger (`Core-Laws-and-Precedents.md`), the
+> each phase done.** If anything here disagrees with the ledger (`../../adr/`), the
 > ledger wins (this doc is the expansion, not a new authority).
 >
 > **The spine of the order:** build bottom-up so every import resolves downward —
@@ -249,7 +249,7 @@ teaching state, no modal ships a sparkle placeholder, and mobile reflows to the 
 - **D60 agent principals:** AP0–AP2 landed (identity spine + attribution + containment suite); the
   AP3+ seat wave is pending (PD-17) — though AP3's seat verb (`chat.seatAgent` + auth-matrix row) is
   already in-tree; `resolveAgentSpeaker` and the rest of the wave are not.
-- Ledger latest at the time: **D66** (`Core-Laws-and-Precedents.md` + `Core-Path-Registry.md` — the UI/UX revamp program).
+- Ledger latest at the time: **D66** (the D-ledger — the UI/UX revamp program).
 
 ### NEXT ACTION (as of 2026-07-09)
 

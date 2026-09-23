@@ -265,7 +265,7 @@ test("a swipe reroll streams the new variant IN PLACE — one row, the committed
 
 // D124 retired the rpg "state anchor" — a content-less assistant row a host resync/edit used to post to
 // key a hand-written snapshot. `postNarratorMessage` now REFUSES a blank post at the write boundary
-// (Core-Path-Registry.md D124), so that row can no longer exist in canon at all; the render-filter this
+// (D124), so that row can no longer exist in canon at all; the render-filter this
 // file used to regression-guard (a hidden anchor stealing the swipe strip from the last VISIBLE reply) has
 // no subject anymore — every canon row IS a real reply, so `lastAssistantId` trivially lands on the last
 // one. Deleted rather than kept green on a fabricated blank-content fixture (D124 moots D111 W-A).

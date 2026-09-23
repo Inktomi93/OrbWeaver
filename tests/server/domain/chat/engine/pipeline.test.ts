@@ -2825,7 +2825,7 @@ describe("spanToWirePart — CONTENT_CLASS_POLICY binding", () => {
 
 // NARRATOR ASSEMBLY — what an `output:"narrator"` round actually SENDS. A narrator round is ONE call voicing
 // every seated character, authored by the synthetic group character, which by construction is NOT in `speakerRefs`.
-// These pin the two facts a live drive (2026-08-07, docs/history/reviews/misc/2026-08-07-narrator-live-drive.md)
+// These pin the two facts a live drive (2026-08-07, 2026-08-07)
 // found MISSING from the wire: the co-speakers' CARDS never reached the model (the system row named the
 // primary 7x and the co-speaker 0x), and `{{char}}` bound to the primary alone, so the shipped main-prompt
 // framing opened "write <primary>'s perspective only" on a turn voicing everybody. Asserted on

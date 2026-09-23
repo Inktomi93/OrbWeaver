@@ -22,4 +22,4 @@ not against today's code.
 | `list-pane-projection/` | `../list-pane-projection-proposal.md` — `character-launcher.html`, `unified-rail.html` |
 | `refinery/` | `../refinery-r0.md` and the R3 plan — `surface.html` (the LIST·CONTENT·CONTEXT shell), `apply-and-selection.html`, `empty-states.html`, `d62-deltas.html` |
 | `login-loading/` | `../login-loading-screen.md` §9 (BUILT) — `login-loading-mock.html` (every scene/mode/theme/reduced-motion arm) + the brand-A winners `orb-mark-a.svg` / `orb-favicon-a.svg`, whose 16px cut is the shipped `packages/client/public/favicon.svg` |
-| `crunchy-cluster-redesign/DESIGN.md` | itself — the rpg state-round / tracker / wand / fork program. The spec home D111 cites (`../../../architecture/core/Core-Path-Registry.md`) |
+| `crunchy-cluster-redesign/DESIGN.md` | itself — the rpg state-round / tracker / wand / fork program. The spec home D111 cites (`../../../adr/0111-the-rpg-state-round-reads-the-story-the.md`) |

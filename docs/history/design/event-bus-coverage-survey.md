@@ -506,7 +506,7 @@ the membrane; a future extension API subscribes to the same planes):
   `search-discovery.ts:130-170`, `client/src/data/invalidation.ts`, refinery `context.ts` /
   `workload-contributions.ts` / `character/persistence/refinery-ops.ts`,
   `use-databank-mutations.ts` (header+reads), `automation-pane.tsx`, the constitution + `Core-0` +
-  `Core-Laws-and-Precedents.md` + `Core-Path-Registry.md` (D1–D70 pages + D118/D137 rows) + the
+  the D-ledger (D1–D70 pages + D118/D137 rows) + the
   staleness design (whole).
 - **Sweeps (command + count):** `emitUserEvent` literal grep server-wide (87 lines, attributed);
   `ast-grep '$X.emit($$$A)'` / `'$X.emitUserEvent($$$A)'` / `'$X.emitBus($$$A)'` over `domain/`

@@ -19,7 +19,7 @@ updated: 2026-07-03
 
 > **Scope:** every doc of every set under `proposed/` (79 files, \~15k lines), read in full and
 > audited against the ACTUAL codebase (`packages/**`, read-only snapshot — a burn agent is live)
-> and the house law (AGENTS-1/2/3, `Core-Laws-and-Precedents.md` D1–D61, the user doctrine).
+> and the house law (AGENTS-1/2/3, D1–D61, the user doctrine).
 > **Method:** every load-bearing "exists" claim was symbol-verified against the tree (grep/read;
 > file:line where cited); CLEAN is a verdict, not a courtesy. Findings carry severity
 > (BLOCKER / MAJOR / MINOR / NIT), the doc§, the evidence, and a one-line fix.

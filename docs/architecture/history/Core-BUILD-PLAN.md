@@ -13,7 +13,7 @@ updated: 2026-07-25
 > **Status: build is at Phase 6+; completed-phase step detail is archaeology.** This file is a slim
 > cursor — the phase state, one line each. The full executed per-phase runbook (step-level detail,
 > landing commits, checkpoints) is frozen at `build-plan-record.md` (same folder). If anything here
-> disagrees with the ledger (`../core/Core-Laws-and-Precedents.md`), the ledger wins.
+> disagrees with the ledger (`../../adr/`), the ledger wins.
 >
 > **Stack note:** version pins live in the pnpm catalog; per-tier runtime libs joined it as their tier
 > was built.

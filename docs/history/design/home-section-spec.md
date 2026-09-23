@@ -27,7 +27,7 @@ home page concept"* — a claim this spec deliberately reverses, and §1.1 state
 
 **Law read IN FULL for this spec:** `client-architecture-lockdown.md` (the registry/contributor/section
 seams — §5 registry rules, §6a-§6d, §7 the door, §8 the settings precedent, §12 channel matrix, §16 gate
-spec) · the D18 RATIONALE RIDER (`Core-Path-Registry.md:49`) · `docs/history/design/list-pane-projection-proposal.md`
+spec) · the D18 RATIONALE RIDER · `docs/history/design/list-pane-projection-proposal.md`
 (RATIFIED A+B — this spec composes with it, §9.1) · `docs/history/design/set-seams-spec.md` §1-§5 (the contribution precedent
 this mirrors) · `density-pass-spec.md` §2.3 (the four-voice grammar) + §3.1 (tier map) + §3.2 (chrome diet) ·
 `docs/design/mocks/README.md` + the `panel-redesign/` + `list-pane-projection/` mock sets (house style).

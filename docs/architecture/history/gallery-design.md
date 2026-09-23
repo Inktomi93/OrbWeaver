@@ -447,7 +447,7 @@ an infra prerequisite; it must not ship with a raw `fetch()` as a stopgap.
 - `gallery.md` — the committed decision record this doc expands.
 - `domains/assets.md` (gutted — the code is the doc; git history) — the CAS index/byte-store split, `storeBlob`, the variant pipeline, the
   `sniffMime`→kit deferral (the model for `isAnimated`), D21 ownership.
-- `Core-Laws-and-Precedents.md` — D49 #2 · D21 · D24 · D42 · D44.
+- the D-ledger — D49 #2 · D21 · D24 · D42 · D44.
 - `Core-Legacy-Migration-and-Gaps.md` §2/§4/§6; `Core-SillyTavern-Feature-Map.md` §2d (PD-55 row).
 - `core/Tier-3-Infra.md` — `infra/network/egress.ts` (`safeFetch`, the staged seam §6 wires).
 - `history/Marinara-Residue-Non-RPG.md` §1 B4/B5; `databank-design/databank.md` (scrapers share the §6 guard).

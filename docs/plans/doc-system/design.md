@@ -8,17 +8,17 @@ updated: 2026-09-22
 
 ## Goal
 
-Replace the doc sprawl with four homes (`docs/law/`, `docs/adr/`, `docs/plans/`, `docs/work/`) plus `docs/Mission.md`, where agents write prose and every structural change goes through `pnpm doc`. `pnpm check:agents` checks the new tree. The legacy tree (`docs/architecture/`, `docs/design/`, `docs/history/`, `docs/reviews/`, `docs/vendor/`) keeps its current checker until each folder migrates; the migration is `docs/plans/doc-migration/`.
+Replace the doc sprawl with four homes (`docs/law/`, `docs/adr/`, `docs/plans/`, `docs/work/`) plus `docs/Mission.md`, where agents write prose and every structural change goes through `pnpm doc`. `pnpm check:agents` checks the new tree. The legacy tree (`docs/architecture/`, `docs/design/`, `docs/history/`, `docs/reviews/`) keeps its current checker until each folder migrates; the migration is `docs/plans/doc-migration/`. The vendored-doc mirrors this plan formerly named already left git entirely rather than migrating into a home here (`docs/work/0010-vendored-docs-leave-git.md`).
 
 ## Premises re-derived against the tree
 
 | Brief premise | Tree | Verdict |
 | - | - | - |
-| ~2,000 tracked files under `docs/` | `git ls-files docs` in this worktree counts a little over two thousand; `docs/vendor/` is roughly a third, `docs/history/` and `docs/reviews/` together about half | holds |
+| ~2,000 tracked files under `docs/` | `git ls-files docs` in this worktree counts a little over two thousand; the vendored-doc mirrors this plan formerly named (`docs/work/0010-vendored-docs-leave-git.md`, now deleted) were roughly a third, `docs/history/` and `docs/reviews/` together about half | holds |
 | history has three homes | `docs/history/`, `docs/architecture/history/`, `docs/history/design/` all exist | holds |
-| reviews have two homes | `docs/reviews/` and `docs/history/reviews/` (the audit per-lane folders live under the second) | holds |
+| reviews have two homes | formerly `docs/reviews/` and a second historical subtree under `docs/history/` (the audit per-lane folders lived there); the reviews item (`docs/work/0008-reviews-leave-docs.md`) emptied the second one entirely | held, no longer current |
 | `docs/design/` is a flat drawer of about sixty files | sixty-two flat files plus a `mocks/` subtree of about a hundred | holds |
-| the D-ledger is ~163 rows in a few huge files | `Core-Path-Registry.md` holds ids D1 to D163 with a reserved gap D79 to D105, in TWO row shapes: bullet rows (`- **D<n>** — …`) under range headings, and per-ruling `## D<n>` headings with a bold restatement and continuation lines. One id (D119) has two bullet anchors. The longest single row is about 12 KiB; four rows exceed 8 KiB | holds, with two shapes the splitter must parse |
+| the D-ledger is ~163 rows in a few huge files | the legacy registry file held ids D1 to D163 with a reserved gap D79 to D105, in TWO row shapes: bullet rows (`- **D<n>** — …`) under range headings, and per-ruling `## D<n>` headings with a bold restatement and continuation lines. One id (D119) has two bullet anchors. The longest single row is about 12 KiB; four rows exceed 8 KiB | holds, with two shapes the splitter must parse |
 | new ADRs start at `0001` while the ledger keeps its numbers | D1 exists, so `docs/adr/0001-*` would collide with D1's future home | REFUTED: new ADRs continue the ledger's id space (next free is D164, read from both sources); the numbering fork is below |
 | code cites doc section numbers and D rows, and `check:structure` reds on a moved heading | code carries about five thousand bare `D<n>` citations across roughly eighteen hundred source files (138 distinct ids), about eleven thousand `§` section citations, and about a thousand `docs/**.md` path citations (236 distinct paths; 229 of them under `docs/architecture/core/`). The `d-citation-integrity` gate resolves `D<n>` against the registry's bullet anchors; `dangling-doc-cite` resolves path and basename cites against tracked files | holds; the citer cost is priced in §Ledger split |
 | the catalog churns on every edit | the catalog tree is about 5 MB of JSON; `catalog.json` is a generated 3 MB file committed in the tree; each attestation row pins a whole-file hash, a commit, and an append-only prose `evidence` array | held; the owner ruled the attestation out at once (this lane), so the rows now carry a path and an authority only |
@@ -87,7 +87,6 @@ Status is frontmatter only; an ADR has no `## Status` section (fork 2 below).
 | `due [glob…]` | the soft freshness report (§Freshness); always exit 0 |
 | `overview` | the column view: open (triage first), doing, blocked, done count |
 | `drift` | the orchestrator nag; prints nothing when consistent, else one line per drift with the fixing command |
-| `migrate-ledger --range <a-b\|all> [--apply]` | splits registry rows into ADR files (§Ledger split); dry run by default |
 
 There is no `doc check`; the check is `pnpm check:agents` (ruling 6).
 
@@ -135,9 +134,9 @@ Lanes never write item state. They add a commit trailer `Closes: 12, 14`; `scrip
 
 A done item with no plan is deleted by `pnpm doc archive` when named; git keeps it. A done item with a plan moves into the plan's archive folder with the plan.
 
-### Ledger split (`migrate-ledger`)
+### Ledger split
 
-The registry keeps its D numbers; each ruling becomes `docs/adr/NNNN-<slug>.md` with the ruling's title as the H1, its text under `## Decision`, and the other three sections carrying the sentence "Not recorded in the ledger row." until the migration lane fills or deletes them. The parser handles both row shapes and refuses a duplicate anchor. Ids never change, so the five thousand bare `D<n>` code citations cost nothing. The split lands as ONE commit (`--range all`): the `d-citation-integrity` gate's ledger resource (`tooling/src/verify/contract/resource-document.ts`) is re-pointed from the registry file to the ADR tree, where an id resolves from a filename; the registry is deleted; `Core-Path-Registry.md`-prefixed citations (61 code sites, about 180 doc sites) are rewritten to the bare id; and `doc-catalog/lib/vocab.ts`'s registry path goes with the attestation rows. No union resolver and no interval where both homes are valid (owner ruling). `--range` exists to size a lane's prose work on a scratch branch, never to keep the tree green between batches.
+The registry keeps its D numbers; each ruling becomes `docs/adr/NNNN-<slug>.md` with the ruling's title as the H1, its text under `## Decision`, and the other three sections carrying the sentence "Not recorded in the ledger row." until the migration lane fills or deletes them. The parser handles both row shapes and refuses a duplicate anchor. Ids never change, so the five thousand bare `D<n>` code citations cost nothing. The split lands as ONE commit: the `d-citation-integrity` gate's ledger resource (`tooling/src/verify/contract/resource-document.ts`) is re-pointed from the registry file to the ADR tree, where an id resolves from a filename; the registry is deleted; registry-prefixed citations (61 code sites, about 180 doc sites) are rewritten to the bare id; and `doc-catalog/lib/vocab.ts`'s registry path goes with the attestation rows. No union resolver and no interval where both homes are valid (owner ruling).
 
 About 40% of the rows carry dates or issue numbers in their prose, so a migrated ADR fails writing rule 1 until its prose is cleaned, and that red is the to-do list (owner ruling: no grandfather exemption). Four rows exceed the ADR cap and are trimmed under the ledger-entry style, which already forbids provenance trails.
 
@@ -156,7 +155,7 @@ About 40% of the rows carry dates or issue numbers in their prose, so a migrated
 | keeping GitHub Projects | API-throttled, rotted, and off the tree; in-flight state must live in the repo |
 | a second checker (`pnpm doc check`) | ruling 6: one checker; the doc tool exports its rules and `check:agents` runs them |
 | extending `tooling/src/doc-catalog/` instead of a new `doc/` tool | the catalog is the model being removed; the survivor owns the verbs, and it imports the catalog's frontmatter reader and formatter until those move |
-| a union D-id resolver (registry anchors plus ADR filenames) during the split | an owner ruling: no compatibility shim; the split is one commit that re-points the `d-citation-integrity` ledger resource at the ADR tree, deletes the registry and rewrites its citers. `--range` sizes a lane's prose work, never keeps the tree green between batches |
+| a union D-id resolver (registry anchors plus ADR filenames) during the split | an owner ruling: no compatibility shim; the split is one commit that re-points the `d-citation-integrity` ledger resource at the ADR tree, deletes the registry and rewrites its citers |
 | a `reviewed: <sha>` frontmatter key for soft freshness | a sha is orphaned by every rebase and needs a second field beside `updated`; a date is enough for a warning tier and is the one sanctioned date already |
 | a `describes:` frontmatter list of paths | the paths are already in the body as backticked citations; a second list drifts from the first |
 | a `## Status` section in ADRs | frontmatter `status` already holds it; two homes drift |
@@ -197,7 +196,6 @@ Every test plants a tree in scratch (`plantedTree`) or drives a pure function; n
 | Test | Proves |
 | - | - |
 | `tests/tooling/doc/lib/rules.test.ts` | per-kind frontmatter, sections, caps, folder admission, item state shape, ADR id uniqueness and reserved range; each rule red on a planted violation and green on the control |
-| `tests/tooling/doc/lib/ledger.test.ts` | both registry row shapes parse to the same ruling shape; a duplicate anchor refuses; the slug and title derivation |
 | `tests/tooling/doc/lib/indexes.test.ts` | index and `tasks.md` rendering is deterministic and byte-stable |
 | `tests/tooling/doc/ops/verbs.suite.int.test.ts` | each write verb on a planted tree: the file it writes, the indexes it regenerates, the refusal when the target exists or the id is unknown; `archive` rewrites the old path in a planted citer |
 | `tests/tooling/doc/ops/board.int.test.ts` | `land` refuses a sha not on `main`; each of the four drift lines fires on a planted repository and stays silent on the consistent control |

@@ -27,7 +27,7 @@ export function isPublicTagged(decl: Node): boolean {
 }
 
 // The two NAMED, gate-verifiable anti-rot markers that SPLIT the old blanket `@public` exemption
-// (docs/history/reviews/misc/2026-08-09-api-surface-classification.md — the parking-permit hole). A bare `@public`
+// (2026-08-09 — the parking-permit hole). A bare `@public`
 // only ever lands on an UNUSED export (a consumed export is not an orphan candidate), so `@public` was
 // certifying "intended-but-unconsumed" behind a prose reason a barrels lane writes for genuine rot as easily
 // as for real future API. The split forces the claim to name a CHECKABLE target:

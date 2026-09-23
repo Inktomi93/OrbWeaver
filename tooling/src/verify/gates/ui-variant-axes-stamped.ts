@@ -7,7 +7,7 @@
 // WHY. `packages/ui` expressed its axes as CLASS STRINGS only, so two authored arms of one primitive in
 // one home were indistinguishable in the DOM and the ui-audit walker folded them into ONE authored
 // decision — one repair row where two decisions exist (F8,
-// docs/reviews/stickler/2026-09-02-uiaudit-orbui-mechanism-audit.md). Stamping is only half a fix: the
+// 2026-09-02). Stamping is only half a fix: the
 // next primitive to grow a `size` axis would silently rebuild the collapse, which is what this gate
 // makes impossible.
 //

@@ -138,7 +138,7 @@ The test baseline was regenerated in this isolated worktree through its single w
 the ledger's own documented motion. Two of the 34 added `testFiles` are this lane's; the other 32 are
 gate-runtime specs the program branch had added without a regen, and folding them in is what makes the
 ledger fresh rather than an act of this lane. `check:ledgers-fresh`'s OTHER half —
-`docs/reviews/caught-failure-ownership/population.json` — is stale by 21 rows, and every one of them names
+`tooling/src/verify/gates/caught-failure-ownership.population.json` — is stale by 21 rows, and every one of them names
 a file this lane never touched (`lib/policy-pass.ts`, `lib/schema-fact.ts`, `ops/policy-conformance.ts`,
 `ops/resource-*.ts`, `entry/compose/automation-plugin.ts`). Sixteen are NEW `unproven` caught-failure
 sites in the program branch's own foundation, which need ownership rows rather than a silent regen, so
@@ -182,7 +182,7 @@ that half is left to the integration owner.
   The full list for the fold: `tooling/src/verify/gates/GATE-AUTHORING.md:416`,
   `docs/architecture/core/Core-Enforcement-Active-Gates.md:157`,
   `docs/design/pane-standardization-design.md:332`,
-  `docs/reviews/verifier/2026-09-02-941-semantic-denominator-closure.md:110`,
+  the 2026-09-02 #941 semantic-denominator-closure verifier review :110,
   `docs/reviews/gate-runtime/uncovered-gate-conversion-census.md:157` and `:162`,
   `docs/catalog/catalog.json:537` with its `docs/catalog/receipts/` twin, and the one prose comment at
   the former `tests/tooling/check-gates.int.test.ts:1179`, today `tests/tooling/check-gates.repo.int.test.ts`.

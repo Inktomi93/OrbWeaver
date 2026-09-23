@@ -154,7 +154,7 @@ Also: swipe-safe (each swipe stores its own stats); schemas export as portable J
   is 03 §4.1 + 04 §2, the pillars are 01, the domain shape/injection is 02, the tool seam is 05, the
   GM/crew is 06, seats are 12. **Do not plan off a subset.**
 - `docs/history/reviews/misc/marinara-st-extension-lite-mode.md` (this brief's prior-art source, in full).
-- Ledger `docs/architecture/core/Core-Path-Registry.md` — D58 (the rpg commit), and scan for D18/D20/D24
+- Ledger `docs/adr/` — D58 (the rpg commit), and scan for D18/D20/D24
   (scope/FK discipline), D46 (automation/plugin Tier), D48 (tool-use).
 - This brief.
 

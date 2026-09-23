@@ -7,7 +7,7 @@ updated: 2026-07-03
 # Automation Design — the prescriptive plan for `domain/automation` (D46 Tier 1, doc-set index)
 
 > **Status: COMMITTED (D46, 2026-06-28).** This doc set is the authoritative BUILD design for the
-> Tier-1 declarative automation layer (`Core-Laws-and-Precedents.md` D46 is the decision record and
+> Tier-1 declarative automation layer (D46 is the decision record and
 > wins on any conflict; `automation.md` remains the committed decision digest). Everything
 > here is prescriptive and self-contained: a builder with ONLY this doc set + the orbweaver law docs
 > (AGENTS-1/2/3, the domain docs it cites) can build the whole Tier-1 system. Every decision carries

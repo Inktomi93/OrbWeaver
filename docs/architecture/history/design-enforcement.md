@@ -5,7 +5,7 @@ updated: 2026-07-12
 ---
 
 > **AS-BUILT (2026-07-11).** This program is fully realized: rulings P1–P6 landed in D62 core law
-> (`core/Core-Path-Registry-D62.md`); every gate is BUILT — `no-raw-interactive-intrinsics` ·
+> (D62); every gate is BUILT — `no-raw-interactive-intrinsics` ·
 > `empty-state-has-action` · `no-arbitrary-tw-values` · `placeholder-copy-registry` ·
 > `modal-body-not-placeholder` (all registered in `report.ts`, green on the real tree via their
 > ratchets); the ARIA/screenshot goldens (§3.3/§3.4) and the CT state-coverage sweep (§3.5) were
@@ -14,7 +14,7 @@ updated: 2026-07-12
 
 # Design Enforcement — locking the visual/UX bar in so it cannot drift
 
-**Status: COMMITTED program — ledger D62** (2026-07-05; `core/Core-Path-Registry-D62.md` is the
+**Status: COMMITTED program — ledger D62** (2026-07-05; D62 is the
 decision record). The gate SET is indexed in law at `core/UI-Gates-and-Lessons.md` §8 (the D62
 PLANNED block); THIS doc holds the implementation detail, tiering, and process. Companions:
 [`ui-polish-punchlist.md`](ui-polish-punchlist.md) (the fixes) ·
@@ -72,7 +72,7 @@ gates exist: gates catch *violations*; law shapes *what agents build first try*.
 
 > Nate delegated the remaining calls this date ("you can make decisions on all remaining items —
 > consider flow first, Discord as a guide"). **All six are RECORDED in ledger D62**
-> (`core/Core-Path-Registry-D62.md`) and their law-text amendments LANDED 2026-07-05 (§4.1 rail +
+> (D62) and their law-text amendments LANDED 2026-07-05 (§4.1 rail +
 > mobile; §4b axis 3; §4.2/§4.3 new). Still pending at implementation time: the two `tokens.json`
 > `$description` strings (P1 — rides lane L0) and the AA re-check (P2). Nate can veto any row by
 > striking it here before its lane runs; a veto also reverts the cited law text.

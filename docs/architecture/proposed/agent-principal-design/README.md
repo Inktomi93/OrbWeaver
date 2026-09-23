@@ -12,7 +12,7 @@ updated: 2026-08-14
 > `resolveAgentSpeaker` is NOT (the placeholder note in `roster.ts` marks it); AP4a/AP4b pending.**
 > The §8.6/PD-17 transition — "buddy gets its own ID" — is
 > planned work, not a someday note (Nate, 2026-07-01: "we should plan for it, it's kinda
-> important"). This doc set is the authoritative design (`Core-Laws-and-Precedents.md` D60 is the
+> important"). This doc set is the authoritative design (D60 is the
 > decision record and wins on any conflict). The evidence base: the neo-tavern principal-scout dig
 > (`reports/principal-scout.json`, cited via AGENTS-2 §8.6 — one-line cites only), the v1
 > borrowed-owner posture (ledger §3/§5/D17), and the LIVE orbweaver identity spine (`can()` in

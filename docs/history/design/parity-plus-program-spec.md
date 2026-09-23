@@ -244,7 +244,7 @@ Read with own eyes this session (paths current tree):
   {statProfile, lite: {steeringNote}, extractionMode}` — additive JSON fields self-heal at the parse seam
   (no version stamp; rpg tables carry no versioned-config column). The feature knobs (§9) land in a new
   `config.features` sub-object.
-- **New rulings mint at D108+** (`Core-Laws-and-Precedents.md` — D106 highest live; D79–D105 reserved;
+- **New rulings mint at D108+** (D106 highest live; D79–D105 reserved;
   D107 referenced by the lite spec's knob-wire program). This program mints one D-entry at land (§11).
 - **Marinara is the FLOOR** (read this session, cited): plot progression = a button firing a one-shot
   injected prompt (Random = a `{{random::…}}` twist roll; Natural = "progress it, reintroduce an
@@ -533,7 +533,7 @@ signal feature 1's whole point depends on.
 #### 2.7.4 Delta + extraction GRACEFUL-DEGRADE — the D79 heal arm (ruling #10)
 
 The owner ruled the delta/extraction path must DEGRADE gracefully, not drop whole, consistent with the D79
-"ONE structured-output stack" (`Core-Path-Registry.md` D79 — the zod→JSON-Schema projector + `ResponseFormat`
+"ONE structured-output stack" (D79 — the zod→JSON-Schema projector + `ResponseFormat`
 interactive-axis degrade; the extraction schema already rides it via `projectJsonSchema`). Two heal arms:
 
 - **Delta heal (§2.7):** the diff is a PURE fn over two snapshots — it cannot fail on well-formed state.
@@ -1763,7 +1763,7 @@ where a wave spans both). Commit bar per the standing rule: lanes verify scoped;
 security-adjacent) before merge.
 
 **Ledger at land:** mint **D110** (erratum fixed 2026-07-27 — this note predated the D108/D109 mints;
-D108 = the rpg-lite carve, D109 = the W4 rulings, both live in Core-Path-Registry.md) — the parity-plus
+D108 = the rpg-lite carve, D109 = the W4 rulings, both live in the D-ledger) — the parity-plus
 program: relationship as a closed-vocab-with-custom
 field; level hand-only; the CONTENT-CLASS VISIBILITY REGISTRY (two planes, an OPEN registry of content
 classes, the `toContentParts` wire seam + the client/server render filter); the generic hidden-tag

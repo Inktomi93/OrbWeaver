@@ -1,7 +1,7 @@
 // @instrument-proof: the folded design-audit ARM must still BITE. Every case below plants a real defect
 // through the real `pnpm snap … --design-audit` door and requires the verdict; the twin cases prove the
 // red is the plant and not the harness. Three of them are the census's own reproductions
-// (docs/reviews/stickler/2026-09-04-snap-ui-audit-capability-census.md §2.1/§2.2/§2.3) — they were RED on
+// (2026-09-04 §2.1/§2.2/§2.3) — they were RED on
 // `main@b767bedfc` before this fold and are the receipts #1324/#1325/#1326 close.
 //
 // @instrument-absence-proof: a walk that censused nothing, a reveal action that did not land, and a

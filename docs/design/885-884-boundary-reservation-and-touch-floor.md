@@ -9,7 +9,7 @@ updated: 2026-09-01
 > Lane cb-reserve-floor (forge). #885 is the design-risk lead: ONE reservation seam for every
 > suspending surface; a wrong shape forces a re-migration of every keyed mount. #884 is the sibling:
 > the collapsible size-default inversion + the vertical-pitch arm. Contracts:
-> `docs/reviews/research/2026-08-30-orchestrator-handoff.md` §2 C2/C3/C4; issues #885/#884.
+> the 2026-08-30 orchestrator-handoff research §2 C2/C3/C4; issues #885/#884.
 
 ## 0. Premise re-verification (measured on this tree, 2026-09-01)
 

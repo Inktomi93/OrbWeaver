@@ -72,7 +72,7 @@ genuinely new — exactly the study's R0.
 1. **`refinery_sessions` carries NO `ownerId` column.** The study's §5.2 sketch says "ownerId FK cascade
    (D23 single-owner)" — but D23's actual test rules the opposite: a row whose owner is reachable through
    ONE required FK to owned canon **DERIVES** ownership; "only TRUE PRODUCERS (the user's authored
-   artifact with no owned anchor) stamp `ownerId`" (`Core-Path-Registry.md:59`). A refinery session is
+   artifact with no owned anchor) stamp `ownerId`" (D23). A refinery session is
    anchored by `characterId NOT NULL → characters(ownerId)` — the same DERIVE class as `gallery_items`,
    `imagery_generations`, `character_sprites`, `proposals` (all D23-enumerated). The D-ledger outranks a
    review doc. Consequence for R1: ownership gating is the join-through-character `persistence/` pattern

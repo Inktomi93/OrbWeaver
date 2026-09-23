@@ -3483,7 +3483,7 @@ test("#1646 the reduced-motion SETTLE holds the centred carrier at exactly half 
 });
 
 // ── #2442: THE COUNTER NAMES A MARKER FAMILY, AND ITS MAGNITUDE IS THE CLAMPED DELTA ────────────────
-// Side-eye live drive 2026-09-19 (docs/reviews/side-eye/2026-09-19-collapse-ux-touch-audits.md, AUDIT 1).
+// Side-eye live drive 2026-09-19 (2026-09-19, AUDIT 1).
 // #1646 countered `[data-slot=message-row]`, which is ONE of the six boxes that wear `CHAT_TRACK` — the
 // room's one centred track (features/chat/lib/chat-track.ts). The composer wears it too, was not
 // countered, and therefore rode `.shell-main`'s FULL-track translate: per-rAF census at 1280x800,

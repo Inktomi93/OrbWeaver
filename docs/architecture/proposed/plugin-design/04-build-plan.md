@@ -76,7 +76,7 @@ updated: 2026-09-21
 2. ~~**Install authority owner∪admin v1** (02 §4) with a recorded widening criterion — ratify.~~
    RESOLVED 2026-08-24: the criterion came due and the owner ruled. Install authority is SELF — any
    authenticated principal, for themselves — with the row's `ownerId` as the entire gate and no admin
-   any-row branch (`Core-Path-Registry.md` D147; 02 §4 carries the resolution).
+   any-row branch (D147; 02 §4 carries the resolution).
 3. **`matchAutomationEvents` as a manifest boolean** mirrors the rule column so ONE cascade guard
    serves both (03 §2) — the automation builder should treat the depth plumbing as shared
    infrastructure, not rule-private.

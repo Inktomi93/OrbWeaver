@@ -13,7 +13,7 @@ import { createResourceReader } from "../../../../tooling/src/verify/ops/resourc
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const CATALOG = "docs/catalog/catalog.json";
-const REGISTRY = "docs/architecture/core/Core-Path-Registry.md";
+const ADR_TREE = "docs/adr";
 const ACTIVE_DEBT = "docs/architecture/core/Core-Audits-and-Debt.md";
 const CLEARED_DEBT = "docs/architecture/history/Core-Debt-Cleared-Ledger.md";
 function catalog(paths: readonly string[]): string {
@@ -87,11 +87,39 @@ test("the two halves of the PD registry are ONE identity — half of it refuses"
   expect(half.status === "ready" ? "" : half.reason).toContain(CLEARED_DEBT);
 });
 
-test("an EMPTY but valid registry is a policy-visible population, not a refusal", ({ scratch }) => {
-  // The §5 line the door must not cross in the other direction: a registry that is present and parseable
-  // but carries no rows is the consuming policy's judgment to make.
-  const empty = ledger(scratch, { [REGISTRY]: "# Core Path Registry\n" }, "core-path-registry");
+test("a TREE ledger serves exactly its grammar members: the index, a slugless name and a nested file are not decisions", ({ scratch }) => {
+  const served = ledger(
+    scratch,
+    {
+      [`${ADR_TREE}/0164-docs.md`]: "# Docs\n",
+      [`${ADR_TREE}/0001-auth-seam.md`]: "# Auth seam\n",
+      [`${ADR_TREE}/README.md`]: "| D1 | index |\n",
+      [`${ADR_TREE}/0005.md`]: "# No slug\n",
+      [`${ADR_TREE}/nested/0006-deep.md`]: "# Nested\n",
+    },
+    "d-ledger",
+  );
 
-  expect(empty.status).toBe("ready");
-  expect(empty.status === "ready" && empty.value.nature === "markdown" ? empty.value.documents[0]?.headings.length : 0).toBe(1);
+  expect(served.status).toBe("ready");
+  // Sorted, and only the two `NNNN-<slug>.md` files: the published paths are the members, so a
+  // declaration's cross-root check sees no index or stray as belonging to the ledger.
+  expect(served.status === "ready" ? served.value.documents.map((document) => document.path) : []).toEqual([
+    `${ADR_TREE}/0001-auth-seam.md`,
+    `${ADR_TREE}/0164-docs.md`,
+  ]);
+  expect(served.paths).toEqual([`${ADR_TREE}/0001-auth-seam.md`, `${ADR_TREE}/0164-docs.md`]);
+});
+
+test("an ABSENT ledger tree refuses; a tree with no member is an EMPTY population, not a refusal", ({ scratch }) => {
+  // The planted control for the refusal: with no tree there is no ledger, and every "this id has no
+  // decision" built on it would be inverted.
+  const absent = ledger(scratch, { "docs/Mission.md": "# Mission\n" }, "d-ledger");
+  expect(absent.status).not.toBe("ready");
+  expect(absent.status === "ready" ? "" : absent.reason).toContain(ADR_TREE);
+
+  // The §5 line in the other direction: a present tree holding only its index is a ready, zero-member
+  // population; the declaration resolver, not this door, refuses it as empty.
+  const indexOnly = ledger(scratch, { [`${ADR_TREE}/README.md`]: "# Decisions\n" }, "d-ledger");
+  expect(indexOnly.status).toBe("ready");
+  expect(indexOnly.members).toBe(0);
 });

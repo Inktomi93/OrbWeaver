@@ -325,7 +325,7 @@ in order. The sourced synthesis and design-writing quotes behind these live in
    `hover:bg-accent` (`packages/ui/src/primitives/card/variants.ts`) made the app's own `[anim]`
    flagger print `animating non-compositor backgroundColor (guide §3.7) · OVER BUDGET` on every
    interactive-card hover, app-wide — a live instrument accusing ratified behaviour
-   (`docs/history/reviews/side-eye/2026-08-22-rail-home.md` P3-2).
+   (side-eye 2026-08-22, P3-2).
 
    The enforcing flagger is `packages/client/src/lib/motion-flaggers.ts` (`[anim]`), and its
    predicate is **narrower than this text by construction**: an animation event carries a

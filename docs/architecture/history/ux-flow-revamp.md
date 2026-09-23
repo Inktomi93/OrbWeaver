@@ -9,7 +9,7 @@ updated: 2026-07-13
 > **CLOSED 2026-07-13 (D66):** open-remainder tracking moved to `../proposed/ui-cohesion-north-star.md` §6 (each item re-verified against code there). This file is a frozen program record — its own status tables are a 2026-07-09 snapshot; do not work from them.
 
 **Audit date:** 2026-07-05 (main @ f133379). **Status: COMMITTED program — ledger D62**
-(`core/Core-Path-Registry-D62.md` is the decision record; this doc wins on step-level detail).
+(D62 is the decision record; this doc wins on step-level detail).
 **The LAW this program implements was folded into core 2026-07-05:** the region map + interaction
 physics = `core/UI-Architecture-and-Layout.md` **§4.2**; the ten UX rules + voice = **§4.3**; the
 amended shell anatomy (7 sections · bottom tabs · landing · panel defaults) = **§4.1**; the

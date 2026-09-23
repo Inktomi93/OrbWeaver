@@ -32,7 +32,6 @@ test("set takes a leading run of ids, the state last, and only the flags it was 
     paths: ["docs/adr/0001-a.md"],
     by: "docs/adr/0002-b.md",
   });
-  expect(parseDocCommand(["migrate-ledger", "--range", "1-40", "--apply"])).toEqual({ kind: "migrate-ledger", range: { lo: 1, hi: 40 }, apply: true });
   expect(parseDocCommand(["review", "docs/law/*.md"])).toEqual({ kind: "review", patterns: ["docs/law/*.md"] });
   expect(parseDocCommand(["due"])).toEqual({ kind: "due", patterns: [] });
   expect(parseDocCommand([])).toEqual({ kind: "help" });
@@ -46,7 +45,6 @@ test("misuse is a UsageError: an unknown verb, a bad slug, a missing required fl
     ["set", "1", "done", "--bogus", "y"],
     ["set", "one", "done"],
     ["set", "1", "sideways"],
-    ["migrate-ledger", "--range", "9-1"],
   ]) {
     expect(() => parseDocCommand(argv)).toThrow(UsageError);
   }

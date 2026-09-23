@@ -88,6 +88,6 @@ The only immediately codemod-mechanical files in this wave are `baseui-render-pr
 - Destination contract, query boundary, population/grant law, and migration waves: `docs/design/gate-runtime-standardization.md:39-76,95-116,120-139,158-194`.
 - Current production descriptor/reporting/suppression law: `tooling/src/verify/gates/GATE-AUTHORING.md:35-105,225-282,454-481`.
 - Prior scope inventory used only as a lead, then rechecked from source: `docs/design/gate-config-system.md:135-176`. Its historical corpus was 254 gates; this report's current mechanical census is 255.
-- Prior unified-walk measurement used only for the execution model: `docs/reviews/research/2026-08-31-gate-pass-unified-walk.md:132-180`. Its historical corpus was 236 gates and does not determine this manifest.
+- Prior unified-walk measurement used only for the execution model: the 2026-08-31 gate-pass-unified-walk research, :132-180. Its historical corpus was 236 gates and does not determine this manifest.
 - Mechanical negative boundary was checked two ways: the authoritative structural verifier (including shorthand `visit,` and singular `getSourceFile`) and literal `rg` over all 95 A-M modules. The search covers tracked `.ts` gate modules only, exactly as requested; helpers, tests, N-Z gates, non-TypeScript resources, and untracked files are not manifest candidates.
 - This was a read-only migration review. No gate, runtime, helper, test, or broad verification command was changed or run.

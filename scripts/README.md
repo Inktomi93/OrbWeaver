@@ -65,7 +65,7 @@ campaign's capture rig, was removed with the neo parity rip — #428, git preser
 
 ### `probes/rpg-extraction/` — 2026-08-22 disposition (#426)
 
-Per `docs/history/reviews/tooling/2026-08-22-research-zone-assessment.md`'s deletion shortlist, six
+Per 2026-08-22's deletion shortlist, six
 harnesses were deleted 2026-08-22 (four self-declared `ARCHIVED 2026-08-02 — pre-R2R3 vocabulary …
 do NOT run against the current contracts`, two superseded by `openrouter/f5-effort-translation.ts`'s
 more rigorous, committed answer): `run.ts`, `run-coverage.ts`, `native-wire-probe.ts`,
@@ -123,6 +123,6 @@ measured receipt).
 Four one-shot lenses with zero invocations in any visible transcript window, each with its output
 consumed when it ran: `probes/find-react-element-casts.ts`, `probes/find-shitty-casts.ts`,
 `lens/kit-candidates.ts` (+ its `lens:kit-candidates` pnpm alias), and
-`audit/build-repository-audit-manifest.mjs` (its output is committed under
-`docs/history/reviews/repository-audit-2026-08-13/`). Recover any of them with
+`audit/build-repository-audit-manifest.mjs` (its output was the 2026-08-13 repository audit, since
+deleted with the reviews-leave-docs migration). Recover any of them with
 `git log --diff-filter=D --oneline -- scripts/<path>` → `git show <sha>^:scripts/<path>`.

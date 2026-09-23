@@ -48,7 +48,7 @@ import { bannedMessage, CONTRACT_BANNED_SHAPES, contractBanHome } from "../lib/l
 import { objectEntries, SchemaRefusal, terminalCall } from "../lib/schema-fact-value.ts";
 
 const MESSAGE =
-  "a ledger-REJECTED contract shape has been reintroduced — the ledger killed this field by name; drop it or contest the D-cite (see the row's citation in Core-Laws-and-Precedents.md).";
+  "a ledger-REJECTED contract shape has been reintroduced — the ledger killed this field by name; drop it or contest the D-cite in its docs/adr/ decision (every row and its cite: tooling/src/verify/lib/ledger-banned-shapes.ts).";
 const FIX = "remove the banned interface member / schema key — the ledger row names the correct home for the concern.";
 
 /** Zod builder operations whose FIRST ARGUMENT is an authored shape literal the ban must read. */

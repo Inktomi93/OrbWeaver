@@ -9,7 +9,7 @@ updated: 2026-08-14
 > Design deliverable, 2026-07-28. MAX-effort investigation, DESIGN ONLY — no source touched. A builder
 > executes from this. Every claim below was verified against the live tree at HEAD (`f09ba1b1` era —
 > uncommitted panel/assembly churn in the working tree was read as-is); file:line cites are from that
-> read. Law honored: `AGENTS.md` (read in full), `Core-Path-Registry.md` D86 + D106–D110, the
+> read. Law honored: `AGENTS.md` (read in full), D86 + D106–D110, the
 > parity-plus spec (`docs/history/design/parity-plus-program-spec.md`), the panel redesign
 > (`docs/history/design/mocks/panel-redesign/DESIGN.md` incl. §12), the memory canon named in the brief.
 > KISS/YAGNI are SUSPENDED here — every solution is the maximal, extensible shape, derived not

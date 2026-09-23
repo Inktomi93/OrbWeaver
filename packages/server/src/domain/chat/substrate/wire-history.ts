@@ -11,7 +11,7 @@
 // the very next turn keeps. Both callers — `engine/pipeline.ts` (the turn) and `verbs/read.ts` (the previews)
 // — now build their fit input HERE, so there is one conversion, one cost rule and one ordering to drift.
 //
-// THE LAW IS D51 (`Core-Path-Registry.md`) and this file is the seam it names: content-parts are produced
+// THE LAW IS D51 and this file is the seam it names: content-parts are produced
 // exactly ONCE, here, and everything upstream stays `content: string`. D51's cited file was
 // `engine/pipeline.ts` until #1540 moved the CONVERT step down to this substrate module — the ruling
 // survives, its input changed: still one producer, still the request seam's conversion, now reachable by the

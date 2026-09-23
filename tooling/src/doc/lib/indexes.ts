@@ -2,7 +2,7 @@
 // summaries, byte-deterministic, so `pnpm doc index` writes them and the checker proves the tree carries
 // exactly what a fresh render would produce. A generated file carries `kind: index` and no `updated`
 // (its date would make every day's render differ from the committed bytes).
-import { DOC_TOOL_TREES } from "#doc-catalog";
+import { DOC_TOOL_TREES, FIRST_RESERVED_RULING, LAST_RESERVED_RULING } from "#doc-catalog";
 import type { DocSummary, WorkItem } from "../contract/types.ts";
 import { renderFrontmatter } from "./frontmatter-write.ts";
 import { basenameOf, padId, parseNumberedName } from "./names.ts";
@@ -18,6 +18,19 @@ export const LAW_INDEX_PATH = `${DOC_TOOL_TREES.law}README.md`;
 export const PLAN_ARCHIVE_DIR = `${DOC_TOOL_TREES.plans}archive/`;
 export const TASKS_FILE = "tasks.md";
 export const DESIGN_FILE = "design.md";
+
+const RESERVED_WINDOW = `D${String(FIRST_RESERVED_RULING)}–D${String(LAST_RESERVED_RULING)}`;
+/** The standing rules of the decision tree, folded in from the retired ledger index doc: precedence, the
+ *  citation form, and the reserved window. */
+const ADR_INDEX_PREAMBLE =
+  "On any conflict a decision here wins over every other doc. Cite one as a bare `D<n>`; the number is the file number and never changes. " +
+  `${RESERVED_WINDOW} are reserved for main-era rulings that rolled back while the code obeying them survived: such a number is re-minted with its original number and meaning, and a new decision is never minted into the window.\n\n`;
+/** Where standing law lives until each legacy doc moves here, folded in from the retired ledger index doc.
+ *  Named in words, not paths: every planted tree renders this index, and a legacy path it cannot hold would
+ *  read as a dead reference. */
+const LAW_INDEX_PREAMBLE =
+  "Until a law doc moves here, standing law is the legacy core set: the locked principles are the first section of Core-0, " +
+  "the enforcement catalog is the active-gates doc, and decisions are the ADR tree beside this one.\n\n";
 
 function head(title: string, note: string): string {
   return `${renderFrontmatter(GENERATED_FIELDS)}\n# ${title}\n\n${NOTE}; ${note}\n\n`;
@@ -70,12 +83,12 @@ export function renderAdrIndex(adrs: readonly DocSummary[]): string {
         adr.supersededBy === null ? adr.status : `${adr.status} by [${basenameOf(adr.supersededBy)}](${relativeTo(DOC_TOOL_TREES.adr, adr.supersededBy)})`;
       return `| D${String(name.id)} | [${adr.title}](${basenameOf(adr.path)}) | ${status} |`;
     });
-  return `${head("Decisions", "mint one with `pnpm doc new adr <slug>`, never by hand.")}| Id | Decision | Status |\n| - | - | - |\n${rows.join("\n")}\n`;
+  return `${head("Decisions", "mint one with `pnpm doc new adr <slug>`, never by hand.")}${ADR_INDEX_PREAMBLE}| Id | Decision | Status |\n| - | - | - |\n${rows.join("\n")}\n`;
 }
 
 export function renderLawIndex(laws: readonly DocSummary[]): string {
   const rows = laws.toSorted((left, right) => left.path.localeCompare(right.path)).map((law) => `| [${law.title}](${basenameOf(law.path)}) | ${law.status} |`);
-  return `${head("Law", "a law doc moves here from the legacy tree with its citers, never by hand.")}| Law | Status |\n| - | - |\n${rows.join("\n")}\n`;
+  return `${head("Law", "a law doc moves here from the legacy tree with its citers, never by hand.")}${LAW_INDEX_PREAMBLE}| Law | Status |\n| - | - |\n${rows.join("\n")}\n`;
 }
 
 export function renderPlanIndex(plans: readonly DocSummary[]): string {

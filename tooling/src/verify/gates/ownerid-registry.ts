@@ -109,10 +109,10 @@ export const OWNERID_CLASSIFICATIONS: Readonly<Record<string, OwnershipClassific
 };
 
 const MESSAGE =
-  "a table stamps an `ownerId` column but is NOT on the D23 ownership-stamp classification — an ownerId is legal ONLY on a TRUE PRODUCER, a parentless per-user aggregate, or a sanctioned scope-subject (chat_tags D30 / global_documents D49); every other table DERIVES its owner via ONE FK. Drop the stamp or add a justified, D-cited row to OWNERID_CLASSIFICATIONS in tooling/src/verify/gates/ownerid-registry.ts. See Core-Path-Registry.md D23.";
+  "a table stamps an `ownerId` column but is NOT on the D23 ownership-stamp classification — an ownerId is legal ONLY on a TRUE PRODUCER, a parentless per-user aggregate, or a sanctioned scope-subject (chat_tags D30 / global_documents D49); every other table DERIVES its owner via ONE FK. Drop the stamp or add a justified, D-cited row to OWNERID_CLASSIFICATIONS in tooling/src/verify/gates/ownerid-registry.ts. See D23.";
 const FIX = "drop the redundant ownerId (derive the owner via ONE FK to an owned entity), or add a D-cited row to OWNERID_CLASSIFICATIONS.";
 const staleMessage = (table: string): string =>
-  `OWNERID_CLASSIFICATIONS names "${table}" but no schema table of that name carries an \`ownerId\` column — the ledger row now classifies nothing, and a classification that outlives its subject is the two-sided rot §4.4 exists to catch. Delete the stale entry (tooling/src/verify/gates/ownerid-registry.ts). See Core-Path-Registry.md D23.`;
+  `OWNERID_CLASSIFICATIONS names "${table}" but no schema table of that name carries an \`ownerId\` column — the ledger row now classifies nothing, and a classification that outlives its subject is the two-sided rot §4.4 exists to catch. Delete the stale entry (tooling/src/verify/gates/ownerid-registry.ts). See D23.`;
 
 /** Every SQL table name in the ready schema that carries an `ownerId` column. */
 function stampedTables(schema: SchemaModel): ReadonlyMap<string, SchemaModel["tables"][number]["columns"][number]> {

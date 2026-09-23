@@ -299,7 +299,7 @@ drawing, but it means step 9 must not read silence here as a decision:
 
 ## 6. Corrections this set has taken, and the ones it OWES §5.3a
 
-**Taken 2026-09-20**, after the driven review at `docs/reviews/side-eye/2026-09-20-connections-pane-step-3b-mocks.md`:
+**Taken 2026-09-20**, after the driven side-eye review of the connections-pane step 3b mocks:
 every `Override`/`Reset` carries its field as its accessible name (14 + 4 buttons all named the bare verb); the
 coarse-pointer hit floor is drawn rather than assumed; the readout's four arms are named and the blocked arm has
 its own class and sentence; the readout speaks the picker's vocabulary; Saved keys carries controls instead of

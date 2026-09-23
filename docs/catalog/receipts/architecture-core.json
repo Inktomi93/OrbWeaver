@@ -27,16 +27,8 @@
       "authority": "operational"
     },
     {
-      "path": "docs/architecture/core/Core-Laws-and-Precedents.md",
-      "authority": "normative"
-    },
-    {
       "path": "docs/architecture/core/Core-Legacy-Migration-and-Gaps.md",
       "authority": "historical"
-    },
-    {
-      "path": "docs/architecture/core/Core-Path-Registry.md",
-      "authority": "normative"
     },
     {
       "path": "docs/architecture/core/Core-Planning-and-Checklists.md",

@@ -1227,7 +1227,7 @@ Higher tiers override only the fields they state (family-floor excepted — it O
 `match.wire`/`match.api` fold (derived per wire-shape, curated refinement). D68 is a SEPARATE constraint on
 one wire and is honoured explicitly (verify7 M8): "direct-transport per-model Claude sampling is FAIL-CLOSED —
 `ANTH_DIRECT_SAMPLING` ships EMPTY until a live probe validates each model's honored set; absence means the
-knob does not render, never a guessed default" (`Core-Path-Registry.md:192`). So `curated/anthropic.json`
+knob does not render, never a guessed default" (D68). So `curated/anthropic.json`
 ships NO sampling ranges for the `anthropic-messages` wire (the knobs do not render until a dated
 `measured/anthropic.ts` entry says otherwise); its `sampling.exclusive` pair (§8.7) is a RESTRICTION and is
 compatible with fail-closed.

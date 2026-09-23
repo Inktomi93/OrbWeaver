@@ -6,9 +6,8 @@ updated: 2026-08-31
 
 # The token contract program — making `tokens.json` a validated contract, not a parsed file
 
-> **IMPLEMENTED AND COLD-CONFIRMED as #936 on 2026-08-31.** Evidence and the original design basis live in
-> [`../../reviews/research/2026-08-31-css-token-toolchain-research.md`](../../reviews/research/2026-08-31-css-token-toolchain-research.md);
-> every claim below is receipted there. This document owns the durable shape; GitHub Project 1 owns
+> **IMPLEMENTED AND COLD-CONFIRMED as #936 on 2026-08-31.** Evidence and the original design basis were
+> researched and dated 2026-08-31; every claim below traces to that measurement. This document owns the durable shape; GitHub Project 1 owns
 > lifecycle. **Owner ruling 2026-08-31 (pre-launch): KISS/YAGNI suspended — build it properly and in
 > full.** The cheap-option framing in the research doc §7 is superseded by this program.
 

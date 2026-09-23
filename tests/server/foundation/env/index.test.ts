@@ -194,7 +194,7 @@ describe("foundation/env — the AUTH_MODE superRefine boot-fatality", () => {
   // other than the owner fallback (`resolveSingleUser` always returns null) and `infra/auth/resolve` tests
   // `fallback === "owner"` BEFORE the mode's unconditional origin arm, so this combination authenticates
   // NOBODY and every request 401s. It shipped as the container image's default env
-  // (docs/history/reviews/security/2026-08-08-containerize-surface-review.md F1) precisely because three docs
+  // (2026-08-08 F1) precisely because three docs
   // claimed single-user ignores the knob. A silently-inert box is the failure this refusal replaces.
   test("AUTH_MODE=single-user + AUTH_FALLBACK=deny → boot FAILS (the pair authenticates nobody)", async () => {
     await expect(reimportEnvWith({ AUTH_MODE: "single-user", AUTH_FALLBACK: "deny" })).rejects.toThrow(

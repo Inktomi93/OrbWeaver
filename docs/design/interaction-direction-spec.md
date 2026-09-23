@@ -66,7 +66,7 @@ class-2-sequential actor.
 **All authority is HUMAN authority in the one kernel.** A feature may CITE an existing axis; it
 may never invent one. The axes and their one homes: `can()` (D121) · the D19 triple
 (`Principal.userId` = authenticated caller; `triggeredBy` = the human responsible —
-spend/abort/attribution; `runAsUserId` = the host whose creds fund — `Core-Path-Registry.md:51`)
+spend/abort/attribution; `runAsUserId` = the host whose creds fund — D19)
 · D17 (hosted creds owner-only; non-owner use needs explicit consent, fail-closed; `:47`) ·
 automation fire-rate budgets + the cascade depth cap · plugin grants (a projection onto
 `can()`/`fetchOwned`/D17 — never a parallel kernel) · the tool `capability` ceiling + owning-verb
@@ -618,7 +618,7 @@ is REFERENCE; where it and this record differ, this record is what was built.
 5. **Upgrade re-consent triggers on widened REACH, not capability names** (#615): an upgrade keeping `net.fetch` while swapping its `netHosts` allowlist lands `disabled` pending re-confirmation. Narrowing carries forward silently.
 6. **The membrane's standing walls C7 must not re-litigate:** no message-write op exists on the plugin surface and none may be added (§1's class-1 wall); plugin lore writes carry `neutralizeMacros` + the attach gate + the 64-entry cap (#611); `notify` carries the 60 s per-(plugin, chat) floor one-homed at `AUTOMATION_NOTICE_COOLDOWN_SECONDS`; `runSnippet` carries a per-user concurrent-snippet ceiling (#613).
 
-*Provenance: `docs/reviews/stickler/2026-08-24-automation-platform-axes.md` §3 (written against the BUILT membrane, unlike the parked plugin set) + `plugin-automation-juice.md` rows 11/14/15.*
+*Provenance: the 2026-08-24 automation-platform-axes review §3 (written against the BUILT membrane, unlike the parked plugin set) + `plugin-automation-juice.md` rows 11/14/15.*
 
 **§7-C7b — THE PLUGIN UI PLANE (#679) — pointer only; the design is ONE-homed at
 [`docs/design/plugin-ui-plane.md`](plugin-ui-plane.md) (owner-ruled 2026-08-24, build-phase-ready).**

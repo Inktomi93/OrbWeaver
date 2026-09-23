@@ -252,7 +252,7 @@ describe("dangling-ref-citations — central reviewed authority replaces the leg
     expect(result.toolErrors).toEqual([]);
     // FILTERED TO THE TWO MUTATED IDENTITIES (#2397): a bare count of this gate's effective findings also
     // counts whatever real doc drift the tree carries today (three rows as of 2026-09-18 — two at
-    // `Core-Path-Registry.md:575`, one at `Tier-2-Foundation.md:19`), so the arm red on a defect it does not
+    // the D-ledger's D160 row, one at `Tier-2-Foundation.md:19`), so the arm red on a defect it does not
     // own and says nothing about the mutation it exists to prove. The mutated subjects are the subject.
     const mutatedIdentities = new Set([mutated[0], mutated[1]].flatMap((grant) => (grant === undefined ? [] : [`${grant.subject} ${grant.operation}`])));
     const original = [FAMILY_GRANTS[0], FAMILY_GRANTS[1]].flatMap((grant) => (grant === undefined ? [] : [`${grant.subject} ${grant.operation}`]));

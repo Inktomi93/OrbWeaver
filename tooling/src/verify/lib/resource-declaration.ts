@@ -9,13 +9,13 @@ import { DEVTOOLS_CLOSURE_ROOT, TOKEN_CONTRACT_PATHS } from "../contract/resourc
 import { PACKAGE_RESOURCE_PATHS, STATIC_CONFIG_RESOURCE_PATHS } from "../contract/resource-config.ts";
 import type { GateResourceRequest } from "../contract/resource-declaration.ts";
 import { isGateResourceUnpopulatedKind } from "../contract/resource-declaration.ts";
+import type { LedgerDefinition } from "../contract/resource-document.ts";
 import { DOCUMENT_CORPUS_ROOT, LEDGER_DEFINITIONS } from "../contract/resource-document.ts";
 import { EXACT_RESOURCE_PATHS } from "../contract/resource-exact.ts";
 import type { ResourceHost, ResourceHostOptions } from "../contract/resource-host.ts";
 import { JSON_RESOURCE_PATHS } from "../contract/resource-json.ts";
 import { MIRROR_FAMILY_DEFINITIONS } from "../contract/resource-mirror.ts";
 import { AUTHORED_TREE_PATHS } from "../contract/resource-tree.ts";
-import { VENDOR_MIRROR_ROOT } from "../contract/resource-vendor.ts";
 import { createResourceHost } from "../ops/resource-host.ts";
 import { assertGateResourceDeclarations, assertRepoPathIdentity } from "./policy-validation.ts";
 
@@ -166,14 +166,18 @@ function pathBelongsToRequest(request: GateResourceRequest, path: string): boole
       return [MIRROR_FAMILY_DEFINITIONS[request.id].sourceRoot, MIRROR_FAMILY_DEFINITIONS[request.id].testRoot].some((root) => path.startsWith(`${root}/`));
     case "documents":
       return path.startsWith(`${DOCUMENT_CORPUS_ROOT}/`);
-    case "ledger":
-      return (LEDGER_DEFINITIONS[request.id].paths as readonly string[]).includes(path);
+    case "ledger": {
+      const definition: LedgerDefinition = LEDGER_DEFINITIONS[request.id];
+      return "paths" in definition
+        ? definition.paths.includes(path)
+        : path.startsWith(`${definition.tree}/`) && definition.member.test(path.slice(definition.tree.length + 1));
+    }
     case "exact-file":
       return path === EXACT_RESOURCE_PATHS[request.id];
-    // Only the COMMITTED mirror side of the vendor surface publishes repo paths; the installed halves are
-    // absolute store paths and publish none (`ops/resource-vendor.ts`).
+    // Neither side of the vendor surface publishes a repo path any more — both are absolute installed-package
+    // reads (`ops/resource-vendor.ts`), so this kind is unpopulated like `installed-package`.
     case "vendor-css-surface":
-      return path.startsWith(`${VENDOR_MIRROR_ROOT}/`);
+      return false;
     case "token-contract":
       return Object.values(TOKEN_CONTRACT_PATHS).includes(path);
     case "devtools-closure":

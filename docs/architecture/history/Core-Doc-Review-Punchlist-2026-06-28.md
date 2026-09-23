@@ -125,11 +125,11 @@ kit → contracts → db → server (foundation → infra → domain[leaf-first]
 > `resolveRoleConnection`→`resolveRole` rename across the \~10 non-credentials docs (credentials.md done;
 > `resolveRole` is canonical per connection.md); (c) the `CredProvider`/`CredentialProvider` name pick (verify
 > against the code symbol first); (d) C4 "13 gates" shorthand left as-is (it's a correct count — 13 structural
-> gates per Core-Laws-and-Precedents.md). This file is retained as the historical record.
+> gates per the ledger index). This file is retained as the historical record.
 
 > **Source:** a 6-agent full-read rigor/adherence review of every architecture `.md` doc (Phase 0 → pre-chat;
 > `chat.md`/memory excluded as the Phase-5 frontier). Each agent read its slice IN FULL and checked against
-> the canonical sources (`core/Core-Laws-and-Precedents.md` wins on conflict; `Core-0-Architecture-and-Structure.md` = constitution).
+> the canonical sources (the ledger index wins on conflict; `Core-0-Architecture-and-Structure.md` = constitution).
 > **This is a work punch-list for the doc-fix agent** — every finding, severity-tagged, grouped by file.
 > Nothing here is a code change; these are doc corrections (the docs lagged decisions/edits).
 >
@@ -152,9 +152,9 @@ kit → contracts → db → server (foundation → infra → domain[leaf-first]
   (serialization-core.md was already fixed — D40c.)
 - **C3 — D45 fallout from the just-made vision edits** (HIGH/MED): `connection.md` Part II shape block,
   `providers.md` warning-code, `Core-Legacy-Migration-and-Gaps.md` vision rows, ledger D44 `MessageImage`.
-- **C4 — "13 gates" shorthand is stale** (LOW): `core/Core-0-Architecture-and-Structure.md §7` no longer states a count; `Core-Laws-and-Precedents.md`
+- **C4 — "13 gates" shorthand is stale** (LOW): `core/Core-0-Architecture-and-Structure.md §7` no longer states a count; the ledger index
   is the real catalog. Cited stale in proposal §0, `PRE-SCAFFOLD-CHECKLIST §A1`, `COUNCIL-REVIEW §13`,
-  `INCONSISTENCY-AUDIT`, ledger R10. Retire the phrase or repoint to Core-Laws-and-Precedents.md.
+  `INCONSISTENCY-AUDIT`, ledger R10. Retire the phrase or repoint to the ledger index.
 - **C5 — settled decisions still framed "Open"** (MINOR): ledger §2 already DECIDED items shown as open
   "leans" in `settings.md`, `foundation.md`, `Spine-Identity-and-Auth.md`, `db.md` (Groundhog-Day hazard).
 
@@ -447,14 +447,14 @@ kit → contracts → db → server (foundation → infra → domain[leaf-first]
 ## `core/Core-Core-Planning-and-Checklists.md`
 
 - **LOW** — §A1 (+ shared across docs): the "13 gates (core/Core-0-Architecture-and-Structure.md §7)" shorthand is stale. Fix: retire or
-  repoint to Core-Laws-and-Precedents.md. \[C4]
+  repoint to the ledger index. \[C4]
 
-## `core/Core-Laws-and-Precedents.md` · `core/Core-Core-Audits-and-Debt.md` · `core/Core-Core-Planning-and-Checklists.md` · `core/Core-Core-Audits-and-Debt.md`
+## the ledger index · `core/Core-Core-Audits-and-Debt.md` · `core/Core-Core-Planning-and-Checklists.md` · `core/Core-Core-Audits-and-Debt.md`
 
 - CLEAN.
 
-## `core/Core-Laws-and-Precedents.md` (canonical — handle carefully)
+## the ledger index (canonical — handle carefully)
 
 - **LOW** — D44 "Homes" list names the primitive `MessageImage`; D44's own prose + all of client.md use
   `MessageMedia`. Fix: the stray `MessageImage` in D44 → `MessageMedia`. \[C3]
-- (If the "13 gates" shorthand is retired per C4, R10's "grown to 13" phrasing may need a pointer to Core-Laws-and-Precedents.md.)
+- (If the "13 gates" shorthand is retired per C4, R10's "grown to 13" phrasing may need a pointer to the ledger index.)

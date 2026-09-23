@@ -12,7 +12,6 @@ import { drift, overview } from "./board.ts";
 import { regenerateIndexes } from "./indexes.ts";
 import type { WriteOutcome } from "./items.ts";
 import { landItems, landMerged, newItem, setItems } from "./items.ts";
-import { migrateLedger } from "./migrate-ledger.ts";
 import { newAdr, newPlan } from "./new.ts";
 import { due, review } from "./review.ts";
 import { setStatus } from "./status.ts";
@@ -47,18 +46,6 @@ function runDue(patterns: readonly string[]): ExitCode {
   }
   print(`doc due — ${String(docs.length)} document(s) due for review`);
   return EXIT.clean;
-}
-
-function runMigrate(command: Extract<DocCommand, { kind: "migrate-ledger" }>): ExitCode {
-  const outcome = migrateLedger(command.range, command.apply);
-  for (const line of outcome.planned) {
-    print(line);
-  }
-  if (!command.apply && outcome.refusals.length === 0) {
-    print(`doc migrate-ledger — dry run; ${String(outcome.planned.length)} ruling(s) would move (add --apply)`);
-    return EXIT.clean;
-  }
-  return report("migrate-ledger", outcome);
 }
 
 export function runDocCommand(command: DocCommand): ExitCode {
@@ -101,8 +88,6 @@ export function runDocCommand(command: DocCommand): ExitCode {
         print(line);
       }
       return EXIT.clean;
-    case "migrate-ledger":
-      return runMigrate(command);
     default:
       return assertNever(command);
   }

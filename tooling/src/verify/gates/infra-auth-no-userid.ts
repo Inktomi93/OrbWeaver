@@ -33,7 +33,7 @@ const MESSAGE =
   "`userId` is forbidden under infra/auth/** (D40 identity-resolution invariant): infra VERIFIES headers " +
   "into a pre-row `ResolvedIdentity` (NO userId); the seam (`entry/auth/seam.ts`) resolves the id ONCE via " +
   "a domain step (`sessions.validate`/`provisionIdentity`) and constructs the immutable Principal. See " +
-  "Spine-Identity-and-Auth.md + Core-Path-Registry.md D40.";
+  "Spine-Identity-and-Auth.md + D40.";
 export const gate = defineGate({
   id: "infra-auth-no-userid",
   family: "infra-auth-no-userid",

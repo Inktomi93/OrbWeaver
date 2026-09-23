@@ -6,7 +6,7 @@ updated: 2026-08-30
 
 # PRESET SURFACE REDESIGN — make the generation deck crunchy (PRESET-1)
 
-**Status:** BUILT / CLOSED — ratified into the ledger as **D121** (`Core-Path-Registry.md` D121, the
+**Status:** BUILT / CLOSED — ratified into the ledger as **D121** (D121, the
 preset + actor-state close-out; drafted `9e966692`, graduated `f551bb42`). Every stage of §14's table
 landed: **P0+P1** the server seams (`preset.resolveEffective`, the template registry, G9/G10) + the
 five-view shell and the params deck (`5d71e287`, `f7e8bb89`) · **P2+P3** the rack rebuilt, the section

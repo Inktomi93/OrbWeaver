@@ -45,6 +45,6 @@ uncited render sets — `osrs-tabs/` (12 PNG, 9.8 MB), `waystone/` (35 PNG) and 
 regardless: those are the drawing, not a snapshot of it.
 
 Rulings that override a drawing live in `../../history/design/context-panel-fidelity-findings.md` and the D-ledger
-(`../../architecture/core/Core-Path-Registry.md`). **A drawing is never law** — where a mock and a
+(`../../adr/README.md`). **A drawing is never law** — where a mock and a
 ruling disagree, the ruling wins, and the mock gets a SUPERSEDED banner rather than a deletion.
 \| [config-revamp](config-revamp/) | #866 S3/S4 — Settings shelves · the Looks fold (apply-not-mode) · full Personas migration · the rail-foot switcher with scope+re-attribute | `docs/design/config-revamp-design.md` |

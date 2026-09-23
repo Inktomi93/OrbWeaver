@@ -1,0 +1,25 @@
+---
+kind: adr
+status: active
+updated: 2026-09-23
+---
+
+# Vision input is gated by model capability
+
+## Context
+
+Not recorded in the ledger row.
+
+## Decision
+
+Image INPUT to vision models (distinct from D44 display): `ModelCapability.input.vision` is the gate, synthesized per (model, backend); the provider wire `ChatHistoryMessage.content` is a content-part array (`text | image`), a text-only turn being one `[{type:"text"}]` element — no `if(hasImage)` branch. One uploaded asset serves both the render block and the send part. Unsupported-model image drops happen in the DOMAIN with a `warning` event (per D51, superseding the original at-the-runner wording).
+
+- **PD-11** — Hosted rerank via `@openrouter/sdk` `client.rerank` is WIRED (text-only; image-only query = typed invalid). Local vLLM/ONNX cross-encoder stays the default keyless path.
+
+## Consequences
+
+Not recorded in the ledger row.
+
+## Alternatives rejected
+
+Not recorded in the ledger row.

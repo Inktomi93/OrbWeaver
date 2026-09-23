@@ -117,7 +117,7 @@ export const WHOLE_COMMAND_PATH_TRIGGERS: Readonly<Record<string, StageTrigger>>
   },
   "ledgers:fresh": {
     paths: /./u,
-    why: "the caught-failure census is LINE-COUPLED and derived from a whole-repo ts-morph walk, so any source edit can re-stale a row; the doc ledgers add authored documents. The identity trigger is intentionally complete and runs the whole reconciler.",
+    why: "the caught-failure census is derived from a whole-repo ts-morph walk, so any source edit can add, remove or re-verdict a site; the doc ledgers add authored documents. The identity trigger is intentionally complete and runs the whole reconciler.",
   },
   // Knip remains declined: it is materially different from the three cheap identity-triggered rows above.
   "deps:knip": {

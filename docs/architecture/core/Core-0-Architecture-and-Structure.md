@@ -58,8 +58,8 @@ packages/
 ```
 
 `workspace:*` makes cross-package refs explicit; a package importing an undeclared package fails to
-resolve. (Package scope name **DECIDED: `@orb/*`** — scoped, native via pnpm, no alias tooling;
-`Core-Laws-and-Precedents.md §0`. The shadcn `@/` path-alias is NOT carried over.)
+resolve. (Package scope name **DECIDED: `@orb/*`** — scoped, native via pnpm, no alias tooling.
+The shadcn `@/` path-alias is NOT carried over.)
 
 **`ui` is the sealed frontend leaf** (`kit ← ui ← client`): only `@orb/kit` among workspace deps, never
 `contracts`/domain types; `client` reaches every primitive lib THROUGH it — client's `package.json` lacks
@@ -76,7 +76,7 @@ Consumers never see the `index.ts` (`@orb/kit/ids`, not `@orb/kit/ids/index`). T
 special-casing that rots: Node's `exports` has **no directory-index and no file-existence fallback** (an
 array target resolves to the first *syntactically valid* entry, not the first existing file), so a mixed
 flat/dir layout would force per-package exception lists. Uniform folders = one rule, zero maintenance
-(`Core-Path-Registry.md` D15).
+(D15).
 
 **`kit` holds the pure ENGINES (not just tiny utils):** the **macro engine** (`kit/macro` — AST/parse +
 resolve a template against a `MacroContext`) and the **regex engine** (`kit/regex` — compile + apply +

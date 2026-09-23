@@ -37,7 +37,7 @@ updated: 2026-07-24
 > Code + file headers + tests ARE the doc; this file is a frozen historical record — its disposition
 > lives in [`../proposed/INDEX.md`](../proposed/INDEX.md). Graduation gate met per D84: fresh Opus stickler
 > READY-TO-GRADUATE (`reports/stickler/2026-07-20-comfyui-control-graduation-audit.md`); scoped
-> suites 361/361. On any conflict `Core-Path-Registry.md` D96/D105 win. The PROPOSED/DESIGN-FIRST
+> suites 361/361. On any conflict D96/D105 win. The PROPOSED/DESIGN-FIRST
 > banner below is superseded.
 
 > **Status: PROPOSED design — DESIGN-FIRST, nothing built.** This spec is the integration architecture for

@@ -21,7 +21,7 @@ NOT owned: business logic (domains), drivers (transport), I/O adapters (infra), 
 ```
 packages/server/src/entry/
 ├── index.ts                  the process entry point — construct lifecycle, wire signals, boot()
-├── lifecycle.ts              boot/shutdown protocol (per Core-Laws-and-Precedents.md §7 D5: entry, NOT foundation)
+├── lifecycle.ts              boot/shutdown protocol (per D5: entry, NOT foundation)
 ├── app.ts                    the Hono builder (middleware order, ingress-allowlist, mount tRPC + http)
 ├── rate-limit-gate.ts        builds the RateLimitGate impl (limiter instances need db; bucket POLICY lives here;
 │                             transport declares only the port — core/Tier-4-Transport.md §"rate-limit").

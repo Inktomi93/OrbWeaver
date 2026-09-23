@@ -18,10 +18,6 @@
       "patterns": ["docs/design/**/*.md"]
     },
     {
-      "id": "repository-audits",
-      "patterns": ["docs/history/reviews/repository-audit-*/**/*.md"]
-    },
-    {
       "id": "reviews",
       "patterns": ["docs/reviews/**/*.md"]
     },
@@ -31,12 +27,7 @@
     },
     {
       "id": "history",
-      "patterns": ["docs/history/**/*.md"],
-      "excludePatterns": ["docs/history/reviews/repository-audit-*/**/*.md"]
-    },
-    {
-      "id": "vendor",
-      "patterns": ["docs/vendor/**/*.md"]
+      "patterns": ["docs/history/**/*.md"]
     }
   ]
 }

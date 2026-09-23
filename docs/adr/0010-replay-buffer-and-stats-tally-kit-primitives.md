@@ -1,0 +1,23 @@
+---
+kind: adr
+status: active
+updated: 2026-09-23
+---
+
+# Replay buffer and stats tally are kit primitives
+
+## Context
+
+Not recorded in the ledger row.
+
+## Decision
+
+`replay-buffer` + `stats-tally` = `@orb/kit/{replay-buffer,stats-tally}` (pure primitives, not feature-internal).
+
+## Consequences
+
+Not recorded in the ledger row.
+
+## Alternatives rejected
+
+Not recorded in the ledger row.

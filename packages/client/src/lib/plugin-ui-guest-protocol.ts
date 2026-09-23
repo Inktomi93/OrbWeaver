@@ -54,7 +54,7 @@ export const UI_GUEST_BUDGETS = {
 } as const;
 
 /** THE WALL-CLOCK DEADLINE the HOST enforces from OUTSIDE the guest — the D46 review's P1-A lesson, inherited
- *  from birth (`docs/history/reviews/security/2026-08-24-d46-membrane-review.md`). The interrupt handler above bounds
+ * from birth (2026-08-24). The interrupt handler above bounds
  *  guest BYTECODE and is structurally blind to a guest that has STOPPED executing (`new Promise(() => {})`, an
  *  await that never resumes); only a timer OUTSIDE the guest — and, here, outside the worker thread entirely —
  *  can end that. It is `eventCpuMs + hostCallDeadlineMs`, the same "CPU budget plus one legitimate host call"

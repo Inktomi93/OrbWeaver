@@ -1071,7 +1071,7 @@ test("POPULATE teaching carries the deception surface-only clause on a deception
 // No static gate can compute it (it needs zod evaluated), and the synthetic payload cannot catch it: a NEW
 // refinement in `contracts/src/rpg/tools.ts` (a `.regex()` → `pattern`, a `.length()` → `minLength`) lands a
 // keyword the engine's table never heard of, and the hosted request 400s in production instead of here.
-// Vendor sources (fetched 2026-08-03, docs/history/reviews/misc/2026-08-03-structured-output-docs.md):
+// Vendor sources (fetched 2026-08-03, 2026-08-03):
 //   • Anthropic — string/numeric/array/object BOUND keywords are NOT supported by the structured-output subset.
 //   • OpenAI — string bounds unsupported; numeric supported. The hosted mode carries the strictest COMMON subset.
 //   • vLLM/xgrammar — guided decoding ENFORCES the bounds, so they must SURVIVE there (the populate lever: an

@@ -577,7 +577,7 @@ test("the second-wave kinds admit their own closed id vocabularies, and refuse a
   // loads, a plausible neighbour is refused by name.
   for (const request of [
     { kind: "mirror-index", id: "package-test" },
-    { kind: "ledger", id: "core-path-registry" },
+    { kind: "ledger", id: "d-ledger" },
     { kind: "exact-file", id: "ct-boot" },
     { kind: "documents" },
     { kind: "vendor-css-surface" },
@@ -589,7 +589,7 @@ test("the second-wave kinds admit their own closed id vocabularies, and refuse a
   // @orb-waive no-test-fabrication(never): deliberate type-erasure to test the loader's rejection of an invalid authority value
   const malformed = (request: unknown): unknown => resourcePolicy({ resources: [request] as never });
   expect(() => assertGatePolicyDescriptor(malformed({ kind: "mirror-index", id: "package-tests" }))).toThrow(/id is unknown for mirror-index/i);
-  expect(() => assertGatePolicyDescriptor(malformed({ kind: "ledger", id: "core-path-registries" }))).toThrow(/id is unknown for ledger/i);
+  expect(() => assertGatePolicyDescriptor(malformed({ kind: "ledger", id: "d-ledgers" }))).toThrow(/id is unknown for ledger/i);
   expect(() => assertGatePolicyDescriptor(malformed({ kind: "exact-file", id: "ct-bootstrap" }))).toThrow(/id is unknown for exact-file/i);
   // An id on a kind that takes none is an unknown PROPERTY, never a silently ignored field.
   expect(() => assertGatePolicyDescriptor(malformed({ kind: "documents", id: "docs" }))).toThrow(/unknown property/i);

@@ -28,7 +28,7 @@ The pre-build design used an empty-string `''` sentinel for the room/SHARED memo
 `CharacterId` (`__group__${chatId}`), and every digest row carries a real branded `CharacterId` FK →
 `characters.id` — never NULL, never a sentinel — so the `(chatId, scopedCharacterId, tier, blockIdx)`
 UNIQUE keys off the real id. The current-state authority is `schema/embeddings.ts`'s header; the standing
-ruling is D55 (`Core-Path-Registry.md`).
+ruling is D55.
 
 ## Tier-2 — `foundation`
 

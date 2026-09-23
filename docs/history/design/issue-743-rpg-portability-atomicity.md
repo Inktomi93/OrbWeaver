@@ -48,7 +48,7 @@ the D124 hand arm’s `asOfMessageId`. Ordinary hand writes continue to resolve 
   snapshot persistence home (`packages/server/src/domain/rpg/persistence/snapshots.ts:566-601`). The marker is
   visible prose, not a variant-keyed state anchor.
 - D136 requires checkpoint references to be positional within the exported snapshot array and treats silent
-  mis-anchoring as worse than loss (`docs/architecture/core/Core-Path-Registry.md:447-455`). One database
+  mis-anchoring as worse than loss. One database
   snapshot is therefore part of export correctness, not an optimization.
 
 The substrate can safely provide the requested bounded read snapshot. No owner fork is required.

@@ -731,7 +731,7 @@ test("a partially-instrumented tap-target population fails loud instead of mixin
 
 // ── #4b control silhouette (#430, from side-eye #420) ────────────────────────
 // The founding numbers are LIVE MEASUREMENTS, not invented fixtures
-// (docs/history/reviews/side-eye/2026-08-22-switch-shape-and-glow-evidence.md, "Measured geometry"):
+// (2026-08-22, "Measured geometry"):
 // the shipped coarse Switch was 48x44 (aspect 1.091, read as a crescent moon) and the fix is 64x44
 // (aspect 1.455). Each carve below carries the reason it exists AND its passing control.
 const SWITCH_SAMPLE = { selector: "[data-slot=switch-root]", role: "switch", animating: false };

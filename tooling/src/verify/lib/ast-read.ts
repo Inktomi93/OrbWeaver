@@ -33,7 +33,7 @@ export function readStringValue(node: Node): string | undefined {
  *  Several gates ask the same question — "which declarations in this file bind the name X" — and each used
  *  to answer it by re-walking every declaration in the file, inside a loop over candidates. Measured
  *  2026-08-31: 97.8% of those sweeps were repeats of one already performed, and the gates doing it were
- *  96.4s of a 300.8s pass (docs/reviews/research/2026-08-31-gate-pass-unified-walk.md §2).
+ * 96.4s of a 300.8s pass (2026-08-31 §2).
  *
  *  KEYED ON `sf.compilerNode`, NEVER ON THE `SourceFile` WRAPPER: `createSourceFile(…, {overwrite:true})`
  *  reuses the wrapper and forgets its descendants, so a wrapper-keyed cache returns forgotten nodes that

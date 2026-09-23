@@ -783,7 +783,7 @@ species does not forbid it. This clause is what "does not forbid it" now means.
 
 **What is RETIRED — one inference, not a ruling.** "Collections are a distinct species" was being read as
 "therefore a divergence between the two arms needs no justification of its own", and it was cited that way:
-`docs/reviews/misc/2026-09-05-config-list-pane-divergence.md` §3a rested five LIST-pane verdicts on it. That
+the 2026-09-05 config-list-pane-divergence review §3a rested five LIST-pane verdicts on it. That
 inference is gone. **A divergence is now legitimate only where a STRUCTURAL reason holds and is stated** —
 what the thing IS, what its click DOES, what data it actually has. "It is a different species" is no longer
 an answer; it is a restatement of the question.

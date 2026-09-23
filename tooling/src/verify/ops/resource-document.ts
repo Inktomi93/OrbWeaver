@@ -13,6 +13,7 @@ import type {
   DocumentFacts,
   DocumentIndex,
   DocumentRefusal,
+  LedgerDefinition,
   LedgerFacts,
   LedgerId,
   MarkdownDocument,
@@ -179,9 +180,29 @@ function ledgerMarkdown(reader: ResourceReader, id: LedgerId, paths: readonly st
   return { status: "ready", value: { id, nature: "markdown", documents: Object.freeze(documents) }, paths, members: documents.length };
 }
 
+/** A tree ledger's members: the flat files under its root whose names match its grammar. An absent root
+ *  refuses like an absent named file; a root with no member is a ready, EMPTY population, which the
+ *  declaration resolver refuses as empty rather than reading as a clean zero. */
+function treeLedgerMembers(reader: ResourceReader, tree: string, member: RegExp): ResourceLoad<readonly string[]> {
+  const listed = treeMembersWithSuffix(reader, tree, ".md");
+  if (listed.status !== "ready") {
+    return listed;
+  }
+  const members = listed.value.filter((path) => member.test(path.slice(tree.length + 1)));
+  return { status: "ready", value: members, paths: members, members: members.length };
+}
+
 export function loadLedger(reader: ResourceReader, id: LedgerId): ResourceLoad<LedgerFacts> {
   if (!Object.hasOwn(LEDGER_DEFINITIONS, id)) {
     return { status: "unresolved", paths: [], members: 0, reason: `unknown ledger id: ${String(id)}` };
   }
-  return ledgerMarkdown(reader, id, LEDGER_DEFINITIONS[id].paths);
+  const definition: LedgerDefinition = LEDGER_DEFINITIONS[id];
+  if ("paths" in definition) {
+    return ledgerMarkdown(reader, id, definition.paths);
+  }
+  const members = treeLedgerMembers(reader, definition.tree, definition.member);
+  if (members.status !== "ready") {
+    return { status: members.status, paths: members.paths, members: 0, reason: `ledger ${id} tree ${definition.tree} is unavailable: ${members.reason}` };
+  }
+  return ledgerMarkdown(reader, id, members.value);
 }

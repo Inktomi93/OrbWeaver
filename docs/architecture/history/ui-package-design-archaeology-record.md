@@ -9,7 +9,7 @@ updated: 2026-07-13
 > Frozen 2026-07-13, extracted from `../core/ui-package-design.md`. The build journey, dated audits,
 > resolved doc-vs-API deltas, and rejected-alternative rationale that produced the shipped `@orb/ui`
 > package. The STANDING law lives in the core doc + `packages/ui/src` (the code is the doc for
-> anything built) + the D-ledger (`../core/Core-Path-Registry.md`) + the active-gate registry
+> anything built) + the D-ledger (`../../adr/`) + the active-gate registry
 > (`../core/Core-Enforcement-Active-Gates.md`). This file is the how-we-got-here record only, not live
 > law. `§`-numbers below refer to the core doc's sections as they stood before the 2026-07-13
 > de-archaeology pass.

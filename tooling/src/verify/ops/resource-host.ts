@@ -200,7 +200,7 @@ export function createResourceHost(options: ResourceHostOptions): ResourceInvoca
     // over the closed id set, exactly as `nativeConfig` resolves its own per-runner snapshot type.
     ledger: keyed<LedgerId, LedgerFacts>("ledger", (id) => loadLedger(reader, id)) as ResourceHost["ledger"],
     exactFiles,
-    vendorCssSurface: cached("vendor-css-surface", () => loadVendorCssSurface(reader, root)),
+    vendorCssSurface: cached("vendor-css-surface", () => loadVendorCssSurface(root)),
     tokenContract: cached("token-contract", () => loadTokenContract(reader, root)),
     devtoolsClosure: cached("devtools-closure", () => loadDevToolsClosure(reader)),
     authoredPaths: demanded("authored-path", (selectors) => loadAuthoredPaths(root, selectors)),

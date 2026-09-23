@@ -14,7 +14,7 @@
 // lint rule.
 //
 // AUTHORITY IS HARD ON BOTH POLICIES, BY DESIGN: a ledger verdict's only escape is contesting the D-cite in
-// Core-Laws-and-Precedents.md, never a comment written at the reintroduction site by the same hand.
+// its docs/adr/ decision, never a comment written at the reintroduction site by the same hand.
 
 import type { ContractBannedShape, LedgerColumnBan, SchemaBannedShape } from "../contract/ledger-banned-shapes.ts";
 
@@ -87,5 +87,5 @@ export function contractBanHome(shape: ContractBannedShape): string {
 
 /** The ONE finding sentence both policies print — the shape, its D-cite, and where to contest it. */
 export function bannedMessage(shape: string, cite: string): string {
-  return `${shape} is a ledger-REJECTED schema/contract shape (${cite}) — a reintroduction is banned. See tooling/src/verify/lib/ledger-banned-shapes.ts and Core-Laws-and-Precedents.md.`;
+  return `${shape} is a ledger-REJECTED schema/contract shape (${cite}) — a reintroduction is banned. See tooling/src/verify/lib/ledger-banned-shapes.ts and the cited docs/adr/ decision.`;
 }

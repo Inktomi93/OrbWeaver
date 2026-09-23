@@ -1,6 +1,0 @@
-kind	lines	bytes	sha256	path
-OWNED	126	11105	c0118c9c74b2b79a38dee86d838f4daf01b6a8ba4088794f4bf6f0cd8af16684	docs/design/templating-fork-rows-53-73.md
-OWNED	217	16432	679bb917e76b873a8b6e54221d93eb29a367b64e23cdb9ffa66125af21c584ff	docs/design/tracked-field-unification.md
-OWNED	110	7215	e532c89f1fd7bde0e03e9924d2c4dc20dce2c17a5b44f47543ee2bbd95557414	docs/design/tsx-shedding-migration-spec.md
-OWNED	513	34827	17574de8d44d81920c6d8ce4139ad53960bc8caababf79d8e6e30c1ca2ca83ed	docs/design/user-macro-delivery-spec.md
-OWNED	46	2622	0af8d14b15189766c684258c6b0826843f159e1a5ed634eb2b9bd5a6f7cb86ac	docs/design/v3-demo-transcripts-heal.md

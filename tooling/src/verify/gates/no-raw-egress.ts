@@ -1,4 +1,4 @@
-// Policy: no-raw-egress (Core-Path-Registry.md D61 / B5a) — server egress goes through `safeFetch`, the
+// Policy: no-raw-egress (D61 / B5a) — server egress goes through `safeFetch`, the
 // self-enforcing SSRF guard (per-request+per-hop scheme pin, a REQUIRED host allowlist,
 // resolve→validate→pin against the private-range set, a default deadline, a typed EgressBlockedError).
 // A raw `fetch` anywhere in server source is the hole that guard exists to close.
@@ -60,7 +60,7 @@ const MESSAGE =
   "(infra/network): REQUIRED allowedHosts + scheme pin + resolve→validate→pin + deadline + a typed " +
   "EgressBlockedError, all independent of the EGRESS_FIREWALL toggle. Credentialed and loopback provider " +
   "egress is licensed one FILE at a time by an exact reviewed grant, never by a directory. See " +
-  "Core-Path-Registry.md D61 (B5a).";
+  "D61 (B5a).";
 const UNREADABLE =
   "this reference is spelled like the ambient `fetch` but the shared readers cannot place its binding, so whether it is the network api CANNOT be established. Reported rather than passed: the spelling alone is not the identity. Give the binding a readable import origin; the three-answer rule is tooling/src/verify/lib/origin-verdict.ts (#944).";
 const FIX =

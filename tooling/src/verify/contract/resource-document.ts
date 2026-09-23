@@ -82,12 +82,22 @@ export interface DocumentIndex {
 export const DOCUMENT_CORPUS_ROOT = "docs";
 export const DOCUMENT_CATALOG_PATH = "docs/catalog/catalog.json";
 
+/** How a ledger names its members: a closed list of files, or a flat tree whose members are the file names
+ *  matching `member` (a file outside that grammar, such as the tree's generated index, is not a member). */
+export type LedgerDefinition =
+  | { readonly nature: "markdown"; readonly paths: readonly string[] }
+  | { readonly nature: "markdown"; readonly tree: string; readonly member: RegExp };
+
+/** An ADR file name, `NNNN-<slug>.md`; the number is the decision's D id. */
+const ADR_FILE_RE = /^(\d{4,})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$/u;
+
 /** Closed ledger identities. `nature` selects the member grammar, which is what makes the per-id fact type
  *  narrow without putting any consumer's ROW SCHEMA in this contract (the same line `resource-json.ts`
  *  draws: the door's promise is "this parsed", never "this is shaped the way your policy wants"). */
 export const LEDGER_DEFINITIONS = {
-  /** The D-ledger. `d-citation-integrity` adjudicates every `D<n>` cite against its rows. */
-  "core-path-registry": { nature: "markdown", paths: ["docs/architecture/core/Core-Path-Registry.md"] },
+  /** The D-ledger: one decision per `docs/adr/NNNN-<slug>.md`, its id the file number.
+   *  `d-citation-integrity` adjudicates every `D<n>` cite against the file names. */
+  "d-ledger": { nature: "markdown", tree: "docs/adr", member: ADR_FILE_RE },
   /** The PD registry, ACTIVE and CLEARED halves — one identity because a PD id is active XOR cleared, and
    *  reading half of it is how a live id reads as an orphan cite (`gates/pd-citation-integrity.ts:15-19`). */
   "core-audits-debt": {
@@ -96,7 +106,7 @@ export const LEDGER_DEFINITIONS = {
   },
   /** The enforcement roster `enforcement-registry-parity` reconciles the descriptor corpus against. */
   "gate-enforcement-roster": { nature: "markdown", paths: ["docs/architecture/core/Core-Enforcement-Active-Gates.md"] },
-} as const;
+} as const satisfies Readonly<Record<string, LedgerDefinition>>;
 
 export type LedgerId = keyof typeof LEDGER_DEFINITIONS;
 /** @public knip type-face false positive — the derived NATURE axis of `LEDGER_DEFINITIONS`, the importable spelling beside `LedgerId`; every reader
@@ -112,6 +122,6 @@ export type LedgerFacts =
   | { readonly id: LedgerId; readonly nature: "markdown"; readonly documents: readonly MarkdownDocument[] }
   | { readonly id: LedgerId; readonly nature: "json"; readonly documents: readonly LedgerJsonDocument[] };
 
-/** The per-id narrowing: a `core-path-registry` consumer gets Markdown documents from tsc, never a union it
+/** The per-id narrowing: a `d-ledger` consumer gets Markdown documents from tsc, never a union it
  *  has to re-discriminate at runtime. */
 export type LedgerFactsFor<I extends LedgerId> = Extract<LedgerFacts, { readonly nature: (typeof LEDGER_DEFINITIONS)[I]["nature"] }>;
