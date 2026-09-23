@@ -157,9 +157,7 @@
     "The shared worktree contains unrelated concurrent edits. This review ran the focused router and contract suites plus the server native typecheck; it does not claim a clean-tree, full pnpm check, or push-tier verdict."
   ],
   "repositoryMutation": {
-    "added": [
-      "docs/reviews/ast-codebase-audit/world-tools-app-router-runtime-output-security-review.json"
-    ],
+    "added": ["docs/reviews/ast-codebase-audit/world-tools-app-router-runtime-output-security-review.json"],
     "sourceOrTestsChangedByReviewer": false,
     "centralLedgerChangedByReviewer": false,
     "staged": false,
