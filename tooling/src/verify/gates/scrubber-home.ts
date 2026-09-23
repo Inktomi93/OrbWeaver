@@ -23,10 +23,10 @@
 // protecting is the DEFINITION home's liveness, which is a completeness claim rather than a permission and
 // is therefore a hard sibling policy of its own: `scrubber-factory-home`, same family.
 //
-// FAMILY `scrubber-home` — the shared computation is this file's `SCRUBBER_SYMBOL` + `SCRUBBER_HOME`
-// declaration home, which `scrubber-factory-home` re-states as its own `HOME_INFIX` because the two halves
-// of one trust boundary must name the SAME directory or the completeness sibling stops covering the
-// reference policy. The split is by AUTHORITY (reviewed-grant permission vs hard completeness), which the
+// FAMILY `scrubber-home` — the shared computation is the factory's declaration home, `lib/scrubber-home.ts`
+// (`SCRUBBER_SYMBOL` + `SCRUBBER_HOME`), which both halves import because the two halves of one trust boundary
+// must name the SAME directory or the completeness sibling stops covering the reference policy (#0038: it was
+// re-stated in the sibling until then). The split is by AUTHORITY (reviewed-grant permission vs hard completeness), which the
 // contract requires to be two policy ids under one `family` string. The sealed-origin reader underneath
 // (`lib/sealed-origin.ts`) is a corpus-wide primitive, not what makes these two a family.
 // POPULATION PORT: intentional correction, stated. The legacy descriptor filtered `PACKAGES_SRC.test('/' + p)`
@@ -58,15 +58,10 @@ import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { readMemberReference } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
-import type { SealedHome } from "../lib/sealed-origin.ts";
+import { SCRUBBER_HOME, SCRUBBER_SYMBOL } from "../lib/scrubber-home.ts";
 import { readSealedOrigin, sealedOriginReports } from "../lib/sealed-origin.ts";
 
-const SCRUBBER_SYMBOL = "createHiddenSpanStreamScrubber";
 const OPERATION = "hidden-span-scrubber-construction";
-
-/** The factory's declaration home — the kit content module, keyed as the DIRECTORY so an internal split
- *  cannot silently retire the arm. */
-const SCRUBBER_HOME: SealedHome = { pathInfix: "/packages/kit/src/content/", exportedNames: new Set([SCRUBBER_SYMBOL]) };
 
 const MESSAGE =
   "the hidden-span stream scrubber is reached outside its producer home — per-subscription scrub state " +

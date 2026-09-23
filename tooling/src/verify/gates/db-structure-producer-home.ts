@@ -3,25 +3,16 @@
 // grants keyed on the schema module and producer-home operation. Authored resource trees provide both
 // sides of the existence comparison; no filesystem or compiler-project walk is exposed to the policy.
 import { defineGate } from "../contract/policy.ts";
+import { topLevelSchemaModule } from "../lib/db-schema-module.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 import { reportReviewedGrantFileCandidates } from "../lib/reviewed-grant-findings.ts";
 
-const SCHEMA_REL = "packages/db/src/schema";
 const DOMAIN_REL = "packages/server/src/domain";
 const RESERVED = new Set(["users", "audit", "custom-types", "relations"]);
-const TS_EXTENSION_LENGTH = 3;
 const OPERATION = "non-domain-schema-producer";
 const MESSAGE =
   "a schema module has no same-named producer domain; non-domain producer ownership requires an exact reviewed grant. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 const FIX = "rename the schema module for its producer, add the producer domain, or take an exact reviewed grant for a deliberate non-domain producer.";
-
-function topLevelSchema(path: string): string | undefined {
-  if (!(path.startsWith(`${SCHEMA_REL}/`) && path.endsWith(".ts"))) {
-    return;
-  }
-  const tail = path.slice(SCHEMA_REL.length + 1);
-  return tail.includes("/") || tail === "index.ts" ? undefined : tail.slice(0, -TS_EXTENSION_LENGTH);
-}
 
 export const gate = defineGate({
   id: "db-structure-producer-home",
@@ -44,7 +35,7 @@ export const gate = defineGate({
       const server = readyResourceValue(ctx.resources.authoredTree("server"));
       const paths = new Set(server.map((entry) => entry.path));
       const candidates = schemas.flatMap((entry) => {
-        const name = entry.kind === "file" ? topLevelSchema(entry.path) : undefined;
+        const name = entry.kind === "file" ? topLevelSchemaModule(entry.path) : undefined;
         if (name === undefined || RESERVED.has(name)) {
           return [];
         }
