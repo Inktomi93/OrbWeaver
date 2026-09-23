@@ -47,6 +47,8 @@ export const VERB_HELP: Readonly<Record<VerifyVerb, string>> = {
   "config-snapshot": CONFIG_SNAPSHOT_HELP,
   "biome-rule-liveness":
     "usage: node tooling/src/verify/cli.ts biome-rule-liveness\n  Reds when a biome.json rule-off grant suppresses NOTHING — it strips the rule-off grants from a copy of the config, runs biome over the granted files, and names the grants that fired nowhere. Refuses (exit 2) on any report it cannot trust; a bare zero is never a verdict.",
+  "knip-negative-liveness":
+    "usage: node tooling/src/verify/cli.ts knip-negative-liveness\n  Reds when a LITERAL negative entry/project/ignore pattern in knip.ts names a path that is not a tracked file. Wildcard negations are out of scope. An unreadable index is exit 2.",
   "typecheck-plan": TYPECHECK_PLAN_HELP,
   typecheck: TYPECHECK_HELP,
   "instrument-affected":

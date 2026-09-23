@@ -11,6 +11,9 @@ import type { KnipConfig } from "knip";
 // Deliberate-API escape hatch: tag an export `/** @public */` and it is exempt from unused-
 // export reporting (tags below) — the honest way to keep a real public surface, instead of
 // ignores nobody re-audits.
+//
+// A LITERAL negative pattern (`!path`, no glob character) must name a git-tracked file; knip's own hints
+// never report a negation that matches nothing. `pnpm check:knip-negative-liveness` enforces it.
 const config = {
   tags: ["-@public"],
   // The trailing ! applies only in production mode: tooling stays fully checked by the default run,
@@ -148,17 +151,7 @@ const config = {
     "packages/client": {
       // main.tsx is auto-detected as an entry from index.html's <script type="module"> tag.
       entry: ["index.html"],
-      // The second pattern SUBTRACTS the transcript reading-port budget from the SHIPPABLE view only (#2426,
-      // owner-ruled 2026-09-19): it is a zero-import `.ts` leaf whose one consumer is a playwright-ct spec —
-      // deliberately not a const inside `chat-controls-band.tsx`, because a CT spec's node side cannot import
-      // a `.tsx` (playwright-ct rewrites named imports from a component file into generated component consts
-      // and the spec then collects ZERO tests). So it has no production importer BY CONSTRUCTION, and the
-      // production view calls the file dead. Subtracted from `project` rather than parked in `ignore`: an
-      // `ignore` row cannot carry the `!` production marker, so it would read as redundant in the DEFAULT
-      // view (where the spec does reach the file) and `treatConfigHintsAsErrors` would red the default run.
-      // The default view still judges the file; the band's header cites it; its enforcer is
-      // `tests/client/features/chat/components/chat-controls-band.ct.tsx`.
-      project: ["src/**/*.{ts,tsx}!", "!src/features/chat/lib/chat-reading-port.ts!"],
+      project: ["src/**/*.{ts,tsx}!"],
       // Tailwind v4: the vite plugin (@tailwindcss/vite) requires the bare `tailwindcss` package
       // resolvable at build; nothing imports it directly.
       ignoreDependencies: ["tailwindcss"],

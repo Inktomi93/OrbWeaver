@@ -231,6 +231,18 @@ const GATING_STAGES: readonly StageDef[] = [
     // The subject is the config's complete grant table, so there is no sound narrowed derivation. The
     // changed-tier trigger decorator runs this stage's whole argv whenever a changed selection owes it.
   },
+  {
+    name: "config:knip-negative-liveness",
+    group: "structure",
+    tiers: STATIC,
+    argv: ["pnpm", "check:knip-negative-liveness"],
+    // Every LITERAL negative pattern in knip.ts names a tracked file (ops/knip-negative-liveness.ts). Knip's
+    // own config hints never report a negation that matches nothing, so a dead one survives the file it
+    // excluded and silently excludes whatever lands at that path next. Our OWN 0/1/2/3-speaking op: an
+    // unreadable git index throws, exit 2.
+    classify: ownScheme,
+    // The subject is the whole resolved config against the whole index, so there is no narrowed derivation.
+  },
 
   // ── imports stage-group ──
   {

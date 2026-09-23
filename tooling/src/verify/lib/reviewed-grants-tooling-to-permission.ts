@@ -68,6 +68,14 @@ export const REVIEWED_GRANTS_TOOLING_TO_PERMISSION: readonly ReviewedGateGrant[]
     endsWhen: "both observations move in-process or behind a different worker — the row is then consumed zero times and reds.",
   },
   {
+    id: "tooling-root-config-import:knip-negative-liveness",
+    policyId: "tooling-root-config-import",
+    subject: "tooling/src/verify/ops/knip-negative-liveness.ts",
+    operation: "root-config-import:knip.ts",
+    why: "the stage judges knip.ts's LITERAL negative patterns against the git index, and it must read the RESOLVED config knip itself evaluates; a text parse of knip.ts would be a second reader of the same data and would drift from what knip sees.",
+    endsWhen: "the negation-liveness check moves into knip or off this module — the row is then consumed zero times and reds.",
+  },
+  {
     id: "tooling-artifact-path-home:artifacts",
     policyId: "tooling-artifact-path-home",
     subject: "tooling/src/_shared/artifacts.ts",
