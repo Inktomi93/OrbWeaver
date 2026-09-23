@@ -553,11 +553,11 @@ export interface AssembleContext {
    *  the `{{group}}`-family macros never list agent seats (an agent voices via the seated characters, but is not a name in
    *  these lists). Absent ⇒ falls back to the full seated CHARACTER set (the macro layer re-derives it). */
   unmutedCharacters?: AssembleCharacter[];
-  /** Who is generating, and so what the system block names: `single` (a solo or scoped turn, `{{char}}` = that
+  /** Who is generating, and so what the system block names: `single` (a scoped turn, `{{char}}` = that
    *  character), `multi-voice` (narrator: one call voices all the seated characters) or `roster` (a per-speaker
-   *  merged turn in a room of more than one character: one call voices ONE member, but the system block is the
-   *  whole roster in fixed order and names no speaker — the round cue does). On both roster arms `{{char}}` =
-   *  all the seated characters, joined. Solo is always `single`. PRODUCED by the card shape
+   *  merged turn: one call voices ONE member, but the system block is the whole roster in fixed order and names no
+   *  speaker — the round cue does). On both roster arms `{{char}}` = all the seated characters, joined, so a room
+   *  of one binds that one name. Solo is always `single`. PRODUCED by the card shape
    *  (`assembly/speaker-card`), which dispatches on the round's `output` axis — a narrator round's authoring
    *  speaker is the SYNTHETIC group character and is deliberately NOT in `speakerRefs`, so this arm can never
    *  be derived from the ref. `active` is the member whose card fills the character section (the primary);

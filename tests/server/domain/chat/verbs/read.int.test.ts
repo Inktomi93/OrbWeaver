@@ -74,8 +74,8 @@ const SINGLE_SPEAKER_FRAMING = /You are (Aria|Kai) in an immersive/;
  *  fails loudly if the verb's number moves, instead of silently testing a bound that no longer exists. */
 const CHAT_LIST_PAGE_CEILING = 100;
 
-/** The per-speaker MERGED default: the whole roster, the speaker left to the round cue. */
-const ROSTER_FRAMING = /You are playing (Aria, Kai|Kai, Aria) in an immersive[^\n]*the one character the latest instruction names/;
+/** The per-speaker MERGED default: the single default text with `{{char}}` bound to the whole roster. */
+const ROSTER_FRAMING = /You are (Aria, Kai|Kai, Aria) in an immersive/;
 
 let db: Db;
 let loadParticipantViews: ReturnType<typeof makeLoadParticipantViews>;
@@ -1659,7 +1659,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     const { prompt } = await createRead(ctx, makeDeps()).previewAssembly({ principal: principal(me), chatId });
 
     // Owner ruling: a merged room's system block is the whole roster for every speaker and names none — the
-    // roster default binds `{{char}}` to the joined names, and every non-primary card rides as "[Character — X]".
+    // single default binds `{{char}}` to the joined names, and every non-primary card rides as "[Character — X]".
     expect(prompt.static).toMatch(ROSTER_FRAMING);
     expect(prompt.static).not.toMatch(SINGLE_SPEAKER_FRAMING);
     expect(prompt.static).not.toMatch(JOINED_CHARACTERS_FRAMING); // never the narrator's framing either
