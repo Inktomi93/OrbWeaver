@@ -32,6 +32,7 @@
     "probe:history-system-rows": "node scripts/probes/history-system-rows.ts",
     "plugin:pack": "node scripts/pack-plugin.ts",
     "sse-tap": "node --experimental-eventsource tooling/src/wire-tap/cli.ts sse",
+    "cache:check": "node tooling/src/cache-check/cli.ts",
     "trace:render": "node tooling/src/render-trace/cli.ts render",
     "trace:tail": "node tooling/src/render-trace/cli.ts tail",
     "trace:fire": "node tooling/src/render-trace/cli.ts fire",
