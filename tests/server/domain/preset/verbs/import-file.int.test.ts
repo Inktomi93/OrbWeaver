@@ -33,7 +33,7 @@ describe("importFile", () => {
     const stranger = await seedUser(db, "stranger");
     const outcome = await svc.importFile({ userId: stranger, fileText: new TextDecoder().decode(file?.bytes) });
 
-    expect(outcome).toStrictEqual({ ok: true, created: true, presetId: castId<PresetId>("preset_000001") });
+    expect(outcome).toStrictEqual({ ok: true, created: true, presetId: castId<PresetId>("preset_00000000000000000000000001") });
     const rows = await db.select().from(presets).where(eq(presets.ownerId, stranger));
     expect(rows.map((r) => r.name)).toStrictEqual(["Roundtrip"]);
     expect(rows[0]?.config.params.temperature).toBe(0.42);
@@ -49,12 +49,12 @@ describe("importFile", () => {
     expect(await svc.importFile({ userId: owner, fileText: text(0.3) })).toStrictEqual({
       ok: true,
       created: true,
-      presetId: castId<PresetId>("preset_000001"),
+      presetId: castId<PresetId>("preset_00000000000000000000000001"),
     });
     expect(await svc.importFile({ userId: owner, fileText: text(1.1) })).toStrictEqual({
       ok: true,
       created: false,
-      presetId: castId<PresetId>("preset_000001"),
+      presetId: castId<PresetId>("preset_00000000000000000000000001"),
     });
 
     const rows = await db.select().from(presets).where(eq(presets.ownerId, owner));

@@ -23,6 +23,7 @@ function drive(files: Readonly<Record<string, string>>): ReturnType<typeof runPo
 }
 
 test("zod-output-twin-parity proves its complete output/cast/refusal matrix through production conformance", () => {
+  expect(gate.id).toBe("zod-output-twin-parity");
   expect(verifyPolicyProofs([gate])).toEqual([]);
 });
 

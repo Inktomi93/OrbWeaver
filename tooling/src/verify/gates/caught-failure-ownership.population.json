@@ -483,12 +483,12 @@
     {
       "siteId": "packages/client/src/forms/editor/create-autosave-entity-form.tsx::createAutosaveEntityForm.Session.attemptSave::form.handleSubmit::1",
       "verdict": "deliberate-absorb",
-      "reason": "the injected save's own errorToast surfaces the failure and the draft mirror holds the edit for retry. Ends if the injected save stops wiring an errorToast. handleSubmit re-throws an onSubmit rejection; swallow it here — the injected save's own errorToast surfaces the failure and the draft mirror holds the edit for retry."
+      "reason": "the injected save's own errorToast surfaces the failure and the draft mirror holds the edit for retry. Ends if the injected save stops wiring an errorToast."
     },
     {
       "siteId": "packages/client/src/forms/editor/create-autosave-entity-form.tsx::createAutosaveEntityForm.Session.retrySave::form.handleSubmit::1",
       "verdict": "deliberate-absorb",
-      "reason": "explicit user retry — same swallow as the debounce driver, the injected save's own errorToast surfaces the failure. Ends if the injected save stops wiring an errorToast. Direct submit — an explicit user retry always re-attempts the held edit; same swallow as the driver."
+      "reason": "explicit user retry — same swallow as the debounce driver, the injected save's own errorToast surfaces the failure. Ends if the injected save stops wiring an errorToast."
     },
     {
       "siteId": "packages/client/src/lib/app-ready-signal.ts::installAppReadySignal::appReady::1",

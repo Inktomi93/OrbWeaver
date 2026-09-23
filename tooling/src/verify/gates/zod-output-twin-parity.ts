@@ -99,14 +99,30 @@ function contextualExpressions(node: MorphNode): readonly Expression[] {
   return [];
 }
 
+function isOwnerTypeParameter(type: Type, declaration: MorphNode): boolean {
+  return symbolDeclarations(type.getSymbol()).some((candidate) => Node.isTypeParameterDeclaration(candidate) && candidate.getAncestors().includes(declaration));
+}
+
+/** Whether the call argument at `index` types against the callee's OWN type parameter — either directly
+ * (`schema: Schema`, the parameter type IS the type parameter) or wrapped (`schema: ZodType<T>`, T is the
+ * type parameter). Either shape means Schema/T derives from THIS argument, so it creates no independent
+ * authored output owner. Missing the bare-parameter shape (checking only the wrapped one) read most of
+ * zod's own `array(element: T)` / `record(keyType, valueType: T)` call sites as authored contextual
+ * pairs: the argument IS the callee's own bare type parameter, so the pair was comparing a schema
+ * against itself. */
 function argumentDerivesOwnerTypeParameter(call: import("ts-morph").CallExpression, declaration: MorphNode, index: number): boolean {
   if (call.getTypeArguments().length > 0 || !Node.isFunctionLikeDeclaration(declaration)) {
     return false;
   }
-  const output = declaration.getParameters()[index]?.getType().getTypeArguments()[0];
-  return symbolDeclarations(output?.getSymbol()).some(
-    (candidate) => Node.isTypeParameterDeclaration(candidate) && candidate.getAncestors().includes(declaration),
-  );
+  const parameterType = declaration.getParameters()[index]?.getType();
+  if (parameterType === undefined) {
+    return false;
+  }
+  if (isOwnerTypeParameter(parameterType, declaration)) {
+    return true;
+  }
+  const output = parameterType.getTypeArguments()[0];
+  return output !== undefined && isOwnerTypeParameter(output, declaration);
 }
 
 function typeDependsOnOwnerParameter(type: Type, owner: MorphNode, location: MorphNode): boolean {
@@ -401,10 +417,26 @@ export const gate = defineGate({
     {
       mode: "types",
       files: proofFiles(
+        'import * as z from "zod";\ntype State = { mode: "idle" | "busy" };\ndeclare function both<S extends z.ZodType>(a: S, b: S): void;\nboth<z.ZodType<State>>(z.object({ mode: z.literal("idle") }), z.object({ mode: z.literal("idle") }));\n',
+      ),
+      expect: { count: 2, token: "z", messageIncludes: "authored type is not assignable to schema output" },
+      why: "an explicit generic call argument on a bare SHARED type parameter substitutes a concrete contextual output for every argument that binds it, the same as the wrapped ZodType<T> form",
+    },
+    {
+      mode: "types",
+      files: proofFiles(
         'import * as z from "zod";\ndeclare const RUNTIME_GENERATED_SCHEMA_BRAND: unique symbol;\nclass RuntimeGeneratedSchema<Schema extends z.ZodType = z.ZodType> { declare readonly [RUNTIME_GENERATED_SCHEMA_BRAND]: true; readonly schema: Schema; constructor(schema: Schema) { this.schema = schema; } }\ntype State = { mode: "idle" | "busy" };\nconst counterfeit = new RuntimeGeneratedSchema(z.object({ mode: z.literal("idle") }));\nexport const schemas: readonly z.ZodType<State>[] = [counterfeit.schema];\n',
       ),
       expect: { count: 1, token: "counterfeit", messageIncludes: "authored type is not assignable to schema output" },
       why: "a same-named shadow wrapper with its own unique-symbol brand cannot impersonate the canonical runtime-generated-schema contract",
+    },
+    {
+      mode: "types",
+      files: proofFiles(
+        'import * as z from "zod";\ndeclare const RUNTIME_GENERATED_SCHEMA_BRAND: unique symbol;\nclass RuntimeGeneratedSchemaBox<Schema extends z.ZodType = z.ZodType> { readonly schema: Schema; constructor(schema: Schema) { this.schema = schema; } }\ntype RuntimeGeneratedSchema<Schema extends z.ZodType = z.ZodType> = RuntimeGeneratedSchemaBox<Schema> & { readonly [RUNTIME_GENERATED_SCHEMA_BRAND]: true };\nfunction fakeBox<Schema extends z.ZodType>(schema: Schema): RuntimeGeneratedSchema<Schema> { return new RuntimeGeneratedSchemaBox(schema) as RuntimeGeneratedSchema<Schema>; }\ntype State = { mode: "idle" | "busy" };\nconst counterfeit = fakeBox(z.object({ mode: z.literal("idle") }));\nexport const schemas: readonly z.ZodType<State>[] = [counterfeit.schema];\n',
+      ),
+      expect: { count: 1, token: "counterfeit", messageIncludes: "authored type is not assignable to schema output" },
+      why: "a same-named shadow wrapper using the intersected-brand shape still cannot impersonate the canonical contract from outside lift.ts",
     },
     {
       mode: "types",
@@ -483,6 +515,13 @@ export const gate = defineGate({
     {
       mode: "types",
       files: proofFiles(
+        'import * as z from "zod";\ndeclare function both<S extends z.ZodType>(a: S, b: S): void;\nboth(z.string(), z.string());\ntype Exact = { id: string };\nexport const exact = z.object({ id: z.string() }) satisfies z.ZodType<Exact>;\n',
+      ),
+      why: "a bare SHARED type parameter across two call arguments derives S from both, the same as the wrapped ZodType<T> form — neither argument creates an independent authored output owner; the exact concrete pair keeps the refusal denominator live",
+    },
+    {
+      mode: "types",
+      files: proofFiles(
         'import * as z from "zod";\ndeclare function register<T>(input: { readonly schema: z.ZodType<T> }): void;\nregister({ schema: z.string() });\ntype Exact = { id: string };\nexport const exact = z.object({ id: z.string() }) satisfies z.ZodType<Exact>;\n',
       ),
       why: "an aggregate parameter whose schema target is the callee-owned inferred type parameter is derived plumbing; the healthy concrete sibling keeps the corpus live",
@@ -498,9 +537,9 @@ export const gate = defineGate({
       mode: "types",
       files: proofFilesAt(
         "packages/kit/src/json-schema/lift.ts",
-        'import * as z from "zod";\ndeclare const RUNTIME_GENERATED_SCHEMA_BRAND: unique symbol;\nclass RuntimeGeneratedSchema<Schema extends z.ZodType = z.ZodType> { declare readonly [RUNTIME_GENERATED_SCHEMA_BRAND]: true; readonly schema: Schema; constructor(schema: Schema) { this.schema = schema; } }\nconst generated = new RuntimeGeneratedSchema(z.string());\nconst composed: readonly z.ZodType[] = [generated.schema];\ntype Exact = { id: string };\nexport const healthy = z.object({ id: z.string() }) satisfies z.ZodType<Exact>;\nvoid composed;\n',
+        'import * as z from "zod";\ndeclare const RUNTIME_GENERATED_SCHEMA_BRAND: unique symbol;\nclass RuntimeGeneratedSchemaBox<Schema extends z.ZodType = z.ZodType> { readonly schema: Schema; constructor(schema: Schema) { this.schema = schema; } }\ntype RuntimeGeneratedSchema<Schema extends z.ZodType = z.ZodType> = RuntimeGeneratedSchemaBox<Schema> & { readonly [RUNTIME_GENERATED_SCHEMA_BRAND]: true };\nfunction boxGeneratedSchema<Schema extends z.ZodType>(schema: Schema): RuntimeGeneratedSchema<Schema> { return new RuntimeGeneratedSchemaBox(schema) as RuntimeGeneratedSchema<Schema>; }\nconst generated = boxGeneratedSchema(z.string());\nconst composed: readonly z.ZodType[] = [generated.schema];\ntype Exact = { id: string };\nexport const healthy = z.object({ id: z.string() }) satisfies z.ZodType<Exact>;\nvoid composed;\n',
       ),
-      why: "the canonical nominal runtime-generated-schema member is opaque by contract while a healthy authored pair keeps the population live",
+      why: "the canonical nominal runtime-generated-schema member is opaque by contract — the brand now lives on the intersected type alias rather than the class, since a `declare` computed class field cannot survive Playwright's Babel transform — while a healthy authored pair keeps the population live",
     },
   ],
   mustRefuse: [
@@ -541,6 +580,14 @@ export const gate = defineGate({
       ),
       expect: { messageIncludes: RECEIPT },
       why: "a same-named counterfeit generated-schema wrapper with erased output remains unresolved rather than inheriting the canonical brand exemption",
+    },
+    {
+      mode: "types",
+      files: proofFiles(
+        'import * as z from "zod";\ndeclare const RUNTIME_GENERATED_SCHEMA_BRAND: unique symbol;\nclass RuntimeGeneratedSchemaBox<Schema extends z.ZodType = z.ZodType> { readonly schema: Schema; constructor(schema: Schema) { this.schema = schema; } }\ntype RuntimeGeneratedSchema<Schema extends z.ZodType = z.ZodType> = RuntimeGeneratedSchemaBox<Schema> & { readonly [RUNTIME_GENERATED_SCHEMA_BRAND]: true };\ndeclare const erased: z.ZodType;\nconst counterfeit = new RuntimeGeneratedSchemaBox(erased) as RuntimeGeneratedSchema;\nconst generated: readonly z.ZodType[] = [counterfeit.schema];\ntype Exact = { id: string };\nexport const healthy = z.object({ id: z.string() }) satisfies z.ZodType<Exact>;\nvoid generated;\n',
+      ),
+      expect: { messageIncludes: RECEIPT },
+      why: "a same-named counterfeit wrapper using the intersected-brand shape with erased output remains unresolved rather than inheriting the canonical exemption",
     },
   ],
 });

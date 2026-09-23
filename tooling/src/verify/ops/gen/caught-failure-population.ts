@@ -82,35 +82,52 @@ function derivedSites(sf: SourceFile, path: string): readonly DerivedSite[] {
 const LINE_COMMENT = /^\s*\/\/(.*)$/u;
 /** A comment body that starts something else — another marker or a tool directive — ends the reason. */
 const REASON_STOP = /^(?:@|biome-ignore|eslint-|prettier-ignore)/u;
+/** Terminal punctuation, then any closing quote, bracket or backtick. */
+const SENTENCE_END = /[.!?]["'`)\]]*$/u;
+/** The end condition every reason carries by house convention — the grammar does not require it; 531 of the
+ *  533 live clauses spell `Ends if`, the other two `Ends when`. */
+const END_CLAUSE = /\bEnds (?:if|when)\b/u;
+
+/** The wrapped continuation of a `//` marker's reason: the consecutive non-empty `//` lines after it, up to a
+ *  blank comment line, a stop word, code — or the moment the captured reason is COMPLETE, i.e. it already
+ *  holds its end condition and ends a sentence. Measured 2026-09-23 over the real tree (217 markers wrap):
+ *  a bare sentence-end rule truncated 16 real reasons whose "Ends if" clause sits on a later line; requiring the
+ *  end clause first keeps all 215 wraps and stops exactly the two markers in
+ *  `create-autosave-entity-form.tsx` whose complete reason was followed by a separate ordinary comment. A
+ *  reason with no end clause at all keeps the plain line rules. */
+function continuation(lines: readonly string[], markerLine: number, head: string): readonly string[] {
+  const parts: string[] = [];
+  let captured = head;
+  for (const line of lines.slice(markerLine)) {
+    const body = LINE_COMMENT.exec(line)?.[1]?.trim();
+    const complete = END_CLAUSE.test(captured) && SENTENCE_END.test(captured);
+    if (complete || body === undefined || body.length === 0 || REASON_STOP.test(body)) {
+      break;
+    }
+    parts.push(body);
+    captured = `${captured} ${body}`;
+  }
+  return parts;
+}
 
 /** The reason text out of a marker the ENGINE already validated, WHOLE. `waiverId` is
  *  `<path>:<line>:<column>` of the marker comment, and the grammar puts the reason after the first `):` on
  *  that line. The engine reads only that line, but authors wrap a long reason onto following `//` lines, and
- *  the census promises the full reason verbatim: the consecutive non-empty `//` lines after a `//` marker are
- *  its continuation, joined with single spaces, up to a blank comment line, another marker or directive, or
- *  code. Before this the census recorded "documented — the caller (liftString) turns" and dropped the rest. */
+ *  the census promises the full reason verbatim ({@link continuation} owns where a wrap ends). Before this the
+ *  census recorded "documented — the caller (liftString) turns" and dropped the rest. */
 function waiverReason(sf: SourceFile, markerLine: number): string {
   const lines = sf.getFullText().split(/\r?\n/u);
   const first = lines[markerLine - 1] ?? "";
   const at = first.indexOf("):");
-  const parts = [
+  const head =
     at === -1
       ? ""
       : first
           .slice(at + 2)
           .replace(/\*\/\s*$/u, "")
-          .trim(),
-  ];
+          .trim();
   // A block-comment marker closes on its own line; only a `//` marker can wrap onto continuation lines.
-  if (LINE_COMMENT.test(first)) {
-    for (const line of lines.slice(markerLine)) {
-      const body = LINE_COMMENT.exec(line)?.[1]?.trim();
-      if (body === undefined || body.length === 0 || REASON_STOP.test(body)) {
-        break;
-      }
-      parts.push(body);
-    }
-  }
+  const parts = [head, ...(LINE_COMMENT.test(first) ? continuation(lines, markerLine, head) : [])];
   const reason = parts.join(" ").trim();
   if (parts[0]?.length === 0 || reason.length === 0) {
     throw new Error(

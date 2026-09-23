@@ -175,6 +175,16 @@ test("a waiver reason that wraps onto continuation comment lines is recorded WHO
   ]);
 });
 
+test("a COMPLETE reason stops the wrap: an ordinary comment after it is never appended", async ({ plantedTree }) => {
+  const source =
+    "export function separate(): void {\n" +
+    "  // @orb-waive caught-failure-ownership(catch): the toast is the surface. Ends if the toast goes.\n" +
+    "  // Direct submit — an ordinary note about the call below.\n" +
+    "  try {\n    risky();\n  } catch {}\n}\n";
+  const rows = deriveCaughtFailurePopulation(await plantedTree({ [SITE_PATH]: source })).rows;
+  expect(rows.map((r) => r.reason)).toEqual(["the toast is the surface. Ends if the toast goes."]);
+});
+
 // ── the registry contract: complete populations at whole tiers and selected-path triggers ──
 
 test("the stage runs at every whole-tree tier and uses its complete argv for selected paths", () => {

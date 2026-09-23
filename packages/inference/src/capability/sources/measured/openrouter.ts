@@ -39,4 +39,24 @@ export const measuredOpenRouterRows = [
       cite: "rec-probe.mjs or-echo-opus48 — gen-1789884543-OomBi0lVg4zDXFmCZ3Pk: temperature 0.7 + topP 0.9 sent; the echoed upstream body carried neither (thinking disabled, max_tokens, stop_sequences only); no 400, no warning",
     },
   },
+  // The catalog's reasoning object carries no thinking TYPE, so the advertised tier spells every reasoning model
+  // `mode: "effort"`. What OpenRouter actually sends Anthropic for a `reasoning.effort` on these ids is adaptive
+  // thinking plus `output_config.effort`, so the measured mode outranks that spelling and the house default effort
+  // (`ADAPTIVE_DEFAULT_EFFORT`) reaches this route the same as the direct and agent-sdk ones.
+  {
+    match: {
+      provider: "openrouter",
+      model: "^anthropic/claude-(opus-5|fable-5|sonnet-5|opus-4[-.][78])",
+    },
+    generation: {
+      reasoning: {
+        mode: "adaptive",
+      },
+    },
+    evidence: {
+      tier: "measured",
+      dated: "2026-09-23",
+      cite: 'wire-fixes-or-echo.mjs, reasoning.effort "high" + debug.echo_upstream_body, upstream thinking {type:"adaptive",display:"summarized"} + output_config.effort "high" on every id: opus-5 gen-1790141847-svcaPqDtmlhF34sxweVp, opus-5.5 gen-1790141848-AAT0DrIn490dia4WrPeZ, fable-5 gen-1790141850-miDQ7EvBTSfb094Vfizh, fable-5.1 gen-1790141854-B8vCTCWKmFmNVeTy79fm, sonnet-5 gen-1790141857-ck66LEE8k2VXqYoS3f6i, opus-4.8 gen-1790141839-NIM1Oo4iEXg70CSFDnfh, opus-4.7 gen-1790141840-K2jBVGtiQQxYNsqWgpf7',
+    },
+  },
 ] as const satisfies readonly CapabilityOverrideInput[];
