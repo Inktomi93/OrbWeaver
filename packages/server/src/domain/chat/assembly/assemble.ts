@@ -22,7 +22,7 @@
 // to the preset's `postProcess` block) after the section/injection walk, before the caller's cache split —
 // the transform is idempotent and only reorders whitespace, so it never busts the static-cache prefix.
 
-import type { AssembleCharacter, AssembleContext, AssembledPrompt, AssembleTrace, ChatInjection, SectionPreview } from "@orb/contracts/chat";
+import type { AssembleCharacter, AssembleContext, AssembledPrompt, AssemblePersona, AssembleTrace, ChatInjection, SectionPreview } from "@orb/contracts/chat";
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_MARKER_TEMPLATES, NARRATOR_MAIN_PROMPT_TEMPLATE } from "@orb/contracts/preset";
 import type { ProseSlotId } from "@orb/contracts/prose";
@@ -347,6 +347,38 @@ function renderCoSpeakerBlocks(ctx: AssembleContext, registry: MacroRegistry): {
   return co.map((m) => ({ name: m.name, text: renderCoSpeakerBlock(m, ctx, registry) })).filter((b) => b.text.length > 0);
 }
 
+/** ONE other present human's people-block entry: the `chat.group.personaHeading` frame, then the description
+ *  rendered against THAT persona (its `{{user}}` is its own name). Only an `in_prompt` description rides the
+ *  block — `at_depth` rode its own injection and `none` opted out — but the heading always stays, so the model
+ *  can map a row label to a person. */
+function renderPersonEntry(person: AssemblePersona, ctx: AssembleContext, registry: MacroRegistry): string {
+  const heading = resolveProseText("chat.group.personaHeading", ctx.prose ?? {}, { name: person.name });
+  if (person.placement !== undefined && person.placement.kind !== "in_prompt") {
+    return heading;
+  }
+  const description = renderMacros(person.description, ctx, person, { registry }).trim();
+  return description.length === 0 ? heading : `${heading}\n${description}`;
+}
+
+/** The `persona` marker. The voice part (the marker template against the voice persona) emits ONLY when its
+ *  description placement is in_prompt — else it rode an injection, or nowhere: the single-placement rule that
+ *  makes double-injection impossible. With other present humans the marker is the people block, kept PER
+ *  PERSON so the budget names each one: the voice part unheaded and first, then every other human's entry in
+ *  join order. Position alone marks who `{{user}}` is; no people is today's solo render, byte for byte. */
+function renderPersonaMarker(section: TemplatedMarkerSection, env: BuildEnv): string {
+  const { ctx, registry } = env;
+  const voice = ctx.activePersona && ctx.personaMarkerActive !== false ? renderMacros(templateFor(section, ctx), ctx, ctx.activePersona, { registry }) : "";
+  if (ctx.people === undefined || ctx.people.length === 0) {
+    return voice;
+  }
+  const blocks = [
+    { name: personaLabel(ctx.activePersona?.name), text: voice.trim() },
+    ...ctx.people.map((person) => ({ name: personaLabel(person.name), text: renderPersonEntry(person, ctx, registry) })),
+  ].filter((part) => part.text.length > 0);
+  env.memberBlocks.set(section.id, blocks);
+  return blocks.map((b) => b.text).join("\n\n");
+}
+
 const MERGED_CACHE_BUSTER = "merged-present-characters";
 
 function recordMergedCacheBuster(trace: AssembleTrace): void {
@@ -524,11 +556,7 @@ function renderMarker(section: MarkerSection, env: BuildEnv): string {
         ? renderMacros(templateFor(section, ctx), env.cardCtx, ctx.pinnedPersona, { registry: env.registry })
         : "";
     case "persona":
-      // Emits ONLY when the active persona's description placement is in_prompt (else it rode an
-      // injection, or nowhere — the single-placement rule that makes double-injection impossible).
-      return ctx.activePersona && ctx.personaMarkerActive !== false
-        ? renderMacros(templateFor(section, ctx), ctx, ctx.activePersona, { registry: env.registry })
-        : "";
+      return renderPersonaMarker(section, env);
     case "compact_summary":
     case "memory":
     case "databank":
@@ -564,6 +592,7 @@ function markerStaticSources(section: MarkerSection, ctx: AssembleContext): stri
     case "world_info_after":
       return ctx.worldInfoAfter !== undefined ? [ctx.worldInfoAfter] : [];
     case "persona":
+      return personaStaticSources(section, ctx);
     case "compact_summary":
     case "memory":
     case "databank":
@@ -596,6 +625,15 @@ function markerStaticSources(section: MarkerSection, ctx: AssembleContext): stri
   }
 }
 // biome-ignore-end lint/suspicious/noUnnecessaryConditions: see the matching -start above.
+
+/** The persona marker's static sources: the template, plus every description the marker actually renders — the
+ *  voice's when its placement keeps it in the marker, and each person's `in_prompt` one. A description routed to
+ *  an injection or opted out never reaches the static half, so scanning it would overstate the cache-busters. */
+function personaStaticSources(section: TemplatedMarkerSection, ctx: AssembleContext): string[] {
+  const voice = ctx.activePersona && ctx.personaMarkerActive !== false ? [ctx.activePersona.description] : [];
+  const people = (ctx.people ?? []).flatMap((person) => (person.placement === undefined || person.placement.kind === "in_prompt" ? [person.description] : []));
+  return [templateFor(section, ctx), ...voice, ...people];
+}
 
 function collectStaticSources(section: PromptSection, ctx: AssembleContext): string[] {
   return section.type === "literal" ? [section.content] : markerStaticSources(section, ctx);

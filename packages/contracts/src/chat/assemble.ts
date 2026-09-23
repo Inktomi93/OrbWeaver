@@ -595,6 +595,10 @@ export interface AssembleContext {
    *  (`client/features/chat/lib/attribution.ts` `resolveUserAttribution` — the `authorUserId === viewerUserId`
    *  gate). Null/absent (any hand-built ctx) ⇒ NO row borrows it, which is the fail-closed side. */
   activePersonaUserId?: UserId | null | undefined;
+  /** Every OTHER present human's persona, in seat (join) order: the `persona` marker's people block, each entry
+   *  headed by the `chat.group.personaHeading` frame after the unheaded {@link AssembleContext.activePersona}
+   *  part. Absent ⇒ no other present human holds a persona, and the marker renders the voice part alone. */
+  people?: readonly AssemblePersona[] | undefined;
   /** True when the room seats more than one present human. SHAPE then labels every canon user row, so no
    *  row's label depends on who pressed send. Absent ⇒ a solo room. */
   multiHuman?: boolean | undefined;

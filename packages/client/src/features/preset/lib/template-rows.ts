@@ -62,8 +62,8 @@ export const TEMPLATE_KIND_LABEL: Record<TemplateKind, string> = {
   studio: "Studio",
   format: "Format",
   nudge: "Nudges",
-  // The F4 re-home (2026-08-08). The kicker names the SURFACE: every row here reaches the model only on a
-  // MULTI-character round, and that — not "chat" — is what a preset author needs told.
+  // The F4 re-home (2026-08-08). The kicker names the SURFACE: every row here reaches the model only in a
+  // group room (several characters, or several humans), and that — not "chat" — is what a preset author needs told.
   group: "Group rounds",
   // The rpg re-home (2026-08-08). The kicker names the SURFACE, not the domain enum: every row in this group
   // reaches the model only on a game turn, and that — not "rpg" — is what a preset author needs told.
@@ -131,8 +131,8 @@ export const TEMPLATE_KIND_DELIVERY: Record<TemplateKind, TemplateDelivery> = {
   },
   group: {
     kind: "static",
-    channel: "The group round",
-    body: "Applied by the assembler on a MULTI-character round — the co-speaker card headings into the card walk, the round and narrator nudges as the round's trailing user turn. Fires only while this preset drives a group or narrator room.",
+    channel: "The group room",
+    body: "Applied by the assembler in a room with several characters or several humans — the co-speaker card headings into the card walk, the person heading over each other human's persona in the persona section, the round and narrator nudges as the round's trailing user turn.",
   },
   teach: {
     kind: "static",
@@ -156,7 +156,7 @@ export const TEMPLATE_KIND_UNBOUND_GLOSS: Record<TemplateKind, string> = {
   nudge: "Every macro here resolves in chat — open a chat and this readout binds to it, showing what the model actually receives.",
   format: "Macros here fill when the assembler applies this row to a real turn — a frame's {{note}} is the wrapped injection's own content.",
   group:
-    "The {{name}}/{{names}} tokens here are spliced from the round's characters per member when the assembler builds a group round — they are not chat macros.",
+    "The {{name}}/{{names}} tokens here are spliced per character or per person when the assembler builds a group room's prompt — they are not chat macros.",
   teach: "{{user}} and {{char}} resolve through the chat's identity registry on each game turn — open a game chat and this readout binds to it.",
   extract:
     "Braced tokens here are spliced from the game's own data at the state round — they are not chat macros. Binding a chat resolves only the identity names.",
@@ -170,7 +170,7 @@ export const TEMPLATE_KIND_FIRE_TIME: Record<TemplateKind, string> = {
   studio: "they fill in when you fire the action",
   nudge: "they fill in when the nudge fires",
   format: "they fill at assembly, per turn",
-  group: "they are spliced per member each group round",
+  group: "they are spliced per character or person at assembly",
   teach: "they resolve on each game turn",
   extract: "they are spliced from game data at the state round",
 };

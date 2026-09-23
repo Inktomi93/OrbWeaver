@@ -23,6 +23,7 @@
 import "../../../support/composed-real.ts";
 import type { Principal } from "@orb/contracts/identity";
 import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
+import { resolveProseText } from "@orb/contracts/prose";
 import type { Db } from "@orb/db";
 import { characters, chatParticipants, connectionBindings, userConnections } from "@orb/db";
 import type { ChatId, ConnectionBindingId, Handle, PersonaId, UserId } from "@orb/kit/ids";
@@ -142,14 +143,16 @@ describe("multi-human persona resolution — the composed resolver (F1/F2)", () 
     // The exact shape the retired `personaIds[0]` fallback used to serve: the host holds no seat persona and
     // the room has no anchor, but a member happens to be present holding one. The honest answer is the kit
     // floor — "this room has not been told whose story it is" — never "whoever joined first". Floor-vs-
-    // bystander is invisible to a `not.toContain` on the member's name alone, so both are asserted.
+    // bystander is invisible to a `not.toContain` on the member's name alone, so both are asserted. The
+    // member's description still enters (D122), but only headed in the people block, never as the voice part.
     const room = await seedRoom(db, { hostActive: false, anchor: null });
 
     const text = await promptText(services, room.host, room.chatId);
 
     expect(text).toContain("roleplay with Traveler");
     expect(text).not.toContain("roleplay with Zara");
-    expect(text).not.toContain("a wandering cartographer");
+    expect(text).toContain(`${resolveProseText("chat.group.personaHeading", {}, { name: "Zara" })}\na wandering cartographer`);
+    expect(text).not.toContain("\n\na wandering cartographer");
   });
 
   test("REFUSAL: a DEPARTED member's persona stops resolving — the anchor falls to the active persona (HEAL semantics)", async ({ db, services }) => {

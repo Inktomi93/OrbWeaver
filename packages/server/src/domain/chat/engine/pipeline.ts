@@ -48,6 +48,7 @@ import { cachesByAnthropicMarkers, generationOf, resolveCarryReasoning } from "@
 import type { ContentImageRef } from "@orb/kit/content";
 import type { AssetId, CharacterId, ChatId, MessageId, PersonaId, WorldEntryId } from "@orb/kit/ids";
 import type { MacroRegistry, RowCharacterName, RowPersonaName } from "@orb/kit/macro";
+import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { executeRegexScripts } from "@orb/kit/regex";
 import { cleanPerSpeakerReply } from "@orb/kit/speaker-label";
 import { estimateTokens } from "@orb/kit/tokens";
@@ -166,10 +167,10 @@ interface RunTurnPipelineArgs {
 }
 
 /** The wire speaker name for the human side of the turn — SHAPE's `speakers.user`, and (post-IMP-1) the
- *  self-label an impersonate draft is stripped of, so both act on exactly the same name. A personaless chat
- *  falls back to the shared `"User"` floor. */
+ *  self-label an impersonate draft is stripped of, so both act on exactly the same name. A persona-less voice
+ *  human takes {@link DEFAULT_PERSONA_NAME}, the floor SHAPE and the macro layer give every unresolved human. */
 function userSpeakerName(persona: AssemblePersona | null | undefined): string {
-  return persona === null || persona === undefined ? "User" : persona.name;
+  return persona === null || persona === undefined ? DEFAULT_PERSONA_NAME : persona.name;
 }
 
 /** The historyMacroNames default when a caller supplies none — every row falls through to its own

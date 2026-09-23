@@ -129,6 +129,29 @@ describe("setActivePersona", () => {
     expect(setCalledWith).toEqual({ targetUserId: ownerId, personaId: created.id });
   });
 
+  // Personas are single-owned (D23) and never shared: the ownership check keys on the TARGET, so no two seats can
+  // hold one persona id. The self-case test above cannot tell target from principal apart; this one can.
+  test("a host assigning their OWN persona onto another member's seat is refused, and nothing is written", async () => {
+    const db = await freshDb();
+    let written = false;
+    const harness = makeHarness(db, {
+      requireChatAuthorOrHost: () => Promise.resolve(),
+      setChatActivePersona: (): Promise<void> => {
+        written = true;
+        return Promise.resolve();
+      },
+    });
+    const svc = createPersonaService(harness.ctx);
+    const hostId = await seedUser(db, { handle: castId<Handle>("host") });
+    const memberId = await seedUser(db, { handle: castId<Handle>("member") });
+    const hostPersona = await svc.create({ principal: principal(hostId), input: { name: "host-persona", description: "d" } });
+
+    await expect(
+      svc.setActivePersona({ principal: principal(hostId), chatId: castId<ChatId>("c1"), targetUserId: memberId, personaId: hostPersona.id }),
+    ).rejects.toThrow(PersonaNotFoundError);
+    expect(written).toBe(false);
+  });
+
   test("host with an explicit targetUserId stamps the TARGET, not the caller", async () => {
     const db = await freshDb();
     let setCalledWith: { targetUserId: string; personaId: PersonaId | null } | null = null;
