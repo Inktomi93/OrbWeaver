@@ -79,7 +79,7 @@ import {
   toShapeCanon,
   voiceContextForSpeaker,
 } from "../substrate/assembly-access.ts";
-import { buildWireHistory, convertsToEmptyWireRow, dropEmptyWireRows, wireCostRows } from "../substrate/wire-history.ts";
+import { buildWireHistory, convertsToEmptyWireRow, dropEmptyWireRows, keepNewChatMarkerAtHead, wireCostRows } from "../substrate/wire-history.ts";
 
 /** What `runTurnPipeline` consumes — the immutable assemble ctx + the loaded canon + the resolved connection
  *  + the turn axes. Stays UNEXPORTED (`no-inline-types`: an exported type belongs in `contract/`, and this is
@@ -711,7 +711,9 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
   // rows without re-deriving anything — one conversion, one ordering, no parallel bookkeeping to drift.
   // …and the empty-row drop re-anchors the §8 breakpoint with it: it is a DEPTH from the end, which the fit's
   // front-trim preserves for free and a mid-array drop does not (#1543 — see `shiftBreakpoint`).
-  const { kept, cacheBreakpointFromEnd } = dropEmptyWireRows(converted.slice(fitted.droppedCount), shaped.cacheBreakpointFromEnd);
+  const { kept: nonEmpty, cacheBreakpointFromEnd } = dropEmptyWireRows(converted.slice(fitted.droppedCount), shaped.cacheBreakpointFromEnd);
+  // The new-chat marker opens whatever history the fit kept, so it goes back on after the trim.
+  const kept = keepNewChatMarkerAtHead(nonEmpty, fitted.droppedCount, shaped.newChatMarker);
   const history = kept.map((w) => w.row);
   // Total context consumption for the managed-compaction trigger: kept history + system + reserved output.
   // `fitted.usedTokens` is now the WIRE cost, so this is what the request actually weighs.

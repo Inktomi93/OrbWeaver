@@ -110,6 +110,16 @@ function isPromptTailInjection(inj: ChatInjection): boolean {
   return inj.position === "in_chat" && inj.depth === 0 && inj.role !== "assistant";
 }
 
+const DEFAULT_INJECTION_ORDER = 100;
+
+/** The splice order. Primary: depth desc (deepest splices first). Then the new-chat marker: it is always the first
+ *  history row, so an over-deep injection that clamps to the same top depth lands below it. Then `order` asc —
+ *  within one depth, lower order lands first/top. Absent order ⇒ 100; equal keys keep array/rack order. */
+function spliceOrder(a: { readonly inj: ChatInjection; readonly depth: number }, b: { readonly inj: ChatInjection; readonly depth: number }): number {
+  const headRank = (inj: ChatInjection): number => (inj.origin === "new-chat-marker" ? 0 : 1);
+  return b.depth - a.depth || headRank(a.inj) - headRank(b.inj) || (a.inj.order ?? DEFAULT_INJECTION_ORDER) - (b.inj.order ?? DEFAULT_INJECTION_ORDER);
+}
+
 /**
  * Splice `in_chat` injections into a runner history list by depth.
  *
@@ -155,11 +165,12 @@ export function spliceInChatInjections<T extends { role: WireRole; content: stri
      *  shipped frames, byte-identical. */
     prose?: ProseOverrides | undefined;
   } = {},
-): (T | { role: WireRole; content: string; anchored?: true })[] {
+): (T | { role: WireRole; content: string; anchored?: true; newChatMarker?: true })[] {
   // Generic over the row shape: canon rows keep their authorName/characterId so the downstream
   // name-stamp reads them at the type level. Spliced injection rows are bare `{role, content}`; one anchored
   // above the first canon row ({@link BEFORE_HISTORY_DEPTH}) says so, because its bytes and position repeat
-  // every turn and the cache may pin it.
+  // every turn and the cache may pin it. The new-chat marker says so too, because the history fit places it
+  // again at the head of whatever rows it keeps.
   if (injections === undefined || injections.length === 0) {
     return [...history];
   }
@@ -176,10 +187,7 @@ export function spliceInChatInjections<T extends { role: WireRole; content: stri
     const floor = inj.role === "assistant" && opts.allowAssistantPrefill !== true ? 1 : 0;
     return { inj, depth: Math.min(Math.max(inj.depth, floor), history.length) };
   });
-  // Primary: depth desc (deepest splices first). Secondary: `order` asc — within one depth, lower order
-  // lands first/top. Absent order ⇒ default 100; equal depth+order keeps array/rack order.
-  const defaultOrder = 100;
-  const sorted = clamped.sort((a, b) => b.depth - a.depth || (a.inj.order ?? defaultOrder) - (b.inj.order ?? defaultOrder));
+  const sorted = clamped.sort(spliceOrder);
   // squashSystemMessages: collapse consecutive same-depth system runs before the frame loop, so each run
   // delivers ONE `chat.injection.systemNote` row (merge-before-convert) rather than several. Off ⇒ untouched.
   const spliceList = opts.squashSystemMessages === true ? squashSystemNotes(sorted) : sorted;
@@ -187,7 +195,7 @@ export function spliceInChatInjections<T extends { role: WireRole; content: stri
   // the cached prefix once squashed → re-frame it to a user operator note instead.
   const boundaryLen = opts.prefixBoundaryLen;
   const stableTailRole = boundaryLen !== undefined && boundaryLen >= 1 ? history[boundaryLen - 1]?.role : undefined;
-  const result: (T | { role: WireRole; content: string; speakerless?: true; anchored?: true })[] = [...history];
+  const result: (T | { role: WireRole; content: string; speakerless?: true; anchored?: true; newChatMarker?: true })[] = [...history];
   for (const { inj, depth } of spliceList) {
     // A depth-1 assistant injection sits immediately above the volatile tail — adjacent to the last stable
     // canon row. When that row is also assistant, keeping the injection assistant-role would fold it into
@@ -214,12 +222,23 @@ export function spliceInChatInjections<T extends { role: WireRole; content: stri
     // user's voice". That was wrong and it reintroduced the exact reported bug for a host's post-history
     // teach: the final user turn arrived as `Alex: <the player's words>` + `Alex: [Note from user: <the
     // instruction>]` — two speaker labels, the second one attributing the game rules to the player.
-    result.splice(insertAt, 0, {
-      role: effectiveRole,
-      content: framed,
-      speakerless: true as const,
-      ...(inj.depth === BEFORE_HISTORY_DEPTH ? { anchored: true as const } : {}),
-    });
+    result.splice(insertAt, 0, splicedRow(inj, effectiveRole, framed));
   }
   return result;
+}
+
+/** One spliced injection row. It is anchored when it sits above the first canon row, and flagged when it is
+ *  the new-chat marker (both explained at {@link spliceInChatInjections}). */
+function splicedRow(
+  inj: ChatInjection,
+  role: WireRole,
+  content: string,
+): { role: WireRole; content: string; speakerless: true; anchored?: true; newChatMarker?: true } {
+  return {
+    role,
+    content,
+    speakerless: true,
+    ...(inj.depth === BEFORE_HISTORY_DEPTH ? { anchored: true as const } : {}),
+    ...(inj.origin === "new-chat-marker" ? { newChatMarker: true as const } : {}),
+  };
 }

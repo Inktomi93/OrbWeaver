@@ -38,7 +38,7 @@ import { applyPromptHistoryRegex } from "./history-regex.ts";
 import { frameInjection, spliceInChatInjections } from "./injections.ts";
 import { renderHistoryMacros } from "./macros.ts";
 import { applyNamesBehavior } from "./names.ts";
-import { squashRuns, squashSameRole } from "./role-squash.ts";
+import { MERGE_SEPARATOR, squashRuns, squashSameRole } from "./role-squash.ts";
 import { hasMultipleCharacters } from "./speaker-stamp.ts";
 
 /** The CANON wire-history role axis (derive-don't-respell the non-system subset; canon rows are never
@@ -130,6 +130,11 @@ interface ShapeOutput {
    *  verbatim for `assembly/trace` to project. Stage row counts cannot see why a pin moved or vanished, so the
    *  trace never re-derives it. */
   breakpointDecision: ShapeBreakpointDecision;
+  /** The new-chat marker SHAPE placed at the top of `history`, or null when the turn has none. `mergeSeparator`
+   *  is the squash separator when this turn's level merges the marker into an adjacent user row, else null. The
+   *  history fit trims the oldest rows first, so it places the marker again at the head of the rows it keeps
+   *  (`substrate/wire-history` keepNewChatMarkerAtHead). */
+  newChatMarker: { readonly content: string; readonly mergeSeparator: string | null } | null;
   /** Per-stage snapshots — the host/admin trace + differential-oracle diff surface. */
   stages: {
     multiCharacter: boolean;
@@ -566,11 +571,13 @@ export function shape(input: ShapeInput): ShapeOutput {
 
   // The content-free DELIVERED-row trace (`ShapeTrace.rows`) — order, role, voice, provenance, size, fold.
   const delivered = traceDeliveredRows({ injected, namedInput, delivery, history, merges });
+  const marker = injected.find((row) => "newChatMarker" in row);
 
   return {
     history,
     cacheBreakpointFromEnd: breakpoint.offsetFromEnd,
     breakpointDecision: breakpoint.decision,
+    newChatMarker: marker === undefined ? null : { content: marker.content, mergeSeparator: merges ? MERGE_SEPARATOR : null },
     stages: { multiCharacter, withTail, injected, squashed, named, delivered },
   };
 }
