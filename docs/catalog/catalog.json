@@ -15,19 +15,6 @@
       }
     },
     {
-      "path": "docs/Qwen_Offline_Investigation.md",
-      "lane": "root-operational",
-      "frontmatter": {
-        "fields": {
-          "kind": "research",
-          "status": "draft"
-        }
-      },
-      "receipt": {
-        "authority": "historical"
-      }
-    },
-    {
       "path": "docs/architecture/Agent-And-Composition-Pain-Points.md",
       "lane": "architecture-proposed",
       "frontmatter": {
@@ -2628,32 +2615,6 @@
       }
     },
     {
-      "path": "docs/barrel-star-reexport-residue.md",
-      "lane": "root-operational",
-      "frontmatter": {
-        "fields": {
-          "kind": "review",
-          "status": "complete"
-        }
-      },
-      "receipt": {
-        "authority": "historical"
-      }
-    },
-    {
-      "path": "docs/client-smalls-lane.md",
-      "lane": "root-operational",
-      "frontmatter": {
-        "fields": {
-          "kind": "review",
-          "status": "complete"
-        }
-      },
-      "receipt": {
-        "authority": "historical"
-      }
-    },
-    {
       "path": "docs/design/1195-devtools-mcp-retirement.md",
       "lane": "design",
       "frontmatter": {
@@ -4614,19 +4575,6 @@
       },
       "receipt": {
         "authority": "historical"
-      }
-    },
-    {
-      "path": "docs/retro-workboard.md",
-      "lane": "root-operational",
-      "frontmatter": {
-        "fields": {
-          "kind": "runbook",
-          "status": "archived"
-        }
-      },
-      "receipt": {
-        "authority": "operational"
       }
     },
     {

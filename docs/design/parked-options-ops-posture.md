@@ -12,7 +12,7 @@ credential-blocked. **No code was changed producing this.** Each item: current s
 do-it-right-once with the WHY.
 
 **Method + coverage.** Read in full: the I-11 block + standing owner items on
-`docs/history/retro-workboard-2026-08-14.md`, `docs/barrel-star-reexport-residue.md`, `knip.ts`, both stack
+`docs/history/retro-workboard-2026-08-14.md`, the barrel root-fix review record, `knip.ts`, both stack
 launchers (`scripts/dev/stack.sh`, `scripts/dev/stack-prod.ts`), the only Dockerfile in the repo
 (`.devcontainer/Dockerfile` + `init-firewall.sh` + `devcontainer.json`), the deployment topology
 (the host stack’s `docker-compose.yaml` and `caddy/conf/Caddyfile` (a separate repository)),
@@ -149,18 +149,21 @@ knip is on maximal posture — every issue type `error`, member-level, config-hi
 (`knip.ts:14-35`). Its unused-export lens is **live and proven in both workspaces** but is
 **structurally blind to barrel entry files**: an export imported by nothing but re-exported through
 an `index.ts` entry is invisible, because knip excludes entry-file exports from unused-export
-reporting (`barrel-star-reexport-residue.md:46-59`, two-sided planted-probe receipt). Every package
+reporting. A two-sided planted probe confirmed this: an unused export planted directly in
+`packages/client/src/lib/index.ts` and `packages/server/src/infra/providers/index.ts` drew no knip
+finding, while the same probe in a sibling module (`packages/client/src/lib/notify.ts`,
+`packages/server/src/infra/providers/diagnostics.ts`) was caught immediately. Every package
 declares its barrels as entries (`knip.ts:61-82`, the `!` production markers).
 
 The barrel lane already derived the consequence: **135 names are re-exported by a barrel no consumer
 imports through** — Tier A **85** (reachable by nothing; dropping the barrel line makes them dead
 code), Tier B **50** (alive via a direct sibling import; only the barrel line is surplus)
-(`barrel-star-reexport-residue.md:92`, full enumeration §4). That worklist is HELD as the
+, derived with ts-morph across the whole program and enumerated in full by name. That worklist is HELD as the
 "135-name barrel amputation" lane, explicitly waiting for a quiet tree
 (`docs/history/retro-workboard-2026-08-08.md:2452-2456`).
 
-`--include-entry-exports` is **the one lever that makes barrels knip-legible**
-(`barrel-star-reexport-residue.md:68-71`): it would surface the Tier-A worklist automatically —
+`--include-entry-exports` is **the one lever that makes barrels knip-legible**: it would surface
+the Tier-A worklist automatically —
 *and* every other entry export across all five workspaces at once. That is the noise-vs-value
 tradeoff that made it an owner ruling, not a lane default.
 
@@ -174,17 +177,19 @@ tradeoff that made it an owner ruling, not a lane default.
   amputation lane consumes it directly. Con: no automatic guard against the NEXT barrel accreting a
   dead re-export — the rot lens stays manual forever.
 - **(c) Enable AFTER the amputation lands.** Sequence it: the amputation clears the 85 Tier-A names
-  (each gets an individual verdict — delete / `/** @public */` / header-cite, per the doc's warning
-  that several are law-protected shape data, `barrel-star-reexport-residue.md:83-90`), THEN flip the
-  flag on a tree where the remaining entry exports are all genuinely public.
+  (each gets an individual verdict — delete / `/** @public */` / header-cite; several are
+  law-protected shape data, for example the RPG full-mode shapes in
+  `packages/contracts/src/rpg/index.ts`, whose header rules the shape ships as data from day one),
+  THEN flip the flag on a tree where the remaining entry exports are all genuinely public.
 
 ### Recommendation — **(c), enable after the amputation. Forward-thinking / do-it-right-once.**
 
 The do-it-right-once order is: **surgery first, then the standing guard.** Enabling now (a) buries
 the 85 real findings under hundreds of legitimate-entry-export lines, which is precisely the
 noise-cliff that makes a new gate get ignored. Leaving it off forever (b) means barrel hygiene never
-becomes automatic — the exact "convention instead of a gate" failure the barrel doc warns about for
-the db schema case (`barrel-star-reexport-residue.md:39-44`).
+becomes automatic — the exact "convention instead of a gate" failure that a gate-file-granular-but-not-
+symbol-granular check risks for the db schema case: the `db-structure` gate would still pass a
+named re-export that silently drops a new table from `typeof schema`.
 
 Sequence: (1) run the held amputation lane on a quiet tree, resolving each Tier-A name to
 delete/`@public`/cite and dropping the surplus Tier-B barrel lines; (2) once the tree is clean,
@@ -194,9 +199,10 @@ barrel hygiene from a periodic manual sweep into a standing gate **without** the
 is the whole point of doing it in this order.
 
 Caveat worth stating to the owner: `--include-entry-exports` also lights up the two **sanctioned**
-db schema stars (`barrel-star-reexport-residue.md:23-44`) — those are gate-required and must be
-kept (via `/** @public */` or the existing header cites), not "cleaned up." The amputation lane
-already knows this; a naive post-flag sweep would not.
+db schema stars — `packages/db/src/schema/index.ts` (27 stars) and
+`packages/db/src/index.ts:21` — those are gate-required and must be kept (via `/** @public */` or
+the existing header cites), not "cleaned up." The amputation lane already knows this; a naive
+post-flag sweep would not.
 
 ---
 
