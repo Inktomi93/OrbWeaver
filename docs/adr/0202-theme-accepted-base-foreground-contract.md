@@ -12,7 +12,7 @@ Split off [ADR 0071](0071-theme-palette-pipeline.md), whose accepted-base foregr
 
 ## Decision
 
-- **This rider supersedes D71(4)'s raw-L `FG_PIVOT_L` mechanism and the rider's
+- **This rider supersedes D71(4)'s raw-L FG_PIVOT_L mechanism and the rider's
   `isDerivableBaseSurface` refusal consequence.** Accepted custom/carried bases have no lightness exclusion
   band. `surfacePolarity` measures black-vs-white contrast on the actual gamut-mapped pixel and is the ONE
   decision used by foregrounds, `color-scheme`, ramps, elevation, charts, accent correction, and reading
@@ -46,4 +46,4 @@ Every semantic foreground is solved against the surface it actually paints, incl
 
 ## Alternatives rejected
 
-Keep D71(4)'s raw-L `FG_PIVOT_L` mechanism (rejected: a lightness exclusion band refuses accepted custom/carried bases that a measured black-vs-white contrast on the actual gamut-mapped pixel can resolve correctly).
+Keep D71(4)'s raw-L FG_PIVOT_L mechanism (rejected: a lightness exclusion band refuses accepted custom/carried bases that a measured black-vs-white contrast on the actual gamut-mapped pixel can resolve correctly).

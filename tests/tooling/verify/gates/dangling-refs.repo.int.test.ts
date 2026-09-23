@@ -102,12 +102,7 @@ const EXPECTED_GRANT_IDENTITIES = [
   ["@orb/kit/vector-math.pairwiseCosine", "dangling-path-cite"],
   ["@orb/tokens", "dangling-path-cite"],
   ["@orb/ui/MessageMedia", "dangling-path-cite"],
-  ["ACCOUNT_ACTION", "dangling-symbol-cite"],
   ["ANTH_DIRECT_SAMPLING", "dangling-symbol-cite"],
-  ["CHAT_CONTEXT_SLOTS", "dangling-symbol-cite"],
-  ["CHAT_SURFACE_SLOTS", "dangling-symbol-cite"],
-  ["COMMAND_ACTION", "dangling-symbol-cite"],
-  ["CONTEXT_SLOTS", "dangling-symbol-cite"],
   ["HUB_ADAPTERS", "dangling-symbol-cite"],
   ["MOBILE_PRIMARY_SECTIONS", "dangling-symbol-cite"],
   ["MODAL_SLOTS", "dangling-symbol-cite"],
@@ -116,11 +111,9 @@ const EXPECTED_GRANT_IDENTITIES = [
   ["SECTION_PANEL_DEFAULTS", "dangling-symbol-cite"],
   ["SECTION_PLACEHOLDER_COPY", "dangling-symbol-cite"],
   ["SQLITE_BUSY", "dangling-symbol-cite"],
+  ["SYSTEM_PROMPT_DYNAMIC_BOUNDARY", "dangling-symbol-cite"],
   ["TAB_EDGE_CLASSES", "dangling-symbol-cite"],
-  ["YOU_MODAL_ROWS", "dangling-symbol-cite"],
-  ["domain/buddy", "dangling-path-cite"],
   ["infra/network/hubs/", "dangling-path-cite"],
-  ["transport/trpc/buddy-bus.ts", "dangling-path-cite"],
 ] as const;
 
 describe("dangling-ref-citations — central reviewed authority replaces the legacy tables", () => {
