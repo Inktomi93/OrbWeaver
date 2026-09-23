@@ -378,11 +378,16 @@ export const anthropicRows = [
     },
     generation: {
       sampling: {},
+      // The spawn pins `CLAUDE_CODE_DISABLE_1M_CONTEXT=1` (`backends/agent-sdk/env.ts`), which caps the runtime's
+      // window at 200k on every id; this row states the window that route serves. Lifting the pin lifts this row.
+      context: {
+        window: 200_000,
+      },
     },
     evidence: {
       tier: "curated",
-      dated: "2026-09-19",
-      cite: "the Claude runtime exposes no sampler knob (chat-models.ts `sampling: {}` on every entry); the funnel drops each preset knob with sampling_knob_dropped",
+      dated: "2026-09-23",
+      cite: "the Claude runtime exposes no sampler knob (chat-models.ts `sampling: {}` on every entry); the funnel drops each preset knob with sampling_knob_dropped; window = runtime-reported contextWindow with the 1M pin set: 200,000 (claude-opus-5 session 00e4fcde-278d-4b8a-b81b-bd1d38275462, claude-sonnet-5 4080457f-12cb-43c4-8084-af4da34fe705), 1,000,000 without it (9d89eb4f-05b1-4d1f-85c2-b8baafb194f5)",
     },
   },
 ] as const satisfies readonly CapabilityOverrideInput[];
