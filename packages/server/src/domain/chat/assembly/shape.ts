@@ -16,6 +16,7 @@ import type {
 } from "@orb/contracts/chat";
 import { MESSAGE_KIND_POLICY } from "@orb/contracts/chat";
 import type { RoleHandling } from "@orb/contracts/inference";
+import { clampRoleHandling, TURNS_FLOOR } from "@orb/contracts/inference";
 import type { NamesBehavior } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
@@ -28,7 +29,7 @@ import { applyPromptHistoryRegex } from "./history-regex.ts";
 import { spliceInChatInjections } from "./injections.ts";
 import { renderHistoryMacros } from "./macros.ts";
 import { applyNamesBehavior } from "./names.ts";
-import { clampRoleHandling, squashRuns, squashSameRole } from "./role-squash.ts";
+import { squashRuns, squashSameRole } from "./role-squash.ts";
 import { hasMultipleCharacters } from "./speaker-stamp.ts";
 
 /** The CANON wire-history role axis (derive-don't-respell the non-system subset; canon rows are never
@@ -382,7 +383,7 @@ export function shape(input: ShapeInput): ShapeOutput {
 
   // Effective role-handling strategy: the stricter of the model floor + the user knob, clamped here
   // (where the merge physically happens). `none` skips merging; every other strategy squashes.
-  const strategy = clampRoleHandling(input.roleHandlingFloor, input.roleHandling);
+  const strategy = clampRoleHandling(input.roleHandlingFloor ?? TURNS_FLOOR.roleHandlingFloor, input.roleHandling);
   const merges = strategy !== "none";
 
   // Rows [0, prefixBoundaryLen) in withTail are the committed cached prefix. Undefined when there's no

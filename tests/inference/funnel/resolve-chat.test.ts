@@ -145,3 +145,36 @@ test("replyMedia: the DEFAULT (absent / text) asks for nothing and warns about n
   expect(textOnly.replyImages).toBe(false);
   expect(textOnly.warnings.filter((w) => w.code === "sampling_knob_dropped")).toEqual([]);
 });
+
+// ── The dynamic-context channel is a rung of the message-handling ladder ─────────────────────────────────
+// The per-turn system half rides the message tail only where the turn's level keeps a delivered system row
+// AND the model takes one at the tail (`turns.midConversationSystem`). There is no separate knob: a preset that
+// wants the system block picks a level that folds system rows.
+
+const channelOf = (advanced: UserIntent["advanced"], turns: Partial<NonNullable<GenerationCapability["turns"]>>): string =>
+  resolveChat(
+    { advanced } satisfies UserIntent,
+    generation({
+      turns: {
+        assistantPrefill: false,
+        midConversationSystem: false,
+        historySystemRows: false,
+        roleHandlingFloor: "strict",
+        explicitPromptCache: true,
+        ...turns,
+      },
+    }),
+  ).dynamicContextChannel;
+
+test("a slotted model that takes a tail system row gets the message tail", () => {
+  expect(channelOf(undefined, { roleHandlingFloor: "slotted", midConversationSystem: true })).toBe("message-tail");
+});
+
+test("a preset level that folds system rows keeps the system block on that same model", () => {
+  expect(channelOf({ roleHandling: "semi-strict" }, { roleHandlingFloor: "slotted", midConversationSystem: true })).toBe("system-block");
+});
+
+test("a strict floor folds, and a model with no tail system channel folds at any level", () => {
+  expect(channelOf(undefined, { roleHandlingFloor: "strict", midConversationSystem: true })).toBe("system-block");
+  expect(channelOf(undefined, { roleHandlingFloor: "none", midConversationSystem: false })).toBe("system-block");
+});

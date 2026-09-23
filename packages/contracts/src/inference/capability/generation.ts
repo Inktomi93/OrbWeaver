@@ -45,11 +45,42 @@ export const REASONING_DISPLAY_MODES = ["summarized", "omitted"] as const;
 export type ReasoningDisplayMode = (typeof REASONING_DISPLAY_MODES)[number];
 export const reasoningDisplayModeSchema = z.enum(REASONING_DISPLAY_MODES) satisfies z.ZodType<ReasoningDisplayMode>;
 
-/** Adjacent-same-role handling floor, ordered `none` \< `merge` \< `semi-strict` \< `strict`. SHAPE's effective
- *  strategy is the stricter of the model/wire floor + the user knob (may go stricter, never looser). */
-export const ROLE_HANDLING = ["none", "merge", "semi-strict", "strict"] as const;
+/** The message-handling ladder, least to most strict; the tuple order IS the strictness order. Each level adds
+ *  to the one before it:
+ *
+ *  • `none`        — pass rows through; a system row stays a system row wherever the model takes one.
+ *  • `merge`       — join adjacent same-role rows with a blank line.
+ *  • `slotted`     — merge, and keep a system run only in its legal slot: the row before it is a user or tool
+ *                    row, and the run ends the array or precedes an assistant row. Every other run folds.
+ *  • `semi-strict` — merge, and fold every system row into user text.
+ *  • `strict`      — semi-strict. The history also opens on a user row, which the new-chat marker delivers.
+ *
+ *  A fold delivers the row as user text in its neutral frame. The model states its floor
+ *  (`turns.roleHandlingFloor`); the preset knob can only raise it (`clampRoleHandling`). */
+export const ROLE_HANDLING = ["none", "merge", "slotted", "semi-strict", "strict"] as const;
 export type RoleHandling = (typeof ROLE_HANDLING)[number];
 export const roleHandlingSchema = z.enum(ROLE_HANDLING) satisfies z.ZodType<RoleHandling>;
+
+/** The levels only a model states: `slotted` is a measured fact about where a system row is legal, never a
+ *  preference a preset can hold for every model. */
+export const MODEL_ONLY_ROLE_HANDLING = ["slotted"] as const satisfies readonly RoleHandling[];
+/** The preset knob's vocabulary: {@link ROLE_HANDLING} without {@link MODEL_ONLY_ROLE_HANDLING}, in ladder order. */
+export const userRoleHandlingSchema = roleHandlingSchema.exclude(MODEL_ONLY_ROLE_HANDLING);
+export type UserRoleHandling = z.infer<typeof userRoleHandlingSchema>;
+export const USER_ROLE_HANDLING: readonly UserRoleHandling[] = userRoleHandlingSchema.options;
+
+/** Where a level lets a delivered `system` row sit: wherever the model takes one, only in its legal slot, or
+ *  nowhere (every system row folds). */
+export const SYSTEM_ROW_PLACEMENTS = ["anywhere", "slot", "fold"] as const;
+export type SystemRowPlacement = (typeof SYSTEM_ROW_PLACEMENTS)[number];
+
+export const SYSTEM_ROW_PLACEMENT: Readonly<Record<RoleHandling, SystemRowPlacement>> = {
+  none: "anywhere",
+  merge: "anywhere",
+  slotted: "slot",
+  "semi-strict": "fold",
+  strict: "fold",
+};
 
 /** An inclusive numeric range — the ONE place a knob's bounds live; the client reads them for slider
  *  min/max and never re-hardcodes them. */
@@ -101,12 +132,14 @@ export const turnsCapabilitySchema = z.object({
    *  continuation spelling (`features.prefill`); a template-driven engine that lacks it silently renders
    *  the row as a COMPLETED prior turn, an Anthropic wire hard-400s. */
   assistantPrefill: z.boolean(),
-  /** A mid-conversation system-authority channel exists at the DEPTH-0 TAIL and this model honors it. */
+  /** MEASURED: the model takes a `system` row that ENDS the delivered history (after a user row). */
   midConversationSystem: z.boolean(),
-  /** MEASURED: `system` rows INSIDE the delivered history (mid-array). A SIBLING fact, never inferred from
-   *  `midConversationSystem` (tail-tested only). Gates the depth\>0 injection splice and nothing about a
-   *  canon row's role (the D129(B) narrator mapping was owner-ruled out 2026-08-18). */
+  /** MEASURED: the model takes a `system` row INSIDE the delivered history (before an assistant row). A sibling
+   *  fact, never inferred from `midConversationSystem`: one wire can take the tail and refuse mid-array. It gates
+   *  an injection's delivery and nothing about a canon row's role (the narrator mapping is owner-ruled out). */
   historySystemRows: z.boolean(),
+  /** The least strict {@link ROLE_HANDLING} level this (model × wire) takes. A model that takes a system row
+   *  only in its legal slot states `slotted`. */
   roleHandlingFloor: roleHandlingSchema,
   /** Explicit prompt caching (a rolling breakpoint pair + per-block cache_control) is worth placing. */
   explicitPromptCache: z.boolean(),
