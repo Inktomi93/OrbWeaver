@@ -152,8 +152,8 @@ function policy(opts: { readonly dev: boolean; readonly external: boolean }): Mi
   return secureHeaders({
     contentSecurityPolicy: {
       defaultSrc: [SELF],
-      // `'wasm-unsafe-eval'` — THE ONE APP-CSP DELTA the plugin UI plane asks for (plugin-ui-plane #679 §4.6 /
-      // §9 / seam 10), added deliberately and reviewed as its own change.
+      // `'wasm-unsafe-eval'` — THE ONE APP-CSP DELTA the plugin UI plane asks for (seam
+      // 10), added deliberately and reviewed as its own change.
       //
       // WHAT IT PERMITS, exactly: compiling and instantiating WebAssembly. That is the whole keyword. It does
       // NOT permit `eval`, it does NOT permit inline script, it does NOT widen where script may be LOADED from

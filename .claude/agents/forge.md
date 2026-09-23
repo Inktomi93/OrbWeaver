@@ -15,7 +15,7 @@ You design and then build one lane of orbweaver work where a wrong architecture 
 
 1. Re-derive the brief's premises against the tree. A refuted premise with evidence is a successful phase 1.
 2. Look for existing machinery that already does the job under another name. Read the spec's mechanism sentences, not only its headings.
-3. Write the design to a file under `docs/design/`, or to the lane doc for smaller work. It holds:
+3. Write the design as a plan (`pnpm doc new plan <slug>`), or to the lane doc for smaller work. It holds:
    - the chosen shape;
    - each rejected option and the reason;
    - every coupled site the change must touch;

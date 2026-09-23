@@ -30,7 +30,7 @@ quirk as a curated row, not a special case in `synthesize.ts`'s fold.
 
 - The agent-sdk path has no observable HTTP wire body. Capture the SDK query input (prompt,
   system prompt, resolved capability), never a reconstructed HTTP payload.
-- `tokensIn` is a per-turn delta on a resuming session, not cumulative.
+- `tokensIn` is the whole prompt of the turn. On agent-sdk read tokens from the result `usage`: `modelUsage` continues from the session's saved totals on a resumed or forked turn.
 - A context cap plus `disableAutoCompact` forces `is_error`.
 - `json_schema` output on the Anthropic wire rejects `oneOf` and throws. `scrubWireSchema`'s
   per-provider wire-shape modes strip bound keywords like `minItems`/`maxLength` instead of

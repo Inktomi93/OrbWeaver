@@ -1,4 +1,4 @@
-// domain/rpg/chat-ops/gather — the game turn's GATHER (rpg-design/05 §4.7 + the delivery-model amendment §4.6).
+// domain/rpg/chat-ops/gather — the game turn's GATHER (docs/plans/rpg/design.md + the delivery-model amendment §4.6).
 // Produces the generic gather contribution chat merges STRUCTURALLY: `{ macros, injections, tools }` (chat
 // names no rpg type). A non-game chat returns `null` → byte-identical no-op (the existing contract-test
 // pattern). PRINCIPAL-FREE: chat already gated the turn's caller; the gather resolves game-ness by the row.

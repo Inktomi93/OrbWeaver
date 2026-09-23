@@ -45,8 +45,8 @@
 // door's payload is `cardEmbeddableSubset(theme.override)` and `ThemeSwatchStrip` paints `theme.override`,
 // so depiction equals payload — whereas THIS surface deliberately does NOT paint a seed's override (see the
 // provenance paragraph above), and mounting it on that door would make the picture disagree with what the
-// pick delivers on exactly Hearth/Mocha/Light. Full receipt: `docs/design/config-revamp-design.md` §7.3,
-// the "ONE theme-swatch atom" addendum. If a SECOND reader inside THIS feature ever appears, this file
+// pick delivers on exactly Hearth/Mocha/Light.
+// If a SECOND reader inside THIS feature ever appears, this file
 // moves nowhere; only a CHARACTER-side one would re-open the tier question.
 
 import type { Theme } from "@orb/contracts/theme";

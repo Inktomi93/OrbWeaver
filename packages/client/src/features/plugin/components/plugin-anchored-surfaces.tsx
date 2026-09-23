@@ -1,4 +1,4 @@
-// plugin-anchored-surfaces — the ONE fan-out behind every CHAT anchor (plugin-ui-plane #679 U2, §4.5): given
+// plugin-anchored-surfaces — the ONE fan-out behind every CHAT anchor: given
 // one `PluginSurfaceAnchor`, it renders every surface the CALLER's own enabled plugins registered there, each
 // inside the first-party labelled shell. The door grows by FIXED first-party contributions (`lib/chat-anchors.tsx`),
 // never per-plugin (the one-assembly law G8) — the per-plugin fan happens HERE, off `plugin.listSurfaces` data.

@@ -1,4 +1,4 @@
-// CT: the seeded-greeting swipe strip (R3, chat-creation-draft-mode-replacement.md §4.8 / fork F6).
+// CT: the seeded-greeting swipe strip (R3, D166).
 //
 // RESTORED, NOT RESURRECTED. This path existed before R1 over a client draft store and was deleted with it
 // (the deletion was ledgered in the test-baseline manifest, which was itself deleted with `monotonic-tests`

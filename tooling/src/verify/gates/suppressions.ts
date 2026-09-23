@@ -59,7 +59,7 @@
 // It is also why per-occurrence cardinality could not simply be kept: `lib/gate-authority.ts`'s
 // `processReviewed` grants a row ONLY when it matches EXACTLY ONE finding — two or more and it licenses
 // NOTHING and raises `over-broad-reviewed-grant`. Finding granularity must equal grant granularity, which
-// for a rule-class ruling means ONE finding per class. (`exception-authority-census.md:177` states the
+// for a rule-class ruling means ONE finding per class. (the gate-runtime exception-authority census states the
 // opposite — "one matching grant suppresses every finding with that identity" — and is WRONG against the
 // engine it cites; routed for correction, do not build on it.)
 //
@@ -125,7 +125,7 @@
 // file-subject convention, ruled 2026-09-12. "The snake_case key IS the wire protocol" is a claim about a
 // biome rule repository-wide, not about any one file; keyed per file it would need 284 grant rows each
 // carrying a count's worth of meaning, which is the per-file ratchet re-minted as grants and exactly what
-// `exception-authority-census.md:177` says cannot be translated one-for-one.
+// the gate-runtime exception-authority census says cannot be translated one-for-one.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `suppressions` descriptor at d2315031518b859f3355c931ac158c2e32951249, the parent of the conversion `a33b2e339`
@@ -175,7 +175,7 @@ const MESSAGE =
   "names a lint/type rule this repository has not ruled on in this scope. A suppression is a decision about " +
   "the RULE, not about the line: either the rule is wrong about this class of code (a documented tool false " +
   "positive) or the code is deliberately this way and a stated invariant says so — and both of those are " +
-  "reviewed grants, one per rule per scope. See docs/design/962-blanket-suppression-control-plane.md.";
+  "reviewed grants, one per rule per scope. See the law in tooling/src/verify/gates/no-blanket-suppression.ts.";
 
 const FIX =
   "delete the suppression by fixing the underlying diagnostic; or, if the rule is genuinely wrong about this " +

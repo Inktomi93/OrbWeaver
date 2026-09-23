@@ -1,6 +1,6 @@
 // Policy: policy-waiver-spelling — §5b.3 of the soundness enforcer (#1971; family `policy-soundness`, reader
 // `lib/policy-descriptor-read.ts`): an ORDINARY policy's `fix` must name the exact waiver spelling
-// `@orb-waive <id>(`. §2.1 of gate-runtime-standardization.md says why the spelling cannot be guessed: the
+// `@orb-waive <id>(`. §2.1 of docs/law/gate-runtime-standardization.md says why the spelling cannot be guessed: the
 // reported position is routinely not what a reader would call the offense (a type argument is waived at its
 // first identifier; a string-literal token includes its quotes), so a `fix` that omits it makes the policy
 // unusable by the very author it fires on. Wave 1's D7 named two modules; the AST census at 8257071ee found
@@ -37,7 +37,7 @@ const ORDINARY = "ordinary";
 
 const MESSAGE =
   "an ORDINARY policy's `fix` does not name its own waiver spelling `@orb-waive <id>(<position>): <reason>` " +
-  "(gate-runtime-standardization.md §7 item 3): the reported position is routinely not what a reader would call the offense (§2.1), " +
+  "(docs/law/gate-runtime-standardization.md §7 item 3): the reported position is routinely not what a reader would call the offense (§2.1), " +
   "so an author the policy fires on has no spelling to type. The `fix` token names the string to repair; the `authority` " +
   "token means the policy has no `fix` at all.";
 const NO_FIX_MESSAGE =
@@ -60,7 +60,7 @@ function judgeModule(ctx: GatePolicyContext, descriptor: ObjectLiteralExpression
     ctx.report.node(descriptorProperty(descriptor, "authority") ?? descriptor, {
       token: "authority",
       offset: 0,
-      message: `${NO_FIX_MESSAGE} — gate-runtime-standardization.md §7.`,
+      message: `${NO_FIX_MESSAGE} — docs/law/gate-runtime-standardization.md §7.`,
     });
     return;
   }

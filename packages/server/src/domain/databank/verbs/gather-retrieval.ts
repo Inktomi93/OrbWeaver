@@ -1,4 +1,4 @@
-// verb: gatherRetrieval — the chat GATHER op (DB6, databank-design/07 §2/§3/§6). Retrieves the scope-active
+// verb: gatherRetrieval — the chat GATHER op. Retrieves the scope-active
 // document context for a chat turn through the INJECTED `search.documents` lens (chat → databank → search, the
 // cluster boundary: databank consumes the ONE cosine engine, never re-implements it), then fits it into the
 // slot's token budget and renders the reading-order-restored chunks into the `{{databank}}` slot value.
@@ -52,7 +52,7 @@ export function createGatherRetrieval(ctx: DatabankContext): DatabankService["ga
     // The retrieval params (k/minScore/rerank) ride the params from chat's ForeignInputs (the host's
     // `UserSettings.databank.retrieval`). Each is passed to `search.documents` only when supplied; an absent
     // value falls to search's own default, which IS the databank default — so a caller not threading them is
-    // byte-identical to pre-wire (databank-design/05 §3.7).
+    // byte-identical to pre-wire.
     const hits = await ctx.searchDocuments({
       scope: { chatId: params.chatId },
       ownerId: params.hostUserId,

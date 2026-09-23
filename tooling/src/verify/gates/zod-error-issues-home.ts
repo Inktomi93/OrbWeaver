@@ -41,7 +41,7 @@
 // `resolveTypeMemberOrigin` and the destructure arm through `resolveTypePropertyOrigin` — the binding-pattern
 // twin added to `lib/type-member-origin.ts` in the same commit, because a `BindingElement` has no
 // member-access node to hand over and this module was finishing `type.getProperty(name)?.getDeclarations()`
-// itself. The audit row that named the site (`policing-surface-audit-2026-09-12.md`) is closed with it.
+// itself. The audit row that named the site (the policing-surface audit) is closed with it.
 //
 // DECLARED LIMIT, unchanged by that repair: a destructure with no VariableDeclaration initializer (a
 // PARAMETER pattern, `function f({ issues })`) is not a candidate at all — there is no receiver expression

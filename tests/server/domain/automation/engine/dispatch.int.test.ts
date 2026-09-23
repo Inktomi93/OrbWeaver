@@ -321,7 +321,7 @@ function wireRealArms(f: RuleFixture, requests: AutomationImageRequest[]): { rea
   return { svc: createAutomationService(wired), reload: () => wired.enabled.reload() };
 }
 
-// ── C5: the OWNER-GLOBAL lane's dispatch half (interaction-direction-spec §3-S3 + §7 C5) ─────────────────
+// ── C5: the OWNER-GLOBAL lane's dispatch half ─────────────────
 // The ADMISSION matrix that decides which rules reach here is pinned at `../substrate/validate.int.test.ts`;
 // these are the pins about what the ENGINE does once a chat-less rule fires. The owner's test for the whole
 // lane is "fires on a character import with NO room open": a chat-less rule, a domain-bus event, no chat

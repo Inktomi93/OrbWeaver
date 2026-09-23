@@ -1,5 +1,5 @@
 // CT: Settings → Connections → a saved row's "Add another model on this key" (inference program §5.3a, the
-// second no-defaults survivability action; `docs/design/mocks/connections/list.html` Board B), and the model
+// second no-defaults survivability action; the connections list mock, Board B), and the model
 // picker it lands on. Mounted through the production pane; the catalog is the SAVED row's own
 // `connection.catalogModels`, stubbed at the network.
 //
@@ -408,6 +408,6 @@ test.describe("at the 486 width", () => {
     const before = (await search.boundingBox())?.y;
     await search.fill("vendor/not-listed");
     await expect(dialog.getByRole("button", { name: "Use “vendor/not-listed” as typed" })).toBeVisible();
-    expect((await search.boundingBox())?.y).toBe(before);
+    await expect.poll(async () => (await search.boundingBox())?.y).toBe(before);
   });
 });

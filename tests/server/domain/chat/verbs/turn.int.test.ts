@@ -2660,7 +2660,7 @@ describe("storage stays RAW (D51) — macros in message content are never resolv
   });
 });
 
-// The non-human turn seam (automation-design/03 §4 / 05 §AC-B) — the walls, none optional. requestTurn is
+// The non-human turn seam — the walls, none optional. requestTurn is
 // principal-free: the funding host is resolved from the room and the responsible human remains the initiator.
 // No infinite cascade, no cross-tenant trigger. The
 // budget and consent walls were retired with their belts (§14 F11/F13), so two of the original four remain.

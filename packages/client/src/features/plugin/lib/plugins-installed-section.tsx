@@ -1,4 +1,4 @@
-// The Plugins INSTALLED config-section CONTRIBUTION (config-revamp-design.md §6.8) — the first of the
+// The Plugins INSTALLED config-section CONTRIBUTION — the first of the
 // Plugins group's rows, assembled into the ONE config-section registry at the `plugins` anchor by the door.
 // UNGATED on purpose (D147): every user has their own plugins. No `owns`: plugin verbs, not settings.
 

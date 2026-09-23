@@ -173,7 +173,7 @@ function resolvedValue(token: TransformedToken): unknown {
 }
 
 /**
- * The device-pixel belt's ONE serialization (docs/design/integer-line-boxes.md §3b). Both arms of a
+ * The device-pixel belt's ONE serialization (docs/law/integer-line-boxes.md §3b). Both arms of a
  * snapped token spell it here — the `@theme` base value and the `@media (pointer: fine)` override —
  * so the belt cannot be applied to half a token.
  */
@@ -217,7 +217,7 @@ function renderPortableToken(token: TransformedToken, contractToken: ContractTok
     case "percentage":
       return `${finiteNumber(resolvedValue(token), path)}%`;
     case "snapped":
-      // The device-pixel belt (docs/design/integer-line-boxes.md §3b): a snapped dimension is authored
+      // The device-pixel belt (docs/law/integer-line-boxes.md §3b): a snapped dimension is authored
       // integer at the 16px root and emitted through round() so every --font-scale value — the slider is
       // continuous — resolves the box back onto the device-pixel grid. Identity at the default scale.
       //
@@ -382,7 +382,7 @@ function collectPointerFine(node: Record<string, unknown>, path: readonly string
   }
 }
 
-/** A snapped-output dimension's resolved px at the 16px root (docs/design/integer-line-boxes.md §3b). */
+/** A snapped-output dimension's resolved px at the 16px root (docs/law/integer-line-boxes.md §3b). */
 interface SnappedBasePx {
   readonly path: readonly string[];
   readonly px: number;

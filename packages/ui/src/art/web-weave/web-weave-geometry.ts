@@ -1,4 +1,4 @@
-// WebWeave GEOMETRY — the pure half of the brand web (docs/history/design/login-loading-screen.md §1/§4.1/§9;
+// WebWeave GEOMETRY — the pure half of the brand web (D173;
 // the waystone-geometry precedent: component-free maths so the canvas component stays thin and the
 // build is vitest-unit-testable). Everything here is DETERMINISTIC per seed — the waystone sin-hash,
 // no Math.random — so the same seed weaves the same web and a CT can assert geometry.
@@ -8,7 +8,7 @@
 // auxiliary scaffold spiral outward → the capture spiral laid rim-INWARD (consuming the scaffold),
 // stopping short of the hub (the free zone) → settle (dew, glint, sway — the render module's beat).
 // The WEAVER LAYS IT HERSELF: the itinerary below walks her over every strand as it is born, frame
-// edges included (weave-lab-upgrades.md §3 — silk that appears unattended reads as a screensaver).
+// edges included (silk that appears unattended reads as a screensaver).
 //
 // The beat map lives in web-weave-timeline.ts (WHEN); this module is WHERE.
 

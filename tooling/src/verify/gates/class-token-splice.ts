@@ -48,7 +48,7 @@
 //      which is what makes them the deltas' discriminators rather than decoration.
 //   2. THE FUNCTION-RETURN DESCENDANT WALK IS GONE. Legacy read a callee's returns with
 //      `decl.getDescendantsOfKind(SyntaxKind.ReturnStatement)` — one of §3's named bans, and recorded as
-//      such at `docs/reviews/gate-runtime/uncovered-gate-conversion-census.md:103`. ReturnStatement is now
+//      such by the gate conversion census. ReturnStatement is now
 //      a SUBSCRIBED KIND on the policy's own visitor, indexed by its nearest enclosing function through an
 //      ancestor walk, and the junction verdict moves to `evaluate` because a template may be visited before
 //      the function it calls (§8.6).

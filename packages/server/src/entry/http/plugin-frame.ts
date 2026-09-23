@@ -1,4 +1,4 @@
-// THE PLUGIN-FRAME DOORWAY (plugin-ui-plane #679 U7, §6.2, seam 13). `POST /api/plugin-frame` mints a frame
+// THE PLUGIN-FRAME DOORWAY (U7, §6.2, seam 13). `POST /api/plugin-frame` mints a frame
 // handle for one of the CALLER'S OWN registered `frame`-tier surfaces; `GET /api/plugin-frame/:id` serves that
 // document with ITS OWN Content-Security-Policy. It rides the card-frame substrate wholesale — the same handle
 // store, the same document assembler, the same CSP engine — and the reasons that substrate is shaped the way it

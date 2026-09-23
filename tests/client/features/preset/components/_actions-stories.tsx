@@ -1,4 +1,4 @@
-// CT story module for the ACTIONS view (preset-surface-redesign §6.1/§6.6). A CT only mounts from a
+// CT story module for the ACTIONS view. A CT only mounts from a
 // NON-test module (Spine-Testing §7). The REAL view through the session BOUNDARY over a save spy, so the
 // registry-derivation and the capability dispatch are exercised as composed, not as unit fragments.
 //

@@ -54,6 +54,8 @@ export interface MeasuredOutcome extends CaseKey {
   readonly worst: JudgedPair;
   readonly pairs: readonly JudgedPair[];
   readonly floor: number;
+  /** For a FAIL the route lists as known, the work item that owns the cause. */
+  readonly knownCause?: string | undefined;
 }
 
 /** A case that did not measure, with the reason its line prints. */
@@ -100,6 +102,11 @@ export interface RouteSpec {
   /** A required route with no credential is a tool error. An optional one also takes a credential of its
    *  provider already stored in the stage DB, and is SKIPPED when neither exists. */
   readonly required: boolean;
+  /** Whether a run with no `--routes` includes this route. An opt-in route runs only when named. */
+  readonly runByDefault: boolean;
+  /** Cases known to fail on this route, each with the work item that owns the cause. A known FAIL still fails
+   *  the run; its line names the item so a reader does not re-diagnose it. */
+  readonly knownFailures: Readonly<Partial<Record<CacheCase, string>>>;
 }
 
 /** Why a route did not run, and the verdict every case on it prints. */
@@ -113,3 +120,12 @@ export type EnvFile = Readonly<Record<string, string | undefined>>;
 
 /** The typed client the check drives orb through. */
 export type OrbApi = TRPCClient<AppRouter>;
+
+/** One case's result inside a room: what it measured, or why it could not. */
+export type RoomCaseResult = { readonly case: CacheCase; readonly run: CaseRun } | { readonly case: CacheCase; readonly error: string };
+
+/** A room's results: the spend of its prefix steps, and each case's result in run order. */
+export interface RoomResult {
+  readonly prefixCosts: readonly (number | null)[];
+  readonly cases: readonly RoomCaseResult[];
+}

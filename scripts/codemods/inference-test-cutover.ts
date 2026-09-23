@@ -1,5 +1,5 @@
-// One-shot codemod for the `@orb/inference` cut-over's TEST-TREE half (docs/design/orbweaver-inference-package.md
-// §13 step 6/6b/7 — the server landed; ~1,100 stale pins remained). Everything here is DIAGNOSTIC-DRIVEN off the
+// One-shot codemod for the `@orb/inference` cut-over's TEST-TREE half (the
+// server landed; ~1,100 stale pins remained). Everything here is DIAGNOSTIC-DRIVEN off the
 // tests program, so the codemod touches exactly the sites `tsc` names and nothing it does not:
 //
 //   • import repoints — the deleted `@orb/server/infra/providers` root → `@orb/inference` (the package that

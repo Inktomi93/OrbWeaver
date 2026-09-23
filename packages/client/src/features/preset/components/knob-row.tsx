@@ -1,4 +1,4 @@
-// KnobRow — the params deck's knob grammar (preset-surface-redesign.md §4.1, owner decision D4). ONE
+// KnobRow — the params deck's knob grammar. ONE
 // instrument row: label · slider · the EDITABLE mono number twin · reset, with the provenance gloss under
 // the track. A feature-local COMPOSITE (§13) over landed primitives — Slider `tone`, NumberField
 // `size="inline"`, Button, Text voices; zero new primitives.

@@ -1,4 +1,4 @@
-// plugin-message-footer-surfaces — the PER-ROW plugin decoration strip (plugin-ui-plane #679 U6, §5.4). One
+// plugin-message-footer-surfaces — the PER-ROW plugin decoration strip. One
 // first-party contribution at chat's existing `message-footer` anchor renders every `message-footer` surface
 // the CALLER's own enabled plugins registered, under each COMMITTED row.
 //

@@ -1,5 +1,5 @@
-// The login backdrop — the per-mode brand web behind the card (docs/history/design/login-loading-screen.md
-// §3/§9.5). Pure decoration: the mode→web mapping lives in ../lib/login-weave.ts (shared inputs
+// The login backdrop — the per-mode brand web behind the card.
+// Pure decoration: the mode→web mapping lives in ../lib/login-weave.ts (shared inputs
 // with the surface's arm dispatch, so the two can never disagree); this component just reads the
 // config through the query layer, samples the navigation type (deep-link → weave-in), and mounts the
 // weave full-bleed under the content.
@@ -25,7 +25,7 @@ function isFreshDocumentLoad(): boolean {
  *
  *  INTERACTIVE (#152): the login web is the one weave a person can dwell on — an unhurried, otherwise
  *  empty page — so it answers a hand: the silk rings where a cursor or a THUMB crosses it and the
- *  weaver comes to investigate (weave-lab-upgrades §5; hosts opt in, and this is the host that should).
+ *  weaver comes to investigate (hosts opt in, and this is the host that should).
  *  It stays `aria-hidden` (the primitive's a11y ruling: ornament that answers a pointer is ornament)
  *  and stays inert under reduced motion (the primitive's `listening` gate), and the anchor's box is
  *  `overflow-hidden min-h-dvh` — there is no scroll here for a pointer-events layer to swallow. */

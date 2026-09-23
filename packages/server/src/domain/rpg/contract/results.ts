@@ -1,5 +1,5 @@
 // domain/rpg/contract/results — the shapes the verbs RETURN that aren't already a `@orb/contracts/rpg` view
-// (rpg-design/05 §4.4). The read VIEWS (`RpgGameView`/`RpgTrackerView`/`RpgConfigView`/`RpgJournalEntryView`)
+// (docs/plans/rpg/design.md). The read VIEWS (`RpgGameView`/`RpgTrackerView`/`RpgConfigView`/`RpgJournalEntryView`)
 // are cross-boundary wire shapes homed in `@orb/contracts/rpg` (§4.8) — this file homes only the
 // domain-internal verb results that have no view home: `createGame`'s birth summary, `rollDice`'s baked
 // outcome, and `editSnapshot`'s accept/refuse verdict. All are small internal contracts a transport lane later

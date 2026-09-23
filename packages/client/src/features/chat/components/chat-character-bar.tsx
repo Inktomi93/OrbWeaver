@@ -3,7 +3,7 @@
 // presence-at-a-glance only, no mutations. Size-gated: null unless the roster has >1 of a relevant kind
 // (>1 character or >1 present human).
 //
-// ONE STRIP, ONE SOURCE (chat-creation-draft-mode-replacement.md §4.1, R1). It briefly had a DRAFT twin that
+// ONE STRIP, ONE SOURCE (D166). It briefly had a DRAFT twin that
 // read its seats from the founding CARDS, because a pre-send room had no roster and a group draft therefore
 // showed no characters at all (side-eye P2, 2026-08-06). The room has a roster from the creation click — and
 // `useStartChat` seeds this exact `getChat` key from `startChat`'s response — so the committed strip is

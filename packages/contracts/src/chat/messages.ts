@@ -174,6 +174,9 @@ const namedProviderMetadataSchema = z.discriminatedUnion("provider", [
     warmSpareClaimed: z.boolean().optional(),
     durationApiMs: z.number().optional(),
     numTurns: z.number().optional(),
+    /** A model call stopped on the output cap and the runtime continued the reply, so `tokens_out` can exceed the
+     *  requested cap; the reply is also truncated when the finish reason is `length`. Absent otherwise. */
+    outputCapReached: z.literal(true).optional(),
     // @orb-waive no-raw-id(sdkSessionId): the Anthropic Agent SDK's OWN opaque session handle, echoed back verbatim as provenance — never an orbweaver-minted brand, and structurally never a TypeID (§5.3c class 4, the `toolCallId` precedent at line ~393). Kit's `SessionId` is `TypeIdOf<"session">`, the BFF session ROW id: a different vocabulary that happens to share the word. ENDS WHEN the SDK's handle stops being a foreign opaque string.
     sdkSessionId: z.string().optional(),
     servedModel: z.string().optional(),
@@ -286,7 +289,7 @@ export const messageSlotSchema = z.object({
 });
 export type MessageSlot = z.infer<typeof messageSlotSchema>;
 
-/** ONE model-emitted tool exchange, persisted on `message_variants.toolCalls` (D48; tool-use-design/03 §3).
+/** ONE model-emitted tool exchange, persisted on `message_variants.toolCalls` (D48).
  *  The client's ONLY tool read surface (chips render from this — never body-parse). Schema-first so the DB
  *  read seam parses with `toolCallRecordSchema` (never a cast — the `parseProviderMetadata` pattern). `result`
  *  is ALWAYS a JSON document when non-null (execute's one stringify site) so chips `JSON.parse` unconditionally;
@@ -397,12 +400,12 @@ export const macroFreezeRecordSchema = z.array(macroFreezeSchema);
 export type MacroFreezeRecord = z.infer<typeof macroFreezeRecordSchema>;
 
 export const toolCallRecordSchema = z.object({
-  // @orb-waive no-raw-id(toolCallId): PROVIDER-emitted opaque tool-call handle (OpenAI `call_…`/Anthropic id) — never an orbweaver-minted brand; provenance-faithful, joins a tool-call to its result on the wire (tool-use-design/03 §3 types it `string`).
+  // @orb-waive no-raw-id(toolCallId): PROVIDER-emitted opaque tool-call handle (OpenAI `call_…`/Anthropic id) — never an orbweaver-minted brand; provenance-faithful, joins a tool-call to its result on the wire (D48 types it `string`).
   toolCallId: z.string(),
   name: z.string(),
   /** RAW model-emitted JSON string (provenance-faithful; parsed once, at execute). */
   arguments: z.string(),
-  /** JSON document serialized by execute; `null` = not executed (recurse-limit — tool-use-design/03 §2.2). */
+  /** JSON document serialized by execute; `null` = not executed (recurse-limit — D48). */
   result: z.string().nullable(),
   isError: z.boolean(),
   /** `null` when unexecuted; else the execute duration (injected clock). */
@@ -479,7 +482,7 @@ export interface MessageView {
   /** WHICH of the funder's connection rows generated this swipe (inference program §5.3b) — SET NULL after the
    *  row is deleted, so attribution outlives the connection. Null on user-authored rows, imports and edits. */
   connectionId: UserConnectionId | null;
-  /** The selected variant's persisted tool exchanges (D48; tool-use-design/03 §3–4), in emission/execution
+  /** The selected variant's persisted tool exchanges (D48), in emission/execution
    *  order — the client's ONLY tool read surface (chips render from this; NEVER body-parse). Empty on every
    *  non-tool turn. Parsed with `toolCallRecordSchema` at the DB read seam (never cast); the wire shape is a
    *  plain array (`[]` = no calls), so a client maps it unconditionally through the `TOOL_RENDERERS` seam. */

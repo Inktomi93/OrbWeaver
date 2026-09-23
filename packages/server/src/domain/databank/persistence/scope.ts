@@ -1,5 +1,5 @@
-// domain/databank/persistence/scope — `resolveActiveDocumentIds`, the ONE home for the scope-junction union
-// (databank-design/05 §3.2). It encodes databank's authority model: a personal `{ownerId}` search is over the
+// domain/databank/persistence/scope — `resolveActiveDocumentIds`, the ONE home for the scope-junction union.
+// It encodes databank's authority model: a personal `{ownerId}` search is over the
 // WHOLE bank (every owned document — junctions only scope CHAT retrieval, so gating a personal read on
 // attachment state would be a surprising hole); a `{chatId}` turn resolves the MEMBERSHIP-WIDENED union (D85).
 //
@@ -49,7 +49,7 @@ async function resolveHumanMembers(db: Db, chatId: ChatId): Promise<UserId[]> {
 }
 
 /** The chat's PRESENT character roster (kind='character', still seated) — the character-scope retrieval
- *  subjects (databank-design/05 §3.2). The SHAPE CHECK guarantees a character seat carries characterId, but
+ *  subjects. The SHAPE CHECK guarantees a character seat carries characterId, but
  *  the column is nullable in TS (shared with the other kinds) — the flatMap drops any null defensively. */
 async function resolveRosterCharacters(db: Db, chatId: ChatId): Promise<CharacterId[]> {
   const rows = await db

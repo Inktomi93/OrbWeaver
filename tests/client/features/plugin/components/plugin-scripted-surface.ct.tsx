@@ -1,4 +1,4 @@
-// CT: the TIER-C scripted plugin surface (plugin-ui-plane #679 U4, §4.6/§4.9) — the REAL QuickJS-WASM guest, in
+// CT: the TIER-C scripted plugin surface — the REAL QuickJS-WASM guest, in
 // a REAL Web Worker, mounted through the REAL Plugins pane over a stubbed network. Nothing here is a double
 // except the wire: the interpreter, the realm stripping, the wall-clock timer, the publish guard and the schema
 // re-validation are all production code.

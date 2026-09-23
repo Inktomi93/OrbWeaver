@@ -54,7 +54,7 @@ export function declarationsOf(inventory: CssFacts, rel: string): readonly CssDe
 }
 
 /** THE CLOSED RUNTIME-WRITER SEAMS, as MEMBER SETS rather than counts — and the difference is the whole
- *  §12.5 question (#2305, `v-css-family-2026-09-13.md` ledger row 4).
+ *  §12.5 question (#2305, the 2026-09-13 CSS-family verifier review ledger row 4).
  *
  *  THE CONVERSION'S FIRST ATTEMPT KEPT THREE CARDINALITIES and called all three "derived from declared
  *  vocabularies". Only `density` was: `DENSITY_SPACING.size * DENSITY_SELECTORS.size` is a genuine

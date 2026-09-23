@@ -16,7 +16,7 @@ export interface ToolUseContext {
 export interface ToolUseService {
   /** Compose-time only: insert one definition. Duplicate name throws (boot-fatal, never last-write-wins). */
   readonly register: <A>(def: ToolDefinition<A>) => void;
-  /** RUNTIME registrar (plugin-design PL-A; D48 source (b)): insert a plugin-sourced tool at ACTIVATION and
+  /** RUNTIME registrar (PL-A; D48 source (b)): insert a plugin-sourced tool at ACTIVATION and
    *  return a deregistration handle (plugin deactivation/uninstall calls it — no ghost tools). The guest args
    *  arrive as raw JSON Schema (lifted to zod host-side — PL-B) and the ceiling runs as the INSTALLING
    *  principal (PL-C). A collision is activation-fatal (`ToolNameCollisionError`), never boot-fatal. */

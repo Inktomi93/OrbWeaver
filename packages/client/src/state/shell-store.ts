@@ -342,7 +342,7 @@ export function hideContextPanel(): void {
  *  Scene→Quests hop): the sheet IS the navigation. Here it is the opposite — on a phone the context pane
  *  resolves `overlay` at 100dvw and lands a full-screen sheet, with the CONTENT column behind it `inert`,
  *  OVER the very editor the tap just opened. The mock's ruling is explicit: "the CONTEXT arm folds into
- *  CONTENT on mobile — no third pane on a phone" (docs/design/mocks/config-rail/mobile.html frame 3). The
+ *  CONTENT on mobile — no third pane on a phone" (the config-rail mobile mock, frame 3). The
  *  TAB and the WIDE dock are still written unconditionally, so the desktop behaviour is untouched and the
  *  phone's own detail-panel toggle still opens the pane on demand — the reveal just stops doing it FOR the
  *  user at the one moment it hides what they asked for. */

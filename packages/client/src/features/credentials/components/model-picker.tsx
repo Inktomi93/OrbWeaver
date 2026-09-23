@@ -26,7 +26,8 @@
 // §5.3a's `modelListed: false` sentence when the pick is typed).
 
 import type { ModelCatalogEntry } from "@orb/contracts/inference";
-import { Button } from "@orb/ui/button";
+import type { ModelId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import {
   Command,
   CommandAuxiliaryButton,
@@ -38,9 +39,7 @@ import {
   CommandLoading,
   CommandStatus,
 } from "@orb/ui/command";
-import { Field } from "@orb/ui/field";
 import { useFuzzySearch } from "@orb/ui/fuzzy-search";
-import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
@@ -65,6 +64,7 @@ import {
   VISION_CHIP,
 } from "../lib/model-picker-model.ts";
 import { ModelPickerRow } from "./model-picker-row.tsx";
+import { TypedModelField } from "./model-picker-typed-field.tsx";
 
 const SKELETON_ROW_KEYS = ["first", "second", "third"] as const;
 /** The keys that move cmdk's highlight — the user's first one hands the highlight to cmdk. */
@@ -89,7 +89,7 @@ export interface ModelPickerProps {
   readonly source: ModelCatalogSource;
   /** The picked model id (`""` = none yet). */
   readonly value: string;
-  readonly onValueChange: (modelId: string) => void;
+  readonly onValueChange: (modelId: ModelId) => void;
   /** §7.4: whether an id the list does not carry may be saved (`typedModelAllowed`). */
   readonly typedAllowed: boolean;
   /** Whose list this is, in the user's words — a provider label, or an endpoint's host. */
@@ -210,7 +210,7 @@ function ListedPicker(props: ModelPickerProps & { readonly models: readonly Mode
     event.preventDefault();
     const picked = activeValue === "" ? typed : modelIdOf(activeValue);
     if (picked !== null) {
-      onValueChange(picked);
+      onValueChange(castId<ModelId>(picked));
     }
   };
 
@@ -257,7 +257,11 @@ function ListedPicker(props: ModelPickerProps & { readonly models: readonly Mode
               {view.recentEntries.length > 0 ? (
                 <CommandGroup heading="Recent">
                   {view.recentEntries.map((entry) => (
-                    <CommandItem key={`recent-${entry.id}`} onSelect={(): void => onValueChange(entry.id)} value={`${RECENT_VALUE_PREFIX}${entry.id}`}>
+                    <CommandItem
+                      key={`recent-${entry.id}`}
+                      onSelect={(): void => onValueChange(castId<ModelId>(entry.id))}
+                      value={`${RECENT_VALUE_PREFIX}${entry.id}`}
+                    >
                       <ModelPickerRow current={entry.id === props.currentModel} entry={entry} picked={entry.id === value} />
                     </CommandItem>
                   ))}
@@ -266,7 +270,7 @@ function ListedPicker(props: ModelPickerProps & { readonly models: readonly Mode
               {view.groups.map((group) => (
                 <CommandGroup heading={group.heading ?? undefined} key={group.key}>
                   {group.entries.map((entry) => (
-                    <CommandItem key={entry.id} onSelect={(): void => onValueChange(entry.id)} value={entry.id}>
+                    <CommandItem key={entry.id} onSelect={(): void => onValueChange(castId<ModelId>(entry.id))} value={entry.id}>
                       <ModelPickerRow current={entry.id === props.currentModel} entry={entry} picked={entry.id === value} />
                     </CommandItem>
                   ))}
@@ -282,7 +286,7 @@ function ListedPicker(props: ModelPickerProps & { readonly models: readonly Mode
             <Text voice="gloss">{`+${view.overflow} more — keep typing to narrow`}</Text>
           </Row>
         ) : null}
-        {listReady && typedAllowed ? <TypedRow onPick={onValueChange} typed={typed} /> : null}
+        {listReady && typedAllowed ? <TypedRow onPick={(id: string): void => onValueChange(castId<ModelId>(id))} typed={typed} /> : null}
       </Command>
       <PickedLine error={error} errorId={errorId} listOwner={listOwner} models={models} value={value} />
     </Stack>
@@ -380,69 +384,5 @@ function PickedLine({
     <Text className="max-w-(--reading-measure-prose) text-warning" data-slot="model-picker-picked" prose={true} role="status" voice="gloss">
       Picked: {value} — {unlistedModelSentence(listOwner)}
     </Text>
-  );
-}
-
-/** The typed arm: no list to pick from (empty, failed, or none read). When policy forbids a typed id, it
- *  says why nothing can be picked and offers only the retry, which stays mounted and `busy` while the list
- *  reloads. */
-function TypedModelField({
-  value,
-  onValueChange,
-  error,
-  notice,
-  view,
-  placeholder,
-  busy,
-  onRetry,
-}: ModelPickerProps & {
-  readonly notice: string;
-  readonly view: ModelPickerView;
-  readonly busy: boolean;
-  readonly onRetry: (() => void) | null;
-}): ReactElement {
-  const errorId = useId();
-  return (
-    <Stack gap="tight">
-      {view.typingOffered ? (
-        <Field
-          description={
-            <Text as="span" className={view.warns ? "text-warning" : undefined} data-slot="model-picker-notice" prose={true} voice="gloss">
-              {notice}
-            </Text>
-          }
-          error={error}
-          label="Model"
-        >
-          <Input autoComplete="off" onChange={(event): void => onValueChange(event.target.value)} placeholder={placeholder} value={value} />
-        </Field>
-      ) : (
-        <>
-          <Text as="span" voice="label">
-            Model
-          </Text>
-          <Text
-            className={view.warns ? "max-w-(--reading-measure-prose) text-warning" : "max-w-(--reading-measure-prose)"}
-            data-slot="model-picker-notice"
-            prose={true}
-            voice="gloss"
-          >
-            {notice}
-          </Text>
-          {error === null ? null : (
-            <Text className="text-destructive" id={errorId} prose={true} role="alert" voice="gloss">
-              {error}
-            </Text>
-          )}
-        </>
-      )}
-      {view.retry === null ? null : (
-        <Row gap="field">
-          <Button intent="secondary" loading={busy} onClick={onRetry ?? undefined} size="sm">
-            Try the list again
-          </Button>
-        </Row>
-      )}
-    </Stack>
   );
 }

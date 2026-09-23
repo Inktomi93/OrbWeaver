@@ -37,8 +37,8 @@
 //
 // …AND THE FOLD FINALLY HAS A SUBJECT (#834, owner-ruled 2026-08-30). B3 retired automation's doorway and
 // left the whole region delivering ONE dateless row, so the owner ruled what the region is FOR rather than
-// whether to keep it: it lists the committed-but-unrealized programs of
-// `docs/architecture/proposed/INDEX.md` (FUTURE + PARTIAL), with buddy among them. Home reads no doc and
+// whether to keep it: it lists the committed-but-unrealized programs
+// (the open program items under `docs/work/`), with buddy among them. Home reads no doc and
 // holds no second list — those programs are declared as home-owned DORMANT DOORWAY TILES
 // (`lib/roadmap.ts`), so they arrive through the door like every other tile and this surface's partition,
 // grouping, fold and count all apply unchanged. The only thing that moved here is the band's trailing

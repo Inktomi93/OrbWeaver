@@ -1,4 +1,4 @@
-// Section-jump tile CT — the tile DERIVES from the section registry (home-section-spec §3.4). What this
+// Section-jump tile CT — the tile DERIVES from the section registry. What this
 // pins is that it is a derivation, not a hand list: the rows ARE the registry minus home, in registry
 // order, carrying each section's OWN rail label + its gate-checked placeholder copy as the gloss. The
 // Planned badge derives from the same `content` field that carries the `{planned}` marker — and since

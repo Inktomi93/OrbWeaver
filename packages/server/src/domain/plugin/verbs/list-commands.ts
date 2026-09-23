@@ -1,4 +1,4 @@
-// verb: listCommands — the caller's OWN enabled plugins' registered UI COMMANDS (plugin-ui-plane #679 U5,
+// verb: listCommands — the caller's OWN enabled plugins' registered UI COMMANDS (U5,
 // §4.5). The `listSurfaces` twin in every respect, deliberately: owner-scoped by construction (`listOwned`
 // filters `WHERE owner_id = caller.userId`, so a command can only reach the result if the caller OWNS the
 // plugin — "the read is the gate", no foreign id anywhere), a disabled/errored plugin has no resident instance

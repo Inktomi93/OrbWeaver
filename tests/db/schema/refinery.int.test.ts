@@ -1,4 +1,4 @@
-// .int tests for schema/refinery (R0 — docs/history/design/refinery-r0.md §4.3). Real libSQL :memory: via
+// .int tests for schema/refinery. Real libSQL :memory: via
 // freshDb (FK PRAGMA ON). Covers: session insert→select round-trip (branded id, status default, the
 // three notNull JSON columns), the run round-trip (typed payload + provenance config, nullable usage),
 // the D23 DERIVED-ownership cascade chain (user → character → session → run — sessions carry NO

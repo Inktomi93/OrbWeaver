@@ -1,4 +1,4 @@
-// `usePluginDisplayText` — the CLIENT half of the plugin DISPLAY-transform seam (plugin-ui-plane #679 U6,
+// `usePluginDisplayText` — the CLIENT half of the plugin DISPLAY-transform seam (U6,
 // seam 14; the ST message-formatting-hook parity row).
 //
 // THE ORDERING IS LAW, and it is recorded in the design doc as well as here:

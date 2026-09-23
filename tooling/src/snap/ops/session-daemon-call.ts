@@ -1,4 +1,4 @@
-// One session CALL inside the daemon (docs/design/1208-instrument-substrate.md §3.3, §5, §10.1): re-parse
+// One session CALL inside the daemon: re-parse
 // the forwarded argv with the ONE validator, refuse a browser-lifetime flag on a later call, merge through
 // the promoted partition, resolve the target (a route, a file, or the LIVE page), adopt the client's slot,
 // open this call's evidence window over the daemon's rings, and run the SAME `runOnSession` the one-shot

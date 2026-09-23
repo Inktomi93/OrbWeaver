@@ -12,7 +12,7 @@ const THINKING_LABEL = /Thinking/u;
 const THOUGHT_LABEL = /Thought for/u;
 
 // A tall trace, so an UNfixed (animated) collapse displaces the prose by hundreds of px — the
-// `streaming-shape-churn.md` §8 fling was 350–677px. Newline-joined so the untrusted markdown seal
+//  fling was 350–677px. Newline-joined so the untrusted markdown seal
 // renders many block paragraphs (real height, not one wrapped line).
 const TALL_REASONING = Array.from({ length: 40 }, (_, i) => `Reasoning step ${i}: a full sentence of trace text to give the panel real height.`).join("\n\n");
 

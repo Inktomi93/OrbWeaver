@@ -27,8 +27,6 @@
       "!**/.git",
       "!**/.stryker-tmp",
       "!**/reports",
-      "!docs/design/mocks",
-      "!docs/history/design/mocks",
       "!**/coverage",
       "!playwright/.cache",
       "!scripts/probes/openrouter",

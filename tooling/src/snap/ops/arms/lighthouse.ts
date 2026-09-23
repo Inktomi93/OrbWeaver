@@ -1,6 +1,6 @@
 // `--lighthouse` — the audit ENGINE the retired chrome-devtools MCP wrapped, run against THIS run's
-// already-driven page (docs/design/1195-devtools-mcp-retirement.md §2 item 1; the census that justifies
-// the dependency is §1 of the same doc: 41 `lighthouse_audit` calls in 14 days, and the only MCP
+// already-driven page (the census that justifies
+// the dependency: 41 `lighthouse_audit` calls in 14 days, and the only MCP
 // findings snap could not produce — axe's `label-content-name-mismatch` and `target-size`).
 //
 // THE SEAM, and why it is this one. Lighthouse drives a PUPPETEER page (`page.target().createCDPSession()`

@@ -1,4 +1,4 @@
-// entry/compose/rpg — the lite-rpg vertical, COMPOSED-REAL (rpg-design/05 §6.2). The [compose-stub-goes-stale]/
+// entry/compose/rpg — the lite-rpg vertical, COMPOSED-REAL (docs/plans/rpg/design.md). The [compose-stub-goes-stale]/
 // [ct-stub-lie] antidote: drive the domain end-to-end through the ACTUAL `buildRpg` wiring — the real
 // `RpgService` over the real db, the real staging accumulator, the real `ChatRpgOps` flush, the REAL chat-side
 // injected ops (setRpgPointer/resolveRpgRoster/getMembership) off `createServices`, and the REAL tool registry
@@ -2821,7 +2821,7 @@ test("POPULATE (real round): a connection with NO structured writer runs no roun
 });
 
 // ── PROSE-1 POPULATE: the born-state round's own prose is SLOTTED, and its bytes did not move ─────────
-// The populate census (`docs/history/design/prose-1-populate-census.md`) rows 1-7 — the round's system header, its
+// The populate census rows 1-7 — the round's system header, its
 // inline IDENTITY clause, the invent-nothing doctrine, and the four user-turn labels — stopped being source
 // constants and became `rpg.populate.*` slot rows resolved against the GM PRESET's `promptConfig.prose`.
 //

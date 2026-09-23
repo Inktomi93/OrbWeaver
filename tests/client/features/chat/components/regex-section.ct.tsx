@@ -1,4 +1,4 @@
-// CT: the room's REGEX section (#1742 — `docs/design/mocks/regex-section/DESIGN.md`, owner-approved
+// CT: the room's REGEX section (#1742, owner-approved
 // 2026-09-05). What it pins, and why each one is a pin rather than a screenshot:
 //
 //   • RUN ORDER IS DISPLAY ORDER. The section's whole claim is "this is what runs, in this order"; a rank

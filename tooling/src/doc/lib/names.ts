@@ -1,6 +1,6 @@
 // File-name grammar for the numbered kinds: `NNNN-<slug>.md` under `docs/adr/` and `docs/work/`. One
 // spelling of the slug and the zero-padding, so a verb that mints and a check that reads agree.
-export const ID_WIDTH = 4;
+const ID_WIDTH = 4;
 const NUMBERED_NAME_RE = /^(\d{4,})-([a-z0-9]+(?:-[a-z0-9]+)*)\.md$/u;
 const SLUG_MAX_WORDS = 8;
 

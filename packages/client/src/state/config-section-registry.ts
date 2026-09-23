@@ -62,7 +62,7 @@ export interface ConfigSectionContribution {
   /** The write claim (§2.3) — the keys this section, and only this section, patches. */
   readonly owns?: SettingsKeyClaim;
   /** Renders inside the host group's `advancedFold` disclosure (#297's explicit custom arm — collapsed by
-   *  default; config-revamp-design.md §7.3). LIST/search citizenship is unchanged — a landing on a folded
+   *  default). LIST/search citizenship is unchanged — a landing on a folded
    *  section opens the fold. Absent = a plain section. */
   readonly advanced?: boolean;
   /** The contributed `<Section>` node. Anchored via `configAnchorId(anchor, nav.id)` by the section. */

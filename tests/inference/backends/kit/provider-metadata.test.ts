@@ -22,6 +22,7 @@ const AGENT_SDK_FACTS = {
   servedModel: null,
   durationApiMs: null,
   numTurns: 0,
+  outputCapReached: false,
 } as const;
 
 test("openrouter: the upstream vendor and its pre-fee charge — the two facts no column holds", () => {
@@ -81,6 +82,7 @@ test("claude-sub: the subscription's own receipts, absence-preserving", () => {
     servedModel: "claude-opus-5",
     durationApiMs: 1200,
     numTurns: 3,
+    outputCapReached: true,
   });
   expect(meta).toEqual({
     provider: "claude-sub",
@@ -94,6 +96,8 @@ test("claude-sub: the subscription's own receipts, absence-preserving", () => {
     servedModel: "claude-opus-5",
     durationApiMs: 1200,
     numTurns: 3,
+    // Present only when true: a reply that ended on its own records no key.
+    outputCapReached: true,
   });
   expect(agentSdkVariantMetadata("claude-sub", AGENT_SDK_FACTS)).toEqual({ provider: "claude-sub" });
 });
@@ -109,7 +113,7 @@ test("every arm this module builds SURVIVES the read seam — a producer the par
     variantProviderMetadataOf("openrouter", { provider: "Anthropic", usage: { costDetails: { upstreamInferenceCost: 0.4 } } }),
     variantProviderMetadataOf("anthropic", { usage: { cache_creation: { ephemeral_5m_input_tokens: 1, ephemeral_1h_input_tokens: 2 } } }),
     variantProviderMetadataOf("plugin:acme/vision", { seen: 1 }),
-    agentSdkVariantMetadata("claude-sub", { ...AGENT_SDK_FACTS, numTurns: 2, sdkSessionId: "s" }),
+    agentSdkVariantMetadata("claude-sub", { ...AGENT_SDK_FACTS, numTurns: 2, sdkSessionId: "s", outputCapReached: true }),
   ];
   for (const arm of arms) {
     expect(parseVariantMetadata({ providerMetadata: arm }).providerMetadata, `arm ${String(arm?.provider)} must round-trip the read seam`).toEqual(arm);

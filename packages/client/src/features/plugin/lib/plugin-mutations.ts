@@ -1,5 +1,5 @@
-// C7 — the plugin lifecycle WRITE verbs the Plugins settings pane drives (interaction-direction-spec
-// §7-C7/§7-C7a). Each is a module-scope `createEntityMutation` (§13.1 — the ONE mutation home; a call site
+// C7 — the plugin lifecycle WRITE verbs the Plugins settings pane drives.
+// Each is a module-scope `createEntityMutation` (§13.1 — the ONE mutation home; a call site
 // never hand-rolls `useMutation` + cache surgery). TVars/TData are tRPC-INFERRED, so a wire reshape breaks
 // here at compile time.
 //
@@ -39,7 +39,7 @@ export const useInstallPlugin = createEntityMutation<inferInput<Trpc["plugin"]["
   errorToast: serverReason("Couldn't install that plugin."),
 });
 
-/** PREVIEW a plugin bundle at a caller-supplied URL (plugin-ui-plane #679 U8, seam 15) — the server fetches
+/** PREVIEW a plugin bundle at a caller-supplied URL (U8, seam 15) — the server fetches
  *  it THROUGH the egress guard and returns its MANIFEST, so the SAME consent/grant screen a file install shows
  *  can be built from a URL the client never fetched itself. Reconciles NOTHING (`invalidates: () => []`): it is
  *  a read-only probe that persists no row, exactly like `runSnippet`.
@@ -54,7 +54,7 @@ export const usePreviewPluginFromUrl = createEntityMutation<inferInput<Trpc["plu
   invalidates: () => [],
 });
 
-/** Install a plugin from a URL with a CONFIRMED grant subset (plugin-ui-plane #679 U8, seam 15). The server
+/** Install a plugin from a URL with a CONFIRMED grant subset (U8, seam 15). The server
  *  re-fetches the bundle through the egress guard and runs it through the EXACT SAME funnel + consent checks a
  *  file `install` takes, minting the caller's own `disabled` row — so this reconciles `plugin.list` on settle
  *  just like `useInstallPlugin`. `errorToast` forwards the server's own sentence (`PluginBundleFetchError` and
@@ -72,7 +72,7 @@ export const useInstallPluginFromUrl = createEntityMutation<inferInput<Trpc["plu
  *  a re-activation on the new bundle writes to it. */
 export const useUpgradePlugin = createEntityMutation<inferInput<Trpc["plugin"]["upgrade"]>, inferOutput<Trpc["plugin"]["upgrade"]>>({
   options: (trpc) => trpc.plugin.upgrade.mutationOptions(),
-  // `listSurfaces` too: a new bundle registers a different surface set (plugin-ui-plane #679 U1), and the
+  // `listSurfaces` too: a new bundle registers a different surface set, and the
   // plugin lifecycle has no bus event — the write is the freshness driver.
   invalidates: (trpc, vars) => [
     trpc.plugin.list.queryFilter(),
@@ -216,7 +216,7 @@ export const useWithdrawPlugin = createEntityMutation<inferInput<Trpc["plugin"][
   errorToast: serverReason("Couldn't withdraw that plugin."),
 });
 
-/** Submit a UI-surface action (plugin-ui-plane #679 U1). Re-enters the surface's `onAction` in the guest,
+/** Submit a UI-surface action. Re-enters the surface's `onAction` in the guest,
  *  which may publish new state via `host.ui.setState` — whose `pluginSurfaceStateChanged` bus poke is the
  *  cross-device freshness driver. The `invalidates` here is the SAME-TAB belt: it refetches this surface's
  *  state immediately, so the panel repaints on the round-trip without waiting for the bus round-trip. */
@@ -235,7 +235,7 @@ export const useInvokeUiAction = createEntityMutation<inferInput<Trpc["plugin"][
   errorToast: serverReason("That plugin action couldn't run."),
 });
 
-/** Report a Tier-C client-guest crash (plugin-ui-plane #679 U4, §4.9) — a hung guest the host `terminate()`d, a
+/** Report a Tier-C client-guest crash — a hung guest the host `terminate()`d, a
  *  `ui.js` that failed to boot, or a tree the client schema refused. It feeds the SAME `consecutive_crashes`
  *  3-strike policy a throwing server handler drives, so a UI half that dies every mount auto-disables like a
  *  server half that throws.
@@ -249,7 +249,7 @@ export const useReportUiCrash = createEntityMutation<inferInput<Trpc["plugin"]["
   invalidates: (trpc) => [trpc.plugin.list.queryFilter()],
 });
 
-/** Run one registered plugin COMMAND (plugin-ui-plane #679 U5) — the `/plugin <slug> <name> …` dispatch and the
+/** Run one registered plugin COMMAND — the `/plugin <slug> <name> …` dispatch and the
  *  Plugins chrome menu both land here. Reconciles the plugin's SURFACE STATE broadly rather than by key: a
  *  command is not scoped to one surface (it can publish into any of the plugin's), so the narrow
  *  `{pluginId, surfaceId}` filter an action uses would miss exactly the panel the command just updated. The

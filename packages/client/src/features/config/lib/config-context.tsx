@@ -1,4 +1,4 @@
-// The Settings CONTEXT definition — the TEACHER (config-revamp-design.md §3.5/§7.2, #866 S3): the pane
+// The Settings CONTEXT definition — the TEACHER (#866 S3): the pane
 // rides the #860 bracket as `kind:"tabs"` over the published `ConfigContextState` projection (G3 strict —
 // `lib/registry-contracts.ts`), minted per registry by `makeConfigContext(groups)` (the
 // `makeCharactersSection` factory posture: the door hands the groups in, the hook is a NAMED local `use*`

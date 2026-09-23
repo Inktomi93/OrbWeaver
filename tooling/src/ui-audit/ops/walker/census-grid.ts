@@ -1,4 +1,4 @@
-// ui-audit in-page walker — segment: the DEVICE-PIXEL GRID census (docs/design/integer-line-boxes.md
+// ui-audit in-page walker — segment: the DEVICE-PIXEL GRID census (docs/law/integer-line-boxes.md
 // §9-§11 — the crispness doctrine's Laws 2, 3 and 4).
 //
 // THE QUESTION IS NOT "is this value legal" — the source-side gates (integer-line-boxes, rest-transform-grid,

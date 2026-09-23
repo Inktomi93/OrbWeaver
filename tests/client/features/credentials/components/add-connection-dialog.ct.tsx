@@ -501,7 +501,7 @@ test("the built-in provider lists the models this device runs as soon as it is p
   await submit(dialog);
 
   await expect(dialog).toBeHidden();
-  expect(trpc.count("credentials.add")).toBe(0);
+  await expect.poll(() => trpc.count("credentials.add")).toBe(0);
   await expect
     .poll(() => trpc.lastInput("connection.create"))
     .toMatchObject({ providerId: "local-light", credentialId: null, baseUrl: null, model: "jinaai/jina-clip-v2", modelListed: true });
@@ -526,7 +526,7 @@ test("switching the provider empties the key and the server URL typed for the pr
   await pickProvider(page, dialog, "Ollama");
   await expect(dialog.getByLabel("Server URL", { exact: true })).toHaveValue("");
   await expect(component.getByTestId("held-secrets")).toHaveText("0");
-  expect(trpc.count("credentials.add")).toBe(0);
+  await expect.poll(() => trpc.count("credentials.add")).toBe(0);
 });
 
 // A HOSTED PROVIDER LISTS UNDER ITS PASTED KEY, before anything is saved. The read is a POST (the key rides a body,

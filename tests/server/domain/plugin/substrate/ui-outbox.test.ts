@@ -1,4 +1,4 @@
-// The per-plugin UI OUTBOX + the dialog resolve (plugin-ui-plane #679 U5, §4.5a). Mirror of
+// The per-plugin UI OUTBOX + the dialog resolve. Mirror of
 // `domain/plugin/substrate/ui-outbox.ts`.
 //
 // FOUR PROPERTIES ARE LOAD-BEARING HERE, and each is a wall rather than a convenience:

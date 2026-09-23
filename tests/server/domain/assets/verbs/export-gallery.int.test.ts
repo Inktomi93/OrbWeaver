@@ -1,4 +1,4 @@
-// verb: exportGallery (export-import-portability.md §1) — the owner's gallery_items curation rows → the ONE
+// verb: exportGallery — the owner's gallery_items curation rows → the ONE
 // gallery serde, with the subject character resolved id -> HANDLE. Covers: owner-scoping (B's rows never leak
 // into A's file), the handle re-link (a charactered row carries its subject's handle), the un-charactered row
 // (null handle), and deterministic ordering. The id -> handle op is wired as the REAL characters read (mirrors

@@ -45,7 +45,7 @@
 // the fail-open shape §4.6 exists to catch, and its own `mustPass[3]` enshrined it. The ledger is now a
 // DECLARED `json:baseui-manifest` resource, so `resolveResourceDeclarations` throws at the POPULATION phase
 // on missing/empty/unparseable and this policy is WITHHELD — exit 2, "this run is not a verdict", never a
-// green zero (`resource-policy-contract.md` §4). The family `runPolicyPass` drives retain the complete
+// green zero (`docs/law/resource-policy-contract.md` §4). The family `runPolicyPass` drives retain the complete
 // runtime outcome beyond refusal-text matching: missing, unparseable, and empty ledgers each produce a
 // population-phase tool error, leave the owner incomplete with zero effective findings, and withhold this
 // policy; the healthy twin pins the `json:baseui-manifest` receipt with `unresolved: 0` (proof law §6.3).
@@ -64,7 +64,7 @@
 // would now be an `[evaluate]` tool error) onto the ledger row it is a verdict about.
 //
 // ARM C'S GUARD ASKS THE AST, AND UNTIL 2026-09-13 IT ASKED THE FILE TEXT — the repair that makes the
-// COMMENT POSTURE line below TRUE (`v-conversions-11-2026-09-13.md`, board #2297). The guard was
+// COMMENT POSTURE line below TRUE (the conversions-11 verifier review, board #2297). The guard was
 // `ctx.files.some((sf) => sf.getText().includes(<the module prefix>))`, a raw text scan under a header
 // declaring comment-SAFE, and the two positions of one comment disagreed: ts-morph `SourceFile#getText()`
 // drops LEADING trivia, so a file-leading mention still read as blindness while a MID-FILE one satisfied
@@ -266,7 +266,7 @@ export const gate = defineGate({
     {
       mode: "resource",
       files: { ...MANIFEST("unresolved"), [SEAL_PATH]: ROOT_ONLY },
-      why: "ARM A's `exposed` narrowing, and NOT the `unresolved` carve on arm B — a `why` this row carried until 2026-09-13 and could not keep (`v-conversions-11-2026-09-13.md`, board #2297). Backdrop is `unresolved` and is NOT rendered, so `judge` finds no render site and returns before arm B is reached at all; what the row actually holds is that an unruled part nobody renders is not accused by arm A either. The carve itself is `mustPass[5]`, whose fixture RENDERS the part",
+      why: "ARM A's `exposed` narrowing, and NOT the `unresolved` carve on arm B — a `why` this row carried until 2026-09-13 and could not keep (the conversions-11 verifier review, board #2297). Backdrop is `unresolved` and is NOT rendered, so `judge` finds no render site and returns before arm B is reached at all; what the row actually holds is that an unruled part nobody renders is not accused by arm A either. The carve itself is `mustPass[5]`, whose fixture RENDERS the part",
     },
     {
       mode: "resource",

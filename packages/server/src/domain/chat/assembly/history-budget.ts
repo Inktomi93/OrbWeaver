@@ -61,6 +61,39 @@ interface FitResult {
 const PER_MESSAGE_OVERHEAD = 4;
 const SAFETY_MARGIN = 64;
 
+/** The trim chunk as a fraction of the history's room (`ceiling − reserveOutputTokens`).
+ *
+ *  @remarks The prompt cache is an exact prefix, so a fit that drops one row per turn rewrites the whole kept
+ *  history every turn. The cut snaps to a grid of chunks counted from the history's start instead, so
+ *  consecutive turns pick the same cut until growth crosses the next boundary. The grid is derived from the rows
+ *  and the budget alone, because the fit is stateless. The room excludes the system prompt: its dynamic half
+ *  changes per turn, and a chunk that changes size moves every boundary. A module constant, not config: no
+ *  user or deployment varies it.
+ * @public Test-anchored module surface; the fit tests bound the extra drop by this chunk.
+ */
+export const HISTORY_TRIM_CHUNK_FRACTION = 0.1;
+
+// The chunk the cut snaps to. Stable per chat: it reads only the ceiling and the output reserve.
+function trimChunkTokens(ceiling: number, reserveOutputTokens: number): number {
+  return Math.max(1, Math.round(HISTORY_TRIM_CHUNK_FRACTION * (ceiling - reserveOutputTokens)));
+}
+
+// The first row at or after `minimalCut` that starts on a chunk boundary, where a row's start is the summed cost
+// of every row before it. Every row this drops beyond the minimal cut starts inside that cut's chunk.
+function chunkAlignedCut(history: readonly HistoryTurn[], minimalCut: number, chunk: number): number {
+  let start = history.slice(0, minimalCut).reduce((sum, turn) => sum + historyTurnTokens(turn), 0);
+  const boundary = Math.ceil(start / chunk) * chunk;
+  let cut = minimalCut;
+  for (const turn of history.slice(minimalCut)) {
+    if (start >= boundary) {
+      break;
+    }
+    start += historyTurnTokens(turn);
+    cut += 1;
+  }
+  return cut;
+}
+
 /** What ONE history row costs the fit: its estimated content tokens plus the per-message wire overhead. The
  *  one cost rule; the marker re-head after a trim (`substrate/wire-history` fitWireHistory) prices with it too. */
 export function historyTurnTokens(turn: { readonly content: string }): number {
@@ -95,9 +128,11 @@ export function buildHistoryBudget(args: {
 /**
  * Trim `history` (oldest-first) so that `system + history + reservedOutput` fits the effective context
  * ceiling. The ceiling is the smaller of the model window and the user's soft cap; when neither is known
- * the history is returned untouched (we never trim blind). The IRREDUCIBLE TAIL — the newest id-bearing
- * turn and everything after it — is always kept, even when it alone exceeds the budget (the caller may
- * warn, but we never silently drop the user's current turn). Trailing id-less rows are shape synthetics
+ * the history is returned untouched (we never trim blind). A trim snaps its cut forward to the next chunk
+ * boundary ({@link HISTORY_TRIM_CHUNK_FRACTION}): every row it drops beyond the minimal fit starts inside the
+ * minimal cut's chunk. The IRREDUCIBLE TAIL — the newest id-bearing turn and everything after it — is
+ * always kept, even when it alone exceeds the budget (the caller may warn, but we never silently drop the
+ * user's current turn). Trailing id-less rows are shape synthetics
  * (continuation/group nudge, depth-0 injections) riding the turn they follow: anchoring the guarantee on
  * the newest ROW instead would, under a blown budget, keep only the nudge and drop the real message —
  * and leave the preview's boundary unnameable (no kept row carries an id).
@@ -148,12 +183,14 @@ export function fitHistoryToWindow(history: readonly HistoryTurn[], budget: Hist
   if (keepFrom === 0) {
     return { history: [...history], droppedCount: 0, earliestKeptMessageId: null, usedTokens: used, ceilingTokens: ceiling };
   }
-  const kept = history.slice(keepFrom);
+  // The irreducible tail still wins over the grid: the cut never passes the newest id-bearing turn.
+  const cut = Math.min(chunkAlignedCut(history, keepFrom, trimChunkTokens(ceiling, budget.reserveOutputTokens)), irreducibleFrom);
+  const kept = history.slice(cut);
   return {
     history: kept,
-    droppedCount: keepFrom,
+    droppedCount: cut,
     earliestKeptMessageId: kept.find((t) => t.messageId !== undefined)?.messageId ?? null,
-    usedTokens: used,
+    usedTokens: kept.reduce((sum, t) => sum + cost(t), 0),
     ceilingTokens: ceiling,
   };
 }

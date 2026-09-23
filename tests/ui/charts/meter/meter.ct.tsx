@@ -1,4 +1,4 @@
-// <Meter> CT — the rpg-design/11 §13 required cases: every kind renders from PLAIN props (no
+// <Meter> CT — the docs/plans/rpg/design.md required cases: every kind renders from PLAIN props (no
 // contracts import — the fixtures are RpgHudView-SHAPED literals), ARIA meter values, bipolar
 // milestone ticks, and the dangerBelow token swap asserted against the destructive oklch value.
 import { Meter } from "@orb/ui/meter";

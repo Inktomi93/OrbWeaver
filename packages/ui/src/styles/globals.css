@@ -831,7 +831,7 @@
 }
 
 /* #42 — the streamed-word reveal fade (the render half of `ui/src/markdown/reveal-plugin.ts`; the
- * design + measurements: docs/history/design/streaming-reveal-42.md). Each newly revealed word arrives as a
+ * design + measurements: D168). Each newly revealed word arrives as a
  * `[data-orb-reveal]` span whose inline NEGATIVE `animation-delay` anchors fade progress to when the
  * word was first revealed — so a React node replacement mid-fade (remend emphasis repair, a dialogue
  * re-split) RESUMES at the right opacity instead of restarting or snapping. Opacity-only (compositor,
@@ -1178,7 +1178,7 @@
 }
 
 /* ── WebWeave + WebSpinner (art/web-weave · primitives/spinner/web-spinner — the brand loader system,
- * docs/history/design/login-loading-screen.md §9). Tokens + color-mix only; no raw motion values. ── */
+ * D173). Tokens + color-mix only; no raw motion values. ── */
 
 /* The web's ambient accent glow, centered on the hub. The component positions it via the two custom
  * props (a radial-gradient over color-mix'd tokens has no utility spelling, so it lives here — the
@@ -1191,7 +1191,7 @@
   );
 }
 
-/* WebSpinner: the loader IS a web being WOVEN (weave-lab-upgrades.md §4). The spiral draws out from
+/* WebSpinner: the loader IS a web being WOVEN. The spiral draws out from
  * the hub, holds a beat, then pays out — looping — while the spokes breathe and the whole glyph turns
  * slowly. Gated on `data-animate` (JS-removed under reduced motion — guide §3.9 REMOVE, so the
  * resting glyph is SOLID and fully drawn: the dash pattern only exists while the weave runs). The

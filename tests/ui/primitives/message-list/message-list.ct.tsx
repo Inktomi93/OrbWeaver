@@ -685,7 +685,7 @@ test("#2440: the parked roving row is NOT unmounted by a scroll-away, and keeps 
   await expect.poll(parkedRowHasFocus).toBe(true);
 });
 
-// ── #1362: THE ROW LANDINGS ARE INTEGERS (integer-line-boxes.md Law 3) ──────────────────────────────
+// ── #1362: THE ROW LANDINGS ARE INTEGERS (docs/law/integer-line-boxes.md Law 3) ──────────────────────────────
 // `directDomUpdatesMode: "position"` writes `el.style.top = ${item.start}px` on every row, so a
 // fractional `item.start` puts the row — and every `backdrop-filter` layer inside it — between device
 // pixels, where the composited raster is resampled and the glyphs blur. Measured on the isolated stage

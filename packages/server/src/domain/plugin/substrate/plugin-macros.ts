@@ -1,4 +1,4 @@
-// domain/plugin/substrate/plugin-macros — the PLUGIN MACRO plane (plugin-ui-plane §5.15, U6). One
+// domain/plugin/substrate/plugin-macros — the PLUGIN MACRO plane. One
 // process-wide registry of `{installer → the macros their enabled plugins registered}`, plus the per-turn
 // RESOLUTION that turns each into a `UserMacroDef` the ONE kit macro engine registers as data.
 //
@@ -23,7 +23,7 @@
 //      broken plugin macro renders empty; it never eats the turn.
 //   3. LAW 7 — the guest's answer is `neutralizeMacros`'d before it becomes a body. Plugin-authored text is
 //      entering a macro-EXECUTION plane (`ctx.resolve` runs over a user-macro body), and
-//      `interaction-direction-spec.md` §2 law 7 requires the house primitive at exactly that write boundary.
+//       law 7 requires the house primitive at exactly that write boundary.
 
 import type { InvocationChat, PluginMacroRegistration } from "@orb/contracts/plugin";
 import { PLUGIN_TOOL_NAME_PREFIX, pluginToolWireName } from "@orb/contracts/plugin";

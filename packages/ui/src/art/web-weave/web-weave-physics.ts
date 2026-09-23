@@ -1,4 +1,4 @@
-// WebWeave PHYSICS — how the silk answers a touch and the weather (weave-lab-upgrades.md §1). A pure
+// WebWeave PHYSICS — how the silk answers a touch and the weather. A pure
 // DISPLACEMENT FIELD composed over the already-built geometry: nothing here rebuilds a web, nothing
 // here reads a clock, and with no plucks and no wind every function is the identity — so the settled
 // web looks byte-for-byte as it did before this module existed (its `swayGain` returns exactly 1).

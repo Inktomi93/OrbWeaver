@@ -7,7 +7,7 @@
 // micro-caps over a hairline, so the meta tabs wore settings-modal clothes in an instrument. `kicker` is the
 // same `<h3>` (the document outline is unchanged) in the tier's own voice.
 //
-// D-1 (owner ruling 2026-07-31, `docs/history/design/context-panel-fidelity-findings.md` §2/§4): the merge had
+// D-1: the merge had
 // stacked FIVE unrelated concerns in one flat list ("a whole menu got garbled together"). The HOST-OPS trio
 // — Background · Group behavior · Tool use — now sits under its own "Host controls" group, which is also
 // exactly the permission line: everything above it any member may set, everything inside it is host-only.
@@ -16,10 +16,10 @@
 // family ("what I'm bending for this chat"), so they merge here: "Field overrides" (the collapse-until-
 // needed override rows), "Injections" (the manual prompt-injection list, folded in from its deleted tab),
 // and "Background" (the per-chat decorative background). The host-only Group-behavior + Tool-use sections
-// (Context-Panel-Program §1 CP-1) ride along below, each gated at SECTION granularity — the §8.1
+// ride along below, each gated at SECTION granularity — the §8.1
 // permission-OMIT, moved from tab-level so the tab strip stays slim without dropping a control.
 //
-// D-4 (databank-surface-spec): "Documents" — the per-chat databank rack + the D85 host visibility toggle —
+// D-4: "Documents" — the per-chat databank rack + the D85 host visibility toggle —
 // lands directly AFTER Injections. Same family ("extra content entering this room's prompt"), and it is
 // member-READABLE, so it belongs above the host-only band rather than inside it.
 //
@@ -36,7 +36,7 @@
 // contributing feature (`client-features-no-cross`). Automation's Rules is the first tenant — it shipped
 // as a 5th host TAB and was retired to a section here in the same change.
 //
-// THE DRAFT TWIN IS GONE (chat-creation-draft-mode-replacement.md §4.9, R1). `DraftSettingsTab` rendered
+// THE DRAFT TWIN IS GONE (D166). `DraftSettingsTab` rendered
 // draft-config-store-backed copies of Field overrides / Injections / Group behavior for a room with no
 // server row — and could not offer Background, Documents, Macro picks, Appearance or Tool use at all,
 // because each needs a `chatId`. The room has one from the creation click, so this tab is the whole tab in
@@ -253,8 +253,8 @@ export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background
         </QueryBoundary>
       </DisclosureSection>
       {/* REGEX (#1742) — "what regex runs in this room, in run order, and every lever that changes it", the
-          sibling of Injections and World books it was designed as (`docs/design/mocks/regex-section/DESIGN.md`,
-          owner-approved 2026-09-05). It sits with the member-readable racks and NOT in the host band for the
+          sibling of Injections and World books it was designed as
+          (owner-approved 2026-09-05). It sits with the member-readable racks and NOT in the host band for the
           Documents/World books reason: the room's own tier is member-READABLE (`regex.listForChat` is
           `requireChatMember` — the attached scripts are room-public prompt content), so a member sees the
           rows and simply gets no switches, no attach and no detach (the §8.1 permission-OMIT at row level).

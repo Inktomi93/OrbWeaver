@@ -4,6 +4,12 @@
 // fold, and the agent-sdk-only facts (the 5m/1h cache split, warm-spare, `modelUsage`, the SDK session id)
 // under `providerMetadata[<providerId>]`. Cost on a subscription is `estimated` — the SDK's `costUSD` is what
 // the turn WOULD have billed at API prices; no invoice exists.
+//
+// OUTPUT CAP: a reply that reaches `CLAUDE_CODE_MAX_OUTPUT_TOKENS` is continued by the bundled runtime up to three
+// times (a hard-coded recovery limit, measured in 0.3.280, with no env or option to change it), each call
+// re-reading the prompt. A reply that ends inside those calls completes normally, longer than the cap; one that
+// does not fails the turn, and the runner returns the text the calls wrote as a truncated reply, like every other
+// wire. Either way the turn carries `outputCapReached`, because the reply ran past the requested cap.
 
 import type {
   HookCallbackMatcher,
@@ -18,6 +24,7 @@ import type {
 import type { ChatUsage } from "@orb/contracts/inference";
 import type { ChatId } from "@orb/kit/ids";
 import { secondsToMs } from "@orb/kit/time";
+import type { AgentSdkSessionTotals } from "../../contract/agent.ts";
 import type { AgentSdkChatRequest, ChatResult, ContextUsage, ToolCallInput } from "../../contract/chat.ts";
 import { normalizeFinishReason } from "../../contract/chat.ts";
 import type { ProviderScrubSet } from "../../contract/errors.ts";
@@ -34,6 +41,7 @@ import { resolvedScrubSet, sanitizeApiError } from "../kit/sanitize.ts";
 import type { AgentSdkLog } from "./log.ts";
 import { toSdkOutputFormat } from "./output-schema.ts";
 import type { SeededSessionDecision, SessionCache } from "./session/index.ts";
+import { NO_SAVED_TOTALS } from "./session/index.ts";
 import { isTerminalToolCall, terminalToolOptions, toTerminalCall } from "./terminal-tools.ts";
 import {
   buildSystemPrompt,
@@ -60,6 +68,9 @@ const STRUCTURED_MIN_TURNS = 2;
 // A TERMINAL-tool turn floors at 2 as the degrade budget: a failed stop costs a CALL, never a BEAT (D112 (2b)).
 const TERMINAL_MIN_TURNS = 2;
 const TRUNCATED_TERMINAL_REASON = "stream_truncated";
+const OUTPUT_CAP_ERROR: SDKAssistantMessageError = "max_output_tokens";
+// The Messages API's own stop word for a capped reply; the shared finish fold maps it to `length`.
+const OUTPUT_CAP_STOP_REASON = "max_tokens";
 
 function chatMaxTurns(req: AgentSdkChatRequest): number {
   const toolTurns = req.toolServer !== undefined ? 1 + (req.toolTurnLimit ?? DEFAULT_CHAT_TOOL_ROUNDS) : 1;
@@ -155,7 +166,7 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
     droppedWarnings: gen.warnings.map((w) => ({ code: w.code, message: w.message })),
   });
   const { systemPrompt, dynamicHook } = routeDynamicContext(req, gen.turnId, log);
-  const { resume, disposition } = await resolveResume(req, sessions);
+  const { resume, disposition, savedTotals } = await resolveResume(req, sessions);
   logSessionDecision(req.chatId, resume, disposition, log);
 
   const stderrTail = new StderrTail();
@@ -190,6 +201,7 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
       model: connection.model,
       providerId: connection.providerId,
       resumed: resume !== undefined,
+      savedTotals,
       disposition,
       now: deps.now,
       expectStructured: req.responseFormat !== undefined,
@@ -268,10 +280,20 @@ function routeDynamicContext(
   return { systemPrompt: buildSystemPrompt({ static: req.systemPrompt.static, dynamic: "" }), dynamicHook: dynamicContextOptions(req.systemPrompt.dynamic) };
 }
 
-async function resolveResume(
-  req: AgentSdkChatRequest,
-  sessions: SessionCache,
-): Promise<{ resume: AgentSdkSessionId | undefined; disposition: SeededSessionDecision["disposition"] }> {
+interface ResumeDecision {
+  readonly resume: AgentSdkSessionId | undefined;
+  readonly disposition: SeededSessionDecision["disposition"];
+  readonly savedTotals: AgentSdkSessionTotals | null;
+}
+
+async function resolveResume(req: AgentSdkChatRequest, sessions: SessionCache): Promise<ResumeDecision> {
+  const decided = await resolveResumeId(req, sessions);
+  // Read before the spawn: the runtime appends this turn's own `cost-state` entry to the same transcript.
+  const savedTotals = decided.resume !== undefined ? await sessions.savedTotals(decided.resume) : NO_SAVED_TOTALS;
+  return { ...decided, savedTotals };
+}
+
+async function resolveResumeId(req: AgentSdkChatRequest, sessions: SessionCache): Promise<Omit<ResumeDecision, "savedTotals">> {
   if (req.chatId === undefined) {
     return { resume: undefined, disposition: "fresh" };
   }
@@ -439,6 +461,8 @@ class TurnAccumulator {
   rateLimit: RateLimitSnapshot | null = null;
   reasoningTokens: number | null = null;
   redactedThinkingBlocks = 0;
+  /** A model call stopped on the output cap, so the runtime continued the reply (see the file header). */
+  outputCapReached = false;
   lastRetryError: SDKAssistantMessageError | undefined;
   /** The code on the runtime's synthetic API-error assistant frame, and the upstream request id it names. */
   assistantError: SDKAssistantMessageError | undefined;
@@ -551,6 +575,7 @@ class TurnAccumulator {
       servedModel: this.meta.servedModel,
       durationApiMs: this.durationApiMs,
       numTurns: this.numTurns,
+      outputCapReached: this.outputCapReached,
     });
     return {
       reply: structuredReply ?? this.reply.trim(),
@@ -617,8 +642,10 @@ function handleAssistant(acc: TurnAccumulator, message: Narrow<"assistant">): vo
   // so only the synthetic error frame that immediately precedes a failed result can classify it.
   acc.assistantError = message.error;
   acc.requestId = message.request_id ?? acc.requestId;
+  // A frame carrying an error code is the runtime's synthetic failure notice, not model output.
+  const synthetic = message.error !== undefined;
   for (const block of message.message.content) {
-    if (block.type === "text") {
+    if (block.type === "text" && !synthetic) {
       acc.reply += block.text;
     } else if (block.type === "tool_use") {
       captureTerminalCall(acc, block);
@@ -773,17 +800,37 @@ function handleAuthStatus(acc: TurnAccumulator, message: Narrow<"auth_status">):
   acc.log.warn({ isAuthenticating: message.isAuthenticating, authError: message.error }, "agent-sdk: auth status change");
 }
 
+// Tokens come from the result's `usage`, never from `modelUsage`: a resumed session's `modelUsage` continues
+// from the totals its transcript saved, so on every turn after the first it reports the whole session. `usage` covers only this turn's main loop, which is every call a tool-less orb turn makes.
+// `input_tokens` is the UNCACHED part only; the normalized `tokensIn` is the whole prompt, as on every wire.
+// A crash or startup-error result can carry an empty `usage`, so it is read through a Partial view: an absent
+// billed count stays null, an absent cache count is 0.
+function accumulateTurnTokens(acc: TurnAccumulator, usage: Partial<Narrow<"result">["usage"]>): void {
+  const cacheRead = usage.cache_read_input_tokens ?? 0;
+  const cacheWrite = usage.cache_creation_input_tokens ?? 0;
+  acc.usageAcc.tokensIn = usage.input_tokens === undefined ? null : usage.input_tokens + cacheRead + cacheWrite;
+  acc.usageAcc.tokensOut = usage.output_tokens ?? null;
+  acc.usageAcc.cacheReadTokens = cacheRead;
+  acc.usageAcc.cacheWriteTokens = cacheWrite;
+}
+
 function accumulateUsage(acc: TurnAccumulator, message: Narrow<"result">): void {
+  accumulateTurnTokens(acc, message.usage);
   for (const [model, modelUsage] of Object.entries(message.modelUsage)) {
-    acc.usageAcc.tokensIn = (acc.usageAcc.tokensIn ?? 0) + modelUsage.inputTokens;
-    acc.usageAcc.tokensOut = (acc.usageAcc.tokensOut ?? 0) + modelUsage.outputTokens;
-    acc.usageAcc.cacheReadTokens += modelUsage.cacheReadInputTokens;
-    acc.usageAcc.cacheWriteTokens += modelUsage.cacheCreationInputTokens;
     acc.usageAcc.costUsd = (acc.usageAcc.costUsd ?? 0) + modelUsage.costUSD;
     acc.meta.webSearchRequests += modelUsage.webSearchRequests;
     acc.meta.modelUsage[model] = { inputTokens: modelUsage.inputTokens, outputTokens: modelUsage.outputTokens, costUsd: modelUsage.costUSD };
     acc.usageAcc.contextWindow = Math.max(acc.usageAcc.contextWindow ?? 0, acc.ctx.configuredMaxContextTokens ?? modelUsage.contextWindow);
     acc.usageAcc.maxOutputTokens = Math.max(acc.usageAcc.maxOutputTokens ?? 0, acc.ctx.configuredMaxOutputTokens ?? modelUsage.maxOutputTokens);
+  }
+  // `costUSD` and `webSearchRequests` have no per-turn field: on a resumed turn they continue from the totals the
+  // transcript saved, so this turn's own spend is the difference. An unreadable saved total leaves it unrecorded.
+  const saved = acc.ctx.savedTotals;
+  if (saved === null) {
+    acc.usageAcc.costUsd = null;
+  } else {
+    acc.usageAcc.costUsd = acc.usageAcc.costUsd === null ? null : acc.usageAcc.costUsd - saved.costUsd;
+    acc.meta.webSearchRequests -= saved.webSearchRequests;
   }
   // The SDK types `usage.cache_creation` as required, but it's absent when no prompt-cache write occurred —
   // read through a Partial view so the absence is a typed fact, not a dead guard.
@@ -839,6 +886,12 @@ function handleResult(acc: TurnAccumulator, message: Narrow<"result">): void {
     acc.apiErrorStatus = message.api_error_status ?? null;
     acc.meta.warmSpareClaimed = message.warm_spare_claimed ?? null;
     if (!message.is_error) {
+      return;
+    }
+    if (acc.assistantError === OUTPUT_CAP_ERROR && acc.reply.trim().length > 0) {
+      // The reply reached the cap and the runtime gave up continuing it: keep what it wrote, truncated.
+      acc.outputCapReached = true;
+      acc.stopReason = OUTPUT_CAP_STOP_REASON;
       return;
     }
   }
@@ -904,6 +957,11 @@ function buildResultError(acc: TurnAccumulator, message: Narrow<"result">): Prov
 
 function handleStreamEvent(acc: TurnAccumulator, message: Narrow<"stream_event">): void {
   const raw = message.event;
+  // The assistant frames carry no stop reason while streaming; a leg's own stop arrives on its `message_delta`.
+  if (raw.type === "message_delta" && raw.delta.stop_reason === OUTPUT_CAP_STOP_REASON) {
+    acc.outputCapReached = true;
+    return;
+  }
   if (raw.type !== "content_block_delta") {
     return;
   }

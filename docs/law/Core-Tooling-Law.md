@@ -6,15 +6,15 @@ updated: 2026-09-22
 
 # `@orb/tooling` — tooling-tree law
 
-> The detail home for the tooling tree. `Core-0-Architecture-and-Structure.md` §9 is the summary and the entry point; this doc owns the roster, the plumbing floor, the per-gate contracts, the coupled-site census, and the move playbook. Gate authoring starts at `../design/gate-runtime-read-first.md`; `../../tooling/src/verify/gates/GATE-AUTHORING.md` is the final authoring guide and links the verbatim legacy archive. Live gate catalog: `Core-Enforcement-Active-Gates.md`. The research zone's roster: `../../scripts/README.md`.
+> The detail home for the tooling tree. `Core-0-Architecture-and-Structure.md` §9 is the summary and the entry point; this doc owns the roster, the plumbing floor, the per-gate contracts, the coupled-site census, and the move playbook. Gate authoring starts at `docs/law/gate-runtime-read-first.md`; `../../tooling/src/verify/gates/GATE-AUTHORING.md` is the final authoring guide and links the verbatim legacy archive. Live gate catalog: `Core-Enforcement-Active-Gates.md`. The research zone's roster: `../../scripts/README.md`.
 
 ## 1. Standing rulings (owner — do not relitigate)
 
 - **ONE package**, never per-tool packages. No `bin` entries — pnpm root scripts are the front door. Command renames migrate all live callers; they do not retain compatibility aliases. Path values are implementation details.
 - **`scripts/` survives** as the explicitly-throwaway research zone (§2.7).
-- **Tools sit ABOVE the cake.** `@orb/tooling` may import any app package; nothing in `packages/**` may ever import tooling. Enforcers: resolver physics (no package declares the dep) + the `packages-no-tooling` cruiser belt (§4.6).
+- **Tools sit ABOVE the cake.** `@orb/tooling` may import any app package; nothing in `packages/**` may ever import tooling. Enforcers: resolver physics (no package declares the dep) + the `packages-no-tooling` cruiser guard (§4.6).
 - **Pure shared definitions migrate DOWN** — string/regex engines to `kit`, browser-only shared engines to `@orb/ui`.
-- **No compatibility shims.** A move is a clean cut; a re-export stub left "for now" is the banned half-migration. Process launchers (§2.6) do not preserve retired entry points.
+- **No compatibility shims.** A move is a clean cut; a re-export stub left "for now" is the banned half-migration. Process launchers (§2.6) never keep an old entry point alive.
 
 ## 2. Architecture
 
@@ -58,12 +58,12 @@ The constitution bans `_shared` drawers in `packages/` (`Core-0-Architecture-and
 
 | module | contract |
 | - | - |
-| `browser.ts` | the one Playwright bootstrap; the only legal `chromium.launch` site; also carries the test-only, protocol-level CDP fault injector (`ORB_PROBE_TEST_CDP_FAULT=<Domain.method>[@<nth>]`, VITEST-only, #1093) that every launched/attached context installs |
+| `browser.ts` | the one Playwright bootstrap; the only legal `chromium.launch` site; also carries the test-only, protocol-level CDP fault injector (`ORB_PROBE_TEST_CDP_FAULT=<Domain.method>[@<nth>]`, VITEST-only) that every launched/attached context installs |
 | `ts-workspace.ts` | the one ts-morph loader (`getWorkspace`/`harnessGlobs`/`searchGlobs`/`collectByKinds`); the only legal `new Project(` site |
-| `artifacts.ts` | `reports/<kind>/` artifact filing (`artifactFile`/`artifactKey`) + the RESULT-line convention (`print`/`printResult`) + the RUN-SLOT layout that makes concurrent runs safe (`runId`/`checkoutName`/`openRunSlot`/`runFile`/`publishRunSlot`/`abandonedRuns`, #1029 — the layout's one home is `UNIFIED-VERIFICATION-DESIGN.md` §3.3b) |
+| `artifacts.ts` | `reports/<kind>/` artifact filing (`artifactFile`/`artifactKey`) + the RESULT-line convention (`print`/`printResult`) + the RUN-SLOT layout that makes concurrent runs safe (`runId`/`checkoutName`/`openRunSlot`/`runFile`/`publishRunSlot`/`abandonedRuns` — the layout's one home is `UNIFIED-VERIFICATION-DESIGN.md` §3.3b) |
 | `argv.ts` | flag-parsing idioms (`splitFirstEq`/`splitLastEq`/`parseViewport`/`splitPageSuffix`/`parseGotoTarget`) |
 | `appearance.ts` | the settings shim + the curated preset library (its data file lives beside it) |
-| `theme.ts` | the theme arm of the settings shim |
+| `theme.ts` | the theme part of the settings shim |
 | `nav.ts` | the app-nav verbs (`--goto`/`--open-chat`/…) |
 | `pixel-backdrop.ts` | framebuffer backdrop sampling |
 | `ffmpeg.ts` | the ffmpeg shell door |
@@ -72,17 +72,25 @@ The constitution bans `_shared` drawers in `packages/` (`Core-0-Architecture-and
 | `run-tool.ts` | `runTool`/`UsageError` — the exit-honesty runner every `cli.ts` enters through: crash ≠ verdict (uncaught/unhandled → hard `EXIT.toolError` with sync stderr), pipe-drain (verdicts set `process.exitCode`, never `process.exit`), never-downgrade (clean→any, violations→toolError only), `UsageError` → `EXIT.misuse` |
 | `proc.ts` | the ONE `node:child_process` door — `spawnNiced`/`runNicedSync`/`execNicedSync` all ride `nice -n 19` (the box co-hosts other services); `spawnNicedChild` is the detached long-lived door (own process group + `killGroup`); `spawnFullPrioritySync` is the loud un-niced exception, legal only for a caller holding an exact `(caller, full-priority-spawn)` reviewed-grant row in `lib/reviewed-grants.ts` (the gate-owned caller census it replaced is deleted). Its doors pin `stdio: ["ignore","pipe","pipe"]` and fold captured stderr into the thrown message — `execFileSync` FORWARDS a child's stderr even while capturing it |
 | `load-budget.ts` | THE ONE READING OF THE BOX — `budget()` (wall clocks stretched by the box's per-core contention, capped), `judgeMeasurementLoad`/`annotateRateLoad` (a RATE measured under load is LABELLED `load-suspect`, never promoted), the load-kill classifiers. Its planted-reading seam is `ORB_BOX_LOAD` |
-| `concurrency-profile.ts` | the typed, validated Node door onto `tooling/concurrency-profile.json` (#1835). The JSON owns worker/slot values; the reader owns their schema. Shell consumers read the same JSON. The SHELL env `ORB_DEDICATED_BOX` selects `shared`\|`dedicated`, never the repo `.env`. Do not copy the field or consumer inventory into prose: adding a cap updates the data, reader and actual consumers with native execution controls. Load-budget stretches clocks under contention; this profile controls admission and parallelism |
+| `concurrency-profile.ts` | the typed, validated Node door onto `tooling/concurrency-profile.json`. The JSON owns worker/slot values; the reader owns their schema. Shell consumers read the same JSON. The SHELL env `ORB_DEDICATED_BOX` selects `shared`\|`dedicated`, never the repo `.env`. Do not copy the field or consumer inventory into prose: adding a cap updates the data, reader and actual consumers with native execution controls. Load-budget stretches clocks under contention; this profile controls admission and parallelism |
 | `log.ts` | `warn` — the stderr channel; stdout is reserved for payload (RESULT lines) |
 | `exit-contract.ts` | `EXIT = { clean: 0, violations: 1, toolError: 2, misuse: 3 } as const` — the house exit contract |
 | `instruments.ts` | the `INSTRUMENT_TOOLS` registry (§4.5) |
 | `devtools-assets.ts` | exact-tuple/hash/license validation + the manifest-closed loopback asset server |
 | `devtools-runtime.ts` | ephemeral debugging profile/endpoint + official DevTools SDK cascade bridge and cleanup |
-| `debugging-endpoint.ts` | the ephemeral Chromium debugging ENDPOINT — the persistent-profile launch args + the ONE reader of `DevToolsActivePort`; a stateful snap session, the cascade runtime and a sibling attach all share it (#1231) |
+| `debugging-endpoint.ts` | the ephemeral Chromium debugging ENDPOINT — the persistent-profile launch args + the ONE reader of `DevToolsActivePort`; a stateful snap session, the cascade runtime and a sibling attach all share it |
 
 **A module joins this floor by IMPORTER CENSUS, never by classification.** "Tool-specific" is a hypothesis; `rg --files-with-matches '<module>' scripts/ tooling/ tests/` is the verdict. Genuinely tool-specific plumbing stays in its tool (`snap/ops/fixture.ts`, the snap stage set).
 
 Every depth-derived root constant is RE-DERIVED at its move, never carried (§9.1-4).
+
+### 2.4a Shims on a shared session browser
+
+Install every session-wide shim with `context.route` or `context.addInitScript`. A shim reaches a tab by its own scope, not by the connection that installed it. A context-scoped shim also covers a tab that an attached client opens. A `page.route` covers only its own page, so an attached instrument that opens a tab would measure the unshimmed app. A page-scoped route is correct only for a local intercept that one drive installs and removes, such as `tooling/src/snap/ops/appearance-density-persistence.ts`.
+
+`attachProbeSession` in `tooling/src/_shared/browser.ts` attaches with `chromium.connectOverCDP`. A `connect()` client cannot see contexts that another client created, so attach would find no session to join.
+
+`tests/tooling/_shared/browser-attach.suite.int.test.ts` pins both facts.
 
 ### 2.5 The five-slot tool template
 
@@ -103,25 +111,23 @@ Navigation is mechanical, mirroring the domain template: what does it do → `in
 
 Every row is reached by the pnpm script name in the last column, never by path.
 
-**A TOOL DIR IS NOT A COMMAND (#1315, owner ruling 2026-09-04).** `ui-audit/`, `motion-audit/` and
-`cpu-profile/` are ENGINES: Snap is the only rendered front door, they are entered through their own
-`index.ts`, and they own NO `cli.ts` at all — gate `tooling-slot-template` arm B recognises an ENGINE DIR
-(an `index.ts`-only tool dir that some module under `snap/` imports through that index, derived from Snap's
-own import specifiers, never a row) and asks it for no argv door (owner ask 2026-09-06). The three-line
-`cli.ts` refusal stubs that arm B used to force are deleted with that clause. The product is unlaunched, so a retired command is GREP-FIXED at its call sites
-rather than kept alive behind a redirect that must be maintained, tested and retired a second time; that
-is why `screen-record/` (which was nothing BUT a redirect) is gone from this roster entirely, along with
-the `design-audit` / `record` / `perf-meter` / `motion-audit` pnpm scripts.
+**A TOOL DIR IS NOT A COMMAND.** `ui-audit/`, `motion-audit/` and `cpu-profile/` are ENGINES: Snap is the
+only rendered front door, they are entered through their own `index.ts`, and they own NO `cli.ts` at all
+— gate `tooling-slot-template` case B recognises an ENGINE DIR (an `index.ts`-only tool dir that some
+module under `snap/` imports through that index, derived from Snap's own import specifiers, never a row)
+and asks it for no argv door. The product is unlaunched, so a dropped command is fixed by grepping and
+removing its call sites rather than kept alive behind a redirect that must be maintained, tested and
+removed a second time.
 
 | tooling/src/ | owns | pnpm scripts |
 | - | - | - |
 | `bug-reports/` | the READER for the dev bug button's gitignored captures (list + show) — the artifacts have no tree presence, so the script name IS their discoverability | `bug:reports` |
-| `snap/` | the sole rendered-instrument CLI — and since #1315 the sole rendered-instrument ARGV DOOR: capture + evidence, labelled transition filmstrips, motion/perf/CPU/boot/React analyzers, the deterministic design/a11y scan, scenarios, sessions, and the isolated stage | `snap` |
-| `ui-audit/` | the design/a11y walker + its rule families — the ENGINE behind Snap's `--design-audit` arm (#1315); it has no program and no `cli.ts` (an engine dir, entered through `index.ts` — §4.1) | (none — `snap --design-audit`) |
+| `snap/` | the sole rendered-instrument CLI and the sole rendered-instrument ARGV DOOR: capture + evidence, labelled transition filmstrips, motion/perf/CPU/boot/React analyzers, the deterministic design/a11y scan, scenarios, sessions, and the isolated stage | `snap` |
+| `ui-audit/` | the design/a11y walker + its rule families — the ENGINE behind Snap's `--design-audit` case; it has no program and no `cli.ts` (an engine dir, entered through `index.ts` — §4.1) | (none — `snap --design-audit`) |
 | `render-trace/` | render/tail/fire — three ops behind one dispatcher | `trace:render` `trace:tail` `trace:fire` |
 | `wire-tap/` | the server-wire incident toolkit (sse · captures · trpc) | `sse-tap` |
 | `cache-check/` | the live prompt-cache check per route and turn shape, on an isolated stage; run on demand and before releases, never in CI or `pnpm check` | `cache:check` |
-| `ast/` | the structural-search + rot-lens engine | `ast` · `check:respell/swallowed/typeonly/columns/regkeys/chains` |
+| `ast/` | the structural-search + rot-detection engine | `ast` · `check:respell/swallowed/typeonly/columns/regkeys/chains` |
 | `codemod/` | the ts-morph codemod kit | `codemod` |
 | `verify/` | the whole verification system + the gate corpus + `GATE-AUTHORING.md` | `check` `verify` `check:structure` `check:show` `gate:new` `prose:baseline` `check:type-ownership` `check:tests-execution-membership` `check:db-baseline` `check:orphan-ratchet` |
 | `workboard/` | GitHub Project 1 lifecycle | `work:item` |
@@ -145,9 +151,9 @@ Playwright/Chromium/DevTools is one generated-tuple change and owes the planted 
 
 ### 2.7 `scripts/` — the research zone
 
-Explicitly throwaway probes, one-shot lenses, launcher shims, operator scripts. KISS/YAGNI apply there and only there. It MAY import `@orb/tooling` — the one-way glass is against `packages/**`, never against the research zone. It keeps its blanket biome relaxations and knip entry globs.
+Explicitly throwaway probes, one-shot checks, launcher shims, operator scripts. KISS/YAGNI apply there and only there. It MAY import `@orb/tooling` — the one-way glass is against `packages/**`, never against the research zone. It keeps its blanket biome relaxations and knip entry globs.
 
-**Research retention rationale lives in `../../scripts/README.md`.** A research implementation that becomes load-bearing for verification is PROMOTED into `tooling/src/<tool>/` under the template, original deleted, never a compat stub. The process-adapter boundary in §2.6 is distinct from research promotion; it does not exempt launchers from their compiler, lint or behavioral checks.
+**Research retention rationale lives in `../../scripts/README.md`.** A research implementation that becomes required for verification is PROMOTED into `tooling/src/<tool>/` under the template, original deleted, never a compat stub. The process-adapter boundary in §2.6 is distinct from research promotion; it does not exempt launchers from their compiler, lint or behavioral checks.
 
 ### 2.8 In-app sensors do NOT move
 
@@ -156,19 +162,15 @@ Explicitly throwaway probes, one-shot lenses, launcher shims, operator scripts. 
 - **The dead-class tokenizer is `@orb/kit/dead-css`.** The definition of "dead" (the escaped-class-token regex + the marker namespaces that legitimately ship no rule) is ONE kit module; the live `[css]` flagger calls it and `snap --dead-css` serializes its regex sources + marker tables into the `page.evaluate` string. Only the DOM halves stay local — a live MutationObserver vs a one-shot census — because that is the half the consumers genuinely differ on.
 - **ONE LoAF observer.** `motion-stats.ts` installs the app's only `long-animation-frame` PerformanceObserver and publishes each entry through `subscribeLongAnimationFrames`; every other channel SUBSCRIBES, never observes.
 
-Two merges are REFUSED with receipts — do not re-propose without new evidence:
+Two merges are REFUSED — do not re-propose without new evidence:
 
-- **accname engine → `@orb/ui`: refused.** There is no accname engine in `@orb/ui` to sit beside; `UI-Primitives-and-Reuse.md` §13.10 is the authority and its mechanical half (`tests/support/browser/accessible-names.ts`) carries the OPPOSITE ruling — a hand-rolled in-page name computation is banned, which is why it reads Playwright's `ariaSnapshot()`. The two tooling sites are not one engine either (snap resolves a NAME for a selector; ui-audit emits raw ATTRIBUTES and never computes what the name IS). If the two tool-side resolvers are ever merged, `tooling/src/_shared/` is the home `tooling-shared-plumbing` already guards.
-  **THE TWO TOOL-SIDE RESOLVERS WERE MERGED (#1324, 2026-09-04) — and the refusal above is unchanged.**
-  The ruling survives; its INPUT changed. What the merge folded is not an accname ENGINE but a
-  COMPARISON KEY that both sites already computed and both computed wrong the same way: snap's surface
-  map and the walker's door census each read `aria-label` BEFORE `aria-labelledby`, the reverse of accname
-  1.2 (2B precedes 2C). A planted pair produced a false `duplicate-action-door` and hid a real one. The
-  key is now spelled once, in spec order, in the walker's `ops/walker/accessible-name.ts` segment and
-  composed by both consumers through `ui-audit/index.ts`. No WCAG name is COMPUTED for a verdict — the
-  `aria-name` rule still tests PRESENCE (`RULE-AUTHORING.md` row 8) — and `pnpm snap … --aria`
-  (Playwright's `ariaSnapshot`) remains the only spec-correct name source in the fleet and the oracle the
-  merged key is proven against.
+- **accname engine → `@orb/ui`: refused.** There is no accname engine in `@orb/ui` to sit beside; `UI-Primitives-and-Reuse.md` §13.10 is the authority and its mechanical half (`tests/support/browser/accessible-names.ts`) carries the OPPOSITE ruling — a hand-rolled in-page name computation is banned, which is why it reads Playwright's `ariaSnapshot()`. The two tooling sites are not one engine either (snap resolves a NAME for a selector; ui-audit emits raw ATTRIBUTES and never computes what the name IS). The two tool-side resolvers are merged into one shared comparison key, never an accname engine, so the refusal above stands: the ruling survives, only its input changed.
+  **The refusal governs the RULING, not the shared COMPARISON KEY.** The key both sites compute — never
+  an accname ENGINE — is spelled once, in spec order (`aria-label` before `aria-labelledby`, accname 1.2's
+  2B before 2C), in the walker's `ops/walker/accessible-name.ts` segment, and composed by both consumers
+  through `ui-audit/index.ts`. No WCAG name is COMPUTED for a verdict — the `aria-name` rule still tests
+  PRESENCE (`RULE-AUTHORING.md` row 8) — and `pnpm snap … --aria` (Playwright's `ariaSnapshot`) remains
+  the only spec-correct name source in the fleet and the oracle the shared key is proven against.
 - **trpc/bus devlog merge: refused.** `trpc-devlog.ts` is a tRPC op formatter with key redaction that SHIPS (loggerLink calls it in prod for errors); `bus-devlog.ts` is an IS_DEV-gated subscription ring. They share only the house console `%c` palette, which is deliberately identical across every dev channel. Merging drags a dev-only ring into the prod bundle.
 
 ## 3. Coupled sites of a tooling change
@@ -190,10 +192,10 @@ A tool move, rename, or new tool touches these. Each row is a place a path or a 
 | `tooling/src/verify/lib/selection.ts` | the graph-tree classifier and `depcruisePaths` must both admit `tooling/` |
 | `_shared/ts-workspace.ts` `harnessGlobs` | the shared walk's scope — §3.2 governs any widening |
 | doc-catalog rows | a moved legacy document's `{ path, authority }` row moves with it (`pnpm doc-catalog:sync` adopts the new path; the stale row is removed by hand), then `pnpm doc-catalog:write` regenerates the inventory |
-| law-doc + `.claude/` cites | `pnpm check:docs` + `dangling-refs` are the fences. Lanes never edit `.claude/` — flag those for the orchestrator |
+| law-doc + `.claude/` cites | `pnpm check:docs` + `dangling-refs` are the guards. Lanes never edit `.claude/` — flag those for the orchestrator |
 | `tests/**/*.ct.tsx` importers | a moved file with test-side importers may affect compiler programs outside its nearest config; run every native program selected by affected-mode routing through `pnpm typecheck --config <path>` |
 | comment/prose cites of the moved BASENAME | live code + `status: active` docs are updated; dated reviews and `history/` are frozen evidence and are never rewritten |
-| a ZONE-KEYED FENCE | a predicate that fenced the zone a file used to live in (`startsWith("scripts/")`) is a path literal too. After any cross-ZONE move, grep the gate corpus for the OLD ZONE PREFIX, not only for old file paths — these fail SILENTLY and in both directions (a fence starts reporting the corpus's own documentation, or stops scanning it at all) |
+| a ZONE-KEYED EXCLUSION | a predicate that excludes a file's former zone (`startsWith("scripts/")`) is a path literal too. After any cross-ZONE move, grep the gate corpus for the OLD ZONE PREFIX, not only for old file paths — these fail SILENTLY and in both directions (an exclusion starts reporting the corpus's own documentation, or stops scanning it at all) |
 | a spawner naming an ops FILE | an ops file stops being independently runnable; its spawners must name a VERB through the one cli door |
 | `pnpm-lock.yaml` | the workspace add + each dep addition re-resolve it |
 
@@ -205,20 +207,18 @@ A tool move, rename, or new tool touches these. Each row is a place a path or a 
 
 1. Capture every gate's `scanned N/M` denominator BEFORE (`reports/check-structure.json` → `gates[].scan`).
 2. Land the growth; re-run; DIFF the per-gate scanned counts.
-3. **Every gate whose count grew gets an explicit recorded decision in the same commit: FENCE its scanRoot, or deliberately EMBRACE the new tree.** Each embrace is its own reviewed line. There is no third option and no deferral.
+3. **Every gate whose count grew gets an explicit recorded decision in the same commit: EXCLUDE its scanRoot, or deliberately EMBRACE the new tree.** Each embrace is its own reviewed line. There is no third option and no deferral.
 4. Plant one positive control inside the new population and one in `packages/`, and prove both still bite — the widening must not have broken dispatch.
-
-Worked precedents for step 3: `no-raw-clock` was FENCED with a `mustPass` row (tools MEASURE real time; the injected-clock law governs app determinism). `no-inline-union-redecl` was EMBRACED by converting the inline unions to `as const` tuples. `nullable-column-inequality` was FENCED because a tool issues no drizzle predicate, so its markers there are prose about the grammar. `diagnostic-legibility`'s pointer vocabulary was WIDENED, because a message navigating a reader to `tooling/src/verify/gates/` read as a dead end. `tooling-shared-plumbing` arm A was CENSUSED rather than exempted — each non-workspace ts-morph Project is a cited row with a two-sided stale sweep, today a reviewed grant in `lib/reviewed-grants.ts` (it was the former `PROJECT_SITES` table before the conversion).
 
 ## 4. Enforcement
 
-The live roster derives from the loader. Final policies follow `../design/gate-runtime-standardization.md` and the final `../../tooling/src/verify/gates/GATE-AUTHORING.md`; legacy descriptor maintenance uses that guide’s verbatim archive. **Live violations found at any landing are FIXED in that lane** — no debt baselines are minted for tooling.
+The live roster derives from the loader. Final policies follow `docs/law/gate-runtime-standardization.md` and the final `../../tooling/src/verify/gates/GATE-AUTHORING.md`; legacy descriptor maintenance uses that guide’s verbatim archive. **Live violations found at any landing are FIXED in that lane** — no debt baselines are minted for tooling.
 
 ### 4.1 `tooling-slot-template`
 
 fsBacked, whole-project, comment-SAFE (fs shape, reads no file text); scan unit is the `tooling/src/` tree.
 
-REDs: a top-level entry that is a loose file rather than a dir; a tool dir missing `cli.ts` or `index.ts`; a tool-root entry outside `{cli.ts, index.ts, contract/, ops/, lib/}`; a subdir inside `_shared/`. `_shared/` is exempt from the tool SHAPE (flat modules). **An ENGINE DIR owes no `cli.ts`**: a tool dir with `index.ts` that some module under `tooling/src/snap/` imports through `<tool>/index.ts` (ui-audit, motion-audit, cpu-profile — Snap is the sole rendered front door, #1315). The set is DERIVED from Snap's relative import specifiers on every run, never declared: an engine nothing under Snap imports any more reverts to owing its argv door by itself, and the positive control is a `mustFlag` row (owner ask 2026-09-06).
+REDs: a top-level entry that is a loose file rather than a dir; a tool dir missing `cli.ts` or `index.ts`; a tool-root entry outside `{cli.ts, index.ts, contract/, ops/, lib/}`; a subdir inside `_shared/`. `_shared/` is exempt from the tool SHAPE (flat modules). **An ENGINE DIR owes no `cli.ts`**: a tool dir with `index.ts` that some module under `tooling/src/snap/` imports through `<tool>/index.ts` (ui-audit, motion-audit, cpu-profile — Snap is the sole rendered front door). The set is DERIVED from Snap's relative import specifiers on every run, never declared: an engine nothing under Snap imports any more reverts to owing its argv door by itself, and the positive control is a `mustFlag` row.
 
 Two typed exemption tables, both two-sided: `BASH_FRONTED_TOOLS` (a `.sh`-entrypoint tool needs no `cli.ts`) — a row naming a dead dir OR a dir that grew a `cli.ts` is RED; `CORPUS_SLOTS` (the `verify/gates/` sixth slot) — a row naming a dead dir or a tool that lost its extra slot is RED.
 
@@ -228,9 +228,9 @@ incremental-safe, `kinds: [ImportDeclaration]`, comment-SAFE; `scanRoot: (p) => 
 
 REDs: an import in `tooling/src/<a>/**` whose specifier resolves into sibling `<b>`'s internals — anything other than `#<b>` / `../<b>/index.ts`; a `cli.ts` importing anything but its own tool's `index.ts` (+ `_shared`); a relative escape out of `tooling/`. `_shared` is a legal target per-module.
 
-A repo-root CONFIG read whose data would otherwise be respelled (one-home config reads) is licensed by an exact reviewed grant `(consumer, root-config-import:<config>)` in `lib/reviewed-grants.ts`, judged by the sibling policy `tooling-root-config-import` (the relative-escape arm under reviewed-grant authority); central grant liveness over those rows is the two-sided stale sweep the gate's own deleted root-config exemption table used to carry.
+A repo-root CONFIG read whose data would otherwise be respelled (one-home config reads) is licensed by an exact reviewed grant `(consumer, root-config-import:<config>)` in `lib/reviewed-grants.ts`, judged by the sibling policy `tooling-root-config-import` (the relative-escape case under reviewed-grant authority); central grant liveness over those rows is the two-sided stale sweep a root-config exemption table would otherwise need.
 
-**Two layers on purpose, not two homes.** This gate is the LANE-SPEED arm (a scoped `check:structure` sees a changed file) and matches specifier SHAPE; the §4.6 cruiser stanzas are the whole-graph resolved-edge backstop — the same split as `domain-sibling-front-door`.
+**Two layers on purpose, not two homes.** This gate is the LANE-SPEED case (a scoped `check:structure` sees a changed file) and matches specifier SHAPE; the §4.6 cruiser stanzas are the whole-graph resolved-edge backstop — the same split as `domain-sibling-front-door`.
 
 ### 4.3 `tooling-size`
 
@@ -240,30 +240,30 @@ REDs: any file >450 lines; any `cli.ts` >200. Declared carve with its own `mustP
 
 **This gate is ORDERING, not a ratchet.** It exists before a monolith can move, which is what forces decomposition at the move instead of after it.
 
-**WHEN THE FILE YOU ARE EDITING IS AT THE CAP, LAND THE NEW THING AS A SIBLING MODULE — never buy a line by deleting a doc comment** (#2487, 2026-09-20). The gate counts comment lines, so at 450 the cheapest way to fit one more field is to delete the sentence explaining an old one, and that trade has already been made on this tree: the lane that added `documentFrame` to `RawSamples` paid its one line for the field and dropped the field's own `why` to stay legal. A deleted comment is invisible to every check in this repo and costs the next cold reader the whole derivation, while a sibling module costs one import — which is why the same lane's two NEW censuses (`census-frame.ts`, `evidence-viewport-frame.ts`) landed correctly as siblings of the capped files rather than as arms inside them, and why the obscured census left `census-collision.ts` for `obscured-reach.ts` at #2491. The cap is a DECOMPOSITION trigger; treating it as a comment budget inverts it. Where the sibling genuinely has nowhere to go, decompose the file — the one answer the cap never accepts is a smaller explanation.
+**WHEN THE FILE YOU ARE EDITING IS AT THE CAP, LAND THE NEW THING AS A SIBLING MODULE — never buy a line by deleting a doc comment.** The gate counts comment lines, so at 450 the cheapest way to fit one more field is to delete the sentence explaining an old one. A deleted comment is invisible to every check in this repo and costs the next cold reader the whole derivation, while a sibling module costs one import. The cap is a DECOMPOSITION trigger; treating it as a comment budget inverts it. Where the sibling genuinely has nowhere to go, decompose the file — the one answer the cap never accepts is a smaller explanation.
 
 ### 4.4 The plumbing homes — the ten-policy split of `tooling-shared-plumbing`
 
-`tooling-shared-plumbing` (one descriptor, arms A–J, four exemption tables) RETIRED 2026-09-12 (#1950 group 4; the archived §12.6 ruling quoted here: "separate family ids … each id has one authority"). One `defineGate` policy per capability, each with ONE authority; the `_shared` homes and the censused exceptions are exact reviewed grants in `lib/reviewed-grants.ts` (subject, operation, why, endsWhen), and central grant liveness replaces every hand-written stale sweep. Comment posture stays comment-SAFE throughout (node kinds, statically-read strings, numeric literals — never a text regex).
+`tooling-shared-plumbing` does not run; the ten policies below are what runs instead. One `defineGate` policy governs each `_shared/` capability, each with ONE authority; the `_shared` homes and the censused exceptions are exact reviewed grants in `lib/reviewed-grants.ts` (subject, operation, why, endsWhen), and central grant liveness replaces every hand-written stale sweep. Comment posture stays comment-SAFE throughout (node kinds, statically-read strings, numeric literals — never a text regex).
 
-| Policy | Law (the legacy arm) | Authority · reader |
+| Policy | Law | Authority · reader |
 | - | - | - |
-| `tooling-project-home` | ONE ts-morph loader: `new Project(` outside `_shared/ts-workspace.ts` (A) | reviewed-grant · `lib/project-home-origin.ts#readPackageExportOrigin` against ts-morph's `Project`; nine `ts-morph-project-construction` grants (the loader plus eight non-workspace parsers) |
-| `tooling-browser-door` | ONE launch (`launchProbeSession`) and ONE attach (`attachProbeSession`): `<engine>.launch(`/`.connect(`/`.connectOverCDP(` outside `_shared/browser.ts` (B, H) | reviewed-grant · Playwright's engine exports over `@playwright/test`/`playwright`/`playwright-core`; grants `browser-launch` + `browser-attach` |
-| `tooling-artifact-path-home` | a `"reports"`/`"reports/…"` literal fed to `join`/`resolve`/`mkdir`/`mkdirSync` outside `_shared/artifacts.ts` (C) | reviewed-grant · family `tooling-artifact`, `lib/artifact-filing.ts` (the callee by identity against node's path/fs doors); grant `reports-path-literal` |
-| `tooling-artifact-run-slot` | a tool filing through `artifactDir`/`artifactFile` opens `withInstrumentRun` in its `cli.ts` (G, #1164) | hard · family `tooling-artifact`; the home located and receipted |
-| `tooling-process-exit-home` | `process.exit(` outside `_shared/run-tool.ts` (D) | reviewed-grant · family `process-member`, `lib/process-member-origin.ts`; grant `process-exit` |
-| `tooling-cli-entry` | every `tooling/src/<tool>/cli.ts` calls `runTool` (E) | hard · family `tooling-program-entry`, `lib/project-home-origin.ts` against the located runner home |
-| `tooling-child-process-door` | `node:child_process` outside `_shared/proc.ts` (F); a full-priority door call outside a reviewed caller (F2) | reviewed-grant · the import by specifier, the doors by identity against the located `proc.ts`; grants `child-process-import` + five `full-priority-spawn` |
-| `tooling-port-registry` | a port literal outside `_shared/ports.ts`, in `tooling/src/**` + `tests/e2e/support/**` (I, tree half) | reviewed-grant · family `plumbing-literals`, `lib/plumbing-literals.ts#portLiteralOf`; grant `port-literal` |
-| `tooling-clock-budget` | a fixed wall clock in `tooling/src/**` + `tests/tooling/**` (J, tree half) | **ordinary** · family `plumbing-literals`, `#fixedClockOf`; a deliberately fixed clock is `@orb-waive tooling-clock-budget(<literal>)` at its site |
-| `tooling-runner-config-literals` | both literal laws over the three root runner configs (I + J, root halves) | hard · resource; three `exact-file` ids, walked by `#runnerConfigLiteralFacts` through the one scratch parser |
+| `tooling-project-home` | ONE ts-morph loader: `new Project(` outside `_shared/ts-workspace.ts` | reviewed-grant · `lib/project-home-origin.ts#readPackageExportOrigin` against ts-morph's `Project`; nine `ts-morph-project-construction` grants (the loader plus eight non-workspace parsers) |
+| `tooling-browser-door` | ONE launch (`launchProbeSession`) and ONE attach (`attachProbeSession`): `<engine>.launch(`/`.connect(`/`.connectOverCDP(` outside `_shared/browser.ts` | reviewed-grant · Playwright's engine exports over `@playwright/test`/`playwright`/`playwright-core`; grants `browser-launch` + `browser-attach` |
+| `tooling-artifact-path-home` | a `"reports"`/`"reports/…"` literal fed to `join`/`resolve`/`mkdir`/`mkdirSync` outside `_shared/artifacts.ts` | reviewed-grant · family `tooling-artifact`, `lib/artifact-filing.ts` (the callee by identity against node's path/fs doors); grant `reports-path-literal` |
+| `tooling-artifact-run-slot` | a tool filing through `artifactDir`/`artifactFile` opens `withInstrumentRun` in its `cli.ts` | hard · family `tooling-artifact`; the home located and evidenced |
+| `tooling-process-exit-home` | `process.exit(` outside `_shared/run-tool.ts` | reviewed-grant · family `process-member`, `lib/process-member-origin.ts`; grant `process-exit` |
+| `tooling-cli-entry` | every `tooling/src/<tool>/cli.ts` calls `runTool` | hard · family `tooling-program-entry`, `lib/project-home-origin.ts` against the located runner home |
+| `tooling-child-process-door` | `node:child_process` outside `_shared/proc.ts`; a full-priority door call outside a reviewed caller | reviewed-grant · the import by specifier, the doors by identity against the located `proc.ts`; grants `child-process-import` + five `full-priority-spawn` |
+| `tooling-port-registry` | a port literal outside `_shared/ports.ts`, in `tooling/src/**` + `tests/e2e/support/**` | reviewed-grant · family `plumbing-literals`, `lib/plumbing-literals.ts#portLiteralOf`; grant `port-literal` |
+| `tooling-clock-budget` | a fixed wall clock in `tooling/src/**` + `tests/tooling/**` | **ordinary** · family `plumbing-literals`, `#fixedClockOf`; a deliberately fixed clock is `@orb-waive tooling-clock-budget(<literal>)` at its site |
+| `tooling-runner-config-literals` | both literal laws over the three root runner configs, for the port-registry and clock-budget policies above | hard · resource; three `exact-file` ids, walked by `#runnerConfigLiteralFacts` through the one scratch parser |
 
-Three things the split changed on purpose. **Identity, not spelling:** every callee, receiver and constructor is judged by DECLARATION through the shared origin readers — an alias is caught, a same-named local passes, an unplaceable one is reported fail-closed — which is how `path.join(REPO_ROOT, "reports", …)` at `model-ab/ops/run.ts:110` surfaced after living unseen under the legacy identifier match. **Clocks are ordinary, everything else is a grant:** the gate's own deleted clock-site census was shrink-only and every reason in it was a per-site argument (the tool guard's `timeout` is its input under test), which is the waiver shape; a home or a censused caller is a permission that outlives any one edit, which is the grant shape. **Homes are located and receipted:** `_shared/proc.ts`, `_shared/run-tool.ts` and `_shared/artifact-out.ts` are found in the population and receipted one receipt per home, so a moved home refuses the run instead of silently carrying its exemption — the rename tripwire the legacy re-spelled per table. Declared limit of the root-config policy: the closed `exact-file` ids name the three configs that exist; a fourth runner config is unjudged until it gets an id.
+**Identity, not spelling** governs matching: every callee, receiver and constructor is judged by DECLARATION through the shared origin readers — an alias is caught, a same-named local passes, an unplaceable one is reported fail-closed. **Clocks are ordinary, everything else is a grant:** a per-site argument (the tool guard's `timeout` is its input under test) is a waiver; a home or a censused caller is a permission that outlives any one edit, which is a grant. **Homes are located and evidenced:** `_shared/proc.ts`, `_shared/run-tool.ts` and `_shared/artifact-out.ts` are found in the population and evidenced one record per home, so a moved home refuses the run instead of silently carrying its exemption. The root-config policy's closed `exact-file` ids name the three configs that exist; a fourth runner config is unjudged until it gets an id.
 
 ### 4.5 `tooling-instrument-proof`
 
-fsBacked, whole-project. Keys off a LIVE registry, not a path list: `_shared/instruments.ts` exports `INSTRUMENT_TOOLS` (an `as const` tuple) — the tools whose output is a VERDICT about the app, where a blind zero reads as a pass. The gate reads the tuple through `ast-read.ts` unwrapping (the `as const satisfies` ts-morph blindness is a known trap) and REDs an empty derivation as its blindness tripwire. An EMPTY registry is legal-armed; a missing or unreadable one is not.
+fsBacked, whole-project. Keys off a LIVE registry, not a path list: `_shared/instruments.ts` exports `INSTRUMENT_TOOLS` (an `as const` tuple) — the tools whose output is a VERDICT about the app, where a blind zero reads as a pass. The gate reads the tuple through `ast-read.ts` unwrapping (the `as const satisfies` ts-morph blindness is a known trap) and REDs an empty derivation as its blindness tripwire. An EMPTY registry is a valid state; a missing or unreadable one is not.
 
 **Two proof classes, one of EACH per member**, with one finding per class so a missing absence proof can never hide behind a present defect proof:
 
@@ -272,9 +272,9 @@ fsBacked, whole-project. Keys off a LIVE registry, not a path list: `_shared/ins
 | `// @instrument-proof: <what is planted and what must red>` | does it BITE? — the test constructs the defect class the instrument exists to catch and asserts it REDs |
 | `// @instrument-absence-proof: <what apparatus/population is removed and what must NOT read clean>` | when it could NOT measure, does it SAY so? — the blind-zero-renders-as-clean class |
 
-Three arms per class: a member with no marker-carrying test in its `tests/tooling/<tool>/` mirror; a marker in a NON-member's tree (two-sided vocabulary — an unregistered "proof" is either a lie or a missing registry row); a malformed marker (the reason is REQUIRED). Plus the rename tripwire: a member naming a tool dir that does not exist.
+Three cases per class: a member with no marker-carrying test in its `tests/tooling/<tool>/` mirror; a marker in a NON-member's tree (two-sided vocabulary — an unregistered "proof" is either a lie or a missing registry row); a malformed marker (the reason is REQUIRED). Plus the rename tripwire: a member naming a tool dir that does not exist.
 
-A registry member joins in the SAME commit its tool dir lands. An incident instrument (`wire-tap`) satisfies the gate uniformly rather than through a second tier: its CI proof plants a LOOPBACK fixture server and asserts the tap reports exactly the planted frames — **a committed proof never depends on the dev stack**; a live connect smoke is a landing RECEIPT, not a test.
+A registry member joins in the SAME commit its tool dir lands. An incident instrument (`wire-tap`) satisfies the gate uniformly rather than through a second tier: its CI proof plants a LOOPBACK fixture server and asserts the tap reports exactly the planted frames — **a committed proof never depends on the dev stack**; a live connect smoke is landing EVIDENCE, not a test.
 
 ### 4.9 `tooling-argv-front-door`
 
@@ -285,23 +285,23 @@ Two final policies over `@tooling` (`kinds: [PropertyAccessExpression, ElementAc
 - a tool's `cli.ts` — the five-slot argv front door (§2.5), matched by SHAPE (`tooling/src/<tool>/cli.ts`) rather than by a path list, so a cli.ts that moves reds at its new path instead of carrying its exemption along;
 - a REVIEWED entry — an exact `(file, process-argv-read)` grant in `lib/reviewed-grants.ts`: the node half a `.sh` execs, which has no `cli.ts` by §2.5 (`stack/ops/{prod-entry,dev-identity-entry,engines,engines-ctl}.ts`), the private `verify/ops/config-snapshot-entry.ts` worker boundary, and `_shared/entrypoint.ts`, whose subject is `argv[1]` — the ENTRY IDENTITY ("was this module the program?") — and never the operator's flags.
 
-Everything else — `ops/`, `lib/`, `contract/`, and every `ops/parse.ts` — takes argv as a PARAMETER. **A library reading the global argv is the defect class:** its behaviour depends on how the PROCESS was started, so no caller and no test can drive it, it silently re-admits flags the front door already refused, and two callers of the same helper get different answers. The mint census (2026-08-31, #971) found exactly four: `codemod/lib/diagnostics.ts` (the `--max-output-lines=N` spill knob), `codemod/lib/example.ts` (`getFlag`'s default parameter), `codemod/lib/run.ts` (`runCodemod`'s own `--apply`/`--dry-run` decision) and `stack/ops/prod.ts`, which reached past its own entry to re-find the `--` forwarding separator in the GLOBAL frame.
+Everything else — `ops/`, `lib/`, `contract/`, and every `ops/parse.ts` — takes argv as a PARAMETER. **A library reading the global argv is the defect class:** its behaviour depends on how the PROCESS was started, so no caller and no test can drive it, it silently re-admits flags the front door already refused, and two callers of the same helper get different answers. The defect class looked like: `codemod/lib/diagnostics.ts` (the `--max-output-lines=N` spill knob), `codemod/lib/example.ts` (`getFlag`'s default parameter), `codemod/lib/run.ts` (`runCodemod`'s own `--apply`/`--dry-run` decision) and `stack/ops/prod.ts`, which reached past its own entry to re-find the `--` forwarding separator in the GLOBAL frame.
 
 **Threading argv in is a REQUIRED field, not an optional one.** `RunCodemodOptions.argv` is required precisely because the omission's failure mode is silent: `resolveIsDryRun([])` returns "dry run", so a forgotten argv would swallow an operator's `--apply` and report a clean preview. A required field makes it a tsc error instead.
 
-Arms: **(A)** the read outside a sanctioned home, both spellings (an element-access-blind matcher would be the loophole) — a reviewed-grant finding; **(B)** the two-sided stale sweep is CENTRAL grant liveness — a grant row consumed zero times after a complete run is STALE, whether its file merely stopped reading argv or is GONE, so the two modes collapse to one check by construction; **(C)** the `docs/design/gate-runtime-standardization.md` §6.1 blindness tripwire, its own hard policy `tooling-argv-front-door-health` — zero `cli.ts` readers on a real-tree run means the matcher stopped recognising the shape, and every arm above is vacuously green. Both whole-tree arms are anchored on `_shared/exit-contract.ts` (arm B by the entire-population deferral, arm C by the anchor guard), never on a scope kind.
+Cases: **(A)** the read outside a sanctioned home, both spellings (an element-access-blind matcher would be the loophole) — a reviewed-grant finding; **(B)** the two-sided stale sweep is CENTRAL grant liveness — a grant row consumed zero times after a complete run is STALE, whether its file merely stopped reading argv or is GONE, so the two modes collapse to one check by construction; **(C)** the `docs/law/gate-runtime-standardization.md` §6.1 blindness tripwire, its own hard policy `tooling-argv-front-door-health` — zero `cli.ts` readers on a real-tree run means the matcher stopped recognising the shape, and every case above is vacuously green. Both whole-tree cases are anchored on `_shared/exit-contract.ts` (case B by the entire-population deferral, case C by the anchor guard), never on a scope kind.
 
-**DECLARED LIMIT (its own `mustPass` row): this gate pins WHERE argv is read, never HOW STRICTLY each tool's grammar parses it.** The 27-reader census behind #971 classified each CLI's real grammar — strict-ordered (`snap`), positional/subcommand (`ast`/`verify`/`workboard`/`doc-catalog`/`seed`/`wire-tap`/`render-trace`), flag-bag, and `--`-forwarding (`stack`) — and closed the lenient ones by hand. `ui-audit`'s strict-ordered parser was the second rendered grammar and is GONE with its CLI (#1315): the scan rides snap's, so there is one rendered-argv reader left rather than two byte-stable ones. The engine dirs' `cli.ts` files parse nothing at all. There is deliberately NO generic `parseArgv(spec)`: flattening the remaining grammars into one would change every tool's contract, and each existing contract stays byte-stable.
+**DECLARED LIMIT (its own `mustPass` row): this gate pins WHERE argv is read, never HOW STRICTLY each tool's grammar parses it.** Each CLI's real grammar is classified once — strict-ordered (`snap`), positional/subcommand (`ast`/`verify`/`workboard`/`doc-catalog`/`seed`/`wire-tap`/`render-trace`), flag-bag, and `--`-forwarding (`stack`) — and the lenient ones are closed by hand. The ui-audit design/a11y scan rides `snap`'s grammar: there is one rendered-argv reader in the fleet, and the engine dirs' `cli.ts` files parse nothing at all. There is deliberately NO generic `parseArgv(spec)`: flattening the remaining grammars into one would change every tool's contract, and each existing contract stays byte-stable.
 
 ### 4.6 dep-cruiser stanzas
 
 Require the cruise-scope widening (`depcruise packages tooling`) or the stanzas are unfireable by construction.
 
 1. `packages-no-tooling` — `from: ^packages/`, `to: ^tooling/`, error. The deep-relative-escape backstop over the resolver physics (the `ui-cake` posture).
-2. `tooling-internal-direction` — `ops/` may import `{lib,contract,_shared}` + its own tool's modules; nothing imports a sibling tool's `ops|lib|contract` directly. **Type-only is NOT exempt** for the cross-tool arm — the front-door law is a SHAPE rule (the domain-sibling precedent).
+2. `tooling-internal-direction` — `ops/` may import `{lib,contract,_shared}` + its own tool's modules; nothing imports a sibling tool's `ops|lib|contract` directly. **Type-only is NOT exempt** for the cross-tool case — the front-door law is a SHAPE rule (the domain-sibling precedent).
 3. `tooling-cli-via-index` — a `cli.ts` reaches its own tool only through `"./index.ts"`.
 4. `tooling-shared-floor` — `_shared/` reaches UP to no tool (the `foundation-reaches-up-to-nothing` mirror).
-5. `tooling-no-provider-families` — the provider FAMILIES (`packages/inference/src/backends/<x>`, where the agent-sdk credential firewall lives) and the contract internals stay sealed against tooling; `contract/index.ts` alone is open, and the front door `packages/inference/src/index.ts` is legal because tools sit above the cake (§1). RE-POINTED 2026-09-20 from the old server infra/providers backends+contract dirs — spelled without code formatting because that tree is DELETED and a backticked cite would claim a referent — until then the stanza matched nothing and passed forever. **The vLLM carve-out is GONE with its subject**: there is no in-server supervisor to keep in step any more, the fleet moved whole to `tooling/src/stack/lib/engine-fleet/`, and nothing in `@orb/inference` builds an engine argv.
+5. `tooling-no-provider-families` — the provider FAMILIES (`packages/inference/src/backends/<x>`, where the agent-sdk credential firewall lives) and the contract internals stay sealed against tooling; `contract/index.ts` alone is open, and the front door `packages/inference/src/index.ts` is legal because tools sit above the cake (§1). There is no vLLM carve-out: there is no in-server supervisor to keep in step, the fleet lives in `tooling/src/stack/lib/engine-fleet/`, and nothing in `@orb/inference` builds an engine argv.
 
 Coupled: `tests/tooling/dependency-cruiser.int.test.ts` carries a `__dc` pin per stanza (a planted violation cruises red). **A stanza without its pin is an inert rule** — the derived anti-drift case has nothing to fire it.
 
@@ -315,7 +315,7 @@ Endgame residents of the flat tier: `tool-guard.int.test.ts` (subject is `.claud
 
 Within `tests/tooling/**`, importing `test`/`it`/`expect` from `support/fixtures` is RED with its own message: the tooling door is `support/tool-fixtures`.
 
-**Why this is load-bearing and not ceremony:** the RESULT snapshot serializer registers via tool-fixtures (§5.3). A tooling test entering through plain fixtures silently writes UNNORMALIZED inline snapshots — a drift bomb every later normalization invalidates. Since `toolTest` extends the house test (§5.1), the single door costs nothing.
+**Why this matters, and is not ceremony:** the RESULT snapshot serializer registers via tool-fixtures (§5.3). A tooling test entering through plain fixtures silently writes UNNORMALIZED inline snapshots — a drift bomb every later normalization invalidates. Since `toolTest` extends the house test (§5.1), the single door costs nothing.
 
 ## 5. Test infrastructure
 
@@ -339,7 +339,7 @@ Home: `tests/support/matchers.ts`, THE matcher module (its header carries the ca
 
 ### 5.3 The RESULT snapshot serializer
 
-Registered in `tool-fixtures.ts` via `expect.addSnapshotSerializer` — the side effect that makes §4.8's single-door arm load-bearing. Scope: only files importing tool-fixtures. House style stays INLINE snapshots; no file snapshots.
+Registered in `tool-fixtures.ts` via `expect.addSnapshotSerializer` — the side effect that makes §4.8's single-door case necessary. Scope: only files importing tool-fixtures. House style stays INLINE snapshots; no file snapshots.
 
 Normalization covers non-deterministic atoms ONLY — over-normalization hides regressions:
 
@@ -360,9 +360,7 @@ Type assertions use the type-test kinds defined by `tooling/src/_shared/test-kin
 ## 6. The verification floor for a tooling change
 
 The scoped lane floor and shared-host scheduling live in the `lane` skill
-(`.claude/skills/lane/SKILL.md`), sections “Running tools” and “Floor”. Gate-program integration
-follows `../design/gate-runtime-orchestrator-playbook.md`; a lane must not launch whole-tree checks
-alongside the integration train.
+(`.claude/skills/lane/SKILL.md`), sections “Running tools” and “Floor”. A lane must not launch whole-tree checks alongside an integration train.
 
 Run scoped Biome and ESLint, the behavioral suites for the changed contract, and every affected native
 compiler program. A shared-value change also runs coupled literal assertions. Moves require the §3.1
@@ -388,12 +386,15 @@ orphaned exports and broken front doors that a local slice can miss.
 | compat re-export stubs during a move | owner ruling: nothing else runs; clean cuts (§1) |
 | blanket-copying `scripts/**`'s biome relaxations to `tooling/**` | born-compliant means each relaxation is re-justified against the file it covers |
 | a `no-useless-fragment` gate | biome's `noUselessFragments` is already on at error and covers element-nested fragments; the residual return-position cases are style-tier, and `GATE-AUTHORING.md` §10 bans mirroring an enabled native rule. No successor exists or should be built |
+| a count ratio or count-equality tolerance for ui-audit subject accounting | an equal count cannot see one element replaced by another. `censusThinGap` in `tooling/src/ui-audit/lib/evidence.ts` requires settled = walked + classified skips, with no identity churn |
+| retrying a ui-audit walk after an accounting mismatch | a warmed retry erases the evidence that the first walk was incomplete, and timing then decides which result survives |
+| inferring the rendered theme from the requested theme name | a request cannot prove what rendered. The walker reads the source from the root `data-theme` and the ThemeScope inline tokens, and polarity from computed `color-scheme` (`tooling/src/ui-audit/ops/walker/core.ts`) |
 
 ## 8. Census hazards in the gate corpus
 
-**Any import or dependency census over `tooling/src/verify/gates/**` MUST exclude example-string literals**, or it reports fixture fiction as real dependencies. A gate's `mustFlag`/`mustPass` examples are SOURCE TEXT for in-memory mini-projects: they import specifiers no package resolves and packages the tree never depends on. Two entries entered this program's premise set exactly that way — one an invented one-letter specifier, one `@orb/client`, which `@orb/tooling` deliberately does not depend on.
+**Any import or dependency census over `tooling/src/verify/gates/**` MUST exclude example-string literals**, or it reports fixture fiction as real dependencies. A gate's `mustFlag`/`mustPass` examples are SOURCE TEXT for in-memory mini-projects: they import specifiers no package resolves and packages the tree never depends on, such as `@orb/client`, which `@orb/tooling` deliberately does not depend on.
 
-The same hazard has a second face: the corpus cites DEAD names deliberately, as fixture strings and as its own exemption-table KEYS. A name-resolution index built over the corpus must exclude the string-literal and object-property-key arms for gate files, or every exemption row vouches for itself.
+The same hazard has a second face: the corpus cites DEAD names deliberately, as fixture strings and as its own exemption-table KEYS. A name-resolution index built over the corpus must exclude the string-literal and object-property-key cases for gate files, or every exemption row vouches for itself.
 
 ## 9. The move playbook
 
@@ -401,20 +402,20 @@ The ordered checklist for promoting or relocating a tool. Every step was paid fo
 
 1. **Full-read the monolith before slicing.** Classify each region by NATURE into the five slots: pure derivation → `lib/`, shapes → `contract/`, I/O → `ops/`, argv+dispatch → `cli.ts`, curated exports → `index.ts`. By nature, never by size.
 2. **Consumer census BEFORE homing** anything the tool drags along (§2.4). The classification is a hypothesis; the importer census is the verdict — and this applies to DATA files, not only to code (a data file's consumers can prove it belongs in `packages/`, not in `tooling/`).
-3. **Repair the slicer's artifact classes.** A cut landing mid-JSDoc (re-anchor on the opening `/**`); doubled `export export`; helpers duplicated across two slices (one home, delete the copy); an over-cap slice (re-split by nature). **A trailing comment defeats an ends-with-`;` block boundary** and silently swallows the NEXT declaration into the wrong file — a nothing-dropped line count does NOT catch mis-ROUTING, so grep the `lib/` files for `export type|interface` (contract-only vocabulary) as the routing fence.
+3. **Repair the slicer's artifact classes.** A cut landing mid-JSDoc (re-anchor on the opening `/**`); doubled `export export`; helpers duplicated across two slices (one home, delete the copy); an over-cap slice (re-split by nature). **A trailing comment defeats an ends-with-`;` block boundary** and silently swallows the NEXT declaration into the wrong file — a nothing-dropped line count does NOT catch mis-ROUTING, so grep the `lib/` files for `export type|interface` (contract-only vocabulary) as the routing boundary.
 4. **Re-derive every depth-derived ROOT constant at its new depth** — `import.meta.dirname` up-counts differ between homes, and AGAIN when the tests relocate.
 5. **Break import cycles by construction.** The monolith's implicit layering becomes explicit: shared leaf constants get their own `lib/` module, cross-mode refusal/config helpers get `ops/guards.ts`, the dispatcher lives in `cli.ts`. Cycles die by moving LEAVES DOWN, never by re-merging and never by routing through `index.ts`. A `contract/` importing an OP's exported type is the same bug: the type moves DOWN to `contract/`.
-6. **DOM-typed `page.evaluate` bodies become raw strings** (§2.3 — there is no DOM lib). A segmented in-page IIFE is the size-cap arm for walker-class strings: one function scope, segment files concatenated IN ORDER, byte-equality of the composition asserted at the split, and the walker CT re-run as the behavioral twin. Never route a cycle or a reorder through the segments.
+6. **DOM-typed `page.evaluate` bodies become raw strings** (§2.3 — there is no DOM lib). A segmented in-page IIFE is the size-cap case for walker-class strings: one function scope, segment files concatenated IN ORDER, byte-equality of the composition asserted at the split, and the walker CT re-run as the behavioral twin. Never route a cycle or a reorder through the segments.
 7. **Exit-contract convergence is a SHARED-VALUE change.** Aligning a tool's historical exits to `_shared/exit-contract.ts` reds assertions in suites nobody would associate with the tool — `rg -n 'toBe\(2\)|exit 2' tests/tooling` and sweep in the same commit.
 8. **`cli.ts` enters through `runTool`, and everything the cli dispatches is re-exported from `index.ts`.** The cli consumes the programmatic API it fronts.
-9. **Test relocation follows the shared kind and mirror rules** (§3.1). The test-baseline manifest and `monotonic-tests` gate were retired in #2217; there is no filename manifest to update. Verify native compiler and runner ownership after the move.
+9. **Test relocation follows the shared kind and mirror rules** (§3.1). There is no filename manifest to update. Verify native compiler and runner ownership after the move.
 10. **Replay §3.2 over the phase's own delta** — the widening protocol is per-change, not one-time.
 11. **The sweeps, exact commands** (per moved file and per moved BASENAME; a zero owes a positive control in the same invocation):
     - old-path: `rg -n '<old path>'` over `package.json`, configs, `tests/`, `docs/` — expect zero;
     - CT-side: `rg -n '<old path>' tests/ --glob '*.ct.tsx'` + per-package client tsc when anything test-side imported it;
     - comment/prose cites: `rg -n '<basename>'` repo-wide — live code and `status: active` docs are updated; dated reviews and `history/` are frozen;
     - catalog rows: `rg -n '<old path>' docs/catalog/receipts/` — move the row to the new path, then `pnpm doc-catalog:write`;
-    - the OLD ZONE PREFIX across the gate corpus (§3.1's zone-keyed-fence row);
+    - the OLD ZONE PREFIX across the gate corpus (§3.1's zone-keyed-exclusion row);
     - recipe lines in active docs: a `node scripts/…` invocation becomes the pnpm front door.
 12. **A legacy doc edit owes nothing to the catalog.** The inventory carries no content hash (owner ruling; `docs/adr/0164-docs-plans-adrs.md`), so editing a legacy document's prose changes nothing under `docs/catalog/`. Adding, removing or re-kinding one owes `pnpm doc-catalog:sync` and `pnpm doc-catalog:write` in the same commit. Bump `updated:` and run scoped `pnpm check:docs` in the floor.
 13. **Then §6's floor, then the LIVE run.**
@@ -423,7 +424,7 @@ The ordered checklist for promoting or relocating a tool. Every step was paid fo
 
 - **A stack-free cli proof** is a `file://` base over a scratch fixture page that declares `data-app-ready` on itself (skipping the readiness ceiling), plus a planted `__orb` bridge defining the instrument's INPUT CONTRACT. mustFlag discipline at the cli tier with zero dev-stack dependency.
 - **A clean TWIN asserts the PLANTED CLASS's absence, not sterility.** Pin `p1=0` + the absent finding kind + exit 0 — never "no findings", which makes the proof lie the day any unrelated rule grows.
-- **`satisfies <RealShape>` on a proof fixture is a live drift fence** — a fixture that desyncs from the real serialized shape fails tsc.
+- **`satisfies <RealShape>` on a proof fixture is a live drift guard** — a fixture that desyncs from the real serialized shape fails tsc.
 - **A test spying `console.log` goes blind when output moves to the print/warn doors** — the spy must follow the REAL sink.
 - **Time BOTH sides warm before calling a regression.** A cold-vs-warm confound reads as a 2× slowdown at tool scale.
 - **Never trust a text fixer beyond tsc.** An automated import/export fixer's own despecifier regex mangled a type body (`Map<SkipReason, number>` → `Map<number>`); tsc is the mangle detector.

@@ -44,7 +44,7 @@ export const BLUR_SURFACE_ITEMS: readonly SelectOption<string>[] = BLUR_SURFACES
 
 // The `backgroundImageKind` Select RETIRED with the R-BG thumbnail grid (#866 S4): the kind derives from
 // the tapped tile and is storage detail, so no items table exists for it any more (recorded in
-// config-revamp-design.md §7.3's rider — no dead table left behind).
+//  rider — no dead table left behind).
 const BACKGROUND_FIT_LABELS: Record<AppearanceSettings["backgroundFit"], string> = {
   cover: "Cover (fill, crop edges)",
   contain: "Contain (fit, may letterbox)",

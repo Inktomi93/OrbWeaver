@@ -1,5 +1,5 @@
 // bugReportChrome — the dev bug-found button as a registered `topbar.trail` widget
-// (shell-chrome-unification.md §A; the `fullscreenChrome` idiom). app-shell registers its OWN chrome through
+// (the `fullscreenChrome` idiom). app-shell registers its OWN chrome through
 // the same door as any other feature — no self-privilege, and no edit to `shell-topbar.tsx`.
 //
 // PLACEMENT: THE TOP RAIL, owner-ruled 2026-09-02 ("that feels cleanest"), dev-gated exactly like the rest of

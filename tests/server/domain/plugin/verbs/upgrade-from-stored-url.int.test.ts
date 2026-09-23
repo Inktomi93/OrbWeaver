@@ -1,4 +1,4 @@
-// verb test: upgradeFromStoredUrl (plugin-ui-plane #679 U8 2b — the TRUE one-click upgrade). What it pins:
+// verb test: upgradeFromStoredUrl (U8 2b — the TRUE one-click upgrade). What it pins:
 //   - it re-fetches the REMEMBERED source URL (no re-paste — the call names NO url) and #615's re-consent wall
 //     is INTACT through the one-click path: a reach-WIDENING bundle lands the row disabled + reconsent-pending,
 //     never a silent auto-update;

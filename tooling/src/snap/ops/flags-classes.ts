@@ -3,7 +3,7 @@
 // when that file crossed the tooling line cap (docs/law/Core-Tooling-Law.md §4.3) — these
 // Sets are read-only classification data, distinct from the dispatch table they describe.
 //
-// THE ARM MEMBERS ARE DERIVED, NOT LISTED (docs/design/1208-instrument-substrate.md §6). Every arm flag
+// THE ARM MEMBERS ARE DERIVED, NOT LISTED. Every arm flag
 // declares its own consumption `kind` on its `ArmDef.flags` row, and the registry folds those into the
 // classes below. Two of these Sets — the optional-selector and optional-value classes — turned out to be
 // ENTIRELY arm-owned, which is the tell that the split was real: they exist because arms scope

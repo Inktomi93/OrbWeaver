@@ -1,5 +1,5 @@
-// CT: `useSessionRecovery` — the mount that arms the session machinery (staleness-and-session-freshness.md
-// §4.4). A wiring hook has no pixels, and that is exactly why it needs a test: every failure mode here is
+// CT: `useSessionRecovery` — the mount that arms the session machinery.
+// A wiring hook has no pixels, and that is exactly why it needs a test: every failure mode here is
 // SILENT. An un-bound durable-local namespace keeps writing the legacy `orb:<name>` key, so the next
 // identity on this browser inherits the previous one's tag filters, drafts and view state — the reported
 // repro, restored by omission.

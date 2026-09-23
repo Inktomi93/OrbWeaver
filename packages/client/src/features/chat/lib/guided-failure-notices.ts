@@ -12,7 +12,7 @@
 // for every unclassified 500 rather than letting a raw throw's text through. So the detail below is host
 // copy on every path that reaches it — which is what made quoting it safe in the first place.
 //
-// IT USED TO BE TWO (chat-creation-draft-mode-replacement.md §4.4, R1). `notifyOpeningFailure` was START-1's
+// IT USED TO BE TWO (D166). `notifyOpeningFailure` was START-1's
 // honest degrade: a `generate` opening could fail on a `startChat` that had ALREADY committed the room, so the
 // failure arrived as DATA on a successful mutation and the toast had to say the room survived. Creation and
 // generation are unfused now — a generated opening is an ordinary turn against a room that already exists —

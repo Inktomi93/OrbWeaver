@@ -261,7 +261,7 @@ rather than one directory symlink, which is required and not cosmetic: CT and e2
 straight into it with Playwright, and file headers across `packages/` cite individual shots as durable
 evidence.
 
-**The STATEFUL SESSION (#1231, `docs/design/1208-instrument-substrate.md` §3.7–§3.8).** A `pnpm snap --session <name> …` call is still ONE run with ONE slot — the CLIENT opens it (`withInstrumentRun("snap")`)
+**The STATEFUL SESSION (#1231).** A `pnpm snap --session <name> …` call is still ONE run with ONE slot — the CLIENT opens it (`withInstrumentRun("snap")`)
 and the session DAEMON adopts it for the call's artifacts through the explicit-slot form
 `beginInstrumentRun(instrument, root, { slotDir })` (`_shared/artifact-out.ts`): an adopted slot gets no
 marker and is never published by the adopter; the owner publishes at its own finish, so a killed call
