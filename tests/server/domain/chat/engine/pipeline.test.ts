@@ -52,7 +52,7 @@ function ctxOf(over: Partial<AssembleContext> = {}): AssembleContext {
     character: { name: "Aria", description: "a bold knight" },
     promptConfig: DEFAULT_PROMPT_CONFIG,
     activePersona: { name: "Alex", description: "the user" },
-    triggerUserId: FIXTURE_HUMAN,
+    activePersonaUserId: FIXTURE_HUMAN,
     recentMessages: [],
     ...over,
   };
@@ -1136,6 +1136,34 @@ describe("runTurnPipeline — roleHandling is the PRESET knob, clamped at SHAPE"
     const result = await runTurnPipeline(args);
     expect(assistantRows(result.request)).toHaveLength(1);
   });
+
+  // The resolved connection decides whether SHAPE keeps a run's stored rows apart: explicit caching in the
+  // capability AND an Anthropic model (`cachesByAnthropicMarkers`). The same `strict` cell on another family joins.
+  const caching = (model: string): Resolved<"chat"> => ({
+    ...CONNECTION,
+    factsModel: castId<ModelId>(model),
+    capability: makeCapability({
+      ...CAPABILITY,
+      turns: { assistantPrefill: false, midConversationSystem: false, historySystemRows: false, roleHandlingFloor: "strict", explicitPromptCache: true },
+    }),
+  });
+
+  // Stored rows: only a row with an id is canon, and only canon rows stay apart.
+  const twoStoredAssistants = [
+    userRow("u1"),
+    { ...assistantRow("First.", ARIA), id: mintTypeId(ID_PREFIX.message) },
+    { ...assistantRow("Second.", KAI), id: mintTypeId(ID_PREFIX.message) },
+  ];
+
+  test("an Anthropic model that caches by explicit markers keeps the adjacent stored rows APART under `strict`", async () => {
+    const result = await runTurnPipeline(baseArgs({ canon: twoStoredAssistants, connection: caching("claude-sonnet-5") }).args);
+    expect(assistantRows(result.request)).toHaveLength(2);
+  });
+
+  test("a non-Anthropic model with the same cell still MERGES them (the family is part of the gate)", async () => {
+    const result = await runTurnPipeline(baseArgs({ canon: twoStoredAssistants, connection: caching("google/gemini-3-pro") }).args);
+    expect(assistantRows(result.request)).toHaveLength(1);
+  });
 });
 
 // The `squashSystemMessages` PROMPT knob (`params.advanced`, ST-imported from
@@ -1267,7 +1295,7 @@ describe("runTurnPipeline — the wire name-stamp axis (F4)", () => {
     expect(historyText(result.request)).toContain("Mara: hi there");
   });
 
-  // Still true, and now for a STATED reason: the row is the TRIGGER'S OWN (`authorUserId === triggerUserId`),
+  // Still true, and now for a STATED reason: the row is the active persona owner's (`authorUserId === activePersonaUserId`),
   // which is the only case SHAPE's null-stamp guard lets borrow `speakers.user`. A null-stamp row authored by
   // someone else takes the unresolvable floor instead — pinned in `assembly/shape.test.ts`.
   test("a null-stamp user row still falls back to the active persona (byte-identical to pre-F4)", async () => {

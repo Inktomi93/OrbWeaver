@@ -11,7 +11,7 @@
 // the write path, the refusal, and the `dirty` verdict are all properties of it, not of the processor.
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { formatDocs, formatTargets } from "../../../../tooling/src/doc-catalog/index.ts";
+import { formatDocs, formatTargets } from "../../../../tooling/src/doc/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 /** Write `body` into the scratch dir and format it; returns the bytes on disk plus the outcome. */

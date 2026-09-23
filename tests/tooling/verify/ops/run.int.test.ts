@@ -475,7 +475,6 @@ test("the static tier is EXACTLY the known ordered stage set (the pre-commit `pn
     "imports:depcruise",
     "deps:knip",
     "docs:format",
-    "docs:catalog",
     // #1967: the AFFECTED subset of the instrument battery. `tests:tooling` stays `--full`-only (#1842 was
     // right about 71 CPU-minutes of recertification), but everything a declared proof row CANNOT express —
     // the §4.2 identity arm, the central grant table's boundaries, the §4.5 refusal and receipt pins — ran
@@ -610,18 +609,6 @@ test(
   // policy, and the seam is also the door that refuses a mis-spelled `ORB_BOX_LOAD` in a worker (#1666).
   scaledBudget(20_000),
 );
-
-test("docs:catalog changed scope covers all Markdown and its own control files", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
-  const design = resolveSelection({ kind: "file", paths: ["docs/Mission.md"] });
-  expect(stage("docs:format").scopedArgv?.(design)).toBe("skip-empty");
-  expect(stage("docs:catalog").scopedArgv?.(design)).toEqual(["pnpm", "check:doc-catalog"]);
-
-  const control = resolveSelection({ kind: "file", paths: ["docs/catalog/lanes.json"] });
-  expect(stage("docs:catalog").scopedArgv?.(control)).toEqual(["pnpm", "check:doc-catalog"]);
-
-  const sourceOnly = resolveSelection({ kind: "file", paths: ["packages/server/src/index.ts"] });
-  expect(stage("docs:catalog").scopedArgv?.(sourceOnly)).toBe("skip-empty");
-});
 
 test("resolveSelection: a DELETED path lints clean — dropped from the tool file-lists, KEPT in paths + its tsconfig", {
   timeout: AFFECTED_PLAN_TIMEOUT,
@@ -804,8 +791,8 @@ test("types:native per --package runs every imported consumer exactly once", { t
 // unclassified"; "a policy's proofs are its own fixtures, not a property of any changed file".
 // `scopedArgv === undefined` was the PROXY for that ruling, not the ruling.
 //
-// #2277 gives eight of them a PATH TRIGGER, plus `docs:catalog` whose original this generalises
-// (../../../../tooling/src/verify/lib/registry-triggers.ts): at a
+// #2277 gives eight of them a PATH TRIGGER (../../../../tooling/src/verify/lib/registry-triggers.ts,
+// which also carried the retired `docs:catalog` stage's own bespoke version of this mechanism): at a
 // scoped tier they now run their OWN WHOLE `argv` when the selection touches the paths that can change
 // their verdict, and `skip-empty` when it does not. The trigger changes WHEN a stage runs and never WHAT
 // it reads — so the ruling is untouched and the proxy is obsolete.

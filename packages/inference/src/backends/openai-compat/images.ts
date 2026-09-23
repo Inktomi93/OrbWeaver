@@ -138,7 +138,17 @@ export async function runOpenAiCompatGenerateImage(req: ImageGenerateRequest, de
     throw new ProviderError({ kind: "invalid", retryable: false, message: `${label}: the connection's row declares no image-generation arm` });
   }
   const warnings: ResolvedWarning[] = [];
-  const call: ModelCall = { connection, deps: deps.transport, label, api: "generateImage", plan: null, prefillAllowed: false, replyImages: false, warnings };
+  const call: ModelCall = {
+    connection,
+    deps: deps.transport,
+    label,
+    api: "generateImage",
+    plan: null,
+    prefillAllowed: false,
+    foldSameRole: false,
+    replyImages: false,
+    warnings,
+  };
   try {
     return arm === "images-api" ? await runImagesApi(req, deps, call, warnings) : await runChatModalities(req, deps, call, warnings);
   } catch (err) {

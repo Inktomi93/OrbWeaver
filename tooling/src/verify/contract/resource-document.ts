@@ -50,15 +50,7 @@ export interface MarkdownDocument {
   readonly links: readonly MarkdownLink[];
 }
 
-/** `listed` means the committed catalog names this exact path; `unlisted` means it does not. Neither is a
- *  verdict — the catalog gate owns whether an unlisted document is a defect.
- *  @public knip type-face false positive — a structural field (`catalog`) of the exported `DocumentFacts` shape, never
- *  referenced by its own name at any call site. */
-export type DocumentCatalogStatus = "listed" | "unlisted";
-
-export interface DocumentFacts extends MarkdownDocument {
-  readonly catalog: DocumentCatalogStatus;
-}
+export type DocumentFacts = MarkdownDocument;
 
 /** A corpus member the reader could not serve. It is a ROW, never a silent drop: a dropped document is
  *  absence, and absence is exactly how a citation policy reports a clean corpus it never read. */
@@ -73,14 +65,11 @@ export interface DocumentIndex {
   readonly documents: readonly DocumentFacts[];
   /** Members the reader refused, sorted by path. `documents.length + refusals.length` is the denominator. */
   readonly refusals: readonly DocumentRefusal[];
-  /** Catalog rows naming a path that is not a member of the corpus, sorted. A liveness fact, not a verdict. */
-  readonly catalogMisses: readonly string[];
 }
 
 /** The living-document tree. `documents()` claims the `docs/` corpus and nothing else — a root `AGENTS.md`
  *  or `README.md` is not a living document and is not silently folded in. */
 export const DOCUMENT_CORPUS_ROOT = "docs";
-export const DOCUMENT_CATALOG_PATH = "docs/catalog/catalog.json";
 
 /** How a ledger names its members: a flat tree whose members are the file names matching `member` (a
  *  file outside that grammar, such as the tree's generated index, is not a member). */

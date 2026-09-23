@@ -1,20 +1,24 @@
+import { DOC_TOOL_TREES } from "../../doc/contract/vocab.ts";
+import { parseFrontmatter } from "../../doc/lib/frontmatter.ts";
 import type { DocumentIndex } from "../contract/resource-document.ts";
-import type { JsonValue } from "../contract/resource-json.ts";
 import type { AuthoredTextCorpus } from "../contract/resource-text.ts";
 
-const LAW_AUTHORITIES: ReadonlySet<string> = new Set(["normative", "current-reference", "operational"]);
 const LIVING_STATUS = "active";
-const LINK_SCAN_DIRS: readonly string[] = ["docs/law"];
+/** The kinds `docs/law/*.md` and `docs/Mission.md` carry when they are standing law. */
+const LIVING_LAW_KINDS: ReadonlySet<string> = new Set(["law", "reference"]);
+const LINK_SCAN_DIRS: readonly string[] = [DOC_TOOL_TREES.law];
 /** Live program designs: each plan's `design.md`. A finished plan is deleted, so every one present is living. */
-const PLANS_DIR = "docs/plans";
+const PLANS_DIR = DOC_TOOL_TREES.plans;
 const PLAN_DESIGN_FILE = "design.md";
-/** The D-ledger (`docs/adr/`) is law and sits outside the catalog, so it is admitted by directory. */
-const AUDIT_SCAN_DIRS: readonly string[] = ["docs/law", "docs/adr"];
+/** The D-ledger (`docs/adr/`) is law and admitted by directory, unconditional on frontmatter. */
+const AUDIT_SCAN_DIRS: readonly string[] = [DOC_TOOL_TREES.law, DOC_TOOL_TREES.adr];
+const MISSION_PATH = "docs/Mission.md";
 
-export const CATALOG_REL = "docs/catalog/catalog.json";
 export const LAW_OUTSIDE_DOCS: readonly string[] = ["tooling/src/verify/gates/GATE-AUTHORING.md", "tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md"];
 
-type CatalogDoc = Readonly<Record<string, unknown>>;
+/** A path guaranteed to exist so a resource door demanded of ZERO selectors has one to read instead of
+ *  refusing outright — its identity is never inspected, only its presence. */
+export const ANCHOR_PATH = "docs/Mission.md";
 
 export interface DanglingRefCorpora {
   readonly links: readonly string[];
@@ -24,51 +28,23 @@ export interface DanglingRefCorpora {
   readonly design: number;
   readonly lawOutsideDocs: number;
   readonly lawOutsideDocsMissing: readonly string[];
-  readonly catalogued: number;
 }
 
 function inDirectories(paths: readonly string[], dirs: readonly string[]): readonly string[] {
-  return paths.filter((path) => dirs.some((dir) => path.startsWith(`${dir}/`)));
+  return paths.filter((path) => dirs.some((dir) => path.startsWith(dir)));
 }
 
-function recordOf(value: unknown): Readonly<Record<string, unknown>> | undefined {
-  return typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Readonly<Record<string, unknown>>) : undefined;
+/** A doc is living law when its own frontmatter says so — no separate census to go stale against the tree. */
+function isLivingLaw(text: string): boolean {
+  const fields = parseFrontmatter(text).fields;
+  return fields["status"] === LIVING_STATUS && LIVING_LAW_KINDS.has(fields["kind"] ?? "");
 }
 
-function fieldOf(doc: CatalogDoc, key: string): string | undefined {
-  const fields = recordOf(recordOf(doc["frontmatter"])?.["fields"]);
-  const value = fields?.[key];
-  return typeof value === "string" ? value : undefined;
-}
-
-function catalogDoc(value: unknown): CatalogDoc | undefined {
-  return recordOf(value);
-}
-
-function isLivingLaw(doc: CatalogDoc, available: ReadonlySet<string>): boolean {
-  const path = typeof doc["path"] === "string" ? doc["path"] : undefined;
-  const receipt = recordOf(doc["receipt"]);
-  const authority = typeof receipt?.["authority"] === "string" ? receipt["authority"] : undefined;
-  return path !== undefined && authority !== undefined && fieldOf(doc, "status") === LIVING_STATUS && available.has(path) && LAW_AUTHORITIES.has(authority);
-}
-
-function cataloguedLaw(value: JsonValue, available: ReadonlySet<string>): readonly string[] {
-  const docs = typeof value === "object" && value !== null && !Array.isArray(value) ? Reflect.get(value, "documents") : undefined;
-  if (!Array.isArray(docs)) {
-    throw new Error(`${CATALOG_REL} must contain a documents array`);
-  }
-  const law: string[] = [];
-  for (const raw of docs) {
-    const doc = catalogDoc(raw);
-    if (doc !== undefined && typeof doc["path"] === "string" && isLivingLaw(doc, available)) {
-      law.push(doc["path"]);
-    }
-  }
-  return law;
-}
-
-export function danglingRefCorpora(value: JsonValue, docPaths: readonly string[], outside: readonly string[]): DanglingRefCorpora {
-  const law = cataloguedLaw(value, new Set(docPaths));
+export function danglingRefCorpora(documents: readonly { readonly path: string; readonly text: string }[], outside: readonly string[]): DanglingRefCorpora {
+  const docPaths = documents.map((document) => document.path);
+  const textOf = new Map(documents.map((document) => [document.path, document.text] as const));
+  const lawCandidates = [...inDirectories(docPaths, [DOC_TOOL_TREES.law]), ...(docPaths.includes(MISSION_PATH) ? [MISSION_PATH] : [])];
+  const law = lawCandidates.filter((path) => isLivingLaw(textOf.get(path) ?? ""));
   const design = inDirectories(docPaths, [PLANS_DIR]).filter((path) => path.endsWith(`/${PLAN_DESIGN_FILE}`));
   const symbols = [...new Set([...inDirectories(docPaths, AUDIT_SCAN_DIRS), ...law, ...outside])].toSorted();
   const audit = [...new Set([...symbols, ...design])].toSorted();
@@ -81,7 +57,6 @@ export function danglingRefCorpora(value: JsonValue, docPaths: readonly string[]
     design: design.length,
     lawOutsideDocs: outside.length,
     lawOutsideDocsMissing: LAW_OUTSIDE_DOCS.filter((path) => !outside.includes(path)),
-    catalogued: law.length,
   };
 }
 

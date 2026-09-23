@@ -546,6 +546,11 @@ export function openRealCorpusLiveness(repoRoot: string, arms: readonly RealCorp
   return {
     assertBaseline: (): readonly string[] => {
       const measured = arms.filter((arm) => !isBatchable(arm));
+      if (measured.length === 0) {
+        // Every arm is an add arm, silent by construction: there is nothing to measure, and the dispatcher
+        // refuses an empty policy list.
+        return [];
+      }
       const baseline = pass(measured.map((arm) => arm.policy));
       expect(refusals(baseline), "the shared BASELINE pass refused, so its silence is not evidence").toEqual([]);
       const speaking = Object.fromEntries(

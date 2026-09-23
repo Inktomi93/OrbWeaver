@@ -29,7 +29,7 @@ export const eslintScheme = (s: number | null): 0 | 1 | 2 | 3 => {
   return s === EXIT_CLEAN ? EXIT_CLEAN : EXIT_VIOLATIONS;
 };
 
-/** Our OWN scheme-speaking node scripts (structure/scoped/verify/doc-catalog): 0/1/2/3 pass through;
+/** Our OWN scheme-speaking node scripts (structure/scoped/verify/doc): 0/1/2/3 pass through;
  *  an unexpected code is itself a tool error (2). */
 export const ownScheme = (s: number | null): 0 | 1 | 2 | 3 => {
   if (s === EXIT_CLEAN || s === EXIT_VIOLATIONS || s === EXIT_TOOL_ERROR || s === EXIT_MISUSE) {

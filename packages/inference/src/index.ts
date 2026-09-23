@@ -54,7 +54,7 @@ import { createRoleClientsFor } from "./roles/role-clients.ts";
 export { resolveClaudeExecutable } from "./backends/agent-sdk/executable.ts";
 export type { AgentToolResult, AgentToolSpec, SessionEntryWriter } from "./backends/agent-sdk/index.ts";
 export { createAgentToolServer } from "./backends/agent-sdk/index.ts";
-export { cacheDepthCovering, rowIndexAtCacheDepth } from "./backends/kit/cache-control.ts";
+export { cacheDepthCovering, cachesByAnthropicMarkers, rowIndexAtCacheDepth } from "./backends/kit/cache-control.ts";
 export { providerErrorFromHttp } from "./backends/kit/error-classify.ts";
 export { resolvedScrubSet } from "./backends/kit/sanitize.ts";
 export type {

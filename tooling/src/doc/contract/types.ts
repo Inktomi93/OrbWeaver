@@ -1,9 +1,17 @@
 // doc's shapes: the governed-tree snapshot the pure rules judge, the work item,
 // and the closed command union the cli dispatches on. A new verb is a new arm here plus its handler.
-import type { ITEM_KINDS, ITEM_STATES } from "#doc-catalog";
+import type { ITEM_KINDS, ITEM_STATES } from "./vocab.ts";
 
 export type ItemKind = (typeof ITEM_KINDS)[number];
 export type ItemState = (typeof ITEM_STATES)[number];
+
+/** One document's frontmatter block, as `lib/frontmatter.ts#parseFrontmatter` reads it. */
+export interface Frontmatter {
+  readonly present: boolean;
+  readonly malformed: boolean;
+  readonly fields: Readonly<Record<string, string>>;
+  readonly errors: readonly string[];
+}
 
 /** One tracked markdown file under a tree the tool governs, with its bytes. */
 export interface GovernedDoc {
@@ -170,4 +178,5 @@ export type DocCommand =
   | { readonly kind: "review"; readonly patterns: readonly string[] }
   | { readonly kind: "due"; readonly patterns: readonly string[] }
   | { readonly kind: "overview" }
-  | { readonly kind: "drift" };
+  | { readonly kind: "drift" }
+  | { readonly kind: "format"; readonly write: boolean; readonly files: readonly string[] };

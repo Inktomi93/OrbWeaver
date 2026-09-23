@@ -102,6 +102,7 @@ function runBatch(req: BatchRequest, deps: BatchDeps): Promise<SummarizeResult> 
     api: req.task,
     plan: null,
     prefillAllowed: false,
+    foldSameRole: false,
     replyImages: false,
     warnings: [],
     extraBody: samplingExtras(req.sampling),

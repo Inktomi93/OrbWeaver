@@ -54,16 +54,17 @@ export function observabilityOptions(debug: boolean, log: AgentSdkLog): { debug?
   };
 }
 
-/** The text the dynamic-context hook injects for this context, or `null` when it mounts no hook. The one
+/** The text the tail-system hook injects for this context, or `null` when it mounts no hook. The one
  *  spelling of that rule: the hook below and the runner's wire capture both read it. */
 export function hookContextOf(context: string): string | null {
   const text = context.trim();
   return text.length > 0 ? text : null;
 }
 
-// Mid-conversation operator-context seam: a UserPromptSubmit hook injecting additionalContext adjacent to
-// the user prompt. Cache-safe by construction: the static system prompt and resumed history stay byte-stable.
-export function dynamicContextOptions(context: string): Pick<Options, "hooks"> {
+// Mid-conversation operator-context seam: a UserPromptSubmit hook injecting the tail system rows as
+// additionalContext beside the user prompt, their own position. The system prompt and resumed history stay
+// byte-stable.
+export function tailSystemOptions(context: string): Pick<Options, "hooks"> {
   const text = hookContextOf(context);
   if (text === null) {
     return {};

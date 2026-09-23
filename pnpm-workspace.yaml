@@ -298,7 +298,7 @@ catalog:
   minisearch: ^7.2.0
   # toPlainText: markdown→plaintext previews via the same unified pipeline as Streamdown (D54).
   remark: ^15.0.1
-  # docs formatter (tooling/src/doc-catalog/ops/format.ts): frontmatter passthrough + compact GFM tables
+  # docs formatter (tooling/src/doc/ops/format.ts): frontmatter passthrough + compact GFM tables
   # (tablePipeAlign:false) — the style is .claude/rules/writing.md §Markdown.
   "remark-frontmatter": ^5.0.0
   "remark-gfm": ^4.0.1

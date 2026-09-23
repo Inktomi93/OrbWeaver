@@ -178,9 +178,9 @@ export function execNicedSync(cmd: string, args: readonly string[], opts: Captur
 }
 
 /** Sync exec under `nice -n 19` returning RAW BYTES — the same throw-on-non-zero semantics as
- *  execNicedSync. Exists because a caller that HASHES its output (doc-catalog's `git show <commit>:<path>`
- *  → sha256) must never round-trip through a utf8 decode: the receipt hash has to be over the blob's
- *  bytes, not over a re-encoding of them. */
+ *  execNicedSync. Exists because a caller that HASHES its output (a `git show <commit>:<path>` → sha256)
+ *  must never round-trip through a utf8 decode: the hash has to be over the blob's bytes, not over a
+ *  re-encoding of them. */
 export function execNicedSyncBuffer(cmd: string, args: readonly string[], opts: { readonly cwd?: string } = {}): Buffer {
   try {
     return execFileSync("nice", ["-n", "19", cmd, ...args], {

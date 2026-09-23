@@ -346,7 +346,6 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
   const secrets = resolvedScrubSet(connection);
   const plan = buildWirePlan({
     systemPrompt: req.systemPrompt,
-    dynamicContextChannel: knobs.dynamicContextChannel,
     history: req.history,
     rowOptions: rowOptionsFor(generation, warnings),
     splitSystem: true,

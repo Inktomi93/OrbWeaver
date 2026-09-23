@@ -446,8 +446,8 @@ test("state store mirrors are NOT all .ct.tsx — the false premise that made cl
  *  `.suite.repo.int.test.ts` kinds — this file is one of the renamed members — and `mirror: "suite"` is the
  *  declared cross-cutting-property exemption both mirror arms honour (`test-layout.ts` §4.7 tooling arm and
  *  the package arm; the exemption's own proof row is `test-layout` `mustPass[6]`). The two NAMED exceptions
- *  the park carried went the same way: `tests/tooling/doc-catalog/ops/catalog-scope.suite.test.ts` and
- *  `tests/tooling/verify/lib/bus-fact-relay.suite.test.ts` both carry `.suite.` today.
+ *  the park carried went the same way: a since-retired catalog-scope suite (its whole module tree is gone) and
+ *  `tests/tooling/verify/lib/bus-fact-relay.suite.test.ts` both carried `.suite.` while they existed.
  *
  *  RECEIPT, this tree: `pnpm check:structure --check test-layout` reports ZERO members of the class
  *  (`population 0 source · 8474 resource`). The only two findings left were PACKAGE-arm misses of a
