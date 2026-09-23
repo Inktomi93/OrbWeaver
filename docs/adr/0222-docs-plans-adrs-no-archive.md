@@ -1,21 +1,21 @@
 ---
 kind: adr
-status: superseded
+status: active
 updated: 2026-09-23
-superseded-by: docs/adr/0222-docs-plans-adrs-no-archive.md
+supersedes: docs/adr/0164-docs-plans-adrs.md
 ---
 
 # Docs, plans and ADRs are markdown with one structural writer
 
 ## Context
 
-The docs tree had grown past two thousand tracked files across three history homes, two review homes, a flat design drawer and a vendored third-party mirror. The decision ledger lived in a few files large enough that agents patched their middle and broke their structure. The catalog that was meant to keep docs fresh pinned a whole-file hash per document, so a one-line edit invalidated a review and a rebase orphaned its commit; a sizeable share of every day's commits touched the catalog alone. Mutable work state lived on a GitHub project board that throttled and rotted. The authors are cold agents, so the structure has to carry the memory.
+The docs tree had grown past two thousand tracked files across three history homes, two review homes, a flat design drawer and a vendored third-party mirror. The decision ledger lived in a few files large enough that agents patched their middle and broke their structure. The catalog that was meant to keep docs fresh pinned a whole-file hash per document, so a one-line edit invalidated a review and a rebase orphaned its commit; a sizeable share of every day's commits touched the catalog alone. Mutable work state lived on a GitHub project board that throttled and rotted. The authors are cold agents, so the structure has to carry the memory. Supersedes [ADR 0164](0164-docs-plans-adrs.md), whose Decision described an unbuilt `pnpm doc archive` verb and archive folder for done plans; no such verb or folder was ever built.
 
 ## Decision
 
-Docs are markdown in git, in four homes plus the mission doc: `docs/law/` for standing law, `docs/adr/` for one decision per file, `docs/plans/<slug>/` for a program's design, and `docs/work/` for one work item per file. Done plans move to the archive folder under `docs/plans/`, the one history home. Agent run output leaves `docs/`; vendored docs leave git.
+Docs are markdown in the repository, in four homes plus the mission doc: `docs/law/` for standing law, `docs/adr/` for one decision per file, `docs/plans/<slug>/` for a program's design, and `docs/work/` for one work item per file. A plan with no open item has finished: its lasting knowledge moves into an ADR or law first, then the plan is deleted with `pnpm doc remove`; the repository's history holds the rest, so a finished plan is never archived. Agent run output leaves `docs/`; vendored docs leave the tracked tree.
 
-Agents write prose only. Every structural change goes through `pnpm doc` (`tooling/src/doc/`): numbering, status and supersession, work-item transitions and landing, archiving with link rewrites, and the generated indexes. The tool rewrites a file's frontmatter block or a whole generated file; it never edits inside prose.
+Agents write prose only. Every structural change goes through `pnpm doc` (`tooling/src/doc/`): numbering, status and supersession, work-item transitions and landing, deletion with citer refusal, and the generated indexes. The tool rewrites a file's frontmatter block or a whole generated file; it never edits inside prose.
 
 One checker, `pnpm check:agents`, covers the new tree: frontmatter schema per kind, required sections per kind, size caps per kind, allowed folders, generated-index freshness, dead links and paths, and the writing rules on history, counts and banned words. The rules live in `tooling/src/doc/lib/rules.ts` and `tooling/src/_shared/prose-rules.ts`; `.claude/rules/writing.md` is the one style law.
 
@@ -29,7 +29,7 @@ Work items have four states (`open`, `doing`, `blocked`, `done`); any transition
 
 A new document costs its prose and nothing else: no lane row, no attestation, no regenerated catalog. The legacy catalog's hash-bound attestation is removed at once, not with the migration: its rows carry a path and an authority only, so a legacy prose edit reds nothing there either. A structural mistake is caught by the checker with the fixing command in the message. The legacy tree keeps its current checker until each folder migrates (`docs/plans/doc-migration/design.md`), and a migrated file must satisfy the new rules on landing; there is no grandfather exemption and no compatibility path, so the red is the to-do list.
 
-The ledger split is one commit that re-points the D-citation gate at the ADR tree; the five thousand bare `D<n>` citations in code do not move because the numbers do not change.
+The ledger split is one commit that re-points the D-citation gate at the ADR tree; the five thousand bare `D<n>` citations in code do not move because the numbers do not change. A finished plan leaves no trace under `docs/plans/` beyond the repository's own commit history; a reader who wants why a removed plan existed reads the ADR or law entry its knowledge moved into, or the deletion commit itself.
 
 ## Alternatives rejected
 
@@ -46,3 +46,4 @@ The ledger split is one commit that re-points the D-citation gate at the ADR tre
 - A `## Status` section on an ADR: frontmatter `status` already holds it, and a second home for the same fact drifts.
 - Work items as lines in a plan's `tasks.md`: no room for the four required sections or a blocker reason, and two lanes editing one `tasks.md` collide.
 - The post-merge hook leaving its writes uncommitted: an uncommitted `main` blocks the next merge, so the hook commits under the standing commit contract with the whole-tree check excluded.
+- An archive folder under `docs/plans/` for done plans: a done plan's lasting knowledge already has a home in an ADR or law, the repository already keeps the deleted file's history, and a second copy of a finished plan drifts from the record it was folded into.

@@ -7,7 +7,7 @@ updated: 2026-09-23
 # Docs and work items
 
 How the repository records decisions, standing rules, programs and open work, and how that record
-stays true. [ADR 0164](../adr/0164-docs-plans-adrs.md) records why it has this shape. For mechanics,
+stays true. [ADR 0222](../adr/0222-docs-plans-adrs-no-archive.md) records why it has this shape. For mechanics,
 agents follow `.claude/rules/docs.md`, and for style, `.claude/rules/writing.md`.
 
 ## The homes
@@ -39,7 +39,7 @@ item and a finished plan are deleted.
 An ADR records one decision at a point in time: the context that forced it, the ruling, and the
 alternatives rejected. It is immutable; a later ADR supersedes it. Reach for an ADR when someone will
 later ask "why is it like this?", or will propose an option that was already turned down. For example,
-[ADR 0164](../adr/0164-docs-plans-adrs.md) records why the docs tree has one structural writer.
+[ADR 0222](../adr/0222-docs-plans-adrs-no-archive.md) records why the docs tree has one structural writer.
 
 Law states a standing rule or mechanism that current work must follow, and it is edited in place when the
 rule changes. Reach for law when an agent needs to know "how do I do X here?". For example,
