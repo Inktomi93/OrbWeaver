@@ -12,7 +12,7 @@
 // `entry/compose/rpg.ts`. Neither identifier exists on the tree — `git log -S"RosterRefIndex"` finds them
 // renamed to `ActorRefIndex`/`buildActorRefIndex` by `e8fe045a5` ("#905 — C3b: retire generic roster"),
 // WELL BEFORE #1774 was ever filed. The row's "STILL OWED" line is stale residue from the 2026-08-30
-// research doc it quotes verbatim (2026-08-30:257`, itself now
+// research doc it quotes verbatim (2026-08-30, :257), itself now
 // stale — its own cited line numbers `entry/compose/rpg.ts:83,95,818` don't match current code either).
 // Nothing to rename under those two names; the row's status line is corrected below instead of repeating
 // the stale claim forward.
