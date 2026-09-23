@@ -1,5 +1,5 @@
-// domain/roster-preset — front door: the only legal external import. Saved rosters (D61 B6; build
-// record: docs/history/design/saved-rosters-build-record.md). The cross-boundary wire types
+// domain/roster-preset — front door: the only legal external import. Saved rosters (D61 B6,
+// D170). The cross-boundary wire types
 // (RosterPresetView/RosterPresetSummary/ApplyRosterPresetResult + the create/update schemas) live in
 // @orb/contracts/roster-preset; callers import them from there directly, not through this door.
 

@@ -144,8 +144,8 @@ const NON_PORTABLE_CANON: Readonly<Record<string, NonPortableRow>> = {
     classification: "DEFERRED",
     why:
       "#26 (D61 B6) — saved parties are owner-authored library artifacts (the tag/theme class, so PORTABLE in spirit), but v1 shipped " +
-      "without a portable kind by the program doc's own scope (saved-rosters-design.md §7 names no portability; build record " +
-      "docs/history/design/saved-rosters-build-record.md). A party is a name + FKs into the owner's character library, so a portable kind must " +
+      "without a portable kind by the program doc's own scope (saved-rosters-design.md §7 names no portability; D170). " +
+      "A party is a name + FKs into the owner's character library, so a portable kind must " +
       "resolve members by the characters the bundle also carries. Ends when `roster-preset` registers a PORTABLE_KINDS member " +
       "(serde + verbs + descriptor + import-order slot AFTER characters + round-trip pin).",
   },

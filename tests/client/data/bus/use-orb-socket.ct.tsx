@@ -167,7 +167,7 @@ test("TWO rooms cost ONE connect, and each room's frames reach only its own cons
 });
 
 // ── W1: the SUBSCRIPTION path is a session sensor ────────────────────────────────────────────────────
-// The defect this pins (staleness-and-session-freshness.md §2.3 hole 2): the socket's UNAUTHORIZED was the
+// The defect this pins (hole 2): the socket's UNAUTHORIZED was the
 // ONLY signal a warm tab ever got that its cookie had died — with `staleTime: Infinity` and
 // `refetchOnWindowFocus: false` (D54) it issues no reads, so the QueryCache belt has nothing to fire on —
 // and it ended at `notify.error`. A toast, then business as usual on a dead session. RED-FIRST RECEIPT:

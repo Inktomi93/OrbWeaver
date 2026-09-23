@@ -393,7 +393,7 @@ covered in §Limits.
 | trailing continuation nudge | `shape.ts:222-226` — a canon ending on `assistant` gets `CONTINUATION_NUDGE` so the request ends on user | `assembly/shape.ts:219-226` |
 | name-stamp BEFORE squash (ST does it before too, but deletes `name`) | `shape.ts:202-204` states the reason: adjacent distinct-character rows must keep every speaker's label inside a merged block | `assembly/shape.ts:213` |
 | `completion` mode inlines the speaker when the strategy merges | `assembly/names.ts` header — a surviving `name` blocks the merge and strict backends reject the adjacent same-role pair | `assembly/names.ts:9-27` |
-| demoted system rows marked `speakerless` | INJECT-NAMED-AS-PLAYER fix `34bdc39f3` | `docs/history/dogfood-tracking-2026-08-08.md:456` |
+| demoted system rows marked `speakerless` | INJECT-NAMED-AS-PLAYER fix `34bdc39f3` | the fix commit |
 
 ### Findings — divergences with no recorded ruling
 
@@ -427,7 +427,7 @@ This is the exact class [[identity-macro-chat-owned]] warns about (Ruling B — 
 name-stamp is *"Applied AFTER squash"*. `shape.ts:1-4` says *"name-stamp → squash same-role. Name-stamp runs
 before the final squash."* The code agrees with `shape.ts`: `shape.ts:213` is
 `runSquash(applyNamesBehavior(injected, …))` — stamp first, squash second. The dogfood entry
-(`dogfood-tracking.md`, root-cause step 2) also reads it as "names first, squash second". Per
+(the dogfood root-cause notes, step 2) also reads it as "names first, squash second". Per
 Documentation-Law §1 a lying comment is a defect; `names.ts`'s clause is one. Not fixed here — this lane's
 floor is one doc.
 

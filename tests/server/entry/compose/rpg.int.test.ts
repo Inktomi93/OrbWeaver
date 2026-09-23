@@ -2821,7 +2821,7 @@ test("POPULATE (real round): a connection with NO structured writer runs no roun
 });
 
 // ── PROSE-1 POPULATE: the born-state round's own prose is SLOTTED, and its bytes did not move ─────────
-// The populate census (`docs/history/design/prose-1-populate-census.md`) rows 1-7 — the round's system header, its
+// The populate census rows 1-7 — the round's system header, its
 // inline IDENTITY clause, the invent-nothing doctrine, and the four user-turn labels — stopped being source
 // constants and became `rpg.populate.*` slot rows resolved against the GM PRESET's `promptConfig.prose`.
 //

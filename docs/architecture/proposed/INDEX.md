@@ -20,7 +20,6 @@ and dependency lists are not lifecycle authority; Project relations own the curr
 | `tool-use-design/` | **REALIZED** | [#28](https://github.com/Inktomi93/orbweaver/issues/28) |
 | `agent-principal-design/` | **FUTURE** | [#13](https://github.com/Inktomi93/orbweaver/issues/13) |
 | `agent-tool-propose-spec.md` | **SUPERSEDED** | [#14](https://github.com/Inktomi93/orbweaver/issues/14) |
-| ~~`saved-rosters-design.md`~~ (DELETED 2026-08-28 — superseded by [`interaction-direction-spec.md`](../../design/interaction-direction-spec.md) row B10 "saved casts"; BUILT as `domain/roster-preset`, record: [`saved-rosters-build-record.md`](../../history/design/saved-rosters-build-record.md)) | **REALIZED** | [#26](https://github.com/Inktomi93/orbweaver/issues/26) |
 | `hub-browse-design/` | **SUPERSEDED** | [#21](https://github.com/Inktomi93/orbweaver/issues/21) |
 | `imagery-design/` | **REALIZED** | [#22](https://github.com/Inktomi93/orbweaver/issues/22) |
 | `expressions-design/` | **PARTIAL** | [#20](https://github.com/Inktomi93/orbweaver/issues/20) |

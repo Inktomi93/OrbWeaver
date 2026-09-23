@@ -7,7 +7,7 @@
 // the spider "turbo" — WEAVE_TIME_SCALE calms it (§9.4 tweak 2). The timeline never gates the veil's
 // exit: the boot veil dissolves the instant the app is ready, mid-weave included (§9.3).
 //
-// A host may run the whole map FASTER or slower with the `tempo` prop (weave-lab-upgrades.md §5) —
+// A host may run the whole map FASTER or slower with the `tempo` prop —
 // that scales the CLOCK the component feeds in, never these numbers: one timeline, one set of beats.
 
 /** The build phases, in laying order — the boot veil's caption axis (§5.5 one importable union). */

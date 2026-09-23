@@ -8,7 +8,7 @@
 // it — `authed-app.tsx` imports the assembled registry and hands it to `makeHomeSection`, which is the same
 // blind consumption it always did.
 //
-// The HOME-TILE contributor seam (§6c / home-section-spec §3.2) — the whole point of the home section: a
+// The HOME-TILE contributor seam — the whole point of the home section: a
 // feature raises a tile, home skims it. Adding "future stuff" to home is ONE co-located file in the OWNING
 // feature plus ONE array member HERE — home is never edited. Canonical `(order, id)` at the door: chat's
 // masthead line is order 0, its recents hero 10, its also-open list 15, the face shelf 20 and temp chat 30;

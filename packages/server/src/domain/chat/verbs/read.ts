@@ -1482,7 +1482,7 @@ function actionTemplateText(config: PromptConfig, id: TemplateDefId): string {
   return stored.trim() === "" ? DEFAULT_FORMAT_STRINGS[id] : stored;
 }
 
-/** `previewActionTemplates` (D8 / preset-surface-redesign §7.1) — every ACTION template of ONE preset,
+/** `previewActionTemplates` — every ACTION template of ONE preset,
  *  resolved against THIS chat, for the preset editor's BOUND readout.
  *
  *  HOST/ADMIN (`requireHost`, matrix `previewActionTemplates: "host"`): a rendered template resolves the

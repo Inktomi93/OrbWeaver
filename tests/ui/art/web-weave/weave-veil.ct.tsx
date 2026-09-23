@@ -1,4 +1,4 @@
-// <WeaveVeil> CT (docs/history/design/login-loading-screen.md §4.3/§9.4/§9.8) — the boot veil's contract:
+// <WeaveVeil> CT — the boot veil's contract:
 //   • it renders a labelled role="status" layer over the page, riding the BACKGROUND token;
 //   • the exit is a real transition that finishes into an UNMOUNT (transitionend, not a timer) and
 //     fires `onExited` exactly at that seam — the load-gated dissolve the boot veil builds on;

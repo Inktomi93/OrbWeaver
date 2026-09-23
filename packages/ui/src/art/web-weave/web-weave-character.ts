@@ -1,4 +1,4 @@
-// WHO THE WEAVER IS — her pose shape and her character presets (weave-lab-upgrades.md §3).
+// WHO THE WEAVER IS — her pose shape and her character presets.
 //
 // This module exists to be the FLOOR of the spider trio: the pose engine (web-weave-spider.ts), the
 // prey machine (web-weave-prey.ts) and the painter (web-weave-spider-body.ts) all speak these types,

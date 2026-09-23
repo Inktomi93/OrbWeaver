@@ -959,7 +959,7 @@ test("a persisted filter for a DELETED tag still renders a clearable chip (it ca
   await expect(row(component, "Bolt")).toBeVisible();
 });
 
-// W5 — REFERENTIAL INTEGRITY AT READ (staleness-and-session-freshness.md §4.2.2). The chip above made the
+// W5 — REFERENTIAL INTEGRITY AT READ (D138). The chip above made the
 // dead filter VISIBLE; this makes it INERT. A persisted include-id whose tag no longer exists can never match
 // a row, so under the server's AND-semantics it vetoes the ENTIRE library — the owner's import repro, whose
 // only cure was wiping localStorage. A reference that can never match must never veto: the authority is the

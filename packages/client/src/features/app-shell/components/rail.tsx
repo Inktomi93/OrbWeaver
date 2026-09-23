@@ -78,7 +78,7 @@ function RailChromeEntry({
   return <RailButton active={active} icon={entry.icon} label={entry.label} mobile={mobile} {...modalIdProp} onClick={onClick} />;
 }
 
-/** The BRAND cell as a real affordance (home-section-spec §4.1). The Weave glyph was a decorative
+/** The BRAND cell as a real affordance. The Weave glyph was a decorative
  *  `aria-hidden` div; when a section claims the `rail.brand` zone it becomes a named button that navigates
  *  there, active-skinned and `aria-current`-marked like every other rail button. AppShell still never
  *  spells a section id — it renders the entry the registry derived from that section's own `rail`
@@ -240,7 +240,7 @@ export function Rail({ activeSection, onSelectSection, onOpenModal }: RailProps)
       )}
 
       {/* The brand cell is `display:none` below 48rem, so the brand section rides the mobile bar as its
-          FIRST tab instead (home-section-spec §4.3) — the `mobileOnly` mechanism the You tab already uses.
+          FIRST tab instead — the `mobileOnly` mechanism the You tab already uses.
           Exactly one of the two is ever displayed, so there is no duplicate affordance in the a11y tree
           (pinned: rail.ct.tsx "exactly one Home affordance at each width", #1790).
 

@@ -1795,7 +1795,7 @@ export function TemporaryNewChatPickerStory(): ReactElement {
   );
 }
 
-/** CREATE-ON-START-CLICK (chat-creation-draft-mode-replacement.md §4.1): the picker AND the chats
+/** CREATE-ON-START-CLICK (D166): the picker AND the chats
  *  section's real CONTENT in one mount, so a Start click can be followed all the way into the room it
  *  lands in. The room arrives through the REAL registry path (`registry.get("chats").content()`), so what
  *  the CT drives is the production composition, not a hand-wired surface. */
@@ -1942,7 +1942,7 @@ function ChatDeletedDriver(): ReactElement {
   );
 }
 
-/** The chat room in its GREETING WINDOW (chat-creation-draft-mode-replacement.md §4.8 / F6, R3): a room
+/** The chat room in its GREETING WINDOW (D166): a room
  *  whose canon is seeded greetings and whose first user turn has not happened yet. That window is what makes
  *  a greeting steppable among its card's alternates — after the first user turn `freezeGreetingVolatiles`
  *  bakes it and the server refuses. Same harness as the plain room story; the `.ct.tsx` supplies the canon

@@ -24,7 +24,7 @@ export const TEST_IDS = {
   firstRunError: "first-run-error",
   accountSurface: "account-surface",
   accountLogout: "account-logout",
-  // The rung-1 in-app re-auth modal body (staleness-and-session-freshness §4.4) — the affordance that
+  // The rung-1 in-app re-auth modal body — the affordance that
   // proves a dead LOCAL session recovers WITHOUT a navigation.
   reauthSurface: "reauth-surface",
   firstRunPersonaDialog: "first-run-persona-dialog",

@@ -1,5 +1,5 @@
 // The condensed orb-web GLYPH — the brand mark's parametric form (docs/design/
-// login-loading-screen.md §8 "one emblem, every scale": the favicon IS the settled web's final
+// D173 "one emblem, every scale": the favicon IS the settled web's final
 // frame, and this module is that frame as maths). Split from web-weave-geometry.ts under the
 // component-size-ui cap; consumed by the icon seal (primitives/icons/orb-web.ts), the client
 // WeaveGlyph mark, and WebSpinner's dash metrics. Pure — no DOM, no colors.

@@ -7,7 +7,7 @@
 // micro-caps over a hairline, so the meta tabs wore settings-modal clothes in an instrument. `kicker` is the
 // same `<h3>` (the document outline is unchanged) in the tier's own voice.
 //
-// D-1 (owner ruling 2026-07-31, `docs/history/design/context-panel-fidelity-findings.md` §2/§4): the merge had
+// D-1: the merge had
 // stacked FIVE unrelated concerns in one flat list ("a whole menu got garbled together"). The HOST-OPS trio
 // — Background · Group behavior · Tool use — now sits under its own "Host controls" group, which is also
 // exactly the permission line: everything above it any member may set, everything inside it is host-only.
@@ -36,7 +36,7 @@
 // contributing feature (`client-features-no-cross`). Automation's Rules is the first tenant — it shipped
 // as a 5th host TAB and was retired to a section here in the same change.
 //
-// THE DRAFT TWIN IS GONE (chat-creation-draft-mode-replacement.md §4.9, R1). `DraftSettingsTab` rendered
+// THE DRAFT TWIN IS GONE (D166). `DraftSettingsTab` rendered
 // draft-config-store-backed copies of Field overrides / Injections / Group behavior for a room with no
 // server row — and could not offer Background, Documents, Macro picks, Appearance or Tool use at all,
 // because each needs a `chatId`. The room has one from the creation click, so this tab is the whole tab in

@@ -291,7 +291,7 @@ export const TABLE_SCOPING_ROWS: readonly ScopingRow[] = [
   {
     table: "refinery_runs",
     scope: "parent",
-    why: "refinery append-only run log — scope derives through `refinery_sessions` → `characters.ownerId` (two required FKs; docs/history/design/refinery-r0.md §3.1).",
+    why: "refinery append-only run log — scope derives through `refinery_sessions` → `characters.ownerId` (two required FKs).",
   },
   {
     table: "refinery_sessions",

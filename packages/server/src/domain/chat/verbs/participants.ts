@@ -620,7 +620,7 @@ function createGetRoomOverridesForChat(ctx: ChatContext): ChatService["getRoomOv
 }
 
 /**
- * F6 (chat-creation-draft-mode-replacement.md §4.8/§5, arm (a)) — the IN-WINDOW join greeting. A character
+ * F6 (D166, arm (a)) — the IN-WINDOW join greeting. A character
  * added while the room's greeting window is still open greets, exactly as a founding member does; after the
  * window closes the join stays silent (today's late-add semantics). This preserves the one affordance the
  * deleted draft plane had here: a panel-added member's greeting row appeared before the first send, and

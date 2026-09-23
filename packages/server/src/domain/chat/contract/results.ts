@@ -462,7 +462,7 @@ export interface DrainReport {
 /** `startChat` — the lazily-created chat (+ roster) and the seeded opening, if any. `opening` is null when
  *  the resolved policy seeded no greeting (`none`, or a founding character with no card greeting). The
  *  `generate` opening + its `openingFailure` DEGRADED-NOT-BROKEN apparatus (START-1) retired with the
- *  creation-time draft carry (chat-creation-draft-mode-replacement.md §4.4/R2) — "guide the opening" is
+ *  creation-time draft carry (D166) — "guide the opening" is
  *  now an ordinary post-creation turn against the real room, so a failed generation is just a failed
  *  turn with the standard toast, never data on a successful `startChat`. */
 export interface StartChatResult {

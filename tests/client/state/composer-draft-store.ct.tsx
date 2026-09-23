@@ -1,7 +1,7 @@
 // composer-draft store CT (item-12 restoration) — the draft is MODULE-scoped client state (D70 commons),
 // so it survives a component REMOUNT (the "typed text lost on nav/re-render" papercut this store kills).
 // The scope key is the room's real ChatId from the creation click, so the draftKey→ChatId MIGRATE this file
-// used to pin is gone with draft mode (chat-creation-draft-mode-replacement.md §4.1). A CT (not a unit test)
+// used to pin is gone with draft mode (D166). A CT (not a unit test)
 // because the store's only read surface is the reactive `useComposerDraft` hook (useSyncExternalStore needs
 // a browser render — the character-selection-store.ct.tsx posture).
 //

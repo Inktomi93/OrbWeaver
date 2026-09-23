@@ -3,7 +3,7 @@
 // pivots (a 2nd+ `chat_history`) render as an inert warning band instead — zones still derive from the
 // first, so the duplicate is debris DISPLAY, never an affordance.
 //
-// NO ENABLE SWITCH (preset-surface-redesign.md §5.1 — the one functional correction to the landed rack):
+// NO ENABLE SWITCH (the one functional correction to the landed rack):
 // the pivot can be neither deleted, silenced, nor DISABLED. A disabled pivot is an assembly with nowhere
 // to splice the conversation — the exact state the missing-pivot callout exists to prevent, reachable in
 // one click from a switch that had no business existing. The band still speaks the row grammar (name

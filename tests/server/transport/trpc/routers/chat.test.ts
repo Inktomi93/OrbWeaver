@@ -1381,7 +1381,7 @@ describe("chat.getGroupConfig / chat.setGroupConfig — the group-config wire-th
   });
 });
 
-// R2 (chat-creation-draft-mode-replacement.md §4.4) retired the creation-time draft carry: `startChat`'s
+// R2 (D166) retired the creation-time draft carry: `startChat`'s
 // wire schema carries CREATION-INTENT inputs only. `opening` EXCLUDES `"generate"` — a creation-fused
 // generated opening is unreachable now (post-creation `chat.generate` is the only way to guide an
 // opening), and the removed carry fields (seedGreetings/rosterOverrides/groupConfig/roomOverrides/guided)

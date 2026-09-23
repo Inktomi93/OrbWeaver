@@ -1,4 +1,4 @@
-// The "Elsewhere in the house" row — DERIVED from the section registry (home-section-spec §3.4). Each
+// The "Elsewhere in the house" row — DERIVED from the section registry. Each
 // pill borrows that section's own rail icon and rail label. A hardcoded `["chats","characters",…]` here
 // would be `no-parallel-section-map` (G2) RED — and rightly: derived rows mean a NEW section appears on
 // home automatically, with zero home edits.

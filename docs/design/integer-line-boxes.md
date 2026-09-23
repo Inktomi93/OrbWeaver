@@ -225,8 +225,7 @@ order (that file's own warning).
 
 **Legacy design record.** The descriptor fields and coupled sites below record the original gate design;
 current final-policy authoring follows `tooling/src/verify/gates/GATE-AUTHORING.md`. A conversion must preserve
-the four arms and their evidence while replacing the archived mechanisms documented in
-`docs/history/gate-authoring-legacy-2026-09-13.md`.
+the four arms and their evidence while replacing the archived legacy mechanisms.
 
 `tooling/src/verify/gates/integer-line-boxes.ts` (scaffold `pnpm gate:new`), `scopeSafety:
 "whole-project"`, `fsBacked: true` (reads `tokens.json` + the CSS homes off disk), `run`-arm over
@@ -258,7 +257,7 @@ the shared project. Four arms:
   conformance example's path); plus a distinct-pairing floor (found pairings below the known
   population → RED "census blind, not clean").
 
-Historical coupled sites per `docs/history/gate-authoring-legacy-2026-09-13.md` §2: descriptor with ≥1
+Historical coupled sites: descriptor with ≥1
 `mustFlag`/`mustPass` per arm (fractional token fixture, unpaired text fixture, banned-vocab fixture,
 marker-honoured pass, SVG-marker pass); the retired anti-drift planter suite's `__g_` fixture (gone with the legacy
 runtime, #2176 Phase F); the Core-Enforcement-Active-Gates row + the registered-gates count; the gate int test

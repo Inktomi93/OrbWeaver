@@ -1,4 +1,4 @@
-// Contract pins for @orb/contracts/refinery (R0 — docs/history/design/refinery-r0.md): the F3 fixed stage
+// Contract pins for @orb/contracts/refinery: the F3 fixed stage
 // payloads round-trip parse-is-identity; the F4 mode / verdict / status axes are closed; the score
 // bounds + the rewrite-text card-cap twin hold at the zod belt (the layer the per-wire scrubs cannot
 // lose); the run view discriminates payload BY stage; and REFINABLE_FIELDS ⊆ CharacterCard — the pin
@@ -175,7 +175,7 @@ test("rewrite text caps at the card TEXT_MAX twin; an EMPTY STRING is still not 
 });
 
 // ── The EMPTYING arm (owner overrule 2026-08-08 — "they can fill it therefore they can empty it";
-//    design: docs/history/design/refinery-schema-renderer.md §15) ────────────────────────────────────────────────
+//    design: D171) ────────────────────────────────────────────────
 
 test("a rewrite entry may CLEAR a field via the explicit tagged arm (never an empty string)", () => {
   const cleared = { fields: [{ field: "personality", cleared: true }] };

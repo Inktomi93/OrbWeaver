@@ -175,7 +175,7 @@ test("a bare slider (no Field wrapper) shows a visible ring on keyboard focus", 
   await expect(thumbEl).not.toHaveCSS("box-shadow", "none");
 });
 
-// The `tone` axis (preset-surface-redesign.md §4.1/§13 — the KnobRow's inherited-vs-explicit grammar).
+// The `tone` axis (the KnobRow's inherited-vs-explicit grammar).
 // Asserted by RESOLVED color, never by class: the ghost arm's whole job is to read as "not yours yet"
 // in the browser, and a class assertion would stay green if the token behind it moved.
 const INDICATOR = '[data-slot="slider-indicator"]';

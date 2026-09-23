@@ -1,4 +1,4 @@
-// The PARAMS DECK (preset-surface-redesign.md §4) — the redesign's centerpiece and the Params view's whole
+// The PARAMS DECK — the redesign's centerpiece and the Params view's whole
 // body. ONE scrolling instrument column of kicker-separated clusters (QUALITY · SAMPLING · REASONING ·
 // OUTPUT · CONTEXT · ADVANCED), replacing the four leaf tabs the Generation group used to hold.
 //

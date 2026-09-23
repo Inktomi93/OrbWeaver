@@ -190,7 +190,7 @@ interface ActionTemplatePreview {
   readonly resolved: string;
 }
 
-/** The preset editor's BOUND readout payload (D8 / preset-surface-redesign §7.1): every ACTION template of
+/** The preset editor's BOUND readout payload: every ACTION template of
  *  the inspected preset, resolved against the bound chat, plus the identity bindings that resolution used.
  *
  *  HOST-GATED like the rest of the preview family: a rendered template can carry `{{charsysinfo}}` /

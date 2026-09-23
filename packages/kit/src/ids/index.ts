@@ -96,10 +96,10 @@ export const ID_PREFIX = {
   // A saved party template (`roster_presets`, D61 B6) — the owner's named cast dropped into rooms via
   // `applyToChat`. Members ride the `(presetId, characterId)` junction PK, so no member TypeID exists.
   rosterPreset: "roster_preset",
-  // Card-refinery pipeline rows (refinery R0 — docs/history/design/refinery-r0.md).
+  // Card-refinery pipeline rows (refinery R0).
   refinerySession: "refinery_session",
   refineryRun: "refinery_run",
-  // A user-authored custom payload schema (refinery R3 / SF0 — docs/history/design/refinery-r3-build-plan.md §1).
+  // A user-authored custom payload schema (refinery R3 / SF0).
   refinerySchema: "refinery_schema",
   // RPG lite substrate. Quest ids are PLAIN strings minted inside the snapshot
   // blob (no table, no FK — a TypeID brand buys nothing there; the objective-id precedent), so no

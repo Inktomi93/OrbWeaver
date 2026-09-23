@@ -62,7 +62,7 @@ export const sliderVariants = tv({
       "data-invalid:border-destructive",
     ],
   },
-  // `tone` is the INHERITED-vs-EXPLICIT axis (preset-surface-redesign.md §4.1/§13, the Badge/Switch `tone`
+  // `tone` is the INHERITED-vs-EXPLICIT axis (the Badge/Switch `tone`
   // precedent). COLOR ONLY — the box (control height, track height, thumb size) stays on the base slots, so
   // a tone can never fight the geometry the touch floor rides on.
   //

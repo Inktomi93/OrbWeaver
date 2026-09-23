@@ -1,4 +1,4 @@
-// The "Temp chat" HOME tile body (home-section-spec §5, owner decision H4) — EXPOSURE, not design: the
+// The "Temp chat" HOME tile body — EXPOSURE, not design: the
 // `chats.temporary` flag has been the built shape since the chat domain landed (persisted so turns can
 // run, excluded from `listMemberChats` ALWAYS, swept by `reapTemporaryChats` past the user's own TTL).
 // What was missing was a wire field, a carry line, a procedure, and this tile.

@@ -5,7 +5,7 @@
 // `tooling-internal-direction` dep-cruiser rule forbids a cross-tool import into a sibling's `lib/`.
 // `verify` already imports `ast` (`verify/ops/orphan-export-ratchet.ts`), so `ast → verify/lib` is a
 // direction reversal. The owner ruled (issue #2358, 2026-09-14): move the family to `_shared/`, the
-// floor both tools already read from, per `docs/history/type-worlds-program-2026-09-10.md`.
+// floor both tools already read from, per `docs/law/Spine-TypeScript-and-Patterns.md` §10.
 //
 // Preview:  pnpm codemod:run scripts/codemods/reference-fact-to-shared.ts
 // Apply:    pnpm codemod:run scripts/codemods/reference-fact-to-shared.ts --apply

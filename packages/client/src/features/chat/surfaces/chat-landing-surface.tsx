@@ -1,7 +1,7 @@
 // The chats-section no-selection state (D62 P4) — a SECTION state, not a page.
 //
 // It used to be the app's launcher: a hero + "Recent chats" + character quick-picks. Those MOVED to the
-// HOME section's tiles (home-section-spec §4.2, owner decision H1 = D-1) and are DELETED here rather than
+// HOME section's tiles (owner decision H1 = D-1) and are DELETED here rather than
 // kept beside them — half a migration IS the rot, and two launchers means two copies to fix every time the
 // wording changes. "The app never opens on an empty room" is now satisfied by home being the born default,
 // not by a hero bolted inside chats.
