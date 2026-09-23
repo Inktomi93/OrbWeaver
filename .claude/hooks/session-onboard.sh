@@ -4,7 +4,7 @@
 # skill. It prints, in this order, because a long output is persisted with only its head shown:
 #   1. the CPU ceiling line (`cpu-fence.sh`) and the core.hooksPath repair;
 #   2. the account identity and the bridge inbox it owns;
-#   3. the first actions: the bridge Monitor state, the skill load, the notes to read;
+#   3. the first actions: the bridge plugin state, the skill load, the notes to read;
 #   4. the newest bridge note, the worktree count and main's dirty state;
 #   5. a warning when the orchestrator's MEMORY.md nears the harness's truncation cap.
 # Keep it fast (<10s) and well under 8KB. It writes nothing except the core.hooksPath repair.
@@ -69,21 +69,15 @@ IDENT_SRC="transcript"; [ -n "$TRANSCRIPT" ] || IDENT_SRC="env fallback (no tran
 if [ -n "$TRANSCRIPT" ] && [ "${CFG_DIR%/}" != "$ENV_CFG" ]; then
   echo "!!! ACCOUNT MISMATCH: the transcript says ${WHO} (${CFG_DIR}) but CLAUDE_CONFIG_DIR says $(account_for "$ENV_CFG") (${ENV_CFG}). The TRANSCRIPT wins below; this is a config fault to report to the owner, not a signal."
 fi
-echo "!!! IDENTITY: you are ${WHO} (by ${IDENT_SRC}; config dir ${CFG_DIR}). YOUR inbox is ~/.claude/bridge/${INBOX}/ — read it, ack by MOVE into its done/, and Monitor THAT dir; you WRITE notes to ~/.claude/bridge/${OUTBOX}/. claude-b prefixes lanes cb-, never delegates cross-account, and only PRIMARY commits on main's checkout. MESSAGE FORM is ~/.claude/bridge/PROTOCOL.md — read it before writing a note: NNN monotonic across BOTH directions (max over all four dirs incl. done/), at: in ISO 8601 UTC, kind in re: (plain | QUESTION with stated default | BLOCKED | ANSWER to NNN | ACK of NNN); a QUESTION stays unacked until answered."
+echo "!!! IDENTITY: you are ${WHO} (by ${IDENT_SRC}; config dir ${CFG_DIR}). YOUR inbox is ~/.claude/bridge/${INBOX}/ — read it, ack by MOVE into its done/; the bridge plugin watches it; you WRITE notes with \`claude-bridge send\`. claude-b prefixes lanes cb-, never delegates cross-account, and only PRIMARY commits on main's checkout. MESSAGE FORM is ~/.claude/bridge/PROTOCOL.md — read it before writing a note: claude-bridge send numbers it under the lock, at: in ISO 8601 UTC, kind in re: (plain | QUESTION with stated default | BLOCKED | ANSWER to NNN | ACK of NNN); a QUESTION stays unacked until answered."
 
 # FIRST ACTIONS sit directly under identity so a truncated output still delivers them. The hook cannot
-# call tools; these are orders for the session. The Monitor check: `^inotifywait ` anchors on the binary
-# so the bash -c wrapper and this hook's own pgrep never match, and the trailing `${INBOX}/` keeps to-b and
-# to-primary distinct. A compact keeps the Monitor task alive; a fresh session has none.
-MON_CMD="stdbuf -oL inotifywait -m -q -e close_write -e moved_to --format '%e %f' ~/.claude/bridge/${INBOX}/ | stdbuf -oL grep --line-buffered -vE '^\\S+ (\\.|zz-)|done/'"
-MON_PIDS=$(pgrep -f "^inotifywait .*bridge/${INBOX}/" 2>/dev/null | tr '\n' ' ')
-if [ -n "${MON_PIDS// /}" ]; then
-  MON_SINCE=$(ps -o lstart= -p "${MON_PIDS%% *}" 2>/dev/null | sed 's/^ *//')
-  echo "!!! FIRST ACTIONS, in order: (1) BRIDGE MONITOR: one is ALREADY RUNNING on your inbox (inotifywait pid ${MON_PIDS}since ${MON_SINCE:-?}) — a compact keeps it alive. Do NOT arm a second (two = every note twice). Only if it is NOT in your own task list is it an orphan of a dead session: kill it, then arm with the command below."
+# call tools; these are orders for the session.
+if [ -x "$HOME/.claude/skills/bridge/bin/claude-bridge" ]; then
+  echo "!!! FIRST ACTIONS, in order: (1) BRIDGE PLUGIN: it watches ~/.claude/bridge/${INBOX}/ from session start. Each new note arrives as a 'bridge: new note N' event — do not start an inotifywait Monitor on it. Send, ack and list with claude-bridge (the bridge skill)."
 else
-  echo "!!! FIRST ACTIONS, in order: (1) BRIDGE MONITOR: NONE running on your inbox — arm it NOW as your first tool call (Monitor tool, persistent; keep stdbuf: into a pipe inotifywait block-buffers), then probe with a throwaway file and rm it:"
+  echo "!!! FIRST ACTIONS, in order: (1) BRIDGE PLUGIN MISSING (~/.claude/skills/bridge): nothing watches the inbox; tell the owner; read the inbox at every merge window."
 fi
-echo "      ${MON_CMD}"
 echo "    (2) LOAD THE orchestrator SKILL (Skill tool) and follow its first actions before any lane, merge, bridge note or worktree action. A compaction summary carries a digest of it, and a digest fails on command detail."
 echo "    (3) READ IN FULL (cat), never the 2KB head printed below: ~/.claude/bridge/SESSIONS.md, then EVERY unacked note in ~/.claude/bridge/${INBOX}/ (ls it first). A SELF-prefixed note is your own compact map: act on it, THEN ack by mv into done/. Read the scratch dispatch map too if the line below found it."
 echo "    (4) Honor every MERGE HOLD / sequencing line in the notes; resume live lanes by SendMessage to their agentIds, NEVER respawn."
