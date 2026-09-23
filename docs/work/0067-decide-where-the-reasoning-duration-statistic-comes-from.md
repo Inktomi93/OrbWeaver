@@ -10,15 +10,21 @@ area: server
 
 ## What
 
-`messageVariants.metadata` has a named `reasoning_duration` reader (the stats rebuild in `packages/server/src/domain/stats/write/rebuild-from-canon.ts`) but no proven live-turn writer. The owner chooses one: stamp `reasoning_duration` on live turns, or source the statistic from a typed first-class column. The chosen repair then lands, and the warning policy `open-json-column-key-parity-deferred` is deleted.
+The owner ruled that no repair is needed. The reasoning-duration statistic already has a live writer, a typed shape and both readers:
+
+- The live turn stamps it. `runTurnPipeline` in `packages/server/src/domain/chat/engine/pipeline.ts` measures the reasoning window on the injected clock, and `liveVariantMetadata` in `packages/server/src/domain/chat/engine/engine.ts` writes it under `VARIANT_METADATA_REASONING_MS_KEY`.
+- `VariantMetadata` in `packages/contracts/src/chat/messages.ts` types the key, so the column is not an open bag.
+- The stats rebuild in `packages/server/src/domain/stats/write/rebuild-from-canon.ts` and the live stats delta in `packages/server/src/domain/chat/substrate/stats-delta.ts` both read it.
+
+The warning policy `open-json-column-key-parity-deferred` reported nothing on this tree, so it and its deferred authority list are deleted.
 
 ## Why
 
-The debt was parked at warning under GitHub issue 184, and that board no longer tracks work. The warning needs a live owner or it reads as tracked forever.
+A warning policy with no finding and no open repair reads as tracked debt that does not exist.
 
 ## Done when
 
-The reasoning-duration statistic has a proven writer or a typed column, and `open-json-column-key-parity-deferred.ts` is deleted.
+The policy `open-json-column-key-parity-deferred` and its deferred authority list no longer exist, and `open-json-column-key-parity` judges every subject.
 
 ## Evidence
 
