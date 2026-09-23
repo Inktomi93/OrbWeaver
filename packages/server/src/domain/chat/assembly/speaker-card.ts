@@ -58,8 +58,8 @@ function shapeContextForMultiVoice(ctx: AssembleContext, characters: readonly As
   };
 }
 
-/** PER-SPEAKER: `scoped` makes the named speaker's card the whole character section; `merged` in a room of more
- *  than one character renders the fixed roster layout instead (the same cards in the same order for every speaker).
+/** PER-SPEAKER: `scoped` makes the named speaker's card the whole character section; `merged` renders the fixed
+ *  roster layout instead (the same cards in the same order for every speaker).
  *
  *  AN OFF-ROSTER REF IS REFUSED, not absorbed (#1462). This used to `return ctx` — "keep the primary, never
  *  crash" — which is not a degrade but a WRONG ANSWER: the round still runs, the model is handed the PRIMARY's
@@ -86,8 +86,10 @@ function shapeContextForSingle(
   speaker: { readonly ref: SpeakerRef; readonly cardScope: CardScope },
 ): AssembleContext {
   const idx = speakerIndex(speakerRefs, speaker.ref);
-  const primary = characters[0];
-  if (speaker.cardScope === "merged" && primary !== undefined && characters.length > 1) {
+  if (speaker.cardScope === "merged") {
+    // A pure function of the roster, with no size branch (D16): a room of one collapses to today's single card, no
+    // co-speaker block, and `{{char}}` = that one name. `speakerIndex` above already proved the roster non-empty.
+    const primary = characters[0] ?? ctx.character;
     return {
       ...ctx,
       character: primary,
@@ -119,11 +121,13 @@ export function voiceContextForSpeaker(
   return { ...ctx, character: active, speaker: { kind: "single", character: active }, coSpeakers: [] };
 }
 
-/** The round cue a `roster`-layout turn carries when the round sent none: its system block names no speaker, so
- *  this line is the only place the model learns who speaks. Null on every other layout (a solo, scoped or
- *  narrator turn names its speaker itself). */
+/** The round cue a `roster`-layout turn carries when its round sent none (a single-speaker round, a regenerate):
+ *  its system block carries every co-speaker's card and names no speaker, so this line is the only place the model
+ *  learns who speaks. Keyed on the layout's own data — a roster of one has no co-speaker cards and gets no cue, so
+ *  a solo turn stays byte-identical; a scoped or narrator layout names its speaker itself. */
 export function rosterSpeakerCue(ctx: AssembleContext, speakerName: string): string | null {
-  return ctx.speaker?.kind === "roster" ? resolveProseText("chat.group.roundNudge", ctx.prose ?? {}, { name: speakerName }) : null;
+  const hasCoSpeakers = (ctx.coSpeakers ?? []).length > 0;
+  return ctx.speaker?.kind === "roster" && hasCoSpeakers ? resolveProseText("chat.group.roundNudge", ctx.prose ?? {}, { name: speakerName }) : null;
 }
 
 function assertNeverGroupOutput(output: never): never {

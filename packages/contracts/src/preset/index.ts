@@ -2034,17 +2034,6 @@ export const NARRATOR_MAIN_PROMPT_TEMPLATE =
   "Give each speaking character a distinct, consistent voice. " +
   "Address {{user}} in the second person; use their name only when it is one they have chosen for themselves.";
 
-/** The PER-SPEAKER MERGED `main_prompt` default — the third sibling. A merged room's system block is the whole
- *  roster in one fixed order for every speaker (owner ruling), so one cache entry serves the room; the speaker is
- *  named only in the round cue (`chat.group.roundNudge`). `{{char}}` binds to the joined roster on that arm, so
- *  the per-speaker default (`write {{char}}'s perspective only`) cannot be used. The ADDRESS clause is
- *  byte-identical to its siblings'. The pick is made where the default resolves (`assembly/assemble.ts`
- *  templateFor, keyed on `speaker.kind === "roster"`). */
-export const ROSTER_MAIN_PROMPT_TEMPLATE =
-  "You are playing {{char}} in an immersive, ongoing roleplay with {{user}}. " +
-  "Write each reply as the one character the latest instruction names, in that character's voice and perspective only. " +
-  "Address {{user}} in the second person; use their name only when it is one they have chosen for themselves.";
-
 // ChoiceBlock — preset-author-declared named variables (POV/tense/style); the macro engine exposes
 // them as `{{getvar::<name>}}` / `{{<name>}}`.
 const choiceBlockOptionSchema = z.object({

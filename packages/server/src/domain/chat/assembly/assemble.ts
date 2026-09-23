@@ -24,7 +24,7 @@
 
 import type { AssembleCharacter, AssembleContext, AssembledPrompt, AssembleTrace, ChatInjection, SectionPreview } from "@orb/contracts/chat";
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
-import { DEFAULT_MARKER_TEMPLATES, NARRATOR_MAIN_PROMPT_TEMPLATE, ROSTER_MAIN_PROMPT_TEMPLATE } from "@orb/contracts/preset";
+import { DEFAULT_MARKER_TEMPLATES, NARRATOR_MAIN_PROMPT_TEMPLATE } from "@orb/contracts/preset";
 import type { ProseSlotId } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { MacroRegistry } from "@orb/kit/macro";
@@ -86,9 +86,9 @@ type TemplatedMarkerSection = Extract<MarkerSection, { marker: keyof typeof DEFA
  * generation voicing all the seated characters, so the per-speaker default — `You are {{char}} … write {{char}}'s perspective only`,
  * with `{{char}}` bound to the JOINED member names on that arm — instructs the model to do something the round
  * cannot do (a live drive once read it back as "write Charlotte, JFC's perspective only"). A per-speaker merged
- * turn's system block is the whole roster for every speaker and names none, so it takes the roster default. Keyed
- * on the speaker arm: the SHAPE already decided what this turn voices, so nothing here re-derives it from
- * `cardScope`/`isGroup`. A solo or scoped turn reads the same bytes it always did.
+ * turn's system block is the whole roster for every speaker: it keeps the single default with `{{char}}` bound to
+ * the roster, so a room of one reads the same bytes it always did. Keyed on the speaker arm: the SHAPE already
+ * decided what this turn voices, so nothing here re-derives it from `cardScope`/`isGroup`.
  *
  * A caller `template` is checked FIRST and is one stored text for both kinds: a host who writes the framing
  * owns the whole slot, on every turn (row 52 — the per-section override IS the edit path, so there is no
@@ -98,7 +98,8 @@ type TemplatedMarkerSection = Extract<MarkerSection, { marker: keyof typeof DEFA
 const MAIN_PROMPT_BY_SPEAKER: Record<NonNullable<AssembleContext["speaker"]>["kind"], string> = {
   single: DEFAULT_MARKER_TEMPLATES.main_prompt,
   "multi-voice": NARRATOR_MAIN_PROMPT_TEMPLATE,
-  roster: ROSTER_MAIN_PROMPT_TEMPLATE,
+  // The single default, `{{char}}` bound to the whole roster: a room of one renders today's bytes exactly.
+  roster: DEFAULT_MARKER_TEMPLATES.main_prompt,
 };
 
 function templateFor(section: TemplatedMarkerSection, ctx: AssembleContext): string {

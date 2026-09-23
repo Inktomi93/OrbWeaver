@@ -12,7 +12,7 @@ import type { MacroRegistry } from "@orb/kit/macro";
 import { describe } from "vitest";
 import { assemblePrompt, assemblePromptWithSlices, previewSection } from "../../../../../packages/server/src/domain/chat/assembly/assemble.ts";
 import { BEFORE_HISTORY_DEPTH } from "../../../../../packages/server/src/domain/chat/assembly/injections.ts";
-import { shapeContextForSpeaker } from "../../../../../packages/server/src/domain/chat/assembly/speaker-card.ts";
+import { rosterSpeakerCue, shapeContextForSpeaker } from "../../../../../packages/server/src/domain/chat/assembly/speaker-card.ts";
 import { buildTurnUserMacros } from "../../../../../packages/server/src/domain/chat/assembly/user-macros.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
@@ -450,9 +450,24 @@ describe("assemblePrompt — the factory main_prompt default is MODE-AWARE (narr
     const forKai = assemblePrompt(factoryMain(), shapeContextForSpeaker(roomCtx(), { ref: kaiRef, output: "per-speaker", cardScope: "merged" })).static;
     const forAria = assemblePrompt(factoryMain(), shapeContextForSpeaker(roomCtx(), { ref: ariaRef, output: "per-speaker", cardScope: "merged" })).static;
     expect(forKai).toBe(forAria);
-    expect(forKai).toContain("You are playing Aria, Kai in an immersive, ongoing roleplay with Traveler.");
-    expect(forKai).not.toContain("Stay in character; write");
+    expect(forKai).toContain("You are Aria, Kai in an immersive, ongoing roleplay with Traveler. Stay in character; write Aria, Kai's perspective only.");
     expect(forKai).toContain("Address Traveler in the second person; use their name only when it is one they have chosen for themselves.");
+  });
+
+  test("a PER-SPEAKER merged room of ONE collapses to the solo bytes on its own — no size gate, no cue (D16)", () => {
+    const solo = ctxOf({ character: aria, pinnedPersona: persona, activePersona: persona });
+    const room = ctxOf({
+      character: aria,
+      characters: [aria],
+      characterIds: [castId<CharacterId>("character_aria")],
+      speakerRefs: [ariaRef],
+      pinnedPersona: persona,
+      activePersona: persona,
+    });
+    const layout = shapeContextForSpeaker(room, { ref: ariaRef, output: "per-speaker", cardScope: "merged" });
+    expect(layout.speaker?.kind).toBe("roster");
+    expect(assemblePrompt(factoryMain(), layout).static).toBe(assemblePrompt(factoryMain(), solo).static);
+    expect(rosterSpeakerCue(layout, "Aria")).toBeNull();
   });
 
   test("a PER-SPEAKER scoped turn keeps the speaker's own character framing", () => {

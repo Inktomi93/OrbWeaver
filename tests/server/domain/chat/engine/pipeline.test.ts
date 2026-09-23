@@ -2847,7 +2847,7 @@ describe("runTurnPipeline — narrator round assembly", () => {
     expect(result.content).toBe("<<JFC>>");
   });
 
-  test("a PER-SPEAKER merged round renders the roster layout — the roster default, every card, no speaker named", async () => {
+  test("a PER-SPEAKER merged round renders the roster layout — the joined {{char}}, every card, no speaker named", async () => {
     const { args } = baseArgs({
       assembleContext: narratorCtx(),
       shape: {
@@ -2859,7 +2859,7 @@ describe("runTurnPipeline — narrator round assembly", () => {
       },
     });
     const system = (await runTurnPipeline(args)).request.prompt.static;
-    expect(system).toContain("You are playing Charlotte, JFC in an immersive");
+    expect(system).toContain("You are Charlotte, JFC in an immersive");
     expect(system).toContain("[Character — JFC]");
     // Card binding is unchanged on this arm: each card still says "me", and always did.
     expect(system).toContain("JFC is a foul-mouthed mechanic");
