@@ -15,10 +15,10 @@
 //     hostless/stale room degrades to `{}` ⇒ the shipped defaults.
 //   • per-PRESET (owner ruling 2026-08-07, verbatim: "templates need to have one home in presets not
 //     scattered between that and settings or hiding in code"): the TURN-WIRE FRAMINGS — the two injection note
-//     frames, the continuation cue, and (F4 re-home, 2026-08-08, ruling arm (a) + D132(B) amendment) the seven
-//     GROUP-ROUND FRAMINGS: the co-speaker headings (`characterHeading`/
-//     `scenarioHeading`/`exampleHeading`), the per-speaker and narrator round nudges (`roundNudge`/
-//     `narratorNudge`), and the speaker-tag instruction (`speakerTags`). Storage `promptConfig.prose`; authored
+//     frames, the continuation cue, and (F4 re-home, 2026-08-08, ruling arm (a) + D132(B) amendment) the
+//     GROUP-ROOM FRAMINGS: the co-speaker headings (`characterHeading`/
+//     `scenarioHeading`/`exampleHeading`), the person heading (`personaHeading`), the per-speaker and narrator
+//     round nudges (`roundNudge`/`narratorNudge`), and the speaker-tag instruction (`speakerTags`). Storage `promptConfig.prose`; authored
 //     in the preset Templates tab beside every other template. Decision 8 is NOT reversed by this: it answers
 //     "WHICH user when a slot is user-homed", and these framings are not side generations at all — they are
 //     wrappers spliced into the MAIN turn's prompt (the co-speaker card walk, the round's trailing user row),
@@ -215,6 +215,19 @@ export const CHAT_PROSE_SLOTS = {
     requiredTokens: [],
     title: "Merged co-speaker example-dialogue heading",
     fires: "A merged group turn, for each present member whose card carries example dialogue.",
+  },
+  "chat.group.personaHeading": {
+    id: "chat.group.personaHeading",
+    home: "preset",
+    version: 1,
+    // The heading over each OTHER present human's persona in the `persona` marker's people block. The voice
+    // persona (the one `{{user}}` names) stays unheaded and first, so position alone marks the addressee.
+    text: "[Person — {{name}}]",
+    macros: "none",
+    requiredMacros: ["{{name}}"],
+    requiredTokens: [],
+    title: "Person heading",
+    fires: "A room with more than one present human, once per other human whose seat holds a persona.",
   },
   "chat.group.roundNudge": {
     id: "chat.group.roundNudge",

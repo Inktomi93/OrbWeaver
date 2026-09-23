@@ -474,8 +474,8 @@ test('PRESET_PROSE_SLOT_IDS is every `home:"preset"` slot whose override is stor
   const expected = PROSE_SLOT_IDS.filter((id) => PROSE_SLOTS[id].home === "preset" && !legacyAdapted.has(id));
   expect(PRESET_PROSE_SLOT_IDS).toStrictEqual(expected);
   // Spelled out so a slot JOINING or LEAVING the preset-editable set is a decision somebody reads, not a silent
-  // derivation shift: the seven GROUP-ROUND framings (the F4 re-home, 2026-08-08 — they precede the injection
-  // frames in the tuple), the three turn-wire framings (2026-08-07), the eleven rpg game-turn teaches (the
+  // derivation shift: the GROUP-ROOM framings (the F4 re-home, 2026-08-08, plus the multi-human person heading —
+  // they precede the injection frames in the tuple), the three turn-wire framings (2026-08-07), the eleven rpg game-turn teaches (the
   // 2026-08-08 re-home), the forty-one EXTRACTION-seam slots (PROSE-1 S4 + census row 27, wired by the
   // 2026-08-08 decision-6 ruling), and the seven BORN-STATE round slots (the populate census rows 1-7), in
   // `PROSE_SLOT_IDS` tuple order. The twenty-one ONE-CLICK STEER slots lead: census 53-73, the templating
@@ -506,6 +506,7 @@ test('PRESET_PROSE_SLOT_IDS is every `home:"preset"` slot whose override is stor
     "chat.group.characterHeading",
     "chat.group.scenarioHeading",
     "chat.group.exampleHeading",
+    "chat.group.personaHeading",
     "chat.group.roundNudge",
     "chat.group.narratorNudge",
     "chat.group.speakerTags",

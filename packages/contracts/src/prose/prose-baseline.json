@@ -204,6 +204,10 @@
       "version": 1,
       "sha256": "aa9edad9145c64b583b894adf1e65a5490abb05968a6cee6d05ae0ec5f5c75de"
     },
+    "chat.group.personaHeading": {
+      "version": 1,
+      "sha256": "450e975b04b401c00dbbf9d6c2bcceb45011ffbbfbd0618a8bda195a099c6e78"
+    },
     "chat.group.roundNudge": {
       "version": 2,
       "sha256": "eb971d4aae24dc68654fbb362fb1874e45fc9e73d40c3528eb33e56d10547b6d"
