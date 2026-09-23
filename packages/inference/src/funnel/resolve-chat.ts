@@ -13,6 +13,7 @@ import { acceptsMidConversationSystem, EFFORT_LEVELS, reasoningReplayOf, roleHan
 import type { CarryReasoning, UserIntent } from "@orb/contracts/preset";
 import { CARRY_REASONING_DEFAULT, QUALITY_EFFORT, QUALITY_LEVELS, QUALITY_SAMPLING } from "@orb/contracts/preset";
 import type { DynamicContextChannel, ResolvedChatKnobs, ResolvedReasoning, ResolvedSampling, ResolvedWarning } from "../contract/resolve.ts";
+import { ADAPTIVE_DEFAULT_EFFORT } from "../contract/resolve.ts";
 
 const EFFORT_OFF = "none";
 const ADAPTIVE_BUDGET_WARNING = "reasoning budget ignored: adaptive model takes effort only (an explicit budget 400s the model)";
@@ -55,9 +56,10 @@ function resolveFlag<T>(label: AdjustedKnob, value: T | undefined, supported: bo
   return value;
 }
 
-// Effort-default precedence: explicit user > quality-derived > the model's OWN advertised `defaultEffort` >
-// house default (none). The model default only fills the gap when the user picked neither an effort nor a
-// quality, and never on an off-by-default model.
+// Effort-default precedence: explicit user > quality-derived > the house default for a model that supports
+// adaptive thinking > the catalog-advertised default for any other model (OpenAI/Gemini reasoning on OpenRouter)
+// > none. The house default keys on the adaptive capability alone, never on a model family, so it is the same on
+// every route; the advertised default never fills an off-by-default model.
 function effectiveEffort(params: UserIntent, capability: GenerationCapability): UserIntent["effort"] {
   if (params.effort !== undefined) {
     return params.effort;
@@ -65,7 +67,11 @@ function effectiveEffort(params: UserIntent, capability: GenerationCapability): 
   if (params.quality !== undefined) {
     return QUALITY_EFFORT[params.quality];
   }
-  return capability.reasoning.defaultEnabled === false ? undefined : capability.reasoning.defaultEffort;
+  const r = capability.reasoning;
+  if (r.mode === "adaptive") {
+    return ADAPTIVE_DEFAULT_EFFORT;
+  }
+  return r.defaultEnabled === false ? undefined : r.defaultEffort;
 }
 
 // The lowest-effort member of the model's list by the canonical `EFFORT_LEVELS` order (OR reports
@@ -93,12 +99,20 @@ function resolveEffort(effort: UserIntent["effort"], levels: readonly EffortLeve
   return effort;
 }
 
-function resolveBudget(requested: number | undefined, range: Range | undefined): number | undefined {
-  const value = requested ?? range?.max;
-  if (value === undefined) {
-    return;
+/** The budget an effort level asks for when the caller set none: a geometric step through the model's range by
+ *  the level's place in `EFFORT_LEVELS`, so each level roughly doubles the one below and `max` is the range top.
+ *  A linear step would still hand `low` a third of a 63k range; geometric keeps the low levels near the floor. */
+function budgetForEffort(effort: UserIntent["effort"], range: Range): number {
+  const index = effort === undefined || effort === EFFORT_OFF ? EFFORT_LEVELS.length - 1 : EFFORT_LEVELS.indexOf(effort);
+  const fraction = (index + 1) / EFFORT_LEVELS.length;
+  return Math.round(range.min * (range.max / range.min) ** fraction);
+}
+
+function resolveBudget(requested: number | undefined, range: Range | undefined, effort: UserIntent["effort"]): number | undefined {
+  if (range === undefined) {
+    return requested;
   }
-  return range === undefined ? value : clampRange(value, range);
+  return clampRange(requested ?? budgetForEffort(effort, range), range);
 }
 
 // The minimum visible/structured output kept BELOW `maxOutputTokens` when a budget-mode reasoning budget
@@ -236,7 +250,7 @@ function resolveReasoning(
   const display = resolveDisplay(params.thinkingDisplay, r.displayModes, warnings) ?? defaultDisplay(r);
   const displayPart = display !== undefined ? { display } : {};
   if (r.mode === "budget") {
-    const rawBudget = resolveBudget(params.thinkingBudgetTokens, r.budgetRange);
+    const rawBudget = resolveBudget(params.thinkingBudgetTokens, r.budgetRange, effort);
     const budgetTokens = rawBudget !== undefined ? clampBudgetToOutput(rawBudget, maxOutputTokens, r.budgetRange, warnings) : undefined;
     return { mode: r.mode, enabled, ...(budgetTokens !== undefined ? { budgetTokens } : {}), ...displayPart };
   }

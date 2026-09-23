@@ -464,3 +464,37 @@ test("byte-equality: the FULL request body for a minimal deterministic turn — 
     stream: true,
   });
 });
+
+// ── preserved thinking on the prefix-bound models ────────────────────────────────────────────────────────
+// With `carryReasoning: "conversation"`, prior thinking rides back over a prefix the next turn can change (the
+// dynamic system block, window trimming). On a prefix-bound model a stale block is a 400 for new accounts unless
+// the request asks the API to drop it; the SDK spells that `block_binding` and adds its beta itself.
+async function thinkingOfTurn(model: string, carryReasoning: UserIntent["carryReasoning"]): Promise<unknown> {
+  const { body } = await recordedTurn(
+    turnRequest({ connection: curatedConnection(model), tools: undefined, params: { effort: "high", carryReasoning } }),
+    anthropicTextStream("ok"),
+  );
+  return body?.body["thinking"];
+}
+
+test("carry `conversation` on a prefix-bound model asks the API to drop a stale thinking block — and nowhere else", async () => {
+  for (const model of ["claude-opus-5-5", "claude-fable-5-1"]) {
+    expect(await thinkingOfTurn(model, "conversation"), model).toMatchObject({
+      type: "adaptive",
+      block_binding: { prefix_mismatch_behavior: "drop_block" },
+    });
+  }
+  // CONTROLS: no carry on the same model, and the same carry on a model whose thinking is not prefix-bound.
+  expect(await thinkingOfTurn("claude-opus-5-5", "off")).not.toHaveProperty("block_binding");
+  expect(await thinkingOfTurn("claude-opus-5", "conversation")).not.toHaveProperty("block_binding");
+});
+
+// The SDK streams every function tool's input eagerly by default (`toolStreaming` defaults to true, so each tool
+// carries `eager_input_streaming: true`), which skips the API's own JSON check of that input. The engine parses
+// and schema-validates every call before it runs (`tool-use/verbs/execute-tool-calls.ts`, `register.ts`), so the
+// default is safe; this pins the wire fact the extras header describes.
+test("tool input streams eagerly on the direct wire (the SDK default the extras header documents)", async () => {
+  const recorded: RecordedRequest[] = [];
+  await runAnthropicChatTurn(turnRequest(), deps(scriptedSseFetch([anthropicTextStream("ok")], recorded)));
+  expect(toolsOf(recorded[0]).map((tool) => tool["eager_input_streaming"])).toEqual([true]);
+});
