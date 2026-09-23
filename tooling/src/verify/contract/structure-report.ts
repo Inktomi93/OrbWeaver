@@ -1,5 +1,5 @@
-// The shape of `reports/check-structure.json` under the MIXED runtime (docs/design/gate-runtime-standardization.md
-// §5 item 2; docs/reviews/gate-runtime/mixed-runtime-front-door.md §3.3) — ONE artifact, ONE roster, read by ONE
+// The shape of `reports/check-structure.json` under the MIXED runtime (docs/law/gate-runtime-standardization.md
+// §5 item 2; the mixed-runtime front-door ruling §3.3) — ONE artifact, ONE roster, read by ONE
 // reader (ops/show.ts). Homed in contract/ per the five-slot type law (Core-Tooling-Law.md §2.5): ops/structure.ts
 // writes it, ops/show.ts and the suites read it.
 //

@@ -590,7 +590,7 @@ describe("foundation/env — the .env load (override semantics + parser toleranc
     expect(env.PORT).toBe(9200);
   });
 
-  // ENV-BLEEDS-INTO-TESTS (docs/history/dogfood-tracking-2026-08-08.md) — the fix: `ORB_ENV_NO_FILE` skips the `.env` load ENTIRELY,
+  // ENV-BLEEDS-INTO-TESTS — the fix: `ORB_ENV_NO_FILE` skips the `.env` load ENTIRELY,
   // not merely the override direction (that's `ORB_ENV_NO_OVERRIDE`, tested above — it still FILLS unset
   // keys from the file). Before this, the test env didn't override an already-set var but DID fill an unset
   // one, so any test asserting a schema DEFAULT silently asserted the operator's local `.env` instead — three
@@ -621,7 +621,7 @@ describe("foundation/env — the .env load (override semantics + parser toleranc
   });
 });
 
-// ── AUTH_FALLBACK_TRUSTED_PEERS (PROPOSED — containerize-prod-image-spec §3.1 arm (b)) ───────────────────
+// ── AUTH_FALLBACK_TRUSTED_PEERS (PROPOSED — docs/plans/containerize/design.md arm (b)) ───────────────────
 // The opt-in that widens the un-credentialed owner fallback's peer set so a containerized deploy (whose
 // published port never delivers a loopback peer) is usable. The three env-tier properties pinned here:
 // it PARSES into the posture, it is LAUNCH-ONLY like AUTH_FALLBACK (#301 — a `.env` pin is boot-fatal),

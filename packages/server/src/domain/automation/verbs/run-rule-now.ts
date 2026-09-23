@@ -1,4 +1,4 @@
-// verb: runRuleNow — R7 (interaction-direction-spec §6 R7). The host runs ONE rule NOW: a single fresh
+// verb: runRuleNow — R7. The host runs ONE rule NOW: a single fresh
 // dispatch at cascade depth 0, host-gated on the rule's own chat. Three callers by design: the S4
 // invitation's confirm (a rate-capped spend rule the host chose to run anyway), B2's "Run now" action beside
 // the fire log, and on-demand analysis when C1 lands.

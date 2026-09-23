@@ -1,8 +1,8 @@
 // CT kit — THE INK-TO-INK VOID of a library row, and the one home for that measurement.
 //
 // Minted in `tests/client/features/tag/components/tag-collection-rows.ct.tsx` for #1824 and lifted here
-// unchanged when #1838 needed the same matrix on the roster rows. DESIGN.md
-// (`docs/design/mocks/config-collections/DESIGN.md`) §5 obligation 6 makes this measurement owed by EVERY
+// unchanged when #1838 needed the same matrix on the roster rows. The
+// approved config-collections design makes this measurement owed by EVERY
 // collection row — "Rows at pane width carry more air than at 307px — the width matrix (both ends + the
 // crossover, both pointers) is owed before the row anatomy is called converged" — and the mock review set
 // the bar at ≤ 25%. A second copy of the walk is how two rows would come to be judged by two rules.
@@ -68,7 +68,7 @@ export function inkVoid(page: Page, index: number): Promise<InkVoid> {
   }, index);
 }
 
-/** The bar the mock review set for a library row, in percent of the row's width (DESIGN.md §5.6). */
+/** The bar the mock review set for a library row, in percent of the row's width (the mock design §5.6). */
 export const INK_VOID_BAR_PCT = 25;
 
 /** The three widths the matrix is taken at: 382 is the coarse arm's real row width inside a 430px phone,

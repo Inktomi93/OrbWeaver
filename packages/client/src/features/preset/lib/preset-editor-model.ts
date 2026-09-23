@@ -88,7 +88,7 @@ function normalizePresetProse(prose: PromptConfig["prose"]): PromptConfig["prose
  * editor mounts. TWO arms, one signalling vocabulary: an over-cap override, and a note-frame override that
  * dropped its `{{note}}` carrier.
  *
- * THE CARRIER ARM (owner ruling 2026-08-08, option C of `docs/design/note-token-intent-history.md`).
+ * THE CARRIER ARM (owner ruling 2026-08-08, option C of).
  * `promptConfigWriteSchema` REFUSES a non-blank `chat.injection.*Note` override missing `{{note}}` — the token
  * carries the injection's entire payload, so the frame would ship as `[Note from user: ]` with the host's note
  * gone. Without this arm the autosave would FIRE and bounce off the server, leaving the header reading "Saved"

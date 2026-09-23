@@ -1,5 +1,5 @@
-// ONE config GROUP in the Settings LIST — the HOST half of the seam (config-rail-spec.md §2 C-4/C-6,
-// config-revamp-design.md §3.2): the props contract, the KIND dispatch, and the SETTINGS arm — a group's
+// ONE config GROUP in the Settings LIST — the HOST half of the seam (C-4/C-6):
+// the props contract, the KIND dispatch, and the SETTINGS arm — a group's
 // SUBCATEGORY rows (the retired settings nav column's rows, `selected` = the scroll-spy's current section).
 // `ConfigListGroup` dispatches on `body.kind`, which is a BUILD fact fixed at the door, so each arm's hooks
 // run unconditionally in a fixed position. The COLLECTION arm — the band's count + trailing verbs and the
@@ -44,7 +44,7 @@
 // ITS SCOPE IS THE WHOLE PANE, AND THAT IS NOW SWEPT RATHER THAN ASSUMED (#1714, 2026-09-05). The budget
 // was derived from this file and the collection BAND; the four collections' MEMBER rows sat on the other
 // side of the #925 species fence and were never checked against it. The owner retired that fence
-// (`docs/design/config-revamp-design.md` §8.1a), so they were swept — `tag-collection-rows.tsx`,
+// so they were swept — `tag-collection-rows.tsx`,
 // `regex-collection-rows.tsx`, `world-info-collection-rows.tsx`, `roster-collection-rows.tsx`, two methods.
 // They speak `datum` (a count) and `gloss` (an empty library's sentence) and nothing else: ZERO violations,
 // zero changes. The budget already held across a boundary nobody had looked over — which is exactly the

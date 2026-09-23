@@ -257,8 +257,8 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
     // instance, so a claim that awaited first would let a burst straight through the gap. `async` so the
     // refusal reaches the guest as a REJECTED promise, matching every other membrane refusal.
     llm: {
-      // The U6 widening rides the SAME op and the SAME floor (plugin-ui-plane §5.16/§5.32 / interaction-spec
-      // §3-S5.1's "widen the declared-generic quiet op, never add a second quiet path"): `opts` is the guest's
+      // The U6 widening rides the SAME op and the SAME floor (the owner's
+      // "widen the declared-generic quiet op, never add a second quiet path"): `opts` is the guest's
       // raw structured-schema + asset-id bag, forwarded verbatim. The lift/projection and the CAS ownership
       // resolve happen at COMPOSE, which is the only tier holding the projection rule and the asset reader —
       // this substrate stays a pure closer-over-the-installer, exactly as it was.

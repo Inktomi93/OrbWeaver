@@ -1,4 +1,4 @@
-// infra/extraction/loaders/epub.ts — the epub loader (databank-design/04 §2, fast-follow). An .epub is a ZIP of
+// infra/extraction/loaders/epub.ts — the epub loader. An .epub is a ZIP of
 // XHTML chapters + an OPF package manifest. We UNZIP with fflate (the tree's zero-dep isomorphic unzip — the same
 // `unzipSync` the plugin bundle uses) and walk the OPF spine so chapters extract in READING order, running each
 // through the SAME html loader `loadHtml` (no second html-to-text path), chapters joined `\n\n`. The design's §2

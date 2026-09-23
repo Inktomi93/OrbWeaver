@@ -214,7 +214,7 @@ export interface Args {
   mapSelector: string;
   /** Which --pages tab to map (default 0), set by a `@<idx>` suffix on --map. */
   mapPage: number;
-  // ── THE TWO MCP-RETIRING ARMS (#1198/#1199 — docs/design/1195-devtools-mcp-retirement.md §2) ──
+  // ── THE TWO MCP-RETIRING ARMS (#1198/#1199) ──
   /** `--lighthouse <desktop|mobile>`: audit the SETTLED page with the Lighthouse engine over this run's
    *  own browser (ops/lighthouse.ts). null = the arm is off, which is every ordinary run — the engine
    *  and its puppeteer attach are dynamically imported, so a run without this flag pays nothing.
@@ -297,7 +297,7 @@ export interface Args {
    *  now. No effect on your own stage, an idle one, or a dead one. Also the consent `--session-close`
    *  needs for a foreign LIVE session. */
   force: boolean;
-  // ── STATEFUL SESSIONS (one browser per lane, kept between calls — docs/design/1208-instrument-substrate.md) ──
+  // ── STATEFUL SESSIONS (one browser per lane, kept between calls) ──
   /** `--session <name>`: drive the named session's LIVE browser, booting its daemon on first use. Every
    *  later call forwards its argv to the daemon over the repo-keyed socket; a call carrying a browser-
    *  lifetime flag is refused (lib/session-plan.ts SESSION_ONLY_FLAGS). null = the one-shot path, untouched. */

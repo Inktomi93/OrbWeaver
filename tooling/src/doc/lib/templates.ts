@@ -55,6 +55,11 @@ export function planTemplate(title: string, today: string, content: SectionConte
   return `${renderFrontmatter({ kind: "plan", status: "active", updated: today })}\n# ${title}\n\n${render(PLAN_SECTIONS, content)}`;
 }
 
+/** A law doc has no required sections: the rule decides its shape. */
+export function lawTemplate(title: string, today: string): string {
+  return `${renderFrontmatter({ kind: "law", status: "active", updated: today })}\n# ${title}\n\nThe rule, stated so an agent can follow it without asking.\n`;
+}
+
 export function itemTemplate(fields: Readonly<Record<string, string>>, title: string, content: SectionContent<ItemSectionFlag> = {}): string {
   return `${renderFrontmatter(fields)}\n# ${title}\n\n${render(ITEM_SECTIONS, content)}`;
 }

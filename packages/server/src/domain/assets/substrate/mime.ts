@@ -1,4 +1,4 @@
-// domain/assets/substrate/mime — the `enforceMagic` dispatch (databank-design/02 §6). Given a CLAIMED mime and
+// domain/assets/substrate/mime — the `enforceMagic` dispatch. Given a CLAIMED mime and
 // the raw bytes, verify the bytes match the claim BEFORE they enter the CAS (the upload boundary's byte-level
 // defense; a mislabeled binary must fail here, never confusingly-late at extraction). Four families:
 //   • `image/*` → the shared magic-signature sniff (`@orb/kit/image-sniff`); the sniffed mime must equal the claim.

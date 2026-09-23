@@ -2,7 +2,7 @@
 // Prompt, Post-process, Templates (the inline-reasoning parse). Bound via the direct-bind form (no flat
 // mapper). The generation deck lives in params-deck.tsx.
 //
-// preset-surface-redesign.md §3 re-homed four things OUT of the Prompt tab, per the schema→home map:
+// The redesign re-homed four things OUT of the Prompt tab, per the schema→home map:
 // `params.thinkingDisplay` → Params ▸ REASONING (F4 — a reasoning knob two groups from its own axis);
 // `formatStrings.continueNudge`/`impersonateNudge` + the guided templates → the ACTIONS view (F6 — they
 // are per-action steering prose, not prompt structure). `params.compaction.*` moved whole to Params ▸

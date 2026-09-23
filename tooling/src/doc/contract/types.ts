@@ -122,9 +122,19 @@ export interface DescribedDoc {
   readonly describes: readonly string[];
 }
 
+/** A plan's lifecycle facts: `blocked` is the wake condition a `parked` plan carries, in the item
+ *  blocker grammar. */
+export interface PlanState {
+  readonly path: string;
+  readonly slug: string;
+  readonly status: string;
+  readonly blocked: string | null;
+}
+
 /** The git facts `pnpm doc drift` judges, resolved once by `ops/tree.ts` so the rule is pure. */
 export interface DriftFacts {
   readonly items: readonly WorkItem[];
+  readonly plans: readonly PlanState[];
   /** Branch names of every worktree beyond the main checkout. */
   readonly worktreeBranches: readonly string[];
   /** Branch names not merged into `main`. */
@@ -133,20 +143,29 @@ export interface DriftFacts {
   readonly closedOnMain: readonly { readonly sha: string; readonly ids: readonly number[] }[];
   /** Items whose wake condition the tree meets, by id. */
   readonly wokenItems: ReadonlySet<number>;
+  /** Parked plans whose wake condition the tree meets, by slug. */
+  readonly wokenPlans: ReadonlySet<string>;
 }
 
 export type DocCommand =
   | { readonly kind: "help" }
   | { readonly kind: "new-adr"; readonly slug: string; readonly title: string | null; readonly content: SectionContent<AdrSectionFlag> }
   | { readonly kind: "new-plan"; readonly slug: string; readonly title: string | null; readonly content: SectionContent<PlanSectionFlag> }
+  | { readonly kind: "new-law"; readonly slug: string; readonly title: string | null }
   | { readonly kind: "item"; readonly input: NewItemInput }
   | { readonly kind: "item-batch"; readonly from: string }
-  | { readonly kind: "status"; readonly status: string; readonly paths: readonly string[]; readonly by: string | null; readonly docKind: string | null }
-  | { readonly kind: "remove"; readonly ids: readonly number[] }
+  | {
+      readonly kind: "status";
+      readonly status: string;
+      readonly paths: readonly string[];
+      readonly by: string | null;
+      readonly docKind: string | null;
+      readonly blocked: string | null;
+    }
+  | { readonly kind: "remove"; readonly targets: readonly string[] }
   | { readonly kind: "set"; readonly ids: readonly number[]; readonly patch: ItemPatch }
   | { readonly kind: "land"; readonly ids: readonly number[]; readonly evidence: string }
   | { readonly kind: "land-merged" }
-  | { readonly kind: "archive"; readonly targets: readonly string[] }
   | { readonly kind: "index" }
   | { readonly kind: "review"; readonly patterns: readonly string[] }
   | { readonly kind: "due"; readonly patterns: readonly string[] }

@@ -1,4 +1,4 @@
-// The TRANSFORMS view's CONTEXT readout (preset-surface-redesign.md §7): the PIPELINE, two lanes, in
+// The TRANSFORMS view's CONTEXT readout: the PIPELINE, two lanes, in
 // EXECUTION ORDER — prompt-side then reply-side.
 //
 // The ORDER is the datum. Today it lives only in engine file headers, which is why "why did the reply

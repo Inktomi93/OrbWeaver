@@ -21,7 +21,7 @@ export interface HintTriggerProps {
    *  @defaultValue "inline" */
   readonly size?: "inline" | "icon";
   /** An OPTIONAL activation that REPLACES the built-in popover door (the config teacher's `i` opens the
-   *  context pane — config-revamp-design.md §7.2). A caller that supplies one already owns a richer
+   *  context pane). A caller that supplies one already owns a richer
    *  disclosure than this atom's own popup, so the two must not both answer the same press. */
   readonly onClick?: () => void;
 }

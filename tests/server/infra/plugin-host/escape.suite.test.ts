@@ -1,4 +1,4 @@
-// infra/plugin-host — the P6 hostile-guest escape/isolation CORPUS (plugin-design/04 §P4/§P6). Each test is a
+// infra/plugin-host — the P6 hostile-guest escape/isolation CORPUS. Each test is a
 // real adversarial payload against the LIVE QuickJS membrane, not a mock — it PINS a "safe by construction"
 // claim the membrane review (verdict SOUND) could argue but never exhaustively exercised. The suite is the
 // permanent regression floor for the isolation boundary; a case that ever goes red is a real escape.

@@ -166,12 +166,10 @@ function pathToken(raw: string): string | undefined {
 
 export interface PathCitationScan {
   readonly cites: readonly DanglingCitation[];
-  readonly referencedRefs: ReadonlySet<string>;
 }
 
 export function scanPathCitations(textByPath: ReadonlyMap<string, string>, docs: readonly string[]): PathCitationScan {
   const cites: DanglingCitation[] = [];
-  const referencedRefs = new Set<string>();
   for (const rel of docs) {
     const lines = (textByPath.get(rel) ?? "").split("\n");
     if (hasHeadRider(lines)) {
@@ -185,13 +183,12 @@ export function scanPathCitations(textByPath: ReadonlyMap<string, string>, docs:
       for (const match of line.matchAll(BACKTICK_TOKEN_RE)) {
         const ref = match[1] === undefined ? undefined : pathToken(match[1]);
         if (ref !== undefined) {
-          referencedRefs.add(ref);
           cites.push({ file: rel, line: index + 1, ref });
         }
       }
     });
   }
-  return { cites, referencedRefs };
+  return { cites };
 }
 
 const NAME_BEARING_KINDS: readonly SyntaxKind[] = [

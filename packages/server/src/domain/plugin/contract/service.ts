@@ -210,7 +210,7 @@ interface ResidentPlugin {
   readonly handles: readonly PluginRegistrationHandle[];
   /** The per-plugin crash-counting invoker activation built (the SAME closure the registrars drive): a UI
    *  action re-enters the surface's `onAction` through THIS so a throwing handler bumps `consecutive_crashes`
-   *  (3-strike auto-disable) exactly like a tool/transform/event handler does (plugin-ui-plane §4.4). */
+   *  (3-strike auto-disable) exactly like a tool/transform/event handler does. */
   readonly invoke: PluginInvokeHandler;
 }
 
@@ -219,7 +219,7 @@ interface ResidentPlugin {
 export type PluginRegistry = Map<PluginId, ResidentPlugin>;
 
 /** The in-memory UI-surface STATE plane (`host.ui.setState` writes; `plugin.getSurfaceState` reads —
- *  plugin-ui-plane #679 U1). Minted ONCE per service at compose (the resident-registry / suggestion-store
+ *   U1). Minted ONCE per service at compose (the resident-registry / suggestion-store
  *  precedent), `ASSUMES(single-replica)`, respawn wipes. The FACTORY (`createPluginSurfaceStateStore`) lives in
  *  `substrate/surface-state.ts` (the SnippetGate/NotifyFloor convention: seam TYPE in contract, factory in
  *  substrate). Keyed by pluginId + surfaceId + the OPTIONAL chatId (row 777 — the room dimension); cleared
@@ -243,7 +243,7 @@ export interface PluginSurfaceStateStore {
   readonly clearForPlugin: (pluginId: PluginId) => void;
 }
 
-/** The in-memory per-plugin UI OUTBOX (plugin-ui-plane #679 U5, §4.5a) — where `host.ui.toast` and
+/** The in-memory per-plugin UI OUTBOX — where `host.ui.toast` and
  *  `host.ui.openDialog` land and where the two invoke verbs drain them onto the round-trip's outcome. The
  *  surface-state plane's sibling in every respect: minted ONCE per service at compose, `ASSUMES(single-replica)`,
  *  respawn wipes, cleared per-plugin on deactivate. FACTORY: `substrate/ui-outbox.ts` (the SnippetGate/NotifyFloor
@@ -287,7 +287,7 @@ export interface PluginContext {
     readonly readBytes: (caller: Principal, assetId: AssetId) => Promise<{ readonly bytes: Uint8Array; readonly mime: string }>;
     readonly reapOrphans: (assetIds: readonly AssetId[]) => Promise<void>;
   };
-  /** Fetch a plugin bundle's bytes at a caller-supplied URL through the EGRESS GUARD (plugin-ui-plane #679 U8,
+  /** Fetch a plugin bundle's bytes at a caller-supplied URL through the EGRESS GUARD (U8,
    *  seam 15 — the URL-install funnel). Wired at compose to `infra/network`'s `fetchPluginBundle`: `safeFetch`
    *  with the arbitrary-URL (`ANY_HOST`) posture — https-only, per-hop private-range/IP-literal denial (the SSRF
    *  wall), a redirect budget, and a byte cap that bounds the download BEFORE `parseBundle` ever sees it. NEVER a
@@ -313,11 +313,11 @@ export interface PluginContext {
   };
   readonly host: PluginHostPort;
   readonly ops: PluginHostOps;
-  /** The UI-surface state plane (plugin-ui-plane #679 U1) — the read verb (`getSurfaceState`) reads it and
+  /** The UI-surface state plane — the read verb (`getSurfaceState`) reads it and
    *  deactivate/uninstall clears it. Written by the compose-side `ops.ui.setState` (the same store instance,
    *  shared by construction). Minted ONCE at compose (`createPluginSurfaceStateStore`). */
   readonly surfaceState: PluginSurfaceStateStore;
-  /** The UI OUTBOX (plugin-ui-plane #679 U5) — the invoke verbs drain it onto their outcome and
+  /** The UI OUTBOX — the invoke verbs drain it onto their outcome and
    *  deactivate/uninstall clears it. Written by the compose-side `ops.ui.toast`/`ops.ui.openDialog` (the same
    *  store instance, shared by construction). Minted ONCE at compose (`createPluginUiOutbox`). */
   readonly uiOutbox: PluginUiOutbox;
@@ -395,7 +395,7 @@ export interface PluginService {
   /** Replace the bundle for an installed plugin (slug must match; downgrade refused; new caps ⇒ disabled). */
   readonly upgrade: (params: UpgradePluginParams) => Promise<PluginView>;
   /** Fetch a bundle at a URL through the egress guard and return its MANIFEST for the consent screen
-   *  (plugin-ui-plane #679 U8, seam 15). Read-only; SELF-authority; a fetch failure is a leak-free
+   *  (U8, seam 15). Read-only; SELF-authority; a fetch failure is a leak-free
    *  {@link PluginBundleFetchError}, a bad zip a `ManifestInvalidError` — same funnel as a file install. */
   readonly previewFromUrl: (params: PreviewFromUrlParams) => Promise<PluginManifest>;
   /** Fetch a bundle at a URL through the egress guard, then run it through the SAME funnel + consent as a file
@@ -448,7 +448,7 @@ export interface PluginService {
    *  the caller's chat authority (read admits, host unlocks writes), disposed after. Refuses NOT_FOUND when the
    *  caller cannot read the chat (leak-free). */
   readonly runSnippet: (params: RunSnippetParams) => Promise<SnippetResult>;
-  /** The caller's OWN enabled plugins' registered UI surfaces (plugin-ui-plane #679 U1) — owner-scoped, no
+  /** The caller's OWN enabled plugins' registered UI surfaces — owner-scoped, no
    *  foreign id (a plugin the caller does not own is never in the result). */
   readonly listSurfaces: (params: ListSurfacesParams) => Promise<readonly PluginSurfaceView[]>;
   /** One owned surface's published state (`null` if nothing published). Owner-scoped on `pluginId` (leak-free). */
@@ -457,7 +457,7 @@ export interface PluginService {
    *  seam 11). Owner-scoped on `pluginId` (leak-free NOT_FOUND); the renderer resolves a node's declared
    *  bundle path through it and then rides the same owner-scoped blob resolve every `assetId` already rides. */
   readonly listBundleAssets: (params: ListBundleAssetsParams) => Promise<readonly PluginBundleAssetView[]>;
-  /** One owned `frame`-tier surface's DOCUMENT BYTES (plugin-ui-plane #679 U7). Owner-scoped on `pluginId`
+  /** One owned `frame`-tier surface's DOCUMENT BYTES. Owner-scoped on `pluginId`
    *  (leak-free NOT_FOUND) and re-gated per call on the row's live `ui.frame` grant. `null` for every other arm —
    *  disabled, no resident, unknown surface, wrong tier — so the doorway serves one identical miss. Its ONE
    *  caller is `entry/http/plugin-frame.ts`; nothing projects these bytes to a client. */
@@ -485,7 +485,7 @@ export interface PluginService {
   /** Run one registered command under the crash policy (owner-scoped, leak-free) and return the drained UI
    *  outcome. `/plugin <slug> <name> <rest>` and the chrome menu are the two surfaces that reach it. */
   readonly invokeUiCommand: (params: InvokeUiCommandParams) => Promise<PluginUiOutcome>;
-  /** The caller's OWN enabled plugins' registered DISPLAY transforms (plugin-ui-plane seam 14, U6) —
+  /** The caller's OWN enabled plugins' registered DISPLAY transforms (seam 14, U6) —
    *  owner-scoped, no foreign id. The per-row round-trip's BYTE-IDENTITY gate: an empty answer means the
    *  viewer's transcript makes no `transformForDisplay` calls at all. */
   readonly listDisplayTransforms: (params: ListDisplayTransformsParams) => Promise<readonly PluginDisplayTransformView[]>;

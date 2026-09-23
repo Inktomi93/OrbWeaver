@@ -7,7 +7,7 @@
 // vocabularies is exactly the defect side-eye filed (#863 P2: "one concept, four names"), so the words and
 // the after-effects are shared state, not copied literals.
 //
-// USER-INITIATED ONLY (`Context-Panel-Program.md` §4.1, as amended 2026-08-30). ARRIVING at a game room
+// USER-INITIATED ONLY (as amended 2026-08-30). ARRIVING at a game room
 // still gets ZERO ceremony — the pane swaps like any chat switch. A start/stop the user just PERFORMED is
 // not arrival, it is an event, and it is owed feedback: ONE `role="status"` announcement, and — on START —
 // the panel opening onto the game's own Status tab so the action reveals its own result. NO ANIMATION, in

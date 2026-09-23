@@ -1,4 +1,4 @@
-// CT: `usePluginDisplayText` — the CLIENT half of the plugin DISPLAY-transform seam (plugin-ui-plane #679 U6,
+// CT: `usePluginDisplayText` — the CLIENT half of the plugin DISPLAY-transform seam (U6,
 // seam 14) over the REAL tRPC path with a stubbed network.
 //
 // Two properties, and the first is the one the whole per-row design rests on:

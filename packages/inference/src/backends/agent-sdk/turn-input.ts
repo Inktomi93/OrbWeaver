@@ -6,7 +6,7 @@
 // (#1607), and a paired tool exchange rides as real `tool_use`/`tool_result` blocks (#1605). The caller's tools
 // mount as an in-process MCP server whose handlers run the caller's `execute` — the SDK owns the loop, the
 // caller keeps every decision about the call. These are this backend's representation rules; the caller hands
-// over one neutral shape and never learns them (`docs/design/inference-tool-delivery.md`).
+// over one neutral shape and never learns them (D177).
 
 import type { AgentToolServer } from "../../contract/agent.ts";
 import type { AgentSdkChatRequest, AgentSeedBlock, AgentSeedTurn, ChatHistoryMessage, ChatToolOffer, ChatTurnInput } from "../../contract/chat.ts";

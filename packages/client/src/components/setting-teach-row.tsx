@@ -1,4 +1,4 @@
-// SettingRow + ConfigTeachScope — the knob row's TEACHER binding (config-revamp-design.md §7.2, #866 S3)
+// SettingRow + ConfigTeachScope — the knob row's TEACHER binding (#866 S3)
 // and, since #932/#927/#928, its whole ANATOMY. A knob section provides ONE scope (its group id + its own
 // `ConfigSubcategory` nav const), wraps its rows in a `SettingRowGroup`, and wraps each Field row in a
 // `SettingRow` naming the row's LEAF. The row then:

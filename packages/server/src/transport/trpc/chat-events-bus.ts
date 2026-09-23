@@ -25,8 +25,8 @@ const channelFor = (chatId: ChatId): string => `chat:${chatId}`;
 
 /** One live-bus entry — the durable per-chat cursor + the room-public event.
  *
- *  TWO ARMS, and the pairing is PHYSICS rather than convention (the entity→room bridge's live-only lane,
- *  `docs/design/entity-room-member-freshness-bridge.md` §3.4):
+ *  TWO ARMS, and the pairing is PHYSICS rather than convention (the entity→room bridge's live-only
+ *  lane):
  *    • `seq: number` — the durable arm. The entry was appended to `chat_events` first and this IS its replay
  *      cursor, so the pump dedups on it and the socket cell advances the room's resume cursor from it.
  *    • `seq: null`   — the LIVE-ONLY arm. No `chat_events` row exists, so there is no cursor to carry and

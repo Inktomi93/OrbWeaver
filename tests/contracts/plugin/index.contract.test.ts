@@ -1,4 +1,4 @@
-// Contract tests for the @orb/contracts/plugin BARREL (plugin-design P2): the origin axis
+// Contract tests for the @orb/contracts/plugin BARREL: the origin axis
 // (lifecycle.ts), the capability→function map's runtime coverage (host-v1.ts — the completeness checkpoint's
 // runtime mirror; the type-level pin lives in index.test-d.ts), and the two guest-observable membrane errors
 // (errors.ts). The manifest matrix + the capability axis live in the manifest.ts mirror (manifest.contract.test.ts).
@@ -16,7 +16,7 @@ test("PLUGIN_ORIGINS is [upload, url] — the file arm + the URL-install arm (U8
 test("HOST_FUNCTION_CAPABILITY maps 43 gated functions, every value a real capability, every capability covered", () => {
   const entries = Object.entries(HOST_FUNCTION_CAPABILITY);
   // 23 → 25 at U6: `transforms.registerDisplay` + `macros.register`, both riding the EXISTING `chat.transform`
-  // capability (plugin-ui-plane §5.5/§5.15) — a widened surface with no new consent line. 25 → 28 at U5:
+  // capability — a widened surface with no new consent line. 25 → 28 at U5:
   // `ui.registerCommand` + `ui.toast` + `ui.openDialog`, all three riding the EXISTING `ui.surface` grant
   // (§4.5/§4.5a) — a command in the app's own menu, a toast in its own slot, a dialog in its own modal shell
   // are all already described by the surface consent line.

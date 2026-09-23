@@ -4,7 +4,7 @@
 // read three different things out of `node_modules`: a parsed `.d.ts` surface, a version tuple, and one raw
 // bundled file. Giving each its own resource kind would make each capability serve exactly one gate — which
 // is that gate's private reader wearing a contract's clothes — and would cost three passes over the four
-// policing surfaces instead of one. The earlier design sketch (`resource-gate-access-patterns.md` §6–§7)
+// policing surfaces instead of one. The earlier design sketch (the ResourceHost access-pattern ruling §6–§7)
 // proposes `baseUiSurface`, `installedReactCompiler` and `devtoolsClosure` as separate typed facts; the
 // owner ruling is later and wins. What stays with those gates is their INTERPRETATION — surface adjudication,
 // denylist membership, pin/hash/licence validation. This door owns loading, identity, status and receipts.

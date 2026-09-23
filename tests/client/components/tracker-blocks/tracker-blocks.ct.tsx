@@ -1,14 +1,14 @@
-// CT: the tracker BLOCK KIT (Context-Panel-Program §3.2) — the seven blocks, both arms. The kit's
+// CT: the tracker BLOCK KIT — the seven blocks, both arms. The kit's
 // contracts under test:
 //   • LABEL always present + value TEXT is the datum (§3.2/§4.9) — a bare number is the named failure;
-//   • EDITABLE IN PLACE by default, but DISPLAY-AT-REST (panel-redesign DESIGN.md §12.4.1): an
+//   • EDITABLE IN PLACE by default, but DISPLAY-AT-REST (the panel-redesign mock §12.4.1): an
 //     `onEdit*` renders the value as STATIC text on a real button; the inline field appears only on
 //     CLICK, commits on blur/Enter, cancels on Escape. The READ-ONLY arm (no callback → static text)
 //     stays the honest-arms fallback — display-only is the corruption-trainer failure, so both arms
 //     are exhaustively pinned;
 //   • the commit FIRES with the parsed value (assert-the-mutation-fired — not just the UI reaction).
 // The trailing CONVERGENCE block assembles the kit into the mockup-v2 block regions and screenshots them
-// (via ctSnapPath, into THIS run's own slot — docs/design/1208-instrument-substrate.md §3.7) — the
+// (via ctSnapPath, into THIS run's own slot) — the
 // structure/density/hierarchy receipt against the committed mockup.
 import { AddRow, AmbientStrip, BeatLine, GoalLine, HintEditor, MeterRow, NpcCard, StatCell, TrackerChip } from "@orb/client/components";
 import { RPG_WEATHER_TYPES } from "@orb/contracts/rpg";

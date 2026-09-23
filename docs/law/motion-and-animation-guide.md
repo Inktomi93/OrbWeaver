@@ -12,8 +12,7 @@ The motion law (promoted proposed/ → core/ under D66). How motion is built in 
 and one easing curve** — never a React animation hook, never a second easing curve. §1 is the Base UI
 mechanics an agent needs to add motion; §2 the taxonomy → token map; §3 the house principles
 (numbering is stable — code cites `guide §3.7`/`§3.9`); §4 the motion inventory (what's built,
-where, and what was deliberately left out). The pre-build gap analysis and the inspiration
-synthesis behind §3 are frozen in `../architecture/history/motion-guide-archaeology-record.md`.
+where, and what was deliberately left out).
 
 ## 1. Base UI animation mechanics cheat-sheet
 
@@ -274,8 +273,7 @@ loading→content cross-fade was considered and decided-against (§4.2 item 5).
 ## 3. House principles
 
 Numbering is STABLE — code comments cite `guide §3.7` and `guide §3.9` by number; keep all ten
-in order. The sourced synthesis and design-writing quotes behind these live in
-`../architecture/history/motion-guide-archaeology-record.md`.
+in order.
 
 1. **Exit matters as much as entrance.** Entrance-only motion is the #1 tell of unfinished
    work. Any enter animation wants a paired exit — UNLESS there is no honest exit phase to
@@ -344,6 +342,12 @@ in order. The sourced synthesis and design-writing quotes behind these live in
    raise without a budget verdict, the pull side keeps re-judging the raw facts under it. It
    sanctions a Base UI transition bound to one `data-starting-style`/`data-ending-style` phase,
    never the word "height": an application-authored height animation is still a §3.7 violation.
+
+   **Bake glow and blur. Never compute them on an animating element.** A live blur on an element
+   that moves or fades forces a software raster on every frame. This applies to canvas
+   `shadowBlur`, SVG `<feGaussianBlur>` and CSS `filter: blur()`. Bake the glow once into a
+   static asset — a bitmap, or a blurred path twin — and animate that asset with `transform` and
+   `opacity` only. A blur on static, non-animating content is fine.
 
 8. **When NOT to animate.** Litmus: seen 100+ times daily → don't animate (keystroke feedback,
    every row a power user scrolls past). Also: motion the user did NOT cause (another user's
@@ -447,8 +451,7 @@ unqualified.
 ### 4.2 The motion inventory (what's built, where; item numbers are stable)
 
 Item 1's number is cited from code (`use-enter-motion.ts` → `guide §4.2 item 1`) — keep the
-ordering. Every item is BUILT or DECIDED-AGAINST; the reference code sketches that once lived
-here are frozen in `../architecture/history/motion-guide-archaeology-record.md`.
+ordering. Every item is BUILT or DECIDED-AGAINST.
 
 **1. List-item enter (chat transcript).** BUILT (enter) / DECIDED-AGAINST (exit). The chat
 list is a TanStack virtualizer (`@orb/ui/message-list`) whose rows mount/unmount on every
@@ -511,7 +514,7 @@ siblings) carry `transition-colors duration-(--motion-fast) ease-out-expo`.
 
 **10. Streamed-word reveal fade (chat ghost row).** BUILT (#42, owner-ordered 2026-08-09 —
 supersedes the old §4.3 "don't animate streaming text" bullet; design + measurements:
-`docs/history/design/streaming-reveal-42.md`). Each newly revealed word of a streaming message fades in
+D168). Each newly revealed word of a streaming message fades in
 (opacity-only keyframe `orb-word-reveal`, `--motion-base` + `--ease-out-expo`, `fill both`) via the
 markdown seal's own rehype plugin (`ui/src/markdown/reveal-plugin.ts` → `[data-orb-reveal]` spans in
 `ui/src/styles/globals.css`). Fade progress is anchored to the word's REVEAL TIME through a negative
@@ -537,6 +540,11 @@ per-block `dir` wrapper and drops to a new line).
   genuinely doesn't fit `fast`/`base`/`layout` + `ease-out-expo`. The existing 3-tier interaction
   system covers the full taxonomy in §2; continuous/ambient tokens (`shimmer`/`breathe`/`precip`/
   `transit`/`ambient`) serve loops and environmental effects and are a separate class.
+- Do not drive the streamed-word fade from the DOM with a `MutationObserver` and the Web
+  Animations API. React replaces word nodes during markdown repair, dialogue re-splitting and
+  re-blocking, and a replaced node loses its running animation. The reveal-time CSS anchor in
+  §4.2 item 10 survives that replacement and keeps the one reduced-motion path. ADR 0168 owns the
+  mechanism.
 
 ## 5. The Base UI animation/styling contract (house law — #1088)
 

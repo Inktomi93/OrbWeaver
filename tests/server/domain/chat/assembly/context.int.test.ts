@@ -242,7 +242,7 @@ describe("buildAssembleContext — GATHER keyword match (the two-phase lag-kill)
   });
 });
 
-describe("buildAssembleContext — the D50 user_input PromptTransform point (automation-design/04 §1.2/§6)", () => {
+describe("buildAssembleContext — the D50 user_input PromptTransform point", () => {
   test("a user_input transform runs AFTER the macro pass, BEFORE the USER_INPUT regex (the SEND sink proves order)", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "u");

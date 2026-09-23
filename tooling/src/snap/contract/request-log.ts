@@ -1,5 +1,5 @@
 // The `--requests` / `--request-body` arm's shapes — what this run's page ACTUALLY asked the network
-// for, in order (docs/design/1195-devtools-mcp-retirement.md §2 item 2, replacing the retired MCP's
+// for, in order (replacing the retired MCP's
 // `list_network_requests` / `get_network_request`).
 //
 // This is deliberately a SECOND, ordered log rather than a widening of `_shared/browser-capture.ts`'s

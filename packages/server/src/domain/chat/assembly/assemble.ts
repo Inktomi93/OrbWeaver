@@ -658,7 +658,7 @@ function isSectionDynamic(section: PromptSection): boolean {
     return false;
   }
   // `databank` joins memory here: retrieval is re-run every turn against the pending message, so its bytes
-  // change turn to turn — in the STATIC half it would bust the cached prefix on every send (databank-design/07 §3).
+  // change turn to turn — in the STATIC half it would bust the cached prefix on every send.
   return section.marker === "memory" || section.marker === "databank" || section.marker === "guided_instruction" || section.marker === "chat_history";
 }
 

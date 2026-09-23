@@ -1,4 +1,4 @@
-// The TEACHER's tab list (config-revamp-design.md §3.5/§7.2, #866 S3) — About · Applies · Learn on the
+// The TEACHER's tab list (#866 S3) — About · Applies · Learn on the
 // #860 bracket's FOOT rail, ids namespaced `config.*` (the `rpg.*` posture: `contextTab` stays an opaque
 // shared string; this file is where the spelling lives).
 //
@@ -24,7 +24,7 @@
 // writes its def AND its `when` — it can never default to permanently visible the way Applies did.
 //
 // The canvas boards' foot cells ("About · Preview · Activity") were extraction SCAFFOLD, not contract —
-// orchestrator ruling 2026-08-30 (§7.1): the boards' own head gloss and DESIGN.md's pane contract name
+// orchestrator ruling 2026-08-30 (§7.1): the boards' own head gloss and the mock design's pane contract name
 // this list.
 
 import { BookOpen, Info, MapPin } from "@orb/ui/icons";

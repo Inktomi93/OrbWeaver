@@ -156,7 +156,7 @@ test("chats variableValues (read-seam map) + import provenance round-trip", asyn
   expect(row?.importHash).toBe("sha256-of-import-bytes");
 });
 
-test("the standalone (out-of-turn) variable delta log round-trips (automation-design/03 §1.1)", async () => {
+test("the standalone (out-of-turn) variable delta log round-trips", async () => {
   const db = await freshDb();
   const chatId = castId<ChatId>("chat_standalone_deltas");
   const standaloneVariableDeltas = [{ seq: 2, delta: [{ op: "set" as const, key: "mood", value: "calm" }] }];
@@ -165,7 +165,7 @@ test("the standalone (out-of-turn) variable delta log round-trips (automation-de
   expect(row?.standaloneVariableDeltas).toEqual(standaloneVariableDeltas);
 });
 
-test("the initiator CHECK rejects an out-of-tuple value (messages_initiator_check; automation-design/03 §4)", async () => {
+test("the initiator CHECK rejects an out-of-tuple value (messages_initiator_check)", async () => {
   const db = await freshDb();
   const chatId = await seedChat(db, { id: "chat_initiator_check" });
   let caught: unknown;

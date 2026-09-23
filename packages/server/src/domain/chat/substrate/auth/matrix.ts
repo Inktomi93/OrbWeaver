@@ -140,7 +140,7 @@ export const CHAT_VERB_AUTHORITY = {
   reattributePersona: "author-or-host", // author-or-host PER targeted row: a member re-stamps THEIR OWN user lines, the host any (the persona-attribution / {{user}} history fix — Chat-Macro-Resolution §5). The verb also asserts role==='user' + target-persona-owned-by-the-row's-author.
   setGroupConfig: "host",
   addCharacterToChat: "host",
-  removeCharacterFromChat: "host", // host-only, the symmetric drop for addCharacterToChat (future rpg-design scene-cast prune injected consumer)
+  removeCharacterFromChat: "host", // host-only, the symmetric drop for addCharacterToChat (future docs/plans/rpg/design.md scene-cast prune injected consumer)
 
   setRoomOverrides: "host",
   setChatDocumentVisibility: "host", // D85 — the host governs which databank documents feed the shared room's retrieval (room-wide prompt content is the host's authority, the setRoomOverrides twin)

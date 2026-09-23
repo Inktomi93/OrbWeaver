@@ -1,5 +1,5 @@
 // The CONFIG GROUP vocabulary — the closed tuple the config-group registry is total over, and the shell's
-// `openConfigTo` navigation type (config-revamp-design.md §3.1/§6.2, #866).
+// `openConfigTo` navigation type (#866).
 //
 // It was `config-group-ids.ts` (`CONFIG_GROUP_IDS`) until the config revamp folded the settings
 // MODAL into the Configuration SECTION: the nine settings categories, the four member collections (the
@@ -15,7 +15,7 @@
  *  groups share an `order`; the LIST paints `(shelf, order, id)`.
  *
  *  `plugins` is the ONE `extensions`-shelf group: a plugin's own settings ride its row inside it
- *  (plugin-ui-plane.md §4.5) — the door never grows per install. `admin` stays `when`-gated on the def. */
+ *  — the door never grows per install. `admin` stays `when`-gated on the def. */
 export const CONFIG_GROUP_IDS = [
   // ── user ──
   "personas",

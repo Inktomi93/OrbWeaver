@@ -1,5 +1,5 @@
 /**
- * `@orb/ui/web-weave` — the brand web, live (docs/history/design/login-loading-screen.md; the "one emblem,
+ * `@orb/ui/web-weave` — the brand web, live (D173; the "one emblem,
  * every scale" system): `<WebWeave>` (the canvas orb web — weaving | settled | partial | strand-out),
  * `<WeaveVeil>` (the boot/blocking veil owning the ST-style dissolve exit), and the PURE geometry —
  * `buildWeb` + the seeded jitter (the vitest-testable half, waystone pattern) and `webGlyph` (the

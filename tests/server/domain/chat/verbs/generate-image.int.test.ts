@@ -1,4 +1,4 @@
-// verb: generateImage — the explicit image-generation surface (imagery-design/04 §2). Proves against a real
+// verb: generateImage — the explicit image-generation surface. Proves against a real
 // libSQL db: the injected `generatePicture` op is called, ONE message is committed authored by the CALLER
 // (§2.2 — the initiating principal, a user post), its body STRING carries one `asset:` ref per returned
 // image (D51 — never stored blocks), and `messageCommitted` is emitted. The op is a stub (chat can't import

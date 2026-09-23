@@ -3,7 +3,7 @@
 // `cache_control` is Anthropic-only, so we emit it iff the routed model is Anthropic, and pin the
 // Anthropic provider (order + allow_fallbacks:false) so an unpinned model can't silently land on a
 // non-caching endpoint. Measured wire facts (ttl "1h" honored, the fallback leak, the silent invalid-ttl
-// drop) are recorded in docs/history/design/openrouter-provider-findings.md §1–§3.
+// drop) are recorded in `scripts/probes/openrouter/RESULTS.md`.
 // `computeCacheBreakpointPlacements` is the pure positional core the openrouter runner maps onto its own
 // wire dialect; its DEPTH axis (role switches, tool exchanges transparent) is specified at that function.
 
@@ -24,7 +24,7 @@ const EPHEMERAL = "ephemeral";
 // The two TTLs the Anthropic cache accepts. The allowlist is load-bearing, not decoration: an UNKNOWN ttl
 // is NOT an upstream error — OpenRouter answers 200 and silently drops the WHOLE `cache_control` block
 // (measured `ttl:"9z"` → cacheWrite 0, cacheRead 0, ~10x the cost of a cached turn, no signal anywhere;
-// docs/history/design/openrouter-provider-findings.md §3). Nothing else stands between a typo and a silent 10x bill.
+// `scripts/probes/openrouter/RESULTS.md`). Nothing else stands between a typo and a silent 10x bill.
 const CACHE_TTLS = ["5m", "1h"] as const;
 // Module-local by design: infra is not a type home (`no-inline-types`), and no consumer outside this file
 // needs to NAME the union — the exported tuple + the directive interface carry it.

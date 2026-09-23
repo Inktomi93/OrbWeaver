@@ -1,4 +1,4 @@
-// The World Info config group (config-revamp-design.md §3.1, owner fork F-1) — the books library's
+// The World Info config group (owner fork F-1) — the books library's
 // identity on the group base, its `CollectionContribution` riding the `collection` body arm verbatim. The
 // id stays `worldInfo`: it is the ONE home `WORLD_INFO_COLLECTION_ID` already exports, the persisted
 // disclosure key, and the `data-collection` attribute the CTs address.

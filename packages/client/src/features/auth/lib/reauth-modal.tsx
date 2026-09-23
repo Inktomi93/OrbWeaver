@@ -1,4 +1,4 @@
-// The IN-APP RE-AUTH modal (staleness-and-session-freshness.md §4.4 rung 1; owner fork F2 — "in-app modal,
+// The IN-APP RE-AUTH modal (owner ruling: "in-app modal,
 // cache preserved", the hard redirect surviving only as rung 2). ONE co-located definition
 // (client-architecture-lockdown.md §6d), `surface`-placed: it has no chrome affordance because no human
 // opens it — the recovery ladder does, via `openModal("reauth")`.

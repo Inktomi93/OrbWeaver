@@ -4,5 +4,5 @@
 // census lives when the ONE-NAME rule sheds the band's title. The `characters-section-label.ts` precedent
 // (#1670), for the same reason: the third reader is what turns two hand-copied literals into a defect.
 
-/** What every surface calls this section (`vocabulary-map.md` renames nothing here — `Chats` is the word). */
+/** What every surface calls this section (`docs/law/vocabulary-map.md` renames nothing here — `Chats` is the word). */
 export const CHATS_SECTION_LABEL = "Chats";

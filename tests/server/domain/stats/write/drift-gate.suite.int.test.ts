@@ -1,6 +1,6 @@
 // stats drift gate — the CROSS-WRITER equality harness (the stats design doc inv #3; D60 doc 02 §4 the agent row).
 //
-// The build plan (agent-principal-design/07 §3) is explicit: the drift suite must gain the agent row "on
+// The build plan (docs/plans/agent-principals/design.md) is explicit: the drift suite must gain the agent row "on
 // BOTH writers in the same commit, or the gate lies." Two INDEPENDENT per-writer tests asserting matching
 // hand-computed constants (which is what `apply-delta` + `rebuild-from-canon` each carry today) do NOT
 // satisfy that — neither one runs both writers over one canon, so a drift between them is invisible.

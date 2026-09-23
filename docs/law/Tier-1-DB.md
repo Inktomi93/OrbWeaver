@@ -23,7 +23,7 @@ NOT owned: business logic (verbs/ownership/dispatch → `server`); the vector wr
 
 > **A schema file is named for the domain that PRODUCES/OWNS its rows, never for a consumer.**
 
-A consumer-named schema file hides its real producer (the port-from-neo antipattern; the enumerated cases are in `history/tier-1-2-archaeology-record.md`). Enforcement: compile-time (the schema file IS the type source — a move forces every importer) + the `db-structure` gate (asserts `schema/<feature>.ts` maps to a producing domain and the barrel re-exports every file; satellite tables map to their producer, e.g. `gallery` → `domain/assets`, `sdk-session` → the agent-sdk backend).
+A consumer-named schema file hides its real producer (the port-from-neo antipattern). Enforcement: compile-time (the schema file IS the type source — a move forces every importer) + the `db-structure` gate (asserts `schema/<feature>.ts` maps to a producing domain and the barrel re-exports every file; satellite tables map to their producer, e.g. `gallery` → `domain/assets`, `sdk-session` → the agent-sdk backend).
 
 ## Cross-tier composition (who reads `db`)
 
@@ -123,7 +123,7 @@ reds (regime 2, step 5).
 
 Enforcement of that regime was the `baseline-single-migration` gate (exactly one `.sql`, exactly one
 journal entry) and its runtime twin `DB_LAUNCHED` in `entry/boot/migrate.ts`. The gate is DELETED (its row
-is in `../architecture/history/Core-Enforcement-Deferred-Dropped.md` §"Retired"); the constant is `true`.
+is in `docs/law/Core-Enforcement-Deferred-Dropped.md` §"Retired"); the constant is `true`.
 
 ### Regime 2 — POST-LAUNCH (TODAY, since 2026-09-18): forward-only incremental migrations
 
@@ -208,6 +208,20 @@ generate against the same parent?).
    `Config`.
 
 7. **The `db-structure` barrel gate.** A schema file missing from `schema/index.ts` silently drops its tables from `typeof schema` and from migrations. The gate enforces the re-export AND the producer-mapping split.
+
+8. **Concurrent creation: the unique constraint decides the race.** Let a UNIQUE or primary-key constraint decide which writer creates one logical unit of work. Do not pre-check. Do not add a reservation or lease table.
+
+   - Commit the whole unit in one `db.batch`, so a losing writer leaves no partial rows.
+   - Classify a failure with `isConstraintViolation` from `@orb/db/kit`.
+   - Treat a violation as a lost race only when a re-read explains it. For an import, the winner's claim row is now visible (`commitImportCandidate`). For a canon append, the head has reached the attempted seq (`commitCanonAppend`).
+   - Rethrow every other failure. This includes a unique violation that the re-read does not explain.
+   - After a lost race, use the winner's result, or re-allocate and rebuild the attempt with new ids.
+   - Never re-run work that is already paid for, such as a provider call.
+   - Bound any re-allocation loop. Repeated loss means a defect elsewhere, not contention.
+
+   A reservation table is rejected because a crash can leave an ownerless pending claim. Cleaning that up needs leases and reaping that these operations do not otherwise need.
+
+   Homes: `packages/db/src/kit/db-errors.ts`, `packages/server/src/domain/chat/persistence/canon-write.ts`, `packages/server/src/domain/chat/persistence/import-write.ts`.
 
 ## Invariants
 

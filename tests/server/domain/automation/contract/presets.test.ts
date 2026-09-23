@@ -288,7 +288,7 @@ test("the callback anchors the beat through {{expr::…}} with law-2 coercion", 
   expect(r1?.arms[1]).toMatchObject({ type: "set_variable", key: "debtBeat", op: "set", value: "{{expr::int(chat.messageCount)}}" });
 });
 
-// ── A4's four rows (interaction-direction-spec §4 #1/#3/#8/#10) ────────────────────────────────────────
+// ── A4's four rows ────────────────────────────────────────
 
 test("#1 welcome-back recap: the stamp rule is capped (law 4) and the recap arm is CONFIRM-FIRST", () => {
   const [stamp, recap] = buildWithDefaults("welcomeBackRecap");
@@ -387,7 +387,7 @@ test("#16's threshold knob is bounded by the score's own scale — a 0 or an 11 
   expect(() => resolveRulePresetKnobs(knobs, { threshold: ANALYSIS_SCORE_MAX })).not.toThrow();
 });
 
-// ── C6's two rows (interaction-direction-spec §4 #2 + #14) ────────────────────────────────────────────
+// ── C6's two rows ────────────────────────────────────────────
 
 test("#2 the async nudge orders the NUDGE above the STAMP — the inverse of the clock, same mechanism", () => {
   // The clock mints counter-then-threshold; this preset MUST mint threshold-then-counter. A chat's rules

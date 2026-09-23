@@ -146,17 +146,17 @@ function assertOneLeafKeyBinding(
   const claim = contribution.owns;
   if (claim === undefined || claim.tier !== "user") {
     throw new Error(
-      `assertSettingsKeyPartition: ${at} declares key "${bound.key}" but the contribution has no user-tier claim — a leaf binding needs an owned per-user key (config-revamp-design.md §7.7).`,
+      `assertSettingsKeyPartition: ${at} declares key "${bound.key}" but the contribution has no user-tier claim — a leaf binding needs an owned per-user key.`,
     );
   }
   if (!claim.keys.includes(bound.key)) {
     throw new Error(
-      `assertSettingsKeyPartition: ${at} declares key "${bound.key}", which is NOT in the section's claim [${claim.keys.join(", ")}] — the row would read and RESET a value its section does not own (config-revamp-design.md §7.7).`,
+      `assertSettingsKeyPartition: ${at} declares key "${bound.key}", which is NOT in the section's claim [${claim.keys.join(", ")}] — the row would read and RESET a value its section does not own.`,
     );
   }
   if (settingsValueAtPath(defaults, `${claim.section}.${bound.key}`) === undefined) {
     throw new Error(
-      `assertSettingsKeyPartition: ${at} binds key "${claim.section}.${bound.key}", whose DEFAULT does not resolve from the contract defaults — the one home (config-revamp-design.md §7.7). The stripe would read permanently modified and Reset would write a hole; fix the key or the schema, never mirror a literal.`,
+      `assertSettingsKeyPartition: ${at} binds key "${claim.section}.${bound.key}", whose DEFAULT does not resolve from the contract defaults — the one home. The stripe would read permanently modified and Reset would write a hole; fix the key or the schema, never mirror a literal.`,
     );
   }
 }

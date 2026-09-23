@@ -6,7 +6,7 @@ updated: 2026-09-22
 
 # `@orb/tooling` — tooling-tree law
 
-> The detail home for the tooling tree. `Core-0-Architecture-and-Structure.md` §9 is the summary and the entry point; this doc owns the roster, the plumbing floor, the per-gate contracts, the coupled-site census, and the move playbook. Gate authoring starts at `../design/gate-runtime-read-first.md`; `../../tooling/src/verify/gates/GATE-AUTHORING.md` is the final authoring guide and links the verbatim legacy archive. Live gate catalog: `Core-Enforcement-Active-Gates.md`. The research zone's roster: `../../scripts/README.md`.
+> The detail home for the tooling tree. `Core-0-Architecture-and-Structure.md` §9 is the summary and the entry point; this doc owns the roster, the plumbing floor, the per-gate contracts, the coupled-site census, and the move playbook. Gate authoring starts at `docs/law/gate-runtime-read-first.md`; `../../tooling/src/verify/gates/GATE-AUTHORING.md` is the final authoring guide and links the verbatim legacy archive. Live gate catalog: `Core-Enforcement-Active-Gates.md`. The research zone's roster: `../../scripts/README.md`.
 
 ## 1. Standing rulings (owner — do not relitigate)
 
@@ -83,6 +83,14 @@ The constitution bans `_shared` drawers in `packages/` (`Core-0-Architecture-and
 **A module joins this floor by IMPORTER CENSUS, never by classification.** "Tool-specific" is a hypothesis; `rg --files-with-matches '<module>' scripts/ tooling/ tests/` is the verdict. Genuinely tool-specific plumbing stays in its tool (`snap/ops/fixture.ts`, the snap stage set).
 
 Every depth-derived root constant is RE-DERIVED at its move, never carried (§9.1-4).
+
+### 2.4a Shims on a shared session browser
+
+Install every session-wide shim with `context.route` or `context.addInitScript`. A shim reaches a tab by its own scope, not by the connection that installed it. A context-scoped shim also covers a tab that an attached client opens. A `page.route` covers only its own page, so an attached instrument that opens a tab would measure the unshimmed app. A page-scoped route is correct only for a local intercept that one drive installs and removes, such as `tooling/src/snap/ops/appearance-density-persistence.ts`.
+
+`attachProbeSession` in `tooling/src/_shared/browser.ts` attaches with `chromium.connectOverCDP`. A `connect()` client cannot see contexts that another client created, so attach would find no session to join.
+
+`tests/tooling/_shared/browser-attach.suite.int.test.ts` pins both facts.
 
 ### 2.5 The five-slot tool template
 
@@ -212,7 +220,7 @@ Worked precedents for step 3: `no-raw-clock` was FENCED with a `mustPass` row (t
 
 ## 4. Enforcement
 
-The live roster derives from the loader. Final policies follow `../design/gate-runtime-standardization.md` and the final `../../tooling/src/verify/gates/GATE-AUTHORING.md`; legacy descriptor maintenance uses that guide’s verbatim archive. **Live violations found at any landing are FIXED in that lane** — no debt baselines are minted for tooling.
+The live roster derives from the loader. Final policies follow `docs/law/gate-runtime-standardization.md` and the final `../../tooling/src/verify/gates/GATE-AUTHORING.md`; legacy descriptor maintenance uses that guide’s verbatim archive. **Live violations found at any landing are FIXED in that lane** — no debt baselines are minted for tooling.
 
 ### 4.1 `tooling-slot-template`
 
@@ -289,7 +297,7 @@ Everything else — `ops/`, `lib/`, `contract/`, and every `ops/parse.ts` — ta
 
 **Threading argv in is a REQUIRED field, not an optional one.** `RunCodemodOptions.argv` is required precisely because the omission's failure mode is silent: `resolveIsDryRun([])` returns "dry run", so a forgotten argv would swallow an operator's `--apply` and report a clean preview. A required field makes it a tsc error instead.
 
-Arms: **(A)** the read outside a sanctioned home, both spellings (an element-access-blind matcher would be the loophole) — a reviewed-grant finding; **(B)** the two-sided stale sweep is CENTRAL grant liveness — a grant row consumed zero times after a complete run is STALE, whether its file merely stopped reading argv or is GONE, so the two modes collapse to one check by construction; **(C)** the `docs/design/gate-runtime-standardization.md` §6.1 blindness tripwire, its own hard policy `tooling-argv-front-door-health` — zero `cli.ts` readers on a real-tree run means the matcher stopped recognising the shape, and every arm above is vacuously green. Both whole-tree arms are anchored on `_shared/exit-contract.ts` (arm B by the entire-population deferral, arm C by the anchor guard), never on a scope kind.
+Arms: **(A)** the read outside a sanctioned home, both spellings (an element-access-blind matcher would be the loophole) — a reviewed-grant finding; **(B)** the two-sided stale sweep is CENTRAL grant liveness — a grant row consumed zero times after a complete run is STALE, whether its file merely stopped reading argv or is GONE, so the two modes collapse to one check by construction; **(C)** the `docs/law/gate-runtime-standardization.md` §6.1 blindness tripwire, its own hard policy `tooling-argv-front-door-health` — zero `cli.ts` readers on a real-tree run means the matcher stopped recognising the shape, and every arm above is vacuously green. Both whole-tree arms are anchored on `_shared/exit-contract.ts` (arm B by the entire-population deferral, arm C by the anchor guard), never on a scope kind.
 
 **DECLARED LIMIT (its own `mustPass` row): this gate pins WHERE argv is read, never HOW STRICTLY each tool's grammar parses it.** The 27-reader census behind #971 classified each CLI's real grammar — strict-ordered (`snap`), positional/subcommand (`ast`/`verify`/`workboard`/`doc-catalog`/`seed`/`wire-tap`/`render-trace`), flag-bag, and `--`-forwarding (`stack`) — and closed the lenient ones by hand. `ui-audit`'s strict-ordered parser was the second rendered grammar and is GONE with its CLI (#1315): the scan rides snap's, so there is one rendered-argv reader left rather than two byte-stable ones. The engine dirs' `cli.ts` files parse nothing at all. There is deliberately NO generic `parseArgv(spec)`: flattening the remaining grammars into one would change every tool's contract, and each existing contract stays byte-stable.
 
@@ -360,9 +368,7 @@ Type assertions use the type-test kinds defined by `tooling/src/_shared/test-kin
 ## 6. The verification floor for a tooling change
 
 The scoped lane floor and shared-host scheduling live in the `lane` skill
-(`.claude/skills/lane/SKILL.md`), sections “Running tools” and “Floor”. Gate-program integration
-follows `../design/gate-runtime-orchestrator-playbook.md`; a lane must not launch whole-tree checks
-alongside the integration train.
+(`.claude/skills/lane/SKILL.md`), sections “Running tools” and “Floor”. A lane must not launch whole-tree checks alongside an integration train.
 
 Run scoped Biome and ESLint, the behavioral suites for the changed contract, and every affected native
 compiler program. A shared-value change also runs coupled literal assertions. Moves require the §3.1
@@ -388,6 +394,9 @@ orphaned exports and broken front doors that a local slice can miss.
 | compat re-export stubs during a move | owner ruling: nothing else runs; clean cuts (§1) |
 | blanket-copying `scripts/**`'s biome relaxations to `tooling/**` | born-compliant means each relaxation is re-justified against the file it covers |
 | a `no-useless-fragment` gate | biome's `noUselessFragments` is already on at error and covers element-nested fragments; the residual return-position cases are style-tier, and `GATE-AUTHORING.md` §10 bans mirroring an enabled native rule. No successor exists or should be built |
+| a count ratio or count-equality tolerance for ui-audit subject accounting | an equal count cannot see one element replaced by another. `censusThinGap` in `tooling/src/ui-audit/lib/evidence.ts` requires settled = walked + classified skips, with no identity churn |
+| retrying a ui-audit walk after an accounting mismatch | a warmed retry erases the evidence that the first walk was incomplete, and timing then decides which result survives |
+| inferring the rendered theme from the requested theme name | a request cannot prove what rendered. The walker reads the source from the root `data-theme` and the ThemeScope inline tokens, and polarity from computed `color-scheme` (`tooling/src/ui-audit/ops/walker/core.ts`) |
 
 ## 8. Census hazards in the gate corpus
 

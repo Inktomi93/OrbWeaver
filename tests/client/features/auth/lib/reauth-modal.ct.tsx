@@ -1,4 +1,4 @@
-// CT: the rung-1 in-app re-auth loop (staleness-and-session-freshness.md §4.4, owner fork F2 — "in-app
+// CT: the rung-1 in-app re-auth loop (owner ruling: "in-app
 // modal, cache preserved"). What is under test is NOT a modal rendering: it is the whole LOCAL-mode ladder
 // driven the way the socket drives it, with only the network stubbed.
 //

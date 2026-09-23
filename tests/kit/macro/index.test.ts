@@ -643,7 +643,7 @@ test("the global plane is separate from runtime vars (env)", () => {
   expect(out).toBe("global-val");
 });
 
-// ── rpg data-fed macros (rpg-design/06 §1) — a game turn stages `rpgMacros`; a non-game chat resolves empty ──
+// ── rpg data-fed macros (docs/plans/rpg/design.md) — a game turn stages `rpgMacros`; a non-game chat resolves empty ──
 
 test("rpg macros render EMPTY when nothing is staged (a non-game / non-rpg chat) — byte-identical", () => {
   expect(processMacros("[{{rpgWorld}}][{{rpgSceneState}}][{{rpgMorale}}]", opts({ chatId: castId<ChatId>("chat_x") }))).toBe("[][][]");

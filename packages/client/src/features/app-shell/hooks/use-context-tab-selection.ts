@@ -4,7 +4,7 @@
 // could never mint a second copy of this rule — exactly the drift this repo keeps re-learning.
 //
 // The rule, unchanged from the pre-HUD panel: a STORED `contextTab` wins whenever it is still visible
-// (selection continuity across chat/section switches — Context-Panel-Program §4.1), else the FIRST tab
+// (selection continuity across chat/section switches), else the FIRST tab
 // flagged `defaultTab` (a game chat lands on Status, not the roster's Members), else the declared-order
 // first. Never "nothing selected" while tabs exist.
 

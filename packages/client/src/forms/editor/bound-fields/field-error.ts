@@ -1,5 +1,5 @@
 // Error-shape normalizer for the bound fields: function validators put STRINGS in `meta.errors`,
-// Standard-Schema (zod) validators put `{ message }` ISSUE OBJECTS (UI-Lib-TanStack-Form.md §6) —
+// Standard-Schema (zod) validators put `{ message }` ISSUE OBJECTS —
 // every bound field renders through this so both shapes display, standardized on the zod path.
 
 interface MessageShaped {

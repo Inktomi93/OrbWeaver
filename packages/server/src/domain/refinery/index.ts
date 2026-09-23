@@ -1,4 +1,4 @@
-// refinery/ FRONT DOOR — the only legal external import (R1 — docs/history/design/refinery-r0.md §9). The
+// refinery/ FRONT DOOR — the only legal external import. The
 // card-refinery pipeline: SCORE → REWRITE → ANALYZE over durable per-character sessions, the anti-drift
 // invariant (analyze always judges against the session's original-card snapshot), the REGRESSION-bearing
 // iterate loop, and the belted per-field apply. Ownership derives through the character join (D23 — no

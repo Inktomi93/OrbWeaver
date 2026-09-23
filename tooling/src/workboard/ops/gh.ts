@@ -50,7 +50,7 @@ function graphqlResetTime(): string {
 }
 
 function ghFailure(error: unknown, args: readonly string[], maxBuffer: number): Error {
-  // THE CEILING IS OURS, SO THE REFUSAL MUST SAY SO — the `ops/ledger-claims.ts:240` precedent. `execFileSync`
+  // THE CEILING IS OURS, SO THE REFUSAL MUST SAY SO — the ledger-claims verb's precedent (#2284). `execFileSync`
   // KILLS the child at `maxBuffer` rather than truncating, and the generic path below builds its message
   // from the CAPTURED STDOUT: that turns our own limit into "GitHub returned garbage" AND spills every issue
   // body in the page into stderr and the operator's CI log. The bulk citation read is the payload that made

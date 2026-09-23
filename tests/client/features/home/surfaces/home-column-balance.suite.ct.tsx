@@ -117,7 +117,7 @@ const AIR_GAP_BUDGET_PX = 160;
  *  Measured on this instrument at the folding commit; `VOID_BUDGET_PX` and `AIR_GAP_BUDGET_PX` untouched.
  *
  *  RE-BASELINED 2026-08-28, UPWARD, ONE cell (1920/defaults 11 → 49) — a COST being recorded, not a fence
- *  loosened. The plugin-ui-plane train added the `extensions` section to `SECTION_IDS`, and the home
+ *  loosened. The plugin UI train added the `extensions` section to `SECTION_IDS`, and the home
  *  landing's `SectionJumpRail` renders one pill PER registry section (minus home + tile-claimed) — so the
  *  flex-wrap rail gained a pill, and at 1920/defaults (pane 1864px) that pill tips the rail to a second row,
  *  +38px on the HEARTH's `home.jump` block (91px, vs 53px at the wider 2560 pane where it still fits one
@@ -147,7 +147,7 @@ const BASELINE_VOID_PX: Readonly<Record<string, number>> = {
   // (226 → 15), and the drift is in the 11, not in the fence.
   //
   // WHAT MOVED THE HEIGHTS: `ed55bf193` (2026-09-01) put every leading on an integer line box
-  // (docs/design/integer-line-boxes.md) — `--leading-title` from the ratio 1.35 to `round(1.375rem, 1px)`,
+  // (docs/law/integer-line-boxes.md) — `--leading-title` from the ratio 1.35 to `round(1.375rem, 1px)`,
   // `--leading-body` to `round(1.4375rem, 1px)`, plus the newly minted `leading-label-relaxed` the `prose`
   // modifier now takes. The READING arm multiplies every one of them by `--font-scale: 1.25`, which is why
   // it moves most and why the same pass also moved `chat.quickPicks`'s declared box (374 → 376, #1144).

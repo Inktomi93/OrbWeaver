@@ -279,7 +279,7 @@ const realModalRegistry: ModalRegistry = createRegistry<ModalSlotId, ModalDefini
 // Mirror the door (`compose/config-sections.ts`): ONE config-section registry for every anchor (SET-SEAMS
 // §5.2), read by the config host's LIST (rows + search) and CONTENT (render), so a shell CT renders the
 // contributed sections exactly as production does — every non-collection group is a skimmer over these
-// (config-revamp-design.md §6.8), so an omission here renders an incomplete group in every CT.
+// so an omission here renders an incomplete group in every CT.
 const realSettingsSections: ContributorRegistry<ConfigSectionContribution> = createContributorRegistry<ConfigSectionContribution>("config-sections", [
   // personas · backup · connections · automation ← the §6.8 conversions, in the door's order.
   personaNotificationsSection,
@@ -347,7 +347,7 @@ const realSettingsSections: ContributorRegistry<ConfigSectionContribution> = cre
 /** A group's body EXACTLY as the config host renders it (config-content-surface.tsx `GroupBody`): the
  *  contributions at `anchor`, `when`-filtered by the ONE viewer projection, in registry order, in the host's
  *  Stack. For a CT that mounts ONE group's sections outside the shell — the production render path for a
- *  skimmer, not a hand-mounted surface (config-revamp-design.md §6.8.4). Must sit under `CtDataProviders`
+ *  skimmer, not a hand-mounted surface. Must sit under `CtDataProviders`
  *  (the viewer projection reads `sessions.me`). */
 export function CtConfigGroupBody({
   anchor,

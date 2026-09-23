@@ -1,5 +1,5 @@
-// domain/databank/substrate/scrape-canon — the shared §2 canon-write tail every scraper ends in
-// (databank-design/06 §5): importHash over the fetched bytes → dedup → CAS store → synchronous extraction →
+// domain/databank/substrate/scrape-canon — the shared §2 canon-write tail every scraper ends in:
+// importHash over the fetched bytes → dedup → CAS store → synchronous extraction →
 // documents row → enqueue ingest. Homed in substrate/ (not verbs/) because it is shared verb logic — a verb file
 // importing a sibling verb's value is dep-cruiser `domain-no-cross-verb`; substrate is the domain-internal home
 // for the helper three verbs (web/youtube/wiki) close over. Extracted ONCE because all three run the identical

@@ -43,7 +43,7 @@ test("a non-gate instrument is reached through the shared test mirror", () => {
 });
 
 test("a PRODUCT-ONLY change selects nothing — the stage stays cheap enough to sit below --full", () => {
-  const selection = selectAffectedInstrumentTests(ROOT, ["packages/client/src/lib/message-bubble-class.ts", "docs/design/integer-line-boxes.md"]);
+  const selection = selectAffectedInstrumentTests(ROOT, ["packages/client/src/lib/message-bubble-class.ts", "docs/law/integer-line-boxes.md"]);
   expect({ sources: selection.sources, specs: selection.specs, unknown: selection.unknown }).toEqual({ sources: [], specs: [], unknown: false });
 });
 

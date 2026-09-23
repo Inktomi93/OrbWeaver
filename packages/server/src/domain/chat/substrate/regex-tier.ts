@@ -21,7 +21,7 @@
 //     copy would already have been swallowed and a script the host never touched would go silently dead.
 //   • THE TIER LISTING KEEPS WHAT THE EFFECTIVE SET DROPS. A disallowed tier is still LISTED, with its rows
 //     readable and their ranks null — a host cannot switch back on what the read stopped mentioning.
-//   • RANK COMES ONLY FROM THE EFFECTIVE HALF (`DESIGN.md` §7.1). The client never re-unions and never
+//   • RANK COMES ONLY FROM THE EFFECTIVE HALF (the mock design §7.1). The client never re-unions and never
 //     re-ranks; a numeral on a row is that row's index in the run order the turn will actually apply.
 //
 // WHAT #1754 ADDED — THE NAMING. `RegexTierLabels` is a second, REQUIRED parameter: the tier that resolved

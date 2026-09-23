@@ -117,7 +117,7 @@ The sanctioned `Principal`/credential construction + cookie sites — everything
 - **What IS on the tree (the reserved seams):** `USER_KINDS` carries `agent` as a tuple member (never an `isAgent` boolean) and the `users_agent_shape` CHECK makes an agent row loginless/`role='user'`/owned BY DDL (`packages/db/src/schema/users.ts`); `chat_participants_kind_shape` carries the dormant `agent` (userId-backed) and `observer` (both-null) arms (`packages/db/src/schema/chat.ts`); `rosterMemberSpecSchema` documents where those arms graft back; the deny SEAM is pre-named in `admin/guard.ts` + `chat/guard.ts`. Every live `Principal` is human.
 - **COMMITTED (not yet built) — the capability factor re-lands with the seat wave:** the agent ceiling (a `canAgent` successor over a CLOSED action union, decided at the kernel) + its containment suite + `ChatMembership` widening to carry `kind` (the construction sites are the compile-forced update set — `decide.ts`, `chat/guard.ts`, `resolve-stream-authority.ts`, the tool-use ceiling check). Until then, buddy's borrowed-owner posture (D17) is the shipping posture.
 - **The constraint the seat wave inherits (D121 clause A, the agents rider):** chat tools execute under the HOST principal, so an agent initiator would otherwise inherit the host's full tool ceiling. It never does — **an initiator's ceiling derives from its OWN capability factor at the point of initiation, never by inheritance through a turn's execution context.**
-- Design of record: ledger D60 + the agent-principal design set parked in `../architecture/proposed/` (see its `INDEX.md`) — a parked set is not quotable as build authority, and D60 describes the DESIGN, not the tree.
+- Design of record: ledger D60 + the parked agent-principals plan (`../plans/agent-principals/design.md`) — a parked plan is not quotable as build authority, and D60 describes the DESIGN, not the tree.
 
 ## BFF session ≠ SDK chat session
 
@@ -134,6 +134,28 @@ The human principal's presentation identity (map: `Constitution.md` §6):
 | attribution | `messages.personaId` + `authorUserId` (server-stamped, slot-level) | who actually said it — a swipe never re-voices |
 
 There is NO `chats.personaId` second home.
+
+### Persona pointers: user level and chat level
+
+The chat-level table above has two user-level partners in settings `seeds`:
+
+| Pointer | Home | Meaning |
+| - | - | - |
+| default | `seeds.defaultPersonaId` | the user's home identity, marked as the pinned persona in the persona list |
+| current | `seeds.currentPersonaId` | who the user plays as when a new chat starts |
+
+Neither user-level pointer is read live inside a chat. `startChat` resolves the founding anchor once, in this order (`domain/chat/verbs/start-chat.ts::resolveFoundingAnchor`):
+
+1. The explicit `anchorPersonaId`, which the caller must own.
+2. The one persona connected to a solo founding character.
+3. `current`.
+4. `default`.
+
+The result seeds `chats.anchorPersonaId` and the host seat's `chat_participants.activePersonaId`. A later change to `current` or `default` affects only chats founded after it.
+
+The client resolves "playing as" with `current`, then `default`, then the first owned persona (`packages/client/src/features/persona/lib/persona-current.ts`).
+
+Keep all five pointers apart. The common persona defect reads one pointer where another is meant. `Chat-Macro-Resolution.md` §3 and §4 own which pointer each `{{user}}` context reads. ADR 0153 owns who may change this resolution order.
 
 ## Client session freshness
 

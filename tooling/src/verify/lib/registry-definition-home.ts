@@ -1,5 +1,5 @@
 // Where a co-located registry definition is allowed to live: `packages/client/src/features/<owner>/lib/
-// <id>-<slot>.{ts,tsx}` (client-architecture-lockdown.md §6/§6a/§6d/§8, shell-chrome-unification.md §A/§D).
+// <id>-<slot>.{ts,tsx}` (client-architecture-lockdown.md §6/§6a/§6d/§8).
 //
 // This is a PATH-SHAPE question about one already-resolved identity, not a corpus selector: it reads a
 // repo-relative path a policy was handed, owns no glob, no filesystem access, and no regex over the tree.

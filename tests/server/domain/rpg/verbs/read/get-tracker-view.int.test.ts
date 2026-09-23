@@ -1,4 +1,4 @@
-// verbs/read/get-tracker-view — getTrackerView (rpg-design/05 §4.8, §6.2). Pins the turnless-game DEFAULT-STATE
+// verbs/read/get-tracker-view — getTrackerView (docs/plans/rpg/design.md). Pins the turnless-game DEFAULT-STATE
 // synthesis (no born snapshot — the orchestrator ruling), the participants ∪ sheets projection (missing row = default
 // sheet; a non-participant sheet not projected), and the no-drift invariant (synthesized default == persisted-empty
 // clone-forward).

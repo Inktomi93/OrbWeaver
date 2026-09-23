@@ -1,4 +1,4 @@
-// Unit pins for the #42 streamed-word reveal plugin (docs/history/design/streaming-reveal-42.md): word
+// Unit pins for the #42 streamed-word reveal plugin (D168): word
 // wrapping + whitespace passthrough, the code/math skip guards, and the reveal-time age model —
 // new words at delay 0, previously revealed words resuming at their true age, settled words clamped
 // to the constant cap (byte-stable styles), and the shrink reset for a new tail block.

@@ -1,4 +1,4 @@
-// verb: invokeUiAction — the Tier-S guest-action round-trip (plugin-ui-plane #679 U1, §4.4; the room dimension
+// verb: invokeUiAction — the Tier-S guest-action round-trip (U1, §4.4; the room dimension
 // is row 777). A button on a rendered surface submits its `actionId` + the collected form `values`; this
 // re-enters the surface's `onAction` handler in the resident guest.
 //

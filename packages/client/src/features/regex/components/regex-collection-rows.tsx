@@ -181,7 +181,7 @@ export function RegexCollectionRows({ view }: { readonly view: CollectionListVie
       return (
         <VirtualList
           aria-label="Regex scripts"
-          // THE PANE IS THE WINDOW (#1725, DESIGN.md §5.4). This was the shared `max-h-96` cap — a flat 384px
+          // THE PANE IS THE WINDOW (#1725, the mock design §5.4). This was the shared `max-h-96` cap — a flat 384px
           // that existed to stop one library pushing its sibling BANDS below the fold in the LIST's shared
           // scroll column. That column is gone, so the bound is the CONTENT pane's own `overflow-y-auto overscroll-contain` box,
           // reached by flex (`character-library-body.tsx`'s chain): the landing is `min-h-0 flex-1` in the

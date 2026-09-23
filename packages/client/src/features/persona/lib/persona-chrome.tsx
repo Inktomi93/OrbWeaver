@@ -1,5 +1,5 @@
-// personaChrome — the Identity (persona) widget as a registered `rail.end` chrome entry
-// (shell-chrome-unification.md §B). ONE widget, TWO lenses: `body("bar")` renders the desktop rail-foot
+// personaChrome — the Identity (persona) widget as a registered `rail.end` chrome entry.
+// ONE widget, TWO lenses: `body("bar")` renders the desktop rail-foot
 // avatar chip + popover; `body("sheet")` inlines the SAME sections (Account strip · Playing-as · persona
 // rows · this-chat) into the mobile You sheet — mobile persona switching lives HERE (§B ruling 1). It is
 // the ONE bespoke affordance the lockdown left prop-injected (`AppShellProps.railFoot`); registering it

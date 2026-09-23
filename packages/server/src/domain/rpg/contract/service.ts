@@ -1,5 +1,5 @@
 // domain/rpg/contract/service — the persistence-layer ROW aliases + the composed snapshot-STATE bridge
-// (rpg-design/05 §2.4-2.5) AND the domain's public API surface: `RpgContext` (the DI bundle the verbs close
+// (docs/plans/rpg/design.md) AND the domain's public API surface: `RpgContext` (the DI bundle the verbs close
 // over, wired at compose) + `RpgService` (the verb interface, §4.4). The db table splits the swipe-volatile
 // plane into columns; `RpgSnapshotState` (@orb/contracts/rpg) is the composed read shape the staging
 // accumulator overlays and clone-forwards. This module homes the row aliases (derived from the db tables —

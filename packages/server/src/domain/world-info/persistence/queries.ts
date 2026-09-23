@@ -194,7 +194,7 @@ export async function listChatBooks(db: Db, chatId: ChatId): Promise<BookAttachm
 }
 
 /** A chat's CONSTANT ("always"-scope) lorebook canon — the entries a pre-play producer treats as world truth
- *  (rpg-design/06 §4). Joins the chat's attached books → their enabled entries, resolves each entry's scope
+ *  (docs/plans/rpg/design.md). Joins the chat's attached books → their enabled entries, resolves each entry's scope
  *  (explicit `metadata.scopeMode`, else the keys-presence heuristic), and keeps the always-on ones. Not
  *  owner-filtered — a chat's attached books are room-public prompt content (membership is the caller gate,
  *  mirroring listChatBooks). */

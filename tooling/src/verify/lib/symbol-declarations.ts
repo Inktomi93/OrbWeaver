@@ -1,4 +1,4 @@
-// Shared checker-symbol identity primitives (gate-runtime-standardization.md §3, owner ruling #2097). A
+// Shared checker-symbol identity primitives (docs/law/gate-runtime-standardization.md §3, owner ruling #2097). A
 // FINAL policy module never calls `Symbol#getDeclarations()` / `getAliasedSymbol()` itself; the census and
 // twin-parity policies both need "what does this symbol denote, following one import-alias hop" and "what
 // declares it", so those two questions live here once instead of nine separate

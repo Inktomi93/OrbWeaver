@@ -33,7 +33,7 @@ describe("remove", () => {
     expect((await db.select().from(statsCanonVersions).where(eq(statsCanonVersions.ownerId, owner)))[0]?.version).toBe(2);
   });
 
-  test("folds the freed expression-sprite assetIds into the avatar reap (expressions-design/01 §8)", async () => {
+  test("folds the freed expression-sprite assetIds into the avatar reap (docs/plans/expressions/design.md)", async () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createCharacterService(h.ctx);

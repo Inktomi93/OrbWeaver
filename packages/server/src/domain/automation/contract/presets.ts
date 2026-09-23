@@ -1,4 +1,4 @@
-// domain/automation/contract/presets — THE PRESET CATALOGUE (S3, interaction-direction-spec §3-S3 + §4).
+// domain/automation/contract/presets — THE PRESET CATALOGUE.
 // A preset mints an ordered RULE SET, never "exactly one rule": a rule's predicate gates the WHOLE rule
 // before any arm and no arm carries a per-arm condition, so a counter-then-threshold shape (the clock, the
 // callback) is structurally TWO rules that are same-batch-correct via the dispatch's shared-env write-through

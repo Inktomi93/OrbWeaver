@@ -1,4 +1,4 @@
-// The Config DEEP-LINK grammar (config-revamp-design.md §7.7, #866 row-chrome leg) — ONE mint for both
+// The Config DEEP-LINK grammar (#866 row-chrome leg) — ONE mint for both
 // directions: the row menu's "Copy link" FORMATS `/config?to=<group>[.<sub>[.<setting>]]`, and the
 // `/$section` alias route PARSES the `to` param, applies it through `openConfigTo`, and redirects to `/`
 // exactly as the alias already does for a bare section — the "URL stays pinned at `/`" ruling is

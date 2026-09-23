@@ -113,7 +113,7 @@ const claudeEnvSchema = z.record(z.string(), z.string().nullable()).superRefine(
   }
 });
 /** The cap on an authored TURN-INJECTION TEMPLATE — the ONE number for that whole class (owner ruling
- *  2026-08-08, option 2 of `docs/design/parked-options-tag-contract.md` §2). Two schemas wear it and they are
+ *  2026-08-08, option 2). Two schemas wear it and they are
  *  the same kind of thing: a `formatStrings` slot and a `guidedActions.*.prompt` are both macro-carrying text
  *  spliced into a turn. It supersedes the old `MAX_FORMAT_STRING_LENGTH` (same value, renamed rather than aliased —
  *  a second spelling of one cap is the drift this constant exists to prevent), and the guided prompt was
@@ -235,7 +235,7 @@ export const SIDE_GEN_POSTURES = {
   // sentence plus sixteen short structured fields. Originally empty (backend defaults stood); the avatar
   // analysis call hardcoded its own floor — this IS that floor, promoted to its canonical home (#2243).
   caption: { temperature: 0.2, maxOutputTokens: 512 },
-  // ── Refinery stage floors (R1 — docs/history/design/refinery-r0.md §9.7; study §5.3's values). The caller is
+  // ── Refinery stage floors (R1; study §5.3's values). The caller is
   //    always the card owner, so the preset-params rung ALWAYS applies (no mixed-owner batch arm here). ──
   // Score: near-deterministic critique, budgeted for the per-field payload (bigger than distill's facets).
   refine_score: { temperature: 0.2, maxOutputTokens: 768 },
@@ -569,7 +569,7 @@ export const DEFAULT_GUIDED_ACTIONS: GuidedActionsConfig = {
 // stable `id`, a display `label`, and the PROSE SLOT holding the instruction sentence it contributes.
 //
 // THE FRAGMENT BYTES ARE NOT HERE (the templating fork, ARM B — owner ruling 2026-08-09,
-// `docs/history/design/templating-fork-rows-53-73.md`). They are host-editable prose slots
+// D172). They are host-editable prose slots
 // (`PRESET_REWRITE_TOGGLE_PROSE_SLOTS`, ./prose.ts), resolved by the SERVER at the assembly seam that
 // already holds the preset's prose blob, and joined there by the same pure `composeRewriteSteer`
 // (`@orb/kit/guided`) — selected fragments join `. ` (the source's exact editIntros join) in CATALOG
@@ -717,7 +717,7 @@ const TEMPLATED_MARKERS = [
   "post_history",
   "persona",
   "memory",
-  // The `{{databank}}` retrieval slot (DB6, databank-design/07 §3) — a TEMPLATED marker "exactly parallel to
+  // The `{{databank}}` retrieval slot — a TEMPLATED marker "exactly parallel to
   // {{memory}}": the wrapper prose ("Related information:", ST `file_template_db`) belongs to the SECTION
   // TEMPLATE around the slot, never to databank's own value, so the framing is a preset-editable default here
   // and databank supplies only the retrieved chunks.
@@ -811,7 +811,7 @@ const templatedMarkerSection = z.object({
    *  override REPLACES the default on both turn kinds, and there is no per-mode override slot.
    *  There is no "render nothing" arm: an EMPTY string is the same thing as omitted (the editor writes
    *  `undefined` when you clear the field), and turning a marker off is `enabled: false` — the one
-   *  mechanism (preset-surface-redesign §5.2a, the tri-state retirement; the v4→v5 lift retires every
+   *  mechanism (the tri-state retirement; the v4→v5 lift retires every
    *  stored `""`). */
   template: z.string().max(MAX_TEXT_LENGTH).optional(),
   inject: injectSchema.optional(),
@@ -863,7 +863,7 @@ interface FormatCarrierToken {
  *  everywhere in this schema.
  *
  *  THE LINE IS "DELETES CONTENT", NOT "IS A FORMAT STRING" (owner ruling 2026-08-08, option C of
- *  `docs/design/note-token-intent-history.md` — this clause previously read "DELIBERATELY DISTINCT from
+ *  this clause previously read "DELIBERATELY DISTINCT from
  *  PROSE-1's `requiredMacros`", which was true of the `requiredMacros` set as it then stood and false of
  *  `{{note}}`). A carrier is any token whose absence deletes the payload, wherever it is stored: the two
  *  injection note frames are carriers too and refuse alongside these, from `PROSE_CARRIER_TOKENS` beside the
@@ -879,7 +879,7 @@ interface FormatCarrierToken {
 const FORMAT_STRING_CARRIER_TOKENS = [{ key: "wiFormat", token: "{{entry}}" }] as const satisfies readonly FormatCarrierToken[];
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
-// THE TEMPLATE DEFINITION REGISTRY (preset-surface-redesign §6.6) — the Actions view's ONE data source.
+// THE TEMPLATE DEFINITION REGISTRY — the Actions view's ONE data source.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 //
 // Registry-as-data (the REWRITE_TOGGLES / GREETING_TRANSFORMS precedent — contracts owns the shape+data both
@@ -925,8 +925,8 @@ const FORMAT_STRING_CARRIER_TOKENS = [{ key: "wiFormat", token: "{{entry}}" }] a
 export const TEMPLATE_KINDS = ["steer", "voice", "studio", "format", "nudge", "group", "teach", "extract"] as const satisfies readonly string[];
 export type TemplateKind = (typeof TEMPLATE_KINDS)[number];
 
-/** Sub-clusters for a kind whose row count outgrew a glance (the Actions-tab IA,
- *  `docs/history/design/actions-tab-information-architecture.md` §2.1). Today that is `extract` alone: its 40 rows
+/** Sub-clusters for a kind whose row count outgrew a glance (the Actions-tab IA).
+ *  Today that is `extract` alone: its 40 rows
  *  render as collapsed disclosure bands, one per member here, in THIS tuple's order. Membership is DECLARED
  *  per def (`TemplateDef.cluster`) rather than derived from the slot-id dot-prefixes, because the grouping
  *  follows what a HOST TUNES TOGETHER, not the engineering id structure (`rpg.extract.plane.party` clusters
@@ -2007,7 +2007,7 @@ export const DEFAULT_MARKER_TEMPLATES: Record<TemplatedMarker, string> = {
   ["persona"]: macro("persona"),
   ["compact_summary"]: `Summary of the conversation so far:\n${macro("compact_summary")}`,
   ["memory"]: `Past events:\n${macro("memory")}`,
-  // ST's `file_template_db` wrapper, per databank-design/07 §3. The section renders NOTHING when retrieval is
+  // ST's `file_template_db` wrapper. The section renders NOTHING when retrieval is
   // empty (the assembler's server-marker arm gates on the value, so this header can never ship alone) — which
   // is what keeps a bankless turn byte-identical to a pre-slot one.
   ["databank"]: `Related information:\n${macro("databank")}`,
@@ -2323,8 +2323,8 @@ export interface ProseCarrierToken {
   readonly token: string;
 }
 
-/** PROSE CARRIER slots — the write guard's SECOND enumeration (owner ruling 2026-08-08, option C of
- *  `docs/design/note-token-intent-history.md`). The two injection note frames carry `{{note}}`, which is the
+/** PROSE CARRIER slots — the write guard's SECOND enumeration (owner ruling 2026-08-08,
+ *  option C). The two injection note frames carry `{{note}}`, which is the
  *  injection's ENTIRE payload: `spliceProseTokens` is a replace, so an override that drops the token matches
  *  nothing and the frame ships as an empty wrapper (`[Note from user: ]`) with the author's note gone. That is
  *  byte-for-byte the `{{entry}}` failure the 2026-08-02 carrier ruling refuses, so these refuse with it.
@@ -2630,8 +2630,8 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
     // Attached documents feed OUT OF THE BOX (issue #80). The gather, the budget and the macro all shipped
     // wired while no built-in arrangement named the slot, so a live drive retrieved a document and the model
     // saw none of it — every databank surface promised feeding the default preset made impossible. Seated
-    // immediately after `memory` (databank-design/07 §3 "exactly parallel to {{memory}}"; the rpg GM preset's
-    // `continuity` region, rpg-design/09 §d) and DYNAMIC, so per-turn retrieval never busts the cached prefix.
+    // immediately after `memory` ("exactly parallel to {{memory}}"; the rpg GM preset's
+    // `continuity` region, docs/plans/rpg/design.md) and DYNAMIC, so per-turn retrieval never busts the cached prefix.
     {
       type: "marker",
       id: "databank",

@@ -7,7 +7,7 @@
 // the spider "turbo" — WEAVE_TIME_SCALE calms it (§9.4 tweak 2). The timeline never gates the veil's
 // exit: the boot veil dissolves the instant the app is ready, mid-weave included (§9.3).
 //
-// A host may run the whole map FASTER or slower with the `tempo` prop (weave-lab-upgrades.md §5) —
+// A host may run the whole map FASTER or slower with the `tempo` prop —
 // that scales the CLOCK the component feeds in, never these numbers: one timeline, one set of beats.
 
 /** The build phases, in laying order — the boot veil's caption axis (§5.5 one importable union). */
@@ -18,7 +18,7 @@ export type WeavePhase = (typeof WEAVE_PHASES)[number];
 const WEAVE_TIME_SCALE = 1.6;
 const ms = (mockMs: number): number => Math.round(mockMs * WEAVE_TIME_SCALE);
 
-/** The mock's beat BOUNDARIES (docs/history/design/mocks/login-loading/login-loading-mock.html), kept
+/** The mock's beat BOUNDARIES, kept
  *  verbatim as the provenance record — each phase runs boundary→boundary; everything below derives
  *  through the calm-down scale. */
 const MOCK_BEATS = {

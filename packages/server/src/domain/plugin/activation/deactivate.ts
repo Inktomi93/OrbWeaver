@@ -16,7 +16,7 @@ export function createDeactivate(ctx: PluginContext, registry: PluginRegistry, p
     // lands the row disabled). The confirm-time liveness re-check is what makes a stale card SAFE; this is what
     // makes it DISAPPEAR, so a host is never offered an answer that would only refuse.
     ctx.ops.suggestions.voidForPlugin(pluginId);
-    // Drop this plugin's published UI-surface state (plugin-ui-plane #679 U1) — unconditionally, for the same
+    // Drop this plugin's published UI-surface state — unconditionally, for the same
     // reason as the pending asks above: a disabled plugin holds no resident instance yet its surfaces + their
     // state must not linger (a re-enable rebuilds surfaces from a fresh activation; a stale state row would
     // paint the pre-disable panel for a beat before the fresh publish).

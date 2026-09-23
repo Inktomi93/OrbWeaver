@@ -1,4 +1,4 @@
-// entry/import — THE P-8 lock test (export-import-portability.md §8): the machine-checked "no SillyTavern
+// entry/import — THE P-8 lock test: the machine-checked "no SillyTavern
 // problem" invariant. Seed an owner with (at least) one of EVERY portable entity + every asset-bearing
 // reference (character+avatar, a chat with an inline `asset:<id>` image, persona, world-info book, tag,
 // preset, theme, user-settings, a gallery item), export the FULL library through the real registry, import

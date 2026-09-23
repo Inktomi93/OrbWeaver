@@ -133,7 +133,7 @@ const IDENTITY_STUB: TrpcRoutes<"persona.listConnectedToCharacter"> = {
   "persona.listConnectedToCharacter": (): readonly never[] => [],
 };
 
-// ── THE CREATED ROOM (chat-creation-draft-mode-replacement.md §4.1, R1) ────────────────────────────
+// ── THE CREATED ROOM (D166) ────────────────────────────
 // Every launcher below now fires the REAL `chat.startChat` and lands in the REAL room, so each of these
 // journeys needs the room's own reads stubbed: the response row (which `useStartChat` also SEEDS into
 // `getChat`), that same row on the read, the seeded greeting as REAL CANON, and the divider's fit preview

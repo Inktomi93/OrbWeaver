@@ -1,4 +1,4 @@
-// PREY RESPONSE — what the weaver does when something hits her web (weave-lab-upgrades.md §2).
+// PREY RESPONSE — what the weaver does when something hits her web.
 //
 // A five-state machine, and the order is the whole point:
 //

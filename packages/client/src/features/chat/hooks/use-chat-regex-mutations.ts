@@ -1,7 +1,7 @@
 // The ROOM's regex writes (#1742) — the four the Regex section is allowed to make, and no others.
 //
 // FOUR WRITES, THREE AUTHORITIES, one file so the section's whole write surface is readable at once
-// (`docs/design/mocks/regex-section/DESIGN.md` §1: "It writes exactly four things"):
+// (the approved design: "It writes exactly four things"):
 //   • `chat.setRegexAllow` — the per-chat master and the per-tier allows. HOST authority over the ROOM
 //     (these decide which scripts the shared assembly runs), ONE lever per call because the verb writes ONE
 //     metadata JSON path (#1450).
@@ -18,7 +18,7 @@
 // NO OPTIMISTIC ARM, deliberately, and this is the one place it is worth saying: the section is an HONESTY
 // instrument — every number in it (the ranks, the in-force counts, the kicker chip) comes from the server's
 // one resolver, and an optimistic paint would have to RE-RUN that resolver client-side to be consistent,
-// which is precisely the "the client never re-unions" rule (`DESIGN.md` §7.1). The `RegexScopeOrder` reorder
+// which is precisely the "the client never re-unions" rule (the mock design §7.1). The `RegexScopeOrder` reorder
 // IS optimistic, and the difference is real: a drop's whole feedback is the row order, which the client
 // already knows; a lever's feedback is a re-ranked union, which it does not.
 //

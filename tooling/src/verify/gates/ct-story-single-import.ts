@@ -23,7 +23,7 @@
 // playwright-ct bundler and can carry either shape).
 // DECLARED LIMIT: non-component imports and repeated non-JSX references are not rewrite sites.
 //
-// FAMILY DECISION (gate-runtime-standardization.md): singleton family. No sibling gate in this migration
+// FAMILY DECISION (docs/law/gate-runtime-standardization.md): singleton family. No sibling gate in this migration
 // lane (`ct-no-oneshot-live-read-assert`, `ct-poll-schedule-and-paint`) shares this identifier-scope
 // bookkeeping; each implements an unrelated predicate over the same CT file class, which is not a shared
 // computation or reader.

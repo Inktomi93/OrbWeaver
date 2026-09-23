@@ -1,5 +1,5 @@
 // The Tier-C guest-source registrar. `GET /api/plugin-ui/:pluginId` serves an OWNED plugin's `ui.js` as INERT
-// BYTES so the browser worker can `evalCode` it into its QuickJS interpreter (plugin-ui-plane #679 U4, §4.6 /
+// BYTES so the browser worker can `evalCode` it into its QuickJS interpreter (U4, §4.6 /
 // seam 8). Owner-gated, not unauthenticated — a plugin the caller does not own is indistinguishable from a
 // missing one (both → 404, no foreign-existence leak), the `blob.ts` posture and the `getById` posture agreeing.
 //

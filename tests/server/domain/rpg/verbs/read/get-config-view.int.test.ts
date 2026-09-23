@@ -1,4 +1,4 @@
-// verbs/read/get-config-view — getConfigView (rpg-design/05 §4.8, §6.2). HOST-gated. Carries the knobs
+// verbs/read/get-config-view — getConfigView (docs/plans/rpg/design.md). HOST-gated. Carries the knobs
 // (`gmPresetId` / `extractionMode`) at their defaults on a fresh game, and the WAVE MU macro-editor pair:
 // the game's own authored `userMacros` + the NAMES the chat's active preset declares (the shadow gloss the
 // host console renders — a game macro sharing a preset macro's name is the one the turn resolves).
