@@ -12,7 +12,7 @@ Not recorded in the ledger row.
 
 ## Decision
 
-Claude Agent SDK backend = `packages/inference/src/backends/agent-sdk/` (+ `session/`). **MOVED 2026-09-19** with the `@orb/inference` extraction; the placement rule is unchanged — the session cache is backend-internal, never a chat concern.
+Claude Agent SDK backend = `packages/inference/src/backends/agent-sdk/` (+ `session/`). It moved with the `@orb/inference` extraction; the placement rule is unchanged — the session cache is backend-internal, never a chat concern.
 
 ## Consequences
 
