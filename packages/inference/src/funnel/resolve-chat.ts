@@ -9,7 +9,7 @@
 
 import type { AdjustedKnob } from "@orb/contracts/chat";
 import type { EffortLevel, GenerationCapability, Range, Verbosity } from "@orb/contracts/inference";
-import { acceptsMidConversationSystem, EFFORT_LEVELS, reasoningReplayOf } from "@orb/contracts/inference";
+import { acceptsMidConversationSystem, EFFORT_LEVELS, reasoningReplayOf, roleHandlingOf, SYSTEM_ROW_PLACEMENT } from "@orb/contracts/inference";
 import type { CarryReasoning, UserIntent } from "@orb/contracts/preset";
 import { CARRY_REASONING_DEFAULT, QUALITY_EFFORT, QUALITY_LEVELS, QUALITY_SAMPLING } from "@orb/contracts/preset";
 import type { DynamicContextChannel, ResolvedChatKnobs, ResolvedReasoning, ResolvedSampling, ResolvedWarning } from "../contract/resolve.ts";
@@ -17,7 +17,6 @@ import type { DynamicContextChannel, ResolvedChatKnobs, ResolvedReasoning, Resol
 const EFFORT_OFF = "none";
 const ADAPTIVE_BUDGET_WARNING = "reasoning budget ignored: adaptive model takes effort only (an explicit budget 400s the model)";
 const EFFORT_BUDGET_WARNING = "reasoning budget ignored: this model reasons by EFFORT LEVEL and exposes no token-budget field — set the effort dial instead";
-const DYNAMIC_CONTEXT_DEMOTED_WARNING = "dynamic context 'hook' ignored: model does not honor a mid-conversation system channel — using the system block";
 const VERBOSITY_DROPPED_WARNING = "verbosity ignored: model does not expose a verbosity level";
 const REPLY_MEDIA_DROPPED_WARNING = "reply pictures ignored: this model produces text only";
 const CARRY_NEEDS_REASONING_WARNING = "carryReasoning ignored: reasoning is off for this turn, so there is no thinking to carry back";
@@ -328,20 +327,13 @@ function resolveVerbosity(wanted: UserIntent["verbosity"], levels: readonly Verb
   return wanted;
 }
 
-export function resolveDynamicContext(params: UserIntent, capability: GenerationCapability, warnings: ResolvedWarning[]): DynamicContextChannel {
-  const midConvCapable = acceptsMidConversationSystem(capability);
-  const knob = params.advanced?.dynamicContext;
-  if (knob === "system") {
-    return "system-block";
-  }
-  if (knob === "hook") {
-    if (midConvCapable) {
-      return "message-tail";
-    }
-    warnings.push({ code: "dynamic_context_demoted", message: DYNAMIC_CONTEXT_DEMOTED_WARNING });
-    return "system-block";
-  }
-  return midConvCapable ? "message-tail" : "system-block";
+/** The per-turn system half rides the message tail only where the turn's message-handling level keeps a
+ *  delivered system row and the model takes one at the tail; every other turn keeps it in the system block. The
+ *  tail row follows the last user row and ends the array, so it is in its legal slot on every level that keeps
+ *  system rows. */
+export function resolveDynamicContext(params: UserIntent, capability: GenerationCapability): DynamicContextChannel {
+  const level = roleHandlingOf(capability, params.advanced?.roleHandling);
+  return SYSTEM_ROW_PLACEMENT[level] !== "fold" && acceptsMidConversationSystem(capability) ? "message-tail" : "system-block";
 }
 
 /** `modalities: ["text","image"]` rides the wire only when the preset asks AND the model produces images
@@ -363,7 +355,7 @@ export function resolveChat(params: UserIntent, capability: GenerationCapability
   const maxOutputTokens = params.maxOutputTokens !== undefined ? clampRange(params.maxOutputTokens, capability.output.maxTokens) : undefined;
   const reasoning = resolveReasoning(params, capability, maxOutputTokens, warnings);
   const sampling = resolveSampling(params, capability, warnings);
-  const dynamicContextChannel = resolveDynamicContext(params, capability, warnings);
+  const dynamicContextChannel = resolveDynamicContext(params, capability);
   const verbosity = resolveVerbosity(params.verbosity, capability.verbosity, warnings);
   const replyImages = resolveReplyImages(params, capability, warnings);
   const carryReasoning = resolveCarryReasoning(params, capability, warnings);

@@ -13,25 +13,8 @@
 // names-behavior carries the speaker in an out-of-band `name` field, which a merge cannot preserve — so two
 // adjacent rows with distinct `name` fields are left un-merged.
 
-import type { RoleHandling } from "@orb/contracts/inference";
 import type { MessageId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
-
-const ROLE_HANDLING_RANK: Record<RoleHandling, number> = {
-  none: 0,
-  merge: 1,
-  "semi-strict": 2,
-  strict: 3,
-};
-
-/** The effective strategy = `max(floor, knob)` under the strictness ordering. An unset knob defaults to the
- *  floor; an unset floor defaults to `strict`. */
-export function clampRoleHandling(floor: RoleHandling | undefined, knob: RoleHandling | undefined): RoleHandling {
-  const floorRank = ROLE_HANDLING_RANK[floor ?? "strict"];
-  const knobRank = knob === undefined ? floorRank : ROLE_HANDLING_RANK[knob];
-  const winner = Math.max(floorRank, knobRank);
-  return (Object.keys(ROLE_HANDLING_RANK) as RoleHandling[]).find((k) => ROLE_HANDLING_RANK[k] === winner) as RoleHandling;
-}
 
 /** The separator merged rows are joined with. Matches ST's SERVER-side `mergeMessages` (`'\n\n'`), not its
  *  client pass — see the `INJECT-NAMED-AS-PLAYER` note in `docs/history/dogfood-tracking-2026-08-08.md`. */

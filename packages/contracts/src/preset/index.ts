@@ -17,7 +17,7 @@ import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import type { RegexPlacement } from "@orb/kit/regex";
 import { z } from "zod";
 import type { EffortLevel as ModelEffortLevel } from "#inference";
-import { EFFORT_LEVELS as MODEL_EFFORT_LEVELS, roleHandlingSchema, VERBOSITY_LEVELS } from "#inference";
+import { EFFORT_LEVELS as MODEL_EFFORT_LEVELS, userRoleHandlingSchema, VERBOSITY_LEVELS } from "#inference";
 import type { ProseOverrides, ProseSlotId } from "#prose-slot";
 import { hasProseToken, proseOverridesSchema } from "#prose-slot";
 import type { VersionedParseIssue } from "#versioned-config";
@@ -427,16 +427,14 @@ export const userIntentSchema = z.strictObject({
   advanced: z
     .object({
       claudeEnv: claudeEnvSchema.optional(),
-      // Where the volatile per-turn system-prompt half is delivered: "system" joins it into the cached
-      // system-prompt string; "hook" delivers it at the message tail (cache-safe). Absent ⇒ the funnel
-      // picks "hook" iff the model honors mid-conversation system, else "system".
-      dynamicContext: z.enum(["system", "hook"]).optional(),
       // Merge CONSECUTIVE system-note runs before they convert to `user` rows — orthogonal to the
       // adjacent-same-role merge below (roleHandling). Absent ⇒ no pre-merge.
       squashSystemMessages: z.boolean().optional(),
-      // Adjacent-same-role (user|assistant) merge strategy — user-authoring intent, clamped against the
-      // model's `capability.turns.roleHandlingFloor` at the SHAPE splice (user may go stricter, never looser).
-      roleHandling: roleHandlingSchema.optional(),
+      // The message-handling level (`ROLE_HANDLING` minus the model-only levels): same-role merging and where a
+      // system row may sit. Clamped against the model's `turns.roleHandlingFloor` (a preset may go stricter,
+      // never looser). The level also picks the per-turn system half's channel: the message tail where the turn
+      // keeps system rows and the model takes one there, else the system block (`resolveDynamicContext`).
+      roleHandling: userRoleHandlingSchema.optional(),
       // Whether the model may emit SEVERAL tool calls in one turn (OpenRouter `parallel_tool_calls`).
       // Rides the wire only when the request carries tools + the model is tool-capable. Absent ⇒ the
       // provider default (parallel allowed).

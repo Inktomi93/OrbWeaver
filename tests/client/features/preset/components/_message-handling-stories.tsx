@@ -9,7 +9,7 @@
 
 import type { AppFormInstance } from "@orb/client/forms/editor";
 import { createAutosaveEntityForm } from "@orb/client/forms/editor";
-import type { GenerationCapability, RoleHandling } from "@orb/contracts/inference";
+import type { GenerationCapability, UserRoleHandling } from "@orb/contracts/inference";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { ReactElement } from "react";
@@ -26,6 +26,18 @@ const STRICT_CAPABILITY: GenerationCapability = makeGenerationCapability({
     midConversationSystem: false,
     historySystemRows: false,
     roleHandlingFloor: "strict",
+    explicitPromptCache: true,
+    cacheMinTokens: 1024,
+  },
+});
+
+/** The measured Claude shape: a system row only in its legal slot, so the floor is the model-only `slotted`. */
+const SLOTTED_CAPABILITY: GenerationCapability = makeGenerationCapability({
+  turns: {
+    assistantPrefill: false,
+    midConversationSystem: true,
+    historySystemRows: true,
+    roleHandlingFloor: "slotted",
     explicitPromptCache: true,
     cacheMinTokens: 1024,
   },
@@ -60,6 +72,11 @@ export function MessageHandlingNoFloorStory(): ReactElement {
   return <Harness capability={FLOORLESS_CAPABILITY} roleHandling="merge" />;
 }
 
+/** A slotted-floor model with no pick — the knob offers only the levels at or above the floor. */
+export function MessageHandlingSlottedFloorStory(): ReactElement {
+  return <Harness capability={SLOTTED_CAPABILITY} roleHandling={undefined} />;
+}
+
 /** The capability read still in flight — no descriptor, so no floor claim either. */
 export function MessageHandlingPendingCapabilityStory(): ReactElement {
   return <Harness capability={undefined} roleHandling={undefined} />;
@@ -70,7 +87,7 @@ function Harness({
   roleHandling,
 }: {
   readonly capability: GenerationCapability | undefined;
-  readonly roleHandling: RoleHandling | undefined;
+  readonly roleHandling: UserRoleHandling | undefined;
 }): ReactElement {
   const serverValues: PromptConfig = {
     ...DEFAULT_PROMPT_CONFIG,
