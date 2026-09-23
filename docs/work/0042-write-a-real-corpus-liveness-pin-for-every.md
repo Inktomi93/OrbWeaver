@@ -74,3 +74,14 @@ Chunks 7 and 8 (lane cb-pins). The leftover `@product`, `@db` and `@server`+`@in
   ResourceHost overlay refuses to mutate.
 
 `real-corpus-liveness-manifest`: 157 unpinned before, 101 after.
+
+Chunk 9 (lane cb-pins). The 32 resource-only policies (`population: { of: "none" }`) gained pins in
+`_liveness/resources.ts`. Every plant rides the ResourceHost's own overlay. The runner gained two things for
+this chunk:
+
+- `replace`, one exact edit of a real config, manifest or JSON file, and `delete`, which takes a directory out
+  of the reader's view.
+- An arm-level `reportsAt`, for a policy that reports at the subject's owner rather than at the planted file.
+
+None of the 32 was blind on the real tree. Item 0145 tracks `no-manual-memo-compiler-health`, which needs an
+installed-package overlay. `real-corpus-liveness-manifest`: 101 unpinned before, 69 after.
