@@ -46,7 +46,7 @@ export interface AgentSdkLog {
     readonly sessionId: AgentSdkSessionId | null;
     readonly disposition: SeededSessionDecision["disposition"];
   }) => void;
-  readonly error: (err: ProviderError, extra?: { readonly stderrTail?: string }) => void;
+  readonly error: (err: ProviderError, extra?: { readonly stderrTail?: string; readonly label?: string }) => void;
   readonly rateLimit: (banRisk: boolean, fields: Record<string, unknown>) => void;
   readonly retry: (fields: Record<string, unknown>) => void;
   readonly drift: (entry: { readonly requested: string; readonly billed: readonly string[] }) => void;
@@ -81,7 +81,11 @@ export function createAgentSdkLog(log: InferenceLog, providerId: string): AgentS
     turn: (entry) => base.emit("info", "provider.turn", { ...entry }),
     session: (entry) => base.emit("debug", "provider.session", { ...entry }),
     error: (err, extra) =>
-      base.emit("error", "provider.error", { ...err.toLog(), ...(extra?.stderrTail !== undefined ? { stderrTail: extra.stderrTail } : {}) }),
+      base.emit("error", "provider.error", {
+        ...err.toLog(),
+        ...(extra?.stderrTail !== undefined ? { stderrTail: extra.stderrTail } : {}),
+        ...(extra?.label !== undefined ? { label: extra.label } : {}),
+      }),
     rateLimit: (banRisk, fields) => base.emit(banRisk ? "warn" : "debug", "provider.rate_limit", fields),
     retry: (fields) => base.emit("warn", "provider.retry", fields),
     drift: (entry) => base.emit("warn", "provider.drift", { ...entry }),

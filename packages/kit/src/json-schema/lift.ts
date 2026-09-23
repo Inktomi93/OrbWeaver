@@ -105,16 +105,32 @@ function rejectUnsupportedKeys(node: Record<string, unknown>, type: string, path
 
 /** A schema whose output is determined by an untrusted JSON-Schema node at runtime. Keeping the generated
  *  schema inside this container prevents its deliberately opaque output from masquerading as an authored
- *  `ZodType<T>` twin while the recursive builder composes it. */
+ *  `ZodType<T>` twin while the recursive builder composes it. Branded the same way `Branded<>` in
+ *  `kit/ids/index.ts` brands a primitive — a type-only intersection with a `unique symbol` key that has
+ *  no runtime value — rather than a `declare` class field: a `declare` computed class field has no
+ *  runtime emission either, but Playwright's own bundled Babel transform (the node-side loader used to
+ *  collect `.ct.tsx` files) runs `plugin-transform-class-properties` before `preset-typescript` and
+ *  cannot parse a `declare` field with a computed key — it demands the TypeScript transform run first,
+ *  which this bundle never enables. That ordering is baked into Playwright's bundle, not something this
+ *  repo's config controls. The type-level form below carries the identical compile-time guarantee with
+ *  no class member for any transform to choke on. */
 declare const RUNTIME_GENERATED_SCHEMA_BRAND: unique symbol;
 
-class RuntimeGeneratedSchema<Schema extends z.ZodType = z.ZodType> {
-  declare readonly [RUNTIME_GENERATED_SCHEMA_BRAND]: true;
+class RuntimeGeneratedSchemaBox<Schema extends z.ZodType = z.ZodType> {
   readonly schema: Schema;
 
   constructor(schema: Schema) {
     this.schema = schema;
   }
+}
+
+type RuntimeGeneratedSchema<Schema extends z.ZodType = z.ZodType> = RuntimeGeneratedSchemaBox<Schema> & {
+  readonly [RUNTIME_GENERATED_SCHEMA_BRAND]: true;
+};
+
+/** The only constructor for {@link RuntimeGeneratedSchema} — the cast is the brand's one attachment point. */
+function boxGeneratedSchema<Schema extends z.ZodType>(schema: Schema): RuntimeGeneratedSchema<Schema> {
+  return new RuntimeGeneratedSchemaBox(schema) as RuntimeGeneratedSchema<Schema>;
 }
 
 function generatedArray<Schema extends z.ZodType>(schema: Schema): z.ZodArray<Schema> {
@@ -144,7 +160,7 @@ function liftString(node: Record<string, unknown>, path: string): RuntimeGenerat
     }
     schema = schema.regex(compiled);
   }
-  return new RuntimeGeneratedSchema(schema);
+  return boxGeneratedSchema(schema);
 }
 
 /** Compile a guest `pattern` to a RegExp, or `null` when it is malformed (the caller turns null into a typed
@@ -168,7 +184,7 @@ function liftNumber(node: Record<string, unknown>, isInt: boolean): RuntimeGener
   if (typeof node["maximum"] === "number") {
     schema = schema.max(node["maximum"]);
   }
-  return new RuntimeGeneratedSchema(schema);
+  return boxGeneratedSchema(schema);
 }
 
 function liftEnum(values: readonly unknown[], path: string): RuntimeGeneratedSchema {
@@ -179,7 +195,7 @@ function liftEnum(values: readonly unknown[], path: string): RuntimeGeneratedSch
   if (!values.every((v) => typeof v === "string")) {
     throw new JsonSchemaLiftError("enum (non-string members)", path);
   }
-  return new RuntimeGeneratedSchema(z.enum(values as [string, ...string[]]));
+  return boxGeneratedSchema(z.enum(values as [string, ...string[]]));
 }
 
 /** Lift an `enum` sitting on a TYPED node. The lift is type-dependent because the ROUND-TRIP is: only a form
@@ -217,12 +233,12 @@ function liftTypedEnum(values: readonly unknown[], type: string, path: string): 
   if (values.length === 1) {
     throw new JsonSchemaLiftError(`enum with ONE ${expected} member (projects as \`const\` — spell it \`const\`)`, path);
   }
-  return new RuntimeGeneratedSchema(z.literal(values as readonly (number | boolean)[]));
+  return boxGeneratedSchema(z.literal(values as readonly (number | boolean)[]));
 }
 
 function liftConst(value: unknown, path: string): RuntimeGeneratedSchema {
   if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
-    return new RuntimeGeneratedSchema(z.literal(value));
+    return boxGeneratedSchema(z.literal(value));
   }
   throw new JsonSchemaLiftError("const (non-primitive)", path);
 }
@@ -250,7 +266,7 @@ function liftUnion(node: Record<string, unknown>, path: string, depth: number): 
     }
     return liftNode(member, memberPath, depth + 1);
   });
-  return new RuntimeGeneratedSchema(generatedUnion(lifted.map((member) => member.schema)));
+  return boxGeneratedSchema(generatedUnion(lifted.map((member) => member.schema)));
 }
 
 function liftArray(node: Record<string, unknown>, path: string, depth: number): RuntimeGeneratedSchema {
@@ -269,7 +285,7 @@ function liftArray(node: Record<string, unknown>, path: string, depth: number): 
   if (typeof node["maxItems"] === "number") {
     schema = schema.max(node["maxItems"]);
   }
-  return new RuntimeGeneratedSchema(schema);
+  return boxGeneratedSchema(schema);
 }
 
 function liftObject(node: Record<string, unknown>, path: string, depth: number): RuntimeGeneratedSchema<z.ZodObject> {
@@ -289,7 +305,7 @@ function liftObject(node: Record<string, unknown>, path: string, depth: number):
       throw new JsonSchemaLiftError("property (not an object schema)", `${path}/properties/${key}`);
     }
     const lifted = liftNode(propNode, `${path}/properties/${key}`, depth + 1);
-    shape[key] = requiredSet.has(key) ? lifted : new RuntimeGeneratedSchema(lifted.schema.optional());
+    shape[key] = requiredSet.has(key) ? lifted : boxGeneratedSchema(lifted.schema.optional());
   }
 
   // `additionalProperties` — the registry pins objects closed (projectJsonSchema forces false); accept only
@@ -298,7 +314,7 @@ function liftObject(node: Record<string, unknown>, path: string, depth: number):
   if (additional !== undefined && additional !== false) {
     throw new JsonSchemaLiftError("additionalProperties (open/schema form)", path);
   }
-  return new RuntimeGeneratedSchema(generatedObject(Object.fromEntries(Object.entries(shape).map(([key, generated]) => [key, generated.schema]))));
+  return boxGeneratedSchema(generatedObject(Object.fromEntries(Object.entries(shape).map(([key, generated]) => [key, generated.schema]))));
 }
 
 /** Lift one JSON Schema node into zod. A node with no `type` but an `anyOf`/`enum`/`const` lifts by those;
@@ -346,7 +362,7 @@ function liftNode(node: Record<string, unknown>, path: string, depth: number): R
     case INTEGER_TYPE:
       return liftNumber(node, true);
     case BOOLEAN_TYPE:
-      return new RuntimeGeneratedSchema(z.boolean());
+      return boxGeneratedSchema(z.boolean());
     case ARRAY_TYPE:
       return liftArray(node, path, depth);
     case OBJECT_TYPE:

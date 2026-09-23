@@ -35,9 +35,7 @@
       "id": "qwen-shared-semantic-callsite-census",
       "priority": 2,
       "status": "ready",
-      "inputs": [
-        "docs/reviews/ast-codebase-audit/world-tools-shared-semantic-lookup-recon.json"
-      ],
+      "inputs": ["docs/reviews/ast-codebase-audit/world-tools-shared-semantic-lookup-recon.json"],
       "output": "docs/reviews/ast-codebase-audit/qwen-results/shared-semantic-callsite-census.json",
       "brief": "Re-derive every AST, Verify, Codemod Kit, and _shared call site that resolves modules, projects a node into a compiler world, chooses an exported declaration, follows aliases/origins, or opens a reference cache. Map each site to the existing shared helper it uses or the reason it remains tool-specific. Confirm or refute every gap in world-tools-shared-semantic-lookup-recon.json. Produce an exact migration manifest and test obligations; make no source changes."
     },
@@ -73,9 +71,7 @@
       "id": "qwen-waiver-caught-failure-ownership",
       "priority": 2,
       "status": "ready",
-      "inputs": [
-        "docs/reviews/ast-codebase-audit/qwen-exception-authority/ordinary-dominant-families.json"
-      ],
+      "inputs": ["docs/reviews/ast-codebase-audit/qwen-exception-authority/ordinary-dominant-families.json"],
       "output": "docs/reviews/ast-codebase-audit/qwen-results/waiver-caught-failure-ownership.json",
       "brief": "Re-adjudicate all 625 caught-failure-ownership waivers. For each stable item, read the full catch/control-flow unit, identify whether failure is observed, deliberately ignored, converted, retried, or accidentally swallowed, and corroborate the live caller or job boundary. A reason without an end condition is not automatically invalid, and a consumed waiver is not proof of continued need. Group repeated mechanisms for explanation but retain one row per waiver. Return repair candidates, evidence-backed preservation candidates, owner decisions, and reader defects; do not edit code or authority."
     },
@@ -83,9 +79,7 @@
       "id": "qwen-waiver-no-test-fabrication",
       "priority": 2,
       "status": "ready",
-      "inputs": [
-        "docs/reviews/ast-codebase-audit/qwen-exception-authority/ordinary-dominant-families.json"
-      ],
+      "inputs": ["docs/reviews/ast-codebase-audit/qwen-exception-authority/ordinary-dominant-families.json"],
       "output": "docs/reviews/ast-codebase-audit/qwen-results/waiver-no-test-fabrication.json",
       "brief": "Re-adjudicate all 416 no-test-fabrication waivers against the current test seam and production producer. Separate legitimate boundary adapters from fabricated payloads that bypass the real schema, router output, database shape, or runtime constructor. For each item name the production twin and whether the test imports, derives, or manually reconstructs it. Retain one stable row per waiver and refuse a clean result when the production twin cannot be resolved. Do not edit tests or authority."
     },
@@ -93,9 +87,7 @@
       "id": "qwen-waiver-ct-live-read",
       "priority": 2,
       "status": "ready",
-      "inputs": [
-        "docs/reviews/ast-codebase-audit/qwen-exception-authority/ordinary-dominant-families.json"
-      ],
+      "inputs": ["docs/reviews/ast-codebase-audit/qwen-exception-authority/ordinary-dominant-families.json"],
       "output": "docs/reviews/ast-codebase-audit/qwen-results/waiver-ct-live-read.json",
       "brief": "Re-adjudicate all 312 ct-no-oneshot-live-read-assert waivers. For each component-test site, read the complete scenario and determine whether it observes a stable terminal fact, an intentionally transient state, or a value that should use the repository's live assertion mechanism. Record the rendered behavior protected by the assertion and the focused control needed for a repair. Static presence of a locator or assertion is not behavioral proof. Do not drive the browser, rewrite tests, or change authority in this lane."
     },
@@ -103,9 +95,7 @@
       "id": "qwen-waiver-ordinary-remainder",
       "priority": 3,
       "status": "ready",
-      "inputs": [
-        "docs/reviews/ast-codebase-audit/qwen-exception-authority/ordinary-remainder.json"
-      ],
+      "inputs": ["docs/reviews/ast-codebase-audit/qwen-exception-authority/ordinary-remainder.json"],
       "output": "docs/reviews/ast-codebase-audit/qwen-results/waiver-ordinary-remainder.json",
       "brief": "Re-adjudicate the 379 ordinary waivers outside the three dominant families, preserving all 30 policy denominators. Read each policy's gate contract and reader before judging its waivers. For every waiver identify the protected invariant, current live need, end condition if one exists, nearby unwaived witness, and candidate disposition. Keep policy families separate and record any reader refusal or mismatch rather than normalizing it away. Do not edit code or authority."
     },
@@ -113,10 +103,7 @@
       "id": "qwen-ast-dead-code-lens-refresh",
       "priority": 1,
       "status": "ready",
-      "inputs": [
-        "docs/reviews/ast-codebase-audit/world-tools-audit-goal.json",
-        "docs/reviews/ast-codebase-audit/world-tools-running-finding-ledger.json"
-      ],
+      "inputs": ["docs/reviews/ast-codebase-audit/world-tools-audit-goal.json", "docs/reviews/ast-codebase-audit/world-tools-running-finding-ledger.json"],
       "output": "docs/reviews/ast-codebase-audit/qwen-results/ast-dead-code-lens-refresh.json",
       "brief": "Refresh the current-tree results for the dead, orphans, testonly, prodonly, and apisurface pnpm ast lenses one lens at a time. Use the production CLI and its world configuration. Preserve each raw command, exit code, run identity, scanned/skipped corpus, and every finding; an OOM, timeout, empty corpus, or missing epilogue is an error row. Adjudicate results only after ast-grep TS and TSX plus literal corroboration. Specifically distinguish production code kept alive only by tests, barrels/package exports, framework entrypoints, schema/type twins, and intentional test adapters. Do not delete or edit candidates."
     },
@@ -124,9 +111,7 @@
       "id": "qwen-ledger-ingestion-shard",
       "priority": 2,
       "status": "ready",
-      "inputs": [
-        "docs/reviews/ast-codebase-audit/world-tools-running-finding-ledger.json"
-      ],
+      "inputs": ["docs/reviews/ast-codebase-audit/world-tools-running-finding-ledger.json"],
       "output": "docs/reviews/ast-codebase-audit/qwen-results/ledger-ingestion-shard-001.json",
       "brief": "Normalize a deterministic first shard of at most 50 current ingestionBacklog entries: sort by stable source path then source pointer, skip any item already represented by canonical identity in findings or toolDefects, and preserve the original source reference. For each selected row read the source receipt and current tree evidence, then classify it as a duplicate, current finding, resolved with current evidence, tool defect, owner decision, or unreadable/refused. This receipt proposes ledger operations but does not mutate the ledger. Record the exact selection rule and selected denominator so a later shard cannot overlap it."
     },
@@ -134,11 +119,7 @@
       "id": "qwen-doc-factcheck-candidate-census",
       "priority": 3,
       "status": "ready",
-      "inputs": [
-        "docs/architecture/core/Documentation-Law.md",
-        "docs/catalog/catalog.json",
-        "docs/catalog/state.json"
-      ],
+      "inputs": ["docs/architecture/core/Documentation-Law.md", "docs/catalog/catalog.json", "docs/catalog/state.json"],
       "output": "docs/reviews/ast-codebase-audit/qwen-results/doc-factcheck-candidate-census.json",
       "brief": "Build a bounded candidate list for documentation maintenance without editing documents or official catalog receipts. Select active or draft authored docs whose receipt is pending/stale or whose current claims cite moved symbols, retired paths, completed programs, or mutable counts. For each candidate read the whole document, verify cited paths and symbols against current main, and classify the exact stale claim, current evidence, and appropriate next action: refresh receipt, repair prose, move to history, delete built-module prose after promoting law, or preserve. This is a candidate census, not permission to move or rewrite docs."
     },
@@ -146,12 +127,7 @@
       "id": "qwen-doc-control-plane-poc",
       "priority": 4,
       "status": "ready",
-      "inputs": [
-        "docs/architecture/core/Documentation-Law.md",
-        "docs/architecture/core/Core-Laws-and-Precedents.md",
-        "tooling/src/workboard",
-        "docs/catalog"
-      ],
+      "inputs": ["docs/architecture/core/Documentation-Law.md", "docs/architecture/core/Core-Laws-and-Precedents.md", "tooling/src/workboard", "docs/catalog"],
       "output": "docs/reviews/ast-codebase-audit/qwen-results/docs-plans-adr-control-plane-poc.json",
       "brief": "Design a read-only proof of concept for a repository-native work control plane centered on Docs, Plans, ADRs, and evidence receipts. Map the current GitHub Project plus pnpm work:item lifecycle, document catalog, D-ledger, proposed-program index, audit ledgers, and Git history. Propose the smallest single-source model that could replace the issue log without duplicating mutable status in prose: schemas, stable identities, state transitions, command surface, generated views, conflict rules, migration path, rollback, and planted controls. Include a sample dataset and query examples inside the JSON receipt. Explicitly identify which current laws would need an owner ruling. Do not implement the CLI, change Project 1, rewrite docs, or present the POC as adopted architecture."
     }
