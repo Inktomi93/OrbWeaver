@@ -35,7 +35,10 @@ export interface PolicyRun {
   population: PolicyPopulationReceipt;
   owner: GateOwnerCompletion;
   files: readonly SourceFile[];
-  effectivePathSet: ReadonlySet<string>;
+  /** The paths the walk hands to this owner's `visitFile` and node visitors: SOURCE paths only. A resource
+   *  path is read through `ctx.resources`, and `ctx.relativePath` refuses it, so dispatching one is a tool
+   *  error (`tests/tooling/verify/lib/policy-pass.test.ts`, the resource-only dispatch arm). */
+  effectiveSourcePathSet: ReadonlySet<string>;
   hooks: GatePolicyHooks | undefined;
   receipts: readonly PolicySemanticReceipt[];
   finishReceipts: (() => readonly PolicySemanticReceipt[]) | undefined;
@@ -52,7 +55,7 @@ export interface FactRun {
   status: "success" | "incomplete";
   error: string | null;
   files: readonly SourceFile[];
-  effectivePathSet: ReadonlySet<string>;
+  effectiveSourcePathSet: ReadonlySet<string>;
   hooks: GateFactHooks<unknown> | undefined;
   receipts: readonly PolicySemanticReceipt[];
   finishReceipts: (() => readonly PolicySemanticReceipt[]) | undefined;
