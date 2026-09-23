@@ -55,7 +55,7 @@ There is no final `status`, registration-count edit, `scanRoot`, `scopeSafety`, 
 | Fields | Derive them from |
 | - | - |
 | `id`, `family` | Filename identity; a meaningful shared production dependency or a reasoned singleton whose family equals its id. |
-| `authority`, `severity`, `workItem` | The rule's permitted exception and debt posture. A warning needs the id of a `docs/work` item that is not done; error forbids `workItem`; hard plus warning is invalid. |
+| `authority`, `severity`, `workItem` | The rule's permitted exception and debt posture. A warning needs the id of a `docs/work` item that is not done; error forbids `workItem`; `hard` + `warning` is valid only as an owner-authorized, time-bounded transition whose findings stay unsuppressible (standing law §5). |
 | `population`, `analysis`, `execution` | The actual evidence plane and dependency closure; §3. |
 | `facts`, `resources` | Only capabilities consumed by this policy; explicit `[]` when unused. |
 | `message`, `fix` | The actual population, carrier, predicate and report site. An ordinary fix spells the exact waiver door and reported position. |
