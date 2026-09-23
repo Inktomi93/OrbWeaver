@@ -24,7 +24,7 @@ async function resolveRow(ctx: ConnectionContext, principal: Principal, connecti
   if (row === null) {
     throw new ConnectionNotFoundError(connectionId);
   }
-  const provider = ctx.runtime.providers.registry.get(row.providerId);
+  const provider = ctx.runtime.providers.registry.get(row.providerId, row.ownerId);
   const kind = provider === undefined ? "generation" : (curatedKindOf(row, provider) ?? "generation");
   const task: Task = TASK_BY_KIND[kind];
   return (await ctx.runtime.resolve({ task, principal, connectionId })).resolved;

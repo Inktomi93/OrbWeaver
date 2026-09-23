@@ -33,7 +33,7 @@ export type VerifyAuthRequest = DiagnosticRequestCommon;
 /** What a model-list read needs from a connection: which wire and provider, whose credential, which server.
  *  Narrower than `Resolved` on purpose — a DRAFT (no row, no model, no capability yet) lists through the same
  *  backend method, so the request never carries fields a draft would have to invent. */
-export type CatalogTarget = Pick<Resolved, "wire" | "ownerId" | "providerId" | "provider" | "baseUrl" | "credential" | "transport">;
+type CatalogTarget = Pick<Resolved, "wire" | "ownerId" | "providerId" | "provider" | "baseUrl" | "credential" | "transport">;
 
 /** The connection's model list by the provider's `catalog` strategy: `GET <baseUrl>/v1/models` (+ the
  *  OR-shaped enrichment where the dialect says so) or the daemon's `supportedModels()`. A failed or empty

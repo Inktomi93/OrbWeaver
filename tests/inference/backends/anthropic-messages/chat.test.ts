@@ -515,3 +515,101 @@ test("tool input streams eagerly on the direct wire (the SDK default the extras 
   await runAnthropicChatTurn(turnRequest(), deps(scriptedSseFetch([anthropicTextStream("ok")], recorded)));
   expect(toolsOf(recorded[0]).map((tool) => tool["eager_input_streaming"])).toEqual([true]);
 });
+
+// ── the cached prefix across a group round ─────────────────────────────────────────────────────────────────
+// SHAPE keeps each stored row of a same-role run its own row on this wire. The SDK must deliver them as one
+// message of separate blocks, so the block the previous call marked keeps its bytes and its end when the next
+// speaker's reply lands under it.
+
+/** The prompt as the cache reads it: each system and message block in order, tagged with its turn's role, with
+ *  the `cache_control` marker set aside (it is not prompt bytes) and reported as the block index it rode on. */
+function cachedBlocks(recorded: RecordedRequest | undefined): { readonly blocks: readonly string[]; readonly marked: readonly number[] } {
+  const body = recorded?.body ?? {};
+  const turns = [{ role: "system", content: body["system"] }, ...(Array.isArray(body["messages"]) ? (body["messages"] as Record<string, unknown>[]) : [])];
+  const blocks: string[] = [];
+  const marked: number[] = [];
+  for (const turn of turns) {
+    for (const block of Array.isArray(turn["content"]) ? (turn["content"] as Record<string, unknown>[]) : []) {
+      const { cache_control: marker, ...bytes } = block;
+      if (marker !== undefined) {
+        marked.push(blocks.length);
+      }
+      blocks.push(JSON.stringify([turn["role"], bytes]));
+    }
+  }
+  return { blocks, marked };
+}
+
+test("a group round keeps the block the previous call marked: same bytes, same end, one assistant turn", async () => {
+  const connection = fakeResolved({
+    task: "chat",
+    providerId: "anthropic",
+    model: "claude-opus-5",
+    capability: generationCapability({
+      turns: {
+        assistantPrefill: false,
+        midConversationSystem: false,
+        historySystemRows: false,
+        roleHandlingFloor: "strict",
+        explicitPromptCache: true,
+        cacheMinTokens: 1,
+      },
+    }),
+    baseUrl: "https://api.anthropic.com",
+    secret: fakeApiKeySecret("sk-ant-probe-not-a-real-key"),
+  });
+  const text = (value: string): [{ type: "text"; text: string }] => [{ type: "text", text: value }];
+  const call = async (history: AnthropicChatRequest["history"]): Promise<RecordedRequest | undefined> =>
+    (await recordedTurn(turnRequest({ connection, tools: undefined, cacheBreakpointDepth: 1, history }), anthropicTextStream("ok"))).body;
+  const opening = [
+    { role: "user", content: text("We head for the harbor.") },
+    { role: "assistant", content: text("Mara: Mara leads.") },
+  ] satisfies AnthropicChatRequest["history"];
+
+  const wren = await call([...opening, { role: "user", content: text("[Write the next reply only as Wren.]") }]);
+  const kai = await call([
+    ...opening,
+    { role: "assistant", content: text("Wren: Wren scouts.") },
+    { role: "user", content: text("[Write the next reply only as Kai.]") },
+  ]);
+
+  const n = cachedBlocks(wren);
+  const next = cachedBlocks(kai);
+  const deepest = Math.max(...n.marked);
+  // System (0) and Mara's block (2) are marked on the first call.
+  expect(n.marked).toEqual([0, 2]);
+  expect(next.blocks.slice(0, deepest + 1)).toEqual(n.blocks.slice(0, deepest + 1));
+  // The run is still ONE assistant turn on the wire, made of two blocks, and the marker moved to the newest one.
+  const messages = kai?.body["messages"] as Record<string, unknown>[];
+  expect(messages.map((message) => message["role"])).toEqual(["user", "assistant", "user"]);
+  expect(messages[1]?.["content"]).toEqual([
+    { type: "text", text: "Mara: Mara leads." },
+    { type: "text", text: "Wren: Wren scouts.", cache_control: { type: "ephemeral", ttl: "1h" } },
+  ]);
+});
+
+// The SDK behavior the layout above rests on (`@ai-sdk/anthropic` groupIntoBlocks): adjacent same-role rows become
+// one message, and a row's own marker stays on that row's last block even when a later row joins the message. An
+// SDK bump that joins the rows or moves the marker to the message's end reds here.
+test("SDK pin: adjacent same-role rows group into one message and each row's marker stays on its own last block", async () => {
+  const text = (value: string): { type: "text"; text: string } => ({ type: "text", text: value });
+  const { body } = await recordedTurn(
+    turnRequest({
+      tools: undefined,
+      history: [
+        { role: "user", content: [text("We head for the harbor.")] },
+        { role: "assistant", content: [text("Mara: "), text("Mara leads.")], wireMeta: { cacheBreakpoint: true } },
+        { role: "assistant", content: [text("Wren: Wren scouts.")] },
+        { role: "user", content: [text("[Write the next reply only as Kai.]")] },
+      ],
+    }),
+    anthropicTextStream("ok"),
+  );
+  const messages = body?.body["messages"] as Record<string, unknown>[];
+  expect(messages.map((message) => message["role"])).toEqual(["user", "assistant", "user"]);
+  expect(messages[1]?.["content"]).toEqual([
+    { type: "text", text: "Mara: " },
+    { type: "text", text: "Mara leads.", cache_control: { type: "ephemeral", ttl: "1h" } },
+    { type: "text", text: "Wren: Wren scouts." },
+  ]);
+});

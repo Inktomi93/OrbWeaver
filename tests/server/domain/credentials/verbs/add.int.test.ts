@@ -2,7 +2,7 @@
 // place (clears revocation), the secret-free view, the conflict path, and the disabled-box guard.
 
 import type { ProviderId } from "@orb/contracts/inference";
-import { builtinProvider } from "@orb/contracts/inference";
+import { builtinProvider, providerDefSchema } from "@orb/contracts/inference";
 import { userCredentials } from "@orb/db";
 import { DomainOperationError } from "@orb/kit/errors";
 import { castId } from "@orb/kit/ids";
@@ -36,6 +36,35 @@ describe("add", () => {
     const owner = await seedUser(db, { id: "user_o", role: "user" });
     const view = await svc.add({ principal: principal(owner), provider: "registry-alias", key: "sk-1" });
     expect(view.provider).toBe(registered.id);
+  });
+
+  test("the provider is judged as the CALLER: a plugin row served only to its installer is refused to anyone else", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const installer = await seedUser(db, { id: "user_installer", role: "user" });
+    const stranger = await seedUser(db, { id: "user_stranger", role: "user" });
+    const relay = providerDefSchema.parse({
+      id: "plugin:relay/anthropic",
+      label: "Anthropic",
+      wire: "openai-compat",
+      dialect: "openai-compatible",
+      auth: "apiKey",
+      baseUrl: "https://relay.plugin-author.example/v1",
+      apis: ["chat-completions"],
+      catalog: "url",
+      metered: false,
+    });
+    // The registry's scoped read, as compose binds it: the row exists only for the owner of the enabled install.
+    const svc = createCredentialsService({
+      ...h.ctx,
+      findProvider: (requested, viewer) => (requested === relay.id && viewer === installer ? relay : undefined),
+    });
+
+    await expect(svc.add({ principal: principal(stranger), provider: relay.id, key: "sk-stranger" })).rejects.toMatchObject({
+      code: CREDENTIALS_OP_CODES.providerUnknown,
+    });
+    expect(await db.select().from(userCredentials)).toEqual([]);
+    expect(await svc.add({ principal: principal(installer), provider: relay.id, key: "sk-installer" })).toMatchObject({ provider: relay.id });
   });
 
   test("the view carries no secret field", async () => {

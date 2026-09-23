@@ -8,7 +8,8 @@
 //   • A PARTIAL FAILURE IS HONEST. The key was saved and the connection was not: the dialog says both, clears the
 //     secret, locks the provider, and the retry writes only the connection. The statement takes focus, is on
 //     screen on a phone, and is withdrawn at the first edit.
-//   • EVERY BUILT-IN PROVIDER gets the fields its auth kind needs and a complete add.
+//   • EVERY BUILT-IN PROVIDER gets the fields its auth kind needs and a complete add; a plugin row that borrows a
+//     built-in's label is offered under its plugin's name.
 //   • THE SUBSCRIPTION STEP'S COMMAND is copyable by keyboard, with an accessible name and a spoken result.
 //   • THE PERSONAS: OpenRouter in one pass then "use for everything"; the subscription row refused inline by
 //     a background role; the endpoint listed or typed; the built-in keyless add.
@@ -16,7 +17,7 @@
 //     typed fallback — each asserted as what the user sees, with the dialog inside the viewport.
 
 import type { ProviderAuth } from "@orb/contracts/inference";
-import { BUILTIN_PROVIDERS } from "@orb/contracts/inference";
+import { BUILTIN_PROVIDERS, providerDefSchema } from "@orb/contracts/inference";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
@@ -55,6 +56,27 @@ async function openAddDialog(page: Page): Promise<Locator> {
 function submit(dialog: Locator): Promise<void> {
   return dialog.getByRole("button", { name: "Add connection" }).click();
 }
+
+// ── a plugin provider is named as a plugin ──────────────────────────────────────────────────────────────
+
+test("a plugin provider labelled like a built-in is offered under its plugin's name, beside the real built-in", async ({ mount, page }) => {
+  const relay = providerDefSchema.parse({
+    id: "plugin:relay/anthropic",
+    label: "Anthropic",
+    wire: "anthropic-messages",
+    auth: "apiKey",
+    baseUrl: "https://relay.plugin-author.example/v1",
+    apis: ["anthropic-messages"],
+    catalog: "url",
+    metered: true,
+  });
+  await stubConnectionsPane(page, { providers: [...ALL_AVAILABLE, { provider: relay, available: true }] });
+  await mount(<ConnectionsAuthoringStory width={870} />);
+  const dialog = await openAddDialog(page);
+  await dialog.getByRole("combobox", { name: "Provider" }).click();
+  await expect(page.getByRole("option", { name: "Anthropic", exact: true })).toHaveCount(1);
+  await expect(page.getByRole("option", { name: "Anthropic · plugin relay", exact: true })).toBeVisible();
+});
 
 // ── the full add ────────────────────────────────────────────────────────────────────────────────────────
 
@@ -479,7 +501,7 @@ test("the built-in provider lists the models this device runs as soon as it is p
   await submit(dialog);
 
   await expect(dialog).toBeHidden();
-  expect(trpc.count("credentials.add")).toBe(0);
+  await expect.poll(() => trpc.count("credentials.add")).toBe(0);
   await expect
     .poll(() => trpc.lastInput("connection.create"))
     .toMatchObject({ providerId: "local-light", credentialId: null, baseUrl: null, model: "jinaai/jina-clip-v2", modelListed: true });
@@ -504,7 +526,7 @@ test("switching the provider empties the key and the server URL typed for the pr
   await pickProvider(page, dialog, "Ollama");
   await expect(dialog.getByLabel("Server URL", { exact: true })).toHaveValue("");
   await expect(component.getByTestId("held-secrets")).toHaveText("0");
-  expect(trpc.count("credentials.add")).toBe(0);
+  await expect.poll(() => trpc.count("credentials.add")).toBe(0);
 });
 
 // A HOSTED PROVIDER LISTS UNDER ITS PASTED KEY, before anything is saved. The read is a POST (the key rides a body,

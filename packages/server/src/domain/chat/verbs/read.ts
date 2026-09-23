@@ -51,7 +51,7 @@ import { composeProse, isPresetProseSlotId, resolveProseText } from "@orb/contra
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import type { Resolved } from "@orb/inference";
-import { generationOf, resolveCarryReasoning } from "@orb/inference";
+import { cachesByAnthropicMarkers, generationOf, resolveCarryReasoning } from "@orb/inference";
 import { projectBodyForPreview } from "@orb/kit/content";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, MessageId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
@@ -227,6 +227,8 @@ interface PreviewInputs {
   /** The resolved model capability — the SHAPE-trace peek reads its `turns` cell (roleHandlingFloor /
    *  assistantPrefill) to shape faithfully. Undefined when the connection resolver omits it (a test double). */
   readonly capability: GenerationCapability | undefined;
+  /** The connection caches by explicit block markers (`cachesByAnthropicMarkers`) — SHAPE keeps stored rows apart. */
+  readonly explicitCacheMarkers: boolean;
   /** The resolved protocol axis — previewContextFit source-modes the divider boundary on it (agent-sdk → the
    *  marker coverage point; stateless → the fit boundary). */
   readonly api: Resolved<"chat">["api"];
@@ -488,6 +490,7 @@ async function resolvePreviewInputs(
     funderUserId: hostUserId,
     model: connection.model,
     capability: generationOf(connection),
+    explicitCacheMarkers: cachesByAnthropicMarkers(connection, generationOf(connection)),
     api: connection.api,
     characterIds,
     personaIds,
@@ -1119,6 +1122,7 @@ async function shapeNextTurn(
     historySystemRows: turns?.historySystemRows === true,
     roleHandling: assembleContext.promptConfig.params.advanced?.roleHandling,
     roleHandlingFloor: turns?.roleHandlingFloor,
+    explicitCacheMarkers: inputs.explicitCacheMarkers,
     squashSystemMessages: assembleContext.promptConfig.params.advanced?.squashSystemMessages,
     prose: assembleContext.prose,
   });

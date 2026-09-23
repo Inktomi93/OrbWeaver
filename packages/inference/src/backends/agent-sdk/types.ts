@@ -4,7 +4,7 @@
 import type { query, SessionStore } from "@anthropic-ai/claude-agent-sdk";
 import type { EffortLevel } from "@orb/contracts/preset";
 import type { ChatId, ModelId } from "@orb/kit/ids";
-import type { SessionEntryWriter } from "../../contract/agent.ts";
+import type { AgentSdkSessionTotals, SessionEntryWriter } from "../../contract/agent.ts";
 import type { WireCaptureSink } from "../../contract/backend.ts";
 import type { ContextUsage } from "../../contract/chat.ts";
 import type { ProviderScrubSet } from "../../contract/errors.ts";
@@ -55,6 +55,9 @@ export interface TurnStreamContext {
   readonly model: ModelId;
   readonly providerId: string;
   readonly resumed: boolean;
+  /** The spend totals the resumed transcript saved, which this turn's result carries forward; null when a saved
+   *  entry was unreadable, which leaves the turn's cost unrecorded. */
+  readonly savedTotals: AgentSdkSessionTotals | null;
   readonly disposition?: SeededSessionDecision["disposition"] | undefined;
   readonly now: () => number;
   readonly chatId?: ChatId | undefined;

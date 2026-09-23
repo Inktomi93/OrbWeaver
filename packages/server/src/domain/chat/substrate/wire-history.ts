@@ -21,6 +21,11 @@
 //
 // `engine/` → `substrate/` is the legal downward edge; nothing here imports `engine/` or `assembly/` beyond
 // the `assembly-access.ts` DI seam this directory already owns.
+//
+// THE `conversation` CARRY ON OPENROUTER: each stored reply of a same-role run carries its own thinking as its own
+// row, and OpenRouter folds consecutive same-role messages into one upstream message that keeps only the FIRST
+// row's thinking. The later replies' thinking never reaches the model, and nothing reports it. One message
+// holding every reply's thinking is refused on both OpenRouter endpoints (OR-9, scripts/probes/openrouter/RESULTS.md).
 
 import type { ChatContentPart, ChatReasoningPart, MessageView } from "@orb/contracts/chat";
 import { cacheDepthCovering, rowIndexAtCacheDepth } from "@orb/inference";
@@ -135,10 +140,9 @@ interface WireRowFacts {
   readonly messageId: MessageId | undefined;
 }
 
-/** The M2 keep-last-X window: the LAST X card spans across the fitted history (document order, counted from
- *  the tail) ride the wire full; everything older stubs. Deterministic PER ASSEMBLY — the same history at a
- *  given turn always yields the same last-X set; a card entering the stub zone as newer cards arrive is a
- *  bounded one-time cache break per card, inherent to a sliding window (§3.5).
+/** The M2 keep-last-X window: at least the LAST X card spans across the assembly (document order) ride the wire
+ *  full; older cards stub in whole chunks of X (see {@link windowed}). Deterministic PER ASSEMBLY — the same
+ *  history at a given turn always yields the same set (§3.5).
  *
  *  A CARD IN A SYNTHETIC ROW IS INSTRUCTION, NOT CONTENT — it never stubs and never consumes the window.
  *  A synthetic row is id-less by construction (a spliced injection or the regen/continue user turn; canon
@@ -177,12 +181,20 @@ function resolveFullCards(
 }
 
 /** The stored-card slice the window keeps FULL. Absent window ⇒ all of them (a chat that never opted into
- *  the rpg budget tradeoff); `0` ⇒ none; `n` ⇒ the newest n in document order. */
+ *  the rpg budget tradeoff); `0` ⇒ none; `n` ⇒ the newest n to 2n−1 in document order.
+ *
+ *  STUBBING IS CHUNKED FOR THE PROMPT CACHE. A stubbed card rewrites a row above the cache breakpoint, and the
+ *  provider cache is an exact prefix. Stubbing one card per new card would break the cache on every
+ *  card-bearing turn; stubbing n at once, counted from the first card, breaks it once per n cards. */
 function windowed(canonCards: readonly ContentSpan[], keepLastX: number | undefined): readonly ContentSpan[] {
   if (keepLastX === undefined) {
     return canonCards;
   }
-  return keepLastX > 0 ? canonCards.slice(-keepLastX) : [];
+  if (keepLastX === 0) {
+    return [];
+  }
+  const overflow = Math.max(0, canonCards.length - keepLastX);
+  return canonCards.slice(Math.floor(overflow / keepLastX) * keepLastX);
 }
 
 type WirePartResult = ChatContentPart | { droppedAlt: string; droppedMedia: ResolvedMediaRef["media"] } | null;
@@ -382,9 +394,9 @@ function wireCostText(parts: readonly ChatContentPart[]): string {
  *
  *  The card window MOVED with the conversion: it used to be resolved over the FITTED tail (this ran after
  *  the fit), and it is now resolved over the WHOLE shaped assembly. That is not a behaviour change, and the
- *  reason is worth stating because it is the thing that makes the reorder safe — the window is the last-X
+ *  reason is worth stating because it is the thing that makes the reorder safe — the window is the newest
  *  cards in DOCUMENT ORDER, and the fit only ever removes OLDER rows, so every card it could remove was
- *  already outside the last-X (a stub-zone card). The extra entries the window may now hold belong to rows
+ *  already outside the window (a stub-zone card). The extra entries the window may now hold belong to rows
  *  the fit drops, and a dropped row's spans are never projected. */
 export async function buildWireHistory(
   /** The per-assembly inputs the conversion needs, spelled INLINE (an exported shape declared in

@@ -25,6 +25,7 @@ function args(overrides: Partial<ShapeArgs> = {}): ShapeArgs & { readonly warnin
     transport: null,
     dialect: "openai-compatible",
     prefillAllowed: false,
+    foldSameRole: false,
     replyImages: false,
     warnings: [],
     ...overrides,
@@ -253,4 +254,67 @@ test("rule 9: a moved marker never doubles up on a row that already carries one"
   const messages = recordsAt(shapeOutboundBody(raw, args({ dialect: "openrouter" })), "messages");
   expect(JSON.stringify(messages).split("cache_control").length - 1).toBe(1);
   expect(messages[1]).not.toHaveProperty("cache_control");
+});
+
+// Rule 10: SHAPE keeps the stored rows of a same-role run apart when the turn caches by explicit Anthropic
+// markers; the body folds them into one message of parts so the wire alternates and each marked row keeps its end.
+const ROUND = {
+  model: "anthropic/claude-sonnet-5",
+  messages: [
+    { role: "system", content: [{ type: "text", text: "You are the narrator.", cache_control: CC }] },
+    { role: "user", content: "We head for the harbor." },
+    { role: "assistant", content: "Mara: Mara leads." },
+    { role: "assistant", content: "Wren: Wren scouts.", cache_control: CC },
+    { role: "user", content: "[Write the next reply only as Kai.]" },
+  ],
+};
+
+test("rule 10: consecutive plain rows fold into one message, one part per row, the marker on its own row's part", () => {
+  const messages = recordsAt(shapeOutboundBody(ROUND, args({ dialect: "openrouter", foldSameRole: true })), "messages");
+  expect(messages.map((message) => message["role"])).toEqual(["system", "user", "assistant", "user"]);
+  expect(messages[2]).toEqual({
+    role: "assistant",
+    content: [
+      { type: "text", text: "Mara: Mara leads." },
+      { type: "text", text: "Wren: Wren scouts.", cache_control: CC },
+    ],
+  });
+});
+
+test("rule 10: an absent field spelled as an undefined key does not block the fold (the openai-compatible converter)", () => {
+  const raw = {
+    model: "claude-sonnet-5",
+    messages: [
+      { role: "user", content: "Go." },
+      { role: "assistant", content: "Mara: on it.", tool_calls: undefined },
+      { role: "assistant", content: "Wren: me too.", tool_calls: undefined },
+    ],
+  };
+  const messages = recordsAt(shapeOutboundBody(raw, args({ foldSameRole: true })), "messages");
+  expect(messages.map((message) => message["role"])).toEqual(["user", "assistant"]);
+  expect(messages[1]?.["content"]).toEqual([
+    { type: "text", text: "Mara: on it." },
+    { type: "text", text: "Wren: me too." },
+  ]);
+});
+
+test("rule 10: off, the rows pass through untouched (every wire that does not cache by Anthropic markers)", () => {
+  const off = shapeOutboundBody(ROUND, args({ dialect: "openrouter" }));
+  expect(recordsAt(off, "messages").map((message) => message["role"])).toEqual(["system", "user", "assistant", "assistant", "user"]);
+});
+
+test("rule 10: a row carrying a name, tool calls or replayed reasoning keeps its own message", () => {
+  const raw = {
+    model: "anthropic/claude-sonnet-5",
+    messages: [
+      { role: "user", content: "Go." },
+      { role: "assistant", content: "Mara: on it." },
+      { role: "assistant", content: null, tool_calls: [{ id: "call_1", type: "function", function: { name: "roll", arguments: "{}" } }] },
+      { role: "assistant", content: "Kai: done.", reasoning: "…", reasoning_details: [] },
+      { role: "user", content: "Joe's line", name: "Joe" },
+      { role: "user", content: "Nate's line" },
+    ],
+  };
+  const messages = recordsAt(shapeOutboundBody(raw, args({ dialect: "openrouter", foldSameRole: true })), "messages");
+  expect(messages).toHaveLength(raw.messages.length);
 });

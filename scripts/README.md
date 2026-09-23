@@ -57,7 +57,8 @@ Node compiler and typed ESLint ownership through the shared world rules.
 ### Operator one-offs
 
 `dev/sandbox.sh` (`pnpm sandbox`) · `probes/history-system-rows.ts`
-(`pnpm probe:history-system-rows`, the D69 capability measurement).
+(`pnpm probe:history-system-rows`, the D69 capability measurement) · `probes/f4-cache-proof.ts`
+(`pnpm probe:f4-cache-proof`, the capped-chat prompt-cache proof, base fit vs chunked fit).
 
 `sandbox.sh` is HAND-RUN ONLY, re-derived 2026-08-22 (#421): it is reached solely by its `pnpm sandbox`
 alias and runs on the HOST to launch `.devcontainer/`. (`dev/oracle-steady-clone.sh`, the neo-parity

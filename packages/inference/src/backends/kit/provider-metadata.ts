@@ -62,6 +62,7 @@ export interface AgentSdkTurnFacts {
   readonly servedModel: string | null;
   readonly durationApiMs: number | null;
   readonly numTurns: number;
+  readonly outputCapReached: boolean;
 }
 
 /** A recorded value survives, `null`/absence yields NO key. A measured zero is a real sample and is kept;
@@ -144,6 +145,7 @@ export function agentSdkVariantMetadata(providerId: string, facts: AgentSdkTurnF
     ...(has(facts.warmSpareClaimed) ? { warmSpareClaimed: facts.warmSpareClaimed } : {}),
     ...(has(facts.durationApiMs) ? { durationApiMs: facts.durationApiMs } : {}),
     ...(facts.numTurns > 0 ? { numTurns: facts.numTurns } : {}),
+    ...(facts.outputCapReached ? { outputCapReached: true } : {}),
     ...(has(facts.sdkSessionId) ? { sdkSessionId: facts.sdkSessionId } : {}),
     ...(has(facts.servedModel) ? { servedModel: facts.servedModel } : {}),
   };

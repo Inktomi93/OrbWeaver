@@ -55,8 +55,9 @@ Exported API uses `/** */` TSDoc; a non-exported helper uses `//`. The `tsdoc/sy
 | `@defaultValue` | only when the signature does not show the default |
 | `@example` | only for non-obvious use; it must compile against the current API |
 | `@internal`, `@see` | allowed |
+| `@public` family: `@public twin: <Value>`, `@public future: <consumer>`, `@public <reason>` for a test-anchored export | only with the target or reason. `pnpm ast` (orphans, chains, apisurface), knip and the orphan-export ratchet read it; the spellings are in `tooling/src/ast/lib/public-markers.ts` |
 | `@packageDocumentation` | at most one per package entry point |
-| every other tag, for example `{@inheritDoc}`, `@public`, `@alpha`, `@override`, `@privateRemarks` | forbidden: no tool here reads it |
+| every other tag, for example `{@inheritDoc}`, `@alpha`, `@override`, `@privateRemarks` | forbidden: no tool here reads it |
 
 ## Markers and doc citations
 
