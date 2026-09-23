@@ -313,6 +313,30 @@ test("JSON and Markdown files may carry an explicit not-applicable plan", ({ scr
   }
 });
 
+test("a prose file edit runs no checker at all", ({ scratch, repoRoot }) => {
+  const checkout = plantCheckout(scratch);
+  const bin = join(scratch, "stub bin");
+  stubPnpm(bin);
+  const log = join(scratch, "pnpm.log");
+  for (const name of ["NOTES.md", "config.yaml", "run.sh"]) {
+    const file = join(checkout.worktree, name);
+    writeFileSync(file, "x\n");
+    const result = runHook({
+      hook: join(repoRoot, ".claude/hooks/biome-check.sh"),
+      project: checkout.main,
+      cwd: checkout.worktree,
+      file,
+      bin,
+      log,
+      runtime: join(scratch, "runtime"),
+      mode: "not-applicable",
+    });
+    expect(result.status, name).toBe(0);
+    expect(result.stderr, name).toBe("");
+  }
+  expect(existsSync(log) ? readFileSync(log, "utf8") : "").toBe("");
+});
+
 test("a foreign checkout is refused before any repository command executes", ({ scratch, repoRoot }) => {
   const trusted = plantCheckout(join(scratch, "trusted"));
   const foreign = plantCheckout(join(scratch, "foreign"));
