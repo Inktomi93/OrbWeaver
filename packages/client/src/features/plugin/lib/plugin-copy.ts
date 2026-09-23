@@ -140,10 +140,14 @@ export const CAPABILITY_COPY_ROWS = [
     // Softening it — "runs in a secure sandbox", "isolated for your safety" — would make this the one row on the
     // screen that under-states its own risk. `risk: true` for the same reason: this is the only UI capability
     // that reaches past the plugin's own sandbox.
+    //
+    // It also names the GRANTED-DATA REACH (owner ruling on #106). Frames relay host calls to
+    // `plugin.uiHostCall` with the same server-gated access a scripted surface has, so a frame can read whatever
+    // else this plugin was granted and carry it out over that same unclosable channel. The line says both.
     id: "ui.frame",
     label: "Show its own screens in an isolated frame",
     consequence:
-      "runs its own interface code in an isolated frame — it can draw anything inside its box, and an isolated frame can beacon out through browser channels no policy closes.",
+      "runs its own interface code in an isolated frame — it can draw anything inside its box, use anything else this plugin is allowed to read, and send it out through browser channels no policy closes.",
     risk: true,
   },
   {
