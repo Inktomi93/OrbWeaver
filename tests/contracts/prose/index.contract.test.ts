@@ -238,7 +238,7 @@ test("the S1 cohort ships under the app-tier posture: home=user, macros=none (a 
 // template literal the server used to author inline.
 const S1B_FROZEN_RENDERS: readonly { readonly id: ProseSlotId; readonly tokens: Record<string, string>; readonly rendered: string }[] = [
   // packages/server/src/domain/chat/assembly/assemble.ts — renderCoSpeakerBlock's three headings
-  { id: "chat.group.alsoPresent", tokens: { name: "Niko" }, rendered: "[Also present — Niko]" },
+  { id: "chat.group.characterHeading", tokens: { name: "Niko" }, rendered: "[Character — Niko]" },
   { id: "chat.group.scenarioHeading", tokens: { name: "Niko" }, rendered: "[Niko's scenario]" },
   { id: "chat.group.exampleHeading", tokens: { name: "Niko" }, rendered: "[Niko's example dialogue]" },
   // packages/server/src/domain/chat/engine/round.ts — buildSpeakerPrep's multi-speaker fence. v2 keeps the
@@ -426,11 +426,11 @@ test("an override that DROPS the token loses the value it carried — the docume
 test("a `$&`/`$1` inside a substituted value is LITERAL — the replacement is a function, not a pattern", () => {
   // A character name or an injection body is user data; `String.replace`'s `$` patterns would silently
   // duplicate the frame's own bytes into the prompt.
-  expect(resolveProseText("chat.group.alsoPresent", {}, { name: "$& $1 $$" })).toBe("[Also present — $& $1 $$]");
+  expect(resolveProseText("chat.group.characterHeading", {}, { name: "$& $1 $$" })).toBe("[Character — $& $1 $$]");
 });
 
 test("omitting `tokens` ships the text verbatim — every token-free slot and every legacy caller is untouched", () => {
-  expect(resolveProseText("chat.group.alsoPresent", {})).toBe("[Also present — {{name}}]");
+  expect(resolveProseText("chat.group.characterHeading", {})).toBe("[Character — {{name}}]");
   expect(resolveProseText("chat.arbiter.system", {}, { name: "Niko" })).toBe(PROSE_SLOTS["chat.arbiter.system"].text);
 });
 
@@ -503,7 +503,6 @@ test('PRESET_PROSE_SLOT_IDS is every `home:"preset"` slot whose override is stor
     "preset.greetingTransform.heHim",
     "preset.greetingTransform.sheHer",
     "preset.greetingTransform.theyThem",
-    "chat.group.alsoPresent",
     "chat.group.characterHeading",
     "chat.group.scenarioHeading",
     "chat.group.exampleHeading",

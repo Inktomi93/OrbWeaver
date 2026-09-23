@@ -1517,6 +1517,27 @@ describe("runTurnPipeline — RECEIVE per-speaker canon clean (F1)", () => {
     expect(result.content).toBe("I attack the goblin and take cover.");
   });
 
+  // Owner ruling (the stable merged layout): every speaker of a merged room sends the SAME system block, so the
+  // room writes one cache entry instead of one per speaker, and the round cue is the only place the speaker is
+  // named — so a turn whose round sent no cue (one speaker, a regenerate) still carries one.
+  test("merged: Kai's and Aria's turns send byte-identical system blocks, and each cue names its own speaker", async () => {
+    const run = async (speakerName: string, characterId: CharacterId): Promise<TurnRequest> => {
+      const { args } = baseArgs({
+        runChatTurn: finalTurn("ok"),
+        assembleContext: groupCtx(),
+        shape: { ...perSpeaker, speakerName, speakerRef: { kind: "character", characterId } },
+      });
+      return (await runTurnPipeline(args)).request;
+    };
+    const kai = await run("Kai", KAI);
+    const aria = await run("Aria", ARIA);
+    expect(aria.prompt.static).toBe(kai.prompt.static);
+    expect(kai.prompt.static).toContain("[Character — Aria]");
+    expect(kai.prompt.static).not.toContain("[Also present");
+    expect(historyText(kai)).toContain("[Write the next reply only as Kai.");
+    expect(historyText(aria)).toContain("[Write the next reply only as Aria.");
+  });
+
   // IMP-1 layer 2b — an impersonate draft is the USER's line, so "self" is the PERSONA and EVERY CHARACTER is
   // foreign. An impersonate turn carries no `shape`, which is exactly why the pre-IMP-1 fallback (self = the
   // character) ran the inverted configuration on it.
@@ -2826,7 +2847,7 @@ describe("runTurnPipeline — narrator round assembly", () => {
     expect(result.content).toBe("<<JFC>>");
   });
 
-  test("a PER-SPEAKER round is untouched — the speaker's own card is primary, the other is a co-speaker", async () => {
+  test("a PER-SPEAKER merged round renders the roster layout — the roster default, every card, no speaker named", async () => {
     const { args } = baseArgs({
       assembleContext: narratorCtx(),
       shape: {
@@ -2838,8 +2859,8 @@ describe("runTurnPipeline — narrator round assembly", () => {
       },
     });
     const system = (await runTurnPipeline(args)).request.prompt.static;
-    expect(system).toContain("You are JFC in an immersive");
-    expect(system).toContain("[Also present — Charlotte]");
+    expect(system).toContain("You are playing Charlotte, JFC in an immersive");
+    expect(system).toContain("[Character — JFC]");
     // Card binding is unchanged on this arm: each card still says "me", and always did.
     expect(system).toContain("JFC is a foul-mouthed mechanic");
     expect(system).toContain("Charlotte is a tired archivist");

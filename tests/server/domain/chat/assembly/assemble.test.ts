@@ -443,17 +443,29 @@ describe("assemblePrompt — the factory main_prompt default is MODE-AWARE (narr
     expect(out.static).toBe(characterText("Aria"));
   });
 
-  test("a PER-SPEAKER turn is byte-identical — the speaker's own character framing", () => {
-    const ctx = shapeContextForSpeaker(roomCtx(), { ref: kaiRef, output: "per-speaker", cardScope: "merged" });
+  // Owner ruling (the stable merged layout): a per-speaker MERGED turn's system block is the whole roster and
+  // names no speaker, so it takes the roster default and binds `{{char}}` to every member; the round cue names
+  // the speaker. A SCOPED turn still frames its own speaker.
+  test("a PER-SPEAKER merged turn gets the roster framing, identical for every speaker", () => {
+    const forKai = assemblePrompt(factoryMain(), shapeContextForSpeaker(roomCtx(), { ref: kaiRef, output: "per-speaker", cardScope: "merged" })).static;
+    const forAria = assemblePrompt(factoryMain(), shapeContextForSpeaker(roomCtx(), { ref: ariaRef, output: "per-speaker", cardScope: "merged" })).static;
+    expect(forKai).toBe(forAria);
+    expect(forKai).toContain("You are playing Aria, Kai in an immersive, ongoing roleplay with Traveler.");
+    expect(forKai).not.toContain("Stay in character; write");
+    expect(forKai).toContain("Address Traveler in the second person; use their name only when it is one they have chosen for themselves.");
+  });
+
+  test("a PER-SPEAKER scoped turn keeps the speaker's own character framing", () => {
+    const ctx = shapeContextForSpeaker(roomCtx(), { ref: kaiRef, output: "per-speaker", cardScope: "scoped" });
     expect(assemblePrompt(factoryMain(), ctx).static).toContain(characterText("Kai"));
   });
 
-  test("a FORCED speaker in a NARRATOR room gets the CHARACTER text — the `asPerSpeaker` coercion arm", () => {
-    // `verbs/turn.asPerSpeaker` coerces a narrator room's config to `per-speaker` for a forced character, so
-    // the turn arrives here with the single arm — the room's MODE must not leak into the framing.
+  test("a FORCED speaker in a NARRATOR room gets the ROSTER text — the `asPerSpeaker` coercion arm", () => {
+    // `verbs/turn.asPerSpeaker` coerces a narrator room's config to per-speaker merged for a forced character, so
+    // the turn arrives with the roster arm — never the narrator's framing, and the cue names the speaker.
     const ctx = shapeContextForSpeaker(roomCtx(), { ref: kaiRef, output: "per-speaker", cardScope: "merged" });
-    expect(ctx.speaker?.kind).toBe("single");
-    expect(assemblePrompt(factoryMain(), ctx).static).toContain(characterText("Kai"));
+    expect(ctx.speaker?.kind).toBe("roster");
+    expect(assemblePrompt(factoryMain(), ctx).static).not.toContain("You are the narrator");
   });
 
   test("a host's per-section `template` override is ONE text applied to BOTH turn kinds", () => {
@@ -461,7 +473,7 @@ describe("assemblePrompt — the factory main_prompt default is MODE-AWARE (narr
     // the turn takes, an overridden section renders the host's bytes and NEITHER default.
     const config = configOf([marker({ marker: "main_prompt", template: "HOST: you are {{char}}." })]);
     const narrator = shapeContextForSpeaker(roomCtx(), { ref: ariaRef, output: "narrator", cardScope: "merged" });
-    const perSpeaker = shapeContextForSpeaker(roomCtx(), { ref: kaiRef, output: "per-speaker", cardScope: "merged" });
+    const perSpeaker = shapeContextForSpeaker(roomCtx(), { ref: kaiRef, output: "per-speaker", cardScope: "scoped" });
     expect(assemblePrompt(config, narrator).static).toContain("HOST: you are Aria, Kai.");
     expect(assemblePrompt(config, perSpeaker).static).toContain("HOST: you are Kai.");
     for (const out of [assemblePrompt(config, narrator), assemblePrompt(config, perSpeaker)]) {
@@ -689,7 +701,7 @@ describe("assemblePromptWithSlices — per-source budget attribution", () => {
     const config = configOf([marker({ marker: "char_description", name: "character description" }), marker({ marker: "chat_history" })]);
     const niko: AssembleCharacter = { name: "Niko", description: "a wary scout", scenario: "the docks", exampleMessages: "Niko: careful." };
     const prose: ProseOverrides = {
-      "chat.group.alsoPresent": { text: "== also here: {{name}} ==", baseVersion: 1 },
+      "chat.group.characterHeading": { text: "== also here: {{name}} ==", baseVersion: 2 },
       "chat.group.scenarioHeading": { text: "== {{name}} — setting ==", baseVersion: 1 },
       "chat.group.exampleHeading": { text: "== {{name}} — voice ==", baseVersion: 1 },
     };
@@ -700,9 +712,9 @@ describe("assemblePromptWithSlices — per-source budget attribution", () => {
     expect(overridden).toContain("== Niko — setting ==\nthe docks");
     // `<START>` is `normalizeExampleStart`'s doing — the heading is the slot, the block below it is not.
     expect(overridden).toContain("== Niko — voice ==\n<START>\nNiko: careful.");
-    expect(overridden).not.toContain("[Also present");
+    expect(overridden).not.toContain("[Character —");
     // …and an unset ctx is byte-identical to the pre-migration inline literals.
-    expect(assemblePrompt(config, ctxOf({ coSpeakers: [niko] })).static).toContain("[Also present — Niko]\na wary scout");
+    expect(assemblePrompt(config, ctxOf({ coSpeakers: [niko] })).static).toContain("[Character — Niko]\na wary scout");
   });
 
   test("a member's at-depth note lands under THAT member, not an anonymous channel", () => {
@@ -949,7 +961,7 @@ describe("assemblePrompt — the merged co-speaker card blocks", () => {
       }),
     );
 
-    expect(out.static).toBe("ARIA-DESC\n\n[Also present — Kai]\nKAI-DESC\n\n[Also present — Rin]\nRIN-DESC\nRIN-PERS\n\n[Also present — Mos]\nMOS-PERS");
+    expect(out.static).toBe("ARIA-DESC\n\n[Character — Kai]\nKAI-DESC\n\n[Character — Rin]\nRIN-DESC\nRIN-PERS\n\n[Character — Mos]\nMOS-PERS");
   });
 
   test("a member's scenario + examples ride their own headings beneath the card", () => {
@@ -961,7 +973,7 @@ describe("assemblePrompt — the merged co-speaker card blocks", () => {
       }),
     );
 
-    expect(out.static).toBe("ARIA-DESC\n\n[Also present — Kai]\nKAI-DESC\n\n[Kai's scenario]\nKAI-SCENE\n\n[Kai's example dialogue]\n<START>\nKai: hi.");
+    expect(out.static).toBe("ARIA-DESC\n\n[Character — Kai]\nKAI-DESC\n\n[Kai's scenario]\nKAI-SCENE\n\n[Kai's example dialogue]\n<START>\nKai: hi.");
   });
 
   test("a scenario that RENDERS blank emits no heading (an empty section header is a lie)", () => {
@@ -973,7 +985,7 @@ describe("assemblePrompt — the merged co-speaker card blocks", () => {
       }),
     );
 
-    expect(out.static).toBe("ARIA-DESC\n\n[Also present — Kai]\nKAI-DESC");
+    expect(out.static).toBe("ARIA-DESC\n\n[Character — Kai]\nKAI-DESC");
   });
 
   test("a member field that is BLANK AT SOURCE contributes nothing, even through the example normalizer", () => {
@@ -988,7 +1000,7 @@ describe("assemblePrompt — the merged co-speaker card blocks", () => {
       }),
     );
 
-    expect(out.static).toBe("ARIA-DESC\n\n[Also present — Kai]\nKAI-DESC");
+    expect(out.static).toBe("ARIA-DESC\n\n[Character — Kai]\nKAI-DESC");
   });
 
   test("an example field that RENDERS blank emits nothing — the `<START>` normalizer cannot resurrect it", () => {
@@ -1005,7 +1017,7 @@ describe("assemblePrompt — the merged co-speaker card blocks", () => {
       }),
     );
 
-    expect(out.static).toBe("ARIA-DESC\n\n[Also present — Kai]\nKAI-DESC");
+    expect(out.static).toBe("ARIA-DESC\n\n[Character — Kai]\nKAI-DESC");
   });
 
   test("a member with no description AND no personality contributes NOTHING — not a bare heading", () => {
@@ -1035,7 +1047,7 @@ describe("assemblePrompt — the merged co-speaker card blocks", () => {
     const { prompt, slices } = assemblePromptWithSlices(config, ctx);
 
     expect(slices.map((s) => s.label)).toEqual(["Kai"]);
-    expect(prompt.static).toBe("[Also present — Kai]\nKAI-DESC");
+    expect(prompt.static).toBe("[Character — Kai]\nKAI-DESC");
   });
 
   test("previewSection of the merged card does not LEAD with the blank active card (the untrimmed door)", () => {
@@ -1044,7 +1056,7 @@ describe("assemblePrompt — the merged co-speaker card blocks", () => {
     const config = configOf([section, marker({ marker: "chat_history" })]);
     const ctx = ctxOf({ character: { name: "Aria", description: "   " }, coSpeakers: [{ name: "Kai", description: "KAI-DESC" }] });
 
-    expect(previewSection(section, ctx, config).rendered).toBe("[Also present — Kai]\nKAI-DESC");
+    expect(previewSection(section, ctx, config).rendered).toBe("[Character — Kai]\nKAI-DESC");
   });
 });
 
@@ -1542,7 +1554,7 @@ describe("assemblePrompt — the per-turn registry reaches every render seam", (
     const config = configOf([marker({ marker: "char_description", name: "cards" }), marker({ marker: "chat_history" })]);
     const ctx = ctxOf({ character: { name: "Aria", description: "A" }, coSpeakers: [{ name: "Kai", description: "{{mood}}" }] });
 
-    expect(assemblePrompt(config, ctx, registry).static).toBe("A\n\n[Also present — Kai]\ngrim");
+    expect(assemblePrompt(config, ctx, registry).static).toBe("A\n\n[Character — Kai]\ngrim");
   });
 
   test("the card-gated personality and examples markers", () => {

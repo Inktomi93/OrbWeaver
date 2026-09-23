@@ -117,7 +117,6 @@ export const PROSE_SLOT_IDS = [
   //    F4 ruling arm (a) + the D132(B) amendment (2026-08-08). They resolve during the MAIN turn's context
   //    build where the preset IS in scope (`composeProse` at `assembly/context`), so `promptConfig.prose` is
   //    their storage and each has a Templates-tab `group`-kind row. ──
-  "chat.group.alsoPresent",
   "chat.group.characterHeading",
   "chat.group.scenarioHeading",
   "chat.group.exampleHeading",

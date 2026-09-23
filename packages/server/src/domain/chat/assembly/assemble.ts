@@ -24,7 +24,7 @@
 
 import type { AssembleCharacter, AssembleContext, AssembledPrompt, AssembleTrace, ChatInjection, SectionPreview } from "@orb/contracts/chat";
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
-import { DEFAULT_MARKER_TEMPLATES, NARRATOR_MAIN_PROMPT_TEMPLATE } from "@orb/contracts/preset";
+import { DEFAULT_MARKER_TEMPLATES, NARRATOR_MAIN_PROMPT_TEMPLATE, ROSTER_MAIN_PROMPT_TEMPLATE } from "@orb/contracts/preset";
 import type { ProseSlotId } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { MacroRegistry } from "@orb/kit/macro";
@@ -85,21 +85,30 @@ type TemplatedMarkerSection = Extract<MarkerSection, { marker: keyof typeof DEFA
  * The `main_prompt` DEFAULT is MODE-AWARE, and this is its ONE resolution home. A narrator round is one
  * generation voicing all the seated characters, so the per-speaker default — `You are {{char}} … write {{char}}'s perspective only`,
  * with `{{char}}` bound to the JOINED member names on that arm — instructs the model to do something the round
- * cannot do (a live drive once read it back as "write Charlotte, JFC's perspective only"). Keyed on `speaker.kind === "multi-voice"`, the same axis {@link memberHeadingSlot} picks the
- * co-speaker card frame on, and for the same reason: the SHAPE already decided what this turn voices, so
- * nothing here re-derives it from `cardScope`/`isGroup`. Every other arm — solo, per-speaker, and a FORCED
- * speaker in a narrator room (`verbs/turn` asPerSpeaker coerces it to the single arm) — reads the same
- * bytes it always did.
+ * cannot do (a live drive once read it back as "write Charlotte, JFC's perspective only"). A per-speaker merged
+ * turn's system block is the whole roster for every speaker and names none, so it takes the roster default. Keyed
+ * on the speaker arm: the SHAPE already decided what this turn voices, so nothing here re-derives it from
+ * `cardScope`/`isGroup`. A solo or scoped turn reads the same bytes it always did.
  *
  * A caller `template` is checked FIRST and is one stored text for both kinds: a host who writes the framing
  * owns the whole slot, on every turn (row 52 — the per-section override IS the edit path, so there is no
  * per-mode override to consult).
  */
+/** The `main_prompt` default per speaker arm — a mapped Record, so a new arm fails `tsc` here. */
+const MAIN_PROMPT_BY_SPEAKER: Record<NonNullable<AssembleContext["speaker"]>["kind"], string> = {
+  single: DEFAULT_MARKER_TEMPLATES.main_prompt,
+  "multi-voice": NARRATOR_MAIN_PROMPT_TEMPLATE,
+  roster: ROSTER_MAIN_PROMPT_TEMPLATE,
+};
+
 function templateFor(section: TemplatedMarkerSection, ctx: AssembleContext): string {
   if (section.template !== undefined) {
     return section.template;
   }
-  return section.marker === "main_prompt" && ctx.speaker?.kind === "multi-voice" ? NARRATOR_MAIN_PROMPT_TEMPLATE : DEFAULT_MARKER_TEMPLATES[section.marker];
+  if (section.marker !== "main_prompt") {
+    return DEFAULT_MARKER_TEMPLATES[section.marker];
+  }
+  return ctx.speaker === undefined ? MAIN_PROMPT_BY_SPEAKER.single : MAIN_PROMPT_BY_SPEAKER[ctx.speaker.kind];
 }
 
 /** Memoized preset render of each overridable section's preset `template`, keyed by section id. */
@@ -160,7 +169,7 @@ interface BuildEnv {
  * Returned BY REFERENCE unless the arm is `multi-voice`, so every solo and per-speaker turn is byte-identical.
  */
 function cardOwnerCtx(ctx: AssembleContext): AssembleContext {
-  return ctx.speaker?.kind === "multi-voice" ? { ...ctx, speaker: { kind: "single", character: ctx.character } } : ctx;
+  return ctx.speaker === undefined || ctx.speaker.kind === "single" ? ctx : { ...ctx, speaker: { kind: "single", character: ctx.character } };
 }
 
 /** A room/card override "counts" only with non-whitespace content — blank means "inherit." */
@@ -302,16 +311,6 @@ function resolveScopeFallback(
   return { value: allocated.texts.join(MERGED_JOIN), merged: true, truncated: allocated.truncated };
 }
 
-/** WHICH frame opens a co-speaker's card block — the ONE thing that differs between the two turns that merge
- *  other members' cards, and it differs because the two say opposite things. A per-speaker merged turn voices
- *  ONE member, so the rest are bystanders ("[Also present — X]"). A NARRATOR turn (`speaker.kind === "multi-voice"`)
- *  is one generation voicing all the seated characters, so the same cards are its VOICES — framing them as bystanders
- *  contradicts the round's own nudge. Keyed on the speaker arm, never on a `cardScope`/`isGroup` re-derive:
- *  the arm is what the SHAPE already decided. */
-function memberHeadingSlot(ctx: AssembleContext): ProseSlotId {
-  return ctx.speaker?.kind === "multi-voice" ? "chat.group.characterHeading" : "chat.group.alsoPresent";
-}
-
 /** ONE present roster member's merged card block, or "" when they contribute nothing. */
 function renderCoSpeakerBlock(member: AssembleCharacter, ctx: AssembleContext, registry: MacroRegistry): string {
   const head = [renderMemberField("description", member, ctx, registry), renderMemberField("personality", member, ctx, registry)]
@@ -324,7 +323,7 @@ function renderCoSpeakerBlock(member: AssembleCharacter, ctx: AssembleContext, r
   // substitution token; the card text beneath each is data, never authorable. Absent overrides ⇒ the
   // shipped frames.
   const heading = (id: ProseSlotId): string => resolveProseText(id, ctx.prose ?? {}, { name: member.name });
-  const parts = [`${heading(memberHeadingSlot(ctx))}\n${head}`];
+  const parts = [`${heading("chat.group.characterHeading")}\n${head}`];
   const scenario = renderMemberField("scenario", member, ctx, registry);
   const examples = renderMemberField("exampleMessages", member, ctx, registry);
   if (scenario.trim().length > 0) {

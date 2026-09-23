@@ -16,7 +16,7 @@
 //   • per-PRESET (owner ruling 2026-08-07, verbatim: "templates need to have one home in presets not
 //     scattered between that and settings or hiding in code"): the TURN-WIRE FRAMINGS — the two injection note
 //     frames, the continuation cue, and (F4 re-home, 2026-08-08, ruling arm (a) + D132(B) amendment) the seven
-//     GROUP-ROUND FRAMINGS: the merged/narrator co-speaker headings (`alsoPresent`/`characterHeading`/
+//     GROUP-ROUND FRAMINGS: the co-speaker headings (`characterHeading`/
 //     `scenarioHeading`/`exampleHeading`), the per-speaker and narrator round nudges (`roundNudge`/
 //     `narratorNudge`), and the speaker-tag instruction (`speakerTags`). Storage `promptConfig.prose`; authored
 //     in the preset Templates tab beside every other template. Decision 8 is NOT reversed by this: it answers
@@ -158,29 +158,14 @@ export const CHAT_PROSE_SLOTS = {
     title: "Memory consolidation lead-in",
     fires: "Heads the consolidation user prompt, above the numbered child digests.",
   },
-  "chat.group.alsoPresent": {
-    id: "chat.group.alsoPresent",
-    home: "preset",
-    version: 1,
-    // The co-speaker card block's opening frame. The member's rendered description/personality follows on
-    // the next line — that half is card data, never authorable here.
-    text: "[Also present — {{name}}]",
-    macros: "none",
-    requiredMacros: ["{{name}}"],
-    requiredTokens: [],
-    title: "Merged co-speaker heading",
-    fires: 'A `cardScope:"merged"` group turn, once per other present character.',
-  },
   "chat.group.characterHeading": {
     id: "chat.group.characterHeading",
     home: "preset",
     version: 2,
-    // The NARRATOR twin of `alsoPresent`, and a separate slot rather than a re-version of it for one reason:
-    // the two frames say opposite things. On a per-speaker merged turn the other members ARE bystanders —
-    // the model voices one of them and must not drift into the rest. On a NARRATOR turn the same cards are
-    // the voices this single call is being asked to speak, so framing them as "also present" contradicts the
-    // round's own nudge ("voicing the present characters (…)"). Re-versioning `alsoPresent` would also have
-    // invalidated every host's existing merged override for a change that does not concern merged turns.
+    // The heading over every roster member's card beside the primary, on both roster layouts: a narrator round
+    // and a per-speaker merged turn. The merged turn's `[Also present — X]` frame is retired (owner ruling): its
+    // system block is now the same roster for every speaker, so no card is framed as a bystander, and the round
+    // cue names who speaks.
     //
     // v2 is a VOCABULARY fix on the `chat.arbiter.system` v2 / `chat.group.speakerTags` v2 precedent, not a
     // behavior change: #901 Fork 1 retired "cast" for the room's seated characters, and this heading spent it.
@@ -206,8 +191,8 @@ export const CHAT_PROSE_SLOTS = {
     macros: "none",
     requiredMacros: ["{{name}}"],
     requiredTokens: [],
-    title: "Narrator character heading",
-    fires: "A narrator round, once per character whose card rides beside the primary.",
+    title: "Character heading",
+    fires: "A narrator round or a per-speaker merged turn, once per character whose card rides beside the primary.",
   },
   "chat.group.scenarioHeading": {
     id: "chat.group.scenarioHeading",
@@ -248,7 +233,8 @@ export const CHAT_PROSE_SLOTS = {
     requiredMacros: ["{{name}}"],
     requiredTokens: [],
     title: "Group round speaker nudge",
-    fires: "Every speaker of a MULTI-speaker group round (a solo/one-speaker round sends no nudge).",
+    fires:
+      "Every speaker of a MULTI-speaker group round, and every per-speaker merged turn in a room of more than one character (its system block names no speaker).",
   },
   "chat.group.narratorNudge": {
     id: "chat.group.narratorNudge",

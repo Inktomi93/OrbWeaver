@@ -9,7 +9,7 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { shapeContextForSpeaker } from "../../../../../packages/server/src/domain/chat/assembly/speaker-card.ts";
+import { rosterSpeakerCue, shapeContextForSpeaker, voiceContextForSpeaker } from "../../../../../packages/server/src/domain/chat/assembly/speaker-card.ts";
 import { CHAT_OP_CODES } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
@@ -30,11 +30,29 @@ function ctx(): AssembleContext {
 }
 
 describe("shapeContextForSpeaker — per-speaker card selection", () => {
-  test("merged: the speaker's card is active; the OTHER characters ride as co-speakers", () => {
-    const out = shapeContextForSpeaker(ctx(), { ref: charRef("bran"), output: "per-speaker", cardScope: "merged" });
-    expect(out.character.name).toBe("Bran");
-    expect(out.speaker).toEqual({ kind: "single", character: card("Bran") });
-    expect(out.coSpeakers?.map((c) => c.name)).toEqual(["Aria"]);
+  // Owner ruling: a merged room's system block is ONE fixed roster layout for every speaker (one cache entry for
+  // the room), and the speaker is named only in the round cue.
+  test("merged: every speaker gets the SAME roster layout — primary first, the rest in roster order", () => {
+    const forAria = shapeContextForSpeaker(ctx(), { ref: charRef("aria"), output: "per-speaker", cardScope: "merged" });
+    const forBran = shapeContextForSpeaker(ctx(), { ref: charRef("bran"), output: "per-speaker", cardScope: "merged" });
+    expect(forBran.character.name).toBe("Aria");
+    expect(forBran.speaker).toEqual({ kind: "roster", members: [card("Aria"), card("Bran")], active: card("Aria") });
+    expect(forBran.coSpeakers?.map((c) => c.name)).toEqual(["Bran"]);
+    expect(forBran).toEqual(forAria);
+  });
+
+  test("merged: the round cue names the speaker, because the layout does not", () => {
+    const layout = shapeContextForSpeaker(ctx(), { ref: charRef("bran"), output: "per-speaker", cardScope: "merged" });
+    expect(rosterSpeakerCue(layout, "Bran")).toContain("Write the next reply only as Bran.");
+    // A scoped layout names its own speaker, so it needs no cue.
+    const scoped = shapeContextForSpeaker(ctx(), { ref: charRef("bran"), output: "per-speaker", cardScope: "scoped" });
+    expect(rosterSpeakerCue(scoped, "Bran")).toBeNull();
+  });
+
+  test("the VOICE of a merged turn is still its own speaker: `{{char}}` outside the system block binds Bran", () => {
+    const voice = voiceContextForSpeaker(ctx(), { ref: charRef("bran"), output: "per-speaker", cardScope: "merged" });
+    expect(voice.character.name).toBe("Bran");
+    expect(voice.speaker).toEqual({ kind: "single", character: card("Bran") });
   });
 
   test("scoped: the speaker's card is active; NO co-speakers (own-card isolation)", () => {

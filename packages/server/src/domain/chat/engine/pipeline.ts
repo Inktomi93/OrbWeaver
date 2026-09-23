@@ -73,9 +73,11 @@ import {
   buildTurnMacroContext,
   fitHistory,
   materializeOutputReserve,
+  rosterSpeakerCue,
   shapeContextForSpeaker,
   shapeTurn,
   toShapeCanon,
+  voiceContextForSpeaker,
 } from "../substrate/assembly-access.ts";
 import { buildWireHistory, dropEmptyWireRows, wireCostRows } from "../substrate/wire-history.ts";
 
@@ -591,20 +593,28 @@ function shapeTail(args: RunTurnPipelineArgs, prefillHonored: boolean): string |
   return args.appendUserTurn ?? null;
 }
 
+/** The turn's two card-section shapes and its round cue. `layout` is what the system block renders (the named
+ *  speaker's card under per-speaker scoped, the whole roster in fixed order under per-speaker merged and narrator);
+ *  `voice` is who speaks, which every other pass reads `{{char}}` off. A roster-layout turn names its speaker only
+ *  in the cue, so it always carries one: the round's own, or the per-speaker cue a single-speaker round or a
+ *  regenerate lacks. Absent `shape` falls back to the single-speaker core, byte-identical. */
+function speakerContexts(args: RunTurnPipelineArgs): {
+  readonly layout: ReturnType<typeof shapeContextForSpeaker>;
+  readonly voice: ReturnType<typeof voiceContextForSpeaker>;
+  readonly cue: string | null;
+} {
+  if (args.shape === undefined) {
+    return { layout: args.assembleContext, voice: args.assembleContext, cue: args.groupNudge ?? null };
+  }
+  const speaker = { ref: args.shape.speakerRef, output: args.shape.output, cardScope: args.shape.cardScope };
+  const layout = shapeContextForSpeaker(args.assembleContext, speaker);
+  return { layout, voice: voiceContextForSpeaker(args.assembleContext, speaker), cue: args.groupNudge ?? rosterSpeakerCue(layout, args.shape.speakerName) };
+}
+
 /** Executes one single-speaker turn: BUILD → SHAPE → FIT → REQUEST → REDUCE. Pure orchestration of
  *  injected ops; persists nothing. */
 export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPipelineResult> {
-  // Card-section shape: picks this turn's card(s) + co-speakers off the immutable ctx — the named speaker's
-  // under `per-speaker`, ALL the seated characters' under `narrator`. Absent falls back to the single-speaker core,
-  // byte-identical.
-  const ctx =
-    args.shape !== undefined
-      ? shapeContextForSpeaker(args.assembleContext, {
-          ref: args.shape.speakerRef,
-          output: args.shape.output,
-          cardScope: args.shape.cardScope,
-        })
-      : args.assembleContext;
+  const { layout, voice: ctx, cue } = speakerContexts(args);
 
   // FOLD (PD-148) — the effective generation params: the preset's `params` is the BASE, the per-turn
   // `UserIntent` overrides field-wise, and the host's custom stops (PD-146) join the merged stop set. This is
@@ -618,7 +628,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
 
   // BUILD — the system-prompt halves + the after-history (in_chat) section splices — then the D50
   // `assembled_dynamic` PromptTransform point: rewrite the dynamic half only (static is untransformable).
-  const assembled = await applyDynamicTransform(args, buildPrompt(ctx.promptConfig, ctx, args.macroRegistry));
+  const assembled = await applyDynamicTransform(args, buildPrompt(layout.promptConfig, layout, args.macroRegistry));
 
   // SHAPE — the wire history + the cache breakpoint.
   const inChatInjections: ChatInjection[] = [...(ctx.chatInjections ?? []).filter((i) => i.position === "in_chat"), ...assembled.afterHistory];
@@ -639,7 +649,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     scopedTargetId: args.shape?.scopedTargetId ?? null,
     namesBehavior: ctx.promptConfig.namesBehavior ?? DEFAULT_NAMES_BEHAVIOR,
     speakers,
-    groupNudge: args.groupNudge ?? null,
+    groupNudge: cue,
     // roleHandling is the preset's user-intent knob (per-turn override wins via the fold); SHAPE clamps it
     // against the model's roleHandlingFloor.
     assistantPrefill: prefillHonored,

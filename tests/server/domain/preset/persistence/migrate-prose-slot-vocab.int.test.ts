@@ -58,7 +58,7 @@ const OLD_KEY_CONFIG = JSON.stringify({
   sections: [],
   prose: {
     "chat.group.castMember": { text: "[Voice — {{name}}]", baseVersion: 1 },
-    "chat.group.alsoPresent": { text: "[Nearby — {{name}}]", baseVersion: 1 },
+    "chat.group.scenarioHeading": { text: "[{{name}} — setting]", baseVersion: 1 },
   },
 });
 
@@ -101,7 +101,7 @@ test("every sibling key survives — the other prose override and the rest of th
   await migrateProseSlotVocab(db);
 
   const after = await readProse(db);
-  expect(after["chat.group.alsoPresent"]).toStrictEqual({ text: "[Nearby — {{name}}]", baseVersion: 1 });
+  expect(after["chat.group.scenarioHeading"]).toStrictEqual({ text: "[{{name}} — setting]", baseVersion: 1 });
   // And nothing is left behind under the retired spelling.
   expect(await storedConfig(db)).not.toContain("castMember");
 });
