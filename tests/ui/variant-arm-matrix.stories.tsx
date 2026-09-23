@@ -29,6 +29,8 @@ import { HighlightedText } from "@orb/ui/highlighted-text";
 import { Check, Icon } from "@orb/ui/icons";
 import type { InputProps } from "@orb/ui/input";
 import { Input } from "@orb/ui/input";
+import type { KbdProps } from "@orb/ui/kbd";
+import { Kbd } from "@orb/ui/kbd";
 import type { ListRowProps } from "@orb/ui/list-row";
 import { ListRow } from "@orb/ui/list-row";
 import type { PickerCellProps } from "@orb/ui/picker-cell";
@@ -88,6 +90,7 @@ const RENDERERS = {
   "empty-state": (props: EmptyStateProps): ReactElement => <EmptyState {...props} description="Import a character to begin." title="Nothing here yet" />,
   "highlighted-text": (props: HighlightedTextProps): ReactElement => <HighlightedText {...props} ranges={[{ start: 4, end: 9 }]} text="The quick brown fox" />,
   input: (props: InputProps, ctx: RenderCtx): ReactElement => <Input {...props} aria-label="Name" defaultValue="Azarael" disabled={ctx.disabled} />,
+  kbd: (props: KbdProps): ReactElement => <Kbd {...props}>⌘K</Kbd>,
   // The tv axis `float` reaches the component as the `actionsFloat` prop — the ONE axis↔prop rename in
   // the storied set; translated here so the plan keeps speaking the tv axis vocabulary.
   "list-row": ({ float, ...props }: ListRowProps & { readonly float?: boolean }): ReactElement => (

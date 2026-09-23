@@ -7,13 +7,16 @@
 // runtime will never serve.
 
 import { modelIdSchema } from "@orb/contracts/inference";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createAgentSdkLog } from "../../../../packages/inference/src/backends/agent-sdk/log.ts";
 import { consumeTurnStream, runChatTurn } from "../../../../packages/inference/src/backends/agent-sdk/runner.ts";
+import { NO_SAVED_TOTALS } from "../../../../packages/inference/src/backends/agent-sdk/session/frames.ts";
 import { SessionCache } from "../../../../packages/inference/src/backends/agent-sdk/session/store.ts";
 import type { AgentSdkDeps, TurnStreamContext } from "../../../../packages/inference/src/backends/agent-sdk/types.ts";
 import { passthroughImageNormalizer } from "../../../../packages/inference/src/backends/kit/image-normalize.ts";
 import { resolvedScrubSet } from "../../../../packages/inference/src/backends/kit/sanitize.ts";
 import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
+import { agentSdkSessionIdSchema } from "../../../../packages/inference/src/contract/identity.ts";
 import type { InferenceLog } from "../../../../packages/inference/src/deps.ts";
 import { cacheHitRate } from "../../../../packages/server/src/domain/stats/substrate/rates.ts";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -39,6 +42,7 @@ function ctx(model: string): TurnStreamContext {
     model: modelIdSchema.parse(model),
     providerId: "claude-sub",
     resumed: false,
+    savedTotals: NO_SAVED_TOTALS,
     now: () => 0,
     appliedEffort: null,
     secrets: resolvedScrubSet({ credential: { secret: TOKEN }, transport: null }),
@@ -256,6 +260,142 @@ test("a resumed turn records this turn's tokens, with tokensIn as the whole prom
   expect(turn.usage.cacheWriteTokens).toBe(RESUMED_TURN.cacheWrite);
   // The stats plane's cache-hit share for this subscription row.
   expect(cacheHitRate(turn.usage.cacheReadTokens, turn.usage.cacheWriteTokens, turn.usage.tokensIn ?? 0)).toBeLessThanOrEqual(1);
+});
+
+// The live session's first turn cost 0.0049 and the runtime saved that total in the transcript; the resumed
+// turn's result then reported 0.0110, the session so far. The turn's own cost is the difference.
+const SAVED_COST = 0.0049;
+const SESSION_COST = 0.011;
+
+test("a resumed turn records its own cost: the session total less what the transcript saved", async () => {
+  const connection = fakeResolved({ task: "chat", providerId: "claude-sub", model: "claude-sonnet-5", capability: generationCapability() });
+  const chatId = mintTypeId(ID_PREFIX.chat);
+  const sessions = new SessionCache(quietLog);
+  const sessionId = agentSdkSessionIdSchema.parse(SESSION_ID);
+  sessions.record(chatId, connection.connectionId, sessionId);
+  await sessions.store.append({ projectKey: "orbweaver", sessionId }, [
+    { type: "cost-state", sessionId, modelUsage: { "claude-sonnet-5": { costUSD: SAVED_COST, webSearchRequests: 0 } } },
+  ]);
+  const deps: AgentSdkDeps = {
+    now: () => 0,
+    log: quietLog,
+    // @orb-waive no-test-fabrication(unknown): the SDK `query` seam returns its own `Query` object; the reducer only iterates it, so a generator over captured-shape frames is the honest double. Ends if the SDK exports a query fake.
+    query: (() => resumedTurn()) as unknown as AgentSdkDeps["query"],
+    sessionStore: sessions.store,
+    normalizeImageBytes: passthroughImageNormalizer,
+    scheduleTimeout: () => () => undefined,
+    summarizeConcurrency: () => 1,
+    debug: false,
+    childEnv: () => ({}),
+  };
+  const turn = await runChatTurn(
+    { api: "agent-sdk", connection, chatId, params: {}, systemPrompt: { static: "You are Mara.", dynamic: "" }, prompt: "Any ships?" },
+    deps,
+    sessions,
+    createAgentSdkLog(quietLog, "claude-sub"),
+  );
+  expect(turn.usage.costUsd).toBeCloseTo(SESSION_COST - SAVED_COST, 10);
+  expect(turn.usage.costProvenance).toBe("estimated");
+});
+
+test("a resumed turn whose saved total is unreadable records its cost as unrecorded, never the session total", async () => {
+  const turn = await consumeTurnStream(
+    resumedTurn(),
+    { ...ctx("claude-sonnet-5"), resumed: true, savedTotals: null },
+    createAgentSdkLog(quietLog, "claude-sub"),
+  );
+  expect(turn.usage.costUsd).toBeNull();
+  expect(turn.usage.costProvenance).toBe("unrecorded");
+});
+
+// ── a reply that reaches the output cap ──────────────────────────────────────────────────────────────────
+// The runtime continues a capped reply up to three times, withholding each leg's failure notice, then surfaces
+// one synthetic `max_output_tokens` frame and an `is_error` result. The live narrator turn wrote 1200 tokens
+// across four calls under a 300-token cap (turn_15, numTurns 4).
+const CAP = 300;
+const CAP_NOTICE = `API Error: Claude's response exceeded the ${CAP} output token maximum. To configure this behavior, set the CLAUDE_CODE_MAX_OUTPUT_TOKENS environment variable.`;
+const LEGS = ["Mara trims the wick and the lamp flares. ", "Wren ties the ferry off below the rocks. ", "The fog rolls in over both of them."];
+
+function cappedTurn(legs: readonly string[]): SdkStream {
+  const model = "claude-sonnet-5";
+  return streamOf([
+    { type: "system", subtype: "init", session_id: SESSION_ID, apiKeySource: "none", model },
+    ...legs.map((text) => ({
+      type: "assistant",
+      session_id: SESSION_ID,
+      parent_tool_use_id: null,
+      message: { role: "assistant", content: [{ type: "text", text }] },
+    })),
+    {
+      type: "assistant",
+      session_id: SESSION_ID,
+      parent_tool_use_id: null,
+      error: "max_output_tokens",
+      message: { model: "<synthetic>", role: "assistant", stop_reason: "stop_sequence", content: [{ type: "text", text: CAP_NOTICE }] },
+    },
+    {
+      type: "result",
+      subtype: "success",
+      session_id: SESSION_ID,
+      is_error: true,
+      duration_api_ms: 1,
+      num_turns: 4,
+      result: CAP_NOTICE,
+      stop_reason: "stop_sequence",
+      usage: { input_tokens: 1940, output_tokens: 4 * CAP, cache_read_input_tokens: 0, cache_creation_input_tokens: 75_872 },
+      modelUsage: {},
+      permission_denials: [],
+      terminal_reason: "api_error",
+    },
+  ]);
+}
+
+test("a capped reply comes back truncated with a length finish, without the runtime's notice", async () => {
+  const turn = await consumeTurnStream(
+    cappedTurn(LEGS),
+    { ...ctx("claude-sonnet-5"), configuredMaxOutputTokens: CAP },
+    createAgentSdkLog(quietLog, "claude-sub"),
+  );
+  expect(turn.reply).toBe(LEGS.join("").trim());
+  expect(turn.reply).not.toContain("output token maximum");
+  expect(turn.finishReason).toBe("length");
+  // The continuations wrote past the requested cap, and the record says so.
+  expect(turn.usage.tokensOut).toBeGreaterThan(CAP);
+  expect(turn.providerMetadata).toMatchObject({ provider: "claude-sub", outputCapReached: true, numTurns: 4 });
+});
+
+// A reply that ends inside the continuations completes normally. Live, a 400-token cap produced a 1464-token
+// reply over several calls with finish `stop`; only each capped call's `message_delta` shows the cap was hit.
+test("a reply the runtime continued past the cap and then finished records outputCapReached", async () => {
+  const model = "claude-sonnet-5";
+  const cappedLegStop = {
+    type: "stream_event",
+    session_id: SESSION_ID,
+    event: { type: "message_delta", delta: { stop_reason: "max_tokens", stop_sequence: null }, usage: { output_tokens: CAP } },
+  };
+  const frames: unknown[] = [];
+  for await (const frame of resumedTurn()) {
+    frames.push(frame);
+  }
+  const [init, ...rest] = frames;
+  const turn = await consumeTurnStream(
+    streamOf([init, cappedLegStop, ...rest]),
+    { ...ctx(model), configuredMaxOutputTokens: CAP },
+    createAgentSdkLog(quietLog, "claude-sub"),
+  );
+  expect(turn.finishReason).toBe("stop");
+  expect(turn.providerMetadata).toMatchObject({ outputCapReached: true });
+});
+
+test("a capped turn that wrote no text is still a max_output failure", async () => {
+  const error = await failureOf(cappedTurn([]), "claude-sonnet-5");
+  expect(error.kind).toBe("max_output");
+});
+
+test("a reply that ended on its own records no output-cap mark", async () => {
+  const turn = await consumeTurnStream(resumedTurn(), ctx("claude-sonnet-5"), createAgentSdkLog(quietLog, "claude-sub"));
+  expect(turn.finishReason).toBe("stop");
+  expect(turn.providerMetadata).not.toHaveProperty("outputCapReached");
 });
 
 test("a result with an empty usage records no billed tokens rather than a zero", async () => {

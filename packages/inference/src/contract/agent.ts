@@ -8,6 +8,13 @@ import type { ChatId, UserConnectionId } from "@orb/kit/ids";
 import type { AgentSdkSessionId } from "./identity.ts";
 import type { Resolved } from "./resolved.ts";
 
+/** The spend totals a resumed agent-sdk session's transcript saved, which the runtime carries into the next
+ *  turn's result. Subtracting them leaves that turn's own spend. */
+export interface AgentSdkSessionTotals {
+  readonly costUsd: number;
+  readonly webSearchRequests: number;
+}
+
 export interface SessionEntryWriter {
   readonly insert: (entry: {
     readonly chatId: ChatId;

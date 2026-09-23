@@ -23,7 +23,8 @@ import { EVAL_ARM } from "./arms/eval.ts";
 import type { RunArms } from "./arms/registry.ts";
 import { pageArms } from "./arms/registry.ts";
 import { SHOT_ARM } from "./arms/shot.ts";
-import { driveActions, navigate, settlePage, splitTrailingEvals } from "./drive.ts";
+import { navigate, settlePage } from "./drive.ts";
+import { driveActions, splitTrailingEvals } from "./drive-actions.ts";
 import { awaitThemeStamp } from "./theme-stamp.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
