@@ -325,7 +325,7 @@ export const gate = defineGate({
         "tooling/src/snapx/cli.ts": "export {};\n",
         "tests/tooling/snapx/cli.test.ts": "export const x = 1;\n",
       },
-      expect: { count: 1, messageIncludes: `expected tests/{${PACKAGE_NAMES.join(",")}}/… or tests/{support,e2e,tooling}/` },
+      expect: { count: 1, messageIncludes: "test outside a package mirror" },
       why: "an unknown package test cannot become owned merely because it sits under tests/",
     },
     {
