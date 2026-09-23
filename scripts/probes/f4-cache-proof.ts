@@ -2,7 +2,7 @@
 
 /**
  * pnpm probe:f4-cache-proof — what a chat at its context cap sends, turn after turn, before and after the chunked
- * history fit. Writes `reports/f4-proof/f4-cache-proof.md`. No network, no model call, deterministic output.
+ * history fit. Writes its report under `reports/f4-proof/`. No network, no model call, deterministic output.
  *
  * One over-cap chat runs K consecutive send turns through the REAL turn pipeline (`runTurnPipeline`: build, shape,
  * convert, fit) twice, each in its own child process:
