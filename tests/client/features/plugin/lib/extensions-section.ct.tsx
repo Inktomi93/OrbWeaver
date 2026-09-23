@@ -1,4 +1,4 @@
-// CT: the EXTENSIONS rail section — the platform's full-page home (plugin-ui-plane #679 U5, §4.5b/§9, seam 16)
+// CT: the EXTENSIONS rail section — the platform's full-page home (U5, §4.5b/§9, seam 16)
 // — over the REAL section registry with a stubbed network. The subjects are `registry.get("extensions").list()`
 // and `.content()`, the exact calls the shell makes, so what is pinned is the production path.
 //

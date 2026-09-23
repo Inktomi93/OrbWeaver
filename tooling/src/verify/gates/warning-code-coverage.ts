@@ -48,7 +48,7 @@
 // `packages/contracts/src/chat/bus.ts` admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` rejected by both.
 //
-// WIDENED 2026-09-20 (lane cb-gate-reach, the §12 EXTRACTION AUDIT of `docs/design/orbweaver-inference-package.md`).
+// WIDENED 2026-09-20 (lane cb-gate-reach, the §12 EXTRACTION AUDIT of).
 // Everything the two POPULATION PORT paragraphs above say remains true OF THE PORT; this is a later, separate
 // change with its own reason. The provider channel's tuple home and every one of its emit sites left
 // `packages/server/src/infra/providers/` for the new `@orb/inference` workspace package, a tree NO root in the

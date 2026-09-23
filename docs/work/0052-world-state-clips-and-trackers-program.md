@@ -26,7 +26,7 @@ cannot resolve that alone.
 
 ## Done when
 
-The ruling is recorded, and `docs/design/vocabulary-map.md` names the concept the word tracker belongs to.
+The ruling is recorded, and `docs/law/vocabulary-map.md` names the concept the word tracker belongs to.
 For a build, a plan under `docs/plans/` exists and its build items are filed. For a drop, the spec is gone.
 
 ## Evidence

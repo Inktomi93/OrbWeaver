@@ -454,7 +454,7 @@ test("static mode: no reveal spans ever (settled canon renders span-free)", asyn
   await expect(cmp.locator("[data-orb-reveal]")).toHaveCount(0);
 });
 
-// ── M1 · the tail-hold pre-pass (docs/design/streaming-shape-churn.md §2/§3 arm 1) ─────────────────
+// ── M1 · the tail-hold pre-pass ─────────────────
 // The grammar is pinned deterministically in tail-hold.test.ts; these are the RENDERED half — that the
 // seal wires the pre-pass on the streaming path only, and that the withheld construct arrives as the
 // right block on its FIRST paint instead of flipping type under the reader.
@@ -508,7 +508,7 @@ test("M1 streaming: a message that is ONLY an ambiguous marker still paints (nev
   await expect.poll(() => cmp.locator("p, ul, ol, h1, h2, h3, blockquote, pre").count()).toBeGreaterThan(0);
 });
 
-// ── M5 · code-block birth geometry (docs/design/streaming-shape-churn.md §5) ───────────────────────
+// ── M5 · code-block birth geometry ───────────────────────
 const CODE_BLOCK = '[data-streamdown="code-block"]';
 const M5_FENCE = "Intro line.\n\n```js\nconst a = 1;\nconst b = 2;\nconst c = 3;\n```";
 const M5_OFFSCREEN = `${"Filler paragraph.\n\n".repeat(120)}\`\`\`js\nconst a = 1;\nconst b = 2;\nconst c = 3;\n\`\`\``;

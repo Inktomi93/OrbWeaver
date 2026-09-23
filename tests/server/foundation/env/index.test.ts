@@ -621,7 +621,7 @@ describe("foundation/env — the .env load (override semantics + parser toleranc
   });
 });
 
-// ── AUTH_FALLBACK_TRUSTED_PEERS (PROPOSED — containerize-prod-image-spec §3.1 arm (b)) ───────────────────
+// ── AUTH_FALLBACK_TRUSTED_PEERS (PROPOSED — docs/plans/containerize/design.md arm (b)) ───────────────────
 // The opt-in that widens the un-credentialed owner fallback's peer set so a containerized deploy (whose
 // published port never delivers a loopback peer) is usable. The three env-tier properties pinned here:
 // it PARSES into the posture, it is LAUNCH-ONLY like AUTH_FALLBACK (#301 — a `.env` pin is boot-fatal),

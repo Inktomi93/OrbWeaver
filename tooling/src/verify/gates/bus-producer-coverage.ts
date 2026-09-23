@@ -19,7 +19,7 @@
 //
 // THE DEFERRED MEMBERS ARE NOT AN ALLOWLIST HERE. An owner-deferred member is warning debt owned by
 // `user-bus-deferred-member` (hard/warning, `workItem: 1822`) — an error policy cannot carry that owner
-// (gate-runtime-standardization.md §"Authority and exceptions"). This policy imports that module's exact
+// (docs/law/gate-runtime-standardization.md §"Authority and exceptions"). This policy imports that module's exact
 // (union, member) rows so the two halves are ONE decision: deleting the deferral module when its work item
 // lands makes this policy own the member in the same edit, and `tsc` refuses any half of that removal.
 //

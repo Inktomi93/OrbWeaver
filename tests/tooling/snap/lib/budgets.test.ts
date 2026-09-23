@@ -1,4 +1,4 @@
-// T14/T15 for snap specifically (#1283, docs/design/1208-instrument-substrate.md §7.1): the pure
+// T14/T15 for snap specifically (#1283): the pure
 // load-scaling contract is pinned once, fleet-wide, at tests/tooling/_shared/load-budget.test.ts — this
 // file proves snap's OWN drive/stage/throttle ceilings are wired to it, using the SAME base numbers
 // tooling/src/snap/lib/budgets.ts actually declares (imported, never re-typed, so a base that changes

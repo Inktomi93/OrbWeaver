@@ -96,8 +96,8 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D109 | [The rpg-lite exchange is TWO turns (the character turn + the state round); out-of-turn model calls INHERIT the turn's resolved connection + consent; `structured` is the constrained-generation primitive; vLLM is chat-completions-only (AMENDS D108's cheap branch; proven live end-to-end both modes, commit `fc85f1c0`)](0109-the-rpg-lite-exchange-is-two-turns-the.md) | active |
 | D110 | [Parity-plus makes the 7 marinara-reference features first-class-and-better, built FOUNDATION-FIRST so each dramatic feature is register-a-row not build-a-subsystem (owner-ratified v2.2; this entry anchors the LANDED foundation — P0/P1/P2/MG/ME/MU — and reserves the feature waves P3–P6 as named doorways)](0110-parity-plus-makes-the-7-marinara-reference-features.md) | active |
 | D111 | [The rpg state round READS THE STORY; the tracker tracks SURFACE reality; the composer wand is the ST-style control map; a fork CLONES the game](0111-the-rpg-state-round-reads-the-story-the.md) | active |
-| D112 | [The hosted extraction fold (AMENDS D108's delivery fork and D109-1's tool-less rule; spec: `docs/design/rpg-extraction-one-call-spike.md`)](0112-the-hosted-extraction-fold-amends-d108-s-delivery.md) | active |
-| D113 | [The Tracker is the ONE tracked-field concept (SUPERSEDES the pool/cast-field/widget trichotomy; spec: `docs/design/tracked-field-unification.md` §5)](0113-the-tracker-is-the-one-tracked-field-concept.md) | active |
+| D112 | [The hosted extraction fold (AMENDS D108's delivery fork and D109-1's tool-less rule)](0112-the-hosted-extraction-fold-amends-d108-s-delivery.md) | active |
+| D113 | [The Tracker is the ONE tracked-field concept (SUPERSEDES the pool/cast-field/widget trichotomy)](0113-the-tracker-is-the-one-tracked-field-concept.md) | active |
 | D114 | [O3 as amended (SUPERSEDES O3's "settings keeps appearance/system/tags/regex/chat-behavior")](0114-o3-as-amended-supersedes-o3-s-settings-keeps.md) | active |
 | D115 | [`rpg.populateFromCharacter` is the ONE sanctioned exception to the hand-only-fields law (AMENDS the `contracts/rpg/sheet.ts` "patchSheet is the ONLY door" clause; the sheet's model-absence law otherwise stands)](0115-rpg-populatefromcharacter-is-the-one-sanctioned-exception-to.md) | active |
 | D116 | [Per-chat prose has ONE door: `chat_injections` (SUPERSEDES `roomOverrides.authorsNote` whole)](0116-per-chat-prose-has-one-door-chat-injections.md) | active |
@@ -160,3 +160,5 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D173 | [The brand mark is the Open Orb, one emblem at every scale](0173-the-brand-mark-is-the-open-orb.md) | active |
 | D174 | [Provider wires stay our own adapters](0174-provider-wires-stay-our-own-adapters.md) | active |
 | D175 | [Test setup stays inline; per-domain fixture families are not built](0175-test-setup-stays-inline.md) | active |
+| D176 | [HOME tiles keep a static order; no conditional promotion](0176-home-tiles-keep-a-static-order.md) | active |
+| D177 | [Inference owns tool and history delivery; the server owns which tools act](0177-inference-owns-tool-and-history-delivery.md) | active |

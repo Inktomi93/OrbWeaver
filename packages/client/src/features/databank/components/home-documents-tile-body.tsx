@@ -1,4 +1,4 @@
-// The "Databank" HOME tile body (databank-surface-spec D-7: "recent documents + an ingest-health line") —
+// The "Databank" HOME tile body (D-7: "recent documents + an ingest-health line") —
 // DATABANK-owned, because the tile's data and its intent are this feature's (the home
 // tile ownership rule: the tile belongs to the feature that owns the DATA and the INTENT, never to the host).
 //

@@ -19,7 +19,7 @@
 // (Context-Panel-Program §1 CP-1) ride along below, each gated at SECTION granularity — the §8.1
 // permission-OMIT, moved from tab-level so the tab strip stays slim without dropping a control.
 //
-// D-4 (databank-surface-spec): "Documents" — the per-chat databank rack + the D85 host visibility toggle —
+// D-4: "Documents" — the per-chat databank rack + the D85 host visibility toggle —
 // lands directly AFTER Injections. Same family ("extra content entering this room's prompt"), and it is
 // member-READABLE, so it belongs above the host-only band rather than inside it.
 //

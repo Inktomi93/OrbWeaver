@@ -169,7 +169,7 @@ export function goToLanding(): void {
  * `selectChat` alone makes the room active in a section the reader is not looking at, so the two callers
  * both spelled `selectChat(id); setActiveSection("chats")` — the same two-line intent written twice, which
  * is how one of them comes to skip the section change. One intent, one name, one home; the WORD is the
- * product's (`docs/design/vocabulary-map.md` — resume = re-enter the room you were already in, as opposed
+ * product's (`docs/law/vocabulary-map.md` — resume = re-enter the room you were already in, as opposed
  * to start, which mints one).
  */
 export function resumeChat(chatId: ChatId): void {

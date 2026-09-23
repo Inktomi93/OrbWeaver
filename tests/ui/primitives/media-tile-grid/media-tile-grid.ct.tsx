@@ -1,5 +1,5 @@
 // CT: the MediaTileGrid composite — the house MEDIA-FORWARD BROWSE GRID (the shelf rung that was missing when
-// a library of character cards rendered as `ListRow`s; plugin-ui-plane §4.5b failure 1).
+// a library of character cards rendered as `ListRow`s failure 1).
 //
 // WHAT IS PINNED, and why each one is the thing that actually goes wrong in this genre:
 //  1. THE COVER'S BOX IS RESERVED BY THE TILE, not by the image. `aspect-ratio` on a pre-load `<img>` reserves

@@ -3,7 +3,7 @@
 // drives the same junction from the other end; one junction, two doors). Summary rows + Disconnect, plus
 // a Connect picker dialog.
 //
-// DELIBERATELY NOT `RelationManagerSection` (deviation recorded in config-revamp-design.md §7.4): its
+// DELIBERATELY NOT `RelationManagerSection` (a recorded deviation): its
 // add-picker enumerates a flat `available` array, which is honest for personas (a bounded personal list)
 // and a lie for CHARACTERS — the library pages by keyset and a flat first-page array would silently omit
 // every card past it (the paginate-vs-find trap). The shared `CharacterPicker` is the house scalable

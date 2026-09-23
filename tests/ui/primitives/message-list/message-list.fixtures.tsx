@@ -558,7 +558,7 @@ export function RovingScrollList({
 }
 
 /**
- * #1362 — the crispness invariant (integer-line-boxes.md Law 3): every row's WRITTEN `top` must be an
+ * #1362 — the crispness invariant (docs/law/integer-line-boxes.md Law 3): every row's WRITTEN `top` must be an
  * integer number of CSS pixels. `directDomUpdatesMode: "position"` makes react-virtual assign
  * `el.style.top = ${item.start}px`, and `item.start` is the running sum of paddingStart + Σ(size + gap);
  * virtual-core rounds MEASURED sizes itself, so the only fractional input is the caller's ESTIMATE — and

@@ -1,4 +1,4 @@
-// The `/plugin` slash command (client-architecture-lockdown.md §6c; plugin-ui-plane #679 U5, §4.5) — ONE static
+// The `/plugin` slash command (client-architecture-lockdown.md §6c U5, §4.5) — ONE static
 // first-party contribution, assembled at the door into the registry both the composer and the palette read.
 //
 // THE DOOR DOES NOT GROW PER PLUGIN (G8). This array has exactly one member forever: the per-plugin fan happens

@@ -1,5 +1,5 @@
-// THE PLANTED CONTROLS for the one load policy (T14/T15/T16 of docs/design/1208-instrument-substrate.md
-// §8). Every arm here injects its reading of the box instead of spinning the machine, because the whole
+// THE PLANTED CONTROLS for the one load policy (T14/T15/T16).
+// Every arm here injects its reading of the box instead of spinning the machine, because the whole
 // point of the policy is that the box reading is a VALUE the judging functions take — a control that had to
 // load the box could never run in the battery, and one that did would be measuring the battery.
 //

@@ -8,7 +8,7 @@
 // RESOURCE HYBRID (GATE-AUTHORING migration): structure (1-6, 8) reads the closed `client-feature` /
 // `server-domain` ResourceHost trees (no content, listing only); rule 7 needs the SOURCE TEXT of
 // surfaces/*.tsx, so this policy also declares a narrow SOURCE population over exactly that shape and
-// reads it through `ctx.files` — the sanctioned dual role (design/gate-runtime-standardization.md
+// reads it through `ctx.files` — the sanctioned dual role (docs/law/gate-runtime-standardization.md
 // "Population vocabulary").
 // WHERE A BROKEN RESOURCE REFUSES — not here (mirrors `server-layout.ts`'s header). A declared resource
 // that comes back missing/empty/unresolved/malformed makes `resolveResourceDeclarations`
@@ -46,7 +46,7 @@ const BUCKETS = new Set(["surfaces", "anchors", "components", "hooks", "lib"]);
 // app-shell is the shell-tier frame — it additionally owns the slot registries + the shell store.
 const SHELL_EXTRA = new Set(["registry", "store"]);
 // refinery/home/regex/config: declared-planned or shell-tier frames that own no server domain by design
-// (client-architecture-lockdown.md §6a, D114, config-rail-spec.md).
+// (client-architecture-lockdown.md §6a, D114).
 const RESERVED = new Set(["app-shell", "auth", "config", "home", "refinery", "regex", "user-admin"]);
 // Container-type vocabulary for anchor filenames (an anchor names the containment it PROVIDES).
 const ANCHOR_SUFFIXES = ["anchor", "dialog", "drawer", "popover", "menu", "panel"];

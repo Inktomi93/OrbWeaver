@@ -1,7 +1,7 @@
 // The SAVED KEYS section (Settings → Connections) — the REUSE view of the keys connections mint (inference
 // program §5.3a: a credential is a sealed secret with a label; connections give it meaning, so there is no
 // "active" key and no add here — a key is pasted on the connection form). The secret is never rendered.
-// Owns its own `QueryBoundary` (config-revamp-design.md §6.8).
+// Owns its own `QueryBoundary`.
 //
 // IT IS READ-ONLY ABOUT THE KEY'S VALUE, NOT ABOUT THE ROW — the §5.3a correction this section carries. The
 // spec called it a "read-only reuse view" while giving it two consequential verbs (replace, revoke), and a

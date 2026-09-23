@@ -1,4 +1,4 @@
-// plugin-frame — the EMBEDDER side of the U7 escape hatch (plugin-ui-plane #679, §6.2, seam 13). It mints a
+// plugin-frame — the EMBEDDER side of the U7 escape hatch (seam 13). It mints a
 // routed document for one `frame`-tier surface, embeds it through the sealed `@orb/ui` `SandboxFrame`, and owns
 // the PARSE + BUDGET + RELAY of everything the frame says over the postMessage bridge.
 //

@@ -1164,7 +1164,7 @@ test("a NUDGE missing its recommended macros is NOT refused (a lint, never a blo
   expect(result.success).toBe(true);
 });
 
-// ── THE SECOND CARRIER ENUMERATION (owner ruling 2026-08-08, option C of note-token-intent-history.md) ──
+// ── THE SECOND CARRIER ENUMERATION (owner ruling 2026-08-08, option C of) ──
 // `{{note}}` carries the injection's ENTIRE payload: `spliceProseTokens` is a replace, so a frame override
 // that dropped it ships `[Note from user: ]` with the author's note gone — the `{{entry}}` failure exactly.
 // The frames store in `promptConfig.prose`, not `formatStrings`, which is why they need their own list and

@@ -1,4 +1,4 @@
-// plugin-tool-card — what a PLUGIN's tool call looks like in the transcript (plugin-ui-plane #679 U3, §4.5's
+// plugin-tool-card — what a PLUGIN's tool call looks like in the transcript (U3, §4.5's
 // tool-card row; closes the recorded A2-F5 renderer gap). Until now a plugin could put a tool in front of the
 // model but had no way to draw its result: the client tool-renderer registry is first-party and
 // door-assembled, so every plugin tool landed in the generic `ToolCallBlock` — the oracle-deck's own README

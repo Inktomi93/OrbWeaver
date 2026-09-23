@@ -4,7 +4,7 @@ status: active
 updated: 2026-09-23
 ---
 
-# The Tracker is the ONE tracked-field concept (SUPERSEDES the pool/cast-field/widget trichotomy; spec: `docs/design/tracked-field-unification.md` §5)
+# The Tracker is the ONE tracked-field concept (SUPERSEDES the pool/cast-field/widget trichotomy)
 
 ## Context
 

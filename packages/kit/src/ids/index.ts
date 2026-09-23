@@ -84,7 +84,7 @@ export const ID_PREFIX = {
   // `global_variables` deliberately has NO TypeID — the natural key (ownerId, key) IS the identity.
   automationRule: "automation_rule",
   automationFire: "automation_fire",
-  // EPHEMERAL — the S4 suggest/confirm pending ask (interaction-direction-spec §3-S4, RULED F1: an in-RAM
+  // EPHEMERAL — the S4 suggest/confirm pending ask (RULED F1: an in-RAM
   // map with a TTL, never a table; a respawn wipes them by design). It needs an id because it crosses the
   // wire twice — out on the automation bus, back in on `confirmSuggestion` — and a claim is an ID MATCH.
   automationSuggestion: "automation_suggestion",

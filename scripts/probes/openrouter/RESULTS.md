@@ -5,8 +5,7 @@ via OpenRouter (Anthropic pinned, `allow_fallbacks:false`), plus the Anthropic M
 reference arms.
 **Spend:** ~$0.20 OpenRouter + ~$0.12 Anthropic native ≈ **$0.32** (08-01) · **$0.152** OpenRouter (08-08).
 **Raw evidence:** `results/<probe>.jsonl` — every arm's HTTP status + full usage block, append-only.
-**Sibling docs:**
-`docs/design/rpg-extraction-one-call-spike.md` §7 (the F-list).
+**Sibling docs:** D174.
 
 | # | Question | Verdict | Consequence |
 |---|---|---|---|

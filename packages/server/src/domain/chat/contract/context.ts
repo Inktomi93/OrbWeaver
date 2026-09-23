@@ -604,7 +604,7 @@ export type PresenceReadOp = (userId: UserId) => Promise<PresenceView>;
  *
  *  The result is a UNION, not a string, because a transform has TWO legitimate answers and collapsing them
  *  would make them indistinguishable at the call site: `{aborted:false,text}` is the rewritten draft, and
- *  `{aborted:true,…}` is a DELIBERATE refusal of the generation (plugin-ui-plane §5.14). A broken transform
+ *  `{aborted:true,…}` is a DELIBERATE refusal of the generation. A broken transform
  *  still SKIPS (D53) and never reaches the abort arm — "it timed out" and "it said no" are different turns. */
 export type ApplyPromptTransformsOp = (
   point: PromptTransformPoint,
@@ -613,7 +613,7 @@ export type ApplyPromptTransformsOp = (
   vars: Record<string, string>,
 ) => Promise<PromptTransformResult>;
 
-/** The PLUGIN-MACRO resolve op (plugin-ui-plane §5.15, U6) — the per-turn read of the TURN AUTHOR's own
+/** The PLUGIN-MACRO resolve op — the per-turn read of the TURN AUTHOR's own
  *  enabled plugins' registered macros, already resolved (each guest invoked once, under the plugin plane's
  *  assembly deadline) into kit `UserMacroDef`s the turn's macro registry takes as DATA. `ChatContext.pluginMacros`
  *  is `null` when no plugin host is wired — the byte-identical no-op the `rpg`/`expressions`/`tools` seams use.

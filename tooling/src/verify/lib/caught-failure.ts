@@ -78,7 +78,7 @@
 // the foot of this file, because two policies and the census generator must walk the same corpus.
 //
 // Descendant reads here are bounded SUBTREE analysis of a delivered node plus same-file binding identity —
-// the shared-reader layer's own job (gate-runtime-standardization.md §3: "binding identity, static-value
+// the shared-reader layer's own job (docs/law/gate-runtime-standardization.md §3: "binding identity, static-value
 // unwrapping ... are shared primitives"). No Project, no workspace cache, no filesystem, no marker parser.
 import type { CallExpression, CatchClause, Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";

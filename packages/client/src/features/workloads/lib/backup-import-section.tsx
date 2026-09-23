@@ -1,4 +1,4 @@
-// The Backup IMPORT config-section CONTRIBUTION (config-revamp-design.md §6.8) — the group's second row.
+// The Backup IMPORT config-section CONTRIBUTION — the group's second row.
 // No `owns`: a raw `/api/import` POST, not a setting.
 
 import type { ConfigSectionContribution } from "#state";

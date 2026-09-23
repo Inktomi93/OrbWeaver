@@ -85,7 +85,7 @@ re-run overwrites exactly its own outputs.
 ### The ORB arm
 
 The in-process ORB arm (`capture-orbweaver.ts`) was deleted with the retired OpenRouter-skin seams it drove
-(`docs/design/orbweaver-inference-package.md`, "Deleted instruments"). No script in this rig produces
+("Deleted instruments"). No script in this rig produces
 `orbweaver-output/` any more; the files there are historical captures from that instrument. The sweeps stop
 after the ST arm.
 

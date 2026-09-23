@@ -53,8 +53,8 @@ catalog:
   "@playwright/experimental-ct-react": ^1.61.1
   # --- rendered instruments ---
   # lighthouse: the audit ENGINE the retired chrome-devtools MCP wrapped (#1195/#1198). WHY THE DEPENDENCY
-  # IS WORTH IT (every dependency is a liability): the census in docs/design/1195-devtools-mcp-retirement.md
-  # §1 counted 41 `lighthouse_audit` MCP calls in 14 days and it was the ONLY MCP tool producing findings
+  # IS WORTH IT (every dependency is a liability): the retirement census
+  # counted 41 `lighthouse_audit` MCP calls in 14 days and it was the ONLY MCP tool producing findings
   # snap could not — axe's `label-content-name-mismatch` (3 nodes on the plugins pane) and `target-size`.
   # Owning the engine retires a whole MCP server for one dev-only @orb/tooling dep that ships to nobody.
   # The caret is deliberate but NOT free: snap reads audit ids and the `details.items[].node.selector`

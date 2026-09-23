@@ -233,8 +233,8 @@ function ProseTemplateBody({
  *  the wrapper with the injection's content gone, which is the one mistake an author cannot see in the field
  *  itself.
  *
- *  THE WARNING IS NOW THE FRONT HALF OF A REFUSAL, not the whole answer (owner ruling 2026-08-08, option C of
- *  `docs/design/note-token-intent-history.md`). This comment used to say the missing-`{{note}}` chip stays a
+ *  THE WARNING IS NOW THE FRONT HALF OF A REFUSAL, not the whole answer (owner ruling 2026-08-08,
+ *  option C). This comment used to say the missing-`{{note}}` chip stays a
  *  warning "deliberately unlike `FORMAT_STRING_CARRIER_TOKENS`" — the ruling resolved that: `{{note}}` deletes
  *  content exactly as `{{entry}}` does, so `promptConfigWriteSchema` REFUSES a non-blank note-frame override
  *  that dropped it (`PROSE_CARRIER_TOKENS`). The chip is still the right thing to draw here — it is what tells

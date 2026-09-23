@@ -17,8 +17,8 @@ import type { StackSpawner } from "../contract/types.ts";
  *  SPAWNER and its discriminator; it does not decide a number. PROD deliberately shares the dev SERVER
  *  port: they are two ways to serve the same app on this box and must never run at once —
  *  `classifyInstance` turns that into a loud refusal instead of a race. The ten stage bands are listed
- *  individually because `status` must be able to name whichever one a foreign listener holds
- *  (docs/design/1208-instrument-substrate.md §3.6). */
+ *  individually because `status` must be able to name whichever one a foreign listener holds.
+ */
 export const STACK_SPAWNERS: readonly StackSpawner[] = [
   { name: "dev stack (pnpm stack up)", serverPort: DEV_PORTS.server, vitePort: DEV_PORTS.vite, discriminator: "DEV_SEED=on; pidfile .cache/stack/stack.pgid" },
   {

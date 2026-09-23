@@ -45,7 +45,7 @@
 // WHERE A BROKEN RESOURCE REFUSES — not here. A declared resource that comes back
 // missing/empty/unresolved/malformed makes `resolveResourceDeclarations` (`lib/resource-declaration.ts`)
 // THROW during the POPULATION phase and the receipt phase withholds every consumer, both before
-// `create`/`evaluate` run (guide §3's acquisition-refusal rule, `docs/design/resource-policy-contract.md` §4). The ADR tree
+// `create`/`evaluate` run (guide §3's acquisition-refusal rule, `docs/law/resource-policy-contract.md` §4). The ADR tree
 // is a `ledger` and NOT a `documents` member because it is an IDENTITY: with it absent — or holding no
 // decision at all — every judgment here is INVERTED rather than merely uncertain, so it must refuse the
 // whole run (`contract/resource-document.ts`). The citer corpus is the other door on purpose — a corpus

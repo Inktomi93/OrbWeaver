@@ -34,7 +34,7 @@
 // WHERE A BROKEN RESOURCE REFUSES — not here. A declared resource that comes back
 // missing/empty/unresolved/malformed makes `resolveResourceDeclarations` (`lib/resource-declaration.ts`)
 // THROW during the POPULATION phase and the receipt phase withholds every consumer, both before
-// `create`/`evaluate` run (guide §3's acquisition-refusal rule, `docs/design/resource-policy-contract.md` §4). This module
+// `create`/`evaluate` run (guide §3's acquisition-refusal rule, `docs/law/resource-policy-contract.md` §4). This module
 // owns no not-ready branch: it reads the ledger through `readyResourceValue`, whose throw is an assertion
 // that the runtime's own refusal already held. The registry is a `ledger` and not a `documents` member
 // precisely because it is an IDENTITY: reading half of it is how a LIVE id reads as an orphan cite, so an

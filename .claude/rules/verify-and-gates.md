@@ -12,7 +12,7 @@ The command list and stage table live in `AGENTS.md`. This file covers gate auth
 
 ## Authoring or changing a gate
 
-1. Read `docs/design/gate-runtime-read-first.md` and `tooling/src/verify/gates/GATE-AUTHORING.md` first.
+1. Read `docs/law/gate-runtime-read-first.md` and `tooling/src/verify/gates/GATE-AUTHORING.md` first.
 2. A new gate lands on a tree with its live violations already fixed. Use an allowlist entry only for a permanent, reasoned exemption.
 3. Deleting an allowlist entry is a coupled edit with its conformance rows; `pnpm check` does not catch a missed one.
 4. Prefer declarative `mustFlag`, `mustPass`, and `mustRefuse` rows. Write a family test only for what a row cannot express. Find a gate's family test by grepping its id.

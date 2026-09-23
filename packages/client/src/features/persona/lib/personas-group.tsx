@@ -1,4 +1,4 @@
-// The Personas config group (client-architecture-lockdown.md §8 · config-revamp-design.md §3.1/§6.8) — the
+// The Personas config group (client-architecture-lockdown.md §8) — the
 // persona surface RELOCATED into the unified Configuration workspace as a `sections` SKIMMER on the user
 // shelf. Owned by features/persona (the M6.2 de-god move). PERSONA IS OWNER-SACRED: the surface moves and
 // its FRAME conforms to the registry (three contributed sections — `persona-*-section.tsx` beside this

@@ -1,4 +1,4 @@
-// rpg's TOOL-RENDERER contribution (interaction-direction-spec.md §7 row B8, "result = a tool-renderers
+// rpg's TOOL-RENDERER contribution ("result = a tool-renderers
 // contribution in-thread") — the door-side half of the `roll_dice` in-thread renderer. ONE first-party member
 // of chat's `toolRenderers` registry, claiming the EXACT wire name `roll_dice` (`match: "name"`, which wins
 // over any prefix claim). A value, not a registration: the door (`compose/authed-app.tsx`) appends it beside

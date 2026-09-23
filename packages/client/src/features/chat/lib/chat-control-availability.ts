@@ -1,4 +1,4 @@
-// S1 — the BEHAVIOR half of the in-chat control seam (interaction-direction-spec.md §3-S1): busy is
+// S1 — the BEHAVIOR half of the in-chat control seam: busy is
 // resolved PER MODE, in ONE place, for every control the band renders. Nothing else in the client decides
 // whether a control is operable.
 //

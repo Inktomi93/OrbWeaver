@@ -4,7 +4,7 @@ status: active
 updated: 2026-09-23
 ---
 
-# The hosted extraction fold (AMENDS D108's delivery fork and D109-1's tool-less rule; spec: `docs/design/rpg-extraction-one-call-spike.md`)
+# The hosted extraction fold (AMENDS D108's delivery fork and D109-1's tool-less rule)
 
 ## Context
 

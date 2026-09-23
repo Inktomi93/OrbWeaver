@@ -361,7 +361,7 @@ export interface AnalyticsContextState {
   readonly characterId: CharacterId | null;
 }
 
-/** One walkable door in the Config TEACHER (config-revamp-design.md §3.5/§7.2) — an "Applies"/"Related"
+/** One walkable door in the Config TEACHER — an "Applies"/"Related"
  *  row the reader can activate. Pre-bound: the host resolved the address into the `openConfigTo` (or a
  *  contribution's own) opener before it crossed this seam, so the tabs render state-blind. */
 export interface ConfigTeachDoor {

@@ -144,7 +144,7 @@ export interface TurnRequest {
    *  (`applyReceiveTransforms`) stays for every shape and wire the middleware cannot express, and no-ops
    *  when the wire already produced a reasoning channel. */
   readonly reasoningTags?: { readonly prefix: string; readonly suffix: string } | undefined;
-  /** The tools this turn offers, BACKEND-NEUTRAL (`docs/design/inference-tool-delivery.md`): the executable set
+  /** The tools this turn offers, BACKEND-NEUTRAL (D177): the executable set
    *  as definitions + the ONE `execute` callback the pipeline binds to `executeToolCalls`, and the TERMINAL (D112
    *  R1) declarations. How they reach the wire — an MCP server the SDK loops over, or a `tools[]` array the
    *  pipeline's own recurse loop answers — is `@orb/inference`'s `toChatRequest` decision, never this domain's.
@@ -261,7 +261,7 @@ export interface TurnEconomics {
    *
    *  Its job is to make `tokensOut` READABLE: `tokensOut` is the SUM across those calls while
    *  `maxOutputTokens` is the PER-CALL ceiling, so without the denominator a multi-call turn looks like a
-   *  backend ignoring the output cap (`docs/design/streaming-shape-churn.md` §7.5). Consumed by the
+   *  backend ignoring the output cap. Consumed by the
    *  wire-outcome debug ring; absent/null on a runner that reports none. */
   readonly modelCalls?: number | null;
   readonly reasoningEffort?: EffortLevel | null;

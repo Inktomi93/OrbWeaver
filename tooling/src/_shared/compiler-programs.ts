@@ -321,7 +321,7 @@ export function compilerConfigRoster(paths: readonly string[]): readonly string[
  *  consumes and destroys: `parseJsonConfigFileContent` answers *which files*, and an entry that expands to
  *  nothing leaves no trace in that answer, so a liveness reader has to judge the QUESTION instead. It stays
  *  in this module because the config grammar has ONE home (#1351) — a second JSONC parse anywhere else is a
- *  private reader wearing a contract's clothes (`docs/design/gate-runtime-standardization.md` §4). */
+ *  private reader wearing a contract's clothes (`docs/law/gate-runtime-standardization.md` §4). */
 export function readCompilerConfigEntries(config: string, text: string): CompilerConfigEntries {
   // The VERDICT comes from the same public reader `parseConfig` uses, so "this config is readable" has one
   // answer; `parseJsonText` is asked only for the positions that reader discards.

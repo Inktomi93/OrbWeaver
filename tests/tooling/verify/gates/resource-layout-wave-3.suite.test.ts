@@ -13,7 +13,7 @@ test("third resource layout policy keeps its two-sided proofs", () => {
 });
 
 /** The §4.5 REFUSAL PINS for this module's one declared resource (`package-metadata:root`), owed by
- *  `resource-policy-contract.md` §3.6 — one pin per declared resource per REACHABLE non-ready status —
+ *  `docs/law/resource-policy-contract.md` §3.6 — one pin per declared resource per REACHABLE non-ready status —
  *  and missing until 2026-09-13 (#2327, the `policy-refusal-coverage` warning debt).
  *
  *  NO PROOF ROW CAN CARRY THESE. `resolveResourceDeclarations` throws in the POPULATION phase, before

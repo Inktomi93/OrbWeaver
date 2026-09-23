@@ -1451,7 +1451,7 @@ async function strikeOutOnTurnFault(ctx: ChatContext, prep: TurnPrep, fault: Tur
 /**
  * The FAULT half of the outcome ring — the row an operator actually goes looking for.
  *
- * WHY IT EXISTS (docs/design/streaming-shape-churn.md §7.5, reproduced 3/3): `captureTurnOutcome` runs only
+ * WHY IT EXISTS (reproduced 3/3): `captureTurnOutcome` runs only
  * after `runTurnPipeline` RESOLVES, so a turn that THREW could not leave a `/api/_debug/wire/outcomes` row
  * by construction. A live 110-second agent-sdk turn ended `terminalReason:"api_error"`, logged loudly to
  * pino — and left the outcome ring at `count:0` while the client got a bare 500. Every field the reader

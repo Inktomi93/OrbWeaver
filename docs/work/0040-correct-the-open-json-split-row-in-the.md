@@ -10,7 +10,7 @@ area: docs
 
 ## What
 
-In docs/design/tooling-size-mid-band-splits.md, fix the row for verify/lib/open-json-parity-fact.ts. Change the new-home cell from `verify/lib/open-json-writers.ts` to `verify/lib/open-json-vocabulary.ts`. Also correct the description of what moved: schema derivation (`deriveSchema`, `Schema`) moved into open-json-vocabulary.ts with the writer half. It did not stay in open-json-parity-fact.ts. The row should say that SQL text, reader collection and the verdict are what stayed.
+In the tooling-size split design (now deleted), fix the row for verify/lib/open-json-parity-fact.ts. Change the new-home cell from `verify/lib/open-json-writers.ts` to `verify/lib/open-json-vocabulary.ts`. Also correct the description of what moved: schema derivation (`deriveSchema`, `Schema`) moved into open-json-vocabulary.ts with the writer half. It did not stay in open-json-parity-fact.ts. The row should say that SQL text, reader collection and the verdict are what stayed.
 
 ## Why
 

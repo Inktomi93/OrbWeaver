@@ -2,7 +2,7 @@
 // The story reaches a feature internal the front door doesn't re-export (the settings _ct-stories.tsx
 // precedent) — CredentialKeyRow is mounted by the keys section itself, not exported standalone. The whole
 // Connections group mounts as its three CONTRIBUTED sections through the config host's own resolver
-// (`CtConfigGroupBody`, config-revamp-design.md §6.8) — the production render path, not a surface.
+// (`CtConfigGroupBody`) — the production render path, not a surface.
 
 import { useInvalidation, useTRPC } from "@orb/client/data";
 import { connectionsKeysSection, connectionsListSection, connectionsRolesSection } from "@orb/client/features/credentials";

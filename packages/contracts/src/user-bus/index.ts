@@ -99,7 +99,7 @@ export type UserBusEvent =
   // SSO login that renamed the handle / re-derived the role. NO id — the channel key IS the affected user
   // (see the MEMBERSHIP note), so there is no sub-entity to hint at and nothing for a hint to target.
   | { type: "identityChanged" }
-  // A plugin UI surface's published STATE changed (plugin-ui-plane #679 U1) — `host.ui.setState` writes the
+  // A plugin UI surface's published STATE changed — `host.ui.setState` writes the
   // in-memory state plane and fires this so the installer's own client refetches `plugin.getSurfaceState`. The
   // per-person bus is exactly right: a v1 surface renders ONLY for its installer, so the state's one viewer IS
   // this channel's user. COARSE with a `pluginId` hint, following every member here: the client path-invalidates

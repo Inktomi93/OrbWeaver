@@ -1,5 +1,5 @@
 // The Settings CONTENT — in priority: the open collection MEMBER's own editor, MOUNTED in the pane
-// (config-rail-spec.md C-7: never a dialog) · the ACTIVE settings group's body (the `sections`
+// (C-7: never a dialog) · the ACTIVE settings group's body (the `sections`
 // skimmer over the contributed sections — every settings-shaped group, §6.8 — or the honest placeholder) with the ONE aggregate
 // save-status footer below the scroller (SET-SEAMS §3) · an ACTIVE collection's own landing · the section's
 // teaching frame, never null.

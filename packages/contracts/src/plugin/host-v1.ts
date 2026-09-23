@@ -141,12 +141,12 @@ export interface PluginSearchHit {
   readonly score: number;
 }
 
-/** The most images one `llm.quiet` call may attach (plugin-ui-plane §5.32, the captioning arm). Four is the
+/** The most images one `llm.quiet` call may attach. Four is the
  *  `generateImageActionArgsSchema` fan-out clamp read from the other direction — a caption pass looks at a
  *  handful of pictures, and an unbounded list is an unbounded read of the installer's CAS per call. */
 export const PLUGIN_QUIET_IMAGES_MAX = 4;
 
-/** The structured-output ask on `llm.quiet` (plugin-ui-plane §5.16 — the xgrammar lever). `schema` is a RAW
+/** The structured-output ask on `llm.quiet` (the xgrammar lever). `schema` is a RAW
  *  JSON Schema in the `LIFTABLE_JSON_SCHEMA` subset (`@orb/kit/json-schema`), the SAME untrusted-blob posture
  *  `tools.register`'s `parameters` carries: the host lifts it to zod and re-projects it through the ONE
  *  projection rule, so a guest can never hand a wire an unprojected schema (D79). An unliftable schema is a
@@ -345,7 +345,7 @@ export interface PluginHostV1 {
      *  The FUNDER is the installer and is closed over host-side; a guest cannot name a different one, exactly
      *  as with `chat.requestTurn`. No chat scope is required (the call carries no room context at all).
      *
-     *  THE U6 WIDENING (plugin-ui-plane §5.16/§5.32) IS TWO OPTIONAL INPUTS ON THIS ONE OP, never a second
+     *  THE U6 WIDENING IS TWO OPTIONAL INPUTS ON THIS ONE OP, never a second
      *  quiet path — the interaction spec's §3-S5.1 law: `summarizeQuiet` was already declared the generic
      *  quiet-LLM op, so the structured variant and the vision variant are pass-through fields on the lane that
      *  exists. `opts.schema` routes the call to the `structured` role (D109-4 — its firewall row excludes the
@@ -358,7 +358,7 @@ export interface PluginHostV1 {
   };
 
   readonly databank: {
-    /** Ingest a text document into the INSTALLING PRINCIPAL's OWN databank (plugin-ui-plane §5.33/seam 15 —
+    /** Ingest a text document into the INSTALLING PRINCIPAL's OWN databank (seam 15 —
      *  the Data Bank scraper parity arm). A CANON WRITE into the installer's own library: the document lands
      *  owner-scoped and the derived indexer auto-runs (the write enqueues the ingest workload). capability:
      *  databank.ingest.
@@ -375,7 +375,7 @@ export interface PluginHostV1 {
 
   readonly character: {
     /** Ingest a V2/V3 character CARD (a plain JSON object) into the INSTALLING PRINCIPAL's OWN character
-     *  library (plugin-ui-plane §5 row 20 sibling / seam 17 — the hub-import scraper arm; the `ui.page`
+     *  library (sibling / seam 17 — the hub-import scraper arm; the `ui.page`
      *  hub-browser showcase's import verb). A CANON WRITE riding the import domain's ContentChanged-emitting
      *  path (the same `importCharacter` funnel a file upload takes — byte-identical dedup, book/regex relink),
      *  so the indexer auto-runs. capability: character.ingest.
@@ -442,7 +442,7 @@ export interface PluginHostV1 {
     on: (type: ChatTriggerType | DomainTriggerType, handler: (fact: TriggerFact) => void | Promise<void>) => void;
   };
 
-  /** THE PRIVATE PLUGIN-EVENT PLANE (plugin-ui-plane §5a, U8) — a namespaced installer-scoped pub-sub for
+  /** THE PRIVATE PLUGIN-EVENT PLANE — a namespaced installer-scoped pub-sub for
    *  multi-plugin composition. It is a DELIBERATELY SEPARATE plane from `events` above, and the separation IS the
    *  forgery wall (§5.24 — "a plugin-emitted DOMAIN event is a forged fact"):
    *   - it NEVER enters a domain/chat bus (the emit reaches only the installer's own resident plugin-event bus);
@@ -490,7 +490,7 @@ export interface PluginHostV1 {
       // @orb-waive brand-in-name-position(chatId): the plugin SANDBOX wire DTO — an untrusted guest's JSON, branded only after the host parses it; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
       apply: (input: { draft: string; env: { chatId: string; vars: Record<string, string> } }) => Promise<PromptTransformOutcome>;
     }) => void;
-    /** Register a DISPLAY transform (plugin-ui-plane §5.5/§5.29, seam 14) — the ST message-formatting-hook
+    /** Register a DISPLAY transform (seam 14) — the ST message-formatting-hook
      *  parity arm. capability: chat.transform.
      *
      *  IT IS A DIFFERENT SEAM FROM `register` ABOVE, and the difference is the whole safety story. A D50 prompt
@@ -513,7 +513,7 @@ export interface PluginHostV1 {
   };
 
   readonly macros: {
-    /** Register a MACRO into the ONE kit macro engine (plugin-ui-plane §5.15). capability: chat.transform —
+    /** Register a MACRO into the ONE kit macro engine. capability: chat.transform —
      *  a macro substitutes text into the assembled prompt, which is exactly the reach that capability names.
      *
      *  PLUGIN MACROS ARE DATA, NOT A SECOND ENGINE, and the shape follows from a fact about the engine rather
@@ -565,7 +565,7 @@ export interface PluginHostV1 {
     fetchAsset: (url: string) => Promise<{ assetId: string }>;
   };
 
-  /** The DECLARATIVE UI plane (plugin-ui-plane #679, U0 vocabulary). A plugin registers surfaces built from the
+  /** The DECLARATIVE UI plane (the U0 vocabulary). A plugin registers surfaces built from the
    *  closed `@orb/contracts/plugin/ui` node vocabulary (`ui.ts`) — first-party code renders them at the existing
    *  contribution anchors inside a plugin-labeled shell; plugin code never touches the real DOM and the
    *  vocabulary cannot express host chrome, a modal, or a write channel (§4.3/§4.8). This namespace is the
@@ -586,7 +586,7 @@ export interface PluginHostV1 {
     /** Publish surface STATE (the data the spec's `$state` bindings resolve against). ≤ 16 KiB JSON; replaces
      *  the whole state; emits the per-user freshness poke. capability: ui.surface
      *
-     *  `chat` is the OPTIONAL ROOM DIMENSION (plugin-ui-plane #679 row 777, §4.4). Omitted, the state row is
+     *  `chat` is the OPTIONAL ROOM DIMENSION. Omitted, the state row is
      *  keyed `(pluginId, surfaceId)` and every room shows the same publication — the U1 shape, and still the
      *  right one for a settings panel or a cross-room roll-up. Supplied, the row is keyed
      *  `(pluginId, surfaceId, chatId)` and a room-anchored surface reads only ITS room's row, which is what
@@ -635,7 +635,7 @@ export interface PluginHostV1 {
      *  travels on the outcome of a client-initiated round-trip, so a spontaneous open is unspellable rather than
      *  refused, and an id naming no registered dialog is dropped. capability: ui.surface */
     openDialog: (surfaceId: string) => Promise<void>;
-    /** THE ESCAPE HATCH (U7, plugin-ui-plane §6.2). Register a `frame`-tier surface: the plugin's OWN interface
+    /** THE ESCAPE HATCH. Register a `frame`-tier surface: the plugin's OWN interface
      *  code, served as a document into an isolated iframe. capability: **ui.frame** — deliberately NOT
      *  `ui.surface`.
      *
@@ -778,7 +778,7 @@ export const HOST_FUNCTION_CAPABILITY = {
   "ui.registerFrame": "ui.frame",
 } as const satisfies Record<HostFunctionRef, PluginCapability>;
 
-// ── The Tier-C PROXY SUBSET (plugin-ui-plane #679 U4, §4.6) ─────────────────────────────────────────────────
+// ── The Tier-C PROXY SUBSET ─────────────────────────────────────────────────
 /** The host functions a CLIENT-side scripted guest (`ui.js`, the Tier-C QuickJS worker) may reach, relayed
  *  through the ONE `plugin.uiHostCall` proc and RE-GATED server-side per call
  *  (`fn ∈ UI_PROXYABLE_HOST_FUNCTIONS ∩ the caller's own stored grant`). It is a SUBSET of

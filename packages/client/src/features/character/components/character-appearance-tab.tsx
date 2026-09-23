@@ -313,7 +313,7 @@ function SaveAsThemeButton({ characterName, override }: { readonly characterName
  *  hands a seed NOTHING and lets its generated `[data-theme]` block paint, because replaying a seed's
  *  duplicate-to-customize override through the clamp re-derives the palette and shadows the hand-tuned
  *  block. So the thumbnail on THIS door would disagree with what the pick delivers on exactly
- *  Hearth/Mocha/Light. Full receipt: `docs/design/config-revamp-design.md` §7.3. */
+ *  Hearth/Mocha/Light. */
 function StartFromThemeField({ onPick }: { readonly onPick: (theme: Theme) => void }): ReactElement {
   const trpc = useTRPC();
   const { data: themes } = useQuery(trpc.settings.listThemes.queryOptions());

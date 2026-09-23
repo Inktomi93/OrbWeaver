@@ -43,7 +43,7 @@ export const RPG_CHECKPOINT_TRIGGERS = ["manual"] as const;
 export type RpgCheckpointTrigger = (typeof RPG_CHECKPOINT_TRIGGERS)[number];
 export const rpgCheckpointTriggerSchema = z.enum(RPG_CHECKPOINT_TRIGGERS) satisfies z.ZodType<RpgCheckpointTrigger>;
 
-// The TRACKER axes (the tracked-field unification, `docs/design/tracked-field-unification.md` §2). These four
+// The TRACKER axes (the tracked-field unification). These four
 // tuples ARE the unification: pool/meter/cast-field/band-orb/widget were never five concepts, they were one
 // def read along these axes. The shapes they replace (`RPG_WIDGET_TYPES`/`RPG_WIDGET_POSITIONS`/
 // `RPG_CAST_FIELD_KINDS`) are DELETED outright — no-legacy ruling, no compat vocabulary.

@@ -12,7 +12,7 @@
  *  `config`: it is a library you author into, and the order reads config → the two libraries → refinery.
  *
  *  `extensions` sits DIRECTLY AFTER `config`, and the placement is the decision the tuple order forces you to
- *  make (plugin-ui-plane §4.5b recommends "beside `config`"): an extension page is a thing you configured the
+ *  make (recommends "beside `config`"): an extension page is a thing you configured the
  *  app to have, so it reads as the neighbour of the Configuration workspace rather than as a library you author
  *  into. It leads the `authoring` run so the libraries stay adjacent to each other. */
 export const SECTION_IDS = ["home", "chats", "characters", "corpus", "config", "extensions", "databank", "presets", "refinery", "analytics"] as const;

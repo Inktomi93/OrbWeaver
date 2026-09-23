@@ -1,4 +1,4 @@
-// CT: B8 — the REAL rpg in-thread dice RESULT renderer (interaction-direction-spec §7 row B8). Mirrors its
+// CT: B8 — the REAL rpg in-thread dice RESULT renderer. Mirrors its
 // source `packages/client/src/features/rpg/lib/dice-tool-renderer.tsx` (+ the card it draws,
 // `components/rpg-dice-tool-card.tsx`).
 //

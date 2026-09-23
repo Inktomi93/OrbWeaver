@@ -798,7 +798,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // holding a bounded number of already-built objects — and an observability lens that first requires a
   // restart with a flag set does not answer "why did memory surface that".
   const recallRecorder = createMemoryRecallRecorder({ now });
-  // The PLUGIN-MACRO registry (plugin-ui-plane §5.15, U6) — ONE process-wide instance, minted HERE rather than
+  // The PLUGIN-MACRO registry — ONE process-wide instance, minted HERE rather than
   // inside the plugin plane because chat composes FIRST and both sides need the same object: chat reads it per
   // turn (`ChatContext.pluginMacros`), the plugin plane writes it at activation. Minting it at the shared root
   // is what keeps this out of the late-bind shape the S4 confirmed-act runner had to take.

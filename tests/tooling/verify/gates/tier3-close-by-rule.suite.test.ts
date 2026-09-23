@@ -1,7 +1,7 @@
 // THE #2000 TIER-3 CLOSE-BY-RULE ROSTER, HELD TWO-SIDEDLY — lane p-parity-tier2bc.
 //
 // WHY THIS FILE EXISTS AND NOT A LIST IN A DOC. #2000's Tier 3 was "17 one-to-one ports at 0/0, close BY
-// RULE". The NUMBER survived in `gate-runtime-orchestrator-playbook.md`; the LIST did not — it lived in a
+// RULE". The NUMBER survived; the LIST did not — it lived in a
 // session scratchpad (`parity-A/B/C.txt`) that was never committed, and
 // `git log --all --diff-filter=A -- '*parity-C*'` finds nothing. A roster with nothing two-sided holding
 // it decays into a number nobody can act on, and this one decayed all the way. So the ruling is written

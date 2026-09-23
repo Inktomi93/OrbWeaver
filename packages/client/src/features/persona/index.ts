@@ -3,7 +3,7 @@
 // is registered at the main.tsx door; no feature imports this slice's internals, and this slice
 // imports no other feature (cross-domain reads ride trpc.*).
 //
-// The Personas config GROUP is a `sections` skimmer (config-revamp-design.md §6.8.2): its three sections
+// The Personas config GROUP is a `sections` skimmer: its three sections
 // are the contributions below, assembled into the config-section registry at the door.
 
 // `PersonaPanelRow` is front-door-exported so its CT (the side-eye item-13 stretched-overlay rework)

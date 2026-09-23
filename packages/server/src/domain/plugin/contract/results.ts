@@ -34,7 +34,7 @@ export interface PluginView {
   readonly version: string;
   readonly status: PluginStatus;
   readonly origin: PluginOrigin;
-  /** The URL a `url`-origin install was fetched from (plugin-ui-plane #679 U8 2b) — what the auto update-check
+  /** The URL a `url`-origin install was fetched from (U8 2b) — what the auto update-check
    *  re-fetches and what the one-click upgrade re-uses, so neither needs the owner to re-paste it. `null` for an
    *  `upload` install (the `origin ⟺ source_url` invariant: null exactly when `origin === "upload"`), which also
    *  tells a management surface whether to offer the "check for updates / update" affordance at all. */
@@ -86,19 +86,19 @@ export interface PluginView {
   readonly updatedAt: number;
 }
 
-/** One registered UI surface as the CALLER's client renders it (`listSurfaces` — plugin-ui-plane #679 U1): the
+/** One registered UI surface as the CALLER's client renders it (`listSurfaces` U1): the
  *  serializable registration meta (id/anchor/title/tier/spec — the `onAction` handle stays server-side) plus the
  *  `pluginId` it belongs to (the client joins to the plugin's own name/glyph for the labeled shell). */
 export interface PluginSurfaceView extends PluginSurfaceRegistrationMeta {
   readonly pluginId: PluginId;
   /** A `tool-card` surface's MODEL-VISIBLE tool name — `pluginToolWireName(row.slug, meta.toolName)`, derived
    *  HERE because the slug is the installing row's and the client has no business re-spelling the namespacing
-   *  rule (plugin-ui-plane #679 U3). Present exactly when `anchor === "tool-card"` (the meta biconditional):
+   *  rule. Present exactly when `anchor === "tool-card"` (the meta biconditional):
    *  it is what the first-party `pluginToolRenderer` matches a persisted `ToolCallRecord.name` against. */
   readonly toolWireName?: string;
 }
 
-/** A surface's published state (`getSurfaceState` — plugin-ui-plane #679 U1): the whole JSON map the renderer
+/** A surface's published state (`getSurfaceState` U1): the whole JSON map the renderer
  *  resolves `{ $state: "path" }` bindings against. `null` from the verb when nothing has been published yet. */
 export type PluginSurfaceState = Record<string, unknown>;
 
@@ -115,7 +115,7 @@ export interface PluginBundleAssetView {
   readonly assetId: AssetId;
 }
 
-/** One registered COMMAND as the CALLER's client sees it (`listCommands` — plugin-ui-plane #679 U5). The
+/** One registered COMMAND as the CALLER's client sees it (`listCommands` U5). The
  *  registration meta (name/describe — the `onRun` handle stays server-side) plus the identity BOTH consuming
  *  surfaces need: the `pluginId` the invoke round-trip names, and the plugin's `slug` + `name`, which are the
  *  dispatch token and the menu label respectively.
@@ -137,7 +137,7 @@ export interface PluginCommandView {
   readonly args: readonly PluginCommandArgSpec[];
 }
 
-/** One registered DISPLAY transform as the caller's client sees it (`listDisplayTransforms` — plugin-ui-plane
+/** One registered DISPLAY transform as the caller's client sees it (`listDisplayTransforms` 
  *  seam 14, U6). Deliberately NOT the handler and NOT the apply: this projection exists so a viewer's client can
  *  answer ONE question — "does anything transform my rows?" — and skip every per-row round-trip when the answer
  *  is no (the byte-identity-when-off law, applied to a per-row cost). `name` is the plugin's own label for it,

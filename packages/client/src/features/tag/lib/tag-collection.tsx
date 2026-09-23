@@ -1,4 +1,4 @@
-// The TAGS collection contribution (config-rail-spec.md · review §4) — the `collection` body of the `tags`
+// The TAGS collection contribution — the `collection` body of the `tags`
 // config group (`tags-group.tsx`, which carries the library's identity since the config revamp #866 S1),
 // consumed BLIND by `features/config`.
 //

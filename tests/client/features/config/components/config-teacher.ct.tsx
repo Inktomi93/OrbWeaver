@@ -1,4 +1,4 @@
-// CT: the Settings CONTEXT pane as the TEACHER (#866 S3, config-revamp-design.md §7.2) — mounted through
+// CT: the Settings CONTEXT pane as the TEACHER (#866 S3) — mounted through
 // the PRODUCTION resolve (`makeConfigSection` → `SectionContextHost` → the #860 bracket), never a
 // hand-assembled pair. Supersedes `config-context-body.ct.tsx` (the `single`-context band/body pair died
 // with the tabs flip — surface-flip retires the CT premise; the say-it-once law it pinned is re-pinned

@@ -10,7 +10,7 @@
    * resting `translateX(calc(-100% - var(--rail-w)))` inherits it as `matrix(1, 0, 0, 1, -363.188, 0)`.
    * design-audit filed that as P3 `off-grid-transform` (plus P2 `promoted-layer-offset` while the pane still
    * promoted itself) in 7 of 10 arms on home, and it is not a home fact: it is every section's panel at most
-   * widths. `docs/design/integer-line-boxes.md` Laws 2 and 3.
+   * widths. `docs/law/integer-line-boxes.md` Laws 2 and 3.
    *
    * The rounding is HERE, at the shell's own track declaration, and NOT in the token: `--dimension-panel` is
    * a generated theme value with other readers, and the thing that must land on the grid is the TRACK this
@@ -943,7 +943,7 @@
    * descendants in every panel mode (`position: relative` is only on the docked arm). The pane's glass is
    * a `.shell-panel::before` at `z-index: -1` — declared with its paint in the client-globals glass block,
    * the grain overlay's precedent — so the pane's TEXT is no longer inside a `backdrop-filter` layer
-   * (docs/design/integer-line-boxes.md Law 3/4). Dropping this declaration would let that fill escape the
+   * (docs/law/integer-line-boxes.md Law 3/4). Dropping this declaration would let that fill escape the
    * pane and paint behind the shell; the #237 framebuffer pin in app-shell.ct.tsx is what says so. */
   container-type: inline-size;
 }

@@ -5,7 +5,7 @@
 // over the real corpus as a legacy `visit` hook), and the family SPLITS on authority: the credential-field
 // arm has a reviewed door and the fail-closed arm has none. Two policies calling one reader would walk the
 // corpus twice; a `defineFact` provider is instantiated once and fed in the same physical walk
-// (gate-runtime-standardization.md §3).
+// (docs/law/gate-runtime-standardization.md §3).
 //
 // WHAT THE PROVIDER PUBLISHES, AND WHAT IT DELIBERATELY DOES NOT. It publishes the FIELD census, the
 // fail-closed REFUSALS, the roots it resolved and the roots that contributed nothing — all as fact DATA. Its

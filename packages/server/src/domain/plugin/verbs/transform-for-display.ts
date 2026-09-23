@@ -1,4 +1,4 @@
-// verb: transformForDisplay — the per-row DISPLAY-transform round-trip (plugin-ui-plane #679 U6, seam 14; the
+// verb: transformForDisplay — the per-row DISPLAY-transform round-trip (U6, seam 14; the
 // ST message-formatting-hook parity row). The caller's own enabled plugins get to annotate ONE rendered row,
 // in registration order, and the annotated text comes back to that same caller.
 //

@@ -759,7 +759,7 @@ export function WorldEntrySelectionProbe(): ReactElement {
 /** ConfigSelectionProbe — the KINDED selection store (the config workspace's ONE selection across N
  *  sibling collections): select a member of one kind, select a member of ANOTHER kind, clear, and the
  *  LIST dual-write that also closes the slide-over. `openConfigTo` is the ONE deep-link intent for every
- *  kind of group (config-revamp-design.md §3.3) — for a collection it clears the selection AND switches the
+ *  kind of group — for a collection it clears the selection AND switches the
  *  rail, so the probe reads the active section too. */
 export function ConfigSelectionProbe(): ReactElement {
   const selection = useCollectionSelection();
@@ -1446,7 +1446,7 @@ export function ListFlipCarryProbe(): ReactElement {
   );
 }
 
-/** ConfigNavProbe — drives the config NAV store (config-revamp-design.md §3.2/§6.2, #866 S1): the ONE
+/** ConfigNavProbe — drives the config NAV store (#866 S1): the ONE
  *  deep-link intent `openConfigTo(group, sub?, setting?)` for every kind of group, the LIST's band/row
  *  clicks, the spy's write, and the derived EFFECTIVE active group (an open member's kind wins over the
  *  explicitly activated group). A CT because every read surface is a reactive hook. Prints the target's

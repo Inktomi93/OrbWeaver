@@ -1,4 +1,4 @@
-// Policy: query-boundary-reservation (#885; docs/design/885-884-boundary-reservation-and-touch-floor.md).
+// Policy: query-boundary-reservation (#885).
 // A `QueryBoundary` whose fallback is a `SkeletonRows` with a STATIC count reserves a guess, not the box
 // the surface settles at — the boot-CLS class home paid for (F14) and #885 sealed as `reserveKey`.
 //

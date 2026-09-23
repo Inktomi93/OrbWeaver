@@ -3,7 +3,7 @@
 // THE SUPPRESSOR IS GONE (#2176 Phase F, 2026-09-14). Both suppression arms — `findGateIgnore`, which walked
 // a reported node's leading trivia, and `findGateIgnoreAtLine`, which bound line-adjacently for the
 // `Finding` overload — lived in the legacy dispatcher (`lib/pass.ts`) and died with it, because a final
-// policy has no inline door at all (gate-runtime-standardization.md §12.5: authority plus the central
+// policy has no inline door at all (docs/law/gate-runtime-standardization.md §12.5: authority plus the central
 // `@orb-waive` engine own every escape). What survives is the AUDIT side: `lib/gate-ignore-fact.ts`
 // publishes every residual marker as a fact and the `gate-ignore-inventory` policy reds it, so the retired
 // vocabulary cannot sit in the tree LOOKING like protection. The mention fence stays beside the recognizer

@@ -1,11 +1,11 @@
-// The DEVICE-PIXEL GRID verdicts (docs/design/integer-line-boxes.md §9-§11 — the crispness doctrine's
+// The DEVICE-PIXEL GRID verdicts (docs/law/integer-line-boxes.md §9-§11 — the crispness doctrine's
 // Laws 2, 3 and 4). The walker (ops/walker/census-grid.ts) gathers landings only; every threshold lives
 // here so it is unit-testable without a browser, and every arm is DPR-parameterized through the sample's
 // already-normalized device fractions rather than through a per-arm constant.
 //
 // WHY THIS IS A RUNTIME RULE AND NOT A GATE (the doctrine's own axis, ops/walker/census-tier.ts's header
 // verbatim: "THE QUESTION IS NOT 'is this value legal' … It is 'did the RESOLVED pixel match'"). A landing
-// is the product of the live root font-size (the continuous `--font-scale` slider, integer-line-boxes.md
+// is the product of the live root font-size (the continuous `--font-scale` slider, docs/law/integer-line-boxes.md
 // §2.1), the element's own box, and the device pixel ratio — none of which authorship can see. The
 // AUTHORSHIP-provable half of Law 2 is a gate (`tooling/src/verify/gates/rest-transform-grid.ts`); this is
 // the resolved half plus Laws 3 and 4, which have no authorship half at all.
@@ -39,7 +39,7 @@ export const GRID_EXEMPTIONS = {
     selector: '[data-slot="message-bubble"]',
     why:
       "the chat reading surface is the user-owned CONTINUOUS multiplier (appearance.readingLineHeight " +
-      "1.2-2.2) — the declared Law-4 residual of docs/design/integer-line-boxes.md §2, mirrored from the " +
+      "1.2-2.2) — the declared Law-4 residual of docs/law/integer-line-boxes.md §2, mirrored from the " +
       "integer-line-boxes gate's CSS_LINE_HEIGHT_EXEMPTIONS row; ends when the reading rule gains its own " +
       "round() belt at the consuming declaration",
   },
@@ -72,7 +72,7 @@ export function checkOffGridText(input: OffGridTextInput): Finding | null {
     severity: "P2",
     selector: input.selector,
     value: `${String(input.fontSizePx)}px text lands ${landingText(input)} inside a ${input.promotion} layer (${input.promotedBy})`,
-    message: `this text is painted inside a promoted layer, which turns OFF the browser's per-paint baseline snapping — so its sub-pixel offset is rasterized and resampled instead of corrected, and the glyphs blur. Land the promoting ancestor on the device-pixel grid (the repair is at ${input.promotedBy}, not here), or drop the promotion if nothing needs it. See docs/design/integer-line-boxes.md §11`,
+    message: `this text is painted inside a promoted layer, which turns OFF the browser's per-paint baseline snapping — so its sub-pixel offset is rasterized and resampled instead of corrected, and the glyphs blur. Land the promoting ancestor on the device-pixel grid (the repair is at ${input.promotedBy}, not here), or drop the promotion if nothing needs it. See docs/law/integer-line-boxes.md §11`,
     origin: "orbweaver",
   };
 }
@@ -97,7 +97,7 @@ export function checkPromotedLayerOffset(input: PromotedLayerOffsetInput): Findi
     severity: "P2",
     selector: input.selector,
     value: `${input.promotion} layer lands ${landingText(input)}`,
-    message: `${carrier} to its own composited layer (${input.promotion}), which disables baseline snapping for its whole subtree — and it lands off the device-pixel grid, so every glyph and edge inside it is resampled at that same fraction. ${repair} See docs/design/integer-line-boxes.md §10`,
+    message: `${carrier} to its own composited layer (${input.promotion}), which disables baseline snapping for its whole subtree — and it lands off the device-pixel grid, so every glyph and edge inside it is resampled at that same fraction. ${repair} See docs/law/integer-line-boxes.md §10`,
     origin: "orbweaver",
   };
 }
@@ -118,7 +118,7 @@ export function checkOffGridTransform(input: OffGridTransformInput): Finding | n
     severity: "P3",
     selector: input.selector,
     value: `${cause} — "${input.transform}" lands ${landingText(input)}`,
-    message: `this element carries a transform at REST, and the raster it produces does not sit on the device-pixel grid: a resting scale resamples every glyph and edge under it for the element's whole life, and a fractional resting translation offsets the same raster between pixels. Transforms belong to MOTION (a state variant or a @keyframes stop) — express rest geometry as layout instead. See docs/design/integer-line-boxes.md §9`,
+    message: `this element carries a transform at REST, and the raster it produces does not sit on the device-pixel grid: a resting scale resamples every glyph and edge under it for the element's whole life, and a fractional resting translation offsets the same raster between pixels. Transforms belong to MOTION (a state variant or a @keyframes stop) — express rest geometry as layout instead. See docs/law/integer-line-boxes.md §9`,
     origin: "orbweaver",
   };
 }

@@ -335,7 +335,7 @@ const USER_BUS_FILTERS: UserBusFilterMap = {
   // admin's reads (writer-local, per their own cited `query-freshness-coverage` entries); this member only
   // ever reaches the AFFECTED user's channel.
   identityChanged: (_e, trpc) => identityFilters(trpc),
-  // A plugin surface published new state (`host.ui.setState`, plugin-ui-plane #679 U1). PATH-invalidate the
+  // A plugin surface published new state (`host.ui.setState` U1). PATH-invalidate the
   // surface-state read — coarse by the member's own design (a `pluginId` hint the coarse map ignores): the only
   // viewer is the installer and they hold a handful of surfaces, so refetching all their `getSurfaceState`
   // entries on a poke is cheap and correct. NOT `listSurfaces` — a state change never moves the registration set

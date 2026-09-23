@@ -23,7 +23,7 @@ export { RulesSection } from "./components/rules-section.tsx";
 export { automationActivityTab } from "./lib/activity-context-tab.tsx";
 export type { PendingAsk } from "./lib/apply-automation-bus-event.ts";
 export { applyAutomationBusEvent, pruneExpiredAsks } from "./lib/apply-automation-bus-event.ts";
-// C5 — the Automation config group's two contributed SECTIONS (config-revamp-design.md §6.8): the owner-global
+// C5 — the Automation config group's two contributed SECTIONS: the owner-global
 // rule list + picker, and the owner rate ceiling. Assembled at the door; the CT mounts them through their defs.
 export { automationBudgetSection } from "./lib/automation-budget-section.tsx";
 export { automationGroup } from "./lib/automation-group.tsx";

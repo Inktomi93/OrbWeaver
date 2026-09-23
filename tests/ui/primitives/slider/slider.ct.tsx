@@ -333,7 +333,7 @@ test("a label-less slider is still named by thumbLabels", async ({ mount, page }
 
 // ── #1187: THE KNOB SPENDS NO RESTING TRANSFORM ───────────────────────────────────────────────────
 // design-audit filed `off-grid-transform` P3 on `[data-slot=slider-thumb]`: Base UI centres each thumb with
-// an INLINE `translate: -50% -50%`, a transform that is live at REST (integer-line-boxes.md §9 Law 2). The
+// an INLINE `translate: -50% -50%`, a transform that is live at REST (docs/law/integer-line-boxes.md §9 Law 2). The
 // fix moves the same half-a-thumb onto margins — the box does not move, but a laid-out edge is snapped by
 // the paint where a transformed raster is resampled at whatever fraction it resolves to.
 //
