@@ -8,25 +8,28 @@ import type { ProviderId } from "@orb/contracts/inference";
 import type { NamesBehavior, PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
-import { chatParticipants, chats } from "@orb/db";
+import { chatBooks, chatParticipants, chats, worldBooks, worldEntries } from "@orb/db";
 import type { Resolved } from "@orb/inference";
 import { rowIndexAtCacheDepth } from "@orb/inference";
 import type { Handle, ModelId, PersonaId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createTurnPersonaResolver } from "@orb/server/entry/compose";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { curatedRows } from "../../../../packages/inference/src/capability/sources/curated/loader.ts";
 import { synthesizeCapability } from "../../../../packages/inference/src/capability/synthesize.ts";
+import { assemblePrompt } from "../../../../packages/server/src/domain/chat/assembly/assemble.ts";
+import { buildAssembleContext } from "../../../../packages/server/src/domain/chat/assembly/context.ts";
 import type { ResolveForeignInputsOp } from "../../../../packages/server/src/domain/chat/contract/foreign.ts";
 import type { GroupOutput, TurnMessage, TurnRequest } from "../../../../packages/server/src/domain/chat/contract/results.ts";
+import { parseStWorldFile } from "../../../../packages/server/src/domain/import/substrate/world.ts";
 import { loadPersonasForOwners } from "../../../../packages/server/src/domain/persona/persistence/queries.ts";
 import type { ChatScenario } from "../../../support/chat/index.ts";
 import { scenario, tape } from "../../../support/chat/index.ts";
 import { freshDb } from "../../../support/db.ts";
 import { makeResolved } from "../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../support/fixtures.ts";
-import { seedCharacter, seedMessage, seedParticipant, seedPersona, seedUser } from "./_support.ts";
+import { FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "./_support.ts";
 
 /** The history rows up to and including the row the runner pins its deepest-in-history marker on. */
 function rowsThroughMarker(req: TurnRequest): readonly TurnMessage[] {
@@ -441,5 +444,89 @@ describe("F5 — sections stay at their prompt position; only a fold level chang
       expect(texts.at(-1)).toContain(BELOW_HISTORY_NOTE);
       expect(req.history.at(-1)?.role).toBe("user");
     }
+  });
+});
+
+/** An ST-native world file with two keyword entries on the same key: one anchored before the character
+ *  definitions (ST position 0), one after (ST position 1). */
+function stAnchoredWorld(): Uint8Array {
+  return new TextEncoder().encode(
+    JSON.stringify({
+      entries: {
+        "0": { uid: 0, key: ["harbor"], keysecondary: [], comment: "before", content: "BEFORE LORE", order: 100, position: 0, disable: false },
+        "1": { uid: 1, key: ["harbor"], keysecondary: [], comment: "after", content: "AFTER LORE", order: 100, position: 1, disable: false },
+      },
+    }),
+  );
+}
+
+// Owner ruling (SillyTavern parity): keyword-fired world info follows its entry's anchor instead of always
+// joining the in_prompt suffix. It stays in the per-turn half, at the anchor's place in the prompt order.
+describe("F5 — keyword lore follows its entry's anchor, in the per-turn half", () => {
+  test("an imported ST lorebook: before-char lore and after-char lore bracket a per-turn section between the anchors", async () => {
+    const db = await freshDb();
+    const host = await seedUser(db, castId<Handle>("host"));
+    const chatId = await seedChat(db, "lore");
+    const characterId = await seedCharacter(db, host, "aria");
+    const book = parseStWorldFile(stAnchoredWorld(), "Port");
+    if (book === null) {
+      throw new Error("the ST world file did not parse");
+    }
+    const bookId = mintTypeId(ID_PREFIX.worldBook);
+    await db.insert(worldBooks).values({ id: bookId, ownerId: host, name: book.name, createdAt: FROZEN_AT });
+    for (const entry of book.entries) {
+      await db.insert(worldEntries).values({
+        id: mintTypeId(ID_PREFIX.worldEntry),
+        worldBookId: bookId,
+        title: entry.title,
+        content: entry.content,
+        keys: [...entry.keys],
+        enabled: entry.enabled,
+        priority: entry.priority,
+        ignoreBudget: entry.ignoreBudget,
+        metadata: entry.metadata,
+        createdAt: FROZEN_AT,
+      });
+    }
+    await db.insert(chatBooks).values({ chatId, worldBookId: bookId, createdAt: FROZEN_AT });
+
+    const marker = (id: string, name: "main_prompt" | "world_info_before" | "char_description" | "world_info_after" | "chat_history"): PromptSection => ({
+      type: "marker",
+      id,
+      name: id,
+      marker: name,
+      role: "system",
+      enabled: true,
+    });
+    const mid: PromptSection = { type: "literal", id: "mid", name: "mid", role: "system", enabled: true, content: "[MID]", trigger: ["normal"] };
+    const config: PromptConfig = {
+      ...DEFAULT_PROMPT_CONFIG,
+      sections: [
+        marker("main", "main_prompt"),
+        marker("wi-before", "world_info_before"),
+        marker("desc", "char_description"),
+        mid,
+        marker("wi-after", "world_info_after"),
+        marker("history", "chat_history"),
+      ],
+    };
+    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardOf("aria", "aria the innkeeper")) });
+    const built = await buildAssembleContext(ctx, {
+      chatId,
+      ownerId: host,
+      characterIds: [characterId],
+      personaIds: [],
+      promptConfig: config,
+      personas: { anchor: null, active: null },
+      recentMessages: ["we reach the harbor at dusk"],
+      userInjections: [],
+      variableValues: {},
+      model: "test-model",
+      injectionTokenBudget: 0,
+    });
+    const prompt = assemblePrompt(config, built);
+
+    expect(prompt.dynamic).toBe("BEFORE LORE\n\n[MID]\n\nAFTER LORE");
+    expect(prompt.static).not.toContain("LORE");
   });
 });

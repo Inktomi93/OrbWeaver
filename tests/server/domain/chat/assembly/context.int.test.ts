@@ -166,7 +166,7 @@ describe("buildAssembleContext — GATHER keyword match (the two-phase lag-kill)
 
     // Pending text mentions the key → fires THIS turn, flagged as a latest-user match.
     const fired = await buildAssembleContext(ctx, inputOf(chatId, host, [charId], { pendingUserText: "a dragon appears" }));
-    expect(fired.chatInjections?.map((i) => i.content)).toContain("DRAGON LORE");
+    expect(fired.worldInfoBeforeDynamic ?? "").toContain("DRAGON LORE");
     expect(fired.wiTrace?.matchedKeys).toContainEqual({
       key: "dragon",
       matchedLatestUserMessage: true,
@@ -176,7 +176,7 @@ describe("buildAssembleContext — GATHER keyword match (the two-phase lag-kill)
 
     // No pending text + not in the recent window → does NOT fire (keyword gate holds).
     const quiet = await buildAssembleContext(ctx, inputOf(chatId, host, [charId]));
-    expect(quiet.chatInjections?.map((i) => i.content)).not.toContain("DRAGON LORE");
+    expect(quiet.worldInfoBeforeDynamic ?? "").not.toContain("DRAGON LORE");
     expect(quiet.wiTrace?.activated).toEqual([]);
   });
 
@@ -190,7 +190,7 @@ describe("buildAssembleContext — GATHER keyword match (the two-phase lag-kill)
     // The key appears in a prior committed turn (no in-flight pending text). buildKeywordHaystack folds
     // recentMessages in → the entry still fires, flagged NOT-latest-user (it wasn't just typed).
     const out = await buildAssembleContext(ctx, inputOf(chatId, host, [charId], { recentMessages: ["a dragon flew overhead", "the knight fled"] }));
-    expect(out.chatInjections?.map((i) => i.content)).toContain("DRAGON LORE");
+    expect(out.worldInfoBeforeDynamic ?? "").toContain("DRAGON LORE");
     expect(out.wiTrace?.matchedKeys).toContainEqual({ key: "dragon", matchedLatestUserMessage: false });
     expect(out.wiTrace?.activated).toEqual([{ id: castId<WorldEntryId>("world_entry_k"), keys: ["dragon"] }]);
   });
@@ -209,7 +209,7 @@ describe("buildAssembleContext — GATHER keyword match (the two-phase lag-kill)
       ...inputOf(chatId, host, [charId]),
       guided: { action: "response", input: "have the dragon attack" },
     });
-    expect(out.chatInjections?.map((i) => i.content)).toContain("DRAGON LORE");
+    expect(out.worldInfoBeforeDynamic ?? "").toContain("DRAGON LORE");
     expect(out.wiTrace?.matchedKeys).toContainEqual({ key: "dragon", matchedLatestUserMessage: false });
     expect(out.wiTrace?.activated).toEqual([{ id: castId<WorldEntryId>("world_entry_k"), keys: ["dragon"] }]);
   });
@@ -222,7 +222,7 @@ describe("buildAssembleContext — GATHER keyword match (the two-phase lag-kill)
     const ctx = ctxWithCard(cardOf("Aria"));
 
     const out = await buildAssembleContext(ctx, inputOf(chatId, host, [charId]));
-    expect(out.chatInjections?.map((i) => i.content)).not.toContain("DRAGON LORE");
+    expect(out.worldInfoBeforeDynamic ?? "").not.toContain("DRAGON LORE");
     expect(out.wiTrace?.activated).toEqual([]);
   });
 
@@ -237,7 +237,7 @@ describe("buildAssembleContext — GATHER keyword match (the two-phase lag-kill)
       ...inputOf(chatId, host, [charId]),
       guided: { action: "response", input: "be more terse" },
     });
-    expect(out.chatInjections?.map((i) => i.content)).not.toContain("DRAGON LORE");
+    expect(out.worldInfoBeforeDynamic ?? "").not.toContain("DRAGON LORE");
     expect(out.wiTrace?.activated).toEqual([]);
   });
 });
@@ -317,7 +317,7 @@ describe("buildAssembleContext — BUILD render-once + position routing", () => 
     expect(out.wiTrace?.activated).toEqual([]);
   });
 
-  test("position routing: always → world_info_before anchor; keyword(fired) → in_prompt; inject → in_chat", async () => {
+  test("position routing: always → world_info_before anchor; keyword(fired) → the same anchor's per-turn half; inject → in_chat", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
@@ -327,9 +327,11 @@ describe("buildAssembleContext — BUILD render-once + position routing", () => 
     const ctx = ctxWithCard(cardOf("Aria"));
     const out = await buildAssembleContext(ctx, inputOf(chatId, host, [charId], { pendingUserText: "cast a spell" }));
     const byContent = Object.fromEntries((out.chatInjections ?? []).map((i) => [i.content, i.position]));
-    // Always-scope routes to the before-anchor (the default has the marker); keyword/depth ride the injection list.
+    // Always-scope and fired keyword lore both follow the before-anchor (the default has the marker), in the
+    // static and the per-turn half; depth rides the injection list.
     expect(out.worldInfoBefore).toContain("ALWAYS");
-    expect(byContent["KW"]).toBe("in_prompt");
+    expect(out.worldInfoBeforeDynamic).toBe("KW");
+    expect(byContent["KW"]).toBeUndefined();
     expect(byContent["DEPTH"]).toBe("in_chat");
   });
 });
@@ -557,7 +559,7 @@ describe("buildAssembleContext — SEND USER_INPUT regex (D53; the chat design d
     // The post-regex user text is surfaced for the verb to persist (canon-mutating at write — §7).
     expect(out.sendUserText).toBe("a dragon appears");
     // …and the keyword entry fired on it (the two-phase haystack saw the transformed text).
-    expect(result.chatInjections?.map((i) => i.content)).toContain("DRAGON LORE");
+    expect(result.worldInfoBeforeDynamic ?? "").toContain("DRAGON LORE");
     expect(result.wiTrace?.matchedKeys).toContainEqual({
       key: "dragon",
       matchedLatestUserMessage: true,
@@ -595,7 +597,7 @@ describe("buildAssembleContext — SEND USER_INPUT regex (D53; the chat design d
     // value the verb writes; Chat-Macro-Resolution §0).
     expect(out.sendUserText).toBe("a wyrm appears");
     // "wyrm" never became "dragon" → the keyword did NOT fire.
-    expect(result.chatInjections?.map((i) => i.content)).not.toContain("DRAGON LORE");
+    expect(result.worldInfoBeforeDynamic ?? "").not.toContain("DRAGON LORE");
   });
 });
 

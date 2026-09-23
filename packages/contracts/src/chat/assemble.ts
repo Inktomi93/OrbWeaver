@@ -664,6 +664,10 @@ export interface AssembleContext {
   /** Pre-rendered ALWAYS-scope WI for the `world_info_before`/`world_info_after` anchor markers. */
   worldInfoBefore?: string;
   worldInfoAfter?: string;
+  /** Pre-rendered KEYWORD-fired WI for the same two anchors. It rides the per-turn half at the anchor's place
+   *  in the prompt order. Absent ⇒ nothing fired at that anchor. */
+  worldInfoBeforeDynamic?: string;
+  worldInfoAfterDynamic?: string;
   /** All positional injections for this turn (chat_injections ∪ WI converted at build time). */
   chatInjections?: ChatInjection[];
   /** The effective HOST-TIER regex set — the library rows resolved from the global/preset/character/chat scope
