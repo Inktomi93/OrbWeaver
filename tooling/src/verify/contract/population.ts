@@ -158,7 +158,7 @@ const PRODUCT_MEMBERSHIP = {
   "@tests": {
     product: false,
     why:
-      'the CENTRAL test mirror (CLAUDE.md "Test layout") mirrors product sources rather than being them, and several ' +
+      'the CENTRAL test mirror (AGENTS.md "Test layout") mirrors product sources rather than being them, and several ' +
       "declarers exclude it for a load-bearing reason of their own — scanning tests reds their own proofs " +
       "(`freeze-provenance.ts`'s declared limit). A policy whose subject is a test declares `@tests` itself",
   },

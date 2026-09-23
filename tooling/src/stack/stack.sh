@@ -304,7 +304,7 @@ fi
 # and stop, so the RESOLUTION can be driven without spawning a stack or a single vLLM process. Deliberately
 # AFTER the posture block and BEFORE any action — that is the surface under test
 # (tests/tooling/stack/index.int.test.ts). The standing ban on running the real launcher is in
-# CLAUDE.md "Engines".
+# AGENTS.md "Engines".
 if [ -n "${STACK_POSTURE_PROBE:-}" ]; then
   echo "POSTURE engines=${ENGINES_POSTURE:-—} source=${ENGINES_POSTURE_SRC:-—} vllm-disabled=${VLLM_DISABLED:-—} env-pin=${ENV_FILE_POSTURE:-—}"
   exit 0

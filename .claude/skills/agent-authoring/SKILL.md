@@ -53,7 +53,7 @@ A non-fork subagent starts with only:
 
 - its own system prompt (the body below) and environment details, not the full Claude Code system prompt
 - the delegation message it was sent
-- the whole `CLAUDE.md` hierarchy, plus a `.claude/rules/*` file only once it reads a matching path
+- `AGENTS.md`, plus a `.claude/rules/*` file only once it reads a matching path
 - git status from parent session start
 - full content of any `skills:` it lists
 - a sibling roster for `SendMessage`, only if `SendMessage` is in its `tools` and another agent is named

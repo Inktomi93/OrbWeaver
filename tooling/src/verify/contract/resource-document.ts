@@ -78,7 +78,7 @@ export interface DocumentIndex {
 }
 
 /** The living-document tree. `documents()` claims the `docs/` corpus and nothing else — a root `AGENTS.md`
- *  or `./CLAUDE.md` is not a living document and is not silently folded in. */
+ *  or `README.md` is not a living document and is not silently folded in. */
 export const DOCUMENT_CORPUS_ROOT = "docs";
 export const DOCUMENT_CATALOG_PATH = "docs/catalog/catalog.json";
 

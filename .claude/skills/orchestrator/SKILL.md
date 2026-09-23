@@ -1,11 +1,11 @@
 ---
 name: orchestrator
-description: "Main-session orchestration for orbweaver: role routing, briefs, lane cap, merge trains, the barrier, worktrees, pushes, session start, the claude-b bridge. Load at session start in the main session. Subagents never load it."
+description: "Orchestration for orbweaver: role routing, briefs, lane cap, merge trains, the barrier, worktrees, pushes, session start, the claude-b bridge. The session-onboard hook says when to load it."
 ---
 
 # Orchestrator
 
-You are the main session. You plan, decide, and judge. Lanes do the volume and the execution.
+The orchestrator plans, decides, and judges. Lanes do the volume and the execution.
 Quality comes from verification, not from model size.
 
 Do not delegate a single read you need now, a decision, or anything the user asked you to judge.
@@ -25,7 +25,7 @@ Do not delegate a single read you need now, a decision, or anything the user ask
 | Off-budget mechanical volume on the local model | `qwen-run`; load the `qwen-lane` skill first |
 
 - Use `forge` only when a cheaper failure would cost more than the forge run.
-- Never route security work to the main session or to a role whose model is `fable`.
+- Never do security work yourself or route it to a role whose model is `fable`.
 - Send a trivial diff to `verifier`, not `stickler`.
 - A change that spans server and UI gets both `verifier` and `side-eye`.
 - After two failed attempts at one tier, go up one tier or do the work yourself.
@@ -79,7 +79,7 @@ Re-derive the item first:
 
 ## What a brief carries
 
-A subagent gets its role body, its preloaded skills, the CLAUDE.md hierarchy, git status, and your
+A subagent gets its role body, its preloaded skills, `AGENTS.md`, git status, and your
 message. It does not get your conversation, your reads, or your output style. Write each brief so a
 cold reader can finish the work.
 
@@ -165,7 +165,8 @@ Lanes can share main's checkout with you.
 - Never `rm -rf` a registered worktree. It strands the registration.
 - A worktree directory with no `.git` sends `git -C` up to main.
 - If a killed task leaves a lane worktree with staged changes and no `MERGE_HEAD`, run `git reset --hard HEAD` in that worktree and redo the step. The branch holds the commits.
-- From a session that is already in a worktree, isolation is not available. Run lanes on the shared tree with disjoint files and pathspec staging.
+- An `isolation: "worktree"` lane always branches from the main checkout's HEAD. `.claude/hooks/worktree-setup.sh` takes the git common dir's parent as the root and that root's HEAD as the base.
+- When you orchestrate from a worktree, land your work on main first, or run lanes on the shared tree with disjoint files and pathspec staging.
 - Never set `enableGlobalVirtualStore`. It breaks tsc and type-aware lint.
 
 ## Autonomous mode
@@ -196,6 +197,7 @@ session. The tooling path rule owns how to fix it.
 account, the bridge inbox and its Monitor state, the claude-b registry, and the worktree state.
 Follow its first actions.
 
+- Set up MCP servers and connectors before work starts. Changing one mid-session drops the prompt cache.
 - Resume live lanes by SendMessage to their agent ids. Never respawn them.
 - A context sentinel carried over from before compaction is stale. Act only on a new one.
 - When a new context sentinel fires, follow its ritual. Write a `SELF` dispatch-map note in the bridge only then, or on an owner-ordered handoff.

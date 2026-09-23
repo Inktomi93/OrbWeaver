@@ -6,12 +6,12 @@ updated: 2026-09-22
 
 # Orbweaver constitution
 
-`CLAUDE.md` is the always-on core and the reading router. This file holds the doctrine, the domain map
+Root `AGENTS.md` is the always-on core and the reading router. This file holds the doctrine, the domain map
 and the index of law docs. Code comments cite these section numbers, so keep them stable.
 
 ## 0. Start here
 
-Read `CLAUDE.md` first. It owns which law wins, package direction, type homes, verification and the
+Read root `AGENTS.md` first. It owns which law wins, package direction, type homes, verification and the
 reading router. Read only the docs the router names for your task.
 
 ## 1. Doctrine
@@ -29,19 +29,19 @@ reading router. Read only the docs the router names for your task.
 
 ## 2. One-directional flow
 
-`CLAUDE.md` "Package direction" owns the import order. Put each boundary at the earliest check that can
+Root `AGENTS.md` "Package direction" owns the import order. Put each boundary at the earliest check that can
 enforce it: a package dep, then a type, then dep-cruiser or lint, then a test. A boundary that only prose
 states is not enforced. Detail: `Core-0-Architecture-and-Structure.md` §2–§3.
 
 ## 3. Placement
 
-`CLAUDE.md` "Where code goes" owns the placement table. The full outcome table and the partitioning
+Root `AGENTS.md` "Where code goes" owns the placement table. The full outcome table and the partitioning
 rule are in `Core-0-Architecture-and-Structure.md` §6. Look up which word names a concept in
 `../../design/vocabulary-map.md`; never decide it locally.
 
 ## 4. Build and verify
 
-`CLAUDE.md` owns the verification tiers, the harness artifacts and the escape-hatch ban. Lane commit,
+Root `AGENTS.md` owns the verification tiers, the harness artifacts and the escape-hatch ban. Lane commit,
 probe and floor rules are in the `lane` skill (`.claude/skills/lane/SKILL.md`). The orchestrator runs the
 whole-tree check after each merge train.
 

@@ -48,17 +48,6 @@ if [ -f "$root/.claude/settings.local.json" ] && [ ! -e "$dir/.claude/settings.l
   ln -sfn "$root/.claude/settings.local.json" "$dir/.claude/settings.local.json" 2>/dev/null || true
 fi
 
-# Subagent memory (`memory: project`) resolves against the AGENT'S CWD — verified in the shipped CLI
-# bundle 2.1.241: the project arm is `join(cwd, ".claude", "agent-memory", <role>)`. So an isolated
-# lane looks inside THIS worktree and would boot with an empty index unless the links exist here too.
-if [ -x "$dir/scripts/agent-memory-link.sh" ]; then
-  if bash "$dir/scripts/agent-memory-link.sh" "$dir" >/tmp/claude-worktree-memory.log 2>&1; then
-    log "agent memory linked ($name)"
-  else
-    log "agent-memory-link FAILED — see /tmp/claude-worktree-memory.log; lanes here boot with an empty memory index"
-  fi
-fi
-
 # CI=true: pnpm refuses to purge an existing modules dir without a TTY.
 if [ -f "$dir/package.json" ]; then
   if (cd "$dir" && CI=true pnpm install --silent) >/tmp/claude-worktree-install.log 2>&1; then

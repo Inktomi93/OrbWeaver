@@ -1,68 +1,17 @@
-// The two verbs: WRITE the Codex mirror (`.codex/agents/*.toml` + AGENTS.md's generated rule-guidance
-// block + the shared skill symlink check) and CHECK it. Check never writes; write is idempotent and
-// prunes .toml files whose Claude source is gone — a stale role manifest is a role Codex can still
-// dispatch after the role was retired.
+// The two verbs: WRITE the Codex mirror (`.codex/agents/*.toml` + the shared skill symlink check) and
+// CHECK it. Check never writes; write is idempotent and prunes .toml files whose Claude source is gone —
+// a stale role manifest is a role Codex can still dispatch after the role was deleted.
 import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { parseFrontmatter, parseRulePaths } from "../lib/frontmatter.ts";
-import {
-  AGENTS_PATH,
-  CLAUDE_AGENTS_DIR,
-  CLAUDE_RULES_DIR,
-  CLAUDE_SKILLS_DIR,
-  CODEX_AGENTS_DIR,
-  CODEX_SKILLS_DIR,
-  codexFilename,
-  isMarkdown,
-  isToml,
-  RULE_GUIDANCE_BEGIN,
-  RULE_GUIDANCE_END,
-  RULE_GUIDANCE_PATTERN,
-} from "../lib/paths.ts";
+import { parseFrontmatter } from "../lib/frontmatter.ts";
+import { CLAUDE_AGENTS_DIR, CLAUDE_SKILLS_DIR, CODEX_AGENTS_DIR, CODEX_SKILLS_DIR, codexFilename, isMarkdown, isToml } from "../lib/paths.ts";
 import { renderCodexAgent } from "./render.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm agents:sync");
 
 function sourceFilenames(): readonly string[] {
   return readdirSync(CLAUDE_AGENTS_DIR).filter(isMarkdown).toSorted();
-}
-
-function ruleFilenames(): readonly string[] {
-  return readdirSync(CLAUDE_RULES_DIR).filter(isMarkdown).toSorted();
-}
-
-/** One inventory line per rule: Codex has no path-scoped loading, so it reads the globs here and opens
- *  the matching rule itself. A rule without list-form `paths:` is always loaded by Claude; say so. */
-function ruleInventoryLine(filename: string): string {
-  const paths = parseRulePaths(readFileSync(join(CLAUDE_RULES_DIR, filename), "utf8"));
-  const scope = paths.kind === "list" ? paths.globs.map((glob) => `\`${glob}\``).join(", ") : "always loaded";
-  return `- \`.claude/rules/${filename}\`: ${scope}`;
-}
-
-function renderedRuleGuidance(): string {
-  const rules = ruleFilenames().map(ruleInventoryLine);
-  if (rules.length === 0) {
-    throw new Error(".claude/rules must contain at least one Markdown rule");
-  }
-  return [
-    RULE_GUIDANCE_BEGIN,
-    // The blank lines at both seams keep the block canonical markdown. Root `AGENTS.md` is also owned by
-    // the docs formatter, so a non-canonical block makes `check:agents` and `check:docs` disagree.
-    "",
-    "## Path rules",
-    "",
-    ...rules,
-    "",
-    RULE_GUIDANCE_END,
-  ].join("\n");
-}
-
-function replaceRuleGuidance(source: string): string {
-  if (!RULE_GUIDANCE_PATTERN.test(source)) {
-    throw new Error("AGENTS.md is missing the generated Claude rule guidance block");
-  }
-  return source.replace(RULE_GUIDANCE_PATTERN, renderedRuleGuidance());
 }
 
 function skillsLinkProblem(): string | null {
@@ -128,11 +77,6 @@ export function codexAgentSyncProblems(): readonly string[] {
     problems.push(skillsProblem);
   }
 
-  const agentsSource = readFileSync(AGENTS_PATH, "utf8");
-  if (!agentsSource.includes(renderedRuleGuidance())) {
-    problems.push("AGENTS.md Claude rule guidance is stale; run pnpm agents:sync");
-  }
-
   if (JSON.stringify(actualFiles) !== JSON.stringify(expectedFiles)) {
     problems.push(`agent file set differs: expected ${expectedFiles.join(", ")}; found ${actualFiles.join(", ")}`);
   }
@@ -148,13 +92,8 @@ export function codexAgentSyncProblems(): readonly string[] {
   return problems;
 }
 
-export interface SyncCounts {
-  readonly roles: number;
-  readonly rules: number;
-}
-
-/** Regenerate the whole Codex mirror. Returns what it wrote (the cli prints it). */
-export function syncCodexAgents(): SyncCounts {
+/** Regenerate the whole Codex mirror. Returns how many role manifests it wrote (the cli prints it). */
+export function syncCodexAgents(): number {
   mkdirSync(CODEX_AGENTS_DIR, { recursive: true });
   const sourceFiles = sourceFilenames();
   const expectedTargets = new Set(sourceFiles.map(codexFilename));
@@ -169,12 +108,11 @@ export function syncCodexAgents(): SyncCounts {
     const rendered = renderCodexAgent(sourceFilename, readFileSync(join(CLAUDE_AGENTS_DIR, sourceFilename), "utf8"));
     writeFileSync(join(CODEX_AGENTS_DIR, targetFilename), rendered);
   }
-  writeFileSync(AGENTS_PATH, replaceRuleGuidance(readFileSync(AGENTS_PATH, "utf8")));
   const skillsProblem = skillsLinkProblem();
   if (skillsProblem !== null) {
     throw new Error(skillsProblem);
   }
-  return { roles: sourceFiles.length, rules: ruleFilenames().length };
+  return sourceFiles.length;
 }
 
 /** How many role manifests `--check` compared (the check's own receipt line). */

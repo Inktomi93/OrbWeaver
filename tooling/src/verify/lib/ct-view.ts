@@ -10,7 +10,7 @@ import { existsRel, ROOT } from "./repo-paths.ts";
 
 // A changed ui/client src file → its test-layout mirror (packages/<pkg>/src/<path>.<ext> ↔ tests/<pkg>/
 // <path>). Group 1 = pkg (ui|client), group 2 = the sub-path (sans extension). The suffix-swap is the
-// same prefix-swap mirror the test-layout gate enforces (CLAUDE.md "Test layout").
+// same prefix-swap mirror the test-layout gate enforces (AGENTS.md "Test layout").
 const CT_MIRROR_SRC_RE = /^packages\/(ui|client)\/src\/(.+)\.(?:ts|tsx)$/u;
 // A changed tests/**/*.ct.tsx selects ITSELF — but a `.suite.ct.tsx` (a cross-cutting property suite that
 // mirrors no single module, Spine-Testing §1) is NOT mirror-selected; it rides sweeps only.

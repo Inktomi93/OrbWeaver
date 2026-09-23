@@ -209,7 +209,7 @@ Deferred to its own P2 row (real, measured, and answering neither complaint): un
 | `git ls-files` as the census corpus | 106 of 254 gates' git-derived admitted count disagrees with both the filesystem corpus and the run's own `scanned`. The fence is applied to a FILESYSTEM glob (§9). |
 | `SCOPE_MEMBER_BUDGET` | Exceeded at birth by its own sketch, unit never defined, and the `BACKREF_BUDGET` precedent caps an irreducibly UNJUDGEABLE family while every fence member is judged by the liveness arms. A hand-edited ceiling is the hand-minted permanence #569 forbids. Consumer count per member is PRINTED as a review signal instead, never as a verdict. |
 | `scope-vocabulary-liveness` arm D ("a narrowing removing zero findings is dead text") | Vacuous or inverted: on a near-green tree every narrowing removes zero findings, so it reds the whole vocabulary. The biome precedent inverts — a biome grant exists BECAUSE the diagnostic is present; a fence narrowing exists because the files are out of SUBJECT. Also unpriced at roughly a second full pass. Arms A-C survive. |
-| on-tree shadow mode (`fence` optional beside `scanRoot`, migrated in batches) | A multi-commit dual-home state `CLAUDE.md` "No escape hatches" and Core-Tooling-Law §1 both ban. The equivalence diff runs OFF-TREE (§7.2). |
+| on-tree shadow mode (`fence` optional beside `scanRoot`, migrated in batches) | A multi-commit dual-home state `AGENTS.md` "No escape hatches" and Core-Tooling-Law §1 both ban. The equivalence diff runs OFF-TREE (§7.2). |
 | stage overlap | Measured at -43.2s and OWNER-RULED 2026-08-31 not to pursue. Recorded so it is not re-proposed. |
 
 ## 7. Migration order

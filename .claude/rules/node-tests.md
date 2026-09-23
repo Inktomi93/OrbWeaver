@@ -7,7 +7,7 @@ paths:
 
 # Node test suites
 
-Read a suite's result from its own output file. `CLAUDE.md` owns the piping rule.
+Read a suite's result from its own output file. `AGENTS.md` owns the piping rule.
 
 ## Fixtures and timeouts
 

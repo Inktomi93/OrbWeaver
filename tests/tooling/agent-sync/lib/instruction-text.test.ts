@@ -53,7 +53,7 @@ test("code spans, code blocks and owner-voice sections are not prose", () => {
   expect(proseOnly(source).split("\n")).toHaveLength(8);
 });
 
-test("a word the CLAUDE.md glossary defines is allowed", () => {
+test("a word the AGENTS.md glossary defines is allowed", () => {
   const claude = [
     "# Core",
     "",
