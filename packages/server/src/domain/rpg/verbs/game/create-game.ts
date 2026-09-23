@@ -1,4 +1,4 @@
-// domain/rpg/verbs/game/create-game — createGame (rpg-design/05 §4.4). The host-gated birth: lite only (`"full"`
+// domain/rpg/verbs/game/create-game — createGame (docs/plans/rpg/design.md). The host-gated birth: lite only (`"full"`
 // → the typed PHASE `RpgModeUnbuiltError`), mints the game row (NO born snapshot — the orchestrator no-born-seed
 // ruling; the read layer synthesizes the default state), and writes the opaque `chats.metadata.rpg` pointer
 // through the injected chat op.

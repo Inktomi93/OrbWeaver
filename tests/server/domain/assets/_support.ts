@@ -254,7 +254,7 @@ export function pngBytesWithDims(width: number, height: number, ...tail: number[
   return bytes;
 }
 
-// "GIF89a" — every GIF is treated animated by `@orb/kit/image-sniff` `isAnimated` (gallery-design §3).
+// "GIF89a" — every GIF is treated animated by `@orb/kit/image-sniff` `isAnimated`.
 const GIF89A_SIGNATURE = [0x47, 0x49, 0x46, 0x38, 0x39, 0x61] as const;
 
 /** Fake but well-formed GIF bytes: the GIF89a signature + a distinguishing tail. `isAnimated` returns true

@@ -2,7 +2,7 @@
 // must agree in both directions. ResourceHost supplies both sources; the policy derives modules from the
 // tree rather than maintaining a family list. The resource-policy contract this module is the worked
 // example of — what a closed-ResourceHost policy owes, and why it owns no not-ready branch — is
-// docs/design/resource-policy-contract.md.
+// docs/law/resource-policy-contract.md.
 // FAMILY: singleton. The subject is one package's manifest-versus-tree agreement; no second policy reads
 // the `@orb/ui` exports map, and the shared reader this module does use is the declaration-consumption
 // reader `readyResourceValue` (`lib/resource-declaration.ts`), not a family identity reader.

@@ -1,4 +1,4 @@
-// THE ARM PLUG-IN CONTRACT (docs/design/1208-instrument-substrate.md §6). An "arm" is one piece of
+// THE ARM PLUG-IN CONTRACT. An "arm" is one piece of
 // evidence snap can take about a page: the a11y tree, the interactive map, an in-page expression, a
 // contrast reading, the cascade, dead CSS, the assertion family, the perf read, the pixels, the request
 // log, a Lighthouse audit. Before this file each of them was wired BY HAND into three places —
@@ -261,7 +261,7 @@ export interface ArmDef<A extends Arm = Arm> {
   readonly lifecycle: ArmLifecycle<A>;
 }
 
-/** THE ARM-OWNED HALF OF `Args` (docs/design/1208-instrument-substrate.md §6). Every field here is parsed,
+/** THE ARM-OWNED HALF OF `Args`. Every field here is parsed,
  *  defaulted and read by exactly one `ArmDef` under ops/arms/; every field NOT here belongs to the run
  *  itself (the target, the browser, the stage, the session, the artifacts).
  *

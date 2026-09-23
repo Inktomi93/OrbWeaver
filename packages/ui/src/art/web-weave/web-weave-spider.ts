@@ -3,7 +3,7 @@
 // laying tip, riding the A9 strand-out line, answering a disturbance, or resting head-down at the hub
 // (real orbweaver posture).
 //
-// CHARACTER (weave-lab-upgrades.md §3) is one preset object threaded through everything she does —
+// CHARACTER is one preset object threaded through everything she does —
 // how hard she bursts on a walk, how fast her legs go, how quickly she turns, how fast she pounces,
 // how long she inspects, and whether she twitches at rest. `calm` is the SHIPPED motion (the owner
 // ruled the mock "turbo" and the timeline was calmed to match — see the turnRate note below), so a

@@ -6,7 +6,7 @@
 // THE RULE: warm a slot ONLY when a task ACTUALLY resolves to a local-light connection. A box whose vector
 // tasks run on vLLM or OpenRouter downloads nothing — its weights would be dead bytes, and an unexplained
 // multi-GB fetch on a GPU box is worse than a lazy one. `matte` (RMBG-1.4) has no task to resolve — the
-// alpha-matte op is local-light-only by construction (expressions-design/03 §4.1) — so it rides the same
+// alpha-matte op is local-light-only by construction (docs/plans/expressions/design.md) — so it rides the same
 // verdict: warmed only on a box already committed to the in-process tier, never as an unconditional download.
 //
 // WHOSE bindings: the boot passes the principals it can honestly ask for (today the box owner; a user-less

@@ -218,7 +218,7 @@ test("DESKTOP: the band is untouched — title, count and action all paint", asy
 // a 48px border box with a 47px CONTENT box, and `align-items: center` halves the odd remainder: the
 // display-voice heading landed at top 8.5, the label-voice count at 15.5, a 32px control at 7.5. The pane
 // was ALSO a `backdrop-filter` layer, so those halves were rasterized once rather than re-snapped every
-// paint (docs/design/integer-line-boxes.md Law 3/4) — which is what made them visible.
+// paint (docs/law/integer-line-boxes.md Law 3/4) — which is what made them visible.
 //
 // IT IS NOT RE-VOICEABLE, which is why the box moved and not the type: every leading token at or above
 // 21px is EVEN (display 30 · headline 26 · title 22), so a display-voice band title (#1136) and an integer

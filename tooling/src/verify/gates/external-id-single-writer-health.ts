@@ -13,7 +13,7 @@
 // `verify/lib/external-id-writer.ts` — the ONE shared reader for the write-shape predicate, the sanctioned
 // files, and the atomic-claim-writer name. The prior conversion declared the same `family` id while each
 // module carried its OWN copy of the predicate; that is a shared THEME, not a shared reader, and the design
-// doc is explicit that a family means the latter (gate-runtime-standardization.md).
+// doc is explicit that a family means the latter (docs/law/gate-runtime-standardization.md).
 //
 // ABSENT-SUBJECT ARM (fixed 2026-09-11, #1937): `ctx.report.file(path, …)` requires `path` to belong to
 // this policy's own effective population. The prior version anchored EACH stale/link finding on the exact

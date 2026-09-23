@@ -1,4 +1,4 @@
-// The Settings search INDEX (config-revamp-design.md §3.3/§6.4, #866 S2) — the whole workspace flattened
+// The Settings search INDEX (#866 S2) — the whole workspace flattened
 // into one fuzzy-searchable list, derived from the registries and NEVER a parallel map (G2): for every
 // `when`-visible group → its row (label · description); for every contributed section → its row (label ·
 // navLabel · keywords · the group label); for every `settings` leaf → its row. Each entry carries the

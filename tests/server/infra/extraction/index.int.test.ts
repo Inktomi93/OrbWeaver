@@ -1,4 +1,4 @@
-// infra/extraction — the dispatcher `createExtractText` (databank-design/04 §1/§2), end-to-end over the real
+// infra/extraction — the dispatcher `createExtractText`, end-to-end over the real
 // loaders (integration lane — pdf runs real pdfjs). Pins: mime→format dispatch (with parameter stripping),
 // the EXTRACTOR_VERSION + charCount stamp, normalization applied through the dispatch, the UnsupportedDocType
 // arm (before any parse), the docx/epub zip-container dispatch, and the ExtractionFailedError wrapping per format.

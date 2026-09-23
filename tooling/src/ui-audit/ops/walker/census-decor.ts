@@ -190,7 +190,7 @@ export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shado
   }
 
   // ── animated <img> on interaction state (statically detectable) ──────────
-  // BOTH STATE MECHANISMS, ONE PREDICATE (2026-09-01, docs/design/state-paint-census.md). This scan
+  // BOTH STATE MECHANISMS, ONE PREDICATE. This scan
   // was the IDENTICAL bare \`/:hover/i\` string test hover-walker.ts carried — blind to a Base UI
   // data-attribute-driven img transform (\`data-highlighted:scale-105\`, or an authored
   // \`[data-selected] img { transform: … }\`), and, being un-anchored, also matched the \`:hover\`

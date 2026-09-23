@@ -141,7 +141,7 @@ export interface ListForChatParams extends WorldInfoActorParams {
   readonly chatId: ChatId;
 }
 
-/** The shared machine-writer bulk upsert (chat-crew-design/02 §7). The book is owner-gated (`loadOwnedBook`);
+/** The shared machine-writer bulk upsert (D59). The book is owner-gated (`loadOwnedBook`);
  *  entries upsert by (bookId, title), hand-edit-safe. */
 export interface UpsertEntriesParams extends WorldInfoActorParams {
   readonly bookId: WorldBookId;
@@ -153,7 +153,7 @@ export interface ListEntryIndexParams extends WorldInfoActorParams {
   readonly bookId: WorldBookId;
 }
 
-/** A chat's CONSTANT lorebook canon read (rpg-design/06 §4). Principal-LESS: a chat's attached books are
+/** A chat's CONSTANT lorebook canon read (docs/plans/rpg/design.md). Principal-LESS: a chat's attached books are
  *  room-public prompt content (membership is the CALLER's gate upstream — rpg gated the crew run), mirroring
  *  `listChatBooks`; wired at compose for the injected rpg `worldInfo.listConstantCanon` op. */
 export interface ListConstantCanonParams {

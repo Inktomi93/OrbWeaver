@@ -3,7 +3,7 @@
 //
 // THERE IS NO ui-audit PROGRAM ANY MORE (#1315). The parser, the stage door, the drive queue, the matrix
 // projection, the run path and the operator help were DELETED, not deprecated: Snap is the sole rendered
-// instrument front door (docs/design/1208-instrument-substrate.md §12.3), the scan is
+// instrument front door, the scan is
 // `pnpm snap <route> --design-audit`, and this dir is the 14k-line detector engine that arm runs — the
 // same shape `motion-audit/index.ts` has carried since its own fold. What survives here is every VERDICT:
 // the in-page walker segments, the pixel settle, the forced-state pass, the rule layer, the population

@@ -1291,7 +1291,7 @@ const PROBES: readonly Probe[] = [
   },
   { path: "automation.deleteRule", call: (c, i) => c.automation.deleteRule({ ruleId: i.automationRuleId }) },
   { path: "automation.testRule", call: (c, i) => c.automation.testRule({ ruleId: i.automationRuleId }) },
-  // R7 + S4 (interaction-direction-spec §6 R7 / §3-S4). `runRuleNow` is rule-scoped — same `requireRuleHost`
+  // R7 + S4. `runRuleNow` is rule-scoped — same `requireRuleHost`
   // chokepoint as testRule, so a stranger collapses to RuleNotFoundError → NOT_FOUND BEFORE any dispatch (no
   // fire row, no arm, no spend). The two suggestion verbs take an EPHEMERAL in-RAM id: a fabricated one
   // resolves to no pending ask and collapses on the store lookup, and a real one (unguessable, and never
@@ -1300,7 +1300,7 @@ const PROBES: readonly Probe[] = [
   { path: "automation.runRuleNow", call: (c, i) => c.automation.runRuleNow({ ruleId: i.automationRuleId }) },
   { path: "automation.confirmSuggestion", call: (c) => c.automation.confirmSuggestion({ suggestionId: mintTypeId(ID_PREFIX.automationSuggestion) }) },
   { path: "automation.dismissSuggestion", call: (c) => c.automation.dismissSuggestion({ suggestionId: mintTypeId(ID_PREFIX.automationSuggestion) }) },
-  // S3 (interaction-direction-spec §3-S3). `createRuleFromPreset` is chat-scoped and id-taking, so it is
+  // S3. `createRuleFromPreset` is chat-scoped and id-taking, so it is
   // probed like any other chat-scoped mutation. It mints through the EXISTING host-gated `createRule` per
   // rule, so a stranger collapses on that gate before any row is written — but "it routes through a gated
   // verb" is exactly the claim this sweep exists to stop anyone from making without a probe.
@@ -1364,7 +1364,7 @@ const PROBES: readonly Probe[] = [
   //    the returned view). setGrant asks for the widest reach; setEnabled would BOOT A's guest code under the
   //    stranger's principal, which is the confused-deputy case D147 exists to close. ──
   { path: "plugin.upgrade", call: (c, i) => c.plugin.upgrade({ pluginId: i.pluginId, bundleBase64: hostileBundleBase64("alpha-plugin") }) },
-  // ── plugin.upgradeFromStoredUrl (plugin-ui-plane #679 U8 2b) — the one-click-from-remembered-URL twin, owner-
+  // ── plugin.upgradeFromStoredUrl (U8 2b) — the one-click-from-remembered-URL twin, owner-
   //    scoped the SAME way and PROBED for the SAME reason: a stranger holding A's REAL pluginId must NOT_FOUND
   //    BEFORE the owner-scoped row load hands the verb A's `source_url` to fetch. A dropped pre-check would make
   //    the server fetch A's remembered URL on a stranger's behalf AND expose A's row to the #615 upgrade path;
@@ -1391,7 +1391,7 @@ const PROBES: readonly Probe[] = [
   //    instance). It gets A's REAL id like its four siblings above — the old fabricated-id shape predated the
   //    seeded plugin row and could not tell a working belt from a missing row. ──
   { path: "plugin.getLog", call: (c, i) => c.plugin.getLog({ pluginId: i.pluginId }) },
-  // ── plugin.getSurfaceState / plugin.invokeUiAction (plugin-ui-plane #679 U1) — owner-scoped the SAME way as
+  // ── plugin.getSurfaceState / plugin.invokeUiAction — owner-scoped the SAME way as
   //    getLog: `getById(db, caller.userId, pluginId)` reads absent for a stranger holding A's REAL id →
   //    leak-free NOT_FOUND, BEFORE the surface/state is ever resolved. `invokeUiAction` is the guest-action
   //    round-trip, so a dropped gate would re-enter A's guest `onAction` under the STRANGER's principal — the
@@ -1409,7 +1409,7 @@ const PROBES: readonly Probe[] = [
   //    exactly why the refusal has to be the owner load and not the id's inertness — "harmless to leak" is a
   //    property of today's blob route, not an authority decision this proc gets to inherit. ──
   { path: "plugin.listBundleAssets", call: (c, i) => c.plugin.listBundleAssets({ pluginId: i.pluginId }) },
-  // ── plugin.uiHostCall / plugin.reportUiCrash (plugin-ui-plane #679 U4) — the Tier-C pair, owner-scoped on the
+  // ── plugin.uiHostCall / plugin.reportUiCrash — the Tier-C pair, owner-scoped on the
   //    SAME `getById(db, caller.userId, pluginId)` load as their four siblings above, and each is the worse
   //    half of a different failure. `uiHostCall` would RUN a membrane op through A's bridge — the bridge closes
   //    over the INSTALLER, so a dropped gate is not "read the wrong row", it is "execute a granted capability
@@ -1419,7 +1419,7 @@ const PROBES: readonly Probe[] = [
   //    owner gate refuses before the fn tuple, the grant, the room, or the counter is ever consulted). ──
   { path: "plugin.uiHostCall", call: (c, i) => c.plugin.uiHostCall({ pluginId: i.pluginId, fn: "storage.list", argsJson: "[]" }) },
   { path: "plugin.reportUiCrash", call: (c, i) => c.plugin.reportUiCrash({ pluginId: i.pluginId, surfaceId: "probe_surface", reason: "probe" }) },
-  // ── plugin Tier-C SECOND SCOPE (the room, plugin-ui-plane #679 U4 row 777) — getSurfaceState / invokeUiAction /
+  // ── plugin Tier-C SECOND SCOPE (the room U4 row 777) — getSurfaceState / invokeUiAction /
   //    uiHostCall each grew an OPTIONAL `chatId`, so by the cross-tenant-sweep-no-id-is-not-exempt SECOND-SCOPE
   //    rule they are PROBED AGAIN carrying owner A's REAL chatId: the no-chatId arms above exercise only the shape
   //    that names no room. The owner gate (`getById(db, caller.userId, pluginId)`) still refuses FIRST — a
@@ -1433,7 +1433,7 @@ const PROBES: readonly Probe[] = [
     call: (c, i) => c.plugin.invokeUiAction({ pluginId: i.pluginId, surfaceId: "probe_surface", actionId: "probe_action", values: {}, chatId: i.chatId }),
   },
   { path: "plugin.uiHostCall", call: (c, i) => c.plugin.uiHostCall({ pluginId: i.pluginId, fn: "storage.list", argsJson: "[]", chatId: i.chatId }) },
-  // ── plugin.invokeUiCommand (plugin-ui-plane #679 U5) — the widest surface of the U5 set and the reason it is
+  // ── plugin.invokeUiCommand — the widest surface of the U5 set and the reason it is
   //    probed with BOTH of A's real ids at once: it takes a foreign pluginId (gated by the owner-scoped
   //    `getById`) AND a foreign chatId (gated by the same leak-free `resolveChatAuthority` the snippet uses).
   //    A command is a NEW way to reach a guest with a room attached, so a dropped belt on either half would run
@@ -1955,13 +1955,13 @@ const EXEMPT: Readonly<Record<string, string>> = {
     "self-scoped (U8 2b, #1740): takes NO input; the auto update-check walks listOwned WHERE owner_id = caller.userId and reads a version for only the CALLER's OWN rows — a re-fetch of their remembered source URL, or the shipped showcase manifest for a seeded row (no egress at all on that arm) — so there is no foreign id a stranger could aim and the egress it triggers only ever hits the caller's own rows' URLs (the plugin.list posture, one egress step over)",
   "plugin.list": "self-scoped: takes NO input at all; listOwned filters WHERE owner_id = caller.userId, so there is no id a stranger could aim",
   "plugin.listSurfaces":
-    "self-scoped: takes NO input; listOwned filters WHERE owner_id = caller.userId and only the caller's OWN resident instances are consulted, so a stranger's surfaces are never in the result (plugin-ui-plane #679 U1)",
+    "self-scoped: takes NO input; listOwned filters WHERE owner_id = caller.userId and only the caller's OWN resident instances are consulted, so a stranger's surfaces are never in the result",
   "plugin.listCommands":
-    "self-scoped: the listSurfaces twin — takes NO input; listOwned filters WHERE owner_id = caller.userId and only the caller's OWN resident instances are consulted, so a stranger's commands are never in the result (plugin-ui-plane #679 U5)",
+    "self-scoped: the listSurfaces twin — takes NO input; listOwned filters WHERE owner_id = caller.userId and only the caller's OWN resident instances are consulted, so a stranger's commands are never in the result",
   "plugin.listDisplayTransforms":
-    "self-scoped: takes NO input; the exact listSurfaces shape (listOwned filters WHERE owner_id = caller.userId; only the caller's OWN resident instances are consulted) (plugin-ui-plane seam 14, U6)",
+    "self-scoped: takes NO input; the exact listSurfaces shape (listOwned filters WHERE owner_id = caller.userId; only the caller's OWN resident instances are consulted)",
   "plugin.transformForDisplay":
-    "self-scoped: takes a chatId + messageId but READS NOTHING with them — they are handed to the caller's own guest as its `env`. The only text in play is text the CALLER's client supplied, returned only to that caller; nothing is persisted and no authority derives from any input. The transforms run are exactly the caller's own (listOwned + the caller's own resident instances), so there is no foreign row a stranger could reach (plugin-ui-plane seam 14, U6)",
+    "self-scoped: takes a chatId + messageId but READS NOTHING with them — they are handed to the caller's own guest as its `env`. The only text in play is text the CALLER's client supplied, returned only to that caller; nothing is persisted and no authority derives from any input. The transforms run are exactly the caller's own (listOwned + the caller's own resident instances), so there is no foreign row a stranger could reach",
   // ── SERVER-WIDE DISTRIBUTION (D147 clause (d), added 2026-08-24). All three are `adminProcedure` + a domain
   //    `requireAdmin` re-check, so the sweep's plain-user stranger is refused FORBIDDEN at LAYER 1 before any
   //    lookup — the `admin.*` role-gate pattern, tested by the admin-gate matrix, not IDOR. None takes a

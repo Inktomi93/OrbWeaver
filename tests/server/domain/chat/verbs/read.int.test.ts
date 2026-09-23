@@ -2119,7 +2119,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     expect(config.sections.length).toBe(DEFAULT_PROMPT_CONFIG.sections.length);
   });
 
-  // ── previewActionTemplates (D8 / preset-surface-redesign §7.1) — the preset editor's BOUND readout ────
+  // ── previewActionTemplates — the preset editor's BOUND readout ────
   // Two properties carry the whole feature and neither is visible to a typecheck: the resolution is REAL
   // (identity macros resolve through the CHAT — Ruling B), and it is HONESTLY PARTIAL (the fire-time tokens
   // survive, because the user has typed no steer and picked no perspective; substituting them would put a

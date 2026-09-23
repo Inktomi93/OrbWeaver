@@ -1,4 +1,4 @@
-// The Extensions section's LIST pane — the PAGE SWITCHER (plugin-ui-plane #679 U5, §4.5b): one house row per
+// The Extensions section's LIST pane — the PAGE SWITCHER: one house row per
 // registered `ui.page` surface across the caller's granted-and-enabled plugins.
 //
 // ONE RAIL ENTRY FOR THE PLATFORM, never one per plugin (§4.5b): rail bloat plus the largest impersonation

@@ -289,7 +289,7 @@ export interface PluginHostOps {
    *  generation (the `summarizeQuiet` convention — the caller treats "" as "no answer"). Cost never crosses
    *  the realm boundary; cost VISIBILITY rides the stats domain off the generation itself. */
   readonly llm: {
-    /** `opts` is the U6 widening (plugin-ui-plane §5.16/§5.32) — the guest's RAW structured-output schema and
+    /** `opts` is the U6 widening — the guest's RAW structured-output schema and
      *  the asset ids it wants attached. Both are resolved at COMPOSE, and both resolutions are the reason the
      *  raw bag travels this far rather than being pre-digested: the schema must go through the ONE projection
      *  rule (`liftJsonSchema` → `projectJsonSchema`, D79) which no domain owns, and the image bytes come from
@@ -317,7 +317,7 @@ export interface PluginHostOps {
     readonly raise: RaisePluginSuggestion;
     readonly voidForPlugin: VoidPluginSuggestions;
   };
-  /** The declarative UI-surface state seam (`host.ui.setState`, capability `ui.surface` — plugin-ui-plane #679
+  /** The declarative UI-surface state seam (`host.ui.setState`, capability `ui.surface`
    *  U1; the chatId dimension is row 777). `setState` publishes a surface's whole replacement state: the compose
    *  op writes the per-(pluginId, surfaceId, chatId?) in-memory state row (the S4-suggestion-store precedent —
    *  respawn wipes; durable state is the plugin's own `storage.kv` job) and emits the per-user
@@ -349,7 +349,7 @@ export interface PluginHostOps {
      *  the resident instance, so an unknown id costs nothing and a cross-plugin open is not expressible. */
     readonly openDialog: (pluginId: PluginId, surfaceId: string) => Promise<void>;
   };
-  /** The `databank.ingest` capability's write op (plugin-ui-plane #679 U8 seam 15). Ingest a text document
+  /** The `databank.ingest` capability's write op (U8 seam 15). Ingest a text document
    *  into the INSTALLER's OWN databank — wired at compose to databank's `createFromText` under the installer's
    *  Principal (resolved by ROW READ, so a `UserId` arriving here carries no authority), which content-addresses
    *  + dedups the text and ENQUEUES the ingest workload (the indexer auto-runs). Owner-scoped by construction:
@@ -358,7 +358,7 @@ export interface PluginHostOps {
     // @orb-waive brand-in-name-position(documentId): the injected-op result id for the installer's own new document; the domain minted it under the installer, and it crosses back to the guest as inert text. Ends if the bridge starts parsing to brands at the membrane.
     readonly ingest: (req: { readonly installerUserId: UserId; readonly name: string; readonly text: string }) => Promise<{ readonly documentId: string }>;
   };
-  /** The `character.ingest` capability's write op (plugin-ui-plane #679 U8 seam 17). Ingest a V2/V3 character
+  /** The `character.ingest` capability's write op (U8 seam 17). Ingest a V2/V3 character
    *  CARD into the INSTALLER's OWN library — wired at compose to a per-installer `importCharacter` (the
    *  ContentChanged-emitting import path: byte-identical dedup, book/regex relink, and `character.create`'s own
    *  `contentChanged:true` emit drives the indexer). Owner-scoped by construction. `card` is the raw JSON-safe
@@ -428,7 +428,7 @@ export interface PluginHostOps {
       readonly characterId: string;
     }) => Promise<Record<string, unknown> | null>;
   };
-  /** The `plugin_events` capability's EMIT op (plugin-ui-plane §5a). Publish a private event on the
+  /** The `plugin_events` capability's EMIT op. Publish a private event on the
    *  INSTALLER-scoped resident plugin-event bus, on the channel `plugin:<emitterSlug>:<name>`. The `installerUserId`
    *  + `emitterSlug` are closed over DOMAIN-side (both un-forgeable — the bridge stamps the emitter's own slug), so
    *  a guest names only `name` + `data`. Wired at compose to the process-wide `PluginEventBus.emit`. Returns void:
@@ -451,7 +451,7 @@ export interface PluginHostOps {
   readonly registrar: {
     readonly registerTool: (reg: PluginToolRegistration, invoke: PluginInvokeHandler, scope: PluginActivationScope) => PluginRegistrationHandle;
     readonly registerTransform: (reg: PluginTransformRegistration, invoke: PluginInvokeHandler, scope: PluginActivationScope) => PluginRegistrationHandle;
-    /** Wire the plugin's COLLECTED macros into the process-wide plugin-macro registry (plugin-ui-plane §5.15).
+    /** Wire the plugin's COLLECTED macros into the process-wide plugin-macro registry.
      *  Handed the WHOLE set (not one macro) for the same reason `subscribeEvent` is: one plugin's macros are
      *  registered, ceilinged and unregistered together, and the per-turn read wants them as a unit. The
      *  registrar assigns the `plugin_<slug'>_<name>` namespace from `scope.slug` — never the guest's spelling. */
@@ -469,8 +469,8 @@ export interface PluginHostOps {
       invoke: PluginInvokeHandler,
       scope: PluginActivationScope,
     ) => PluginRegistrationHandle;
-    /** Wire the plugin's COLLECTED private-event subscriptions onto the INSTALLER-scoped resident plugin-event bus
-     *  (plugin-ui-plane §5a). The `subscribeEvent` shape exactly, one plane over — handed the WHOLE collection so
+    /** Wire the plugin's COLLECTED private-event subscriptions onto the INSTALLER-scoped resident plugin-event bus.
+     * The `subscribeEvent` shape exactly, one plane over — handed the WHOLE collection so
      *  one plugin's subscriptions register + unregister together, keyed by `(installer, subscriberSlug)` for the
      *  deactivate sweep. Wired at compose to `PluginEventBus.register`; the bus fans an emit to the matching
      *  handlers via `invoke`, never onto the automation fan-out. */
@@ -503,7 +503,7 @@ export interface PluginMacroRegistry {
   readonly resolveForTurn: (authorUserId: UserId, chatId: ChatId) => Promise<readonly UserMacroDef[]>;
 }
 
-/** The process-wide PRIVATE plugin-event bus (plugin-ui-plane §5a) — ONE instance minted at compose (the
+/** The process-wide PRIVATE plugin-event bus — ONE instance minted at compose (the
  *  `PluginMacroRegistry` / surface-state precedent), `ASSUMES(single-replica)`, respawn wipes. It IS the forgery
  *  wall's home, and the wall is structural: it is keyed by the INSTALLING PRINCIPAL, so an emit can only ever
  *  reach the SAME installer's subscribers; it has NO domain/chat-bus sink at all (the only thing an emit does is
@@ -534,7 +534,7 @@ export interface PluginIdentity {
   readonly name: string;
   /** The manifest SLUG (unique per installing owner) — DERIVED from the re-validated manifest at activation,
    *  never guest-runtime-supplied. It is the emitter's un-forgeable identity on the private plugin-event plane
-   *  (`host.pubsub.emit` publishes on `plugin:<slug>:<name>`, plugin-ui-plane §5a). Empty on the two paths that
+   *  (`host.pubsub.emit` publishes on `plugin:<slug>:<name>`). Empty on the two paths that
    *  never emit — a confirmed S4 act and a snippet — for the same reason `name` is empty there. */
   readonly slug: string;
 }
@@ -599,7 +599,7 @@ export interface NotifyFloor {
  *  `QuickJSContext` (32 MiB ceiling) held for up to the
  *  snippet's settlement wall — so the bound that matters is how many a single user may hold AT ONCE, which no
  *  request-rate bucket can express. */
-/** The per-plugin CONCURRENCY belt on `plugin.uiHostCall` (plugin-ui-plane #679 U4) — the Tier-C sibling of
+/** The per-plugin CONCURRENCY belt on `plugin.uiHostCall` — the Tier-C sibling of
  *  {@link SnippetGate}. The transport's per-user rate bucket bounds calls per WINDOW and structurally cannot
  *  bound how many are RUNNING, which is the number that matters when each in-flight call holds a real domain op
  *  and the caller is a surface that can re-render at animation rate. Implemented by

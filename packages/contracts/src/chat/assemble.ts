@@ -299,7 +299,7 @@ export interface AssemblyBudgetSlice {
 }
 
 /** ONE MATERIALIZED ROW inside a prompt section (`AssemblySectionCost.rows`) — ST's inspect panel with honest
- *  data (D121-G / preset-surface-redesign §7.1): the rows a marker actually expanded into against a live room.
+ *  data (D121-G): the rows a marker actually expanded into against a live room.
  *  A merged card section splits per roster member; the history pivot splits per kept wire turn; every other
  *  section is its own single row. CONTENT-FREE by construction — the label + the cost, never the bytes (the
  *  bytes ride `AssemblyBudgetSlice.text`, where the D22 host gate already governs them). */

@@ -2,7 +2,7 @@
 // The user↔image↔character CURATION layer over the `assets` byte index: `assets` stays the CAS metadata,
 // `gallery_items` owns "this image is in my gallery, optionally as this character's". Distinct from imagery
 // PROVENANCE (machine-written, one per generation) — curation is user-picked; conflating them would make
-// "remove from gallery" delete provenance (gallery-design/03 §4.2 reject).
+// "remove from gallery" delete provenance.
 //
 // NO `ownerId` column — ownership DERIVES via `asset_id → assets.ownerId` (the owner ruling 2026-07-01; D23
 // derive-don't-stamp, the `character_tags`/`duplicate_pairs` precedent: a required FK to an owned row makes

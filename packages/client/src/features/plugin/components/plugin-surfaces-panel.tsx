@@ -1,5 +1,5 @@
-// plugin-surfaces-panel — mounts a plugin's own `settings`-anchored UI surfaces inside its row (plugin-ui-plane
-// #679 U1, §4.5: "spec rendered inside the plugin's row/detail — ST's per-extension settings drawer"). Reads
+// plugin-surfaces-panel — mounts a plugin's own `settings`-anchored UI surfaces inside its row
+// ("spec rendered inside the plugin's row/detail — ST's per-extension settings drawer"). Reads
 // the caller's own `listSurfaces` (cached, shared across rows) and renders each of THIS plugin's settings
 // surfaces in the first-party plugin-labelled shell. `listSurfaces` returns only ENABLED plugins' surfaces, so
 // a disabled plugin renders nothing here; a static surface with no `spec` is skipped (it has nothing to draw

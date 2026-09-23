@@ -1,5 +1,5 @@
-// B2 — the automation RULES write verbs the "This chat" Rules section drives (interaction-direction-spec
-// §7 B2). Each is a module-scope `createEntityMutation` (§13.1 — the ONE mutation home; a call site never
+// B2 — the automation RULES write verbs the "This chat" Rules section drives.
+// Each is a module-scope `createEntityMutation` (§13.1 — the ONE mutation home; a call site never
 // hand-rolls `useMutation` + cache surgery). TVars/TData are tRPC-INFERRED, so a wire reshape breaks here
 // at compile time.
 //

@@ -1,5 +1,5 @@
 // domain/automation — the ratified cross-domain root slot (D145 `teaching-contribution.ts`), third
-// occupant: the S5 GUIDANCE DELIVERY (interaction-direction-spec §3-S5.3). One ephemeral `in_chat` system
+// occupant: the S5 GUIDANCE DELIVERY. One ephemeral `in_chat` system
 // injection carrying the chat's standing analysis guidance — the think-first pass's ONE narrator-facing
 // instruction — merged onto the turn through chat's S2 collection like every other teaching contribution.
 // Reachable ONLY through the front door (`index.ts`) and registered ONLY at `entry/compose` (the

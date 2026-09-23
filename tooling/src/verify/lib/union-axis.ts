@@ -8,7 +8,7 @@
 // ── WHY THESE FACTS ARE READER-LEVEL AND NOT POLICY-LEVEL ───────────────────────────────────────────────
 // Every one of them is AST/binding identity — `as const` unwrapping through a `satisfies` wrapper, the
 // indexed-access resolution `Interface["prop"]` → the declaring union node, static string-array reading,
-// and the package-cake reach rank. `gate-runtime-standardization.md` §3 puts exactly that layer here
+// and the package-cake reach rank. `docs/law/gate-runtime-standardization.md` §3 puts exactly that layer here
 // ("binding identity, static-value unwrapping ... are shared primitives") and leaves the INTENT — which
 // arm reports, what it says, and where the waiver anchors — to the consuming policy. The split is the same
 // one `schema-branding` has against `schema-fact`: the reader owns identity, the policy owns intent.

@@ -10,7 +10,7 @@
 # external server you point the app at (ENGINES_POSTURE=adopt-only + VLLM_ENGINE_HOST — identical on bare
 # metal and in a container; the 2026-09-18 owner ruling retired the GPU all-in-one image so there is ONE
 # engine story to maintain). The previous two-target design lives in git history and
-# docs/design/containerize-build-plan.md (status banner there).
+#  (status banner there).
 #
 # LAYOUT (docker/assemble-runtime.sh — the ONE home for the runtime file set): every `@orb/*` workspace
 # package the server's production graph pulls in ships as workspace-shaped SOURCE under /app/packages/<name>

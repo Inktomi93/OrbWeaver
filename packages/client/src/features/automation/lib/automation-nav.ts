@@ -1,4 +1,4 @@
-// The Automation group's nav entries (config-revamp-design.md §6.8) — the ONE home for both ends of the
+// The Automation group's nav entries — the ONE home for both ends of the
 // anchor wiring: each contribution def spells its `nav` from these and each section body stamps
 // `configAnchorId("automation", …)` from the same constant, so a LIST row can never address an anchor no
 // section stamps (the `OWNER_*_ANCHOR` constants the surface used to export, re-homed as navs).

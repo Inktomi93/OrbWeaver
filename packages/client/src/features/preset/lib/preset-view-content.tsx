@@ -1,5 +1,5 @@
 // The per-VIEW body dispatch for `preset-editor-surface.tsx` (extracted #73 — component-size gate). Params
-// is the new deck; the other four are the landed bodies re-homed per preset-surface-redesign.md §3's
+// is the new deck; the other four are the landed bodies re-homed per the redesign's
 // schema→home map (Data and Transforms simply stack the leaves that used to be sub-tabs).
 
 import type { GenerationCapability } from "@orb/contracts/inference";

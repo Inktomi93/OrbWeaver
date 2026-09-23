@@ -1,4 +1,4 @@
-// verb: uiHostCall — the Tier-C client guest's relay into the membrane (plugin-ui-plane #679 U4, §4.6/§9).
+// verb: uiHostCall — the Tier-C client guest's relay into the membrane.
 // EVERY test here is about the RE-GATE, because that is the whole verb: the client is untrusted input from a
 // realm that also runs plugin code, so what matters is not that a granted read works (it does) but that each
 // of the five things a caller can lie about is caught.

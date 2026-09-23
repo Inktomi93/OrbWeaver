@@ -1,5 +1,5 @@
 // @orb/contracts/rpg/bus — the feature-root rpg bus union + its `RPG_BUS_EVENT_TYPES` producer-coverage belt
-// (rpg-design/05 §4.9). Pins: the belt is TOTAL over the union (the `satisfies` proof made a runtime check —
+// (docs/plans/rpg/design.md). Pins: the belt is TOTAL over the union (the `satisfies` proof made a runtime check —
 // a member added to the union without a belt entry fails tsc; here we assert the belt IS the exact member set
 // so a DROPPED member is caught too), and the committed member set. The lifecycle pair keeps the client
 // pending across the asynchronous state round; `turnToolCallsRecorded` has its OWN durable member because

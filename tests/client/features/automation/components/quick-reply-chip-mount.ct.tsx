@@ -1,4 +1,4 @@
-// CT: B3 — the REAL automation QUICK-REPLY CHIP source, end-to-end (interaction-direction-spec §7 row B3).
+// CT: B3 — the REAL automation QUICK-REPLY CHIP source, end-to-end.
 // Mirrors its source `packages/client/src/features/automation/components/quick-reply-chip-mount.tsx`.
 //
 // The band CT (`tests/client/features/chat/components/chat-controls-band.ct.tsx`) proves the S1 SEAM with a

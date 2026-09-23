@@ -1,5 +1,5 @@
 // verbs: listDisplayTransforms + transformForDisplay — the per-row DISPLAY-transform round-trip
-// (plugin-ui-plane #679 U6, seam 14; the ST message-formatting-hook parity row).
+// (U6, seam 14; the ST message-formatting-hook parity row).
 //
 // What these pins own, and why each is the load-bearing one:
 //   • THE ANNOTATION — the caller's own transforms fold in order over the submitted text and the caller gets

@@ -1,4 +1,4 @@
-// entry/lifecycle — DRAIN-UNBOUNDED (docs/history/dogfood-tracking-2026-08-08.md): the owed test for the bounded-drain shutdown.
+// entry/lifecycle — DRAIN-UNBOUNDED: the owed test for the bounded-drain shutdown.
 // `drainHttpServer` is exported specifically so this can drive it against a REAL open socket rather than only
 // being provable live — a request whose response is IN FLIGHT (written but never `.end()`ed) is exactly the
 // SSE case: the server has an open connection with nothing further to finish, so `server.close()` alone would

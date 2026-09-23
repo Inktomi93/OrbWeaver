@@ -112,8 +112,8 @@ HEALTHZ="http://127.0.0.1:$BACKEND_PORT/healthz"
 # still coming up. The wrapper readiness poll must stay AHEAD of the server gate + a
 # cold vite compile (~55s) so it never declares boot-timeout while the leader is
 # legitimately still booting. Override via env for slower/faster hardware.
-# The DEFAULTS are LOAD-SCALED and derived by node, never spelled here (#1232, docs/design/
-# 1208-instrument-substrate.md section 7.1 — the ONE budget policy lives at
+# The DEFAULTS are LOAD-SCALED and derived by node, never spelled here (#1232 — the ONE budget
+# policy lives at
 # tooling/src/_shared/load-budget.ts and the shell half is tooling/src/stack/lib/boot-budgets.ts). A
 # host export still WINS: these two stay empty here and `apply_boot_budgets` fills only what the
 # operator did not set. Derived lazily, on the boot paths alone, so `status`/`down` pay no node spawn.

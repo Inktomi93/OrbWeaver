@@ -1,5 +1,4 @@
-// `--session-status` / `--session-close` / `--session-sweep` (docs/design/1208-instrument-substrate.md §3.5,
-// §3.8, §4.4) — the registry's admin verbs, the session twins of ops/stage-status.ts. All three work from
+// `--session-status` / `--session-close` / `--session-sweep` — the registry's admin verbs, the session twins of ops/stage-status.ts. All three work from
 // ANY checkout (the registry is repo-keyed); a LIVE session owned by another checkout is reported by status,
 // refused by close without `--force` (the #447 teardown-consent rule applied to sessions), and never touched
 // by the sweep while it is under its TTL (the #310 liveness-gate lesson: identify by a positive signal).

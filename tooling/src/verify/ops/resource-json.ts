@@ -1,5 +1,5 @@
 // Strict-JSON acquisition. The refusal split IS the capability: `missing`, `empty` and `unresolved` are
-// three different answers and none of them is `{}` (`resource-gate-access-patterns.md:126`).
+// three different answers and none of them is `{}` (the ResourceHost access-pattern ruling).
 //
 // The reader below it already separates absent from unreadable — `ResourceReader.read` returns `missing`
 // for an absent path, `empty` for a zero-byte file, and `unresolved` for a decode failure — so this provider

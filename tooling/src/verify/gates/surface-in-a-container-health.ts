@@ -25,7 +25,7 @@
 //   2. THE ANCHOR MOVES from the gate's own source file to `packages/client/package.json`. A finding must sit
 //      inside the policy's own resource population, and a gate module is not in one — the client manifest is,
 //      and it is the `server-layout` precedent for an absence verdict (a declared resource read for its PATH,
-//      `resource-policy-contract.md` §3.1). The manifest's `name` is read so the declaration is CONSUMED; an
+//      `docs/law/resource-policy-contract.md` §3.1). The manifest's `name` is read so the declaration is CONSUMED; an
 //      unconsumed declaration is a receipt-phase refusal.
 //   3. THE `ANCHOR_FEATURE` GUARD RETIRES INTO THE RUNTIME. It existed because the legacy gate ran over a
 //      synthetic mini-project that had no real features. This policy's subject is a DECLARED `authored-tree`

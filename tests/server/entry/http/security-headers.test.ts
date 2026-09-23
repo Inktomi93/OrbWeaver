@@ -74,7 +74,7 @@ describe("securityHeaders", () => {
   // with nothing else red. Enforcing the header comment's prose boundary (§"`script-src` is `'self'`-only"):
   // if an anti-FOUC inline script ever lands, it rides a boot-time HASH allowlist, NEVER any of these
   // keywords. (Dev's HMR loosening is the intentional, dev-only exception, pinned by the dev test below.)
-  // THE ONE DELIBERATE WIDENING, and this test is where it is bought (plugin-ui-plane #679 U4, seam 10).
+  // THE ONE DELIBERATE WIDENING, and this test is where it is bought (U4, seam 10).
   // `'wasm-unsafe-eval'` permits WebAssembly compilation and NOTHING ELSE — it is not eval, not inline, and not
   // a new load origin — which is why the srcdoc card-floor invariant below survives it unchanged: a srcdoc has
   // no origin to be "self", so it still cannot LOAD anything, and a keyword that only lets you compile wasm

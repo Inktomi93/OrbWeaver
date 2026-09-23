@@ -1,4 +1,4 @@
-// verb: editImage — explicit edit of an owned image (imagery-design/02 §4). Proves against a real libSQL db:
+// verb: editImage — explicit edit of an owned image. Proves against a real libSQL db:
 // the source bytes are resolved (owned asset via readAsset, or direct upload bytes), the CAPABILITY GATE
 // throws `ImageEditUnsupportedError` on a non-edit model (the asymmetric posture — doc 01 §3.4), and a
 // successful edit stores a `kind:"generated"` asset + an `imagery_generations` row (`edited:true`,

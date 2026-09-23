@@ -114,7 +114,7 @@ export const automationRules = sqliteTable(
     actions: text("actions", { mode: "json" }).$type<readonly Record<string, unknown>[]>().notNull(),
     // The cascade opt-in — without it, automation-initiated events never re-trigger rules.
     matchAutomationEvents: integer("match_automation_events", { mode: "boolean" }).notNull().default(false),
-    // RULED F4's per-rule OPT-OUT (interaction-direction-spec row B4). TRUE = a rate refusal of this rule
+    // RULED F4's per-rule OPT-OUT. TRUE = a rate refusal of this rule
     // raises the "run it now?" INVITATION (the ruling's default — today's shipped behaviour, which is why
     // the column defaults on); FALSE = this one rule stays quiet when its budget refuses it. Read at the
     // dispatch gate (`engine/dispatch.ts::inviteOnRefusal`) BESIDE the arm-shape derivation, never instead
@@ -232,7 +232,7 @@ export const automationFires = sqliteTable(
 );
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// automation_rule_state — ONE row per rule with a `run_analysis` arm (S5, interaction-direction-spec §3-S5):
+// automation_rule_state — ONE row per rule with a `run_analysis` arm:
 // the arm's durable per-chat plot state (arc + twist banks + the settled-span HIGH-WATER MARK, inside the
 // `state` JSON) and the ONE narrator-facing `guidance` line the S2 teaching contribution delivers VERBATIM.
 // Authority DERIVES ruleId → rule (ownerId, chatId) — no ownerId here (D23-clean; the D18 inherited-scope

@@ -1,4 +1,4 @@
-// verb: uiHostCall — the Tier-C client guest's ONE relay to the membrane (plugin-ui-plane #679 U4, §4.6 /
+// verb: uiHostCall — the Tier-C client guest's ONE relay to the membrane (U4, §4.6 /
 // §9 "the bridge as the new membrane"). A scripted `ui.js` running in the browser worker has NO network and NO
 // DOM; when it needs host data it posts a function NAME plus inert JSON arguments, and THIS verb performs the
 // call server-side through the SAME `PluginBridge` a server guest's call rides — closed over the installer,

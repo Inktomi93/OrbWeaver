@@ -128,7 +128,7 @@ async function selectDomainRowOwner(db: Db, kind: DomainRowKind, id: string): Pr
 }
 
 /** C5 — is `bookId` a book THIS user owns? The owner-GLOBAL arm of the `insert_world_info_entry` consent gate
- *  (the RULED book-ownership call, interaction-direction-spec §3-S3).
+ *  (the RULED book-ownership call).
  *
  *  IT IS A DIFFERENT CONSENT QUESTION FROM {@link isBookAttachedToChat}, not a weaker one. A room-fired lore
  *  write asks the ROOM's consent, and the attachment IS that consent (`engine/arm-executors.ts`'s own note).

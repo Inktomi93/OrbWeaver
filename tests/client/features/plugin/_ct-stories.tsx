@@ -56,7 +56,7 @@ const SETTINGS_PANE_WIDTH = 560;
 /** The CONTEXT pane's docked width — the narrowest REAL host for the "This chat" console section. */
 const CONTEXT_PANE_WIDTH = 384;
 
-/** The plugins anchor's real config-section roster, assembled as at the door (config-revamp-design.md §6.8):
+/** The plugins anchor's real config-section roster, assembled as at the door:
  *  Installed · Add-a-plugin · the admin-gated "Distribute to everyone" section. Rendered through the config
  *  host's OWN resolver (`CtConfigGroupBody`), so the distribute section's `when` gates on the CT's viewer
  *  exactly as production does — for a non-admin viewer it resolves out and the group is its two own rows. */
@@ -87,7 +87,7 @@ export function SnippetConsoleStory({ chatId, width = CONTEXT_PANE_WIDTH }: { re
   );
 }
 
-// ── U2: the CHAT-ANCHOR stories (plugin-ui-plane #679, seam 7) ─────────────────────────────────────────────
+// ── U2: the CHAT-ANCHOR stories (seam 7) ─────────────────────────────────────────────
 // Both mount the REAL first-party contribution the door assembles — never a test double — so what the CT
 // proves is the production path: `plugin.listSurfaces` → the anchor fan-out → the labelled shell.
 
@@ -195,7 +195,7 @@ export function PluginMessageFooterRoomStory({ registered = true }: { readonly r
   );
 }
 
-// ── U3: the TOOL-CARD story (plugin-ui-plane #679, seam 7 — closes A2-F5) ──────────────────────────────────
+// ── U3: the TOOL-CARD story (seam 7 — closes A2-F5) ──────────────────────────────────
 // The subject is chat's own `MessageToolCalls` over the REAL door member (`pluginToolRenderer`), never a test
 // double: what is pinned is the production path a person gets — a persisted `ToolCallRecord` → the `plugin_`
 // namespace claim → `plugin.listSurfaces` → the labelled shell, or the generic block when no card claims it.
@@ -230,7 +230,7 @@ export function PluginToolCardStory({
   );
 }
 
-// ── U5: the EXTENSIONS section (plugin-ui-plane #679, §4.5b / seam 16) ─────────────────────────────────────
+// ── U5: the EXTENSIONS section (seam 16) ─────────────────────────────────────
 // Both halves render through the REAL section registry — `registry.get("extensions").list()` / `.content()`,
 // the exact calls the shell's own `SectionList`/`SectionContent` make — so what the CT exercises is the
 // production path a person gets, not a hand-mounted surface. The CT drives the DATA (`plugin.listSurfaces` +
@@ -321,7 +321,7 @@ function ExtensionsContentHarness(): ReactElement {
   return <>{content()}</>;
 }
 
-/** The command palette wired to the U8 DYNAMIC plugin-command source (plugin-ui-plane #679 §4.5/§5 row 9).
+/** The command palette wired to the U8 DYNAMIC plugin-command source.
  *  `sourced` toggles whether the first-party `pluginCommandPaletteSource` is registered: `true` proves a
  *  plugin's registered commands become first-class, searchable palette rows; `false` (an EMPTY source
  *  registry) proves the byte-identical absence — a build/caller with no plugin commands shows only the native
@@ -376,7 +376,7 @@ export function PluginCommandArgsStory(): ReactElement {
   );
 }
 
-// ── U7 FRAME at the DIALOG anchor (plugin-ui-plane #679 §6.2 / #787) ──────────────────────────────────────────
+// ── U7 FRAME at the DIALOG anchor (#787) ──────────────────────────────────────────
 // The subject is the REAL `PluginDialogBody` over the stubbed network, seeded through the SAME `openPluginDialog`
 // round-trip channel a plugin's own action outcome uses (there is no affordance that opens a plugin dialog
 // directly — the §4.5a wall). The CT drives the DATA (`plugin.listSurfaces`), so a `dialog`-anchored `frame`

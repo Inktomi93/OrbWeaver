@@ -225,7 +225,7 @@ test("delete: the icon trigger opens an uncontrolled confirm with no description
   await expect.poll(() => (trpc.lastInput("worldInfo.removeEntry") as { entryId: string }).entryId).toBe("world_entry_ctstory0001");
 });
 
-// F1 SWITCH pin (autosave-form-doctrine.md §8/§10) — the book surface swaps the `entry` prop on ONE mounted
+// F1 SWITCH pin (D78) — the book surface swaps the `entry` prop on ONE mounted
 // EntryEditor when the selected entry changes (no route/component remount), the exact F1 identity case. The
 // boundary keys its Session by entry id, so switching entries is a fresh mount seeded from the NEW entry.
 // A seeds content="A-content" (a field this test never edits — the tell of which seed is live); B seeds

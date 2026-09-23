@@ -17,7 +17,7 @@
 // Response is never disabled (it generates a reply against any tail), which is why it hosts
 // empty-send-generate.
 //
-// EVERY ICON FIRES AGAINST A REAL ROOM (chat-creation-draft-mode-replacement.md §4.4, R1). Response used to
+// EVERY ICON FIRES AGAINST A REAL ROOM (D166). Response used to
 // carry a second label ("Generate opening") and a second fire path that CREATED the chat with
 // `opening:"generate"`; impersonate carried a force-commit. The room exists from the creation click, so both
 // are ordinary turns and the cluster takes a `chatId`, not a phase.

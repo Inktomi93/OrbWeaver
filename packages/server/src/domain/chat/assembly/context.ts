@@ -338,7 +338,7 @@ interface BuildAssembleContextInput {
   /** The `{{databank}}` slot value (DB6) — reading-order-restored, budget-fitted document chunks. Absent ⇒
    *  the slot resolves empty (byte-identical to a non-databank turn). */
   readonly databank?: string | null | undefined;
-  /** The 8 rpg* data-fed macro values (rpg-design/06 §1), keyed by the RpgGatherMacros field names — a game
+  /** The 8 rpg* data-fed macro values (docs/plans/rpg/design.md), keyed by the RpgGatherMacros field names — a game
    *  turn's GATHER stages this. Absent ⇒ every rpg macro resolves empty (byte-identical non-game turn). */
   readonly rpgMacros?: Readonly<Record<string, string>> | undefined;
   // A game turn's `{{expr::…}}` CEL activation (§12) — the data-only `rpg` binding (the tracker view as a CelValue
@@ -771,7 +771,7 @@ async function runSendAuthorTransforms(
   const { draft, input, base, hostScripts, out } = args;
   const freezes: MacroFreeze[] = [];
   let text = freezeVolatileMacros(draft, base, { random: input.prng, registry: input.freezeMacroRegistry, freezes });
-  // The D50 `user_input` PromptTransform point (automation-design/04 §1.2 / §6): AFTER the macro pass,
+  // The D50 `user_input` PromptTransform point: AFTER the macro pass,
   // BEFORE the USER_INPUT regex. Rewrites the draft the WI haystack + the persisted row both see (author-
   // side transform order — D51). Null op / zero registrants ⇒ byte-identical.
   if (ctx.promptTransforms !== null) {

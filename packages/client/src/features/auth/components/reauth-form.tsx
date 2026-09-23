@@ -1,4 +1,4 @@
-// The rung-1 RE-AUTH form (staleness-and-session-freshness.md §4.4, owner fork F2) — the body of the
+// The rung-1 RE-AUTH form — the body of the
 // `reauth` modal, homed in components/ so `lib/reauth-modal.tsx` exports only its definition.
 //
 // DISMISSAL IS A VERDICT, NOT A NO-OP. The owning modal definition reports a semantic dialog close as

@@ -2,7 +2,7 @@
 // `http://<VLLM_ENGINE_HOST>:<port>`, reading host + per-engine port off the resolved `env`. Default host
 // is loopback (the bare-metal/all-in-one fleet shares the network namespace); a slim/app-only deployment
 // pointing at an EXTERNAL engine relocates the host via VLLM_ENGINE_HOST (profile-2/D2,
-// docs/design/containerize-prod-image-spec.md §3.6). Asserted against the env-resolved values (never a
+// docs/plans/containerize/design.md). Asserted against the env-resolved values (never a
 // hardcoded literal, so a default change doesn't silently drift the test).
 
 import process from "node:process";

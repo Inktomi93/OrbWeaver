@@ -1,4 +1,4 @@
-// infra/extraction/normalize — the §2 normalization pipeline (databank-design/04 §2). Pins the exact
+// infra/extraction/normalize — the §2 normalization pipeline. Pins the exact
 // transforms every loader's output goes through: BOM strip, CRLF/CR → \n, NFC, 3+-blank-line collapse, and
 // the two invariants that keep the text canon (no intra-line trim, no case folding).
 

@@ -1,4 +1,4 @@
-// The weaver's pose engine (docs/history/design/web-weave-motion-fixes.md §3) — what the owner reported as
+// The weaver's pose engine — what the owner reported as
 // "nonsensical spider pathing", stated as invariants a frame-by-frame walk of the whole build timeline
 // must hold:
 //   • PRESENCE — she never blinks out mid-weave (a timeline instant no leg claims used to yield a null

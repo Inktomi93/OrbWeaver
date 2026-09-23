@@ -1,4 +1,4 @@
-// The D48 generate_image tool projection (imagery-design/04 §1). Unit test (no db): the registered def's
+// The D48 generate_image tool projection. Unit test (no db): the registered def's
 // shape + the handler's arg→param mapping onto the injected generatePicture op, and the non-chat refusal.
 
 import { IMAGERY_GENERATE_IMAGE_TOOL_DESCRIPTION } from "@orb/contracts/imagery";

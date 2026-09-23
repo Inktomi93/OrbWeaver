@@ -52,8 +52,8 @@ const ARRAY_STATICS: ReadonlySet<string> = new Set(["Object.keys", "Object.value
 const ARRAY_TYPE_NAMES: ReadonlySet<string> = new Set(["Array", "ReadonlyArray"]);
 
 const GROUP_MESSAGE =
-  "a superseded pre-node-26 spelling — the node-26 maximal-adoption program (docs/history/design/" +
-  "node-26-adoption-program.md §8) ruled the modern spelling is THE spelling and W4 burned the sites down. " +
+  "a superseded pre-node-26 spelling — the node-26 maximal-adoption program (Spine-TypeScript-and-Patterns.md §9) " +
+  "ruled the modern spelling is THE spelling and W4 burned the sites down. " +
   "The reported source position identifies one of four arms: a hand-built sleep, an escaped Promise resolver, " +
   "a redundant spread before array sort, or a hand-rolled RegExp escape.";
 const FIX =

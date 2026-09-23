@@ -53,7 +53,7 @@ export const users = sqliteTable(
     kind: text("kind", { enum: USER_KINDS }).notNull().default("human"),
     // The human responsible for an agent principal (D60). NULL for humans (CHECK-tied to `kind`). Self-FK
     // CASCADE: owner hard-delete → agent row deleted → (existing FKs) roster CASCADE + `messages.authorUserId`
-    // SET NULL, with NO reaper (referential physics — agent-principal-design/01 §1). The explicit
+    // SET NULL, with NO reaper (referential physics — docs/plans/agent-principals/design.md). The explicit
     // `AnySQLiteColumn` return type is required for a self-reference (drizzle can't infer mid-definition).
     ownerUserId: text("owner_user_id")
       .$type<UserId>()
@@ -78,7 +78,7 @@ export const users = sqliteTable(
     index("users_owner_user_idx").on(table.ownerUserId),
     check("users_role_check", sql.raw(`role in (${ROLE_CHECK_LIST})`)),
     check("users_kind_check", sql.raw(`kind in (${KIND_CHECK_LIST})`)),
-    // The structural no-login core (agent-principal-design/01 §1/§3.1): an agent is loginless (no
+    // The structural no-login core (docs/plans/agent-principals/design.md): an agent is loginless (no
     // `password_hash` to verify), unlinkable-by-SSO (no `external_id` can ever match), unprivileged
     // (`role='user'` — never satisfies requireAdmin/requireOwner), and owned. Unrepresentable, not just refused.
     check("users_agent_shape", sql.raw("kind <> 'agent' OR (role = 'user' AND password_hash IS NULL AND external_id IS NULL AND owner_user_id IS NOT NULL)")),

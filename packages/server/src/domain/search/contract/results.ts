@@ -120,7 +120,7 @@ export interface SimilarArtHit {
   readonly lens: ImageLens;
 }
 
-/** One databank chunk hit (DB5, databank-design/05 §3.1). `score` is the CSLS-adjusted retrieval score
+/** One databank chunk hit. `score` is the CSLS-adjusted retrieval score
  *  (LOWER = closer), preserved even when rerank reordered the list. `documentName` is joined from
  *  `documents` for the `# {name}` provenance header the slot renders; `contentHash` is the collapse key. */
 export interface DocumentChunkHit {

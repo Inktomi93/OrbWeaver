@@ -1,4 +1,4 @@
-// The per-actor TRACKER-EXCEPTIONS editor (the applicability model, tracked-field-unification §5.1): the
+// The per-actor TRACKER-EXCEPTIONS editor (the applicability model): the
 // host's door to this actor's `sheet.trackerGrants` / `sheet.trackerRevokes`. A tracker DEF carries a carrier
 // CLASS (`party`/`npcs`/`everyone`/an explicit list) resolved server-side; this surface lets the host make the
 // two PER-ACTOR exceptions the class can't express — GRANT a tracker the class missed (the one-off "this one

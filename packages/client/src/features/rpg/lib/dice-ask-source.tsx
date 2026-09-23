@@ -1,4 +1,4 @@
-// B8 — THE DICE-ASK CONTROL SOURCE (interaction-direction-spec.md §7 row B8 + §3-S1): rpg's control source
+// B8 — THE DICE-ASK CONTROL SOURCE (row B8): rpg's control source
 // for chat's one above-composer band, and the GAME-ARM half of "checks". It imports NO chat module and chat
 // imports none of it (the §6c residency rule): the door (`compose/authed-app.tsx`) appends it to the
 // `chat-controls` registry beside automation's two sources, and chat renders it blind through the single

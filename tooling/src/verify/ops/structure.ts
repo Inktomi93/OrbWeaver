@@ -1,5 +1,5 @@
 // The structural-gate orchestrator (`pnpm check:structure` → `cli.ts structure`) — THE FRONT DOOR
-// (docs/design/gate-runtime-standardization.md §1). One loader classifies every
+// (docs/law/gate-runtime-standardization.md §1). One loader classifies every
 // tooling/src/verify/gates/*.ts module (lib/loader.ts), ONE shared ts-morph Project is built, and the policy
 // dispatcher runs the roster in this one invocation (`runPolicyPass`, the FULL roster as `knownPolicies`,
 // the central grant table). It lands in ONE artifact (contract/structure-report.ts) and ONE console under

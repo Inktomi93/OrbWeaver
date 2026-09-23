@@ -1,4 +1,4 @@
-// Gate: dialog-via-composite (derive-modernization-audit.md §W1 G24). A client feature importing the raw
+// Gate: dialog-via-composite. A client feature importing the raw
 // Dialog root hand-assembles modal anatomy that a composite should own. Permanent non-form species use one
 // exact ordinary marker per named import.
 //

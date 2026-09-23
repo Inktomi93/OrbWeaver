@@ -5,7 +5,7 @@
 // `CSS.forcePseudoState` over CDP between two in-page passes. See that file's header for the bounded
 // population argument and the measured cost. Since 2026-09-01 the same pass carries the SECOND state
 // mechanism — Base UI `data-*` state attributes, forced IN PAGE (synchronous set/read/restore) — and
-// the state-gated GLOW rows read while a subject is held (docs/design/state-paint-census.md); the
+// the state-gated GLOW rows read while a subject is held; the
 // candidate index space, the verify loop and this contract are shared by both mechanisms.
 //
 // WHY THE REST HALF RIDES ALONG. The rule is not "the hover pair fails WCAG" in isolation — it is "the

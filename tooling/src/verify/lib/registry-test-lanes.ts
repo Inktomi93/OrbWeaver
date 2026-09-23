@@ -54,7 +54,7 @@ export const TEST_LANE_STAGES: readonly StageDef[] = [
     // reds from this door are ignorable.
     // THE RULING IT REOPENS: vitest 4 DEFAULTS `passWithNoTests` to true; `vitest.config.ts` turns it OFF
     // repo-wide — "false (PD-115): every lane … has matching files now, so a lane whose include glob
-    // matches NOTHING (a typo'd pattern, a moved tree) FAILS instead of passing" (Core-Debt-Cleared-Ledger
+    // matches NOTHING (a typo'd pattern, a moved tree) FAILS instead of passing" (docs/law/Core-Debt-Cleared-Ledger.md
     // PD-115, 2026-07-03). That ruling SURVIVES; its INPUT changed. PD-115 judges an ASSERTED selector — a
     // lane's config include glob, which asserts a fileset — while this argv's selector is always the
     // DERIVED one (`--changed`), and derived-empty is CLEAN by the same asymmetry ops/scoped.ts's

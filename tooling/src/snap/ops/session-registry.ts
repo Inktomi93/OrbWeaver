@@ -1,4 +1,4 @@
-// The session REGISTRY's I/O (docs/design/1208-instrument-substrate.md §3.2/§3.5/§10.1): the repo-keyed dir
+// The session REGISTRY's I/O: the repo-keyed dir
 // beside the stage marker, one ROW file per session, the socket and log paths, daemon liveness, the limits
 // from env, and the reaper primitive the sweep and the close share. Every path and verdict is derived in
 // lib/session-plan.ts; this module only reads, writes and signals. Split from the client so the admin
@@ -40,7 +40,7 @@ const MS_PER_MINUTE = 60_000;
  *  knobs sets them in the environment of the CHILD and never mid-process. That is the same posture
  *  `_shared/load-budget.ts` states for `ORB_BUDGET_CEILING_MS`, and it is why one destructure can serve
  *  both readers below instead of three scattered `process.env` reads. */
-// biome-ignore lint/style/noProcessEnv: the three ambient TOOLING knobs this file owns — ORB_SNAP_SESSION_HOME (the committed proofs plant a scratch registry; writing the box's REAL one would collide with a live sibling's session) plus the owner-ruled ORB_SESSION_TTL_MIN / ORB_SESSION_CAP overrides (docs/design/1208-instrument-substrate.md §12.2 F5). Same class as this tree's SNAP_BASE_URL/DEBUG_TOKEN/FFMPEG_BIN rows; the env door the rule points at (packages/server/src/foundation/env) sits ABOVE @orb/tooling in the cake and cannot be imported down here.
+// biome-ignore lint/style/noProcessEnv: the three ambient TOOLING knobs this file owns — ORB_SNAP_SESSION_HOME (the committed proofs plant a scratch registry; writing the box's REAL one would collide with a live sibling's session) plus the owner-ruled ORB_SESSION_TTL_MIN / ORB_SESSION_CAP overrides. Same class as this tree's SNAP_BASE_URL/DEBUG_TOKEN/FFMPEG_BIN rows; the env door the rule points at (packages/server/src/foundation/env) sits ABOVE @orb/tooling in the cake and cannot be imported down here.
 const { ORB_SNAP_SESSION_HOME: HOME_OVERRIDE, ORB_SESSION_TTL_MIN: TTL_MIN_ENV, ORB_SESSION_CAP: CAP_ENV } = process.env;
 
 /** `<main>/.cache/snap-session/` — the stage marker's `markerRoot` derivation (#108), so every worktree of

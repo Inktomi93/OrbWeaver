@@ -317,7 +317,7 @@ describe("re-attach is idempotent, and only a LOWER cursor means anything", () =
   });
 });
 
-// W7a — SESSION DEATH → SOCKET DEATH (staleness-and-session-freshness.md §4.4.3; owner fork F4).
+// W7a — SESSION DEATH → SOCKET DEATH.
 // A socket freezes its Principal at connect and lives for the connection's lifetime, so before this a
 // revoked cookie left its stream running: the tab kept receiving events until the socket died of natural
 // causes. Two granularities, and the DIFFERENCE between them is the ruling — logout is per SESSION (the

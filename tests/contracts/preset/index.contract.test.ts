@@ -326,7 +326,7 @@ test("the built-in default arrangement places the databank slot, in the dynamic 
   const databank = DEFAULT_PROMPT_CONFIG.sections.find((section) => section.id === "databank");
   expect(databank).toMatchObject({ type: "marker", marker: "databank", enabled: true });
   // The section ships UNSET, so the framing is the marker default (the F-03 rule) — and that default is
-  // where the ST `file_template_db` wrapper prose lives (databank-design/07 §3), never in databank's value.
+  // where the ST `file_template_db` wrapper prose lives, never in databank's value.
   expect(databank).not.toHaveProperty("template");
   expect(DEFAULT_MARKER_TEMPLATES.databank).toContain("{{databank}}");
   expect(DEFAULT_MARKER_TEMPLATES.databank).toContain("Related information:");
@@ -638,7 +638,7 @@ test("parsePresetFile accepts a well-formed orb.preset envelope and returns the 
 });
 
 test("round-trip pin: build(parse(build(x))) === build(x) over a full preset config", () => {
-  // The MANDATORY per-entity structural guarantee (export-import-portability.md §1): the build + parse
+  // The MANDATORY per-entity structural guarantee: the build + parse
   // halves can't drift. `x` is a normalized full config (a fixed point of the schema) so the equality holds
   // by the codec's own idempotence, not by luck of the fixture.
   const config: PromptConfig = parsePromptConfig({
@@ -739,7 +739,7 @@ test("reasoningParse defaults: autoParse OFF + the <think> tag pair", () => {
 });
 
 // NOTE: the flat-form-mapper round-trip tests (`toPromptConfig`/`toPresetFormValues`) were REMOVED with
-// the mappers (D66 W10 — preset-form-mapper-elimination.md). The client preset editor now binds the nested
+// the mappers. The client preset editor now binds the nested
 // `PromptConfig` directly via TanStack Form; the reasoningParse default + absent-round-trips-to-unset
 // invariants are exercised by `promptConfigSchema.parse` (the default test above) and the client editor's
 // own merge-on-submit round-trip test (tests/client/features/preset/lib/preset-editor-model.test.ts).
@@ -1073,7 +1073,7 @@ test("the by-id lookup is total over the registry (the client renders a row with
 });
 
 test("clusters pair with the banded kind TWO-SIDEDLY: every extract row declares one, nothing else does", () => {
-  // The Actions-tab IA (docs/history/design/actions-tab-information-architecture.md §2.1): `extract` renders as
+  // The Actions-tab IA: `extract` renders as
   // collapsed disclosure bands, so an extract row WITHOUT a cluster would render mis-filed above the bands —
   // and a clustered row of an un-banded kind would declare a band no renderer draws. The type system cannot
   // state the pairing (kind and cluster are independent fields), so this census is the enforcement.
@@ -1164,7 +1164,7 @@ test("a NUDGE missing its recommended macros is NOT refused (a lint, never a blo
   expect(result.success).toBe(true);
 });
 
-// ── THE SECOND CARRIER ENUMERATION (owner ruling 2026-08-08, option C of note-token-intent-history.md) ──
+// ── THE SECOND CARRIER ENUMERATION (owner ruling 2026-08-08, option C of) ──
 // `{{note}}` carries the injection's ENTIRE payload: `spliceProseTokens` is a replace, so a frame override
 // that dropped it ships `[Note from user: ]` with the author's note gone — the `{{entry}}` failure exactly.
 // The frames store in `promptConfig.prose`, not `formatStrings`, which is why they need their own list and

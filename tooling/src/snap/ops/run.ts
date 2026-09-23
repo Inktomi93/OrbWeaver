@@ -106,7 +106,7 @@ function windowOutcomes(outcomes: readonly CaptureOutcome[], session: ProbeSessi
   }
 }
 
-/** THE ONE CAPTURE PASS (docs/design/1208-instrument-substrate.md §5, invariant 4 — "one implementation"):
+/** THE ONE CAPTURE PASS (invariant 4 — "one implementation"):
  *  capture → css evidence → appearance → report → baseline/diff → manifest → verdict, against a session
  *  somebody else launched. `runSnapDetailed` hosts it for the one-shot path (launch + run + finish); the
  *  session daemon hosts it per call (ops/session-daemon-call.ts). The two seams that legitimately differ —

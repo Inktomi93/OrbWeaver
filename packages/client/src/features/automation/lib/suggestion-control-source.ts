@@ -1,4 +1,4 @@
-// Automation's CONTROL SOURCE for chat's one above-composer band (§6c / interaction-direction-spec §3-S1).
+// Automation's CONTROL SOURCE for chat's one above-composer band.
 // A value, not a registration: the door (`compose/authed-app.tsx`) appends it to the `chat-controls`
 // registry, and chat renders it blind through the single mount — neither feature imports the other.
 

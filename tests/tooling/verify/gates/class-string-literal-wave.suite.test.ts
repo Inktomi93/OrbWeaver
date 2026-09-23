@@ -9,7 +9,7 @@
 // ZERO — no `@orb-gate-ignore` for either id exists anywhere on the tree, so nothing was translated and
 // nothing could be dropped.
 //
-// Proof ownership: docs/design/gate-runtime-standardization.md §6.2.
+// Proof ownership: docs/law/gate-runtime-standardization.md §6.2.
 // WHAT THIS FILE ADDS OVER THE CONFORMANCE STAGE. `pnpm check:policy-conformance` already runs every
 // declared row on the static tier, so the first test is the wave's bite receipt and nothing more. The
 // §6.2 arms below exist because a `mustPass` row asserts neither `waivedFindings === 1` nor, separately,

@@ -1,10 +1,10 @@
-// The D44 §12.1 / themes-design.md §4 custom-CSS validator — the shared LEAN check for a theme's
+// The D44 §12.1 custom-CSS validator — the shared LEAN check for a theme's
 // self-authored CSS field (Tier B / global-owner tier, `UI-Theming-and-Content.md` §12.1: "the same
 // validator" backs both the server write verb and the client code-editor's inline diagnostics). Kit-homed
 // (isomorphic, pure, zero-dep) because both consumers span the cake the same way `isSafeColor` does: a
 // server domain verb (`domain/settings`) AND `@orb/ui`'s code-editor, which cannot import `@orb/contracts`.
 //
-// Deliberately LEAN (themes-design.md §4): this is NOT a CSS parser — it pattern-matches the two known
+// Deliberately LEAN: this is NOT a CSS parser — it pattern-matches the two known
 // risk shapes and stops there. WARN (not reject) on `@import` (an exfil/untrusted-stylesheet vector, but
 // not one that can escape the app document — a soft nudge). REJECT `position: fixed` / `position: sticky`
 // (can lift the themed element out of its scope and overlay/break the app chrome — a real containment
@@ -44,7 +44,7 @@ export interface CssValidationResult {
 }
 
 /**
- * Validate a theme's self-authored custom CSS (themes-design.md §4 LEAN posture). Pure pattern-match —
+ * Validate a theme's self-authored custom CSS (the LEAN posture). Pure pattern-match —
  * no parsing, no DOM. `errors.length > 0` ⇒ the CSS must be rejected at the write boundary; `warnings`
  * are informational only.
  */

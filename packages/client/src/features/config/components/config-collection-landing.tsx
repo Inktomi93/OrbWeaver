@@ -4,8 +4,8 @@
 // "tag list under in list is kinda a no go that needs to move into content when clicking onto tags, same
 // thing for regex and world info … right now its mixed and looks weird" · "so that means content will need
 // to be redesigned for those interfaces to properly be consistent" · "redesign approved it can be built to
-// spec but must match the mockups". The spec is `docs/design/mocks/config-collections/DESIGN.md`; this file
-// builds §3.2 (the control row) and §3.3 (the rows). The LIST keeps the band and nothing else
+// spec but must match the mockups". This file builds
+// the control row and the rows. The LIST keeps the band and nothing else
 // (`config-list-collection-group.tsx`).
 //
 // This pane used to answer only "the collection is active and no member is open" with a glance, its facts
@@ -35,7 +35,7 @@
 //    drawn ONCE. They said what the LIST could not; they now say what the ROWS do not, which is the same
 //    sentence about a different neighbour.
 //  · The 30-member filter gate and `COLLECTION_WINDOW_MAX_HEIGHT` are DELETED WITH THEIR PREMISE, not
-//    retuned (DESIGN.md §3.2/§5.4 · stickler). Both existed because three collapsible bands shared one LIST
+//    retuned (the mock design §3.2/§5.4 · stickler). Both existed because three collapsible bands shared one LIST
 //    scroll column: the box had to be capped so a first library could not push its siblings below the fold,
 //    and the filter was worth its 32px only past a glance. This pane is the library's alone and its scroller
 //    is the pane, so the cap has nothing to protect and the filter is always worth drawing. Virtualisation
@@ -119,7 +119,7 @@ export function ConfigCollectionLanding({ group }: { readonly group: CollectionG
     );
   }
   return (
-    // THE LANDING IS THE PANE'S COLUMN, NOT A BLOCK INSIDE IT (#1725, DESIGN.md §5.4). `min-h-0 flex-1` is
+    // THE LANDING IS THE PANE'S COLUMN, NOT A BLOCK INSIDE IT (#1725, the mock design §5.4). `min-h-0 flex-1` is
     // what re-bound the windowed arm's height from a flat 384px (`COLLECTION_WINDOW_MAX_HEIGHT`) to the
     // CONTENT pane's own `overflow-y-auto overscroll-contain` box: this column takes the pane's free space, and each library's
     // `VirtualList` takes this column's. `min-h-0` is the half that does the work — a flex child defaults to
@@ -152,7 +152,7 @@ export function ConfigCollectionLanding({ group }: { readonly group: CollectionG
 }
 
 /**
- * The library's CONTROL ROW (DESIGN.md §3.2, board 02/04) — filter · sort · bulk · create · overflow, in
+ * The library's CONTROL ROW (the mock design §3.2, board 02/04) — filter · sort · bulk · create · overflow, in
  * that visual order, six controls maximum.
  *
  * Every control here is DECLARED DATA the host draws blind (`create`, `sort`, `bulkSelect`, `importFile`,
@@ -266,7 +266,7 @@ function BulkToggleButton({ bulk }: { readonly bulk: NonNullable<CollectionContr
 }
 
 /** The overflow — the library-level menu, drawn ONLY when it has an item. Its contents are `importFile`
- *  (D121-D's band Import, re-homed here by DESIGN.md §3.2) and every declared `actions` entry. A
+ *  (D121-D's band Import, re-homed here by the mock design §3.2) and every declared `actions` entry. A
  *  contribution declaring NEITHER gets no kebab at all: a control whose one act is to open onto nothing is
  *  the capability lie this seam's must-WORK bar names. */
 function CollectionOverflow({ collection }: { readonly collection: CollectionContribution }): ReactNode {

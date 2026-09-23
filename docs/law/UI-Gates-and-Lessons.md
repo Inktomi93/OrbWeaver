@@ -7,8 +7,7 @@ updated: 2026-09-13
 # UI-Gates-and-Lessons
 
 > **The UI enforcement law.** Decision records: D42–D44, D52, D54, D62, D66.
-> §-map + reading order: `UI-Architecture-and-Layout.md` header. The
-> war-story archaeology behind these rulings is `history/ui-gates-lessons-archaeology-record.md`.
+> §-map + reading order: `UI-Architecture-and-Layout.md` header.
 
 ## 7. The sealed gotchas — fix each ONCE, in a place a cold agent can't bypass
 
@@ -61,7 +60,7 @@ round.
 ## 8. The gates (physics + lint belts)
 
 > **Live enforcement state has ONE home:** `Core-Enforcement-Active-Gates.md` (what fails a build today,
-> all six layers) + `../architecture/history/Core-Enforcement-Deferred-Dropped.md` (the backlog + each gate's activation
+> all six layers) + `docs/law/Core-Enforcement-Deferred-Dropped.md` (the backlog + each gate's activation
 > trigger), kept honest by `enforcement-registry-parity.ts`. This § is the UI-law INDEX — the CONCEPT
 > each UI-enforcement family protects, not a status board (do not re-track live/parked/dormant here; it
 > drifts against the registry).
@@ -101,7 +100,7 @@ The UI enforcement families:
 - **Tests.** The token-freshness invariant (§3 derived theme) + the CT containment tests on the D44
   trio (UI-Theming-and-Content.md §12.6).
 
-**The D62 design-gate set** (specced in `history/design-enforcement.md` §3; lands WITH the D62 feature
+**The D62 design-gate set** (lands WITH the D62 feature
 lanes per §11.7): `no-raw-interactive-intrinsics` (raw `<button>/<input>/<select>/<textarea>/<a>` banned
 in `features/**` regardless of className), `no-arbitrary-tw-values` (bracket-value utilities banned in
 features AND ui), `empty-state-has-action` (§4.3 rule 1's mechanical half), CT state-coverage (every
@@ -132,8 +131,7 @@ routes) · `compact`/`inDrawer`/`density` layout props (container queries replac
 
 ## 11. Ratified from the full neo-client audit (ledger D43)
 
-The standing rulings from the ten-agent neo-client audit. Provenance + the bug narratives that produced
-each ruling: `history/ui-gates-lessons-archaeology-record.md`.
+The standing rulings from the ten-agent neo-client audit.
 
 ### 11.0 Why neo rotted *despite* being structured + enforced (the three root causes)
 
@@ -316,7 +314,7 @@ The 2026-06 re-verification write-up is the archaeology record; the standing dec
 
 ## 12. Authoring a gate
 
-Use `docs/design/gate-runtime-read-first.md` for the reading order and
+Use `docs/law/gate-runtime-read-first.md` for the reading order and
 `tooling/src/verify/gates/GATE-AUTHORING.md` for final contract, coupled sites, central authority and proof ownership.
 Scaffold with one of the noninteractive family forms in `GATE-AUTHORING.md` §0; bare `pnpm gate:new <name>` refuses.
 Verify the actual generated shape against the standing contract.

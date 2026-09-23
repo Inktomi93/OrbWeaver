@@ -215,7 +215,7 @@ export { clearDatabankPhaseFilter, setDatabankPhaseFilter, useDatabankPhaseFilte
 export { clearDocumentSelection, databankSectionSelection, selectDocumentFromList, useSelectedDocumentId } from "./databank-selection-store.ts";
 export type { DeploymentBootHintState } from "./deployment-boot-hint.ts";
 export { __resetDeploymentBootHint, rememberMultiHumanCapable, useMultiHumanCapableHint } from "./deployment-boot-hint.ts";
-// `draft-config-store.ts` was DELETED 2026-08-14 (chat-creation-draft-mode-replacement.md §4.9): it held a
+// `draft-config-store.ts` was DELETED 2026-08-14 (D166): it held a
 // whole second config model — greetings, roster overrides, group config, room overrides, injections,
 // startAsGame — for a room that had no server row. The room has a row from the creation click, so every one
 // of those is now the COMMITTED verb it always shadowed.

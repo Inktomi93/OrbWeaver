@@ -6,7 +6,7 @@
 // (`_shared/ports.ts`), a wall clock is `budget(<base>)` (`_shared/load-budget.ts`) — are judged here over
 // the configs' TEXT. Comment posture: comment-SAFE (a scratch parse; node kinds + numeric literals).
 //
-// ONE HARD RESOURCE POLICY (docs/history/gate-runtime-worked-cases-2026-09.md §"Mixed-hook arity amendments", #1950 group 4; fork 2 ruled BUILD 2026-09-12): the three files are
+// ONE HARD RESOURCE POLICY (#1950 group 4; fork 2 ruled BUILD 2026-09-12): the three files are
 // `exact-file` resources — three ids added to `contract/resource-exact.ts` with this policy as their named
 // consumer, a contract edit rather than a reopening (§12.4's own sentence) — and the population is
 // `{ of: "none" }`: the policy admits no source file. The legacy read the same files off disk past a
@@ -60,7 +60,7 @@ const REGISTRY_PORTS: ReadonlySet<number> = new Set([...RESERVED_PORT_NUMBERS, .
 const CONFIGS: readonly ExactResourceId[] = ["vitest-config", "playwright-config", "playwright-ct-config"];
 
 const MESSAGE =
-  "a runner-config literal outside its one home — a root runner config (vitest.config.ts, playwright.config.ts, playwright-ct.config.ts) spells a WALL CLOCK as a numeric timeout literal instead of `budget(<base>)` (_shared/load-budget.ts), or a TCP PORT as a number instead of a `_shared/ports.ts` row; these are the clocks that cost the most and the port every CT run binds, and they sit where no source population reaches (docs/law/Core-Tooling-Law.md §4.4; docs/design/1208-instrument-substrate.md §3.6/§7.1).";
+  "a runner-config literal outside its one home — a root runner config (vitest.config.ts, playwright.config.ts, playwright-ct.config.ts) spells a WALL CLOCK as a numeric timeout literal instead of `budget(<base>)` (_shared/load-budget.ts), or a TCP PORT as a number instead of a `_shared/ports.ts` row; these are the clocks that cost the most and the port every CT run binds, and they sit where no source population reaches (docs/law/Core-Tooling-Law.md §4.4).";
 const CLOCK_MESSAGE =
   "a fixed wall clock in a root runner config — derive it with `budget(<X>_BASE_MS)` from @orb/tooling/_shared/load-budget, as the other clocks in these configs already are.";
 const PORT_MESSAGE =

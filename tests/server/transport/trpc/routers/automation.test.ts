@@ -99,7 +99,7 @@ describe("automation.createRuleFromPreset — preset-mint wire-through", () => {
   });
 });
 
-// R7 + S4 (interaction-direction-spec §6 R7 / §3-S4) — the three verbs the card and the Rules panel drive.
+// R7 + S4 — the three verbs the card and the Rules panel drive.
 // Same thin-driver contract as the rest: the wire shape is validated, the PRINCIPAL comes from `ctx.auth`
 // (never from input — a caller-supplied confirmer would hand the whole authority story to the caller), and
 // the verb decides everything else.

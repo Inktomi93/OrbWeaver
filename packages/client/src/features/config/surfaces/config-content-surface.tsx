@@ -1,5 +1,5 @@
 // The Settings CONTENT — in priority: the open collection MEMBER's own editor, MOUNTED in the pane
-// (config-rail-spec.md C-7: never a dialog) · the ACTIVE settings group's body (the `sections`
+// (C-7: never a dialog) · the ACTIVE settings group's body (the `sections`
 // skimmer over the contributed sections — every settings-shaped group, §6.8 — or the honest placeholder) with the ONE aggregate
 // save-status footer below the scroller (SET-SEAMS §3) · an ACTIVE collection's own landing · the section's
 // teaching frame, never null.
@@ -244,7 +244,7 @@ function ContentArm({ groups, selection, active, collection }: ContentArmProps):
 }
 
 /**
- * THE EXIT ALONE — what the host draws while the member's own drill row cannot exist (DESIGN.md §3.4).
+ * THE EXIT ALONE — what the host draws while the member's own drill row cannot exist (the mock design §3.4).
  *
  * ═══ THE ROW MOVED TO THE MEMBER SURFACE; THE EXIT'S RULING SURVIVED (#1747) ══════════════════════════
  * The boards draw ONE row — `← Back to <library>` · the member's NAME · the member's own verbs — and this
@@ -260,7 +260,7 @@ function ContentArm({ groups, selection, active, collection }: ContentArmProps):
  * boundary's FALLBACK and its error arm, so precisely one of the two rows paints at any moment and the exit
  * is never missing. It carries the same `data-slot`, because it is the same row in its pending state.
  *
- * NO LIFECYCLE CHROME ON EITHER SPELLING (D121(D), #271). Delete is the ROW's kebab in every collection, and
+ * NO LIFECYCLE CHROME ON EITHER SPELLING (D212, #271). Delete is the ROW's kebab in every collection, and
  * the fork "the kebab is off-screen while drilled" is answered by this Back — precisely what world info's
  * entry level already does.
  */

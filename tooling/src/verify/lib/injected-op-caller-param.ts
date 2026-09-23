@@ -47,7 +47,7 @@ export const CALLER_FREE_OP_ROWS: readonly CallerFreeOpRow[] = [
   {
     op: "ListCharacterSpriteAssetsOp",
     why:
-      "expressions-design/01 §8 — OPTIONAL and currently UNWIRED (no compose root supplies it; the FK cascade " +
+      "docs/plans/expressions/design.md — OPTIONAL and currently UNWIRED (no compose root supplies it; the FK cascade " +
       "plus the next GC sweep is the live behavior). It is now a READ of the assetIds bound to a character, " +
       "taken before the owner-scoped delete that actually frees them, and it returns ids the caller already " +
       "proved it owns; it no longer DELETES anything (renamed from `ReapCharacterSpritesOp` when the detach " +

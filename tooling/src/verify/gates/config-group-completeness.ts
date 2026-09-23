@@ -1,11 +1,11 @@
-// Policy: config-group-completeness (client-architecture-lockdown.md §8 / §16 G4 · config-revamp-design.md
+// Policy: config-group-completeness (client-architecture-lockdown.md §8 / §16 G4
 // §3.1 + §6.8) — the config-group registry's structural walls tsc cannot see. tsc forces the door Record
 // total over CONFIG_GROUP_IDS and (§6.8) types every non-collection group as a SKIMMER, so the arms the type
 // system owns are not here. What is here:
 //   CO-LOCATION — a `ConfigGroupDefinition` lives only in `features/*/lib/*-group.{ts,tsx}`, and a
 //     `CollectionContribution` only in `features/*/lib/*-collection.{ts,tsx}`;
 //   DUPLICATE ID — two group definitions claiming one id is a shadow def that rots green;
-//   LIFECYCLE-IS-DATA (config-rail-spec.md §3, D121-D) — a collection's `create` is `{label, useRun}` and a
+//   LIFECYCLE-IS-DATA — a collection's `create` is `{label, useRun}` and a
 //     declared `importFile` is `{label, accept, useRun}`: the HOST draws both affordances in its own chrome
 //     grammar, so the body declares data and never a rendered node;
 //   ORPHAN BODY — a co-located `CollectionContribution` no group's `body.collection` references is dead wire
@@ -64,7 +64,7 @@ const MESSAGE =
   "features/<owner>/lib/<id>-{group,collection}.{ts,tsx} home, a definition this policy cannot resolve to an authored " +
   "object literal, a duplicate group id, a collection whose `create`/`importFile` is not host-drawable DATA, a " +
   "collection body no group registers, or the config content host importing a feature's internals — " +
-  "client-architecture-lockdown.md §8 / config-revamp-design.md §6.8.";
+  "client-architecture-lockdown.md §8.";
 const FIX =
   "co-locate each definition and write it as an authored object literal; declare `create: { label, useRun }` and `importFile: { label, accept, useRun }` as data; register every collection body through its group's `body.collection`; read bodies off the registries in the host instead of importing a feature. For a deliberate exception, write an adjacent `@orb-waive config-group-completeness(<position>): <why + end condition>` — the position is the DECLARED NAME of the group or collection (`xCollection`), and on the host-import arm it is the keyword `import` that opens the offending declaration.";
 
@@ -282,7 +282,7 @@ export const gate = defineGate({
         "packages/ui/src/group-defs.ts": 'export const uiGroup = { id: "x" };\n',
       },
       expect: { count: 1, token: "xGroup", messageIncludes: "Definition outside its home" },
-      why: "THE HOME READ IS TOTAL, and this row is the one that dies without it: `definition.object` is a RESOLUTION — the shared authored-value reader follows a cross-module const to its real declaration, which is routinely OUTSIDE this policy's `@client` population — and NOT only through a vendor `.d.ts`: an ordinary sibling-package import of a `@orb/ui` const, one hop outside `@client`, reproduces it (audit receipt, docs/reviews/gate-runtime/v-audit-wave2-2026-09-12.md D1). `ctx.relativePath` REFUSES any file outside the effective population (lib/policy-pass-context.ts:211-217), so asking it for a foreign object's home THREW and withheld the WHOLE policy — the exact failure that left `freeze-provenance-write-pairing` reporting nothing on every real-tree run while sitting at 0 conformance failures (2026-09-11, guide §3). The home is now read through `lib/declaration-home.ts`. AGAINST THE UNMODIFIED MODULE THIS ROW REDS AS A TOOL ERROR rather than as a missing finding, and that is not a mis-authored row: the planted out-of-population object makes `evaluate` THROW, which is the real-tree failure reproduced inside conformance. Membership in `ctx.files` is NOT the alternative — policy-pass.ts:316 intersects it with a scoped run's requested paths, so that spelling reads silently clean under every `--scope`",
+      why: "THE HOME READ IS TOTAL, and this row is the one that dies without it: `definition.object` is a RESOLUTION — the shared authored-value reader follows a cross-module const to its real declaration, which is routinely OUTSIDE this policy's `@client` population — and NOT only through a vendor `.d.ts`: an ordinary sibling-package import of a `@orb/ui` const, one hop outside `@client`, reproduces it (gate-runtime audit wave 2, finding D1). `ctx.relativePath` REFUSES any file outside the effective population (lib/policy-pass-context.ts:211-217), so asking it for a foreign object's home THREW and withheld the WHOLE policy — the exact failure that left `freeze-provenance-write-pairing` reporting nothing on every real-tree run while sitting at 0 conformance failures (2026-09-11, guide §3). The home is now read through `lib/declaration-home.ts`. AGAINST THE UNMODIFIED MODULE THIS ROW REDS AS A TOOL ERROR rather than as a missing finding, and that is not a mis-authored row: the planted out-of-population object makes `evaluate` THROW, which is the real-tree failure reproduced inside conformance. Membership in `ctx.files` is NOT the alternative — policy-pass.ts:316 intersects it with a scoped run's requested paths, so that spelling reads silently clean under every `--scope`",
     },
     {
       mode: "types",
@@ -326,7 +326,7 @@ export const gate = defineGate({
           'import type { ConfigGroupDefinition } from "../../../state/config-group-registry.ts";\nimport { xCollection } from "./x-collection.tsx";\nexport const xGroup: ConfigGroupDefinition = { id: "x", body: { collection: xCollection } };\n',
       },
       expect: { count: 1, token: "xCollection", messageIncludes: "lifecycle is not data" },
-      why: "a RENDERED `create` — the host draws the affordance in its own chrome grammar, so a body that renders one puts a second create grammar in the LIST (config-rail-spec.md §3)",
+      why: "a RENDERED `create` — the host draws the affordance in its own chrome grammar, so a body that renders one puts a second create grammar in the LIST",
     },
     {
       mode: "types",

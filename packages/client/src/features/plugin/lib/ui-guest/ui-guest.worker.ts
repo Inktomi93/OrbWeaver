@@ -1,4 +1,4 @@
-// ui-guest.worker — the Tier-C CLIENT GUEST (plugin-ui-plane #679 U4, §4.6). One Web Worker per enabled
+// ui-guest.worker — the Tier-C CLIENT GUEST. One Web Worker per enabled
 // scripted plugin, holding ONE QuickJS-WASM context that runs that plugin's `ui.js`. It is the client mirror of
 // `infra/plugin-host`'s Sandbox, and every structural decision here is that file's, re-derived for the browser
 // rather than re-invented:

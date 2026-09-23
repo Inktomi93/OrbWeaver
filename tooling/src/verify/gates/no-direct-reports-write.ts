@@ -1,4 +1,4 @@
-// #1201 / docs/design/1208-instrument-substrate.md §3.7 — a `.screenshot({ path })` in tests/** whose path
+// #1201 — a `.screenshot({ path })` in tests/** whose path
 // carries authored `reports/` text is RED: that literal can name a PUBLISHED `latest` pointer, and an
 // ordinary write FOLLOWS the symlink into whichever run currently owns it, rewriting a finished run's
 // evidence invisibly. The sanctioned door is `ctSnapPath(name)`, which resolves at RUNTIME. Every read here
@@ -35,8 +35,7 @@ const NEEDLE = "reports/";
 
 const MESSAGE =
   'a .screenshot({ path }) call in tests/** hands a "reports/"-carrying authored path — the write follows ' +
-  "whichever run currently owns that published pointer and rewrites its evidence invisibly " +
-  "(docs/design/1208-instrument-substrate.md §3.7).";
+  "whichever run currently owns that published pointer and rewrites its evidence invisibly.";
 
 const FIX =
   'resolve the path through tests/support/node/snap-out.ts ctSnapPath("name") instead of a hand-spelled ' +

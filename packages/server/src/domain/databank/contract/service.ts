@@ -8,7 +8,7 @@
 // v1 surface (DB4): upload/createFromText producers · CRUD · reindex · the global+chat scope junctions.
 // DB7 adds: scrapeWeb (fetch a page over the compose-bound ANY_HOST safeFetch guard → the §2 canon pipeline).
 // DB8 adds: the character-scope junction (attachToCharacter/detachFromCharacter) — a roster character's docs
-// join the chat retrieval union (resolveActiveDocumentIds, databank-design/05 §3.2) — and the youtube/wiki
+// join the chat retrieval union (resolveActiveDocumentIds) — and the youtube/wiki
 // scrapers. DB6's injected `{{databank}}` chat GATHER op and DB5's `search.documents` lens on the unified
 // `search()` are both BUILT (databank graduated D91).
 
@@ -90,7 +90,7 @@ export const NO_EMBED_SPACE_MODEL = "";
  *  bank-wide values); the per-user override lands with the Phase-6 panel. */
 type GetDatabankSettingsOp = (ownerId: UserId) => Promise<DatabankSettings>;
 
-/** The compose-bound web-document fetch for scrapeWeb (databank-design/06 §5; the hub-browse H1 `SafeFetchOp`
+/** The compose-bound web-document fetch for scrapeWeb (the hub-browse H1 `SafeFetchOp`
  *  — the ANY_HOST "arbitrary-URL class"). Reads the page bytes over the self-enforcing `safeFetch` (https-only,
  *  private-range denial, per-hop re-validation — ALL compose-bound and free; the allowlist + `maxBytes` are NOT
  *  caller-suppliable). THROWS on any refusal or fetch failure; the verb collapses that to a leak-free
@@ -234,7 +234,7 @@ export interface DatabankService {
   readonly attachToChat: (params: ChatAttachParams) => Promise<void>;
   readonly detachFromChat: (params: ChatAttachParams) => Promise<void>;
   /** Character scope (DB8) — plain ownership on BOTH the document and the character; a roster character's docs
-   *  feed the chat retrieval union (databank-design/05 §3.2). */
+   *  feed the chat retrieval union. */
   readonly attachToCharacter: (params: CharacterAttachParams) => Promise<void>;
   readonly detachFromCharacter: (params: CharacterAttachParams) => Promise<void>;
   /** Where a document is attached (owner-gated). */

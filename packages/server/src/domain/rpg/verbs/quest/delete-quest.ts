@@ -1,4 +1,4 @@
-// domain/rpg/verbs/quest/delete-quest — deleteQuest (rpg-design/05 §4.4). Removes a quest from the current
+// domain/rpg/verbs/quest/delete-quest — deleteQuest (docs/plans/rpg/design.md). Removes a quest from the current
 // resolved snapshot's array and CLEARS its `quests.<id>` lock (the symmetric grammar — a removed element
 // leaves no ghost lock). Host-gated.
 

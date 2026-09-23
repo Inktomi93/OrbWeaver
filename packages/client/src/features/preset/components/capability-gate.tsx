@@ -1,4 +1,4 @@
-// The params deck's ONE capability note (preset-surface-redesign.md §4) — what stands where SAMPLING and
+// The params deck's ONE capability note — what stands where SAMPLING and
 // REASONING would be when the chat-role capability descriptor is not in hand.
 //
 // A knob the model does not list is ABSENT, never a disabled slider — and with NO descriptor at all, those

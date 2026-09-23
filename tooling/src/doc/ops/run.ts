@@ -7,13 +7,13 @@ import { EXIT } from "../../_shared/exit-contract.ts";
 import { warn } from "../../_shared/log.ts";
 import type { DocCommand } from "../contract/types.ts";
 import { USAGE } from "../lib/parse.ts";
-import { archive } from "./archive.ts";
 import { drift, overview } from "./board.ts";
 import { regenerateIndexes } from "./indexes.ts";
 import type { WriteOutcome } from "./items.ts";
-import { landItems, landMerged, newItem, newItemsFrom, setItems } from "./items.ts";
-import { newAdr, newPlan } from "./new.ts";
-import { removeItems } from "./remove.ts";
+import { newItem, newItemsFrom, setItems } from "./items.ts";
+import { landItems, landMerged } from "./land.ts";
+import { newAdr, newLaw, newPlan } from "./new.ts";
+import { removeDocs } from "./remove.ts";
 import { due, review } from "./review.ts";
 import { setStatus } from "./status.ts";
 
@@ -58,22 +58,22 @@ export function runDocCommand(command: DocCommand): ExitCode {
       return report("new adr", newAdr(command));
     case "new-plan":
       return report("new plan", newPlan(command));
+    case "new-law":
+      return report("new law", newLaw(command));
     case "item":
       return report("item", newItem(command.input));
     case "item-batch":
       return report("item", newItemsFrom(command.from));
     case "status":
-      return report("status", setStatus({ status: command.status, paths: command.paths, by: command.by, docKind: command.docKind }));
+      return report("status", setStatus({ status: command.status, paths: command.paths, by: command.by, docKind: command.docKind, blocked: command.blocked }));
     case "set":
       return report("set", setItems(command.ids, command.patch));
     case "remove":
-      return report("remove", removeItems(command.ids));
+      return report("remove", removeDocs(command.targets));
     case "land":
       return report("land", landItems(command.ids, command.evidence));
     case "land-merged":
       return report("land --merged", landMerged());
-    case "archive":
-      return report("archive", archive(command.targets));
     case "index":
       return report("index", { written: regenerateIndexes(), refusals: [] });
     case "review":

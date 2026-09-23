@@ -1,4 +1,4 @@
-// domain/search/verbs/documents — the databank RAG lens (DB5, databank-design/05 §3). Scope-gated cosine
+// domain/search/verbs/documents — the databank RAG lens. Scope-gated cosine
 // retrieval over `document_chunks`: resolve the scope allowlist via the INJECTED resolver (databank owns the
 // union SQL — search never imports databank), embed the query in the chunks' space, scan, floor, CSLS-adjust,
 // optionally rerank, collapse duplicates, cap to k, then RESTORE READING ORDER (group by document, documents
@@ -37,7 +37,7 @@ interface DocumentCandidate {
 }
 
 /** Group by document (documents ordered by their best-ranked hit = first appearance in the ranked list),
- *  chunks ASCENDING by chunkIdx within each document (databank-design/05 §3.4). `ranked` MUST be best-first. */
+ *  chunks ASCENDING by chunkIdx within each document. `ranked` MUST be best-first. */
 function restoreReadingOrder(ranked: readonly DocumentCandidate[]): DocumentChunkHit[] {
   const order: DocumentChunkHit["documentId"][] = [];
   const groups = new Map<DocumentChunkHit["documentId"], DocumentCandidate[]>();
@@ -139,7 +139,7 @@ export function createDocuments(ctx: SearchContext): SearchService["documents"] 
         ),
       );
 
-      // 6. optional cross-encoder rerank (default OFF, databank-design/05 §3.5).
+      // 6. optional cross-encoder rerank (default OFF).
       const reordered =
         params.rerank === true ? await applyRerank(`${SCOPE_INSTRUCTIONS.documents.rerank}\n${queryText}`, ranked, rc.rerank, ranked.length) : ranked;
 

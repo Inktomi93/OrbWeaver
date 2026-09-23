@@ -45,7 +45,7 @@ export function AppRoot(): ReactElement {
     invalidateUser: invalidation.invalidateUser,
     invalidateAllUserRoots: invalidation.invalidateAllUserRoots,
   });
-  // The session-freshness machinery (staleness-and-session-freshness.md §4.4): the durable-local per-user
+  // The session-freshness machinery: the durable-local per-user
   // rebind, the recovery ladder's host, and the visibility probe. Mounted HERE for the same reason the bus
   // hooks are — a feature could unmount and take the whole belt with it — and AFTER the socket so a
   // resume's forced re-announce has a bound transport to announce on.
@@ -72,12 +72,12 @@ function HydratedAppRoot({ multiHumanCapable, joinToken, setJoinToken }: Hydrate
   const selectedCharacterId = useSelectedCharacterId();
   const activeChatId = useActiveChatId();
 
-  // The best-effort husk reap (chat-creation-draft-mode-replacement.md §4.6): a room created here and left
+  // The best-effort husk reap (D166): a room created here and left
   // without ever being used tells the server on the way out. Mounted at the root for the same reason the bus
   // hooks are — a feature unmount must not take it with it — and it never blocks or surfaces anything.
   useHuskReaper();
 
-  // The per-game live event room (Context-Panel-Program §4.9), mounted here (never in a feature, which
+  // The per-game live event room, mounted here (never in a feature, which
   // could unmount and drop the freshness driver) and keyed to the active chat. `null` (no chat, or a
   // non-game chat) attaches nothing at all.
   useRpgBus(activeChatId, {

@@ -55,7 +55,7 @@ import { DISABLED_STATE, FOCUS_RING, FOCUS_RING_DESTRUCTIVE, TOUCH_TARGET_PSEUDO
 // the fine arm resolved track-height 40, thumb round(up, 1.125rem × 1.25 = 22.5) = 23, border 1, so the
 // content box was 38 and the knob RESTED at 1 + (38−23)/2 = 8.5px: half a device pixel at DPR 1, which is
 // what design-audit's `off-grid-transform` filed as #1684 against `span[data-slot=switch-thumb]` on
-// settings:appearance. `docs/design/integer-line-boxes.md` §2 (the #1640 amendment) had DECLARED that
+// settings:appearance. `docs/law/integer-line-boxes.md` §2 (the #1640 amendment) had DECLARED that
 // residual unreachable — "no authored value and no round() on a token can reach" the difference of two
 // belted lengths — and for a DECLARED thumb that is exactly right. It is reachable by making the knob a
 // FUNCTION of the other three: `h-[calc(track-height − 2×border − 2×inset)]`, so the centred difference is

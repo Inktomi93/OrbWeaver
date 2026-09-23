@@ -18,8 +18,8 @@
 //   • `themes` ride their own member though they live inside the `settings` domain (a distinct client read
 //     surface — the theme list — with its own emit sites in `settings/verbs/*-theme.ts`).
 //   • `settings` / `connection` carry NO id (a user has ONE settings blob; connection has no per-user row).
-//   • `refinery` is the member the coverage survey's H1 forced (docs/history/design/event-bus-coverage-survey.md
-//     §2.2/F1): refinery shipped 15 mutating verbs with ZERO emits on any plane, so at `staleTime: Infinity`
+//   • `refinery` is the member the coverage survey's H1 forced:
+//     refinery shipped 15 mutating verbs with ZERO emits on any plane, so at `staleTime: Infinity`
 //     a second tab/device sat on the pre-write roster forever. Sessions and schemas are single-owned
 //     per-user rows — the exact "an entity you own changed" posture — so they ride HERE rather than paying
 //     the 5-site cost of a feature bus for scoping refinery does not have.
@@ -28,8 +28,8 @@
 //     The per-chat RACK's freshness is a different question and stays where it was — that surface is
 //     member-visible and rides `chatUpdated` on the chat bus (`membership-fan-guard`: member-visible state
 //     fans to the roster, never to one user), so this member covers the OWNER's library, not the room's view.
-//   • `identityChanged` is the staleness design's D5 gap (docs/history/design/staleness-and-session-freshness.md
-//     §2.3.4/§4.4.3, W7b): the viewer's OWN identity — `sessions.me`'s userId/handle/globalRole plus the two
+//   • `identityChanged` is the staleness design's D5 gap:
+//     the viewer's OWN identity — `sessions.me`'s userId/handle/globalRole plus the two
 //     reads a composed viewer read derives it from (`settings.getUserSettings` + `persona.list`) — was in ZERO invalidation rows, so an `admin.setRole` grant (or an SSO
 //     login-time handle rename / role re-derive on another device) reached a live client only on a full page
 //     reload. It is the one member whose subject is the SUBSCRIBER rather than a thing they own, which is why
@@ -99,7 +99,7 @@ export type UserBusEvent =
   // SSO login that renamed the handle / re-derived the role. NO id — the channel key IS the affected user
   // (see the MEMBERSHIP note), so there is no sub-entity to hint at and nothing for a hint to target.
   | { type: "identityChanged" }
-  // A plugin UI surface's published STATE changed (plugin-ui-plane #679 U1) — `host.ui.setState` writes the
+  // A plugin UI surface's published STATE changed — `host.ui.setState` writes the
   // in-memory state plane and fires this so the installer's own client refetches `plugin.getSurfaceState`. The
   // per-person bus is exactly right: a v1 surface renders ONLY for its installer, so the state's one viewer IS
   // this channel's user. COARSE with a `pluginId` hint, following every member here: the client path-invalidates

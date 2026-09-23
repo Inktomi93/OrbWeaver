@@ -323,7 +323,7 @@ export function reportCssFamilyHealth({ inventory, report }: CssFamilyInput): nu
  *  and the only finding is a member nothing writes.
  *
  *  THE "written exactly once" THIS SENTENCE USED TO PROMISE IS EXACTLY THE THING THAT WAS WRONG (#2305,
- *  `v-css-family-2026-09-13.md` ledger row 4). While the arm held cardinalities, two of the three were
+ *  the 2026-09-13 CSS-family verifier review ledger row 4). While the arm held cardinalities, two of the three were
  *  `DECLARED_SET.size * <literal>` — a current-population count §12.5 bans — and a third legitimate `:root`
  *  blur carrier, changing no vocabulary anywhere, reddened five rows. Presence has no number for a
  *  population to drift against, and it says more: the message names WHICH member is missing where a total

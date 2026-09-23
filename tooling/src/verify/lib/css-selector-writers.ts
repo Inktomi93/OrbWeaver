@@ -14,13 +14,13 @@
 //   3. NO `isProductSource` FENCE. It tested `/packages/{ui,client}/src/` against the node's absolute path,
 //      which is `@ui` + `@client` byte for byte (`contract/population.ts#POPULATION_ROOTS`). Under the
 //      declared population the fence is MUTUALLY REDUNDANT with the population itself and is deleted rather
-//      than kept as decoration — the `server-layout` precedent (resource-policy-contract.md §7).
+//      than kept as decoration — the `server-layout` precedent (docs/law/resource-policy-contract.md §7).
 //   4. NO BASE UI. `readManifest`/`readInstalledSurface`/`readInstalledStateAttributeValues` were
 //      `ctx.root` FILESYSTEM reads, and a final policy has no root. The committed-vs-installed
 //      reconciliation is not a question about authored WRITERS anyway, so it moved to the policy that
 //      declares the doors (`json:baseui-manifest` + `installed-package{base-ui,ast}`).
 //   5. VALUE READS GO THROUGH THE SHARED FACT BOUNDARY. `accessedName`'s element-access argument and the
-//      HAST `properties` initializer are VALUES, and `shared-semantic-readers.md:33` rules `ast-read.ts`
+//      HAST `properties` initializer are VALUES, and the shared-semantic-readers map rules `ast-read.ts`
 //      "not the new fact boundary" — they now resolve through `_shared/reference-fact.ts`
 //      (`readStaticString` / `resolveStableExpression`), which follows a stable const binding as well as
 //      stripping wrappers. That is a WIDENING, not a rename: `el["data-x"]` still resolves and

@@ -36,7 +36,7 @@
 // `tests/tooling/verify/gates/tsconfig-entry-liveness.int.test.ts`.
 //
 // THE UNREADABLE ARM EXISTS BECAUSE THIS HEADER'S PREVIOUS CLAIM WAS FALSE, and the correction is worth
-// keeping (#2120, REFUTED by `v-config-liveness-2026-09-12.md` L1). It read: *"A ROSTER PATH THE TEXT DOOR
+// keeping (#2120, REFUTED by the config-liveness verifier review L1). It read: *"A ROSTER PATH THE TEXT DOOR
 // REFUSES is deliberately not an arm — `authored-text` serves exactly the paths some other declaration
 // admitted, and this policy's roster is DERIVED from `tracked-files`' own path set, so the two cannot
 // disagree. There is no fixture that reaches such a branch."* **GIT MEMBERSHIP AND TEXT READABILITY ARE

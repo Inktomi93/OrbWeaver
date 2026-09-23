@@ -1,4 +1,4 @@
-// substrate/plugin-macros — the PLUGIN MACRO plane (plugin-ui-plane §5.15, U6). Proves the four properties the
+// substrate/plugin-macros — the PLUGIN MACRO plane. Proves the four properties the
 // turn path relies on, each of which is a claim the design makes in prose and this file makes checkable:
 //   1. INSTALLER SCOPE — a turn only ever sees macros of plugins THAT AUTHOR installed. There is no
 //      process-global reach to gate, which is the whole reason this plane needs no host-authority check.

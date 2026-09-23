@@ -1,4 +1,4 @@
-// The Extensions section's COPY, in one place (plugin-ui-plane #679 U5, §4.5b) — the section placeholder, the
+// The Extensions section's COPY, in one place — the section placeholder, the
 // teaching empty, and the switcher's own labels.
 //
 // THE EMPTY STATE IS THE ADVERTISEMENT, and that is the argued position, not a default. The rail section ships
