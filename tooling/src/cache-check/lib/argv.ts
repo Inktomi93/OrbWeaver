@@ -3,6 +3,7 @@
 import { UsageError } from "../../_shared/run-tool.ts";
 import type { CacheCase, CacheCheckOptions, CacheRoute } from "../contract/types.ts";
 import { CACHE_CASES, CACHE_ROUTES } from "../contract/types.ts";
+import { DEFAULT_ROUTES } from "./routes.ts";
 
 const USAGE = "usage: pnpm cache:check [--routes=<r,…>] [--cases=<c,…>] [--ref=<ref> | --dirty]";
 const DEFAULT_REF = "HEAD";
@@ -50,7 +51,7 @@ const FLAGS: Readonly<Record<string, (state: ParseState, value: string | null) =
 
 /** Parse argv into options. Every refusal is a `UsageError` (exit 3). */
 export function parseCacheCheckArgs(argv: readonly string[]): CacheCheckOptions {
-  const state: ParseState = { routes: CACHE_ROUTES, cases: CACHE_CASES, ref: null, dirty: false };
+  const state: ParseState = { routes: DEFAULT_ROUTES, cases: CACHE_CASES, ref: null, dirty: false };
   for (const arg of argv) {
     const eq = arg.indexOf("=");
     const handler = FLAGS[eq === -1 ? arg : arg.slice(0, eq)];

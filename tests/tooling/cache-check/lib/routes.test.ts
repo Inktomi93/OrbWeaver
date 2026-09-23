@@ -11,3 +11,11 @@ test("the SKIPPED line names both ways to supply the subscription credential", (
   expect(reason).toContain("set CLAUDE_SUB_PROBE_TOKEN");
   expect(reason).toContain("keep a claude-sub credential in the stage DB");
 });
+
+test("agent-sdk names item 0150 as the known cause of its forking cases, and no other route lists one", () => {
+  expect(Object.keys(ROUTE_SPECS["agent-sdk"].knownFailures).sort()).toEqual(["continue", "deep-note", "group", "narrator"]);
+  expect(ROUTE_SPECS["agent-sdk"].knownFailures.group).toContain("item 0150");
+  expect(ROUTE_SPECS["agent-sdk"].knownFailures.solo).toBeUndefined();
+  expect(ROUTE_SPECS.direct.knownFailures).toEqual({});
+  expect(ROUTE_SPECS.openrouter.knownFailures).toEqual({});
+});

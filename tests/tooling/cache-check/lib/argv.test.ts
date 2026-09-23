@@ -2,8 +2,10 @@ import { CACHE_CASES, CACHE_ROUTES, parseCacheCheckArgs } from "@orb/tooling/cac
 import { UsageError } from "../../../../tooling/src/_shared/run-tool.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
-test("no flags runs every route and case on a stage at HEAD", () => {
-  expect(parseCacheCheckArgs([])).toEqual({ routes: CACHE_ROUTES, cases: CACHE_CASES, ref: "HEAD", dirty: false });
+test("no flags runs every case on the default routes, on a stage at HEAD; agent-sdk runs only when named", () => {
+  expect(parseCacheCheckArgs([])).toEqual({ routes: ["direct", "openrouter"], cases: CACHE_CASES, ref: "HEAD", dirty: false });
+  expect(parseCacheCheckArgs(["--routes=agent-sdk"]).routes).toEqual(["agent-sdk"]);
+  expect(CACHE_ROUTES).toContain("agent-sdk");
 });
 
 test("subsets, a ref and the working-tree stage parse", () => {
