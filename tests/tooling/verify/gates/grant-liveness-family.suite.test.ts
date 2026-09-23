@@ -21,7 +21,7 @@
 // `grant-liveness` roster below is its census.
 //
 // THE FAMILY IS NO LONGER ONE AUTHORITY, which is why the second arm below now has two rows. The grant-bearing
-// policies are `reviewed-grant` carrying central rows, per `exception-authority-census.md` and §5's ban on a
+// policies are `reviewed-grant` carrying central rows, per the gate-runtime exception-authority census and §5's ban on a
 // gate-owned exemption table; the `-health` siblings and `runner-config-path-liveness` are `hard`.
 // `eslint-grant-liveness` MIGRATED 2026-09-13 (#1922 / #2147): its positional `RATIFIED` table became seven
 // central rows, and its real-config grant arms live in `eslint-grant-liveness.int.test.ts`.

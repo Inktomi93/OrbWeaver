@@ -45,7 +45,7 @@
 // family's four ledger consumers) and the INSTALLED doors' three (the whole package missing, `metadata`
 // unresolved, `ast` unresolved, all `[evaluate]` tool errors), beside the complete run asserting one
 // `unresolved: 0` receipt per declared resource. The path this paragraph named until 2026-09-13 —
-// `baseui-family.test.ts` — never existed on the tree (`v-conversions-11-2026-09-13.md`, board #2297).
+// `baseui-family.test.ts` — never existed on the tree (the conversions-11 verifier review, board #2297).
 //
 // BUT THE TWO REFUSALS ARRIVE AT DIFFERENT PHASES, AND THE DIFFERENCE IS NOT COSMETIC — it was MEASURED by
 // this conversion's §4.6 differential, after this header first claimed both were population-phase
@@ -358,7 +358,7 @@ export const gate = defineGate({
         [MANIFEST_PATH]: manifestJson(ROOT_ENTRY("exposed", "")),
       },
       expect: { count: 1, messageIncludes: "changed shape" },
-      why: "ARM A's STATE half, and the row that dies when `part.state` is cut from `identity()`: the installed part gains a `<Part>State` key while its props, alias target and heritage are byte-identical to the manifest's. `<Part>State` is what Base UI mirrors onto the DOM as `data-*`, so it is the surface `baseui-state-data-attributes` judges seals against — a bump that moved it silently moved what that policy enforces. The legacy tuple omitted `state` entirely and this fixture was green against it. It is also the surviving owner of the aggregate attribute-NAME comparison the css-hook-provenance conversion RETIRED into this tuple (`x-css-family-unit-2026-09-13.md` deviation 3), so cutting `state` now blinds two families rather than one",
+      why: "ARM A's STATE half, and the row that dies when `part.state` is cut from `identity()`: the installed part gains a `<Part>State` key while its props, alias target and heritage are byte-identical to the manifest's. `<Part>State` is what Base UI mirrors onto the DOM as `data-*`, so it is the surface `baseui-state-data-attributes` judges seals against — a bump that moved it silently moved what that policy enforces. The legacy tuple omitted `state` entirely and this fixture was green against it. It is also the surviving owner of the aggregate attribute-NAME comparison the css-hook-provenance conversion RETIRED into this tuple (the 2026-09-13 CSS-family unit repair deviation 3), so cutting `state` now blinds two families rather than one",
     },
     {
       mode: "resource",

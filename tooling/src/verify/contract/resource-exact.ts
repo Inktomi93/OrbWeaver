@@ -1,5 +1,5 @@
 // EXACT named files — the door for a policy whose subject is one specific authored file rather than a tree,
-// a config grammar, or a parsed data document (`resource-gate-access-patterns.md` §1).
+// a config grammar, or a parsed data document (the ResourceHost access-pattern ruling §1).
 //
 // WHY IT IS NOT `authoredText`. The demand door reads only what some OTHER declaration already admitted, so
 // a policy whose whole subject is `playwright/index.tsx` would have to declare a TREE it does not judge in

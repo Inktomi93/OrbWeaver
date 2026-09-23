@@ -7,10 +7,10 @@
 // the purge+reindex trigger.
 
 import type { ConnectionBinding, RoutableTask, UserConnection } from "@orb/contracts/inference";
-import { canFund, connectionTasks, isRoutableTask, ROUTABLE_TASKS, taskDef } from "@orb/contracts/inference";
+import { CONNECTION_OP_CODES, canFund, connectionTasks, isRoutableTask, ROUTABLE_TASKS, taskDef } from "@orb/contracts/inference";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
-import { CONNECTION_OP_CODES, ConnectionNotFoundError } from "../contract/errors.ts";
+import { ConnectionNotFoundError } from "../contract/errors.ts";
 import type { BindingActorInput, SetBindingParams, StoredActor } from "../contract/params.ts";
 import type { BindingView } from "../contract/results.ts";
 import type { ConnectionContext, ConnectionService } from "../contract/service.ts";

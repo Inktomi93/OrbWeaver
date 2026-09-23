@@ -112,7 +112,7 @@ async function stubEditor(
     "connection.providersAvailable": () => [{ provider: VLLM_PROVIDER, available: true }],
     "connection.capabilities": () => CONNECTION_CAPABILITIES,
     // An empty catalog is the TYPED-ID arm — which is what `modelListed: false` is about.
-    "connection.catalogModels": () => [],
+    "connection.catalogModels": () => ({ listed: false, reason: "the provider listed no models" }),
     "connection.update": () => opts.connection ?? connectionRow(),
     "connection.probe": () => ({ status: "unreachable", checkedAt: 0, reason: "connect ECONNREFUSED" }),
     "settings.getAppSettingsWithOverrides": () => ({

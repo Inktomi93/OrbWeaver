@@ -20,7 +20,7 @@
 // live marker carrier on every run of this policy: a tracked Markdown symlink would surface as an
 // `unresolved` carrier each time, and an `@orb-waive` spelled INSIDE an HTML comment in any tracked
 // Markdown file — a review doc quoting a fixture marker — is parsed as a marker and alarmed (the two
-// 2026-09-18 alarms in `docs/reviews/gate-runtime/v-conversions-2026-09-13.md`). Prose about a marker
+// 2026-09-18 alarms in the gate-runtime conversions review). Prose about a marker
 // stays outside the comment span; the demand itself is the same one #1947 ruled by design for
 // `native-config`.
 // FAMILY: singleton — subject is the D-ledger prose, not a code shape.

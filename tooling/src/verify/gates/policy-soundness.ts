@@ -64,8 +64,7 @@
 // closed member vocabulary in dotted, optional, string-subscript, destructured and `.bind` positions. NOT
 // followed, by that module's declared limits (`gate-modernization.ts` `importHopReadsTypes`): a namespace or
 // default import, a non-relative or unloaded specifier, a second hop, and a computed subscript. §5b criteria 2 and 5 and the §4.1 narrowing cut are
-// judgment or mutation and stay with the reading lanes (family record:
-// docs/reviews/gate-runtime/policy-soundness-family-1584.md).
+// judgment or mutation and stay with the reading lanes (the family's #1584 conversion record).
 //
 // IDENTITY: a module is judged only when its `gate` initializer's callee resolves by IMPORT ORIGIN to
 // `contract/policy.ts` — a legacy descriptor object and a local `defineGate` lookalike are out of scope

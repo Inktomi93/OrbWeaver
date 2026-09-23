@@ -161,6 +161,9 @@ const HARNESS_OWNER_HANDLE = "owner";
  */
 export const E2E_LOCAL_ENGINE_BASE_URL = `http://127.0.0.1:${String(ENGINE_PORTS.generate)}/v1`;
 
+/** The provider that row is authored under; its model list is read under the same id. */
+export const E2E_LOCAL_ENGINE_PROVIDER = "vllm";
+
 /** The label that row is minted under. `connection.create` collision-suffixes a duplicate label rather than
  *  refusing it (`verbs/connections.ts::mintLabel`), so the seed must LOOK FIRST — this string is the
  *  harness's idempotency key across re-runs against a surviving DB, and the key the specs look it up by. */

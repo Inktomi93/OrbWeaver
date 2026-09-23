@@ -17,7 +17,7 @@
 //
 // ═══ SEVERITY: `hard` / `error` SINCE #0038 (2026-09-23) ═══
 //
-// Born `ordinary`/`warning` + a `workItem` (policing-surface-audit-2026-09-12.md:566) because it red 92 of 98
+// Born `ordinary`/`warning` + a `workItem` (the policing-surface audit) because it red 92 of 98
 // derived-population consumers at mint, and a blocking landing would have been a stop, not a burn-down. The
 // flip condition was the commit that takes THIS POLICY'S OWN effective count to zero. That count first hit
 // zero on 2026-09-13 (#2327: sixteen consumers pinned, one false accusation retired by the #2330 repair

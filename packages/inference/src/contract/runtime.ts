@@ -58,6 +58,27 @@ export const endpointModelsSchema = z.array(endpointModelSchema) satisfies z.Zod
 
 export type RoleClientsFor = (funder: Principal, actor?: BindingActor) => RoleClientsWithSignal;
 
+/** One catalog mirror warm: the value it now holds, or why the live fetch failed, already scrubbed of the
+ *  secrets that warm dialed with. Every caller coalesced onto one warm shares this one answer, so the reason is
+ *  scrubbed where the secret is known, never by a later reader. The resolve path degrades on `ok: false`; the
+ *  model-list read reports the reason as its `listed: false` reason. */
+export type MirrorWarm<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly reason: string };
+
+/** The secret a model-list read dials with: the CALLER's saved credential by id (re-read through the credentials
+ *  domain, never hand-minted), or a raw key typed into a draft that has not been saved yet. */
+export type CatalogSecret = { readonly credentialId: UserCredentialId | null } | { readonly key: string };
+
+/** A model-list read for a connection that may not exist yet. A saved row reads through the same shape, so
+ *  there is one catalog read. `baseUrl` is an `auth: endpoint` row's own server; a hosted provider's fixed URL
+ *  wins over it. */
+export interface CatalogDraft {
+  readonly principal: Principal;
+  readonly providerId: ProviderId;
+  readonly secret: CatalogSecret;
+  readonly baseUrl: string | null;
+  readonly headers?: Readonly<Record<string, string>> | undefined;
+}
+
 export interface InferenceLog {
   readonly debug: (fields: Readonly<Record<string, unknown>>, message: string) => void;
   readonly info: (fields: Readonly<Record<string, unknown>>, message: string) => void;

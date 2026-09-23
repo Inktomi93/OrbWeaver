@@ -1,7 +1,7 @@
 // §4.5 refusal pin AND the §4.6 SPLIT-ARM DIFFERENTIAL for the two `-health` tripwires
 // (`spacing-tier-home-health`, `typography-tier-home-health`).
 //
-// §4.5 (v-audit-wave4-2026-09-12.md, D8): both declare `execution: "entire-population"` because "does this
+// §4.5 (gate-runtime audit wave 4, D8): both declare `execution: "entire-population"` because "does this
 // row resolve to a file" is a whole-tree question the per-file occurrence policy cannot answer, but nothing
 // proved a NARROWED request defers instead of silently declaring both sanctioned homes dead. The generic
 // deferral mechanics are the planner's own contract (`tests/tooling/verify/lib/policy-plan.test.ts`); this

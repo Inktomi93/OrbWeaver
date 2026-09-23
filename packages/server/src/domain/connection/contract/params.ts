@@ -101,13 +101,16 @@ export interface CatalogModelsParams extends ActorParams {
   readonly connectionId: UserConnectionId;
 }
 
-/** `listEndpointModels` — the pane's SERVER-SIDE `GET <baseUrl>/v1/models` for an endpoint row being authored
- *  (a browser cannot reach a user's loopback box); rides the F12 admission + the SSRF guard. A saved credential
- *  id OR a raw draft key, never both. */
-export interface ListEndpointModelsParams extends ActorParams {
-  readonly baseUrl: string;
+/** `draftCatalogModels` — the add dialog's model list BEFORE the row exists: the provider it is authoring, the
+ *  key (a credential it already saved, the caller's, or the raw key still in the form), and an endpoint row's own
+ *  server, dialed SERVER-SIDE because a browser cannot reach a user's loopback box. Judged by the same rules as
+ *  `create`, so a draft that lists is a draft that saves. A saved key opens under THIS provider id, the one it
+ *  was sealed for. */
+export interface DraftCatalogModelsParams extends ActorParams {
+  readonly providerId: string;
   readonly credentialId?: UserCredentialId | undefined;
   readonly key?: string | undefined;
+  readonly baseUrl?: string | undefined;
   readonly headers?: Readonly<Record<string, string>> | undefined;
 }
 

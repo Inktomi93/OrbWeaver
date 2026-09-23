@@ -10,10 +10,10 @@
 // `declared` patch can move it without touching `model`, and an unrelated `declared` edit moves nothing.
 
 import type { ConnectionApi, ProviderDef, UserConnection } from "@orb/contracts/inference";
-import { connectionTasks, modelIdSchema } from "@orb/contracts/inference";
+import { CONNECTION_OP_CODES, connectionTasks, modelIdSchema } from "@orb/contracts/inference";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { ModelId, UserConnectionId, UserId } from "@orb/kit/ids";
-import { CONNECTION_OP_CODES, ConnectionNotFoundError } from "../contract/errors.ts";
+import { ConnectionNotFoundError } from "../contract/errors.ts";
 import type { CreateConnectionParams, UpdateConnectionParams } from "../contract/params.ts";
 import type { ConnectionView, EmbedSpaces } from "../contract/results.ts";
 import type { ConnectionContext, ConnectionService } from "../contract/service.ts";
@@ -26,18 +26,11 @@ import {
   listOwnedLabels,
   updateOwnedConnection,
 } from "../persistence/connections.ts";
+import { requireBaseUrl, requireCredential, requireProvider } from "../substrate/admission.ts";
 import { spacesDiffer, VECTOR_TASKS, vectorSpacesOf } from "../substrate/embed-space.ts";
 import { curatedKindOf } from "../substrate/kind.ts";
 
 const LABEL_SEPARATOR = " · ";
-
-function requireProvider(ctx: ConnectionContext, providerId: string): ProviderDef {
-  const provider = ctx.runtime.providers.registry.get(providerId);
-  if (provider === undefined) {
-    throw new DomainOperationError(CONNECTION_OP_CODES.providerUnknown, `"${providerId}" is not a registered provider.`);
-  }
-  return provider;
-}
 
 function requireModelId(raw: string): ModelId {
   const parsed = modelIdSchema.safeParse(raw);
@@ -47,39 +40,18 @@ function requireModelId(raw: string): ModelId {
   return parsed.data;
 }
 
+/** A `builtin` catalog is the closed set the in-process runtime can load, so an id outside it can only be a
+ *  typo; a `url` catalog can lag its provider and admits any id (saved `modelListed: false`, §7.4). */
+function requireCatalogModel(ctx: ConnectionContext, provider: ProviderDef, model: ModelId): void {
+  const closed = ctx.runtime.catalogs.builtin(provider.id);
+  if (closed !== null && !closed.some((entry) => entry.id === model)) {
+    throw new DomainOperationError(CONNECTION_OP_CODES.modelNotInCatalog, `${provider.label} does not run "${model}" — pick one of its listed models.`);
+  }
+}
+
 function requireApi(provider: ProviderDef, api: ConnectionApi): void {
   if (api !== "auto" && !provider.apis.includes(api)) {
     throw new DomainOperationError(CONNECTION_OP_CODES.apiIncoherent, `${provider.label} does not speak "${api}".`);
-  }
-}
-
-/** The base-URL rule: an `auth: endpoint` row NEEDS one (parsed, admitted); every other provider fixes its
- *  own and the row must not carry one. */
-function requireBaseUrl(ctx: ConnectionContext, provider: ProviderDef, baseUrl: string | null): void {
-  if (provider.auth !== "endpoint") {
-    if (baseUrl !== null) {
-      throw new DomainOperationError(CONNECTION_OP_CODES.baseUrlShape, `${provider.label} has a fixed endpoint; a connection may not name one.`);
-    }
-    return;
-  }
-  if (baseUrl === null) {
-    throw new DomainOperationError(CONNECTION_OP_CODES.baseUrlShape, `${provider.label} is your own server — a base URL is required.`);
-  }
-  const admission = ctx.endpointAdmission(baseUrl);
-  if (admission === "invalid") {
-    throw new DomainOperationError(CONNECTION_OP_CODES.baseUrlInvalid, `"${baseUrl}" is not an http(s) URL.`);
-  }
-  if (admission === "refused") {
-    throw new DomainOperationError(CONNECTION_OP_CODES.baseUrlRefused, `"${new URL(baseUrl).host}" is a private address this deployment does not admit.`);
-  }
-}
-
-async function requireCredential(ctx: ConnectionContext, ownerId: UserId, credentialId: UserConnection["credentialId"]): Promise<void> {
-  if (credentialId === null) {
-    return;
-  }
-  if (!(await ctx.credentialOwned(ownerId, credentialId))) {
-    throw new DomainOperationError(CONNECTION_OP_CODES.credentialForeign, `credential ${credentialId} is not yours.`);
   }
 }
 
@@ -138,6 +110,7 @@ function createCreate(ctx: ConnectionContext): ConnectionService["create"] {
     requireBaseUrl(ctx, provider, params.baseUrl);
     await requireCredential(ctx, ownerId, params.credentialId);
     const model = requireModelId(params.model);
+    requireCatalogModel(ctx, provider, model);
     const label = mintLabel(provider, model, await listOwnedLabels(ctx.db, ownerId), params.label);
     const now = ctx.now();
     const id = ctx.newConnectionId();
@@ -182,6 +155,10 @@ async function validatedPatch(
   const credentialId = patch.credentialId ?? row.credentialId;
   await requireCredential(ctx, ownerId, credentialId);
   const model = patch.model === undefined ? row.model : requireModelId(patch.model);
+  // Judged only when the patch moves the model or the provider: an unrelated edit never re-decides a stored id.
+  if (patch.model !== undefined || patch.providerId !== undefined) {
+    requireCatalogModel(ctx, provider, model);
+  }
   return {
     ...(patch.label !== undefined ? { label: patch.label.trim() } : {}),
     providerId: provider.id,

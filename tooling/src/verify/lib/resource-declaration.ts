@@ -227,6 +227,30 @@ export interface ResourceOwnerPathResolution {
   readonly failures: ReadonlyMap<string, string>;
 }
 
+/** The shared walk behind both `resolveResourceOwnerPathResolution` and `resolveResourceOwnerPaths`: paths by
+ *  owner, and acquisition failures by owner as the ORIGINAL `Error`. Kept unexported so the one throw site
+ *  below can re-raise the owner's own error unchanged — composed text, already censused at its real throw
+ *  site — instead of re-authoring it into a second, untraceable message. */
+function resolveResourceOwnerPathWalk(
+  owners: readonly (Pick<GatePolicy, "id" | "resources"> | Pick<GateFact, "id" | "resources">)[],
+  options: ResourceHostOptions,
+): { readonly paths: ReadonlyMap<string, readonly string[]>; readonly failures: ReadonlyMap<string, Error> } {
+  const invocation = createResourceHost(options);
+  const paths = new Map<string, readonly string[]>();
+  const failures = new Map<string, Error>();
+  for (const owner of owners.filter((candidate) => candidate.resources.length > 0).toSorted((left, right) => left.id.localeCompare(right.id))) {
+    // @orb-waive caught-failure-ownership(error): Acquisition failure is retained by owner so pure planning refuses and the structure-bound planner can let the dispatcher emit its canonical incomplete owner row and withheld authority. Ends if the failure map no longer drives both refusal paths.
+    try {
+      paths.set(owner.id, resolveResourceDeclarations(invocation.host, owner.resources));
+    } catch (error) {
+      // resolveResourceDeclarations raises only `new Error(...)` composed from POLICY_PASS_REFUSALS — trust it
+      // rather than fabricating a second, untraceable message for a throw shape it never produces.
+      failures.set(owner.id, error as Error);
+    }
+  }
+  return { paths, failures };
+}
+
 /** Resolve every owner through one invocation while preserving failures by owner. The planner needs exact
  *  paths for healthy owners, but a failed owner must still reach execution: the dispatcher owns its
  *  incomplete row, withholding, and authority receipt. */
@@ -234,18 +258,8 @@ export function resolveResourceOwnerPathResolution(
   owners: readonly (Pick<GatePolicy, "id" | "resources"> | Pick<GateFact, "id" | "resources">)[],
   options: ResourceHostOptions,
 ): ResourceOwnerPathResolution {
-  const invocation = createResourceHost(options);
-  const paths = new Map<string, readonly string[]>();
-  const failures = new Map<string, string>();
-  for (const owner of owners.filter((candidate) => candidate.resources.length > 0).toSorted((left, right) => left.id.localeCompare(right.id))) {
-    // @orb-waive caught-failure-ownership(error): Acquisition failure is retained by owner so pure planning refuses and the structure-bound planner can let the dispatcher emit its canonical incomplete owner row and withheld authority. Ends if the failure map no longer drives both refusal paths.
-    try {
-      paths.set(owner.id, resolveResourceDeclarations(invocation.host, owner.resources));
-    } catch (error) {
-      failures.set(owner.id, error instanceof Error ? error.message : String(error));
-    }
-  }
-  return { paths, failures };
+  const { paths, failures } = resolveResourceOwnerPathWalk(owners, options);
+  return { paths, failures: new Map([...failures].map(([id, error]) => [id, error.message])) };
 }
 
 /** Resolve policy or shared-fact declarations without creating a second maintained resource roster. */
@@ -253,10 +267,10 @@ function resolveResourceOwnerPaths(
   owners: readonly (Pick<GatePolicy, "id" | "resources"> | Pick<GateFact, "id" | "resources">)[],
   options: ResourceHostOptions,
 ): ReadonlyMap<string, readonly string[]> {
-  const resolved = resolveResourceOwnerPathResolution(owners, options);
-  const failure = [...resolved.failures.entries()][0];
+  const resolved = resolveResourceOwnerPathWalk(owners, options);
+  const failure = [...resolved.failures.values()][0];
   if (failure !== undefined) {
-    throw new Error(failure[1]);
+    throw failure;
   }
   return resolved.paths;
 }

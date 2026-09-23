@@ -14,7 +14,7 @@ import { assertPolicyScopeRequest } from "./policy-scope.ts";
  *  operator asks for it. The real-tree entrypoints that carry NOTHING ELSE from this grammar
  *  (`ops/structure.ts`, `ops/scoped.ts`) import `FAIL_ON_WARNINGS_FLAG` instead of re-spelling the token,
  *  so there is exactly one door spelling on the tree — and when the atomic cutover points `structure` at
- *  `planPolicyArgv` (docs/reviews/gate-runtime/planner-cli-integration.md), the flag an operator already
+ *  `planPolicyArgv` (the gate-runtime planner/CLI integration ruling), the flag an operator already
  *  types is the flag the planner already parses. */
 const FAIL_ON_WARNINGS_OPTION = "fail-on-warnings";
 export const FAIL_ON_WARNINGS_FLAG = `--${FAIL_ON_WARNINGS_OPTION}`;

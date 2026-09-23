@@ -125,7 +125,7 @@ Rules:
 - `getResolvedSignature()` proves overload selection and parameter types, but it is expensive. First reduce to a lossless structural or declaration-derived candidate set, then cache the result by call `compilerNode` for this invocation.
 - Assignability answers shape compatibility. It cannot prove that a callable came from the canonical injected door or module; combine it with declaration origin.
 
-The bus incident that established these rules is recorded in `docs/reviews/gate-runtime/bus-family-1584.md`: alias-only resolution lost `memoryRecall`, while resolving every server call took minutes and several GiB.
+The bus incident that established these rules came from the bus family's #1584 conversion: alias-only resolution lost `memoryRecall`, while resolving every server call took minutes and several GiB.
 
 ## Authored values are not types
 

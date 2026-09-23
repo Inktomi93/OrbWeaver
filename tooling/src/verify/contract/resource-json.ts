@@ -13,7 +13,7 @@
 // per-config RAW include/exclude entries, not a resource kind.
 //
 // MISSING AND UNPARSEABLE ARE SEPARATE FACTS AT BOTH DOORS, and neither ever becomes `{}`.
-// `resource-gate-access-patterns.md:126` is the law: *"Missing and parse failure must be separate
+// the ResourceHost access-pattern ruling is the law: *"Missing and parse failure must be separate
 // unresolved/tool-error facts… The host must never collapse missing/unparseable into `{}`. An empty row
 // population is a refusal for the liveness family, not a clean result."* Today the consuming gates disagree
 // — some return silently, some report a finding, some throw — and unifying that is part of this door, not a
