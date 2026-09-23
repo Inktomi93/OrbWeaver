@@ -1,10 +1,9 @@
 ---
 kind: work
-status: blocked
+status: open
 updated: 2026-09-23
 priority: P2
 area: docs
-blocked: on 5
 plan: doc-migration
 ---
 
