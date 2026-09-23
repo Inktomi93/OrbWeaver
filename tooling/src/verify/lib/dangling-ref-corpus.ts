@@ -1,5 +1,4 @@
-import { DOC_TOOL_TREES } from "../../doc/contract/vocab.ts";
-import { parseFrontmatter } from "../../doc/lib/frontmatter.ts";
+import { DOC_TOOL_TREES, parseFrontmatter } from "#doc";
 import type { DocumentIndex } from "../contract/resource-document.ts";
 import type { AuthoredTextCorpus } from "../contract/resource-text.ts";
 
