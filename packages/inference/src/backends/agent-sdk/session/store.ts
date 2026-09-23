@@ -61,8 +61,10 @@ export interface SeededSessionDecision {
  * as two ops, kept SDK-free/db-free here (the sealed-executor invariant — infra never imports `@orb/db`
  * directly; the compose root builds these over `db.insert`/`db.update` and injects them). `insert` covers a
  * BRAND NEW sdk-session lineage entry (dispositions `seeded`/`forked` — a new `sdkSessionId` was minted);
- * `update` covers an in-place content rewrite of an EXISTING entry (disposition `reseeded` — the SAME
- * `sdkSessionId`, changed content). Absent ⇒ no persistence (the in-memory cache alone still works — a
+ * `update` covers a switch back onto an EXISTING entry (`reseeded`, `rewound`, `readopted` — the SAME
+ * `sdkSessionId`). Both name the lineage the connection now runs on, and the writer moves that
+ * `(chat, connection)`'s primary seat to it; `resumed` writes nothing because the seat is already there.
+ * Absent ⇒ no persistence (the in-memory cache alone still works — a
  * durable row is an optimization per Tier-3b-Providers.md Esoteric §3, not a correctness need).
  */
 /** Best-effort INSERT: a `session_entries` write failure never takes down a chat turn (the in-memory
@@ -79,8 +81,8 @@ async function persistInsert(writer: SessionEntryWriter | undefined, log: Infere
   }
 }
 
-/** Best-effort UPDATE counterpart of {@link persistInsert} (the `reseeded` disposition — same
- *  `sdkSessionId`, rewritten content). */
+/** Best-effort UPDATE counterpart of {@link persistInsert} (`reseeded`/`rewound`/`readopted` — same
+ *  `sdkSessionId`). */
 async function persistUpdate(writer: SessionEntryWriter | undefined, log: InferenceLog, entry: Parameters<SessionEntryWriter["update"]>[0]): Promise<void> {
   if (writer === undefined) {
     return;
@@ -254,6 +256,7 @@ export class SessionCache {
         continue;
       }
       if (sessionMatchesSeed(rows, turns)) {
+        await persistUpdate(this.writer, this.log, { connectionId, sdkSessionId: sessionId, seededThroughSeq: turns.length, canonHash: canonHashOf(turns) });
         this.byChatConnection.set(cacheKey, sessionId);
         return { sessionId, disposition: "readopted" };
       }
@@ -291,6 +294,7 @@ export class SessionCache {
         return { sessionId, disposition: seededAs };
       }
       if (sessionMatchesSeed(rows, turns)) {
+        await persistUpdate(this.writer, this.log, { connectionId, sdkSessionId: sessionId, seededThroughSeq: turns.length, canonHash: canonHashOf(turns) });
         this.byChatConnection.set(cacheKey, sessionId);
         return { sessionId, disposition: "readopted" };
       }

@@ -1,9 +1,9 @@
 // entry/compose/session-entries — the D8 write path (issue #71) against a real libSQL :memory: db (FK
 // enforcement ON, via freshDb): `createSessionEntryWriter`'s `insert` mints a real `SessionEntryId`
-// (ID_PREFIX.sessionEntry) and picks the next per-chat `seq` off the current max (0 for the first entry,
-// with `isPrimary` scoped to the chat + connection lineage); `update`
-// rewrites an EXISTING row in place (the `reseeded` disposition — same `sdkSessionId`, no new row, no
-// `seq` bump); the chatId FK rejects an unknown chat; the observability row count
+// (ID_PREFIX.sessionEntry) and picks the next per-chat `seq` off the current max (0 for the first entry);
+// every write moves the `(chat, connection)` primary seat onto the row it touches (demote, then promote),
+// so two funders in one room each keep their own seat; `update` rewrites an EXISTING row in place (same
+// `sdkSessionId`, no new row, no `seq` bump); the chatId FK rejects an unknown chat; the observability row count
 // (`foundation/observability/debug`'s `tableCounts`) reflects the real writes; and the persisted row
 // carries ONLY the schema's own columns — no credential/secret material can ride along (the writer's
 // static input type already excludes it; this asserts the INSERTED row's own key set matches the schema
@@ -15,7 +15,7 @@ import { agentSdkSessionIdSchema } from "@orb/inference";
 import type { ChatId, UserConnectionId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { tableCounts } from "@orb/server/foundation/observability/debug";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { createSessionEntryWriter } from "../../../../packages/server/src/entry/compose/session-entries.ts";
 import { freshDb } from "../../../support/db.ts";
 import { seedUser } from "../../../support/factories/user.ts";
@@ -70,30 +70,100 @@ test("insert mints a real SessionEntryId, seq=0, and isPrimary=true for a chat's
   expect(row?.createdAt).toBeTypeOf("number");
 });
 
-test("a SECOND insert for the same chat and connection gets the next seq and is NOT primary (awaits the reap)", async () => {
+test("a new lineage on the same connection demotes the old primary and takes the seat", async () => {
   const db = await freshDb();
   const chatId = await seedChat(db, "chat_writer_second");
   const connectionId = await seedConnection(db, "second");
   const writer = createSessionEntryWriter(db);
+  const first = agentSdkSessionIdSchema.parse("0fbad1c0-60fd-4b60-b347-02db454429dc");
+  const second = agentSdkSessionIdSchema.parse("bd75c2b7-8885-4296-9ea3-675804c5e790");
 
-  await writer.insert({
-    chatId,
-    connectionId,
-    sdkSessionId: agentSdkSessionIdSchema.parse("0fbad1c0-60fd-4b60-b347-02db454429dc"),
-    seededThroughSeq: SEEDED_THROUGH_SEQ,
-    canonHash: CANON_HASH,
-  });
-  await writer.insert({
-    chatId,
-    connectionId,
-    sdkSessionId: agentSdkSessionIdSchema.parse("bd75c2b7-8885-4296-9ea3-675804c5e790"),
-    seededThroughSeq: SEEDED_THROUGH_SEQ + 1,
-    canonHash: "canon-hash-def",
-  });
+  await writer.insert({ chatId, connectionId, sdkSessionId: first, seededThroughSeq: SEEDED_THROUGH_SEQ, canonHash: CANON_HASH });
+  await writer.insert({ chatId, connectionId, sdkSessionId: second, seededThroughSeq: SEEDED_THROUGH_SEQ + 1, canonHash: "canon-hash-def" });
 
   const rows = await db.select().from(sessionEntries).where(eq(sessionEntries.chatId, chatId)).orderBy(sessionEntries.seq);
-  expect(rows.map((r) => r.seq)).toEqual([0, 1]);
-  expect(rows.map((r) => r.isPrimary)).toEqual([true, false]);
+  expect(rows.map((r) => [r.sdkSessionId, r.seq, r.isPrimary])).toEqual([
+    [first, 0, false],
+    [second, 1, true],
+  ]);
+});
+
+test("two funders alternating in one chat each keep their own primary lineage", async () => {
+  const db = await freshDb();
+  const chatId = await seedChat(db, "chat_writer_two_funders");
+  const funderA = await seedConnection(db, "funder-a");
+  const funderB = await seedConnection(db, "funder-b");
+  const writer = createSessionEntryWriter(db);
+  const a1 = agentSdkSessionIdSchema.parse("1a0c6d52-6a0e-4a49-9b1e-2b8f0e5c7d11");
+  const a2 = agentSdkSessionIdSchema.parse("2b1d7e63-7b1f-4b5a-8c2f-3c9f1f6d8e22");
+  const b1 = agentSdkSessionIdSchema.parse("3c2e8f74-8c20-4c6b-9d30-4da020708f33");
+  const primaries = async (): Promise<Record<string, string>> => {
+    const rows = await db
+      .select()
+      .from(sessionEntries)
+      .where(and(eq(sessionEntries.chatId, chatId), eq(sessionEntries.isPrimary, true)));
+    return Object.fromEntries(rows.map((row) => [row.connectionId, row.sdkSessionId]));
+  };
+
+  await writer.insert({ chatId, connectionId: funderA, sdkSessionId: a1, seededThroughSeq: 1, canonHash: "a-1" });
+  await writer.insert({ chatId, connectionId: funderB, sdkSessionId: b1, seededThroughSeq: 1, canonHash: "b-1" });
+  // Funder A's turn forks a new lineage; B's warm session keeps its seat.
+  await writer.insert({ chatId, connectionId: funderA, sdkSessionId: a2, seededThroughSeq: 3, canonHash: "a-2" });
+  expect(await primaries()).toEqual({ [funderA]: a2, [funderB]: b1 });
+
+  // B reseeds in place; A's seat is untouched.
+  await writer.update({ connectionId: funderB, sdkSessionId: b1, seededThroughSeq: 4, canonHash: "b-1-reseeded" });
+  expect(await primaries()).toEqual({ [funderA]: a2, [funderB]: b1 });
+
+  // A swipes back onto its first lineage (readopt or rewind): the seat moves back, and B's does not.
+  await writer.update({ connectionId: funderA, sdkSessionId: a1, seededThroughSeq: 1, canonHash: "a-1" });
+  expect(await primaries()).toEqual({ [funderA]: a1, [funderB]: b1 });
+  expect(await db.select().from(sessionEntries).where(eq(sessionEntries.chatId, chatId))).toHaveLength(3);
+});
+
+test("concurrent reseeds of the same chat and connection keep every row and exactly one primary", async () => {
+  const db = await freshDb();
+  const chatId = await seedChat(db, "chat_writer_concurrent");
+  const connectionId = await seedConnection(db, "concurrent");
+  const writer = createSessionEntryWriter(db);
+  await writer.insert({
+    chatId,
+    connectionId,
+    sdkSessionId: agentSdkSessionIdSchema.parse("4d3f9085-9d31-4d7c-8e41-5eb131819044"),
+    seededThroughSeq: 1,
+    canonHash: "head",
+  });
+
+  const racers = ["5e40a196-ae42-4e8d-9f52-6fc242920155", "6f51b2a7-bf53-4f9e-a063-70d353a31266", "7062c3b8-c064-40af-b174-81e464b42377"];
+  const settled = await Promise.allSettled(
+    racers.map((id, i) =>
+      writer.insert({ chatId, connectionId, sdkSessionId: agentSdkSessionIdSchema.parse(id), seededThroughSeq: 2 + i, canonHash: `racer-${i}` }),
+    ),
+  );
+
+  expect(settled.map((s) => s.status)).toEqual(["fulfilled", "fulfilled", "fulfilled"]);
+  const rows = await db.select().from(sessionEntries).where(eq(sessionEntries.chatId, chatId)).orderBy(sessionEntries.seq);
+  expect(rows.map((r) => r.seq)).toEqual([0, 1, 2, 3]);
+  expect(rows.filter((r) => r.isPrimary)).toHaveLength(1);
+});
+
+test("re-inserting a lineage the table already holds (a restart re-seeds the same deterministic id) promotes it in place", async () => {
+  const db = await freshDb();
+  const chatId = await seedChat(db, "chat_writer_reinsert");
+  const connectionId = await seedConnection(db, "reinsert");
+  const writer = createSessionEntryWriter(db);
+  const kept = agentSdkSessionIdSchema.parse("8173d4c9-d175-41b0-8285-92f575c53488");
+  const later = agentSdkSessionIdSchema.parse("9284e5da-e286-42c1-9396-a30686d64599");
+  await writer.insert({ chatId, connectionId, sdkSessionId: kept, seededThroughSeq: 1, canonHash: "kept" });
+  await writer.insert({ chatId, connectionId, sdkSessionId: later, seededThroughSeq: 2, canonHash: "later" });
+
+  await writer.insert({ chatId, connectionId, sdkSessionId: kept, seededThroughSeq: 1, canonHash: "kept-again" });
+
+  const rows = await db.select().from(sessionEntries).where(eq(sessionEntries.chatId, chatId)).orderBy(sessionEntries.seq);
+  expect(rows.map((r) => [r.sdkSessionId, r.seq, r.isPrimary, r.canonHash])).toEqual([
+    [kept, 0, true, "kept-again"],
+    [later, 1, false, "later"],
+  ]);
 });
 
 test("the same chat keeps an independent primary lineage for each connection", async () => {
@@ -177,6 +247,28 @@ test("update refuses an SDK session owned by another connection and leaves its l
   expect(row?.connectionId).toBe(owningConnectionId);
   expect(row?.seededThroughSeq).toBe(SEEDED_THROUGH_SEQ);
   expect(row?.canonHash).toBe(CANON_HASH);
+});
+
+test("insert refuses an SDK session owned by another connection and leaves both primaries unchanged", async () => {
+  const db = await freshDb();
+  const chatId = await seedChat(db, "chat_writer_cross_insert");
+  const owningConnectionId = await seedConnection(db, "insert-owning");
+  const foreignConnectionId = await seedConnection(db, "insert-foreign");
+  const owned = agentSdkSessionIdSchema.parse("a395f6eb-f397-43d2-a4a7-b41797e756aa");
+  const foreignPrimary = agentSdkSessionIdSchema.parse("b4a607fc-04a8-44e3-b5b8-c528a8f867bb");
+  const writer = createSessionEntryWriter(db);
+  await writer.insert({ chatId, connectionId: owningConnectionId, sdkSessionId: owned, seededThroughSeq: SEEDED_THROUGH_SEQ, canonHash: CANON_HASH });
+  await writer.insert({ chatId, connectionId: foreignConnectionId, sdkSessionId: foreignPrimary, seededThroughSeq: SEEDED_THROUGH_SEQ, canonHash: CANON_HASH });
+
+  await expect(
+    writer.insert({ chatId, connectionId: foreignConnectionId, sdkSessionId: owned, seededThroughSeq: 99, canonHash: "foreign-rewrite" }),
+  ).rejects.toThrow("does not belong to the resolved connection");
+
+  const rows = await db.select().from(sessionEntries).where(eq(sessionEntries.chatId, chatId)).orderBy(sessionEntries.seq);
+  expect(rows.map((r) => [r.sdkSessionId, r.connectionId, r.isPrimary, r.canonHash])).toEqual([
+    [owned, owningConnectionId, true, CANON_HASH],
+    [foreignPrimary, foreignConnectionId, true, CANON_HASH],
+  ]);
 });
 
 test("the observability row count (tableCounts) reflects live writer inserts", async () => {
