@@ -592,7 +592,7 @@ function markerStaticSources(section: MarkerSection, ctx: AssembleContext): stri
     case "world_info_after":
       return ctx.worldInfoAfter !== undefined ? [ctx.worldInfoAfter] : [];
     case "persona":
-      return [templateFor(section, ctx), ...(ctx.people ?? []).map((person) => person.description)];
+      return personaStaticSources(section, ctx);
     case "compact_summary":
     case "memory":
     case "databank":
@@ -625,6 +625,15 @@ function markerStaticSources(section: MarkerSection, ctx: AssembleContext): stri
   }
 }
 // biome-ignore-end lint/suspicious/noUnnecessaryConditions: see the matching -start above.
+
+/** The persona marker's static sources: the template, plus every description the marker actually renders — the
+ *  voice's when its placement keeps it in the marker, and each person's `in_prompt` one. A description routed to
+ *  an injection or opted out never reaches the static half, so scanning it would overstate the cache-busters. */
+function personaStaticSources(section: TemplatedMarkerSection, ctx: AssembleContext): string[] {
+  const voice = ctx.activePersona && ctx.personaMarkerActive !== false ? [ctx.activePersona.description] : [];
+  const people = (ctx.people ?? []).flatMap((person) => (person.placement === undefined || person.placement.kind === "in_prompt" ? [person.description] : []));
+  return [templateFor(section, ctx), ...voice, ...people];
+}
 
 function collectStaticSources(section: PromptSection, ctx: AssembleContext): string[] {
   return section.type === "literal" ? [section.content] : markerStaticSources(section, ctx);

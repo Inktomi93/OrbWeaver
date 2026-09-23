@@ -1673,6 +1673,37 @@ describe("buildAssembleContext — the people block", () => {
     expect(out).toContain(`${heading("Bob")}\nBOB-DESC`);
   });
 
+  // An impersonate draft by Bob in an Alice-anchored room: the anchor (Alice) differs from the voice (Bob) AND is a
+  // people entry. Her description must reach the model once, through her people entry.
+  test("an anchor persona that is also a people entry renders its description once", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const built = await buildAssembleContext(ctxWithCard(cardOf("Aria")), {
+      ...inputOf(chatId, host, [charId]),
+      personas: { anchor: alice, active: bob, people: [alice] },
+    });
+    const out = assemblePrompt(DEFAULT_PROMPT_CONFIG, built);
+    // The system halves already include every system-block injection; only in_chat ones ride elsewhere.
+    const inChat = (built.chatInjections ?? []).filter((i) => i.position === "in_chat").map((i) => i.content);
+    const delivered = [out.static, out.dynamic, ...inChat].join("\n");
+
+    expect(delivered.split("ALICE-DESC")).toHaveLength(2);
+    expect(out.static).toContain(`BOB-DESC\n\n${heading("Alice")}\nALICE-DESC`);
+  });
+
+  test("an anchor persona that is NOT a people entry still rides the card-context anchor block (the swap rule)", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const built = await buildAssembleContext(ctxWithCard(cardOf("Aria")), {
+      ...inputOf(chatId, host, [charId]),
+      personas: { anchor: alice, active: bob, people: [cara] },
+    });
+
+    expect((built.chatInjections ?? []).filter((i) => i.content.includes("ALICE-DESC"))).toHaveLength(1);
+  });
+
   test("the people's names join the world-info keyword haystack", async () => {
     // A chat book keyed on "cara"; nothing in the recent messages names her.
     const lore = async (people: readonly AssemblePersona[]): Promise<string> => {

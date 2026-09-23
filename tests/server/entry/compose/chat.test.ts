@@ -212,6 +212,16 @@ describe("createTurnPersonaResolver — the people projection", () => {
     expect(names(out.people)).toEqual(["Alice"]);
   });
 
+  test("a persona is projected once: a seat holding the voice's persona, or one another seat already holds, adds no entry", async () => {
+    const out = await resolve({
+      ...base,
+      presentHumanUserIds: [host, bob, cara, dave],
+      humanSeats: [seat(host, "persona_alice"), seat(bob, "persona_alice"), seat(cara, "persona_cara"), seat(dave, "persona_cara")],
+    });
+
+    expect(names(out.people)).toEqual(["Cara"]);
+  });
+
   test("a solo room projects no people", async () => {
     const out = await resolve({ ...base, presentHumanUserIds: [host], humanSeats: [seat(host, "persona_alice")] });
     const alice = { name: "Alice", description: "Alice-DESC", placement: { kind: "in_prompt" } };
