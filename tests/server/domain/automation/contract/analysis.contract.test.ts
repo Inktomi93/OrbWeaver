@@ -5,15 +5,18 @@
 // (the needle wall's server-side tier: an un-authored route's field is STRIPPED by the very zod the wire
 // schema projects from).
 
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { projectJsonSchema } from "@orb/kit/json-schema";
 import { expectTypeOf } from "vitest";
 import type { z } from "zod";
-import type { AnalysisPayload, AnalysisState } from "../../../../../packages/server/src/domain/automation/contract/analysis.ts";
+import type { AnalysisPayload, AnalysisRoutes, AnalysisState } from "../../../../../packages/server/src/domain/automation/contract/analysis.ts";
 import {
   ANALYSIS_ARC_MAX,
   ANALYSIS_RETIRED_CAP,
   ANALYSIS_TWIST_CAP,
   ANALYSIS_TWIST_MAX,
   buildAnalysisPayloadSchema,
+  buildAnalysisWireSchema,
   EMPTY_ANALYSIS_STATE,
   mergeAnalysisState,
   parseAnalysisState,
@@ -265,25 +268,42 @@ test("buildAnalysisPayloadSchema: the suggest route admits at most ONE suggestio
   expect(schema.safeParse({ ...base, suggestions: [{ text: "one" }, { text: "two" }] }).success).toBe(false);
 });
 
+const ALL_ROUTES = {
+  steer: { apply: "direct" },
+  lore: { apply: "confirm", bookId: mintTypeId(ID_PREFIX.worldBook) },
+  suggest: {},
+  rewrite: {},
+  vars: { key: "tension" },
+} satisfies AnalysisRoutes;
+
 test("buildAnalysisPayloadSchema: every enabled route field remains required in the composed runtime schema", () => {
-  const schema = buildAnalysisPayloadSchema({
-    steer: { apply: "direct" },
-    lore: {},
-    suggest: {},
-    rewrite: {},
-    vars: { key: "tension" },
-  });
-  const base = { arcStatus: "active", updatedArc: null, successorArc: null, twistOps: [] };
+  const schema = buildAnalysisPayloadSchema(ALL_ROUTES);
+  const complete = {
+    arcStatus: "active",
+    updatedArc: null,
+    successorArc: null,
+    twistOps: [],
+    guidance: "",
+    lore: [],
+    suggestions: [],
+    rewrite: { verdict: "clean", issue: "", text: "" },
+    score: 5,
+  };
+  // The control: the complete payload parses, so each refusal below is the missing field's alone.
+  expect(schema.safeParse(complete).success).toBe(true);
   for (const missing of ["guidance", "lore", "suggestions", "rewrite", "score"] as const) {
-    const payload = {
-      ...base,
-      guidance: "",
-      lore: [],
-      suggestions: [],
-      rewrite: { verdict: "clean" },
-      score: 5,
-    };
+    const payload: Partial<typeof complete> = { ...complete };
     delete payload[missing];
     expect(schema.safeParse(payload).success, `${missing} must be required when its route is enabled`).toBe(false);
   }
+});
+
+test("buildAnalysisWireSchema projects to the wire: exactly the authored routes' fields, all required", () => {
+  const base = ["arcStatus", "updatedArc", "successorArc", "twistOps"];
+  const all = projectJsonSchema(buildAnalysisWireSchema(ALL_ROUTES));
+  expect(Object.keys(all["properties"] as Record<string, unknown>).sort()).toEqual([...base, "guidance", "lore", "rewrite", "score", "suggestions"].sort());
+  expect([...(all["required"] as string[])].sort()).toEqual([...base, "guidance", "lore", "rewrite", "score", "suggestions"].sort());
+  // The needle's wire half: an un-authored vars route leaves `score` off the grammar entirely.
+  const steerOnly = projectJsonSchema(buildAnalysisWireSchema({ steer: { apply: "direct" } }));
+  expect(Object.keys(steerOnly["properties"] as Record<string, unknown>).sort()).toEqual([...base, "guidance"].sort());
 });
