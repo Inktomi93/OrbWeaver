@@ -1,4 +1,4 @@
-// HomeSurface CT — the DOOR seam (home-section-spec §8.1): tiles arrive as a hand-built contributor
+// HomeSurface CT — the DOOR seam: tiles arrive as a hand-built contributor
 // registry of fakes and the REAL grid renders them. What this pins is the seam's contract, not pixels:
 // the `(order, id)` sort, `useVisible:false` ⇒ NO DOM, the dormant arm's zero-control doorway, the
 // zero-tile empty state, and the duplicate-id THROW at construction.

@@ -15,7 +15,7 @@
 // configured → the SAMPLING/REASONING/OUTPUT clusters show the connect-a-model note; QUALITY still renders,
 // which is all these pins touch.
 //
-// Post-redesign (preset-surface-redesign.md §3/§4): the editor is ONE flat tab level and Params is the
+// Post-redesign: the editor is ONE flat tab level and Params is the
 // DEFAULT view, so these pins need no tab navigation at all; the dial is a `Select` (owner ruling O-18 —
 // the segmented strip died), so its state reads off the TRIGGER'S TEXT and its options live in a portal.
 

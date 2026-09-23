@@ -1,4 +1,4 @@
-// The Presets CONTEXT panel — ONE per-view READOUT (preset-surface-redesign.md §7, owner decision D2).
+// The Presets CONTEXT panel — ONE per-view READOUT.
 //
 // CONTEXT stops renting editing and becomes the preset's INSTRUMENT. The section INSPECTOR is deleted
 // (with its form bridge — one object, one place, §5.2), and what stands here PROJECTS BY VIEW: what the

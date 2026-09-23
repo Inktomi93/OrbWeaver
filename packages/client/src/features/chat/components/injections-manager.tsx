@@ -2,7 +2,7 @@
 // createCollectionSurface — a chat holds a handful of these, so it's a plain mapped list of per-row
 // autosave forms. The presentational `InjectionsList` takes rows + CRUD callbacks, owning neither read nor
 // write — it was source-agnostic AND EXPORTED because a draft wired it to `draftConfig.injections` instead
-// of the verbs. Draft mode is gone (chat-creation-draft-mode-replacement.md §4.9, R1), so there is one
+// of the verbs. Draft mode is gone (D166), so there is one
 // source (chat.listChatInjections + the verbs) and the split is module-private again: a second wiring is a
 // deliberate re-export, not a leftover door. No enabled/disabled toggle — "off" = delete the row,
 // and an EMPTY-content row is inert (assembly skips it at every position), which the row says out loud.

@@ -2,7 +2,7 @@
 
 > **This README describes the HARNESS. It is not a source, and several of its factual claims have been
 > measured false.** For anything about what ST or we actually put on the wire, read
-> `docs/history/design/st-message-shaping-atlas.md` — every claim there carries a MEASURED or SOURCE-PINNED
+> scripts/probes/st-goldens/ATLAS.md — every claim there carries a MEASURED or SOURCE-PINNED
 > receipt. When this file and a script disagree, the script wins.
 
 **Home: `scripts/probes/st-goldens/` — this is a PROBE HARNESS, not a test** (re-homed from

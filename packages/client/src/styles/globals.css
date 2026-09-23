@@ -99,7 +99,7 @@ body {
   content: none;
 }
 
-/* The streaming caret is OURS ALONE (#42, docs/history/design/streaming-reveal-42.md — the seal deliberately
+/* The streaming caret is OURS ALONE (#42, D168 — the seal deliberately
  * does NOT pass Streamdown's `caret` prop): a 2px `--color-primary` blinking bar painted as an
  * `::after` on the LAST LEAF BLOCK of the streamed Markdown. Scoping to `ghost-stream-body` (the
  * wrapper around the streamed Markdown only) leaves settled rows (mode="static") and the ghost's

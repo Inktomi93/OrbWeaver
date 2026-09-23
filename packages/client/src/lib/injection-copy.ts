@@ -9,7 +9,7 @@ export const ASSISTANT_PREFILL_WARNING = "Assistant role at depth 0 is a respons
 
 // `DRAFT_UNLOCK_AFTER_SEND` ("Available after you send the first message") was DELETED 2026-08-14: it was the
 // #8 grey-out reason for every ⋯ action a rowless room could not perform (rename, delete, message selection).
-// A chat row exists from the creation click (chat-creation-draft-mode-replacement.md §4.1), so those actions
+// A chat row exists from the creation click (D166), so those actions
 // are simply available and there is no phase left to explain.
 
 /** Undo/revert the last continuation — need a continue to have run on this reply's shown swipe first
@@ -154,7 +154,7 @@ export const OFFER_CHOICES_ONE_SHOT = "Asks for choices at the end of the NEXT r
 // could CREATE the room as a side effect and then fail — `IMPERSONATE_AFTER_COMMIT_FAILED_LEAD` on the draft
 // impersonate path, `OPENING_AFTER_COMMIT_FAILED_LEAD`/`_HINT` on START-1's degraded `startChat` — so the
 // copy had to tell the user a room survived a failure they would otherwise read as "nothing happened" and
-// retry, minting a second one. Creation is unfused from generation (chat-creation-draft-mode-replacement.md
+// retry, minting a second one. Creation is unfused from generation (D166
 // §4.4): a fire never creates, so it can never half-create.
 
 /** Impersonate failed. It persists nothing, so there is no half-written turn to explain. */

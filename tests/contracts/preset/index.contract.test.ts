@@ -1073,7 +1073,7 @@ test("the by-id lookup is total over the registry (the client renders a row with
 });
 
 test("clusters pair with the banded kind TWO-SIDEDLY: every extract row declares one, nothing else does", () => {
-  // The Actions-tab IA (docs/history/design/actions-tab-information-architecture.md §2.1): `extract` renders as
+  // The Actions-tab IA: `extract` renders as
   // collapsed disclosure bands, so an extract row WITHOUT a cluster would render mis-filed above the bands —
   // and a clustered row of an un-banded kind would declare a band no renderer draws. The type system cannot
   // state the pairing (kind and cluster are independent fields), so this census is the enforcement.

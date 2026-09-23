@@ -2,10 +2,10 @@
 // (the active handle). A section-owned body so `chatsSection.header` rides the registry, not route
 // composition.
 //
-// It also carries the TEMPORARY badge (home-section-spec §5): the `chats.temporary` flag is CREATION-ONLY by
+// It also carries the TEMPORARY badge: the `chats.temporary` flag is CREATION-ONLY by
 // design, so a user who only learns their room is ephemeral after the fact cannot fix it. The picker states
 // it up front (the pre-create half) and this badge states it for the room's whole life, off the chat row.
-// The pre-send DRAFT arm is gone with draft mode (chat-creation-draft-mode-replacement.md §4.1, R1): there
+// The pre-send DRAFT arm is gone with draft mode (D166): there
 // is no window between the pick and the row any more.
 
 import type { ChatId } from "@orb/kit/ids";

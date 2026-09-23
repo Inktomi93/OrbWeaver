@@ -4,7 +4,7 @@ status: active
 updated: 2026-09-23
 ---
 
-# O3 as amended (SUPERSEDES O3's "settings keeps appearance/system/tags/regex/chat-behavior"; spec: `docs/history/design/set-seams-spec.md` §6.1)
+# O3 as amended (SUPERSEDES O3's "settings keeps appearance/system/tags/regex/chat-behavior")
 
 ## Context
 

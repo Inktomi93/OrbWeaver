@@ -63,7 +63,7 @@ interface MessageScopedParams extends ChatScopedParams {
 }
 
 /** `startChat` — lazy chat+roster creation, greeting seeding, CREATION-INTENT inputs only
- *  (chat-creation-draft-mode-replacement.md §4.1/R2). The former nine-field "draft carry"
+ *  (D166). The former nine-field "draft carry"
  *  (seedGreetings/rosterOverrides/groupConfig/roomOverrides/guided, plus the `generate` opening arm) is
  *  GONE — R1 made every client caller create the real room before mounting, so post-create roster tuning,
  *  group config, room overrides and greeting edits ride their own already-built verbs
@@ -132,7 +132,7 @@ export interface PreviewAssemblyParams extends ChatScopedParams {
 /** `getActivePresetConfig` — the resolved PromptConfig the chat assembles against. */
 export interface GetActivePresetConfigParams extends ChatScopedParams {}
 
-/** `previewActionTemplates` (D8 / preset-surface-redesign §7.1) — every ACTION template of ONE preset,
+/** `previewActionTemplates` — every ACTION template of ONE preset,
  *  resolved against THIS chat. `presetId` is the editor's OVERRIDE: assemble this room as if that preset were
  *  active, so the preset editor can show a real resolution for a preset the chat has not adopted. It rides the
  *  landed `ResolveForeignInputsOp.presetOverride` seam (the rpg GM-voice redirect's), which resolves
@@ -360,7 +360,7 @@ export interface ApplyProseRewriteParams extends MessageScopedParams {
  * `setSeededGreeting` — steps a seeded greeting row onto another of its character card's alternates.
  *
  * IT CARRIES AN INDEX, NOT TEXT (a deliberate divergence from the design doc's parenthetical
- * `{chatId, messageId, text}` sketch — chat-creation-draft-mode-replacement.md §4.8, whose RULING is
+ * `{chatId, messageId, text}` sketch — D166, whose RULING is
  * "replaces a seeded greeting row's content with another card alternate"). With text, this host-gated verb
  * would be a second arbitrary content-write door standing beside `editMessage`'s author-or-host one, and
  * "another card alternate" would be a client-side promise. With an INDEX, the server resolves the bytes from

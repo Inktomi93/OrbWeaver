@@ -1,5 +1,5 @@
-// The guided-template / nudge DRILL-IN — a template's ONE editing home (preset-surface-redesign.md §6.1,
-// audit §16 row 23). The round-4 inline accordion is DEAD (owner: "that's a no-two-homes thing"): template
+// The guided-template / nudge DRILL-IN — a template's ONE editing home (audit
+// §16 row 23). The round-4 inline accordion is DEAD (owner: "that's a no-two-homes thing"): template
 // rows speak the §5.0 ONE-LIST-GRAMMAR exactly as rack rows do — the name selects, the chevron drills, and
 // every editor is a drill-in with a back row. Same SHAPE as the section drill-in, fewer clusters.
 //

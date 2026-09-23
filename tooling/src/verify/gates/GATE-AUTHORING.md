@@ -11,9 +11,8 @@ This is the mechanism-first guide for `defineGate`. Start with the
 [gate-runtime-standardization.md](../../../../docs/design/gate-runtime-standardization.md) and the relevant source
 headers. The standing contract governs; this guide connects authoring decisions to their implementation and proof.
 
-The [legacy guide](../../../../docs/history/gate-authoring-legacy-2026-09-13.md) is preserved verbatim for remaining
-legacy maintenance and conversion archaeology. Its descriptor fields, private exemptions, fixture ritual and exemplar
-recommendations are not final-policy templates. The [preservation map](../../../../docs/reviews/gate-runtime/authoring-guide-preservation-map-2126.md)
+The legacy guide's descriptor fields, private exemptions, fixture ritual and exemplar
+recommendations are not final-policy templates; git holds that guide. The [preservation map](../../../../docs/reviews/gate-runtime/authoring-guide-preservation-map-2126.md)
 classifies every original section. The 2026-09-11 exemplar report is refuted history: never copy a module on its authority.
 Numbered references below retain the relevant subject; explicitly legacy rules route to that archive.
 

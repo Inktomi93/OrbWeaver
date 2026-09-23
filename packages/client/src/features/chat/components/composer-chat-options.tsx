@@ -8,7 +8,7 @@
 // props; the composer already HOLDS the room it renders for, so the id comes down as a PROP and the landing
 // case is unrepresentable here.
 //
-// THE DRAFT ARM IS GONE (chat-creation-draft-mode-replacement.md §4.1, R1). There used to be a second wrapper
+// THE DRAFT ARM IS GONE (D166). There used to be a second wrapper
 // that built its character list from a founding seed plus draft-config additions and rendered the whole
 // menu with the committed-only actions DISABLED. The room has a chat row from the creation click, so there
 // is one wrapper, one character source (the roster), and nothing left to grey out.

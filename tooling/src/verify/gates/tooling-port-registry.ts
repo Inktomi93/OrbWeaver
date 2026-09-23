@@ -7,7 +7,7 @@
 // (the second place a hand-picked pair has historically been born). Comment posture: comment-SAFE (a
 // numeric-literal node kind).
 //
-// AUTHORITY IS reviewed-grant (docs/history/gate-runtime-worked-cases-2026-09.md §"Mixed-hook arity amendments", #1950 group 4): the legacy `PORT_HOME` row for ports.ts is a
+// AUTHORITY IS reviewed-grant (#1950 group 4): the legacy `PORT_HOME` row for ports.ts is a
 // recurring repository PERMISSION — one exact row, `(ports.ts, port-literal)`; the legacy stale sweep ("the
 // day the registry stops carrying port literals is the day it stopped being the registry") is central grant
 // liveness. FAMILY `plumbing-literals` — the shared reader is `lib/plumbing-literals.ts#portLiteralOf`,

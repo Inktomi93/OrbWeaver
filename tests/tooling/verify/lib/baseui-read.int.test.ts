@@ -7,7 +7,7 @@
 //
 // This is not hypothetical. The reader's first depth ceiling (8) truncated `ComboboxRootProps` — an alias
 // of `Omit<AriaCombobox.Props<…>, …> & { … }` that takes ten hops to walk — and reported `Combobox.Root` as
-// having 14 props when it has 44, silently, on the one component docs/history/design/baseui-crunch.md item 6 is
+// having 14 props when it has 44, silently, on the one component the Base UI audit's item 6 is
 // about. It was caught by cross-checking a prop known to exist (`items`), not by any instrument. These
 // tests are that cross-check, made permanent.
 import { execFileSync } from "node:child_process";

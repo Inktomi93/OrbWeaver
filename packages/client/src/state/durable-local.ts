@@ -1,4 +1,4 @@
-// The DURABLE-LOCAL NAMESPACE (staleness-and-session-freshness.md §4.2.1) — the shared half of the two
+// The DURABLE-LOCAL NAMESPACE (D138) — the shared half of the two
 // persistence doors (`create-persisted-store.ts`, `create-entity-draft-store.ts`). Every `orb:*` /
 // `orb-draft:*` blob was keyed per-ORIGIN, which makes a browser's localStorage a single flat world that no
 // identity change can invalidate: the dev latch re-mints the db, user ids move era to era, and the surviving

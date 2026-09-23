@@ -1,4 +1,4 @@
-// The Saved-rosters modal body (RP2 — docs/history/design/saved-rosters-build-record.md §3): the owner's roster
+// The Saved-rosters modal body: the owner's roster
 // library with the three affordance families the program doc's §6 sketches, in ONE surface:
 //   · per row — START a chat from the roster (members in position order + the anchor persona through the
 //     REAL `useStartChat`, then the `applyToChat` polish call for knobs + config: two calls is CORRECT,

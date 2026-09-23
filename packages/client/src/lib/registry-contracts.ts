@@ -335,7 +335,7 @@ export interface CommittedChatContext {
  *  every chat-context CONTRIBUTOR (`ContextTabDef<ChatContextState>`) are typed against.
  *
  *  IT IS A SINGLE-ARM UNION ON PURPOSE. `DraftChatContext` (a rowless room carrying founding CHARACTER ids —
- *  its deleted field said `cast` — instead of a roster) was deleted with draft mode (chat-creation-draft-mode-replacement.md §4.1, R1), but
+ *  its deleted field said `cast` — instead of a roster) was deleted with draft mode (D166), but
  *  the `phase` discriminant STAYS: it is the seam a second projection would re-enter through, every tab body
  *  and contributor already narrows on it, and collapsing it would be a churn across the whole contributor
  *  surface to save one literal. */

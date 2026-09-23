@@ -612,7 +612,7 @@ test(
 );
 
 test("docs:catalog changed scope covers all Markdown and its own control files", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
-  const design = resolveSelection({ kind: "file", paths: ["docs/history/design/staleness-and-session-freshness.md"] });
+  const design = resolveSelection({ kind: "file", paths: ["docs/Mission.md"] });
   expect(stage("docs:format").scopedArgv?.(design)).toBe("skip-empty");
   expect(stage("docs:catalog").scopedArgv?.(design)).toEqual(["pnpm", "check:doc-catalog"]);
 

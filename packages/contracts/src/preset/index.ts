@@ -235,7 +235,7 @@ export const SIDE_GEN_POSTURES = {
   // sentence plus sixteen short structured fields. Originally empty (backend defaults stood); the avatar
   // analysis call hardcoded its own floor — this IS that floor, promoted to its canonical home (#2243).
   caption: { temperature: 0.2, maxOutputTokens: 512 },
-  // ── Refinery stage floors (R1 — docs/history/design/refinery-r0.md §9.7; study §5.3's values). The caller is
+  // ── Refinery stage floors (R1; study §5.3's values). The caller is
   //    always the card owner, so the preset-params rung ALWAYS applies (no mixed-owner batch arm here). ──
   // Score: near-deterministic critique, budgeted for the per-field payload (bigger than distill's facets).
   refine_score: { temperature: 0.2, maxOutputTokens: 768 },
@@ -569,7 +569,7 @@ export const DEFAULT_GUIDED_ACTIONS: GuidedActionsConfig = {
 // stable `id`, a display `label`, and the PROSE SLOT holding the instruction sentence it contributes.
 //
 // THE FRAGMENT BYTES ARE NOT HERE (the templating fork, ARM B — owner ruling 2026-08-09,
-// `docs/history/design/templating-fork-rows-53-73.md`). They are host-editable prose slots
+// D172). They are host-editable prose slots
 // (`PRESET_REWRITE_TOGGLE_PROSE_SLOTS`, ./prose.ts), resolved by the SERVER at the assembly seam that
 // already holds the preset's prose blob, and joined there by the same pure `composeRewriteSteer`
 // (`@orb/kit/guided`) — selected fragments join `. ` (the source's exact editIntros join) in CATALOG
@@ -811,7 +811,7 @@ const templatedMarkerSection = z.object({
    *  override REPLACES the default on both turn kinds, and there is no per-mode override slot.
    *  There is no "render nothing" arm: an EMPTY string is the same thing as omitted (the editor writes
    *  `undefined` when you clear the field), and turning a marker off is `enabled: false` — the one
-   *  mechanism (preset-surface-redesign §5.2a, the tri-state retirement; the v4→v5 lift retires every
+   *  mechanism (the tri-state retirement; the v4→v5 lift retires every
    *  stored `""`). */
   template: z.string().max(MAX_TEXT_LENGTH).optional(),
   inject: injectSchema.optional(),
@@ -879,7 +879,7 @@ interface FormatCarrierToken {
 const FORMAT_STRING_CARRIER_TOKENS = [{ key: "wiFormat", token: "{{entry}}" }] as const satisfies readonly FormatCarrierToken[];
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
-// THE TEMPLATE DEFINITION REGISTRY (preset-surface-redesign §6.6) — the Actions view's ONE data source.
+// THE TEMPLATE DEFINITION REGISTRY — the Actions view's ONE data source.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 //
 // Registry-as-data (the REWRITE_TOGGLES / GREETING_TRANSFORMS precedent — contracts owns the shape+data both
@@ -925,8 +925,8 @@ const FORMAT_STRING_CARRIER_TOKENS = [{ key: "wiFormat", token: "{{entry}}" }] a
 export const TEMPLATE_KINDS = ["steer", "voice", "studio", "format", "nudge", "group", "teach", "extract"] as const satisfies readonly string[];
 export type TemplateKind = (typeof TEMPLATE_KINDS)[number];
 
-/** Sub-clusters for a kind whose row count outgrew a glance (the Actions-tab IA,
- *  `docs/history/design/actions-tab-information-architecture.md` §2.1). Today that is `extract` alone: its 40 rows
+/** Sub-clusters for a kind whose row count outgrew a glance (the Actions-tab IA).
+ *  Today that is `extract` alone: its 40 rows
  *  render as collapsed disclosure bands, one per member here, in THIS tuple's order. Membership is DECLARED
  *  per def (`TemplateDef.cluster`) rather than derived from the slot-id dot-prefixes, because the grouping
  *  follows what a HOST TUNES TOGETHER, not the engineering id structure (`rpg.extract.plane.party` clusters

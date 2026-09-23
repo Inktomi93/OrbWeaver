@@ -428,7 +428,7 @@ const PROBE_IMAGE_URL = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAA
 /** ActiveChatStoreProbe — renders the active-chat store's read hooks as text + buttons that fire its
  *  module actions, so a CT can drive the real hook-backed store (useSyncExternalStore needs a browser).
  *
- *  THE LOAD-BEARING SEAM is now the HUSK one (chat-creation-draft-mode-replacement.md §4.6): a room
+ *  THE LOAD-BEARING SEAM is now the HUSK one (D166): a room
  *  ENTERED via `enterCreatedChat` is remembered as the reap candidate, and leaving it publishes that id to
  *  `subscribeHuskAbandoned` — unless its composer holds unsent text. The probe subscribes to the seam and
  *  prints what it heard, so a CT asserts the PUBLICATION rather than a network call the store never makes.
@@ -654,8 +654,7 @@ export function PresetSelectionProbe(): ReactElement {
   );
 }
 
-/** PresetEditorViewProbe — the preset editor's VIEW axis (preset-surface-redesign.md §7 mechanics / §16
- *  row 10). The view moved out of local `Tabs` state into section state so CONTEXT can project per-view,
+/** PresetEditorViewProbe — the preset editor's VIEW axis. The view moved out of local `Tabs` state into section state so CONTEXT can project per-view,
  *  which makes "unset reads as null" and "the writer is the only mover" real invariants rather than
  *  component detail. A CT, not a unit test: the read surface is the reactive hook (useSyncExternalStore
  *  needs a browser) — the preset-selection-store.ct.tsx posture. */
@@ -1059,7 +1058,7 @@ function ChromeRegistryReader(): ReactElement {
  *  A CT (not a unit test) because the store's only read surface is the reactive hook (useSyncExternalStore
  *  needs a browser render).
  *
- *  The `migrate to committed` arm is GONE with `migrateComposerDraft` (chat-creation-draft-mode-replacement
+ *  The `migrate to committed` arm is GONE with `migrateComposerDraft` (D166
  *  .md §4.1, R1): a room is keyed by its real ChatId from the creation click, so there is no draftKey→ChatId
  *  scope flip left to carry text across. `read snapshot` stands in — the non-hook read the husk-reap skip
  *  uses to decide whether an abandoned room still holds unsent text. */

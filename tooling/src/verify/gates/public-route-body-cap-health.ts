@@ -36,7 +36,7 @@ import { findEnclosingRouteArg, isBodyReadCall, isRawBodyPropertyAccess, routeMe
 // outside `@server`. This mirrors the legacy `finalize` hook's `fileLoaded(ctx, HTTP_ANCHOR)` guard.
 const HTTP_ANCHOR = "packages/server/src/entry/http/index.ts";
 
-const MESSAGE = "public-route-body-cap-health measured a blind route census — see docs/history/design/issue-712-gate-family.md";
+const MESSAGE = "public-route-body-cap-health measured a blind route census";
 
 export const gate = defineGate({
   id: "public-route-body-cap-health",

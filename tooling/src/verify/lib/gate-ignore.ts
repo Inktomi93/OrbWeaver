@@ -19,7 +19,7 @@ import type { GateIgnoreMarker } from "../contract/gate-ignore-marker.ts";
  *  attempted marker — `judgeGateIgnore` then judges it. A marker the recognizer missed would be invisible
  *  to `gate-ignore-inventory`, which is the policy that reds every residual one.
  *
- *  THE MENTION FENCE (docs/history/design/gate-ignore-mention-fence.md): a marker IS a `//` comment whose own
+ *  THE MENTION FENCE: a marker IS a `//` comment whose own
  *  text begins with the vocabulary. Marker-shaped text anywhere else — inside a string/template/JSX/regex
  *  literal, or embedded LATER in a comment's text (a backtick quotation in prose, a JSDoc example) — is a
  *  MENTION of the grammar, never a use of it. The scanner counts only comment-OPENER matches, so gate

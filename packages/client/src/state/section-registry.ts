@@ -28,8 +28,8 @@ export type MobileCuration = "tab" | "sheet";
 // The rail's three chrome zones, in DOM order — the ONE home for the rail-zone axis (state owns shell
 // vocabulary, §5 rule 5). `chrome-registry.ts` DERIVES `CHROME_ZONES` from this tuple (the one-directional
 // direction it already imports in), so the two can never disagree. `rail.brand` is the BRAND CELL at the
-// top of the rail: the Weave glyph, which the HOME section claims as its affordance (home-section-spec
-// §4.1) — that is how app-shell navigates home without ever spelling `"home"`. `rail.end` is the FOOT
+// top of the rail: the Weave glyph, which the HOME section claims as its affordance
+// — that is how app-shell navigates home without ever spelling `"home"`. `rail.end` is the FOOT
 // below the spacer, where the modal triggers and the persona widget live; a SECTION may claim it too since
 // the config revamp (#866 S1, owner ruling #297: Settings takes the gear's old slot) — the same
 // derivation renders it there with a section's active state, and app-shell still never spells `"config"`.

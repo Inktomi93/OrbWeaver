@@ -1,5 +1,5 @@
 // The typed API surface: RosterPresetContext (the DI bundle) and RosterPresetService (the verb
-// interface). Saved rosters (D61 B6; build record: docs/history/design/saved-rosters-build-record.md) —
+// interface). Saved rosters (D61 B6, D170) —
 // owner-scoped library CRUD + the additive/idempotent `applyToChat` that drives chat's EXISTING roster
 // verbs by injection. Every CRUD surface gates on `principal.userId` (the persona posture — ownership IS
 // the gate, no guard slot); `applyToChat` additionally requires target-chat HOST authority, established

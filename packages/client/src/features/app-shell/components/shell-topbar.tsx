@@ -19,8 +19,8 @@ export interface ShellTopbarProps {
   /** The registry-derived `topbar.trail` zone render (⌘K + chrome widgets), rendered as-is. */
   readonly trail: ReactNode;
   readonly listMode: PanelMode;
-  /** Does the active section HAVE a LIST pane? `false` ⇒ NO toggle renders (home-section-spec §4.4 / arm
-   *  L-b) — a reachable toggle onto a surface that does not exist is the "looks unbuilt" defect. */
+  /** Does the active section HAVE a LIST pane? `false` ⇒ NO toggle renders — a
+   *  reachable toggle onto a surface that does not exist is the "looks unbuilt" defect. */
   readonly listAvailable: boolean;
   /** The shell's MOBILE regime (`ShellLayout.mobileViewport`) — the lead control's VOCABULARY axis and
    *  nothing else. On a phone there is no "panel": the toggle swaps which of the section's two SCREENS is

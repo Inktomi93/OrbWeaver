@@ -806,7 +806,7 @@ test("R1: an all-good round reports nothing dropped (a quiet log on the happy pa
   ).toEqual([]);
 });
 
-// ── SCENE-DROPPED salvage (property test — docs/history/dogfood-tracking-2026-08-08.md) ─────────────────────────────────────────
+// ── SCENE-DROPPED salvage (property test) ─────────────────────────────────────────
 // "Every closed enum reachable from a tool arg can express what the reminder can RENDER" — for weather, the
 // reminder (`weatherLine`/`rpgWeatherText`) renders WHATEVER STRING the model wrote in the free `label` field
 // (label wins over type when present), so the render side is effectively unconstrained while the WRITE side

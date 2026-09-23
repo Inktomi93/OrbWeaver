@@ -1,4 +1,4 @@
-// Chat's "Start a chat" HOME tile contribution (home-section-spec §3.3, owner decision H6 — chat-owned,
+// Chat's "Start a chat" HOME tile contribution (chat-owned,
 // because the tile's data and intent are "start a chat" and homing the faces in `features/character`
 // would fork a body that already exists).
 

@@ -1,4 +1,4 @@
-// The params deck's LIMIT clusters (preset-surface-redesign.md §4 clusters 4-6) — OUTPUT · CONTEXT ·
+// The params deck's LIMIT clusters — OUTPUT · CONTEXT ·
 // ADVANCED. Split out of params-deck.tsx for the component-size cap; it is one continuous column with the
 // clusters above it, not a second surface.
 //

@@ -7,7 +7,7 @@
 // hands `chat.startChat`). It is an INTENT, not state a room carries: once the row exists there is nothing
 // left to stage, which is why nothing here mirrors a draft config any more.
 //
-// THE HUSK SEAM (chat-creation-draft-mode-replacement.md §4.6 / fork F3). A room is real from the creation
+// THE HUSK SEAM (D166). A room is real from the creation
 // click, so a user who starts one and immediately leaves has minted a row nobody claimed. `enterCreatedChat`
 // remembers exactly one such room; leaving it fires `subscribeHuskAbandoned`'s listeners with its id, and the
 // `#data` reaper turns that into a best-effort `chat.reapHusk`. THE STORE STAYS tRPC-FREE — it publishes a

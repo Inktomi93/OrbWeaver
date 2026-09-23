@@ -367,7 +367,7 @@ export function TailGrowthList({ initialCount, rowHeightPx, listHeightPx }: Appe
 }
 
 /** The measured live cadence of a streaming ghost's re-measure: ~12px of new content, ~10×/s
- *  (`docs/history/design/streaming-reveal-42.md` §D4, re-measured 2026-08-14 — step histogram 12px×8, 11px×4
+ *  (D168, re-measured 2026-08-14 — step histogram 12px×8, 11px×4
  *  over a 6s window). The fixture reproduces the GROWTH, which is what makes virtual-core's
  *  `anchorTo:"end"` reconciliation write scrollTop; nothing here fakes a scroll. */
 const STREAM_STEP_PX = 12;

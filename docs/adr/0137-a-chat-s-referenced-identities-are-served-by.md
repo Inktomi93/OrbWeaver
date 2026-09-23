@@ -35,8 +35,6 @@ Not recorded in the ledger row.
 
 Reading B (persona-as-character, any flavor) stays dead; the collision chain is recorded in the design §5.1. **`cast` survives in this repo only where [`../design/vocabulary-map.md`](../design/vocabulary-map.md) still grants it** — rpg's scene-NPC ref (`RpgCastRef`/`castKey`/`cast:<slug>`), the seated-characters UI family, and the type-cast helper `castId` — so a `cast` inside `domain/chat/**` or `contracts/src/chat/**` is now a defect on sight rather than a name to disambiguate.
 
-Design: [persona-character-kind-substrate.md](../history/design/persona-character-kind-substrate.md).
-
 ## Consequences
 
 Not recorded in the ledger row.

@@ -1,4 +1,4 @@
-// The visibility probe (staleness-and-session-freshness.md §4.4.1) — the sensor that catches a session
+// The visibility probe — the sensor that catches a session
 // which dies while the tab is asleep. Everything it touches is injected, so the rules are asserted against
 // a fake clock instead of a timing hope.
 //

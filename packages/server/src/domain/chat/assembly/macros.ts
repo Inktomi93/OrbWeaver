@@ -276,7 +276,7 @@ export function resolveNudgeText(
   });
 }
 
-// ── THE BOUND-PREVIEW ARM (preset-surface-redesign §7.1 / D8) ────────────────────────────────────────
+// ── THE BOUND-PREVIEW ARM ────────────────────────────────────────
 // The preset editor's readout, BOUND to a chat, shows what a template resolves to before it is fired. That
 // is the SAME resolver a real fire runs (`resolveGuidedInstruction`) under a different INPUT POLICY, which
 // is exactly the shape `resolveNudgeText` above already takes — a sibling arm, not a second engine.

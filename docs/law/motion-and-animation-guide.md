@@ -511,7 +511,7 @@ siblings) carry `transition-colors duration-(--motion-fast) ease-out-expo`.
 
 **10. Streamed-word reveal fade (chat ghost row).** BUILT (#42, owner-ordered 2026-08-09 —
 supersedes the old §4.3 "don't animate streaming text" bullet; design + measurements:
-`docs/history/design/streaming-reveal-42.md`). Each newly revealed word of a streaming message fades in
+D168). Each newly revealed word of a streaming message fades in
 (opacity-only keyframe `orb-word-reveal`, `--motion-base` + `--ease-out-expo`, `fill both`) via the
 markdown seal's own rehype plugin (`ui/src/markdown/reveal-plugin.ts` → `[data-orb-reveal]` spans in
 `ui/src/styles/globals.css`). Fade progress is anchored to the word's REVEAL TIME through a negative

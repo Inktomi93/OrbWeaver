@@ -2,7 +2,7 @@
 // A `QueryBoundary` whose fallback is a `SkeletonRows` with a STATIC count reserves a guess, not the box
 // the surface settles at — the boot-CLS class home paid for (F14) and #885 sealed as `reserveKey`.
 //
-// THE SPLIT (docs/history/gate-runtime-worked-cases-2026-09.md §"Mixed-hook arity amendments", #1950): the legacy descriptor carried the per-file occurrence (arm A), a
+// THE SPLIT (#1950): the legacy descriptor carried the per-file occurrence (arm A), a
 // gate-owned two-sided marker grammar (`@first-boot-only`, arm C — EMPTY on the tree: zero live markers, so
 // it DELETES rather than translating), and two whole-tree HARD arms — the duplicate literal `reserveKey`
 // census (arm B) and the seam tripwire (arm D). Arm A is this policy — ordinary, `selected-files`; a boundary
