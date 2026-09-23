@@ -80,7 +80,7 @@ test("no JSON object at all → retry → still none → throws", async () => {
 // The retry was unobservable by construction: a lane that silently spends TWO provider calls instead of one
 // looked identical to one that spent one. The seam reports the failure as METADATA — the schema paths and a
 // count — never the zod MESSAGES, which quote the model's own output (RP content) and are prompt material
-// only. The caller (`domain/discovery/structured-retry-trace.ts`) turns it into a span event.
+// only. The caller (`foundation/observability/structured-retry.ts`) turns it into a span event.
 
 test("onRetry fires EXACTLY once, before the retry, carrying the failing schema paths", async () => {
   const script = scriptedRun([JSON.stringify({ genre: "fantasy" }), JSON.stringify({ genre: "fantasy", score: 5 })]);

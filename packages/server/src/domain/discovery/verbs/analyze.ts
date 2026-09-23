@@ -13,12 +13,12 @@ import { resolveSideGenSampling, runStructuredTurn, StructuredOutputError } from
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { z } from "zod";
+import { traceStructuredRetry } from "#foundation/observability";
 import type { DiscoveryContext } from "../context.ts";
 import type { AskCardAnswer, CharacterComparison, CharacterComparisonDeep, ComparisonNarrative } from "../contract/results.ts";
 import type { AnalyzeDeps, DiscoveryService } from "../contract/service.ts";
 import { readCharacterMessageSamples } from "../persistence/message-reads.ts";
 import { readOwnedCardFacet } from "../persistence/summary-reads.ts";
-import { traceStructuredRetry } from "../substrate/structured-retry-trace.ts";
 
 // The recent-scene grounding window for askCard — enough context to answer without dragging a whole history.
 const ASK_SAMPLE_LIMIT = 12;
