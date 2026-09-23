@@ -22,7 +22,7 @@ Replace the doc sprawl with four homes (`docs/law/`, `docs/adr/`, `docs/plans/`,
 | new ADRs start at `0001` while the ledger keeps its numbers | D1 exists, so `docs/adr/0001-*` would collide with D1's future home | REFUTED: new ADRs continue the ledger's id space (next free is D164, read from both sources); the numbering fork is below |
 | code cites doc section numbers and D rows, and `check:structure` reds on a moved heading | code carries about five thousand bare `D<n>` citations across roughly eighteen hundred source files (138 distinct ids), about eleven thousand `§` section citations, and about a thousand `docs/**.md` path citations (236 distinct paths; 229 of them under `docs/law/`). The `d-citation-integrity` gate resolves `D<n>` against the registry's bullet anchors; `dangling-doc-cite` resolves path and basename cites against tracked files | holds; the citer cost is priced in §Ledger split |
 | the catalog churns on every edit | the catalog tree is about 5 MB of JSON; `catalog.json` is a generated 3 MB file committed in the tree; each attestation row pins a whole-file hash, a commit, and an append-only prose `evidence` array | held; the owner ruled the attestation out at once (this lane), so the rows now carry a path and an authority only |
-| the GitHub board is being torn down | `tooling/src/workboard/` is the GitHub client; nothing in the tree depends on it except its own tests and the rule files that name `pnpm work:item` | holds |
+| the GitHub board is being torn down | the workboard tool was the GitHub client; nothing in the tree depended on it except its own tests and the rule files that named its CLI spelling | holds (landed, item 13) |
 
 ## Shape
 
@@ -43,7 +43,7 @@ Agent run output leaves `docs/`: `reports/` is gitignored, and a report a gate o
 
 ### Frontmatter
 
-Flat `key: value` YAML, parsed by the existing reader in `tooling/src/doc-catalog/lib/frontmatter.ts`. `kind`, `status`, `updated` stay required everywhere; `updated` is the one sanctioned date and doubles as the review date (§Freshness). New keys, each entering through `tooling/src/doc-catalog/lib/vocab.ts` with this design as the reason:
+Flat `key: value` YAML, parsed by the reader in `tooling/src/doc/lib/frontmatter.ts`. `kind`, `status`, `updated` stay required everywhere; `updated` is the one sanctioned date and doubles as the review date (§Freshness). New keys, each entering through `tooling/src/doc/contract/vocab.ts` with this design as the reason:
 
 | Key | Kinds | Meaning |
 | - | - | - |
@@ -108,9 +108,7 @@ Over the governed set (the new tree plus `docs/Mission.md`):
 
 Over the whole `docs/` tree:
 
-8. allowed folders: a top-level entry under `docs/` is one of the four homes, `Mission.md`, `catalog/`, or a legacy folder from a shrink-only list in `rules.ts`; a legacy row whose folder is gone is itself a finding (two-sided).
-
-Legacy folders keep their dated-by-design exemption for rules 1, 2, 4 until they move. `docs/catalog/` and the legacy tree keep `pnpm check:doc-catalog` as an inventory and frontmatter check only until the last legacy folder moves (§Freshness).
+8. allowed folders: a top-level entry under `docs/` is one of the four homes or `Mission.md` (landed, item 12: the legacy tree and its catalog inventory are gone, so the shrink-only legacy-folder list is deleted from `rules.ts`).
 
 Rule 2 is new in the checker: a number followed by an inventory noun (`files`, `tests`, `rules`, `lessons`, `workers`, `gates`, `docs`, `documents`) in prose. Measured over every instruction file before adding it: zero hits, so it lands without a baseline.
 
@@ -120,7 +118,7 @@ Hard (red): mechanical claims. Every cited path, symbol, heading, script and D/A
 
 Soft (warning, never red): semantic drift. A doc's described code is the set of backticked repository paths in its body, read at check time by the existing `backtickedRepoPaths` reader. A doc is due when any of those paths has a commit on the current branch after the doc's `updated` date. `pnpm doc due` computes it with one `git log --since=<earliest updated> --name-only` pass and a prefix match, and prints one line per due doc with its fixing command (`pnpm doc review <path>`). It never appears in `pnpm check`.
 
-Review state is `updated`, written by `pnpm doc review` in batch. No whole-file hash, no per-doc commit, no prose evidence array. The attestation under `docs/catalog/receipts/` is gone in this lane (owner ruling): a row is a path and an authority, a legacy prose edit reds nothing there, and the new tree is outside the catalog corpus from the first commit, so no new document ever needs a lane row or a regenerated catalog. The retirement of the inventory itself, and the population file of the `caught-failure-ownership` gate (keep the human verdict and reason keyed by `siteId`, derive line and column live), are scheduled tasks in the migration plan.
+Review state is `updated`, written by `pnpm doc review` in batch. No whole-file hash, no per-doc commit, no prose evidence array. The attestation was gone by owner ruling before the new tree existed: a row was a path and an authority, a legacy prose edit red nothing there, and the new tree was outside the catalog corpus from the first commit, so no new document ever needed a lane row or a regenerated catalog. The legacy inventory itself is gone (landed, item 12). The population file of the `caught-failure-ownership` gate (keep the human verdict and reason keyed by `siteId`, derive line and column live) is a scheduled task in the migration plan.
 
 ### Work items (the board replacement)
 
@@ -136,13 +134,13 @@ A done item with no plan is deleted by `pnpm doc archive` when named; git keeps 
 
 ### Ledger split
 
-The registry keeps its D numbers; each ruling becomes `docs/adr/NNNN-<slug>.md` with the ruling's title as the H1, its text under `## Decision`, and the other three sections carrying the sentence "Not recorded in the ledger row." until the migration lane fills or deletes them. The parser handles both row shapes and refuses a duplicate anchor. Ids never change, so the five thousand bare `D<n>` code citations cost nothing. The split lands as ONE commit: the `d-citation-integrity` gate's ledger resource (`tooling/src/verify/contract/resource-document.ts`) is re-pointed from the registry file to the ADR tree, where an id resolves from a filename; the registry is deleted; registry-prefixed citations (61 code sites, about 180 doc sites) are rewritten to the bare id; and `doc-catalog/lib/vocab.ts`'s registry path goes with the attestation rows. No union resolver and no interval where both homes are valid (owner ruling).
+The registry keeps its D numbers; each ruling becomes `docs/adr/NNNN-<slug>.md` with the ruling's title as the H1, its text under `## Decision`, and the other three sections carrying the sentence "Not recorded in the ledger row." until the migration lane fills or deletes them. The parser handles both row shapes and refuses a duplicate anchor. Ids never change, so the five thousand bare `D<n>` code citations cost nothing. The split lands as ONE commit: the `d-citation-integrity` gate's ledger resource (`tooling/src/verify/contract/resource-document.ts`) is re-pointed from the registry file to the ADR tree, where an id resolves from a filename; the registry is deleted; registry-prefixed citations (61 code sites, about 180 doc sites) are rewritten to the bare id; and the legacy catalog's registry path goes with the attestation rows. No union resolver and no interval where both homes are valid (owner ruling).
 
 About 40% of the rows carry dates or issue numbers in their prose, so a migrated ADR fails writing rule 1 until its prose is cleaned, and that red is the to-do list (owner ruling: no grandfather exemption). Four rows exceed the ADR cap and are trimmed under the ledger-entry style, which already forbids provenance trails.
 
 ### Law move
 
-The legacy core law folder becomes `docs/law/` by path swap, section numbers untouched, so basename citations resolve unchanged and the 229 full-path code citations plus the tooling constants (`resource-document.ts`, `dangling-ref-corpus.ts`, `dangling-ref-citations.ts`, `d-citation-integrity.ts`, `doc-catalog/lib/vocab.ts`, `doc-catalog/ops/tree.ts`, `verify/lib/selection.ts`, `docs/catalog/lanes.json`) are one mechanical prefix rewrite. `check:structure` is the proof.
+The legacy core law folder becomes `docs/law/` by path swap, section numbers untouched, so basename citations resolve unchanged and the 229 full-path code citations plus the tooling constants (`resource-document.ts`, `dangling-ref-corpus.ts`, `dangling-ref-citations.ts`, `d-citation-integrity.ts`, `doc/contract/vocab.ts`, `doc/ops/tree.ts`, `verify/lib/selection.ts`) are one mechanical prefix rewrite. `check:structure` is the proof.
 
 ## Rejected
 
@@ -154,7 +152,7 @@ The legacy core law folder becomes `docs/law/` by path swap, section numbers unt
 | keeping the single ledger file | 315 KB in one file is the mega-doc problem itself; one row per file keeps the numbers and lets a lane move a bounded batch |
 | keeping GitHub Projects | API-throttled, rotted, and off the tree; in-flight state must live in the repo |
 | a second checker (`pnpm doc check`) | ruling 6: one checker; the doc tool exports its rules and `check:agents` runs them |
-| extending `tooling/src/doc-catalog/` instead of a new `doc/` tool | the catalog is the model being removed; the survivor owns the verbs, and it imports the catalog's frontmatter reader and formatter until those move |
+| extending the legacy catalog tool instead of a new `doc/` tool | the catalog is the model being removed; the survivor owns the verbs, and it imported the catalog's frontmatter reader and formatter until those moved (landed, item 12) |
 | a union D-id resolver (registry anchors plus ADR filenames) during the split | an owner ruling: no compatibility shim; the split is one commit that re-points the `d-citation-integrity` ledger resource at the ADR tree, deletes the registry and rewrites its citers |
 | a `reviewed: <sha>` frontmatter key for soft freshness | a sha is orphaned by every rebase and needs a second field beside `updated`; a date is enough for a warning tier and is the one sanctioned date already |
 | a `describes:` frontmatter list of paths | the paths are already in the body as backticked citations; a second list drifts from the first |
@@ -170,24 +168,22 @@ The legacy core law folder becomes `docs/law/` by path swap, section numbers unt
 | `tooling/src/doc/**` | new tool: cli, index, contract, lib, ops |
 | `tooling/src/agent-sync/ops/instructions.ts`, `tooling/src/agent-sync/cli.ts`, `tooling/src/agent-sync/index.ts` | the docs check joins `--check`; the summary line counts docs |
 | `tooling/src/_shared/prose-rules.ts`, `tooling/src/_shared/prose-references.ts` | the writing rules and the reference check, moved to the plumbing floor by importer census; rule 2, frontmatter and link-target masking |
-| `tooling/src/doc-catalog/lib/vocab.ts` | kinds `adr`, `plan`, `bug`, `work`, `decision`, `tooling`; statuses `open`, `doing`, `blocked`, `done`; keys `superseded-by`, `priority`, `area`, `lane`, `blocked`, `plan`, `evidence`, `reviewed`; the `DOC_TOOL_TREES` prefixes |
-| `tooling/src/doc-catalog/ops/tree.ts` | the catalog corpus excludes `DOC_TOOL_TREES` |
-| `tooling/src/doc-catalog/ops/format.ts` | the formatter's living trees include `DOC_TOOL_TREES` |
+| `tooling/src/doc/contract/vocab.ts` | kinds `adr`, `plan`, `bug`, `work`, `decision`, `tooling`; statuses `open`, `doing`, `blocked`, `done`; keys `superseded-by`, `priority`, `area`, `lane`, `blocked`, `plan`, `evidence`, `reviewed`; the `DOC_TOOL_TREES` prefixes (landed, item 12: moved from the legacy catalog's vocab module) |
+| `tooling/src/doc/ops/tree.ts` | the formatted writer for the governed tree |
+| `tooling/src/doc/ops/format.ts` | the formatter's living trees include `DOC_TOOL_TREES` (landed, item 12: moved from the legacy catalog's format op) |
 | `tooling/src/verify/lib/selection.ts` | scoped `docs:format` selection admits the new tree |
 | `tooling/src/verify/lib/registry-triggers.ts` | `structure:agent-config` triggers on `docs/` |
 | `tooling/src/verify/gates/d-citation-integrity.ts`, `tooling/src/verify/contract/resource-document.ts` | the ledger resource moves to the ADR tree in the split commit (scheduled, not built here) |
 | `package.json` | the `doc` script |
 | `.claude/rules/writing.md` | `paths:` gains `docs/**`; a Docs section states the deltas |
-| `.claude/rules/docs.md` | points at `writing.md` for style and lists the `pnpm doc` verbs; the `pnpm work:item` references leave |
+| `.claude/rules/docs.md` | points at `writing.md` for style and lists the `pnpm doc` verbs; the board tool's CLI references left (landed, item 13) |
 | `AGENTS.md` | the rule list line for `writing.md` must match its new `paths:` |
 | `docs/law/Core-Tooling-Law.md` | the tool roster row for `doc/` |
-| `tooling/src/doc-catalog/lib/vocab.ts` | the frontmatter kind list |
 | `scripts/commit-msg-check.sh` | validates a `Closes:` trailer |
 | `lefthook.yml` | `post-merge` runs `pnpm doc land --merged` |
 | `.claude/hooks/session-onboard.sh` | the drift nag block |
-| `tests/tooling/doc/**`, `tests/tooling/agent-sync/**`, `tests/tooling/doc-catalog/**` | the tests |
-| `docs/catalog/receipts/*.json`, `lanes.json`, `state.json`, `catalog.json` | rows reduced to path and authority, no issue numbers, no pending ratchet category, inventory regenerated |
-| `tooling/src/doc-catalog/**` | attest verb, hash rules and every git-derived fact deleted; the tool is the inventory, the frontmatter validator and the formatter |
+| `tests/tooling/doc/**`, `tests/tooling/agent-sync/**` | the tests |
+| the legacy catalog tree and tool | deleted whole (landed, item 12): the generated inventory, the lane/state/authority-row files, the attest verb, hash rules and every git-derived fact |
 
 ## Test plan
 
@@ -202,9 +198,8 @@ Every test plants a tree in scratch (`plantedTree`) or drives a pure function; n
 | `tests/tooling/doc/cli.int.test.ts` | the exit contract through the real binary: misuse is 3, a refused write is 1, nothing written on refusal |
 | `tests/tooling/doc/ops/check.int.test.ts` | the docs check on planted trees, one failure class per case, the clean tree, and the real repository clean |
 | `tests/tooling/_shared/prose-rules.test.ts` | rule 2 fires on a count and not on a budget; a dated link target and a frontmatter date are not prose dates |
-| `tests/tooling/doc-catalog/ops/tree.int.test.ts` | a document under the new tree is not a catalog document |
 
-Suites run: `pnpm test:scoped tests/tooling/doc tests/tooling/agent-sync tests/tooling/doc-catalog`, `pnpm typecheck --config tooling/tsconfig.json`, scoped Biome and ESLint on the touched files, `pnpm check:agents`, `pnpm check:docs`, `pnpm check:doc-catalog`, `pnpm check:structure`.
+Suites run: `pnpm test:scoped tests/tooling/doc tests/tooling/agent-sync`, `pnpm typecheck --config tooling/tsconfig.json`, scoped Biome and ESLint on the touched files, `pnpm check:agents`, `pnpm check:docs`, `pnpm check:structure`.
 
 ## Forks
 

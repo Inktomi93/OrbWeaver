@@ -62,7 +62,7 @@ const TYPECHECKER = "scripts/ts7.ts";
  *  second count arrives wearing the exit code of whatever scoped run happened to select a type test.
  *
  *  THE MEASURED SYMPTOM this closes (#2229, re-derived by cb-v-verify-lib-4): `pnpm test:scoped
- *  tests/tooling/doc-catalog` — a directory operand holding `contract/types.test-d.ts` beside nine runtime
+ *  tests/tooling/doc` — a directory operand holding `contract/types.test-d.ts` beside nine runtime
  *  files — exited 1 with all 70 of its tests GREEN, on a parse error planted in an unrelated file of
  *  `tsconfig.json`'s program. It is NOT a project-selection defect and no `--project` arrangement reaches
  *  it: a typecheck project with zero matched files is instantiated and never runs tsc, so the project that

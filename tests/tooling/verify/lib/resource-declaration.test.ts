@@ -2,7 +2,7 @@ import type { ResourceFact } from "../../../../tooling/src/verify/contract/resou
 import { DEVTOOLS_CLOSURE_ROOT, TOKEN_CONTRACT_PATHS } from "../../../../tooling/src/verify/contract/resource-artifact.ts";
 import type { GateResourceRequest } from "../../../../tooling/src/verify/contract/resource-declaration.ts";
 import type { LedgerDefinition, LedgerId } from "../../../../tooling/src/verify/contract/resource-document.ts";
-import { DOCUMENT_CATALOG_PATH, LEDGER_DEFINITIONS } from "../../../../tooling/src/verify/contract/resource-document.ts";
+import { LEDGER_DEFINITIONS } from "../../../../tooling/src/verify/contract/resource-document.ts";
 import { EXACT_RESOURCE_PATHS } from "../../../../tooling/src/verify/contract/resource-exact.ts";
 import type { ResourceHost } from "../../../../tooling/src/verify/contract/resource-host.ts";
 import { JSON_RESOURCE_PATHS } from "../../../../tooling/src/verify/contract/resource-json.ts";
@@ -81,7 +81,7 @@ function host(overrides: Partial<ResourceHost> = {}): ResourceHost {
         testFiles: new Set(["tests/server/a.test.ts"]),
         testsByDirectory: new Map([["tests/server", ["tests/server/a.test.ts"]]]),
       }),
-    documents: () => fact("documents", ["docs/Mission.md", DOCUMENT_CATALOG_PATH], { documents: [], refusals: [], catalogMisses: [] }),
+    documents: () => fact("documents", ["docs/Mission.md"], { documents: [], refusals: [] }),
     ledger: ((id: LedgerId) => {
       const definition: LedgerDefinition = LEDGER_DEFINITIONS[id];
       // A tree ledger publishes its member files; one grammar-conforming member stands for them.

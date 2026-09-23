@@ -1,9 +1,0 @@
-{
-  "schemaVersion": 2,
-  "lanes": [
-    {
-      "id": "root-operational",
-      "patterns": ["docs/*.md"]
-    }
-  ]
-}

@@ -34,9 +34,7 @@ const DIFFERENTIAL_ANCHOR = "docs/law/__dangling_refs_differential_anchor.md";
 const DIFFERENTIAL_PACKAGE_ANCHOR = "packages/kit/src/__dangling_refs_differential_anchor.ts";
 const DIFFERENTIAL_TOOLING_ANCHOR = "tooling/src/__dangling_refs_differential_anchor.ts";
 const FINAL_RESOURCE_FLOOR = {
-  [DIFFERENTIAL_ANCHOR]: "---\nkind: law\n---\n\nDifferential resource anchor.\n",
-  "docs/catalog/catalog.json":
-    '{"documents":[{"path":"docs/law/__dangling_refs_differential_anchor.md","lane":"core","frontmatter":{"fields":{"status":"active"}},"receipt":{"authority":"normative"}}]}\n',
+  [DIFFERENTIAL_ANCHOR]: "---\nkind: law\nstatus: active\n---\n\nDifferential resource anchor.\n",
   [DIFFERENTIAL_PACKAGE_ANCHOR]: "export const DANGLING_REFS_DIFFERENTIAL_ANCHOR = true;\n",
   [DIFFERENTIAL_TOOLING_ANCHOR]: "export const danglingRefsDifferentialAnchor = true;\n",
 } as const;
@@ -68,9 +66,6 @@ function isolatedCorpus(): Readonly<Record<string, string>> {
     ...FINAL_RESOURCE_FLOOR,
     [ISOLATED_LAW]: "---\nkind: law\nstatus: active\n---\n\nIsolated law anchor.\n",
     [ISOLATED_DESIGN]: "---\nkind: plan\nstatus: active\n---\n\nIsolated design anchor.\n",
-    "docs/catalog/catalog.json": JSON.stringify({
-      documents: [{ path: ISOLATED_LAW, lane: "architecture-core", frontmatter: { fields: { status: "active" } }, receipt: { authority: "normative" } }],
-    }),
     [LAW_OUTSIDE_DOC]: "---\nkind: law\n---\n\nIsolated law outside docs.\n",
     "tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md": "---\nkind: law\n---\n\nIsolated rule-authoring law.\n",
   };
@@ -252,7 +247,7 @@ describe("dangling-refs — the derived corpus reaches living law outside docs/ 
     const result = runDanglingRefs(repoRoot);
     const receipts = result.policies.find((policy) => policy.id === HARD_GATE)?.receipts ?? [];
     // The population receipt is what makes a class SILENTLY emptying loud (#946). A zero here would mean the
-    // catalog census or the hand-named law set stopped resolving — the blind-gate placebo, in numbers.
+    // frontmatter walk or the hand-named law set stopped resolving — the blind-gate placebo, in numbers.
     for (const source of ["citation-corpus:law", "citation-corpus:design", "citation-corpus:law-outside-docs"]) {
       const population = receipts.find((receipt) => receipt.kind === "population" && receipt.source === source);
       expect(population?.kind === "population" ? population.members : 0, `${source} must resolve members on the real tree`).toBeGreaterThan(0);
@@ -285,12 +280,6 @@ function fenceProbeCorpus(evidence: Readonly<Record<string, string>>): Readonly<
     ...isolatedCorpus(),
     ...evidence,
     [FENCE_PROBE_DOC]: `---\nkind: law\nstatus: active\n---\n\nThe vocabulary is \`${FENCE_PROBE_SYMBOL}\`.\n`,
-    "docs/catalog/catalog.json": JSON.stringify({
-      documents: [
-        { path: ISOLATED_LAW, lane: "architecture-core", frontmatter: { fields: { status: "active" } }, receipt: { authority: "normative" } },
-        { path: FENCE_PROBE_DOC, lane: "architecture-core", frontmatter: { fields: { status: "active" } }, receipt: { authority: "normative" } },
-      ],
-    }),
   };
 }
 
