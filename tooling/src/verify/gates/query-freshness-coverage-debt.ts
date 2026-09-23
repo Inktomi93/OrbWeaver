@@ -1,4 +1,4 @@
-// Work item 63 (docs/work/0063-give-the-chat-activity-list-a-live-in.md) owns the one known freshness debt. It is never downgraded into a reviewed grant.
+// Work item 66 (docs/work/0066-give-the-chat-activity-list-a-live-in.md) owns the one known freshness debt. It is never downgraded into a reviewed grant.
 // The inlined value was `QUERY_FRESHNESS_DEBT` from the sibling `query-freshness-coverage` gate;
 // inlined here to eliminate the policy-legacy-imports violation (#2365, #2147 ARM B).
 import { defineGate } from "../contract/policy.ts";
@@ -7,14 +7,14 @@ import { queryFreshnessFact } from "../lib/query-freshness-fact.ts";
 const QUERY_FRESHNESS_DEBT = "automation.listChatActivity";
 
 const MESSAGE =
-  "automation.listChatActivity lacks a live in-view freshness driver; work item 63 owns adding the bus signal and reachable invalidation row. (tooling/src/verify/gates/GATE-AUTHORING.md)";
-const FIX = "resolve work item 63 by adding the activity signal and its seam invalidation, then delete this debt owner in the same change.";
+  "automation.listChatActivity lacks a live in-view freshness driver; work item 66 owns adding the bus signal and reachable invalidation row. (tooling/src/verify/gates/GATE-AUTHORING.md)";
+const FIX = "resolve work item 66 by adding the activity signal and its seam invalidation, then delete this debt owner in the same change.";
 export const gate = defineGate({
   id: "query-freshness-coverage-debt",
   family: "query-freshness-coverage",
   authority: "hard",
   severity: "warning",
-  workItem: 63,
+  workItem: 66,
   population: "@client",
   analysis: "types",
   execution: "entire-population",
