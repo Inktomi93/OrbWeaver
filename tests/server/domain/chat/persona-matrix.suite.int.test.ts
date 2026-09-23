@@ -32,7 +32,8 @@ import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { FROZEN_AT, seedCharacter, seedParticipant, seedUser } from "./_support.ts";
 
-type Binding = "base" | "fix" | "alt";
+const BINDING_VALUES = ["base", "fix", "alt"] as const;
+type Binding = (typeof BINDING_VALUES)[number];
 
 const LABEL = env["PERSONA_MATRIX_LABEL"] === "base" ? "base" : "fix";
 const BINDINGS: readonly Binding[] = LABEL === "base" ? ["base"] : ["fix", "alt"];
@@ -220,8 +221,7 @@ async function roomFor(opts: RoomOptions): Promise<Room> {
   if (opts.bob !== false) {
     await seedParticipant(db, { chatId: scn.chatId, key: "bob", userId: bob, role: "member", joinSeq: 9 });
   }
-  const made = new Map<string, PersonaId>();
-  return { scn, alice: scn.host, bob, persona: (key) => made.get(key) ?? castId<PersonaId>(key), ...{ made } } as Room & { made: Map<string, PersonaId> };
+  return { scn, alice: scn.host, bob, persona: (key) => castId<PersonaId>(key) };
 }
 
 type Step =
