@@ -22,6 +22,8 @@ Breadth never replaces depth on the named targets.
 
 ## Rules
 
+- Start every review with `pnpm snap --map --atlas`. It prints the SPA destination atlas and the rendered surface map with unique locators. Navigate with the `--goto` targets it names, never a guessed URL path. Map each target surface with `--map '<selector>'` before you drive it.
+- Render a lane's work at its committed sha (`pnpm snap --ref <sha>`), never inside a live lane worktree.
 - Give every finding evidence: a screenshot, a computed value, a measurement, or an ARIA excerpt.
 - Do not grade on a curve. If everything passes on the first look, stress the surface: long and empty content, error state, narrow viewport, keyboard only.
 - Name the exact element, why it hurts a user, and the fix.
