@@ -133,12 +133,13 @@ export const AUTHORED_ARMS: readonly RealCorpusLivenessArm[] = [
   },
   {
     policy: persistenceNoInMemoryState,
-    // VERIFY'S CORPUS CANNOT RESOLVE THE AMBIENT `Map`: the structure run's project carries no compiler options,
-    // so its default lib has no ES2015 collections and the constructor reaches no declaration. The policy
-    // reports that case too (identity not established) rather than admitting it, and that is the verdict the
-    // real run produces for this control, so it is the one asserted.
+    // A bare `new Map()` resolves as the ordinary ambient global on the real tree (item 0107): `Map`'s
+    // symbol merges lib declarations with the repo's `platform.d.ts` and `@total-typescript/ts-reset`
+    // augmentations, and the ambient-identity door now recognizes that mix as one origin instead of
+    // refusing it as unreadable. This control used to assert the UNREADABLE verdict — the door's old bug,
+    // not the policy's real reading.
     overlays: [add(`${CHARACTER_PERSISTENCE}/liveness-cache.ts`, "export const livenessCache = new Map<string, string>();\n")],
-    messageIncludes: "Map/Set/WeakMap/WeakSet CANNOT be established",
+    messageIncludes: "in-memory state (caches, registries) belongs in a named subsystem",
   },
   {
     policy: queryMachineSeals,
