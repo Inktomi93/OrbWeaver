@@ -298,7 +298,7 @@ Require the cruise-scope widening (`depcruise packages tooling`) or the stanzas 
 
 1. `packages-no-tooling` — `from: ^packages/`, `to: ^tooling/`, error. The deep-relative-escape backstop over the resolver physics (the `ui-cake` posture).
 2. `tooling-internal-direction` — `ops/` may import `{lib,contract,_shared}` + its own tool's modules; nothing imports a sibling tool's `ops|lib|contract` directly. **Type-only is NOT exempt** for the cross-tool arm — the front-door law is a SHAPE rule (the domain-sibling precedent).
-3. `tooling-cli-via-index` — a `cli.ts` reaches its own tool only through `./index.ts`.
+3. `tooling-cli-via-index` — a `cli.ts` reaches its own tool only through `"./index.ts"`.
 4. `tooling-shared-floor` — `_shared/` reaches UP to no tool (the `foundation-reaches-up-to-nothing` mirror).
 5. `tooling-no-provider-families` — the provider FAMILIES (`packages/inference/src/backends/<x>`, where the agent-sdk credential firewall lives) and the contract internals stay sealed against tooling; `contract/index.ts` alone is open, and the front door `packages/inference/src/index.ts` is legal because tools sit above the cake (§1). RE-POINTED 2026-09-20 from the old server infra/providers backends+contract dirs — spelled without code formatting because that tree is DELETED and a backticked cite would claim a referent — until then the stanza matched nothing and passed forever. **The vLLM carve-out is GONE with its subject**: there is no in-server supervisor to keep in step any more, the fleet moved whole to `tooling/src/stack/lib/engine-fleet/`, and nothing in `@orb/inference` builds an engine argv.
 
