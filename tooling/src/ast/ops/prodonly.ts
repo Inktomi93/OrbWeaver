@@ -23,6 +23,12 @@ refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 // A file reachable ONLY from a test is prod-unreachable BY DESIGN of this lens (that's its whole point —
 // it complements testonly). Tests and arbitrary scripts are not roots; only a script named by a package
 // manifest is an entry and graph node.
+//
+// IT MEASURES SOURCE-GRAPH REACHABILITY, NOT PRESENCE IN THE SHIPPED BUNDLE. Every import edge counts,
+// including one inside an `import.meta.env.DEV` branch that the bundler folds away, so the DEV-only client
+// instruments `main.tsx` loads under that branch read as production-live here although no production
+// chunk carries them. What actually ships is measured by the client production build
+// (`pnpm check:boot-chunk`).
 /** The production entry FILES, derived honestly from runtime authorities (never analysis configuration):
  *   1. each package.json `exports` map — Node resolves
  *      `./*` across slashes, so every nested `index.ts` addressable as a subpath is an entry;

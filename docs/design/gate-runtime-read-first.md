@@ -18,7 +18,7 @@ whole reads. Everything else is selected by the question in front of you.
 | 3 | `docs/reviews/gate-runtime/refutation-ledger-2026-09-12.md` | **70 KB** · 86 defect rows | read open rows relevant to the task; never front-to-back |
 | 4 | `docs/reviews/gate-runtime/resource-gate-access-patterns.md`; `docs/reviews/gate-runtime/uncovered-gate-conversion-census.md`; `docs/reviews/gate-runtime/exception-authority-census.md`; `docs/reviews/gate-runtime/ordinary-waiver-source-migration.md` | **157 KB** · 4 files | read the relevant complete mechanism and linked constraints |
 | 5 | `docs/reviews/gate-runtime/shared-semantic-readers.md`; `docs/reviews/gate-runtime/checkpoint-2026-09-05.md` | **76 KB** · 2 files | read the relevant complete section; revalidate work leads |
-| 5b | `tooling/src/verify/contract/*.ts` headers | **285 KB** · 85 files | read the headers governing the contract question |
+| 5b | `tooling/src/verify/contract/*.ts` headers | **289 KB** · 87 files | read the headers governing the contract question |
 | 6 | `docs/architecture/core/Core-Enforcement-Active-Gates.md` | **406 KB** · 351 rows | read the affected gate row and linked constraints |
 | 7 | family conversion records | **317 KB** · 15 files | read only the assigned family's record |
 | — | audit-wave and batch-review reports | **510 KB** · 11 files | use the current ledger disposition; open a report only for its method/evidence |

@@ -179,7 +179,8 @@ export const TEST_LANE_STAGES: readonly StageDef[] = [
     // that NOTHING else on the ladder can see: a single new barrel import in main.tsx's static graph
     // silently re-pays the whole cost, and every other stage stays green while it happens (#460). The same
     // build also proves the emitted html links the app stylesheet with its front-door sentinels (#1752: a
-    // `sideEffects` field once let the bundler drop the CSS import, and no authored-graph check could see it).
+    // `sideEffects` field once let the bundler drop the CSS import, and no authored-graph check could see it),
+    // and that no emitted chunk, preloaded or lazy, carries a DEV-only client instrument (work item 0030).
     tiers: ["push", "full"],
     argv: ["pnpm", "check:boot-chunk"],
     // Our OWN 0/1/2/3-speaking script (tooling/src/verify/ops/boot-chunk-ratchet.ts) — and it USES the

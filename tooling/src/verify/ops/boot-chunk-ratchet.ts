@@ -43,6 +43,10 @@
 // sentinel, is a VIOLATION (exit 1). An unreadable html, a stylesheet link outside `/assets/*.css`, or a linked
 // sheet absent from disk is UNMEASURABLE (exit 2). The static half, the `client-package-no-side-effects` gate,
 // reds the field itself under `pnpm check`; this half catches every OTHER way the bundler can lose the sheet.
+//
+// THE DEV-ONLY INSTRUMENTS RIDE IT TOO (work item 0030): no emitted chunk, preloaded or lazy, may carry a
+// module `main.tsx` loads only under `import.meta.env.DEV`. The build adds `--sourcemap hidden`, which adds
+// no byte to any chunk; `ops/dev-instrument-absence.ts` reads the maps and this runner removes them after.
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
@@ -51,6 +55,7 @@ import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { budget } from "@orb/tooling/_shared/load-budget";
 import { spawnNiced } from "@orb/tooling/_shared/proc";
 import type { AppStylesheetSentinel, AppStylesheetVerdict, BootChunkFile, BootChunkVerdict } from "../contract/scoped.ts";
+import { HIDDEN_SOURCEMAP_ARGS, removeChunkSourcemaps, runDevInstrumentAbsence } from "./dev-instrument-absence.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:boot-chunk");
 
@@ -363,20 +368,25 @@ function reportAppStylesheet(verdict: AppStylesheetVerdict): number {
   return EXIT.violations;
 }
 
-/** The `boot-chunk` verb: build the client, then judge the emitted BOOT SET against the ceiling and the
- *  emitted APP STYLESHEET against its sentinels. The worse of the two verdicts is the exit code. */
+/** The `boot-chunk` verb: build the client, then judge the emitted BOOT SET against the ceiling, the
+ *  emitted APP STYLESHEET against its sentinels and every chunk against the DEV-only instruments. The worst
+ *  of the three verdicts is the exit code; the build's sourcemaps are removed whatever happens. */
 export async function runBootChunkRatchet(root: string): Promise<number> {
-  const build = await spawnNiced("pnpm", ["--filter", "@orb/client", "build"], { cwd: root, timeoutMs: BUILD_TIMEOUT_MS });
-  if (build.code !== 0) {
-    // A failed/killed build is a BROKEN CHECKER, never a size verdict (exit-contract §3.3).
-    const how = build.timedOut ? `timed out after ${BUILD_TIMEOUT_MS}ms` : `exited ${build.code === null ? "on a signal" : String(build.code)}`;
-    process.stdout.write(`boot-chunk-ratchet — TOOL ERROR: \`pnpm --filter @orb/client build\` ${how}\n`);
-    process.stdout.write(`${build.stderr.trimEnd()}\n`);
-    return EXIT.toolError;
+  const build = await spawnNiced("pnpm", ["--filter", "@orb/client", "build", ...HIDDEN_SOURCEMAP_ARGS], { cwd: root, timeoutMs: BUILD_TIMEOUT_MS });
+  try {
+    if (build.code !== 0) {
+      // A failed/killed build is a BROKEN CHECKER, never a size verdict (exit-contract §3.3).
+      const how = build.timedOut ? `timed out after ${BUILD_TIMEOUT_MS}ms` : `exited ${build.code === null ? "on a signal" : String(build.code)}`;
+      process.stdout.write(`boot-chunk-ratchet — TOOL ERROR: \`pnpm --filter @orb/client build\` ${how}\n`);
+      process.stdout.write(`${build.stderr.trimEnd()}\n`);
+      return EXIT.toolError;
+    }
+    const bootExit = judgeBootChunk(measureBootChunk(root));
+    const stylesheetExit = reportAppStylesheet(measureAppStylesheet(root));
+    return Math.max(bootExit, stylesheetExit, await runDevInstrumentAbsence(root));
+  } finally {
+    removeChunkSourcemaps(root);
   }
-  const bootExit = judgeBootChunk(measureBootChunk(root));
-  const stylesheetExit = reportAppStylesheet(measureAppStylesheet(root));
-  return Math.max(bootExit, stylesheetExit);
 }
 
 function judgeBootChunk(verdict: BootChunkVerdict): number {
