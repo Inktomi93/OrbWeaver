@@ -10,6 +10,7 @@
 // concept (`rosterPreset`, "Rosters" — row 48) and never names this one.
 
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
+import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 
 // The global-authz axis. `owner` = the box owner (sole max-pro-sub/wallet holder; immutable; exactly one);
@@ -55,6 +56,17 @@ export interface Principal {
   externalId: ExternalId | null;
   via: "cookie" | "header" | "fallback";
 }
+
+/** The canonical viewer identity (`sessions.me`), projected from the request Principal at the transport seam.
+ *  A stale client `globalRole` is a UI hint only; server authz always re-reads the live row. STRICT and
+ *  installed as the procedure's output parser: a refactor that spreads the Principal would carry `externalId`
+ *  (the SSO subject) and `via`, and fails the call instead of reaching the browser. */
+export const viewerViewSchema = z.strictObject({
+  userId: brandedId<UserId>(),
+  handle: brandedId<Handle>(),
+  globalRole: userRoleSchema,
+});
+export type ViewerView = z.infer<typeof viewerViewSchema>;
 
 // The `can()` privilege-decision seam. Cross-boundary: admin's `can()` impl ARBITRATES, chat CALLS IN with
 // a roster it loaded; the union homes at the DAG root so both sides import it down. `can()` + the

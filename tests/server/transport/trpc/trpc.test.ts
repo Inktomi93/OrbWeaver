@@ -24,7 +24,7 @@ import { appRouter, classifyDomainError } from "@orb/server/transport/trpc";
 import type { Mock } from "vitest";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
-import { caller, denyRateLimit, inertPresence, makeContext, principal } from "./_support.ts";
+import { caller, denyRateLimit, inertPresence, inviteResults, makeContext, principal } from "./_support.ts";
 
 // MINTED, never readable literals: these ids cross `typeIdSchema` tRPC inputs, which validate the TypeID suffix.
 const ID = {
@@ -223,18 +223,21 @@ interface BeltSurface {
 }
 
 /** A belt row for one invites-router verb: the probe is the chat-service verb mock — proving both the
- *  belt refusal (never called) and the capable-path wiring (called once). */
-function inviteSurface(verb: keyof ChatService, drive: (ctx: Context) => Promise<unknown>): BeltSurface {
+ *  belt refusal (never called) and the capable-path wiring (called once). A verb whose procedure carries an
+ *  output parser returns its well-formed `result`; the parser reads it, so a fabricated one would fail the
+ *  capable path for a reason that has nothing to do with the belt. */
+function inviteSurface(verb: keyof ChatService, drive: (ctx: Context) => Promise<unknown>, result?: unknown): BeltSurface {
   return {
     path: `invites.${verb}`,
     make: (): ReturnType<BeltSurface["make"]> => {
-      // @orb-waive no-test-fabrication(never): the belt assertions observe only call count; the mocked verb result is never read. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-      const fn = vi.fn(async () => ({}) as never);
+      const fn = vi.fn(async () => result as never);
       return { services: { chat: { [verb]: fn } }, presence: inertPresence, probe: fn };
     },
     drive,
   };
 }
+
+const INVITE_RESULTS = inviteResults(castId<UserId>("user_user"));
 
 // The full multi-human surface list at transport today — the invites/membership router (FINAL-Auth-Modes
 // §7 P1 — the PD-106 burn-down) + `notifications.presence`.
@@ -249,10 +252,10 @@ function inviteSurface(verb: keyof ChatService, drive: (ctx: Context) => Promise
 // tests/server/transport/trpc/routers/notifications.test.ts and .../stream/sources/notifications.test.ts.
 // `presence` stays: online state about OTHER humans is a multi-human surface either way.
 const beltSurfaces: readonly BeltSurface[] = [
-  inviteSurface("createInvite", (ctx) => caller(ctx).invites.createInvite({ chatId, input: {} })),
-  inviteSurface("previewInvite", (ctx) => caller(ctx).invites.previewInvite({ token: "tok" })),
-  inviteSurface("redeemInvite", (ctx) => caller(ctx).invites.redeemInvite({ token: "tok" })),
-  inviteSurface("acceptInvite", (ctx) => caller(ctx).invites.acceptInvite({ inviteId })),
+  inviteSurface("createInvite", (ctx) => caller(ctx).invites.createInvite({ chatId, input: {} }), INVITE_RESULTS.created),
+  inviteSurface("previewInvite", (ctx) => caller(ctx).invites.previewInvite({ token: "tok" }), INVITE_RESULTS.preview),
+  inviteSurface("redeemInvite", (ctx) => caller(ctx).invites.redeemInvite({ token: "tok" }), INVITE_RESULTS.redeemed),
+  inviteSurface("acceptInvite", (ctx) => caller(ctx).invites.acceptInvite({ inviteId }), INVITE_RESULTS.redeemed),
   inviteSurface("revokeInvite", (ctx) => caller(ctx).invites.revokeInvite({ chatId, inviteId })),
   inviteSurface("declineInvite", (ctx) => caller(ctx).invites.declineInvite({ inviteId })),
   inviteSurface("kick", (ctx) => caller(ctx).invites.kick({ chatId, userId: kickTarget })),

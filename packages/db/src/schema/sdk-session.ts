@@ -27,7 +27,7 @@ import { userConnections } from "./connection.ts";
 // session_entries — one persisted agent-sdk session in a chat's prompt-cache lineage (D8). Keyed by
 // `chatId` (CASCADE — a deleted chat drops its whole SDK cache). A reseed appends a new entry (the
 // deterministic-frame replay means a fresh seed is byte-identical); the lineage is ordered by `seq`, and
-// exactly one entry is the live primary at a time (the dual-session reap's `keepPrimary`). Staleness is
+// exactly one entry per `(chat, connection)` is the live primary at a time. Staleness is
 // computed vs canon from `seeded_through_seq` + `canon_hash` — there is NO stored dirty flag (D25).
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
@@ -47,7 +47,7 @@ export const sessionEntries = sqliteTable(
     // cookie token (that is `sessions.token_hash`, a different table) — only the SDK's session identifier.
     sdkSessionId: text("sdk_session_id").notNull(),
     // Per-chat monotonic lineage ordinal — the ordering axis. A reseed APPENDS the next ordinal (a new
-    // deterministic seed); the highest `seq` is the live lineage head. UNIQUE per chat.
+    // deterministic seed); the highest `seq` is the newest lineage, and `is_primary` marks the live one. UNIQUE per chat.
     seq: integer("seq").notNull(),
     // Intended as the canon `messages.seq` this seed covered THROUGH — the staleness horizon (canon
     // advanced past it ⇒ resume from the tail / reseed), mirroring `chats.compactedAtSeq`. THE CURRENT
@@ -59,8 +59,8 @@ export const sessionEntries = sqliteTable(
     // not a flag"): re-hash the live canon and compare; a mismatch ⇒ canon diverged ⇒ reseed. Mirrors the
     // `content_hash` staleness pattern on the vector tables.
     canonHash: text("canon_hash").notNull(),
-    // The dual-session reap's `keepPrimary`: among a chat's lineage exactly one entry
-    // is the live primary; reseeds spawn a secondary that is later reaped. NOT a staleness flag.
+    // The lineage the connection runs on now: the writer moves this seat onto every row it inserts or
+    // re-adopts, so the other rows of that `(chat, connection)` are the reap candidates. NOT a staleness flag.
     isPrimary: integer("is_primary", { mode: "boolean" }).notNull().default(false),
     // The CONNECTION the session was spawned under (inference program §5.3b): per-user runtime dirs mean a
     // session file is reachable only from the dir it was written in, so every row names its connection, a
