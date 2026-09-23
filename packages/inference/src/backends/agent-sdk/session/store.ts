@@ -46,12 +46,14 @@ function canReplace(store: SessionStore): store is ReplaceableSessionStore {
  *   • `reseeded`  — a non-branch divergence (window-slide) on a replace-capable store → in-place replace.
  *   • `seeded`    — cold cache → a fresh deterministic seed-derived session was appended.
  *   • `readopted` — a previously-seeded deterministic session for this exact state was re-adopted.
+ *   • `rewound`   — that session had already run a turn on this seed (a regenerate), so it was cut back
+ *                   to the seed in place before resuming.
  *   • `fresh`     — no cache hit usable (salt ceiling / replace-incapable divergence) → SDK-fresh.
  *   • `cleared`   — an empty seed dropped the mapping.
  */
 export interface SeededSessionDecision {
   readonly sessionId: AgentSdkSessionId | null;
-  readonly disposition: "resumed" | "forked" | "reseeded" | "seeded" | "readopted" | "fresh" | "cleared";
+  readonly disposition: "resumed" | "forked" | "reseeded" | "seeded" | "readopted" | "rewound" | "fresh" | "cleared";
 }
 
 /**
@@ -208,9 +210,9 @@ export class SessionCache {
       if (sessionMatchesSeed(rows, turns)) {
         return { sessionId: recorded, disposition: "resumed" };
       }
-      // Diverged from the recorded lineage — probe the deterministic candidate for THIS seed first: an
-      // A→B→A swipe-back re-derives lineage A's own id, and if the live subprocess grew it since, a plain
-      // exact-match walk would miss it, so this probe matches on a grown-superset prefix instead.
+      // Diverged from the recorded lineage — probe the deterministic candidate for THIS seed first: a
+      // regenerate re-derives the id of the lineage its previous attempt ran on, which the probe re-adopts
+      // (exact) or rewinds to the seed (grown by the rejected turn).
       const readopted = await this.readoptDeterministicCandidate(chatId, connectionId, turns);
       if (readopted !== null) {
         return readopted;
@@ -232,10 +234,12 @@ export class SessionCache {
   }
 
   /**
-   * Probe deterministic candidate id(s) for this seed and re-adopt a matching stored lineage (the
-   * swipe-back landing). A candidate matches when the stored transcript contains the seed as a leading
-   * prefix (exact or grown-superset) — the live subprocess appends its own frames after a turn runs, so
-   * the pre-turn seed becomes a strict prefix of the stored lineage.
+   * Probe deterministic candidate id(s) for this seed and re-adopt the stored lineage. An exact match
+   * re-adopts as-is. A lineage that has GROWN past the seed was seeded from exactly this seed and has since
+   * run a turn on it, so its tail is a turn this send replaces (a regenerate, a swipe, an edit-and-resend):
+   * resuming it would show the model the rejected prompt and reply. It is rewound in place to the seed, which
+   * rebuilds byte-identical seed frames under the same id and keeps its prompt-cache prefix. A store that
+   * cannot replace falls through to the caller's salt walk, which seeds a fresh lineage instead.
    */
   private async readoptDeterministicCandidate(
     chatId: ChatId,
@@ -246,9 +250,18 @@ export class SessionCache {
     for (let salt = 0; salt < MAX_SEED_SALT; salt++) {
       const sessionId = seedSessionId(chatId, connectionId, turns, salt);
       const rows = await this.loadSession(sessionId);
-      if (rows.length > 0 && sessionContainsSeedPrefix(rows, turns)) {
+      if (rows.length === 0 || !sessionContainsSeedPrefix(rows, turns)) {
+        continue;
+      }
+      if (sessionMatchesSeed(rows, turns)) {
         this.byChatConnection.set(cacheKey, sessionId);
         return { sessionId, disposition: "readopted" };
+      }
+      if (canReplace(this.store)) {
+        await this.store.replace({ projectKey: INTERNAL_PROJECT_KEY, sessionId }, buildSeedFrames(turns, sessionId));
+        await persistUpdate(this.writer, this.log, { connectionId, sdkSessionId: sessionId, seededThroughSeq: turns.length, canonHash: canonHashOf(turns) });
+        this.byChatConnection.set(cacheKey, sessionId);
+        return { sessionId, disposition: "rewound" };
       }
     }
     return null;
