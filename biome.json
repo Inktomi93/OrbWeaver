@@ -1316,6 +1316,7 @@
       "includes": [
         "**/*.config.ts",
         "**/*.config.js",
+        "knip.ts",
         "playwright*.config.ts",
         "tests/e2e/support/global-setup.ts",
         "tests/e2e/support/modes.ts",

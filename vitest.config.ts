@@ -50,7 +50,7 @@ const NORMAL_GROUP_ORDER = 0;
 const REPOSITORY_GROUP_ORDER = 1;
 
 // Vitest forces incremental flags; this wrapper enforces the repository's cold semantic-check policy.
-const TYPECHECKER = "scripts/ts7.cjs";
+const TYPECHECKER = "scripts/ts7.ts";
 
 /** THE TYPECHECK PROJECTS ASSERT; THEY DO NOT OWN SOURCE ERRORS (#2232, ruled 2026-09-13).
  *

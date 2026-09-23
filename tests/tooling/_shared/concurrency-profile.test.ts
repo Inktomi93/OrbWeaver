@@ -2,8 +2,8 @@
 // tooling/src/_shared/concurrency-profile.ts). Home per Spine-Testing §2: a tooling module's test lives in
 // tests/tooling/.
 //
-// WHAT THIS SUITE IS FOR (#1835). The committed JSON is read by FOUR unrelated languages — bash (two
-// hooks, via jq), CommonJS (scripts/ts7.cjs), TypeScript configs and tools (vitest,
+// WHAT THIS SUITE IS FOR (#1835). The committed JSON is read by THREE unrelated consumers — bash (two
+// hooks, via jq), TypeScript configs, scripts and tools (vitest, scripts/ts7.ts,
 // playwright-ct) and the verify tree — and only this one of them has a type checker. So the file's SHAPE is
 // pinned here: a profile that lost a field, or grew a string where a cap belongs, would otherwise reach the
 // bash readers as an empty jq result and the TS readers as `NaN` workers, which vitest reads as UNLIMITED —
@@ -206,7 +206,7 @@ interface WrapperCapture {
 }
 
 function runWrapper(
-  script: "ts7.cjs" | "eslint.cjs" | "cpd.ts",
+  script: "ts7.ts" | "eslint.ts" | "cpd.ts",
   args: readonly string[],
   box: string | undefined,
   outcome = "0",
@@ -246,8 +246,8 @@ function optionValue(args: readonly string[] | undefined, option: string): strin
 
 test("all worker wrappers reject a malformed box switch before spawning, even with an explicit worker override", () => {
   const cases = [
-    ["ts7.cjs", ["--checkers", "1", "--version"], 1],
-    ["eslint.cjs", ["--concurrency", "off", "--version"], 2],
+    ["ts7.ts", ["--checkers", "1", "--version"], 1],
+    ["eslint.ts", ["--concurrency", "off", "--version"], 2],
   ] as const;
   for (const [script, args, expectedStatus] of cases) {
     const result = runWrapper(script, args, "true");
@@ -264,17 +264,17 @@ test("all worker wrappers reject a malformed box switch before spawning, even wi
 });
 
 test("worker wrappers derive shared/dedicated defaults and preserve explicit native worker overrides", () => {
-  const tsShared = runWrapper("ts7.cjs", ["--version"], undefined).capture;
-  const tsDedicated = runWrapper("ts7.cjs", ["--version"], "1").capture;
-  const tsExplicit = runWrapper("ts7.cjs", ["--checkers", "1", "--version"], "1").capture;
+  const tsShared = runWrapper("ts7.ts", ["--version"], undefined).capture;
+  const tsDedicated = runWrapper("ts7.ts", ["--version"], "1").capture;
+  const tsExplicit = runWrapper("ts7.ts", ["--checkers", "1", "--version"], "1").capture;
   expect(optionValue(tsShared?.args, "--checkers")).toBe("4");
   expect(optionValue(tsDedicated?.args, "--checkers")).toBe("8");
   expect(tsExplicit?.args.filter((arg) => arg === "--checkers")).toHaveLength(1);
   expect(optionValue(tsExplicit?.args, "--checkers")).toBe("1");
 
-  const eslintShared = runWrapper("eslint.cjs", ["--version"], undefined).capture;
-  const eslintDedicated = runWrapper("eslint.cjs", ["--version"], "1").capture;
-  const eslintExplicit = runWrapper("eslint.cjs", ["--concurrency", "off", "--version"], "1").capture;
+  const eslintShared = runWrapper("eslint.ts", ["--version"], undefined).capture;
+  const eslintDedicated = runWrapper("eslint.ts", ["--version"], "1").capture;
+  const eslintExplicit = runWrapper("eslint.ts", ["--concurrency", "off", "--version"], "1").capture;
   expect(optionValue(eslintShared?.args, "--concurrency")).toBe("4");
   expect(optionValue(eslintDedicated?.args, "--concurrency")).toBe("8");
   expect(eslintExplicit?.args.filter((arg) => arg === "--concurrency")).toHaveLength(1);
@@ -334,7 +334,7 @@ test("the TS7 wrapper removes valid incremental cache options without dropping u
     },
   ] as const;
   for (const { argv, preserved } of cases) {
-    const result = runWrapper("ts7.cjs", argv, undefined);
+    const result = runWrapper("ts7.ts", argv, undefined);
     expect(result.status).toBe(0);
     expect(result.capture).not.toBeNull();
     expect(
@@ -362,7 +362,7 @@ test("the TS7 wrapper rejects malformed incremental cache options before spawnin
     ["--tsBuildInfoFile="],
   ] as const;
   for (const argv of cases) {
-    const result = runWrapper("ts7.cjs", argv, undefined);
+    const result = runWrapper("ts7.ts", argv, undefined);
     expect(result.status).not.toBe(0);
     expect(result.stderr).toMatch(/--incremental expects true or false|-i does not accept an equals-form value|--tsBuildInfoFile requires a path value/u);
     expect(result.capture).toBeNull();

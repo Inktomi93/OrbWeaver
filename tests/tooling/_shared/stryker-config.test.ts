@@ -5,8 +5,8 @@ import { readConcurrencyProfile } from "@orb/tooling/_shared/concurrency-profile
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..", "..");
-const EXPLORATORY_CONFIG = "stryker.config.js";
-const GATE_CONFIG = "stryker.gate.config.js";
+const EXPLORATORY_CONFIG = "stryker.config.ts";
+const GATE_CONFIG = "stryker.gate.config.ts";
 
 const IGNORE_PATTERNS = [
   ".stryker-tmp/**",
@@ -110,8 +110,8 @@ async function importConfig(configName: string, nonce: string): Promise<Record<s
 }
 
 test("native Stryker configs preserve every effective option and retire JSON", async () => {
-  expect(existsSync(join(ROOT, "stryker.config.json"))).toBe(false);
-  expect(existsSync(join(ROOT, "stryker.gate.config.json"))).toBe(false);
+  expect(existsSync(join(ROOT, "stryker.config.tson"))).toBe(false);
+  expect(existsSync(join(ROOT, "stryker.gate.config.tson"))).toBe(false);
 
   const exploratory = await importConfig(EXPLORATORY_CONFIG, "options");
   const gate = await importConfig(GATE_CONFIG, "options");
@@ -121,8 +121,8 @@ test("native Stryker configs preserve every effective option and retire JSON", a
   expect(gate).not.toHaveProperty("inPlace");
 
   const rootManifest = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as { readonly scripts: Record<string, string> };
-  expect(rootManifest.scripts["test:mutation"]).toBe("nice -n 19 stryker run stryker.config.js");
-  expect(rootManifest.scripts["test:mutation:gate"]).toBe("nice -n 19 stryker run stryker.gate.config.js");
+  expect(rootManifest.scripts["test:mutation"]).toBe("nice -n 19 stryker run stryker.config.ts");
+  expect(rootManifest.scripts["test:mutation:gate"]).toBe("nice -n 19 stryker run stryker.gate.config.ts");
 });
 
 test("each config import owns independent mutable option branches", async () => {

@@ -1,6 +1,6 @@
 // The ARID ignorer — a Stryker ignore-plugin (`ignorers` config, PluginKind.Ignore) that suppresses
 // mutants on string literals whose ONLY destination is an observability sink: a trace record, a
-// trace-payload object, or a logger call. Wired into stryker.config.js + stryker.gate.config.js.
+// trace-payload object, or a logger call. Wired into stryker.config.ts + stryker.gate.config.ts.
 //
 // WHY IT EXISTS. A surviving mutant is supposed to mean "a test covered this line and asserted nothing
 // that would notice the change". A trace label breaks that contract in a way no test SHOULD fix: pinning

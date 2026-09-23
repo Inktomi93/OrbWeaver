@@ -163,7 +163,7 @@ export async function runEslint(root: string): Promise<number> {
     process.stderr.write(`[eslint] ${owner}: ${String(paths.length)} file(s)\n`);
     // Each partition gets its own cache file so ESLint's reconcile() does not purge sibling entries (#1931).
     const ownerCacheFile = join(cacheDir, `${owner.replaceAll("/", "__")}.eslintcache`);
-    const result = runNicedSync("pnpm", ["exec", "node", "scripts/eslint.cjs", ...CHILD_FLAGS, "--cache-location", ownerCacheFile, ...paths], {
+    const result = runNicedSync("pnpm", ["exec", "node", "scripts/eslint.ts", ...CHILD_FLAGS, "--cache-location", ownerCacheFile, ...paths], {
       cwd: root,
       stdio: "inherit",
     });

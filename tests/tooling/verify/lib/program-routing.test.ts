@@ -16,10 +16,10 @@ test("affected routing retains concrete parents for exclusive roots, shared root
 }) => {
   execFixtureGit(scratch, ["init", "--quiet", "--template=", "--initial-branch=main"]);
   mkdirSync(join(scratch, "scripts"));
-  symlinkSync(join(repoRoot, "scripts/ts7.cjs"), join(scratch, "scripts/ts7.cjs"), "file");
+  symlinkSync(join(repoRoot, "scripts/ts7.ts"), join(scratch, "scripts/ts7.ts"), "file");
   symlinkSync(join(repoRoot, "node_modules"), join(scratch, "node_modules"), "dir");
   for (const [path, text] of Object.entries({
-    ".gitignore": "node_modules\nscripts/ts7.cjs\n",
+    ".gitignore": "node_modules\nscripts/ts7.ts\n",
     "package.json": JSON.stringify({ type: "module" }),
     "tsconfig.json": JSON.stringify({ compilerOptions: { types: [], strictNullChecks: true }, files: ["parent.ts", "shared.ts"] }),
     "tsconfig.child.json": JSON.stringify({ extends: "./tsconfig.json", compilerOptions: { strictNullChecks: false }, files: ["child.ts", "shared.ts"] }),
