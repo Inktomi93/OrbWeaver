@@ -508,7 +508,7 @@ describe("tool delivery — the real tool-use service behind the neutral offer",
     readonly runChatTurn: (req: ChatRequest) => Promise<ChatResult>;
     readonly seen: { runs: number; readonly results: McpCallResult[] };
   } {
-    const seen = { runs: 0, results: [] as McpCallResult[] };
+    const seen: { runs: number; results: McpCallResult[] } = { runs: 0, results: [] };
     return {
       seen,
       runChatTurn: async (req) => {
