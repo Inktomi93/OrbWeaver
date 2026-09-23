@@ -10,6 +10,8 @@
 //     `modelListed` says whether it came from the list.
 //   • THE PICKER'S STATES at 870, 486 and a phone: skeleton rows while loading, the empty list, the failed read
 //     with its retry, a keyboard pick, and the typed id where policy permits it — and none where it does not.
+//   • A PICK MOVES NOTHING. Recent is written when the connection is saved, the sections keep their order, and
+//     the picked row is marked once.
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
@@ -42,11 +44,11 @@ const OPENROUTER_MODELS = [
 const OPENROUTER_CATALOG = catalogOf(OPENROUTER_MODELS);
 const LOCAL_ROW = connectionRow({
   id: "user_connection_ctauthor0002",
-  label: "Built-in (this device) · Xenova/bge-small-en-v1.5",
+  label: "Built-in (this device) · jinaai/jina-clip-v2",
   providerId: "local-light",
   providerLabel: "Built-in (this device)",
   credentialId: null,
-  model: "Xenova/bge-small-en-v1.5",
+  model: "jinaai/jina-clip-v2",
   tasks: ["embed"],
 });
 
@@ -107,7 +109,9 @@ test("the new row copies provider, key, URL and api from the saved one; a keyboa
   const dialog = await openAddModel(page, OPENROUTER_NAME, /Add another model on this key/, KEY_TITLE);
 
   const search = dialog.getByRole("combobox", { name: "Search OpenRouter models" });
-  await search.fill("sonnet");
+  // The row's whole name, in any case: an exact match is the one Enter takes without a move to it.
+  await search.fill("claude sonnet 5");
+  await expect(dialog.locator('[role="option"][aria-selected="true"]')).toHaveText(/Claude Sonnet 5/);
   await page.keyboard.press("Enter");
   await expect(dialog.getByRole("status").filter({ hasText: "Picked:" })).toHaveText("Picked: Claude Sonnet 5 (anthropic/claude-sonnet-5)");
   await expect(dialog.getByRole("option", { name: /Claude Sonnet 5/ })).toContainText("Selected");
@@ -144,7 +148,7 @@ test("a built-in row's catalog is closed: no typed id is offered, and an empty l
   const emptyLocal = connectionRow({ ...LOCAL_ROW, id: "user_connection_ctauthor0005", label: "Spare built-in" });
   await stubWith(
     page,
-    (input) => catalogOf(input.connectionId === LOCAL_ROW.id ? [catalogEntry("Xenova/bge-small-en-v1.5"), catalogEntry("Xenova/ms-marco-MiniLM-L-6-v2")] : []),
+    (input) => catalogOf(input.connectionId === LOCAL_ROW.id ? [catalogEntry("jinaai/jina-clip-v2"), catalogEntry("Xenova/ms-marco-MiniLM-L-6-v2")] : []),
     [LOCAL_ROW, emptyLocal],
   );
   await mount(<ConnectionsAuthoringStory width={870} />);
@@ -156,7 +160,7 @@ test("a built-in row's catalog is closed: no typed id is offered, and an empty l
   await dialog.getByRole("button", { name: "Cancel" }).click();
   await expect(dialog).toBeHidden();
 
-  const empty = await openAddModel(page, "Spare built-in · Xenova/bge-small-en-v1.5", /Add another built-in model/, "Add another built-in model");
+  const empty = await openAddModel(page, "Spare built-in · jinaai/jina-clip-v2", /Add another built-in model/, "Add another built-in model");
   await expect(
     empty.getByText(
       "Couldn't list Built-in (this device)'s models — the provider listed no models. This provider only runs models from its list, so there is nothing to type instead.",
@@ -167,25 +171,34 @@ test("a built-in row's catalog is closed: no typed id is offered, and an empty l
 
 // A LIST THAT FAILS is not an empty list: the server answers `listed: false` with the fetch's own reason, and
 // the retry re-reads it (side-eye P2: an HTTP 500 used to read "listed no models" with no way to try again).
-test("a saved row's failed list names the failure and retries into the list", async ({ mount, page }) => {
+// The retry button stays mounted and busy while the list reloads, so focus never falls to the document.
+test("a saved row's failed list names the failure and retries into the list, keeping focus on the retry", async ({ mount, page }) => {
   let reads = 0;
+  const reload = trpcHold();
   await stubWith(page, () => {
     reads += 1;
-    return reads === 1 ? { listed: false, models: [], reason: "openrouter.ai answered 500." } : OPENROUTER_CATALOG;
+    return reads === 1 ? { listed: false, models: [], reason: "openrouter.ai answered 500." } : reload;
   });
   await mount(<ConnectionsAuthoringStory width={870} />);
   const dialog = await openAddModel(page, OPENROUTER_NAME, /Add another model on this key/, KEY_TITLE);
   await expect(dialog.getByRole("textbox", { name: "Model" })).toHaveAccessibleDescription(
     "Couldn't list OpenRouter's models — openrouter.ai answered 500. Type the id; it'll be sent as-is.",
   );
-  await dialog.getByRole("button", { name: "Try the list again" }).click();
+  const retry = dialog.getByRole("button", { name: "Try the list again" });
+  await retry.click();
+  await reload.requested;
+  await expect(retry).toHaveAttribute("aria-busy", "true");
+  await expect(retry).toBeFocused();
+  reload.release(OPENROUTER_CATALOG);
   await expect(dialog.getByRole("option")).toHaveCount(OPENROUTER_MODELS.length);
+  await expect(dialog.getByRole("combobox", { name: "Search OpenRouter models" })).toBeFocused();
 });
 
 // ENTER NEVER SAVES A LOOSE MATCH (side-eye P1). The fuzzy search still SHOWS the "…gptq…v0.6" row for "gpt-6"
 // — a typo should still find its model — but nothing is highlighted, so Enter takes the typed option instead
-// of saving that row as listed. A result that contains what was typed is highlighted, and Enter picks it.
-test("Enter on a loose fuzzy match takes the typed id; Enter on a real match picks that row", async ({ mount, page }) => {
+// of saving that row as listed. A row that merely CONTAINS the query is not highlighted either (side-eye N8:
+// "32B" named two rows and Enter took whichever came first); only the row that IS the query is.
+test("Enter on a loose or partial match takes the typed id; Enter on the exact id picks that row", async ({ mount, page }) => {
   const trpc = await stubWith(page, OPENROUTER_CATALOG);
   await mount(<ConnectionsAuthoringStory width={870} />);
   const dialog = await openAddModel(page, OPENROUTER_NAME, /Add another model on this key/, KEY_TITLE);
@@ -197,16 +210,37 @@ test("Enter on a loose fuzzy match takes the typed id; Enter on a real match pic
   await expect(dialog.getByRole("status").filter({ hasText: "Picked:" })).toHaveText(
     "Picked: gpt-6 — This model id wasn't in OpenRouter's list. It'll be sent as-is; if the server doesn't have it, turns will fail.",
   );
-  await search.fill("gptq");
+  await search.fill("claude");
+  await expect(dialog.getByRole("option", { name: /Claude/ })).toHaveCount(2);
+  await expect(dialog.locator('[role="option"][aria-selected="true"]')).toHaveCount(0);
+  await search.fill("META-LLAMA/llama-3-70b-gptq-4bit-v0.6");
   await expect(dialog.locator('[role="option"][aria-selected="true"]')).toHaveCount(1);
   await page.keyboard.press("Enter");
   await expect(dialog.getByRole("status").filter({ hasText: "Picked:" })).toHaveText("Picked: Llama 3 70B GPTQ v0.6 (meta-llama/llama-3-70b-gptq-4bit-v0.6)");
   await expect.poll(() => trpc.count("connection.create")).toBe(0);
 });
 
-// THE PORTED LIST: sectioned by provider, the device-local Recent group heads it once something was picked,
-// and the Vision/Tools chips narrow a catalog that states capabilities.
-test("the list is sectioned by provider, remembers recent picks, and narrows by capability chips", async ({ mount, page }) => {
+// A SEARCH OF SEVERAL WORDS IS NOT AN ID (side-eye N5: "qwen3 8b" was saved as a model). The words still find
+// the row, but no typed option is offered for them, and Enter does nothing until a row is chosen.
+test("a multi-word search finds its row but never offers the words as a typed id", async ({ mount, page }) => {
+  await stubWith(page, OPENROUTER_CATALOG);
+  await mount(<ConnectionsAuthoringStory width={870} />);
+  const dialog = await openAddModel(page, OPENROUTER_NAME, /Add another model on this key/, KEY_TITLE);
+  const search = dialog.getByRole("combobox", { name: "Search OpenRouter models" });
+  await search.fill("llama 70b");
+  await expect(dialog.getByRole("option", { name: /GPTQ/ })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: /as typed/ })).toHaveCount(0);
+  await page.keyboard.press("Enter");
+  await expect(dialog.getByRole("status").filter({ hasText: "No model picked yet." })).toBeVisible();
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Enter");
+  await expect(dialog.getByRole("status").filter({ hasText: "Picked:" })).toHaveText("Picked: Llama 3 70B GPTQ v0.6 (meta-llama/llama-3-70b-gptq-4bit-v0.6)");
+});
+
+// THE PORTED LIST: sectioned by provider, the device-local Recent group heads it once a connection was SAVED
+// with a listed model, and the Vision/Tools chips narrow a catalog that states capabilities. A pick alone
+// moves nothing (side-eye N4: it hoisted a Recent group over the row and marked it "Selected" twice).
+test("the list is sectioned by provider, remembers saved models, and narrows by capability chips", async ({ mount, page }) => {
   await stubWith(
     page,
     catalogOf([
@@ -225,12 +259,18 @@ test("the list is sectioned by provider, remembers recent picks, and narrows by 
   await expect(dialog.getByRole("option", { name: /Claude Sonnet 5/ })).toBeVisible();
   await dialog.getByRole("button", { name: "Vision" }).click();
 
+  const headings = dialog.locator('[data-slot="command-group-heading"]');
+  await expect(headings).toHaveText(["Anthropic", "OpenAI"]);
   await dialog.getByRole("option", { name: /GPT-5/ }).click();
-  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(headings).toHaveText(["Anthropic", "OpenAI"]);
+  await expect(dialog.getByRole("option").filter({ hasText: "Selected" })).toHaveCount(1);
+  await dialog.getByRole("button", { name: "Add connection" }).click();
   await expect(dialog).toBeHidden();
+
   const again = await openAddModel(page, OPENROUTER_NAME, /Add another model on this key/, KEY_TITLE);
-  await expect(again.getByText("Recent", { exact: true })).toBeVisible();
-  await expect(again.getByRole("option", { name: /GPT-5/ })).toHaveCount(2);
+  await expect(again.locator('[data-slot="command-group-heading"]')).toHaveText(["Recent", "Anthropic"]);
+  // A Recent row is not repeated in its own section.
+  await expect(again.getByRole("option", { name: /GPT-5/ })).toHaveCount(1);
 });
 
 // NOTHING IS HIGHLIGHTED AT REST (side-eye P2): cmdk's first-row auto-select read as a pick nobody made.
@@ -247,6 +287,25 @@ test("the dialog opens on the search box with no row highlighted, and marks the 
   // The first arrow key hands the highlight to cmdk.
   await page.keyboard.press("ArrowDown");
   await expect(dialog.locator('[role="option"][aria-selected="true"]')).toHaveCount(1);
+});
+
+// THE LIST HOLDS STILL (side-eye N1, N2). A one-line row is one control tall — the two-line cap reserves no
+// height — and the list is a fixed viewport inside the dialog, so narrowing the search does not move it.
+test("a one-line row is one control tall, and the list keeps its height while the search narrows it", async ({ mount, page }) => {
+  await stubWith(page, OPENROUTER_CATALOG);
+  await mount(<ConnectionsAuthoringStory width={870} />);
+  const dialog = await openAddModel(page, OPENROUTER_NAME, /Add another model on this key/, KEY_TITLE);
+  const oneLine = dialog.getByRole("option", { name: /^qwen\/qwen3-32b/ });
+  // The row's height less its min-height: 0 when the clamp reserves nothing.
+  await expect
+    .poll(() => oneLine.evaluate((element) => element.getBoundingClientRect().height - Number.parseFloat(getComputedStyle(element).minHeight)))
+    .toBe(0);
+  const list = dialog.getByRole("listbox", { name: "Models on OpenRouter" });
+  const listHeight = async (): Promise<number> => (await list.boundingBox())?.height ?? 0;
+  const before = await listHeight();
+  await dialog.getByRole("combobox", { name: "Search OpenRouter models" }).fill("qwen");
+  await expect(dialog.getByRole("option")).toHaveCount(1);
+  await expect.poll(listHeight).toBe(before);
 });
 
 test("an invalid submit leaves focus on the search box, marked invalid and described by the error", async ({ mount, page }) => {

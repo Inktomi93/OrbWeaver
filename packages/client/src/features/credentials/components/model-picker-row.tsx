@@ -1,6 +1,9 @@
 // One ModelPicker row (ported): the model's name with its capability chips over the id, and the context and
-// price on the right — the facts a user compares models by. Names and ids wrap to two lines with the full text
-// in `title`, because a catalog id (`meta-llama/llama-3.1-405b-instruct:free`) is often wider than the dialog.
+// price on the right — the facts a user compares models by. Names and ids wrap to at most two lines with the
+// full text in `title`, because a catalog id (`meta-llama/llama-3.1-405b-instruct:free`) is often wider than the
+// dialog. The cap is a bare `line-clamp-2`, never the `lines` modifier: `lines` also RESERVES two lines, which
+// is for cells that share a baseline, and in a list it doubled every one-line row. The right-hand facts and
+// badges sit on the first line, beside the name they describe.
 
 import { Badge } from "@orb/ui/badge";
 import { Row, Stack } from "@orb/ui/layout";
@@ -13,10 +16,10 @@ export function ModelPickerRow({ entry, picked, current }: { readonly entry: Pic
   const context = formatContextLength(entry.contextLength);
   const price = formatPromptPrice(entry.promptPrice);
   return (
-    <Row align="center" className="min-w-0 flex-1" gap="row">
+    <Row align="start" className="min-w-0 flex-1" gap="row">
       <Stack className="min-w-0 flex-1" gap="field">
         <Row align="center" className="min-w-0" gap="field">
-          <Text as="span" className="min-w-0 break-all" ink="inherit" lines={2} title={entry.label}>
+          <Text as="span" className="line-clamp-2 min-w-0 break-all" ink="inherit" title={entry.label}>
             {entry.label}
           </Text>
           {hasVision(entry) ? (
@@ -31,7 +34,7 @@ export function ModelPickerRow({ entry, picked, current }: { readonly entry: Pic
           ) : null}
         </Row>
         {entry.label === entry.id ? null : (
-          <Text as="span" className="break-all" lines={2} title={entry.id} voice="datumMono">
+          <Text as="span" className="line-clamp-2 break-all" title={entry.id} voice="datumMono">
             {entry.id}
           </Text>
         )}

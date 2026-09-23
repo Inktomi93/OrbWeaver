@@ -38,7 +38,7 @@ export function SetupTokenCommand(): ReactElement {
       </Text>
       <Row align="center" gap="field">
         {/* A command the user types: `<kbd>` is its element, and the chip marks where it starts and ends. */}
-        <Kbd>{CLAUDE_SETUP_TOKEN_COMMAND}</Kbd>
+        <Kbd size="command">{CLAUDE_SETUP_TOKEN_COMMAND}</Kbd>
         <Button aria-label={`Copy the command ${CLAUDE_SETUP_TOKEN_COMMAND}`} intent="secondary" onClick={copy} size="sm">
           Copy
         </Button>
