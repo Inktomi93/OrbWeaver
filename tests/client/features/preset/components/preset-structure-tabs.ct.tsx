@@ -64,7 +64,7 @@ test("P2-5: the four behaviours are still spelled — on the field's hint, where
   // explanation for a missing one.
   // The delivery arm mounts FOUR hinted fields, so each home is addressed by the hint that carries THIS
   // behaviour rather than by its slot alone (the slot resolves to all four sr-only descriptions).
-  const behaviour = "Default prefixes only on a persona switch";
+  const behaviour = "Default prefixes on a persona switch and wherever several humans or characters share the room";
   await expect(page.locator('[data-slot="tooltip-popup"][data-open]')).toContainText(behaviour);
   await expect(page.locator('[data-slot="tooltip-description"]').filter({ hasText: behaviour })).toHaveCount(1);
 });

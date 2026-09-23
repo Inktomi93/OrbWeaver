@@ -6,9 +6,11 @@
 // The MODE decides HOW a labellable row is labelled; the row's DECLARED KIND decides WHETHER it may be
 // labelled at all (`mayBeLabelled`, D129) — two questions, two dispatches, and the kind one runs first.
 //
-//   • "none"       — strip names entirely.
-//   • "default"    — prefix only a user turn whose author differs from the active persona, and — in a
-//                    multi-character room — an assistant turn with its character's name. Solo → no prefix.
+//   • "none"       — strip names entirely. In a room with more than one human or character it runs as
+//                    "default" instead (`effectiveMode`).
+//   • "default"    — prefix a user turn whose author differs from the active persona (every user turn once
+//                    the room seats more than one human), and — in a multi-character room — an assistant
+//                    turn with its character's name. Solo → no prefix.
 //   • "content"    — always prefix `${author}: ${content}`.
 //   • "completion" — set the OpenAI-spec `name` field; content untouched. UNLESS the effective role-handling
 //                    strategy MERGES adjacent same-role rows, in which case the speaker is inlined like
@@ -50,6 +52,8 @@ type WireRole = MessageRole;
 interface NamesOptions {
   /** True when the history carries \>1 distinct authoring character. Absent/false → solo, byte-identical. */
   readonly multiCharacter?: boolean;
+  /** True when the room seats \>1 present human (`AssembleContext.multiHuman`). Absent/false → solo. */
+  readonly multiHuman?: boolean;
   /** Whether the effective role-handling strategy merges adjacent same-role rows. When it does, `completion`
    *  inlines the speaker instead of emitting an out-of-band `name` — a surviving name blocks the merge and
    *  the provider gets the adjacent same-role pair it rejects. Absent ⇒ true (the floor is `strict`). */
@@ -98,6 +102,12 @@ function assertNeverMessageKind(kind: never): never {
   throw new Error(`applyNamesBehavior: unhandled MessageKind ${JSON.stringify(kind)}`);
 }
 
+// Owner ruling: "none" in a room with more than one human or more than one character leaves the model unable to
+// tell who said what, so there it runs as "default". A solo room keeps a true "none". The stored preset is untouched.
+function effectiveMode(mode: NamesBehavior, room: { readonly multiCharacter: boolean; readonly multiHuman: boolean }): NamesBehavior {
+  return mode === "none" && (room.multiCharacter || room.multiHuman) ? "default" : mode;
+}
+
 export function applyNamesBehavior(
   history: readonly {
     role: WireRole;
@@ -112,11 +122,12 @@ export function applyNamesBehavior(
      *  that had to take a participant wire role because the backend refuses mid-conversation system. */
     speakerless?: true | undefined;
   }[],
-  mode: NamesBehavior,
+  presetMode: NamesBehavior,
   speakers: { user: string; assistant: string },
   opts: NamesOptions = {},
 ): NamedRow[] {
-  const { multiCharacter = false, mergesAdjacent = true } = opts;
+  const { multiCharacter = false, multiHuman = false, mergesAdjacent = true } = opts;
+  const mode = effectiveMode(presetMode, { multiCharacter, multiHuman });
   if (mode === "none") {
     return history.map((m) => ({ role: m.role, content: m.content, messageId: m.messageId }));
   }
@@ -140,7 +151,7 @@ export function applyNamesBehavior(
     }
     const author = m.authorName ?? (m.role === "user" ? speakers.user : speakers.assistant);
     if (mode === "default") {
-      return defaultModeRow(m, author, speakers, multiCharacter);
+      return defaultModeRow(m, author, speakers, { multiCharacter, multiHuman });
     }
     if (mode === "content") {
       return { role: m.role, content: `${author}: ${m.content}`, messageId: m.messageId };
@@ -151,18 +162,20 @@ export function applyNamesBehavior(
   });
 }
 
-// The "default" mode rule: prefix a user turn whose author differs from the active persona, and — in a
-// multi-character room — an assistant turn with its character's name; otherwise untouched.
+// The "default" mode rule: prefix a user turn whose author differs from the active persona, or every CANON user
+// turn in a multi-human room (the active persona is one human's, so an unprefixed row would claim to be theirs;
+// a synthetic tail row has no author to name), and — in a multi-character room — an assistant turn with its
+// character's name; otherwise untouched.
 function defaultModeRow(
   m: { role: WireRole; content: string; authorName?: string | null; messageId?: MessageId | undefined },
   author: string,
   speakers: { user: string; assistant: string },
-  multiCharacter: boolean,
+  room: { readonly multiCharacter: boolean; readonly multiHuman: boolean },
 ): NamedRow {
-  if (m.role === "user" && author !== speakers.user) {
+  if (m.role === "user" && ((room.multiHuman && m.messageId !== undefined) || author !== speakers.user)) {
     return { role: m.role, content: `${author}: ${m.content}`, messageId: m.messageId };
   }
-  if (m.role === "assistant" && multiCharacter && m.authorName !== null && m.authorName !== undefined) {
+  if (m.role === "assistant" && room.multiCharacter && m.authorName !== null && m.authorName !== undefined) {
     return { role: m.role, content: `${author}: ${m.content}`, messageId: m.messageId };
   }
   return { role: m.role, content: m.content, messageId: m.messageId };

@@ -494,10 +494,11 @@ describe("shape — W6 role-handling strategy + prefix-stable goldens", () => {
         roleHandlingFloor: "none",
       }),
     );
-    // No merge: the two adjacent assistant rows remain separate.
+    // No merge: the two adjacent assistant rows remain separate. Two characters run names "none" as
+    // "default" (owner ruling), so each row keeps its speaker label.
     expect(out.history.filter((r) => r.role === "assistant")).toEqual([
-      { role: "assistant", content: "First." },
-      { role: "assistant", content: "Second." },
+      { role: "assistant", content: "Aria: First." },
+      { role: "assistant", content: "Kai: Second." },
     ]);
   });
 
@@ -516,7 +517,7 @@ describe("shape — W6 role-handling strategy + prefix-stable goldens", () => {
         roleHandlingFloor: "merge",
       }),
     );
-    expect(out.history.filter((r) => r.role === "assistant")).toEqual([{ role: "assistant", content: "First.\n\nSecond." }]);
+    expect(out.history.filter((r) => r.role === "assistant")).toEqual([{ role: "assistant", content: "Aria: First.\n\nKai: Second." }]);
   });
 
   test("prefix-stable golden: the STABLE prefix bytes are IDENTICAL with and without an active boundary injection", () => {

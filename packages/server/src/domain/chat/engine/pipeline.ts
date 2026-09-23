@@ -649,6 +649,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     scopedTargetId: args.shape?.scopedTargetId ?? null,
     namesBehavior: ctx.promptConfig.namesBehavior ?? DEFAULT_NAMES_BEHAVIOR,
     speakers,
+    multiHuman: ctx.multiHuman === true,
     groupNudge: cue,
     // roleHandling is the preset's user-intent knob (per-turn override wins via the fold); SHAPE clamps it
     // against the model's roleHandlingFloor.

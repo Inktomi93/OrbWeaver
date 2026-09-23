@@ -594,6 +594,9 @@ export interface AssembleContext {
    *  — the `authorUserId === viewerUserId` gate). Null/absent (a drain/auto turn, a preview, any hand-built
    *  ctx) ⇒ NO row borrows it, which is the fail-closed side. */
   triggerUserId?: UserId | null | undefined;
+  /** True when the room seats more than one present human. SHAPE then labels every canon user row, so no
+   *  row's label depends on who pressed send. Absent ⇒ a solo room. */
+  multiHuman?: boolean | undefined;
   /** Whether the `persona` marker should emit the active persona's description (false ⇒ it rode an
    *  injection; marker stays silent to avoid double-inject). Absent ⇒ true. */
   personaMarkerActive?: boolean;
