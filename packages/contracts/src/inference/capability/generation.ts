@@ -115,12 +115,18 @@ export const reasoningCapabilitySchema = z.object({
   displayModes: z.array(reasoningDisplayModeSchema).optional(),
   /** Reasoning cannot be disabled — an `effort:'none'` intent is CLAMPED up at the funnel, never a 400. */
   mandatory: z.boolean().optional(),
+  /** The catalog's own default (OpenRouter `default_enabled` / `default_effort`). It fills an unset effort only
+   *  on a NON-adaptive model; an adaptive model takes the house default instead (`ADAPTIVE_DEFAULT_EFFORT`,
+   *  `@orb/inference`'s resolve contract). */
   defaultEnabled: z.boolean().optional(),
   defaultEffort: effortLevelSchema.optional(),
   /** What a REPLAYED prior reasoning block may carry on this wire (§8.8). Rides `EVIDENCE_TIERS` like every
    *  other cell, so a curated family default is overridable by a dated `measured/*` row and by the user's own
    *  `declared` block. Absent ⇒ {@link REASONING_REPLAY_FLOOR}. */
   replay: reasoningReplayModeSchema.optional(),
+  /** Replayed thinking is bound to the conversation prefix: a block whose earlier system, tools or messages
+   *  changed is refused unless the request asks the API to drop it (`drop_block`). */
+  prefixBound: z.boolean().optional(),
   supportsMaxTokens: z.boolean().optional(),
 });
 export type ReasoningCapability = z.infer<typeof reasoningCapabilitySchema>;
@@ -181,7 +187,7 @@ export const generationCapabilitySchema = z.object({
   imageReferences: z.boolean().optional(),
   /** `window` = usable context in tokens. `windowEstimated` marks a FALLBACK GUESS (cold catalog, no
    *  declared window) — the history FIT still runs against it, but a "used / window" surface must say so. */
-  context: z.object({ window: z.number(), supports1M: z.boolean().optional(), windowEstimated: z.boolean().optional() }),
+  context: z.object({ window: z.number(), windowEstimated: z.boolean().optional() }),
   /** The catalog handed a modality string the parser did not know (§5.4's unknown-value rule). */
   modalitiesEstimated: z.boolean().optional(),
   moderated: z.boolean().optional(),

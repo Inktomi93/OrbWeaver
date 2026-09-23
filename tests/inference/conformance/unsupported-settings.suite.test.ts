@@ -77,7 +77,12 @@ for (const wire of CONFORMANCE_WIRES) {
       params: { temperature: 0.9 },
     });
     const sent = captured.some((body) => JSON.stringify(body).includes(`"${KNOB}"`));
-    const announced = warningCodesOf(events).includes("sampling_knob_dropped");
+    // Either dropper may announce it: the funnel (`sampling_knob_dropped`) or the provider SDK after it
+    // (`sdk_unsupported_setting`, e.g. Anthropic refusing `temperature` while thinking is on, which the
+    // default adaptive effort turns on here). Both name the knob, and both keep it out of the applied record.
+    const announced = events.some(
+      (event) => event.kind === "warning" && (event.code === "sampling_knob_dropped" || event.code === "sdk_unsupported_setting") && event.knob === KNOB,
+    );
     expect(sent || announced, `"${KNOB}" was resolved, reported applied, and then neither sent nor announced as dropped`).toBe(true);
   });
 }

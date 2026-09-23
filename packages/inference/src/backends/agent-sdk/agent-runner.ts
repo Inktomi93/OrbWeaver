@@ -18,6 +18,7 @@ import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import type { AgentMcpServerSpec, AgentTurnRequest } from "../../contract/agent.ts";
 import type { AgentMcpServerHealth, ChatResult } from "../../contract/chat.ts";
 import { ProviderError } from "../../contract/errors.ts";
+import { resolvedScrubSet } from "../kit/sanitize.ts";
 import type { AgentSdkLog } from "./log.ts";
 import { toSdkOutputFormat } from "./output-schema.ts";
 import { consumeTurnStream, linkAbort } from "./runner.ts";
@@ -148,7 +149,7 @@ export async function runAgentTurn(req: AgentTurnRequest, deps: AgentSdkDeps, lo
   // The agent task spells no effort/thinking knob — the runtime's own default ran, which is unrecorded (null).
   const result = await consumeTurnStream(
     stream,
-    { model: connection.model, providerId: connection.providerId, resumed: false, now: deps.now, appliedEffort: null },
+    { model: connection.model, providerId: connection.providerId, resumed: false, now: deps.now, appliedEffort: null, secrets: resolvedScrubSet(connection) },
     log,
   );
   const mcpServerHealth = await probeMcpHealth(stream, deps, log);

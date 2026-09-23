@@ -20,18 +20,30 @@ import type { ChatId } from "@orb/kit/ids";
 import { secondsToMs } from "@orb/kit/time";
 import type { AgentSdkChatRequest, ChatResult, ContextUsage, ToolCallInput } from "../../contract/chat.ts";
 import { normalizeFinishReason } from "../../contract/chat.ts";
+import type { ProviderScrubSet } from "../../contract/errors.ts";
 import { ProviderError } from "../../contract/errors.ts";
 import type { ChatEvent, RateLimitSnapshot } from "../../contract/events.ts";
 import type { AgentSdkSessionId } from "../../contract/identity.ts";
 import { agentSdkSessionIdSchema } from "../../contract/identity.ts";
 import type { ResolvedWarning } from "../../contract/resolve.ts";
 import { resolveDynamicContext } from "../../funnel/resolve-chat.ts";
+import { classifyHttpStatus } from "../kit/error-classify.ts";
+import { redactSecretsFromText } from "../kit/openai-body.ts";
 import { agentSdkVariantMetadata } from "../kit/provider-metadata.ts";
+import { resolvedScrubSet, sanitizeApiError } from "../kit/sanitize.ts";
 import type { AgentSdkLog } from "./log.ts";
 import { toSdkOutputFormat } from "./output-schema.ts";
 import type { SeededSessionDecision, SessionCache } from "./session/index.ts";
 import { isTerminalToolCall, terminalToolOptions, toTerminalCall } from "./terminal-tools.ts";
-import { buildSystemPrompt, disciplineOptions, dynamicContextOptions, MCP_NAMESPACE, observabilityOptions, toSdkGeneration } from "./translate.ts";
+import {
+  buildSystemPrompt,
+  disciplineOptions,
+  dynamicContextOptions,
+  hookContextOf,
+  MCP_NAMESPACE,
+  observabilityOptions,
+  toSdkGeneration,
+} from "./translate.ts";
 import type { AgentSdkDeps, TurnStreamContext } from "./types.ts";
 import { assertInitFrameShape, classifyAssistantError, classifyResultSubtype, classifyTerminalReason } from "./verify.ts";
 
@@ -150,7 +162,7 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
   const abortController = linkAbort(req.signal);
   const chatId = req.chatId;
   const terminal = terminalToolOptions(req.terminalTools ?? [], gen.turnId, log);
-  captureAgentSdkWire(req, deps, { systemPrompt, resume, gen, terminalMounted: terminal !== null });
+  captureAgentSdkWire(req, deps, { systemPrompt, dynamicHook, resume, gen, terminalMounted: terminal !== null });
   const stream = deps.query({
     prompt: req.prompt,
     options: {
@@ -192,17 +204,26 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
       ...(chatId !== undefined ? { onSessionId: (sessionId: AgentSdkSessionId): void => sessions.record(chatId, connection.connectionId, sessionId) } : {}),
       configuredMaxOutputTokens: gen.envOverrides.maxOutputTokens ?? null,
       configuredMaxContextTokens: gen.envOverrides.maxContextTokens ?? null,
+      secrets: resolvedScrubSet(connection),
     },
     log,
   );
   return appendWarnings(result, gen.warnings, deps.now(), req.onEvent);
 }
 
-// Capture the SDK QUERY INPUT — the literal Anthropic body is built INSIDE the bundled subprocess.
+// Capture the SDK QUERY INPUT — the literal Anthropic body is built INSIDE the bundled subprocess. `hookContext`
+// is the text the `UserPromptSubmit` hook injects beside the prompt: on a hook-channel model it is where a lifted
+// system injection reaches the model, so a capture without it hides what the model was told.
 function captureAgentSdkWire(
   req: AgentSdkChatRequest,
   deps: AgentSdkDeps,
-  ctx: { systemPrompt: string | undefined; resume: string | undefined; gen: ReturnType<typeof toSdkGeneration>; terminalMounted: boolean },
+  ctx: {
+    systemPrompt: string | undefined;
+    dynamicHook: Pick<Options, "hooks">;
+    resume: string | undefined;
+    gen: ReturnType<typeof toSdkGeneration>;
+    terminalMounted: boolean;
+  },
 ): void {
   deps.captureWire?.({
     chatId: req.chatId,
@@ -213,6 +234,7 @@ function captureAgentSdkWire(
     body: {
       prompt: req.prompt,
       systemPrompt: ctx.systemPrompt ?? null,
+      hookContext: ctx.dynamicHook.hooks === undefined ? null : hookContextOf(req.systemPrompt.dynamic),
       model: req.connection.model,
       resumed: ctx.resume !== undefined,
       maxTokens: ctx.gen.envOverrides.maxOutputTokens ?? null,
@@ -418,6 +440,11 @@ class TurnAccumulator {
   reasoningTokens: number | null = null;
   redactedThinkingBlocks = 0;
   lastRetryError: SDKAssistantMessageError | undefined;
+  /** The code on the runtime's synthetic API-error assistant frame, and the upstream request id it names. */
+  assistantError: SDKAssistantMessageError | undefined;
+  requestId: string | undefined;
+  /** The operator label of a failed result, for the `provider.error` line (the message carries runtime text). */
+  failureLabel: string | undefined;
   readonly terminalToolCalls: ToolCallInput[] = [];
   readonly events: ChatEvent[] = [];
   readonly usageAcc: UsageAcc = {
@@ -556,7 +583,10 @@ class TurnAccumulator {
     this.logTurn(false);
     const spawnDeath = perr.kind === "server" || perr.kind === "unknown";
     const tail = spawnDeath ? this.ctx.stderrTail?.() : undefined;
-    this.log.error(perr, tail !== undefined && tail.length > 0 ? { stderrTail: tail } : undefined);
+    this.log.error(perr, {
+      ...(tail !== undefined && tail.length > 0 ? { stderrTail: tail } : {}),
+      ...(this.failureLabel !== undefined ? { label: this.failureLabel } : {}),
+    });
     return perr;
   }
 
@@ -583,6 +613,10 @@ class TurnAccumulator {
 
 function handleAssistant(acc: TurnAccumulator, message: Narrow<"assistant">): void {
   acc.stopReason = message.message.stop_reason ?? acc.stopReason;
+  // The code belongs to the model call this frame reports: a later clean frame clears an earlier leg's code,
+  // so only the synthetic error frame that immediately precedes a failed result can classify it.
+  acc.assistantError = message.error;
+  acc.requestId = message.request_id ?? acc.requestId;
   for (const block of message.message.content) {
     if (block.type === "text") {
       acc.reply += block.text;
@@ -804,48 +838,66 @@ function handleResult(acc: TurnAccumulator, message: Narrow<"result">): void {
     acc.durationApiMs = message.duration_api_ms;
     acc.apiErrorStatus = message.api_error_status ?? null;
     acc.meta.warmSpareClaimed = message.warm_spare_claimed ?? null;
-    if (message.is_error) {
-      throw new ProviderError({
-        kind: "server",
-        retryable: true,
-        message: "agent-sdk: result success-subtype flagged is_error",
-        model: acc.ctx.model,
-        ...(acc.errorSessionId !== undefined ? { sessionId: acc.errorSessionId } : {}),
-      });
+    if (!message.is_error) {
+      return;
     }
-    return;
   }
   throw buildResultError(acc, message);
 }
 
-type ErrorResult = Narrow<"result"> & { subtype: Exclude<Narrow<"result">["subtype"], "success"> };
-
+// Classify a failed turn, most specific evidence first. A `success` result flagged `is_error` is the runtime's
+// synthetic API-error turn (a model its CLI version cannot serve, a model that does not exist): the assistant
+// frame before it names the SDK error code, and the result carries the upstream HTTP status. `unknown` is the
+// code the runtime stamps when it has no better word, so the status outranks it.
 function classifyResult(
   acc: TurnAccumulator,
-  message: ErrorResult,
+  message: Narrow<"result">,
 ): { readonly classified: ReturnType<typeof classifyAssistantError>; readonly detail: string } {
   const rateLimited = acc.rateLimit?.status === "rejected" || acc.lastRetryError === "rate_limit";
-  const specific: SDKAssistantMessageError | undefined = rateLimited ? "rate_limit" : acc.lastRetryError;
-  if (specific !== undefined) {
+  const specific: SDKAssistantMessageError | undefined = rateLimited ? "rate_limit" : (acc.assistantError ?? acc.lastRetryError);
+  if (specific !== undefined && specific !== "unknown") {
     return { classified: classifyAssistantError(specific), detail: specific };
+  }
+  const status = message.subtype === "success" ? message.api_error_status : undefined;
+  if (typeof status === "number") {
+    return { classified: classifyHttpStatus(status), detail: `http_${status}` };
   }
   if (message.terminal_reason !== undefined) {
     return { classified: classifyTerminalReason(message.terminal_reason), detail: message.terminal_reason };
   }
+  if (message.subtype === "success") {
+    return { classified: { kind: "server", retryable: true }, detail: "is_error" };
+  }
   return { classified: classifyResultSubtype(message.subtype), detail: message.subtype };
 }
 
-function buildResultError(acc: TurnAccumulator, message: ErrorResult): ProviderError {
+/** The runtime's own words for the failure: the error result's `errors`, or the flagged success's `result`
+ *  text. `invalid` carries its message to the user, so this explains a rejected model — and, being upstream
+ *  prose, it is scrubbed of this spawn's credential literals and then sanitized, in that order
+ *  (`transport/trpc/error-mapping.ts`, "THE ONE KIND THAT DOES"). The same message reaches the auth_failed
+ *  revoke audit row. */
+function failureText(message: Narrow<"result">, secrets: ProviderScrubSet): string {
+  const parts = message.subtype === "success" ? [message.result] : message.errors;
+  return sanitizeApiError(redactSecretsFromText(parts.filter((part) => part.length > 0).join("; "), secrets));
+}
+
+function buildResultError(acc: TurnAccumulator, message: Narrow<"result">): ProviderError {
   const { classified, detail } = classifyResult(acc, message);
-  const errorDetail = message.errors.length > 0 ? `: ${message.errors.join("; ")}` : "";
+  const status = message.subtype === "success" ? message.api_error_status : undefined;
+  // The label is operator vocabulary: it rides the `provider.error` log line, never the user's message.
+  const label = `agent-sdk: turn failed (${message.subtype === "success" ? detail : message.subtype})`;
+  acc.failureLabel = label;
+  const text = failureText(message, acc.ctx.secrets);
   return new ProviderError({
     kind: classified.kind,
     retryable: classified.retryable,
-    message: `agent-sdk: turn failed (${message.subtype})${errorDetail}`,
+    message: text.length > 0 ? text : label,
     model: acc.ctx.model,
     detail,
     ...(acc.errorSessionId !== undefined ? { sessionId: acc.errorSessionId } : {}),
     ...(message.terminal_reason !== undefined ? { terminalReason: message.terminal_reason } : {}),
+    ...(typeof status === "number" ? { apiErrorStatus: status } : {}),
+    ...(acc.requestId !== undefined ? { requestId: acc.requestId } : {}),
     ...(classified.kind === "rate_limit" && acc.rateLimit?.resetsAt !== undefined ? { resetsAt: acc.rateLimit.resetsAt } : {}),
   });
 }
