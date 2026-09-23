@@ -172,7 +172,7 @@ interface ThemeControlsBodyProps {
 /** The form-bearing theme controls — remounted per character by the boundary's keyed Session. */
 function ThemeControlsBody({ characterName, form }: ThemeControlsBodyProps): ReactElement {
   // Reset to global = clear each field to its empty (Inherit) value. The store-subscription driver
-  // persists each setFieldValue (autosave-form-doctrine.md §3) — no call-site flush, no reseed (this is
+  // persists each setFieldValue (D78) — no call-site flush, no reseed (this is
   // a live field edit, not a re-baseline to a server row).
   const resetToGlobal = (): void => {
     for (const name of THEME_FIELD_NAMES) {

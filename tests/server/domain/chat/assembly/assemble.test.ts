@@ -174,7 +174,7 @@ describe("assemblePrompt — section walk", () => {
   });
 
   test("databank marker lands in the DYNAMIC half (retrieval changes every turn — never the cached prefix)", () => {
-    // databank-design/07 §3: the slot is "a reserved macro slot in the DYNAMIC/CACHE-SAFE half, exactly
+    // the slot is "a reserved macro slot in the DYNAMIC/CACHE-SAFE half, exactly
     // parallel to {{memory}}" — a static placement would bust the prompt cache on every turn.
     const config = configOf([marker({ marker: "main_prompt", template: "sys" }), marker({ marker: "databank" }), marker({ marker: "chat_history" })]);
     const out = assemblePrompt(config, ctxOf({ databank: "# Ferry\nThe ferryman is Kalen." }));
@@ -192,7 +192,7 @@ describe("assemblePrompt — section walk", () => {
     test("an attached document's passage reaches the assembled prompt", () => {
       const out = assemblePrompt(DEFAULT_PROMPT_CONFIG, ctxOf({ databank: `# Ferry lore\n${passage}` }));
       expect(`${out.static}\n${out.dynamic}`).toContain(passage);
-      // The framing rides the marker's own default (databank-design/07 §3 — the wrapper prose belongs to the
+      // The framing rides the marker's own default (the wrapper prose belongs to the
       // section template, never to databank's value).
       expect(out.dynamic).toContain("Related information:");
     });

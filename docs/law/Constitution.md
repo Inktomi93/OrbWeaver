@@ -25,7 +25,7 @@ reading router. Read only the docs the router names for your task.
 - An engine is pure and lives in `kit`. The data it runs on lives in a domain. One engine gives every caller the same behavior.
 - A table without an `ownerId` is still scoped. Scope comes from the Principal through the FK chain to the root row.
 - Walk that chain before you report missing scope (`Spine-Identity-and-Auth.md` §2b).
-- Parked design sets live in `../architecture/proposed/`. `../architecture/proposed/INDEX.md` maps each one to its program.
+- Parked programs live as plans under `../plans/`; each one links its work item.
 
 ## 2. One-directional flow
 
@@ -106,8 +106,8 @@ Each domain lives at `packages/server/src/domain/<name>/` and follows the folder
 
 ### Participants, agents and identity
 
-Read `Spine-Identity-and-Auth.md`. Agent principals are designed but not built; the design set is parked
-in `../architecture/proposed/`.
+Read `Spine-Identity-and-Auth.md`. Agent principals are designed but not built; the design is the parked
+plan `../plans/agent-principals/design.md`.
 
 ### Knowledge and derived data
 

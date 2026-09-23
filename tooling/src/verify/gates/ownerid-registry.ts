@@ -82,7 +82,7 @@ export const OWNERID_CLASSIFICATIONS: Readonly<Record<string, OwnershipClassific
   global_variables: { why: "D46 per-user cross-chat KV (fetchOwned)" },
   plugins: { why: "D46 true producer (the installing principal's per-user plugin registry; a plugin runs as its owner)" },
   plugin_kv: {
-    why: "D46 denormalized guard on the plugin_id partition — the belt WHERE (plugin_id, owner_id) makes a cross-owner KV read structurally impossible even if a plugin_id were reused (plugin-design/02 §3); owner also drives the user-hard-delete cascade",
+    why: "D46 denormalized guard on the plugin_id partition — the belt WHERE (plugin_id, owner_id) makes a cross-owner KV read structurally impossible even if a plugin_id were reused; owner also drives the user-hard-delete cascade",
   },
   // PARENTLESS PER-USER AGGREGATES (D23 KEEP)
   owner_stats: { why: "D23 parentless per-user aggregate" },

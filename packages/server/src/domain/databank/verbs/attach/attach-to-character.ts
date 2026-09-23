@@ -2,7 +2,7 @@
 // on ownership: the character (`ensureCharacterOwned` — a sanctioned `characters` schema read, the world-info
 // precedent) AND the document (`loadOwnedMeta`). NOT the D18 host authority — a character is an owned entity,
 // not a membership room. `character_documents` keys on `(characterId, documentId)` (D23 per-type FK). A roster
-// character's attached docs feed the chat retrieval union (resolveActiveDocumentIds, databank-design/05 §3.2 —
+// character's attached docs feed the chat retrieval union (resolveActiveDocumentIds —
 // character-scope participates in retrieval as of this wave, not storage-only). Idempotent re-attach.
 
 import { characterDocuments } from "@orb/db";

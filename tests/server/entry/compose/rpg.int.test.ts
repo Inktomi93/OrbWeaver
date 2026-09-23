@@ -1,4 +1,4 @@
-// entry/compose/rpg — the lite-rpg vertical, COMPOSED-REAL (rpg-design/05 §6.2). The [compose-stub-goes-stale]/
+// entry/compose/rpg — the lite-rpg vertical, COMPOSED-REAL (docs/plans/rpg/design.md). The [compose-stub-goes-stale]/
 // [ct-stub-lie] antidote: drive the domain end-to-end through the ACTUAL `buildRpg` wiring — the real
 // `RpgService` over the real db, the real staging accumulator, the real `ChatRpgOps` flush, the REAL chat-side
 // injected ops (setRpgPointer/resolveRpgRoster/getMembership) off `createServices`, and the REAL tool registry

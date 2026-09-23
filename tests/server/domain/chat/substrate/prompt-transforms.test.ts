@@ -1,4 +1,4 @@
-// substrate/prompt-transforms — the D50 PromptTransform registrar (automation-design/04 §6). Proves the
+// substrate/prompt-transforms — the D50 PromptTransform registrar. Proves the
 // contract the turn pipeline relies on: zero registrants is a byte-identical no-op; transforms apply in
 // ascending `order` (automation < plugins) and CHAIN (each sees the prior's output); only the called point's
 // transforms run; a throw OR a deadline overrun SKIPS that transform (draft unchanged) + emits ONE

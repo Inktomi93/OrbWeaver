@@ -326,7 +326,7 @@ test("the built-in default arrangement places the databank slot, in the dynamic 
   const databank = DEFAULT_PROMPT_CONFIG.sections.find((section) => section.id === "databank");
   expect(databank).toMatchObject({ type: "marker", marker: "databank", enabled: true });
   // The section ships UNSET, so the framing is the marker default (the F-03 rule) — and that default is
-  // where the ST `file_template_db` wrapper prose lives (databank-design/07 §3), never in databank's value.
+  // where the ST `file_template_db` wrapper prose lives, never in databank's value.
   expect(databank).not.toHaveProperty("template");
   expect(DEFAULT_MARKER_TEMPLATES.databank).toContain("{{databank}}");
   expect(DEFAULT_MARKER_TEMPLATES.databank).toContain("Related information:");

@@ -1,4 +1,4 @@
-// Contract tests for the @orb/contracts/plugin BARREL (plugin-design P2): the origin axis
+// Contract tests for the @orb/contracts/plugin BARREL: the origin axis
 // (lifecycle.ts), the capability→function map's runtime coverage (host-v1.ts — the completeness checkpoint's
 // runtime mirror; the type-level pin lives in index.test-d.ts), and the two guest-observable membrane errors
 // (errors.ts). The manifest matrix + the capability axis live in the manifest.ts mirror (manifest.contract.test.ts).

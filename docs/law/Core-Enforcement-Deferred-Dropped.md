@@ -87,9 +87,9 @@ consumers outside their own CT — those markers are doing their job and STAY.
 | Seal | Cited consumer | Header lives at |
 | - | - | - |
 | ~~`@orb/ui/diff`~~ RETIRED 2026-08-17 — the section it waited for BUILT: refinery's review surfaces render `DiffView` (accept-review\.tsx, context-tabs.tsx), so its marker was deleted per the W6 contract. | was: `refinery` pipeline compare sub-part (D62 §4.1) | was: `packages/ui/src/diff/diff.tsx` |
-| ~~`charts/meter`~~ RETIRED 2026-08-17 — the LAST unconsumed part of the module found a consumer: the refinery payload view renders `Meter` for bounded-number fields, so its marker was deleted per the W6 contract (`SegmentedClock` went the same way on 2026-08-03). The rpg HUD rows it was sealed for are still unbuilt; they now inherit a consumed primitive. | was: rpg HUD widgets (`rpg-design/11-client-ui.md`) | was: `packages/ui/src/charts/meter/meter.tsx` |
+| ~~`charts/meter`~~ RETIRED 2026-08-17 — the LAST unconsumed part of the module found a consumer: the refinery payload view renders `Meter` for bounded-number fields, so its marker was deleted per the W6 contract (`SegmentedClock` went the same way on 2026-08-03). The rpg HUD rows it was sealed for are still unbuilt; they now inherit a consumed primitive. | was: rpg HUD widgets (`docs/plans/rpg/design.md`) | was: `packages/ui/src/charts/meter/meter.tsx` |
 | `stream/stream-text.tsx` | no named feature — sanctioned convenience wrapper over `useSmoothText`+`StreamShimmer` for a future plain-text streaming surface (`ui-package-design.md` §6.3.1) | `packages/ui/src/stream/stream-text.tsx` |
-| `primitives/status-chip` | workloads/automation run-status chips (`automation-design/03-actions.md`; statuses mirrorrun lifecycle) | `packages/ui/src/primitives/status-chip/status-chip.tsx` |
+| `primitives/status-chip` | workloads/automation run-status chips (statuses mirrorrun lifecycle) | `packages/ui/src/primitives/status-chip/status-chip.tsx` |
 
 ### Dropped (do not port)
 

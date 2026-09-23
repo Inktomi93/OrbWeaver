@@ -1,4 +1,4 @@
-// domain/rpg/tools/apply — the PURE delta→plane appliers (rpg-design/05 §4.5). Zero I/O, so unit-tested
+// domain/rpg/tools/apply — the PURE delta→plane appliers (docs/plans/rpg/design.md). Zero I/O, so unit-tested
 // directly over a hand-built effective state (no db, no accumulator). Pins: the tracker/wallet arithmetic,
 // the R2 presence+identity split (a `presentUpsert` writes the ACTOR row and adds presence; a
 // `presentRemove` drops presence and NOTHING else), the MA-4 scene patch (omit keeps), the timeOfDay→hour

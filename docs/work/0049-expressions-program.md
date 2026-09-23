@@ -5,6 +5,7 @@ updated: 2026-09-23
 priority: P1
 area: client
 blocked: owner
+plan: expressions
 ---
 
 # Expressions program
@@ -13,7 +14,7 @@ blocked: owner
 
 Owner ruling: this program stays parked and stays valid. It is not a decision to resolve now. Do not close or drop it. It wakes when the owner un-parks the program.
 
-The design set in `docs/architecture/proposed/expressions-design/` describes character expression
+The design set in `docs/plans/expressions/design.md` describes character expression
 sprites: a sprite table with its CRUD verbs, a post-turn classifier that picks an expression, a
 sprite-sheet generation job, and a client stage that shows the sprite. None of it is on the tree: there is
 no expressions contract, table or domain. The imagery domain it needs now exists. The owner rules whether

@@ -77,7 +77,7 @@ function HydratedAppRoot({ multiHumanCapable, joinToken, setJoinToken }: Hydrate
   // hooks are — a feature unmount must not take it with it — and it never blocks or surfaces anything.
   useHuskReaper();
 
-  // The per-game live event room (Context-Panel-Program §4.9), mounted here (never in a feature, which
+  // The per-game live event room, mounted here (never in a feature, which
   // could unmount and drop the freshness driver) and keyed to the active chat. `null` (no chat, or a
   // non-game chat) attaches nothing at all.
   useRpgBus(activeChatId, {

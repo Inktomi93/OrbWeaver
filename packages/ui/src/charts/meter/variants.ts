@@ -98,7 +98,7 @@ export const segmentedClockVariants = tv({
   defaultVariants: { size: "md" },
 });
 
-// ─── The tracker-kit decorative-geometry pair (Context-Panel-Program §3.2 / §4.8) ───────────────────
+// ─── The tracker-kit decorative-geometry pair ───────────────────
 // TrackBar (linear) + RingGauge (arc) — same magnitude-display species as Meter, but DECORATIVE:
 // aria-hidden geometry whose fill/stroke rides the D71 track ramp; the value TEXT is the datum (§4.9).
 // tailwind-variants can't build a class from a runtime number, so each ramp is a static Record of literal

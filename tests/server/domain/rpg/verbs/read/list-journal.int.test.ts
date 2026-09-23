@@ -1,4 +1,4 @@
-// verbs/read/list-journal — listJournal (rpg-design/05 §4.8, §6.2). The paged, lineage-projected journal view.
+// verbs/read/list-journal — listJournal (docs/plans/rpg/design.md). The paged, lineage-projected journal view.
 
 import type { Db } from "@orb/db";
 import type { Handle, RpgJournalId } from "@orb/kit/ids";

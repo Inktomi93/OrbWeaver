@@ -231,7 +231,7 @@ function createSetGroupConfig(ctx: ChatContext, emit: EmitChatEvent, claimChat: 
     const { chat } = await requireHost(ctx, principal, chatId);
     await claimChat(chatId);
     const parsed = groupConfigSchema.parse(config);
-    // SEAL (D60 AP4a, agent-principal-design/05 §2 — F5): a GAME chat whose GM seat is AGENT-held may not be
+    // SEAL (D60 AP4a, docs/plans/agent-principals/design.md — F5): a GAME chat whose GM seat is AGENT-held may not be
     // flipped OFF narrator+merged (to `per-speaker`). narrator+merged keeps the GM tool loop on the narrator
     // turn; per-speaker would let a player-CHARACTER turn carry GM-authority tools at an agent-GM table. This
     // makes the previously config-COUPLED invariant STRUCTURAL — the honest path is unseat-then-flip (assign the
@@ -801,8 +801,8 @@ function createAddCharacterToChat(ctx: ChatContext, emit: EmitChatEvent, claimCh
  *  — the same stamp the host-handoff character-drop uses), then emits chatUpdated. IDEMPOTENT: an absent or
  *  already-left character is a no-op (the `kick`/`addCharacterToChat` idiom — never a coded refusal). leftSeq is
  *  the WITNESSING boundary (D55): from the stamp the pruned character stops witnessing this chat's canon — the
- *  intended semantic for a cast member peeled out of a scene fork (a doorway for the parked rpg-design's
- *  scene-cast prune, `rpg-design/07 §2.2`, not a live consumer today). */
+ *  intended semantic for a cast member peeled out of a scene fork (a doorway for the parked docs/plans/rpg/design.md's
+ *  scene-cast prune, `docs/plans/rpg/design.md``, not a live consumer today). */
 function createRemoveCharacterFromChat(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["removeCharacterFromChat"] {
   return async ({ principal, chatId, characterId }: RemoveCharacterFromChatParams): Promise<void> => {
     await requireHost(ctx, principal, chatId);

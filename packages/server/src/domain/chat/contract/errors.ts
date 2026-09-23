@@ -65,7 +65,7 @@ export const CHAT_OP_CODES = {
    *  asset (unreachable / not an image / too large — side-eye F-P0-2). A validation refusal (BAD_REQUEST); the
    *  message carries the honest reason (`backgroundMaterializeMessage`), never the URL or any internal detail. */
   backgroundUnavailable: "background_unavailable",
-  /** `requestTurn` was asked to stamp a reply DEEPER than `AUTOMATION_DEPTH_HARD_CAP` (automation-design/03 §4).
+  /** `requestTurn` was asked to stamp a reply DEEPER than `AUTOMATION_DEPTH_HARD_CAP`.
    *  The WRITE-side belt for the runaway-cascade guard: automation's dispatch gate already refuses an event at
    *  depth ≥ cap, so this bites only a mis-behaving non-dispatch caller (the plugin membrane) — fail-closed. */
   cascadeDepthExceeded: "cascade_depth_exceeded",
@@ -74,7 +74,7 @@ export const CHAT_OP_CODES = {
    *  NOT_FOUND collapse — and it leaks nothing about another owner's asset (per-user D21 scope). */
   attachmentNotOwned: "attachment_not_owned",
   /** `setGroupConfig` tried to flip a GAME chat OFF narrator+merged (to `per-speaker`) while an AGENT holds the
-   *  GM seat (D60 AP4a, agent-principal-design/05 §2 — the F5 SEAL). narrator+merged keeps the GM tool loop on
+   *  GM seat (D60 AP4a, docs/plans/agent-principals/design.md — the F5 SEAL). narrator+merged keeps the GM tool loop on
    *  the narrator turn; `per-speaker` would let a player-CHARACTER turn carry GM-authority tools at an agent-GM
    *  table (the config-coupled invariant made STRUCTURAL). The honest path is unseat-then-flip (assign the GM
    *  seat back to the AI narrator first). Host-only surface (the caller already sees the seat), so a coded

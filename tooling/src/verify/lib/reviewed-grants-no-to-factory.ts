@@ -271,7 +271,7 @@ export const REVIEWED_GRANTS_NO_TO_FACTORY: readonly ReviewedGateGrant[] = [
     policyId: "render-error-via-battery",
     subject: "packages/client/src/features/rpg/lib/rpg-context-section.tsx",
     operation: "custom-render-error",
-    why: "the rpg context pane needs a CONSOLIDATED, ANNOUNCED failure (Context-Panel-Program §4.4): the pane's live region reports 'Loaded chat.' on success, and `QueryErrorState` is a plain stack with no `role=\"alert\"`, so the game-tab body renders `RpgErrorState` — the pane's single announced region. One row covers both of this file's arms, because they are one licensed act at one subject.",
+    why: "the rpg context pane needs a CONSOLIDATED, ANNOUNCED failure: the pane's live region reports 'Loaded chat.' on success, and `QueryErrorState` is a plain stack with no `role=\"alert\"`, so the game-tab body renders `RpgErrorState` — the pane's single announced region. One row covers both of this file's arms, because they are one licensed act at one subject.",
     endsWhen: "the pane drops its announced-failure intent, or `QueryErrorState` gains a live region the pane can use.",
   },
   {

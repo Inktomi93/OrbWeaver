@@ -1,4 +1,4 @@
-// verb: toToolDefinitions — registry → the BACKEND-NEUTRAL tool definitions (tool-use-design/02 §2, re-homed by
+// verb: toToolDefinitions — registry → the BACKEND-NEUTRAL tool definitions (D48, re-homed by
 // D177). Pure projection over a resolved set: the JSON schema CACHED at
 // registration as `parameters`, plus the zod raw shape it was projected from as `inputShape`; order = resolve
 // order (deterministic — the request body is byte-stable for a given attachment list; the prompt cache cares).

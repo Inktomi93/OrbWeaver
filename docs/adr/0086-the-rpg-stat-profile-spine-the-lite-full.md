@@ -4,7 +4,7 @@ status: active
 updated: 2026-09-23
 ---
 
-# The rpg stat-profile spine + the lite/full mode axis (AMENDS D58; spec home: the rpg-design set — doc 13 + the 03/04/05/10 amendments)
+# The rpg stat-profile spine + the lite/full mode axis (AMENDS D58; spec home: the docs/plans/rpg/design.md set — doc 13 + the 03/04/05/10 amendments)
 
 ## Context
 

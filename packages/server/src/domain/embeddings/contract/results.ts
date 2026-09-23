@@ -70,7 +70,7 @@ export interface PruneMemoryBlocksResult {
   readonly rowsDeleted: number;
 }
 
-/** databank-design/05 §2.4 — rows deleted by the reindex-shrink prune (shrunk tail + retired-space rows). */
+/** rows deleted by the reindex-shrink prune (shrunk tail + retired-space rows). */
 export interface PruneDocumentChunksResult {
   readonly rowsDeleted: number;
 }

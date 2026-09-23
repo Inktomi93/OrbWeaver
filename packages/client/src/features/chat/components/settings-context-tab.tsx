@@ -16,7 +16,7 @@
 // family ("what I'm bending for this chat"), so they merge here: "Field overrides" (the collapse-until-
 // needed override rows), "Injections" (the manual prompt-injection list, folded in from its deleted tab),
 // and "Background" (the per-chat decorative background). The host-only Group-behavior + Tool-use sections
-// (Context-Panel-Program §1 CP-1) ride along below, each gated at SECTION granularity — the §8.1
+// ride along below, each gated at SECTION granularity — the §8.1
 // permission-OMIT, moved from tab-level so the tab strip stays slim without dropping a control.
 //
 // D-4: "Documents" — the per-chat databank rack + the D85 host visibility toggle —

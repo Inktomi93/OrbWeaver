@@ -1,4 +1,4 @@
-// verb: extractPrompt — the standalone step-1 preview (imagery-design/02 §2). Returns the RAW post-processReply
+// verb: extractPrompt — the standalone step-1 preview. Returns the RAW post-processReply
 // keywords (NO step-4 prefix — that belt is generatePicture's), so the user can review the prompt before
 // spending on a generation. Dispatches multimodal → caption, else → text extraction; never generates or stores.
 

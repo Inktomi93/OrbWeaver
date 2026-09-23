@@ -126,7 +126,7 @@ export interface ChatToolExecFrame {
   readonly chatId: ChatId;
   readonly membership: ChatMembership | null;
   /** The turn's ephemeral identity, minted once per `executeTurn` and threaded to the tool-exec context so a
-   *  turn-scoped registrant correlates the turn's tool writes to its commit/abort flush (rpg-design/10 §R4). */
+   *  turn-scoped registrant correlates the turn's tool writes to its commit/abort flush (docs/plans/rpg/design.md). */
   readonly turnId: ChatTurnId;
   readonly signal?: AbortSignal | undefined;
 }
@@ -340,7 +340,7 @@ type ResolveChatProseOp = (chatId: ChatId) => Promise<ProseOverrides>;
  *  {@link ChatContext.readReactionDefaults}. */
 type ReadReactionDefaultsOp = (userId: UserId) => Promise<Pick<ChatBehaviorInputs, "charactersCanReact" | "reactionsEnabled">>;
 
-/** The imagery quiet-extraction shaper (imagery-design/02 §2) — a STANDALONE op (not on ChatContext; built
+/** The imagery quiet-extraction shaper — a STANDALONE op (not on ChatContext; built
  *  at compose from db + summarize + getCard). Chat owns the history
  *  window + the ONE MacroContext (the char macro resolved against the subject/roster card), then calls the summarize
  *  side-LLM; imagery consumes it as an injected op and never imports chat. `caller` is deliberately absent —
@@ -426,7 +426,7 @@ export interface QuietGenerateDeps {
   readonly resolveChatPresetParams: ResolveChatPresetParamsOp;
 }
 
-/** The rpg-facing narrator-post op (rpg-design/02 §1.1 #2): persist ONE assistant-role narrator message
+/** The rpg-facing narrator-post op (docs/plans/rpg/design.md): persist ONE assistant-role narrator message
  *  through chat's canon-write path, authored by the synthetic group character (never a user id — the
  *  D19/D16-inv-9 attribution-honesty rule; minted lazily if the room has none). `content` is a plain STRING;
  *  `media` ride the body as embedded `![alt](asset:<id>)` refs (D51 — never stored blocks) with `message_assets`
@@ -435,7 +435,7 @@ export interface QuietGenerateDeps {
  *  message id instead. A STANDALONE compose-built op, NOT a `ChatService` verb: it takes no principal (rpg
  *  gates authority from its host-authority verbs before calling), the `ExtractQuiet` precedent.
  *
- *  `origin` (automation-design/03 §4 — the F1/N1 cascade belt) is OPTIONAL and ADDITIVE: absent (every rpg
+ *  `origin` (the F1/N1 cascade belt) is OPTIONAL and ADDITIVE: absent (every rpg
  *  caller) ⇒ the canon insert omits it and the DB defaults apply (`'human'`/0), so an rpg narrator post stays
  *  byte-identical. Only the automation `generate_image` non-quiet post passes it — stamping the posted image's
  *  slot with `initiator:"automation"` + the firing rule's cascade depth (≥1), so the resulting
@@ -471,13 +471,13 @@ export interface PostNarratorMessageDeps {
   readonly claimChat: ClaimChatOp;
 }
 
-/** The narrow membership read (rpg-design/02 §1.1 #3): the caller's PRESENT role in a chat, or `null` (not a
+/** The narrow membership read (docs/plans/rpg/design.md): the caller's PRESENT role in a chat, or `null` (not a
  *  present member / no such chat — one leak-free answer). rpg feeds it to `can()` for the game-auth gate; a
  *  `null` is the not-a-participant 404. A STANDALONE op with no principal — the raw membership lookup rpg gates
  *  around (membership has ONE loader; this is it exposed for injection, never a second read path). */
 export type GetMembership = (chatId: ChatId, userId: UserId) => Promise<{ readonly role: ParticipantRole } | null>;
 
-/** The opaque rpg-pointer WRITE op (rpg-design/05 §3.1): merge the healed `metadata.rpg` `{gameId}` sub-blob so
+/** The opaque rpg-pointer WRITE op (docs/plans/rpg/design.md): merge the healed `metadata.rpg` `{gameId}` sub-blob so
  *  the client's takeover gate is a sync read off `ChatDetail`. Called ONCE by rpg's `createGame`; chat never
  *  dereferences it (the truth is `rpg_games` — this is a SYNC SIGNAL). STANDALONE + principal-free (createGame
  *  gated host authority; the `GetMembership`/`PostNarratorMessage` injected-op precedent). The pointer schema is
@@ -486,7 +486,7 @@ export type GetMembership = (chatId: ChatId, userId: UserId) => Promise<{ readon
  *  nulls a pointer at a game that no longer exists). */
 export type SetRpgPointer = (chatId: ChatId, pointer: ChatRpgPointer | null) => Promise<void>;
 
-/** One present roster participant projected for rpg's tracker view (roster ∪ sheets, rpg-design/05 §4.3): a
+/** One present roster participant projected for rpg's tracker view (roster ∪ sheets, docs/plans/rpg/design.md): a
  *  `character`/`user` actor ref + the RESOLVED display name + avatar hash. rpg stays table-blind — the
  *  name/avatar joins live HERE (chat/character). Structurally the rpg-facing `RpgParticipantActor` (rpg declares its
  *  own copy — the foreign-op-shape precedent; the `avatar` is the renderable CAS hash, absent when none). */
@@ -496,7 +496,7 @@ export interface RpgParticipantActor {
   readonly avatar?: string;
 }
 
-/** The roster-resolution op (rpg-design/05 §4.3): resolve a chat's PRESENT participants into rpg actor refs +
+/** The roster-resolution op (docs/plans/rpg/design.md): resolve a chat's PRESENT participants into rpg actor refs +
  *  display name + avatar. STANDALONE + principal-free (rpg gated the read; the `GetMembership`/`SetRpgPointer`
  *  injected-op precedent). Wired into `RpgContext.resolveParticipants` at the composition root (W1c-b). */
 export type ResolveRpgParticipants = (chatId: ChatId) => Promise<readonly RpgParticipantActor[]>;
@@ -566,7 +566,7 @@ export interface ViewerVisibility {
  *  params drop the caller is a latent cross-tenant hole). */
 export type ResolveViewerVisibility = (chatId: ChatId, userId: UserId) => Promise<ViewerVisibility | null>;
 
-/** The pending user text a game turn is responding to (rpg-design/05 §6): the latest user-role message's
+/** The pending user text a game turn is responding to (docs/plans/rpg/design.md): the latest user-role message's
  *  selected-variant content, or `null` (no user line yet). rpg's `skill_check` re-reads it server-side to feed
  *  the player's queued d20 as `preRolledD20` — the roll is server-emitted (the model can't lie), the tool arg is
  *  advisory, this parse is authoritative. A STANDALONE principal-free op (rpg gated the turn), the `GetMembership`
@@ -594,7 +594,7 @@ type ResolveUserEnabledOp = (userId: UserId) => Promise<boolean>;
  *  prompt-composition attack). Read once per round for seated-character-gating. */
 export type PresenceReadOp = (userId: UserId) => Promise<PresenceView>;
 
-/** The D50 PromptTransform seam apply op (automation-design/04 §6) — the injected registry over which
+/** The D50 PromptTransform seam apply op — the injected registry over which
  *  automation's `transform_draft` rules and the plugin host register. `ChatContext.promptTransforms` is
  *  `null` when no registrar is wired — a byte-identical no-op (the `tools`/`expressions`/`rpg` null-op
  *  precedent). Applies every registered transform for `point` in ascending `order`, each under a 250 ms
@@ -639,7 +639,7 @@ export interface PromptTransformRegistry {
   readonly list: () => readonly PromptTransform[];
 }
 
-/** The injected expressions post-turn hook (expressions-design/02 §0). `ChatContext.expressions` is `null`
+/** The injected expressions post-turn hook (docs/plans/expressions/design.md). `ChatContext.expressions` is `null`
  *  when expressions isn't wired — a byte-identical no-op (the `tools: … | null` precedent). Fire-and-forget
  *  after a variant commits; the op swallows its own errors and NEVER blocks or fails the turn. Chat stays
  *  expressions-blind — it hands ids only (D38), the op re-reads canon. */
@@ -648,7 +648,7 @@ interface ChatExpressionsOps {
 }
 
 /** The generic name→value macro map + reminder injection(s) + tool names a game turn's GATHER contributes
- *  (rpg-design/05 §1). STRUCTURAL — chat names NO rpg type: it merges `macros` generically into the turn's
+ *  (docs/plans/rpg/design.md). STRUCTURAL — chat names NO rpg type: it merges `macros` generically into the turn's
  *  macro values (never learning a specific rpg macro name), `injections` into its single Injection[] list, and
  *  `tools` into `attachedToolNames`. The preset override rides a SEPARATE early hop (see {@link ChatRpgOps}). */
 export interface ChatRpgGatherResult {
@@ -675,11 +675,11 @@ export interface ChatRpgGatherResult {
   readonly terminalTools?: readonly WireTool[] | undefined;
 }
 
-/** The injected rpg turn ops (rpg-design/05 §0 / 10 §R4). `ChatContext.rpg` is null when rpg isn't wired — a
+/** The injected rpg turn ops (docs/plans/rpg/design.md). `ChatContext.rpg` is null when rpg isn't wired — a
  *  byte-identical no-op (the `tools`/`expressions` null-op precedent). Chat learns nothing rpg-shaped: gather
  *  returns the generic {@link ChatRpgGatherResult}, and the GM-voice preset redirect rides its OWN early hop
  *  (`resolvePresetOverride`, resolved BEFORE preset resolution — the gather op runs AFTER, so it cannot carry
- *  the override; rpg-design/02 §1.1 #1). */
+ *  the override; docs/plans/rpg/design.md). */
 /** One name-stamped canon row the state round reads as story evidence (crunchy-cluster redesign §1.3). The
  *  ENGINE projects it from the canon it already loaded; rpg receives STORY TEXT AS DATA and reads no chat
  *  table (§2 one-directional flow). `tokens` (an `estimateTokens` of the content) lets the consumer
@@ -788,7 +788,7 @@ export interface ChatRpgOps {
   readonly resolveUserMacros: (chatId: ChatId) => Promise<readonly UserMacroSpec[]>;
   /** GATHER (after the WI pool): a game turn's contribution, or `null` for a non-game chat (byte-identical).
    *  Args shape: {@link GatherTurnContextArgs}.
-   *  `respondsToLatestUserTurn` is chat's slot-adjacency verdict (rpg-design/05 §6): is THIS turn (re)generating
+   *  `respondsToLatestUserTurn` is chat's slot-adjacency verdict (docs/plans/rpg/design.md): is THIS turn (re)generating
    *  the assistant slot that DIRECTLY responds to the latest user message? It drives the `playerRolledDice`
    *  reminder flag (and, paired with {@link markDicePreRollEligible}, the dice feed) so a stale die never
    *  re-feeds a later GM/auto round. Chat computes it (slot mechanics stay chat-owned); rpg consumes it blind.
@@ -806,7 +806,7 @@ export interface ChatRpgOps {
    *  `continue` — a continuation's context INCLUDES the slot, so its state genuinely is the head. */
   readonly gatherTurnContext: (args: GatherTurnContextArgs) => Promise<ChatRpgGatherResult | null>;
   /** Turn start (after the engine mints `turnId`): mark this turn eligible to feed the player's queued d20 into
-   *  its FIRST skill check (rpg-design/05 §6). Called ONLY when `respondsToLatestUserTurn` — an ineligible turn
+   *  its FIRST skill check (docs/plans/rpg/design.md). Called ONLY when `respondsToLatestUserTurn` — an ineligible turn
    *  (later GM/auto/arbiter round) is never marked, so `resolveCheck` refuses to re-read the stale die. A no-op
    *  for a non-game chat. Sync (an in-memory per-turn flag); the engine has the `turnId` gather's prep phase lacks. */
   readonly markDicePreRollEligible: (turnId: ChatTurnId) => void;
@@ -842,7 +842,7 @@ export interface ChatRpgOps {
    *  asking). The rollback-theft defense: a host cannot cancel a member's round. A no-round chat returns 0 (the
    *  idempotent no-op); a non-game chat is byte-identical. Synchronous — cancelling is in-memory. */
   readonly cancelStateRounds: (chatId: ChatId, principalUserId: UserId) => number;
-  /** The GM seat holder's FK-derived KIND for the game rooted at this chat (agent-principal-design/05 §2 AP4a),
+  /** The GM seat holder's FK-derived KIND for the game rooted at this chat (docs/plans/agent-principals/design.md AP4a),
    *  or `null` = not a game / NULL AI-narrator seat / holder vanished. `setGroupConfig` reads it to SEAL the
    *  narrator+merged invariant (F5): a game whose GM seat is AGENT-held may not be flipped to `per-speaker`
    *  (unseat the agent GM first — else a player-character turn would carry GM tools). Chat stays rpg-table-blind
@@ -969,9 +969,9 @@ export interface GatherTurnContextArgs {
   readonly chatId: ChatId;
   /** The turn's FUNDER — whose chat connection the rpg delivery verdict (fold guard / write path) reads (§8.4-3). */
   readonly funderUserId: UserId;
-  /** Full's dice-feed input — lite's gather ignores it (rpg-design/05 §6; see `gatherTurnContext`'s doc). */
+  /** Full's dice-feed input — lite's gather ignores it (docs/plans/rpg/design.md; see `gatherTurnContext`'s doc). */
   readonly pendingUserText: string | undefined;
-  /** Full's dice-feed input — lite's gather ignores it (rpg-design/05 §6; see `gatherTurnContext`'s doc). */
+  /** Full's dice-feed input — lite's gather ignores it (docs/plans/rpg/design.md; see `gatherTurnContext`'s doc). */
   readonly respondsToLatestUserTurn: boolean;
   readonly steerIdentity?: { readonly user: string | undefined; readonly char: string } | undefined;
   readonly regenSlotMessageId?: MessageId | undefined;
@@ -1012,7 +1012,7 @@ export interface ForkGameResult {
   readonly cloned: boolean;
 }
 
-/** The GM seat's resolved holder kind (agent-principal-design/05 §2 AP4a) — mirrors rpg's FK-derived-kind shape
+/** The GM seat's resolved holder kind (docs/plans/agent-principals/design.md AP4a) — mirrors rpg's FK-derived-kind shape
  *  so chat can gate {@link ChatRpgOps.resolveGmSeatHolderKind} without reading rpg tables. Chat branches only on
  *  the `agent` arm (the F5 seal); the `enabled` field mirrors rpg's shape for a future consumer. Module-private:
  *  it names an injected op's return shape and has no external importer (compose satisfies it structurally). */
@@ -1030,7 +1030,7 @@ export type GeneratePictureOp = (p: {
 }) => Promise<{
   readonly images: readonly { readonly assetId: AssetId }[];
   // Imagery's native warning vocabulary (e.g. `image_edit_dropped` — an edit/avatar-reference input dropped for
-  // a non-edit model, imagery-design/03 §2). `generateImage` maps these onto chat's OWN `warning` bus codes
+  // a non-edit model). `generateImage` maps these onto chat's OWN `warning` bus codes
   // (chat owns its bus vocabulary — the turnAbortNotice precedent) and emits one `warning` ChatEvent per entry.
   readonly warnings: readonly { readonly code: string; readonly detail: string }[];
 }>;
@@ -1186,7 +1186,7 @@ interface TurnRetrievalEvents {
 /** The cross-chat corpus/digest+segment scan; host-only scope is enforced by the caller. */
 type SearchCorpusOp = (query: Omit<MemoryQueryOptions, "ownerId">) => Promise<readonly BlockKey[]>;
 
-/** The databank `{{databank}}`-slot GATHER op (DB6, databank-design/07 §1). OPTIONAL: absent ⇒ GATHER skips
+/** The databank `{{databank}}`-slot GATHER op. OPTIONAL: absent ⇒ GATHER skips
  *  the branch entirely and the slot resolves empty, byte-identical to a non-databank deploy (the null-op pin).
  *  A `null` result = nothing retrieved (bankless scope / no hits / budget too small — and, since #2510, an
  *  unqueryable vector space, which reports through `events` before resolving null). chat reads ONLY `.text`
@@ -1328,7 +1328,7 @@ export interface ChatContext {
   readonly newStreamGenerationId: () => ChatStreamGenerationId;
   readonly newInviteId: () => ChatInviteId;
   readonly newPendingTurnId: () => PendingTurnId;
-  /** Mints the turn's ephemeral identity once per `executeTurn` (rpg-design/10 §R4) — threaded to the tool-exec
+  /** Mints the turn's ephemeral identity once per `executeTurn` (docs/plans/rpg/design.md) — threaded to the tool-exec
    *  frame + the rpg turn-end hooks so a turn-scoped registrant correlates a turn's tool writes to its flush. */
   readonly newChatTurnId: () => ChatTurnId;
   /** Hashes an invite token before persistence — never stored raw. */
@@ -1434,7 +1434,7 @@ export interface ChatContext {
   readonly generatePicture: GeneratePictureOp;
   /** Null means expressions isn't wired — byte-identical no-op (the `tools: … | null` precedent). */
   readonly expressions: ChatExpressionsOps | null;
-  /** The injected rpg turn ops (rpg-design/05 §0). Null when rpg isn't wired — byte-identical no-op. */
+  /** The injected rpg turn ops (docs/plans/rpg/design.md). Null when rpg isn't wired — byte-identical no-op. */
   readonly rpg: ChatRpgOps | null;
   /** The S2 teaching registry ({@link ChatTeachingRegistry}), assembled at `entry/compose`. REQUIRED and
    *  non-nullable on purpose, unlike the `rpg`/`expressions`/`tools` null-op ops beside it: the null-op
@@ -1443,7 +1443,7 @@ export interface ChatContext {
    *  registry would silently drop a game turn's state block. An EMPTY array is the honest "nothing teaches"
    *  value, and tsc forces every ctx builder to state it. */
   readonly teaching: ChatTeachingRegistry;
-  /** The D50 PromptTransform apply op (automation-design/04 §6). Null when no registrar is wired —
+  /** The D50 PromptTransform apply op. Null when no registrar is wired —
    *  byte-identical no-op (a chat with zero transforms assembles + streams identically). */
   readonly promptTransforms: ApplyPromptTransformsOp | null;
   /** The per-turn plugin-macro resolve (U6, §5.15) — `null` when no plugin host is wired (byte-identical). */

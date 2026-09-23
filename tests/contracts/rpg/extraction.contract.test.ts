@@ -1,4 +1,4 @@
-// @orb/contracts/rpg/extraction — the structured-output extraction schema (rpg-design/05 §4.6). Pins: it
+// @orb/contracts/rpg/extraction — the structured-output extraction schema (docs/plans/rpg/design.md). Pins: it
 // PROJECTS to JSON Schema without throwing (the `output_config.format` path — the same [tool-schema-no-branded-
 // transform] class the tools pin), it DERIVES from the same tool arg shapes (the shared-plane proof — a party
 // entry parses exactly like `update_party` args), and an empty object is a valid "nothing changed" extraction.

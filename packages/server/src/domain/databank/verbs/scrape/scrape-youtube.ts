@@ -1,6 +1,6 @@
 // verb: scrapeYoutube (DB8) — fetch a video's timedtext caption track over the SAME ANY_HOST safeFetch guard as
-// scrapeWeb, join the caption cues to plain text, then the §2 canon tail (`substrate/scrape-canon`)
-// (databank-design/06 §5). No API key: `https://www.youtube.com/api/timedtext?v=<id>&lang=<lang>` returns the
+// scrapeWeb, join the caption cues to plain text, then the §2 canon tail (`substrate/scrape-canon`).
+// No API key: `https://www.youtube.com/api/timedtext?v=<id>&lang=<lang>` returns the
 // caption XML (`<text start=… dur=…>cue</text>` cues). We derive the 11-char video id from a watch/short/embed URL
 // (or a bare id), decode the cue text, and join cues with `\n` — the caption text is the canon, mime 'text/plain'.
 // databank adds ZERO fetch guard logic: a refused/failed fetch (the op throws) collapses to ONE leak-free

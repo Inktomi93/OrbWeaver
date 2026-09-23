@@ -5,6 +5,7 @@ updated: 2026-09-23
 priority: P1
 area: server
 blocked: owner
+plan: agent-principals
 ---
 
 # Agent-principal program
@@ -13,7 +14,7 @@ blocked: owner
 
 Owner ruling: this program stays parked and stays valid. It is not a decision to resolve now. Do not close or drop it. It wakes when the owner un-parks the program.
 
-The design set in `docs/architecture/proposed/agent-principal-design/` describes agents as principals: a
+The design set in `docs/plans/agent-principals/design.md` describes agents as principals: a
 mint, participant attribution, a capability ceiling and seats. The tree keeps only the dormant `kind` and
 `ownerUserId` columns in `packages/db/src/schema/users.ts`. The mint, the seating path and `canAgent` do
 not exist. The owner rules one of two outcomes:

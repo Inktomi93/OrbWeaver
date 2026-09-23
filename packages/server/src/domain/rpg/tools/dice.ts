@@ -1,4 +1,4 @@
-// domain/rpg/tools/dice — the PURE dice-notation roller for `roll_dice` (rpg-design/05 §4.5). Zero state,
+// domain/rpg/tools/dice — the PURE dice-notation roller for `roll_dice` (docs/plans/rpg/design.md). Zero state,
 // zero I/O: parse `NdM(+/-K)` (e.g. `2d6+1`, `d20`, `3d8-2`) and roll each face via the INJECTED CSPRNG
 // (`ctx.randomInt` — a uniform int in `[0, max)`; the roll is server-authoritative, bake-once, a client seed
 // is never honored). Returns the total + the individual faces, or `null` on unparseable notation (the handler

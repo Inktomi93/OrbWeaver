@@ -14,7 +14,7 @@ import { SOURCE_KINDS, SOURCE_LENSES, TEXT_LENSES } from "../../../../../package
 import { expect, test } from "../../../../support/fixtures.ts";
 
 test("SOURCE_KINDS is exactly [card, avatar, chat-block, document] (the producer-class axis)", () => {
-  // `document` is the databank source-document class (databank-design/05 §1) — the 4th producer.
+  // `document` is the databank source-document class — the 4th producer.
   expect([...SOURCE_KINDS]).toEqual(["card", "avatar", "chat-block", "document"]);
   // The tuple derives the union (no duplicate members; no inline re-spell).
   const all: SourceKind[] = [...SOURCE_KINDS];
@@ -22,7 +22,7 @@ test("SOURCE_KINDS is exactly [card, avatar, chat-block, document] (the producer
 });
 
 test("TEXT_LENSES is exactly [card-text, segment, digest, chunk]; SOURCE_LENSES = text ++ IMAGE_LENSES", () => {
-  // `chunk` is the databank document lens feeding document_chunks (databank-design/05 §1).
+  // `chunk` is the databank document lens feeding document_chunks.
   expect([...TEXT_LENSES]).toEqual(["card-text", "segment", "digest", "chunk"]);
   // SOURCE_LENSES derives from TEXT_LENSES + the canonical IMAGE_LENSES (never re-spelled).
   expect([...SOURCE_LENSES]).toEqual([...TEXT_LENSES, ...IMAGE_LENSES]);

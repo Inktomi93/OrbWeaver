@@ -1,4 +1,4 @@
-// domain/rpg/bus — the feature-root rpg bus RUNTIME (rpg-design/05 §4.9). A LIVE-ONLY per-chatId fan-out
+// domain/rpg/bus — the feature-root rpg bus RUNTIME (docs/plans/rpg/design.md). A LIVE-ONLY per-chatId fan-out
 // mirroring `user-events-bus.ts`. Pins: a subscriber attached BEFORE a publish receives it (the `on()`-buffers-
 // from-attach property), events are SCOPED to their `chatId` channel (a subscriber never sees another chat's
 // events), and an aborted signal tears the stream down.

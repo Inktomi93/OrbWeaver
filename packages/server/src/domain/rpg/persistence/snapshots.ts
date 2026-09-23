@@ -1,4 +1,4 @@
-// domain/rpg/persistence/snapshots — the per-swipe tracker lifecycle (rpg-design/05 §2.4-2.5). Queries and the
+// domain/rpg/persistence/snapshots — the per-swipe tracker lifecycle (docs/plans/rpg/design.md). Queries and the
 // snapshot write doors live together so the swipe-safety contract has one home:
 //   • parse-on-read — every JSON column re-validated through its `@orb/contracts/rpg` schema; a corrupt row
 //     is a typed `RpgStateCorruptError`, never a silent default (the constitution's no-swallow rule).
@@ -361,7 +361,7 @@ async function latestSnapshot(db: Db, gameId: RpgGameId, excludeMessageId?: Mess
   return any[0] ? parseSnapshotRow(any[0]) : undefined;
 }
 
-/** The resolution HEAD — the state the panel/reminder/hand-edit read (rpg-design/05 §2.4). Walks the ladder:
+/** The resolution HEAD — the state the panel/reminder/hand-edit read (docs/plans/rpg/design.md). Walks the ladder:
  *  (1) the LATER of the two arms — the last visible assistant slot's SELECTED variant (the swipe pointer — a
  *  swipe re-resolves the head with zero writes) and the newest HAND row (D124); (2) latest committed by
  *  `createdAt`; (3) latest any. Returns `undefined` for a game with no snapshot rows yet (D108 no-born-seed:

@@ -33,7 +33,7 @@ updated: 2026-09-18
 | diff | `diff` (jsdiff — snapshot/edit-history diffs, D28) | §2 |
 | layout (Stack/Row/Section/Toolbar/Container) | `container-type` | §4 |
 | chart · bar-list · histogram · stat-figure | ECharts | §11.3 (D52) |
-| meter (`linear`/`arc`/`bipolar` + milestones/dangerBelow) + SegmentedClock | plain CSS/SVG — NOT the chart lib (D52); kinds + clock per rpg-design/11 §2 (D58) | §11.3 (D52) |
+| meter (`linear`/`arc`/`bipolar` + milestones/dangerBelow) + SegmentedClock | plain CSS/SVG — NOT the chart lib (D52); kinds + clock per docs/plans/rpg/design.md (D58) | §11.3 (D52) |
 | virtual-list (generic) + message-list (chat) + media-grid | TanStack Virtual (`directDomUpdates`) | §11.3 (D54) |
 | markdown | Streamdown (two trust policies) | §6.3 / §11.6 |
 | stream (smooth-text pacer · TTFT shimmer) | domain-free string-math | §6.3.1 |

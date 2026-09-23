@@ -1,5 +1,5 @@
 // verb: scrapeYoutube (DB8) — fetch a video's timedtext caption track over the compose-bound ANY_HOST safeFetch
-// guard, join the cues to plain text, then the SAME §2 canon tail as upload/scrapeWeb (databank-design/06 §5).
+// guard, join the cues to plain text, then the SAME §2 canon tail as upload/scrapeWeb.
 // The fetch rides a STUBBED `fetchUrl` op (no live network). Load-bearing:
 //   · the round-trip: caption XML → CAS blob + documents row stamped origin 'youtube'/watch-URL/'text/plain' → ingest QUEUED
 //   · the video id is derived from a watch/youtu.be/shorts URL (or bare id) and the timedtext endpoint is built from it + lang

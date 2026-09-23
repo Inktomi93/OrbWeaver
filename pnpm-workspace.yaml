@@ -148,7 +148,7 @@ catalog:
   luxon: ^3.7.2
   "@types/luxon": ^3.7.2
   # @marcbachmann/cel-js: the CEL expression evaluator (isomorphic, pure — no node:*) behind the
-  # @orb/kit/cel seam; automation predicates + {{expr}} (automation-design/02 §1). Bundled types.
+  # @orb/kit/cel seam; automation predicates + {{expr}}. Bundled types.
   "@marcbachmann/cel-js": ^8.0.0
   # --- db ---
   drizzle-orm: ^0.45.2
@@ -223,11 +223,11 @@ catalog:
   # @huggingface/transformers: the in-process local-light tier (transformers.js/ONNX, CPU+CUDA) — the
   # "any box" embed/rerank/imageEmbed path (D39). Pulls onnxruntime-node (native; allowBuilds-approved).
   "@huggingface/transformers": ^4.3.0
-  # --- infra/extraction (databank DB3 — databank-design/04) ---
+  # --- infra/extraction (databank) ---
   pdfjs-dist: ^6.2.108
   html-to-text: ^10.0.0
   "@types/html-to-text": ^9.0.4
-  # --- infra/plugin-host (plugin-design/04 P1 — the QuickJS-ng WASM sandbox) ---
+  # --- infra/plugin-host (P1 — the QuickJS-ng WASM sandbox) ---
   quickjs-emscripten-core: ^0.32.0
   "@jitl/quickjs-ng-wasmfile-release-sync": ^0.32.0
   fflate: ^0.8.3

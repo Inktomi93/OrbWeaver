@@ -1,4 +1,4 @@
-// domain/rpg/verbs/patch-sheet — patchSheet (rpg-design/05 §4.4). The per-actor identity sheet write: host any actor;
+// domain/rpg/verbs/patch-sheet — patchSheet (docs/plans/rpg/design.md). The per-actor identity sheet write: host any actor;
 // a member their OWN `user` ref. MA-4 patch semantics — every field optional, no defaults (an omitted field
 // keeps its current value). Attribute keys are validated ∈ the profile vocabulary AND in range (§2.3), and
 // `attributes` is the one field whose VALUE is itself a [merge-clear] patch rather than an image — set /

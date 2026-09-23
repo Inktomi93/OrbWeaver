@@ -1,4 +1,4 @@
-// verb: upload — the sync canon write (databank-design/06 §2). Steps 1–5 are SYNCHRONOUS (the verb awaits
+// verb: upload — the sync canon write. Steps 1–5 are SYNCHRONOUS (the verb awaits
 // them): `extractedText` is NOT NULL canon, so a failed extraction fails the upload atomically (nothing
 // persisted; the content-addressed CAS blob orphans and self-heals on the next GC sweep). Steps 1–2 are the
 // re-upload dedup (the `(ownerId, importHash)` unique index) — a duplicate returns the EXISTING document and

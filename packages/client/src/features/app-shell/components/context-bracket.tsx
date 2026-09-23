@@ -6,7 +6,7 @@
 //
 // THE COLUMN, top to bottom: HEAD BAND (flex-none — the artifact's identity: a room's title + chips, the
 // Waystone, a character's portrait; ONE slot, three contents, never a second head) → TOP RAIL (flex-none, the
-// `strip:"game"` state tabs — present only when one resolved: APPLICABILITY, Context-Panel-Program §4.1) →
+// `strip:"game"` state tabs — present only when one resolved: APPLICABILITY) →
 // VIEWPORT (`flex-initial` = `flex: 0 1 auto` + min-h-0 + scroll) → GROUND (`flex-1`, the residual span) →
 // FOOT RAIL (flex-none, the `strip:"meta"` tabs, pinned to the pane's foot — owner decision 6, universal).
 //

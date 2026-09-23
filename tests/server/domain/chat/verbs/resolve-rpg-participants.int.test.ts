@@ -1,4 +1,4 @@
-// op: createResolveRpgParticipants (rpg-design/05 §4.3) — the rpg-facing participants projection, against a real libSQL db.
+// op: createResolveRpgParticipants (docs/plans/rpg/design.md) — the rpg-facing participants projection, against a real libSQL db.
 // Proves: a CHARACTER seat resolves its card under the HOST's ownership (the getCard ownerId = the room host,
 // D18/D19); a HUMAN seat resolves its publics (displayName ?? handle ?? ""); a seat that resolves to neither
 // ref (a gone card) is DROPPED; the read is `WHERE chatId`-scoped (no cross-chat leak); a LEFT seat is not

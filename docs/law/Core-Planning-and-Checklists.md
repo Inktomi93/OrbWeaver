@@ -65,5 +65,5 @@ BYO form ships. No PD row yet — mint it at the next debt-registry pass. Deferr
 - **Single-replica** is the v1 stance (honest + cleanly seamed — every `ASSUMES(single-replica)` site
   has a named DB-backed replacement). Scaling out = replacing ~12 surfaces; not a v1 concern.
 - **Deferred features** (acceptable): agent-principal mint mechanics superseded by the committed D60
-  design (`proposed/agent-principal-design/`), BYO response-mapping form, bulk/zip library export, the
+  design (`../plans/agent-principals/design.md`), BYO response-mapping form, bulk/zip library export, the
   4 AI-native v2 swings (seams reserved).

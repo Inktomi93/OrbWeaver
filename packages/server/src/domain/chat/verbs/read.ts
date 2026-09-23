@@ -514,7 +514,7 @@ function buildPreviewRegistry(inputs: PreviewInputs): MacroRegistry | null {
   return built?.registry ?? null;
 }
 
-/** The PREVIEW's gather half — the rpg macro/CEL feed (rpg-design/05 §1) plus the S2 teaching collection
+/** The PREVIEW's gather half — the rpg macro/CEL feed (docs/plans/rpg/design.md) plus the S2 teaching collection
  *  (whose contributor #0 carries a game's depth-0 state-block reminder), staged exactly as the turn path
  *  stages them so the host's honesty instrument shows what the model actually reads (without this the whole
  *  state block is INVISIBLE there, and a later teaching contributor would be invisible the same way).
@@ -1264,7 +1264,7 @@ function createPreviewAssembly(ctx: ChatContext, deps: ReadDeps): ChatService["p
       ceilingTokens: fitted.ceilingTokens ?? 0,
       ceilingEstimated: ceilingIsEstimated(inputs.capability, assembleContext.promptConfig.params.maxContextTokens),
     });
-    // Route through the host-audience redaction seam (chat-crew-design/04 §2, CREW-6). The verdict is DERIVED
+    // Route through the host-audience redaction seam (D59). The verdict is DERIVED
     // from the membership `requireHost` already loaded (no second read) — provably `true` today, but if this
     // gate is ever relaxed to `requireParticipant` the elision inherits automatically (the structural belt: a
     // host-ring `audience:"host"` injection can never leak through a snapshot-serving projection).
@@ -1284,7 +1284,7 @@ function createPeekPrompt(ctx: ChatContext, deps: ReadDeps): ChatService["peekPr
     });
     const registry = buildPreviewRegistry(inputs);
     const { assembleContext } = await buildPreviewContext(ctx, inputs, chatId, { deps, registry });
-    // Route peekPrompt through the ONE host-audience helper (chat-crew-design/04 §2, CREW-6) with the verdict
+    // Route peekPrompt through the ONE host-audience helper (D59) with the verdict
     // DERIVED from the loaded membership (no second read; provably host today, leak-free if the gate relaxes).
     return buildPrompt(inputs.foreign.promptConfig, assembleContext, registry ?? undefined);
   };

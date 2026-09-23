@@ -539,7 +539,7 @@ function materializeMaxOutput(intent: UserIntent): UserIntent {
   return { ...intent, maxOutputTokens: materializeOutputReserve(intent.maxOutputTokens) };
 }
 
-/** The D50 `assembled_dynamic` transform point (automation-design/04 §6): rewrite the BUILD output's DYNAMIC
+/** The D50 `assembled_dynamic` transform point: rewrite the BUILD output's DYNAMIC
  *  half only (the static/cache-stable half is untransformable — 03 §1.2). Absent op / zero registrants ⇒ the
  *  input is returned by reference (byte-identical). The vars env is the runtime fold cache off the immutable
  *  assemble ctx (a per-speaker SHAPE never changes `variableValues`). */
