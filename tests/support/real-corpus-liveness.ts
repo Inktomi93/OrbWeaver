@@ -67,6 +67,13 @@
 //               ending in `/`) taken out of the project. Minted for `pointer-capability-tier-health`, whose
 //               subject is that the reviewed shell home HAS files at all — overwriting them leaves them
 //               present, so no content overlay can reach it. Whole-run scope, as for NEUTRALISE.
+//   RESOURCE  — a file a policy reads through the ResourceHost (CSS, the token vault, any `analysis:
+//               "resource"` subject), not through the ts-morph project, so no project overlay reaches it. The
+//               overlay rides the production reader's OWN seam (`ResourceHostOptions.overlay`, the one
+//               conformance's resource rows use): `source` is the whole text, `append` is the real file's disk
+//               text plus a planted tail. The finding must land AT THAT PATH, as for ADD. It changes what every
+//               policy in the pass reads, so a resource arm never shares a pass.
+import { existsSync, readFileSync } from "node:fs";
 import type { GatePolicy } from "@orb/tooling/verify";
 import { projectCtx, reviewedGrantsFor, runPolicyPass } from "@orb/tooling/verify";
 import type { Project } from "ts-morph";
@@ -87,6 +94,19 @@ export type RealCorpusOverlay =
       readonly kind: "remove";
       /** Repo-relative: one existing file, or a directory ending in `/` whose every corpus file goes. */
       readonly path: string;
+    }
+  | {
+      readonly kind: "resource";
+      /** Repo-relative path of a file read through the ResourceHost. */
+      readonly path: string;
+      /** The whole replacement (or new-file) text. */
+      readonly source: string;
+    }
+  | {
+      readonly kind: "resource";
+      readonly path: string;
+      /** Appended to the EXISTING file's disk text, so the arm plants into the real file without restating it. */
+      readonly append: string;
     };
 
 export interface RealCorpusLivenessArm {
@@ -154,7 +174,7 @@ function refusals(result: PassResult): readonly string[] {
 /** The messages in an arm's assertion SCOPE — at an overlay path for `add`, the whole run for `neutralise`
  *  and `remove` — read from the effective findings, or the granted ones for a `granted` arm. */
 function inScope(result: PassResult, arm: RealCorpusLivenessArm): readonly string[] {
-  const wholeRun = arm.overlays.some((overlay) => overlay.kind !== "add");
+  const wholeRun = arm.overlays.some((overlay) => overlay.kind === "neutralise" || overlay.kind === "remove");
   const reported = arm.granted === true ? result.authority.grantedFindings.map(({ finding }) => finding) : result.authority.effectiveFindings;
   return (
     reported
@@ -183,6 +203,15 @@ function removedPaths(project: Project, repoRoot: string, path: string): readonl
     .filter((file) => (path.endsWith("/") ? file.startsWith(absolute) : file === absolute));
 }
 
+/** The text of every corpus file a `remove` overlay takes, keyed by absolute path. */
+function removedOriginals(project: Project, repoRoot: string, arm: RealCorpusLivenessArm, path: string): ReadonlyMap<string, string> {
+  const paths = removedPaths(project, repoRoot, path);
+  if (paths.length === 0) {
+    throw new Error(`${arm.policy.id}: remove overlay ${path} matches no file in the structure run's corpus — the arm would remove nothing.`);
+  }
+  return new Map(paths.map((absolute) => [absolute, project.getSourceFileOrThrow(absolute).getFullText()]));
+}
+
 /** Every overlay's PRE-STATE, checked before anything runs.
  *
  *  A `neutralise` or `remove` naming a path the corpus does not hold would take nothing away and the arm
@@ -192,13 +221,13 @@ function removedPaths(project: Project, repoRoot: string, path: string): readonl
 function captureOriginals(project: Project, repoRoot: string, arm: RealCorpusLivenessArm): Originals {
   const originals = new Map<string, string | undefined>();
   for (const overlay of arm.overlays) {
+    if (overlay.kind === "resource") {
+      // A resource overlay never touches the project: it is handed to the pass's ResourceHost and dies with it.
+      continue;
+    }
     if (overlay.kind === "remove") {
-      const paths = removedPaths(project, repoRoot, overlay.path);
-      if (paths.length === 0) {
-        throw new Error(`${arm.policy.id}: remove overlay ${overlay.path} matches no file in the structure run's corpus — the arm would remove nothing.`);
-      }
-      for (const absolute of paths) {
-        originals.set(absolute, project.getSourceFileOrThrow(absolute).getFullText());
+      for (const [absolute, original] of removedOriginals(project, repoRoot, arm, overlay.path)) {
+        originals.set(absolute, original);
       }
       continue;
     }
@@ -217,16 +246,62 @@ function captureOriginals(project: Project, repoRoot: string, arm: RealCorpusLiv
   return originals;
 }
 
+/** Put `text` at `absolute` as a NEW SourceFile object, never an edit of the one already there.
+ *
+ *  Shared readers cache per SourceFile OBJECT (`lib/comment-spans.ts#blankTsComments` keys a WeakMap on it,
+ *  on the stated premise that gates never mutate the project). An in-place `replaceWithText` keeps the
+ *  object, so the next pass reads the cached text of the PREVIOUS content: measured on
+ *  `floorless-control-vocabulary-health`, whose neutralised `variants.ts` still read as the real file and
+ *  the arm reported nothing. A restore done in place would leak the overlay into every later pass the same
+ *  way. A fresh object has no cache entry. */
+function replaceSourceFile(project: Project, absolute: string, text: string): void {
+  const existing = project.getSourceFile(absolute);
+  if (existing !== undefined) {
+    project.removeSourceFile(existing);
+  }
+  // `overwrite` because ts-morph's existence check also consults the DISK, where the file still is.
+  project.createSourceFile(absolute, text, { overwrite: true });
+}
+
 function applyOverlays(project: Project, repoRoot: string, arm: RealCorpusLivenessArm): void {
   for (const overlay of arm.overlays) {
     if (overlay.kind === "remove") {
       for (const absolute of removedPaths(project, repoRoot, overlay.path)) {
         project.removeSourceFile(project.getSourceFileOrThrow(absolute));
       }
-    } else {
-      project.createSourceFile(`${repoRoot}/${overlay.path}`, overlay.source, { overwrite: true });
+    } else if (overlay.kind !== "resource") {
+      replaceSourceFile(project, `${repoRoot}/${overlay.path}`, overlay.source);
     }
   }
+}
+
+type ResourceOverlayEntry = Extract<RealCorpusOverlay, { readonly kind: "resource" }>;
+
+/** One resource overlay's text. An `append` names a file that must already exist on disk: appending to
+ *  nothing would plant a whole new file and pass for the wrong reason. */
+function resourceText(repoRoot: string, arm: RealCorpusLivenessArm, entry: ResourceOverlayEntry): string {
+  if (!("append" in entry)) {
+    return entry.source;
+  }
+  const absolute = `${repoRoot}/${entry.path}`;
+  if (!existsSync(absolute)) {
+    throw new Error(`${arm.policy.id}: resource overlay appends to ${entry.path}, which is not on disk`);
+  }
+  return `${readFileSync(absolute, "utf8")}${entry.append}`;
+}
+
+/** The ResourceHost overlay a batch's `resource` overlays make, keyed by repo-relative path. */
+function resourceOverlay(repoRoot: string, arms: readonly RealCorpusLivenessArm[]): Readonly<Record<string, string>> {
+  const overlay: Record<string, string> = {};
+  for (const arm of arms) {
+    for (const entry of arm.overlays.filter((candidate): candidate is ResourceOverlayEntry => candidate.kind === "resource")) {
+      if (entry.path in overlay) {
+        throw new Error(`real-corpus liveness: two resource overlays in one pass name ${entry.path}`);
+      }
+      overlay[entry.path] = resourceText(repoRoot, arm, entry);
+    }
+  }
+  return overlay;
 }
 
 /** Put the corpus back IN MEMORY. Not housekeeping: every arm shares the one project, so a leaked overlay
@@ -238,17 +313,12 @@ function restoreOriginals(project: Project, originals: Originals): void {
       if (file !== undefined) {
         project.removeSourceFile(file);
       }
-    } else if (file === undefined) {
-      // `overwrite` because ts-morph's existence check also consults the DISK, where a removed file still is.
-      project.createSourceFile(absolute, original, { overwrite: true });
     } else {
-      file.replaceWithText(original);
+      replaceSourceFile(project, absolute, original);
     }
   }
 }
 
-/** Open the ONE liveness runner over `arms`. A policy carries at most one arm: two arms for one id would
- *  share a baseline row and make "which control fired" ambiguous. */
 /** Can this arm share an overlaid pass? Only when every overlay ADDS a new file. A `neutralise`/`remove`
  *  arm rewrites or takes away a REAL file every other policy in the pass also reads, and asserts over the
  *  whole run — so anything another arm plants could land in its scope. It always runs alone. */
@@ -256,15 +326,24 @@ function isBatchable(arm: RealCorpusLivenessArm): boolean {
   return arm.overlays.every((overlay) => overlay.kind === "add");
 }
 
+/** An arm's overlay set, canonically spelled: two arms with one key plant exactly the same thing. */
+function overlayKey(arm: RealCorpusLivenessArm): string {
+  return JSON.stringify(arm.overlays.map((overlay) => JSON.stringify(overlay)).toSorted());
+}
+
 /** Pack the arms into overlaid passes: every whole-run arm alone, the add-only arms together, a new batch
  *  opening only when an add path would repeat (two arms cannot own one path). Declaration order is kept, so
  *  the plan is deterministic. */
 export function planLivenessBatches(arms: readonly RealCorpusLivenessArm[]): readonly (readonly RealCorpusLivenessArm[])[] {
   const shared: RealCorpusLivenessArm[][] = [];
-  const solo: RealCorpusLivenessArm[][] = [];
+  // Rewriting arms share a pass ONLY with arms carrying the IDENTICAL overlay set (the three tier-home
+  // tripwires all take the markdown home away): the pass then plants nothing any member did not plant alone,
+  // so each verdict is exactly its solo verdict, for one program rebuild instead of three.
+  const solo = new Map<string, RealCorpusLivenessArm[]>();
   for (const arm of arms) {
     if (!isBatchable(arm)) {
-      solo.push([arm]);
+      const key = overlayKey(arm);
+      solo.set(key, [...(solo.get(key) ?? []), arm]);
       continue;
     }
     const paths = new Set(arm.overlays.map((overlay) => overlay.path));
@@ -275,7 +354,7 @@ export function planLivenessBatches(arms: readonly RealCorpusLivenessArm[]): rea
       fits.push(arm);
     }
   }
-  return [...shared, ...solo];
+  return [...shared, ...solo.values()];
 }
 
 /** The refusals that belong to ONE arm's policy in a shared pass. A fact refusal belongs to every policy that
@@ -312,6 +391,8 @@ export function assertArmVerdict(arm: RealCorpusLivenessArm, verdict: RealCorpus
   return verdict.messages;
 }
 
+/** Open the ONE liveness runner over `arms`. A policy carries at most one arm: two arms for one id would
+ *  share a baseline row and make "which control fired" ambiguous. */
 export function openRealCorpusLiveness(repoRoot: string, arms: readonly RealCorpusLivenessArm[]): RealCorpusLivenessRunner {
   const ids = arms.map((arm) => arm.policy.id);
   const duplicated = ids.filter((id, index) => ids.indexOf(id) !== index);
@@ -331,8 +412,16 @@ export function openRealCorpusLiveness(repoRoot: string, arms: readonly RealCorp
     corpus ??= projectCtx(repoRoot).project;
     return corpus;
   };
-  const pass = (selected: readonly GatePolicy[]): PassResult =>
-    runPolicyPass({ knownPolicies: policies, policies: selected, root: repoRoot, project: project(), reviewedGrants, failOnWarnings: false });
+  const pass = (selected: readonly GatePolicy[], overlay: Readonly<Record<string, string>> = {}): PassResult =>
+    runPolicyPass({
+      knownPolicies: policies,
+      policies: selected,
+      root: repoRoot,
+      project: project(),
+      reviewedGrants,
+      failOnWarnings: false,
+      ...(Object.keys(overlay).length === 0 ? {} : { resourceOptions: { overlay } }),
+    });
 
   const restoreOrDamage = (loaded: Project, originals: Originals, batch: readonly RealCorpusLivenessArm[]): void => {
     try {
@@ -345,7 +434,10 @@ export function openRealCorpusLiveness(repoRoot: string, arms: readonly RealCorp
   const overlaid = (batch: readonly RealCorpusLivenessArm[]): PassResult => {
     const loaded = project();
     const originals = new Map<string, string | undefined>();
-    for (const arm of batch) {
+    // A batch whose members all carry ONE overlay set plants it once; any other batch plants every member's.
+    const [first] = batch;
+    const planters = first !== undefined && batch.every((arm) => overlayKey(arm) === overlayKey(first)) ? [first] : batch;
+    for (const arm of planters) {
       for (const [absolute, original] of captureOriginals(loaded, repoRoot, arm)) {
         if (originals.has(absolute)) {
           throw new Error(`real-corpus liveness: two arms in one batch touch ${absolute} — a path has one owner per pass`);
@@ -354,10 +446,13 @@ export function openRealCorpusLiveness(repoRoot: string, arms: readonly RealCorp
       }
     }
     try {
-      for (const arm of batch) {
+      for (const arm of planters) {
         applyOverlays(loaded, repoRoot, arm);
       }
-      return pass(batch.map((arm) => arm.policy));
+      return pass(
+        batch.map((arm) => arm.policy),
+        resourceOverlay(repoRoot, planters),
+      );
     } finally {
       restoreOrDamage(loaded, originals, batch);
     }
@@ -372,7 +467,10 @@ export function openRealCorpusLiveness(repoRoot: string, arms: readonly RealCorp
       // what made it speak at its own. Such an arm's batched verdict is not evidence; it is proved again ALONE.
       const reported = reportedPaths(result, arm.policy.id);
       const entangledWith = batch
-        .filter((other) => other !== arm && other.overlays.some((overlay) => reported.has(overlay.path)))
+        // A path the arm planted ITSELF is its own scope, whoever else planted it too.
+        .filter(
+          (other) => other !== arm && other.overlays.some((overlay) => reported.has(overlay.path) && !arm.overlays.some((own) => own.path === overlay.path)),
+        )
         .map((other) => other.policy.id);
       if (entangledWith.length > 0) {
         const alone = proveBatch([arm]).get(arm.policy.id);

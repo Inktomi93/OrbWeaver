@@ -10,9 +10,9 @@
 // corpus and runs every policy through ONE walker, so this runner loads THAT corpus once
 // (`tests/support/real-corpus-liveness.ts` — the header says why it is verify's corpus and no other), runs
 // every armed policy through one shared BASELINE pass, then proves the overlays in BATCHED passes over the
-// same project: every add-only arm in one pass, each rewriting arm alone, and any arm whose policy reported
-// on a batch-mate's file proved again alone. Each arm still has its own test, reading its batch's verdict,
-// so a failure names its arm.
+// same project: every add-only arm in one pass, each rewriting arm alone (or with arms planting the
+// identical overlay set), and any arm whose policy reported on a batch-mate's file proved again alone. Each
+// arm still has its own test, reading its batch's verdict, so a failure names its arm.
 //
 // THE ARMS ARE DATA in `_liveness/<chunk>.ts`, one exported array per chunk, and that directory is the only
 // place `real-corpus-liveness-manifest` counts a pin (it reads `policy:` rows in files there that import both
@@ -24,9 +24,13 @@
 // on the same box (loadavg 5-8): one pass PER ARM took 142s of test time, because every overlay invalidates
 // the shared type program and each `types` arm re-ran its checker work cold (6-26s apiece); the BATCHED plan
 // (one 37-arm pass plus ten solo rewriting arms) takes 54s: baseline 22s, every overlaid pass together 25s,
-// the two controls 6s. It stays in the `repository` project (`.suite.repo.int`, file-serial, inside
-// `--full`'s `tests:tooling`), with per-test budgets derived from those numbers rather than the project's 30s
-// default. Solo passes are now the growth term: each rewriting arm costs one program rebuild.
+// the two controls 6s. At 82 arms (the `@client` + `@ui` chunk added heavier policies: its members cost
+// ~45s of the structure run's own policy time) the file measured 392-414s of test time on a box at loadavg
+// 21-31: baseline 104-209s, every overlaid pass together 186-238s, controls 50s. No quiet-box figure exists
+// for 82 arms yet; the budgets below are quiet-box bases that `scaledBudget` stretches under load. It stays
+// in the `repository` project (`.suite.repo.int`, file-serial, inside `--full`'s `tests:tooling`), with
+// per-test budgets rather than the project's 30s default. Solo passes are the growth term: each rewriting
+// arm that plants a distinct overlay costs one program rebuild.
 
 import { gate as queryBoundaryReservation } from "../../../../tooling/src/verify/gates/query-boundary-reservation.ts";
 import { gate as queryBoundaryReservationHealth } from "../../../../tooling/src/verify/gates/query-boundary-reservation-health.ts";
@@ -36,11 +40,19 @@ import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 import { CLIENT_ARMS } from "./_liveness/client.ts";
 import { CLIENT_APP_ARMS } from "./_liveness/client-app.ts";
+import { FRONTEND_ARMS } from "./_liveness/frontend.ts";
 import { SERVER_ARMS } from "./_liveness/server.ts";
 import { TESTS_ARMS } from "./_liveness/tests.ts";
 import { TOOLING_ARMS } from "./_liveness/tooling.ts";
 
-const CHUNKS = { client: CLIENT_ARMS, clientApp: CLIENT_APP_ARMS, server: SERVER_ARMS, tests: TESTS_ARMS, tooling: TOOLING_ARMS } as const;
+const CHUNKS = {
+  client: CLIENT_ARMS,
+  clientApp: CLIENT_APP_ARMS,
+  frontend: FRONTEND_ARMS,
+  server: SERVER_ARMS,
+  tests: TESTS_ARMS,
+  tooling: TOOLING_ARMS,
+} as const;
 const ARMS: readonly RealCorpusLivenessArm[] = Object.values(CHUNKS).flat();
 
 // Quiet-box ceilings, each ~2.5x the slowest measured case above; `scaledBudget` stretches them under
@@ -76,7 +88,7 @@ test("every chunk declares arms, and no policy carries two", () => {
   expect(ids.filter((id, index) => ids.indexOf(id) !== index)).toEqual([]);
 });
 
-test("the batch plan puts every arm in exactly one pass, and no rewriting arm shares one", () => {
+test("the batch plan puts every arm in exactly one pass, and a rewriting arm shares only an identical overlay set", () => {
   const plan = planLivenessBatches(ARMS);
   expect(
     plan
@@ -84,10 +96,12 @@ test("the batch plan puts every arm in exactly one pass, and no rewriting arm sh
       .map((arm) => arm.policy.id)
       .toSorted(),
   ).toEqual(ARMS.map((arm) => arm.policy.id).toSorted());
-  const sharedRewriters = plan
-    .filter((batch) => batch.length > 1 && batch.some((arm) => arm.overlays.some((overlay) => overlay.kind !== "add")))
+  const spelled = (arm: RealCorpusLivenessArm): string => JSON.stringify(arm.overlays.map((overlay) => JSON.stringify(overlay)).toSorted());
+  const mixedRewriters = plan
+    .filter((batch) => batch.some((arm) => arm.overlays.some((overlay) => overlay.kind !== "add")))
+    .filter((batch) => new Set(batch.map(spelled)).size > 1)
     .map((batch) => batch.map((arm) => arm.policy.id));
-  expect(sharedRewriters, "a neutralise/remove arm shares its pass").toEqual([]);
+  expect(mixedRewriters, "a rewriting arm shares its pass with an arm that plants something else").toEqual([]);
 });
 
 test("every armed policy is refusal-free and silent in its arm's scope on the real tree", { timeout: scaledBudget(BASELINE_BASE_MS) }, ({ repoRoot }) => {
@@ -147,4 +161,22 @@ test("an arm that speaks only BECAUSE of its batch-mate is caught and proved alo
   expect(verdict.entangledWith, "the detector saw the health policy report on its batch-mate's file").toEqual([mate.policy.id]);
   expect(verdict.batch, "the verdict is the SOLO re-proof, not the shared pass").toEqual([health.policy.id]);
   expect(() => assertArmVerdict(halfHealth, verdict)).toThrow("reported NOTHING for a real-corpus positive control");
+});
+
+test("a RESOURCE overlay that plants nothing is refused — the reader's overlay seam cannot make a policy speak", {
+  timeout: scaledBudget(CONTROL_BASE_MS),
+}, ({ repoRoot }) => {
+  // The planted negative for `kind: "resource"`: the ownership arm's real sheet, handed a tail that is only a
+  // comment. If the overlay alone made the policy report, every green resource arm would be unfalsified.
+  const ownership = FRONTEND_ARMS.find((arm) => arm.overlays.some((overlay) => overlay.kind === "resource"));
+  const [planted] = ownership?.overlays ?? [];
+  if (ownership === undefined || planted === undefined) {
+    throw new Error("the frontend chunk carries no resource arm, so the control has nothing to drive");
+  }
+  const dead: RealCorpusLivenessArm = { ...ownership, overlays: [{ kind: "resource", path: planted.path, append: "\n/* liveness clean control */\n" }] };
+  const verdict = liveness(repoRoot).proveBatch([dead]).get(dead.policy.id);
+  if (verdict === undefined) {
+    throw new Error("the control batch produced no verdict for its arm");
+  }
+  expect(() => assertArmVerdict(dead, verdict)).toThrow("reported NOTHING for a real-corpus positive control");
 });
