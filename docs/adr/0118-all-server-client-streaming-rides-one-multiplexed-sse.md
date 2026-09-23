@@ -8,7 +8,7 @@ updated: 2026-09-23
 
 ## Context
 
-Not recorded in the ledger row.
+Several features push server events to a tab: chat, notifications, automation and workloads. They can each run a tRPC subscription, or share one connection. tRPC offers two transports for a shared connection: SSE over the existing HTTP mount, or `wsLink` over WebSocket.
 
 ## Decision
 
@@ -18,8 +18,10 @@ Security record: the SSE chat fold review (commit `c8bdf92bf`).
 
 ## Consequences
 
-Not recorded in the ledger row.
+- The fetch adapter, the Hono mount, cookie auth, the CSRF posture and the Caddy HTTP/2 and HTTP/3 deployment stay unchanged.
+- The transport owns its own lifecycle: the socket cell registry, reconnect, per-room cursors and room classification under `packages/server/src/transport/trpc/stream/`.
+- A silently dead socket stops every room at once. The ping and the client inactivity timeout in `packages/server/src/transport/trpc/trpc.ts` are therefore required.
 
 ## Alternatives rejected
 
-Not recorded in the ledger row.
+- tRPC `wsLink` over WebSocket. It multiplexes natively and would remove most of the cell registry, reconnect and cursor code. It adds a second auth seam at the upgrade and a second deployment concern at the proxy. It also reopens questions the request-scoped model already answers.
