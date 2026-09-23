@@ -11,6 +11,7 @@ area: tooling
 ## What
 
 Close the gaps that push agents to edit docs by hand:
+
 - `pnpm doc set` can change an item's `kind` and title, and clear its `plan` (`--plan none`).
 - A title change renames the file and rewrites every link to it.
 - `pnpm doc remove <id…>` deletes items that were filed by mistake. It refuses when another doc links to
@@ -21,10 +22,11 @@ Close the gaps that push agents to edit docs by hand:
 ## Why
 
 Three workarounds happened in one session:
+
 - Items were deleted with `rm` because no verb removes a mistaken item or clears its plan.
 - Six law docs had `kind` rewritten by hand.
 - Parked program items kept `kind: decision` because nothing can change it.
-Each workaround is the hand edit the docs system exists to stop.
+  Each workaround is the hand edit the docs system exists to stop.
 
 ## Done when
 
