@@ -6,7 +6,7 @@ updated: 2026-09-23
 
 # Gate-runtime read first
 
-Read this file first in a cold or compacted #1584 session. The standing law and procedure are the only other mandatory
+Read this file first in a cold or compacted session. The standing law and procedure are the only other mandatory
 whole reads. Everything else is selected by the question in front of you.
 
 ## 1. Ordered read list
@@ -35,7 +35,7 @@ before declaring a guarantee absent.
 
 - Convert or delete each legacy owner. Build an admissible shared capability when required; a recorded refusal does not
   reopen itself after its blocker lands.
-- A lane asks with a stated default and continues. It stops for an ownership-fence conflict or unresolved design fork.
+- A lane asks with a stated default and continues. It stops for an ownership-boundary conflict or unresolved design fork.
 - A superseded/delete ruling requires the current owner predicate and a planted control that goes red.
 - Every verifier defect that survives review receives a `docs/work` item (`pnpm doc item`).
 - Claim rows at dispatch and re-derive them before batching.

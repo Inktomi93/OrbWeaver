@@ -10,17 +10,15 @@ updated: 2026-09-13
 
 ## 1. Why this law exists
 
-The token SCALES exist; the ASSIGNMENT LAW did not. Nothing said which surface class uses which step, so every feature picked by taste and converged on the loosest, boxiest option. Four habits, each a measured defect class:
+The token scales exist, but nothing states which surface class uses which step. Without an assignment, a feature picks by taste and converges on the loosest, boxiest option. Three habits recur:
 
 | habit | what it looks like |
 | - | - |
 | box-in-box chrome stacking | a bordered/rounded card inside a bordered/rounded card inside a panel |
-| FORM primitives building INSTRUMENT surfaces | an instrument pane composed from settings-row / `Card` airiness |
+| form primitives building instrument surfaces | an instrument pane composed from settings-row / `Card` airiness |
 | uniform visual weight | nothing recedes, so everything competes |
 
-The diagnosis in one number, as measured at the mint: 45 of 51 non-pill radius choices in `packages/client/src` were the LARGEST step, and one defined step (`rounded-base`) had never had a consumer. The spacing scale was already adopted (~108 intent-utility uses in client tsx, ~200 in ui) — what was missing was which step goes where.
-
-Ratified against the industry conventions this law follows: the 8pt grid with a 4pt sub-grid (4pt INSIDE a component, 8pt BETWEEN components; a non-linear widening scale), and a named shape scale WITH a per-component-class assignment.
+This law follows the 8pt grid with a 4pt sub-grid (4pt inside a component, 8pt between components, a non-linear widening scale) and a named shape scale with a per-component-class assignment.
 
 ## 2. The scales
 
@@ -53,7 +51,7 @@ Ratified against the industry conventions this law follows: the 8pt grid with a 
 
 The seven type sizes are correct and are NOT re-derived (D4 — no measured defect, and a re-derivation churns every surface).
 
-The defect was the KNOB SPACE: `size` (7) × `weight` (4) × `tone` (6) × `transform` (2) = 336 legal combinations, chosen per call site by taste — the mechanism by which nothing recedes. **The law is one CLOSED `voice` axis.** `size`/`weight`/`tone`/`transform` are `@orb/ui`-INTERNAL; a feature passes `voice` and nothing else (enforced: `density-tier` arm A3).
+The defect was the KNOB SPACE: `size` (7) × `weight` (4) × `tone` (6) × `transform` (2) = 336 legal combinations, chosen per call site by taste — the mechanism by which nothing recedes. **The law is one CLOSED `voice` axis.** `size`/`weight`/`tone`/`transform` are `@orb/ui`-INTERNAL; a feature passes `voice` and nothing else (enforced: `density-tier` case A3).
 
 The founding grammar — a surface's copy is one of four things:
 
@@ -64,9 +62,9 @@ The founding grammar — a surface's copy is one of four things:
 | `datum` | the value — the thing you came to read (mono + tabular, so figures do not jitter as they tick) |
 | `gloss` | the quiet explanatory second line |
 
-**The tuple in `packages/ui/src/primitives/text/variants.ts` is the truth, not a list here** — the axis has grown past four (the content voice, the display voices, the receded twins, the decorative monogram), and a doc table of arms rots the day a voice lands. Each arm's meaning and its discriminator live beside its class string in that file.
+**The tuple in `packages/ui/src/primitives/text/variants.ts` is the truth, not a list here** — the axis has grown past four (the content voice, the display voices, the receded twins, the decorative monogram), and a doc table of entries rots the day a voice lands. Each entry's meaning and its discriminator live beside its class string in that file.
 
-**Adding a voice is a RULING, not a convenience.** A new arm enters only with a stated discriminator against its NEAREST existing neighbour — which axis differs (step · face · tabularity · ink · weight · tracking) and why the neighbour's arm is wrong for the case. A voice that resolves to an existing arm's class set is a rename, not a voice. The failure this prevents is real and recurring: a feature one axis short of an existing voice spells `size`/`weight` through `className` instead, which arm A3 structurally cannot see.
+**Adding a voice is a RULING, not a convenience.** A new entry enters only with a stated discriminator against its NEAREST existing neighbour — which axis differs (step · face · tabularity · ink · weight · tracking) and why the neighbour's entry is wrong for the case. A voice that resolves to an existing entry's class set is a rename, not a voice. The failure this prevents is real and recurring: a feature one axis short of an existing voice spells `size`/`weight` through `className` instead, which case A3 structurally cannot see.
 
 `datum` rides `text-label` rather than a new 11px step (D5): 11px is a 4.8% ratio move off `micro` — too fine to be a real scale step, and mono + tabular already separates it visually.
 
@@ -132,7 +130,7 @@ Two properties make it a SEAL rather than a suggestion:
 | primitive | delta | why |
 | - | - | - |
 | `Surface` | `tier` (required) | the one tier writer |
-| `Card` | NO `padding` variant; `elevated?: boolean` | padding is tier-resolved; `elevated` is the explicit opt-in to `rounded-card` + shadow. **The retired prop IS the enforcement** (D7) — a surviving prop is a surviving escape hatch |
+| `Card` | NO `padding` variant; `elevated?: boolean` | padding is tier-resolved; `elevated` is the explicit opt-in to `rounded-card` + shadow. **`Card` has no `padding` prop; that absence IS the enforcement** (D7) — a surviving prop is a surviving escape hatch |
 | `Text` / `Heading` | `voice` (§2.3); `size`/`weight`/`tone`/`transform` are `@orb/ui`-internal | collapses 336 taste combinations to named intents |
 | `Section` | `kicker` (caps micro label + hairline rule) + `kickerLayout: "stacked" \| "inline"` | the CD1 replacement for a box. The INLINE spelling makes the rule the section's own `border-top` and lets the kicker LEAD the control line — naming two groups costs +2px inline against +22px stacked |
 | `Stack` / `Row` / `Grid` | `gap` carries `tight` | the small-end step |
@@ -149,25 +147,24 @@ Features keep composing `<Stack gap>` / `<Row gap>` explicitly — the gap union
 
 ### 5.1 The `density-tier` policy family
 
-Two final `defineGate` policies over one shared `tooling/src/verify/lib/density-tier.ts`, converted from a single legacy descriptor on 2026-09-13 (#1939/#1584). What they make RED, in one line each: `rounded-card` at a class-string site (A1) · a border+radius+background triple nested inside another (A2, = CD2) · a `features/**` call site passing the `@orb/ui`-internal type axes to `<Text>`/`<Heading>` instead of `voice` (A3) · `data-surface-tier` wherever it is written (A4) — all four in `density-tier`, each a reviewed grant where the site is a ruling · a tier-mapped `data-slot` stamped outside `packages/ui/src`, or a mapped slot no primitive emits, in the `hard` sibling `density-tier-slot-map`. **The arm-by-arm contract is `Core-Enforcement-Active-Gates.md`'s two rows plus each module's own header** — not restated here.
+Two final `defineGate` policies share `tooling/src/verify/lib/density-tier.ts`. What they make RED, in one line each: `rounded-card` at a class-string site (A1) · a border+radius+background triple nested inside another (A2, = CD2) · a `features/**` call site passing the `@orb/ui`-internal type axes to `<Text>`/`<Heading>` instead of `voice` (A3) · `data-surface-tier` wherever it is written (A4) — all four in `density-tier`, each a reviewed grant where the site is a ruling · a tier-mapped `data-slot` stamped outside `packages/ui/src`, or a mapped slot no primitive emits, in the `hard` sibling `density-tier-slot-map`. **The case-by-case contract is `Core-Enforcement-Active-Gates.md`'s two rows plus each module's own header** — not restated here.
 
 Two standing properties of its construction:
 
-- **The population is the two declared roots `@client` + `@ui`**, which is where the fixtures' shallow and deeply nested `files` paths come from: the legacy `scanRoot` used a `p.includes("packages/client/src/")` substring form, and a wrong path format was a SILENT GREEN rather than a red. That distinction is empty on this tree (measured at conversion: both sides admit 1,687 of 7,704 harness candidates, symmetric difference zero), but the fixtures keep both path depths.
+- **The population is the two declared roots `@client` + `@ui`**, which is where the fixtures' shallow and deeply nested `files` paths come from. A wrong path format must never read as a silent green instead of a red, so the fixtures keep both path depths.
 - **The slot vocabulary is parsed out of `tiers.css` AT RUN TIME**, through the declared `product-css` resource, so the policy can never police a stale copy of the map. Comments are blanked before the sheet is parsed, so an illustrative `[data-slot="…"]` selector in a comment is not a mapping.
 
-**Declared blind spot (also in the gate header):** a className assembled from a variable, a conditional, or a `cn(cond && X)` expression is INVISIBLE to a literal-shape reader — the gate scans string literals, template parts, and `tv()`/`cva()` object literals only. An AST reader blind to computed shapes reports a silent GREEN, which is why §5.3's computed-value CTs are a REQUIRED second lens, not a nice-to-have.
+**Declared blind spot (also in the gate header):** a className assembled from a variable, a conditional, or a `cn(cond && X)` expression is INVISIBLE to a literal-shape reader — the gate scans string literals, template parts, and `tv()`/`cva()` object literals only. An AST reader blind to computed shapes reports a silent GREEN, which is why §5.3's computed-value CTs are a REQUIRED second check, not a nice-to-have.
 
-### 5.2 The ruled sites are reviewed grants, not a ratchet
+### 5.2 The ruled sites are reviewed grants
 
-**The transition ratchet is RETIRED (owner ruling 2026-09-13, #1939).** `density-tier.baseline.json` — `path → count`, the `no-test-fabrication` idiom — and its generator `tooling/src/verify/ops/gen/density.ts` are DELETED. The 22 rows it carried were all ratified rulings (`ratified === count`, zero debt) and were re-derived live against current source before migration: 58 live occurrences against 58 budgeted, nothing drained and nothing in excess.
+A ruled call site is one exact `(subject, operation)` row in `tooling/src/verify/lib/reviewed-grants.ts` — the file it lives in and the act it performs — carrying a `why` and an `endsWhen`. A file ruled for two axes is two ruled acts. A grant names one exact file; no directory or path prefix is honored.
 
-- **A ruled call site is now one exact `(subject, operation)` row in `tooling/src/verify/lib/reviewed-grants.ts`** — the file it lives in and the ACT it performs — carrying the baseline row's `why` verbatim plus an `endsWhen`. The 22 rows produced 44 grants, because a file ruled for two axes is two ruled acts.
-- **The two gate-local PATH tables went the same way, and that is a STRENGTHENING.** `ELEVATED_ALLOW`'s 11 directory/file prefixes became 12 per-file `elevated-radius` grants and the hardcoded tier-writer constant became 1 `surface-tier-write` grant (57 rows in all). A prefix silently covered every file under a primitive directory; a grant names the file. And the legacy A5b liveness sweep — does this prefix still match a live `rounded-card` site — is now the engine's own zero-consumption `stale-reviewed-grant` alarm, so it is preserved rather than traded for a weaker does-this-path-resolve check, and the tier-writer home gains liveness it never had.
-- **An unruled site is a blocking finding with no door.** There is no budget to land inside any more.
-- **The ratchet's stale arm has a stronger successor with no code in the policy:** a ruled act with no live site is consumed zero times and central reconciliation raises `stale-reviewed-grant`, which also catches the over-broad direction the old arm had no word for.
-- **What the ratchet did that grants do not:** per-file CARDINALITY. A ninth `size=` site in a file already ruled for `size` is now consumed by the existing grant. In exchange the budget's cross-arm blindness is gone — it was one number per file across three arms, so a new KIND of violation was absolved by arithmetic whenever an old occurrence left. Both directions are stated in the module header and the roster row.
-- **The density pass ends per act, not at `{}`:** a grant retires when its `endsWhen` comes true and its last live site disappears.
+- **An unruled site is a blocking finding with no door.** There is no budget to land inside.
+- **A ruled act with no live site is consumed zero times.** Central reconciliation raises `stale-reviewed-grant` for it.
+- **A grant matching more than one finding is over-broad.** Central reconciliation raises `over-broad-reviewed-grant` for it.
+- **A grant retires when its `endsWhen` comes true and its last live site disappears.**
+- **Grants carry no per-file count.** Another site of an already-granted act in the same file is licensed by the existing grant; the gate header records this as a measured trade.
 
 ### 5.3 Computed-value CT assertions
 
@@ -187,9 +184,9 @@ Adding a surface class, a step, or a voice touches a fixed set. Land them togeth
 
 | you are adding | coupled sites |
 | - | - |
-| a surface class row (§3.1) | the §3.1 row · the `tiers.css` rules for its slots · the surface's `<Surface tier>` call site · a §5.3 CT arm if the class introduces a new slot |
+| a surface class row (§3.1) | the §3.1 row · the `tiers.css` rules for its slots · the surface's `<Surface tier>` call site · a §5.3 CT case if the class introduces a new slot |
 | a token step (§2.1/§2.2) | `packages/ui/src/tokens/tokens.json` (with its `$description` stating the assignment) · `pnpm --filter @orb/ui tokens:build` (theme.css + tokens/index.ts are GENERATED) · the §2 table · the primitive variant union that exposes it. **A dead/unused token is a build error** |
-| a `voice` arm (§2.3) | `text/variants.ts` (the tuple IS the truth) with the discriminator stated beside the class string · the §2.3 discriminator rule, NOT a new doc row · the `density-tier` grants the arm retires struck from `lib/reviewed-grants.ts` in the same commit |
+| a `voice` entry (§2.3) | `text/variants.ts` (the tuple IS the truth) with the discriminator stated beside the class string · the §2.3 discriminator rule, NOT a new doc row · the `density-tier` grants that entry retires struck from `lib/reviewed-grants.ts` in the same commit |
 | a `data-slot` the map keys on | the primitive that EMITS it · the `tiers.css` rule · A6 reds either half alone |
 
 A sweep stage that converts call sites ends with a `side-eye` pass against the surface, and side-eye findings are fixed in full before the stage closes — side-eye is the polish authority here, not an advisory.
@@ -208,4 +205,4 @@ A sweep stage that converts call sites ends with a `side-eye` pass against the s
 | D8 | two tiers, or a third `gallery` tier for library grids | TWO — library grids map cleanly onto `form` |
 | D9 | keep the user-pref `data-density="comfortable\|compact"` axis alongside tiers | KEEP, orthogonal |
 | D10 | the exact instrument paddings in §3.1 are taste-level | ship the table; tune from a side-eye pass, never in the abstract |
-| D11 | preset editor's compressed type ramp (10.5/13/15/16px, ratio 1.524:1) — accept and record, or widen a step | owner ruling 2026-09-06, #1769: ACCEPT AND RECORD — a dense `form` may run a compressed size ramp (≥1.5:1 across its body sizes) when grouping is carried by the `kicker` voice + `Section` rules, not by size. Measured on the preset editor (`e51663b49`): `13px/500` ×28 (control labels), `15px/400` ×12 (body), `13px/400` ×5, `10.5px/600` ×5 (kickers), `16px/600` ×1 (the h2); the kicker's discriminating class string is `packages/ui/src/primitives/text/variants.ts:51` (`font-sans text-micro leading-micro tracking-micro font-semibold uppercase text-muted-foreground`). The page-level design-audit `flat-type-hierarchy` floor (`FLAT_HIERARCHY_MIN_RATIO = 2.0`) is UNCHANGED and still applies to the PAGE census — it clears when a display-tier voice (a `24px` section title, a preset-name h2) supplies the top step; this ruling exempts only a dense form BODY's own internal ramp, never the page-level floor |
+| D11 | preset editor's compressed type ramp (10.5/13/15/16px, ratio 1.524:1) — accept and record, or widen a step | ACCEPT AND RECORD — a dense `form` may run a compressed size ramp (≥1.5:1 across its body sizes) when grouping is carried by the `kicker` voice + `Section` rules, not by size. Measured on the preset editor (`e51663b49`): `13px/500` ×28 (control labels), `15px/400` ×12 (body), `13px/400` ×5, `10.5px/600` ×5 (kickers), `16px/600` ×1 (the h2); the kicker's discriminating class string is `packages/ui/src/primitives/text/variants.ts:51` (`font-sans text-micro leading-micro tracking-micro font-semibold uppercase text-muted-foreground`). The page-level design-audit `flat-type-hierarchy` floor (`FLAT_HIERARCHY_MIN_RATIO = 2.0`) is UNCHANGED and still applies to the PAGE census — it clears when a display-tier voice (a `24px` section title, a preset-name h2) supplies the top step; this ruling exempts only a dense form BODY's own internal ramp, never the page-level floor |
