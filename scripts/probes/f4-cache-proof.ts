@@ -29,6 +29,7 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { rowIndexAtCacheDepth } from "@orb/inference";
 import type { AssetId, ChatId, MessageId, ModelId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import type { MessageRole } from "@orb/kit/message-role";
 import { estimateTokens } from "@orb/kit/tokens";
 import { SessionCache } from "../../packages/inference/src/backends/agent-sdk/session/store.ts";
 import { extractTrailingSystemRows, splitAgentHistory } from "../../packages/inference/src/backends/agent-sdk/turn-input.ts";
@@ -72,7 +73,7 @@ interface TurnRecord {
   readonly roomTokens: number;
   readonly breakpointDepth: number | null;
   readonly history: readonly WireRow[];
-  readonly agentHistory: readonly { readonly role: "user" | "assistant" | "system"; readonly content: readonly ChatContentPart[] }[];
+  readonly agentHistory: readonly { readonly role: MessageRole; readonly content: readonly ChatContentPart[] }[];
   readonly reply: string;
 }
 

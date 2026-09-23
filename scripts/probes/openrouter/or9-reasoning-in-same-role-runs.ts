@@ -126,7 +126,8 @@ function orMessages(turns: readonly Turn[]): unknown[] {
 
 // `openrouter-messages` is OpenRouter's Anthropic-compatible Messages endpoint: the native block shape, routed
 // through OpenRouter, so a layout OpenRouter's chat-completions converter cannot spell can still reach it.
-type Wire = "direct" | "openrouter" | "openrouter-messages";
+const WIRES = ["direct", "openrouter", "openrouter-messages"] as const;
+type Wire = (typeof WIRES)[number];
 const OR_MESSAGES_URL = "https://openrouter.ai/api/v1/messages";
 
 interface Outcome {
@@ -417,7 +418,7 @@ export async function run() {
     const wanted = (process.env[env] ?? "").split(",").filter((s) => s.length > 0);
     return wanted.length === 0 ? all : all.filter((v) => wanted.includes(v));
   };
-  for (const wire of pick("OR9_WIRES", ["direct", "openrouter", "openrouter-messages"] as const)) {
+  for (const wire of pick("OR9_WIRES", WIRES)) {
     for (const model of MODELS.filter((m) => pick("OR9_MODELS", MODELS.map((x) => x.name)).includes(m.name))) {
       for (const variant of pick("OR9_VARIANTS", VARIANTS)) {
         // Each variant generates its own A and B on its own nonce'd prefix: the signatures are bound to that prefix,
