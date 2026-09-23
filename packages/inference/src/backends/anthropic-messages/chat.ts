@@ -166,6 +166,17 @@ export function thinkingOf(reasoning: ResolvedReasoning): JSONObject {
   return { type: "adaptive", ...display };
 }
 
+/** Preserved thinking: on a prefix-bound model a replayed thinking block whose earlier prefix changed is a 400
+ *  unless the request asks the API to drop it. Only the `conversation` carry replays thinking across turns (the
+ *  dynamic system block and window trimming change that prefix); `tool-chain` replays inside one turn, where the
+ *  prefix is fixed. The SDK spells `block_binding` and adds its beta. */
+function withBlockBinding(thinking: JSONObject, knobs: ResolvedChatKnobs, generation: GenerationCapability): JSONObject {
+  if (knobs.carryReasoning !== "conversation" || generation.reasoning.prefixBound !== true || thinking["type"] !== "adaptive") {
+    return thinking;
+  }
+  return { ...thinking, blockBinding: { prefixMismatchBehavior: "drop_block" } };
+}
+
 /** THE TOOL-LIST CACHE BREAKPOINT (audit C4). The tool list is a large, stable prefix that changes far less
  *  often than the history does, and Anthropic caches everything up to a breakpoint — so one `cacheControl` on
  *  the LAST tool caches the whole list. Placed only when the model's capability says explicit prompt caching
@@ -192,7 +203,7 @@ function anthropicOptions(
     ...anthropicExtras(req.connection, warnings),
     sendReasoning: true,
     structuredOutputMode: "auto",
-    thinking: thinkingOf(knobs.reasoning),
+    thinking: withBlockBinding(thinkingOf(knobs.reasoning), knobs, generation),
     ...(effort !== undefined ? { effort } : {}),
     ...(req.tools !== undefined && parallel === false ? { disableParallelToolUse: true } : {}),
   };
