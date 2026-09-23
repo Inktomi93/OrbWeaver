@@ -13,7 +13,7 @@ const TYPE_PROGRAMS = [
   { project: vitestTypecheckGroupName("node"), tsconfig: "tsconfig.json" },
   { project: vitestTypecheckGroupName("browser"), tsconfig: "tsconfig.tests-dom.json" },
 ] as const;
-const TYPE_CHECKER = "scripts/ts7.cjs";
+const TYPE_CHECKER = "scripts/ts7.ts";
 const SHOW_CONFIG_MAX_BUFFER = 268_435_456;
 
 function compareText(left: string, right: string): number {
@@ -117,7 +117,7 @@ function nativeTypeSelections(root: string, outputFile: string): readonly Native
 }
 
 function programRoots(root: string, tsconfig: string): ReadonlySet<string> {
-  const res = runNicedSync(process.execPath, [join(root, "scripts", "ts7.cjs"), "--showConfig", "-p", tsconfig], {
+  const res = runNicedSync(process.execPath, [join(root, "scripts", "ts7.ts"), "--showConfig", "-p", tsconfig], {
     cwd: root,
     maxBuffer: SHOW_CONFIG_MAX_BUFFER,
   });

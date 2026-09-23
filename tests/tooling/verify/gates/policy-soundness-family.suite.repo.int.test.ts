@@ -591,12 +591,12 @@ test("policy-fixture-substrate carries checkout provenance ACROSS a helper param
   expect(dirty.authority.effectiveFindings[0]?.message).toContain("CHECKOUT");
 });
 
-// The §4.2 DISCRIMINATION CONTROL for `policy-refusal-coverage` (#2184). The module carries the POSITIVE arm
-// in-module (a `mustPass` whose fixture holds the correct marker); the negative half CANNOT live there —
-// under `knownPolicies: [policy]` a marker naming an unknown position rides the unknown-policy short-circuit
-// and proves nothing, which is exactly the trap §4.2 names. So it runs HERE, against the WHOLE family as
-// `knownPolicies`, where a dead position is reconciled and alarms. Without this the positive arm passes on a
-// spelling that names nothing, and the escape hatch the `ordinary` tier promises is unreachable in practice.
+// THE CLOSED DOOR for `policy-refusal-coverage` (#0038). Until #0038 this was the §4.2 discrimination control
+// for the `ordinary` tier's waiver door. The policy is `hard` now, so the property worth pinning is the
+// inverse: a marker at the exact REPORTED position suppresses nothing and ALARMS as a waiver aimed at a
+// non-ordinary policy. Driven against the WHOLE family as `knownPolicies`, the reconciliation context in
+// which an ordinary marker WOULD have been consumed, so a green here cannot come from the unknown-policy
+// short-circuit.
 const REFUSAL_COVERAGE_PROBE = (marker: string): Readonly<Record<string, string>> => ({
   [POLICY_CONTRACT_PATH]: POLICY_CONTRACT_STUB,
   "tooling/src/verify/gates/probe.ts": finalProbeModule(
@@ -607,10 +607,9 @@ const REFUSAL_COVERAGE_PROBE = (marker: string): Readonly<Record<string, string>
   ),
 });
 
-test("policy-refusal-coverage: the REPORTED position suppresses, a DEAD position ALARMS (§4.2 discrimination)", () => {
+test("policy-refusal-coverage is hard: a marker at the REPORTED position suppresses nothing", () => {
   const drive = (marker: string): ReturnType<typeof runPolicyPass> =>
     runPolicyPass({
-      // THE WHOLE FAMILY as knownPolicies — the one thing that makes the negative arm mean anything.
       knownPolicies: FAMILY,
       policies: [policyRefusalCoverage],
       root: ROOT,
@@ -619,18 +618,15 @@ test("policy-refusal-coverage: the REPORTED position suppresses, a DEAD position
       failOnWarnings: false,
     });
 
-  const correct = drive("// @orb-waive policy-refusal-coverage(resources): the planted probe defers its pin; ends when it carries a mustRefuse row.");
-  expect(correct.authority.effectiveFindings).toEqual([]);
-  expect(correct.authority.waivedFindings).toHaveLength(1);
-  expect(correct.authority.authorityAlarms).toEqual([]);
-
-  // A marker naming a position this policy never reports is a DEAD position: it suppresses nothing and it
-  // ALARMS. All three assertions, per §4.2 — a pin that checked only the finding count would pass an
-  // over-broad or duplicate marker, both of which alarm without moving that count.
-  const dead = drive("// @orb-waive policy-refusal-coverage(nosuchposition): names a position the policy never reports.");
-  expect(dead.authority.authorityAlarms).toHaveLength(1);
-  expect(dead.authority.waivedFindings).toEqual([]);
-  expect(dead.authority.effectiveFindings).toHaveLength(1);
+  expect({ authority: policyRefusalCoverage.authority, severity: policyRefusalCoverage.severity }).toEqual({ authority: "hard", severity: "error" });
+  const unmarked = drive("");
+  const marked = drive("// @orb-waive policy-refusal-coverage(resources): the planted probe defers its pin; ends when it carries a mustRefuse row.");
+  expect(unmarked.authority.effectiveFindings).toHaveLength(1);
+  expect(marked.authority.effectiveFindings).toEqual(unmarked.authority.effectiveFindings);
+  expect(marked.authority.waivedFindings).toEqual([]);
+  expect(marked.authority.authorityAlarms).toMatchObject([
+    { kind: "ordinary-waiver", policyId: policyRefusalCoverage.id, message: expect.stringContaining("targets non-ordinary policy") },
+  ]);
 });
 
 // #2342: array syntax cannot stand in for the declared dependency/refusal value. These are selected
@@ -823,11 +819,10 @@ test("policy-refusal-coverage rejects a same-spelled field on an unrelated objec
       resources: "INPUTS",
     }),
   ).toEqual([{ token: "resources", unreadable: true }]));
-// The §4.2 DISCRIMINATION CONTROL for `policy-family-readers` (#2187), the same shape and for the same
-// reason: its POSITIVE arm is a `mustPass` in the module, and the negative half cannot live there because
-// `knownPolicies: [policy]` short-circuits an unknown position. Three members so exactly ONE is isolated —
-// in a PAIR both members are accused (sharing is symmetric) and the marker in one file would leave the
-// other's finding standing, which is a red about the fixture rather than about waiver identity.
+// THE CLOSED DOOR for `policy-family-readers` (#0038), the same shape and for the same reason as
+// `policy-refusal-coverage`'s above: the policy is `hard`, so a marker at the exact REPORTED position must
+// suppress nothing and alarm. Three members so exactly ONE is isolated — in a PAIR both members are accused
+// (sharing is symmetric), and the marker in one file could not account for the other's finding.
 const FAMILY_READERS_PROBE = (marker: string): Readonly<Record<string, string>> => ({
   [POLICY_CONTRACT_PATH]: POLICY_CONTRACT_STUB,
   "tooling/src/verify/lib/shared-probe.ts": "export function readShared(value: unknown): unknown {\n  return value;\n}\n",
@@ -840,7 +835,7 @@ const FAMILY_READERS_PROBE = (marker: string): Readonly<Record<string, string>> 
     'import { readShared } from "../lib/shared-probe.ts";\nimport { defineGate } from "../contract/policy.ts";\nexport const gate = defineGate({ id: "trio-b", family: "trio", create: () => ({ evaluate: () => readShared(1) }) });\n',
 });
 
-test("policy-family-readers: the REPORTED position suppresses, a DEAD position ALARMS (§4.2 discrimination)", () => {
+test("policy-family-readers is hard: a marker at the REPORTED position suppresses nothing", () => {
   const drive = (marker: string): ReturnType<typeof runPolicyPass> =>
     runPolicyPass({
       knownPolicies: FAMILY,
@@ -851,15 +846,15 @@ test("policy-family-readers: the REPORTED position suppresses, a DEAD position A
       failOnWarnings: false,
     });
 
-  const correct = drive("// @orb-waive policy-family-readers(family): the planted probe defers its shared reader; ends when the reader lands in lib/.");
-  expect(correct.authority.effectiveFindings).toEqual([]);
-  expect(correct.authority.waivedFindings).toHaveLength(1);
-  expect(correct.authority.authorityAlarms).toEqual([]);
-
-  const dead = drive("// @orb-waive policy-family-readers(nosuchposition): names a position the policy never reports.");
-  expect(dead.authority.authorityAlarms).toHaveLength(1);
-  expect(dead.authority.waivedFindings).toEqual([]);
-  expect(dead.authority.effectiveFindings).toHaveLength(1);
+  expect({ authority: policyFamilyReaders.authority, severity: policyFamilyReaders.severity }).toEqual({ authority: "hard", severity: "error" });
+  const unmarked = drive("");
+  const marked = drive("// @orb-waive policy-family-readers(family): the planted probe defers its shared reader; ends when the reader lands in lib/.");
+  expect(unmarked.authority.effectiveFindings).toHaveLength(1);
+  expect(marked.authority.effectiveFindings).toEqual(unmarked.authority.effectiveFindings);
+  expect(marked.authority.waivedFindings).toEqual([]);
+  expect(marked.authority.authorityAlarms).toMatchObject([
+    { kind: "ordinary-waiver", policyId: policyFamilyReaders.id, message: expect.stringContaining("targets non-ordinary policy") },
+  ]);
 });
 
 test("policy-waiver-identity REFUSES a corpus in which it recognises no final module (the zero-count receipt)", () => {

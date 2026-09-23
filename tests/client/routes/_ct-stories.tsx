@@ -1,4 +1,4 @@
-// Route CT stories (core/Spine-Testing.md §7 — CT mounts ONLY from a non-test module). The `/` route
+// Route CT stories (docs/law/Spine-Testing.md §7 — CT mounts ONLY from a non-test module). The `/` route
 // (AppRoot) is the app's central navigation seam; it comes in via a relative path into the package
 // (a route has no front-door subpath) and is wrapped in the real data layer (<CtDataProviders> — Query
 // + real tRPC over the routeTrpc-stubbed network) plus the real section registry (<CtRealSectionRegistry>,

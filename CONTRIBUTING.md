@@ -34,4 +34,4 @@ smoke) and takes a while; run it if your change touches behaviour rather than on
 
 The architecture is enforced, not suggested: imports flow one direction through the package cake,
 every shape has exactly one home, and tests live in the central `tests/` tree mirroring `src`. Read
-`docs/architecture/core/AGENTS.md` before a non-trivial change — it is the map and the rules.
+`docs/law/Constitution.md` before a non-trivial change — it is the map and the rules.

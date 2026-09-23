@@ -134,12 +134,15 @@ export function markdownLinkTargets(source: string): readonly { readonly line: n
 }
 
 /** Top-level directories whose backticked paths must exist. Other spans (commands, globs, runtime
- *  artifacts under `reports/`, relative module paths) are not repository paths. */
+ *  artifacts under `reports/`, bare file names) are not repository paths. */
 const REPO_PATH_ROOTS = ["packages/", "tooling/", "tests/", "docs/", "scripts/", ".claude/", ".codex/", ".agents/", ".github/"];
+/** A span opening with one of these names a path relative to the file that holds it. */
+const RELATIVE_PATH_PREFIXES = ["./", "../"];
 const NOT_A_PATH = /[\s*<>{}$?…|,;()[\]"'=]|\.\.\./u;
 
-/** Backticked repository paths outside fenced blocks, with `:line` and `#anchor` suffixes removed. */
-export function backtickedRepoPaths(source: string): readonly { readonly line: number; readonly path: string }[] {
+/** Every path-shaped inline code span outside fenced blocks that opens with one of `prefixes`, with
+ *  `:line` and `#anchor` suffixes and a trailing slash removed. */
+function backtickedPaths(source: string, prefixes: readonly string[]): readonly { readonly line: number; readonly path: string }[] {
   const paths: { line: number; path: string }[] = [];
   let inFence = false;
   source.split("\n").forEach((line, index) => {
@@ -155,13 +158,23 @@ export function backtickedRepoPaths(source: string): readonly { readonly line: n
         .trim()
         .replace(/(?::\d+(?:[-,]\d+)*)+$/u, "")
         .replace(/#.*$/u, "");
-      if (NOT_A_PATH.test(span) || !REPO_PATH_ROOTS.some((root) => span.startsWith(root))) {
+      if (NOT_A_PATH.test(span) || !prefixes.some((prefix) => span.startsWith(prefix))) {
         continue;
       }
       paths.push({ line: index + 1, path: span.replace(/\/$/u, "") });
     }
   });
   return paths;
+}
+
+/** Backticked repository-root paths (`docs/…`, `tooling/…`). */
+export function backtickedRepoPaths(source: string): readonly { readonly line: number; readonly path: string }[] {
+  return backtickedPaths(source, REPO_PATH_ROOTS);
+}
+
+/** Backticked paths relative to the file that holds them (`./…`, `../…`). */
+export function backtickedRelativePaths(source: string): readonly { readonly line: number; readonly path: string }[] {
+  return backtickedPaths(source, RELATIVE_PATH_PREFIXES);
 }
 
 /** Line count as an editor shows it: a trailing newline does not add a line. */

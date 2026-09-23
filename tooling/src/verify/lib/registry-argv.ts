@@ -51,7 +51,7 @@ export function tscScopedArgv(tsconfigs: readonly string[]): ScopedArgv {
  *  not become a `--max-warnings 0` FAILURE — at whole scope eslint never sees it; scoped, we hand it the
  *  path directly, so we suppress the "file ignored" warning to match whole-scope verdicts.
  *
- *  `node scripts/eslint.cjs`, never the bare `eslint` bin (#1835): the adapter validates the shared
+ *  `node scripts/eslint.ts`, never the bare `eslint` bin (#1835): the adapter validates the shared
  *  concurrency profile and propagates native/abnormal exits honestly. Whole lint uses it too, once per
  *  sequential compiler-owner process; invoking the bin directly here would bypass that shared boundary. */
 export function eslintScopedArgv(files: readonly string[]): ScopedArgv {
@@ -63,7 +63,7 @@ export function eslintScopedArgv(files: readonly string[]): ScopedArgv {
   // writes its own per-owner cache under the same `.cache/eslint/` directory).
   return [
     "node",
-    "scripts/eslint.cjs",
+    "scripts/eslint.ts",
     "--max-warnings",
     "0",
     "--no-warn-ignored",

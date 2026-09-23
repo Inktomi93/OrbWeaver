@@ -1,4 +1,4 @@
-// Policy: diagnostic-legibility (Documentation-Law.md — machine-first: an error message IS the amnesiac
+// Policy: diagnostic-legibility (machine-first: an error message IS the amnesiac
 // agent's documentation at the moment of blocking). Every gate/policy diagnostic STRING in the gate corpus
 // must carry a resolvable pointer — a `*.md` doc path, a code-home path/file/`@orb/<pkg>` specifier — so a
 // blocked cold agent gets a navigable next step, never a dead-end "no".
@@ -86,7 +86,7 @@ const PKG_SPEC = /@orb\/[\w-]+/u;
 const MSG_TABLE_NAME = /^(?:MSG|MESSAGES)$/u;
 
 const MESSAGE =
-  "a gate/policy diagnostic carries no pointer — end the message with a `<Doc>.md §N` doc path or a code-home (packages/…, features/…, an @orb/… specifier, or a concrete file.ts), because the error message IS the blocked amnesiac agent's documentation (Documentation-Law.md) and a pointerless message is a dead-end 'no'.";
+  "a gate/policy diagnostic carries no pointer — end the message with a `<Doc>.md §N` doc path or a code-home (packages/…, features/…, an @orb/… specifier, or a concrete file.ts), because the error message IS the blocked amnesiac agent's documentation and a pointerless message is a dead-end 'no'.";
 const FIX =
   "end the message with a `<Doc>.md §N` doc path or a code-home (packages/…, an @orb/… specifier, or a concrete file.ts). A diagnostic that genuinely needs none waives with `@orb-waive diagnostic-legibility(<position>): <why the fix is self-contained + end condition>`, where the position is the PROPERTY NAME the diagnostic is bound to — `message` for a `message:` property, the table key for a `const MSG`/`MESSAGES` entry — never the string itself.";
 
@@ -182,8 +182,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "tooling/src/verify/gates/unreadable.ts":
-          'export const gate = { message: "see Documentation-Law.md", unreadableMessage: "could not read it, give up" };\n',
+        "tooling/src/verify/gates/unreadable.ts": 'export const gate = { message: "see writing.md", unreadableMessage: "could not read it, give up" };\n',
       },
       expect: { count: 1, token: "unreadableMessage" },
       why: 'INTENTIONAL WIDENING over legacy (§4.6 delta 1): `unreadableMessage` is the #944 third answer\'s own diagnostic and the shared reader counts it as a message property. The legacy `getName() === "message"` test was blind to it, so a fail-closed arm could ship a dead-end message while the pointer-bearing `message:` beside it passed. The pointer-bearing sibling in the SAME fixture is what makes the count exactly 1',
@@ -211,7 +210,7 @@ export const gate = defineGate({
       mode: "types",
       files: {
         "packages/server/src/domain/chat/outside.ts": 'export const gate = { message: "a bare diagnostic with no home" };\n',
-        "tooling/src/verify/gates/clean.ts": 'export const gate = { message: "see Documentation-Law.md" };\n',
+        "tooling/src/verify/gates/clean.ts": 'export const gate = { message: "see writing.md" };\n',
       },
       why: "THE POPULATION FENCE, and the only row that dies without it: the identical pointerless `message:` outside `tooling/src/verify/gates/**` is not a gate diagnostic and is not this policy's business (the four whole-project scanners pin their own roots to exclude this tree; this population is the other side of that fence). Delete the `under:` and this row alone reds",
     },

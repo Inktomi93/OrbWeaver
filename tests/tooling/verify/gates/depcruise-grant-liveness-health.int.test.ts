@@ -30,7 +30,7 @@ import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const CONFIG_REL = ".dependency-cruiser.cjs";
-const BUDGET_ANCHOR = "docs/architecture/core/Core-Enforcement-Active-Gates.md";
+const BUDGET_ANCHOR = "docs/law/Core-Enforcement-Active-Gates.md";
 const BACKREF_RE = /\$\d/u;
 
 /** The sibling's declared `package-metadata` subjects, SPELLED OUT because `policy-fixture-substrate`

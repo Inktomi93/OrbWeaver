@@ -1,6 +1,6 @@
 // The docs half of `pnpm check:agents` on planted trees: the structural rules, the writing rules and
 // the reference check compose into one list; the clean tree passes; the real repository is clean.
-import { docFileCount, docLayerProblems, LEGACY_ROOTS, newAdr, newItem, newPlan } from "../../../../tooling/src/doc/index.ts";
+import { docFileCount, docLayerProblems, LEGACY_ROOTS, newAdr, newItem, newItemsFrom, newPlan } from "../../../../tooling/src/doc/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const TODAY = "2026-09-23";
@@ -10,17 +10,33 @@ const LEGACY = Object.fromEntries(LEGACY_ROOTS.map((name) => [name.endsWith(".md
 
 test("a freshly minted tree is clean, and the count is the governed docs read", async ({ plantedTree }) => {
   const root = await plantedTree({ ...LEGACY, "docs/Mission.md": MISSION });
-  newAdr("one", "One", root, TODAY);
-  newPlan("p", "P", root, TODAY);
+  newAdr({ slug: "one", title: "One" }, root, TODAY);
+  newPlan({ slug: "p", title: "P" }, root, TODAY);
   newItem({ title: "T", kind: "work", priority: "P1", area: "docs", plan: "p", lane: null }, root, TODAY);
   expect(docLayerProblems(root)).toEqual([]);
   // The ADR, the plan, the item, the mission doc, the four indexes and the plan's tasks file; the legacy docs are not walked.
   expect(docFileCount(root)).toBe(9);
 });
 
+test("a batch of complete items, blocked ones included, round-trips through the check clean", async ({ plantedTree }) => {
+  const text = { what: "The change.", why: "The symptom.", done: "The bar." };
+  const root = await plantedTree({
+    ...LEGACY,
+    "docs/Mission.md": MISSION,
+    "items.json": JSON.stringify([
+      { title: "Build it", kind: "work", priority: "P1", area: "docs", ...text },
+      { title: "After it", kind: "work", blocked: "on 1", ...text },
+      { title: "Owner call", kind: "decision", blocked: "owner", ...text },
+      { title: "In flight", kind: "tooling", lane: "cb-x", ...text },
+    ]),
+  });
+  expect(newItemsFrom("items.json", root, TODAY).refusals).toEqual([]);
+  expect(docLayerProblems(root)).toEqual([]);
+});
+
 test("a writing-rule finding, a dead path and a structural finding all reach the one list", async ({ plantedTree }) => {
   const root = await plantedTree({ ...LEGACY, "docs/Mission.md": MISSION, "docs/notes.md": "# stray\n" });
-  newAdr("one", "One", root, TODAY);
+  newAdr({ slug: "one", title: "One" }, root, TODAY);
   const { writeFileSync } = await import("node:fs");
   const { join } = await import("node:path");
   writeFileSync(
@@ -34,6 +50,18 @@ test("a writing-rule finding, a dead path and a structural finding all reach the
     "docs/adr/0001-one.md:9: link target does not exist: ../../missing.md",
     "docs/adr/0001-one.md:9: path does not exist: tooling/src/gone.ts",
   ]);
+});
+
+test("a relative code-span path resolves against its own file: a missing target reds with file and line, a live one passes", async ({ plantedTree }) => {
+  const root = await plantedTree({ ...LEGACY, "docs/Mission.md": MISSION, "docs/design/live.md": "# Live\n" });
+  newAdr({ slug: "one", title: "One" }, root, TODAY);
+  const { writeFileSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  writeFileSync(
+    join(root, "docs/adr/0001-one.md"),
+    "---\nkind: adr\nstatus: active\nupdated: 2026-09-23\n---\n\n# One\n\nSee `../design/live.md`.\nSee `../design/x.md:4`.\n\n## Context\n\n## Decision\n\n## Alternatives rejected\n\n## Consequences\n",
+  );
+  expect(docLayerProblems(root)).toEqual(["docs/adr/0001-one.md:10: path does not exist: ../design/x.md"]);
 });
 
 test("the walk sees a nested item folder and a non-markdown file under a governed tree (F12)", async ({ plantedTree }) => {

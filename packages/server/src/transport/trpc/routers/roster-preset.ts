@@ -1,4 +1,4 @@
-// transport/trpc/routers/roster-preset — the saved-roster surface (core/Tier-4-Transport.md). authed;
+// transport/trpc/routers/roster-preset — the saved-roster surface (docs/law/Tier-4-Transport.md). authed;
 // owner-scoped (ownership IS the gate — the persona router's posture); `applyToChat` additionally
 // host-gated INSIDE chat via the domain's injected guard. Thin: validate →
 // `ctx.services.rosterPreset.<verb>`. Input shapes derive from `@orb/contracts/roster-preset`.

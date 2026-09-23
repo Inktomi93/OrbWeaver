@@ -1,4 +1,4 @@
-// Refinery R2 data-tier CT stories (core/Spine-Testing.md §7 — a CT mounts ONLY from a non-test module).
+// Refinery R2 data-tier CT stories (docs/law/Spine-Testing.md §7 — a CT mounts ONLY from a non-test module).
 //
 // R3 SHIPPED — `refinerySection` mounts `RefineryContentSurface` in the live CONTENT slot
 // (`features/refinery/lib/refinery-section.tsx:88`), and `RefineryContentStory` below drives that REAL

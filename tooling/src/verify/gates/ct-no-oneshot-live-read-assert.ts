@@ -139,7 +139,7 @@ const MESSAGE =
   "a web-first auto-retrying assertion — `expect(<locator>).toBeFocused()/toBeVisible()/toHaveText(...)/" +
   "toBeInViewport()` — or wrap the read: `await expect.poll(() => <read>).toBe(...)`. Provably settled at " +
   "read-time? escape it with `// @orb-waive ct-no-oneshot-live-read-assert(expect): <reason>` on the line " +
-  "immediately above (core/Spine-Testing.md §7).";
+  "immediately above (docs/law/Spine-Testing.md §7).";
 
 /** Unwrap parentheses / non-null / `as` wrappers to the inner expression (see-through-wraps). */
 function unwrap(node: TsNode): TsNode {

@@ -1,4 +1,4 @@
-// The SSE subscription typed-error wrapper (core/Tier-4-Transport.md §D2 / Esoteric #5). A subscription
+// The SSE subscription typed-error wrapper (docs/law/Tier-4-Transport.md §D2 / Esoteric #5). A subscription
 // generator bypasses `domainErrorMiddleware` — the middleware returned its result long before the generator
 // throws — so a typed `DomainError` escaping a stream would surface as a spurious 500 that
 // `httpSubscriptionLink` silently retries forever with zero client callbacks. `withSubscriptionErrors` turns

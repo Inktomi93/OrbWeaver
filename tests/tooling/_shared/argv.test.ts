@@ -1,7 +1,7 @@
 // Fixture tests for the PURE argv parsers snap's new multi-tab + SPA-nav features rely on
 // (tooling/src/_shared/argv.ts): the `@<idx>` --pages tab-suffix split and the `--goto` target decode.
 // The browser-driving orchestration (nav bridge eval, watch series, multi-page capture) is live-proven
-// against the running stack, not here — this file's home is tests/tooling/ per core/Spine-Testing.md §2
+// against the running stack, not here — this file's home is tests/tooling/ per docs/law/Spine-Testing.md §2
 // (a test of a scripts/ tool), same as snap-stage.test.ts.
 import { readFileSync } from "node:fs";
 import { parseGotoTarget, parseViewport, splitPageSuffix } from "@orb/tooling/_shared/argv";

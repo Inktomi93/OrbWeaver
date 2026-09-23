@@ -35,7 +35,7 @@ export const READ_FIRST_REL = "docs/design/gate-runtime-read-first.md";
 const REVIEWS = "docs/reviews/gate-runtime";
 const CONTRACT_DIR = "tooling/src/verify/contract";
 const LEDGER_REL = `${REVIEWS}/refutation-ledger-2026-09-12.md`;
-const ROSTER_REL = "docs/architecture/core/Core-Enforcement-Active-Gates.md";
+const ROSTER_REL = "docs/law/Core-Enforcement-Active-Gates.md";
 
 /** The FAMILY conversion records: every `…-1584*.md` review plus the three that predate the suffix. Derived
  *  rather than listed so a seventeenth family record prices itself the day it lands. */

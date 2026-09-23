@@ -289,9 +289,9 @@ function costTableRoot(): { root: string; expected: Record<string, number> } {
   write("docs/reviews/gate-runtime/v-audit-wave2-2026-09-12.md", 5 * Kib);
   write("docs/reviews/gate-runtime/v-gate-batch-2026-09-12.md", 5 * Kib);
   write("tooling/src/verify/contract/policy.ts", 8 * Kib);
-  mkdirSync(join(root, "docs/architecture/core"), { recursive: true });
+  mkdirSync(join(root, "docs/law"), { recursive: true });
   writeFileSync(
-    join(root, "docs/architecture/core/Core-Enforcement-Active-Gates.md"),
+    join(root, "docs/law/Core-Enforcement-Active-Gates.md"),
     ["| Gate | Enforces |", "| - | - |", "| `alpha-gate` | does a thing |", "| `beta-gate` | does another |", ""].join("\n"),
   );
   writeFileSync(

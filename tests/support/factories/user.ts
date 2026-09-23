@@ -1,4 +1,4 @@
-// support/factories/user — the identity-root factory (core/Spine-Testing.md §4). Every single-owned table
+// support/factories/user — the identity-root factory (docs/law/Spine-Testing.md §4). Every single-owned table
 // FKs `users.id`, so the character/persona/chat factories funnel their owner seeding through here (the
 // neo `seedCharacter` FK-chain lesson: user → owned row, never an orphan insert against FK PRAGMA ON).
 // `X` is the SELECT row (`$inferSelect`) so every field is present + non-optional on the built value —

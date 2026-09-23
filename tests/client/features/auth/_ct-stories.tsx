@@ -1,4 +1,4 @@
-// Auth feature CT stories (core/Spine-Testing.md §7 — CT mounts ONLY from a non-test module; the
+// Auth feature CT stories (docs/law/Spine-Testing.md §7 — CT mounts ONLY from a non-test module; the
 // same-module value+component split). `LoginLocalFormStory` mounts the credential form standalone (no
 // router/query providers needed — plain controlled state + a raw fetch the test stubs via `page.route`)
 // and surfaces the `onLoggedIn` callback as rendered text so the test can assert the success path

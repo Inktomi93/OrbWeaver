@@ -1,4 +1,4 @@
-// transport/trpc/routers/workloads — the workloads ops surface (core/Tier-4-Transport.md). MODE model: every
+// transport/trpc/routers/workloads — the workloads ops surface (docs/law/Tier-4-Transport.md). MODE model: every
 // verb rides `authedProcedure` — the AUTHORIZATION is per-MODE + per-OWNER, resolved server-authoritatively in
 // the domain verbs, not by a blanket procedure gate:
 //   • `start` — a BULK run requires the BOX OWNER (LAYER-1 gate HERE on the payload's `mode`; the verb

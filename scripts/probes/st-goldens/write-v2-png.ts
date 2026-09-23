@@ -1,6 +1,9 @@
-const fs = require("node:fs");
+// The SillyTavern V2 card writer for the parity rig: it embeds a character JSON as the `chara` tEXt chunk the
+// way SillyTavern itself does. It is deliberately NOT `@orb/kit`'s png-card-chunk engine — the rig builds
+// SillyTavern's fixtures, and building them with the codec under comparison would make the goldens circular.
+import fs from "node:fs";
 
-function writeV2Png(inputPngPath, outputPngPath, characterJson) {
+export function writeV2Png(inputPngPath: string, outputPngPath: string, characterJson: unknown): void {
   const pngData = fs.readFileSync(inputPngPath);
 
   // Find the IEND chunk
@@ -19,7 +22,6 @@ function writeV2Png(inputPngPath, outputPngPath, characterJson) {
   // Format the character JSON according to V2 spec
   const v2Data = {
     spec: "chara_card_v2",
-    // biome-ignore lint/style/useNamingConvention: External spec requires snake_case
     spec_version: "2.0",
     data: characterJson,
   };
@@ -50,7 +52,7 @@ function writeV2Png(inputPngPath, outputPngPath, characterJson) {
 }
 
 // Simple CRC32 implementation
-function crc32(buf) {
+function crc32(buf: Uint8Array): number {
   // biome-ignore lint/suspicious/noBitwiseOperators: CRC32 relies on bitwise ops
   let crc = 0 ^ -1;
   for (const byte of buf) {
@@ -64,5 +66,3 @@ function crc32(buf) {
   // biome-ignore lint/suspicious/noBitwiseOperators: CRC32 relies on bitwise ops
   return (crc ^ -1) >>> 0;
 }
-
-module.exports = { writeV2Png };

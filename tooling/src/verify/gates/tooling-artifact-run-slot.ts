@@ -1,4 +1,4 @@
-// Policy: tooling-artifact-run-slot (docs/architecture/core/Core-Tooling-Law.md §4.4, arm G of the retired
+// Policy: tooling-artifact-run-slot (docs/law/Core-Tooling-Law.md §4.4, arm G of the retired
 // `tooling-shared-plumbing`; UNIFIED-VERIFICATION-DESIGN.md §3.3b) — a tool that FILES an artifact
 // (`artifactDir`/`artifactFile`, _shared/artifact-out.ts) anywhere under `tooling/src/<tool>/` opens a run
 // slot (`withInstrumentRun`) in its `cli.ts`. An unslotted instrument writes into the shared
@@ -53,12 +53,12 @@ const SLOT_RECEIPT = "artifact home: run slot";
 const SHARED_DIR = "_shared";
 
 const MESSAGE =
-  "an instrument that files artifacts with no run slot — a tool calling `artifactDir`/`artifactFile` (_shared/artifact-out.ts) whose cli.ts never opens `withInstrumentRun` writes into the shared reports/<kind>/, where a concurrent run of the same instrument destroys its artifacts (#1164; docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md §3.3b).";
+  "an instrument that files artifacts with no run slot — a tool calling `artifactDir`/`artifactFile` (_shared/artifact-out.ts) whose cli.ts never opens `withInstrumentRun` writes into the shared reports/<kind>/, where a concurrent run of the same instrument destroys its artifacts (#1164; docs/law/UNIFIED-VERIFICATION-DESIGN.md §3.3b).";
 const FIX =
   "wrap the tool's main in `withInstrumentRun(\"<tool>\", …)` in its cli.ts (_shared/artifact-out.ts) so every artifact it files lands in that run's own slot and is published by pointer at the end.";
 
 const unslotted = (tool: string, site: string): string =>
-  `${site} files an artifact, so ${tool}'s cli.ts (${TOOLING_PREFIX}${tool}/cli.ts) must open its artifact run slot (withInstrumentRun, _shared/artifact-out.ts) — an unslotted instrument writes into the shared reports/<kind>/ where a concurrent run of the same instrument destroys its artifacts (#1164; docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md §3.3b).`;
+  `${site} files an artifact, so ${tool}'s cli.ts (${TOOLING_PREFIX}${tool}/cli.ts) must open its artifact run slot (withInstrumentRun, _shared/artifact-out.ts) — an unslotted instrument writes into the shared reports/<kind>/ where a concurrent run of the same instrument destroys its artifacts (#1164; docs/law/UNIFIED-VERIFICATION-DESIGN.md §3.3b).`;
 
 export const gate = defineGate({
   id: "tooling-artifact-run-slot",

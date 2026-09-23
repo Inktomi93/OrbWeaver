@@ -4,7 +4,7 @@
 // `chat_participants`, so "which of these rooms may this caller SEE, and what does a row need to name them"
 // is a chat question with a chat answer. Three libraries now ask it about their own attachment junctions —
 // regex (`regex.listScriptUsage`), databank (`databank.listAttachments`) and preset (`preset.listUsage`) —
-// and none of them may read the roster (a domain never imports a sibling domain's runtime, AGENTS §2). So
+// and none of them may read the roster (a domain never imports a sibling domain's runtime, Constitution.md §2). So
 // the SHAPE lives here, beside the rest of chat's wire vocabulary, and the RUNTIME is one factory at the
 // composition root (`entry/compose/visible-rooms.ts`) injected into each consumer's DI bundle.
 //

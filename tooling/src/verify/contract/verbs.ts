@@ -29,6 +29,7 @@ export const VERIFY_VERBS = [
   "ratchet-gate",
   "config-snapshot",
   "biome-rule-liveness",
+  "knip-negative-liveness",
   "typecheck-plan",
   "typecheck",
   "eslint",

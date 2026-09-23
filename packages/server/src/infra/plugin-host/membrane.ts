@@ -990,7 +990,7 @@ function setSearch(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membran
  *  generation is funded by the INSTALLER's own credential (compose resolves the installer Principal for
  *  connection + spend attribution), fan-out is clamped to n≤4 (generateImageActionArgsSchema), host calls are
  *  capped at ≤32 concurrent per invocation, and plugin install is admin-only. There is NO per-call
- *  D17/automation_budgets SPEND-CEILING debit on this path — that ceiling is a deliberate deferral (the
+ *  D17 SPEND-CEILING debit on this path — that ceiling is a deliberate deferral (the
  *  same unwired class as turn.trigger). Do not claim a spend ceiling this path does not enforce. */
 function setImagery(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
   using imagery = ctx.newObject();

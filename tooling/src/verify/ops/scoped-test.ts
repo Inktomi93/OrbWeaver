@@ -50,7 +50,7 @@ const MS_PER_SECOND = 1000;
 
 const CT_CONFIG = "playwright-ct.config.ts";
 const NODE_RELATED = "--related";
-/** The supervisor's own flag (scripts/vitest-supervised.mjs), which swaps in vitest.runtime.config.ts. */
+/** The supervisor's own flag (scripts/vitest-supervised.ts), which swaps in vitest.runtime.config.ts. */
 const RUNTIME_ONLY = "--runtime-only";
 
 function vitestBin(root: string): string {
@@ -140,7 +140,7 @@ function spawnCt(root: string, rest: readonly string[], lease: { readonly cacheD
   return ct.status ?? EXIT.toolError;
 }
 
-/** THE CONFIG-MODE DOOR (#2232). A scoped node run passed NO config-mode flag, so `vitest-supervised.mjs`
+/** THE CONFIG-MODE DOOR (#2232). A scoped node run passed NO config-mode flag, so `vitest-supervised.ts`
  *  took the ROOT config — which carries both `types-*` typecheck projects — and every `pnpm test:scoped`
  *  invocation carried them whether the caller had claimed a type test or not. The cost of an unclaimed
  *  typecheck project is not the ts7 pass (a project with ZERO matched files is instantiated and never runs
@@ -197,7 +197,7 @@ function spawnNode(root: string, rest: readonly string[], mode: "run" | "related
   const node = runNicedSync(
     process.execPath,
     [
-      join(root, "scripts", "vitest-supervised.mjs"),
+      join(root, "scripts", "vitest-supervised.ts"),
       ...nodeArgs,
       ...nodeConfigModeArgs(collectedProjects, mode, hasCallerProjectFilter(rest)),
       "--reporter=default",

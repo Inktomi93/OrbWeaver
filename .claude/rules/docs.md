@@ -19,16 +19,30 @@ migrate under `docs/plans/doc-migration/design.md`; do not add a file to them.
 
 Every structural change goes through `pnpm doc` (run `pnpm doc help` for the verbs): minting, status
 and supersession, work-item transitions and landing, archiving, `review`, and the generated indexes
-(`README.md` in each home, a plan's `tasks.md`). Never edit a generated file or a frontmatter block by
-hand. `pnpm check:agents` reds a stale index, a missing section, a size cap, a dead link or path, and a
-writing-rule finding; its message names the fixing command.
+(`README.md` in each home, a plan's `tasks.md`). A mint takes its section text and state as flags
+(`item` takes `--what --why --done --lane --blocked`, or `--from <file.json>` for a batch; `new adr|plan`
+take a flag per section) and refuses text the check would red. `set` also changes `--kind` and
+`--title` (renaming the file and its links) and clears a field with `none`; `remove <id…>` deletes a
+mistaken item; `status --kind` fixes a law doc's kind. Never edit a generated file or a frontmatter
+block by hand. `pnpm check:agents` reds a stale index, a missing section, a size cap, a
+dead link or path, and a writing-rule finding; its message names the fixing command.
 
 ## Frontmatter
 
 Every `docs/**` file carries `kind`, `status` and `updated`. `updated` is the one sanctioned date and
 doubles as the review mark: `pnpm doc due` lists docs whose cited code changed after it, and
 `pnpm doc review <path|glob…>` sets it in batch. The legacy tree keeps its dated-by-design exemption
-until it moves.
+until it moves. The governed kinds, statuses and keys are `KIND_RULES` in `tooling/src/doc/lib/rules.ts`;
+the legacy tree's vocabulary is `tooling/src/doc-catalog/lib/vocab.ts`.
+
+## Moving or deleting a doc
+
+Supersede with `pnpm doc status superseded <path> --by <path>` and archive with `pnpm doc archive`. For a
+path move, `git mv` the file, rewrite its full-path citers in the same commit with an exact prefix
+replacement, and fix the moved file's own relative links. Search `packages`, `tooling`, `tests`, `scripts`,
+`.claude`, `AGENTS.md`, the root configs and `docs/` with `rg`. Keep section numbers, because code cites
+them. `pnpm check:structure` (`dangling-doc-cite`, `dangling-refs`, `dangling-ref-citations`) proves the
+sweep. Dated records under a history or reviews tree keep the path that was true when they were written.
 
 ## Work items
 

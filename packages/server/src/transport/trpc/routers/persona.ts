@@ -1,4 +1,4 @@
-// transport/trpc/routers/persona — the human-persona surface (core/Tier-4-Transport.md). authed; owner-scoped
+// transport/trpc/routers/persona — the human-persona surface (docs/law/Tier-4-Transport.md). authed; owner-scoped
 // (ownership IS the gate). Thin: validate → `ctx.services.persona.<verb>` → map errors. Input shapes
 // derive from `@orb/contracts/persona`.
 

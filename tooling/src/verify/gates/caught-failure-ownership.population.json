@@ -2,16 +2,16 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 621,
+    "sites": 622,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 621,
+      "deliberate-absorb": 622,
       "unproven": 0
     },
     "byGrammar": {
-      "default": 163,
-      "empty": 314,
-      "promise": 144
+      "default": 164,
+      "empty": 313,
+      "promise": 145
     }
   },
   "rows": [
@@ -776,9 +776,9 @@
       "reason": "documented contract \"parseCel never throws\" — any parse error is returned as CelParseError data, consumed by every caller as the error arm of the union. Ends if a caller stops handling the CelParseError arm."
     },
     {
-      "siteId": "packages/kit/src/ids/index.ts::typeIdSchema::err::1",
+      "siteId": "packages/kit/src/ids/index.ts::typeIdSchema::catch::1",
       "verdict": "deliberate-absorb",
-      "reason": "zod transform pattern — fromString's throw is caught and converted to ctx.addIssue + z.NEVER, zod's own consumption channel for a failed transform. Ends if the transform stops routing the caught error through ctx.addIssue."
+      "reason": "zod transform pattern — fromString's throw is caught and converted to ctx.addIssue + z.NEVER, zod's own consumption channel for a failed transform. Ends if the transform stops routing the caught failure through ctx.addIssue."
     },
     {
       "siteId": "packages/kit/src/json-schema/lift.ts::compilePattern::catch::1",
@@ -2979,6 +2979,16 @@
       "siteId": "tooling/src/verify/ops/asset-refs-coverage.ts::runAssetRefsCoverage::err::1",
       "verdict": "deliberate-absorb",
       "reason": "printed as TOOL ERROR and routed through EXIT.toolError per the exit-contract — a schema/registry import or reader failure is a BROKEN CHECKER, never a verdict. Ends if that exit code stops being surfaced."
+    },
+    {
+      "siteId": "tooling/src/verify/ops/boot-chunk-ratchet.ts::measureAppStylesheet::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "captured and routed to the `unmeasurable()` verdict on the next line, never a pass. Ends if that unmeasurable() routing is removed."
+    },
+    {
+      "siteId": "tooling/src/verify/ops/boot-chunk-ratchet.ts::measureAppStylesheet::catch::2",
+      "verdict": "deliberate-absorb",
+      "reason": "captured and routed to the `unmeasurable()` verdict on the next line, never a pass. Ends if that unmeasurable() routing is removed."
     },
     {
       "siteId": "tooling/src/verify/ops/boot-chunk-ratchet.ts::measureBootChunk::catch::1",

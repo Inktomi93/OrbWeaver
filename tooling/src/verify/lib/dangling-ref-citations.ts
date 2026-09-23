@@ -11,7 +11,7 @@ export interface DanglingCitation {
   readonly ref: string;
 }
 
-export const CORE_ANCHOR = "docs/architecture/core/AGENTS.md";
+export const CORE_ANCHOR = "docs/law/Constitution.md";
 const GATES_DIR_REL = "tooling/src/verify/gates";
 /** THE WHOLE GRANT-TABLE FAMILY, NOT THE BARREL (#2397, 2026-09-18). This was
  *  `"tooling/src/verify/lib/reviewed-grants.ts"` matched with `endsWith`, which fenced exactly one file —

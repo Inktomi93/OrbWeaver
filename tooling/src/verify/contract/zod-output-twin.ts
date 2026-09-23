@@ -1,5 +1,5 @@
 // The shape lib/zod-output-twin.ts returns. Homed here because the five-slot template puts every exported
-// shape in contract/ (docs/architecture/core/Core-Tooling-Law.md §2.5) and `no-inline-types` enforces it.
+// shape in contract/ (docs/law/Core-Tooling-Law.md §2.5) and `no-inline-types` enforces it.
 import type { Node as MorphNode, Type } from "ts-morph";
 
 /** One twin read: no ZodType twin at the site, a twin the reader could not resolve (withholds the policy),

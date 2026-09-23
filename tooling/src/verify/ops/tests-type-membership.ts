@@ -31,7 +31,7 @@ const LIST_FILES_MAX_BUFFER = 67_108_864;
  *  undefined on any failure (the caller maps that to a TOOL ERROR — a broken listing is not a verdict). */
 function programClosure(root: string, program: PolicyProgramMembership): readonly string[] | undefined {
   const { config } = program;
-  const ts7 = join(root, "scripts", "ts7.cjs");
+  const ts7 = join(root, "scripts", "ts7.ts");
   const res = runNicedSync(process.execPath, [ts7, "--noEmit", "--listFilesOnly", "-p", config], {
     cwd: root,
     maxBuffer: LIST_FILES_MAX_BUFFER,
@@ -67,7 +67,7 @@ function programClosures(root: string, programs: readonly PolicyProgramMembershi
 }
 
 function nativeProgramRoots(root: string, program: PolicyProgramMembership): ReadonlySet<string> | undefined {
-  const result = runNicedSync(process.execPath, [join(root, "scripts", "ts7.cjs"), "--showConfig", "-p", program.config], {
+  const result = runNicedSync(process.execPath, [join(root, "scripts", "ts7.ts"), "--showConfig", "-p", program.config], {
     cwd: root,
     maxBuffer: LIST_FILES_MAX_BUFFER,
   });

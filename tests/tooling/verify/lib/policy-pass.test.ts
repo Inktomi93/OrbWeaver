@@ -359,6 +359,43 @@ test("a hybrid policy consumes one TS identity through both source and resource 
   expect(result.authority.effectiveFindings).toMatchObject([{ file: path, policyId: gate.id }]);
 });
 
+// A RESOURCE path is data the owner reads through `ctx.resources`, never a file it walks. The walk used to
+// hand `visitFile` and node visitors every run whose SOURCE-or-RESOURCE set held the file, so a resource-only
+// path that ANOTHER policy's source population admitted reached this owner's hooks, and its own
+// `ctx.relativePath` refused the file as outside its population. It was a tool error, not a finding. It
+// surfaced when work item 0036 widened the gate corpus to the repo-root files that `no-blanket-suppression`
+// and `dangling-doc-cite` read as tracked-file resources.
+test("a resource-only path another policy walks as source is not dispatched to this owner's source hooks", () => {
+  const own = "packages/client/src/a.ts";
+  const foreign = "packages/server/src/b.ts";
+  const files = { [own]: "export const a = 1;\n", [foreign]: "export const b = 2;\n" };
+  const visitedFiles: string[] = [];
+  const visitedNodes: string[] = [];
+  const reader = policy("resource-reader", {
+    analysis: "resource",
+    population: "@client",
+    resources: [{ kind: "authored-tree", id: "server" }],
+    create: (ctx) => ({
+      visitFile: (sourceFile) => visitedFiles.push(ctx.relativePath(sourceFile)),
+      visitors: [{ kinds: [SyntaxKind.VariableDeclaration], visit: (_node, sourceFile) => visitedNodes.push(ctx.relativePath(sourceFile)) }],
+      evaluate: () => {
+        ctx.resources.authoredTree("server");
+      },
+    }),
+  });
+  const walker = policy("server-walker", { population: "@server", create: () => ({ visitFile: () => undefined }) });
+
+  const result = run([reader, walker], projectOf(files), { resourceOptions: { overlay: files } });
+
+  expect(result.toolErrors).toEqual([]);
+  expect(result.policies.find(({ id }) => id === reader.id)?.population).toMatchObject({
+    effectiveSourcePaths: [own],
+    effectiveResourcePaths: [foreign],
+  });
+  expect(visitedFiles).toEqual([own]);
+  expect(visitedNodes).toEqual([own]);
+});
+
 test("descriptor resource declarations are the pass resource manifest", () => {
   const first = "packages/client/src/a.ts";
   const second = "packages/client/src/b.ts";

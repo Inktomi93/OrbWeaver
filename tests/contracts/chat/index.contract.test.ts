@@ -7,7 +7,7 @@ import { resolveRowMacros } from "@orb/kit/macro";
 import { expect, test } from "../../support/fixtures.ts";
 
 // Type-level pins (D26 slot-has-no-content / view-has-content, the ChatBusEvent secret-unrepresentable
-// allowlist, and the InviteView no-token-leak pin) live in `index.test-d.ts` (core/Spine-Testing.md §1). This
+// allowlist, and the InviteView no-token-leak pin) live in `index.test-d.ts` (docs/law/Spine-Testing.md §1). This
 // file keeps the front-door's own residual identity: the bus/producers surface (bus.ts and producers.ts are
 // NOT test-presence-flagged seams) plus the front-door re-export integrity.
 

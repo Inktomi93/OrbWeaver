@@ -1,6 +1,6 @@
 // The spawn target `stack.sh` execs for every PROD invocation (and for the two internal verbs `classify`
 // and `debug-env`, which both modes route through). It is a plain entry, not a `cli.ts`: `stack` is a
-// BASH-FRONTED tool (docs/architecture/core/Core-Tooling-Law.md §4.1 BASH_FRONTED_TOOLS), so stack.sh is the argv
+// BASH-FRONTED tool (docs/law/Core-Tooling-Law.md §4.1 BASH_FRONTED_TOOLS), so stack.sh is the argv
 // front door and this file is the node half it calls.
 //
 // It still enters through `runTool` — crash ≠ verdict, pipe-drain, never-downgrade apply to a launcher at

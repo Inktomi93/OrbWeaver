@@ -17,7 +17,9 @@
 //   • a route chunk (`chat-<hash>.js`) sitting in the dir but referenced by nothing must NOT be counted.
 // The over/under arms are the ratchet itself, driven against the REAL committed ceiling so that raising
 // `BOOT_CHUNK_CEILING_BYTES` without re-doing its calibration arithmetic still leaves these honest.
-import { BOOT_CHUNK_CEILING_BYTES, measureBootChunk } from "../../../../tooling/src/verify/index.ts";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { APP_STYLESHEET_SENTINELS, BOOT_CHUNK_CEILING_BYTES, measureAppStylesheet, measureBootChunk } from "../../../../tooling/src/verify/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const ASSETS_REL = "packages/client/dist/assets";
@@ -166,4 +168,103 @@ test("a lazily-split route chunk the html never references is NOT counted", asyn
   expect(verdict.candidates).toEqual(["index-CMvWBNPJ.js"]);
   expect(verdict.bootFiles).toEqual([{ name: "index-CMvWBNPJ.js", bytes: 100 }]);
   expect(verdict.bytes).toBe(100);
+});
+
+// ── the app stylesheet (#1752, work item 0029) ─────────────────────────────────────────────────────────
+// The same build must emit the app's CSS. A `sideEffects` field on `@orb/client` once let the bundler drop
+// `main.tsx`'s bare `import "./styles/index.ts"`, production shipped with no stylesheet, and every
+// authored-graph check stayed green. These arms drive `measureAppStylesheet` over planted dists whose sheet
+// is built from the REAL minified shapes of the 2026-09-23 production build.
+
+/** The sheet `indexHtml` links, and a second emitted sheet for the multi-sheet arms. */
+const LINKED = "index-Dy4jlKlf.css";
+const STYLESHEET = "index-BnFtQOxB.css";
+
+/** Each sentinel's real minified construct, keyed by the source that authors it. */
+const MINIFIED: Readonly<Record<string, string>> = {
+  "packages/client/src/features/app-shell/surfaces/shell.css": ".shell-grid{--rail-w:var(--dimension-rail)}",
+  "packages/client/src/styles/globals.css": "@keyframes orb-weave-shimmer{0%,to{opacity:.82}50%{opacity:1}}",
+  "packages/ui/src/styles/theme.css": ":root{--font-family:var(--font-mono);--color-background:oklch(15.8% .006 60)}",
+};
+
+/** A built dist whose html links `LINKED` and whose sheet carries every sentinel except `without`. */
+function appDist(without?: string): Record<string, string> {
+  const css = Object.entries(MINIFIED)
+    .filter(([source]) => source !== without)
+    .map(([, rule]) => rule)
+    .join("");
+  return { ...indexHtml("index-CEXebaPV.js"), [`${ASSETS_REL}/${LINKED}`]: `.flex{display:flex}${css}` };
+}
+
+test("a linked stylesheet carrying every front-door sentinel is the clean verdict", async ({ plantedTree }) => {
+  const verdict = measureAppStylesheet(await plantedTree(appDist()));
+  expect(verdict).toEqual({ stylesheets: [LINKED], missing: [], unmeasurable: null });
+});
+
+test("every sentinel has a minified fixture — the planted sheet covers the whole set", () => {
+  expect(Object.keys(MINIFIED).sort()).toEqual(APP_STYLESHEET_SENTINELS.map((sentinel) => sentinel.source).sort());
+});
+
+test.for(
+  APP_STYLESHEET_SENTINELS.map((sentinel) => [sentinel.label, sentinel.source] as const),
+)("a stylesheet that lost `%s` is a violation that names it and its source", async ([label, source], { plantedTree }) => {
+  const verdict = measureAppStylesheet(await plantedTree(appDist(source)));
+  expect(verdict.unmeasurable).toBeNull();
+  expect(verdict.missing.map((sentinel) => [sentinel.label, sentinel.source])).toEqual([[label, source]]);
+});
+
+test("an html that links NO stylesheet — the #1752 shape — misses every sentinel", async ({ plantedTree }) => {
+  const dist = appDist();
+  const html = (dist[INDEX_HTML_REL] ?? "").replace(/\n\s*<link rel="stylesheet"[^>]*>/u, "");
+  const verdict = measureAppStylesheet(await plantedTree({ ...dist, [INDEX_HTML_REL]: html }));
+  expect(verdict.stylesheets).toEqual([]);
+  expect(verdict.missing).toEqual(APP_STYLESHEET_SENTINELS);
+  expect(verdict.unmeasurable).toBeNull();
+});
+
+test("an emitted CSS file the html does not LINK does not count — the sheet must reach the page", async ({ plantedTree }) => {
+  const dist = appDist();
+  const html = (dist[INDEX_HTML_REL] ?? "").replace(/\n\s*<link rel="stylesheet"[^>]*>/u, "");
+  const verdict = measureAppStylesheet(
+    await plantedTree({ ...dist, [INDEX_HTML_REL]: html, [`${ASSETS_REL}/${STYLESHEET}`]: Object.values(MINIFIED).join("") }),
+  );
+  expect(verdict.stylesheets).toEqual([]);
+  expect(verdict.missing).toEqual(APP_STYLESHEET_SENTINELS);
+});
+
+test("sentinels may be split across several linked sheets — the union is judged", async ({ plantedTree }) => {
+  const dist = appDist("packages/ui/src/styles/theme.css");
+  const html = (dist[INDEX_HTML_REL] ?? "").replace("</head>", `  <link rel="stylesheet" crossorigin href="/assets/${STYLESHEET}">\n  </head>`);
+  const verdict = measureAppStylesheet(
+    await plantedTree({ ...dist, [INDEX_HTML_REL]: html, [`${ASSETS_REL}/${STYLESHEET}`]: MINIFIED["packages/ui/src/styles/theme.css"] ?? "" }),
+  );
+  expect(verdict).toEqual({ stylesheets: [LINKED, STYLESHEET], missing: [], unmeasurable: null });
+});
+
+test("a MISSING index.html is UNMEASURABLE for the stylesheet too, never a violation or a pass", async ({ plantedTree }) => {
+  const verdict = measureAppStylesheet(await plantedTree({ [`${ASSETS_REL}/${STYLESHEET}`]: Object.values(MINIFIED).join("") }));
+  expect(verdict.unmeasurable).toContain(INDEX_HTML_REL);
+  expect(verdict.missing).toEqual([]);
+});
+
+test("a linked stylesheet ABSENT from disk is UNMEASURABLE — a half-written dist is not judged", async ({ plantedTree }) => {
+  const withoutSheet = Object.fromEntries(Object.entries(appDist()).filter(([path]) => path !== `${ASSETS_REL}/${LINKED}`));
+  const verdict = measureAppStylesheet(await plantedTree(withoutSheet));
+  expect(verdict.unmeasurable).toContain(LINKED);
+});
+
+test("a stylesheet link outside /assets/*.css is UNMEASURABLE — it may be the sheet carrying the sentinels", async ({ plantedTree }) => {
+  const dist = appDist();
+  const html = (dist[INDEX_HTML_REL] ?? "").replace("</head>", `  <link rel="stylesheet" href="/vendor/app.css">\n  </head>`);
+  const verdict = measureAppStylesheet(await plantedTree({ ...dist, [INDEX_HTML_REL]: html }));
+  expect(verdict.unmeasurable).toContain("/vendor/app.css");
+});
+
+test("each sentinel matches the source it names on the real tree — a rename reds here before a push", ({ repoRoot }) => {
+  for (const sentinel of APP_STYLESHEET_SENTINELS) {
+    expect({ source: sentinel.source, matches: sentinel.pattern.test(readFileSync(join(repoRoot, sentinel.source), "utf8")) }).toEqual({
+      source: sentinel.source,
+      matches: true,
+    });
+  }
 });

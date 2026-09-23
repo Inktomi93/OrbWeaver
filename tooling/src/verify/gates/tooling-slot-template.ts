@@ -1,4 +1,4 @@
-// Policy: tooling-slot-template (docs/architecture/core/Core-Tooling-Law.md §4.1) — the five-slot tool template.
+// Policy: tooling-slot-template (docs/law/Core-Tooling-Law.md §4.1) — the five-slot tool template.
 // Arms: (A) a loose file at tooling/src/ root; (B) a tool dir missing index.ts, or missing cli.ts
 // without a BASH_FRONTED_TOOLS row AND without being an ENGINE DIR — a dir some file under snap/ imports
 // through `<tool>/index.ts` (owner ask 2026-09-06, #1315: Snap is the sole rendered front door, so the
@@ -37,7 +37,7 @@ const BASH_FRONTED_TOOLS: Readonly<Record<string, { readonly why: string }>> = {
 const CORPUS_SLOTS: Readonly<Record<string, { readonly slot: string; readonly why: string }>> = {
   verify: {
     slot: "gates",
-    why: "`gates/` is a 219-module DESCRIPTOR CORPUS the loader globs (it IS the registry) — not a command family (ops/) and not tool-internal helpers (lib/); docs/architecture/core/Core-Tooling-Law.md §4.3 pre-declares the path as the size-cap carve. Ends if the corpus stops being fs-discovered (a hand-written registry would make the gates ordinary lib/ modules) or the dir moves.",
+    why: "`gates/` is a 219-module DESCRIPTOR CORPUS the loader globs (it IS the registry) — not a command family (ops/) and not tool-internal helpers (lib/); docs/law/Core-Tooling-Law.md §4.3 pre-declares the path as the size-cap carve. Ends if the corpus stops being fs-discovered (a hand-written registry would make the gates ordinary lib/ modules) or the dir moves.",
   },
 };
 
@@ -89,14 +89,14 @@ function toolDirViolations(entries: readonly ResourceTreeEntry[], tool: string, 
   if (!names.has("index.ts")) {
     out.push({
       file: rel,
-      message: `tool "${tool}" has no index.ts — the programmatic front door is mandatory (docs/architecture/core/Core-Tooling-Law.md §4.1)`,
+      message: `tool "${tool}" has no index.ts — the programmatic front door is mandatory (docs/law/Core-Tooling-Law.md §4.1)`,
     });
   }
   // An ENGINE dir (index.ts entered by a snap arm) owns no argv door: Snap is the sole rendered front door.
   if (!(names.has("cli.ts") || bashFronted || (names.has("index.ts") && engines.has(tool)))) {
     out.push({
       file: rel,
-      message: `tool "${tool}" has no cli.ts — the argv front door is mandatory, or a BASH_FRONTED_TOOLS row, or the dir is an ENGINE a snap arm enters through its index.ts (docs/architecture/core/Core-Tooling-Law.md §4.1)`,
+      message: `tool "${tool}" has no cli.ts — the argv front door is mandatory, or a BASH_FRONTED_TOOLS row, or the dir is an ENGINE a snap arm enters through its index.ts (docs/law/Core-Tooling-Law.md §4.1)`,
     });
   }
   for (const entry of members) {
@@ -105,7 +105,7 @@ function toolDirViolations(entries: readonly ResourceTreeEntry[], tool: string, 
       if (!(TOOL_SLOT_DIRS.has(name) || CORPUS_SLOTS[tool]?.slot === name)) {
         out.push({
           file: entry.path,
-          message: `"${name}/" is not a slot — a tool dir holds only contract/ ops/ lib/ (docs/architecture/core/Core-Tooling-Law.md §4.1)`,
+          message: `"${name}/" is not a slot — a tool dir holds only contract/ ops/ lib/ (docs/law/Core-Tooling-Law.md §4.1)`,
         });
       }
       continue;
@@ -115,7 +115,7 @@ function toolDirViolations(entries: readonly ResourceTreeEntry[], tool: string, 
     }
     out.push({
       file: entry.path,
-      message: `stray tool-root file "${name}" — root holds only cli.ts + index.ts; code lives in ops/ or lib/, data beside its consumer (docs/architecture/core/Core-Tooling-Law.md §4.1)`,
+      message: `stray tool-root file "${name}" — root holds only cli.ts + index.ts; code lives in ops/ or lib/, data beside its consumer (docs/law/Core-Tooling-Law.md §4.1)`,
     });
   }
   return out;
@@ -128,7 +128,7 @@ function scanTree(entries: readonly ResourceTreeEntry[], engines: ReadonlySet<st
     if (entry.kind !== "directory") {
       out.push({
         file: entry.path,
-        message: `loose file "${name}" at tooling/src root — every entry is a tool DIRECTORY or _shared/ (docs/architecture/core/Core-Tooling-Law.md §4.1)`,
+        message: `loose file "${name}" at tooling/src root — every entry is a tool DIRECTORY or _shared/ (docs/law/Core-Tooling-Law.md §4.1)`,
       });
     } else if (name === SHARED) {
       out.push(...sharedViolations(entries));
@@ -145,7 +145,7 @@ function sharedViolations(entries: readonly ResourceTreeEntry[]): readonly FsVio
     if (entry.kind === "directory") {
       out.push({
         file: entry.path,
-        message: `"${entry.path.slice(TOOLING_SRC.length + 1)}/" — the plumbing floor is FLAT modules; a subdir is a hidden drawer (docs/architecture/core/Core-Tooling-Law.md §2.4)`,
+        message: `"${entry.path.slice(TOOLING_SRC.length + 1)}/" — the plumbing floor is FLAT modules; a subdir is a hidden drawer (docs/law/Core-Tooling-Law.md §2.4)`,
       });
     }
   }
@@ -161,14 +161,14 @@ function staleCorpusRows(entries: readonly ResourceTreeEntry[]): readonly FsViol
     if (!hasPath(entries, dir, "directory")) {
       out.push({
         file: entries[0]?.path ?? TOOLING_SRC,
-        message: `stale CORPUS_SLOTS row "${tool}" — no such tool dir (row why: ${row.why}). Delete the row (docs/architecture/core/Core-Tooling-Law.md §4.1).`,
+        message: `stale CORPUS_SLOTS row "${tool}" — no such tool dir (row why: ${row.why}). Delete the row (docs/law/Core-Tooling-Law.md §4.1).`,
       });
       continue;
     }
     if (!hasPath(entries, `${dir}/${row.slot}`, "directory")) {
       out.push({
         file: entries[0]?.path ?? TOOLING_SRC,
-        message: `stale CORPUS_SLOTS row "${tool}" — the declared ${row.slot}/ slot is gone (row why: ${row.why}). Delete the row (docs/architecture/core/Core-Tooling-Law.md §4.1).`,
+        message: `stale CORPUS_SLOTS row "${tool}" — the declared ${row.slot}/ slot is gone (row why: ${row.why}). Delete the row (docs/law/Core-Tooling-Law.md §4.1).`,
       });
     }
   }
@@ -182,12 +182,12 @@ function staleBashRows(entries: readonly ResourceTreeEntry[]): readonly FsViolat
     if (!hasPath(entries, dir, "directory")) {
       out.push({
         file: entries[0]?.path ?? TOOLING_SRC,
-        message: `stale BASH_FRONTED_TOOLS row "${tool}" — no such tool dir (row why: ${row.why}). Delete the row (docs/architecture/core/Core-Tooling-Law.md §4.1).`,
+        message: `stale BASH_FRONTED_TOOLS row "${tool}" — no such tool dir (row why: ${row.why}). Delete the row (docs/law/Core-Tooling-Law.md §4.1).`,
       });
     } else if (hasPath(entries, `${dir}/cli.ts`, "file")) {
       out.push({
         file: `${TOOLING_SRC}/${tool}/cli.ts`,
-        message: `BASH_FRONTED_TOOLS row "${tool}" is stale — the tool has a cli.ts now. Delete the row (docs/architecture/core/Core-Tooling-Law.md §4.1).`,
+        message: `BASH_FRONTED_TOOLS row "${tool}" is stale — the tool has a cli.ts now. Delete the row (docs/law/Core-Tooling-Law.md §4.1).`,
       });
     }
   }
@@ -214,7 +214,7 @@ export const gate = defineGate({
   facts: [],
   resources: [{ kind: "authored-tree", id: "tooling-slot" }],
   message:
-    "a @orb/tooling tree entry violates the five-slot tool template — every tool is cli.ts + index.ts + {contract/,ops/,lib/}; _shared/ is flat plumbing; nothing else lives at a tool root (docs/architecture/core/Core-Tooling-Law.md §2.5/§4.1).",
+    "a @orb/tooling tree entry violates the five-slot tool template — every tool is cli.ts + index.ts + {contract/,ops/,lib/}; _shared/ is flat plumbing; nothing else lives at a tool root (docs/law/Core-Tooling-Law.md §2.5/§4.1).",
   fix: "add the missing front door, move the stray into ops//lib/, (bash-fronted) add the BASH_FRONTED_TOOLS row with its why, or (an engine) enter it from a snap arm through its index.ts — an engine dir owns no cli.ts.",
   create: (ctx) => ({
     evaluate: () => {
@@ -301,7 +301,7 @@ export const gate = defineGate({
         "tooling/src/verify/index.ts": "export {};\n",
         "tooling/src/verify/gates/x.ts": "export const gate = 1;\n",
       },
-      why: "the CORPUS_SLOTS row: verify's gates/ is the sanctioned sixth slot (docs/architecture/core/Core-Tooling-Law.md §4.3)",
+      why: "the CORPUS_SLOTS row: verify's gates/ is the sanctioned sixth slot (docs/law/Core-Tooling-Law.md §4.3)",
     },
   ],
 });

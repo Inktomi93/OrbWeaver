@@ -1,4 +1,4 @@
-// Policy: tooling-clock-budget (docs/architecture/core/Core-Tooling-Law.md §4.4, the TREE half of arm J of
+// Policy: tooling-clock-budget (docs/law/Core-Tooling-Law.md §4.4, the TREE half of arm J of
 // the retired `tooling-shared-plumbing`; docs/design/1208-instrument-substrate.md §7.1, #1232) — every WALL
 // CLOCK is derived from the ONE load-budget policy (`_shared/load-budget.ts#budget`): a numeric literal fed to
 // a `timeout`/`timeoutMs`/`testTimeout`/`hookTimeout`/`actionTimeout`/`navigationTimeout` option, a
@@ -52,7 +52,7 @@ import { defineGate } from "../contract/policy.ts";
 import { fixedClockOf } from "../lib/plumbing-literals.ts";
 
 const MESSAGE =
-  "a fixed wall clock — a numeric timeout literal is a budget written for a quiet box, and it reads as a false RED on a contended one; every ceiling is derived from the ONE load-budget policy (`budget(<X>_BASE_MS)`, _shared/load-budget.ts), which stretches it by the box's contention and caps it at the absolute ceiling (docs/architecture/core/Core-Tooling-Law.md §4.4; docs/design/1208-instrument-substrate.md §7.1, #1232).";
+  "a fixed wall clock — a numeric timeout literal is a budget written for a quiet box, and it reads as a false RED on a contended one; every ceiling is derived from the ONE load-budget policy (`budget(<X>_BASE_MS)`, _shared/load-budget.ts), which stretches it by the box's contention and caps it at the absolute ceiling (docs/law/Core-Tooling-Law.md §4.4; docs/design/1208-instrument-substrate.md §7.1, #1232).";
 const FIX =
   "name the quiet-box literal `<X>_BASE_MS` and derive the ceiling with `budget(<X>_BASE_MS)` (tooling) or `scaledBudget(<X>_BASE_MS)` (tests/tooling/_load-budget.ts); a literal that is fixture DATA rather than a clock this run pays takes an `@orb-waive tooling-clock-budget(<literal>): <reason>` at its site.";
 

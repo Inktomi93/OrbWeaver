@@ -1,7 +1,7 @@
 # `@orb/client/features` — the flat feature-slice layer
 
-**Law, in precedence order:** `docs/architecture/core/client-architecture-lockdown.md` (D70 — the tier
-ladder §3, the registry model §5–§8, the channel table §12) → `docs/architecture/core/UI-Architecture-and-Layout.md`
+**Law, in precedence order:** `docs/law/client-architecture-lockdown.md` (D70 — the tier
+ladder §3, the registry model §5–§8, the channel table §12) → `docs/law/UI-Architecture-and-Layout.md`
 §2.1 (the tree) + §4/§4b (the container model). This file is the per-slice shape at your fingertips and a
 POINTER card; both docs win on any conflict, and the gates below win over all prose.
 
@@ -55,7 +55,7 @@ inside a host's region, so all of it is `components/`. That is correct, not an o
 | Settings-section anatomy | four files, two buckets: def `lib/<x>-section.tsx` + nav `lib/<x>-nav.ts` + model `lib/<x>-model.ts` + body `components/<x>-section.tsx`. The def and its body deliberately share a basename across buckets. UNIFORM: every settings-section def on the tree delegates to a `components/` body — none inlines one |
 | `-section.tsx` means two things | `lib/chats-section.tsx` is a `SectionDefinition` (a RAIL section); `lib/appearance-avatars-section.tsx` is a `SettingsSectionContribution` (a settings-pane section). The filename does not distinguish them — the exported TYPE does. G23 accepts both as "owns a definition" |
 | Feature-local store? | No such thing. EVERY store lives in the central `state/` commons, minted through one of the three doors — so a pointer another feature must read is never trapped behind a feature boundary (lockdown §9) |
-| A new `.css` file for my feature? | Never. The path-closed six-home paint law and the one bounded shell-frame exception live only in `docs/architecture/core/client-architecture-lockdown.md` §4; do not restate or widen them here |
+| A new `.css` file for my feature? | Never. The path-closed six-home paint law and the one bounded shell-frame exception live only in `docs/law/client-architecture-lockdown.md` §4; do not restate or widen them here |
 
 ## 3. Cross-feature needs — pick the channel, don't invent one
 

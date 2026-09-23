@@ -470,6 +470,8 @@ test("the static tier is EXACTLY the known ordered stage set (the pre-commit `pn
     // §12.3 (a write plus a spawn). Path liveness proves the granted SUBJECT exists; nothing proved the
     // granted RULE still fires, so a rule-off override on a file that stopped violating it was unpoliced.
     "config:biome-rule-liveness",
+    // Every literal knip.ts negation names a tracked file; knip's own hints never report a dead negation.
+    "config:knip-negative-liveness",
     "imports:depcruise",
     "deps:knip",
     "docs:format",
@@ -593,14 +595,14 @@ test(
     // sees the packages/ file; docs sees the .md.
     const sel = resolveSelection({
       kind: "file",
-      paths: ["packages/ui/src/primitives/button/variants.ts", "docs/architecture/core/AGENTS.md"],
+      paths: ["packages/ui/src/primitives/button/variants.ts", "docs/law/Constitution.md"],
     });
     expect(sel.eslintPaths).toContain("packages/ui/src/primitives/button/variants.ts");
     expect(sel.tsconfigs).toContain("packages/ui/tsconfig.json");
     expect(sel.depcruisePaths).toContain("packages/ui/src/primitives/button/variants.ts");
-    expect(sel.docsPaths).toContain("docs/architecture/core/AGENTS.md");
+    expect(sel.docsPaths).toContain("docs/law/Constitution.md");
     // A docs file is NOT in the eslint/tsc/depcruise surfaces.
-    expect(sel.eslintPaths).not.toContain("docs/architecture/core/AGENTS.md");
+    expect(sel.eslintPaths).not.toContain("docs/law/Constitution.md");
   },
   // Affected planning asks native TS7 for every program closure on a cold snapshot. The first selection in
   // a process pays that startup; later selections reuse the content-keyed membership snapshot. Spelled
@@ -754,7 +756,7 @@ test("types:native scopedArgv forwards every affected program and skips a docs-o
   expect(stage("types:native").scopedArgv?.(pkgSel)).toEqual(["pnpm", "typecheck", ...pkgSel.tsconfigs.flatMap((config) => ["--config", config])]);
   const testSel = resolveSelection({ kind: "file", paths: ["tests/tooling/x.int.test.ts"] });
   expect(stage("types:native").scopedArgv?.(testSel)).toEqual(["pnpm", "typecheck", ...testSel.tsconfigs.flatMap((config) => ["--config", config])]);
-  const docs = resolveSelection({ kind: "file", paths: ["docs/architecture/core/AGENTS.md"] });
+  const docs = resolveSelection({ kind: "file", paths: ["docs/law/Constitution.md"] });
   expect(stage("types:native").scopedArgv?.(docs)).toBe("skip-empty");
 });
 
@@ -860,7 +862,7 @@ test("#2277 — the DECLINED rows keep deferring: no path set over-approximates 
 });
 
 test("#2304 — the cheap identity-triggered checks run their whole command for every changed selection", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
-  for (const name of ["types:testd", "config:biome-rule-liveness", "ledgers:fresh"]) {
+  for (const name of ["types:testd", "config:biome-rule-liveness", "config:knip-negative-liveness", "ledgers:fresh"]) {
     const row = stage(name);
     for (const path of ["README.md", "packages/kit/src/ids/index.ts"]) {
       const selection = resolveSelection({ kind: "file", paths: [path] });
@@ -894,7 +896,7 @@ test("lint:eslint scopedArgv: skip-empty when no file is in the eslint surface",
   // A docs file is outside every eslint `files` pattern AND outside the script's argv — the honest
   // no-op. (This pin USED to use a `tooling/src/**` path; tooling joined the eslint surface on
   // 2026-08-22 (#459), so that path now correctly RESOLVES — see the pin directly below.)
-  const sel = resolveSelection({ kind: "file", paths: ["docs/architecture/core/AGENTS.md"] });
+  const sel = resolveSelection({ kind: "file", paths: ["docs/law/Constitution.md"] });
   expect(stage("lint:eslint").scopedArgv?.(sel)).toBe("skip-empty");
 });
 
@@ -909,7 +911,7 @@ test("lint:eslint scopedArgv: tooling AND every test dir are in the eslint surfa
   // partitions by compiler owner and invokes the same adapter once per sequential child.
   expect(stage("lint:eslint").scopedArgv?.(sel)).toEqual([
     "node",
-    "scripts/eslint.cjs",
+    "scripts/eslint.ts",
     "--max-warnings",
     "0",
     "--no-warn-ignored",
@@ -1137,7 +1139,7 @@ test("parse: valid tier flags resolve to the right tier (default = static, scope
   expect(asTier(["--tier", "push"])).toBe("push");
   // Use a docs-only scope here: this row owns tier selection, while the dedicated --package=db case above
   // owns package affected-planning under AFFECTED_PLAN_TIMEOUT.
-  expect(asTier(["--file", "docs/architecture/core/AGENTS.md"])).toBe("changed"); // a scope flag implies the changed (inner-loop) tier
+  expect(asTier(["--file", "docs/law/Constitution.md"])).toBe("changed"); // a scope flag implies the changed (inner-loop) tier
   expect(asTier(["--changed", "git"])).toBe("changed");
 });
 

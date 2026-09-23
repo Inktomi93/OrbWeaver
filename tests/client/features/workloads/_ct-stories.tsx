@@ -1,4 +1,4 @@
-// workloads feature CT stories (core/Spine-Testing.md §7 — CT mounts ONLY from a non-test module). The
+// workloads feature CT stories (docs/law/Spine-Testing.md §7 — CT mounts ONLY from a non-test module). The
 // stories reach a feature internal the front door doesn't re-export (the settings _ct-stories.tsx
 // precedent) — the section bodies are mounted by the config host, not exported standalone; the Backup group
 // mounts as its two CONTRIBUTED sections through the host's own resolver (config-revamp-design.md §6.8).

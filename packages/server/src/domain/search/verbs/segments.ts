@@ -1,4 +1,4 @@
-// domain/search/verbs/segments — within-chat VERBATIM-segment retrieval (core/Knowledge-Cluster.md §6 within-chat;
+// domain/search/verbs/segments — within-chat VERBATIM-segment retrieval (docs/law/Knowledge-Cluster.md §6 within-chat;
 // the verbatim lens). Same pipeline as `digests` over `chat_segments`: embed `queryText` → cosine scan
 // scoped to `scope.chat` + the embed SPACE + the tiered-bridge `candidates` → CSLS rank → `minScore` floor →
 // `retrieveK` top-K cut → optional rerank to `rerankTo` (mode `mixC`). Returns ranked {@link SegmentSearchHit}s.

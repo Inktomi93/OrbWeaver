@@ -1,6 +1,6 @@
 // Result shapes for the non-gate verify verbs: the SCOPED policy run and its selector, the db
 // schema-vs-baseline reconcile, the client boot-chunk ratchet, and the committed-ledger freshness
-// stage. Homed here per the five-slot type law (docs/architecture/core/Core-Tooling-Law.md §2.5).
+// stage. Homed here per the five-slot type law (docs/law/Core-Tooling-Law.md §2.5).
 import type { AnySQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
 import type { GatePolicy } from "./policy.ts";
 import type { PolicyPassResult } from "./policy-pass.ts";
@@ -111,5 +111,29 @@ export interface BootChunkVerdict {
   /** The committed ceiling this run judged against (boot-chunk-ratchet.ts's calibration comment). */
   readonly ceilingBytes: number;
   /** Why the measurement is impossible, or null when `bytes` is a real number. */
+  readonly unmeasurable: string | null;
+}
+
+/** A string only the client's CSS front door (`packages/client/src/styles/index.ts`) can put into the built
+ *  stylesheet, and the authored file it comes from. */
+export interface AppStylesheetSentinel {
+  /** What the failure prints — the authored construct, e.g. `@keyframes orb-weave-shimmer`. */
+  readonly label: string;
+  /** Matches both the authored source and the minified build output. */
+  readonly pattern: RegExp;
+  /** The repo-relative file that authors it — the file to repair when the build loses it. */
+  readonly source: string;
+}
+
+/** What the client's built `dist/` says about the APP STYLESHEET: the `dist/assets/*.css` files the emitted
+ *  `index.html` links as `rel="stylesheet"`, and which front-door sentinels none of them carries. No linked
+ *  sheet, or any missing sentinel, is a VIOLATION (the #1752 class: the app shipped without its CSS). A
+ *  non-null `unmeasurable` is a TOOL error, never a clean verdict. */
+export interface AppStylesheetVerdict {
+  /** The linked `dist/assets/*.css` basenames, in html order. */
+  readonly stylesheets: readonly string[];
+  /** The sentinels no linked stylesheet carries. Empty with a non-empty `stylesheets` is the clean verdict. */
+  readonly missing: readonly AppStylesheetSentinel[];
+  /** Why the stylesheet could not be judged, or null when it could. */
   readonly unmeasurable: string | null;
 }

@@ -79,7 +79,7 @@ import { DEVTOOLS_CLOSURE_LICENSES, DEVTOOLS_CLOSURE_MANIFEST, DEVTOOLS_CLOSURE_
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 
 const MESSAGE =
-  "the revision-matched official DevTools frontend closure is missing, stale, hash-drifted, path-open, license-incomplete, or disagrees with the installed Playwright/Chromium tuple; cascade provenance would be blind or non-hermetic (docs/architecture/core/Core-Tooling-Law.md §2.6)";
+  "the revision-matched official DevTools frontend closure is missing, stale, hash-drifted, path-open, license-incomplete, or disagrees with the installed Playwright/Chromium tuple; cascade provenance would be blind or non-hermetic (docs/law/Core-Tooling-Law.md §2.6)";
 
 const REVISION = "33c2f401a9c8ddad2159eb0ab83aa244a5247361";
 const ASSET_BODY = "official fixture asset";

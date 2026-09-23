@@ -3,7 +3,7 @@
 // (`jwks.ts:122`) and the allowlist/issuer parse that feeds it (`config.ts:24,38`). It is NOT part of the
 // owner-fallback gate any more — `dispatch.ts` moved to the raw loopback TCP peer at #298 f2, precisely
 // because a `Host:` header is not a fact about the network. Pure (no env, no I/O) → a `@orb/kit/net`
-// candidate; kept infra-local while every consumer is infra (core/Tier-3-Infra.md Open decisions).
+// candidate; kept infra-local while every consumer is infra (docs/law/Tier-3-Infra.md Open decisions).
 
 export function normalizeHost(host: string): string {
   const h = host.trim().toLowerCase();

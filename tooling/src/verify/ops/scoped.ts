@@ -78,7 +78,7 @@ function isGlobList(v: readonly string[] | { readonly error: string }): v is rea
 function selectionFor(args: Args): ScopeSelection {
   if (args.package !== undefined) {
     const dir = packageDir(args.package);
-    // @orb/tooling is a ROOT-tree workspace package (docs/architecture/core/Core-Tooling-Law.md §2.1), not packages/*.
+    // @orb/tooling is a ROOT-tree workspace package (docs/law/Core-Tooling-Law.md §2.1), not packages/*.
     const prefix = dir === "tooling" ? "tooling/" : `packages/${dir}/`;
     return {
       scope: { kind: "package", name: dir },

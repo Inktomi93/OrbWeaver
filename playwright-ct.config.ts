@@ -13,7 +13,7 @@ import { defineConfig, devices } from "@playwright/experimental-ct-react";
 import tailwindcss from "@tailwindcss/vite";
 
 // Component tests — `.ct.tsx` at the tests/{ui,client} mirrors, in a real chromium via Playwright CT
-// (the vitest browser project was never adopted — it hangs cold-cache; core/Spine-Testing.md §7).
+// (the vitest browser project was never adopted — it hangs cold-cache; docs/law/Spine-Testing.md §7).
 // Client/ui pure-logic stays node `.test.ts`. Separate RUNNER, but the same lane: `pnpm test` composes
 // `pnpm test:ct --retries=2` after the vitest projects (merged 2026-07-17 — the split existed only for the
 // old single-thread constraint). Still NOT in `pnpm check` (browser suites never gate the static tier).

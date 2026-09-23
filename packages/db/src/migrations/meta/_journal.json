@@ -8,6 +8,13 @@
       "when": 1790120098101,
       "tag": "0000_baseline",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1790160238077,
+      "tag": "0001_drop_automation_budgets",
+      "breakpoints": true
     }
   ]
 }

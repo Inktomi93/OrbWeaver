@@ -29,7 +29,9 @@
 // by `pnpm list`, and a live probe leaves nothing behind for the next reader. `reconcile` takes the member
 // set and the root table as arguments; one arm drives it on the REAL two, and four arms drive it on
 // synthetic inputs that each isolate one direction of the defect.
+import { matchesGlob } from "node:path";
 import process from "node:process";
+import { harnessGlobs } from "../../../../tooling/src/_shared/ts-workspace.ts";
 import { POPULATION_ROOTS, POPULATION_SETS } from "../../../../tooling/src/verify/contract/population.ts";
 import { readPolicyRepositoryInventory, readPolicyWorkspacePackages } from "../../../../tooling/src/verify/lib/policy-repo-inventory.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -47,7 +49,7 @@ interface ExclusionRow {
 const MEMBERS_WITHOUT_A_ROOT: readonly ExclusionRow[] = [
   {
     key: ".",
-    why: "the workspace ROOT manifest is a member of the pnpm workspace but is not an authored source tree — it has no `src/`, and every authored file beneath it is already claimed by a package root, `@tooling`, `@tests` or `@scripts`.",
+    why: 'the workspace ROOT manifest is a member of the pnpm workspace but is not an authored source tree — it has no `src/`. Its own authored files are NOT all claimed by a root: the repo-root configs and declarations (`knip.ts`, `platform.d.ts`, the vitest/playwright/stryker configs), the package files outside `src/` and `playwright/` join no root. A root for them would widen every `@authored` policy at once, so the gate corpus loads them instead (`_shared/ts-workspace.ts#harnessGlobs`, held by the corpus test below), and a policy that must judge every authored file declares `of: "all"` (`suppressions`, work item 0036).',
   },
 ];
 
@@ -185,4 +187,41 @@ test("shipped showcase and default-content packages belong to both generic compo
   expect(POPULATION_SETS["@product"]).toHaveLength(9);
   expect(POPULATION_SETS["@authored"]).toEqual(expect.arrayContaining(["@showcase", "@default-content"]));
   expect(POPULATION_SETS["@product"]).toEqual(expect.arrayContaining(["@showcase", "@default-content"]));
+});
+
+// THE GATE CORPUS COVERS EVERY TRACKED TYPESCRIPT FILE (work item 0036). The `.` row above sends the root's own
+// authored files to the corpus rather than to a root, and `suppressions` judges whatever the corpus loads
+// (`of: "all"`). So a tracked `.ts`/`.tsx` the harness globs miss is a file whose directives no policy reads,
+// which is the gap item 0036 closed. The globs are hand-typed, so this test compares them with git's own
+// tracked list rather than with a second hand-typed list.
+const POLICY_SOURCE_RE = /\.tsx?$/u;
+
+/** The tracked TypeScript paths the harness globs do NOT load, sorted. Pure over its inputs so the planted
+ *  arm can drive it with a synthetic tracked list. */
+function outsideHarness(root: string, trackedPaths: readonly string[]): readonly string[] {
+  const globs = harnessGlobs(root);
+  const included = globs.filter((glob) => !glob.startsWith("!"));
+  const excluded = globs.filter((glob) => glob.startsWith("!")).map((glob) => glob.slice(1));
+  return trackedPaths
+    .filter((path) => POLICY_SOURCE_RE.test(path))
+    .filter((path) => {
+      const absolute = `${root}/${path}`;
+      return !included.some((glob) => matchesGlob(absolute, glob)) || excluded.some((glob) => matchesGlob(absolute, glob));
+    })
+    .toSorted();
+}
+
+test('the gate corpus loads every tracked TypeScript file, so `of: "all"` means every authored file (work item 0036)', () => {
+  const inventory = readPolicyRepositoryInventory(process.cwd());
+  // The drive's own positive control: an empty tracked list, or one that lost the root files, would make the
+  // comparison vacuously green.
+  expect(inventory.trackedPaths.filter((path) => POLICY_SOURCE_RE.test(path)).length).toBeGreaterThan(1000);
+  expect(inventory.trackedPaths).toEqual(expect.arrayContaining(["knip.ts", "platform.d.ts", "packages/ui/token-contract.ts"]));
+  expect(outsideHarness(inventory.root, inventory.trackedPaths)).toEqual([]);
+});
+
+test("a tracked TypeScript file in a directory the corpus does not load is reported — the 0036 gap, planted", () => {
+  expect(
+    outsideHarness("/repo", ["knip.ts", "packages/ui/token-contract.ts", "newtree/x.ts", "packages/ui/lib/y.tsx", "docs/readme.md", "scripts/z.ts"]),
+  ).toEqual(["newtree/x.ts", "packages/ui/lib/y.tsx"]);
 });

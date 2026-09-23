@@ -1,4 +1,4 @@
-// `verify` — the ONE argv front door for the whole verification system (docs/architecture/core/Core-Tooling-Law.md
+// `verify` — the ONE argv front door for the whole verification system (docs/law/Core-Tooling-Law.md
 // §2.5/§2.6). Twelve pnpm rows point HERE, each naming a verb; nothing points into ops/, so there is exactly
 // one argv parse and one exit-honesty runner for the harness that judges everything else.
 //
@@ -26,6 +26,7 @@
 //   test:ratchets            → cli.ts ratchet-gate  (the VITEST-tier train-gate aggregate, #667)
 //   config-snapshot          → cli.ts config-snapshot <runner> <config>  (native-config observation)
 //   check:biome-rule-liveness → cli.ts biome-rule-liveness  (the RULE half of biome grant liveness, #2074)
+//   check:knip-negative-liveness → cli.ts knip-negative-liveness  (every literal knip negation names a tracked file)
 //   typecheck-plan           → cli.ts typecheck-plan --primary|--affected --file <paths…>
 //   typecheck                → cli.ts typecheck [--config <paths>…]
 //   eslint                   → cli.ts eslint  (whole-tree native compiler-owner process isolation)
@@ -47,6 +48,7 @@ import {
   runEslint,
   runGateContract,
   runInstrumentAffected,
+  runKnipNegativeLiveness,
   runLedgerClaims,
   runLedgersFresh,
   runNewGate,
@@ -131,6 +133,8 @@ async function dispatch(verb: string, root: string, rest: readonly string[]): Pr
       return runLedgerClaims(root, rest);
     case "biome-rule-liveness":
       return runBiomeRuleLiveness(root);
+    case "knip-negative-liveness":
+      return runKnipNegativeLiveness(root);
     case "debt":
       return runDebtWalk(root, rest);
     case "ratchet-gate":
