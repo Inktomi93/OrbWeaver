@@ -133,10 +133,12 @@ export const AUTHORED_ARMS: readonly RealCorpusLivenessArm[] = [
   },
   {
     policy: persistenceNoInMemoryState,
-    // VERIFY'S CORPUS CANNOT RESOLVE THE AMBIENT `Map`: the structure run's project carries no compiler options,
-    // so its default lib has no ES2015 collections and the constructor reaches no declaration. The policy
-    // reports that case too (identity not established) rather than admitting it, and that is the verdict the
-    // real run produces for this control, so it is the one asserted.
+    // A bare `new Map()`, yet on the real tree the verdict is "identity CANNOT be established", not "ambient Map"
+    // as on the fixtures: the real `Map` symbol resolves to lib.es2015 but also carries the repo's own global
+    // augmentations (`platform.d.ts`, `@total-typescript/ts-reset` map-has.d.ts), which the fixture project
+    // lacks, and the policy's identity door does not reach a single ambient target through them (measured
+    // 2026-09-23). The policy still reports, so the real verdict is the one pinned; it may flip if that door
+    // learns to accept the augmentations.
     overlays: [add(`${CHARACTER_PERSISTENCE}/liveness-cache.ts`, "export const livenessCache = new Map<string, string>();\n")],
     messageIncludes: "Map/Set/WeakMap/WeakSet CANNOT be established",
   },
