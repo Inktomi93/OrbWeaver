@@ -63,6 +63,12 @@ if [ -e "$file_abs" ]; then
   esac
 fi
 rel="${file_abs#"$root/"}"
+# Only code and config have a verdict here: Biome skips markdown, and a typecheck plan for a prose file
+# costs a pool slot and a pnpm spawn for nothing.
+case "$rel" in
+  *.ts|*.tsx|*.mts|*.cts|*.js|*.jsx|*.mjs|*.cjs|*.json|*.jsonc|*.css) ;;
+  *) exit 0 ;;
+esac
 cd "$root" || notice_and_exit "active checkout cannot be entered: $root"
 
 profile="$root/tooling/concurrency-profile.json"
