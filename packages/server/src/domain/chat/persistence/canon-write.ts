@@ -485,10 +485,15 @@ export function continueVariantStatements(
           ...variantEconomics(params.variant),
           // The continuation's `tokensOut`/`costUsd` land above, so the effort it applied, its reasoning share
           // and its cost breakdown follow — a stale `costDetails` beside a fresh `costUsd` would contradict
-          // itself (B1/B5/B8). `maxOutputTokens` and the `reasoning_duration` sidecar stay insert-only as before.
+          // itself (B1/B5/B8). `maxOutputTokens` stays insert-only as before.
           reasoningEffort: params.variant.reasoningEffort ?? null,
           reasoningTokens: params.variant.reasoningTokens ?? null,
           costDetails: params.variant.costDetails ?? null,
+          // The `reasoning_duration` sidecar re-stamps to the continuation's own window, mirroring
+          // `genStartedAt`/`genFinishedAt` above: the engine's continue stats delta adds the continuation's
+          // reasoning window and subtracts the base's (docs/work/0146), so the row must hold that same
+          // continuation-only value or a `reconcileStats` rebuild reads the stale base window forever.
+          metadata: params.variant.metadata ?? null,
           // The continuation's own reasoning blocks replace the base's: only the LAST generation's signed blocks
           // are replayable on the next leg (the rendered `reasoning` text, by contrast, is COMBINED above).
           reasoningParts: reasoningPartsColumn(params.variant.reasoningParts),
