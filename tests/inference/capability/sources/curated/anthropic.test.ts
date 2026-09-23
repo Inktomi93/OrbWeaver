@@ -6,8 +6,8 @@
 // `response-format` iff `output.structured === true`, else the forced tool Fable rejects; the input to that
 // decision is what these cells must state.
 //
-// #2575: Opus 5.5 is its own row (mandatory thinking, default effort `medium` — under the opus-5 row alone a
-// reasoning-off intent sent `thinking: disabled`, a 400 there), and the three models that 400 a forced
+// #2575: Opus 5.5 is its own row (mandatory thinking — under the opus-5 row alone a reasoning-off intent sent
+// `thinking: disabled`, a 400 there), and the three models that 400 a forced
 // `tool_choice` (Fable 5.1, Mythos 5.1, Opus 5.5) keep a deployment-forced structured call on `response-format`.
 
 import type { Principal } from "@orb/contracts/identity";
@@ -135,7 +135,7 @@ test("opus-5 has a curated cell now: adaptive reasoning with the full effort lad
   const gen = direct("claude-opus-5");
   expect(gen.reasoning).toMatchObject({ mode: "adaptive", enabled: true, effortLevels: ["low", "medium", "high", "xhigh", "max"] });
   expect(gen.reasoning.mandatory).toBeUndefined();
-  expect(gen.context).toMatchObject({ window: 200_000, supports1M: true });
+  expect(gen.context).toEqual({ window: 1_000_000 });
   // PLANTED CONTROL for the regex: `opus-5` must not swallow the 4.x opus ids (their cells differ).
   expect(direct("claude-opus-4-5-20251101").reasoning.mode).toBe("effort");
   expect(direct("claude-opus-4-8").reasoning.mode).toBe("adaptive");
@@ -199,7 +199,7 @@ test("#2575: Opus 5.5 is MANDATORY — reasoning off resolves enabled at the low
   expect(unset.warnings).toEqual([]);
   // The opus-5 facts it shares still reach it (the 5.5 row refines, never replaces).
   expect(gen.sampling.temperature).toBeUndefined();
-  expect(gen.context).toMatchObject({ supports1M: true });
+  expect(gen.context).toEqual({ window: 1_000_000 });
   // PLANTED CONTROL: Opus 5 itself stays switchable — effort `none` still turns thinking OFF there.
   expect(resolveChat({ effort: "none" }, direct("claude-opus-5")).reasoning.enabled).toBe(false);
 });
@@ -265,5 +265,70 @@ test("no Claude route claims assistant prefill: a continue by prefill returns no
   }
   for (const model of ["claude-haiku-4-5", "claude-opus-4-5-20251101"]) {
     expect(direct(model).turns?.assistantPrefill, model).toBe(false);
+  }
+});
+
+// ── the knob-audit rows, re-derived live (2026-09-23) ────────────────────────────────────────────────────
+// Models API `GET /v1/models/{id}`: every current id states max_input_tokens 1,000,000, max_tokens 128,000 and
+// adaptive thinking only (opus-5 req_011CfKrpkFiR5L4pT2WAm3oB … sonnet-5 req_011CfKrpqBszB95ktdqBoGas); haiku-4-5
+// states 200,000 / 64,000, budget (`enabled`) thinking and no effort (req_011CfKrpqx2Hs1U4Rg1DZ9C6). The runtime
+// behind the subscription reports the same 1M window (claude-opus-5 session d382e036-cf6b-4ce1-a4dc-69e94550e014).
+const CURRENT_CLAUDE = ["claude-opus-5", "claude-opus-5-5", "claude-opus-4-8", "claude-opus-4-7", "claude-fable-5", "claude-fable-5-1", "claude-sonnet-5"];
+
+test("limits: every current Claude id states a 1M window and a 128k output cap; haiku-4-5 states 200k and 64k", () => {
+  for (const model of CURRENT_CLAUDE) {
+    for (const route of [DIRECT, AGENT_SDK_ROUTE]) {
+      const out = synthesizeCapability("generation", "anthropic", { curated: curatedRows({ model, ...route }) });
+      if (out.capability.kind !== "generation") {
+        throw new Error("expected a generation capability");
+      }
+      expect(out.capability.generation.context, `${route.wire} ${model}`).toEqual({ window: 1_000_000 });
+      expect(out.capability.generation.output.maxTokens.max, `${route.wire} ${model}`).toBe(128_000);
+    }
+  }
+  const haiku = direct("claude-haiku-4-5");
+  expect(haiku.context).toEqual({ window: 200_000 });
+  expect(haiku.output.maxTokens.max).toBe(64_000);
+});
+
+test("sonnet-5 and opus-4-7 are adaptive: summarized display and the house default effort reach them", () => {
+  for (const model of ["claude-sonnet-5", "claude-opus-4-7"]) {
+    const knobs = resolveChat({}, direct(model));
+    expect(knobs.reasoning, model).toMatchObject({ mode: "adaptive", enabled: true, effort: "high", display: "summarized" });
+  }
+  // PLANTED CONTROL: the older sonnet ids keep the effort mode the shared sonnet row states.
+  expect(direct("claude-sonnet-4-6").reasoning.mode).toBe("effort");
+});
+
+// Direct opus-5 / opus-5-5: a 555-token cached prefix wrote the cache, a 504-token one did not
+// (req_011CfKrvqD3Be1mTJTWssMeJ vs req_011CfKrudXJBP64sXedecYct; opus-5-5 req_011CfKrw9dKMDf2PWQv4YasA vs
+// req_011CfKruzHTfrbWs8aMaoosm), so the floor is 512, not the family's 4096.
+test("opus-5 and opus-5-5 cache from 512 tokens; opus-4-8 keeps its own 1024", () => {
+  expect(direct("claude-opus-5").turns?.cacheMinTokens).toBe(512);
+  expect(direct("claude-opus-5-5").turns?.cacheMinTokens).toBe(512);
+  expect(direct("claude-opus-4-8").turns?.cacheMinTokens).toBe(1024);
+});
+
+// Direct haiku-4-5 with `thinking: {type: "enabled", budget_tokens: 1024}` → 200 with a thinking block
+// (req_011CfKrzCmQjgUPfUvzv1MBC). It takes no effort, so it is off unless the caller turns it on.
+test("haiku-4-5: budget thinking when asked, off by default, and never an effort word", () => {
+  const haiku = direct("claude-haiku-4-5");
+  expect(haiku.reasoning).toMatchObject({ mode: "budget", enabled: true, budgetRange: { min: 1024, max: 63_000 } });
+  expect(resolveChat({}, haiku).reasoning.enabled).toBe(false);
+  const asked = resolveChat({ effort: "high", thinkingBudgetTokens: 2048 }, haiku).reasoning;
+  expect(asked).toMatchObject({ mode: "budget", enabled: true, budgetTokens: 2048 });
+  expect(asked.effort).toBeUndefined();
+});
+
+// Preserved thinking (Claude API model-migration notes): on fable-5-1 / mythos-5-1 / opus-5-5 a replayed thinking
+// block over an edited prefix is refused for accounts created on or after 2026-08-31 unless the request asks the
+// API to drop it. This key's account predates that (an edited-prefix replay returned 200: req_011CfKs6JMgTb3Y9up4Y1F3N);
+// the `drop_block` request itself is accepted with the beta (req_011CfKs6a4VLio7HdQpBMWwz).
+test("prefixBound: stated for opus-5-5 and the 5.1 point releases, not for the ids that allow an edited prefix", () => {
+  for (const model of ["claude-opus-5-5", "claude-fable-5-1", "claude-mythos-5-1"]) {
+    expect(direct(model).reasoning.prefixBound, model).toBe(true);
+  }
+  for (const model of ["claude-opus-5", "claude-fable-5", "claude-opus-4-8"]) {
+    expect(direct(model).reasoning.prefixBound, model).toBeUndefined();
   }
 });

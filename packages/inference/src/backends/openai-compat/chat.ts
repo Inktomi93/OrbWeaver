@@ -155,7 +155,10 @@ function openRouterReasoning(reasoning: ResolvedReasoning): JSONObject {
   if (reasoning.budgetTokens !== undefined) {
     return { max_tokens: reasoning.budgetTokens };
   }
-  return { effort: reasoning.effort !== undefined ? wireEffortOf(reasoning.effort) : "high" };
+  // OpenRouter's own `reasoning.effort` takes every level the funnel can resolve, `max` included, and forwards
+  // it upstream verbatim; only the V4 vocabulary (`wireEffortOf`) lacks `max`. The funnel already refused a level
+  // the model does not list.
+  return { effort: reasoning.effort ?? "high" };
 }
 
 /** The openai-compatible transport: effort rides V4 `reasoning` iff the row spells `reasoning_effort`; a
