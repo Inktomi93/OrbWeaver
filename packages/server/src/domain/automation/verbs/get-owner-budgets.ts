@@ -1,5 +1,5 @@
-// verb: getOwnerBudgets — read the caller's OWN owner-global fire-rate ceiling (C5), the chat-less twin of
-// `getBudgets`.
+// verb: getOwnerBudgets — read the caller's OWN owner-global fire-rate ceiling (C5), the belt every
+// chat-less rule of theirs counts against.
 //
 // NO GUARD, and that is the D18 single-owned posture rather than a missing check (`verbs/list-owner-rules.ts`
 // states it in full): the row's key IS `principal.userId`, so there is no way to name another user's ceiling

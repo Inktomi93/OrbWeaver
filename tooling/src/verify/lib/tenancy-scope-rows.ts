@@ -88,14 +88,9 @@ export const TABLE_SCOPING_ROWS: readonly ScopingRow[] = [
 
   // ── (b) membership-scoped — D18: the chat is OWNERLESS, authority is the participant roster. ───────────
   {
-    table: "automation_budgets",
-    scope: "membership",
-    why: "D46 per-chat spend ledger — the chat's members are its scope; there is no owner column by design.",
-  },
-  {
     table: "automation_owner_budgets",
     scope: "ownerId",
-    why: "C5's owner-GLOBAL fire-rate ceiling — the SIBLING of automation_budgets, and the reason the two are separate tables rather than one nullable key: that table's PK IS chat_id, so a chat-less rule's belt has nowhere to live on it. An authorization check here predicates on the caller's own userId and nothing else (the single-owned plane — there is no id to pass, so there is no other lane to name).",
+    why: "C5's owner-GLOBAL fire-rate ceiling — the scope belt for chat-less rules (the per-chat belt is a fixed constant with no table). An authorization check here predicates on the caller's own userId and nothing else (the single-owned plane — there is no id to pass, so there is no other lane to name).",
   },
   { table: "automation_fires", scope: "membership", why: "D46 per-chat fire log — chat-anchored, read through the room." },
   {

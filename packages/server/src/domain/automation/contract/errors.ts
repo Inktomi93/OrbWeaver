@@ -49,10 +49,10 @@ export class RuleReorderError extends DomainOperationError {
   }
 }
 
-/** `setBudgets`/`setOwnerBudgets` refused: the fire-rate ceiling is not an integer in
+/** `setOwnerBudgets` refused: the fire-rate ceiling is not an integer in
  *  `0..AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR` (#1430). The AUTHORITATIVE bound lives at the verb — the wire
  *  schema mirrors it — because the belt is loop safety and a caller reaching the domain from compose without
- *  the transport must meet the same ceiling a host does. */
+ *  the transport must meet the same ceiling an owner does. */
 export class BudgetValidationError extends DomainOperationError {
   constructor(reason: string) {
     super("automation_budget_invalid", reason);
@@ -94,7 +94,7 @@ export class SuggestionRefusedError extends DomainOperationError {
   }
 }
 
-/** A chat-scoped rule verb (createRule/listRules/reorderRules/setBudgets) named a chat the caller is not a
+/** A chat-scoped rule verb (createRule/listRules/reorderRules) named a chat the caller is not a
  *  present member of — a leak-free not-found (a non-member never learns a foreign chat exists; the
  *  member-but-not-host case is a KNOWN existence and propagates `can()`'s DomainForbiddenError instead). */
 export class AutomationChatNotFoundError extends DomainNotFoundError {

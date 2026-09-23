@@ -4,7 +4,7 @@
 // watcher/dispatch slice implement. The action-arms slice wires the injected `runArm` dispatcher + WIDENS
 // `AutomationOps` with the write ops — no stubs, no reserved slots here.
 
-import type { BudgetView, GlobalVariableView, OwnerBudgetView, RulePresetView } from "@orb/contracts/automation";
+import type { GlobalVariableView, OwnerBudgetView, RulePresetView } from "@orb/contracts/automation";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { Can } from "@orb/contracts/identity";
@@ -30,7 +30,6 @@ import type {
   DeleteGlobalVariableParams,
   DeleteRuleParams,
   DismissSuggestionParams,
-  GetBudgetsParams,
   GetGlobalVariableParams,
   GetOwnerBudgetsParams,
   ListChatActivityParams,
@@ -41,7 +40,6 @@ import type {
   ReorderRulesParams,
   ResolveStreamAuthorityParams,
   RunRuleNowParams,
-  SetBudgetsParams,
   SetGlobalVariableParams,
   SetOwnerBudgetsParams,
   SetRuleEnabledParams,
@@ -153,11 +151,6 @@ export interface AutomationService {
   /** B11 — the room ACTIVITY read: a chat's recent fire log across ALL its rules (host-only), newest first.
    *  The per-chat twin of `listFires`, over the same `automation_fires` store (ONE-HOME). */
   readonly listChatActivity: (params: ListChatActivityParams) => Promise<FireView[]>;
-  /** Upsert the per-chat fire-rate cap (host-only; the loop-safety belt). */
-  readonly setBudgets: (params: SetBudgetsParams) => Promise<void>;
-  /** Read the per-chat fire-rate cap (host-only): the host-editable fire-rate ceiling. An absent budget row
-   *  projects to the defaulted view (what the write path stamps on insert). */
-  readonly getBudgets: (params: GetBudgetsParams) => Promise<BudgetView>;
   /** C5 — the caller's OWN owner-global fire-rate ceiling: the belt every chat-less rule of theirs counts
    *  against. An absent row projects to the DDL default (the value the dispatch already uses for it). */
   readonly getOwnerBudgets: (params: GetOwnerBudgetsParams) => Promise<OwnerBudgetView>;

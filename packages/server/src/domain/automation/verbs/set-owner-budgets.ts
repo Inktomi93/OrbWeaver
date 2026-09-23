@@ -1,5 +1,6 @@
-// verb: setOwnerBudgets — upsert the caller's OWN owner-global fire-rate ceiling (C5), the chat-less twin of
-// `setBudgets`. The row is born on the first set; an absent field keeps its current value / DB default.
+// verb: setOwnerBudgets — upsert the caller's OWN owner-global fire-rate ceiling (C5), the belt every
+// chat-less rule of theirs counts against. The row is born on the first set; an absent field keeps its
+// current value / DB default.
 //
 // NO GUARD, the D18 single-owned posture (`verbs/list-owner-rules.ts` states it in full): the row's key IS
 // `principal.userId`, so there is no other lane a caller could write.
