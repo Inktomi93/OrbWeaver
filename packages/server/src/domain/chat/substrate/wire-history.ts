@@ -21,6 +21,11 @@
 //
 // `engine/` → `substrate/` is the legal downward edge; nothing here imports `engine/` or `assembly/` beyond
 // the `assembly-access.ts` DI seam this directory already owns.
+//
+// THE `conversation` CARRY ON OPENROUTER: each stored reply of a same-role run carries its own thinking as its own
+// row, and OpenRouter folds consecutive same-role messages into one upstream message that keeps only the FIRST
+// row's thinking. The later replies' thinking never reaches the model, and nothing reports it. One message
+// holding every reply's thinking is refused on both OpenRouter endpoints (OR-9, scripts/probes/openrouter/RESULTS.md).
 
 import type { ChatContentPart, ChatReasoningPart, MessageView } from "@orb/contracts/chat";
 import { cacheDepthCovering, rowIndexAtCacheDepth } from "@orb/inference";
