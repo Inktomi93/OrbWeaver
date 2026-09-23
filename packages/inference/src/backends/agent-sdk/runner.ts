@@ -20,6 +20,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { secondsToMs } from "@orb/kit/time";
 import type { AgentSdkChatRequest, ChatResult, ContextUsage, ToolCallInput } from "../../contract/chat.ts";
 import { normalizeFinishReason } from "../../contract/chat.ts";
+import type { ProviderScrubSet } from "../../contract/errors.ts";
 import { ProviderError } from "../../contract/errors.ts";
 import type { ChatEvent, RateLimitSnapshot } from "../../contract/events.ts";
 import type { AgentSdkSessionId } from "../../contract/identity.ts";
@@ -27,7 +28,9 @@ import { agentSdkSessionIdSchema } from "../../contract/identity.ts";
 import type { ResolvedWarning } from "../../contract/resolve.ts";
 import { resolveDynamicContext } from "../../funnel/resolve-chat.ts";
 import { classifyHttpStatus } from "../kit/error-classify.ts";
+import { redactSecretsFromText } from "../kit/openai-body.ts";
 import { agentSdkVariantMetadata } from "../kit/provider-metadata.ts";
+import { resolvedScrubSet, sanitizeApiError } from "../kit/sanitize.ts";
 import type { AgentSdkLog } from "./log.ts";
 import { toSdkOutputFormat } from "./output-schema.ts";
 import type { SeededSessionDecision, SessionCache } from "./session/index.ts";
@@ -201,6 +204,7 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
       ...(chatId !== undefined ? { onSessionId: (sessionId: AgentSdkSessionId): void => sessions.record(chatId, connection.connectionId, sessionId) } : {}),
       configuredMaxOutputTokens: gen.envOverrides.maxOutputTokens ?? null,
       configuredMaxContextTokens: gen.envOverrides.maxContextTokens ?? null,
+      secrets: resolvedScrubSet(connection),
     },
     log,
   );
@@ -438,6 +442,8 @@ class TurnAccumulator {
   /** The code on the runtime's synthetic API-error assistant frame, and the upstream request id it names. */
   assistantError: SDKAssistantMessageError | undefined;
   requestId: string | undefined;
+  /** The operator label of a failed result, for the `provider.error` line (the message carries runtime text). */
+  failureLabel: string | undefined;
   readonly terminalToolCalls: ToolCallInput[] = [];
   readonly events: ChatEvent[] = [];
   readonly usageAcc: UsageAcc = {
@@ -576,7 +582,10 @@ class TurnAccumulator {
     this.logTurn(false);
     const spawnDeath = perr.kind === "server" || perr.kind === "unknown";
     const tail = spawnDeath ? this.ctx.stderrTail?.() : undefined;
-    this.log.error(perr, tail !== undefined && tail.length > 0 ? { stderrTail: tail } : undefined);
+    this.log.error(perr, {
+      ...(tail !== undefined && tail.length > 0 ? { stderrTail: tail } : {}),
+      ...(this.failureLabel !== undefined ? { label: this.failureLabel } : {}),
+    });
     return perr;
   }
 
@@ -860,20 +869,26 @@ function classifyResult(
 }
 
 /** The runtime's own words for the failure: the error result's `errors`, or the flagged success's `result`
- *  text. `invalid` carries its message to the user, so this is what explains a rejected model. */
-function failureText(message: Narrow<"result">): string {
+ *  text. `invalid` carries its message to the user, so this explains a rejected model — and, being upstream
+ *  prose, it is scrubbed of this spawn's credential literals and then sanitized, in that order
+ *  (`transport/trpc/error-mapping.ts`, "THE ONE KIND THAT DOES"). The same message reaches the auth_failed
+ *  revoke audit row. */
+function failureText(message: Narrow<"result">, secrets: ProviderScrubSet): string {
   const parts = message.subtype === "success" ? [message.result] : message.errors;
-  const text = parts.filter((part) => part.length > 0).join("; ");
-  return text.length > 0 ? `: ${text}` : "";
+  return sanitizeApiError(redactSecretsFromText(parts.filter((part) => part.length > 0).join("; "), secrets));
 }
 
 function buildResultError(acc: TurnAccumulator, message: Narrow<"result">): ProviderError {
   const { classified, detail } = classifyResult(acc, message);
   const status = message.subtype === "success" ? message.api_error_status : undefined;
+  // The label is operator vocabulary: it rides the `provider.error` log line, never the user's message.
+  const label = `agent-sdk: turn failed (${message.subtype === "success" ? detail : message.subtype})`;
+  acc.failureLabel = label;
+  const text = failureText(message, acc.ctx.secrets);
   return new ProviderError({
     kind: classified.kind,
     retryable: classified.retryable,
-    message: `agent-sdk: turn failed (${message.subtype === "success" ? detail : message.subtype})${failureText(message)}`,
+    message: text.length > 0 ? text : label,
     model: acc.ctx.model,
     detail,
     ...(acc.errorSessionId !== undefined ? { sessionId: acc.errorSessionId } : {}),

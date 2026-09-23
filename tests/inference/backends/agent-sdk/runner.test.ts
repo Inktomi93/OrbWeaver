@@ -12,6 +12,7 @@ import { consumeTurnStream, runChatTurn } from "../../../../packages/inference/s
 import { SessionCache } from "../../../../packages/inference/src/backends/agent-sdk/session/store.ts";
 import type { AgentSdkDeps, TurnStreamContext } from "../../../../packages/inference/src/backends/agent-sdk/types.ts";
 import { passthroughImageNormalizer } from "../../../../packages/inference/src/backends/kit/image-normalize.ts";
+import { resolvedScrubSet } from "../../../../packages/inference/src/backends/kit/sanitize.ts";
 import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
 import type { InferenceLog } from "../../../../packages/inference/src/deps.ts";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -29,9 +30,18 @@ const MODEL_MISSING =
   "There's an issue with the selected model (claude-opus-9-9). It may not exist or you may not have access to it. Run --model to pick a different model.";
 
 const quietLog: InferenceLog = { debug: () => undefined, info: () => undefined, warn: () => undefined, error: () => undefined };
+/** The subscription token the spawn ran under — the one literal a failure message must never carry. */
+const TOKEN = "sk-ant-oat01-wirefixesprobetokennotreal";
 
 function ctx(model: string): TurnStreamContext {
-  return { model: modelIdSchema.parse(model), providerId: "claude-sub", resumed: false, now: () => 0, appliedEffort: null };
+  return {
+    model: modelIdSchema.parse(model),
+    providerId: "claude-sub",
+    resumed: false,
+    now: () => 0,
+    appliedEffort: null,
+    secrets: resolvedScrubSet({ credential: { secret: TOKEN }, transport: null }),
+  };
 }
 
 /** The runtime's synthetic API-error turn: an assistant frame carrying the SDK error code, then a `success`
@@ -73,8 +83,8 @@ function apiErrorTurn(args: { readonly model: string; readonly code: string; rea
   return gen();
 }
 
-async function failureOf(stream: SdkStream, model: string): Promise<ProviderError> {
-  const outcome = await consumeTurnStream(stream, ctx(model), createAgentSdkLog(quietLog, "claude-sub")).then(
+async function failureOf(stream: SdkStream, model: string, log: InferenceLog = quietLog): Promise<ProviderError> {
+  const outcome = await consumeTurnStream(stream, ctx(model), createAgentSdkLog(log, "claude-sub")).then(
     () => null,
     (error: unknown) => error,
   );
@@ -91,8 +101,45 @@ test("a runtime too old for the model is a non-retryable invalid request that ca
   expect(error.apiErrorStatus).toBe(400);
   expect(error.terminalReason).toBe("api_error");
   expect(error.requestId).toBe(REQUEST_ID);
-  // `invalid` is the kind whose own message reaches the user, so the reason must be in it.
-  expect(error.message).toContain("version 2.1.280 or newer is required");
+  // `invalid` is the kind whose own message reaches the user, so the reason must be in it — as the runtime's
+  // own words, without our internal label.
+  expect(error.message).toBe(CLI_TOO_OLD);
+});
+
+// `invalid` carries its own message to the user (`transport/trpc/error-mapping.ts`), and every upstream-derived
+// message must be `sanitizeApiError(redactSecretsFromText(…))`. The verifier's input: an HTML error page with
+// terminal control bytes and a 3000-char tail, echoed through the runtime's `result` text.
+const HOSTILE = `API Error: 400 <html><body><h1>Bad Request</h1><script>x()</script></body></html>\u0007\u001b[31m${"A".repeat(3000)}`;
+
+test("the runtime's failure text is sanitized before it becomes a user-facing message", async () => {
+  const error = await failureOf(apiErrorTurn({ model: "claude-opus-5-5", code: "invalid_request", status: 400, text: HOSTILE }), "claude-opus-5-5");
+  expect(error.kind).toBe("invalid");
+  expect(error.message).not.toContain("<html>");
+  expect(error.message).not.toContain("<script>");
+  expect(error.message).not.toContain("\u0007");
+  expect(error.message).not.toContain("\u001b");
+  expect(error.message.length).toBeLessThan(600);
+  expect(error.message.startsWith("API Error: 400 Bad Request")).toBe(true);
+});
+
+test("a token the runtime echoes never reaches the message, including the revoking auth_failed kind", async () => {
+  const leak = `Invalid bearer token: ${TOKEN} (Authorization: Bearer ${TOKEN})`;
+  for (const [code, status] of [
+    ["authentication_failed", 401],
+    ["invalid_request", 400],
+  ] as const) {
+    const error = await failureOf(apiErrorTurn({ model: "claude-opus-5", code, status, text: leak }), "claude-opus-5");
+    expect(error.message, code).not.toContain(TOKEN);
+    expect(error.message, code).not.toContain("wirefixesprobetoken");
+  }
+});
+
+test("the internal label stays in the operator log, off the user's message", async () => {
+  const lines: Record<string, unknown>[] = [];
+  const recording: InferenceLog = { ...quietLog, error: (fields) => lines.push({ ...fields }) };
+  const error = await failureOf(apiErrorTurn({ model: "claude-opus-5-5", code: "unknown", status: 400, text: CLI_TOO_OLD }), "claude-opus-5-5", recording);
+  expect(error.message.startsWith("agent-sdk:")).toBe(false);
+  expect(lines.map((line) => line["label"])).toContain("agent-sdk: turn failed (http_400)");
 });
 
 test("a model the runtime cannot find is model_unavailable, not a transient server fault", async () => {
