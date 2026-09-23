@@ -1,7 +1,9 @@
-// schema/automation — the D46 automation slice (producer: domain/automation). Six tables in the
+// schema/automation — the D46 automation slice (producer: domain/automation). Five tables, born in the
 // `0000_baseline` (decide-before-launch — the domain lands with NO table rebuilds):
-// automation_rules · automation_budgets · automation_owner_budgets · automation_fires ·
-// automation_rule_state · global_variables.
+// automation_rules · automation_owner_budgets · automation_fires · automation_rule_state ·
+// global_variables (a sixth, the per-chat `automation_budgets`, was dropped by the
+// `drop_automation_budgets` forward migration: the per-chat fire-rate cap is the fixed
+// `AUTOMATION_CHAT_MAX_FIRES_PER_HOUR`, with no stored override).
 //
 // THE LOAD-BEARING DECISIONS encoded here:
 //   • `automation_rules.chat_id` is NULLABLE FROM BIRTH, and C5 WIRED IT: NULL = an owner-global rule,
@@ -27,7 +29,6 @@
 import type { ChatTriggerType, DomainTriggerType, RulePresetId, RulePresetKnobValues } from "@orb/contracts/automation";
 import {
   ANALYSIS_GUIDANCE_MAX,
-  AUTOMATION_CHAT_BUDGET_DEFAULTS,
   AUTOMATION_FIRE_OUTCOMES,
   AUTOMATION_OWNER_BUDGET_DEFAULTS,
   AUTOMATION_TRIGGER_BUSES,
@@ -56,7 +57,7 @@ const RULE_NAME_MAX_CHARS = 120;
 const RULE_MAX_FIRES_PER_HOUR_DEFAULT = 30;
 /** Storage admits one in-flight state beyond the public terminal vocabulary. */
 export const AUTOMATION_FIRE_STORAGE_OUTCOMES = [...AUTOMATION_FIRE_OUTCOMES, "reserved"] as const;
-// The chat budget + global-variable caps derive from @orb/contracts/automation (the ONE home — the
+// The owner budget + global-variable caps derive from @orb/contracts/automation (the ONE home — the
 // app-validation verb and this CHECK-DDL/column-default share the same bound, so they can't drift).
 // SQLite `length()` on TEXT counts CHARACTERS — the BLOB cast in the value CHECK below makes the
 // 64 KiB cap byte-accurate.
@@ -159,37 +160,18 @@ export const automationRules = sqliteTable(
 );
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// automation_budgets — ONE row per chat with automation (host-editable). The per-chat FIRE-RATE ceiling —
-// the loop-safety belt that bounds a runaway rule from hammering a paid API. (The per-day $/spend-action
-// ceilings + day accumulator were stripped 2026-07-24 — enterprise spend enforcement; cost visibility +
-// rate caps stay.)
-// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-
-export const automationBudgets = sqliteTable("automation_budgets", {
-  // NATURAL PK: the chat's own id + CASCADE FK (the chat_locks pattern).
-  chatId: text("chat_id")
-    .$type<ChatId>()
-    .primaryKey()
-    .references(() => chats.id, { onDelete: "cascade" }),
-  maxFiresPerHour: integer("max_fires_per_hour").notNull().default(AUTOMATION_CHAT_BUDGET_DEFAULTS.maxFiresPerHour),
-  updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
-});
-
-// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// automation_owner_budgets — ONE row per OWNER with owner-global automation (C5). The SIBLING of
-// automation_budgets above, and it exists because that table's PK is `chat_id`: a NULL-scope budget row is
-// unrepresentable (SQLite PKs cannot be NULL), and a synthetic sentinel chat id would be the D24 soft-ref
-// class the ledger forbids. So the belt that bounds a whole SCOPE gets one table per scope kind, keyed by
-// what that scope actually is. A runaway owner-global rule otherwise multiplies by the author's entire
-// library rather than by one room — the exact hammering this belt exists to bound. A RATE cap only: the
-// per-day $/spend ceilings were stripped 2026-07-24 and nothing here re-introduces them.
+// automation_owner_budgets — ONE row per OWNER with owner-global automation (C5). The per-chat belt counts
+// a chat's fires against a fixed ceiling and so cannot bound a chat-less rule; this owner-keyed, owner-editable
+// ceiling is the SCOPE belt for that lane. A runaway owner-global rule otherwise multiplies by the author's
+// entire library rather than by one room — the exact hammering this belt exists to bound. A RATE cap only:
+// the per-day $/spend ceilings were stripped 2026-07-24 and nothing here re-introduces them.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 export const automationOwnerBudgets = sqliteTable(
   "automation_owner_budgets",
   {
-    // NATURAL PK: the owner's own id + CASCADE FK (the `automation_budgets` chatId-PK pattern) — the PK is
-    // also the child-FK index in one column (`fk-columns-indexed` satisfied).
+    // NATURAL PK: the owner's own id + CASCADE FK (the chat_locks pattern) — the PK is also the child-FK
+    // index in one column (`fk-columns-indexed` satisfied).
     ownerId: text("owner_id")
       .$type<UserId>()
       .primaryKey()
@@ -261,7 +243,7 @@ export const automationFires = sqliteTable(
 export const automationRuleState = sqliteTable(
   "automation_rule_state",
   {
-    // NATURAL PK: the rule's own id + CASCADE FK (the `automation_budgets` chatId-PK pattern above) — the
+    // NATURAL PK: the rule's own id + CASCADE FK (the `automation_owner_budgets` ownerId-PK pattern above) — the
     // PK is also the spec's UNIQUE and the child-FK index in one column (`fk-columns-indexed` satisfied).
     ruleId: text("rule_id")
       .$type<AutomationRuleId>()

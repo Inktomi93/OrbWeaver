@@ -1,12 +1,13 @@
 // Persistence: automation_fires insert + read (newest-first). The dispatch engine (A5) writes its terminals
 // through the same insertFire; A4 exercises the test_run + a couple of outcomes.
 
+import { AUTOMATION_CHAT_MAX_FIRES_PER_HOUR } from "@orb/contracts/automation";
 import { automationFires, automationRules } from "@orb/db";
 import type { AutomationFireId, AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
 import { mintTypeId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { upsertBudget, upsertOwnerBudget } from "../../../../../packages/server/src/domain/automation/persistence/budgets.ts";
+import { upsertOwnerBudget } from "../../../../../packages/server/src/domain/automation/persistence/budgets.ts";
 import {
   commitReservedFire,
   finalizeReservedFire,
@@ -18,7 +19,7 @@ import {
 import { insertRule } from "../../../../../packages/server/src/domain/automation/persistence/rules.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { FIXED_NOW_MS, seedHostChat, seedUser } from "../_support.ts";
+import { FIXED_NOW_MS, seedChatFires, seedHostChat, seedUser } from "../_support.ts";
 
 async function seedRule(
   db: Parameters<typeof insertRule>[0],
@@ -127,17 +128,23 @@ describe("automation_fires persistence", () => {
     expect(storedRule?.lastFiredAt).toBeNull();
   });
 
-  test("a held reservation occupies a chat ceiling across different rules", async () => {
+  test("a held reservation occupies the fixed chat ceiling across different rules", async () => {
     const db = await freshDb();
     const owner = await seedUser(db);
     const chatId = await seedHostChat(db, owner);
+    const filler = await seedRule(db, owner, chatId);
     const first = await seedRule(db, owner, chatId);
     const second = await seedRule(db, owner, chatId);
-    await upsertBudget(db, chatId, { maxFiresPerHour: 1 }, FIXED_NOW_MS);
+    const firedAt = FIXED_NOW_MS + AUTOMATION_CHAT_MAX_FIRES_PER_HOUR;
+    // One slot left under the ceiling, and two different rules race for it.
+    await seedChatFires(db, { ruleId: filler, chatId, count: AUTOMATION_CHAT_MAX_FIRES_PER_HOUR - 1, firedAt: FIXED_NOW_MS });
 
-    const results = await Promise.all([reserveFireBudget(db, reservation(first)), reserveFireBudget(db, reservation(second))]);
+    const results = await Promise.all([reserveFireBudget(db, reservation(first, firedAt)), reserveFireBudget(db, reservation(second, firedAt))]);
     expect(results.filter(Boolean)).toHaveLength(1);
     expect(results.filter((result) => !result)).toHaveLength(1);
+    // The chat is now AT the ceiling: a third rule of the same chat is refused too.
+    const third = await seedRule(db, owner, chatId);
+    await expect(reserveFireBudget(db, reservation(third, firedAt))).resolves.toBe(false);
   });
 
   test("a held reservation occupies an owner-global ceiling across different rules", async () => {

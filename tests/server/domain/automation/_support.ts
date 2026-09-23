@@ -7,8 +7,8 @@ import { automationActionSchema } from "@orb/contracts/automation";
 import type { PromptTransform, VariableWriteResult } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import { chats, messages, messageVariants, users } from "@orb/db";
-import type { ChatId, Handle, UserId } from "@orb/kit/ids";
+import { automationFires, chats, messages, messageVariants, users } from "@orb/db";
+import type { AutomationRuleId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { can } from "@orb/server/domain/admin";
 import { createResolveViewerVisibility } from "@orb/server/domain/chat";
@@ -275,6 +275,28 @@ export async function seedHostChat(db: Db, userId: UserId, key = "auto"): Promis
   const chatId = await seedChat(db, key);
   await seedParticipant(db, { chatId, key: `${key}_host`, userId, role: "host" });
   return chatId;
+}
+
+/** Seed `count` completed `fired` rows for one rule of a chat inside the current hour window — the fixture that
+ *  fills the per-chat fire-rate belt up to (or past) `AUTOMATION_CHAT_MAX_FIRES_PER_HOUR`. Each row sits one ms
+ *  apart from `firedAt` onward. */
+export async function seedChatFires(
+  db: Db,
+  args: { readonly ruleId: AutomationRuleId; readonly chatId: ChatId; readonly count: number; readonly firedAt: number },
+): Promise<void> {
+  const rows = Array.from({ length: args.count }, (_, i) => ({
+    id: mintTypeId(ID_PREFIX.automationFire),
+    ruleId: args.ruleId,
+    chatId: args.chatId,
+    triggerType: "messageCommitted" as const,
+    outcome: "fired" as const,
+    detail: null,
+    automationDepth: 0,
+    firedAt: args.firedAt + i,
+  }));
+  if (rows.length > 0) {
+    await db.insert(automationFires).values(rows);
+  }
 }
 
 export interface RuleFixture {

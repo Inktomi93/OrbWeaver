@@ -47,7 +47,6 @@ export type {
   DeleteGlobalVariableParams,
   DeleteRuleParams,
   DismissSuggestionParams,
-  GetBudgetsParams,
   GetGlobalVariableParams,
   ListFiresParams,
   ListGlobalVariablesParams,
@@ -55,7 +54,6 @@ export type {
   ReorderRulesParams,
   RulePresetProvenance,
   RunRuleNowParams,
-  SetBudgetsParams,
   SetGlobalVariableParams,
   SetRuleEnabledParams,
   TestRuleParams,
@@ -68,7 +66,7 @@ export type { ErasedRulePresetDef, RulePresetDef, RulePresetKnobOverrides, RuleP
 export { RULE_PRESETS } from "./contract/presets.ts";
 export type { ArmPreview, ConfirmSuggestionResult, FireView, RuleView, RunRuleNowResult, StreamAuthority, TestRunResult } from "./contract/results.ts";
 export type { AutomationService, AutomationWatcherEnv, AutomationWatcherHandle } from "./contract/service.ts";
-export type { BudgetView, GlobalVariableView } from "./contract/views.ts";
+export type { GlobalVariableView } from "./contract/views.ts";
 export { createArmExecutors } from "./engine/arm-executors.ts";
 export { createPromptTransformIndex } from "./engine/prompt-transforms.ts";
 // The #1391 plugin tool wire-name rewrite over the `run_tool` arm inside `automation_rules.actions` — a
