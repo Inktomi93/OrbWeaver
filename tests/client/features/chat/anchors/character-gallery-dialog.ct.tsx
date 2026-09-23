@@ -114,7 +114,8 @@ test("P2: cancelling the confirm removes nothing", async ({ mount, page }) => {
 async function selectOwnedImages(page: Page): Promise<void> {
   await page.getByRole("button", { name: "Add images" }).first().click();
   await expect(page.getByText("Add images to the gallery")).toBeVisible();
-  const cells = page.getByRole("gridcell", { name: "upload image" });
+  // The picker names each cell `${kind} image`; OWNED is `kind: "gallery"`.
+  const cells = page.getByRole("gridcell", { name: "gallery image", exact: true });
   await expect(cells).toHaveCount(2);
   await cells.nth(0).click();
   await cells.nth(1).click();
@@ -262,7 +263,7 @@ test("a PARTIAL add prunes the selection to what did not land (#1501)", async ({
   const trpc = await routeTrpc(page, {
     "assets.listGallery": () => [],
     "assets.listOwned": () => OWNED,
-    // The FIRST asset lands, the second does not — and which is which is the whole claim. Read through an
+    // The FIRST asset lands, the second does not — and which is which is the whole claim.
     "assets.addToGallery": (input: TrpcInput<"assets.addToGallery">) => (input?.assetId === FAILING_ASSET ? trpcError({ message: "add failed" }) : ITEM),
   });
 
