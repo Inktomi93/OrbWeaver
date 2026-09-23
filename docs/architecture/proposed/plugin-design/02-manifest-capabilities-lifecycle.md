@@ -193,7 +193,7 @@ runSnippet(ctx, { chatId, code }): Promise<SnippetResult>           // the inlin
 ```
 
 **Install authority: ANY authenticated principal, for themselves — the row's `ownerId` is the whole
-gate (owner-ruled 2026-08-24, `Core-Path-Registry.md` D147).** The paragraph that stood here recorded
+gate (owner-ruled 2026-08-24, D147).** The paragraph that stood here recorded
 `can(principal,"admin",{kind:"global"})` as a LEAN with an explicit widening criterion ("widen to
 any-user self-install — the model §2 already supports it, every gate is per-installer — after the
 membrane-escape suite has soaked and a real non-admin demand exists"). Both halves came due: the

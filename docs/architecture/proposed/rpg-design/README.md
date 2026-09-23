@@ -7,8 +7,7 @@ updated: 2026-07-03
 # RPG Design — the prescriptive plan for `domain/rpg` (doc-set index)
 
 > **Status: COMMITTED (D58, 2026-07-01).** RPG mode IS a product goal — the Feature-Slot-Map §2
-> gate question is CLOSED (Nate). This doc set is the authoritative design (`Core-Laws-and-Precedents.md`
-> D58 is the decision record and wins on any conflict); the marinara research
+> gate question is CLOSED (Nate). This doc set is the authoritative design (D58 is the decision record and wins on any conflict); the marinara research
 > corpus is the evidence base (what marinara DOES — archived to git history; `../rpg/` is the tombstone). Everything here is prescriptive and
 > self-contained: a builder with ONLY this doc set + the orbweaver law docs (AGENTS-1/2/3, the
 > domain docs it cites) can build the whole system — no marinara reading required. Every decision

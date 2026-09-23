@@ -6,8 +6,8 @@ updated: 2026-09-13
 
 # UI-Gates-and-Lessons
 
-> **The UI enforcement law.** Decision records: D42–D44, D52, D54, D62, D66 in
-> `Core-Laws-and-Precedents.md`. §-map + reading order: `UI-Architecture-and-Layout.md` header. The
+> **The UI enforcement law.** Decision records: D42–D44, D52, D54, D62, D66.
+> §-map + reading order: `UI-Architecture-and-Layout.md` header. The
 > war-story archaeology behind these rulings is `history/ui-gates-lessons-archaeology-record.md`.
 
 ## 7. The sealed gotchas — fix each ONCE, in a place a cold agent can't bypass

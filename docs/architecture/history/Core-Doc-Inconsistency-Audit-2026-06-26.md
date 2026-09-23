@@ -19,7 +19,7 @@ updated: 2026-06-26
 
 Method: 5 auditor agents read **every** `.md` in `docs/architecture/` **in full** (no grep-skimming).
 The 21 `domains/` docs were sliced one-per-auditor; all 26 non-domain "core" docs (roots + `spine/` +
-`tiers/` + `reports/`) were read in full by **all five**. Authorities: `core/Core-Laws-and-Precedents.md` §7
+`tiers/` + `reports/`) were read in full by **all five**. Authorities: the D-ledger
 (D0–D30) and `core/Tier-1-DB.md`. Coverage: 47/47 docs (domains ×1, core ×5 = 134 full reads).
 
 Severity: **blocker** = a load-bearing contradiction that would mis-build; **major** = a real

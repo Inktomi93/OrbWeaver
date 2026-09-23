@@ -22,7 +22,7 @@ updated: 2026-06-28
 > SillyTavern macro / STscript / Quick-Reply / extension layer actually hooks? Scope is the **automation
 > surface** D46 Tier-1 (`on <event> where <predicate> do <action>`) and the D46 Tier-2 plugin host consume:
 > the **closed, server-side, id-only** `ChatBusEvent` + `DomainEvent` unions. References:
-> ledger **D46** (`core/Core-Laws-and-Precedents.md`), `proposals/scripting-automation-extensibility.md` §5.
+> ledger **D46**, `proposals/scripting-automation-extensibility.md` §5.
 >
 > **Why this is born-compliant-before-Phase-5:** these events freeze into the `chat_events` table + the
 > closed `ChatBusEvent`/`DomainEvent` unions. Widening the union *after* Phase 5 wires triggers to it is the

@@ -52,7 +52,7 @@ READ WHOLE — grep is for CODE, never for LAW. Before you touch code, READ IN F
   - + the wave's extra reading (named in the M-block below)
 You may NOT grep a law doc to settle a design question. Grep returns a line; the ruling lives in the
 context around it (the trap: grepping "app-shell" finds the CSS exemption and misses that app-shell is NOT
-import-privileged). Reference docs (Core-Path-Registry, Core-Enforcement-Active-Gates) are indexes — random
+import-privileged). Reference docs (the D-ledger, Core-Enforcement-Active-Gates) are indexes — random
 access is fine there.
 PROVE YOU READ: before writing code, restate in your own words (1) the tier direction + precedence order,
 (2) this wave's pre-resolved ambiguities, (3) the done-gate. Can't restate it → you didn't read it.

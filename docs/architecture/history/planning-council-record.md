@@ -13,7 +13,7 @@ updated: 2026-07-13
 ## Orbweaver — pre-scaffold checklist (implementation-time conditions)
 
 > **Status: the council's implementation-time conditions, with their landing state.** Doc-level
-> decisions are committed in `Core-Laws-and-Precedents.md §5`; this file is the operational "do these or
+> decisions are committed in the retired ledger index's §5 (its archaeology: `core-laws-archaeology-record.md` §5); this file is the operational "do these or
 > the architecture's guarantees don't hold," ordered by when they bite. Most have now LANDED (marked;
 > the code + gates are the proof) — the still-open rows are the live obligations.
 >
@@ -125,7 +125,7 @@ makes the key the ONLY recovery path; losing it is permanent — back it up alon
 > A 5-seat panel each read the ENTIRE doc set in full (no grep) and ruled on whether to sign off before
 > scaffolding. **Outcome: unanimous conditional sign-off. No blocks.** All converged conditions were
 > actioned (they are the §A–D rows above); the committed decisions live in
-> `Core-Laws-and-Precedents.md §5`. Kept as the durable record of the verdicts and the big ideas.
+> `core-laws-archaeology-record.md` §5. Kept as the durable record of the verdicts and the big ideas.
 
 ### Verdicts
 

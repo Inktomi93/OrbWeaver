@@ -127,7 +127,7 @@ exports map has one entry, so no domain can reach a backend.
 | - | - |
 | Packages, server tiers, the domain template, partitioning, the legibility gates | `Core-0-Architecture-and-Structure.md` |
 | The tooling tree above the packages | `Core-0-Architecture-and-Structure.md` §9, then `Core-Tooling-Law.md`, `../../../scripts/README.md` |
-| The decision ledger and precedents | `Core-Laws-and-Precedents.md`, `Core-Path-Registry.md` |
+| The decision ledger | `../../adr/README.md` (one decision per file) |
 | Active gates | `Core-Enforcement-Active-Gates.md` |
 | Writing a gate | `../../design/gate-runtime-read-first.md`, then `../../../tooling/src/verify/gates/GATE-AUTHORING.md` |
 | Writing a ui-audit rule | `../../../tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md` |

@@ -162,7 +162,7 @@ enforces the seal column: a lib may only be imported from its sealed dir.
     `p-row/block/section/gutter`) the token gates point at.
   - **control heights** — `--control-sm/md/lg`, **POINTER-CONDITIONAL per D62 P1**: 44/48/56px at
     coarse (meets the touch floor), narrowing to 32/34/40px at `@media(pointer:fine)` via the token's
-    `orb.pointerFine` extension. FLAG\[registry]: `Core-Path-Registry.md` D62 P1 is the authority on the
+    `orb.pointerFine` extension. FLAG\[registry]: D62 P1 is the authority on the
     per-pointer floor (the fine floor was raised 28→32 after side-eye/design-audit passes; the
     per-pointer tap-target CHECK lives in the design-audit probe, not the `pnpm check` battery — see §8
     `touch-target-floor`). `data-density="compact"` tightens orthogonally to pointer. Avatar/switch
@@ -179,8 +179,8 @@ enforces the seal column: a lib may only be imported from its sealed dir.
   in-memory and diffs against the committed artifacts — hand-editing the theme or letting it drift
   from `tokens.json` FAILS `pnpm test`. ("Derived, never hand-authored" as a test, not a hope.)
 - **Themes are value-sets over these names** (D44 §12.1): Hearth is `:root`. NO structural mode exists.
-  FLAG\[registry]: the shipped theme SET is **Hearth · Mocha · Light** (`Core-Path-Registry.md` §Placement
-  is the authority; never the seed mockup's Catppuccin/Loom names) — built as `owner_id IS NULL` seed
+  FLAG\[registry]: the shipped theme SET is **Hearth · Mocha · Light** (D62's placement rulings
+  are the authority; never the seed mockup's Catppuccin/Loom names) — built as `owner_id IS NULL` seed
   rows (`server/domain/settings/seed-themes.ts`) AND generated `[data-theme]` value-sets in `theme.css`.
   Custom themes ride the `<ThemeScope>` override API.
 

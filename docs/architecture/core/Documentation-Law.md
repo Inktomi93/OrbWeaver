@@ -143,7 +143,7 @@ Change code → fix or delete its comment **in the same change**. A lying commen
 7. **A mock/render set follows its spec** — when the spec retires, the drawing retires with it.
 8. **Never** invent a new directory tier or move a file another live session has dirty.
 
-- **Structure.** One topic per file, under ~40 KB (sanctioned exception: `Core-Path-Registry.md` — the whole decision registry is ONE topic and ONE read; splitting it re-creates the range-lookup tax). Compact tables only — alignment-padding is pure token waste (mechanics + measured damage in the formatter law). No prose reflow.
+- **Structure.** One topic per file, under ~40 KB. Compact tables only — alignment-padding is pure token waste (mechanics + measured damage in the formatter law). No prose reflow.
 - **Frontmatter (required on authored docs, deliberately minimal):**
   ```yaml
   ---

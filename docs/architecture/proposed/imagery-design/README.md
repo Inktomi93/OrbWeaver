@@ -7,8 +7,8 @@ updated: 2026-07-03
 # Imagery Design — the prescriptive plan for `domain/imagery` (doc-set index)
 
 > **Status: COMMITTED (D49 item 1, 2026-06-28).** The `imagery` domain IS committed law; this doc
-> set is its authoritative BUILD design. `Core-Laws-and-Precedents.md` D49 item (1) is the decision
-> record and wins on any conflict; the D49 #1 ledger entry (`core/Core-Path-Registry-D44-D52.md`) is the committed decision record — `domains/imagery.md` was gutted (git history) — and
+> set is its authoritative BUILD design. D49 item (1) is the decision
+> record and wins on any conflict; the D49 #1 ledger entry is the committed decision record — `domains/imagery.md` was gutted (git history) — and
 > this set expands it to build grade — where this set resolves one of that doc's §8 open questions
 > or extends a sketch shape, the delta is recorded in §Review flags below so the lead sees every
 > change. Evidence bases: the archived `proposed/image-studio/image-studio.md` (git history, commit

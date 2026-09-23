@@ -10,7 +10,7 @@ updated: 2026-08-30
 > roster-expand = full panel takeover, RV-8 primitives swept (attributes/stat-profile/pack/journal/
 > quests), per-carrier max override per the owner amendment (D113 ¶1 as amended), journal label + attribute-hint
 > gloss read-halves closed. Remaining on the board: W-H side-eye pass, EXT-4.
-> Original stage-1 note: **STAGE 1 SHIPPED** — `ea99b0e3`, merged to main `22cf37ea`, law minted as **D113** (`Core-Path-Registry.md`). §5 shapes are live; stage 2 (Status-absorbs-Sheet takeover view, GM editor polish, RV-8 primitives) remains open on the workboard.
+> Original stage-1 note: **STAGE 1 SHIPPED** — `ea99b0e3`, merged to main `22cf37ea`, law minted as **D113**. §5 shapes are live; stage 2 (Status-absorbs-Sheet takeover view, GM editor polish, RV-8 primitives) remains open on the workboard.
 
 **Status:** direction + spec APPROVED (owner, 2026-07-31 late — noun = **TRACKER**; widgets full-fold
 

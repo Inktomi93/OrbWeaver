@@ -21,7 +21,7 @@ list roles (character picker · chats-with-her) combined into ONE pane slot as a
 judges the more radical reading (**one globally unified launcher rail**) as a first-class alternative
 the owner can rule between.
 
-**The governing guardrail, stated first (D18 RATIONALE RIDER, `Core-Path-Registry.md:49`):** D16/D18/D28
+**The governing guardrail, stated first (D18 RATIONALE RIDER):** D16/D18/D28
 exist jointly to avoid the SillyTavern coupling smell — the character panel as chat LAUNCHER, chats hung
 off a character. In orbweaver a chat is FIRST-CLASS; characters are library entities a chat references
 through the roster. **Any "chats with this character" surface must be a filtered PROJECTION of

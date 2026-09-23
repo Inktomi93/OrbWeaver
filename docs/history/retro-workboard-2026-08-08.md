@@ -8,7 +8,7 @@ updated: 2026-08-14
 
 > **THIS IS THE WORKING DOC** (owner-stated). Not law, not a deliverable — the durable state an
 > orchestrator resumes from cold. Authority for LAW = `docs/architecture/core/**`; the D-ledger
-> (`Core-Path-Registry.md` / `Core-Laws-and-Precedents.md`, current through **D128**) wins on ANY
+> (the D-ledger, current through **D128**) wins on ANY
 > conflict. `docs/architecture/proposed/**` is pre-rollback REBUILD REFERENCE — never cite its status
 > as current.
 >
@@ -1508,7 +1508,7 @@ identity chrome for ANY row kind.
   (D41's no-code-without-an-emit-site, D72's mint-migrate-SEAL).
 - ✅ **D125 MINTED** — the fifth regex leg (`PROMPT_HISTORY`, amends D121-E), from HISTLEG's report.
   Both range headers + the master enumeration updated (which was itself behind: D123/D124 had never
-  been appended to `Core-Laws-and-Precedents.md:62` — backfilled in the same edit).
+  been appended to the ledger index — backfilled in the same edit).
   **HCOPY's D-entry, the initiative's long-running survivor, is D131** — its lane report did not
   survive as a file (`reports/` holds only its README), so the entry was re-derived from the built
   tree (`substrate/handoff-copy.ts` + `character/contract/handoff-copy.ts` + the swap batch).

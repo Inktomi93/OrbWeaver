@@ -142,7 +142,7 @@ embeddings/search "ONE engine" → `Knowledge-Cluster.md`; AAD belt → `Spine-I
 
 ### Doc-freshness — shared docs carry superseded facts (fix or delete)
 
-- `Core-Laws-and-Precedents.md` §Settings: "promote IMPORT_DEFAULT_SOURCE to AppSettings" — DROPPED (PD-15 cleared); VLLM\_\*\_CONCURRENCY landed born-in-DB (no env floor).
+- The former ledger index §Settings: "promote IMPORT_DEFAULT_SOURCE to AppSettings" — DROPPED (PD-15 cleared); VLLM\_\*\_CONCURRENCY landed born-in-DB (no env floor).
 - `Spine-Identity-and-Auth.md`: present-tense pre-build ("resolved twice per request", old viaFallback/viaCookie names, "role gates NOTHING") — all built; flip to built-state + absorb the two de-numbered sessions invariants (token-hash-not-stored, per-request revoked/expired/enabled recheck).
 - `preset` contracts (~L175): names a non-existent `GUIDED_ACTION_IMPLS` identifier.
 - ~~stale PD-5 OIDC comments in `entry/http/auth-routes.ts` (claim OIDC unbuilt; it's built + tested).~~ FIXED

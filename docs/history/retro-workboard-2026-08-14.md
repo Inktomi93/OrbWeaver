@@ -46,7 +46,7 @@ clean). Every other battery stage was green.**
 > is the durable context an orchestrator resumes from cold. Live work state is in
 > [Orbweaver Project 1](https://github.com/users/Inktomi93/projects/1). Authority for LAW =
 > `docs/architecture/core/**`; the D-ledger
-> (`Core-Path-Registry.md` / `Core-Laws-and-Precedents.md`, current through **D139** — D138 landed
+> (the D-ledger, current through **D139** — D138 landed
 > 08-14 with the W10 freshness contract, D139 with the documentation control plane) wins on
 > ANY conflict. `docs/architecture/proposed/**`
 > is pre-rollback REBUILD REFERENCE — never cite its status as current.
@@ -569,7 +569,7 @@ lint drain 62e7aa6bc · draft-cast pins 595b8a5f6 · UI-RENDERING-01 a383c669d.
   parser — trap written up in §7). M5 CSS re-receipt partial (rule live + computes visible; no
   probe turn produced a fence — honest gap, closes on any future live drive with a code block).
 - [ ] **d129-pair MERGE BLOCKED by the Codex WIP (commit safe on branch `recover-d129` =
-  `b8f76ed66`):** its diff touches `package.json` (the probe script) + `Core-Path-Registry.md`
+  `b8f76ed66`):** its diff touches `package.json` (the probe script) + the D-ledger
   (D129 annotation flips) — both dirty in Codex's revamp footprint (now grown to the LEDGER files +
   CODEOWNERS). Merge fires the moment Codex commits/lands. ALSO RECORDED: the orchestrator broke
   the never-chain-teardown-behind-a-merge law and deleted the lane branch on a failed merge —
@@ -1601,7 +1601,7 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
 - [ ] **#38 ruled smalls, all four** — Untitled-chat rosters · X-16 edited-ago · REGPAR F3/F4/F5 ·
   unsent-draft reload persistence. "SMALLS GO" 08-09.
 - [x] **C1 PERSONA PROGRAM — STATUS ESTABLISHED 08-14: the forge lane LANDED before the ban (sixth
-  stale row of the day).** D137 is MINTED in the ledger (Core-Path-Registry.md:502, dated 08-08,
+  stale row of the day).** D137 is MINTED in the ledger (dated 08-08,
   "owner-approved in full with the design's recommendations") and its cited homes are all on the
   tree: `@orb/contracts/card-face` (leg commit `6f948f922` "D137 leg C1"), `domain/chat/persistence/
   cast.ts`, `tests/contracts/card-face/index.contract.test.ts`, and the phase gate names the

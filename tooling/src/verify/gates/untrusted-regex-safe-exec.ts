@@ -1,4 +1,4 @@
-// Policy: untrusted-regex-safe-exec (Core-Path-Registry.md D53; the world-info regex-key watchdog,
+// Policy: untrusted-regex-safe-exec (D53; the world-info regex-key watchdog,
 // docs/history/design/issue-712-gate-family.md) — the chat composition seam's `testRegexKey` must be the
 // `createRegexTest()` watchdog. A world-info KEY is user-authored, so a hand-rolled native `.test` at this
 // boundary lets a catastrophic pattern run on the server event loop with no deadline.
@@ -45,7 +45,7 @@ const REGEX_KIT_HOME = { pathInfix: "/packages/server/src/kit/regex/", exportedN
 const MESSAGE =
   "the canonical world-info regex-key execution seam is not composed with `createRegexTest()` from the " +
   "server regex kit — a user-authored key can then execute on the server event loop with no node:vm " +
-  "deadline. See docs/history/design/issue-712-gate-family.md and Core-Path-Registry.md D53.";
+  "deadline. See docs/history/design/issue-712-gate-family.md and D53.";
 const FIX = `compose \`${PROPERTY}: ${FACTORY}()\` from the server regex kit; never hand-roll a native \`.test\` at this boundary.`;
 
 export const gate = defineGate({

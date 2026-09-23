@@ -6,7 +6,7 @@ updated: 2026-09-18
 
 # UI-Architecture-and-Layout
 
-> **The UI law — part of the nine-doc set split from the D42 spec** (pre-split source: a deleted `client.md`; these nine carry the D43/D44/D52/D54/D58 corrections and WIN on any conflict with any archive copy). The ledger entries (D42–D44, D52, D54 in `Core-Laws-and-Precedents.md`) are the decision records; these docs are the expansion.
+> **The UI law — part of the nine-doc set split from the D42 spec** (pre-split source: a deleted `client.md`; these nine carry the D43/D44/D52/D54/D58 corrections and WIN on any conflict with any archive copy). The ledger entries (D42–D44, D52, D54) are the decision records; these docs are the expansion.
 >
 > **Reading order:** UI-Architecture-and-Layout (§0–§6) → UI-Gates-and-Lessons (§7–§11) → UI-Theming-and-Content (§12) → UI-Primitives-and-Reuse (§13) → `ui-package-design.md` (the @orb/ui package law, promoted D66) → `motion-and-animation-guide.md` (the motion law, promoted D66) → the owning Project issue and linked program doc → the five lib companions (`../history/UI-Lib-TanStack-{Query,Form,Router,Virtual}.md` · `../history/UI-Lib-Zustand.md` — evidence/provenance mines; distilled verdicts already live in the spec sections).
 >
@@ -14,7 +14,7 @@ updated: 2026-09-18
 >
 > **Build state:** `@orb/ui` is BUILT (the primitive fleet: Base UI wraps, layout kit, charts/meter, markdown/stream, the D44 security trio, the carve-out set — `packages/ui/src` is the inventory; `packages/ui/package.json#exports` the public surface). The `@orb/client` data/forms/state primitives are BUILT (`packages/client/src/{data,forms,state}`). Every feature slice carries real code (no `.gitkeep` stubs remain; `refinery` is the minimal planned-section member). Current build status is not restated here: code owns landed truth, and Project 1 owns open work. Per-primitive build decisions: `ui-package-design.md`.
 >
-> **Ledger D66 amends four D62-era rulings below (UI-relevant, all LANDED):** the LIST gets a real `.shell-panel-header` band (A1), the list-header **New** is the panel's ONE `primary` button (A2), message-action clusters rest HIDDEN not dimmed (A3), and every editor AUTOSAVES — no Save/Set/Discard (A4). Where §4.1/§4.2/§4.3 below still read as the D62 posture, the ledger D66 amendment WINS (`Core-Path-Registry.md` D66). The inline `> [!NOTE]` flags mark each conflict rather than silently overwriting the standing D62 law text.
+> **Ledger D66 amends four D62-era rulings below (UI-relevant, all LANDED):** the LIST gets a real `.shell-panel-header` band (A1), the list-header **New** is the panel's ONE `primary` button (A2), message-action clusters rest HIDDEN not dimmed (A3), and every editor AUTOSAVES — no Save/Set/Discard (A4). Where §4.1/§4.2/§4.3 below still read as the D62 posture, the ledger D66 amendment WINS (D66). The inline `> [!NOTE]` flags mark each conflict rather than silently overwriting the standing D62 law text.
 
 > **The one-sentence thesis:** carry over neo's *structure* (feature-slice · surfaces/anchors · state-files · intent tokens · the gate battery) and *dump* neo's *component foundation* (shadcn copy-paste + Radix + the react-markdown stack). The replacement is **one headless primitive (Base UI), hand-authored components in the `@orb/ui` package, and the lint rules promoted to package physics.**
 
@@ -285,7 +285,7 @@ The shell is Discord's anatomy with different nouns; the mapping is LAW so no la
 | Identity widget | persona `rail.end` chrome (`personaChrome`) → `account` leaf modal | the persona switcher + Account strip; the account card (handle · role · sign-out) is a leaf MODAL reached from inside Identity, NOT a settings pane (§B, You ⊃ Identity ⊃ Account) |
 
 > \[!NOTE]
-> LIST-header rulings AMENDED by ledger D66 (`Core-Path-Registry.md` D66 A1/A2; north-star §3): the
+> LIST-header rulings AMENDED by ledger D66 (D66 A1/A2; north-star §3): the
 > LIST "header row" is now the shared `.shell-panel-header` band on the `--dimension-chrome-row`
 > baseline (A1), and its create affordance is the panel's ONE `primary` **New** button, not a ghost
 > `+` (A2). The D62 text below stands as the standing law; D66 wins on the conflict. **D66 A1/A2 are

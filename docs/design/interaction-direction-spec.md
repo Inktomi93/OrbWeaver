@@ -66,7 +66,7 @@ class-2-sequential actor.
 **All authority is HUMAN authority in the one kernel.** A feature may CITE an existing axis; it
 may never invent one. The axes and their one homes: `can()` (D121) · the D19 triple
 (`Principal.userId` = authenticated caller; `triggeredBy` = the human responsible —
-spend/abort/attribution; `runAsUserId` = the host whose creds fund — `Core-Path-Registry.md:51`)
+spend/abort/attribution; `runAsUserId` = the host whose creds fund — D19)
 · D17 (hosted creds owner-only; non-owner use needs explicit consent, fail-closed; `:47`) ·
 automation fire-rate budgets + the cascade depth cap · plugin grants (a projection onto
 `can()`/`fetchOwned`/D17 — never a parallel kernel) · the tool `capability` ceiling + owning-verb

@@ -6,7 +6,7 @@ updated: 2026-07-16
 
 # Autosave-Form Doctrine — session-boundary identity (MINT → MIGRATE → SEAL)
 
-> **Status: RATIFIED 2026-07-16 (owner) — D78 minted (`Core-Path-Registry.md`), PD-145 tracks the
+> **Status: RATIFIED 2026-07-16 (owner) — D78 minted, PD-145 tracks the
 > three EXPOSED consumers until L2/L3, INDEX.md row added, L0 dispatched.** Authored from the
 > 2026-07-16 stickler merge-block review (`reports/stickler/2026-07-16-merge-block-28523122.md`) —
 > both P0s were live-reproduced and their mechanics traced into TanStack form-core source; every

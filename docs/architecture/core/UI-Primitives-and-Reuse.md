@@ -6,7 +6,7 @@ updated: 2026-08-07
 
 # UI-Primitives-and-Reuse
 
-> **The client reuse-model law (§13).** Decision records: D42–D44, D52, D54 (+ the D66 amendments) in `Core-Laws-and-Precedents.md`. §-map + reading order: `UI-Architecture-and-Layout.md` header; the `@orb/ui` package build law is `ui-package-design.md`. Provenance/lineage archive: `../history/ui-primitives-archaeology-record.md`.
+> **The client reuse-model law (§13).** Decision records: D42–D44, D52, D54 (+ the D66 amendments). §-map + reading order: `UI-Architecture-and-Layout.md` header; the `@orb/ui` package build law is `ui-package-design.md`. Provenance/lineage archive: `../history/ui-primitives-archaeology-record.md`.
 
 ## 13. The reuse model — the central primitives every feature builds on (D54)
 

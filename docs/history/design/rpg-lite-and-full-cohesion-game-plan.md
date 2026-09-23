@@ -11,7 +11,7 @@ updated: 2026-08-01
 > `rpg-design/` set · `docs/history/reviews/misc/marinara-st-extension-lite-mode.md` · ledger
 > D18/D20/D24/D46/D48/D58/D79/D80) and the tree as of the uncommitted R4 vertical (post-`acda8ffe`),
 > every load-bearing claim below re-verified against the CODE with own eyes + `pnpm ast`. Status:
-> **RATIFIED — D86 MINTED 2026-07-17** (`Core-Path-Registry.md` D86, owner-directed) and the §10.2
+> **RATIFIED — D86 MINTED 2026-07-17** (D86, owner-directed) and the §10.2
 > doc deltas are APPLIED (new `rpg-design/13-lite-mode.md` + the README/01/02/03/04/05/06/09/10/11/12
 > amendments + the `proposed/INDEX.md` row). This report is now the design RECORD — the rpg-design
 > set + the ledger are the law. Every non-obvious call carries its WHY + the rejected alternative

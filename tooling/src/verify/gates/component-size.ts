@@ -1,4 +1,4 @@
-// Gate: component-size (Core-Laws-and-Precedents.md / UI-Architecture-and-Layout.md §2.1). Client
+// Gate: component-size (UI-Architecture-and-Layout.md §2.1). Client
 // sources have a hard line cap. The verdict is per-file, so scoped runs remain complete and no
 // filesystem walk or ResourceHost tree is required.
 //

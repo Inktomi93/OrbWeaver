@@ -166,7 +166,7 @@ Read with own eyes this session (paths current tree unless `legacy-main:` cited)
 - **`resolveHostPrincipal` is already shared for "rpg's lite capability resolve"**
   (`entry/compose/services.ts:418-420` — the comment survived the purge).
 - **The ledger's reserved range**: D79–D105 are reserved re-mints with ORIGINAL main-era meanings
-  (`Core-Path-Registry.md:11`); D58/D59 survive in retro's ledger. New rulings mint at **D108+**.
+  (`tooling/src/verify/gates/d-citation-integrity.ts` owns the range); D58/D59 survive in retro's ledger. New rulings mint at **D108+**.
 - **Legacy semantics read as reference** (copied nothing): the 14-table schema
   (`legacy-main:packages/db/src/schema/rpg.ts`), the Option-A staging accumulator
   (`legacy-main:.../rpg/staging.ts` + `contract/staging.ts`), the 4-rung snapshot resolution ladder

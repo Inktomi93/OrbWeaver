@@ -13,7 +13,7 @@ updated: 2026-08-30
 > **What I read (full):** `injections.ts`, `contracts/prose-slot/index.ts`, `contracts/chat/prose.ts`,
 > `db/schema/persona.ts`, `db/schema/character.ts` (+ `character_personas` junction), `contracts/persona/index.ts`,
 > `persona/verbs/create-from-character.ts`, `persona/contract/views.ts`, `persona/substrate/{metadata,macro-swap}.ts`,
-> D122 (`Core-Path-Registry.md:353-436`), `FINAL-Persona…md` A.0/A.1/A.8, the I-8 workboard block,
+> D122, `FINAL-Persona…md` A.0/A.1/A.8, the I-8 workboard block,
 > prose-1-spec §6.3, `contracts/preset/index.ts:709-730` (the carrier-token refusal), `template-drill-in.tsx`.
 > **What I did NOT read (and why it may matter):** the full `assembly/context.ts`/`macros.ts` routing (I read
 > FINAL-Persona's summary of it, A.1 lines 57-67, not the source line-by-line); the persona-resolution int-suite
@@ -65,8 +65,7 @@ one-description subset of a character, minted by a lossy one-way copy.**
   (`FINAL-Persona…md:59-61`). A character has ONE identity per card; a human has FOUR persona POINTERS
   (default/current/chat/anchor — `FINAL-Persona…md:33-38`) selecting WHICH persona applies WHERE. **The pointer
   layer is the persona system's actual complexity, and characters have no analog.**
-- **Personas are owner-sacred and never copied across a room boundary** (D122; D131 "personas never copied";
-  `Core-Path-Registry.md:436`). Characters ARE copied — the handoff property offer copies cast cards (D131),
+- **Personas are owner-sacred and never copied across a room boundary** (D122; D131 "personas never copied"). Characters ARE copied — the handoff property offer copies cast cards (D131),
   fork copies card content (D133). Unifying the types would drag persona rows into copy paths the owner has
   explicitly walled them out of.
 - **History model differs by design** — characters have snapshots that gate nothing (D28); personas have none.

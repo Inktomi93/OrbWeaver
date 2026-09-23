@@ -8,7 +8,7 @@ updated: 2026-07-03
 
 > **Status: COMMITTED (D61, 2026-07-01).** The Marinara-Residue B5 row is CLOSED (Nate: complete the
 > marinara-borrow adoption — the unpaired borrows get full designs). This doc set is the
-> authoritative design (`Core-Laws-and-Precedents.md` D61 is the decision record and wins on any
+> authoritative design (D61 is the decision record and wins on any
 > conflict); marinara's six bot-browser proxies are the evidence base
 > (`neo-tavern/references/marinara-engine/packages/server/src/routes/bot-browser*.routes.ts`,
 > 1,647 LOC + `utils/security.ts` — dissected fresh for this set, file:line cites inline).

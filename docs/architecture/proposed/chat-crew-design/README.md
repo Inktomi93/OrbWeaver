@@ -9,8 +9,7 @@ updated: 2026-07-03
 > **Status: COMMITTED (D59, 2026-07-01).** The plain-chat agent crew IS a product goal — the
 > Marinara-Residue B7/B8 rows are CLOSED (Nate, 2026-07-01: bring the non-game agent capabilities
 > into the fold in full), and the guided-generations extension's PERSISTENT-guides half joins the
-> same domain (doc 06). This doc set is the authoritative design (`Core-Laws-and-Precedents.md`
-> D59 is the decision record and wins on any conflict); the marinara agent corpus is the evidence
+> same domain (doc 06). This doc set is the authoritative design (D59 is the decision record and wins on any conflict); the marinara agent corpus is the evidence
 > base (archived — `Marinara-Agent-System-Analysis.md` + `Marinara-Agent-Port-Map.md` at the
 > "archive the marinara research corpus" commit `7debe31`; the marinara CLIENT and the
 > guided-generations extension source were dissected fresh for docs 06–07). Everything here is

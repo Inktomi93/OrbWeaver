@@ -10,7 +10,7 @@ updated: 2026-07-13
 
 **🛑 CRITICAL DIRECTIVES FOR ALL AGENTS: DO NOT SKIM 🛑**
 
-1. **Read Every Word:** Before touching a domain, read its architecture docs and the pain ledger (`docs/architecture/core/Core-Laws-and-Precedents.md`) IN FULL. Use `view_file` sequentially if >800 lines. Skimming leads to severe architectural violations.
+1. **Read Every Word:** Before touching a domain, read its architecture docs and the D-ledger (`docs/adr/`) IN FULL. Use `view_file` sequentially if >800 lines. Skimming leads to severe architectural violations.
    - **MANDATORY PRE-REQUISITE:** You MUST read `AGENTS-1-Architecture.md`, `AGENTS-2-Spine.md`, and `AGENTS-3-Domains.md` in `docs/architecture/core` in full before doing ANY domain work. The architecture rules are law.
 2. **No `grep` for Code Structure:** When searching `neo-tavern` for interfaces or function definitions, use `ast-grep` or `ts-morph` (NEVER plain `grep`). You MUST capture the JSDoc comments to understand the original intent.
 3. **Global Search Before Drop:** Before declaring a capability "dropped" or missing, you MUST perform a `grep_search` across the ENTIRE `docs/architecture` directory to verify it wasn't deliberately moved (e.g., `attachTagToTargets` moved from `tag` to `character` as `bulkAddCardTag`).

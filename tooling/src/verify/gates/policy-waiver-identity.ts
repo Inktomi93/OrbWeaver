@@ -293,7 +293,7 @@ export const gate = defineGate({
       mode: "types",
       files: familyFixture(
         finalProbeModule(
-          `${ORDINARY_TRUNK}\n  mustPass: [{ mode: "resource", files: { "docs/architecture/core/Core-Path-Registry.md": "<!-- @orb-waive probe(x): the proof reason. -->\\n- **D1** — x\\n" }, why: "the markdown carrier arm" }],`,
+          `${ORDINARY_TRUNK}\n  mustPass: [{ mode: "resource", files: { "docs/adr/0001-x.md": "<!-- @orb-waive probe(x): the proof reason. -->\\n- **D1** — x\\n" }, why: "the markdown carrier arm" }],`,
         ),
       ),
       why: "the RESOURCE-CARRIER in-module shape (`ledger-symbol-liveness`): a Markdown fixture's marker is an HTML comment, so the recogniser reads the same opener set the engine's `commentBody` accepts — `//`, `/*`, `{/*`, `<!--` and `--`. Without the HTML opener in `MARKER_LINE_RE` this row reds: the arm is real, the engine consumes it, and this policy could not see it",

@@ -10,7 +10,7 @@ updated: 2026-07-13
 
 ## Provenance
 
-Both enforcement docs were split out of `Core-Laws-and-Precedents.md` on 2026-07-02 (the D-ledger grew a
+Both enforcement docs were split out of the ledger index doc on 2026-07-02 (the D-ledger grew a
 dedicated enforcement catalog). The active/deferred split followed the next day. The Layer-3 gate table
 originally carried an **Origin** column (`neo (ported)` vs `new`, plus a wave/PD/task tag per row); that
 column was dropped 2026-07-13 — gate lineage is git-blame territory, not standing law. The neo-ported

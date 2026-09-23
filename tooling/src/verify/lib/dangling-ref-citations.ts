@@ -21,7 +21,7 @@ const GATES_DIR_REL = "tooling/src/verify/gates";
  *  DECLARATION that made its own cited symbol resolve. The finding then never fired, the grant was never
  *  consumed, and central reconciliation alarmed all 19 as stale — a two-sided failure where the alarm was
  *  the only visible symptom and the real loss was 19 unjudged doc citations. Measured: deleting one grant
- *  row (`anth-direct-sampling`) made its finding appear at `Core-Path-Registry.md:192`, which is the
+ *  row (`anth-direct-sampling`) made its finding appear in the D68 ledger row, which is the
  *  control that the sites are live and the arm is otherwise working. A PREFIX over the family's directory
  *  is the fence that a future split cannot silently widen past. */
 const REVIEWED_GRANTS_PREFIX = "tooling/src/verify/lib/reviewed-grants";

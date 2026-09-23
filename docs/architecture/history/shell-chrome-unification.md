@@ -8,7 +8,7 @@ updated: 2026-07-16
 
 > **CLOSED: §E steps 1–7 all landed 2026-07-16.** The mechanism is LAW in
 > `../core/UI-Architecture-and-Layout.md` §4.x; the standing rulings are D73/D74
-> (`../core/Core-Path-Registry.md`). This record is history, not law.
+> (`../../adr/`). This record is history, not law.
 
 > **STATUS: design of record. Slice 1 (`topbar.trail`) SHIPPED (N1); the rail/sheet/prop-kill waves remain.**
 > **Sequencing across the three programs lives in ONE home: `ui-cohesion-north-star.md` header ("Sequencing")**
@@ -199,7 +199,7 @@ vocabulary (zones are architecture, entries are growth).
    type-deleted (`AppShellProps` gone) and the remaining app-shell ReactNode props can't be cut by a name
    allowlist without guarding nothing (verdict: `Core-Enforcement-Deferred-Dropped.md`). `UI-Architecture-and-Layout.md`
    §4.x updated to the one-registry/zones/containment-chain reality. D-ledger entries for (a) clusters-are-registries /
-   frame-grammar-is-intrinsic and (b) You ⊃ Identity ⊃ Account are minted by the orchestrator (Core-Path-Registry).
+   frame-grammar-is-intrinsic and (b) You ⊃ Identity ⊃ Account are minted by the orchestrator (the D-ledger).
 
 **Deleted at the end:** `railFoot` + `topbarTrail` props, `RailTabButton`, both rail DOM twins, `YouSheet`'s
 filters, `rail-slots.ts`, placement `avatar`, the planned account pane. **Watchpoints:** hooks-over-registry-list

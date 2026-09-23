@@ -6,15 +6,18 @@ import { archive, newAdr, newItem, newPlan, nextAdrId, regenerateIndexes, review
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const TODAY = "2026-09-23";
-const REGISTRY = "docs/architecture/core/Core-Path-Registry.md";
-const REGISTRY_SOURCE = "# Registry\n\n> **RESERVED RANGE — D79–D105:** main-era rulings.\n\n## D1-D2\n\n- **D1** — one.\n\n- **D163** — last.\n";
+const ADR_SOURCE = "---\nkind: adr\nstatus: active\nupdated: 2026-01-01\n---\n\n# A decision\n";
 
 function read(root: string, path: string): string {
   return readFileSync(join(root, path), "utf8");
 }
 
-test("new adr mints at the next free id past the registry and the reserved range, and refuses a twin slug", async ({ plantedTree }) => {
-  const root = await plantedTree({ [REGISTRY]: REGISTRY_SOURCE, "docs/Mission.md": "---\nkind: law\nstatus: active\nupdated: 2026-01-01\n---\n\n# M\n" });
+test("new adr mints at the next free id past the ADR tree and the reserved range, and refuses a twin slug", async ({ plantedTree }) => {
+  const root = await plantedTree({
+    "docs/adr/0001-one.md": ADR_SOURCE,
+    "docs/adr/0163-last.md": ADR_SOURCE,
+    "docs/Mission.md": "---\nkind: law\nstatus: active\nupdated: 2026-01-01\n---\n\n# M\n",
+  });
   expect(nextAdrId(root)).toBe(164);
   const first = newAdr("docs-system", "Docs system", root, TODAY);
   expect(first.refusals).toEqual([]);
@@ -25,7 +28,7 @@ test("new adr mints at the next free id past the registry and the reserved range
   const twin = newAdr("docs-system", null, root, TODAY);
   expect(twin.written).toEqual([]);
   expect(twin.refusals[0]).toContain("an ADR with slug docs-system exists");
-  const reservedOnly = await plantedTree({ [REGISTRY]: "> **RESERVED RANGE — D79–D105:** x.\n\n## D1-D2\n\n- **D78** — y.\n" });
+  const reservedOnly = await plantedTree({ "docs/adr/0078-y.md": ADR_SOURCE });
   expect(nextAdrId(reservedOnly)).toBe(106);
 });
 

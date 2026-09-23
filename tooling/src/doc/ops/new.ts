@@ -10,7 +10,7 @@ import { nextFreeRulingId } from "../lib/rules.ts";
 import { adrTemplate, planTemplate } from "../lib/templates.ts";
 import { regenerateIndexes } from "./indexes.ts";
 import type { WriteOutcome } from "./items.ts";
-import { governedPaths, registryFacts, root, today, writeDoc } from "./tree.ts";
+import { governedPaths, root, today, writeDoc } from "./tree.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm doc new <adr|plan> <slug>");
 
@@ -22,8 +22,7 @@ function titleFrom(slug: string, title: string | null): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
-/** The next free ADR id: one past the highest id in the registry or the ADR tree, skipping the reserved
- *  window — the union is what keeps a new decision from colliding with a row that has not migrated yet. */
+/** The next free ADR id: one past the highest id in the ADR tree, skipping the reserved window. */
 export function nextAdrId(repoRoot = root): number {
   const adrIds = governedPaths(repoRoot)
     .filter((path) => path.startsWith(DOC_TOOL_TREES.adr))
@@ -31,7 +30,7 @@ export function nextAdrId(repoRoot = root): number {
       const name = parseNumberedName(basenameOf(path));
       return name === null ? [] : [name.id];
     });
-  return nextFreeRulingId(registryFacts(repoRoot).registryIds, adrIds);
+  return nextFreeRulingId(adrIds);
 }
 
 export function newAdr(slug: string, title: string | null, repoRoot = root, date = today()): WriteOutcome {

@@ -6,7 +6,7 @@ updated: 2026-08-30
 
 # UI-Theming-and-Content
 
-> **The UI law — part of the nine-doc set split from the D42 spec.** Decision records: D42–D44, D52, D54, D63 in `Core-Laws-and-Precedents.md`. §-map + reading order: `UI-Architecture-and-Layout.md` header. Project 1 owns current work; the code owns the live theming pipeline. This doc owns the trust-tier model and its constraints.
+> **The UI law — part of the nine-doc set split from the D42 spec.** Decision records: D42–D44, D52, D54, D63. §-map + reading order: `UI-Architecture-and-Layout.md` header. Project 1 owns current work; the code owns the live theming pipeline. This doc owns the trust-tier model and its constraints.
 
 ## 12. User theming & rich message content (ledger D44)
 

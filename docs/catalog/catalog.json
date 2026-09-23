@@ -132,19 +132,6 @@
       }
     },
     {
-      "path": "docs/architecture/core/Core-Laws-and-Precedents.md",
-      "lane": "architecture-core",
-      "frontmatter": {
-        "fields": {
-          "kind": "law",
-          "status": "active"
-        }
-      },
-      "receipt": {
-        "authority": "normative"
-      }
-    },
-    {
       "path": "docs/architecture/core/Core-Legacy-Migration-and-Gaps.md",
       "lane": "architecture-core",
       "frontmatter": {
@@ -155,19 +142,6 @@
       },
       "receipt": {
         "authority": "historical"
-      }
-    },
-    {
-      "path": "docs/architecture/core/Core-Path-Registry.md",
-      "lane": "architecture-core",
-      "frontmatter": {
-        "fields": {
-          "kind": "reference",
-          "status": "active"
-        }
-      },
-      "receipt": {
-        "authority": "normative"
       }
     },
     {

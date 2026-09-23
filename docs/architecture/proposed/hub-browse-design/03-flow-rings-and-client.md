@@ -275,5 +275,5 @@ Zero client math beyond rendering; every displayed fact arrives on the wire shap
 `domains/character.md` + PD-43 (`findByImportHash`; the new `findByImportedFrom` delta) ·
 `domains/assets.md` (gutted — the code is the doc; git history)/D21 (why the proxy cache is not CAS; `Cache-Control: private`) ·
 `gallery-design.md` §5/§6/§8 (G6 = H1; the G7 home delta) · `databank-design` (scraper consumers
-of H1) · doc 01/02 · `Core-Laws-and-Precedents.md` D37 · `Spine-Config-and-Serialization.md`
+of H1) · doc 01/02 · D37 · `Spine-Config-and-Serialization.md`
 §7.2 (the AppSettings nature).

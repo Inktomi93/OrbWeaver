@@ -12,7 +12,7 @@ updated: 2026-08-14
 
 > **THIS IS THE WORKING DOC** (owner-stated). Not law, not a deliverable — the durable state an
 > orchestrator resumes from cold. Authority for LAW = `docs/architecture/core/**`; the D-ledger
-> (`Core-Path-Registry.md` / `Core-Laws-and-Precedents.md`, current through **D136**; **D137 is
+> (the D-ledger, current through **D136**; **D137 is
 > reserved** for the persona build if C1 rules) wins on ANY conflict. `docs/architecture/proposed/**`
 > is pre-rollback REBUILD REFERENCE — never cite its status as current.
 >

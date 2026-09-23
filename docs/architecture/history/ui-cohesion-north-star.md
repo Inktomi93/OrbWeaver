@@ -23,7 +23,7 @@ updated: 2026-08-30
 The prior program records (`ui-polish-punchlist.md`, `ux-flow-revamp.md`, `DESIGN-REVIEW-2026-07-01.md`)
 are ARCHIVED to `../history/` — they are history, not law; do not quote them as authority. Their open
 remainders were ported into §6 here. Unbuilt design sets are parked in proposed — see `../proposed/INDEX.md`
-(`../proposed/README.md` has the map). **Precedence:** `Core-Laws-and-Precedents.md` (D-ledger,
+(`../proposed/README.md` has the map). **Precedence:** the D-ledger (`../../adr/`,
 D66 = this program) → the core `UI-*.md` law set + `../core/ui-package-design.md` +
 `../core/motion-and-animation-guide.md` (promoted to core under D66; ui-package-design's §-numbers
 stay stable) → this doc. On any conflict, the higher tier wins.
@@ -250,7 +250,7 @@ correct — a task touching it is off the rails.
 ## 3. D66 amendments — what this program consciously changes
 
 The current UI is the LANDED D62 output; these pain points are what D62's rulings produced. D66
-amends the following (recorded in `Core-Path-Registry.md`; grep the id for the decision record):
+amends the following (recorded in `../../adr/`; grep the id for the decision record):
 
 | # | Old ruling (D62) | New ruling (D66) | Why |
 | - | - | - | - |

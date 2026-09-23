@@ -21,7 +21,6 @@ export { debtPathErrors, migrationDebt, migrationMetrics } from "./lib/debt.ts";
 export { frontmatterErrors, parseFrontmatter } from "./lib/frontmatter.ts";
 export {
   ADR_KIND,
-  CORE_PATH_REGISTRY_PATH,
   DATE_RE,
   DOC_TOOL_TREE_PREFIXES,
   DOC_TOOL_TREES,
@@ -35,5 +34,5 @@ export { authoredArtifacts, expectedCatalog, offCanonicalPaths, unformattedArtif
 export type { FormatOutcome, FormatRefusal } from "./ops/format.ts";
 export { formatDocs, formatMarkdown, formatTargets } from "./ops/format.ts";
 export { runCatalog, runFormat } from "./ops/run.ts";
-export { documents, laneAssignments, loadReceipts, stableRulingAnchors } from "./ops/tree.ts";
+export { documents, laneAssignments, loadReceipts } from "./ops/tree.ts";
 export { validate, validateReceiptEntry } from "./ops/validate.ts";

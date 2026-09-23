@@ -7,7 +7,7 @@ updated: 2026-07-03
 # Plugin Design — the prescriptive plan for `infra/plugin-host` + `domain/plugin` (D46 Tier 2, doc-set index)
 
 > **Status: COMMITTED (D46, 2026-06-28) — a deliverable, not a maybe.** This doc set is the
-> authoritative BUILD design for the Tier-2 code sandbox (`Core-Laws-and-Precedents.md` D46 is the
+> authoritative BUILD design for the Tier-2 code sandbox (D46 is the
 > decision record and wins on any conflict; `../automation-design/automation.md` §3 remains the committed
 > decision digest). Sequenced after the Phase-5 seams it depends on (the `can()` axis, the chat
 > event bus, the turn pipeline) and after the Tier-1 set it composes with

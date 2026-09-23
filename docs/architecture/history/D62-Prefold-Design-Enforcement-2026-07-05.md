@@ -65,7 +65,7 @@ first try*. Both, always.
 
 > Nate delegated the remaining calls this date ("you can make decisions on all remaining items —
 > consider flow first, Discord as a guide"). Each ruling below is therefore DECIDED for lane
-> purposes; at implementation, each still gets its D-ledger row in `Core-Laws-and-Precedents.md`
+> purposes; at implementation, each still gets its D-ledger row
 > (the decision record) and any cited law-text amendment. Nate can veto any row by striking it
 > here before its lane runs.
 

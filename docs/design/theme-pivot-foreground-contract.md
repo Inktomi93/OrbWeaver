@@ -211,7 +211,7 @@ Tests/gates:
 
 Documentation truth repair:
 
-- D71 in `Core-Path-Registry.md`;
+- D71;
 - `UI-Theming-and-Content.md`;
 - the active token-contract program;
 - the current CSS census; and

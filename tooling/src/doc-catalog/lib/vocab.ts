@@ -8,7 +8,6 @@ export const LANES_PATH = `${CATALOG_DIR}/lanes.json`;
 export const STATE_PATH = `${CATALOG_DIR}/state.json`;
 export const OUTPUT_PATH = `${CATALOG_DIR}/catalog.json`;
 export const RECEIPTS_DIR = `${CATALOG_DIR}/receipts`;
-export const CORE_PATH_REGISTRY_PATH = "docs/architecture/core/Core-Path-Registry.md";
 
 export const FRONTMATTER_FENCE_LENGTH = 4;
 export const FRONTMATTER_LINE_OFFSET = 2;
@@ -59,13 +58,9 @@ export const VALID_AUTHORITIES = new Set([
   "vendor",
 ]);
 
-/** The D-numbers reserved by the ledger's own renumbering window. The `doc` tool refuses an ADR inside it
- *  from here, so the window outlives the registry's note. */
+/** The D-numbers reserved by the ledger's renumbering window; `pnpm doc new adr` never mints into it. */
 export const FIRST_RESERVED_RULING = 79;
 export const LAST_RESERVED_RULING = 105;
-
-export const LEDGER_ENTRY_HEADING_RE = /^## D([1-9]\d*)(?:\s|\(|$)/u;
-export const LEDGER_ENTRY_BOLD_RE = /^- \*\*D([1-9]\d*)\b/u;
 
 export const REQUIRED_FRONTMATTER_KEYS = ["kind", "status", "updated"];
 export const ALLOWED_FRONTMATTER_KEYS = new Set([...REQUIRED_FRONTMATTER_KEYS, "supersedes"]);
