@@ -186,6 +186,7 @@ export function PluginAnchoredSurfaces({ anchor, chatId }: PluginAnchoredSurface
               pluginName={surface.pluginName}
               surfaceId={surface.surfaceId}
               title={surface.title}
+              chatId={chatId}
             />
           );
         }
