@@ -17,8 +17,8 @@ const OPERATION = "missing-contract-test";
 
 const MESSAGE = (verb: string, declaredIn: string): string =>
   `${verb} (declared on ${declaredIn}) — the *Service interface declares this verb but no test in its domain tree invokes ` +
-  "it as a service method or through its `create<Verb>(` factory (docs/law/Spine-Testing.md §5; " +
-  "test-support-dry-punchlist.md W1i). Add a behavioral test at tests/server/domain/ or, for a tracked " +
+  "it as a service method or through its `create<Verb>(` factory (docs/law/Spine-Testing.md §5). " +
+  "Add a behavioral test at tests/server/domain/ or, for a tracked " +
   "gap, a reviewed grant.";
 
 export const gate = defineGate({

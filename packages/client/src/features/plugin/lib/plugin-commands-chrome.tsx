@@ -1,5 +1,5 @@
 // pluginCommandsChrome — the registered `topbar.trail` widget for the "Plugins" wand menu
-// (shell-chrome-unification.md §A; plugin-ui-plane #679 U5, §4.5). ONE first-party chrome entry for the whole
+// (plugin-ui-plane #679 U5, §4.5). ONE first-party chrome entry for the whole
 // platform: the commands inside it are DATA, fanned per-plugin off `plugin.listCommands`, so the chrome registry
 // never grows when a person installs something.
 //

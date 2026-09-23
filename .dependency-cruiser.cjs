@@ -122,7 +122,7 @@ module.exports = {
     {
       name: "kit-no-node-builtins",
       comment:
-        "@orb/kit must not import node:* — it is browser-safe (isomorphic). The node:vm ReDoS guard and any other Node-only-pure helper live in @orb/server/kit, not here. (Core-Shared-Dissolution.md §0; per-symbol map: history/Shared-Drawer-Dissolution-Map.md §2.)",
+        "@orb/kit must not import node:* — it is browser-safe (isomorphic). The node:vm ReDoS guard and any other Node-only-pure helper live in @orb/server/kit, not here. (Core-Shared-Dissolution.md §0.)",
       severity: "error",
       from: { path: KIT },
       to: { dependencyTypes: ["core"] },
@@ -554,7 +554,7 @@ module.exports = {
     {
       name: "server-kit-reaches-up-to-nothing",
       comment:
-        "@orb/server/kit is the server-only-pure bottom tier (node-only-pure: post-process, serde, content-hash, the node:vm regex guard). It may use node:* + @orb/db + @orb/contracts + @orb/kit (all at/below it), but must reach UP to nothing in server — no entry/transport/domain/infra import. (history/Shared-Drawer-Dissolution-Map.md §2 — the per-symbol map; the surviving law is Core-Shared-Dissolution.md.)",
+        "@orb/server/kit is the server-only-pure bottom tier (node-only-pure: post-process, serde, content-hash, the node:vm regex guard). It may use node:* + @orb/db + @orb/contracts + @orb/kit (all at/below it), but must reach UP to nothing in server — no entry/transport/domain/infra import. (Core-Shared-Dissolution.md.)",
       severity: "error",
       from: { path: `${SRV}kit/` },
       to: { path: `${SRV}(entry|transport|domain|infra|foundation)/` },

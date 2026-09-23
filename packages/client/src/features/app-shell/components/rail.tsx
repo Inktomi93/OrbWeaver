@@ -1,5 +1,5 @@
 // Rail — the persistent nav. ONE component rendering ONE flat DOM list from the assembled chrome registry
-// (shell-chrome-unification.md §C, the single-DOM cutover): the `rail.nav` section entries grouped by
+// (the single-DOM cutover): the `rail.nav` section entries grouped by
 // `group` (SECTION_GROUPS divider order) → the spacer → the `rail.end` footer-modal entries + the persona
 // identity widget. shell.css reflows that one list — the desktop thin icon column and the mobile bottom tab
 // bar are the SAME DOM under one `@media`, with `data-mobile="sheet"` entries hidden on the bar

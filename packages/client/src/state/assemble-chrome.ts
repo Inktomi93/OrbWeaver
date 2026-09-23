@@ -1,4 +1,4 @@
-// assembleChrome (shell-chrome-unification.md §A/§E-2) — the PURE, unit-testable assembly the door
+// assembleChrome — the PURE, unit-testable assembly the door
 // (main.tsx) runs ONCE to produce the flat `ChromeEntry[]` it hands to `createContributorRegistry`.
 // Entries come from three sources by DERIVATION, never re-declaration: rail SECTIONS (from each
 // `SectionDefinition.rail`), MODAL triggers whose placement maps to a chrome zone (from each

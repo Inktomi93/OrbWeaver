@@ -141,7 +141,6 @@ exports map has one entry, so no domain can reach a backend.
 | Docs and comments | `.claude/rules/writing.md`, `.claude/rules/comments.md`, `.claude/rules/docs.md` |
 | Which word names a concept | `../design/vocabulary-map.md` |
 | Mission | `../Mission.md` |
-| Resolved history (reference only) | `../architecture/history/` |
 
 ## L. Lane discipline
 

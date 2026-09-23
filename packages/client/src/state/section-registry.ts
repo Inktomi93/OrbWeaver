@@ -19,7 +19,7 @@ export const SECTION_GROUPS = ["primary", "authoring", "insight"] as const;
 /** The rail's section-group axis, derived from the SECTION_GROUPS tuple (no inline re-spell). */
 export type SectionGroup = (typeof SECTION_GROUPS)[number];
 
-/** A rail entry's mobile fate — an EXPLICIT decision (shell-chrome-unification.md §A): `"tab"` = a
+/** A rail entry's mobile fate — an EXPLICIT decision: `"tab"` = a
  *  curated thumb-reach bottom-bar tab, `"sheet"` = folds into the mobile You sheet. Homed here with the
  *  rail's other vocabulary (SECTION_GROUPS) so `chrome-registry.ts` derives `ChromeEntry.mobile` from it
  *  the same one-directional way it derives `group` from `SectionGroup` — no second spelling, no cycle. */

@@ -11,10 +11,10 @@ import { readTailwindClassTokens } from "../lib/tailwind-class-token.ts";
 import { waivableCoordinate } from "../lib/waivable-coordinate.ts";
 
 const MESSAGE =
-  "arbitrary Tailwind value on a layout/size/type utility (design-enforcement.md §3) — off-token " +
+  "arbitrary Tailwind value on a layout/size/type utility — off-token " +
   "brackets bypass the design system; use a token utility (or extend tokens.json if none fits).";
 
-/** Scoped utility prefixes (design-enforcement.md §3): w, h, min-w, min-h, max-w, max-h, size, the p/m
+/** Scoped utility prefixes: w, h, min-w, min-h, max-w, max-h, size, the p/m
  *  spacing family, gap, space-x/y, inset, top/left/right/bottom/start/end, translate-x/y/z, z,
  *  grid-cols/grid-rows, text/leading/tracking/rounded. */
 const SCOPED_UTILITY_RE =

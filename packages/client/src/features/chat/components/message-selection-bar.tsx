@@ -1,4 +1,4 @@
-// The bulk-message SELECTION bar (ux-flow-revamp J6) — the `@orb/ui/selection-bar` chrome pinned above
+// The bulk-message SELECTION bar — the `@orb/ui/selection-bar` chrome pinned above
 // the composer while bulk-select mode is active (the chat options menu enters the mode; each row shows a
 // checkbox, message-row.tsx). Shows the live count + a Delete action; the bar's own clear (X / Escape)
 // CANCELS the mode. Renders null when the mode is off (the primitive's "render-when-nonzero is the

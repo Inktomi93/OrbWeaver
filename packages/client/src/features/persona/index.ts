@@ -1,6 +1,6 @@
 // persona/ front door (UI-Arch §2.1) — the ONLY entry into the persona slice (dep-cruiser
-// client-feature-front-door). The Identity chrome widget (`personaChrome`, shell-chrome-unification.md
-// §B) is registered at the main.tsx door; no feature imports this slice's internals, and this slice
+// client-feature-front-door). The Identity chrome widget (`personaChrome`)
+// is registered at the main.tsx door; no feature imports this slice's internals, and this slice
 // imports no other feature (cross-domain reads ride trpc.*).
 //
 // The Personas config GROUP is a `sections` skimmer (config-revamp-design.md §6.8.2): its three sections

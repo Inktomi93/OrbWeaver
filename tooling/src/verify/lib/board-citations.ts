@@ -24,7 +24,7 @@
 //      Measured when this landed: 326 of 515 state-bearing rows cite an id, 0 dangling, 62 state
 //      disagreements under the rejected predicate.
 //
-//   3. `roster-reference` — `Core-Enforcement-Active-Gates.md` and `docs/architecture/history/Core-Enforcement-Deferred-Dropped.md`.
+//   3. `roster-reference` — `Core-Enforcement-Active-Gates.md` and `docs/law/Core-Enforcement-Deferred-Dropped.md`.
 //      THE OPENNESS HALF IS REFUSED, on the roster's own evidence (measured 2026-09-13, ruled by the
 //      orchestrator the same day): all 292 citations across 149 distinct ids sit in the `Enforces` column
 //      and name the issue the gate IMPLEMENTS — "issue #935 — the 41 Appearance schema leaves…" — which is

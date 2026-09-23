@@ -1,5 +1,5 @@
 // The Identity (persona) chrome widget's render — the rail SWITCHER (#866 S4, the frequency law: the rail
-// slot carries only what travels with a switch). ONE widget, TWO lenses (shell-chrome-unification.md §B):
+// slot carries only what travels with a switch). ONE widget, TWO lenses:
 // `presentation:"bar"` is the desktop rail.end avatar chip + popover; `presentation:"sheet"` inlines the
 // same grammar into the mobile You sheet. Both render: the WHO-HEAD (who you are playing as, and whether
 // that is your pinned default) → the SWITCH rows (`PersonaSwitchList` — radio-style, with the inline pin)

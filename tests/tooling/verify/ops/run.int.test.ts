@@ -1025,7 +1025,7 @@ test("browser:ct scopedArgv: skip-empty on no CT surface; the one-slot CT launch
 // nothing on a clean tree; the repo's `vitest.config.ts` sets `passWithNoTests: false`, so vitest prints
 // "No test files found, exiting with code 1" and `asViolations` scores that digit as VIOLATIONS. §L tells
 // lanes to commit and then report receipts, so the door reds exactly when a lane is told to walk it.
-// THE FIX is `--passWithNoTests` on the SCOPED argv alone. It reopens PD-115 (Core-Debt-Cleared-Ledger:
+// THE FIX is `--passWithNoTests` on the SCOPED argv alone. It reopens PD-115 (docs/law/Core-Debt-Cleared-Ledger.md:
 // `passWithNoTests` was flipped to false in 2026-07-03 so "a lane whose include glob matches NOTHING …
 // FAILS instead of passing"), and that ruling SURVIVES — its INPUT changed. PD-115 judges an ASSERTED
 // selector (a config include glob asserts a fileset); this argv's selector is always the DERIVED

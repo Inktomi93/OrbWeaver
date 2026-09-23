@@ -64,7 +64,7 @@ export interface ResolveVariantParams extends AssetsActorParams {
    *  before any cache/transform — `kind` selects the ladder. */
   readonly width: number;
   /** Which ladder/crop to produce. `icon` is the existing width-only, any-aspect ladder; `portrait` is the
-   *  2:3 smart-cropped ladder (`FINAL-Persona-and-Immersive-Chat-Visuals.md` §B.4). Required — the blob
+   *  2:3 smart-cropped ladder. Required — the blob
    *  route always resolves it explicitly from `?v=`, so no caller silently falls through to the wrong
    *  ladder. */
   readonly kind: VariantKind;

@@ -159,3 +159,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D172 | [Rewrite toggles and greeting transforms are preset slots composed on the server](0172-steer-fragments-are-preset-slots-composed-on-the-server.md) | active |
 | D173 | [The brand mark is the Open Orb, one emblem at every scale](0173-the-brand-mark-is-the-open-orb.md) | active |
 | D174 | [Provider wires stay our own adapters](0174-provider-wires-stay-our-own-adapters.md) | active |
+| D175 | [Test setup stays inline; per-domain fixture families are not built](0175-test-setup-stays-inline.md) | active |

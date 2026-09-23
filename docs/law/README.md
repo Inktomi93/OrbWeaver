@@ -16,7 +16,9 @@ The locked principles are the first section of Core-0, the enforcement catalog i
 | [Orbweaver constitution](Constitution.md) | active |
 | [Orbweaver — structure & enforcement (the constitution)](Core-0-Architecture-and-Structure.md) | active |
 | [Audits-and-Debt (live: Promotion / Relocation Debt Registry)](Core-Audits-and-Debt.md) | active |
+| [Orbweaver — Cleared Debt Ledger (closed PD flags)](Core-Debt-Cleared-Ledger.md) | active |
 | [Orbweaver — Enforcement Registry: Active Gates](Core-Enforcement-Active-Gates.md) | active |
+| [Orbweaver — Enforcement Registry: Deferred + Dropped](Core-Enforcement-Deferred-Dropped.md) | active |
 | [Legacy-Migration-and-Gaps — split index](Core-Legacy-Migration-and-Gaps.md) | active |
 | [Planning-and-Checklists](Core-Planning-and-Checklists.md) | active |
 | [Orbweaver — Shared-Dissolution: the kit-purity law + surviving invariants](Core-Shared-Dissolution.md) | active |

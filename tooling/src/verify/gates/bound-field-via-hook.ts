@@ -1,4 +1,4 @@
-// Policy: bound-field-via-hook (derive-modernization-audit.md §W3, G28 — the useBoundField hook sealed).
+// Policy: bound-field-via-hook (the useBoundField hook sealed).
 // Every bound field reads its `useFieldContext<T>()`, touch-gates the error, and assembles the same
 // `<Field>` prop bundle; `useBoundField` is the ONE home for that wiring, so a bound field that reaches the
 // raw form context directly re-hand-rolls the bundle that drifts (D72: a machine ships WITH its seal).
@@ -30,7 +30,7 @@ const CONTEXT_HOME: ProjectHomeDeclaration = { path: "packages/client/src/forms/
 const MESSAGE =
   "a bound field reaches the raw `useFieldContext` form context directly — every bound field's context read, " +
   "touch-gated error and `<Field>` prop bundle live in ONE home. Use `useBoundField<T>(shell)` from " +
-  "./use-bound-field instead (derive-modernization-audit.md §W3 G28; D72 — a machine ships WITH its seal).";
+  "./use-bound-field instead (D72 — a machine ships WITH its seal).";
 const UNREADABLE =
   "a bound field names `useFieldContext` through a binding the shared readers cannot place, so whether it is the form toolkit's own context hook CANNOT be established. Reported rather than passed: the spelling alone is not the identity. Give the binding a readable import origin; the three-answer rule is tooling/src/verify/lib/origin-verdict.ts (#944).";
 const FIX =

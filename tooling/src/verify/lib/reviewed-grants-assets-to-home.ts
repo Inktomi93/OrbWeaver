@@ -106,7 +106,7 @@ export const REVIEWED_GRANTS_ASSETS_TO_HOME: readonly ReviewedGateGrant[] = [
     policyId: "bound-field-via-hook",
     subject: "packages/client/src/forms/editor/bound-fields/use-bound-field.ts",
     operation: "raw-field-context-read",
-    why: "`useBoundField` IS the one home for the bound-field wiring (derive-modernization-audit.md §W3 G28): it reads the raw form context once, normalizes the touch-gated error, and assembles the `<Field>` prop bundle every bound field then shares. The seal cannot be built without the read it seals.",
+    why: "`useBoundField` IS the one home for the bound-field wiring: it reads the raw form context once, normalizes the touch-gated error, and assembles the `<Field>` prop bundle every bound field then shares. The seal cannot be built without the read it seals.",
     endsWhen:
       "the bound-field bundle is assembled from something other than the raw `useFieldContext` — at which point this file stops making the read and the row goes stale on its own.",
   },

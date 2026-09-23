@@ -1050,7 +1050,7 @@ describe("runTurnPipeline — roleHandling is the PRESET knob, clamped at SHAPE"
   });
 });
 
-// BUILD-QUEUE #3: the `squashSystemMessages` PROMPT knob (`params.advanced`, ST-imported from
+// The `squashSystemMessages` PROMPT knob (`params.advanced`, ST-imported from
 // `squash_system_messages`) is now a live SHAPE reader — consecutive system-note runs merge into ONE
 // `[Take the following into special consideration: …]` bracket BEFORE the system→user framing, orthogonal to `roleHandling`. Two
 // adjacent depth-0 system injections are the observable: ON ⇒ ONE bracket (merge-before-convert), OFF ⇒

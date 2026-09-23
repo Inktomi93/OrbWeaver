@@ -17,7 +17,7 @@ export const REVIEWED_GRANTS_NO_TO_FACTORY: readonly ReviewedGateGrant[] = [
     policyId: "no-raw-interactive-intrinsics",
     subject: "packages/client/src/features/app-shell/surfaces/app-shell.tsx",
     operation: "raw-interactive-intrinsic:button",
-    why: "the SHELL tier composes the app frame BELOW the primitive layer, which design-enforcement.md §3.2 (D62) exempts — this control is part of the frame an @orb/ui Button is rendered inside, not a feature affordance. Narrowed from the legacy DIRECTORY row: the permission is now this one file, so a second shell file hosting a raw control reds until someone reviews it.",
+    why: "the SHELL tier composes the app frame BELOW the primitive layer, which D62 exempts — this control is part of the frame an @orb/ui Button is rendered inside, not a feature affordance. Narrowed from the legacy DIRECTORY row: the permission is now this one file, so a second shell file hosting a raw control reds until someone reviews it.",
     endsWhen:
       "the shell's own control is expressible through an @orb/ui primitive without a frame cycle, or the shell moves — either way the row is consumed zero times and reds at its dead subject.",
   },
@@ -415,7 +415,7 @@ export const REVIEWED_GRANTS_NO_TO_FACTORY: readonly ReviewedGateGrant[] = [
     policyId: "selection-store-via-factory",
     subject: "packages/client/src/state/create-drill-selection-store.ts",
     operation: "raw-gated-store-mint",
-    why: "the drill FACTORY itself composes the raw `createGatedStore` door on purpose — that composition IS the seal every per-section selection store mints through (derive-modernization-audit.md §W3 G27).",
+    why: "the drill FACTORY itself composes the raw `createGatedStore` door on purpose — that composition IS the seal every per-section selection store mints through.",
     endsWhen:
       "the factory stops composing the door, or moves — either stales this row, where the legacy `/create-` FILENAME pattern would have exempted any future file with that prefix for free.",
   },

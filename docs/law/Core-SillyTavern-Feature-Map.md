@@ -8,7 +8,7 @@ updated: 2026-08-14
 
 > **⚠ BUILD-STATE RIDER (truth audit 2026-08-03):** the map is FROZEN at 2026-07-13 — pre-retro. Tree-verified drift: `domain/hub` and the `anth-direct` direct-provider backend are PURGED (2026-07-22 retro sync); the expressions seams (`@orb/contracts/expressions`, `character_sprites`) and `roster-preset` are PURGED (2026-07-25 burn-down); `domain/databank` is BUILT (2026-07-26, D107); Phase 8 IS started — `domain/automation`, `domain/plugin`, and `infra/plugin-host` (QuickJS) are BUILT. Rows annotated where flagrant; on any residual disagreement trust the code, then the PD registry (the header rule).
 >
-> **Purpose.** ONE place that says, for every SillyTavern feature orbweaver committed to: which decision commits it, its PD flag, its home, and whether it's built yet. It reconciles the ledger (D44–D63), the runbook (`../architecture/history/Core-BUILD-PLAN.md`, superseded), and the PD registry (`Core-Audits-and-Debt.md`).
+> **Purpose.** ONE place that says, for every SillyTavern feature orbweaver committed to: which decision commits it, its PD flag, its home, and whether it's built yet. It reconciles the ledger (D44–D63), the runbook (superseded), and the PD registry (`Core-Audits-and-Debt.md`).
 >
 > **Authority:** the ledger D-entry wins on a *decision* conflict; the PD registry (`Core-Audits-and-Debt.md`) wins on *build status*; this doc is the reconciled map, verified against the code + file tree 2026-07-13.
 >
@@ -103,12 +103,12 @@ Text-completion backends (AI Horde / NovelAI / KoboldAI-classic / raw-textgen / 
 
 ## 5. Drift corrections (frozen)
 
-The 2026-07-01/03 "drift this map corrects" ledger (imagery PD-93-not-54, the removed `proposed/<x>/` dirs, the build-plan PD over-list, the marinara adjudication, the PD-registry lag) is fully absorbed into the code + the PD registry. Frozen in [`../architecture/history/st-feature-map-archaeology-record.md`](../architecture/history/st-feature-map-archaeology-record.md) §2. On any status disagreement, trust the code, then the PD registry.
+The 2026-07-01/03 "drift this map corrects" ledger (imagery PD-93-not-54, the removed `proposed/<x>/` dirs, the build-plan PD over-list, the marinara adjudication, the PD-registry lag) is fully absorbed into the code + the PD registry. Git history holds it. On any status disagreement, trust the code, then the PD registry.
 
 ## 6. Cross-refs
 
 - **Decisions:** D44 (theming/content) · D45 (vision input) · D46 (scripting/automation) · D47 (7 ST gaps) · D48 (tool-calling) · D49 (closed inventory) · D50 (event bus / prompt-transform) · D51 (multimodal wire seam) · D52 (ECharts) · D53 (regex) · D61 (hub / roster-preset) · D63 (background image = appearance).
-- **Order + phase state:** `../architecture/history/Core-BUILD-PLAN.md` (frozen); Project 1 owns current work state.
+- **Order + phase state:** git history; Project 1 owns current work state.
 - **Debt / build status:** `Core-Audits-and-Debt.md` — PD-54/55/56/57/93 (the feature-domain flags).
 - **Parked design sets** (in `../architecture/proposed/`, see `../architecture/proposed/INDEX.md`): `../architecture/proposed/{automation,databank,expressions,plugin,imagery,tool-use,hub-browse,rpg}-design/` — mapped by [`../architecture/proposed/README.md`](../architecture/proposed/README.md).
 - **Gap register (the full ST inventory + dispositions):** [`Core-ST-Feature-Gap-Register.md`](Core-ST-Feature-Gap-Register.md).

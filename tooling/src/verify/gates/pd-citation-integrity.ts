@@ -147,7 +147,7 @@ export const gate = defineGate({
       mode: "resource",
       files: {
         "docs/law/Core-Audits-and-Debt.md": "| PD-1 | something |\n",
-        "docs/architecture/history/Core-Debt-Cleared-Ledger.md": "| PD-2 | cleared |\n",
+        "docs/law/Core-Debt-Cleared-Ledger.md": "| PD-2 | cleared |\n",
         "packages/server/src/x.ts": "// FLAG[PD-999] an orphan citation\nexport const x = 1;\n",
       },
       expect: { count: 1, line: 1, token: "PD-999", messageIncludes: "no row in the PD registry" },
@@ -157,7 +157,7 @@ export const gate = defineGate({
       mode: "resource",
       files: {
         "docs/law/Core-Audits-and-Debt.md": "| PD-7 | active debt |\n| PD-7 | a second row with the same id |\n",
-        "docs/architecture/history/Core-Debt-Cleared-Ledger.md": "| PD-2 | cleared |\n",
+        "docs/law/Core-Debt-Cleared-Ledger.md": "| PD-2 | cleared |\n",
         "packages/server/src/x.ts": "export const x = 1;\n",
       },
       expect: { count: 1, line: 2, token: "PD-7", messageIncludes: "appears 2× across the PD registry" },
@@ -167,7 +167,7 @@ export const gate = defineGate({
       mode: "resource",
       files: {
         "docs/law/Core-Audits-and-Debt.md": "| PD-7 | active debt |\n",
-        "docs/architecture/history/Core-Debt-Cleared-Ledger.md": "| PD-7 | the same id, cleared |\n",
+        "docs/law/Core-Debt-Cleared-Ledger.md": "| PD-7 | the same id, cleared |\n",
         "packages/server/src/x.ts": "export const x = 1;\n",
       },
       expect: { count: 1, token: "PD-7", messageIncludes: "appears 2× across the PD registry" },
@@ -177,7 +177,7 @@ export const gate = defineGate({
       mode: "resource",
       files: {
         "docs/law/Core-Audits-and-Debt.md": "| PD-1 | something |\n",
-        "docs/architecture/history/Core-Debt-Cleared-Ledger.md": "| PD-2 | cleared |\n",
+        "docs/law/Core-Debt-Cleared-Ledger.md": "| PD-2 | cleared |\n",
         "tests/tooling/x.ts": "// FLAG[PD-998] an orphan in the test corpus\nexport const x = 1;\n",
       },
       expect: { count: 1, token: "PD-998", messageIncludes: "no row in the PD registry" },
@@ -189,7 +189,7 @@ export const gate = defineGate({
       mode: "resource",
       files: {
         "docs/law/Core-Audits-and-Debt.md": "| PD-1 | something |\n",
-        "docs/architecture/history/Core-Debt-Cleared-Ledger.md": "| PD-2 | cleared |\n",
+        "docs/law/Core-Debt-Cleared-Ledger.md": "| PD-2 | cleared |\n",
         "packages/server/src/x.ts": "// FLAG[PD-1] active, FLAG[PD-2] cleared — both resolve.\nexport const x = 1;\n",
       },
       why: "a citation resolving through EITHER half of the ledger identity — the link is intact",
@@ -198,7 +198,7 @@ export const gate = defineGate({
       mode: "resource",
       files: {
         "docs/law/Core-Audits-and-Debt.md": "| PD-1 | something |\n",
-        "docs/architecture/history/Core-Debt-Cleared-Ledger.md": "| PD-2 | cleared |\n",
+        "docs/law/Core-Debt-Cleared-Ledger.md": "| PD-2 | cleared |\n",
         "packages/server/src/ok.ts": "export const ok = 1;\n",
         "tooling/src/verify/gates/example-policy.ts": 'export const proof = { files: { "x.ts": "// FLAG[PD-999]" } };\n',
       },
@@ -208,7 +208,7 @@ export const gate = defineGate({
       mode: "resource",
       files: {
         "docs/law/Core-Audits-and-Debt.md": "| PD-1 | something |\n| PD-10 | a longer id that must not collide with PD-1 |\n",
-        "docs/architecture/history/Core-Debt-Cleared-Ledger.md": "| PD-2 | cleared |\n",
+        "docs/law/Core-Debt-Cleared-Ledger.md": "| PD-2 | cleared |\n",
         "packages/server/src/x.ts": "// FLAG[PD-10] resolves to its own row, not to PD-1's.\nexport const x = 1;\n",
       },
       why: "a longer id beside a shorter one — greedy `\\d+` already keeps `PD-10` and `PD-1` distinct, so this row passes with the `\\b` cut and is honest about that. mustPass[3] is the row the `\\b` actually holds",
@@ -217,7 +217,7 @@ export const gate = defineGate({
       mode: "resource",
       files: {
         "docs/law/Core-Audits-and-Debt.md": "| PD-1 | the one real row |\n| PD-1x | a table cell that is NOT a PD id |\n",
-        "docs/architecture/history/Core-Debt-Cleared-Ledger.md": "| PD-2 | cleared |\n",
+        "docs/law/Core-Debt-Cleared-Ledger.md": "| PD-2 | cleared |\n",
         "packages/server/src/x.ts": "// FLAG[PD-1] resolves to the single PD-1 row.\nexport const x = 1;\n",
       },
       why: "THE NARROWING ROW for the `\\b` in `^\\|\\s*(PD-\\d+)\\b`: without it the `PD-1x` cell registers as a SECOND `PD-1` row and the registry reads as duplicated. Measured — the obvious `PD-10` fixture does not discriminate, because greedy `\\d+` never stops early",
@@ -226,7 +226,7 @@ export const gate = defineGate({
       mode: "resource",
       files: {
         "docs/law/Core-Audits-and-Debt.md": "| PD-1 | something |\n",
-        "docs/architecture/history/Core-Debt-Cleared-Ledger.md": "| PD-2 | cleared |\n",
+        "docs/law/Core-Debt-Cleared-Ledger.md": "| PD-2 | cleared |\n",
         "packages/server/src/prose.ts":
           "// PD-999 is discussed in prose here, and a table row | PD-999 | in a code sample is not a registry row.\nexport const x = 1;\n",
       },
@@ -236,7 +236,7 @@ export const gate = defineGate({
       mode: "resource",
       files: {
         "docs/law/Core-Audits-and-Debt.md": "| PD-1 | something |\n",
-        "docs/architecture/history/Core-Debt-Cleared-Ledger.md": "| PD-2 | cleared |\n",
+        "docs/law/Core-Debt-Cleared-Ledger.md": "| PD-2 | cleared |\n",
         "packages/server/src/x.ts": "export const x = 1;\n",
       },
       why: "a registry row with no citation is legitimate — future or blocked debt registered before it has a code site; the reconciliation is one-sided BY DESIGN and a two-sided one would red the whole registry",

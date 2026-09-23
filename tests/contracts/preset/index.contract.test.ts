@@ -638,7 +638,7 @@ test("parsePresetFile accepts a well-formed orb.preset envelope and returns the 
 });
 
 test("round-trip pin: build(parse(build(x))) === build(x) over a full preset config", () => {
-  // The MANDATORY per-entity structural guarantee (export-import-portability.md §1): the build + parse
+  // The MANDATORY per-entity structural guarantee: the build + parse
   // halves can't drift. `x` is a normalized full config (a fixed point of the schema) so the equality holds
   // by the codec's own idempotence, not by luck of the fixture.
   const config: PromptConfig = parsePromptConfig({
@@ -739,7 +739,7 @@ test("reasoningParse defaults: autoParse OFF + the <think> tag pair", () => {
 });
 
 // NOTE: the flat-form-mapper round-trip tests (`toPromptConfig`/`toPresetFormValues`) were REMOVED with
-// the mappers (D66 W10 — preset-form-mapper-elimination.md). The client preset editor now binds the nested
+// the mappers. The client preset editor now binds the nested
 // `PromptConfig` directly via TanStack Form; the reasoningParse default + absent-round-trips-to-unset
 // invariants are exercised by `promptConfigSchema.parse` (the default test above) and the client editor's
 // own merge-on-submit round-trip test (tests/client/features/preset/lib/preset-editor-model.test.ts).

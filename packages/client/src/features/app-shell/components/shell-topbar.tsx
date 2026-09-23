@@ -2,7 +2,7 @@
 // panel toggle (frame grammar, positionally bound to the list panel — stays intrinsic), the active section
 // title (or a per-section header node the route supplies), and the registry-driven `topbar.trail` zone
 // (⌘K derived from the modal registry; the bell/focus/context toggles ride the chrome registry as
-// widgets — shell-chrome-unification.md §A). Every icon button + the chip carries a Tooltip.
+// widgets). Every icon button + the chip carries a Tooltip.
 
 import { Button } from "@orb/ui/button";
 import type { LucideIcon } from "@orb/ui/icons";

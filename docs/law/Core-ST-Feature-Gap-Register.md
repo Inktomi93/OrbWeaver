@@ -14,7 +14,7 @@ updated: 2026-09-20
 >
 > **Dispositions are law; STATUS below is verified against the code 2026-07-13.** On any status disagreement, trust the code, then the PD registry (`Core-Audits-and-Debt.md`); [`Core-SillyTavern-Feature-Map.md`](Core-SillyTavern-Feature-Map.md) is the reconciled build map.
 >
-> **Not a to-do board.** A `STILL-GAP` disposition may name its durable program shape or say `unscheduled`; [`../architecture/proposed/INDEX.md`](../architecture/proposed/INDEX.md) maps programs to sprint issues. GitHub Project 1 owns current work state (D140). Audit provenance is frozen in [`../architecture/history/st-feature-map-archaeology-record.md`](../architecture/history/st-feature-map-archaeology-record.md).
+> **Not a to-do board.** A `STILL-GAP` disposition may name its durable program shape or say `unscheduled`; [`../architecture/proposed/INDEX.md`](../architecture/proposed/INDEX.md) maps programs to sprint issues. GitHub Project 1 owns current work state (D140).
 >
 > **Cold-read orientation:** orbweaver is a maximal-rigor remake of *neo-tavern*, itself a remake of *ST*. Neo already cut ST down to a focused chat/character/memory engine, so most gaps were created at the **ST→neo** step — not new orbweaver deletions. Constitution: the package cake `kit ← contracts ← db ← server ← client`, sealed provider backends, two ownership categories (D18/D23), no extension/scripting runtime.
 
@@ -139,7 +139,7 @@ Rejected by a decision or the constitution — recorded so a cold agent doesn't 
 
 ## 7. Shape-of-it planning snapshot (frozen)
 
-The pre-build "cheap wins vs big lifts" prioritization + the pre-Phase-5 "now window" essay are a stale planning snapshot — most cheap wins shipped. Frozen in [`../architecture/history/st-feature-map-archaeology-record.md`](../architecture/history/st-feature-map-archaeology-record.md) §3. Current state is the tables above; the still-open small seams are sysprompt library · logprobs · translate · standalone caption · portrait/img2img · the standalone token-counter panel · end-to-end vision INPUT.
+The pre-build "cheap wins vs big lifts" prioritization + the pre-Phase-5 "now window" essay are a stale planning snapshot — most cheap wins shipped. Git history holds it. Current state is the tables above; the still-open small seams are sysprompt library · logprobs · translate · standalone caption · portrait/img2img · the standalone token-counter panel · end-to-end vision INPUT.
 
 ## 8. Cross-references
 
