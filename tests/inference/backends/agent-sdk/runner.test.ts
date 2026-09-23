@@ -15,6 +15,7 @@ import { passthroughImageNormalizer } from "../../../../packages/inference/src/b
 import { resolvedScrubSet } from "../../../../packages/inference/src/backends/kit/sanitize.ts";
 import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
 import type { InferenceLog } from "../../../../packages/inference/src/deps.ts";
+import { cacheHitRate } from "../../../../packages/server/src/domain/stats/substrate/rates.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { fakeResolved } from "../../_support.ts";
 import { generationCapability } from "../_hosted-support.ts";
@@ -197,6 +198,71 @@ test("an is_error result the runtime attributes to an overloaded upstream stays 
   const error = await failureOf(apiErrorTurn({ model: "claude-opus-5", code: "overloaded", status: 529, text: "API Error: 529 Overloaded" }), "claude-opus-5");
   expect(error.kind).toBe("server");
   expect(error.retryable).toBe(true);
+});
+
+// ── usage is this turn's, and tokensIn is the whole prompt ───────────────────────────────────────────────
+// A resumed session's `modelUsage` continues from the totals its transcript saved, so it reports the whole
+// session. `usage` is this turn's main loop, and its `input_tokens` is the uncached part only. The numbers are
+// a live resumed turn's (session 1d9ddf80): `modelUsage` carried two turns' reads, `usage` carried one.
+const RESUMED_TURN = { uncached: 487, cacheRead: 18_578, cacheWrite: 514, out: 40 } as const;
+const SESSION_TOTALS = { inputTokens: 972, outputTokens: 61, cacheReadInputTokens: 37_156, cacheCreationInputTokens: 19_092 } as const;
+
+/** A hand-built SDK frame list as the stream the reducer consumes. */
+async function* streamOf(frames: readonly unknown[]): AsyncGenerator<SdkFrame> {
+  await Promise.resolve();
+  for (const frame of frames) {
+    // @orb-waive no-test-fabrication(unknown): hand-built SDK frames trimmed to what the reducer reads. Ends if the SDK exports a frame factory.
+    yield frame as unknown as SdkFrame;
+  }
+}
+
+function resumedTurn(): SdkStream {
+  const model = "claude-sonnet-5";
+  return streamOf([
+    { type: "system", subtype: "init", session_id: SESSION_ID, apiKeySource: "none", model },
+    {
+      type: "assistant",
+      session_id: SESSION_ID,
+      parent_tool_use_id: null,
+      message: { role: "assistant", stop_reason: "end_turn", content: [{ type: "text", text: "Two ships, both late." }] },
+    },
+    {
+      type: "result",
+      subtype: "success",
+      session_id: SESSION_ID,
+      is_error: false,
+      duration_api_ms: 1,
+      num_turns: 1,
+      result: "Two ships, both late.",
+      stop_reason: "end_turn",
+      usage: {
+        input_tokens: RESUMED_TURN.uncached,
+        output_tokens: RESUMED_TURN.out,
+        cache_read_input_tokens: RESUMED_TURN.cacheRead,
+        cache_creation_input_tokens: RESUMED_TURN.cacheWrite,
+      },
+      modelUsage: { [model]: { ...SESSION_TOTALS, webSearchRequests: 0, costUSD: 0.011, contextWindow: 1_000_000, maxOutputTokens: 64_000 } },
+      permission_denials: [],
+      terminal_reason: "completed",
+    },
+  ]);
+}
+
+test("a resumed turn records this turn's tokens, with tokensIn as the whole prompt", async () => {
+  const turn = await consumeTurnStream(resumedTurn(), { ...ctx("claude-sonnet-5"), resumed: true }, createAgentSdkLog(quietLog, "claude-sub"));
+  expect(turn.usage.tokensIn).toBe(RESUMED_TURN.uncached + RESUMED_TURN.cacheRead + RESUMED_TURN.cacheWrite);
+  expect(turn.usage.tokensOut).toBe(RESUMED_TURN.out);
+  expect(turn.usage.cacheReadTokens).toBe(RESUMED_TURN.cacheRead);
+  expect(turn.usage.cacheWriteTokens).toBe(RESUMED_TURN.cacheWrite);
+  // The stats plane's cache-hit share for this subscription row.
+  expect(cacheHitRate(turn.usage.cacheReadTokens, turn.usage.cacheWriteTokens, turn.usage.tokensIn ?? 0)).toBeLessThanOrEqual(1);
+});
+
+test("a result with an empty usage records no billed tokens rather than a zero", async () => {
+  const turn = await consumeTurnStream(streamOf(okTurn("claude-sonnet-5")), ctx("claude-sonnet-5"), createAgentSdkLog(quietLog, "claude-sub"));
+  expect(turn.usage.tokensIn).toBeNull();
+  expect(turn.usage.tokensOut).toBeNull();
+  expect(turn.usage.cacheReadTokens).toBe(0);
 });
 
 // ── the wire capture must show what the model got ────────────────────────────────────────────────────────
