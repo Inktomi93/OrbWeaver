@@ -21,7 +21,6 @@ test("isRatchetShaped: the tooling ratchet/presence/conformance self-tests match
 test("isRatchetShaped: Vitest DOM, suite, and type-only kinds remain eligible while Playwright kinds do not", () => {
   expect(isRatchetShaped("tests/tooling/verify/ops/dom-presence.dom.test.ts")).toBe(true);
   expect(isRatchetShaped("tests/tooling/verify/ops/coverage-ratchet.suite.int.test.ts")).toBe(true);
-  expect(isRatchetShaped("tests/tooling/workboard/contract/types.test-d.ts")).toBe(true);
   expect(isRatchetShaped("tests/tooling/verify/ops/visual-presence.ct.tsx")).toBe(false);
   expect(isRatchetShaped("tests/tooling/verify/ops/browser-presence.spec.ts")).toBe(false);
 });
@@ -31,13 +30,6 @@ test("isRatchetShaped: a fake NEVER-SEEN-BEFORE tooling file matches by NAME alo
   // clothes — the exact rot #667 was filed to end.
   expect(isRatchetShaped("tests/tooling/verify/ops/chocolate-teapot-ratchet.test.ts")).toBe(true);
   expect(isRatchetShaped("tests/tooling/some-brand-new-presence-check.test.ts")).toBe(true);
-});
-
-test("isRatchetShaped: the workboard mirror matches by DIRECTORY, not name", () => {
-  expect(isRatchetShaped("tests/tooling/workboard/cli.test.ts")).toBe(true);
-  expect(isRatchetShaped("tests/tooling/workboard/contract/types.test-d.ts")).toBe(true);
-  // A brand-new file under the mirror dir, whatever it's called.
-  expect(isRatchetShaped("tests/tooling/workboard/a-totally-new-file.test.ts")).toBe(true);
 });
 
 test("isRatchetShaped: an exact-tuple contract pin matches by SUFFIX, a plain unit test under the same tree does not", () => {
@@ -99,7 +91,6 @@ test("discoverTestFiles + classifyRatchetFiles over a PLANTED tree: a brand-new 
   const root = await plantedTree({
     "tests/tooling/verify/ops/brand-new-thing-ratchet.test.ts": "// planted\n",
     "tests/tooling/some-unrelated-tool.test.ts": "// planted, no ratchet/presence/conformance in the name\n",
-    "tests/tooling/workboard/another-new-file.test.ts": "// planted\n",
     "tests/contracts/foo/bar.contract.test.ts": "// planted\n",
     "tests/contracts/foo/bar.suite.test.ts": "// planted, not a .contract.test.ts\n",
     "tests/tooling/check-gates.repo.int.test.ts": "// planted stand-in for the real excluded file\n",
@@ -111,7 +102,6 @@ test("discoverTestFiles + classifyRatchetFiles over a PLANTED tree: a brand-new 
   const { included, excluded } = classifyRatchetFiles(candidates);
 
   expect(included).toContain("tests/tooling/verify/ops/brand-new-thing-ratchet.test.ts");
-  expect(included).toContain("tests/tooling/workboard/another-new-file.test.ts");
   expect(included).toContain("tests/contracts/foo/bar.contract.test.ts");
   expect(included).not.toContain("tests/tooling/some-unrelated-tool.test.ts");
   expect(included).not.toContain("tests/contracts/foo/bar.suite.test.ts");

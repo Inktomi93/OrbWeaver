@@ -48,24 +48,32 @@ import type { RealCorpusLivenessArm, RealCorpusLivenessRunner } from "../../../s
 import { assertArmVerdict, openRealCorpusLiveness, planLivenessBatches } from "../../../support/real-corpus-liveness.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { AUTHORED_ARMS } from "./_liveness/authored.ts";
 import { CLIENT_ARMS } from "./_liveness/client.ts";
 import { CLIENT_APP_ARMS } from "./_liveness/client-app.ts";
+import { CLIENT_UI_ARMS } from "./_liveness/client-ui.ts";
 import { FRONTEND_ARMS } from "./_liveness/frontend.ts";
+import { PRODUCT_DB_SERVER_ARMS } from "./_liveness/product-db-server.ts";
 import { SERVER_ARMS } from "./_liveness/server.ts";
 import { SERVER_APP_ARMS } from "./_liveness/server-app.ts";
 import { TESTS_ARMS } from "./_liveness/tests.ts";
 import { TOOLING_ARMS } from "./_liveness/tooling.ts";
 import { TOOLING_AND_AUTHORED_ARMS } from "./_liveness/tooling-and-authored.ts";
+import { TOOLING_TESTS_ARMS } from "./_liveness/tooling-tests.ts";
 
 const CHUNKS = {
+  authored: AUTHORED_ARMS,
   client: CLIENT_ARMS,
   clientApp: CLIENT_APP_ARMS,
+  clientUi: CLIENT_UI_ARMS,
   frontend: FRONTEND_ARMS,
   server: SERVER_ARMS,
+  productDbServer: PRODUCT_DB_SERVER_ARMS,
   serverApp: SERVER_APP_ARMS,
   tests: TESTS_ARMS,
   tooling: TOOLING_ARMS,
   toolingAndAuthored: TOOLING_AND_AUTHORED_ARMS,
+  toolingTests: TOOLING_TESTS_ARMS,
 } as const;
 const ARMS: readonly RealCorpusLivenessArm[] = Object.values(CHUNKS).flat();
 

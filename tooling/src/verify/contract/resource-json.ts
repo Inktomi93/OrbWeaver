@@ -37,8 +37,6 @@ export const JSON_RESOURCE_PATHS = {
   biome: "biome.json",
   /** `no-raw-z-index` and the token policies: the canonical token vault. */
   tokens: "packages/ui/src/tokens/tokens.json",
-  /** `dangling-refs`: the catalog IS the census of living documents. */
-  "doc-catalog": "docs/catalog/catalog.json",
   /** The Base UI family: the committed surface the installed package is adjudicated against. */
   "baseui-manifest": "tooling/src/verify/gates/baseui-surface.manifest.json",
   /** `caught-failure-ownership-health`: the committed caught-failure census, joined to the tree on `siteId`. */

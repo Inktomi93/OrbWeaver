@@ -62,7 +62,7 @@ const TYPECHECKER = "scripts/ts7.ts";
  *  second count arrives wearing the exit code of whatever scoped run happened to select a type test.
  *
  *  THE MEASURED SYMPTOM this closes (#2229, re-derived by cb-v-verify-lib-4): `pnpm test:scoped
- *  tests/tooling/doc-catalog` — a directory operand holding `contract/types.test-d.ts` beside nine runtime
+ *  tests/tooling/doc` — a directory operand holding `contract/types.test-d.ts` beside nine runtime
  *  files — exited 1 with all 70 of its tests GREEN, on a parse error planted in an unrelated file of
  *  `tsconfig.json`'s program. It is NOT a project-selection defect and no `--project` arrangement reaches
  *  it: a typecheck project with zero matched files is instantiated and never runs tsc, so the project that
@@ -111,9 +111,15 @@ const TYPECHECK_PROJECTS = [
   },
 ] satisfies readonly TestProjectConfiguration[];
 
+// docs/work/0062 — every project inherits this through `extends: true`, so each one captures the working
+// tree before its own first test and re-checks it at close: a suite that writes the real tree (repo law
+// forbids it) reds naming the file instead of passing unseen.
+const WORKING_TREE_GUARD = "@orb/tooling/_shared/working-tree-guard";
+
 export function vitestConfig(runtimeOnly = false): ViteUserConfig {
   return defineConfig({
     test: {
+      globalSetup: [WORKING_TREE_GUARD],
       testTimeout: budget(5000),
       hookTimeout: budget(10_000),
       // Keep fixtures independent of the operator's .env and avoid loading live embedding providers.

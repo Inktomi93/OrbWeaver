@@ -4,15 +4,16 @@
 // empty fact, never to a throw, because a missing branch is a drift finding and not a tool crash.
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { DOC_TOOL_TREE_PREFIXES, DOC_TOOL_TREES, formatMarkdown } from "#doc-catalog";
 import { REPO_ROOT } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { runNicedSync } from "../../_shared/proc.ts";
 import { inheritedProcessEnv } from "../../_shared/process-env.ts";
 import type { DocsRootEntry, DocTree, GovernedDoc } from "../contract/types.ts";
+import { DOC_TOOL_TREE_PREFIXES, DOC_TOOL_TREES } from "../contract/vocab.ts";
 import { allItems } from "../lib/generated.ts";
 import { isCommitId } from "../lib/items.ts";
 import { padId } from "../lib/names.ts";
+import { formatMarkdown } from "./format.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm doc <verb>");
 

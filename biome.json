@@ -1320,7 +1320,8 @@
         "tests/e2e/support/modes.ts",
         "tests/e2e/support/fixture-provider.ts",
         "tests/tooling/stack/index.test.ts",
-        "tests/tooling/stack/index.int.test.ts"
+        "tests/tooling/stack/index.int.test.ts",
+        "tooling/src/_shared/working-tree-guard.ts"
       ],
       "linter": {
         "rules": {
@@ -2346,12 +2347,6 @@
             }
           }
         }
-      }
-    },
-    {
-      "includes": ["docs/catalog/catalog.json", "docs/catalog/catalog.tmp.*.json"],
-      "files": {
-        "maxSize": 4194304
       }
     },
     {

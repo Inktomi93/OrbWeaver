@@ -9,10 +9,10 @@
 
 import type { AdjustedKnob } from "@orb/contracts/chat";
 import type { EffortLevel, GenerationCapability, Range, Verbosity } from "@orb/contracts/inference";
-import { acceptsMidConversationSystem, EFFORT_LEVELS, reasoningReplayOf, roleHandlingOf, SYSTEM_ROW_PLACEMENT } from "@orb/contracts/inference";
+import { EFFORT_LEVELS, reasoningReplayOf } from "@orb/contracts/inference";
 import type { CarryReasoning, UserIntent } from "@orb/contracts/preset";
 import { CARRY_REASONING_DEFAULT, QUALITY_EFFORT, QUALITY_LEVELS, QUALITY_SAMPLING } from "@orb/contracts/preset";
-import type { DynamicContextChannel, ResolvedChatKnobs, ResolvedReasoning, ResolvedSampling, ResolvedWarning } from "../contract/resolve.ts";
+import type { ResolvedChatKnobs, ResolvedReasoning, ResolvedSampling, ResolvedWarning } from "../contract/resolve.ts";
 import { ADAPTIVE_DEFAULT_EFFORT } from "../contract/resolve.ts";
 
 const EFFORT_OFF = "none";
@@ -341,15 +341,6 @@ function resolveVerbosity(wanted: UserIntent["verbosity"], levels: readonly Verb
   return wanted;
 }
 
-/** The per-turn system half rides the message tail only where the turn's message-handling level keeps a
- *  delivered system row and the model takes one at the tail; every other turn keeps it in the system block. The
- *  tail row follows the last user row and ends the array, so it is in its legal slot on every level that keeps
- *  system rows. */
-export function resolveDynamicContext(params: UserIntent, capability: GenerationCapability): DynamicContextChannel {
-  const level = roleHandlingOf(capability, params.advanced?.roleHandling);
-  return SYSTEM_ROW_PLACEMENT[level] !== "fold" && acceptsMidConversationSystem(capability) ? "message-tail" : "system-block";
-}
-
 /** `modalities: ["text","image"]` rides the wire only when the preset asks AND the model produces images
  *  (§6.7); a knob on a text-only model drops like every other unsupported knob. */
 function resolveReplyImages(params: UserIntent, capability: GenerationCapability, warnings: ResolvedWarning[]): boolean {
@@ -369,7 +360,6 @@ export function resolveChat(params: UserIntent, capability: GenerationCapability
   const maxOutputTokens = params.maxOutputTokens !== undefined ? clampRange(params.maxOutputTokens, capability.output.maxTokens) : undefined;
   const reasoning = resolveReasoning(params, capability, maxOutputTokens, warnings);
   const sampling = resolveSampling(params, capability, warnings);
-  const dynamicContextChannel = resolveDynamicContext(params, capability);
   const verbosity = resolveVerbosity(params.verbosity, capability.verbosity, warnings);
   const replyImages = resolveReplyImages(params, capability, warnings);
   const carryReasoning = resolveCarryReasoning(params, capability, warnings);
@@ -378,7 +368,6 @@ export function resolveChat(params: UserIntent, capability: GenerationCapability
     reasoning,
     carryReasoning,
     sampling,
-    dynamicContextChannel,
     ...(maxOutputTokens !== undefined ? { maxOutputTokens } : {}),
     ...(verbosity !== undefined ? { verbosity } : {}),
     replyImages,

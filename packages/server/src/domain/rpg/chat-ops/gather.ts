@@ -26,6 +26,7 @@ import type { ChatInjection } from "@orb/contracts/chat";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { RpgSnapshotState } from "@orb/contracts/rpg";
 import { actorRefKey } from "@orb/contracts/rpg";
+import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import type { GatherTurnContextArgs } from "../../chat/index.ts";
 import type { RpgGatherResult } from "../contract/params.ts";
 import type { RpgContext, RpgGameRow } from "../contract/service.ts";
@@ -126,7 +127,7 @@ export async function gatherTurnContext(ctx: RpgContext, args: GatherTurnContext
   // `{{char}}` (Chat-Macro-Resolution.md ruling B — the JOINED CAST in a multi-character room, the single
   // character in solo). Absent (a caller that supplies no binding) ⇒ `buildLiteReminder` ships the note
   // verbatim; the render is guided-safe (identity substitution only — never full macro/variable power).
-  const steerMacros = steerIdentity !== undefined ? { user: steerIdentity.user ?? "User", char: steerIdentity.char } : undefined;
+  const steerMacros = steerIdentity !== undefined ? { user: steerIdentity.user ?? DEFAULT_PERSONA_NAME, char: steerIdentity.char } : undefined;
   // R1 — the FOLD: on a `folded` game with a live write path, THIS turn carries the 7 state tools as TERMINAL
   // tools, so the model co-emits prose + state in one completion. Resolved BEFORE the reminder because a
   // reconcile beat contributes a note the reminder carries (the post-commit rounds put that line in their own

@@ -9,6 +9,12 @@
 // and the model take it in that slot, and folds into user text in its neutral frame otherwise
 // ({@link deliverSystemRows}). SHAPE's own user tail (the group or continuation cue) is placed so the rows
 // around it stay legal: before a trailing system run, never after it.
+//
+// A TURN THAT CACHES BY EXPLICIT BLOCK MARKERS KEEPS STORED ROWS APART (`explicitCacheMarkers`). A merging level
+// still makes each same-role run one turn, but the wire does the grouping: the direct SDK folds adjacent
+// same-role rows into one message whose blocks are the rows, and the openai-compat body folds them into one
+// message of parts. A string join would grow the block a prior call marked (the next speaker's reply lands
+// inside it) and miss the cache every round. Every other wire still joins here, where no marker can move.
 
 import type {
   AssembleContext,
@@ -64,6 +70,11 @@ interface CanonRow {
   characterId?: CharacterId | null;
   messageId?: MessageId | undefined;
   kind?: MessageKind | undefined;
+  /** A character's line the scoped fold re-roled to `user`; its speaker already rides inline. */
+  folded?: true;
+  /** A depth-scoped `PROMPT_HISTORY` script can still rewrite this row on a later turn (`assembly/history-regex`),
+   *  so the cache never pins it. */
+  depthVolatile?: true | undefined;
 }
 
 /** A name-stamped wire row (the SHAPE output row). */
@@ -89,6 +100,9 @@ interface ShapeInput {
   scopedTargetId: CharacterId | null;
   namesBehavior: NamesBehavior;
   speakers: { user: string; assistant: string };
+  /** The room seats more than one present human (`AssembleContext.multiHuman`) — the name-stamp labels every
+   *  canon user row. Absent ⇒ a solo room. */
+  multiHuman?: boolean | undefined;
   /** The group nudge (`[Write the next reply only as X.]`), set only on a multi-speaker round. */
   groupNudge: string | null;
   resolveContent?: (content: string) => string;
@@ -108,6 +122,9 @@ interface ShapeInput {
   roleHandling?: RoleHandling | undefined;
   /** The model's message-handling floor. Unset ⇒ `strict`. SHAPE runs the stricter of floor + knob. */
   roleHandlingFloor?: RoleHandling | undefined;
+  /** The turn caches by explicit block markers (`@orb/inference` `cachesByAnthropicMarkers`): a merging level
+   *  keeps each stored row of a same-role run its own row (see the file header). Absent ⇒ the run joins. */
+  explicitCacheMarkers?: boolean | undefined;
   /** The user `squashSystemMessages` knob (from preset `params.advanced.squashSystemMessages`): `true` ⇒
    *  merge consecutive system-note runs before they convert to user rows. Orthogonal to `roleHandling`. */
   squashSystemMessages?: boolean | undefined;
@@ -176,6 +193,8 @@ function scopeHistoryToTarget(canon: readonly CanonRow[], targetId: CharacterId)
         // Purpose survives the fold: the WIRE role changed, the row did not stop being what it is (D129's
         // three orthogonal axes — the fold moves DELIVERY, never PURPOSE).
         kind: m.kind,
+        folded: true,
+        depthVolatile: m.depthVolatile,
       };
     }
     return m;
@@ -331,13 +350,14 @@ function deliverSystemRows(rows: readonly WireRow[], opts: DeliveryOptions): Del
 
 /** Which spliced rows repeat byte for byte on the next turn, so the cache may pin them: the committed canon
  *  before this turn's volatile row, and an injection anchored above the first canon row (the new-chat marker).
- *  Every other injection is volatile: a depth-N row moves as the history grows. Index-aligned with `injected`. */
+ *  Every other injection is volatile: a depth-N row moves as the history grows. So is a canon row inside a
+ *  depth-scoped regex window, whose bytes change as it moves. Index-aligned with `injected`. */
 function stableRows(
-  withTail: readonly object[],
+  withTail: readonly CanonRow[],
   stableCount: number,
   injected: readonly ({ readonly role: DeliveredRole; readonly content: string } | { readonly anchored?: true })[],
 ): boolean[] {
-  const committed = new Set<object>(withTail.slice(0, stableCount));
+  const committed = new Set<object>(withTail.slice(0, stableCount).filter((row) => row.depthVolatile !== true));
   return injected.map((row) => committed.has(row) || "anchored" in row);
 }
 
@@ -428,12 +448,22 @@ function preSquashRowFacts(namedInput: readonly WireRow[], injected: readonly (C
   });
 }
 
+/** How this turn squashes same-role runs: whether the level merges at all, and whether stored rows stay apart
+ *  inside a merged run (the file header's caching wire). */
+interface SquashMode {
+  readonly merges: boolean;
+  readonly canonApart: boolean;
+}
+
 /** The SAME grouping `runSquash` applies, as INPUT INDICES per delivered row — the delivered-row trace needs
  *  "which inputs became this row" to report a merged row's provenance. ONE rule, two readers
  *  (`role-squash::squashRuns` is what `squashSameRole` is built on), so the trace cannot drift from the wire.
  *  `merges === false` is the pass-through arm: empties drop, nothing groups. */
-function squashRunsFor<T extends { role: DeliveredRole; content: string; name?: string }>(rows: readonly T[], merges: boolean): readonly (readonly number[])[] {
-  return merges ? squashRuns(rows) : rows.flatMap((row, index) => (row.content.trim().length > 0 ? [[index]] : []));
+function squashRunsFor<T extends { role: DeliveredRole; content: string; name?: string; messageId?: MessageId | undefined }>(
+  rows: readonly T[],
+  mode: SquashMode,
+): readonly (readonly number[])[] {
+  return mode.merges ? squashRuns(rows, mode) : rows.flatMap((row, index) => (row.content.trim().length > 0 ? [[index]] : []));
 }
 
 /** Project the DELIVERED wire history onto the content-free `ShapeTrace.rows` — the block-order/role/voice
@@ -445,7 +475,7 @@ function traceDeliveredRows(args: {
   readonly namedInput: readonly WireRow[];
   readonly delivery: Delivery;
   readonly history: readonly WireRow[];
-  readonly merges: boolean;
+  readonly squash: SquashMode;
 }): ShapeTraceRow[] {
   const preSquash = preSquashRowFacts(args.namedInput, args.injected);
   // SHAPE's own user tail is assembly's own row, so it carries `assembled` provenance of its own.
@@ -455,7 +485,7 @@ function traceDeliveredRows(args: {
   });
   const runs = squashRunsFor(
     args.delivery.entries.map((entry) => entry.row),
-    args.merges,
+    args.squash,
   );
   return runs.flatMap((run, index): ShapeTraceRow[] => {
     const row = args.history[index];
@@ -515,13 +545,14 @@ export function shape(input: ShapeInput): ShapeOutput {
   // every other level squashes. The level also decides where a system row may stay one (`deliverSystemRows`).
   const level = clampRoleHandling(input.roleHandlingFloor ?? TURNS_FLOOR.roleHandlingFloor, input.roleHandling);
   const merges = level !== "none";
+  const squash: SquashMode = { merges, canonApart: input.explicitCacheMarkers === true };
 
   // The splice re-roles a depth-1 assistant injection that would merge into the last committed row before this
   // turn's own row (the last row of `withTail`).
   const prefixBoundaryLen = withTail.length > 1 ? withTail.length - 1 : undefined;
 
-  const runSquash = <T extends { role: DeliveredRole; content: string; name?: string }>(rows: readonly T[]): T[] =>
-    merges ? squashSameRole(rows) : rows.filter((r) => r.content.trim().length > 0);
+  const runSquash = <T extends { role: DeliveredRole; content: string; name?: string; messageId?: MessageId | undefined }>(rows: readonly T[]): T[] =>
+    merges ? squashSameRole(rows, squash) : rows.filter((r) => r.content.trim().length > 0);
 
   // 2. splice in_chat by depth (every system injection stays a bare system row at its author's position) →
   // 3. name-stamp → 4. deliver system rows + place the user tail → 5. squash same-role.
@@ -536,7 +567,11 @@ export function shape(input: ShapeInput): ShapeOutput {
     prose: input.prose,
   });
   const squashed = runSquash(injected);
-  const namedInput = applyNamesBehavior(injected, input.namesBehavior, input.speakers, { multiCharacter, mergesAdjacent: merges });
+  const namedInput = applyNamesBehavior(injected, input.namesBehavior, input.speakers, {
+    multiCharacter,
+    multiHuman: input.multiHuman === true,
+    mergesAdjacent: merges,
+  });
   const named = runSquash(namedInput);
 
   // A multi-speaker round's group nudge, or the continuation cue for a turn that would otherwise end on the
@@ -558,7 +593,7 @@ export function shape(input: ShapeInput): ShapeOutput {
   // only volatile row and the pin is the last canon row before it.
   const stableCount = withTail.length - (input.appendUserTurn === null && delivery.tailUser !== null ? 0 : 1);
   const stable = stableRows(withTail, stableCount, injected);
-  const historyStable = squashRunsFor(deliveredRows, merges).map((run) =>
+  const historyStable = squashRunsFor(deliveredRows, squash).map((run) =>
     run.every((index) => {
       const origin = delivery.entries[index]?.origin;
       return origin !== null && origin !== undefined && stable[origin] === true;
@@ -570,7 +605,7 @@ export function shape(input: ShapeInput): ShapeOutput {
   );
 
   // The content-free DELIVERED-row trace (`ShapeTrace.rows`) — order, role, voice, provenance, size, fold.
-  const delivered = traceDeliveredRows({ injected, namedInput, delivery, history, merges });
+  const delivered = traceDeliveredRows({ injected, namedInput, delivery, history, squash });
   const marker = injected.find((row) => "newChatMarker" in row);
 
   return {
@@ -595,22 +630,22 @@ export function shape(input: ShapeInput): ShapeOutput {
  * `resolveUserAttribution`: the `authorUserId === viewerUserId` gate, "fail closed: name nobody rather than
  * name wrongly"). Everyone else gets {@link UNRESOLVED_USER_NAME}, the same word the reader sees on screen.
  *
- * Fail-closed on purpose: an UNKNOWN author or an unknown trigger (a drain/auto turn, a preview, any
- * hand-built ctx) takes the floor rather than the borrow. The one case that still borrows — the trigger's OWN
- * unstamped row — is unchanged from before this guard, and is byte-identical in a solo personaless chat where
- * `speakers.user` is already the "User" floor.
+ * The key is the human whose persona `speakers.user` is (`AssembleContext.activePersonaUserId`, the room's
+ * anchor human), never the trigger, so a row's label does not change with who pressed send. Fail-closed on
+ * purpose: an UNKNOWN author or owner (any hand-built ctx) takes the floor rather than the borrow. A solo
+ * personaless chat is byte-identical: `speakers.user` is already the "User" floor.
  */
 function userRowAuthorName(
   row: { readonly personaId: PersonaId | null; readonly authorUserId: UserId | null },
   macroNames: HistoryMacroNames,
-  triggerUserId: UserId | null,
+  activePersonaUserId: UserId | null,
 ): string | null {
   const stamped = row.personaId === null ? undefined : macroNames.personaNamesById.get(row.personaId);
   if (stamped !== undefined) {
     return stamped.name;
   }
   // No usable identity of its own (never stamped, or stamped with a since-deleted persona).
-  const ownRow = row.authorUserId !== null && row.authorUserId === triggerUserId;
+  const ownRow = row.authorUserId !== null && row.authorUserId === activePersonaUserId;
   return ownRow ? null : DEFAULT_PERSONA_NAME;
 }
 
@@ -644,13 +679,15 @@ function compactionCoveredThroughSeq(ctx: AssembleContext): number {
  *  One field read, one answer. Byte-identical for every real narrator row, which is the only row the strip
  *  was ever for. */
 function assistantShapeRow(m: MessageView, ctx: AssembleContext, macroNames: HistoryMacroNames, nameById: ReadonlyMap<CharacterId, string>): CanonRow {
-  const authorName = m.characterId !== null ? (nameById.get(m.characterId) ?? null) : null;
+  const rosterName = m.characterId !== null ? (nameById.get(m.characterId) ?? null) : null;
+  // A departed character's row keeps its own stamped name, so its label never borrows whoever speaks now.
+  const authorName = rosterName ?? (m.characterId !== null ? (macroNames.characterNamesById.get(m.characterId)?.name ?? null) : null);
   const body = m.kind === "narrator" ? speakerTagsToPlain(m.content) : m.content;
   return {
     role: "assistant",
     content: renderHistoryMacros(body, { characterId: m.characterId, personaId: m.personaId }, ctx, {
       producer: macroNames,
-      speakerCharName: authorName ?? undefined,
+      speakerCharName: rosterName ?? undefined,
     }),
     characterId: m.characterId,
     authorName,
@@ -665,7 +702,7 @@ function userShapeRow(m: MessageView, ctx: AssembleContext, macroNames: HistoryM
   return {
     role: "user",
     content: renderHistoryMacros(m.content, { characterId: m.characterId, personaId: m.personaId }, ctx, { producer: macroNames }),
-    authorName: userRowAuthorName(m, macroNames, ctx.triggerUserId ?? null),
+    authorName: userRowAuthorName(m, macroNames, ctx.activePersonaUserId ?? null),
     messageId: m.id,
     kind: m.kind,
   };

@@ -46,18 +46,33 @@ export type ChatBehaviorInputs = Pick<
   "autoContinue" | "autoContinueRounds" | "autoSwipe" | "charactersCanReact" | "customStoppingStrings" | "offerChoices" | "reactionsEnabled"
 >;
 
-/** The resolved personas for a turn (the persona domain owns the read — FOREIGN). `anchor` is `{{user}}` for
- *  card-derived sections (the chat-open anchor — `chats.anchorPersonaId`); `active` is `{{user}}` for
- *  prompt-config / user-authored sections — the TRIGGERING human's persona (whose turn it is —
- *  the `trigger`), never a presence-order-arbitrary present human (the `personaIds[0]` fallback that used to
- *  serve trigger-less reads is RETIRED — see {@link TurnTrigger}). Either arm
- *  is `null` when its pointer is unset OR its owner is not a present member (the roster consent gate —
- *  {@link ResolveForeignInputsOp}); a null anchor falls to `active` at `pinnedPersona`, which is exactly the
- *  HEAL heal-the-pointer semantics (a departed member's pin stops pinning, and is never copied). */
+/** The resolved personas for a turn (the persona domain owns the read — FOREIGN).
+ *   • `anchor` is `{{user}}` for card-derived sections (the chat-open anchor — `chats.anchorPersonaId`).
+ *   • `active` is `{{user}}` for prompt-config / user-authored sections, bound by the turn's
+ *     {@link TurnVoice}: the ANCHOR human's current seat persona on every turn but impersonate, so who pressed
+ *     send cannot change the cached prompt (D122 as amended); the trigger's persona on an impersonate draft.
+ *   • `activeUserId` is the human `active` belongs to — SHAPE's null-stamp guard key. Absent ⇒ null (fail
+ *     closed: no unstamped row borrows the name).
+ *  A persona arm is `null` when its pointer is unset OR its owner is not a present member (the roster consent
+ *  gate — {@link ResolveForeignInputsOp}); a null anchor falls to `active` at `pinnedPersona`, which is exactly
+ *  the HEAL heal-the-pointer semantics (a departed member's pin stops pinning, and is never copied). */
 export interface ResolvedPersonas {
   readonly anchor: AssemblePersona | null;
   readonly active: AssemblePersona | null;
+  readonly activeUserId?: UserId | null | undefined;
 }
+
+/** One present human seat and the persona it holds — the resolver reads the anchor human's seat persona here. */
+export interface HumanSeatPersona {
+  readonly userId: UserId;
+  readonly personaId: PersonaId | null;
+}
+
+/** Whose persona a turn's prompt-config `{{user}}` binds to. `anchor`: the room's anchor human (every canon
+ *  turn — the cached prefix may not depend on who pressed send). `trigger`: the pressing human (an impersonate
+ *  draft is that human's own next line). */
+export const TURN_VOICES = ["anchor", "trigger"] as const;
+export type TurnVoice = (typeof TURN_VOICES)[number];
 
 /**
  * WHO DRIVES THIS TURN — the assemble-time trigger identity, as a DISCRIMINATED UNION rather than the
@@ -69,7 +84,10 @@ export interface ResolvedPersonas {
  * invite-joined member seated with `activePersonaId = NULL`, so the model was told the HOST said everything
  * the member said. A missing state must be an ARM, never a sentinel that already means something else.
  *
- *   • `{ kind: "human" }` — a live human drives this turn. `{{user}}` is THEIRS: `personaId` when their seat
+ * The trigger binds `{{user}}` only on a `trigger`-voice turn ({@link TurnVoice}); an `anchor`-voice turn
+ * binds the anchor human's seat persona whoever triggered it.
+ *
+ *   • `{ kind: "human" }` — a live human drives this turn. Their `{{user}}` is `personaId` when their seat
  *     holds one, and the kit floor ("User") when it does not. **This arm never reaches the anchor** — a seat
  *     the anchor-holder does not hold must not be presented to the model wearing the anchor's identity.
  *   • `{ kind: "none" }` — DELIBERATELY no triggering human (a deferred drain / an automation turn, and also
@@ -156,10 +174,9 @@ export const DEFAULT_CHAT_BEHAVIOR: ChatBehaviorInputs = {
  * returns RESOLVED DATA, so it touches NO chat tables (Tier-5-Entry.md invariant 1). `anchorPersonaId` is the chat-open
  * anchor (`chats.anchorPersonaId`).
  *
- * There is no `personaIds` (the room's present-human persona ids) here any more: the ONLY thing that read it
- * was the retired `personaIds[0]` absent-trigger fallback. The resolver resolves exactly two ids — the anchor
- * and the `trigger`-bound active — so passing the whole room's list was both dead and misleading about what
- * the op could reach. Callers still compute the list for the chat-side GATHER, which is a different consumer.
+ * There is no `personaIds` (the room's ONLINE persona ids, the chat-side GATHER's input) here: the resolver
+ * resolves the anchor, the `humanSeats` persona of the anchor human, and — on a `trigger`-voice turn — the
+ * trigger's persona.
  *
  * THE PERSONA READ IS ROSTER-GATED, and chat supplies the gate. Personas are single-owned
  * (`personas.ownerId`), but a room's assembly is a room-plane read under the frozen host — so the resolver
@@ -177,7 +194,10 @@ export type ResolveForeignInputsOp = (args: {
   /** The room's PRESENT human participants — the persona-read consent set (see above). Empty ⇒ no persona
    *  resolves (a hostless/stale room assembles with the kit floor rather than an unscoped read). */
   readonly presentHumanUserIds: readonly UserId[];
+  /** Every present human seat and the persona it holds. */
+  readonly humanSeats: readonly HumanSeatPersona[];
   readonly trigger: TurnTrigger;
+  readonly voice: TurnVoice;
   /** A feature-supplied GM-voice preset REDIRECT (docs/plans/rpg/design.md — resolved by the caller's early
    *  `rpg.resolvePresetOverride` hop): when present, the resolver assembles THIS preset (owned-or-system under
    *  the host, else the normal default — the lenient-id rule) instead of the host's `UserSettings` default.

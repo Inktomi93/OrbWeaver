@@ -24,7 +24,13 @@ import type { InferenceLog } from "../../deps.ts";
 import { resolveChat } from "../../funnel/resolve-chat.ts";
 import { effortWordOf } from "../kit/applied-effort.ts";
 import type { CacheBreakpointRow, OpenRouterRouting } from "../kit/cache-control.ts";
-import { ANTHROPIC_CACHE_1H, computeCacheBreakpointPlacements, effectiveProviderRouting, isAnthropicModel } from "../kit/cache-control.ts";
+import {
+  ANTHROPIC_CACHE_1H,
+  cachesByAnthropicMarkers,
+  computeCacheBreakpointPlacements,
+  effectiveProviderRouting,
+  isAnthropicModel,
+} from "../kit/cache-control.ts";
 import { extractHttpErrorDiagnostic, providerErrorFromHttp } from "../kit/error-classify.ts";
 import { turnAbortSignal } from "../kit/idle-timeout.ts";
 import type { ProviderLogger } from "../kit/provider-log.ts";
@@ -521,7 +527,6 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
   const anthropicRoute = dialect === "openrouter" && isAnthropicModel(connection);
   const plan = buildWirePlan({
     systemPrompt: req.systemPrompt,
-    dynamicContextChannel: knobs.dynamicContextChannel,
     history: req.history,
     rowOptions: rowOptionsFor(dialect),
     splitSystem: anthropicRoute,
@@ -559,6 +564,7 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
           chatId: req.chatId,
           plan,
           prefillAllowed: acceptsAssistantPrefill(generation) && req.tools === undefined,
+          foldSameRole: cachesByAnthropicMarkers(connection, generation),
           replyImages: knobs.replyImages,
           warnings,
           extraBody: shape.extraBody,
