@@ -235,6 +235,7 @@ export const TOOLING_TESTS_ARMS: readonly RealCorpusLivenessArm[] = [
   },
   {
     policy: testDeterminism,
+    // @orb-waive test-determinism(Date.now): the overlay source proves testDeterminism itself, not this test's subject; ends when that arm retires.
     overlays: [add("tests/server/liveness-clock.test.ts", "export const livenessNow = Date.now();\n")],
     messageIncludes: "Date.now",
   },

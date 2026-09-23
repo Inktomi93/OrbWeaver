@@ -24,6 +24,7 @@ function gate(overrides: Partial<Parameters<typeof defineGate>[0]> = {}): GatePo
     mustFlag: [],
     mustPass: [],
     ...overrides,
+    // @orb-waive no-test-fabrication(Parameters<typeof defineGate>[0]): satisfies rejects the full literal spread over Partial<...> overrides; ends if ExactPolicy can assert that without a cast.
   } as Parameters<typeof defineGate>[0]) as GatePolicy;
 }
 
