@@ -118,7 +118,7 @@ function TagMemberEditor({
       >
         {/* THE DRILL ROW (#1747, DESIGN.md §3.4, board 03): `← Back to <library>` · the name · this tag's
             own verbs — of which a tag has NONE (§3.4 names each collection's set and tags' is empty: Merge
-            is a field below because it needs the target picker, Delete is the row's kebab, D121(D)). The
+            is a field below because it needs the target picker, Delete is the row's kebab, D212). The
             usage census rides `meta` beside the name it is about — a FACT, not a verb. */}
         <MemberDrillHeader
           back={back}

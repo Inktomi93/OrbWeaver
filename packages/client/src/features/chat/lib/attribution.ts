@@ -114,7 +114,7 @@ export interface ResolveRowAttributionInput {
 }
 
 /**
- * THE CLIENT RENDER-CHROME DISPATCH over the row-PURPOSE axis (D129(G)) — one home, read by BOTH chrome
+ * THE CLIENT RENDER-CHROME DISPATCH over the row-PURPOSE axis (D217) — one home, read by BOTH chrome
  * consumers: the row-level attribution above, and the in-body speaker-span grammar (`MessageRow` →
  * `MessageContent.narratorVoiced`). Total over `MessageKind` with an `assertNever` tail (spine §5.5), so a
  * fourth kind cannot build until someone rules on how it renders.
