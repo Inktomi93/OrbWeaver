@@ -243,18 +243,18 @@ export const REVIEWED_GRANTS_DBSTRUCTUREPRODUCERHOME_DANGLINGREFCITATIONS: reado
     policyId: "dangling-ref-citations",
     subject: "ELEVATED_ALLOW",
     operation: "dangling-symbol-cite",
-    why: "`density-tier`'s gate-local 11-row directory/file PREFIX table, deleted by the 2026-09-13 authority migration that replaced it with 12 per-file `elevated-radius` reviewed grants (a strengthening: a prefix silently covered every file in a primitive directory). Core-Enforcement-Active-Gates.md:239 and UI-Density-Law.md:166 both name it to record that retirement and its direction.",
+    why: "`density-tier`'s gate-local 11-row directory/file PREFIX table, deleted by the 2026-09-13 authority migration that replaced it with 12 per-file `elevated-radius` reviewed grants (a strengthening: a prefix silently covered every file in a primitive directory). Core-Enforcement-Active-Gates.md's generated index (work item 0045) keeps a short hand-written note naming it, and UI-Density-Law.md:166 names it too, to record that retirement and its direction.",
     endsWhen:
-      "both law docs stop naming `ELEVATED_ALLOW` — i.e. the retirement paragraphs are archived out of the living docs once nobody needs to trace the prefix table to its successor grants.",
+      "both law docs stop naming `ELEVATED_ALLOW` — i.e. the retirement note is archived out of the living docs once nobody needs to trace the prefix table to its successor grants.",
   },
   {
     id: "dangling-ref-citations:exempt-procedures",
     policyId: "dangling-ref-citations",
     subject: "EXEMPT_PROCEDURES",
     operation: "dangling-symbol-cite",
-    why: "`duplicate-action-doors`' gate-local ExemptionTable (one procedure-keyed row qualifying on four planes), deleted by the 2026-09-13 authority migration that replaced it with four of the ten central door-set grants. Core-Enforcement-Active-Gates.md:294 names it twice: once to record where the exemption mechanism went, and once to state the behaviour change it caused — a new settings-section door now REDS where this table absorbed it silently (#2352).",
+    why: "`duplicate-action-doors`' gate-local ExemptionTable (one procedure-keyed row qualifying on four planes), deleted by the 2026-09-13 authority migration that replaced it with four of the ten central door-set grants. Core-Enforcement-Active-Gates.md's generated index (work item 0045) keeps a short hand-written note naming it, to record where the exemption mechanism went; the behaviour change it caused — a new settings-section door now REDS where this table absorbed it silently — is recorded in the gate's own module header (#2352).",
     endsWhen:
-      "Core-Enforcement-Active-Gates.md stops naming `EXEMPT_PROCEDURES`, which requires #2352 to land first: until the section-discriminant predicate exists, that paragraph is the only record of why a new settings section reds.",
+      "Core-Enforcement-Active-Gates.md stops naming `EXEMPT_PROCEDURES`, which requires #2352 to land first: until the section-discriminant predicate exists, that note is the only record of why a new settings section reds.",
   },
   // THE #252 DUPLICATE-ACTION DOOR RULINGS (#1584, 2026-09-13). They replace
   // `duplicate-action-doors.baseline.json` (six RATIFIED count rows whose `cite` list was the real ruling) and the
