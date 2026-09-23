@@ -4,6 +4,11 @@
 // control only when the provider lists more than one · the background switch. The key is minted into a
 // credential row FIRST (label = the connection's), then the connection row references it; `credentials.add`
 // seals it at rest and no read ever echoes it. The Advanced/Diagnostics tiers live in the editor.
+//
+// A PARTIAL FAILURE IS STATED, AND THE RETRY DOES NOT MINT AGAIN. When the key is saved and the connection
+// write then fails, the credential row exists and the dialog says so in words: where the key went, what failed,
+// and what cancelling leaves behind. The pasted secret is cleared from the form the moment its row exists, the
+// provider is locked to that row's provider, and the next submit writes only the connection.
 
 import type { ProviderDef } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
@@ -31,6 +36,7 @@ import { CHAT_API_LABELS, connectionHost, providerPickerItems, showsApiControl }
 import { endpointListSource, isListedModel, typedModelAllowed } from "../lib/model-catalog-model.ts";
 import type { ModelCatalogPickerProps } from "./model-catalog-picker.tsx";
 import { ModelCatalogPicker } from "./model-catalog-picker.tsx";
+import { SetupTokenCommand } from "./setup-token-command.tsx";
 
 type CredentialView = inferOutput<Trpc["credentials"]["add"]>;
 type ModelCatalogSource = ModelCatalogPickerProps["source"];
@@ -108,6 +114,12 @@ interface EndpointListing {
   readonly source: ModelCatalogSource;
 }
 
+/** The credential this dialog minted before the connection write failed, with that failure's words. */
+interface HeldCredential {
+  readonly credential: CredentialView;
+  readonly failure: string;
+}
+
 function draftKeyOf(baseUrl: string, keyValue: string): string {
   return JSON.stringify([baseUrl.trim(), keyValue.trim()]);
 }
@@ -140,6 +152,7 @@ function AddConnectionFormBody({ trpc, invalidation, onDone, pickerItems, provid
   const addCredential = useAddCredential(deps);
   const createConnection = useCreateConnection(deps);
   const [listing, setListing] = useState<EndpointListing | null>(null);
+  const [held, setHeld] = useState<HeldCredential | null>(null);
 
   /** The model picker's source for the current draft: the endpoint's list when one was read FOR this draft,
    *  otherwise the typed arm with the provider's reason. */
@@ -150,15 +163,18 @@ function AddConnectionFormBody({ trpc, invalidation, onDone, pickerItems, provid
     return { status: "unlisted", reason: draftModelReason(provider) };
   };
 
-  /** The credential for this submit: a mint of the pasted key (with the connection's label, §5.3a Essential
-   *  tier), else none. */
+  /** The credential for this submit: the row an earlier attempt already minted, else a fresh mint of the
+   *  pasted key (with the connection's label, §5.3a Essential tier), else none. */
   const credentialFor = async (provider: ProviderDef, values: AddConnectionFormValues): Promise<CredentialView | null> => {
     const key = values.key.trim();
-    if (key === "" || !acceptsKey(provider)) {
-      return null;
+    if (held !== null || key === "" || !acceptsKey(provider)) {
+      return held?.credential ?? null;
     }
     const label = values.label.trim();
-    return await addCredential.mutateAsync({ provider: provider.id, key, ...(label !== "" ? { label } : {}) });
+    const credential = await addCredential.mutateAsync({ provider: provider.id, key, ...(label !== "" ? { label } : {}) });
+    form.setFieldValue("key", "");
+    form.setFieldValue("keyHeld", true);
+    return credential;
   };
 
   const save = async (values: AddConnectionFormValues): Promise<AddConnectionFormValues> => {
@@ -166,9 +182,17 @@ function AddConnectionFormBody({ trpc, invalidation, onDone, pickerItems, provid
     if (provider === undefined) {
       return values;
     }
+    // Read before the mint: the mint clears the key, which is half of the endpoint listing's draft key.
     const modelListed = isListedModel(modelSourceFor(provider, values), values.model);
     const credential = await credentialFor(provider, values);
-    await createConnection.mutateAsync(connectionInput({ provider, values, credentialId: credential?.id ?? null, modelListed }));
+    try {
+      await createConnection.mutateAsync(connectionInput({ provider, values, credentialId: credential?.id ?? null, modelListed }));
+    } catch (err) {
+      if (credential !== null) {
+        setHeld({ credential, failure: errorMessage(err) });
+      }
+      throw err;
+    }
     onDone();
     return values;
   };
@@ -190,7 +214,7 @@ function AddConnectionFormBody({ trpc, invalidation, onDone, pickerItems, provid
             // The validator reads the auth KIND off the values (module scope, no registry in reach): derive it here.
             listeners={{ onChange: ({ value }): void => form.setFieldValue("auth", providerOf(value)?.auth ?? "") }}
           >
-            {(field): ReactElement => <field.SelectField label="Provider" items={pickerItems} placeholder="Pick a provider" />}
+            {(field): ReactElement => <field.SelectField label="Provider" items={pickerItems} placeholder="Pick a provider" disabled={held !== null} />}
           </form.AppField>
 
           <form.Subscribe selector={(state): AddConnectionFormValues => state.values}>
@@ -202,12 +226,15 @@ function AddConnectionFormBody({ trpc, invalidation, onDone, pickerItems, provid
                   provider={provider}
                   trpc={trpc}
                   invalidation={invalidation}
+                  held={held}
                   modelSource={modelSourceFor(provider, values)}
                   onListing={setListing}
                 />
               );
             }}
           </form.Subscribe>
+
+          {held === null ? null : <PartialFailureNotice held={held} />}
 
           <Text voice="gloss">Stored securely on this deployment; the key is sent only to the provider you chose.</Text>
 
@@ -221,6 +248,17 @@ function AddConnectionFormBody({ trpc, invalidation, onDone, pickerItems, provid
   );
 }
 
+/** The honest partial-failure line: the key IS saved (and where), the connection is NOT, and what the two
+ *  exits do. */
+function PartialFailureNotice({ held }: { readonly held: HeldCredential }): ReactElement {
+  return (
+    <Text className="text-destructive" data-slot="add-connection-partial-failure" role="alert" voice="gloss">
+      Your key was saved as “{heldKeyLabel(held)}” in Saved keys, but the connection wasn't created — {held.failure}. Adding again reuses the saved key. If you
+      cancel, the key stays in Saved keys.
+    </Text>
+  );
+}
+
 type AddConnectionForm = ReturnType<typeof useAddConnectionForm>["form"];
 
 interface ProviderFieldsProps {
@@ -228,13 +266,14 @@ interface ProviderFieldsProps {
   readonly provider: ProviderDef;
   readonly trpc: Trpc;
   readonly invalidation: Invalidation;
+  readonly held: HeldCredential | null;
   readonly modelSource: ModelCatalogSource;
   readonly onListing: (listing: EndpointListing) => void;
 }
 
 /** The fields that depend on the PICKED provider's auth kind: URL and/or key, the model, the api control only
  *  when the row lists more than one, label and the background switch. */
-function ProviderFields({ form, provider, trpc, invalidation, modelSource, onListing }: ProviderFieldsProps): ReactElement {
+function ProviderFields({ form, provider, trpc, invalidation, held, modelSource, onListing }: ProviderFieldsProps): ReactElement {
   return (
     <>
       {needsBaseUrl(provider) ? (
@@ -249,7 +288,8 @@ function ProviderFields({ form, provider, trpc, invalidation, modelSource, onLis
           )}
         </form.AppField>
       ) : null}
-      <KeyField form={form} provider={provider} />
+      {provider.auth === "oauthToken" && held === null ? <SetupTokenCommand /> : null}
+      <KeyField form={form} provider={provider} held={held} />
       {needsBaseUrl(provider) ? (
         <form.Subscribe selector={(state): { readonly baseUrl: string; readonly key: string } => ({ baseUrl: state.values.baseUrl, key: state.values.key })}>
           {(draft): ReactElement => (
@@ -291,8 +331,23 @@ function ProviderFields({ form, provider, trpc, invalidation, modelSource, onLis
   );
 }
 
-/** The key step: the paste field, when the provider takes a key. */
-function KeyField({ form, provider }: { readonly form: AddConnectionForm; readonly provider: ProviderDef }): ReactElement | null {
+/** The key step: the paste field, or — once this dialog saved the key — a line naming the saved row. */
+function KeyField({
+  form,
+  provider,
+  held,
+}: {
+  readonly form: AddConnectionForm;
+  readonly provider: ProviderDef;
+  readonly held: HeldCredential | null;
+}): ReactElement | null {
+  if (held !== null) {
+    return (
+      <Text data-slot="add-connection-key-held" voice="gloss">
+        Key saved as “{heldKeyLabel(held)}”. It won't be shown again.
+      </Text>
+    );
+  }
   if (!acceptsKey(provider)) {
     return null;
   }
@@ -301,7 +356,6 @@ function KeyField({ form, provider }: { readonly form: AddConnectionForm; readon
       {(field): ReactElement => (
         <field.TextField
           label={keyLabel(provider)}
-          {...(provider.auth === "oauthToken" ? { description: "Run `claude setup-token` on the machine you use Claude Code on and paste the result." } : {})}
           placeholder={provider.auth === "oauthToken" ? "Paste the token" : "Paste your API key"}
           type="password"
           revealable={true}
@@ -310,6 +364,11 @@ function KeyField({ form, provider }: { readonly form: AddConnectionForm; readon
       )}
     </form.AppField>
   );
+}
+
+/** The saved row's label as Saved keys shows it (an unlabelled row is the provider's default slot). */
+function heldKeyLabel(held: HeldCredential): string {
+  return held.credential.label ?? "default";
 }
 
 function keyLabel(provider: ProviderDef): string {

@@ -8,6 +8,9 @@ import type { ProviderAuth, ProviderDef } from "@orb/contracts/inference";
 import { addModelActionLabel } from "./add-model-on-key-form-model.ts";
 import { MODEL_REQUIRED_MESSAGE } from "./model-catalog-model.ts";
 
+/** The command the Claude-subscription step asks the user to run (§5.3a: "a copyable `claude setup-token`"). */
+export const CLAUDE_SETUP_TOKEN_COMMAND = "claude setup-token";
+
 export interface AddConnectionFormValues {
   readonly providerId: string;
   /** DERIVED from the picked provider's row (`ProviderDef.auth`), written by the provider field's change
@@ -15,8 +18,12 @@ export interface AddConnectionFormValues {
    *  values. `""` until a provider is picked. */
   readonly auth: ProviderAuth | "";
   readonly label: string;
-  /** Pasted inline for `apiKey` / `oauthToken` rows, optional for `endpoint` rows (the `--api-key` bearer). */
+  /** Pasted inline for `apiKey` / `oauthToken` rows, optional for `endpoint` rows (the `--api-key` bearer).
+   *  Emptied the moment the credential row is minted: from then on the dialog holds the row, not the secret. */
   readonly key: string;
+  /** Set once THIS dialog minted the credential and the connection write then failed — the retry reuses the
+   *  saved key, so the empty `key` is no longer a missing value. */
+  readonly keyHeld: boolean;
   /** `endpoint` rows only. */
   readonly baseUrl: string;
   readonly model: string;
@@ -31,6 +38,7 @@ export const ADD_CONNECTION_DEFAULTS: AddConnectionFormValues = {
   auth: "",
   label: "",
   key: "",
+  keyHeld: false,
   baseUrl: "",
   model: "",
   api: "auto",
@@ -75,8 +83,8 @@ export function validateAddConnection(value: AddConnectionFormValues): { fields:
   if (value.providerId === "" || value.auth === "") {
     fields["providerId"] = "Pick a provider.";
   }
-  if ((value.auth === "apiKey" || value.auth === "oauthToken") && value.key.trim() === "") {
-    fields["key"] = value.auth === "oauthToken" ? "Paste the token from `claude setup-token`." : "Paste your API key.";
+  if ((value.auth === "apiKey" || value.auth === "oauthToken") && !value.keyHeld && value.key.trim() === "") {
+    fields["key"] = value.auth === "oauthToken" ? `Paste the token from \`${CLAUDE_SETUP_TOKEN_COMMAND}\`.` : "Paste your API key.";
   }
   if (value.auth === "endpoint" && value.baseUrl.trim() === "") {
     fields["baseUrl"] = "Your server's base URL is required.";
