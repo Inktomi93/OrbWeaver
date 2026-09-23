@@ -192,8 +192,9 @@ function assertNeverVoice(voice: never): never {
 }
 
 /** The persona half of the FOREIGN read: one consent-gated persona read over the anchor, the trigger's persona
- *  and every seat persona, then {@link voicePersonaFor}. The composition root's `resolveForeignInputs` is its
- *  one production caller. */
+ *  and every seat persona, then {@link voicePersonaFor}. Every other seat's resolved persona projects into
+ *  `people` in seat order, so the block moves only on a join, a leave, a swap or a re-anchor. The composition
+ *  root's `resolveForeignInputs` is its one production caller. */
 export function createTurnPersonaResolver(
   resolvePersonasForParticipants: ResolvePersonasForParticipants,
 ): (
@@ -211,7 +212,16 @@ export function createTurnPersonaResolver(
     };
     const anchorOwnerId = args.anchorPersonaId === null ? null : (resolved.get(args.anchorPersonaId)?.ownerId ?? null);
     const voice = voicePersonaFor({ ...args, anchorOwnerId });
-    return { anchor: project(args.anchorPersonaId), active: project(voice.personaId), activeUserId: voice.userId };
+    const people = args.humanSeats.flatMap((seat) => {
+      const persona = seat.userId === voice.userId ? null : project(seat.personaId);
+      return persona === null ? [] : [persona];
+    });
+    return {
+      anchor: project(args.anchorPersonaId),
+      active: project(voice.personaId),
+      activeUserId: voice.userId,
+      ...(people.length > 0 ? { people } : {}),
+    };
   };
 }
 

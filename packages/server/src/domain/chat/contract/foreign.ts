@@ -55,11 +55,14 @@ export type ChatBehaviorInputs = Pick<
  *     closed: no unstamped row borrows the name).
  *  A persona arm is `null` when its pointer is unset OR its owner is not a present member (the roster consent
  *  gate — {@link ResolveForeignInputsOp}); a null anchor falls to `active` at `pinnedPersona`, which is exactly
- *  the HEAL heal-the-pointer semantics (a departed member's pin stops pinning, and is never copied). */
+ *  the HEAL heal-the-pointer semantics (a departed member's pin stops pinning, and is never copied).
+ *   • `people` is every OTHER consented seat persona, in seat (join) order — the `persona` marker's people
+ *     block (D122). Absent ⇒ no other present human holds a persona (a solo room, or a hand-built input). */
 export interface ResolvedPersonas {
   readonly anchor: AssemblePersona | null;
   readonly active: AssemblePersona | null;
   readonly activeUserId?: UserId | null | undefined;
+  readonly people?: readonly AssemblePersona[] | undefined;
 }
 
 /** One present human seat and the persona it holds — the resolver reads the anchor human's seat persona here. */

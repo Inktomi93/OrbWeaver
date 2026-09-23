@@ -4,10 +4,11 @@
 // priority, operator intent spared), WI position routing, and the immutable/pure ctx (§5 — two calls equal).
 import type { CharacterCard } from "@orb/contracts/character";
 import { cardDepthPromptSchema } from "@orb/contracts/character";
-import type { ChatInjection, PromptTransformResult, RoomOverrides } from "@orb/contracts/chat";
+import type { AssembleContext, AssemblePersona, ChatInjection, PromptTransformResult, RoomOverrides } from "@orb/contracts/chat";
 import { speakerKey } from "@orb/contracts/chat";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_GUIDED_ACTIONS, DEFAULT_PROMPT_CONFIG, promptConfigSchema } from "@orb/contracts/preset";
+import { resolveProseText } from "@orb/contracts/prose";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
@@ -1590,6 +1591,105 @@ describe("buildAssembleContext — the BOTH-PERSONAS context rule on a swap (FIN
     // The owner-flagged cross-contamination bug MUST NOT happen:
     expect(allContent).not.toContain("Steve is a doctor");
     expect(allContent).not.toContain("Nate is a soldier");
+  });
+});
+
+// ── The people block: every other present human's persona rides the `persona` marker, headed ─────────────
+describe("buildAssembleContext — the people block", () => {
+  const alice = { name: "Alice", description: "ALICE-DESC", placement: { kind: "in_prompt" } as const };
+  const bob = { name: "Bob", description: "BOB-DESC", placement: { kind: "in_prompt" } as const };
+  const cara = { name: "Cara", description: "CARA-DESC", placement: { kind: "in_prompt" } as const };
+  const heading = (name: string): string => resolveProseText("chat.group.personaHeading", {}, { name });
+  // One seeded room per build, so a test may build twice on the same db.
+  let room = 0;
+
+  async function build(people: readonly AssemblePersona[], over: InputOver = {}, active: AssemblePersona = alice): Promise<AssembleContext> {
+    room += 1;
+    const host = await seedUser(db, castId<Handle>(`host-${String(room)}`));
+    const chatId = await seedChat(db, `room-${String(room)}`);
+    const charId = await seedCharacter(db, host, `aria-${String(room)}`);
+    return await buildAssembleContext(ctxWithCard(cardOf("Aria")), {
+      ...inputOf(chatId, host, [charId], over),
+      personas: { anchor: active, active, people },
+    });
+  }
+
+  test("two humans in_prompt: the voice description, then the other human's heading and description", async () => {
+    const solo = assemblePrompt(DEFAULT_PROMPT_CONFIG, await build([])).static;
+    const withBob = assemblePrompt(DEFAULT_PROMPT_CONFIG, await build([bob])).static;
+
+    // Control: no people is today's bytes, the voice description alone.
+    expect(solo).toContain("ALICE-DESC");
+    expect(solo).not.toContain(heading("Bob"));
+    expect(withBob).toBe(solo.replace("ALICE-DESC", `ALICE-DESC\n\n${heading("Bob")}\nBOB-DESC`));
+  });
+
+  test("three humans: the others follow in the people list's (join) order", async () => {
+    const out = assemblePrompt(DEFAULT_PROMPT_CONFIG, await build([bob, cara])).static;
+
+    expect(out).toContain(`ALICE-DESC\n\n${heading("Bob")}\nBOB-DESC\n\n${heading("Cara")}\nCARA-DESC`);
+  });
+
+  test("an at_depth person: a heading-only entry, plus their own in_chat injection labelled with their name", async () => {
+    const bobAtDepth = { ...bob, placement: { kind: "at_depth", depth: 3, role: "system" } as const };
+    const ctx = await build([bobAtDepth]);
+    const out = assemblePrompt(DEFAULT_PROMPT_CONFIG, ctx);
+
+    expect(out.static).toContain(`ALICE-DESC\n\n${heading("Bob")}`);
+    expect(`${out.static}\n${out.dynamic}`).not.toContain("BOB-DESC");
+    expect(besidesMarker(ctx.chatInjections).filter((i) => i.origin === "persona")).toEqual([
+      { position: "in_chat", depth: 3, role: "system", content: "BOB-DESC", origin: "persona", originLabel: "Bob" },
+    ]);
+  });
+
+  test("a none person: a heading-only entry and no injection", async () => {
+    const ctx = await build([{ ...bob, placement: { kind: "none" } }]);
+    const out = assemblePrompt(DEFAULT_PROMPT_CONFIG, ctx);
+
+    expect(out.static.endsWith(`ALICE-DESC\n\n${heading("Bob")}`)).toBe(true);
+    expect(`${out.static}\n${out.dynamic}`).not.toContain("BOB-DESC");
+    expect(besidesMarker(ctx.chatInjections)).toEqual([]);
+  });
+
+  test("a blank description: a heading-only entry", async () => {
+    const out = assemblePrompt(DEFAULT_PROMPT_CONFIG, await build([{ ...bob, description: "   " }])).static;
+
+    expect(out.endsWith(`ALICE-DESC\n\n${heading("Bob")}`)).toBe(true);
+  });
+
+  test("an entry resolves {{user}} against its own persona while the preset still addresses the voice", async () => {
+    const out = assemblePrompt(DEFAULT_PROMPT_CONFIG, await build([{ ...bob, description: "{{user}} likes tea" }])).static;
+
+    expect(out).toContain(`${heading("Bob")}\nBob likes tea`);
+    expect(out).toContain("roleplay with Alice");
+    expect(out).not.toContain("Alice likes tea");
+  });
+
+  test("a voice persona at_depth still leaves the other people in the block", async () => {
+    const aliceAtDepth = { ...alice, placement: { kind: "at_depth", depth: 2, role: "system" } as const };
+    const out = assemblePrompt(DEFAULT_PROMPT_CONFIG, await build([bob], {}, aliceAtDepth)).static;
+
+    expect(out).not.toContain("ALICE-DESC");
+    expect(out).toContain(`${heading("Bob")}\nBOB-DESC`);
+  });
+
+  test("the people's names join the world-info keyword haystack", async () => {
+    // A chat book keyed on "cara"; nothing in the recent messages names her.
+    const lore = async (people: readonly AssemblePersona[]): Promise<string> => {
+      room += 1;
+      const host = await seedUser(db, castId<Handle>(`host-${String(room)}`));
+      const chatId = await seedChat(db, `room-${String(room)}`);
+      const charId = await seedCharacter(db, host, `aria-${String(room)}`);
+      await attachChatEntry(host, chatId, `cara-lore-${String(room)}`, { content: "CARA LORE", keys: ["cara"] });
+      const ctx = await buildAssembleContext(ctxWithCard(cardOf("Aria")), {
+        ...inputOf(chatId, host, [charId], { recentMessages: ["nothing here"] }),
+        personas: { anchor: alice, active: alice, people },
+      });
+      return ctx.worldInfoBeforeDynamic ?? "";
+    };
+
+    expect(await lore([])).not.toContain("CARA LORE");
+    expect(await lore([cara])).toContain("CARA LORE");
   });
 });
 
