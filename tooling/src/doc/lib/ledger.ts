@@ -2,14 +2,13 @@
 // one of TWO shapes — a bullet row (`- **D<n> — title.** text`, with continuation lines) under a range
 // heading, or a `## D<n> (…)` section whose first bullet restates the id. Both parse to one `Ruling`;
 // the ADR file a ruling becomes keeps its number, so nothing that cites `D<n>` moves.
-import type { RegistryParse, Ruling, RulingRange } from "../contract/types.ts";
+import type { RegistryParse, Ruling } from "../contract/types.ts";
 import { adrTemplateFromRuling } from "./ledger-render.ts";
 import { slugify } from "./names.ts";
 
 const RANGE_HEADING_RE = /^## D(\d+)(?:[-–]D?\d+)?\b/u;
 const SECTION_HEADING_RE = /^## D(\d+)\s*(?:\((.*)\))?\s*$/u;
 const BULLET_RE = /^- \*\*D(\d+)\b\s*[—–-]?\s*(.*)$/u;
-const RESERVED_RE = /\*\*RESERVED RANGE\s*[—-]\s*D(\d+)[–-]D(\d+)/u;
 const BOLD_CLOSE = "**";
 
 /** The two bullet shapes: `- **D<n>** — text` (a bare bold id; the title falls back to the id) and
@@ -109,11 +108,6 @@ function sectionRuling(block: Block): Ruling {
   return { id, title: sectionTitle(id, match[2], first), body: rest.join("\n").trim(), shape: "section" };
 }
 
-export function reservedRange(source: string): RulingRange | null {
-  const note = RESERVED_RE.exec(source);
-  return note?.[1] === undefined || note[2] === undefined ? null : { lo: Number(note[1]), hi: Number(note[2]) };
-}
-
 /** Every ruling in the registry, in file order, plus the ids anchored more than once. */
 export function parseRegistry(source: string): RegistryParse {
   const rulings: Ruling[] = [];
@@ -129,7 +123,7 @@ export function parseRegistry(source: string): RegistryParse {
     seen.set(ruling.id, (seen.get(ruling.id) ?? 0) + 1);
   }
   const duplicates = [...seen.entries()].filter(([, count]) => count > 1).map(([id]) => id);
-  return { rulings, duplicates, reserved: reservedRange(source) };
+  return { rulings, duplicates };
 }
 
 export function adrSlug(ruling: Ruling): string {

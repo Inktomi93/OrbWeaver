@@ -17,7 +17,7 @@ export interface DocsRootEntry {
   readonly directory: boolean;
 }
 
-/** The reserved D-number window (the registry's own note, and `#doc-catalog`'s constants). */
+/** A D-number window, as `migrate-ledger --range` reads one. */
 export interface RulingRange {
   readonly lo: number;
   readonly hi: number;
@@ -31,8 +31,9 @@ export interface DocTree {
   readonly files: readonly string[];
   /** D numbers anchored in the legacy registry (both row shapes). */
   readonly registryIds: ReadonlySet<number>;
-  /** The number the registry's "Next free number is D<n>+" note announces, or null without a note. */
-  readonly nextFreeNote: number | null;
+  /** Every number a "Next free number … is D<n>+" statement in the registry announces, in file order;
+   *  empty without one, and more than one is itself a finding. */
+  readonly nextFreeNotes: readonly number[];
   /** The `evidence` commits of done items that git proves reachable from `main`. */
   readonly evidenceOnMain: ReadonlySet<string>;
 }
@@ -48,7 +49,6 @@ export interface Ruling {
 export interface RegistryParse {
   readonly rulings: readonly Ruling[];
   readonly duplicates: readonly number[];
-  readonly reserved: RulingRange | null;
 }
 
 /** The closed blocker vocabulary. A wake condition names a repository path and the presence that wakes

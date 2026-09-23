@@ -4,14 +4,15 @@
 // empty fact, never to a throw, because a missing branch is a drift finding and not a tool crash.
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { DOC_TOOL_TREE_PREFIXES, formatMarkdown, stableRulingAnchors } from "#doc-catalog";
+import { CORE_PATH_REGISTRY_PATH, DOC_TOOL_TREE_PREFIXES, formatMarkdown, stableRulingAnchors } from "#doc-catalog";
 import { REPO_ROOT } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { runNicedSync } from "../../_shared/proc.ts";
 import { inheritedProcessEnv } from "../../_shared/process-env.ts";
 import type { DocsRootEntry, DocTree, GovernedDoc } from "../contract/types.ts";
 import { allItems } from "../lib/generated.ts";
-import { REGISTRY_PATH } from "../lib/rules.ts";
+import { isCommitId } from "../lib/items.ts";
+import { nextFreeStatements } from "../lib/rules.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm doc <verb>");
 
@@ -21,7 +22,6 @@ const MISSION_PATH = "docs/Mission.md";
 const MAIN = "main";
 /** How far back `drift` reads `main` for `Closes:` trailers — enough for a day of merge trains. */
 const RECENT_MAIN_COMMITS = "200";
-const NEXT_FREE_NOTE_RE = /Next free number is D(\d+)\+/u;
 
 export function today(): string {
   return new Date().toISOString().slice(0, "YYYY-MM-DD".length);
@@ -74,14 +74,13 @@ function docsRoot(repoRoot: string): readonly DocsRootEntry[] {
   return readdirSync(abs, { withFileTypes: true }).map((entry) => ({ name: entry.name, directory: entry.isDirectory() }));
 }
 
-/** The registry's anchored ids and its next-free note, or empty when the legacy registry is gone. */
-export function registryFacts(repoRoot = root): Pick<DocTree, "registryIds" | "nextFreeNote"> {
-  const abs = join(repoRoot, REGISTRY_PATH);
+/** The registry's anchored ids and its next-free statements, or empty when the legacy registry is gone. */
+export function registryFacts(repoRoot = root): Pick<DocTree, "registryIds" | "nextFreeNotes"> {
+  const abs = join(repoRoot, CORE_PATH_REGISTRY_PATH);
   if (!existsSync(abs)) {
-    return { registryIds: new Set(), nextFreeNote: null };
+    return { registryIds: new Set(), nextFreeNotes: [] };
   }
-  const note = NEXT_FREE_NOTE_RE.exec(readFileSync(abs, "utf8"))?.[1];
-  return { registryIds: new Set([...stableRulingAnchors(repoRoot).keys()].map(Number)), nextFreeNote: note === undefined ? null : Number(note) };
+  return { registryIds: new Set([...stableRulingAnchors(repoRoot).keys()].map(Number)), nextFreeNotes: nextFreeStatements(readFileSync(abs, "utf8")) };
 }
 
 export function readDocTree(repoRoot = root): DocTree {
@@ -116,9 +115,10 @@ export function isMainBranch(repoRoot = root): boolean {
   return git(repoRoot, ["rev-parse", "--abbrev-ref", "HEAD"])?.trim() === MAIN;
 }
 
-/** True when `sha` names a commit reachable from `main`. */
+/** True when `sha` names a commit reachable from `main`. The value comes from a doc, so its SHAPE is
+ *  judged first and it is passed after `--end-of-options`: `--help` is never a flag here. */
 export function commitOnMain(sha: string, repoRoot = root): boolean {
-  return git(repoRoot, ["merge-base", "--is-ancestor", sha, MAIN]) !== null;
+  return isCommitId(sha) && git(repoRoot, ["merge-base", "--is-ancestor", "--end-of-options", sha, MAIN]) !== null;
 }
 
 export function headCommit(repoRoot = root): string | null {

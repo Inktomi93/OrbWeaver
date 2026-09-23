@@ -68,10 +68,6 @@ export const LEDGER_ENTRY_HEADING_RE = /^## D([1-9]\d*)(?:\s|\(|$)/u;
 export const LEDGER_ENTRY_BOLD_RE = /^- \*\*D([1-9]\d*)\b/u;
 
 export const REQUIRED_FRONTMATTER_KEYS = ["kind", "status", "updated"];
-/** The keys the `doc` tool writes on ADRs and work items. `superseded-by` pairs with `supersedes`; the
- *  item keys carry the board columns the owner kept (priority, area, lane) plus the state's companion
- *  (`blocked` reason, `evidence` commit, `reviewed` mark) and the plan an item belongs to. */
-export const DOC_TOOL_KEYS = ["superseded-by", "priority", "area", "lane", "blocked", "plan", "evidence", "reviewed"] as const;
 export const ALLOWED_FRONTMATTER_KEYS = new Set([...REQUIRED_FRONTMATTER_KEYS, "supersedes"]);
 
 export const VENDOR_PREFIX = "docs/vendor/";

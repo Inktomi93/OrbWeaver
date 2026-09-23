@@ -18,11 +18,11 @@ export type {
 } from "./contract/types.ts";
 export { CATALOG_MODES, FORMAT_MODES } from "./contract/types.ts";
 export { debtPathErrors, migrationDebt, migrationMetrics } from "./lib/debt.ts";
-export { countLines, frontmatterErrors, parseFrontmatter } from "./lib/frontmatter.ts";
+export { frontmatterErrors, parseFrontmatter } from "./lib/frontmatter.ts";
 export {
   ADR_KIND,
+  CORE_PATH_REGISTRY_PATH,
   DATE_RE,
-  DOC_TOOL_KEYS,
   DOC_TOOL_TREE_PREFIXES,
   DOC_TOOL_TREES,
   FIRST_RESERVED_RULING,

@@ -15,7 +15,7 @@ refuseDirectInvocation(import.meta.url, "pnpm doc <review|due>");
 const GLOB_RE = /[*?[\]{}]/u;
 
 /** Governed paths selected by exact paths or globs; empty patterns select every governed doc. */
-export function selectDocs(patterns: readonly string[], repoRoot = root): readonly string[] {
+function selectDocs(patterns: readonly string[], repoRoot = root): readonly string[] {
   const governed = new Set(governedPaths(repoRoot).filter((path) => !isGeneratedPath(path)));
   if (patterns.length === 0) {
     return [...governed];
