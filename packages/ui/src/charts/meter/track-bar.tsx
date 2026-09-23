@@ -1,4 +1,4 @@
-// TrackBar — a purely DECORATIVE magnitude bar (Context-Panel-Program §3.2 / §4.9): a 6px rail with a
+// TrackBar — a purely DECORATIVE magnitude bar: a 6px rail with a
 // track-ramp fill whose WIDTH is `value/max`. It is `aria-hidden` on purpose — the spec's law is
 // "the value TEXT is the accessible datum; bars are decorative, never color-alone meaning" (§4.9). The
 // consuming BLOCK (meter row, cast card) renders the `label · value/max` text that carries the a11y

@@ -96,7 +96,7 @@ export const WALKER_OBSCURED_REACH = `
   // because any withheld member withholds the whole tool verdict, poisoned the entire run.
   //
   // MEASURED, and it is a lottery rather than a property of the page: \`snap --file
-  // docs/design/mocks/connections/editor.html --design-audit --viewport 1400x1000\` exited 2 with
+  // <connections editor mock> --design-audit --viewport 1400x1000\` exited 2 with
   // \`unaskable=1\` naming \`span.fk centre=143,1000 rect=57,991..229,1009 hit-test-null\` — an 18px box
   // straddling the fold of a 1000px viewport — while the SAME file at \`--viewport 1400x2400\` exited 0
   // with \`unaskable=0\`. Nothing about the drawing changed; the taller viewport simply put a different

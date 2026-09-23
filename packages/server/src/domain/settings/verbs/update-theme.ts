@@ -1,6 +1,6 @@
 // verb: updateTheme — patch an OWNED theme. Never a seed: `updateOwnedTheme` scopes on `id + ownerId`, and
 // a seed's `ownerId IS NULL` can never match a caller's id, so this 404s on a seed BY CONSTRUCTION (no
-// "cannot edit a seed" guard to forget — themes-design.md §2.1). Runs the same write-boundary validation
+// "cannot edit a seed" guard to forget). Runs the same write-boundary validation
 // as `createTheme` for any field actually present.
 
 import type { ThemeOverride, UpdateThemeInput } from "@orb/contracts/theme";

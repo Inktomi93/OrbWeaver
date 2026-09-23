@@ -175,7 +175,7 @@ const MESSAGE =
   "names a lint/type rule this repository has not ruled on in this scope. A suppression is a decision about " +
   "the RULE, not about the line: either the rule is wrong about this class of code (a documented tool false " +
   "positive) or the code is deliberately this way and a stated invariant says so — and both of those are " +
-  "reviewed grants, one per rule per scope. See docs/design/962-blanket-suppression-control-plane.md.";
+  "reviewed grants, one per rule per scope. See the law in tooling/src/verify/gates/no-blanket-suppression.ts.";
 
 const FIX =
   "delete the suppression by fixing the underlying diagnostic; or, if the rule is genuinely wrong about this " +

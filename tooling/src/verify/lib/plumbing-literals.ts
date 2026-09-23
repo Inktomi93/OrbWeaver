@@ -38,7 +38,7 @@ const PORT_NAME_RE = /^port$|Port$|_PORT$|^PORT$/u;
 const CLOCK_KEYS: ReadonlySet<string> = new Set(["timeout", "timeoutMs", "testTimeout", "hookTimeout", "actionTimeout", "navigationTimeout"]);
 
 /** A `setTimeout(fn, N)` below this is a SETTLE — a sleep the run always pays — and a settle is not a
- *  budget (it is never scaled, docs/design/1208-instrument-substrate.md §7.1). At or above it, the literal
+ *  budget (it is never scaled). At or above it, the literal
  *  is a ceiling wearing a sleep's clothes. */
 const SETTLE_CEILING_MS = 5000;
 

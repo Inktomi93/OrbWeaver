@@ -14,7 +14,7 @@
 //   3. NO `isProductSource` FENCE. It tested `/packages/{ui,client}/src/` against the node's absolute path,
 //      which is `@ui` + `@client` byte for byte (`contract/population.ts#POPULATION_ROOTS`). Under the
 //      declared population the fence is MUTUALLY REDUNDANT with the population itself and is deleted rather
-//      than kept as decoration — the `server-layout` precedent (resource-policy-contract.md §7).
+//      than kept as decoration — the `server-layout` precedent (docs/law/resource-policy-contract.md §7).
 //   4. NO BASE UI. `readManifest`/`readInstalledSurface`/`readInstalledStateAttributeValues` were
 //      `ctx.root` FILESYSTEM reads, and a final policy has no root. The committed-vs-installed
 //      reconciliation is not a question about authored WRITERS anyway, so it moved to the policy that

@@ -2,7 +2,7 @@
 // stays domain-agnostic and gains no #features import. `ContextTabsPanel` is NOT exported here — only
 // `SectionContextHost` (app-shell-internal) consumes it now (client-architecture-lockdown.md §6b).
 // app-shell registers its OWN topbar.trail chrome (fullscreen + context toggle) through the same door as
-// any other feature (shell-chrome-unification.md §A) — no self-privilege.
+// any other feature — no self-privilege.
 
 export { AppToaster } from "./components/app-toaster.tsx";
 export { BootVeil } from "./components/boot-veil.tsx";

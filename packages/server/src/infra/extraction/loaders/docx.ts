@@ -1,4 +1,4 @@
-// infra/extraction/loaders/docx.ts — the docx loader (databank-design/04 §2, fast-follow). A .docx is a ZIP of
+// infra/extraction/loaders/docx.ts — the docx loader. A .docx is a ZIP of
 // OOXML; the body text lives in `word/document.xml` as `<w:t>` runs nested in `<w:p>` paragraphs. We UNZIP with
 // fflate (already the tree's isomorphic zero-dep unzip — the plugin bundle uses the same `unzipSync`) and pull
 // the paragraph text directly, rather than vendoring mammoth: the design's §5 mammoth pick predates fflate

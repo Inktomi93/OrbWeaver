@@ -1,5 +1,5 @@
 // domain/discovery/verbs/economics-insights — the ECONOMICS-COMPOSED insights (the seam's Tier 3,
-// stats-discovery-seam.md; PD-40/PD-22). discovery owns the SEMANTICS, stats owns the ECONOMICS — each verb
+// PD-40/PD-22). discovery owns the SEMANTICS, stats owns the ECONOMICS — each verb
 // keeps its ranking/grouping in discovery and pulls the cost/usage dimension from the INJECTED `stats` op
 // (wired at the entry root onto the DI bundle, like `writeHubScores`/`summarize`). discovery NEVER SUMs a
 // raw `messages` economics column (Knowledge-Cluster inv #5).

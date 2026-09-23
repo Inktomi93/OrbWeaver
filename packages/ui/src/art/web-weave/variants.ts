@@ -6,8 +6,8 @@ import { tv } from "#lib";
 // The web is DECORATION (aria-hidden, pointer-transparent) that fills whatever box hosts it — the
 // container decides the size (the §0 container model), never the art.
 //
-// `interactive` takes pointer events (the silk plucks under the cursor and the weaver comes to look —
-// weave-lab-upgrades §5). It does NOT un-hide the art from assistive tech: there is nothing to
+// `interactive` takes pointer events (the silk plucks under the cursor and the weaver comes to look).
+// It does NOT un-hide the art from assistive tech: there is nothing to
 // announce, no state to read and no keyboard path to the effect, so exposing a nameless canvas would
 // promise an affordance that does not exist. Ornament that answers a cursor is still ornament.
 export const webWeaveVariants = tv({

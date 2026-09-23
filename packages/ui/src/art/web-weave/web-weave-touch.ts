@@ -1,4 +1,4 @@
-// The POINTER seam — the only part of the weave that reads input (weave-lab-upgrades.md §1/§2/§5).
+// The POINTER seam — the only part of the weave that reads input.
 // Split from web-weave.tsx under the component-size-ui cap, and a real boundary besides: this is the
 // adapter that turns "a cursor crossed the host box" into physics (a ringing strand, a web-wide
 // shiver) and into a disturbance the weaver answers. Everything downstream of it is pure.

@@ -90,7 +90,7 @@ interface FreshnessRationale {
 }
 
 /** The OTHER audience plane: whether an owner-plane edit of this domain's entities reaches the ROOMS those
- *  entities are seated in (the entity→room bridge, `docs/design/entity-room-member-freshness-bridge.md`).
+ *  entities are seated in (the entity→room bridge).
  *  Three arms, and the SEATED derivation decides which are legal for a given domain:
  *    • `bridge` — on the bridge. `entity` is typed to the CONTRACT's own union, so renaming a kind fails tsc
  *      here (the same closed axis `ROOM_REACH` and `BUS_FILTERS.roomEntityChanged` key on).

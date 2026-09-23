@@ -1,4 +1,4 @@
-// The "Customize this look" fold's CAPTION (#866 S4 / #297 — config-revamp-design.md §7.3): names what
+// The "Customize this look" fold's CAPTION (#866 S4 / #297): names what
 // the folded knobs ride on ("advanced · your changes, on top of Hearth"). A COMPONENT, not a hook on the
 // group def, so the config host renders it blind in its own fiber (the `useSearchRows` posture) and the
 // current look's name is read cache-first — the Looks section above it already loaded both queries.

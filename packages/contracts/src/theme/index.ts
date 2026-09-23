@@ -1,11 +1,11 @@
 // @orb/contracts/theme — the D44 §12.5 contracts home for theming: the `ThemeOverride` wire clamp
 // (override.ts — the ONE wire copy of the §12.1 token subset) + the `Theme` entity shapes
-// (themes-design.md §3.2 — the single-owned user theme library; the SERVER slice — table, verbs,
+// (the single-owned user theme library; the SERVER slice — table, verbs,
 // seeding — is the unbuilt themes wave; these shapes land born-compliant so the D44 per-character
 // theme column and the client `<ThemeScope>` consumers build against one home). A theme entity is
 // its own module (not `/settings`): `ThemeOverride` has three unrelated consumers (the settings-
 // homed entity, the character-row theme column, `<ThemeScope>`) — first-consumer misfiling is the
-// `schema/search.ts` naming lie (themes-design §3.1).
+// `schema/search.ts` naming lie.
 
 import { z } from "zod";
 import { themeOverrideSchema } from "./override.ts";
@@ -42,11 +42,11 @@ export {
   VIEWER_SACRED_THEME_KEYS,
 } from "./override.ts";
 
-/** Name/CSS length caps (themes-design §3.2 — named constants, shared with the future db CHECKs). */
+/** Name/CSS length caps (named constants, shared with the future db CHECKs). */
 export const THEME_NAME_MAX = 80;
 export const THEME_CSS_MAX = 65_536; // custom CSS is a text field, not a blob store
 
-/** The theme entity view (themes-design §3.2). BOTH provenance flags DERIVE at projection — neither is a
+/** The theme entity view. BOTH provenance flags DERIVE at projection — neither is a
  *  stored column. `isSeed` = a NULL owner: seeds are code-authored, non-deletable, duplicate-to-customize.
  *  `isDefault` = THIS row is the one `theme.selectedThemeId: null` resolves to — the base `@theme` ramp,
  *  which stamps no `[data-theme]` block. Exactly one row in a library carries it, and it is the client's

@@ -2,7 +2,7 @@ import type { DocFormat } from "@orb/contracts/extraction";
 import { DOC_FORMATS, ExtractionFailedError, UnsupportedDocTypeError } from "@orb/contracts/extraction";
 import { expect, test } from "../../support/fixtures.ts";
 
-// ── The extraction FORMAT axis (databank-design/04 §1) — the ONE tuple the MIME→format map + the
+// ── The extraction FORMAT axis — the ONE tuple the MIME→format map + the
 // format→loader Record derive from (a new member without a loader is a tsc error in infra/extraction). ──
 test("DOC_FORMATS is exactly the pinned format axis [pdf, html, markdown, text, docx, epub]", () => {
   expect(DOC_FORMATS).toEqual(["pdf", "html", "markdown", "text", "docx", "epub"]);
@@ -21,7 +21,7 @@ test("DocFormat has no member beyond the tuple", () => {
   expect(Object.keys(FORMAT_SEEN).sort()).toEqual(DOC_FORMATS.toSorted());
 });
 
-// ── The error pair (databank-design/04 §1) — the client renders "unsupported type" vs "extraction failed"
+// ── The error pair — the client renders "unsupported type" vs "extraction failed"
 // distinctly, so the two identities must stay DISTINCT and carry their load-bearing payloads. ──
 test("UnsupportedDocTypeError is an Error, names itself, and carries the offending mime", () => {
   const err = new UnsupportedDocTypeError("application/x-tar");

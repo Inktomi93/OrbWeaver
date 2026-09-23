@@ -142,7 +142,7 @@ function pageLocalGroups<T extends FilterableRow>(
  *  The Uncategorized bucket (`null`) has no tag and therefore no folder state: it stays expanded, because a
  *  catch-all nobody can configure must never be a thing the user has to discover how to open.
  *
- *  DEFERRED BY RULING (owner 2026-08-09, `docs/design/parked-options-tag-contract.md` §1d): `CLOSED`'s
+ *  DEFERRED BY RULING (owner 2026-08-09): `CLOSED`'s
  *  hide-until-entered drilldown (back button / breadcrumb) is a browsing-model change and is NOT built —
  *  CLOSED therefore lands in the same collapsed-by-default arm as NONE rather than being scaffolded here.
  *  An EXHAUSTIVE switch (not an `=== "OPEN"` test) is what makes that a DECISION per member: adding a

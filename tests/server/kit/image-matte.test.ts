@@ -1,4 +1,4 @@
-// @orb/server/kit/image-matte — the pure corner-flood matte goldens (expressions-design/03 §4.2, 05 §E4):
+// @orb/server/kit/image-matte — the pure corner-flood matte goldens (docs/plans/expressions/design.md):
 // a #DDDDDD (221,221,221) surround floods to alpha-0 while the subject pixels stay opaque, and the tolerance
 // boundary bites exactly (background ±23 matted, ±25 kept, at the §3.3 default tolerance of 24).
 

@@ -503,7 +503,7 @@ export const messageVariants = sqliteTable(
     // The HTTP status of a FAILED generation (diagnostics + the retry-survivor signal alongside
     // terminalReason). Nullable — null on a clean generation.
     apiErrorStatus: integer("api_error_status"),
-    // D48 tool-call records — the model-emitted tool exchanges for this variant (tool-use-design/03 §3).
+    // D48 tool-call records — the model-emitted tool exchanges for this variant.
     // FLAG[PD-54]: this DTO retype is the schema-leaf slice of T1 — born-compliant typing while the baseline
     // window is open; the wire seams + the domain-owned recurse loop that WRITE it remain (registry: PD-54
     // ready). Nullable JSON, parsed at the read seam with `toolCallRecordSchema` (never cast).
@@ -604,7 +604,7 @@ export const messageAssets = sqliteTable(
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // chat_participants — the unified roster (D16). The per-kind SHAPE CHECK + the (chatId,userId) UNIQUE + the
 // lifecycle columns are all born at table creation. `kind` derives PARTICIPANT_KINDS (`human`/`character` live
-// post-rollback). The D60 kind-shape CHECK (agent-principal-design/02 §1) was built so an `agent` (userId-backed
+// post-rollback). The D60 kind-shape CHECK (docs/plans/agent-principals/design.md) was built so an `agent` (userId-backed
 // AND AI-driven — the thing a 2-way actor XOR could not represent) is expressible: its `agent`/`observer` SQL
 // arms are DORMANT rebuild doorways kept in the DDL for the agent-principal design set's return (PD-17), not
 // live kinds today. `characterId` keys on identity (D28).
@@ -676,12 +676,12 @@ export const chatParticipants = sqliteTable(
     // LEFTMOST column is the one constrained (`fk-columns-indexed` gate).
     index("chat_participants_user_idx").on(t.userId),
     index("chat_participants_active_persona_idx").on(t.activePersonaId),
-    // The per-kind SHAPE CHECK (D60; agent-principal-design/02 §1) — born at creation to REPLACE the 2-way
+    // The per-kind SHAPE CHECK (D60; docs/plans/agent-principals/design.md) — born at creation to REPLACE the 2-way
     // actor XOR once `agent` returns (userId-backed AND AI-driven — the bit a plain XOR can't carry). Only the
     // `human`/`character` arms are LIVE post-rollback (2026-07-25 purge); the `agent`/`observer` arms are
     // DORMANT rebuild doorways — no code path writes `kind='agent'`/`'observer'` today, and the DB does not
     // (and per the design would not) cross-verify `kind='agent' ⇒ users.kind='agent'` (SQLite has no
-    // cross-table CHECK) — that's the future agent-seat chokepoint's job (agent-principal-design/02 §1 —
+    // cross-table CHECK) — that's the future agent-seat chokepoint's job (docs/plans/agent-principals/design.md —
     // FLAG[PD-17], AP3). Kept as DDL now so the rebuild doesn't need a second migration for a known shape.
     check(
       "chat_participants_kind_shape",

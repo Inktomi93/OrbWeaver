@@ -1,4 +1,4 @@
-// verb: listEntryIndex — the lean per-book entry index a machine writer reads (chat-crew-design/02 §7). The
+// verb: listEntryIndex — the lean per-book entry index a machine writer reads (D59). The
 // keeper builds its merge/dedup prompt from the existing titles + counts them against KEEPER_ENTRY_CAP; it
 // needs neither content nor economics, so this projects only (title, keys). Owner-gated on the book (a writer
 // only indexes a book it owns — the same `loadOwnedBook` gate as every entry read).

@@ -1,5 +1,5 @@
-// The shared flag-FAMILY tables a public rendered tool's own `ops/parse.ts` consumes
-// (docs/design/1208-instrument-substrate.md §4.2/§4.3). `Core-Tooling-Law.md` §4.9 refuses a generic
+// The shared flag-FAMILY tables a public rendered tool's own `ops/parse.ts` consumes.
+// `Core-Tooling-Law.md` §4.9 refuses a generic
 // `parseArgv(spec)` — a tool keeps its own byte-stable parser and scanner — so this file holds only
 // the DATA a family shares (the flag's name, its required-value shape), never a parser.
 //
@@ -126,7 +126,7 @@ export function crossToolAdminRefusal(flag: string): string | null {
  *  identical contract instead of four hand-written paraphrases drifting apart. */
 export const SESSION_FLAG_HELP =
   "  --session <name>          attach to a live snap session's browser instead of launching a fresh one\n" +
-  "                            (docs/design/1208-instrument-substrate.md §3.4) — the session must already\n" +
+  "                            — the session must already\n" +
   "                            be booted (`pnpm snap --session <name> <route>`); a dead or foreign-owned\n" +
   "                            session is refused (exit 2), naming the reason. Stage/environment flags on\n" +
   "                            THIS run still apply to the run's OWN navigation; the browser itself is\n" +

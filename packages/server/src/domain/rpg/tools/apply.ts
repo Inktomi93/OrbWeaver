@@ -1,4 +1,4 @@
-// domain/rpg/tools/apply — the PURE delta→plane appliers for the cheap-mode state tools (rpg-design/05 §4.5).
+// domain/rpg/tools/apply — the PURE delta→plane appliers for the cheap-mode state tools (docs/plans/rpg/design.md).
 // Zero I/O: each takes the turn's CURRENT effective plane (read-through from the staging accumulator) + the
 // tool's parsed DELTA args and returns the new ABSOLUTE plane the handler stages (the accumulator's `stage`
 // merge honors locks + the [merge-clear] contract over that absolute value). Kept out of the handler so the

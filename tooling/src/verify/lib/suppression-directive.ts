@@ -3,7 +3,7 @@
 // (a both-ways per-file ratchet), `no-blanket-suppression` refuses the FILE-WIDE forms. Before this module
 // the grammar lived inside `gates/suppressions.ts` and the second gate imported its sibling gate, which is
 // exactly the private-reader shape the final contract forbids — a policy may call a shared `lib/` reader and
-// nothing else (`docs/design/gate-runtime-standardization.md` §3).
+// nothing else (`docs/law/gate-runtime-standardization.md` §3).
 //
 // THIS IS NOT AN ORB WAIVER AND MUST NEVER BE ROUTED THROUGH `ordinary-waiver.ts`
 // (the gate-runtime waiver-migration manifest's explicit non-migration, marker kind 7: native-tool syntax,

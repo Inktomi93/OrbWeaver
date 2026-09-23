@@ -1,4 +1,4 @@
-// verb: invokeUiCommand — the COMMAND round-trip (plugin-ui-plane #679 U5, §4.5). The `invokeUiAction` ladder
+// verb: invokeUiCommand — the COMMAND round-trip. The `invokeUiAction` ladder
 // plus a FOURTH rung this verb has and that one does not: the CHAT SCOPE.
 //
 // THE FOURTH RUNG IS THE POINT OF THIS FILE. A command is a NEW way to reach a guest with a room attached, and

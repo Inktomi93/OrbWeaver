@@ -344,7 +344,7 @@ await runCodemod(
     // The test-baseline manifest and its `deletions` ledger were DELETED with `monotonic-tests` (#2217),
     // so a relocated spec no longer records anything and no manifest writer runs after this codemod.
     ctx.log("Regenerate moved marker identities: pnpm exec node tooling/src/verify/cli.ts baseline caught-failure-population");
-    ctx.log("Manual active-cite follow-up: Core-Enforcement-Active-Gates.md, autosave-form-doctrine.md, and the eslint.config.js bound-field comment.");
+    ctx.log("Manual active-cite follow-up: Core-Enforcement-Active-Gates.md, D78, and the eslint.config.js bound-field comment.");
     for (const [file, from, to] of NATIVE_JSON_FOLLOWUPS) {
       ctx.log(`Native JSON follow-up (${file}, path/key only): ${from} -> ${to}`);
     }

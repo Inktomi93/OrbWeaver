@@ -1,4 +1,4 @@
-// registerPluginTool — the RUNTIME registrar (plugin-design PL-A / PL-B / PL-C). Proves: a guest tool lands
+// registerPluginTool — the RUNTIME registrar (PL-A / PL-B / PL-C). Proves: a guest tool lands
 // in the ONE registry + resolves + executes through the SAME pipeline; the guest's raw JSON Schema is lifted
 // and ENFORCED (bad args → errors-as-data); an unsupported schema construct is an activation-fatal refusal
 // (PL-B); a collision is activation-fatal (`ToolNameCollisionError`, not boot-fatal); the ceiling runs as the

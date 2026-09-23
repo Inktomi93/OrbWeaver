@@ -16,7 +16,7 @@
 // Once the owner ALREADY has a fork of the built-in, that hook parks the write on `PresetForkChoiceDialog`
 // (rendered here, the surface's second dialog): keep editing the fork they have, or name a new one.
 //
-// preset-surface-redesign.md §3 (owner decision D3): ONE flat tab level — five views (Params · Prompt ·
+// Owner decision: ONE flat tab level — five views (Params · Prompt ·
 // Actions · Data · Transforms) replacing the two-level 4-groups × 10-leaves tree. The Params view is the
 // new deck (§4); the other four REHOME the landed leaf bodies per the §3 schema→home map (this lane moves
 // them; V2 rebuilds their insides).

@@ -1,7 +1,7 @@
 // Policy: session-channel-boundary-health — the BLINDNESS TRIPWIRE (§4.6) for `session-channel-boundary`:
 // the sanctioned home (`packages/client/src/lib/session-channel.ts`) loaded and constructing NO
 // BroadcastChannel means the fence names a home that moved, or a home whose construction left, and the
-// occurrence policy would report ✓ forever. Split from the legacy descriptor (docs/history/gate-runtime-worked-cases-2026-09.md §"Mixed-hook arity amendments", #1950) because
+// occurrence policy would report ✓ forever. Split from the legacy descriptor (#1950) because
 // this is a whole-tree HARD verdict — no author may waive "the fence is blind" — while the occurrence arm is
 // a per-file ordinary one; one `execution` and one authority cannot serve both.
 //
@@ -52,7 +52,7 @@ import { classifyBroadcastChannelConstruction, SESSION_CHANNEL_ANCHOR, SESSION_C
 const MESSAGE =
   `session-channel-boundary is BLIND: its home "${SESSION_CHANNEL_HOME}" constructs no BroadcastChannel. Either the channel ` +
   "moved (re-point SESSION_CHANNEL_HOME in lib/broadcast-channel-origin.ts) or it was deleted (delete both session-channel " +
-  "policies) — as written the fence would report clean forever. See docs/history/design/staleness-and-session-freshness.md §4.3.";
+  "policies) — as written the fence would report clean forever.";
 
 export const gate = defineGate({
   id: "session-channel-boundary-health",

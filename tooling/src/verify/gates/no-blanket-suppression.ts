@@ -2,6 +2,31 @@
 // authored code and tests (#962). One shared directive reader feeds three preserved arms: compiler source
 // files, tracked non-project text, and candidate-index blobs that differ from the working tree.
 //
+// THE LAW (the contract this gate enforces). A whole-file suppression has exactly ONE home: a
+// `biome.json` override row, which `biome-grant-liveness` stale-checks. Inside a file, a suppression is
+// bounded by a region the author names: one line (`biome-ignore`, `eslint-disable-next-line`,
+// `@ts-expect-error`) or a closed range (`biome-ignore-start` … `-end`, `eslint-disable` … `eslint-enable`)
+// that does not enclose every statement of the file. Every bounded directive is counted by the
+// `suppressions` ledger, in `tests/**` exactly as in source. Enforcers: arms A and B here (no file-wide
+// directive in any authored TS/TSX/JS/JSX/JSON/CSS file, tests included); arm C here (the index cannot
+// carry one either); `suppressions` (every bounded directive is budgeted); `biome-grant-liveness` (every
+// whole-file grant names a live subject).
+//
+// WHAT COUNTS AS FILE-WIDE (measured against biome 2.5.1). Every row below is a finding:
+//   `biome-ignore-all <rule|category>` at the top, in any comment form, in CSS, or in JSON/JSONC — biome
+//     honours it for the whole file;
+//   `biome-ignore-all` mid-file or inside a JSX container — biome rejects it with a warning hidden at
+//     `--diagnostic-level=error`, so it is dead text that reads as protection;
+//   `biome-ignore-start <rule>` with no later `biome-ignore-end` for the same rule — suppresses to EOF;
+//   a closed range whose start precedes the first statement and whose end follows the last — a blanket in
+//     disguise;
+//   `/* eslint-disable */` or `/* eslint-disable <rule> */` with no later `eslint-enable` — disables to EOF;
+//   a `@ts-nocheck` comment — tsc skips the file.
+// Sanctioned and silent: line directives, a closed range around a subset of statements,
+// `eslint-disable-next-line`/`-line`, and the line-scoped TypeScript directives (`@ts-expect-error` and its
+// ignore twin). The same tokens inside a string
+// literal or mid-sentence are mentions, not directives: a directive is matched at the comment opener only.
+//
 // FINAL RESOURCE PORT (#1930/#1584). The former conversion refusal was specific to staged bytes. The
 // tracked-files ResourceHost family now exposes `candidateIndexDelta(paths)`: exact staged text only for
 // declared tracked paths whose index blob differs from the worktree. The request contributes no new path
@@ -34,7 +59,7 @@ import type { SuppressionSite } from "../lib/suppression-directive.ts";
 import { readDirectiveComment, suppressionSites } from "../lib/suppression-directive.ts";
 
 const CONFIG_REL = "biome.json";
-const DESIGN = "docs/design/962-blanket-suppression-control-plane.md";
+const DESIGN = "tooling/src/verify/gates/no-blanket-suppression.ts";
 const NEGATION_PREFIX = "!";
 const NEWLINE = 10;
 
@@ -63,7 +88,7 @@ const MESSAGE =
   "unavailable in authored code and tests (#962). A whole-file decision has ONE home: a `biome.json` override " +
   "row, which `biome-grant-liveness` stale-arms; inside a file a suppression is bounded by a line or a closed " +
   "range and counted by the `suppressions` ledger. The finding token is the directive. " +
-  "See tooling/src/verify/gates/no-blanket-suppression.ts and docs/design/962-blanket-suppression-control-plane.md.";
+  "See the law in the header of tooling/src/verify/gates/no-blanket-suppression.ts.";
 
 const FIX =
   "narrow it: `biome-ignore <rule>: <why>` on the line, or `biome-ignore-start <rule>: <why>` … `biome-ignore-end " +
@@ -78,16 +103,16 @@ type BlanketKind = "all" | "nocheck" | "unclosed" | "whole-file";
 const KIND_MESSAGE: Readonly<Record<BlanketKind, (token: string) => string>> = {
   all: (token) =>
     `\`${token}\` is a whole-file directive in every position — at the top it suppresses the file; anywhere else (mid-file, a JSX ` +
-    `container) biome REJECTS it with a warning nobody sees and it sits looking like protection. Narrow it or move it to biome.json (${DESIGN} §1).`,
+    `container) biome REJECTS it with a warning nobody sees and it sits looking like protection. Narrow it or move it to biome.json (the law in ${DESIGN}).`,
   nocheck: (token) =>
     `\`${token}\` turns the type-checker off for the whole file. Use a line-adjacent \`@ts-expect-error\` with a reason, ` +
-    `which tsc reds the day it stops being needed (${DESIGN} §1).`,
+    `which tsc reds the day it stops being needed (the law in ${DESIGN}).`,
   unclosed: (token) =>
     `\`${token}\` is never closed in this file — biome extends an unclosed range to END OF FILE (and only warns, hidden at ` +
-    `--diagnostic-level=error); eslint disables to EOF silently. Close it right after the block it is about (${DESIGN} §2.1).`,
+    `--diagnostic-level=error); eslint disables to EOF silently. Close it right after the block it is about (the file-wide table in ${DESIGN}).`,
   "whole-file": (token) =>
     `the range opened by \`${token}\` encloses EVERY statement of the file — a blanket in disguise. Close it after the block ` +
-    `it is about, or move the whole-file decision to a biome.json override (${DESIGN} §1).`,
+    `it is about, or move the whole-file decision to a biome.json override (the law in ${DESIGN}).`,
 };
 
 const INDEX_PREFIX =
@@ -308,7 +333,7 @@ function reportBlanket(ctx: GatePolicyContext, file: string, blanket: Blanket, s
     line: blanket.line,
     column: 1,
     token: blanket.token,
-    message: `${staged ? INDEX_PREFIX + detail : detail} — docs/design/962-blanket-suppression-control-plane.md`,
+    message: `${staged ? INDEX_PREFIX + detail : detail} — ${DESIGN}`,
     fix: FIX,
   });
 }

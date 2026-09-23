@@ -38,7 +38,7 @@ describe("databank settings wire — composed-real (createServices)", () => {
   test("an UNWRITTEN databank section reads the grounded defaults (the byte-identity floor)", async ({ services, db }) => {
     const host = await seedHost(db);
     const settings = await services.settings.loadUserSettings(host);
-    // The defaults ingest + gather fall to when no override exists (databank-design/05 §3.7).
+    // The defaults ingest + gather fall to when no override exists.
     expect(settings.databank.retrieval).toEqual({ k: 5, minScore: 0.25, rerank: false });
     expect(settings.databank.chunk.chunkSize).toBe(2500);
     expect(settings.databank.slotTokenBudget).toBe(4096);

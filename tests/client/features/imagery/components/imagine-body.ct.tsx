@@ -1,4 +1,4 @@
-// imagine-body CT (interaction-direction-spec.md §7 B5) — the /imagine preview-before-spend surface.
+// imagine-body CT — the /imagine preview-before-spend surface.
 // Free mode: Generate requests chat.generateImage with the typed prompt verbatim. Extraction mode: Preview
 // fills the prompt from imagery.extractPrompt, then Generate sends that resolved prompt as free mode. Asserts
 // the RECORDED tRPC inputs (routeTrpc is the spy) against the exact seed the story used.

@@ -1,5 +1,5 @@
 // "Add another model on this key" (inference program §5.3a, the second no-defaults survivability action; drawn
-// in `docs/design/mocks/connections/list.html` Board B). A saved connection's row menu opens a dialog that
+// on the connections list mock, Board B). A saved connection's row menu opens a dialog that
 // pre-fills provider + credential (+ server URL and transport for an endpoint row) from the row and lands on
 // the model picker, whose catalog is the SAVED row's (`connection.catalogModels`), because the new row shares
 // its key. This file holds the action's copy, which rows offer it, and the dialog's form values.

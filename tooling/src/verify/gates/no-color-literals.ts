@@ -14,7 +14,7 @@
 // THAT SENTENCE USED TO CITE A REAL-TREE PIN, AND THE CITATION IS DEAD (#1974, 2026-09-11). It named
 // tests/tooling/gate-ignore-grammar.repo.int.test.ts, "whose whole six-case probe rests on this gate
 // biting a bare exported `bg-black` class constant under packages/ui/src". That suite exercises the LEGACY
-// `@orb-gate-ignore` engine, and marker routing is FENCED (docs/design/gate-runtime-standardization.md
+// `@orb-gate-ignore` engine, and marker routing is FENCED (docs/law/gate-runtime-standardization.md
 // §7): its carriers must be LEGACY gates BY REQUIREMENT. This module converted at `99b7429e2`, left the
 // legacy roster, and took that pin with it — the suite went RED, unrun for days because tests/tooling/**
 // is `--full`-only (#1842), and has since been re-pointed at a still-legacy carrier. This module's own

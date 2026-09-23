@@ -1,5 +1,5 @@
 // "Attach a script" — the room's own regex tier's PICKER (host only), in the lorebook-attach grammar
-// (`docs/design/mocks/regex-section/DESIGN.md` §3, the `THIS CHAT` extras; the canvas's phone board p2 draws
+// (the `THIS CHAT` extras; the canvas's phone board p2 draws
 // it as a sheet with a filter, checkboxes and one primary).
 //
 // WHY NOT `RegexScriptPicker`, which already exists and already has a chat arm: it mounts a SECOND run-order

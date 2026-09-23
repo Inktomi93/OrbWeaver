@@ -3,7 +3,7 @@
 // atomic-claim-writer name. `external-id-single-writer.ts` (per-file detector) and
 // `external-id-single-writer-health.ts` (whole-population carve-out proof) both read this module instead of
 // each carrying its own copy — a family means a shared `lib/` reader, never a shared theme
-// (gate-runtime-standardization.md).
+// (docs/law/gate-runtime-standardization.md).
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { unwrapExpression } from "./ast-read.ts";

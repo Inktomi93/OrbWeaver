@@ -19,21 +19,11 @@
 // THE DEFAULT SCOPE IS THE LIVING DOC CORPUS, AND IT IS ONE POPULATION SERVING BOTH DOORS (#2059).
 // `--check` (`pnpm check:docs`) and `--write` (`pnpm format:docs`) both resolve through `formatTargets`, so
 // a tree missing here is missing from BOTH: it is neither checked nor formattable, and `pnpm format:docs`
-// silently declines to touch it. That was the defect — the scope was `docs/architecture/**` alone, so
-// `docs/design/**` (the program guides a lane writes) was outside both doors while reading exactly like
-// docs the formatter owned.
+// silently declines to touch it. That was the defect — the scope was one docs subtree alone, so the
+// program guides were outside both doors while reading exactly like docs the formatter owned.
 //
-// WHICH TREES, AND WHY THE EXCLUSION IS NOT LAZINESS:
-//   · `docs/architecture/**` minus `proposed/` — in-flight drafts are never auto-touched (unchanged);
-//   · `docs/design/**` — LIVING law, written by lanes daily;
-//   · NOT the FROZEN archaeology trees — and there are TWO, which is the correction (owner ruling via
-//     claude-b, 2026-09-12). `docs/history/**` (558) is excluded by omission, but
-//     `docs/architecture/history/**` (70) nests INSIDE a living tree, so prefix-matching had admitted it
-//     while this header claimed otherwise. Both now live in ONE named list, `FROZEN_TREES`, enforced at
-//     BOTH doors. .claude/rules/docs.md §"Moving or deleting a doc": a frozen doc is a record of what was
-//     written then, and reformatting it edits history to no reader's benefit.
-// Measured 2026-09-12: those exclusions are 211 of the 349 unformatted files outside the old scope, and
-// the archaeology correction takes the barrier's pending reformat from 215 files to ~145.
+// WHICH TREES: the `doc` tool's own trees (law, ADRs, plans, work items), which every write already
+// routes through `formatMarkdown`.
 //
 // The corpus is TRACKED files, the same source of truth the catalog uses (`ops/tree.ts#trackedDocs`) — an
 // untracked draft is not a document, and a glob would sweep one in.
@@ -73,36 +63,7 @@ refuseDirectInvocation(import.meta.url, "pnpm check:docs (node tooling/src/doc-c
 
 /** The LIVING trees this formatter owns. Prefix-matched against repo-relative tracked paths. The `doc`
  *  tool's trees are living by construction: every write there goes through `formatMarkdown` first. */
-const LIVING_TREES = ["docs/architecture/", "docs/design/", ...DOC_TOOL_TREE_PREFIXES] as const;
-/** In-flight drafts inside a living tree — never auto-touched. The FROZEN trees need their own list,
- *  below, because one of them nests INSIDE a living tree and so cannot be excluded by omission. */
-const EXCLUDED = /^docs\/architecture\/proposed\//u;
-
-/**
- * THE FROZEN ARCHAEOLOGY TREES — ONE named list, because there are TWO of them and the second hides
- * (owner ruling via claude-b, 2026-09-12; found by this lane while measuring the barrier's blast radius).
- *
- * `docs/history/**` (558 files) is excluded by omission — it is not a living tree. But
- * `docs/architecture/history/**` (70 files) sits INSIDE `docs/architecture/`, so prefix-matching admitted
- * it, and the header claimed frozen archaeology was excluded while 70 frozen files were in the
- * population. That is the shape the list exists to prevent: the next tree someone freezes has one
- * obvious home and cannot be added to one door while being forgotten in the other.
- *
- * BOTH DOORS, and this is the half that is easy to get wrong: a frozen file is excluded from being
- * REWRITTEN and from being JUDGED. The width and fidelity guards do not run on it either — a check that
- * reds forever on a file nobody may edit is not a check, it is a permanent false alarm. So the fence
- * lives in `formatDocs` as well as in the population, which is what makes it hold for a file named
- * EXPLICITLY on the command line rather than resolved from the default set.
- *
- * The #2144 widening covers LIVING trees only. A frozen doc is a record of what was written then;
- * reformatting it edits history to no reader's benefit (.claude/rules/docs.md §"Moving or deleting a doc").
- */
-const FROZEN_TREES = ["docs/history/", "docs/architecture/history/"] as const;
-
-/** True for a tracked path inside a frozen archaeology tree: never formatted, never judged. */
-function isFrozenDoc(path: string): boolean {
-  return FROZEN_TREES.some((tree) => path.startsWith(tree));
-}
+const LIVING_TREES = [...DOC_TOOL_TREE_PREFIXES] as const;
 
 /**
  * CLASS 1 of the population widening (#2161; owner ruling on #2144, 2026-09-12: widen CHECK AND FORMAT
@@ -326,8 +287,8 @@ export interface FormatOutcome {
   readonly refused: readonly FormatRefusal[];
 }
 
-/** Resolve the file set: explicit args win; otherwise every TRACKED `.md` in a living tree minus the
- *  in-flight drafts. ONE resolution for both doors — see the scope note in the header. */
+/** Resolve the file set: explicit args win; otherwise every TRACKED `.md` in a living tree or
+ *  an admitted class. ONE resolution for both doors — see the scope note in the header. */
 export function formatTargets(explicit: readonly string[]): readonly string[] {
   if (explicit.length > 0) {
     return [...explicit];
@@ -336,9 +297,7 @@ export function formatTargets(explicit: readonly string[]): readonly string[] {
     .split("\0")
     .filter(
       (path) =>
-        path.endsWith(".md") &&
-        !isFrozenDoc(path) &&
-        ((LIVING_TREES.some((tree) => path.startsWith(tree)) && !EXCLUDED.test(path)) || isInstructionFile(path) || isClass2File(path) || isClass3File(path)),
+        path.endsWith(".md") && (LIVING_TREES.some((tree) => path.startsWith(tree)) || isInstructionFile(path) || isClass2File(path) || isClass3File(path)),
     )
     .sort();
 }
@@ -379,12 +338,6 @@ export function formatDocs(files: readonly string[], write: boolean): FormatOutc
   const dirty: string[] = [];
   const refused: FormatRefusal[] = [];
   for (const file of files) {
-    // THE SECOND DOOR for the frozen fence. `formatTargets` already keeps archaeology out of the DEFAULT
-    // population, but an explicit argument bypasses that resolution entirely, so the fence is repeated
-    // here — before the read, which is what makes "never judged" true and not merely "never written".
-    if (isFrozenDoc(file)) {
-      continue;
-    }
     const input = readFileSync(file, "utf8");
     const { output, refusal } = formatMarkdown(input);
     if (refusal !== null) {

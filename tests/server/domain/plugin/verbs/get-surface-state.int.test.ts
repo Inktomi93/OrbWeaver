@@ -1,4 +1,4 @@
-// verb: getSurfaceState — one owned surface's published state (plugin-ui-plane #679 U1; the room dimension is
+// verb: getSurfaceState — one owned surface's published state (U1; the room dimension is
 // row 777). Owner-scoped (leak-free NOT_FOUND for a plugin the caller does not own); reads the in-memory
 // surface-state plane the compose `ui.setState` op writes. `null` when nothing has been published for that
 // (surface, room).

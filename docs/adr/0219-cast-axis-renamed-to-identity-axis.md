@@ -26,11 +26,11 @@ Split off [ADR 0137](0137-a-chat-s-referenced-identities-are-served-by.md), whos
 
 
 
-Reading B (persona-as-character, any flavor) stays dead; the collision chain is recorded in the design §5.1. **`cast` survives in this repo only where [`../design/vocabulary-map.md`](../design/vocabulary-map.md) still grants it** — rpg's scene-NPC ref (`RpgCastRef`/`castKey`/`cast:<slug>`), the seated-characters UI family, and the type-cast helper `castId` — so a `cast` inside `domain/chat/**` or `contracts/src/chat/**` is now a defect on sight rather than a name to disambiguate.
+Reading B (persona-as-character, any flavor) stays dead: it collides with D131(G) (personas are never copied) and with the per-table fork allow-lists (D133). **`cast` survives in this repo only where [`../law/vocabulary-map.md`](../law/vocabulary-map.md) still grants it** — rpg's scene-NPC ref (`RpgCastRef`/`castKey`/`cast:<slug>`), the seated-characters UI family, and the type-cast helper `castId` — so a `cast` inside `domain/chat/**` or `contracts/src/chat/**` is now a defect on sight rather than a name to disambiguate.
 
 ## Consequences
 
-Assigning one axis to the other is now a `tsc` error. `cast` survives in this repo only where `docs/design/vocabulary-map.md` still grants it (rpg's scene-NPC ref, the seated-characters UI family, the type-cast helper `castId`); a `cast` inside `domain/chat/**` or `contracts/src/chat/**` is a defect on sight.
+Assigning one axis to the other is now a `tsc` error. `cast` survives in this repo only where `docs/law/vocabulary-map.md` still grants it (rpg's scene-NPC ref, the seated-characters UI family, the type-cast helper `castId`); a `cast` inside `domain/chat/**` or `contracts/src/chat/**` is a defect on sight.
 
 ## Alternatives rejected
 

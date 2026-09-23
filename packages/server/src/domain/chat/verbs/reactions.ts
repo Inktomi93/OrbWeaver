@@ -2,7 +2,7 @@
 // + the B7 additions: the segment anchor (MR3), the reactions-enabled posture gate, and `reactAsCharacter`
 // (MR5 — the `react` tool's write half).
 //
-// CLASS-2-CONCURRENT (interaction-direction-spec §1). A reaction CONTRIBUTES to canon and is ALWAYS
+// CLASS-2-CONCURRENT. A reaction CONTRIBUTES to canon and is ALWAYS
 // attributed — but it takes no turn slot, no arbitration, and no chat lock. That is not a shortcut; it is
 // what the shape buys: the partial UNIQUEs make each toggle one atomic statement, so the concurrency the
 // lock exists to serialize cannot occur (`persistence/reactions.ts` header).

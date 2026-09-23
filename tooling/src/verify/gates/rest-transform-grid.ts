@@ -1,4 +1,4 @@
-// Gate: rest-transform-grid (docs/design/integer-line-boxes.md §9, Law 2) — the AUTHORSHIP-provable half of
+// Gate: rest-transform-grid (docs/law/integer-line-boxes.md §9, Law 2) — the AUTHORSHIP-provable half of
 // rest-state transform identity: at REST an element must not carry a transform that resamples its own
 // raster. ARM S: a rest-state `scale-*` other than `scale-100` (a permanent sub-pixel resample of the whole
 // subtree). ARM C: a `transform`/`translate`/`scale` declaration OUTSIDE `@keyframes` whose value carries a
@@ -67,7 +67,7 @@ const MESSAGE =
   "A REST-state transform that cannot land on the device-pixel grid — a resting scale resamples the whole " +
   "subtree's raster permanently, and a fractional/percentage rest translate lands the box between device " +
   "pixels, which is the measured config-panel blur one property over. Transforms belong to MOTION (a state " +
-  "variant or a @keyframes stop), never to rest; see docs/design/integer-line-boxes.md §9 (Law 2).";
+  "variant or a @keyframes stop), never to rest; see docs/law/integer-line-boxes.md §9 (Law 2).";
 const FIX =
   "Move the transform behind the state that motivates it (`active:`/`data-*:`/`group-hover:`) or into a " +
   "@keyframes stop, or express the rest geometry as layout (inset/grid/flex) instead of a transform. A " +

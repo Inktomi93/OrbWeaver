@@ -234,7 +234,7 @@ export const gate = defineGate({
     {
       mode: "resource",
       files: { ...fixtureFiles(CANONICAL), [TOKEN_CONTRACT_PATHS.resolverSchema]: "" },
-      // THE SECOND REACHABLE STATUS of the one declaration (§4.5 / `resource-policy-contract.md` §3.6 asks
+      // THE SECOND REACHABLE STATUS of the one declaration (§4.5 / `docs/law/resource-policy-contract.md` §3.6 asks
       // one pin per declared resource per reachable status). `ops/resource-reader.ts` answers a
       // zero-length member `empty`, not `missing`, and the two travel different arms of the same union — a
       // pin on one says nothing about the other. The needle carries the door's OWN sentence (the member it

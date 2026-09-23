@@ -5,7 +5,7 @@
 // #1954), and each module's header cites the other for that call.
 //
 // They are two SINGLETON `family:` values sharing one test file, which §4.9 of
-// docs/design/gate-runtime-standardization.md permits ("one family test may cover several siblings"). Before
+// docs/law/gate-runtime-standardization.md permits ("one family test may cover several siblings"). Before
 // this file neither policy had a family test at ALL, so neither had a home for the §4.2 identity arm, and
 // both are ORDINARY — a policy whose whole design rests on a per-fragment waiver door with nothing proving
 // that door binds (#1994).

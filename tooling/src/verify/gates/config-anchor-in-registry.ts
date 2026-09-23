@@ -1,4 +1,4 @@
-// Policy: config-anchor-in-registry (config-revamp-design.md §6.8.3) — the hole tsc cannot see. A config
+// Policy: config-anchor-in-registry — the hole tsc cannot see. A config
 // row's full address is the anchor its owning contribution stamps, so a file that CALLS `configAnchorId(…)`
 // while no `ConfigSectionContribution` reaches it is a section painted OUTSIDE the registry: it has an
 // anchor the LIST, the scroll spy and the search will never derive a row for. That is the half-migration
@@ -59,8 +59,7 @@ const STAMPER_POPULATION = "config anchor stamper";
 
 const MESSAGE =
   "a file stamps `configAnchorId(…)` but no ConfigSectionContribution reaches it — a section painted OUTSIDE the " +
-  "registry has an anchor the config LIST, the scroll spy and the search can never derive a row for " +
-  "(config-revamp-design.md §6.8.3).";
+  "registry has an anchor the config LIST, the scroll spy and the search can never derive a row for it. Registry: packages/client/src/state/config-group-registry.ts";
 const FIX =
   "register the anchored section as a ConfigSectionContribution whose `body` renders the component that stamps the anchor (or pass the anchor in from the contribution); a file that merely READS anchors needs an exact reviewed grant.";
 

@@ -140,7 +140,7 @@ const ARRAY_FIELDS = [...DERIVED_FIELDS, MUST_REFUSE] as const satisfies readonl
 
 const MESSAGE =
   "a FINAL policy declares `facts` or `resources` — a verdict resting on a DERIVED population — and pins NO REFUSAL " +
-  "(gate-runtime-standardization.md §6.3). When the supply fails (a fact withholds, a resource is missing, a population admits zero " +
+  "(docs/law/gate-runtime-standardization.md §6.3). When the supply fails (a fact withholds, a resource is missing, a population admits zero " +
   "paths) the policy reports nothing, and reporting nothing is indistinguishable from a clean tree: a refusal nobody pins is a clean pass " +
   "over an empty denominator (#944). Paid three times — #1977 (the third arm minted because refusals lived only in headers), #2109 item 2 " +
   "(three pins carried as hand-measured prose), and `warning-code-coverage`'s before/after paragraph.";
@@ -350,7 +350,7 @@ function judgeDeclaration(
     const property = descriptor.getProperty(field);
     const anchor = property !== undefined && !Node.isSpreadAssignment(property) ? property.getNameNode() : descriptor;
     ctx.report.node(anchor, {
-      message: `${field} declaration is not statically readable; its dependency/refusal presence cannot be established — gate-runtime-standardization.md §6.3.`,
+      message: `${field} declaration is not statically readable; its dependency/refusal presence cannot be established — docs/law/gate-runtime-standardization.md §6.3.`,
     });
   }
   if (unreadable.length > 0) {

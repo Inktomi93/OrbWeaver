@@ -1,4 +1,4 @@
-// The loader's identity law (docs/design/gate-runtime-standardization.md §1; lib/loader.ts header): every
+// The loader's identity law (docs/law/gate-runtime-standardization.md §1; lib/loader.ts header): every
 // corpus module is classified by EXACT contract identity — a branded `defineGate` result is a POLICY, a
 // module exporting no `gate` is recorded as unregistered, and ANY other `gate` export REFUSES — and lands in
 // exactly one roster row. Each refusal below is a planted control: the corpus is written to a scratch root,

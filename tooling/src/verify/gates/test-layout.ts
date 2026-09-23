@@ -232,7 +232,7 @@ function violationFor(packages: MirrorIndex, tooling: MirrorIndex, rel: string, 
   // Cross-cutting PROPERTY suites (`.suite.test.ts` / `.suite.int.test.ts`) validate a behaviour that spans
   // MANY source modules — a security-containment matrix, a cross-writer drift-equality — not one module, so
   // they are exempt from the 1:1 source-mirror (they still sit under a valid package tree, the pkg check
-  // above). The named containment suite (agent-principal-design/07 §4) + the stats domain's cross-writer
+  // above). The named containment suite (docs/plans/agent-principals/design.md) + the stats domain's cross-writer
   // economics drift invariant #3 are the first; the seat wave's seated containment re-run extends the former.
   // `.suite.ct.tsx` is the BROWSER-lane twin: a cross-cutting Playwright-CT property suite that asserts
   // one behaviour across MANY primitives (the D62 touch-target floor over the whole interactive set) — it

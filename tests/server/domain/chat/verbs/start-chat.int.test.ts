@@ -4,7 +4,7 @@
 // the primary's greeting VERBATIM; greet-all = every founding character; none = nothing), and `chatCreated`
 // (+ a `messageCommitted` per seeded greeting) fires. Reached through the BUNDLE `createStartChat(ctx, deps)`.
 //
-// R2 (chat-creation-draft-mode-replacement.md §4.4) retired the creation-time draft carry
+// R2 (D166) retired the creation-time draft carry
 // (seedGreetings/rosterOverrides/groupConfig/roomOverrides/guided + the `generate` opening arm and its
 // `openingFailure` degrade) — `StartChatParams` carries CREATION-INTENT inputs only now, and this suite's
 // coverage retired with it. Group config/roster tuning/greeting edits are proved against the real room by
@@ -661,7 +661,7 @@ describe("startChat — anchor default-seed (the starter's active persona)", () 
 });
 
 // R2 retired the creation-time draft carry (seedGreetings/rosterOverrides/groupConfig/roomOverrides —
-// chat-creation-draft-mode-replacement.md §4.4): those config edits are POST-CREATE writes now
+// D166): those config edits are POST-CREATE writes now
 // (`setGroupConfig`/`setSeatKnobs`/`setRoomOverrides`, proved in their own verb suites). `injections`
 // is the one founding-shape param that survives — pre-authored injections are part of what the room is
 // FOUNDED with, not a post-create tuning knob, so it stays a creation-time input.

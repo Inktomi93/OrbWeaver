@@ -1,5 +1,5 @@
-// @orb/contracts/refinery — the card-refinery pipeline contracts (R0 of the owner-signed port:
-// docs/history/design/refinery-r0.md; the study is 2026-08-08).
+// @orb/contracts/refinery — the card-refinery pipeline contracts (R0 of the owner-signed port;
+// D171).
 // SCORE → REWRITE → ANALYZE with an anti-drift invariant (analyze always compares against the session's
 // original-card snapshot) and a REGRESSION-bearing verdict enum — the loop's contract, carried verbatim
 // from the source extension.

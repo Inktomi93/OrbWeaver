@@ -656,7 +656,7 @@ export function RailSheetBadgeStory(): ReactElement {
   );
 }
 
-/** The Rail with the BRAND cell ACTIVE (home-section-spec §4.1) — the glyph is home's rail affordance, so
+/** The Rail with the BRAND cell ACTIVE — the glyph is home's rail affordance, so
  *  it must carry `aria-current="page"` when home is the active section, exactly as any rail button does. */
 export function RailBrandActiveStory(): ReactElement {
   return (

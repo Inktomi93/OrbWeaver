@@ -144,7 +144,7 @@ describe("the shared Drizzle fact's health is its CONSUMER's fail-closed read (s
 // proves the door on `schema-branding` alone, and a refusal pin binds to the module it DRIVES: every other
 // `drizzleSchemaFact` consumer in the `drizzle-schema` family carried no pin at all, so nothing
 // distinguished "this policy judged a complete census and found nothing" from "this policy never saw one".
-// That is #944's class, and it is the question `resource-policy-contract.md` §3.6 asks of a fact exactly as
+// That is #944's class, and it is the question `docs/law/resource-policy-contract.md` §3.6 asks of a fact exactly as
 // it asks it of a resource: derive the statuses THIS supply can emit, and pin each REACHABLE one.
 //
 // THE FOUR MEMBERS THAT JOIN THIS FILE FROM OTHER WAVES all declare `family: "drizzle-schema"` and consume

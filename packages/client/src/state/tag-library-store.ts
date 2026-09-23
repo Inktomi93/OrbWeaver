@@ -57,7 +57,7 @@ export function useTagSortMode(): TagSortMode {
 }
 
 /** Pick the roster's sort mode — written by the host's control-row Select through the tag collection's
- *  `sort.useMode` (DESIGN.md §3.2), read by the rows for the comparator. One home, two readers. */
+ *  `sort.useMode` (the mock design §3.2), read by the rows for the comparator. One home, two readers. */
 export function setTagSortMode(sortMode: TagSortMode): void {
   useTagLibraryStore.setState({ sortMode }, false, "tag-library/setSortMode");
 }

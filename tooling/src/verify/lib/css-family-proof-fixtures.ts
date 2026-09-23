@@ -2,7 +2,7 @@
 //
 // WHY IT EXISTS. `resolveResourceDeclarations` acquires EVERY declared resource at the population phase and
 // throws on the first non-ready one, so a proof row that omits a declared resource is a `[population]` TOOL
-// ERROR rather than the finding it was written to prove (resource-policy-contract.md §3.5 — the reason
+// ERROR rather than the finding it was written to prove (docs/law/resource-policy-contract.md §3.5 — the reason
 // `depcruise-grant-liveness` spreads `PACKAGE_FIXTURE_FILES` into every row). Five policies × ~14 rows ×
 // four resource identities is not a per-row hand write.
 //

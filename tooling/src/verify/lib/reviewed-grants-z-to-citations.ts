@@ -248,7 +248,7 @@ export const REVIEWED_GRANTS_Z_TO_CITATIONS: readonly ReviewedGateGrant[] = [
     policyId: "query-freshness-coverage",
     subject: "plugin.listSurfaces",
     operation: "uncovered-query-freshness",
-    why: "writer-local, SAME class as `plugin.list` above (plugin-ui-plane #679 U1) — the resident surface SET is a projection of the plugin lifecycle, which has NO bus event (no plugin room). A plugin's surfaces come and go only on the owner-scoped lifecycle writes that move whether/what it runs: setEnabled brings a plugin's registrations resident or drops them, upgrade swaps the bundle (a different surface set), uninstall removes them — and each of those three `invalidates` trpc.plugin.listSurfaces.queryFilter() in features/plugin/lib/plugin-mutations.ts. (install lands the row `disabled` with nothing resident, so it needs no listSurfaces invalidate — the covering setEnabled does.) The ownership single-writer argument is identical to plugin.list's: registrations are stamped through the owner-scoped plugin row, no admin any-row branch, so the only principal who can move this set is the one reading it in the tab that issued the write. NOTE the per-surface STATE read `plugin.getSurfaceState` is DIFFERENT — it IS bus-driven (`pluginSurfaceStateChanged`, host.ui.setState) and lives in the seam, not here; only the registration LIST is writer-local. Proven by tests/client/features/plugin/components/plugin-surface-renderer.ct.tsx (the affinity-tracker panel renders from listSurfaces and round-trips).",
+    why: "writer-local, SAME class as `plugin.list` above — the resident surface SET is a projection of the plugin lifecycle, which has NO bus event (no plugin room). A plugin's surfaces come and go only on the owner-scoped lifecycle writes that move whether/what it runs: setEnabled brings a plugin's registrations resident or drops them, upgrade swaps the bundle (a different surface set), uninstall removes them — and each of those three `invalidates` trpc.plugin.listSurfaces.queryFilter() in features/plugin/lib/plugin-mutations.ts. (install lands the row `disabled` with nothing resident, so it needs no listSurfaces invalidate — the covering setEnabled does.) The ownership single-writer argument is identical to plugin.list's: registrations are stamped through the owner-scoped plugin row, no admin any-row branch, so the only principal who can move this set is the one reading it in the tab that issued the write. NOTE the per-surface STATE read `plugin.getSurfaceState` is DIFFERENT — it IS bus-driven (`pluginSurfaceStateChanged`, host.ui.setState) and lives in the seam, not here; only the registration LIST is writer-local. Proven by tests/client/features/plugin/components/plugin-surface-renderer.ct.tsx (the affinity-tracker panel renders from listSurfaces and round-trips).",
     endsWhen: "the query gains reachable seam coverage, is no longer consumed, or the cited independent driver changes",
   },
   {
@@ -256,7 +256,7 @@ export const REVIEWED_GRANTS_Z_TO_CITATIONS: readonly ReviewedGateGrant[] = [
     policyId: "query-freshness-coverage",
     subject: "plugin.listCommands",
     operation: "uncovered-query-freshness",
-    why: "writer-local, the EXACT twin of `plugin.listSurfaces` above (plugin-ui-plane #679 U5) — a plugin's registered COMMAND set is the same projection of the same resident instance, collected by the same activation and dropped by the same deactivate. It moves only on the owner-scoped lifecycle writes that move whether/what a plugin runs, and the same three carry it: setEnabled (activation collects the commands, disable drops them), upgrade (a new bundle registers a different set) and uninstall each `invalidates` trpc.plugin.listCommands.queryFilter() in features/plugin/lib/plugin-mutations.ts. (install lands the row `disabled` with nothing resident, so the covering setEnabled is the one that matters.) The ownership single-writer argument is identical: registrations are stamped through the owner-scoped plugin row, there is no admin any-row branch, so the only principal who can move this set is the one reading it in the tab that issued the write. Its two READERS are always-mounted chrome — the `/plugin` composer dispatcher and the Plugins wand menu — which is precisely why it is cited here rather than left uncovered: a frozen command list is a menu that lists a plugin a person just uninstalled. Proven by tests/server/domain/plugin/verbs/list-commands.int.test.ts (enable/disable each move the projection) and tests/server/entry/boot/seed-example-plugins.int.test.ts (a REAL activation over the WASM runtime registers the oracle deck's two commands).",
+    why: "writer-local, the EXACT twin of `plugin.listSurfaces` above — a plugin's registered COMMAND set is the same projection of the same resident instance, collected by the same activation and dropped by the same deactivate. It moves only on the owner-scoped lifecycle writes that move whether/what a plugin runs, and the same three carry it: setEnabled (activation collects the commands, disable drops them), upgrade (a new bundle registers a different set) and uninstall each `invalidates` trpc.plugin.listCommands.queryFilter() in features/plugin/lib/plugin-mutations.ts. (install lands the row `disabled` with nothing resident, so the covering setEnabled is the one that matters.) The ownership single-writer argument is identical: registrations are stamped through the owner-scoped plugin row, there is no admin any-row branch, so the only principal who can move this set is the one reading it in the tab that issued the write. Its two READERS are always-mounted chrome — the `/plugin` composer dispatcher and the Plugins wand menu — which is precisely why it is cited here rather than left uncovered: a frozen command list is a menu that lists a plugin a person just uninstalled. Proven by tests/server/domain/plugin/verbs/list-commands.int.test.ts (enable/disable each move the projection) and tests/server/entry/boot/seed-example-plugins.int.test.ts (a REAL activation over the WASM runtime registers the oracle deck's two commands).",
     endsWhen: "the query gains reachable seam coverage, is no longer consumed, or the cited independent driver changes",
   },
   {
@@ -272,7 +272,7 @@ export const REVIEWED_GRANTS_Z_TO_CITATIONS: readonly ReviewedGateGrant[] = [
     policyId: "query-freshness-coverage",
     subject: "plugin.listDisplayTransforms",
     operation: "uncovered-query-freshness",
-    why: "writer-local, the EXACT class as `plugin.listSurfaces` above (plugin-ui-plane seam 14, U6) — a plugin's registered DISPLAY transforms are a projection of the same resident instance, so the same three owner-scoped lifecycle writes move them and the same three already `invalidates` the sibling key: setEnabled brings a plugin's registrations resident or drops them, upgrade swaps the bundle, uninstall removes them (features/plugin/lib/plugin-mutations.ts). The ownership single-writer argument is identical (D147: no admin any-row branch, so the only principal who can move this set is the one reading it, in the tab that issued the write). It is deliberately not folded into `listSurfaces`: its ONE job is the per-row BYTE-IDENTITY gate — a viewer with no display transforms must learn so in one room-level query and make zero per-row calls — and a key that answers a cost question wants to be independently cacheable. Proven by tests/server/domain/plugin/verbs/list-display-transforms.int.test.ts (a disabled plugin contributes none; a stranger sees none).",
+    why: "writer-local, the EXACT class as `plugin.listSurfaces` above — a plugin's registered DISPLAY transforms are a projection of the same resident instance, so the same three owner-scoped lifecycle writes move them and the same three already `invalidates` the sibling key: setEnabled brings a plugin's registrations resident or drops them, upgrade swaps the bundle, uninstall removes them (features/plugin/lib/plugin-mutations.ts). The ownership single-writer argument is identical (D147: no admin any-row branch, so the only principal who can move this set is the one reading it, in the tab that issued the write). It is deliberately not folded into `listSurfaces`: its ONE job is the per-row BYTE-IDENTITY gate — a viewer with no display transforms must learn so in one room-level query and make zero per-row calls — and a key that answers a cost question wants to be independently cacheable. Proven by tests/server/domain/plugin/verbs/list-display-transforms.int.test.ts (a disabled plugin contributes none; a stranger sees none).",
     endsWhen: "the query gains reachable seam coverage, is no longer consumed, or the cited independent driver changes",
   },
   {
@@ -331,104 +331,5 @@ export const REVIEWED_GRANTS_Z_TO_CITATIONS: readonly ReviewedGateGrant[] = [
     why: "density generator was restructured into tooling/src/verify/gates/density-tier.ts + lib/density-tier.ts; the law doc still names the pre-restructure path",
     endsWhen:
       "the owning doc (UI-Density-Law.md) is repaired to repoint, strike, or rider this reference; the finding disappears and central zero-use reconciliation stales this row.",
-  },
-  {
-    id: "dangling-ref-citations:tooling-src-snap-ops-lighthouse-ts",
-    policyId: "dangling-ref-citations",
-    subject: "tooling/src/snap/ops/lighthouse.ts",
-    operation: "dangling-path-cite",
-    why: "lighthouse op moved to tooling/src/snap/ops/arms/lighthouse.ts; the retirement design doc names the pre-move path as the historical shape it describes",
-    endsWhen:
-      "the owning doc (1195-devtools-mcp-retirement.md) is repaired to repoint, strike, or rider this reference; the finding disappears and central zero-use reconciliation stales this row.",
-  },
-  {
-    id: "dangling-ref-citations:tooling-src-snap-ops-request-log-ts",
-    policyId: "dangling-ref-citations",
-    subject: "tooling/src/snap/ops/request-log.ts",
-    operation: "dangling-path-cite",
-    why: "request-log op split into contract/request-log.ts + lib/request-log.ts; the retirement design doc names the pre-split path as the historical shape it describes",
-    endsWhen:
-      "the owning doc (1195-devtools-mcp-retirement.md) is repaired to repoint, strike, or rider this reference; the finding disappears and central zero-use reconciliation stales this row.",
-  },
-  {
-    id: "dangling-ref-citations:tooling-src-stack-stack-sh-start",
-    policyId: "dangling-ref-citations",
-    subject: "tooling/src/stack/stack.sh start",
-    operation: "dangling-path-cite",
-    why: "the path includes a CLI subcommand suffix; tooling/src/stack/stack.sh exists but the backticked slice `stack.sh start` does not resolve as a file path",
-    endsWhen:
-      "the owning doc (1208-instrument-substrate.md) is repaired to repoint, strike, or rider this reference; the finding disappears and central zero-use reconciliation stales this row.",
-  },
-  {
-    id: "dangling-ref-citations:tooling-src-stage",
-    policyId: "dangling-ref-citations",
-    subject: "tooling/src/stage/",
-    operation: "dangling-path-cite",
-    why: "the stage tool directory was never built or was merged into snap; the substrate design doc describes planned architecture",
-    endsWhen:
-      "the owning doc (1208-instrument-substrate.md) is repaired to repoint, strike, or rider this reference; the finding disappears and central zero-use reconciliation stales this row.",
-  },
-  {
-    id: "dangling-ref-citations:tooling-src-_shared-browser-attach-ts",
-    policyId: "dangling-ref-citations",
-    subject: "tooling/src/_shared/browser-attach.ts",
-    operation: "dangling-path-cite",
-    why: "browser-attach was split into the browser-*.ts family in _shared/; the substrate design doc describes the planned single-file shape",
-    endsWhen:
-      "the owning doc (1208-instrument-substrate.md) is repaired to repoint, strike, or rider this reference; the finding disappears and central zero-use reconciliation stales this row.",
-  },
-  {
-    id: "dangling-ref-citations:tooling-src-screen-record",
-    policyId: "dangling-ref-citations",
-    subject: "tooling/src/screen-record/",
-    operation: "dangling-path-cite",
-    why: "screen-record tool was never built as a separate directory; the filmstrip design doc describes planned architecture",
-    endsWhen:
-      "the owning doc (1310-snap-filmstrip.md) is repaired to repoint, strike, or rider this reference; the finding disappears and central zero-use reconciliation stales this row.",
-  },
-  {
-    id: "dangling-ref-citations:tooling-src-ui-audit-ops-matrix-ts",
-    policyId: "dangling-ref-citations",
-    subject: "tooling/src/ui-audit/ops/matrix.ts",
-    operation: "dangling-path-cite",
-    why: "matrix op was restructured; the appearance-invariant design doc names the pre-restructure path",
-    endsWhen:
-      "the owning doc (953-appearance-invariant-matrix.md) is repaired to repoint, strike, or rider this reference; the finding disappears and central zero-use reconciliation stales this row.",
-  },
-  {
-    id: "dangling-ref-citations:tooling-src-motion-audit-ops-matrix-ts",
-    policyId: "dangling-ref-citations",
-    subject: "tooling/src/motion-audit/ops/matrix.ts",
-    operation: "dangling-path-cite",
-    why: "motion matrix op was split into matrix-contract.ts + matrix-verdict.ts; the appearance-invariant design doc names the pre-split path",
-    endsWhen:
-      "the owning doc (953-appearance-invariant-matrix.md) is repaired to repoint, strike, or rider this reference; the finding disappears and central zero-use reconciliation stales this row.",
-  },
-  {
-    id: "dangling-ref-citations:tooling-src-verify-gates-bus-onData-no-store-write-ts",
-    policyId: "dangling-ref-citations",
-    subject: "tooling/src/verify/gates/bus-onData-no-store-write.ts",
-    operation: "dangling-path-cite",
-    why: "the gate was renamed to bus-on-data-no-store-write.ts (kebab-case); the doc names the historical camelCase path as context for the naming-convention suppression it describes",
-    endsWhen:
-      "the owning doc (962-blanket-suppression-control-plane.md) is repaired to repoint, strike, or rider this reference; the finding disappears and central zero-use reconciliation stales this row.",
-  },
-  {
-    id: "dangling-ref-citations:tooling-src-ui-audit-ops-run-ts",
-    policyId: "dangling-ref-citations",
-    subject: "tooling/src/ui-audit/ops/run.ts",
-    operation: "dangling-path-cite",
-    why: "ui-audit run.ts was restructured into the snap ops tree; the population-semantics design doc names the pre-restructure path",
-    endsWhen:
-      "the owning doc (983-984-ui-audit-population-semantics.md) is repaired to repoint, strike, or rider this reference; the finding disappears and central zero-use reconciliation stales this row.",
-  },
-  {
-    id: "dangling-ref-citations:tooling-shared-appearance-ts",
-    policyId: "dangling-ref-citations",
-    subject: "tooling/_shared/appearance.ts",
-    operation: "dangling-path-cite",
-    why: "appearance.ts was restructured into the _shared/appearance-matrix.ts family; the config-revamp design doc names the pre-restructure path",
-    endsWhen:
-      "the owning doc (DESIGN.md) is repaired to repoint, strike, or rider this reference; the finding disappears and central zero-use reconciliation stales this row.",
   },
 ];

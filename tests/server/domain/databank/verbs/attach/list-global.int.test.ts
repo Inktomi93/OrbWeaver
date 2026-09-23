@@ -1,4 +1,4 @@
-// verb: listGlobal — the caller's global document ids (databank-surface-spec D-1). Load-bearing: the
+// verb: listGlobal — the caller's global document ids. Load-bearing: the
 // OWNER SCOPE (another user's global document must never appear — the junction's `ownerId` is the belt) and
 // that the set tracks attach/detach, since the library row's `Everywhere` toggle renders straight off it.
 

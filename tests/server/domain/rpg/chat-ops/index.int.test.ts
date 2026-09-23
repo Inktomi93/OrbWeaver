@@ -1,4 +1,4 @@
-// tests/server/domain/rpg/chat-ops/index — the `ChatRpgOps` runtime (rpg-design/05 §3.2). The thin ctx ops:
+// tests/server/domain/rpg/chat-ops/index — the `ChatRpgOps` runtime (docs/plans/rpg/design.md). The thin ctx ops:
 // the mode-blind preset knob read, the send-path snapshot commit, the abort clear, and the always-null seat
 // read. The gather + flush have their own mirrors (`./gather`, `./flush`).
 

@@ -30,7 +30,7 @@ export type { LandingRecord } from "./lib/items.ts";
 export { applyPatch, itemShapeProblems, landingMessage, parseBlocker, parseItem, parseItemBatch } from "./lib/items.ts";
 export { numberedName, padId, parseNumberedName, slugify } from "./lib/names.ts";
 export { parseDocCommand, USAGE } from "./lib/parse.ts";
-export { docProblems, KIND_RULES, LEGACY_ROOTS, nextFreeRulingId, PARKED } from "./lib/rules.ts";
+export { docProblems, KIND_RULES, nextFreeRulingId, PARKED } from "./lib/rules.ts";
 export { adrTemplate, itemTemplate, lawTemplate, planTemplate } from "./lib/templates.ts";
 export { drift, driftFacts, loadPlans, overview } from "./ops/board.ts";
 export { docFileCount, docLayerProblems, introducedDocProblems, pendingDocProblems } from "./ops/check.ts";

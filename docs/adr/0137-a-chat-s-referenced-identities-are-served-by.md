@@ -18,7 +18,7 @@ Not recorded in the ledger row.
 
 **(B) CAST KIND IS STRUCTURAL — NEVER A STORED COLUMN.** The row's stamp columns (`characterId` vs `personaId`, later assistant+`authorUserId` for agent) ARE the kind declaration; a stored cast-kind would be a second spelling of the stamps (derive-don't-stamp). Contrast D129, where purpose was UN-derivable from SET-NULL-degradable attribution and so earned its column. Neither phase touches `0000_baseline.sql`.
 
-**(C) THE `agent` CASE (D60) IS A ONE-CASE ADD whose decision sites are compile-forced:** the policy row, both projections' `assertNever` tails, the loader's `satisfies Record<ChatIdentityKind, …>` source table, `identityKey`'s `u:` case (its namespace deliberately extends `speakerKey`'s so the key spaces can never collide), and the client chrome branch. This graduates A.8's "build KIND-READY so the third kind is a one-case add" — and SUPERSEDES A.8's "land WITH agent-principal" rider (`FINAL-Persona-and-Immersive-Chat-Visuals.md`): the owner's Option-D-now direction that commissioned the design landed phase D independent of the agent wave, before it.
+**(C) THE `agent` CASE (D60) IS A ONE-CASE ADD whose decision sites are compile-forced:** the policy row, both projections' `assertNever` tails, the loader's `satisfies Record<ChatIdentityKind, …>` source table, `identityKey`'s `u:` case (its namespace deliberately extends `speakerKey`'s so the key spaces can never collide), and the client chrome branch. This graduates A.8's "build KIND-READY so the third kind is a one-case add" — and SUPERSEDES A.8's "land WITH agent-principal" rider: the owner's Option-D-now direction that commissioned the design landed phase D independent of the agent wave, before it.
 
 **(D) THE CHARACTER CASE CARRIES NO DESCRIPTION (fail-closed, owner-ruled fork 4).** A member-gated producer serving card description bytes would MINT a member-visible surface for card content that does not exist today (the member card surface is `ParticipantView` — no description; the prompt snapshot is host-gated, D133). D122 consented the PERSONA presentation surface (name + description + avatar hash rides with it); no ruling consents the card's. If a surface ever earns it, it is ONE additive field behind its own D-entry and security review.
 
@@ -27,8 +27,6 @@ Not recorded in the ledger row.
 **(F) THE WALLS ARE UNTOUCHED AND RE-AFFIRMED — AND THE ONE THAT WAS PROSE IS NOW COMPILER-HELD (the ruling survives, its INPUT changed).** Tables, ownership, copy rules and pin semantics stay separate: personas are NEVER copied across a room boundary (D131(G) — the pointer heals instead), the fork allow-lists stay per-table (D133/D134), and the pin layer is D122's (`resolvePersonasForParticipants` answers "who is `{{user}}` NOW"; the identity producer answers "what is id X called" — two layers, two questions).
 
 Split off for the 8 KiB ADR cap: the rename from `cast` to the chat identity axis [ADR 0219](0219-cast-axis-renamed-to-identity-axis.md).
-
-Design: [persona-character-kind-substrate.md](../history/design/persona-character-kind-substrate.md).
 
 ## Consequences
 

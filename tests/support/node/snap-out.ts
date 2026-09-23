@@ -14,9 +14,7 @@ const PNG_SUFFIX = /\.png$/iu;
 export function ctSnapPath(name: string): string {
   const slotDir = process.env[CT_RUN_SLOT_ENV];
   if (slotDir === undefined) {
-    throw new Error(
-      `ctSnapPath("${name}"): ${CT_RUN_SLOT_ENV} is unset — this only resolves inside a playwright-ct.config.ts run (docs/design/1208-instrument-substrate.md §3.7)`,
-    );
+    throw new Error(`ctSnapPath("${name}"): ${CT_RUN_SLOT_ENV} is unset — this only resolves inside a playwright-ct.config.ts run`);
   }
   const dir = join(slotDir, "snaps");
   mkdirSync(dir, { recursive: true });

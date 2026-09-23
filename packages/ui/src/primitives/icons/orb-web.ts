@@ -1,4 +1,4 @@
-// The orb-web BRAND glyph, minted through the lucide seal (docs/history/design/login-loading-screen.md §8/§9
+// The orb-web BRAND glyph, minted through the lucide seal (D173
 // — "one emblem, every scale"). This is the sanctioned channel for a custom glyph: §13.7 bans inline
 // `<svg>` outside charts/**, and `createLucideIcon` is lucide-react's public custom-icon API — the
 // glyph renders through the same component class as every curated icon (size/stroke/aria behave

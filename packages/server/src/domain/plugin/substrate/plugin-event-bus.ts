@@ -1,4 +1,4 @@
-// domain/plugin/substrate/plugin-event-bus — the PRIVATE plugin-event plane (plugin-ui-plane §5a, U8). An
+// domain/plugin/substrate/plugin-event-bus — the PRIVATE plugin-event plane. An
 // INSTALLER-SCOPED resident pub-sub: a plugin `host.pubsub.emit(name, data)` publishes on the channel
 // `plugin:<emitter-slug>:<name>`, and every SAME-installer plugin that `host.pubsub.on(emitterSlug, name, …)`'d
 // that exact channel receives `{name, data}`. The `PluginMacroRegistry`/surface-state precedent: ONE per

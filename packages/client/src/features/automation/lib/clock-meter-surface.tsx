@@ -1,4 +1,4 @@
-// The automation `thread-flank` surface contribution for B9's clock (interaction-direction-spec §7.3 B9) —
+// The automation `thread-flank` surface contribution for B9's clock —
 // the door-side half of #7's `SegmentedClock`. automation never imports chat and chat never imports
 // automation; `authed-app.tsx` owns both and injects this array member, exactly as it does for the needle
 // meter, rpg's per-row disclosure and the S1 control mount.

@@ -38,10 +38,6 @@ const REQUIRED_KEYS = ["kind", "status", "updated"] as const;
  *  its ORIGINAL number (D86 is one), so an ADR file inside the window is legal. */
 const RESERVED = { lo: FIRST_RESERVED_RULING, hi: LAST_RESERVED_RULING } as const;
 
-/** The legacy top-level entries of `docs/`, kept until each migrates. SHRINK-ONLY and two-sided: a row
- *  whose entry is gone is itself a finding, so the list cannot outlive what it exempts. */
-export const LEGACY_ROOTS: readonly string[] = ["architecture", "design", "history"];
-
 interface KindRule {
   readonly sections: readonly string[];
   readonly cap: number;
@@ -90,25 +86,13 @@ function kindsFor(path: string): readonly string[] {
 }
 
 function rootProblems(tree: DocTree): readonly string[] {
-  const allowed = new Set([
-    ...Object.values(DOC_TOOL_TREES).map((prefix) => prefix.slice("docs/".length, -1)),
-    basenameOf(MISSION_PATH),
-    CATALOG_DIR,
-    ...LEGACY_ROOTS,
-  ]);
-  const present = new Set(tree.root.map((entry) => entry.name));
-  const problems = tree.root
+  const allowed = new Set([...Object.values(DOC_TOOL_TREES).map((prefix) => prefix.slice("docs/".length, -1)), basenameOf(MISSION_PATH), CATALOG_DIR]);
+  return tree.root
     .filter((entry) => !allowed.has(entry.name))
     .map(
       (entry) =>
         `docs/${entry.name}: not a docs home — put a decision under ${DOC_TOOL_TREES.adr}, a program under ${DOC_TOOL_TREES.plans}, an item under ${DOC_TOOL_TREES.work}, law under ${DOC_TOOL_TREES.law}`,
     );
-  return [
-    ...problems,
-    ...LEGACY_ROOTS.filter((name) => !present.has(name)).map(
-      (name) => `docs/${name}: named by LEGACY_ROOTS in tooling/src/doc/lib/rules.ts and gone — delete the row`,
-    ),
-  ];
 }
 
 /** The three flat trees and the file shape each one holds (a plan folder's depth is judged with the plan rules). */

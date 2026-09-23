@@ -1,9 +1,9 @@
-// Policy: session-channel-boundary (Core-Enforcement-Active-Gates.md — staleness-and-session-freshness.md
-// §4.3) — the client twin of G10's rogue-EventEmitter rule: `new BroadcastChannel` has ONE home, and a
+// Policy: session-channel-boundary (Core-Enforcement-Active-Gates.md)
+// — the client twin of G10's rogue-EventEmitter rule: `new BroadcastChannel` has ONE home, and a
 // second channel is a second cross-tab protocol nobody versions (and the seam a server-truth payload would
 // leak through, forking the ONE invalidation router).
 //
-// THE SPLIT (docs/history/gate-runtime-worked-cases-2026-09.md §"Mixed-hook arity amendments", #1950): the legacy descriptor carried two arms of different authority — (A) a
+// THE SPLIT (#1950): the legacy descriptor carried two arms of different authority — (A) a
 // construction outside the home, a per-file occurrence an author may waive with a reason, and (B) the
 // blindness tripwire, a whole-tree HARD verdict that the home still constructs the channel. One `execution`
 // and one authority cannot serve both, so arm B is `session-channel-boundary-health` (same family) and this
@@ -55,7 +55,7 @@ import { classifyBroadcastChannelConstruction, SESSION_CHANNEL_HOME } from "../l
 
 const MESSAGE =
   "a BroadcastChannel constructed outside packages/client/src/lib/session-channel.ts. Cross-tab messaging " +
-  "has ONE typed home (docs/history/design/staleness-and-session-freshness.md §4.3): the channel carries SESSION LIFECYCLE and " +
+  "has ONE typed home: the channel carries SESSION LIFECYCLE and " +
   "durable-local write pokes only, never server truth — a second channel is a second unversioned protocol " +
   "and the seam a data payload would use to fork the ONE invalidation router (§13). Add your message kind " +
   "to `SessionMessage` and post it through `postSessionMessage`.";

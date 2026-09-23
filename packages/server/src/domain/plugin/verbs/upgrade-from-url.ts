@@ -1,5 +1,5 @@
 // verb: upgradeFromUrl — fetch a NEW bundle at a caller-supplied URL through the EGRESS GUARD, then upgrade the
-// OWNED plugin through the EXISTING `upgrade` verb (plugin-ui-plane #679 U8, seam 15 — the never-silent update
+// OWNED plugin through the EXISTING `upgrade` verb (U8, seam 15 — the never-silent update
 // MECHANISM). #615's re-consent wall applies UNCHANGED: `upgrade` lands the row DISABLED pending re-consent
 // whenever the new bundle WIDENS reach (a capability the prior grant never confirmed, OR a `netHosts` entry the
 // prior manifest never declared), and carries a strict NARROWING forward silently. There is NO silent

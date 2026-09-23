@@ -18,7 +18,7 @@
 // as a stranger holding another user's real pluginId; `install`/`list` are exempt there because neither takes
 // a foreign id (install mints the caller's own row, list takes no input at all).
 //
-// The UI-surface READ side (plugin-ui-plane #679 U1): `getSurfaceState`/`invokeUiAction` join the PROBED set
+// The UI-surface READ side: `getSurfaceState`/`invokeUiAction` join the PROBED set
 // (both take a foreign pluginId; the service gates each on the owner-scoped `getById`); `listSurfaces` is
 // exempt like `list` (no input — the caller's own enabled plugins). Row 777 adds an optional `chatId` to the
 // first two: a SECOND foreign id on the same procs, gated by a SECOND leak-free check (the service resolves the
@@ -82,7 +82,7 @@ function decodeBundle(bundleBase64: string): Uint8Array {
   return new Uint8Array(Buffer.from(bundleBase64, "base64"));
 }
 
-/** A plugin-bundle source URL (plugin-ui-plane #679 U8, seam 15). The wire edge bounds it to a well-formed URL
+/** A plugin-bundle source URL (U8, seam 15). The wire edge bounds it to a well-formed URL
  *  string; the REAL SSRF wall is the server-side egress guard (`safeFetch` ANY_HOST — https-only + private-range
  *  denial + byte cap), never this parse. The length cap keeps an unbounded string out of the log/error path. */
 const URL_MAX = 2048;
@@ -97,7 +97,7 @@ export const pluginRouter = t.router({
     .input(z.object({ pluginId: pluginIdSchema, bundleBase64: z.string() }))
     .mutation(({ ctx, input }) => ctx.services.plugin.upgrade({ caller: ctx.auth, pluginId: input.pluginId, bundle: decodeBundle(input.bundleBase64) })),
 
-  // ── URL INSTALL / PREVIEW (plugin-ui-plane #679 U8, seam 15 — the security-review subject). Both are
+  // ── URL INSTALL / PREVIEW (U8, seam 15 — the security-review subject). Both are
   //    MUTATIONS, not queries, and that is deliberate the same way `uiHostCall` is: each triggers SERVER EGRESS
   //    to a caller-supplied URL, and a GET-shaped door onto egress is both cacheable and outside the CSRF belt
   //    (which covers mutations only) — exactly the shape that belt exists to close. The URL is bounded at the
@@ -115,7 +115,7 @@ export const pluginRouter = t.router({
     .input(z.object({ url: bundleUrlSchema, grant: grantSchema }))
     .mutation(({ ctx, input }) => ctx.services.plugin.installFromUrl({ caller: ctx.auth, url: input.url, grant: input.grant })),
 
-  // ── AUTO UPDATE-CHECK + TRUE ONE-CLICK UPGRADE (plugin-ui-plane #679 U8 2b). BOTH are MUTATIONS for the same
+  // ── AUTO UPDATE-CHECK + TRUE ONE-CLICK UPGRADE (U8 2b). BOTH are MUTATIONS for the same
   //    reason the URL preview is: each triggers SERVER EGRESS to a plugin's remembered URL,
   //    and a GET-shaped door onto egress is cacheable + outside the CSRF belt (which covers mutations only).
   //
@@ -199,7 +199,7 @@ export const pluginRouter = t.router({
     .input(z.object({ chatId: chatIdSchema, code: z.string().max(SNIPPET_CODE_MAX) }))
     .mutation(({ ctx, input }) => ctx.services.plugin.runSnippet({ caller: ctx.auth, chatId: input.chatId, code: input.code })),
 
-  // ── The Tier-S UI-surface READ side (plugin-ui-plane #679 U1). `listSurfaces` takes no input (the caller's
+  // ── The Tier-S UI-surface READ side. `listSurfaces` takes no input (the caller's
   //    own enabled plugins' surfaces — sweep-EXEMPT like `list`). `getSurfaceState`/`invokeUiAction` take a
   //    FOREIGN pluginId and are PROBED by the cross-tenant sweep as a stranger holding owner A's real id — the
   //    service gates each on the owner-scoped `getById` load (leak-free NOT_FOUND). `invokeUiAction` is the
@@ -247,7 +247,7 @@ export const pluginRouter = t.router({
       }),
     ),
 
-  // ── TIER C (plugin-ui-plane #679 U4). `uiHostCall` is the client guest's ONE relay: it takes a FOREIGN
+  // ── TIER C. `uiHostCall` is the client guest's ONE relay: it takes a FOREIGN
   //    pluginId and joins the PROBED sweep set, and the service re-gates every call (owner scope → enabled →
   //    the closed proxyable tuple → the STORED grant → membership on any claimed room → per-fn zod → the
   //    per-plugin in-flight belt). It is a MUTATION, deliberately, even though most of its functions read: it
@@ -294,7 +294,7 @@ export const pluginRouter = t.router({
       ctx.services.plugin.reportUiCrash({ caller: ctx.auth, pluginId: input.pluginId, surfaceId: input.surfaceId, reason: input.reason }),
     ),
 
-  // ── The U5 COMMAND pair (plugin-ui-plane §4.5). `listCommands` takes no input (the caller's own enabled
+  // ── The U5 COMMAND pair. `listCommands` takes no input (the caller's own enabled
   //    plugins' commands — sweep-EXEMPT like `list`/`listSurfaces`). `invokeUiCommand` takes a FOREIGN pluginId
   //    AND a foreign chatId, so it is PROBED by the cross-tenant sweep on BOTH: the service gates the plugin on
   //    the owner-scoped `getById` and the chat through the same leak-free `resolveChatAuthority` the snippet
@@ -328,7 +328,7 @@ export const pluginRouter = t.router({
       }),
     ),
 
-  // ── The DISPLAY-transform round-trip (plugin-ui-plane seam 14, U6). Both are sweep-EXEMPT for the SAME
+  // ── The DISPLAY-transform round-trip (seam 14, U6). Both are sweep-EXEMPT for the SAME
   //    reason `listSurfaces` is: neither takes a foreign id. `transformForDisplay` takes a chatId + messageId,
   //    but it READS nothing with them — they are handed to the guest as its `env`, and the only text in play is
   //    text the caller's own client supplied and only the caller receives back. Nothing is persisted, and no

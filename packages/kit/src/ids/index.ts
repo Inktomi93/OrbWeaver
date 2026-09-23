@@ -84,7 +84,7 @@ export const ID_PREFIX = {
   // `global_variables` deliberately has NO TypeID — the natural key (ownerId, key) IS the identity.
   automationRule: "automation_rule",
   automationFire: "automation_fire",
-  // EPHEMERAL — the S4 suggest/confirm pending ask (interaction-direction-spec §3-S4, RULED F1: an in-RAM
+  // EPHEMERAL — the S4 suggest/confirm pending ask (RULED F1: an in-RAM
   // map with a TTL, never a table; a respawn wipes them by design). It needs an id because it crosses the
   // wire twice — out on the automation bus, back in on `confirmSuggestion` — and a claim is an ID MATCH.
   automationSuggestion: "automation_suggestion",
@@ -96,10 +96,10 @@ export const ID_PREFIX = {
   // A saved party template (`roster_presets`, D61 B6) — the owner's named cast dropped into rooms via
   // `applyToChat`. Members ride the `(presetId, characterId)` junction PK, so no member TypeID exists.
   rosterPreset: "roster_preset",
-  // Card-refinery pipeline rows (refinery R0 — docs/history/design/refinery-r0.md).
+  // Card-refinery pipeline rows (refinery R0).
   refinerySession: "refinery_session",
   refineryRun: "refinery_run",
-  // A user-authored custom payload schema (refinery R3 / SF0 — docs/history/design/refinery-r3-build-plan.md §1).
+  // A user-authored custom payload schema (refinery R3 / SF0).
   refinerySchema: "refinery_schema",
   // RPG lite substrate. Quest ids are PLAIN strings minted inside the snapshot
   // blob (no table, no FK — a TypeID brand buys nothing there; the objective-id precedent), so no

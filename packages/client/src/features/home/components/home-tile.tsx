@@ -1,4 +1,4 @@
-// HomeTile — the FRAME home draws around every contributed tile (home-section-spec §3.2/§6). The
+// HomeTile — the FRAME home draws around every contributed tile. The
 // CONTRIBUTION supplies only its body, so all voices/paddings are identical across features by
 // construction — a tile can neither draw its own band nor its own card.
 //

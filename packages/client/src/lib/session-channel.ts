@@ -1,4 +1,4 @@
-// The cross-tab SESSION channel (staleness-and-session-freshness.md §4.3) — the ONE BroadcastChannel in the
+// The cross-tab SESSION channel — the ONE BroadcastChannel in the
 // client, and the ONE Web-Locks single-flight. It exists because a session is a per-BROWSER fact while a
 // socket is a per-TAB one (D118): when a cookie dies, every open tab learns about it independently and, with
 // no coordination, every one of them runs its own recovery — N probes, N modals, N hard redirects for one

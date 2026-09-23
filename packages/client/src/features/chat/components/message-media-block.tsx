@@ -1,6 +1,6 @@
 // The media content block renderer: routes an image/audio/video block through the gated MessageMedia
 // (asset-vs-external dispatch, external click-to-load gate). An OWN-ORIGIN image opens the imagery DETAIL
-// lightbox (provenance + edit + set-as-background — interaction-direction-spec.md §7 B5) via the #state
+// lightbox (provenance + edit + set-as-background B5) via the #state
 // `openImageDetail` action (chat never imports imagery); video and any external/no-chat case keep the plain
 // zoom Lightbox (an untrusted image we don't own has no provenance to read and no edit path). Asset src
 // (asset:<id>) resolves via the row's AttachmentUrlProvider (own origin, always renders); external src is

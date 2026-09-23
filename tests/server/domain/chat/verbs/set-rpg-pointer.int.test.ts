@@ -1,4 +1,4 @@
-// op: setRpgPointer (rpg-design/05 §3.1) — the opaque rpg-pointer WRITE, against a real libSQL db. Proves: the
+// op: setRpgPointer (docs/plans/rpg/design.md) — the opaque rpg-pointer WRITE, against a real libSQL db. Proves: the
 // pointer merges into `metadata.rpg` (a sync signal off `ChatDetail`), the write PRESERVES sibling sub-blobs
 // (never nukes roomOverrides/group), and a corrupt pre-existing rpg blob heals to the fresh pointer. NULL =
 // DETACH (the dangling-pointer heal §3.3): a `null` pointer DROPS the `metadata.rpg` sub-blob entirely so the

@@ -1,4 +1,4 @@
-// Policy: selection-store-via-factory (derive-modernization-audit.md §W3, G27 — the drill-selection factory
+// Policy: selection-store-via-factory (the drill-selection factory
 // sealed). The per-section selection stores share ONE shape; `createDrillSelectionStore` IS that shape. A
 // `state/*-selection-store.ts` that mints the raw `createGatedStore` door itself re-grows the byte-identical
 // store that drifts (D72: a machine ships WITH its seal).
@@ -29,7 +29,7 @@ const DOOR_HOME: ProjectHomeDeclaration = { path: "packages/client/src/state/cre
 const MESSAGE =
   "a `*-selection-store.ts` mints the raw `createGatedStore` door directly — the per-section drill stores are " +
   "ONE shape. Mint it with `createDrillSelectionStore(name, { secondary? })` instead " +
-  "(derive-modernization-audit.md §W3 G27; D72 — a machine ships WITH its seal).";
+  "(D72 — a machine ships WITH its seal).";
 const UNREADABLE =
   "this selection store calls something spelled `createGatedStore` whose binding the shared readers cannot place, so whether it is the raw store door CANNOT be established. Reported rather than passed: the spelling alone is not the identity. Give the binding a readable import origin; the three-answer rule is tooling/src/verify/lib/origin-verdict.ts (#944).";
 const FIX =

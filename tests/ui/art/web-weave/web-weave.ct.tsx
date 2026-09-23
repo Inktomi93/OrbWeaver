@@ -1,4 +1,4 @@
-// <WebWeave> CT (docs/history/design/login-loading-screen.md §4.1/§9.8) — what only a browser can prove:
+// <WebWeave> CT — what only a browser can prove:
 //   • the canvas actually PAINTS (a pixel-alpha probe, with an instrument control on a blank canvas —
 //     a probe that can't read zero can't prove painting);
 //   • reduced motion mounts NO rAF loop at all (guide §3.9 REMOVE — the frame-counter seam holds

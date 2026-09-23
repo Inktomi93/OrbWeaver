@@ -1,4 +1,4 @@
-// Two-direction controls for the STATE-PAINT census (docs/design/state-paint-census.md): the
+// Two-direction controls for the STATE-PAINT census: the
 // escaped-selector fix (#24), the Base-UI attribute-forcing arm, its restore verification, and the
 // state-gated glow reads — all driven through the real cli over real pages, because the mechanisms
 // under test (CDP `forcePseudoState`, in-page setAttribute forcing, the pass-final release proof)

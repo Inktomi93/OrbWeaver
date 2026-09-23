@@ -1,7 +1,7 @@
 # infra/plugin-host — P1 runtime spike: evidence + findings (D46)
 
 > **Status: SPIKE LANDED 2026-07-17.** The deliverable is a PROVEN runtime pin + this evidence report,
-> not production domain code. Every load-bearing mechanic in `plugin-design/01–03` is EXERCISED by a test
+> not production domain code. Every load-bearing mechanic of the plugin sandbox is EXERCISED by a test
 > (`tests/server/infra/plugin-host/`), not asserted. P2–P6 builders: read the Sharp edges before wiring.
 
 ## Verdict: PIN CONFIRMED
