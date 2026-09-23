@@ -20,13 +20,22 @@ export const DATE_RE = /^\d{4}-\d{2}-\d{2}$/u;
 export const SHA256_RE = /^[a-f0-9]{64}$/u;
 export const COMMIT_RE = /^[a-f0-9]{40}$/u;
 
+/** The document kinds the `doc` tool owns (`docs/plans/doc-system/design.md`): one decision per `adr`,
+ *  one program per `plan`, and the four work-item kinds under `docs/work/`. They join the shared kind set
+ *  here because this module is the one home of the frontmatter vocabulary. */
+export const ADR_KIND = "adr";
+export const PLAN_KIND = "plan";
+export const ITEM_KINDS = ["bug", "work", "decision", "tooling"] as const;
 export const VALID_KINDS = new Set([
+  ADR_KIND,
   "artifact",
   "design",
   "handoff",
   "history",
   "index",
+  ...ITEM_KINDS,
   "law",
+  PLAN_KIND,
   "program",
   "reference",
   "research",
@@ -35,7 +44,9 @@ export const VALID_KINDS = new Set([
   "spec",
   "vendor",
 ]);
-export const VALID_STATUSES = new Set(["active", "archived", "complete", "draft", "parked", "snapshot", "superseded"]);
+/** The four work-item states. Any transition is legal; the `doc` tool validates only the final shape. */
+export const ITEM_STATES = ["open", "doing", "blocked", "done"] as const;
+export const VALID_STATUSES = new Set(["active", "archived", "complete", "draft", "parked", "snapshot", "superseded", ...ITEM_STATES]);
 export const VALID_DISPOSITIONS = new Set([
   "archive",
   "current",
@@ -94,6 +105,15 @@ export const TEXT_EVIDENCE_EXTENSIONS = new Set([
   ".yml",
 ]);
 export const REQUIRED_FRONTMATTER_KEYS = ["kind", "status", "updated"];
-export const ALLOWED_FRONTMATTER_KEYS = new Set([...REQUIRED_FRONTMATTER_KEYS, "supersedes"]);
+/** The keys the `doc` tool writes on ADRs and work items. `superseded-by` pairs with `supersedes`; the
+ *  item keys carry the board columns the owner kept (priority, area, lane) plus the state's companion
+ *  (`blocked` reason, `evidence` commit, `reviewed` mark) and the plan an item belongs to. */
+export const DOC_TOOL_KEYS = ["superseded-by", "priority", "area", "lane", "blocked", "plan", "evidence", "reviewed"] as const;
+export const ALLOWED_FRONTMATTER_KEYS = new Set([...REQUIRED_FRONTMATTER_KEYS, "supersedes", ...DOC_TOOL_KEYS]);
 
 export const VENDOR_PREFIX = "docs/vendor/";
+/** The trees the `doc` tool governs, checked by `pnpm check:agents` and OUTSIDE this catalog's corpus
+ *  (`ops/tree.ts#trackedDocs`): a document there needs no lane row, no attestation and no regenerated
+ *  catalog. The formatter still owns them (`ops/format.ts`). One home for the four paths. */
+export const DOC_TOOL_TREES = { adr: "docs/adr/", plans: "docs/plans/", work: "docs/work/", law: "docs/law/" } as const;
+export const DOC_TOOL_TREE_PREFIXES: readonly string[] = Object.values(DOC_TOOL_TREES);

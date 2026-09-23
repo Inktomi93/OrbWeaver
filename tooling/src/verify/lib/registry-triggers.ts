@@ -73,8 +73,8 @@ export const WHOLE_COMMAND_PATH_TRIGGERS: Readonly<Record<string, StageTrigger>>
     why: "its subject is literally `.claude/hooks/*.mjs` — the glob its own argv spells. Nothing else can change the verdict.",
   },
   "structure:agent-config": {
-    paths: /^(?:AGENTS\.md|\.claude\/(?:agents|rules|skills)\/|\.codex\/agents\/|\.agents\/skills\/)/u,
-    why: "agent-sync reads exactly six coordinates (lib/paths.ts): AGENTS.md, .claude/{agents,rules,skills}/, .codex/agents/, .agents/skills/. #2266 is this row's reason for existing — it sat red on main through several folds.",
+    paths: /^(?:AGENTS\.md|\.claude\/(?:agents|rules|skills)\/|\.codex\/agents\/|\.agents\/skills\/|docs\/)/u,
+    why: "agent-sync reads exactly six coordinates (lib/paths.ts): AGENTS.md, .claude/{agents,rules,skills}/, .codex/agents/, .agents/skills/ — plus the docs tree since `--check` runs the doc tool's rules over it (doc/ops/check.ts). #2266 is this row's reason for existing — it sat red on main through several folds.",
   },
   "structure:drizzle-kit": {
     paths: /^packages\/db\/(?:src\/migrations\/|drizzle\.config\.ts$)/u,

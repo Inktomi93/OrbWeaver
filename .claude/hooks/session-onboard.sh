@@ -122,6 +122,16 @@ else
   echo "--- bridge (to-primary/ and to-b/): both empty"
 fi
 
+# WORK-ITEM DRIFT (docs/work/, `docs/plans/doc-system/design.md`). `pnpm doc drift` prints NOTHING when the
+# item state agrees with the tree, else one line per drift with its exact fixing command: a doing item with
+# no live worktree or unmerged branch, a main commit whose Closes trailer names an unlanded item, a blocked-on
+# item whose blocker is done, a met wake condition. Never the full board — that is `pnpm doc overview`.
+DRIFT=$(node tooling/src/doc/cli.ts drift 2>/dev/null)
+if [ -n "$DRIFT" ]; then
+  echo "!!! WORK-ITEM DRIFT (each line names its fix):"
+  echo "$DRIFT"
+fi
+
 # POINTERS (each one line; the content is re-derivable on demand).
 WT_COUNT=$(git worktree list 2>/dev/null | tail -n +2 | wc -l | tr -d ' ')
 echo "--- worktrees: ${WT_COUNT:-?} beyond main (run: git worktree list — resume live lanes via SendMessage to the dispatch map's agentIds, NEVER respawn; sweep only under containment proofs)"

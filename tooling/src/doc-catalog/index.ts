@@ -28,6 +28,7 @@ export { CATALOG_MODES, FORMAT_MODES } from "./contract/types.ts";
 export { debtPathErrors, migrationDebt, migrationMetrics } from "./lib/debt.ts";
 export { countLines, frontmatterErrors, parseFrontmatter } from "./lib/frontmatter.ts";
 export { catalogReceipt, validateReceiptEntry } from "./lib/receipt-rules.ts";
+export { ADR_KIND, DATE_RE, DOC_TOOL_KEYS, DOC_TOOL_TREE_PREFIXES, DOC_TOOL_TREES, ITEM_KINDS, ITEM_STATES, PLAN_KIND } from "./lib/vocab.ts";
 export { planAttestation, resolveEvidenceErrors, runAttest, runAttestAtRoot } from "./ops/attest.ts";
 export {
   authoredArtifacts,
@@ -44,5 +45,5 @@ export {
 export type { FormatOutcome, FormatRefusal } from "./ops/format.ts";
 export { formatDocs, formatMarkdown, formatTargets } from "./ops/format.ts";
 export { runCatalog, runFormat } from "./ops/run.ts";
-export { __receiptFactsForTest, documents, laneAssignments, loadReceipts, withCanonicalHashes } from "./ops/tree.ts";
+export { __receiptFactsForTest, documents, laneAssignments, loadReceipts, stableRulingAnchors, withCanonicalHashes } from "./ops/tree.ts";
 export { validate } from "./ops/validate.ts";

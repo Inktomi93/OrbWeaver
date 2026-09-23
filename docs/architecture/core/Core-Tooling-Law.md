@@ -125,7 +125,8 @@ the `design-audit` / `record` / `perf-meter` / `motion-audit` pnpm scripts.
 | `verify/` | the whole verification system + the gate corpus + `GATE-AUTHORING.md` | `check` `verify` `check:structure` `check:show` `gate:new` `prose:baseline` `check:type-ownership` `check:tests-execution-membership` `check:db-baseline` `check:orphan-ratchet` |
 | `workboard/` | GitHub Project 1 lifecycle | `work:item` |
 | `doc-catalog/` | the doc catalog + the markdown formatter (two verbs) | `doc-catalog:*` `check:docs` `format:docs` `check:doc-catalog` |
-| `agent-sync/` | Codex agent-manifest sync | `agents:sync` `check:agents` |
+| `doc/` | the docs system's structural writer — ADR/plan/item minting, status and supersession, work-item transitions and landing, archiving with link rewrites, the generated indexes, the soft freshness report, the ledger splitter; its rules are what `check:agents` runs over `docs/**` (`docs/plans/doc-system/design.md`) | `doc` |
+| `agent-sync/` | Codex agent-manifest sync + the instruction-layer and docs-tree check | `agents:sync` `check:agents` |
 | `seed/` | demo · chat · multi-user seeding (three verbs) | `seed:demo` |
 | `stack/` | the dev stack + engine launchers (bash-fronted) | `stack` `engines*` |
 | `model-ab/` | model A/B harness | (none) |

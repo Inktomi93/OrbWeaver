@@ -9,7 +9,7 @@ import { join } from "node:path";
 import { execFixtureGit, FIXTURE_GIT_CONFIG_ARGS, fixtureGitEnvironment } from "../../../../tooling/src/_shared/git-fixture.ts";
 import { withProcessEnv } from "../../../../tooling/src/_shared/process-env.ts";
 import type { Doc, EvidenceSources, ReceiptEntry } from "../../../../tooling/src/doc-catalog/index.ts";
-import { __receiptFactsForTest, validateReceiptEntry } from "../../../../tooling/src/doc-catalog/index.ts";
+import { __receiptFactsForTest, documents, validateReceiptEntry } from "../../../../tooling/src/doc-catalog/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const DOC_PATH = "docs/example.md";
@@ -219,4 +219,15 @@ test("a valid HEAD pair cannot mask a conflicting staged receipt", ({ scratch })
   expect(observed.verifiedBlobSha256).toBe(entry.verifiedSha256);
   expect(observed.candidateTouchesReceiptPair).toBe(true);
   expect(validateReceiptEntry(entry, observed)).toContain(`${DOC_PATH}: current document and receipt do not coexist in a verified commit or the Git index`);
+});
+
+test("the catalog corpus excludes the trees the doc tool governs and keeps the legacy tree", ({ scratch }) => {
+  const root = join(scratch, "corpus");
+  mkdirSync(join(root, "docs", "adr"), { recursive: true });
+  mkdirSync(join(root, "docs", "architecture", "core"), { recursive: true });
+  git(root, "init", "-q");
+  writeFileSync(join(root, "docs", "adr", "0164-x.md"), "---\nkind: adr\nstatus: active\nupdated: 2026-09-23\n---\n\n# X\n");
+  writeFileSync(join(root, "docs", "architecture", "core", "Law.md"), "---\nkind: law\nstatus: active\nupdated: 2026-09-23\n---\n\n# Law\n");
+  git(root, "add", "docs");
+  expect(documents(root, true).map((doc) => doc.path)).toEqual(["docs/architecture/core/Law.md"]);
 });

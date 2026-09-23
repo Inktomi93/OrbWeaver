@@ -564,13 +564,13 @@
     },
     {
       "path": "docs/architecture/core/Core-Tooling-Law.md",
-      "assignedSha256": "081b7263aa2b9f4ce1bae5aebfc2d73326b798588a4c8de9e9ebfb9629b8ea12",
+      "assignedSha256": "8b62620d025d5f7fa2791671a7958e4d1b2b5b61e006d1674b628cfca3ac95f2",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "081b7263aa2b9f4ce1bae5aebfc2d73326b798588a4c8de9e9ebfb9629b8ea12",
-      "verifiedCommit": "d0e004fa5d160506528653c886bfaf2bfd6fc9cc",
-      "verifiedAt": "2026-09-22",
+      "verifiedSha256": "8b62620d025d5f7fa2791671a7958e4d1b2b5b61e006d1674b628cfca3ac95f2",
+      "verifiedCommit": "30ce0c7eafb1418fa7705f209177ee251a398b8b",
+      "verifiedAt": "2026-09-23",
       "evidence": [
         "Program #1351 is complete; acceptance is recorded at https://github.com/Inktomi93/orbweaver/issues/1351#issuecomment-5626592009 . The law bytes are unchanged from 06c560d8e. Shared compiler, capacity and native-tool execution changes have current native/behavioral verification; inherited gate-cutover work remains separately tracked in #1584.",
         "Full law read and closeout delta verified: standing generated compiler-root and separately scoped ambient intent promoted from the world program; all five tsconfig-entry-liveness grants retain their reasons and end conditions and cite this law. Scoped liveness/routing/roadmap controls passed. Compiler ownership and relocation-ledger instructions reconciled with current generated configs and deriveTestBaselineManifest; generated testFiles is never hand-maintained.",
@@ -622,16 +622,16 @@
           ]
         }
       ],
-      "verifiedCanonicalSha256": "081b7263aa2b9f4ce1bae5aebfc2d73326b798588a4c8de9e9ebfb9629b8ea12"
+      "verifiedCanonicalSha256": "8b62620d025d5f7fa2791671a7958e4d1b2b5b61e006d1674b628cfca3ac95f2"
     },
     {
       "path": "docs/architecture/core/Documentation-Law.md",
-      "assignedSha256": "2c1efd4bb668308d055c66b07764194144d639de7cbaff692e6841a90a86b368",
+      "assignedSha256": "da3a09b83d7bc06d9e2c3c1363cc6d968fafbfaab3beb51b9ac20ffcf8608245",
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "2c1efd4bb668308d055c66b07764194144d639de7cbaff692e6841a90a86b368",
-      "verifiedCommit": "25e700f9999eaac62a27a886e19cf240ac04866b",
+      "verifiedSha256": "da3a09b83d7bc06d9e2c3c1363cc6d968fafbfaab3beb51b9ac20ffcf8608245",
+      "verifiedCommit": "30ce0c7eafb1418fa7705f209177ee251a398b8b",
       "verifiedAt": "2026-09-23",
       "evidence": [
         "Full document read and bounded enforcement correction at ee4a545f6: ESLint derives non-browser package coverage from PACKAGE_WORLDS; native resolution for packages/showcase-plugins/src/index.ts enables tsdoc/syntax and @typescript-eslint/no-deprecated as errors with the TypeScript parser and project service. pnpm check executes lint:eslint. Removed the stale four-package/showcase omission and retired types:graph claim; TypeScript compilation remains distinct from TSDoc syntax checking.",
@@ -672,7 +672,7 @@
         }
       ],
       "summary": "Active documentation and comment law with TSDoc enforcement delegated to the current ESLint coverage authority, including the typed showcase packer.",
-      "verifiedCanonicalSha256": "2c1efd4bb668308d055c66b07764194144d639de7cbaff692e6841a90a86b368"
+      "verifiedCanonicalSha256": "da3a09b83d7bc06d9e2c3c1363cc6d968fafbfaab3beb51b9ac20ffcf8608245"
     },
     {
       "path": "docs/architecture/core/Knowledge-Cluster.md",

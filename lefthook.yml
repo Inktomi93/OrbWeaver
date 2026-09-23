@@ -117,6 +117,19 @@ post-checkout:
       env:
         NO_COLOR: "1"
 
+# AUTO-LAND for the in-repo work items (docs/work/, `docs/plans/doc-system/design.md`). After a merge
+# INTO main, `pnpm doc land --merged` reads the `Closes: 12, 14` trailers of the commits the merge brought
+# in (ORIG_HEAD..HEAD), marks those items done with the merge commit as evidence, regenerates the indexes
+# and commits the item files under the message contract (with the whole-tree check excluded, the standing
+# exception spelling). On any other branch, or when no merged commit carries a trailer, it writes and
+# prints nothing. Lanes never write item state; this hook is the one writer on the landing path.
+post-merge:
+  commands:
+    land-work-items:
+      run: node tooling/src/doc/cli.ts land --merged
+      env:
+        NO_COLOR: "1"
+
 pre-push:
   follow: true
   commands:

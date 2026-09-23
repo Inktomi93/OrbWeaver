@@ -147,12 +147,13 @@ Change code → fix or delete its comment **in the same change**. A lying commen
 - **Frontmatter (required on authored docs, deliberately minimal):**
   ```yaml
   ---
-  kind: law | spec | reference | history | design | review | artifact | vendor | runbook | program | handoff | research | index
-  status: active | draft | parked | complete | superseded | archived | snapshot
+  kind: law | spec | reference | history | design | review | artifact | vendor | runbook | program | handoff | research | index | adr | plan | bug | work | decision | tooling
+  status: active | draft | parked | complete | superseded | archived | snapshot | open | doing | blocked | done
   supersedes: <path>   # optional
   updated: YYYY-MM-DD
   ---
   ```
+  The `adr`/`plan` kinds, the four work-item kinds, the four item states and the item keys (`superseded-by`, `priority`, `area`, `lane`, `blocked`, `plan`, `evidence`, `reviewed`) belong to the `doc` tool's trees (`docs/adr/`, `docs/plans/`, `docs/work/`, `docs/law/`), which `pnpm check:agents` checks and this catalog does not index — the design is `docs/plans/doc-system/design.md`, the ruling `docs/adr/0164-docs-plans-adrs.md`.
   Vendor mirrors retain upstream frontmatter verbatim; their catalog receipt carries Orbweaver lifecycle/provenance. Do NOT grow the authored schema casually — every field is corpus-wide maintenance. `tags:`/`owner:`/`toc:` stay rejected: retrieval uses headings/catalog search, ownership uses CODEOWNERS + GitHub, and mutable state belongs in Project 1. A new field enters only through `tooling/src/doc-catalog/lib/frontmatter.ts` validation with a ledgered reason.
 
 ### Catalog and fact-check receipts (D139)
