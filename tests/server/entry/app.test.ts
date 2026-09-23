@@ -10,7 +10,7 @@ import type { Db } from "@orb/db";
 import { ProviderError } from "@orb/inference";
 import { DomainOperationError, DomainRateLimitError } from "@orb/kit/errors";
 import type { Handle, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { AuthSeam, SeamResult } from "@orb/server/entry/auth";
 import { getTraceByRequestId, initTracing, recentRequests } from "@orb/server/foundation/observability";
 import { versionIdentity } from "@orb/server/foundation/version";
@@ -227,6 +227,36 @@ describe("createApp", () => {
       expect(status).toBe(400);
       expect(text).toContain("the agent's owner is not a present member");
       expect(text).toContain("owner_not_present");
+    });
+
+    test("a refused OUTPUT parse (a credential view carrying a sealed column) answers the generic 500, naming neither the key nor its value", async () => {
+      // `credentials.list` parses its result through the strict `credentialViewSchema`. The refusal is an
+      // INTERNAL_SERVER_ERROR whose cause is the ZodError; the bytes that leave the process must carry the
+      // fixed unclassified-fault sentence and nothing of the payload the parser refused.
+      const sealed = "sealed-ciphertext-bytes-9f2c";
+      const leakedView = {
+        id: mintTypeId(ID_PREFIX.userCredential),
+        provider: "openrouter",
+        label: "default",
+        revokedAt: null,
+        revokedReason: null,
+        createdAt: FROZEN_NOW,
+        updatedAt: FROZEN_NOW,
+        ciphertext: sealed,
+      };
+      const app = createApp(
+        deps({
+          seam: fakeSeam(OWNER),
+          services: testServices({ credentials: { list: (): Promise<unknown[]> => Promise.resolve([leakedView]) } }),
+        }),
+      );
+      const res = await hit(app, new Request("http://localhost/api/trpc/credentials.list"));
+      const text = await res.text();
+      expect(res.status).toBe(INTERNAL_ERROR);
+      expect(text).toContain("The server hit an unexpected error. It was logged server-side.");
+      expect(text).not.toContain(sealed);
+      expect(text).not.toContain("ciphertext");
+      expect(text).not.toContain("Unrecognized key");
     });
 
     test("a PROVIDER failure publishes an honest status + a provider_<kind> reason, never the upstream prose", async () => {

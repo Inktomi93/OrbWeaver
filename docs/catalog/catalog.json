@@ -4175,71 +4175,6 @@
       }
     },
     {
-      "path": "docs/history/reviews/misc/2026-08-03-export-rot-dispositions.md",
-      "lane": "history",
-      "frontmatter": {
-        "fields": {
-          "kind": "review",
-          "status": "active"
-        }
-      },
-      "receipt": {
-        "authority": "review"
-      }
-    },
-    {
-      "path": "docs/history/reviews/misc/2026-08-18-silent-reader-audit.md",
-      "lane": "history",
-      "frontmatter": {
-        "fields": {
-          "kind": "review",
-          "status": "active"
-        }
-      },
-      "receipt": {
-        "authority": "review"
-      }
-    },
-    {
-      "path": "docs/history/reviews/misc/2026-08-19-lens-triage-210.md",
-      "lane": "history",
-      "frontmatter": {
-        "fields": {
-          "kind": "review",
-          "status": "archived"
-        }
-      },
-      "receipt": {
-        "authority": "historical"
-      }
-    },
-    {
-      "path": "docs/history/reviews/security/2026-08-09-pre-auth-attack-surface.md",
-      "lane": "history",
-      "frontmatter": {
-        "fields": {
-          "kind": "review",
-          "status": "archived"
-        }
-      },
-      "receipt": {
-        "authority": "historical"
-      }
-    },
-    {
-      "path": "docs/history/reviews/stickler/2026-08-02-zod-leverage-audit.md",
-      "lane": "history",
-      "frontmatter": {
-        "fields": {
-          "kind": "review",
-          "status": "active"
-        }
-      },
-      "receipt": {
-        "authority": "review"
-      }
-    },
-    {
       "path": "docs/history/type-worlds-program-2026-09-10.md",
       "lane": "history",
       "frontmatter": {
@@ -4263,32 +4198,6 @@
       },
       "receipt": {
         "authority": "operational"
-      }
-    },
-    {
-      "path": "docs/reviews/2026-09-20-inference-reindex-generation-design.md",
-      "lane": "reviews",
-      "frontmatter": {
-        "fields": {
-          "kind": "review",
-          "status": "active"
-        }
-      },
-      "receipt": {
-        "authority": "design"
-      }
-    },
-    {
-      "path": "docs/reviews/ast-codebase-audit/world-tools-brand-boundary-audit.md",
-      "lane": "reviews",
-      "frontmatter": {
-        "fields": {
-          "kind": "review",
-          "status": "active"
-        }
-      },
-      "receipt": {
-        "authority": "unclassified"
       }
     },
     {
@@ -6187,19 +6096,6 @@
       },
       "receipt": {
         "authority": "unclassified"
-      }
-    },
-    {
-      "path": "docs/reviews/trpc-procedure-liveness-2026-09-08.md",
-      "lane": "reviews",
-      "frontmatter": {
-        "fields": {
-          "kind": "review",
-          "status": "active"
-        }
-      },
-      "receipt": {
-        "authority": "review"
       }
     }
   ]

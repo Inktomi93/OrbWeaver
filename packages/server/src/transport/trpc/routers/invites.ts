@@ -17,13 +17,25 @@
 // token into access logs/history — the `fetchModels` precedent (Tier-4 Esoteric #9: transport shape
 // chosen for the security property, not the read/write semantics). The domain stores only the peppered
 // token HASH; these bodies + the `/join/:token` redirect are the token's only transit points.
+//
+// OUTPUT: every procedure that returns data parses it through a strict canonical schema from
+// `@orb/contracts/chat`: `createInviteResultSchema` (the invite view plus the ONE raw token, nothing beside it),
+// `invitePreviewSchema` (the pre-membership preview, no roster), `redeemInviteResultSchema` (the joined
+// member's `ChatDetail` + own roster row), and `inviteViewSchema` for the host's list. A refused result fails
+// the call as an INTERNAL_SERVER_ERROR, and the formatter answers with its fixed unclassified-fault message.
+// The ladder logs the parse issues: paths, key names and fixed messages, never a value (zod omits input from
+// its issues, and `typeIdSchema` emits a fixed message rather than the id library's echo of the value).
 
 import {
   acceptInviteSchema,
+  createInviteResultSchema,
   createInviteSchema,
   handoffOfferSchema,
+  invitePreviewSchema,
+  inviteViewSchema,
   joinHistoryVisibilitySchema,
   previewInviteSchema,
+  redeemInviteResultSchema,
   redeemInviteSchema,
 } from "@orb/contracts/chat";
 import type { UserId } from "@orb/kit/ids";
@@ -71,18 +83,28 @@ const setMemberHistoryVisibilitySchema = z.object({
 
 export const invitesRouter = t.router({
   // Host mints a share-link or targeted invite; the RAW token returns exactly once (the /join link).
-  createInvite: multiHumanProcedure.input(createSchema).mutation(({ ctx, input }) => ctx.services.chat.createInvite({ principal: ctx.auth, ...input })),
+  createInvite: multiHumanProcedure
+    .input(createSchema)
+    .output(createInviteResultSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.createInvite({ principal: ctx.auth, ...input })),
 
   // Token-authenticated preview-then-confirm read (a mutation for the token-in-URL reason — header).
-  previewInvite: multiHumanProcedure.input(previewInviteSchema).mutation(({ ctx, input }) => ctx.services.chat.previewInvite({ principal: ctx.auth, input })),
+  previewInvite: multiHumanProcedure
+    .input(previewInviteSchema)
+    .output(invitePreviewSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.previewInvite({ principal: ctx.auth, input })),
 
   // THE one human-join path (the atomic participant-insert chokepoint).
-  redeemInvite: multiHumanProcedure.input(redeemInviteSchema).mutation(({ ctx, input }) => ctx.services.chat.redeemInvite({ principal: ctx.auth, input })),
+  redeemInvite: multiHumanProcedure
+    .input(redeemInviteSchema)
+    .output(redeemInviteResultSchema)
+    .mutation(({ ctx, input }) => ctx.services.chat.redeemInvite({ principal: ctx.auth, input })),
 
   // The token-FREE in-app accept of a TARGETED invite by id (the notification→accept loop) — self-authorizing
   // (the invite is bound to `ctx.auth.userId`); a share-link / foreign / spent invite is a leak-free NOT_FOUND.
   acceptInvite: multiHumanProcedure
     .input(acceptInviteSchema)
+    .output(redeemInviteResultSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.acceptInvite({ principal: ctx.auth, inviteId: input.inviteId })),
 
   revokeInvite: multiHumanProcedure.input(revokeSchema).mutation(({ ctx, input }) => ctx.services.chat.revokeInvite({ principal: ctx.auth, ...input })),
@@ -92,6 +114,7 @@ export const invitesRouter = t.router({
   // token-in-URL transport concern (file header) does not apply. Host authority lives INSIDE the verb.
   listInvites: multiHumanProcedure
     .input(chatScopedSchema)
+    .output(z.array(inviteViewSchema).readonly())
     .query(({ ctx, input }) => ctx.services.chat.listInvites({ principal: ctx.auth, chatId: input.chatId })),
 
   declineInvite: multiHumanProcedure

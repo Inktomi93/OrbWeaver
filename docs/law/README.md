@@ -23,6 +23,7 @@ The locked principles are the first section of Core-0, the enforcement catalog i
 | [Core — SillyTavern Feature Slot Map (the one clear reference)](Core-SillyTavern-Feature-Map.md) | active |
 | [Orbweaver — SillyTavern Feature-Gap Register](Core-ST-Feature-Gap-Register.md) | active |
 | [`@orb/tooling` — tooling-tree law](Core-Tooling-Law.md) | active |
+| [Docs and work items](docs-and-work.md) | active |
 | [Knowledge cluster — the producer → store → consumer boundary](Knowledge-Cluster.md) | active |
 | [Motion & Animation Guide](motion-and-animation-guide.md) | active |
 | [Orbweaver — Spine: Config, Settings, and Serialization](Spine-Config-and-Serialization.md) | active |

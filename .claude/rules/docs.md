@@ -5,7 +5,8 @@ paths:
 
 # Docs
 
-Style is `.claude/rules/writing.md`; this file covers only the docs mechanics.
+Style is `.claude/rules/writing.md`; this file covers only the docs mechanics. `docs/law/docs-and-work.md`
+explains what each home is for and how work items flow.
 
 ## The tree
 

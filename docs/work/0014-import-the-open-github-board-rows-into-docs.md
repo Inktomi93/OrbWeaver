@@ -16,6 +16,9 @@ owner). Create one `docs/work` item per row with `pnpm doc item`, carrying kind,
 row's what, why and done-when. Triage on the way in: close on the board, with a reason, any parked row
 whose wake condition can never fire, any row the tree already satisfies, and any duplicate.
 
+Owner ruling: import with hard triage. Import only the rows that still hold on the tree; close the
+rest.
+
 ## Why
 
 The owner is removing the board. Its API throttles, and its state goes stale. Item 0013 deletes the

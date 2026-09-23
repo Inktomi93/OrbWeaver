@@ -295,26 +295,6 @@
       "authority": "historical"
     },
     {
-      "path": "docs/history/reviews/misc/2026-08-03-export-rot-dispositions.md",
-      "authority": "review"
-    },
-    {
-      "path": "docs/history/reviews/misc/2026-08-18-silent-reader-audit.md",
-      "authority": "review"
-    },
-    {
-      "path": "docs/history/reviews/misc/2026-08-19-lens-triage-210.md",
-      "authority": "historical"
-    },
-    {
-      "path": "docs/history/reviews/security/2026-08-09-pre-auth-attack-surface.md",
-      "authority": "historical"
-    },
-    {
-      "path": "docs/history/reviews/stickler/2026-08-02-zod-leverage-audit.md",
-      "authority": "review"
-    },
-    {
       "path": "docs/history/type-worlds-program-2026-09-10.md",
       "authority": "historical"
     }

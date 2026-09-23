@@ -4,9 +4,16 @@
 // the seam (Spine-Identity-and-Auth invariant #2). These tests drive the real middleware ladder via
 // `createCaller` and assert the projection: the exact three fields, `role`→`globalRole`, and no leakage of
 // any other `Principal` field (`externalId`/`via`).
+//
+// The procedure also parses its result through the strict `viewerViewSchema`. The literal projection cannot
+// carry an extra key today; the parser is what refuses a refactor that spreads the Principal (its
+// `externalId` is the SSO subject). The contract test pins the strict refusal; here the pins are that the
+// parser is installed and that it rejects a malformed known field at runtime.
 
+import { viewerViewSchema } from "@orb/contracts/identity";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { appRouter } from "@orb/server/transport/trpc";
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../_support.ts";
@@ -42,5 +49,20 @@ describe("sessions.me — viewer identity projection", () => {
     ).sessions.me();
 
     expect(Object.keys(view).sort()).toEqual(["globalRole", "handle", "userId"]);
+  });
+});
+
+describe("sessions.me — the strict output parser", () => {
+  test("the procedure parses its result through the canonical viewerViewSchema", () => {
+    const output: unknown = Reflect.get(appRouter.sessions.me._def, "output");
+    // Both sides undefined would pass `toBe`, so the parser's presence is asserted on its own first.
+    expect(output).toBeDefined();
+    expect(output).toBe(viewerViewSchema);
+  });
+
+  test("a malformed known field is refused at runtime instead of reaching the wire", async () => {
+    const ctx = makeContext({ auth: principal("user", { userId: USER, handle: castId<Handle>("") }) });
+
+    await expect(caller(ctx).sessions.me()).toThrowTRPCError("INTERNAL_SERVER_ERROR");
   });
 });
