@@ -139,7 +139,7 @@ not revisit the already-accepted six-home census or migrate product CSS.
 **WHY THIS PROSE IS HERE AND NOT IN THE CODE.** `lib/css-family-census.ts` carried
 `EXPECTED_DECLARATION_CENSUS` (five per-sheet declaration counts), `EXPECTED_DECLARATION_TOTAL` (1029)
 and, hanging off them, ~140 lines annotating every delta since the #938 baseline — what was minted, what
-measurement forced it, and what it must never become. `exception-authority-census.md:178` rules those
+measurement forced it, and what it must never become. The gate-runtime exception-authority census rules those
 counts out: *"the five per-file declaration counts and aggregate total are current-population counts and
 retire."* The counts retire; **the reasoning does not**, because nobody can reconstruct it from the
 stylesheets. It is moved here verbatim, grouped by the constant it annotated, before the constants are

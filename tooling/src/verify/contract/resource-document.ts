@@ -1,5 +1,5 @@
 // The living-document corpus and the NAMED registries — the two doors of the documents/ledgers family
-// (`resource-gate-access-patterns.md` §5).
+// (the ResourceHost access-pattern ruling §5).
 //
 // TWO DOORS BECAUSE THE TWO SUBJECTS FAIL DIFFERENTLY. `documents()` is a CORPUS: its subject is every
 // living Markdown document, and one unreadable member is a row inside the fact rather than a reason to

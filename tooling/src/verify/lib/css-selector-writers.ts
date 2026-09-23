@@ -20,7 +20,7 @@
 //      reconciliation is not a question about authored WRITERS anyway, so it moved to the policy that
 //      declares the doors (`json:baseui-manifest` + `installed-package{base-ui,ast}`).
 //   5. VALUE READS GO THROUGH THE SHARED FACT BOUNDARY. `accessedName`'s element-access argument and the
-//      HAST `properties` initializer are VALUES, and `shared-semantic-readers.md:33` rules `ast-read.ts`
+//      HAST `properties` initializer are VALUES, and the shared-semantic-readers map rules `ast-read.ts`
 //      "not the new fact boundary" — they now resolve through `_shared/reference-fact.ts`
 //      (`readStaticString` / `resolveStableExpression`), which follows a stable const binding as well as
 //      stripping wrappers. That is a WIDENING, not a rename: `el["data-x"]` still resolves and

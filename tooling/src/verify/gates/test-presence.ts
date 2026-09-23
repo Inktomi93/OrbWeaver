@@ -80,7 +80,7 @@
 //     findings, owner `success`. The LEGACY side was never EXECUTED for findings — so this cell is guide
 //     §4.6 VACUITY SHAPE 1 (both sides zero, or one side unmeasured) and it CANNOT be closed by rule, which
 //     requires "a 1:1 port whose legacy side was EXECUTED and returned zero". What would close it is the
-//     fixture-level replay (`origin-client-family-1584.md`'s method), not another real-corpus run: this
+//     fixture-level replay (the origin-client family's #1584 conversion record's method), not another real-corpus run: this
 //     policy's real-tree answer is zero on both engines by construction, because the tree is fully mirrored.
 //     The arms are NOT a 1:1 port either — `isPlumbingAtom`'s SPREAD clause and the DOMAIN pass-through
 //     clause are a deliberate 2026-09-12 WIDENING whose blast radius was measured separately (above).

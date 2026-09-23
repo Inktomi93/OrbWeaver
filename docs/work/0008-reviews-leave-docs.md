@@ -16,7 +16,7 @@ is deleted down to three survivors, each a real dependency this pass proved, not
 
 - docs/reviews/gate-runtime/ — live tool input, not a report. tooling/src/verify/ops/gen/read-first-costs.ts
   and tooling/src/verify/ops/ledgers-fresh-rollup.ts list this directory's files at runtime (the
-  refutation ledger, the family-conversion and audit-wave records, `resource-gate-access-patterns.md`, …)
+  refutation ledger, the family-conversion and audit-wave records, the ResourceHost access-pattern ruling, …)
   to price `docs/design/gate-runtime-read-first.md`'s read-list and to cross-check citations for
   `pnpm check:ledgers-fresh`. It is the working set of the live gate-runtime cutover program, so its real
   home is a new gate-runtime plan folder under `docs/plans/` (a plan, not a review folder) rather than

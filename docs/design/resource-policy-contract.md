@@ -203,7 +203,7 @@ policy owns semantic judgments over ready values, not a second provider-failure 
 | `tooling/src/verify/gates/ui-exports-map-complete.ts` | delete the dead `path.length > 0` fence (mutually redundant with the `startsWith(prefix)` filter — cut clean); SPLIT the dead-target message so a non-`./` specifier and a vanished target are message-discriminable; one new `mustFlag` (absent `exports` key → per-module A1, `count: 2`); header as above |
 | `tests/tooling/verify/gates/resource-layout-wave-1.suite.test.ts` | [gate-runtime-standardization.md](gate-runtime-standardization.md) §6.3 pins for `ui-exports-map-complete` (complete + receipts, manifest missing, manifest malformed, `exports` non-string) and the two tree-side pins for `server-layout` (missing, empty) plus its receipt pair |
 | `docs/law/Core-Enforcement-Active-Gates.md:111` | the A3 split and the absent-vs-non-string `exports` verdicts, as mechanisms |
-| [gate-runtime-standardization.md](gate-runtime-standardization.md) §2 plane table, `exemplars-2026-09-11.md` §3, playbook #1979 row | NOT this lane's: CONFIRMED is the verifier's word and the cell is the orchestrator's write; proposed text in the report |
+| [gate-runtime-standardization.md](gate-runtime-standardization.md) §2 plane table, the refuted 2026-09-11 exemplar report §3, playbook #1979 row | NOT this lane's: CONFIRMED is the verifier's word and the cell is the orchestrator's write; proposed text in the report |
 | `lib/resource-declaration.ts`, `contract/resource.ts`, `lib/reviewed-grants.ts`, any `fix:` string | untouched (fence) |
 
 ## 7. The measured proof tables (2026-09-12, worktree at `831576613`, every variant minted from the LIVE module with exact-count anchors and run through `verifyPolicyProofs`)
@@ -245,7 +245,7 @@ after the build, receipt in the report). `server-layout`'s two discriminators re
    soundness family belongs to #1971).
 2. **This document's catalog receipt.** A new `docs/**` file owes a receipt commit citing the doc's sha
    (memory: `new-doc-catalog-two-commit-stack`), against a one-commit lane law. Precedent on the tree:
-   `v-exemplar-audit-2026-09-12.md` landed uncatalogued at `8929f53fb` while `check:doc-catalog` sits on the
+   the 2026-09-12 exemplar audit landed uncatalogued at `8929f53fb` while `check:doc-catalog` sits on the
    known-red list (then-current known-red inventory). Default: land the doc in the lane's one commit, report the owed receipt, let the
    orchestrator's batch receipt pass adopt it (the `c5a6733e4` shape).
 3. **The absent-`exports`-key verdict.** `{}` → per-module A1 findings is the PROVIDER's normalization
