@@ -1,50 +1,41 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "lanes": [
     {
       "id": "architecture-core",
-      "issue": 2,
       "patterns": ["docs/architecture/core/**/*.md"]
     },
     {
       "id": "architecture-history",
-      "issue": 3,
       "patterns": ["docs/architecture/history/**/*.md"]
     },
     {
       "id": "architecture-proposed",
-      "issue": 4,
       "patterns": ["docs/architecture/proposed/**/*.md", "docs/architecture/*.md"]
     },
     {
       "id": "design",
-      "issue": 5,
       "patterns": ["docs/design/**/*.md"]
     },
     {
       "id": "repository-audits",
-      "issue": 6,
       "patterns": ["docs/history/reviews/repository-audit-*/**/*.md"]
     },
     {
       "id": "reviews",
-      "issue": 7,
       "patterns": ["docs/reviews/**/*.md"]
     },
     {
       "id": "root-operational",
-      "issue": 8,
       "patterns": ["docs/*.md"]
     },
     {
       "id": "history",
-      "issue": 9,
       "patterns": ["docs/history/**/*.md"],
       "excludePatterns": ["docs/history/reviews/repository-audit-*/**/*.md"]
     },
     {
       "id": "vendor",
-      "issue": 10,
       "patterns": ["docs/vendor/**/*.md"]
     }
   ]

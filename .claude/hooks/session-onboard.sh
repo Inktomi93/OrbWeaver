@@ -104,6 +104,21 @@ else
   echo "--- scratch dispatch map: none for this session (fresh session, or purged) — your SELF note in the bridge block is the digest"
 fi
 
+# WORK-ITEM DRIFT (docs/work/, `docs/plans/doc-system/design.md`). `pnpm doc drift` prints NOTHING when the
+# item state agrees with the tree, else one line per drift with its exact fixing command: a doing item with
+# no live worktree or unmerged branch, a main commit whose Closes trailer names an unlanded item, a blocked-on
+# item whose blocker is done, a met wake condition. Never the full board — that is `pnpm doc overview`.
+# A broken tool must never read as "consistent": its exit code is checked and its stderr is shown.
+DRIFT_ERR=$(mktemp)
+DRIFT=$(node tooling/src/doc/cli.ts drift 2>"$DRIFT_ERR"); DRIFT_RC=$?
+if [ "$DRIFT_RC" -ne 0 ]; then
+  echo "!!! WORK-ITEM DRIFT CHECK FAILED (pnpm doc drift exit ${DRIFT_RC}) — not a clean verdict: $(tr '\n' ' ' <"$DRIFT_ERR" | cut -c1-400)"
+elif [ -n "$DRIFT" ]; then
+  echo "!!! WORK-ITEM DRIFT (each line names its fix):"
+  echo "$DRIFT"
+fi
+rm -f "$DRIFT_ERR"
+
 # POINTERS (each one line; the content is re-derivable on demand).
 WT_COUNT=$(git worktree list 2>/dev/null | tail -n +2 | wc -l | tr -d ' ')
 echo "--- worktrees: ${WT_COUNT:-?} beyond main (run: git worktree list — resume live lanes via SendMessage to the dispatch map's agentIds, NEVER respawn; sweep only under containment proofs)"

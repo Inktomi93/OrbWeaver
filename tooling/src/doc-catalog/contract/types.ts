@@ -1,10 +1,10 @@
-// doc-catalog's shapes: the lane config, the per-document receipt rows, the derived catalog facts, and
-// the ratchet state. The receipt/claim shapes are the ones D139 makes normative — a receipt is a typed
-// CLAIM plus resolvable evidence, so drift in these interfaces is drift in the documentation contract.
+// doc-catalog's shapes: the lane config, the per-document authority rows, the derived inventory, and the
+// frontmatter-debt ratchet state. The hash-bound attestation (a whole-file sha, a verification commit,
+// prose evidence per row) is GONE by owner ruling — it churned on every edit — so a row is a path and the
+// human classification the citation gates read, and nothing here changes when a document's prose does.
 
 export interface Lane {
   readonly id: string;
-  readonly issue: number;
   readonly patterns: readonly string[];
   readonly excludePatterns?: readonly string[];
 }
@@ -14,51 +14,25 @@ export interface LaneConfig {
   readonly lanes: readonly Lane[];
 }
 
+/** One document's classification. `authority` is what `dangling-refs` derives its law/design corpora from. */
 export interface ReceiptEntry {
   readonly path: string;
-  readonly assignedSha256: string;
-  readonly disposition: string;
   readonly authority: string;
-  readonly fullRead: boolean;
-  readonly verifiedSha256: string | null;
-  /** The sha256 of the verified document AFTER the repo's markdown formatter normalizes it — absent on
-   *  receipts attested before this field existed, null when the formatter refused the document at attest
-   *  time. When present AND the current document's canonical hash matches, the receipt survives a
-   *  format-only rewrite without a re-read. */
-  readonly verifiedCanonicalSha256?: string | null;
-  readonly verifiedCommit: string | null;
-  readonly verifiedAt: string | null;
-  readonly evidence: readonly string[];
-  readonly claims?: readonly ReceiptClaim[];
-  readonly summary: string;
-}
-
-export interface ReceiptEvidence {
-  readonly kind: string;
-  readonly target: string;
-}
-
-export interface ReceiptClaim {
-  readonly claim: string;
-  readonly evidence: readonly ReceiptEvidence[];
 }
 
 export interface Receipt {
   readonly schemaVersion: number;
   readonly lane: string;
-  readonly issue: number;
   readonly entries: readonly ReceiptEntry[];
 }
 
 export interface Floors {
-  readonly pending: number;
   readonly missingFrontmatter: number;
   readonly invalidFrontmatter: number;
   readonly malformedFrontmatter: number;
 }
 
 export interface DebtPaths {
-  readonly pending: readonly string[];
   readonly missingFrontmatter: readonly string[];
   readonly invalidFrontmatter: readonly string[];
   readonly malformedFrontmatter: readonly string[];
@@ -69,84 +43,18 @@ export interface State {
   readonly allowed?: DebtPaths;
 }
 
-/** Re-attestation's inputs (#1996) — every tree, git and clock fact as DATA, so the verb's refusals are
- *  provable without a repository. `selection` is the caller's literal argv: the verb has no default and
- *  no pattern expansion, because a receipt asserts a human read. */
-export interface AttestInput {
-  readonly config: LaneConfig;
-  readonly docs: readonly Doc[];
-  readonly receipts: readonly Receipt[];
-  readonly selection: readonly string[];
-  readonly headCommit: string | null;
-  /** YYYY-MM-DD, injected rather than read from a clock inside the plan. */
-  readonly today: string;
-  /** Selected documents whose worktree bytes are not in the Git index — a receipt written over one of
-   *  these would assert a pair that does not coexist. */
-  readonly unstagedDocuments: ReadonlySet<string>;
-  /** Per selected document, the GRAMMAR errors its row would carry once written (#1996) — resolved by the
-   *  driver through `receiptEvidenceErrors`, so the plan stays a pure function of its inputs. A re-attest
-   *  copies evidence through untouched, and the tree moves underneath it: a `code` citation whose file was
-   *  renamed, a `law §N` whose section was renumbered, a `provenance` commit rebased out of HEAD's ancestry
-   *  all pass silently into a receipt that reds at `check:doc-catalog` AFTER the write. Empty for a
-   *  document whose row is clean. */
-  readonly evidenceErrors: ReadonlyMap<string, readonly string[]>;
-}
-
-/** The driver's tree-reading half of `AttestInput.evidenceErrors`, as a type so the wiring is
- *  INJECTABLE and therefore provable (#2238). `planAttestation` is pure and was handed this map as
- *  hand-built data, which pins the PLAN and never the CALL: neutering the driver's resolution left the
- *  whole doc-catalog suite green (68/68, measured 2026-09-12). The seam is what lets a spec cut the call
- *  instead of the branch. */
-export type AttestEvidenceResolver = (
-  selection: readonly string[],
-  docs: readonly Doc[],
-  receipts: readonly Receipt[],
-) => ReadonlyMap<string, readonly string[]>;
-
-/** A named reason re-attestation did not happen. `misuse` = the SELECTION was not an explicit document
- *  list (exit 3); `violation` = a named row cannot be re-attested (exit 1). Either way nothing is written. */
-export interface AttestRefusal {
-  readonly kind: "misuse" | "violation";
-  readonly message: string;
-}
-
-/** What re-attestation WOULD write, what it re-attested, and every refusal. `writes` is empty whenever
- *  `refusals` is not — the write set is all-or-nothing. */
-export interface AttestPlan {
-  readonly writes: readonly { readonly path: string; readonly receipt: Receipt }[];
-  readonly attested: readonly string[];
-  readonly refusals: readonly AttestRefusal[];
-}
-
-/** One row of the GENERATED catalog — the projection `catalogValue` writes. Declared because the SCOPED
- *  write (#2165) reads the committed catalog BACK as its base: every field a `Doc` carries is already in
- *  the row, so an unnamed document's row is reproduced from what was committed rather than re-derived from
- *  a working tree that belongs to four other lanes. */
+/** One row of the GENERATED inventory. Only `kind`/`status` of the frontmatter are carried, so a review
+ *  date bump or a prose edit never changes the committed artifact; the whole file regenerates when a
+ *  document is added, removed, reclassified or re-kinded. */
 export interface CatalogDocumentRow {
   readonly path: string;
   readonly lane: string;
-  readonly issue: number;
-  readonly lines: number;
-  readonly bytes: number;
-  readonly sha256: string;
-  readonly frontmatter: Frontmatter;
-  readonly receipt: ReceiptEntry | null;
-  readonly receiptCurrent: boolean;
-}
-
-/** The `catalog --write` tail (#2165). `paths` EMPTY means the whole-tree form, which regenerates every
- *  row from the current working tree and is therefore a BARRIER operation: on a busy day it sweeps every
- *  document any lane has changed into one commit, attributed to whoever ran it. `barrier` is the operator
- *  saying so out loud. */
-export interface CatalogWriteRequest {
-  readonly paths: readonly string[];
-  readonly barrier: boolean;
+  readonly frontmatter: { readonly fields: Readonly<Record<string, string>> };
+  readonly receipt: { readonly authority: string } | null;
 }
 
 /** One HAND-AUTHORED catalog artifact's bytes on disk beside its canonical (biome-formatted) form (#968).
- *  `current !== canonical` is exactly "the repo's own formatter would rewrite this file" — the signal
- *  `check:doc-catalog` used to lack, which is how a receipt could be attested in a shape `lint:biome`
- *  rejects and red an unrelated stage hours later. */
+ *  `current !== canonical` is exactly "the repo's own formatter would rewrite this file". */
 export interface ArtifactForm {
   readonly path: string;
   readonly current: string;
@@ -162,50 +70,7 @@ export interface Frontmatter {
 
 export interface Doc {
   readonly path: string;
-  readonly lines: number;
-  readonly bytes: number;
-  readonly sha256: string;
-  /** The sha256 of the document AFTER the repo's markdown formatter normalizes it — null when the
-   *  formatter refuses (#2067/#2235) or the document is not markdown the formatter can process. Two
-   *  documents whose canonicalSha256 match are format-equivalent even when their raw bytes differ, which
-   *  is the signal that lets a receipt survive a `pnpm format:docs` reformat without a re-read. */
-  readonly canonicalSha256: string | null;
   readonly frontmatter: Frontmatter;
-}
-
-/** Everything a receipt row is judged against, resolved ONCE per run from git + the tree. */
-export interface ReceiptFacts {
-  readonly currentSha256: string;
-  /** The sha256 of the current document after the markdown formatter normalizes it. Null when the
-   *  formatter refuses — the canonical arm is unavailable and only the raw hash decides. */
-  readonly currentCanonicalSha256: string | null;
-  /** The sha256 of the VERIFIED blob (at `verifiedCommit`) after the markdown formatter normalizes it.
-   *  Null when the blob is absent or the formatter refuses. Used as a fallback for receipts attested
-   *  before `verifiedCanonicalSha256` was introduced — when the receipt's own canonical hash is absent,
-   *  this derived canonical from the verified blob answers the same question. */
-  readonly verifiedBlobCanonicalSha256: string | null;
-  readonly verifiedBlobSha256: string | null;
-  /** The exact current document and complete current receipt file coexist in the Git index. */
-  readonly currentReceiptSnapshotExists: boolean;
-  /** At least one side of the document/receipt pair differs between HEAD and the candidate index. */
-  readonly candidateTouchesReceiptPair: boolean;
-  /** Paths changed between HEAD and the candidate index; null means Git could not establish the census. */
-  readonly candidateChangedPaths: ReadonlySet<string> | null;
-  /** Paths whose worktree entries differ from the candidate index; null means Git could not establish the delta. */
-  readonly candidateEvidencePathsDifferFromIndex: ReadonlySet<string> | null;
-  readonly verifiedCommitExists: boolean;
-  readonly verifiedCommitIsAncestor: boolean;
-  readonly localEvidence: ReadonlyMap<string, number>;
-  readonly lawSections: ReadonlyMap<string, ReadonlyMap<string, number>>;
-  readonly provenanceCommits: ReadonlySet<string>;
-  readonly rulingAnchors: ReadonlyMap<string, number>;
-}
-
-export interface EvidenceSources {
-  readonly localEvidence: ReadonlyMap<string, number>;
-  readonly lawSections: ReadonlyMap<string, ReadonlyMap<string, number>>;
-  readonly ancestors: ReadonlySet<string>;
-  readonly rulingAnchors: ReadonlyMap<string, number>;
 }
 
 export interface ValidationInput {
@@ -214,22 +79,10 @@ export interface ValidationInput {
   readonly assignments: ReadonlyMap<string, Lane>;
   readonly receipts: readonly Receipt[];
   readonly state: State;
-  readonly changedIndexPaths: ReadonlySet<string> | null;
-  readonly worktreeIndexChangedPaths: ReadonlySet<string> | null;
 }
 
-export interface ReceiptValidationContext {
-  readonly assignments: ReadonlyMap<string, Lane>;
-  readonly docsByPath: ReadonlyMap<string, Doc>;
-  readonly localEvidence: ReadonlyMap<string, number>;
-  readonly lawSections: ReadonlyMap<string, ReadonlyMap<string, number>>;
-  readonly ancestors: ReadonlySet<string>;
-  readonly rulingAnchors: ReadonlyMap<string, number>;
-}
-
-/** The catalog verbs — `--bootstrap` is one-shot and refuses a second run. ONE tuple, derived type: the
- *  cli's argv guard and the type cannot drift apart. */
-export const CATALOG_MODES = ["--bootstrap", "--check", "--ratchet", "--sync", "--write"] as const;
+/** The catalog verbs. ONE tuple, derived type: the cli's argv guard and the type cannot drift apart. */
+export const CATALOG_MODES = ["--check", "--ratchet", "--sync", "--write"] as const;
 export type CatalogMode = (typeof CATALOG_MODES)[number];
 
 /** The formatter verbs (the ONE markdown writer; `--check` is a `pnpm check` stage). */

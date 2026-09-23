@@ -1,7 +1,7 @@
 ---
 kind: design
 status: active
-updated: 2026-08-31
+updated: 2026-09-22
 ---
 
 # Theme-pivot foreground contract (#969)
@@ -229,8 +229,7 @@ Plant before production edits:
 
 Run each focused suite red against the unchanged production source, then green after implementation. Run
 the token generator and byte-diff generated outputs. Focused final checks cover the changed unit/CT suites,
-all three typecheck programs, structure, knip, dependency cruise when imports change, and doc catalog
-re-attestation. The lane does not run the broad `pnpm check`/full test battery.
+all three typecheck programs, structure, knip, and dependency cruise when imports change. The lane does not run the broad `pnpm check`/full test battery.
 
 ## Prior-art lessons used
 
