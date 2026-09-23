@@ -381,9 +381,8 @@ describe("assemblePrompt — merged co-speaker scenario (F6: single emission)", 
 });
 
 // ── THE FACTORY main_prompt IS MODE-AWARE (C4) ───────────────────────────────────────────────────────
-// The shipped default framing says "You are {{char}} … write {{char}}'s perspective only" — true for a
-// per-speaker turn and FALSE for a narrator round, which is ONE generation voicing every seated character (the
-// 2026-08-07 live drive read "write Charlotte, JFC's perspective only", a self-contradictory instruction).
+// The shipped default framing says "You are {{char}} … Stay in character." — true for a per-speaker turn, and
+// silent about what a narrator round is: ONE generation voicing every seated character and the world around them.
 // The default now selects on the SAME axis the card-heading slot selects on (`speaker.kind === "multi-voice"`,
 // `memberHeadingSlot`); every other turn keeps its bytes EXACTLY. Asserted on the assembled bytes — the
 // text the model receives — never on the constant, so the narrator pin is a defect proof.
@@ -421,7 +420,7 @@ describe("assemblePrompt — the factory main_prompt default is MODE-AWARE (narr
   // The BYTES of the per-speaker/solo default, spelled out ONCE: every non-narrator arm below is pinned
   // against this exact string, so a drift in the shipped default fails here instead of silently riding.
   const characterText = (name: string): string =>
-    `You are ${name} in an immersive, ongoing roleplay with Traveler. Stay in character; write ${name}'s perspective only. ` +
+    `You are ${name} in an immersive, ongoing roleplay with Traveler. Stay in character. ` +
     "Address Traveler in the second person; use their name only when it is one they have chosen for themselves.";
 
   test("a NARRATOR turn gets a narrator-true framing — no single-perspective clause", () => {
@@ -450,7 +449,7 @@ describe("assemblePrompt — the factory main_prompt default is MODE-AWARE (narr
     const forKai = assemblePrompt(factoryMain(), shapeContextForSpeaker(roomCtx(), { ref: kaiRef, output: "per-speaker", cardScope: "merged" })).static;
     const forAria = assemblePrompt(factoryMain(), shapeContextForSpeaker(roomCtx(), { ref: ariaRef, output: "per-speaker", cardScope: "merged" })).static;
     expect(forKai).toBe(forAria);
-    expect(forKai).toContain("You are Aria, Kai in an immersive, ongoing roleplay with Traveler. Stay in character; write Aria, Kai's perspective only.");
+    expect(forKai).toContain(characterText("Aria, Kai"));
     expect(forKai).toContain("Address Traveler in the second person; use their name only when it is one they have chosen for themselves.");
   });
 

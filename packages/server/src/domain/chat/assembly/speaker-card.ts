@@ -16,8 +16,8 @@
 // WHY NARRATOR NEEDS ITS OWN ARM: a narrator round's speaker is the SYNTHETIC
 // group character, which by construction is NOT in `speakerRefs` — without this arm it would fall through
 // the `idx === -1` guard below and assemble as if it were a SOLO turn for the primary (a system row naming
-// only the primary, opening "write <primary>'s perspective only" on a turn that voices all the seated characters, with
-// the model nonetheless attempting all the seated characters from a nudge naming names it was never given a card for). The
+// only the primary on a turn that voices all the seated characters, with the model nonetheless attempting all the
+// seated characters from a nudge naming names it was never given a card for). The
 // `-1` guard stays, but it is a REFUSAL now, not a fallback (#1462): a genuinely off-roster speaker on a
 // PER-SPEAKER round is a wiring gap, and keeping the primary answered it by shipping the wrong character's
 // card under the asked-for speaker's name. Narrator does not reach it at all.

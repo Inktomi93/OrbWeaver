@@ -1993,9 +1993,11 @@ export const DEFAULT_MARKER_TEMPLATES: Record<TemplatedMarker, string> = {
   // deliberately unframed, and PROSE-1's own census leaves this template un-slotted (row 52) precisely
   // because the per-section `template` override IS its edit path.
   // THIS entry is the PER-SPEAKER/SOLO text — the mode-aware pick is made where the default RESOLVES
-  // (`assembly/assemble.ts` templateFor), never re-derived here; see the narrator sibling below.
+  // (`assembly/assemble.ts` templateFor), never re-derived here; see the narrator sibling below. It names no
+  // single perspective (owner ruling): in a group room `{{char}}` binds the whole roster and the round cue names
+  // the speaker, and a solo or group-of-one turn reads the same bytes.
   ["main_prompt"]:
-    "You are {{char}} in an immersive, ongoing roleplay with {{user}}. Stay in character; write {{char}}'s perspective only. " +
+    "You are {{char}} in an immersive, ongoing roleplay with {{user}}. Stay in character. " +
     "Address {{user}} in the second person; use their name only when it is one they have chosen for themselves.",
   ["post_history"]: "",
   ["char_description"]: macro("description"),
@@ -2013,12 +2015,9 @@ export const DEFAULT_MARKER_TEMPLATES: Record<TemplatedMarker, string> = {
 };
 
 /** The NARRATOR-turn `main_prompt` default — the sibling of `DEFAULT_MARKER_TEMPLATES.main_prompt`, not a
- *  replacement for it. A narrator round is ONE generation voicing the WHOLE cast, so the shipped
- *  per-speaker framing (`You are {{char}} … write {{char}}'s perspective only`) arrives at the model as a
- *  self-contradiction: the 2026-08-07 live drive read "write Charlotte, JFC's perspective only" on a turn
- *  that had to produce both. `{{char}}` binds to the JOINED cast on that arm (`assembly/macros`
- *  charForSpeaker), which is exactly what `voicing {{char}}` wants and what `{{char}}'s perspective only`
- *  cannot survive.
+ *  replacement for it. A narrator round is ONE generation voicing the WHOLE cast and the world around them,
+ *  which the per-speaker framing (`You are {{char}} … Stay in character.`) does not say. `{{char}}` binds to the
+ *  JOINED cast on that arm (`assembly/macros` charForSpeaker), which is exactly what `voicing {{char}}` wants.
  *
  *  WHICH text a turn gets is decided ONCE, where the default resolves (`assembly/assemble.ts` templateFor,
  *  keyed on the speaker arm). There is deliberately NO second resolution home and NO mode-keyed record here:
