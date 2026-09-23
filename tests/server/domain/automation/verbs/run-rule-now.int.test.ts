@@ -10,7 +10,7 @@
 // plus the property that makes F4 non-circular: a manual run can never raise an invitation, because it
 // cannot reach `budget_refused` at all.
 
-import { automationBudgets, chatParticipants } from "@orb/db";
+import { chatParticipants } from "@orb/db";
 import type { AutomationRuleId } from "@orb/kit/ids";
 import type { AutomationOps, AutomationTurnRequest } from "@orb/server/domain/automation";
 import { and, eq, isNull } from "drizzle-orm";
@@ -20,7 +20,7 @@ import { createArmExecutors } from "../../../../../packages/server/src/domain/au
 import { createAutomationService } from "../../../../../packages/server/src/domain/automation/service.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedParticipant } from "../../chat/_support.ts";
-import { FIXED_NOW_MS, principal, ruleFixture, seedUser } from "../_support.ts";
+import { principal, ruleFixture, seedUser } from "../_support.ts";
 
 const DISABLED_REFUSAL = /this rule is disabled/u;
 
@@ -54,7 +54,8 @@ async function runNowFixture(): Promise<{ fixture: Awaited<ReturnType<typeof rul
 }
 
 /** Mint + enable a `trigger_turn` rule whose PREDICATE is the given source (`null` = always). */
-async function enableRule(fx: Awaited<ReturnType<typeof ruleFixture>>, predicateCel: string | null): Promise<AutomationRuleId> {
+/** `maxFiresPerHour: 0` slams the rule's own fire-rate cap shut, so every bus-driven fire is `budget_refused`. */
+async function enableRule(fx: Awaited<ReturnType<typeof ruleFixture>>, predicateCel: string | null, maxFiresPerHour?: number): Promise<AutomationRuleId> {
   const rule = await fx.svc.createRule({
     principal: principal(fx.host),
     chatId: fx.chatId,
@@ -62,6 +63,7 @@ async function enableRule(fx: Awaited<ReturnType<typeof ruleFixture>>, predicate
     trigger: { bus: "chat", type: "chatOpened" },
     predicateCel,
     actions: [{ type: "trigger_turn", guidedTemplate: "Do the thing." }],
+    ...(maxFiresPerHour === undefined ? {} : { maxFiresPerHour }),
   });
   await fx.svc.setRuleEnabled({ principal: principal(fx.host), ruleId: rule.id, enabled: true });
   await fx.ctx.enabled.reload();
@@ -85,8 +87,7 @@ describe("what a manual run LIFTS", () => {
 
   test("a rate-capped rule RUNS (without this, confirming an F4 invitation would refuse identically)", async () => {
     const { fixture, turns } = await runNowFixture();
-    const ruleId = await enableRule(fixture, null);
-    await fixture.db.insert(automationBudgets).values({ chatId: fixture.chatId, maxFiresPerHour: 0, updatedAt: FIXED_NOW_MS });
+    const ruleId = await enableRule(fixture, null, 0);
 
     // The bus path is refused by the ceiling…
     await fixture.svc.handleEvent({ type: "chatOpened", chatId: fixture.chatId });
@@ -101,8 +102,7 @@ describe("what a manual run LIFTS", () => {
 
   test("a manual run can never raise an invitation — it cannot reach `budget_refused` at all (no F4 loop)", async () => {
     const { fixture } = await runNowFixture();
-    const ruleId = await enableRule(fixture, null);
-    await fixture.db.insert(automationBudgets).values({ chatId: fixture.chatId, maxFiresPerHour: 0, updatedAt: FIXED_NOW_MS });
+    const ruleId = await enableRule(fixture, null, 0);
 
     await fixture.svc.runRuleNow({ principal: principal(fixture.host), ruleId });
 

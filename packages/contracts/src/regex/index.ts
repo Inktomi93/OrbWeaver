@@ -266,8 +266,12 @@ export const ATTACHED_REGEX_SCRIPTS_WIRE_KEY = "orbweaver_attached_regex_scripts
 // The TS union is DECLARED, not `z.infer`red, and the schema is pinned to it by `satisfies` below. The
 // reason is measured, not stylistic: the arms carry `typeIdSchema`, which is a transform-backed `ZodType`
 // rather than a `ZodObject` — `tsc` reads the discriminant correctly through it, but biome's type service
-// does not, and flagged every `case` of a switch over the inferred type as unreachable. ONE declared union
-// keeps BOTH tools seeing the same four arms; the `satisfies` keeps the schema honest against it.
+// does not, and flagged every `case` of a switch over the inferred type as unreachable. Re-measured on Biome
+// 2.5.1 (2026-09-23): still every `case`, `lint/suspicious/noUnnecessaryConditions`, single-file and
+// cross-module, from untracked files under `packages/contracts/src/` and `packages/server/src/` (never /tmp,
+// where zod does not resolve; recorded in `docs/work/0033-retract-the-stale-biome-inference-rationale-on-the.md`).
+// ONE declared union keeps BOTH tools seeing the same four arms. The `satisfies` below is a ONE-WAY
+// assignability check; the `zod-output-twin-parity` gate proves the schema output equals this union exactly.
 export type RegexAttachScope =
   | { readonly kind: "global" }
   | { readonly kind: "character"; readonly characterId: CharacterId }

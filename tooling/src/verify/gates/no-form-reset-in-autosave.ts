@@ -57,9 +57,9 @@
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import { AUTOSAVE_FORM_FACTORY, EDITOR_FORM_FACTORY_FILE, importsEditorFormFactory } from "../lib/editor-form-factory.ts";
+import { AUTOSAVE_FORM_FACTORY, AUTOSAVE_STRIPPED_MEMBER, EDITOR_FORM_FACTORY_FILE, importsEditorFormFactory } from "../lib/editor-form-factory.ts";
 
-const RESET = "reset";
+const RESET = AUTOSAVE_STRIPPED_MEMBER;
 
 const MESSAGE =
   "reset() survives on an autosave form — reset re-baselines a live draft mirror into the TanStack Form " +

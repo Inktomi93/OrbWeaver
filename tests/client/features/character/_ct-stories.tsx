@@ -1,4 +1,4 @@
-// Character library CT stories (core/Spine-Testing.md §7 — CT mounts ONLY from a non-test module). The
+// Character library CT stories (docs/law/Spine-Testing.md §7 — CT mounts ONLY from a non-test module). The
 // anchor + surface come through the feature front door; `CharacterCardTile` too (a leaf, but its own props
 // type is exported from the front door so a story can drive it directly without a network layer).
 //

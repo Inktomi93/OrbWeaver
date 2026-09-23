@@ -73,7 +73,7 @@ function inClassCarrier(node: Node): boolean {
 }
 
 const MESSAGE =
-  "raw font-size utility in a class string (a `className` attribute or a `cn`/`clsx`/`cva`/`tv` call) — use a typography intent token (text-micro, text-label, text-body, text-hint, text-mono-tag). See docs/architecture/core/UI-Architecture-and-Layout.md.";
+  "raw font-size utility in a class string (a `className` attribute or a `cn`/`clsx`/`cva`/`tv` call) — use a typography intent token (text-micro, text-label, text-body, text-hint, text-mono-tag). See docs/law/UI-Architecture-and-Layout.md.";
 
 const TYPOGRAPHY_REGEX = /\btext-(?:xs|sm|base|lg|xl|2xl|3xl|4xl|5xl|6xl|7xl|8xl|9xl|\[[^\]]+\])/u;
 

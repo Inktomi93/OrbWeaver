@@ -1,4 +1,4 @@
-// transport/trpc/routers/character — the character-card surface (core/Tier-4-Transport.md). authed; owner-scoped.
+// transport/trpc/routers/character — the character-card surface (docs/law/Tier-4-Transport.md). authed; owner-scoped.
 // Thin: validate → `ctx.services.character.<verb>` → map errors. Input shapes derive from
 // `@orb/contracts/character`. The two synthetic group-character ops are chat-injected internals (act on a
 // resolved room `ownerId`, not a request principal) — NOT exposed here.
@@ -28,7 +28,7 @@ export const characterRouter = t.router({
     .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character) }))
     .query(({ ctx, input }) => ctx.services.character.get({ principal: ctx.auth, characterId: input.characterId })),
 
-  // Keyset-paged (core/Tier-4-Transport.md thin pass-through; core/Spine-Testing.md). `sort` + `cursor` derive
+  // Keyset-paged (docs/law/Tier-4-Transport.md thin pass-through; docs/law/Spine-Testing.md). `sort` + `cursor` derive
   // from `@orb/contracts/character` (never re-spelled here). `cursor` rides as ONE sort-discriminated object
   // field — tRPC's `infiniteQueryOptions` threads exactly one `cursor` field through as the page param,
   // overwriting it wholesale on every next-page fetch (a sibling would go stale). `sort` is a separate

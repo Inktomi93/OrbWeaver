@@ -70,7 +70,16 @@ export type { ProjectContext } from "./contract/project-context.ts";
 export type { GateResourceRequest } from "./contract/resource-declaration.ts";
 export { GATE_RESOURCE_REQUEST_KINDS } from "./contract/resource-declaration.ts";
 export type { RunManifest } from "./contract/run-manifest.ts";
-export type { AssetRefsCoverage, AssetRefsRegistryRow, BootChunkVerdict, LedgerFreshness, SchemaBaselineComparison, Scope } from "./contract/scoped.ts";
+export type {
+  AppStylesheetSentinel,
+  AppStylesheetVerdict,
+  AssetRefsCoverage,
+  AssetRefsRegistryRow,
+  BootChunkVerdict,
+  LedgerFreshness,
+  SchemaBaselineComparison,
+  Scope,
+} from "./contract/scoped.ts";
 export type { ScopedTestCollection, ScopedTestRunner } from "./contract/scoped-test.ts";
 export { SCOPED_TEST_RUNNERS } from "./contract/scoped-test.ts";
 export type { CtView, Selection, SelectionRequest } from "./contract/selection.ts";
@@ -147,7 +156,7 @@ export { AssetRefsCoverageRefusal, compareAssetRefsCoverage, runAssetRefsCoverag
 export { BASELINE_HELP, runBaseline } from "./ops/baseline.ts";
 export { ruleLivenessReport, runBiomeRuleLiveness } from "./ops/biome-rule-liveness.ts";
 export { runBoardCitations, runControls } from "./ops/board-citations.ts";
-export { BOOT_CHUNK_CEILING_BYTES, measureBootChunk, runBootChunkRatchet } from "./ops/boot-chunk-ratchet.ts";
+export { APP_STYLESHEET_SENTINELS, BOOT_CHUNK_CEILING_BYTES, measureAppStylesheet, measureBootChunk, runBootChunkRatchet } from "./ops/boot-chunk-ratchet.ts";
 export { CONFIG_SNAPSHOT_HELP, runConfigSnapshot } from "./ops/config-snapshot.ts";
 export { compareSchemaBaseline, runDbBaselineParity } from "./ops/db-baseline-parity.ts";
 export type { Ledger } from "./ops/debt.ts";
@@ -167,6 +176,7 @@ export { deriveSnapFlagsIndexMarkdown, generateSnapFlagsIndex, SNAP_FLAGS_INDEX_
 export { deriveTypeConfigFiles, generateTypeConfigs } from "./ops/gen/type-configs.ts";
 export type { InstrumentAffectedSelection } from "./ops/instrument-affected.ts";
 export { runInstrumentAffected, selectAffectedInstrumentTests } from "./ops/instrument-affected.ts";
+export { runKnipNegativeLiveness } from "./ops/knip-negative-liveness.ts";
 export { judgeLedgerClaims, LEDGER_CLAIMS_HELP, ledgerRowStates, parseClaimCommits, runLedgerClaims } from "./ops/ledger-claims.ts";
 export {
   censusDrift,

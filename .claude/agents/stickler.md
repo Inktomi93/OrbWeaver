@@ -28,7 +28,7 @@ Use `pnpm ast` and ast-grep for structure. For the type graph, write a small scr
 
 ## Design questions
 
-For a design question instead of a diff, check `docs/architecture/core/Core-0-Architecture-and-Structure.md` §6 and the ledger first; the question may already be ruled. Deliver an inventory with evidence, a shape judgment, then a staged plan whose owner forks each carry a recommendation. "Coherent as it is" with evidence is a full result.
+For a design question instead of a diff, check `docs/law/Core-0-Architecture-and-Structure.md` §6 and the ledger first; the question may already be ruled. Deliver an inventory with evidence, a shape judgment, then a staged plan whose owner forks each carry a recommendation. "Coherent as it is" with evidence is a full result.
 
 ## Report
 

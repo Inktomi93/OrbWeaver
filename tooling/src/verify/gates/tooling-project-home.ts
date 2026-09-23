@@ -1,4 +1,4 @@
-// Policy: tooling-project-home (docs/architecture/core/Core-Tooling-Law.md §4.4, arm A of the retired
+// Policy: tooling-project-home (docs/law/Core-Tooling-Law.md §4.4, arm A of the retired
 // `tooling-shared-plumbing`) — the shared WORKSPACE is loaded ONCE, by `_shared/ts-workspace.ts#getWorkspace`;
 // a second `new Project(` under `tooling/src/**` is a second loader unless it is a reviewed NON-workspace
 // construction (a scratch parser over one string, the installed `.d.ts` surface, a proof mini-project).
@@ -42,7 +42,7 @@ const PROJECT_EXPORT: ReadonlySet<string> = new Set([PROJECT]);
 const OPERATION = "ts-morph-project-construction";
 
 const MESSAGE =
-  "a second ts-morph loader — the shared workspace is loaded ONCE by `getWorkspace()` (_shared/ts-workspace.ts), and a `new Project(` anywhere else is either a duplicate walk of the whole tree (the class the tooling package was minted to end, docs/architecture/core/Core-Tooling-Law.md §2.4/§4.4) or a NON-workspace construction that needs a reviewed grant naming what it loads and what ends it.";
+  "a second ts-morph loader — the shared workspace is loaded ONCE by `getWorkspace()` (_shared/ts-workspace.ts), and a `new Project(` anywhere else is either a duplicate walk of the whole tree (the class the tooling package was minted to end, docs/law/Core-Tooling-Law.md §2.4/§4.4) or a NON-workspace construction that needs a reviewed grant naming what it loads and what ends it.";
 const UNREADABLE =
   "a construction spelled like ts-morph's `Project` whose callee the shared readers cannot place, so whether it is the ts-morph loader CANNOT be established. Reported rather than passed: the spelling alone is not the identity. Give the binding a readable import origin; the three-answer rule is tooling/src/verify/lib/origin-verdict.ts (#944).";
 const FIX =

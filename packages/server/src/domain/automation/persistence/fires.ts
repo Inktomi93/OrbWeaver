@@ -5,7 +5,7 @@
 // filters it before projection. `detail` is open JSON, read-seam parsed onto the view.
 
 import type { AutomationFireOutcome } from "@orb/contracts/automation";
-import { AUTOMATION_CHAT_BUDGET_DEFAULTS, AUTOMATION_OWNER_BUDGET_DEFAULTS } from "@orb/contracts/automation";
+import { AUTOMATION_CHAT_MAX_FIRES_PER_HOUR, AUTOMATION_OWNER_BUDGET_DEFAULTS } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";
 import { automationFires, automationRules } from "@orb/db";
 import type { AwaitableBatchStmt } from "@orb/db/kit";
@@ -129,10 +129,7 @@ export async function reserveFireBudget(db: Db, row: FireReservationInsert): Pro
             WHERE chat_fire.chat_id = rule.chat_id
               AND chat_fire.outcome IN ('fired', 'reserved')
               AND chat_fire.fired_at > ${windowStart}
-          ) < COALESCE(
-            (SELECT budget.max_fires_per_hour FROM automation_budgets AS budget WHERE budget.chat_id = rule.chat_id),
-            ${AUTOMATION_CHAT_BUDGET_DEFAULTS.maxFiresPerHour}
-          )
+          ) < ${AUTOMATION_CHAT_MAX_FIRES_PER_HOUR}
         )
         OR (
           rule.chat_id IS NULL

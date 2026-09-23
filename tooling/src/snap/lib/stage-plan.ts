@@ -3,7 +3,7 @@
 // the `--base` band claim (#1186) and the DB-bound inherited-env allowlist. The imperative half is
 // ops/stage.ts; the TABLE's own derivations — allocation, the TTL/strand rule, the three-probe health
 // verdict, the limits — are lib/stage-bands.ts (split when this file approached the tooling line cap,
-// docs/architecture/core/Core-Tooling-Law.md §4.3).
+// docs/law/Core-Tooling-Law.md §4.3).
 import { basename, dirname, join } from "node:path";
 import { parseEnv } from "node:util";
 import { stageBandForPort } from "../../_shared/ports.ts";

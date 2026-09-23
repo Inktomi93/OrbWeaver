@@ -47,7 +47,7 @@ import { TIER_IMPLEMENTATION_HOMES } from "../lib/raw-spacing-tier.ts";
 import { sanctionedHome } from "../lib/sanctioned-home.ts";
 
 const MESSAGE =
-  "raw spacing utility in a class string (a `className` attribute or a `cn`/`clsx`/`cva`/`tv` call) — use a layout primitive (<Stack>, <Row>, <Section>, <Toolbar>) or an intent token (gap-section, p-row, py-block, gap-gutter). See docs/architecture/core/UI-Architecture-and-Layout.md.";
+  "raw spacing utility in a class string (a `className` attribute or a `cn`/`clsx`/`cva`/`tv` call) — use a layout primitive (<Stack>, <Row>, <Section>, <Toolbar>) or an intent token (gap-section, p-row, py-block, gap-gutter). See docs/law/UI-Architecture-and-Layout.md.";
 
 const SPACING_REGEX = /\b(?:gap|p[xytrbl]?|m[xytrbl]?|space-[xy])-(?:[1-9]\d*|\d+\.\d+|\[[^\]]+\])/u;
 

@@ -1,4 +1,4 @@
-// Capacity policy lives in the committed JSON. TypeScript and CommonJS callers share this validated
+// Capacity policy lives in the committed JSON. TypeScript callers (tools, configs, scripts) share this validated
 // reader; Bash hooks consume the same data through their documented fail-soft protocol.
 // ORB_DEDICATED_BOX comes from the shell environment, never the repository .env file.
 // Judging functions take explicit values; the public readers load the file and shell switch.
@@ -8,7 +8,7 @@ import { processEnvValue } from "./process-env.ts";
 /** The committed data file — exported so the tests and the two bash readers agree on one path. */
 export const CONCURRENCY_PROFILE_PATH = new URL("../../concurrency-profile.json", import.meta.url);
 
-/** The one env switch. Spelled ONCE; every reader (bash, cjs, ts) names this same variable. */
+/** The one env switch. Spelled ONCE; every reader (bash, ts) names this same variable. */
 export const DEDICATED_BOX_ENV = "ORB_DEDICATED_BOX";
 
 /** The closed set of profiles. Named here so a reader can enumerate them without opening the JSON. */
@@ -18,9 +18,9 @@ export type ConcurrencyProfileName = (typeof CONCURRENCY_PROFILE_NAMES)[number];
 /** One profile's caps. Every field is a CAP a specific reader applies — no field exists without a reader:
  *  · `vitestMaxWorkers`        → vitest.config.ts `maxWorkers` (a CLI `--maxWorkers` still overrides)
  *  · `ctWorkers`               → playwright-ct.config.ts `workers` (a CLI `--workers` still overrides)
- *  · `ts7Checkers`             → scripts/ts7.cjs injects `--checkers` when the caller named none
+ *  · `ts7Checkers`             → scripts/ts7.ts injects `--checkers` when the caller named none
  *  · `pnpmWorkspaceConcurrency`→ verify/ops/typecheck.ts's native-program execution pool
- *  · `eslintConcurrency`       → scripts/eslint.cjs `--concurrency` (ESLint's own default is `off`, i.e.
+ *  · `eslintConcurrency`       → scripts/eslint.ts `--concurrency` (ESLint's own default is `off`, i.e.
  *                                SINGLE-THREADED — the one cap here that RAISES parallelism)
  *  · `strykerConcurrency`      → the shared Stryker config factory's worker-process pool
  *  · `cpdWorkers`              → scripts/cpd.ts `--workers` (jscpd's auto default uses every core)

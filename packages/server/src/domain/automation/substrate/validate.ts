@@ -5,7 +5,7 @@
 // attachment for a room's rule, OWNERSHIP for a global one), the S5 analysis admission rows (≥1 route · ≤1
 // confirm-class route · the active-game fence), and `run_tool` tool reachability. Throws a
 // TYPED refusal (AutomationReservedTriggerError / RuleValidationError) — a rule with any violation is never
-// stored. It also holds `assertFireRateCap`, the authoritative bound on the two BUDGET planes (#1430): a
+// stored. It also holds `assertFireRateCap`, the authoritative bound on the owner BUDGET plane (#1430): a
 // belt's ceiling belongs beside the per-rule ceiling it has to cohere with, not only on the wire. The db CHECKs + the `actions` zod are the ultimate guards; this gives a clean, user-visible refusal
 // first.
 //
@@ -37,16 +37,15 @@ const POST_NOTIFICATION_COOLDOWN_FLOOR = AUTOMATION_NOTICE_COOLDOWN_SECONDS;
 const RULE_MAX_FIRES_CAP = 240;
 export const RULE_MAX_FIRES_DEFAULT = 30;
 
-/** THE AUTHORITATIVE BOUND on either fire-rate BELT — the per-chat cap (`setBudgets`) and its per-owner twin
- *  (`setOwnerBudgets`) — #1430.
+/** THE AUTHORITATIVE BOUND on the editable fire-rate BELT — the per-owner cap (`setOwnerBudgets`) — #1430.
  *
- *  A rule's OWN `maxFiresPerHour` has been 0..240 since v1 (`validateRuleInput` below); the two budget planes
- *  had no ceiling at all, and the wire's `int().min(0)` let a host set a nine-digit "cap" that bounds nothing
+ *  A rule's OWN `maxFiresPerHour` has been 0..240 since v1 (`validateRuleInput` below); the budget plane
+ *  had no ceiling at all, and the wire's `int().min(0)` let an owner set a nine-digit "cap" that bounds nothing
  *  while the panel reads as configured. The belt exists to make a runaway rule stop hammering a paid API, so a
  *  cap that cannot be exceeded is not a cap.
  *
- *  IT LIVES AT THE VERB, not only on the wire, because the wire is not the only door: compose can reach these
- *  verbs directly, and the transport schema's `int()`/`min(0)` half is a MIRROR of this one (the header of
+ *  IT LIVES AT THE VERB, not only on the wire, because the wire is not the only door: compose can reach the
+ *  verb directly, and the transport schema's `int()`/`min(0)` half is a MIRROR of this one (the header of
  *  `AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR` states the pairing). `undefined` is the "keep the current value"
  *  patch and is admitted untouched. */
 export function assertFireRateCap(maxFiresPerHour: number | undefined): void {

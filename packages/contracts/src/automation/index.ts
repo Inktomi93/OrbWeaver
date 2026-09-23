@@ -151,47 +151,34 @@ export interface GlobalVariableView {
   readonly updatedAt: number;
 }
 
-// ── the per-chat rate-cap plane (loop safety) ─────────────────────────────────────────────────────
-// The host-editable per-chat FIRE-RATE ceiling — the loop-safety belt that bounds a runaway automation
-// (a rule that keeps re-firing) from hammering a paid API. The `automation_budgets` row is born on the
-// first `setBudgets` with this default over the DDL; an ABSENT row is dispatched AS this defaulted cap
-// (budget-gate reads the DB default for a missing row), so `getBudgets` projecting an absent row to this
-// value is the HONEST view. The ONE app-side home for the default: the db DDL mirrors the SAME value (the
-// GLOBAL_VARIABLE cap precedent above), the dispatch rate gate imports THIS const. (The per-day $/spend-action
+// ── the per-chat rate cap (loop safety) ──────────────────────────────────────────────────────────
+// The per-chat FIRE-RATE ceiling — the loop-safety belt that bounds a runaway automation (a rule that keeps
+// re-firing) from hammering a paid API. It is a FIXED ceiling with no stored override (owner ruling: the
+// host-editable per-chat plane had no route and no client, so no user could reach it). The
+// dispatch rate gate and the atomic fire reservation both import THIS const. (The per-day $/spend-action
 // ceilings were stripped 2026-07-24 — enterprise spend enforcement; cost visibility + rate caps stay.)
 
-/** The per-chat fire-rate ceiling default — the value the write path stamps on a fresh `automation_budgets`
- *  row (mirrored by the `automation_budgets` DDL column default). */
-export const AUTOMATION_CHAT_BUDGET_DEFAULTS = {
-  maxFiresPerHour: 120,
-} as const;
+/** The per-chat fire-rate ceiling: every chat's rules together admit at most this many fires per hour. */
+export const AUTOMATION_CHAT_MAX_FIRES_PER_HOUR = 120;
 
-/** The CEILING on either rate-cap belt — the per-chat one and its per-owner twin (#1430).
+/** The CEILING on the per-owner rate-cap belt (#1430).
  *
- *  A BELT NEEDS A TOP OR IT IS NOT A BELT. The per-RULE cap is 0..240 (`substrate/validate.ts`), and the two
- *  budget planes had no upper bound at all: the wire took `int().min(0)` and the verbs took whatever arrived,
- *  so a host could set a nine-digit ceiling and the loop-safety belt would bound nothing while still reading
+ *  A BELT NEEDS A TOP OR IT IS NOT A BELT. The per-RULE cap is 0..240 (`substrate/validate.ts`), and the
+ *  budget plane had no upper bound at all: the wire took `int().min(0)` and the verb took whatever arrived,
+ *  so an owner could set a nine-digit ceiling and the loop-safety belt would bound nothing while still reading
  *  as configured. 3600 = one fire per second, the rate past which "cap" stops describing anything a runaway
- *  rule could be held to — well above the 120 default and above any plausible sum of a room's per-rule caps.
+ *  rule could be held to — well above the 120 default and above any plausible sum of per-rule caps.
  *
- *  ONE HOME, TWO ENFORCERS (the `AUTOMATION_VARIABLE_VALUE_MAX` posture): the domain verbs
- *  (`setBudgets`/`setOwnerBudgets`) hold the AUTHORITATIVE bound — they are reachable from compose without the
+ *  ONE HOME, TWO ENFORCERS (the `AUTOMATION_VARIABLE_VALUE_MAX` posture): the domain verb
+ *  (`setOwnerBudgets`) holds the AUTHORITATIVE bound — it is reachable from compose without the
  *  transport — and the tRPC input schema mirrors it so an over-bound ask is a BAD_REQUEST at the trust
  *  boundary rather than a domain throw. */
 export const AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR = 3600;
 
-/** The rate-cap panel read model (`getBudgets`) — the host-editable per-chat fire-rate ceiling. An absent
- *  row projects to `AUTOMATION_CHAT_BUDGET_DEFAULTS`. */
-export interface BudgetView {
-  readonly maxFiresPerHour: number;
-}
-
 // ── C5: the per-OWNER rate-cap plane (the owner-global lane's loop-safety belt) ────────────────────
-// The chat-scoped belt above cannot express a global rule's ceiling, and that is a schema fact rather
-// than an oversight: `automation_budgets`'s primary key IS `chat_id`, so a NULL-scope row is
-// unrepresentable (SQLite PKs cannot be NULL, and a synthetic sentinel key is the D24 class the ledger
-// forbids). A global rule therefore counts against a SIBLING owner-keyed table
-// (`automation_owner_budgets`), and the dispatch reads whichever belt matches the rule's own scope.
+// The per-chat belt above counts a chat's fires, so it cannot bound a global (chat-less) rule. A global rule
+// therefore counts against an owner-keyed table (`automation_owner_budgets`), and the dispatch reads
+// whichever belt matches the rule's own scope.
 //
 // WHY A GLOBAL RULE NEEDS ITS OWN BELT AT ALL: the per-rule/hour cap still applies to it, but the SECOND
 // belt — the one that bounds a whole scope rather than one rule — has no chat to key on. Without this
@@ -200,21 +187,19 @@ export interface BudgetView {
 // per-day $ ceilings were stripped 2026-07-24 and nothing here re-introduces them.
 
 /** The per-OWNER fire-rate ceiling default — the value the write path stamps on a fresh
- *  `automation_owner_budgets` row (mirrored by that table's DDL column default, the
- *  `AUTOMATION_CHAT_BUDGET_DEFAULTS` posture: ONE app-side home, the DDL derives it).
+ *  `automation_owner_budgets` row (mirrored by that table's DDL column default: ONE app-side home, the DDL
+ *  derives it).
  *
  *  It is the SAME 120 as the per-chat cap, and that is a decision rather than a copy: an owner-global rule
  *  fires on DOMAIN events (a card import, a book edit) — bursty but human-paced — so the honest starting
- *  ceiling is the one the per-chat belt already proved liveable, and the host raises it from the pane. */
+ *  ceiling is the one the per-chat belt already proved liveable, and the owner raises it from the pane. */
 export const AUTOMATION_OWNER_BUDGET_DEFAULTS = {
   maxFiresPerHour: 120,
 } as const;
 
 /** The owner-global rate-cap read model (`getOwnerBudgets`) — the caller's own ceiling. Carries no
  *  `ownerId`: the plane is single-owned, so a view is always the caller's own (the `GlobalVariableView`
- *  posture). Structurally identical to {@link BudgetView} today and DELIBERATELY NOT an alias of it: the
- *  two are different planes with different write gates (a chat's HOST edits one, the OWNER edits the
- *  other), and collapsing them would make the next field added to either silently appear on both. */
+ *  posture). */
 export interface OwnerBudgetView {
   readonly maxFiresPerHour: number;
 }

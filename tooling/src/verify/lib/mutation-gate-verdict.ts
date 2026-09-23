@@ -30,7 +30,7 @@ const BREAK_THRESHOLD_FAILED = /Final mutation score [\d.]+ under breaking thres
 const BREAK_THRESHOLD_MET = /Final mutation score of [\d.]+ is greater than or equal to break threshold [\d.]+/u;
 
 /** The clear-text reporter's unconditional report-ready closer. It is the third accepted marker because
- *  the two above are printed only when `thresholds.break` is a number: `stryker.gate.config.js` pins it
+ *  the two above are printed only when `thresholds.break` is a number: `stryker.gate.config.ts` pins it
  *  (82), but that coupling should not be this module's only floor — a profile that nulls the threshold
  *  must still be able to produce a verdict rather than a permanent refusal. */
 const REPORT_READY = /Ran [\d.]+ tests per mutant on average\./u;

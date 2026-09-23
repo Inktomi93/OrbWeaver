@@ -36,7 +36,7 @@ type GlobalRule = Omit<RuleRow, "chatId"> & { readonly chatId: null };
  *  it reads a chat-only field. */
 type ScopedRule = ChatScopedRule | GlobalRule;
 
-/** Host-gate a chat directly (createRule on a chat/listRules/reorderRules/setBudgets). A non-member → leak-free
+/** Host-gate a chat directly (createRule on a chat/listRules/reorderRules). A non-member → leak-free
  *  AutomationChatNotFoundError; a member-not-host → `can()`'s DomainForbiddenError. */
 export async function requireChatHost(ctx: GuardCtx, principal: Principal, chatId: ChatId): Promise<void> {
   const role = await loadCallerRole(ctx.db, chatId, principal.userId);

@@ -2,7 +2,7 @@ import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { RegexScriptInput } from "@orb/kit/regex";
 import { expectTypeOf, test } from "vitest";
 
-// Type-level pin for the regex contract (core/Spine-Testing.md §1). The runtime `satisfies`-seam check lives in
+// Type-level pin for the regex contract (docs/law/Spine-Testing.md §1). The runtime `satisfies`-seam check lives in
 // `index.contract.test.ts`; this is its `tsc`-time twin.
 
 // ── The kit↔contracts satisfies-seam (Core-Legacy-Migration-and-Gaps.md §6) ───────────────────────────────────────

@@ -1,7 +1,7 @@
 // schema/sessions — the BFF (Backend-For-Frontend) browser session + the OIDC PKCE transaction store
 // (producer: domain/sessions). NOT to be confused with `session_entries` (schema/sdk-session.ts) — the
 // agent-sdk prompt-cache lineage (D8). These share only the word "session": separate tables, separate
-// homes, separate tiers (core/Spine-Identity-and-Auth.md "BFF session ≠ SDK chat session"). This file has
+// homes, separate tiers (docs/law/Spine-Identity-and-Auth.md "BFF session ≠ SDK chat session"). This file has
 // zero SDK-frame state.
 //
 // The token is NEVER stored — only its peppered hash (`token_hash`); `hashToken` lives in
@@ -9,7 +9,7 @@
 // the future long-lived API-token surface that reuses this store (the committed
 // identity decision: "API tokens = a sessions verb").
 //
-// `oidc_transactions` is the db-backed PKCE/state KV (core/Tier-3-Infra.md — db-backed, so it
+// `oidc_transactions` is the db-backed PKCE/state KV (docs/law/Tier-3-Infra.md — db-backed, so it
 // is domain/sessions persistence, NOT sealed db-free infra/auth). Natural-key PK on `state` (the OAuth
 // state param), no brand, no FK (it is pre-auth — there is no user row yet). The `oidc-store` LOGIC
 // lives in domain/sessions/persistence/oidc-store.ts; only the TABLE is here.

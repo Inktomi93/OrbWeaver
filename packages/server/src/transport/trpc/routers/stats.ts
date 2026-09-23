@@ -1,4 +1,4 @@
-// transport/trpc/routers/stats — the analytics surface (core/Tier-4-Transport.md). authed; every verb
+// transport/trpc/routers/stats — the analytics surface (docs/law/Tier-4-Transport.md). authed; every verb
 // takes a positional `ownerId` that is ALWAYS the resolved `Principal.userId` (never client input — the
 // single-owner row-scoping invariant). Thin: validate → `ctx.services.stats.<verb>` → map errors.
 //

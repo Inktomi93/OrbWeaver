@@ -35,7 +35,7 @@ const SCOPE_GLOB_TAIL_RE = /\/\*\*$/u;
 const TRAILING_SLASH_RE = /\/+$/u;
 
 /** The argv that scopes the structure gates' WALK to a selection — the tool's own `scoped` verb through
- *  the ONE cli front door (docs/architecture/core/Core-Tooling-Law.md §2.5). */
+ *  the ONE cli front door (docs/law/Core-Tooling-Law.md §2.5). */
 const SCOPED_CLI: readonly [string, ...string[]] = ["node", "tooling/src/verify/cli.ts", "scoped"];
 
 /** Filter helpers over a repo-relative path set. */
@@ -118,7 +118,7 @@ function resolveChanged(kind: "changed" | "file", explicit: readonly string[], r
  *  files; typechecking then includes every program affected through their native import closures. */
 function resolvePackage(name: string, root: string): Selection {
   const dir = packageDir(name);
-  // @orb/tooling is a ROOT-tree workspace package (docs/architecture/core/Core-Tooling-Law.md §2.1), not packages/*.
+  // @orb/tooling is a ROOT-tree workspace package (docs/law/Core-Tooling-Law.md §2.1), not packages/*.
   const prefix = dir === "tooling" ? "tooling/" : `packages/${dir}/`;
   // Direct-file views retain the prefix; runtime subjects and affected compiler programs use the
   // concrete authored-file enumeration below.

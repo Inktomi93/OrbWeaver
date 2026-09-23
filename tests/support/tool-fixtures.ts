@@ -1,4 +1,4 @@
-// The tooling composed test (docs/architecture/core/Core-Tooling-Law.md §5.1) — EXTENDS the house `test`
+// The tooling composed test (docs/law/Core-Tooling-Law.md §5.1) — EXTENDS the house `test`
 // (./fixtures.ts), so tooling tests keep clock/ids/db/app/callers and gain the tool seams. Import
 // `test`/`expect` from HERE in tests/tooling/** (gate: test-fixture-imports §4.8 — this module is also
 // what registers the RESULT snapshot serializer, so entering through plain fixtures bakes unnormalized

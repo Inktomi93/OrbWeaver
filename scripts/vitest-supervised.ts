@@ -110,11 +110,15 @@
 //
 // OVERRIDES: `ORB_TEST_HANG_TIMEOUT_MS` raises/lowers the no-output-and-no-CPU limit · `ORB_TEST_HANG_MAX_MS`
 // the absolute silence ceiling · `ORB_VITEST_BIN` the vitest entry (the guard test points it at a fake).
+import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join, resolve as pathResolve, relative } from "node:path";
 import process from "node:process";
+import type { RunAlias } from "@orb/tooling/_shared/artifacts";
 import { openRunSlot, publishRunSlot, reportsPath, runFile } from "@orb/tooling/_shared/artifacts";
+import { LOAD_SUSPECT_META_KEY } from "@orb/tooling/_shared/load-budget";
+import { processEnvValue } from "@orb/tooling/_shared/process-env";
 
 const DEFAULT_HANG_MS = 300_000;
 const MS_PER_SEC = 1000;
@@ -161,6 +165,94 @@ const ROOT_CONFIG = join(process.cwd(), "vitest.config.ts");
 const RUNTIME_CONFIG = join(process.cwd(), "vitest.runtime.config.ts");
 
 const root = process.cwd();
+
+/** One `vitest --reporter=json` report, read only through the fields this runner consumes. Every field is
+ *  optional because a crashed or foreign report is exactly the input the verdict must survive, and the
+ *  counters are `unknown` because the verdict coerces them with `Number()` rather than trusting the file. */
+interface VitestJsonReport {
+  success?: boolean;
+  numTotalTests?: unknown;
+  numPassedTests?: unknown;
+  numFailedTests?: unknown;
+  numPendingTests?: unknown;
+  numTodoTests?: unknown;
+  numFailedTestSuites?: unknown;
+  startTime?: unknown;
+  testResults?: readonly VitestFileResult[];
+  orbShards?: readonly ShardEvidence[];
+}
+
+interface VitestFileResult {
+  name?: string;
+  assertionResults?: readonly { fullName?: string; title?: string; meta?: Readonly<Record<string, unknown>> }[];
+}
+
+/** One attempt's outcome. `unreported` is present only when the child EXITED (a wedge settles first). */
+interface AttemptResult {
+  wedged: boolean;
+  code: number;
+  nonVerdict: string | null;
+  unreported?: readonly string[];
+}
+
+interface ShardResult {
+  label: string;
+  code: number;
+  wedged: boolean;
+  wedges: number;
+  reportFile: string;
+  nonVerdict: string | null;
+  unreported: readonly string[];
+  loadSuspect: readonly string[];
+}
+
+/** The `orbShards[]` provenance row both the merged report and a stamped unsharded report carry. */
+interface ShardEvidence {
+  project: string;
+  exitCode: number;
+  wedges: number;
+  nonVerdict: string | null;
+  unreported: readonly string[];
+  loadSuspect: readonly string[];
+}
+
+/** The merged verdict this runner WRITES: its own counters are numbers, unlike the reports it reads. */
+interface MergedReport {
+  success: boolean;
+  testResults: VitestFileResult[];
+  orbShards: ShardEvidence[];
+  startTime?: number;
+  [counter: `num${string}`]: number | undefined;
+}
+
+interface WedgeDumpContext {
+  label: string;
+  attempt: number;
+  pid: number;
+  completed: ReadonlySet<string>;
+  previousFiles: readonly string[];
+  reportFile: string;
+  sinceOutput: number;
+  sinceProgress: number;
+  startedAt: number;
+}
+
+interface AttemptRequest {
+  args: readonly string[];
+  reportFile: string;
+  label: string;
+  attempt: number;
+  previousFiles: readonly string[];
+}
+
+/** A parsed json report, or null when the file is missing or not JSON. */
+function readReport(path: string): VitestJsonReport | null {
+  try {
+    return JSON.parse(readFileSync(path, "utf-8")) as VitestJsonReport;
+  } catch {
+    return null;
+  }
+}
 /** THIS invocation's private artifact slot (#1029, `_shared/artifacts.ts`). Every shard report, the merged
  *  report and every wedge dump land under `reports/runs/test/<runId>/`; `reports/test-report.json` and
  *  `reports/test-shards/` are `latest` symlinks published at the END of the run. Two `pnpm test` runs on one
@@ -170,24 +262,26 @@ const slot = openRunSlot(root, "test");
 const vitestArgs = process.argv.slice(2);
 
 /** The inactivity limit (ms). A non-finite or non-positive override falls back to the 5-min default. */
-function hangLimitMs() {
-  // biome-ignore lint/style/noProcessEnv: the ORB_TEST_HANG_TIMEOUT_MS knob is this script's contract.
-  const raw = Number(process.env["ORB_TEST_HANG_TIMEOUT_MS"]);
+function hangLimitMs(): number {
+  const raw = Number(processEnvValue("ORB_TEST_HANG_TIMEOUT_MS"));
   return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_HANG_MS;
 }
 
 /** The absolute silence ceiling (ms). Past this the tree is killed even if something is still burning CPU —
  *  the backstop for a runaway that never reports. Override: `ORB_TEST_HANG_MAX_MS`. */
-function hardCeilingMs() {
-  // biome-ignore lint/style/noProcessEnv: the ORB_TEST_HANG_MAX_MS knob is this script's contract.
-  const raw = Number(process.env["ORB_TEST_HANG_MAX_MS"]);
+function hardCeilingMs(): number {
+  const raw = Number(processEnvValue("ORB_TEST_HANG_MAX_MS"));
   return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_HARD_CEILING_MS;
 }
 
 /** The liveness decision, as a pure function of the two clocks and the CPU burned since the last tick.
  *  `alive` ⇒ keep going and push the no-CPU timer forward; `kill` ⇒ the shard is wedged (or past the
  *  ceiling); neither ⇒ silent but still inside the window, so just wait. */
-function liveness({ sinceOutput, sinceProgress, burned, limit }) {
+function liveness({ sinceOutput, sinceProgress, burned, limit }: { sinceOutput: number; sinceProgress: number; burned: number; limit: number }): {
+  alive: boolean;
+  kill: boolean;
+  ceilinged: boolean;
+} {
   const ceilinged = sinceOutput >= hardCeilingMs();
   if (ceilinged) {
     return { alive: false, kill: true, ceilinged: true };
@@ -200,14 +294,14 @@ function liveness({ sinceOutput, sinceProgress, burned, limit }) {
 
 /** The human reason a shard was declared wedged, for the log line and the dump header. `sinceOutput` and
  *  `sinceProgress` are DIFFERENT clocks on purpose — see the watchdog. */
-function wedgeReason(sinceOutput, sinceProgress) {
+function wedgeReason(sinceOutput: number, sinceProgress: number): string {
   const ceiling = hardCeilingMs();
   return sinceOutput >= ceiling
     ? `no output for ${Math.round(sinceOutput / MS_PER_SEC)}s — past the ${Math.round(ceiling / MS_PER_SEC)}s hard ceiling`
     : `no output for ${Math.round(sinceProgress / MS_PER_SEC)}s AND zero CPU across the whole process tree`;
 }
 
-function resolveUnder(p) {
+function resolveUnder(p: string): string {
   return isAbsolute(p) ? p : pathResolve(root, p);
 }
 
@@ -218,45 +312,45 @@ const SHARDS_DIR = "test-shards";
 /** The `reports/`-relative alias a caller-named report path publishes as, or null when the caller pointed
  *  the report OUTSIDE `reports/` — an explicit path is honored where NAMED (the `artifactFilePath`
  *  precedent), and only paths inside `reports/` take part in the `latest` pointer layout. */
-function aliasFor(reportPath) {
+function aliasFor(reportPath: string): string | null {
   const rel = relative(reportsPath(root, "."), reportPath);
   return rel.startsWith("..") || isAbsolute(rel) ? null : rel;
 }
 
-function log(line) {
+function log(line: string): void {
   process.stderr.write(`[vitest-supervised] ${line}\n`);
 }
 
 /** Split the passthrough argv into the projects to shard over, the args every shard shares, and the ONE
  *  report path the merged verdict is written to. Both `--x=v` and `--x v` spellings are accepted. */
-function parseArgs() {
-  const projects = [];
-  const baseArgs = [];
-  let report = null;
+function parseArgs(): { projects: string[]; baseArgs: string[]; report: string; runtimeOnly: boolean; unsupportedConfig: string | undefined } {
+  const projects: string[] = [];
+  const baseArgs: string[] = [];
+  let report: string | null = null;
   let runtimeOnly = false;
   for (let i = 0; i < vitestArgs.length; i += 1) {
-    const a = vitestArgs[i];
+    const a = vitestArgs[i] as string;
     if (a === RUNTIME_ONLY_FLAG) {
       runtimeOnly = true;
       continue;
     }
     const projectEq = a.match(PROJECT_RE);
-    if (projectEq) {
+    if (projectEq?.[1] !== undefined) {
       projects.push(projectEq[1]);
       continue;
     }
     if (a === "--project" && i + 1 < vitestArgs.length) {
-      projects.push(vitestArgs[i + 1]);
+      projects.push(vitestArgs[i + 1] as string);
       i += 1;
       continue;
     }
     const outEq = a.match(OUTPUT_FILE_RE);
-    if (outEq) {
+    if (outEq?.[1] !== undefined) {
       report = resolveUnder(outEq[1]);
       continue;
     }
     if (a === "--outputFile.json" && i + 1 < vitestArgs.length) {
-      report = resolveUnder(vitestArgs[i + 1]);
+      report = resolveUnder(vitestArgs[i + 1] as string);
       i += 1;
       continue;
     }
@@ -267,14 +361,14 @@ function parseArgs() {
 }
 
 /** Config paths are observed without consuming them; Vitest remains the parser and rejects malformed forms. */
-function configuredPaths(args) {
-  const configs = [];
+function configuredPaths(args: readonly string[]): string[] {
+  const configs: string[] = [];
   for (let i = 0; i < args.length; i += 1) {
-    const equalForm = args[i].match(CONFIG_RE);
-    if (equalForm) {
+    const equalForm = args[i]?.match(CONFIG_RE);
+    if (equalForm?.[1] !== undefined) {
       configs.push(resolveUnder(equalForm[1]));
     } else if (args[i] === "--config" && i + 1 < args.length) {
-      configs.push(resolveUnder(args[i + 1]));
+      configs.push(resolveUnder(args[i + 1] as string));
       i += 1;
     }
   }
@@ -283,20 +377,21 @@ function configuredPaths(args) {
 
 /** Replace an optional explicit root config with the runtime entry point. A malformed bare `--config`
  * remains misuse instead of being silently repaired into a different command. */
-function runtimeConfigArgs(args) {
-  const runtimeArgs = [];
+function runtimeConfigArgs(args: readonly string[]): string[] | null {
+  const runtimeArgs: string[] = [];
   for (let i = 0; i < args.length; i += 1) {
-    if (args[i].match(CONFIG_RE)) {
+    const arg = args[i] as string;
+    if (CONFIG_RE.test(arg)) {
       continue;
     }
-    if (args[i] === "--config") {
+    if (arg === "--config") {
       if (i + 1 >= args.length) {
         return null;
       }
       i += 1;
       continue;
     }
-    runtimeArgs.push(args[i]);
+    runtimeArgs.push(arg);
   }
   runtimeArgs.push(`--config=${RUNTIME_CONFIG}`);
   return runtimeArgs;
@@ -304,17 +399,15 @@ function runtimeConfigArgs(args) {
 
 /** Only literal project names are safe to shard. Filters must stay together because Vitest evaluates
  * repeated selectors as one union; splitting them changes selection and can execute a project twice. */
-function exactProjectSelector(project) {
+function exactProjectSelector(project: string): boolean {
   return !(project.startsWith("!") || project.includes("*"));
 }
 
 /** Read a json report and return the process exit code it implies. Missing / unparseable / an incomplete
  *  run (a vanished test — the worker-crash signature) / any failure ⇒ 1. A COMPLETE all-pass ⇒ 0. */
-function verdictFromReport(path) {
-  let report;
-  try {
-    report = JSON.parse(readFileSync(path, "utf-8"));
-  } catch {
+function verdictFromReport(path: string): number {
+  const report = readReport(path);
+  if (report === null) {
     return 1; // no verdict written ⇒ the run did not finish ⇒ failure, never a false green.
   }
   const total = Number(report.numTotalTests ?? 0);
@@ -328,22 +421,15 @@ function verdictFromReport(path) {
   return clean ? 0 : 1;
 }
 
-/** The `meta` key a LOAD-SUSPECT measured-rate arm stamps on its own task (`tests/tooling/_load-budget.ts`).
- *  ONE spelling on both sides of the JS/TS line — mirrors `LOAD_SUSPECT_META_KEY` in
- *  `tooling/src/_shared/load-budget.ts`; a second literal is how the two halves drift apart. */
-const LOAD_SUSPECT_META_KEY = "orbLoadSuspect";
-
 /** Every load-suspect arm in a shard report, as `<file> › <test title>` lines. Read from `meta` because
  *  the stderr line is attributed to no test. A missing/unparseable report yields none — that case is
  *  already a verdict-level failure via `verdictFromReport`. */
-function loadSuspectFromReport(path) {
-  let report;
-  try {
-    report = JSON.parse(readFileSync(path, "utf-8"));
-  } catch {
+function loadSuspectFromReport(path: string): string[] {
+  const report = readReport(path);
+  if (report === null) {
     return [];
   }
-  const out = [];
+  const out: string[] = [];
   for (const file of report.testResults ?? []) {
     for (const assertion of file.assertionResults ?? []) {
       if (typeof assertion.meta?.[LOAD_SUSPECT_META_KEY] === "string") {
@@ -354,7 +440,7 @@ function loadSuspectFromReport(path) {
   return out;
 }
 
-function readProc(pid, file) {
+function readProc(pid: number, file: string): string {
   try {
     return readFileSync(`/proc/${pid}/${file}`, "utf-8").trim();
   } catch {
@@ -363,9 +449,9 @@ function readProc(pid, file) {
 }
 
 /** Every live descendant pid of `pid`, depth-first, via /proc's per-thread `children` lists. */
-function descendants(pid) {
-  const out = [];
-  let tids = [];
+function descendants(pid: number): number[] {
+  const out: number[] = [];
+  let tids: string[] = [];
   try {
     tids = readdirSync(`/proc/${pid}/task`);
   } catch {
@@ -385,7 +471,7 @@ function descendants(pid) {
 
 /** Total CPU jiffies (utime + stime) burned by `pid` and every descendant. `/proc/<pid>/stat` fields 14/15,
  *  read past the parenthesised comm (which can itself contain spaces). Unreadable/dead pids contribute 0. */
-function treeCpuJiffies(pid) {
+function treeCpuJiffies(pid: number): number {
   let total = 0;
   for (const p of [pid, ...descendants(pid)]) {
     const stat = readProc(p, "stat");
@@ -397,7 +483,7 @@ function treeCpuJiffies(pid) {
 }
 
 /** One pid's forensic block: state, threads, what the kernel is blocked in, argv, and its open fds. */
-function procBlock(pid, label) {
+function procBlock(pid: number, label: string): string {
   const status = readProc(pid, "status")
     .split("\n")
     .filter((l) => /^(Name|State|Threads|PPid):/u.test(l))
@@ -413,7 +499,7 @@ function procBlock(pid, label) {
 }
 
 /** The wedge evidence file. Attempt-suffixed so a re-run never overwrites the first wedge's dump. */
-function writeWedgeDump(ctx) {
+function writeWedgeDump(ctx: WedgeDumpContext): void {
   const { label, attempt, pid, completed, previousFiles, reportFile, sinceOutput, sinceProgress, startedAt } = ctx;
   const stamp = new Date().toISOString().replaceAll(/[:.]/gu, "-");
   const path = runFile(slot, `test-wedge-${label}-attempt${attempt}-${stamp}.txt`);
@@ -445,16 +531,15 @@ function writeWedgeDump(ctx) {
     writeFileSync(path, `${lines.join("\n")}\n`);
     log(`wedge dump → ${path}`);
   } catch (error) {
-    log(`could not write the wedge dump: ${error.message}`);
+    log(`could not write the wedge dump: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
 /** The vitest ESM ENTRY (`vitest.mjs`, a `#!/usr/bin/env node` module), NOT the `.bin/vitest` npm shim —
  *  the shim is a `#!/bin/sh` script and `node <shim>` throws a SyntaxError. ORB_VITEST_BIN (a real node
  *  module) overrides it for the guard test. */
-function vitestBin() {
-  // biome-ignore lint/style/noProcessEnv: the ORB_VITEST_BIN knob lets the guard test point at a fake vitest.
-  return resolveUnder(process.env["ORB_VITEST_BIN"] ?? "node_modules/vitest/vitest.mjs");
+function vitestBin(): string {
+  return resolveUnder(processEnvValue("ORB_VITEST_BIN") ?? "node_modules/vitest/vitest.mjs");
 }
 
 /** The spec operands a caller NAMED that never printed a result line (#2472). "Not a verdict" must never
@@ -462,23 +547,23 @@ function vitestBin() {
  *  just the fact that something did. Only positional operands can be enumerated — a whole-project run
  *  names no files, and this correctly answers `[]` there rather than inventing a set. `completed` holds the
  *  paths the default reporter printed, which are repo-relative exactly like the operands. */
-function unreportedSpecs(args, completed) {
+function unreportedSpecs(args: readonly string[], completed: ReadonlySet<string>): string[] {
   // The operand block is the run of non-flag arguments IMMEDIATELY after the `run` subcommand, and nothing
   // else. Anything looser mistakes a flag's VALUE for a file (`--project tooling`, `--config <path>`) and
   // names a spec that never existed, which is a worse lie than the one being fixed. Under-claiming is safe:
   // it degrades to the honest "the file set was not enumerated by operand" line.
   const start = args.indexOf("run") + 1;
-  const operands = [];
-  for (let i = start; i > 0 && i < args.length && !args[i].startsWith("-"); i += 1) {
-    operands.push(args[i]);
+  const operands: string[] = [];
+  for (let i = start; i > 0 && i < args.length && !(args[i] as string).startsWith("-"); i += 1) {
+    operands.push(args[i] as string);
   }
   return operands.filter((operand) => ![...completed].some((done) => done === operand || done.endsWith(operand) || operand.endsWith(done)));
 }
 
-let activeChild = null;
+let activeChild: ChildProcess | null = null;
 
 /** SIGKILL a child's whole process group (negative pid). Best-effort — the group may already be gone. */
-function killGroup(child) {
+function killGroup(child: ChildProcess | null): void {
   try {
     if (child?.pid !== undefined) {
       process.kill(-child.pid, "SIGKILL");
@@ -492,7 +577,7 @@ function killGroup(child) {
  *  the child's own exit code on a natural exit, or the report-derived verdict on a wedge; `nonVerdict` is
  *  the sentence naming what DIED when this attempt produced no verdict at all (#2472), else null. Never
  *  throws. */
-function runOnce({ args, reportFile, label, attempt, previousFiles }) {
+function runOnce({ args, reportFile, label, attempt, previousFiles }: AttemptRequest): Promise<AttemptResult> {
   const limit = hangLimitMs();
   // Freshness guarantee: a STALE report must never be read as this attempt's verdict.
   rmSync(reportFile, { force: true });
@@ -505,7 +590,7 @@ function runOnce({ args, reportFile, label, attempt, previousFiles }) {
     stdio: ["inherit", "pipe", "pipe"],
   });
   activeChild = child;
-  const completed = new Set();
+  const completed = new Set<string>();
   // TWO clocks, and they must stay separate: `lastOutput` only moves on real output, `lastProgress` also
   // moves on CPU burn. The no-output-and-no-CPU rule reads `lastProgress`; the ABSOLUTE ceiling reads
   // `lastOutput` — sharing one clock made the ceiling unreachable, because a busy tree reset it every tick.
@@ -515,8 +600,8 @@ function runOnce({ args, reportFile, label, attempt, previousFiles }) {
   // The FIRST non-verdict sentence this attempt printed, or null. First rather than last on purpose: the
   // pool's own framing line comes before the stack that repeats it, and one crash is already enough to
   // disqualify the run's number.
-  let nonVerdict = null;
-  function absorb(chunk) {
+  let nonVerdict: string | null = null;
+  function absorb(chunk: Buffer): void {
     lastOutput = Date.now();
     lastProgress = lastOutput;
     const text = carry + chunk.toString();
@@ -524,7 +609,7 @@ function runOnce({ args, reportFile, label, attempt, previousFiles }) {
     carry = lines.pop() ?? "";
     for (const line of lines) {
       const m = line.match(RESULT_LINE_RE);
-      if (m) {
+      if (m?.[1] !== undefined) {
         completed.add(m[1]);
       }
       if (nonVerdict === null) {
@@ -532,18 +617,18 @@ function runOnce({ args, reportFile, label, attempt, previousFiles }) {
       }
     }
   }
-  child.stdout.on("data", (c) => {
+  child.stdout.on("data", (c: Buffer) => {
     process.stdout.write(c);
     absorb(c);
   });
-  child.stderr.on("data", (c) => {
+  child.stderr.on("data", (c: Buffer) => {
     process.stderr.write(c);
     absorb(c);
   });
 
-  return new Promise((resolve) => {
+  return new Promise<AttemptResult>((resolve) => {
     let settled = false;
-    const finish = (value) => {
+    const finish = (value: AttemptResult): void => {
       if (settled) {
         return;
       }
@@ -608,18 +693,14 @@ function runOnce({ args, reportFile, label, attempt, previousFiles }) {
  *  the published `reports/test-shards/<label>.json` pointer (#1029): this run writes into its own slot, so
  *  the previous run's report is a different file — the rotate-aside dance that used to protect freshness is
  *  structurally unnecessary now, and rotating would have corrupted a concurrent run's evidence. */
-function previousShardFiles(label) {
-  try {
-    const parsed = JSON.parse(readFileSync(reportsPath(root, SHARDS_DIR, `${label}.json`), "utf-8"));
-    return (parsed.testResults ?? []).map((r) => r.name).filter((n) => typeof n === "string");
-  } catch {
-    return [];
-  }
+function previousShardFiles(label: string): string[] {
+  const parsed = readReport(reportsPath(root, SHARDS_DIR, `${label}.json`));
+  return (parsed?.testResults ?? []).map((r) => r.name).filter((n) => typeof n === "string");
 }
 
 /** Run one shard, with ONE automatic re-run if the watchdog had to kill it AND its report is not a complete
  *  pass. A shard that FAILS TESTS is never re-run — a wedge is a tool error, a red is a verdict. */
-async function runShard({ args, reportFile, label }) {
+async function runShard({ args, reportFile, label }: { args: readonly string[]; reportFile: string; label: string }): Promise<ShardResult> {
   const previousFiles = previousShardFiles(label);
   let result = await runOnce({ args, reportFile, label, attempt: 1, previousFiles });
   let wedges = result.wedged ? 1 : 0;
@@ -654,7 +735,7 @@ async function runShard({ args, reportFile, label }) {
 /** Fold the shard reports into the ONE `--outputFile.json` contract the rest of the repo reads. Numeric
  *  `num*` counters sum, `testResults` concatenate, and `success` is true only when every shard's own
  *  verdict is 0 — so the merged file satisfies the SAME predicate a single run's report does. */
-function foldShardInto(merged, shard) {
+function foldShardInto(merged: MergedReport, shard: ShardResult): void {
   merged.orbShards.push({
     project: shard.label,
     exitCode: shard.code,
@@ -665,16 +746,15 @@ function foldShardInto(merged, shard) {
     unreported: shard.unreported,
     loadSuspect: shard.loadSuspect,
   });
-  let report;
-  try {
-    report = JSON.parse(readFileSync(shard.reportFile, "utf-8"));
-  } catch {
+  const report = readReport(shard.reportFile);
+  if (report === null) {
     merged.success = false; // a shard that wrote no report can never make the merged file complete.
     return;
   }
   for (const [key, value] of Object.entries(report)) {
     if (key.startsWith("num") && typeof value === "number") {
-      merged[key] = (merged[key] ?? 0) + value;
+      const counter = key as `num${string}`;
+      merged[counter] = (merged[counter] ?? 0) + value;
     }
   }
   if (Array.isArray(report.testResults)) {
@@ -702,18 +782,18 @@ function foldShardInto(merged, shard) {
  *  fork AND has genuine reds is still 2: the files that went down with the fork never reported, so what
  *  survives is a partial observation, not a verdict — `announceNonVerdicts` prints both halves so
  *  "not a verdict" never degrades into "no information". */
-function exitCodeFor(shards) {
+function exitCodeFor(shards: readonly ShardResult[]): number {
   if (shards.some((s) => s.wedged || s.nonVerdict !== null)) {
     return EXIT_TOOL_ERROR;
   }
   return shards.every((s) => s.code === 0) ? 0 : 1;
 }
 
-function mergeReports(shards, out) {
+function mergeReports(shards: readonly ShardResult[], out: string): void {
   // `success` obeys the same rule as the exit code: a run whose final attempt was killed is not a pass,
   // whatever the report the corpse left behind says (#1490).
   // …and a shard whose fork died is not a pass either, for the same reason: some files never reported (#2472).
-  const merged = { success: shards.every((s) => s.code === 0 && !s.wedged && s.nonVerdict === null), testResults: [], orbShards: [] };
+  const merged: MergedReport = { success: shards.every((s) => s.code === 0 && !s.wedged && s.nonVerdict === null), testResults: [], orbShards: [] };
   for (const shard of shards) {
     foldShardInto(merged, shard);
   }
@@ -724,11 +804,11 @@ function mergeReports(shards, out) {
 /** Publish this run's `latest` pointers — at the END, so a reader at `reports/test-report.json` always
  *  resolves to a run that FINISHED. `alias === null` means the caller named a path outside `reports/` and
  *  the merged report already landed there. */
-function publish(alias, sharded) {
+function publish(alias: string | null, sharded: boolean): void {
   if (alias === null) {
     return;
   }
-  const aliases = [{ alias, target: REPORT_NAME }];
+  const aliases: RunAlias[] = [{ alias, target: REPORT_NAME }];
   if (sharded) {
     aliases.push({ alias: SHARDS_DIR, target: SHARDS_DIR });
   }
@@ -739,7 +819,7 @@ function publish(alias, sharded) {
 /** Shout every wedge kill, and say what it costs the verdict. Both call sites (sharded and not) go through
  *  here so the containment story is spelled ONCE — a green that hides a wedge reads as "fixed" when it is
  *  only "contained", and since #1490 a run whose final attempt was killed is not even green. */
-function announceWedges(shards) {
+function announceWedges(shards: readonly ShardResult[]): void {
   const hit = shards.filter((s) => s.wedges > 0);
   if (hit.length === 0) {
     return;
@@ -760,12 +840,12 @@ function announceWedges(shards) {
  *  nothing ever reported a failure for it. `success` and `orbShards` are the two keys every downstream
  *  reader already consults, so the correction goes THERE rather than into a second vocabulary. A report
  *  that cannot be read or written is not escalated: the exit code is already 2 and already correct. */
-function stampNonVerdict(reportFile, shard) {
+function stampNonVerdict(reportFile: string, shard: ShardResult): void {
   if (shard.nonVerdict === null) {
     return;
   }
   try {
-    const report = JSON.parse(readFileSync(reportFile, "utf-8"));
+    const report = JSON.parse(readFileSync(reportFile, "utf-8")) as VitestJsonReport;
     report.success = false;
     report.orbShards = [
       {
@@ -788,7 +868,7 @@ function stampNonVerdict(reportFile, shard) {
  *  printed a result line, and — the part that must never be dropped — that whatever DID fail underneath is
  *  still in the report. "This is not a verdict" is a statement about completeness, never a reason to throw
  *  away the partial observation; a reader needs the crash AND the reds under it to know what to re-run. */
-function announceNonVerdicts(shards) {
+function announceNonVerdicts(shards: readonly ShardResult[]): void {
   const hit = shards.filter((s) => s.nonVerdict !== null && !s.wedged);
   if (hit.length === 0) {
     return;
@@ -809,7 +889,7 @@ function announceNonVerdicts(shards) {
 }
 
 /** Shout the #1616 load-suspect arms. Silence here is a claim that every measured rate was a verdict. */
-function announceLoadSuspect(shards) {
+function announceLoadSuspect(shards: readonly ShardResult[]): void {
   const all = shards.flatMap((s) => s.loadSuspect.map((row) => `${s.label}: ${row}`));
   if (all.length === 0) {
     return;
@@ -822,7 +902,7 @@ function announceLoadSuspect(shards) {
   log("(Reasons are in the report's testResults[].assertionResults[].meta.orbLoadSuspect.)");
 }
 
-async function main() {
+async function main(): Promise<void> {
   const { projects, baseArgs, report, runtimeOnly, unsupportedConfig } = parseArgs();
   if (unsupportedConfig !== undefined) {
     log(`${RUNTIME_ONLY_FLAG} requires the repository root config; ${relative(root, unsupportedConfig)} cannot honor its runtime-only config mode.`);
@@ -834,7 +914,7 @@ async function main() {
     process.exit(EXIT_MISUSE);
   }
   // Forward terminal signals to the running child group (detached children don't receive them automatically).
-  const onSignal = () => {
+  const onSignal = (): void => {
     killGroup(activeChild);
     process.exit(1);
   };
@@ -853,7 +933,7 @@ async function main() {
   // Filter-shaped project selectors stay together so Vitest applies their native union once.
   if (projects.length < 2 || !projects.every(exactProjectSelector)) {
     const args = [...executionArgs, ...projects.flatMap((p) => ["--project", p]), `--outputFile.json=${mergedFile}`];
-    const shard = await runShard({ args, reportFile: mergedFile, label: projects.length === 1 ? projects[0] : "filtered" });
+    const shard = await runShard({ args, reportFile: mergedFile, label: projects.length === 1 ? (projects[0] as string) : "filtered" });
     stampNonVerdict(mergedFile, shard);
     announceWedges([shard]);
     announceNonVerdicts([shard]);
@@ -862,7 +942,7 @@ async function main() {
     process.exit(exitCodeFor([shard]));
   }
 
-  const shards = [];
+  const shards: ShardResult[] = [];
   for (const project of projects) {
     const reportFile = alias === null ? join(dirname(report), SHARDS_DIR, `${project}.json`) : runFile(slot, SHARDS_DIR, `${project}.json`);
     const args = [...executionArgs, "--project", project, `--outputFile.json=${reportFile}`];

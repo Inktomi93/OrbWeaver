@@ -3,7 +3,7 @@
 // import); a rename-EXPORT of a GENERIC name (declared by ≥2 producer modules — barrel disambiguation); an
 // @orb/ui / @orb/db-`*Table` / @orb/contracts-`*Wire` rename; a `/contract/` distinct-alias-per-verb home.
 // Vendor-package renames are always legal.
-// core/Spine-TypeScript-and-Patterns.md.
+// docs/law/Spine-TypeScript-and-Patterns.md.
 //
 // FAMILY: singleton. The census hypothesis ("import/export identity → canonical origin fact") does not
 // hold: every existing `canonical-origin` family reader resolves a symbol's ORIGIN across module
@@ -59,7 +59,7 @@ import type { ExportSpecifier, ImportSpecifier, Node as MorphNode, SourceFile, T
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 
-const DOC = "core/Spine-TypeScript-and-Patterns.md";
+const DOC = "docs/law/Spine-TypeScript-and-Patterns.md";
 const MIN_PRODUCERS = 2;
 const DB_SCHEMA_DIR = "packages/db/src/schema/";
 const TEST_FILE = /\.(?:test|test-d|spec)\.[cm]?tsx?$/;

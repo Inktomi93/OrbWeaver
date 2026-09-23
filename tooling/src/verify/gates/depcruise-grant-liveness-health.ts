@@ -73,7 +73,7 @@ const BACKREF_BUDGET = 14;
 /** The arm's REAL-TREE anchor — the budget is a fact about the real config set, so it is judged only where
  *  the enforcement ledger lives. A resource proof carries its own rows and would (correctly for itself,
  *  wrongly for this repo) disagree with a committed budget it knows nothing about. */
-const BUDGET_ANCHOR = "docs/architecture/core/Core-Enforcement-Active-Gates.md";
+const BUDGET_ANCHOR = "docs/law/Core-Enforcement-Active-Gates.md";
 
 const MESSAGE =
   "the count of IRREDUCIBLE `$1`-backreference patterns in .dependency-cruiser.cjs is {actual}, but the " +

@@ -22,7 +22,7 @@ import { defineGate } from "../contract/policy.ts";
 import { forEachCommentRange } from "../lib/comment-spans.ts";
 
 const CODE_COMMENT_RE = /^\/\/\s*(?:import|export|const|let|var|function|class|interface|type|return|if|for|while|switch|throw|await)\b.*[;{}]\s*$/u;
-const MESSAGE = "commented-out code — delete it (git history keeps it). Comments are for prose, not parked code (Documentation-Law.md §Code comments).";
+const MESSAGE = "commented-out code — delete it (git history keeps it). Comments are for prose, not parked code (.claude/rules/comments.md).";
 
 export const gate = defineGate({
   id: "commented-code",

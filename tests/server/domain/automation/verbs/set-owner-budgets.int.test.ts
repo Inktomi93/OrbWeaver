@@ -1,6 +1,6 @@
 // verb: setOwnerBudgets (C5) — upsert the caller's OWN owner-global fire-rate ceiling.
 //
-// The row is BORN on the first set and patched thereafter, which is the `setBudgets` posture one plane over.
+// The row is BORN on the first set and patched thereafter.
 // ZERO is a real, useful value and is pinned as such: "stop all of my library rules" without disabling each
 // one, and a verb that treated 0 as "unset" would silently ignore the strongest thing a host can ask for.
 

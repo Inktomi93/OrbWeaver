@@ -33,7 +33,7 @@
 //     falls through to the bare arm and reds).
 //   • a BARE `/** @public <reason> */` on an UNUSED export → RED — the parking permit. Remedy: migrate to a
 //     named marker, or DELETE.
-//   • the `ui` PACKAGE, whole — R2 of docs/architecture/core/ui-package-design.md: every `@orb/ui` export is
+//   • the `ui` PACKAGE, whole — R2 of docs/law/ui-package-design.md: every `@orb/ui` export is
 //     a sealed-surface handle that exists to be available, so "no consumer yet" is its designed state, not
 //     rot. It is a named row in RATCHET_OPT_OUTS (below), never an omission.
 //
@@ -88,7 +88,7 @@ export const BASELINE_REL = "tooling/src/verify/ops/orphan-export-ratchet.baseli
  *  compile-time enforcer, so a row naming a package the workspace no longer has fails `tsc` instead of
  *  quietly exempting nothing. */
 const RATCHET_OPT_OUTS = {
-  ui: "the R2 sealed surface (docs/architecture/core/ui-package-design.md R2) — every `@orb/ui` export is a handle that exists to be AVAILABLE, so 'no consumer yet' is its designed state, not rot",
+  ui: "the R2 sealed surface (docs/law/ui-package-design.md R2) — every `@orb/ui` export is a handle that exists to be AVAILABLE, so 'no consumer yet' is its designed state, not rot",
 } as const satisfies Partial<Record<PackageName, string>>;
 
 /** Every workspace package the ratchet judges — DERIVED from `PACKAGE_NAMES` (the canonical workspace

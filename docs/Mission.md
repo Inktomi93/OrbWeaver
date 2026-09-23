@@ -20,7 +20,7 @@ Every structural choice here exists because of that fact, not in spite of it.
    born-compliant schema, full test + gate coverage. The bar is correctness + cleanliness, never
    speed-to-ship. The global "simplest thing that works / YAGNI" defaults are deliberately **suspended** for
    the architecture. (Rationale + the standing "you do not have the standing to take a shortcut" rule:
-   [`architecture/core/AGENTS.md`](architecture/core/AGENTS.md).)
+   [`law/Constitution.md`](law/Constitution.md).)
 
 2. **Make the apparatus the memory and judgment the author lacks.** The ledger kills Groundhog Day
    (a cold agent can't re-litigate a settled call). The gates make the wrong thing fail to compile, not
@@ -32,8 +32,8 @@ Every structural choice here exists because of that fact, not in spite of it.
 
 Docs and comments are written for an agent, not a person — optimized for token budget, retrieval, and
 drift-resistance. Code + types are the source of truth; prose carries only the irreducible cross-cutting
-WHY; a wrong doc is worse than none; built code has no prose doc — the code **is** the doc. The full law:
-[`Documentation-Law.md`](architecture/core/Documentation-Law.md).
+WHY; a wrong doc is worse than none; built code has no prose doc — the code **is** the doc. The rules:
+[`writing.md`](../.claude/rules/writing.md) for docs and [`comments.md`](../.claude/rules/comments.md) for code comments.
 
 ## The north star
 

@@ -1,6 +1,6 @@
 // The duplicate-action-door family (the runtime half of issue #252) — split out of checks-quality.ts
 // (#1720) once the allowance mechanism pushed that file over the tooling-size cap; a monolith is exactly
-// the drawer @orb/tooling exists to end (docs/architecture/core/Core-Tooling-Law.md §4.3). Pure.
+// the drawer @orb/tooling exists to end (docs/law/Core-Tooling-Law.md §4.3). Pure.
 // Provenance: lib/collect.ts header; walker: ops/walker/census-interactive.ts.
 import type { Finding, RulePopulationAccounting } from "../contract/findings.ts";
 import type { ActionDoorInput } from "../contract/samples.ts";
@@ -69,7 +69,7 @@ interface DuplicateDoorPopulationResult {
 /** A TOOLBAR CELL IS A VIEW SWITCH, NOT A SECOND DOOR (#1705, from #891's side-eye ruling). On home, the
  *  primary `nav`'s "Chats" button NAVIGATES THE APP, while `#context-cell-chats` inside
  *  `toolbar "Character"` REPAINTS THE CONTEXT REGION with this character's chats —
- *  `docs/architecture/core/UI-Architecture-and-Layout.md` §4.1–4.3 assigns those two jobs to two regions,
+ *  `docs/law/UI-Architecture-and-Layout.md` §4.1–4.3 assigns those two jobs to two regions,
  *  so they are two verbs that happen to share a noun, not one verb with two homes. The rule's own message
  *  ("one verb wants one home per plane") is the thing that does not apply.
  *
@@ -123,7 +123,7 @@ function buildDuplicateDoorFinding(key: string, homes: readonly ActionDoorInput[
       value: `${homes.length}x ${role} "${name}"`,
       message: `the same action is offered from ${homes.length} structurally distinct places on one plane — a ${role} named "${name}" at ${at.join(
         " AND ",
-      )}${omitted}. One verb wants one home per plane (the more-than-one-home IA class, docs/architecture/core/client-architecture-lockdown.md §13); if a second door is ruled UX, add a DUPLICATE_DOOR_ALLOWANCES row in tooling/src/ui-audit/lib/checks-duplicate-door.ts carrying the ruling that granted it`,
+      )}${omitted}. One verb wants one home per plane (the more-than-one-home IA class, docs/law/client-architecture-lockdown.md §13); if a second door is ruled UX, add a DUPLICATE_DOOR_ALLOWANCES row in tooling/src/ui-audit/lib/checks-duplicate-door.ts carrying the ruling that granted it`,
       origin: "orbweaver",
       representatives: at,
       population: { affected: homes.length, judged: homes.length, capped: groupCapped },

@@ -3,7 +3,7 @@
 // machine line (`tail -1` / `grep ^RESULT`). Exit codes are the CALLER's (_shared/exit-contract.ts).
 // Since #1029 a RUN writes into its own slot and publishes those `reports/…` paths as `latest`
 // pointers when it finishes — the layout's one home is
-// docs/architecture/core/UNIFIED-VERIFICATION-DESIGN.md §3.3b, and the slot machinery below is its
+// docs/law/UNIFIED-VERIFICATION-DESIGN.md §3.3b, and the slot machinery below is its
 // mechanism. The `--out`-keyed FILING doors that ride on it live in ./artifact-out.ts (one layer up,
 // so this module never imports back down).
 import { lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, renameSync, rmSync, statSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";

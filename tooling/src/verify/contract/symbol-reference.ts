@@ -1,5 +1,5 @@
 // The shapes lib/symbol-reference.ts's readers RETURN. Homed here (not beside the reader) because the
-// five-slot template puts every exported shape in contract/ (docs/architecture/core/Core-Tooling-Law.md
+// five-slot template puts every exported shape in contract/ (docs/law/Core-Tooling-Law.md
 // §2.5) and `no-inline-types` enforces it; lib/symbol-reference.ts is the machine, this is its vocabulary.
 import type { Node } from "ts-morph";
 

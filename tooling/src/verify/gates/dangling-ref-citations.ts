@@ -81,11 +81,11 @@ function reportCitations(ctx: GatePolicyContext, declaredNames: ReadonlySet<stri
   }
 }
 
-const PROOF_DOC = "docs/architecture/core/__dangling_refs_resource_anchor.md";
+const PROOF_DOC = "docs/law/__dangling_refs_resource_anchor.md";
 const PROOF_FILES = {
   [PROOF_DOC]: "---\nkind: law\n---\n\nResource proof anchor.\n",
   [CATALOG_REL]:
-    '{"documents":[{"path":"docs/architecture/core/__dangling_refs_resource_anchor.md","lane":"core","frontmatter":{"fields":{"status":"active"}},"receipt":{"authority":"normative"}}]}\n',
+    '{"documents":[{"path":"docs/law/__dangling_refs_resource_anchor.md","lane":"core","frontmatter":{"fields":{"status":"active"}},"receipt":{"authority":"normative"}}]}\n',
   ".gitignore": "dist/\n",
   "packages/kit/src/__dangling_refs_resource_anchor.ts": "export const DANGLING_REFS_RESOURCE_ANCHOR = true;\n",
   "tooling/src/__dangling_refs_resource_anchor.ts": "export const danglingRefsResourceAnchor = true;\n",
@@ -134,7 +134,7 @@ export const gate = defineGate({
       mode: "resource" as const,
       files: {
         ...PROOF_FILES,
-        "docs/architecture/core/__probe3.md": "---\nkind: law\n---\n\nSee `domain/__ghost_domain__/x.ts` for the shape.\n",
+        "docs/law/__probe3.md": "---\nkind: law\n---\n\nSee `domain/__ghost_domain__/x.ts` for the shape.\n",
       },
       expect: { count: 1 },
       grant: { subject: "domain/__ghost_domain__/x.ts", operation: DANGLING_PATH_OPERATION },
@@ -144,7 +144,7 @@ export const gate = defineGate({
       mode: "resource" as const,
       files: {
         ...PROOF_FILES,
-        "docs/architecture/core/__probe4.md": "---\nkind: law\n---\n\nScoped to `GHOST_CONST_XYZ` recent turns.\n",
+        "docs/law/__probe4.md": "---\nkind: law\n---\n\nScoped to `GHOST_CONST_XYZ` recent turns.\n",
       },
       expect: { count: 1 },
       grant: { subject: "GHOST_CONST_XYZ", operation: DANGLING_SYMBOL_OPERATION },
@@ -176,7 +176,7 @@ export const gate = defineGate({
       mode: "resource" as const,
       files: {
         ...PROOF_FILES,
-        "docs/architecture/core/__probe_dead_end.md": "---\nkind: law\n---\n\nA message navigating a reader to `GHOST_DEADEND_CONST` read as a dead end.\n",
+        "docs/law/__probe_dead_end.md": "---\nkind: law\n---\n\nA message navigating a reader to `GHOST_DEADEND_CONST` read as a dead end.\n",
       },
       expect: { count: 1 },
       grant: { subject: "GHOST_DEADEND_CONST", operation: DANGLING_SYMBOL_OPERATION },
@@ -186,7 +186,7 @@ export const gate = defineGate({
   mustPass: [
     proof(
       {
-        "docs/architecture/core/__probe3.md": "---\nkind: law\n---\n\nSee `domain/__g_ok/x.ts` and `@orb/kit/__g_ok`.\n",
+        "docs/law/__probe3.md": "---\nkind: law\n---\n\nSee `domain/__g_ok/x.ts` and `@orb/kit/__g_ok`.\n",
         "packages/server/src/domain/__g_ok/x.ts": "export const x = 1;\n",
         "packages/kit/src/__g_ok/index.ts": "export const y = 1;\n",
       },
@@ -194,28 +194,28 @@ export const gate = defineGate({
     ),
     proof(
       {
-        "docs/architecture/core/__probe3b.md": "---\nkind: law\n---\n\nSee `@orb/tooling` and `@orb/tooling/__g_ok`.\n",
+        "docs/law/__probe3b.md": "---\nkind: law\n---\n\nSee `@orb/tooling` and `@orb/tooling/__g_ok`.\n",
         "tooling/src/__g_ok/index.ts": "export const z = 1;\n",
       },
       "LEGACY mustPass[3]: @orb/tooling resolves against the root tooling tree",
     ),
     proof(
       {
-        "docs/architecture/core/__probe4.md": "---\nkind: law\n---\n\nSee `PLANTED_CONST`.\n",
+        "docs/law/__probe4.md": "---\nkind: law\n---\n\nSee `PLANTED_CONST`.\n",
         "packages/kit/src/__probe4.ts": "export const PLANTED_CONST = 1;\n",
       },
       "LEGACY mustPass[4]: a planted UPPER_SNAKE declaration resolves through dispatcher-fed evidence",
     ),
     proof(
       {
-        "docs/architecture/core/__probe5.md":
+        "docs/law/__probe5.md":
           "---\nkind: law\n---\n\n**BUILD-STATE RIDER:** `domain/__g_dead__/x.ts` and `GHOST_RIDER_CONST` are purged.\n\n~~`ANOTHER_GHOST_CONST`~~ struck as dead.\n",
       },
       "LEGACY mustPass[5]: rider and struck history stay structurally exempt",
     ),
     proof(
       {
-        "docs/architecture/core/__probe7.md":
+        "docs/law/__probe7.md":
           "---\nkind: law\n---\n\nSee `domain/__g_ok/x.ts:19`, `domain/__g_ok/x.ts:12-30`, `domain/__g_ok/x.ts:201,207`,\n`domain/__g_ok/x.ts:33-39,257-282`, `domain/__g_ok/x.ts:6/:18` and `domain/__g_ok/x.ts::readIt()`.\n",
         "packages/server/src/domain/__g_ok/x.ts": "export const x = 1;\n",
       },
@@ -231,7 +231,7 @@ export const gate = defineGate({
       "LEGACY mustPass[7]: frozen evidence stays outside the corpus and arm 4 remains law-only",
     ),
     proof(
-      { "docs/architecture/core/__probe_dead_sense.md": "---\nkind: law\n---\n\n`GHOST_DEAD_MACHINERY_CONST` is dead — the loader stopped reading it.\n" },
+      { "docs/law/__probe_dead_sense.md": "---\nkind: law\n---\n\n`GHOST_DEAD_MACHINERY_CONST` is dead — the loader stopped reading it.\n" },
       "LEGACY mustPass[0]: deliberate dead machinery remains a rider",
     ),
   ],

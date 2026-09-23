@@ -1,4 +1,4 @@
-// Policy: tooling-instrument-proof (docs/architecture/core/Core-Tooling-Law.md §4.5) — an instrument-classed
+// Policy: tooling-instrument-proof (docs/law/Core-Tooling-Law.md §4.5) — an instrument-classed
 // tool (INSTRUMENT_TOOLS, tooling/src/_shared/instruments.ts) owes TWO proof classes in tests/tooling/<tool>/:
 // `@instrument-proof:` (a planted DEFECT must RED) and `@instrument-absence-proof:` (a removed apparatus /
 // empty population must NOT read clean). Arms per class: (B) a member with no marker; (C) a marker in a
@@ -114,7 +114,7 @@ const ARTIFACTS_HOME = { path: "tooling/src/_shared/artifacts.ts", names: [PRINT
 const ANCHOR = "tooling/src/_shared/exit-contract.ts";
 const TESTS_PREFIX = "tests/tooling/";
 const TOOLING_SOURCE = "tooling/src/";
-const LAW = "docs/architecture/core/Core-Tooling-Law.md §4.5";
+const LAW = "docs/law/Core-Tooling-Law.md §4.5";
 
 /** The TWO proof classes. A planted-defect proof answers "does the instrument bite?"; an ABSENCE proof
  *  answers the strictly harder question "when the instrument could not measure, does it say so?" — the

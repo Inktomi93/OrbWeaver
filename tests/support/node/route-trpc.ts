@@ -1,4 +1,4 @@
-// routeTrpc — the tRPC network stub for Playwright CT (core/Spine-Testing.md §7). CT runs the test
+// routeTrpc — the tRPC network stub for Playwright CT (docs/law/Spine-Testing.md §7). CT runs the test
 // in NODE and the component in the BROWSER, so node-side closures (vi.fn / MSW handlers) can never
 // run in the page — interception happens at the network boundary via `page.route`, which IS
 // node-side: it fulfills responses AND records decoded inputs (the spy replacement).

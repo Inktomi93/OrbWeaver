@@ -65,10 +65,10 @@ const MESSAGE =
   "ct-story-double-import-identifier-collision, 2026-08-19 — looks exactly like the stale-cache phantom, " +
   "but `rm -rf playwright/.cache` does not fix it). One import site per story name; never reference the " +
   "same story component twice in one JSX tree or as more than one array element in a tuple/loop table " +
-  "(core/Spine-Testing.md §7).";
+  "(docs/law/Spine-Testing.md §7).";
 const FIX =
   "import the story/component exactly ONCE, and if it is iterated, pass it via a helper taking the mounted " +
-  "Locator instead of listing the component itself as a repeated array value (core/Spine-Testing.md §7).";
+  "Locator instead of listing the component itself as a repeated array value (docs/law/Spine-Testing.md §7).";
 
 interface Occurrence {
   readonly scope: TsNode;

@@ -43,7 +43,7 @@ test("git-changed classification keeps deletions for semantic stages and removes
   writeFileSync(join(scratch, ".gitignore"), "node_modules\n");
   writeFileSync(join(scratch, "package.json"), JSON.stringify({ name: "selection-fixture", private: true }));
   mkdirSync(join(scratch, "scripts"), { recursive: true });
-  writeFileSync(join(scratch, "scripts/ts7.cjs"), readFileSync(join(repoRoot, "scripts/ts7.cjs"), "utf8"));
+  writeFileSync(join(scratch, "scripts/ts7.ts"), readFileSync(join(repoRoot, "scripts/ts7.ts"), "utf8"));
   symlinkSync(join(repoRoot, "node_modules"), join(scratch, "node_modules"), "dir");
   writeFileSync(join(scratch, "tsconfig.base.json"), '{"compilerOptions":{"noEmit":true,"strict":true,"types":[]},"files":[]}\n');
   writeFileSync(join(scratch, "root-anchor.ts"), "export {};\n");

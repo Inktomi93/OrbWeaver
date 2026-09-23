@@ -1,4 +1,4 @@
-// Policy: tooling-artifact-path-home (docs/architecture/core/Core-Tooling-Law.md §4.4, arm C of the retired
+// Policy: tooling-artifact-path-home (docs/law/Core-Tooling-Law.md §4.4, arm C of the retired
 // `tooling-shared-plumbing`) — the `reports/…` artifact root is spelled in ONE home, `_shared/artifacts.ts`
 // (`reportsPath`/`reportsRelPath`/`ensureReportsDir`); a `"reports"`/`"reports/…"` literal fed to a path call
 // (`join`/`resolve`/`mkdir`/`mkdirSync`) anywhere else under `tooling/src/**` is the artifact-dir respell — a
@@ -39,7 +39,7 @@ import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts
 const OPERATION = "reports-path-literal";
 
 const MESSAGE =
-  'a hand-rolled reports/<kind> path — the artifact root is spelled ONCE, in _shared/artifacts.ts (`reportsPath`/`reportsRelPath`/`ensureReportsDir`), and a `"reports"`/`"reports/…"` literal fed to a path call anywhere else is a second answer to "where do runs live" that the run-slot layout (#1029/#1164) never sees (docs/architecture/core/Core-Tooling-Law.md §4.4; UNIFIED-VERIFICATION-DESIGN.md §3.3b).';
+  'a hand-rolled reports/<kind> path — the artifact root is spelled ONCE, in _shared/artifacts.ts (`reportsPath`/`reportsRelPath`/`ensureReportsDir`), and a `"reports"`/`"reports/…"` literal fed to a path call anywhere else is a second answer to "where do runs live" that the run-slot layout (#1029/#1164) never sees (docs/law/Core-Tooling-Law.md §4.4; UNIFIED-VERIFICATION-DESIGN.md §3.3b).';
 const UNREADABLE =
   'a `"reports"` literal fed to a call spelled like a path/fs door whose callee the shared readers cannot place, so whether it builds an artifact path CANNOT be established. Reported rather than passed: the spelling alone is not the identity. Give the binding a readable import origin; the three-answer rule is tooling/src/verify/lib/origin-verdict.ts (#944).';
 const FIX =

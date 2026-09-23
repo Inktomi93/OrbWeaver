@@ -1,4 +1,4 @@
-// The tooling composed test's own proof (docs/architecture/core/Core-Tooling-Law.md §5): each serializer rule + a
+// The tooling composed test's own proof (docs/law/Core-Tooling-Law.md §5): each serializer rule + a
 // planted NEGATIVE (a deterministic string must pass through byte-identical), the toExitWith contract
 // diff, runCli's fail-loud unknown-tool refusal, and the scratch/plantedTree/fakeBin seams.
 import { execFileSync } from "node:child_process";

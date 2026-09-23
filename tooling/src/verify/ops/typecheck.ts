@@ -15,7 +15,7 @@ import { readCompilerPrograms } from "../lib/policy-program-membership.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm typecheck [--config <repo-relative-tsconfig>]...");
 
-const TS7_WRAPPER = fileURLToPath(new URL("../../../../scripts/ts7.cjs", import.meta.url));
+const TS7_WRAPPER = fileURLToPath(new URL("../../../../scripts/ts7.ts", import.meta.url));
 const COMPILER_DIAGNOSTIC_RE = /\berror TS\d+:/u;
 const NATIVE_DIAGNOSTIC_EXIT = 1;
 const RESULT_LABELS = {

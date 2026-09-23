@@ -62,6 +62,7 @@ const VERB_TAIL: Readonly<Record<VerifyVerb, TailGrammar>> = {
   "ratchet-gate": NO_TAIL,
   "config-snapshot": "own",
   "biome-rule-liveness": NO_TAIL,
+  "knip-negative-liveness": NO_TAIL,
   "typecheck-plan": "own",
   typecheck: "own",
   eslint: { tail: "none", scopedDoor: "pnpm exec eslint <files>" },

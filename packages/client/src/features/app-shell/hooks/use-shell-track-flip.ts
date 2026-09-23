@@ -12,7 +12,7 @@
 // share ONE restart, ONE release and ONE composed distance per element). What #2456 deferred was the
 // NAME, because the motion law cites this PATH as one of the two members of its §1.5 FLIP-inversion
 // exception class and a rename is a law-doc edit. It is done here, with that citation
-// (`docs/architecture/core/motion-and-animation-guide.md` §1.5) moved in the same commit — `dangling-doc-cite`
+// (`docs/law/motion-and-animation-guide.md` §1.5) moved in the same commit — `dangling-doc-cite`
 // is hard-no-waiver, so the two can never be renamed apart.
 //
 // TWO TRACKS, TWO ARMS, ONE STAMP. Each track's fact is stamped either as `data-<track>-flip` (motion

@@ -1,4 +1,4 @@
-// transport/trpc/routers/credentials — the per-user credential surface (core/Tier-4-Transport.md). authed;
+// transport/trpc/routers/credentials — the per-user credential surface (docs/law/Tier-4-Transport.md). authed;
 // owner-scoped (rows by `principal.userId`). Thin: validate → `ctx.services.credentials.<verb>` → map
 // errors. The turn-time `resolve`/`maybeRevokeOnAuthFailed`, the runner-internal `markRevoked`, and the
 // boot/connection mints are internal — NOT exposed. `provider`/`metadata` derive from

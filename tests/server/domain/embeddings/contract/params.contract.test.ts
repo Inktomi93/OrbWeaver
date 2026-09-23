@@ -1,6 +1,6 @@
 // contract/params — the §7.5 dispatch axes (SOURCE_KINDS / TEXT_LENSES) are the canonical `as const`
 // tuples; SourceKind / SourceLens derive from them. This pins the membership (incl. the memory chat-block
-// additions — `chat-block` kind, `segment` / `digest` lenses, core/Knowledge-Cluster.md §1/§2) so the store
+// additions — `chat-block` kind, `segment` / `digest` lenses, docs/law/Knowledge-Cluster.md §1/§2) so the store
 // switch's exhaustive dispatch + the db lens columns stay in lockstep with the one home.
 //
 // The PD-34 `StoreParams` arms (DigestStoreParams / SegmentStoreParams) are PURE TS interfaces — there is

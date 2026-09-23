@@ -1,9 +1,12 @@
 // Work items as data: parse a `docs/work/NNNN-<slug>.md` file into a `WorkItem`, judge a state's final
 // shape, and apply a transition patch. Any transition is legal — only the resulting shape is checked —
-// which is what lets the orchestrator batch `set 12 14 17 done` without walking a lifecycle.
+// which is what lets the orchestrator batch `set 12 14 17 done` without walking a lifecycle. Also the
+// `item --from` batch file's schema.
+import { z } from "zod";
 import { DATE_RE, DOC_TOOL_TREES, ITEM_KINDS, ITEM_STATES } from "#doc-catalog";
-import type { Blocker, ItemKind, ItemPatch, ItemState, WorkItem } from "../contract/types.ts";
-import { splitDocument, titleOf, withFields } from "./frontmatter-write.ts";
+import type { Blocker, ItemKind, ItemPatch, ItemSectionFlag, ItemState, NewItemInput, WorkItem } from "../contract/types.ts";
+import { ITEM_SECTION_FLAGS } from "../contract/types.ts";
+import { splitDocument, titleOf, withFields, withTitle } from "./frontmatter-write.ts";
 import { basenameOf, parseNumberedName } from "./names.ts";
 
 const PRIORITY_RE = /^P[0-3]$/u;
@@ -126,6 +129,9 @@ export function itemShapeProblems(item: WorkItem, known: ReadonlySet<number>): r
  *  that belong to the states left behind, so a `blocked` reason never survives into `doing`. */
 export function applyPatch(source: string, item: WorkItem, patch: ItemPatch, today: string): string {
   const next: Record<string, string | null> = { updated: today };
+  if (patch.kind !== undefined) {
+    next["kind"] = patch.kind;
+  }
   const state = patch.state ?? item.state;
   if (patch.state !== undefined) {
     next["status"] = patch.state;
@@ -145,9 +151,58 @@ export function applyPatch(source: string, item: WorkItem, patch: ItemPatch, tod
       next[key] = value;
     }
   }
-  return withFields(source, next);
+  const patched = withFields(source, next);
+  return patch.title === undefined ? patched : withTitle(patched, patch.title);
 }
 
 export function nextItemId(items: readonly WorkItem[]): number {
   return items.reduce((max, item) => Math.max(max, item.id), 0) + 1;
+}
+
+const optionalField = z.string().nullable().optional();
+const optionalText = z.string().optional();
+
+/** One entry of an `item --from` file: the `item` flags, spelled without their dashes. Strict, so a
+ *  misspelled key is a refusal instead of a silently dropped section. */
+const BATCH_ENTRY = z.strictObject({
+  title: z.string().trim().min(1),
+  kind: z.enum(ITEM_KINDS),
+  priority: optionalField,
+  area: optionalField,
+  plan: optionalField,
+  lane: optionalField,
+  blocked: optionalField,
+  what: optionalText,
+  why: optionalText,
+  done: optionalText,
+} satisfies Record<ItemSectionFlag, typeof optionalText> & Record<string, z.ZodType>);
+const BATCH = z.array(BATCH_ENTRY).min(1);
+
+/** The items an `item --from` file names, or the one line saying why the file is not a batch. */
+export function parseItemBatch(json: unknown): { readonly items: readonly NewItemInput[] } | { readonly error: string } {
+  const parsed = BATCH.safeParse(json);
+  if (!parsed.success) {
+    return { error: z.prettifyError(parsed.error) };
+  }
+  return {
+    items: parsed.data.map((entry) => {
+      const content: { [K in ItemSectionFlag]?: string } = {};
+      for (const flag of ITEM_SECTION_FLAGS) {
+        const text = entry[flag];
+        if (text !== undefined) {
+          content[flag] = text;
+        }
+      }
+      return {
+        title: entry.title,
+        kind: entry.kind,
+        priority: entry.priority ?? null,
+        area: entry.area ?? null,
+        plan: entry.plan ?? null,
+        lane: entry.lane ?? null,
+        blocked: entry.blocked ?? null,
+        content,
+      };
+    }),
+  };
 }
