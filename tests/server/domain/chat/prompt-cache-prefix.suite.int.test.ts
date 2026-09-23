@@ -304,6 +304,9 @@ describe("F3 — the system block speaks for the anchor human, whoever presses s
     expect(second.prompt.static).toBe(first.prompt.static);
     expect(third.prompt.static).toBe(first.prompt.static);
     expect([second.prompt.dynamic, third.prompt.dynamic]).toEqual([first.prompt.dynamic, first.prompt.dynamic]);
+    // Call 1 carries no history marker (its only row is its own tail), so its whole history must reappear
+    // byte-identical at the head of call 2.
+    expect(second.history.slice(0, first.history.length)).toEqual(first.history);
     expectHistoryPrefixKept(second, third);
     // The re-anchor moves only the anchor-dependent bytes: the same block, with Bob where Alice was.
     expect(fourth.prompt.static).not.toBe(third.prompt.static);
