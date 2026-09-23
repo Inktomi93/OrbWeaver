@@ -672,7 +672,8 @@ function sameProjectedPersona(a: AssemblePersona, b: AssemblePersona | null): bo
 }
 
 /** Resolves the distinct personas in play into injection candidates: active per its own descriptionPosition
- *  (unframed); anchor as a fixed card-context block, only on a real swap; each other present human's at_depth
+ *  (unframed); anchor as a fixed card-context block, only on a real swap and only when no people entry already
+ *  carries it; each other present human's at_depth
  *  description at its own depth (its people-block entry keeps only the heading). Deduped so a no-swap turn's
  *  output is byte-identical to the active-only injection. */
 function resolvePersonaDescriptionCandidates(
@@ -692,7 +693,10 @@ function resolvePersonaDescriptionCandidates(
       candidates.push(candidate);
     }
   });
-  if (personas.anchor !== null && !sameProjectedPersona(personas.anchor, personas.active)) {
+  // An anchor that is also a people entry (an impersonate draft by another human) already reaches the model
+  // through that entry, name and description both; the card-context block would repeat the description.
+  const anchorIsPerson = (personas.people ?? []).some((person) => personas.anchor !== null && sameProjectedPersona(personas.anchor, person));
+  if (personas.anchor !== null && !sameProjectedPersona(personas.anchor, personas.active) && !anchorIsPerson) {
     const anchor = anchorPersonaCardCandidate(ctx, personas.anchor, registry, prose);
     if (anchor !== null) {
       candidates.push(anchor);

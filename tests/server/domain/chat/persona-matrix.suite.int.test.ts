@@ -2,7 +2,7 @@
 // verbs, engine, pipeline and SHAPE, reads what `{{user}}` became in every section kind and which other people the
 // persona marker's people block lists, and writes the tables to `reports/persona-matrix/<label>.md`. No live
 // calls: the tape answers every turn. The invariants live in `prompt-cache-prefix.suite.int.test.ts`; this file
-// asserts only that every combination ran.
+// asserts that every combination ran and that no call carries one persona's description twice.
 //
 // `fix` is the composition root's own persona resolver. `PERSONA_MATRIX_LABEL=base` runs the pre-fix trigger
 // binding instead, for a run on the base tree.
@@ -112,7 +112,8 @@ function foreignFor(binding: Binding, db: Db, promptConfig: PromptConfig): Resol
 const ANCHOR_LEAD = resolveProseText("chat.assembly.anchorIdentity", {});
 /** The people-block heading split around its name, so a report reads any heading the default renders. */
 const [PERSON_OPEN = "", PERSON_CLOSE = ""] = resolveProseText("chat.group.personaHeading", {}, { name: "\u0000" }).split("\u0000");
-// Every persona this harness inserts is described `desc-of-<name>`, so a following description line is unambiguous.
+// Every persona this harness inserts is described `desc-of-<name>#<n>`, so a following description line is unambiguous
+// and two personas that share a name still carry distinct descriptions.
 const PERSON_RE = new RegExp(`${RegExp.escape(PERSON_OPEN)}(.+?)${RegExp.escape(PERSON_CLOSE)}(\ndesc-of-)?`, "gu");
 
 function textOf(content: TurnRequest["history"][number]["content"]): string {
@@ -140,6 +141,18 @@ interface Row {
   readonly labels: string;
   readonly tail: string;
   readonly system: string;
+  /** Each persona description the call carries more than once, anywhere in the system halves or the history. */
+  readonly repeated: readonly string[];
+}
+
+/** The persona descriptions that occur more than once in one call's delivered text. */
+function repeatedDescriptions(req: TurnRequest): readonly string[] {
+  const delivered = [req.prompt.static, req.prompt.dynamic, ...req.history.map((m) => textOf(m.content))].join("\n");
+  const counts = new Map<string, number>();
+  for (const m of delivered.matchAll(/desc-of-\w+#\d+/gu)) {
+    counts.set(m[0], (counts.get(m[0]) ?? 0) + 1);
+  }
+  return [...counts].flatMap(([token, n]) => (n > 1 ? [`${token} ×${String(n)}`] : []));
 }
 
 function readRow(step: string, req: TurnRequest): Row {
@@ -162,6 +175,7 @@ function readRow(step: string, req: TurnRequest): Row {
     labels: labels.join(" · "),
     tail: impersonate === undefined ? `guided ${guided}` : `impersonate AS ${impersonate}`,
     system,
+    repeated: repeatedDescriptions(req),
   };
 }
 
@@ -173,9 +187,14 @@ interface Room {
   readonly bob: UserId;
 }
 
+let personaSeq = 0;
+
 async function insertPersona(db: Db, ownerId: UserId, name: string, metadata: PersonaMetadata | null = null): Promise<PersonaId> {
   const id = mintTypeId(ID_PREFIX.persona);
-  await db.insert(personas).values({ id, ownerId, name, description: `desc-of-${name}`, metadata, createdAt: FROZEN_AT, updatedAt: FROZEN_AT });
+  personaSeq += 1;
+  await db
+    .insert(personas)
+    .values({ id, ownerId, name, description: `desc-of-${name}#${String(personaSeq)}`, metadata, createdAt: FROZEN_AT, updatedAt: FROZEN_AT });
   return id;
 }
 
@@ -553,7 +572,7 @@ async function runCombo(combo: Combo, binding: Binding): Promise<ComboResult> {
       }
       const req = room.scn.requests.slice(before).at(-1);
       if (req === undefined) {
-        rows.push({ step: label, preset: "no call", card: "", people: "", description: "", anchorBlock: "", labels: "", tail: "", system: "" });
+        rows.push({ step: label, preset: "no call", card: "", people: "", description: "", anchorBlock: "", labels: "", tail: "", system: "", repeated: [] });
         continue;
       }
       const row = readRow(label, req);
@@ -592,4 +611,7 @@ test("the persona matrix runs every combination and writes its report", async ()
   writeFileSync(join(dir, `${LABEL}.md`), `# Persona matrix — ${LABEL}\n\n${sections.join("\n")}`);
 
   expect(results.filter((r) => r.error !== null).map((r) => `${r.combo.id}/${r.binding}: ${r.error ?? ""}`)).toEqual([]);
+  // A `base` run reports the pre-fix tree as it was; only the current binding owes the once-only rule.
+  const repeats = LABEL === "base" ? [] : results.flatMap((r) => r.rows.flatMap((row) => row.repeated.map((rep) => `${r.combo.id} ${row.step}: ${rep}`)));
+  expect(repeats).toEqual([]);
 }, 120_000);

@@ -274,6 +274,22 @@ describe("assemblePrompt — section walk", () => {
     expect(out.trace.staticCacheBusters).toContain("date");
   });
 
+  test("only a description the persona marker renders is scanned — a heading-only person's is not, the voice's is", () => {
+    const config = configOf([marker({ marker: "persona", name: "persona" }), marker({ marker: "chat_history" })]);
+    const volatile = "rolls {{random::1::2}}";
+    const alice = { name: "Alice", description: "ALICE-DESC" };
+    const busters = (ctx: AssembleContext): string[] => assemblePrompt(config, ctx).trace.staticCacheBusters;
+
+    // A person whose description rides elsewhere (at_depth) or nowhere (none) contributes a heading only.
+    for (const placement of [{ kind: "at_depth", depth: 2, role: "system" }, { kind: "none" }] as const) {
+      expect(busters(ctxOf({ activePersona: alice, people: [{ name: "Bob", description: volatile, placement }] }))).toEqual([]);
+    }
+    // The voice description renders in the static half, so its volatile macro busts the cache…
+    expect(busters(ctxOf({ activePersona: { name: "Alice", description: volatile } }))).toContain("random");
+    // …unless its placement routed it out of the marker.
+    expect(busters(ctxOf({ activePersona: { name: "Alice", description: volatile }, personaMarkerActive: false }))).toEqual([]);
+  });
+
   test("a volatile macro in another present human's persona description is reported as a cache-buster", () => {
     const config = configOf([marker({ marker: "persona", name: "persona" }), marker({ marker: "chat_history" })]);
     const alice = { name: "Alice", description: "ALICE-DESC" };
