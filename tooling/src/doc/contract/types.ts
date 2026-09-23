@@ -147,7 +147,7 @@ export interface DriftFacts {
   readonly worktreeBranches: readonly string[];
   /** Branch names not merged into `main`. */
   readonly unmergedBranches: readonly string[];
-  /** `Closes:` ids per recent `main` commit, newest first. */
+  /** `Closes:` ids per `main` commit carrying that trailer, across the whole branch, newest first. */
   readonly closedOnMain: readonly { readonly sha: string; readonly ids: readonly number[] }[];
   /** Items whose wake condition the tree meets, by id. */
   readonly wokenItems: ReadonlySet<number>;
