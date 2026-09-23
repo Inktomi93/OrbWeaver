@@ -38,11 +38,6 @@ export function sectionNames<F extends string>(sections: readonly Section<F>[]):
   return sections.map((section) => section.name);
 }
 
-/** The content flags a kind takes, in section order. */
-export function sectionFlags<F extends string>(sections: readonly Section<F>[]): readonly F[] {
-  return sections.flatMap((section) => (section.flag === null ? [] : [section.flag]));
-}
-
 function render<F extends string>(sections: readonly Section<F>[], content: SectionContent<F>): string {
   return sections
     .map((section) => {

@@ -36,9 +36,12 @@ export type Blocker =
 
 /** The content flags per minted kind: one per section an author fills at mint time, spelled `--<flag>` on
  *  the command line and `<flag>` in a `--from` batch file. `lib/templates.ts` binds each to its section. */
-export type ItemSectionFlag = "what" | "why" | "done";
-export type AdrSectionFlag = "context" | "decision" | "consequences" | "alternatives";
-export type PlanSectionFlag = "goal" | "shape" | "rejected" | "coupled" | "test-plan";
+export const ITEM_SECTION_FLAGS = ["what", "why", "done"] as const;
+export const ADR_SECTION_FLAGS = ["context", "decision", "consequences", "alternatives"] as const;
+export const PLAN_SECTION_FLAGS = ["goal", "shape", "rejected", "coupled", "test-plan"] as const;
+export type ItemSectionFlag = (typeof ITEM_SECTION_FLAGS)[number];
+export type AdrSectionFlag = (typeof ADR_SECTION_FLAGS)[number];
+export type PlanSectionFlag = (typeof PLAN_SECTION_FLAGS)[number];
 
 /** The authored text per section. An absent section keeps its template prompt. */
 export type SectionContent<F extends string> = { readonly [K in F]?: string };

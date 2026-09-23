@@ -3,9 +3,9 @@
 // or paths, so `set 12 14 17 done` is one call.
 import { UsageError } from "../../_shared/run-tool.ts";
 import type { DocCommand, ItemPatch, SectionContent } from "../contract/types.ts";
+import { ADR_SECTION_FLAGS, ITEM_SECTION_FLAGS, PLAN_SECTION_FLAGS } from "../contract/types.ts";
 import { isItemKind, isItemState } from "./items.ts";
 import { isSlug } from "./names.ts";
-import { ADR_SECTIONS, ITEM_SECTIONS, PLAN_SECTIONS, sectionFlags } from "./templates.ts";
 
 const ID_RE = /^\d+$/u;
 
@@ -99,9 +99,9 @@ function parseContent<F extends string>(args: readonly string[], flags: readonly
   return content;
 }
 
-const ADR_FLAGS = sectionFlags(ADR_SECTIONS);
-const PLAN_FLAGS = sectionFlags(PLAN_SECTIONS);
-const ITEM_CONTENT_FLAGS = sectionFlags(ITEM_SECTIONS);
+const ADR_FLAGS = ADR_SECTION_FLAGS;
+const PLAN_FLAGS = PLAN_SECTION_FLAGS;
+const ITEM_CONTENT_FLAGS = ITEM_SECTION_FLAGS;
 
 function parseNew(args: readonly string[]): DocCommand {
   const [kind, slug, ...rest] = args;
