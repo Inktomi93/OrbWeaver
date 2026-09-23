@@ -37,9 +37,13 @@
 // admits exactly what the gate ever looked at; the fence is deleted rather than kept as decoration
 // (`server-layout` precedent). Legacy sha `1692583d6`.
 //
-// WHERE A BROKEN RESOURCE REFUSES — not here. `resolveResourceDeclarations` acquires every declared
-// resource at the POPULATION phase and withholds this owner before `create` runs (guide §3's acquisition-refusal rule), so
-// this module owns no not-ready branch and reads through `readyResourceValue`. `mustRefuse[0]` pins it.
+// WHERE A BROKEN RESOURCE REFUSES — not here, but at TWO phases. `resolveResourceDeclarations` acquires the
+// POPULATED declarations (`product-css`, `json:baseui-manifest`) at the population phase and withholds this
+// owner before `create` runs (guide §3's acquisition-refusal rule). The two UNPOPULATED ones
+// (`installed-package`, and `vendor-css-surface` since the #10 mirror retirement left it no repo path —
+// `contract/resource-declaration.ts` `GATE_RESOURCE_UNPOPULATED_KINDS`) are filtered out of that
+// acquisition, so a non-ready one surfaces when `evaluate` calls its door and `readyResourceValue` throws.
+// Either way this module owns no not-ready branch. `mustRefuse[0]` pins the vendor door's evaluate refusal.
 //
 // DECLARED LIMITS, each with its row:
 //   * `hookCoordinate`'s refusal branch is a TYPE OBLIGATION with NO CONSTRUCTIBLE FIXTURE, and the
@@ -76,6 +80,7 @@ import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import { installedStateAttributeValuesFrom, installedSurfaceFrom, surfaceManifestFrom } from "../lib/baseui-read.ts";
 import {
+  BASE_UI_INSTALLED_FIXTURE,
   BASE_UI_MANIFEST_PATH,
   CLEAN_PRODUCT_CSS,
   EMPTY_BASE_UI_MANIFEST,
@@ -409,9 +414,14 @@ export const gate = defineGate({
   mustRefuse: [
     {
       mode: "resource",
-      files: { ...CLEAN_PRODUCT_CSS, [SOURCE_ANCHOR]: "export const probe = null;\n", [BASE_UI_MANIFEST_PATH]: EMPTY_BASE_UI_MANIFEST },
+      files: {
+        ...CLEAN_PRODUCT_CSS,
+        ...BASE_UI_INSTALLED_FIXTURE,
+        [SOURCE_ANCHOR]: "export const probe = null;\n",
+        [BASE_UI_MANIFEST_PATH]: EMPTY_BASE_UI_MANIFEST,
+      },
       expect: { messageIncludes: "vendor-css-surface" },
-      why: "a corpus with no installed vendor surface REFUSES at the population phase — the runtime is the accuser (resource-policy-contract.md §4), and the policy owns no not-ready branch that could return a clean zero instead. The committed manifest IS supplied so the refusal names the vendor door rather than the json one",
+      why: "a corpus whose installed vendor surface is incomplete (Base UI installed, Streamdown absent) REFUSES at the evaluate-phase door read — the runtime is the accuser (resource-policy-contract.md §4), and the policy owns no not-ready branch that could return a clean zero instead. The committed manifest and the Base UI package ARE supplied so the refusal names the vendor door rather than the json door (population phase) or the installed-package door (read first in `vendorCensus`)",
     },
   ],
 });
