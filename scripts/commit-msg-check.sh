@@ -10,12 +10,15 @@
 #   trailer  at least one `Co-Authored-By: Name <local@domain>` (every commit in history carries one; the
 #            addresses are noreply@anthropic.com / noreply@openai.com / codex@openai.com) and every trailer
 #            well-formed: no spaces or angle-bracket junk in the address (the Qwen lane emits `<qwen-lane @local>`)
+#   closes   an OPTIONAL `Closes: 12, 14` trailer names the work items (docs/work/) this commit lands; the
+#            post-merge hook on main reads it (`pnpm doc land --merged`). Well-formed = comma-separated ids.
 # Git-generated messages (merge, revert, fixup!, squash!) are exempt. ORB_HUMAN_COMMIT=1 waives the
 # trailer rule only — for a hand-typed owner commit, never for a lane.
 set -uo pipefail
 TYPES='feat|fix|docs|test|chore|refactor|perf|style|build|ci|revert'
 HEADER_RE="^(${TYPES})(\([A-Za-z0-9#+,./-]+\))?!?: [^ ].*$"
 TRAILER_RE='^Co-[Aa]uthored-[Bb]y: [^<>]+ <[^[:space:]<>@]+@[^[:space:]<>@]+>$'
+CLOSES_RE='^Closes: [0-9]+(, [0-9]+)*$'
 
 check_message() {  # $1 = label, stdin = full message (comments already stripped)
   local label="$1" msg header fails=0
@@ -38,6 +41,12 @@ check_message() {  # $1 = label, stdin = full message (comments already stripped
     while IFS= read -r t; do
       printf '%s' "$t" | grep -Eq "$TRAILER_RE" || { echo "$label: malformed trailer (address must be <local@domain>, no spaces): $t"; fails=1; }
     done <<< "$trailers"
+  fi
+  local closes; closes="$(printf '%s\n' "$rest" | grep -i '^Closes:' || true)"
+  if [ -n "$closes" ]; then
+    while IFS= read -r c; do
+      printf '%s' "$c" | grep -Eq "$CLOSES_RE" || { echo "$label: malformed Closes trailer (expected \`Closes: 12, 14\` — work-item ids, comma-separated): $c"; fails=1; }
+    done <<< "$closes"
   fi
   return $fails
 }

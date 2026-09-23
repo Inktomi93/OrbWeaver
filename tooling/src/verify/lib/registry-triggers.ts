@@ -66,15 +66,15 @@ export interface StageTrigger {
 export const WHOLE_COMMAND_PATH_TRIGGERS: Readonly<Record<string, StageTrigger>> = {
   "docs:catalog": {
     paths: /^(?:docs\/.*\.md|docs\/catalog\/.*|tooling\/src\/doc-catalog\/.*)$/u,
-    why: "THE ORIGINAL, moved here verbatim from `registry.ts`'s lone `DOC_CATALOG_PATH_RE`: one edited document can invalidate its content-hash receipt or the corpus ratchet, and the catalog tool itself defines the receipt.",
+    why: "THE ORIGINAL, moved here verbatim from `registry.ts`'s lone `DOC_CATALOG_PATH_RE`: an added, removed or re-kinded document changes the inventory or the frontmatter ratchet, and the catalog tool itself defines the row shape. (The content-hash receipt this row used to guard is gone by owner ruling; the pattern stays a complete over-approximation.)",
   },
   "lint:hook-syntax": {
     paths: /^\.claude\/hooks\//u,
     why: "its subject is literally `.claude/hooks/*.mjs` — the glob its own argv spells. Nothing else can change the verdict.",
   },
   "structure:agent-config": {
-    paths: /^(?:AGENTS\.md|\.claude\/(?:agents|rules|skills)\/|\.codex\/agents\/|\.agents\/skills\/)/u,
-    why: "agent-sync reads exactly six coordinates (lib/paths.ts): AGENTS.md, .claude/{agents,rules,skills}/, .codex/agents/, .agents/skills/. #2266 is this row's reason for existing — it sat red on main through several folds.",
+    paths: /^(?:AGENTS\.md|\.claude\/(?:agents|rules|skills)\/|\.codex\/agents\/|\.agents\/skills\/|docs\/)/u,
+    why: "agent-sync reads exactly six coordinates (lib/paths.ts): AGENTS.md, .claude/{agents,rules,skills}/, .codex/agents/, .agents/skills/ — plus the docs tree since `--check` runs the doc tool's rules over it (doc/ops/check.ts). #2266 is this row's reason for existing — it sat red on main through several folds.",
   },
   "structure:drizzle-kit": {
     paths: /^packages\/db\/(?:src\/migrations\/|drizzle\.config\.ts$)/u,

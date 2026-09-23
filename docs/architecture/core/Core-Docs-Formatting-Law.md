@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-07-13
+updated: 2026-09-22
 ---
 
 # Orbweaver — Docs Formatting Law (machine-first markdown)
@@ -34,8 +34,8 @@ never auto-touched).
 2. **YAML frontmatter passes through verbatim.** Authored docs carry the minimal
    `kind:` / `status:` / `supersedes:` / `updated:` header; vendor mirrors retain upstream metadata
    (schema owned by `Documentation-Law.md`). The formatter parses the fence and never reformats its
-   contents. `tooling/src/doc-catalog/lib/receipt-rules.ts` owns flat-schema validation and the migration ratchet; the
-   formatter owns bytes only.
+   contents. `tooling/src/doc-catalog/lib/frontmatter.ts` owns flat-schema validation and `tooling/src/doc-catalog/lib/debt.ts` the
+   frontmatter-debt ratchet; the formatter owns bytes only.
 3. **No prose reflow.** The formatter preserves existing line breaks and does not wrap long lines
    (markdownlint MD013 is off). Write new prose however you like — unwrapped paragraphs are fine and
    preferred (fewer artifacts when grepping; hard wraps add nothing for an agent). One-sentence-per-line

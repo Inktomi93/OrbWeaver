@@ -1,7 +1,7 @@
 ---
 kind: runbook
 status: active
-updated: 2026-09-13
+updated: 2026-09-22
 ---
 
 # Gate-runtime orchestrator playbook
@@ -143,7 +143,7 @@ second result byte-identical and required literal searchability preserved. Froze
 6. Fold repeated corrections into the law or procedure source after verifying the mechanism. Chat, a bridge note, and
    a GitHub comment are transport, not the durable home of a standing rule.
 
-For rewritten docs, format and check them, then re-attest only documents fully read. Regenerate the read-first cost block
+For rewritten docs, format and check them. Regenerate the read-first cost block
 on the exact committed set of priced bytes; a generated value measured beside an uncommitted priced edit is invalid.
 An in-place correction to a dated claim in a live-law review keeps the original sentence and adds
 `**LANDED <date> (<sha>)**` beside it; rewriting that evidence as if it had always been current falsifies the record.
