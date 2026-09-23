@@ -48,18 +48,18 @@ interface CaseKey {
   readonly case: CacheCase;
 }
 
-/** A case that measured: every consecutive pair in call order, and the worst of them, which decides. */
-export interface MeasuredOutcome extends CaseKey {
+// A case that measured: every consecutive pair in call order, and the worst of them, which decides.
+interface MeasuredOutcome extends CaseKey {
   readonly verdict: Extract<CaseVerdict, "PASS" | "FAIL">;
   readonly worst: JudgedPair;
   readonly pairs: readonly JudgedPair[];
   readonly floor: number;
-  /** For a FAIL the route lists as known, the work item that owns the cause. */
+  // For a FAIL the route lists as known, the work item that owns the cause.
   readonly knownCause?: string | undefined;
 }
 
-/** A case that did not measure, with the reason its line prints. */
-export interface UnmeasuredOutcome extends CaseKey {
+// A case that did not measure, with the reason its line prints.
+interface UnmeasuredOutcome extends CaseKey {
   readonly verdict: Extract<CaseVerdict, "SKIPPED" | "ERROR">;
   readonly reason: string;
 }
