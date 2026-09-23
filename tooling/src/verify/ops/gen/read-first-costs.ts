@@ -1,4 +1,4 @@
-// Generator for the SIZE column of `docs/design/gate-runtime-read-first.md`'s read-list table (#2017).
+// Generator for the SIZE column of `docs/law/gate-runtime-read-first.md`'s read-list table (#2017).
 //
 // THE DEFECT IT RETIRES, with its number. That table is a BUDGET — its whole purpose is telling a cold or
 // compacted session what the #1584 reading costs BEFORE it commits — and on 2026-09-12 **all eight of its
@@ -30,7 +30,7 @@ import { backtickedIdRows, kib, ledgerSections, pathSetSize, readDoc } from "../
 
 refuseDirectInvocation(import.meta.url, "node tooling/src/verify/cli.ts baseline read-first-costs");
 
-export const READ_FIRST_REL = "docs/design/gate-runtime-read-first.md";
+export const READ_FIRST_REL = "docs/law/gate-runtime-read-first.md";
 
 const REVIEWS = "docs/reviews/gate-runtime";
 const CONTRACT_DIR = "tooling/src/verify/contract";
