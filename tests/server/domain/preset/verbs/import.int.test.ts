@@ -35,7 +35,7 @@ describe("import (orb-native backup)", () => {
       bytes: fileBytes("Backup", richConfig(0.9)),
     });
 
-    expect(outcome).toEqual({ ok: true, created: true, presetId: "preset_000001" });
+    expect(outcome).toEqual({ ok: true, created: true, presetId: "preset_00000000000000000000000001" });
     const rows = await ownedRows(db, owner);
     expect(rows.map((r) => r.name)).toEqual(["Backup"]);
     expect(rows[0]?.config.params.temperature).toBe(0.9);
@@ -58,7 +58,7 @@ describe("import (orb-native backup)", () => {
     });
 
     expect(first.created).toBe(true);
-    expect(second).toEqual({ ok: true, created: false, presetId: "preset_000001" });
+    expect(second).toEqual({ ok: true, created: false, presetId: "preset_00000000000000000000000001" });
     const rows = await ownedRows(db, owner);
     // ONE row for the name, config MERGED to the second import's value (not duplicated).
     expect(rows.map((r) => r.name)).toEqual(["Backup"]);
@@ -96,7 +96,7 @@ describe("import (orb-native backup)", () => {
     const [file] = await exportPresets({ ownerId: source });
     const outcome = await importPreset({ ownerId: target, bytes: file?.bytes ?? new Uint8Array() });
 
-    expect(outcome).toEqual({ ok: true, created: true, presetId: "preset_000001" });
+    expect(outcome).toEqual({ ok: true, created: true, presetId: "preset_00000000000000000000000001" });
     const rows = await ownedRows(db, target);
     expect(rows.map((r) => r.name)).toEqual(["Traveler"]);
     expect(rows[0]?.config.params.temperature).toBe(0.7);

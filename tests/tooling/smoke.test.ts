@@ -8,6 +8,6 @@ test("frozen clock is deterministic + advances explicitly", ({ clock }) => {
 });
 
 test("seeded ids are deterministic + prefixed", ({ ids }) => {
-  expect(ids.next("chat")).toBe("chat_000001");
-  expect(ids.next()).toBe("id_000002");
+  expect(ids.next("chat")).toBe("chat_00000000000000000000000001");
+  expect(ids.next()).toBe("id_00000000000000000000000002");
 });
