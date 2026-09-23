@@ -6,7 +6,6 @@
 
 import type { ProviderAuth, ProviderDef, Wire } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES, LOCAL_LIGHT_SEED_ROWS } from "@orb/contracts/inference";
-import { addModelActionLabel } from "./add-model-on-key-form-model.ts";
 import { clauseOf, MODEL_REQUIRED_MESSAGE } from "./model-picker-model.ts";
 
 /** The command the Claude-subscription step asks the user to run (§5.3a: "a copyable `claude setup-token`"). */
@@ -61,16 +60,18 @@ export function acceptsKey(provider: ProviderDef | undefined): boolean {
   return needsKey(provider) || provider?.auth === "endpoint";
 }
 
-const KEYED_DRAFT_REASON = (provider: ProviderDef): string =>
-  `Type the model id as ${provider.label} spells it. Once the connection is added, “${addModelActionLabel("key")}” in its menu lists the models the key can use.`;
+/** Whether the dialog lists this draft's models on "List models": an endpoint under its URL, and a hosted
+ *  provider under the API key pasted for it. A subscription token lists only once it is saved. */
+export function listsOnDemand(provider: ProviderDef): boolean {
+  return needsBaseUrl(provider) || provider.auth === "apiKey";
+}
 
-/** Why the dialog offers a typed model id before any list is read, per auth kind. The add dialog has no
- *  catalog read for a hosted draft, so it names the saved-connection action that has one. A keyless draft
- *  lists as soon as its provider is picked, so its reason is only the list's own. */
+/** Why the dialog offers a typed model id before any list is read, per auth kind. A keyless draft lists as
+ *  soon as its provider is picked, so its reason is only the list's own. */
 const DRAFT_MODEL_REASONS: Record<ProviderAuth, (provider: ProviderDef) => string> = {
   endpoint: () => "Type the model id your server serves, or list them from the URL above.",
-  apiKey: KEYED_DRAFT_REASON,
-  oauthToken: KEYED_DRAFT_REASON,
+  apiKey: (provider) => `Paste your key and list the models it can use, or type the id as ${provider.label} spells it.`,
+  oauthToken: (provider) => `Type the model id as ${provider.label} spells it.`,
   none: (provider) => `Pick one of the models ${provider.label} runs.`,
 };
 

@@ -3,7 +3,7 @@
 //   • `builtin` — the curated rows, no dial;
 //   • the OpenRouter dialect — the keyless enriched catalog, through its process-wide mirror;
 //   • `agent-sdk` — the daemon's `supportedModels()` under the CALLER's token, through its mirror;
-//   • `anthropic-messages` — the backend's own authenticated `GET /v1/models`;
+//   • `anthropic-messages` — the backend's own authenticated `GET /v1/models`, under a saved or a typed key;
 //   • `openai-compat` — `GET <baseUrl>/v1/models`: a hosted row's fixed URL or the draft's own server.
 // A secret is the caller's saved credential, re-read by id through the credentials door (`ResolvedSecret` is
 // branded there and never minted here), or a raw draft key where the wire can take one. A credential the
@@ -13,6 +13,7 @@
 import type { ResolvedSecret } from "@orb/contracts/credentials";
 import type { AgentSdkModel, ModelCatalogEntry, ModelListing, ProviderDef } from "@orb/contracts/inference";
 import { agentSdkCatalogEntry } from "../backends/agent-sdk/index.ts";
+import { listAnthropicModels } from "../backends/anthropic-messages/index.ts";
 import { bareCatalogEntry, failedListing, listingOf } from "../backends/kit/model-listing.ts";
 import { resolvedScrubSet } from "../backends/kit/sanitize.ts";
 import { curatedIdsFor, curatedKind } from "../capability/sources/curated/loader.ts";
@@ -67,8 +68,18 @@ export function createCatalogListing(deps: CatalogListingDeps): (draft: CatalogD
   };
 
   const anthropicListing = async (draft: CatalogDraft, provider: ProviderDef): Promise<ModelListing> => {
-    if (!("credentialId" in draft.secret)) {
-      return savedCredentialOnly(provider);
+    if ("key" in draft.secret) {
+      // A key typed into the add dialog, before anything is saved: a plain read, no row and no decrypt.
+      const { key } = draft.secret;
+      return listAnthropicModels(
+        {
+          baseUrl: provider.baseUrl ?? draft.baseUrl,
+          secret: key,
+          secrets: resolvedScrubSet({ credential: { secret: key }, transport: null }),
+          label: `${provider.id} models`,
+        },
+        deps.fetch,
+      );
     }
     const credential = await credentialFor(draft, provider, draft.secret.credentialId);
     return deps.listModels({

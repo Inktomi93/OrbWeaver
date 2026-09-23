@@ -393,3 +393,21 @@ for (const { arm, width, device } of AUTHORING_ARMS) {
     });
   });
 }
+
+// THE LIST HOLDS STILL WHILE THE USER TYPES. The dialog is centered, so a row that mounted below the list on the
+// first keystroke would grow it and move the search box under the caret.
+test.describe("at the 486 width", () => {
+  test.use({ viewport: { width: 486, height: 800 } });
+
+  test("offering a typed id does not move the search box", async ({ mount, page }) => {
+    await stubWith(page, OPENROUTER_CATALOG);
+    await mount(<ConnectionsAuthoringStory width={486} />);
+    const dialog = await openAddModel(page, OPENROUTER_NAME, /Add another model on this key/, KEY_TITLE);
+    const search = dialog.getByRole("combobox", { name: "Search OpenRouter models" });
+    await expect(search).toBeFocused();
+    const before = (await search.boundingBox())?.y;
+    await search.fill("vendor/not-listed");
+    await expect(dialog.getByRole("button", { name: "Use “vendor/not-listed” as typed" })).toBeVisible();
+    expect((await search.boundingBox())?.y).toBe(before);
+  });
+});

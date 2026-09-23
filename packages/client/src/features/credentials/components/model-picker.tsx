@@ -282,16 +282,26 @@ function ListedPicker(props: ModelPickerProps & { readonly models: readonly Mode
             <Text voice="gloss">{`+${view.overflow} more — keep typing to narrow`}</Text>
           </Row>
         ) : null}
-        {typed === null ? null : (
-          <Row gap="field" padding="row">
-            <CommandAuxiliaryButton intent="secondary" onClick={(): void => onValueChange(typed)} size="sm">
-              Use “{typed}” as typed
-            </CommandAuxiliaryButton>
-          </Row>
-        )}
+        {listReady && typedAllowed ? <TypedRow onPick={onValueChange} typed={typed} /> : null}
       </Command>
       <PickedLine error={error} errorId={errorId} listOwner={listOwner} models={models} value={value} />
     </Stack>
+  );
+}
+
+/** The "Use … as typed" row. Its place is held whenever a typed id is allowed, so the first keystroke that offers
+ *  it does not grow the dialog, which is centered, so the whole list would move. */
+function TypedRow({ typed, onPick }: { readonly typed: string | null; readonly onPick: (id: string) => void }): ReactElement {
+  return (
+    <Row data-slot="model-picker-typed" gap="field" padding="row">
+      {typed === null ? (
+        <Stack aria-hidden={true} className="h-control-sm" />
+      ) : (
+        <CommandAuxiliaryButton intent="secondary" onClick={(): void => onPick(typed)} size="sm">
+          Use “{typed}” as typed
+        </CommandAuxiliaryButton>
+      )}
+    </Row>
   );
 }
 

@@ -1,11 +1,11 @@
 // The "Add a connection" dialog (inference program §5.3a, the Essential tier): provider (grouped picker from
 // `providers.available`) · key pasted inline or the server URL · model (the model picker; an endpoint lists
-// its `/v1/models` server-side on "List models", the built-in provider lists what this device runs the moment
-// it is picked, both through `connection.draftCatalogModels`; a hosted draft has no catalog read and types the
-// id) · the `api` control only when the provider lists more than one · the background switch. The key is
-// minted into a credential row FIRST (label = the connection's), then the connection row references it;
-// `credentials.add` seals it at rest and no read ever echoes it. The Advanced/Diagnostics tiers live in the
-// editor.
+// its `/v1/models` server-side on "List models", a hosted provider lists under its pasted API key the same way,
+// and the built-in provider lists what this device runs the moment it is picked, all through
+// `connection.draftCatalogModels`) · the `api` control only when the provider lists more than one · the
+// background switch. The key is minted into a credential row FIRST (label = the connection's), then the
+// connection row references it; `credentials.add` seals it at rest and no read ever echoes it. The
+// Advanced/Diagnostics tiers live in the editor.
 //
 // A PARTIAL FAILURE IS STATED, AND THE RETRY DOES NOT MINT AGAIN. When the key is saved and the connection
 // write then fails, the credential row exists and the dialog says so in words: where the key went, what failed,
@@ -44,6 +44,7 @@ import {
   CONNECTION_FORM_COPY,
   draftKeyOf,
   draftModelReason,
+  listsOnDemand,
   modelIdExample,
   needsBaseUrl,
   needsKey,
@@ -55,8 +56,8 @@ import {
 import { CHAT_API_LABELS, connectionHost, providerPickerItems, showsApiControl } from "../lib/connections-model.ts";
 import { failedCatalogSource, isListedModel, modelListSource, typedModelAllowed } from "../lib/model-picker-model.ts";
 import { AddConnectionFailure } from "./add-connection-failure.tsx";
-import type { DraftListing } from "./endpoint-models-check.tsx";
-import { EndpointModelsCheck } from "./endpoint-models-check.tsx";
+import type { DraftListing } from "./draft-models-check.tsx";
+import { DraftModelsCheck } from "./draft-models-check.tsx";
 import type { ModelPickerProps } from "./model-picker.tsx";
 import { ModelPicker } from "./model-picker.tsx";
 import { SetupTokenCommand } from "./setup-token-command.tsx";
@@ -64,18 +65,20 @@ import { SetupTokenCommand } from "./setup-token-command.tsx";
 type CredentialView = inferOutput<Trpc["credentials"]["add"]>;
 type ModelCatalogSource = ModelPickerProps["source"];
 
-/** Whether the dialog itself reads this provider's list: an endpoint on "List models", and a built-in provider,
- *  whose catalog is closed, as soon as it is picked. A hosted draft has no read before its key is saved. */
+/** Whether the dialog itself reads this provider's list: an endpoint or a keyed hosted draft on "List models",
+ *  and a built-in provider, whose catalog is closed, as soon as it is picked. */
 function listsInDialog(provider: ProviderDef): boolean {
-  return needsBaseUrl(provider) || provider.catalog === "builtin";
+  return listsOnDemand(provider) || provider.catalog === "builtin";
 }
 
-/** The draft a list answer is about. A built-in list depends on the provider alone, so a URL or key left in the
- *  form from another provider does not retire it. */
+/** The draft a list answer is about: the provider, plus the URL where the draft names one and the key where the
+ *  list is read under it. A built-in list depends on the provider alone. */
 function listingKeyFor(provider: ProviderDef, values: Pick<AddConnectionFormValues, "baseUrl" | "key">): string {
-  return provider.catalog === "builtin"
-    ? draftKeyOf({ providerId: provider.id, baseUrl: "", key: "" })
-    : draftKeyOf({ providerId: provider.id, baseUrl: values.baseUrl, key: values.key });
+  return draftKeyOf({
+    providerId: provider.id,
+    baseUrl: needsBaseUrl(provider) ? values.baseUrl : "",
+    key: provider.catalog === "builtin" ? "" : values.key,
+  });
 }
 
 /** The key this dialog minted, and its name as the user gave it: `null` when the label was left blank, even
@@ -287,6 +290,10 @@ function AddConnectionFormBody({ trpc, invalidation, onDone, pickerItems, provid
               onChange: ({ value }): void => {
                 const provider = providerOf(value);
                 form.setFieldValue("auth", provider?.auth ?? "");
+                // A key or URL typed for one provider is never carried to the next: it would be saved under, and
+                // sent to, a vendor it was not meant for.
+                form.resetField("key");
+                form.resetField("baseUrl");
                 if (provider?.catalog === "builtin") {
                   listBuiltin(provider);
                 }
@@ -369,12 +376,12 @@ function ProviderFields({ form, provider, trpc, invalidation, held, modelSource,
       ) : null}
       {provider.auth === "oauthToken" && held === null ? <SetupTokenCommand /> : null}
       <KeyField form={form} provider={provider} held={held} />
-      {needsBaseUrl(provider) ? (
+      {listsOnDemand(provider) ? (
         <form.Subscribe selector={(state): { readonly baseUrl: string; readonly key: string } => ({ baseUrl: state.values.baseUrl, key: state.values.key })}>
           {(draft): ReactElement => (
-            <EndpointModelsCheck
+            <DraftModelsCheck
               providerId={provider.id}
-              baseUrl={draft.baseUrl}
+              baseUrl={needsBaseUrl(provider) ? draft.baseUrl : null}
               heldCredentialId={held?.credential.id ?? null}
               invalidation={invalidation}
               keyValue={draft.key}

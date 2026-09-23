@@ -260,12 +260,21 @@ describe("a failed dial is listed:false with its reason — never an empty succe
     expect(reasonOf(listing)).toMatch(/runtime/u);
   });
 
-  test("a raw draft key cannot reach a wire that authenticates only through a saved credential", async () => {
+  test("a raw draft key cannot reach the subscription daemon, which spawns only under a saved credential", async () => {
     const s = stage({ claudeExecutable: "/usr/bin/claude" });
     const runtime = await createInferenceRuntime(s.deps);
-    const listing = await runtime.catalogs.models({ principal: s.alice, providerId: provider("anthropic"), secret: { key: PLANTED }, baseUrl: null });
+    const listing = await runtime.catalogs.models({ principal: s.alice, providerId: provider("claude-sub"), secret: { key: PLANTED }, baseUrl: null });
     expect(reasonOf(listing)).toMatch(/saved credential/u);
     expect(s.requests).toEqual([]);
+  });
+
+  test("anthropic lists under a key typed into the draft, with no credential read", async () => {
+    const s = stage({ routes: [{ match: "https://api.anthropic.com/v1/models", json: { data: [{ id: "claude-opus-5", display_name: "Claude Opus 5" }] } }] });
+    const runtime = await createInferenceRuntime(s.deps);
+    const listing = await runtime.catalogs.models({ principal: s.alice, providerId: provider("anthropic"), secret: { key: PLANTED }, baseUrl: null });
+    expect(listing).toEqual({ listed: true, models: [expect.objectContaining({ id: "claude-opus-5", name: "Claude Opus 5" })] });
+    expect(s.requests.map((request) => [request.url, request.headers["x-api-key"]])).toEqual([["https://api.anthropic.com/v1/models", PLANTED]]);
+    expect(s.credentialReads).toEqual([]);
   });
 });
 
@@ -281,6 +290,17 @@ describe("a planted secret reaches neither the reason nor a log line", () => {
     });
     const reason = reasonOf(listing);
     // The control: the reflected body really carried the key, so a clean reason is the scrub, not an absence.
+    expect(s.requests.at(0)?.headers["x-api-key"]).toBe(PLANTED);
+    expect(reason).toMatch(/HTTP 401/u);
+    expect(reason).not.toContain(PLANTED);
+    expect(s.log.text()).not.toContain(PLANTED);
+  });
+
+  test("anthropic reflecting a raw draft key in a 401 body", async () => {
+    const s = stage({ routes: [{ match: "https://api.anthropic.com/v1/models", status: 401, echoAuth: true }] });
+    const runtime = await createInferenceRuntime(s.deps);
+    const listing = await runtime.catalogs.models({ principal: s.alice, providerId: provider("anthropic"), secret: { key: PLANTED }, baseUrl: null });
+    const reason = reasonOf(listing);
     expect(s.requests.at(0)?.headers["x-api-key"]).toBe(PLANTED);
     expect(reason).toMatch(/HTTP 401/u);
     expect(reason).not.toContain(PLANTED);
