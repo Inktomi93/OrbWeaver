@@ -1,12 +1,13 @@
 ---
 kind: bug
-status: open
+status: blocked
 updated: 2026-09-23
 priority: P2
 area: inference
+blocked: owner
 ---
 
-# Cache agent-sdk group rounds across speakers
+# Make prompt caching work on the agent-sdk route
 
 ## What
 
