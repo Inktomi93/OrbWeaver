@@ -55,11 +55,14 @@ export type ChatBehaviorInputs = Pick<
  *     closed: no unstamped row borrows the name).
  *  A persona arm is `null` when its pointer is unset OR its owner is not a present member (the roster consent
  *  gate — {@link ResolveForeignInputsOp}); a null anchor falls to `active` at `pinnedPersona`, which is exactly
- *  the HEAL heal-the-pointer semantics (a departed member's pin stops pinning, and is never copied). */
+ *  the HEAL heal-the-pointer semantics (a departed member's pin stops pinning, and is never copied).
+ *   • `people` is every OTHER consented seat persona, in seat (join) order — the `persona` marker's people
+ *     block (D122). Absent ⇒ no other present human holds a persona (a solo room, or a hand-built input). */
 export interface ResolvedPersonas {
   readonly anchor: AssemblePersona | null;
   readonly active: AssemblePersona | null;
   readonly activeUserId?: UserId | null | undefined;
+  readonly people?: readonly AssemblePersona[] | undefined;
 }
 
 /** One present human seat and the persona it holds — the resolver reads the anchor human's seat persona here. */
@@ -88,7 +91,7 @@ export type TurnVoice = (typeof TURN_VOICES)[number];
  * binds the anchor human's seat persona whoever triggered it.
  *
  *   • `{ kind: "human" }` — a live human drives this turn. Their `{{user}}` is `personaId` when their seat
- *     holds one, and the kit floor ("User") when it does not. **This arm never reaches the anchor** — a seat
+ *     holds one, and the kit floor (`DEFAULT_PERSONA_NAME`) when it does not. **This arm never reaches the anchor** — a seat
  *     the anchor-holder does not hold must not be presented to the model wearing the anchor's identity.
  *   • `{ kind: "none" }` — DELIBERATELY no triggering human (a deferred drain / an automation turn, and also
  *     every trigger-less READ: a preview, a card display, a host instrument): `{{user}}` binds to the chat

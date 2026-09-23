@@ -474,6 +474,10 @@ function buildBaseContext(
   // The {{persona}} marker emits only when the active persona's placement is in_prompt (default/absent);
   // at_depth/none route elsewhere, so the description is never double-injected.
   base.personaMarkerActive = input.personas.active?.placement === undefined || input.personas.active.placement.kind === "in_prompt";
+  // Only a room where another human holds a persona carries the key, so a solo ctx stays byte-identical.
+  if (input.personas.people !== undefined && input.personas.people.length > 0) {
+    base.people = input.personas.people;
+  }
   return base;
 }
 
@@ -614,24 +618,24 @@ function newChatMarkerCandidate(base: AssembleContext, input: BuildAssembleConte
   ];
 }
 
-/** The active persona's `descriptionPosition: "at_depth"` → an in_chat candidate, or null when it doesn't
- *  inject at depth. Resolved against the active persona itself to avoid cross-contaminating another persona's
- *  macros; unframed so a no-swap turn stays byte-identical to single-persona output. */
-function activePersonaDepthCandidate(ctx: AssembleContext, active: AssemblePersona | null, registry: MacroRegistry): InjectionCandidate | null {
-  if (active === null || active.placement?.kind !== "at_depth") {
+/** A persona's `descriptionPosition: "at_depth"` → an in_chat candidate, or null when it doesn't inject at
+ *  depth. Resolved against that persona itself to avoid cross-contaminating another persona's macros;
+ *  unframed so a no-swap turn stays byte-identical to single-persona output. */
+function personaDepthCandidate(ctx: AssembleContext, persona: AssemblePersona | null, registry: MacroRegistry, entryId: string): InjectionCandidate | null {
+  if (persona === null || persona.placement?.kind !== "at_depth") {
     return null;
   }
-  const content = renderMacros(active.description, ctx, active, { registry });
+  const content = renderMacros(persona.description, ctx, persona, { registry });
   if (content.trim().length === 0) {
     return null;
   }
-  const { depth, role } = active.placement;
+  const { depth, role } = persona.placement;
   return {
-    injection: { position: "in_chat", depth, role, content, origin: "persona", originLabel: active.name },
+    injection: { position: "in_chat", depth, role, content, origin: "persona", originLabel: persona.name },
     tokens: estimateTokens(content),
     ignoreBudget: true,
     priority: OPERATOR_PRIORITY,
-    entryId: "persona-description",
+    entryId,
     bucket: null,
   };
 }
@@ -667,9 +671,11 @@ function sameProjectedPersona(a: AssemblePersona, b: AssemblePersona | null): bo
   return b !== null && a.name === b.name && a.description === b.description;
 }
 
-/** Resolves the distinct personas in play for `{{user}}` into injection candidates: active per its own
- *  descriptionPosition (unframed); anchor as a fixed card-context block, only on a real swap. Deduped so a
- *  no-swap turn's output is byte-identical to the active-only injection. */
+/** Resolves the distinct personas in play into injection candidates: active per its own descriptionPosition
+ *  (unframed); anchor as a fixed card-context block, only on a real swap and only when no people entry already
+ *  carries it; each other present human's at_depth
+ *  description at its own depth (its people-block entry keeps only the heading). Deduped so a no-swap turn's
+ *  output is byte-identical to the active-only injection. */
 function resolvePersonaDescriptionCandidates(
   ctx: AssembleContext,
   personas: ResolvedPersonas,
@@ -677,11 +683,20 @@ function resolvePersonaDescriptionCandidates(
   prose: ProseOverrides,
 ): InjectionCandidate[] {
   const candidates: InjectionCandidate[] = [];
-  const active = activePersonaDepthCandidate(ctx, personas.active, registry);
+  const active = personaDepthCandidate(ctx, personas.active, registry, "persona-description");
   if (active !== null) {
     candidates.push(active);
   }
-  if (personas.anchor !== null && !sameProjectedPersona(personas.anchor, personas.active)) {
+  (personas.people ?? []).forEach((person, idx) => {
+    const candidate = personaDepthCandidate(ctx, person, registry, `persona-description:${String(idx)}`);
+    if (candidate !== null) {
+      candidates.push(candidate);
+    }
+  });
+  // An anchor that is also a people entry (an impersonate draft by another human) already reaches the model
+  // through that entry, name and description both; the card-context block would repeat the description.
+  const anchorIsPerson = (personas.people ?? []).some((person) => personas.anchor !== null && sameProjectedPersona(personas.anchor, person));
+  if (personas.anchor !== null && !sameProjectedPersona(personas.anchor, personas.active) && !anchorIsPerson) {
     const anchor = anchorPersonaCardCandidate(ctx, personas.anchor, registry, prose);
     if (anchor !== null) {
       candidates.push(anchor);
@@ -878,9 +893,12 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
     PRESET_FORMAT_SLOT_IDS.wiFormat,
     legacyProseOverrides(PRESET_FORMAT_SLOT_IDS.wiFormat, input.promptConfig.formatStrings?.wiFormat),
   );
-  const names = [...characters.map((c) => c.name), input.personas.anchor?.name, input.personas.active?.name].filter(
-    (n): n is string => typeof n === "string" && n.length > 0,
-  );
+  const names = [
+    ...characters.map((c) => c.name),
+    input.personas.anchor?.name,
+    input.personas.active?.name,
+    ...(input.personas.people ?? []).map((person) => person.name),
+  ].filter((n): n is string => typeof n === "string" && n.length > 0);
 
   // The ONE composition of this turn's steer text (ARM B): the picked Rewrite toggles resolved from the
   // preset's prose + the host's free text. Composed HERE, before the WI convert, because BOTH consumers

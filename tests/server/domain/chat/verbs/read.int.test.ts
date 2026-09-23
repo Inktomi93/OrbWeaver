@@ -1968,13 +1968,11 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
   });
 
   test("a host's PREVIEW never binds another member's persona — present OR departed (the retired personaIds[0] fallback)", async () => {
-    // This used to assert the opposite half of this very setup: with a personaless host the preview OMITTED
-    // its trigger, and the resolver fell back to `personaIds[0]` — the first PRESENT human's active persona —
-    // so the guest's persona rode the HOST's own instrument as `{{user}}`. A cross-member read whose value
-    // also re-ordered itself whenever somebody joined. Owner ruling 2026-08-07: that fallback is retired and
-    // a trigger-less read states `{kind:"none"}` ⇒ the chat ANCHOR. So the guest's persona is absent from the
-    // host's preview WHILE THEY ARE STILL PRESENT — that inversion is the ruling, and it is the first assert.
-    // The live-membership half this test has always guarded then still holds on the departed side.
+    // With a personaless host the preview once OMITTED its trigger, and the resolver fell back to
+    // `personaIds[0]` — the first PRESENT human's active persona — so the guest's persona rode the HOST's own
+    // instrument as `{{user}}`. That fallback is retired: a trigger-less read states `{kind:"none"}` ⇒ the chat
+    // ANCHOR. A PRESENT guest's persona still enters the prompt (D122), but only as a headed people-block entry,
+    // never as the unheaded voice part `{{user}}` names. Once they leave, the consent gate drops it entirely.
     const host = await seedUser(db, castId<Handle>("left_host"));
     const chatId = await seedRoom("left", host);
     const guest = await seedUser(db, castId<Handle>("left_guest"));
@@ -1983,9 +1981,12 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
 
     const read = createRead(makeChatContext(db), makeDeps(personaResolvingDeps()));
     const present = await read.previewAssembly({ principal: principal(host), chatId });
-    expect(`${present.prompt.static}\n${present.prompt.dynamic}`).not.toContain("the guest who walked out");
+    const presentText = `${present.prompt.static}\n${present.prompt.dynamic}`;
+    expect(presentText).toContain("roleplay with Traveler");
+    expect(presentText).toContain(`${resolveProseText("chat.group.personaHeading", {}, { name: "Departed" })}\nthe guest who walked out`);
+    expect(presentText).not.toContain("\n\nthe guest who walked out");
     const presentCards = present.budget.sources.find((s) => s.source === "cards")?.parts ?? [];
-    expect(presentCards.map((p) => p.label)).not.toContain("Departed (persona)");
+    expect(presentCards.map((p) => p.label)).toContain("Departed (persona)");
 
     await db
       .update(chatParticipants)
@@ -2024,7 +2025,10 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     expect(prompt).toContain("roleplay with Anchor");
     expect(prompt).not.toContain("roleplay with Bystander");
     expect(prompt).not.toContain("roleplay with Traveler");
-    expect(prompt).not.toContain("the first human who happened to join");
+    // The present bystander enters only as a headed people-block entry after the anchor's unheaded voice part.
+    expect(prompt).toContain(
+      `the identity this room is about\n\n${resolveProseText("chat.group.personaHeading", {}, { name: "Bystander" })}\nthe first human who happened to join`,
+    );
   });
 
   test("a DISABLED member drops from the preview's foreign-input consent set — an honesty-instrument preview must not overstate what a live turn would resolve (#73 second-commit fix)", async () => {

@@ -7,6 +7,7 @@ import type { AssemblePersona } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";
 import type { NamesBehavior, PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import { resolveProseText } from "@orb/contracts/prose";
 import type { Db } from "@orb/db";
 import { chatBooks, chatParticipants, chats, worldBooks, worldEntries } from "@orb/db";
 import type { Resolved } from "@orb/inference";
@@ -257,14 +258,23 @@ async function setAnchor(scn: ChatScenario, personaId: PersonaId | null): Promis
   await scn.db.update(chats).set({ anchorPersonaId: personaId }).where(eq(chats.id, scn.chatId));
 }
 
-/** A room driven by the real persona binding, with `aria`'s card probing card-context `{{user}}`. */
-async function composedRoom(card: string): Promise<ChatScenario> {
+/** A room driven by the real persona binding, with `aria`'s card probing card-context `{{user}}`. A user in
+ *  `offline` reads as offline; everyone else is online. */
+async function composedRoom(card: string, offline: ReadonlySet<UserId> = new Set<UserId>()): Promise<ChatScenario> {
   const db = await freshDb();
   return await scenario.chat(tape().reply("r1").reply("r2").reply("r3").reply("r4").reply("r5"), {
     db,
     resolveForeignInputs: composedPersonas(db),
-    ctx: { getCard: () => Promise.resolve(cardOf("aria", card)) },
+    ctx: {
+      getCard: () => Promise.resolve(cardOf("aria", card)),
+      readPresence: (userId) => Promise.resolve({ userId, online: !offline.has(userId), lastSeenAt: null }),
+    },
   });
+}
+
+/** The people-block entry the persona marker renders for another present human. */
+function personEntry(name: string, description: string): string {
+  return `${resolveProseText("chat.group.personaHeading", {}, { name })}\n${description}`;
 }
 
 function requestAt(scn: ChatScenario, index: number): TurnRequest {
@@ -299,8 +309,10 @@ describe("F3 — the system block speaks for the anchor human, whoever presses s
     if (first === undefined || second === undefined || third === undefined || fourth === undefined) {
       throw new Error("expected four calls");
     }
-    // Who pressed send changes nothing above the tail.
+    // Who pressed send changes nothing above the tail, and Bob's persona rides it as a headed entry.
+    const aliceFirst = `ALICE-DESC\n\n${personEntry("Bob", "BOB-DESC")}`;
     expect(first.prompt.static).toContain("Alice is aria's oldest friend");
+    expect(first.prompt.static).toContain(aliceFirst);
     expect(second.prompt.static).toBe(first.prompt.static);
     expect(third.prompt.static).toBe(first.prompt.static);
     expect([second.prompt.dynamic, third.prompt.dynamic]).toEqual([first.prompt.dynamic, first.prompt.dynamic]);
@@ -308,9 +320,12 @@ describe("F3 — the system block speaks for the anchor human, whoever presses s
     // byte-identical at the head of call 2.
     expect(second.history.slice(0, first.history.length)).toEqual(first.history);
     expectHistoryPrefixKept(second, third);
-    // The re-anchor moves only the anchor-dependent bytes: the same block, with Bob where Alice was.
+    // The re-anchor moves only the anchor-dependent bytes: Bob where Alice was, and the people block reordered
+    // so the new voice is the unheaded first part and Alice takes a heading.
+    const bobFirst = `BOB-DESC\n\n${personEntry("Alice", "ALICE-DESC")}`;
+    const held = "<PEOPLE-BLOCK>";
     expect(fourth.prompt.static).not.toBe(third.prompt.static);
-    expect(fourth.prompt.static).toBe(third.prompt.static.replaceAll("ALICE-DESC", "BOB-DESC").replaceAll("Alice", "Bob"));
+    expect(fourth.prompt.static).toBe(third.prompt.static.replace(aliceFirst, held).replaceAll("Alice", "Bob").replace(held, bobFirst));
     expectHistoryPrefixKept(third, fourth);
   });
 
@@ -364,6 +379,49 @@ describe("F3 — the system block speaks for the anchor human, whoever presses s
 
     expect(requestAt(scn, 0).prompt.static).toContain("roleplay with Alice");
     expect(requestAt(scn, 1).prompt.static).toContain("roleplay with Bob");
+  });
+});
+
+// The people block changes only when a human joins, leaves, swaps persona or the host re-picks the anchor.
+// Presence is not membership: an offline member keeps their entry, so a reconnect never rewrites the prefix.
+describe("the people block follows membership, never presence", () => {
+  async function aliceAndBob(offline: Set<UserId>): Promise<{ scn: ChatScenario; alice: UserId; bob: UserId }> {
+    const scn = await composedRoom("aria the innkeeper", offline);
+    const alice = scn.host;
+    const bob = await seedUser(scn.db, castId<Handle>("bob"));
+    const alicePersona = await seedPersona(scn.db, alice, "Alice", { description: "ALICE-DESC" });
+    const bobPersona = await seedPersona(scn.db, bob, "Bob", { description: "BOB-DESC" });
+    await setSeatPersona(scn, alice, alicePersona);
+    await seedParticipant(scn.db, { chatId: scn.chatId, key: "bob", userId: bob, role: "member", joinSeq: 9, activePersonaId: bobPersona });
+    await setAnchor(scn, alicePersona);
+    return { scn, alice, bob };
+  }
+
+  test("Bob leaves: his entry is gone and nothing else in the static half moves", async () => {
+    const { scn, alice, bob } = await aliceAndBob(new Set());
+
+    await scn.send("hello", { principal: scn.principal(alice) });
+    await scn.db
+      .update(chatParticipants)
+      .set({ leftSeq: 1 })
+      .where(and(eq(chatParticipants.chatId, scn.chatId), eq(chatParticipants.userId, bob)));
+    await scn.send("alone now", { principal: scn.principal(alice) });
+
+    const [before, after] = [requestAt(scn, 0), requestAt(scn, 1)];
+    expect(before.prompt.static).toContain(personEntry("Bob", "BOB-DESC"));
+    expect(after.prompt.static).toBe(before.prompt.static.replace(`\n\n${personEntry("Bob", "BOB-DESC")}`, ""));
+  });
+
+  test("Bob goes offline: the static half is byte-identical and still carries his entry", async () => {
+    const offline = new Set<UserId>();
+    const { scn, alice, bob } = await aliceAndBob(offline);
+
+    await scn.send("hello", { principal: scn.principal(alice) });
+    offline.add(bob);
+    await scn.send("still here?", { principal: scn.principal(alice) });
+
+    expect(requestAt(scn, 0).prompt.static).toContain(personEntry("Bob", "BOB-DESC"));
+    expect(requestAt(scn, 1).prompt.static).toBe(requestAt(scn, 0).prompt.static);
   });
 });
 

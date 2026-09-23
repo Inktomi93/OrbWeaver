@@ -100,7 +100,7 @@ export const MARKER_COPY: Record<MarkerType, MarkerCopy> = {
   },
   ["persona"]: {
     label: "Persona",
-    oneLiner: "Who YOU are in the scene — your persona's description.",
+    oneLiner: "Who YOU are in the scene — your persona's description, then the other people in the room.",
     subtitle: "from your persona",
     glyph: CircleUser,
   },
