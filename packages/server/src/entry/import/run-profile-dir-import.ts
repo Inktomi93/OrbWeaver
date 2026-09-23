@@ -14,8 +14,8 @@
 // are CARD FILENAMES and the filename → characterId map is that wave's output. Counts follow
 // the maintenance-pass shape: `scanned` = every ST entity the loader examined (bundles + personas + chat
 // files + the recorded non-happy-path skips), `changed` = net-new canon written (created characters +
-// created personas + imported chats). The runner reconciles stats post-run when `changed > 0` (PD-78); a
-// chat write enqueues the memory backfill via the injected op (PD-78).
+// created personas + imported chats). The runner reconciles stats post-run when `changed > 0`; a
+// chat write enqueues the memory backfill via the injected op.
 //
 // dryRun: parse + collect + the read-only dedup MATCH only — ZERO writes. The import verbs have no
 // write-free mode, so the driver never calls them under `dryRun`; it predicts the character-create count via
@@ -23,7 +23,7 @@
 // so `changed` under `dryRun` reflects character creates only (documented; the invariant the runner cares
 // about is zero writes).
 //
-// PD-94: every avatar/card blob is stored through a `maxBytes`-capped store — the zip-bomb belt for this
+// Every avatar/card blob is stored through a `maxBytes`-capped store — the zip-bomb belt for this
 // non-HTTP caller (the store seam rejects an over-cap blob before the CAS write).
 
 import type { Dirent } from "node:fs";
@@ -415,7 +415,7 @@ async function countWouldCreate(deps: ProfileDirImportDeps, bundles: readonly Co
   return changed;
 }
 
-/** Store one persona's avatar (PD-94-capped) and pair it into the canonical persona-import input. */
+/** Store one persona's avatar (maxBytes-capped) and pair it into the canonical persona-import input. */
 async function toPersonaInput(store: ImportAssetPort["store"], principal: Principal, p: CollectedPersona): Promise<ImportPersonaInput> {
   let avatarAssetId: AssetId | null = null;
   if (p.avatarBytes !== undefined) {
@@ -432,8 +432,8 @@ async function toPersonaInput(store: ImportAssetPort["store"], principal: Princi
   return { parsed: p.parsed, avatarAssetId };
 }
 
-/** The ST BACKGROUND wave: CAS-store each collected image/video under the owner (kind `background`, PD-94
- *  capped, magic-verified because the mime is only extension-derived) and turn it into a ready
+/** The ST BACKGROUND wave: CAS-store each collected image/video under the owner (kind `background`,
+ *  maxBytes-capped, magic-verified because the mime is only extension-derived) and turn it into a ready
  *  `BackgroundLibraryEntry`. PER-FILE ISOLATION — a background the store refuses (a `.jpg` that is not a JPEG,
  *  an over-cap blob) is recorded with its reason and never aborts the batch, exactly like the card wave.
  *
@@ -991,7 +991,7 @@ export async function runProfileDirImport(deps: ProfileDirImportDeps): Promise<I
     });
   }
 
-  // The card avatar is CAS-stored inside importCharacter via ctx.storeAsset → this capped store (PD-94).
+  // The card avatar is CAS-stored inside importCharacter via ctx.storeAsset → this capped store.
   const store: ImportAssetPort["store"] = (params) => deps.storeAvatar({ ...params, maxBytes: ASSET_UPLOAD_MAX_BYTES });
   const service = createImportService(contextFor(deps, store));
 

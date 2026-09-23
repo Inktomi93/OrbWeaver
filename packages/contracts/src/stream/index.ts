@@ -1,4 +1,4 @@
-// @orb/contracts/stream — the ONE multiplexed SSE transport vocabulary (SSE-1, docs/history/design/sse-multiplex-spec.md
+// @orb/contracts/stream — the ONE multiplexed SSE transport vocabulary (SSE-1, D118
 // §3). A browser tab holds ONE `stream.connect` EventSource; every live room it cares about (the per-user
 // entity bus, a chat's message bus, a game's rpg bus, …) rides that one socket as typed FRAMES, attached and
 // detached through two ordinary batched mutations. Cross-boundary wire shape ⇒ it homes here, not in

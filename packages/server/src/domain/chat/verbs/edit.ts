@@ -571,7 +571,7 @@ function createEditMessage(ctx: ChatContext, deps: EditDeps): ChatService["editM
 
 /**
  * `setSeededGreeting` — HOST-only. Steps a seeded greeting row onto another of its character card's
- * alternates (chat-creation-draft-mode-replacement.md §4.8, fork F6).
+ * alternates (D166).
  *
  * WHY IT IS ITS OWN VERB and not an arm of `editMessage`: the two differ on every axis that matters. This one
  * is HOST-only where edit is author-or-host, it is WINDOWED where edit is always-on, and — the load-bearing

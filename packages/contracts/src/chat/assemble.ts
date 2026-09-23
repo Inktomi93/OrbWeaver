@@ -299,7 +299,7 @@ export interface AssemblyBudgetSlice {
 }
 
 /** ONE MATERIALIZED ROW inside a prompt section (`AssemblySectionCost.rows`) — ST's inspect panel with honest
- *  data (D121-G / preset-surface-redesign §7.1): the rows a marker actually expanded into against a live room.
+ *  data (D121-G): the rows a marker actually expanded into against a live room.
  *  A merged card section splits per roster member; the history pivot splits per kept wire turn; every other
  *  section is its own single row. CONTENT-FREE by construction — the label + the cost, never the bytes (the
  *  bytes ride `AssemblyBudgetSlice.text`, where the D22 host gate already governs them). */
@@ -435,7 +435,7 @@ export interface ShapeTrace {
 
 /** The present-tense context-fit budget for a chat's CURRENT canon against the host's effective preset +
  *  resolved capability — the source the transcript's context-boundary divider reads so the line tracks knob
- *  changes live (PD-#7). Computed by the SAME `fitHistoryToWindow` + kit estimator the engine's turn pipeline
+ *  changes live. Computed by the SAME `fitHistoryToWindow` + kit estimator the engine's turn pipeline
  *  runs, so `boundaryMessageId` equals the `contextBoundaryMessageId` the next real turn would stamp on canon.
  *  `boundaryMessageId` is the earliest KEPT message id (null = everything fits / no id-bearing kept row).
  *  `usedTokens` = the kept history's estimated cost; `ceilingTokens` = min(window, maxContextTokens);

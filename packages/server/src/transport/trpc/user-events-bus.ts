@@ -2,7 +2,7 @@
 // Live-only: unlike the chat + notifications buses there is no durable half. A domain verb emits after its
 // durable write commits; a subscriber attaches and goes live, and the client gap-heals every (re)connect
 // with a blanket invalidate. Rides `defineBusChannel` with NO firehose opt-in
-// (client-architecture-lockdown.md §13/§16 G10) — `subscribeAll` is absent from this bus's type.
+// (client-architecture-state-and-gates.md §13/§16 G10) — `subscribeAll` is absent from this bus's type.
 //
 // Scope/authz: the channel is keyed by userId only; the subscription derives that userId from the request
 // principal, never from client input. This bus rides the standard authed procedure, not the

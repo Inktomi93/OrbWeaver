@@ -82,7 +82,7 @@ export interface BulkImportMessageInput {
   /** The slot's DECLARED PURPOSE (`messages.kind`, D129) — carried through the import boundary rather than
    *  re-derived on the far side, because purpose is a per-row fact and every inference for it (role ×
    *  attribution × the room's dial) degrades. ABSENT ⇒ `DEFAULT_MESSAGE_KIND` (`standard`): a plain ST
-   *  transcript declares no purpose, and saying so here is the explicit default D129(G) asks for.
+   *  transcript declares no purpose, and saying so here is the explicit default D217 asks for.
    *
    *  `narrator` ALSO routes attribution: the row is voiced by the room's SYNTHETIC group identity — the
    *  `output:"narrator"` grammar, where one message voices all the seated characters and is authored by the per-room
@@ -114,7 +114,7 @@ export type BulkImportSeatKnobs = SeatKnobs & { readonly characterId: CharacterI
  *  prose rides in {@link injections} from BOTH arms (an ST `note_prompt` is converted to one row by the ST
  *  mapper), and does NOT round-trip back out through the jsonl leg (export has no unambiguous inverse from a
  *  LIST of injections into ST's single `note_prompt` slot); `isRealConversation` gates the memory-backfill
- *  enqueue (PD-78). */
+ *  enqueue. */
 export interface BulkImportChatInput {
   readonly title: string;
   readonly importedFrom: string;
@@ -178,7 +178,7 @@ export interface ImportedChatIdentity {
 }
 
 /** The tallies `createBulkImportChats` returns for one bulk-import run. `realConversationWritten` is the
- *  PD-78 backfill gate (import enqueues ONE `memory-backfill` when true). */
+ *  backfill gate (import enqueues ONE `memory-backfill` when true). */
 export interface BulkImportChatsResult {
   /** The canonical identity resolved for EVERY input, in input order, whether this call wrote it or the scoped
    * import claim found it already present. This is the retry/re-link surface for cross-domain overlays; unlike

@@ -55,7 +55,7 @@ describe("importChatFile", () => {
     expect(h.chatCalls).toHaveLength(1);
     expect(h.chatCalls[0]?.characterId).toBe(ARIA);
     expect(h.chatCalls[0]?.chats[0]?.importedFrom).toBe("aria/chat_2025.jsonl");
-    // A real conversation was written ⇒ the downstream index sweep is enqueued (PD-78).
+    // A real conversation was written ⇒ the downstream index sweep is enqueued.
     expect(h.backfills).toEqual([{ ownerId: OWNER }]);
   });
 

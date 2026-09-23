@@ -64,7 +64,7 @@ interface Captured {
   readonly events: { readonly type: string; readonly handler: PluginHandlerRef }[];
   readonly tools: { readonly name: string; readonly handler: PluginHandlerRef }[];
   readonly transforms: { readonly name: string; readonly point: string; readonly handler: PluginHandlerRef }[];
-  /** The collected VALUE macros (plugin-ui-plane §5.15) — guest-local names; the registrar namespaces them. */
+  /** The collected VALUE macros — guest-local names; the registrar namespaces them. */
   readonly macros: { readonly name: string; readonly handler: PluginHandlerRef }[];
   /** The collected private-event subscriptions (§5a) — `(emitterSlug, name)` channel coordinates. */
   readonly pubsubSubs: { readonly emitterSlug: string; readonly name: string; readonly handler: PluginHandlerRef }[];
@@ -1064,7 +1064,7 @@ test("affinity tracker: a grant without ui.surface still activates headless — 
   expect(log.some((line) => line.message.includes("affinity tracker ready"))).toBe(true);
 });
 
-/** THE TIER-C END-TO-END RECEIPT (plugin-ui-plane #679 U4). The shipped `affinity-tracker` carries a third
+/** THE TIER-C END-TO-END RECEIPT. The shipped `affinity-tracker` carries a third
  *  bundle entry, and this walks the whole path a browser walks: pack → the real install verb → the CAS → and
  *  back out through `getUiBundle`, which re-parses the stored zip rather than trusting anything cached. If the
  *  packer stops emitting `ui.js`, if the funnel stops admitting it, or if the verb stops finding it, the

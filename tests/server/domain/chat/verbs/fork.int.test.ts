@@ -409,6 +409,30 @@ describe("forkChat — D27 deep copy", () => {
     expect(forkRow?.runtimeVariables).toEqual({ hp: "2" });
   });
 
+  test("D105/D169: a fork carries the parent's user-macro picks (D46 parity)", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const chatId = await seedChat(db, "src");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await db
+      .update(chats)
+      .set({ userMacroValues: { mood: { tone: "grim" } } })
+      .where(eq(chats.id, chatId));
+
+    const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), {
+      emit,
+      loadParticipantViews,
+    });
+    const { chat } = await fork.forkChat({ principal: principal(host), chatId });
+
+    const [srcRow] = await db.select({ userMacroValues: chats.userMacroValues }).from(chats).where(eq(chats.id, chatId));
+    const [forkRow] = await db
+      .select({ userMacroValues: chats.userMacroValues })
+      .from(chats)
+      .where(eq(chats.id, castId(chat.id)));
+    expect(forkRow?.userMacroValues).toEqual(srcRow?.userMacroValues);
+    expect(forkRow?.userMacroValues).toEqual({ mood: { tone: "grim" } });
+  });
+
   test("D46: a TRUNCATED fork re-folds only the kept chain (not the source's full cache)", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const charA = await seedCharacter(db, host, "aria");
@@ -446,7 +470,7 @@ describe("forkChat — D27 deep copy", () => {
   });
 });
 
-describe("forkChat — D64 character-drop on a non-owner fork (F4/PD-21 ruling)", () => {
+describe("forkChat — D64 character-drop on a non-owner fork (F4 ruling)", () => {
   test("a non-owner fork SUCCEEDS: it drops the un-owned character seats, keeps the forker's characters + the whole history", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const member = await seedUser(db, castId<Handle>("member"));

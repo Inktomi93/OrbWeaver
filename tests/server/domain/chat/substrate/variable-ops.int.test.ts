@@ -1,4 +1,4 @@
-// substrate/variable-ops — the STANDALONE (out-of-turn) runtime-variable write (automation-design/03 §1.1).
+// substrate/variable-ops — the STANDALONE (out-of-turn) runtime-variable write.
 // Proves against a real libSQL db: an `applyVariableOps` with no turn in flight appends a seq-stamped batch
 // to `chats.standalone_variable_deltas` AND refolds `chats.runtime_variables` in one write; successive calls
 // accumulate + fold in order; a standalone delta stamped at the head seq folds AFTER the existing message-

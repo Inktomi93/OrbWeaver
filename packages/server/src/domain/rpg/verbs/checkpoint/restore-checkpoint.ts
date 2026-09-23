@@ -1,4 +1,4 @@
-// domain/rpg/verbs/checkpoint/restore-checkpoint — restoreCheckpoint (rpg-design/05 §4.4). Clones the
+// domain/rpg/verbs/checkpoint/restore-checkpoint — restoreCheckpoint (docs/plans/rpg/design.md). Clones the
 // checkpointed snapshot FORWARD, born committed, as a HAND ROW (D124 fork 4: variant-keyed IFF turn flush —
 // a restore is not a turn). The visible "— scene restored —" notice is REAL PROSE and the restored hand row's
 // as-of stamp names that marker. Both commit in chat's existing narrator batch; swiping the notice still cannot

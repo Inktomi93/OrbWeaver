@@ -44,8 +44,8 @@ test("the index derives one row per registry flag plus the named static tail, an
   const bodyRows = markdown.split("\n").filter((candidate) => candidate.startsWith("| `"));
 
   // Every generated table row is exactly two cells, so no summary can smuggle a bare `|` that would split
-  // a row and silently DROP its tail (GFM discards the overflow; `doc-catalog`'s width guard is what
-  // catches that class, and this file is outside its population).
+  // a row and silently DROP its tail (GFM discards the overflow; the `doc` tool's formatter width guard
+  // is what catches that class for hand-authored docs, and this file is outside its population).
   const cells = bodyRows.map((line) => line.split(/(?<!\\)\|/u).slice(1, -1));
   for (const row of cells) {
     expect(row).toHaveLength(2);

@@ -2,8 +2,8 @@
 // DNS-rebind block) + the staged safeFetch wrapper and the shared CIDR matcher. Reads foundation/env DOWN
 // for the firewall config. NEVER imports @orb/db or any domain (the sealed-executor invariant).
 //
-// The ingress IP-allowlist belt (`ingress.ts` — PD-91): `ipAllowlistMiddleware` + `clientIp` (peer-vs-XFF
-// trust precedence, PD-52 anti-spoof) + `parseAllowlist`; mounted by `entry/app.ts`, `clientIp` reused by
+// The ingress IP-allowlist belt (`ingress.ts`): `ipAllowlistMiddleware` + `clientIp` (peer-vs-XFF
+// trust precedence, anti-spoof) + `parseAllowlist`; mounted by `entry/app.ts`, `clientIp` reused by
 // the transport seam.
 
 export {

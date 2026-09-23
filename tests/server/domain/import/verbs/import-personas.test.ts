@@ -1,4 +1,4 @@
-// Unit test for domain/import/verbs/importPersonas (Option B; PD-77) — `import` performs NO db access: it maps
+// Unit test for domain/import/verbs/importPersonas (Option B) — `import` performs NO db access: it maps
 // each parsed ST persona → the canonical `BulkImportPersonaInput`, delegates the WRITE to the injected
 // `bulkImportPersonas` op (a recording fake), then copies the op's `idByName` into `personaByUserName` for
 // chat attribution. The db-write/dedup correctness is pinned in `persona/persistence/import-write.int.test.ts`.

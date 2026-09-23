@@ -212,7 +212,7 @@ describe("renderHistoryMacros", () => {
 
   test("the 3-way-distinct fixture: anchor=Nyx, active=Zara, a row stamped personaId=Mara → {{user}} resolves to Mara", () => {
     // Chat-Macro-Resolution.md §6's regression fixture: the PINNED anchor and the ACTIVE persona are both
-    // distinct from the row's own stamped author — the stamp wins over BOTH (PD-100: it is the macro subject
+    // distinct from the row's own stamped author — the stamp wins over BOTH (it is the macro subject
     // now, not just attribution chrome).
     const ctx = ctxOf({
       pinnedPersona: { name: "Nyx", description: "the frozen anchor" },

@@ -16,7 +16,7 @@ test("second resource layout policies keep their two-sided proofs", () => {
 });
 
 // ---------------------------------------------------------------------------------------------------
-// THE §4.5 REFUSAL PINS for both modules' declared authored trees (`resource-policy-contract.md` §3.6:
+// THE §4.5 REFUSAL PINS for both modules' declared authored trees (`docs/law/resource-policy-contract.md` §3.6:
 // one pin per DECLARED RESOURCE per REACHABLE non-ready status), absent until 2026-09-13 (#2327, the
 // `policy-refusal-coverage` warning debt). No proof row can carry them: `resolveResourceDeclarations`
 // throws in the POPULATION phase, before `create`, so the owner is withheld and the run surfaces a TOOL

@@ -1,4 +1,4 @@
-// verbs/quest/upsert-quest — upsertQuest (rpg-design/05 §4.4, §6.2). The hand arm of the SNAPSHOT-plane quest
+// verbs/quest/upsert-quest — upsertQuest (docs/plans/rpg/design.md). The hand arm of the SNAPSHOT-plane quest
 // state: create/update ride the clone-forward + `quests.<id>` lock machinery. Asserted at the resolved snapshot.
 
 import type { Db } from "@orb/db";

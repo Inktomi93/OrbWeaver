@@ -4,10 +4,10 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { UsageError } from "../../../../tooling/src/_shared/run-tool.ts";
 import {
-  archive,
   newAdr,
   newItem,
   newItemsFrom,
+  newLaw,
   newPlan,
   nextAdrId,
   regenerateIndexes,
@@ -59,7 +59,7 @@ test("status writes both halves of a supersession and refuses a status the kind 
   newAdr({ slug: "second", title: "Second" }, root, TODAY);
   const refused = setStatus({ status: "done", paths: ["docs/adr/0001-first.md"], by: null }, root, TODAY);
   expect(refused.written).toEqual([]);
-  expect(refused.refusals).toEqual(["docs/adr/0001-first.md: status done is not one of active | superseded for kind adr"]);
+  expect(refused.refusals).toEqual(["docs/adr/0001-first.md: status done is not one of active | superseded | rejected for kind adr"]);
   const superseded = setStatus({ status: "superseded", paths: ["docs/adr/0001-first.md"], by: "docs/adr/0002-second.md" }, root, "2026-09-24");
   expect(superseded.refusals).toEqual([]);
   expect(read(root, "docs/adr/0001-first.md")).toContain(
@@ -125,33 +125,51 @@ test("index deletes a plan's tasks.md once its last item leaves the plan (F11)",
   expect(existsSync(join(root, "docs/plans/p/tasks.md"))).toBe(false);
 });
 
-test("archive moves a finished plan and its done items into the dated archive folder and rewrites the old path everywhere tracked", async ({ plantedTree }) => {
-  const root = await plantedTree({ "packages/kit/src/x.ts": "// See docs/plans/p/design.md for the shape.\nexport const x = 1;\n" });
-  const { execFixtureGit } = await import("../../../../tooling/src/_shared/git-fixture.ts");
-  execFixtureGit(root, ["init", "-q", "-b", "main"]);
-  execFixtureGit(root, ["add", "-A"]);
+test("a plan parks with a wake condition and unparks; --blocked belongs to a parked plan only", async ({ plantedTree }) => {
+  const root = await plantedTree({});
   newPlan({ slug: "p", title: "P" }, root, TODAY);
-  newItem({ title: "Task", kind: "work", priority: null, area: null, plan: "p", lane: null }, root, TODAY);
-  execFixtureGit(root, ["add", "-A"]);
-  execFixtureGit(root, ["-c", "user.name=Doc Test", "-c", "user.email=doc@example.invalid", "commit", "-qm", "chore: base"]);
-  const head = execFixtureGit(root, ["rev-parse", "HEAD"]).trim();
-  const open = archive(["p"], root, TODAY);
-  expect(open.written).toEqual([]);
-  expect(open.refusals).toEqual(["docs/work/0001-task.md: open, and a plan archives only when every item is done"]);
-  // The evidence is judged like a written item's: a commit that is not on main refuses.
-  expect(setItems([1], { state: "done", evidence: "abc1234" }, root, TODAY).refusals).toEqual([
-    "docs/work/0001-task.md: evidence abc1234 is not a commit on main — pnpm doc land <id> --evidence <sha> names one",
+  const plan = "docs/plans/p/design.md";
+  expect(setStatus({ status: "parked", paths: [plan], by: null }, root, TODAY).refusals).toEqual([
+    `${plan}: a parked plan carries a reason: blocked: owner | on <id> | wake path <repo path> | wake gone <repo path>`,
   ]);
-  expect(setItems([1], { state: "done", evidence: head }, root, TODAY).refusals).toEqual([]);
-  const done = archive(["p"], root, TODAY);
-  expect(done.refusals).toEqual([]);
-  expect(existsSync(join(root, "docs/plans/p"))).toBe(false);
-  expect(read(root, "docs/plans/archive/2026-09-23-p/design.md")).toContain("status: archived\n");
-  expect(existsSync(join(root, "docs/plans/archive/2026-09-23-p/0001-task.md"))).toBe(true);
-  expect(read(root, "docs/plans/archive/2026-09-23-p/tasks.md")).toContain(`- [x] [0001](0001-task.md) triage Task \`p\` (${head.slice(0, 12)})\n`);
-  expect(read(root, "packages/kit/src/x.ts")).toBe("// See docs/plans/archive/2026-09-23-p/design.md for the shape.\nexport const x = 1;\n");
-  expect(read(root, "docs/plans/README.md")).toContain("| [P](archive/2026-09-23-p/design.md) | archived |");
-  expect(archive(["ghost"], root, TODAY).refusals).toEqual(["docs/plans/ghost/: no such plan"]);
+  expect(setStatus({ status: "active", paths: [plan], by: null, blocked: "owner" }, root, TODAY).refusals).toEqual([
+    "--blocked is a parked plan's wake condition and belongs to status parked only",
+  ]);
+  const parked = setStatus({ status: "parked", paths: [plan], by: null, blocked: "wake path docs/adr/0200-x.md" }, root, "2026-09-24");
+  expect(parked.refusals).toEqual([]);
+  expect(read(root, plan)).toContain("---\nkind: plan\nstatus: parked\nupdated: 2026-09-24\nblocked: wake path docs/adr/0200-x.md\n---\n");
+  expect(read(root, "docs/plans/README.md")).toContain("| [P](p/design.md) | parked |");
+  expect(setStatus({ status: "active", paths: [plan], by: null }, root, TODAY).refusals).toEqual([]);
+  expect(read(root, plan)).not.toContain("blocked:");
+  newItem({ title: "An item", kind: "work", ...OPEN }, root, TODAY);
+  expect(setStatus({ status: "parked", paths: ["docs/work/0001-an-item.md"], by: null, blocked: "owner" }, root, TODAY).refusals).toEqual([
+    "docs/work/0001-an-item.md: status parked is not one of open | doing | blocked | done for kind work",
+  ]);
+});
+
+test("an ADR is rejected through status, and set never makes an item done: landing does", async ({ plantedTree }) => {
+  const root = await plantedTree({});
+  newAdr({ slug: "idea", title: "An idea" }, root, TODAY);
+  expect(setStatus({ status: "rejected", paths: ["docs/adr/0001-idea.md"], by: null }, root, TODAY).refusals).toEqual([]);
+  expect(read(root, "docs/adr/README.md")).toContain("| D1 | [An idea](0001-idea.md) | rejected |");
+  newItem({ title: "Task", kind: "work", ...OPEN }, root, TODAY);
+  expect(setItems([1], { state: "done", evidence: "abc1234" }, root, TODAY).refusals).toEqual([
+    "done is reached by landing, which deletes the item: pnpm doc land 1 --evidence <sha>",
+  ]);
+});
+
+test("new law mints docs/law/<slug>.md, joins the law index, and refuses a twin in any letter case", async ({ plantedTree }) => {
+  const root = await plantedTree({ "docs/law/Spine-Testing.md": "---\nkind: law\nstatus: active\nupdated: 2026-01-01\n---\n\n# Spine testing\n\nTests.\n" });
+  const outcome = newLaw({ slug: "review-rules", title: null }, root, TODAY);
+  expect(outcome.refusals).toEqual([]);
+  expect(outcome.written[0]).toBe("docs/law/review-rules.md");
+  expect(read(root, "docs/law/review-rules.md")).toBe(
+    "---\nkind: law\nstatus: active\nupdated: 2026-09-23\n---\n\n# Review rules\n\nThe rule, stated so an agent can follow it without asking.\n",
+  );
+  expect(read(root, "docs/law/README.md")).toContain("| [Review rules](review-rules.md) | active |");
+  expect(newLaw({ slug: "spine-testing", title: null }, root, TODAY).refusals).toEqual([
+    "docs/law/Spine-Testing.md: exists — edit it in place; law changes where it stands",
+  ]);
 });
 
 const OPEN = { priority: null, area: null, plan: null, lane: null } as const;

@@ -1,4 +1,4 @@
-// The Settings SEARCH (config-revamp-design.md §3.3/§6.4, #866 S2) — ONE index over every group, with
+// The Settings SEARCH (#866 S2) — ONE index over every group, with
 // VS Code's typed `@` filters. It rides the TOP of the LIST scroller as a `role="search"` block (fork F-11
 // — the corpus-omnibox precedent; the 48px LIST band keeps the title), and while a query is live its
 // results render as a capped listbox UNDER the input: the static index's hits (groups · sections · leaves,

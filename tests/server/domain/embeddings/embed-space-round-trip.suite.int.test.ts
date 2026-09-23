@@ -298,7 +298,7 @@ describe("the embed space round trip — write tag === read tag (§10-2)", () =>
   // THE DEFECT: between a binding change and the reindex finishing, the READ side points at the new space
   // while the corpus is still in the old one. A tag-equality unit test cannot see it — both halves are
   // individually correct at every instant; only the ORDER of two real events produces the state. So this
-  // drives the real events: a real connection write moves the space (it also fires the §10-4 PD-139a
+  // drives the real events: a real connection write moves the space (it also fires the §10-4 embed-space
   // trigger), and the assertions are what a user would experience at each step.
   //
   // THE PLANTED CONTROL is step 2's row count taken in the same breath as the refusal: the vectors are

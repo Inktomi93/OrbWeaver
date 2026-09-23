@@ -1,5 +1,5 @@
 // `verify` — the ONE argv front door for the whole verification system (docs/law/Core-Tooling-Law.md
-// §2.5/§2.6). Twelve pnpm rows point HERE, each naming a verb; nothing points into ops/, so there is exactly
+// §2.5/§2.6). Every `check:*` pnpm row for this system points HERE, each naming a verb; nothing points into ops/, so there is exactly
 // one argv parse and one exit-honesty runner for the harness that judges everything else.
 //
 //   check / verify           → cli.ts run [--static|--push|--full|--changed|--list|…]
@@ -10,7 +10,7 @@
 //   test:scoped / test:ct  → cli.ts scoped-test <node|ct> [paths…] (the path preflight, #1192)
 //   gate:new                 → cli.ts new-gate <kebab-name> <explicit family choice>
 //   check:policy-conformance → cli.ts policy-conformance  (every final policy's own proofs, #1941)
-//   prose:baseline           → cli.ts baseline prose      (+ the 7 other committed baselines)
+//   prose:baseline           → cli.ts baseline prose      (+ every other committed baseline)
 //   check:type-ownership   → cli.ts tests-membership
 //   check:tests-execution-membership → cli.ts tests-execution-membership
 //   check:db-baseline        → cli.ts db-baseline
@@ -18,10 +18,6 @@
 //   check:orphan-ratchet     → cli.ts orphan-ratchet [--update]
 //   check:boot-chunk         → cli.ts boot-chunk
 //   check:ledgers-fresh      → cli.ts ledgers-fresh  (the committed-ledger freshness tripwire, #817)
-//   check:board-citations    → cli.ts board-citations  (the BARRIER reconciliation of every tree→board
-//                              citation against the board, #2156/#2070 — network, so manual tier)
-//   check:ledger-claims      → cli.ts ledger-claims --since <rev> [--until <rev>]  (the BARRIER check on
-//                              commit-message ledger claims, #2195 — an operator-stated range, never a default)
 //   debt                     → cli.ts debt [--gate substr] [--age]  (a LENS over the ratchet ledgers)
 //   test:ratchets            → cli.ts ratchet-gate  (the VITEST-tier train-gate aggregate, #667)
 //   config-snapshot          → cli.ts config-snapshot <runner> <config>  (native-config observation)
@@ -40,7 +36,6 @@ import {
   runAssetRefsCoverage,
   runBaseline,
   runBiomeRuleLiveness,
-  runBoardCitations,
   runBootChunkRatchet,
   runConfigSnapshot,
   runDbBaselineParity,
@@ -49,7 +44,6 @@ import {
   runGateContract,
   runInstrumentAffected,
   runKnipNegativeLiveness,
-  runLedgerClaims,
   runLedgersFresh,
   runNewGate,
   runOrphanRatchet,
@@ -127,10 +121,6 @@ async function dispatch(verb: string, root: string, rest: readonly string[]): Pr
       return await runBootChunkRatchet(root);
     case "ledgers-fresh":
       return runLedgersFresh(root);
-    case "board-citations":
-      return await runBoardCitations(root);
-    case "ledger-claims":
-      return runLedgerClaims(root, rest);
     case "biome-rule-liveness":
       return runBiomeRuleLiveness(root);
     case "knip-negative-liveness":

@@ -231,7 +231,7 @@ export const TABLE_SCOPING_ROWS: readonly ScopingRow[] = [
   {
     table: "automation_rule_state",
     scope: "parent",
-    why: "S5 (C1) the run_analysis arm's plot state — scope derives ruleId → automation_rules (ownerId, chatId); D23-clean, no member/plugin read surface (interaction-direction-spec §3-S5.2).",
+    why: "S5 (C1) the run_analysis arm's plot state — scope derives ruleId → automation_rules (ownerId, chatId); D23-clean, no member/plugin read surface.",
   },
   {
     table: "message_reactions",
@@ -291,7 +291,7 @@ export const TABLE_SCOPING_ROWS: readonly ScopingRow[] = [
   {
     table: "refinery_runs",
     scope: "parent",
-    why: "refinery append-only run log — scope derives through `refinery_sessions` → `characters.ownerId` (two required FKs; docs/history/design/refinery-r0.md §3.1).",
+    why: "refinery append-only run log — scope derives through `refinery_sessions` → `characters.ownerId` (two required FKs).",
   },
   {
     table: "refinery_sessions",

@@ -1,5 +1,5 @@
 // CT: Settings → Connections → a saved row's "Add another model on this key" (inference program §5.3a, the
-// second no-defaults survivability action; `docs/design/mocks/connections/list.html` Board B), and the model
+// second no-defaults survivability action; the connections list mock, Board B), and the model
 // picker it lands on. Mounted through the production pane; the catalog is the SAVED row's own
 // `connection.catalogModels`, stubbed at the network.
 //

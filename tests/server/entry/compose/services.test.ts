@@ -101,7 +101,7 @@ test("createServices builds the full graph: every Services key + the boot handle
   expect(result.secretBox).toBeDefined();
 });
 
-// W7a — THE ADMIN REVOKE → SOCKET EVICTION WIRE (staleness-and-session-freshness.md §4.4.3). The registry
+// W7a — THE ADMIN REVOKE → SOCKET EVICTION WIRE. The registry
 // suite proves `evictUser` stops a generator; this proves the admin verb is CONNECTED to it, which is the
 // half a unit test of either side cannot see. PER USER by owner ruling F4 ("admin REVOKE stays per-user"):
 // a revoke is a statement about the account, the human's still-valid devices reconnect and resume, and it is
@@ -144,7 +144,7 @@ test("W7a an admin revoke-all evicts that user's live sockets through the compos
   expect(stopped).toEqual(["victim"]);
 });
 
-test("character.bulkAddCardTag attaches via the real tag wiring (PD-49) — not the inert throw", async () => {
+test("character.bulkAddCardTag attaches via the real tag wiring — not the inert throw", async () => {
   const db = await freshDb();
   const clock = createFrozenClock();
   const result = await createServices({
@@ -179,7 +179,7 @@ test("character.bulkAddCardTag attaches via the real tag wiring (PD-49) — not 
   expect(junction[0]?.status).toBe("accepted");
 });
 
-// ── The default-card seeder (PD-32) wired over the REAL settings latch ───────────────────────────────────
+// ── The default-card seeder wired over the REAL settings latch ───────────────────────────────────────────
 // The compose root constructs the ONE seeder instance and wires its isSeeded/markSeeded ops to the real
 // settings service. These prove that wiring end-to-end: the owner is seeded through the real character.create
 // path, the persisted latch lands, and the welcome-assistant stamp respects an explicit pick.
@@ -196,7 +196,7 @@ function buildGraph(db: Db): ReturnType<typeof createServices> {
   });
 }
 
-describe("default-card seeder wiring (PD-32)", () => {
+describe("default-card seeder wiring", () => {
   test("ensureSeeded seeds the owner's pack + lands the latch + stamps the welcome assistant", async () => {
     const db = await freshDb();
     const result = await buildGraph(db);
@@ -264,7 +264,7 @@ describe("default-card seeder wiring (PD-32)", () => {
   });
 });
 
-// ── The embeddings indexer SUBSCRIPTION (PD-48) ──────────────────────────────────────────────────────────
+// ── The embeddings indexer subscription (composition-root wiring, embed-on-write) ──────────────────────────
 // The composition root subscribes the indexer to the in-process domain-event bus and wires its UN-PRINCIPAL
 // canon re-readers (character.loadCardText / assets.loadAssetBytes) into the indexer context. These tests
 // reproduce that exact wiring over a fresh db with a STUB embeddings store (the inference edge is the seam we
@@ -353,7 +353,7 @@ async function drain(done: () => boolean): Promise<void> {
   }
 }
 
-describe("embeddings indexer bus subscription (PD-48)", () => {
+describe("embeddings indexer bus subscription", () => {
   test("character.updated drives the indexer to store the card-text projection", async () => {
     const db = await freshDb();
     const w = await wireIndexer(db);
@@ -447,7 +447,7 @@ function buildGatedGraph(db: Db): ReturnType<typeof createServices> {
   });
 }
 
-describe("notifications fan-out (PD-23) — record (durable) → publishNotification (live)", () => {
+describe("notifications fan-out — record (durable) → publishNotification (live)", () => {
   test("a chat producer emit is durable-first AND lands on the recipient's live bus", async () => {
     const db = await freshDb();
     const clock = createFrozenClock();
@@ -515,7 +515,7 @@ describe("notifications fan-out (PD-23) — record (durable) → publishNotifica
   });
 });
 
-describe("persona.setActivePersona → chat bus (PD-120)", () => {
+describe("persona.setActivePersona → chat bus", () => {
   test("flips activePersonaId, persists to chat_events, and fans personaSwitched onto the live channel", async () => {
     const db = await freshDb();
     const clock = createFrozenClock();
@@ -560,7 +560,7 @@ describe("persona.setActivePersona → chat bus (PD-120)", () => {
 
       // LIVE half: personaSwitched arrives with a durable seq (persona composes BEFORE chat.ts's own bus
       // instance, so this proves the second createChatBus still writes the SAME chat_events log + the ONE
-      // transport publishChatEvent singleton still fans it out — see services.ts's PD-120 comment).
+      // transport publishChatEvent singleton still fans it out — the write is chat-domain-owned (setParticipantActivePersona).
       const live = await nextLive;
       expect(live.done).toBe(false);
       expect(live.value?.event).toEqual({

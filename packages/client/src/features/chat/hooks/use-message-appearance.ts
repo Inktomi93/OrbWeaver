@@ -27,7 +27,7 @@ export interface MessageAppearance {
   /** ST quote-color parity — tint `"…"` runs with the scope's `--color-dialogue` (default ON). Threaded to
    *  BOTH body arms: the settled row's `MessageContent` seal and the live ghost's. */
   readonly colorQuotedSpeech: AppearanceSettings["colorQuotedSpeech"];
-  /** WS3 metadata-chip visibility — `MessageMetadataRow`'s per-toggle gate (incl. PD-130's
+  /** WS3 metadata-chip visibility — `MessageMetadataRow`'s per-toggle gate (incl.
    *  `showGenerationTimer`, now wired to the `MessageView` gen-window bounds). */
   readonly metadataVisibility: MessageMetadataVisibility;
   /** WS3 — hover-reveal vs always-visible action cluster. */

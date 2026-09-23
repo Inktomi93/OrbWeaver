@@ -1,6 +1,6 @@
 // verb: removeTheme — delete an OWNED theme. Never a seed: `deleteOwnedTheme` scopes on `id + ownerId`,
 // and a seed's `ownerId IS NULL` can never match a caller's id, so this 404s on a seed BY CONSTRUCTION
-// (themes-design.md §2.1 — no special-cased "cannot remove a seed" guard to forget).
+// (no special-cased "cannot remove a seed" guard to forget).
 
 import { ThemeNotFoundError } from "../contract/errors.ts";
 import type { RemoveThemeParams } from "../contract/params.ts";

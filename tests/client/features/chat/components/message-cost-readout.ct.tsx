@@ -1,4 +1,4 @@
-// CT: the PD-137 per-message settled-cost readout. TWO load-bearing gates live here.
+// CT: the per-message settled-cost readout. TWO load-bearing gates live here.
 //
 // 1. THE PAID-FETCH GATE — `connection.generationCost` is a real upstream OpenRouter call, so the query key
 //    is built ONLY on the user's reveal click (useGatedQuery/skipToken). Pins: NO fetch on mount; a click

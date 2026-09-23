@@ -3,7 +3,7 @@
 // provider is registered, the api is one the row lists, an endpoint row carries a URL and a hosted one does
 // not, the URL passes the F12 admission, the credential is the caller's, the label is unique per owner. Plus
 // the two reads' owner fence (a stranger's row is `not found`, never `forbidden` — no existence oracle), the
-// FIELD-WISE patch (an absent key is NOT overwritten), and the PD-139a embed-space trigger's exact condition.
+// FIELD-WISE patch (an absent key is NOT overwritten), and the embed-space trigger's exact condition.
 
 import type { Principal } from "@orb/contracts/identity";
 import { CONNECTION_OP_CODES } from "@orb/contracts/inference";

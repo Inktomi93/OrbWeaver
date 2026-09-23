@@ -1,4 +1,4 @@
-// Mirror int-test for domain/chat/persistence/createBulkImportChats (Option B; PD-77) — the chat-OWNED bulk
+// Mirror int-test for domain/chat/persistence/createBulkImportChats (Option B) — the chat-OWNED bulk
 // import WRITE over a real db: chats→messages→variants (D26) + founding roster + branch resolution, dup-skip
 // by importHash, the ST author's-note → chat_injections landing, and the ownership precondition. The
 // input is the canonical `BulkImportChatInput` (`@orb/contracts/chat`); the ST→canonical mapping is import's

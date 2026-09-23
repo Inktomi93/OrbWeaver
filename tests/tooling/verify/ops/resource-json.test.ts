@@ -1,6 +1,6 @@
 // The strict-JSON door. The capability under test is the REFUSAL SPLIT, not the parse: missing, empty and
 // unparseable are three different answers, and collapsing any of them into `{}` is how a liveness gate
-// reports a clean zero over a config it never read (`resource-gate-access-patterns.md:126`). It is the same
+// reports a clean zero over a config it never read (the ResourceHost access-pattern ruling). It is the same
 // shape as the ruled biome refusal (0df3fa9d6, #1245): reading nothing is a REFUSAL, never a clean result.
 import type { ResourceLoad } from "../../../../tooling/src/verify/contract/resource.ts";
 import type { JsonResourceFacts } from "../../../../tooling/src/verify/contract/resource-json.ts";

@@ -121,7 +121,7 @@ test("every direct-client-mechanism grant names a slot operation on the client g
   expect(rows.every(({ subject }) => subject === CLIENT_GLOBALS)).toBe(true);
 });
 
-/** THE CONSUMER COUNT, HELD TWO-SIDED — #2305, `v-css-family-2026-09-13.md` ledger row 5.
+/** THE CONSUMER COUNT, HELD TWO-SIDED — #2305, the 2026-09-13 CSS-family verifier review ledger row 5.
  *
  *  Four prose homes said the `css-hook-provenance` fact had FIVE consumers by counting the FAMILY: both
  *  `-health` siblings declare `facts: []` and never call `ctx.fact`, so the real number is THREE. A prose
@@ -313,7 +313,7 @@ test("PRODUCTION PATH: every REAL derived selector-hook slice — parenthesis-wr
 // plus `baseui-state-data-attributes`; this policy's own declaration was never touched). `json` is a
 // POPULATED resource kind, so a non-ready `json:baseui-manifest` withholds the OWNER at the POPULATION
 // phase, before `evaluate` ever runs — the same shape `baseui-and-surface-family.suite.repo.int.test.ts:256-294`
-// pins for the other five consumers. `resource-policy-contract.md` §3.6: one pin per declared resource per
+// pins for the other five consumers. `docs/law/resource-policy-contract.md` §3.6: one pin per declared resource per
 // REACHABLE non-ready status. `ops/resource-json.ts`'s header states the closed set: `missing | empty |
 // unresolved` (the third being an unparseable-but-present file) — never a fourth.
 //

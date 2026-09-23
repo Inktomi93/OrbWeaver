@@ -1,4 +1,4 @@
-// The R-TEACH honesty pins (#866 S3, config-revamp-design.md §7.0) — the mirror of the compose door's
+// The R-TEACH honesty pins (#866 S3) — the mirror of the compose door's
 // `assertTeachHonesty` sweep. tsc makes `teach` unforgettable on a leaf; these arms make it unfakeable,
 // each proven by a PLANTED fixture in both directions (an honest one passes; each hollow flavour throws).
 // The DERIVED-POPULATION arm — the sweep over the REAL door's leaves, never a hand list — rides the

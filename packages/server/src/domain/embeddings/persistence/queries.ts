@@ -100,7 +100,7 @@ export async function existingCaptionedRow(db: Db, assetId: AssetId, generationI
 /** Is this asset recorded in the admission-floor skip-log? Both admission paths (on-write + bulk sweep) read
  *  this BEFORE loading bytes so a known-degenerate asset is short-circuited without re-loading or re-spending
  *  — the record is HONORED (idempotent skip), not silently re-derived every pass. Model-agnostic: the skip is
- *  keyed by assetId alone (the bytes are immutable per id), so it survives a PD-104 model change. */
+ *  keyed by assetId alone (the bytes are immutable per id), so it survives a model change. */
 export async function existingImageSkip(db: Db, assetId: AssetId): Promise<boolean> {
   const rows = await db.select({ assetId: imageIndexSkips.assetId }).from(imageIndexSkips).where(eq(imageIndexSkips.assetId, assetId)).limit(LIMIT_ONE);
   return rows.length > 0;
@@ -218,7 +218,7 @@ export async function upsertImageEmbedding(db: Db, input: UpsertImageInput): Pro
 /** The stored `content_hash` for a chat segment CHUNK `(chatId, blockIdx, chunkIdx, model)`, or `undefined`
  *  when no row exists in that space. `chunkIdx` joined the key with #172 (a block is a row set now), which is
  *  also what makes a half-written block self-heal: the chunks that never landed have no row, so they are not
- *  hash-skipped. `model` is part of the key (PD-104) — the read scopes to the active space so the staleness
+ *  hash-skipped. `model` is part of the key — the read scopes to the active space so the staleness
  *  short-circuit never compares against a different model's row. */
 export async function existingSegmentHash(
   db: Db,
@@ -241,7 +241,7 @@ export async function existingSegmentHash(
 
 /** The stored `content_hash` for a chat digest `(chatId, scopedCharacterId, tier, blockIdx, model)`, or
  *  `undefined` when no row exists in that space. The scope key is part of the staleness identity (scope
- *  folds into the hash — §4); `model` is in the key (PD-104) so the read scopes to the active space. */
+ *  folds into the hash — §4); `model` is in the key so the read scopes to the active space. */
 export async function existingDigestHash(
   db: Db,
   key: {
@@ -287,7 +287,7 @@ interface UpsertSegmentInput {
 
 /** Upsert a verbatim segment CHUNK by `(chatId, blockIdx, chunkIdx, model)`. On conflict updates the vector +
  *  text + seq-span + hash + dim only — `hub_score`, the key columns, and `created_at` are left as-is
- *  (§invariant 2). `model` is in the conflict key (PD-104): a new space inserts, never overwrites the old
+ *  (§invariant 2). `model` is in the conflict key: a new space inserts, never overwrites the old
  *  one. `chunkIdx` joined it with #172 — a block over the embed window is N rows, never a truncated one. */
 export async function upsertChatSegment(db: Db, input: UpsertSegmentInput): Promise<void> {
   await db
@@ -343,7 +343,7 @@ interface UpsertDigestInput {
 
 /** Upsert a distilled digest by `(chatId, scopedCharacterId, tier, blockIdx, model)` and replace its speaker
  *  projection in the SAME batch. Returns the persisted row's id — on conflict the kept id differs from the
- *  freshly-minted `input.id`. `model` is in the conflict key (PD-104): a new space inserts additively rather
+ *  freshly-minted `input.id`. `model` is in the conflict key: a new space inserts additively rather
  *  than overwriting the old space in place. */
 export async function upsertChatDigest(db: Db, input: UpsertDigestInput): Promise<ChatDigestId> {
   const key = and(
@@ -409,7 +409,7 @@ export async function upsertChatDigest(db: Db, input: UpsertDigestInput): Promis
 }
 
 /** The stored `content_hash` for a document chunk `(documentId, chunkIdx, model)`, or `undefined` when no row
- *  exists in that space. `model` scopes the read to the active `(model, dim)` space (PD-104 uniformity — the
+ *  exists in that space. `model` scopes the read to the active `(model, dim)` space (uniformity — the
  *  staleness short-circuit never compares against a different model's row). */
 export async function existingChunkHash(db: Db, documentId: DocumentId, chunkIdx: number, generationId: EmbedGenerationId): Promise<string | undefined> {
   const rows = await db
@@ -473,7 +473,7 @@ interface UpsertDocumentChunkInput {
 
 /** Upsert a document chunk by `(documentId, chunkIdx, model)`. On conflict updates the vector + content +
  *  span + hash + dim only — `hub_score`, the key columns, and `created_at` are left as-is (§invariant 2).
- *  `model` is in the conflict key (PD-104): a new space inserts additively rather than overwriting the old. */
+ *  `model` is in the conflict key: a new space inserts additively rather than overwriting the old. */
 export async function upsertDocumentChunk(db: Db, input: UpsertDocumentChunkInput): Promise<void> {
   await db
     .insert(documentChunks)

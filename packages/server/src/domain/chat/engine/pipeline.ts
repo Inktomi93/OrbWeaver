@@ -110,7 +110,7 @@ interface RunTurnPipelineArgs {
   readonly canon: readonly MessageView[];
   readonly connection: Resolved<"chat">;
   readonly intent: UserIntent;
-  /** The host's `UserSettings.chat.customStoppingStrings` (PD-146), folded into the request's stop set
+  /** The host's `UserSettings.chat.customStoppingStrings`, folded into the request's stop set
    *  (Set-deduped after the intent's own stops). Absent/empty ⇒ the request `intent` is untouched. */
   readonly extraStopSequences?: readonly string[] | undefined;
   readonly kind: TurnKind;
@@ -510,9 +510,9 @@ function foldAdvanced(base: UserIntent["advanced"], override: UserIntent["advanc
   return { ...base, ...override };
 }
 
-/** Folds the EFFECTIVE generation params at the ONE seam (PD-148) — the value `resolveSampling` and the
+/** Folds the EFFECTIVE generation params at the ONE seam — the value `resolveSampling` and the
  *  fit-budget read: the preset's `params` is the BASE, the per-turn `UserIntent` OVERRIDES field-wise, and
- *  the stop set is the UNION of preset stop + per-turn stop + the host's custom stops (PD-146), Set-deduped.
+ *  the stop set is the UNION of preset stop + per-turn stop + the host's custom stops, Set-deduped.
  *  When the preset carries no params AND there are no custom stops, the per-turn intent is returned BY
  *  REFERENCE — byte-identical to a chat on the DEFAULT preset (whose `params` is `{}`). */
 function foldGenerationParams(base: UserIntent, override: UserIntent, extras: readonly string[] | undefined): UserIntent {
@@ -540,7 +540,7 @@ function materializeMaxOutput(intent: UserIntent): UserIntent {
   return { ...intent, maxOutputTokens: materializeOutputReserve(intent.maxOutputTokens) };
 }
 
-/** The D50 `assembled_dynamic` transform point (automation-design/04 §6): rewrite the BUILD output's DYNAMIC
+/** The D50 `assembled_dynamic` transform point: rewrite the BUILD output's DYNAMIC
  *  half only (the static/cache-stable half is untransformable — 03 §1.2). Absent op / zero registrants ⇒ the
  *  input is returned by reference (byte-identical). The vars env is the runtime fold cache off the immutable
  *  assemble ctx (a per-speaker SHAPE never changes `variableValues`). */
@@ -617,8 +617,8 @@ function speakerContexts(args: RunTurnPipelineArgs): {
 export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPipelineResult> {
   const { layout, voice: ctx, cue } = speakerContexts(args);
 
-  // FOLD (PD-148) — the effective generation params: the preset's `params` is the BASE, the per-turn
-  // `UserIntent` overrides field-wise, and the host's custom stops (PD-146) join the merged stop set. This is
+  // FOLD — the effective generation params: the preset's `params` is the BASE, the per-turn
+  // `UserIntent` overrides field-wise, and the host's custom stops join the merged stop set. This is
   // the ONE value SHAPE (roleHandling), FIT (budget), and REQUEST (wire intent) read — never `ctx.promptConfig.params`
   // or `args.intent` directly, so a preset's sampling/stop settings actually reach the wire.
   // MATERIALIZE the effective output length ONCE (the single source of truth): both FIT (fitBudget's
@@ -792,7 +792,7 @@ function turnCarriesTools(args: RunTurnPipelineArgs): boolean {
 
 // Tools ride only when names were gather-contributed AND the ops are wired AND capability.tools declares
 // support — attached-but-unsupported drops them (runs tool-less) and flags tools_unsupported. A tool-less
-// request carries no tools field. The offer is BACKEND-NEUTRAL (`docs/design/inference-tool-delivery.md`): the
+// request carries no tools field. The offer is BACKEND-NEUTRAL (D177): the
 // resolved set as definitions, the round ceiling, and ONE `execute` callback over the ONE execute path.
 // `@orb/inference` decides the delivery: an array wire declares them in `tools[]` and hands the calls back for
 // `runRecurseLoop` to execute; the Agent SDK mounts them as an MCP server, owns the loop, and calls `execute` per

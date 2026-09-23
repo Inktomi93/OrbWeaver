@@ -99,7 +99,7 @@ body {
   content: none;
 }
 
-/* The streaming caret is OURS ALONE (#42, docs/history/design/streaming-reveal-42.md — the seal deliberately
+/* The streaming caret is OURS ALONE (#42, D168 — the seal deliberately
  * does NOT pass Streamdown's `caret` prop): a 2px `--color-primary` blinking bar painted as an
  * `::after` on the LAST LEAF BLOCK of the streamed Markdown. Scoping to `ghost-stream-body` (the
  * wrapper around the streamed Markdown only) leaves settled rows (mode="static") and the ghost's
@@ -183,7 +183,7 @@ body {
   @supports (backdrop-filter: blur(1px)) {
     /* THE PANE'S GLASS PAINTS ON A CARRIER PSEUDO, NOT ON THE PANE (#1154). `backdrop-filter` on
      * `.shell-panel` made the whole pane one composited layer, which turns OFF per-paint baseline snapping
-     * for every text node inside it (integer-line-boxes.md Law 3/4 — measured on driven Characters:
+     * for every text node inside it (docs/law/integer-line-boxes.md Law 3/4 — measured on driven Characters:
      * `off-grid-text candidates=54 judged=33 affected=9`, all nine attributed to `aside.shell-panel`, and
      * half of them structurally unfixable by layout because a glyph advance is fractional: the count span
      * starts at 155.406px, the advance of the title run before it). The fix moves BOTH glass declarations
@@ -337,7 +337,7 @@ body {
      * frosted look carries through instead of leaving it an opaque slab beside glass panels.
      *
      * ON A CARRIER PSEUDO, FOR THE PANE'S OWN REASON (#1173 — the #1154 defect ONE SURFACE OVER). This
-     * rule promotes (`backdrop-filter`) and it CONTAINS TEXT, which is integer-line-boxes.md Law 3/4
+     * rule promotes (`backdrop-filter`) and it CONTAINS TEXT, which is docs/law/integer-line-boxes.md Law 3/4
      * exactly: a composited layer is rasterized once at its own sub-pixel offset, so the browser's
      * per-paint baseline snapping is off for every glyph in the reading column beneath it. It did not
      * show up in #1154's own measurement only because the audited arm (Characters) carries no wallpaper
@@ -758,7 +758,7 @@ html[data-shadow] [data-slot="message-bubble"] {
   max-width: calc(var(--reading-measure) * var(--reading-body-scale, 1));
 }
 
-/* THE ROOM'S TRACK CENTRES ON THE DEVICE-PIXEL GRID (#1362 — integer-line-boxes.md Law 3). The track used
+/* THE ROOM'S TRACK CENTRES ON THE DEVICE-PIXEL GRID (#1362 — docs/law/integer-line-boxes.md Law 3). The track used
  * to carry Tailwind's `mx-auto`, which splits the leftover width in half: an ODD remainder lands the track,
  * and therefore every `backdrop-filter` layer inside it, on a half pixel. Measured on the isolated stage at
  * 1280x800 with all four blur surfaces on — content pane 893px, track 768px (`clamp(46.125rem, 60dvw,
@@ -788,7 +788,7 @@ html[data-shadow] [data-slot="message-bubble"] {
 /* Reading typography — line-height/letter-spacing/paragraph-spacing/scale. Spacing/sizing only. */
 [data-slot="message-bubble"] {
   font-size: calc(var(--text-body) * var(--reading-body-scale, 1));
-  /* @orb-waive integer-line-boxes(--reading-line-height): the chat reading surface is the user-owned CONTINUOUS multiplier (appearance.readingLineHeight 1.2-2.2) — the declared Law-4 residual of docs/design/integer-line-boxes.md §2; ends when the reading rule gains its own round() belt at the consuming declaration. */
+  /* @orb-waive integer-line-boxes(--reading-line-height): the chat reading surface is the user-owned CONTINUOUS multiplier (appearance.readingLineHeight 1.2-2.2) — the declared Law-4 residual of docs/law/integer-line-boxes.md §2; ends when the reading rule gains its own round() belt at the consuming declaration. */
   line-height: var(--reading-line-height);
   letter-spacing: var(--reading-letter-spacing);
 }

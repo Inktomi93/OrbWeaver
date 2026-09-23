@@ -1,5 +1,5 @@
 // The chat CONTEXT pane's HEAD BAND — the room's identity in the context bracket's band slot (#860, owner-ruled
-// 2026-08-30; the mock is `docs/design/mocks/context-bracket/ChatRoom.dc.html`): the room's TITLE over three
+// 2026-08-30, D150): the room's TITLE over three
 // chips — members · memory · preset. It is fed through chat's `defineContextTabs` `header` slot
 // (`chats-section.tsx`), the slot CP-1 left empty "for CP-4's scene banner"; the Waystone band takes the same
 // slot on a game chat through the rpg region claim. One slot, one content at a time, never a second head.
@@ -9,7 +9,7 @@
 // context pane is DOCKED the topbar sheds its title + the two chips whose home is this pane (shell.css keys
 // on `data-context-mode`), so the name lives in exactly one place while this band is on screen. Two lines
 // are allowed (`line-clamp-2` + `text-balance` — the band owns the name's budget: the chips go BELOW the name,
-// never beside it, DESIGN.md), and `title` carries the full string for the rare name longer than two lines.
+// never beside it, the mock design), and `title` carries the full string for the rare name longer than two lines.
 // `deriveChatTitle` is the ONE title derivation the topbar identity already uses (a blank stored title never
 // renders).
 //

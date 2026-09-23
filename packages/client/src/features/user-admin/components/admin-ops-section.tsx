@@ -1,6 +1,6 @@
 // Admin ops bodies (Settings → Admin) over the built connection/admin verbs: the OpenRouter model-catalog
 // refresher (`GET /models`, admin-gated — the agent-sdk daemon list is warmed under each user's own
-// `claude-sub` row, inference program §4) and the PD-90 inline single-card embed. Both are adminProcedure server-side — this pane is UX honesty over that
+// `claude-sub` row, inference program §4) and the inline single-card embed. Both are adminProcedure server-side — this pane is UX honesty over that
 // floor. The embed has no natural character-ops home in the admin surface, so it takes a raw character id
 // (an admin diagnostic utility, not an end-user flow).
 
@@ -45,7 +45,7 @@ export function AdminCatalogSection(): ReactElement {
   );
 }
 
-/** PD-90 inline single-card embed — embed one character card into the vector index by its id. */
+/** Inline single-card embed — embed one character card into the vector index by its id. */
 export function AdminEmbedCardSection(): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();

@@ -1,4 +1,4 @@
-// The TEACHER's render half (config-revamp-design.md §3.5/§7.2, #866 S3) — the bracket band and the three
+// The TEACHER's render half (#866 S3) — the bracket band and the three
 // tab bodies over the RESOLVED `ConfigContextState` (the host already flattened focus × registries into
 // display data; nothing here re-resolves).
 //

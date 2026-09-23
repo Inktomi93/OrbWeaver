@@ -187,7 +187,7 @@ function writeAllFixtures(): void {
   fx("packages/client/src/__dc/view-transition.ts", `import "../lib/view-transition.ts";\n`);
 
   // confirm-uses-composite: a features/** module importing the raw @orb/ui/alert-dialog primitive
-  // instead of the tier-2 ConfirmDialog composite (client-architecture-lockdown.md §16 G7).
+  // instead of the tier-2 ConfirmDialog composite (client-architecture-state-and-gates.md §16 G7).
   fx("packages/client/src/features/__dc_confirm/alert.ts", `import { AlertDialog } from "@orb/ui/alert-dialog";\nexport const g = AlertDialog;\n`);
 
   fx(`${S}/foundation/__dc/up.ts`, `import "../../domain/__dc_feat/index.ts";\n`);
@@ -215,7 +215,7 @@ function writeAllFixtures(): void {
   fx(`${S}/domain/__dc_feat/verbs/c.ts`, `import "../memory/m.ts";\n`);
   fx(`${S}/domain/__dc_feat/engine/e.ts`, VAL);
   fx(`${S}/domain/__dc_feat/memory/x.ts`, `import "../engine/e.ts";\n`);
-  // domain-teaching-contribution-compose-only (interaction-direction-spec §3-S2; D117's
+  // domain-teaching-contribution-compose-only (D117's
   // workload-contributions precedent): the ratified root slot is a COMPOSITION surface — the only legal
   // importer is the owning domain's own index.ts (which is what entry/compose reads through). A VERB
   // importing the factory to call it inline is the hard-wired call site the seam exists to delete. The
@@ -266,7 +266,7 @@ function writeAllFixtures(): void {
   // db's runtime drizzle-orm resolves as `npm` (not `npm-dev`) so it would NOT fire — only pure devDeps do.
   fx("packages/db/src/__dc/devdep.ts", `import { defineConfig } from "drizzle-kit";\nexport const x = defineConfig;\n`);
 
-  // not-to-unresolvable (plugin-ui-plane #679 U4 override): the config reds on EVERY unresolvable import
+  // not-to-unresolvable (U4 override): the config reds on EVERY unresolvable import
   // except the one whitelisted `@jitl/quickjs-ng-wasmfile-release-sync/wasm?url` vite asset request. A
   // genuinely-missing package is the canonical firing case the rule's own comment names. The override rule
   // shipped (2026-08-28, plugin train) without this fixture, so the anti-drift `test.each(ACTIVE_RULES)`

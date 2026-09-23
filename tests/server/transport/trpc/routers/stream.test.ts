@@ -264,7 +264,7 @@ describe("the socket is bound to one principal", () => {
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // PRESENCE + THE HOST-RETURN DRAIN — moved onto the socket at S3 (spec §5.6, owner-ruled §14.4). They used
-// to ride `notifications.notifications`, which meant device liveness was gated by the PD-106 multi-human
+// to ride `notifications.notifications`, which meant device liveness was gated by the multi-human
 // belt: a deployment that refused the notifications router registered NO presence at all, and cast-gating
 // read every user as offline. The socket is `authedProcedure`, so the ref-count is now the tab's, full stop.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════

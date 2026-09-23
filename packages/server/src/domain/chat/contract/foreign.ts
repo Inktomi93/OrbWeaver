@@ -20,11 +20,11 @@ import type { ChatSettings } from "@orb/contracts/settings";
 import type { ChatId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
 import type { MemoryConfig } from "./memory.ts";
 
-/** The host's turn-behavior knobs the engine honors (PD-146) — the schema-real `UserSettings.chat` arm the
+/** The host's turn-behavior knobs the engine honors — the schema-real `UserSettings.chat` arm the
  *  settings domain owns, picked (never re-spelled) to exactly the fields the SERVER turn path consumes:
  *   • `customStoppingStrings` — extra stop strings merged into the generation request's stop set (pipeline).
  *   • `autoContinue`          — after a length-capped reply, auto-issue continues (up to `autoContinueRounds`).
- *   • `autoContinueRounds`    — PD-146 bound: the max auto-continue follow-ups (the AUTO_CONTINUE loop cap).
+ *   • `autoContinueRounds`    — the max auto-continue follow-ups (the AUTO_CONTINUE loop cap).
  *   • `autoSwipe`             — after a too-short / blacklisted reply, auto-regenerate (up to `autoSwipe.maxRetries`).
  *   • `offerChoices`          — B1 / RULED F2: the host's per-USER DEFAULT for the offer-choices posture, which
  *                               a room inherits when its own `chatMetadata.offerChoices` is absent. It rides
@@ -120,7 +120,7 @@ export type TurnTrigger = { readonly kind: "human"; readonly userId: UserId; rea
  *   • `memoryConfig`        — the resolved memory tuning (`AppSettings.memoryDefaults` ⊕ `UserSettings.memory`
  *                             enable, settings/admin) read by recall AND the post-turn build (threaded via
  *                             `TurnPrep.memoryConfig` — D36 opt-out on both sides); absent ⇒ the floor (`DEFAULTS`).
- *   • `chatBehavior`        — the host's `UserSettings.chat` turn-behavior arm (PD-146 — {@link ChatBehaviorInputs}):
+ *   • `chatBehavior`        — the host's `UserSettings.chat` turn-behavior arm ({@link ChatBehaviorInputs}):
  *                             custom stop strings + auto-continue/auto-swipe. All-off ⇒ byte-identical to today.
  *   • `databankRetrieval`   — the host's `UserSettings.databank.retrieval` (k/minScore/rerank, settings) — the
  *                             gather passes these to `search.documents` (DB6). Absent ⇒ search's own defaults.
@@ -157,7 +157,7 @@ export interface ForeignInputs {
   readonly databankSlotTokenBudget?: number | undefined;
 }
 
-/** The PD-146 turn-behavior floor: no custom stops, no auto-continue, no auto-swipe. The one home the turn
+/** The turn-behavior floor: no custom stops, no auto-continue, no auto-swipe. The one home the turn
  *  path defaults to when a `ForeignInputs` omits `chatBehavior` (a test fake / the memory-opt-out precedent). */
 export const DEFAULT_CHAT_BEHAVIOR: ChatBehaviorInputs = {
   autoContinue: false,
@@ -201,9 +201,9 @@ export type ResolveForeignInputsOp = (args: {
   readonly humanSeats: readonly HumanSeatPersona[];
   readonly trigger: TurnTrigger;
   readonly voice: TurnVoice;
-  /** A feature-supplied GM-voice preset REDIRECT (rpg-design/02 §1.1 #1 — resolved by the caller's early
+  /** A feature-supplied GM-voice preset REDIRECT (docs/plans/rpg/design.md — resolved by the caller's early
    *  `rpg.resolvePresetOverride` hop): when present, the resolver assembles THIS preset (owned-or-system under
    *  the host, else the normal default — the lenient-id rule) instead of the host's `UserSettings` default.
-   *  Absent ⇒ byte-identical to today. Inert until the turn path passes it (rpg-design/10 §R4 push 2). */
+   *  Absent ⇒ byte-identical to today. Inert until the turn path passes it (docs/plans/rpg/design.md push 2). */
   readonly presetOverride?: PresetId | undefined;
 }) => Promise<ForeignInputs>;

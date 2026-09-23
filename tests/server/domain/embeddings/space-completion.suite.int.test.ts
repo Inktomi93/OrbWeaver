@@ -11,11 +11,11 @@
 // no sweep ever wrote their ledger row — which is exactly what the owner observed.
 //
 // WHY: of the three scopes `VECTOR_SCOPES_BY_TASK.embed` folds, only `cards` had a per-owner completion
-// route (`embed-corpus.ts completeCardSweep`, whose PD-104 header already states the per-owner arm is safe
+// route (`embed-corpus.ts completeCardSweep`, whose header already states the per-owner arm is safe
 // because "a bulk pass covers every owner, a singular pass exactly one, and neither can reach a neighbour's
 // live space"). `memory` and `documents` recorded completion ONLY from the all-owners BULK arm, because in
 // both contributions the COMPLETION call and the cross-owner FAN-OUT were welded into one `ownerId === null`
-// conditional. PD-139(b)/(c) is an argument about the fan-out, not about the completion: separating them is
+// conditional. That is an argument about the fan-out, not about the completion: separating them is
 // the fix, and the fan-out fence now lives where it belongs — in the injected op's enumeration.
 //
 // THE PRINCIPAL EVERY RECEIPT BELOW IS TAKEN AS is the seeded owner of the connection, the card, the chat
@@ -180,7 +180,7 @@ describe("the completion ledger under a per-owner catch-up (#2517)", () => {
     expect(read.status === "ready" ? read.generation.id : null).toBe(generation.id);
   });
 
-  // PD-139(b)/(c) PRESERVED, and this is the pin that says so. The fence's REASON was never "a singular run
+  // The fan-out fence stays PRESERVED, and this is the pin that says so. The fence's REASON was never "a singular run
   // may not record a completion" — it was "a singular run may not reach a neighbour's live space". That
   // survives, relocated into the op's enumeration: the neighbour's ledger and vectors are untouched.
   test("a singular catch-up records NOTHING for a neighbour it did not sweep", async () => {

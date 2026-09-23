@@ -120,7 +120,7 @@ describe("exportCharacter", () => {
     expect(card.data.character_book?.entries[0]?.content).toBe("they breathe fire");
   });
 
-  // ── PD-144 — attached-book REFERENCES (portability twin of the PD-141 duplicate carry) ────────────────
+  // ── attached-book REFERENCES (portability twin of the duplicate carry) ──────────────────────────────
 
   test("bundles the attached-book references with their roles (never the book content)", async () => {
     const db = await freshDb();

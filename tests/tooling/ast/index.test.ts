@@ -1624,7 +1624,7 @@ import { integer, sqliteTable, stamp, text } from "../drizzle";
 export const widgets = sqliteTable("widgets", {
   id: text("id"),
   label: text("label"),
-  // @column-ok: written by the importer for provenance; nothing renders it yet (PD-999).
+  // @column-ok: written by the importer for provenance; nothing renders it yet.
   origin: text("origin"),
   tally: integer("tally"),
   ghost: text("ghost"),

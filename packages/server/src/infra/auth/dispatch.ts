@@ -16,7 +16,7 @@
 // authenticates nobody (boot-fatal in `foundation/env`, since this fallback is single-user's only
 // credential; a LOOPBACK peer is exactly what keeps that credential — and SSH break-glass — open).
 //
-// THE OPT-IN WIDENING (`AUTH_FALLBACK_TRUSTED_PEERS`, PROPOSED — containerize-prod-image-spec.md §3.1 arm
+// THE OPT-IN WIDENING (`AUTH_FALLBACK_TRUSTED_PEERS`, PROPOSED — docs/plans/containerize/design.md arm
 // (b)). The loopback rule above is correct on bare metal and unusable in a container: docker's port
 // publication SNATs every inbound connection to the bridge gateway, so a published port never delivers a
 // loopback peer and `single-user` 401s every browser request. A deployer may name extra CIDR ranges, which

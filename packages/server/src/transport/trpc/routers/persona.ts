@@ -37,7 +37,7 @@ export const personaRouter = t.router({
     .input(z.object({ personaId: typeIdSchema(ID_PREFIX.persona) }))
     .mutation(({ ctx, input }) => ctx.services.persona.remove({ principal: ctx.auth, personaId: input.personaId })),
 
-  // PD-99: the per-participant active-persona flip (verb built + composed; this is its ONE wire surface).
+  // The per-participant active-persona flip (verb built + composed; this is its ONE wire surface).
   // Auth lives in the verb (`requireChatAuthorOrHost` — self or host); `personaId: null` clears the slot.
   // `targetUserId` is OPTIONAL — omitted = self (the verb defaults it to the caller); a host targeting
   // someone else passes it explicitly.

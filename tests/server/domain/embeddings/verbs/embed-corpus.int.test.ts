@@ -1,4 +1,4 @@
-// verb: embedCorpus — the PD-53 bulk TEXT catch-up sweep. Load-bearing assertions:
+// verb: embedCorpus — the bulk TEXT catch-up sweep. Load-bearing assertions:
 //   • a fresh sweep embeds every enumerated card through the ONE write path (rows land, counts fold);
 //   • RESUMABILITY: a rerun is all hash-gate noops — zero embed calls, counts flip to skipped;
 //   • `force` bypasses the staleness short-circuit (re-embeds matched rows, still ONE row per card);

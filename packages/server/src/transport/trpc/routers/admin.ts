@@ -70,9 +70,7 @@ export const adminRouter = t.router({
     .input(z.object({ userId: brandedId<UserId>() }))
     .mutation(({ ctx, input }) => ctx.services.admin.revokeUserSessions({ principal: ctx.auth, userId: input.userId })),
 
-  // PD-3 — vLLM ops surface (admin-gated; delegates to the injected supervisor port).
-
-  // PD-90 — the inline single-card embed (adminProcedure, Tier-4 esoteric #10: only admins drive the GPU
+  // The inline single-card embed (adminProcedure, Tier-4 esoteric #10: only admins drive the GPU
   // embed engine inline; the bulk path is the admin-only index workload). The producer-ownership
   // check + the embeddings write live behind the AdminService verb (the composed EmbedProducerPort).
   embedCharacterCard: adminProcedure.input(z.object({ characterId: typeIdSchema(ID_PREFIX.character) })).mutation(async ({ ctx, input }) => {

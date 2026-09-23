@@ -14,7 +14,7 @@
 //      a `custom_parameters_ignored` warning after it. One gloss per failure class — the eight keys at
 //      `@orb/contracts/inference::BELT_OWNED_BODY_KEYS` fail in exactly three ways.
 //
-// NO COLUMN HEADERS, at either width — a stated deviation from the mock's 870 board. DESIGN.md's own rule
+// NO COLUMN HEADERS, at either width — a stated deviation from the mock's 870 board. the mock design's own rule
 // is that "a column header cannot survive a column that stacks", and the pair DOES stack below the
 // container's `lg` step; a header that exists at one width is also a label that exists for assistive tech at
 // one width. So every input carries a real `<Field>` label in place at both widths and each row is a named

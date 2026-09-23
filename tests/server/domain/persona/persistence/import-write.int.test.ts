@@ -1,4 +1,4 @@
-// Mirror int-test for domain/persona/persistence/createBulkImportPersonas (Option B; PD-77) — the persona-
+// Mirror int-test for domain/persona/persistence/createBulkImportPersonas (Option B) — the persona-
 // OWNED bulk-import WRITE over a real db: dedup-by-name over one owner-scoped pre-fetch, batch insert, and the
 // `idByName` (lowercased) the import verb copies into `personaByUserName`. Input is the canonical
 // `BulkImportPersonaInput` (`@orb/contracts/persona`); the ST→canonical mapping is import's job (tested there).

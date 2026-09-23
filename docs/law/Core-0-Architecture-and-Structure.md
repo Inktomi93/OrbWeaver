@@ -11,8 +11,7 @@ updated: 2026-09-20
 
 **North star:** you can figure out where anything lives, and what may import what, **from the file tree
 alone** — you *derive* the layout instead of *remembering* it. The structure is self-documenting and the
-boundaries are physics, not policy. (Why the codebase is shaped this way — the neo-tavern rot the remake
-fixed — is history: `history/core-0-structure-archaeology-record.md`.)
+boundaries are physics, not policy.
 
 ---
 
@@ -20,8 +19,7 @@ fixed — is history: `history/core-0-structure-archaeology-record.md`.)
 
 1. **Boundaries are physics (workspaces), not lint.** The app is split into pnpm workspace packages;
    a package cannot import what isn't in its declared deps — the layer cake is enforced by the module
-   resolver, the earliest possible tier. dependency-cruiser is a *backstop* for intra-package rules,
-   not the primary fence.
+   resolver, the earliest possible tier. dependency-cruiser is a *backstop*, not the primary boundary.
 2. **`#` intra-package, packages cross-package, zero `paths` aliases.** Native Node subpath imports
    (`#kit`, `#domain`, …) inside a package; workspace package names across packages. **No tsconfig
    `paths`** anywhere (that was neo-tavern's `@/` shadcn tax). One resolution model, all native.
@@ -92,8 +90,8 @@ name-leak/speaker-label handling (`stripSelfSpeakerLabel`, `parseSpeakerSpans`) 
 at both persist and render. `chat` is a *consumer* of these engines, never their home.
 
 TS project references are **not** used: they require emit (`composite` ⇒ `declaration`), which fights
-our no-emit model (node runs the `.ts` SOURCE directly since the tsx-shedding migration, 2026-08-03 —
-tsc is the type ORACLE and nothing emits), and our `exports`→`.ts` map already gives cross-package
+our no-emit model (node runs the `.ts` SOURCE directly — tsc is the type ORACLE and nothing emits), and
+our `exports`→`.ts` map already gives cross-package
 go-to-def + boundary
 enforcement without them. **Revisit triggers** (only then): we start publishing a package to npm, or
 per-package `tsc --noEmit` gets slow enough to want incremental `tsc -b` caching. (TS house style +
@@ -183,8 +181,7 @@ is RED.
 `tooling/` is CONDITIONAL — `tests/tooling/<dir>/` mirrors `tooling/src/<dir>/` whenever that tool dir
 exists (§9), and only flat files + dirs with no tool twin stay exempt. **Kind by suffix**: `.test.ts` (unit) · `.int.test.ts` (integration/db) ·
 `.contract.test.ts` (golden/surface) · `.test-d.ts` (types) · `.suite.test.ts`/`.suite.int.test.ts`
-(cross-cutting property suites — mirror-exempt). (`.parity.test.ts`, the neo differential oracle, was
-ripped out 2026-08-22 — #428.)
+(cross-cutting property suites — mirror-exempt).
 The **node** lanes are Vitest `test.projects` selected by suffix in ONE config. **Browser lanes are
 Playwright, not Vitest** (Vitest browser-mode hangs): `.ct.tsx` (component, Playwright CT) · `.spec.ts`
 (e2e) — separate runners, not in the fast `check`.
@@ -239,19 +236,20 @@ The rot mode is a concept with no single home. Each of these has exactly one, up
 When these hold, **the structure is the documentation**: a new feature is "copy the template,"
 finding anything is a path derivation, and "where does this go?" has exactly one answer.
 
-> All 13 are ENFORCED (dep-cruiser rules and the ts-morph gates in `tooling/src/verify/gates/`, plus
+> Every row above is ENFORCED (dep-cruiser rules and the ts-morph gates in `tooling/src/verify/gates/`, plus
 > `tsc` for the union-dispatch row, which has no gate file); `no-internal-mocks` stays advisory in `Spine-Testing.md §3`, not a hard gate.
 > **This table is the constitution; the full live-gate catalog is `Core-Enforcement-Active-Gates.md`**
-> (the single enforcement source of truth; deferred/rejected gates: `../architecture/history/Core-Enforcement-Deferred-Dropped.md`).
+> (the single enforcement source of truth; a not-yet-buildable gate is a `docs/work` decision item, and a
+> rejected gate proposal is a rejected ADR, for example `docs/adr/0220-rejected-neo-and-report-only-gates.md`).
 
 ## 8. Cross-cutting invariants (the laws no single file shows)
 
-Load-bearing rules that span multiple files/domains, enforced by convention + review (not one gate).
+Rules that span multiple files or domains, enforced by convention and review, not one gate.
 Promoted here from code comments so they are discoverable; the code stays the source of truth.
 
 | Invariant | Home / detail |
 | - | - |
-| **ONE credential-mint site** — the brand-protected secret is constructed ONLY in the credentials substrate's mint (renamed with the brand it guards: `ResolvedCredential` became `ResolvedSecret` in the 2026-09-19 connection re-key); the brand is otherwise unforgeable. | `domain/credentials/substrate/mint-secret.ts` |
+| **ONE credential-mint site** — the brand-protected `ResolvedSecret` is constructed ONLY in the credentials substrate's mint; the brand is otherwise unforgeable. | `domain/credentials/substrate/mint-secret.ts` |
 | **Notifications are durable-first** — INSERT the inbox row, THEN publish to the bus; a crash between the two never loses a delivered notification (the inbox is truth, the bus is best-effort). | `domain/notifications` |
 | **`notifications.record` is the ONE recipient chokepoint** — every producer routes through it, and it REFUSES an agent-principal recipient (agents never hold an inbox). Enforced once, inherited by all producers. | `domain/notifications` |
 | **Wire event unions are secret-unrepresentable** — the chat/notification event unions are closed discriminated unions of strict objects carrying only ids + literals; a secret/credential field is not expressible, so it cannot leak onto the bus. | `@orb/contracts/{chat,notifications}` |
@@ -271,8 +269,8 @@ tooling.** Primary enforcement is resolver physics (no package declares the dep,
 resolve); the `packages-no-tooling` dep-cruiser stanza is the deep-relative-escape backstop, the `ui-cake`
 posture. The one surface still sealed AGAINST tooling is the provider FAMILIES
 (`packages/inference/src/backends/<x>`, where the agent-sdk credential firewall lives) plus the package's
-contract internals — `tooling-no-provider-families`, re-pointed there on 2026-09-20 with the
-`@orb/inference` extraction. The package FRONT DOOR is legal; its families are not.
+contract internals — `tooling-no-provider-families`. The package FRONT DOOR is legal; its families are
+not.
 
 **The five-slot tool template** (`tooling/src/<tool>/` — the domain template's tooling twin; learn one,
 know all):
@@ -317,10 +315,10 @@ crash ≠ verdict (an uncaught throw becomes a hard `toolError`, never a silent 
 `node:child_process` door — every spawn rides `nice -n 19` because the box co-hosts other services; an
 un-niced spawn needs a cited census row stating why nice is wrong there.
 
-**`scripts/` is the research zone, not a second tool tree** — explicitly throwaway probes, one-shot lenses,
-launcher shims, and operator scripts; KISS/YAGNI apply there and only there. It MAY import
+**`scripts/` is the research zone, not a second tool tree** — explicitly throwaway probes, one-shot
+inspectors, launcher shims, and operator scripts; KISS/YAGNI apply there and only there. It MAY import
 `@orb/tooling` (the glass is one-way against `packages/`, not against research). Roster + retention
-rationale: `scripts/README.md`. A research script that becomes load-bearing for verification is promoted
+rationale: `scripts/README.md`. A research script that becomes essential for verification is promoted
 into `tooling/src/<tool>/` under the template, original deleted — never a compat stub.
 
 > The detail home is `Core-Tooling-Law.md` (the tool roster, the plumbing floor, the per-gate

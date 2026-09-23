@@ -89,16 +89,16 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D76 | [Healthz stays minimal](0076-healthz-stays-minimal.md) | active |
 | D77 | [Accepted ingress differences from neo](0077-accepted-ingress-differences-from-neo.md) | active |
 | D78 | [Autosave forms mount through the factory session](0078-autosave-forms-mount-through-factory-session.md) | active |
-| D86 | [The rpg stat-profile spine + the lite/full mode axis (AMENDS D58; spec home: the rpg-design set — doc 13 + the 03/04/05/10 amendments)](0086-the-rpg-stat-profile-spine-the-lite-full.md) | active |
+| D86 | [The rpg stat-profile spine + the lite/full mode axis (AMENDS D58; spec home: the docs/plans/rpg/design.md set — doc 13 + the 03/04/05/10 amendments)](0086-the-rpg-stat-profile-spine-the-lite-full.md) | active |
 | D106 | [Chat read visibility uses a presence-interval clamp](0106-chat-read-visibility-uses-presence-interval-clamp.md) | active |
 | D107 | [A declared knob is wired or cited as dormant](0107-declared-knob-wired-or-cited-as-dormant.md) | active |
 | D108 | [The retro brings rpg back as the LITE-PLUS-GUIDED substrate (W1 domain vertical); AMENDS D86's lite branch + the D58/D86 single-turn write model with the two-mode extraction delivery fork (owner sign-off)](0108-the-retro-brings-rpg-back-as-the-lite.md) | active |
 | D109 | [The rpg-lite exchange is TWO turns (the character turn + the state round); out-of-turn model calls INHERIT the turn's resolved connection + consent; `structured` is the constrained-generation primitive; vLLM is chat-completions-only (AMENDS D108's cheap branch; proven live end-to-end both modes, commit `fc85f1c0`)](0109-the-rpg-lite-exchange-is-two-turns-the.md) | active |
-| D110 | [Parity-plus makes the 7 marinara-reference features first-class-and-better, built FOUNDATION-FIRST so each dramatic feature is register-a-row not build-a-subsystem (blueprint: `docs/history/design/parity-plus-program-spec.md`, owner-ratified v2.2; this entry anchors the LANDED foundation — P0/P1/P2/MG/ME/MU — and reserves the feature waves P3–P6 as named doorways)](0110-parity-plus-makes-the-7-marinara-reference-features.md) | active |
+| D110 | [Parity-plus makes the 7 marinara-reference features first-class-and-better, built FOUNDATION-FIRST so each dramatic feature is register-a-row not build-a-subsystem (owner-ratified v2.2; this entry anchors the LANDED foundation — P0/P1/P2/MG/ME/MU — and reserves the feature waves P3–P6 as named doorways)](0110-parity-plus-makes-the-7-marinara-reference-features.md) | active |
 | D111 | [The rpg state round READS THE STORY; the tracker tracks SURFACE reality; the composer wand is the ST-style control map; a fork CLONES the game](0111-the-rpg-state-round-reads-the-story-the.md) | active |
-| D112 | [The hosted extraction fold (AMENDS D108's delivery fork and D109-1's tool-less rule; spec: `docs/design/rpg-extraction-one-call-spike.md`)](0112-the-hosted-extraction-fold-amends-d108-s-delivery.md) | active |
-| D113 | [The Tracker is the ONE tracked-field concept (SUPERSEDES the pool/cast-field/widget trichotomy; spec: `docs/design/tracked-field-unification.md` §5)](0113-the-tracker-is-the-one-tracked-field-concept.md) | active |
-| D114 | [O3 as amended (SUPERSEDES O3's "settings keeps appearance/system/tags/regex/chat-behavior"; spec: `docs/history/design/set-seams-spec.md` §6.1)](0114-o3-as-amended-supersedes-o3-s-settings-keeps.md) | active |
+| D112 | [The hosted extraction fold (AMENDS D108's delivery fork and D109-1's tool-less rule)](0112-the-hosted-extraction-fold-amends-d108-s-delivery.md) | active |
+| D113 | [The Tracker is the ONE tracked-field concept (SUPERSEDES the pool/cast-field/widget trichotomy)](0113-the-tracker-is-the-one-tracked-field-concept.md) | active |
+| D114 | [O3 as amended (SUPERSEDES O3's "settings keeps appearance/system/tags/regex/chat-behavior")](0114-o3-as-amended-supersedes-o3-s-settings-keeps.md) | active |
 | D115 | [`rpg.populateFromCharacter` is the ONE sanctioned exception to the hand-only-fields law (AMENDS the `contracts/rpg/sheet.ts` "patchSheet is the ONLY door" clause; the sheet's model-absence law otherwise stands)](0115-rpg-populatefromcharacter-is-the-one-sanctioned-exception-to.md) | active |
 | D116 | [Per-chat prose has ONE door: `chat_injections` (SUPERSEDES `roomOverrides.authorsNote` whole)](0116-per-chat-prose-has-one-door-chat-injections.md) | active |
 | D117 | \[`domain/workloads` is a generic execution SUBSTRATE with ZERO domain knowledge; every job is a `WorkloadContribution` raised by its OWNING domain. SUPERSEDES \[\[D4]] (~~`WorkloadRunnerEnv` builder = `entry/compose/runner-env.ts`~~) — that file and that type are DELETED]\(0117-domain-workloads-is-a-generic-execution-substrate-with.md) | active |
@@ -133,7 +133,7 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D146 | [a CONTRIBUTOR seam is closed-world in its VOCABULARY and open-world in its INSTANCES; the boundary between them is always a namespaced string carrying a per-contributor refusal](0146-a-contributor-seam-is-closed-world-in-its.md) | active |
 | D147 | [a plugin is USER-SCOPED: anyone installs one FOR THEMSELVES, it runs under them, and OWNERSHIP OF THE ROW is the entire authority model — there is no role gate on any management verb and deliberately no admin any-row branch](0147-a-plugin-is-user-scoped-anyone-installs-one.md) | active |
 | D148 | [a plugin's per-card state lives under the RESERVED card namespace `data.extensions.plugin_<slug>`; it is portable, key-namespaced, and INERT — a plugin can never read or overwrite another plugin's `plugin_<otherslug>` field, nor promote its own value into a typed card column](0148-a-plugin-s-per-card-state-lives-under.md) | active |
-| D149 | [THERE IS ONE GAME MODE; THE RULESET IS A SETTING AND ITS SWITCH IS ADDITIVE; AND A USER-INITIATED START/STOP REVEALS ITS OWN RESULT (amends `Context-Panel-Program.md` §4.1 — the ruling survives, its INPUT changed)](0149-there-is-one-game-mode-the-ruleset-is.md) | active |
+| D149 | [THERE IS ONE GAME MODE; THE RULESET IS A SETTING AND ITS SWITCH IS ADDITIVE; AND A USER-INITIATED START/STOP REVEALS ITS OWN RESULT (amends the panel program's no-ceremony rule — the ruling survives, its INPUT changed)](0149-there-is-one-game-mode-the-ruleset-is.md) | active |
 | D150 | [the CONTEXT pane is ONE chrome, the CONTEXT BRACKET, in every room and every tabs section: HEAD band → optional STATE rail → VIEWPORT → GROUND → META rail pinned to the pane's foot — rendered by the shell, never by a section or a claimant](0150-the-context-pane-is-one-chrome-the-context.md) | active |
 | D151 | [the room's actor vocabulary is CLOSED: characters, personas, host/members — no new named entity kinds](0151-the-room-s-actor-vocabulary-is-closed-characters.md) | active |
 | D152 | [an in-turn chat TOOL executes under the resolved HOST Principal; there is no per-speaker authority swap at the tool seam, so a mutating tool attached to a non-human speak turn is host-authority execution with zero human in the loop and must never ship](0152-an-in-turn-chat-tool-executes-under-the.md) | active |
@@ -149,5 +149,51 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D162 | [Firehose import allowlist: the unclamped all-chat stream may be named only by the server composition root and its transport barrel](0162-firehose-import-allowlist-the-unclamped-all-chat-stream.md) | active |
 | D163 | [schema history has a post-launch rule and a pre-launch standing exception](0163-schema-history-has-a-post-launch-rule-and.md) | active |
 | D164 | [Docs, plans and ADRs are markdown with one structural writer](0164-docs-plans-adrs.md) | active |
+| D165 | [Async work is awaited, owned by its boundary, or supervised-detached](0165-async-work-is-awaited-owned-or-supervised.md) | active |
+| D166 | [A chat row exists from the creation click](0166-a-chat-row-exists-from-the-creation-click.md) | active |
+| D167 | [Token usage carries provenance at variant grain](0167-token-usage-carries-provenance.md) | active |
+| D168 | [Streaming text fades by reveal time, and the caret is ours](0168-streaming-text-fades-by-reveal-time.md) | active |
+| D169 | [User-macro input values are per chat, and draws are a generation record](0169-user-macro-values-are-per-chat.md) | active |
+| D170 | [A saved cast carries its rule presets](0170-a-saved-cast-carries-its-rule-presets.md) | active |
+| D171 | [A refinery session is a workspace over an append-only run log](0171-a-refinery-session-is-a-workspace.md) | active |
+| D172 | [Rewrite toggles and greeting transforms are preset slots composed on the server](0172-steer-fragments-are-preset-slots-composed-on-the-server.md) | active |
+| D173 | [The brand mark is the Open Orb, one emblem at every scale](0173-the-brand-mark-is-the-open-orb.md) | active |
+| D174 | [Provider wires stay our own adapters](0174-provider-wires-stay-our-own-adapters.md) | active |
+| D175 | [Test setup stays inline; per-domain fixture families are not built](0175-test-setup-stays-inline.md) | active |
+| D176 | [HOME tiles keep a static order; no conditional promotion](0176-home-tiles-keep-a-static-order.md) | active |
+| D177 | [Inference owns tool and history delivery; the server owns which tools act](0177-inference-owns-tool-and-history-delivery.md) | active |
+| D179 | [No gate forces Field.Control wrapping or namespaced Base UI type imports](0179-no-gate-forces-field-control-or-namespaced-base-ui-imports.md) | active |
+| D180 | [Video input is its own content part](0180-video-input-is-its-own-content-part.md) | active |
+| D181 | [Semantic invariants and write atomicity stay review work, not gates](0181-semantic-invariants-and-write-atomicity-stay-review-work.md) | active |
+| D182 | [Snap heap evidence uses the pinned DevTools parser](0182-snap-heap-evidence-uses-the-pinned-devtools-parser.md) | active |
+| D183 | [Snap run facts are typed per check at compile time](0183-snap-run-facts-are-typed-per-check-at-compile-time.md) | active |
+| D184 | [Snap records motion as PNG contact sheets, not video](0184-snap-records-motion-as-png-contact-sheets-not-video.md) | active |
+| D185 | [Presets stay a standalone rail section](0185-presets-stay-a-standalone-rail-section.md) | active |
+| D186 | [A video background plays as native video](0186-a-video-background-plays-as-native-video.md) | active |
+| D187 | [The token vault is validated DTCG with a CSS-values extension](0187-the-token-vault-is-validated-dtcg-with-a-css-values-extension.md) | active |
+| D188 | [Background automation and plugins never write a message](0188-background-automation-and-plugins-never-write-a-message.md) | active |
+| D189 | [RPG quests ride the snapshot and the journal is a variant-aware table](0189-rpg-quests-ride-the-snapshot-and-the-journal-is-variant-aware.md) | active |
+| D200 | [Shadow ingredients derive per polarity from the base surface](0200-theme-shadow-ingredient-derivation.md) | active |
+| D201 | [The neutral surface ramp derives two cases from the same pivot](0201-theme-surface-ramp-two-case-derivation.md) | active |
+| D202 | [Accepted-base foreground contract supersedes the raw-L pivot](0202-theme-accepted-base-foreground-contract.md) | active |
+| D203 | [The admin tier wires eight AppSettings system-tuning knobs](0203-admin-tier-system-tuning-knobs.md) | active |
+| D204 | [Imagery prompt templates home in per-user UserSettings, not preset cards](0204-imagery-prompt-templates-per-user-home.md) | active |
+| D205 | [Folded extraction mode is the born default](0205-folded-extraction-is-born-default.md) | active |
+| D206 | [The agent-sdk wire gets a terminal-tool channel for folded extraction](0206-agent-sdk-terminal-tool-channel.md) | active |
+| D207 | [A local vLLM chat wire guards folded extraction to the cheap round](0207-local-engine-fold-guard.md) | active |
+| D208 | [The reliable structured-output extraction mode is deleted](0208-reliable-extraction-mode-deleted.md) | active |
+| D209 | [Workloads stage E: lanes, durable progress, and visible poison rows](0209-workloads-stage-e-lanes-progress-poison.md) | active |
+| D210 | [The permissions model has one page: Spine-Identity-and-Auth](0210-permissions-model-one-page.md) | active |
+| D211 | [The rail is eight sections and home is the born default](0211-rail-is-eight-sections-home-is-default.md) | active |
+| D212 | [The lifecycle chrome anatomy: band, kebab, and zero chrome in editors](0212-lifecycle-chrome-anatomy.md) | active |
+| D213 | [The regex script library is a first-class scoped store](0213-regex-script-library-storage.md) | active |
+| D214 | [The R4 promotion doorway ships with two named gaps](0214-r4-promotion-doorway-named-gaps.md) | active |
+| D215 | [The preset readout binding chip is honest by membership](0215-preset-readout-binding-chip-lane-d8.md) | active |
+| D216 | [Variant raw content and freeze provenance are host-plane](0216-variant-raw-and-freeze-provenance-is-host-plane.md) | active |
+| D217 | [The message-kind dispatch fan-out is committed](0217-message-kind-dispatch-fan-out-committed.md) | active |
+| D218 | [The role verdict has one home in every tier, not just the auth seam](0218-role-verdict-one-home-every-tier.md) | active |
+| D219 | [The cast read axis is renamed to the chat identity axis](0219-cast-axis-renamed-to-identity-axis.md) | active |
+| D220 | [Rejected neo-derived and report-only enforcement proposals](0220-rejected-neo-and-report-only-gates.md) | rejected |
+| D221 | [Resource-policy contract: alternatives rejected](0221-resource-policy-contract-rejected-alternatives.md) | active |
 | D250 | [The anchor human's persona binds prompt-config {{user}}](0250-anchor-human-binds-preset-user.md) | active |
 | D251 | [Prompt sections keep their prompt-order position on every model](0251-prompt-sections-keep-prompt-order.md) | active |

@@ -1,4 +1,4 @@
-// QueryInlineStates (derive-modernization-audit §W4): the non-suspense sibling of QueryBoundary. A
+// QueryInlineStates: the non-suspense sibling of QueryBoundary. A
 // dialog/poll read (a plain `useQuery`, mounted-while-open or self-refetching) can't suspend, so it
 // hand-ladders `isPending ? … : isError ? … : empty ? …` inline — the exact three-copy shape that drifts
 // across admin panes. This bakes the ladder ONCE: pending/empty in `muted`, error in `destructive`, and

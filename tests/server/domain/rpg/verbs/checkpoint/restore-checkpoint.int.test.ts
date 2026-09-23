@@ -1,4 +1,4 @@
-// verbs/checkpoint/restore-checkpoint — restoreCheckpoint (rpg-design/05 §4.4, §6.2). Clones the checkpointed
+// verbs/checkpoint/restore-checkpoint — restoreCheckpoint (docs/plans/rpg/design.md). Clones the checkpointed
 // snapshot FORWARD, born committed, onto a fresh narrator slot. Asserted at the restored snapshot.
 
 import type { Db } from "@orb/db";

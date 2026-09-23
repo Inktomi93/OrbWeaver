@@ -42,12 +42,12 @@
 // TRUE BY CONSTRUCTION (there is no per-pump state to bleed): what the tests pin is that the pump forwards
 // the stamp verbatim, per room, and withholds an UNSTAMPED delta fail-closed.
 //
-// SUBSCRIPTION-SIDE SYNTHESES (PD-134/PD-135). Two `ChatBusEvent` members are synthesized HERE, per
+// SUBSCRIPTION-SIDE SYNTHESES. Two `ChatBusEvent` members are synthesized HERE, per
 // subscription, not published on the bus (no other subscriber sees them) and never logged to `chat_events`:
 //   • `chatOpened` — yielded once at attach after the membership probe admits the subscriber (the ST
-//     CHAT_CHANGED "on open, run setup" hook; the client reducer invalidates). PD-134.
+//     CHAT_CHANGED "on open, run setup" hook; the client reducer invalidates).
 //   • `historyTruncated` — yielded on resume when the cursor predates the retained window (events after it
-//     were dropped, a gap replay can't fill), BEFORE the replay so the client refetches first. PD-135.
+//     were dropped, a gap replay can't fill), BEFORE the replay so the client refetches first.
 // A THIRD CLASS OF NON-DURABLE FRAME ARRIVES ON THE BUS ITSELF: the LIVE-ONLY lane (`ChatLiveEvent`'s
 // `seq: null` arm — the entity→room member-freshness bridge, design §3.4). Unlike the two syntheses it IS
 // published (every subscriber of the room sees it) and it is member-gated + clamped like everything else;
@@ -144,7 +144,7 @@ export const chatRoomSource: RoomSourceDef<"chat"> = {
   },
 };
 
-/** The two SUBSCRIPTION-SIDE syntheses (file header, PD-134/PD-135): synthesized per attach, never published
+/** The two SUBSCRIPTION-SIDE syntheses (file header): synthesized per attach, never published
  *  on the bus and never logged to `chat_events`, so their frame `seq` is a cursor hint rather than a durable
  *  row. Named here because the live-loop dedup floor must ignore exactly these. */
 function isAttachSynthetic(event: ChatBusEvent): boolean {
@@ -225,7 +225,7 @@ async function* attachSynthesesAndReplay(args: {
   // See the doc comment: a RESUMING attach keeps its own cursor; a cursor-less one adopts the room's current
   // high-water so the client (and the socket cell) have something replayable to come back to.
   const cursorSeq = resumeSeq ?? bounds.maxSeq ?? 0;
-  // `chatOpened` (PD-134) — the per-subscription attach synthesis (the client reducer invalidates). The
+  // `chatOpened` — the per-subscription attach synthesis (the client reducer invalidates). The
   // per-viewer automation tap (D81) fires off the SAME synthesis — it never rides the durable bus.
   yield { channel: "chat", chatId, seq: cursorSeq, event: { type: "chatOpened", chatId } };
   notifyChatOpened(chatId, principal.userId);
@@ -234,7 +234,7 @@ async function* attachSynthesesAndReplay(args: {
   if (resumeSeq === null) {
     return;
   }
-  // `historyTruncated` (PD-135) — the cursor predates the retained window (`minSeq` = earliest retained
+  // `historyTruncated` — the cursor predates the retained window (`minSeq` = earliest retained
   // row): events after it were dropped. Empty log (minSeq null) ⇒ no window ⇒ no gap; a caught-up cursor
   // replays empty but is NOT truncated. Yielded BEFORE the replay (same non-advancing seq) so the client
   // refetches first.

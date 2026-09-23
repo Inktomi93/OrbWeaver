@@ -182,7 +182,8 @@ Run autonomously only when the user says overnight, finish, or keep going.
 
 ## Tracking work
 
-Track work however the owner says. `pnpm work:item` is one option.
+Track work however the owner says. `pnpm doc item`, `pnpm doc set`, `pnpm doc land`, `pnpm doc overview` and
+`pnpm doc drift` are the tool for it.
 
 - For any `gh` write, use `--body-file`. `gh` runs backticks inside `--body`.
 

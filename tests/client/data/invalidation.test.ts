@@ -328,7 +328,7 @@ const USER_TRACKED_KEYS = [
   // chat capability; the catalog reads under the same router must NOT be dropped — they cold-fetch).
   "chatCapability",
   // The transcript divider's fit budget also refetches on a settings/preset change (the resolved capability +
-  // effective params drive the fit) — PD-#7.
+  // effective params drive the fit).
   "previewContextFit",
   // The Preview tab's assembled-prompt read — it rides wherever `previewContextFit` does (the fit is that
   // assembly's budget), so a preset/settings edit repaints the preview instead of freezing it at first fetch.
@@ -377,7 +377,7 @@ const USER_TRACKED_KEYS = [
   // live client only on a full page reload. Tracked separately from `userSettings`/`persona` — the other two
   // legs of the viewer triple — because those two have their own members and would mask a missing row here.
   "sessionsMe",
-  // A plugin UI surface's published state (`plugin.getSurfaceState`, plugin-ui-plane #679 U1). Before
+  // A plugin UI surface's published state (`plugin.getSurfaceState` U1). Before
   // `pluginSurfaceStateChanged` it had no driver — `staleTime:Infinity` would freeze a rendered surface at its
   // first fetch; the member path-invalidates the read so `host.ui.setState` reaches the installer's own client.
   "pluginSurfaceState",
@@ -427,7 +427,7 @@ const USER_EXPECTED: Record<UserBusEvent["type"], readonly UserTrackedKey[]> = {
   // bus half and the ladder half cannot drift apart.
   // Deliberately NOT the character/chat roots: a role grant changes what the viewer may DO, not what they own.
   identityChanged: ["sessionsMe", "userSettings", "persona"],
-  // A plugin surface published new state (plugin-ui-plane #679 U1): path-invalidates the surface-state read so
+  // A plugin surface published new state: path-invalidates the surface-state read so
   // the installer's own client refetches. Coarse by design — NOT `listSurfaces` (registration is unmoved).
   pluginSurfaceStateChanged: ["pluginSurfaceState"],
   // DEFERRED member — never emitted, but the map entry is live; it path-invalidates the WHOLE connection

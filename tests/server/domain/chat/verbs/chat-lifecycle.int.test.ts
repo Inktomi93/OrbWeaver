@@ -737,7 +737,7 @@ describe("injections — CRUD (write host, list member)", () => {
   });
 });
 
-describe("reapTemporaryChats — the caller's expired temp chats (PD-65)", () => {
+describe("reapTemporaryChats — the caller's expired temp chats", () => {
   // The verb's 24h TTL against the frozen clock: a chat born just past the horizon is reap-eligible.
   const ttlMs = 86_400_000;
   const expiredAt = FROZEN_AT - ttlMs - 1;

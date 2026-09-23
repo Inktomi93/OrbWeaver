@@ -1,4 +1,4 @@
-// verb: listSurfaces — the caller's OWN enabled plugins' registered UI surfaces (plugin-ui-plane #679 U1).
+// verb: listSurfaces — the caller's OWN enabled plugins' registered UI surfaces.
 // Owner-scoped by the `listOwned` read + the per-caller resident lookup: a stranger's surfaces are never in the
 // result, a disabled plugin (no resident) contributes none, and each surface is projected to the serializable
 // meta (the `onAction` handle stays server-side) tagged with its pluginId.

@@ -1,5 +1,5 @@
-// fullscreenChrome — the topbar focus-mode toggle as a registered `topbar.trail` widget
-// (shell-chrome-unification.md §A). app-shell registers its OWN chrome through the same door as any
+// fullscreenChrome — the topbar focus-mode toggle as a registered `topbar.trail` widget.
+// app-shell registers its OWN chrome through the same door as any
 // other feature — no self-privilege.
 
 import type { ChromeEntry } from "#state";

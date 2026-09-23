@@ -4,7 +4,7 @@
 // verb gates on principal.userId (ownership is the gate).
 //
 // The chat scope is membership-scoped (D18 — no chats.ownerId); its guards (requireChatHost/Member) arrive
-// as injected ops from chat's own guards, wired at the composition root (the world-info PD-30 shape).
+// as injected ops from chat's own guards, wired at the composition root (the world-info shape).
 
 import type { ResolveVisibleRoomsOp } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";

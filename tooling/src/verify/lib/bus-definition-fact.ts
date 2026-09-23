@@ -6,7 +6,7 @@
 //
 // It is a SECOND provider rather than fields on `busProducerFact`: the producer fact carried consumer and
 // coverage fields once, and they both refused real belts and made every producer run pay for data no
-// producer policy read (bus-family-1584.md). Separate providers keep the populations honest — producers
+// producer policy read (the bus family's #1584 conversion record). Separate providers keep the populations honest — producers
 // are a contracts/server question, definitions reach the client too.
 import type { CallExpression, Node as MorphNode, SourceFile, TypeAliasDeclaration, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";

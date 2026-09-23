@@ -206,7 +206,7 @@ export interface StoreHarness {
   readonly loadAssetBytes: Mock<EmbeddingsContext["loadAssetBytes"]>;
 }
 
-/** The PD-53 bulk-pass sweep universe the harness fakes serve (all default empty/absent). */
+/** The bulk-pass sweep universe the harness fakes serve (all default empty/absent). */
 export interface StoreHarnessSources {
   readonly characterIds?: readonly CharacterId[];
   readonly cardTexts?: ReadonlyMap<CharacterId, string>;

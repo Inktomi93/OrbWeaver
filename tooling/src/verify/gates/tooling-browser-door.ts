@@ -1,11 +1,11 @@
 // Policy: tooling-browser-door (docs/law/Core-Tooling-Law.md §4.4, arms B + H of the retired
 // `tooling-shared-plumbing`) — a Playwright browser is reached ONE way each: LAUNCHED by
 // `_shared/browser.ts#launchProbeSession` and ATTACHED by `attachProbeSession`, the one door onto a session
-// daemon's browser (docs/design/1208-instrument-substrate.md §3.4). A `<engine>.launch(`,
+// daemon's browser. A `<engine>.launch(`,
 // `<engine>.connect(` or `<engine>.connectOverCDP(` anywhere else under `tooling/src/**` is a second bootstrap
 // or a second `ProbeSession` shape. Comment posture: comment-SAFE (node kinds only).
 //
-// AUTHORITY IS reviewed-grant (docs/history/gate-runtime-worked-cases-2026-09.md §"Mixed-hook arity amendments", #1950 group 4): the legacy `HOMES` row for browser.ts is a
+// AUTHORITY IS reviewed-grant (#1950 group 4): the legacy `HOMES` row for browser.ts is a
 // recurring repository PERMISSION — two exact rows now, `(browser.ts, browser-launch)` and
 // `(browser.ts, browser-attach)`, because the home performs two licensed acts and a grant licenses one
 // identity; the legacy stale sweep is central grant liveness. Both arms share one policy because they share
@@ -48,7 +48,7 @@ const LAUNCH_OPERATION = "browser-launch";
 const ATTACH_OPERATION = "browser-attach";
 
 const MESSAGE =
-  "a second Playwright door — a browser is LAUNCHED only by `launchProbeSession` and ATTACHED only by `attachProbeSession` (_shared/browser.ts); a `<engine>.launch(` elsewhere is a second bootstrap that misses the marked args/env and the run-marker, and a `<engine>.connect(`/`connectOverCDP(` elsewhere is a second ProbeSession shape reaching a session daemon's browser around the one door (docs/law/Core-Tooling-Law.md §4.4; docs/design/1208-instrument-substrate.md §3.4).";
+  "a second Playwright door — a browser is LAUNCHED only by `launchProbeSession` and ATTACHED only by `attachProbeSession` (_shared/browser.ts); a `<engine>.launch(` elsewhere is a second bootstrap that misses the marked args/env and the run-marker, and a `<engine>.connect(`/`connectOverCDP(` elsewhere is a second ProbeSession shape reaching a session daemon's browser around the one door (docs/law/Core-Tooling-Law.md §4.4).";
 const UNREADABLE =
   "a call spelled like a Playwright browser-type door whose receiver the shared readers cannot place, so whether it launches or attaches a Playwright browser CANNOT be established. Reported rather than passed: the spelling alone is not the identity. Give the binding a readable import origin; the three-answer rule is tooling/src/verify/lib/origin-verdict.ts (#944).";
 const FIX =
@@ -120,7 +120,7 @@ export const gate = defineGate({
         "tooling/src/ui-audit/ops/run.ts": 'import { chromium } from "@playwright/test";\nexport const b = chromium.connectOverCDP("http://127.0.0.1:9222");\n',
       },
       expect: { count: 1, token: "chromium.connectOverCDP", messageIncludes: "operation: browser-attach" },
-      why: "a second CDP attach outside _shared/browser.ts — a sibling instrument reaching a session daemon's browser around attachProbeSession (arm H; docs/design/1208-instrument-substrate.md §3.4)",
+      why: "a second CDP attach outside _shared/browser.ts — a sibling instrument reaching a session daemon's browser around attachProbeSession (arm H)",
     },
     {
       mode: "types",

@@ -87,9 +87,9 @@ const INFLIGHT_MARKER = ".inflight";
 export const PUBLISHED_MANIFEST = ".published";
 // Retention — HOW LONG a slot lives and the ledger of the ones that went — is ./run-retention.ts (#1341).
 const RUNS_SEGMENT = "runs";
-// DOT-FREE on purpose: a run id becomes a path SEGMENT and, for the doc-catalog scratch, part of a
-// filename a `*.json` glob has to match — a stray dot from the timestamp's milliseconds turns a
-// `catalog.tmp.*.json` config row into a silent non-match (paid once, 2026-09-01).
+// DOT-FREE on purpose: a run id becomes a path SEGMENT and, for a scratch artifact, part of a filename
+// a `*.json` glob has to match — a stray dot from the timestamp's milliseconds turns a `*.tmp.*.json`
+// config row into a silent non-match (paid once, 2026-09-01).
 const RUN_ID_UNSAFE_RE = /[^a-zA-Z0-9_-]+/gu;
 
 /** The CHECKOUT a run is judging: `main` for the primary checkout, the worktree directory's basename for a

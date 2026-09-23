@@ -1,6 +1,6 @@
 // stats drift gate — the CROSS-WRITER equality harness (the stats design doc inv #3; D60 doc 02 §4 the agent row).
 //
-// The build plan (agent-principal-design/07 §3) is explicit: the drift suite must gain the agent row "on
+// The build plan (docs/plans/agent-principals/design.md) is explicit: the drift suite must gain the agent row "on
 // BOTH writers in the same commit, or the gate lies." Two INDEPENDENT per-writer tests asserting matching
 // hand-computed constants (which is what `apply-delta` + `rebuild-from-canon` each carry today) do NOT
 // satisfy that — neither one runs both writers over one canon, so a drift between them is invisible.
@@ -147,7 +147,7 @@ beforeEach(async () => {
  *  rows, in write order. `canonMessageDelta`/`swipeVariantDelta` are the declared mirrors of the rebuild's
  *  `foldMessage`/`foldSwipe`; `chatCreatedDelta({newCharacter: true})` supplies the chat/character library
  *  counts the message folds don't own (reconcile derives them from the character/chat tables — esoteric
- *  #10). PD-96: `newCharacter` is the REAL builder output (the `start-chat` first-chat probe sets it) —
+ *  #10). `newCharacter` is the REAL builder output (the `start-chat` first-chat probe sets it) —
  *  no hand-spread masking the wiring. */
 function liveDeltas(): StatsDelta[] {
   return [

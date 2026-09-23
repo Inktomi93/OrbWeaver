@@ -52,7 +52,7 @@ async function seedDetachedGeneration(db: Db, ownerId: UserId, model: string): P
   return id;
 }
 
-describe("purgeMemoryVectors — PD-139(b) chat-memory old-space reclaim", () => {
+describe("purgeMemoryVectors — chat-memory old-space reclaim", () => {
   test("retains both memory generations until cards and documents complete", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
@@ -62,7 +62,7 @@ describe("purgeMemoryVectors — PD-139(b) chat-memory old-space reclaim", () =>
     const generation = await seedHarnessGeneration(owner, harness);
     const staleGenerationId = await seedDetachedGeneration(db, owner, STALE_MODEL);
     // One OLD-space + one active-space row in each model-keyed chat-memory table (both coexist because the
-    // upsert key now includes `model` — PD-104).
+    // upsert key now includes `model`).
     await upsertChatSegment(db, {
       id: castId<ChatSegmentId>("chat_segment_old"),
       chatId,

@@ -15,7 +15,7 @@
 //
 // AUTHORITY — and this is a DELIBERATE divergence from the two siblings that converted first (#2021).
 // `depcruise-grant-liveness` and `eslint-grant-liveness` landed 2026-09-11 as `authority: "hard"` carrying
-// gate-local `ExemptionTable`s. `exception-authority-census.md:96-100` classifies all four external-config
+// gate-local `ExemptionTable`s. the gate-runtime exception-authority census classifies all four external-config
 // grant families as REVIEWED GRANTS, and §12.5 forbids a gate-owned exemption grammar outright, so this
 // pair carries the census's disposition: the table is gone and its rows are exact
 // `(policy, subject, operation)` rows in `lib/reviewed-grants.ts`. The siblings are the PRE-#1922 state, not
@@ -80,8 +80,8 @@
 // A LIVENESS-AND-OUTCOME RECEIPT AND NOT CATCH PARITY. `97e68be91` states no differential and lands none
 // as a test, and §4.6 (#2000) stopped accepting silence; this is the record it owes, all three axes named
 // separately, driven on ONE corpus at `ce8e5174f`.
-//   · FINDINGS. FINAL side through `runPolicyPass` over the real root: raw 1 —
-//     `biome.json:845 docs/catalog/catalog.tmp.*.json` — granted 1 (`biome-grant-liveness:catalog-tmp`,
+//   · FINDINGS. FINAL side through `runPolicyPass` over the real root: raw 1 — a `biome.json` override
+//     row naming a since-removed catalog temp-file glob — granted 1 (a since-retired grant row,
 //     consumed exactly once), effective 0, owner `success`/`complete`, `authorityAlarms []` measured with a
 //     planted stale grant that DID alarm.
 //     LEGACY side: the frozen descriptor at `c97de9d2f`, header-import-shimmed into a scratch module

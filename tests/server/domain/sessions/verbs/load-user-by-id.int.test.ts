@@ -1,4 +1,4 @@
-// sessions.loadUserById (PD-73) — the frozen-host → Principal bridge read. Proves against a real libSQL db:
+// sessions.loadUserById — the frozen-host → Principal bridge read. Proves against a real libSQL db:
 // the live role/handle/externalId are re-read from the row (a role change propagates), an unknown id is
 // null, and a DISABLED row still RESOLVES while REPORTING `enabled:false`. That pair is the contract: the
 // read gates nothing, so the frozen-host bridge keeps a disabled host's real role authoritative for the D17

@@ -1,6 +1,6 @@
 // The HUMAN membership-lifecycle write verbs (FINAL-Chats §8.3 — the Members panel + options-menu rows),
 // each a module-scope `createEntityMutation` (§13.1 — the ONE mutation home). All ride the
-// `multiHumanProcedure`-belted `invites.*` router (PD-106): the surfaces that fire these mount only while
+// `multiHumanProcedure`-belted `invites.*` router: the surfaces that fire these mount only while
 // `/api/auth/config.multiHumanCapable` is true, and authority (requireHost / requireParticipant / the
 // nominee self-check) lives INSIDE each verb. TVars reuse the contract param shapes so a wire reshape
 // breaks here at compile time (§5.5); TData is `unknown` (returns are never read — bus/invalidation drive).

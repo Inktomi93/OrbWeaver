@@ -6,7 +6,7 @@
 // no exemption grammar at all. This header may not spell a live example path — the gate would flag itself.
 //
 // FAMILY: `text-citation`, the shared reader `lib/text-cite-scan.ts#scanTextCitations`, with
-// `d-citation-integrity` and `pd-citation-integrity`. All three scan RAW TEXT and need the same
+// `d-citation-integrity`. Both scan RAW TEXT and need the same
 // offset→authored-position answer; this module is the one whose text is COMMENT text on both sides.
 //
 // POPULATION PORT (legacy SHA `1f5e25c00`, verified byte-identical to HEAD at conversion). Arm A walked
@@ -57,7 +57,7 @@
 // WHERE A BROKEN RESOURCE REFUSES — not here. A declared resource that comes back
 // missing/empty/unresolved/malformed makes `resolveResourceDeclarations` (`lib/resource-declaration.ts`)
 // THROW during the POPULATION phase and the receipt phase withholds every consumer, both before
-// `create`/`evaluate` run (guide §3's acquisition-refusal rule, `docs/design/resource-policy-contract.md` §4). This module
+// `create`/`evaluate` run (guide §3's acquisition-refusal rule, `docs/law/resource-policy-contract.md` §4). This module
 // owns no not-ready branch. The refusal pins are in
 // `tests/tooling/verify/gates/text-citation-family.suite.test.ts`.
 //
@@ -482,7 +482,7 @@ export const gate = defineGate({
       mode: "resource",
       files: {
         "knip.ts": "export const config = 1;\n",
-        "packages/kit/src/prose.ts": "// Sweep docs/architecture/**/*.md and docs/design/<name>.md before moving.\nexport const x = 1;\n",
+        "packages/kit/src/prose.ts": "// Sweep docs/law/**/*.md and docs/plans/<name>.md before moving.\nexport const x = 1;\n",
       },
       why: "a glob and a `<placeholder>` are prose patterns — and this row is honest about WHICH fence holds it: `*` and `<` are outside DOC_TOKEN_RE's character class, so it passes with `NON_LITERAL_RE` cut. mustPass[3] is the row that dies",
     },

@@ -4,7 +4,7 @@
 // and `app-shell.tsx`, which gates `.shell-grid`'s own opaque background off the SAME resolved outcome —
 // the image must show through the chrome's gaps/glass to be visible at all.
 //
-// PD-131: the `asset` (own upload) kind resolves the STORED immutable content hash straight to `blobUrl`
+// The `asset` (own upload) kind resolves the STORED immutable content hash straight to `blobUrl`
 // (no async id→hash round-trip — the hash is persisted alongside `backgroundAssetId`, which GC roots).
 
 import { blobUrl } from "@orb/contracts/assets";

@@ -1,7 +1,7 @@
 // Composition seam for the derived-data cluster + the two broad-consumer singletons built in the same region:
 // embeddings (+ its event-driven indexer and the corpusAutoindex bus subscription), the character.updated→chat
 // fan, persona, preset (+ its portability ctx), stats, search, discovery, notifications, workloads, and the
-// PD-139(a) embed-model-change → bulk purge+reindex enqueue. Owns no business logic — it wires each service's
+// embed-model-change → bulk purge+reindex enqueue. Owns no business logic — it wires each service's
 // injected ops onto the already-built infra handles + sibling front doors.
 //
 // FORWARD-REFS this seam PRODUCES for earlier blocks: `persona` (the character seeder's createPersona +
@@ -100,7 +100,7 @@ export interface SearchDiscoveryComposeDeps {
 }
 
 /** The cluster compose product. `enqueueEmbedReindex` is returned so the keystone can bind it onto its
- *  late-bound embed-space-change holder (the PD-139(a) trigger). */
+ *  late-bound embed-space-change holder (the trigger). */
 export interface SearchDiscoveryComposeResult {
   readonly embeddings: EmbeddingsService;
   readonly indexer: EmbeddingsIndexer;
@@ -330,7 +330,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
         tone: h.tone,
         elevatorPitch: h.elevatorPitch,
       })),
-    // The memory tier-grid seam (PD-39 tier-k) — chat/memory's fanOut math (ONE home) bound over the LIVE
+    // The memory tier-grid seam (tier-k) — chat/memory's fanOut math (ONE home) bound over the LIVE
     // AppSettings.memoryDefaults, the same source the digest build resolves per call.
     tier0RangeOf: (tier, blockIdx) => resolveTier0Range(deps.getEffectiveConfig().memoryDefaults, tier, blockIdx),
   });
@@ -355,7 +355,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     isAdmin,
   });
 
-  // PD-139(a): an embed binding change enqueues three independent GLOBAL BULK sweeps: `index` for card/image
+  // An embed binding change enqueues three independent GLOBAL BULK sweeps: `index` for card/image
   // vectors, `databank-reindex` for document chunks, and `memory-backfill` for chat segments/digests.
   // `caller: null` is the trusted-system mode-gate bypass; `ownerId: null` spans every owner. Fire-and-forget:
   // a duplicate run (a kind is already active → DomainConflictError) or any enqueue failure must never fail

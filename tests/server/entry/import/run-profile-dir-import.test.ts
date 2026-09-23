@@ -1,7 +1,7 @@
 // entry/import/run-profile-dir-import — the ST profile-DIRECTORY bulk importer the `import-st` workload runs
 // (`ctx.env.import.importAll`). Pins the load-bearing composition over an in-memory ImportFsPort fixture +
 // recording/stateful fake ports (fake-at-the-edges, inject-at-the-root): personas import BEFORE chats (the
-// attribution map), per-bundle character-then-chats, the {scanned, changed} maintenance tally, PD-94's
+// attribution map), per-bundle character-then-chats, the {scanned, changed} maintenance tally, the
 // maxBytes cap on every stored blob, dryRun's ZERO-write prediction, and idempotency (a byte-identical
 // second run scans the same set but changes nothing).
 
@@ -467,12 +467,12 @@ describe("runProfileDirImport", () => {
     // Personas MUST be written before the chat importer (it attributes user_names against them).
     expect(f.log.indexOf("bulkImportPersonas")).toBeLessThan(f.log.indexOf("bulkImportChats"));
     expect(f.log.indexOf("bulkImportPersonas")).toBeLessThan(f.log.indexOf("character.create"));
-    // PD-94: every stored blob (persona avatar + the card PNG) carries the maxBytes cap.
+    // Every stored blob (persona avatar + the card PNG) carries the maxBytes cap.
     expect(f.stores).toHaveLength(2);
     for (const s of f.stores) {
       expect(s.maxBytes).toBe(ASSET_UPLOAD_MAX_BYTES);
     }
-    // A real_conversation chat enqueues exactly one memory backfill (PD-78).
+    // A real_conversation chat enqueues exactly one memory backfill.
     expect(f.backfills).toEqual([OWNER.userId]);
   });
 

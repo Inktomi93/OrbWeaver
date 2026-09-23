@@ -709,7 +709,7 @@ function userShapeRow(m: MessageView, ctx: AssembleContext, macroNames: HistoryM
 }
 
 /**
- * THE PROMPT-POLICY DISPATCH (D129(G)) — does a row of this DECLARED purpose enter the assembled prompt at
+ * THE PROMPT-POLICY DISPATCH (D217) — does a row of this DECLARED purpose enter the assembled prompt at
  * all? Total over `MESSAGE_KIND_POLICY[kind].prompt` with an `assertNever` tail (spine §5.5), so a fourth kind
  * cannot build until it declares what the prompt does with it. Until this landed, `comment: {prompt:"never"}`
  * was a policy row nothing enforced — the record described a behavior no code performed.

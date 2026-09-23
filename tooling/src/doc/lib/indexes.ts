@@ -2,8 +2,8 @@
 // summaries, byte-deterministic, so `pnpm doc index` writes them and the checker proves the tree carries
 // exactly what a fresh render would produce. A generated file carries `kind: index` and no `updated`
 // (its date would make every day's render differ from the committed bytes).
-import { DOC_TOOL_TREES, FIRST_RESERVED_RULING, LAST_RESERVED_RULING } from "#doc-catalog";
 import type { DocSummary, WorkItem } from "../contract/types.ts";
+import { DOC_TOOL_TREES, FIRST_RESERVED_RULING, LAST_RESERVED_RULING } from "../contract/vocab.ts";
 import { renderFrontmatter } from "./frontmatter-write.ts";
 import { basenameOf, padId, parseNumberedName } from "./names.ts";
 
@@ -15,7 +15,6 @@ export const ADR_INDEX_PATH = `${DOC_TOOL_TREES.adr}README.md`;
 export const PLAN_INDEX_PATH = `${DOC_TOOL_TREES.plans}README.md`;
 export const WORK_INDEX_PATH = `${DOC_TOOL_TREES.work}README.md`;
 export const LAW_INDEX_PATH = `${DOC_TOOL_TREES.law}README.md`;
-export const PLAN_ARCHIVE_DIR = `${DOC_TOOL_TREES.plans}archive/`;
 export const TASKS_FILE = "tasks.md";
 export const DESIGN_FILE = "design.md";
 
@@ -56,16 +55,12 @@ export function isGeneratedPath(path: string): boolean {
   );
 }
 
-/** The plan slug a `docs/plans/**` path belongs to: `docs/plans/<slug>/…` or `docs/plans/archive/<date>-<slug>/…`. */
+/** The plan slug a `docs/plans/<slug>/…` path belongs to. */
 export function planSlugOf(path: string): string | null {
   if (!path.startsWith(DOC_TOOL_TREES.plans)) {
     return null;
   }
   const rest = path.slice(DOC_TOOL_TREES.plans.length).split("/");
-  if (rest[0] === "archive") {
-    const folder = rest[1] ?? "";
-    return folder.replace(/^\d{4}-\d{2}-\d{2}-/u, "") || null;
-  }
   return rest.length > 1 ? (rest[0] ?? null) : null;
 }
 
@@ -88,14 +83,14 @@ export function renderAdrIndex(adrs: readonly DocSummary[]): string {
 
 export function renderLawIndex(laws: readonly DocSummary[]): string {
   const rows = laws.toSorted((left, right) => left.path.localeCompare(right.path)).map((law) => `| [${law.title}](${basenameOf(law.path)}) | ${law.status} |`);
-  return `${head("Law", "one row per law doc; change the doc, never this file.")}${LAW_INDEX_PREAMBLE}| Law | Status |\n| - | - |\n${rows.join("\n")}\n`;
+  return `${head("Law", "mint one with `pnpm doc new law <slug>`; change the doc, never this file.")}${LAW_INDEX_PREAMBLE}| Law | Status |\n| - | - |\n${rows.join("\n")}\n`;
 }
 
 export function renderPlanIndex(plans: readonly DocSummary[]): string {
   const rows = plans
     .toSorted((left, right) => left.path.localeCompare(right.path))
     .map((plan) => `| [${plan.title}](${relativeTo(DOC_TOOL_TREES.plans, plan.path)}) | ${plan.status} |`);
-  return `${head("Plans", "mint one with `pnpm doc new plan <slug>`; archive with `pnpm doc archive <slug>`.")}| Plan | Status |\n| - | - |\n${rows.join("\n")}\n`;
+  return `${head("Plans", "mint one with `pnpm doc new plan <slug>`; delete a finished one with `pnpm doc remove <path>`.")}| Plan | Status |\n| - | - |\n${rows.join("\n")}\n`;
 }
 
 function itemTail(item: WorkItem): string {
@@ -131,8 +126,7 @@ export function renderWorkIndex(items: readonly WorkItem[]): string {
   ].join("\n")}`;
 }
 
-/** A plan's task list: its items by id, ticked when done. Links are relative to the plan folder, so an
- *  archived plan whose items moved with it renders the same shape. */
+/** A plan's task list: its items by id, ticked when done. Links are relative to the plan folder. */
 export function renderTasks(planTitle: string, planDir: string, items: readonly WorkItem[]): string {
   const lines = items.toSorted((left, right) => left.id - right.id).map((item) => `- [${item.state === "done" ? "x" : " "}] ${itemLine(item, planDir)}`);
   return `${head(`${planTitle}: tasks`, "one line per work item carrying this plan's slug; change the item, never this file.")}${lines.length === 0 ? "None yet.\n" : `${lines.join("\n")}\n`}`;

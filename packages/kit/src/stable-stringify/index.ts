@@ -1,6 +1,6 @@
 // Deterministic JSON: object keys sorted recursively (arrays keep order), so two logically-identical
 // values serialize identically regardless of key insertion order. Used by the card content hash
-// (`cardContentHash`, PD-33 — key-order independence), the world-book dedup key (`bookContentKey`) and
+// (`cardContentHash` — key-order independence), the world-book dedup key (`bookContentKey`) and
 // the forms layer's draft-baseline hash (`hashServerBaseline`) — all three needed the SAME primitive, so
 // it lives here instead of three times.
 //

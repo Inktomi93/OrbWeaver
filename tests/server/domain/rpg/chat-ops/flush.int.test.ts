@@ -1,4 +1,4 @@
-// tests/server/domain/rpg/chat-ops/flush — the turn-completion FLUSH + the delivery-mode branch (rpg-design/05
+// tests/server/domain/rpg/chat-ops/flush — the turn-completion FLUSH + the delivery-mode branch (docs/plans/rpg/design.md
 // §2.4-2.5 + §4.6). Both modes funnel through the accumulator: `cheap` = the injected `runToolRound` op stages
 // its delta first, THEN take + write; `folded` = the character turn's own calls are folded instead (and fall back
 // to that same round). Journal entries stamp the committed `{variantId, sourceMessageId}`. A turn that staged

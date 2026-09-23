@@ -106,8 +106,8 @@ import { configSections } from "./config-sections.ts";
 // assembly, still door-owned — it moved for `component-size`, not for architecture. See that file's header.
 import { homeTiles } from "./home-tiles.ts";
 
-// The chat-context contributor seam (§6c): the rpg takeover's four LITE game tabs (Context-Panel-Program
-// §4.4) — the FIRST real consumer of this seam. rpg exports the SELF-CONTAINED factory `makeRpgContextTabs`
+// The chat-context contributor seam (§6c): the rpg takeover's four LITE game tabs — the
+// FIRST real consumer of this seam. rpg exports the SELF-CONTAINED factory `makeRpgContextTabs`
 // ({trpc, queryClient}) — the door injects the cross-domain read channel (§12) and assembles the result into
 // the registry, which chat merges at `defineContextTabs`'s `contributors` arm. rpg never imports chat; the
 // `when`/`strip:"game"` gating (a cache-first getChat.rpg read) drives the §4.2 bracket.
@@ -149,7 +149,7 @@ const chatContextRegions = createContributorRegistry<ContextRegionDef<ChatContex
 // invisible to the person who played it. rpg raises it; chat mounts it blind at `message-footer`; neither
 // imports the other. Its SECOND is the S1 control mount below.
 //
-// The S1 CONTROL-SOURCE seam (interaction-direction-spec.md §3-S1) — the TWELFTH contributor family:
+// The S1 CONTROL-SOURCE seam — the TWELFTH contributor family:
 // transient interactive controls near the transcript (rule chips, confirm cards, a dice ask). A feature
 // appends a source here without importing chat, and chat renders it blind through the one band.
 //
@@ -160,7 +160,7 @@ const chatContextRegions = createContributorRegistry<ContextRegionDef<ChatContex
 // no control seam — but the array is no longer empty, so the honest statement of the property is now "a room
 // with no live control renders no band chrome", which each source delivers by publishing nothing until its
 // own bus event arrives.
-// …and B8's THIRD tenant + first game arm: rpg's dice ASK (interaction-direction-spec §7 B8). A clean tuple
+// …and B8's THIRD tenant + first game arm: rpg's dice ASK. A clean tuple
 // append — the chips appear only on an engaged game chat (the source's own `isRpgEngaged` gate), so a plain
 // chat is byte-identical. rpg raises it; chat renders it blind; neither imports the other.
 const chatControlSources = createContributorRegistry<ChatControlSource>("chat-controls", [
@@ -196,14 +196,14 @@ const chatSurfaceContributors = createContributorRegistry<ChatSurfaceContributio
   pluginMessageFooterSurface, // house's own per-row disclosures read above third-party decoration.
 ]);
 
-// The per-tool renderer seam (§6c). Its FIRST tenant (plugin-ui-plane #679 U3) is the plugin plane's card
+// The per-tool renderer seam (§6c). Its FIRST tenant is the plugin plane's card
 // renderer, and it claims a NAMESPACE rather than a name: a plugin tool's wire name is `plugin_<slug'>_<name>`,
 // so which names exist depends on who installed what and could never be listed here. ONE member claims
 // `plugin_*` and fans per-plugin inside its own body off `plugin.listSurfaces` — the door does not grow per
 // plugin (G8). A tool with no claiming renderer still renders the generic @orb/ui `ToolCallBlock`, and so does
 // a `plugin_*` tool whose owner registered no card: the fallback is the null state for a tool call, because a
 // call is canon and the transcript owes the reader a record of it.
-// B8's SECOND tenant (interaction-direction-spec §7): rpg's in-thread dice renderer, an EXACT `roll_dice`
+// B8's SECOND tenant: rpg's in-thread dice renderer, an EXACT `roll_dice`
 // claim (`match: "name"`, which wins over the plugin plane's `plugin_*` prefix claim above). A `roll_dice`
 // call with no well-formed roll — and any tool with no claiming renderer — still renders the generic
 // `ToolCallBlock`, so the seam's zero-registrant fallback is untouched.
@@ -240,7 +240,7 @@ const commandPaletteSources = createContributorRegistry<CommandPaletteSource>("c
 // review section later (crew 07-client-ui §4.2), grafting into the editor WITHOUT importing character.
 const characterDetailContributors = createContributorRegistry<CharacterDetailContribution>("character-detail", []);
 
-// The ONE config-group assembly (config-revamp-design.md §3.1 / §8 / G8): total over CONFIG_GROUP_IDS by
+// The ONE config-group assembly: total over CONFIG_GROUP_IDS by
 // tsc — a missing group is a compile error, and `config-group-completeness` carries the walls tsc cannot
 // (co-location, duplicate ids, placeholder honesty, skimmer purity, the collection body's data verbs). The
 // nine settings categories, the FOUR member collections (owner fork F-1 closed the old `config-collections`
@@ -301,7 +301,7 @@ const modals = createRegistry("modals", MODAL_SLOT_IDS, {
   you: youModal,
   // Opened by the session-recovery ladder, never by a human affordance (staleness §4.4 rung 1).
   reauth: reauthModal,
-  // The imagery flow's three content-triggered modals (interaction-direction-spec.md §7 B5) — opened from
+  // The imagery flow's three content-triggered modals — opened from
   // chat content (the /imagine command, a message image click, the detail Edit action) via the imagery-store
   // #state actions, never a chrome affordance (all `placement:"surface"`).
   imagine: imagineModal,
@@ -318,7 +318,7 @@ const modals = createRegistry("modals", MODAL_SLOT_IDS, {
   savedRosters: savedRostersModal,
 });
 
-// The ONE chrome assembly (shell-chrome-unification.md §A/§D/§E-2, G8): `assembleChrome` DERIVES the rail
+// The ONE chrome assembly: `assembleChrome` DERIVES the rail
 // section + mapped modal-trigger entries and combines them with the feature-owned WIDGET entries into one
 // dupe-checked, zone-validated, canonically-ordered list; `createContributorRegistry` (the door mint, G8)
 // wraps it. An OPEN registry (CHROME_ZONES is the closed axis, entries are growth) delivered as a context

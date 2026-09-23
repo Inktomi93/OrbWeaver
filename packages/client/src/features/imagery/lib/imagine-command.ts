@@ -1,4 +1,4 @@
-// The `/imagine` argument grammar (interaction-direction-spec.md §7 B5) — the ONE pure home for "what did
+// The `/imagine` argument grammar — the ONE pure home for "what did
 // the host mean by these /imagine args?", so the mount and its tests share one decision. A leading
 // MODE_TRIGGER word (you/face/scene/background — the ONE map in `@orb/contracts/imagery`, never re-spelled:
 // no-inline-union-redecl) selects an EXTRACTION mode and the rest is an optional refinement; anything else is

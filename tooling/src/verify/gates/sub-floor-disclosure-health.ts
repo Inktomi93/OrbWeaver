@@ -2,7 +2,7 @@
 // collapsible variants home must still DECLARE both size arms (`text`, the sub-floor opt-out the occurrence
 // policy judges, and `control`, the default #884 C2 inverted to). A home that stops declaring an arm leaves
 // the occurrence policy judging a dead vocabulary; this policy reds it instead of letting that read as clean.
-// Split from the legacy descriptor (docs/history/gate-runtime-worked-cases-2026-09.md §"Mixed-hook arity amendments", #1950) because this is a whole-tree HARD verdict about ONE
+// Split from the legacy descriptor (#1950) because this is a whole-tree HARD verdict about ONE
 // file, while the occurrence arm is a per-file ordinary one — one authority per policy.
 //
 // FAMILY `sub-floor-disclosure` — the shared reader is `lib/collapsible-size-vocabulary.ts` (`SUB_FLOOR_ARM`,
@@ -38,7 +38,7 @@ import { COLLAPSIBLE_VARIANTS_HOME, FLOOR_ARM, SUB_FLOOR_ARM } from "../lib/coll
 const ARMS: readonly string[] = [SUB_FLOOR_ARM, FLOOR_ARM];
 
 const MESSAGE =
-  `a collapsible size arm is no longer declared in ${COLLAPSIBLE_VARIANTS_HOME} — the vocabulary sub-floor-disclosure judges ` +
+  `a collapsible size member is no longer declared in ${COLLAPSIBLE_VARIANTS_HOME} — the vocabulary sub-floor-disclosure judges ` +
   "(`text` the sub-floor opt-out, `control` the floor default) rotted; re-derive it in lib/collapsible-size-vocabulary.ts or restore the arm.";
 
 export const gate = defineGate({

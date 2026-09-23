@@ -23,7 +23,7 @@
 // future datum needs the `viewerIsHost` bit, it comes back as its own prop — the AUTHORITY-vs-appearance
 // distinction that prop encoded was real; it just wasn't an argument for keeping an action in a data row.
 //
-// PD-130 (generation timer): the turn engine writes `message_variants.gen_started_at`/`gen_finished_at`
+// Generation timer: the turn engine writes `message_variants.gen_started_at`/`gen_finished_at`
 // on the real turn path (live since eb5d6b3c) and the read seam surfaces them as `genStartedAt`/
 // `genFinishedAt`. Its readout was already quiet micro-mono text — untouched here.
 //
@@ -146,7 +146,7 @@ export function MessageMetadataRow({ message, visibility, backingClass }: Messag
   if (visibility.showGenerationTimer && message.ttftMs !== null) {
     items.push(<Fragment key="ttft">{metadatum("message-metadata-ttft", `${durationLabel(message.ttftMs)} to first token`)}</Fragment>);
   }
-  // PD-137 — the on-demand settled-cost readout; the paid fetch fires only on the user's reveal click,
+  // The on-demand settled-cost readout; the paid fetch fires only on the user's reveal click,
   // never here. The slot gate is the readout's OWN predicate rather than a second spelling of it: since
   // `generationId` became the provider's response id on every hosted wire (inference audit B7), the id's
   // presence no longer means "this swipe can be settled" and a row-side id check would push an item whose

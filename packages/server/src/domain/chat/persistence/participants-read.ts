@@ -19,7 +19,7 @@ const LIMIT_ONE = 1;
 
 /** The caller's PRESENT participant role in a chat (`leftSeq IS NULL`), or `null` — not a present member OR
  *  no such chat, collapsed into one leak-free answer. The narrow membership read behind the injected
- *  `getMembership` op (rpg's `can()` feed, rpg-design/02 §1.1 #3); rpg never reads `chat_participants` itself. */
+ *  `getMembership` op (rpg's `can()` feed, docs/plans/rpg/design.md); rpg never reads `chat_participants` itself. */
 export async function loadPresentRole(db: Db, chatId: ChatId, userId: UserId): Promise<ParticipantRole | null> {
   const rows = await db
     .select({ role: chatParticipants.role })
@@ -91,7 +91,7 @@ export async function loadParticipants(db: Db, chatId: ChatId, includePast = fal
 }
 
 /**
- * Does this character hold a `chat_participants` seat in any OTHER chat? The PD-96 first-chat existence
+ * Does this character hold a `chat_participants` seat in any OTHER chat? The first-chat existence
  * probe: `startChat` asks it BEFORE the new room's roster rows commit, so `false` ⇒ this creation is the
  * character's FIRST chat (`StatsDelta.newCharacter`). PAST seats count (`leftSeq` is NOT filtered) — the
  * stats rebuild's per-character chat aggregation joins `chat_participants` without a presence filter, and

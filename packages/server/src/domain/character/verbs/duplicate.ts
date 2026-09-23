@@ -5,7 +5,7 @@
 // `themeOverride`) carry forward.
 // `contentHash` is the
 // flatten of the copied card. The source's attached world-info book REFERENCES are CARRIED onto the clone
-// (PD-141) via the injected `copyCharacterBooks` op — fresh junction rows at the SAME books; the books are
+// via the injected `copyCharacterBooks` op — fresh junction rows at the SAME books; the books are
 // standalone entities and are NEVER cloned. Emits `character.updated`. Throws `CharacterNotFoundError` when
 // the source isn't owned/found.
 
@@ -86,7 +86,7 @@ export function createDuplicate(ctx: CharacterContext): CharacterService["duplic
       ctx.bumpStatsCanonVersion,
     );
 
-    // PD-141: carry the source's attached world-info book REFERENCES onto the duplicate (fresh
+    // Carry the source's attached world-info book REFERENCES onto the duplicate (fresh
     // character_books rows pointing at the SAME books; world-info owns the junction write, D28). Sequential
     // after the insert (the FK needs the new row).
     //

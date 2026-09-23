@@ -184,7 +184,7 @@ export interface DigestRow {
 
 /** The outcome of a build pass (digests or segments) — written = newly stored (or re-stored on a hash diff);
  *  skipped = the `content_hash` was unchanged (the self-heal no-op). Mirrors the workloads
- *  `MaintenancePassCounts` shape so the composition root can wire it into the `memory-backfill` runner (PD-41). */
+ *  `MaintenancePassCounts` shape so the composition root can wire it into the `memory-backfill` runner. */
 export interface MemoryPassCounts {
   readonly written: number;
   readonly skipped: number;
@@ -326,7 +326,7 @@ export interface ParsedDigest {
   readonly keywords: string[];
 }
 
-// ── The PD-41 corpus-sweep counts (`substrate/backfill.ts`). These DERIVE `@orb/contracts/chat` rather than
+// ── The corpus-sweep counts (`substrate/backfill.ts`). These DERIVE `@orb/contracts/chat` rather than
 //    re-spelling it: the sweep's fold IS the workload's terminal RESULT — `workload-contributions.ts` returns
 //    the value the sweep produced straight through as the contract type, and it lands verbatim in the durable
 //    workload result JSON. One home for that shape (contracts, which cannot import a domain), so a field the
@@ -351,7 +351,7 @@ export type MemoryBackfillSweepCounts = MemoryBackfillCounts & {
   readonly completedSpaces: readonly MemoryEmbedSpace[];
 };
 
-/** Resolve a host's effective memory tuning for the PD-41 corpus sweep — the SAME merge the live turn path
+/** Resolve a host's effective memory tuning for the corpus sweep — the SAME merge the live turn path
  *  applies (`entry/compose/chat.ts resolveMemoryConfig`: `AppSettings.memoryDefaults` ⊕ host
  *  `UserSettings.memory.enabled === false → mode:"off"`), extracted to ONE home so the sweep and the turn
  *  can't drift. Injected into {@link backfillMemory} (NOT `ChatContext` — there is no settings-read op there,

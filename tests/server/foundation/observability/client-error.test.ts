@@ -1,4 +1,4 @@
-// foundation/observability/client-error — the PD-58 client→server error-report sink. `recordClientError`
+// foundation/observability/client-error — the client→server error-report sink. `recordClientError`
 // is a thin tagged `getLog().error(...)` call; the ring is already fed by the pino ringStream (logger.ts),
 // so this pins the RECORD SHAPE: the `clientError:true` tag, the `clientRequestId` rename (so it never
 // collides with the request-scoped `requestId` binding `getLog()` itself attaches), and the field-length

@@ -5,7 +5,7 @@
 // IT HAD TWO ARMS AND THEY DRIFTED (side-eye 2026-08-07 finding 1): the DRAFT arm read `cast[0]?.data?.name`
 // while the desktop cluster joined the whole cast, so a three-hander read "Aldric Vane" on the phone. Both
 // arms were made to call one function — and then draft mode was deleted outright
-// (chat-creation-draft-mode-replacement.md §4.1, R1), so there is ONE arm and nothing left to drift: a room
+// (D166), so there is ONE arm and nothing left to drift: a room
 // has a chat row, and the row's title is the answer.
 //
 // This is a DATA statement, not a layout one, so it needs no coarse emulation: the topbar prints the same

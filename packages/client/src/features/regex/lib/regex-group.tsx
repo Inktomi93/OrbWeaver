@@ -1,4 +1,4 @@
-// The Regex scripts config group (config-revamp-design.md §3.1, owner fork F-1) — the script library's
+// The Regex scripts config group (owner fork F-1) — the script library's
 // identity on the group base, its `CollectionContribution` riding the `collection` body arm verbatim.
 
 import { Code } from "@orb/ui/icons";

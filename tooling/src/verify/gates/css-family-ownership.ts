@@ -91,7 +91,7 @@ export const gate = defineGate({
       // ERROR — the finding never reported at all. The denominator is the SHEET COUNT, which is ≥ 1
       // past the resource guard by construction; the census rides the receipt SOURCE string
       // (§12.3's "-health consumers receipt a CONSTANT", one layer out; refuted-and-repaired on the
-      // sibling CSS train by `v-css-train-3-2026-09-13.md`).
+      // sibling CSS train by the CSS train-3 verifier review).
       ctx.receipt({
         kind: "population",
         source: `css-family-ownership [declarations=${String(declarations)}; hooks=${String(owners.size)}]`,

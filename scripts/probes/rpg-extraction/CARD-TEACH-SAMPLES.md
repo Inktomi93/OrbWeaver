@@ -1,6 +1,6 @@
 # F2 card-teach probe — sampled outputs
 
-Companion to `docs/design/rpg-extraction-one-call-spike.md` §4h. Four turns lifted verbatim from the raw
+Companion to the extraction spike's card-teaching finding. Four turns lifted verbatim from the raw
 transcripts (gitignored, like every other spike output): a GOOD card, the card-FIRST position artifact, the
 RPG-Companion arm, and the malformed opener the tokenizer eats. Harness: `card-teach-probe.ts` — re-score a
 saved run for free with `CARD_SCORE=<file>`.

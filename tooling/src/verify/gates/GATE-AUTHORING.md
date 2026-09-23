@@ -7,14 +7,12 @@ updated: 2026-09-13
 # Authoring a final structural policy
 
 This is the mechanism-first guide for `defineGate`. Start with the
-[reading router](../../../../docs/design/gate-runtime-read-first.md), then the standing contract in
-[gate-runtime-standardization.md](../../../../docs/design/gate-runtime-standardization.md) and the relevant source
+[reading router](../../../../docs/law/gate-runtime-read-first.md), then the standing contract in
+[gate-runtime-standardization.md](../../../../docs/law/gate-runtime-standardization.md) and the relevant source
 headers. The standing contract governs; this guide connects authoring decisions to their implementation and proof.
 
-The [legacy guide](../../../../docs/history/gate-authoring-legacy-2026-09-13.md) is preserved verbatim for remaining
-legacy maintenance and conversion archaeology. Its descriptor fields, private exemptions, fixture ritual and exemplar
-recommendations are not final-policy templates. The [preservation map](../../../../docs/reviews/gate-runtime/authoring-guide-preservation-map-2126.md)
-classifies every original section. The 2026-09-11 exemplar report is refuted history: never copy a module on its authority.
+The legacy guide's descriptor fields, private exemptions, fixture ritual and exemplar recommendations are not
+final-policy templates. The 2026-09-11 exemplar report is refuted history: never copy a module on its authority.
 Numbered references below retain the relevant subject; explicitly legacy rules route to that archive.
 
 ## 0. Start from the mechanism
@@ -56,7 +54,7 @@ There is no final `status`, registration-count edit, `scanRoot`, `scopeSafety`, 
 | Fields | Derive them from |
 | - | - |
 | `id`, `family` | Filename identity; a meaningful shared production dependency or a reasoned singleton whose family equals its id. |
-| `authority`, `severity`, `workItem` | The rule's permitted exception and debt posture. A warning needs a positive live issue; error forbids `workItem`; hard plus warning is invalid. |
+| `authority`, `severity`, `workItem` | The rule's permitted exception and debt posture. A warning needs the id of a `docs/work` item that is not done; error forbids `workItem`; `hard` + `warning` is valid only as an owner-authorized, time-bounded transition whose findings stay unsuppressible (standing law §5). |
 | `population`, `analysis`, `execution` | The actual evidence plane and dependency closure; §3. |
 | `facts`, `resources` | Only capabilities consumed by this policy; explicit `[]` when unused. |
 | `message`, `fix` | The actual population, carrier, predicate and report site. An ordinary fix spells the exact waiver door and reported position. |
@@ -209,8 +207,8 @@ owes evidence: a value passed through a variable remains a carrier; do not inher
 
 A real-corpus virtual-overlay liveness control and the conversion differential are separate from declared conformance.
 The differential compares old and new findings, populations and tool errors over the same bytes, classifies each change,
-and records per-arm coverage after a split. An empty real-corpus result alone proves no bite. See standing law §6 and the
-[playbook](../../../../docs/design/gate-runtime-orchestrator-playbook.md) for the complete proof ownership and sequence.
+and records per-arm coverage after a split. An empty real-corpus result alone proves no bite. See standing law §6 for the complete
+proof ownership and sequence.
 
 ## 6. Harness and fixture boundaries
 
@@ -258,8 +256,7 @@ positive at the exact line with its reason. Never run a tree-wide fix-all; the l
 
 ## 8. Verification and its limits
 
-Use the [playbook's verification section](../../../../docs/design/gate-runtime-orchestrator-playbook.md#6-coordinated-verification-and-serialization)
-and lane-standing facts for command selection and shared-host serialization. Preserve declared conformance, family
+Use standing law §6 and the lane-standing facts for command selection and shared-host serialization. Preserve declared conformance, family
 controls, per-policy structure delta, population counts, authority consumption and withholding evidence. Run the affected
 native programs selected by generated world/config intent. Read completed results, including errors and withheld owners;
 a zero exit from an uninvoked library is not evidence. Use the verifier CLI, never execute an `ops/*.ts` library as a command.
@@ -294,7 +291,7 @@ mechanically sealed. The following table distinguishes load/runtime guarantees f
 | Mechanism | Current enforcer and limit |
 | - | - |
 | descriptor keys, enums, authority/severity, proof-row shape | [`lib/policy-validation.ts`](../lib/policy-validation.ts) — `assertGatePolicyDescriptor`; exact keys and branded facts, not semantic fitness of the chosen contract. |
-| warning issue liveness | [`lib/workitem-liveness.ts`](../lib/workitem-liveness.ts) derives warning citations; [`lib/board-citations.ts`](../lib/board-citations.ts) judges board existence, membership and openness at the coordinated online barrier. Positive-integer schema validation alone does not establish liveness. |
+| warning work-item liveness | [`warning-workitem-liveness`](./warning-workitem-liveness.ts) holds every warning descriptor's `workItem` against the `docs/work` item it names, offline on every structure run; a missing or done item is a finding. Positive-integer schema validation alone does not establish liveness. |
 | branded export, filename/id, duplicate id, singleton identity | [`lib/policy-module.ts`](../lib/policy-module.ts) assertions through [`lib/loader.ts`](../lib/loader.ts); a cast or cloned object cannot counterfeit `defineGate` registration. |
 | direct descriptor, private walk and module state | [`policy-soundness`](./policy-soundness.ts) delegates to [`lib/gate-contract.ts`](../lib/gate-contract.ts) `inspectGateContract`; its closed walk-method set is not proof against every possible external traversal library. |
 | inert population extension, missing ordinary fix, raw resource result, forbidden I/O and retired grammar | [`policy-soundness`](./policy-soundness.ts); resource calls use canonical `readyResourceValue`, and I/O/grammar checks cover their declared shapes, not every possible wrapper or private permission implementation. |

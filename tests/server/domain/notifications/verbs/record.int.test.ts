@@ -47,7 +47,7 @@ describe("record — durable-first", () => {
   });
 });
 
-describe("record — coStatements ride the SAME batch (PD-24 tx-atomicity)", () => {
+describe("record — coStatements ride the SAME batch (tx-atomicity)", () => {
   test("the producer's transition statement + the INSERT commit together; the view carries the db seq", async () => {
     // Stand in for a membership transition: a users-row touch that must commit WITH the notification.
     const transition = db

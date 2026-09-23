@@ -1,4 +1,4 @@
-// The ⌘K SETTINGS source (config-revamp-design.md §3.3/§6.4, #866 S2) — the SAME static index the LIST
+// The ⌘K SETTINGS source (#866 S2) — the SAME static index the LIST
 // search derives, contributed to the command palette as a `CommandPaletteSource` ("Settings"): one row per
 // group / section / leaf, `run` = the `openConfigTo` deep link, the palette dismisses and Config lands with
 // the hit flashed. One index, two hosts; nothing hardcoded (the `plugin-command-palette-source.ts`

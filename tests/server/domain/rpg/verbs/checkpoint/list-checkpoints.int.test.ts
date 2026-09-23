@@ -1,4 +1,4 @@
-// verbs/checkpoint/list-checkpoints — listCheckpoints (rpg-design/05 §4.4, §6.2). Member-gated read of the
+// verbs/checkpoint/list-checkpoints — listCheckpoints (docs/plans/rpg/design.md). Member-gated read of the
 // game's labeled bookmarks.
 
 import type { Db } from "@orb/db";

@@ -2,8 +2,8 @@
 // §7.1 source of truth — never a `users` read). The injected `newCharacterId`/`now` keep it deterministic.
 // The card is built from the wire input (defaults applied), the `contentHash` is the FLATTEN of that card
 // (NOT NULL column), and `character.updated` is emitted so the embeddings indexer re-embeds. Import
-// provenance (`importedFrom`/`importHash`) is stamped when the optional `provenance` arrives (the import
-// composition-root wire — PD-43); app-authored cards omit it and the columns stay null. Re-reads with the
+// Import provenance (`importedFrom`/`importHash`) is stamped when the optional `provenance` arrives (the import
+// composition-root wire); app-authored cards omit it and the columns stay null. Re-reads with the
 // avatar JOIN for the detail view.
 
 import type { CharacterCard } from "@orb/contracts/character";

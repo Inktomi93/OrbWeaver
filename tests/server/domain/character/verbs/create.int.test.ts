@@ -39,7 +39,7 @@ describe("create", () => {
     expect(h.audits.map((a) => a.entry.action)).toContain("character.create");
   });
 
-  test("stamps + round-trips import provenance when provided (the PD-43 import wire)", async () => {
+  test("stamps + round-trips import provenance when provided (the import wire)", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });

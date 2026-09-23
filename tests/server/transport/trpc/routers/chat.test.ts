@@ -1,9 +1,9 @@
-// The chat router — the THIN verb surface (PD-46), driven through the real ladder via `createCaller`
+// The chat router — the THIN verb surface, driven through the real ladder via `createCaller`
 // (authed). Every case here is a wire-through: the parsed input + the resolved Principal reach the verb, the
 // verb's own leak-free refusal surfaces as its tRPC code, and the transport adds no gating of its own.
 //
 // THE ROOM STREAM'S CASES MOVED WITH ITS GENERATOR (SSE-1 S2): `streamMessages` is gone — the durable-first
-// resume, the withhold-not-throw membership gate, the PD-134/PD-135 attach syntheses and the D16 live clamp
+// resume, the withhold-not-throw membership gate, the attach syntheses and the D16 live clamp
 // are pinned on the room source at `tests/server/transport/trpc/stream/sources/chat.test.ts`. The one
 // subscription left on this router is `impersonateStream` (permanently unfolded, spec §14 decision 2).
 
@@ -687,7 +687,7 @@ describe("chat.forkChat — the deep-copy-into-a-new-chat verb (chat-surface lan
       title: "Forked chat",
       starred: false,
       archived: false,
-      // A fork is born non-temporary (PD-65 — the flag is set only at `startChat`).
+      // A fork is born non-temporary (the flag is set only at `startChat`).
       temporary: false,
       // D121-E: the room display-tier option is OFF on a fresh fork (options never default on).
       hostDisplayScripts: false,
@@ -913,7 +913,7 @@ describe("chat.previewAssembly — the assembled-prompt preview + trace (task #2
   });
 });
 
-describe("chat.getShapeTrace — the content-free SHAPE trace (PD-132, host-only)", () => {
+describe("chat.getShapeTrace — the content-free SHAPE trace (host-only)", () => {
   const Trace: Awaited<ReturnType<ChatService["getShapeTrace"]>> = {
     multiCharacter: false,
     stageCounts: { withTail: 2, injected: 2, squashed: 2, named: 2 },
@@ -1381,7 +1381,7 @@ describe("chat.getGroupConfig / chat.setGroupConfig — the group-config wire-th
   });
 });
 
-// R2 (chat-creation-draft-mode-replacement.md §4.4) retired the creation-time draft carry: `startChat`'s
+// R2 (D166) retired the creation-time draft carry: `startChat`'s
 // wire schema carries CREATION-INTENT inputs only. `opening` EXCLUDES `"generate"` — a creation-fused
 // generated opening is unreachable now (post-creation `chat.generate` is the only way to guide an
 // opening), and the removed carry fields (seedGreetings/rosterOverrides/groupConfig/roomOverrides/guided)

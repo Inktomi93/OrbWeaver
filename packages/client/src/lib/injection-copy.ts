@@ -9,7 +9,7 @@ export const ASSISTANT_PREFILL_WARNING = "Assistant role at depth 0 is a respons
 
 // `DRAFT_UNLOCK_AFTER_SEND` ("Available after you send the first message") was DELETED 2026-08-14: it was the
 // #8 grey-out reason for every ⋯ action a rowless room could not perform (rename, delete, message selection).
-// A chat row exists from the creation click (chat-creation-draft-mode-replacement.md §4.1), so those actions
+// A chat row exists from the creation click (D166), so those actions
 // are simply available and there is no phase left to explain.
 
 /** Undo/revert the last continuation — need a continue to have run on this reply's shown swipe first
@@ -46,7 +46,7 @@ export const CHOICE_WAIT_FOR_TURN = "Wait for the current reply to finish, then 
 /** A choice button in a surface with no send capability (a preview / read-only mount). */
 export const CHOICE_NEEDS_LIVE_CHAT = "Open the chat to pick a choice";
 
-// S1 — the in-chat CONTROL band (interaction-direction-spec.md §3-S1). Its `send` arm reuses
+// S1 — the in-chat CONTROL band. Its `send` arm reuses
 // CHOICE_WAIT_FOR_TURN above (the same fact, the same words: a turn is in flight, pick when it settles);
 // these two are the copy the band adds. `compose` needs none — it is never disabled.
 
@@ -95,7 +95,7 @@ export const CONTROL_CHIPS_COLLAPSE = "Show fewer";
  *  the disclosure alone — so what it reveals is the WHOLE row rather than the remainder past the display
  *  cap, and the `+N more` grammar would be naming the wrong number. Reads as the pair of
  *  {@link CONTROL_CHIPS_COLLAPSE} ("Show N controls" / "Show fewer"), the same verb-led disclosure register
- *  the Characters pane's `More filters` / `Fewer filters` uses (docs/design/vocabulary-map.md). */
+ *  the Characters pane's `More filters` / `Fewer filters` uses (docs/law/vocabulary-map.md). */
 export function controlStripNotice(count: number): string {
   return `Show ${String(count)} ${count === 1 ? "control" : "controls"}`;
 }
@@ -154,7 +154,7 @@ export const OFFER_CHOICES_ONE_SHOT = "Asks for choices at the end of the NEXT r
 // could CREATE the room as a side effect and then fail — `IMPERSONATE_AFTER_COMMIT_FAILED_LEAD` on the draft
 // impersonate path, `OPENING_AFTER_COMMIT_FAILED_LEAD`/`_HINT` on START-1's degraded `startChat` — so the
 // copy had to tell the user a room survived a failure they would otherwise read as "nothing happened" and
-// retry, minting a second one. Creation is unfused from generation (chat-creation-draft-mode-replacement.md
+// retry, minting a second one. Creation is unfused from generation (D166
 // §4.4): a fire never creates, so it can never half-create.
 
 /** Impersonate failed. It persists nothing, so there is no half-written turn to explain. */

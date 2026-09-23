@@ -4,7 +4,7 @@
 // Command picker body is the shared `CharacterPicker` composite.
 //
 // The DRAFT twin (which wrote an `addDraftCharacter` store entry instead of the roster verb) is gone with
-// draft mode (chat-creation-draft-mode-replacement.md §4.1, R1): every room has a roster to add into.
+// draft mode (D166): every room has a roster to add into.
 
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";

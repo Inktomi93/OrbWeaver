@@ -1,4 +1,4 @@
-// Integration: PD-40 catalog + compareCharacters — distill-powered analytics over character_summaries.
+// Integration: catalog + compareCharacters — distill-powered analytics over character_summaries.
 //   • catalog: per-facet card counts + top tags (case-folded) + co-tagged pairs + total; owner-scoped.
 //   • compareCharacters: facet diff (shared/distinct tags + tag-Jaccard redundancy); null on self/foreign.
 

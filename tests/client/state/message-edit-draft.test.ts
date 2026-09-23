@@ -1,4 +1,4 @@
-// The edit-in-place draft store (PD-119): presence-in-map IS the edit-mode flag, keyed by message id
+// The edit-in-place draft store: presence-in-map IS the edit-mode flag, keyed by message id
 // — the external-store discipline `@orb/ui/message-list`'s windowed virtualizer requires (an off-screen
 // row's local `useState` would silently drop mid-edit text on scroll-back). Exercised through the
 // non-hook `__readMessageEditDraftForTest` snapshot (the hooks themselves need a React render, same posture as

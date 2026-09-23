@@ -281,7 +281,7 @@ describe("createApp", () => {
     expect(calls).toBe(1);
   });
 
-  test("a resolved principal fires the per-new-user default-card seed hook (PD-32)", async () => {
+  test("a resolved principal fires the per-new-user default-card seed hook", async () => {
     const seeded: Principal[] = [];
     const app = createApp(deps({ seam: fakeSeam(OWNER), seedUserCharacters: (p): void => void seeded.push(p) }));
     await hit(app, new Request("http://localhost/healthz"));
@@ -315,7 +315,7 @@ describe("createApp", () => {
       localFirstRun: false,
       discreetLogin: false,
       defaultHandle: "owner",
-      // single-user can never seat a second human (the PD-106 MULTI_HUMAN_CAPABLE map's fixed arm).
+      // single-user can never seat a second human (the MULTI_HUMAN_CAPABLE map's fixed arm).
       multiHumanCapable: false,
       // The deployment external-media ceiling (born-in-DB floor = blocked) — the same live read the CSP uses.
       forbidExternalMedia: true,
@@ -348,10 +348,10 @@ describe("createApp", () => {
     expect(res.status).toBe(NOT_FOUND);
   });
 
-  // PD-118: `observability` is mounted in the chain — every response carries X-Request-Id, and the
+  // `observability` is mounted in the chain — every response carries X-Request-Id, and the
   // request ring records the request. A unique injected id (mirroring the middleware's own reuse-from-
   // header test) makes the ring lookup deterministic without touching module-singleton ring state.
-  test("PD-118: a response carries X-Request-Id and the request ring records the request", async () => {
+  test("a response carries X-Request-Id and the request ring records the request", async () => {
     const requestId = "pd-118-app-mount-req-1";
     const app = createApp(deps({}));
     const res = await hit(app, new Request("http://localhost/healthz", { headers: { "X-Request-Id": requestId } }));
@@ -385,13 +385,13 @@ describe("createApp", () => {
     expect(record?.userId).toBeUndefined();
   });
 
-  // PD-118 (thrown-request gap): a non-tRPC route that THROWS (returns no Response) is caught by Hono's
+  // (thrown-request gap): a non-tRPC route that THROWS (returns no Response) is caught by Hono's
   // compose at its own dispatch frame — below the `observability` middleware — so the throw never rejects
   // that middleware's `next()`. Without `app.onError(observabilityErrorHandler)` the request-root span
   // would seal as "ok" and the throw would vanish from /api/_debug/traces. This drives the REAL createApp
   // wiring (real middleware order + the wired onError) and pins: the throw still yields a 500 (nothing
   // swallowed) AND the trace ring records the request as status:"error" with the exception event.
-  test("PD-118: a thrown non-tRPC handler seals a status:error trace AND still returns 500", async () => {
+  test("a thrown non-tRPC handler seals a status:error trace AND still returns 500", async () => {
     initTracing();
     const requestId = "pd-118-thrown-req-1";
     const app = createApp(deps({}));

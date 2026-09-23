@@ -48,7 +48,7 @@ const FIXTURES: Record<NotificationType, NotificationEvent> = {
     chatId: SAMPLE_CHAT_ID,
     reason: "consent",
   },
-  // The automation `post_notification` arm (automation-design/03 §1.5) — the ONE member carrying a rendered
+  // The automation `post_notification` arm — the ONE member carrying a rendered
   // (capped) `message` string; still secret-unrepresentable (a capped string, not a handle).
   "automation-notice": {
     type: "automation-notice",
@@ -57,7 +57,7 @@ const FIXTURES: Record<NotificationType, NotificationEvent> = {
     source: { kind: "rule", ruleId: SAMPLE_AUTOMATION_RULE_ID },
     message: "the tavern grows quiet",
   },
-  // The plugin auto-disable notice (plugin-design/03 §4) — ids only, deep-links the owner's plugin surface.
+  // The plugin auto-disable notice — ids only, deep-links the owner's plugin surface.
   "plugin-disabled": {
     type: "plugin-disabled",
     recipientUserId: SAMPLE_RECIPIENT,
@@ -172,8 +172,8 @@ test("NotificationEvent variants expose only the allowlisted fields", () => {
   expect(inviteKeys).toEqual(["chatId", "inviteId", "invitedByHandle", "recipientUserId", "type"].sort());
   const kickedKeys = Object.keys(FIXTURES.kicked).sort();
   expect(kickedKeys).toEqual(["chatId", "recipientUserId", "type"].sort());
-  // The automation-notice carries ids + the ONE rendered `message` (the argued capped-string exception,
-  // automation-design/03 §1.5) — never a credential/handle.
+  // The automation-notice carries ids + the ONE rendered `message` (the argued capped-string
+  // exception) — never a credential/handle.
   const automationNoticeKeys = Object.keys(FIXTURES["automation-notice"]).sort();
   expect(automationNoticeKeys).toEqual(["chatId", "message", "recipientUserId", "source", "type"].sort());
   // The plugin-disabled notice carries ONLY ids (no free error string — the detail lives on the plugin row).
@@ -181,7 +181,7 @@ test("NotificationEvent variants expose only the allowlisted fields", () => {
   expect(pluginDisabledKeys).toEqual(["pluginId", "recipientUserId", "type"].sort());
 });
 
-// The `message` cap (automation-design/03 §1.5): a rendered string past the cap is rejected — the wire never
+// The `message` cap: a rendered string past the cap is rejected — the wire never
 // carries an unbounded blob (the exact belt that keeps the argued exception closed).
 test("automation-notice message is length-capped", () => {
   const over = { ...FIXTURES["automation-notice"], message: "x".repeat(AUTOMATION_NOTICE_MESSAGE_MAX + 1) };

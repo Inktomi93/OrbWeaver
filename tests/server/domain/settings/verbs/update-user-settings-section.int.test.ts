@@ -107,7 +107,7 @@ describe("updateUserSettingsSection", () => {
     expect(view.config.appearance.elevation).toBe("ramp");
   });
 
-  test("the theme section patches (themes-design.md §3.3 — selectedThemeId round-trip)", async () => {
+  test("the theme section patches (selectedThemeId round-trip)", async () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const u = await seedUser(db, { id: "user_theme" });
@@ -200,6 +200,6 @@ describe("updateUserSettingsSection", () => {
   });
 });
 
-// PD-139a — an embed/imageEmbed model change is the trigger the PD-104 purge+reindex machine was missing.
+// an embed/imageEmbed model change is the trigger the purge+reindex machine was missing.
 // The verb captures the two model ids pre-merge and fires the injected `onEmbedModelChanged` ONLY on an
 // actual change of either; the compose root wires that op to a bulk index/all/force reindex.

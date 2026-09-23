@@ -657,7 +657,7 @@ function computeOriginals(config: PromptConfig, ctx: AssembleContext, registry: 
 
 const SYNTHETIC_COMPACT_SUMMARY_ID = "__synthetic-compact-summary";
 
-/** PD-140/D25: a compacted chat's summary must reach STATELESS runners even when the active preset omits a
+/** D25: a compacted chat's summary must reach STATELESS runners even when the active preset omits a
  *  `compact_summary` section (the neo C1 cache-anchor invariant). The assembler — not the preset author —
  *  guarantees delivery: when `ctx.compactSummary` is set and no ACTIVE `compact_summary` section exists,
  *  synthesize one immediately before the `chat_history` pivot (end of section list if there's no pivot).
@@ -697,7 +697,7 @@ function isSectionDynamic(section: PromptSection): boolean {
     return false;
   }
   // `databank` joins memory here: retrieval is re-run every turn against the pending message, so its bytes
-  // change turn to turn — in the STATIC half it would bust the cached prefix on every send (databank-design/07 §3).
+  // change turn to turn — in the STATIC half it would bust the cached prefix on every send.
   return section.marker === "memory" || section.marker === "databank" || section.marker === "guided_instruction" || section.marker === "chat_history";
 }
 

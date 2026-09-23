@@ -7,13 +7,14 @@ import { EXIT } from "../../_shared/exit-contract.ts";
 import { warn } from "../../_shared/log.ts";
 import type { DocCommand } from "../contract/types.ts";
 import { USAGE } from "../lib/parse.ts";
-import { archive } from "./archive.ts";
 import { drift, overview } from "./board.ts";
+import { formatDocs, formatTargets } from "./format.ts";
 import { regenerateIndexes } from "./indexes.ts";
 import type { WriteOutcome } from "./items.ts";
-import { landItems, landMerged, newItem, newItemsFrom, setItems } from "./items.ts";
-import { newAdr, newPlan } from "./new.ts";
-import { removeItems } from "./remove.ts";
+import { newItem, newItemsFrom, setItems } from "./items.ts";
+import { landItems, landMerged } from "./land.ts";
+import { newAdr, newLaw, newPlan } from "./new.ts";
+import { removeDocs } from "./remove.ts";
 import { due, review } from "./review.ts";
 import { setStatus } from "./status.ts";
 
@@ -38,6 +39,42 @@ function report(verb: string, outcome: WriteOutcome): ExitCode {
   return EXIT.clean;
 }
 
+/** `pnpm doc format --write / --check`. Exit 1 = unformatted files under `--check` (a real violation the
+ *  push gate reads), or — in EITHER mode — a file the formatter refused because formatting it would
+ *  change what it renders or lose a code span the source carried.
+ *
+ *  THE EXIT CODE OF A REFUSAL IS 1, NEVER 2: a refusal is a VERDICT ABOUT THE DOCUMENT, not a checker
+ *  that broke. The two censuses are machine-distinguishable by line prefix, never by prose: a refused
+ *  file's line begins `REFUSED `; an unformatted file's line carries the bare path. */
+function runFormat(write: boolean, explicit: readonly string[]): ExitCode {
+  const files = formatTargets(explicit);
+  const outcome = formatDocs(files, write);
+  const verb = write ? "format:docs" : "check:docs";
+  if (outcome.refused.length > 0) {
+    warn(`${verb} — ${outcome.refused.length} file(s) REFUSED: formatting them would LOSE CONTENT (repair the markdown, not the formatter):`);
+    for (const refusal of outcome.refused) {
+      warn(`  REFUSED ${refusal.file}\n    ${refusal.reason.split("\n").join("\n    ")}`);
+    }
+  }
+  if (write) {
+    print(`format:docs — formatted ${outcome.dirty.length}/${outcome.scanned} file(s)`);
+    return outcome.refused.length > 0 ? EXIT.violations : EXIT.clean;
+  }
+  // BOTH CENSUSES, ALWAYS — a refusal must never SWALLOW the dirty list.
+  if (outcome.dirty.length === 0) {
+    if (outcome.refused.length > 0) {
+      return EXIT.violations;
+    }
+    print(`check:docs — ${outcome.scanned} file(s) formatted`);
+    return EXIT.clean;
+  }
+  warn(`check:docs — ${outcome.dirty.length} file(s) not formatted (run \`pnpm format:docs\`):`);
+  for (const file of outcome.dirty) {
+    warn(`  ${file}`);
+  }
+  return EXIT.violations;
+}
+
 function runDue(patterns: readonly string[]): ExitCode {
   const docs = due(patterns);
   for (const doc of docs) {
@@ -58,22 +95,22 @@ export function runDocCommand(command: DocCommand): ExitCode {
       return report("new adr", newAdr(command));
     case "new-plan":
       return report("new plan", newPlan(command));
+    case "new-law":
+      return report("new law", newLaw(command));
     case "item":
       return report("item", newItem(command.input));
     case "item-batch":
       return report("item", newItemsFrom(command.from));
     case "status":
-      return report("status", setStatus({ status: command.status, paths: command.paths, by: command.by, docKind: command.docKind }));
+      return report("status", setStatus({ status: command.status, paths: command.paths, by: command.by, docKind: command.docKind, blocked: command.blocked }));
     case "set":
       return report("set", setItems(command.ids, command.patch));
     case "remove":
-      return report("remove", removeItems(command.ids));
+      return report("remove", removeDocs(command.targets));
     case "land":
       return report("land", landItems(command.ids, command.evidence));
     case "land-merged":
-      return report("land --merged", landMerged());
-    case "archive":
-      return report("archive", archive(command.targets));
+      return report("land --merged", landMerged(undefined, undefined, command.headMerge));
     case "index":
       return report("index", { written: regenerateIndexes(), refusals: [] });
     case "review":
@@ -90,6 +127,8 @@ export function runDocCommand(command: DocCommand): ExitCode {
         print(line);
       }
       return EXIT.clean;
+    case "format":
+      return runFormat(command.write, command.files);
     default:
       return assertNever(command);
   }

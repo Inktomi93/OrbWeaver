@@ -1,4 +1,4 @@
-// verb: generatePicture — the P5 free-mode orchestrator (imagery-design/02 §1). Proves against a real libSQL
+// verb: generatePicture — the P5 free-mode orchestrator. Proves against a real libSQL
 // db: a returned base64 image is decoded, stored as a `kind:"generated"` asset (via the injected CAS write),
 // a matching `imagery_generations` provenance row is written (store-THEN-provenance), one economics delta is
 // recorded, and the `GeneratedPicture` carries a D44 media block. The infra executor + role resolver + CAS
@@ -433,7 +433,7 @@ describe("generatePicture — B2 reuse gate (doc 03 §4.4)", () => {
   });
 });
 
-// The free-mode external-hash passthrough (rpg-design/08 §2): a non-character consumer (rpg NPC portraits)
+// The free-mode external-hash passthrough (docs/plans/rpg/design.md): a non-character consumer (rpg NPC portraits)
 // stores its OWN precomputed reuse hash on the provenance so its own gate can short-circuit later via
 // readProvenance. Additive-only — the existing free path (no hash) is byte-identical (identityHash null).
 describe("generatePicture — free-mode external identity hash (08 §2 widening)", () => {

@@ -1,7 +1,7 @@
 // The regex-script EDITOR FIELDS — one library row's AUTHORED fields: name · the find pattern (via
 // `@orb/ui/code-editor` — a regex is code) · replaceString · placement · enabled · run-on-edit.
 //
-// MOUNTED, NOT POPPED (config-rail-spec.md §2 C-7). This was `components/regex-editor-dialog.tsx`, a
+// MOUNTED, NOT POPPED. This was `components/regex-editor-dialog.tsx`, a
 // Dialog stacked on top of the settings modal — a modal inside a modal, with its own focus-return bug
 // history (side-eye X-8). The config workspace mounts the SAME fields in the CONTENT pane, so the Dialog
 // shell (and the focus-return apparatus it needed) is gone while not one field changed. It moved from

@@ -348,8 +348,8 @@ export async function reconcileStats(db: Db, opts: ReconcileOpts): Promise<Recon
 // shape (it GROUPs by participant) and carries the same arm inline.
 //
 // An agent-authored assistant row (characterId NULL) folds to the host owner + skips character_stats.
-// FLAG[PD-17]: a character-less agent-only room is un-constructable in v1, so that case is deferred, not
-// built.
+// A character-less agent-only room is un-constructable in v1, so that case is deferred, not built
+// (docs/work/0048).
 
 /** Owner-scoped canon version plus the owned-character count. Every stats-affecting live canon mutator
  *  increments `stats_canon_versions` through `applyStatsDelta` in the same batch as canon + rollups;

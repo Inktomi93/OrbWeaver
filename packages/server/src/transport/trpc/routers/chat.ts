@@ -1,4 +1,4 @@
-// transport/trpc/routers/chat — the chat surface (PD-46). Thin: validate → `ctx.services.chat.<verb>`.
+// transport/trpc/routers/chat — the chat surface. Thin: validate → `ctx.services.chat.<verb>`.
 //
 // THE ROOM STREAM LIVES ELSEWHERE (SSE-1 S2). The per-chat SSE subscription `streamMessages` is GONE: the
 // chat bus is a ROOM on the tab's ONE multiplexed socket, and its generator — the live-first/replay-second
@@ -6,7 +6,7 @@
 // attach syntheses — moved verbatim to `transport/trpc/stream/sources/chat.ts` (read its header for the
 // stream law). This router keeps exactly ONE subscription: `impersonateStream`, which is permanently exempt
 // from the fold (request-scoped, user-gesture-initiated, at most one at a time — its abort semantics ARE the
-// socket teardown; docs/history/design/sse-multiplex-spec.md §14 decision 2, enforced by the
+// socket teardown; D118, enforced by the
 // `single-stream-transport` gate).
 
 import { ASSET_LIST_LIMIT_MAX, assetIdSchema } from "@orb/contracts/assets";
@@ -41,7 +41,7 @@ import { toolRecurseLimitSchema } from "#domain/chat";
 import { withSubscriptionErrors } from "../subscriptions.ts";
 import { authedProcedure, t } from "../trpc.ts";
 
-// `startChat` — CREATION-INTENT inputs only (chat-creation-draft-mode-replacement.md §4.1/R2). The former
+// `startChat` — CREATION-INTENT inputs only (D166). The former
 // nine-field "draft carry" (seedGreetings/rosterOverrides/groupConfig/roomOverrides/guided, plus the
 // `generate` opening arm + its `openingFailure` degrade) is GONE: R1 made every client caller create the
 // real room before mounting, so those creation-time payloads were unreachable product surface. Post-create
@@ -55,7 +55,7 @@ const startChatSchema = z.object({
   title: z.string().nullish(),
   opening: openingPolicySchema.exclude(["generate"]).optional(),
   injections: z.array(chatInjectionInputSchema).optional(),
-  // ST "Temporary Chat" (PD-65) — born ephemeral: persisted so turns can run, hidden from `listChats`
+  // ST "Temporary Chat" — born ephemeral: persisted so turns can run, hidden from `listChats`
   // ALWAYS, swept by `reapTemporaryChats` once past the caller's own TTL. Creation-only BY DESIGN (a fork
   // is born non-temporary; no verb updates the column), so this is the ONE place the flag can be set.
   temporary: z.boolean().optional(),
@@ -322,7 +322,7 @@ const listReactionsSchema = z.object({ chatId: typeIdSchema(ID_PREFIX.chat) });
 
 // speakerCharacterId/guided mirror `PreviewAssemblyParams` (a hypothetical per-speaker turn); `guided`
 // rides the DERIVED `guidedSteerSchema` (F6 — the same wire boundary as `send`/`generate` above).
-// `presetOverride` (D121-G / preset-surface-redesign §7.1) is the preset editor's BOUND Prompt readout:
+// `presetOverride` (D121-G) is the preset editor's BOUND Prompt readout:
 // assemble this room as if that preset were active, so its rack rows can be priced for real. It is resolved
 // owned-or-system under the HOST by the landed `presetOverride` seam (the `previewActionTemplates` rule), so
 // it cannot reach outside the host's library; the host gate itself is `requireHost` INSIDE the verb.
@@ -333,7 +333,7 @@ const previewAssemblySchema = z.object({
   presetOverride: typeIdSchema(ID_PREFIX.preset).optional(),
 });
 
-// `previewActionTemplates` (D8 / preset-surface-redesign §7.1) — the preset editor's BOUND readout: every
+// `previewActionTemplates` — the preset editor's BOUND readout: every
 // ACTION template of `presetId`, resolved against this chat. Host-gated (`requireHost`) INSIDE the verb
 // (matrix `previewActionTemplates: "host"` — a rendered template carries full-fidelity card bytes). The
 // `presetId` OVERRIDE is resolved owned-or-system under the HOST by the landed `presetOverride` seam, so it
@@ -344,7 +344,7 @@ const previewActionTemplatesSchema = z.object({
   presetId: typeIdSchema(ID_PREFIX.preset),
 });
 
-// `getShapeTrace` (PD-132) — the content-free SHAPE trace for the next-turn shaping of the current canon.
+// `getShapeTrace` — the content-free SHAPE trace for the next-turn shaping of the current canon.
 // `speakerCharacterId` picks the primary speaker the peek shapes for (mirrors `peekPrompt`); host-gated
 // (`requireHost`) INSIDE the verb (matrix `getShapeTrace: "host"`).
 const getShapeTraceSchema = z.object({
@@ -361,13 +361,13 @@ const getShapeTraceSchema = z.object({
 // stranger, and a host passing another room's variantId, both get the SAME leak-free NOT_FOUND).
 // FRESHNESS: IMMUTABLE — a committed variant's stamped prompt/params/draws never change (an edit mints a
 // new variant, a swipe appends one), so this read carries NO `BUS_FILTERS` row and no invalidation target;
-// the client caches it forever (the `connection.orGenerationCost` class, PD-137).
+// the client caches it forever (the `connection.orGenerationCost` class).
 const getVariantWireSchema = z.object({
   chatId: typeIdSchema(ID_PREFIX.chat),
   variantId: typeIdSchema(ID_PREFIX.messageVariant),
 });
 
-// `previewContextFit` (PD-#7) — the present-tense fit budget for the current canon (the transcript divider's
+// `previewContextFit` — the present-tense fit budget for the current canon (the transcript divider's
 // live source). Member-gated (`requireParticipant`) INSIDE the verb (matrix `previewContextFit: "member"`);
 // reads tenant canon by chatId, so the cross-tenant sweep classifies it PROBED.
 const previewContextFitSchema = z.object({
@@ -433,7 +433,7 @@ const setChatAnchorPersonaSchema = z.object({
 // NOTE (#29): a MUTED member is still force-summonable — mute is passive arbitration exclusion, not a host-
 // override block (the verb's presence-only target check, verbs/turn.ts).
 // Add a character to an existing chat's roster (J7 add-member — the character-bar "+"). Host-only INSIDE the
-// verb (`requireHost`) + the PD-21 single-owner invariant (a foreign character reads as missing, leak-
+// verb (`requireHost`) + the single-owner invariant (a foreign character reads as missing, leak-
 // free) — this router row is a thin pass-through, the same shape as the sibling roster cluster.
 const addCharacterToChatSchema = z.object({
   chatId: typeIdSchema(ID_PREFIX.chat),
@@ -649,7 +649,7 @@ export const chatRouter = t.router({
   previewActionTemplates: authedProcedure
     .input(previewActionTemplatesSchema)
     .query(({ ctx, input }) => ctx.services.chat.previewActionTemplates({ principal: ctx.auth, ...input })),
-  // The content-free SHAPE trace (PD-132) — a host/admin inspector read (`requireHost` INSIDE the verb).
+  // The content-free SHAPE trace — a host/admin inspector read (`requireHost` INSIDE the verb).
   getShapeTrace: authedProcedure.input(getShapeTraceSchema).query(({ ctx, input }) => ctx.services.chat.getShapeTrace({ principal: ctx.auth, ...input })),
   // The per-variant WIRE RECORD — a host/admin inspector read (`requireHost` INSIDE the verb).
   getVariantWire: authedProcedure.input(getVariantWireSchema).query(({ ctx, input }) => ctx.services.chat.getVariantWire({ principal: ctx.auth, ...input })),
@@ -689,7 +689,7 @@ export const chatRouter = t.router({
     .input(setChatAnchorPersonaSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.setChatAnchorPersona({ principal: ctx.auth, ...input })),
   delete: authedProcedure.input(deleteChatSchema).mutation(({ ctx, input }) => ctx.services.chat.delete({ principal: ctx.auth, ...input })),
-  // Temp-chat maintenance (PD-65): sweep the CALLER's OWN expired temporary chats, on the CALLER's own
+  // Temp-chat maintenance: sweep the CALLER's OWN expired temporary chats, on the CALLER's own
   // `chat.tempChatTtlHours`. Input-less and per-caller-scoped INSIDE the verb (it deletes only chats the
   // caller presently HOSTS), so there is no id to leak and nothing to cross-tenant probe — the client
   // fires it fire-and-forget on home mount (owner decision H5; a workloads runner would add scheduling

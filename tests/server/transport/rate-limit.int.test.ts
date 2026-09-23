@@ -1,5 +1,5 @@
 // Integration test: the DB-backed rate-limit primitive over a real libSQL `:memory:` db (the shared
-// `rate_limit_buckets` table is what makes the cap multi-replica-correct). The PD-14 per-member COUNT
+// `rate_limit_buckets` table is what makes the cap multi-replica-correct). The per-member COUNT
 // budget that shared this table is GONE — D17's count-budget clause was retired (@orb/inference §14 F11).
 // Determinism: time is pinned through the injected `now` seam (testing §3) — the window-boundary cases pin
 // the clock instead of racing the wall clock (the 2026-06-11 flake this seam exists for).

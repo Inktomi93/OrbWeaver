@@ -2,7 +2,7 @@
 // `detached-work-traced-health` arm the conversion SPLIT out of one of them. They are grouped by the fact
 // that one lane converted them together and by nothing else: their families are listed below, and none of
 // them is this file. The header says so plainly rather than inventing a shared theme, because
-// §7 item 4 of docs/design/gate-runtime-standardization.md is explicit that a theme is not a family.
+// §7 item 4 of docs/law/gate-runtime-standardization.md is explicit that a theme is not a family.
 //
 //   diagnostic-legibility          family `policy-soundness`      — every gate-corpus diagnostic STRING
 //                                  reader `lib/policy-descriptor-read.ts`  carries a resolvable pointer.
@@ -13,7 +13,7 @@
 //   detached-work-traced           family `detached-work-traced`  — fire-and-forget whose failure is
 //   detached-work-traced-health    reader `lib/detached-work.ts`    invisible, plus its blindness tripwire.
 //
-// Proof ownership: docs/design/gate-runtime-standardization.md §§6.2, 6.3, 6.5, 6.6.
+// Proof ownership: docs/law/gate-runtime-standardization.md §§6.2, 6.3, 6.5, 6.6.
 // Ordinary identity controls assert waiver consumption and alarms, which a clean mustPass alone cannot
 // establish. The import-resolution control prevents a missing fixture dependency from impersonating a
 // tested identity branch. Refusal controls here inspect the production error envelope; declared

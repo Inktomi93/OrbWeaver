@@ -1,4 +1,4 @@
-// T4's missing behavioral control (docs/design/1208-instrument-substrate.md §8): a REAL snap daemon
+// T4's missing behavioral control: a REAL snap daemon
 // boots and binds a REAL isolated stage, measures once, then observes one killed half of the stage's port
 // pair. The next daemon call must stamp the death in BOTH registries and refuse loudly; the real status
 // and sweep verbs must expose and free that exact band while the browser daemon remains alive.

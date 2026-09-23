@@ -14,7 +14,7 @@ import { toPresetDetail } from "../substrate/views.ts";
 // PresetNotFoundError, the unseeded refusal), then inserts an independent OWNED copy with a fresh id. The
 // clone carries the template's name/kind/config verbatim; mutating it never touches the template row (owned-
 // scoped writes can't match the null-owner source). The cross-feature clone-source op rpg `createGame` wires
-// onto `RpgContext.preset.clonePackaged` → stamps the new id as `rpg_games.gmPresetId` (rpg-design 02 §1.1).
+// onto `RpgContext.preset.clonePackaged` → stamps the new id as `rpg_games.gmPresetId` (docs/plans/rpg/design.md 02 §1.1).
 
 const PRESET_CLONE_PACKAGED = "preset.clonePackaged";
 const PRESET_ENTITY = "preset";

@@ -48,7 +48,7 @@
 // `locateFinding` could never bind an ordinary position (guide §2.1's authored-coordinate rule). The legacy engine's bare
 // `@orb-gate-ignore playwright-css-topology` door DID exist and does NOT survive the conversion; the marker
 // census that makes that free is 0 live markers (measured 2026-09-12 over 7,725 tracked source files with a
-// 1,196-hit positive control, `css-family-audit-2026-09-12.md`).
+// 1,196-hit positive control, the 2026-09-12 CSS-family audit).
 //
 // WHERE A BROKEN RESOURCE REFUSES — not here. Every declared `exact-file` id must resolve or the WHOLE fact
 // refuses (`contract/resource-exact.ts`), and a refused declaration makes `resolveResourceDeclarations`
@@ -272,7 +272,7 @@ function reportHarnessExtension(anchors: Anchors, report: Report): void {
   const parsed = parseCssStylesheet(anchors.get("ct-extension-css")?.text ?? "");
   const sources = parsed.statements.filter((statement) => statement.name === "source").map((statement) => quotedStatementArgument(statement));
   // TWO CLAUSES, TWO MESSAGES. A single message across both makes `messageIncludes` undiscriminating
-  // between the rows that pin them (the transplant test in `resource-policy-contract.md` §7), and the
+  // between the rows that pin them (the transplant test in `docs/law/resource-policy-contract.md` §3.5), and the
   // counts are equal, so nothing would carry either row.
   if (sources.length !== 1 || sources[0] !== HARNESS_SOURCE) {
     report(

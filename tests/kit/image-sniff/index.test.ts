@@ -1,5 +1,5 @@
 // kit/image-sniff — sniffMime / isAnimated / sniffImageBytes: the pure magic-byte + dimension + animation
-// sniff shared by the assets domain, the infra/network image-guard, and the vllm backend (PD-123 + D61 B5a
+// sniff shared by the assets domain, the infra/network image-guard, and the vllm backend (D61 B5a
 // G2). Pins each recognized signature + the octet-stream sentinel for unknown/short input (the upload
 // boundary's "never a valid claimed mime"), the animation-chunk sniff (GIF/APNG/WebP), and the header-parsed
 // dimensions per format.

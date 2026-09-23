@@ -3,7 +3,7 @@
 //     OpenRouter `/images`), base64 bytes back;
 //   • `chat-modalities` — a chat `doGenerate` with `modalities: ["text","image"]`, the pictures on the reply's
 //     `file` parts (the arm for image-output CHAT models with no images-API listing).
-// The edit BELT (imagery-design/03 §2): an `edit` payload on a model whose capability lacks `imageEdit` is
+// The edit BELT: an `edit` payload on a model whose capability lacks `imageEdit` is
 // stripped whole with `image_edit_dropped` and the call falls back to text→image — never a throw. The
 // negative prompt folds into the text on the chat arm (no hosted chat wire has a native negative field).
 

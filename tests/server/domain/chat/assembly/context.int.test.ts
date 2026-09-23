@@ -243,7 +243,7 @@ describe("buildAssembleContext — GATHER keyword match (the two-phase lag-kill)
   });
 });
 
-describe("buildAssembleContext — the D50 user_input PromptTransform point (automation-design/04 §1.2/§6)", () => {
+describe("buildAssembleContext — the D50 user_input PromptTransform point", () => {
   test("a user_input transform runs AFTER the macro pass, BEFORE the USER_INPUT regex (the SEND sink proves order)", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "u");
@@ -974,7 +974,7 @@ describe("buildAssembleContext — the WORLD_INFO leg runs the RESOLVED host-tie
   });
 });
 
-describe("buildAssembleContext — guided steering (the chat design doc §6, PD-63)", () => {
+describe("buildAssembleContext — guided steering (the chat design doc §6)", () => {
   test("system placement (the default): the action template resolves to ctx.guidedInstruction — template macros live, untrusted {{input}} neutralized", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");

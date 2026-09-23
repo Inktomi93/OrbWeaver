@@ -78,7 +78,7 @@ interface CanonVariantInput {
    *  columns (not on the read `MessageView`); absent ⇒ null (a verbatim/greeting seed). */
   readonly genStartedAt?: number | null | undefined;
   readonly genFinishedAt?: number | null | undefined;
-  /** The provider's response id for this generation (OpenRouter `gen-…` — the PD-137 cost key; Anthropic
+  /** The provider's response id for this generation (OpenRouter `gen-…` — the cost key; Anthropic
    *  `msg_…` — the support handle; B7). Absent/null where the wire reports none (agent-sdk / a user-authored row). */
   readonly generationId?: string | null | undefined;
   readonly ttftMs?: number | null | undefined;
@@ -135,7 +135,7 @@ interface InsertCanonMessageParams extends CanonSlotAttribution {
    *  deliberately declare one stays byte-identical; only the narrator writers pass `'narrator'`. */
   readonly kind?: MessageKind | undefined;
   readonly excludedFromPrompt?: boolean | undefined;
-  /** The turn's origin (automation-design/03 §4) — stamped on the reply SLOT. Absent ⇒ the DB defaults
+  /** The turn's origin — stamped on the reply SLOT. Absent ⇒ the DB defaults
    *  (`'human'`/0), so every human/character writer stays byte-identical; only an automation-initiated
    *  new-slot turn passes these through. */
   readonly initiator?: TurnInitiator | undefined;
@@ -165,11 +165,11 @@ interface VariantEconomics {
   readonly finishReason: NormalizedFinishReason | null;
   readonly stopReason: string | null;
   readonly terminalReason: string | null;
-  /** Gen-window bounds (epoch-ms) — the stats gen-time axis and (PD-130) the `showGenerationTimer` chip
+  /** Gen-window bounds (epoch-ms) — the stats gen-time axis and the `showGenerationTimer` chip
    *  both read `gf − gs`. A continue re-stamps them to the continuation's window. */
   readonly genStartedAt: number | null;
   readonly genFinishedAt: number | null;
-  /** The provider's response id (OpenRouter `gen-…` — the PD-137 per-message cost key; Anthropic `msg_…`). On both
+  /** The provider's response id (OpenRouter `gen-…` — the per-message cost key; Anthropic `msg_…`). On both
    *  the insert columns and the read `MessageView` (one home; the committed view can't drift from the row). */
   readonly generationId: string | null;
 }
@@ -712,7 +712,7 @@ export function buildCommittedMessageView(params: InsertCanonMessageParams): Mes
     hasContinuation: false,
     ...variantEconomics(params.variant),
     // The freshly-committed view's tool exchanges — the read seam's `[]`-default (never null) for the
-    // client's tool read surface; a non-tool turn commits an empty array (tool-use-design/03 §3).
+    // client's tool read surface; a non-tool turn commits an empty array (D48).
     toolCalls: params.variant.toolCalls ?? [],
   };
 }

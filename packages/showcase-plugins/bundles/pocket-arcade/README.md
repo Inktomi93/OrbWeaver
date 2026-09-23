@@ -38,8 +38,11 @@ scenes. A grid of merging tiles is exactly that.
   `localStorage` (this game's state resets on remount, and its footer says so), no app DOM.
 * **No network**: `default-src 'none'`, no `connect-src` — fetch/XHR/WebSocket are refused by the document's
   own response policy.
-* **No host calls**: there is no `orb` inside a frame. Design self-contained, or pair the frame with a
-  declarative surface that carries the data half.
+* **Host calls ride `postMessage`**: there is no `orb` inside a frame. Post
+  `{ orbPluginFrameCall: { callId, fn, args } }` to `parent` and read the `orbPluginFrameResult` reply
+  (`host-v1.d.ts`, `registerFrame`). Each call is re-gated against this plugin's grants. Before obeying any
+  message, check `event.source === parent`, because other frames on the page can post to yours. This game
+  makes no host calls.
 * **Two theme tokens**, injected and live: `--sandbox-bg` and `--sandbox-fg` (plus the app's font). This
   game's entire palette is `color-mix()` over those two, which is why it lands correctly in ANY theme without
   shipping colors of its own — copy that trick before you ship a hardcoded palette into someone's light mode.
@@ -55,9 +58,9 @@ transcript row is a permanent no).
   registration does not care what it draws. Keep it dependency-free (no CDN scripts — there is no network to
   load them over) and under the size caps.
 * **An ambient scene** — a rain pane, a campfire, a starfield: same shape, no input handling.
-* **A visualization** — remember the no-host-calls wall: the data has to be baked into the document at
-  activation, so a live chart wants the declarative plane's `meter`/state bindings instead, or must wait for
-  the frame host-call bridge.
+* **A visualization**: bake the data into the document at activation, or read it live over the host-call
+  bridge above (`storage.get`, `chat.listMessages` and the rest, each under this plugin's own grants). A
+  simple live meter is still easier as the declarative plane's `meter`/state bindings.
 
 ## Honest gaps
 

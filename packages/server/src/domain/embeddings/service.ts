@@ -1,7 +1,7 @@
 // domain/embeddings — COMPOSITION ROOT: wires the verbs over the DI bundle (zero logic). The
 // `EmbeddingsContext` is assembled at the entry root (db + the bound `roleClients` + the injected clock/id
-// determinism seam + the PD-53 enumeration/canon re-read ops + the declared space dims) and passed in; the
-// indexer is a separate subsystem wired via `createEmbeddingsIndexer`. The PD-53 bulk passes receive the
+// determinism seam + the enumeration/canon re-read ops + the declared space dims) and passed in; the
+// indexer is a separate subsystem wired via `createEmbeddingsIndexer`. The bulk passes receive the
 // bound `store` verb + the indexer's caption generator as EXPLICIT deps here (domain-no-cross-verb /
 // domain-substrate-mediates-subsystems — the composition point is this file, never a verb-to-verb import).
 

@@ -3,7 +3,7 @@
 // `TeachingCollection` the turn hands to assembly (`teachingInjections`) and to the wire (`attachedToolNames`).
 //
 // WHY a collection instead of per-domain hooks in `buildTurnContext`: prose steering converges on ONE
-// `ChatInjection` channel (PD-63 single placement) and tool attach has ONE source. Before this seam the only
+// `ChatInjection` channel (single placement) and tool attach has ONE source. Before this seam the only
 // contributor was the rpg gather, hard-wired at two sites; every later contributor would have added a third,
 // a fourth, and the merge order would have been an accident of edit history. Here the order is DATA
 // (`TeachingContribution.order`) and the merge is one function with pins on it.

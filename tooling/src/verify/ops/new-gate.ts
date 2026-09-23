@@ -9,7 +9,7 @@
 // template was born owing an authority migration — a generator that teaches the shape its own program
 // bans. The template below is a `defineGate` FINAL policy: it loads, validates, and its `mustFlag` /
 // `mustPass` rows pass `pnpm check:policy-conformance` on arrival, so a freshly scaffolded gate is green
-// for an explicit singleton. A shared-family draft still owes actual dependency consumption. Law: docs/design/gate-runtime-standardization.md §2.
+// for an explicit singleton. A shared-family draft still owes actual dependency consumption. Law: docs/law/gate-runtime-standardization.md §2.
 import { existsSync, writeFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import process from "node:process";
@@ -30,7 +30,7 @@ refuseDirectInvocation(import.meta.url, NEW_GATE_USAGE);
 const KEBAB_RE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u;
 const NAME_TOKEN = "__NAME__";
 const GATES_DIR = "tooling/src/verify/gates";
-const LAW = "docs/design/gate-runtime-standardization.md";
+const LAW = "docs/law/gate-runtime-standardization.md";
 const ENFORCEMENT_DOC = "docs/law/Core-Enforcement-Active-Gates.md";
 const FAMILY_TESTS = "tests/tooling/verify/gates";
 
@@ -219,9 +219,8 @@ export function runNewGate(root: string, argv: readonly string[]): number {
       `wrote ${rel}`,
       "",
       `READ ${LAW} IN FULL before filling it in — it is the \`defineGate\` contract, and`,
-      "`tooling/src/verify/gates/GATE-AUTHORING.md` is the final policy guide. Its linked archive",
-      "(`docs/history/gate-authoring-legacy-2026-09-13.md`) is only for remaining legacy maintenance and",
-      "conversion archaeology. The loader registers this policy immediately; the coupled sites are owed in this lane:",
+      "`tooling/src/verify/gates/GATE-AUTHORING.md` is the final policy guide.",
+      "The loader registers this policy immediately; the coupled sites are owed in this lane:",
       "",
       `  1. ${rel}`,
       "     Fill every TODO(scaffold).",
@@ -237,11 +236,9 @@ export function runNewGate(root: string, argv: readonly string[]): number {
       "     STRING across that directory before writing a new file; an existing family file takes the row.",
       "",
       `  3. ${ENFORCEMENT_DOC}`,
-      "     add the Layer-3 ACTIVE table row:",
-      "",
-      `       | \`${name}\` | <what it enforces, incl. the arms + declared limits> |`,
-      "",
-      "     The loader supplies registration identity; do not add a registration list or hand-maintained count.",
+      "     GENERATED — nothing to hand-edit. Its per-gate index regenerates from this module's `id`,",
+      "     `family`, `authority`, `severity`, `population` and `message`, so write a clean one-line `message`",
+      "     now: `pnpm exec node tooling/src/verify/cli.ts baseline active-gates-index` picks it up automatically.",
       "",
       "  4. FIX the live violations it finds, in THIS lane. There is no private exemption table in a final",
       "     policy (§5): a permanent, reasoned exception is a row in the central reviewed-grant table with",

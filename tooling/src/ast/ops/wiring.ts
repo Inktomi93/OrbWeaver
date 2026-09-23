@@ -13,7 +13,7 @@ import { ownExports, resolveScope } from "../lib/scope.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 
-// ── unwired: server tRPC procedures with NO client consumer (the PD-138 blind spot) ────────────
+// ── unwired: server tRPC procedures with NO client consumer ────────────────────────────────────
 // Import-based liveness CANNOT see this — the client consumes a procedure through the typed proxy
 // (`trpc.<ns>.<proc>` / `Trpc["<ns>"]["<proc>"]`), never an import edge to the server router. So we
 // enumerate both surfaces STRUCTURALLY and diff them:

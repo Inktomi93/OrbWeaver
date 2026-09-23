@@ -29,7 +29,7 @@ export interface RegexPortabilityContext {
   readonly newScriptId: () => RegexScriptId;
 }
 
-/** What one card hands the lift. `carried` are the orbweaver-namespaced references (PD-144 twin) — each is
+/** What one card hands the lift. `carried` are the orbweaver-namespaced references (the attached-book twin) — each is
  *  attached DIRECTLY when it names a row this owner already has, and ignored otherwise. `scripts` is the
  *  ST by-value payload, lifted for everything `carried` did not cover. */
 export interface ImportCardScriptsArgs {

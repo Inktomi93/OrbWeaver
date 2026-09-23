@@ -1,4 +1,4 @@
-// transport/trpc/routers/invites — the multi-HUMAN membership surface (PD-106 burn-down; FINAL-Auth-Modes
+// transport/trpc/routers/invites — the multi-HUMAN membership surface (FINAL-Auth-Modes
 // §7 P1; docs/law/Tier-4-Transport.md §"multi-human surface"). PURE WIRING: the invite lifecycle + the
 // human-membership-lifecycle verbs (domain/chat/verbs/{invites,roster}.ts) were built + tested + classified
 // in the authority matrix long before this router existed — every procedure here is a thin

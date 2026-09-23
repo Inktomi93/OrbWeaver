@@ -278,7 +278,7 @@ describe("runTurnPipeline — reduce", () => {
   });
 });
 
-describe("runTurnPipeline — the D50 assembled_dynamic PromptTransform point (automation-design/04 §6)", () => {
+describe("runTurnPipeline — the D50 assembled_dynamic PromptTransform point", () => {
   test("transforms the DYNAMIC half only; the static (cache-stable) half stays byte-identical", async () => {
     // Baseline: no transform → the built halves.
     const baseline = await runTurnPipeline(baseArgs().args);
@@ -345,14 +345,14 @@ describe("runTurnPipeline — request shaping + fit", () => {
     expect(typeof result.cacheBreakpointFromEnd === "number" || result.cacheBreakpointFromEnd === null).toBe(true);
   });
 
-  test("PD-146: the host's custom stopping strings fold into the request intent's stop set (dedup, intent-first)", async () => {
+  test("the host's custom stopping strings fold into the request intent's stop set (dedup, intent-first)", async () => {
     const { args } = baseArgs({ intent: { stop: ["<END>"] } satisfies UserIntent, extraStopSequences: ["<END>", "\nUser:"] });
     const result = await runTurnPipeline(args);
     // resolveSampling reads request.intent.stop — the preset/intent stops come first, then the host's, Set-deduped.
     expect(result.request.intent.stop).toEqual(["<END>", "\nUser:"]);
   });
 
-  test("PD-146: no custom stops leaves the request intent untouched but for the materialized maxOutputTokens", async () => {
+  test("no custom stops leaves the request intent untouched but for the materialized maxOutputTokens", async () => {
     const intent: UserIntent = { stop: ["<END>"] };
     const withEmpty = await runTurnPipeline(baseArgs({ intent, extraStopSequences: [] }).args);
     const withNone = await runTurnPipeline(baseArgs({ intent }).args);
@@ -1028,7 +1028,7 @@ describe("runTurnPipeline — history macro resolution", () => {
   test("a stored {{user}} in a history row resolves via the PRODUCER to THAT row's own stamped persona — never the active NOR the pinned anchor", async () => {
     // Chat anchored to Nyx (pinned); the current speaker's active persona is Zara; the row is stamped
     // personaId=Mara (the Chat-Macro-Resolution.md §6 3-way-distinct fixture). The stamp wins over BOTH
-    // axes — PD-100: the row's personaId is the macro subject now, not just attribution chrome.
+    // axes — the row's personaId is the macro subject now, not just attribution chrome.
     const ctx = ctxOf({
       pinnedPersona: { name: "Nyx", description: "the frozen anchor POV" },
       activePersona: { name: "Zara", description: "the live active persona" },
@@ -1167,7 +1167,7 @@ describe("runTurnPipeline — roleHandling is the PRESET knob, clamped at SHAPE"
   });
 });
 
-// BUILD-QUEUE #3: the `squashSystemMessages` PROMPT knob (`params.advanced`, ST-imported from
+// The `squashSystemMessages` PROMPT knob (`params.advanced`, ST-imported from
 // `squash_system_messages`) is now a live SHAPE reader — consecutive system-note runs merge into ONE
 // `[Take the following into special consideration: …]` bracket BEFORE the system→user framing, orthogonal to `roleHandling`. Two
 // adjacent depth-0 system injections are the observable: ON ⇒ ONE bracket (merge-before-convert), OFF ⇒
@@ -1203,7 +1203,7 @@ describe("runTurnPipeline — squashSystemMessages is the PRESET knob, folded at
   });
 });
 
-describe("runTurnPipeline — PD-148: the preset params fold into the wire request", () => {
+describe("runTurnPipeline — the preset params fold into the wire request", () => {
   const presetParams = (params: UserIntent): PromptConfig => ({ ...DEFAULT_PROMPT_CONFIG, params });
 
   test("preset `params` are the BASE — a preset's sampling knobs reach the wire intent with no per-turn override", async () => {
@@ -1806,7 +1806,7 @@ describe("runTurnPipeline — RECEIVE <think> demux (D47 #3)", () => {
   });
 });
 
-// ── The D48 recurse loop (tool-use-design/03 §2 — the 05 §T4 goldens) ────────────────────────────
+// ── The D48 recurse loop (the goldens) ────────────────────────────────────────────
 // A REAL resolved descriptor for a tool-capable OpenRouter model (§U0 checkpoint: the loop's capability
 // gate keys on the real synthesis output, not a synthetic literal). The OR arm sets `tools.parallel:true`;
 // the loop gate reads only the PRESENCE of `capability.tools`, so the parallel flag is inert here.

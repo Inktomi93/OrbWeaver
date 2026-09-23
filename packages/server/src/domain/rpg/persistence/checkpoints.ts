@@ -1,4 +1,4 @@
-// domain/rpg/persistence/checkpoints — labeled snapshot bookmarks (rpg-design/05 §4.4). Create (label a
+// domain/rpg/persistence/checkpoints — labeled snapshot bookmarks (docs/plans/rpg/design.md). Create (label a
 // snapshot) · list · read (the restore target). RESTORE ITSELF is composed in the verb layer (W1b): it
 // reads the checkpointed snapshot, then clone-forwards it BORN COMMITTED through
 // `buildRestoredSnapshotStatement` (persistence/snapshots), committed beside the visible narrator marker —

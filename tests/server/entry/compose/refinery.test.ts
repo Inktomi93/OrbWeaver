@@ -28,7 +28,7 @@ const OTHER = castId<UserId>("usr_other");
 // @orb-waive no-test-fabrication(unknown): never dereferenced — the seam only threads `db` into the factories it builds. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
 const NO_DB = {} as unknown as Db;
 
-/** The EXACT dep set the workload half is allowed to close over (refinery-r0 §9.3 / R4). */
+/** The EXACT dep set the workload half is allowed to close over (R4). */
 const WORKLOAD_KEYS = [
   "roleClientsFor",
   "resolveUserPresetParams",

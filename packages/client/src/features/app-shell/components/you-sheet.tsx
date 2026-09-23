@@ -1,5 +1,5 @@
 // YouSheet — the body of the mobile "You" bottom sheet, a BLIND PROJECTION over the SAME resolved chrome
-// list the desktop rail and the mobile bar read (shell-chrome-unification.md §E-5 / §C). No second
+// list the desktop rail and the mobile bar read. No second
 // derivation: it reads `useChromeRegistry()` and projects each entry in its native sheet form —
 //   · `rail.end` MODAL entries (theme) → a row that opens the modal in the shared slot;
 //   · `rail.end` WIDGET entries (the persona identity) → its own `body("sheet")` lens inline (this is

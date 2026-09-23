@@ -1,4 +1,4 @@
-// The per-turn generation-duration derivation for the `showGenerationTimer` metadata readout (PD-130).
+// The per-turn generation-duration derivation for the `showGenerationTimer` metadata readout.
 // `MessageView` carries the raw gen-window bounds (`genStartedAt`/`genFinishedAt`, epoch-ms, written by
 // the turn engine's canon-write); the duration is `gf − gs` and is only meaningful when both bounds are
 // present AND ordered — the stats gen-time axis uses the same guard (`domain/chat/substrate/stats-delta`).

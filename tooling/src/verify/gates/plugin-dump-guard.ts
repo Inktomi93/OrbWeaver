@@ -1,5 +1,5 @@
-// Policy: plugin-dump-guard (D46; the plugin-host guest-traversal boundary,
-// docs/history/design/issue-712-gate-family.md) — guest-controlled values cross the QuickJS membrane only
+// Policy: plugin-dump-guard (D46; the plugin-host guest-traversal boundary)
+// — guest-controlled values cross the QuickJS membrane only
 // through the canonical helper, and that helper's ITERATIVE handle guard must run BEFORE the
 // materialization. `ctx.dump` walks the guest structure on the HOST stack, so an unguarded deep object
 // overflows it and corrupts the shared WASM runtime for every plugin in the process.
@@ -55,8 +55,7 @@ const DUMP_POPULATION = "membrane guest-dump sites";
 const MESSAGE =
   "a QuickJS membrane `ctx.dump` can materialize guest-controlled recursive structure without first " +
   "passing the iterative handle depth/node guard — the walk runs on the HOST stack, so an overflow " +
-  "corrupts the shared WASM runtime for every plugin in the process. See " +
-  "docs/history/design/issue-712-gate-family.md";
+  "corrupts the shared WASM runtime for every plugin in the process. Home: packages/server/src/infra/plugin-host/membrane.ts";
 const FIX = `route guest values through ${HELPER}; the helper must call ${GUARD} and RETURN on its false path before its one ctx.dump.`;
 
 /** Is this call `<receiver>.dump(handle)` where `dump` is declared by the installed QuickJS package? */

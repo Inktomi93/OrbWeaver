@@ -22,7 +22,7 @@ export type PortraitMode = Extract<PromptTemplateMode, "character" | "face" | Mu
  *  `"never"` is the regenerate affordance (always a fresh generation). */
 export type ReusePolicy = "prefer" | "never";
 
-/** `generatePicture` — the orchestrator's params (imagery-design/01 §3.2). `caller` is the triggeredBy for
+/** `generatePicture` — the orchestrator's params. `caller` is the triggeredBy for
  *  spend + the CAS owner; `chatId` is provenance + the extraction-shaper's history scope (REQUIRED unless
  *  `mode:"free"` with a `prompt`); `prompt` present OR `mode:"free"` skips extraction (used verbatim);
  *  `subjectCharacterId` focuses the char macro / picks the avatar for character/face + multimodal modes.
@@ -46,7 +46,7 @@ export interface GeneratePictureParams {
   readonly useAvatarReference?: boolean | undefined;
 
   /** An EXTERNALLY-computed reuse hash a non-character consumer stores on this generation's provenance so its
-   *  OWN reuse gate can short-circuit later (rpg-design/08 §2 — NPC portraits are content-addressed by the
+   *  OWN reuse gate can short-circuit later (docs/plans/rpg/design.md — NPC portraits are content-addressed by the
    *  npc identity tuple; rpg computes it via imagery's `identityHashFor`, never a second hash derivation).
    *  Honored ONLY in `mode:"free"` (the subject-character portrait modes own the internal reuse gate, which
    *  supersedes this). Absent ⇒ the provenance `identityHash` stays null (the additive-only guarantee — the

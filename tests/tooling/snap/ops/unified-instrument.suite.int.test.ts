@@ -500,12 +500,11 @@ const RETIRED_COMMANDS = ["pnpm design-audit", "pnpm motion-audit", "pnpm perf-m
 /** WHERE A RETIRED SPELLING IS STILL TRUE. The owner's ruling (2026-09-04) is that an unlaunched product
  *  grep-fixes the spellings rather than shipping a door — but it draws the line at a RECIPE A READER
  *  WOULD TYPE. A DATED RECEIPT is a statement about what was run on its date, and rewriting it would
- *  falsify the record rather than fix it; the generated doc catalog is derived FROM those receipts and
- *  cannot be edited by hand at all. `.claude/`/`.codex/` are excluded for a different reason and it is
- *  not a semantic one: they are the orchestrator's files, outside every lane's write scope (the fold's
+ *  falsify the record rather than fix it. `.claude/`/`.codex/` are excluded for a different reason and it
+ *  is not a semantic one: they are the orchestrator's files, outside every lane's write scope (the fold's
  *  brief lists them for the orchestrator instead), so this sweep would be asserting over a corpus it is
  *  forbidden to repair. Each prefix is the WHOLE reason it is here — do not add one without one. */
-const RECEIPT_PREFIXES = ["docs/history/", "docs/reviews/", "docs/catalog/", ".claude/", ".codex/"] as const;
+const RECEIPT_PREFIXES = [".claude/", ".codex/"] as const;
 
 /** A LINE THAT NAMES THE SPELLING AS DEAD IS NOT A RECIPE. "the retired pnpm design-audit" is exactly
  *  the sentence the fold's own headers and doc edits needed to write, and a sweep that refused it would
@@ -516,7 +515,7 @@ const RETIREMENT_MARKERS = ["retire", "no longer", "ceased to exist", "replaced 
 /** A `$ `-PREFIXED LINE IS A TRANSCRIPT, NOT A RECIPE. The population and subject-accounting designs
  *  quote dozens of dated `$ pnpm design-audit …` runs with their real stdout underneath; each is a
  *  receipt of what was typed on its date, and rewriting the command while leaving the output would make
- *  the doc claim a run that never happened. Same class as the `docs/reviews/` carve-out, applied at line
+ *  the doc claim a run that never happened. Same class as the `docs/history/` carve-out, applied at line
  *  granularity because these receipts live inside an otherwise-live design doc. An instruction a reader
  *  would follow is written as prose or a bare fenced command, and both still red. */
 function isRecordedTranscript(line: string): boolean {

@@ -1,5 +1,5 @@
 // infra/extraction/formats.ts — the format dispatch: MIME → DocFormat, and the exhaustive DocFormat → Loader
-// Record (databank-design/04 §2). The Record is a `{ [F in DocFormat]: Loader }` mapped type (the §7.5 gold
+// Record. The Record is a `{ [F in DocFormat]: Loader }` mapped type (the §7.5 gold
 // standard) — a new DOC_FORMATS member without a loader is a tsc error, so registration can never half-land.
 
 import type { DocFormat } from "@orb/contracts/extraction";

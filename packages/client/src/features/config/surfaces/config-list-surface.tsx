@@ -1,4 +1,4 @@
-// The Settings LIST — the MAP (config-revamp-design.md §3.2): four named shelves (User · App · Collections ·
+// The Settings LIST — the MAP: four named shelves (User · App · Collections ·
 // Extensions), each a stack of GROUP frames in `(order, id)` order, over the door-frozen registry. It is
 // the one place the macOS negative control is refuted: the LIST ALWAYS shows where you are — the active
 // group is expanded and the scroll-spy's current section lights its row.

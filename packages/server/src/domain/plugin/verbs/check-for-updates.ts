@@ -1,4 +1,4 @@
-// verb: checkForUpdates — the AUTO UPDATE-CHECK (plugin-ui-plane #679 U8 2b — the thing ST's loader does:
+// verb: checkForUpdates — the AUTO UPDATE-CHECK (U8 2b — the thing ST's loader does:
 // check every URL-installed extension's version against its source). BATCH + SELF-scoped, the `listSurfaces`
 // posture exactly: no id, it walks the caller's OWN plugins (`listOwned` filters `owner_id = caller.userId`, so
 // there is no foreign row to reach) and checks the ones something can serve a newer version FOR — a hand

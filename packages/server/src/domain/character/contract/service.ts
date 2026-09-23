@@ -53,7 +53,7 @@ import type { CharacterDetail } from "./views.ts";
 export type ReapAssetsOp = (assetIds: readonly AssetId[]) => Promise<void>;
 
 /** READS the assetIds bound to a character's expression sprites, so remove can fold them into the
- *  `reapAssets` set AFTER the character row is actually gone (expressions-design/01 §8). Injected +
+ *  `reapAssets` set AFTER the character row is actually gone (docs/plans/expressions/design.md). Injected +
  *  OPTIONAL: a deploy without the expressions leaf (tests/scripts) omits it and the FK cascade still wipes
  *  the bindings — the now-unreferenced blobs are reclaimed by the next `assets:gc` mark-sweep instead of the
  *  targeted reap.
@@ -71,7 +71,7 @@ export type AttachCardTagOp = (args: { readonly ownerId: UserId; readonly charac
 
 export type DetachCardTagOp = (args: { readonly ownerId: UserId; readonly characterId: CharacterId; readonly tagName: string }) => Promise<boolean>;
 
-/** Carries the source character's attached world-info book REFERENCES onto the duplicate (PD-141): fresh
+/** Carries the source character's attached world-info book REFERENCES onto the duplicate: fresh
  *  character_books rows pointing at the SAME books; world-info owns the junction write. Zero attachments =
  *  no-op. Internal to the DI bundle (the runtime op is world-info's `CopyCharacterBooks`, wired at compose).
  *  `ownerId` is the owned-source gate — the op re-checks BOTH ends rather than trusting the call site. */
@@ -109,7 +109,7 @@ export interface CharacterContext {
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   readonly emit: (event: DomainEvent) => void;
   readonly reapAssets: ReapAssetsOp;
-  /** Injected sprite-asset READ (expressions-design/01 §8); OPTIONAL — absent = the FK cascade + a later GC sweep. */
+  /** Injected sprite-asset READ (docs/plans/expressions/design.md); OPTIONAL — absent = the FK cascade + a later GC sweep. */
   readonly listCharacterSpriteAssets?: ListCharacterSpriteAssetsOp;
   readonly attachCardTag: AttachCardTagOp;
   readonly detachCardTag: DetachCardTagOp;

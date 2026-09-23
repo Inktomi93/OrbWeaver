@@ -1,5 +1,5 @@
 // features/config — front door (UI-Arch §2.1). The HOST of the unified Settings workspace (the
-// Configuration section, config-revamp-design.md): the section frame, the four-shelf LIST with every
+// Configuration section): the section frame, the four-shelf LIST with every
 // group's band chrome and the scroll-spy, the CONTENT host that renders a group's body or an open member's
 // editor, the welcome, the context routing, and the one kinded selection.
 //

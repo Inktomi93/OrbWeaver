@@ -183,7 +183,7 @@ export function MessageList<T>({
     count: items.length,
     getScrollElement: () => scrollRef.current,
     // EVERY LENGTH HANDED TO THE VIRTUALIZER IS AN INTEGER, AND THAT IS A CRISPNESS INVARIANT (#1362 —
-    // integer-line-boxes.md Law 3), not defensiveness. `directDomUpdatesMode: "position"` makes
+    // docs/law/integer-line-boxes.md Law 3), not defensiveness. `directDomUpdatesMode: "position"` makes
     // react-virtual write `el.style.top = ${item.start}px` on every row, and `item.start` is the running
     // sum of paddingStart + Σ(size + gap). virtual-core already rounds MEASURED sizes (its own
     // `measureElement` does `Math.round(borderBoxSize)`), so the only fractional input is what the caller
@@ -332,7 +332,7 @@ export function MessageList<T>({
       getDistanceFromEnd: () => virtualizer.getDistanceFromEnd(),
       scrollToEnd: () => {
         setFollowing(true);
-        // An explicit jump abandons an active pin (PD-147): clear the pinned index + collapse the
+        // An explicit jump abandons an active pin: clear the pinned index + collapse the
         // spacer BEFORE the end offset is computed, else getMaxScrollOffset() (= scrollHeight -
         // clientHeight) counts the spacer void and the jump lands past the last real row into it.
         // Defer one frame so paddingEnd=0 lands in the scroll height first (mirrors pinToIndex).

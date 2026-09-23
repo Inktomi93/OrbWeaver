@@ -3,7 +3,7 @@
 //
 // WHY IT EXISTS (owner ruling 2026-08-19, issue #303): there is ONE central world_books store and books
 // attach through junctions — the regex (D23) / tags (D30) central-with-junction pattern. A character card's
-// embedded `character_book` is the FALLBACK channel (the reference channel — `linkCarriedBooks`, PD-144 —
+// embedded `character_book` is the FALLBACK channel (the reference channel — `linkCarriedBooks` —
 // wins first; the embedded clone only runs when NO reference resolved, exactly like regex's carried-vs-content
 // split). Before this rule the fallback ALWAYS minted a fresh world_books row, so importing two cards that
 // carry the SAME book bred two central copies. This planner is what lets the fallback LINK to an existing

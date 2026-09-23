@@ -25,12 +25,10 @@ const DEPCRUISE_SOURCE_RE = /\.(?:ts|tsx|js|jsx|mts|cts)$/u;
 function isDepcruisePath(path: string): boolean {
   return DEPCRUISE_SOURCE_RE.test(path) && (path.startsWith("packages/") || path.startsWith("tooling/") || isWorldHelperPath(path));
 }
-// The formatter's living trees under docs/ (`doc-catalog/ops/format.ts` LIVING_TREES, minus the parked
-// set): the architecture corpus plus the four trees the `doc` tool governs (`doc-catalog/lib/vocab.ts`
-// DOC_TOOL_TREES). Spelled here because a `#doc-catalog` import would chain-load the formatter into every
-// selection.
-const DOCS_MD_RE = /^docs\/(?:architecture|adr|plans|work|law)\/.*\.md$/u;
-const DOCS_PROPOSED_RE = /^docs\/architecture\/proposed\//u;
+// The formatter's living trees under docs/ (`doc/ops/format.ts` LIVING_TREES): the four trees the `doc`
+// tool governs (`doc/contract/vocab.ts` DOC_TOOL_TREES). Spelled here because a `#doc` import would
+// chain-load the formatter into every selection.
+const DOCS_MD_RE = /^docs\/(?:adr|plans|work|law)\/.*\.md$/u;
 const SCOPE_GLOB_TAIL_RE = /\/\*\*$/u;
 const TRAILING_SLASH_RE = /\/+$/u;
 
@@ -62,7 +60,7 @@ function deriveViews(
     // view below still drives tsconfig/graph/structure/deletion semantics.
     eslintPaths: filterPaths(existingPaths, (p) => ESLINT_RE.test(p) || isNodeToolSource(p)),
     depcruisePaths: filterPaths(existingPaths, isDepcruisePath),
-    docsPaths: filterPaths(existingPaths, (p) => DOCS_MD_RE.test(p) && !DOCS_PROPOSED_RE.test(p)),
+    docsPaths: filterPaths(existingPaths, (p) => DOCS_MD_RE.test(p)),
     tsconfigs: typecheck.programs,
     ct: ctView(paths, root),
   };

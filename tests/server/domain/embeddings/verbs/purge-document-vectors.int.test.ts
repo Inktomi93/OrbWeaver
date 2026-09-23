@@ -1,4 +1,4 @@
-// verb: purgeDocumentVectors — PD-139(c), the databank arm of the PD-104 old-space reclaim. After a BULK
+// verb: purgeDocumentVectors — the databank arm of the old-space reclaim. After a BULK
 // databank-reindex re-embeds every document chunk into the box's active embed (model) space, rows left in any
 // OTHER space are stranded (document_chunks keys its upsert ON model, so a model change accretes a new space
 // beside the old). This deletes them, mirroring purgeMemoryVectors. The active model is roleClients.embedModel.
@@ -14,7 +14,7 @@ import { EMBED_DIM, EMBED_MODEL, embedAs, makeStoreHarness, seedDocument, seedUs
 
 const OLD_MODEL = "old-embed-model-v1";
 
-describe("purgeDocumentVectors (PD-139(c))", () => {
+describe("purgeDocumentVectors", () => {
   test("retains the previous document corpus until the other embed scopes complete", async () => {
     const db = await freshDb();
     const harness = makeStoreHarness(db); // roleClients.embedModel === EMBED_MODEL

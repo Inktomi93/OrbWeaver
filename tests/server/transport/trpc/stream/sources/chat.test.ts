@@ -105,7 +105,7 @@ describe("the chat room — durable-first resume", () => {
     });
 
     const iterator = await openChatRoom(ctx, { sinceSeq: 5 });
-    // PD-134: `chatOpened` synthesizes FIRST at attach, carrying the resume cursor as its frame seq (never
+    // `chatOpened` synthesizes FIRST at attach, carrying the resume cursor as its frame seq (never
     // advancing it — a reconnect resumes from the same durable point).
     const opened = await iterator.next();
     const first = await iterator.next();
@@ -189,10 +189,10 @@ describe("the chat room — durable-first resume", () => {
   });
 });
 
-// The subscription-side syntheses (PD-134 chatOpened + PD-135 historyTruncated): synthesized per pump, never
+// The subscription-side syntheses (chatOpened + historyTruncated): synthesized per pump, never
 // bus-published / logged. A synthetic carries the CURRENT resume cursor as its frame `seq`, so it never
 // advances the room's cursor — a reconnect replays from the same point.
-describe("the chat room — synthesized attach/resume events (PD-134/PD-135)", () => {
+describe("the chat room — synthesized attach/resume events", () => {
   // ⚠️ THIS CASE'S SEQ CHANGED (R3 — the fresh-context verifier's R1-2). It used to assert `seq === 0` on a
   // cursor-less attach, and that 0 WAS the message-loss window: the client adopted nothing, so having never
   // applied a durable frame it reconnected with a null cursor too — which requests no replay at all — and a
@@ -201,7 +201,7 @@ describe("the chat room — synthesized attach/resume events (PD-134/PD-135)", (
   // non-advancement rule it was protecting is intact, and the RESUMING case below states it positively:
   // nothing here can advance a cursor past an UNDELIVERED row, because a cursor-less attach delivers no
   // durable rows — the client's canon read already covers everything at or below `maxSeq`.
-  test("PD-134: a CURSOR-LESS attach yields `chatOpened` FIRST stamped with the room's high-water, and replays nothing", async () => {
+  test("a CURSOR-LESS attach yields `chatOpened` FIRST stamped with the room's high-water, and replays nothing", async () => {
     const chatEventBounds = vi.fn<ChatService["chatEventBounds"]>(async () => BOUNDS);
     const replayChatEvents = vi.fn<ChatService["replayChatEvents"]>(async () => []);
     const ctx = makeContext({
@@ -285,7 +285,7 @@ describe("the chat room — synthesized attach/resume events (PD-134/PD-135)", (
     expect(seqOf(opened)).toBe(1);
   });
 
-  test("PD-135: a cursor PREDATING the retained window yields `historyTruncated` after chatOpened, BEFORE the retained rows", async () => {
+  test("a cursor PREDATING the retained window yields `historyTruncated` after chatOpened, BEFORE the retained rows", async () => {
     // minSeq=5 ⇒ events 1..4 were dropped; resume cursor 1 predates the window (1 < 5 - 1) ⇒ truncated.
     const chatEventBounds = vi.fn<ChatService["chatEventBounds"]>(async () => ({
       minSeq: 5,
@@ -320,7 +320,7 @@ describe("the chat room — synthesized attach/resume events (PD-134/PD-135)", (
     expect(seqOf(secondRow)).toBe(6);
   });
 
-  test("PD-135: a cursor INSIDE the retained window replays WITHOUT `historyTruncated`", async () => {
+  test("a cursor INSIDE the retained window replays WITHOUT `historyTruncated`", async () => {
     // minSeq=1 ⇒ nothing dropped; resume cursor 3 is caught up within the window (3 < 1 - 1 is false).
     const chatEventBounds = vi.fn<ChatService["chatEventBounds"]>(async () => ({
       minSeq: 1,
@@ -346,7 +346,7 @@ describe("the chat room — synthesized attach/resume events (PD-134/PD-135)", (
     expect(seqOf(next)).toBe(4);
   });
 
-  test("PD-134 round-trip: the chatOpened synthetic does NOT corrupt the resume cursor — replay runs from the same sinceSeq", async () => {
+  test("round-trip: the chatOpened synthetic does NOT corrupt the resume cursor — replay runs from the same sinceSeq", async () => {
     // Even caught-up-at-window-floor (minSeq=1, cursor 0): the replay uses the client cursor unchanged, and
     // the synthetic's seq equals that cursor (never a faked/advanced durable seq).
     const chatEventBounds = vi.fn<ChatService["chatEventBounds"]>(async () => ({
