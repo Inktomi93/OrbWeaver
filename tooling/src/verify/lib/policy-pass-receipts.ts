@@ -2,6 +2,7 @@
 // facts and policies, the finish/evaluate hook drivers, the PolicyOwnerResult/GateFactOwnerResult mappers,
 // and the ordinary-waiver carrier acquisition central authority reconciliation reads.
 import type { SourceFile } from "ts-morph";
+import type { GateOwnerResult } from "../contract/gate-authority.ts";
 import type { OrdinaryWaiverCarrierRefusal, OrdinaryWaiverCarriers, OrdinaryWaiverSource } from "../contract/ordinary-waiver-source.ts";
 import type { GatePolicy } from "../contract/policy.ts";
 import type { GateFactOwnerResult, PolicyFactValueRegistry, PolicyOwnerResult, PolicySemanticReceipt, PolicyToolError } from "../contract/policy-pass.ts";
@@ -147,6 +148,13 @@ export function ownerResult(run: PolicyRun): PolicyOwnerResult {
     receipts: run.receipts,
     timing: finishTiming(run.timing),
   };
+}
+
+/** The one mapping from a dispatched owner to the central authority's input; re-coordinating callers reuse it. */
+export function authorityOwnerResult({ id, population, owner, findings }: PolicyOwnerResult): GateOwnerResult {
+  const effective = new Set([...population.effectiveSourcePaths, ...population.effectiveResourcePaths]);
+  const whole = [...population.declaredSourcePaths, ...population.declaredResourcePaths].every((path) => effective.has(path));
+  return { policyId: id, populationFiles: [...effective].toSorted(), coverage: whole ? "whole" : "subset", owner, findings };
 }
 
 export function factResult(run: FactRun): GateFactOwnerResult {

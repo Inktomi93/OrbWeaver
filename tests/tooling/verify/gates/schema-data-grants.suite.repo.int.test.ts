@@ -15,6 +15,7 @@ import { gate as openJsonColumnKeyParity } from "../../../../tooling/src/verify/
 import { gate as wireSchemaVocabOneHome } from "../../../../tooling/src/verify/gates/wire-schema-vocab-one-home.ts";
 import { coordinateGateAuthority } from "../../../../tooling/src/verify/lib/gate-authority.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { authorityOwnerResult } from "../../../../tooling/src/verify/lib/policy-pass-receipts.ts";
 import { reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
@@ -63,12 +64,7 @@ test(
       expect(policy.owner.status, policy.id).toBe("success");
     }
 
-    const owners: readonly GateOwnerResult[] = dispatched.policies.map((policy) => ({
-      policyId: policy.id,
-      populationFiles: [...new Set([...policy.population.effectiveSourcePaths, ...policy.population.effectiveResourcePaths])].toSorted(),
-      owner: policy.owner,
-      findings: policy.findings,
-    }));
+    const owners: readonly GateOwnerResult[] = dispatched.policies.map(authorityOwnerResult);
     const expectedIds = grants.map(({ id }) => id).toSorted();
 
     const exact = authority(owners, grants);
