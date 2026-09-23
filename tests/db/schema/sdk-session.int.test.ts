@@ -90,7 +90,9 @@ test("a session_entry round-trips (branded chatId; numeric timestamp; isPrimary 
   expect(row?.seq).toBe(LINEAGE_HEAD_SEQ);
   expect(row?.seededThroughSeq).toBe(SEEDED_THROUGH_SEQ);
   expect(row?.canonHash).toBe(CANON_HASH);
-  // keepPrimary defaults false — a fresh entry is reaped-secondary until promoted.
+  // The column defaults false; this test inserts directly and bypasses the writer
+  // (session-entries.ts), which demotes the connection's old seat then promotes the new row
+  // in one batch on every real write.
   expect(row?.isPrimary).toBe(false);
   // Timestamps are plain epoch-ms numbers, born at insert via (unixepoch() * 1000).
   expect(row?.createdAt).toBeTypeOf("number");
