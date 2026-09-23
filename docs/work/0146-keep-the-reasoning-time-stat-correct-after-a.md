@@ -1,6 +1,6 @@
 ---
 kind: bug
-status: done
+status: open
 updated: 2026-09-23
 priority: P3
 area: chat
@@ -42,5 +42,5 @@ Floor run: `pnpm test:scoped` on the chat engine/turn/continue suites (`engine.i
 `engine-stats.suite.int.test.ts`, `pipeline.test.ts`, `turn.int.test.ts`, `turn-accept-slot.suite.int.test.ts`,
 `fork.int.test.ts`, `volatile-freeze-record.suite.int.test.ts`, `recover-narrative.test.ts`) and the stats
 write suites (`apply-delta.int.test.ts`, `drift-gate.suite.int.test.ts`, `rebuild-from-canon.int.test.ts`,
-`stats-delta.test.ts`) — 463 tests passed. `pnpm typecheck` on `packages/server/tsconfig.json` and
+`stats-delta.test.ts`) — all passed. `pnpm typecheck` on `packages/server/tsconfig.json` and
 `tsconfig.tests-iso.json` — clean. Scoped `biome check` and `eslint` on both touched files — clean.
