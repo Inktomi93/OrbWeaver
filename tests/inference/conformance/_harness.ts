@@ -103,10 +103,19 @@ export interface ChatScript {
   /** The wire's RAW stop word on the terminal frame, or `null` to OMIT the terminal frame entirely — the
    *  #1400 TRUNCATION control: a stream that simply ends must fail closed, never commit an empty reply. */
   readonly stop: string | null;
+  /** The WHOLE prompt: uncached input plus the cache read and write below. Each rendering spells it in the
+   *  wire's own grammar (Anthropic's `input_tokens` is the uncached part only). */
   readonly tokensIn: number;
   readonly tokensOut: number;
   /** A cost figure on the wire's own accounting channel, where it has one. */
   readonly costUsd?: number | undefined;
+  /** Prompt tokens served from the cache, a part of `tokensIn`. */
+  readonly cacheRead?: number | undefined;
+}
+
+/** The uncached part of the script's prompt: Anthropic's `input_tokens`. */
+function uncachedInput(script: ChatScript): number {
+  return script.tokensIn - (script.cacheRead ?? 0);
 }
 
 function openAiChunk(choice: Record<string, unknown>, usage?: Record<string, unknown>): SseEvent {
@@ -131,6 +140,7 @@ function openAiCompatScript(script: ChatScript): SseEvent[] {
         prompt_tokens: script.tokensIn,
         completion_tokens: script.tokensOut,
         total_tokens: script.tokensIn + script.tokensOut,
+        ...(script.cacheRead !== undefined ? { prompt_tokens_details: { cached_tokens: script.cacheRead } } : {}),
         ...(script.costUsd !== undefined ? { cost: script.costUsd } : {}),
       },
     ),
@@ -153,7 +163,7 @@ function anthropicScript(script: ChatScript): SseEvent[] {
           model: "m",
           content: [],
           stop_reason: null,
-          usage: { input_tokens: script.tokensIn, output_tokens: 1 },
+          usage: { input_tokens: uncachedInput(script), cache_read_input_tokens: script.cacheRead ?? 0, output_tokens: 1 },
         },
       },
     },
@@ -207,12 +217,12 @@ function agentSdkFrames(script: ChatScript, model: string): Record<string, unkno
     terminal_reason: "completed",
     errors: [],
     permission_denials: [],
-    usage: { input_tokens: script.tokensIn, output_tokens: script.tokensOut },
+    usage: { input_tokens: uncachedInput(script), cache_read_input_tokens: script.cacheRead ?? 0, output_tokens: script.tokensOut },
     modelUsage: {
       [model]: {
-        inputTokens: script.tokensIn,
+        inputTokens: uncachedInput(script),
         outputTokens: script.tokensOut,
-        cacheReadInputTokens: 0,
+        cacheReadInputTokens: script.cacheRead ?? 0,
         cacheCreationInputTokens: 0,
         costUSD,
         webSearchRequests: 0,

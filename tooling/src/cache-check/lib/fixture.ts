@@ -11,9 +11,9 @@ const PREFIX_HEADROOM = 1.5;
 // Measured on Claude's tokenizer for the record template below.
 const LORE_RECORD_TOKENS = 52;
 const LORE_RECORDS = Math.ceil((FLOOR_CALIBRATION.prefixTokens * PREFIX_HEADROOM) / LORE_RECORD_TOKENS);
-/** The output cap for every probe turn. A narrator reply voices every character, so one sentence is not enough;
- *  a reply is never part of the prompt it answers, so the cap costs output tokens, not cache share. */
-export const REPLY_MAX_TOKENS = 300;
+/** The output cap for every probe turn. A narrator reply voices every character and runs past a few hundred
+ *  tokens, and the agent-sdk route turns a capped reply into continuation calls and an error, not a truncation. */
+export const REPLY_MAX_TOKENS = 1024;
 
 const MONTHS = ["thaw", "bloom", "high", "ember", "frost"] as const;
 const WINDS = ["north", "east", "south", "west"] as const;
