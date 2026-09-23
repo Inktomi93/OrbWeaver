@@ -569,11 +569,10 @@ async function applyDynamicTransform(args: RunTurnPipelineArgs, built: Assembled
  *  Shipping both tells the model to do two incompatible things with the same turn end, and ST refuses the
  *  combination outright rather than find out what a given provider does with it.
  *
- *  Not hypothetical: `turns.assistantPrefill` is true for `anthropic/claude-opus-4-5`, `claude-haiku-4-5` and
- *  (since 2026-08-19) the local vLLM arm, and a FOLDED rpg game attaches 6 terminal tools to the character
- *  turn — so those models shipped prefill+tools together on every game turn until this gate. Both tool
- *  channels count: `attachedToolNames` (the executed/recursed set) and `terminalTools` (the R1 folded set,
- *  attached `tool_choice:"auto"` and never recursed). */
+ *  Not hypothetical: `turns.assistantPrefill` is true for the local vLLM arm, and a FOLDED rpg game attaches
+ *  terminal tools to the character turn — so that model shipped prefill+tools together on every game turn
+ *  until this gate. Both tool channels count: `attachedToolNames` (the executed/recursed set) and
+ *  `terminalTools` (the R1 folded set, attached `tool_choice:"auto"` and never recursed). */
 function honorsAssistantPrefill(args: RunTurnPipelineArgs): boolean {
   return acceptsAssistantPrefill(generationOf(args.connection)) && !turnCarriesTools(args);
 }
@@ -699,8 +698,8 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
   const fitted = fitHistory(wireCostRows(converted), budget);
   // The fit's contract is "drop the OLDEST `droppedCount` rows", so the same slice recovers the kept wire
   // rows without re-deriving anything — one conversion, one ordering, no parallel bookkeeping to drift.
-  // …and the empty-row drop re-anchors the §8 breakpoint with it: it is an OFFSET FROM THE END, which the
-  // fit's front-trim preserves for free and a mid-array drop does not (#1543 — see `shiftBreakpoint`).
+  // …and the empty-row drop re-anchors the §8 breakpoint with it: it is a DEPTH from the end, which the fit's
+  // front-trim preserves for free and a mid-array drop does not (#1543 — see `shiftBreakpoint`).
   const { kept, cacheBreakpointFromEnd } = dropEmptyWireRows(converted.slice(fitted.droppedCount), shaped.cacheBreakpointFromEnd);
   const history = kept.map((w) => w.row);
   // Total context consumption for the managed-compaction trigger: kept history + system + reserved output.

@@ -5,13 +5,15 @@
 // undefined divergence, and the no-if(isGroup) solo-byte-identical contract.
 import type { AssembleContext, ChatInjection, MessageView } from "@orb/contracts/chat";
 import type { RoleHandling } from "@orb/contracts/inference";
-import { ROLE_HANDLING } from "@orb/contracts/inference";
+import { ROLE_HANDLING, SYSTEM_ROW_PLACEMENT } from "@orb/contracts/inference";
 import type { NamesBehavior } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { proseOverridesSchema } from "@orb/contracts/prose";
+import { rowIndexAtCacheDepth } from "@orb/inference";
 import type { CharacterId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
+import type { MessageRole } from "@orb/kit/message-role";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { describe } from "vitest";
 import { BEFORE_HISTORY_DEPTH } from "../../../../../packages/server/src/domain/chat/assembly/injections.ts";
@@ -57,6 +59,12 @@ const inChat = (over: Partial<ChatInjection>): ChatInjection => ({
   ...over,
 });
 
+/** The delivered row the runner pins for SHAPE's depth — resolved with the runner's own depth counter. */
+function pinnedRow(out: ReturnType<typeof shape>): { role: string; content: string } | undefined {
+  const index = rowIndexAtCacheDepth(out.history, out.cacheBreakpointFromEnd ?? -1);
+  return index === undefined ? undefined : out.history[index];
+}
+
 describe("shape — the breakpoint", () => {
   test("clean send: breakpoint pins the prior tip (offset 1)", () => {
     const out = shape(soloInput());
@@ -74,16 +82,18 @@ describe("shape — the breakpoint", () => {
     expect(shape(soloInput({ canon: longer, appendUserTurn: "u3" })).cacheBreakpointFromEnd).toBe(1);
   });
 
-  test("ABORT #1: a depth≥2 in_chat injection → undefined", () => {
-    expect(shape(soloInput({ injections: [inChat({ depth: 2, content: "deep" })] })).cacheBreakpointFromEnd).toBeUndefined();
+  // Owner ruling: a depth ≥ 2 injection moves the pin above itself instead of removing it. Here the note merges
+  // into u1, so the pin is the greeting above that row.
+  test("a depth≥2 in_chat injection pins the row above it instead of aborting", () => {
+    const out = shape(soloInput({ injections: [inChat({ depth: 2, content: "deep" })] }));
+    expect(out.breakpointDecision).toBe("placed");
+    expect(pinnedRow(out)?.content).toBe("greeting");
   });
 
-  // #1462 — the trace's decision label used to be RE-DERIVED downstream from stage row counts, and a deep
-  // injection ADDS a row, so `named.length < withTail.length` read false and this abort was reported as
-  // "second-volatile-tail": the host was pointed at a nudge that does not exist and away from the injection
-  // that actually cost them the cache. Each abort now carries the reason its own branch decided.
-  test("the deep-injection abort reports its OWN cause, not a phantom second tail", () => {
-    expect(shape(soloInput({ injections: [inChat({ depth: 2, content: "deep" })] })).breakpointDecision).toBe("in-prefix-injection-or-squash");
+  // #1462 — each abort carries the reason its own branch decided. An injection that lands on the very first
+  // row (clamped to the top of a short history, not the anchored new-chat marker) leaves nothing to pin.
+  test("an injection on the first row leaves no stable prefix, and says so", () => {
+    expect(shape(soloInput({ injections: [inChat({ depth: 99, content: "top" })] })).breakpointDecision).toBe("in-prefix-injection-or-squash");
   });
 
   test("a placed breakpoint reports `placed`", () => {
@@ -179,8 +189,8 @@ describe("shape — no-if(isGroup): solo is byte-identical", () => {
   });
 });
 
-describe("shape — egocentric scoped fold (the neo-quirk → undefined)", () => {
-  test("scoped per-speaker targeting Kai folds Aria's turns to user + collapses; breakpoint undefined", () => {
+describe("shape — egocentric scoped fold", () => {
+  test("scoped per-speaker targeting Kai folds Aria's turns to user + collapses; the pin is Kai's own reply", () => {
     const groupCanon = [
       { role: "assistant" as const, content: "greeting", authorName: "Aria", characterId: ARIA },
       { role: "user" as const, content: "u1", authorName: "User" },
@@ -207,9 +217,10 @@ describe("shape — egocentric scoped fold (the neo-quirk → undefined)", () =>
       { role: "assistant", content: "Kai replies" },
       { role: "user", content: "u2 to Kai" },
     ]);
-    // The prefix-collapse violates the single-volatile-tail invariant → orbweaver returns undefined
-    // (neo's degenerate -1, corrected). the chat design doc Part III §12 inv 7.
-    expect(out.cacheBreakpointFromEnd).toBeUndefined();
+    // The fold is a pure function of (canon, target), and a scoped turn's system block is already per target,
+    // so the folded prefix repeats byte for byte on Kai's next turn: the pin is Kai's own reply.
+    expect(out.breakpointDecision).toBe("placed");
+    expect(pinnedRow(out)?.content).toBe("Kai replies");
   });
 });
 
@@ -283,49 +294,94 @@ describe("shape — F2: adjacent distinct-character rows keep EACH speaker's lab
 });
 
 describe("computeHistoryBreakpoint — direct math", () => {
-  const u = (content: string): { role: "user"; content: string } => ({ role: "user", content });
-  const a = (content: string): { role: "assistant"; content: string } => ({
-    role: "assistant",
-    content,
-  });
+  const stable = (role: MessageRole): { role: MessageRole; stable: true } => ({ role, stable: true });
+  const volatile = (role: MessageRole): { role: MessageRole; stable: false } => ({ role, stable: false });
 
-  test("clean 4-row final, stableCount 3 → offset 1", () => {
-    const withTail = [a("g"), u("u1"), a("tip"), u("vol")];
-    expect(computeHistoryBreakpoint(withTail, withTail, withTail, { injections: [] })).toEqual({ offsetFromEnd: 1, decision: "placed" });
-  });
-
-  test("stableCount < 1 (only the volatile tail) → undefined", () => {
-    const withTail = [u("only")];
-    expect(computeHistoryBreakpoint(withTail, withTail, withTail, { injections: [] })).toEqual({ offsetFromEnd: undefined, decision: "no-stable-prefix" });
-  });
-
-  test("scoped-fold collapse (finalLen < stableCount) → undefined (the quirk guard)", () => {
-    const withTail = [u("a"), u("b"), u("c"), a("k"), u("vol")]; // stableCount 4
-    const collapsed = [u("a\n\nb\n\nc"), a("k"), u("vol")]; // finalLen 3 → raw offset -1
-    expect(
-      computeHistoryBreakpoint(withTail, withTail, collapsed, {
-        injections: [],
-        scopedFold: true,
-      }),
-    ).toEqual({ offsetFromEnd: undefined, decision: "in-prefix-injection-or-squash" });
-  });
-
-  // F5: GROUP canon — two back-to-back single-speaker rounds (…a1, a2…) are adjacent same-role rows that
-  // squash INSIDE the stable prefix; a depth-1 assistant injection splices at the boundary and masks the
-  // collapse. The old `finalLen - stableCount` pinned the per-turn injection (wrong-but-positive); counting
-  // from the squashed prefix length pins the true last-stable message (u2) at offset 2.
-  test("group-canon prefix merge + a boundary injection → offset lands on the last stable message", () => {
-    // withTail = [a0, u1, a1, a2, u2, regen]; stableCount 5. injected splices an assistant note between u2
-    // and the volatile regen. squash merges a1+a2 → the final is [a0, u1, a1a2, u2, note, regen] (len 6).
-    const withTail = [a("a0"), u("u1"), a("a1"), a("a2"), u("u2"), u("regen")];
-    const injected = [a("a0"), u("u1"), a("a1"), a("a2"), u("u2"), a("note"), u("regen")];
-    const final = [a("a0"), u("u1"), a("a1\n\na2"), u("u2"), a("note"), u("regen")];
-    const { offsetFromEnd: offset } = computeHistoryBreakpoint(withTail, injected, final, {
-      injections: [{ position: "in_chat", depth: 0 }],
+  test("clean history: the reply before the volatile turn is depth 1", () => {
+    expect(computeHistoryBreakpoint([stable("assistant"), stable("user"), stable("assistant"), volatile("user")], true)).toEqual({
+      offsetFromEnd: 1,
+      decision: "placed",
     });
-    expect(offset).toBe(2);
-    // The tag must pin u2 (the last real message), NOT the per-turn injection at index 4.
-    expect(final.at(-(offset ?? 0) - 1)).toEqual({ role: "user", content: "u2" });
+  });
+
+  test("no committed row before the volatile turn → no-stable-prefix", () => {
+    expect(computeHistoryBreakpoint([volatile("user")], false)).toEqual({ offsetFromEnd: undefined, decision: "no-stable-prefix" });
+  });
+
+  test("a volatile first row leaves nothing to pin → in-prefix-injection-or-squash", () => {
+    expect(computeHistoryBreakpoint([volatile("user"), stable("assistant"), volatile("user")], true)).toEqual({
+      offsetFromEnd: undefined,
+      decision: "in-prefix-injection-or-squash",
+    });
+  });
+
+  // The runner resolves a depth to the NEWEST row of that role group, so a stable row that shares its group with a
+  // volatile row (two user rows under `none`) is not addressable; the pin walks back to the group above.
+  test("a stable row whose role group runs into a volatile row walks the pin back one group", () => {
+    const rows = [stable("assistant"), stable("user"), volatile("user")];
+    expect(computeHistoryBreakpoint(rows, true)).toEqual({ offsetFromEnd: 1, decision: "placed" });
+  });
+
+  // A system row is transparent to the depth on both sides: the pin above a trailing system run, and the pin
+  // across a kept mid-array note, count only user/assistant groups.
+  test("system rows consume no depth", () => {
+    expect(computeHistoryBreakpoint([stable("assistant"), stable("user"), stable("assistant"), volatile("user"), volatile("system")], true)).toEqual({
+      offsetFromEnd: 1,
+      decision: "placed",
+    });
+    expect(computeHistoryBreakpoint([stable("assistant"), stable("user"), volatile("system"), stable("assistant"), volatile("user")], true)).toEqual({
+      offsetFromEnd: 2,
+      decision: "placed",
+    });
+  });
+});
+
+// ── The cache pair pins ABOVE the deepest in_chat injection (owner ruling) ───────────────────────────────
+// A depth ≥ 2 injection used to remove every history breakpoint, so the whole history was billed each turn
+// while an author's note or a depth-N world-info entry was active (SHAPING-MATRIX §8 defect 2). The pin now sits
+// on the last stable row above it, counted in role groups exactly as the runner counts them.
+describe("shape — the history pin sits above the deepest injection", () => {
+  const canon = [
+    { role: "assistant" as const, content: "g", authorName: "Aria", characterId: ARIA },
+    { role: "user" as const, content: "u1", authorName: "User" },
+    { role: "assistant" as const, content: "a1", authorName: "Aria", characterId: ARIA },
+    { role: "user" as const, content: "u2", authorName: "User" },
+    { role: "assistant" as const, content: "a2", authorName: "Aria", characterId: ARIA },
+  ];
+  const note = inChat({ role: "system", depth: 4, content: "NOTE" });
+  const slotted = { midConversationSystem: true, historySystemRows: true, roleHandlingFloor: "slotted" as const };
+
+  test("a depth-4 note kept as a system row pins the user row above it", () => {
+    const out = shape(soloInput({ canon, appendUserTurn: "u3", injections: [note], ...slotted }));
+    expect(out.breakpointDecision).toBe("placed");
+    expect(pinnedRow(out)?.content).toBe("u1");
+  });
+
+  test("a depth-4 note folded into the row below it pins the row above that one", () => {
+    const out = shape(soloInput({ canon, appendUserTurn: "u3", injections: [note] }));
+    expect(out.breakpointDecision).toBe("placed");
+    expect(pinnedRow(out)?.content).toBe("g");
+  });
+
+  test("the note moves with the history, and the next turn repeats this turn's pinned prefix byte for byte", () => {
+    const first = shape(soloInput({ canon, appendUserTurn: "u3", injections: [note], ...slotted }));
+    const grown = [
+      ...canon,
+      { role: "user" as const, content: "u3", authorName: "User" },
+      { role: "assistant" as const, content: "a3", authorName: "Aria", characterId: ARIA },
+    ];
+    const second = shape(soloInput({ canon: grown, appendUserTurn: "u4", injections: [note], ...slotted }));
+    const pin = rowIndexAtCacheDepth(first.history, first.cacheBreakpointFromEnd ?? -1) ?? -1;
+    expect(pin).toBeGreaterThanOrEqual(0);
+    expect(second.history.slice(0, pin + 1)).toEqual(first.history.slice(0, pin + 1));
+    expect(rowIndexAtCacheDepth(second.history, second.cacheBreakpointFromEnd ?? -1)).toBeGreaterThan(pin);
+  });
+
+  test("the new-chat marker above the first row never blocks the pin", () => {
+    const marker = inChat({ depth: BEFORE_HISTORY_DEPTH, role: "user", content: "[Start a new chat]", origin: "new-chat-marker" });
+    const out = shape(soloInput({ injections: [marker] }));
+    expect(out.history[0]?.content).toBe("[Start a new chat]");
+    expect(pinnedRow(out)?.content).toBe("a1 tip");
   });
 });
 
@@ -457,8 +513,9 @@ describe("shape — midConversationSystem gates the depth-0 system-injection del
     const out = shape(soloInput({ injections: [sysInj], midConversationSystem: true, roleHandlingFloor: "slotted" }));
     expect(out.history.at(-1)).toEqual({ role: "system", content: "GM note" });
     expect(out.history.at(-2)).toEqual({ role: "user", content: "u2 volatile" });
-    // The stable prefix is untouched (depth 0 lands after the volatile tail): squashed prefix 3 of 5 rows.
-    expect(out.cacheBreakpointFromEnd).toBe(2);
+    // The depth counts role groups and a system row is transparent, so the pin is the reply before the turn.
+    expect(out.cacheBreakpointFromEnd).toBe(1);
+    expect(pinnedRow(out)?.content).toBe("a1 tip");
   });
 
   test("not capable (default): byte-identical demote — the note folds into the adjacent user tail (regression pin)", () => {
@@ -1316,6 +1373,18 @@ describe("shape — system rows by level × turn × injection", () => {
       { "d0 system then user": ["AUAUAU", ["level"]], "d0 user then system": ["AUAUAU", ["level"]], "d4 system": ["AUAUAU", ["level"]] },
     ),
   };
+  /** The row the cache pins on a send: the reply before the new turn, or — with the depth-4 note — the user row
+   *  above the note when it stays a system row, and the greeting when it folds into that user row. A cued round
+   *  pins nothing yet. */
+  const expectedPin = (level: RoleHandling, turn: TurnName, injection: InjectionName): string | undefined => {
+    if (turn === "round" || turn === "narrator") {
+      return;
+    }
+    if (injection !== "d4 system") {
+      return "a2";
+    }
+    return SYSTEM_ROW_PLACEMENT[level] === "fold" ? "g" : "u1";
+  };
   const levelClass: Record<RoleHandling, keyof typeof expected> = { none: "none", merge: "merge", slotted: "slotted", "semi-strict": "folds", strict: "folds" };
   const roleLetter = { assistant: "A", user: "U", system: "S" } as const;
 
@@ -1336,6 +1405,8 @@ describe("shape — system rows by level × turn × injection", () => {
           const [roles, folds] = expected[levelClass[level]][turn][injection];
           expect(out.history.map((row) => roleLetter[row.role]).join("")).toBe(roles);
           expect(out.stages.delivered.flatMap((row) => (row.folded === undefined ? [] : [row.folded]))).toStrictEqual(folds);
+          // The cache pin: the last stable row above every injection and every row this turn wrote.
+          expect(pinnedRow(out)?.content).toBe(expectedPin(level, turn, injection));
           // Every turn's last non-system row is a user row: SHAPE's cue never lands after a kept system row.
           expect(out.history.findLast((row) => row.role !== "system")?.role).toBe("user");
         });

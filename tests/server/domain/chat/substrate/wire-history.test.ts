@@ -9,11 +9,12 @@
 // pins the COST projection and the index alignment the fit's `droppedCount` slice relies on.
 
 import type { ChatReasoningPart, MessageView } from "@orb/contracts/chat";
+import { rowIndexAtCacheDepth } from "@orb/inference";
 import type { ContentImageRef } from "@orb/kit/content";
 import type { AssetId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
-import { buildWireHistory, wireCostRows } from "../../../../../packages/server/src/domain/chat/substrate/wire-history.ts";
+import { buildWireHistory, dropEmptyWireRows, wireCostRows } from "../../../../../packages/server/src/domain/chat/substrate/wire-history.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 type ShapedRow = Parameters<typeof buildWireHistory>[1][number];
@@ -275,4 +276,29 @@ test("§6.7 the origin read is DEMAND-DRIVEN — a history with no assistant-row
   const converted = await buildWireHistory({ ...env, canon: [canonRow("message_1", "assistant")] }, [row("assistant", "No pictures here.", "message_1")]);
 
   expect(converted[0]?.row.content).toEqual([{ type: "text", text: "No pictures here." }]);
+});
+
+// The §8 breakpoint is a DEPTH in role groups (the runner's own counter). Dropping an emptied row can merge two
+// role groups, so the re-anchor resolves the depth to the row it pinned and recounts on the kept rows: the pin
+// stays on the SAME stored row, whatever the depth number becomes.
+test("dropping an emptied row between two user rows keeps the pin on the same stored row", async () => {
+  const choicesOnly = ":::choices\n1. north\n:::";
+  const shaped = [row("assistant", "g"), row("user", "u1"), row("assistant", choicesOnly), row("user", "u2"), row("assistant", "a2"), row("user", "tail")];
+  const built = await buildWireHistory(env, shaped);
+  // Depth 2 pins u2, which survives. Depth 3 pins the emptied row itself, and depth 4 pins u1 — which, once the
+  // emptied row is gone, shares a role group with u2 below the pin, so the runner could only address u2: the pin
+  // walks back to the greeting instead of landing on a row past the stable prefix.
+  for (const [depth, pinnedText] of [
+    [1, "a2"],
+    [2, "u2"],
+    [3, "g"],
+    [4, "g"],
+  ] as const) {
+    const { kept, cacheBreakpointFromEnd } = dropEmptyWireRows(built, depth);
+    const at = rowIndexAtCacheDepth(
+      kept.map((wire) => wire.row),
+      cacheBreakpointFromEnd ?? -1,
+    );
+    expect(at === undefined ? undefined : kept[at]?.row.content, `depth ${depth}`).toEqual([{ type: "text", text: pinnedText }]);
+  }
 });
