@@ -111,7 +111,7 @@ function newRun(policy: GatePolicy): PolicyRun {
     population: EMPTY_POPULATION,
     owner: { status: "incomplete", population: "incomplete", reason: POLICY_PASS_REFUSALS.populationUnresolved },
     files: [],
-    effectivePathSet: new Set(),
+    effectiveSourcePathSet: new Set(),
     hooks: undefined,
     receipts: [],
     finishReceipts: undefined,
@@ -130,7 +130,7 @@ function newFactRun(fact: GateFact): FactRun {
     status: "incomplete",
     error: "population has not resolved",
     files: [],
-    effectivePathSet: new Set(),
+    effectiveSourcePathSet: new Set(),
     hooks: undefined,
     receipts: [],
     finishReceipts: undefined,
@@ -174,7 +174,7 @@ function resolveRun({ run, candidates, sourceFiles, requested, resources, depend
     }
     return sourceFile;
   });
-  run.effectivePathSet = new Set([...population.effectiveSourcePaths, ...population.effectiveResourcePaths]);
+  run.effectiveSourcePathSet = new Set(population.effectiveSourcePaths);
   if (disposition === "empty-intersection") {
     run.owner = { status: "not-applicable", population: "complete", reason: POLICY_PASS_REFUSALS.emptyIntersection };
   } else if (disposition === "deferred") {
@@ -348,7 +348,7 @@ export function resolveFactRuns({ facts, sourceFiles, resources, control }: Reso
           }
           return sourceFile;
         });
-        run.effectivePathSet = new Set([...declaredSourcePaths, ...declaredResourcePaths]);
+        run.effectiveSourcePathSet = new Set(declaredSourcePaths);
         run.resourceRequests = fact.resources;
         run.status = "success";
         run.error = null;
