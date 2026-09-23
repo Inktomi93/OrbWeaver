@@ -125,14 +125,12 @@ export const AUTHORED_ARMS: readonly RealCorpusLivenessArm[] = [
   },
   {
     policy: persistenceNoInMemoryState,
-    // A bare `new Map()`, yet on the real tree the verdict is "identity CANNOT be established", not "ambient Map"
-    // as on the fixtures: the real `Map` symbol resolves to lib.es2015 but also carries the repo's own global
-    // augmentations (`platform.d.ts`, `@total-typescript/ts-reset` map-has.d.ts), which the fixture project
-    // lacks, and the policy's identity door does not reach a single ambient target through them (measured
-    // 2026-09-23). The policy still reports, so the real verdict is the one pinned; it may flip if that door
-    // learns to accept the augmentations.
+    // A bare `new Map()` resolves as the ordinary ambient global on the real tree (item 0107): `Map`'s
+    // symbol merges lib declarations with the repo's `platform.d.ts` and `@total-typescript/ts-reset`
+    // augmentations, and the ambient-identity door now recognizes that mix as one origin instead of
+    // refusing it as unreadable.
     overlays: [add(`${CHARACTER_PERSISTENCE}/liveness-cache.ts`, "export const livenessCache = new Map<string, string>();\n")],
-    messageIncludes: "Map/Set/WeakMap/WeakSet CANNOT be established",
+    messageIncludes: "in-memory state (caches, registries) belongs in a named subsystem",
   },
   {
     policy: queryMachineSeals,

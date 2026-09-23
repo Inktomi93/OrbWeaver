@@ -8,14 +8,8 @@
 // files sit beside the real ones in `packages/db/src/schema/`. Several schema policies judge EVERY table, so a
 // schema arm's file also draws `db-structure` / `table-scoping-class` findings; the runner's entanglement check
 // proves those arms alone.
-//
-// `byte-check-cast` HAS NO ARM, BECAUSE IT IS BLIND ON THE REAL TREE (measured 2026-09-23): its own `mustFlag`
-// row, planted verbatim at a real schema path, reports nothing. On the real drizzle package `sql` resolves to TWO
-// declarations (the function and its merged namespace), the shared module-origin reader answers
-// "unresolved: ambiguous", and the policy never recognises a `sql.raw` / `sql\`…\`` CHECK. Its fixture stubs
-// declare `sql` once, which is why every proof row is green. The fix is the origin reader's treatment of a
-// merged function+namespace symbol; the arm lands with it.
 import { gate as assumesSingleReplica } from "../../../../../tooling/src/verify/gates/assumes-single-replica.ts";
+import { gate as byteCheckCast } from "../../../../../tooling/src/verify/gates/byte-check-cast.ts";
 import { gate as contentPartSeam } from "../../../../../tooling/src/verify/gates/content-part-seam.ts";
 import { gate as dCitationIntegrity } from "../../../../../tooling/src/verify/gates/d-citation-integrity.ts";
 import { gate as dbEnumFromTuple } from "../../../../../tooling/src/verify/gates/db-enum-from-tuple.ts";
@@ -314,5 +308,22 @@ export const PRODUCT_DB_SERVER_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "authored type is not assignable to schema output",
+  },
+  {
+    policy: byteCheckCast,
+    // `byte-check-cast`'s own mustFlag row (the founding shape), planted verbatim: a `*_MAX_BYTES` cap over
+    // a bare `length(value)` with no cast — SQLite `length()` on TEXT counts code points, not bytes.
+    overlays: [
+      add(
+        "packages/db/src/schema/liveness-byte-row.ts",
+        'import { sql } from "drizzle-orm";\n' +
+          'import { check, sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +
+          "const KV_VALUE_MAX_BYTES = 65536;\n" +
+          'export const t = sqliteTable("t", { value: text("value") }, () => [\n' +
+          '  check("t_value_check", sql.raw(`length(value) <= ${KV_VALUE_MAX_BYTES}`)),\n' +
+          "]);\n",
+      ),
+    ],
+    messageIncludes: "SQLite `length()` on TEXT counts CODE POINTS, not bytes",
   },
 ];

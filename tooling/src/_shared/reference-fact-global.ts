@@ -60,12 +60,22 @@ function isGlobalAugmentation(declaration: MorphNode): boolean {
   return declaration.getAncestors().some((ancestor) => Node.isModuleDeclaration(ancestor) && ancestor.getName().replace(/^['"]|['"]$/gu, "") === "global");
 }
 
-function isAmbientGlobalDeclaration(declaration: MorphNode): boolean {
+/** The SHAPE of a declaration that ambiently names a global: a non-module `.d.ts` (no top-level
+ *  import/export — a "script global") or a member sitting inside a `declare global {}` block. Shape
+ *  alone does not prove trust — see `isAmbientGlobalDeclaration` below — because a hand-authored `.d.ts`
+ *  anywhere in the repo can take this shape while inventing a name no runtime actually carries. */
+function isGlobalAugmentationShaped(declaration: MorphNode): boolean {
   const sourceFile = declaration.getSourceFile();
-  const path = sourceFile.getFilePath().replaceAll("\\", "/");
-  const trustedDeclaration = path.includes("/node_modules/typescript/lib/lib.") || path.includes("/node_modules/@types/");
   const scriptGlobal = sourceFile.getImportDeclarations().length === 0 && sourceFile.getExportDeclarations().length === 0;
-  return trustedDeclaration && sourceFile.isDeclarationFile() && (scriptGlobal || isGlobalAugmentation(declaration));
+  return sourceFile.isDeclarationFile() && (scriptGlobal || isGlobalAugmentation(declaration));
+}
+
+/** A declaration trusted ENOUGH to establish, on its own, that a symbol names a real ambient global:
+ *  shipped inside TypeScript's own libs or a `@types/*` package. */
+function isAmbientGlobalDeclaration(declaration: MorphNode): boolean {
+  const path = declaration.getSourceFile().getFilePath().replaceAll("\\", "/");
+  const trustedDeclaration = path.includes("/node_modules/typescript/lib/lib.") || path.includes("/node_modules/@types/");
+  return trustedDeclaration && isGlobalAugmentationShaped(declaration);
 }
 
 function ambientDeclarations(symbol: MorphSymbol, node: MorphNode, target: GlobalState): ReferenceFact<readonly MorphNode[]> {
@@ -73,7 +83,18 @@ function ambientDeclarations(symbol: MorphSymbol, node: MorphNode, target: Globa
   if (declarations.length === 0) {
     return unresolved("missing", node, target, `the symbol for ${symbol.getName()} has no declaration`);
   }
-  if (!declarations.every(isAmbientGlobalDeclaration)) {
+  // A symbol counts as the runtime's own ambient global only once ONE of its declarations is itself
+  // trusted (a lib or `@types/*` declaration proves the identity independent of anything the repo or a
+  // vendored package authored) — an untrusted declaration set, however global-shaped, never earns the
+  // identity on its own (#2037's `fake.d.ts`/`augmented.d.ts` controls). Once that anchor exists, an
+  // ADDITIONAL merged declaration outside a trusted path is still the SAME symbol, not a different one:
+  // the repo's own `platform.d.ts` and a package's global augmentation (`@total-typescript/ts-reset`)
+  // both merge INTO the lib's `Map`/`Set`/etc. interface rather than inventing a new global, so requiring
+  // every declaration to be independently trusted was refusing the runtime's own collections whenever an
+  // augmentation loaded beside them. Every declaration still has to be augmentation-SHAPED — a real
+  // module-alias import (`ImportSpecifier`/`ImportClause`/`NamespaceImport`/`ExportSpecifier`) never is.
+  const isAmbient = declarations.some(isAmbientGlobalDeclaration) && declarations.every(isGlobalAugmentationShaped);
+  if (!isAmbient) {
     return unresolved("missing", node, target, `${symbol.getName()} is shadowed by a non-ambient declaration`);
   }
   for (const declaration of declarations) {
