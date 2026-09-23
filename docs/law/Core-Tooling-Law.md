@@ -84,6 +84,14 @@ The constitution bans `_shared` drawers in `packages/` (`Core-0-Architecture-and
 
 Every depth-derived root constant is RE-DERIVED at its move, never carried (§9.1-4).
 
+### 2.4a Shims on a shared session browser
+
+Install every session-wide shim with `context.route` or `context.addInitScript`. A shim reaches a tab by its own scope, not by the connection that installed it. A context-scoped shim also covers a tab that an attached client opens. A `page.route` covers only its own page, so an attached instrument that opens a tab would measure the unshimmed app. A page-scoped route is correct only for a local intercept that one drive installs and removes, such as `tooling/src/snap/ops/appearance-density-persistence.ts`.
+
+`attachProbeSession` in `tooling/src/_shared/browser.ts` attaches with `chromium.connectOverCDP`. A `connect()` client cannot see contexts that another client created, so attach would find no session to join.
+
+`tests/tooling/_shared/browser-attach.suite.int.test.ts` pins both facts.
+
 ### 2.5 The five-slot tool template
 
 ```
@@ -386,6 +394,9 @@ orphaned exports and broken front doors that a local slice can miss.
 | compat re-export stubs during a move | owner ruling: nothing else runs; clean cuts (§1) |
 | blanket-copying `scripts/**`'s biome relaxations to `tooling/**` | born-compliant means each relaxation is re-justified against the file it covers |
 | a `no-useless-fragment` gate | biome's `noUselessFragments` is already on at error and covers element-nested fragments; the residual return-position cases are style-tier, and `GATE-AUTHORING.md` §10 bans mirroring an enabled native rule. No successor exists or should be built |
+| a count ratio or count-equality tolerance for ui-audit subject accounting | an equal count cannot see one element replaced by another. `censusThinGap` in `tooling/src/ui-audit/lib/evidence.ts` requires settled = walked + classified skips, with no identity churn |
+| retrying a ui-audit walk after an accounting mismatch | a warmed retry erases the evidence that the first walk was incomplete, and timing then decides which result survives |
+| inferring the rendered theme from the requested theme name | a request cannot prove what rendered. The walker reads the source from the root `data-theme` and the ThemeScope inline tokens, and polarity from computed `color-scheme` (`tooling/src/ui-audit/ops/walker/core.ts`) |
 
 ## 8. Census hazards in the gate corpus
 

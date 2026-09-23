@@ -8,7 +8,7 @@ updated: 2026-09-23
 
 ## Context
 
-Not recorded in the ledger row.
+A game room and a normal room drew the context pane's head and rails through two renderers, and the two drifted in spacing and structure. The room title lived only in the topbar, where a docked context pane left too little width to read it.
 
 ## Decision
 
@@ -16,8 +16,11 @@ Owner-ruled on the context-bracket mock. The one composition is `features/app-sh
 
 ## Consequences
 
-Not recorded in the ledger row.
+- One rail renders at one density in every room and every tabs section.
+- A claimant changes only the band content.
+- The room name shows in one place: the band while the pane is docked, the topbar otherwise.
 
 ## Alternatives rejected
 
-Not recorded in the ledger row.
+- Let the claimant wrap the shared rails in its own instrument-tier `Surface`. The same rail would then render at two densities, and the fork returns through spacing.
+- Remove the room identity from the topbar in every mode. Chats open with the context pane collapsed (`panelDefaults` in `packages/client/src/features/chat/lib/chats-section.tsx`), so the room would have no visible name until the user opened the pane.

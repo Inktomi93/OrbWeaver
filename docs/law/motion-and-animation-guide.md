@@ -343,6 +343,12 @@ in order.
    sanctions a Base UI transition bound to one `data-starting-style`/`data-ending-style` phase,
    never the word "height": an application-authored height animation is still a §3.7 violation.
 
+   **Bake glow and blur. Never compute them on an animating element.** A live blur on an element
+   that moves or fades forces a software raster on every frame. This applies to canvas
+   `shadowBlur`, SVG `<feGaussianBlur>` and CSS `filter: blur()`. Bake the glow once into a
+   static asset — a bitmap, or a blurred path twin — and animate that asset with `transform` and
+   `opacity` only. A blur on static, non-animating content is fine.
+
 8. **When NOT to animate.** Litmus: seen 100+ times daily → don't animate (keystroke feedback,
    every row a power user scrolls past). Also: motion the user did NOT cause (another user's
    message arriving) gets a subtler cue than motion their own click triggered, or none.
@@ -534,6 +540,11 @@ per-block `dir` wrapper and drops to a new line).
   genuinely doesn't fit `fast`/`base`/`layout` + `ease-out-expo`. The existing 3-tier interaction
   system covers the full taxonomy in §2; continuous/ambient tokens (`shimmer`/`breathe`/`precip`/
   `transit`/`ambient`) serve loops and environmental effects and are a separate class.
+- Do not drive the streamed-word fade from the DOM with a `MutationObserver` and the Web
+  Animations API. React replaces word nodes during markdown repair, dialogue re-splitting and
+  re-blocking, and a replaced node loses its running animation. The reveal-time CSS anchor in
+  §4.2 item 10 survives that replacement and keeps the one reduced-motion path. ADR 0168 owns the
+  mechanism.
 
 ## 5. The Base UI animation/styling contract (house law — #1088)
 
