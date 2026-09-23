@@ -38,7 +38,8 @@
 //
 // POPULATION PORT: BYTE-IDENTICAL to the legacy `scanRoot` (`@client` === `packages/client/src/`).
 // FAMILY: `windowed-infinite-query`, shared with the occurrence policy; the shared computation is the
-// `infiniteQueryOptions` member-call subject, spelled identically in both modules.
+// `infiniteQueryOptions` member-call subject, `lib/infinite-query-factory.ts#isInfiniteQueryFactoryCall`, which
+// both modules call (#0038: until then each spelled it privately).
 // LEGACY SHA: 67366da91 (the `finalize` hook of the single legacy `windowed-infinite-query` descriptor).
 // SHA FORM NOTE: the `LEGACY SHA` above is the last commit that TOUCHED THE LEGACY DESCRIPTOR, not this
 // conversion's parent (`e81ca1979^`) — the other convention in this corpus. Both resolve to readable
@@ -54,14 +55,14 @@
 // legacy − final = ∅. final − legacy = ∅. Controls: inside `packages/client/src/agent-handles/__cbbhr_in_index.ts`
 // (virtual) admitted by both; outside `packages/contracts/src/assets/__cbbhr_out_index.ts` (virtual) rejected by
 // both.
-import { Node, SyntaxKind } from "ts-morph";
+import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
+import { INFINITE_QUERY_FACTORY, isInfiniteQueryFactoryCall } from "../lib/infinite-query-factory.ts";
 
-const INFINITE_FACTORY = "infiniteQueryOptions";
 /** The tRPC proxy's one home — loaded on every real run, and never a factory call site itself. */
 const ANCHOR = "packages/client/src/data/trpc.ts";
 
-const MESSAGE = `DERIVED NOTHING — no \`${INFINITE_FACTORY}\` call site exists under packages/client/src, so windowed-infinite-query's whole basis has moved or been renamed and its green verdict is a placebo. Re-point it at the current query factory: tooling/src/verify/gates/windowed-infinite-query.ts.`;
+const MESSAGE = `DERIVED NOTHING — no \`${INFINITE_QUERY_FACTORY}\` call site exists under packages/client/src, so windowed-infinite-query's whole basis has moved or been renamed and its green verdict is a placebo. Re-point it at the current query factory: tooling/src/verify/gates/windowed-infinite-query.ts.`;
 
 export const gate = defineGate({
   id: "windowed-infinite-query-health",
@@ -81,11 +82,7 @@ export const gate = defineGate({
         {
           kinds: [SyntaxKind.CallExpression],
           visit: (node): void => {
-            if (!Node.isCallExpression(node)) {
-              return;
-            }
-            const callee = node.getExpression();
-            if (Node.isPropertyAccessExpression(callee) && callee.getName() === INFINITE_FACTORY) {
+            if (isInfiniteQueryFactoryCall(node)) {
               sawFactory = true;
             }
           },

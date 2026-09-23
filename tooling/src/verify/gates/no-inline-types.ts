@@ -19,7 +19,8 @@
 // `z.enum` / `z.discriminatedUnion`, so `import * as zod from "zod"`, `import { object } from "zod"` and
 // `import { z as s }` were all invisible while a same-named method on any project object would have
 // matched had the text lined up. The subject is the module export: a call whose callee resolves through
-// the shared module-origin reader to the `zod` door, terminating in one of the three factories.
+// the shared module-origin reader to the `zod` door, terminating in one of the three factories
+// (`lib/inline-shape-declaration.ts`, over `lib/zod-origin.ts#isZodCall`).
 //
 // EVERY POPULATION CLAUSE AND EVERY ARM FENCE CARRIES A ROW THAT DIES WITHOUT IT (§4.1; each measured in
 // both directions 2026-09-12, the `notUnder` and `notNamed` entries cut one at a time): the `in` root list
@@ -27,10 +28,9 @@
 // reds under each of the four cuts separately; `notNamed` → `mustPass[10]`, likewise reddening under each
 // of its three entries; the VariableStatement export-keyword test → `mustPass[11]`; the `zod` door →
 // `mustPass[12]`. `mustPass[0]`/`[2]`/`[3]`/`[7]` already carried `**/contract/**`, `tooling/src/_shared/**`
-// and `packages/client/src/data/**`. The ONE residual clean cut is the `factoryCandidateName` prefilter,
-// which is MUTUALLY REDUNDANT with `ZOD_FACTORIES.has(terminal)`: cut either alone and every row stays
-// green, cut BOTH and `mustPass[5]` (`z.string()`) dies — the prefilter's own comment already said it
-// decides candidacy rather than identity, and that is now measured rather than asserted.
+// and `packages/client/src/data/**`. Since #0038 the factory set is tested ONCE, on the candidate name, and
+// `isZodCall` then requires the resolved terminal to equal that name — the earlier pair of mutually redundant
+// factory tests (a name prefilter and a terminal-set test) is gone with the private reader.
 //
 // DECLARED LIMIT (its own mustPass row): the schema arm is NOT fail-closed. Its population is every
 // exported const in three roots, so reporting each call whose origin cannot be read would accuse the
@@ -52,18 +52,12 @@
 // not by the legacy descriptor — which has no path predicate of its own and admits it — so it proves only that
 // neither side reaches outside the harness corpus, not that the legacy filter discriminates.
 //
-// FAMILY `no-inline-types` — a two-member SPLIT family with `no-inline-domain-interface`, and the string is NOT
-// backed by a shared `lib/` dependency: this module reads `_shared/reference-fact.ts` (`readMemberReference`,
-// `resolveModuleMemberOrigin`), corpus-wide primitives the sibling does not import. That is the §2 /
-// `policy-family-readers` (#2187) finding shape, recorded.
-import type { Node as MorphNode } from "ts-morph";
-import { Node, SyntaxKind } from "ts-morph";
-import { readMemberReference, resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
+// FAMILY `no-inline-types` — a two-member SPLIT family with `no-inline-domain-interface`, split by POPULATION.
+// Both halves ask ONE recognizer which declarations are exported shapes, `lib/inline-shape-declaration.ts`
+// (#0038 — until then each read its own subject and the family string had no shared reader behind it).
+import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-
-const ZOD_DOOR = "zod";
-/** The three zod factories whose result IS a declared shape (F2 of §7.4 — an inferred schema is a type). */
-const ZOD_FACTORIES: ReadonlySet<string> = new Set(["object", "enum", "discriminatedUnion"]);
+import { inlineShapeNames } from "../lib/inline-shape-declaration.ts";
 
 const MESSAGE =
   "exported type/zod-schema outside a type home — feature types live in the feature's contract/ (or " +
@@ -75,53 +69,6 @@ const FIX =
   "the DECLARED NAME alone — the alias's own identifier, or the const's, bare and unquoted. It is never " +
   "`type`, never `export`, never `z.object` and never the whole statement; an `export const A = z.object({}), " +
   "B = z.object({})` statement is TWO findings at two names and takes two markers.";
-
-/** The authored name a candidate call names, in every member spelling. Prefilter only: it decides whether
- *  the origin is worth resolving, never whether the call is a zod factory. */
-function factoryCandidateName(callee: MorphNode): string | undefined {
-  if (Node.isIdentifier(callee)) {
-    return ZOD_FACTORIES.has(callee.getText()) ? callee.getText() : undefined;
-  }
-  const member = readMemberReference(callee);
-  return member.kind === "resolved" && ZOD_FACTORIES.has(member.value.name) ? member.value.name : undefined;
-}
-
-/** Is this initializer a call to one of the three zod schema factories, proven through the module door? */
-function isZodSchemaCall(initializer: MorphNode): boolean {
-  if (!Node.isCallExpression(initializer)) {
-    return false;
-  }
-  const callee = initializer.getExpression();
-  if (factoryCandidateName(callee) === undefined) {
-    return false;
-  }
-  const origin = resolveModuleMemberOrigin(callee);
-  if (origin.kind === "unresolved") {
-    return false;
-  }
-  const { moduleSpecifier, exportedName, memberPath, canonical } = origin.value;
-  const terminal = memberPath.at(-1) ?? exportedName;
-  const doors = new Set<string>([moduleSpecifier, ...(canonical.kind === "external-door" ? [canonical.moduleSpecifier] : [])]);
-  return ZOD_FACTORIES.has(terminal) && doors.has(ZOD_DOOR);
-}
-
-/** The name nodes one delivered declaration owes a finding on: an exported alias's own name, and the name
- *  of every exported const in a statement whose initializer is a proven zod shape factory. */
-function inlineTypeNames(node: MorphNode): readonly MorphNode[] {
-  if (Node.isTypeAliasDeclaration(node)) {
-    return node.hasExportKeyword() ? [node.getNameNode()] : [];
-  }
-  if (Node.isVariableStatement(node) && node.hasExportKeyword()) {
-    return node
-      .getDeclarations()
-      .filter((declaration) => {
-        const initializer = declaration.getInitializer();
-        return initializer !== undefined && isZodSchemaCall(initializer);
-      })
-      .map((declaration) => declaration.getNameNode());
-  }
-  return [];
-}
 
 export const gate = defineGate({
   id: "no-inline-types",
@@ -157,7 +104,7 @@ export const gate = defineGate({
       {
         kinds: [SyntaxKind.TypeAliasDeclaration, SyntaxKind.VariableStatement],
         visit: (node): void => {
-          for (const name of inlineTypeNames(node)) {
+          for (const name of inlineShapeNames(node)) {
             ctx.report.node(name, { token: name.getText(), offset: 0, message: MESSAGE, fix: FIX });
           }
         },
@@ -337,7 +284,7 @@ export const gate = defineGate({
         "packages/server/src/domain/x/shapes.ts": "export const object = (shape: unknown): unknown => shape;\n",
         "packages/server/src/domain/x/schema.ts": 'import { object } from "./shapes.ts";\nexport const Foo = object({});\n',
       },
-      why: "THE DOOR TEST, the other half of the identity claim `mustFlag[1..4]` make from the flagging side: a PROJECT module exporting a function named `object`, imported and called — the prefilter accepts the name and the origin reader RESOLVES it, to `shapes.ts` rather than to the `zod` door. `mustPass[4]`'s counterfactual uses a local object literal, which the origin reader refuses outright; this one resolves and is still not zod, so it is the row that dies when `doors.has(ZOD_DOOR)` goes",
+      why: "THE DOOR TEST, the other half of the identity claim `mustFlag[1..4]` make from the flagging side: a PROJECT module exporting a function named `object`, imported and called — the prefilter accepts the name and the origin reader RESOLVES it, to `shapes.ts` rather than to the `zod` door. `mustPass[4]`'s counterfactual uses a local object literal, which the origin reader refuses outright; this one resolves and is still not zod, so it is the row that dies when the door test in `lib/zod-origin.ts#isZodCall` goes",
     },
   ],
 });

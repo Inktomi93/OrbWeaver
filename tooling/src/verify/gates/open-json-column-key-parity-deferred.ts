@@ -62,4 +62,15 @@ export const gate = defineGate({
       why: "an untracked parity violation belongs to the error sibling and is not downgraded by this warning policy",
     },
   ],
+  mustRefuse: [
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/index.ts":
+          'import { sqliteTable } from "drizzle-orm/sqlite-core";\nconst columns = makeColumns();\nexport const notes = sqliteTable("notes", columns);\n',
+      },
+      expect: { messageIncludes: "drizzle schema fact unresolved" },
+      why: "THE SUPPLY REFUSAL (law §6.3), shared with the `-health` sibling: an unreadable canonical schema declaration refuses the drizzle-schema fact, so the #184 seam can never read as resolved over a schema nobody read",
+    },
+  ],
 });
