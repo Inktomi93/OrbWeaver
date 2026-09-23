@@ -8,9 +8,8 @@ updated: 2026-08-30
 
 > **Why this doc exists.** Macro resolution (`{{char}}`/`{{user}}`/`{{persona}}` in message content)
 > happens in TWO places that MUST agree — server ASSEMBLE (what the model sees) and client DISPLAY
-> (what the viewer sees). With no single spec, each re-decided the persona rule and drifted. This is
-> the single source of truth: the rule, the producer, the one shared atom. A consumer that resolves a
-> chat macro any other way is the review flag. (neo's analog: `chat-resolution-pipeline.md`.)
+> (what the viewer sees). This doc is the single source of truth: the rule, the producer, the one
+> shared atom. A consumer that resolves a chat macro any other way is the review flag.
 
 ## 0. The one rule (memorize this)
 
@@ -42,13 +41,14 @@ updated: 2026-08-30
 
 ## 1. The producer (the membership-gated kind-polymorphic identity directory, D137)
 
-> **Vocabulary (owner rulings, #901, 2026-08-30 — read this before you copy a word out of this doc).**
+> **Vocabulary — read this before you copy a word out of this doc.**
 > The room's seated characters are **Characters**; the saved seats+knobs+rules template is a **Roster**.
-> The word "cast" is retired for BOTH concepts. It survives here only as the *code* spelling of the D137
-> producer (`ChatIdentity`, `loadChatIdentityProducer`, `ctx.cast`, `castKey`, `CHAT_IDENTITY_KIND_POLICY`) — issue #903
-> (vocab C2) renames that seam to **`ChatIdentity`** with the drive axis **`characters`**, and it has NOT
-> landed. So: code identifiers below are quoted as they are on the tree TODAY; the prose around them uses
-> the ruled words. Do not "restore" cast prose, and do not write the #903 names as if they exist.
+> Never write "cast" in prose for either concept. `ChatIdentity`
+> (`packages/contracts/src/chat/producers.ts`) already carries this rename in code. Other identifiers on
+> the tree still spell the old term — `loadChatIdentityProducer`, `ctx.cast`, `castKey`,
+> `CHAT_IDENTITY_KIND_POLICY` — and a pending rename moves the drive axis to `characters`. Quote code
+> identifiers exactly as they exist on the tree. Use the ruled words — Characters, Roster — in prose,
+> never "cast" and never the pending `characters` name as if it exists today.
 
 A chat read yields the identity-directory producer (`ChatIdentity[]`,
 `@orb/contracts/chat/producers.ts`) — ONE
@@ -158,8 +158,8 @@ multi-character room (== `{{group}}`), the one character in solo. Gated on the S
 - **persona reattribution** (author-or-host; re-stamp user messages' `personaId`, per-row) — BUILT
   (`createReattributePersona`, `domain/chat/verbs/edit.ts`; `chat.reattributePersona` route; client
   `useReattributePersona` + `persona-this-chat-section.tsx`). Takes an explicit `messageIds` selection,
-  belted per row (author-or-host + persona-ownership per author) — no server bulk restamp (the former
-  `REATTRIBUTE_WINDOW` const is gone from the tree; truth-audit correction 2026-08-03). The deliberate lever to fix history attribution after a switch. Re-stamp → the
+  gated per row (author-or-host + persona-ownership per author). No server bulk restamp exists. The
+  deliberate lever to fix history attribution after a switch. Re-stamp → the
   producer re-resolves the name → BOTH consumers update; the content is never touched.
 
 ## 6. Parity is enforced, not hoped

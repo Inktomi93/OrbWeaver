@@ -60,7 +60,7 @@ updated: 2026-08-07
 
 ### 13.3 The new gates (machine-enforced — added by D54)
 
-Enforcement state per gate: §8 (LIVE vs PARKED). The D54 set (plan-time names; as-built in parens): `no-static-staletime-on-bus-keys` (built `no-static-staletime`) · `no-inline-cache-surgery-in-stream` (built `chat-stream-writes-in-bus-only`; scoped to subscription/stream bodies — must NOT flag `createEntityMutation.onMutate`) · `persist-partialize-and-total-migrate` · `form-factory-for-multifield` · `virtualizer-only-in-seal` (LIVE — dep-cruiser `ui-satellite-seals`) · the upstream linters `@tanstack/eslint-plugin-query` + `eslint-plugin-react-hooks` (LIVE — `eslint.config.js`; the Compiler's Rules-of-React enforcement is load-bearing, not optional).
+Enforcement state per gate: §8 (LIVE vs PARKED). The D54 set (plan-time names; as-built in parens): `no-static-staletime-on-bus-keys` (built `no-static-staletime`) · `no-inline-cache-surgery-in-stream` (built `chat-stream-writes-in-bus-only`; scoped to subscription/stream bodies — must NOT flag `createEntityMutation.onMutate`) · `persist-partialize-and-total-migrate` · `form-factory-for-multifield` · `virtualizer-only-in-seal` (LIVE — dep-cruiser `ui-satellite-seals`) · the upstream linters `@tanstack/eslint-plugin-query` + `eslint-plugin-react-hooks` (LIVE — `eslint.config.js`; the Compiler's Rules-of-React enforcement is mandatory, not optional).
 
 The Form factory bakes: pill off `!isDefaultValue` · **no hand-rolled `fieldValuesEqual`** (lib does deep compare) · post-submit-effect `reset(saved)` · version-locked `dontUpdateMeta` + a guard test · `useSelector` (not `useStore`).
 
@@ -95,11 +95,11 @@ Factory column = the factory each surface uses TODAY (code is the truth). D66 A4
 
 ### 13.6 The primitive-or-flag rule (non-negotiable)
 
-The §13.2 map is the cold-agent contract: a surface not using its primitive is the review flag. The primitives + their gates shipped BEFORE the feature lanes (born-compliant) precisely so a feature can never land ahead of the belt that enforces it.
+The §13.2 map is the cold-agent contract: a surface not using its primitive is the review flag. The primitives + their gates shipped BEFORE the feature lanes (born-compliant) precisely so a feature can never land ahead of the gates that enforce it.
 
 ### 13.7 The `@orb/ui` primitive & CT structural contract (BUILT — gate `ui-primitive-structure`)
 
-`@orb/ui` drifted into competing micro-conventions across parallel builds; this contract is the reconciled canonical shape, **machine-enforced by `tooling/src/verify/gates/ui-primitive-structure.ts`** (8 clauses — the gate file is the enforcer; this § is the WHY a clause exists). `ui-package-design.md` points here as the canonical home of the structural contract — the §-numbering is load-bearing, do not renumber.
+`@orb/ui` drifted into competing micro-conventions across parallel builds; this contract is the reconciled canonical shape, **machine-enforced by `tooling/src/verify/gates/ui-primitive-structure.ts`** (8 clauses — the gate file is the enforcer; this § is the WHY a clause exists). `ui-package-design.md` points here as the canonical home of the structural contract — the §-numbering is fixed; do not renumber it.
 
 - **The primitive trio.** `primitives/<name>/` = `<name>.tsx` (named export, no default) + `index.ts` (the ONLY consumer import) + `variants.ts`, plus optional `handle.ts` (imperative `createHandle`). Variants-exempt allowlist: `icons`, `virtual-list`, `message-list`, `aria-announcer`, `file-trigger` (sealed satellites/barrels with no skin of their own); `code-editor`/`content/*`/`markdown`/`lib` live outside `primitives/`; `layout/` shares one `variants.ts` for the kit.
 - **Variants naming:** exactly one `tv()` export named **`{camelName}Variants`** (greppable, reserved-word-safe — `switch` forced the suffix anyway).
@@ -129,7 +129,7 @@ Codified after a full seal review found the same miss-class across agents: thin 
 
 **Deliberately NOT `@orb/ui` (adjudicated app-level — do not re-carve):** `resizable`/split panes (D54 dropped `react-resizable-panels`; the shell uses the §11.1 clamp-overlay — reopening it is a ledger decision) · `sheet` (folded into drawer side variants) · `label` (folded into `field`) · app-splash / route-error-fallback / dialog-state-gate (app-shell chrome) · **weave-glyph — RE-HOMED by D62 to `packages/client/src/lib/` (the cross-cutting display seam): features cannot import app-shell, and D62's empty-state decorations need the glyph across features; still NOT `@orb/ui` (brand, not a domain-agnostic primitive)** · proposal-diff, reasoning-block, swipe-strip, composer internals (feature components over the primitives) · CapabilityGrantList (no committed consumer/design yet — compose at feature level when one appears).
 
-**Primitive deltas land under the §13.7 contract + §13.8 rules — one governance home.** The D62 delta set (new `kbd`; `Text` `micro`/`caps`; decoupled `Avatar` size tokens `avatar-sm/md/lg`/`avatar-hero` + per-entity fallback hue; `Dialog` width variants `sm/md/lg/xl` + `full`; `EmptyState` `action`/`decoration` slots; `Skeleton` shimmer; `Button` `secondary` bordered + muted `ghost`) is BUILT — the code + `tokens.json` are the doc. **`table` IS an `@orb/ui` primitive** (built + exported `"./table"`): a data/analytics consumer is anticipated, so it is NOT re-carved to feature level. `component-size-ui` stays DORMANT until that consumer lands and `table.tsx` naturally splits under the 450-line cap.
+**Primitive deltas land under the §13.7 contract and the authoring rules in §13.8 — one governance home.** The D62 delta set (new `kbd`; `Text` `micro`/`caps`; decoupled `Avatar` size tokens `avatar-sm/md/lg`/`avatar-hero` + per-entity fallback hue; `Dialog` width variants `sm/md/lg/xl` + `full`; `EmptyState` `action`/`decoration` slots; `Skeleton` shimmer; `Button` `secondary` bordered + muted `ghost`) is BUILT — the code + `tokens.json` are the doc. **`table` IS an `@orb/ui` primitive** (built + exported `"./table"`): a data/analytics consumer is anticipated, so it is NOT re-carved to feature level. `component-size-ui` stays DORMANT until that consumer lands and `table.tsx` naturally splits under the 450-line cap.
 
 ### 13.10 Namecraft — the accessible-name & control-name contract (BINDING; CT `accessible-name-quality.suite.ct.tsx`)
 
@@ -145,8 +145,8 @@ Codified after a full seal review found the same miss-class across agents: thin 
 > governance home §13.9's last paragraph already claims for primitive deltas. The shell's landmark geography
 > is `UI-Architecture-and-Layout.md` §4.1–4.2; this § governs what those landmarks are CALLED.
 
-**N1 — Name source, in priority order (ARIA's own rule #1).** A **visible text label** beats
-`aria-labelledby` beats `aria-label`. Reach for `aria-label` only when there is no visible label (an icon-only
+**N1 — Name source, in priority order (the first rule of ARIA use: prefer native, visible semantics over
+ARIA attributes).** A **visible text label** beats `aria-labelledby` beats `aria-label`. Reach for `aria-label` only when there is no visible label (an icon-only
 control) or when the visible text is too terse to stand alone. A redundant `aria-label` over adequate visible
 text is a liability: it silently overrides the pixels and drifts from them.
 
@@ -165,7 +165,7 @@ which everything volatile is suffixed behind a separator. `Talkativeness: Aria �
 stable-prefixed name stays findable through every value change while a volatile-prefixed one does not.
 This is also why the tri-state tag chip's `Filter by <tag>: <state> — <what activating does>` is CORRECT and
 stays (`character-filter-chips.tsx` header): its identity leads, and a cycling control has no `aria-pressed`
-arm that could carry three states.
+value that could carry three states.
 
 **N4 — Action-oriented, sentence-case, no role words.** Name a control by what activating it DOES
 (`Chat with Aria Nightshade`, `Dismiss panel`), sentence-case, no trailing role noun — a `button` named

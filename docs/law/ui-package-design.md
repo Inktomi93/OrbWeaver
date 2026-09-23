@@ -4,8 +4,7 @@ status: active
 updated: 2026-09-18
 ---
 
-<!-- Promoted proposed/ → core/ under D66 (2026-07-13): this is the @orb/ui law. §-numbers are
-     load-bearing history; do not renumber. -->
+<!-- This is the @orb/ui law under D66. §-numbers are cited by code as spec provenance. Never renumber. -->
 
 # `@orb/ui` — the package design (structure · factories · seals · tokens)
 
@@ -16,8 +15,8 @@ updated: 2026-09-18
 > win on any conflict.** This doc owns the concrete package decisions the law leaves open + the factory
 > inventory with homes/signatures/obligations. **For anything built, the code is the doc**
 > (`packages/ui/src` + the CT suite) — this doc carries only the cross-cutting WHY. Code file headers
-> cite these §-numbers as spec provenance: the numbering is load-bearing, never renumber, never move
-> this file. The structural contract graduated to `docs/law/UI-Primitives-and-Reuse.md` §13.7–§13.9.
+> cite these §-numbers as spec provenance: never renumber, never move this file. The structural
+> contract graduated to `docs/law/UI-Primitives-and-Reuse.md` §13.7–§13.9.
 
 ## 1. Position in the cake + the physics
 
@@ -59,26 +58,26 @@ packages/ui/
       dialog/ popover/ tooltip/ tabs/ select/ switch/ slider/ menu/ field/ input/
       number-field/ avatar/                                    ← Base UI (avatar/number-field: D54)
       toast/ drawer/                                           ← Base UI NATIVE (D54 — no sonner, no vaul)
-      command/            ← cmdk (BUILT)
-      sortable/           ← @dnd-kit/react (BUILT)
-      macro-textarea/     ← minisearch (BUILT — carve-out item 18)
+      command/            ← cmdk
+      sortable/           ← @dnd-kit/react
+      macro-textarea/     ← minisearch
       virtual-list/       ← TanStack Virtual, directDomUpdates (D54)
-      message-list/       ← the chat seal (BUILT; same lib)   media-grid/ ← lanes grid (same lib)
+      message-list/       ← the chat seal (same lib)   media-grid/ ← lanes grid (same lib)
       icons/              ← lucide-react (the ONE icon set; dep-cruiser `ui-satellite-seals`)
       + the Wave-3/carve-out set (checkbox · radio-group · toggle(-group) · textarea · autocomplete ·
         combobox · separator · collapsible · accordion · scroll-area · alert-dialog · progress ·
         badge · skeleton · spinner · empty-state · card · list-row · selection-bar ·
         save-bar · status-chip · compare-blocks · avatar-stack · file-dropzone · file-trigger ·
         highlighted-text · log-viewer · color-field · tool-call-block · crossfade-image · reveal-gate)
-      + aria-announcer/ · fieldset/ · kbd/ · table/ · text/  (BUILT — the small hand-authored
-        primitives; no lib, tv() over semantic HTML/ARIA)
-    fuzzy-search/       # minisearch's second sealed home (BUILT) — the generic browse-search hook,
+      + aria-announcer/ · fieldset/ · kbd/ · table/ · text/  (the small hand-authored primitives;
+        no lib, tv() over semantic HTML/ARIA)
+    fuzzy-search/       # minisearch's second sealed home — the generic browse-search hook,
                         #   sibling to primitives/macro-textarea/ (same lib, two sanctioned homes,
                         #   dep-cruiser `ui-satellite-seals`)
     layout/             # Stack · Row · Section · Toolbar · Container · Grid (owns container-type —
                         #   §4-tier model; Toolbar = Base UI Toolbar for roving-tabindex + our layout
-                        #   skin; Grid = fill-and-sort grid, BUILT)
-    charts/             # seals ECharts (D52) — BUILT: chart/ + bar-list/ + histogram/ + heatmap/ +
+                        #   skin; Grid = fill-and-sort grid)
+    charts/             # seals ECharts (D52): chart/ + bar-list/ + histogram/ + heatmap/ +
                         #   scatter/ + stat-figure/
       labeled-chart-frame/ # the shared label/empty-state chart frame — layout only, NOT an ECharts
                         #   seal; exported ./labeled-chart-frame
@@ -89,7 +88,7 @@ packages/ui/
                         #   Streamdown 2.5 dropped its bundled Shiki) + mermaid.tsx (token-styled Mermaid
                         #   theme + error component — Mermaid ships inside Streamdown) — Tier-A allowlist
                         #   lives HERE (D44 §12.2)
-    stream/             # useSmoothText pacer + TTFT shimmer (BUILT; §6.3.1 — pure string-math)
+    stream/             # useSmoothText pacer + TTFT shimmer (§6.3.1 — pure string-math)
     content/            # sandbox-frame/ · message-media/ · theme-scope/ · lightbox/ — each a sealed
                         #   dir (D44 — the security trio + lightbox)
     code-editor/        # seals CodeMirror 6, token-themed (custom-CSS field · Tier-B card CSS · D46)
@@ -140,8 +139,7 @@ enforces the seal column: a lib may only be imported from its sealed dir.
 
 **DROPPED at D54 (do not re-add without a ledger decision):** `sonner` (→ Base UI Toast), `vaul`
 (→ Base UI Drawer), `react-resizable-panels` (→ the §11.1 clamp-overlay shell), `cva`/`clsx`
-(→ tailwind-variants), DOMPurify (sanitize is native inside Streamdown). Version-migration archaeology
-(the majors that moved past the original brief): the history record.
+(→ tailwind-variants), DOMPurify (sanitize is native inside Streamdown).
 
 ## 4. Tokens — the DTCG pipeline (concrete)
 
@@ -155,8 +153,8 @@ enforces the seal column: a lib may only be imported from its sealed dir.
     (`--user-bubble`/`--ai-bubble`/`--system-bubble` + `-foreground`, `--dialogue`/`--narration`/
     `--prose-body`/`--speaker`) — the D44 §12.1 ThemeScope override TARGETS, defaulting to ramp values.
     `tokens.json` is the truth for the full set (it also carries shadow/blur/immersive/reading token
-    families the appearance system drives) — this list names the load-bearing override targets, not the
-    whole tree.
+    families the appearance system drives) — this list names the override targets `ThemeScope` reads,
+    not the whole tree.
   - **spacing** — the 4px scale + the intent tokens (`gap-field/row/block/section/gutter`,
     `p-row/block/section/gutter`) the token gates point at.
   - **control heights** — `--control-sm/md/lg`, **POINTER-CONDITIONAL per D62 P1**: 44/48/56px at
@@ -217,9 +215,9 @@ factories are inventoried here because this package is their substrate and their
 | - | - | - | - |
 | `tv()` variant configs (per primitive) | `variants.ts` per §5 | tokens-only classes; union-typed variants; slots for multi-part | CT: variant renders; `tsc`: bad variant fails `test:types` |
 | `createVirtualList` seal → `<VirtualList>` | `{ count, getItemKey (REQUIRED, id-based), estimateSize, overscan?, lanes?, rangeExtractor?, renderItem }` | `directDomUpdates: true` + `containerRef` (Compiler fix, 3.14+); `useFlushSync: false` (React 19); the unbounded-window tripwire as a **thrown error** (not a warn); `measureElement` + `data-index` wiring; `directDomUpdatesMode: 'position'` for iframe/portal rows | CT: renders windowed; tripwire throws on unbounded parent; scroll updates ≤2 re-renders (the upstream E2E assertion) |
-| `<MessageList>` seal (chat) | adds `anchorTo:'end'`, `followOnAppend`, `isAtEnd`/`scrollToEnd` ("jump to latest"), no-recycle window for Tier-B iframe rows (the `keepMounted` predicate — PD-119 DONE) | stick-to-bottom-without-yank; prepend stability (id keys); hoisted row state | CT: append-while-pinned follows; scrolled-up reader never yanked |
+| `<MessageList>` seal (chat) | adds `anchorTo:'end'`, `followOnAppend`, `isAtEnd`/`scrollToEnd` ("jump to latest"), no-recycle window for Tier-B iframe rows (the `keepMounted` predicate) | stick-to-bottom-without-yank; prepend stability (id keys); hoisted row state | CT: append-while-pinned follows; scrolled-up reader never yanked |
 | `<Meter kind>` + `<SegmentedClock>` | `Meter: { kind: 'linear'\|'arc'\|'bipolar', value, max?, milestones?: number[], dangerBelow?: number, label }` · `SegmentedClock: { segments: int ≥2, filled, size?, completed? }` | hand-rolled ARIA (`role="meter"` + value semantics) — ONE rendering mechanism across kinds (Base UI's Meter is linear-DOM-shaped; arc/bipolar need SVG); `dangerBelow` swaps the danger INTENT token (never a color calc); bipolar is center-origin −/+ | CT: 0/partial/full/completed clock; bipolar ticks; danger token swap; ARIA values (docs/plans/rpg/design.md — the fixtures come from `RpgHudView`-SHAPED plain objects, no contracts import) |
-| `@orb/ui/markdown` (Streamdown seal) | `<Markdown trust="trusted"\|"untrusted">` | the TWO trust policies (§11.6), built against the VERIFIED Streamdown 2.5 API — `allowedElements`/`disallowedElements` + `urlTransform` (the docs-assumed `allowedImagePrefixes`/`allowDataImages` API does NOT exist — recorded delta, §10): `trusted` = Streamdown's permissive defaults (rehype-sanitize + rehype-harden) plus the D44 §12.2 Tier-A element allowlist; `untrusted` = the Tier-A allowlist MINUS `img` + the `untrustedUrlTransform` protocol/host gate (`http`/`https`/`mailto` only, `data:` blocked); `remark-gfm {singleTilde:false}`; the `shiki-plugin.ts` `CodeHighlighterPlugin` supplied via `plugins.code` (Streamdown 2.5 ships no bundled Shiki); error-boundary around lazy CodeBlock/Mermaid (#343); large-block guard (#195) | CT: `<script>` stripped; `on*` stripped; data-URI image blocked under `untrusted`; `~10~20°C` not struck through |
+| `@orb/ui/markdown` (Streamdown seal) | `<Markdown trust="trusted"\|"untrusted">` | the TWO trust policies (§11.6), built against the VERIFIED Streamdown 2.5 API — `allowedElements`/`disallowedElements` + `urlTransform` (the docs-assumed `allowedImagePrefixes`/`allowDataImages` API does NOT exist — recorded delta, §10): `trusted` = Streamdown's permissive defaults (rehype-sanitize + rehype-harden) plus the D44 §12.2 Tier-A element allowlist; `untrusted` = the Tier-A allowlist MINUS `img` + the `untrustedUrlTransform` protocol/host gate (`http`/`https`/`mailto` only, `data:` blocked); `remark-gfm {singleTilde:false}`; the `shiki-plugin.ts` `CodeHighlighterPlugin` supplied via `plugins.code` (Streamdown 2.5 ships no bundled Shiki); an error boundary around lazy CodeBlock/Mermaid; a large-block guard | CT: `<script>` stripped; `on*` stripped; data-URI image blocked under `untrusted`; `~10~20°C` not struck through |
 | `<ThemeScope>` | `{ tokens: ThemeScopeTokens, children }` — ui-local Zod-clamped subset (D44 §12.1) | values parsed+clamped at the boundary (colors must parse as colors — reject `url()`/`expression()`; dims snap to token scale; font from allowlist); applies ONLY scoped CSS custom props on a wrapper; NEVER raw style passthrough (gate `theme-override-only-via-scope`) | CT: hostile values (`url(//x)`, `expression(...)`, `;injection`) are rejected/dropped; legal overrides land as `--token` custom props on the scope node only |
 | `<MessageMedia>` | `{ src: { kind:'asset', url } \| { kind:'external', url }, media: 'image'\|'audio'\|'video', alt, dims?, allowExternal: boolean }` | asset-vs-external dispatch; `forbidExternalMedia`-style click-to-load placeholder when `!allowExternal`; **autoplay FORCED OFF + `controls` required on untrusted A/V (non-overridable)**; lazy-load; aspect reservation (no layout shift); broken-media fallback; lightbox hook | CT: external img does NOT hit the network un-gated (placeholder first); untrusted `<video>` has `controls` and never `autoplay`; aspect box reserved pre-load |
 | `<SandboxFrame>` | `{ html, css?, themeTokens?, title, complete?, heightPx? }` | sandboxed `<iframe sandbox="allow-...">` **minus `allow-same-origin`, minus `allow-scripts` (v1)**; per-frame CSP attr (`connect-src 'none'`, gated `img-src`/`media-src`) owned in THIS ONE file; render-on-complete (no partial-stream mount); caller-controlled `heightPx` sizing (default `320`) — postMessage auto-height is IMPOSSIBLE in v1 (requires a script inside the frame, and `allow-scripts` is OFF); auto-height is explicitly DEFERRED to a future `allow-scripts`-enabled version (origin-checked listener), not before; theme-token injection so `var(--accent)` tracks | CT: `sandbox`/`csp` attrs EXACT (string-asserted); script inside the doc does not execute |
@@ -232,14 +230,14 @@ factories are inventoried here because this package is their substrate and their
 
 ### 6.2 Client-side (Phase 6 — inventoried so the homes are pre-decided; DO NOT build in ui)
 
-> **BUILT.** Every factory below exists at its pre-decided home (`client/src/{forms,data,state,lib}` —
-> the code is now the doc for the built shapes). The table stays as the obligations spec the builds were
-> verified against; some obligation belts hold by construction+review, not yet by gate (the active-gate
-> registry, `Core-Enforcement-Active-Gates.md`, is the truth for which are wired).
+> Every factory below exists at its pre-decided home (`client/src/{forms,data,state,lib}` — the code
+> is now the doc for the built shapes). The table is the obligations spec the builds were verified
+> against; some obligations hold by construction and review, not yet by gate — `Core-Enforcement-Active-Gates.md`
+> is the truth for which are wired.
 
 | Factory | Home | Why client-side | Signature + the baked obligations (canonical spec cite) |
 | - | - | - | - |
-| `createSavedEntityForm` | `client/forms` | TanStack Form + Query + Zustand types | `({ formOptions, seedQuery, saveMutation, draftStore? }) → { useEditorForm, bound chrome }`. Bakes the SIX editor obligations (§13.4): seed-on-load · `key`-remount on id change · post-submit `reset(saved)` **in a post-submit effect keyed on `isSubmitSuccessful`, never inside `onSubmit`** (footgun #2) · the `seededRef + persistent-isDirty` reseed guard (footgun #4 — `isDirty`, NOT `!isDefaultValue`, for the guard) · the Zustand-persist draft mirror · `dontUpdateMeta` on non-user writes (version-locked + guard-tested — the flag is typed-but-undocumented). DirtyPill drives off **`!isDefaultValue`** (lib deep-compare; the hand-rolled `fieldValuesEqual` is DELETED — D54). `revalidateLogic() + onDynamic(zodSchema)` is the validation default. ONE `createFormHook` instance repo-wide (gate `tanstack-form-only-in-shared`). |
+| `createSavedEntityForm` | `client/forms` | TanStack Form + Query + Zustand types | `({ formOptions, seedQuery, saveMutation, draftStore? }) → { useEditorForm, bound chrome }`. Bakes the SIX editor obligations (§13.4): seed-on-load · `key`-remount on id change · post-submit `reset(saved)` **in a post-submit effect keyed on `isSubmitSuccessful`, never inside `onSubmit`** · the `seededRef + persistent-isDirty` reseed guard (uses `isDirty`, NOT `!isDefaultValue`) · the Zustand-persist draft mirror · `dontUpdateMeta` on non-user writes (version-locked + guard-tested — the flag is typed-but-undocumented). DirtyPill drives off **`!isDefaultValue`** (lib deep-compare; the hand-rolled `fieldValuesEqual` is DELETED — D54). `revalidateLogic() + onDynamic(zodSchema)` is the validation default. ONE `createFormHook` instance repo-wide (gate `tanstack-form-only-in-shared`). |
 | `createAutosaveEntityForm` | `client/forms` | same | listener-debounced (`listeners.onChange + onChangeDebounceMs`, the documented autosave backbone) + `onFieldUnmount` flush; **`reset` REMOVED from its returned type** (calling it is the autosave infinite loop — gate `no-form-reset-in-autosave`). |
 | `useAppForm` (the one `createFormHook`) | `client/forms` | Form context | single instance + bound field set (controlled `value=`, never `defaultValue=`; `useSelector`, not the deprecated `useStore`; error rendering standardized on `{message}` objects). |
 | `createEntityMutation` | `client/data` | Query/tRPC types | the canonical 4-phase optimistic flow (`onMutate`: cancel → snapshot → `setQueryData` → return rollback; `onError` restore; `onSettled` → `invalidate(event)` through the seam); the **`context.client`** arg (provider-clean); a variables-render lightweight mode; **v5 sticky-error reset on next `mutate`**; ONE error slot per mutation (gate `no-multiplexed-mutation-error`); callback order `onMutate → onError → onSettled` (lint `mutation-property-order`). |
@@ -250,26 +248,23 @@ factories are inventoried here because this package is their substrate and their
 | bus reducer (`applyChatBusEvent`) | `client/data/bus` | contracts DU + QueryClient | pure exhaustive switch over the server-authoritative event union; slot lifecycle owned by terminal turn events; `onData` = buffer-local + invalidate, NEVER a second store (gates `bus-on-data-no-store-write`, `chat-stream-writes-in-bus-only` (plan-time `no-inline-cache-surgery-in-stream`) — scoped to subscription bodies so `onMutate` doesn't trip). |
 | `createEntityDraftStore` | `client/state` | Zustand persist | frozen `EMPTY` stable default (the v5 `?? CONSTANT` pattern) + `useShallow` for multi-field selectors (different jobs — keep both); `persist` with `partialize: (s)=>({drafts:s.drafts})` + `version` + a **total, crash-proof `migrate`** (gate `persist-partialize-and-total-migrate`); DU lifecycle transitions via `set(next, true)` replace. |
 | the panel-store shape | `client/state` | Zustand | one `create` per file · ≤10 authored fields · no exported `set`/`getState` · persisted device-local ONLY for device state (dock/collapse/focus toggle) — synced prefs go in the server `UserSettings` blob (D44 §12.1). |
-| the registry pattern (sections/modals/panes/chrome via `createRegistry`/`createContributorRegistry` — D70/D73; the former `RAIL_SLOTS`/`MODAL_SLOTS` static maps and the `check:registry-pairing` script are DEAD, truth-audit 2026-08-03) | `client` features + `main.tsx` | feature wiring | registry-as-data wired at the composition root; walls carried by the `*-registry-completeness` gates + total door Records so a missing member is a `tsc` error. |
+| the registry pattern (sections/modals/panes/chrome via `createRegistry`/`createContributorRegistry` — D70/D73; the former `RAIL_SLOTS`/`MODAL_SLOTS` static maps and the `check:registry-pairing` script are DEAD) | `client` features + `main.tsx` | feature wiring | registry-as-data wired at the composition root; walls carried by the `*-registry-completeness` gates + total door Records so a missing member is a `tsc` error. |
 | `ChatHandle` | `client` | domain-shaped | the `{kind:'committed';id} \| {kind:'draft';id;meta}` discriminated handle threaded from the root — the typed `this_chid`/`isOptimistic` successor. |
 | `lib/time.ts` seam | `client/lib` | Intl + injected now | epoch-UTC wire → browser-local display, memoized `Intl.*`, injected `now` (snapshot-testable). |
 
-The as-built shapes are the code (`client/src/{forms,data}`); the three factories that needed
-figuring-out during the build (`createSavedEntityForm`'s `SectionGroup` group-submit, the FLAT
-`createEntityMutation` error slot, the virtual-list unbounded-window tripwire threshold) are recorded
-in the history record.
+The as-built shapes are the code (`client/src/{forms,data}`).
 
 ## 7. Security primitives — the D44 trio (exact-spec, comment-cited)
 
-Built in Wave 2 (§9). Each implementation carries `// D44 §12.x:` cites at the load-bearing lines,
-and the CT tests assert the CONTAINMENT properties, not just rendering:
+Each implementation carries `// D44 §12.x:` cites at the guard lines, and the
+CT tests assert the CONTAINMENT properties, not just rendering:
 
 - **Tier-A markdown/HTML** = Streamdown configured to OUR explicit allowlist (D44 §12.2:
   structural + text + tables + `details/summary` + lucide-mapped icons + gated links/images;
   forbidden: `script`, `on*`, `style`, inline `style=`, `iframe/object/embed/form/input`).
 - **Tier-B HTML** = `<SandboxFrame>` — the iframe IS the boundary (never sanitize-into-main-DOM;
   gate `no-untrusted-html-in-main-dom`). `allow-scripts` stays OFF in v1 (doored, not walled).
-- **Media** = `<MessageMedia>` — the D44 §12.3 rules (external gated default-safe;
+- **Media** = `<MessageMedia>` — the D44 §12.3 policy (external gated default-safe;
   autoplay-off/controls-on non-overridable for untrusted; data-URI images off for untrusted).
 - **Theming** = `<ThemeScope>` — the ui-local Zod clamp (§1 note); CSP headers + the
   `forbidExternalMedia` resolution are SERVER/entry concerns (D44 §12.5), not ui's.
@@ -290,18 +285,13 @@ and the CT tests assert the CONTAINMENT properties, not just rendering:
 `tests/client`) and the real `ctViteConfig` (react plugin + `@tailwindcss/vite` + a CT-side css
 entry importing `@orb/ui/styles/globals.css` so token utilities resolve in-browser).
 
-## 9. Build order (DONE — historical)
+## 9. Build order
 
-Built green-to-commit per chunk in waves 0 (scaffold) → 1 (pure primitives) → 2 (security trio +
-markdown) → 3 (the display/form gap), then the un-parked carve-out (message-list · stream · command ·
-sortable · charts · macro-textarea + the carve-out set) and the §6.2 client factories. All done
-(2026-07).
-Standing bar for any NEW primitive is §13, not this wave list.
+Standing bar for any new primitive is §13, not a wave history.
 
-## 10. Recorded deltas (live WHYs; the resolved list is history)
+## 10. Recorded deltas (the live WHYs)
 
-The build's decision-level deltas are resolved. Two WHYs stay live because they still constrain
-the code:
+Two WHYs stay live because they still constrain the code:
 
 - **`Meter` is a HYBRID over Base UI's `meter`:** `Meter.Root` supplies the a11y shell (`role="meter"`
   - `aria-value*` + `Intl.NumberFormat` `aria-valuetext`); the custom SVG geometry (arc/bipolar/ticks/
@@ -320,32 +310,30 @@ of `markdown/policy.ts` — no doc copy needed.
 ## 11. Gate coverage — the active-gate registry is the truth
 
 The LIVE gate set (which grit/dep-cruiser/`tooling/src/verify/gates` rules are wired) is standing law in
-`Core-Enforcement-Active-Gates.md` — read it there, not here (one home). The load-bearing
-ui-side belts: the cake/seal rules of §8; the `no-raw-value` token family widened to `packages/ui/src`
+`Core-Enforcement-Active-Gates.md` — read it there, not here (one home). The gates specific to
+`@orb/ui`: the cake/seal rules of §8; the `no-raw-value` token family widened to `packages/ui/src` and
+its `tv()` calls; `design-token-parity`, SUPERSEDED-BY-CONSTRUCTION (the §4 codegen + freshness test);
+`touch-target-floor`, ◐ PARTIAL (token floor test-locked; the per-pointer per-component check rides
+the design-audit probe, D62 P1).
 
-- `tv()` arms; `design-token-parity` is SUPERSEDED-BY-CONSTRUCTION (the §4 codegen + freshness test);
-  `touch-target-floor` is ◐ PARTIAL (token floor test-locked; the per-pointer per-component check rides
-  the design-audit probe, D62 P1).
+## 12. Neo-parity primitive coverage
 
-## 12. Neo-parity primitive coverage — DONE
-
-The domain-agnostic primitive set `@orb/ui` had to cover was derived from neo's `components/ui/` (the
-shadcn layer being replaced) + a grep of committed designs. It is fully built — the current inventory
-is `packages/ui/package.json#exports` (the truth), not a list here. Inclusion rule (still binding for
-any new primitive): **domain-agnostic** (a `Button`/`Badge`/`Card`, never a `CharacterCard`) AND
-referenced by ≥1 committed design; domain components live in `client/features`. The **proposal-diff**
-pattern (chat-crew 07) is a FEATURE over `@orb/ui/diff`, not a ui primitive; `weave-glyph` is
-app-level (`client/src/components/weave-glyph.tsx`, §13.9) and enters through the `#components`
-public door. The derivation table + the deliberately-excluded
-list (`resizable`/`sheet`/`label`/…) are in git history.
+The current primitive inventory is `packages/ui/package.json#exports` (the truth), not a list here.
+The derivation table and the deliberately-excluded list (`resizable`/`sheet`/`label`/…) are in git
+history.
+Inclusion rule for any new primitive: **domain-agnostic** (a `Button`/`Badge`/`Card`, never a
+`CharacterCard`) AND referenced by ≥1 committed design; domain components live in `client/features`.
+The **proposal-diff** pattern (chat-crew 07) is a FEATURE over `@orb/ui/diff`, not a ui primitive;
+`weave-glyph` is app-level (`client/src/components/weave-glyph.tsx`, §13.9) and enters through the
+`#components` public door.
 
 ## 13. Primitive authoring rules (the recurring-mistake gates — BINDING)
 
-Codified after a full 27-seal review found the same class of miss across agents: **thin wraps that
-under-use Base UI, hand-roll what the lib ships, pick the wrong primitive, and theorize instead of
-test.** These rules are law for every primitive build/extension; they are the standing preamble of
-every `@orb/ui` agent brief. **YAGNI is OFF for primitives — a committed primitive gets the FULL
-cold-read treatment; a missing native capability is a DEFECT, not a deferral.**
+These rules are law for every primitive build or extension, and the standing preamble of every
+`@orb/ui` agent brief: a thin wrap that under-uses Base UI, hand-rolls what the lib ships, picks the
+wrong primitive, or theorizes instead of testing is a defect. **YAGNI is OFF for primitives — a
+committed primitive gets the FULL cold-read treatment; a missing native capability is a DEFECT, not
+a deferral.**
 
 **R1 — Read the shipped `.d.ts` FIRST, never memory or runtime probing.** Before writing a wrap,
 read `node_modules/@base-ui/react/<component>/**/*.d.ts`: the parts list (`index.parts.d.ts`), the
@@ -381,12 +369,11 @@ gets the minimal reproducing test, then a fix or a VERIFIED cause — never a na
 inline doc theorizing the reason. A "X breaks under Y" claim not backed by a red test is banned from
 the codebase.
 
-**R7 — The mandatory acceptance tests (the shapes that caught real bugs):**
+**R7 — The mandatory acceptance tests:**
 
-- a collection-prop primitive → a CT where the PARENT RE-RENDERS passing a freshly-derived (filtered/
-  mapped) array — the real consumer shape (falsified the "pre-render-stable" claim).
-- a Field-composable control → a CT asserting label association + `aria-describedby` INSIDE `<Field>`
-  (caught the plain-`<textarea>` non-registration).
+- a collection-prop primitive → a CT where the PARENT RE-RENDERS passing a freshly-derived
+  (filtered/mapped) array — the real consumer shape.
+- a Field-composable control → a CT asserting label association + `aria-describedby` INSIDE `<Field>`.
 - every interactive primitive → the 8 states + keyboard operation + the a11y contract (role,
   `aria-live` where stateful, non-color state signals).
 
@@ -406,15 +393,14 @@ mode is silent and permanent: hand-spelling `onValueChange?: (value: string) => 
 second `ChangeEventDetails` argument (`reason` · `cancel()` · `allowPropagation()` · `isCanceled`),
 so a caller can never veto a change, and a Base UI minor that adds a new change `reason` (1.7 added
 `input-press` and `cancel-open`) reaches a DERIVED seal for free and never reaches a re-spelled one.
-The derivation is also the reason the class of bug is FIXED rather than merely fixed-today. This
-applies to open/close arms too, including on COMPOSITE primitives that merely forward one
+This applies to open/close callbacks too, including composite primitives that merely forward one
 (`ColorField.onOpenChange` derives from `Popover.Root`'s). It does NOT apply to a composite's own
 invented callback that forwards nothing (`ColorField.onValueChange` is a clamp-gated commit, not a
 passthrough) — say so inline where it is not obvious.
 
 ## 14. The Base UI anatomy ledger (every part: exposed · sealed-away · n/a)
 
-**Standing law from the 1.7 alignment pass (2026-08-07).** Base UI is the foundation of every
+**Standing law from the Base UI 1.7 alignment pass.** Base UI is the foundation of every
 interactive surface, so `@orb/ui` carries ZERO accidental narrowness: every part Base UI ships is
 either reachable through the seal or sealed away here WITH A REASON. Rows are keyed on the verbatim
 `<Namespace>.<Part>` string from the component's own `index.parts.d.ts` export alias — the same key
@@ -437,9 +423,9 @@ components with no part list.
 | `Autocomplete.Value` | sealed-away | The seal's value IS the input's text (`value`/`onValueChange` on the Root); a separate Value display element has nothing to show that the input isn't already showing. |
 | `Autocomplete.Trigger` | sealed-away | This seal opens on focus/typing, not on a chevron press — a trigger button beside a text input reads as a Select and invites the wrong primitive (R4). Pick `Select` for a button-opened fixed list. |
 | `Autocomplete.Icon` | sealed-away | Pairs with `Trigger` (the chevron inside it); meaningless without one. |
-| `Autocomplete.Backdrop` | sealed-away | A suggestion popup is non-modal by design — it must not dim or `aria-hidden` the form it sits in. The `inline` arm exists for the case where even an overlay is too much; a backdrop is the opposite direction. |
+| `Autocomplete.Backdrop` | sealed-away | A suggestion popup is non-modal by design — it must not dim or `aria-hidden` the form it sits in. The `inline` mode exists for the case where even an overlay is too much; a backdrop is the opposite direction. |
 | `Autocomplete.Row` | sealed-away | Grid/column item layout. This seal's items are plain display strings (one line each) — a row wrapper has nothing to lay out. |
-| `Autocomplete.Separator` | sealed-away | Group boundaries here are the `GroupLabel` headers, and the Combobox seal renders groups IDENTICALLY on purpose (the two listbox popups must not drift into two looks). `Select` does add a rule because its grouped popup is a dense single-line row list with no header spacing. Re-implemented per-component in 1.7 (#5399) — revisit as ONE decision across all three seals if a review rules the header boundary too weak. |
+| `Autocomplete.Separator` | sealed-away | Group boundaries here are the `GroupLabel` headers, and the Combobox seal renders groups IDENTICALLY on purpose (the two listbox popups must not drift into two looks). `Select` does add a rule because its grouped popup is a dense single-line row list with no header spacing. Re-implemented per-component in 1.7 — revisit as ONE decision across all three seals if a review rules the header boundary too weak. |
 | `Autocomplete.useFilter` | n/a | A filter FACTORY, reachable as the `filter` passthrough prop on the seal. |
 | `Combobox.Label` | sealed-away | Labeling is `<Field>`'s job repo-wide (the settings/forms migration) or `aria-label`; a second label mechanism inside the seal is a second home for the same concept. |
 | `Combobox.Trigger` / `Combobox.Icon` | sealed-away | Same as Autocomplete's: this is a chips-and-typing surface, not a button-opened list. |
@@ -451,7 +437,7 @@ components with no part list.
 | `Meter.Track` / `Meter.Indicator` | sealed-away | THE §10 hybrid: `MeterIndicator` hardcodes `width:%` (linear only), so the arc/bipolar geometry is hand-drawn SVG riding as `Meter.Root`'s children. Using the native pair would forbid two of the three kinds. |
 | `Progress.Status` | n/a | A TYPE alias (`'indeterminate' \| 'progressing' \| 'complete'`), not a part; it surfaces as Base UI's own `data-*` on the root. |
 | `Toast.Positioner` / `Toast.Arrow` | sealed-away | Every toast shares ONE bottom-right stack (`Toaster` bundles Portal → Viewport); Positioner/Arrow are for per-toast ANCHORED placement, which that single-stack decision cuts. |
-| `Field.Control` | exposed (indirectly) | Not rendered by the `Field` seal itself — the CONTROLS render through it (`Textarea`, `Select`, `ColorField`, `FileDropzone`), which is what makes native registration work. The Field seal's own use of it is lane NAVFORM's territory. |
+| `Field.Control` | exposed (indirectly) | Not rendered by the `Field` seal itself — the CONTROLS render through it (`Textarea`, `Select`, `ColorField`, `FileDropzone`), which is what makes native registration work. |
 | `Field.Item` / `Field.ValidityData` | sealed-away / n/a | `Item` is the multi-control-per-field grouping we have no surface for; `ValidityData` is a type. |
 | `ScrollArea.Scrollbar` keepMounted | sealed-away | Base UI's default is `keepMounted: false`, so a non-scrollable axis' scrollbar UNMOUNTS on its own — the seal mounting both orientations costs nothing. Reserving a permanent gutter is `scrollbar-gutter`'s job, not a mounted-but-hidden bar. |
 | `ContextMenu.*` | sealed-away | There is no context-menu seal in `packages/ui/src/primitives/`; right-click is shimmed at the call site onto the canonical `Menu`. **This shim is LOSSY — see §16.** |
@@ -469,53 +455,42 @@ popup would add a DOM layer and a transition contract that the single-trigger 99
 AlertDialog, Drawer, Popover, Tooltip and (added in the 1.7 pass) **Menu**, whose seal was the lone
 gap. `Menu`/`MenuTrigger` are generic over `Payload` for the same reason Popover/Tooltip are: a
 non-generic wrap types the active trigger's payload `unknown` at every call site, which makes the
-render-function `children` arm unusable. Drawer's handle was already sealed; 1.7 only gave it its own
-`DrawerHandle` class in place of the dialog alias it used to re-export, which the seal picks up for
-free because it derives (`BaseDrawer.Handle<Payload>`).
+render-function `children` variant unusable. Drawer's handle was already sealed; 1.7 gave it its own
+`DrawerHandle` class instead of re-exporting the dialog alias, which the seal picks up for free
+because it derives (`BaseDrawer.Handle<Payload>`).
 
-**`Avatar.Fallback` `delay` — verified across the bump, no action.** 1.6 gated on
-`useState(delay === undefined)` with NO default; 1.7 defaults `delay = 0` and gates on
-`useState(delay === 0)`. The seal's default (`fallbackDelay` omitted → `delay={undefined}`) shows the
-fallback on the first commit in BOTH versions, so nothing changed for the default. The only delta is
-for a site passing `fallbackDelay={0}` EXPLICITLY: 1.6 deferred one effect tick, 1.7 paints
-immediately — the documented fix, and imperceptible. The seal's `@defaultValue 0` doc-comment is now
-literally true rather than true-by-coincidence.
+## 15. `className` and `style` — the seal narrows one and passes the other (PENDING RATIFICATION)
 
-## 15. `className` and `style` — the seal narrows one and passes the other (RATIFIED?)
-
-**Base UI documents BOTH props as `T | ((state) => T)`** (handbook `styling.md` §"CSS classes" /
-§"Style prop"). This package resolves them DIFFERENTLY, and the asymmetry is deliberate:
+Base UI documents both props as `T | ((state) => T)` (handbook `styling.md` §"CSS classes" /
+§"Style prop"). This package resolves them differently, on purpose:
 
 - **`className` is narrowed to `string`** on every seal (`Omit<BaseXProps, "className"> & { className?: string }`).
-  A seal's job is to MERGE the caller's classes with its own `tv()` slot output through `cn()`
-  (tailwind-merge), and tailwind-merge resolves conflicts over class STRINGS — it cannot take a
-  function, and there is no state to call one with at the point the seal composes its slot. Accepting
-  the function form would mean either calling it with a state the seal doesn't have, or passing it
-  through un-merged so the caller's classes silently stop beating the seal's (the exact failure the
-  configured `tv` factory exists to prevent, §5). **The state-driven styling channel here is Base UI's
-  own DATA ATTRIBUTES** (`data-highlighted:`, `data-disabled:`, `group-data-[panel-open]:` …), which
-  are strictly more capable in this codebase: they compose with variants, survive the merge, and are
-  what the token gates can see.
-- **`style` is NOT narrowed** — measured, not assumed: `Omit<…, "className">` leaves
+  A seal merges the caller's classes with its own `tv()` slot output through `cn()` (tailwind-merge),
+  which resolves conflicts over class strings — it cannot take a function, and the seal has no state
+  to call one with at the point it composes its slot. The state-driven styling channel is Base UI's
+  own **data attributes** (`data-highlighted:`, `data-disabled:`, `group-data-[panel-open]:` …): they
+  compose with variants, survive the merge, and are what the token gates can see.
+- **`style` is not narrowed.** `Omit<…, "className">` leaves
   `style?: React.CSSProperties | ((state) => React.CSSProperties | undefined)` intact, and every seal
-  spreads `{...rest}` onto its Base part, so the function form works TODAY on every seal that spreads.
-  There is no merge layer on `style` for it to break, so there is nothing to narrow for.
+  spreads `{...rest}` onto its Base part, so the function form works on every seal that spreads.
+  There is no merge layer on `style` to break.
 
-**Ruling (owner ratifies): keep the asymmetry.** `className: string` is SEAL LAW — a seal that widens
-it re-opens the merge hole. `style`'s native function form stays reachable. A caller who genuinely
-needs state-driven classes uses data attributes, or drops to the Base UI part directly inside its own
-primitive dir. Recorded because it looks like an oversight and is not.
+**Ruling (owner must ratify): keep the asymmetry.** `className: string` is seal law — widening it
+re-opens the merge hole. `style`'s native function form stays reachable. A caller needing
+state-driven classes uses data attributes, or drops to the Base UI part directly inside its own
+primitive dir.
+
+Recorded because it looks like an oversight and is not.
 
 ## 16. Known LOSSY seams (report, not rot)
 
 - **The context-menu shim.** `packages/client/src/features/chat/components/member-row.tsx` maps
-  `onContextMenu` → `preventDefault()` + a synthetic click on the row, opening the canonical `Menu`.
-  Two capabilities of real `ContextMenu.Root` are absent: (1) **pointer-position anchoring** — the
-  menu opens against the ROW, not where the user actually clicked; (2) **long-press** — on touch there
-  is no context-menu gesture at all, so the whole affordance is desktop-only. Base UI's own guidance
-  is that a context menu must only ever SUPPLEMENT a visible control (`components/context-menu.md`
-  §"Usage guidelines"), which this site satisfies — so the shim is a reduced enhancement, not a broken
-  requirement. A proper context-menu seal (a new `primitives/context-menu/` trio + the
-  package.json exports row) is a ~1-day build (Root/Trigger/Backdrop/Portal/
-  Positioner/Popup/Arrow/Item/LinkItem/Separator/Group/GroupLabel/Submenu\*/Checkbox\*/Radio\* — Menu's
-  part list plus a trigger AREA — reusing `menuVariants` wholesale) plus its CT. Owner decides.
+  `onContextMenu` to `preventDefault()` plus a synthetic click on the row, opening the canonical
+  `Menu`. It lacks two capabilities of a real `ContextMenu.Root`: pointer-position anchoring (the
+  menu opens against the row, not the click point) and long-press (no context-menu gesture on touch,
+  so the affordance is desktop-only). Base UI's own guidance says a context menu must only ever
+  SUPPLEMENT a visible control (`components/context-menu.md` §"Usage guidelines"), which this site
+  satisfies, so the shim is a reduced enhancement, not a broken requirement. A proper seal
+  (`primitives/context-menu/`: Root/Trigger/Backdrop/Portal/Positioner/Popup/Arrow/Item/LinkItem/
+  Separator/Group/GroupLabel/Submenu\*/Checkbox\*/Radio\* plus a trigger area, reusing
+  `menuVariants`) plus its CT would close both gaps. Owner decides whether to build it.

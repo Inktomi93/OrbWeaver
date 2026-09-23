@@ -52,3 +52,11 @@ Chunk 4 (lane cb-pins). The 30 unpinned policies whose population is `@server` a
 module, so its pin rewrites that module. `verb-naming` also reports every other verbs-directory pin in the
 shared pass, so the entanglement check proves it alone. `real-corpus-liveness-manifest`: 244 unpinned before,
 214 after.
+
+Chunks 5 and 6 (lane cb-pins). The 40 leftover `@client` and `@ui` policies gained pins in
+`_liveness/client-ui.ts`, and the 17 leftover `@authored` policies gained pins in `_liveness/authored.ts`. These
+are the policies with narrowed populations that the exact-population chunks skipped. None was blind on the real
+tree. One verify-corpus fact came out of it. The structure run's project carries no compiler options, so its
+default lib does not declare the ES2015 `Map`. `persistence-no-in-memory-state` therefore reports a planted
+`new Map()` as an unresolvable constructor, not as the ambient global. It still reports, and that verdict is the
+one pinned. `real-corpus-liveness-manifest`: 214 unpinned before, 157 after.

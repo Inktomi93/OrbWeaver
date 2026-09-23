@@ -160,6 +160,12 @@ export type { Ledger } from "./ops/debt.ts";
 export { LEDGERS, liveAdmitted, readLedgerRows, reconcileLedgers, runDebtWalk } from "./ops/debt.ts";
 export { runEslint } from "./ops/eslint.ts";
 export { runGateContract } from "./ops/gate-contract.ts";
+export {
+  ACTIVE_GATES_INDEX_REL,
+  deriveActiveGatesIndex,
+  deriveActiveGatesIndexMarkdown,
+  generateActiveGatesIndex,
+} from "./ops/gen/active-gates-index.ts";
 export { generateBaseuiSurface } from "./ops/gen/baseui-surface.ts";
 export {
   deriveCaughtFailurePopulation,

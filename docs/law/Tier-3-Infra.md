@@ -6,35 +6,34 @@ updated: 2026-08-19
 
 # Orbweaver — `infra`: the sealed I/O adapters (auth · crypto · network · storage · image)
 
-**infra is a sealed executor.** Each adapter is a thin I/O handle a domain *injects* and calls; none reaches UP into a domain, and — the load-bearing physics — **none imports `@orb/db`** (db-dependent steps are injected in). The execution tier that used to sit here as the providers adapter is now the `@orb/inference` package (extracted 2026-09-19); its law is `docs/law/Tier-3b-Providers.md`.
+**infra is a sealed executor.** Each adapter is a thin I/O handle a domain *injects* and calls. No adapter reaches UP into a domain, and none imports `@orb/db`; db-dependent steps are injected in. The providers execution tier lives in the `@orb/inference` package; its law is `docs/law/Tier-3b-Providers.md`.
 
 ## What this tier owns
 
-Five sealed adapters. Each is a factory returning an opaque handle; `entry/` constructs it once and injects it. The adapter knows nothing about the domain that calls it.
+Each sealed adapter is a factory returning an opaque handle. `entry/` constructs it once and injects it. The adapter knows nothing about the domain that calls it.
 
 ### `infra/auth` — verification + the 4-mode dispatcher
 
-The db-free Strategy executor turning request `Headers` (+ the raw TCP peer) into a pre-row `ResolvedIdentity` (or `null`). One contract (`contract.ts`: `AuthConfig`/`ResolveDeps`/`IdentityResolution`/`ModeResolver` + the NEW MODE CHECKLIST), four modes (`single-user | local | forward-header | oidc`) behind ONE dispatcher (`dispatch.ts`: `MODE_RESOLVERS` + the loopback-peer-gated owner fallback, #298 f2). Owns:
+The db-free Strategy executor turning request `Headers` (+ the raw TCP peer) into a pre-row `ResolvedIdentity` (or `null`). One contract (`contract.ts`: `AuthConfig`/`ResolveDeps`/`IdentityResolution`/`ModeResolver` + the NEW MODE CHECKLIST), four modes (`single-user | local | forward-header | oidc`) behind ONE dispatcher (`dispatch.ts`: `MODE_RESOLVERS` + the loopback-peer-gated owner fallback). Owns:
 
-- **The mode dispatcher** — `resolve(headers, deps)` + `ownerFallbackAllowed(deps.peerIp)` (a LOOPBACK TCP peer, NOT the client `Host` — the old `isLocalOrigin` Host gate was removed with #298 f2). ONE branch point; modes never import each other.
+- **The mode dispatcher** — `resolve(headers, deps)` + `ownerFallbackAllowed(deps.peerIp)` (a LOOPBACK TCP peer, never the client `Host`: a proxy can rewrite `Host`, so it is not a fact about the network). ONE branch point; modes never import each other.
 - **JWT/JWKS verification** (`jwks.ts`) — `jwksFor` (fail-closed JWKS build from the forwarded literal-or-URL; LRU-bounded, sha256-keyed, `ASSUMES(single-replica)`) + jose `jwtVerify` with a pinned RS256/ES256 alg allowlist, composed by `createForwardJwtVerifier()` into the `ForwardJwtVerifier` port the seam injects (`verifyForwardJwt`, wired at `entry/lifecycle.ts`).
 - **The pre-row `ResolvedIdentity`** — `{ externalId, handle, groups, email }` (`@orb/contracts/identity`); **NO `userId`** and NO `role` by design (infra must not know DB row ids).
 - **The per-request signals** — the `IdentityResolution` envelope `{ identity, via, hasCsrfHeader }` (`contract.ts`), where infra's `via` is `"header" | "fallback"` only (`"cookie"` is the seam's own, post-D40) and `hasCsrfHeader` comes from `csrf.ts`; the CSRF gate itself is enforced at the seam/ladder.
 - **Mint-side crypto** (`password.ts`) — scrypt + `SESSION_SECRET` pepper + constant-time verify + the dummy-hash enumeration floor; consumed by the entry login route.
-- **Post-D40 (Route A): the cookie modes are inert at infra.** `modes/cookie-session.ts` resolves `null` and homes only `SESSION_COOKIE_NAME` (`__Host-orb_session`); the cookie→user read is the DOMAIN step `sessions.validate(token)` (returns `userId`), called DIRECTLY by the seam BEFORE infra's `resolve`. There is deliberately no `validateCookie`/`upsertUser`/`determineRole` in `ResolveDeps` — an infra port for validation would be forced to drop the `userId` (invariant #3), recreating neo's "validate threw the id away" bug.
+- **Post-D40 (Route A): the cookie modes are inert at infra.** `modes/cookie-session.ts` resolves `null` and homes only `SESSION_COOKIE_NAME` (`__Host-orb_session`); the cookie→user read is the DOMAIN step `sessions.validate(token)` (returns `userId`), called DIRECTLY by the seam BEFORE infra's `resolve`. There is deliberately no `validateCookie`/`upsertUser`/`determineRole` in `ResolveDeps` — an infra port for validation would be forced to drop the `userId` (invariant 3), reintroducing the "validate threw the id away" bug.
 
 ### `infra/crypto` — the `SecretBox` + the auto-key boot path
 
 - **`secrets.ts`** — `createSecretBox(key)` → AES-256-GCM `{ enabled, encrypt(plaintext, aad), decrypt(sealed, aad) }`; fresh 12-byte IV per seal; the `Sealed` `{ciphertext, iv, tag}` shape. **Carries the `aad` parameter, never derives the value** (the `${userId}|${provider}` string is `domain/credentials`' single `aadFor()` site).
 - **`key.ts`** — `credentialsKeyFromEnv`/`resolveAutoKey`: decode `CREDENTIALS_KEY` (hex OR base64, exactly 32 bytes) or the `CREDENTIALS_KEY_AUTO` path (generate + persist `.credentials-key` mode 0600 next to the DB). **Degrades, never throws at boot** — no/invalid key → a disabled box; encrypt/decrypt throw at CALL time only.
 
-### `infra/network` — raw fetch adapters + the SSRF/edge belts
+### `infra/network` — raw fetch adapters + the SSRF/edge checks
 
-- ~~`gif-search.ts` — the Tenor adapter~~ *(PURGED with the 2026-07-22 retro sync's hub drop; returns with the D61 hub wave — truth-audit rider 2026-08-03.)*
-- **`image-guard.ts`** — the image-fetch guard (size/content-type/redirect belts) over `safeFetch`, consumed by avatar-by-URL and hub-import image fetches.
-- **`egress.ts`** — `installEgressFirewall()` (the first boot step in `entry/lifecycle.ts`; a no-op unless `EGRESS_FIREWALL` is set): swaps undici's global dispatcher for one with TWO gates — (1) a DNS lookup that rejects private/loopback/Tailscale *resolved* addresses and hands the resolved address straight to connect (closing the DNS-rebind TOCTOU), AND (2) a connector-level pre-check that rejects a private **IP-literal** target (v4/v6, bracket-tolerant) before the socket opens — both exempt any host in `EGRESS_ALLOWLIST` (the OIDC issuer host is auto-added, so enabling the firewall never breaks a LAN issuer) — because undici only invokes the lookup for hostnames needing DNS, so an IP-literal target would otherwise bypass gate 1 (every practical SSRF vector uses an IP literal). Plus `safeFetch` — the defense-in-depth wrapper for user-supplied-URL features: size cap, content-type allowlist, redirect cap with per-hop re-validation, forwarded headers, single-use body guard. Endpoint model discovery now lives in `@orb/inference`; its direct fetch is judged by the deployment's F12 admission before the dial and by this module's global dispatcher at connect time.
+- **`image-guard.ts`** — the image-fetch guard (size/content-type/redirect checks) over `safeFetch`, consumed by avatar-by-URL and hub-import image fetches.
+- **`egress.ts`** — `installEgressFirewall()` (the first boot step in `entry/lifecycle.ts`; a no-op unless `EGRESS_FIREWALL` is set): swaps undici's global dispatcher for one with TWO gates — (1) a DNS lookup that rejects private/loopback/Tailscale *resolved* addresses and hands the resolved address straight to connect (closing the DNS-rebind TOCTOU), AND (2) a connector-level pre-check that rejects a private **IP-literal** target (v4/v6, bracket-tolerant) before the socket opens — both exempt any host in `EGRESS_ALLOWLIST` (the OIDC issuer host is auto-added, so enabling the firewall never breaks a LAN issuer) — because undici only invokes the lookup for hostnames needing DNS, so an IP-literal target would otherwise bypass gate 1 (every practical SSRF vector uses an IP literal). Plus `safeFetch` — the defense-in-depth wrapper for user-supplied-URL features: size cap, content-type allowlist, redirect cap with per-hop re-validation, forwarded headers, single-use body guard. Endpoint model discovery lives in `@orb/inference`; its direct fetch is judged by the deployment's F12 admission before the dial and by this module's global dispatcher at connect time.
 - **The ingress IP allowlist** (`ingress.ts`) — `ipAllowlistMiddleware(cidrs)` + `clientIp(c)` (peer-vs-XFF trust precedence), mounted by `entry/app.ts`.
-- **`ip-ranges.ts`** — the pure CIDR matcher all belts share, including the auth owner-fallback LOOPBACK-peer gate (`isInRanges(peerIp, ["127.0.0.0/8","::1/128"])`, `infra/auth/dispatch.ts`).
+- **`ip-ranges.ts`** — the pure CIDR matcher all checks share, including the auth owner-fallback LOOPBACK-peer gate (`isInRanges(peerIp, ["127.0.0.0/8","::1/128"])`, `infra/auth/dispatch.ts`).
 
 ### `infra/storage` — the content-addressed byte store + the archive codec
 
@@ -71,11 +70,11 @@ Composition asymmetry: storage/crypto/network/image are *called by* domains via 
 - **§7.2 — `CREDENTIALS_KEY_AUTO` is an `infra/crypto` boot side-effect,** not a settings concern; "back up `.credentials-key` alongside the DB" is the operator invariant. `password.ts`'s pepper is the same read-env-DOWN posture.
 - **§7.4 — one home:** `ResolvedIdentity` → `@orb/contracts/identity`; `AuthConfig`/`ResolveDeps` → `infra/auth/contract.ts` (infra-internal); `SecretBox`/`Sealed`/`Cas`/`VariantCache` → adapter-own contracts (server-down only, NOT `@orb/contracts` — no client need).
 
-## Esoteric / load-bearing quirks
+## Esoteric quirks
 
 **JWKS fails closed — every rejection returns `null`, never a 500, never a fall-through.** The forward-header signed path has FIVE fail-closed points: (1) JWT present but no meta-JWKS → reject (stripped/spoofed); (2) verify on but allowlist empty → refuse request-supplied JWKS entirely; (3) `jwksFor` nulls on bad-JSON/non-https/off-allowlist; (4) verified but no `preferred_username` → reject (never fall through to the unsigned path with a usernameless-but-valid JWT); (5) `jwtVerify` throws → reject. **A present-but-invalid JWT NEVER silently falls through to the unsigned path.**
 
-**The GCM AAD belt.** `aad` binds `${userId}|${provider}` into the GCM tag; a row moved to a different slot fails tag verification loudly — never a silent wrong decrypt. The string must stay byte-identical across refactors; the box carries it verbatim and is the wrong place to "normalize" it.
+**The GCM AAD binding.** `aad` binds `${userId}|${provider}` into the GCM tag; a row moved to a different slot fails tag verification loudly — never a silent wrong decrypt. The string must stay byte-identical across refactors; the box carries it verbatim and is the wrong place to "normalize" it.
 
 **The box degrades, never crashes at boot.** Unset/malformed/wrong-length key → `enabled:false`. A corrupt existing `.credentials-key` fails closed (never overwritten). The first-boot auto-write notice goes to stderr (logger unavailable — `logger → env → crypto` would cycle), silenced under `VITEST`.
 
@@ -83,9 +82,9 @@ Composition asymmetry: storage/crypto/network/image are *called by* domains via 
 
 **`isAssetHash` is the path-traversal guard.** `cas.blobPath`, the variant paths, and the blob route all THROW on a non-64-hex hash (can't contain `/` or `..`). It lives in `@orb/kit/assets`; storage imports it DOWN.
 
-**CSRF: infra PRODUCES the signal, the gate is SPLIT above it.** Infra yields `via` + `hasCsrfHeader`; enforcement lives at the seam + the route/procedure ladder, and since #300 it is split by content-type physics — the four CORS-simple byte-ingest routes gate `via !== "header"` (cookie AND the loopback fallback both need `x-orb-csrf`), tRPC keys on `cookie` only. `SameSite=Lax` + the custom header is the whole CSRF story; the exact arms + the OPEN tRPC finding live in `Spine-Identity-and-Auth.md` invariant #9, which is that gate's one home.
+**CSRF: infra PRODUCES the signal, the gate is SPLIT above it.** Infra yields `via` + `hasCsrfHeader`; enforcement lives at the seam + the route/procedure ladder, split by content-type: the four CORS-simple byte-ingest routes gate `via !== "header"` (cookie AND the loopback fallback both need `x-orb-csrf`), tRPC keys on `cookie` only. `SameSite=Lax` + the custom header is the whole CSRF story; that split and the OPEN tRPC finding live in `Spine-Identity-and-Auth.md` invariant 9, which is that gate's one home.
 
-**The owner-fallback gate reads the raw LOOPBACK TCP PEER, never the `Host` header (#298 f2, 2026-08-19).** `ownerFallbackAllowed(peerIp)` (`dispatch.ts`) is true iff the socket peer is in `127.0.0.0/8`/`::1` — the unspoofable value the kernel reports — and `undefined` fails closed. It is ONE rule across all four modes, **`single-user` included: its fallback is no longer unconditional**, so a non-loopback caller in single-user authenticates nobody and 401s. The former `isLocalOrigin` Host/trusted-ranges gate (and its `TRUSTED_LOCAL_HOSTS` env) is DELETED: a client-supplied `Host:` is not a fact about the network, and a proxy/vite `changeOrigin` hop could launder a LAN request into a loopback-looking Host. Consequence to hold onto: a SAME-HOST reverse proxy that forwards over `127.0.0.1` makes every external request a loopback peer, which is why prod + an SSO mode + `AUTH_FALLBACK=owner` is boot-fatal in `foundation/env` unless `AUTH_BREAK_GLASS=true`.
+**The owner-fallback gate reads the raw LOOPBACK TCP PEER, never the `Host` header.** `ownerFallbackAllowed(peerIp)` (`dispatch.ts`) is true iff the socket peer is in `127.0.0.0/8`/`::1` — the unspoofable value the kernel reports — and `undefined` fails closed. It is ONE rule across all four modes, **`single-user` included: its fallback is not unconditional**, so a non-loopback caller in single-user authenticates nobody and 401s. The old Host/trusted-ranges gate and its `TRUSTED_LOCAL_HOSTS` env are deleted: a client-supplied `Host:` is never a fact about the network — a proxy/vite `changeOrigin` hop can launder a LAN request into a loopback-looking Host — so the gate must not read it. Consequence to hold onto: a SAME-HOST reverse proxy that forwards over `127.0.0.1` makes every external request a loopback peer, which is why prod + an SSO mode + `AUTH_FALLBACK=owner` is boot-fatal in `foundation/env` unless `AUTH_BREAK_GLASS=true`.
 
 **`password.ts` — pepper, constant-time floor, loud-on-misconfig.** Passwords are HMAC-peppered with `SESSION_SECRET` before scrypt (a stolen DB alone can't offline-brute-force); `pepper()` THROWS if `SESSION_SECRET` is unset. Unknown/SSO-only handles verify against `DUMMY_PASSWORD_HASH` so scrypt always runs (defeats the enumeration timing oracle). Cost pinned (`N=2^15,r=8,p=1`); format `scrypt$salt$hash` carries an algo prefix for lazy KDF migration. **Rotating `SESSION_SECRET` invalidates all local passwords.**
 
@@ -98,7 +97,7 @@ Composition asymmetry: storage/crypto/network/image are *called by* domains via 
 1. **infra reaches DOWN only — no domain import, no `@orb/db` import.** *(dep-cruiser `infra-below-domain` + `infra-no-db`; the oidc-store's db import is why it lives in `domain/sessions`.)*
 2. **Verification deps are INJECTED (`ResolveDeps`), never imported; the cookie→user step is the seam's direct `sessions.validate` call, never an infra port (D40).** *(compile-time + `infra-no-db`.)*
 3. **`ResolvedIdentity` carries NO `userId`.** *(compile-time; the seam adds it when building `Principal`.)*
-4. **`MODE_RESOLVERS` is exhaustive over `AuthConfig["mode"]`.** *(mapped-type `Record` — a missing arm fails `tsc`.)*
+4. **`MODE_RESOLVERS` is exhaustive over `AuthConfig["mode"]`.** *(mapped-type `Record` — a missing case fails `tsc`.)*
 5. **JWKS/JWT verification fails closed** (all five points → `null`). *(test-time.)*
 6. **`SecretBox` carries the `aad`, never derives it; AAD-swap → GCM failure, not silent wrong decrypt.** *(compile + test-time.)*
 7. **The box degrades at boot, throws only at call.** *(test-time.)*
@@ -108,5 +107,5 @@ Composition asymmetry: storage/crypto/network/image are *called by* domains via 
 
 ## Open decisions
 
-- **`ip-ranges.ts` — infra substrate vs `@orb/kit/net`.** Isomorphic-pure, but every consumer is infra. Kept infra-local until a client consumer appears (the code comments cite this deferral). *(The former `host.ts` mention was a phantom — no such file exists on the tree; truth-audit 2026-08-03.)*
-- **`safeFetch`** is wired; consumers today are the fetch helpers in `egress.ts`, the plugin membrane, and the entry-composed background/update/inline-image fetches (`gif-search.ts` was purged with the hub drop — see above). Endpoint model discovery is a distinct `@orb/inference` capability over direct fetch plus the global dispatcher; it is not an infra adapter.
+- **`ip-ranges.ts` — infra substrate vs `@orb/kit/net`.** Isomorphic-pure, but every consumer is infra. Kept infra-local until a client consumer appears (the code comments cite this deferral).
+- **`safeFetch`** is wired; consumers today are the fetch helpers in `egress.ts`, the plugin membrane, and the entry-composed background/update/inline-image fetches. Endpoint model discovery is a distinct `@orb/inference` capability over direct fetch plus the global dispatcher; it is not an infra adapter.
