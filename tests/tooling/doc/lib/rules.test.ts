@@ -51,10 +51,10 @@ test("a tree whose generated files match a fresh render is clean", () => {
 
 test("an unknown top-level folder and a vanished legacy row are both findings (two-sided)", () => {
   const snapshot = tree(CLEAN);
-  const root = [...snapshot.root.filter((entry) => entry.name !== "vendor"), { name: "notes", directory: true }];
+  const root = [...snapshot.root.filter((entry) => entry.name !== "history"), { name: "notes", directory: true }];
   const problems = docProblems({ ...snapshot, root });
   expect(problems.some((line) => line.startsWith("docs/notes: not a docs home"))).toBe(true);
-  expect(problems.some((line) => line.startsWith("docs/vendor: named by LEGACY_ROOTS"))).toBe(true);
+  expect(problems.some((line) => line.startsWith("docs/history: named by LEGACY_ROOTS"))).toBe(true);
 });
 
 test("a stale generated index is a finding that names the regenerating command", () => {

@@ -219,7 +219,7 @@ export function checkTapTargetPopulations(inputs: readonly TapTargetInput[], poi
 // thumb travels down; collapse the lane toward square and the same pixels read as a glyph. Measured
 // live at 48x44 — aspect 1.091, track painting on all four sides of the thumb — and read as a crescent
 // moon rather than a toggle by a reviewer who did not know it was a switch
-// (docs/history/reviews/side-eye/2026-08-22-switch-shape-and-glow-evidence.md ITEM 1). The shipped fix is 64x44
+// (2026-08-22 ITEM 1). The shipped fix is 64x44
 // (aspect 1.455). Before this rule the whole class was INVISIBLE to the detector: that audit ran green
 // on the defective geometry and the reviewer had to record "a green design-audit is a floor, not a
 // verdict" (same doc, Instrument coverage row 2). This rule is that row's answer.

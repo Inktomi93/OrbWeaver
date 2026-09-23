@@ -1,5 +1,5 @@
 // CT: the Corpus CONTEXT "Similarity" tab's INFORMATION ARCHITECTURE on a populated library (#554,
-// docs/reviews/side-eye/2026-08-23-rail-corpus-populated.md [P1-2]).
+// 2026-08-23 [P1-2]).
 //
 // WHY THIS FILE EXISTS. At 12 characters this tab was one pair row and every claim below was vacuously
 // true. At 327 the sweep measured `pairRows: 1782 · clickablePairs: 0 · panelScrollH: 56177` against a

@@ -18,7 +18,7 @@
 //     by a single click 12px from the one that spends.
 //
 // COLLAPSE-UNTIL-NEEDED (#886, owner ruling 2026-09-06 on side-eye
-// `docs/reviews/side-eye/2026-08-30-this-chat-cls.md` §5-P3-Rules/§7). The row above rendered every one of
+// 2026-08-30 §5-P3-Rules/§7). The row above rendered every one of
 // the affordances below at once — measured 704px desktop / 1,296px mobile for three rules against a 185px /
 // 233px reserve, an under-reserve that scored ~0 CLS only because the section sat at y≈2200, below the fold.
 // #821 collapsed the Injections rows and moved Rules ~800px UP, which is exactly where that geometry

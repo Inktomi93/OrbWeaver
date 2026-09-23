@@ -572,7 +572,7 @@ test("#493 the editor header's token census glosses its own jargon", async ({ mo
   await expect(census).toHaveAttribute("title", TOKEN_SENT_EVERY_TURN_RE);
 });
 
-// #844 P3 (side-eye 2026-09-05, docs/reviews/side-eye/2026-09-05-characters-hub-and-scale.md "[P3]
+// #844 P3 (side-eye 2026-09-05, 2026-09-05 "[P3]
 // wide-tracking 0.08em on the token-count datum") — the census is a NUMERIC DATUM, not a label, and
 // `size="micro"` bakes in `tracking-micro` (0.08em, the section-NAME tracking). It now rides
 // `voice="gloss"` (the same recipe `analytics-list-surface.tsx`'s leaderboard datum uses), which resolves
@@ -904,7 +904,7 @@ test("P2-7 the OWN LOOK badge points at the tab that actually holds the theme ed
 });
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────
-// THE 2026-08-30 SIDE-EYE DELTA PASS (docs/reviews/side-eye/2026-08-30-rail-characters-delta.md).
+// THE 2026-08-30 SIDE-EYE DELTA PASS (2026-08-30).
 // Three controls that described themselves wrongly (#840) + the suggestion pills' type step (#843).
 
 // #840a — THE SPOILER EYE ANNOUNCED THE INVERSE OF REALITY IN ONE OF ITS TWO STATES. It flipped BOTH its

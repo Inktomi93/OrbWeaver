@@ -45,7 +45,7 @@
 // `@orb-gate-ignore knob-wire-coverage` occurrences on the tree (matching the exhaustive 2026-09-12 census
 // table), so the legacy door is DEAD and nothing was translated. No nearby coordinate was manufactured.
 //
-// Full spec: docs/history/reviews/stickler/2026-07-25-knob-drift-gates.md; ruling: D107;
+// Full spec: the knob-drift gates stickler review; ruling: D107;
 // Spine-Config-and-Serialization.md §"Settings / config".
 import { defineGate } from "../contract/policy.ts";
 import { KNOB_WIRE_OPERATIONS, knobWireFact } from "../lib/knob-wire-fact.ts";

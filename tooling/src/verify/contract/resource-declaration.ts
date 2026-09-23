@@ -52,7 +52,7 @@ export const GATE_RESOURCE_REQUEST_KINDS = [
  *  @public knip type-face false positive — the one-home vocabulary tuple behind the exported `GateResourceUnpopulatedKind` union
  *  — the ONE importable spelling of this axis, which nothing outside this module enumerates YET; un-exporting it would
  *  invite the re-spell `no-inline-union-redecl` exists to stop. */
-export const GATE_RESOURCE_UNPOPULATED_KINDS = ["installed-package", "authored-path", "authored-text"] as const;
+export const GATE_RESOURCE_UNPOPULATED_KINDS = ["installed-package", "vendor-css-surface", "authored-path", "authored-text"] as const;
 export type GateResourceUnpopulatedKind = (typeof GATE_RESOURCE_UNPOPULATED_KINDS)[number];
 
 /** Kinds whose subject arrives at the call rather than at planning. A strict subset of the unpopulated set.

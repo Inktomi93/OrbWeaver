@@ -4,7 +4,8 @@
 // per-phase split on the V4 `usage.raw` (measured 2026-09-20, `gen-1789884256-ZeulFgkGknjAbAgCKe1S`:
 // `cost_details.upstream_inference_{cost,prompt_cost,completions_cost}`, `is_byok`), so the record can say
 // total / gateway / upstream honestly. The BYOK arm itself is a fixture (no BYOK account on the box) shaped per
-// `docs/vendor/ai-sdk/openrouter/README.md:416-449` and the dist's schema (`@openrouter/ai-sdk-provider/dist/index.js:3399-3400`).
+// the installed `@openrouter/ai-sdk-provider` package's own README and dist schema
+// (`node_modules/@openrouter/ai-sdk-provider/{README.md,dist/index.js}`).
 
 import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

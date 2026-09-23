@@ -182,7 +182,7 @@ test("descriptor-owned help grammar covers every public accepted spelling exactl
 });
 
 test("the durable accepted-flag ledger matches every executable descriptor grammar, not membership alone", async () => {
-  const source = await readFile(join(ROOT, "docs/reviews/stickler/2026-09-03-snap-cli-argv-audit.md"), "utf8");
+  const source = await readFile(join(ROOT, "tooling/src/snap/ops/cli-argv-audit-2026-09-03.md"), "utf8");
   const inventory = source.split("## Complete post-repair accepted-flag inventory")[1]?.split("### Report-reader flags handled before normal parsing")[0];
   expect(inventory).toBeDefined();
   const ledger = new Map<string, string>();

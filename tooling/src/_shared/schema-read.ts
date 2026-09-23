@@ -13,7 +13,7 @@
 // read as ZERO columns here, and eight integrity gates (FK coverage, FK indexing, JSON write parity,
 // lifecycle portability, soft refs, ownerId registry, banned shapes, branding) silently lost every
 // obligation that moved with it while the schema file scan stayed healthy
-// (docs/reviews/stickler/2026-08-31-gate-member-discovery-rehome-audit.md). The reader now follows a
+// (2026-08-31). The reader now follows a
 // local or imported object-literal binding, through alias hops and through object spreads, and it FAILS
 // LOUD (throws ⇒ a ToolError attributed to the calling gate, exit 2) on every other shape, on an
 // unresolvable binding, and on a cycle. Columns keep their DECLARING node, so a gate's finding lands on the

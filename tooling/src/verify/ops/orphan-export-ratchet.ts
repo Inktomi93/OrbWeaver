@@ -2,7 +2,7 @@
 //
 // WHY IT EXISTS. `pnpm ast orphans <pkg>` is the ONLY instrument that sees an export reached by nobody
 // (prod or test) — and it is a lens a human has to remember to run. The 2026-08-03 export-rot sweep
-// (docs/history/reviews/misc/2026-08-03-export-rot-dispositions.md) dispositioned 55 rows one by one; without a
+// (2026-08-03) dispositioned 55 rows one by one; without a
 // ratchet the next wave of rot accretes silently and the whole audit has to be re-run from zero. This
 // stage pins the swept tree: the CURRENT orphan set is the checked-in baseline, and any NEW orphan (or a
 // baseline row that is no longer one) is RED.

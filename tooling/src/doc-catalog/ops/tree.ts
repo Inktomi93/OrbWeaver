@@ -8,7 +8,7 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { execNicedSync } from "../../_shared/proc.ts";
 import type { Doc, Lane, LaneConfig, Receipt } from "../contract/types.ts";
 import { frontmatterErrors, parseFrontmatter } from "../lib/frontmatter.ts";
-import { CATALOG_DIR, DOC_TOOL_TREE_PREFIXES, OUTPUT_PATH, RECEIPTS_DIR, VENDOR_PREFIX } from "../lib/vocab.ts";
+import { CATALOG_DIR, DOC_TOOL_TREE_PREFIXES, OUTPUT_PATH, RECEIPTS_DIR } from "../lib/vocab.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:docs (node tooling/src/doc-catalog/cli.ts <verb>)");
 
@@ -63,12 +63,10 @@ function trackedDocs(repoRoot = root, isolateGitEnvironment = false): readonly s
 export function documents(repoRoot = root, isolateGitEnvironment = false): readonly Doc[] {
   return trackedDocs(repoRoot, isolateGitEnvironment).map((path) => {
     const frontmatter = parseFrontmatter(readFileSync(join(repoRoot, path), "utf8"), path);
-    const vendor = path.startsWith(VENDOR_PREFIX);
     return {
       path,
       frontmatter: {
         ...frontmatter,
-        malformed: vendor ? false : frontmatter.malformed,
         errors: frontmatterErrors(path, frontmatter),
       },
     };

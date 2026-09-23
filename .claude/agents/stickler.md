@@ -32,7 +32,7 @@ For a design question instead of a diff, check `docs/architecture/core/Core-0-Ar
 
 ## Report
 
-Write the full report to `docs/reviews/stickler/<YYYY-MM-DD>-<slug>.md` before you present it. It opens with the docs frontmatter (`kind: review`, `status: active`, `updated: <today>`). Your Write tool is for that file and the scratch scripts only.
+Write the full report to `reports/stickler/<YYYY-MM-DD>-<slug>.md` before you present it (gitignored — a review is evidence about a commit, and git holds the commit). Your Write tool is for that file and the scratch scripts only.
 
 Order: findings by severity, each with `file:line`, the defect in one sentence, the failure scenario, your evidence, and the law it breaks if any. Then what you verified clean and how. Then unconfirmed suspicions.
 

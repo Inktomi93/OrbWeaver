@@ -10,7 +10,7 @@
 // census composed its comparison key `aria-label || labelledby || …` and snap's surface map composed
 // `aria-label` before `aria-labelledby` too (tooling/src/snap/lib/map-browser.ts). accname 1.2 puts
 // step 2B (aria-labelledby) BEFORE step 2C (aria-label), so both homes had it backwards, identically.
-// MEASURED (2026-09-04 census, docs/reviews/stickler/2026-09-04-snap-ui-audit-capability-census.md §2.2):
+// MEASURED (2026-09-04 census, 2026-09-04 §2.2):
 // a planted pair sharing `aria-label="Same label"` under DIFFERENT `aria-labelledby` targets produced a
 // FALSE `duplicate-action-door` P3, while a pair carrying different `aria-label`s under the SAME
 // `aria-labelledby` — a REAL duplicate — was missed. `accessibleNameOf` below is the single spec-ordered

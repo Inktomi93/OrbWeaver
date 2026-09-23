@@ -27,7 +27,6 @@ test("the legacy schema demands the three keys, a known kind and status, and no 
     `${path}: invalid frontmatter kind bug`,
     `${path}: invalid frontmatter status doing`,
   ]);
-  expect(frontmatterErrors("docs/vendor/x.md", parseFrontmatter("---\ntitle: upstream\n---\n"))).toEqual([]);
 });
 
 test("a row is one path and one authority from the closed set", () => {
@@ -35,10 +34,9 @@ test("a row is one path and one authority from the closed set", () => {
   expect(validateReceiptEntry({ path: "docs/example.md", authority: "verified" })).toEqual(["docs/example.md: invalid authority verified"]);
 });
 
-test("frontmatter debt is derived per category, vendor mirrors exempt from the missing arm", () => {
+test("frontmatter debt is derived per category", () => {
   const debt = migrationDebt([
     { path: "docs/a.md", frontmatter: { present: false, malformed: false, fields: {}, errors: [] } },
-    { path: "docs/vendor/b.md", frontmatter: { present: false, malformed: false, fields: {}, errors: [] } },
     { path: "docs/c.md", frontmatter: { present: true, malformed: false, fields: {}, errors: ["docs/c.md: missing frontmatter key kind"] } },
     { path: "docs/d.md", frontmatter: { present: true, malformed: true, fields: {}, errors: ["docs/d.md: no fence"] } },
   ]);

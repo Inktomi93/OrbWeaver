@@ -2,12 +2,12 @@
 // document's debt be paid while another's is created and still reads green. Both directions are errors —
 // a new debt path (regression) and a stale allowance row (a paid debt nobody removed).
 import type { DebtPaths, Doc, Floors } from "../contract/types.ts";
-import { STATE_PATH, VENDOR_PREFIX } from "./vocab.ts";
+import { STATE_PATH } from "./vocab.ts";
 
 export function migrationDebt(docs: readonly Doc[]): DebtPaths {
   return {
     missingFrontmatter: docs
-      .filter((doc) => !(doc.path.startsWith(VENDOR_PREFIX) || doc.frontmatter.present))
+      .filter((doc) => !doc.frontmatter.present)
       .map((doc) => doc.path)
       .sort(),
     invalidFrontmatter: docs

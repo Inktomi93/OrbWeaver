@@ -1,5 +1,5 @@
 // Tier-4 contract home for the COLLECTION contributor seam (config-rail-spec.md §2 · stickler review
-// 2026-08-03-collection-contribution.md §4) — the ELEVENTH contributor family: one object LIBRARY
+// 2026-08-03 §4) — the ELEVENTH contributor family: one object LIBRARY
 // (tags · regex scripts · later world-info) contributed to the Configuration workspace by its owning
 // feature. It binds NO state-owned vocabulary (kind ids are host-opaque strings, member ids are opaque at
 // the seam and re-branded at the owner's edge), so it is tier 4 — the `home-tile-contracts.ts` precedent.

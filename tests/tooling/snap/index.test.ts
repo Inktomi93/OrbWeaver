@@ -240,7 +240,7 @@ test("snap --fill splits on the first '=', so a JS-literal value containing '=' 
 // #816: THE #686 RULING SURVIVES — ITS INPUT CHANGED. First-'=' splitting assumed a selector never
 // carries one; an ATTRIBUTE selector does, so `[data-testid=x]=v` filled `[data-testid` and every
 // attribute selector was unusable (a live review had to tag its input via --eval first —
-// docs/reviews/side-eye/2026-08-29-saved-casts-rules.md §9). The split is bracket/quote aware now, which
+// 2026-08-29 §9). The split is bracket/quote aware now, which
 // keeps BOTH: the arm above (a JS-literal value with its own '=') and the two below.
 test("snap --fill splits AFTER an attribute selector, not inside it", () => {
   const args = parseSnapArgs(["/", "--fill", '[data-testid="new-cast-name"]=Spire Trio']);

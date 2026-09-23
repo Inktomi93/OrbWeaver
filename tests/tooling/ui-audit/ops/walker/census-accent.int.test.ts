@@ -6,7 +6,7 @@
 // codebase actually paints — an absolutely-positioned `::after` filled with a token colour, pinned to one
 // edge — produced `candidates=0 judged=0 affected=0 withheld() excluded()`, which reads to a human exactly
 // like "clean". Measured live: `[aria-label="Tags"]::after`, 3px × 252px, `oklch(0.72 0.175 52)`, on a
-// 10px-radius card (docs/reviews/side-eye/2026-09-02-config-surface-live-drive-2.md F12).
+// 10px-radius card (2026-09-02 F12).
 //
 // The three arms below are the tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md checklist in one fixture: the codebase's own idiom must
 // FIRE (step 2), the adjacent pseudo idiom the rule does NOT ask about — the full-box gradient RING at

@@ -4,7 +4,7 @@
 // DEFECT (issue #164, fixed `5e19418b4`): `image_embeddings.caption_meta` was read through fourteen facet
 // paths (`$.artStyle`, `$.palette`, …) by discovery's image analytics while both writers ever stored
 // `{ model }` — declared, exported, wired to tRPC, rendered in a tab, integration-tested, and blank. The
-// silent-reader audit (docs/history/reviews/misc/2026-08-18-silent-reader-audit.md §0) MEASURED that the class can
+// silent-reader audit (2026-08-18 §0) MEASURED that the class can
 // only live here: 297 fields over 43 TYPED json-column types swept clean, because a type binds writer to
 // reader. So the column set is DERIVED from the schema's openness, never hand-listed (§4.6: an empty
 // derivation on a tree that HAS a schema is RED in the hard health sibling, never a silent pass).
@@ -44,7 +44,8 @@ const MESSAGE =
   "no writer produces, or its writers carry an open-typed value end to end so the key vocabulary is " +
   "unprovable. Nothing binds the two sides, so the surface renders empty forever while every gate stays " +
   "green — issue #164's image_embeddings.caption_meta verbatim. The token names the column and the key; the " +
-  "class, its bound, and the per-column dispositions are measured in docs/history/reviews/misc/2026-08-18-silent-reader-audit.md §3.";
+  "class, its bound, and the per-column dispositions are measured in the 2026-08-18 silent-reader audit " +
+  "(tooling/src/verify/gates/open-json-column-key-parity.ts).";
 
 const FIX =
   "CLOSE THE TYPE: give the blob ONE named shape below both sides (packages/contracts/src/embeddings/index.ts " +

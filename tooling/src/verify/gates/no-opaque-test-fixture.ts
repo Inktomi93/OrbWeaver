@@ -4,8 +4,7 @@
 // the two rpg CT fixtures spelled `rpg.getGame` behind `: unknown` carried 1-of-6 `RpgStatProfile` fields
 // and an unmintable `ruleset: "d20"`, and replacing them with a builder that parses through
 // `rpgGameConfigSchema` turned three silent holes into `TS2741`/`TS2739`. Census + the 2.4 %-precision
-// measurement that killed the name-keyed ast-grep alternative:
-// docs/reviews/misc/2026-09-05-derived-field-fixture-parity.md.
+// measurement that killed the name-keyed ast-grep alternative: 2026-09-05.
 //
 // ARMS — one subject, two authored positions, both EXPORTED:
 //   · an exported function/arrow/function-expression whose RETURN type resolves to `unknown`;

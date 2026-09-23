@@ -14,8 +14,6 @@ const MESSAGE =
   "a custom-property reference has no statically proved value source, or dynamically constructs the property name (tooling/src/verify/gates/css-var-defined.ts)";
 const VENDOR_FIXTURE = {
   ...VENDOR_SURFACE_FIXTURE,
-  "docs/vendor/base-ui/INDEX.md": "# Base UI docs mirror — v9.9.9\n",
-  "docs/vendor/base-ui/components/x.md": "# none\n",
   "packages/ui/node_modules/@base-ui/react/x/XCssVars.d.ts": 'export enum XCssVars { other = "--other" }\n',
 } as const;
 
@@ -65,7 +63,7 @@ export const gate = defineGate({
         report(site);
       }
       for (const site of inventory.references) {
-        if (!(site.fallback || inventory.definitions.has(site.name) || vendor.documented.has(site.name))) {
+        if (!(site.fallback || inventory.definitions.has(site.name) || vendor.declared.has(site.name))) {
           report(site);
         }
       }

@@ -4,7 +4,7 @@
 // THE ACCESSIBLE NAME IS NOT COMPUTED HERE (#1324). This file used to spell its own resolver, reading
 // `aria-label` BEFORE `aria-labelledby` — the reverse of accname 1.2 (2B precedes 2C) — and the walker's
 // door census had the identical inversion in its own copy. Two homes, one bug, and a planted pair proved
-// both wrong on the same page (docs/reviews/stickler/2026-09-04-snap-ui-audit-capability-census.md §2.2).
+// both wrong on the same page (2026-09-04 §2.2).
 // The map now composes the walker's ONE spec-ordered key through ui-audit's front door; `--aria`
 // (Playwright's `ariaSnapshot`) stays the oracle both were measured against.
 import { WALKER_ACCESSIBLE_NAME } from "../../ui-audit/index.ts";

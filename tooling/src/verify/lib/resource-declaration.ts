@@ -16,7 +16,6 @@ import type { ResourceHost, ResourceHostOptions } from "../contract/resource-hos
 import { JSON_RESOURCE_PATHS } from "../contract/resource-json.ts";
 import { MIRROR_FAMILY_DEFINITIONS } from "../contract/resource-mirror.ts";
 import { AUTHORED_TREE_PATHS } from "../contract/resource-tree.ts";
-import { VENDOR_MIRROR_ROOT } from "../contract/resource-vendor.ts";
 import { createResourceHost } from "../ops/resource-host.ts";
 import { assertGateResourceDeclarations, assertRepoPathIdentity } from "./policy-validation.ts";
 
@@ -175,10 +174,10 @@ function pathBelongsToRequest(request: GateResourceRequest, path: string): boole
     }
     case "exact-file":
       return path === EXACT_RESOURCE_PATHS[request.id];
-    // Only the COMMITTED mirror side of the vendor surface publishes repo paths; the installed halves are
-    // absolute store paths and publish none (`ops/resource-vendor.ts`).
+    // Neither side of the vendor surface publishes a repo path any more — both are absolute installed-package
+    // reads (`ops/resource-vendor.ts`), so this kind is unpopulated like `installed-package`.
     case "vendor-css-surface":
-      return path.startsWith(`${VENDOR_MIRROR_ROOT}/`);
+      return false;
     case "token-contract":
       return Object.values(TOKEN_CONTRACT_PATHS).includes(path);
     case "devtools-closure":

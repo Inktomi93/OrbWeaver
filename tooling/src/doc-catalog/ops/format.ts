@@ -23,11 +23,9 @@
 // `docs/design/**` and `docs/reviews/**` (the program guides and every review/ledger a lane writes) were
 // outside both doors while reading exactly like docs the formatter owned.
 //
-// WHICH TREES, AND WHY THE TWO EXCLUSIONS ARE NOT LAZINESS:
+// WHICH TREES, AND WHY THE EXCLUSION IS NOT LAZINESS:
 //   · `docs/architecture/**` minus `proposed/` — in-flight drafts are never auto-touched (unchanged);
 //   · `docs/design/**` and `docs/reviews/**` — LIVING law and live review output, written by lanes daily;
-//   · NOT `docs/vendor/**` — vendored UPSTREAM bytes. Reformatting them would silently fork a copy we
-//     re-sync, and the diff would be ours, not theirs;
 //   · NOT the FROZEN archaeology trees — and there are TWO, which is the correction (owner ruling via
 //     claude-b, 2026-09-12). `docs/history/**` (558) is excluded by omission, but
 //     `docs/architecture/history/**` (70) nests INSIDE a living tree, so prefix-matching had admitted it
@@ -76,9 +74,8 @@ refuseDirectInvocation(import.meta.url, "pnpm check:docs (node tooling/src/doc-c
 /** The LIVING trees this formatter owns. Prefix-matched against repo-relative tracked paths. The `doc`
  *  tool's trees are living by construction: every write there goes through `formatMarkdown` first. */
 const LIVING_TREES = ["docs/architecture/", "docs/design/", "docs/reviews/", ...DOC_TOOL_TREE_PREFIXES] as const;
-/** In-flight drafts inside a living tree — never auto-touched. `docs/vendor/**` is excluded by simply
- *  not being a living tree; the FROZEN trees need their own list, below, because one of them nests
- *  INSIDE a living tree and so cannot be excluded by omission. */
+/** In-flight drafts inside a living tree — never auto-touched. The FROZEN trees need their own list,
+ *  below, because one of them nests INSIDE a living tree and so cannot be excluded by omission. */
 const EXCLUDED = /^docs\/architecture\/proposed\//u;
 
 /**
@@ -138,8 +135,8 @@ function isInstructionFile(path: string): boolean {
  * constitution cites as law (`tooling/src/verify/gates/GATE-AUTHORING.md`, `tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md`, `tooling/src/verify/gates/TS-MORPH-CAPABILITIES.md`).
  * Recursive, unlike class 1 — both trees nest `reference/` material that is read exactly like its parent.
  *
- * TWO EXCLUSIONS, AND NEITHER IS LAZINESS — both are the `docs/vendor/**` rule applied to a new tree:
- * bytes this repo does not AUTHOR are not this formatter's to restyle.
+ * TWO EXCLUSIONS, AND NEITHER IS LAZINESS: bytes this repo does not AUTHOR are not this formatter's to
+ * restyle.
  */
 const CLASS_2_TREES = [".claude/skills/", "tooling/"] as const;
 
