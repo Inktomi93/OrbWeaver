@@ -44,7 +44,7 @@ import type { CarryReasoning, UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_NAMES_BEHAVIOR } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ChatToolExecution, ChatToolOffer, GeneratedImage, Resolved, ResolvedWarning, ToolCallInput, WireTool } from "@orb/inference";
-import { generationOf, resolveCarryReasoning } from "@orb/inference";
+import { cachesByAnthropicMarkers, generationOf, resolveCarryReasoning } from "@orb/inference";
 import type { ContentImageRef } from "@orb/kit/content";
 import type { AssetId, CharacterId, ChatId, MessageId, PersonaId, WorldEntryId } from "@orb/kit/ids";
 import type { MacroRegistry, RowCharacterName, RowPersonaName } from "@orb/kit/macro";
@@ -662,6 +662,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     historySystemRows: acceptsHistorySystemRows(generationOf(args.connection)),
     roleHandling: effectiveIntent.advanced?.roleHandling,
     roleHandlingFloor: roleHandlingFloorOf(generationOf(args.connection)),
+    explicitCacheMarkers: cachesByAnthropicMarkers(args.connection, generationOf(args.connection)),
     squashSystemMessages: effectiveIntent.advanced?.squashSystemMessages,
     // The room host's note frames (PROSE-1) rode onto the ctx at build; SHAPE frames the spliced injections.
     prose: ctx.prose,

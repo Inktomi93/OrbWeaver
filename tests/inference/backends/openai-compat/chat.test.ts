@@ -646,3 +646,116 @@ test("OR Claude effort `max` reaches the wire as `max`, not `xhigh`", async () =
   const body = await sentBody(orRequest({ connection: orCuratedConnection("anthropic/claude-opus-5"), tools: undefined, params: { effort: "max" } }));
   expect(body["reasoning"]).toEqual({ effort: "max" });
 });
+
+/** The prompt as the cache reads it: a boundary entry per message, then one entry per part (a string body is its
+ *  one text part), with the `cache_control` marker set aside (it is not prompt bytes) and reported as the entry
+ *  index it rode on. */
+function cachedParts(messages: readonly Record<string, unknown>[]): { readonly entries: readonly string[]; readonly marked: readonly number[] } {
+  const entries: string[] = [];
+  const marked: number[] = [];
+  for (const message of messages) {
+    entries.push(`message:${String(message["role"])}`);
+    const content = message["content"];
+    const parts: Record<string, unknown>[] = typeof content === "string" ? [{ type: "text", text: content }] : [];
+    if (Array.isArray(content)) {
+      parts.push(...(content as Record<string, unknown>[]));
+    }
+    for (const { cache_control: marker, ...part } of parts) {
+      if (marker !== undefined) {
+        marked.push(entries.length);
+      }
+      entries.push(JSON.stringify(part));
+    }
+  }
+  return { entries, marked };
+}
+
+// SHAPE keeps each stored row of a same-role run its own row when the turn caches by explicit Anthropic markers.
+// Rule 10 folds them into one message with one part per row, so the wire alternates and the part the previous
+// call marked keeps its bytes and its end when the next speaker's reply lands under it. The gate is the resolved
+// capability (`explicitPromptCache`) plus the model family, never the route, and nothing about prefill or the
+// trailing cue changes.
+const orText = (value: string): [{ type: "text"; text: string }] => [{ type: "text", text: value }];
+const ROUND_OPENING = [
+  { role: "user", content: orText("We head for the harbor.") },
+  { role: "assistant", content: orText("Mara: Mara leads.") },
+  { role: "assistant", content: orText("Wren: Wren scouts.") },
+] satisfies OpenAiCompatChatRequest["history"];
+const KAI_CUE = { role: "user", content: orText("[Write the next reply only as Kai.]") } satisfies OpenAiCompatChatRequest["history"][number];
+const CC_1H = { type: "ephemeral", ttl: "1h" };
+
+function roundCall(model: string, assistantPrefill: boolean): (history: OpenAiCompatChatRequest["history"]) => Promise<Record<string, unknown>[]> {
+  const connection = fakeResolved({
+    task: "chat",
+    providerId: "openrouter",
+    model,
+    // The same cell on every case, explicit caching included, so only the model family decides the fold.
+    capability: generationCapability({
+      turns: {
+        assistantPrefill,
+        midConversationSystem: false,
+        historySystemRows: false,
+        roleHandlingFloor: "strict",
+        explicitPromptCache: true,
+        cacheMinTokens: 1,
+      },
+    }),
+    secret: fakeApiKeySecret("sk-or-not-a-real-key"),
+  });
+  return async (history) =>
+    (await sentBody(orRequest({ connection, tools: undefined, cacheBreakpointDepth: 1, history })))["messages"] as Record<string, unknown>[];
+}
+
+for (const { model, assistantPrefill } of [
+  { model: "anthropic/claude-sonnet-5", assistantPrefill: false },
+  { model: "anthropic/claude-opus-4.5", assistantPrefill: true },
+]) {
+  test(`OR ${model} (prefill ${String(assistantPrefill)}): a three-speaker round is one message of three parts, and the marked prefix repeats`, async () => {
+    const call = roundCall(model, assistantPrefill);
+    // Kai's call ends on the cue; the next send adds Kai's reply under the block Kai's call marked.
+    const kaiTurn = await call([...ROUND_OPENING, KAI_CUE]);
+    const nextSend = await call([
+      ...ROUND_OPENING,
+      { role: "assistant", content: orText("Kai: Kai follows.") },
+      { role: "user", content: orText("Board the ship.") },
+    ]);
+
+    expect(kaiTurn[2]).toEqual({
+      role: "assistant",
+      content: [
+        { type: "text", text: "Mara: Mara leads." },
+        { type: "text", text: "Wren: Wren scouts.", cache_control: CC_1H },
+      ],
+    });
+    expect(nextSend.map((message) => message["role"])).toEqual(["system", "user", "assistant", "user"]);
+    expect(nextSend[2]).toEqual({
+      role: "assistant",
+      content: [
+        { type: "text", text: "Mara: Mara leads." },
+        { type: "text", text: "Wren: Wren scouts." },
+        { type: "text", text: "Kai: Kai follows.", cache_control: CC_1H },
+      ],
+    });
+    const n = cachedParts(kaiTurn);
+    const next = cachedParts(nextSend);
+    const through = Math.max(...n.marked) + 1;
+    expect(next.entries.slice(0, through)).toEqual(n.entries.slice(0, through));
+  });
+}
+
+test("OR prefill-capable Anthropic model: a run that ends the history folds and keeps its assistant tail", async () => {
+  const messages = await roundCall("anthropic/claude-opus-4.5", true)(ROUND_OPENING);
+  expect(messages.map((message) => message["role"])).toEqual(["system", "user", "assistant"]);
+  expect((messages[2]?.["content"] as unknown[]).length).toBe(2);
+});
+
+test("OR non-Anthropic model: the round's rows pass through 1:1 with no history marker, as before", async () => {
+  const messages = await roundCall("google/gemini-3-pro", false)([...ROUND_OPENING, KAI_CUE]);
+  expect(messages).toEqual([
+    { role: "system", content: [{ type: "text", text: "You are a helpful assistant." }] },
+    { role: "user", content: "We head for the harbor." },
+    { role: "assistant", content: "Mara: Mara leads." },
+    { role: "assistant", content: "Wren: Wren scouts." },
+    { role: "user", content: "[Write the next reply only as Kai.]" },
+  ]);
+});

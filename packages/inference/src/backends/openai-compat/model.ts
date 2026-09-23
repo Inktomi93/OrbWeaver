@@ -46,6 +46,8 @@ export interface ModelCall {
   readonly chatId?: ChatId | undefined;
   readonly plan: WirePlan | null;
   readonly prefillAllowed: boolean;
+  /** Fold consecutive plain same-role rows into one message of parts (`body.ts` rule 10). */
+  readonly foldSameRole: boolean;
   readonly replyImages: boolean;
   readonly warnings: ResolvedWarning[];
   /** Body-level fields the SDK does not model that this call must carry (the unmodelled sampler knobs, OR routing). */
@@ -69,6 +71,7 @@ function shapeArgs(call: ModelCall, dialect: Dialect): ShapeArgs {
     transport: call.connection.transport,
     dialect,
     prefillAllowed: call.prefillAllowed,
+    foldSameRole: call.foldSameRole,
     replyImages: call.replyImages,
     warnings: call.warnings,
   };
