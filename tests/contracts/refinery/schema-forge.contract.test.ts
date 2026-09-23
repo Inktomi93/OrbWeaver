@@ -4,6 +4,7 @@
 // so it is asserted here per construct — including the belt refusals the grammar makes UNREACHABLE, each
 // with a planted control showing the belt still refuses that construct when it arrives by hand.
 
+import { scrubWireSchema } from "@orb/contracts/inference";
 import type { ForgeDesignEnvelope, RefinerySchemaStage } from "@orb/contracts/refinery";
 import {
   applyForgeHints,
@@ -14,7 +15,7 @@ import {
   refinerySchemaDocumentSchema,
   transpileForgeDesign,
 } from "@orb/contracts/refinery";
-import { projectJsonSchema, scrubWireSchema } from "@orb/kit/json-schema";
+import { projectJsonSchema } from "@orb/kit/json-schema";
 import { expect, test } from "../../support/fixtures.ts";
 
 type Row = ForgeDesignEnvelope["fields"][number];

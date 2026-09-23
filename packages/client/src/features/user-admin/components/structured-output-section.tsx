@@ -1,6 +1,6 @@
 // The Structured-output admin SECTION (D126) — the deployment's answer to "how do we spell an OPTIONAL field
 // when a request must come back as schema-shaped JSON". The engine + both shapes were built 2026-08-03
-// (`@orb/kit/json-schema` `scrubWireSchema`); until this section they were selectable only by editing a source
+// (`@orb/contracts/inference` `scrubWireSchema`); until this section they were selectable only by editing a source
 // constant and redeploying, which is a dead switch (D107) — the capability existed and nobody could reach it.
 //
 // A settings-SECTION CONTRIBUTION (SET-SEAMS §6c) at the `admin` anchor, owned by user-admin (it owns every

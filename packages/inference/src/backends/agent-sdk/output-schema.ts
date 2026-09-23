@@ -17,7 +17,7 @@
 // `allOf` (z.intersection/.and()) is PASSED THROUGH — live-probed ACCEPTED by the sonnet-5 structured wire
 // (D93 close-out). `anyOf` (nullable()) is likewise accepted; only `oneOf` (discriminatedUnion) is refused.
 
-import { scrubWireSchema } from "@orb/kit/json-schema";
+import { scrubWireSchema } from "@orb/contracts/inference";
 import { ProviderError } from "../../contract/errors.ts";
 
 /**

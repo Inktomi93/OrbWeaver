@@ -1,4 +1,4 @@
-// @orb/kit/json-schema/wire-subset — the ONE keyword-scrub ENGINE behind every wire's JSON-Schema subset.
+// @orb/contracts/inference wire-subset — the ONE keyword-scrub ENGINE behind every wire's JSON-Schema subset.
 // Pure + isomorphic, and deliberately NOT part of `projectJsonSchema`: the projection rule stays
 // backend-agnostic (D79 — zod is the one representation), and WHICH subset a request may carry is a property
 // of the WIRE, decided at the request-build site (D93). What lives here is only the walk + the per-mode
@@ -50,7 +50,7 @@
 // keywords, so a field literally named `maximum`/`oneOf`/`$schema` is descended into as a schema (never
 // stripped, never a false refusal); keyword matching resumes inside each field's own node.
 
-import { isPlainObject } from "#guards";
+import { isPlainObject } from "@orb/kit/guards";
 
 /** The wire subsets we speak. One member per WIRE CLASS, never per vendor: what splits them is which
  *  keywords the endpoint can express, and two vendors with the same answer share a mode. */

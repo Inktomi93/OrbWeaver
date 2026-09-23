@@ -3,8 +3,9 @@
 // must KEEP the bounds xgrammar compiles (the populate lever). Both directions matter — a blanket strip would
 // silently disarm the local enforcing wire, and no strip at all is what shipped the banned keywords.
 
-import type { WireSchemaMode } from "@orb/kit/json-schema";
-import { dropNullValues, projectJsonSchema, scrubWireSchema, WIRE_SCHEMA_MODES, WIRE_SUBSETS } from "@orb/kit/json-schema";
+import type { WireSchemaMode } from "@orb/contracts/inference";
+import { dropNullValues, scrubWireSchema, WIRE_SCHEMA_MODES, WIRE_SUBSETS } from "@orb/contracts/inference";
+import { projectJsonSchema } from "@orb/kit/json-schema";
 import { z } from "zod";
 import { expect, test } from "../../support/fixtures.ts";
 

@@ -27,6 +27,7 @@
 // THE THREE ARMS are the owner's "we should have options" (2026-08-09). Dispatched through an exhaustive
 // Record — a new `RefineryForgeArm` without a runner is a tsc error (§5.5).
 
+import { dropNullValues } from "@orb/contracts/inference";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
@@ -43,7 +44,7 @@ import {
 import type { RoleClients, StructuredOptions, SummarizeOptions } from "@orb/contracts/role-clients";
 import { resolveSideGenSampling, runStructuredTurn, StructuredOutputError } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
-import { dropNullValues, projectJsonSchema } from "@orb/kit/json-schema";
+import { projectJsonSchema } from "@orb/kit/json-schema";
 import { z } from "zod";
 import { addSpanEvent } from "#foundation/observability";
 import type { RefineryContext } from "../context.ts";

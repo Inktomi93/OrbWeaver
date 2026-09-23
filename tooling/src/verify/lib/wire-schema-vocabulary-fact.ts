@@ -4,7 +4,7 @@ import { Node, SyntaxKind } from "ts-morph";
 import { defineFact } from "../contract/fact.ts";
 import { readStaticAuthoredValue } from "./static-authored-value.ts";
 
-export const WIRE_SCHEMA_ENGINE = "packages/kit/src/json-schema/wire-subset.ts";
+export const WIRE_SCHEMA_ENGINE = "packages/contracts/src/inference/wire-subset.ts";
 export const WIRE_SCHEMA_VOCABULARY_NAMES = ["BOUND_KEYWORDS", "META_KEYWORDS", "ANNOTATION_KEYWORDS"] as const;
 
 export interface WireSchemaVocabulary {
@@ -30,7 +30,7 @@ function tupleValues(name: string, declaration: VariableDeclaration | undefined)
 
 export const wireSchemaVocabularyFact = defineFact({
   id: "wire-schema-vocabulary",
-  population: { in: ["@kit"] },
+  population: { in: ["@contracts"] },
   analysis: "types",
   resources: [],
   create: (ctx) => {
