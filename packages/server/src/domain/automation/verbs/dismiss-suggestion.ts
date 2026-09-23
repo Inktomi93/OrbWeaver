@@ -1,4 +1,4 @@
-// verb: dismissSuggestion — S4's HOST NO (interaction-direction-spec §3-S4). The same take-once claim as
+// verb: dismissSuggestion — S4's HOST NO. The same take-once claim as
 // confirm, with nothing executed: the ask is gone from the store, so a second device showing the same card
 // retires it the instant the `suggestionResolved` bus event lands (#700 — the host-only retirement twin of
 // `suggestionRaised`) and a second dismiss refuses leak-free.

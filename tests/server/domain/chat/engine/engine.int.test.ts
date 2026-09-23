@@ -169,7 +169,7 @@ beforeEach(async () => {
 
 const types = (events: readonly ChatBusEvent[]): string[] => events.map((e) => e.type);
 
-describe("createTurnEngine — turn origin stamping (automation-design/03 §4; §AC-B)", () => {
+describe("createTurnEngine — turn origin stamping", () => {
   test("a default turn stamps the reply slot 'human'/depth 0 — getTurnOrigin reads it back", async () => {
     const chatId = await seedChat(db, "origin-default");
     const h = harness(db);

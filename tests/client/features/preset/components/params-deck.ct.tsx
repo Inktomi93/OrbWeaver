@@ -1,4 +1,4 @@
-// CT: the PARAMS DECK (preset-surface-redesign.md §4) — the per-cluster proofs the redesign's defects name.
+// CT: the PARAMS DECK — the per-cluster proofs the redesign's defects name.
 //
 //  • THE GHOST (F2 dead): an unset knob shows its RESOLVED EFFECTIVE value + provenance instead of prose,
 //    and the value shown is the one `preset.resolveEffective` reported — a hardcoded default would fail.

@@ -1,6 +1,6 @@
 // domain/character/seeder/cards — the authored default-card pack (v2, 10 cards): Charlotte (the welcome
-// slot) + JFC + Niko + Hana + Morgatha + Sabine + Birdie + Kohaku + Calamity + Elias. The authored source of
-// truth for every field is docs/history/design/default-character-roster.md — edit THERE first, then transplant.
+// slot) + JFC + Niko + Hana + Morgatha + Sabine + Birdie + Kohaku + Calamity + Elias. This file is the authored
+// source of truth for every field.
 //
 // Each card's tags ride as a sibling `tags` array on SeedCard (not a CreateCharacterInput field — orbweaver
 // tags are the character_tags junction); the seeder attaches them as card/pending suggestions after create.

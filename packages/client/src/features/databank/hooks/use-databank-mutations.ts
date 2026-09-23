@@ -2,7 +2,7 @@
 //
 // FRESHNESS IS BUS-DRIVEN (event-bus coverage survey H3, 2026-08-14). This file's previous header said the
 // opposite — "there is NO databank bus event; `USER_BUS_EVENT_TYPES` has ten members and none is databank"
-// (databank-surface-spec §7) — and that was TRUE when it was written and is the exact thing the fix wave
+// — and that was TRUE when it was written and is the exact thing the fix wave
 // closed: `databankChanged` is now a user-bus member, every persisting verb emits it after its durable
 // write, and the ingest subsystem fans it per touched owner at a pass terminal. So every mutation here is
 // `busDriven: true`, and the three read-filter helpers this file used to carry are gone with the

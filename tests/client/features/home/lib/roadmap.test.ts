@@ -1,100 +1,110 @@
-// THE ROADMAP'S PARITY PIN (#834) — home's "What's coming" tuple against the table it mirrors.
+// THE ROADMAP'S PARITY PIN (#834) — home's "What's coming" tuple against the program items it mirrors.
 //
-// `docs/architecture/proposed/INDEX.md` is the owner-ruled SOURCE for what the region lists (the
-// committed-but-unrealized programs: dispositions FUTURE and PARTIAL, never REALIZED or SUPERSEDED), and a
-// doc is not a module — the client cannot import a markdown table, so `features/home/lib/roadmap.ts` is a
-// hand-curated mirror. A hand-curated mirror rots silently; this file is what makes it rot LOUDLY. It reads
-// the table off disk and asserts SET EQUALITY, so promoting a program to REALIZED, retiring one, or adding
-// a new FUTURE set REDS here with the row named, instead of leaving home promising a thing that shipped.
+// The open PROGRAM items under `docs/work/` (a work item whose title names it a program, linking the plan
+// under `docs/plans/` that holds its unbuilt remainder) are the owner-ruled SOURCE for what the region
+// lists, and a doc is not a module — the client cannot import markdown, so `features/home/lib/roadmap.ts`
+// is a hand-curated mirror. A hand-curated mirror rots silently; this file is what makes it rot LOUDLY. It
+// reads the items and plans off disk and asserts SET EQUALITY, so closing a program, deleting its plan, or
+// filing a new program REDS here with the item named, instead of leaving home promising a thing that shipped.
 //
-// THE PARSER'S OWN CONTROL comes first: a regex that stops matching returns an empty row list, and every
-// assertion below would then pass vacuously (⊆ ∅ is trivially true) — the exact "silent zero" shape a
-// negative claim is never allowed to rest on. So the first test pins a non-trivial row count AND the
-// presence of all four dispositions before anything else is asked.
+// THE PARSER'S OWN CONTROL comes first: a frontmatter read that stops matching returns an empty item list,
+// and every assertion below would then pass vacuously (⊆ ∅ is trivially true) — the exact "silent zero"
+// shape a negative claim is never allowed to rest on. So the first test pins that the parse found more
+// items than the tuple holds, in more than one state, and at least one program before anything else is
+// asked.
 
-import { readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { RoadmapProgram } from "../../../../../packages/client/src/features/home/lib/roadmap.ts";
 import { HOME_ROADMAP, homeRoadmapTiles } from "../../../../../packages/client/src/features/home/lib/roadmap.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
-const INDEX_PATH = join(import.meta.dirname, "../../../../../docs/architecture/proposed/INDEX.md");
+const REPO_ROOT = join(import.meta.dirname, "../../../../..");
+const WORK_DIR = join(REPO_ROOT, "docs/work");
+const PLANS_DIR = join(REPO_ROOT, "docs/plans");
 
-/** The dispositions the index's own legend defines. `LISTED` is what home may show. */
-const LISTED = ["FUTURE", "PARTIAL"] as const;
-const RETIRED = ["REALIZED", "SUPERSEDED"] as const;
-/** The table has ~19 program rows; a parse that finds fewer than this many is broken, not shrunken. */
-const MIN_PARSED_ROWS = 15;
-/** Buddy is NOT an index row — it is the purged-pending-return domain, and it keeps its own tile file. */
+/** An item filename: a zero-padded number, then its slug. */
+const ITEM_FILE_RE = /^(\d{4})-[\w-]+\.md$/u;
+/** The word that marks an item as a program the roadmap lists. */
+const PROGRAM_TITLE_RE = /\bprogram\b/iu;
+/** A finished item is off the roadmap; every other state is still coming. */
+const DONE_STATUS = "done";
+/** A plan the roadmap points at is a live plan. */
+const ACTIVE_STATUS = "active";
+/** Buddy is NOT a program item — it is the purged-pending-return domain, and it keeps its own tile file. */
 const BUDDY_TILE_ID = "buddy";
 /** Every roadmap doorway sorts after buddy's 80 (`roadmap.ts` ROADMAP_ORDER_BASE). */
 const FIRST_ROADMAP_ORDER = 81;
 /** A promise with a year or a quarter in it is a date, and the owner ruled this region promises none. */
 const DATE_PROMISE_RE = /\b(?:20\d\d|Q[1-4])\b/u;
+/** The two state-line openings the copy rule allows. */
+const NOT_STARTED = "Not started yet";
+const PARTLY_BUILT = "Partly built — ";
 
-interface IndexRow {
-  readonly set: string;
-  readonly disposition: string;
-  readonly sprint: number | null;
+interface WorkItem {
+  readonly id: number;
+  readonly title: string;
+  readonly status: string;
+  readonly plan: string | null;
 }
 
-/** Parse the index's one table: `| \`set/\` | **DISPOSITION** | [#N](…/issues/N) |`. A row whose program
- *  cell carries no backticked set (the header, the rule row) or no bolded disposition is not a program. */
-function readIndexRows(): readonly IndexRow[] {
-  return readFileSync(INDEX_PATH, "utf8")
-    .split("\n")
-    .filter((line) => line.startsWith("|"))
-    .flatMap((line): readonly IndexRow[] => {
-      const cells = line.split("|").map((cell) => cell.trim());
-      const set = /`([^`]+)`/u.exec(cells[1] ?? "")?.[1];
-      const disposition = /\*\*([A-Z]+)\*\*/u.exec(cells[2] ?? "")?.[1];
-      if (set === undefined || disposition === undefined) {
-        return [];
-      }
-      const sprint = /issues\/(\d+)/u.exec(cells[3] ?? "")?.[1];
-      return [{ set, disposition, sprint: sprint === undefined ? null : Number(sprint) }];
-    });
+/** The frontmatter value of `key`, or null when the block does not carry it. */
+function field(source: string, key: string): string | null {
+  const block = /^---\n([\s\S]*?)\n---\n/u.exec(source)?.[1] ?? "";
+  const prefix = `${key}: `;
+  const line = block.split("\n").find((entry) => entry.startsWith(prefix));
+  return line === undefined ? null : line.slice(prefix.length).trim();
 }
 
-const rows = readIndexRows();
-const rowOf = (set: string): IndexRow | undefined => rows.find((row) => row.set === set);
-const byText = (a: string, b: string): number => a.localeCompare(b);
-const setsWithDisposition = (dispositions: readonly string[]): string[] =>
-  rows
-    .filter((row) => dispositions.includes(row.disposition))
-    .map((row) => row.set)
-    .toSorted(byText);
+function readItems(): readonly WorkItem[] {
+  return readdirSync(WORK_DIR).flatMap((name): readonly WorkItem[] => {
+    const id = ITEM_FILE_RE.exec(name)?.[1];
+    if (id === undefined) {
+      return [];
+    }
+    const source = readFileSync(join(WORK_DIR, name), "utf8");
+    const title = /^# (.+)$/mu.exec(source)?.[1];
+    const status = field(source, "status");
+    if (title === undefined || status === null) {
+      return [];
+    }
+    return [{ id: Number(id), title, status, plan: field(source, "plan") }];
+  });
+}
 
-test("CONTROL — the INDEX table actually parsed (a broken regex would pass every pin below vacuously)", () => {
-  expect(rows.length).toBeGreaterThanOrEqual(MIN_PARSED_ROWS);
-  // All four dispositions present: the parse reached the whole table, not just its first block.
-  expect([...new Set(rows.map((row) => row.disposition))].toSorted(byText)).toEqual(["FUTURE", "PARTIAL", "REALIZED", "SUPERSEDED"]);
+const items = readItems();
+const itemOf = (id: number): WorkItem | undefined => items.find((item) => item.id === id);
+const openPrograms = items.filter((item) => item.status !== DONE_STATUS && PROGRAM_TITLE_RE.test(item.title));
+const byNumber = (a: number, b: number): number => a - b;
+
+test("CONTROL — the work items actually parsed (a broken read would pass every pin below vacuously)", () => {
+  expect(items.length).toBeGreaterThan(HOME_ROADMAP.length);
+  expect(new Set(items.map((item) => item.status)).size, "the parse must reach items in more than one state").toBeGreaterThan(1);
+  expect(openPrograms.length).toBeGreaterThan(0);
 });
 
-test("every roadmap entry mirrors a LISTED index row — same set, same sprint", () => {
+test("every roadmap entry mirrors an open program item that links its plan, and the plan is live", () => {
   for (const program of HOME_ROADMAP) {
-    const row = rowOf(program.set);
-    expect(row, `roadmap entry "${program.id}" names \`${program.set}\`, which is not a row in INDEX.md`).toBeDefined();
-    expect(row?.disposition, `\`${program.set}\` is ${row?.disposition} in INDEX.md — home lists only FUTURE/PARTIAL`).toBeOneOf([...LISTED]);
-    expect(row?.sprint, `\`${program.set}\` links a different sprint in INDEX.md`).toBe(program.sprint);
+    const item = itemOf(program.item);
+    const label = `item ${String(program.item)} ("${program.id}")`;
+    expect(item, `${label} is not under docs/work`).toBeDefined();
+    expect(item?.status, `${label} is done — home never promises what shipped`).not.toBe(DONE_STATUS);
+    expect(item !== undefined && PROGRAM_TITLE_RE.test(item.title), `${label} is not titled as a program`).toBe(true);
+    expect(item?.plan, `${label} links a different plan`).toBe(program.plan);
+    const design = join(PLANS_DIR, program.plan, "design.md");
+    expect(existsSync(design), `plan \`${program.plan}\` has no design.md`).toBe(true);
+    expect(field(readFileSync(design, "utf8"), "status"), `plan \`${program.plan}\` is not active`).toBe(ACTIVE_STATUS);
   }
 });
 
-test("no roadmap entry names a REALIZED or SUPERSEDED program — home never promises what shipped or died", () => {
-  const retired = setsWithDisposition(RETIRED);
-  expect(retired.length).toBeGreaterThan(0);
-  expect(HOME_ROADMAP.filter((program) => retired.includes(program.set)).map((program) => program.set)).toEqual([]);
+test("the tuple IS the open program set — a program filed or closed under docs/work reds here", () => {
+  expect(HOME_ROADMAP.map((program) => program.item).toSorted(byNumber)).toEqual(openPrograms.map((item) => item.id).toSorted(byNumber));
 });
 
-test("the tuple IS the LISTED set — a program added to or promoted out of INDEX.md reds here", () => {
-  expect(HOME_ROADMAP.map((program) => program.set).toSorted(byText)).toEqual(setsWithDisposition(LISTED));
-});
-
-test("the state line follows the disposition, and neither line promises a date", () => {
-  const partlyBuilt = (program: RoadmapProgram): boolean => program.state.startsWith("Partly built — ");
+test("the state line follows the copy rule, and neither line promises a date", () => {
+  const stated = (program: RoadmapProgram): boolean => program.state.startsWith(NOT_STARTED) || program.state.startsWith(PARTLY_BUILT);
   for (const program of HOME_ROADMAP) {
-    const isPartial = rowOf(program.set)?.disposition === "PARTIAL";
-    expect(partlyBuilt(program), `"${program.id}" is ${isPartial ? "PARTIAL" : "FUTURE"} — its state line disagrees`).toBe(isPartial);
+    expect(stated(program), `"${program.id}" state line opens with neither "${NOT_STARTED}" nor "${PARTLY_BUILT}"`).toBe(true);
     expect(DATE_PROMISE_RE.test(`${program.gloss} ${program.state}`), `"${program.id}" promises a date`).toBe(false);
   }
 });

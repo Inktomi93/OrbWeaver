@@ -1,4 +1,4 @@
-// verbs/quest/delete-quest — deleteQuest (rpg-design/05 §4.4, §6.2). Removes a quest from the current resolved
+// verbs/quest/delete-quest — deleteQuest (docs/plans/rpg/design.md). Removes a quest from the current resolved
 // snapshot's array and CLEARS its `quests.<id>` lock (the symmetric grammar — no ghost lock). Not-found on a
 // missing id. Asserted at the resolved snapshot.
 

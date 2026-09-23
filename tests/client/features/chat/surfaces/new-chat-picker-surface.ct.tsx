@@ -284,7 +284,7 @@ test("typing reaches the WHOLE library — a character past the first page is fi
   await expect(component.getByText("Zephyrine")).toBeVisible();
 });
 
-// ── CREATE-ON-START-CLICK (chat-creation-draft-mode-replacement.md §4.1/§4.11 R1) ────────────────────
+// ── CREATE-ON-START-CLICK (D166) ────────────────────
 //
 // The Start affordance calls the REAL `chat.startChat` and navigates into the REAL room; the parallel
 // draft-mode client runtime stops being the path. Both pins assert through affordances that exist in BOTH

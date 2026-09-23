@@ -898,7 +898,7 @@ test("D-1: a member's tab has no Host controls group at all (PERMISSION-omit, ne
   await expect(component.getByRole("heading", { name: "Background", exact: true, level: 3 })).toHaveCount(0);
 });
 
-// D-4 (databank-surface-spec §11) — the per-chat DOCUMENTS rack mounts in THIS tab, directly after
+// D-4 — the per-chat DOCUMENTS rack mounts in THIS tab, directly after
 // Injections. Placement is the ruling, so the assertion is ORDER, not mere presence: it is the same family
 // ("extra content entering this room's prompt"), and it sits ABOVE the host-only band because unlike
 // Background/Group/Tool-use it is member-READABLE.

@@ -1,4 +1,4 @@
-// The session substrate's WIRE readers (docs/design/1208-instrument-substrate.md §3.4) — ONE grammar for
+// The session substrate's WIRE readers — ONE grammar for
 // the daemon and the client: a request line off the socket, a registry row off disk, an event line back,
 // and the RESULT pairs a call's captured lines carry. Every reader validates field by field and answers
 // null to anything off-grammar — a daemon on another protocol version, a truncated row, a torn line —

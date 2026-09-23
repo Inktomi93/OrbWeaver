@@ -1,7 +1,7 @@
 // The VENDOR CSS surface: the installed Base UI `CssVars` declarations and version, and the installed
-// Streamdown bundles that are the only writers of its selectors (`resource-gate-access-patterns.md` §4).
+// Streamdown bundles that are the only writers of its selectors (the ResourceHost access-pattern ruling §4).
 //
-// NO COMMITTED MIRROR SIDE (retired #10, `docs/work/0010-vendored-docs-leave-git.md`): a measured diff
+// NO COMMITTED MIRROR SIDE (retired #10): a measured diff
 // proved the committed `docs/vendor/base-ui` Markdown mirror's documented custom-property set was IDENTICAL
 // to the set this reader already parses from the installed `*CssVars.d.ts` declarations — the mirror carried
 // no fact the installed side didn't already carry, so it was deleted rather than relocated. Base UI's own

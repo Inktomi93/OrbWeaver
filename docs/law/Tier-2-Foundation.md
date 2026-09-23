@@ -22,7 +22,7 @@ NOT owned: the AppSettings floor-merge (→ `domain/settings` `effective-config/
 
 ## The defining invariant — foundation reaches UP to NOTHING
 
-Foundation imports only `@orb/kit`, `@orb/contracts`, `@orb/db` (lower packages) and within-tier siblings. A `foundation → domain` or `foundation → infra` import is RED (dep-cruiser `foundation-reaches-up-to-nothing`). An up-stack constant it needs lives in a lower package and is imported DOWN (e.g. `DEFAULT_*_MODEL_ID` in `@orb/contracts/connection`); the killed neo-tavern up-edge is in `history/tier-1-2-archaeology-record.md`.
+Foundation imports only `@orb/kit`, `@orb/contracts`, `@orb/db` (lower packages) and within-tier siblings. A `foundation → domain` or `foundation → infra` import is RED (dep-cruiser `foundation-reaches-up-to-nothing`). An up-stack constant it needs lives in a lower package and is imported DOWN (e.g. `DEFAULT_*_MODEL_ID` in `@orb/contracts/connection`).
 
 Upward pressures resolve by **inversion of control**, never imports:
 

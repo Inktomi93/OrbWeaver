@@ -49,7 +49,7 @@ function resolveSeatDisplayName(
 }
 
 /** Assemble the chat composition-root product: the routed {@link ChatService} PLUS the PRINCIPAL-FREE
- *  `requestTurn` seam (automation-design/05 §AC-B). `requestTurn` is deliberately OFF `ChatService` — it is an
+ *  `requestTurn` seam. `requestTurn` is deliberately OFF `ChatService` — it is an
  *  injected op the entry root hands automation's `trigger_turn` arm + the plugin membrane's `turn.trigger`,
  *  never a routed verb (no principal; the turn triple is resolved internally, not passed). The return shape is
  *  inline (not a named export) per `no-inline-types` — its one consumer destructures `{ service, requestTurn }`. */

@@ -135,7 +135,7 @@ interface InsertCanonMessageParams extends CanonSlotAttribution {
    *  deliberately declare one stays byte-identical; only the narrator writers pass `'narrator'`. */
   readonly kind?: MessageKind | undefined;
   readonly excludedFromPrompt?: boolean | undefined;
-  /** The turn's origin (automation-design/03 §4) — stamped on the reply SLOT. Absent ⇒ the DB defaults
+  /** The turn's origin — stamped on the reply SLOT. Absent ⇒ the DB defaults
    *  (`'human'`/0), so every human/character writer stays byte-identical; only an automation-initiated
    *  new-slot turn passes these through. */
   readonly initiator?: TurnInitiator | undefined;
@@ -712,7 +712,7 @@ export function buildCommittedMessageView(params: InsertCanonMessageParams): Mes
     hasContinuation: false,
     ...variantEconomics(params.variant),
     // The freshly-committed view's tool exchanges — the read seam's `[]`-default (never null) for the
-    // client's tool read surface; a non-tool turn commits an empty array (tool-use-design/03 §3).
+    // client's tool read surface; a non-tool turn commits an empty array (D48).
     toolCalls: params.variant.toolCalls ?? [],
   };
 }

@@ -1,4 +1,4 @@
-// The Connections config group (client-architecture-lockdown.md §8 · config-revamp-design.md §6.8) — a
+// The Connections config group (client-architecture-lockdown.md §8) — a
 // `sections` SKIMMER on the USER shelf (inference program §5.3a: every row is the member's own, so it sits
 // beside Personas / Appearance / Chat behavior, not beside Automation and Admin). Its three rows are the
 // contributions beside this file (connections · model roles · saved keys), assembled at the door in that

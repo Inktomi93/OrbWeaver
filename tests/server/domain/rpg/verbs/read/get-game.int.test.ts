@@ -1,4 +1,4 @@
-// verbs/read/get-game — getGame (rpg-design/05 §4.8, §6.2). The takeover's mode read + the honest-arms
+// verbs/read/get-game — getGame (docs/plans/rpg/design.md). The takeover's mode read + the honest-arms
 // `trackersReadOnly` verdict + (EFF-3) the EFFECTIVE delivery the freshness pill renders instead of the knob.
 
 import type { Db } from "@orb/db";

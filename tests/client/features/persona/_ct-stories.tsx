@@ -116,7 +116,7 @@ export function PersonaPanelRowDenseStory({ width = 358 }: { readonly width?: nu
 }
 
 /** The MOBILE YOU SHEET's persona SWITCHER — `personaChrome.body("sheet")`, which is the production
- *  projection (`shell-chrome-unification.md` §B; since #866 S4 the sheet lens is the switcher grammar:
+ *  projection (since #866 S4 the sheet lens is the switcher grammar:
  *  who-head · switch rows · account foot — the list moved to Config → Personas). Driven through the
  *  registered chrome entry rather than the surface module so the story mounts exactly what the sheet
  *  mounts, and imports it through the feature's front door (a relative reach into `packages/` would bind

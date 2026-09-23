@@ -1,5 +1,5 @@
 // substrate: templates — the load-bearing "Begin your reply with: <prefix>," instructions + the ensurePrefix
-// drift belt (imagery-design/02 §5-6). The prefixes are load-bearing: the size defaults assume the composition
+// drift belt. The prefixes are load-bearing: the size defaults assume the composition
 // they set, and ensurePrefix re-asserts them when the LLM drops its instruction.
 
 import { DEFAULT_CAPTION_INSTRUCTIONS, DEFAULT_PROMPT_TEMPLATES, IMAGERY_NEGATIVE_SLOT_ID } from "@orb/contracts/imagery";

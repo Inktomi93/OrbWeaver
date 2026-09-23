@@ -1,158 +1,182 @@
-// REAL-CORPUS LIVENESS for the eight modules #2149 names — the arm that tells "silent because the tree is
-// clean" apart from "silent because the policy is dead".
+// THE ONE REAL-CORPUS LIVENESS RUNNER (#2149, owner ruling docs/work/0043) — the arm that tells "silent
+// because the tree is clean" apart from "silent because the policy is dead", for every final policy that
+// declares one.
 //
-// WHY THIS FILE EXISTS AND WHY IT IS NOT EIGHT EDITS TO EIGHT FAMILY TESTS. #2149 was raised as eight
-// modules; re-censused from the LATEST published structure slot it is **228 of 246 finals**, and the row's
-// partition (20 "carry a planted control", 8 do not) existed only inside a VOIDED run — slot
-// `main-2930600-2026-09-12T13-42-50-932Z`, which carried 650 `__g_`/`__dc_` findings because a planting
-// suite wrote fixtures into the working tree while the run read it. The clean slot
-// `main-3632865-2026-09-12T15-40-44-410Z` carries ZERO, because NO final policy plants, by construction
-// (guide §6.5). A conjunct true of all 246 discriminates nothing. Ruled program shape: every final policy
-// owes one real-corpus liveness pin, these eight first, the rest by family in chunks.
+// WHY ONE RUNNER. Every final policy owes a real-corpus pin, and the pins used to build their own corpora:
+// one ts-morph project per glob-set here, a tsconfig-loaded type graph over four files in
+// `ct-config-mirror-parity.test.ts`, a 300-second `@ui`+`@client` build in each of two family tests. At ~350
+// policies that is hundreds of project builds, and a `types` corpus over `@client` alone pushed this file
+// past the integration ceiling (0043). The ruling mirrors verify's shared design: `check:structure` loads ONE
+// corpus and runs every policy through ONE walker, so this runner loads THAT corpus once
+// (`tests/support/real-corpus-liveness.ts` — the header says why it is verify's corpus and no other), runs
+// every armed policy through one shared BASELINE pass, then proves the overlays in BATCHED passes over the
+// same project: every add-only arm in one pass, each rewriting arm alone (or with arms planting the
+// identical overlay set), and any arm whose policy reported on a batch-mate's file proved again alone. Each
+// arm still has its own test, reading its batch's verdict, so a failure names its arm.
 //
-// So the arms are DATA, declared per policy and run through one shared helper, because an enforcer arm is
-// coming that must be able to census which policies have a pin. Eight ad-hoc `expect` calls buried in eight
-// family tests would be uncensusable.
+// THE ARMS ARE DATA in `_liveness/<chunk>.ts`, one exported array per chunk, and that directory is the only
+// place `real-corpus-liveness-manifest` counts a pin (it reads `policy:` rows in files there that import both
+// a gate module and the liveness vocabulary). A chunk this file does not import runs nowhere, and knip
+// (whose `tests/**` project set admits it and whose entries are the test files) reports it as an unused
+// file — the one door from "declared" to "run" is the import list.
 //
-// THE COST CONSTRAINT IS REAL AND SHAPES THE FILE, AND IT IS WHY THIS IS `.repo.int`. Each arm needs a
-// ts-morph project over its policy's population; building one PER ARM would be ~228 project builds, so the
-// helper groups arms by glob-set and builds each corpus ONCE. Measured here: two corpora (`@server`, and
-// `@server`+`@db`) cost ~9s of test time, which blew the fast `tooling` project's 7.2s timeout on the first
-// run. A real-corpus arm belongs in the INTEGRATION project beside its siblings
-// (`no-blanket-suppression.repo.int.test.ts`, `policy-soundness-family.suite.repo.int.test.ts`) — landing one in the unit project makes it a load-shaped
-// flake. **That ~4.5s-per-corpus figure is the planning input for chunking the remaining ~220: group by
-// POPULATION, not by family name, or the chunk pays for a corpus per module.**
-//
-// SIX OF THE EIGHT ARE HERE, and the two absentees are absent for a MEASURED reason rather than a skipped
-// one. Both are the `analysis: "types"` modules — `persist-partialize-and-total-migrate` and
-// `section-factory-contribution-bundle` — and both need a full TYPE GRAPH over `@client`, not the pure-AST
-// project the other six share. Measured by WRITING the `persist-partialize` arm and running it: the suite
-// went from 24s to **46s and timed out at the integration project's ~40s ceiling**. One `types` corpus
-// costs more than all six syntax arms together, and raising the timeout would make this suite the
-// load-shaped hazard I removed from it one commit ago.
-//
-// So the `types` tier owes its own decision before its arms land — its own file with its own budget, one
-// shared type-graph corpus across every `types` policy, or `--full`-only. **It is a scheduling question,
-// not a mechanism question: the helper already takes `types: true`, the arm was written, and it ran.**
-// `section-factory-contribution-bundle` additionally consumes a registry FACT
-// (`registryDefinitionFacts.section`), so its arm owes a fact-resolution check the other seven do not.
-import { gate as contractDerives } from "../../../../tooling/src/verify/gates/contract-derives-not-respells.ts";
-import { gate as ctPollHealth } from "../../../../tooling/src/verify/gates/ct-poll-schedule-and-paint-health.ts";
-import { gate as externalIdHealth } from "../../../../tooling/src/verify/gates/external-id-single-writer-health.ts";
-import { gate as injectedOpHealth } from "../../../../tooling/src/verify/gates/injected-op-caller-param-health.ts";
-import { gate as serdeCoreHealth } from "../../../../tooling/src/verify/gates/serde-core-seal-health.ts";
-import { gate as windowedHealth } from "../../../../tooling/src/verify/gates/windowed-infinite-query-health.ts";
-import type { RealCorpusLivenessArm, RealCorpusOverlay } from "../../../support/real-corpus-liveness.ts";
-import { assertRealCorpusLivenessArms } from "../../../support/real-corpus-liveness.ts";
+// THE TIER IS THE MEASURED COST OF THE ONE SHARED RUN (0043). Measured 2026-09-23 at 47 arms, back to back
+// on the same box (loadavg 5-8): one pass PER ARM took 142s of test time, because every overlay invalidates
+// the shared type program and each `types` arm re-ran its checker work cold (6-26s apiece); the BATCHED plan
+// (one 37-arm pass plus ten solo rewriting arms) takes 54s: baseline 22s, every overlaid pass together 25s,
+// the two controls 6s. At 82 arms (the `@client` + `@ui` chunk added heavier policies: its members cost
+// ~45s of the structure run's own policy time) the file measured 392-414s of test time on a box at loadavg
+// 21-31: baseline 104-209s, every overlaid pass together 186-238s, controls 50s. No quiet-box figure exists
+// for 82 arms yet; the budgets below are quiet-box bases that `scaledBudget` stretches under load. It stays
+// in the `repository` project (`.suite.repo.int`, file-serial, inside `--full`'s `tests:tooling`), with
+// per-test budgets rather than the project's 30s default. Solo passes are the growth term: each rewriting
+// arm that plants a distinct overlay costs one program rebuild.
+
+import { gate as queryBoundaryReservation } from "../../../../tooling/src/verify/gates/query-boundary-reservation.ts";
+import { gate as queryBoundaryReservationHealth } from "../../../../tooling/src/verify/gates/query-boundary-reservation-health.ts";
+import type { RealCorpusLivenessArm, RealCorpusLivenessRunner } from "../../../support/real-corpus-liveness.ts";
+import { assertArmVerdict, openRealCorpusLiveness, planLivenessBatches } from "../../../support/real-corpus-liveness.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
+import { CLIENT_ARMS } from "./_liveness/client.ts";
+import { CLIENT_APP_ARMS } from "./_liveness/client-app.ts";
+import { FRONTEND_ARMS } from "./_liveness/frontend.ts";
+import { SERVER_ARMS } from "./_liveness/server.ts";
+import { TESTS_ARMS } from "./_liveness/tests.ts";
+import { TOOLING_ARMS } from "./_liveness/tooling.ts";
 
-// THE GLOBS MUST COVER THE POLICY'S WHOLE DECLARED POPULATION, and getting this wrong does not fail
-// quietly — it manufactures findings. The retired `contract-derives-not-respells-health` declared
-// `["@server", "@db"]`; built over `@server` alone it reported TWO stale-allowlist findings in the BASELINE,
-// because the rows its allowlist named needed `@db` and an absent row reads exactly like a deleted one. The
-// helper's clean-baseline guard refused the arm rather than letting it "pass", which is the guard earning
-// its place on its first real use. Its successor arm below declares all THREE roots
-// (`["@server", "@contracts", "@db"]`) for the same reason: without `@db` no hand-row matches a table and
-// the control could never fire.
-const SERVER = ["packages/server/src/**/*.ts"];
-const SERVER_CONTRACTS_DB = ["packages/server/src/**/*.ts", "packages/contracts/src/**/*.ts", "packages/db/src/**/*.ts"];
-const SERVER_KIT_DB = ["packages/server/src/**/*.ts", "packages/kit/src/**/*.ts", "packages/db/src/**/*.ts"];
-const SERVER_AND_KIT = ["packages/server/src/**/*.ts", "packages/kit/src/**/*.ts"];
-const CLIENT = ["packages/client/src/**/*.ts", "packages/client/src/**/*.tsx"];
-const CT_ANCHOR = ["tests/client/lib/**/*.tsx"];
+const CHUNKS = {
+  client: CLIENT_ARMS,
+  clientApp: CLIENT_APP_ARMS,
+  frontend: FRONTEND_ARMS,
+  server: SERVER_ARMS,
+  tests: TESTS_ARMS,
+  tooling: TOOLING_ARMS,
+} as const;
+const ARMS: readonly RealCorpusLivenessArm[] = Object.values(CHUNKS).flat();
 
-const BLANK = "export const neutralised = 1;\n";
+// Quiet-box ceilings, each ~2.5x the slowest measured case above; `scaledBudget` stretches them under
+// measured load so a contended box never reads as a false RED. The per-arm tests carry the BATCH budget:
+// they only read a kept verdict, but a filtered run that starts at one of them proves every batch first.
+const BASELINE_BASE_MS = 180_000;
+const BATCHES_BASE_MS = 300_000;
+const CONTROL_BASE_MS = 60_000;
 
-/** A neutralise overlay that simply removes the watched subject from a file. */
-function blank(path: string): RealCorpusOverlay {
-  return { kind: "neutralise", path, source: BLANK };
+let runner: RealCorpusLivenessRunner | undefined;
+/** The runner is opened on first use and shared by every test in this file (vitest runs a file's tests in
+ *  one worker, in order), so the corpus is built ONCE whichever test a filtered run starts from. */
+function liveness(repoRoot: string): RealCorpusLivenessRunner {
+  runner ??= openRealCorpusLiveness(repoRoot, ARMS);
+  return runner;
 }
 
-/** The declared arms. One per policy, DATA rather than a call, so the coming enforcer can census them. */
-const ARMS: readonly RealCorpusLivenessArm[] = [
-  {
-    policy: externalIdHealth,
-    globs: SERVER,
-    // The tripwire watches the U1 admin link capability for its atomic writer call. Remove the call and it
-    // must say so — ADDING a file could never make this policy speak.
-    overlays: [
-      {
-        kind: "neutralise",
-        path: "packages/server/src/domain/sessions/verbs/link-external-id.ts",
-        source: "export async function linkExternalId(): Promise<void> {\n  // the atomic writer call is gone\n}\n",
-      },
-    ],
-    messageIncludes: "no longer calls",
-  },
-  {
-    policy: contractDerives,
-    globs: SERVER_CONTRACTS_DB,
-    // WAS `contract-derives-not-respells-health`, a NEUTRALISE arm that blanked the file one ALLOWLIST row
-    // named. That policy retired with the table (#2176 Phase F): the two rows are central reviewed grants and
-    // a dead row is now `stale-reviewed-grant`, which is an authority ALARM and not a policy report, so no
-    // liveness arm can express it — its successor is the grant-reconciliation pin in
-    // `contract-shape-wave-1.suite.test.ts`. What is pinned HERE is the surviving occurrence policy, and an ADD is
-    // the only shape that can speak for it: a NEW domain `contract/` file hand-spelling a real table's row.
-    // `characters` is a live `sqliteTable` export in `packages/db/src/schema/`, so `CharacterRow` matches it
-    // and no grant names this path — which is exactly the third successor obligation, that an UNGRANTED
-    // hand-row is an effective finding on the real tree rather than a fixture-only verdict.
-    overlays: [
-      {
-        kind: "add",
-        path: "packages/server/src/domain/character/contract/__cb2176b-liveness.ts",
-        source: "export interface CharacterRow {\n  readonly id: string;\n}\n",
-      },
-    ],
-    messageIncludes: 'hand-row "CharacterRow"',
-  },
-  {
-    policy: injectedOpHealth,
-    globs: SERVER_KIT_DB,
-    // The policy DERIVES entity-id type names from the ids module. Blank it and the derivation returns zero,
-    // which is the blindness the tripwire exists for.
-    overlays: [blank("packages/kit/src/ids/index.ts")],
-    messageIncludes: "derived ZERO entity-id type names",
-  },
-  {
-    policy: serdeCoreHealth,
-    globs: SERVER_AND_KIT,
-    // A SANCTIONED DOMAIN, not a file: the `import` domain carries the engine import in three places, so
-    // blanking one leaves the sanction alive and the tripwire correctly silent. All three or nothing.
-    overlays: [
-      blank("packages/server/src/domain/import/verbs/import-character.ts"),
-      blank("packages/server/src/domain/import/verbs/restore-character-book.ts"),
-      blank("packages/server/src/domain/import/substrate/card.ts"),
-    ],
-    messageIncludes: '"import"',
-  },
-  {
-    policy: windowedHealth,
-    globs: CLIENT,
-    // "No `infiniteQueryOptions` call site exists under packages/client/src" — there are SIX, so the control
-    // is all six. Neutralising one would leave five and prove the opposite of what the arm claims.
-    overlays: [
-      blank("packages/client/src/features/databank/surfaces/databank-library-surface.tsx"),
-      blank("packages/client/src/features/chat/hooks/use-chat-list-collection.ts"),
-      blank("packages/client/src/features/discovery/components/corpus-browse-view.tsx"),
-      blank("packages/client/src/features/character/surfaces/character-library-surface.tsx"),
-      blank("packages/client/src/components/character-picker.tsx"),
-      blank("packages/client/src/data/create-collection-surface.ts"),
-    ],
-    messageIncludes: "DERIVED NOTHING",
-  },
-  {
-    policy: ctPollHealth,
-    globs: CT_ANCHOR,
-    // The population is exactly one named anchor file; the health arm derives its facts from that file, so
-    // blanking it is the whole control.
-    overlays: [{ kind: "neutralise", path: "tests/client/lib/motion-stats.ct.tsx", source: "export const neutralised = 1;\n" }],
-    messageIncludes: "no freshly-minted poll schedule",
-  },
-];
+/** The chunk's arm for `policyId`, for the controls below. */
+function armFor(policyId: string): RealCorpusLivenessArm {
+  const arm = CLIENT_APP_ARMS.find((candidate) => candidate.policy.id === policyId);
+  if (arm === undefined) {
+    throw new Error(`the client-app chunk has no arm for ${policyId}, so the control has nothing to drive`);
+  }
+  return arm;
+}
 
-test("every declared final policy reports a real-corpus positive control (#2149)", ({ repoRoot }) => {
-  const fired = assertRealCorpusLivenessArms(repoRoot, ARMS);
-  // THE DENOMINATOR. A helper that silently skipped an arm would run zero `expect`s for it and this suite
-  // would be green — the same shape as the dead policies the whole mechanism exists to find.
-  expect([...fired.keys()].toSorted((a, b) => a.localeCompare(b))).toEqual(ARMS.map((arm) => arm.policy.id).toSorted((a, b) => a.localeCompare(b)));
+test("every chunk declares arms, and no policy carries two", () => {
+  // An empty chunk is an import that runs nothing; a duplicated id makes "which control fired" ambiguous.
+  for (const [chunk, arms] of Object.entries(CHUNKS)) {
+    expect(arms.length, `chunk ${chunk} declares no arms`).toBeGreaterThan(0);
+  }
+  const ids = ARMS.map((arm) => arm.policy.id);
+  expect(ids.filter((id, index) => ids.indexOf(id) !== index)).toEqual([]);
+});
+
+test("the batch plan puts every arm in exactly one pass, and a rewriting arm shares only an identical overlay set", () => {
+  const plan = planLivenessBatches(ARMS);
+  expect(
+    plan
+      .flat()
+      .map((arm) => arm.policy.id)
+      .toSorted(),
+  ).toEqual(ARMS.map((arm) => arm.policy.id).toSorted());
+  const spelled = (arm: RealCorpusLivenessArm): string => JSON.stringify(arm.overlays.map((overlay) => JSON.stringify(overlay)).toSorted());
+  const mixedRewriters = plan
+    .filter((batch) => batch.some((arm) => arm.overlays.some((overlay) => overlay.kind !== "add")))
+    .filter((batch) => new Set(batch.map(spelled)).size > 1)
+    .map((batch) => batch.map((arm) => arm.policy.id));
+  expect(mixedRewriters, "a rewriting arm shares its pass with an arm that plants something else").toEqual([]);
+});
+
+test("every armed policy is refusal-free and silent in its arm's scope on the real tree", { timeout: scaledBudget(BASELINE_BASE_MS) }, ({ repoRoot }) => {
+  const ran = liveness(repoRoot).assertBaseline();
+  expect(ran.toSorted(), "the shared pass ran every armed policy").toEqual(ARMS.map((arm) => arm.policy.id).toSorted());
+});
+
+test("the overlaid batches produce a verdict for every arm", { timeout: scaledBudget(BATCHES_BASE_MS) }, ({ repoRoot }) => {
+  const verdicts = liveness(repoRoot).proveAll();
+  expect([...verdicts.keys()].toSorted()).toEqual(ARMS.map((arm) => arm.policy.id).toSorted());
+});
+
+test.for(ARMS.map((arm) => [arm.policy.id, arm] as const))(
+  "%s reports its real-corpus positive control",
+  { timeout: scaledBudget(BATCHES_BASE_MS) },
+  ([, arm], { repoRoot }) => {
+    expect(assertArmVerdict(arm, liveness(repoRoot).verdict(arm)).join("\n")).toContain(arm.messageIncludes);
+  },
+);
+
+test("a DEAD arm batched beside a live one is still named dead", { timeout: scaledBudget(CONTROL_BASE_MS) }, ({ repoRoot }) => {
+  // The planted negative for batching: two real armed policies in ONE overlaid pass, one of them handed a
+  // source that violates nothing. Sharing the pass must not lend the dead arm the live one's finding.
+  const live = armFor("chrome-registry-completeness");
+  const deadOf = armFor("testid-typed-only");
+  const dead: RealCorpusLivenessArm = {
+    ...deadOf,
+    overlays: [{ kind: "add", path: "packages/client/src/components/liveness-clean-control.tsx", source: "export const clean = 1;\n" }],
+  };
+  const verdicts = liveness(repoRoot).proveBatch([live, dead]);
+  const liveVerdict = verdicts.get(live.policy.id);
+  const deadVerdict = verdicts.get(dead.policy.id);
+  if (liveVerdict === undefined || deadVerdict === undefined) {
+    throw new Error("the control batch produced no verdict for one of its two arms");
+  }
+  expect(deadVerdict.batch, "the two arms really shared one pass").toEqual([live.policy.id, dead.policy.id]);
+  expect(assertArmVerdict(live, liveVerdict).join("\n")).toContain(live.messageIncludes);
+  expect(() => assertArmVerdict(dead, deadVerdict)).toThrow("reported NOTHING for a real-corpus positive control");
+});
+
+test("an arm that speaks only BECAUSE of its batch-mate is caught and proved alone", { timeout: scaledBudget(CONTROL_BASE_MS) }, ({ repoRoot }) => {
+  // The planted negative for the entanglement detector. `query-boundary-reservation-health` reports a
+  // `reserveKey` minted at TWO sites. Hand it ONE site, and give the other to a batch-mate of a different
+  // policy: in the shared pass the pair exists and the health policy reports at BOTH paths, so a detector
+  // that trusted the batch would credit the health arm with a finding its own overlay cannot make.
+  const health = armFor(queryBoundaryReservationHealth.id);
+  const [ownSite, mateSite] = health.overlays;
+  if (mateSite === undefined) {
+    throw new Error("the reservation-health arm no longer carries its two duplicate sites");
+  }
+  const halfHealth: RealCorpusLivenessArm = { ...health, overlays: [ownSite] };
+  const mate: RealCorpusLivenessArm = { ...armFor(queryBoundaryReservation.id), overlays: [mateSite] };
+  const verdict = liveness(repoRoot).proveBatch([halfHealth, mate]).get(health.policy.id);
+  if (verdict === undefined) {
+    throw new Error("the control batch produced no verdict for the health arm");
+  }
+  expect(verdict.entangledWith, "the detector saw the health policy report on its batch-mate's file").toEqual([mate.policy.id]);
+  expect(verdict.batch, "the verdict is the SOLO re-proof, not the shared pass").toEqual([health.policy.id]);
+  expect(() => assertArmVerdict(halfHealth, verdict)).toThrow("reported NOTHING for a real-corpus positive control");
+});
+
+test("a RESOURCE overlay that plants nothing is refused — the reader's overlay seam cannot make a policy speak", {
+  timeout: scaledBudget(CONTROL_BASE_MS),
+}, ({ repoRoot }) => {
+  // The planted negative for `kind: "resource"`: the ownership arm's real sheet, handed a tail that is only a
+  // comment. If the overlay alone made the policy report, every green resource arm would be unfalsified.
+  const ownership = FRONTEND_ARMS.find((arm) => arm.overlays.some((overlay) => overlay.kind === "resource"));
+  const [planted] = ownership?.overlays ?? [];
+  if (ownership === undefined || planted === undefined) {
+    throw new Error("the frontend chunk carries no resource arm, so the control has nothing to drive");
+  }
+  const dead: RealCorpusLivenessArm = { ...ownership, overlays: [{ kind: "resource", path: planted.path, append: "\n/* liveness clean control */\n" }] };
+  const verdict = liveness(repoRoot).proveBatch([dead]).get(dead.policy.id);
+  if (verdict === undefined) {
+    throw new Error("the control batch produced no verdict for its arm");
+  }
+  expect(() => assertArmVerdict(dead, verdict)).toThrow("reported NOTHING for a real-corpus positive control");
 });

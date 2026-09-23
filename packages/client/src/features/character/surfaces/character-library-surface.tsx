@@ -12,7 +12,7 @@
 //   • "No matches" is now a claim this surface has standing to make — the whole library was searched.
 //   • The counts print the server's `totalCount`, not "loaded so far".
 //
-// THE TAG LIBRARY IS ALSO THE FILTER'S REFERENTIAL AUTHORITY (staleness-and-session-freshness.md §4.2.2).
+// THE TAG LIBRARY IS ALSO THE FILTER'S REFERENTIAL AUTHORITY (D138).
 // `orb:character-library` persists raw `TagId`s that outlive the rows they name — a deleted tag, or a whole
 // previous dev era's db. Because the server's tag predicate is AND on both arms, ONE such include-id matches
 // zero rows and empties the entire library, invisibly and across every reload: the owner's import repro, whose
@@ -20,8 +20,8 @@
 // (`effectiveTagFilter`) while staying in the store, where the chip row renders it clearable — visible + inert.
 //
 // THE PANE NO LONGER SWAPS, SO THE BROWSE POSITION IS NOT AT RISK (#501, owner ruling 2026-08-22 —
-// "library stays docked"; it supersedes `list-pane-projection-proposal.md` §10 D2, which that doc itself
-// records as a design RECOMMENDATION rather than an owner-ruled entry). Opening somebody USED to swap this
+// "library stays docked"; it supersedes the earlier list-pane design RECOMMENDATION, which was never an
+// owner-ruled entry). Opening somebody USED to swap this
 // whole LIST pane to her chats projection, unmounting this surface — the paged rows survived in the query
 // cache but the virtual list's scroll offset did not, so #255 captured the offset at the click and re-applied
 // it at mount. Nothing unmounts on a selection now: the library keeps its window, its scroll and the focused

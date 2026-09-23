@@ -101,7 +101,7 @@ test("createServices builds the full graph: every Services key + the boot handle
   expect(result.secretBox).toBeDefined();
 });
 
-// W7a — THE ADMIN REVOKE → SOCKET EVICTION WIRE (staleness-and-session-freshness.md §4.4.3). The registry
+// W7a — THE ADMIN REVOKE → SOCKET EVICTION WIRE. The registry
 // suite proves `evictUser` stops a generator; this proves the admin verb is CONNECTED to it, which is the
 // half a unit test of either side cannot see. PER USER by owner ruling F4 ("admin REVOKE stays per-user"):
 // a revoke is a statement about the account, the human's still-valid devices reconnect and resume, and it is

@@ -1,5 +1,5 @@
-// @orb/contracts/refinery — the refinery prose slot table (PROSE-1 §4.1; refinery R1 —
-// docs/history/design/refinery-r0.md §9.7). THIRTEEN slots, F4's own arithmetic: four stage-SYSTEM prompts
+// @orb/contracts/refinery — the refinery prose slot table (D132; refinery R1).
+// THIRTEEN slots, F4's own arithmetic: four stage-SYSTEM prompts
 // (score/rewrite/refine/analyze — `refine` is the refinement-rewrite system, the extension's
 // BASE_REFINEMENT_PROMPT) + the NL→schema generator's system prompt (R3/SF — `refinery.schemaForge.system`)
 // + eight (stage × mode) INSTRUCTION bodies — the source extension's 8 builtin

@@ -1,4 +1,4 @@
-// B11 (interaction-direction-spec §7 B11) — the room ACTIVITY tab as an automation CONTRIBUTION to the chat
+// B11 — the room ACTIVITY tab as an automation CONTRIBUTION to the chat
 // CONTEXT strip. It is a CONTRIBUTION, not a native chat tab, because `client-features-no-cross` forbids the
 // chat feature from importing automation, and the fire-outcome COPY (`fireOutcomeView`/`fireDetailLine`) has
 // its one home in automation — so a chat-owned tab could not render a fire row without re-spelling that

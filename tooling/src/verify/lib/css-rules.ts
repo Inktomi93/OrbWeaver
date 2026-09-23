@@ -56,7 +56,7 @@ export interface ParsedCssStylesheet {
  *
  *  WHY IT EXISTS AS A SEPARATE FACT. `CssAtRule` is pushed only from `closeFrame`, which fires on `}`, so a
  *  BLOCKLESS at-rule produced no parser fact at all and `CssFacts` structurally could not answer "what does
- *  this sheet import" (measured 2026-09-12, `css-family-audit-2026-09-12.md` §(d): a five-line sheet with
+ *  this sheet import" (measured 2026-09-12, the 2026-09-12 CSS-family audit §(d): a five-line sheet with
  *  two `@import`s and one `@source` parsed to `statement at-rules seen = 0` while the `@media` control was
  *  seen). Every consumer that wanted the answer owned a private `@import` regex over blanked text, which is
  *  the forbidden-machinery shape §12.3 bans.

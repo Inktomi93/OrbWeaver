@@ -43,7 +43,7 @@ export const numberFieldVariants = tv({
   // else here may set a height.
   //
   // `md` is the default full-width form field, byte-identical to the pre-axis skin (a 44px stepper-flanked
-  // input with centered body type). `inline` is the knob-row twin (preset-surface-redesign.md §4.1/§13): a
+  // input with centered body type). `inline` is the knob-row twin: a
   // stepper-less mono cell in `--width-number-inline`, right-aligned so a column of knob values reads down
   // one number edge, at the `code` type step because a slider's number twin is a datum, not prose. Its
   // input keeps `h-control-sm` — the per-pointer control height (32px fine / 44px coarse), so an

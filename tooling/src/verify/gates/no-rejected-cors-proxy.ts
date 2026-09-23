@@ -84,8 +84,8 @@ export const gate = defineGate({
   family: "no-rejected-cors-proxy",
   authority: "hard",
   severity: "error",
-  // `@inference` ADDED 2026-09-20 (lane cb-gate-reach, the §12 EXTRACTION AUDIT of
-  // `docs/design/orbweaver-inference-package.md`). ~104 source files left `packages/server/src/infra/providers/`
+  // `@inference` ADDED 2026-09-20 (lane cb-gate-reach, the inference EXTRACTION AUDIT).
+  // ~104 source files left `packages/server/src/infra/providers/`
   // for the new `@orb/inference` workspace package, and every `@server`-scoped policy stopped judging them the
   // day they moved, silently. This is the HARD half of D61/B5a — no home may spell the rejected third-party CORS proxy, and there is no
   // waiver door at all. Its sibling `no-raw-egress` is widened in the same commit for the same reason: the

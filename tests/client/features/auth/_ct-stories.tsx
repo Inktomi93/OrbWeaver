@@ -82,7 +82,7 @@ export function LoginFirstRunFormStory({ ownerHandle }: { readonly ownerHandle: 
   );
 }
 
-/** THE RUNG-1 LOOP, end to end (staleness-and-session-freshness.md §4.4, owner fork F2). Not the modal in
+/** THE RUNG-1 LOOP, end to end. Not the modal in
  *  isolation: the probe binds a real recovery HOST and then kills the session the way the socket does, so
  *  what the CT drives is the production ladder — UNAUTHORIZED → probe says signed-out → local mode → the
  *  modal opens → a password → resume IN PLACE. The rendered `resumes` counter is the claim: recovery

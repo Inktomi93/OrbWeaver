@@ -855,7 +855,7 @@ export default tseslint.config(
     // Query code). no-rest-destructuring stays dropped (ergonomic). The two property-order rules were
     // originally dropped as "ordering → Biome", but Biome has NO TanStack-aware ordering rule and both
     // are TYPE-INFERENCE correctness per their own meta (a mis-ordered onMutate loses the context
-    // type — UI-Lib-TanStack-Query.md §E-3) — turned ON at the wave (2026-07-03).
+    // type) — turned ON at the wave (2026-07-03).
     files: [CLIENT_SRC],
     plugins: { "@tanstack/query": pluginQuery },
     rules: {

@@ -163,7 +163,7 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionMemberV
         ref={surfaceRef}
         tabIndex={-1}
       >
-        {/* THE DRILL ROW (#1747, DESIGN.md §3.4): `← Back to <library>` · the roster's name · this
+        {/* THE DRILL ROW (#1747, the mock design §3.4): `← Back to <library>` · the roster's name · this
             collection's ONE member verb, Start chat (§3.4 names it). SAVE STAYS WITH THE FIELDS below: it
             commits the two inputs it sits under and is not a member verb — moving it up would put a
             form's submit two rows above the form and leave the conflict notice (#1561) beside nothing. */}

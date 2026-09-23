@@ -1,4 +1,4 @@
-// verb test: installFromUrl (plugin-ui-plane #679 U8, seam 15 — the URL install-act arm; the security-review
+// verb test: installFromUrl (U8, seam 15 — the URL install-act arm; the security-review
 // subject). Fetch a bundle through the EGRESS GUARD, then run it through the EXACT SAME consent/grant funnel a
 // file install rides. The walls this file pins, red-first where the wall is the point:
 //   - THE EGRESS GUARD IS THE WALL: an SSRF-blocked fetch collapses to a LEAK-FREE `PluginBundleFetchError` and

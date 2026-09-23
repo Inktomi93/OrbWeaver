@@ -3,7 +3,7 @@
 // id-keyed list and subscribes only to lifecycle (`useTurnPhase`) — token text stays inside the one ghost
 // row, so a delta never re-renders the list.
 //
-// ONE THREAD (chat-creation-draft-mode-replacement.md §4.1/§4.8, R1). There used to be a second one:
+// ONE THREAD (D166). There used to be a second one:
 // `DraftGreetingThread` fabricated a `MessageView` per founding character (`synthGreetingRow`) because a
 // pre-send room had no canon to read, and it carried its own macro producers — including a CLIENT MIRROR of
 // the server's four-rung anchor-persona chain, fed by three extra queries, kept in lockstep by comment only.

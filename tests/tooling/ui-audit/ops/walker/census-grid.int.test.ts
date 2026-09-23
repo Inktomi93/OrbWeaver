@@ -8,7 +8,7 @@
 //
 // THE ACCOUNTING IS THE ASSERTION. Each arm below pins the whole population row — candidates, judged, and
 // the named exclusion/withholding — rather than only the finding it emits: this census's founding risk is
-// a denominator that silently shrinks (docs/design/integer-line-boxes.md §11, and #987's "an N/A cohort
+// a denominator that silently shrinks (docs/law/integer-line-boxes.md §11, and #987's "an N/A cohort
 // cannot silently disappear from the denominator").
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";

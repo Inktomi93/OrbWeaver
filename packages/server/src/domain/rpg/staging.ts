@@ -1,4 +1,4 @@
-// domain/rpg/staging — the Option-A in-memory staging accumulator SINGLETON (rpg-design/05 §2.4). A STATEFUL
+// domain/rpg/staging — the Option-A in-memory staging accumulator SINGLETON (docs/plans/rpg/design.md). A STATEFUL
 // feature-root collaborator (a per-turn bucket Map), NOT a pure `substrate/` helper — the `chat/active-turns.ts`
 // precedent (the feature-structure allowlist pre-documents this root file). The pure merge engine it overlays
 // with (`applyLockedPatch`) stays in `substrate/merge.ts`.

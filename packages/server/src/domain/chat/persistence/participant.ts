@@ -124,7 +124,7 @@ export function isArbiterEligible(p: { readonly leftSeq: number | null; readonly
  *  round after the flip, not just the one a lone-symbol wiring pass happened to touch (containment is a
  *  one-row flip, read fresh per round via the injected `ctx.resolveUserEnabled`). Today's only
  *  USER_BACKED_KINDS member is `human` (`character` has no backing user, so `enabled` never gates it —
- *  returns `true` regardless); an `agent` kind, if it ever re-lands (D60; agent-principal-design/02 §1.1, doc
+ *  returns `true` regardless); an `agent` kind, if it ever re-lands (D60; docs/plans/agent-principals/design.md, doc
  *  03 §4), extends automatically — this predicate's mechanism was never kind-specific. Consumes
  *  {@link isUserBacked} so a 5th kind is caught upstream. */
 export function isBackingUserEnabled(kind: ParticipantKind, enabled: boolean): boolean {

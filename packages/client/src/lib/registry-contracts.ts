@@ -32,13 +32,13 @@ import type { ContributorRegistry } from "./registry.ts";
  *  ADMINISTRATION rail pinned to the pane's foot. Membership is a property of the tab's JOB, declared by its
  *  owner, so chat's own tabs stay `"meta"` without knowing a state contributor exists (an id-prefix rule
  *  would break the moment a non-rpg contributor ships a state tab). The shell's bracket renders the TOP rail
- *  only when a `"game"` tab resolved (APPLICABILITY, Context-Panel-Program §4.1) and the FOOT rail always. */
+ *  only when a `"game"` tab resolved (APPLICABILITY) and the FOOT rail always. */
 export type ContextTabStrip = "game" | "meta";
 
 /** The TOP (state) rail's on-screen name and a11y group name — a property of the closed strip vocabulary,
  *  homed beside it. "Game state", not "Game": the crown host console in the FOOT rail is a TAB named "Game",
- *  and two sibling groups where one's name is the other's member collide for anyone navigating by name
- *  (Context-Panel-Program §4.2). The FOOT rail is named by its SECTION (`ContextTabsSpec.railLabel`). */
+ *  and two sibling groups where one's name is the other's member collide for anyone navigating by name.
+ * The FOOT rail is named by its SECTION (`ContextTabsSpec.railLabel`). */
 export const GAME_STRIP_LABEL = "Game state";
 
 /** One CONTEXT-panel tab. `S` is the host section's OWN context-state projection — a real named type
@@ -71,7 +71,7 @@ export interface ContextTabDef<S> {
    *  GENERIC panel renders it `aria-disabled` + `title` + lock glyph (focusable, never `disabled`); a CLAIMED
    *  pane renders lock + `title` and NOT `aria-disabled` — its locked cell OPENS (HUD-1 §3.6b). `null` ⇒ enabled. */
   readonly disabledReason?: (state: S) => string | null;
-  /** Preferred-default marker (Context-Panel-Program §4.1) — when TRUE and no stored `contextTab` is visible,
+  /** Preferred-default marker — when TRUE and no stored `contextTab` is visible,
    *  the panel lands on THIS tab instead of the declared-order first (a game chat lands on `rpg.status`, not
    *  the roster's Members). Resolved at resolve-time against `S` (same as `when`). A stored, still-visible
    *  `contextTab` always wins (continuity is untouched); when no tab flags it, the first visible tab is the
@@ -92,7 +92,7 @@ export interface ResolvedContextTab {
   readonly crown: boolean;
   readonly badge: number | boolean | null;
   readonly disabledReason: string | null;
-  /** RESOLVED preferred-default flag (Context-Panel-Program §4.1): `true` ⇒ the panel lands here when no
+  /** RESOLVED preferred-default flag: `true` ⇒ the panel lands here when no
    *  stored `contextTab` is visible. First `true` tab wins; all-`false` ⇒ the declared-order first (today). */
   readonly defaultTab: boolean;
 }
@@ -335,7 +335,7 @@ export interface CommittedChatContext {
  *  every chat-context CONTRIBUTOR (`ContextTabDef<ChatContextState>`) are typed against.
  *
  *  IT IS A SINGLE-ARM UNION ON PURPOSE. `DraftChatContext` (a rowless room carrying founding CHARACTER ids —
- *  its deleted field said `cast` — instead of a roster) was deleted with draft mode (chat-creation-draft-mode-replacement.md §4.1, R1), but
+ *  its deleted field said `cast` — instead of a roster) was deleted with draft mode (D166), but
  *  the `phase` discriminant STAYS: it is the seam a second projection would re-enter through, every tab body
  *  and contributor already narrows on it, and collapsing it would be a churn across the whole contributor
  *  surface to save one literal. */
@@ -361,7 +361,7 @@ export interface AnalyticsContextState {
   readonly characterId: CharacterId | null;
 }
 
-/** One walkable door in the Config TEACHER (config-revamp-design.md §3.5/§7.2) — an "Applies"/"Related"
+/** One walkable door in the Config TEACHER — an "Applies"/"Related"
  *  row the reader can activate. Pre-bound: the host resolved the address into the `openConfigTo` (or a
  *  contribution's own) opener before it crossed this seam, so the tabs render state-blind. */
 export interface ConfigTeachDoor {

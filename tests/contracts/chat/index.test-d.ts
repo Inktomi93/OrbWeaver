@@ -182,7 +182,7 @@ test("InviteView has no token field at the type level (no redeem-token leak)", (
   expectTypeOf<UnionMemberHasKey<InviteView, "token">>().toEqualTypeOf<false>();
 });
 
-// ── ChatContentPart — the D48 exhaustive-member pin (tool-use-design/02 §1) ───────────────────────────
+// ── ChatContentPart — the D48 exhaustive-member pin ───────────────────────────
 // A translator maps parts by `type`; this pin makes ADDING a member a visible red HERE (update the
 // literal union below + audit every translator's dispatch — the D45 image-parts landing discipline).
 test("ChatContentPart is exactly text|image|video|reasoning|tool-call|tool-result; tool parts carry the wire join", () => {

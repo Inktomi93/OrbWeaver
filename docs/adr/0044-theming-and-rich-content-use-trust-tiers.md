@@ -8,7 +8,7 @@ updated: 2026-09-23
 
 ## Context
 
-Not recorded in the ledger row.
+SillyTavern lets users style chats with custom CSS (global and per character), rich HTML cards and inline media, and users expect that expressiveness. ST contains untrusted CSS by string rewriting (renaming classes to a `.custom-` prefix and stripping `://`), which is bypassable. The chat content model, composer and assembly all depend on this decision, so it was ruled before chat assembled any content.
 
 ## Decision
 
@@ -16,8 +16,12 @@ User theming + rich message content: **two trust tiers, isolation by physics** â
 
 ## Consequences
 
-Not recorded in the ledger row.
+A theme is a token value set, never a structural mode. Per-character styling covers the ST token subset (accent, role bubbles, name color, prose semantics, font, radius, surface, chat style and density) with no injection surface. The live emit surface is `THEME_SCOPE_EMIT_VARS` in `packages/ui/src/content/theme-scope/clamp.ts`, and it grows only for chrome whose absence leaves an unthemed edge on a themed panel. Native `<audio controls>` and `<video controls>` are the one declaratively interactive HTML class, because a card can play media with no card JS.
 
 ## Alternatives rejected
 
-Not recorded in the ledger row.
+- Regex sanitize and scope, as ST does: which filters rather than isolates; isolation must be a browser boundary.
+- Shadow DOM for Tier B: it gives composability, not isolation. Script in a shadow tree has full page access and custom properties pierce it.
+- DOMPurify as a second pass: Streamdown's own `rehype-sanitize` and `rehype-harden` already sanitize inside the pipeline; a second pass outside it adds nothing.
+- `react-shadow` or a generic isolation library: built for design-system encapsulation, and a security boundary we depend on should be the small owned `sandbox-frame` whose `sandbox` and CSP attributes we control.
+- Structural theme modes such as a work mode, free-form dragging (`movingUI`) and visual-novel fullscreen (`waifuMode`): a theme is a palette plus optional density, and the visual-novel layer is out (D49).

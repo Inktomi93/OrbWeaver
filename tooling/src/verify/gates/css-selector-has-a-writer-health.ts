@@ -27,7 +27,7 @@
 // successor is `baseui-surface-manifest`'s own row, not this module's.
 //
 // THE SUCCESSOR IS PROVEN IN BOTH DIRECTIONS, and the sentence that said otherwise was BORN STALE — a
-// correction worth keeping because of how it happened (`v-css-unit-2-2026-09-13.md` ledger row 5, #2305).
+// correction worth keeping because of how it happened (the CSS unit-2 verifier review ledger row 5, #2305).
 // The retirement above leans on `baseui-surface-manifest`, and each term it leans on is pinned:
 //   * the `state` term — cutting `|${part.state.join(",")}` out of `identity()` reds
 //     `baseui-surface-manifest:mustFlag[2]` alone;
@@ -46,7 +46,7 @@
 // source files when only a declared resource changed. `baseui-surface-manifest` declares
 // `population: { of: "none" }` and `execution: "entire-population"` and subscribes no visitor, so it has no
 // source population to under-select and defers whole under a narrowed request. The arms above cannot go
-// stale-clean by that mechanism — which held BEFORE #2309 was repaired (`x-resource-selection-2026-09-13.md`,
+// stale-clean by that mechanism — which held BEFORE #2309 was repaired (the 2026-09-13 resource-selection repair,
 // the `policy-effective-population` seam) and holds after it, because the reason is the declared population,
 // not the planner.
 //

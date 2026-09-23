@@ -1,7 +1,7 @@
 // The Characters CONTENT when a row is selected. One always-editing AUTOSAVE form over the draft
 // card-content fields, mounted through the D78 session boundary (`CharacterForm`) which OWNS the entity
 // key — a character switch is a boundary-driven teardown/remount seeded from the new server row, so there
-// is no manual `key` to place wrong (D78 L2, autosave-form-doctrine.md §1/§8). The hero name is a draft
+// is no manual `key` to place wrong (D78 L2). The hero name is a draft
 // field; the hero portrait/star/archive + the tags row are immediate identity commits outside the form.
 // Autosave everywhere (D66 A4 / north-star §7): no Save/Discard — the header carries the token split +
 // the shared AutosaveStatus (Saved / Saving… / Save failed — Retry) where Save used to be.
@@ -146,7 +146,7 @@ function CharacterEditorBody({ characterId, detailContributors, onRevealField }:
 
   // The editor form rides the D78 session boundary: it OWNS the entity key (keyed by data.id), so a
   // character switch is a full teardown/remount of the Session AND the form-bearing body — no manual
-  // `key` to place wrong (autosave-form-doctrine.md §1). `serverValues` re-baselines a clean form on a
+  // `key` to place wrong (D78). `serverValues` re-baselines a clean form on a
   // fresh server echo (§5); the character editor has no reset/revert affordance, so no `reseed` call.
   return (
     <CharacterForm entityId={data.id} serverValues={characterCardFormFromDetail(data)} save={save}>

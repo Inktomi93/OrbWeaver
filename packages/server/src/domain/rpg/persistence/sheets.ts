@@ -1,4 +1,4 @@
-// domain/rpg/persistence/sheets — the per-actor IDENTITY sheet store (rpg-design/05 §4.3). NO membership
+// domain/rpg/persistence/sheets — the per-actor IDENTITY sheet store (docs/plans/rpg/design.md). NO membership
 // shadow (the no-party-system ruling made schema: `rpg_sheets` replaces legacy `rpg_party`). A sheet is
 // keyed by durable actor identity (characterId XOR userId), created on FIRST WRITE. This slot owns the READ
 // (raw rows + a by-actor lookup) and the row-on-first-write UPSERT; the participants ∪ rows PROJECTION is composed

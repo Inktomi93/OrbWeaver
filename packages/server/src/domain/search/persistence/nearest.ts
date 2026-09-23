@@ -73,7 +73,7 @@ interface NearestDocumentChunk {
 }
 
 interface NearestDocumentChunksParams {
-  /** The scope allowlist (databank-design/05 §3.3 step 1) — applied in SQL BEFORE the cosine rank + before
+  /** The scope allowlist — applied in SQL BEFORE the cosine rank + before
    *  content_hash collapse (the vector-scope-derived belt). An empty list is a caller bug (the verb
    *  short-circuits earlier), never reached with `[]`. */
   readonly documentIds: readonly DocumentId[];

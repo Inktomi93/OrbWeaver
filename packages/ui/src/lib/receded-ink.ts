@@ -1,8 +1,8 @@
 // THE ONE SPELLING FOR "THIS CONTROL RECEDES" — the rest ink a COMPOSITE states for the quiet half of a
 // two-weight pair, when the pair's design ruling is "two controls at two weights".
 //
-// WHY IT EXISTS (#1249, 2026-09-02). 242bfaecb (#969,
-// `docs/design/theme-pivot-foreground-contract.md`) flipped `Button`'s `secondary`, `ghost` and `outline`
+// WHY IT EXISTS (#1249, 2026-09-02). 242bfaecb (#969)
+// flipped `Button`'s `secondary`, `ghost` and `outline`
 // intents from named ink to `text-current`, so a transparent action inherits its host surface's paired ink.
 // That is CORRECT and stays: it is what makes those intents TOTAL over the accepted base foregrounds, and
 // reverting it re-breaks the painting on every non-default surface. What it also did — the reason this

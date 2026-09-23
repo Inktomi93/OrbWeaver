@@ -8,7 +8,7 @@
 // (a committed row with no installed counterpart, and the reverse). Re-deriving `data-${state}` in each
 // would be two spellings of one vocabulary.
 //
-// EVERY INPUT IS AN ALREADY-NARROWED RESOURCE VALUE, never a door. `resource-policy-contract.md` §3.2 is
+// EVERY INPUT IS AN ALREADY-NARROWED RESOURCE VALUE, never a door. `docs/law/resource-policy-contract.md` §3.2 is
 // explicit after #2148: "a shared reader takes the NARROWED VALUE and the caller reads its own door" — the
 // carve that admitted a whole `ResourceHost` into a `lib/` reader shipped and was removed, because
 // `policy-soundness` ARM E4's population is the gates tree and the guard stopped exactly where the escape

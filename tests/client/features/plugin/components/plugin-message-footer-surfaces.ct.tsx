@@ -1,4 +1,4 @@
-// CT: the plugin `message-footer` anchor (plugin-ui-plane #679 U6, §5.4) over the REAL tRPC path with a
+// CT: the plugin `message-footer` anchor over the REAL tRPC path with a
 // stubbed network. The subject is the PRODUCTION contribution the door assembles (`pluginMessageFooterSurface`),
 // never a test double — so what is pinned is `plugin.listSurfaces` → the per-row fan-out → the inline shell.
 //

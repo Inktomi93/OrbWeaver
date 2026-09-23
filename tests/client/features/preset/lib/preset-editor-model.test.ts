@@ -1,6 +1,6 @@
 // Unit: the preset EDITOR's direct-bind model (features/preset/lib/preset-editor-model). No DOM — the node
-// lane. Guards the W10 Panel-A merge-on-submit invariants that used to live in the DELETED contract mapper
-// (preset-form-mapper-elimination.md): server-only fields the panel never edits survive; an all-default
+// lane. Guards the W10 Panel-A merge-on-submit invariants that used to live in the DELETED contract mapper:
+// server-only fields the panel never edits survive; an all-default
 // postProcess/reasoningParse/compaction block round-trips to UNSET; schemaVersion re-anchors to the server;
 // and seedConfig fills the bind-friendly blocks so every nested path binds. The reasoningParse round-trip
 // this replaces the deleted contract test for lands here.

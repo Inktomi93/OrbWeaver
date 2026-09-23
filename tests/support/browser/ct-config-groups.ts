@@ -1,5 +1,5 @@
 // The CONFIG-GROUP registries a client CT mounts the config host over — assembled as at the real door
-// (`compose/authed-app.tsx`, config-revamp-design.md §3.1 / §6.8): total over CONFIG_GROUP_IDS, the nine
+// (`compose/authed-app.tsx`): total over CONFIG_GROUP_IDS, the nine
 // settings skimmers + the four collections, handed to `makeConfigSection` / the host panes by FACTORY (there
 // is no context pair for it). A non-component module beside `ct-data-providers.tsx` (which exports only
 // components — playwright-ct's Fast Refresh rule): the providers import the registries from here, and a

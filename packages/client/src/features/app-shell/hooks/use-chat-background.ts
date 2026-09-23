@@ -8,7 +8,7 @@
 // IT USED TO HAVE TWO CHARACTER SOURCES (owner dogfood 2026-08-06): gating the read on `useActiveChatId` meant a
 // pre-send room showed the viewer's default background and swapped to the card's the moment a message
 // landed, so a DRAFT arm read the founding cards directly. A chat row exists from the creation click now
-// (chat-creation-draft-mode-replacement.md §4.1) and `useStartChat` seeds `getChat` from `startChat`'s own
+// (D166) and `useStartChat` seeds `getChat` from `startChat`'s own
 // response, so ONE character source is warm on the room's first frame. The composition + cascade are unchanged.
 //
 // Non-suspending throughout: the shell must never suspend/crash on decoration — an unresolved/errored read

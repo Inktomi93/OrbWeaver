@@ -1,4 +1,4 @@
-// useConfigLeaf — the per-leaf value/defaults seam (config-revamp-design.md §3.4/§7.7, #866 row-chrome
+// useConfigLeaf — the per-leaf value/defaults seam (#866 row-chrome
 // leg): resolves a focused/rendered leaf's DECLARED `key` binding through the config-section registry
 // into `{current, default, modified, reset}`. The ONE derivation both chrome surfaces read — the row's
 // modified stripe + revealed Reset AND the teacher's About default-vs-current block — over the SAME

@@ -1,4 +1,4 @@
-// The OIDC re-auth resume snapshot (staleness-and-session-freshness.md §4.4.2, owner fork F3). The whole
+// The OIDC re-auth resume snapshot. The whole
 // contract is "survive exactly one redirect round trip, then be gone" — a snapshot that outlived its trip
 // would yank a user into a chat they left days ago, which is the staleness class this design exists to end.
 

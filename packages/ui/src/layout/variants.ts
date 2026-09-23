@@ -119,7 +119,7 @@ export const gridVariants = tv({
       auto: "grid-cols-[repeat(auto-fit,minmax(min(16rem,100%),1fr))]",
       // @orb-waive no-arbitrary-tw-values(grid-cols-[repeat): this layout recipe owns the documented grid-track composition; ends when a token expresses these tracks.
       wide: "grid-cols-[repeat(auto-fit,minmax(min(22rem,100%),1fr))]",
-      // Dense compact tiles (the OSRS stat-cell / attribute grid, Context-Panel-Program §3.2): a narrow
+      // Dense compact tiles (the OSRS stat-cell / attribute grid): a narrow
       // min so the CONTEXT panel tiles stat cells 2-up at the 17rem floor, 3-up when it has room.
       // @orb-waive no-arbitrary-tw-values(grid-cols-[repeat): this layout recipe owns the documented grid-track composition; ends when a token expresses these tracks.
       tile: "grid-cols-[repeat(auto-fit,minmax(min(5rem,100%),1fr))]",

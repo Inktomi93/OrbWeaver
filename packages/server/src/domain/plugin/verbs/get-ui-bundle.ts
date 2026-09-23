@@ -1,4 +1,4 @@
-// verb: getUiBundle — the SOURCE of one owned plugin's Tier-C client guest (plugin-ui-plane #679 U4, §4.6 /
+// verb: getUiBundle — the SOURCE of one owned plugin's Tier-C client guest (U4, §4.6 /
 // seam 8). The browser worker needs the `ui.js` text to `evalCode` into its interpreter; this is where those
 // bytes come from, and it is the only place they can.
 //

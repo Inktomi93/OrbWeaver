@@ -37,7 +37,7 @@ test("package root exceptions require one exact reviewed-grant identity", ({ scr
   expect(result.authority.effectiveFindings).toMatchObject([{ policyId: "package-layout", file: path, subject: path, operation: "loose-package-root-module" }]);
 });
 
-/** The §4.5 refusal and receipt pins for the two resource exemplars (docs/design/resource-policy-contract.md
+/** The §4.5 refusal and receipt pins for the two resource exemplars (docs/law/resource-policy-contract.md
  *  §3.6), and the reason the in-module `if (fact.status !== "ready") return;` guard was deleted from both: a
  *  BROKEN declared resource never reaches `evaluate` at all. `resolveResourceDeclarations` throws during
  *  the POPULATION phase (`lib/resource-declaration.ts`), the owner is marked incomplete and WITHHELD, and
@@ -186,7 +186,7 @@ test("ui-exports-map-complete: a malformed manifest refuses with its own status 
 
 // ---------------------------------------------------------------------------------------------------
 // THE §4.5 REFUSAL PINS for `feature-owns-definition`'s one declared resource (`authored-tree:client-feature`),
-// owed by `resource-policy-contract.md` §3.6 — one pin per declared resource per REACHABLE non-ready status
+// owed by `docs/law/resource-policy-contract.md` §3.6 — one pin per declared resource per REACHABLE non-ready status
 // — and absent until 2026-09-13 (#2327, the `policy-refusal-coverage` warning debt). The two pin sets above
 // cover `server-layout` and `ui-exports-map-complete`; this module declares the SAME KIND with a different
 // id and inherits none of them, which is exactly why the contract asks per DECLARED RESOURCE.

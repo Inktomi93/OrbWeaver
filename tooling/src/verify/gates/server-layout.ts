@@ -2,7 +2,7 @@
 // six-tier architecture plus index.ts. This is a semantic vocabulary, not an exemption or count ratchet;
 // ResourceHost derives the live entries and package metadata anchors missing-tier findings.
 // The resource-policy contract this module is the worked example of — what a closed-ResourceHost policy
-// owes, and why it owns no not-ready branch — is docs/design/resource-policy-contract.md.
+// owes, and why it owns no not-ready branch — is docs/law/resource-policy-contract.md.
 // FAMILY: singleton. The rule is one package's root vocabulary read off one authored tree; the nearest
 // sibling (`ui-exports-map-complete`) judges a DIFFERENT package against its manifest exports, and the two
 // share the `readyResourceValue` declaration reader (`lib/resource-declaration.ts`) rather than a family

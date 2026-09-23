@@ -2,7 +2,7 @@
 // the live `@orb/db` schema whose FK target is `assets.id` must be classified in the registry: RETAINING
 // (`ASSET_REFS`, keeps the blob) or DERIVED (`DERIVED_ASSET_COLUMNS`, regenerable, does not pin). A new
 // asset-bearing column in NEITHER list means GC can silently reclaim a live blob and the portability export
-// will not bundle it (assets-maintenance.md §"the asset-ref registry").
+// will not bundle it.
 //
 // THE COMPARATOR LIVES IN THE STAGE, NOT HERE (2026-09-05, #1584 — the same move `db-baseline-parity` made):
 // `compareAssetRefsCoverage` (tooling/src/verify/ops/asset-refs-coverage.ts) owns the ONE reconciliation, and

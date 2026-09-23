@@ -1,4 +1,4 @@
-// THE STATEFUL SESSION SUBSTRATE, phase 1 (docs/design/1208-instrument-substrate.md §8 T1/T2/T3/T5/T6/T9 +
+// THE STATEFUL SESSION SUBSTRATE, phase 1 (T1/T2/T3/T5/T6/T9 +
 // §10.1) — driven through the REAL cli over `--file` fixtures with a SCRATCH registry (`ORB_SNAP_SESSION_HOME`)
 // and tiny caps/TTLs from env, so no case here touches the box's real `<main>/.cache/snap-session/` (the
 // stage-marker rule: a suite never writes the shared marker). Every daemon a case boots is closed in its

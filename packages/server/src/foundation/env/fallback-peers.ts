@@ -1,5 +1,5 @@
 // The OWNER-FALLBACK PEER-SET posture — `AUTH_FALLBACK_TRUSTED_PEERS`, the documented, non-default opt-in
-// that widens the un-credentialed owner fallback's peer set (containerize-prod-image-spec.md §3.1 arm (b)).
+// that widens the un-credentialed owner fallback's peer set (docs/plans/containerize/design.md arm (b)).
 // Pure (raw values injected, no `process.env` read here), the `bind.ts` / `diagnostics.ts` shape: a parse, a
 // resolver, and a warning list, all unit-testable. `foundation/env` owns the ONE process.env read and calls
 // this with its parsed floor; `entry/lifecycle` logs the warning; `infra/auth/config` reads the same parse

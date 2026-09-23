@@ -1,4 +1,4 @@
-// The Tier-C guest-source GET — the ONE client seam that fetches a plugin's `ui.js` (plugin-ui-plane #679 U4,
+// The Tier-C guest-source GET — the ONE client seam that fetches a plugin's `ui.js` (U4,
 // §4.6). Raw fetch, not tRPC, and the reason is the whole point of the route: the server serves these bytes as
 // `application/octet-stream` + `nosniff` so a `<script src>` at them is MIME-refused. Over tRPC the same source
 // would arrive as a JSON string with an `application/json` type and no such property, and the only thing between

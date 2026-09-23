@@ -7,7 +7,6 @@
 import type { VerifyVerb } from "../contract/verbs.ts";
 import { BASELINE_HELP } from "../ops/baseline.ts";
 import { CONFIG_SNAPSHOT_HELP } from "../ops/config-snapshot.ts";
-import { LEDGER_CLAIMS_HELP } from "../ops/ledger-claims.ts";
 import { NEW_GATE_USAGE } from "../ops/new-gate.ts";
 import { SCOPED_USAGE } from "../ops/scoped.ts";
 import { SCOPED_TEST_USAGE } from "../ops/scoped-test.ts";
@@ -40,9 +39,6 @@ export const VERB_HELP: Readonly<Record<VerifyVerb, string>> = {
     "usage: node tooling/src/verify/cli.ts boot-chunk\n  Builds the client, measures its boot chunk against the committed ceiling, checks that the emitted html links the app stylesheet, and checks that no emitted chunk carries a DEV-only client instrument.",
   "ledgers-fresh":
     "usage: node tooling/src/verify/cli.ts ledgers-fresh\n  Reds when a committed single-writer ledger (the caught-failure census and its siblings) differs from a fresh derivation. Writes nothing; names the differing rows and the regen command.",
-  "ledger-claims": LEDGER_CLAIMS_HELP,
-  "board-citations":
-    "usage: node tooling/src/verify/cli.ts board-citations\n  Reconciles every tree→board citation against the board: a warning policy's workItem must be OPEN, and every ledger/roster #N must resolve to a real row. Ledger state disagreements are an ADVISORY census, never a verdict. Needs `gh` auth; a board it cannot read is exit 2, never a clean zero.",
   debt: "usage: node tooling/src/verify/cli.ts debt [--gate <substr>] [--age]\n  A LENS over the ratchet ledgers — reports parked rows, oldest first with --age.",
   "ratchet-gate": "usage: node tooling/src/verify/cli.ts ratchet-gate\n  The vitest-tier train-gate aggregate over the ratchets (#667).",
   "config-snapshot": CONFIG_SNAPSHOT_HELP,

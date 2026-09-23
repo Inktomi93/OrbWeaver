@@ -3,7 +3,7 @@
 // place. The composition root assembles this into the section registry (main.tsx); AppShell consumes it
 // via `useSectionRegistry`.
 //
-// CONTEXT is `kind: "single"` (preset-surface-redesign.md §7, owner decision D2). It was two tabs — a
+// CONTEXT is `kind: "single"`. It was two tabs — a
 // section INSPECTOR that rented editing (deleted: one object, one place, §5.2) and a Usage placeholder
 // (folded into the readout's own copy until per-chat bindings exist). What stands is ONE readout that
 // projects by the active editor VIEW, which is why it cannot be a tabs mint: a tabs context resolves to

@@ -1,5 +1,5 @@
-// @orb/contracts/roster-preset — the saved-roster wire (D61 B6; build record:
-// docs/history/design/saved-rosters-build-record.md). A roster preset is an owner's NAMED ROSTER — a library
+// @orb/contracts/roster-preset — the saved-roster wire (D61 B6;
+// D170). A roster preset is an owner's NAMED ROSTER — a library
 // artifact consumed at chat start (and additively via `applyToChat`), never read at turn time. The member
 // vocabulary is NOT minted here: every membership-template lifetime PROJECTS through chat's D80
 // `characterMemberSpecSchema` (contracts/chat/roster.ts — "nothing mints a flat characterId array beside

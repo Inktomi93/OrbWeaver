@@ -1,5 +1,5 @@
 // The room's REGEX section — "what regex runs here, in run order, and every lever that changes it"
-// (`docs/design/mocks/regex-section/DESIGN.md`, owner-approved 2026-09-05 on canvas v2, #1742).
+// (owner-approved 2026-09-05 on canvas v2, #1742).
 //
 // THE PROBLEM IT EXISTS FOR (owner, 2026-09-05): "why is my chat weird → turn the various regex on and off →
 // think of all the places you have to go". Before this section a host bisecting a room walked four surfaces

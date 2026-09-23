@@ -78,6 +78,20 @@ export function titleOf(body: string): string | null {
   return HEADING_RE.exec(body)?.[1] ?? null;
 }
 
+/** The text under one `## ` heading of a body, trimmed; empty when the section is absent. */
+export function sectionText(body: string, name: string): string {
+  const lines = body.split("\n");
+  const start = lines.findIndex((line) => line.trimEnd() === `## ${name}`);
+  if (start === -1) {
+    return "";
+  }
+  const end = lines.findIndex((line, index) => index > start && line.startsWith("## "));
+  return lines
+    .slice(start + 1, end === -1 ? undefined : end)
+    .join("\n")
+    .trim();
+}
+
 /** The `## ` headings of a body, in order. */
 export function sectionsOf(body: string): readonly string[] {
   const out: string[] = [];

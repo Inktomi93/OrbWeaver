@@ -44,7 +44,7 @@ export function formatMonthLabel(value: string): string | null {
  *  (`features/character/components/character-filter-chips.tsx` — `role="group" aria-label="Filters"`, the
  *  program #102 variant B naming, and the group #491's law is about) and the plugin browse rail's
  *  disclosure trigger (`features/plugin/components/plugin-browse-nodes.tsx`). Recorded in
- *  `docs/design/vocabulary-map.md`. */
+ *  `docs/law/vocabulary-map.md`. */
 const FILTERS_LABEL = "Filters";
 
 /**
