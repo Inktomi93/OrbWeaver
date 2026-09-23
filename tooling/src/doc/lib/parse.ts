@@ -22,7 +22,7 @@ export const USAGE = [
   "  set <id…> [open|doing|blocked|done] [--kind k] [--title <t> (one id)] [--lane x] [--blocked <reason>] [--priority P] [--area a]",
   "       [--plan s] [--reviewed x] [--evidence sha]      (--<field> - or --<field> none clears a field)",
   "  remove <id|path…>                   delete governed docs nothing cites (a plan by its design.md)",
-  "  land <id…> --evidence <sha>       land --merged       (landing deletes the item and commits the record)",
+  "  land <id…> --evidence <sha>       land --merged [--head-merge]       (landing deletes the item and commits the record)",
   "  index      review <path|glob…>      due [glob…]",
   "  overview      drift",
 ].join("\n");
@@ -218,9 +218,17 @@ function parseSet(args: readonly string[]): DocCommand {
   return { kind: "set", ids: idList, patch };
 }
 
+/** `--head-merge` selects the post-commit range (`HEAD^1..HEAD`, only right when HEAD is itself a merge
+ *  commit); its absence keeps the post-merge range (`ORIG_HEAD..HEAD`). The two hooks pick the flag by
+ *  which one fired them, never by HEAD's shape — a fast-forward onto a branch whose tip is a merge commit
+ *  still fires post-merge, and `HEAD^1..HEAD` there would drop every id on the first-parent side. */
 function parseLand(args: readonly string[]): DocCommand {
-  if (args.length === 1 && args[0] === "--merged") {
-    return { kind: "land-merged" };
+  if (args[0] === "--merged") {
+    const rest = args.slice(1);
+    if (rest.length > 0 && !(rest.length === 1 && rest[0] === "--head-merge")) {
+      throw new UsageError(`land --merged takes only --head-merge\n${USAGE}`);
+    }
+    return { kind: "land-merged", headMerge: rest[0] === "--head-merge" };
   }
   refuseUnknownFlags(args, ["--evidence"], "land");
   return { kind: "land", ids: ids(positionals(args, ["--evidence"]), "land"), evidence: requiredFlag(args, "--evidence") };

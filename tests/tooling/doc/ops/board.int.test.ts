@@ -131,7 +131,7 @@ test("land --merged lands a Closes trailer through a merge commit `git merge` co
   expect(git(root, "log", "-1", "--format=%b")).toContain(`0001 A\n  evidence: ${merge}\n`);
 });
 
-test("land --merged lands a Closes trailer through a merge finished by a separate `git commit` (--no-ff --no-commit, the post-commit door)", async ({
+test("land --merged --head-merge lands a Closes trailer through a merge finished by a separate `git commit` (--no-ff --no-commit, the post-commit door)", async ({
   plantedTree,
 }) => {
   const root = await repo(plantedTree);
@@ -143,13 +143,13 @@ test("land --merged lands a Closes trailer through a merge finished by a separat
   git(root, "checkout", "-q", "main");
   git(root, "merge", "-q", "--no-ff", "--no-commit", "lane");
   const merge = commitAll(root, "Merge lane (manual commit)");
-  const outcome = landMerged(root, TODAY);
+  const outcome = landMerged(root, TODAY, true);
   expect(outcome.refusals).toEqual([]);
   expect(existsSync(join(root, "docs/work/0001-a.md"))).toBe(false);
   expect(git(root, "log", "-1", "--format=%b")).toContain(`0001 A\n  evidence: ${merge}\n`);
 });
 
-test("land --merged lands a Closes trailer through a conflicted merge resolved by hand (the post-commit door)", async ({ plantedTree }) => {
+test("land --merged --head-merge lands a Closes trailer through a conflicted merge resolved by hand (the post-commit door)", async ({ plantedTree }) => {
   const root = await repo(plantedTree);
   newItem({ title: "A", kind: "work", priority: null, area: null, plan: null, lane: null }, root, TODAY);
   commitAll(root, "chore(work): items");
@@ -166,13 +166,13 @@ test("land --merged lands a Closes trailer through a conflicted merge resolved b
   writeFileSync(join(root, "README.md"), "# resolved\n");
   git(root, "add", "-A");
   const merge = commitAll(root, "Merge lane (conflict resolved)");
-  const outcome = landMerged(root, TODAY);
+  const outcome = landMerged(root, TODAY, true);
   expect(outcome.refusals).toEqual([]);
   expect(existsSync(join(root, "docs/work/0001-a.md"))).toBe(false);
   expect(git(root, "log", "-1", "--format=%b")).toContain(`0001 A\n  evidence: ${merge}\n`);
 });
 
-test("land --merged reads a merge commit's own second parent, not a stale ORIG_HEAD, for a merge finished by a separate `git commit`", async ({
+test("land --merged --head-merge reads a merge commit's own second parent, not a stale ORIG_HEAD, for a merge finished by a separate `git commit`", async ({
   plantedTree,
 }) => {
   const root = await repo(plantedTree);
@@ -185,11 +185,34 @@ test("land --merged reads a merge commit's own second parent, not a stale ORIG_H
   git(root, "merge", "-q", "--no-ff", "--no-commit", "lane");
   commitAll(root, "Merge lane (manual commit)");
   // Simulate ORIG_HEAD going stale by the time the hook that made this commit gets around to reading it —
-  // point it at HEAD itself, so the OLD `ORIG_HEAD..HEAD` range would be empty and land nothing.
+  // point it at HEAD itself, so a range keyed off `ORIG_HEAD` would be empty and land nothing.
   git(root, "update-ref", "ORIG_HEAD", "HEAD");
+  const outcome = landMerged(root, TODAY, true);
+  expect(outcome.refusals).toEqual([]);
+  expect(existsSync(join(root, "docs/work/0001-a.md"))).toBe(false);
+});
+
+test("land --merged (no --head-merge) lands every id on a fast-forward onto a branch whose TIP is itself a merge commit", async ({ plantedTree }) => {
+  const root = await repo(plantedTree);
+  newItem({ title: "A", kind: "work", priority: null, area: null, plan: null, lane: null }, root, TODAY);
+  newItem({ title: "B", kind: "work", priority: null, area: null, plan: null, lane: null }, root, TODAY);
+  commitAll(root, "chore(work): items");
+  git(root, "checkout", "-qb", "feat");
+  writeFileSync(join(root, "b1.txt"), "b1\n");
+  commitAll(root, "feat(x): b1\n\nCloses: 1\nCo-Authored-By: t <t@example.invalid>");
+  git(root, "checkout", "-qb", "side", "main");
+  writeFileSync(join(root, "s1.txt"), "s1\n");
+  commitAll(root, "feat(x): s1\n\nCloses: 2\nCo-Authored-By: t <t@example.invalid>");
+  git(root, "checkout", "-q", "feat");
+  // feat's own tip is a merge commit (side folded in), so HEAD's SHAPE alone cannot tell the fast-forward
+  // below apart from a `--no-commit`/conflict merge — only which hook fired can (F2 regression).
+  git(root, "merge", "-q", "--no-ff", "-m", "feat: fold in side", "side");
+  git(root, "checkout", "-q", "main");
+  git(root, "merge", "-q", "--ff-only", "feat");
   const outcome = landMerged(root, TODAY);
   expect(outcome.refusals).toEqual([]);
   expect(existsSync(join(root, "docs/work/0001-a.md"))).toBe(false);
+  expect(existsSync(join(root, "docs/work/0002-b.md"))).toBe(false);
 });
 
 test("land --merged is all-or-nothing: an unknown id in a Closes trailer refuses the whole batch and writes nothing (F5)", async ({ plantedTree }) => {
