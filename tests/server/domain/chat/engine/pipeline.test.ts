@@ -16,6 +16,7 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { executeRegexScripts } from "@orb/kit/regex";
 import { getLog } from "@orb/server/foundation/observability";
 import { describe, vi } from "vitest";
+import { BEFORE_HISTORY_DEPTH } from "../../../../../packages/server/src/domain/chat/assembly/injections.ts";
 import { buildTurnUserMacros } from "../../../../../packages/server/src/domain/chat/assembly/user-macros.ts";
 import type { ChatToolOps, RunChatTurnOp } from "../../../../../packages/server/src/domain/chat/contract/context.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
@@ -517,6 +518,56 @@ describe("runTurnPipeline — request shaping + fit", () => {
     });
     const result = await runTurnPipeline(args);
     expect(result.droppedCount).toBeGreaterThan(0);
+  });
+
+  // The new-chat marker marks the start of whatever history is delivered. It is the oldest row, so the fit
+  // trimmed it first and the delivered history opened mid-conversation with no marker.
+  describe("the new-chat marker survives the window fit", () => {
+    const marker: ChatInjection = { position: "in_chat", depth: BEFORE_HISTORY_DEPTH, role: "user", content: "[Start a new chat]", origin: "new-chat-marker" };
+    const text = (m: TurnRequest["history"][number] | undefined): string => (m?.content ?? []).map((p) => (p.type === "text" ? p.text : "")).join("");
+    const slottedWithin = (window: number): typeof CONNECTION => ({
+      ...CONNECTION,
+      capability: makeCapability(
+        makeGenerationCapability({
+          ...CAPABILITY,
+          context: { window },
+          turns: { assistantPrefill: false, midConversationSystem: true, historySystemRows: true, roleHandlingFloor: "slotted", explicitPromptCache: true },
+        }),
+      ),
+    });
+    const slotted = slottedWithin(400);
+
+    test("an over-budget chat still opens on the marker, and the breakpoint is placed", async () => {
+      // Greeting-first, ends on a user row: the first kept row after the trim is an assistant row.
+      const canon = Array.from({ length: 21 }, (_, i) => rowOf(i % 2 === 0 ? "assistant" : "user", `turn ${i} with several words to spend a few tokens`));
+      const result = await runTurnPipeline(baseArgs({ canon, connection: slotted, assembleContext: ctxOf({ chatInjections: [marker] }) }).args);
+      expect(result.droppedCount).toBeGreaterThan(0);
+      expect(result.request.history[0]?.role).toBe("user");
+      expect(text(result.request.history[0])).toBe("[Start a new chat]");
+      expect(result.request.history.filter((m) => text(m).includes("[Start a new chat]"))).toHaveLength(1);
+      expect(typeof result.request.cacheBreakpointFromEnd).toBe("number");
+    });
+
+    test("when the first kept row is a user row, the marker opens it", async () => {
+      const canon = Array.from({ length: 21 }, (_, i) => rowOf(i % 2 === 0 ? "user" : "assistant", `turn ${i} with several words to spend a few tokens`));
+      const result = await runTurnPipeline(baseArgs({ canon, connection: slotted, assembleContext: ctxOf({ chatInjections: [marker] }) }).args);
+      expect(result.droppedCount).toBeGreaterThan(0);
+      expect(result.request.history[0]?.role).toBe("user");
+      // Merged into that row with SHAPE's squash separator, never a second user row above it.
+      expect(text(result.request.history[0])).toMatch(/^\[Start a new chat\]\n\nturn \d+ /);
+      expect(result.request.history.filter((m) => text(m).includes("[Start a new chat]"))).toHaveLength(1);
+    });
+
+    test("a depth-4 note on a 3-row chat lands below the marker, and the breakpoint is placed", async () => {
+      const note: ChatInjection = { position: "in_chat", depth: 4, role: "system", content: "Author's note." };
+      const canon = [rowOf("assistant", "greeting"), userRow("u1"), rowOf("assistant", "a1"), userRow("u2")];
+      const result = await runTurnPipeline(
+        baseArgs({ canon, connection: slottedWithin(200_000), assembleContext: ctxOf({ chatInjections: [note, marker] }) }).args,
+      );
+      expect(result.droppedCount).toBe(0);
+      expect(text(result.request.history[0])).toBe("[Start a new chat]");
+      expect(typeof result.request.cacheBreakpointFromEnd).toBe("number");
+    });
   });
 
   test("the fit stamps contextBoundaryMessageId at the earliest KEPT id-bearing turn (previewFit parity anchor)", async () => {

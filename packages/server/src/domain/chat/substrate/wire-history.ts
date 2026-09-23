@@ -487,6 +487,30 @@ export function dropEmptyWireRows(
   return { kept, cacheBreakpointFromEnd: shiftBreakpoint(cacheBreakpointFromEnd, built, keeps, kept) };
 }
 
+/** The new-chat marker SHAPE placed, derived from `shapeTurn` like {@link ShapedHistoryRow}. */
+type NewChatMarker = ReturnType<typeof shapeTurn>["newChatMarker"];
+
+/** Place SHAPE's new-chat marker at the head of the rows the history fit KEPT. The marker marks the start of
+ *  whatever history is delivered, but it is the oldest row, so the fit trims it first. With nothing trimmed the
+ *  rows already open on it. Otherwise it opens the first kept row when that row is a user row and the turn's
+ *  level merges (SHAPE's own squash separator), and rides as its own user row above it in every other case.
+ *  A row added at the head leaves every cache depth below it unchanged: depths count from the end. */
+export function keepNewChatMarkerAtHead(kept: readonly WireRow[], droppedCount: number, marker: NewChatMarker): WireRow[] {
+  if (marker === null || droppedCount === 0) {
+    return [...kept];
+  }
+  const [head, ...rest] = kept;
+  if (head !== undefined && head.row.role === "user" && marker.mergeSeparator !== null) {
+    const lead = `${marker.content}${marker.mergeSeparator}`;
+    const [first, ...parts] = head.row.content;
+    const content: ChatContentPart[] =
+      first?.type === "text" ? [{ type: "text", text: lead + first.text }, ...parts] : [{ type: "text", text: lead }, ...head.row.content];
+    return [{ ...head, row: { ...head.row, content }, costRow: { ...head.costRow, content: lead + head.costRow.content } }, ...rest];
+  }
+  const row: TurnMessage = { role: "user", content: [{ type: "text", text: marker.content }] };
+  return [{ row, costRow: { role: "user", content: marker.content, messageId: undefined }, imageDropped: false, videoDropped: false }, ...kept];
+}
+
 /** Re-anchor the §8 cache breakpoint after a MID-ARRAY drop (#1543).
  *
  *  The breakpoint is a DEPTH in role groups from the end (`@orb/inference` `rowIndexAtCacheDepth`, the counter

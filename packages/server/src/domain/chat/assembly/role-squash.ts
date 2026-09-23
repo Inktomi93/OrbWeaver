@@ -18,7 +18,7 @@ import type { MessageRole } from "@orb/kit/message-role";
 
 /** The separator merged rows are joined with. Matches ST's SERVER-side `mergeMessages` (`'\n\n'`), not its
  *  client pass — see the `INJECT-NAMED-AS-PLAYER` note in `docs/history/dogfood-tracking-2026-08-08.md`. */
-const MERGE_SEPARATOR = "\n\n";
+export const MERGE_SEPARATOR = "\n\n";
 
 /**
  * The adjacency RUNS the squash forms over `history`: one entry per DELIVERED row, listing the INPUT INDICES

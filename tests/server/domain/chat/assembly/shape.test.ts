@@ -1347,6 +1347,32 @@ describe("shape — the new-chat marker opens the history as a bare user row", (
     const out = shape(soloInput({ canon: [], appendUserTurn: "hello", injections: [marker] }));
     expect(out.history).toEqual([{ role: "user", content: "[Start a new chat]\n\nhello" }]);
   });
+
+  // A depth-4 note on a 3-row chat clamps to the top, the same clamped depth as the marker. The marker listed
+  // after it used to splice below it, so the note became the first row and no breakpoint was placed.
+  test("an over-deep note that clamps to the top still lands below the marker, whatever the list order", () => {
+    const note = inChat({ depth: 4, role: "system", content: "NOTE" });
+    const slotted = { midConversationSystem: true, historySystemRows: true, roleHandlingFloor: "slotted" as const };
+    for (const injections of [
+      [note, marker],
+      [marker, note],
+      [{ ...note, order: 50 }, marker],
+    ]) {
+      const out = shape(soloInput({ injections, ...slotted }));
+      expect(out.history[0]).toEqual({ role: "user", content: "[Start a new chat]" });
+      expect(out.breakpointDecision).toBe("placed");
+      expect(pinnedRow(out)?.content).toBe("[Start a new chat]");
+    }
+  });
+
+  test("the output names the marker it placed, for the placement after the window fit", () => {
+    expect(shape(soloInput({ injections: [marker] })).newChatMarker).toEqual({ content: "[Start a new chat]", mergeSeparator: "\n\n" });
+    expect(shape(soloInput({ injections: [marker], roleHandlingFloor: "none" })).newChatMarker).toEqual({
+      content: "[Start a new chat]",
+      mergeSeparator: null,
+    });
+    expect(shape(soloInput()).newChatMarker).toBeNull();
+  });
 });
 
 // ── CUED ROUNDS pin the last canon row before the cue (owner ruling) ───────────────────────────────────────
