@@ -6,11 +6,13 @@ import { tv } from "#lib";
 // takes no flex gap while there is nothing to say.
 export const copyButtonVariants = tv({
   slots: {
-    root: "flex flex-wrap items-center gap-field",
+    // The failed state caps the whole block at the prose measure: the field keeps a full line of its own
+    // (a cap on the field alone would let the button wrap up beside it) without spanning a wide page.
+    root: "flex flex-wrap items-center gap-field data-[state=failed]:max-w-(--reading-measure-prose)",
     subject: "contents",
     status: "empty:sr-only data-[outcome=insecure]:text-warning data-[outcome=refused]:text-warning",
     hint: "sr-only",
     // The chip's type (`Kbd size="command"`), so the field reads as the same text it replaced.
-    field: "basis-full max-w-(--reading-measure-prose) font-mono text-code leading-label",
+    field: "basis-full font-mono text-code leading-label",
   },
 });
