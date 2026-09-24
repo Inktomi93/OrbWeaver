@@ -124,7 +124,8 @@ after the train.
 - The sweep does not cover a room's resume read. A merge touching a room's `authorizeAttach` or replay verb also runs that room's recipient-scope test, for example `tests/server/domain/notifications/verbs/replay-since.int.test.ts`.
 - A merge restarts the dev server and clears the in-memory recorders. Never merge while a live drive depends on them.
 - `pnpm check:ledgers-fresh` fails when a merge shifts the lines a ledger row cites. Run the regeneration yourself on the merged tree. Lanes only hand-edit their own row.
-- To kill a running check, bracket the pattern: `pkill -f "verify/cli\.[t]s"`. An unbracketed pattern matches the shell that runs `pkill`.
+- To stop a running check, stop it only in its own checkout. Other checkouts and the other account share the box and the host verify slot. Send SIGTERM to each verify process whose working directory is under the checkout; the runner then stops its own stage tree. The first `case` pattern keeps the recipe for the main checkout off the worktrees nested under it: `C=/abs/path/to/checkout; for p in $(pgrep -f 'verify/cli\.[t]s'); do case "$(readlink /proc/$p/cwd)" in "$C"/.claude/worktrees/*) ;; "$C" | "$C"/*) kill -TERM "$p" ;; esac; done`
+- A task notification that says "stopped by main session" comes from the Claude Code stop path: a `TaskStop` call, the task dialog, or a remote stop request. No repository hook or verify path produces it. Check your own session before you look for a killer in the tree.
 - An amend with nothing staged makes pre-commit a no-op. It is not evidence that any check ran.
 - Start one background git chain at a time. Wait for the first to finish before you start another.
 - Never chain another write behind a merge that can conflict. A conflict mid-chain commits conflict markers.

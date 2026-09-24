@@ -196,6 +196,7 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D220 | [Rejected neo-derived and report-only enforcement proposals](0220-rejected-neo-and-report-only-gates.md) | rejected |
 | D221 | [Resource-policy contract: alternatives rejected](0221-resource-policy-contract-rejected-alternatives.md) | active |
 | D222 | [Docs, plans and ADRs are markdown with one structural writer](0222-docs-plans-adrs-no-archive.md) | active |
+| D223 | [Pre-commit runs the static tier over the working change](0223-scoped-static-at-commit.md) | active |
 | D250 | [The anchor human's persona binds prompt-config {{user}}](0250-anchor-human-binds-preset-user.md) | active |
 | D251 | [Prompt sections keep their prompt-order position on every model](0251-prompt-sections-keep-prompt-order.md) | active |
 | D252 | [A cross-platform pnpm dev is the self-hoster's front door](0252-cross-platform-pnpm-dev.md) | active |

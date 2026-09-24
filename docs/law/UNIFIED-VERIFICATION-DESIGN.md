@@ -99,7 +99,7 @@ born-compliant TEST-FREE commit gate. The honest containment for the inner loop 
 | tier | what it runs | role |
 | - | - | - |
 | `changed` | scoped structural checks over the changed set plus related behavioral tests | fast iteration; `verify --changed` |
-| `static` | every STRUCTURAL surface — lint, the type programs, the structure/registry/ledger reconciliations, imports, deps, docs — and **no behavioral suite**. That characterization is the doctrine; the MEMBERSHIP is data (`pnpm verify --list`) and is never enumerated here | `pnpm check` = `verify --static`; the commit gate |
+| `static` | every STRUCTURAL surface — lint, the type programs, the structure/registry/ledger reconciliations, imports, deps, docs — and **no behavioral suite**. That characterization is the doctrine; the MEMBERSHIP is data (`pnpm verify --list`) and is never enumerated here | `pnpm check` = `verify --static`, the barrier; the commit gate runs its stages over the working change (§4.3) |
 | `push` | static + the BEHAVIORAL surfaces a commit gate cannot afford: product behavior, component and browser smoke, tool guards, whole-graph liveness, and bounded quality/build checks. Membership is `pnpm verify --list` | pre-push bar; `verify --push` |
 | `full` | push + exhaustive surfaces whose cost belongs on the works: the whole instrument battery, exhaustive browser coverage, mutation quality, and stricter dependency analysis. Membership is `pnpm verify --list` | the "nothing omitted" bar; `verify --full` (CI `workflow_dispatch`) |
 
@@ -487,16 +487,23 @@ Change `ctWorkers` and every dependent ceiling moves with it. The runner still p
 **The tiers ARE the hook wiring (§3):** "run everything" is a named tier, not a folklore N-command pipe
 (`lefthook.yml`).
 
-- **pre-commit → `pnpm check` (= `verify --static`).** Type/structure/lint/boundary red ⇒ cannot commit.
+- **pre-commit and pre-merge-commit → `pnpm verify --static --changed`.** A type, lint, boundary or file-local structure red in the change ⇒ cannot commit (§4.3).
 - **pre-push → `pnpm verify --push`.** ONE command, ONE summary, ONE exit, ONE json. Its membership comes
   from the registry; it replaces a piped multi-command sequence with run-all-report-all and a max-severity exit.
 - **CI → `pnpm verify --full`** (`.github/workflows/ci.yml`), `workflow_dispatch`-only — the hooks are the
   real automated gate.
 
-### 4.3 Full-static-at-commit
+### 4.3 Scoped static at commit
 
-Pre-commit runs the whole STATIC tier, NOT `--changed`. `--changed` + related-tests would be faster but
-weakens the born-compliant doctrine ("won't pass `pnpm check` ⇒ won't commit"): a scoped commit gate defers
-every whole-project reconciliation, so a half-registration across maps could commit clean. Full-static-at-
-commit is the deliberate cost — the inner loop (`--changed`) is for iteration, the commit gate is the whole
-static verdict. Browser suites never gate the static tier (vitest-browser hangs, `Spine-Testing.md` §7).
+Pre-commit runs the static-tier stages over the working change, not the whole tree (D223). `--changed`
+beside an explicit tier is only the selector, so the related tests of the `changed` tier stay out of the
+commit gate. A scoped run takes no host-wide whole-run slot, so a commit never waits behind another
+checkout's run.
+
+- The type check runs every native program whose import closure contains a changed file.
+- The structure walk runs the file-local policies. It defers and prints the cross-file policies.
+- A whole-only stage runs its whole command when its path trigger matches (`tooling/src/verify/lib/registry-triggers.ts`). `deps:knip` has no trigger and defers.
+
+The whole static tier (`pnpm check`) stays the verdict for done. It runs at pre-push inside `verify --push`
+and as the merge-train barrier on main. A half-registration across two maps can commit clean and fail
+there. Browser suites never gate the static tier (vitest-browser hangs, `Spine-Testing.md` §7).

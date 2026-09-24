@@ -4,10 +4,13 @@
 //   clock / ids     — the determinism seams (frozen clock + seeded ids).
 //   db              — fresh migrated libSQL `:memory:` (support/db freshDb).
 //   app             — the REAL composition root over `db` (`createServices`: frozen clock, vLLM disabled,
-//                     enabled-but-keyless SecretBox, temp CAS/variant dirs). The fixture IS the composed
-//                     production wiring — tests exercise the real injection graph, not a parallel
-//                     test-only assembly (Spine-Testing esoterica).
+//                     enabled-but-keyless SecretBox, temp CAS/variant/import-staging dirs). The fixture IS
+//                     the composed production wiring — tests exercise the real injection graph, not a
+//                     parallel test-only assembly (Spine-Testing esoterica).
 //   services        — `app.services` (the transport `Services` bundle), for direct front-door calls.
+//   importStagingDir — the temp upload staging root `app` is composed over. A test that builds an upload
+//                     route passes it as `stagingDir`, so the route and the import workload agree and
+//                     nothing stages under the repo's `data/import-staging` default.
 //   providerFetch   — the transport the composed inference runtime issues EVERY provider request on.
 //                     Defaults to a REFUSING fake: an unscripted provider call fails loudly instead of
 //                     silently reaching whatever happens to be listening on this box. Override it in a
@@ -64,6 +67,7 @@ export interface Fixtures {
   ids: SeededIds;
   db: Db;
   providerFetch: typeof fetch;
+  importStagingDir: string;
   app: ServicesResult;
   services: Services;
   ownerCaller: AppCaller;
@@ -167,7 +171,12 @@ export const test = base.extend<Fixtures>({
   providerFetch: async ({}, use): Promise<void> => {
     await use(refusingFetch());
   },
-  app: async ({ db, clock, providerFetch }, use): Promise<void> => {
+  importStagingDir: async ({}, use): Promise<void> => {
+    const dir = await mkdtemp(join(tmpdir(), "orb-fixture-staging-"));
+    await use(dir);
+    await rm(dir, { recursive: true, force: true });
+  },
+  app: async ({ db, clock, providerFetch, importStagingDir }, use): Promise<void> => {
     const { createServices } = await import("@orb/server/entry/compose");
     const casDir = await mkdtemp(join(tmpdir(), "orb-fixture-cas-"));
     const variantDir = await mkdtemp(join(tmpdir(), "orb-fixture-var-"));
@@ -178,6 +187,7 @@ export const test = base.extend<Fixtures>({
       secretBoxKey: null,
       casDir,
       variantDir,
+      importStagingDir,
       sessionSecret: TEST_SESSION_SECRET,
       providerSeams: { sdkFetch: providerFetch },
     });

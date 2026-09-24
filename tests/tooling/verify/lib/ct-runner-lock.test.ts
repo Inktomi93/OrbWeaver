@@ -238,7 +238,7 @@ test("a MALFORMED lockfile is debris, not a holder (#1581)", () => {
 // `ctRunnersHostWide` chromium fleets on the whole BOX — and the two behave DIFFERENTLY on purpose: the
 // local lock REFUSES a corrupting sibling instantly, the host pool WAITS for a busy box. A refused CT run
 // is an exit-2 tool error in a lane, which breaks a merge train; waiting costs only wall clock.
-// The pool's own mechanics (steal, degrade, release) are pinned in host-slots.test.ts; what only THIS file
+// The pool's own mechanics (steal, queue order, overflow, release) are pinned in host-slots.test.ts; what only THIS file
 // can answer is that the CT door composes the two in the right ORDER and frees both.
 
 /** A scratch per-user runtime dir, so a test never touches the REAL /run/user/<uid> CT pool — a planted
@@ -315,7 +315,7 @@ test("a run in ANOTHER worktree WAITS for a host slot rather than being refused,
         alive: () => true,
         now: () => new Date(clockMs),
         // The real ceiling is load-scaled off 45 minutes; the injected clock jumps a day per poll so the
-        // degrade arm is reached in one iteration instead of in wall-clock time.
+        // overflow arm is reached in one iteration instead of in wall-clock time.
         sleep: (ms) => {
           clockMs += ms + 86_400_000;
           return Promise.resolve();
@@ -328,7 +328,7 @@ test("a run in ANOTHER worktree WAITS for a host slot rather than being refused,
     expect(extra.kind, "a busy BOX is never a refusal — only a corrupting sibling in the same tree is").toBe("held");
     // Read unconditionally: a conditional expect can pass by never running, which is the one thing this
     // arm must not do.
-    expect(extra.kind === "held" ? extra.lease.hostSlot : "REFUSED", "past the ceiling it proceeds unslotted rather than dying").toBeNull();
+    expect(extra.kind === "held" ? extra.lease.hostSlot : "REFUSED", "past the ceiling it runs as the overflow run rather than dying").toBeNull();
   } finally {
     for (const root of roots) {
       rmSync(root, { recursive: true, force: true });
