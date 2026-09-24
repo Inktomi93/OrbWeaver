@@ -149,6 +149,25 @@ test("a failed copy stamps the failed state and replaces the subject with the fi
   await expect(field).toHaveAttribute("aria-describedby", (await statusOf(page).getAttribute("id")) ?? "missing");
 });
 
+test("on a wide page the failed field keeps a line of its own, with the button below it", async ({ mount, page }) => {
+  await mount(
+    <CopyButton text={TEXT} what={WHAT}>
+      <span>{TEXT}</span>
+    </CopyButton>,
+  );
+  await removeClipboardApi(page);
+  const button = page.getByRole("button", { name: copyActionName(WHAT), exact: true });
+  await button.click();
+  const field = page.getByRole("textbox", { name: WHAT, exact: true });
+  await expect(field).toBeFocused();
+  await expect
+    .poll(async () => {
+      const [fieldBox, buttonBox] = await Promise.all([field.boundingBox(), button.boundingBox()]);
+      return fieldBox !== null && buttonBox !== null && buttonBox.y >= fieldBox.y + fieldBox.height;
+    })
+    .toBe(true);
+});
+
 test("a refused write falls back the same way, with its own reason", async ({ mount, page }) => {
   await mount(
     <div>
