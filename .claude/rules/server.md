@@ -67,8 +67,5 @@ paths:
 
 ## infra
 
-- `CLAUDE_BACKEND=auto` (`docker/orbweaver.env`) detects a subscription credential
-  as a hint, never a verdict; macOS keeps the login in the Keychain with no file to
-  check, so treat a missing credential file as unknown, not as no-subscription.
 - fflate's `zipSync` derives its DOS date from local time and throws on mtime 0 or
   1980-01-01Z; use a mid-year UTC stamp for deterministic archives.

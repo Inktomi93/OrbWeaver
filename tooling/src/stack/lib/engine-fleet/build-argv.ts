@@ -168,16 +168,14 @@ export function resolveEngineLaunchConfig(floor: EngineLaunchEnvFloor, override?
 /** The chat-template / classifier files the pooling engines serve with — relative to the repo root the
  *  caller resolves (DEPLOYMENT fact). Kept beside the arms that use them.
  *
- *  THEY LIVE IN THIS PACKAGE (#415, moved 2026-08-22 out of `scripts/dev/`): they are `packages/server`
- *  RUNTIME data — this file is their ONLY consumer and the prod image serves with them — so a `scripts/`
- *  home meant the cake read a runtime file out of the dev-tooling tree through an unguarded path string.
- *  Under `packages/server/src/**` they also ride the image's existing `packages/server/src` COPY instead
- *  of a hand-maintained Dockerfile line (unlike default CONTENT, which ships as `@orb/default-content`, D160).
+ *  They live beside this file, their ONLY consumer. The app image does not ship them: the engine containers
+ *  get them from the checkout, because `docker/compose.engines.yaml` bind-mounts this directory at the same
+ *  repo-relative path under its `/app` root.
  *
  *  Still REPO-ROOT-relative rather than `import.meta.dirname`-resolved: the engine argv is a DEPLOYMENT
- *  fact the caller owns (`EngineArgvContext.repoRoot`), and the container lays the workspace out at the
- *  same shape, so one resolution rule covers dev and prod. */
-const TEMPLATE_DIR_REL = "packages/server/src/infra/providers/vllm/engine/templates";
+ *  fact the caller owns (`EngineArgvContext.repoRoot`), and the engine container mounts the templates at
+ *  the same relative path, so one resolution rule covers bare metal and containers. */
+const TEMPLATE_DIR_REL = "tooling/src/stack/lib/engine-fleet/templates";
 const EMBED_CHAT_TEMPLATE_REL = `${TEMPLATE_DIR_REL}/qwen3_vl_embedding_serve.jinja`;
 const RERANK_CHAT_TEMPLATE_REL = `${TEMPLATE_DIR_REL}/qwen3_vl_reranker_serve.jinja`;
 // The gen engine's FIXED chat template (vendored 2026-08-13 from froggeric/Qwen-Fixed-Chat-Templates,

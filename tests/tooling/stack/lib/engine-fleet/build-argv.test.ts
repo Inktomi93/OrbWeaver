@@ -4,6 +4,7 @@
 // config is injected, so this is fully deterministic.
 //
 
+import { existsSync } from "node:fs";
 import { buildEngineArgv, engineCudaVisibleDevices, resolveEngineLaunchConfig } from "@orb/tooling/stack/lib/engine-fleet";
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/tool-fixtures.ts";
@@ -84,7 +85,7 @@ describe("buildEngineArgv snapshots", () => {
         "--hf_overrides",
         "{"is_matryoshka": true}",
         "--chat-template",
-        "/repo/packages/server/src/infra/providers/vllm/engine/templates/qwen3_vl_embedding_serve.jinja",
+        "/repo/tooling/src/stack/lib/engine-fleet/templates/qwen3_vl_embedding_serve.jinja",
         "--mm-processor-kwargs",
         "{"max_pixels": 1843200}",
         "--host",
@@ -126,7 +127,7 @@ describe("buildEngineArgv snapshots", () => {
         "--hf_overrides",
         "{"architectures": ["Qwen3VLForSequenceClassification"],"classifier_from_token": ["no", "yes"],"is_original_qwen3_reranker": true}",
         "--chat-template",
-        "/repo/packages/server/src/infra/providers/vllm/engine/templates/qwen3_vl_reranker_serve.jinja",
+        "/repo/tooling/src/stack/lib/engine-fleet/templates/qwen3_vl_reranker_serve.jinja",
         "--mm-processor-kwargs",
         "{"max_pixels": 1843200}",
         "--disable-access-log-for-endpoints",
@@ -161,7 +162,7 @@ describe("buildEngineArgv snapshots", () => {
         "--reasoning-parser",
         "qwen3",
         "--chat-template",
-        "/repo/packages/server/src/infra/providers/vllm/engine/templates/qwen3_gen_thinking_serve.jinja",
+        "/repo/tooling/src/stack/lib/engine-fleet/templates/qwen3_gen_thinking_serve.jinja",
         "--default-chat-template-kwargs",
         "{"enable_thinking": false, "preserve_thinking": true}",
         "--structured-outputs-config",
@@ -352,6 +353,20 @@ describe("buildEngineArgv — the --host bind address", () => {
       expect(flagVal(bound, "--host")).toBe("0.0.0.0");
       const hostValueIndex = bare.indexOf("--host") + 1;
       expect(bound).toEqual(bare.map((arg, i) => (i === hostValueIndex ? "0.0.0.0" : arg)));
+    });
+  }
+});
+
+// The snapshots above pin the template path as a STRING, so a path that names a moved or deleted file
+// still matches them. This resolves each engine's --chat-template against the real checkout.
+describe("buildEngineArgv — every --chat-template names a file in the checkout", () => {
+  const config = resolveEngineLaunchConfig(FLOOR, undefined);
+
+  for (const engine of ["embed", "rerank", "gen"] as const) {
+    test(`${engine}'s chat template exists`, ({ repoRoot }) => {
+      const template = flagVal(buildEngineArgv(engine, config, { ...CTX, repoRoot }), "--chat-template");
+      expect(template).toBeDefined();
+      expect(existsSync(template ?? ""), template).toBe(true);
     });
   }
 });
