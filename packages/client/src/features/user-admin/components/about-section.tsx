@@ -66,7 +66,7 @@ function AboutBody(): ReactElement {
   return (
     <Section className="@container" divider={true} heading={ABOUT_SUBCATEGORY.label} id={configAnchorId("admin", ABOUT_SUBCATEGORY.id)}>
       <Stack gap="field" data-testid={testId("aboutSection")}>
-        <Row align="center" gap="row">
+        <Row align="baseline" gap="row">
           {/* `datum` — this IS a value, and its mono/tabular setting is what makes a sha readable and
               transcribable by eye when someone is reading it off a screen into an issue. */}
           <Text voice="datum" data-testid={testId("aboutVersionLine")}>

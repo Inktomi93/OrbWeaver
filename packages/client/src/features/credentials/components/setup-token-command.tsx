@@ -15,7 +15,7 @@ export function SetupTokenCommand(): ReactElement {
       <Text className="max-w-(--reading-measure-prose)" prose={true} voice="gloss">
         Run this on the machine you use Claude Code on, then paste what it prints.
       </Text>
-      <Row align="center" gap="field">
+      <Row align="baseline" gap="field">
         {/* A command the user types: `<kbd>` is its element, and the chip marks where it starts and ends. */}
         <Kbd size="command">{CLAUDE_SETUP_TOKEN_COMMAND}</Kbd>
         <CopyButton
