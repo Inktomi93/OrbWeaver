@@ -572,7 +572,7 @@
       }
     },
     {
-      "includes": ["packages/*/src/**/index.ts", "tooling/src/*/index.ts", "tooling/src/stack/lib/engine-fleet/index.ts"],
+      "includes": ["packages/*/src/**/index.ts", "tooling/src/*/index.ts"],
       "linter": {
         "rules": {
           "performance": {
@@ -751,7 +751,7 @@
       }
     },
     {
-      "includes": ["packages/server/src/foundation/env/**", "tooling/src/stack/lib/engine-fleet/env.ts"],
+      "includes": ["packages/server/src/foundation/env/**"],
       "linter": {
         "rules": {
           "style": {
@@ -1139,10 +1139,7 @@
         "packages/contracts/src/inference/**",
         "tests/contracts/inference/**",
         "tests/inference/**",
-        "tooling/src/model-ab/**",
-        "tooling/src/verify/gates/**",
-        "tooling/src/stack/lib/engine-fleet/**",
-        "tests/tooling/stack/lib/engine-fleet/**"
+        "tooling/src/verify/gates/**"
       ],
       "linter": {
         "rules": {

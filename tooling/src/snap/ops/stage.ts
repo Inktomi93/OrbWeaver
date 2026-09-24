@@ -119,23 +119,6 @@ function bootStage(root: string, paths: StagePaths, ports: StagePorts): void {
     VITE_API_TARGET: `http://127.0.0.1:${ports.server}`,
     DATABASE_URL: paths.databaseUrl,
     ASSETS_DIR: paths.assetsDir,
-    // ADOPT-ONLY (A.4/A.5-1): the stage ADOPTS the shared box-level fleet when it's up (so live-model
-    // surfaces snap correctly) and NEVER spawns or manages it — pinned so an ambient VLLM_DISABLED=false
-    // can't make a visual-review surface cold-start (and, post-sleep-mode, become a second auto-sleep
-    // manager fighting the primary). The stage runs no supervisor management; exactly one auto-sleep
-    // timer exists (the dev/prod server's) — the single-manager assumption made true by construction.
-    ENGINES_POSTURE: "adopt-only",
-    // …and the SHELL half of that same intent, which the posture alone does NOT buy (measured 2026-09-03,
-    // three stage boots spawned real vLLM on the box-level fleet ports :8701/:8702 under `adopt-only`).
-    // `dev.sh` → `engines.sh` gates the in-stack fleet on VLLM_DISABLED, NOT on ENGINES_POSTURE
-    // (`stack.sh` says so at its do_force_restart bridge), and that bridge is FORCE-ONLY — its own comment
-    // reads "Force-only: normal start/restart are untouched. Non-off postures reach engines.sh as before."
-    // A stage boots with `stack.sh start`, so neither `adopt-only` NOR `off` would have stopped the spawn;
-    // VLLM_DISABLED is the only key on that path. Setting BOTH is the supported combination rather than a
-    // contradiction: `stack.sh` maps VLLM_DISABLED=true to posture off for the server, but an EXPLICIT
-    // caller posture wins over that mapping, so the server still ADOPTS a fleet that is already up while
-    // the shell is forbidden to start one. That is precisely the line above's stated contract.
-    VLLM_DISABLED: "true",
     // Skip the repo-root .env ENTIRELY (the strong hatch) — ORB_ENV_NO_OVERRIDE only flipped precedence,
     // so OWNER_HANDLES/DEBUG_TOKEN/WIRE_CAPTURE/RPG_TRACE/OIDC_* all filled from the operator's real `.env`,
     // arming the stage's /api/_debug/* surface under the operator's REAL DEBUG_TOKEN with WIRE_CAPTURE=on,

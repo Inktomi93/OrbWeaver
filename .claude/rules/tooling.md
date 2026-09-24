@@ -43,9 +43,8 @@ them.
 Never signal a process group with the `kill` binary; a negative pgid without `--` parses by its first
 digit and can kill the wrong group — use `killPidGroup` (`tooling/src/_shared/proc.ts`). Never run
 `pnpm` inside a `git archive` extraction that symlinks a worktree's `node_modules`; its dep-status
-check can purge the real directory through the symlink. Never restart the dev stack
-(`tooling/src/stack/**`) with engines on while a test battery runs — both spawn vLLM fleets onto the
-same ports. A test-run watchdog kills on silence and zero CPU across the process tree, never silence alone.
+check can purge the real directory through the symlink. A test-run watchdog kills on silence and zero
+CPU across the process tree, never silence alone.
 
 ## Gates and freshness checks
 

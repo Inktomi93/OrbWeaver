@@ -88,7 +88,7 @@ export const gate = defineGate({
       mode: "types",
       files: {
         [ANCHOR]: "export const EXIT = { clean: 0 } as const;\n",
-        "tooling/src/stack/ops/engines.ts": 'import process from "node:process";\nexport const g = process.argv.includes("--detach");\n',
+        "tooling/src/stack/ops/dev-identity-entry.ts": 'import process from "node:process";\nexport const g = process.argv.includes("--detach");\n',
         "tooling/src/stack/ops/prod-entry.ts": 'import process from "node:process";\nexport const p = process.argv.slice(2);\n',
       },
       expect: { count: 1, line: 1 },
@@ -152,7 +152,7 @@ export const gate = defineGate({
     },
     {
       mode: "types",
-      files: { "tooling/src/stack/ops/engines.ts": 'import process from "node:process";\nexport const g = process.argv.includes("--detach");\n' },
+      files: { "tooling/src/stack/ops/prod-entry.ts": 'import process from "node:process";\nexport const g = process.argv.includes("--detach");\n' },
       why: "THE ANCHOR GUARD: with no real-tree anchor in the project the tripwire self-guards off — a synthetic mini-project can never red it. Deleting the anchor check reds this row",
     },
   ],
