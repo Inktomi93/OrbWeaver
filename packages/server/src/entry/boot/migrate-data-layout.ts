@@ -1,11 +1,24 @@
-// Boot step: move a legacy flat data dir into the tree `foundation/data-layout` describes, BEFORE the db
-// opens. Every move is a same-filesystem rename recorded in a journal first, so a crash mid-way resumes on
-// the next boot; a legacy path whose target already holds data is a refusal, never a merge.
+// Boot step: move a legacy flat data dir into the tree `foundation/data-layout` describes, BEFORE the db opens.
+// Every move is a same-filesystem rename journaled first, so a crash mid-way resumes on the next boot; a target
+// that holds data is a refusal, never a merge. Assumes one migrator per volume: two containers can share a pid.
 
-import { closeSync, existsSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import {
+  closeSync,
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  openSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  renameSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
-import { backupBeforeMigrate, closeDb, createDb, listBackupFiles, truncateWal } from "@orb/db";
+import { backupBeforeMigrate, closeDb, createDb, detachWal, listBackupFiles } from "@orb/db";
 import { isPlainObject } from "@orb/kit/guards";
 import type { DataLayout, DataLayoutSlotKey } from "#foundation/data-layout";
 import { DATA_LAYOUT_DIRS, DB_FILE_NAME, SECRET_FILE_NAMES } from "#foundation/data-layout";
@@ -13,8 +26,6 @@ import { getLog } from "#foundation/observability";
 
 /** The in-progress marker at the data root: present only between the first rename and the last. */
 export const LAYOUT_JOURNAL = ".layout-migration.json";
-
-const DB_SIDECARS = ["", "-wal", "-shm"] as const;
 
 // The legacy names at the root, and the top-level names the current layout owns. A root entry in neither
 // set is the operator's and is left where it is.
@@ -64,8 +75,10 @@ export interface MigrateDataLayoutDeps {
   readonly pid?: number;
   readonly isPidAlive?: (pid: number) => boolean;
   /** The filesystem device of a path (`lstat().dev`); injectable so a test can plant a mount boundary. */
-  readonly deviceOf?: (path: string) => number;
+  readonly deviceOf?: DeviceOf;
 }
+
+type DeviceOf = (path: string) => number;
 
 export interface DataLayoutMigrationReport {
   readonly moved: readonly DataLayoutMove[];
@@ -144,8 +157,8 @@ function writeJournal(path: string, journal: Journal): void {
 
 // The moves the current env asks for. A legacy db or keyfile moves only when it holds bytes: an empty one is
 // what a holder that reopened a moved file by its old path leaves behind, not data. Every other entry moves
-// on presence (a `.keep` pin is a meaningful empty file; the db's sidecars belong to it empty or not). The db
-// goes LAST, so a failure on any other entry never strands it.
+// on presence (a `.keep` pin is a meaningful empty file). The db goes LAST, so a failure on any other entry
+// never strands it; its sidecars are folded into it before the journal exists (`snapshotLegacyDb`).
 function planMoves(root: string, layout: DataLayout): PlannedMove[] {
   const entries = new Set(readdirSync(root));
   const moves: PlannedMove[] = [];
@@ -167,29 +180,49 @@ function planMoves(root: string, layout: DataLayout): PlannedMove[] {
     add(LEGACY.importStaging, DATA_LAYOUT_DIRS.importStaging, "IMPORT_STAGING_DIR");
   }
   add(LEGACY.importReports, DATA_LAYOUT_DIRS.reports);
-  if (!layout.explicit.has("DATABASE_URL") && holdsData(join(root, DB_FILE_NAME))) {
-    for (const suffix of DB_SIDECARS) {
-      add(`${DB_FILE_NAME}${suffix}`, join(DATA_LAYOUT_DIRS.db, `${DB_FILE_NAME}${suffix}`), "DATABASE_URL");
-    }
+  if (!layout.explicit.has("DATABASE_URL")) {
+    add(DB_FILE_NAME, join(DATA_LAYOUT_DIRS.db, DB_FILE_NAME), "DATABASE_URL", true);
   }
   return moves;
 }
 
-// rename(2) cannot cross a filesystem, and a mount point at the source fails it too. Refuse BEFORE the
-// journal exists, naming each entry and the slot key that opts it out, so nothing is half-moved.
-function refuseCrossDevice(root: string, moves: readonly PlannedMove[], deviceOf: (path: string) => number): void {
-  const rootDevice = deviceOf(root);
-  const foreign = moves.filter((move) => deviceOf(join(root, move.from)) !== rootDevice);
-  if (foreign.length === 0) {
-    return;
+// The directory a target's bytes would land in: its nearest existing ancestor, followed through symlinks,
+// because a container that is a link onto another filesystem fails the rename exactly like a foreign source.
+function landingDir(target: string): string {
+  let probe = dirname(target);
+  while (!exists(probe)) {
+    probe = dirname(probe);
   }
-  const named = foreign
-    .map(
-      (move) =>
-        `${join(root, move.from)} (${move.keptBy === null ? "no env key keeps it; move it onto the data root's filesystem by hand" : `set ${move.keptBy} to keep it there`})`,
-    )
-    .join("; ");
-  throw new Error(`boot/data-layout: ${named}: a rename cannot cross a filesystem or a mount point, so the layout migration refuses before moving anything.`);
+  return realpathSync(probe);
+}
+
+// rename(2) cannot cross a filesystem, and a mount point at either end fails it too. Refuse BEFORE the
+// journal exists, naming each entry and its way out, so nothing is half-moved. The root is resolved first:
+// a DATA_DIR that is itself a symlink has its entries on the link's target, not beside the link.
+function refuseCrossDevice(root: string, moves: readonly PlannedMove[], deviceOf: DeviceOf): void {
+  const rootDevice = deviceOf(realpathSync(root));
+  const reasons: string[] = [];
+  for (const move of moves) {
+    const from = join(root, move.from);
+    const keep = move.keptBy === null ? null : `set ${move.keptBy} to keep it where it is`;
+    if (deviceOf(from) !== rootDevice) {
+      reasons.push(
+        `${from} sits on another filesystem than ${root} (${keep === null ? "no env key keeps it there;" : `${keep}, or`} move it onto the data root's filesystem by hand)`,
+      );
+      continue;
+    }
+    const landing = landingDir(join(root, move.to));
+    if (deviceOf(landing) !== rootDevice) {
+      reasons.push(
+        `${from} would land in ${landing}, which sits on another filesystem than ${root} (${keep === null ? "" : `${keep}, or `}move it there by hand, or put ${landing} on the data root's filesystem)`,
+      );
+    }
+  }
+  if (reasons.length > 0) {
+    throw new Error(
+      `boot/data-layout: a rename cannot cross a filesystem or a mount point, so the layout migration refuses before moving anything: ${reasons.join("; ")}`,
+    );
+  }
 }
 
 function ensureContainerDirs(root: string, moveTargets: ReadonlySet<string>): void {
@@ -200,26 +233,26 @@ function ensureContainerDirs(root: string, moveTargets: ReadonlySet<string>): vo
   }
 }
 
-// The db moves only with no connection open and an empty WAL: open the legacy file, snapshot it into the
-// new backups dir, then checkpoint-truncate and close. A holder that blocks the checkpoint, or a WAL that
-// still carries bytes after the close, is a refusal: the move would pull the file out from under a live
-// writer, which then reopens by the old path and leaves an empty db there.
+// The db moves only as its sole holder: open the legacy file and leave WAL, which SQLite grants only when no
+// other connection has the file open, busy or idle. Any other holder is a refusal, because the move would
+// pull the file out from under it and it would reopen by the old path into an empty db. Leaving WAL also
+// folds the sidecars into the main file, so the db then moves as one file; the snapshot is taken after the
+// claim, so a refusal writes nothing.
 async function snapshotLegacyDb(root: string, layout: DataLayout): Promise<void> {
   const path = join(root, DB_FILE_NAME);
   const url = `file:${path}`;
   const db = await createDb(url);
-  let busy: boolean;
+  let sole: boolean;
   try {
-    await backupBeforeMigrate(db, url, layout.backups);
-    busy = (await truncateWal(db)).busy;
+    sole = (await detachWal(db)).sole;
+    if (sole) {
+      await backupBeforeMigrate(db, url, layout.backups);
+    }
   } finally {
     closeDb(db);
   }
-  const wal = `${path}-wal`;
-  if (busy || holdsData(wal)) {
-    throw new Error(
-      `boot/data-layout: another process holds ${path} (${busy ? "the checkpoint reported it busy" : `${wal} still carries ${describeEntry(wal)} after the close`}); stop it, then start again. Nothing was moved.`,
-    );
+  if (!sole) {
+    throw new Error(`boot/data-layout: another process has ${path} open; stop it, then start again. Nothing was moved.`);
   }
 }
 
@@ -232,7 +265,7 @@ function applyMove(root: string, move: DataLayoutMove): void {
 // A journal entry's state decides it: a rename either happened or did not, so any other combination means
 // something else touched the tree and the operator has to look. The pending entries are replayed against the
 // CURRENT plan, so a slot key set after a failed move keeps its entry in place instead of failing again.
-function resumeMoves(root: string, journal: readonly DataLayoutMove[], current: readonly PlannedMove[], deviceOf: (path: string) => number): DataLayoutMove[] {
+function resumeMoves(root: string, journal: readonly DataLayoutMove[], current: readonly PlannedMove[], deviceOf: DeviceOf): DataLayoutMove[] {
   const planned = new Map(current.map((move) => [move.from, move]));
   const pending: PlannedMove[] = [];
   const done: DataLayoutMove[] = [];
@@ -328,8 +361,7 @@ export async function migrateDataLayout(deps: MigrateDataLayoutDeps): Promise<Da
   if (planned.some((move) => move.from === DB_FILE_NAME)) {
     await snapshotLegacyDb(root, deps.layout);
   }
-  // The close above may have removed an empty sidecar; move only what is still there.
-  const moves = planned.filter((move) => exists(join(root, move.from))).map((move): DataLayoutMove => ({ from: move.from, to: move.to }));
+  const moves = planned.map((move): DataLayoutMove => ({ from: move.from, to: move.to }));
   ensureContainerDirs(root, new Set(moves.map((move) => move.to)));
   writeJournal(journalPath, { pid: ownPid, moves });
   for (const move of moves) {

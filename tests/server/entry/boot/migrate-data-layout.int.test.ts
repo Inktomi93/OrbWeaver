@@ -2,17 +2,22 @@
 // real filesystem with a real libSQL db. The moves are renames under a journal, so every arm here is about
 // what the step refuses, resumes or leaves alone, as much as about what it moves.
 
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, sep } from "node:path";
 import process, { pid } from "node:process";
-import { closeDb, createDb, preCloseHousekeeping } from "@orb/db";
+import { setTimeout as sleep } from "node:timers/promises";
+import { fileURLToPath } from "node:url";
+import { createDb, preCloseHousekeeping } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { DataLayoutMigrationReport } from "@orb/server/entry/boot";
 import { LAYOUT_JOURNAL, migrateDataLayout } from "@orb/server/entry/boot";
 import type { DataLayout } from "@orb/server/foundation/data-layout";
 import { DB_FILE_NAME, resolveDataLayout, SECRET_FILE_NAMES } from "@orb/server/foundation/data-layout";
 import { createCas } from "@orb/server/infra/storage";
+import type { NicedChild } from "@orb/tooling/_shared/proc";
+import { spawnNicedChild } from "@orb/tooling/_shared/proc";
 import { sql } from "drizzle-orm";
 import { afterEach, describe } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -22,8 +27,12 @@ const NOW = 1_700_000_000_000;
 const BACKUP_RE = /^orbweaver\.db\.backup-\d+$/u;
 const KEY_HEX = `${"ab".repeat(32)}\n`;
 const SECRET_HEX = `${"cd".repeat(32)}\n`;
-// The holder test waits out the db's busy timeout on the blocked checkpoint before it can refuse.
-const HOLDER_TEST_TIMEOUT_MS = 30_000;
+// The holder test boots two more node processes on the tree and waits for each to settle.
+const HOLDER_TEST_TIMEOUT_MS = 60_000;
+const HOLDER_SCRIPT = fileURLToPath(new URL("../../../support/node/db-holder.ts", import.meta.url));
+const MIGRATE_SCRIPT = fileURLToPath(new URL("../../../support/node/migrate-data-layout.ts", import.meta.url));
+const CHILD_POLL_MS = 50;
+const CHILD_POLL_ATTEMPTS = 400;
 const VARIANT_REL = join("user_x", "ab", "cd", `${"ab".repeat(32)}`, "w64-q80.webp");
 
 const roots: string[] = [];
@@ -94,6 +103,56 @@ async function probeValues(dbPath: string): Promise<string[]> {
   }
 }
 
+async function settled(done: () => boolean): Promise<boolean> {
+  for (let attempt = 0; attempt < CHILD_POLL_ATTEMPTS && !done(); attempt += 1) {
+    await sleep(CHILD_POLL_MS);
+  }
+  return done();
+}
+
+/** A support script in a second node process, resolved once it has written `output` or exited. */
+async function runSupportScript(script: string, args: readonly string[], output: string, logPath: string): Promise<NicedChild> {
+  const child = spawnNicedChild(process.execPath, [script, ...args, output], { logPath });
+  if (!(await settled(() => existsSync(output) || child.hasExited()))) {
+    child.killGroup("SIGKILL");
+    throw new Error(`${script} did not settle: ${readFileSync(logPath, "utf8")}`);
+  }
+  return child;
+}
+
+/** A second process holding an idle, already-used connection on `dbPath`. */
+async function holdDbInChild(dbPath: string, scratch: string): Promise<{ readonly release: () => Promise<void> }> {
+  const logPath = join(scratch, "holder.log");
+  const child = await runSupportScript(HOLDER_SCRIPT, [dbPath], join(scratch, "holder.ready"), logPath);
+  if (child.hasExited()) {
+    throw new Error(`db holder exited before holding: ${readFileSync(logPath, "utf8")}`);
+  }
+  return {
+    release: async (): Promise<void> => {
+      child.killGroup("SIGKILL");
+      if (!(await settled(() => child.hasExited()))) {
+        throw new Error("db holder did not exit after SIGKILL");
+      }
+    },
+  };
+}
+
+interface ChildMigrationOutcome {
+  readonly report?: DataLayoutMigrationReport;
+  readonly error?: string;
+}
+
+/** The migration run by its own process, as a boot runs it; `label` keeps two boots' outcomes apart. */
+async function migrateInChild(root: string, scratch: string, label: string): Promise<ChildMigrationOutcome> {
+  const logPath = join(scratch, `migrate-${label}.log`);
+  const outcomePath = join(scratch, `migrate-${label}.json`);
+  await runSupportScript(MIGRATE_SCRIPT, [root], outcomePath, logPath);
+  if (!existsSync(outcomePath)) {
+    throw new Error(`the child migration wrote no outcome: ${readFileSync(logPath, "utf8")}`);
+  }
+  return JSON.parse(readFileSync(outcomePath, "utf8")) as ChildMigrationOutcome;
+}
+
 describe("migrateDataLayout", () => {
   test("a fresh install gets the container dirs, no journal and no move", async () => {
     const root = freshRoot();
@@ -113,15 +172,10 @@ describe("migrateDataLayout", () => {
     expect(report.resumed).toBe(false);
     expect(report.leftInPlace).toEqual(["notes.txt"]);
     expect(readdirSync(root).sort()).toEqual(["assets", "backups", "cache", "db", "notes.txt", "reports", "secrets", "users"]);
-    // The sidecars the close left behind moved with the db, checked BEFORE anything opens it (a close removes
-    // them). The WAL is EMPTY (truncated before the move, so the moved db carries every row in its main
-    // file); the `-shm` is the fixed-size WAL index and holds no rows.
-    const sidecars = report.moved.filter((move) => move.from === `${DB_FILE_NAME}-wal` || move.from === `${DB_FILE_NAME}-shm`);
-    for (const sidecar of sidecars) {
-      expect(existsSync(join(root, sidecar.to))).toBe(true);
-    }
-    const wal = sidecars.find((move) => move.from === `${DB_FILE_NAME}-wal`);
-    expect(wal === undefined ? 0 : statSync(join(root, wal.to)).size).toBe(0);
+    // The db moved as ONE file: leaving WAL folded the planted sidecars into it, so none is left at the root
+    // (the listing above) or beside the moved db, and a journal can never hold a sidecar entry to lose. Checked
+    // BEFORE anything opens the moved db, which would create fresh sidecars.
+    expect(readdirSync(join(root, "db"))).toEqual([DB_FILE_NAME]);
     // The db reads at its new path, including the row that was only in the WAL.
     expect(await probeValues(join(root, "db", DB_FILE_NAME))).toEqual(["checkpointed", "wal-only"]);
     // The legacy backups and the pin moved, and the pre-move snapshot joined them as a complete db.
@@ -148,8 +202,7 @@ describe("migrateDataLayout", () => {
     expect(await createCas(layout.assets).verify(OWNER, hash)).toBe(true);
     expect(readFileSync(join(root, "users", "user_x", "state.json"), "utf-8")).toBe("{}");
     expect(existsSync(join(root, LAYOUT_JOURNAL))).toBe(false);
-    const named = report.moved.filter((move) => !sidecars.includes(move)).map((move) => move.from);
-    expect(named.sort()).toEqual(
+    expect(report.moved.map((move) => move.from).sort()).toEqual(
       [
         ".credentials-key",
         ".session-secret",
@@ -232,7 +285,7 @@ describe("migrateDataLayout", () => {
     await plantLegacyTree(root);
     writeFileSync(join(root, LAYOUT_JOURNAL), JSON.stringify({ pid: 4242, moves: [{ from: ".credentials-key", to: "secrets/credentials_key" }] }));
     const refusal = migrateDataLayout({ layout: layoutFor(root), pid, isPidAlive: () => true });
-    await expect(refusal).rejects.toThrow("process 4242");
+    await expect(refusal).rejects.toThrow("4242");
     await expect(refusal).rejects.toThrow(join(root, LAYOUT_JOURNAL));
     expect(existsSync(join(root, ".credentials-key"))).toBe(true);
     expect(existsSync(join(root, "secrets"))).toBe(false);
@@ -275,6 +328,47 @@ describe("migrateDataLayout", () => {
     expect(report.moved.some((move) => move.from === "models")).toBe(true);
   });
 
+  // The other end of the rename: a target container that is a symlink onto another filesystem fails rename(2)
+  // the same way, and it is not a legacy entry, so the source-side probe never sees it. The probe is handed the
+  // container's REAL path, which is what following the link proves.
+  test("a target container linked onto another filesystem refuses before any write and names every entry it catches", async () => {
+    const root = freshRoot();
+    await plantLegacyTree(root);
+    const elsewhere = mkdtempSync(join(tmpdir(), `orb-layout-elsewhere-${pid}-`));
+    roots.push(elsewhere);
+    const elsewhereReal = realpathSync(elsewhere);
+    symlinkSync(elsewhere, join(root, "cache"));
+    const cacheIsForeign = (path: string): number => (path.startsWith(elsewhereReal) ? 2 : 1);
+    const refusal = migrateDataLayout({ layout: layoutFor(root), pid, deviceOf: cacheIsForeign });
+    // Both entries that land in `cache/`: the one a key can keep and the one no key governs.
+    await expect(refusal).rejects.toThrow(elsewhereReal);
+    await expect(refusal).rejects.toThrow(join(root, "variants"));
+    await expect(refusal).rejects.toThrow(join(root, "models"));
+    await expect(refusal).rejects.toThrow("LOCAL_LIGHT_CACHE_DIR");
+    expect(existsSync(join(root, LAYOUT_JOURNAL))).toBe(false);
+    expect(existsSync(join(root, "backups"))).toBe(false);
+    expect(existsSync(join(root, DB_FILE_NAME))).toBe(true);
+    expect(readdirSync(elsewhere)).toEqual([]);
+    // CONTROL: the same linked container on the root's device takes the moves through the link.
+    const report = await migrateDataLayout({ layout: layoutFor(root), pid, deviceOf: () => 1 });
+    expect(report.moved.some((move) => move.from === "variants")).toBe(true);
+    expect(readFileSync(join(elsewhere, "variants", VARIANT_REL), "utf-8")).toBe("webp-bytes");
+  });
+
+  // A DATA_DIR that is itself a symlink has its entries on the link's target. The probe answers "foreign" for
+  // the link path alone, so the run passes only when the root is resolved before it is compared.
+  test("a data root that is a symlink is compared through the link, not beside it", async () => {
+    const real = freshRoot();
+    await plantLegacyTree(real);
+    const link = join(mkdtempSync(join(tmpdir(), `orb-layout-link-${pid}-`)), "data");
+    roots.push(join(link, ".."));
+    symlinkSync(real, link);
+    const linkAlone = (path: string): number => (path === link ? 2 : 1);
+    const report = await migrateDataLayout({ layout: layoutFor(link), pid, deviceOf: linkAlone });
+    expect(report.moved.some((move) => move.from === DB_FILE_NAME)).toBe(true);
+    expect(existsSync(join(real, "db", DB_FILE_NAME))).toBe(true);
+  });
+
   // A journal replay must not re-fail forever: the pending entries are re-planned against the CURRENT env,
   // so setting the slot key after a failed move is enough to recover.
   test("a resume re-plans against the current env: a slot key set after a failed move keeps its entry in place", async () => {
@@ -313,28 +407,35 @@ describe("migrateDataLayout", () => {
     expect(existsSync(join(controlRoot, "cache", "models", "transformers", "weights.onnx"))).toBe(true);
   });
 
-  // Moving the db out from under a live writer would let it reopen by the old path into an empty file. A
-  // holder with an open write transaction blocks the truncating checkpoint, which is the tell.
+  // Moving the db out from under a running server would let it reopen by the old path into an empty file. The
+  // hard case is the server BETWEEN requests: a connection that has run a query and now sits idle holds no
+  // write lock and blocks no checkpoint, yet it must still be a refusal. Every party is its own process, as in
+  // production: a handle a process has closed still holds the WAL lock, so a refused boot's own handle would
+  // block a retry in the same process, and a boot that is refused ends. The control is the next boot.
   test(
-    "a live holder of the legacy db refuses before any move; once it lets go, the move proceeds",
+    "an idle holder of the legacy db refuses before any move; once it is gone, the same tree moves on the next boot",
     async () => {
       const root = freshRoot();
+      const scratch = join(root, "..");
       await plantLegacyTree(root);
-      const holder = await createDb(`file:${join(root, DB_FILE_NAME)}`);
-      await holder.run(sql`BEGIN IMMEDIATE`);
-      await holder.run(sql`INSERT INTO probe (value) VALUES ('held')`);
+      const holder = await holdDbInChild(join(root, DB_FILE_NAME), scratch);
       try {
-        await expect(migrateDataLayout({ layout: layoutFor(root), pid })).rejects.toThrow(`another process holds ${join(root, DB_FILE_NAME)}`);
+        const refused = await migrateInChild(root, scratch, "held");
+        expect(refused.report).toBeUndefined();
+        expect(refused.error).toContain(join(root, DB_FILE_NAME));
         expect(existsSync(join(root, DB_FILE_NAME))).toBe(true);
         expect(existsSync(join(root, "db", DB_FILE_NAME))).toBe(false);
+        expect(existsSync(join(root, "backups"))).toBe(false);
         expect(existsSync(join(root, LAYOUT_JOURNAL))).toBe(false);
+        expect(existsSync(join(root, ".credentials-key"))).toBe(true);
       } finally {
-        await holder.run(sql`ROLLBACK`);
-        closeDb(holder);
+        await holder.release();
       }
       // CONTROL: with the holder gone the same tree moves, and the moved db carries the rows.
-      const report = await migrateDataLayout({ layout: layoutFor(root), pid });
-      expect(report.moved.some((move) => move.from === DB_FILE_NAME)).toBe(true);
+      const control = await migrateInChild(root, scratch, "released");
+      expect(control.error).toBeUndefined();
+      expect(control.report?.moved.some((move) => move.from === DB_FILE_NAME)).toBe(true);
+      expect(readdirSync(join(root, "db"))).toEqual([DB_FILE_NAME]);
       expect(await probeValues(join(root, "db", DB_FILE_NAME))).toEqual(["checkpointed", "wal-only"]);
     },
     HOLDER_TEST_TIMEOUT_MS,
