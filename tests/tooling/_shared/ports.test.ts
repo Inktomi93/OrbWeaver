@@ -15,7 +15,6 @@ import {
   E2E_PORTS,
   ENGINE_PORTS,
   FIXTURE_PORTS,
-  MODEL_AB_PORT,
   RESERVED_PORT_NUMBERS,
   RESERVED_PORTS,
   reservedPort,
@@ -38,7 +37,7 @@ function overlap(ports: Iterable<number>, against: ReadonlySet<number>): number[
 test("no stage band may land on a reserved port", () => {
   // POSITIVE CONTROL FIRST: a planted band-shaped set that DOES collide must be reported, or the empty
   // answer below proves nothing about the real sets.
-  expect(overlap([DEV_PORTS.server, MODEL_AB_PORT, 9999], RESERVED_PORT_NUMBERS)).toEqual([DEV_PORTS.server, MODEL_AB_PORT]);
+  expect(overlap([DEV_PORTS.server, CT_VITE_PORT, 9999], RESERVED_PORT_NUMBERS)).toEqual([DEV_PORTS.server, CT_VITE_PORT]);
 
   expect(overlap(STAGE_BAND_PORT_NUMBERS, RESERVED_PORT_NUMBERS)).toEqual([]);
 });
@@ -47,7 +46,7 @@ test("the band range clears every port the design names by number", () => {
   // §3.6's exclusion list, spelled as LITERALS on purpose: this test is the place the design's numbers and
   // the module's numbers are checked against each other, so deriving both sides from the module would make
   // the assertion circular.
-  const designExclusions = [8790, 5175, 8796, 8797, 8798, 8799, 5181, 5182, 5183, 8901, 3100, 8701, 8702, 8703, 8788, 5173];
+  const designExclusions = [8790, 5175, 8796, 8797, 8798, 8799, 5181, 5182, 5183, 3100, 8701, 8702, 8703, 8788, 5173];
   expect(overlap(designExclusions, STAGE_BAND_PORT_NUMBERS)).toEqual([]);
   // …and the same literals really are the rows this module declares — an exclusion list that had drifted
   // from the registry would clear the bands for free.
@@ -93,7 +92,6 @@ test("the registry carries the pairs its consumers used to spell by hand", () =>
   expect(E2E_PORTS.forwardHeader).toEqual({ server: 8798, vite: 5182 });
   expect(E2E_PORTS.local).toEqual({ server: 8799, vite: 5183 });
   expect(E2E_FIXTURE_PROVIDER_PORT).toBe(8797);
-  expect(MODEL_AB_PORT).toBe(8901);
   expect(CT_VITE_PORT).toBe(3100);
   expect(ENGINE_PORTS).toEqual({ embed: 8701, rerank: 8702, generate: 8703 });
 });

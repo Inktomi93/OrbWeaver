@@ -192,9 +192,9 @@ process.exitCode = await runVerify(${JSON.stringify(scratch)}, parsed);
 // `Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.` whenever BOTH are
 // present — and the parent routinely exports one (an agent shell and a `pnpm` run both do; `FORCE_COLOR=3`
 // measured on the run that surfaced this). Not setting it left the INHERITED one in place, so the warning
-// rode the stderr of every node child of every stage: noise in each stage log, and a real failure in
-// `tests/tooling/stack/ops/engines-compose.int.test.ts`, which asserts a compose child prints NOTHING on
-// stderr and was instead reading node's complaint about our own contradictory env.
+// rode the stderr of every node child of every stage: noise in each stage log, and a real failure in any
+// suite that asserts a child prints NOTHING on stderr and instead reads node's complaint about our own
+// contradictory env.
 test("a stage child carries NO_COLOR and never an inherited FORCE_COLOR (#2469)", { timeout: scaledBudget(60_000) }, async ({ fakeBin, repoRoot, scratch }) => {
   const seen = join(scratch, "stage-colour-env");
   await fakeBin(
@@ -580,9 +580,9 @@ test("public command families keep one canonical front door", () => {
     .scripts;
   expect(scripts["check:type-ownership"]).toContain("tests-membership");
   expect(scripts["check:tests-membership"]).toBeUndefined();
-  expect(scripts["engines"]).toContain("tooling/src/stack/engines.sh");
-  for (const verb of ["start", "stop", "status", "sleep", "wake", "reconcile"]) {
-    expect(scripts[`engines:${verb}`]).toBeUndefined();
+  expect(scripts["stack"]).toContain("tooling/src/stack/stack.sh");
+  for (const verb of ["up", "down", "restart", "status"]) {
+    expect(scripts[`stack:${verb}`]).toBeUndefined();
   }
 });
 

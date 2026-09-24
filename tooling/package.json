@@ -24,6 +24,7 @@
     "chrome-devtools-mcp": "catalog:",
     "dependency-cruiser": "catalog:",
     "eslint": "catalog:",
+    "pino-pretty": "catalog:",
     "ts-morph": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:",

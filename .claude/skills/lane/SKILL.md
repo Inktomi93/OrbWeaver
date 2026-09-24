@@ -118,10 +118,9 @@ List each command and its result in the report. The whole-tree check is the orch
 ## Dev stack
 
 - The dev stack reloads on source changes. A merge respawns the server and clears the in-memory recorders.
-- Never restart or stop the stack, the fixture or the engines. Tell the orchestrator.
+- Never restart or stop the stack or the fixture. Tell the orchestrator.
 - A live e2e run needs the stack stopped first. Ask the orchestrator; only it stops the stack.
 - Prove a served module with `curl :5173/@fs/<abs path>`. Check liveness with a bare `pnpm snap`, never a log tail.
-- Verify a launcher change with typecheck, unit tests and `buildEngineArgv` snapshots.
 
 ## CLI hazards
 

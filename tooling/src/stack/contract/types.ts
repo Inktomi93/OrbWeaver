@@ -2,8 +2,6 @@
 // `scripts/dev/_kit/stack-mode.ts` at the #393 P5 move. Every decision the launcher makes is typed here;
 // the imperative half (spawn/kill/poll/probe) lives in ops/, and the dev half is stack.sh.
 
-import type { EngineLaunchConfig, WakeBudgetVerdict } from "../lib/engine-fleet/index.ts";
-
 // ── The spawner census ───────────────────────────────────────────────────────────────────────────────
 
 /** One thing on this box that can bind a server and/or a vite port. Keeping this as DATA is what lets
@@ -227,16 +225,6 @@ export interface ServedVerdict {
   readonly message: string;
 }
 
-// ── Managed-engine adoption ─────────────────────────────────────────────────────────────────────────
-
-const ENGINE_ROLES = ["embed", "rerank", "gen"] as const;
-export type EngineRole = (typeof ENGINE_ROLES)[number];
-
-export interface EngineAdoptionEvidence {
-  readonly modelIds: readonly string[];
-  readonly paths: readonly string[];
-}
-
 // ── The /api/_debug arming probe ─────────────────────────────────────────────────────────────────────
 
 /** What an UNAUTHENTICATED `GET /api/_debug/info` tells us about the live instance's debug posture.
@@ -252,78 +240,6 @@ export interface EngineAdoptionEvidence {
  *  `unknown` = no answer at all. */
 const DEBUG_POSTURES = ["off", "token", "open", "unknown"] as const;
 export type DebugPosture = (typeof DEBUG_POSTURES)[number];
-
-/** A loopback engine health probe distinguishes a refused connection (nothing listens, safe to spawn) from
- *  an occupied-but-unproven port (timeout/protocol/tool failure, never permission to spawn a duplicate). */
-export type PortHealth = { readonly kind: "absent" } | { readonly kind: "healthy" } | { readonly kind: "unproven"; readonly reason: string };
-
-// ── The per-engine launch decision (`lib/engine-launch.ts`) ─────────────────────────────────────────
-
-/** The launch-config slice the adoption decision reads — the three served model names. Derived from the
- *  server's `EngineLaunchConfig`, never re-spelled, so a renamed field reds here too. */
-export type EngineLaunchModels = Pick<EngineLaunchConfig, "embedModel" | "genModel" | "rerankModel">;
-
-/** The three I/O edges the decision consults, injected so the decision itself stays pure and directly
- *  testable — the launcher (`ops/engines.ts`) wires the real loopback/GPU probes, a test wires its own. */
-export interface EngineLaunchProbes {
-  /** `GET /health` on the engine's port. */
-  readonly health: (port: number) => Promise<PortHealth>;
-  /** The identity proof a HEALTHY listener must pass before it may be adopted: `null` = adoptable, a
-   *  string = the mismatch to refuse with. */
-  readonly adoption: (engine: EngineRole, port: number, expectedModels: readonly string[]) => Promise<string | null>;
-  /** The cold-start VRAM headroom budget — read only when the port is ABSENT and a spawn is on the table. */
-  readonly headroom: (engine: EngineRole) => Promise<WakeBudgetVerdict>;
-}
-
-/** What to do with one engine's port, in decision order:
- *    `adopt`  — a healthy listener proved its identity; leave it alone, spawn nothing.
- *    `refuse` — the port is occupied and NOT provably ours (mismatched identity, or health unproven).
- *               Never spawn a duplicate, never touch the incumbent — and the launcher exits toolError.
- *    `skip`   — nothing listens but there is not enough free VRAM to boot; refuse loudly, exit clean.
- *    `spawn`  — nothing listens and the budget is there. */
-export const ENGINE_LAUNCH_ACTIONS = ["adopt", "refuse", "skip", "spawn"] as const;
-export type EngineLaunchAction = (typeof ENGINE_LAUNCH_ACTIONS)[number];
-
-export interface EngineLaunchDecision {
-  readonly action: EngineLaunchAction;
-  /** The operator line the launcher prints for this decision — one per engine, always. */
-  readonly message: string;
-}
-
-/** How the launcher's health wait ENDED, which the fleet verdict reads (#1494). `exited` and `timeout`
- *  are opposite facts that the old `void` return collapsed: a child that DIED is a boot failure, while a
- *  child still coming up past the poll ceiling is the ruled `booted-late` case (#1165) and stays clean. */
-export const ENGINE_HEALTH_WAITS = ["healthy", "exited", "timeout"] as const;
-export type EngineHealthWait = (typeof ENGINE_HEALTH_WAITS)[number];
-
-/** One engine's contribution to the FLEET verdict.
- *    `booted`   — this engine is up (or legitimately still coming up) and owns a verified identity.
- *    `no-spawn` — nothing was launched and that is CLEAN (adopted in place, or a deliberate headroom skip).
- *    `failed`   — the fleet is short this engine; `reason` is the operator line, and the launcher exits
- *                 toolError AND tears the fleet it spawned back down. */
-export type EngineBootOutcome = { readonly kind: "booted" } | { readonly kind: "no-spawn" } | { readonly kind: "failed"; readonly reason: string };
-
-/** What the launcher observed after spawning ONE engine — `null` when it never spawned (adopt/refuse/skip). */
-export interface EngineSpawnObservation {
-  readonly wait: EngineHealthWait;
-  /** Did the spawned pid resolve to a safe setsid launch identity? An engine we cannot identify can never
-   *  be recorded or signalled, so it is not a member of the fleet even when its process is alive. */
-  readonly identityCaptured: boolean;
-}
-
-/** The whole input the engine-container compose GENERATOR turns into `docker/compose.engines.yaml`
- *  (lib/engines-compose.ts). Every field is already RESOLVED by the caller — the generator is pure, so the
- *  committed overlay is a function of the shipped env floor + this file's two literals and nothing else.
- *    `config`      — the launch config (`resolveEngineLaunchConfig(engineLaunchEnvFloor(), undefined)`);
- *                    the SAME value the bare-metal launcher passes to `buildEngineArgv`.
- *    `gpuCount`    — the TOPOLOGY the overlay is generated FOR (not a detection of the generating box:
- *                    a committed artifact must not carry whatever hardware regenerated it last).
- *    `vllmVersion` — read from lib/vllm-version.env, the one home of the version line. */
-export interface EnginesComposeInput {
-  readonly config: EngineLaunchConfig;
-  readonly gpuCount: number;
-  readonly vllmVersion: string;
-}
 
 // ── `pnpm start` — the PORTABLE one-command production launcher (ops/start.ts) ───────────────────────
 

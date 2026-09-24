@@ -13,7 +13,7 @@
 //
 // IDENTITY, NOT SPELLING — and the conversion's own finding. The legacy matched the callee's TEXT against
 // `join`/`resolve`/`mkdir`/`mkdirSync` as a bare IDENTIFIER, so `path.join(REPO_ROOT, "reports", "ab", stamp)`
-// (`tooling/src/model-ab/ops/run.ts:110`, live since the tool was minted) was never seen. The callee is now
+// (live in a tool since it was minted) was never seen. The callee is now
 // judged by where it RESOLVES — node's own path/fs doors through `_shared/reference-fact-call.ts` — so the
 // default-import, namespace and named spellings are one read (mustFlag[1]); a project-declared `join` is
 // provably a different callee (mustPass[2]); a callee the readers cannot place is reported fail-closed under
@@ -101,9 +101,9 @@ export const gate = defineGate({
     },
     {
       mode: "types",
-      files: { "tooling/src/model-ab/ops/run.ts": 'import path from "node:path";\nexport const outDir = path.join("/root", "reports", "ab", "stamp");\n' },
+      files: { "tooling/src/harness/ops/run.ts": 'import path from "node:path";\nexport const outDir = path.join("/root", "reports", "ab", "stamp");\n' },
       expect: { count: 1, token: '"reports"', messageIncludes: "a hand-rolled reports/<kind> path" },
-      why: "THE CONVERSION'S OWN FINDING: the default-import spelling `path.join(…, \"reports\", …)` — live at model-ab/ops/run.ts:110 for the tool's whole life and never seen by the legacy identifier-only callee match. The callee resolves to node's path door whatever it was spelled through",
+      why: "THE CONVERSION'S OWN FINDING: the default-import spelling `path.join(…, \"reports\", …)` — live in a tool for its whole life and never seen by the legacy identifier-only callee match. The callee resolves to node's path door whatever it was spelled through",
     },
     {
       mode: "types",

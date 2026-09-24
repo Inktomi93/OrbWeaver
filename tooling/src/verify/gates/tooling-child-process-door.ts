@@ -8,9 +8,9 @@
 //
 // AUTHORITY IS reviewed-grant (#1950 group 4): the legacy `HOMES` row for proc.ts and the
 // four-row `FULL_PRIORITY_CALLERS` census are recurring repository PERMISSIONS with stated end conditions —
-// today six exact rows: `(proc.ts, child-process-import)` and five `(caller, full-priority-spawn)` (the
-// legacy four plus `stack-start`, the portable `pnpm start`, whose children are the production server and
-// its build and for which the niced doors do not exist off POSIX); the legacy
+// `(proc.ts, child-process-import)` and one `(caller, full-priority-spawn)` per caller (the surviving legacy
+// callers plus `stack-start` and `dev`, the portable `pnpm start` and `pnpm dev`, whose children are the app
+// a person is using and for which the niced doors do not exist off POSIX); the legacy
 // two-sided stale sweep is central grant liveness. Both arms share one policy because they share one
 // subject (the subprocess home) and one authority. FAMILY: a SINGLETON under its own id.
 //
