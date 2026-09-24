@@ -405,9 +405,9 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
 
     // The boot secrets, phase two: with the schema in place, an absent keyfile is generated only when no row
     // depends on it; otherwise this REFUSES and names the file (owner ruling — a regenerated secret would
-    // orphan every sealed credential, or every local password and session). A cookie mode still needs a
+    // orphan every sealed credential, or every local password, session and live invite). A cookie mode still needs a
     // usable pepper after that: a filesystem fault on the first write is the one way it can still be null.
-    const { secretBoxKey, sessionSecret } = await settleBootSecrets({ db, credentialsKey, sessionSecret: sessionSecretSource });
+    const { secretBoxKey, sessionSecret } = await settleBootSecrets({ db, now, credentialsKey, sessionSecret: sessionSecretSource });
     if (sessionSecret === null && isCookieAuthMode(env.AUTH_MODE)) {
       throw new Error(missingSessionSecretMessage(env.AUTH_MODE, sessionSecretSource.path));
     }
