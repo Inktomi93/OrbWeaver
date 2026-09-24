@@ -65,7 +65,6 @@ export { acquireSpawnLock, handleHeldSpawnLock, pidIsAlive, releaseSpawnLock } f
 export { buildProdSpawnPlan, CLIENT_DIST_INDEX_REL, CLIENT_DIST_REL, SERVER_ENTRY_REL } from "./lib/spawn-plan.ts";
 export { STACK_SPAWNERS, spawnerForPort } from "./lib/spawners.ts";
 export {
-  childExitCode,
   decideStartBuild,
   effectiveAuthMode,
   PNPM_EXECPATH_ENV,
@@ -91,4 +90,4 @@ export {
 } from "./lib/verdicts.ts";
 export { runStackProd } from "./ops/prod.ts";
 export { probeServedTransform } from "./ops/served-probe.ts";
-export { FORWARDED_SIGNALS, forwardSignalsTo, runStart } from "./ops/start.ts";
+export { runStart } from "./ops/start.ts";

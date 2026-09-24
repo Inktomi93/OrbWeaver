@@ -10,6 +10,7 @@
 // 450-line cap. Reading the environment is not a subprocess capability; spawning is, and that half is here.
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { closeSync, existsSync, openSync } from "node:fs";
+import { constants as osConstants } from "node:os";
 import process from "node:process";
 import { budget } from "./load-budget.ts";
 import type {
@@ -228,6 +229,7 @@ export function spawnFullPriorityChild(cmd: string, args: readonly string[], opt
   }
   return {
     pid: child.pid,
+    stdout: child.stdout,
     hasExited: (): boolean => child.exitCode !== null || child.signalCode !== null,
     unref: (): void => child.unref(),
     kill: (signal): void => {
@@ -252,11 +254,40 @@ export function spawnFullPriorityChild(cmd: string, args: readonly string[], opt
   };
 }
 
-function childStdio(stdio: "inherit" | undefined, logFd: number | undefined): "inherit" | ["ignore", number, number] | ["ignore", "pipe", "pipe"] {
+function childStdio(
+  stdio: FullPriorityChildOptions["stdio"],
+  logFd: number | undefined,
+): "inherit" | ["ignore", "pipe", "inherit"] | ["ignore", number, number] | ["ignore", "pipe", "pipe"] {
   if (stdio === "inherit") {
     return "inherit";
   }
+  if (stdio === "pipe-stdout") {
+    return ["ignore", "pipe", "inherit"];
+  }
   return logFd === undefined ? ["ignore", "pipe", "pipe"] : ["ignore", logFd, logFd];
+}
+
+/** The signals a foreground launcher owes its children: Ctrl-C, a supervisor's stop, a closed terminal. */
+export const FORWARDED_SIGNALS = ["SIGINT", "SIGTERM", "SIGHUP"] as const;
+
+/** Wire each forwarded signal to the child. The registrar is injected (`process.on` in a live launcher) so a
+ *  test can prove the wiring without signalling its own runner. Registering our own handler is what keeps a
+ *  Ctrl-C from killing the launcher before the child finishes its drain. */
+export function forwardSignalsTo(child: Pick<FullPriorityChild, "kill">, register: (signal: NodeJS.Signals, handler: () => void) => void): void {
+  for (const signal of FORWARDED_SIGNALS) {
+    register(signal, () => child.kill(signal));
+  }
+}
+
+/** The shell convention for "killed by signal N". */
+const SIGNAL_EXIT_BASE = 128;
+
+/** Mirror a child's exit faithfully: its code, or 128+signal when a signal took it (Ctrl-C gives 130). */
+export function childExitCode(exit: ChildExit): number {
+  if (exit.signal === null) {
+    return exit.code ?? 0;
+  }
+  return SIGNAL_EXIT_BASE + osConstants.signals[exit.signal];
 }
 
 /** Long-lived detached child under `nice -n 19` (the ephemeral-server / supervisor / daemon shape): own

@@ -101,6 +101,14 @@ export const REVIEWED_GRANTS_TOOLING_TO_PERMISSION: readonly ReviewedGateGrant[]
     endsWhen: "the stage boot moves or drops the exception — the row is then consumed zero times and reds.",
   },
   {
+    id: "tooling-child-process-door:dev",
+    policyId: "tooling-child-process-door",
+    subject: "tooling/src/dev/ops/dev.ts",
+    operation: "full-priority-spawn",
+    why: "`pnpm dev`, the cross-platform source launcher (D252): its two children ARE the dev server and the vite client a person is using, and the niced doors are structurally unavailable to it — they exec the POSIX `nice` binary, which does not exist on Windows.",
+    endsWhen: "`pnpm dev` is retired or stops spawning the server and vite — the row is then consumed zero times and reds.",
+  },
+  {
     id: "tooling-child-process-door:stack-start",
     policyId: "tooling-child-process-door",
     subject: "tooling/src/stack/ops/start.ts",

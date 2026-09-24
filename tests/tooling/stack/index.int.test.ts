@@ -349,11 +349,12 @@ const DEV_POLL_MS = 100;
 
 function fakeDevTree(): { readonly root: string; readonly pidFile: string } {
   const root = mkdtempSync(path.join(tmpdir(), "orb-dev-signal-"));
-  mkdirSync(path.join(root, "tooling", "src", "stack", "ops"), { recursive: true });
+  mkdirSync(path.join(root, "tooling", "src", "stack"), { recursive: true });
+  mkdirSync(path.join(root, "tooling", "src", "dev", "lib"), { recursive: true });
   mkdirSync(path.join(root, "packages", "server", "src", "entry"), { recursive: true });
   mkdirSync(path.join(root, "node_modules", ".bin"), { recursive: true });
   writeFileSync(path.join(root, "tooling", "src", "stack", "dev.sh"), readFileSync(DEV_SH, "utf8"));
-  writeFileSync(path.join(root, "tooling", "src", "stack", "ops", "pino-pretty.json"), "{}\n");
+  writeFileSync(path.join(root, "tooling", "src", "dev", "lib", "pino-pretty.json"), "{}\n");
   const pidFile = path.join(root, "server.pid");
   // The watched server: publish the pid, then hang. Its survival after the TERM is the orphan's signature.
   writeFileSync(
