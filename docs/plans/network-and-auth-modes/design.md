@@ -60,7 +60,7 @@ Soundness. A browser cannot attach `X-Forwarded-Proto` to another user's request
 
 **Rule D, secrets default on.** `credentialsKeyFromEnv` will drop the `CREDENTIALS_KEY_AUTO` branch: explicit `CREDENTIALS_KEY` wins, else the keyfile beside the db (`packages/server/src/infra/crypto/key.ts:59-84`, unchanged). A sibling `sessionSecretFromEnv` in the same file will do the same for `SESSION_SECRET` with a `.session-secret` keyfile (64 hex chars, mode 0600, `loadOrCreateKeyfile` reused), returning null only for a remote db URL or a filesystem fault. `SESSION_SECRET` leaves `AUTH_MODE_REQUIRED_ENV` for `local` and `oidc`; `lifecycle` resolves the secret once and throws before the listener binds when a cookie mode has none: "AUTH_MODE=local needs a session secret and none could be generated under <dir>; set SESSION_SECRET." The generated value never enters `process.env`, so the agent-sdk credential firewall needs no new row. Docker keeps generating `secrets/session_secret` in the entrypoint: it exports an explicit value, which wins, so no existing container rotates its pepper (a rotation invalidates every local password, `docs/law/Tier-3-Infra.md` section "password.ts"). Both keyfiles are the backup unit with the db; `.gitignore` gains `.session-secret`.
 
-**Rule E, plain http from the internet.** The server can see this per request, not at boot: the resolved client address (`clientIp`, XFF-aware) is outside `DEFAULT_TRUSTED_RANGES` (`packages/server/src/infra/network/ip-ranges.ts:175-192`) and the transport is `http`. A router port-forward produces exactly that (the router rewrites the destination, the source stays the visitor's public address). Boot cannot detect a port-forward; say so in the disclaimer. Recommended: warn, not refuse. The login and first-run mints log one `security:true` line per client address per hour ("a password and session cookie were sent in clear from the public internet; put TLS or a tunnel in front") and `/api/auth/config` reports `transport` and `clientScope` so the login screen shows a red notice. Refusing the mint is the fork (section 9): it is the stronger answer, but the recorded ruling in `packages/server/src/foundation/env/session-cookie.ts:36-40` ("I'm not going to limit their network choice, but the console will nag") points at warn, and SillyTavern and Marinara warn too.
+**Rule E, plain http from the internet.** The server can see this per request, not at boot: the resolved client address (`clientIp`, XFF-aware) is outside `DEFAULT_TRUSTED_RANGES` (`packages/server/src/infra/network/ip-ranges.ts:175-192`) and the transport is `http`. A router port-forward produces exactly that (the router rewrites the destination, the source stays the visitor's public address). Boot cannot detect a port-forward; say so in the disclaimer. Recommended: warn, not refuse. The login and first-run mints log one `security:true` line per client address per hour ("a password and session cookie were sent in clear from the public internet; put TLS or a tunnel in front") and `/api/auth/config` reports `transport` and `clientScope` so the login screen shows a red notice. The owner ruled warn (section 9). Refusing the mint is the stronger answer, but the recorded ruling in `packages/server/src/foundation/env/session-cookie.ts:36-40` ("I'm not going to limit their network choice, but the console will nag") points at warn, and SillyTavern and Marinara warn too.
 
 **Rule F, one disclaimer block.** Section 6.
 
@@ -90,7 +90,7 @@ Dev stack and e2e: `AUTH_MODE=single-user`, `NODE_ENV=development`, loopback bin
 | oidc without the `OIDC_*` set | refuse at parse (unchanged) | a half-configured SSO deploy must not degrade | `packages/server/src/foundation/env/index.ts:225-234` |
 | a loopback peer carrying a forwarding header asks for the owner fallback or the first-run claim | request refused (401 / 403), one security log line | a relayed request is a stranger; this is the tunnel hole | `packages/server/src/infra/auth/index.ts`, `packages/server/src/entry/http/auth-routes.ts` |
 | any cookie mode over plain http on a private network | warn once at boot, notice on the login screen | the cookie travels in clear on a network the operator owns | `packages/server/src/entry/lifecycle.ts`, login surface |
-| a cookie mint over plain http from a public client | warn per client address, red login notice | the credential crosses the internet in clear; refusing is the fork | `packages/server/src/entry/http/auth-routes.ts` |
+| a cookie mint over plain http from a public client | warn per client address, red login notice | the credential crosses the internet in clear; the owner ruled warn | `packages/server/src/entry/http/auth-routes.ts` |
 | `AUTH_BREAK_GLASS` live | warn every boot (unchanged) | recovery flag left on | `packages/server/src/entry/lifecycle.ts:600-604` |
 | non-production public bind with the dev hatch, any mode but single-user | warn (unchanged) | dev diagnostics off-box | `packages/server/src/foundation/env/bind.ts:147-156` |
 | diagnostics recorders on | warn per exposure (unchanged) | prompts and transcripts behind a door | `packages/server/src/foundation/env/diagnostics.ts` |
@@ -111,7 +111,7 @@ Option 2, an admin toggle at runtime: needs a mutable auth-mode setting with the
 
 Option 3, a UI panel that shows the current sharing posture and the exact `.env` line, and a "Copy" button. No write path. The settings page already reads the auth config (`packages/client/src/features/user-admin/lib/system-config-sections.tsx`).
 
-Recommendation: option 3 now, option 1 stays the mechanism. Option 2 waits for a second reason to make the auth mode mutable.
+Owner ruling: option 3 now, option 1 stays the mechanism. Option 2 waits for a second reason to make the auth mode mutable.
 
 ### 8. Env var ledger
 
@@ -122,7 +122,7 @@ Recommendation: option 3 now, option 1 stays the mechanism. Option 2 waits for a
 | `ALLOW_DEV_PUBLIC_BIND` | keep | dev-build guard, a different axis; refused under single-user without a peer set |
 | `NODE_ENV` | keep | still the prod SSO discriminator |
 | `AUTH_MODE` | keep | |
-| `AUTH_FALLBACK` | keep (fork: delete) | already derived per mode; an explicit value only restates or is refused. Deleting it and folding `owner` into `AUTH_BREAK_GLASS` removes a knob but reverses the launch-only ruling and touches the entrypoint, the host-network overlay, `pnpm start` and the `.env` refusal table. Reported, default keep |
+| `AUTH_FALLBACK` | keep (owner ruling) | already derived per mode; an explicit value only restates or is refused. Deleting it and folding `owner` into `AUTH_BREAK_GLASS` removes a knob but reverses the launch-only ruling and touches the entrypoint, the host-network overlay, `pnpm start` and the `.env` refusal table |
 | `AUTH_BREAK_GLASS` | keep | |
 | `AUTH_FALLBACK_TRUSTED_PEERS` | keep | the container's declared perimeter and the only override door |
 | `FORWARD_AUTH_TRUSTED_PROXIES` | keep | now also the trusted-proxy predicate for `X-Forwarded-Proto`; the name understates it, a rename is churn |
@@ -150,7 +150,7 @@ Each lands alone with its own floor.
 - Leg E, the disclaimer block and the sharing panel (option 3).
 - Leg F, docs and the tunnel recipes: README run-it and LAN sections, docker README, `.env.example`, a cloudflared sidecar overlay under docker/ (the `cloudflare/cloudflared` image on the project network, `tunnel run` with the operator's own token, the public hostname mapped to the service in the operator's Cloudflare dashboard, `AUTH_MODE=local` or `oidc` required and single-user answering 401 by construction), and a `tailscale serve` recipe including the forward-header identity variant. Worth shipping: the overlay is a short file, the proxy-joins-the-network stanza already exists (docker-compose.yaml lines 75-88), and it is the path most users will take instead of a port-forward. Coordinate with lanes cb-firstrun and cb-knobs.
 
-Owner forks, each with a default: (1) delete `AUTH_FALLBACK` (default keep); (2) refuse rather than warn a cookie mint over plain http from a public client (default warn); (3) option 3 for the sharing UI (default option 3); (4) the ruling reversal in Rule C (default reverse, per the owner's direction, with the soundness argument as evidence); (5) the header set including `x-forwarded-proto` and `x-forwarded-host` as relay tells (default include).
+Owner forks, ruled in [0147](../../work/0147-rule-the-network-and-auth-modes-forks.md), every default accepted: (1) keep `AUTH_FALLBACK`; (2) warn, not refuse, a cookie mint over plain http from a public client; (3) option 3 for the sharing UI; (4) reverse the ruling in Rule C; (5) `x-forwarded-proto` and `x-forwarded-host` are relay tells.
 
 ## Rejected
 

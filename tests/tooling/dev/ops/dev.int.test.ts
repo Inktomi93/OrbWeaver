@@ -128,12 +128,12 @@ test("a SIGTERM to the launcher stops the server and vite it started, and it exi
 test("a setting the server would refuse stops the launch before either child starts", { timeout: REFUSAL_TIMEOUT_MS }, async ({ repoRoot, scratch }) => {
   const serverPort = await freePort();
   const vitePort = await freePort();
-  // local mode needs a session secret; the file names none.
-  writeFileSync(join(scratch, ".env"), `AUTH_MODE=local\nPORT=${serverPort}\nVITE_PORT=${vitePort}\n`);
+  // oidc mode needs its issuer; the file names none.
+  writeFileSync(join(scratch, ".env"), `AUTH_MODE=oidc\nPORT=${serverPort}\nVITE_PORT=${vitePort}\n`);
   const { child, pid, output } = startLauncher(repoRoot, scratch);
   try {
     expect(await exitOf(child, REFUSAL_TIMEOUT_MS), output()).toBe(VIOLATIONS_EXIT);
-    expect(output()).toContain("SESSION_SECRET");
+    expect(output()).toContain("OIDC_ISSUER");
     expect(existsSync(join(scratch, "data")), "the server never booted, so it created no data dir").toBe(false);
     expect(await portRefuses(serverPort)).toBe(true);
     expect(await portRefuses(vitePort)).toBe(true);

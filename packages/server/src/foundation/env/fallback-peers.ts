@@ -25,9 +25,9 @@
 // ── THE THREE BELTS THAT SURVIVE ─────────────────────────────────────────────────────────────────────────
 //   1. `AUTH_FALLBACK=owner` is still tested FIRST (`infra/auth/index.ts::resolve`), so `deny` makes the knob
 //      inert and the prod SSO boot-fatal keeps it unreachable in every SSO mode without break-glass.
-//   2. The WIDENED arm is refused when the request carries a forwarding header (`infra/auth/forwarded.ts`) —
-//      a proxy hop announcing itself means the peer represents someone else. The LOOPBACK arm is untouched
-//      (its same-host-proxy hazard is the recorded, accepted shape of spec §4).
+//   2. A request carrying a forwarding header (`infra/auth/forwarded.ts`) is refused the fallback on every
+//      peer, the widened ranges and loopback alike: a relay hop announcing itself means the peer represents
+//      someone else.
 //   3. The knob is LAUNCH-ONLY (#301, generalized in `index.ts`): a `.env` pin is boot-fatal, and it may not
 //      be combined with `AUTH_BREAK_GLASS` (which is defined as the brief ON-BOX recovery door).
 // What it does NOT reach: the local-mode first-run owner-password gate and its `localFirstRun` probe stay

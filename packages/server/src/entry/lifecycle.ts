@@ -10,7 +10,8 @@ import { hostname } from "node:os";
 import { dirname, join } from "node:path";
 import type { ServerType } from "@hono/node-server";
 import { serve } from "@hono/node-server";
-import type { Principal } from "@orb/contracts/identity";
+import type { AuthMode, Principal } from "@orb/contracts/identity";
+import { isCookieAuthMode } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { createDb, preCloseHousekeeping } from "@orb/db";
 import type { ChatId, ChatTurnId, Handle, UserId } from "@orb/kit/ids";
@@ -50,7 +51,7 @@ import {
   ownerFallbackAllowed,
   SESSION_COOKIE_NAME,
 } from "#infra/auth";
-import { credentialsKeyFromEnv } from "#infra/crypto";
+import { credentialsKeyFromEnv, dataDirFromDbUrl, SESSION_SECRET_KEYFILE, sessionSecretFromEnv } from "#infra/crypto";
 import { installEgressFirewall } from "#infra/network";
 import { createCas } from "#infra/storage";
 import { startCatalogRefreshScheduler } from "../transport/jobs/catalog-refresh-scheduler.ts";
@@ -187,10 +188,11 @@ function scheduleInterval(fn: () => void, ms: number): () => void {
 
 /** AUTH_MODE=local's route dependencies, built together because they are one feature: the form-login
  *  authenticator plus the B4 first-run owner-password setup. The route and the `localFirstRun` config flag
- *  share ONE gate (`ownerFallbackAllowed`, #298 f2), so the setup screen appears exactly where the setup
- *  endpoint accepts a claim: a LOOPBACK TCP peer (the unspoofable socket, not the client `Host`). A
- *  public-origin/LAN local deploy still uses LOCAL_INITIAL_PASSWORD (seeded at boot ⇒ the owner has a
- *  password ⇒ first-run never triggers).
+ *  share ONE gate (`ownerFallbackAllowed`), so the setup screen appears exactly where the setup endpoint
+ *  accepts a claim: a LOOPBACK TCP peer (the unspoofable socket, not the client `Host`) on a request with no
+ *  relay tell, so a same-host tunnel cannot offer the owner password to its visitors. A proxied or LAN
+ *  local deploy still uses LOCAL_INITIAL_PASSWORD (seeded at boot ⇒ the owner has a password ⇒ first-run
+ *  never triggers).
  *
  *  BOTH CALLS BELOW DELIBERATELY PASS NO TRUSTED-PEER RANGES — they stay LOOPBACK-ONLY while
  *  `AUTH_FALLBACK_TRUSTED_PEERS` widens `resolve`'s fallback arm, and that asymmetry is the point, not an
@@ -198,20 +200,32 @@ function scheduleInterval(fn: () => void, ms: number): () => void {
  *  un-credentialed owner-PASSWORD claim on a box whose operator set `AUTH_FALLBACK=deny`, which is the one
  *  property the knob promises it cannot do. A containerized local deploy sets `LOCAL_INITIAL_PASSWORD`
  *  instead (docs/plans/containerize/design.md — already its documented state). */
-function buildLocalAuthDeps(sessions: SessionsService): {
+function buildLocalAuthDeps(
+  sessions: SessionsService,
+  sessionSecret: string | null,
+): {
   authenticate: LocalAuthenticator;
   firstRun: FirstRunRouteDeps;
-  localFirstRun: (peerIp: string | undefined) => Promise<boolean>;
+  localFirstRun: (peerIp: string | undefined, headers: Headers) => Promise<boolean>;
 } {
-  const hasher = createPasswordHasher(env.SESSION_SECRET);
+  const hasher = createPasswordHasher(sessionSecret);
   return {
     authenticate: (handle: Handle, password: string): Promise<UserId | null> => sessions.authenticate(handle, password),
     firstRun: {
       setOwnerPassword: async (plain: string): Promise<UserId | null> => sessions.claimOwnerPassword(await hasher.hash(plain)),
-      originAllowed: (peerIp: string | undefined): boolean => ownerFallbackAllowed(peerIp),
+      originAllowed: (peerIp: string | undefined, headers: Headers): boolean => ownerFallbackAllowed(peerIp, headers),
     },
-    localFirstRun: async (peerIp: string | undefined): Promise<boolean> => (ownerFallbackAllowed(peerIp) ? await sessions.ownerNeedsPassword() : false),
+    localFirstRun: async (peerIp: string | undefined, headers: Headers): Promise<boolean> =>
+      ownerFallbackAllowed(peerIp, headers) ? await sessions.ownerNeedsPassword() : false,
   };
+}
+
+// The refusal names where the keyfile would live, never DATABASE_URL itself: a remote URL can carry a token.
+function missingSessionSecretMessage(mode: AuthMode, dataDir: string | null): string {
+  if (dataDir === null) {
+    return `boot: AUTH_MODE=${mode} needs a session secret, and DATABASE_URL is not a local file: database, so none can be generated. Set SESSION_SECRET (32+ characters).`;
+  }
+  return `boot: AUTH_MODE=${mode} needs a session secret, and ${join(dataDir, SESSION_SECRET_KEYFILE)} could not be read or generated (the crypto: line above says why). Set SESSION_SECRET (32+ characters), or fix that file.`;
 }
 
 /** AUTH_MODE=oidc's route dependencies plus the store's GC sweeper, built together because the sweeper's
@@ -330,6 +344,14 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // below is address-gated before it can fire. No-op when EGRESS_FIREWALL=false.
     installEgressFirewall();
 
+    // The SESSION_SECRET pepper, resolved ONCE: the explicit env value, else `.session-secret` beside the db.
+    // A cookie mode without one cannot authenticate anyone, so it refuses here, before the db opens and long
+    // before the listener binds. The other modes run without it, as they always have.
+    const sessionSecret = sessionSecretFromEnv();
+    if (sessionSecret === null && isCookieAuthMode(env.AUTH_MODE)) {
+      throw new Error(missingSessionSecretMessage(env.AUTH_MODE, dataDirFromDbUrl(env.DATABASE_URL)));
+    }
+
     // Inject the OTel libSQL wrap so every db.execute/batch/transaction opens a child span under the active
     // request-root (the composition-root injection the tracing.ts + createDb headers document).
     db = await createDb(env.DATABASE_URL, wrapLibSqlClient);
@@ -381,7 +403,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     const bootSessions = createSessionsService({
       db,
       now,
-      sessionSecret: env.SESSION_SECRET ?? null,
+      sessionSecret,
       // #2481 — the owner row is MINTED here (`seedOwner` → `ensureUser`), so this transient service needs
       // the per-user seed too: on a fresh install the sweep below would otherwise be the only thing that
       // ever seeds the owner, and it runs once per process.
@@ -408,7 +430,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
         env.AUTH_MODE === "local" && env.LOCAL_INITIAL_PASSWORD !== undefined
           ? {
               initialPassword: env.LOCAL_INITIAL_PASSWORD,
-              hashPassword: createPasswordHasher(env.SESSION_SECRET).hash,
+              hashPassword: createPasswordHasher(sessionSecret).hash,
             }
           : {};
       const ownerIds = await seedOwner({
@@ -457,7 +479,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       variantDir: join(dirname(env.ASSETS_DIR), "variants"),
       ...(env.IMPORT_STAGING_DIR !== undefined ? { importStagingDir: env.IMPORT_STAGING_DIR } : {}),
       ...(env.ST_PROFILE_DIR !== undefined ? { stProfileDir: env.ST_PROFILE_DIR } : {}),
-      sessionSecret: env.SESSION_SECRET ?? null,
+      sessionSecret,
       holder,
       ...(options.providerSeams === undefined ? {} : { providerSeams: options.providerSeams }),
     });
@@ -584,7 +606,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
 
     // B4 — the in-app first-run owner-password setup rides the same builder (LOCAL_INITIAL_PASSWORD is now
     // optional); every non-local mode leaves all three route deps absent.
-    const localAuth = env.AUTH_MODE === "local" ? buildLocalAuthDeps(built.sessions) : undefined;
+    const localAuth = env.AUTH_MODE === "local" ? buildLocalAuthDeps(built.sessions, sessionSecret) : undefined;
 
     // forward-header fail-closed belt: warn loudly at boot so a non-authentik proxy deploy (no signed
     // JWT) isn't left silently rejecting every request.
@@ -599,7 +621,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // recovery flag left set is impossible to miss — revert AUTH_FALLBACK=deny + AUTH_BREAK_GLASS off when done.
     if (env.AUTH_MODE !== "single-user" && env.AUTH_FALLBACK === "owner" && env.AUTH_BREAK_GLASS) {
       log.warn(
-        "boot: AUTH_BREAK_GLASS=true with AUTH_FALLBACK=owner — the un-credentialed LOOPBACK-peer owner fallback is ACTIVE in an SSO deploy (on-box recovery). SSO is bypassed for any request on a loopback socket (incl. a same-host reverse proxy). This is a temporary break-glass posture: set AUTH_FALLBACK=deny and unset AUTH_BREAK_GLASS as soon as recovery is done.",
+        "boot: AUTH_BREAK_GLASS=true with AUTH_FALLBACK=owner — the un-credentialed LOOPBACK-peer owner fallback is ACTIVE in an SSO deploy (on-box recovery). SSO is bypassed for any request on a loopback socket that carries no forwarding header (incl. a same-host reverse proxy that sends none). This is a temporary break-glass posture: set AUTH_FALLBACK=deny and unset AUTH_BREAK_GLASS as soon as recovery is done.",
       );
     }
 
@@ -734,7 +756,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     if (env.AUTH_MODE === "single-user" && bind.publicBind) {
       log.warn(
         { security: true },
-        "boot: AUTH_MODE=single-user on a PUBLIC bind — this box has NO login: the un-credentialed owner fallback is its only auth, so any caller that reaches it over a loopback socket (directly on-box, or via a same-host reverse proxy) is the OWNER. Intended for a private/first-run box only; put it behind SSO (AUTH_MODE=oidc/local/forward-header) before exposing it.",
+        "boot: AUTH_MODE=single-user on a PUBLIC bind — this box has NO login: the un-credentialed owner fallback is its only auth, so any caller that reaches it over a loopback socket is the OWNER. A relayed request (one carrying a forwarding header) is refused, but a proxy that sends no forwarding header is invisible, so never put a proxy or tunnel in front of this mode. Intended for a private/first-run box only; put it behind SSO (AUTH_MODE=oidc/local/forward-header) before exposing it.",
       );
     }
 

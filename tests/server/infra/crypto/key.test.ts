@@ -1,8 +1,9 @@
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { dataDirFromDbUrl, decode32Bytes, loadOrCreateKeyfile } from "@orb/server/infra/crypto";
+import process from "node:process";
+import { credentialsKeyFromEnv, dataDirFromDbUrl, decode32Bytes, loadOrCreateKeyfile, sessionSecretFromEnv } from "@orb/server/infra/crypto";
 import { afterEach, describe } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
@@ -76,5 +77,87 @@ describe("loadOrCreateKeyfile", () => {
     expect(loadOrCreateKeyfile(keyPath)).toBeNull();
     // The corrupt file is left untouched for the operator to investigate.
     expect(readFileSync(keyPath, "utf-8")).toBe("garbage-not-a-key\n");
+  });
+});
+
+// Secrets default on: an unset CREDENTIALS_KEY or SESSION_SECRET is generated once beside the db and reused.
+// A new value on a later boot would orphan every stored credential or every local password and session, so
+// a keyfile that exists but cannot be used is never replaced.
+describe("the generated secrets beside the db", () => {
+  const Hex64 = /^[0-9a-f]{64}$/u;
+  const ExplicitSecret = "an-explicit-session-secret-of-40-chars!!";
+  const dbUrlIn = (dir: string): string => `file:${join(dir, "orbweaver.db")}`;
+
+  test("an unset SESSION_SECRET creates `.session-secret` (0600) beside the db and reuses it", () => {
+    const dir = freshDir();
+    const first = sessionSecretFromEnv({ explicit: undefined, databaseUrl: dbUrlIn(dir) });
+    expect(first).toMatch(Hex64);
+    const keyPath = join(dir, ".session-secret");
+    // biome-ignore lint/suspicious/noBitwiseOperators: POSIX permission bits require a bitwise mask.
+    expect(statSync(keyPath).mode & 0o777).toBe(0o600);
+    expect(sessionSecretFromEnv({ explicit: undefined, databaseUrl: dbUrlIn(dir) })).toBe(first);
+  });
+
+  test("an explicit SESSION_SECRET wins and writes no file", () => {
+    const dir = freshDir();
+    expect(sessionSecretFromEnv({ explicit: ExplicitSecret, databaseUrl: dbUrlIn(dir) })).toBe(ExplicitSecret);
+    expect(existsSync(join(dir, ".session-secret"))).toBe(false);
+  });
+
+  test("an explicit SESSION_SECRET ignores an existing keyfile", () => {
+    const dir = freshDir();
+    const generated = sessionSecretFromEnv({ explicit: undefined, databaseUrl: dbUrlIn(dir) });
+    expect(sessionSecretFromEnv({ explicit: ExplicitSecret, databaseUrl: dbUrlIn(dir) })).toBe(ExplicitSecret);
+    expect(generated).not.toBe(ExplicitSecret);
+  });
+
+  test("a corrupt `.session-secret` yields null and is never overwritten", () => {
+    const dir = freshDir();
+    const keyPath = join(dir, ".session-secret");
+    writeFileSync(keyPath, "not-a-secret\n");
+    expect(sessionSecretFromEnv({ explicit: undefined, databaseUrl: dbUrlIn(dir) })).toBeNull();
+    expect(readFileSync(keyPath, "utf-8")).toBe("not-a-secret\n");
+  });
+
+  // Root reads a 0000 file anyway, so the unreadable case only means something for an unprivileged run.
+  test.skipIf(process.getuid?.() === 0)("an unreadable `.session-secret` yields null and is never replaced", () => {
+    const dir = freshDir();
+    const keyPath = join(dir, ".session-secret");
+    const original = `${randomBytes(32).toString("hex")}\n`;
+    writeFileSync(keyPath, original, { mode: 0o600 });
+    chmodSync(keyPath, 0o000);
+    try {
+      expect(sessionSecretFromEnv({ explicit: undefined, databaseUrl: dbUrlIn(dir) })).toBeNull();
+    } finally {
+      chmodSync(keyPath, 0o600);
+    }
+    expect(readFileSync(keyPath, "utf-8")).toBe(original);
+  });
+
+  test("a remote DATABASE_URL has no data dir: no secret, no file", () => {
+    expect(sessionSecretFromEnv({ explicit: undefined, databaseUrl: "libsql://example.turso.io" })).toBeNull();
+    expect(credentialsKeyFromEnv({ explicit: undefined, databaseUrl: "libsql://example.turso.io" })).toBeNull();
+  });
+
+  test("an unset CREDENTIALS_KEY creates `.credentials-key` beside the db with no opt-in knob, and reuses it", () => {
+    const dir = freshDir();
+    const first = credentialsKeyFromEnv({ explicit: undefined, databaseUrl: dbUrlIn(dir) });
+    expect(first?.length).toBe(32);
+    expect(existsSync(join(dir, ".credentials-key"))).toBe(true);
+    expect(credentialsKeyFromEnv({ explicit: undefined, databaseUrl: dbUrlIn(dir) })?.equals(first ?? Buffer.alloc(0))).toBe(true);
+  });
+
+  test("an explicit CREDENTIALS_KEY wins and writes no file", () => {
+    const dir = freshDir();
+    const explicit = randomBytes(32);
+    expect(credentialsKeyFromEnv({ explicit: explicit.toString("hex"), databaseUrl: dbUrlIn(dir) })?.equals(explicit)).toBe(true);
+    expect(existsSync(join(dir, ".credentials-key"))).toBe(false);
+  });
+
+  test("the two secrets are independent files: one never reads the other", () => {
+    const dir = freshDir();
+    const secret = sessionSecretFromEnv({ explicit: undefined, databaseUrl: dbUrlIn(dir) });
+    const key = credentialsKeyFromEnv({ explicit: undefined, databaseUrl: dbUrlIn(dir) });
+    expect(key?.toString("hex")).not.toBe(secret);
   });
 });
