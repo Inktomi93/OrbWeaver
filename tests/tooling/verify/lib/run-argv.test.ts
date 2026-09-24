@@ -2,8 +2,11 @@
 // tests/tooling/verify/ops/run.int.test.ts; this file pins the pre-commit spelling.
 import { parse } from "../../../../tooling/src/verify/lib/run-argv.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
-// A docs-only path keeps selection resolution off the compiler-closure planner.
+// A docs-only path keeps selection resolution off the compiler-closure planner. Resolving it still reads
+// the repository inventory, so each test carries a spawn budget.
+const PARSE_TIMEOUT = scaledBudget(20_000);
 const DOC = "docs/law/Constitution.md";
 
 function tierAndScope(argv: readonly string[]): readonly [string, string | undefined] {
@@ -14,13 +17,15 @@ function tierAndScope(argv: readonly string[]): readonly [string, string | undef
   return [r.tier, r.selection?.kind];
 }
 
-test("--changed beside an explicit tier is only the selector: pre-commit runs the static stages over the working change", () => {
+test("--changed beside an explicit tier is only the selector: pre-commit runs the static stages over the working change", { timeout: PARSE_TIMEOUT }, () => {
   expect(tierAndScope(["--static", "--changed", DOC])).toStrictEqual(["static", "changed"]);
   expect(tierAndScope(["--tier", "static", "--changed", DOC]), "the --tier spelling agrees").toStrictEqual(["static", "changed"]);
   expect(tierAndScope(["--changed", DOC]), "alone, --changed still names the inner-loop tier").toStrictEqual(["changed", "changed"]);
 });
 
-test("--changed beside --push or --full stays misuse: those tiers are whole-tree bars, and a scoped one would skip the queue", () => {
+test("--changed beside --push or --full stays misuse: those tiers are whole-tree bars, and a scoped one would skip the queue", {
+  timeout: PARSE_TIMEOUT,
+}, () => {
   for (const argv of [
     ["--push", "--changed", DOC],
     ["--full", "--changed", DOC],

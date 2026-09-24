@@ -26,8 +26,8 @@ import type { Parsed } from "./run-argv.ts";
 refuseDirectInvocation(import.meta.url, "pnpm check (or pnpm verify [--push|--full])");
 
 /** A whole `--push` run is long and `--full` is longer, so a second run legitimately waits a long time.
- *  This QUIET-BOX base is load-scaled at acquire time; past it the head of the queue runs as the pool's
- *  single overflow run, and every later waiter stays queued. */
+ *  This QUIET-BOX base is load-scaled at acquire time; past it the head of the queue runs as an overflow
+ *  run, one at a time, and every later waiter stays queued (./host-slots.ts header). */
 const VERIFY_QUEUE_WAIT_BASE_MS = 2_700_000; // 45 minutes
 
 /** Take the whole-run slot, or `null` when this run is exempt (scoped, or the profile turned the queue
