@@ -120,7 +120,13 @@ export interface ResolveDeps {
    *  means BOTH fail closed. */
   peerIp?: string;
   config?: AuthConfig;
+  /** Emits the `owner_fallback_relayed` security line for a refused relayed request. The composition root
+   *  injects the per-peer throttled one (`createRelayedFallbackNotice`); absent, every refusal logs. */
+  relayedFallbackNotice?: RelayedFallbackNotice;
 }
+
+/** Reports one relayed request refused the owner fallback, keyed by its raw TCP peer. */
+export type RelayedFallbackNotice = (peerIp: string | undefined) => void;
 
 export type ModeResolver = (headers: Headers, config: AuthConfig, deps: ResolveDeps) => Promise<ResolvedIdentity | null>;
 

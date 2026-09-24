@@ -40,7 +40,7 @@ import { castId } from "@orb/kit/ids";
 import { isOwner } from "#domain/admin";
 import type { SessionsService, UserPrincipalFields } from "#domain/sessions";
 import { ownerHandles } from "#domain/sessions";
-import type { AuthConfig, ForwardJwtVerifier, IdentityResolution, OidcTransactionStore } from "#infra/auth";
+import type { AuthConfig, ForwardJwtVerifier, IdentityResolution, OidcTransactionStore, RelayedFallbackNotice } from "#infra/auth";
 import { authConfigFromEnv, hasCsrfHeader, resolve, SESSION_COOKIE_NAME, selectSignedForwardJwt } from "#infra/auth";
 import { publishUserEvent } from "../../transport/trpc/index.ts";
 
@@ -62,6 +62,9 @@ export interface AuthSeamDeps {
    * never a control.
    */
   readonly ownerFallbackIsOperatorCredential?: boolean;
+  /** The per-peer throttled `owner_fallback_relayed` line, built on the composition root's clock. Absent,
+   *  every relayed refusal logs. */
+  readonly relayedFallbackNotice?: RelayedFallbackNotice;
 }
 
 /** Per-request knobs. `peerIp` is the raw TCP peer socket address that TWO gates match against — the
@@ -370,6 +373,7 @@ export function createAuthSeam(deps: AuthSeamDeps): AuthSeam {
       config,
       ...(deps.verifyForwardJwt !== undefined && { verifyForwardJwt: deps.verifyForwardJwt }),
       ...(deps.oidcStore !== undefined && { oidcStore: deps.oidcStore }),
+      ...(deps.relayedFallbackNotice !== undefined && { relayedFallbackNotice: deps.relayedFallbackNotice }),
       ...(req?.peerIp !== undefined && { peerIp: req.peerIp }),
     });
     const principal = await resolveHeaderOrFallbackPrincipal(deps.sessions, res, resolveFallbackPrincipal);
