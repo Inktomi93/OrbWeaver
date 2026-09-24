@@ -382,6 +382,17 @@ describe("the loopback owner fallback opens the door only where the posture says
     expect(await outcomes(app, { host: "127.0.0.1" })).toEqual(allRefused("absent"));
   });
 
+  test("a RELAYED loopback request is refused on the same dev box (a same-host tunnel is not the operator)", async () => {
+    const app = gateApp({
+      config: baseConfig({ mode: "single-user" }),
+      sessions: ownerRowSessions(),
+      expectedToken: OPERATOR_TOKEN,
+      peerIp: LOOPBACK_PEER,
+      ownerFallbackIsOperatorCredential: true,
+    });
+    expect(await outcomes(app, { "cf-connecting-ip": "203.0.113.9", "x-forwarded-proto": "https" })).toEqual(allRefused("absent"));
+  });
+
   test("a DEMOTED loopback row is refused (the ROLE half of the verdict is untouched)", async () => {
     const app = gateApp({
       config: baseConfig({ mode: "single-user" }),

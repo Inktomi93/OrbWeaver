@@ -9,6 +9,7 @@ import { castId } from "@orb/kit/ids";
 import type { RevokedSessionsSummary } from "@orb/server/domain/sessions";
 import type { AuthRoutesDeps, AuthSessionsPort, FirstRunRouteDeps, LocalAuthenticator } from "@orb/server/entry/http";
 import { registerAuthRoutes } from "@orb/server/entry/http";
+import { ownerFallbackAllowed } from "@orb/server/infra/auth";
 import { Hono } from "hono";
 import { describe, vi } from "vitest";
 import { freshDb } from "../../../support/db.ts";
@@ -370,6 +371,64 @@ describe("first-run owner-password setup (B4) — real app + freshDb", () => {
     const app = await appWith(); // no firstRun
     const res = await postFirstRun(app, "10.0.1.4", "hunter2password");
     expect(res.status).toBe(404);
+  });
+});
+
+// Rule B through the REAL gate `entry/lifecycle.ts` wires: a same-host tunnel reaches the route on a loopback
+// socket, so the socket alone would offer the owner password to the internet. Each test keys its own
+// loopback address so the per-IP throttle buckets never collide.
+describe("first-run owner-password setup — a relayed loopback request cannot claim (Rule B)", () => {
+  const firstRunPath = "/api/auth/first-run";
+
+  function realGate(): { deps: FirstRunRouteDeps; calls: string[] } {
+    const calls: string[] = [];
+    return {
+      calls,
+      deps: {
+        originAllowed: (peer: string | undefined, requestHeaders: Headers): boolean => ownerFallbackAllowed(peer, requestHeaders),
+        setOwnerPassword: (plain: string): Promise<UserId | null> => {
+          calls.push(plain);
+          return Promise.resolve(castId<UserId>("usr_owner"));
+        },
+      },
+    };
+  }
+
+  async function claimFrom(app: Hono, ip: string, relay: Record<string, string>): Promise<Response> {
+    return await app.request(
+      firstRunPath,
+      {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded", [CSRF]: "1", ...relay },
+        body: new URLSearchParams({ password: "hunter2password" }).toString(),
+      },
+      connEnv(ip),
+    );
+  }
+
+  test.each([
+    ["forwarded", "for=203.0.113.9;proto=https", "127.0.0.11"],
+    ["x-forwarded-for", "203.0.113.9", "127.0.0.12"],
+    ["x-real-ip", "203.0.113.9", "127.0.0.13"],
+    ["cf-connecting-ip", "203.0.113.9", "127.0.0.14"],
+    ["x-forwarded-proto", "https", "127.0.0.15"],
+    ["x-forwarded-host", "chat.example.com", "127.0.0.16"],
+  ])("a loopback peer carrying `%s` → 403, no claim, no cookie", async (name, value, ip) => {
+    const fr = realGate();
+    const app = await appWith({ firstRun: fr.deps });
+    const res = await claimFrom(app, ip, { [name]: value });
+    expect(res.status).toBe(403);
+    expect(res.headers.get("set-cookie")).toBeNull();
+    expect(fr.calls).toEqual([]);
+  });
+
+  test("control: a bare loopback peer claims once", async () => {
+    const fr = realGate();
+    const app = await appWith({ firstRun: fr.deps });
+    const res = await claimFrom(app, "127.0.0.17", {});
+    expect(res.status).toBe(200);
+    expect(res.headers.get("set-cookie") ?? "").toContain(`${COOKIE}=tok-123`);
+    expect(fr.calls).toEqual(["hunter2password"]);
   });
 });
 

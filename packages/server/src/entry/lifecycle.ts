@@ -187,10 +187,11 @@ function scheduleInterval(fn: () => void, ms: number): () => void {
 
 /** AUTH_MODE=local's route dependencies, built together because they are one feature: the form-login
  *  authenticator plus the B4 first-run owner-password setup. The route and the `localFirstRun` config flag
- *  share ONE gate (`ownerFallbackAllowed`, #298 f2), so the setup screen appears exactly where the setup
- *  endpoint accepts a claim: a LOOPBACK TCP peer (the unspoofable socket, not the client `Host`). A
- *  public-origin/LAN local deploy still uses LOCAL_INITIAL_PASSWORD (seeded at boot ⇒ the owner has a
- *  password ⇒ first-run never triggers).
+ *  share ONE gate (`ownerFallbackAllowed`), so the setup screen appears exactly where the setup endpoint
+ *  accepts a claim: a LOOPBACK TCP peer (the unspoofable socket, not the client `Host`) on a request with no
+ *  relay tell, so a same-host tunnel cannot offer the owner password to its visitors. A proxied or LAN
+ *  local deploy still uses LOCAL_INITIAL_PASSWORD (seeded at boot ⇒ the owner has a password ⇒ first-run
+ *  never triggers).
  *
  *  BOTH CALLS BELOW DELIBERATELY PASS NO TRUSTED-PEER RANGES — they stay LOOPBACK-ONLY while
  *  `AUTH_FALLBACK_TRUSTED_PEERS` widens `resolve`'s fallback arm, and that asymmetry is the point, not an
@@ -201,16 +202,17 @@ function scheduleInterval(fn: () => void, ms: number): () => void {
 function buildLocalAuthDeps(sessions: SessionsService): {
   authenticate: LocalAuthenticator;
   firstRun: FirstRunRouteDeps;
-  localFirstRun: (peerIp: string | undefined) => Promise<boolean>;
+  localFirstRun: (peerIp: string | undefined, headers: Headers) => Promise<boolean>;
 } {
   const hasher = createPasswordHasher(env.SESSION_SECRET);
   return {
     authenticate: (handle: Handle, password: string): Promise<UserId | null> => sessions.authenticate(handle, password),
     firstRun: {
       setOwnerPassword: async (plain: string): Promise<UserId | null> => sessions.claimOwnerPassword(await hasher.hash(plain)),
-      originAllowed: (peerIp: string | undefined): boolean => ownerFallbackAllowed(peerIp),
+      originAllowed: (peerIp: string | undefined, headers: Headers): boolean => ownerFallbackAllowed(peerIp, headers),
     },
-    localFirstRun: async (peerIp: string | undefined): Promise<boolean> => (ownerFallbackAllowed(peerIp) ? await sessions.ownerNeedsPassword() : false),
+    localFirstRun: async (peerIp: string | undefined, headers: Headers): Promise<boolean> =>
+      ownerFallbackAllowed(peerIp, headers) ? await sessions.ownerNeedsPassword() : false,
   };
 }
 
@@ -599,7 +601,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // recovery flag left set is impossible to miss — revert AUTH_FALLBACK=deny + AUTH_BREAK_GLASS off when done.
     if (env.AUTH_MODE !== "single-user" && env.AUTH_FALLBACK === "owner" && env.AUTH_BREAK_GLASS) {
       log.warn(
-        "boot: AUTH_BREAK_GLASS=true with AUTH_FALLBACK=owner — the un-credentialed LOOPBACK-peer owner fallback is ACTIVE in an SSO deploy (on-box recovery). SSO is bypassed for any request on a loopback socket (incl. a same-host reverse proxy). This is a temporary break-glass posture: set AUTH_FALLBACK=deny and unset AUTH_BREAK_GLASS as soon as recovery is done.",
+        "boot: AUTH_BREAK_GLASS=true with AUTH_FALLBACK=owner — the un-credentialed LOOPBACK-peer owner fallback is ACTIVE in an SSO deploy (on-box recovery). SSO is bypassed for any request on a loopback socket that carries no forwarding header (incl. a same-host reverse proxy that sends none). This is a temporary break-glass posture: set AUTH_FALLBACK=deny and unset AUTH_BREAK_GLASS as soon as recovery is done.",
       );
     }
 
@@ -734,7 +736,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     if (env.AUTH_MODE === "single-user" && bind.publicBind) {
       log.warn(
         { security: true },
-        "boot: AUTH_MODE=single-user on a PUBLIC bind — this box has NO login: the un-credentialed owner fallback is its only auth, so any caller that reaches it over a loopback socket (directly on-box, or via a same-host reverse proxy) is the OWNER. Intended for a private/first-run box only; put it behind SSO (AUTH_MODE=oidc/local/forward-header) before exposing it.",
+        "boot: AUTH_MODE=single-user on a PUBLIC bind — this box has NO login: the un-credentialed owner fallback is its only auth, so any caller that reaches it over a loopback socket is the OWNER. A relayed request (one carrying a forwarding header) is refused, but a proxy that sends no forwarding header is invisible, so never put a proxy or tunnel in front of this mode. Intended for a private/first-run box only; put it behind SSO (AUTH_MODE=oidc/local/forward-header) before exposing it.",
       );
     }
 

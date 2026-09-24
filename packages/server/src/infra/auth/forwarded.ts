@@ -1,34 +1,30 @@
-// The PROXY-HOP TELL — a pure `Headers` predicate, the `csrf.ts` shape. Its ONE consumer is `resolve`
-// (index.ts), which uses it as the belt on the WIDENED owner-fallback peer set
-// (`AUTH_FALLBACK_TRUSTED_PEERS`, `foundation/env/fallback-peers.ts`).
+// The relay tell: a pure `Headers` predicate, the `csrf.ts` shape. `ownerFallbackAllowed` (dispatch.ts) consumes
+// it, so it guards every owner-equivalent grant to an un-credentialed peer: the owner fallback in `resolve`
+// and the local first-run password claim with its `localFirstRun` flag (Spine-Identity-and-Auth.md invariant 7).
 //
-// WHY PRESENCE, NOT VALUE. These headers are attacker-controllable and are never trusted as identity here —
-// nothing in this module parses one or believes an address in one (the IP that IS trusted, with its own
-// peer-precedence rule, is `infra/network/ingress.ts::resolveClientIp`). The signal is narrower and
-// unforgeable in the direction that matters: a request carrying one has been RELAYED, so the socket peer is
-// a forwarder speaking for a third party rather than the operator's own on-box client. The widened arm's
-// whole premise is "this peer IS the deployer"; a proxy hop announcing itself falsifies that premise, so the
-// arm is refused. An EMPTY value refuses too — a proxy that sets `X-Forwarded-For:` with nothing in it has
-// still relayed the request.
+// WHY PRESENCE, NOT VALUE. These headers are attacker-controllable and are never trusted as identity here.
+// Nothing in this module parses one or believes an address in one (the trusted client IP, with its own
+// peer-precedence rule, is `infra/network/ingress.ts::resolveClientIp`). The signal is narrower and holds in
+// the direction that matters: a request carrying one has been relayed, so the socket peer is a forwarder
+// speaking for a third party, not the operator's own client. A loopback peer is exactly what a same-host
+// tunnel or proxy produces (cloudflared, `tailscale serve`, Caddy or nginx on 127.0.0.1), so the tell refuses
+// the loopback peer as well as the widened `AUTH_FALLBACK_TRUSTED_PEERS` ranges. An EMPTY value refuses too.
+// A forged tell can only deny its own sender.
 //
-// IT FAILS OPEN BY CONSTRUCTION AND THAT IS UNDERSTOOD: a relaying proxy that STRIPS these headers is
-// invisible here, so this belt narrows the widened arm, it does not make it safe. The control that bounds
-// the widening is the deployment's own port publication (`fallback-peers.ts`), and this belt exists to catch
-// the common accident — a container-fronted Caddy/nginx/Traefik, all of which set at least one of these by
-// default — not a determined laundering setup.
+// THE DEV STACK SENDS NONE. The vite dev proxy (`packages/client/vite.config.ts`) sets only `target` and
+// `changeOrigin`; http-proxy writes `x-forwarded-*` only under its `xfwd` option, which nothing in the repo
+// sets. Adding `xfwd` there would log the dev owner out of their own box.
 //
-// THE LOOPBACK ARM IS DELIBERATELY NOT BELTED. A same-host proxy forwarding over 127.0.0.1 is a RECORDED,
-// ACCEPTED shape (docs/plans/containerize/design.md topology (b), fenced by the prod SSO boot-fatal), and
-// the dev stack's own vite proxy sets `X-Forwarded-For` on every request it relays to the app — belting the
-// loopback arm here would silently log the dev owner out of their own box. Changing that is a ruling, not a
-// tightening.
+// IT FAILS OPEN BY CONSTRUCTION. A relay that sends none of these headers (bare nginx `proxy_pass` with no
+// `proxy_set_header`) is invisible. The mainstream relays send at least one by default, and `Host` is never a
+// trust input, so the closed set below is the whole control.
 
-/** The three relay tells, lower-cased (`Headers.has` is case-insensitive; these are spelled lower for the
- *  reader). `x-forwarded-for` (de-facto), `forwarded` (RFC 7239), `x-real-ip` (nginx). Adding a member is a
- *  behaviour change to the widened arm and belongs with its test. */
-const FORWARDING_HEADERS: readonly string[] = ["x-forwarded-for", "forwarded", "x-real-ip"];
+/** The relay tells, lower-cased (`Headers.has` is case-insensitive). `forwarded` is RFC 7239; `x-real-ip` is
+ *  nginx; `cf-connecting-ip` is cloudflared; `x-forwarded-host` and `x-forwarded-proto` are what
+ *  `tailscale serve` and most proxies add beside `x-forwarded-for`. */
+const FORWARDING_HEADERS: readonly string[] = ["forwarded", "x-forwarded-for", "x-real-ip", "cf-connecting-ip", "x-forwarded-proto", "x-forwarded-host"];
 
-/** True when the request announces a proxy hop. See the header note: presence is the signal, never the value. */
+/** True when the request announces a relay hop. Presence is the signal, never the value. */
 export function hasForwardingHeader(headers: Headers): boolean {
   return FORWARDING_HEADERS.some((name) => headers.has(name));
 }

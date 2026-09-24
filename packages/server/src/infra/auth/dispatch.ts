@@ -16,6 +16,11 @@
 // authenticates nobody (boot-fatal in `foundation/env`, since this fallback is single-user's only
 // credential; a LOOPBACK peer is exactly what keeps that credential — and SSH break-glass — open).
 //
+// A RELAYED REQUEST IS NEVER THE OPERATOR. A same-host tunnel or proxy connects over loopback, so the peer
+// alone would make every visitor behind it the owner. The predicate takes the request `Headers` and refuses
+// any request carrying a relay tell (`forwarded.ts`), on every peer, loopback included. `Headers` is a
+// required parameter so no caller can ask the peer question without the relay question.
+//
 // THE OPT-IN WIDENING (`AUTH_FALLBACK_TRUSTED_PEERS`, PROPOSED — docs/plans/containerize/design.md arm
 // (b)). The loopback rule above is correct on bare metal and unusable in a container: docker's port
 // publication SNATs every inbound connection to the bridge gateway, so a published port never delivers a
@@ -26,6 +31,7 @@
 
 import { isInRanges } from "#infra/network";
 import type { AuthConfig, ModeResolver } from "./contract.ts";
+import { hasForwardingHeader } from "./forwarded.ts";
 import { resolveForwardHeader } from "./modes/forward-header.ts";
 import { resolveLocal } from "./modes/local.ts";
 import { resolveOidc } from "./modes/oidc.ts";
@@ -51,24 +57,19 @@ export const MODE_RESOLVERS: Record<AuthConfig["mode"], ModeResolver> = {
 };
 
 /**
- * Whether the request's PEER permits the un-credentialed owner fallback: true iff the raw TCP peer socket
- * address is loopback — ONE rule for every mode (`single-user` included; there is no origin/mode branch any
- * more) — OR inside one of the operator's explicitly opted-in `trustedPeers` ranges. An `undefined` peer
- * FAILS CLOSED in BOTH arms — a transport that cannot resolve one gets no fallback, and a widened set is
- * never a way to lose that requirement. (Until #1193 this parenthetical also named the debug gate's own
- * `isAdmin`, which re-resolved identity without a peer; that second resolution is gone — the gate now judges
- * the principal the request middleware already minted WITH the peer, which is why it had been refusing the
- * box operator.) The `AUTH_FALLBACK` knob is the caller's (`resolve`, index.ts), which short-circuits on
- * `fallback !== "owner"` before consulting this.
+ * Whether this request may be treated as the box operator without a credential: true iff the request carries
+ * no relay tell ({@link hasForwardingHeader}) AND the raw TCP peer socket address is loopback or inside one of
+ * the operator's opted-in `trustedPeers` ranges. ONE rule for every mode, `single-user` included. An
+ * `undefined` peer fails closed: a transport that cannot resolve one gets no fallback, and a widened set is
+ * never a way to lose that requirement. The `AUTH_FALLBACK` knob is the caller's (`resolve`, index.ts), which
+ * short-circuits on `fallback !== "owner"` before consulting this.
  *
- * `trustedPeers` DEFAULTS TO EMPTY, and the default is the loopback-only rule byte for byte. Omitting it is
- * therefore always the SAFE direction, which is why the two first-run call sites (`entry/lifecycle.ts`) pass
- * nothing on purpose — read the note there before "fixing" them. This function stays pure over
- * (peer, ranges): the forwarding-header belt that refuses the WIDENED arm is composed in `resolve`, because
- * only a caller holding the request's `Headers` can ask that question.
+ * `trustedPeers` DEFAULTS TO EMPTY, and the default is the loopback-only rule. Omitting it is therefore always
+ * the SAFE direction, which is why the two first-run call sites (`entry/lifecycle.ts`) pass nothing on
+ * purpose; read the note there before "fixing" them.
  */
-export function ownerFallbackAllowed(peerIp: string | undefined, trustedPeers: readonly string[] = []): boolean {
-  if (peerIp === undefined) {
+export function ownerFallbackAllowed(peerIp: string | undefined, headers: Headers, trustedPeers: readonly string[] = []): boolean {
+  if (peerIp === undefined || hasForwardingHeader(headers)) {
     return false;
   }
   return isInRanges(peerIp, LOOPBACK_RANGES) || isInRanges(peerIp, trustedPeers);

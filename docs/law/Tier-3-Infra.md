@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-23
+updated: 2026-09-24
 ---
 
 # Orbweaver — `infra`: the sealed I/O adapters (auth · crypto · network · storage · image)
@@ -16,7 +16,7 @@ Each sealed adapter is a factory returning an opaque handle. `entry/` constructs
 
 The db-free Strategy executor turning request `Headers` (+ the raw TCP peer) into a pre-row `ResolvedIdentity` (or `null`). One contract (`contract.ts`: `AuthConfig`/`ResolveDeps`/`IdentityResolution`/`ModeResolver` + the NEW MODE CHECKLIST), four modes (`single-user | local | forward-header | oidc`) behind ONE dispatcher (`dispatch.ts`: `MODE_RESOLVERS` + the loopback-peer-gated owner fallback). Owns:
 
-- **The mode dispatcher** — `resolve(headers, deps)` + `ownerFallbackAllowed(deps.peerIp)` (a LOOPBACK TCP peer, never the client `Host`: a proxy can rewrite `Host`, so it is not a fact about the network). ONE branch point; modes never import each other.
+- **The mode dispatcher** — `resolve(headers, deps)` + `ownerFallbackAllowed(peerIp, headers)` (a LOOPBACK TCP peer on a request with no relay tell, never the client `Host`: a proxy can rewrite `Host`, so it is not a fact about the network). ONE branch point; modes never import each other.
 - **JWT/JWKS verification** (`jwks.ts`) — `jwksFor` (fail-closed JWKS build from the forwarded literal-or-URL; LRU-bounded, sha256-keyed, `ASSUMES(single-replica)`) + jose `jwtVerify` with a pinned RS256/ES256 alg allowlist, composed by `createForwardJwtVerifier()` into the `ForwardJwtVerifier` port the seam injects (`verifyForwardJwt`, wired at `entry/lifecycle.ts`).
 - **The pre-row `ResolvedIdentity`** — `{ externalId, handle, groups, email }` (`@orb/contracts/identity`); **NO `userId`** and NO `role` by design (infra must not know DB row ids).
 - **The per-request signals** — the `IdentityResolution` envelope `{ identity, via, hasCsrfHeader }` (`contract.ts`), where infra's `via` is `"header" | "fallback"` only (`"cookie"` is the seam's own, post-D40) and `hasCsrfHeader` comes from `csrf.ts`; the CSRF gate itself is enforced at the seam/ladder.
@@ -84,7 +84,9 @@ Composition asymmetry: storage/crypto/network/image are *called by* domains via 
 
 **CSRF: infra PRODUCES the signal, the gate is SPLIT above it.** Infra yields `via` + `hasCsrfHeader`; enforcement lives at the seam + the route/procedure ladder, split by content-type: the four CORS-simple byte-ingest routes gate `via !== "header"` (cookie AND the loopback fallback both need `x-orb-csrf`), tRPC keys on `cookie` only. `SameSite=Lax` + the custom header is the whole CSRF story; that split and the OPEN tRPC finding live in `Spine-Identity-and-Auth.md` invariant 9, which is that gate's one home.
 
-**The owner-fallback gate reads the raw LOOPBACK TCP PEER, never the `Host` header.** `ownerFallbackAllowed(peerIp)` (`dispatch.ts`) is true iff the socket peer is in `127.0.0.0/8`/`::1` — the unspoofable value the kernel reports — and `undefined` fails closed. It is ONE rule across all four modes, **`single-user` included: its fallback is not unconditional**, so a non-loopback caller in single-user authenticates nobody and 401s. The old Host/trusted-ranges gate and its TRUSTED_LOCAL_HOSTS env are deleted: a client-supplied `Host:` is never a fact about the network — a proxy/vite `changeOrigin` hop can launder a LAN request into a loopback-looking Host — so the gate must not read it. Consequence to hold onto: a SAME-HOST reverse proxy that forwards over `127.0.0.1` makes every external request a loopback peer, which is why prod + an SSO mode + `AUTH_FALLBACK=owner` is boot-fatal in `foundation/env` unless `AUTH_BREAK_GLASS=true`.
+**The owner-fallback gate reads the raw LOOPBACK TCP PEER, never the `Host` header.** `ownerFallbackAllowed(peerIp, headers)` (`dispatch.ts`) is true iff the socket peer is in `127.0.0.0/8`/`::1` — the unspoofable value the kernel reports — and the request carries no relay tell; `undefined` fails closed. It is ONE rule across all four modes, **`single-user` included: its fallback is not unconditional**, so a non-loopback caller in single-user authenticates nobody and 401s. The old Host/trusted-ranges gate and its TRUSTED_LOCAL_HOSTS env are deleted: a client-supplied `Host:` is never a fact about the network — a proxy/vite `changeOrigin` hop can launder a LAN request into a loopback-looking Host — so the gate must not read it.
+
+**A relayed request is never the operator.** A same-host proxy or tunnel (cloudflared, `tailscale serve`, Caddy or nginx on `127.0.0.1`) makes every external request a loopback peer. `forwarded.ts::hasForwardingHeader` refuses the fallback, on every peer and in every mode, when any of `forwarded`, `x-forwarded-for`, `x-real-ip`, `cf-connecting-ip`, `x-forwarded-proto` or `x-forwarded-host` is present; presence is the signal, never the value. The same predicate gates the local first-run owner-password claim and its `localFirstRun` flag. The dev vite proxy sends none of these, because it does not set http-proxy's `xfwd` option. The guard fails open for a relay that sends no forwarding header, which is why prod + an SSO mode + `AUTH_FALLBACK=owner` stays boot-fatal in `foundation/env` unless `AUTH_BREAK_GLASS=true`.
 
 **`password.ts` — pepper, constant-time floor, loud-on-misconfig.** Passwords are HMAC-peppered with `SESSION_SECRET` before scrypt (a stolen DB alone can't offline-brute-force); `pepper()` THROWS if `SESSION_SECRET` is unset. Unknown/SSO-only handles verify against `DUMMY_PASSWORD_HASH` so scrypt always runs (defeats the enumeration timing oracle). Cost pinned (`N=2^15,r=8,p=1`); format `scrypt$salt$hash` carries an algo prefix for lazy KDF migration. **Rotating `SESSION_SECRET` invalidates all local passwords.**
 
