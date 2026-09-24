@@ -42,7 +42,7 @@ export interface CopyButtonProps extends Omit<ButtonBaseProps, "aria-label" | "a
 
 /**
  * CopyButton — the one copy-to-clipboard control. A press writes `text`, and the always-mounted status
- * line (`role="status"`, polite) says what happened. When the write fails (an insecure http page has no
+ * line (`role="status"`, polite) says what happened and carries it as `data-outcome`. When the write fails (an insecure http page has no
  * Clipboard API; a browser can refuse), a read-only field shows `text` focused and selected, and the
  * status says to copy it by hand. The button keeps its `Copy <what>` name in every state, so a success
  * swaps the glyph and never the label (§13.10 N2).
@@ -51,6 +51,8 @@ export function CopyButton({ text, what, copiedHint, iconOnly = false, className
   // A fresh object per settled press, so a repeat of the same outcome still re-runs the select effect.
   const [settled, setSettled] = useState<{ readonly outcome: ClipboardOutcome } | null>(null);
   const fieldRef = useRef<HTMLTextAreaElement | null>(null);
+  // Counts presses, so a write that settles after a newer press cannot overwrite the newer result.
+  const latestPressRef = useRef(0);
   const fieldId = useId();
   const slots = copyButtonVariants();
   const outcome = settled?.outcome ?? null;
@@ -67,8 +69,13 @@ export function CopyButton({ text, what, copiedHint, iconOnly = false, className
   const copy = async (): Promise<void> => {
     // Clear first: a live region re-announces only when its text changes, so a second press with the same
     // result must pass through the empty state to be heard again. The click commits this before the write settles.
+    latestPressRef.current += 1;
+    const press = latestPressRef.current;
     setSettled(null);
-    setSettled({ outcome: await writeClipboardText(text) });
+    const next = await writeClipboardText(text);
+    if (press === latestPressRef.current) {
+      setSettled({ outcome: next });
+    }
   };
 
   return (
@@ -82,7 +89,7 @@ export function CopyButton({ text, what, copiedHint, iconOnly = false, className
         aria-live="polite"
         as="span"
         className={slots.status()}
-        data-failed={failed ? "" : undefined}
+        data-outcome={outcome ?? undefined}
         data-slot="copy-button-status"
         role="status"
         voice="gloss"

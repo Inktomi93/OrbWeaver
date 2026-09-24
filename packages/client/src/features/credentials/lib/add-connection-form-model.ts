@@ -11,6 +11,9 @@ import { clauseOf, MODEL_REQUIRED_MESSAGE } from "./model-picker-model.ts";
 /** The command the Claude-subscription step asks the user to run (§5.3a: "a copyable `claude setup-token`"). */
 export const CLAUDE_SETUP_TOKEN_COMMAND = "claude setup-token";
 
+/** What the setup-token copy button names as its subject: `Copy <this>`. */
+export const CLAUDE_SETUP_TOKEN_COPY_SUBJECT = `the command ${CLAUDE_SETUP_TOKEN_COMMAND}`;
+
 export interface AddConnectionFormValues {
   readonly providerId: string;
   /** DERIVED from the picked provider's row (`ProviderDef.auth`), written by the provider field's change

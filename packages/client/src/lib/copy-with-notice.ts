@@ -12,12 +12,16 @@ const FAILURE_REASON: Record<Exclude<ClipboardOutcome, "copied">, string> = {
   refused: "The browser blocked the copy.",
 };
 
-/** Copy `text` and report the outcome as a toast; `copied` is the success title. */
-export async function copyWithNotice(text: string, copied = "Copied to clipboard."): Promise<void> {
+/**
+ * Copy `text` and report the outcome as a toast. `copied` is the success title; `fallback` names where
+ * the user can still copy the text by hand when the write fails.
+ */
+export async function copyWithNotice(text: string, notice: { readonly copied?: string; readonly fallback?: string } = {}): Promise<void> {
   const outcome = await writeClipboardText(text);
   if (outcome === "copied") {
-    notify.success(copied);
+    notify.success(notice.copied ?? "Copied to clipboard.");
     return;
   }
-  notify.error({ title: COPY_FAILED, description: FAILURE_REASON[outcome] });
+  const reason = FAILURE_REASON[outcome];
+  notify.error({ title: COPY_FAILED, description: notice.fallback === undefined ? reason : `${reason} ${notice.fallback}` });
 }

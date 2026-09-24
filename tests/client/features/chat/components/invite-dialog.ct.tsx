@@ -11,6 +11,7 @@ import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { InviteDialogStory } from "../_ct-stories.tsx";
 
 const REVOKE_RE = /Revoke/u;
+const MINTED_LINK_RE = /\/join\/tok_ct_minted$/u;
 
 const MINT = {
   invite: {
@@ -77,6 +78,33 @@ test("share-link mode mints and shows the raw /join link ONCE with the copy affo
   await expect(result).toContainText("/join/tok_ct_minted");
   await expect(result.getByText("you won't see this link again", { exact: false })).toBeVisible();
   await expect(page.getByTestId("invite-copy-link")).toBeVisible();
+});
+
+test.describe("the automatic copy of a new link", () => {
+  test.use({ permissions: ["clipboard-read", "clipboard-write"] });
+
+  test("writes the new link to the clipboard exactly once", async ({ mount, page }) => {
+    await routeTrpc(page, {
+      "invites.listInvites": () => [],
+      "invites.createInvite": () => MINT,
+    });
+    await mount(<InviteDialogStory />);
+    // Count writes on the document, so the count is readable without a typed global.
+    await page.evaluate(() => {
+      const write = navigator.clipboard.writeText.bind(navigator.clipboard);
+      let writes = 0;
+      navigator.clipboard.writeText = (text: string): Promise<void> => {
+        writes += 1;
+        document.documentElement.dataset["clipboardWrites"] = String(writes);
+        return write(text);
+      };
+    });
+    await page.getByTestId("invite-dialog").getByRole("button", { name: "Create link" }).click();
+
+    await expect(page.getByTestId("invite-link-result")).toBeVisible();
+    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toMatch(MINTED_LINK_RE);
+    await expect(page.locator("html")).toHaveAttribute("data-clipboard-writes", "1");
+  });
 });
 
 test("handle mode sends the targeted invite with the limits on the wire", async ({ mount, page }) => {
