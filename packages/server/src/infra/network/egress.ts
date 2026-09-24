@@ -1,5 +1,5 @@
 import { lookup as dnsLookup } from "node:dns";
-import { isIP } from "node:net";
+import { parseIp } from "@orb/kit/ip";
 import { Agent, buildConnector, setGlobalDispatcher } from "undici";
 import { env } from "#foundation/env";
 import { getLog, securityEvent, superviseDetached } from "#foundation/observability";
@@ -51,8 +51,9 @@ function superviseEgressCleanup(reason: string, operation: () => Promise<unknown
 }
 
 const TRAILING_DOT_RE = /\.$/;
-/** `node:net`'s `isIP` return value for an IPv4 literal (0 = not an IP, 6 = IPv6). */
-const NODE_IP_FAMILY_V4 = 4;
+/** The socket family a connector lookup reports for an IPv4 and an IPv6 literal. */
+const SOCKET_FAMILY_V4 = 4;
+const SOCKET_FAMILY_V6 = 6;
 
 /** Strip the `[...]` an IPv6 authority is spelled with. `new URL("http://[::1]:8080").hostname` KEEPS the
  *  brackets while undici's connector hands the connect wrapper the bare form, so both sides of a host:port
@@ -72,7 +73,7 @@ export function privateEgressRanges(): readonly string[] {
 // A literal target skips undici's DNS lookup, so the connector must recognize and gate it directly.
 function literalHost(hostname: string): string | null {
   const bare = unbracket(hostname);
-  return isIP(bare) === 0 ? null : bare;
+  return parseIp(bare) === null ? null : bare;
 }
 
 export function shouldBlockEgress(address: string, hostname: string, allowlist: ReadonlySet<string>, ranges: readonly string[]): boolean {
@@ -158,8 +159,6 @@ let privateEndpointAllowlist: PrivateEndpointAllowlist = { hosts: new Set<string
 
 const MIN_PORT = 1;
 const MAX_PORT = 65_535;
-const V4_PREFIX_BITS = 32;
-const V6_PREFIX_BITS = 128;
 const HOSTNAME_MAX_LENGTH = 253;
 const HOSTNAME_LABEL_MAX_LENGTH = 63;
 /** An allowlist/URL port: 1–5 digits, nothing else (no sign, no whitespace, no empty string). */
@@ -228,7 +227,7 @@ function splitEntryPort(raw: string): { readonly subject: string; readonly port:
     const port = parsePort(raw.slice(colon + 1));
     return port === null ? null : { subject: raw.slice(0, colon), port };
   }
-  if (isIP(raw) !== 0) {
+  if (parseIp(raw) !== null) {
     return { subject: raw, port: null };
   }
   const lastColon = raw.lastIndexOf(":");
@@ -268,13 +267,16 @@ function classifyAllowlistEntry(entry: string): ClassifiedEntry | null {
   const { subject, port } = split;
   const slash = subject.indexOf("/");
   const address = slash === -1 ? subject : subject.slice(0, slash);
-  if (isIP(address) === 0) {
+  const parsed = parseIp(address);
+  if (parsed === null) {
     return isHostnameEntry(subject) ? { kind: "host", host: subject, port } : null;
   }
   if (isInRanges(address, NEVER_ADMISSIBLE_RANGES)) {
     return null;
   }
-  const maxBits = isIP(address) === NODE_IP_FAMILY_V4 ? V4_PREFIX_BITS : V6_PREFIX_BITS;
+  // The parser's width, never the spelling's: a mapped `::ffff:a.b.c.d` is an IPv4 address to `isInRanges`,
+  // so its bare range is a /32 and a v6-width prefix on it could never match.
+  const maxBits = parsed.bits;
   if (slash === -1) {
     return port === null ? { kind: "range", range: `${address}/${String(maxBits)}`, literal: address } : { kind: "host", host: address, port };
   }
@@ -377,7 +379,7 @@ export function endpointAdmission(baseUrl: string): (typeof ENDPOINT_ADMISSIONS)
   const port = effectivePort(url.protocol, url.port);
   const host = unbracket(url.hostname).toLowerCase();
   const literal = host === "localhost" ? "127.0.0.1" : host;
-  if (isIP(literal) === 0) {
+  if (parseIp(literal) === null) {
     return admittedByAllowlist(host, port) ? "admitted" : "public";
   }
   if (isInRanges(literal, NEVER_ADMISSIBLE_RANGES)) {
@@ -414,7 +416,7 @@ function admittedByAllowlist(hostname: string, port: number | null): boolean {
   if (privateEndpointAllowlist.hosts.has(host)) {
     return true;
   }
-  return isIP(host) !== 0 && addressInAdmittedRanges(host);
+  return parseIp(host) !== null && addressInAdmittedRanges(host);
 }
 
 export function installEgressFirewall(): void {
@@ -811,7 +813,7 @@ function normalizeHost(hostname: string): string {
 
 function isIpLiteralHost(hostname: string): boolean {
   const bare = hostname.length > 1 && hostname.startsWith("[") && hostname.endsWith("]") ? hostname.slice(1, -1) : hostname;
-  return isIP(bare) !== 0;
+  return parseIp(bare) !== null;
 }
 
 /** Membership of `host` (already `normalizeHost`ed by the caller) in an allowlist. Two entry shapes: an EXACT
@@ -885,6 +887,12 @@ async function resolveValidatePin(url: URL, options: SafeFetchOptions): Promise<
   return pinnedAgent(addresses);
 }
 
+/** The family of the address's SPELLING, which is what the socket dials. Not `parseIp`'s width: that reduces a
+ *  mapped `::ffff:a.b.c.d` to IPv4, and a v6 spelling handed to the socket as family 4 fails to connect. */
+function socketFamily(address: string): typeof SOCKET_FAMILY_V4 | typeof SOCKET_FAMILY_V6 {
+  return address.includes(":") ? SOCKET_FAMILY_V6 : SOCKET_FAMILY_V4;
+}
+
 /** A per-request undici Agent whose connector lookup hands back ONLY the pre-validated addresses and
  *  errors on reuse — undici invokes the lookup with `{all:true}` (verified). */
 function pinnedAgent(addresses: readonly string[]): Agent {
@@ -899,13 +907,13 @@ function pinnedAgent(addresses: readonly string[]): Agent {
       if (lookupOptions.all === true) {
         callback(
           null,
-          addresses.map((address) => ({ address, family: isIP(address) })),
+          addresses.map((address) => ({ address, family: socketFamily(address) })),
           0,
         );
         return;
       }
       const first = addresses[0] ?? "";
-      callback(null, first, isIP(first));
+      callback(null, first, socketFamily(first));
     },
   });
   return new Agent({ connect });
