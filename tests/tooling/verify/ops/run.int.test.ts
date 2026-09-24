@@ -702,6 +702,26 @@ test("resolveSelection: bare --changed preserves modified, untracked, deleted, a
   }
 });
 
+test("the untracked read ignores a git hook's GIT_INDEX_FILE, which names another repository's index", () => {
+  // Git exports GIT_INDEX_FILE to a pre-commit hook, and the scoped commit gate runs these reads inside it.
+  const scratch = mkdtempSync(join(tmpdir(), "orb-selection-hook-env-"));
+  mkdirSync(join(scratch, "tooling/src"), { recursive: true });
+  writeFileSync(join(scratch, "tooling/src/tracked.ts"), "export const tracked = true;\n");
+  execFixtureGit(scratch, ["init", "-q"]);
+  execFixtureGit(scratch, ["config", "user.email", "selection-test@example.invalid"]);
+  execFixtureGit(scratch, ["config", "user.name", "Selection Test"]);
+  execFixtureGit(scratch, ["add", "."]);
+  execFixtureGit(scratch, ["commit", "-qm", "fixture"]);
+  writeFileSync(join(scratch, "tooling/src/untracked.ts"), "export const untracked = true;\n");
+  vi.stubEnv("GIT_INDEX_FILE", join(scratch, "no-such-index"));
+  try {
+    expect(workingChangeClassification(scratch).paths).toEqual(["tooling/src/untracked.ts"]);
+  } finally {
+    vi.unstubAllEnvs();
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
 test("resolveSelection carries root programs directly in the complete affected plan", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
   const sel = resolveSelection({ kind: "file", paths: ["tests/tooling/verify/ops/run.int.test.ts"] });
   expect(sel.tsconfigs).toContain("tsconfig.json");

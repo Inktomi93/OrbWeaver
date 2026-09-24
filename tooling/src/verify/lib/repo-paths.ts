@@ -75,6 +75,16 @@ export function gitChangedPathClassification(root: string = ROOT): ChangedPathCl
   return classifyGitNameStatus(result.stdout, root);
 }
 
+/** `git ls-files -z <args>` as a path list, read with the same scrubbed environment as the diff above: a
+ *  git hook exports `GIT_INDEX_FILE`, and inheriting it would list the hook's index, not `root`'s. */
+export function gitLsFiles(root: string, args: readonly string[]): readonly string[] {
+  const result = runNicedSync("git", [...GIT_READ_PREFIX, "ls-files", "-z", ...args], { cwd: root, env: repoGitEnvironment() });
+  if (result.status !== 0) {
+    throw new Error(`git ls-files failed (${String(result.status)}): ${result.stderr.trim()}`);
+  }
+  return result.stdout.split("\0").filter((path) => path.length > 0);
+}
+
 /** Compatibility read for the structure-scoped door: deletions remain in this all-path view. */
 export function gitChangedPaths(root: string = ROOT): readonly string[] {
   return gitChangedPathClassification(root).paths;
