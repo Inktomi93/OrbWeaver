@@ -42,7 +42,7 @@
 // silent drift — the marinara-derived line the D86 §4.4 posture ships.
 
 import type { ProseOverrides, ProseSlotId } from "@orb/contracts/prose";
-import { PROSE_SLOTS, resolveProse } from "@orb/contracts/prose";
+import { PROSE_SLOTS, resolveProse, resolveProseText } from "@orb/contracts/prose";
 import type {
   RpgActorVolatile,
   RpgDateMode,
@@ -569,6 +569,13 @@ export function buildLiteReminder(input: LiteReminderInput): string {
   }
 
   return blocks.join("\n\n");
+}
+
+/** Wrap the whole reminder, the steering note and any reconcile note included, in the one `rpg.reminder.frame`
+ *  delimiter. A model that takes no system row folds the reminder into the player's message, where it must never
+ *  read as the player's words (owner ruling). */
+export function frameLiteReminder(reminder: string, prose: ProseOverrides): string {
+  return resolveProseText("rpg.reminder.frame", prose, { reminder });
 }
 
 // The IDENTITY-ONLY registry for the steeringNote render (module-scoped — one compile, the row-macros.ts

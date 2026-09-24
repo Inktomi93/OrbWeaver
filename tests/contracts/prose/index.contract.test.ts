@@ -519,6 +519,7 @@ test('PRESET_PROSE_SLOT_IDS is every `home:"preset"` slot whose override is stor
     "rpg.card.askStatic",
     "rpg.card.example",
     "rpg.reminder.cyoaTeach",
+    "rpg.reminder.frame",
     "rpg.reminder.castHeader",
     "rpg.reminder.offstageHeader",
     "rpg.delta.changesHeading",
