@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # SessionStart hook (startup, resume, compact, clear). SessionStart fires for the main session only, so
-# this is how main-only procedure reaches it: the output orders the session to load the `orchestrator`
-# skill. It prints, in this order, because a long output is persisted with only its head shown:
+# this is how main-only procedure reaches it. The `orchestrator` skill body arrives beside this output from
+# `orchestrator-inject.mjs`, a separate additionalContext string with its own harness cap, so this output
+# only points at it. It prints, in this order, because a long output is persisted with only its head shown:
 #   1. the CPU ceiling line (`cpu-fence.sh`) and the core.hooksPath repair;
 #   2. the account identity and the bridge inbox it owns;
-#   3. the first actions: the bridge plugin state, the skill load, the notes to read;
+#   3. the first actions: the bridge plugin state, the injected skill, the notes to read;
 #   4. the worktree count and main's dirty state;
 #   5. a warning when the orchestrator's MEMORY.md nears the harness's truncation cap.
 # Keep it fast (<10s) and well under 8KB. It writes nothing except the core.hooksPath repair.
@@ -80,11 +81,13 @@ if [ -x "$HOME/.claude/skills/bridge/bin/claude-bridge" ]; then
 else
   echo "!!! FIRST ACTIONS, in order: (1) BRIDGE PLUGIN MISSING (~/.claude/skills/bridge): nothing watches the inbox; tell the owner; read the inbox at every merge window."
 fi
-echo "    (2) LOAD THE orchestrator SKILL (Skill tool) and follow its first actions before any lane, merge, bridge note or worktree action. A compaction summary carries a digest of it, and a digest fails on command detail."
+# Hook registration binds at session launch, but this script is read fresh on each run: a session launched
+# before orchestrator-inject.mjs was registered gets this line with no injection, hence the fallback.
+echo "    (2) The orchestrator skill is INJECTED into this context by a SessionStart hook, in blocks that start 'Orchestrator skill, part N of M'; do not load it again. If any part is missing, load it with the Skill tool. Follow it before any lane, merge, bridge note or worktree action. A compaction summary's digest of it fails on command detail."
 echo "    (3) READ IN FULL (cat): ~/.claude/bridge/SESSIONS.md, each unacked note the bridge block lists, and the scratch dispatch map if the line below found it."
 echo "    (4) Honor every MERGE HOLD / sequencing line in the notes; resume live lanes by SendMessage to their agentIds, NEVER respawn."
 if [ "$WHO" = "claude-b" ]; then
-  echo "    (5) ROLE: you are the second LANE DRIVER on your own account — you write ONLY claim --lane cb-<x>, file --ready, and file --kind decision + needs-owner; primary does every other transition, every fold, every memory write. If no unacked assignment note is in your inbox, write a QUESTION note to primary asking for your lanes (state a DEFAULT + deadline), pre-derive the default set while waiting, and fill to 3 lanes of your own. Owner-word items: ask in chat ONCE and tell primary 'asked in chat — do not re-ask'."
+  echo "    (5) ROLE: you are the second LANE DRIVER on your own account — you write ONLY claim --lane cb-<x>, file --ready, and file --kind decision + needs-owner; primary does every other transition, every fold, every memory write. If no unacked assignment note is in your inbox, write a QUESTION note to primary asking for your lanes (state a DEFAULT + deadline), pre-derive the default set while waiting, and fill your own lanes up to the skill's lane cap. Owner-word items: ask in chat ONCE and tell primary 'asked in chat — do not re-ask'."
 else
   echo "    (5) ROLE: claude-b claims and files under cb-*; you review / verify / land / re-price its rows and fold its worktree branches; answer its QUESTION notes before their deadline (an unanswered question fires its stated default)."
 fi
@@ -124,7 +127,7 @@ WT_COUNT=$(git worktree list 2>/dev/null | tail -n +2 | wc -l | tr -d ' ')
 echo "--- worktrees: ${WT_COUNT:-?} beyond main (run: git worktree list — resume live lanes via SendMessage to the dispatch map's agentIds, NEVER respawn; sweep only under containment proofs)"
 DIRTY=$(git status --short 2>/dev/null | head -5)
 if [ -n "$DIRTY" ]; then echo "--- UNCOMMITTED on main (investigate before merging anything):"; echo "$DIRTY"; else echo "--- main working tree: clean"; fi
-echo "--- standing posture and procedure: the orchestrator skill (FIRST ACTION 2 above). claude-b registry: ~/.claude/bridge/SESSIONS.md (resume, never re-mint)."
+echo "--- standing posture and procedure: the injected orchestrator skill (FIRST ACTION 2 above). claude-b registry: ~/.claude/bridge/SESSIONS.md (resume, never re-mint)."
 
 # MEMORY.md GUARD. The harness injects the orchestrator's MEMORY.md and truncates it silently past 200
 # lines or its byte cap, whichever binds first. The index sits beside the transcript:
