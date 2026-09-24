@@ -189,7 +189,7 @@ describe("the relay host registry", () => {
   function harness(): {
     readonly registry: ReturnType<typeof createRelayHostRegistry>;
     readonly admit: (host: string) => boolean;
-    readonly logged: () => unknown[];
+    readonly logged: () => (readonly [unknown, unknown])[];
   } {
     const spy = vi.spyOn(logger, "warn");
     const registry = createRelayHostRegistry();
@@ -206,10 +206,10 @@ describe("the relay host registry", () => {
         }
         return refused === null;
       },
-      logged: (): unknown[] =>
+      logged: (): (readonly [unknown, unknown])[] =>
         spy.mock.calls.flatMap(([bindings, message]) => {
           const fields = bindings as Record<string, unknown>;
-          return fields["event"] === EVENT ? [[fields["host"], message]] : [];
+          return fields["event"] === EVENT ? [[fields["host"], message] as const] : [];
         }),
     };
   }
@@ -234,7 +234,8 @@ describe("the relay host registry", () => {
     }
     const lines = h.logged();
     expect(lines.map(([host]) => host)).toEqual([RELAY, stranger]);
-    const [[, removedLine], [, strangerLine]] = lines as [[string, string], [string, string]];
+    const [removedLine, strangerLine] = lines.map(([, message]) => message);
+    expect(removedLine).toEqual(expect.stringContaining("security: refused a request for a host"));
     expect(removedLine).toBe(strangerLine);
   });
 
