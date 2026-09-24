@@ -48,6 +48,8 @@ const TAG_FILTER_CONFIG = { tagsFilter: testTagFilters(process.env) } satisfies 
 
 const NORMAL_GROUP_ORDER = 0;
 const REPOSITORY_GROUP_ORDER = 1;
+// Each typecheck project runs one whole-program tsc (~4 GB before checkers); side by side they OOM a 16 GB box.
+const BROWSER_TYPECHECK_GROUP_ORDER = 2;
 
 // Vitest forces incremental flags; this wrapper enforces the repository's cold semantic-check policy.
 const TYPECHECKER = "scripts/ts7.ts";
@@ -97,7 +99,7 @@ const TYPECHECK_PROJECTS = [
     extends: true,
     test: {
       name: vitestTypecheckGroupName("browser"),
-      sequence: { groupOrder: NORMAL_GROUP_ORDER },
+      sequence: { groupOrder: BROWSER_TYPECHECK_GROUP_ORDER },
       include: [],
       typecheck: {
         enabled: true,
