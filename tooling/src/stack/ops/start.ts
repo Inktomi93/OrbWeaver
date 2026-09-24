@@ -31,12 +31,10 @@ import { print, REPO_ROOT } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { warn } from "../../_shared/log.ts";
-import { spawnFullPriorityChild, spawnFullPrioritySync } from "../../_shared/proc.ts";
-import type { FullPriorityChild } from "../../_shared/proc-contract.ts";
+import { childExitCode, forwardSignalsTo, spawnFullPriorityChild, spawnFullPrioritySync } from "../../_shared/proc.ts";
 import type { ProdSpawnPlan } from "../contract/types.ts";
 import { CLIENT_DIST_INDEX_REL } from "../lib/spawn-plan.ts";
 import {
-  childExitCode,
   decideStartBuild,
   effectiveAuthMode,
   parseStartArgv,
@@ -50,19 +48,6 @@ import { AMBIENT, LOG_PATH, readEnvFile, resolvePort } from "./prod-state.ts";
 import { distVerdict } from "./prod-support.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm start");
-
-/** The signals a foreground launcher owes its child. We register our OWN handlers so a Ctrl-C does not
- *  kill this process before the server finishes its bounded drain: forward, then resolve on the child's
- *  exit and mirror its status. */
-export const FORWARDED_SIGNALS = ["SIGINT", "SIGTERM", "SIGHUP"] as const;
-
-/** Wire each forwarded signal to the child, through an injected registrar so the wiring is provable
- *  without a real process (the registrar is `process.on` in the one live call below). */
-export function forwardSignalsTo(child: Pick<FullPriorityChild, "kill">, register: (signal: NodeJS.Signals, handler: () => void) => void): void {
-  for (const signal of FORWARDED_SIGNALS) {
-    register(signal, () => child.kill(signal));
-  }
-}
 
 function log(message: string): void {
   print(`start: ${message}`);
