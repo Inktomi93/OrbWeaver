@@ -11,7 +11,7 @@
 // let that page pass with `X-Forwarded-Host: localhost`. A proxy that rewrites `Host` to its upstream name
 // needs that name allowed too.
 
-import { ALLOWED_HOST_SUFFIX_MARK, isAlwaysAllowedHost, withoutTrailingDot } from "@orb/kit/allowed-hosts";
+import { ALLOWED_HOST_SUFFIX_MARK, isAlwaysAllowedHost, isHostname, withoutTrailingDot } from "@orb/kit/allowed-hosts";
 import { securityEvent } from "#foundation/observability";
 import { isTrustedHop } from "#infra/network";
 import type { HostNotAllowedNotice } from "./contract.ts";
@@ -46,6 +46,11 @@ export function canonicalHost(authority: string): string {
 export function isHostAllowed(host: string, allowedHosts: readonly string[]): boolean {
   if (isAlwaysAllowedHost(host)) {
     return true;
+  }
+  // Configured entries are hostnames, so only a hostname may match one: a value with `:` or `%` that merely ends in
+  // an allowed suffix (`a:%x.example.com`) is neither a name nor an IP literal and must not pass `endsWith`.
+  if (!isHostname(host)) {
+    return false;
   }
   return allowedHosts.some((entry) =>
     entry.startsWith(ALLOWED_HOST_SUFFIX_MARK) ? host === entry.slice(ALLOWED_HOST_SUFFIX_MARK.length) || host.endsWith(entry) : host === entry,
