@@ -2,14 +2,14 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 604,
+    "sites": 603,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 604,
+      "deliberate-absorb": 603,
       "unproven": 0
     },
     "byGrammar": {
-      "default": 152,
+      "default": 151,
       "empty": 308,
       "promise": 144
     }
@@ -2819,11 +2819,6 @@
       "siteId": "tooling/src/verify/lib/host-slots.ts::readHolder::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "the FAILURE IS THE VERDICT — an unreadable or half-written slot file is DEBRIS, and `null` is how this reader says so to its one caller, which then STEALS the slot and PRINTS that it did. Any other surfacing wedges the box on a torn write. Ends if a caller starts reading `null` as \"someone holds this\"."
-    },
-    {
-      "siteId": "tooling/src/verify/lib/host-slots.ts::readProcessStartMs::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "the FAILURE IS THE ANSWER — a pid that exits between the liveness probe and this read, or a box with no `/proc`, has no start time to compare, and `null` makes the caller fall back to `kill(pid, 0)` alone, which is the pre-existing rule. Ends if a caller starts reading `null` as \"reused\"."
     },
     {
       "siteId": "tooling/src/verify/lib/host-slots.ts::takeAnySlot::catch::1",
