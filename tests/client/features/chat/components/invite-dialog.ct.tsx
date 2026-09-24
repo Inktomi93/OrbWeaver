@@ -6,6 +6,7 @@
 // riding the wire, and the outstanding list (status per row; Revoke only on pending).
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Page } from "@playwright/test";
 import type { TrpcFixtureOutput, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { InviteDialogStory } from "../_ct-stories.tsx";
@@ -173,6 +174,73 @@ test.describe("the outstanding-invite rows at 360px", () => {
     await expect
       .poll(async () => (await readPairs()).filter(({ leaf, target }) => leaf.width < 1 || overlaps(leaf, target)).map(({ text }) => text))
       .toEqual([]);
+  });
+});
+
+interface RevokeRowGeometry {
+  /** The pending row's own width: the box its `@container/list-row` query reads. */
+  readonly rowWidth: number;
+  /** `--container-cq-sm` resolved to px in this document: the row width where Revoke rejoins the identity line. */
+  readonly thresholdPx: number;
+  /** Revoke's box starts at or below the identity block's bottom edge. */
+  readonly stacked: boolean;
+}
+
+/** The pending row's stacking geometry, read against the resolved container token, never a px literal. */
+async function revokeRowGeometry(page: Page): Promise<RevokeRowGeometry> {
+  const row = page
+    .getByTestId("invite-outstanding-list")
+    .locator('[data-slot="list-row-root"]')
+    .filter({ has: page.getByRole("button", { name: REVOKE_RE }) });
+  return await row.evaluate((root): RevokeRowGeometry => {
+    const probe = document.createElement("div");
+    probe.style.position = "absolute";
+    probe.style.visibility = "hidden";
+    probe.style.width = "var(--container-cq-sm)";
+    document.body.append(probe);
+    const thresholdPx = probe.getBoundingClientRect().width;
+    probe.remove();
+    const body = root.querySelector('[data-slot="list-row-body"]');
+    const actions = root.querySelector('[data-slot="list-row-actions"]');
+    if (body === null || actions === null) {
+      throw new Error("the pending row has no body or actions slot");
+    }
+    return {
+      rowWidth: root.getBoundingClientRect().width,
+      thresholdPx,
+      stacked: actions.getBoundingClientRect().top >= body.getBoundingClientRect().bottom,
+    };
+  });
+}
+
+// The row stacks by its OWN width against the container token, so the dialog's width decides it. At a desktop
+// viewport the dialog gives the row more than `cq-sm` and Revoke sits on the identity line; at 360px the row is
+// narrower than `cq-sm` and Revoke takes its own line.
+test.describe("the pending row's Revoke at a 1440px viewport", () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test("stays on the identity line", async ({ mount, page }) => {
+    await routeTrpc(page, { "invites.listInvites": () => outstanding() });
+    await mount(<InviteDialogStory />);
+    await expect(page.getByTestId("invite-outstanding-list").getByRole("button", { name: REVOKE_RE })).toBeVisible();
+    const geometry = await revokeRowGeometry(page);
+    expect(geometry.thresholdPx).toBeGreaterThan(0);
+    expect(geometry.rowWidth).toBeGreaterThanOrEqual(geometry.thresholdPx);
+    expect(geometry.stacked, "a desktop-width invite row keeps Revoke beside its label").toBe(false);
+  });
+});
+
+test.describe("the pending row's Revoke at a 360px viewport", () => {
+  test.use({ viewport: { width: 360, height: 800 } });
+
+  test("takes its own line", async ({ mount, page }) => {
+    await routeTrpc(page, { "invites.listInvites": () => outstanding() });
+    await mount(<InviteDialogStory />);
+    await expect(page.getByTestId("invite-outstanding-list").getByRole("button", { name: REVOKE_RE })).toBeVisible();
+    const geometry = await revokeRowGeometry(page);
+    expect(geometry.thresholdPx).toBeGreaterThan(0);
+    expect(geometry.rowWidth).toBeLessThan(geometry.thresholdPx);
+    expect(geometry.stacked, "a phone-width invite row puts Revoke on its own line").toBe(true);
   });
 });
 

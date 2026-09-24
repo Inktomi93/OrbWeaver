@@ -103,23 +103,29 @@ export const listRowVariants = tv({
     // tap, and the ROW'S DOM IS UNCHANGED: `actions` stays a SIBLING of the body, never folded into it, which
     // is the #512 accessible-name contract this primitive's header records (`list-row.tsx:1-10`).
     //
-    // THE THRESHOLD IS THE **ROW'S** WIDTH, NEVER THE VIEWPORT'S — `@lg/list-row` against the `@container/
-    // list-row` the root already declares. The same pane is 830px wide with one panel open and 440px with two,
+    // THE THRESHOLD IS THE **ROW'S** WIDTH, NEVER THE VIEWPORT'S — a container-breakpoint token against the
+    // `@container/list-row` the root already declares. The same pane is 830px wide with one panel open and 440px with two,
     // at ONE viewport; a media query cannot tell those apart, and pinning that difference is why the CT mounts
     // two rows of different widths at the same viewport size. Written MOBILE-FIRST (stacked is the arm's base,
-    // `@lg` restores the inline row) because a `@max-` cancel has to win a specificity contest against the
-    // rule it cancels, and this way there is no contest at all. 32rem is where the identity stops being able
-    // to hold its own: the cluster is ~220px (switch + gloss + kebab), so an inline row narrower than twice
-    // that gives the name less width than its controls.
+    // the `stackActionsAt` token restores the inline row) because a `@max-` cancel has to win a specificity
+    // contest against the rule it cancels, and this way there is no contest at all. The threshold stays at least
+    // twice the cluster's width, so it follows the cluster: `cq-md` (32rem) for a ~220px cluster (switch + gloss + kebab),
+    // `cq-sm` (24rem) for one compact control, which a `cq-md` threshold would stack in a dialog-width row
+    // that has ample room for it inline.
     //
     // OPT-IN, NOT AUTOMATIC: a row whose cluster is reveal-gated (`float`) already keeps the full width at
     // rest and must not wrap — the two arms answer the same squeeze in mutually exclusive ways.
     stackActions: {
       true: {
         root: "flex-wrap",
-        actions: "basis-full justify-between @lg/list-row:basis-auto @lg/list-row:justify-end",
+        actions: "basis-full justify-between",
       },
       false: {},
+    },
+    // Only read by the `stackActions` compounds below; a row that does not stack ignores it.
+    stackActionsAt: {
+      "cq-md": {},
+      "cq-sm": {},
     },
     // A cluster that is HIDDEN at rest must not spend the row's width on nothing: two ghost icon controls
     // reserve ~76px, which starves the title/subtitle in a 307px LIST pane (side-eye P1-2b). `float` lifts
@@ -244,6 +250,16 @@ export const listRowVariants = tv({
   },
   compoundVariants: [
     {
+      stackActions: true,
+      stackActionsAt: "cq-md",
+      class: { actions: "@cq-md/list-row:basis-auto @cq-md/list-row:justify-end" },
+    },
+    {
+      stackActions: true,
+      stackActionsAt: "cq-sm",
+      class: { actions: "@cq-sm/list-row:basis-auto @cq-sm/list-row:justify-end" },
+    },
+    {
       clickable: true,
       rowTint: "row",
       class: { root: "cursor-pointer hover:bg-accent active:bg-accent/80" },
@@ -254,6 +270,7 @@ export const listRowVariants = tv({
     clickable: false,
     float: false,
     stackActions: false,
+    stackActionsAt: "cq-md",
     subtitleWrap: false,
     subtitlePlacement: "block",
     rowTint: "body",

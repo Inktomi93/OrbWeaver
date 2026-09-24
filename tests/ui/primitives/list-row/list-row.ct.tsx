@@ -485,6 +485,36 @@ test("a row WITHOUT stackActions never stacks, at the same 440px box", async ({ 
   expect((await stackGeometry(page)).stacked).toBe(false);
 });
 
+// `stackActionsAt="cq-sm"` moves the threshold to 24rem for a one-control cluster: the 440px box that stacks the
+// default arm above keeps this row inline, and a 360px box (under 24rem) still stacks it.
+function compactStackRowAt(width: number): ReactElement {
+  return (
+    <div style={{ width }}>
+      <ListRow
+        actions={
+          <Button intent="ghost" size="sm">
+            Revoke
+          </Button>
+        }
+        stackActions={true}
+        stackActionsAt="cq-sm"
+        subtitle="2 of 3 uses left · never expires"
+        title="Share link"
+      />
+    </div>
+  );
+}
+
+test("stackActionsAt=cq-sm keeps a one-control row inline in the 440px box that stacks the default arm", async ({ mount, page }) => {
+  await mount(compactStackRowAt(440));
+  expect((await stackGeometry(page)).stacked).toBe(false);
+});
+
+test("stackActionsAt=cq-sm still stacks the row under 24rem", async ({ mount, page }) => {
+  await mount(compactStackRowAt(360));
+  expect((await stackGeometry(page)).stacked).toBe(true);
+});
+
 // A RESERVED in-flow cluster is a sibling OUTSIDE the body, so the default body-painted hover tint stops
 // short of it and the controls sit on the pane background — which is exactly what pushed the preset row's
 // cluster into painting its own darker panel (the box-in-box double highlight, crunch-list item 18).
