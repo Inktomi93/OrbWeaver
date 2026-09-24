@@ -1,11 +1,10 @@
 import type { ReactElement, UIEvent } from "react";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { cn, prefersReducedMotionNow } from "#lib";
-import { Button } from "#primitives/button";
-import { AlertTriangle, CircleAlert, Copy, Icon, Info } from "#primitives/icons";
+import { CopyButton } from "#primitives/copy-button";
+import { AlertTriangle, CircleAlert, Icon, Info } from "#primitives/icons";
 import type { MessageListHandle } from "#primitives/message-list";
 import { MessageList } from "#primitives/message-list";
-import { Text } from "#primitives/text";
 import { logViewerVariants } from "./variants.ts";
 
 const LOG_LEVELS = ["info", "warn", "error"] as const;
@@ -86,7 +85,6 @@ export interface LogViewerProps {
  * lines via `message-list`, which then requires a bounded height on `className` (e.g. `h-64`).
  */
 export function LogViewer({ lines, maxLines, className }: LogViewerProps): ReactElement {
-  const [copyFailed, setCopyFailed] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   // Updated only from a real scroll event, never from the autoscroll effect — reflects "was the
   // reader at the bottom before this append". Starts true: an empty/short log begins pinned.
@@ -154,24 +152,10 @@ export function LogViewer({ lines, maxLines, className }: LogViewerProps): React
     isNearBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight <= NEAR_BOTTOM_SLACK_PX;
   };
 
-  const handleCopy = (): void => {
-    navigator.clipboard.writeText(visible.map(textOf).join("\n")).then(
-      () => setCopyFailed(false),
-      () => setCopyFailed(true),
-    );
-  };
-
   return (
     <div className={cn(slots.root(), className)} data-slot="log-viewer-root">
       <div className={slots.toolbar()} data-slot="log-viewer-toolbar">
-        {copyFailed ? (
-          <Text voice="gloss" role="alert">
-            Couldn&apos;t copy log.
-          </Text>
-        ) : null}
-        <Button type="button" intent="ghost" size="sm" onClick={handleCopy}>
-          <Icon icon={Copy} size="sm" label="Copy log" />
-        </Button>
+        <CopyButton className={slots.copy()} iconOnly={true} intent="ghost" text={visible.map(textOf).join("\n")} what="log" />
       </div>
       {shouldVirtualize ? (
         // message-list already owns the scroll container + the role="log"/live-region pair (its liveness

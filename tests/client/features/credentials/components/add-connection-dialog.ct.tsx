@@ -393,7 +393,7 @@ test.describe("the setup-token command", () => {
     await expect(dialog.getByRole("status").filter({ hasText: "Copied." })).toHaveText("Copied. Paste it into a terminal on that machine.");
   });
 
-  test("a refused copy says so and points at the command to copy by hand", async ({ mount, page }) => {
+  test("a refused copy says so and selects the command to copy by hand", async ({ mount, page }) => {
     await stubConnectionsPane(page);
     await mount(<ConnectionsAuthoringStory width={870} />);
     const dialog = await openAddDialog(page);
@@ -403,7 +403,9 @@ test.describe("the setup-token command", () => {
     });
 
     await dialog.getByRole("button", { name: "Copy the command claude setup-token" }).click();
-    await expect(dialog.getByRole("status").filter({ hasText: "Couldn't copy" })).toHaveText("Couldn't copy — select the command and copy it by hand.");
+    const manual = dialog.getByRole("textbox", { name: "the command claude setup-token", exact: true });
+    await expect(manual).toBeFocused();
+    await expect(manual).toHaveValue("claude setup-token");
   });
 });
 

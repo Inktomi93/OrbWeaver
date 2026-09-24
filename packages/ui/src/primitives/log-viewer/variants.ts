@@ -10,6 +10,7 @@ export const logViewerVariants = tv({
   slots: {
     root: "flex flex-col overflow-hidden rounded-control border border-border bg-card font-mono text-code leading-label-relaxed",
     toolbar: "flex shrink-0 justify-end border-b border-border p-field",
+    copy: "justify-end",
     // tabIndex=0 (WCAG 2.1.1 keyboard-scrollable) needs a visible focus ring; `ring-inset` keeps it
     // inside the root's own `overflow-hidden` boundary instead of getting clipped.
     scroll: `relative flex-1 overflow-y-auto overscroll-contain p-block outline-none ${FOCUS_RING_INSET}`,

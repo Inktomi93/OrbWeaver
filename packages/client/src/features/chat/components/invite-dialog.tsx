@@ -8,6 +8,7 @@
 import type { ChatId, ChatInviteId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
+import { CopyButton } from "@orb/ui/copy-button";
 import { Row, Stack } from "@orb/ui/layout";
 import { Separator } from "@orb/ui/separator";
 import { Text } from "@orb/ui/text";
@@ -20,7 +21,7 @@ import { useState } from "react";
 import { FormDialog } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
-import { notify, testId, timeLib } from "#lib";
+import { copyWithNotice, notify, testId, timeLib } from "#lib";
 import { useInviteForm } from "../hooks/use-invite-form.ts";
 import { useCreateInvite, useRevokeInvite } from "../hooks/use-invite-mutations.ts";
 import type { InviteFormValues } from "../lib/invite-form-model.ts";
@@ -81,7 +82,7 @@ function InviteMintForm({ chatId }: { readonly chatId: ChatId }): ReactElement {
       }
       const link = `${globalThis.location.origin}/join/${encodeURIComponent(token)}`;
       setMintedLink(link);
-      await copyLink(link);
+      await copyWithNotice(link, "Invite link copied — anyone with it can join.");
       return values;
     } catch (error) {
       if (values.mode === "handle" && isBadRequest(error)) {
@@ -167,27 +168,14 @@ function InviteMintForm({ chatId }: { readonly chatId: ChatId }): ReactElement {
               <Text voice="label" className="font-mono break-all">
                 {mintedLink}
               </Text>
-              <Row gap="field" align="center">
-                <Button type="button" intent="secondary" size="sm" onClick={(): void => void copyLink(mintedLink)} data-testid={testId("inviteCopyLink")}>
-                  Copy link
-                </Button>
-                <Text voice="gloss">Copy it now — you won't see this link again.</Text>
-              </Row>
+              <Text voice="gloss">Copy it now — you won't see this link again.</Text>
+              <CopyButton copiedHint="Anyone with it can join." data-testid={testId("inviteCopyLink")} text={mintedLink} what="invite link" />
             </Stack>
           )}
         </Stack>
       </form>
     </form.AppForm>
   );
-}
-
-async function copyLink(link: string): Promise<void> {
-  try {
-    await navigator.clipboard.writeText(link);
-    notify.success("Invite link copied — anyone with it can join.");
-  } catch {
-    notify.error("Couldn't copy the invite link — copy it from the dialog.");
-  }
 }
 
 function OutstandingInvites({ chatId }: { readonly chatId: ChatId }): ReactElement | null {
