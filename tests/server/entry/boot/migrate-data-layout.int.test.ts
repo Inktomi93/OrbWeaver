@@ -111,6 +111,15 @@ describe("migrateDataLayout", () => {
     expect(report.resumed).toBe(false);
     expect(report.leftInPlace).toEqual(["notes.txt"]);
     expect(readdirSync(root).sort()).toEqual(["assets", "backups", "cache", "db", "notes.txt", "reports", "secrets", "users"]);
+    // The sidecars the close left behind moved with the db, checked BEFORE anything opens it (a close removes
+    // them). The WAL is EMPTY (truncated before the move, so the moved db carries every row in its main
+    // file); the `-shm` is the fixed-size WAL index and holds no rows.
+    const sidecars = report.moved.filter((move) => move.from === `${DB_FILE_NAME}-wal` || move.from === `${DB_FILE_NAME}-shm`);
+    for (const sidecar of sidecars) {
+      expect(existsSync(join(root, sidecar.to))).toBe(true);
+    }
+    const wal = sidecars.find((move) => move.from === `${DB_FILE_NAME}-wal`);
+    expect(wal === undefined ? 0 : statSync(join(root, wal.to)).size).toBe(0);
     // The db reads at its new path, including the row that was only in the WAL.
     expect(await probeValues(join(root, "db", DB_FILE_NAME))).toEqual(["checkpointed", "wal-only"]);
     // The legacy backups and the pin moved, and the pre-move snapshot joined them as a complete db.
@@ -137,14 +146,6 @@ describe("migrateDataLayout", () => {
     expect(await createCas(layout.assets).verify(OWNER, hash)).toBe(true);
     expect(readFileSync(join(root, "users", "user_x", "state.json"), "utf-8")).toBe("{}");
     expect(existsSync(join(root, LAYOUT_JOURNAL))).toBe(false);
-    // The sidecars the close left behind moved with the db. The WAL is EMPTY (truncated before the move, so
-    // the moved db carries every row in its main file); the `-shm` is the fixed-size WAL index and holds no rows.
-    const sidecars = report.moved.filter((move) => move.from === `${DB_FILE_NAME}-wal` || move.from === `${DB_FILE_NAME}-shm`);
-    for (const sidecar of sidecars) {
-      expect(existsSync(join(root, sidecar.to))).toBe(true);
-    }
-    const wal = sidecars.find((move) => move.from === `${DB_FILE_NAME}-wal`);
-    expect(wal === undefined ? 0 : statSync(join(root, wal.to)).size).toBe(0);
     const named = report.moved.filter((move) => !sidecars.includes(move)).map((move) => move.from);
     expect(named.sort()).toEqual(
       [

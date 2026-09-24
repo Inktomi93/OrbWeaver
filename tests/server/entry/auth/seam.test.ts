@@ -23,6 +23,7 @@ import type { ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
 import { ownerHandles } from "@orb/server/domain/sessions";
+import type { PerRequestSeamDeps } from "@orb/server/entry/auth";
 import { createAuthSeam, createHostPrincipalResolver } from "@orb/server/entry/auth";
 import type { AuthConfig } from "@orb/server/infra/auth";
 import { afterEach, vi } from "vitest";
@@ -55,7 +56,7 @@ function baseConfig(overrides: Partial<AuthConfig>): AuthConfig {
 
 /** The owner fallback is now gated on a LOOPBACK TCP peer (#298 f2), so every fallback-arm assertion drives
  *  the seam with one. A non-loopback peer is the DENY case (pinned in its own test below). */
-const LOOPBACK: { peerIp: string } = { peerIp: "127.0.0.1" };
+const LOOPBACK: PerRequestSeamDeps = { peerIp: "127.0.0.1", transport: "http" };
 
 /** A SessionsService whose unused verbs throw (the seam touches only validate/ensureUser/provisionIdentity
  *  — a throw proves a path didn't reach a verb it shouldn't). */
@@ -162,7 +163,7 @@ test("#298 f2: a NON-loopback peer is DENIED the owner fallback → null (was ow
   const users = fakeUsers();
   const seam = createAuthSeam({ config: baseConfig({ mode: "single-user" }), sessions: users.sessions });
 
-  const { principal } = await seam.resolvePrincipal(new Headers({ host: "127.0.0.1" }), { peerIp: "192.168.1.27" });
+  const { principal } = await seam.resolvePrincipal(new Headers({ host: "127.0.0.1" }), { peerIp: "192.168.1.27", transport: "http" });
 
   expect(principal).toBeNull();
   expect(users.ensured).toEqual([]);
@@ -256,7 +257,7 @@ test("a valid cookie resolves DIRECTLY via sessions.validate (userId carried, ro
   });
 
   const headers = new Headers({ cookie: "__Host-orb_session=tok123" });
-  const { principal } = await seam.resolvePrincipal(headers);
+  const { principal } = await seam.resolvePrincipal(headers, { transport: "https" });
 
   expect(principal).toEqual({
     userId: COOKIE_UID,
@@ -274,9 +275,46 @@ test("an invalid cookie under fallback=deny is unauthenticated (null), not the o
   });
 
   const headers = new Headers({ cookie: "__Host-orb_session=stale" });
-  const { principal } = await seam.resolvePrincipal(headers);
+  const { principal } = await seam.resolvePrincipal(headers, { transport: "https" });
 
   expect(principal).toBeNull();
+});
+
+// Rule C: the READ is keyed by the request's transport. The insecure name has no `__Host-` prefix, so a
+// plain-http sibling origin can plant it; an https request must never read it, or the prefix guards nothing.
+test("an https request ignores a planted insecure-name cookie; the same cookie authenticates over http", async () => {
+  const seen: string[] = [];
+  const seam = createAuthSeam({
+    config: baseConfig({ mode: "local", fallback: "deny" }),
+    sessions: stubSessions({
+      validate: (token) => {
+        seen.push(token);
+        return Promise.resolve({
+          sessionId: castId<SessionId>("sess_cookie"),
+          userId: COOKIE_UID,
+          role: "user",
+          handle: castId<Handle>("alice"),
+          externalId: null,
+          enabled: true,
+        });
+      },
+    }),
+  });
+  const planted = new Headers({ cookie: "orb_session_insecure=planted" });
+  expect((await seam.resolvePrincipal(planted, { transport: "https" })).principal).toBeNull();
+  expect(seen).toEqual([]);
+  // Control: the same header on a plain-http request is that transport's own cookie.
+  expect((await seam.resolvePrincipal(planted, { transport: "http" })).principal?.userId).toBe(COOKIE_UID);
+  expect(seen).toEqual(["planted"]);
+});
+
+test("an http request never reads the __Host- cookie", async () => {
+  const seam = createAuthSeam({
+    config: baseConfig({ mode: "local", fallback: "deny" }),
+    sessions: stubSessions({ validate: () => Promise.reject(new Error("validate must not run: no cookie of this transport")) }),
+  });
+  const secureOnly = new Headers({ cookie: "__Host-orb_session=tok123" });
+  expect((await seam.resolvePrincipal(secureOnly, { transport: "http" })).principal).toBeNull();
 });
 
 test("a stale cookie is IGNORED outside cookie modes (forward-header never calls validate)", async () => {
@@ -305,7 +343,7 @@ test("a stale cookie is IGNORED outside cookie modes (forward-header never calls
     cookie: "__Host-orb_session=leftover",
     "x-forwarded-user": "bob",
   });
-  const { principal } = await seam.resolvePrincipal(headers, { peerIp: "10.1.2.3" });
+  const { principal } = await seam.resolvePrincipal(headers, { peerIp: "10.1.2.3", transport: "http" });
 
   expect(principal?.userId).toBe(HEADER_UID);
   expect(principal?.via).toBe("header");
@@ -334,7 +372,7 @@ test("an SSO header upserts via provisionIdentity and carries the resolved role"
   });
 
   const headers = new Headers({ "x-forwarded-user": "carol" });
-  const { principal } = await seam.resolvePrincipal(headers, { peerIp: "10.1.2.3" });
+  const { principal } = await seam.resolvePrincipal(headers, { peerIp: "10.1.2.3", transport: "http" });
 
   expect(principal?.role).toBe("admin");
   expect(principal?.handle).toBe("carol");
@@ -354,7 +392,7 @@ test("B1 anti-spoof: an SSO header from an UNTRUSTED peer is rejected even with 
   });
 
   const headers = new Headers({ "x-forwarded-user": "owner", "x-forwarded-for": "10.1.2.3" });
-  const { principal } = await seam.resolvePrincipal(headers, { peerIp: "203.0.113.9" });
+  const { principal } = await seam.resolvePrincipal(headers, { peerIp: "203.0.113.9", transport: "http" });
 
   expect(principal).toBeNull();
 });
@@ -380,6 +418,7 @@ test("a disabled SSO row is gated to null (disable takes effect next request, no
 
   const { principal } = await seam.resolvePrincipal(new Headers({ "x-forwarded-user": "dave" }), {
     peerIp: "10.1.2.3",
+    transport: "http",
   });
   expect(principal).toBeNull();
 });
@@ -388,8 +427,8 @@ test("the CSRF header presence is surfaced as a signal (the ladder gates, not th
   vi.stubEnv(OWNER_HANDLES_VAR, OWNER_HANDLE);
   const seam = createAuthSeam({ config: baseConfig({ mode: "single-user" }), sessions: fakeUsers().sessions });
 
-  const withHeader = await seam.resolvePrincipal(new Headers({ "x-orb-csrf": "1" }));
-  const without = await seam.resolvePrincipal(new Headers());
+  const withHeader = await seam.resolvePrincipal(new Headers({ "x-orb-csrf": "1" }), { transport: "http" });
+  const without = await seam.resolvePrincipal(new Headers(), { transport: "http" });
 
   expect(withHeader.csrfHeaderPresent).toBe(true);
   expect(without.csrfHeaderPresent).toBe(false);
@@ -439,7 +478,7 @@ test("debugGateAdmits requires a CREDENTIAL as well as the OWNER role", async ()
           }),
       }),
     });
-    return (await seam.resolvePrincipal(new Headers({ cookie: "__Host-orb_session=t" }))).principal;
+    return (await seam.resolvePrincipal(new Headers({ cookie: "__Host-orb_session=t" }), { transport: "https" })).principal;
   };
   const cookieSeam = createAuthSeam({ config: baseConfig({ mode: "local" }), sessions: stubSessions({}) });
   expect(cookieSeam.debugGateAdmits(await cookiePrincipal("owner"), new Headers())).toBe(true);
@@ -469,7 +508,7 @@ test("debugGateAdmits takes a VERIFIED SSO identity, never a proxy-asserted one"
   });
 
   const signedHeaders = new Headers({ "x-authentik-jwt": "jwt", "x-authentik-meta-jwks": "{}" });
-  const signed = (await seam.resolvePrincipal(signedHeaders)).principal;
+  const signed = (await seam.resolvePrincipal(signedHeaders, { transport: "http" })).principal;
   expect(signed?.via).toBe("header");
   expect(seam.debugGateAdmits(signed, signedHeaders)).toBe(true);
 

@@ -6,6 +6,8 @@ export type { BackfillPluginProvenanceOnBootDeps } from "./backfill-plugin-prove
 export { backfillPluginProvenanceOnBoot } from "./backfill-plugin-provenance.ts";
 export type { BootSecrets, BootSecretsDeps } from "./boot-secrets.ts";
 export { settleBootSecrets } from "./boot-secrets.ts";
+export type { BootDisclaimerInput, BootDisclaimerLine, BootSecretProvenance } from "./disclaimer.ts";
+export { BOOT_DISCLAIMER_TOPICS, composeBootDisclaimer } from "./disclaimer.ts";
 export type { HealLegacyBackgroundPinsDeps } from "./heal-legacy-background-pins.ts";
 export { healLegacyBackgroundPinsOnBoot } from "./heal-legacy-background-pins.ts";
 export type { LocalLightPrefetchPlanDeps } from "./local-light-prefetch.ts";

@@ -45,6 +45,7 @@ import { createLocalLightUserSeed } from "@orb/server/entry/boot";
 import type { AuthRoutesDeps, OidcRoutesDeps } from "@orb/server/entry/http";
 import { registerAuthRoutes } from "@orb/server/entry/http";
 import type { OidcTransaction, OidcVerifiedTokens } from "@orb/server/infra/auth";
+import { OIDC_BINDING_COOKIE_NAME_SECURE } from "@orb/server/infra/auth";
 import { Hono } from "hono";
 import { beforeEach, describe } from "vitest";
 import { freshDb } from "../../support/db.ts";
@@ -63,6 +64,9 @@ const END_SESSION = "https://idp.example/application/o/orb/end-session/";
 const PEPPER = "test-session-secret-at-least-32-chars-long";
 const USER_ID = castId<UserId>("user_alice");
 const ALLOWLISTED_ORIGIN = { "x-forwarded-proto": "https", "x-forwarded-host": APP_HOST };
+/** The TLS proxy on this host: a loopback socket peer, so its `X-Forwarded-Proto: https` is believed and the
+ *  session rides the https cookie (`infra/auth/transport.ts`). */
+const PROXY_PEER = { incoming: { socket: { remoteAddress: "127.0.0.1", remotePort: 40_000, remoteFamily: "IPv4" } } };
 /** #867 — the PKCE/state transaction the authorize leg minted; the callback consumes it single-use. Its
  *  `redirectUri` is the allowlisted callback the exchange must be presented, whatever origin the request
  *  arrives on. */
@@ -139,19 +143,28 @@ async function signInWith(idToken: string | null): Promise<string> {
 
 /** Drive the REAL logout route with that cookie and return the `endSessionUrl` it hands the client. */
 async function signOut(token: string, origin: Record<string, string>): Promise<string | null> {
-  const res = await app.request("/api/auth/logout", {
-    method: "POST",
-    headers: { cookie: `${COOKIE_NAME}=${token}`, [CSRF_HEADER]: "1", ...origin },
-  });
+  const res = await app.request(
+    "/api/auth/logout",
+    {
+      method: "POST",
+      headers: { cookie: `${COOKIE_NAME}=${token}`, [CSRF_HEADER]: "1", ...origin },
+    },
+    PROXY_PEER,
+  );
   expect(res.status).toBe(200);
   return ((await res.json()) as { endSessionUrl: string | null }).endSessionUrl;
 }
 
 /** Drive the REAL OIDC callback and return the `__Host-orb_session` token it minted. Nothing is stubbed
  *  between the exchange and the database: the route provisions through the real verb, mints through the
- *  real create verb, and the cookie is whatever the route actually wrote. */
+ *  real create verb, and the cookie is whatever the route actually wrote. The browser carries the binding
+ *  the authorize leg set for `TX.state` (`oidc-login-binding.suite.int.test.ts` proves that leg). */
 async function signInViaCallback(): Promise<SessionToken> {
-  const res = await app.request(`/api/auth/oidc/callback?state=${TX.state}&code=auth-code`, { headers: ALLOWLISTED_ORIGIN });
+  const res = await app.request(
+    `/api/auth/oidc/callback?state=${TX.state}&code=auth-code`,
+    { headers: { ...ALLOWLISTED_ORIGIN, cookie: `${OIDC_BINDING_COOKIE_NAME_SECURE}=${TX.state}` } },
+    PROXY_PEER,
+  );
   expect(res.status).toBe(302);
   expect(res.headers.get("location")).toBe("/");
   const setCookie = res.headers.get("set-cookie") ?? "";

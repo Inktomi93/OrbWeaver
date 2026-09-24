@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import { SECRET_FILE_NAMES } from "@orb/server/foundation/data-layout";
-import { decode32Bytes, loadOrCreateKeyfile, resolveCredentialsKey, resolveSessionSecret } from "@orb/server/infra/crypto";
+import { bootSecretProvenance, decode32Bytes, loadOrCreateKeyfile, resolveCredentialsKey, resolveSessionSecret } from "@orb/server/infra/crypto";
 import { afterEach, describe } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
@@ -227,5 +227,30 @@ describe("the boot secret resolvers", () => {
     const credentials = resolveCredentialsKey(source(dir));
     expect(session.kind === "resolved" ? session.value : null).toBe(secret?.toString("hex"));
     expect(credentials.kind === "resolved" && credentials.value?.equals(key ?? Buffer.alloc(0))).toBe(true);
+  });
+});
+
+// The boot disclaimer names each secret's source; it must be the source the resolver actually used, and the
+// keyfile it names is the one under the layout's secrets dir.
+describe("bootSecretProvenance", () => {
+  test("an empty CREDENTIALS_KEY is not explicit (the resolver falls back to the keyfile), an empty SESSION_SECRET is", () => {
+    const provenance = bootSecretProvenance({
+      sessionSecret: "",
+      credentialsKey: "",
+      databaseUrl: "file:/srv/orb/db/orbweaver.db",
+      secretsDir: "/srv/orb/secrets",
+    });
+    expect(provenance.credentialsKey).toEqual({ explicit: false, keyfile: `/srv/orb/secrets/${SECRET_FILE_NAMES.credentialsKey}` });
+    expect(provenance.sessionSecret).toEqual({ explicit: true, keyfile: `/srv/orb/secrets/${SECRET_FILE_NAMES.sessionSecret}` });
+  });
+
+  test("a remote database has no keyfile", () => {
+    const provenance = bootSecretProvenance({
+      sessionSecret: undefined,
+      credentialsKey: undefined,
+      databaseUrl: "libsql://db.example.turso.io",
+      secretsDir: "/srv/orb/secrets",
+    });
+    expect(provenance).toEqual({ sessionSecret: { explicit: false, keyfile: null }, credentialsKey: { explicit: false, keyfile: null } });
   });
 });

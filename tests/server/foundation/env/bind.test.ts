@@ -1,16 +1,15 @@
-// Unit tests for the BIND POSTURE resolver (PROD-LEAK, 2026-08-09) — the deploy-mode invariant that a
-// NON-PRODUCTION process must not be reachable from an untrusted network. Two arms, both load-bearing:
-// the DEFAULT restriction (dev with no BIND_HOST listens on loopback, so a proxy off-box simply cannot
-// reach a dev build) and the REFUSE (an explicit non-loopback dev bind is boot-fatal unless the operator
-// opened ALLOW_DEV_PUBLIC_BIND). Production is deliberately untouched — the reverse-proxy target needs
-// every interface. The parse-time enforcement of `refusal` is pinned in index.test.ts.
+// Unit tests for the BIND POSTURE resolver: a NON-PRODUCTION process must not be reachable from an untrusted
+// network, and single-user (no login) serves this machine only. The parse-time enforcement of `refusal` is
+// pinned in index.test.ts.
 
 import { bindPostureWarnings, resolveBindPosture } from "@orb/server/foundation/env";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
-const HATCH_OPEN = { allowDevPublicBind: true } as const;
-const HATCH_SHUT = { allowDevPublicBind: false } as const;
+// The deploy-mode arms are mode-independent; a login mode keeps the single-user arm out of them.
+const HATCH_OPEN = { allowDevPublicBind: true, authMode: "local", ownerPeersDeclared: false } as const;
+const HATCH_SHUT = { allowDevPublicBind: false, authMode: "local", ownerPeersDeclared: false } as const;
+const SINGLE_USER = { authMode: "single-user", allowDevPublicBind: false, ownerPeersDeclared: false } as const;
 
 describe("resolveBindPosture — production binds where the proxy can reach it", () => {
   test("BIND_HOST unset → host undefined (node's default: every interface), no refusal", () => {
@@ -112,5 +111,49 @@ describe("resolveBindPosture — the REFUSE arm: an explicit dev public bind is 
     const posture = resolveBindPosture(input);
     expect(posture).toMatchObject({ host: undefined, publicBind: true, refusal: null });
     expect(bindPostureWarnings(input, posture)[0]).toContain("every interface");
+  });
+});
+
+describe("resolveBindPosture — single-user serves this machine only, in every NODE_ENV", () => {
+  test.each(["production", "development", "test"] as const)("NODE_ENV=%s, BIND_HOST unset → loopback, no refusal", (nodeEnv) => {
+    const posture = resolveBindPosture({ ...SINGLE_USER, nodeEnv, bindHost: undefined });
+    expect(posture).toMatchObject({ host: "127.0.0.1", publicBind: false, refusal: null });
+  });
+
+  test.each(["0.0.0.0", "::", "192.168.1.50"])("production + BIND_HOST=%s with no declared peer set → refusal naming the login mode", (bindHost) => {
+    const posture = resolveBindPosture({ ...SINGLE_USER, nodeEnv: "production", bindHost });
+    expect(posture.refusal).toContain("AUTH_MODE=local");
+  });
+
+  test("the dev hatch under single-user with no declared peer set → refusal (the hatch is not an owner door)", () => {
+    const posture = resolveBindPosture({ ...SINGLE_USER, nodeEnv: "development", bindHost: undefined, allowDevPublicBind: true });
+    expect(posture.refusal).toContain("AUTH_MODE=local");
+  });
+
+  test("a declared peer set admits the public bind (the container shape)", () => {
+    const posture = resolveBindPosture({ ...SINGLE_USER, nodeEnv: "production", bindHost: "0.0.0.0", ownerPeersDeclared: true });
+    expect(posture).toMatchObject({ host: "0.0.0.0", publicBind: true, refusal: null });
+  });
+
+  test("a declared peer set with BIND_HOST unset still binds loopback (it lifts a refusal, it never widens a default)", () => {
+    const posture = resolveBindPosture({ ...SINGLE_USER, nodeEnv: "production", bindHost: undefined, ownerPeersDeclared: true });
+    expect(posture).toMatchObject({ host: "127.0.0.1", publicBind: false, refusal: null });
+  });
+
+  test("a declared peer set does not lift the non-production refusal", () => {
+    const posture = resolveBindPosture({ ...SINGLE_USER, nodeEnv: "development", bindHost: "0.0.0.0", ownerPeersDeclared: true });
+    expect(posture.refusal).not.toBeNull();
+    expect(posture.refusal).not.toContain("AUTH_MODE=local");
+  });
+
+  test("an explicit loopback bind is honored", () => {
+    const posture = resolveBindPosture({ ...SINGLE_USER, nodeEnv: "production", bindHost: "127.0.0.1" });
+    expect(posture).toMatchObject({ host: "127.0.0.1", publicBind: false, refusal: null });
+  });
+
+  // Control: every login mode keeps the production posture, node's default of every interface.
+  test.each(["local", "oidc", "forward-header"] as const)("control: AUTH_MODE=%s in production still binds every interface", (authMode) => {
+    const posture = resolveBindPosture({ ...SINGLE_USER, authMode, nodeEnv: "production", bindHost: undefined });
+    expect(posture).toMatchObject({ host: undefined, publicBind: true, refusal: null });
   });
 });

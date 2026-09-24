@@ -48,6 +48,16 @@ export function decode32Bytes(raw: string): Buffer | null {
   return null;
 }
 
+// Whether an explicit env value wins over the keyfile. ONE predicate per secret, shared by its resolver and by
+// `bootSecretProvenance`, so the boot disclaimer can never name a source the resolver did not use.
+function explicitCredentialsKey(raw: string | undefined): raw is string {
+  return raw !== undefined && raw !== "";
+}
+
+function explicitSessionSecret(raw: string | undefined): raw is string {
+  return raw !== undefined;
+}
+
 // Use stderr, NOT getLog(): the logger may not be initialized at this boot point, and a logger→env→crypto
 // import cycle is the hazard. Silenced under tests, which spin temp keyfiles up and down constantly.
 function reportKeyfile(line: string): void {
@@ -156,6 +166,31 @@ function keyfilePath(source: BootSecretSource, name: string): string | null {
   return source.databaseUrl.startsWith(FILE_URL_PREFIX) ? join(source.secretsDir, name) : null;
 }
 
+/** Where each boot secret comes from: the explicit env value, else its keyfile under the layout's secrets dir
+ *  (`null` for a remote db). The boot disclaimer names it back to the operator. */
+export function bootSecretProvenance(
+  source: {
+    readonly sessionSecret: string | undefined;
+    readonly credentialsKey: string | undefined;
+    readonly databaseUrl: string;
+    readonly secretsDir: string;
+  } = {
+    sessionSecret: env.SESSION_SECRET,
+    credentialsKey: env.CREDENTIALS_KEY,
+    databaseUrl: env.DATABASE_URL,
+    secretsDir: env.DATA_LAYOUT.secrets,
+  },
+): {
+  readonly sessionSecret: { readonly explicit: boolean; readonly keyfile: string | null };
+  readonly credentialsKey: { readonly explicit: boolean; readonly keyfile: string | null };
+} {
+  const location = { explicit: undefined, databaseUrl: source.databaseUrl, secretsDir: source.secretsDir };
+  return {
+    sessionSecret: { explicit: explicitSessionSecret(source.sessionSecret), keyfile: keyfilePath(location, SECRET_FILE_NAMES.sessionSecret) },
+    credentialsKey: { explicit: explicitCredentialsKey(source.credentialsKey), keyfile: keyfilePath(location, SECRET_FILE_NAMES.credentialsKey) },
+  };
+}
+
 // The keyfile half of a resolution, shared by both secrets: remote db → resolved null; an entry at the path
 // (a file, a symlink, anything) → read it; nothing there → absent, and nothing is written.
 function resolveKeyfile(source: BootSecretSource, name: string, remoteNotice: string): BootSecretResolution<Buffer> {
@@ -176,7 +211,7 @@ function resolveKeyfile(source: BootSecretSource, name: string, remoteNotice: st
 export function resolveCredentialsKey(
   source: BootSecretSource = { explicit: env.CREDENTIALS_KEY, databaseUrl: env.DATABASE_URL, secretsDir: env.DATA_LAYOUT.secrets },
 ): BootSecretResolution<Buffer> {
-  if (source.explicit !== undefined && source.explicit !== "") {
+  if (explicitCredentialsKey(source.explicit)) {
     return { kind: "resolved", value: decode32Bytes(source.explicit), path: null };
   }
   return resolveKeyfile(
@@ -192,7 +227,7 @@ export function resolveCredentialsKey(
 export function resolveSessionSecret(
   source: BootSecretSource = { explicit: env.SESSION_SECRET, databaseUrl: env.DATABASE_URL, secretsDir: env.DATA_LAYOUT.secrets },
 ): BootSecretResolution<string> {
-  if (source.explicit !== undefined) {
+  if (explicitSessionSecret(source.explicit)) {
     return { kind: "resolved", value: source.explicit, path: null };
   }
   const keyfile = resolveKeyfile(

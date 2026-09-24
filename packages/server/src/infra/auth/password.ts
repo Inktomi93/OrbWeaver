@@ -9,7 +9,7 @@
 //
 // DI idiom (mirrors infra/crypto's createSecretBox / createTokenHasher): the SESSION_SECRET PEPPER
 // arrives as a CONSTRUCTOR param — this module does NOT read env. entry/lifecycle builds the live one from
-// the pepper it resolved once (`infra/crypto::sessionSecretFromEnv`). An unset pepper ⇒ a DISABLED hasher
+// the pepper it resolved once (`infra/crypto::resolveSessionSecret`, settled by `entry/boot/boot-secrets.ts`). An unset pepper ⇒ a DISABLED hasher
 // (hash/verify throw at CALL time); lifecycle refuses to boot a cookie mode without one, so the throw guards
 // misconfig.
 // Rotating SESSION_SECRET invalidates all local passwords (same blast radius as session invalidation).

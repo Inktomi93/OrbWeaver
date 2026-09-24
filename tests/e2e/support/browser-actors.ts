@@ -12,15 +12,15 @@
 // two-human PIXELS belong here, next to the two-human wire drives.
 //
 // THE AUTH DOOR IS THE REAL ONE: `POST /api/auth/login` (the same form the login screen submits) against
-// the CONTEXT's own request jar, so the `__Host-orb_session` cookie lands in that context's cookies exactly
-// as a human's login would — never a storage-state injection, never a bypass. (`__Host-` requires `Secure`;
-// Chromium treats `localhost` as a trustworthy origin, so the cookie is accepted over the project's plain
-// http origin — the same reason the dev stack works in a browser.)
+// the CONTEXT's own request jar, so the session cookie lands in that context's cookies exactly as a human's
+// login would — never a storage-state injection, never a bypass. The project's origin is plain http with no
+// proxy, so the server mints the http transport's cookie (`infra/auth/transport.ts`).
 //
 // Kept in the e2e-support tree, import-free of the app/package trees (the `trpc.ts`/`actors.ts` posture).
 
 import type { ChatId, Handle } from "@orb/kit/ids";
 import type { Browser, BrowserContext, Page } from "@playwright/test";
+import { SESSION_COOKIE } from "./actors.ts";
 
 /** One human's isolated browser session: their own cookie jar + one page, already on the app. */
 export interface BrowserActor {
@@ -73,7 +73,7 @@ export async function openBrowserActor(browser: Browser, baseUrl: string, handle
     throw new Error(`openBrowserActor(${handle}): login failed (HTTP ${res.status()})`);
   }
   const cookies = await context.cookies(baseUrl);
-  if (!cookies.some((c) => c.name.endsWith("orb_session") && c.value !== "")) {
+  if (!cookies.some((c) => c.name === SESSION_COOKIE && c.value !== "")) {
     await context.close();
     throw new Error(`openBrowserActor(${handle}): login returned no session cookie the browser kept`);
   }

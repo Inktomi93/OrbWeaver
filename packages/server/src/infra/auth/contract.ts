@@ -128,6 +128,15 @@ export interface ResolveDeps {
 /** Reports one relayed request refused the owner fallback, keyed by its raw TCP peer. */
 export type RelayedFallbackNotice = (peerIp: string | undefined) => void;
 
+/** Reports one session minted over plain http for a public client, keyed by the resolved client address. */
+export type PublicHttpMintNotice = (clientIp: string | null) => void;
+
+/** An auth cookie's name (the session or the OIDC binding) and the `Set-Cookie` attributes that name requires. */
+export interface SessionCookie {
+  readonly name: string;
+  readonly attrs: string;
+}
+
 export type ModeResolver = (headers: Headers, config: AuthConfig, deps: ResolveDeps) => Promise<ResolvedIdentity | null>;
 
 /** Verification-tier output: the pre-row identity plus per-request signals. Carries no userId/role — the

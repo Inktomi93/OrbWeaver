@@ -22,13 +22,32 @@ Open <http://localhost:8788>, sign in, add an API key or point a connection at a
 (Ollama, KoboldCpp, LM Studio, vLLM, …). The full guide — login modes, LAN/HTTPS, your own vLLM, secrets,
 the dev overlay — is [`docker/README.md`](docker/README.md).
 
-**From source** (Node 26 + pnpm, any OS — see Develop below): `pnpm install && pnpm start` builds the
-client bundle if it needs building and runs the production server in this terminal at
-<http://localhost:8788>; Ctrl-C stops it. Single-user is the default: you are the owner from *this*
-machine, and another device on your network gets a 401 until you set `AUTH_MODE=local` in `.env` (copy
-`.env.example`) and put it behind HTTPS. `pnpm start` is plain Node — no bash, no `setsid` — and it runs
-the same thing the container does (`NODE_ENV=production node packages/server/src/entry/index.ts`); its
-macOS and Windows boots are not yet verified on real hardware.
+**From source** (Node 26 + pnpm, any OS — see Develop below): run `pnpm install && pnpm start`. The first
+run in a terminal asks for the port, who uses the app (just you, or people on your network) and how they
+sign in, and saves the answers in `.env`; you never edit that file by hand. `pnpm start --setup` asks
+again, offers your current answers, and changes only those settings. `pnpm start` then builds the client
+bundle if it needs building and runs the production server in this terminal at <http://localhost:8788>;
+Ctrl-C stops it. `pnpm start --port 9000` uses another port for one run without saving it. With no
+terminal to ask in (a service, CI, piped input), it asks nothing, writes nothing and starts on the
+defaults. "Just me" is the default: it has no login, so it listens on *this* machine only and you are the
+owner here. `pnpm start` is plain Node — no bash, no `setsid` — and it runs the same thing the container
+does (`NODE_ENV=production node packages/server/src/entry/index.ts`); its macOS and Windows boots are not
+yet verified on real hardware.
+
+**Other devices, and the internet.** Run `pnpm start --setup` and choose "people on my network": the
+server then listens on every interface and people sign in with a password; the first visit from this
+machine sets the owner's password. Setup prints the addresses to open from another device. The IP address
+always works; the `<name>.local` address works where `.local` names resolve (macOS and most phones;
+Windows and Linux may need mDNS support). Under WSL2, other devices cannot reach WSL's own address: turn on
+mirrored networking (`networkingMode=mirrored` in `.wslconfig`, Windows 11) or forward the port from
+Windows with `netsh interface portproxy add v4tov4 listenport=8788 connectport=8788 connectaddress=<WSL address>`.
+A phone at `http://192.168.1.20:8788` can sign in over plain http, but the password and
+the session cookie travel in clear on your network, and the login screen says so; put HTTPS in front when
+you can. For the internet, never forward a router port: run a tunnel instead. `tailscale serve --bg 8788`
+publishes the app to your tailnet over HTTPS, and `cloudflared tunnel run --token <token>` with a public
+hostname whose service is `http://localhost:8788` publishes it through Cloudflare. Never put a proxy or
+tunnel in front of single-user. The boot log states who can reach the box and who its owner is; the
+tunnel recipes, including Tailscale identity instead of passwords, are in [`docker/README.md`](docker/README.md).
 
 **Work on the code** (any OS): `pnpm install && pnpm dev` runs the watched server and the vite client
 from source in this terminal. Open <http://localhost:5173>; the server listens on 8788, and `PORT` and

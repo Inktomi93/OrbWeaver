@@ -12,7 +12,7 @@ test("a strict-console getter failure after capture closes the owned Chromium se
   let pageRequests = 0;
   const server = createServer((request, response) => {
     if (request.url === "/api/auth/login") {
-      response.writeHead(200, { "set-cookie": "orb_session=test-session; Path=/; HttpOnly" });
+      response.writeHead(200, { "set-cookie": "orb_session_insecure=test-session; Path=/; HttpOnly" });
       response.end();
       return;
     }

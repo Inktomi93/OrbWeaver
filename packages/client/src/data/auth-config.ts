@@ -5,7 +5,7 @@
 // features/auth re-exports this for its own login/account surfaces.
 
 import type { DeploymentRenderPolicy } from "@orb/contracts/chat";
-import type { AuthMode } from "@orb/contracts/identity";
+import type { AuthMode, ClientScope, RequestTransport } from "@orb/contracts/identity";
 import type { UploadCaps } from "@orb/contracts/uploads";
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import type { UseQueryResult } from "@tanstack/react-query";
@@ -55,6 +55,11 @@ export interface AuthConfig {
    *  derive from (resolved server-side, incl. the admin-tunable `maxImageBytes` clamp on the image cap).
    *  The `useUploadCaps` hook falls back to `DEFAULT_UPLOAD_CAPS` until this config has landed. */
   readonly uploads: UploadCaps;
+  /** How THIS page load reached the server: `https` only when a trusted proxy said so. Over `http` the login
+   *  password and the session cookie travel in clear, and the login surface says so. */
+  readonly transport: RequestTransport;
+  /** Whether THIS request's client address is private or on the public internet (the red notice case). */
+  readonly clientScope: ClientScope;
 }
 
 export const AUTH_CONFIG_KEY = ["auth", "config"] as const;

@@ -1,0 +1,28 @@
+# ── overlay: a Cloudflare Tunnel in front, as a sidecar ─────────────────────────────────────────────
+#
+#   CLOUDFLARE_TUNNEL_TOKEN=<your tunnel token> docker compose -f docker-compose.yaml -f docker/compose.cloudflared.yaml up -d --build
+#
+# The sidecar dials OUT to Cloudflare; nothing is published and no router port is opened. In the Cloudflare
+# dashboard (Zero Trust → Networks → Tunnels) create a tunnel, copy its token, and add a public hostname whose
+# service is http://orbweaver:8788 — the compose service name on this project's network.
+#
+# NEEDS A LOGIN MODE. Every tunnelled request carries forwarding headers, so under the shipped single-user
+# default it is never the owner and answers 401. In docker/orbweaver.local.env set AUTH_MODE=local (or oidc),
+# AUTH_FALLBACK=deny and AUTH_FALLBACK_TRUSTED_PEERS= (empty). Cloudflare sends X-Forwarded-Proto: https from a
+# private address on this network, so the session cookie is Secure. Full recipe: docker/README.md,
+# "From the internet: a tunnel".
+#
+# The token rides in the environment, so `docker inspect` shows it. To keep it in a file, mount one and set
+# TUNNEL_TOKEN_FILE instead (cloudflared reads either).
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:2026.9.1@sha256:b269e8abd07a5bf6f3f4be65d5050b2174eca89c56a0241a8ff32a16aec454e4
+    command: ["tunnel", "run"]              # the image's entrypoint is `cloudflared --no-autoupdate`
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?set CLOUDFLARE_TUNNEL_TOKEN to your tunnel token}
+    depends_on: [orbweaver]
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]

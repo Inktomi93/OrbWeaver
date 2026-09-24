@@ -64,12 +64,17 @@ interface PersonaRow {
   readonly id: string;
   readonly name: string;
 }
-/** `chat.previewAssembly`'s return — the host's dry-run BUILD product for the next turn. Read as opaque
- *  bytes here (the whole payload is serialized and searched): the claim under test is "does the member's
- *  persona REACH the shared assembly at all", not which slice it lands in. `peekPrompt` would be the tighter
- *  instrument but is a DOMAIN verb with no tRPC procedure (verified: `chat.peekPrompt` 404s at the wire), so
- *  `previewAssembly` — same `requireHost` gate, same resolved assemble context — is the live door. */
+/** `chat.previewAssembly`'s return — the host's dry-run BUILD product for the next turn. Mostly read as opaque
+ *  bytes (the whole payload is serialized and searched for "does this persona reach the shared assembly at
+ *  all"). `peekPrompt` would be the tighter instrument but is a DOMAIN verb with no tRPC procedure (verified:
+ *  `chat.peekPrompt` 404s at the wire), so `previewAssembly` — same `requireHost` gate, same resolved assemble
+ *  context — is the live door. */
 type AssemblyPreview = Readonly<Record<string, unknown>>;
+/** The budget subset of a preview: one row per part of each section. The `persona` section's rows are the
+ *  persona marker's people block, the voice part (the `{{user}}` persona) first, then each other present human. */
+interface PreviewBudget {
+  readonly budget: { readonly sections: readonly { readonly sectionId: string; readonly rows: readonly { readonly label: string }[] }[] };
+}
 
 /** The seeded member's `users.id` — read through the owner-only admin surface (the host IS the box owner in
  *  this mode), because `/api/auth/me` deliberately returns handle+role, not the id the D16 write needs. */
@@ -333,6 +338,12 @@ test("EXPORT: the chat transcript download 404s for a seated MEMBER and 200s for
 const MEMBER_PERSONA_NAME = "Zaraine";
 const MEMBER_PERSONA_DESCRIPTION = "a wandering cartographer of the salt flats";
 const CARD_USER_PROBE = "{{user}} is my brother";
+const PERSONA_SECTION_ID = "persona";
+
+/** The persona marker's row labels in a preview, voice part first. Empty when the section rendered nothing. */
+function personaRowLabels(preview: PreviewBudget): readonly string[] {
+  return preview.budget.sections.find((section) => section.sectionId === PERSONA_SECTION_ID)?.rows.map((row) => row.label) ?? [];
+}
 
 test("D122 ANCHOR: a HOST-pinned MEMBER-OWNED persona resolves in the room plane (card + assembly), and is not a dead pin", async ({ baseURL }) => {
   test.setTimeout(120_000);
@@ -364,22 +375,30 @@ test("D122 ANCHOR: a HOST-pinned MEMBER-OWNED persona resolves in the room plane
     // own this steers the MEMBER's turns; the anchor pin below is what makes it the ROOM's `{{user}}`.
     await member.mutation("persona.setActivePersona", { chatId, personaId: persona.id });
 
-    // BEFORE THE PIN — the anchor is unset, so the room resolves the HOST's own persona: the card's
-    // `{{user}}` is NOT the member's. This is the honest baseline that makes the post-pin arm meaningful
-    // (and it is exactly what a DEAD pin would look like AFTER the pin, pre-D122).
-    const unpinned = await host.query<AssemblyPreview>("chat.previewAssembly", { chatId });
-    expect(JSON.stringify(unpinned)).not.toContain(MEMBER_PERSONA_NAME);
+    // BEFORE THE PIN — the room's anchor is the HOST's founding persona, so the voice part and the card's
+    // `{{user}}` are the host's. The member is PRESENT, so D122 already puts their persona in the shared prompt,
+    // but only as a headed people-block entry after the voice part, never as `{{user}}`. This is the honest
+    // baseline for the pin, and exactly what a DEAD pin would look like after it.
+    const unpinned = await host.query<AssemblyPreview & PreviewBudget>("chat.previewAssembly", { chatId });
+    const unpinnedBytes = JSON.stringify(unpinned);
+    expect(unpinnedBytes).toContain(MEMBER_PERSONA_NAME);
+    expect(unpinnedBytes).toContain(MEMBER_PERSONA_DESCRIPTION);
+    const unpinnedRows = personaRowLabels(unpinned);
+    expect(unpinnedRows.findIndex((label) => label.includes(MEMBER_PERSONA_NAME))).toBeGreaterThan(0);
+    const unpinnedCard = await member.query<MemberCard>("chat.getMemberCard", { chatId, characterId });
+    expect(unpinnedCard.description).not.toBe(`${MEMBER_PERSONA_NAME} is my brother`);
 
     // ── The HOST pins the MEMBER-OWNED persona as the room ANCHOR. Consent is the persona OWNER's present
     // membership, so this pin is legal — and D122's whole point is that it must not be a DEAD pin. ──
     await host.mutation("chat.setChatAnchorPersona", { chatId, personaId: persona.id });
 
-    // The room's SHARED assembly now carries the member-owned persona's name AND its description (owner
-    // ruling 2 — the presentation surface enters the shared prompt unconditionally, no toggle). Pre-D122 the
-    // resolver read personas under the host's ownership, so a member-owned anchor resolved NULL here.
-    const pinnedBytes = JSON.stringify(await host.query<AssemblyPreview>("chat.previewAssembly", { chatId }));
-    expect(pinnedBytes).toContain(MEMBER_PERSONA_NAME);
-    expect(pinnedBytes).toContain(MEMBER_PERSONA_DESCRIPTION);
+    // The room's SHARED assembly now voices the member-owned persona: its part moves to the front of the
+    // persona marker (ADR 0250 — the anchor human's seat persona binds `{{user}}`) and its description still
+    // rides (owner ruling 2 — the presentation surface enters the shared prompt unconditionally, no toggle).
+    // Pre-D122 the resolver read personas under the host's ownership, so a member-owned anchor resolved NULL.
+    const pinned = await host.query<AssemblyPreview & PreviewBudget>("chat.previewAssembly", { chatId });
+    expect(JSON.stringify(pinned)).toContain(MEMBER_PERSONA_DESCRIPTION);
+    expect(personaRowLabels(pinned)[0]).toContain(MEMBER_PERSONA_NAME);
 
     // The member's OWN card read renders card `{{user}}` against that anchor — the display side of the same
     // resolver, read as the member (whose card view is itself D22-clamped at the room's `sheet` default).
@@ -394,6 +413,16 @@ test("D122 ANCHOR: a HOST-pinned MEMBER-OWNED persona resolves in the room plane
     // REFUSAL: re-pinning the room anchor is HOST-only — a member cannot clear the host's pin.
     const refused = await member.expectError("chat.setChatAnchorPersona", { chatId, personaId: null }, "mutation");
     expect(refused.status).toBeGreaterThanOrEqual(HTTP_BAD_REQUEST);
+
+    // MEMBERSHIP GATE — consent is the persona owner's PRESENT membership. Once the member leaves, the pin
+    // stops resolving and their persona leaves the room's prompt entirely: not the voice part, not the people
+    // block, not the card's `{{user}}`. The pinned arm above is this arm's positive control.
+    await member.mutation("invites.selfLeave", { chatId });
+    const departedBytes = JSON.stringify(await host.query<AssemblyPreview>("chat.previewAssembly", { chatId }));
+    expect(departedBytes).not.toContain(MEMBER_PERSONA_NAME);
+    expect(departedBytes).not.toContain(MEMBER_PERSONA_DESCRIPTION);
+    const departedCard = await host.query<MemberCard>("chat.getMemberCard", { chatId, characterId });
+    expect(departedCard.description).not.toBe(`${MEMBER_PERSONA_NAME} is my brother`);
   } finally {
     await host.mutation("character.remove", { characterId });
     await member.mutation("persona.remove", { personaId: persona.id });

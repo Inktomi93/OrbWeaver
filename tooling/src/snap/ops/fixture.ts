@@ -19,8 +19,8 @@
 // (`--fixture-server`/`--fixture-base`, or SNAP_FIXTURE_SERVER_URL/SNAP_FIXTURE_BASE_URL) reaches the
 // health probe AND the browser's base URL together — never one without the other.
 //
-// AUTH DOOR: the same one a browser uses — `POST /api/auth/login` (handle+password form → the
-// `__Host-orb_session` cookie), never a bypass. Credentials mirror multi-user-fixture.sh's own defaults
+// AUTH DOOR: the same one a browser uses — `POST /api/auth/login` (handle+password form → the session
+// cookie), never a bypass. Credentials mirror multi-user-fixture.sh's own defaults
 // (its header docstring): owner/owner-dev-pass, member/member-dev-pass. A handle outside this map (or a
 // `--contexts N` bigger than the fixture actually seeds) is a loud refusal, never a guess.
 
@@ -28,6 +28,7 @@ import process from "node:process";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { FIXTURE_PORTS } from "../../_shared/ports.ts";
 import { runNicedSync } from "../../_shared/proc.ts";
+import { SESSION_COOKIE_MINTED } from "../../_shared/session-cookie.ts";
 import type { AuthConfig, FixtureStatus, FixtureTarget, FixtureTargetOverride, PortOwnerAuthProbe } from "../contract/fixture.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
@@ -257,8 +258,10 @@ export async function loginFixtureUser(
   if (!res.ok) {
     return { error: `login for "${handle}" failed (HTTP ${res.status})` };
   }
-  const cookie = res.headers.get("set-cookie");
-  if (cookie === null || !cookie.includes("orb_session=")) {
+  // The minted value itself, never the joined header: a login also clears the other transport's name, and
+  // the context seeds only the first pair it is handed.
+  const cookie = res.headers.getSetCookie().find((value) => SESSION_COOKIE_MINTED.test(value));
+  if (cookie === undefined) {
     return { error: `login for "${handle}" returned no session cookie` };
   }
   return { cookie };

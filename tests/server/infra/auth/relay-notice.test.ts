@@ -7,9 +7,9 @@ import { vi } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const T0 = 1_700_000_000_000;
-// The module's window and peer cap, mirrored so the tests can step past them.
+// The throttle's window, mirrored so the tests can step past it (the key-map bound is pinned in
+// notice-throttle.test.ts).
 const HOUR_MS = 3_600_000;
-const MAX_PEERS = 1024;
 const EVENT = "owner_fallback_relayed";
 
 /** A notice on a steerable clock, plus the peers each emitted line named. */
@@ -51,18 +51,4 @@ test("each peer gets its own line; an absent peer is one shared key", () => {
   h.notice(undefined);
   h.notice("192.168.1.27");
   expect(h.logged()).toEqual(["127.0.0.1", "192.168.1.27", null]);
-});
-
-test("a full map of live peers drops new peers until their entries expire", () => {
-  const h = harness();
-  for (let i = 0; i < MAX_PEERS; i += 1) {
-    h.notice(`2001:db8::${i.toString(16)}`);
-  }
-  expect(h.logged()).toHaveLength(MAX_PEERS);
-  h.notice("198.51.100.7");
-  expect(h.logged()).toHaveLength(MAX_PEERS);
-  h.advance(HOUR_MS);
-  h.notice("198.51.100.7");
-  expect(h.logged()).toHaveLength(MAX_PEERS + 1);
-  expect(h.logged().at(-1)).toBe("198.51.100.7");
 });
