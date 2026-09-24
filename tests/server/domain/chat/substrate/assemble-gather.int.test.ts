@@ -497,7 +497,8 @@ describe("gatherAssembleContext — the {{databank}} slot GATHER (DB6)", () => {
     );
     const prompt = assemblePrompt(DEFAULT_PROMPT_CONFIG, assembleCtx);
 
-    expect(`${prompt.static}\n${prompt.dynamic}`).toContain(passage);
+    // The shipped preset lists databank below Chat History (D251), so it rides the after-history bucket.
+    expect(prompt.afterHistory.some((inj) => inj.content.includes(passage))).toBe(true);
     expect(prompt.trace.databankIncluded).toBe(true);
   });
 });

@@ -498,14 +498,14 @@ export const guidedActionConfigSchema = z.object({
    *  system block (`assembly/macros.ts` resolveGuidedInstruction) at whatever length a caller sent. Its
    *  functional sibling `formatStrings` has always carried this same number; they are one class. */
   prompt: z.string().max(MAX_INJECTION_TEMPLATE_LENGTH),
-  /** Conversation role the resolved text is delivered with; `system` renders in the cacheable system
-   *  prompt, `user`/`assistant` push as an in-chat injection. */
+  /** Conversation role the resolved text is delivered with; `system` rides the `guided_instruction` marker
+   *  wherever the prompt order places it, `user`/`assistant` push as an in-chat injection. */
   role: z.enum(MESSAGE_ROLES).default(GUIDED_DEFAULT_ROLE),
   /** In-chat delivery DEPTH for a `user`/`assistant` role: 0 = the tail (with `assistant` that IS the
    *  prefill-shaped position — prefill is a POSITION, not a role), N = N turns back. ABSENT (never
    *  `.default()`) ⇒ 0, which is the depth the guided injection candidate has always used — so every stored
    *  blob keeps its exact bytes and today's fixed behavior becomes the declared default. Inert on a `system`
-   *  role: that steer rides the `guided_instruction` marker inside the system block, which has no depth. */
+   *  role: that steer rides the `guided_instruction` marker, whose placement is its prompt-order position. */
   depth: z.number().int().min(MIN_INJECT_DEPTH).max(MAX_INJECTION_DEPTH).optional(),
 });
 /** One guided-action template as accepted by the preset wire. */
@@ -2156,8 +2156,10 @@ export type UserMacroValues = z.infer<typeof userMacroValuesSchema>;
 const _valueIsKitValue = (value: z.infer<typeof userMacroInputValueSchema>): UserMacroInputValue => value;
 void _valueIsKitValue;
 
-/** Current blob shape. Bump + add a lift below when the shape changes (NO DB migration needed). */
-export const PROMPT_CONFIG_SCHEMA_VERSION = 7;
+/** Current blob shape. Bump + add a lift below when the shape changes. A bump also owes a forward db migration:
+ *  `presets.schema_version` defaults to this value (`@orb/db` schema/preset), and `check:db-baseline` fails
+ *  until the chain records the new DEFAULT. */
+export const PROMPT_CONFIG_SCHEMA_VERSION = 8;
 const SCHEMA_VERSION_V1 = 1; // walk floor — a versionless/garbage blob probes as v1
 const SCHEMA_VERSION_V2 = 2;
 const SCHEMA_VERSION_V3 = 3;
@@ -2165,6 +2167,7 @@ const SCHEMA_VERSION_V4 = 4;
 const SCHEMA_VERSION_V5 = 5;
 const SCHEMA_VERSION_V6 = 6;
 const SCHEMA_VERSION_V7 = 7;
+const SCHEMA_VERSION_V8 = 8;
 
 /** The per-preset format-string overrides. Every key is optional and blank-means-default. NO carrier refine
  *  here on purpose — this schema is also the READ path (`parsePromptConfig` degrades a failed parse to
@@ -2496,6 +2499,10 @@ export const CONFIG_LIFTS: Record<number, (config: Record<string, unknown>) => R
   // OWNED preset that names no slot is DELIBERATELY left alone — the per-chat Documents warning chip covers
   // those (an imported ST preset is never silently rewritten), the owner's ruled shape for #80.
   6: (c): Record<string, unknown> => ({ ...c, schemaVersion: SCHEMA_VERSION_V7 }),
+  // v7 → v8: DEFAULT_PROMPT_CONFIG moves memory, databank and the guided instruction below the pivot
+  // (D251). STAMP-ONLY, the v6→v7 precedent: the bump exists so the boot seeder reseeds the ownerless
+  // rows; a stored OWNED preset keeps its author's order byte-identical but for the version stamp.
+  7: (c): Record<string, unknown> => ({ ...c, schemaVersion: SCHEMA_VERSION_V8 }),
 };
 
 /** v5→v6: drop the retired `maxBudgetUsd` knob. Non-object params / a blob that never carried it pass
@@ -2629,6 +2636,19 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
       role: "system",
       enabled: true,
     },
+    // THE PIVOT — sections before build the system block; sections after land after the conversation.
+    {
+      type: "marker",
+      id: "chat-history",
+      name: "Chat history",
+      marker: "chat_history",
+      role: "system",
+      enabled: true,
+    },
+    // Memory, databank and the guided instruction change every turn, so they sit BELOW the pivot (D251):
+    // above it they would rewrite the system prompt each turn and cost the whole history its cache. Below it
+    // each is depth-0 tail content, a system row where the model takes one and folded into the user tail
+    // elsewhere.
     {
       type: "marker",
       id: "memory",
@@ -2637,11 +2657,8 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
       role: "system",
       enabled: true,
     },
-    // Attached documents feed OUT OF THE BOX (issue #80). The gather, the budget and the macro all shipped
-    // wired while no built-in arrangement named the slot, so a live drive retrieved a document and the model
-    // saw none of it — every databank surface promised feeding the default preset made impossible. Seated
-    // immediately after `memory` ("exactly parallel to {{memory}}"; the rpg GM preset's
-    // `continuity` region, docs/plans/rpg/design.md) and DYNAMIC, so per-turn retrieval never busts the cached prefix.
+    // Attached documents feed out of the box: seated immediately after `memory` ("exactly parallel to
+    // {{memory}}"; the rpg GM preset's `continuity` region, docs/plans/rpg/design.md).
     {
       type: "marker",
       id: "databank",
@@ -2655,15 +2672,6 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
       id: "guided-instruction",
       name: "Guided instruction",
       marker: "guided_instruction",
-      role: "system",
-      enabled: true,
-    },
-    // THE PIVOT — sections before build the system block; sections after land after the conversation.
-    {
-      type: "marker",
-      id: "chat-history",
-      name: "Chat history",
-      marker: "chat_history",
       role: "system",
       enabled: true,
     },
