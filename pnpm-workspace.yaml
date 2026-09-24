@@ -17,7 +17,7 @@ packages:
 # does not occur here.
 engineStrict: true
 
-# pnpm 11 gates packages with postinstall build scripts. Approve the ones we need:
+# pnpm gates packages with postinstall build scripts. Approve the ones we need:
 # esbuild powers drizzle-kit and the CT harness's vite 6 (NOT vitest any more — vitest 4 rides
 # vite 8, which transforms with Oxc; corrected 2026-08-07); lefthook fetches its hook-runner binary.
 allowBuilds:
@@ -32,10 +32,15 @@ allowBuilds:
   # the ignored-build gate (no half-installed state).
   protobufjs: true
 
-# Centralized version source of truth. package.json deps reference these via "catalog:".
+# The one home for dependency versions: every package.json names "catalog:" (or "workspace:*"), never a
+# version. The toolchain pins pnpm reads only from the root package.json: `packageManager`.
 # Versions are the latest resolved at scaffold (2026-06) — "use whatever the latest is".
 catalog:
   # --- toolchain ---
+  knip: ^6.27.0
+  yaml: 2.9.0
+  "@typescript/native": npm:typescript@7.0.2
+  ts7: npm:typescript@7.0.2
   "@eslint/config-array": 0.23.5
   typescript: ^6.0.3
   "@biomejs/biome": 2.5.1
@@ -243,6 +248,8 @@ catalog:
   # externalized tailwind-merge to a PEER (>=3) — it rides inside @orb/ui's seal, never the client.
   tailwind-variants: ^3.2.2
   tailwind-merge: ^3.6.0
+  ajv: 8.20.0
+  ajv-formats: 3.0.1
   # lucide-react: ^1.22 (not .23 — published <24h ago, blocked by minimumReleaseAge; bump when mature)
   lucide-react: ^1.22.0
   # TanStack Virtual ≥3.14.3: the directDomUpdates React-Compiler fix + core 3.16 chat APIs (D54).

@@ -21,8 +21,8 @@ pnpm start       # production server on http://localhost:8788
 pnpm stack up    # Linux only: the watched dev stack on http://localhost:5173
 ```
 
-Node 26 (`.nvmrc`) and pnpm (pinned by `packageManager`; `npm install -g pnpm@11` — Node 26 does not
-ship corepack).
+You need pnpm and Node 26; the README's Develop section installs both through pnpm. A dependency version goes in
+the `catalog:` of `pnpm-workspace.yaml`, and the `package.json` that uses it says `catalog:`.
 
 ## Before you open a PR
 
