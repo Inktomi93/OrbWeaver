@@ -38,7 +38,7 @@ When a finding collides with a recorded ruling, keep the old mechanism and satis
 
 ### Commit
 
-- Commit through the hooks. Pre-commit runs `pnpm check`; commit-msg runs `scripts/commit-msg-check.sh`.
+- Commit through the hooks. Pre-commit runs `pnpm verify --static --changed`, which takes no host-wide slot; commit-msg runs `scripts/commit-msg-check.sh`.
 - Write the header as `type(scope): subject`, name the floor you ran, and end with a `Co-Authored-By` trailer.
 - Keep your own checks scoped. Do not run the full battery only to commit.
 - Bypass a hook only when the user or orchestrator names the exception. Use `LEFTHOOK_EXCLUDE=check git commit ...`, which keeps the commit-msg check, and record the reason and the owed checks.
