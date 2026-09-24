@@ -84,10 +84,21 @@ because a same-host proxy would turn every visitor into the owner.
 
 The port is published on `127.0.0.1` only. To reach the app from your phone or another computer:
 
-1. Switch to a login in `docker/orbweaver.local.env`: `AUTH_MODE=local`, `AUTH_FALLBACK=deny`,
-   `AUTH_FALLBACK_TRUSTED_PEERS=` (empty). Then `ORB_BIND=0.0.0.0` in a `.env` file beside
-   `docker-compose.yaml` or on the command line (`ORB_BIND=0.0.0.0 docker compose up -d`). The entrypoint
-   refuses the no-login default on a non-loopback bind, so you cannot open the LAN by accident.
+1. Switch to a login: add these lines to the `environment:` block of `docker-compose.yaml`. Values there
+   override both env files, and the file is not hidden the way a dotfile is:
+
+   ```yaml
+       environment:
+         AUTH_MODE: local
+         AUTH_FALLBACK: deny
+         AUTH_FALLBACK_TRUSTED_PEERS: ""
+         ALLOWED_HOSTS: orb.home.lan    # only if people type a host name; an IP address needs no entry
+   ```
+
+   Then open the port: change both `127.0.0.1` defaults of `ORB_BIND` in `docker-compose.yaml` to `0.0.0.0`,
+   or set it for one start (`ORB_BIND=0.0.0.0 docker compose up -d`). The entrypoint refuses the no-login
+   default on a non-loopback bind, so you cannot open the LAN by accident. `pnpm start --setup` does not
+   apply here: the container takes no settings from the repository's `.env`.
 2. **HTTPS in front.** Over plain http the sign-in works, but the password and the session cookie travel in
    clear, and the login screen says so. Behind a TLS proxy that sends `X-Forwarded-Proto: https` the cookie
    is `Secure` + `__Host-`. Any TLS terminator works: Caddy (automatic certs, or its internal CA on a LAN),
@@ -109,7 +120,7 @@ public address logs a security warning, and the login screen shows it in red.
 
 Do not forward a router port to this app: the login would cross the internet in plain http. A tunnel dials
 out from this machine and terminates TLS for you. Every tunnelled request carries forwarding headers, so
-single-user is never the owner through one. Switch to a login first with the `docker/orbweaver.local.env`
+single-user is never the owner through one. Switch to a login first with the `environment:`
 lines from step 1 of "LAN and HTTPS", but keep `ORB_BIND` on `127.0.0.1`: the tunnel does not need the port.
 
 ### Cloudflare Tunnel, as a sidecar
