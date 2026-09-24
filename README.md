@@ -37,17 +37,21 @@ reads the same `.env` as the server, and when the server would refuse a setting,
 anything and names that setting. It is plain Node with no bash; its macOS and Windows runs are not yet verified on
 real hardware. `pnpm stack up` is the maintainers' Linux supervisor for the same dev stack (`setsid`, `ss`, `/proc`).
 
-**Back up your data (from source).** Everything the app keeps is in `data/`: the database, your assets,
-and two secrets the server generates on first boot: `data/.credentials-key`, the key that decrypts saved
-provider keys, and `data/.session-secret`, the pepper for passwords and sign-ins. Back up the whole
-directory as one unit: stop the app, copy `data/`, start it again. To restore, stop the app and put the
-copy back. A database restored without its `.credentials-key` loses every saved provider key; without its
-`.session-secret`, every local password and sign-in stops working. `data/models/` is a
-download cache and can be left out. Before a boot applies new database migrations, the app also copies
-the database to `data/orbweaver.db.backup-<stamp>`. It keeps the five newest copies plus the newest of each
-of the last seven days that had one. `touch data/orbweaver.db.backup-<stamp>.keep` exempts a copy from
-that cleanup. Migrations only go forward, so to roll back an update, stop the app, put a copy in place of
-`data/orbweaver.db`, delete the `-wal`/`-shm` files beside it, and start the older checkout. Docker users: see [`docker/README.md`](docker/README.md).
+**Back up your data (from source).** Everything the app keeps is in `data/` (or wherever `DATA_DIR` points):
+`data/db/` holds the database, `data/assets/` your uploads, `data/users/` per-user runtime state, and
+`data/secrets/` two secrets the server generates on first boot: `credentials_key`, the key that decrypts
+saved provider keys, and `session_secret`, the pepper for passwords and sign-ins. `data/cache/` holds only
+what the app regenerates (model weights, image variants, import staging) and can be left out. So the rule is
+one sentence: stop the app, copy `data/` except `data/cache/`, start it again. To restore, stop the app and
+put the copy back. A database restored without its `credentials_key` cannot read any saved provider key, and
+without its `session_secret` no local password or sign-in works, so a boot that finds either file missing
+while the database still depends on it refuses to start and names the file. A `data/` dir from an older
+version is moved into this layout on the first boot, in place. Before a boot applies new database
+migrations, the app also copies the database to `data/backups/orbweaver.db.backup-<stamp>`. It keeps the
+five newest copies plus the newest of each of the last seven days that had one. `touch
+data/backups/orbweaver.db.backup-<stamp>.keep` exempts a copy from that cleanup. Migrations only go forward,
+so to roll back an update, stop the app, put a copy in place of `data/db/orbweaver.db`, delete the
+`-wal`/`-shm` files beside it, and start the older checkout. Docker users: see [`docker/README.md`](docker/README.md).
 
 **Run the checks on Linux or WSL2.** The test and check harness leans on `nice`, cgroup fencing and bash
 hooks, so it is Linux-shaped. macOS can run the tests, `pnpm start` and `pnpm dev`; it cannot run
