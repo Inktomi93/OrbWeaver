@@ -140,11 +140,11 @@ export function MediaTrustSectionStory(): ReactElement {
 
 /** The OWNER-GATED Multi-user section (SET-SEAMS stage 4) — Shared access left with the owner-compute premise
  *  (inference program F11/F13), so the owner predicate now gates this one row. */
-export function GovernanceSectionsStory(): ReactElement {
+export function GovernanceSectionsStory({ width = 720 }: { readonly width?: number }): ReactElement {
   return (
     <CtDataProviders>
       <TooltipProvider>
-        <div style={{ padding: 16, width: 720 }}>
+        <div style={{ padding: 16, width }}>
           <MultiUserSection sectionId="admin-multi-user" />
         </div>
       </TooltipProvider>

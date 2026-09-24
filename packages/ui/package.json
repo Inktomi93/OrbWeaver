@@ -31,6 +31,7 @@
     "./combobox": "./src/primitives/combobox/index.ts",
     "./command": "./src/primitives/command/index.ts",
     "./compare-blocks": "./src/primitives/compare-blocks/index.ts",
+    "./copy-button": "./src/primitives/copy-button/index.ts",
     "./crossfade-image": "./src/primitives/crossfade-image/index.ts",
     "./dialog": "./src/primitives/dialog/index.ts",
     "./diff": "./src/diff/index.ts",

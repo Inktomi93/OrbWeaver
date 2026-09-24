@@ -18,9 +18,14 @@
 
 import type { ProviderAuth } from "@orb/contracts/inference";
 import { BUILTIN_PROVIDERS, providerDefSchema } from "@orb/contracts/inference";
+import { copyActionName } from "@orb/ui/lib";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
+import {
+  CLAUDE_SETUP_TOKEN_COMMAND,
+  CLAUDE_SETUP_TOKEN_COPY_SUBJECT,
+} from "../../../../../packages/client/src/features/credentials/lib/add-connection-form-model.ts";
 import type { TrpcResponder } from "../../../../support/node/route-trpc.ts";
 import { trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import {
@@ -376,24 +381,25 @@ test.describe("on a touch screen", () => {
 test.describe("the setup-token command", () => {
   test.use({ permissions: ["clipboard-read", "clipboard-write"] });
 
-  test("copies from the keyboard, keeps the machine-specific instruction, and says it copied", async ({ mount, page }) => {
+  test("copies from the keyboard and reports the copy", async ({ mount, page }) => {
     await stubConnectionsPane(page);
     await mount(<ConnectionsAuthoringStory width={870} />);
     const dialog = await openAddDialog(page);
     await pickProvider(page, dialog, "Claude subscription");
 
-    await expect(dialog.getByText("Run this on the machine you use Claude Code on, then paste what it prints.")).toBeVisible();
     // The command is read inside a sentence, so it is set at the sentence's size, not the micro key-hint step.
-    await expect(dialog.getByText("claude setup-token", { exact: true })).toHaveCSS("font-size", pxOf("text.code"));
-    const copy = dialog.getByRole("button", { name: "Copy the command claude setup-token" });
+    await expect(dialog.getByText(CLAUDE_SETUP_TOKEN_COMMAND, { exact: true })).toHaveCSS("font-size", pxOf("text.code"));
+    const copy = dialog.getByRole("button", { name: copyActionName(CLAUDE_SETUP_TOKEN_COPY_SUBJECT), exact: true });
     await copy.focus();
     await page.keyboard.press("Enter");
 
-    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe("claude setup-token");
-    await expect(dialog.getByRole("status").filter({ hasText: "Copied." })).toHaveText("Copied. Paste it into a terminal on that machine.");
+    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(CLAUDE_SETUP_TOKEN_COMMAND);
+    const status = dialog.locator("[data-slot=copy-button-status]");
+    await expect(status).toHaveAttribute("data-outcome", "copied");
+    await expect(status).not.toBeEmpty();
   });
 
-  test("a refused copy says so and points at the command to copy by hand", async ({ mount, page }) => {
+  test("a refused copy says so and selects the command to copy by hand", async ({ mount, page }) => {
     await stubConnectionsPane(page);
     await mount(<ConnectionsAuthoringStory width={870} />);
     const dialog = await openAddDialog(page);
@@ -402,8 +408,11 @@ test.describe("the setup-token command", () => {
       navigator.clipboard.writeText = (): Promise<void> => Promise.reject(new Error("denied"));
     });
 
-    await dialog.getByRole("button", { name: "Copy the command claude setup-token" }).click();
-    await expect(dialog.getByRole("status").filter({ hasText: "Couldn't copy" })).toHaveText("Couldn't copy — select the command and copy it by hand.");
+    await dialog.getByRole("button", { name: copyActionName(CLAUDE_SETUP_TOKEN_COPY_SUBJECT), exact: true }).click();
+    const manual = dialog.getByRole("textbox", { name: CLAUDE_SETUP_TOKEN_COPY_SUBJECT, exact: true });
+    await expect(manual).toBeFocused();
+    await expect(manual).toHaveValue(CLAUDE_SETUP_TOKEN_COMMAND);
+    await expect(dialog.locator("[data-slot=copy-button-status]")).toHaveAttribute("data-outcome", "refused");
   });
 });
 

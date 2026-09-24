@@ -1,9 +1,10 @@
-// The two ITEM-ACTION accessible-name grammars that are spelled in BOTH packages — `Remove <subject>`
-// and `Select <subject>`. They live here, not beside `rowActionsName` in `@orb/client/lib`, because the
-// cake runs `kit ← ui ← client` (constitution §2): `combobox`'s chip remove and `table`'s row checkbox
-// are `@orb/ui` primitives, and a primitive importing a client module is an upward import — illegal, and
-// unresolvable at the package boundary. So the grammar homes at the LOWEST package that spells it, and
-// `@orb/client/lib` re-exports both the way it already re-exports `cn`. ONE function, one spelling.
+// The ITEM-ACTION accessible-name grammars that are spelled in BOTH packages — `Remove <subject>`,
+// `Select <subject>` and `Copy <subject>`. They live here, not beside `rowActionsName` in
+// `@orb/client/lib`, because the cake runs `kit ← ui ← client` (constitution §2): `combobox`'s chip
+// remove, `table`'s row checkbox and `copy-button` are `@orb/ui` primitives, and a primitive
+// importing a client module is an upward import — illegal, and unresolvable at the package boundary.
+// So the grammar homes at the LOWEST package that spells it, and `@orb/client/lib` re-exports them
+// the way it already re-exports `cn`. ONE function, one spelling.
 //
 // The defect they close is the one #2261 closed for `Actions for <subject>`: a copy change had to be
 // chased through ~25 test locators that never imported the thing they assert, so a spec could keep
@@ -23,6 +24,11 @@
  */
 export function removeActionName(subject: string): string {
   return `Remove ${subject}`;
+}
+
+/** The accessible name of a control that copies its subject to the clipboard — `Copy <subject>`. */
+export function copyActionName(subject: string): string {
+  return `Copy ${subject}`;
 }
 
 /**

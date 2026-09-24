@@ -20,13 +20,14 @@ import type { UpdateCheck, VersionIdentity } from "@orb/kit/version-identity";
 import { formatVersionIdentity } from "@orb/kit/version-identity";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
+import { CopyButton } from "@orb/ui/copy-button";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
-import { notify, testId, timeLib } from "#lib";
+import { testId, timeLib } from "#lib";
 import { configAnchorId } from "#state";
 import { ABOUT_SUBCATEGORY } from "../lib/about-nav.ts";
 
@@ -62,26 +63,18 @@ function AboutBody(): ReactElement {
   // MANUAL by construction (see the header): nothing fetches until the button calls `refetch`.
   const update = useQuery({ ...trpc.settings.checkForUpdate.queryOptions(), enabled: false });
 
-  const copy = (): void => {
-    navigator.clipboard.writeText(reportLine(version)).then(
-      () => notify.success("Version copied — paste it into the bug report."),
-      () => notify.error("Couldn't copy — select the version line and copy it by hand."),
-    );
-  };
-
   return (
     <Section className="@container" divider={true} heading={ABOUT_SUBCATEGORY.label} id={configAnchorId("admin", ABOUT_SUBCATEGORY.id)}>
       <Stack gap="field" data-testid={testId("aboutSection")}>
-        <Row align="center" gap="row">
+        {/* A failed copy replaces the version line with the full report (the line plus the full sha), so the
+            text shows once and the field gets the row's whole width. */}
+        <CopyButton copiedHint="Paste it into the bug report." intent="ghost" text={reportLine(version)} what="version for a bug report">
           {/* `datum` — this IS a value, and its mono/tabular setting is what makes a sha readable and
               transcribable by eye when someone is reading it off a screen into an issue. */}
           <Text voice="datum" data-testid={testId("aboutVersionLine")}>
             {formatVersionIdentity(version)}
           </Text>
-          <Button intent="ghost" size="sm" aria-label="Copy version for a bug report" onClick={copy}>
-            Copy
-          </Button>
-        </Row>
+        </CopyButton>
         <Text voice="gloss">{provenanceLine(version)}</Text>
 
         <Row align="center" gap="row">

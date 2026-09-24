@@ -118,6 +118,28 @@ function stub(page: Page, viewer: Viewer, extra: Partial<TrpcRoutes<AdminExtraPa
   });
 }
 
+test.describe("the row actions on a touch screen at 360px", () => {
+  test.use({ hasTouch: true, viewport: { width: 360, height: 800 } });
+
+  test("every row's actions trigger is at least 44px on both sides", async ({ mount, page }) => {
+    const companion: AdminUser = { ...MEMBER_USER, id: "user_companion", handle: "companion" };
+    await routeTrpc(page, {
+      "admin.listUsers": () => [...USERS, companion],
+      "sessions.me": () => OWNER_VIEWER,
+    });
+    const component = await mount(<AdminUsersSectionStory />);
+    for (const subject of ["root", "mira", "kes", "companion"]) {
+      const trigger = component.getByRole("button", { name: userActionsName(handle(subject)), exact: true });
+      await expect
+        .poll(async () => {
+          const box = await trigger.boundingBox();
+          return box === null ? 0 : Math.min(box.width, box.height);
+        })
+        .toBeGreaterThanOrEqual(44);
+    }
+  });
+});
+
 test("renders the user table off its OWN read, anchored at the admin pane's users anchor", async ({ mount, page }) => {
   await stub(page, OWNER_VIEWER);
   const component = await mount(<AdminUsersSectionStory />);
