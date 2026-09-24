@@ -189,6 +189,24 @@ describe("login throttle — 10/min/IP (brute-force + scrypt-flood cap)", () => 
   });
 });
 
+// Behind a same-host appending proxy the peer is loopback and the visitor controls the LEFT end of
+// X-Forwarded-For. The throttle keys on the address the proxy appended, so rotating the left end buys nothing.
+describe("login throttle — a spoofed leftmost X-Forwarded-For cannot reset the per-IP bucket", () => {
+  test("ten attempts each claiming a fresh leftmost address → the 11th is 429", async () => {
+    const app = await appWith({ authenticate: ownerAuth(null) });
+    const relayed = (i: number): Record<string, string> => ({ "x-forwarded-for": `10.66.${String(i)}.1, 198.51.100.7` });
+    for (let i = 0; i < 10; i += 1) {
+      const res = await postLogin(app, "127.0.0.1", { handle: "owner", password: "wrong" }, relayed(i));
+      expect(res.status).toBe(401);
+    }
+    const throttled = await postLogin(app, "127.0.0.1", { handle: "owner", password: "wrong" }, relayed(10));
+    expect(throttled.status).toBe(429);
+    // Control: a different visitor behind the same proxy has its own bucket.
+    const other = await postLogin(app, "127.0.0.1", { handle: "owner", password: "wrong" }, { "x-forwarded-for": "198.51.100.8" });
+    expect(other.status).toBe(401);
+  });
+});
+
 describe("login throttle — the HANDLE axis (B1: the distributed brute force the per-IP cap cannot see)", () => {
   // A TIGHT per-IP cap is what makes these arms unambiguous: every attempt below comes from a peer that has
   // spent at most 1 of its 2 points, so an IP-axis 429 is structurally impossible here and any 429 can only
