@@ -44,20 +44,16 @@ import { Icon, Link2, RotateCcw, Tag } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { MenuItem, MenuSeparator } from "@orb/ui/menu";
 import type { ReactElement } from "react";
-import { cn, IS_DEV, notify, rowActionsName } from "#lib";
+import { cn, copyWithNotice, IS_DEV, rowActionsName } from "#lib";
 import { formatConfigLink } from "#state";
 import { HIDE_AT_COARSE } from "./pointer-variants.ts";
 import { RowActionsMenu } from "./row-actions-menu.tsx";
 import { SETTING_ROW_REVEAL } from "./row-reveal.ts";
 import type { ConfigLeafAddress, ConfigLeafValue } from "./use-config-leaf.ts";
 
-/** Copy + toast, the message-actions-row pattern — the toast is the only rendered ack a menu that has
- *  already closed can give. */
-function copyText(text: string): void {
-  navigator.clipboard.writeText(text).then(
-    (): void => notify.success("Copied to clipboard."),
-    (): void => notify.error("Couldn't copy to clipboard."),
-  );
+/** A failed copy's next step: the toast description carries the text itself, where it can be selected. */
+function manualCopyStep(text: string): string {
+  return `Copy it by hand: ${text}`;
 }
 
 export interface SettingRowActionsProps {
@@ -88,6 +84,7 @@ function ActionCell({ children }: { readonly children?: ReactElement | null }): 
  */
 export function SettingRowDevActions({ address, label, binding }: SettingRowActionsProps): ReactElement {
   const settingId = `${address.group}.${address.sub}.${address.setting}`;
+  const settingLink = `${globalThis.location.origin}${formatConfigLink(address.group, address.sub, address.setting)}`;
   return (
     <ActionCell>
       <RowActionsMenu label={rowActionsName(label)} triggerSize="inline">
@@ -106,11 +103,11 @@ export function SettingRowDevActions({ address, label, binding }: SettingRowActi
             <MenuSeparator />
           </>
         )}
-        <MenuItem onClick={(): void => copyText(settingId)}>
+        <MenuItem onClick={(): void => copyWithNotice(settingId, manualCopyStep(settingId))}>
           <Icon icon={Tag} size="sm" />
           Copy setting id
         </MenuItem>
-        <MenuItem onClick={(): void => copyText(`${globalThis.location.origin}${formatConfigLink(address.group, address.sub, address.setting)}`)}>
+        <MenuItem onClick={(): void => copyWithNotice(settingLink, manualCopyStep(settingLink))}>
           <Icon icon={Link2} size="sm" />
           Copy link
         </MenuItem>

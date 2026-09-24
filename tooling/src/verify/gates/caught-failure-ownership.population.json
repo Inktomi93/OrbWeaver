@@ -2,16 +2,16 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 606,
+    "sites": 607,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 606,
+      "deliberate-absorb": 607,
       "unproven": 0
     },
     "byGrammar": {
       "default": 152,
       "empty": 310,
-      "promise": 144
+      "promise": 145
     }
   },
   "rows": [
@@ -1609,6 +1609,11 @@
       "siteId": "packages/ui/src/content/message-media/message-media.tsx::hostOf::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "display-only fallback — a malformed url yields the human-readable \"external source\" label, consumed directly as UI text. Ends if the fallback string is removed."
+    },
+    {
+      "siteId": "packages/ui/src/lib/clipboard.ts::writeClipboardText::clipboard.writeText::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the rejection IS the `refused` outcome, and every caller surfaces it (CopyButton's status and manual-copy field, copyWithNotice's toast). Ends if a caller needs the rejection's reason."
     },
     {
       "siteId": "packages/ui/src/markdown/policy.ts::untrustedUrlTransform::catch::1",

@@ -2,10 +2,10 @@
 // modules never ride a shared barrel): ./dev-tools (main.tsx lazy-mounts it), ./long-task-tracer
 // (main.tsx dynamic-imports it).
 
-// `cn` and the two item-action name grammars are @orb/ui's: a `@orb/ui` primitive spells `Remove <x>`
-// (combobox chips) and `Select <x>` (table rows), and `ui` cannot import `client` (the cake, §2), so the
+// `cn` and the item-action name grammars are @orb/ui's: a `@orb/ui` primitive spells `Remove <x>`
+// (combobox chips), `Select <x>` (table rows) and `Copy <x>` (copy-button), and `ui` cannot import `client` (the cake, §2), so the
 // grammar homes at the lowest package that spells it and rides this barrel for client callers + tests.
-export { cn, removeActionName, selectActionName } from "@orb/ui/lib";
+export { cn, copyActionName, removeActionName, selectActionName } from "@orb/ui/lib";
 export type { AppFailureKind, AppFailureSurfaceProps } from "./app-failure-surface.tsx";
 export { AppFailureSurface } from "./app-failure-surface.tsx";
 export type {
@@ -81,6 +81,7 @@ export {
   SLASH_COMMAND_GROUPS,
   TOOL_RENDERER_MATCHES,
 } from "./contribution-contracts.ts";
+export { copyWithNotice } from "./copy-with-notice.ts";
 export type { RegistryContext } from "./create-registry-context.tsx";
 export { createRegistryContext } from "./create-registry-context.tsx";
 export { IS_DEV } from "./dev-flag.ts";

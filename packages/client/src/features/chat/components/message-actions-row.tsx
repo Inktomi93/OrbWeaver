@@ -42,13 +42,16 @@ import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { HIDE_AT_COARSE, ROW_ACTION_INLINE, RowActionsMenu } from "#components";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
-import { cn, NEEDS_CONTINUATION, notify, testId } from "#lib";
+import { cn, copyWithNotice, NEEDS_CONTINUATION, notify, testId } from "#lib";
 import { startEditingMessage } from "#state";
 import { useReactionsEnabled, useReactionsForVariant, useViewerSeatId } from "../hooks/use-message-reactions.ts";
 import { MESSAGE_ACTIONS_MENU_NAME, MESSAGE_EDIT_NAME, MESSAGE_FORK_NAME, MESSAGE_REACTION_ADD_NAME } from "../lib/message-action-names.ts";
 import { MESSAGE_ACTION_ICON_CLASS, messageActionsRevealClass } from "../lib/message-actions-reveal.ts";
 import { RowReactionPicker } from "./row-reaction-picker.tsx";
 import { VariantWireViewer } from "./variant-wire-viewer.tsx";
+
+// A failed copy's next step; the message is on screen right above the menu.
+const MESSAGE_COPY_FALLBACK = "Select the message text to copy it by hand.";
 
 interface HideVars {
   readonly chatId: ChatId;
@@ -301,15 +304,6 @@ export function MessageActionsRow({
     revertContinue.mutate({ chatId, messageId });
   };
 
-  const onCopy = async (): Promise<void> => {
-    try {
-      await navigator.clipboard.writeText(content);
-      notify.success("Copied to clipboard.");
-    } catch {
-      notify.error("Couldn't copy to clipboard.");
-    }
-  };
-
   return (
     <Row ref={clusterRef} gap="field" align="center" justify="end" data-slot="message-actions-row" className={messageActionsRevealClass(messageActions)}>
       {renderModelCredit(modelCredit)}
@@ -380,7 +374,7 @@ export function MessageActionsRow({
             Add a reaction
           </MenuItem>
         ) : null}
-        <MenuItem onClick={(): void => void onCopy()}>
+        <MenuItem onClick={(): void => copyWithNotice(content, MESSAGE_COPY_FALLBACK)}>
           <Icon icon={Copy} size="sm" />
           Copy
         </MenuItem>

@@ -8,7 +8,9 @@
 import type { ChatId, ChatInviteId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
+import { CopyButton } from "@orb/ui/copy-button";
 import { Row, Stack } from "@orb/ui/layout";
+import { ListRow } from "@orb/ui/list-row";
 import { Separator } from "@orb/ui/separator";
 import { Text } from "@orb/ui/text";
 import { Toggle } from "@orb/ui/toggle";
@@ -81,7 +83,6 @@ function InviteMintForm({ chatId }: { readonly chatId: ChatId }): ReactElement {
       }
       const link = `${globalThis.location.origin}/join/${encodeURIComponent(token)}`;
       setMintedLink(link);
-      await copyLink(link);
       return values;
     } catch (error) {
       if (values.mode === "handle" && isBadRequest(error)) {
@@ -164,30 +165,20 @@ function InviteMintForm({ chatId }: { readonly chatId: ChatId }): ReactElement {
 
           {mintedLink === null ? null : (
             <Stack gap="field" data-testid={testId("inviteLinkResult")}>
-              <Text voice="label" className="font-mono break-all">
-                {mintedLink}
-              </Text>
-              <Row gap="field" align="center">
-                <Button type="button" intent="secondary" size="sm" onClick={(): void => void copyLink(mintedLink)} data-testid={testId("inviteCopyLink")}>
-                  Copy link
-                </Button>
-                <Text voice="gloss">Copy it now — you won't see this link again.</Text>
-              </Row>
+              <Text voice="gloss">Copy it now — you won't see this link again.</Text>
+              {/* Copied on arrival. A failed copy lands in this control's own status and field, inside the dialog:
+                  a toast would paint under the modal backdrop, and the link is shown only once. */}
+              <CopyButton autoCopy={true} copiedHint="Anyone with it can join." data-testid={testId("inviteCopyLink")} text={mintedLink} what="invite link">
+                <Text voice="label" className="font-mono break-all">
+                  {mintedLink}
+                </Text>
+              </CopyButton>
             </Stack>
           )}
         </Stack>
       </form>
     </form.AppForm>
   );
-}
-
-async function copyLink(link: string): Promise<void> {
-  try {
-    await navigator.clipboard.writeText(link);
-    notify.success("Invite link copied — anyone with it can join.");
-  } catch {
-    notify.error("Couldn't copy the invite link — copy it from the dialog.");
-  }
 }
 
 function OutstandingInvites({ chatId }: { readonly chatId: ChatId }): ReactElement | null {
@@ -226,29 +217,31 @@ function InviteRow({ invite, onRevoke }: { readonly invite: InviteView; readonly
   const uses = invite.maxUses === null ? "unlimited uses" : `${invite.remainingUses ?? 0} of ${invite.maxUses} uses left`;
   const expiry = invite.expiresAt === null ? "never expires" : `expires ${timeLib.formatRelative(invite.expiresAt)}`;
   return (
-    <Row gap="field" align="center" justify="between" data-slot="invite-row">
-      <Row gap="field" align="center" className="min-w-0">
+    // ListRow floors the label's width, and in a narrow dialog Revoke takes its own line, so the limits
+    // never run under it and the label never squeezes to nothing.
+    <ListRow
+      stackActions={true}
+      actions={
+        invite.status === "pending" ? (
+          <Button
+            type="button"
+            intent="ghost"
+            size="sm"
+            onClick={(): void => onRevoke(invite.id)}
+            aria-label={`Revoke this ${invite.invitedUserId === null ? "share link" : "targeted invite"}`}
+          >
+            Revoke
+          </Button>
+        ) : null
+      }
+      leading={
         <Badge size="sm" intent={STATUS_INTENT[invite.status]}>
           {invite.status}
         </Badge>
-        <Text as="span" voice="label" className="min-w-0 truncate">
-          {invite.invitedUserId === null ? "Share link" : "Targeted invite"}
-        </Text>
-        <Text as="span" voice="gloss" className="font-mono whitespace-nowrap">
-          {uses} · {expiry}
-        </Text>
-      </Row>
-      {invite.status === "pending" ? (
-        <Button
-          type="button"
-          intent="ghost"
-          size="sm"
-          onClick={(): void => onRevoke(invite.id)}
-          aria-label={`Revoke this ${invite.invitedUserId === null ? "share link" : "targeted invite"}`}
-        >
-          Revoke
-        </Button>
-      ) : null}
-    </Row>
+      }
+      subtitle={`${uses} · ${expiry}`}
+      subtitleWrap={true}
+      title={invite.invitedUserId === null ? "Share link" : "Targeted invite"}
+    />
   );
 }

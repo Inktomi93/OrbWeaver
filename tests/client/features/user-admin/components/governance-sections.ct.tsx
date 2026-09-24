@@ -13,6 +13,7 @@
 
 import type { AuthMode } from "@orb/contracts/identity";
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
+import { copyActionName } from "@orb/ui/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { AuthConfig } from "../../../../../packages/client/src/data/auth-config.ts";
@@ -185,8 +186,50 @@ test("oidc: the sharing panel states the running mode's line", async ({ mount, p
   await expect(panel.getByTestId("admin-sharing-line")).toHaveText("AUTH_MODE=oidc");
 });
 
+test.describe("the sharing panel's copy", () => {
+  test.use({ permissions: ["clipboard-read", "clipboard-write"] });
+
+  test("copies the running mode's environment line exactly", async ({ mount, page }) => {
+    await stub(page, OWNER);
+    await stubAuthConfig(page, "oidc");
+    await mount(<GovernanceSectionsStory />);
+
+    const panel = page.getByTestId("admin-sharing-panel");
+    await panel.getByRole("button", { name: copyActionName("the environment line AUTH_MODE=oidc"), exact: true }).click();
+    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe("AUTH_MODE=oidc");
+  });
+});
+
+test.describe("the sharing panel's manual-copy fallback at 360px", () => {
+  test.use({ viewport: { width: 360, height: 800 } });
+
+  test("the field takes the panel's full width and replaces the chip it repeats", async ({ mount, page }) => {
+    await stub(page, OWNER);
+    await stubAuthConfig(page, "single-user");
+    await mount(<GovernanceSectionsStory width={360} />);
+    // What an insecure (plain http) origin looks like: the [SecureContext] Clipboard API is absent.
+    await page.evaluate(() => {
+      Object.defineProperty(navigator, "clipboard", { configurable: true, value: undefined });
+      Object.defineProperty(globalThis, "isSecureContext", { configurable: true, value: false });
+    });
+
+    const panel = page.getByTestId("admin-sharing-panel");
+    await panel.getByRole("button", { name: copyActionName("the command pnpm start --setup"), exact: true }).click();
+    const field = panel.getByRole("textbox", { name: "the command pnpm start --setup", exact: true });
+    await expect(field).toBeFocused();
+    await expect(panel.getByTestId("admin-sharing-line")).toBeHidden();
+    await expect
+      .poll(async () => {
+        const [fieldBox, panelBox] = await Promise.all([field.boundingBox(), panel.boundingBox()]);
+        return fieldBox !== null && panelBox !== null && fieldBox.width >= panelBox.width - 1;
+      })
+      .toBe(true);
+  });
+});
+
 // Read-only by ruling: the auth mode is a boot fact, so the panel offers nothing to toggle, for any viewer.
-test("the sharing panel is read-only: no switch, no field, no button, even for the owner", async ({ mount, page }) => {
+// Its one button copies the line; it changes nothing.
+test("the sharing panel is read-only: no switch, no field, only the copy button, even for the owner", async ({ mount, page }) => {
   await stub(page, OWNER);
   await stubAuthConfig(page, "single-user");
   await mount(<GovernanceSectionsStory />);
@@ -195,5 +238,6 @@ test("the sharing panel is read-only: no switch, no field, no button, even for t
   await expect(panel).toBeVisible();
   await expect(panel.getByRole("switch")).toHaveCount(0);
   await expect(panel.getByRole("textbox")).toHaveCount(0);
-  await expect(panel.getByRole("button")).toHaveCount(0);
+  await expect(panel.getByRole("button")).toHaveCount(1);
+  await expect(panel.getByRole("button", { name: copyActionName("the command pnpm start --setup"), exact: true })).toBeVisible();
 });

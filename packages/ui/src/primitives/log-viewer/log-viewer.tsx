@@ -1,11 +1,10 @@
 import type { ReactElement, UIEvent } from "react";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { cn, prefersReducedMotionNow } from "#lib";
-import { Button } from "#primitives/button";
-import { AlertTriangle, CircleAlert, Copy, Icon, Info } from "#primitives/icons";
+import { CopyButtonFallback, CopyButtonRoot, CopyButtonStatus, CopyButtonSubject, CopyButtonTrigger } from "#primitives/copy-button";
+import { AlertTriangle, CircleAlert, Icon, Info } from "#primitives/icons";
 import type { MessageListHandle } from "#primitives/message-list";
 import { MessageList } from "#primitives/message-list";
-import { Text } from "#primitives/text";
 import { logViewerVariants } from "./variants.ts";
 
 const LOG_LEVELS = ["info", "warn", "error"] as const;
@@ -86,7 +85,6 @@ export interface LogViewerProps {
  * lines via `message-list`, which then requires a bounded height on `className` (e.g. `h-64`).
  */
 export function LogViewer({ lines, maxLines, className }: LogViewerProps): ReactElement {
-  const [copyFailed, setCopyFailed] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   // Updated only from a real scroll event, never from the autoscroll effect — reflects "was the
   // reader at the bottom before this append". Starts true: an empty/short log begins pinned.
@@ -154,60 +152,53 @@ export function LogViewer({ lines, maxLines, className }: LogViewerProps): React
     isNearBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight <= NEAR_BOTTOM_SLACK_PX;
   };
 
-  const handleCopy = (): void => {
-    navigator.clipboard.writeText(visible.map(textOf).join("\n")).then(
-      () => setCopyFailed(false),
-      () => setCopyFailed(true),
-    );
-  };
-
   return (
-    <div className={cn(slots.root(), className)} data-slot="log-viewer-root">
+    // A failed copy's field takes the BODY's place, not a line in the toolbar: the root clips to its own
+    // height, so a field added to the fixed toolbar would push the body out of view and be cut off itself.
+    <CopyButtonRoot className={cn(slots.root(), className)} data-slot="log-viewer-root" text={visible.map(textOf).join("\n")} what="log">
       <div className={slots.toolbar()} data-slot="log-viewer-toolbar">
-        {copyFailed ? (
-          <Text voice="gloss" role="alert">
-            Couldn&apos;t copy log.
-          </Text>
-        ) : null}
-        <Button type="button" intent="ghost" size="sm" onClick={handleCopy}>
-          <Icon icon={Copy} size="sm" label="Copy log" />
-        </Button>
+        {/* Status first: the toolbar is end-aligned, so its text grows leftward and the button never moves. */}
+        <CopyButtonStatus />
+        <CopyButtonTrigger iconOnly={true} intent="ghost" />
       </div>
-      {shouldVirtualize ? (
-        // message-list already owns the scroll container + the role="log"/live-region pair (its liveness
-        // is the TAIL ROW — announce.ts), so this is NOT wrapped in a second role="log" div. The plain
-        // arm below keeps its container-level `aria-live`: it is append-only and mounts no history.
-        <MessageList
-          ref={listHandleRef}
-          ariaLabel="Log entries"
-          items={visible}
-          getItemKey={(_line, index): number => keyOffset + index}
-          estimateSize={(): number => ESTIMATED_LINE_HEIGHT_PX}
-          renderItem={(line): ReactElement => <LogLineRow line={line} slots={slots} />}
-          scrollContainerRef={registerVirtualScrollNode}
-          // This component owns its own pin-not-yank logic above; opt out of message-list's built-in
-          // tail-follow so the two don't both drive the scroll.
-          followTail={false}
-          className={slots.scroll()}
-        />
-      ) : (
-        <div
-          ref={scrollRef}
-          role="log"
-          aria-label="Log entries"
-          aria-live="polite"
-          // biome-ignore lint/a11y/noNoninteractiveTabindex: WCAG 2.1.1 keyboard-scrollable overflow region — tabIndex=0 makes arrow/Page-key scrolling reachable without a mouse; not an accidental tab-stop.
-          tabIndex={0} // eslint-disable-line jsx-a11y/no-noninteractive-tabindex -- same justification as the biome-ignore above
-          onScroll={handleScroll}
-          className={slots.scroll()}
-          data-slot="log-viewer-scroll"
-        >
-          {visible.map((line, index) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: append-only log tail (lines never reordered/removed from the middle) — position is a stable identity.
-            <LogLineRow key={index} line={line} slots={slots} />
-          ))}
-        </div>
-      )}
-    </div>
+      <CopyButtonSubject>
+        {shouldVirtualize ? (
+          // message-list already owns the scroll container + the role="log"/live-region pair (its liveness
+          // is the TAIL ROW — announce.ts), so this is NOT wrapped in a second role="log" div. The plain
+          // arm below keeps its container-level `aria-live`: it is append-only and mounts no history.
+          <MessageList
+            ref={listHandleRef}
+            ariaLabel="Log entries"
+            items={visible}
+            getItemKey={(_line, index): number => keyOffset + index}
+            estimateSize={(): number => ESTIMATED_LINE_HEIGHT_PX}
+            renderItem={(line): ReactElement => <LogLineRow line={line} slots={slots} />}
+            scrollContainerRef={registerVirtualScrollNode}
+            // This component owns its own pin-not-yank logic above; opt out of message-list's built-in
+            // tail-follow so the two don't both drive the scroll.
+            followTail={false}
+            className={slots.scroll()}
+          />
+        ) : (
+          <div
+            ref={scrollRef}
+            role="log"
+            aria-label="Log entries"
+            aria-live="polite"
+            // biome-ignore lint/a11y/noNoninteractiveTabindex: WCAG 2.1.1 keyboard-scrollable overflow region — tabIndex=0 makes arrow/Page-key scrolling reachable without a mouse; not an accidental tab-stop.
+            tabIndex={0} // eslint-disable-line jsx-a11y/no-noninteractive-tabindex -- same justification as the biome-ignore above
+            onScroll={handleScroll}
+            className={slots.scroll()}
+            data-slot="log-viewer-scroll"
+          >
+            {visible.map((line, index) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: append-only log tail (lines never reordered/removed from the middle) — position is a stable identity.
+              <LogLineRow key={index} line={line} slots={slots} />
+            ))}
+          </div>
+        )}
+      </CopyButtonSubject>
+      <CopyButtonFallback className={slots.fallback()} />
+    </CopyButtonRoot>
   );
 }

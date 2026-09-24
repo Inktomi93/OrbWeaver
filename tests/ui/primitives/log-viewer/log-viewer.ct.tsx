@@ -190,7 +190,8 @@ test("a long log windows its DOM via the virtual-list seal instead of rendering 
   // scroll container (#1499 — a container-level region announced every line the virtualizer remounted on
   // a scroll-back). The container is still the named `role="log"`; the liveness sits on the last line.
   await expect(component.getByRole("log")).toHaveAttribute("aria-live", "off");
-  await expect(component.locator('[aria-live="polite"]')).toHaveCount(1);
+  // Scoped to the log: the toolbar's copy status is its own polite region, outside the line region.
+  await expect(component.getByRole("log").locator('[aria-live="polite"]')).toHaveCount(1);
   await expect(component.getByText("line 499", { exact: true })).toBeVisible();
   await expect(component.getByText("line 0", { exact: true })).toHaveCount(0);
 });
@@ -328,7 +329,55 @@ test("the copy affordance writes the visible lines to the clipboard", async ({ m
   await expect.poll(async () => await page.evaluate(() => (globalThis as unknown as { __copied: string | null }).__copied)).toBe("alpha\nbeta");
 });
 
-test("a clipboard rejection is surfaced in the toolbar", async ({ mount, page }) => {
+// Two text lines at the code step: less than this is a field nobody can read or select in.
+const FIELD_MIN_HEIGHT_PX = 40;
+
+// Both height arms: a fixed height, and the `max-h-*` cap every live call site passes.
+for (const bound of ["h-40", "max-h-40"] as const) {
+  test(`a failed copy replaces the log body with the field, inside the panel's own box (${bound})`, async ({ mount, page }) => {
+    const component = await mount(<LogViewer lines={makeLines(12)} className={bound} />);
+    // What an insecure (plain http) origin looks like: the [SecureContext] Clipboard API is absent.
+    await page.evaluate(() => {
+      Object.defineProperty(navigator, "clipboard", { configurable: true, value: undefined });
+      Object.defineProperty(globalThis, "isSecureContext", { configurable: true, value: false });
+    });
+
+    await component.getByRole("button", { name: "Copy log" }).click();
+    const field = component.getByRole("textbox", { name: "log", exact: true });
+    await expect(field).toBeFocused();
+    await expect(component.locator("[data-slot=log-viewer-scroll]")).toBeHidden();
+    await expect
+      .poll(async () => {
+        const [fieldBox, rootBox] = await Promise.all([field.boundingBox(), component.boundingBox()]);
+        if (fieldBox === null || rootBox === null) {
+          return false;
+        }
+        return (
+          fieldBox.height >= FIELD_MIN_HEIGHT_PX &&
+          fieldBox.x >= rootBox.x - 0.5 &&
+          fieldBox.y >= rootBox.y - 0.5 &&
+          fieldBox.x + fieldBox.width <= rootBox.x + rootBox.width + 0.5 &&
+          fieldBox.y + fieldBox.height <= rootBox.y + rootBox.height + 0.5
+        );
+      })
+      .toBe(true);
+  });
+}
+
+test.describe("a successful copy", () => {
+  test.use({ permissions: ["clipboard-read", "clipboard-write"] });
+
+  test("leaves the copy button where it was", async ({ mount }) => {
+    const component = await mount(<LogViewer lines={["alpha", "beta"]} />);
+    const button = component.getByRole("button", { name: "Copy log" });
+    const before = await button.boundingBox();
+    await button.click();
+    await expect(component.locator("[data-slot=copy-button-status]")).toHaveAttribute("data-outcome", "copied");
+    await expect.poll(async () => (await button.boundingBox())?.x).toBe(before?.x);
+  });
+});
+
+test("a clipboard rejection offers the visible lines selected for a manual copy", async ({ mount, page }) => {
   await page.evaluate(() => {
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
@@ -338,7 +387,10 @@ test("a clipboard rejection is surfaced in the toolbar", async ({ mount, page })
     });
   });
 
-  const component = await mount(<LogViewer lines={["alpha"]} />);
+  const component = await mount(<LogViewer lines={["alpha", "beta"]} />);
   await component.getByRole("button", { name: "Copy log" }).click();
-  await expect(component.getByRole("alert")).toHaveText("Couldn't copy log.");
+  const field = component.getByRole("textbox", { name: "log", exact: true });
+  await expect(field).toBeFocused();
+  await expect(field).toHaveValue("alpha\nbeta");
+  await expect(component.getByRole("status")).not.toBeEmpty();
 });
