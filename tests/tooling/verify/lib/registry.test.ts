@@ -14,7 +14,9 @@ import type { StageDef, Tier } from "../../../../tooling/src/verify/contract/sta
 import { stagesForTier } from "../../../../tooling/src/verify/lib/registry.ts";
 import { applyPathTriggers, WHOLE_COMMAND_PATH_TRIGGERS } from "../../../../tooling/src/verify/lib/registry-triggers.ts";
 import { stageLine } from "../../../../tooling/src/verify/lib/run-render.ts";
+import { resolveSelection } from "../../../../tooling/src/verify/lib/selection.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
 const WHOLE_TIERS: readonly Tier[] = ["changed", "static", "push", "full"];
 
@@ -177,4 +179,20 @@ test("a tier-precondition skip says so and names the tier that DOES run it; a sc
   expect(stageLine({ ...base, runsAt: "verify --full" })).toContain("skipped — tier precondition not met; runs at verify --full");
   // THE CONTROL: `runsAt: null` is what a SCOPED skip carries, and its wording must not have moved.
   expect(stageLine({ ...base, name: "lint:eslint", group: "lint", runsAt: null })).toContain("skipped (no files in scope)");
+});
+
+// Each selection reads the repository inventory, so the budget is a spawn budget.
+test("docs:format at a scoped tier checks every changed markdown file the whole check would", { timeout: scaledBudget(20_000) }, () => {
+  const docsFormat = stage("changed", "docs:format");
+  const argvFor = (paths: readonly string[]): unknown => docsFormat.scopedArgv?.(resolveSelection({ kind: "changed", paths }));
+  // An instruction file sits outside the docs trees but inside `check:docs`: the scoped run must not skip it.
+  expect(argvFor([".claude/skills/orchestrator/SKILL.md"]), "a skill file owes the whole markdown check").toEqual(["pnpm", "check:docs"]);
+  expect(argvFor(["docs/law/Constitution.md"]), "a docs-tree file keeps the narrowed check").toEqual([
+    "node",
+    "tooling/src/doc/cli.ts",
+    "format",
+    "--check",
+    "docs/law/Constitution.md",
+  ]);
+  expect(argvFor(["lefthook.yml"]), "no markdown, nothing owed").toBe("skip-empty");
 });
