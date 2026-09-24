@@ -70,9 +70,6 @@ test("compose publishes on loopback by default, ships a credentialed login mode,
 test("the entrypoint keeps its single *_FILE allowlist line (the agent-sdk firewall test parses it) and fills the two zero-config values", ({ repoRoot }) => {
   const shim = read(repoRoot, "docker/entrypoint.sh");
   expect(shim.match(/^for name in [^;]+; do$/gmu)).toHaveLength(1);
-  // the subscription token must REACH the sdk child, so it is loaded OUTSIDE that firewall-mirrored line
-  expect(shim).toMatch(/^load_secret CLAUDE_CODE_OAUTH_TOKEN$/mu);
-  expect(shim).not.toMatch(/^for name in [^;]*CLAUDE_CODE_OAUTH_TOKEN/mu);
   // single-user's only credential is the owner fallback; the schema refuses the deny pairing
   expect(shim).toContain("export AUTH_FALLBACK=owner");
   // the no-login default must not survive a non-loopback publication
@@ -93,7 +90,7 @@ test("every compose shape resolves (base + the four overlays)", ({ repoRoot, scr
   // scratch dir of empty files through compose's own --env-file (interpolation input, never the container env).
   const secretsDir = join(scratch, "secrets");
   mkdirSync(secretsDir, { recursive: true });
-  for (const f of ["session_secret", "local_initial_password", "oidc_client_secret", "credentials_key", "openrouter_api_key", "claude_oauth_token"]) {
+  for (const f of ["session_secret", "local_initial_password", "oidc_client_secret", "credentials_key", "openrouter_api_key"]) {
     writeFileSync(join(secretsDir, f), "");
   }
   const interpolation = join(scratch, "compose.env");

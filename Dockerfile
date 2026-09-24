@@ -7,9 +7,9 @@
 # WHAT SHIPS: the server as SOURCE (node 26 runs .ts directly — the image CMD is the same
 # `node packages/server/src/entry/index.ts` that `pnpm stack start-fg prod` runs on bare metal), the built
 # client bundle, and a PRUNED production node_modules. No vLLM, no CUDA, no models: local engines are an
-# external server you point the app at (ENGINES_POSTURE=adopt-only + VLLM_ENGINE_HOST — identical on bare
-# metal and in a container; the 2026-09-18 owner ruling retired the GPU all-in-one image so there is ONE
-# engine story to maintain). The previous two-target design lives in git history and
+# external server you add as a connection (identical on bare metal and in a container; the 2026-09-18 owner
+# ruling retired the GPU all-in-one image so there is ONE engine story to maintain). The previous two-target
+# design lives in git history and
 #  (status banner there).
 #
 # LAYOUT (docker/assemble-runtime.sh — the ONE home for the runtime file set): every `@orb/*` workspace
@@ -76,19 +76,9 @@ LABEL org.opencontainers.image.source="https://github.com/Inktomi93/orbweaver" \
       org.opencontainers.image.description="Orbweaver — self-hosted AI roleplay chat (app only; bring your own model server or API key)" \
       org.opencontainers.image.revision="${GIT_SHA}" \
       org.opencontainers.image.version="${IMAGE_VERSION}"
-ENV NODE_ENV=production \
-    # No engine supervisor in the image. Point the app at YOUR vLLM with ENGINES_POSTURE=adopt-only +
-    # VLLM_ENGINE_HOST at run time (docker/orbweaver.env).
-    ENGINES_POSTURE=off \
-    # The optional Claude-subscription backend keeps its login under the DATA VOLUME, so a one-time
-    # `claude login` inside the container survives restarts and image updates (docker/orbweaver.env).
-    CLAUDE_CONFIG_DIR=/app/data/claude
+ENV NODE_ENV=production
 COPY --chown=node:node --from=build /app/runtime /app
 COPY --chown=node:node docker/entrypoint.sh /app/docker/entrypoint.sh
-# `claude` on PATH = the SDK's own bundled runtime, for the in-container `/login` path. The SDK resolves the
-# binary by package name, so the path is the deploy layout's, and the shim refuses loudly if the prune ever
-# drops it instead of silently 127-ing at `docker compose exec`.
-RUN printf '#!/bin/sh\nbin=/app/node_modules/@anthropic-ai/claude-agent-sdk-linux-x64/claude\n[ -x "$bin" ] || { echo "claude: the bundled runtime is not in this image ($bin)" >&2; exit 127; }\nexec "$bin" "$@"\n' > /usr/local/bin/claude && chmod 0755 /usr/local/bin/claude
 # /app/data is the ONE writable state root (sqlite + -wal/-shm, CAS blobs, generated secrets) — a volume;
 # /app/.cache is cwd-relative scratch (a recorder spill when WIRE_CAPTURE=on; nothing on the quiet path).
 # No `USER node` here on purpose: the entrypoint starts as root to own the data dir for PUID/PGID (a

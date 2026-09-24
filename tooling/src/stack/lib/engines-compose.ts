@@ -18,13 +18,13 @@
  *   1. `--host 0.0.0.0` (EngineArgvContext.bindHost). A process that binds 127.0.0.1 inside a container is
  *      unreachable from its peers. Reachability is bounded instead by the container network: this overlay
  *      publishes NO engine port, so the engines answer only the app service (and each other).
- *   2. ONE hostname, three ports. The app has a single `VLLM_ENGINE_HOST` and three ports (engine-url.ts),
- *      and the egress internal-backend allowlist keys on the SAME env (`infra/network/egress.ts`
- *      `internalBackendHostPorts`), so both halves follow from `VLLM_ENGINE_HOST=vllm-gen` with no app
- *      change at all. `vllm-embed`/`vllm-rerank` therefore join gen's network namespace
- *      (`network_mode: "service:vllm-gen"`) and every engine answers on the `vllm-gen` name on its own
- *      port — the container shape of loopback-with-three-ports. CONSEQUENCE: `gen` is the base profile;
- *      `embed`/`rerank` cannot run without it.
+ *   2. ONE hostname, three ports. The app reaches each engine as an ordinary `openai-compat` connection
+ *      (`http://vllm-gen:<port>/v1`), and a private host needs one entry in the deployment's private-endpoint
+ *      allowlist (`infra/network/egress.ts`), so a single name keeps that to ONE admission for all three
+ *      engines. The overlay sets nothing on the app service. `vllm-embed`/`vllm-rerank` therefore join
+ *      gen's network namespace (`network_mode: "service:vllm-gen"`) and every engine answers on the
+ *      `vllm-gen` name on its own port — the container shape of loopback-with-three-ports. CONSEQUENCE:
+ *      `gen` is the base profile; `embed`/`rerank` cannot run without it.
  *   3. The rerank arm serves BY MODEL ID, not by a resolved snapshot path. `rerankModelPath` is a
  *      DEPLOYMENT fact the caller owns; the bare-metal caller resolves it with a huggingface_hub call
  *      (the transformers hub-cache workaround) against a store this generator cannot see, and there is no
@@ -277,14 +277,9 @@ function headerLines(input: EnginesComposeInput): readonly string[] {
     "# `pnpm engines compose --gpus 1`. VRAM per engine, as the serve argv asks for it:",
     ...ENGINE_ORDER.map((e) => vramNote(e, input)),
     "#",
-    "# The app side is two env values and NO app change: `adopt-only` (the app never spawns a container) and",
-    "# the one engine host name. The egress firewall's internal-backend allowlist reads that same key, so",
-    "# the app→engine hop is allowed by construction (infra/network/egress.ts, engine-url.ts).",
+    "# The app side is a connection per engine, not env: in Settings → Connections add a vLLM connection at",
+    `# http://${GEN_SERVICE}:<port>/v1 and admit \`${GEN_SERVICE}\` as a private endpoint (docker/README.md).`,
     "services:",
-    "  orbweaver:",
-    "    environment:",
-    "      ENGINES_POSTURE: adopt-only",
-    `      VLLM_ENGINE_HOST: ${GEN_SERVICE}`,
   ];
 }
 

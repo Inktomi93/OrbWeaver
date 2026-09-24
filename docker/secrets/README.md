@@ -9,7 +9,7 @@ the entrypoint exports each one as its env var at boot.
 mkdir -p /etc/orbweaver/secrets && cd /etc/orbweaver/secrets
 openssl rand -hex 32 > session_secret
 openssl rand -hex 32 > credentials_key
-touch local_initial_password oidc_client_secret openrouter_api_key claude_oauth_token   # every file must exist; empty = unset
+touch local_initial_password oidc_client_secret openrouter_api_key   # every file must exist; empty = unset
 chmod 600 *
 ORB_SECRETS_DIR=/etc/orbweaver/secrets docker compose -f docker-compose.yaml -f docker/compose.secrets.yaml up -d
 ```
@@ -24,6 +24,5 @@ here stay out of git, but a directory outside the checkout survives a `git clean
 | `oidc_client_secret` | `OIDC_CLIENT_SECRET` | `oidc` |
 | `credentials_key` | `CREDENTIALS_KEY` (32 bytes, hex/base64 — losing it orphans every stored provider key) | any mode storing provider keys; otherwise `CREDENTIALS_KEY_AUTO=true` generates one into the data volume |
 | `openrouter_api_key` | `OPENROUTER_API_KEY` | only to seed OpenRouter at boot |
-| `claude_oauth_token` | `CLAUDE_CODE_OAUTH_TOKEN` (from `claude setup-token`) | the optional Claude-subscription backend |
 
 The trailing newline `openssl rand | tee` leaves is stripped. An explicit env value wins over the file.
