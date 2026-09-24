@@ -84,7 +84,7 @@ Consumers switch to the resolver: `packages/server/src/entry/lifecycle.ts` L456-
 Owner ruling: a boot secret is generated only when no data depends on it. Otherwise the boot refuses with one message that names the missing file and where it is expected.
 
 - The credentials key depends on data when any `user_credentials` row exists.
-- The session secret depends on data when any `users` row carries a `password_hash`, or any `sessions` row exists.
+- The session secret depends on data when any `users` row carries a `password_hash`, any `sessions` row exists, or any `chat_invites` row is `pending` and not yet expired (its token hash is peppered with the same secret).
 
 The check needs the db, and the db needs the migrated layout, so the secrets resolve in two phases around the db open:
 
@@ -157,7 +157,7 @@ Every reader and writer of a data path, by slot. A line number is a locator, not
 | root | `tests/server/entry/lifecycle.int.test.ts` L20-29 and every `lifecycle-*.suite.int.test.ts`, `tests/server/entry/boot/local-light-prefetch-*.suite.int.test.ts` | stub `DATA_DIR` to the temp root instead of one slot each |
 | root | `tooling/src/snap/ops/stage.ts` L121; `tooling/src/snap/lib/stage-plan.ts` L64-65, L291 | the stage sets `DATA_DIR` to `<stage>/data`; `SESSION_SECRET` joins the inherited keys |
 | secrets | a new `boot-secrets.ts` under `packages/server/src/entry/boot/`; `packages/server/src/entry/lifecycle.ts` L348-360 | the two-phase resolution and the dependence refusal |
-| db | `tooling/src/render-trace/ops/fire.ts` L113 | an explicit `.cache` path with its own root; unaffected |
+| root | `tooling/src/render-trace/ops/fire.ts` L113 | the probe sets `DATA_DIR` beside its throwaway db, so its boot never migrates or writes the checkout's `data/` |
 | backups | `packages/db/src/client/index.ts` L212-236, L238-272, L292-314, L362-383 | `backupBeforeMigrate`, retention constants, the `.keep` pin, `pruneDbBackups` |
 | backups | `packages/server/src/entry/boot/migrate.ts` L38-55, L66-101 | the boot step passes the dir |
 | backups | `tests/db/client.int.test.ts` L273-431, L621-715; `tests/server/entry/boot/migrate.int.test.ts` L77-146, L171-222 | assert the backup dir |

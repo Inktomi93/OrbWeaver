@@ -4,9 +4,9 @@
 
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { pid } from "node:process";
-import { createDb, preCloseHousekeeping } from "@orb/db";
+import { join, sep } from "node:path";
+import process, { pid } from "node:process";
+import { closeDb, createDb, preCloseHousekeeping } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { LAYOUT_JOURNAL, migrateDataLayout } from "@orb/server/entry/boot";
@@ -22,6 +22,8 @@ const NOW = 1_700_000_000_000;
 const BACKUP_RE = /^orbweaver\.db\.backup-\d+$/u;
 const KEY_HEX = `${"ab".repeat(32)}\n`;
 const SECRET_HEX = `${"cd".repeat(32)}\n`;
+// The holder test waits out the db's busy timeout on the blocked checkpoint before it can refuse.
+const HOLDER_TEST_TIMEOUT_MS = 30_000;
 const VARIANT_REL = join("user_x", "ab", "cd", `${"ab".repeat(32)}`, "w64-q80.webp");
 
 const roots: string[] = [];
@@ -173,12 +175,15 @@ describe("migrateDataLayout", () => {
     expect(readdirSync(join(root, "backups")).sort()).toEqual(before);
   });
 
-  test("a legacy path whose target holds data refuses before any rename and names both paths", async () => {
+  test("a legacy path whose target holds data refuses before any rename and names both paths with their sizes", async () => {
     const root = freshRoot();
     await plantLegacyTree(root);
     mkdirSync(join(root, "db"));
     writeFileSync(join(root, "db", DB_FILE_NAME), "a newer db");
-    await expect(migrateDataLayout({ layout: layoutFor(root), pid })).rejects.toThrow(`${join(root, DB_FILE_NAME)} and ${join(root, "db", DB_FILE_NAME)}`);
+    const legacyBytes = statSync(join(root, DB_FILE_NAME)).size;
+    await expect(migrateDataLayout({ layout: layoutFor(root), pid })).rejects.toThrow(
+      `${join(root, DB_FILE_NAME)} (${legacyBytes} bytes) and ${join(root, "db", DB_FILE_NAME)} (10 bytes)`,
+    );
     // Nothing moved, no journal, both files as planted.
     expect(existsSync(join(root, DB_FILE_NAME))).toBe(true);
     expect(readFileSync(join(root, "db", DB_FILE_NAME), "utf-8")).toBe("a newer db");
@@ -222,14 +227,130 @@ describe("migrateDataLayout", () => {
     ).toEqual([`${DB_FILE_NAME}.backup-1`, `${DB_FILE_NAME}.backup-2`]);
   });
 
-  test("a journal held by a live pid refuses and touches nothing", async () => {
+  test("a journal held by another live pid refuses, names the journal file, and touches nothing", async () => {
     const root = freshRoot();
     await plantLegacyTree(root);
     writeFileSync(join(root, LAYOUT_JOURNAL), JSON.stringify({ pid: 4242, moves: [{ from: ".credentials-key", to: "secrets/credentials_key" }] }));
-    await expect(migrateDataLayout({ layout: layoutFor(root), pid, isPidAlive: () => true })).rejects.toThrow("pid 4242");
+    const refusal = migrateDataLayout({ layout: layoutFor(root), pid, isPidAlive: () => true });
+    await expect(refusal).rejects.toThrow("process 4242");
+    await expect(refusal).rejects.toThrow(join(root, LAYOUT_JOURNAL));
     expect(existsSync(join(root, ".credentials-key"))).toBe(true);
     expect(existsSync(join(root, "secrets"))).toBe(false);
     expect(existsSync(join(root, LAYOUT_JOURNAL))).toBe(true);
+  });
+
+  // A container restart hands node the SAME pid, so a crash between the journal write and its removal must
+  // resume under the default liveness check, not lock the box out as "another process".
+  test("a journal recorded under this process's own pid resumes with the default liveness check", async () => {
+    const root = freshRoot();
+    mkdirSync(join(root, "secrets"), { recursive: true });
+    writeFileSync(join(root, ".credentials-key"), KEY_HEX);
+    const moves = [{ from: ".credentials-key", to: join("secrets", SECRET_FILE_NAMES.credentialsKey) }];
+    writeFileSync(join(root, LAYOUT_JOURNAL), JSON.stringify({ pid: process.pid, moves }));
+
+    const report = await migrateDataLayout({ layout: layoutFor(root) });
+
+    expect(report.resumed).toBe(true);
+    expect(report.moved).toEqual(moves);
+    expect(readFileSync(join(root, "secrets", SECRET_FILE_NAMES.credentialsKey), "utf-8")).toBe(KEY_HEX);
+    expect(existsSync(join(root, LAYOUT_JOURNAL))).toBe(false);
+  });
+
+  // rename(2) cannot cross a filesystem or a mount point. The device probe is injected: a real second
+  // filesystem is not a fixture a unit test owns, and the refusal's shape is what the test pins.
+  test("a source on another filesystem refuses before any write and names the entry and the key that keeps it", async () => {
+    const root = freshRoot();
+    await plantLegacyTree(root);
+    const onOtherDevice = (path: string): number => (path.endsWith(`${sep}models`) ? 2 : 1);
+    const refusal = migrateDataLayout({ layout: layoutFor(root), pid, deviceOf: onOtherDevice });
+    await expect(refusal).rejects.toThrow(join(root, "models"));
+    await expect(refusal).rejects.toThrow("LOCAL_LIGHT_CACHE_DIR");
+    // Nothing was written: no journal, no snapshot, the db and the keys where they were.
+    expect(existsSync(join(root, LAYOUT_JOURNAL))).toBe(false);
+    expect(existsSync(join(root, "backups"))).toBe(false);
+    expect(existsSync(join(root, DB_FILE_NAME))).toBe(true);
+    expect(existsSync(join(root, ".credentials-key"))).toBe(true);
+    // CONTROL: the same tree with every entry on the root's device moves.
+    const report = await migrateDataLayout({ layout: layoutFor(root), pid, deviceOf: () => 1 });
+    expect(report.moved.some((move) => move.from === "models")).toBe(true);
+  });
+
+  // A journal replay must not re-fail forever: the pending entries are re-planned against the CURRENT env,
+  // so setting the slot key after a failed move is enough to recover.
+  test("a resume re-plans against the current env: a slot key set after a failed move keeps its entry in place", async () => {
+    const root = freshRoot();
+    mkdirSync(join(root, "models", "transformers"), { recursive: true });
+    writeFileSync(join(root, "models", "transformers", "weights.onnx"), "weights");
+    writeFileSync(join(root, ".session-secret"), SECRET_HEX);
+    const moves = [
+      { from: "models", to: "cache/models" },
+      { from: ".session-secret", to: join("secrets", SECRET_FILE_NAMES.sessionSecret) },
+    ];
+    writeFileSync(join(root, LAYOUT_JOURNAL), JSON.stringify({ pid: 4242, moves }));
+
+    const report = await migrateDataLayout({
+      layout: layoutFor(root, { ["LOCAL_LIGHT_CACHE_DIR"]: join(root, "models", "transformers") }),
+      pid,
+      isPidAlive: () => false,
+    });
+
+    expect(report.resumed).toBe(true);
+    expect(report.moved).toEqual([moves[1]]);
+    expect(existsSync(join(root, "models", "transformers", "weights.onnx"))).toBe(true);
+    expect(existsSync(join(root, "cache", "models"))).toBe(false);
+    expect(readFileSync(join(root, "secrets", SECRET_FILE_NAMES.sessionSecret), "utf-8")).toBe(SECRET_HEX);
+    expect(report.leftInPlace).toEqual(["models"]);
+    expect(existsSync(join(root, LAYOUT_JOURNAL))).toBe(false);
+
+    // CONTROL: the same journal under the default env replays both entries.
+    const controlRoot = freshRoot();
+    mkdirSync(join(controlRoot, "models", "transformers"), { recursive: true });
+    writeFileSync(join(controlRoot, "models", "transformers", "weights.onnx"), "weights");
+    writeFileSync(join(controlRoot, ".session-secret"), SECRET_HEX);
+    writeFileSync(join(controlRoot, LAYOUT_JOURNAL), JSON.stringify({ pid: 4242, moves }));
+    const control = await migrateDataLayout({ layout: layoutFor(controlRoot), pid, isPidAlive: () => false });
+    expect(control.moved).toEqual(moves);
+    expect(existsSync(join(controlRoot, "cache", "models", "transformers", "weights.onnx"))).toBe(true);
+  });
+
+  // Moving the db out from under a live writer would let it reopen by the old path into an empty file. A
+  // holder with an open write transaction blocks the truncating checkpoint, which is the tell.
+  test(
+    "a live holder of the legacy db refuses before any move; once it lets go, the move proceeds",
+    async () => {
+      const root = freshRoot();
+      await plantLegacyTree(root);
+      const holder = await createDb(`file:${join(root, DB_FILE_NAME)}`);
+      await holder.run(sql`BEGIN IMMEDIATE`);
+      await holder.run(sql`INSERT INTO probe (value) VALUES ('held')`);
+      try {
+        await expect(migrateDataLayout({ layout: layoutFor(root), pid })).rejects.toThrow(`another process holds ${join(root, DB_FILE_NAME)}`);
+        expect(existsSync(join(root, DB_FILE_NAME))).toBe(true);
+        expect(existsSync(join(root, "db", DB_FILE_NAME))).toBe(false);
+        expect(existsSync(join(root, LAYOUT_JOURNAL))).toBe(false);
+      } finally {
+        await holder.run(sql`ROLLBACK`);
+        closeDb(holder);
+      }
+      // CONTROL: with the holder gone the same tree moves, and the moved db carries the rows.
+      const report = await migrateDataLayout({ layout: layoutFor(root), pid });
+      expect(report.moved.some((move) => move.from === DB_FILE_NAME)).toBe(true);
+      expect(await probeValues(join(root, "db", DB_FILE_NAME))).toEqual(["checkpointed", "wal-only"]);
+    },
+    HOLDER_TEST_TIMEOUT_MS,
+  );
+
+  // A holder that reopened the moved db by its old path leaves a 0-byte file there. That is not data: the
+  // boot IGNORES it (never deletes a file it did not write) rather than refusing on a phantom conflict.
+  test("a 0-byte legacy db at the root is ignored, not a conflict", async () => {
+    const root = freshRoot();
+    mkdirSync(join(root, "db"), { recursive: true });
+    writeFileSync(join(root, "db", DB_FILE_NAME), "the real db");
+    writeFileSync(join(root, DB_FILE_NAME), "");
+    const report = await migrateDataLayout({ layout: layoutFor(root), pid });
+    expect(report).toEqual({ moved: [], leftInPlace: [], resumed: false });
+    expect(readFileSync(join(root, "db", DB_FILE_NAME), "utf-8")).toBe("the real db");
+    expect(statSync(join(root, DB_FILE_NAME)).size).toBe(0);
   });
 
   test("a journal left by a dead pid resumes: applied entries are accepted, pending ones are renamed", async () => {

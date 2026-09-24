@@ -759,6 +759,24 @@ export async function optimizeDb(db: Db): Promise<void> {
   await db.run(sql`PRAGMA optimize`);
 }
 
+// `PRAGMA wal_checkpoint` answers `(busy, log, checkpointed)`; `busy` reads back 1 when a holder blocked it.
+const CHECKPOINT_BUSY = 1;
+
+/**
+ * `PRAGMA wal_checkpoint(TRUNCATE)`, reporting whether another connection blocked it. The pragma never
+ * throws on a blocked checkpoint: it waits out the busy timeout, then answers `busy=1` and leaves the WAL
+ * as it was. A caller about to move or copy the db file reads that answer as "someone else holds it".
+ */
+export async function truncateWal(db: Db): Promise<{ readonly busy: boolean }> {
+  const row = await db.get<Record<string, number>>(sql`PRAGMA wal_checkpoint(TRUNCATE)`);
+  return { busy: row["busy"] === CHECKPOINT_BUSY };
+}
+
+/** Close the connection with no housekeeping — for a handle opened only to inspect or snapshot a file. */
+export function closeDb(db: Db): void {
+  clientOf(db).close();
+}
+
 /**
  * Optimize, truncate the WAL, then close the connection — the graceful-shutdown housekeeping.
  *
