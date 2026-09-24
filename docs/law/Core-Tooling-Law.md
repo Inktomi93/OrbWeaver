@@ -133,8 +133,7 @@ removed a second time.
 | `doc/` | the docs system's structural writer — ADR/plan/item minting, status and supersession, work-item transitions and landing, archiving with link rewrites, the generated indexes, the soft freshness report; its rules are what `check:agents` runs over `docs/**` and `check:docs`/`format:docs` run over the governed tree | `doc` |
 | `agent-sync/` | Codex agent-manifest sync + the instruction-layer and docs-tree check | `agents:sync` `check:agents` |
 | `seed/` | demo · chat · multi-user seeding (three verbs) | `seed:demo` |
-| `stack/` | the dev stack + engine launchers (bash-fronted) | `stack` `engines*` |
-| `model-ab/` | model A/B harness | (none) |
+| `stack/` | the dev and prod stack (bash-fronted; `start` is its node-only door) | `stack` `start` |
 
 **Process launchers and supervisors** may live directly under `scripts/`. They adapt native tool invocation, apply the shared capacity policy, supervise processes and preserve honest exit/report behavior. They do not own duplicate policy readers, application logic or compatibility entry points. Reusable tool implementation belongs in `tooling/`. Root `package.json` scripts identify the live launchers; there is no separate filename allowlist. TypeScript launchers are owned by the Node compiler program and the shared direct-script ESLint surface.
 
@@ -280,7 +279,7 @@ Two final policies over `@tooling` (`kinds: [PropertyAccessExpression, ElementAc
 **The law it pins.** The OPERATOR'S ARGV enters a tooling program at exactly ONE place and flows DOWN as a `readonly string[]` parameter. `process.argv` may be read only in:
 
 - a tool's `cli.ts` — the five-slot argv front door (§2.5), matched by SHAPE (`tooling/src/<tool>/cli.ts`) rather than by a path list, so a cli.ts that moves reds at its new path instead of carrying its exemption along;
-- a REVIEWED entry — an exact `(file, process-argv-read)` grant in `lib/reviewed-grants.ts`: the node half a `.sh` execs, which has no `cli.ts` by §2.5 (`stack/ops/{prod-entry,dev-identity-entry,engines,engines-ctl}.ts`), the private `verify/ops/config-snapshot-entry.ts` worker boundary, and `_shared/entrypoint.ts`, whose subject is `argv[1]` — the ENTRY IDENTITY ("was this module the program?") — and never the operator's flags.
+- a REVIEWED entry — an exact `(file, process-argv-read)` grant in `lib/reviewed-grants.ts`: the node half a `.sh` execs, which has no `cli.ts` by §2.5 (`stack/ops/prod-entry.ts`, `stack/ops/dev-identity-entry.ts`, and `stack/ops/start-entry.ts`, the one stack entry a pnpm script runs directly), the private `verify/ops/config-snapshot-entry.ts` worker boundary, and `_shared/entrypoint.ts`, whose subject is `argv[1]` — the ENTRY IDENTITY ("was this module the program?") — and never the operator's flags.
 
 Everything else — `ops/`, `lib/`, `contract/`, and every `ops/parse.ts` — takes argv as a PARAMETER. **A library reading the global argv is the defect class:** its behaviour depends on how the PROCESS was started, so no caller and no test can drive it, it silently re-admits flags the front door already refused, and two callers of the same helper get different answers. The defect class looked like: `codemod/lib/diagnostics.ts` (the `--max-output-lines=N` spill knob), `codemod/lib/example.ts` (`getFlag`'s default parameter), `codemod/lib/run.ts` (`runCodemod`'s own `--apply`/`--dry-run` decision) and `stack/ops/prod.ts`, which reached past its own entry to re-find the `--` forwarding separator in the GLOBAL frame.
 
@@ -298,7 +297,7 @@ Require the cruise-scope widening (`depcruise packages tooling`) or the stanzas 
 2. `tooling-internal-direction` — `ops/` may import `{lib,contract,_shared}` + its own tool's modules; nothing imports a sibling tool's `ops|lib|contract` directly. **Type-only is NOT exempt** for the cross-tool case — the front-door law is a SHAPE rule (the domain-sibling precedent).
 3. `tooling-cli-via-index` — a `cli.ts` reaches its own tool only through `"./index.ts"`.
 4. `tooling-shared-floor` — `_shared/` reaches UP to no tool (the `foundation-reaches-up-to-nothing` mirror).
-5. `tooling-no-provider-families` — the provider FAMILIES (`packages/inference/src/backends/<x>`, where the agent-sdk credential firewall lives) and the contract internals stay sealed against tooling; `contract/index.ts` alone is open, and the front door `packages/inference/src/index.ts` is legal because tools sit above the cake (§1). There is no vLLM carve-out: there is no in-server supervisor to keep in step, the fleet lives in `tooling/src/stack/lib/engine-fleet/`, and nothing in `@orb/inference` builds an engine argv.
+5. `tooling-no-provider-families` — the provider FAMILIES (`packages/inference/src/backends/<x>`, where the agent-sdk credential firewall lives) and the contract internals stay sealed against tooling; `contract/index.ts` alone is open, and the front door `packages/inference/src/index.ts` is legal because tools sit above the cake (§1). There is no vLLM carve-out: there is no in-server supervisor to keep in step, the fleet lives outside this repo in the owner's infra (docs/plans/fleet-out/design.md), and nothing in `@orb/inference` builds an engine argv.
 
 Coupled: `tests/tooling/dependency-cruiser.int.test.ts` carries a `__dc` pin per stanza (a planted violation cruises red). **A stanza without its pin is an inert rule** — the derived anti-drift case has nothing to fire it.
 

@@ -1,21 +1,17 @@
 // The stack's BOOT CEILINGS, load-scaled — the node half of a bash-fronted value (#1232).
-// `stack.sh` cannot import the shared budget policy (bash
-// has no module system, and the last time a shell re-spelled a node fact — the vLLM port list — it polled
-// ports the fleet never bound and reported the fleet gone while it still held VRAM). So the shell READS
-// these two numbers from the same `budget()` every instrument uses, exactly as it already reads `classify`
-// and `debug-env`: ONE formula, never a second one written in shell.
+// `stack.sh` cannot import the shared budget policy (bash has no module system, and a shell that
+// re-spells a node fact drifts from it). So the shell READS these two numbers from the same `budget()`
+// every instrument uses, exactly as it already reads `classify` and `debug-env`: ONE formula, never a
+// second one written in shell.
 //
 // WHY these two are budgets and not settles: both bound a POLL LOOP over a boot that is legitimately slow
-// (the vLLM fleet cold-spawns during server boot, and a cold vite compile is ~55s), so a stage boot under a
-// merge train reads `boot-timeout` at the quiet-box number while nothing is wrong — the memory lesson
-// `stack-restart-vs-battery-contention`. They are ceilings, not sleeps: a warm boot never reaches them.
+// (a cold vite compile is ~55s), so a stage boot under a merge train reads `boot-timeout` at the quiet-box
+// number while nothing is wrong — the memory lesson `stack-restart-vs-battery-contention`. They are
+// ceilings, not sleeps: a warm boot never reaches them.
 import { budget } from "../../_shared/load-budget.ts";
 
-/** Quiet-box base for the server `/healthz` gate. Under `adopt-or-start` the WHOLE three-engine fleet
- *  cold-spawns during boot, and the gate must clear all three — 180 s tore down a booting server on
- *  2026-09-18 while the fleet (embed + rerank + a 27 B gen) was still loading; 60 s had done the same to
- *  the 8 B gen alone before that. 900 s is the same cold-load allowance the container overlay gives the
- *  engines (`docker/compose.engines.yaml` start_period). A warm boot never reaches it (a ceiling, not a sleep). */
+/** Quiet-box base for the server `/healthz` gate. Sized when the server boot could include a model
+ *  cold-load; a warm boot never reaches it (a ceiling, not a sleep). */
 const SERVER_HEALTHZ_BASE_MS = 900_000;
 
 /** Quiet-box base for the wrapper's readiness poll. Stays AHEAD of the healthz gate plus a cold vite

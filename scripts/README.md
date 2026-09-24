@@ -94,12 +94,11 @@ adversarial milestone sweep is a durable instrument, not a throwaway lens: `pnpm
 generates the comment-stripped tracked-code mirror plus fail-closed E5/E6/E7 review evidence. D62 keeps
 it manual; no standing workflow or cron exists.
 
-`dev/multi-user-fixture.sh` and `dev/vllm-setup.sh` moved to `tooling/src/stack/` on 2026-08-22
-(#421). Neither was research: `engines.sh` CALLS `vllm-setup.sh` (first-run venv bootstrap, and the
-gpu image copies it), and `multi-user-fixture.sh` is contract-referenced by the stack tool, the seed
-tool's `multi-user` verb (its env contract) and snap's fixture door — tooling reaching UP into
-`scripts/` is the inversion the zone split exists to forbid. Their front door is now
-`pnpm fixture <verb>` and `pnpm engines` (never a path).
+`dev/multi-user-fixture.sh` moved to `tooling/src/stack/` on 2026-08-22 (#421). It was not research:
+it is contract-referenced by the stack tool, the seed tool's `multi-user` verb (its env contract) and
+snap's fixture door — tooling reaching UP into `scripts/` is the inversion the zone split exists to
+forbid. Its front door is `pnpm fixture <verb>` (never a path). The vLLM engine launcher that lived
+beside it left the repo for the owner's infra (docs/plans/fleet-out/design.md).
 
 ### Server runtime data that USED to live here
 

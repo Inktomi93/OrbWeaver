@@ -26,7 +26,7 @@ const TOOL_SLOT_DIRS = new Set(["contract", "ops", "lib"]);
  *  naming a dead dir or a dir that has grown a cli.ts (the row then exempts nothing and must go). */
 const BASH_FRONTED_TOOLS: Readonly<Record<string, { readonly why: string }>> = {
   stack: {
-    why: "the pgid/setsid/process-group choreography IS the tool (stack.sh · dev.sh · engines.sh, plus the two shells they call: multi-user-fixture.sh · vllm-setup.sh); the TS half under ops/ holds only the decisions the shell asks for. Ends if stack grows a cli.ts or the shells leave the tool root",
+    why: "the pgid/setsid/process-group choreography IS the tool (stack.sh · dev.sh, plus the shell they call: multi-user-fixture.sh); the TS half under ops/ holds only the decisions the shell asks for. Ends if stack grows a cli.ts or the shells leave the tool root",
   },
 };
 

@@ -77,14 +77,7 @@
     // shares a device with the node_modules volumes, so hardlinks work. Env config never
     // trips the "Unknown option" CLI validation that made a global --store-dir flag break
     // run/exec (the trap neo's per-subcommand wrapper existed to dodge).
-    "pnpm_config_store_dir": "/home/node/.local/share/pnpm/store",
-    // The vLLM/local-light model stack runs on the HOST (scripts/dev; .models/ weights).
-    // In-container runs must not try to spawn it — the local-light suites already skip
-    // when the weights are absent, and the firewall blocks HF downloads by design.
-    // MUST be the literal "true" — the env floor is a strict z.enum(["true","false"])
-    // (packages/server/src/foundation/env/index.ts) and "1" throws at module load,
-    // killing every server test suite that transitively imports the env.
-    "VLLM_DISABLED": "true"
+    "pnpm_config_store_dir": "/home/node/.local/share/pnpm/store"
   },
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
   "workspaceFolder": "/workspace",
