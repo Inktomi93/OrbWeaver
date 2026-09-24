@@ -74,9 +74,9 @@ export interface PerRequestSeamDeps {
   readonly onSessionSlide?: (expiresAt: number) => void;
   readonly peerIp?: string;
   /** The request's transport (`infra/auth/transport.ts`), resolved ONCE by `entry/app.ts`, which re-issues
-   *  the slid cookie under the same name. It picks the ONE cookie name this request may read. Absent ⇒
-   *  `http`: https is only ever a trusted proxy's affirmative assertion, never a default. */
-  readonly transport?: RequestTransport;
+   *  the slid cookie under the same name. It picks the ONE cookie name this request may read. Required: a
+   *  defaulted transport would silently read the plantable plain-http name on an https request. */
+  readonly transport: RequestTransport;
 }
 
 /** The seam output: the immutable `Principal` (or `null` for anonymous/disabled → transport 401) plus the
@@ -101,7 +101,7 @@ export interface SeamResult {
  *  strictly NARROWER than the app's admin gate: OWNER only. It judges the principal `resolvePrincipal`
  *  ALREADY minted for the request rather than resolving a second time; read its doc before touching it. */
 export interface AuthSeam {
-  readonly resolvePrincipal: (headers: Headers, req?: PerRequestSeamDeps) => Promise<SeamResult>;
+  readonly resolvePrincipal: (headers: Headers, req: PerRequestSeamDeps) => Promise<SeamResult>;
   readonly debugGateAdmits: (principal: Principal | null, headers: Headers) => boolean;
 }
 
@@ -133,12 +133,12 @@ interface CookieAdmission {
 }
 
 /** Cookie path: `null` when there's no cookie or the session is gone (→ fall through). */
-async function resolveCookiePrincipal(sessions: SessionsService, headers: Headers, req: PerRequestSeamDeps | undefined): Promise<CookieAdmission | null> {
-  const token = readSessionCookie(headers, req?.transport ?? "http");
+async function resolveCookiePrincipal(sessions: SessionsService, headers: Headers, req: PerRequestSeamDeps): Promise<CookieAdmission | null> {
+  const token = readSessionCookie(headers, req.transport);
   if (token === null) {
     return null;
   }
-  const validated = await sessions.validate(token, req?.onSessionSlide);
+  const validated = await sessions.validate(token, req.onSessionSlide);
   if (validated === null) {
     return null;
   }
@@ -345,7 +345,7 @@ export function createAuthSeam(deps: AuthSeamDeps): AuthSeam {
   // adds the request-path `enabled` gate its two sibling arms already apply.
   const resolveFallbackPrincipal = createFallbackPrincipalResolver(deps.sessions);
 
-  async function resolvePrincipal(headers: Headers, req?: PerRequestSeamDeps): Promise<SeamResult> {
+  async function resolvePrincipal(headers: Headers, req: PerRequestSeamDeps): Promise<SeamResult> {
     const csrfHeaderPresent = hasCsrfHeader(headers);
 
     if (isCookieMode) {
@@ -360,7 +360,7 @@ export function createAuthSeam(deps: AuthSeamDeps): AuthSeam {
       ...(deps.verifyForwardJwt !== undefined && { verifyForwardJwt: deps.verifyForwardJwt }),
       ...(deps.oidcStore !== undefined && { oidcStore: deps.oidcStore }),
       ...(deps.relayedFallbackNotice !== undefined && { relayedFallbackNotice: deps.relayedFallbackNotice }),
-      ...(req?.peerIp !== undefined && { peerIp: req.peerIp }),
+      ...(req.peerIp !== undefined && { peerIp: req.peerIp }),
     });
     const principal = await resolveHeaderOrFallbackPrincipal(deps.sessions, res, resolveFallbackPrincipal);
     // No session id on these arms BY CONSTRUCTION: neither the peer-gated owner fallback nor an SSO header
