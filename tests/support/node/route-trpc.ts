@@ -14,7 +14,8 @@
 //     (`type` optional); error `{error:{code:<JSONRPC NUMBER>,message,data}}` — `code` MUST be
 //     numeric or the client throws TransformResultError. The client ignores HTTP status (it parses
 //     the envelope), so everything fulfills 200.
-//   • subscriptions (httpSubscriptionLink / EventSource): OUT OF SCOPE — recorded, then 204. A
+//   • subscriptions (httpSubscriptionLink / `PostEventSource`, a JSON POST with the input as the body):
+//     OUT OF SCOPE — recorded, then 204, which the class treats as terminal (no reconnect). A
 //     component that subscribes needs an SSE helper (rides with the chat-surface lane).
 //
 // Unlisted procedures resolve `{result:{data:null}}` AND are recorded, so an incidental query a
@@ -431,7 +432,7 @@ function unwrapTrpcWireEscape(value: unknown): unknown {
 }
 
 // Inputs: queries carry `?input=` (batched or not — getUrl always URL-encodes query input);
-// mutations carry the POST body. Batched payloads are index-keyed (`{"0":…}`); non-batched carry
+// mutations and subscriptions carry the POST body. Batched payloads are index-keyed (`{"0":…}`); non-batched carry
 // the raw input, normalized to index "0".
 function decodeInputs(req: Request, url: URL, isBatch: boolean): Record<string, unknown> {
   let raw: unknown;

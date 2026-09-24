@@ -9,7 +9,7 @@ import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { ProviderError } from "@orb/inference";
 import { DomainOperationError, DomainRateLimitError } from "@orb/kit/errors";
-import type { Handle, UserId } from "@orb/kit/ids";
+import type { Handle, SocketId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { AuthSeam, SeamResult } from "@orb/server/entry/auth";
 import { getTraceByRequestId, initTracing, recentRequests } from "@orb/server/foundation/observability";
@@ -845,5 +845,56 @@ describe("app: a NON-Error throw is a policied 500, not a bare adapter answer (#
     expect(records).toHaveLength(1);
     expect(records[0]?.status).toBe(INTERNAL_ERROR);
     expect(getTraceByRequestId(requestId)?.status).toBe("error");
+  });
+});
+
+// Easy-sharing leg T: a relay that buffers every GET body (a Cloudflare quick tunnel) freezes a GET
+// EventSource, so the mount grants `allowMethodOverride` and the client opens subscriptions over POST. The
+// grant must widen subscriptions only as far as a JSON POST: the content-type belt above still owns every
+// other POST content type, and tRPC's override map keeps a mutation POST-only.
+describe("createApp: a subscription opens over a JSON POST (easy-sharing leg T)", () => {
+  const connectUrl = "http://localhost/api/trpc/stream.connect";
+
+  test("POST stream.connect with the input in a JSON body runs the subscription resolver", async () => {
+    // tRPC answers a refused subscription with a 200 SSE body that opens with `connected` and carries the
+    // METHOD_NOT_SUPPORTED as a later frame, so neither the status nor the first event discriminates. The
+    // resolver's own side effect does: it registers presence only once the procedure is admitted.
+    const connected: UserId[] = [];
+    const app = createApp(
+      deps({
+        seam: fakeSeam(COOKIE_OWNER),
+        presence: {
+          connect: (userId): void => {
+            connected.push(userId);
+          },
+          read: (userId) => ({ userId, online: true, lastSeenAt: null }),
+        },
+      }),
+    );
+    const res = await hit(
+      app,
+      new Request(connectUrl, {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "text/event-stream", "x-orb-csrf": "1" },
+        body: JSON.stringify({ socketId: castId<SocketId>("socket_leg_t_post") }),
+      }),
+    );
+    await res.body?.cancel();
+    expect(res.status).toBe(OK);
+    expect(res.headers.get("content-type")).toContain("text/event-stream");
+    expect(connected).toEqual([COOKIE_OWNER.userId]);
+  });
+
+  test("CONTROL: a form-encoded POST to the subscription is still the belt's 415", async () => {
+    const app = createApp(deps({ seam: fakeSeam(COOKIE_OWNER) }));
+    const res = await hit(
+      app,
+      new Request(connectUrl, {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: "socketId=socket_leg_t_form",
+      }),
+    );
+    expect(res.status).toBe(UNSUPPORTED_MEDIA_TYPE);
   });
 });

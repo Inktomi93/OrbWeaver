@@ -93,7 +93,7 @@ function selectsTrpcJsonHandler(contentType: string | undefined): boolean {
 
 /**
  * THE CSRF CONTENT-TYPE BELT (#300 leg 5, spine invariant #9). A tRPC mutation is POST-only
- * (`TYPE_ACCEPTED_METHOD_MAP`; the mount grants no `allowMethodOverride`), and `@trpc/server` 11.18's
+ * (`TYPE_ACCEPTED_METHOD_MAP`, and the `allowMethodOverride` map keeps it so), and `@trpc/server` 11.18's
  * `getContentTypeHandler` accepts THREE content-types — `application/json`, `multipart/form-data` and
  * `application/octet-stream` — dispatching the latter two as `type:"mutation"`. `multipart/form-data` is
  * CORS-SIMPLE: an ordinary cross-site `<form>` POST reaches this mount with no preflight and no CORS grant
@@ -111,7 +111,8 @@ function selectsTrpcJsonHandler(contentType: string | undefined): boolean {
  * app never answers (it mounts no CORS middleware).
  *
  * GET is untouched — it carries no content-type, and tRPC's method map admits GET for queries and
- * subscriptions only. A bare 415 with no body mirrors the body-limit belt: no legitimate client reaches it,
+ * subscriptions only. The mount's `allowMethodOverride` admits a query or subscription over POST too, which
+ * is why this belt, not the method, is what bounds a POST to `application/json`. A bare 415 with no body mirrors the body-limit belt: no legitimate client reaches it,
  * and the refusal still carries `X-Request-Id` (observability is mounted above this — and since #480 it
  * stamps the id on `c.res.headers` AFTER `next()`, so the header rides EVERY response through this mount,
  * including the tRPC handler's own Response objects, not just the context-built refusals like this one).
@@ -337,6 +338,9 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
           clientIp: clientIp(c),
         }),
       responseMeta: ({ errors }) => rateLimitResponseMeta(errors),
+      // Subscriptions ride POST: a relay that buffers every GET body (a Cloudflare quick tunnel) would
+      // freeze a GET EventSource. The override never lets a mutation leave POST.
+      allowMethodOverride: true,
     }),
   );
 

@@ -1,10 +1,11 @@
 // A raw consumer of the MULTIPLEXED socket, as a SPECIFIC actor — the wire instrument for proving the
 // per-viewer live-stream projection (the §3.6 reasoning-channel host-only cut). Since SSE-1 S2 a chat's
 // room-public events do NOT have a procedure of their own: a tab holds ONE `stream.connect` EventSource and
-// ATTACHES rooms to it, so this instrument does exactly what a browser does — POST `stream.attach` for the
-// `chat` room, then GET `stream.connect` and filter that room's frames.
+// ATTACHES rooms to it, so this instrument does what a browser does — POST `stream.attach` for the `chat`
+// room, then open `stream.connect` and filter that room's frames. The browser opens it as a JSON POST
+// (`PostEventSource`); this instrument keeps the GET form, which the server still accepts.
 //
-// The tRPC wire (verified empirically): a subscription is `GET /api/trpc/stream.connect?input=<encodeURI…>`
+// The tRPC wire (verified empirically): a GET subscription is `GET /api/trpc/stream.connect?input=<encodeURI…>`
 // (NON-batched — a batched subscription 400s "Cannot batch subscription calls") with
 // `Accept: text/event-stream`; a mutation is `POST /api/trpc/stream.attach?batch=1` with an index-keyed body.
 // Cookies flow same-origin; subscriptions are CSRF-exempt by design, but the ATTACH is an ordinary mutation,

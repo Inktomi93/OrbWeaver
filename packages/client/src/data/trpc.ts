@@ -12,6 +12,7 @@ import { createTRPCClient, httpBatchLink, httpSubscriptionLink, loggerLink, spli
 import type { TRPCOptionsProxy } from "@trpc/tanstack-react-query";
 import { createTRPCContext, createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
 import { formatTrpcOp, IS_DEV } from "#lib";
+import { PostEventSource } from "./bus/post-event-source.ts";
 
 /** The one mount path (mirrors `entry/app.ts` TRPC_ENDPOINT). */
 const TRPC_URL = "/api/trpc";
@@ -37,11 +38,12 @@ export type TrpcReadError = TRPCClientErrorLike<AppRouter>;
 export const { TRPCProvider, useTRPC, useTRPCClient } = createTRPCContext<AppRouter>();
 
 /**
- * The wire client. Two links behind a split: subscriptions ride SSE (`httpSubscriptionLink` —
- * native EventSource; cookies flow same-origin, and subscriptions are CSRF-exempt by design,
- * Tier-4 §7.1), everything else batches over HTTP with the custom CSRF header on EVERY request
- * (`SameSite=Lax` + this header is the whole CSRF story — the server gate 403s a cookie-authed
- * mutation without it).
+ * The wire client. Two links behind a split: subscriptions ride SSE over a JSON POST
+ * (`httpSubscriptionLink` with {@link PostEventSource}, because a relay that buffers GET bodies freezes a
+ * native EventSource; cookies flow same-origin, and the server's auth gate exempts subscriptions from the
+ * CSRF check by type, Tier-4 §7.1, though the POST carries the header anyway), everything else batches
+ * over HTTP with the custom CSRF header on EVERY request (`SameSite=Lax` + this header is the whole CSRF
+ * story — the server gate 403s a cookie-authed mutation without it).
  *
  * The `[trpc]` console channel (the loggerLink) sits in the query/mutation branch ONLY — the
  * splitLink routes subscriptions AWAY from it BY DESIGN: their per-data-event lines (one per
@@ -74,7 +76,8 @@ export function createTrpcClient(url: string = TRPC_URL): TrpcClient {
     links: [
       splitLink({
         condition: (op) => op.type === "subscription",
-        true: httpSubscriptionLink({ url }),
+        // biome-ignore lint/style/useNamingConvention: `EventSource` is the option name `@trpc/client` defines.
+        true: httpSubscriptionLink({ url, EventSource: PostEventSource }),
         false: [
           loggerLink({
             enabled: (op) => IS_DEV || (op.direction === "down" && op.result instanceof Error),
