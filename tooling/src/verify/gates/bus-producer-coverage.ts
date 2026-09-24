@@ -17,11 +17,9 @@
 // roster refuses as a blind instrument, and the definition fact's independently derived belted roster must
 // AGREE with it or the run refuses.
 //
-// THE DEFERRED-MEMBER CARVE-OUT IS RETIRED (0121): the one live row, `connectionsChanged`, gained its
-// canonical producer and the `user-bus-deferred-member` policy plus its shared `lib/bus-deferred-member.ts`
-// registry were deleted in the same edit, exactly as that policy's own retirement instruction required.
-// This policy now owns every declared member of every belted bus by construction — there is no second,
-// owner-authorized carve-out left to read.
+// THIS POLICY OWNS EVERY DECLARED MEMBER OF EVERY BELTED BUS BY CONSTRUCTION: there is no second,
+// owner-authorized carve-out module or registry to read. A member with no producer is reported here,
+// full stop (docs/work/0121).
 //
 // Identity — which call is a producer, which relay carries a member, which argument proves nothing — is the
 // shared `busProducerFact`'s question, not this policy's. It owns no name table, no path regex and no walk.
@@ -252,7 +250,7 @@ export const gate = defineGate({
           'import type { UserBusEvent } from "../../../../../contracts/src/user-bus/index.ts";\nexport function update(ctx: { emitUserEvent: (userId: string, event: UserBusEvent) => void }, userId: string): void {\n  ctx.emitUserEvent(userId, { type: "emitted" });\n}\n',
       },
       expect: { count: 1, messageIncludes: "connectionsChanged" },
-      why: "THE RETIRED DEFERRAL'S REGRESSION GUARD (0121): `connectionsChanged` used to be the one owner-deferred member, carved out by the now-deleted `user-bus-deferred-member` policy; with that carve-out gone this policy owns it by construction the moment it loses its producer, exactly like any other declared-never-emitted member",
+      why: "`connectionsChanged` is owned by this policy like any other declared member: no carve-out module or registry exempts it, so a member with no producer is reported here, full stop (docs/work/0121)",
     },
     {
       mode: "types",

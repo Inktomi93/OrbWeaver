@@ -2,9 +2,8 @@
 // `user-bus-coverage` converted, minus the two policies that have since been retired into
 // `bus-producer-coverage` (`user-bus-coverage` itself and `bus-coverage-owner`, whose guarantee the generic
 // policy's belted-roster denominator carries — its pins now live beside it in `bus-fact-health.test.ts`).
-// The family's third member, the hard/warning `user-bus-deferred-member`, was retired 0121 when its one
-// deferred row, `connectionsChanged`, gained a producer — `bus-producer-coverage` now owns that member by
-// construction, proven by its own regression-guard fixture, not by a pin here. Every proof runs through the
+// `bus-producer-coverage` owns EVERY declared member of every belted bus by construction, `connectionsChanged`
+// included, proven by its own regression-guard fixture and not by a pin here. Every proof runs through the
 // production dispatcher, and the arms a proof row cannot express — a REFUSAL, and the retirement of a whole
 // exemption table — are pinned through `runPolicyPass` here.
 import type { SourceFile } from "ts-morph";

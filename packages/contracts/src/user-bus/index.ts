@@ -11,9 +11,7 @@
 // `bus-producer-coverage` gate flags a declared-never-emitted member as dead wire — so every member below
 // has a real server emit site.
 //   • `connection` emits from every per-user connection CRUD verb and every binding change
-//     (domain/connection/verbs/connections.ts, bindings.ts), AFTER the write commits — closed 0121. It was
-//     DEFERRED until then: the per-user connection store existed with no emit site, tracked by the
-//     since-retired `user-bus-deferred-member` policy.
+//     (domain/connection/verbs/connections.ts, bindings.ts), AFTER the write commits (docs/work/0121).
 //   • `themes` ride their own member though they live inside the `settings` domain (a distinct client read
 //     surface — the theme list — with its own emit sites in `settings/verbs/*-theme.ts`).
 //   • `settings` / `connection` carry NO id: a user has ONE settings blob, and the client path-invalidates
@@ -107,9 +105,9 @@ export type UserBusEvent =
   // coarse map nothing AND a raw plugin-local `surfaceId` string is not a branded id — the shape law this file
   // opens with. The blast radius is a handful of the installer's own surfaces.
   | { type: "pluginSurfaceStateChanged"; pluginId?: PluginId }
-  // The per-user connection store: `user_connections` CRUD and `connection_bindings` changes (0121). NO id
-  // (see the MEMBERSHIP note) — the client path-invalidates the whole connection domain regardless of which
-  // row or binding moved.
+  // The per-user connection store: `user_connections` CRUD and `connection_bindings` changes
+  // (docs/work/0121). NO id (see the MEMBERSHIP note) — the client path-invalidates the whole connection
+  // domain regardless of which row or binding moved.
   | { type: "connectionsChanged" };
 
 /** Valid discriminators, derived from the union. The `satisfies Record<UserBusEvent["type"], true>` makes
@@ -143,10 +141,9 @@ export const USER_BUS_EVENT_TYPES = {
  *
  * It lives HERE, beside the union and the belt, for two reasons. One home: "the id-less form of member X" is
  * a fact about the union, not about whichever consumer needs it. And the emit-coverage ratchet
- * (`bus-producer-coverage`) resolves emitter identity in `server/src/{domain,transport}` — a
- * totality table parked in transport would have made every member, including a not-yet-emitted one, read as
- * emitted, turning the dead-wire belt permanently green (measured: it did, the run before this const moved
- * — `connectionsChanged` was the member that caught it, back when it had no producer).
+ * (`bus-producer-coverage`) resolves emitter identity in `server/src/{domain,transport}` — a totality table
+ * parked in transport would make every member read as emitted regardless of whether it has a producer,
+ * which is the one thing `bus-producer-coverage` exists to catch.
  *
  * `satisfies Record<…>` is the belt: a new member fails `tsc` HERE until it declares its coarse form.
  */

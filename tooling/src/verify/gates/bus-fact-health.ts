@@ -2,11 +2,9 @@
 // Missing, empty, dynamic, written, cyclic, ambiguous, or unsupported identities fail hard here.
 //
 // FAMILY `bus-fact` — the shared reader is `lib/bus-fact.ts` (`busProducerFact`), the same provider its
-// ordinary sibling `bus-producer-coverage` reads. This is the `-health` half of that family: the two
-// policies SPLIT by authority and severity, not by subject, so the `family` string is identical by
-// construction and this module owns no identity logic of its own. (The family's third member,
-// `user-bus-deferred-member`, was retired 0121 when its one deferred row, `connectionsChanged`, gained a
-// producer.)
+// ordinary sibling `bus-producer-coverage` reads. This is the `-health` half of that two-member family: the
+// two policies SPLIT by authority and severity, not by subject, so the `family` string is identical by
+// construction and this module owns no identity logic of its own.
 //
 // THIS POLICY REPORTS A NON-READY FACT; IT DOES NOT THROW ON ONE, AND THAT ASYMMETRY IS THE DESIGN (§12.3).
 // Its two siblings go through `recordReadyBusFact` and throw, because a consumer must never render a verdict
