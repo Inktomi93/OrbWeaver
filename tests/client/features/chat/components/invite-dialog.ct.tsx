@@ -13,6 +13,18 @@ import { InviteDialogStory } from "../_ct-stories.tsx";
 const REVOKE_RE = /Revoke/u;
 const MINTED_LINK_RE = /\/join\/tok_ct_minted$/u;
 
+interface Box {
+  readonly left: number;
+  readonly right: number;
+  readonly top: number;
+  readonly bottom: number;
+  readonly width: number;
+}
+
+function overlaps(a: Box, b: Box): boolean {
+  return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+}
+
 const MINT = {
   invite: {
     id: "chatinvite_ct_new",
@@ -104,6 +116,63 @@ test.describe("the automatic copy of a new link", () => {
     await expect(page.getByTestId("invite-link-result")).toBeVisible();
     await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toMatch(MINTED_LINK_RE);
     await expect(page.locator("html")).toHaveAttribute("data-clipboard-writes", "1");
+  });
+});
+
+test("a failed automatic copy shows the in-dialog manual-copy field, not a toast behind the backdrop", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "invites.listInvites": () => [],
+    "invites.createInvite": () => MINT,
+  });
+  await mount(<InviteDialogStory />);
+  // What an insecure (plain http) origin looks like: the [SecureContext] Clipboard API is absent.
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: undefined });
+    Object.defineProperty(globalThis, "isSecureContext", { configurable: true, value: false });
+  });
+  await page.getByTestId("invite-dialog").getByRole("button", { name: "Create link" }).click();
+
+  const field = page.getByTestId("invite-dialog").getByRole("textbox", { name: "invite link", exact: true });
+  await expect(field).toBeVisible();
+  await expect(field).toHaveValue(MINTED_LINK_RE);
+  // The toast viewport is mounted, so an empty count is a real absence.
+  await expect(page.locator('[data-slot="toast-viewport"]')).toHaveCount(1);
+  await expect(page.locator('[data-slot="toast-root"]')).toHaveCount(0);
+});
+
+test.describe("the outstanding-invite rows at 360px", () => {
+  test.use({ viewport: { width: 360, height: 800 } });
+
+  test("no text overlaps the Revoke button, and every label keeps a width", async ({ mount, page }) => {
+    await routeTrpc(page, {
+      "invites.listInvites": () => outstanding(),
+      "invites.createInvite": () => MINT,
+    });
+    await mount(<InviteDialogStory />);
+    const list = page.getByTestId("invite-outstanding-list");
+    await expect(list.getByRole("button", { name: REVOKE_RE })).toHaveCount(1);
+
+    // Every leaf text node in a row that holds a button, with the button's box beside it.
+    const readPairs = (): Promise<{ text: string; leaf: Box; target: Box }[]> =>
+      list.evaluate((listEl) => {
+        const rect = (el: Element): Box => {
+          const r = el.getBoundingClientRect();
+          return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width };
+        };
+        return Array.from(listEl.querySelectorAll("button")).flatMap((button) => {
+          let row: Element = button;
+          while (row.parentElement !== null && row.parentElement !== listEl) {
+            row = row.parentElement;
+          }
+          const target = rect(button);
+          return Array.from(row.querySelectorAll("*"))
+            .filter((el) => el.children.length === 0 && (el.textContent ?? "").trim() !== "" && !button.contains(el))
+            .map((leaf) => ({ text: leaf.textContent ?? "", leaf: rect(leaf), target }));
+        });
+      });
+    await expect
+      .poll(async () => (await readPairs()).filter(({ leaf, target }) => leaf.width < 1 || overlaps(leaf, target)).map(({ text }) => text))
+      .toEqual([]);
   });
 });
 

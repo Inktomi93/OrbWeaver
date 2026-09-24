@@ -50,6 +50,9 @@ import { MESSAGE_ACTION_ICON_CLASS, messageActionsRevealClass } from "../lib/mes
 import { RowReactionPicker } from "./row-reaction-picker.tsx";
 import { VariantWireViewer } from "./variant-wire-viewer.tsx";
 
+// A failed copy's next step; the message is on screen right above the menu.
+const MESSAGE_COPY_FALLBACK = "Select the message text to copy it by hand.";
+
 interface HideVars {
   readonly chatId: ChatId;
   readonly messageId: MessageId;
@@ -371,7 +374,7 @@ export function MessageActionsRow({
             Add a reaction
           </MenuItem>
         ) : null}
-        <MenuItem onClick={(): Promise<void> => copyWithNotice(content)}>
+        <MenuItem onClick={(): void => copyWithNotice(content, MESSAGE_COPY_FALLBACK)}>
           <Icon icon={Copy} size="sm" />
           Copy
         </MenuItem>

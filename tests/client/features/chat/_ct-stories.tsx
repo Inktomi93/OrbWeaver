@@ -2597,7 +2597,9 @@ export function InviteDialogStory(): ReactElement {
   return (
     <CtDataProviders>
       <div>
-        <InviteDialog chatId={CHAT_ID} open={true} onOpenChange={(): void => undefined} />
+        <CtToastSurface>
+          <InviteDialog chatId={CHAT_ID} open={true} onOpenChange={(): void => undefined} />
+        </CtToastSurface>
       </div>
     </CtDataProviders>
   );

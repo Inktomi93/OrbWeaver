@@ -1,5 +1,5 @@
-// The toast-acknowledged copy, for a copy with no control left on screen (a menu item, a copy after a
-// submit): a toast is the one place left to say what happened. A copy button uses `@orb/ui/copy-button`.
+// The toast-acknowledged copy, for a menu item: the menu closes on press, so a toast is the one place left
+// to say what happened. A copy with a control left on screen uses `@orb/ui/copy-button`.
 
 import type { ClipboardOutcome } from "@orb/ui/lib";
 import { writeClipboardText } from "@orb/ui/lib";
@@ -12,16 +12,14 @@ const FAILURE_REASON: Record<Exclude<ClipboardOutcome, "copied">, string> = {
   refused: "The browser blocked the copy.",
 };
 
-/**
- * Copy `text` and report the outcome as a toast. `copied` is the success title; `fallback` names where
- * the user can still copy the text by hand when the write fails.
- */
-export async function copyWithNotice(text: string, notice: { readonly copied?: string; readonly fallback?: string } = {}): Promise<void> {
-  const outcome = await writeClipboardText(text);
-  if (outcome === "copied") {
-    notify.success(notice.copied ?? "Copied to clipboard.");
-    return;
-  }
-  const reason = FAILURE_REASON[outcome];
-  notify.error({ title: COPY_FAILED, description: notice.fallback === undefined ? reason : `${reason} ${notice.fallback}` });
+/** Copy `text` and report the outcome as a toast. `fallback` is the failure toast's next step: where the
+ *  user can still copy the text by hand. */
+export function copyWithNotice(text: string, fallback: string): void {
+  writeClipboardText(text, (outcome) => {
+    if (outcome === "copied") {
+      notify.success("Copied to clipboard.");
+      return;
+    }
+    notify.error({ title: COPY_FAILED, description: `${FAILURE_REASON[outcome]} ${fallback}` });
+  });
 }

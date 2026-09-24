@@ -6,7 +6,7 @@
 import type { AuthMode } from "@orb/contracts/identity";
 import { CopyButton } from "@orb/ui/copy-button";
 import { Kbd } from "@orb/ui/kbd";
-import { Row, Stack } from "@orb/ui/layout";
+import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useAuthConfig } from "#data";
@@ -67,12 +67,11 @@ export function SharingPosturePanel(): ReactElement | null {
     <Stack gap="tight" data-auth-mode={config.mode} data-testid={testId("adminSharingPanel")}>
       <Text voice="label">Who can sign in</Text>
       <Text voice="gloss">{sharing.posture}</Text>
-      <Row align="baseline" gap="field">
+      <CopyButton text={sharing.line} what={`${sharing.lineNoun} ${sharing.line}`}>
         <Kbd size="command" data-testid={testId("adminSharingLine")}>
           {sharing.line}
         </Kbd>
-        <CopyButton text={sharing.line} what={`${sharing.lineNoun} ${sharing.line}`} />
-      </Row>
+      </CopyButton>
       <Text voice="gloss">{sharing.instruction}</Text>
     </Stack>
   );

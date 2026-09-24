@@ -131,6 +131,24 @@ test("a repeated failure is announced again and re-selects the text", async ({ m
   await expect.poll(() => recorder.evaluate((recorded) => [recorded[0], recorded.length >= 2 && recorded.at(-1) !== ""])).toEqual(["", true]);
 });
 
+test("a failed copy stamps the failed state and replaces the subject with the field", async ({ mount, page }) => {
+  const component = await mount(
+    <CopyButton text={TEXT} what={WHAT}>
+      <span data-testid="subject">{TEXT}</span>
+    </CopyButton>,
+  );
+  await expect(component).toHaveAttribute("data-state", "idle");
+  await expect(page.getByTestId("subject")).toBeVisible();
+  await removeClipboardApi(page);
+  await page.getByRole("button", { name: copyActionName(WHAT), exact: true }).click();
+  await expect(component).toHaveAttribute("data-state", "failed");
+  await expect(page.getByTestId("subject")).toBeHidden();
+  const field = page.getByRole("textbox", { name: WHAT, exact: true });
+  await expect(field).toBeFocused();
+  // The field is described by the status that says why and how to copy by hand.
+  await expect(field).toHaveAttribute("aria-describedby", (await statusOf(page).getAttribute("id")) ?? "missing");
+});
+
 test("a refused write falls back the same way, with its own reason", async ({ mount, page }) => {
   await mount(
     <div>

@@ -58,7 +58,9 @@ export const buttonVariants = tv({
     },
     size: {
       ...CONTROL_SIZE,
-      icon: "size-control-md p-0",
+      // `shrink-0` on both square arms, for the `glyphBox` reason: a square that shrinks in a crowded row is no
+      // longer its control box, and at a coarse pointer it falls under the tap floor.
+      icon: "size-control-md shrink-0 p-0",
       // The `icon` arm's SMALLER step — the `sm` control height as a SQUARE, for an icon-only control that
       // sits in an `sm`-scaled row (the credentials role-status dot) and would otherwise be a control-height
       // box with `px-block` of dead width on each side of an 8px dot. It is a CONTROL step, not a `glyph-*`
@@ -68,7 +70,7 @@ export const buttonVariants = tv({
       // target at a coarse pointer by 12px. Added at #169, geometry-PRESERVING: byte-identical to the
       // `size-control-sm p-0` className it replaces, which was invisible to `ui-size-via-variant` for as
       // long as that gate's value class rejected hyphens.
-      "icon-sm": "size-control-sm p-0",
+      "icon-sm": "size-control-sm shrink-0 p-0",
       // CONTENT-SIZED: the child IS the control (a portrait/media trigger). Every other size pins a
       // control height, so a display-token child larger than it (`size-avatar-hero`, 64px) paints OUTSIDE
       // its own button and the real hit target stays the 34px control box — the stickler 2026-08-01 F2
