@@ -46,7 +46,7 @@ export const AUTHORED_ARMS: readonly RealCorpusLivenessArm[] = [
   {
     policy: gateIgnoreInventory,
     overlays: [add("packages/ui/src/liveness-marker.ts", `// ${RETIRED_MARKER} no-such-gate: retired marker\nexport const livenessMarked = 1;\n`)],
-    messageIncludes: `a retired \`${RETIRED_MARKER}\` marker`,
+    messageIncludes: `a dead \`${RETIRED_MARKER}\` marker`,
   },
   {
     policy: noAwaitDbInLoop,
