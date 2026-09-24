@@ -13,9 +13,9 @@
 // one-shot migration (#906: "does that involve nuking the db? if so idgaf"); these pins are the receipt for
 // WHAT the wipe is buying, so a future reader who finds a pre-#906 database does not have to re-derive it.
 //
-// THIS FILE IS EXEMPT FROM `scripts/codemods/rename-rpg-cast-npc.ts` (its `REWRITE_EXEMPT`), and any future
-// mechanical sweep over the rpg register must exempt it too: its `cast` literals are the OLD spelling ON
-// PURPOSE. The first run of that codemod rewrote them, which turned all three pins into tautologies about
+// ANY mechanical sweep over the rpg register must exempt this file (the cast → npc rename codemod listed it
+// in its `REWRITE_EXEMPT`): its `cast` literals are the OLD spelling ON PURPOSE. The first run of that
+// codemod rewrote them, which turned all three pins into tautologies about
 // the CURRENT spelling — a green suite asserting nothing. A fixture whose whole value is that it is stale
 // is invisible to a rename that reads only syntax.
 //

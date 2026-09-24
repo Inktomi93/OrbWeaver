@@ -21,12 +21,13 @@ pnpm start       # production server on http://localhost:8788
 pnpm stack up    # Linux only: the watched dev stack on http://localhost:5173
 ```
 
-Node 26 (`.nvmrc`) and pnpm (pinned by `packageManager`; `corepack enable`).
+Node 26 (`.nvmrc`) and pnpm (pinned by `packageManager`; `npm install -g pnpm@11` — Node 26 does not
+ship corepack).
 
 ## Before you open a PR
 
 ```bash
-pnpm verify      # the static battery: lint, typecheck, structural gates
+pnpm check       # the static tier: lint, typecheck, structural gates
 ```
 
 `pnpm verify --push` additionally runs the behavioural suites (node tests, component tests, e2e

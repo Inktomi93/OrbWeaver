@@ -66,7 +66,7 @@ lefthook-local.yml
 
 # --- Claude Code: share the project hook (settings.json), keep personal overrides local ---
 .claude/settings.local.json
-# work-item CLI project-context cache (scripts/github/work-item.ts) — derived, refetchable
+# work-item CLI project-context cache — derived, refetchable
 .claude/cache/
 
 # --- editor / OS ---
@@ -80,7 +80,7 @@ Thumbs.db
 # --- read-only reference corpus (neo-tavern source + upstream cite targets + design goals) ---
 # Root-anchored (the /data/ lesson). NEVER committed: ~258M of frozen evidence the docs cite
 # one-line (ST tool-calling.js etc.), mirrored so dev-container sessions can verify references.
-# NB search tools that respect ignore files skip this — use /usr/bin/grep -a or `sg --no-ignore`.
+# NB search tools that respect ignore files skip this — use /usr/bin/grep -a or `ast-grep --no-ignore`.
 /reference/
 
 # --- the dev bug-found button's durable captures (#1095) ---
@@ -142,5 +142,5 @@ scratch/
 
 # Vendored upstream doc mirrors: every reader now has a real source (npm package or upstream site), and
 # the base-ui mirror's one gate fact folds installed declarations directly
-# (docs/work/0010-vendored-docs-leave-git.md; `tooling/src/verify/contract/resource-vendor.ts`).
+# (`tooling/src/verify/contract/resource-vendor.ts`).
 /docs/vendor/

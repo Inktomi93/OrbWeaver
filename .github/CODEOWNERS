@@ -3,5 +3,5 @@
 
 /docs/law/ @Inktomi93
 /.github/ @Inktomi93
-/scripts/docs/ @Inktomi93
-/scripts/verify/ @Inktomi93
+/tooling/src/doc/ @Inktomi93
+/tooling/src/verify/ @Inktomi93
