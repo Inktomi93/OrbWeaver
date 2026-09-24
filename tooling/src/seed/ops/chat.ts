@@ -17,15 +17,15 @@
 // to that live connection, so a seed run WHILE the stack is up may land in the file yet stay invisible until
 // the stack RESTARTS. Either restart after seeding, or point a fresh DATABASE_URL at a scratch file.
 
-import { dirname } from "node:path";
 import { EMBED_SPACE_DIMS } from "@orb/contracts/inference";
-import { chatParticipants, chats, createDb, localPath, preCloseHousekeeping } from "@orb/db";
+import { chatParticipants, chats, createDb, preCloseHousekeeping } from "@orb/db";
 import type { CharacterHandle, CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createSessionsService, ownerHandles } from "@orb/server/domain/sessions";
 import {
   createLocalLightUserSeed,
   DB_LAUNCHED,
+  migrateDataLayout,
   runBootMigrations,
   seedDefaultCharacters,
   seedDefaultPersona,
@@ -99,8 +99,9 @@ export async function runChatSeed(argv: readonly string[]): Promise<ExitCode> {
   }
 
   const now = (): number => Date.now();
+  await migrateDataLayout({ layout: env.DATA_LAYOUT });
   const db = await createDb(env.DATABASE_URL);
-  await runBootMigrations({ db, databaseUrl: env.DATABASE_URL, backupDir: dirname(localPath(env.DATABASE_URL) ?? "."), launched: DB_LAUNCHED });
+  await runBootMigrations({ db, databaseUrl: env.DATABASE_URL, backupDir: env.DATA_LAYOUT.backups, launched: DB_LAUNCHED });
 
   const sessionSecret = env.SESSION_SECRET ?? CHAT_SEED_SESSION_SECRET;
   const handles = ownerHandles();
@@ -120,7 +121,7 @@ export async function runChatSeed(argv: readonly string[]): Promise<ExitCode> {
     ownerId,
     secretBoxKey: null,
     casDir: env.ASSETS_DIR,
-    variantDir: `${env.ASSETS_DIR}/../variants`,
+    variantDir: env.DATA_LAYOUT.variants,
     sessionSecret,
     holder: "seed-chat",
     // The seeded local-light rows embed through the scripted cache — no download, no GPU, byte-stable.

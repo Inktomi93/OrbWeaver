@@ -129,9 +129,9 @@ export function localPath(url: string): string | undefined {
  * client (OTel) before drizzle binds it.
  */
 export async function createDb(url: string, wrap?: LibSqlWrap): Promise<Db> {
-  // Auto-create the parent dir for a `file:` db (the default lives under `data/`, beside ASSETS_DIR).
+  // Auto-create the parent dir for a `file:` db (the default lives under the data root's `db/`).
   // libSQL creates the db file lazily but NOT its parent directory, so a first boot on a fresh checkout
-  // would otherwise fail to open `file:./data/orbweaver.db`. No-op for `:memory:` / non-file URLs.
+  // would otherwise fail to open `file:./data/db/orbweaver.db`. No-op for `:memory:` / non-file URLs.
   const path = localPath(url);
   if (path !== undefined) {
     mkdirSync(dirname(path), { recursive: true });

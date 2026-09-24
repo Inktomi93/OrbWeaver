@@ -14,8 +14,9 @@ const HARNESS_TARGET = { name: "single-user", baseUrl: "http://localhost:5181", 
 const DEV_TARGET = { name: "single-user", baseUrl: "http://localhost:5173", backendUrl: "http://127.0.0.1:8788" } as const;
 const STAMPED = { reachable: true, stamped: true } as const;
 const UNSTAMPED = { reachable: true, stamped: false } as const;
-// Every mode's DB must live under the throwaway .cache tree — never the dev `data/orbweaver.db` default.
+// Every mode's DB and data root must live under the throwaway .cache tree — never the dev `data/` default.
 const ISOLATED_DB_RE = /^file:\.\/\.cache\//u;
+const ISOLATED_ROOT_RE = /^\.\/\.cache\//u;
 
 describe("targetRefusal", () => {
   test("a stamped, non-dev-port target is seedable", () => {
@@ -60,12 +61,15 @@ describe("mode projects (default, no override)", () => {
     }
   });
 
-  test("no mode targets a dev-stack port, and each pins its own DATABASE_URL", () => {
+  test("no mode targets a dev-stack port, and each pins its own DATABASE_URL and DATA_DIR", () => {
     for (const mode of MODE_PROJECTS) {
       for (const url of [mode.baseUrl, mode.backendUrl]) {
         expect(DEV_STACK_PORTS, `${mode.name} ${url}`).not.toContain(new URL(url).port);
       }
       expect(mode.webServerEnv["DATABASE_URL"], mode.name).toMatch(ISOLATED_DB_RE);
+      // The secrets, caches and reports derive from the root, not the db slot: without this the harness
+      // stack would generate its keyfiles into the checkout's real `data/secrets/`.
+      expect(mode.webServerEnv["DATA_DIR"], mode.name).toMatch(ISOLATED_ROOT_RE);
     }
   });
 

@@ -14,13 +14,10 @@ const BOOT_TIMEOUT_MS = 120_000;
 const RELAYED_REQUESTS = 5;
 const EVENT = "owner_fallback_relayed";
 
-vi.stubEnv("DATABASE_URL", `file:${join(TEMP_DIR, "orb.db")}`);
+vi.stubEnv("DATA_DIR", TEMP_DIR);
 vi.stubEnv("AUTH_MODE", "single-user");
 vi.stubEnv("AUTH_FALLBACK", undefined);
 vi.stubEnv("VLLM_DISABLED", "true");
-vi.stubEnv("ASSETS_DIR", join(TEMP_DIR, "assets"));
-vi.stubEnv("USER_RUNTIME_DIR", join(TEMP_DIR, "users"));
-vi.stubEnv("LOCAL_LIGHT_CACHE_DIR", join(TEMP_DIR, "models"));
 vi.stubEnv("LOCAL_LIGHT_PREFETCH", "off");
 // The test reads the security line back from the log ring, which records only at or above LOG_LEVEL.
 vi.stubEnv("LOG_LEVEL", "warn");

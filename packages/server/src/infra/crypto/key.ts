@@ -1,14 +1,17 @@
 import { randomBytes } from "node:crypto";
 import { closeSync, fsyncSync, linkSync, lstatSync, mkdirSync, openSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
-import { basename, dirname, join, resolve as resolveCwd } from "node:path";
+import { basename, dirname, join } from "node:path";
 import process from "node:process";
+import { SECRET_FILE_NAMES } from "#foundation/data-layout";
 import { env } from "#foundation/env";
+import type { BootSecretResolution, BootSecretSource } from "./contract.ts";
 
 // The boot secrets: the credentials SecretBox key and the SESSION_SECRET pepper. An explicit env value wins;
-// otherwise each is generated once into a keyfile beside the db (mode 0600) and read back on every boot, so
-// the keyfiles join the db's backup unit. A keyfile that exists but cannot be used is NEVER replaced: a new
-// value would orphan every stored credential, or every local password and session. Nothing here throws at
-// boot: a missing or bad credentials key degrades to a DISABLED box, and a missing pepper is the caller's call.
+// otherwise each lives in a keyfile under the data layout's `secrets/` dir (mode 0600), read back on every
+// boot, so the keyfiles join the db's backup unit. A keyfile that exists but cannot be used is NEVER replaced:
+// a new value would orphan every stored credential, or every local password and session. A keyfile that does
+// not exist yet is reported as `absent`, not generated: whether generating is safe depends on the db, and
+// `entry/boot` decides it after the db opens. Nothing here throws at boot.
 
 const CREDENTIALS_KEY_BYTES = 32;
 // 32 bytes as lowercase/uppercase hex is exactly 64 chars.
@@ -17,16 +20,7 @@ const HEX_KEY_LENGTH = 64;
 const KEYFILE_MODE = 0o600;
 // Random suffix for the publish temp file beside the keyfile, so two racing boots never share one.
 const TEMP_NAME_BYTES = 8;
-const CREDENTIALS_KEYFILE = ".credentials-key";
-/** The generated pepper's file name, beside the db; boot refusals name it back to the operator. */
-export const SESSION_SECRET_KEYFILE = ".session-secret";
 const FILE_URL_PREFIX = "file:";
-
-// Where a boot secret comes from: the explicit env value, else a keyfile beside `databaseUrl`'s db.
-interface BootSecretSource {
-  readonly explicit: string | undefined;
-  readonly databaseUrl: string;
-}
 
 /** Try hex first, then base64 — return a 32-byte buffer or null. Accepting both encodings means an
  *  operator running `openssl rand -hex 32` and one running `openssl rand -base64 32` both get a working
@@ -52,23 +46,6 @@ export function decode32Bytes(raw: string): Buffer | null {
     // fall through to null
   }
   return null;
-}
-
-/** Derive the local data directory from a libsql DATABASE_URL, or null for a remote (turso) URL that has
- *  no local data dir to write a keyfile into. Pure (cwd-relative resolution only). */
-export function dataDirFromDbUrl(dbUrl: string): string | null {
-  if (!dbUrl.startsWith(FILE_URL_PREFIX)) {
-    return null;
-  }
-  const dbPath = dbUrl.slice(FILE_URL_PREFIX.length);
-  return dirname(resolveCwd(dbPath));
-}
-
-// The ONE path rule for every generated boot secret: a keyfile beside the db, so it joins the db's backup
-// unit. Both keyfiles resolve here, so a layout change moves them together. `null` for a remote db URL.
-function keyfileBesideDb(databaseUrl: string, name: string): string | null {
-  const dataDir = dataDirFromDbUrl(databaseUrl);
-  return dataDir === null ? null : join(dataDir, name);
 }
 
 // Use stderr, NOT getLog(): the logger may not be initialized at this boot point, and a logger→env→crypto
@@ -162,27 +139,69 @@ export function loadOrCreateKeyfile(keyPath: string, generate: () => Buffer = ()
   }
 }
 
-/** The credentials SecretBox key: an explicit CREDENTIALS_KEY (hex or base64, exactly 32 bytes), else
- *  `.credentials-key` beside the db. Never throws: a missing or bad key DEGRADES to a disabled box. */
-export function credentialsKeyFromEnv(source: BootSecretSource = { explicit: env.CREDENTIALS_KEY, databaseUrl: env.DATABASE_URL }): Buffer | null {
-  if (source.explicit !== undefined && source.explicit !== "") {
-    return decode32Bytes(source.explicit);
-  }
-  const keyPath = keyfileBesideDb(source.databaseUrl, CREDENTIALS_KEYFILE);
-  if (keyPath === null) {
-    reportKeyfile("DATABASE_URL is not a local file: database, so no .credentials-key can be generated; set CREDENTIALS_KEY to store provider keys.");
+// Read a keyfile that is known to exist. The same fail-closed contract as `loadOrCreateKeyfile`'s read arm:
+// a corrupt, unreadable or dangling entry is null and is never touched.
+function readExistingKeyfile(keyPath: string): Buffer | null {
+  // @orb-waive caught-failure-ownership(err): FAIL-CLOSED at boot by design — an unreadable keyfile returns null so no caller ever re-keys over the only recovery copy; the fault is reported on stderr and the caller degrades or refuses (`entry/lifecycle.ts`). Ends if every caller moves to refusing startup on a crypto fault.
+  try {
+    return readKeyfile(keyPath);
+  } catch (err) {
+    reportKeyfile(`${keyPath} could not be read (${errorText(err)}); not generating a new one.`);
     return null;
   }
-  return loadOrCreateKeyfile(keyPath);
 }
 
-/** The SESSION_SECRET pepper: an explicit SESSION_SECRET, else `.session-secret` beside the db as 64 hex
- *  chars. `null` only for a remote db URL or a keyfile fault; the caller decides whether that is fatal. The
- *  generated value is returned, never written to `process.env`. */
-export function sessionSecretFromEnv(source: BootSecretSource = { explicit: env.SESSION_SECRET, databaseUrl: env.DATABASE_URL }): string | null {
-  if (source.explicit !== undefined) {
-    return source.explicit;
+// Where a boot secret's keyfile lives, or null for a remote db that has no local backup unit to join.
+function keyfilePath(source: BootSecretSource, name: string): string | null {
+  return source.databaseUrl.startsWith(FILE_URL_PREFIX) ? join(source.secretsDir, name) : null;
+}
+
+// The keyfile half of a resolution, shared by both secrets: remote db → resolved null; an entry at the path
+// (a file, a symlink, anything) → read it; nothing there → absent, and nothing is written.
+function resolveKeyfile(source: BootSecretSource, name: string, remoteNotice: string): BootSecretResolution<Buffer> {
+  const path = keyfilePath(source, name);
+  if (path === null) {
+    reportKeyfile(remoteNotice);
+    return { kind: "resolved", value: null, path: null };
   }
-  const keyPath = keyfileBesideDb(source.databaseUrl, SESSION_SECRET_KEYFILE);
-  return keyPath === null ? null : (loadOrCreateKeyfile(keyPath)?.toString("hex") ?? null);
+  if (lstatSync(path, { throwIfNoEntry: false }) === undefined) {
+    return { kind: "absent", path };
+  }
+  return { kind: "resolved", value: readExistingKeyfile(path), path };
+}
+
+/** The credentials SecretBox key: an explicit CREDENTIALS_KEY (hex or base64, exactly 32 bytes), else the
+ *  `credentials_key` keyfile under the layout's secrets dir. Never throws: a bad or unusable key resolves
+ *  to `null` (a DISABLED box); a keyfile that does not exist yet resolves to `absent`. */
+export function resolveCredentialsKey(
+  source: BootSecretSource = { explicit: env.CREDENTIALS_KEY, databaseUrl: env.DATABASE_URL, secretsDir: env.DATA_LAYOUT.secrets },
+): BootSecretResolution<Buffer> {
+  if (source.explicit !== undefined && source.explicit !== "") {
+    return { kind: "resolved", value: decode32Bytes(source.explicit), path: null };
+  }
+  return resolveKeyfile(
+    source,
+    SECRET_FILE_NAMES.credentialsKey,
+    `DATABASE_URL is not a local file: database, so no ${SECRET_FILE_NAMES.credentialsKey} keyfile can be generated; set CREDENTIALS_KEY to store provider keys.`,
+  );
+}
+
+/** The SESSION_SECRET pepper: an explicit SESSION_SECRET, else the `session_secret` keyfile under the
+ *  layout's secrets dir as 64 hex chars. `null` for a remote db or an unusable keyfile; `absent` for a keyfile
+ *  that does not exist yet. The value is returned, never written to `process.env`. */
+export function resolveSessionSecret(
+  source: BootSecretSource = { explicit: env.SESSION_SECRET, databaseUrl: env.DATABASE_URL, secretsDir: env.DATA_LAYOUT.secrets },
+): BootSecretResolution<string> {
+  if (source.explicit !== undefined) {
+    return { kind: "resolved", value: source.explicit, path: null };
+  }
+  const keyfile = resolveKeyfile(
+    source,
+    SECRET_FILE_NAMES.sessionSecret,
+    `DATABASE_URL is not a local file: database, so no ${SECRET_FILE_NAMES.sessionSecret} keyfile can be generated.`,
+  );
+  if (keyfile.kind === "absent") {
+    return keyfile;
+  }
+  return { kind: "resolved", value: keyfile.value?.toString("hex") ?? null, path: keyfile.path };
 }

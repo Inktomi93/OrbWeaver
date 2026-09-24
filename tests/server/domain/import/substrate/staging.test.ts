@@ -43,7 +43,7 @@ describe("stagedOwnerRoot", () => {
   test("the default staging root is app-owned, never the OS temp dir", () => {
     // A shared, world-listable namespace is not a staging root: any other local process can read an
     // unconsumed upload's bytes out of it.
-    expect(DEFAULT_IMPORT_STAGING_DIR).toBe("./data/import-staging");
+    expect(DEFAULT_IMPORT_STAGING_DIR).toBe("./data/cache/import-staging");
     expect(DEFAULT_IMPORT_STAGING_DIR.startsWith("/tmp")).toBe(false);
   });
 });

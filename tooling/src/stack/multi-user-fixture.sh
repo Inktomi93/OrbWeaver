@@ -50,6 +50,8 @@ export STACK_RUN_DIR="$FIXTURE_DIR/stack"
 
 # ── the fixture's env contract — the ONE source of truth the seed script inherits ────────────────────
 export AUTH_MODE=local
+# The whole data root, so the generated secrets and every cache land under the fixture tree too.
+export DATA_DIR="./.cache/multi-user-fixture"
 export DATABASE_URL="file:./.cache/multi-user-fixture/orb.db"
 export ASSETS_DIR="./.cache/multi-user-fixture/assets"
 # DEV-ONLY deterministic secrets (insecure by design — never a real deploy). ≥32 chars for the

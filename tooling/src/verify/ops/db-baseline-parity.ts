@@ -28,6 +28,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { resolveDataLayout } from "@orb/server/foundation/data-layout";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import type { SchemaBaselineComparison } from "../contract/scoped.ts";
@@ -147,16 +148,16 @@ function printGroup(label: string, statements: readonly string[]): void {
 const DEV_DB_MIGRATIONS = "packages/db/src/migrations";
 const MIB = 1_048_576;
 const HASH_PREFIX = 12;
-const DEFAULT_DATABASE_URL = "file:./data/orbweaver.db"; // mirrors foundation/env's default.
-
 function noticeLine(text: string): void {
   process.stdout.write(`${NOTICE_MARKER} ${text}\n`);
 }
 
 /** Print the local-db divergence forecast, if there is anything to say. Never throws, never gates. */
 async function reportDevDbForecast(root: string): Promise<void> {
-  // biome-ignore lint/style/noProcessEnv: the dev db's URL is genuinely process env — this stage runs standalone, outside the server's env module.
-  const url = process.env["DATABASE_URL"] ?? DEFAULT_DATABASE_URL;
+  // The dev db's URL is derived the way the server derives it (the data root, else the slot key), through
+  // the pure resolver rather than the server's env module, which this standalone stage must not load.
+  // biome-ignore lint/style/noProcessEnv: the dev db's location is genuinely process env — this stage runs standalone, outside the server's env module.
+  const { databaseUrl: url } = resolveDataLayout({ ["DATA_DIR"]: process.env["DATA_DIR"], ["DATABASE_URL"]: process.env["DATABASE_URL"] });
   const { forecastDevDbReset } = await import("@orb/db");
   let forecast: Awaited<ReturnType<typeof forecastDevDbReset>>;
   // @orb-waive caught-failure-ownership(err): printed via noticeLine — this is a Never-throws/never-gates forecast function per the doc comment above, and the notice itself says "could not read", never claiming safety. Ends if this forecast starts gating the run's exit code.

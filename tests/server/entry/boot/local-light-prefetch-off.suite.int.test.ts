@@ -36,10 +36,8 @@ const recordingCache: LocalLightModelCache = {
   },
 };
 
-vi.stubEnv("DATABASE_URL", `file:${join(TEMP_DIR, "orb.db")}`);
+vi.stubEnv("DATA_DIR", TEMP_DIR);
 vi.stubEnv("AUTH_MODE", "single-user");
-vi.stubEnv("ASSETS_DIR", join(TEMP_DIR, "assets"));
-vi.stubEnv("LOCAL_LIGHT_CACHE_DIR", join(TEMP_DIR, "models"));
 vi.stubEnv("LOCAL_LIGHT_PREFETCH", "off");
 vi.stubEnv("EGRESS_ALLOWLIST", "localhost");
 

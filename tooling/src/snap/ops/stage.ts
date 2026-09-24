@@ -117,8 +117,9 @@ function bootStage(root: string, paths: StagePaths, ports: StagePorts): void {
     PORT: String(ports.server),
     VITE_PORT: String(ports.vite),
     VITE_API_TARGET: `http://127.0.0.1:${ports.server}`,
-    DATABASE_URL: paths.databaseUrl,
-    ASSETS_DIR: paths.assetsDir,
+    // ONE root for the stage's db, assets, secrets and caches; the server derives every path from it, and
+    // `seedStageData` filled it from the same derivation.
+    DATA_DIR: paths.dataDir,
     // Skip the repo-root .env ENTIRELY (the strong hatch) — ORB_ENV_NO_OVERRIDE only flipped precedence,
     // so OWNER_HANDLES/DEBUG_TOKEN/WIRE_CAPTURE/RPG_TRACE/OIDC_* all filled from the operator's real `.env`,
     // arming the stage's /api/_debug/* surface under the operator's REAL DEBUG_TOKEN with WIRE_CAPTURE=on,

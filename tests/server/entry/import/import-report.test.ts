@@ -15,12 +15,12 @@
 //     plane appears in the report instead of being swallowed) — including `secrets.json`, whose row is the
 //     operator's receipt that API keys were deliberately not imported;
 //   • the merged-vs-new preset/theme arithmetic is derived, not reported, so it cannot disagree with itself;
-//   • the report file is named from the RUN CLOCK under `data/import-reports/`, and the directory is
+//   • the report file is named from the RUN CLOCK under the reports dir it is given, and the directory is
 //     created when absent.
 //
 // `formatImportReport` is private, so the pins drive the real `writeImportReport` and read the bytes back.
-// `REPORTS_DIR` resolves from cwd, so each test runs in a temp cwd and restores it (the `env/index.test.ts`
-// precedent).
+// The reports dir resolves from cwd, so each test runs in a temp cwd and restores it (the
+// `env/index.test.ts` precedent).
 
 import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -92,9 +92,12 @@ const EMPTY: ImportReport = {
 let cwdRoot: string;
 let previousCwd: string;
 
+// The layout's default reports dir, as the compose root passes it: cwd-relative, created on first write.
+const REPORTS_DIR = "./data/reports";
+
 /** Write `report` from a temp cwd and return the path + the rendered markdown. */
 async function render(report: ImportReport, at = AT): Promise<{ readonly path: string; readonly md: string }> {
-  const path = await writeImportReport(report, at);
+  const path = await writeImportReport(report, at, REPORTS_DIR);
   return { path, md: await readFile(path, "utf8") };
 }
 
@@ -110,11 +113,11 @@ afterEach(async () => {
 });
 
 describe("writeImportReport — where the file lands", () => {
-  test("creates data/import-reports/ and names the file from the RUN CLOCK", async () => {
+  test("creates the reports dir and names the file from the RUN CLOCK", async () => {
     const { path, md } = await render(EMPTY);
 
-    expect(path).toBe(join(cwdRoot, "data", "import-reports", `import-${AT}.md`));
-    expect(await readdir(join(cwdRoot, "data", "import-reports"))).toEqual([`import-${AT}.md`]);
+    expect(path).toBe(join(cwdRoot, "data", "reports", `import-${AT}.md`));
+    expect(await readdir(join(cwdRoot, "data", "reports"))).toEqual([`import-${AT}.md`]);
     expect(md).toContain(`Generated: ${AT_ISO}`);
     expect(md.startsWith("# SillyTavern import report")).toBe(true);
   });
@@ -123,7 +126,7 @@ describe("writeImportReport — where the file lands", () => {
     await render(EMPTY);
     await render(EMPTY, AT + 1);
 
-    expect((await readdir(join(cwdRoot, "data", "import-reports"))).sort()).toEqual([`import-${AT}.md`, `import-${AT + 1}.md`]);
+    expect((await readdir(join(cwdRoot, "data", "reports"))).sort()).toEqual([`import-${AT}.md`, `import-${AT + 1}.md`]);
   });
 });
 
