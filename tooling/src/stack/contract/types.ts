@@ -1,6 +1,8 @@
 // stack's shapes — the PURE half of mode-aware stack control, split out of the old
 // `scripts/dev/_kit/stack-mode.ts` at the #393 P5 move. Every decision the launcher makes is typed here;
 // the imperative half (spawn/kill/poll/probe) lives in ops/, and the dev half is stack.sh.
+import type { NetworkInterfaceInfo } from "node:os";
+import type { AuthMode } from "@orb/contracts/identity";
 
 // ── The spawner census ───────────────────────────────────────────────────────────────────────────────
 
@@ -250,6 +252,10 @@ export type StartBuildMode = (typeof START_BUILD_MODES)[number];
 
 export interface StartInvocation {
   readonly build: StartBuildMode;
+  /** `--setup`: ask the setup questions again before starting, even when `.env` exists. */
+  readonly setup: boolean;
+  /** `--port <n>`: this launch only, never written to `.env`. `null` = the port `.env` or the default names. */
+  readonly port: number | null;
 }
 
 export type StartParse = { readonly ok: true; readonly invocation: StartInvocation } | { readonly ok: false; readonly error: string };
@@ -259,6 +265,88 @@ export interface StartBuildDecision {
   /** The ONE line the launcher prints about the build — why it is running one, or why it is not. */
   readonly reason: string;
 }
+
+// ── `pnpm start` setup — the questions that write `.env` (lib/setup-plan.ts, ops/setup.ts) ───────────
+
+/** Who uses the box: `just-me` is single-user (no login, this machine only); `network` is a login mode. */
+export const SETUP_AUDIENCES = ["just-me", "network"] as const;
+export type SetupAudience = (typeof SETUP_AUDIENCES)[number];
+
+/** How `network` users sign in: a password the app stores (`local`), or the operator's identity provider. */
+export const SETUP_LOGINS = ["password", "sso"] as const;
+export type SetupLogin = (typeof SETUP_LOGINS)[number];
+
+export interface SetupAnswers {
+  readonly port: number;
+  readonly audience: SetupAudience;
+  /** Asked only for `network`; `just-me` carries the default so a re-run can offer it. */
+  readonly login: SetupLogin;
+  /** The host names people type to reach the box, as the `ALLOWED_HOSTS` list; `null` = none to write (an
+   *  IP address needs no entry). Asked only for `network`, pre-filled with this machine's own names. */
+  readonly allowedHosts: string | null;
+}
+
+/** The values setup writes: exactly the keys it owns, nothing else. */
+export interface SetupValues {
+  readonly port: number;
+  readonly authMode: AuthMode;
+  /** SSO was chosen but no SSO mode is configured yet: `authMode` is `local` until the operator adds the
+   *  identity provider's keys, which setup never collects. */
+  readonly ssoPending: boolean;
+  /** `null` leaves `ALLOWED_HOSTS` in `.env` exactly as it is. */
+  readonly allowedHosts: string | null;
+}
+
+/** What `pnpm start` does about `.env` before it starts.
+ *    `keep`     — `.env` exists and `--setup` was not given: use it as it is.
+ *    `ask`      — ask the questions (a first run in a terminal, or `--setup` in a terminal).
+ *    `defaults` — no `.env` and no terminal to ask in: boot on the built-in defaults and write nothing.
+ *    `refuse`   — `--setup` with no terminal: there is no one to ask. */
+const SETUP_DECISIONS = ["keep", "ask", "defaults", "refuse"] as const;
+export type SetupDecision = (typeof SETUP_DECISIONS)[number];
+
+/** How a setup pass ended. `written` carries the values now in `.env`; `cancelled` wrote nothing. */
+export type SetupResult =
+  | { readonly kind: "keep" }
+  | { readonly kind: "defaults" }
+  | { readonly kind: "refuse" }
+  | { readonly kind: "cancelled" }
+  | { readonly kind: "written"; readonly values: SetupValues };
+
+/** One setup pass's inputs. The streams are injected so a test drives the questions with scripted answers. */
+export interface SetupRunOpts {
+  readonly envPath: string;
+  /** `--setup` was given. */
+  readonly setup: boolean;
+  /** Both stdin and stdout are a terminal, so there is someone to ask. */
+  readonly interactive: boolean;
+  readonly input: NodeJS.ReadableStream;
+  readonly output: NodeJS.WritableStream;
+  /** The launcher's own env: a key `.env` leaves unset is offered from here. */
+  readonly ambient: Readonly<Record<string, string | undefined>>;
+  readonly machine: SetupMachine;
+}
+
+/** What setup reads about this machine to pre-fill the address question (`node:os` in production). */
+export interface SetupMachine {
+  readonly hostname: string;
+  readonly interfaces: NodeJS.Dict<readonly NetworkInterfaceInfo[]>;
+  /** Running inside WSL2, whose own addresses other devices cannot reach without Windows port forwarding. */
+  readonly wsl: boolean;
+}
+
+/** How another device reaches the box at a URL: `lan` always works on the same network, `tailnet` only from the
+ *  operator's tailnet, and `mdns` only where `.local` names resolve. */
+const SETUP_URL_KINDS = ["lan", "tailnet", "mdns"] as const;
+export type SetupUrlKind = (typeof SETUP_URL_KINDS)[number];
+
+export interface SetupUrl {
+  readonly url: string;
+  readonly kind: SetupUrlKind;
+}
+
+/** A parsed answer: the value, or the one-line reason the question is asked again. */
+export type AnswerParse<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly error: string };
 
 /** How to run the operator's OWN pnpm from a child process with `shell: false`, on every platform.
  *    `node`    — `<node> <pnpm.cjs> <args>`: pnpm's own JS entry, run by the node we are already in. The
