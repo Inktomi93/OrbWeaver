@@ -87,7 +87,7 @@
 //          Commands that don't fork (check:docs, check:structure, typecheck) show NO piped-vs-unpiped
 //          inflation — that contrast is the proof of mechanism.
 //
-// DECISION TIERS (per rule; validated against the full 133,631-command corpus by guard-replay.mjs):
+// DECISION TIERS (per rule; validated against the full 133,631-command corpus by guard-replay.ts):
 //   REWRITE (allow + updatedInput)  — the fix is unambiguous: run the harness redirected to a log, then
 //                                     run the agent's own reader chain against the file with the real
 //                                     exit code preserved. Strictly better than deny: no lost turn.
@@ -186,7 +186,7 @@
 //   tool-guard.mjs --classify-batch               stdin: JSON array of {command, cwd?, agentId?, timeout?}
 //                                                 stdout: JSON array of decisions (no side effects) —
 //                                                 used by tests/tooling/tool-guard.int.test.ts and
-//                                                 scripts/probes/guard-replay.mjs (corpus validation).
+//                                                 scripts/probes/guard-replay.ts (corpus validation).
 //
 // TEST SEAMS (env, test-only, self-identifying): ORB_TOOL_GUARD_NOW_FOR_TEST (pins the rewrite-log
 // timestamp), ORB_TOOL_GUARD_CRASH_FOR_TEST (forces an internal throw — proves fail-open).
@@ -1939,8 +1939,7 @@ function oneScriptVerdict(operand, ctx, depth, writes, grouped = false) {
     }
     // TRACKED FIRST, THEN THE SIZE CAP (#617). These two were the other way round, so a TRACKED file big
     // enough to clear the cap was refused for its SIZE — a limit that reads as a policy refusal on
-    // reviewed code. Measured: `bash <tests/tooling/check-gates.int.test.ts>` (99,797 bytes, tracked) →
-    // ask script-too-large, while the same spelling on a SMALL tracked file passes silently. The cap
+    // reviewed code, while the same spelling on a SMALL tracked file passes silently. The cap
     // exists so the guard never waves through an UNREVIEWED body it could not read; a tracked file is
     // reviewed by definition and is skipped whatever its size, so asking about it teaches a lane that the
     // sanctioned spelling is refused and pushes it onto an unniced ad-hoc one.

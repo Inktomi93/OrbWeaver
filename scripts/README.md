@@ -54,6 +54,10 @@ and policy belong in `tooling/`. A filename roster here would duplicate those li
 when another native tool needs an adapter. TypeScript launchers directly under `scripts/` receive
 Node compiler and typed ESLint ownership through the shared world rules.
 
+`codemod:run`'s bare `node` command runs nothing by itself: pnpm still injects the workspace
+`nodeOptions` heap floor (`pnpm-workspace.yaml`) into it, so a codemod invoked through it inherits
+that floor without repeating the flag.
+
 ### Operator one-offs
 
 `dev/sandbox.sh` (`pnpm sandbox`) · `probes/history-system-rows.ts`

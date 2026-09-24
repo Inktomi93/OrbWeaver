@@ -1,6 +1,6 @@
 // entry — the local-light BOOT WARM-UP, end to end over the WHOLE composition root (#2403). The property is
-// the reason the feature exists: on a GPU-less box (VLLM_DISABLED, so every derive role reroutes to the
-// in-process tier) the gigabyte-scale weight download must NOT gate boot. So the download is replaced with a
+// the reason the feature exists: on a GPU-less box (no vllm host configured, so every derive role reroutes to
+// the in-process tier) the gigabyte-scale weight download must NOT gate boot. So the download is replaced with a
 // DEFERRED promise that never settles, and every assertion runs while it is still in flight: `/healthz`
 // answers 200, a real tRPC query answers over HTTP, and the admin engine read shows the `downloading` row.
 //
@@ -43,8 +43,6 @@ const heldCache: LocalLightModelCache = {
 
 vi.stubEnv("DATABASE_URL", `file:${join(TEMP_DIR, "orb.db")}`);
 vi.stubEnv("AUTH_MODE", "single-user");
-// No GPU: every derive role reroutes onto the in-process tier, which is the box this feature is for.
-vi.stubEnv("VLLM_DISABLED", "true");
 vi.stubEnv("ASSETS_DIR", join(TEMP_DIR, "assets"));
 vi.stubEnv("LOCAL_LIGHT_CACHE_DIR", CACHE_DIR);
 // Boot installs the SSRF egress firewall; this test's own polls reach the server under test through the same

@@ -100,7 +100,8 @@ export function gitDirRedirect(gitFileText: string | null): string | null {
 
 /** The commit HEAD resolves to, or `null`. Three arms, in the order git itself would take them: a DETACHED
  *  HEAD is already the sha; a symbolic HEAD reads its loose ref; and when that loose file is absent (packed,
- *  or — the container build's `git init` case — never created) the packed table is scanned for the name.
+ *  or — a branch checked out before its first commit — never created) the packed table is scanned for the
+ *  name.
  *
  *  A symbolic HEAD naming a ref that exists NOWHERE returns `null`, which is the exact state a throwaway
  *  `git init` leaves behind: HEAD says `refs/heads/main`, no branch has ever been committed. The caller turns

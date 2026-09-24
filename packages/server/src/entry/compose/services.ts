@@ -194,8 +194,8 @@ export interface ServicesDeps {
   readonly secretBoxKey: Buffer | null;
   readonly casDir: string;
   readonly variantDir: string;
-  /** The staging root the upload route stages a zip under; absent ⇒ the OS temp dir (the same default the
-   *  route resolves). */
+  /** The staging root the upload route stages a zip under; absent ⇒ `DEFAULT_IMPORT_STAGING_DIR`
+   *  (the same default the route resolves). */
   readonly importStagingDir?: string;
   /** The ST profile-directory snapshot `import-st`'s `importAll` reads; absent ⇒ repo-root `.st-data`. */
   readonly stProfileDir?: string;

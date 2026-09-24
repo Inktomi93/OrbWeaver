@@ -6,7 +6,7 @@
 //   HEAD → loose ref            a normal checkout
 //   HEAD → packed-refs          a checkout after `git gc` — the loose file is simply gone
 //   detached HEAD               a CI/`snap --isolated` checkout at a sha
-//   HEAD naming a ref nowhere   the CONTAINER BUILD's throwaway `git init` (no branch was ever committed)
+//   HEAD naming a ref nowhere   a branch checked out before its first commit
 // plus the stamp's precedence over all of them, and a root with no `.git` at all.
 //
 // No git binary is involved on either side: the fixtures are written as text, which is exactly how the
@@ -80,9 +80,9 @@ describe("readGitCommit", () => {
     expect(readGitCommit(root)).toBe(COMMIT);
   });
 
-  test("HEAD naming a ref that exists NOWHERE is null — the container build's throwaway `git init`", async () => {
-    // `git init` writes HEAD pointing at refs/heads/main before any commit exists. The honest answer is "I
-    // don't know", NOT a fabricated sha and NOT a throw that would kill the build or the boot.
+  test("HEAD naming a ref that exists NOWHERE is null — a branch with no commits yet", async () => {
+    // A fresh `git init` writes HEAD pointing at refs/heads/main before any commit exists. The honest answer
+    // is "I don't know", NOT a fabricated sha and NOT a throw that would kill the build or the boot.
     await gitDir({ head: `ref: ${BRANCH}\n` });
     expect(readGitCommit(root)).toBeNull();
   });
@@ -116,8 +116,8 @@ describe("readVersionIdentity", () => {
     expect(Object.keys(readVersionIdentity(root))).not.toContain("dirty");
   });
 
-  test("a STAMPED version.json WINS over a .git beside it — the container build's `git init` cannot win", async () => {
-    // Both present, disagreeing on purpose: the build stage has a throwaway .git AND the stamp, and the
+  test("a STAMPED version.json WINS over a .git beside it", async () => {
+    // Both present, disagreeing on purpose: a stale or throwaway .git can sit beside a real stamp, and the
     // stamp is the only one that knows the real commit.
     await gitDir({ head: `ref: ${BRANCH}\n` });
     await writeFile(join(root, VERSION_STAMP_FILE), JSON.stringify({ version: "1.4.2", commit: COMMIT, builtAt: "2026-09-18T09:30:00Z" }), "utf8");
