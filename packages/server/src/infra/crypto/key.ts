@@ -4,21 +4,27 @@ import { dirname, join, resolve as resolveCwd } from "node:path";
 import process from "node:process";
 import { env } from "#foundation/env";
 
-// The boot key path for the credentials SecretBox (./secrets). Decode CREDENTIALS_KEY (hex OR base64,
-// validated at exactly 32 bytes), or — when CREDENTIALS_KEY_AUTO is set — auto-generate + persist a key
-// to `.credentials-key` (mode 0600) next to the DB on first boot. Degrade, NEVER throw at boot: an
-// unset/malformed/wrong-length key returns null ⇒ createSecretBox(null) yields a DISABLED box. The
-// `.credentials-key` file is gitignored and is the ONLY decryption recovery path — back it up alongside
-// the DB; wiping the data dir without it loses every stored credential. A corrupt existing keyfile FAILS
-// CLOSED (returns null — never overwrites; the operator must investigate).
+// The boot secrets: the credentials SecretBox key and the SESSION_SECRET pepper. An explicit env value wins;
+// otherwise each is generated once into a keyfile beside the db (mode 0600) and read back on every boot, so
+// the keyfiles join the db's backup unit. A keyfile that exists but cannot be used is NEVER replaced: a new
+// value would orphan every stored credential, or every local password and session. Nothing here throws at
+// boot: a missing or bad credentials key degrades to a DISABLED box, and a missing pepper is the caller's call.
 
 const CREDENTIALS_KEY_BYTES = 32;
 // 32 bytes as lowercase/uppercase hex is exactly 64 chars.
 const HEX_KEY_LENGTH = 64;
 // Owner-only read/write — the keyfile must never be group/world readable.
 const KEYFILE_MODE = 0o600;
-const KEYFILE_NAME = ".credentials-key";
+const CREDENTIALS_KEYFILE = ".credentials-key";
+/** The generated pepper's file name, beside the db; boot refusals name it back to the operator. */
+export const SESSION_SECRET_KEYFILE = ".session-secret";
 const FILE_URL_PREFIX = "file:";
+
+// Where a boot secret comes from: the explicit env value, else a keyfile beside `databaseUrl`'s db.
+interface BootSecretSource {
+  readonly explicit: string | undefined;
+  readonly databaseUrl: string;
+}
 
 /** Try hex first, then base64 — return a 32-byte buffer or null. Accepting both encodings means an
  *  operator running `openssl rand -hex 32` and one running `openssl rand -base64 32` both get a working
@@ -56,52 +62,66 @@ export function dataDirFromDbUrl(dbUrl: string): string | null {
   return dirname(resolveCwd(dbPath));
 }
 
-/** Load an existing `.credentials-key`, or generate + persist a fresh one (mode 0600) on first call.
- *  A corrupt/unrecognized existing file FAILS CLOSED (returns null — never overwrites). Filesystem
- *  errors (permission, read-only) also return null ⇒ a disabled box rather than a partial crypto state. */
+// The ONE path rule for every generated boot secret: a keyfile beside the db, so it joins the db's backup
+// unit. Both keyfiles resolve here, so a layout change moves them together. `null` for a remote db URL.
+function keyfileBesideDb(databaseUrl: string, name: string): string | null {
+  const dataDir = dataDirFromDbUrl(databaseUrl);
+  return dataDir === null ? null : join(dataDir, name);
+}
+
+// Use stderr, NOT getLog(): the logger may not be initialized at this boot point, and a logger→env→crypto
+// import cycle is the hazard. Silenced under tests, which spin temp keyfiles up and down constantly.
+function reportKeyfile(line: string): void {
+  if (env.NODE_ENV !== "test") {
+    process.stderr.write(`crypto: ${line}\n`);
+  }
+}
+
+/** Load an existing keyfile, or generate + persist a fresh 32-byte one (hex, mode 0600) on first call.
+ *  A keyfile that exists but is not a 32-byte hex/base64 key, or cannot be read, FAILS CLOSED: it returns
+ *  null and is never overwritten. A filesystem fault on first write also returns null. */
 export function loadOrCreateKeyfile(keyPath: string): Buffer | null {
-  // @orb-waive caught-failure-ownership(catch): FAIL-CLOSED at boot by design — any filesystem fault (permission, read-only, corrupt keyfile) returns null so `createSecretBox(null)` yields a DISABLED box rather than a partial crypto state that could overwrite the only decryption recovery path. The operator sees it as credentials being unavailable, never as silent re-keying. Ends if boot gains a channel that can refuse startup on a crypto fault.
+  // @orb-waive caught-failure-ownership(err): FAIL-CLOSED at boot by design — any filesystem fault (permission, read-only, corrupt keyfile) returns null so no caller ever re-keys over the only recovery copy. The fault is reported on stderr; the credentials box then runs DISABLED and a cookie mode refuses to boot (`entry/lifecycle.ts`). Ends if every caller moves to refusing startup on a crypto fault.
   try {
     if (existsSync(keyPath)) {
-      const raw = readFileSync(keyPath, "utf-8").trim();
-      // Length mismatch / unrecognized encoding ⇒ corrupt keyfile. Return null (disable) rather than
-      // overwrite; the operator must investigate why the recovery key changed.
-      return decode32Bytes(raw);
+      const key = decode32Bytes(readFileSync(keyPath, "utf-8"));
+      if (key === null) {
+        reportKeyfile(`${keyPath} exists but is not a 32-byte hex or base64 key; leaving it in place and not generating a new one.`);
+      }
+      return key;
     }
     const fresh = randomBytes(CREDENTIALS_KEY_BYTES);
     mkdirSync(dirname(keyPath), { recursive: true });
     writeFileSync(keyPath, `${fresh.toString("hex")}\n`, { mode: KEYFILE_MODE });
-    // Use stderr, NOT getLog() — the logger may not be initialized at this boot point, and a
-    // logger→env→crypto import cycle is the hazard the file header warns about. First-boot one-shot
-    // only; silenced under tests (which spin temp credential stores up and down constantly).
-    if (env.NODE_ENV !== "test") {
-      process.stderr.write(`crypto: auto-generated CREDENTIALS_KEY → ${keyPath} (mode 0600). Back this up alongside the DB.\n`);
-    }
+    reportKeyfile(`generated ${keyPath} (mode 0600). Back it up with the database.`);
     return fresh;
-  } catch {
+  } catch (err) {
+    reportKeyfile(`${keyPath} could not be read or created (${err instanceof Error ? err.message : String(err)}); not generating a new one.`);
     return null;
   }
 }
 
-/** The CREDENTIALS_KEY_AUTO path: resolve the data dir from DATABASE_URL and load/create the keyfile
- *  there. Returns null (⇒ disabled box) for a remote DB URL or any filesystem failure. */
-export function resolveAutoKey(): Buffer | null {
-  const dataDir = dataDirFromDbUrl(env.DATABASE_URL);
-  if (dataDir === null) {
+/** The credentials SecretBox key: an explicit CREDENTIALS_KEY (hex or base64, exactly 32 bytes), else
+ *  `.credentials-key` beside the db. Never throws: a missing or bad key DEGRADES to a disabled box. */
+export function credentialsKeyFromEnv(source: BootSecretSource = { explicit: env.CREDENTIALS_KEY, databaseUrl: env.DATABASE_URL }): Buffer | null {
+  if (source.explicit !== undefined && source.explicit !== "") {
+    return decode32Bytes(source.explicit);
+  }
+  const keyPath = keyfileBesideDb(source.databaseUrl, CREDENTIALS_KEYFILE);
+  if (keyPath === null) {
+    reportKeyfile("DATABASE_URL is not a local file: database, so no .credentials-key can be generated; set CREDENTIALS_KEY to store provider keys.");
     return null;
   }
-  return loadOrCreateKeyfile(join(dataDir, KEYFILE_NAME));
+  return loadOrCreateKeyfile(keyPath);
 }
 
-/** The boot entry point: decode CREDENTIALS_KEY, else the auto-key path when opted in, else null. The
- *  composition root passes the result to `createSecretBox`. Never throws — a missing/bad key DEGRADES. */
-export function credentialsKeyFromEnv(): Buffer | null {
-  const raw = env.CREDENTIALS_KEY;
-  if (raw !== undefined && raw !== "") {
-    return decode32Bytes(raw);
+/** The SESSION_SECRET pepper: an explicit SESSION_SECRET, else `.session-secret` beside the db as 64 hex
+ *  chars. `null` only for a remote db URL or a keyfile fault; the caller decides whether that is fatal. The
+ *  generated value is returned, never written to `process.env`. */
+export function sessionSecretFromEnv(source: BootSecretSource = { explicit: env.SESSION_SECRET, databaseUrl: env.DATABASE_URL }): string | null {
+  if (source.explicit !== undefined) {
+    return source.explicit;
   }
-  if (env.CREDENTIALS_KEY_AUTO) {
-    return resolveAutoKey();
-  }
-  return null;
+  const keyPath = keyfileBesideDb(source.databaseUrl, SESSION_SECRET_KEYFILE);
+  return keyPath === null ? null : (loadOrCreateKeyfile(keyPath)?.toString("hex") ?? null);
 }

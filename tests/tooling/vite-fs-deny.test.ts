@@ -38,6 +38,9 @@ describe("the dev server's /@fs/ deny list", () => {
     // The floor the data-dir rule must not have displaced.
     [".env", "the environment file — vite's own default floor, re-listed because `deny` REPLACES it"],
     ["data/.credentials-key", "the credential-encryption key: leaking it decrypts every stored provider API key"],
+    // A keyfile sits beside whatever db DATABASE_URL names; the e2e and snap stages keep theirs under `.cache/`.
+    [".cache/e2e/local/.credentials-key", "the credential-encryption key beside a db outside data/"],
+    [".cache/e2e/local/.session-secret", "the password and session pepper beside a db outside data/"],
     ["data/orbweaver.db", "the live SQLite database"],
   ])("refuses to serve %s (%s)", async (relative) => {
     expect(await serves(relative)).toBe(false);

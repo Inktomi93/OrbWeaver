@@ -1,5 +1,8 @@
 # --- secrets & local state (NEVER commit) ---
-.credentials-key          # the ONLY decryption recovery path — must stay local
+# The generated boot secrets: the ONLY decryption recovery path and the password pepper. Must stay local.
+# A trailing comment on a pattern line is part of the pattern, so these comments sit on their own lines.
+.credentials-key
+.session-secret
 .env
 .env.*
 !.env.example

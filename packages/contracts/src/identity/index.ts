@@ -36,6 +36,13 @@ export const AUTH_MODES = ["single-user", "local", "forward-header", "oidc"] as 
 export type AuthMode = (typeof AUTH_MODES)[number];
 export const authModeSchema = z.enum(AUTH_MODES) satisfies z.ZodType<AuthMode>;
 
+/** The modes that mint a session cookie, so they need the SESSION_SECRET pepper to authenticate anyone. */
+export const COOKIE_AUTH_MODES = ["local", "oidc"] as const satisfies readonly AuthMode[];
+
+export function isCookieAuthMode(mode: AuthMode): boolean {
+  return (COOKIE_AUTH_MODES as readonly AuthMode[]).includes(mode);
+}
+
 /** The pre-row output: identity resolved to its stable SSO fields, BEFORE the `users` row exists. Carries
  *  no `userId` by design. `email` is a mutable contact attribute, never an identity/join key — `null`
  *  never wipes a stored email (keep-on-null). */
