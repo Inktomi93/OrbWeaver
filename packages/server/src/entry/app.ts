@@ -24,7 +24,8 @@ import { allowedHostsInput, env, resolveAllowedHosts } from "#foundation/env";
 import type { MemoryRecallInspector, RpgTraceInspector } from "#foundation/observability";
 import { observability, observabilityErrorHandler, registerDebugRoutes, securityEvent } from "#foundation/observability";
 import { versionIdentity } from "#foundation/version";
-import { createHostNotAllowedNotice, createPublicHttpMintNotice, hasCsrfHeader, requestTransport } from "#infra/auth";
+import type { AllowedHostsReader } from "#infra/auth";
+import { allowedHostsReader, createHostNotAllowedNotice, createPublicHttpMintNotice, hasCsrfHeader, requestTransport } from "#infra/auth";
 import { clientIp, ipAllowlistMiddleware, parseAllowlist, peerIp } from "#infra/network";
 import type { PresenceRegistry, RateLimitGate, Services, SocketRegistry } from "../transport/trpc/index.ts";
 import { appRouter, createContext } from "../transport/trpc/index.ts";
@@ -204,6 +205,9 @@ export interface AppDeps {
   readonly credentialsKeyOk: () => boolean;
   /** Whether the process runs in a container (`foundation/env` `runsInContainer`); picks the fix the Host refusal names. */
   readonly inContainer: boolean;
+  /** The relay registry's read side (`createRelayHostRegistry`): the Host allowlist admits these names beside the env
+   *  list. The app never writes it; the relay controller holds the write side. */
+  readonly relayHosts: AllowedHostsReader;
   /** Fire-and-forget: called after the Principal resolves; must never block the request. */
   readonly seedUserCharacters: (principal: Principal) => void;
   /** Present in local mode. */
@@ -268,9 +272,14 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
 
   // The DNS-rebinding guard, in every mode and with no off switch: it must run before the principal resolves,
   // because a rebound page arrives on the loopback socket the owner fallback admits (`infra/auth/host-allowlist.ts`).
+  // The env names are resolved once; the relay registry's are read per request, since a relay reports its host after boot.
   app.use(
     "*",
-    hostAllowlist({ allowedHosts: resolveAllowedHosts(allowedHostsInput()), inContainer: deps.inContainer, notice: createHostNotAllowedNotice(deps.now) }),
+    hostAllowlist({
+      allowedHosts: allowedHostsReader(resolveAllowedHosts(allowedHostsInput()), deps.relayHosts),
+      inContainer: deps.inContainer,
+      notice: createHostNotAllowedNotice(deps.now),
+    }),
   );
 
   // Resolve the ONE Principal per request + refresh a slid cookie session.

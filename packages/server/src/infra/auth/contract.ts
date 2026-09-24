@@ -134,6 +134,26 @@ export type PublicHttpMintNotice = (clientIp: string | null) => void;
 /** Reports one request refused by the Host allowlist, keyed by the canonical refused host. */
 export type HostNotAllowedNotice = (host: string) => void;
 
+/** The names the Host allowlist admits beyond the always-allowed ones, read on every request. */
+export type AllowedHostsReader = () => readonly string[];
+
+/** The relay host registry's write side: the injected op the relay controller receives, and no other caller. Every
+ *  name is exact and canonical: `add` refuses a suffix, a wildcard, a port or a scheme with a `DomainOperationError`
+ *  and returns the canonical name it admitted. `clear` runs when the relay stops.
+ *  @public future: the relay controller of `docs/plans/easy-sharing/design.md` leg S, composed at entry. */
+export interface RelayHostWriter {
+  readonly add: (host: string) => string;
+  readonly remove: (host: string) => void;
+  readonly clear: () => void;
+}
+
+/** The server-owned relay host set (`createRelayHostRegistry`): the composition root hands `hosts` to the Host
+ *  allowlist and `writer` to the relay controller. */
+export interface RelayHostRegistry {
+  readonly hosts: AllowedHostsReader;
+  readonly writer: RelayHostWriter;
+}
+
 /** An auth cookie's name (the session or the OIDC binding) and the `Set-Cookie` attributes that name requires. */
 export interface SessionCookie {
   readonly name: string;

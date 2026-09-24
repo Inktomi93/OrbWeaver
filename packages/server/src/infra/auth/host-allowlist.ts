@@ -1,4 +1,4 @@
-// The Host allowlist decision and its throttled security line. It refuses only and is never a trust input:
+// The Host allowlist decision, its relay host registry and its throttled security line. It refuses only and is never a trust input:
 // a request whose hosts all pass is judged by every later control exactly as before (spine invariant 7).
 //
 // WHY IT EXISTS. A page on a name its owner rebinds to 127.0.0.1 is same-origin with this server, so its script
@@ -12,15 +12,17 @@
 // needs that name allowed too.
 
 import { ALLOWED_HOST_SUFFIX_MARK, isAlwaysAllowedHost, isHostname, withoutTrailingDot } from "@orb/kit/allowed-hosts";
+import { DomainOperationError } from "@orb/kit/errors";
 import { securityEvent } from "#foundation/observability";
 import { isTrustedHop } from "#infra/network";
-import type { HostNotAllowedNotice } from "./contract.ts";
+import type { AllowedHostsReader, HostNotAllowedNotice, RelayHostRegistry } from "./contract.ts";
 import { normalizeHost } from "./host.ts";
 import { createKeyedNoticeThrottle } from "./notice-throttle.ts";
 
 const VALUE_SEPARATOR = ",";
 // RFC 1035's name bound: a longer value is no DNS name, and the refusal and the log line echo at most this much.
 const MAX_ECHO_CHARS = 253;
+const RELAY_HOST_INVALID = "relay_host_invalid";
 
 /** The request facts the decision reads. `forwardedHost` counts only when `peer` is a trusted hop. */
 export interface HostFacts {
@@ -77,6 +79,53 @@ export function refusedHost(facts: HostFacts, allowedHosts: readonly string[]): 
     }
   }
   return null;
+}
+
+// A relay reports a name the server did not choose (a quick tunnel's random host, a sidecar's metrics answer), so the
+// write refuses anything but one exact hostname: a dot-led value here would admit every tunnel anyone runs.
+function relayHostOrThrow(host: string): string {
+  const name = withoutTrailingDot(host.toLowerCase());
+  if (!isHostname(name)) {
+    throw new DomainOperationError(RELAY_HOST_INVALID, `The relay reported "${host.slice(0, MAX_ECHO_CHARS)}", which is not one exact relay host name.`);
+  }
+  return name;
+}
+
+/** The server-owned relay host set beside the configured names. It lives in memory only, so a restart clears it, and it
+ *  has no operator switch: the relay controller is its one writer (spine invariant 7 still judges every request). */
+export function createRelayHostRegistry(): RelayHostRegistry {
+  const names = new Set<string>();
+  let snapshot: readonly string[] = [];
+  const publish = (): void => {
+    snapshot = [...names];
+  };
+  return {
+    hosts: (): readonly string[] => snapshot,
+    writer: {
+      add: (host): string => {
+        const name = relayHostOrThrow(host);
+        names.add(name);
+        publish();
+        return name;
+      },
+      remove: (host): void => {
+        names.delete(withoutTrailingDot(host.toLowerCase()));
+        publish();
+      },
+      clear: (): void => {
+        names.clear();
+        publish();
+      },
+    },
+  };
+}
+
+/** The one reader the Host allowlist takes: the configured names, then the relay registry's names at request time. */
+export function allowedHostsReader(configured: readonly string[], relayHosts: AllowedHostsReader): AllowedHostsReader {
+  return (): readonly string[] => {
+    const relay = relayHosts();
+    return relay.length === 0 ? configured : [...configured, ...relay];
+  };
 }
 
 /** The unthrottled line for one refused host. */

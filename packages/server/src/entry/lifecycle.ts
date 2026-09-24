@@ -45,6 +45,7 @@ import {
   createOidcExchange,
   createPasswordHasher,
   createRelayedFallbackNotice,
+  createRelayHostRegistry,
   ownerFallbackAllowed,
 } from "#infra/auth";
 import { bootSecretProvenance, resolveCredentialsKey, resolveSessionSecret } from "#infra/crypto";
@@ -311,6 +312,8 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
   let stopAutomationWatcher: (() => void) | null = null;
   let stopLocalLightPrefetch: (() => void) | null = null;
   let booted = false;
+  // The one relay host registry for this process: the Host allowlist reads `hosts`; `writer` is the relay controller's.
+  const relayHosts = createRelayHostRegistry();
 
   // RATIFIED (#596). boot is the ORDERED startup protocol, and its score is the protocol's LENGTH, not tangled
   // control flow: fail-closed guards on the sequence plus one conditional column per optional dependency, each
@@ -675,6 +678,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       isShuttingDown: () => isShuttingDown,
       credentialsKeyOk: () => credentialsKeyOk,
       inContainer: bindPostureInput().inContainer,
+      relayHosts: relayHosts.hosts,
       seedUserCharacters: (principal: Principal): void => {
         // CHAINED, not parallel: the demo chats attach to the cards this user is getting right now, so they
         // must not race the pack. `ensureSeeded` never throws, so the `.then` is unconditional.

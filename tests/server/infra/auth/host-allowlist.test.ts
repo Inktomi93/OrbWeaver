@@ -4,7 +4,7 @@
 import { resolveAllowedHosts } from "@orb/server/foundation/env";
 import { logger } from "@orb/server/foundation/observability";
 import type { HostFacts } from "@orb/server/infra/auth";
-import { canonicalHost, createHostNotAllowedNotice, isHostAllowed, refusedHost } from "@orb/server/infra/auth";
+import { allowedHostsReader, canonicalHost, createHostNotAllowedNotice, createRelayHostRegistry, isHostAllowed, refusedHost } from "@orb/server/infra/auth";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
@@ -19,6 +19,8 @@ const PUBLIC_PEER = "203.0.113.9";
 // The owner's Caddy container: a private peer, so a trusted hop.
 const CADDY_PEER = "172.18.0.100";
 const NONE: readonly string[] = [];
+// A quick tunnel's random name, as the relay reports it.
+const RELAY = "quiet-fox-lamp.trycloudflare.com";
 
 /** A request from `peer` for `host`, as the node adapter hands it over (URL authority built from `Host`). */
 function facts(host: string, over: Partial<HostFacts> = {}, peer = LOOPBACK_PEER): HostFacts {
@@ -180,5 +182,94 @@ describe("createHostNotAllowedNotice", () => {
       h.notice(`n${String(i)}.attacker.example`);
     }
     expect(h.logged()).toHaveLength(MAX_KEYS);
+  });
+});
+
+describe("the relay host registry", () => {
+  function harness(): {
+    readonly registry: ReturnType<typeof createRelayHostRegistry>;
+    readonly admit: (host: string) => boolean;
+    readonly logged: () => unknown[];
+  } {
+    const spy = vi.spyOn(logger, "warn");
+    const registry = createRelayHostRegistry();
+    // The env list is empty: only the relay registry can admit a relay name.
+    const allowed = allowedHostsReader(NONE, registry.hosts);
+    const notice = createHostNotAllowedNotice(() => T0);
+    return {
+      registry,
+      // One request as the middleware judges it: the reader is read per request, and a refusal takes the throttled notice.
+      admit: (host): boolean => {
+        const refused = refusedHost(facts(host), allowed());
+        if (refused !== null) {
+          notice(refused);
+        }
+        return refused === null;
+      },
+      logged: (): unknown[] =>
+        spy.mock.calls.flatMap(([bindings, message]) => {
+          const fields = bindings as Record<string, unknown>;
+          return fields["event"] === EVENT ? [[fields["host"], message]] : [];
+        }),
+    };
+  }
+
+  test("a name in the relay registry passes while the env list is empty; removing it refuses the next request", () => {
+    const h = harness();
+    expect(h.admit(RELAY)).toBe(false);
+    h.registry.writer.add(RELAY);
+    expect(h.admit(RELAY)).toBe(true);
+    h.registry.writer.remove(RELAY);
+    expect(h.admit(RELAY)).toBe(false);
+  });
+
+  test("control: a name never registered is refused with the same throttled line", () => {
+    const h = harness();
+    h.registry.writer.add(RELAY);
+    h.registry.writer.remove(RELAY);
+    const stranger = "other-tunnel.trycloudflare.com";
+    for (let i = 0; i < 3; i += 1) {
+      expect(h.admit(RELAY)).toBe(false);
+      expect(h.admit(stranger)).toBe(false);
+    }
+    const lines = h.logged();
+    expect(lines.map(([host]) => host)).toEqual([RELAY, stranger]);
+    const [[, removedLine], [, strangerLine]] = lines as [[string, string], [string, string]];
+    expect(removedLine).toBe(strangerLine);
+  });
+
+  test("clear drops every relay name", () => {
+    const h = harness();
+    h.registry.writer.add(RELAY);
+    h.registry.writer.clear();
+    expect(h.admit(RELAY)).toBe(false);
+    expect(h.registry.hosts()).toEqual([]);
+  });
+
+  test("exact names only: a suffix, a wildcard or a name with a port is refused, and a registered name admits no subdomain", () => {
+    const h = harness();
+    for (const bad of [".trycloudflare.com", "*.trycloudflare.com", `${RELAY}:443`, `https://${RELAY}`, "", "a b.example"]) {
+      expect(() => h.registry.writer.add(bad), bad).toThrow(/relay host/u);
+    }
+    expect(h.registry.hosts()).toEqual([]);
+    expect(h.admit(RELAY)).toBe(false);
+    h.registry.writer.add(RELAY);
+    expect(h.admit(`sub.${RELAY}`)).toBe(false);
+  });
+
+  test("a relay name is canonical on write, so the reported spelling matches the request's", () => {
+    const h = harness();
+    expect(h.registry.writer.add("Quiet-Fox-Lamp.TryCloudflare.com.")).toBe(RELAY);
+    expect(h.admit(RELAY)).toBe(true);
+    h.registry.writer.remove("QUIET-FOX-LAMP.trycloudflare.com");
+    expect(h.admit(RELAY)).toBe(false);
+  });
+
+  test("the reader unions the configured list: env names still pass beside a relay name", () => {
+    const registry = createRelayHostRegistry();
+    const allowed = allowedHostsReader(["nas.local", ".example.com"], registry.hosts);
+    registry.writer.add(RELAY);
+    expect(allowed()).toEqual(["nas.local", ".example.com", RELAY]);
+    expect(refusedHost(facts("x.example.com"), allowed())).toBeNull();
   });
 });
