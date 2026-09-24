@@ -228,7 +228,10 @@ function gateApp(opts: GateAppOptions): GateApp {
   });
   const app = new Hono<PrincipalEnv>();
   app.use("*", async (c, next) => {
-    const { principal, sessionId } = await seam.resolvePrincipal(c.req.raw.headers, opts.peerIp === undefined ? {} : { peerIp: opts.peerIp });
+    const { principal, sessionId } = await seam.resolvePrincipal(c.req.raw.headers, {
+      transport: "http",
+      ...(opts.peerIp !== undefined && { peerIp: opts.peerIp }),
+    });
     c.set("principal", principal);
     c.set("sessionId", sessionId);
     await next();

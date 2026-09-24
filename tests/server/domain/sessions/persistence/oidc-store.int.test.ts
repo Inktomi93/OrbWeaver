@@ -2,11 +2,11 @@ import type { Db } from "@orb/db";
 import { beforeEach, describe } from "vitest";
 import { createOidcStore } from "../../../../../packages/server/src/domain/sessions/persistence/oidc-store.ts";
 import type { OidcTransaction } from "../../../../../packages/server/src/infra/auth/index.ts";
+import { OIDC_TRANSACTION_TTL_MS } from "../../../../../packages/server/src/infra/auth/index.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const T0 = 1_750_000_000_000;
-const OIDC_TX_TTL_MS = 600_000;
 
 let db: Db;
 
@@ -57,7 +57,7 @@ describe("oidc-store", () => {
       createdAt: T0,
     });
 
-    const late = createOidcStore(db, fixedClock(T0 + OIDC_TX_TTL_MS + 1));
+    const late = createOidcStore(db, fixedClock(T0 + OIDC_TRANSACTION_TTL_MS + 1));
     expect(await late.consume("state_expired")).toBeNull();
 
     // And the stale row was SWEPT — a second consume (even inside its original window) can never re-drive it,
@@ -78,7 +78,7 @@ describe("oidc-store", () => {
     await store.mint(tx);
 
     // One ms before expiry → still valid.
-    const nearExpiry = createOidcStore(db, fixedClock(T0 + OIDC_TX_TTL_MS - 1));
+    const nearExpiry = createOidcStore(db, fixedClock(T0 + OIDC_TRANSACTION_TTL_MS - 1));
     expect(await nearExpiry.consume("state_live")).toEqual(tx);
   });
 
@@ -94,7 +94,7 @@ describe("oidc-store", () => {
 
     // A later, unrelated consume runs past the abandoned row's TTL — it sweeps the abandoned row as a side
     // effect, so a subsequent consume of the abandoned state finds nothing.
-    const later = createOidcStore(db, fixedClock(T0 + OIDC_TX_TTL_MS + 1));
+    const later = createOidcStore(db, fixedClock(T0 + OIDC_TRANSACTION_TTL_MS + 1));
     expect(await later.consume("some_other_state")).toBeNull();
     expect(await createOidcStore(db, fixedClock(T0)).consume("state_abandoned")).toBeNull();
   });
@@ -117,7 +117,7 @@ describe("oidc-store", () => {
       createdAt: T0,
     });
     // A LIVE row minted just before the sweep instant — expires well after it.
-    const sweepAt = T0 + OIDC_TX_TTL_MS + 1;
+    const sweepAt = T0 + OIDC_TRANSACTION_TTL_MS + 1;
     const liveStore = createOidcStore(db, fixedClock(sweepAt));
     await liveStore.mint({
       state: "state_live",
@@ -150,7 +150,7 @@ describe("oidc-store", () => {
 
     // One ms BEFORE expiry: the row is still live (`expiresAt > before`) — the sweep must not touch it.
     const store = createOidcStore(db, fixedClock(T0));
-    expect(await store.deleteExpired(T0 + OIDC_TX_TTL_MS - 1)).toBe(0);
+    expect(await store.deleteExpired(T0 + OIDC_TRANSACTION_TTL_MS - 1)).toBe(0);
     expect((await store.consume("state_boundary"))?.state).toBe("state_boundary");
   });
 
@@ -166,7 +166,7 @@ describe("oidc-store", () => {
 
     // expiresAt === T0 + TTL; sweeping AT that instant reaps it (mirrors consume's `lte` expiry gate).
     const store = createOidcStore(db, fixedClock(T0));
-    expect(await store.deleteExpired(T0 + OIDC_TX_TTL_MS)).toBe(1);
+    expect(await store.deleteExpired(T0 + OIDC_TRANSACTION_TTL_MS)).toBe(1);
     expect(await store.consume("state_at_expiry")).toBeNull();
   });
 });

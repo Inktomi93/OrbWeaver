@@ -110,8 +110,15 @@ export { MODE_RESOLVERS, ownerFallbackAllowed } from "./dispatch.ts";
 export { hasForwardingHeader } from "./forwarded.ts";
 export { normalizeHost } from "./host.ts";
 export { createForwardJwtVerifier, jwksCacheSize, jwksFor, resetJwksCache } from "./jwks.ts";
-export { SESSION_COOKIE_NAME_INSECURE, SESSION_COOKIE_NAME_SECURE, SESSION_COOKIES, sessionCookieFor } from "./modes/cookie-session.ts";
+export { readRequestCookie, SESSION_COOKIE_NAME_INSECURE, SESSION_COOKIE_NAME_SECURE, SESSION_COOKIES, sessionCookieFor } from "./modes/cookie-session.ts";
 export { selectSignedForwardJwt } from "./modes/forward-header.ts";
+export {
+  OIDC_BINDING_COOKIE_NAME_INSECURE,
+  OIDC_BINDING_COOKIE_NAME_SECURE,
+  OIDC_BINDING_COOKIES,
+  OIDC_TRANSACTION_TTL_MS,
+  oidcBindingCookieFor,
+} from "./modes/oidc.ts";
 export { createOidcConfigCache } from "./oidc-discovery.ts";
 export { createOidcExchange } from "./oidc-exchange.ts";
 export {
