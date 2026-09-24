@@ -67,7 +67,7 @@ export function SharingPosturePanel(): ReactElement | null {
     <Stack gap="tight" data-auth-mode={config.mode} data-testid={testId("adminSharingPanel")}>
       <Text voice="label">Who can sign in</Text>
       <Text voice="gloss">{sharing.posture}</Text>
-      <Row align="center" gap="field">
+      <Row align="baseline" gap="field">
         <Kbd size="command" data-testid={testId("adminSharingLine")}>
           {sharing.line}
         </Kbd>
