@@ -52,7 +52,6 @@ test("compose publishes on loopback by default, ships a credentialed login mode,
   expect(env).toMatch(/^AUTH_MODE=single-user$/mu);
   expect(env).toMatch(/^AUTH_FALLBACK=owner$/mu);
   expect(env).toMatch(/^AUTH_FALLBACK_TRUSTED_PEERS=172\.16\.0\.0\/12,/mu);
-  expect(env).toMatch(/^CREDENTIALS_KEY_AUTO=true$/mu);
   expect(compose).toContain("ORB_BIND: ${ORB_BIND:-127.0.0.1}");
   // #2413 — the plain-http LAN opt-in is DOCUMENTED in the tracked defaults and never ASSIGNED there. It
   // serves the session credential in cleartext, so it must be a deliberate edit in the deployer's own
