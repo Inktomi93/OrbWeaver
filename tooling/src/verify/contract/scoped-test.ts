@@ -35,8 +35,8 @@ interface CtRunnerLease {
   readonly release: () => void;
   /** Set when a DEAD runner's lock was stolen — the caller prints it, so a self-heal is never silent. */
   readonly stolenFrom: number | null;
-  /** The HOST-WIDE slot this run holds (#1835), or `null` when the host pool's wait ceiling was reached
-   *  and it proceeded uncapped. The per-worktree lock above stops two runners CORRUPTING each other; this
+  /** The HOST-WIDE slot this run holds (#1835), or `null` when it is the host pool's single overflow run,
+   *  admitted past the wait ceiling. The per-worktree lock above stops two runners CORRUPTING each other; this
    *  stops N worktrees' runners jointly saturating the box — six lanes × 4 chromium workers was the
    *  measured load. Absent (`undefined`) only on the worktree-lock-only door. */
   readonly hostSlot?: number | null;

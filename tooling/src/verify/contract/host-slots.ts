@@ -9,9 +9,9 @@ export interface HostSlotPool {
   /** Recorded in the slot file so an operator reading `/run/user/<uid>` sees WHAT holds it, not just a pid. */
   readonly label: string;
   readonly slots: number;
-  /** The QUIET-BOX base for how long a blocked caller waits before proceeding unslotted; load-scaled
-   *  through `_shared/load-budget.ts` at acquire time, because a contended box has a legitimately longer
-   *  queue and a ceiling written for a quiet one would degrade the pool exactly when it matters most. */
+  /** The QUIET-BOX base for how long the head of the queue waits before it takes the single overflow run;
+   *  load-scaled through `_shared/load-budget.ts` at acquire time, because a contended box has a legitimately
+   *  longer queue and a ceiling written for a quiet one would admit the overflow run exactly when it matters most. */
   readonly waitBaseMs: number;
 }
 
@@ -23,8 +23,8 @@ export interface HostSlotHolder {
 }
 
 /** A caller ALWAYS gets one of these — the pool queues, it never refuses (../lib/host-slots.ts header).
- *  `slot` is `null` when the wait ceiling was reached and the pool degraded to uncapped; `release()` is
- *  idempotent and is called from a `finally`. */
+ *  `slot` is `null` for the single overflow run admitted past the wait ceiling; `release()` is idempotent
+ *  and is called from a `finally`. */
 export interface HostSlotLease {
   readonly slot: number | null;
   readonly waitedMs: number;
