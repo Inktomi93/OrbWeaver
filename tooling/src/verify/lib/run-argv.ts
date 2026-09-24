@@ -21,7 +21,7 @@ export interface Parsed {
 
 // The strict option schema (node:util parseArgs, stdlib — no new dep). Every accepted flag is declared;
 // `strict:true` + `allowPositionals:true` makes an UNKNOWN flag (`--bogus`) throw → we map that to exit 3
-// (misuse), never a silent-ignore. The tier markers (--static/--push/--full/--changed) and the value
+// (misuse), never a silent-ignore. The tier markers (--static/--push/--full; --changed when alone) and the value
 // selectors (--package/--scope/--tier) live here; --file/--changed's PATHS arrive as positionals (only one
 // scope selector is legal at a time, so a trailing `a b` unambiguously belongs to whichever is present).
 const OPTIONS = {
@@ -156,7 +156,7 @@ function scopeRequest(v: ParsedValues, positionals: readonly string[]): ScopeRes
 }
 
 // The bare tier markers, in registry order. `--changed` alone also names its own (inner-loop) tier; next to
-// an explicit tier it is only the selector, which is how pre-commit spells `--static --changed`.
+// `--static` it is only the selector, which is how pre-commit spells `--static --changed`.
 const TIER_MARKERS: readonly (readonly [keyof ParsedValues, Tier])[] = [
   ["static", "static"],
   ["push", "push"],
@@ -180,6 +180,11 @@ function tierFor(v: ParsedValues, scoped: boolean): Tier | { readonly error: str
   }
   if (named.size > 1) {
     return { error: `at most one tier: got ${[...named].join(" ")}` };
+  }
+  // Push and full are whole-tree bars, and a scoped run skips the whole-run queue, so a scoped test battery
+  // would run beside another checkout's. Only the commit gate's `--static --changed` pairs a tier with it.
+  if (v.changed === true && (named.has("push") || named.has("full"))) {
+    return { error: "--changed pairs only with --static (the commit gate); --push and --full run the whole tree" };
   }
   for (const sole of named) {
     return sole;

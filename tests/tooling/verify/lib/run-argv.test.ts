@@ -19,3 +19,14 @@ test("--changed beside an explicit tier is only the selector: pre-commit runs th
   expect(tierAndScope(["--tier", "static", "--changed", DOC]), "the --tier spelling agrees").toStrictEqual(["static", "changed"]);
   expect(tierAndScope(["--changed", DOC]), "alone, --changed still names the inner-loop tier").toStrictEqual(["changed", "changed"]);
 });
+
+test("--changed beside --push or --full stays misuse: those tiers are whole-tree bars, and a scoped one would skip the queue", () => {
+  for (const argv of [
+    ["--push", "--changed", DOC],
+    ["--full", "--changed", DOC],
+    ["--tier", "push", "--changed", DOC],
+  ]) {
+    const r = parse(argv);
+    expect("error" in r ? r.error : "parsed", argv.join(" ")).toContain("--changed");
+  }
+});
