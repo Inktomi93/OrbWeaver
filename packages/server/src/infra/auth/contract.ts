@@ -134,7 +134,7 @@ export type PublicHttpMintNotice = (clientIp: string | null) => void;
 /** Reports one request refused by the Host allowlist, keyed by the canonical refused host. */
 export type HostNotAllowedNotice = (host: string) => void;
 
-/** A session cookie's name and the `Set-Cookie` attributes that name requires. */
+/** An auth cookie's name (the session or the OIDC binding) and the `Set-Cookie` attributes that name requires. */
 export interface SessionCookie {
   readonly name: string;
   readonly attrs: string;

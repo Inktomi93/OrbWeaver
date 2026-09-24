@@ -52,15 +52,31 @@ export function result(line: string): void {
 
 // ── env + port resolution (must MATCH foundation/env, which loads .env with override:true) ───────────
 
-export function readEnvFile(): Readonly<Record<string, string | undefined>> {
+/** The app's `.env`: the file foundation/env loads from the repo root, where every launcher starts the server. */
+export const ENV_FILE_PATH = (): string => join(REPO_ROOT, ".env");
+
+// A leading UTF-8 byte-order mark; foundation/env strips it before parsing, so this reader does too.
+const UTF8_BOM = "\uFEFF";
+
+/** The `.env` text, or `null` when there is no file. Any other read failure throws. */
+export function readEnvText(path: string = ENV_FILE_PATH()): string | null {
   try {
-    return parseEnv(readFileSync(join(REPO_ROOT, ".env"), "utf8"));
+    return readFileSync(path, "utf8");
   } catch (error) {
     if (errnoIs(error, "ENOENT")) {
-      return {};
+      return null;
     }
     throw error;
   }
+}
+
+/** `.env` text parsed the way foundation/env parses it. */
+export function parseEnvText(text: string): Readonly<Record<string, string | undefined>> {
+  return parseEnv(text.startsWith(UTF8_BOM) ? text.slice(UTF8_BOM.length) : text);
+}
+
+export function readEnvFile(): Readonly<Record<string, string | undefined>> {
+  return parseEnvText(readEnvText() ?? "");
 }
 
 /** The port the server will ACTUALLY bind. `.env` wins over the shell — the same precedence
