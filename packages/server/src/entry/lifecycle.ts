@@ -48,6 +48,7 @@ import {
   createOidcConfigCache,
   createOidcExchange,
   createPasswordHasher,
+  createRelayedFallbackNotice,
   ownerFallbackAllowed,
   SESSION_COOKIE_NAME,
 } from "#infra/auth";
@@ -639,6 +640,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
         // proxy makes every request a loopback peer — it never does, single-user included. The RULE lives in
         // `foundation/env`, beside the boot-fatality that rules the same hazard.
         ownerFallbackIsOperatorCredential: resolveOwnerFallbackCredential(ownerFallbackCredentialInput()),
+        relayedFallbackNotice: createRelayedFallbackNotice(now),
       }),
       services: built.services,
       rateLimit: createRateLimitGate({ db, now, resolveRateLimits: () => built.services.settings.getEffectiveConfig().rateLimits }),
