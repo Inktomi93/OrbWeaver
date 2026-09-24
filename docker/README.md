@@ -85,25 +85,22 @@ The port is published on `127.0.0.1` only. To reach the app from your phone or a
    `AUTH_FALLBACK_TRUSTED_PEERS=` (empty). Then `ORB_BIND=0.0.0.0` in a `.env` file beside
    `docker-compose.yaml` or on the command line (`ORB_BIND=0.0.0.0 docker compose up -d`). The entrypoint
    refuses the no-login default on a non-loopback bind, so you cannot open the LAN by accident.
-2. **HTTPS in front.** The session cookie is `Secure` + `__Host-`, so a plain-http address other than
-   `localhost` cannot keep a login (the sign-in silently fails). Any TLS terminator works: Caddy (automatic
-   certs, or its internal CA on a LAN), nginx, Traefik, a Tailscale `serve`. Point it at `127.0.0.1:8788` on
+2. **HTTPS in front.** Over plain http the sign-in works, but the password and the session cookie travel in
+   clear, and the login screen says so. Behind a TLS proxy that sends `X-Forwarded-Proto: https` the cookie
+   is `Secure` + `__Host-`. Any TLS terminator works: Caddy (automatic certs, or its internal CA on a LAN),
+   nginx, Traefik, a Tailscale `serve`. Point it at `127.0.0.1:8788` on
    this machine, or join it to this compose network and target `orbweaver:8788` (the stanza at the bottom of
    `docker-compose.yaml`). The proxy must pass `X-Forwarded-Proto/Host/For` and must not buffer SSE.
 3. Optionally bound who may knock at all: `IP_ALLOWLIST=192.168.1.0/24`. Behind a proxy the peer is the
    proxy, so allowlist the proxy's address, not your laptop's.
 
-**No TLS on your LAN?** Set `SESSION_COOKIE_INSECURE=true` in `docker/orbweaver.local.env` instead of step 2.
-The session cookie becomes `orb_session_insecure` with no `Secure` attribute, so a browser at
-`http://192.168.1.20:8788` keeps it and the login sticks — and it travels **in clear on your own network**.
-The cookie is the credential: anyone who can watch that network (another device on the wi-fi, a switch or
-router in the path, a hostile access point) can copy it and be you, with no password and no second factor.
-Accept that only on a network you own; the server logs a warning every boot for as long as it is on. It is
-never set for you, and it is never inferred from the request — a proxy can forge `X-Forwarded-Proto`, so the
-only way to turn it on is to type it. Signing out clears both cookie names, so flipping it back is clean.
+**No TLS on your LAN?** Skip step 2 and sign in at `http://192.168.1.20:8788`. The session cookie is then
+`orb_session_insecure` with no `Secure` attribute, and it travels **in clear on your own network**. The cookie
+is the credential: anyone who can watch that network (another device on the wi-fi, a switch or router in the
+path, a hostile access point) can copy it and be you. Accept that only on a network you own.
 
-Anything reachable from the internet runs an SSO mode (`oidc` / `forward-header`) with `AUTH_FALLBACK=deny`,
-and with real TLS — `SESSION_COOKIE_INSECURE` has no business on a public deployment.
+Anything reachable from the internet runs a login mode behind real TLS. A sign-in over plain http from a
+public address logs a security warning, and the login screen shows it in red.
 
 ## Where your data lives
 
@@ -174,9 +171,9 @@ the composed posture at boot and warns per open exposure.
   network outside the shipped ranges (`10.0.0.0/8` covers Podman's default `10.88.0.0/16`). The reason is under "Login modes".
 - **"REFUSING to boot … published on ORB_BIND="** — you opened the port to your network in the no-login
   mode; switch to `AUTH_MODE=local` as described under "LAN and HTTPS".
-- **Sign-in "does nothing" on a LAN address** — plain http; the cookie is Secure, so the browser discards it.
-  HTTPS in front, or `http://localhost` on the machine itself, or `SESSION_COOKIE_INSECURE=true` and accept a
-  cleartext session cookie on your own network ("LAN and HTTPS").
+- **The login screen says "plain http" on an https page** — the TLS proxy sends no `X-Forwarded-Proto: https`,
+  or its address is outside the private ranges and `FORWARD_AUTH_TRUSTED_PROXIES`, so the session cookie is not
+  `Secure`. Fix the proxy ("LAN and HTTPS").
 - **"blocked … private address"** when adding a local model server — the host is not admitted. The owner admits it from the connection's Diagnostics or with `PRIVATE_ENDPOINT_ALLOWLIST` ("A model server on your machine").
 - **`/app/data is not a writable directory`** — you started the container as a non-root user (`user:`,
   rootless podman) on a data dir that user cannot write. Either let the entrypoint start as root with

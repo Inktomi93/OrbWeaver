@@ -25,9 +25,48 @@ function config(overrides: Partial<AuthConfig>): AuthConfig {
     trustHtml: false,
     allowInteractiveCards: false,
     uploads: DEFAULT_UPLOAD_CAPS,
+    transport: "https",
+    clientScope: "private",
     ...overrides,
   };
 }
+
+// Rule C/E — a login over plain http sends the password and the session cookie in clear, so the cookie modes
+// say so above the form. The scope rides a data attribute: a public client is the red case.
+test("local over plain http from a private client → the transport notice, private scope", async ({ mount, page }) => {
+  await mount(<LoginArmStory config={config({ mode: "local", transport: "http", clientScope: "private" })} />);
+  await expect(page.getByTestId("login-transport-notice")).toBeVisible();
+  await expect(page.getByTestId("login-transport-notice")).toHaveAttribute("data-client-scope", "private");
+});
+
+test("local over plain http from a public client → the transport notice, public scope", async ({ mount, page }) => {
+  await mount(<LoginArmStory config={config({ mode: "local", transport: "http", clientScope: "public" })} />);
+  await expect(page.getByTestId("login-transport-notice")).toHaveAttribute("data-client-scope", "public");
+});
+
+test("the first-run form over plain http carries the notice too", async ({ mount, page }) => {
+  await mount(<LoginArmStory config={config({ mode: "local", localFirstRun: true, transport: "http" })} />);
+  await expect(page.getByTestId("first-run-setup-form")).toBeVisible();
+  await expect(page.getByTestId("login-transport-notice")).toBeVisible();
+});
+
+test("oidc over plain http carries the notice too", async ({ mount, page }) => {
+  await mount(<LoginArmStory config={config({ mode: "oidc", localEnabled: false, oidcEnabled: true, transport: "http" })} />);
+  await expect(page.getByTestId("login-oidc")).toBeVisible();
+  await expect(page.getByTestId("login-transport-notice")).toBeVisible();
+});
+
+test("https → no transport notice", async ({ mount, page }) => {
+  await mount(<LoginArmStory config={config({ mode: "local", transport: "https", clientScope: "public" })} />);
+  await expect(page.getByTestId("login-local-form")).toBeVisible();
+  await expect(page.getByTestId("login-transport-notice")).toHaveCount(0);
+});
+
+test("single-user mints no cookie → no transport notice even over plain http", async ({ mount, page }) => {
+  await mount(<LoginArmStory config={config({ mode: "single-user", requiresLogin: false, localEnabled: false, transport: "http", clientScope: "public" })} />);
+  await expect(page.getByRole("heading", { name: "Single-user mode" })).toBeVisible();
+  await expect(page.getByTestId("login-transport-notice")).toHaveCount(0);
+});
 
 test("forward-header → the proxy-config EXPLAINER (reachable now — no login form, no blank bounce)", async ({ mount, page }) => {
   await mount(<LoginArmStory config={config({ mode: "forward-header", requiresLogin: false, localEnabled: false })} />);

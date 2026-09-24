@@ -43,6 +43,15 @@ export function isCookieAuthMode(mode: AuthMode): boolean {
   return (COOKIE_AUTH_MODES as readonly AuthMode[]).includes(mode);
 }
 
+/** How a request reached the box. `https` only when a trusted proxy asserts it: the app never terminates TLS.
+ *  It picks the session cookie's name and `Secure` attribute, and the OIDC callback scheme. */
+export const REQUEST_TRANSPORTS = ["https", "http"] as const;
+export type RequestTransport = (typeof REQUEST_TRANSPORTS)[number];
+
+/** Where a request's resolved client address sits: the private/loopback set, or the public internet. */
+export const CLIENT_SCOPES = ["private", "public"] as const;
+export type ClientScope = (typeof CLIENT_SCOPES)[number];
+
 /** The pre-row output: identity resolved to its stable SSO fields, BEFORE the `users` row exists. Carries
  *  no `userId` by design. `email` is a mutable contact attribute, never an identity/join key — `null`
  *  never wipes a stored email (keep-on-null). */

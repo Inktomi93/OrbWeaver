@@ -36,9 +36,6 @@ import {
   resolveDiagnosticsPosture,
   resolveOwnerFallbackCredential,
   resolveOwnerFallbackPeers,
-  resolveSessionCookiePosture,
-  sessionCookiePostureInput,
-  sessionCookieWarnings,
 } from "#foundation/env";
 import { getLog, initTracing, superviseDetached, wrapLibSqlClient } from "#foundation/observability";
 import { versionIdentity } from "#foundation/version";
@@ -50,7 +47,7 @@ import {
   createPasswordHasher,
   createRelayedFallbackNotice,
   ownerFallbackAllowed,
-  SESSION_COOKIE_NAME,
+  SESSION_COOKIES,
 } from "#infra/auth";
 import { credentialsKeyFromEnv, dataDirFromDbUrl, SESSION_SECRET_KEYFILE, sessionSecretFromEnv } from "#infra/crypto";
 import { installEgressFirewall } from "#infra/network";
@@ -739,16 +736,13 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       log.warn({ security: true }, `boot: ${warning}`);
     }
 
-    // THE SESSION-COOKIE TRANSPORT posture (`SESSION_COOKIE_INSECURE` — foundation/env/session-cookie.ts
-    // holds the model and the cost). The notice is ALWAYS logged, like the bind one and for the same reason:
-    // "sign-in does nothing at the LAN address" has no other tell, and the operator reading this log while
-    // confused needs the cookie's actual NAME and transport in front of them. The WARN then fires for as long
-    // as the downgrade is on — the session cookie IS the credential, and once it rides plain http anyone on
-    // that path can take it.
-    const sessionCookie = resolveSessionCookiePosture(sessionCookiePostureInput());
-    log.info({ sessionCookie: { name: SESSION_COOKIE_NAME, secure: sessionCookie.secure } }, `boot: ${sessionCookie.notice}`);
-    for (const warning of sessionCookieWarnings(sessionCookiePostureInput(), sessionCookie)) {
-      log.warn({ security: true, sessionCookie: SESSION_COOKIE_NAME }, `boot: ${warning}`);
+    // THE SESSION-COOKIE TRANSPORT rule, decided per request (`infra/auth/transport.ts`). Stated at boot because
+    // "which cookie does a LAN browser get" has no other tell.
+    if (isCookieAuthMode(env.AUTH_MODE)) {
+      log.info(
+        { sessionCookie: SESSION_COOKIES.map(({ name }) => name) },
+        "boot: session cookie — Secure `__Host-orb_session` when a trusted proxy sends X-Forwarded-Proto: https; `orb_session_insecure` in clear over plain http, so a LAN device on plain http keeps a cleartext cookie.",
+      );
     }
 
     // single-user has NO credential but the loopback owner fallback (env fatals single-user+deny), so a

@@ -27,7 +27,7 @@ paths:
 ## Cookies and auth
 
 - A `__Host-` cookie cannot be cleared over plain HTTP. The clearing Set-Cookie needs its own `Secure`
-  attribute string. Give each cookie name its own attribute string and read only the active name.
+  attribute string. Give each cookie name its own attribute string, and read only the request transport's name.
 - Never send `post_logout_redirect_uri` to the OIDC end-session endpoint without `id_token_hint`
   (`entry/http/auth-routes.ts`). Authentik 400s before invalidating the session.
 - A gate that admits a custom header or an ambient session is only as CSRF-safe as the session case.

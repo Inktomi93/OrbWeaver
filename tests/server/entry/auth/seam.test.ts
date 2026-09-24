@@ -256,7 +256,7 @@ test("a valid cookie resolves DIRECTLY via sessions.validate (userId carried, ro
   });
 
   const headers = new Headers({ cookie: "__Host-orb_session=tok123" });
-  const { principal } = await seam.resolvePrincipal(headers);
+  const { principal } = await seam.resolvePrincipal(headers, { transport: "https" });
 
   expect(principal).toEqual({
     userId: COOKIE_UID,
@@ -274,9 +274,47 @@ test("an invalid cookie under fallback=deny is unauthenticated (null), not the o
   });
 
   const headers = new Headers({ cookie: "__Host-orb_session=stale" });
-  const { principal } = await seam.resolvePrincipal(headers);
+  const { principal } = await seam.resolvePrincipal(headers, { transport: "https" });
 
   expect(principal).toBeNull();
+});
+
+// Rule C: the READ is keyed by the request's transport. The insecure name has no `__Host-` prefix, so a
+// plain-http sibling origin can plant it; an https request must never read it, or the prefix guards nothing.
+test("an https request ignores a planted insecure-name cookie; the same cookie authenticates over http", async () => {
+  const seen: string[] = [];
+  const seam = createAuthSeam({
+    config: baseConfig({ mode: "local", fallback: "deny" }),
+    sessions: stubSessions({
+      validate: (token) => {
+        seen.push(token);
+        return Promise.resolve({
+          sessionId: castId<SessionId>("sess_cookie"),
+          userId: COOKIE_UID,
+          role: "user",
+          handle: castId<Handle>("alice"),
+          externalId: null,
+          enabled: true,
+        });
+      },
+    }),
+  });
+  const planted = new Headers({ cookie: "orb_session_insecure=planted" });
+  expect((await seam.resolvePrincipal(planted, { transport: "https" })).principal).toBeNull();
+  expect(seen).toEqual([]);
+  // Control: the same header on a plain-http request is that transport's own cookie.
+  expect((await seam.resolvePrincipal(planted, { transport: "http" })).principal?.userId).toBe(COOKIE_UID);
+  expect(seen).toEqual(["planted"]);
+});
+
+test("an http request never reads the __Host- cookie, and an absent transport is http", async () => {
+  const seam = createAuthSeam({
+    config: baseConfig({ mode: "local", fallback: "deny" }),
+    sessions: stubSessions({ validate: () => Promise.reject(new Error("validate must not run: no cookie of this transport")) }),
+  });
+  const secureOnly = new Headers({ cookie: "__Host-orb_session=tok123" });
+  expect((await seam.resolvePrincipal(secureOnly, { transport: "http" })).principal).toBeNull();
+  expect((await seam.resolvePrincipal(secureOnly)).principal).toBeNull();
 });
 
 test("a stale cookie is IGNORED outside cookie modes (forward-header never calls validate)", async () => {
@@ -439,7 +477,7 @@ test("debugGateAdmits requires a CREDENTIAL as well as the OWNER role", async ()
           }),
       }),
     });
-    return (await seam.resolvePrincipal(new Headers({ cookie: "__Host-orb_session=t" }))).principal;
+    return (await seam.resolvePrincipal(new Headers({ cookie: "__Host-orb_session=t" }), { transport: "https" })).principal;
   };
   const cookieSeam = createAuthSeam({ config: baseConfig({ mode: "local" }), sessions: stubSessions({}) });
   expect(cookieSeam.debugGateAdmits(await cookiePrincipal("owner"), new Headers())).toBe(true);

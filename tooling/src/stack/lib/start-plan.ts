@@ -162,7 +162,7 @@ export function startBannerLines(opts: { readonly port: number; readonly mode: s
     "",
     `  orbweaver is running:  http://localhost:${opts.port}`,
     `  ${posture}`,
-    "  other devices need a login: set AUTH_MODE=local in .env, then put it behind HTTPS.",
+    "  other devices need a login: set AUTH_MODE=local in .env; put HTTPS in front, or the login travels in clear.",
     "  Ctrl-C stops the server.",
     "",
   ];
