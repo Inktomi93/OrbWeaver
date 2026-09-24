@@ -1,28 +1,6 @@
-import { DEFAULT_TRUSTED_RANGES, isInRanges, isPrivateOrLoopback, matchesCidr, parseIp } from "@orb/server/infra/network";
+import { DEFAULT_TRUSTED_RANGES, isInRanges, isPrivateOrLoopback, matchesCidr } from "@orb/server/infra/network";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
-
-describe("parseIp", () => {
-  test("parses an IPv4 dotted-quad (32-bit)", () => {
-    expect(parseIp("127.0.0.1")?.bits).toBe(32);
-  });
-
-  test("parses an IPv6 literal (128-bit)", () => {
-    expect(parseIp("::1")?.bits).toBe(128);
-  });
-
-  test("reduces an IPv4-mapped IPv6 address to plain v4", () => {
-    expect(parseIp("::ffff:127.0.0.1")?.bits).toBe(32);
-  });
-
-  test("rejects a non-IP string", () => {
-    expect(parseIp("not-an-ip")).toBeNull();
-  });
-
-  test("rejects an octet > 255", () => {
-    expect(parseIp("999.0.0.1")).toBeNull();
-  });
-});
 
 describe("matchesCidr", () => {
   test("matches an address inside the range", () => {

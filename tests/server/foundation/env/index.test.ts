@@ -7,6 +7,7 @@ import { join } from "node:path";
 import process from "node:process";
 import { AUTH_MODES } from "@orb/contracts/identity";
 import { afterAll, afterEach, beforeEach, describe, vi } from "vitest";
+import { runsInContainer } from "../../../../packages/server/src/foundation/env/container.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 // Every re-import runs with the process CWD parked in a throwaway directory. foundation/env's `.env`
@@ -734,5 +735,39 @@ describe("SESSION_COOKIE_INSECURE — deleted, and an old line is inert", () => 
     const dir = dirWithEnvFile(["AUTH_MODE=local", "SESSION_COOKIE_INSECURE=true"].join("\n"));
     const { env } = await reimportEnvIn(dir, {}, { vitest: false });
     expect(env).not.toHaveProperty("SESSION_COOKIE_INSECURE");
+  });
+});
+
+// ── ALLOWED_HOSTS: the Host allowlist's configured names (`allowed-hosts.ts` owns the grammar) ──
+// A malformed entry matches nothing, so the name the operator meant would be refused on every request with no
+// hint why. The parse refuses it instead, naming the entry.
+describe("ALLOWED_HOSTS — a malformed entry is a parse refusal naming it", () => {
+  test.each(["nas.local:8788", "*.example.com", "https://orb.example"])("ALLOWED_HOSTS containing %j refuses boot, naming it", async (entry) => {
+    await expect(reimportEnvWith({ ALLOWED_HOSTS: `ok.example, ${entry}` })).rejects.toThrow(entry);
+  });
+
+  test("a one-label suffix such as .lan refuses boot, naming it", async () => {
+    await expect(reimportEnvWith({ ALLOWED_HOSTS: "nas.local, .lan" })).rejects.toThrow(".lan");
+  });
+
+  test("an image that declares itself (ORB_CONTAINER=true) is a container: its host name is not admitted", async () => {
+    const declared = await reimportEnvWith({ ORB_CONTAINER: "true" });
+    expect(declared.allowedHostsInput().machineHostname).toBeNull();
+    expect(declared.bindPostureInput().inContainer).toBe(true);
+  });
+
+  // Control, bare metal only: in a container a marker file makes the name null whatever the declaration says.
+  test.skipIf(runsInContainer(false))("without the declaration, on bare metal, the machine's name is read", async () => {
+    const bare = await reimportEnvWith({});
+    expect(bare.allowedHostsInput().machineHostname).not.toBeNull();
+  });
+
+  test("well-formed names boot and reach the resolver beside the OIDC callback hosts", async () => {
+    const mod = await reimportEnvWith({
+      ALLOWED_HOSTS: "nas.local, .ts.net",
+      OIDC_REDIRECT_URIS: "https://orbweaver.inktomi.tech/api/auth/oidc/callback",
+    });
+    // Configured names first, then the OIDC callback host; the machine's own names (bare metal only) follow them.
+    expect(mod.resolveAllowedHosts(mod.allowedHostsInput()).slice(0, 3)).toEqual(["nas.local", ".ts.net", "orbweaver.inktomi.tech"]);
   });
 });

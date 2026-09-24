@@ -6,9 +6,11 @@
 // value computed from `{ platform, ambient env }` rather than read from the ambient process, so the win32
 // answer is unit-provable on Linux. `stack.sh` (the Linux dev supervisor: setsid, ss, /proc) is untouched;
 // the cross-platform dev path is `pnpm dev` (tooling/src/dev/).
+
+import { SETUP_COMMAND } from "@orb/contracts/identity";
 import { MAX_TCP_PORT } from "../../_shared/ports.ts";
 import type { AnswerParse, DistVerdict, PnpmInvocation, ProdSpawnPlan, StartBuildDecision, StartBuildMode, StartParse } from "../contract/types.ts";
-import { effectiveAuthMode, PORT_KEY, parsePortAnswer, SETUP_COMMAND, SINGLE_USER_MODE } from "./setup-plan.ts";
+import { effectiveAuthMode, PORT_KEY, parsePortAnswer, SINGLE_USER_MODE } from "./setup-plan.ts";
 import { buildProdSpawnPlan, CLIENT_DIST_INDEX_REL } from "./spawn-plan.ts";
 
 const SETUP_FLAG = "--setup";

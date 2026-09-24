@@ -28,6 +28,11 @@ export interface SpaDeps {
   readonly distDir: string;
 }
 
+/** True for the API surface, which answers JSON and never the HTML bundle or fallback. */
+export function isApiPath(path: string): boolean {
+  return path === "/api" || path.startsWith(API_PREFIX);
+}
+
 /** Resolve the bundle dir to serve, or `null` to skip SPA registration (vite is the dev front door).
  *  @throws in prod when the bundle is missing — an API-only origin posing as the app is a boot lie. */
 export function resolveSpaDistDir(opts: { readonly distDir: string; readonly prod: boolean }): string | null {
@@ -47,8 +52,6 @@ export function resolveSpaDistDir(opts: { readonly distDir: string; readonly pro
 
 /** Register the bundle file-serve + the history fallback on `app` (GET/HEAD only; call LAST). */
 export function registerSpa(app: Hono, deps: SpaDeps): void {
-  const isApi = (path: string): boolean => path === "/api" || path.startsWith(API_PREFIX);
-
   // Cache headers are set on the RETURNED Response — serveStatic constructs it before onFound fires,
   // so a c.header() there is silently lost (node-server 2.x).
   const withCache = (res: unknown, value: string): Response | undefined => {
@@ -65,7 +68,7 @@ export function registerSpa(app: Hono, deps: SpaDeps): void {
   // file-serve and history-fallback handlers below so a re-shipped map never lands. (/api/* .map paths
   // don't exist, but stay a plain API 404 either way — the belt only owns the static tree.)
   app.get("*", (c, next) => {
-    if (isApi(c.req.path) || !SOURCE_ARTIFACT_EXT.test(c.req.path)) {
+    if (isApiPath(c.req.path) || !SOURCE_ARTIFACT_EXT.test(c.req.path)) {
       return next();
     }
     return c.notFound();
@@ -75,7 +78,7 @@ export function registerSpa(app: Hono, deps: SpaDeps): void {
   // included) and falls through to next() on a miss.
   const serveFiles = serveStatic({ root: deps.distDir });
   app.get("*", async (c, next) => {
-    if (isApi(c.req.path)) {
+    if (isApiPath(c.req.path)) {
       return next();
     }
     return withCache(await serveFiles(c, next), c.req.path.startsWith(HASHED_ASSET_PREFIX) ? IMMUTABLE_CACHE : REVALIDATE_CACHE);
@@ -85,7 +88,7 @@ export function registerSpa(app: Hono, deps: SpaDeps): void {
   // fetch request 404s instead of receiving HTML-as-JS.
   const serveIndex = serveStatic({ root: deps.distDir, path: "index.html" });
   app.get("*", async (c, next) => {
-    if (isApi(c.req.path) || !(c.req.header("accept") ?? "").includes("text/html")) {
+    if (isApiPath(c.req.path) || !(c.req.header("accept") ?? "").includes("text/html")) {
       return next();
     }
     return withCache(await serveIndex(c, next), REVALIDATE_CACHE);

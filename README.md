@@ -43,7 +43,9 @@ mirrored networking (`networkingMode=mirrored` in `.wslconfig`, Windows 11) or f
 Windows with `netsh interface portproxy add v4tov4 listenport=8788 connectport=8788 connectaddress=<WSL address>`.
 A phone at `http://192.168.1.20:8788` can sign in over plain http, but the password and
 the session cookie travel in clear on your network, and the login screen says so; put HTTPS in front when
-you can. For the internet, never forward a router port: run a tunnel instead. `tailscale serve --bg 8788`
+you can. An IP address and this computer's own name (`http://<name>.local:8788`) work as is; any other name
+(a tailnet or tunnel hostname) goes in `ALLOWED_HOSTS` in `.env`. The server refuses names it does not know,
+so a web page cannot reach it through your browser. For the internet, never forward a router port: run a tunnel instead. `tailscale serve --bg 8788`
 publishes the app to your tailnet over HTTPS, and `cloudflared tunnel run --token <token>` with a public
 hostname whose service is `http://localhost:8788` publishes it through Cloudflare. Never put a proxy or
 tunnel in front of single-user. The boot log states who can reach the box and who its owner is; the

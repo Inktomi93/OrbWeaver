@@ -206,6 +206,7 @@ function appDeps(): AppDeps {
     sessions: untouched,
     isShuttingDown: (): boolean => false,
     credentialsKeyOk: (): boolean => true,
+    inContainer: false,
     seedUserCharacters: (): void => {
       // inert: the resolved principal is always null here.
     },

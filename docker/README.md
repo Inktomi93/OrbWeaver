@@ -104,9 +104,24 @@ The port is published on `127.0.0.1` only. To reach the app from your phone or a
    is `Secure` + `__Host-`. Any TLS terminator works: Caddy (automatic certs, or its internal CA on a LAN),
    nginx, Traefik, a Tailscale `serve`. Point it at `127.0.0.1:8788` on
    this machine, or join it to this compose network and target `orbweaver:8788` (the stanza at the bottom of
-   `docker-compose.yaml`). The proxy must pass `X-Forwarded-Proto/Host/For` and must not buffer SSE.
+   `docker-compose.yaml`). The proxy must pass `X-Forwarded-Proto/Host/For` and must not buffer SSE. It must
+   also pass the browser's `Host` through: Caddy does by default; in nginx set `proxy_set_header Host $host`.
 3. Optionally bound who may knock at all: `IP_ALLOWLIST=192.168.1.0/24`. Behind a proxy the peer is the
    proxy, so allowlist the proxy's address, not your laptop's.
+
+**Reaching it by name.** An IP address (`http://192.168.1.20:8788`) and `localhost` always work. Any other
+name people type in the browser must be in `ALLOWED_HOSTS`, in the `environment:` block of
+`docker-compose.yaml` (step 1): a NAS or PC name (`nas.local`), a proxy's hostname, a tunnel hostname. In a
+container the app cannot see your machine's name, so add it too. Separate names with commas; a leading dot
+admits the name and every subdomain (`.example.com`), but never a whole top-level domain such as `.com` or
+`.lan`. The hosts in `OIDC_REDIRECT_URIS` are added for you. The app refuses every other name with a page that
+names the host and the line to add. That refusal is what stops a web page from reaching the app through your
+browser by pointing its own name at your machine (DNS rebinding), so add only names you use.
+
+```yaml
+    environment:
+      ALLOWED_HOSTS: nas.local,orbweaver.example.com
+```
 
 **No TLS on your LAN?** Skip step 2 and sign in at `http://192.168.1.20:8788`. The session cookie is then
 `orb_session_insecure` with no `Secure` attribute, and it travels **in clear on your own network**. The cookie
@@ -126,7 +141,9 @@ lines from step 1 of "LAN and HTTPS", but keep `ORB_BIND` on `127.0.0.1`: the tu
 ### Cloudflare Tunnel, as a sidecar
 
 1. In the Cloudflare dashboard (Zero Trust → Networks → Tunnels), create a tunnel and copy its token.
-2. Add a public hostname to the tunnel whose service is `http://orbweaver:8788`.
+2. Add a public hostname to the tunnel whose service is `http://orbweaver:8788`, and allow that hostname:
+   `ALLOWED_HOSTS: <the public hostname>` in the `environment:` block. For a quick tunnel, add its exact
+   `<random>.trycloudflare.com` name. Use a dot-led suffix only for a domain whose DNS you control.
 3. Start the app with the sidecar overlay:
 
 ```sh
@@ -142,7 +159,9 @@ Cloudflare Access in front is optional and adds its own login before the app's.
 With Tailscale on this machine, `tailscale serve --bg 8788` publishes `https://<machine>.<tailnet>.ts.net`
 to your tailnet and proxies it to `127.0.0.1:8788`. Serve sends `X-Forwarded-Proto: https`, so a login mode
 gets a `Secure` cookie. `tailscale funnel --bg 8788` publishes the same address to the internet, and
-`tailscale serve reset` removes it.
+`tailscale serve reset` removes it. Allow the name in the `environment:` block:
+`ALLOWED_HOSTS: <machine>.<tailnet>.ts.net`, or `.<tailnet>.ts.net` for every machine in your tailnet. A tailnet
+address (`100.x.y.z`) needs no entry.
 
 **Tailnet identity instead of passwords.** Serve removes any incoming `Tailscale-User-*` header and sets
 `Tailscale-User-Login` for a tailnet user, so `forward-header` mode can take the identity from it:
@@ -236,6 +255,9 @@ the composed posture at boot and warns per open exposure.
   network outside the shipped ranges (`10.0.0.0/8` covers Podman's default `10.88.0.0/16`). The reason is under "Login modes".
   Through a proxy or tunnel, single-user always answers 401: a relayed request is never the owner. Use a login
   mode there ("From the internet: a tunnel").
+- **"This address is not allowed" (HTTP 421)** — you reached the app by a name it does not know. If the name
+  is yours, add it to `ALLOWED_HOSTS` in the `environment:` block and restart ("Reaching it by name").
+  Behind a proxy that rewrites `Host` to its upstream (`orbweaver`), pass the browser's `Host` through instead.
 - **"REFUSING to boot … published on ORB_BIND="** — you opened the port to your network in the no-login
   mode; switch to `AUTH_MODE=local` as described under "LAN and HTTPS".
 - **The login screen says "plain http" on an https page** — the TLS proxy sends no `X-Forwarded-Proto: https`,

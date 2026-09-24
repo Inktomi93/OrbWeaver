@@ -31,13 +31,14 @@
 import { readFileSync } from "node:fs";
 import { hostname, networkInterfaces } from "node:os";
 import process from "node:process";
+import { SETUP_COMMAND } from "@orb/contracts/identity";
 import { print, REPO_ROOT } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { warn } from "../../_shared/log.ts";
 import { childExitCode, forwardSignalsTo, spawnFullPriorityChild, spawnFullPrioritySync } from "../../_shared/proc.ts";
 import type { ProdSpawnPlan, SetupMachine, SetupResult } from "../contract/types.ts";
-import { effectiveAuthMode, isWsl2Kernel, SETUP_COMMAND } from "../lib/setup-plan.ts";
+import { effectiveAuthMode, isWsl2Kernel } from "../lib/setup-plan.ts";
 import { CLIENT_DIST_INDEX_REL } from "../lib/spawn-plan.ts";
 import {
   decideStartBuild,

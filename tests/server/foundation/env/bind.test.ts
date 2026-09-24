@@ -2,14 +2,15 @@
 // network, and single-user (no login) serves this machine only. The parse-time enforcement of `refusal` is
 // pinned in index.test.ts.
 
-import { bindPostureWarnings, resolveBindPosture } from "@orb/server/foundation/env";
+import type { AuthMode } from "@orb/contracts/identity";
+import { bindPostureWarnings, resolveBindPosture, settingInstruction } from "@orb/server/foundation/env";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
 // The deploy-mode arms are mode-independent; a login mode keeps the single-user arm out of them.
-const HATCH_OPEN = { allowDevPublicBind: true, authMode: "local", ownerPeersDeclared: false } as const;
-const HATCH_SHUT = { allowDevPublicBind: false, authMode: "local", ownerPeersDeclared: false } as const;
-const SINGLE_USER = { authMode: "single-user", allowDevPublicBind: false, ownerPeersDeclared: false } as const;
+const HATCH_OPEN = { allowDevPublicBind: true, authMode: "local", ownerPeersDeclared: false, inContainer: false } as const;
+const HATCH_SHUT = { allowDevPublicBind: false, authMode: "local", ownerPeersDeclared: false, inContainer: false } as const;
+const SINGLE_USER = { authMode: "single-user", allowDevPublicBind: false, ownerPeersDeclared: false, inContainer: false } as const;
 
 describe("resolveBindPosture — production binds where the proxy can reach it", () => {
   test("BIND_HOST unset → host undefined (node's default: every interface), no refusal", () => {
@@ -118,6 +119,12 @@ describe("resolveBindPosture — single-user serves this machine only, in every 
   test.each(["production", "development", "test"] as const)("NODE_ENV=%s, BIND_HOST unset → loopback, no refusal", (nodeEnv) => {
     const posture = resolveBindPosture({ ...SINGLE_USER, nodeEnv, bindHost: undefined });
     expect(posture).toMatchObject({ host: "127.0.0.1", publicBind: false, refusal: null });
+  });
+
+  test.each([true, false])("inContainer=%s: the notice and the refusal carry that install shape's fix", (inContainer) => {
+    const fix = settingInstruction(inContainer, "AUTH_MODE", "local" satisfies AuthMode);
+    expect(resolveBindPosture({ ...SINGLE_USER, inContainer, nodeEnv: "production", bindHost: undefined }).notice).toContain(fix);
+    expect(resolveBindPosture({ ...SINGLE_USER, inContainer, nodeEnv: "production", bindHost: "0.0.0.0" }).refusal).toContain(fix);
   });
 
   test.each(["0.0.0.0", "::", "192.168.1.50"])("production + BIND_HOST=%s with no declared peer set → refusal naming the login mode", (bindHost) => {

@@ -72,6 +72,9 @@ LABEL org.opencontainers.image.source="https://github.com/Inktomi93/orbweaver" \
       org.opencontainers.image.revision="${GIT_SHA}" \
       org.opencontainers.image.version="${IMAGE_VERSION}"
 ENV NODE_ENV=production
+# The image declares itself: the app reads this beside the Docker and Podman marker files, so a runtime that writes
+# neither (Kubernetes with containerd or CRI-O) still gets container fix text and never admits the pod name as a host.
+ENV ORB_CONTAINER=true
 COPY --chown=node:node --from=build /app/runtime /app
 COPY --chown=node:node docker/entrypoint.sh /app/docker/entrypoint.sh
 # /app/data is the ONE writable state root (sqlite + -wal/-shm, CAS blobs, generated secrets) — a volume;

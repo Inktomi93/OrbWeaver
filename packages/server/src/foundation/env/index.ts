@@ -6,21 +6,29 @@
 // process.env; never written, parsed once, frozen, read down as the floor.
 
 import { readFileSync } from "node:fs";
+import { hostname } from "node:os";
 import { resolve } from "node:path";
 import process from "node:process";
 import { parseEnv } from "node:util";
 import type { AUTH_MODES } from "@orb/contracts/identity";
 import { authModeSchema } from "@orb/contracts/identity";
 import { AGENT_SDK_CONCURRENCY_MAX, LOG_LEVELS } from "@orb/contracts/settings";
+import { ALLOWED_HOSTS_KEY, parseAllowedHosts } from "@orb/kit/allowed-hosts";
 import { z } from "zod";
+import type { AllowedHostsInput } from "./allowed-hosts.ts";
+import { allowedHostsEntryRefusal, machineHostnameFor } from "./allowed-hosts.ts";
 import type { BindPostureInput } from "./bind.ts";
 import { resolveBindPosture } from "./bind.ts";
+import { runsInContainer } from "./container.ts";
 import type { DiagnosticsPostureInput, OwnerFallbackCredentialInput } from "./diagnostics.ts";
 import type { OwnerFallbackPeerInput } from "./fallback-peers.ts";
 import { parseOwnerFallbackTrustedPeers, resolveOwnerFallbackPeers } from "./fallback-peers.ts";
 
+export type { AllowedHostsInput } from "./allowed-hosts.ts";
+export { machineHostnameFor, resolveAllowedHosts } from "./allowed-hosts.ts";
 export type { BindPosture, BindPostureInput } from "./bind.ts";
 export { bindPostureWarnings, resolveBindPosture } from "./bind.ts";
+export { CONTAINER_MARKER_FILES, runsInContainer, settingInstruction } from "./container.ts";
 export type { DiagnosticsExposure, DiagnosticsPosture, DiagnosticsPostureInput, OwnerFallbackCredentialInput } from "./diagnostics.ts";
 export { DIAGNOSTICS_EXPOSURES, diagnosticsPostureWarnings, resolveDiagnosticsPosture, resolveOwnerFallbackCredential } from "./diagnostics.ts";
 export type { OwnerFallbackPeerInput, OwnerFallbackPeerPosture } from "./fallback-peers.ts";
@@ -332,6 +340,10 @@ const envSchema = z
     // Deliberately NOT a `NODE_ENV` inference: this repo's env law is explicit natures, and "is this a dev
     // stack" is not the same question as "is this a development build".
     DEV_SEED: z.enum(["on", "off"]).default("off"),
+    // The container image's self-declaration (`ENV ORB_CONTAINER=true` in the Dockerfile), read with the runtime's
+    // marker files by `container.ts::runsInContainer`. It picks the fix text operator-facing refusals name, and keeps
+    // the random container host name out of the Host allowlist. Never set it on bare metal.
+    ORB_CONTAINER: envBool(false),
 
     DATABASE_URL: z.string().min(1).default("file:./data/orbweaver.db"),
     // The built client bundle (`vite build` output) the SPA registrar serves in prod. cwd-relative like
@@ -453,6 +465,11 @@ const envSchema = z
 
     // A request from outside this comma CIDR list (and outside loopback) gets a 403 before any auth runs.
     IP_ALLOWLIST: z.string().optional(),
+    // The names this server answers to, beyond localhost and IP addresses (always allowed): a comma list, where a
+    // leading dot admits the name and every subdomain. The OIDC_REDIRECT_URIS hosts are added on their own. Any
+    // other `Host` is refused before auth, which is what stops a DNS-rebinding page (`allowed-hosts.ts`). A
+    // malformed entry is refused at parse, naming it.
+    ALLOWED_HOSTS: z.string().optional(),
 
     // Blocks outbound HTTP to private/loopback/link-local IPs via the global undici dispatcher.
     EGRESS_FIREWALL: envBool(true),
@@ -657,9 +674,15 @@ const envSchema = z
       bindHost: val.BIND_HOST,
       allowDevPublicBind: val.ALLOW_DEV_PUBLIC_BIND,
       ownerPeersDeclared: parseOwnerFallbackTrustedPeers(val.AUTH_FALLBACK_TRUSTED_PEERS).length > 0,
+      inContainer: runsInContainer(val.ORB_CONTAINER),
     });
     if (bind.refusal !== null) {
       ctx.addIssue({ code: "custom", path: ["BIND_HOST"], message: bind.refusal });
+    }
+    // A malformed ALLOWED_HOSTS entry would match nothing, so the name the operator meant to allow would be refused
+    // on every request with no hint why. Refuse it here, once per entry, naming it.
+    for (const entry of parseAllowedHosts(val.ALLOWED_HOSTS).malformed) {
+      ctx.addIssue({ code: "custom", path: [ALLOWED_HOSTS_KEY], message: allowedHostsEntryRefusal(entry) });
     }
     // The box has exactly one owner. A multi-handle list would seed >1 owner row and hit the DB unique
     // index as a raw violation later — fail fast here with a clear message instead.
@@ -703,6 +726,7 @@ export function bindPostureInput(): BindPostureInput {
     bindHost: env.BIND_HOST,
     allowDevPublicBind: env.ALLOW_DEV_PUBLIC_BIND,
     ownerPeersDeclared: parseOwnerFallbackTrustedPeers(env.AUTH_FALLBACK_TRUSTED_PEERS).length > 0,
+    inContainer: runsInContainer(env.ORB_CONTAINER),
   };
 }
 
@@ -720,6 +744,16 @@ export function diagnosticsPostureInput(): DiagnosticsPostureInput {
  *  reader; `entry/lifecycle` composes it into the auth seam, which owns no copy of the rule. */
 export function ownerFallbackCredentialInput(): OwnerFallbackCredentialInput {
   return { nodeEnv: env.NODE_ENV, authFallback: env.AUTH_FALLBACK, fallbackWidened: resolveOwnerFallbackPeers(ownerFallbackPeerInput()).widened };
+}
+
+/** The raw inputs the Host allowlist resolver reads (`allowed-hosts.ts` holds the grammar). The parse above has
+ *  already refused a malformed `ALLOWED_HOSTS`; `entry/app.ts` resolves the names and mounts the request guard. */
+export function allowedHostsInput(): AllowedHostsInput {
+  return {
+    allowedHosts: env.ALLOWED_HOSTS,
+    oidcRedirectUris: env.OIDC_REDIRECT_URIS,
+    machineHostname: machineHostnameFor(runsInContainer(env.ORB_CONTAINER), hostname()),
+  };
 }
 
 /** The raw inputs the OWNER-FALLBACK PEER-SET resolver reads (`fallback-peers.ts` holds the rule, the hazard
