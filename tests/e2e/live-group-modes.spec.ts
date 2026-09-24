@@ -103,10 +103,9 @@ test.describe("group modes on the live local stack", () => {
   let bail: string | null = null;
 
   // The ENVIRONMENT probe, paid ONCE: pin the stateless local route and drive one throwaway turn on a
-  // scratch room. A `VLLM_DISABLED=true` server has dropped the vllm backend from the registry and every
-  // local turn fail-closes (`provider "vllm" is not wired`) — an environment verdict, not a group-chat
-  // regression. Recording it here (instead of catching inside each arm) keeps a REAL group failure red:
-  // the arms below never swallow their own errors.
+  // scratch room. A box with no local vllm engine listening at the harness's loopback port fail-closes
+  // every local turn — an environment verdict, not a group-chat regression. Recording it here (instead of
+  // catching inside each arm) keeps a REAL group failure red: the arms below never swallow their own errors.
   test.beforeAll(async () => {
     test.setTimeout(LIVE_TIMEOUT_MS);
     const probeCast = await mintCast(1);

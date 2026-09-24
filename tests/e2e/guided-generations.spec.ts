@@ -153,9 +153,9 @@ test.describe("guided generations on the live local stack", () => {
   let bail: string | null = null;
 
   // The ENVIRONMENT probe, paid ONCE: pin the stateless route and drive one throwaway REAL turn (a swipe
-  // on a greeting-seeded chat's tail — the cheapest generation). A VLLM_DISABLED server has dropped the
-  // vllm backend and every local turn fail-closes — an environment verdict, not a guided regression.
-  // Recording it here keeps a REAL guided failure red (the arms never swallow their own errors).
+  // on a greeting-seeded chat's tail — the cheapest generation). A box with no local vllm engine listening
+  // at the harness's loopback port fail-closes every local turn — an environment verdict, not a guided
+  // regression. Recording it here keeps a REAL guided failure red (the arms never swallow their own errors).
   test.beforeAll(async () => {
     test.setTimeout(LIVE_TIMEOUT_MS);
     // The stateless openai-compat local wire — the arm that keeps a UI-fired turn bounded (the group-modes
