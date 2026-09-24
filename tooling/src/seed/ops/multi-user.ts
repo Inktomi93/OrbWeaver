@@ -19,15 +19,10 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ExitCode } from "../../_shared/exit-contract.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { UsageError } from "../../_shared/run-tool.ts";
+import { SESSION_COOKIE_MINTED } from "../../_shared/session-cookie.ts";
 import type { MultiUserConfig } from "../contract/types.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm seed:demo (node tooling/src/seed/cli.ts <demo|chat|multi-user>)");
-
-// The two session-cookie names the app can mint under — `__Host-orb_session` over https behind a trusted
-// proxy, `orb_session_insecure` over plain http (`infra/auth/transport.ts`). A MINT under one is accompanied by a `Max-Age=0` CLEAR of the other in the same response, which
-// is why the check below needs a non-empty VALUE and not merely the name: `includes("<name>=")` matches the
-// clearing cookie too and would report "the credential works" for a login that minted nothing.
-const SESSION_COOKIE_MINTED = /(?:^|,\s*)(?:__Host-orb_session|orb_session_insecure)=[^;,\s]/u;
 
 interface UserRow {
   readonly id?: string;
