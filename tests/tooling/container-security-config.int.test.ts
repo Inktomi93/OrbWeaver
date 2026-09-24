@@ -80,7 +80,7 @@ test("the entrypoint keeps its single *_FILE allowlist line (the agent-sdk firew
   expect(shim).toContain("keep_generated initial_password");
 });
 
-test("every compose shape resolves (base + the four overlays)", ({ repoRoot, scratch, skip }) => {
+test("every compose shape resolves (the base and every overlay)", ({ repoRoot, scratch, skip }) => {
   const probe = spawnSync("docker", ["compose", "version"], { encoding: "utf8" });
   if (probe.status !== 0) {
     // A LOUD skip, never a silent pass: without compose on the host these shapes were not validated here.
@@ -94,7 +94,8 @@ test("every compose shape resolves (base + the four overlays)", ({ repoRoot, scr
     writeFileSync(join(secretsDir, f), "");
   }
   const interpolation = join(scratch, "compose.env");
-  writeFileSync(interpolation, `ORB_SECRETS_DIR=${secretsDir}\n`);
+  // The tunnel overlay refuses to resolve without a token; a placeholder proves the shape, never a tunnel.
+  writeFileSync(interpolation, `ORB_SECRETS_DIR=${secretsDir}\nCLOUDFLARE_TUNNEL_TOKEN=placeholder-token\n`);
   const run = (files: readonly string[], profiles: readonly string[] = []): SpawnSyncReturns<string> =>
     spawnSync(
       "docker",
@@ -106,6 +107,7 @@ test("every compose shape resolves (base + the four overlays)", ({ repoRoot, scr
     [["docker-compose.yaml", "docker/compose.host-network.yaml"], []],
     [["docker-compose.yaml", "docker/compose.secrets.yaml"], []],
     [["docker-compose.yaml", "docker/compose.dev.yaml"], []],
+    [["docker-compose.yaml", "docker/compose.cloudflared.yaml"], []],
   ];
   for (const [files, profiles] of shapes) {
     const result = run(files, profiles);
@@ -133,6 +135,21 @@ test("every compose shape resolves (base + the four overlays)", ({ repoRoot, scr
   expect(hostNetwork["BIND_HOST"]).toBe("127.0.0.1");
   expect(hostNetwork["AUTH_FALLBACK_TRUSTED_PEERS"]).toBe("");
   expect(resolvedEnv(["docker-compose.yaml", "docker/compose.dev.yaml"])).not.toHaveProperty("BIND_HOST");
+
+  // The tunnel sidecar only dials OUT to Cloudflare and reaches the app over the project network: it publishes
+  // nothing, and the app's own publication stays on loopback.
+  const tunnel = spawnSync(
+    "docker",
+    ["compose", "--env-file", interpolation, "-f", "docker-compose.yaml", "-f", "docker/compose.cloudflared.yaml", "config", "--format", "json"],
+    { cwd: repoRoot, encoding: "utf8" },
+  );
+  expect(tunnel.status, tunnel.stderr).toBe(0);
+  const services = (
+    JSON.parse(tunnel.stdout) as { services: Record<string, { ports?: readonly Readonly<Record<string, unknown>>[]; environment?: Record<string, string> }> }
+  ).services;
+  expect(services["cloudflared"]?.ports ?? []).toEqual([]);
+  expect(services["cloudflared"]?.environment?.["TUNNEL_TOKEN"]).toBe("placeholder-token");
+  expect(services["orbweaver"]?.ports?.map((port) => port["host_ip"])).toEqual(["127.0.0.1"]);
 });
 
 // The sandbox is PERMISSIVE by owner ruling (2026-09-01, reverting a024cbe65 / 8b77f8ad9): the container +

@@ -65,13 +65,16 @@ trusted, and the shipped env names docker's bridge ranges in `AUTH_FALLBACK_TRUS
 published from a bridge network always arrives from the docker gateway. Under docker's NAT that range means
 "whoever can reach the published port", so the safety is the publication itself: the base compose publishes
 on `127.0.0.1` only, which makes the set "processes on this machine" — the same boundary as running the app
-on bare metal. The entrypoint refuses to boot this mode if `ORB_BIND` is not loopback, the app logs a
+on bare metal. The entrypoint refuses to boot this mode if `ORB_BIND` is not loopback, and the app itself
+refuses single-user on a non-loopback listener unless `AUTH_FALLBACK_TRUSTED_PEERS` declares the peer set
+(inside the container compose sets `BIND_HOST=0.0.0.0`, which the shipped ranges declare). The app logs a
 security warning every boot while the knob is live, any request that announces a proxy hop is denied the
 grant, and the diagnostics door's credential-free arm is closed while widened. Want other devices? Use a
 login (next section).
 
 The other no-login shape is host networking (`docker/compose.host-network.yaml`, Linux Engine / Podman):
-the app binds `127.0.0.1` on your machine directly and needs no widened peer set at all.
+the app binds `127.0.0.1` on your machine directly and needs no widened peer set at all. The overlay drops
+the shipped ranges, so the app refuses `ORB_BIND=0.0.0.0` in this shape too.
 
 `AUTH_FALLBACK` is what an un-credentialed request gets: `owner` for `single-user` (its only credential),
 `deny` for every login mode. Never `owner` with an SSO mode in production: the app refuses to boot,
@@ -102,12 +105,63 @@ path, a hostile access point) can copy it and be you. Accept that only on a netw
 Anything reachable from the internet runs a login mode behind real TLS. A sign-in over plain http from a
 public address logs a security warning, and the login screen shows it in red.
 
+## From the internet: a tunnel
+
+Do not forward a router port to this app: the login would cross the internet in plain http. A tunnel dials
+out from this machine and terminates TLS for you. Every tunnelled request carries forwarding headers, so
+single-user is never the owner through one. Switch to a login first with the `docker/orbweaver.local.env`
+lines from step 1 of "LAN and HTTPS", but keep `ORB_BIND` on `127.0.0.1`: the tunnel does not need the port.
+
+### Cloudflare Tunnel, as a sidecar
+
+1. In the Cloudflare dashboard (Zero Trust → Networks → Tunnels), create a tunnel and copy its token.
+2. Add a public hostname to the tunnel whose service is `http://orbweaver:8788`.
+3. Start the app with the sidecar overlay:
+
+```sh
+CLOUDFLARE_TUNNEL_TOKEN=<token> docker compose -f docker-compose.yaml -f docker/compose.cloudflared.yaml up -d --build
+```
+
+The sidecar sends `X-Forwarded-Proto: https` from its address on this project's network, so the session
+cookie is `Secure`. The token rides in the environment; the overlay's header shows how to keep it in a file.
+Cloudflare Access in front is optional and adds its own login before the app's.
+
+### Tailscale serve
+
+With Tailscale on this machine, `tailscale serve --bg 8788` publishes `https://<machine>.<tailnet>.ts.net`
+to your tailnet and proxies it to `127.0.0.1:8788`. Serve sends `X-Forwarded-Proto: https`, so a login mode
+gets a `Secure` cookie. `tailscale funnel --bg 8788` publishes the same address to the internet, and
+`tailscale serve reset` removes it.
+
+**Tailnet identity instead of passwords.** Serve removes any incoming `Tailscale-User-*` header and sets
+`Tailscale-User-Login` for a tailnet user, so `forward-header` mode can take the identity from it:
+
+```sh
+# docker/orbweaver.local.env
+AUTH_MODE=forward-header
+AUTH_FALLBACK=deny
+AUTH_FALLBACK_TRUSTED_PEERS=
+FORWARD_AUTH_USER_HEADER=Tailscale-User-Login
+FORWARD_AUTH_TRUSTED_PROXIES=172.18.0.1/32
+OWNER_HANDLES=you@example.com
+```
+
+`FORWARD_AUTH_TRUSTED_PROXIES` is the one peer the app sees Serve's requests from: the gateway of this
+project's network (`docker network inspect orbweaver_default`), or `127.0.0.1/32` on bare metal.
+`OWNER_HANDLES` is your tailnet login. Two limits:
+
+- Any process on this machine can reach the app from that peer and send the header, so use this only on a
+  machine whose local users you trust.
+- Every tailnet user who can reach the address gets an account; your tailnet's access rules are the gate.
+  Funnel traffic carries no identity header and answers 401.
+
 ## Where your data lives
 
 - `orbweaver-data` (named volume) → `/app/data`: the sqlite database (plus `-wal`/`-shm`), uploaded and
-  seeded assets, import staging, and `secrets/` (the generated session secret, first password and
-  credentials key). **Backup = this volume.** Losing `secrets/credentials_key` makes every stored provider
-  key unreadable (the same blast radius as losing the database).
+  seeded assets, import staging, `secrets/` (the generated session secret and first password) and
+  `.credentials-key` (the generated credentials key). **Backup = this volume.** Losing
+  `/app/data/.credentials-key` makes every stored provider key unreadable (the same blast radius as losing
+  the database).
 - The built-in CPU model tier keeps its weights in `models/transformers/` in the same volume: ~3.5 GB
   embedder, ~92 MB reranker, ~176 MB background-removal. They download in the background shortly after the
   server starts answering, smallest first, and only for the jobs this box actually serves on the CPU tier;
@@ -169,6 +223,8 @@ the composed posture at boot and warns per open exposure.
 - **Everything answers 401** in `single-user` — `AUTH_FALLBACK_TRUSTED_PEERS` was emptied or your docker
   network uses a range outside the shipped list (`docker network inspect` → add it), or you are on a custom
   network outside the shipped ranges (`10.0.0.0/8` covers Podman's default `10.88.0.0/16`). The reason is under "Login modes".
+  Through a proxy or tunnel, single-user always answers 401: a relayed request is never the owner. Use a login
+  mode there ("From the internet: a tunnel").
 - **"REFUSING to boot … published on ORB_BIND="** — you opened the port to your network in the no-login
   mode; switch to `AUTH_MODE=local` as described under "LAN and HTTPS".
 - **The login screen says "plain http" on an https page** — the TLS proxy sends no `X-Forwarded-Proto: https`,

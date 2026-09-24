@@ -13,6 +13,7 @@
 #   -f docker-compose.yaml -f docker/compose.host-network.yaml   single-user, no login, via host networking (Linux/Podman)
 #   -f docker-compose.yaml -f docker/compose.secrets.yaml        secrets as mounted files, never env values
 #   -f docker-compose.yaml -f docker/compose.dev.yaml            the DEVELOPMENT stack from this checkout (hot reload)
+#   -f docker-compose.yaml -f docker/compose.cloudflared.yaml    a Cloudflare Tunnel sidecar (needs a login mode)
 #
 # Interpolated knobs (shell env, or a `.env` file beside this compose file):
 #   ORB_PORT   host port                     default 8788
@@ -85,6 +86,7 @@ volumes:
 #       name: <your proxy's network>
 #       external: true
 #
-# The proxy must pass X-Forwarded-Proto/Host/For (the OIDC callback and the IP allowlist derive from them)
-# and must not buffer SSE (Caddy: `flush_interval -1` plus long timeouts). Anything public runs an SSO mode
-# with AUTH_FALLBACK=deny (docker/orbweaver.env).
+# The proxy must pass X-Forwarded-Proto/Host/For (the session cookie's Secure flag, the OIDC callback and the
+# IP allowlist derive from them) and must not buffer SSE (Caddy: `flush_interval -1` plus long timeouts).
+# Anything public runs a login mode with AUTH_FALLBACK=deny (docker/orbweaver.env); for a tunnel instead of a
+# proxy, see docker/compose.cloudflared.yaml and "From the internet: a tunnel" in docker/README.md.
