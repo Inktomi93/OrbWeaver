@@ -4,7 +4,7 @@
 import type { AssembleCharacter, AssembleContext, ChatInjection } from "@orb/contracts/chat";
 import { CHAT_INJECTION_POSITIONS } from "@orb/contracts/chat";
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
-import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import { DEFAULT_MARKER_TEMPLATES, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -189,12 +189,14 @@ describe("assemblePrompt — section walk", () => {
   describe("the built-in default arrangement feeds attached documents (issue #80)", () => {
     const passage = "The ferryman of Kalen's Crossing is named Doryn.";
 
-    test("an attached document's passage reaches the assembled prompt", () => {
+    test("an attached document's passage reaches the assembled prompt, below Chat History (D251)", () => {
       const out = assemblePrompt(DEFAULT_PROMPT_CONFIG, ctxOf({ databank: `# Ferry lore\n${passage}` }));
-      expect(`${out.static}\n${out.dynamic}`).toContain(passage);
-      // The framing rides the marker's own default (the wrapper prose belongs to the
-      // section template, never to databank's value).
-      expect(out.dynamic).toContain("Related information:");
+      expect(`${out.static}\n${out.dynamic}`).not.toContain(passage);
+      const delivered = out.afterHistory.find((inj) => inj.content.includes(passage));
+      expect(delivered).toMatchObject({ position: "in_chat", depth: 0, role: "system" });
+      // The framing rides the marker's own default (the wrapper prose belongs to the section template, never to
+      // databank's value), so the delivered bytes are exactly that template around the retrieval.
+      expect(delivered?.content).toBe(DEFAULT_MARKER_TEMPLATES.databank.replace("{{databank}}", `# Ferry lore\n${passage}`));
     });
 
     test("no documents ⇒ byte-identical to a non-databank turn (the DB6 null-op pin, now with the slot placed)", () => {
@@ -204,7 +206,8 @@ describe("assemblePrompt — section walk", () => {
       const absent = assemblePrompt(DEFAULT_PROMPT_CONFIG, ctxOf());
       expect(wiredEmpty.static).toBe(absent.static);
       expect(wiredEmpty.dynamic).toBe(absent.dynamic);
-      const all = `${absent.static}\n${absent.dynamic}`;
+      expect(wiredEmpty.afterHistory).toEqual(absent.afterHistory);
+      const all = [absent.static, absent.dynamic, ...absent.afterHistory.map((inj) => inj.content)].join("\n");
       expect(all).not.toContain("Related information");
       expect(all).not.toContain("{{databank}}");
       expect(absent.trace.databankIncluded).toBe(false);

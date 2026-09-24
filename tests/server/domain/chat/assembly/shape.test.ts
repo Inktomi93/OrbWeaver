@@ -3,7 +3,7 @@
 // 2026-08-22 (#428, the neo floor is obsolete), so THIS is now the ONLY home; it pins the orbweaver-side
 // invariants directly: the 3 breakpoint-undefined cases, the offset/clamp/floor math, the neo-quirk →
 // undefined divergence, and the no-if(isGroup) solo-byte-identical contract.
-import type { AssembleContext, ChatInjection, ChatReasoningPart, MessageView } from "@orb/contracts/chat";
+import type { AssembleContext, ChatInjection, ChatReasoningPart, MessageView, ShapeFoldReason } from "@orb/contracts/chat";
 import type { RoleHandling } from "@orb/contracts/inference";
 import { ROLE_HANDLING, SYSTEM_ROW_PLACEMENT } from "@orb/contracts/inference";
 import type { NamesBehavior } from "@orb/contracts/preset";
@@ -16,6 +16,7 @@ import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { describe } from "vitest";
+import { assemblePrompt } from "../../../../../packages/server/src/domain/chat/assembly/assemble.ts";
 import { BEFORE_HISTORY_DEPTH } from "../../../../../packages/server/src/domain/chat/assembly/injections.ts";
 import { computeHistoryBreakpoint, shape, toShapeCanon } from "../../../../../packages/server/src/domain/chat/assembly/shape.ts";
 import type { HistoryMacroNames } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
@@ -566,6 +567,72 @@ describe("shape — midConversationSystem gates the depth-0 system-injection del
     const out = shape(soloInput({ injections: [sysInj], midConversationSystem: true, roleHandlingFloor: "slotted", namesBehavior: "content" }));
     expect(out.history.at(-1)).toEqual({ role: "system", content: "GM note" });
   });
+});
+
+// ── THE SHIPPED ARRANGEMENT'S PER-TURN SECTIONS (D251) ─────────────────────────────
+// D251 keeps every section where the prompt order puts it, so a per-turn section listed ABOVE Chat History
+// changes the system prompt every turn and costs the whole history its cache. The built-in preset therefore lists
+// Memory, Databank and Guided instruction BELOW the pivot. Asserted through the real build walk and the real
+// SHAPE, never the array order alone: the walk turns each into a depth-0 `in_chat` system injection, and SHAPE
+// keeps that as a trailing system row where the model takes one and folds it bare into the user tail elsewhere.
+describe("shape — the built-in preset delivers memory, databank and the guided instruction at the tail", () => {
+  const perTurn = ["memory-value", "databank-value", "guided-value"] as const;
+  const [memory, databank, guidedInstruction] = perTurn;
+  /** Where each per-turn value sits in `text`, in the preset's order (-1 when absent). */
+  const offsets = (text: string): number[] => perTurn.map((value) => text.indexOf(value));
+  const assembled = assemblePrompt(DEFAULT_PROMPT_CONFIG, {
+    character: { name: "Aria", description: "a bold knight" },
+    promptConfig: DEFAULT_PROMPT_CONFIG,
+    recentMessages: [],
+    memory,
+    databank,
+    guidedInstruction,
+  });
+
+  test("the build walk leaves all three out of the system prompt and hands them over as depth-0 system injections", () => {
+    const systemPrompt = `${assembled.static}\n${assembled.dynamic}`;
+    expect(offsets(systemPrompt)).toEqual([-1, -1, -1]);
+    expect(assembled.trace.afterHistorySections).toEqual(["memory", "databank", "guided-instruction"]);
+    expect(assembled.afterHistory.map((inj) => ({ position: inj.position, depth: inj.depth, role: inj.role }))).toEqual([
+      { position: "in_chat", depth: 0, role: "system" },
+      { position: "in_chat", depth: 0, role: "system" },
+      { position: "in_chat", depth: 0, role: "system" },
+    ]);
+    expect(assembled.afterHistory.map((inj) => perTurn.find((value) => inj.content.includes(value)))).toEqual([...perTurn]);
+  });
+
+  test("a model that takes a trailing system row gets them as system content after the user's turn", () => {
+    const out = shape(soloInput({ injections: assembled.afterHistory, midConversationSystem: true, roleHandlingFloor: "slotted" }));
+    expect(out.history.at(-2)).toEqual({ role: "user", content: "u2 volatile" });
+    const tail = out.history.at(-1);
+    expect(tail?.role).toBe("system");
+    const at = offsets(tail?.content ?? "");
+    expect(at.every((offset) => offset >= 0)).toBe(true);
+    expect(at).toEqual([...at].sort((a, b) => a - b));
+    // The canon prefix is untouched by the per-turn content, so the pin still lands on the committed reply.
+    expect(pinnedRow(out)?.content).toBe("a1 tip");
+  });
+
+  // Both ways a model refuses the trailing system row: the fail-closed floor folds every system row (`level`), and a
+  // permissive level on a model without `midConversationSystem` folds the trailing run (`tail`).
+  const refusals: readonly { readonly over: Partial<Parameters<typeof shape>[0]>; readonly reason: ShapeFoldReason }[] = [
+    { over: {}, reason: "level" },
+    { over: { roleHandlingFloor: "slotted" }, reason: "tail" },
+  ];
+  for (const { over, reason } of refusals) {
+    test(`any other model gets them folded bare into the user tail, after the user's own text (${reason})`, () => {
+      const out = shape(soloInput({ injections: assembled.afterHistory, ...over }));
+      expect(out.history.some((row) => row.role === "system")).toBe(false);
+      const tail = out.history.at(-1);
+      expect(tail?.role).toBe("user");
+      const content = tail?.content ?? "";
+      expect(content.startsWith("u2 volatile")).toBe(true);
+      const at = offsets(content);
+      expect(at.every((offset) => offset > "u2 volatile".length)).toBe(true);
+      expect(at).toEqual([...at].sort((a, b) => a - b));
+      expect(out.stages.delivered.at(-1)?.folded).toBe(reason);
+    });
+  }
 });
 
 // ── MID-HISTORY SYSTEM INJECTIONS (the depth>0 arm of `turns.historySystemRows`) ─────────────────────

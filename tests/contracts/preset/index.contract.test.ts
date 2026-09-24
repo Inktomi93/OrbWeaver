@@ -62,6 +62,7 @@ const SCHEMA_VERSION_V4 = 4;
 const SCHEMA_VERSION_V5 = 5;
 const SCHEMA_VERSION_V6 = 6;
 const SCHEMA_VERSION_V7 = 7;
+const SCHEMA_VERSION_V8 = 8;
 
 /** Code-unit order — the DEFAULT `toSorted()` ordering, spelled explicitly because `useArraySortCompare`
  *  (rightly) refuses a comparator-less sort on an annotated array. Both sides of a set-equality assertion
@@ -319,7 +320,7 @@ test("a v6 user preset parses forward slotless — the databank section is NOT i
 
 // The other half of the bump: the SHIPPED arrangement must actually carry the slot, or issue #80 is only
 // half-fixed — the gather retrieves and the prompt still never names the value.
-test("the built-in default arrangement places the databank slot, in the dynamic half after memory", () => {
+test("the built-in default arrangement places the databank slot immediately after memory", () => {
   const ids = DEFAULT_PROMPT_CONFIG.sections.map((section) => section.id);
   expect(ids).toContain("databank");
   expect(ids.indexOf("databank")).toBe(ids.indexOf("memory") + 1);
@@ -330,6 +331,42 @@ test("the built-in default arrangement places the databank slot, in the dynamic 
   expect(databank).not.toHaveProperty("template");
   expect(DEFAULT_MARKER_TEMPLATES.databank).toContain("{{databank}}");
   expect(DEFAULT_MARKER_TEMPLATES.databank).toContain("Related information:");
+});
+
+// D251: a per-turn section above Chat History rewrites the system prompt every turn and costs the history its
+// cache, so the shipped arrangement lists all three below the pivot. The delivered shape is pinned through the
+// real walk and SHAPE in `tests/server/domain/chat/assembly/shape.test.ts`.
+test("the built-in default arrangement lists memory, databank and the guided instruction below Chat History", () => {
+  const ids = DEFAULT_PROMPT_CONFIG.sections.map((section) => section.id);
+  const pivot = ids.indexOf("chat-history");
+  expect(pivot).toBeGreaterThanOrEqual(0);
+  const perTurn = ["memory", "databank", "guided-instruction"].map((id) => ids.indexOf(id));
+  expect(perTurn.every((at) => at > pivot)).toBe(true);
+});
+
+test("CONFIG_LIFTS v7→v8 stamps the version and rewrites NOTHING of a user-owned config", () => {
+  const liftV7 = CONFIG_LIFTS[SCHEMA_VERSION_V7];
+  if (liftV7 === undefined) {
+    throw new Error("CONFIG_LIFTS[7] is missing");
+  }
+  // An author's arrangement with memory ABOVE the pivot — exactly the order the lift must not "repair".
+  const stored = {
+    schemaVersion: SCHEMA_VERSION_V7,
+    sections: [
+      { type: "marker", id: "memory", name: "Mine", marker: "memory", role: "system", enabled: true },
+      { type: "marker", id: "chat-history", name: "History", marker: "chat_history", role: "system", enabled: true },
+    ],
+    params: { temperature: SAMPLE_TEMPERATURE },
+    prose: {},
+  };
+  const before = JSON.stringify(stored);
+  const lifted = liftV7(stored);
+
+  expect(lifted["schemaVersion"]).toBe(SCHEMA_VERSION_V8);
+  expect(lifted["sections"]).toBe(stored.sections);
+  expect(lifted["params"]).toBe(stored.params);
+  expect(lifted["prose"]).toBe(stored.prose);
+  expect(JSON.stringify(stored)).toBe(before);
 });
 
 test("a stored preset carrying a silenced marker parses forward to a disabled, default-templated one", () => {

@@ -6,10 +6,11 @@
 // Wave-1 slices that land real FKs.
 
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pid } from "node:process";
+import { PROMPT_CONFIG_SCHEMA_VERSION } from "@orb/contracts/preset";
 import {
   assertReferentialIntegrity,
   backupBeforeMigrate,
@@ -877,6 +878,59 @@ test("listBackupFiles names every backup copy, sidecar and pin for the base, and
   try {
     const expected = [backupName(stamp), backupName(stamp, "-shm"), backupName(stamp, "-wal"), `${backupName(stamp)}.keep`];
     expect([...listBackupFiles(backupDir, DB_FILE)].sort()).toEqual([...expected].sort());
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// The first forward migration rebuilds `presets` (its `schema_version` DEFAULT follows the PromptConfig version),
+// and `preset_tags` / `preset_regex_scripts` cascade off it: under enforced FKs the DROP inside the 12-step
+// rebuild would delete every child row. A db populated at the baseline must come through the shipped chain whole.
+test("a populated baseline db applies the shipped chain without losing a presets child row", async () => {
+  const dir = mkdtempSync(join(tmpdir(), `orb-chain-${pid}-`));
+  try {
+    const journal = JSON.parse(readFileSync(join(MIGRATIONS_DIR, "meta", "_journal.json"), "utf8")) as { entries: { tag: string; when: number }[] };
+    const baseline = journal.entries[0];
+    if (baseline === undefined || journal.entries.length < 2) {
+      throw new Error("the shipped chain carries no forward migration to apply");
+    }
+    const baselineOnly = chainFixture(dir, [
+      { tag: baseline.tag, when: baseline.when, sqlText: readFileSync(join(MIGRATIONS_DIR, `${baseline.tag}.sql`), "utf8") },
+    ]);
+    const db = await createDb(":memory:");
+    await runMigrations(db, baselineOnly);
+
+    await db.insert(users).values({ id: castId<UserId>("user_chain"), handle: castId<Handle>("chain"), role: "owner" });
+    await db.run(
+      sql.raw("insert into presets (id, owner_id, name, kind, config, schema_version) values ('preset_root', 'user_chain', 'Root', 'roleplay', '{}', 7)"),
+    );
+    await db.run(
+      sql.raw(
+        "insert into presets (id, owner_id, name, kind, config, schema_version, forked_from) values ('preset_fork', 'user_chain', 'Fork', 'roleplay', '{}', 7, 'preset_root')",
+      ),
+    );
+    await db.run(sql.raw("insert into tags (id, owner_id, name) values ('tag_chain', 'user_chain', 'mine')"));
+    await db.run(sql.raw("insert into preset_tags (preset_id, tag_id) values ('preset_root', 'tag_chain')"));
+    await db.run(sql.raw("insert into regex_scripts (id, owner_id, name, behavior) values ('regex_chain', 'user_chain', 'mine', '{}')"));
+    await db.run(sql.raw("insert into preset_regex_scripts (preset_id, regex_script_id) values ('preset_root', 'regex_chain')"));
+
+    expect(await hasPendingMigrations(db, MIGRATIONS_DIR)).toBe(true);
+    await runMigrations(db, MIGRATIONS_DIR);
+    await expect(assertReferentialIntegrity(db)).resolves.toBeUndefined();
+
+    expect(await db.all(sql.raw("select preset_id as presetId, tag_id as tagId from preset_tags"))).toEqual([{ presetId: "preset_root", tagId: "tag_chain" }]);
+    expect(await db.all(sql.raw("select preset_id as presetId, regex_script_id as regexScriptId from preset_regex_scripts"))).toEqual([
+      { presetId: "preset_root", regexScriptId: "regex_chain" },
+    ]);
+    expect(await db.all(sql.raw("select id, schema_version as schemaVersion, forked_from as forkedFrom from presets order by id"))).toEqual([
+      { id: "preset_fork", schemaVersion: 7, forkedFrom: "preset_root" },
+      { id: "preset_root", schemaVersion: 7, forkedFrom: null },
+    ]);
+    // The rebuilt column defaults to the current PromptConfig version, which is what the chain exists to record.
+    await db.run(sql.raw("insert into presets (id, owner_id, name, kind, config) values ('preset_new', 'user_chain', 'New', 'roleplay', '{}')"));
+    expect(await db.get(sql.raw("select schema_version as schemaVersion from presets where id = 'preset_new'"))).toEqual({
+      schemaVersion: PROMPT_CONFIG_SCHEMA_VERSION,
+    });
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

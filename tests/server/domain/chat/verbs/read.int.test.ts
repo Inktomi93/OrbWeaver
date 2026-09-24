@@ -1441,14 +1441,15 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
       chatId,
       guided: { action: "response", input: "be dramatic" },
     });
-    // The default `response` template (system-marker placement) renders in the dynamic half; the trace
-    // records the inclusion.
+    // The default `response` template rides the `guided_instruction` marker, which the shipped preset lists below
+    // Chat History (D251): it renders into the after-history bucket, and the trace records the inclusion.
+    const steeredTail = steered.prompt.afterHistory.map((inj) => inj.content).join("\n");
     expect(steered.trace.guidedInstructionIncluded).toBe(true);
-    expect(steered.prompt.dynamic).toContain("be dramatic");
+    expect(steeredTail).toContain("be dramatic");
 
     const plain = await previewAssembly({ principal: principal(me), chatId });
     expect(plain.trace.guidedInstructionIncluded).toBe(false);
-    expect(plain.prompt.dynamic).not.toContain("be dramatic");
+    expect([plain.prompt.dynamic, ...plain.prompt.afterHistory.map((inj) => inj.content)].join("\n")).not.toContain("be dramatic");
   });
 
   test("previewAssembly's BUDGET partitions the next turn's context by source (D-4)", async () => {
