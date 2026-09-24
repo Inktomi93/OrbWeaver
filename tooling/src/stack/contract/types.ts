@@ -257,6 +257,8 @@ export interface StartInvocation {
   readonly setup: boolean;
   /** `--port <n>`: this launch only, never written to `.env`. `null` = the port `.env` or the default names. */
   readonly port: number | null;
+  /** `--share`: this launch runs in `local` mode with a quick relay (plan easy-sharing section 6); `.env` is not written. */
+  readonly share: boolean;
 }
 
 export type StartParse = { readonly ok: true; readonly invocation: StartInvocation } | { readonly ok: false; readonly error: string };

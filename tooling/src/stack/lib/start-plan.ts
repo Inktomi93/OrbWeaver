@@ -21,13 +21,21 @@ import type {
   StartLaunch,
   StartParse,
 } from "../contract/types.ts";
-import { effectiveAuthMode, PORT_KEY, parsePortAnswer, SINGLE_USER_MODE } from "./setup-plan.ts";
+import { AUTH_MODE_KEY, BIND_HOST_KEY, currentAudience, effectiveAuthMode, PASSWORD_MODE, PORT_KEY, parsePortAnswer, SINGLE_USER_MODE } from "./setup-plan.ts";
 import { buildProdSpawnPlan, CLIENT_DIST_INDEX_REL } from "./spawn-plan.ts";
 
 const SETUP_FLAG = "--setup";
 const PORT_FLAG = "--port";
+const SHARE_FLAG = "--share";
 
-export const START_USAGE = `usage: pnpm start [--build | --no-build] [${SETUP_FLAG}] [${PORT_FLAG} <n>]`;
+export const START_USAGE = `usage: pnpm start [--build | --no-build] [${SETUP_FLAG}] [${PORT_FLAG} <n>] [${SHARE_FLAG}]`;
+
+/** The server's switch that starts the zero-account relay at boot; the server owns the relay and its host. */
+const SHARE_RELAY_KEY = "SHARE_RELAY";
+const SHARE_RELAY_QUICK = "quick";
+/** A just-me box shared in `local` binds loopback: production `local` otherwise listens on every interface, which
+ *  would open the LAN over plain http beside the relay. */
+const LOOPBACK_BIND = "127.0.0.1";
 
 /** The server's switch that stops `.env` overriding the process env (foundation/env reads it at load). */
 const ENV_NO_OVERRIDE = "ORB_ENV_NO_OVERRIDE";
@@ -55,12 +63,15 @@ export function parseStartArgv(argv: readonly string[]): StartParse {
   let build: StartBuildMode = "auto";
   let setup = false;
   let port: number | null = null;
+  let share = false;
   for (let arg = rest.shift(); arg !== undefined; arg = rest.shift()) {
     const buildMode = BUILD_FLAGS.get(arg);
     if (buildMode !== undefined) {
       build = buildMode;
     } else if (arg === SETUP_FLAG) {
       setup = true;
+    } else if (arg === SHARE_FLAG) {
+      share = true;
     } else if (arg === PORT_FLAG) {
       const parsed = parsePortFlag(rest.shift());
       if (!parsed.ok) {
@@ -71,7 +82,7 @@ export function parseStartArgv(argv: readonly string[]): StartParse {
       return { ok: false, error: `unknown argument ${JSON.stringify(arg)}` };
     }
   }
-  return { ok: true, invocation: { build, setup, port } };
+  return { ok: true, invocation: { build, setup, port, share } };
 }
 
 /** Should the client bundle be (re)built before the server boots?
@@ -124,7 +135,7 @@ export function singleUserFallbackEnv(
   return declared === undefined || declared === "" ? Object.fromEntries([["AUTH_FALLBACK", "owner"]]) : {};
 }
 
-/** The child env for a launch that overrides `.env` values (`--port <n>`) without writing the file.
+/** The child env for a launch that overrides `.env` values (`--port <n>`, `--share`) without writing the file.
  *
  *  `.env` loads with override:true, so a value in the file would beat the same key on the child env. The overlay turns
  *  the override off for this launch and restates every `.env` value on the child env, so the file still wins over the
@@ -137,9 +148,27 @@ export function restateFileEnv(
   return Object.fromEntries([...restated, ...Object.entries(overrides), [ENV_NO_OVERRIDE, "1"]]);
 }
 
+/** What `--share` overrides: the login mode and the relay, plus a loopback bind when the file is a just-me box. A
+ *  network box keeps the bind it already has, and `ALLOWED_HOSTS` is never touched: the relay host lives in the
+ *  server's relay registry, so a relay restart under a new name cannot be refused. */
+function shareOverrides(
+  fileEnv: Readonly<Record<string, string | undefined>>,
+  ambient: Readonly<Record<string, string | undefined>>,
+): readonly (readonly [string, string])[] {
+  const justMe = currentAudience(fileEnv, ambient) === "just-me";
+  // A relayed visitor is never the owner, so single-user would answer 401 to every friend: a share signs in.
+  return [[AUTH_MODE_KEY, PASSWORD_MODE], [SHARE_RELAY_KEY, SHARE_RELAY_QUICK], ...(justMe ? [[BIND_HOST_KEY, LOOPBACK_BIND] as const] : [])];
+}
+
 /** The `.env` values this invocation's flags override for the launch. */
-function launchOverrides(invocation: StartInvocation): Readonly<Record<string, string>> {
-  return invocation.port === null ? {} : Object.fromEntries([[PORT_KEY, String(invocation.port)]]);
+function launchOverrides(
+  invocation: StartInvocation,
+  fileEnv: Readonly<Record<string, string | undefined>>,
+  ambient: Readonly<Record<string, string | undefined>>,
+): Readonly<Record<string, string>> {
+  const port = invocation.port === null ? [] : [[PORT_KEY, String(invocation.port)] as const];
+  const share = invocation.share ? shareOverrides(fileEnv, ambient) : [];
+  return Object.fromEntries([...port, ...share]);
 }
 
 /** One launch from the `.env` read for it: the single-user fill, the flags' overrides and the supervisor marker on the
@@ -152,7 +181,7 @@ export function startLaunch(opts: {
   readonly invocation: StartInvocation;
   readonly logPath: string;
 }): StartLaunch {
-  const overrides = launchOverrides(opts.invocation);
+  const overrides = launchOverrides(opts.invocation, opts.fileEnv, opts.ambient);
   // The file as the server will read it: the overrides win over the file, so the mode is decided by both.
   const fileView = { ...opts.fileEnv, ...overrides };
   const fallbackEnv = singleUserFallbackEnv(fileView, opts.ambient);
@@ -231,14 +260,15 @@ function startPostureLine(mode: string, fallbackFilled: boolean): string {
 /** The ONE banner — the URL, the login posture, and how to let another device in. Deliberately five lines:
  *  a stranger reads a wall of text as noise, and the reach rule (loopback-only) is the one fact that will
  *  otherwise surprise them from their phone. */
-export function startBannerLines(opts: { readonly port: number; readonly mode: string; readonly fallbackFilled: boolean }): readonly string[] {
+export function startBannerLines(opts: {
+  readonly port: number;
+  readonly mode: string;
+  readonly fallbackFilled: boolean;
+  readonly share: boolean;
+}): readonly string[] {
   const posture = startPostureLine(opts.mode, opts.fallbackFilled);
-  return [
-    "",
-    `  orbweaver is running:  http://localhost:${opts.port}`,
-    `  ${posture}`,
-    `  other devices need a login: run \`${SETUP_COMMAND}\`; put HTTPS in front, or the login travels in clear.`,
-    "  Ctrl-C stops the server.",
-    "",
-  ];
+  const reach = opts.share
+    ? "  sharing: the server starts a public link and prints it; anyone with the link reaches the sign-in page."
+    : `  other devices need a login: run \`${SETUP_COMMAND}\`; put HTTPS in front, or the login travels in clear.`;
+  return ["", `  orbweaver is running:  http://localhost:${opts.port}`, `  ${posture}`, reach, "  Ctrl-C stops the server.", ""];
 }

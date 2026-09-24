@@ -5,6 +5,7 @@
 //   pnpm start --no-build     never build (refuses if there is no bundle — prod boot would throw)
 //   pnpm start --setup        ask the setup questions again (ops/setup.ts); a first run in a terminal asks anyway
 //   pnpm start --port <n>     bind <n> for this launch only; `.env` is not written
+//   pnpm start --share        (alias `pnpm share`) this launch in `local` mode with a public relay; `.env` is not written
 //
 // A server that exits with `RESTART_EXIT_CODE` (@orb/kit/supervisor) is spawned again from a re-read `.env`
 // (lib/supervisor.ts); the setup pass and the build run once per invocation, never per respawn.
@@ -146,7 +147,8 @@ async function prepareLaunch(invocation: StartInvocation): Promise<number | null
 function launchFromFile(invocation: StartInvocation): ProdSpawnPlan {
   const fileEnv = readEnvFile();
   const launch = startLaunch({ repoRoot: REPO_ROOT, nodePath: process.execPath, fileEnv, ambient: AMBIENT, invocation, logPath: LOG_PATH() });
-  for (const line of startBannerLines({ port: invocation.port ?? resolvePort(fileEnv), mode: launch.mode, fallbackFilled: launch.fallbackFilled })) {
+  const port = invocation.port ?? resolvePort(fileEnv);
+  for (const line of startBannerLines({ port, mode: launch.mode, fallbackFilled: launch.fallbackFilled, share: invocation.share })) {
     print(line);
   }
   return launch.plan;

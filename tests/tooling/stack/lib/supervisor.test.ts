@@ -9,7 +9,7 @@ import type { ProdSpawnPlan, StartInvocation, StartSupervisorDeps } from "../../
 import { startLaunch, superviseStart } from "../../../../tooling/src/stack/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
-const INVOCATION: StartInvocation = { build: "skip", setup: false, port: null };
+const INVOCATION: StartInvocation = { build: "skip", setup: false, port: null, share: false };
 
 /** One scripted child exit; `during` runs while that child is alive, before it exits. */
 interface Scripted {
