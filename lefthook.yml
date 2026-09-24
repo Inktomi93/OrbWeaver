@@ -11,20 +11,19 @@
 # `isolation: "worktree"` dispatch. With --force the chain survives the key. Commands run from the worktree root (lefthook resolves it per-worktree), so a
 # fresh worktree just needs `pnpm install` (or `pnpm run worktree:bootstrap`) and the gates work.
 #
-# GREEN-TO-COMMIT is enforced HERE, not by discipline (born-compliant doctrine — "won't pass check →
-# won't commit"). The 2026-06-28 incident: test-FILE type errors (a DOM-only `BodyInit`, a bad
-# WorkloadEvent literal) rode through ~10 commits because the old pre-commit ran ONLY Biome on staged
-# files — and `pnpm check` (which runs `test:types`, the vitest typecheck lane that catches exactly
-# those) only fired at pre-push, which never ran across a long no-push session.
+# GREEN-TO-COMMIT is enforced HERE, not by discipline: the static stages run over the commit's working
+# change, so a type/lint/boundary-red change cannot be committed. `test:types` stays whole on every
+# non-empty change (its path trigger is the identity) because test-file type errors are its blind spot.
 #
-# Split (type/structure gate at COMMIT, behavioral tests at PUSH) — both via the ONE `pnpm verify` entry
-# (UNIFIED-VERIFICATION-DESIGN.md §3): the tiers ARE the hook wiring, so "run everything" is a named tier,
-# not a folklore 4-command pipe. Repointed 2026-07-12 (V3).
-#   • pre-commit → `pnpm check` (= `verify --static`): lint (Biome, whole repo) + per-package `tsc` +
-#     `test:types` (vitest typecheck of the tests/ tree — the lane that was the blind spot) + check:structure
-#     (the ts-morph gates) + dep-cruiser (every workspace package plus `tooling`). ~30s. A type/lint/boundary-red tree cannot be
-#     committed. Pre-commit stays at the STATIC tier (design §4.3: full-static-at-commit is the born-compliant
-#     doctrine; --changed+related-tests would be faster but weakens it).
+# Split (scoped static gate at COMMIT, whole static + behavioral tests at PUSH) — both via the ONE
+# `pnpm verify` entry (UNIFIED-VERIFICATION-DESIGN.md §3 and §4.3): the tiers ARE the hook wiring.
+#   • pre-commit → `pnpm verify --static --changed`: the static-tier stages over the working change vs
+#     HEAD plus untracked files. Scoped stages narrow to it (affected type programs, file-local structure
+#     policies); whole-only stages run in full when a path trigger matches. Cross-file structure policies and
+#     `deps:knip` defer to the whole static tier, which runs at pre-push and at the merge-train barrier
+#     (`pnpm check` on main). A scoped run takes no host-wide whole-run slot, so a commit never queues
+#     behind another checkout's battery. Stage durations: `reports/verify-history.jsonl`, written by
+#     tooling/src/verify/lib/history.ts.
 #   • pre-push → `pnpm verify --push` (ONE command, ONE summary, ONE exit code, ONE json): the static
 #     bundle + `pnpm test` (unit/integration/contract AND the Playwright CT suite — merged 2026-07-17,
 #     the test script composes `pnpm test:ct --retries=2` so parallelism flakes retry instead of blocking)
@@ -33,7 +32,7 @@
 #     at once) instead of piped early-abort — strictly more informative, and the max-severity exit (§3.3) is
 #     the single verdict. Browser suites never gate the STATIC tier (vitest-browser hangs, Spine-Testing §7):
 #     CT rides the `pnpm test` lane (green-to-PUSH — this bullet describes the pre-push hook; the
-#     "GREEN-TO-COMMIT" doctrine term above is about `pnpm check` at pre-commit, a different tier),
+#     "GREEN-TO-COMMIT" doctrine term above is about the scoped static check at pre-commit, a different tier),
 #     e2e-smoke gates HERE. NOTE: needs Playwright chromium on the
 #     pushing machine (`pnpm exec playwright install chromium` once); the sandbox can't push, so this fires
 #     on the host.
@@ -61,7 +60,7 @@ pre-commit:
   follow: true
   commands:
     check:
-      run: pnpm check
+      run: pnpm verify --static --changed
       env:
         NO_COLOR: "1"
 
@@ -69,13 +68,13 @@ pre-commit:
 # this hole): git runs `pre-merge-commit` (NOT `pre-commit`) for a NON-conflicted auto-merge commit
 # (`git merge <branch>` that commits by itself), so merges skipped the gate entirely. A CONFLICTED merge
 # concluded via `git commit` already runs pre-commit — this hook covers precisely the uncovered path.
-# Same body as pre-commit: the merged working tree is in place when the hook fires, so `pnpm check`
-# verdicts the exact tree the merge commit would snapshot. Bypass: `git merge --no-verify` (emergencies).
+# Same body as pre-commit: the merged working tree is in place when the hook fires, and its diff against
+# HEAD is everything the merge brings in. Bypass: `git merge --no-verify` (emergencies).
 pre-merge-commit:
   follow: true
   commands:
     check:
-      run: pnpm check
+      run: pnpm verify --static --changed
       env:
         NO_COLOR: "1"
 
@@ -102,7 +101,7 @@ pre-merge-commit:
 # one case, and `pnpm install --prefer-offline` by hand is still the fallback (§L rule 5).
 # Commit-message contract (2026-09-18): `type(scope): subject`, a body, and a well-formed
 # `Co-Authored-By: Name <local@domain>` trailer. Cheap (pure bash, no toolchain), so it stays on even when a
-# lane bypasses the whole-tree pre-commit under #1584 — and because a bypass skips THIS too, the orchestrator
+# lane bypasses the pre-commit check — and because a bypass skips THIS too, the orchestrator
 # runs the same script at landing: `scripts/commit-msg-check.sh --range main..<branch>`. Rules + the
 # ORB_HUMAN_COMMIT=1 owner waiver (trailer rule only) are in the script header.
 commit-msg:
