@@ -22,28 +22,25 @@ There is no published image: the checkout is the source of truth and the build i
 
 ## A model server on your machine
 
-Ollama, KoboldCpp, LM Studio, TabbyAPI, llama.cpp's server, vLLM — anything OpenAI-compatible. From inside the
-container your machine is `host.docker.internal`, so the connection URL is `http://host.docker.internal:11434`
-(Ollama), `:5001` (KoboldCpp), `:1234` (LM Studio), and so on. The app's outbound firewall blocks private
-addresses by default (an SSRF belt), but a connection the OWNER saves opens its own exact host and port
-automatically — so a single-user box needs no firewall edit at all, and removing the connection closes it again.
+Ollama, KoboldCpp, LM Studio, TabbyAPI, llama.cpp's server, vLLM — anything OpenAI-compatible. Add it in Settings → Connections under "Your own server", with its base URL. From inside the container your machine is `host.docker.internal`, so the URL is `http://host.docker.internal:11434/v1` (Ollama), `:5001/v1` (KoboldCpp), `:1234/v1` (LM Studio), and so on. A server elsewhere on your LAN uses its LAN address.
 
-`EGRESS_ALLOWLIST` is still there for the hosts nothing saves a connection for (a proxy, a webhook), and for a
-multi-user box where a non-owner needs a private host — only the owner's saved connections open themselves:
+The app's outbound firewall refuses private addresses until the owner admits the host. Admit it in one of two ways:
+
+- In the connection's Diagnostics, select "Admit `<host>`". This writes "Allowed private endpoints" under Admin → Multi-user.
+- Set the env floor in `docker/orbweaver.local.env`. It takes hosts, IPs, CIDRs or `host:port`, and it replaces the default.
 
 ```sh
 # docker/orbweaver.local.env
-EGRESS_ALLOWLIST=host.docker.internal
+PRIVATE_ENDPOINT_ALLOWLIST=host.docker.internal
 ```
 
-**Your own vLLM, the way the app expects it** (embed `:8701`, rerank `:8702`, chat `:8703` — the same env and
-ports a bare-metal install uses): `ENGINES_POSTURE=adopt-only` + `VLLM_ENGINE_HOST=host.docker.internal`.
-The app adopts what is up and reports the rest down; search and memory need the embed + rerank engines, so
-without them those features degrade rather than break. The app never spawns engines from a container —
-there is one vLLM setup to maintain, and it is yours.
+`EGRESS_ALLOWLIST` is for other private hosts, such as a proxy or a webhook.
 
-**…or run the engines as containers too**, from the official `vllm/vllm-openai` image, with an overlay that
-sets the two app values for you:
+### Your own vLLM
+
+Add one "vLLM" connection per engine you run, with the base URL of each: for example `http://host.docker.internal:8703/v1` for chat. Search and memory use an embedding and a rerank model. Without a vLLM connection for them, the built-in CPU models serve those jobs. The app never starts or stops your vLLM.
+
+To run vLLM as containers beside the app, from the official `vllm/vllm-openai` image, add the overlay:
 
 ```sh
 docker compose -f docker-compose.yaml -f docker/compose.engines.yaml --profile gen up -d
@@ -51,38 +48,18 @@ docker compose -f docker-compose.yaml -f docker/compose.engines.yaml \
     --profile gen --profile embed --profile rerank up -d      # the whole trio
 ```
 
-Needs an NVIDIA GPU with the [Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/)
-installed on the host. `gen` is the base profile: embed and rerank share its network namespace (that is how
-one `VLLM_ENGINE_HOST` reaches three ports), so compose refuses `--profile embed` on its own. The first boot
-downloads the models into a `vllm-models` volume — tens of GB — and the first load takes minutes; the
-containers are unhealthy, not broken, until they answer `/health`. What each profile asks of your cards, at
-the shipped defaults: `gen` 60% of every card (tensor-parallel across all of them), `embed` 14% of card 0,
-`rerank` 14% of card 1. The overlay is generated for a 2-card box — on a single card, regenerate it with
-`pnpm engines compose --gpus 1` from a checkout (it rewrites `docker/compose.engines.yaml` in place).
-Sleep/wake works exactly as on bare metal, over the same HTTP endpoints; the engine ports are published
-nowhere, so only the app reaches them.
+Then add the engines as connections at `http://vllm-gen:8703/v1` (chat), `:8701/v1` (embed) and `:8702/v1` (rerank), and admit `vllm-gen`.
 
-## Claude subscription backend (optional)
+Needs an NVIDIA GPU with the [Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/) installed on the host. `gen` is the base profile: embed and rerank share its network namespace, so all three answer on the one `vllm-gen` name and compose refuses `--profile embed` on its own. The first boot downloads the models into a `vllm-models` volume — tens of GB — and the first load takes minutes; the containers are unhealthy, not broken, until they answer `/health`. What each profile asks of your cards, at the shipped defaults: `gen` 60% of every card (tensor-parallel across all of them), `embed` 14% of card 0, `rerank` 14% of card 1. The overlay is generated for a 2-card box — on a single card, regenerate it with `pnpm engines compose --gpus 1` from a checkout (it rewrites `docker/compose.engines.yaml` in place). The engine ports are published nowhere, so only the app reaches them.
 
-The app can drive a Claude subscription (the same login `claude` uses) as a chat backend. It is off unless
-a credential is present, and it never starts the bundled runtime without one:
+## Claude subscription
 
-| `CLAUDE_BACKEND` | behaviour |
-| - | - |
-| `auto` (default) | registered only when a subscription credential is found; otherwise absent and the boot log says so |
-| `off` | never registered, nothing spawns |
-| `on` | registered on your word (a machine whose login the container cannot see, such as a macOS Keychain) |
+A Claude subscription is a per-user connection, not server config. Each user adds their own:
 
-Two ways to give it a credential, either one on every OS: a long-lived token from `claude setup-token`
-(run on any machine with a browser) as `CLAUDE_CODE_OAUTH_TOKEN` in `docker/orbweaver.local.env` or as the
-`claude_oauth_token` file secret; or a one-time login inside the container, kept in the data volume:
+1. Run `claude setup-token` on the machine you use Claude Code on.
+2. In Settings → Connections, add "Claude subscription" under "Subscription", and paste the token.
 
-```sh
-docker compose exec -it -u node orbweaver claude      # then /login, then restart once
-```
-
-`ANTHROPIC_API_KEY` is a different thing (a metered first-party key added in Settings → Connections); this
-backend ignores it and the boot log says which one it saw.
+There is no server-wide switch. An Anthropic API key is a different thing: a metered key, added as an "Anthropic" connection.
 
 ## Login modes
 
@@ -210,7 +187,7 @@ the composed posture at boot and warns per open exposure.
 - **Sign-in "does nothing" on a LAN address** — plain http; the cookie is Secure, so the browser discards it.
   HTTPS in front, or `http://localhost` on the machine itself, or `SESSION_COOKIE_INSECURE=true` and accept a
   cleartext session cookie on your own network ("LAN and HTTPS").
-- **"blocked … private address"** when adding a local model server — an owner-saved connection opens its own host:port, so this means the connection is not saved (test it after saving) or the saver is not the owner; `EGRESS_ALLOWLIST` (above) is the manual door.
+- **"blocked … private address"** when adding a local model server — the host is not admitted. The owner admits it from the connection's Diagnostics or with `PRIVATE_ENDPOINT_ALLOWLIST` ("A model server on your machine").
 - **`/app/data is not a writable directory`** — you started the container as a non-root user (`user:`,
   rootless podman) on a data dir that user cannot write. Either let the entrypoint start as root with
   `PUID`/`PGID` (the default), or make the directory writable by that user.

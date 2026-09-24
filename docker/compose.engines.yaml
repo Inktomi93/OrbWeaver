@@ -20,14 +20,9 @@
 #   embed  vllm-embed   :8701  --gpu-memory-utilization 0.14 on 1 card
 #   rerank vllm-rerank  :8702  --gpu-memory-utilization 0.14 on 1 card
 #
-# The app side is two env values and NO app change: `adopt-only` (the app never spawns a container) and
-# the one engine host name. The egress firewall's internal-backend allowlist reads that same key, so
-# the app→engine hop is allowed by construction (infra/network/egress.ts, engine-url.ts).
+# The app side is a connection per engine, not env: in Settings → Connections add a vLLM connection at
+# http://vllm-gen:<port>/v1 and admit `vllm-gen` as a private endpoint (docker/README.md).
 services:
-  orbweaver:
-    environment:
-      ENGINES_POSTURE: adopt-only
-      VLLM_ENGINE_HOST: vllm-gen
 
   vllm-gen:
     profiles: [gen]
