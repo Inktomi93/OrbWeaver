@@ -335,13 +335,11 @@ test("clear-absent still REFUSES when a survivor really outlived the leader (#11
 // ── a TERM must END dev.sh, never leak an orphan server ─────────────────────────────────────────────
 //
 // `run_leader` TERMs dev.sh when the healthz gate times out and then returns, taking the process group
-// with it. bash defers a trap until the current FOREGROUND command returns, and a plain `trap cleanup TERM`
-// does not exit — the script would service the signal and then fall out of its own logic, exit 0, and
-// the watched server could outlive the leader that gave up on it. dev.sh's `on_signal` cleans up AND
-// exits 143; this drives the REAL script inside a fake repo root (dev.sh derives $REPO from its own
-// location) whose server entry writes its pid and never exits, then lands the TERM while dev.sh is inside
-// `wait "$SERVER_PID"` and reads three things: the exit code, that the node child is gone, and that the
-// script did not run on.
+// with it, so a signalled dev.sh must exit and reap its server, or the watched server outlives the leader
+// that gave up on it. `on_signal` cleans up and exits 143, so a command added after the `wait` never runs
+// on a signal. This drives the REAL script inside a fake repo root (dev.sh derives $REPO from its own
+// location) whose server entry writes its pid and never exits, lands the TERM while dev.sh is inside
+// `wait "$SERVER_PID"`, and asserts the exit code and that the node child is gone.
 const DEV_SH = fileURLToPath(new URL("../../../tooling/src/stack/dev.sh", import.meta.url));
 const DEV_SIGNAL_ARM_TIMEOUT_MS = scaledBudget(60_000);
 /** Generous vs the ~instant exit a signalled dev.sh makes, so a loaded box does not change the verdict. */
