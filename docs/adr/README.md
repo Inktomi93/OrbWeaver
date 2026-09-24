@@ -198,3 +198,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D222 | [Docs, plans and ADRs are markdown with one structural writer](0222-docs-plans-adrs-no-archive.md) | active |
 | D250 | [The anchor human's persona binds prompt-config {{user}}](0250-anchor-human-binds-preset-user.md) | active |
 | D251 | [Prompt sections keep their prompt-order position on every model](0251-prompt-sections-keep-prompt-order.md) | active |
+| D252 | [A cross-platform pnpm dev is the self-hoster's front door](0252-cross-platform-pnpm-dev.md) | active |
