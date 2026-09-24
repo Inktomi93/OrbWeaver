@@ -150,7 +150,7 @@ Each lands alone with its own floor.
 - Leg E, the disclaimer block and the sharing panel (option 3).
 - Leg F, docs and the tunnel recipes: README run-it and LAN sections, docker README, `.env.example`, a cloudflared sidecar overlay under docker/ (the `cloudflare/cloudflared` image on the project network, `tunnel run` with the operator's own token, the public hostname mapped to the service in the operator's Cloudflare dashboard, `AUTH_MODE=local` or `oidc` required and single-user answering 401 by construction), and a `tailscale serve` recipe including the forward-header identity variant. Worth shipping: the overlay is a short file, the proxy-joins-the-network stanza already exists (docker-compose.yaml lines 75-88), and it is the path most users will take instead of a port-forward. Coordinate with lanes cb-firstrun and cb-knobs.
 
-Owner forks, ruled in [0147](../../work/0147-rule-the-network-and-auth-modes-forks.md), every default accepted: (1) keep `AUTH_FALLBACK`; (2) warn, not refuse, a cookie mint over plain http from a public client; (3) option 3 for the sharing UI; (4) reverse the ruling in Rule C; (5) `x-forwarded-proto` and `x-forwarded-host` are relay tells.
+Owner forks, every default accepted: (1) keep `AUTH_FALLBACK`; (2) warn, not refuse, a cookie mint over plain http from a public client; (3) option 3 for the sharing UI; (4) reverse the ruling in Rule C; (5) `x-forwarded-proto` and `x-forwarded-host` are relay tells.
 
 ## Rejected
 
