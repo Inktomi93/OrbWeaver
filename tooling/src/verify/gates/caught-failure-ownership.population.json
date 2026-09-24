@@ -1271,11 +1271,6 @@
       "reason": "the ONE absorbed failure is the single-active collision under an explicit `adoptActive` caller, and it is absorbed by RESOLVING it — the caller gets the id of the run that already holds the slot, which is the outcome it asked for. Every other arm throws the domain's own error (`translateInsertFailure`: conflict / leak-free NOT_FOUND / the raw failure), and the adopt arm that finds no active row retries once and throws that attempt's failure. Ends if any path out of this catch neither returns an admitted workload id nor throws."
     },
     {
-      "siteId": "packages/server/src/entry/auth/seam.ts::readSessionCookie::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "a cookie value that fails to percent-decode is not a session token, and `null` here means exactly \"no cookie session\" — the caller's unauthenticated path. A client-supplied malformed header is not an operator event. Ends if a malformed cookie should be distinguished from an absent one."
-    },
-    {
       "siteId": "packages/server/src/entry/boot/local-light-prefetch.ts::localLightModelFor::err::1",
       "verdict": "deliberate-absorb",
       "reason": "DELIBERATE fail-closed. The owner of a resolver failure is the REQUEST that hits it — this is a speculative pre-warm asking a question it is allowed not to get an answer to, and the only consequence of `null` here is that the box keeps the lazy path it had before this file existed. `no-connection` is the ordinary answer; anything else is surfaced as a structured log naming the task + reason. Ends if the prefetch ever becomes required for correctness rather than latency."
@@ -1474,6 +1469,11 @@
       "siteId": "packages/server/src/infra/auth/config.ts::jwksAllowlistFromEnv::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "a malformed OIDC_ISSUER yields an EMPTY allowlist, which this function's own contract makes FAIL-CLOSED at the resolver — no trusted key source means the signed path is refused, and `jwks_rejected(off-allowlist)` is the operator-visible surface. Widening on a bad URL would be the dangerous arm. Ends if the allowlist stops being fail-closed when empty."
+    },
+    {
+      "siteId": "packages/server/src/infra/auth/modes/cookie-session.ts::readRequestCookie::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a cookie value that fails to percent-decode is not a credential, and `null` here means exactly \"no such cookie\" — the caller's unauthenticated path. A client-supplied malformed header is not an operator event. Ends if a malformed cookie should be distinguished from an absent one."
     },
     {
       "siteId": "packages/server/src/infra/auth/password.ts::createPasswordHasher.verify::catch::1",

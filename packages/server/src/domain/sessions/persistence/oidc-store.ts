@@ -2,14 +2,13 @@ import type { Db } from "@orb/db";
 import { oidcTransactions } from "@orb/db/schema";
 import { and, eq, gt, lte } from "drizzle-orm";
 import type { OidcTransaction } from "#infra/auth";
+import { OIDC_TRANSACTION_TTL_MS } from "#infra/auth";
 
 interface DomainOidcStore {
   mint: (tx: OidcTransaction) => Promise<void>;
   consume: (state: string) => Promise<OidcTransaction | null>;
   deleteExpired: (before: number) => Promise<number>;
 }
-
-const OIDC_TX_TTL_MS = 600_000;
 
 /** `now` is the injected clock, used to enforce the tx TTL. Both reap paths gate on expiresAt \<=
  *  before/now — neither ever deletes a live tx, so an in-flight PKCE flow is never broken. */
@@ -22,7 +21,7 @@ export function createOidcStore(db: Db, now: () => number): DomainOidcStore {
         nonce: tx.nonce,
         redirectUri: tx.redirectUri,
         createdAt: tx.createdAt,
-        expiresAt: tx.createdAt + OIDC_TX_TTL_MS,
+        expiresAt: tx.createdAt + OIDC_TRANSACTION_TTL_MS,
       });
     },
 

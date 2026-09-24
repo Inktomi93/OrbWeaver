@@ -20,7 +20,15 @@ import {
 } from "@orb/server/entry/http";
 import { logger } from "@orb/server/foundation/observability";
 import type { OidcTransaction, OidcVerifiedTokens } from "@orb/server/infra/auth";
-import { SESSION_COOKIE_NAME_INSECURE, SESSION_COOKIE_NAME_SECURE, SESSION_COOKIES } from "@orb/server/infra/auth";
+import {
+  OIDC_BINDING_COOKIE_NAME_INSECURE,
+  OIDC_BINDING_COOKIE_NAME_SECURE,
+  OIDC_TRANSACTION_TTL_MS,
+  SESSION_COOKIE_NAME_INSECURE,
+  SESSION_COOKIE_NAME_SECURE,
+  SESSION_COOKIES,
+} from "@orb/server/infra/auth";
+import { Configuration } from "openid-client";
 import { describe, vi } from "vitest";
 // #2263 — the REAL mint, by deep path (it is deliberately not on the `domain/sessions` front door; the
 // `tokens.test.ts` precedent). The alphabet pins below are worthless against a hand-`castId`'d string:
@@ -59,6 +67,11 @@ interface RevokedSessionStub {
 const ID_TOKEN = "eyJhbGciOiJSUzI1NiJ9.e30.sig-not-verified-here";
 /** For the deps literals whose test drives no revoke at all. */
 const INERT_EVICTION: SessionSocketEviction = { evictSession: (): number => 0, evictUser: (): number => 0 };
+/** The `Set-Cookie` values a response wrote under a SESSION name. A refused OIDC callback may still clear the
+ *  binding cookie, so "no session minted" is asserted over these, not over the whole header. */
+function sessionCookieWrites(res: Response): string[] {
+  return res.headers.getSetCookie().filter((value) => SESSION_COOKIES.some(({ name }) => value.startsWith(`${name}=`)));
+}
 
 interface MockReq {
   readonly headers?: Record<string, string>;
@@ -1124,6 +1137,174 @@ describe("OIDC login — the redirect_uri allowlist gate", () => {
   });
 });
 
+// LOGIN CSRF, authorize leg. The binding is the minted transaction's `state`, under the request transport's
+// name, alive exactly as long as the transaction. A real `Configuration` is needed here because the route
+// calls `buildAuthorizationUrl` itself; the Location's `state` is what the IdP will hand back.
+describe("OIDC login — the browser binding cookie", () => {
+  const issuer = { issuer: "https://idp.example", authorization_endpoint: "https://idp.example/authorize" };
+
+  function loginDeps(allowlist: readonly string[], minted: OidcTransaction[]): AuthRoutesDeps {
+    return {
+      sessions: recordingSessions().sessions,
+      sockets: INERT_EVICTION,
+      now: (): number => NOW,
+      db: STUB_DB,
+      resolveLoginLimit: (): number => 10,
+      oidc: fakeOidcDeps({
+        getConfig: (): Promise<OidcConfig> => Promise.resolve(new Configuration(issuer, "orb-client")),
+        redirectAllowlist: allowlist,
+        store: {
+          mint: (tx: OidcTransaction): Promise<void> => {
+            minted.push(tx);
+            return Promise.resolve();
+          },
+          consume: (): Promise<null> => Promise.resolve(null),
+        },
+      }),
+    };
+  }
+
+  const stateOf = (res: Response): string | null => new URL(res.headers.get("location") ?? "").searchParams.get("state");
+
+  test("over https it writes the __Host- binding holding the minted state, Secure, for the transaction TTL", async () => {
+    const minted: OidcTransaction[] = [];
+    const deps = loginDeps(["https://chat.example.com/api/auth/oidc/callback"], minted);
+    const res = await handlerFor(
+      deps,
+      "GET /api/auth/oidc/login",
+    )(makeCtx({ headers: { "x-forwarded-host": "chat.example.com", "x-forwarded-proto": "https" } }));
+
+    expect(res.status).toBe(302);
+    expect(minted).toHaveLength(1);
+    expect(stateOf(res)).toBe(minted[0]?.state);
+    expect(res.headers.getSetCookie()).toEqual([
+      `${OIDC_BINDING_COOKIE_NAME_SECURE}=${minted[0]?.state}; Max-Age=${OIDC_TRANSACTION_TTL_MS / MS_PER_SECOND}; Path=/; HttpOnly; Secure; SameSite=Lax`,
+    ]);
+  });
+
+  test("over plain http it writes the prefix-less binding name without Secure", async () => {
+    const minted: OidcTransaction[] = [];
+    const deps = loginDeps(["http://192.168.1.10/api/auth/oidc/callback"], minted);
+    const res = await handlerFor(deps, "GET /api/auth/oidc/login")(makeCtx({ headers: { host: "192.168.1.10" } }));
+
+    expect(res.status).toBe(302);
+    expect(res.headers.getSetCookie()).toEqual([
+      `${OIDC_BINDING_COOKIE_NAME_INSECURE}=${minted[0]?.state}; Max-Age=${OIDC_TRANSACTION_TTL_MS / MS_PER_SECOND}; Path=/; HttpOnly; SameSite=Lax`,
+    ]);
+  });
+});
+
+// LOGIN CSRF, callback leg. The consume below answers a transaction for ANY state and the exchange grants a
+// real identity, so the binding check is the only thing between each refused request and a minted session.
+describe("OIDC callback — the browser binding (login CSRF)", () => {
+  const callbackBase = "https://app.example/api/auth/oidc/callback";
+  const verifiedClaims: Record<string, unknown> = { preferred_username: "attacker", sub: "sub-attacker" };
+
+  interface BindingHarness {
+    readonly deps: AuthRoutesDeps;
+    readonly session: SessionRecorder;
+    readonly consumed: () => number;
+    readonly exchanged: () => number;
+  }
+
+  function bindingHarness(): BindingHarness {
+    let consumed = 0;
+    let exchanged = 0;
+    const session = recordingSessions();
+    const deps: AuthRoutesDeps = {
+      sessions: session.sessions,
+      sockets: session.sockets,
+      now: (): number => NOW,
+      db: STUB_DB,
+      resolveLoginLimit: (): number => 10,
+      oidc: fakeOidcDeps({
+        getConfig: (): Promise<OidcConfig> => Promise.resolve(fakeConfig({ issuer: "https://idp.example" })),
+        redirectAllowlist: [callbackBase],
+        exchange: (): Promise<OidcVerifiedTokens> => {
+          exchanged += 1;
+          return Promise.resolve({ claims: verifiedClaims, idToken: ID_TOKEN });
+        },
+        store: {
+          mint: (): Promise<void> => Promise.resolve(),
+          consume: (state: string): Promise<OidcTransaction | null> => {
+            consumed += 1;
+            return Promise.resolve({ state, codeVerifier: "cv", nonce: "n", redirectUri: callbackBase, createdAt: NOW });
+          },
+        },
+      }),
+    };
+    return { deps, session, consumed: (): number => consumed, exchanged: (): number => exchanged };
+  }
+
+  /** Arrive at the callback over https (a trusted proxy hop) with `state`, carrying `cookie` when given. */
+  async function arrive(h: BindingHarness, state: string, cookie?: string): Promise<Response> {
+    const url = new URL(callbackBase);
+    url.searchParams.set("state", state);
+    url.searchParams.set("code", "grant");
+    const headers: Record<string, string> = { "x-forwarded-proto": "https", ...(cookie !== undefined && { cookie }) };
+    return await handlerFor(h.deps, "GET /api/auth/oidc/callback")(makeCtx({ url: url.href, headers }));
+  }
+
+  /** The bindings of the `oidc_callback_unbound` security warn among a `logger.warn` spy's calls, or undefined
+   *  when it did not fire. */
+  function unboundWarn(calls: readonly (readonly unknown[])[]): Record<string, unknown> | undefined {
+    const call = calls.find(([bindings]) => (bindings as Record<string, unknown>)["event"] === "oidc_callback_unbound");
+    return call?.[0] as Record<string, unknown> | undefined;
+  }
+
+  function expectRefused(res: Response, h: BindingHarness): void {
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("/login?authError=invalid_state");
+    expect(h.consumed()).toBe(0);
+    expect(h.exchanged()).toBe(0);
+    expect(h.session.createdFor).toBeNull();
+    expect(sessionCookieWrites(res)).toEqual([]);
+  }
+
+  test("a callback with no binding cookie is refused before the transaction is touched, and logged", async () => {
+    const spy = vi.spyOn(logger, "warn");
+    const h = bindingHarness();
+    const res = await arrive(h, "attacker-state");
+
+    expectRefused(res, h);
+    expect(unboundWarn(spy.mock.calls)).toMatchObject({ security: true, transport: "https", bindingPresent: false });
+  });
+
+  test("the attacker's state opened in a victim browser holding its own binding is refused", async () => {
+    const spy = vi.spyOn(logger, "warn");
+    const h = bindingHarness();
+    const res = await arrive(h, "attacker-state", `${OIDC_BINDING_COOKIE_NAME_SECURE}=victim-state`);
+
+    expectRefused(res, h);
+    expect(unboundWarn(spy.mock.calls)).toMatchObject({ security: true, bindingPresent: true });
+  });
+
+  // The prefix-less name can be planted by any plain-http origin on this host, so an https callback must not
+  // read it even when it holds the right value.
+  test("an https callback ignores a matching binding under the plantable plain-http name", async () => {
+    const spy = vi.spyOn(logger, "warn");
+    const h = bindingHarness();
+    const res = await arrive(h, "attacker-state", `${OIDC_BINDING_COOKIE_NAME_INSECURE}=attacker-state`);
+
+    expectRefused(res, h);
+    // The planted name is invisible to an https request: the event reports no binding at all.
+    expect(unboundWarn(spy.mock.calls)).toMatchObject({ transport: "https", bindingPresent: false });
+  });
+
+  test("the browser that started the flow completes it, and the spent binding is cleared under both names", async () => {
+    const h = bindingHarness();
+    const res = await arrive(h, "victim-state", `${OIDC_BINDING_COOKIE_NAME_SECURE}=victim-state`);
+
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("/");
+    expect(h.consumed()).toBe(1);
+    expect(h.session.createdFor).toBe(castId<UserId>("usr_x"));
+    const cookies = res.headers.getSetCookie();
+    expect(cookies).toContain(`${OIDC_BINDING_COOKIE_NAME_SECURE}=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax`);
+    expect(cookies).toContain(`${OIDC_BINDING_COOKIE_NAME_INSECURE}=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax`);
+  });
+});
+
 // R7 — OIDC CALLBACK state/replay gate. The callback consumes the single-use PKCE transaction by the
 // returned `state` BEFORE any token work; a null consume (forged / replayed / TTL-expired state) redirects
 // and NEVER reaches the IdP token exchange.
@@ -1207,20 +1388,28 @@ describe("OIDC callback — single-use state consume (replay/forgery/TTL gate)",
   // (never raw JSON in the address bar) instead of a 401 JSON body. The single-use consume gate is unchanged.
   test("a forged/replayed/expired state (consume → null) → 302 /login?authError=invalid_state, no token exchange, no session", async () => {
     const h = callbackDeps(() => Promise.resolve(null));
-    const res = await handlerFor(h.deps, "GET /api/auth/oidc/callback")(makeCtx({ url: callbackUrl({ state: "forged", code: "grant" }) }));
+    // The browser holds a binding for this state, so the refusal below is the CONSUME gate's, not the binding's.
+    const res = await handlerFor(
+      h.deps,
+      "GET /api/auth/oidc/callback",
+    )(makeCtx({ url: callbackUrl({ state: "forged", code: "grant" }), headers: { cookie: `${OIDC_BINDING_COOKIE_NAME_INSECURE}=forged` } }));
     expect(res.status).toBe(302);
     expect(res.headers.get("location")).toBe("/login?authError=invalid_state");
+    expect(h.consumedWith()).toBe("forged");
     expect(h.getConfigCalls()).toBe(0); // never reached the IdP token exchange
     expect(h.exchangeCalls()).toBe(0); // #867 — asserted at the seam itself, not by proxy
     expect(h.session.createdFor).toBeNull(); // no session minted
   });
 
-  test("a missing state param (empty consume key) → 302 invalid_state (the callback fails closed)", async () => {
+  test("a missing state param → 302 invalid_state before any consume (the callback fails closed)", async () => {
     const h = callbackDeps(() => Promise.resolve(null));
-    const res = await handlerFor(h.deps, "GET /api/auth/oidc/callback")(makeCtx({ url: callbackUrl({ code: "grant" }) }));
+    const res = await handlerFor(
+      h.deps,
+      "GET /api/auth/oidc/callback",
+    )(makeCtx({ url: callbackUrl({ code: "grant" }), headers: { cookie: `${OIDC_BINDING_COOKIE_NAME_INSECURE}=some-state` } }));
     expect(res.status).toBe(302);
     expect(res.headers.get("location")).toBe("/login?authError=invalid_state");
-    expect(h.consumedWith()).toBe(""); // no `state` query → the empty-string consume key → null → redirect
+    expect(h.consumedWith()).toBeNull(); // no `state` query matches no binding, so the store is never asked
     expect(h.getConfigCalls()).toBe(0);
     expect(h.exchangeCalls()).toBe(0);
   });
@@ -1289,20 +1478,26 @@ describe("OIDC callback — IdP error param fails closed (declined consent / acc
 
   test("valid state + `?error=access_denied` → 302 /login?authError=access_denied (not 500), txn consumed, no token exchange, no session", async () => {
     const h = errorCallbackDeps();
-    const res = await handlerFor(h.deps, "GET /api/auth/oidc/callback")(makeCtx({ url: callbackUrl({ state: "s1", error: "access_denied" }) }));
+    const res = await handlerFor(
+      h.deps,
+      "GET /api/auth/oidc/callback",
+    )(makeCtx({ url: callbackUrl({ state: "s1", error: "access_denied" }), headers: { cookie: `${OIDC_BINDING_COOKIE_NAME_INSECURE}=s1` } }));
     expect(res.status).toBe(302);
     expect(res.headers.get("location")).toBe("/login?authError=access_denied"); // the sanitized standard code
     expect(h.consumed()).toBe(1); // single-use txn consume STILL happened (not replayable)
     expect(h.getConfigCalls()).toBe(0); // never reached the token exchange
     expect(h.exchangeCalls()).toBe(0); // #867 — and the exchange seam itself was never invoked
     expect(h.session.createdFor).toBeNull(); // no session minted
-    expect(res.headers.get("set-cookie")).toBeNull(); // no partial cookie on the error path
+    expect(sessionCookieWrites(res)).toEqual([]); // no partial session cookie on the error path
   });
 
   test("a malformed IdP `error` value is NOT reflected raw — replaced by a generic marker in the redirect", async () => {
     const h = errorCallbackDeps();
     // Free-text with spaces / punctuation must never reach the Location (reflection guard).
-    const res = await handlerFor(h.deps, "GET /api/auth/oidc/callback")(makeCtx({ url: callbackUrl({ state: "s1", error: "<script>alert(1)</script>" }) }));
+    const res = await handlerFor(
+      h.deps,
+      "GET /api/auth/oidc/callback",
+    )(makeCtx({ url: callbackUrl({ state: "s1", error: "<script>alert(1)</script>" }), headers: { cookie: `${OIDC_BINDING_COOKIE_NAME_INSECURE}=s1` } }));
     expect(res.status).toBe(302);
     const location = res.headers.get("location") ?? "";
     expect(location).not.toContain("<script>");
@@ -1398,9 +1593,13 @@ describe("OIDC callback — the injected code→token exchange (#867)", () => {
     (): Promise<never> =>
       Promise.reject(err);
 
-  // The IdP returns the browser through the TLS proxy, so the callback arrives marked https by a trusted hop.
+  // The IdP returns the browser through the TLS proxy, so the callback arrives marked https by a trusted hop,
+  // carrying the binding cookie the authorize leg set for `storedTx.state`.
   const drive = async (h: ExchangeHarness, url: string): Promise<Response> =>
-    await handlerFor(h.deps, "GET /api/auth/oidc/callback")(makeCtx({ url, headers: { "x-forwarded-proto": "https" } }));
+    await handlerFor(
+      h.deps,
+      "GET /api/auth/oidc/callback",
+    )(makeCtx({ url, headers: { "x-forwarded-proto": "https", cookie: `${OIDC_BINDING_COOKIE_NAME_SECURE}=${storedTx.state}` } }));
 
   // THE #141 HOP. This is the assertion the whole seam exists for: `createdIdToken` is what
   // `sessions.create` was handed, and the domain seals exactly that value against the new row id.
@@ -1423,7 +1622,7 @@ describe("OIDC callback — the injected code→token exchange (#867)", () => {
     const h = harness(grants(verifiedClaims, ID_TOKEN));
     const res = await drive(h, arriveAt(callbackBase, { state: "s1", code: "grant" }));
 
-    const cookies = res.headers.getSetCookie();
+    const cookies = sessionCookieWrites(res);
     expect(cookies).toHaveLength(2);
     expect(cookies[0]).toContain(`${SESSION_COOKIE_NAME_SECURE}=tok-123`);
     expect(cookies[0]).not.toContain("Max-Age=0");
@@ -1465,7 +1664,7 @@ describe("OIDC callback — the injected code→token exchange (#867)", () => {
 
     expect(res.status).toBe(302); // fail-closed, not a 500 leaking a stack through onError
     expect(res.headers.get("location")).toBe("/login?authError=invalid_grant");
-    expect(res.headers.get("set-cookie")).toBeNull();
+    expect(sessionCookieWrites(res)).toEqual([]);
     expect(h.session.createdFor).toBeNull();
     expect(h.consumed()).toBe(1); // and the txn stays spent — a failed exchange leaves nothing replayable
   });
@@ -1503,7 +1702,7 @@ describe("OIDC callback — the injected code→token exchange (#867)", () => {
 
     expect(res.status).toBe(302);
     expect(res.headers.get("location")).toBe("/login?authError=no_identity");
-    expect(res.headers.get("set-cookie")).toBeNull();
+    expect(sessionCookieWrites(res)).toEqual([]);
     expect(h.session.createdFor).toBeNull();
   });
 
@@ -1520,7 +1719,7 @@ describe("OIDC callback — the injected code→token exchange (#867)", () => {
     const res = await drive(h, arriveAt(callbackBase, { state: "s1", code: "grant" }));
 
     expect(res.headers.get("location")).toBe("/login?authError=not_authorized");
-    expect(res.headers.get("set-cookie")).toBeNull();
+    expect(sessionCookieWrites(res)).toEqual([]);
     expect(h.session.createdFor).toBeNull();
   });
 
@@ -1542,7 +1741,7 @@ describe("OIDC callback — the injected code→token exchange (#867)", () => {
     const res = await drive(h, arriveAt(callbackBase, { state: "s1", code: "grant" }));
 
     expect(res.headers.get("location")).toBe("/login?authError=account_disabled");
-    expect(res.headers.get("set-cookie")).toBeNull();
+    expect(sessionCookieWrites(res)).toEqual([]);
     expect(h.session.createdFor).toBeNull();
   });
 });

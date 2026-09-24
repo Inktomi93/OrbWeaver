@@ -131,7 +131,7 @@ export type RelayedFallbackNotice = (peerIp: string | undefined) => void;
 /** Reports one session minted over plain http for a public client, keyed by the resolved client address. */
 export type PublicHttpMintNotice = (clientIp: string | null) => void;
 
-/** A session cookie's name and the `Set-Cookie` attributes that name requires. */
+/** An auth cookie's name (the session or the OIDC binding) and the `Set-Cookie` attributes that name requires. */
 export interface SessionCookie {
   readonly name: string;
   readonly attrs: string;
