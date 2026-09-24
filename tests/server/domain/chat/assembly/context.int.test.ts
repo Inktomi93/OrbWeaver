@@ -715,7 +715,7 @@ describe("buildAssembleContext — character depthPrompt (Character's Note @ Dep
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
-    // role:user so the spliced content stays verbatim (system would be [Take the following into special consideration: …]-framed).
+    // The spliced row wears the user-note frame; the assertion reads the note's own text inside it.
     const ctx = ctxWithCard(cardWithNote("Aria", { prompt: "Aria stays cryptic.", depth: 2, role: "user" }));
     const built = await buildAssembleContext(ctx, inputOf(chatId, host, [charId]));
 
@@ -738,10 +738,10 @@ describe("buildAssembleContext — character depthPrompt (Character's Note @ Dep
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
-    const ctx = ctxWithCard(cardWithNote("Aria", { prompt: "Keep it terse.", depth: 1, role: "system" }));
+    const ctx = ctxWithCard(cardWithNote("Aria", { prompt: "Keep it terse.", depth: 1, role: "user" }));
     const promptConfig = promptConfigSchema.parse({
       ...DEFAULT_PROMPT_CONFIG,
-      prose: { "chat.injection.systemNote": { text: "<<table rule — {{note}}>>", baseVersion: 1 } },
+      prose: { "chat.injection.userNote": { text: "<<table rule — {{note}}>>", baseVersion: 1 } },
     });
 
     const built = await buildAssembleContext(ctx, inputOf(chatId, host, [charId], { promptConfig }));
@@ -752,7 +752,7 @@ describe("buildAssembleContext — character depthPrompt (Character's Note @ Dep
     // Same room, same note, DEFAULT preset: the shipped frame, byte-for-byte.
     const plain = await buildAssembleContext(ctx, inputOf(chatId, host, [charId]));
     const plainFramed = spliceInChatInjections(history, plain.chatInjections, undefined, { prose: plain.prose });
-    expect(plainFramed.map((r) => r.content)).toContain("[Take the following into special consideration: Keep it terse.]");
+    expect(plainFramed.map((r) => r.content)).toContain("[Note from user: Keep it terse.]");
   });
 
   test("D66-B: assistant@depth-0 is ACCEPTED at the WRITE boundary; safety moved to the SHAPE delivery gate", () => {

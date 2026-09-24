@@ -1169,7 +1169,7 @@ test("a NUDGE missing its recommended macros is NOT refused (a lint, never a blo
 // that dropped it ships `[Note from user: ]` with the author's note gone — the `{{entry}}` failure exactly.
 // The frames store in `promptConfig.prose`, not `formatStrings`, which is why they need their own list and
 // why the divergence survived unnoticed: the enforcement split tracked storage plumbing, not the failure.
-const NOTE_CARRIER_SLOTS = ["chat.injection.systemNote", "chat.injection.userNote"] as const;
+const NOTE_CARRIER_SLOTS = ["chat.injection.userNote"] as const;
 /** A stored override as the write schema takes it — `baseVersion` is the slot version it was authored at. */
 const CARRIER_BASE_VERSION = 1;
 function withProse(slotId: string, text: string): Record<string, unknown> {

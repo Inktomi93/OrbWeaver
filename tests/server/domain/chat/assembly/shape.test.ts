@@ -3,15 +3,15 @@
 // 2026-08-22 (#428, the neo floor is obsolete), so THIS is now the ONLY home; it pins the orbweaver-side
 // invariants directly: the 3 breakpoint-undefined cases, the offset/clamp/floor math, the neo-quirk →
 // undefined divergence, and the no-if(isGroup) solo-byte-identical contract.
-import type { AssembleContext, ChatInjection, MessageView } from "@orb/contracts/chat";
+import type { AssembleContext, ChatInjection, ChatReasoningPart, MessageView } from "@orb/contracts/chat";
 import type { RoleHandling } from "@orb/contracts/inference";
 import { ROLE_HANDLING, SYSTEM_ROW_PLACEMENT } from "@orb/contracts/inference";
 import type { NamesBehavior } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { proseOverridesSchema } from "@orb/contracts/prose";
 import { rowIndexAtCacheDepth } from "@orb/inference";
-import type { CharacterId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
+import { castId, mintTypeId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
@@ -19,7 +19,7 @@ import { describe } from "vitest";
 import { BEFORE_HISTORY_DEPTH } from "../../../../../packages/server/src/domain/chat/assembly/injections.ts";
 import { computeHistoryBreakpoint, shape, toShapeCanon } from "../../../../../packages/server/src/domain/chat/assembly/shape.ts";
 import type { HistoryMacroNames } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
-import { convertsToEmptyWireRow } from "../../../../../packages/server/src/domain/chat/substrate/wire-history.ts";
+import { buildWireHistory, convertsToEmptyWireRow } from "../../../../../packages/server/src/domain/chat/substrate/wire-history.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const ARIA = castId<CharacterId>("character_aria");
@@ -548,10 +548,10 @@ describe("shape — midConversationSystem gates the depth-0 system-injection del
     expect(pinnedRow(out)?.content).toBe("a1 tip");
   });
 
-  test("not capable (default): byte-identical demote — the note folds into the adjacent user tail (regression pin)", () => {
+  test("not capable (default): the note folds bare into the adjacent user tail, after its text", () => {
     const out = shape(soloInput({ injections: [sysInj] }));
     expect(out.history.at(-1)?.role).toBe("user");
-    expect(out.history.at(-1)?.content).toBe("u2 volatile\n\n[Take the following into special consideration: GM note]");
+    expect(out.history.at(-1)?.content).toBe("u2 volatile\n\nGM note");
   });
 
   // The direct Anthropic wire refuses `[…assistant, system, user]`: SHAPE's own cue goes BEFORE the kept system
@@ -588,12 +588,12 @@ describe("shape — historySystemRows also gates a DEPTH>0 system injection (aut
     expect(out.history.some((r) => r.content.includes("[Note from"))).toBe(false);
   });
 
-  test("unmeasured wire (the default): byte-identical demote — the pre-capability behavior (regression pin)", () => {
+  test("unmeasured wire (the default): the note folds into user text, and unset reads as false", () => {
     const off = shape(soloInput({ injections: [deepSys], historySystemRows: false }));
     const unset = shape(soloInput({ injections: [deepSys] }));
     expect(unset.history).toEqual(off.history);
     expect(unset.history.some((r) => r.role === "system")).toBe(false);
-    expect(unset.history.some((r) => r.content.includes("[Take the following into special consideration: GM note]"))).toBe(true);
+    expect(unset.history.some((r) => r.role === "user" && r.content.split("\n\n").includes("GM note"))).toBe(true);
   });
 
   test("the TAIL arm is still its own bit: midConversationSystem alone does NOT promote a depth>0 row (D69)", () => {
@@ -1531,7 +1531,7 @@ describe("shape — system rows by level × turn × injection", () => {
     }
   });
 
-  test("the fold frame is the neutral system frame, and a folded row never wears a speaker label", () => {
+  test("a folded note goes bare and never wears a speaker label", () => {
     const out = shape(
       soloInput({
         canon,
@@ -1543,6 +1543,141 @@ describe("shape — system rows by level × turn × injection", () => {
         roleHandlingFloor: "slotted",
       }),
     );
-    expect(out.history[1]?.content).toBe("[Take the following into special consideration: SYS]\n\nUser: u1");
+    expect(out.history[1]?.content).toBe("SYS\n\nUser: u1");
+  });
+});
+
+// ── A FOLDED SYSTEM NOTE LEADS THE USER TEXT IT JOINS (OR-11, owner ruling) ────────────────────────────────
+// A system row the model does not take folds into user text bare, before the user text of the message it joins,
+// at its own depth. Joined after that text, sonnet-5, opus-4-8 and haiku-4-5 mostly ignored it
+// (`scripts/probes/openrouter/RESULTS.md` OR-11). A trailing fold stays after the latest user text, where the
+// probe measured it carried.
+describe("shape — a folded system note leads the user text it joins", () => {
+  const ids = { g: mintTypeId("message"), u1: mintTypeId("message"), uA: mintTypeId("message"), uB: mintTypeId("message"), a1: mintTypeId("message") };
+  const greeting = { role: "assistant" as const, content: "greeting", authorName: "Aria", characterId: ARIA, messageId: ids.g };
+  const u1 = { role: "user" as const, content: "u1", authorName: "User", messageId: ids.u1 };
+  const a1 = { role: "assistant" as const, content: "a1", authorName: "Aria", characterId: ARIA, messageId: ids.a1 };
+  const canon = [greeting, u1, a1];
+  const humans = [
+    greeting,
+    { role: "user" as const, content: "I open the door.", authorName: "Alex", messageId: ids.uA },
+    { role: "user" as const, content: "I follow him in.", authorName: "Joe", messageId: ids.uB },
+    a1,
+  ];
+  const depthNote = inChat({ depth: 2, role: "system", content: "NOTE" });
+  const wire = (out: ReturnType<typeof shape>): [string, string][] => out.history.map((row) => [row.role, row.content]);
+
+  test("a depth-N fold goes bare before the user text of the row above it, at its own depth", () => {
+    const out = shape(soloInput({ canon, appendUserTurn: "u2", injections: [depthNote] }));
+    expect(wire(out)).toEqual([
+      ["assistant", "greeting"],
+      ["user", "NOTE\n\nu1"],
+      ["assistant", "a1"],
+      ["user", "u2"],
+    ]);
+    // The merged row keeps the stored row's identity, so its attachments and spans still resolve.
+    expect(out.history[1]?.messageId).toBe(ids.u1);
+    expect(out.stages.delivered.map((row) => row.folded)).toEqual([undefined, "level", undefined, undefined]);
+  });
+
+  test("a trailing fold stays bare after the latest user text", () => {
+    const out = shape(soloInput({ canon, appendUserTurn: "u2", injections: [inChat({ depth: 0, role: "system", content: "NOTE" })] }));
+    expect(wire(out).at(-1)).toEqual(["user", "u2\n\nNOTE"]);
+  });
+
+  test("the fold leads the whole user message, and every speaker label stays on its own text", () => {
+    const joined = shape(soloInput({ canon: humans, appendUserTurn: "u2", injections: [depthNote], multiHuman: true }));
+    expect(wire(joined)).toEqual([
+      ["assistant", "greeting"],
+      ["user", "NOTE\n\nNate: I open the door.\n\nJoe: I follow him in."],
+      ["assistant", "a1"],
+      ["user", "u2"],
+    ]);
+    // A block-marker wire keeps each stored row its own block: the note opens the first block of the message.
+    const apart = shape(soloInput({ canon: humans, appendUserTurn: "u2", injections: [depthNote], multiHuman: true, explicitCacheMarkers: true }));
+    expect(wire(apart)).toEqual([
+      ["assistant", "greeting"],
+      ["user", "NOTE\n\nNate: I open the door."],
+      ["user", "Joe: I follow him in."],
+      ["assistant", "a1"],
+      ["user", "u2"],
+    ]);
+    expect(apart.history.slice(1, 3).map((row) => row.messageId)).toEqual([ids.uA, ids.uB]);
+  });
+
+  test("the fold never moves above the new-chat marker", () => {
+    const marker = inChat({ depth: BEFORE_HISTORY_DEPTH, role: "user", content: "[Start a new chat]", origin: "new-chat-marker" });
+    const out = shape(soloInput({ canon: [u1, a1], appendUserTurn: "u2", injections: [marker, depthNote] }));
+    expect(wire(out)[0]).toEqual(["user", "[Start a new chat]\n\nNOTE\n\nu1"]);
+  });
+
+  test("a fold next to a multi-part user message opens its first text part", async () => {
+    const picture = mintTypeId("asset");
+    const withImage = [greeting, { ...u1, content: `look ![my reference](asset:${picture})` }, a1];
+    const out = shape(soloInput({ canon: withImage, appendUserTurn: "u2", injections: [depthNote] }));
+    const converted = await buildWireHistory(
+      {
+        visionOk: true,
+        videoOk: false,
+        resolveImageUrl: (ref) => Promise.resolve({ url: ref.kind === "asset" ? `https://cas.test/${ref.assetId}` : ref.url, media: "image" as const }),
+        cardKeepLastX: undefined,
+        canon: [],
+        reasoningByMessage: new Map<MessageId, readonly ChatReasoningPart[]>(),
+        loadInlineReplyAssetIds: () => Promise.resolve(new Map<MessageId, ReadonlySet<AssetId>>()),
+      },
+      out.history,
+    );
+    expect(converted[1]?.row).toEqual({
+      role: "user",
+      content: [
+        { type: "text", text: "NOTE\n\nlook " },
+        { type: "image", url: `https://cas.test/${picture}` },
+      ],
+    });
+  });
+
+  test("a turn with no fold ships the same bytes: labels, blocks and kept system rows", () => {
+    expect(wire(shape(soloInput({ canon: humans, appendUserTurn: "u2", multiHuman: true })))).toEqual([
+      ["assistant", "greeting"],
+      ["user", "Alex: I open the door.\n\nJoe: I follow him in."],
+      ["assistant", "a1"],
+      ["user", "u2"],
+    ]);
+    expect(wire(shape(soloInput({ canon: humans, appendUserTurn: "u2", multiHuman: true, explicitCacheMarkers: true })))).toEqual([
+      ["assistant", "greeting"],
+      ["user", "Alex: I open the door."],
+      ["user", "Joe: I follow him in."],
+      ["assistant", "a1"],
+      ["user", "u2"],
+    ]);
+    const kept = shape(soloInput({ canon, appendUserTurn: "u2", injections: [depthNote], historySystemRows: true, roleHandlingFloor: "slotted" }));
+    expect(wire(kept)).toEqual([
+      ["assistant", "greeting"],
+      ["user", "u1"],
+      ["system", "NOTE"],
+      ["assistant", "a1"],
+      ["user", "u2"],
+    ]);
+  });
+
+  test("the fold is byte-stable for the same history, and the rows the cache pins above it hold one turn later", () => {
+    const turnN = soloInput({ canon, appendUserTurn: "u2", injections: [depthNote] });
+    const n = shape(turnN);
+    expect(wire(shape(turnN))).toEqual(wire(n));
+
+    const grown = [
+      ...canon,
+      { role: "user" as const, content: "u2", authorName: "User", messageId: mintTypeId("message") },
+      { role: "assistant" as const, content: "a2", authorName: "Aria", characterId: ARIA, messageId: mintTypeId("message") },
+    ];
+    const n1 = shape(soloInput({ canon: grown, appendUserTurn: "u3", injections: [depthNote] }));
+    // Turn N pins the greeting, the row above the fold, and turn N+1 still opens with it byte for byte.
+    expect(pinnedRow(n)?.content).toBe("greeting");
+    const cachedAtN = wire(n).slice(0, n.history.length - (n.cacheBreakpointFromEnd ?? n.history.length));
+    expect(cachedAtN).toEqual([["assistant", "greeting"]]);
+    expect(wire(n1).slice(0, cachedAtN.length)).toEqual(cachedAtN);
+    // One turn later the note has moved down with its depth and leads the next user row instead.
+    expect(wire(n1)[3]).toEqual(["user", "NOTE\n\nu2"]);
+    expect(pinnedRow(n1)?.content).toBe("a1");
   });
 });

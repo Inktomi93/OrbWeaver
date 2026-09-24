@@ -468,11 +468,11 @@ test("item 10 — the template drill's DELIVERY labels and controls each share o
 // `assembly/shape.ts`. These pins are the SEEING half — a green resolver test cannot tell you the row is
 // reachable, and "reachable" is the whole defect.
 
-test("the three turn-wire framings are ROWS in this tab, ghosting their shipped bytes", async ({ mount }) => {
+test("the turn-wire framings are ROWS in this tab, ghosting their shipped bytes", async ({ mount }) => {
   const probe = await mount(<ActionsStory />);
   // Registry-derived exactly like the G5/G9 pins above: nothing in `actions-view.tsx` names these.
-  await expect(probe.getByRole("button", { name: "System-note frame", exact: true })).toBeVisible();
   await expect(probe.getByRole("button", { name: "User-note frame", exact: true })).toBeVisible();
+  await expect(probe.getByRole("button", { name: "Assistant-note frame", exact: true })).toBeVisible();
   await expect(probe.getByRole("button", { name: "Continuation cue", exact: true })).toBeVisible();
 
   // The GHOST is the shipped default, byte-for-byte — which is also what the wire ships until the host
@@ -504,7 +504,7 @@ test("row 27 — the state-tracking guide is a row in State tracking, ghosting i
 
 test("a framing drill-in is TEXT-ONLY and offers its own {{note}} token, never arrangement vocabulary", async ({ mount }) => {
   const probe = await mount(<ActionsStory />);
-  await probe.getByRole("button", { name: "Edit System-note frame" }).click();
+  await probe.getByRole("button", { name: "Edit Assistant-note frame" }).click();
   await expect(probe.getByRole("button", { name: "Back to actions" })).toBeVisible();
   // A framing declares no role/depth: where it lands is the WIRE's shape, not an author's choice.
   await expect(probe.getByRole("combobox", { name: "Role" })).toHaveCount(0);

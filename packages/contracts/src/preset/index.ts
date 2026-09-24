@@ -1251,17 +1251,9 @@ export const TEMPLATE_DEFS = [
   },
   // ── THE TURN-WIRE FRAMINGS (owner ruling 2026-08-07) ──────────────────────────────────────────────────
   // The wrappers assembly puts AROUND content on the way to the model. They are `format`, not `nudge`:
-  // a nudge is prose fired by an ACTION with nothing to steer it; these fire on the shape of the WIRE (a
-  // demoted system row, an operator note, a history that would end on the model's own reply). Their id is a
+  // a nudge is prose fired by an ACTION with nothing to steer it; these fire on the shape of the WIRE (an
+  // operator note, a re-roled assistant note, a history that would end on the model's own reply). Their id is a
   // PROSE-1 slot id, so their storage is `prose[<id>].text` — the third form path.
-  {
-    id: "chat.injection.systemNote",
-    kind: "format",
-    label: "System-note frame",
-    fires: "A system-role injection the turn folds into user text",
-    caps: [{ kind: "tokens", tokens: ["{{note}}"] }],
-    defaultSlot: "chat.injection.systemNote",
-  },
   {
     id: "chat.injection.userNote",
     kind: "format",
@@ -2333,7 +2325,7 @@ export interface ProseCarrierToken {
 }
 
 /** PROSE CARRIER slots — the write guard's SECOND enumeration (owner ruling 2026-08-08,
- *  option C). The two injection note frames carry `{{note}}`, which is the
+ *  option C). The user-note frame carries `{{note}}`, which is the
  *  injection's ENTIRE payload: `spliceProseTokens` is a replace, so an override that drops the token matches
  *  nothing and the frame ships as an empty wrapper (`[Note from user: ]`) with the author's note gone. That is
  *  byte-for-byte the `{{entry}}` failure the 2026-08-02 carrier ruling refuses, so these refuse with it.
@@ -2346,14 +2338,11 @@ export interface ProseCarrierToken {
  *
  *  WHAT DID NOT CHANGE: PROSE-1's general `requiredMacros` stays a LINT (`contracts/prose-slot` — "a lint in
  *  the editor, never a block"). That posture is ruled and correct for VOICE macros, whose absence weakens
- *  prose. This list is not a widening of it — it names the two slots whose token absence DELETES content, which
+ *  prose. This list is not a widening of it — it names the slots whose token absence DELETES content, which
  *  is the carrier-bucket's own membership test.
  *
  *  A new prose carrier = one row here; the refine below reads nothing else. */
-const PROSE_CARRIER_TOKENS = [
-  { slotId: "chat.injection.systemNote", name: "note", token: "{{note}}" },
-  { slotId: "chat.injection.userNote", name: "note", token: "{{note}}" },
-] as const satisfies readonly ProseCarrierToken[];
+const PROSE_CARRIER_TOKENS = [{ slotId: "chat.injection.userNote", name: "note", token: "{{note}}" }] as const satisfies readonly ProseCarrierToken[];
 
 /** THE CARRIER PREDICATE — every stored note-frame override that is non-blank and DROPPED its token, i.e.
  *  exactly the set {@link promptConfigWriteSchema} refuses.
