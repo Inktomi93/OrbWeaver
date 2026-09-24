@@ -44,21 +44,12 @@ import { Icon, Link2, RotateCcw, Tag } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { MenuItem, MenuSeparator } from "@orb/ui/menu";
 import type { ReactElement } from "react";
-import { cn, IS_DEV, notify, rowActionsName } from "#lib";
+import { cn, copyWithNotice, IS_DEV, rowActionsName } from "#lib";
 import { formatConfigLink } from "#state";
 import { HIDE_AT_COARSE } from "./pointer-variants.ts";
 import { RowActionsMenu } from "./row-actions-menu.tsx";
 import { SETTING_ROW_REVEAL } from "./row-reveal.ts";
 import type { ConfigLeafAddress, ConfigLeafValue } from "./use-config-leaf.ts";
-
-/** Copy + toast, the message-actions-row pattern — the toast is the only rendered ack a menu that has
- *  already closed can give. */
-function copyText(text: string): void {
-  navigator.clipboard.writeText(text).then(
-    (): void => notify.success("Copied to clipboard."),
-    (): void => notify.error("Couldn't copy to clipboard."),
-  );
-}
 
 export interface SettingRowActionsProps {
   /** The row's address — Copy id copies its dotted spelling, Copy link its `/config?to=` form. */
@@ -106,11 +97,13 @@ export function SettingRowDevActions({ address, label, binding }: SettingRowActi
             <MenuSeparator />
           </>
         )}
-        <MenuItem onClick={(): void => copyText(settingId)}>
+        <MenuItem onClick={(): Promise<void> => copyWithNotice(settingId)}>
           <Icon icon={Tag} size="sm" />
           Copy setting id
         </MenuItem>
-        <MenuItem onClick={(): void => copyText(`${globalThis.location.origin}${formatConfigLink(address.group, address.sub, address.setting)}`)}>
+        <MenuItem
+          onClick={(): Promise<void> => copyWithNotice(`${globalThis.location.origin}${formatConfigLink(address.group, address.sub, address.setting)}`)}
+        >
           <Icon icon={Link2} size="sm" />
           Copy link
         </MenuItem>

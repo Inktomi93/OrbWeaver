@@ -190,7 +190,8 @@ test("a long log windows its DOM via the virtual-list seal instead of rendering 
   // scroll container (#1499 — a container-level region announced every line the virtualizer remounted on
   // a scroll-back). The container is still the named `role="log"`; the liveness sits on the last line.
   await expect(component.getByRole("log")).toHaveAttribute("aria-live", "off");
-  await expect(component.locator('[aria-live="polite"]')).toHaveCount(1);
+  // Scoped to the log: the toolbar's copy status is its own polite region, outside the line region.
+  await expect(component.getByRole("log").locator('[aria-live="polite"]')).toHaveCount(1);
   await expect(component.getByText("line 499", { exact: true })).toBeVisible();
   await expect(component.getByText("line 0", { exact: true })).toHaveCount(0);
 });
@@ -328,7 +329,7 @@ test("the copy affordance writes the visible lines to the clipboard", async ({ m
   await expect.poll(async () => await page.evaluate(() => (globalThis as unknown as { __copied: string | null }).__copied)).toBe("alpha\nbeta");
 });
 
-test("a clipboard rejection is surfaced in the toolbar", async ({ mount, page }) => {
+test("a clipboard rejection offers the visible lines selected for a manual copy", async ({ mount, page }) => {
   await page.evaluate(() => {
     Object.defineProperty(navigator, "clipboard", {
       configurable: true,
@@ -338,7 +339,10 @@ test("a clipboard rejection is surfaced in the toolbar", async ({ mount, page })
     });
   });
 
-  const component = await mount(<LogViewer lines={["alpha"]} />);
+  const component = await mount(<LogViewer lines={["alpha", "beta"]} />);
   await component.getByRole("button", { name: "Copy log" }).click();
-  await expect(component.getByRole("alert")).toHaveText("Couldn't copy log.");
+  const field = component.getByRole("textbox", { name: "log", exact: true });
+  await expect(field).toBeFocused();
+  await expect(field).toHaveValue("alpha\nbeta");
+  await expect(component.getByRole("status")).not.toBeEmpty();
 });
