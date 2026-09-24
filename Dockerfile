@@ -49,15 +49,10 @@ COPY . .
 # reads them through a `gitdir:` redirect). git itself must NOT see them: a HEAD that names a commit with no
 # object store behind it is a dangling ref, and the ui token ratchet (`packages/ui/token-contract.ts`) then
 # tries `git merge-base HEAD origin/main`, which no build context can satisfy — the build broke there
-# 2026-09-18. Set aside before the throwaway repo below is created; an archive build without them is fine.
+# 2026-09-18. With no .git at all the build is a source archive: the root `prepare` script (scripts/prepare.ts)
+# skips the lefthook install, and the token ratchet has no history to ratchet against.
 RUN if [ -d .git ]; then mv .git /app/.git-refs; fi
-# `git init`: the root `prepare` script is `lefthook install`, which hard-fails outside a git repository
-# (LEFTHOOK=0 does not rescue it). A throwaway .git satisfies it and never reaches the runtime stage; with no
-# commit at all, the token ratchet is vacuous by its own design (no history to ratchet against).
-# `--ignore-scripts` is NOT an option: it would also skip the allowBuilds postinstalls (sharp,
-# onnxruntime-node) the runtime needs.
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store,sharing=locked \
-    git init --quiet . && \
     pnpm install --frozen-lockfile --offline
 # theme.css + tokens/index.ts are GENERATED from tokens.json before the client build consumes them
 # (`pnpm build` = the ui tokens build + `vite build`; one script, shared with the bare-metal docs).
