@@ -25,8 +25,8 @@ export const BIND_HOST_KEY = "BIND_HOST";
 /** The mode whose ONLY credential is the loopback owner fallback (foundation/env: AUTH_MODE's default). */
 export const SINGLE_USER_MODE = "single-user";
 
-/** The mode a password login writes. */
-const PASSWORD_MODE: AuthMode = "local";
+/** The mode a password login writes, and the mode `pnpm start --share` launches in. */
+export const PASSWORD_MODE: AuthMode = "local";
 
 /** What each auth mode answers to the two questions, so a re-run offers the running mode back. */
 const MODE_ANSWERS: Record<AuthMode, { readonly audience: SetupAudience; readonly login: SetupLogin }> = {
@@ -82,6 +82,11 @@ export function effectiveAuthMode(fileEnv: Readonly<Record<string, string | unde
 export function currentAuthMode(fileEnv: Readonly<Record<string, string | undefined>>, ambient: Readonly<Record<string, string | undefined>>): AuthMode {
   const parsed = authModeSchema.safeParse(effectiveAuthMode(fileEnv, ambient));
   return parsed.success ? parsed.data : SINGLE_USER_MODE;
+}
+
+/** Who the current mode serves: `just-me` for single-user, `network` for every login mode. */
+export function currentAudience(fileEnv: Readonly<Record<string, string | undefined>>, ambient: Readonly<Record<string, string | undefined>>): SetupAudience {
+  return MODE_ANSWERS[currentAuthMode(fileEnv, ambient)].audience;
 }
 
 /** The answers the current settings already give; each question offers its one as the default. */

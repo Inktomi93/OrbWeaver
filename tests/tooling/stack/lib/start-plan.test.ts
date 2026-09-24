@@ -8,7 +8,9 @@
 // is therefore a value computed from `{platform, env}`, and the win32 arm is asserted from Linux with a
 // `path.win32` execpath. A real Linux boot receipt (`pnpm start --no-build`, healthz, SIGINT → 130) is in
 // the lane report; a macOS/Windows boot remains unverified by construction.
-import { win32 } from "node:path";
+import { readFileSync, writeFileSync } from "node:fs";
+import { join, win32 } from "node:path";
+import { parseEnv } from "node:util";
 import { SETUP_COMMAND } from "@orb/contracts/identity";
 import {
   decideStartBuild,
@@ -20,6 +22,7 @@ import {
   SERVER_ENTRY_REL,
   singleUserFallbackEnv,
   startBannerLines,
+  startLaunch,
   startSpawnPlan,
 } from "../../../../tooling/src/stack/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -35,18 +38,18 @@ const STALE = { state: "stale", message: "client bundle is OLDER than client/ui 
 const MISSING = { state: "missing", message: "no packages/client/dist/index.html" } as const;
 
 test("argv: no flags is auto, --build forces, --no-build skips, anything else is misuse", () => {
-  expect(parseStartArgv([])).toEqual({ ok: true, invocation: { build: "auto", setup: false, port: null } });
-  expect(parseStartArgv(["--build"])).toEqual({ ok: true, invocation: { build: "force", setup: false, port: null } });
-  expect(parseStartArgv(["--no-build"])).toEqual({ ok: true, invocation: { build: "skip", setup: false, port: null } });
+  expect(parseStartArgv([])).toEqual({ ok: true, invocation: { build: "auto", setup: false, port: null, share: false } });
+  expect(parseStartArgv(["--build"])).toEqual({ ok: true, invocation: { build: "force", setup: false, port: null, share: false } });
+  expect(parseStartArgv(["--no-build"])).toEqual({ ok: true, invocation: { build: "skip", setup: false, port: null, share: false } });
   const bad = parseStartArgv(["--prod"]);
   expect(bad.ok).toBe(false);
   expect(bad.ok ? "" : bad.error).toContain("--prod");
 });
 
 test("argv: --setup asks again, and --port takes one TCP port as the next word or after =", () => {
-  expect(parseStartArgv(["--setup"])).toEqual({ ok: true, invocation: { build: "auto", setup: true, port: null } });
-  expect(parseStartArgv(["--port", "9000", "--no-build"])).toEqual({ ok: true, invocation: { build: "skip", setup: false, port: 9000 } });
-  expect(parseStartArgv(["--port=9001", "--setup"])).toEqual({ ok: true, invocation: { build: "auto", setup: true, port: 9001 } });
+  expect(parseStartArgv(["--setup"])).toEqual({ ok: true, invocation: { build: "auto", setup: true, port: null, share: false } });
+  expect(parseStartArgv(["--port", "9000", "--no-build"])).toEqual({ ok: true, invocation: { build: "skip", setup: false, port: 9000, share: false } });
+  expect(parseStartArgv(["--port=9001", "--setup"])).toEqual({ ok: true, invocation: { build: "auto", setup: true, port: 9001, share: false } });
   for (const bad of [["--port"], ["--port", "--setup"], ["--port=0"], ["--port", "65536"], ["--port=eighty"]]) {
     expect(parseStartArgv(bad).ok).toBe(false);
   }
@@ -167,7 +170,7 @@ test("a non-JS npm_execpath is not treated as a JS entry (a `.cmd`/shim path tak
 });
 
 test("the banner is five short lines: the URL, who can log in, how to let another device in, and Ctrl-C", () => {
-  const lines = startBannerLines({ port: 8788, mode: "single-user", fallbackFilled: true }).filter((line) => line !== "");
+  const lines = startBannerLines({ port: 8788, mode: "single-user", fallbackFilled: true, share: false }).filter((line) => line !== "");
   expect(lines).toHaveLength(4);
   expect(lines[0]).toContain("http://localhost:8788");
   expect(lines[1]).toContain("loopback only");
@@ -176,9 +179,71 @@ test("the banner is five short lines: the URL, who can log in, how to let anothe
 });
 
 test("the banner tells a local-mode operator to sign in, and never claims an AUTH_FALLBACK it did not set", () => {
-  const local = startBannerLines({ port: 3000, mode: "local", fallbackFilled: false }).join("\n");
+  const local = startBannerLines({ port: 3000, mode: "local", fallbackFilled: false, share: false }).join("\n");
   expect(local).toContain("http://localhost:3000");
   expect(local).not.toContain("AUTH_FALLBACK=owner");
-  const ownFallback = startBannerLines({ port: 8788, mode: "single-user", fallbackFilled: false }).join("\n");
+  const ownFallback = startBannerLines({ port: 8788, mode: "single-user", fallbackFilled: false, share: false }).join("\n");
   expect(ownFallback).toContain("your own AUTH_FALLBACK");
+});
+
+/** `pnpm start --share`'s launch from a `.env` text, the way ops/start.ts builds each spawn. */
+function launchFrom(text: string, share: boolean, ambient = env(["PATH", "/bin"], ["AUTH_MODE", "oidc"])): ReturnType<typeof startLaunch> {
+  return startLaunch({
+    repoRoot: "/repo",
+    nodePath: "/usr/bin/node",
+    fileEnv: parseEnv(text),
+    ambient,
+    invocation: { build: "skip", setup: false, port: null, share },
+    logPath: "/l",
+  });
+}
+
+test("argv: --share asks for a shared launch, alone or beside the other flags", () => {
+  expect(parseStartArgv(["--share"])).toEqual({ ok: true, invocation: { build: "auto", setup: false, port: null, share: true } });
+  expect(parseStartArgv(["--no-build", "--share", "--port=9001"])).toEqual({ ok: true, invocation: { build: "skip", setup: false, port: 9001, share: true } });
+});
+
+test("--share on a just-me file restates .env, switches to local with a quick relay, and pins the bind to loopback", () => {
+  const file = "PORT=8788\nAUTH_MODE=single-user\nOPENROUTER_API_KEY=sk-or-abc\n";
+  const launch = launchFrom(file, true);
+  // Every .env value rides the child env with the file's override off, so the file still wins over the shell.
+  expect(launch.plan.env["ORB_ENV_NO_OVERRIDE"]).toBe("1");
+  expect(launch.plan.env["PORT"]).toBe("8788");
+  expect(launch.plan.env["OPENROUTER_API_KEY"]).toBe("sk-or-abc");
+  expect(launch.plan.env["AUTH_MODE"]).toBe("local");
+  expect(launch.plan.env["SHARE_RELAY"]).toBe("quick");
+  expect(launch.plan.env["BIND_HOST"]).toBe("127.0.0.1");
+  // `local` refuses the single-user fill at boot, and a relay host never goes into ALLOWED_HOSTS.
+  expect(launch.plan.env["AUTH_FALLBACK"]).toBeUndefined();
+  expect(launch.plan.env["ALLOWED_HOSTS"]).toBeUndefined();
+  expect(launch.mode).toBe("local");
+  expect(launch.fallbackFilled).toBe(false);
+  // An empty file under a bare shell is just-me too: the schema default mode is single-user. A shell export of a login
+  // mode is the box's mode when the file names none, so that box is a network box and keeps its bind.
+  expect(launchFrom("", true, env(["PATH", "/bin"])).plan.env["BIND_HOST"]).toBe("127.0.0.1");
+  expect(launchFrom("", true).plan.env["BIND_HOST"]).toBeUndefined();
+});
+
+test("--share on a network file keeps its own BIND_HOST and ALLOWED_HOSTS exactly as the file says", () => {
+  const pinned = launchFrom("AUTH_MODE=local\nBIND_HOST=192.168.1.5\nALLOWED_HOSTS=orb.lan\n", true);
+  expect(pinned.plan.env["BIND_HOST"]).toBe("192.168.1.5");
+  expect(pinned.plan.env["ALLOWED_HOSTS"]).toBe("orb.lan");
+  expect(pinned.plan.env["AUTH_MODE"]).toBe("local");
+  expect(pinned.plan.env["SHARE_RELAY"]).toBe("quick");
+  // A network file with no BIND_HOST keeps the server's own default bind.
+  expect(launchFrom("AUTH_MODE=local\n", true).plan.env["BIND_HOST"]).toBeUndefined();
+});
+
+test("control: a plain start leaves the env to the file, and neither launch writes a byte to .env", ({ scratch }) => {
+  const envPath = join(scratch, ".env");
+  const file = "# mine\r\nPORT=8788\r\nAUTH_MODE=single-user\r\n";
+  writeFileSync(envPath, file);
+  const plain = launchFrom(readFileSync(envPath, "utf8"), false);
+  for (const key of ["ORB_ENV_NO_OVERRIDE", "SHARE_RELAY", "BIND_HOST", "PORT"]) {
+    expect(plain.plan.env[key], key).toBeUndefined();
+  }
+  expect(plain.plan.env["AUTH_MODE"]).toBe("oidc");
+  expect(plain.mode).toBe("single-user");
+  launchFrom(readFileSync(envPath, "utf8"), true);
+  expect(readFileSync(envPath, "utf8")).toBe(file);
 });
