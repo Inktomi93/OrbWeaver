@@ -12,6 +12,9 @@ import { expect, test } from "../../../support/fixtures.ts";
 
 const FK_ON = 1;
 const BACKUP_RE = /\.backup-\d+$/;
+// A `:memory:` db never backs up, so the dir is named but never created. The file-db tests below keep the
+// copies beside the db unless the placement is what they assert.
+const memoryDeps = { databaseUrl: ":memory:", backupDir: join(tmpdir(), "orb-migrate-memory-unused") } as const;
 const SENTINEL_TABLES = ["users", "characters", "chats", "workloads", "presets"];
 const ALREADY_EXISTS_RE = /already exists/i;
 // `backupBeforeMigrate`'s own refusal, not just "something threw" — the abort must be the BACKUP failing.
@@ -26,7 +29,7 @@ test("resolveMigrationsFolder points at @orb/db's generated baseline dir", () =>
 
 test("runBootMigrations applies the baseline on a fresh db + passes the integrity gate", async () => {
   const db = await createDb(":memory:");
-  await runBootMigrations({ db, databaseUrl: ":memory:", launched: false });
+  await runBootMigrations({ db, ...memoryDeps, launched: false });
   // Each select throws if the baseline didn't create the table (independent → run together).
   await Promise.all(SENTINEL_TABLES.map((table) => db.run(sql.raw(`select count(*) from ${table}`))));
   const row = await db.get<Record<string, number>>(sql`PRAGMA foreign_keys`);
@@ -35,11 +38,11 @@ test("runBootMigrations applies the baseline on a fresh db + passes the integrit
 
 test("runBootMigrations is idempotent — a second run is a no-op, not an error", async () => {
   const db = await createDb(":memory:");
-  await runBootMigrations({ db, databaseUrl: ":memory:", launched: false });
+  await runBootMigrations({ db, ...memoryDeps, launched: false });
   // "current" pins that a normal boot's record MATCHES the shipped baseline exactly — without it this
   // test would still pass if every boot silently auto-reset (reset also resolves undefined).
   expect((await checkBaseline(db, resolveMigrationsFolder())).status).toBe("current");
-  await expect(runBootMigrations({ db, databaseUrl: ":memory:", launched: false })).resolves.toBeUndefined();
+  await expect(runBootMigrations({ db, ...memoryDeps, launched: false })).resolves.toBeUndefined();
   expect((await checkBaseline(db, resolveMigrationsFolder())).status).toBe("current");
 });
 
@@ -49,21 +52,21 @@ test("runBootMigrations is idempotent — a second run is a no-op, not an error"
 // pre-fix (`table … already exists`). This pins the bug the auto-reset defends against.
 test("BUG (unguarded): a stale baseline record makes raw runMigrations re-run the baseline + crash", async () => {
   const db = await createDb(":memory:");
-  await runBootMigrations({ db, databaseUrl: ":memory:", launched: false });
+  await runBootMigrations({ db, ...memoryDeps, launched: false });
   await db.run(sql`UPDATE __drizzle_migrations SET created_at = 0`);
   await expect(runMigrations(db, resolveMigrationsFolder())).rejects.toThrow(ALREADY_EXISTS_RE);
 });
 
 test("runBootMigrations auto-resets a regenerated-baseline dev db + re-migrates clean", async () => {
   const db = await createDb(":memory:");
-  await runBootMigrations({ db, databaseUrl: ":memory:", launched: false });
+  await runBootMigrations({ db, ...memoryDeps, launched: false });
   // A sentinel object we can prove the reset wiped, plus a real row to prove data loss is total.
   await db.run(sql`CREATE TABLE sentinel_probe (x integer)`);
   await db.run(sql`INSERT INTO sentinel_probe (x) VALUES (1)`);
   // Simulate the post-squash-regen state: the recorded baseline no longer matches the shipped one.
   await db.run(sql`UPDATE __drizzle_migrations SET created_at = 0`);
 
-  await expect(runBootMigrations({ db, databaseUrl: ":memory:", launched: false })).resolves.toBeUndefined();
+  await expect(runBootMigrations({ db, ...memoryDeps, launched: false })).resolves.toBeUndefined();
 
   // The reset dropped everything (incl. the sentinel) and re-applied the fresh baseline.
   const sentinel = await db.all(sql`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'sentinel_probe'`);
@@ -74,18 +77,21 @@ test("runBootMigrations auto-resets a regenerated-baseline dev db + re-migrates 
 // The backup gate, on a REAL file db (`:memory:` can't be backed up, so the other tests say nothing about
 // it). Pre-fix boot copied the db aside unconditionally, and a no-op boot is the overwhelmingly common one
 // — every dev-stack / lane restart re-runs this step — which grew `data/` to 3.2k copies / 150GB.
-test("the pre-migration backup is taken on a boot that MIGRATES and skipped on a no-op boot", async () => {
+test("the pre-migration backup is taken on a boot that MIGRATES, into the passed dir, and skipped on a no-op boot", async () => {
   const dir = mkdtempSync(join(tmpdir(), `orb-bootbackup-${pid}-`));
   const url = `file:${join(dir, "orb.db")}`;
+  // A SEPARATE backups dir, so a copy landing beside the db (the old placement) would be visible as absent here.
+  const backupDir = join(dir, "backups");
   try {
     const db = await createDb(url);
-    await runBootMigrations({ db, databaseUrl: url, launched: false });
-    const afterMigrate = readdirSync(dir).filter((name) => BACKUP_RE.test(name));
+    await runBootMigrations({ db, databaseUrl: url, backupDir, launched: false });
+    const afterMigrate = readdirSync(backupDir).filter((name) => BACKUP_RE.test(name));
     expect(afterMigrate).toHaveLength(1);
+    expect(readdirSync(dir).filter((name) => BACKUP_RE.test(name))).toEqual([]);
 
     // Second boot: the baseline is already recorded, nothing is pending ⇒ no new copy of the db.
-    await runBootMigrations({ db, databaseUrl: url, launched: false });
-    expect(readdirSync(dir).filter((name) => BACKUP_RE.test(name))).toEqual(afterMigrate);
+    await runBootMigrations({ db, databaseUrl: url, backupDir, launched: false });
+    expect(readdirSync(backupDir).filter((name) => BACKUP_RE.test(name))).toEqual(afterMigrate);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -97,7 +103,7 @@ test("the pre-migration backup restores a commit that remains in the live WAL", 
   const url = `file:${path}`;
   try {
     const db = await createDb(url);
-    await runBootMigrations({ db, databaseUrl: url, launched: false });
+    await runBootMigrations({ db, databaseUrl: url, backupDir: dir, launched: false });
     const priorBackups = new Set(readdirSync(dir).filter((name) => BACKUP_RE.test(name)));
 
     await db.run(sql`CREATE TABLE backup_probe (value text not null)`);
@@ -107,7 +113,7 @@ test("the pre-migration backup restores a commit that remains in the live WAL", 
     expect(await db.all(sql`SELECT value FROM backup_probe`)).toEqual([{ value: "committed-in-wal" }]);
     expect(statSync(`${path}-wal`).size).toBeGreaterThan(0);
 
-    await runBootMigrations({ db, databaseUrl: url, launched: false });
+    await runBootMigrations({ db, databaseUrl: url, backupDir: dir, launched: false });
 
     const created = readdirSync(dir).filter((name) => BACKUP_RE.test(name) && !priorBackups.has(name));
     expect(created).toHaveLength(1);
@@ -128,7 +134,7 @@ test("the pre-migration backup restores a commit that remains in the live WAL", 
 async function seedResetPendingDb(dir: string): Promise<{ db: Awaited<ReturnType<typeof createDb>>; url: string }> {
   const url = `file:${join(dir, "orb.db")}`;
   const db = await createDb(url);
-  await runBootMigrations({ db, databaseUrl: url, launched: false });
+  await runBootMigrations({ db, databaseUrl: url, backupDir: dir, launched: false });
   await db.run(sql`CREATE TABLE backup_failure_probe (value integer not null)`);
   await db.run(sql`INSERT INTO backup_failure_probe (value) VALUES (1)`);
   await db.run(sql`PRAGMA wal_checkpoint(TRUNCATE)`);
@@ -153,7 +159,7 @@ test("backup failure aborts before a regenerated-baseline reset", async () => {
     const priorBackups = readdirSync(dir).filter((name) => BACKUP_RE.test(name));
 
     await db.run(sql`BEGIN`);
-    await expect(runBootMigrations({ db, databaseUrl: url, launched: false })).rejects.toThrow(BACKUP_FAILED_RE);
+    await expect(runBootMigrations({ db, databaseUrl: url, backupDir: dir, launched: false })).rejects.toThrow(BACKUP_FAILED_RE);
     await db.run(sql`ROLLBACK`);
 
     // The abort came BEFORE the reset: the data is still there and the baseline is still the pending one.
@@ -177,7 +183,7 @@ test("#1374: debris at the stamped backup path is replaced, and the boot proceed
     const debrisPath = `${path}.backup-${Math.round(Math.max(statSync(path).mtimeMs, statSync(`${path}-wal`).mtimeMs))}`;
     writeFileSync(debrisPath, "occupied");
 
-    await expect(runBootMigrations({ db, databaseUrl: url, launched: false })).resolves.toBeUndefined();
+    await expect(runBootMigrations({ db, databaseUrl: url, backupDir: dir, launched: false })).resolves.toBeUndefined();
 
     // The reset ran (the probe table is gone) and the baseline is current again.
     await expect(db.all(sql`SELECT value FROM backup_failure_probe`)).rejects.toThrow();
@@ -195,14 +201,14 @@ test("a regenerated-baseline boot (the destructive reset) still backs up first, 
   const url = `file:${join(dir, "orb.db")}`;
   try {
     const db = await createDb(url);
-    await runBootMigrations({ db, databaseUrl: url, launched: false });
+    await runBootMigrations({ db, databaseUrl: url, backupDir: dir, launched: false });
     const first = readdirSync(dir).filter((name) => BACKUP_RE.test(name));
     expect(first).toHaveLength(1);
     // Force six more change-boots by back-dating the recorded baseline each time (the post-squash-regen
     // state). Each one resets + re-migrates, so each MUST take its own backup before dropping the tables.
     for (let i = 0; i < 6; i++) {
       await db.run(sql`UPDATE __drizzle_migrations SET created_at = 0`);
-      await runBootMigrations({ db, databaseUrl: url, launched: false });
+      await runBootMigrations({ db, databaseUrl: url, backupDir: dir, launched: false });
     }
     // 7 backups taken, retention keeps 5 (all same-day, so the per-day rollup adds nothing) — and the
     // very first one is gone, which is only true if all 7 were really taken and eviction really ran.
@@ -228,14 +234,14 @@ test("the shipped DB_LAUNCHED posture refuses a diverged chain on a real file db
     const db = await createDb(url);
     // A fresh db under the SHIPPED posture migrates normally — the refusal is about drift, not about being
     // launched, and a flip that bricked every first boot would pass a refusal-only assertion.
-    await runBootMigrations({ db, databaseUrl: url, launched: DB_LAUNCHED });
+    await runBootMigrations({ db, databaseUrl: url, backupDir: dir, launched: DB_LAUNCHED });
     await db.run(sql`CREATE TABLE launched_probe (value integer not null)`);
     await db.run(sql`INSERT INTO launched_probe (value) VALUES (1)`);
     const priorBackups = readdirSync(dir).filter((name) => BACKUP_RE.test(name));
 
     // The post-squash / edited-applied-migration state: what this db recorded is in no shipped entry.
     await db.run(sql`UPDATE __drizzle_migrations SET created_at = 0`);
-    await expect(runBootMigrations({ db, databaseUrl: url, launched: DB_LAUNCHED })).rejects.toThrow(LAUNCHED_FATAL_RE);
+    await expect(runBootMigrations({ db, databaseUrl: url, backupDir: dir, launched: DB_LAUNCHED })).rejects.toThrow(LAUNCHED_FATAL_RE);
 
     expect(await db.all(sql`SELECT value FROM launched_probe`)).toEqual([{ value: 1 }]);
     expect(readdirSync(dir).filter((name) => BACKUP_RE.test(name))).toEqual(priorBackups);
@@ -246,9 +252,9 @@ test("the shipped DB_LAUNCHED posture refuses a diverged chain on a real file db
 
 test("a LAUNCHED db refuses to auto-wipe — a baseline mismatch is boot-FATAL", async () => {
   const db = await createDb(":memory:");
-  await runBootMigrations({ db, databaseUrl: ":memory:", launched: false });
+  await runBootMigrations({ db, ...memoryDeps, launched: false });
   await db.run(sql`UPDATE __drizzle_migrations SET created_at = 0`);
-  await expect(runBootMigrations({ db, databaseUrl: ":memory:", launched: true })).rejects.toThrow(LAUNCHED_FATAL_RE);
+  await expect(runBootMigrations({ db, ...memoryDeps, launched: true })).rejects.toThrow(LAUNCHED_FATAL_RE);
 });
 
 // #1392, the companion to the type pin at `migrate.test-d.ts`: the gate above had never fired on a real boot
@@ -259,7 +265,7 @@ test("a LAUNCHED db refuses to auto-wipe — a baseline mismatch is boot-FATAL",
 // EXPLICIT `launched: false` buys the auto-wipe.
 test("OMITTING `launched` cannot reach the destructive branch — absence is fail-CLOSED", async () => {
   const db = await createDb(":memory:");
-  await runBootMigrations({ db, databaseUrl: ":memory:", launched: false });
+  await runBootMigrations({ db, ...memoryDeps, launched: false });
   await db.run(sql`UPDATE __drizzle_migrations SET created_at = 0`);
   // @orb-waive no-test-fabrication(unknown): the deliberate deps-without-the-flag probe — the pre-#1392 lifecycle call verbatim. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const withoutFlag = { db, databaseUrl: ":memory:" } as unknown as Parameters<typeof runBootMigrations>[0];

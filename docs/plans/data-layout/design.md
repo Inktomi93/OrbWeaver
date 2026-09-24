@@ -26,7 +26,10 @@ The backup rule becomes one sentence: copy `data/` except `data/cache/`. It read
 - The import report dir is a literal, not an env key: `REPORTS_DIR = "data/import-reports"` (`packages/server/src/entry/import/import-report.ts` L11, L327).
 - The variants dir is derived in three places from `ASSETS_DIR`: `packages/server/src/entry/lifecycle.ts` L457, `tooling/src/seed/ops/demo.ts` L354, `tooling/src/seed/ops/chat.ts` L122. One home per concept: the resolver below replaces all three.
 - There is no data-root key. Every slot is its own env key with a `./data/...` default (`packages/server/src/foundation/env/index.ts` L336, L342, L349, L383, L391). A test that isolates one slot leaves the others writing into the checkout's `data/` (the `importStagingDir` fixture comment, `tests/support/fixtures.ts` L11-13).
-- The `.session-secret` keyfile from the network plan is not on `main`: `session-secret` has zero matches under `packages/server/src`, and no unmerged branch in this repository touches `packages/server/src/infra/crypto`. It plugs in as described under Secrets.
+- The `.session-secret` keyfile is generated beside the db through the same `keyfileBesideDb` rule as the credentials key (`packages/server/src/infra/crypto/key.ts`), on every boot in every auth mode. It joins the migration table below.
+- Keyfile creation is atomic: a private temp file is hard-linked into place, so a planted symlink is never written through and two racing boots share the one key that won (`packages/server/src/infra/crypto/key.ts` `publishKeyfile`). The move keeps that path for a fresh box.
+- A stack that sets only `DATABASE_URL` and `ASSETS_DIR` leaves every other slot at its default. Once secrets, reports and variants derive from `DATA_DIR`, such a stack writes its keyfiles into the checkout's `data/secrets/`. The e2e mode projects (`tests/e2e/support/modes.ts`), the multi-user fixture (`tooling/src/stack/multi-user-fixture.sh`), the snap stage (`tooling/src/snap/ops/stage.ts`) and every lifecycle test suite that stubs slots are affected, not "unaffected": each sets `DATA_DIR`.
+- The package exports map resolves only `<dir>/index.ts` (`packages/server/package.json`), so a tooling reader of the pure resolver needs a module directory. The resolver lives in a new `data-layout/index.ts` under `packages/server/src/foundation/`, not in a file under `packages/server/src/foundation/env/`.
 - No skill, rule or `AGENTS.md` cites a data path.
 
 ### Target tree
@@ -60,7 +63,7 @@ Deviations from the proposed target, each with its reason:
 
 ### The resolver: one home for every path
 
-A new `data-layout.ts` under `packages/server/src/foundation/env/` will export a pure `resolveDataLayout(raw)` and the schema will call it from the existing `.transform` (`packages/server/src/foundation/env/index.ts` L693), the same place `AUTH_FALLBACK` is resolved per mode.
+A new `data-layout/index.ts` under `packages/server/src/foundation/` will export a pure `resolveDataLayout(raw)` and the schema will call it from the existing `.transform` (`packages/server/src/foundation/env/index.ts` L693), the same place `AUTH_FALLBACK` is resolved per mode. The resolved layout is published as `env.DATA_LAYOUT`, so a consumer of a slot with no env key (`variants`, `backups`, `secrets`, `reports`) reads it from the one frozen env.
 
 - A new env key `DATA_DIR` is the root. Its default is `data` under the process working directory, cwd-relative like every slot today.
 - The slot keys stay: `DATABASE_URL`, `ASSETS_DIR`, `LOCAL_LIGHT_CACHE_DIR`, `USER_RUNTIME_DIR`, `IMPORT_STAGING_DIR`, `ST_PROFILE_DIR`. Each becomes optional in the schema; the resolver fills an unset one from `DATA_DIR`. `env.DATABASE_URL` and the others stay resolved strings, so every reader keeps its shape.
@@ -74,7 +77,23 @@ Consumers switch to the resolver: `packages/server/src/entry/lifecycle.ts` L456-
 
 ### Secrets
 
-`secrets/` holds three files. `credentials_key` is written by `loadOrCreateKeyfile` (`packages/server/src/infra/crypto/key.ts` L59-84, unchanged) at the path the resolver gives. The network plan's session keyfile plugs in at `join(layout.secrets, "session_secret")` through the same `loadOrCreateKeyfile`; that is the exact file the container entrypoint already generates, so bare metal and the container converge on one file. The two writers are byte-compatible: the entrypoint writes bare hex, the keyfile writer writes hex plus a newline, and the reader trims. `initial_password` stays entrypoint-only. If the network leg merges first, its `.session-secret` beside the db joins the migration table below; if it merges second, it names the new path and there is nothing to migrate.
+`secrets/` holds three files. `credentials_key` is written by `loadOrCreateKeyfile` (`packages/server/src/infra/crypto/key.ts`, unchanged) at the path the resolver gives. The session keyfile is `join(layout.secrets, "session_secret")` through the same `loadOrCreateKeyfile`; that is the exact file the container entrypoint already generates, so bare metal and the container converge on one file. The two writers are byte-compatible: the entrypoint writes bare hex, the keyfile writer writes hex plus a newline, and the reader trims. `initial_password` stays entrypoint-only. A non-`file:` `DATABASE_URL` still generates nothing: a keyfile joins the db's backup unit, and a remote db has none on this disk.
+
+### Boot secrets refuse when data depends on them
+
+Owner ruling: a boot secret is generated only when no data depends on it. Otherwise the boot refuses with one message that names the missing file and where it is expected.
+
+- The credentials key depends on data when any `user_credentials` row exists.
+- The session secret depends on data when any `users` row carries a `password_hash`, or any `sessions` row exists.
+
+The check needs the db, and the db needs the migrated layout, so the secrets resolve in two phases around the db open:
+
+1. Before `createDb`: `resolveCredentialsKey` and `resolveSessionSecret` (`infra/crypto/key.ts`) read the explicit env value, else the keyfile at the layout's secrets path. An explicit value wins. A keyfile that exists but cannot be used still fails closed and is never replaced. A remote db still yields no auto key. A keyfile that does not exist yields `absent` with its path, and nothing is written yet.
+2. After `runBootMigrations`: `settleBootSecrets` (`entry/boot/boot-secrets.ts`) runs the two dependence queries for each `absent` secret. A dependent secret throws the refusal; an independent one is generated through `loadOrCreateKeyfile`, the atomic path a fresh box uses.
+
+A cookie mode still refuses before the db opens when the session secret is unusable (remote db, or a corrupt keyfile), as today; only the `absent` case waits for the db. The `Tier-3-Infra.md` "degrades, never throws at boot" rule narrows to the corrupt-keyfile and bad-explicit-value cases; a missing keyfile with dependents is a boot refusal in `entry/boot`.
+
+The snap stage copies a dev db and must be able to read its rows, so `seedStageData` also copies `secrets/credentials_key` and `secrets/session_secret` into the stage's own data root, and `SESSION_SECRET` joins `STAGE_INHERITED_ENV_KEYS` beside `CREDENTIALS_KEY` for a dev box that sets it explicitly.
 
 ### The migration step
 
@@ -87,11 +106,14 @@ The legacy table, applied only to a slot the operator did not set:
 | `orbweaver.db`, `orbweaver.db-wal`, `orbweaver.db-shm` | `db/` |
 | `orbweaver.db.backup-<stamp>` with `-wal`, `-shm` and `.keep` siblings | `backups/` |
 | `.credentials-key` | `secrets/credentials_key` |
+| `.session-secret` | `secrets/session_secret` |
 | `variants/` | `cache/variants/` |
 | `models/` | `cache/models/` |
 | `import-staging/` | `cache/import-staging/` |
 | `import-reports/` | `reports/` |
-| `assets/`, `users/`, `secrets/session_secret`, `secrets/initial_password` | unchanged |
+| `assets/`, `users/`, `secrets/initial_password` | unchanged |
+
+The `variants/`, `import-reports/`, backup and keyfile rows have no env key and move whenever present. The `models/` and `import-staging/` rows move only when their slot key is unset; a set key names a directory the operator owns.
 
 The protocol:
 
@@ -131,8 +153,11 @@ Every reader and writer of a data path, by slot. A line number is a locator, not
 | db | `tooling/src/seed/ops/demo.ts` L104-113, L332-346; `tooling/src/seed/ops/chat.ts` L101-102 | `--fresh` wipe, open, migrate |
 | db | `tooling/src/verify/ops/db-baseline-parity.ts` L150, L159 | mirrors the default literal |
 | db | `tooling/src/snap/ops/stage-source.ts` L91-101; `tooling/src/snap/lib/stage-plan.ts` L64-65 | copies the dev db into a stage |
-| db | `tooling/src/render-trace/ops/fire.ts` L113; `tests/e2e/support/modes.ts` L242-244, L283-285, L329-330; `tooling/src/stack/multi-user-fixture.sh` L53-54 | explicit `.cache` paths; unaffected, listed for completeness |
-| db, assets | `tests/server/entry/lifecycle.int.test.ts` L20-29 | stubs two slots; will stub `DATA_DIR` instead |
+| root | `tests/e2e/support/modes.ts` L242-244, L283-285, L329-330; `tooling/src/stack/multi-user-fixture.sh` L53-54 | each stack sets `DATA_DIR` under its `.cache` tree, so its secrets and reports never land in the checkout's `data/` |
+| root | `tests/server/entry/lifecycle.int.test.ts` L20-29 and every `lifecycle-*.suite.int.test.ts`, `tests/server/entry/boot/local-light-prefetch-*.suite.int.test.ts` | stub `DATA_DIR` to the temp root instead of one slot each |
+| root | `tooling/src/snap/ops/stage.ts` L121; `tooling/src/snap/lib/stage-plan.ts` L64-65, L291 | the stage sets `DATA_DIR` to `<stage>/data`; `SESSION_SECRET` joins the inherited keys |
+| secrets | a new `boot-secrets.ts` under `packages/server/src/entry/boot/`; `packages/server/src/entry/lifecycle.ts` L348-360 | the two-phase resolution and the dependence refusal |
+| db | `tooling/src/render-trace/ops/fire.ts` L113 | an explicit `.cache` path with its own root; unaffected |
 | backups | `packages/db/src/client/index.ts` L212-236, L238-272, L292-314, L362-383 | `backupBeforeMigrate`, retention constants, the `.keep` pin, `pruneDbBackups` |
 | backups | `packages/server/src/entry/boot/migrate.ts` L38-55, L66-101 | the boot step passes the dir |
 | backups | `tests/db/client.int.test.ts` L273-431, L621-715; `tests/server/entry/boot/migrate.int.test.ts` L77-146, L171-222 | assert the backup dir |
@@ -188,9 +213,12 @@ No behavior change; callers pass `dirname(path)`.
   - a second run is a no-op with zero renames.
 - `tests/server/entry/lifecycle.int.test.ts`: a credential sealed with the legacy keyfile decrypts after a boot that moved it (`probeKeyDecrypt` true), with the tree stubbed through `DATA_DIR`.
 - `tests/server/domain/assets/verbs/resolve-variant.int.test.ts`: a variant present under the moved cache is served without a transform call; with the cache dir absent it regenerates with one call.
-- `tests/server/infra/crypto/key.test.ts`: `dataDirFromDbUrl` cases are deleted with the function; `resolveAutoKey` writes to the secrets dir from the layout.
+- `tests/server/infra/crypto/key.test.ts`: `dataDirFromDbUrl` cases are deleted with the function; the resolvers write to the secrets dir they are given; an absent keyfile resolves to `absent` with its path and writes nothing.
+- A new `boot-secrets.int.test.ts` under `tests/server/entry/boot/`, each case on a migrated `:memory:` db and a temp secrets dir: an empty db generates both keyfiles at mode 0600; a `user_credentials` row with the credentials keyfile absent refuses and names the file, and writes nothing; a user with a `password_hash` and no session keyfile refuses and names the file; a `sessions` row alone refuses too; an explicit value with dependents present neither refuses nor writes; a `resolved` secret passes through untouched.
+- `tests/server/entry/lifecycle-session-secret.suite.int.test.ts`: the first boot stores a credential through `OPENROUTER_API_KEY` and generates both keyfiles under `secrets/`; a restart reuses them; deleting `session_secret` then makes the boot refuse and name that path with no listener bound; the same for `credentials_key`. The refusal replaces the former "regenerate and 401" control.
+- Red first: the `boot-secrets` suite fails because the module does not exist; the lifecycle refusal cases fail on the unmodified tree because the boot regenerates and serves.
 - `tests/server/entry/import/import-report.test.ts` and `tests/server/domain/import/substrate/staging.test.ts`: the new defaults.
-- `tests/tooling/snap/lib/stage-plan.test.ts` and a new case for `seedStageData` reading the new dev paths, with a control that a tree in the old shape copies nothing and says so.
+- `tests/tooling/snap/lib/stage-plan.test.ts` and a new `stage-source.test.ts` under `tests/tooling/snap/ops/` for `seedStageData`: a dev root in the new shape copies the db and both keyfiles and links the assets; a control root in the old shape copies nothing, returns null provenance and prints a line naming the legacy layout.
 - Existing round trips run unchanged as the regression floor: `tests/server/infra/storage/cas.int.test.ts`, `tests/server/infra/storage/variant-cache.int.test.ts`, `tests/server/entry/import/bundle-round-trip.suite.int.test.ts`, `tests/server/entry/http/portability-routes.suite.int.test.ts`, `tests/server/entry/import/run-profile-dir-import.test.ts`, `tests/server/domain/import/workload-contributions.test.ts`, `tests/server/entry/compose/portability-runner.test.ts`, `tests/server/entry/boot/local-light-prefetch-boot.suite.int.test.ts`, `tests/server/entry/boot/local-light-prefetch-off.suite.int.test.ts`.
 - Red first: the migration suite fails on the unmodified tree because the step does not exist; the default-literal tests fail on the old literals.
 - Floor: the suites above by path, a scoped typecheck of the server, db, inference and tooling programs, Biome and ESLint on the touched files, `pnpm check:structure`.
