@@ -415,7 +415,7 @@ export async function runVerify(root: string, parsed: Parsed): Promise<number> {
     return refuseUnrunnableRows(root);
   }
   // The host-wide whole-run slot, held for the WHOLE run and released in the `finally` (../lib/whole-run-queue.ts).
-  const queue = await enterWholeRunQueue(root, parsed);
+  const queue = await enterWholeRunQueue(root, { tier: parsed.tier, scoped: parsed.selection !== undefined });
   try {
     const slot = openRunSlot(root, VERIFY_INSTRUMENT);
     announceRacing(slot);

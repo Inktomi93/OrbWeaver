@@ -6,17 +6,17 @@ import { join } from "node:path";
 import process from "node:process";
 import type { HostSlotLease } from "../../../../tooling/src/verify/contract/host-slots.ts";
 import { HOST_POOL_ROOT_ENV } from "../../../../tooling/src/verify/lib/host-slots.ts";
-import type { Parsed } from "../../../../tooling/src/verify/lib/run-argv.ts";
-import { parse } from "../../../../tooling/src/verify/lib/run-argv.ts";
+import { parseRequest } from "../../../../tooling/src/verify/lib/run-argv.ts";
+import type { WholeRunAsk } from "../../../../tooling/src/verify/lib/whole-run-queue.ts";
 import { enterWholeRunQueue } from "../../../../tooling/src/verify/lib/whole-run-queue.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
-function wholeRun(argv: readonly string[]): Parsed {
-  const parsed = parse(argv);
+function wholeRun(argv: readonly string[]): WholeRunAsk {
+  const parsed = parseRequest(argv);
   if ("error" in parsed) {
     throw new Error(`argv ${argv.join(" ")} did not parse: ${parsed.error}`);
   }
-  return parsed;
+  return { tier: parsed.tier, scoped: parsed.request !== undefined };
 }
 
 // Each poll moves the shared clock well under the queue's heartbeat window, so the waiters stay live
