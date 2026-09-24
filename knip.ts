@@ -60,7 +60,9 @@ const config = {
       entry: ["scripts/**/*.ts", "!scripts/probes/st-goldens/sillytavern-runtime/**", "playwright/**/*.{ts,tsx}", "tests/support/**/*.{ts,tsx}"],
       project: ["scripts/**/*.ts", "!scripts/probes/st-goldens/sillytavern-runtime/**", "tests/**/*.{ts,tsx}", "playwright/**/*.{ts,tsx}"],
       // The full binary analysis sees these deliberately fake executables in missing-binary and PATH-shim controls.
-      ignoreBinaries: ["orb-nonexistent-binary-xyz-123", "orb-fake-probe-bin"],
+      // mkfifo is the POSIX coreutils binary the orchestrator-inject hook test uses to plant a FIFO transcript path;
+      // it is an OS tool, never an npm dependency, so knip has no package to credit it to.
+      ignoreBinaries: ["orb-nonexistent-binary-xyz-123", "orb-fake-probe-bin", "mkfifo"],
       // pino-pretty is spawned as a BINARY by tooling/src/stack/dev.sh (the dev-log pretty-pipe), never imported —
       // invisible to import analysis. It's a root devDependency because the dev script lives at the repo root.
       // ts7 (npm:typescript@7) is resolved by PATH STRING in scripts/ts7.ts (node_modules/ts7/bin/tsc) —
