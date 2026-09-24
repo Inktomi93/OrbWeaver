@@ -161,6 +161,17 @@ function readExistingKeyfile(keyPath: string): Buffer | null {
   }
 }
 
+// The pepper a session-secret keyfile's key stands for: its bytes as hex, whichever encoding the file used.
+function sessionPepper(key: Buffer | null): string | null {
+  return key?.toString("hex") ?? null;
+}
+
+/** The pepper a session-secret keyfile known to exist holds, read the way `resolveSessionSecret` reads its own
+ *  keyfile; `null` when the file is not a usable key. Never writes. */
+export function readSessionSecretKeyfile(path: string): string | null {
+  return sessionPepper(readExistingKeyfile(path));
+}
+
 // Where a boot secret's keyfile lives, or null for a remote db that has no local backup unit to join.
 function keyfilePath(source: BootSecretSource, name: string): string | null {
   return source.databaseUrl.startsWith(FILE_URL_PREFIX) ? join(source.secretsDir, name) : null;
@@ -238,5 +249,5 @@ export function resolveSessionSecret(
   if (keyfile.kind === "absent") {
     return keyfile;
   }
-  return { kind: "resolved", value: keyfile.value?.toString("hex") ?? null, path: keyfile.path };
+  return { kind: "resolved", value: sessionPepper(keyfile.value), path: keyfile.path };
 }

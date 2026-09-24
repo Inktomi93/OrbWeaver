@@ -86,6 +86,12 @@ describe("resolveDataLayout", () => {
     expect(typo).toThrow("import-reports");
   });
 
+  // The db's remedy is a value, not only a key: the url that keeps the legacy db under the operator's root.
+  test("DATA_LAYOUT_SKIP refuses the db with the DATABASE_URL value that keeps it under the root", () => {
+    const refusal = (): DataLayout => resolveDataLayout({ ["DATA_DIR"]: "/srv/orb", ["DATA_LAYOUT_SKIP"]: DB_FILE_NAME });
+    expect(refusal).toThrow(`DATABASE_URL=file:/srv/orb/${DB_FILE_NAME} `);
+  });
+
   test("an explicit CREDENTIALS_KEY or SESSION_SECRET lands in the explicit set like a slot key", () => {
     const layout = resolveDataLayout({ ["CREDENTIALS_KEY"]: "ab".repeat(32), ["SESSION_SECRET"]: "" });
     expect([...layout.explicit]).toEqual(["CREDENTIALS_KEY"]);

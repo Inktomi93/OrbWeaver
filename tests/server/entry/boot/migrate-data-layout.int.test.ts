@@ -28,11 +28,12 @@ import type { DataLayoutMigrationReport } from "@orb/server/entry/boot";
 import { LAYOUT_JOURNAL, migrateDataLayout } from "@orb/server/entry/boot";
 import type { DataLayout } from "@orb/server/foundation/data-layout";
 import { DB_FILE_NAME, resolveDataLayout, SECRET_FILE_NAMES } from "@orb/server/foundation/data-layout";
+import { getLog } from "@orb/server/foundation/observability";
 import { createCas } from "@orb/server/infra/storage";
 import type { NicedChild } from "@orb/tooling/_shared/proc";
 import { spawnNicedChild } from "@orb/tooling/_shared/proc";
 import { sql } from "drizzle-orm";
-import { afterEach, describe } from "vitest";
+import { afterEach, describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER = castId<UserId>("user_layout_owner");
@@ -55,6 +56,7 @@ function freshRoot(): string {
   return join(parent, "data");
 }
 afterEach(() => {
+  vi.restoreAllMocks();
   for (const dir of roots.splice(0)) {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -616,5 +618,68 @@ describe("migrateDataLayout", () => {
     // Boot 4, the remedy kept: a no-op that still names what stayed.
     const fourth = await migrateDataLayout({ layout: layoutFor(root, { ["DATA_LAYOUT_SKIP"]: "import-reports" }), pid, rename: reportsIsBusy });
     expect(fourth).toEqual({ moved: [], leftInPlace: [], resumed: false });
+  });
+
+  // The db's way out is a value, not only a key: the refusal carries the DATABASE_URL that keeps the legacy
+  // db under this root, and that exact value, set, is what lets the boot through.
+  test("a legacy db on another filesystem refuses with the DATABASE_URL value that keeps it, and that value boots", async () => {
+    const root = freshRoot();
+    await plantLegacyTree(root);
+    const dbOnOtherDevice = (path: string): number => (path.endsWith(`${sep}${DB_FILE_NAME}`) ? 2 : 1);
+    const refusal = migrateDataLayout({ layout: layoutFor(root), pid, deviceOf: dbOnOtherDevice });
+    await expect(refusal).rejects.toThrow(`DATABASE_URL=file:${join(root, DB_FILE_NAME)} `);
+    const message = await refusal.then(
+      () => "",
+      (err: Error) => err.message,
+    );
+    const remedy = message.match(/DATABASE_URL=(\S+)/u)?.[1];
+    expect(remedy).toBe(`file:${join(root, DB_FILE_NAME)}`);
+    const report = await migrateDataLayout({ layout: layoutFor(root, { ["DATABASE_URL"]: remedy ?? "" }), pid, deviceOf: dbOnOtherDevice });
+    expect(report.moved.some((move) => move.from === DB_FILE_NAME)).toBe(false);
+    expect(await probeValues(join(root, DB_FILE_NAME))).toEqual(["checkpointed", "wal-only"]);
+  });
+
+  // A keyfile an explicit key keeps is named by the layout, so the warn that lists it names the key that
+  // keeps it, and the does-not-name warn carries only the operator's own entries.
+  test("a keyfile kept by an explicit key is warned with its keeper, never as an entry the layout does not name", async () => {
+    const warn = vi.spyOn(getLog(), "warn").mockImplementation(() => undefined);
+    const root = freshRoot();
+    await plantLegacyTree(root);
+    await migrateDataLayout({ layout: layoutFor(root, { ["CREDENTIALS_KEY"]: "ab".repeat(32) }), pid });
+    expect(warn).toHaveBeenCalledWith(expect.objectContaining({ kept: [{ entry: ".credentials-key", keptBy: "CREDENTIALS_KEY" }] }), expect.any(String));
+    expect(warn).toHaveBeenCalledWith(expect.objectContaining({ entries: ["notes.txt"] }), expect.any(String));
+    expect(warn).not.toHaveBeenCalledWith(expect.objectContaining({ entries: expect.arrayContaining([".credentials-key"]) }), expect.any(String));
+  });
+
+  // A volume whose `.session-secret` an explicit SESSION_SECRET keeps in place (the container mints one for a
+  // single-user volume switched to a cookie mode) peppers with the new value, so every live invite hashed
+  // with the old one stops matching. The boot warns on every run while the two differ, naming the file and
+  // its keeper; a SESSION_SECRET equal to the file's pepper, or none at all, is silent.
+  test("a legacy session secret kept beside a different explicit SESSION_SECRET is warned on every boot; an equal one is not", async () => {
+    const warn = vi.spyOn(getLog(), "warn").mockImplementation(() => undefined);
+    const stranded = expect.objectContaining({ keptBy: "SESSION_SECRET", legacyKeyfile: expect.any(String) });
+    const minted = "ef".repeat(32);
+    const root = freshRoot();
+    await plantLegacyTree(root);
+    const layout = layoutFor(root, { ["SESSION_SECRET"]: minted });
+    await migrateDataLayout({ layout, pid, sessionSecret: minted });
+    expect(warn).toHaveBeenCalledWith(expect.objectContaining({ keptBy: "SESSION_SECRET", legacyKeyfile: join(root, ".session-secret") }), expect.any(String));
+    warn.mockClear();
+    const again = await migrateDataLayout({ layout, pid, sessionSecret: minted });
+    expect(again.moved).toEqual([]);
+    expect(warn).toHaveBeenCalledWith(expect.objectContaining({ keptBy: "SESSION_SECRET", legacyKeyfile: join(root, ".session-secret") }), expect.any(String));
+
+    warn.mockClear();
+    const sameRoot = freshRoot();
+    await plantLegacyTree(sameRoot);
+    const legacyPepper = SECRET_HEX.trim();
+    await migrateDataLayout({ layout: layoutFor(sameRoot, { ["SESSION_SECRET"]: legacyPepper }), pid, sessionSecret: legacyPepper });
+    expect(warn).not.toHaveBeenCalledWith(stranded, expect.any(String));
+
+    const unsetRoot = freshRoot();
+    await plantLegacyTree(unsetRoot);
+    await migrateDataLayout({ layout: layoutFor(unsetRoot), pid });
+    expect(warn).not.toHaveBeenCalledWith(stranded, expect.any(String));
+    expect(readFileSync(join(unsetRoot, "secrets", SECRET_FILE_NAMES.sessionSecret), "utf-8")).toBe(SECRET_HEX);
   });
 });
