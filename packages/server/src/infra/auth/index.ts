@@ -17,12 +17,12 @@
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { securityEvent } from "#foundation/observability";
 import { authConfigFromEnv } from "./config.ts";
 import type { IdentityResolution, ResolveDeps } from "./contract.ts";
 import { hasCsrfHeader } from "./csrf.ts";
 import { MODE_RESOLVERS, ownerFallbackAllowed } from "./dispatch.ts";
 import { hasForwardingHeader } from "./forwarded.ts";
+import { reportRelayedFallback } from "./relay-notice.ts";
 
 /**
  * VERIFICATION: resolve a request's headers → an `IdentityResolution` (the pre-row identity + the seam's
@@ -68,11 +68,7 @@ export async function resolve(headers: Headers, deps: ResolveDeps): Promise<Iden
       };
     }
     if (hasForwardingHeader(headers)) {
-      securityEvent(
-        "owner_fallback_relayed",
-        { peerIp: deps.peerIp ?? null },
-        "security: a relayed request (forwarding header present) asked for the un-credentialed owner fallback — refusing. A proxy or tunnel in front of this box must not make its visitors the owner: use AUTH_MODE=local or oidc behind it.",
-      );
+      (deps.relayedFallbackNotice ?? reportRelayedFallback)(deps.peerIp);
     }
   }
 
@@ -104,6 +100,7 @@ export type {
   OidcTransaction,
   OidcTransactionStore,
   OidcVerifiedTokens,
+  RelayedFallbackNotice,
   ResolveDeps,
 } from "./contract.ts";
 export { hasCsrfHeader } from "./csrf.ts";
@@ -127,3 +124,4 @@ export {
   MIN_PASSWORD_LENGTH,
   type PasswordHasher,
 } from "./password.ts";
+export { createRelayedFallbackNotice } from "./relay-notice.ts";

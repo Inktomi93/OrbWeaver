@@ -1,5 +1,6 @@
+import type { RelayedFallbackNotice } from "@orb/server/infra/auth";
 import { resolve } from "@orb/server/infra/auth";
-import { describe } from "vitest";
+import { describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 import { makeAuthConfig as cfg, headers } from "./_support.ts";
 
@@ -171,5 +172,14 @@ describe("resolve — a relayed loopback request is never the owner (Rule B)", (
     const res = await resolve(headers({ host: "127.0.0.1:8788", "user-agent": "curl/8" }), { config: cfg({ mode: "single-user" }), peerIp: "127.0.0.1" });
     expect(res.via).toBe("fallback");
     expect(res.identity?.handle).toBe("owner");
+  });
+
+  test("a relayed refusal goes to the injected notice, keyed by the raw peer; an owner request does not", async () => {
+    const notice = vi.fn<RelayedFallbackNotice>();
+    const deps = { config: cfg({ mode: "single-user" }), peerIp: "127.0.0.1", relayedFallbackNotice: notice };
+    await resolve(headers({ "x-forwarded-for": "203.0.113.9" }), deps);
+    await resolve(headers({ "cf-connecting-ip": "203.0.113.10" }), deps);
+    await resolve(headers(), deps);
+    expect(notice.mock.calls).toEqual([["127.0.0.1"], ["127.0.0.1"]]);
   });
 });
