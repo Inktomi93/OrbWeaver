@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve as resolveCwd } from "node:path";
+import { closeSync, fsyncSync, linkSync, lstatSync, mkdirSync, openSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { basename, dirname, join, resolve as resolveCwd } from "node:path";
 import process from "node:process";
 import { env } from "#foundation/env";
 
@@ -15,6 +15,8 @@ const CREDENTIALS_KEY_BYTES = 32;
 const HEX_KEY_LENGTH = 64;
 // Owner-only read/write — the keyfile must never be group/world readable.
 const KEYFILE_MODE = 0o600;
+// Random suffix for the publish temp file beside the keyfile, so two racing boots never share one.
+const TEMP_NAME_BYTES = 8;
 const CREDENTIALS_KEYFILE = ".credentials-key";
 /** The generated pepper's file name, beside the db; boot refusals name it back to the operator. */
 export const SESSION_SECRET_KEYFILE = ".session-secret";
@@ -77,26 +79,85 @@ function reportKeyfile(line: string): void {
   }
 }
 
+function errorText(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+// Reads THROUGH a symlink on purpose: an operator may point the keyfile at a secrets mount. A dangling one
+// throws ENOENT here, which the caller turns into a fail-closed null.
+function readKeyfile(keyPath: string): Buffer | null {
+  const key = decode32Bytes(readFileSync(keyPath, "utf-8"));
+  if (key === null) {
+    reportKeyfile(`${keyPath} exists but is not a 32-byte hex or base64 key; leaving it in place and not generating a new one.`);
+  }
+  return key;
+}
+
+// @orb-waive caught-failure-ownership(err): the key is already linked into place with its bytes fsynced, so a directory that cannot be fsynced (a FUSE or network mount answers ENOTSUP) costs only crash durability of the new entry; failing the boot over it would refuse a key that is on disk. Reported on stderr. Ends if the entry fsync becomes required for correctness.
+function fsyncDirectory(dir: string): void {
+  try {
+    const fd = openSync(dir, "r");
+    try {
+      fsyncSync(fd);
+    } finally {
+      closeSync(fd);
+    }
+  } catch (err) {
+    reportKeyfile(`could not fsync ${dir} (${errorText(err)}); the key is written, but a crash now could lose its directory entry.`);
+  }
+}
+
+// SECURITY: never replace or write through anything already at `keyPath`. The bytes go to a private temp file
+// (O_EXCL, 0600, fsynced) that is hard-linked into place. link(2) fails with EEXIST on ANY existing entry,
+// including a planted symlink (dangling or not), and never follows it. A rename would clobber a racing boot's
+// key; an open without O_EXCL would write through a symlink. `false` means another entry won the path.
+function publishKeyfile(keyPath: string, key: Buffer): boolean {
+  const dir = dirname(keyPath);
+  mkdirSync(dir, { recursive: true });
+  const tempPath = join(dir, `${basename(keyPath)}.${randomBytes(TEMP_NAME_BYTES).toString("hex")}.tmp`);
+  const fd = openSync(tempPath, "wx", KEYFILE_MODE);
+  try {
+    try {
+      writeFileSync(fd, `${key.toString("hex")}\n`);
+      fsyncSync(fd);
+    } finally {
+      closeSync(fd);
+    }
+    try {
+      linkSync(tempPath, keyPath);
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === "EEXIST") {
+        return false;
+      }
+      throw err;
+    }
+  } finally {
+    unlinkSync(tempPath);
+  }
+  fsyncDirectory(dir);
+  return true;
+}
+
 /** Load an existing keyfile, or generate + persist a fresh 32-byte one (hex, mode 0600) on first call.
  *  A keyfile that exists but is not a 32-byte hex/base64 key, or cannot be read, FAILS CLOSED: it returns
- *  null and is never overwritten. A filesystem fault on first write also returns null. */
-export function loadOrCreateKeyfile(keyPath: string): Buffer | null {
+ *  null and is never overwritten. A filesystem fault on first write also returns null.
+ *  @remarks Creation is atomic and never clobbers: two boots racing on an empty data dir both return the one
+ *  key that won the path. `generate` is the entropy source, injectable so a test can interleave a second
+ *  creator between the absence check and the publish. */
+export function loadOrCreateKeyfile(keyPath: string, generate: () => Buffer = () => randomBytes(CREDENTIALS_KEY_BYTES)): Buffer | null {
   // @orb-waive caught-failure-ownership(err): FAIL-CLOSED at boot by design — any filesystem fault (permission, read-only, corrupt keyfile) returns null so no caller ever re-keys over the only recovery copy. The fault is reported on stderr; the credentials box then runs DISABLED and a cookie mode refuses to boot (`entry/lifecycle.ts`). Ends if every caller moves to refusing startup on a crypto fault.
   try {
-    if (existsSync(keyPath)) {
-      const key = decode32Bytes(readFileSync(keyPath, "utf-8"));
-      if (key === null) {
-        reportKeyfile(`${keyPath} exists but is not a 32-byte hex or base64 key; leaving it in place and not generating a new one.`);
+    // lstat, not exists: a dangling symlink is an entry, and it must fail closed rather than read as absent.
+    if (lstatSync(keyPath, { throwIfNoEntry: false }) === undefined) {
+      const fresh = generate();
+      if (publishKeyfile(keyPath, fresh)) {
+        reportKeyfile(`generated ${keyPath} (mode 0600). Back it up with the database.`);
+        return fresh;
       }
-      return key;
     }
-    const fresh = randomBytes(CREDENTIALS_KEY_BYTES);
-    mkdirSync(dirname(keyPath), { recursive: true });
-    writeFileSync(keyPath, `${fresh.toString("hex")}\n`, { mode: KEYFILE_MODE });
-    reportKeyfile(`generated ${keyPath} (mode 0600). Back it up with the database.`);
-    return fresh;
+    return readKeyfile(keyPath);
   } catch (err) {
-    reportKeyfile(`${keyPath} could not be read or created (${err instanceof Error ? err.message : String(err)}); not generating a new one.`);
+    reportKeyfile(`${keyPath} could not be read or created (${errorText(err)}); not generating a new one.`);
     return null;
   }
 }
