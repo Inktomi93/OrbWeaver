@@ -4,7 +4,7 @@
     {
       "name": "orbweaver",
       "runtimeExecutable": "bash",
-      "runtimeArgs": ["-c", "exec env -u PORT bash scripts/dev/stack.sh start-fg"],
+      "runtimeArgs": ["-c", "exec env -u PORT bash tooling/src/stack/stack.sh start-fg"],
       "port": 5173,
       "autoPort": false
     }
