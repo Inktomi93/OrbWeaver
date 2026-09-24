@@ -14,7 +14,7 @@ import fs from "node:fs";
 import type { RpgSnapshotState, RpgTrackerDef, RpgTrackerView } from "@orb/contracts/rpg";
 import { RPG_PROFILE_FREEFORM, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { LiteReminderInput } from "../../../packages/server/src/domain/rpg/contract/params.ts";
-import { buildLiteReminder } from "../../../packages/server/src/domain/rpg/substrate/reminder.ts";
+import { buildLiteReminder, frameLiteReminder } from "../../../packages/server/src/domain/rpg/substrate/reminder.ts";
 import { REPO_ROOT } from "@orb/tooling/_shared/artifacts";
 
 const KEY = (() => {
@@ -163,7 +163,7 @@ function realReminder(wits: number, beats: readonly string[]): string {
     omniscience: false,
     dateMode: "narrated",
   };
-  return buildLiteReminder(input);
+  return frameLiteReminder(buildLiteReminder(input), input.prose ?? {});
 }
 
 type Msg = { role: string; content: string };

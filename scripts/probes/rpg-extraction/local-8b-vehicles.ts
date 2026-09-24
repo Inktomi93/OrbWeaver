@@ -65,7 +65,7 @@ import {
 import type { UserId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { buildActorRefIndex, extractionToStateDelta } from "../../../packages/server/src/domain/rpg/tools/apply.ts";
-import { buildLiteReminder } from "../../../packages/server/src/domain/rpg/substrate/reminder.ts";
+import { buildLiteReminder, frameLiteReminder } from "../../../packages/server/src/domain/rpg/substrate/reminder.ts";
 import { scrubWireSchema } from "@orb/contracts/inference";
 
 /** The vLLM guided-decoding subset — the probe drives a local 8b on the `openai-compatible` transport. */
@@ -343,7 +343,7 @@ function trackerView(state: RpgSnapshotState, config: RpgGameConfig): RpgTracker
 }
 
 function reminderFor(cur: RpgSnapshotState, prev: RpgSnapshotState | null, config: RpgGameConfig): string {
-  return buildLiteReminder({
+  const reminder = buildLiteReminder({
     view: trackerView(cur, config),
     steeringNote: config.lite.steeringNote,
     curSnapshot: cur,
@@ -355,6 +355,8 @@ function reminderFor(cur: RpgSnapshotState, prev: RpgSnapshotState | null, confi
     omniscience: false,
     dateMode: config.dateMode,
   });
+  // No reconcile note and no preset prose here, so this is gather.ts's frame call with shipped defaults.
+  return frameLiteReminder(reminder, {});
 }
 
 // ── the extraction user prompt (MIRROR of compose/rpg.ts:242 `window` arm; ~4 chars/token budget) ────────
@@ -666,7 +668,8 @@ async function runGame(arm: string, runIndex: number): Promise<{ turns: TurnRow[
     // so the splice DEMOTED it to a user row with the visible `[Note from system: …]` framing (`:44`), and
     // the adjacent-same-role squash merged it into the player's own turn with a blank line
     // (`role-squash.ts:45`). One user message — and that is the shape reproduced below, deliberately frozen
-    // so this probe's measured numbers stay comparable.
+    // so this probe's measured numbers stay comparable. The reminder inside it carries production's
+    // `rpg.reminder.frame`, so a result file written before the frame measured an unframed reminder.
     // SUPERSEDED IN PRODUCTION (2026-08-18, #201/D143): the vllm arm now declares `VLLM_TURNS`
     // (`midConversationSystem:true`), so the live delivery of this same reminder is a REAL trailing system
     // row. Re-run this probe against that shape before quoting its numbers as current.
