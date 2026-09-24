@@ -51,6 +51,11 @@ import { RowActionsMenu } from "./row-actions-menu.tsx";
 import { SETTING_ROW_REVEAL } from "./row-reveal.ts";
 import type { ConfigLeafAddress, ConfigLeafValue } from "./use-config-leaf.ts";
 
+/** A failed copy's next step: the toast description carries the text itself, where it can be selected. */
+function manualCopyStep(text: string): string {
+  return `Copy it by hand: ${text}`;
+}
+
 export interface SettingRowActionsProps {
   /** The row's address — Copy id copies its dotted spelling, Copy link its `/config?to=` form. */
   readonly address: ConfigLeafAddress;
@@ -79,6 +84,7 @@ function ActionCell({ children }: { readonly children?: ReactElement | null }): 
  */
 export function SettingRowDevActions({ address, label, binding }: SettingRowActionsProps): ReactElement {
   const settingId = `${address.group}.${address.sub}.${address.setting}`;
+  const settingLink = `${globalThis.location.origin}${formatConfigLink(address.group, address.sub, address.setting)}`;
   return (
     <ActionCell>
       <RowActionsMenu label={rowActionsName(label)} triggerSize="inline">
@@ -97,13 +103,11 @@ export function SettingRowDevActions({ address, label, binding }: SettingRowActi
             <MenuSeparator />
           </>
         )}
-        <MenuItem onClick={(): Promise<void> => copyWithNotice(settingId)}>
+        <MenuItem onClick={(): void => copyWithNotice(settingId, manualCopyStep(settingId))}>
           <Icon icon={Tag} size="sm" />
           Copy setting id
         </MenuItem>
-        <MenuItem
-          onClick={(): Promise<void> => copyWithNotice(`${globalThis.location.origin}${formatConfigLink(address.group, address.sub, address.setting)}`)}
-        >
+        <MenuItem onClick={(): void => copyWithNotice(settingLink, manualCopyStep(settingLink))}>
           <Icon icon={Link2} size="sm" />
           Copy link
         </MenuItem>

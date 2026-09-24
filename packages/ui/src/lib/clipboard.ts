@@ -11,16 +11,22 @@ interface ClipboardGlobals {
   readonly navigator?: { readonly clipboard?: { readonly writeText: (text: string) => Promise<void> } };
 }
 
-/** Write `text` to the system clipboard. Never rejects: every failure resolves to its outcome. */
-export function writeClipboardText(text: string): Promise<ClipboardOutcome> {
+/**
+ * Write `text` to the system clipboard and hand the outcome to `settle`. The seam owns the promise and its
+ * rejection, so a caller never holds one. `settle` always runs after the caller returns, so a click that
+ * clears its status first has that clear committed before the outcome lands.
+ */
+export function writeClipboardText(text: string, settle: (outcome: ClipboardOutcome) => void): void {
   const globals = globalThis as ClipboardGlobals;
   const clipboard = globals.navigator?.clipboard;
   if (clipboard === undefined) {
-    return Promise.resolve(globals.isSecureContext === false ? "insecure" : "refused");
+    const outcome = globals.isSecureContext === false ? "insecure" : "refused";
+    queueMicrotask(() => settle(outcome));
+    return;
   }
-  // A rejection is a permission denial or an unfocused document; the outcome carries it, so nothing is lost.
-  return clipboard.writeText(text).then(
-    (): ClipboardOutcome => "copied",
-    (): ClipboardOutcome => "refused",
+  // @orb-waive caught-failure-ownership(clipboard.writeText): the rejection IS the `refused` outcome, and every caller surfaces it (CopyButton's status and manual-copy field, copyWithNotice's toast). Ends if a caller needs the rejection's reason.
+  clipboard.writeText(text).then(
+    () => settle("copied"),
+    () => settle("refused"),
   );
 }

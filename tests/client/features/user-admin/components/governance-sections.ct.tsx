@@ -200,6 +200,33 @@ test.describe("the sharing panel's copy", () => {
   });
 });
 
+test.describe("the sharing panel's manual-copy fallback at 360px", () => {
+  test.use({ viewport: { width: 360, height: 800 } });
+
+  test("the field takes the panel's full width and replaces the chip it repeats", async ({ mount, page }) => {
+    await stub(page, OWNER);
+    await stubAuthConfig(page, "single-user");
+    await mount(<GovernanceSectionsStory width={360} />);
+    // What an insecure (plain http) origin looks like: the [SecureContext] Clipboard API is absent.
+    await page.evaluate(() => {
+      Object.defineProperty(navigator, "clipboard", { configurable: true, value: undefined });
+      Object.defineProperty(globalThis, "isSecureContext", { configurable: true, value: false });
+    });
+
+    const panel = page.getByTestId("admin-sharing-panel");
+    await panel.getByRole("button", { name: copyActionName("the command pnpm start --setup"), exact: true }).click();
+    const field = panel.getByRole("textbox", { name: "the command pnpm start --setup", exact: true });
+    await expect(field).toBeFocused();
+    await expect(panel.getByTestId("admin-sharing-line")).toBeHidden();
+    await expect
+      .poll(async () => {
+        const [fieldBox, panelBox] = await Promise.all([field.boundingBox(), panel.boundingBox()]);
+        return fieldBox !== null && panelBox !== null && fieldBox.width >= panelBox.width - 1;
+      })
+      .toBe(true);
+  });
+});
+
 // Read-only by ruling: the auth mode is a boot fact, so the panel offers nothing to toggle, for any viewer.
 // Its one button copies the line; it changes nothing.
 test("the sharing panel is read-only: no switch, no field, only the copy button, even for the owner", async ({ mount, page }) => {

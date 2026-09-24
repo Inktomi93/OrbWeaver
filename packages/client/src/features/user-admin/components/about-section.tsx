@@ -66,14 +66,15 @@ function AboutBody(): ReactElement {
   return (
     <Section className="@container" divider={true} heading={ABOUT_SUBCATEGORY.label} id={configAnchorId("admin", ABOUT_SUBCATEGORY.id)}>
       <Stack gap="field" data-testid={testId("aboutSection")}>
-        <Row align="baseline" gap="row">
+        {/* A failed copy replaces the version line with the full report (the line plus the full sha), so the
+            text shows once and the field gets the row's whole width. */}
+        <CopyButton copiedHint="Paste it into the bug report." intent="ghost" text={reportLine(version)} what="version for a bug report">
           {/* `datum` — this IS a value, and its mono/tabular setting is what makes a sha readable and
               transcribable by eye when someone is reading it off a screen into an issue. */}
           <Text voice="datum" data-testid={testId("aboutVersionLine")}>
             {formatVersionIdentity(version)}
           </Text>
-          <CopyButton copiedHint="Paste it into the bug report." intent="ghost" text={reportLine(version)} what="version for a bug report" />
-        </Row>
+        </CopyButton>
         <Text voice="gloss">{provenanceLine(version)}</Text>
 
         <Row align="center" gap="row">

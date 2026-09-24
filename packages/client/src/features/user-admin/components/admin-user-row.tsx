@@ -45,6 +45,7 @@ export function AdminUserRow(props: AdminUserRowProps): ReactElement {
   return (
     <>
       <ListRow
+        stackActions={true}
         title={user.handle}
         subtitle={subtitle}
         actions={
