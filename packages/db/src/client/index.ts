@@ -11,7 +11,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } fr
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Client } from "@libsql/client";
-import { createClient } from "@libsql/client";
+import { createClient, LibsqlError } from "@libsql/client";
 import { isPlainObject } from "@orb/kit/guards";
 import { sql } from "drizzle-orm";
 import type { LibSQLDatabase } from "drizzle-orm/libsql";
@@ -759,17 +759,26 @@ export async function optimizeDb(db: Db): Promise<void> {
   await db.run(sql`PRAGMA optimize`);
 }
 
-// `PRAGMA wal_checkpoint` answers `(busy, log, checkpointed)`; `busy` reads back 1 when a holder blocked it.
-const CHECKPOINT_BUSY = 1;
+const ROLLBACK_JOURNAL = "delete";
+const BUSY_CODE = "SQLITE_BUSY";
 
 /**
- * `PRAGMA wal_checkpoint(TRUNCATE)`, reporting whether another connection blocked it. The pragma never
- * throws on a blocked checkpoint: it waits out the busy timeout, then answers `busy=1` and leaves the WAL
- * as it was. A caller about to move or copy the db file reads that answer as "someone else holds it".
+ * Switch the file out of WAL into the rollback journal, which SQLite grants only to the sole connection on
+ * the file: every other open connection, busy or idle between queries, holds the WAL's shared lock and the
+ * switch answers `SQLITE_BUSY` at once (a checkpoint cannot tell an idle holder apart; this can). On
+ * `sole: true` the WAL is folded into the main file and both sidecars are gone, so the file can be moved
+ * as one; the next {@link createDb} on it restores WAL.
  */
-export async function truncateWal(db: Db): Promise<{ readonly busy: boolean }> {
-  const row = await db.get<Record<string, number>>(sql`PRAGMA wal_checkpoint(TRUNCATE)`);
-  return { busy: row["busy"] === CHECKPOINT_BUSY };
+export async function detachWal(db: Db): Promise<{ readonly sole: boolean }> {
+  try {
+    const mode = await clientOf(db).execute(`PRAGMA journal_mode=${ROLLBACK_JOURNAL}`);
+    return { sole: mode.rows[0]?.["journal_mode"] === ROLLBACK_JOURNAL };
+  } catch (err) {
+    if (err instanceof LibsqlError && err.code === BUSY_CODE) {
+      return { sole: false };
+    }
+    throw err;
+  }
 }
 
 /** Close the connection with no housekeeping — for a handle opened only to inspect or snapshot a file. */

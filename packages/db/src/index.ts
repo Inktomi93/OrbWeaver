@@ -22,6 +22,7 @@ export {
   checkBaseline,
   closeDb,
   createDb,
+  detachWal,
   forecastDevDbReset,
   hasPendingMigrations,
   listBackupFiles,
@@ -31,7 +32,6 @@ export {
   pruneDbBackups,
   resetDevDatabase,
   runMigrations,
-  truncateWal,
 } from "./client/index.ts";
 // The native vector column codec (consumed by the embeddings + discovery schema files).
 export { vector32 } from "./custom-types/index.ts";
