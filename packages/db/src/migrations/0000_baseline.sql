@@ -29,13 +29,6 @@ CREATE TABLE `audit_logs` (
 CREATE INDEX `audit_logs_time_idx` ON `audit_logs` (`created_at`);--> statement-breakpoint
 CREATE INDEX `audit_logs_actor_idx` ON `audit_logs` (`actor_user_id`);--> statement-breakpoint
 CREATE INDEX `audit_logs_entity_idx` ON `audit_logs` (`entity_type`,`entity_id`);--> statement-breakpoint
-CREATE TABLE `automation_budgets` (
-	`chat_id` text PRIMARY KEY NOT NULL,
-	`max_fires_per_hour` integer DEFAULT 120 NOT NULL,
-	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
-	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE cascade
-);
---> statement-breakpoint
 CREATE TABLE `automation_fires` (
 	`id` text PRIMARY KEY NOT NULL,
 	`rule_id` text NOT NULL,
