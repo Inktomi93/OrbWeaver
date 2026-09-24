@@ -38,7 +38,6 @@
     "trace:tail": "node tooling/src/render-trace/cli.ts tail",
     "trace:fire": "node tooling/src/render-trace/cli.ts fire",
     "sandbox": "bash scripts/dev/sandbox.sh",
-    "engines": "bash tooling/src/stack/engines.sh",
     "typecheck": "node tooling/src/verify/cli.ts typecheck",
     "prose:baseline": "node tooling/src/verify/cli.ts baseline prose",
     "check:type-ownership": "node tooling/src/verify/cli.ts tests-membership",

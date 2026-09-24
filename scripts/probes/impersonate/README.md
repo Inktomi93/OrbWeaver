@@ -15,7 +15,7 @@ IMP_JUDGE=1 node scripts/probes/impersonate/run.ts   # blind who-is-speaking pas
 IMP_DRY=1 node scripts/probes/impersonate/run.ts     # print prompts, no spend
 ```
 
-**⚠ Live spend on the hosted arms.** The local arm needs the vLLM gen engine awake (`pnpm engines wake`,
+**⚠ Live spend on the hosted arms.** The local arm needs the vLLM gen engine awake (your own launcher's wake verb,
 truth = `GET /is_sleeping`); it costs nothing. The hosted arm + the judge hit OpenRouter (key from the env
 or the repo `.env`, never printed): a full run is 12 generations + one judge call per sample, cents.
 

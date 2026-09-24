@@ -154,10 +154,10 @@ const HARNESS_OWNER_HANDLE = "owner";
  * "pin" without first authoring a connection. The harness authors exactly one: a `vllm` row at the shared
  * generation engine, `chat` + `summarize` bound to it.
  *
- * WHY `ENGINE_PORTS.generate` AND NOT A MODE-OFFSET PORT: the fleet is ADOPTED, never booted per mode
- * (`ENGINES_POSTURE: "adopt-only"` + `VLLM_DISABLED: "true"` below — isolation here is of the DB, never of
- * the GPU), so all three mode stacks dial the SAME loopback engine. `openAiPath` appends `/v1` when the
- * base URL lacks it; spelling it here keeps the row identical to what a user would type.
+ * WHY `ENGINE_PORTS.generate` AND NOT A MODE-OFFSET PORT: the operator's engine is a connection the
+ * harness adopts, never something a mode boots (isolation here is of the DB, never of the GPU), so all
+ * three mode stacks dial the SAME loopback engine. `openAiPath` appends `/v1` when the base URL lacks it;
+ * spelling it here keeps the row identical to what a user would type.
  */
 export const E2E_LOCAL_ENGINE_BASE_URL = `http://127.0.0.1:${String(ENGINE_PORTS.generate)}/v1`;
 
@@ -169,11 +169,10 @@ export const E2E_LOCAL_ENGINE_PROVIDER = "vllm";
  *  harness's idempotency key across re-runs against a surviving DB, and the key the specs look it up by. */
 export const E2E_LOCAL_ENGINE_LABEL = "e2e local engine";
 
-/** The model id written when the engine's own `/v1/models` answers nothing (engines down, or a stack booted
- *  with `VLLM_DISABLED`). The row is then saved `modelListed: false` — the product's own typed-id fallback
- *  (§7.4), not a fabrication: the non-live suite is model-free and only needs the row + binding to EXIST.
- *  Mirrors `VLLM_GEN_MODEL`'s default in `tooling/src/stack/lib/engine-fleet/env.ts` (the launcher owns that
- *  env; a test-support module cannot import it — `@orb/tooling` exports only `_shared/*` and package roots). */
+/** The model id written when the engine's own `/v1/models` answers nothing (no engine running). The row is
+ *  then saved `modelListed: false` — the product's own typed-id fallback (§7.4), not a fabrication: the
+ *  non-live suite is model-free and only needs the row + binding to EXIST. The id is the operator's
+ *  default gen model; the launcher that serves it lives outside this repo. */
 export const E2E_LOCAL_ENGINE_FALLBACK_MODEL = "Qwen/Qwen3-VL-8B-Instruct";
 
 /**
@@ -197,12 +196,9 @@ export const LOCAL_OWNER = { handle: HARNESS_OWNER_HANDLE, password: "owner-dev-
 export const LOCAL_MEMBER = { handle: "member", password: "member-dev-pass" } as const;
 
 // ── single-user (the default lane; the existing 22 specs) — ISOLATED ports 8796/5181 + its own DB/assets
-// under .cache, exactly like the local/forward projects. AUTH_MODE=single-user, adopt-only engines (they
-// ADOPT the box's already-running loopback vLLM fleet — isolation is of the DB, never the GPU), WIRE_CAPTURE
-// on (the @live specs read /api/_debug/wire/captures).
-//
-// E2E adopts an already-running model fleet but must never cold-spawn one; engines.sh gates that path on
-// VLLM_DISABLED rather than ENGINES_POSTURE.
+// under .cache, exactly like the local/forward projects. AUTH_MODE=single-user, the operator's loopback
+// engine adopted as a connection (isolation is of the DB, never the GPU), WIRE_CAPTURE on (the @live specs
+// read /api/_debug/wire/captures).
 //
 // `E2E_ALLOW_DEV_TARGET=1` flips this project back to the pre-2026-08-01 shape: the dev ports 8788/5173 and
 // NO DATABASE_URL pin, i.e. the operator's real dev stack + dev DB (reused, not booted — see
@@ -217,8 +213,6 @@ export const SINGLE_USER: ModeProject = {
   // Every spec EXCEPT the mode-specific ones (`*.local.spec.ts` / `*.forward.spec.ts`) — the existing 22.
   testMatch: new RegExp(`(?<!\\.(?:local|forward))${E2E_TEST_END_PATTERN}`, "u"),
   webServerEnv: {
-    ENGINES_POSTURE: "adopt-only",
-    VLLM_DISABLED: "true",
     AUTH_MODE: "single-user",
     SESSION_SECRET: "orbweaver-dev-only-session-secret-insecure",
     CREDENTIALS_KEY,
@@ -268,8 +262,6 @@ const LOCAL: ModeProject = {
   backendUrl: `http://127.0.0.1:${LOCAL_BACKEND_PORT}`,
   testMatch: new RegExp(`\\.local${E2E_TEST_END_PATTERN}`, "u"),
   webServerEnv: {
-    ENGINES_POSTURE: "adopt-only",
-    VLLM_DISABLED: "true",
     AUTH_MODE: "local",
     SESSION_SECRET,
     CREDENTIALS_KEY,
@@ -312,8 +304,6 @@ const FORWARD_HEADER: ModeProject = {
   backendUrl: `http://127.0.0.1:${FWD_BACKEND_PORT}`,
   testMatch: new RegExp(`\\.forward${E2E_TEST_END_PATTERN}`, "u"),
   webServerEnv: {
-    ENGINES_POSTURE: "adopt-only",
-    VLLM_DISABLED: "true",
     AUTH_MODE: "forward-header",
     SESSION_SECRET,
     CREDENTIALS_KEY,

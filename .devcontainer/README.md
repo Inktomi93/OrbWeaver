@@ -7,9 +7,9 @@ default-deny egress firewall. The point of the sandbox is to run without prompts
 an accepted trade, not an oversight.
 
 This is **only a coding sandbox**. The GPU/vLLM + local-light model stack runs on the
-**host** (the `.models/` weights + `scripts/dev`); the container sets `VLLM_DISABLED=true`
-and the local-light suites skip when weights are absent — by design (the firewall also
-blocks HuggingFace downloads).
+**host** (the `.models/` weights; the vLLM launcher lives outside this repo); in the container the
+local-light suites skip when weights are absent — by design (the firewall also blocks HuggingFace
+downloads).
 
 Ported from neo-tavern's sandbox with one load-bearing fix — see "pnpm store" below.
 
@@ -51,7 +51,7 @@ host sessions keep whatever the host user settings say.
 - **`git push` from the HOST**, not the container. No SSH keys are mounted inside (by
   design — credentials stay on the host, never exposed to a permissive sandbox).
   You can still `git commit` inside; just push from a host terminal.
-- **Models/vLLM run on the HOST.** In-container, `VLLM_DISABLED=true` and the local-light
+- **Models/vLLM run on the HOST.** In-container there is no GPU, and the local-light
   int suites self-skip. The firewall allows traffic to the host network, so a service
   the host exposes on its LAN address is reachable if you ever need it.
 - **After editing any file in this folder**, rebuild:
@@ -112,5 +112,5 @@ Plus the per-container `claude-code-config-*` (login/settings) and
 
 | Purpose | Where Claude writes code | How orbweaver's model stack runs |
 |---------|--------------------------|----------------------------------|
-| Sandbox (this folder) | in the container, firewalled | not here — `VLLM_DISABLED=true` |
-| GPU/vLLM + local-light | — | on the host (`scripts/dev`, `.models/`) |
+| Sandbox (this folder) | in the container, firewalled | not here — no GPU |
+| GPU/vLLM + local-light | — | on the host (`.models/`; the vLLM launcher is the owner's own tooling) |
