@@ -32,7 +32,7 @@ describe("canonicalHost", () => {
     ["Example.COM.:443", "example.com"],
     ["[::1]:8788", "::1"],
     ["[::ffff:127.0.0.1]:8788", "::ffff:127.0.0.1"],
-    ["[fe80::1%25eth0]:8788", "fe80::1"],
+    ["[fe80::1%25eth0]:8788", "fe80::1%25eth0"],
     ["MYBOX:8788", "mybox"],
   ])("%s → %s", (authority, host) => {
     expect(canonicalHost(authority)).toBe(host);
@@ -49,6 +49,7 @@ describe("isHostAllowed", () => {
     "::1",
     "::ffff:127.0.0.1",
     "fe80::1",
+    "fe80::1%25eth0",
   ])("%s always passes, with nothing configured", (host) => {
     expect(isHostAllowed(host, NONE)).toBe(true);
   });

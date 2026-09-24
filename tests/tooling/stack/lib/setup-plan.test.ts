@@ -171,7 +171,7 @@ test("an edit is idempotent: the same values applied twice give the same bytes, 
 test("an address answer adds typed host names to the known ones; an IP, localhost or Enter adds nothing", () => {
   expect(parseAddressAnswer("Orb.Home.Lan", [])).toEqual({ ok: true, value: "orb.home.lan" });
   expect(parseAddressAnswer(" orb.lan, .example.com ", [])).toEqual({ ok: true, value: "orb.lan,.example.com" });
-  for (const needsNoEntry of ["192.168.1.20", "[fe80::1]", "::1", "localhost", ""]) {
+  for (const needsNoEntry of ["192.168.1.20", "[fe80::1]", "fe80::1%eth0", "[fe80::1%eth0]", "::1", "localhost", ""]) {
     expect(parseAddressAnswer(needsNoEntry, [])).toEqual({ ok: true, value: null });
     expect(parseAddressAnswer(needsNoEntry, ["box", "box.local"])).toEqual({ ok: true, value: "box,box.local" });
   }

@@ -23,6 +23,7 @@ const TRAILING_DOT = ".";
 const LOCALHOST = "localhost";
 const LOCALHOST_SUFFIX = `.${LOCALHOST}`;
 const BRACKETED_RE = /^\[(.*)\]$/u;
+const IPV6_ZONE_MARKER = "%";
 
 /** Drop one trailing dot: `example.com.` names the same DNS node as `example.com`. */
 export function withoutTrailingDot(name: string): string {
@@ -30,11 +31,18 @@ export function withoutTrailingDot(name: string): string {
 }
 
 /** The names that pass the Host check with no entry: localhost, any `*.localhost` name (never resolved through public
- *  DNS), and any IP literal, bare or bracketed (a rebinding attack needs a DNS name). `host` is lower-cased, with no
- *  port and no trailing dot. */
+ *  DNS), and any IP literal, bare or bracketed, with or without an IPv6 zone id (a rebinding attack needs a DNS
+ *  name). `host` is lower-cased, with no port and no trailing dot. */
 export function isAlwaysAllowedHost(host: string): boolean {
+  return host === LOCALHOST || host.endsWith(LOCALHOST_SUFFIX) || parseIp(ipLiteralAddress(host)) !== null;
+}
+
+// The address part of a possible IP literal: brackets removed, and an IPv6 zone id (`%eth0`, or `%25eth0` in URL
+// form) dropped, since a zone names a local interface and never a DNS name.
+function ipLiteralAddress(host: string): string {
   const unbracketed = BRACKETED_RE.exec(host)?.[1] ?? host;
-  return host === LOCALHOST || host.endsWith(LOCALHOST_SUFFIX) || parseIp(unbracketed) !== null;
+  const zone = unbracketed.indexOf(IPV6_ZONE_MARKER);
+  return zone !== -1 && unbracketed.includes(":") ? unbracketed.slice(0, zone) : unbracketed;
 }
 
 /** Split a comma list into canonical entries: trimmed, lower-cased (hostnames are case-insensitive; Windows
