@@ -17,7 +17,7 @@
 // DECLARED LIMITS, carried verbatim: (1) a port inside a STRING (`"http://localhost:5173"`) is not a numeric
 // literal and is not judged — `tests/e2e/support/target-guard.test.ts` deliberately spells the dev origins as
 // negative fixture data (mustPass[2]); (2) the three SHELL launchers (stack.sh 8788/5173,
-// multi-user-fixture.sh 8790/5175, engines.sh 8701-8703) are the mirror side by LANGUAGE and
+// multi-user-fixture.sh 8790/5175; the operator's engines 8701-8703) are the mirror side by LANGUAGE and
 // `packages/client/vite.config.ts` is the mirror side by CAKE (an upward import) — both a RULED exclusion
 // (owner, 2026-09-02), named in ports.ts's header; (3) a registry number reused with a NON-port meaning IS
 // flagged, deliberately (a respell is a respell); the escape is an exact grant on a reviewed subject, never a
@@ -55,7 +55,7 @@ const OPERATION = "port-literal";
 const MESSAGE =
   "a TCP port outside the ONE registry — a numeric literal whose value is a registry port (reserved or stage-band), or one at a port-named position carrying a number no registry row declares, is a hand-picked pair: 47 such literals across tooling, the e2e harness and the runner configs was the state this repo shipped until #1269, which is why picking a pair meant grepping and hoping (docs/law/Core-Tooling-Law.md §4.4).";
 const FIX =
-  "read the named row from _shared/ports.ts (DEV_PORTS, FIXTURE_PORTS, E2E_PORTS, CT_VITE_PORT, ENGINE_PORTS, MODEL_AB_PORT, …) or allocate a stage band (`stageBandPorts`); a NEW port is a new reserved row there, never a number picked at the call site. The registry itself carries the exact reviewed grant `(ports.ts, port-literal)`.";
+  "read the named row from _shared/ports.ts (DEV_PORTS, FIXTURE_PORTS, E2E_PORTS, E2E_FIXTURE_PROVIDER_PORT, CT_VITE_PORT, ENGINE_PORTS) or allocate a stage band (`stageBandPorts`); a NEW port is a new reserved row there, never a number picked at the call site. The registry itself carries the exact reviewed grant `(ports.ts, port-literal)`.";
 
 export const gate = defineGate({
   id: "tooling-port-registry",

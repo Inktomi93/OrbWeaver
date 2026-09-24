@@ -52,7 +52,6 @@ export STACK_RUN_DIR="$FIXTURE_DIR/stack"
 export AUTH_MODE=local
 export DATABASE_URL="file:./.cache/multi-user-fixture/orb.db"
 export ASSETS_DIR="./.cache/multi-user-fixture/assets"
-export VLLM_DISABLED=true
 # DEV-ONLY deterministic secrets (insecure by design — never a real deploy). ≥32 chars for the
 # local-mode superRefine (SESSION_SECRET) + ≥8 for the owner seed (LOCAL_INITIAL_PASSWORD).
 export SESSION_SECRET="orbweaver-multi-user-fixture-session-secret-insecure"
@@ -62,11 +61,10 @@ export LOCAL_INITIAL_PASSWORD="owner-dev-pass"
 # unset key (e.g. OWNER_HANDLES) still filled from the operator's .env and provisioned THEIR email as
 # owner, which then failed the FIXTURE_OWNER_HANDLE=owner seed lookup below (byte-for-byte the 2026-08-08
 # e2e-smoke red modes.ts documents) and, on a re-run against a stale fixture db, a D17 users.role UNIQUE
-# violation at boot. OWNER_HANDLES/ENGINES_POSTURE below are the keys that were reaching this fixture from
+# violation at boot. OWNER_HANDLES below is the key that was reaching this fixture from
 # .env "by luck" under the weak hatch — declared explicitly now, mirroring tests/e2e/support/modes.ts.
 export ORB_ENV_NO_FILE=1
 export OWNER_HANDLES=owner
-export ENGINES_POSTURE=adopt-only
 
 # The seed's contract (base URL + the four credentials) — passed through so the two files never drift.
 export SEED_BASE_URL="http://127.0.0.1:$PORT"

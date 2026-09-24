@@ -49,9 +49,9 @@ const ARGV_FAMILY: readonly GatePolicy[] = [argvFrontDoor, argvHealth];
 const ALL: readonly GatePolicy[] = [...IMPORT_FAMILY, ...ARGV_FAMILY];
 const ANCHOR = "tooling/src/_shared/exit-contract.ts";
 const ANCHOR_SOURCE = "export const EXIT = { clean: 0 } as const;\n";
-const ENGINES_GRANT_ID = "tooling-argv-front-door:stack-engines";
-const ENGINES = "tooling/src/stack/ops/engines.ts";
-const ENGINES_READ = 'import process from "node:process";\nexport const g = process.argv.includes("--detach");\n';
+const ENGINES_GRANT_ID = "tooling-argv-front-door:stack-prod-entry";
+const ENGINES = "tooling/src/stack/ops/prod-entry.ts";
+const ENGINES_READ = 'import process from "node:process";\nexport const g = process.argv.includes("--force");\n';
 
 function grantOf(id: string): ReviewedGateGrant {
   const grant = REVIEWED_GRANTS.find((row) => row.id === id);
@@ -103,7 +103,7 @@ test("an ordinary waiver binds to the exact policy and the QUOTED-SPECIFIER posi
 });
 
 // ─── §4.3 GRANT IDENTITY — a real central row ──────────────────────────────────────────────────────────
-test("the stack/engines argv grant is consumed exactly once by the real entry", () => {
+test("the stack/prod-entry argv grant is consumed exactly once by the real entry", () => {
   const granted = passOf([argvFrontDoor], { [ENGINES]: ENGINES_READ }, { grants: [grantOf(ENGINES_GRANT_ID)] });
   expect(granted.toolErrors).toEqual([]);
   expect(granted.authority.effectiveFindings).toEqual([]);
@@ -130,11 +130,11 @@ test("an argv grant whose entry stopped reading argv is STALE after a complete r
 
 test("every argv grant row in the central table names a subject that exists on the tree and is not a cli.ts", ({ repoRoot }) => {
   const rows = REVIEWED_GRANTS.filter((grant) => grant.policyId === argvFrontDoor.id);
-  // 6 at the conversion; 7 since `stack/ops/start-entry.ts` — the root `start` script's target, the one
-  // launcher with no `.sh` in front of it because `pnpm start` must run where bash does not; 8 counting
-  // `verify/ops/config-snapshot-entry.ts`, the private native-config-snapshot process boundary (#1351),
-  // which the 6→7 bump miscounted past while this battery was dark (#2497).
-  expect(rows).toHaveLength(8);
+  // The literal is the pin: `_shared/entrypoint.ts`, the two node halves stack.sh execs
+  // (`dev-identity-entry`, `prod-entry`), `start-entry` (the root `start` script runs it with node, no
+  // shell in front) and `verify/ops/config-snapshot-entry.ts`. A new reviewed argv reader bumps it here
+  // in the same change as its grant row.
+  expect(rows).toHaveLength(5);
   for (const row of rows) {
     expect(existsSync(join(repoRoot, row.subject)), row.id).toBe(true);
     expect(row.subject.endsWith("/cli.ts"), row.id).toBe(false);

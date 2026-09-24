@@ -108,11 +108,6 @@ test("every compose shape resolves (base + the four overlays)", ({ repoRoot, scr
     [["docker-compose.yaml", "docker/compose.host-network.yaml"], []],
     [["docker-compose.yaml", "docker/compose.secrets.yaml"], []],
     [["docker-compose.yaml", "docker/compose.dev.yaml"], []],
-    [["docker-compose.yaml", "docker/compose.engines.yaml"], ["gen"]],
-    [
-      ["docker-compose.yaml", "docker/compose.engines.yaml"],
-      ["gen", "embed", "rerank"],
-    ],
   ];
   for (const [files, profiles] of shapes) {
     const result = run(files, profiles);

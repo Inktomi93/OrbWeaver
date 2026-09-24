@@ -192,7 +192,7 @@ export const gate = defineGate({
         "tooling/src/_shared/run-tool.ts": "export async function runTool(m: () => number): Promise<void> {\n  void m;\n}\n",
         "tooling/src/aa/ops/entry.ts": 'import { runTool } from "../../_shared/run-tool.ts";\n\nawait runTool(() => 0);\n',
       },
-      why: "DERIVED EXEMPTION, not an allowlist: a module that ends in a module-scope `runTool` IS a program (stack.sh's `ops/prod-entry.ts`/`ops/engines.ts` halves) — running it does the real work, so the silent-zero lie is unrepresentable there. Structural, so it can never rot into a stale path row. Replacing the runner-home verdict with `true` reds mustFlag[2]; replacing it with `false` reds this row",
+      why: "DERIVED EXEMPTION, not an allowlist: a module that ends in a module-scope `runTool` IS a program (stack.sh's `ops/prod-entry.ts`/`ops/dev-identity-entry.ts` halves) — running it does the real work, so the silent-zero lie is unrepresentable there. Structural, so it can never rot into a stale path row. Replacing the runner-home verdict with `true` reds mustFlag[2]; replacing it with `false` reds this row",
     },
     {
       mode: "types",

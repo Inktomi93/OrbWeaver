@@ -118,7 +118,6 @@ function serverEnv(port: number, dbPath: string, debugToken: string): NodeJS.Pro
     OWNER_HANDLES: "owner",
     // single-user: the probe debugs server behaviour, not auth flows — no IdP ceremony.
     AUTH_MODE: "single-user",
-    VLLM_DISABLED: "true",
     // No embedder spin-up for a one-shot probe (same pin as vitest.config.ts).
     CORPUS_AUTOINDEX: "false",
     LOG_LEVEL: "warn",
