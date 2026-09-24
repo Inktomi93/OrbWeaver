@@ -15,6 +15,8 @@ export const TEST_IDS = {
   loginOidc: "login-oidc",
   // A7 — the OIDC callback error line rendered above the Continue button when /login?authError=<code> is set.
   loginAuthError: "login-auth-error",
+  // The plain-http warning above a cookie-mode login; `data-client-scope` carries private or public.
+  loginTransportNotice: "login-transport-notice",
   // B4 — the local-mode FIRST-RUN owner-password setup form (rendered in place of the credential form on a
   // fresh local box: password + confirm + submit + inline error).
   firstRunSetupForm: "first-run-setup-form",

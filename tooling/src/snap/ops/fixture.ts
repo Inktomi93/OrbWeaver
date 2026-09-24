@@ -19,8 +19,8 @@
 // (`--fixture-server`/`--fixture-base`, or SNAP_FIXTURE_SERVER_URL/SNAP_FIXTURE_BASE_URL) reaches the
 // health probe AND the browser's base URL together — never one without the other.
 //
-// AUTH DOOR: the same one a browser uses — `POST /api/auth/login` (handle+password form → the
-// `__Host-orb_session` cookie), never a bypass. Credentials mirror multi-user-fixture.sh's own defaults
+// AUTH DOOR: the same one a browser uses — `POST /api/auth/login` (handle+password form → the session
+// cookie), never a bypass. Credentials mirror multi-user-fixture.sh's own defaults
 // (its header docstring): owner/owner-dev-pass, member/member-dev-pass. A handle outside this map (or a
 // `--contexts N` bigger than the fixture actually seeds) is a loud refusal, never a guess.
 

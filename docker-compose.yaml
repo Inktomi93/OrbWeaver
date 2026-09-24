@@ -49,8 +49,8 @@ services:
       options: { max-size: "10m", max-file: "3" }
     ports:
       # Loopback by default: only THIS machine reaches the app, which is what makes the shipped no-login
-      # mode safe. ORB_BIND=0.0.0.0 opens it to your network — only with a login (AUTH_MODE=local) and HTTPS
-      # in front: the session cookie is Secure, so a plain-http LAN address cannot sign in ("LAN and HTTPS").
+      # mode safe. ORB_BIND=0.0.0.0 opens it to your network — only with a login (AUTH_MODE=local). Over plain
+      # http the login works but travels in clear; put HTTPS in front ("LAN and HTTPS" in docker/README.md).
       - "${ORB_BIND:-127.0.0.1}:${ORB_PORT:-8788}:8788"
     extra_hosts:
       # `host.docker.internal` names THIS machine from inside the container. Docker Desktop provides it; this

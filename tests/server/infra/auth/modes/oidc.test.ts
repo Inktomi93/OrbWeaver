@@ -1,4 +1,4 @@
-import { MODE_RESOLVERS, SESSION_COOKIE_NAME } from "@orb/server/infra/auth";
+import { MODE_RESOLVERS, SESSION_COOKIE_NAME_SECURE } from "@orb/server/infra/auth";
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeAuthConfig as cfg, headers } from "../_support.ts";
@@ -17,6 +17,6 @@ describe("resolveOidc — inert at infra post-D40", () => {
   });
 
   test("a session cookie present → STILL null (infra never resolves the cookie; the seam owns it)", async () => {
-    expect(await resolveOidc(headers({ cookie: `${SESSION_COOKIE_NAME}=tok-abc` }), cfg({ mode: "oidc" }), {})).toBeNull();
+    expect(await resolveOidc(headers({ cookie: `${SESSION_COOKIE_NAME_SECURE}=tok-abc` }), cfg({ mode: "oidc" }), {})).toBeNull();
   });
 });

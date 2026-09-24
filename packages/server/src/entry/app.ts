@@ -24,7 +24,7 @@ import { env } from "#foundation/env";
 import type { MemoryRecallInspector, RpgTraceInspector } from "#foundation/observability";
 import { observability, observabilityErrorHandler, registerDebugRoutes, securityEvent } from "#foundation/observability";
 import { versionIdentity } from "#foundation/version";
-import { hasCsrfHeader } from "#infra/auth";
+import { createPublicHttpMintNotice, hasCsrfHeader, requestTransport } from "#infra/auth";
 import { clientIp, ipAllowlistMiddleware, parseAllowlist, peerIp } from "#infra/network";
 import type { PresenceRegistry, RateLimitGate, Services, SocketRegistry } from "../transport/trpc/index.ts";
 import { appRouter, createContext } from "../transport/trpc/index.ts";
@@ -264,17 +264,21 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
 
   // Resolve the ONE Principal per request + refresh a slid cookie session.
   app.use("*", async (c, next) => {
+    // The transport is resolved ONCE and handed to the seam, so the name the seam reads and the name the
+    // slide re-issues under are the same by construction.
+    const transport = requestTransport(c);
     // The SAME reader the seam authenticates with (entry/auth/seam.ts): the slide may only re-issue the
     // exact token `sessions.validate` just accepted — a second copy here could write back a different value
     // and silently log the caller out on the next request.
-    const token = readSessionCookie(c.req.raw.headers);
+    const token = readSessionCookie(c.req.raw.headers, transport);
     // Peer address feeds the forward-header trusted-proxy anti-spoof gate; omitted (fails closed) when absent.
     const peer = peerIp(c);
     const { principal, sessionId } = await deps.seam.resolvePrincipal(c.req.raw.headers, {
       ...(peer !== undefined ? { peerIp: peer } : {}),
+      transport,
       onSessionSlide: (expiresAt: number): void => {
         if (token !== null) {
-          c.header("Set-Cookie", serializeSessionCookie(token, (expiresAt - deps.now()) / MS_PER_SECOND));
+          c.header("Set-Cookie", serializeSessionCookie(token, transport, (expiresAt - deps.now()) / MS_PER_SECOND));
         }
       },
     });
@@ -394,6 +398,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     sockets: { evictSession: (sessionId) => deps.sockets.evictSession(sessionId), evictUser: (userId) => deps.sockets.evictUser(userId) },
     now: deps.now,
     db: deps.db,
+    publicHttpMintNotice: createPublicHttpMintNotice(deps.now),
     resolveLoginLimit: () => deps.services.settings.getEffectiveConfig().rateLimits.login,
     ...(deps.authenticate !== undefined ? { authenticate: deps.authenticate } : {}),
     ...(deps.firstRun !== undefined ? { firstRun: deps.firstRun } : {}),

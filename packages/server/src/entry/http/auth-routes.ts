@@ -1,9 +1,9 @@
 // The auth mint routes + cookie I/O. This is the write side of the session cookie (the read side is the
-// seam + infra/auth); the cookie's NAME and attributes are `infra/auth/modes/cookie-session.ts`'s, and there
-// are two of them — `__Host-orb_session` by default, `orb_session_insecure` under `SESSION_COOKIE_INSECURE`
-// (#2413). Exactly one is active per process; every write here goes through `writeSetCookies` so the other
-// name is CLEARED in the same response. Never re-implements identity resolution: mints sessions via
-// domain/sessions and writes the cookie; resolution belongs to the seam.
+// seam + infra/auth); the cookie's NAME and attributes are `infra/auth/modes/cookie-session.ts`'s, one per
+// request transport (`infra/auth/transport.ts`): `__Host-orb_session` over https, `orb_session_insecure` over
+// plain http. Every write goes through `writeSetCookies` so the other name is CLEARED in the same response.
+// Never re-implements identity resolution: mints sessions via domain/sessions and writes the cookie;
+// resolution belongs to the seam.
 //
 // Local login: password-form → verify (injected `authenticate` port) → sessions.create → set cookie.
 // Registered only when the op is provided (fail-closed in non-local modes).
@@ -19,7 +19,7 @@
 // (open-redirect class). The validated redirect_uri is stored in the transaction and reconstructed at the
 // callback so the token exchange presents the same redirect_uri the IdP saw, even behind a proxy.
 
-import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
+import type { RequestTransport, ResolvedIdentity, UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { DomainRateLimitError } from "@orb/kit/errors";
 import type { ExternalId, Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
@@ -31,8 +31,8 @@ import { buildAuthorizationUrl, calculatePKCECodeChallenge, randomNonce, randomP
 import type { RevokedSessionsSummary } from "#domain/sessions";
 import { groupRoleGovernanceActive } from "#domain/sessions";
 import { getLog, groupsLogFields, securityEvent } from "#foundation/observability";
-import type { BackchannelLogoutVerifier, OidcExchange, OidcTransaction } from "#infra/auth";
-import { hasCsrfHeader, MIN_PASSWORD_LENGTH, SESSION_COOKIE_ATTRS, SESSION_COOKIE_NAME, SESSION_COOKIES } from "#infra/auth";
+import type { BackchannelLogoutVerifier, OidcExchange, OidcTransaction, PublicHttpMintNotice } from "#infra/auth";
+import { hasCsrfHeader, MIN_PASSWORD_LENGTH, reportPublicHttpMint, requestClientScope, requestTransport, SESSION_COOKIES, sessionCookieFor } from "#infra/auth";
 import { clientIp, peerIp } from "#infra/network";
 import type { RateLimiter } from "../../transport/rate-limit.ts";
 import { createRateLimiter } from "../../transport/rate-limit.ts";
@@ -163,10 +163,9 @@ async function exchangeCodeForClaims(exchange: OidcExchange, config: Configurati
   }
 }
 
-/** Serialize the session-cookie Set-Cookie value under this process's ACTIVE name + attributes
- *  (`SESSION_COOKIE_NAME`/`SESSION_COOKIE_ATTRS`), with a Max-Age (seconds; clamped ≥ 0). Takes the
- *  branded `SessionToken` so no other secret (a handle, a `SessionId`, an OIDC code) can be written into
- *  the session cookie by accident.
+/** Serialize the session-cookie Set-Cookie value under the request transport's name + attributes
+ *  (`sessionCookieFor`), with a Max-Age (seconds; clamped ≥ 0). Takes the branded `SessionToken` so no other
+ *  secret (a handle, a `SessionId`, an OIDC code) can be written into the session cookie by accident.
  *
  *  ASYMMETRY, DELIBERATE — the write side emits the token RAW while the read side (`readSessionCookie`,
  *  `entry/auth/seam.ts`) runs `decodeURIComponent` on the value. That pairing is unreachable BY
@@ -177,38 +176,37 @@ async function exchangeCodeForClaims(exchange: OidcExchange, config: Configurati
  *  brand is what keeps it that way: widen the parameter past `SessionToken` (or mint a token from a
  *  different alphabet) and the two sides stop agreeing — encode here at the same time. The permissive read
  *  stays because it must tolerate whatever an attacker-controlled `Cookie` header carries and fail closed. */
-export function serializeSessionCookie(token: SessionToken, maxAgeSeconds: number): string {
+export function serializeSessionCookie(token: SessionToken, transport: RequestTransport, maxAgeSeconds: number): string {
   const maxAge = Math.max(0, Math.floor(maxAgeSeconds));
-  return `${SESSION_COOKIE_NAME}=${token}; Max-Age=${maxAge}; ${SESSION_COOKIE_ATTRS}`;
+  const { name, attrs } = sessionCookieFor(transport);
+  return `${name}=${token}; Max-Age=${maxAge}; ${attrs}`;
 }
 
 /**
- * Serialize the cleared (logout) Set-Cookie value for EVERY name this app has ever minted under
- * (`SESSION_COOKIES`, `infra/auth/modes/cookie-session.ts`) — empty value, `Max-Age=0`, each under the
- * attributes its own name requires.
+ * Serialize the cleared (logout) Set-Cookie value for EVERY session cookie name (`SESSION_COOKIES`,
+ * `infra/auth/modes/cookie-session.ts`) — empty value, `Max-Age=0`, each under the attributes its own name
+ * requires.
  *
- * BOTH NAMES, NOT JUST THE ACTIVE ONE (#2413): an operator who flips `SESSION_COOKIE_INSECURE` leaves the
- * other name's cookie sitting in every already-signed-in browser. Only the ACTIVE name is ever read, so such
- * a leftover cannot authenticate — but it is still a live session token in a jar, and "log out" must mean the
- * browser stops holding one. Cheap and total: one extra header on a route that runs once per sign-out.
+ * BOTH NAMES, NOT JUST THE REQUEST'S: a browser that signed in over both transports holds both. Only the
+ * request's name is ever read, so the other cannot authenticate this request — but it is still a live session
+ * token in a jar, and "log out" must mean the browser stops holding one.
  *
  * BEST-EFFORT IN ONE DIRECTION, STATED SO IT IS NOT MISREAD AS A GUARANTEE: the `__Host-` clear necessarily
- * carries `Secure`, so a browser on a plain-http origin DISCARDS it (RFC 6265bis §4.1.3.2) — i.e. on an
- * insecure-posture box the stale secure cookie survives logout. It is unreachable there anyway (the reader
- * matches the active name only) and the revoke has already killed the session row behind it, so what survives
- * is a string that authenticates nothing. Over https both clears land.
+ * carries `Secure`, so a browser on a plain-http origin DISCARDS it (RFC 6265bis §4.1.3.2) — i.e. a logout
+ * over plain http leaves an https cookie in place. That cookie is never read over http, and over https both
+ * clears land.
  */
 export function serializeClearedSessionCookies(): readonly string[] {
   return SESSION_COOKIES.map(({ name, attrs }) => `${name}=; Max-Age=0; ${attrs}`);
 }
 
-/** The Set-Cookie values a MINT writes: the new session under the active name, plus a clear of every OTHER
- *  name (same reason as the logout clear above — a sign-in on the new posture must not leave the old
- *  posture's token in the jar). Ordered active-first so a reader of the response sees the mint. */
-function serializeMintedSessionCookies(token: SessionToken, maxAgeSeconds: number): readonly string[] {
+/** The Set-Cookie values a MINT writes: the new session under the transport's name, plus a clear of the
+ *  other name, so a sign-in never leaves a token from the other transport in the jar. Ordered mint-first. */
+function serializeMintedSessionCookies(token: SessionToken, transport: RequestTransport, maxAgeSeconds: number): readonly string[] {
+  const active = sessionCookieFor(transport).name;
   return [
-    serializeSessionCookie(token, maxAgeSeconds),
-    ...SESSION_COOKIES.filter(({ name }) => name !== SESSION_COOKIE_NAME).map(({ name, attrs }) => `${name}=; Max-Age=0; ${attrs}`),
+    serializeSessionCookie(token, transport, maxAgeSeconds),
+    ...SESSION_COOKIES.filter(({ name }) => name !== active).map(({ name, attrs }) => `${name}=; Max-Age=0; ${attrs}`),
   ];
 }
 
@@ -241,8 +239,8 @@ const POST_LOGOUT_REDIRECT_PARAM = "post_logout_redirect_uri";
  * `new URL("/login", <allowlisted callback>)` yields exactly `<scheme>://<host>/login` — no trailing slash
  * (URL only appends one for an origin-only path) and no query. Do not "normalise" it.
  */
-function postLogoutRedirectUri(headers: Headers, allowlist: readonly string[]): string | null {
-  const callbackUri = deriveRedirectUri(headers, allowlist);
+function postLogoutRedirectUri(headers: Headers, transport: RequestTransport, allowlist: readonly string[]): string | null {
+  const callbackUri = deriveRedirectUri(headers, transport, allowlist);
   if (callbackUri === null) {
     return null;
   }
@@ -284,7 +282,12 @@ function postLogoutRedirectUri(headers: Headers, allowlist: readonly string[]): 
  * never puts the hint in a LOG line, never returns it as a field of its own, and never lets it reach a
  * DIFFERENT user's response — the hint comes from the row the caller's own cookie just revoked.
  */
-async function resolveEndSessionUrl(oidc: OidcRoutesDeps | undefined, hint: string | null, headers: Headers): Promise<string | null> {
+async function resolveEndSessionUrl(
+  oidc: OidcRoutesDeps | undefined,
+  hint: string | null,
+  headers: Headers,
+  transport: RequestTransport,
+): Promise<string | null> {
   if (oidc === undefined) {
     return null;
   }
@@ -300,7 +303,7 @@ async function resolveEndSessionUrl(oidc: OidcRoutesDeps | undefined, hint: stri
     }
     const url = new URL(endpoint);
     url.searchParams.set(ID_TOKEN_HINT_PARAM, hint);
-    const returnTo = postLogoutRedirectUri(headers, oidc.redirectAllowlist);
+    const returnTo = postLogoutRedirectUri(headers, transport, oidc.redirectAllowlist);
     if (returnTo !== null) {
       url.searchParams.set(POST_LOGOUT_REDIRECT_PARAM, returnTo);
     }
@@ -454,6 +457,9 @@ export interface AuthRoutesDeps {
   /** B4 — present in local mode; registers the first-run owner-password setup route. */
   readonly firstRun?: FirstRunRouteDeps;
   readonly oidc?: OidcRoutesDeps;
+  /** The per-client throttled `session_minted_over_public_http` line, built on the composition root's clock.
+   *  Absent, every such mint logs. */
+  readonly publicHttpMintNotice?: PublicHttpMintNotice;
 }
 
 /** The over-budget response, IDENTICAL on both throttle axes (B1). Which belt fired is an OPERATOR signal
@@ -586,7 +592,7 @@ function registerLoginRoute(app: Hono, deps: AuthRoutesDeps, authenticate: Local
       userId,
       userAgent: c.req.header("user-agent") ?? null,
     });
-    writeMintedSession(c, session, deps.now());
+    writeMintedSession(c, deps, session);
     return c.json({ ok: true });
   });
 }
@@ -632,7 +638,7 @@ function registerFirstRunRoute(app: Hono, deps: AuthRoutesDeps, firstRun: FirstR
       return c.json({ error: "the owner password is already set" }, CONFLICT);
     }
     const session = await deps.sessions.create({ userId, userAgent: c.req.header("user-agent") ?? null });
-    writeMintedSession(c, session, deps.now());
+    writeMintedSession(c, deps, session);
     return c.json({ ok: true });
   });
 }
@@ -656,7 +662,8 @@ export function registerAuthRoutes(app: Hono, deps: AuthRoutesDeps): void {
     }
     // The SAME reader the seam authenticates with (entry/auth/seam.ts) — a second copy here could revoke a
     // different token than the one that authenticated the request, leaving the live session un-killable.
-    const token = readSessionCookie(c.req.raw.headers);
+    const transport = requestTransport(c);
+    const token = readSessionCookie(c.req.raw.headers, transport);
     // #141 — the ended session's OIDC end-session hint, held ONLY long enough to build the URL below. It is
     // scoped to this handler and reaches no log, no audit field, and no response field of its own.
     let endSessionHint: string | null = null;
@@ -679,7 +686,7 @@ export function registerAuthRoutes(app: Hono, deps: AuthRoutesDeps): void {
     // A6 — surface the IdP end-session URL so the client can end the UPSTREAM SSO session after the local
     // revoke (else "sign out → Continue" logs straight back in). Best-effort + null when there is no oidc
     // config or the issuer exposes no end_session_endpoint. The local session is already dead regardless.
-    return c.json({ endSessionUrl: await resolveEndSessionUrl(deps.oidc, endSessionHint, c.req.raw.headers) }, OK);
+    return c.json({ endSessionUrl: await resolveEndSessionUrl(deps.oidc, endSessionHint, c.req.raw.headers, transport) }, OK);
   });
 
   const oidc = deps.oidc;
@@ -689,37 +696,44 @@ export function registerAuthRoutes(app: Hono, deps: AuthRoutesDeps): void {
 }
 
 /** Write the Set-Cookie headers for a freshly minted session (Max-Age from the expiry minus the injected
- *  clock) — the new cookie plus a clear of the other posture's name. */
-function writeMintedSession(c: Context, session: { readonly token: SessionToken; readonly expiresAt: number }, now: number): void {
-  writeSetCookies(c, serializeMintedSessionCookies(session.token, (session.expiresAt - now) / MS_PER_SECOND));
+ *  clock): the request transport's cookie plus a clear of the other name. A mint over plain http for a public
+ *  client sent a password or an IdP code and now a session cookie in clear, so it logs a security line (the
+ *  owner ruled warn, not refuse). */
+function writeMintedSession(c: Context, deps: AuthRoutesDeps, session: { readonly token: SessionToken; readonly expiresAt: number }): void {
+  const transport = requestTransport(c);
+  writeSetCookies(c, serializeMintedSessionCookies(session.token, transport, (session.expiresAt - deps.now()) / MS_PER_SECOND));
+  if (transport === "http" && requestClientScope(c) === "public") {
+    (deps.publicHttpMintNotice ?? reportPublicHttpMint)(clientIp(c));
+  }
 }
 
 /**
  * Derive the OIDC callback redirect_uri from the request origin and accept it only when it exact-matches
- * the allowlist — never reflect an attacker-supplied origin blindly. Proto defaults to `https` and is
- * never downgraded on an unknown origin (a plain-HTTP deploy with no X-Forwarded-Proto 400s by design).
+ * the allowlist — never reflect an attacker-supplied origin blindly. The scheme IS the request transport
+ * (`infra/auth/transport.ts`), so the callback and the session cookie cannot disagree: a proxy that asserts
+ * no https derives an http callback, which only an `http://` allowlist entry the operator wrote can match.
  * X-Forwarded-Host is trusted here because the allowlist is the real gate. Off-allowlist ⇒ null.
  */
-export function deriveRedirectUri(headers: Headers, allowlist: readonly string[]): string | null {
-  const rawProto = headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
-  const proto = rawProto !== undefined && rawProto !== "" ? rawProto : "https";
+export function deriveRedirectUri(headers: Headers, transport: RequestTransport, allowlist: readonly string[]): string | null {
   const rawHost = headers.get("x-forwarded-host")?.split(",")[0]?.trim();
   const host = rawHost !== undefined && rawHost !== "" ? rawHost : headers.get("host");
   if (host === null || host.length === 0) {
     return null;
   }
-  const candidate = `${proto}://${host}${OIDC_CALLBACK_ROUTE}`;
+  const candidate = `${transport}://${host}${OIDC_CALLBACK_ROUTE}`;
   return allowlist.includes(candidate) ? candidate : null;
 }
 
 /** The OIDC authorize-redirect + callback handlers (openid-client v6). */
 function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDeps): void {
   app.get(OIDC_LOGIN_ROUTE, async (c) => {
-    const redirectUri = deriveRedirectUri(c.req.raw.headers, oidc.redirectAllowlist);
+    const transport = requestTransport(c);
+    const redirectUri = deriveRedirectUri(c.req.raw.headers, transport, oidc.redirectAllowlist);
     if (redirectUri === null) {
       securityEvent(
         "oidc_redirect_uri_rejected",
         {
+          transport,
           proto: c.req.raw.headers.get("x-forwarded-proto"),
           host: c.req.raw.headers.get("x-forwarded-host") ?? c.req.raw.headers.get("host"),
           allowlistSize: oidc.redirectAllowlist.length,
@@ -820,7 +834,7 @@ function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDep
       // logout can present it as `id_token_hint`. An IdP that omitted it degrades to a bare end-session URL.
       oidcIdToken: exchange.idToken,
     });
-    writeMintedSession(c, session, deps.now());
+    writeMintedSession(c, deps, session);
     return c.redirect("/", FOUND);
   });
 

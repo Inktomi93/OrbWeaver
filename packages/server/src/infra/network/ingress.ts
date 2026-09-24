@@ -21,11 +21,13 @@ export function parseAllowlist(raw: string | undefined): readonly string[] {
     .filter((entry) => entry.length > 0);
 }
 
-/** XFF-trusting proxy set — built once at module init (never rebuilt per request). */
-const TRUSTED_PROXIES = parseAllowlist(env.FORWARD_AUTH_TRUSTED_PROXIES);
+/** `FORWARD_AUTH_TRUSTED_PROXIES`, parsed once at module init. Every forwarded-header read believes the same
+ *  hops: `X-Forwarded-For` here and `X-Forwarded-Proto` in `infra/auth/transport.ts`. */
+export const TRUSTED_PROXIES = parseAllowlist(env.FORWARD_AUTH_TRUSTED_PROXIES);
 
-// A hop whose own forwarded entry is believed: loopback/private, or inside `FORWARD_AUTH_TRUSTED_PROXIES`.
-function isTrustedHop(ip: string, trustedProxies: readonly string[]): boolean {
+/** A hop whose forwarded headers are believed: loopback/private, or inside `trustedProxies`. The ONE predicate
+ *  for both the client address and the cookie transport, so the two reads cannot disagree about a peer. */
+export function isTrustedHop(ip: string, trustedProxies: readonly string[]): boolean {
   return isPrivateOrLoopback(ip) || isInRanges(ip, trustedProxies);
 }
 

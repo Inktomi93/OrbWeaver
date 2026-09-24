@@ -33,6 +33,8 @@ function config(overrides: Partial<AuthConfig>): AuthConfig {
     trustHtml: false,
     allowInteractiveCards: false,
     uploads: DEFAULT_UPLOAD_CAPS,
+    transport: "https",
+    clientScope: "private",
     ...overrides,
   };
 }
