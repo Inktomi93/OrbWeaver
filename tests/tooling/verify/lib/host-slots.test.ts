@@ -12,7 +12,7 @@
 // No real runner is started: the mechanism is a directory of files plus `kill(pid, 0)`, and every input
 // (clock, pid, process table, sleep) is injected — the same posture ct-runner-lock.test.ts takes. One test
 // drives the real `kill(pid, 0)` against a reaped child, so the default liveness probe is proven too.
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -171,45 +171,164 @@ test("past the ceiling, a dead run's overflow file is taken at once, not after a
   rmSync(env[HOST_POOL_ROOT_ENV] ?? "", { recursive: true, force: true });
 });
 
-test("a holder whose pid now belongs to a newer process is dead, not live", async () => {
-  const clockStartMs = 1_000_000;
-  const startedAt = new Date(clockStartMs).toISOString();
-  const plantReusedHolder = (env: NodeJS.ProcessEnv): void => {
-    const dir = hostPoolDir(poolOf(1), env);
-    mkdirSync(dir, { recursive: true });
-    writeFileSync(join(dir, "1.lock"), JSON.stringify({ pid: 993, startedAt, label: "recorded holder" }));
-  };
-  const reused = scratchRuntime();
-  plantReusedHolder(reused);
+/** Plant a slot-1 record the way a holder writes one, with its own `/proc` start ticks. */
+function plantHolder(env: NodeJS.ProcessEnv, record: { readonly pid: number; readonly startedAt: string; readonly startTicks: string }): string {
+  const dir = hostPoolDir(poolOf(1), env);
+  mkdirSync(dir, { recursive: true });
+  const path = join(dir, "1.lock");
+  writeFileSync(path, JSON.stringify({ ...record, label: "recorded holder" }));
+  return path;
+}
+
+/** A waiter's sleep that ends the wait: the first time it would poll again, it has queued. */
+const QUEUED = "queued";
+function rejectOnWait(): Promise<void> {
+  return Promise.reject(new Error(QUEUED));
+}
+
+test("a live holder whose start ticks match is never stolen, whatever its record's wall-clock time says", async () => {
+  for (const startedAt of ["1970-01-01T00:00:00.000Z", "2100-01-01T00:00:00.000Z"]) {
+    const env = scratchRuntime();
+    const path = plantHolder(env, { pid: 993, startedAt, startTicks: "4200" });
+    const lease = await acquireHostSlot(poolOf(1, 1000), {
+      env,
+      pid: 994,
+      alive: aliveOnly(993, 994),
+      startTicks: (pid) => (pid === 993 ? "4200" : "4300"),
+      ...fakeClock(),
+      onNotice: () => undefined,
+    });
+    expect(lease.slot, `startedAt ${startedAt}: the waiter runs as the overflow run, never in the holder's slot`).toBeNull();
+    expect(JSON.parse(readFileSync(path, "utf8")), "the holder still owns its slot").toMatchObject({ pid: 993 });
+    lease.release();
+    rmSync(env[HOST_POOL_ROOT_ENV] ?? "", { recursive: true, force: true });
+  }
+});
+
+test("a holder whose pid now carries different start ticks is a reused pid, and its slot is stolen", async () => {
+  const env = scratchRuntime();
+  plantHolder(env, { pid: 993, startedAt: new Date(1_000_000).toISOString(), startTicks: "4200" });
   const notices: string[] = [];
-  // pid 993 answers kill(pid, 0), but the process behind it started a minute after the record was written.
   const lease = await acquireHostSlot(poolOf(1, 1000), {
-    env: reused,
+    env,
     pid: 994,
     alive: aliveOnly(993, 994),
-    processStartMs: (pid) => (pid === 993 ? clockStartMs + 60_000 : null),
+    startTicks: (pid) => (pid === 993 ? "9900" : "4300"),
     ...fakeClock(),
     onNotice: (m) => notices.push(m),
   });
   expect(lease.slot, "the recycled pid's slot is taken").toBe(1);
   expect(notices.join("\n")).toContain("pid 993 (reused by a newer process)");
   lease.release();
-  rmSync(reused[HOST_POOL_ROOT_ENV] ?? "", { recursive: true, force: true });
+  rmSync(env[HOST_POOL_ROOT_ENV] ?? "", { recursive: true, force: true });
+});
 
-  // THE CONTROL: the same record with a process that started before it is a live holder.
-  const genuine = scratchRuntime();
-  plantReusedHolder(genuine);
-  const control = await acquireHostSlot(poolOf(1, 1000), {
-    env: genuine,
+test("with no /proc start ticks to read, kill(pid, 0) alone decides", async () => {
+  const noProc = (): null => null;
+  const live = scratchRuntime();
+  plantHolder(live, { pid: 993, startedAt: new Date(1_000_000).toISOString(), startTicks: "4200" });
+  const queued = await acquireHostSlot(poolOf(1, 1000), {
+    env: live,
     pid: 994,
     alive: aliveOnly(993, 994),
-    processStartMs: (pid) => (pid === 993 ? clockStartMs - 5000 : null),
+    startTicks: noProc,
     ...fakeClock(),
     onNotice: () => undefined,
   });
-  expect(control.slot, "a genuine holder keeps its slot; the waiter runs as the overflow run").toBeNull();
-  control.release();
-  rmSync(genuine[HOST_POOL_ROOT_ENV] ?? "", { recursive: true, force: true });
+  expect(queued.slot, "a live pid with unreadable ticks is a holder").toBeNull();
+  queued.release();
+  rmSync(live[HOST_POOL_ROOT_ENV] ?? "", { recursive: true, force: true });
+
+  const dead = scratchRuntime();
+  plantHolder(dead, { pid: 993, startedAt: new Date(1_000_000).toISOString(), startTicks: "4200" });
+  const notices: string[] = [];
+  const taken = await acquireHostSlot(poolOf(1, 1000), {
+    env: dead,
+    pid: 994,
+    alive: aliveOnly(994),
+    startTicks: noProc,
+    ...fakeClock(),
+    onNotice: (m) => notices.push(m),
+  });
+  expect(taken.slot, "a gone pid's slot is stolen").toBe(1);
+  expect(notices.join("\n")).toContain("pid 993 (no such process)");
+  taken.release();
+  rmSync(dead[HOST_POOL_ROOT_ENV] ?? "", { recursive: true, force: true });
+});
+
+test("a live waiter's ticket with matching start ticks holds its place; a reused pid's ticket is pruned", async () => {
+  const env = scratchRuntime();
+  const queue = join(hostPoolDir(poolOf(1), env), "queue");
+  mkdirSync(queue, { recursive: true });
+  const clock = fakeClock();
+  const beatMs = clock.now().getTime();
+  writeFileSync(join(queue, "0000000000000001-0000000781.json"), JSON.stringify({ pid: 781, startedAt: "x", label: "reused", beatMs, startTicks: "10" }));
+  writeFileSync(join(queue, "0000000000000002-0000000782.json"), JSON.stringify({ pid: 782, startedAt: "x", label: "live", beatMs, startTicks: "20" }));
+  const ticks = new Map([
+    [781, "11"],
+    [782, "20"],
+    [783, "30"],
+  ]);
+  const notices: string[] = [];
+  const waiter = acquireHostSlot(poolOf(1), {
+    env,
+    pid: 783,
+    alive: aliveOnly(781, 782, 783),
+    startTicks: (pid) => ticks.get(pid) ?? null,
+    now: clock.now,
+    sleep: rejectOnWait,
+    onNotice: (m) => notices.push(m),
+  });
+  await expect(waiter, "the live waiter ahead keeps the queue, so this run waits").rejects.toThrow(QUEUED);
+  expect(notices.join("\n")).toContain("pid 781 (reused by a newer process)");
+  expect(readdirSync(queue), "only the live waiter's ticket remains").toStrictEqual(["0000000000000002-0000000782.json"]);
+  rmSync(env[HOST_POOL_ROOT_ENV] ?? "", { recursive: true, force: true });
+});
+
+test("a forward wall-clock step never makes a live holder read as reused, so the waiter queues", async () => {
+  // A real live holder, recorded through the real door, whose record's wall-clock time reads long before
+  // the process started: the record a holder leaves when the wall clock steps forward after it was written.
+  const child = spawn("sleep", ["30"], { stdio: "ignore" });
+  const env = scratchRuntime();
+  try {
+    const holderPid = child.pid ?? 0;
+    const held = await acquireHostSlot(poolOf(1), { env, pid: holderPid, now: fakeClock().now });
+    expect(held.slot).toBe(1);
+    const queued: HostSlotHolder[] = [];
+    const notices: string[] = [];
+    const waiter = acquireHostSlot(poolOf(1, 3_600_000), {
+      env,
+      pid: process.pid,
+      sleep: rejectOnWait,
+      onQueued: (h) => queued.push(h),
+      onNotice: (m) => notices.push(m),
+    });
+    await expect(waiter, "the waiter must queue behind the live holder, never take its slot").rejects.toThrow(QUEUED);
+    expect(
+      queued.map((h) => h.pid),
+      "it names the live holder it is behind",
+    ).toStrictEqual([holderPid]);
+    expect(notices, "nothing was stolen").toStrictEqual([]);
+  } finally {
+    child.kill();
+    rmSync(env[HOST_POOL_ROOT_ENV] ?? "", { recursive: true, force: true });
+  }
+});
+
+test("a live real process whose recorded start ticks differ is stolen through the real /proc read", async () => {
+  const child = spawn("sleep", ["30"], { stdio: "ignore" });
+  const env = scratchRuntime();
+  try {
+    plantHolder(env, { pid: child.pid ?? 0, startedAt: "2100-01-01T00:00:00.000Z", startTicks: "1" });
+    const notices: string[] = [];
+    const lease = await acquireHostSlot(poolOf(1), { env, pid: process.pid, onNotice: (m) => notices.push(m) });
+    expect(lease.slot, "a pid whose process started at another tick is not the recorded holder").toBe(1);
+    expect(notices.join("\n")).toContain(`pid ${String(child.pid)} (reused by a newer process)`);
+    lease.release();
+  } finally {
+    child.kill();
+    rmSync(env[HOST_POOL_ROOT_ENV] ?? "", { recursive: true, force: true });
+  }
 });
 
 test("past the hard ceiling, with the holder and the overflow run both live, exactly one more run starts", async () => {
@@ -228,7 +347,7 @@ test("past the hard ceiling, with the holder and the overflow run both live, exa
   const leases = new Map<number, HostSlotLease>();
   const notices: string[] = [];
   const pending = [997, 998].map((pid) =>
-    acquireHostSlot(poolOf(1, 1000), { env, pid, alive, now, sleep, processStartMs: () => null, onNotice: (m) => notices.push(m) }).then((lease) => {
+    acquireHostSlot(poolOf(1, 1000), { env, pid, alive, now, sleep, startTicks: () => null, onNotice: (m) => notices.push(m) }).then((lease) => {
       admitted.push(pid);
       leases.set(pid, lease);
     }),

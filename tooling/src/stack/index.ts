@@ -56,7 +56,7 @@ export {
   writeDevStackIdentity,
 } from "./lib/dev-process-identity.ts";
 export { classifyInstance, decideDown, decideUp } from "./lib/identity.ts";
-export { parseListenerPid, parseProcStartTicks } from "./lib/proc-parse.ts";
+export { parseListenerPid } from "./lib/proc-parse.ts";
 export { decideSpawnLock, lockHolderText, mayRemovePidfile, parseLockHolder, parseProdRecord, serializeProdRecord } from "./lib/prod-record.ts";
 export type { SourceEntry } from "./lib/source-scan.ts";
 export { newestSourceEntries } from "./lib/source-scan.ts";

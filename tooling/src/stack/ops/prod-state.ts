@@ -9,9 +9,10 @@ import { print, REPO_ROOT } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { DEV_PORTS } from "../../_shared/ports.ts";
 import { runNicedSync } from "../../_shared/proc.ts";
+import { procStartTicks } from "../../_shared/proc-stat.ts";
 import type { DebugPosture, InstanceClassification, ObservedInstance, ProdRecord } from "../contract/types.ts";
 import { classifyInstance } from "../lib/identity.ts";
-import { parseListenerPid, parseProcStartTicks } from "../lib/proc-parse.ts";
+import { parseListenerPid } from "../lib/proc-parse.ts";
 import { parseProdRecord } from "../lib/prod-record.ts";
 import { classifyDebugPosture } from "../lib/verdicts.ts";
 
@@ -149,17 +150,6 @@ export async function probeDebug(port: number): Promise<{ posture: DebugPosture;
 function listenerPid(port: number): number | null {
   const res = runNicedSync("ss", ["-ltnp"]);
   return res.stdout === "" ? null : parseListenerPid(res.stdout, port);
-}
-
-export function procStartTicks(pid: number): string | null {
-  try {
-    return parseProcStartTicks(readFileSync(`/proc/${pid}/stat`, "utf8"));
-  } catch (error) {
-    if (errnoIs(error, "ENOENT")) {
-      return null;
-    }
-    throw error;
-  }
 }
 
 export function processAlive(pid: number): boolean {

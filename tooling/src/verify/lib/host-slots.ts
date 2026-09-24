@@ -20,8 +20,12 @@
 //
 // STALE SLOTS SELF-HEAL, same shape as ct-runner-lock.ts: a killed holder leaves its file behind, and a
 // slot nobody holds must never wedge the box, so an unheld slot is STOLEN with a printed note. A holder is
-// unheld when `kill(pid, 0)` says its pid is gone, or when `/proc/<pid>/stat` says the process behind that
-// pid started after the record was written (the pid was reused). `kill(pid, 0)` cannot tell EPERM (a live
+// unheld when `kill(pid, 0)` says its pid is gone, or when the `/proc/<pid>/stat` start ticks of the
+// process behind that pid differ from the ticks the holder recorded for itself (the pid was reused). Start
+// ticks count from boot, so no wall-clock step can make a live holder read as reused. Never compare them
+// with a wall-clock time: `/proc/stat` btime moves with every clock step, so a live holder would read as
+// reused and two runs would share a one-slot pool. With no ticks on either side (no `/proc`, or a record
+// without them), `kill(pid, 0)` alone decides. `kill(pid, 0)` cannot tell EPERM (a live
 // foreign pid) from ESRCH (gone), so a foreign pid reads as GONE and its slot is taken — the safe
 // direction, since these pools only ever contend with our own fleet.
 //
@@ -37,6 +41,7 @@ import { basename, join } from "node:path";
 import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { budget } from "@orb/tooling/_shared/load-budget";
+import { procStartTicks } from "@orb/tooling/_shared/proc-stat";
 import { processEnvValue } from "@orb/tooling/_shared/process-env";
 import type { HostSlotHolder, HostSlotLease, HostSlotPool } from "../contract/host-slots.ts";
 
@@ -65,9 +70,11 @@ function slotPath(dir: string, slot: number): string {
   return join(dir, `${String(slot)}.lock`);
 }
 
-/** A slot file or a queue ticket. Only a ticket carries `beatMs`, its last heartbeat. */
+/** A slot file or a queue ticket. Only a ticket carries `beatMs`, its last heartbeat. `startTicks` is the
+ *  writer's own `/proc` start ticks, or `null` where it had none to read. */
 interface PoolRecord extends HostSlotHolder {
   readonly beatMs: number | null;
+  readonly startTicks: string | null;
 }
 
 function readHolder(path: string): PoolRecord | null {
@@ -87,53 +94,34 @@ function readHolder(path: string): PoolRecord | null {
       startedAt: typeof row["startedAt"] === "string" ? row["startedAt"] : "unknown",
       label: typeof row["label"] === "string" ? row["label"] : "",
       beatMs: typeof row["beatMs"] === "number" ? row["beatMs"] : null,
+      startTicks: typeof row["startTicks"] === "string" ? row["startTicks"] : null,
     };
   } catch {
     return null;
   }
 }
 
-/** `/proc` reports a process start in clock ticks since boot; USER_HZ is 100 on every Linux ABI. */
-const USER_HZ = 100;
-/** `starttime` is field 22 of `/proc/<pid>/stat`, which is index 19 once the `pid (comm) ` prefix is cut. */
-const STAT_STARTTIME_INDEX = 19;
-const BTIME_RE = /^btime (\d+)$/mu;
-
-/** When the process now holding `pid` started, in epoch ms, or `null` when `/proc` cannot say (the pid is
- *  gone, or this is not Linux). `null` never makes a holder dead: `kill(pid, 0)` still decides. */
-function readProcessStartMs(pid: number): number | null {
-  // @orb-waive caught-failure-ownership(catch): the FAILURE IS THE ANSWER — a pid that exits between the liveness probe and this read, or a box with no `/proc`, has no start time to compare, and `null` makes the caller fall back to `kill(pid, 0)` alone, which is the pre-existing rule. Ends if a caller starts reading `null` as "reused".
-  try {
-    const stat = readFileSync(`/proc/${String(pid)}/stat`, "utf8");
-    const ticks = Number(stat.slice(stat.lastIndexOf(")") + 2).split(" ")[STAT_STARTTIME_INDEX]);
-    const btime = BTIME_RE.exec(readFileSync("/proc/stat", "utf8"))?.[1];
-    return btime === undefined || !Number.isFinite(ticks) ? null : Number(btime) * MS_PER_SECOND + (ticks * MS_PER_SECOND) / USER_HZ;
-  } catch {
-    return null;
-  }
-}
-
 /** The process table as this module reads it. Injected as ONE unit: a test that fakes `alive` gets no real
- *  `/proc` start times for its fake pids unless it fakes those too. */
+ *  `/proc` start ticks for its fake pids unless it fakes those too. */
 interface Liveness {
   readonly alive: (pid: number) => boolean;
-  readonly processStartMs: (pid: number) => number | null;
+  readonly startTicks: (pid: number) => string | null;
 }
-
-/** `/proc` start times are whole ticks and `btime` is whole seconds, so a genuine holder can read as
- *  starting up to about a second after its own record. */
-const REUSE_TOLERANCE_MS = 2000;
 
 const HOLDER_STATES = ["live", "gone", "reused"] as const;
 type HolderState = (typeof HOLDER_STATES)[number];
 
-function holderState(liveness: Liveness, holder: HostSlotHolder): HolderState {
+// `alive` runs first: a pid that is gone, or foreign (EPERM), never reaches the `/proc` read, so the read
+// only ever sees our own processes. A pid that exits between the two reads `null` and is gone next poll.
+function holderState(liveness: Liveness, holder: PoolRecord): HolderState {
   if (!liveness.alive(holder.pid)) {
     return "gone";
   }
-  const recordedMs = Date.parse(holder.startedAt);
-  const startMs = liveness.processStartMs(holder.pid);
-  return startMs !== null && Number.isFinite(recordedMs) && startMs > recordedMs + REUSE_TOLERANCE_MS ? "reused" : "live";
+  if (holder.startTicks === null) {
+    return "live";
+  }
+  const current = liveness.startTicks(holder.pid);
+  return current === null || current === holder.startTicks ? "live" : "reused";
 }
 
 const STATE_TEXT: Readonly<Record<Exclude<HolderState, "live">, string>> = { gone: "no such process", reused: "reused by a newer process" };
@@ -179,9 +167,9 @@ export interface HostSlotDeps {
   readonly now?: () => Date;
   readonly pid?: number;
   readonly alive?: (pid: number) => boolean;
-  /** When the process behind `pid` started (epoch ms), or `null`. Defaults to a `/proc` read only when
+  /** The `/proc` start ticks of the process behind `pid`, or `null`. Defaults to a `/proc` read only when
    *  `alive` is not injected, so a faked process table never meets a real one. */
-  readonly processStartMs?: (pid: number) => number | null;
+  readonly startTicks?: (pid: number) => string | null;
   readonly sleep?: (ms: number) => Promise<void>;
   readonly env?: NodeJS.ProcessEnv;
   /** Called ONCE, the first time this caller has to wait, with the holder it is queued behind. The caller
@@ -205,7 +193,7 @@ export async function acquireHostSlot(pool: HostSlotPool, deps: HostSlotDeps = {
   try {
     for (;;) {
       const nowMs = waiter.now().getTime();
-      writeTicket(waiter.ticket, { pid: waiter.pid, startedAt: waiter.startedAt, label: pool.label, beatMs: nowMs });
+      writeTicket(waiter.ticket, { pid: waiter.pid, startedAt: waiter.startedAt, label: pool.label, beatMs: nowMs, startTicks: waiter.startTicks });
       const admitted = isHead(waiter, nowMs) ? admitHead(waiter, nowMs) : null;
       if (admitted !== null && admitted !== "stole") {
         return admitted;
@@ -241,6 +229,7 @@ interface Waiter {
   readonly now: () => Date;
   readonly startedMs: number;
   readonly startedAt: string;
+  readonly startTicks: string | null;
   readonly body: string;
   readonly ceilingMs: number;
   readonly slotPaths: readonly string[];
@@ -257,20 +246,23 @@ function openWaiter(pool: HostSlotPool, deps: HostSlotDeps): Waiter {
   mkdirSync(queueDir, { recursive: true });
   const startedMs = now().getTime();
   const startedAt = new Date(startedMs).toISOString();
+  const liveness: Liveness =
+    deps.alive === undefined
+      ? { alive: defaultAlive, startTicks: deps.startTicks ?? procStartTicks }
+      : { alive: deps.alive, startTicks: deps.startTicks ?? ((): null => null) };
+  const startTicks = liveness.startTicks(pid);
   return {
     pool,
     dir,
     queueDir,
     ticket: join(queueDir, `${String(startedMs).padStart(TICKET_MS_DIGITS, "0")}-${String(pid).padStart(TICKET_PID_DIGITS, "0")}${TICKET_SUFFIX}`),
     pid,
-    liveness:
-      deps.alive === undefined
-        ? { alive: defaultAlive, processStartMs: deps.processStartMs ?? readProcessStartMs }
-        : { alive: deps.alive, processStartMs: deps.processStartMs ?? ((): null => null) },
+    liveness,
     now,
     startedMs,
     startedAt,
-    body: `${JSON.stringify({ pid, startedAt, label: pool.label }, null, 2)}\n`,
+    startTicks,
+    body: `${JSON.stringify({ pid, startedAt, label: pool.label, startTicks }, null, 2)}\n`,
     // The ceiling is LOAD-SCALED through the one policy: on a contended box the queue is legitimately
     // longer, and a ceiling written for a quiet box would admit the overflow run exactly when it matters most.
     ceilingMs: budget(pool.waitBaseMs),
@@ -394,7 +386,7 @@ function takeAnySlot(input: SweepInput, onNotice: ((message: string) => void) | 
       // A LIVE holder is a holder, even if its pid is OURS. Exempting our own pid so a recycled pid could
       // be stolen made the cap silently double-issue: one process holding both CT slots was handed slot 1
       // a third time, because it read its own record as debris. `holderState` catches a recycled pid by its
-      // process start time instead.
+      // `/proc` start ticks instead.
       const state = holder === null ? "gone" : holderState(input.liveness, holder);
       if (holder !== null && state === "live") {
         continue;
