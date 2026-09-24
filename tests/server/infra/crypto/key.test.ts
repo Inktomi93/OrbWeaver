@@ -3,7 +3,14 @@ import { chmodSync, existsSync, lstatSync, mkdtempSync, readdirSync, readFileSyn
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
-import { credentialsKeyFromEnv, dataDirFromDbUrl, decode32Bytes, loadOrCreateKeyfile, sessionSecretFromEnv } from "@orb/server/infra/crypto";
+import {
+  bootSecretProvenance,
+  credentialsKeyFromEnv,
+  dataDirFromDbUrl,
+  decode32Bytes,
+  loadOrCreateKeyfile,
+  sessionSecretFromEnv,
+} from "@orb/server/infra/crypto";
 import { afterEach, describe } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
@@ -201,5 +208,19 @@ describe("the generated secrets beside the db", () => {
     const secret = sessionSecretFromEnv({ explicit: undefined, databaseUrl: dbUrlIn(dir) });
     const key = credentialsKeyFromEnv({ explicit: undefined, databaseUrl: dbUrlIn(dir) });
     expect(key?.toString("hex")).not.toBe(secret);
+  });
+});
+
+// The boot disclaimer names each secret's source; it must be the source the loader actually used.
+describe("bootSecretProvenance", () => {
+  test("an empty CREDENTIALS_KEY is not explicit (the loader falls back to the keyfile), an empty SESSION_SECRET is", () => {
+    const provenance = bootSecretProvenance({ sessionSecret: "", credentialsKey: "", databaseUrl: "file:/srv/orb/orb.db" });
+    expect(provenance.credentialsKey).toEqual({ explicit: false, keyfile: "/srv/orb/.credentials-key" });
+    expect(provenance.sessionSecret).toEqual({ explicit: true, keyfile: "/srv/orb/.session-secret" });
+  });
+
+  test("a remote database has no keyfile", () => {
+    const provenance = bootSecretProvenance({ sessionSecret: undefined, credentialsKey: undefined, databaseUrl: "libsql://db.example.turso.io" });
+    expect(provenance).toEqual({ sessionSecret: { explicit: false, keyfile: null }, credentialsKey: { explicit: false, keyfile: null } });
   });
 });
