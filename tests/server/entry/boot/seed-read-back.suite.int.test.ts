@@ -225,7 +225,7 @@ type InboxOut = Out<AppCaller["notifications"]["list"]>["items"][number];
 type GalleryOut = Out<AppCaller["assets"]["listGallery"]>[number];
 type AssetOut = Out<AppCaller["assets"]["listOwned"]>[number];
 
-const tagPlan = view<TagOut>({
+const tagFields = {
   id: TYPED_ONLY,
   name: TYPED_ONLY,
   color: TYPED_ONLY,
@@ -234,10 +234,11 @@ const tagPlan = view<TagOut>({
   folderType: tagFolderTypeSchema,
   sortOrder: TYPED_ONLY,
   isHiddenOnCard: TYPED_ONLY,
-});
+} satisfies { readonly [K in keyof TagOut]-?: Plan };
 
-const tagWithUsagePlan = view<TagWithUsageOut>({ ...tagPlan.fields, usage: TYPED_ONLY });
-const tagSuggestionPlan = view<TagSuggestionOut>({ ...tagPlan.fields, characterId: TYPED_ONLY });
+const tagPlan = view<TagOut>(tagFields);
+const tagWithUsagePlan = view<TagWithUsageOut>({ ...tagFields, usage: TYPED_ONLY });
+const tagSuggestionPlan = view<TagSuggestionOut>({ ...tagFields, characterId: TYPED_ONLY });
 
 const characterProvenanceSchema = z.enum(CHARACTER_PROVENANCES);
 
