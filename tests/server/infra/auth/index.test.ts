@@ -125,14 +125,8 @@ describe("resolve — the opt-in widened fallback peer set", () => {
     expect(res.identity).toBeNull();
   });
 
-  test("the LOOPBACK arm is UNAFFECTED by a forwarding header (today's accepted shape, spec §4 — unchanged)", async () => {
-    const res = await resolve(headers({ "x-forwarded-for": "203.0.113.9" }), { config: cfg(dockerCfg), peerIp: "127.0.0.1" });
-    expect(res.via).toBe("fallback");
-    expect(res.identity?.handle).toBe("owner");
-  });
-
-  test("the loopback arm with a forwarding header is unaffected with the knob UNSET too", async () => {
-    const res = await resolve(headers({ "x-forwarded-for": "203.0.113.9" }), { config: cfg({ mode: "single-user" }), peerIp: "127.0.0.1" });
+  test("the loopback arm stays admitted while the knob is set (control: no forwarding header)", async () => {
+    const res = await resolve(headers(), { config: cfg(dockerCfg), peerIp: "127.0.0.1" });
     expect(res.via).toBe("fallback");
   });
 
@@ -141,5 +135,41 @@ describe("resolve — the opt-in widened fallback peer set", () => {
     const forwarded = await resolve(headers({ "x-forwarded-for": "203.0.113.9" }), { config: cfg(dockerCfg), peerIp: "192.168.1.27" });
     expect(bare.identity).toBeNull();
     expect(forwarded.identity).toBeNull();
+  });
+});
+
+// ── RULE B: A RELAYED REQUEST IS NEVER THE OPERATOR ──────────────────────────────────────────────────────
+// A same-host proxy or tunnel (cloudflared, `tailscale serve`, Caddy or nginx on 127.0.0.1) connects over
+// loopback, so the socket peer alone cannot tell the operator's browser from an internet visitor. A request
+// carrying any relay tell is refused the owner fallback on every peer, loopback included, in every mode.
+describe("resolve — a relayed loopback request is never the owner (Rule B)", () => {
+  const RelayTells = [
+    ["forwarded", "for=203.0.113.9;proto=https"],
+    ["x-forwarded-for", "203.0.113.9"],
+    ["x-real-ip", "203.0.113.9"],
+    ["cf-connecting-ip", "203.0.113.9"],
+    ["x-forwarded-proto", "https"],
+    ["x-forwarded-host", "chat.example.com"],
+  ] as const;
+
+  test.each(RelayTells)("single-user + loopback peer + `%s` → identity null", async (name, value) => {
+    const res = await resolve(headers({ [name]: value }), { config: cfg({ mode: "single-user" }), peerIp: "127.0.0.1" });
+    expect(res.identity).toBeNull();
+  });
+
+  test.each(RelayTells)("single-user + IPv6 loopback peer + `%s` → identity null", async (name, value) => {
+    const res = await resolve(headers({ [name]: value }), { config: cfg({ mode: "single-user" }), peerIp: "::1" });
+    expect(res.identity).toBeNull();
+  });
+
+  test("an SSO mode with the fallback on (break-glass shape) refuses a relayed loopback request too", async () => {
+    const res = await resolve(headers({ "x-forwarded-for": "203.0.113.9" }), { config: cfg({ mode: "oidc" }), peerIp: "127.0.0.1" });
+    expect(res.identity).toBeNull();
+  });
+
+  test("control: the same loopback request with no relay tell is still the owner", async () => {
+    const res = await resolve(headers({ host: "127.0.0.1:8788", "user-agent": "curl/8" }), { config: cfg({ mode: "single-user" }), peerIp: "127.0.0.1" });
+    expect(res.via).toBe("fallback");
+    expect(res.identity?.handle).toBe("owner");
   });
 });
