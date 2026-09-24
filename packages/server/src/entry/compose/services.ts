@@ -544,6 +544,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     recordProbeOutcome: credentials.recordProbeOutcome,
     // The late-bound holder above, derefed at request time.
     onEmbedSpaceChanged: () => enqueueEmbedReindex(),
+    emitUserEvent: publishUserEvent,
   };
   const connection = createConnectionService(connectionCtx);
 

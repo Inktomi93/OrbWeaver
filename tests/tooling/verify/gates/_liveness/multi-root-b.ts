@@ -44,7 +44,6 @@ import { gate as toolingClockBudget } from "../../../../../tooling/src/verify/ga
 import { gate as toolingInstrumentProof } from "../../../../../tooling/src/verify/gates/tooling-instrument-proof.ts";
 import { gate as toolingPortRegistry } from "../../../../../tooling/src/verify/gates/tooling-port-registry.ts";
 import { gate as uiPrimitivePermissions } from "../../../../../tooling/src/verify/gates/ui-primitive-permissions.ts";
-import { gate as userBusDeferredMember } from "../../../../../tooling/src/verify/gates/user-bus-deferred-member.ts";
 import { gate as warningCodeCoverage } from "../../../../../tooling/src/verify/gates/warning-code-coverage.ts";
 import { gate as wireSchemaVocabOneHome } from "../../../../../tooling/src/verify/gates/wire-schema-vocab-one-home.ts";
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "../../../../support/real-corpus-liveness.ts";
@@ -253,18 +252,6 @@ export const MULTI_ROOT_B_ARMS: readonly RealCorpusLivenessArm[] = [
     ],
     reportsAt: [PRIMITIVE],
     messageIncludes: "missing variants.ts",
-  },
-  {
-    policy: userBusDeferredMember,
-    // The deferred member gains its canonical injected producer, so the deferral is stale.
-    overlays: [
-      add(
-        "packages/server/src/domain/connection/verbs/liveness-save.ts",
-        'import type { UserBusEvent } from "@orb/contracts/user-bus";\nexport function livenessSave(ctx: { emitUserEvent: (userId: string, event: UserBusEvent) => void }, userId: string): void {\n  ctx.emitUserEvent(userId, { type: "connectionsChanged" });\n}\n',
-      ),
-    ],
-    reportsAt: ["packages/contracts/src/user-bus/index.ts"],
-    messageIncludes: "Member: connectionsChanged",
   },
   {
     policy: warningCodeCoverage,

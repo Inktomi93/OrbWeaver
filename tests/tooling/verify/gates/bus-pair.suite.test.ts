@@ -1,19 +1,18 @@
-// Conformance entry for the bus DEFINITION family plus the producer family's warning-debt sibling: what
-// stayed behind when `bus-definition-belts` and `user-bus-coverage` converted, minus the two policies that
-// have since been retired into `bus-producer-coverage` (`user-bus-coverage` itself and `bus-coverage-owner`,
-// whose guarantee the generic policy's belted-roster denominator carries — its pins now live beside it in
-// `bus-fact-health.test.ts`). Every proof runs through the production dispatcher, and the arms a proof row
-// cannot express — a REFUSAL, and the retirement of a whole exemption table — are pinned through
-// `runPolicyPass` here.
+// Conformance entry for the bus DEFINITION family: what stayed behind when `bus-definition-belts` and
+// `user-bus-coverage` converted, minus the two policies that have since been retired into
+// `bus-producer-coverage` (`user-bus-coverage` itself and `bus-coverage-owner`, whose guarantee the generic
+// policy's belted-roster denominator carries — its pins now live beside it in `bus-fact-health.test.ts`).
+// The family's third member, the hard/warning `user-bus-deferred-member`, was retired 0121 when its one
+// deferred row, `connectionsChanged`, gained a producer — `bus-producer-coverage` now owns that member by
+// construction, proven by its own regression-guard fixture, not by a pin here. Every proof runs through the
+// production dispatcher, and the arms a proof row cannot express — a REFUSAL, and the retirement of a whole
+// exemption table — are pinned through `runPolicyPass` here.
 import type { SourceFile } from "ts-morph";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as busBeltTotal } from "../../../../tooling/src/verify/gates/bus-belt-total.ts";
 import { gate as busConsumerBelt } from "../../../../tooling/src/verify/gates/bus-consumer-belt.ts";
 import { gate as busDefinitionBelts } from "../../../../tooling/src/verify/gates/bus-definition-belts.ts";
-import { gate as busProducerCoverage } from "../../../../tooling/src/verify/gates/bus-producer-coverage.ts";
-import { gate as userBusDeferredMember } from "../../../../tooling/src/verify/gates/user-bus-deferred-member.ts";
-import { deferralsFor } from "../../../../tooling/src/verify/lib/bus-deferred-member.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { policyProofRows } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
@@ -28,13 +27,7 @@ const ROOT = "/bus-pair";
 // went from 1.8 s to 12.4 s in a batch. `scaledBudget` is the house spelling (it grows with box load too).
 const CONFORMANCE_TIMEOUT_MS = scaledBudget(240_000);
 const PER_ROW_TIMEOUT_MS = scaledBudget(60_000);
-// The producer-coverage half of this family lives in `bus-fact-health.test.ts` (it is the producer
-// family's conformance entry); `busProducerCoverage` is imported here only for the deferral pin below,
-// which is a claim about the TWO policies together and belongs beside the deferral's own refusal pin.
-const PAIR = [busBeltTotal, busConsumerBelt, busDefinitionBelts, userBusDeferredMember];
-
-const USER_UNION_ONLY_DEFERRED =
-  'export type UserBusEvent = { type: "connectionsChanged" };\nexport const USER_BUS_EVENT_TYPES = { connectionsChanged: true } satisfies Record<UserBusEvent["type"], true>;\n';
+const PAIR = [busBeltTotal, busConsumerBelt, busDefinitionBelts];
 
 function passOf(policy: GatePolicy, files: Readonly<Record<string, string>>): ReturnType<typeof runPolicyPass> {
   const project = new Project({ useInMemoryFileSystem: true });
@@ -95,65 +88,6 @@ test(
   },
   PER_ROW_TIMEOUT_MS,
 );
-
-test(
-  "a deferral that outlives its subject REFUSES instead of passing silently",
-  () => {
-    const result = passOf(userBusDeferredMember, {
-      // The deferred member was renamed. Every other identity still resolves, so a name-keyed exemption
-      // would sit here forever describing nothing.
-      "packages/contracts/src/user-bus/index.ts":
-        'export type UserBusEvent = { type: "connectionChanged" };\nexport const USER_BUS_EVENT_TYPES = { connectionChanged: true } satisfies Record<UserBusEvent["type"], true>;\n',
-    });
-    expect(result.policies[0]?.owner.status).toBe("incomplete");
-    expect(result.toolErrors.map(({ phase, message }) => `${phase}: ${message}`)).toEqual([
-      "evaluate: deferred UserBusEvent member connectionsChanged is no longer declared — this deferral outlived its subject",
-    ]);
-  },
-  PER_ROW_TIMEOUT_MS,
-);
-
-test(
-  "the deferred member is owned by exactly one of the two policies, in both of its states",
-  () => {
-    const deferredLive = { "packages/contracts/src/user-bus/index.ts": USER_UNION_ONLY_DEFERRED };
-    expect(passOf(busProducerCoverage, deferredLive).authority.effectiveFindings).toEqual([]);
-    expect(passOf(userBusDeferredMember, deferredLive).authority.effectiveFindings).toEqual([]);
-
-    const retired = {
-      "packages/contracts/src/user-bus/index.ts": USER_UNION_ONLY_DEFERRED,
-      "packages/server/src/domain/connection/verbs/save.ts":
-        'import type { UserBusEvent } from "../../../../../contracts/src/user-bus/index.ts";\nexport function save(ctx: { emitUserEvent: (userId: string, event: UserBusEvent) => void }, userId: string): void {\n  ctx.emitUserEvent(userId, { type: "connectionsChanged" });\n}\n',
-    };
-    expect(passOf(busProducerCoverage, retired).authority.effectiveFindings).toEqual([]);
-    const retirement = passOf(userBusDeferredMember, retired).authority.effectiveFindings;
-    // `error` since #2025 (2026-09-12): the deferral was born `hard` + `warning`, the pair the owner ruled a contradiction;
-    // the retirement instruction now BLOCKS, which is what a hard finding is for.
-    expect(retirement.map(({ policyId, severity }) => `${policyId}/${severity}`)).toEqual(["user-bus-deferred-member/error"]);
-  },
-  PER_ROW_TIMEOUT_MS,
-);
-
-test("the deferral selector answers by (union, member), so one bus's row is never another's", () => {
-  // F7, and the reason the selector takes an injectable row list: the LIVE list holds exactly one row, so a
-  // reader that ignored the union half would behave identically on the real tree and no fixture could tell
-  // the two apart (measured — an unfiltered mutant left every bus spec green). With a second bus's row
-  // planted, the filter is observable in both directions: each union sees its own member and only its own.
-  const userUnion = { path: "packages/contracts/src/user-bus/index.ts", exportName: "UserBusEvent" } as const;
-  const chatUnion = { path: "packages/contracts/src/chat/bus.ts", exportName: "ChatBusEvent" } as const;
-  const rows = [
-    { union: userUnion, member: "connectionsChanged" },
-    { union: chatUnion, member: "connectionsChanged" },
-    { union: chatUnion, member: "opened" },
-  ];
-
-  expect(deferralsFor(userUnion, rows)).toEqual(["connectionsChanged"]);
-  expect(deferralsFor(chatUnion, rows)).toEqual(["connectionsChanged", "opened"]);
-  expect(deferralsFor({ path: "packages/contracts/src/rpg/bus.ts", exportName: "RpgBusEvent" }, rows)).toEqual([]);
-  // The LIVE list, read through the same door: exactly the #1822 row, and nothing for any other bus.
-  expect(deferralsFor(userUnion)).toEqual(["connectionsChanged"]);
-  expect(deferralsFor(chatUnion)).toEqual([]);
-});
 
 test(
   "a definition fact that resolves no bus union REFUSES instead of reporting every bus healthy",

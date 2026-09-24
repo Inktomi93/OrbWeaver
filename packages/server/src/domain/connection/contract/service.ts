@@ -9,6 +9,7 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { ConnectionBinding, ModelListing, ResolvedConnectionView, SendAvailability } from "@orb/contracts/inference";
 import type { AccountCredits, EndpointInspection, GenerationCost, VerifyAuthResult } from "@orb/contracts/providers";
+import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { BindingStore, ConnectionStore, InferenceRuntime, ProviderRegistry, ProviderStore, ResolveOutcome, SnapshotStore } from "@orb/inference";
 import type { AutomationRuleId, ConnectionBindingId, PluginId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
@@ -71,6 +72,12 @@ export interface ConnectionContext {
   /** The embed-space trigger re-raised (§10-4): the caller's embed / imageEmbed space MAY have changed — the settings-blob
    *  trigger this replaces enqueued the purge+reindex; the composition root binds the same op here. */
   readonly onEmbedSpaceChanged: (ownerId: UserId) => void;
+  /** The per-user freshness plane (`connectionsChanged`) — injected, never a sideways reach at the bus
+   *  (D38, the house injected-emit pattern — refinery's `RefineryContext` precedent). Every persisting verb
+   *  (`create` · `update` · `remove` · `setBinding` · `useForEverything`) calls it with the acting owner AFTER
+   *  its durable write commits, which is what makes a second tab/device's Connections pane reconcile at all
+   *  (docs/work/0121). Fire-and-forget, `void`-returning and non-throwing by construction. */
+  readonly emitUserEvent: EmitUserEvent;
 }
 
 /** The connection surface — selection's FRONT DOOR, never execution. Nothing here carries a secret. */

@@ -52,7 +52,7 @@ dropping a valid `defineGate` module in that directory, nothing else to register
 `tooling/src/verify/gates/GATE-AUTHORING.md` is the authoring guide; a gate's rule and its reason live
 in its own module header, never restated here.
 
-(350 registered gates)
+(349 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -389,7 +389,6 @@ in its own module header, never restated here.
 | `ui-variant-axes-stamped` | — | hard/error | @ui | @orb/ui variant-axis stamp: a tv()… |
 | `ui-variant-axes-stamped-health` | ui-variant-axes-stamped | hard/error | @ui\* | packages/ui/src/lib/variant-attrs.ts… |
 | `untrusted-regex-safe-exec` | — | hard/error | @server\* | the canonical world-info regex-key… |
-| `user-bus-deferred-member` | bus-fact | hard/error | @contracts,@server | owner-deferred UserBusEvent member… |
 | `vector-scope-derived` | — | ordinary/error | @server | a vector-substrate chokepoint was… |
 | `verb-naming` | — | hard/error | @server\* | a domain verb file does not export… |
 | `verify-registry-parity` | — | hard/error | none | a package.json verification-shaped… |
