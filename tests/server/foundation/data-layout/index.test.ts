@@ -3,7 +3,8 @@
 // migration moves only a defaulted slot.
 
 import { DEFAULT_IMPORT_STAGING_DIR } from "@orb/server/domain/import";
-import { DATA_LAYOUT_SLOT_KEYS, DEFAULT_DATA_DIR, resolveDataLayout } from "@orb/server/foundation/data-layout";
+import type { DataLayout } from "@orb/server/foundation/data-layout";
+import { DATA_LAYOUT_SLOT_KEYS, DB_FILE_NAME, DEFAULT_DATA_DIR, resolveDataLayout } from "@orb/server/foundation/data-layout";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
@@ -61,10 +62,33 @@ describe("resolveDataLayout", () => {
     expect(layout.explicit.has("DATABASE_URL")).toBe(true);
   });
 
-  test("DATA_LAYOUT_SKIP names legacy root entries as a set, trimmed, with blanks dropped; unset is empty", () => {
-    expect([...resolveDataLayout({ ["DATA_LAYOUT_SKIP"]: " import-reports, variants,, " }).skip].sort()).toEqual(["import-reports", "variants"]);
+  test("DATA_LAYOUT_SKIP names keyless legacy root entries as a set, trimmed, with blanks dropped; unset is empty", () => {
+    expect([...resolveDataLayout({ ["DATA_LAYOUT_SKIP"]: " import-reports, variants,, orbweaver.db.backup-17 " }).skip].sort()).toEqual([
+      "import-reports",
+      "orbweaver.db.backup-17",
+      "variants",
+    ]);
     expect([...resolveDataLayout({}).skip]).toEqual([]);
     expect([...resolveDataLayout({ ["DATA_LAYOUT_SKIP"]: "" }).skip]).toEqual([]);
+  });
+
+  // A skipped db would boot onto a fresh empty one, and a skipped keyed entry has a remedy that keeps the app
+  // reading it. Each refusal names that entry's real key; an unknown name lists what the key takes.
+  test("DATA_LAYOUT_SKIP refuses the db, a keyfile and a keyed slot by naming their keys, and an unknown name by listing the valid ones", () => {
+    expect(() => resolveDataLayout({ ["DATA_LAYOUT_SKIP"]: DB_FILE_NAME })).toThrow("DATABASE_URL");
+    expect(() => resolveDataLayout({ ["DATA_LAYOUT_SKIP"]: ".credentials-key" })).toThrow("CREDENTIALS_KEY");
+    expect(() => resolveDataLayout({ ["DATA_LAYOUT_SKIP"]: ".session-secret" })).toThrow("SESSION_SECRET");
+    expect(() => resolveDataLayout({ ["DATA_LAYOUT_SKIP"]: "models" })).toThrow("LOCAL_LIGHT_CACHE_DIR");
+    expect(() => resolveDataLayout({ ["DATA_LAYOUT_SKIP"]: "import-staging" })).toThrow("IMPORT_STAGING_DIR");
+    const typo = (): DataLayout => resolveDataLayout({ ["DATA_LAYOUT_SKIP"]: "import-report" });
+    expect(typo).toThrow("import-report");
+    expect(typo).toThrow("variants");
+    expect(typo).toThrow("import-reports");
+  });
+
+  test("an explicit CREDENTIALS_KEY or SESSION_SECRET lands in the explicit set like a slot key", () => {
+    const layout = resolveDataLayout({ ["CREDENTIALS_KEY"]: "ab".repeat(32), ["SESSION_SECRET"]: "" });
+    expect([...layout.explicit]).toEqual(["CREDENTIALS_KEY"]);
   });
 
   test("the import domain's own default is the same path the resolver derives", () => {

@@ -334,8 +334,13 @@ function collectBackupInventory(dir: string, base: string): BackupInventory {
  * would later manage, and nothing a neighbouring file's name happens to resemble.
  */
 export function listBackupFiles(dir: string, base: string): readonly string[] {
+  return backupDirFiles(dir).filter((name) => isBackupFileName(name, base));
+}
+
+/** Whether `name` is one of `base`'s backup copies, sidecars or pin markers, by the sweep's own patterns. */
+export function isBackupFileName(name: string, base: string): boolean {
   const { backupRe, pinRe } = backupNamePatterns(base);
-  return backupDirFiles(dir).filter((name) => [...name.matchAll(backupRe)].length > 0 || [...name.matchAll(pinRe)].length > 0);
+  return [...name.matchAll(backupRe)].length > 0 || [...name.matchAll(pinRe)].length > 0;
 }
 
 /**

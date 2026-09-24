@@ -20,23 +20,15 @@ import { dirname, join } from "node:path";
 import process from "node:process";
 import { backupBeforeMigrate, closeDb, createDb, detachWal, listBackupFiles } from "@orb/db";
 import { isPlainObject } from "@orb/kit/guards";
-import type { DataLayout, DataLayoutSlotKey } from "#foundation/data-layout";
-import { DATA_LAYOUT_DIRS, DATA_LAYOUT_SKIP_KEY, DB_FILE_NAME, SECRET_FILE_NAMES } from "#foundation/data-layout";
+import type { DataLayout, DataLayoutKeeperKey } from "#foundation/data-layout";
+import { DATA_LAYOUT_DIRS, DATA_LAYOUT_SKIP_KEY, DB_FILE_NAME, keeperRemedy, LEGACY_ENTRIES } from "#foundation/data-layout";
 import { getLog } from "#foundation/observability";
 
 /** The in-progress marker at the data root: present only between the first rename and the last. */
 export const LAYOUT_JOURNAL = ".layout-migration.json";
 
-// The legacy names at the root, and the top-level names the current layout owns. A root entry in neither
-// set is the operator's and is left where it is.
-const LEGACY = {
-  credentialsKey: ".credentials-key",
-  sessionSecret: ".session-secret",
-  variants: "variants",
-  models: "models",
-  importStaging: "import-staging",
-  importReports: "import-reports",
-} as const;
+// The top-level names the current layout owns. A root entry outside this set and `LEGACY_ENTRIES` is the
+// operator's and is left where it is.
 const OWNED_ROOT_ENTRIES: ReadonlySet<string> = new Set([
   DATA_LAYOUT_DIRS.db,
   DATA_LAYOUT_DIRS.backups,
@@ -57,10 +49,10 @@ export interface DataLayoutMove {
   readonly to: string;
 }
 
-// A move as planned against the current env: `keptBy` names the slot key that, once set, leaves the entry
+// A move as planned against the current env: `keptBy` names the env key that, once set, leaves the entry
 // where it is (null for an entry no key governs).
 interface PlannedMove extends DataLayoutMove {
-  readonly keptBy: DataLayoutSlotKey | null;
+  readonly keptBy: DataLayoutKeeperKey | null;
 }
 
 interface Journal {
@@ -162,34 +154,25 @@ function writeJournal(path: string, journal: Journal): void {
   }
 }
 
-// The moves the current env asks for. A legacy db or keyfile moves only when it holds bytes: an empty one is
-// what a holder that reopened a moved file by its old path leaves behind, not data. Every other entry moves
-// on presence (a `.keep` pin is a meaningful empty file). An entry the operator named in `DATA_LAYOUT_SKIP`
-// is never planned, so a resume re-planned against the env drops it too. The db goes LAST, so a failure on
-// any other entry never strands it; its sidecars are folded into it before the journal exists.
+// The moves the current env asks for: the backup files, then `LEGACY_ENTRIES` in its order. An entry whose
+// keeper key is set, or that the operator named in `DATA_LAYOUT_SKIP`, is never planned, so a resume
+// re-planned against the env drops it too. A `.keep` pin is a meaningful empty file, so backups move on
+// presence; the db's sidecars are folded into it before the journal exists.
 function planMoves(root: string, layout: DataLayout): PlannedMove[] {
   const entries = new Set(readdirSync(root));
   const moves: PlannedMove[] = [];
-  const add = (from: string, to: string, keptBy: DataLayoutSlotKey | null = null, requireBytes = false): void => {
+  const add = (from: string, to: string, keptBy: DataLayoutKeeperKey | null, requireBytes: boolean): void => {
     if (entries.has(from) && !layout.skip.has(from) && (!requireBytes || holdsData(join(root, from)))) {
       moves.push({ from, to, keptBy });
     }
   };
   for (const name of listBackupFiles(root, DB_FILE_NAME)) {
-    add(name, join(DATA_LAYOUT_DIRS.backups, name));
+    add(name, join(DATA_LAYOUT_DIRS.backups, name), null, false);
   }
-  add(LEGACY.credentialsKey, join(DATA_LAYOUT_DIRS.secrets, SECRET_FILE_NAMES.credentialsKey), null, true);
-  add(LEGACY.sessionSecret, join(DATA_LAYOUT_DIRS.secrets, SECRET_FILE_NAMES.sessionSecret), null, true);
-  add(LEGACY.variants, DATA_LAYOUT_DIRS.variants);
-  if (!layout.explicit.has("LOCAL_LIGHT_CACHE_DIR")) {
-    add(LEGACY.models, dirname(DATA_LAYOUT_DIRS.models), "LOCAL_LIGHT_CACHE_DIR");
-  }
-  if (!layout.explicit.has("IMPORT_STAGING_DIR")) {
-    add(LEGACY.importStaging, DATA_LAYOUT_DIRS.importStaging, "IMPORT_STAGING_DIR");
-  }
-  add(LEGACY.importReports, DATA_LAYOUT_DIRS.reports);
-  if (!layout.explicit.has("DATABASE_URL")) {
-    add(DB_FILE_NAME, join(DATA_LAYOUT_DIRS.db, DB_FILE_NAME), "DATABASE_URL", true);
+  for (const [from, entry] of Object.entries(LEGACY_ENTRIES)) {
+    if (entry.keptBy === null || !layout.explicit.has(entry.keptBy)) {
+      add(from, entry.to, entry.keptBy, entry.requireBytes);
+    }
   }
   return moves;
 }
@@ -205,10 +188,13 @@ function landingPath(target: string): string {
   return realpathSync(probe);
 }
 
-// The one remedy that needs no hand move and no journal edit: the slot key that keeps a keyed entry, or the
-// skip list for the rest.
-function wayOut(move: PlannedMove): string {
-  return move.keptBy === null ? `add ${move.from} to ${DATA_LAYOUT_SKIP_KEY} to leave it where it is` : `set ${move.keptBy} to keep it where it is`;
+// The one remedy that needs no hand move and no journal edit: the env key that keeps a keyed entry, or the
+// skip list for the rest. A skipped entry is one the app no longer reads, and the text says so.
+function wayOut(root: string, move: PlannedMove): string {
+  const from = join(root, move.from);
+  return move.keptBy === null
+    ? `add ${move.from} to ${DATA_LAYOUT_SKIP_KEY} to leave it at ${from}, where the app will not see it until it is moved into ${join(root, move.to)} by hand`
+    : keeperRemedy(move.keptBy, from);
 }
 
 // rename(2) cannot cross a filesystem, and a mount point at either end fails it too. Refuse BEFORE the
@@ -220,13 +206,13 @@ function refuseCrossDevice(root: string, moves: readonly PlannedMove[], deviceOf
   for (const move of moves) {
     const from = join(root, move.from);
     if (deviceOf(from) !== rootDevice) {
-      reasons.push(`${from} sits on another filesystem than ${root} (${wayOut(move)}, or move it onto the data root's filesystem by hand)`);
+      reasons.push(`${from} sits on another filesystem than ${root} (${wayOut(root, move)}, or move it onto the data root's filesystem by hand)`);
       continue;
     }
     const landing = landingPath(join(root, move.to));
     if (deviceOf(landing) !== rootDevice) {
       reasons.push(
-        `${from} would land at ${landing}, which sits on another filesystem than ${root} (${wayOut(move)}, or put ${landing} on the data root's filesystem)`,
+        `${from} would land at ${landing}, which sits on another filesystem than ${root} (${wayOut(root, move)}, or put ${landing} on the data root's filesystem)`,
       );
     }
   }
@@ -248,16 +234,17 @@ function ensureContainerDirs(root: string, moveTargets: ReadonlySet<string>): vo
 // The db moves only as its sole holder: open the legacy file and leave WAL, which SQLite grants only when no
 // other connection has the file open, busy or idle. Any other holder is a refusal, because the move would
 // pull the file out from under it and it would reopen by the old path into an empty db. Leaving WAL also
-// folds the sidecars into the main file, so the db then moves as one file; the snapshot is taken after the
-// claim, so a refusal writes nothing.
-async function snapshotLegacyDb(root: string, layout: DataLayout): Promise<void> {
+// folds the sidecars into the main file, so the db then moves as one file. The snapshot is taken after the
+// claim, so a refusal writes nothing, and only on the first boot: a resume's claim changes the file's mtime,
+// which names the copy, so a snapshot per resume would fill the volume under a restart policy.
+async function claimLegacyDb(root: string, layout: DataLayout, snapshot: boolean): Promise<void> {
   const path = join(root, DB_FILE_NAME);
   const url = `file:${path}`;
   const db = await createDb(url);
   let sole: boolean;
   try {
     sole = (await detachWal(db)).sole;
-    if (sole) {
+    if (sole && snapshot) {
       await backupBeforeMigrate(db, url, layout.backups);
     }
   } finally {
@@ -280,7 +267,7 @@ function applyMove(root: string, move: PlannedMove, rename: Rename): void {
   } catch (err) {
     const code = (err as NodeJS.ErrnoException).code ?? "unknown error";
     throw new Error(
-      `boot/data-layout: could not move ${from} to ${to} (${code}): ${wayOut(move)}, or fix ${to} and start again. ${join(root, LAYOUT_JOURNAL)} keeps the remaining moves for the next boot.`,
+      `boot/data-layout: could not move ${from} to ${to} (${code}): ${wayOut(root, move)}, or fix ${to} and start again. ${join(root, LAYOUT_JOURNAL)} keeps the remaining moves for the next boot.`,
       { cause: err },
     );
   }
@@ -316,14 +303,14 @@ function classifyJournal(
   return { pending, done };
 }
 
-// A db still pending is claimed again before it moves: the claim before the first boot's journal says nothing
-// about who has the file open now.
+// A db still pending is claimed again before it moves (the claim before the first boot's journal says nothing
+// about who has the file open now) but not snapshotted again: the first boot's snapshot still covers it.
 async function resumeMoves(root: string, layout: DataLayout, journal: readonly DataLayoutMove[], fs: FsOps): Promise<DataLayoutMove[]> {
   const planned = new Map(planMoves(root, layout).map((move) => [move.from, move]));
   const { pending, done } = classifyJournal(root, journal, planned);
   refuseCrossDevice(root, pending, fs.deviceOf);
   if (pending.some((move) => move.from === DB_FILE_NAME)) {
-    await snapshotLegacyDb(root, layout);
+    await claimLegacyDb(root, layout, false);
   }
   for (const move of pending) {
     applyMove(root, move, fs.rename);
@@ -338,7 +325,7 @@ function leftInPlace(root: string): string[] {
     .sort();
 }
 
-function logReport(root: string, report: DataLayoutMigrationReport): void {
+function logReport(root: string, layout: DataLayout, report: DataLayoutMigrationReport): void {
   const log = getLog();
   log.info(
     { root, resumed: report.resumed, moves: report.moved.map((move) => `${move.from} -> ${move.to}`) },
@@ -346,6 +333,13 @@ function logReport(root: string, report: DataLayoutMigrationReport): void {
   );
   if (report.leftInPlace.length > 0) {
     log.warn({ root, entries: report.leftInPlace }, "boot/data-layout: root entries the layout does not name were left in place");
+  }
+  const skipped = report.leftInPlace.filter((name) => layout.skip.has(name));
+  if (skipped.length > 0) {
+    log.warn(
+      { root, entries: skipped },
+      `boot/data-layout: ${DATA_LAYOUT_SKIP_KEY} leaves these entries at their old paths under ${root}; the app will not see them until they are moved by hand`,
+    );
   }
 }
 
@@ -377,7 +371,7 @@ export async function migrateDataLayout(deps: MigrateDataLayoutDeps): Promise<Da
     rmSync(journalPath);
     ensureContainerDirs(root, new Set());
     const report = { moved, leftInPlace: leftInPlace(root), resumed: true };
-    logReport(root, report);
+    logReport(root, deps.layout, report);
     return report;
   }
 
@@ -397,7 +391,7 @@ export async function migrateDataLayout(deps: MigrateDataLayoutDeps): Promise<Da
   }
   refuseCrossDevice(root, planned, fs.deviceOf);
   if (planned.some((move) => move.from === DB_FILE_NAME)) {
-    await snapshotLegacyDb(root, deps.layout);
+    await claimLegacyDb(root, deps.layout, true);
   }
   const moves = planned.map((move): DataLayoutMove => ({ from: move.from, to: move.to }));
   ensureContainerDirs(root, new Set(moves.map((move) => move.to)));
@@ -407,6 +401,6 @@ export async function migrateDataLayout(deps: MigrateDataLayoutDeps): Promise<Da
   }
   rmSync(journalPath);
   const report = { moved: moves, leftInPlace: leftInPlace(root), resumed: false };
-  logReport(root, report);
+  logReport(root, deps.layout, report);
   return report;
 }

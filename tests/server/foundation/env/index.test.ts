@@ -497,6 +497,12 @@ describe("foundation/env — the floor parse (defaults + transforms)", () => {
     expect([...rerooted.env.DATA_LAYOUT.explicit]).toEqual(["ASSETS_DIR"]);
   });
 
+  // A skipped db would boot onto a fresh empty one: the parse refuses the name and names the key that keeps it.
+  test("DATA_LAYOUT_SKIP is checked at parse: a name an env key keeps refuses the boot and names that key", async () => {
+    await expect(reimportEnvWith({ DATA_LAYOUT_SKIP: "orbweaver.db" })).rejects.toThrow("DATABASE_URL");
+    await expect(reimportEnvWith({ DATA_LAYOUT_SKIP: "import-report" })).rejects.toThrow("import-reports");
+  });
+
   test("rate-limit budgets are boot-env with the documented floor", async () => {
     const { env } = await reimportEnvWith({});
     expect(env.RATE_LIMIT_AI_TURN).toBe(30);
