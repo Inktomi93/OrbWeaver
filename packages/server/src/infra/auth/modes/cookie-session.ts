@@ -30,11 +30,17 @@ export const SESSION_COOKIE_NAME_SECURE = "__Host-orb_session";
  */
 export const SESSION_COOKIE_NAME_INSECURE = "orb_session_insecure";
 
-/** `HttpOnly` (no script read), `SameSite=Lax` (no cross-site ride) and `Path=/` apply on both transports;
+/** The attributes every auth cookie carries on each transport; the `__Host-` names need the https string.
+ *  `HttpOnly` (no script read), `SameSite=Lax` (no cross-site ride) and `Path=/` apply on both transports;
  *  dropping `Secure` costs confidentiality on the wire and nothing else. */
+export const AUTH_COOKIE_ATTRS = {
+  https: "Path=/; HttpOnly; Secure; SameSite=Lax",
+  http: "Path=/; HttpOnly; SameSite=Lax",
+} as const satisfies Record<RequestTransport, string>;
+
 const SESSION_COOKIE_BY_TRANSPORT = {
-  https: { name: SESSION_COOKIE_NAME_SECURE, attrs: "Path=/; HttpOnly; Secure; SameSite=Lax" },
-  http: { name: SESSION_COOKIE_NAME_INSECURE, attrs: "Path=/; HttpOnly; SameSite=Lax" },
+  https: { name: SESSION_COOKIE_NAME_SECURE, attrs: AUTH_COOKIE_ATTRS.https },
+  http: { name: SESSION_COOKIE_NAME_INSECURE, attrs: AUTH_COOKIE_ATTRS.http },
 } as const satisfies Record<RequestTransport, SessionCookie>;
 
 /** The session cookie for a request's transport. The reader (`entry/auth/seam.ts`) and the writer
@@ -46,6 +52,34 @@ export function sessionCookieFor(transport: RequestTransport): SessionCookie {
 /** Every session cookie, https first. The logout clear and the mint's clear of the other name iterate it, so a
  *  browser that signed in over both transports holds no live token after sign-out. */
 export const SESSION_COOKIES: readonly SessionCookie[] = [SESSION_COOKIE_BY_TRANSPORT.https, SESSION_COOKIE_BY_TRANSPORT.http];
+
+/**
+ * The value of the first cookie named `name` in an attacker-controlled `Cookie` header, percent-decoded.
+ * `null` when absent, or when the first such cookie fails to decode: a malformed value is never a
+ * credential, and a later same-named cookie must not stand in for it. Every auth cookie read goes
+ * through here, so the session and the OIDC binding cookie cannot parse one header two ways.
+ */
+export function readRequestCookie(headers: Headers, name: string): string | null {
+  const raw = headers.get("cookie");
+  if (raw === null) {
+    return null;
+  }
+  for (const part of raw.split(";")) {
+    const eq = part.indexOf("=");
+    if (eq === -1) {
+      continue;
+    }
+    if (part.slice(0, eq).trim() === name) {
+      // @orb-waive caught-failure-ownership(catch): a cookie value that fails to percent-decode is not a credential, and `null` here means exactly "no such cookie" — the caller's unauthenticated path. A client-supplied malformed header is not an operator event. Ends if a malformed cookie should be distinguished from an absent one.
+      try {
+        return decodeURIComponent(part.slice(eq + 1).trim());
+      } catch {
+        return null;
+      }
+    }
+  }
+  return null;
+}
 
 /** Cookie-mode infra resolve: ALWAYS `null` (post-D40, `resolve` falls through to owner-fallback/unauth). */
 export function resolveCookieSession(): Promise<ResolvedIdentity | null> {
