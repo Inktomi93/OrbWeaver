@@ -12,15 +12,22 @@
 // ticket in `queue/`, and only the oldest live ticket may take a slot.
 //
 // PAST THE CEILING, ONE AT A TIME. When the head of the queue has waited past its (load-scaled) ceiling,
-// it takes the single `overflow.lock` and runs, with a loud notice naming the holder it went around. Every
-// later waiter stays queued behind it. Letting every waiter past its ceiling start at once turned a stuck
-// holder into a load spike that stalled every run on the box.
+// it takes `overflow.lock` and runs, with a loud notice naming the holder it went around. Every later
+// waiter stays queued behind it. Letting every waiter past its ceiling start at once turned a stuck holder
+// into a load spike that stalled every run on the box. If the holder AND the overflow run are both still
+// live at twice the ceiling, the head takes the one further file, `overflow-2.lock`. That bounds the wait
+// behind a live but stuck run at one extra run per ceiling, and never more than two past the cap.
 //
 // STALE SLOTS SELF-HEAL, same shape as ct-runner-lock.ts: a killed holder leaves its file behind, and a
-// slot nobody holds must never wedge the box, so an unheld slot (its pid is gone) is STOLEN with a printed
-// note. `kill(pid, 0)` cannot tell EPERM (a live foreign pid) from ESRCH (gone), so a foreign pid reads as
-// GONE and its slot is taken — the safe direction, since these pools only ever contend with our own fleet
-// and refusing forever on a recycled pid is a wedge an operator cannot clear.
+// slot nobody holds must never wedge the box, so an unheld slot is STOLEN with a printed note. A holder is
+// unheld when `kill(pid, 0)` says its pid is gone, or when the `/proc/<pid>/stat` start ticks of the
+// process behind that pid differ from the ticks the holder recorded for itself (the pid was reused). Start
+// ticks count from boot, so no wall-clock step can make a live holder read as reused. Never compare them
+// with a wall-clock time: `/proc/stat` btime moves with every clock step, so a live holder would read as
+// reused and two runs would share a one-slot pool. With no ticks on either side (no `/proc`, or a record
+// without them), `kill(pid, 0)` alone decides. `kill(pid, 0)` cannot tell EPERM (a live
+// foreign pid) from ESRCH (gone), so a foreign pid reads as GONE and its slot is taken — the safe
+// direction, since these pools only ever contend with our own fleet.
 //
 // THE VOCABULARY IS THE CALLER'S. This module decides WHEN a caller is queued, has acquired, or has given
 // up waiting; the SENTENCES belong to the caller (`verify: queued behind pid …` reads nothing like
@@ -34,6 +41,7 @@ import { basename, join } from "node:path";
 import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { budget } from "@orb/tooling/_shared/load-budget";
+import { procStartTicks } from "@orb/tooling/_shared/proc-stat";
 import { processEnvValue } from "@orb/tooling/_shared/process-env";
 import type { HostSlotHolder, HostSlotLease, HostSlotPool } from "../contract/host-slots.ts";
 
@@ -62,9 +70,11 @@ function slotPath(dir: string, slot: number): string {
   return join(dir, `${String(slot)}.lock`);
 }
 
-/** A slot file or a queue ticket. Only a ticket carries `beatMs`, its last heartbeat. */
+/** A slot file or a queue ticket. Only a ticket carries `beatMs`, its last heartbeat. `startTicks` is the
+ *  writer's own `/proc` start ticks, or `null` where it had none to read. */
 interface PoolRecord extends HostSlotHolder {
   readonly beatMs: number | null;
+  readonly startTicks: string | null;
 }
 
 function readHolder(path: string): PoolRecord | null {
@@ -84,11 +94,37 @@ function readHolder(path: string): PoolRecord | null {
       startedAt: typeof row["startedAt"] === "string" ? row["startedAt"] : "unknown",
       label: typeof row["label"] === "string" ? row["label"] : "",
       beatMs: typeof row["beatMs"] === "number" ? row["beatMs"] : null,
+      startTicks: typeof row["startTicks"] === "string" ? row["startTicks"] : null,
     };
   } catch {
     return null;
   }
 }
+
+/** The process table as this module reads it. Injected as ONE unit: a test that fakes `alive` gets no real
+ *  `/proc` start ticks for its fake pids unless it fakes those too. */
+interface Liveness {
+  readonly alive: (pid: number) => boolean;
+  readonly startTicks: (pid: number) => string | null;
+}
+
+const HOLDER_STATES = ["live", "gone", "reused"] as const;
+type HolderState = (typeof HOLDER_STATES)[number];
+
+// `alive` runs first: a pid that is gone, or foreign (EPERM), never reaches the `/proc` read, so the read
+// only ever sees our own processes. A pid that exits between the two reads `null` and is gone next poll.
+function holderState(liveness: Liveness, holder: PoolRecord): HolderState {
+  if (!liveness.alive(holder.pid)) {
+    return "gone";
+  }
+  if (holder.startTicks === null) {
+    return "live";
+  }
+  const current = liveness.startTicks(holder.pid);
+  return current === null || current === holder.startTicks ? "live" : "reused";
+}
+
+const STATE_TEXT: Readonly<Record<Exclude<HolderState, "live">, string>> = { gone: "no such process", reused: "reused by a newer process" };
 
 function defaultAlive(pid: number): boolean {
   // @orb-waive caught-failure-ownership(catch): `kill(pid, 0)` ASKS A QUESTION and throws to answer "no" — the throw IS the ESRCH answer, not a lost failure, and the caller acts on the boolean by stealing the slot and saying so out loud. Ends if this ever needs to distinguish EPERM from ESRCH.
@@ -120,7 +156,9 @@ const MS_PER_SECOND = 1000;
 const TICKET_STALE_MS = 30_000;
 const QUEUE_DIR = "queue";
 const TICKET_SUFFIX = ".json";
-const OVERFLOW_FILE = "overflow.lock";
+/** The overflow files, in the order the head takes them: the first at the ceiling, the second at the hard
+ *  ceiling (twice the ceiling) when the holder and the first overflow run are both still live. */
+const OVERFLOW_FILES = ["overflow.lock", "overflow-2.lock"] as const;
 // Zero-padded so a plain lexicographic sort of the ticket names IS arrival order (the pid breaks a tie).
 const TICKET_MS_DIGITS = 16;
 const TICKET_PID_DIGITS = 10;
@@ -129,20 +167,23 @@ export interface HostSlotDeps {
   readonly now?: () => Date;
   readonly pid?: number;
   readonly alive?: (pid: number) => boolean;
+  /** The `/proc` start ticks of the process behind `pid`, or `null`. Defaults to a `/proc` read only when
+   *  `alive` is not injected, so a faked process table never meets a real one. */
+  readonly startTicks?: (pid: number) => string | null;
   readonly sleep?: (ms: number) => Promise<void>;
   readonly env?: NodeJS.ProcessEnv;
   /** Called ONCE, the first time this caller has to wait, with the holder it is queued behind. The caller
    *  owns the sentence — see the module header. */
   readonly onQueued?: (holder: HostSlotHolder) => void;
   /** Called when a dead holder's slot or a dead waiter's ticket was cleared, and when the head of the queue
-   *  passes its ceiling. Each is a self-healing event that must never be silent. */
+   *  passes a ceiling. Each is a self-healing event that must never be silent. */
   readonly onNotice?: (message: string) => void;
 }
 
 /** THE DOOR. Take one of `pool.slots` host-wide slots, waiting in arrival order if they are all live.
  *
- *  The returned lease ALWAYS lets the caller proceed — `slot` is `null` for the single overflow run the
- *  pool admits once the head of the queue has waited past its ceiling. `release()` is idempotent and only
+ *  The returned lease ALWAYS lets the caller proceed — `slot` is `null` for an overflow run the pool admits
+ *  once the head of the queue has waited past a ceiling. `release()` is idempotent and only
  *  removes a file that still names us: a slot a later run legitimately re-created is not ours to delete. */
 export async function acquireHostSlot(pool: HostSlotPool, deps: HostSlotDeps = {}): Promise<HostSlotLease> {
   const sleep = deps.sleep ?? defaultSleep;
@@ -152,7 +193,7 @@ export async function acquireHostSlot(pool: HostSlotPool, deps: HostSlotDeps = {
   try {
     for (;;) {
       const nowMs = waiter.now().getTime();
-      writeTicket(waiter.ticket, { pid: waiter.pid, startedAt: waiter.startedAt, label: pool.label, beatMs: nowMs });
+      writeTicket(waiter.ticket, { pid: waiter.pid, startedAt: waiter.startedAt, label: pool.label, beatMs: nowMs, startTicks: waiter.startTicks });
       const admitted = isHead(waiter, nowMs) ? admitHead(waiter, nowMs) : null;
       if (admitted !== null && admitted !== "stole") {
         return admitted;
@@ -165,7 +206,7 @@ export async function acquireHostSlot(pool: HostSlotPool, deps: HostSlotDeps = {
         steals += 1;
         continue;
       }
-      const first = liveHolders(waiter.slotPaths, waiter.alive)[0];
+      const first = liveHolders(waiter.slotPaths, waiter.liveness)[0];
       if (!announced && first !== undefined) {
         announced = true;
         deps.onQueued?.(first);
@@ -177,23 +218,24 @@ export async function acquireHostSlot(pool: HostSlotPool, deps: HostSlotDeps = {
   }
 }
 
-/** One waiter's fixed facts, plus the one flag that keeps its past-ceiling notice to a single line. */
+/** One waiter's fixed facts, plus the highest ceiling it has already announced, so each notice prints once. */
 interface Waiter {
   readonly pool: HostSlotPool;
   readonly dir: string;
   readonly queueDir: string;
   readonly ticket: string;
   readonly pid: number;
-  readonly alive: (pid: number) => boolean;
+  readonly liveness: Liveness;
   readonly now: () => Date;
   readonly startedMs: number;
   readonly startedAt: string;
+  readonly startTicks: string | null;
   readonly body: string;
   readonly ceilingMs: number;
   readonly slotPaths: readonly string[];
-  readonly overflowPath: string;
+  readonly overflowPaths: readonly string[];
   readonly onNotice: ((message: string) => void) | undefined;
-  pastCeilingNoticed: boolean;
+  noticedLevel: number;
 }
 
 function openWaiter(pool: HostSlotPool, deps: HostSlotDeps): Waiter {
@@ -204,46 +246,61 @@ function openWaiter(pool: HostSlotPool, deps: HostSlotDeps): Waiter {
   mkdirSync(queueDir, { recursive: true });
   const startedMs = now().getTime();
   const startedAt = new Date(startedMs).toISOString();
+  const liveness: Liveness =
+    deps.alive === undefined
+      ? { alive: defaultAlive, startTicks: deps.startTicks ?? procStartTicks }
+      : { alive: deps.alive, startTicks: deps.startTicks ?? ((): null => null) };
+  const startTicks = liveness.startTicks(pid);
   return {
     pool,
     dir,
     queueDir,
     ticket: join(queueDir, `${String(startedMs).padStart(TICKET_MS_DIGITS, "0")}-${String(pid).padStart(TICKET_PID_DIGITS, "0")}${TICKET_SUFFIX}`),
     pid,
-    alive: deps.alive ?? defaultAlive,
+    liveness,
     now,
     startedMs,
     startedAt,
-    body: `${JSON.stringify({ pid, startedAt, label: pool.label }, null, 2)}\n`,
+    startTicks,
+    body: `${JSON.stringify({ pid, startedAt, label: pool.label, startTicks }, null, 2)}\n`,
     // The ceiling is LOAD-SCALED through the one policy: on a contended box the queue is legitimately
     // longer, and a ceiling written for a quiet box would admit the overflow run exactly when it matters most.
     ceilingMs: budget(pool.waitBaseMs),
     slotPaths: Array.from({ length: pool.slots }, (_, i) => slotPath(dir, i + 1)),
-    overflowPath: join(dir, OVERFLOW_FILE),
+    overflowPaths: OVERFLOW_FILES.map((file) => join(dir, file)),
     onNotice: deps.onNotice,
-    pastCeilingNoticed: false,
+    noticedLevel: 0,
   };
 }
 
-/** The head of the queue asks for a slot, and past its ceiling for the overflow run. `"stole"` means a dead
- *  holder's file was just cleared and the caller must ask again at once; `null` means keep waiting. */
+/** The head of the queue asks for a slot, and past each ceiling for one more overflow file. `"stole"` means
+ *  a dead holder's slot was just cleared and the caller must ask again at once; `null` means keep waiting. */
 function admitHead(waiter: Waiter, nowMs: number): HostSlotLease | "stole" | null {
-  const swept = takeAnySlot({ paths: waiter.slotPaths, body: waiter.body, alive: waiter.alive }, waiter.onNotice);
+  const swept = takeAnySlot({ paths: waiter.slotPaths, body: waiter.body, liveness: waiter.liveness }, waiter.onNotice);
   if (typeof swept === "number") {
     return lease(waiter.slotPaths[swept] ?? "", swept + 1, waiter.pid, waiter.now().getTime() - waiter.startedMs);
   }
-  if (swept === "stole" || nowMs - waiter.startedMs < waiter.ceilingMs) {
+  const level = Math.min(waiter.overflowPaths.length, Math.floor((nowMs - waiter.startedMs) / waiter.ceilingMs));
+  if (swept === "stole" || level < 1) {
     return swept;
   }
-  const holders = liveHolders(waiter.slotPaths, waiter.alive);
-  if (typeof takeAnySlot({ paths: [waiter.overflowPath], body: waiter.body, alive: waiter.alive }, waiter.onNotice) === "number") {
-    waiter.onNotice?.(overflowNotice(waiter, holders));
-    return lease(waiter.overflowPath, null, waiter.pid, waiter.now().getTime() - waiter.startedMs);
+  const overflow = { paths: waiter.overflowPaths.slice(0, level), body: waiter.body, liveness: waiter.liveness };
+  const holders = liveHolders(waiter.slotPaths, waiter.liveness);
+  let taken = takeAnySlot(overflow, waiter.onNotice);
+  // A stolen overflow file is free now: take it in this poll instead of announcing a run that is gone.
+  if (taken === "stole") {
+    taken = takeAnySlot(overflow, waiter.onNotice);
   }
-  if (!waiter.pastCeilingNoticed) {
-    waiter.pastCeilingNoticed = true;
+  if (typeof taken === "number") {
+    waiter.onNotice?.(overflowNotice(waiter, holders, taken));
+    return lease(overflow.paths[taken] ?? "", null, waiter.pid, waiter.now().getTime() - waiter.startedMs);
+  }
+  if (waiter.noticedLevel < level) {
+    waiter.noticedLevel = level;
+    const runs = liveHolders(overflow.paths, waiter.liveness).map(holderText).join("; ");
+    const next = level < waiter.overflowPaths.length ? "one more run starts at twice the ceiling" : "no further run starts until one of them ends";
     waiter.onNotice?.(
-      `host pool "${waiter.pool.name}" is past its ${seconds(waiter.ceilingMs)}s ceiling and its overflow run (${holderText(readHolder(waiter.overflowPath))}) is still live — this run stays first in the queue and takes the next free slot.`,
+      `host pool "${waiter.pool.name}" is past its ${seconds(waiter.ceilingMs * level)}s ceiling and its overflow run (${runs || "a run that has just left"}) is still live — this run stays first in the queue; ${next}.`,
     );
   }
   return null;
@@ -257,12 +314,16 @@ function holderText(holder: HostSlotHolder | null): string {
   return holder === null ? "an unreadable record" : `pid ${String(holder.pid)}, ${holder.label}, since ${holder.startedAt}`;
 }
 
-function overflowNotice(waiter: Waiter, holders: readonly HostSlotHolder[]): string {
+function overflowNotice(waiter: Waiter, holders: readonly HostSlotHolder[], index: number): string {
   const held = holders.length === 0 ? "a holder that has just left" : holders.map(holderText).join("; ");
   const pids = holders.length === 0 ? "<pid>" : holders.map((holder) => String(holder.pid)).join(" ");
   return [
-    `host pool "${waiter.pool.name}" still full after ${seconds(waiter.ceilingMs)}s, held by ${held}.`,
-    "Starting this run as the single overflow run; every later waiter stays queued behind it in arrival order.",
+    index === 0
+      ? `host pool "${waiter.pool.name}" still full after ${seconds(waiter.ceilingMs)}s, held by ${held}.`
+      : `host pool "${waiter.pool.name}" past its hard ceiling of ${seconds(waiter.ceilingMs * (index + 1))}s: the holder (${held}) and the first overflow run are both still live.`,
+    index === 0
+      ? "Starting this run as the first overflow run; every later waiter stays queued behind it in arrival order."
+      : "Starting this run as the last overflow run; no further run starts until one of these ends.",
     `If the holder is stuck, find its checkout with \`ps -o pid,etime,args -p ${pids}\` and \`readlink /proc/<pid>/cwd\`, then stop it from that checkout. Pool files: ${waiter.dir}`,
   ].join(" ");
 }
@@ -287,11 +348,11 @@ function isHead(waiter: Waiter, nowMs: number): boolean {
     }
     const path = join(waiter.queueDir, name);
     const ticket = readHolder(path);
-    const live = ticket !== null && waiter.alive(ticket.pid);
-    if (live && ticket.beatMs !== null && nowMs - ticket.beatMs <= TICKET_STALE_MS) {
+    const state = ticket === null ? "gone" : holderState(waiter.liveness, ticket);
+    if (ticket !== null && state === "live" && ticket.beatMs !== null && nowMs - ticket.beatMs <= TICKET_STALE_MS) {
       return false;
     }
-    const why = ticket === null ? "an unreadable ticket" : `pid ${String(ticket.pid)} (${live ? "no heartbeat" : "no such process"})`;
+    const why = ticket === null ? "an unreadable ticket" : `pid ${String(ticket.pid)} (${state === "live" ? "no heartbeat" : STATE_TEXT[state]})`;
     waiter.onNotice?.(`host queue ${waiter.queueDir}: removed ${why} ahead of this run — a dead waiter must never hold the queue.`);
     rmSync(path, { force: true });
   }
@@ -302,7 +363,7 @@ function isHead(waiter: Waiter, nowMs: number): boolean {
 interface SweepInput {
   readonly paths: readonly string[];
   readonly body: string;
-  readonly alive: (pid: number) => boolean;
+  readonly liveness: Liveness;
 }
 
 /** ONE sweep across `paths`. Three outcomes: the INDEX taken · `"stole"` (nothing taken, but at least one
@@ -324,11 +385,13 @@ function takeAnySlot(input: SweepInput, onNotice: ((message: string) => void) | 
       const holder = readHolder(path);
       // A LIVE holder is a holder, even if its pid is OURS. Exempting our own pid so a recycled pid could
       // be stolen made the cap silently double-issue: one process holding both CT slots was handed slot 1
-      // a third time, because it read its own record as debris. A recycled pid waits out the ceiling.
-      if (holder !== null && input.alive(holder.pid)) {
+      // a third time, because it read its own record as debris. `holderState` catches a recycled pid by its
+      // `/proc` start ticks instead.
+      const state = holder === null ? "gone" : holderState(input.liveness, holder);
+      if (holder !== null && state === "live") {
         continue;
       }
-      const who = holder === null ? "an unreadable record" : `pid ${String(holder.pid)} (no such process)`;
+      const who = holder === null || state === "live" ? "an unreadable record" : `pid ${String(holder.pid)} (${STATE_TEXT[state]})`;
       onNotice?.(`host slot file ${path} was held by ${who} — stealing it; a dead holder must never wedge the box.`);
       rmSync(path, { force: true });
       stole = true;
@@ -338,11 +401,11 @@ function takeAnySlot(input: SweepInput, onNotice: ((message: string) => void) | 
 }
 
 /** Every slot's live holder, in slot order — the list a caller's "queued behind" sentence is built from. */
-function liveHolders(paths: readonly string[], alive: (pid: number) => boolean): readonly HostSlotHolder[] {
+function liveHolders(paths: readonly string[], liveness: Liveness): readonly HostSlotHolder[] {
   const holders: HostSlotHolder[] = [];
   for (const path of paths) {
     const holder = readHolder(path);
-    if (holder !== null && alive(holder.pid)) {
+    if (holder !== null && holderState(liveness, holder) === "live") {
       holders.push(holder);
     }
   }

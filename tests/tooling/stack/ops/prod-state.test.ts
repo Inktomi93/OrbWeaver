@@ -3,7 +3,7 @@ import process from "node:process";
 import { vi } from "vitest";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
-const fileError = vi.hoisted(() => ({ code: "ENOENT", match: "/proc/123/stat", value: null as string | null }));
+const fileError = vi.hoisted(() => ({ code: "ENOENT", match: "/.env", value: null as string | null }));
 vi.mock("node:fs", async (importOriginal) => {
   const real = await importOriginal<typeof Fs>();
   return {
@@ -20,15 +20,7 @@ vi.mock("node:fs", async (importOriginal) => {
   };
 });
 
-const { PIDFILE, TOKEN_PATH, observe, procStartTicks, processAlive, readEnvFile, readRecord } = await import("../../../../tooling/src/stack/ops/prod-state.ts");
-
-test("only a vanished proc stat is absence; unreadable identity evidence fails loud", () => {
-  fileError.match = "/proc/123/stat";
-  fileError.code = "ENOENT";
-  expect(procStartTicks(123)).toBeNull();
-  fileError.code = "EIO";
-  expect(() => procStartTicks(123)).toThrow("planted EIO file failure");
-});
+const { PIDFILE, TOKEN_PATH, observe, processAlive, readEnvFile, readRecord } = await import("../../../../tooling/src/stack/ops/prod-state.ts");
 
 test("only missing optional state files default; unreadable env, token, and pidfile witnesses fail loud", () => {
   const cases = [

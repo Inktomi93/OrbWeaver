@@ -45,5 +45,5 @@ The ledger split is one commit that re-points the D-citation gate at the ADR tre
 - A `describes:` frontmatter list of paths: the paths are already in the body as backticked citations, and a second list would drift from the first.
 - A `## Status` section on an ADR: frontmatter `status` already holds it, and a second home for the same fact drifts.
 - Work items as lines in a plan's `tasks.md`: no room for the four required sections or a blocker reason, and two lanes editing one `tasks.md` collide.
-- The post-merge hook leaving its writes uncommitted: an uncommitted `main` blocks the next merge, so the hook commits under the standing commit contract with the whole-tree check excluded.
+- The post-merge hook leaving its writes uncommitted: an uncommitted `main` blocks the next merge, so the hook commits under the standing commit contract with the pre-commit check excluded.
 - An archive folder under `docs/plans/` for done plans: a done plan's lasting knowledge already has a home in an ADR or law, the repository already keeps the deleted file's history, and a second copy of a finished plan drifts from the record it was folded into.

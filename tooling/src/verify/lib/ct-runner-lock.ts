@@ -118,7 +118,7 @@ export interface CtRunnerLockDeps {
 }
 
 /** A CT batch is minutes, and a second lane legitimately waits that long for a host slot rather than being
- *  refused. Load-scaled at acquire time; past it the head of the queue runs as the pool's single overflow run.
+ *  refused. Load-scaled at acquire time; past it the head of the queue runs as one of the pool's overflow runs.
  *
  *  THE NUMBER IS THE PROFILE'S (#1848), not a second literal: the wait a queued run may spend is spent
  *  INSIDE the verify stage's own wall clock, so the stage's hang ceiling is derived from this same row

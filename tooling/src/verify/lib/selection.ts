@@ -4,13 +4,12 @@
 // tsc is unsound); depcruise = file. A stage a scope can't honestly run is DEFERRED, never silently skipped.
 // The program algebra lives in ./program-routing.ts and the CT view in ./ct-view.ts (five-slot split, P6).
 
-import { execNicedSync } from "@orb/tooling/_shared/proc";
 import { BROWSER_PACKAGES, isNodeToolSource, isWorldHelperPath } from "@orb/tooling/_shared/project-worlds";
 import type { PolicySemanticPath } from "../contract/policy-scope.ts";
 import type { ChangedPathClassification, CtView, Selection, SelectionRequest } from "../contract/selection.ts";
 import { ctView } from "./ct-view.ts";
 import { planTypecheckPrograms } from "./program-routing.ts";
-import { classifyExplicitPaths, GIT_READ_PREFIX, gitChangedPathClassification, packageDir, ROOT } from "./repo-paths.ts";
+import { classifyExplicitPaths, gitChangedPathClassification, gitLsFiles, packageDir, ROOT } from "./repo-paths.ts";
 
 // ── the path-zone predicates (lifted verbatim from check/file.ts — kept in ONE place) ──
 // Mirrors the native ESLint config's scoped population — and the mirroring is LOAD-BEARING, not
@@ -70,9 +69,7 @@ function deriveViews(
  * so union the diff's rename-aware identities with Git's authoritative untracked view. */
 export function workingChangeClassification(root: string): ChangedPathClassification {
   const changed = gitChangedPathClassification(root);
-  const untracked = execNicedSync("git", [...GIT_READ_PREFIX, "ls-files", "--others", "--exclude-standard", "-z"], { cwd: root })
-    .split("\0")
-    .filter((path) => path.length > 0);
+  const untracked = gitLsFiles(root, ["--others", "--exclude-standard"]);
   const entries = [...changed.entries, ...untracked.map((path) => ({ path, status: "added" as const, previousPath: null }))];
   const paths = [...new Set(entries.map((entry) => entry.path))];
   return {
@@ -87,9 +84,7 @@ export function workingChangeClassification(root: string): ChangedPathClassifica
  * This is the same population a working change can contain and deliberately excludes ignored caches,
  * generated scratch trees, and node_modules without teaching this resolver their names. */
 function authoredPathsUnder(prefix: string, root: string): readonly string[] {
-  const tracked = execNicedSync("git", [...GIT_READ_PREFIX, "ls-files", "-z", "--", prefix], { cwd: root });
-  const untracked = execNicedSync("git", [...GIT_READ_PREFIX, "ls-files", "--others", "--exclude-standard", "-z", "--", prefix], { cwd: root });
-  const paths = `${tracked}${untracked}`.split("\0").filter((path) => path.length > 0);
+  const paths = [...gitLsFiles(root, ["--", prefix]), ...gitLsFiles(root, ["--others", "--exclude-standard", "--", prefix])];
   return classifyExplicitPaths(paths, root).existingPaths.toSorted();
 }
 

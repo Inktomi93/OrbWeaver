@@ -33,7 +33,6 @@ import {
   parseDevStackIdentity,
   parseListenerPid,
   parseLockHolder,
-  parseProcStartTicks,
   parseProdRecord,
   parseStackArgv,
   resolveDebugArming,
@@ -603,14 +602,6 @@ test("the listener pid is read off the LOCAL address column, not any `:port` on 
   // Bound but owned by another user (no `pid=` without privileges) — a null owner, not a wrong one.
   expect(parseListenerPid(SS_OUTPUT, 8796)).toBeNull();
   expect(parseListenerPid(SS_OUTPUT, 9999)).toBeNull();
-});
-
-test("/proc start-ticks parse past a comm field containing spaces and parens", () => {
-  const fields = Array.from({ length: 30 }, (_, i) => String(i + 100));
-  // pid (comm) state ppid … — starttime is field 22, i.e. index 19 of the post-comm remainder.
-  const stat = `4242 (node (weird) x) S ${fields.join(" ")}`;
-  expect(parseProcStartTicks(stat)).toBe(String(100 + 18));
-  expect(parseProcStartTicks("garbage with no paren")).toBeNull();
 });
 
 // ── #1162: the group probe the teardown warning never ran ──────────────────────────────────────────

@@ -121,7 +121,7 @@ post-checkout:
 # --merged` reads the `Closes: 12, 14` trailers of the commits the merge brought in (ORIG_HEAD..HEAD),
 # DELETES those items with the merge commit as evidence (the commit message records each one), regenerates
 # the indexes and commits ONLY those paths (a pathspec commit, so a sibling's staged file never rides
-# along) under the message contract (with the whole-tree check excluded, the standing exception
+# along) under the message contract (with the pre-commit check excluded, the standing exception
 # spelling). On any other branch, or when no merged commit carries a trailer, it writes and prints
 # nothing. An id already landed is skipped; an id neither on the tree nor landed in git refuses the whole
 # batch and names the by-hand landing.

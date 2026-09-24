@@ -1,21 +1,31 @@
-// The verify argv grammar where `--changed` is both a selector and a tier. The wider parse matrix lives in
-// tests/tooling/verify/ops/run.int.test.ts; this file pins the pre-commit spelling.
-import { parse } from "../../../../tooling/src/verify/lib/run-argv.ts";
+// The verify argv grammar where `--changed` is both a selector and a tier, read through `parseRequest`, which
+// resolves no selection and so spawns nothing. The wider parse matrix lives in run.int.test.ts.
+import { parseRequest } from "../../../../tooling/src/verify/lib/run-argv.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
-// A docs-only path keeps selection resolution off the compiler-closure planner.
 const DOC = "docs/law/Constitution.md";
 
 function tierAndScope(argv: readonly string[]): readonly [string, string | undefined] {
-  const r = parse(argv);
+  const r = parseRequest(argv);
   if ("error" in r) {
     throw new Error(`expected a parse, got misuse: ${r.error}`);
   }
-  return [r.tier, r.selection?.kind];
+  return [r.tier, r.request?.kind];
 }
 
 test("--changed beside an explicit tier is only the selector: pre-commit runs the static stages over the working change", () => {
   expect(tierAndScope(["--static", "--changed", DOC])).toStrictEqual(["static", "changed"]);
   expect(tierAndScope(["--tier", "static", "--changed", DOC]), "the --tier spelling agrees").toStrictEqual(["static", "changed"]);
   expect(tierAndScope(["--changed", DOC]), "alone, --changed still names the inner-loop tier").toStrictEqual(["changed", "changed"]);
+});
+
+test("--changed beside --push or --full stays misuse: those tiers are whole-tree bars, and a scoped one would skip the queue", () => {
+  for (const argv of [
+    ["--push", "--changed", DOC],
+    ["--full", "--changed", DOC],
+    ["--tier", "push", "--changed", DOC],
+  ]) {
+    const r = parseRequest(argv);
+    expect("error" in r ? r.error : "parsed", argv.join(" ")).toContain("--changed");
+  }
 });
