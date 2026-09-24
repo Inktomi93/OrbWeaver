@@ -4,7 +4,7 @@
 // to a path call" and "a filing door" is ONE predicate in two policies (family `tooling-artifact`).
 //
 // IDENTITY, NOT SPELLING. The legacy gate compared callee TEXT: `join(` matched, `path.join(` did not, and
-// `tooling/src/model-ab/ops/run.ts:110` spelled `path.join(REPO_ROOT, "reports", "ab", stamp)` unseen for
+// a tool spelled `path.join(REPO_ROOT, "reports", "ab", stamp)` unseen for
 // its whole life (found by this conversion's differential, fixed in the same commit). The path callee is now
 // judged by where it RESOLVES — node's own path/fs doors, through the shared callable-origin reader — so the
 // default-import, namespace-import and aliased spellings are one read; a callee the readers cannot place is

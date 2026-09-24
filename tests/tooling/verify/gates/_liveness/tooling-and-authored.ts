@@ -47,7 +47,6 @@ const TOOL_CLIS = [
   "cache-check",
   "codemod",
   "doc",
-  "model-ab",
   "mutation-arid",
   "mutation-probe",
   "render-trace",

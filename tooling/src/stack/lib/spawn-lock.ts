@@ -9,7 +9,7 @@
 // WHAT IT PROTECTS: the adopt/refuse decision and the spawn are separate syscalls, so two `up prod` runs
 // can both read "the port is free" and both spawn. The loser dies on EADDRINUSE — but only after its
 // pidfile write clobbered the winner's record. `wx` (exclusive create) is the atomic take; the same shape
-// `tooling/src/stack/ops/engines.ts` uses for its adopt window, which paid for this class with a duplicate vLLM
+// an engine launcher uses for its adopt window, which paid for this class with a duplicate vLLM
 // fleet holding ~17GiB and serving nothing.
 //
 // `isAlive` is INJECTED rather than calling `process.kill(pid, 0)` directly — that is what lets a test

@@ -4,8 +4,8 @@
 // NO `no-raw-egress` ROW LIVES HERE ANY MORE (2026-09-20, lane cb-gate-reach, the @orb/inference §12 extraction
 // audit). The three this file carried — `vllm-fleet-control`, `vllm-gen-window`, `vllm-supervisor` — licensed
 // loopback engine-plane calls under `packages/server/src/infra/providers/vllm/engine/`. That whole plane left the
-// server for `tooling/src/stack/lib/engine-fleet/` in the same program (the F1 fleet yeet), which is `@tooling`
-// and OUTSIDE this policy's population and its law: D61/B5a is about the SERVER's egress surface, not a dev
+// server for the owner's fleet tooling in the same program (the F1 fleet yeet; since moved out of the repo,
+// docs/plans/fleet-out/design.md), which is OUTSIDE this policy's population and its law: D61/B5a is about the SERVER's egress surface, not a dev
 // instrument's loopback control of engines the developer's own box supervises. The rows were RETIRED rather than
 // re-pointed because re-pointing would have widened an SSRF policy into the instrument tree by side effect. The
 // surviving `no-raw-egress` rows are in `reviewed-grants-depcruise-to-egress.ts`.

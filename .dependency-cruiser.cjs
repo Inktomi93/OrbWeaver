@@ -665,7 +665,7 @@ module.exports = {
     // posture, with the resolver (a one-entry `exports` map) as the primary.
     // A FIFTH, `vllm-surface-isolation`, was DELETED rather than re-pointed, by the same document's
     // ruling: "there is no vllm module left to isolate" — the five role surfaces are gone, vLLM is a
-    // provider ROW on the openai-compat wire, and the owner's fleet is `tooling/src/stack/lib/engine-fleet/`.
+    // provider ROW on the openai-compat wire, and the owner's fleet left the repo (docs/plans/fleet-out/design.md).
     // Following it there would have widened a provider-execution seal into the instrument tree by side
     // effect, which is the mistake the `no-raw-egress` engine-plane rows already refused to make.
     {
@@ -762,7 +762,7 @@ module.exports = {
     {
       name: "tooling-no-provider-families",
       comment:
-        "The tooling half of `providers-public-surface-only`. Tools sit ABOVE the cake and may import any app package (Core-Tooling-Law.md §1), so a tool reaching @orb/inference's front door is legal — what stays SEALED is the part the original rule's WHY is about: the provider FAMILIES (backends/<x>, where the agent-sdk credential firewall lives) and the contract internals. RE-POINTED 2026-09-20 from `packages/server/src/infra/providers/(backends|contract)/`, a tree the @orb/inference extraction deleted. THE OLD CARVE-OUT IS GONE WITH ITS SUBJECT: this comment used to exempt `vllm/engine`'s spawn-spec/wake-budget builders because the fleet launcher and the in-server supervisor shared them and must not drift — there is no in-server supervisor any more, the fleet moved WHOLE to `tooling/src/stack/lib/engine-fleet/`, and nothing in @orb/inference builds an engine argv. (Core-Tooling-Law.md §1/§4.6.)",
+        "The tooling half of `providers-public-surface-only`. Tools sit ABOVE the cake and may import any app package (Core-Tooling-Law.md §1), so a tool reaching @orb/inference's front door is legal — what stays SEALED is the part the original rule's WHY is about: the provider FAMILIES (backends/<x>, where the agent-sdk credential firewall lives) and the contract internals. RE-POINTED 2026-09-20 from `packages/server/src/infra/providers/(backends|contract)/`, a tree the @orb/inference extraction deleted. THE OLD CARVE-OUT IS GONE WITH ITS SUBJECT: this comment used to exempt `vllm/engine`'s spawn-spec/wake-budget builders because the fleet launcher and the in-server supervisor shared them and must not drift — there is no in-server supervisor any more, the fleet left the repo for the owner's infra (docs/plans/fleet-out/design.md), and nothing in @orb/inference builds an engine argv. (Core-Tooling-Law.md §1/§4.6.)",
       severity: "error",
       from: { path: "^tooling/" },
       to: {
