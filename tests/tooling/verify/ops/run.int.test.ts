@@ -1260,6 +1260,12 @@ test("a WHOLE verify run takes the host-wide queue slot; a SCOPED run does not (
   expect(whole?.slot, "a whole run holds the single host slot").toBe(1);
   const scoped = await enterWholeRunQueue(process.cwd(), parsedOrThrow(["--changed"]), { env, pid: 30_002, alive: () => true });
   expect(scoped, "a scoped run is exempt — it is the fast inner loop a lane runs beside a live battery").toBeNull();
+  const commit = await enterWholeRunQueue(process.cwd(), parsedOrThrow(["--static", "--changed", "docs/law/Constitution.md"]), {
+    env,
+    pid: 30_003,
+    alive: () => true,
+  });
+  expect(commit, "the pre-commit spelling is scoped, so a commit never waits behind a whole battery").toBeNull();
   whole?.release();
   rmSync(env[HOST_POOL_ROOT_ENV] ?? "", { recursive: true, force: true });
 });
