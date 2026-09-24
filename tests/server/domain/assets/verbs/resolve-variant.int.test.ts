@@ -4,6 +4,8 @@
 //   • cache hit ⇒ serve cached bytes, transform NOT called again.
 //   • off-ladder/absurd width, a non-hash, and a non-owner all ⇒ undefined (404) with no transform.
 
+import { mkdir, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import type { CharacterHandle, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
@@ -68,6 +70,31 @@ describe("resolveVariant", () => {
     });
     expect(Array.from(second ?? [])).toEqual(Array.from(FAKE_WEBP));
     // Served from the variant cache — the transform did NOT run a second time.
+    expect(h.imageTransform).toHaveBeenCalledTimes(1);
+  });
+
+  // A variant cache that was MOVED (the data-layout migration renames the whole `variants/` tree) must be
+  // readable at the new root by the same derivation: a file already at `<owner>/ab/cd/<hash>/w64-q80.webp`
+  // is served with no transform. The control plants the same bytes one directory off, which is a miss.
+  test("a variant already present under the cache root is served without a transform; a misplaced one is a miss", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    onTestFinished(h.cleanup);
+    const svc = createAssetsService(h.ctx);
+    const { ownerId, hash } = await storeOriginal(db, h, castId<CharacterHandle>("moved_owner"));
+    const moved = new Uint8Array([0x52, 0x49, 0x46, 0x46, 0x01]);
+    const hashDir = join(h.variantDir, ownerId, hash.slice(0, 2), hash.slice(2, 4), hash);
+    await mkdir(hashDir, { recursive: true });
+    await writeFile(join(hashDir, `w${SNAPPED_WIDTH}-q80.webp`), moved);
+
+    const served = await svc.resolveVariant({ principal: principal(ownerId), hash, width: REQUESTED_WIDTH, kind: "icon" });
+    expect(Array.from(served ?? [])).toEqual(Array.from(moved));
+    expect(h.imageTransform).not.toHaveBeenCalled();
+
+    // CONTROL: the same file one shard up is not where the cache looks, so this resolve transforms once.
+    await writeFile(join(h.variantDir, ownerId, hash.slice(0, 2), `w${TOP_RUNG}-q80.webp`), moved);
+    const regenerated = await svc.resolveVariant({ principal: principal(ownerId), hash, width: OVERSIZED_WIDTH, kind: "icon" });
+    expect(Array.from(regenerated ?? [])).toEqual(Array.from(FAKE_WEBP));
     expect(h.imageTransform).toHaveBeenCalledTimes(1);
   });
 

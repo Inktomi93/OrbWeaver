@@ -17,16 +17,13 @@ const BOOT_TIMEOUT_MS = 120_000;
 // A same-host tunnel connects over loopback and adds this header; the request is a stranger's.
 const RELAYED = { "x-forwarded-for": "203.0.113.9" } as const;
 
-vi.stubEnv("DATABASE_URL", `file:${join(TEMP_DIR, "orb.db")}`);
+vi.stubEnv("DATA_DIR", TEMP_DIR);
 vi.stubEnv("AUTH_MODE", "local");
 vi.stubEnv("AUTH_FALLBACK", undefined);
 vi.stubEnv("SESSION_SECRET", undefined);
 vi.stubEnv("CREDENTIALS_KEY", undefined);
 vi.stubEnv("LOCAL_INITIAL_PASSWORD", undefined);
 vi.stubEnv("VLLM_DISABLED", "true");
-vi.stubEnv("ASSETS_DIR", join(TEMP_DIR, "assets"));
-vi.stubEnv("USER_RUNTIME_DIR", join(TEMP_DIR, "users"));
-vi.stubEnv("LOCAL_LIGHT_CACHE_DIR", join(TEMP_DIR, "models"));
 vi.stubEnv("LOCAL_LIGHT_PREFETCH", "off");
 // The boot installs the egress firewall, which blocks loopback for this test's own fetches unless allowed.
 vi.stubEnv("EGRESS_ALLOWLIST", "localhost");

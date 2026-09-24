@@ -14,18 +14,15 @@ import { afterAll, vi } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
 // The OS assigns this invocation's listener port (`listenPort: 0` below); reserving a port and then
-// rebinding would recreate the race. DB, WAL/SHM siblings and assets remain process-owned too.
+// rebinding would recreate the race. The whole data root (db, assets, secrets, caches) is process-owned too.
 const TEMP_DIR = mkdtempSync(join(tmpdir(), "orb-lifecycle-int-"));
-const DB_PATH = join(TEMP_DIR, "orb.db");
-const ASSETS_DIR = join(TEMP_DIR, "assets");
 const OK = 200;
 const SERVICE_UNAVAILABLE = 503;
 const POLL_ATTEMPTS = 30;
 const POLL_DELAY_MS = 100;
 
-vi.stubEnv("DATABASE_URL", `file:${DB_PATH}`);
+vi.stubEnv("DATA_DIR", TEMP_DIR);
 vi.stubEnv("AUTH_MODE", "single-user");
-vi.stubEnv("ASSETS_DIR", ASSETS_DIR);
 // Boot now installs the SSRF egress firewall (infra/network/egress — the reinstated boot call), which blocks
 // private/loopback egress GLOBALLY via undici's dispatcher. This test's own `waitForHealthz`/shutdown polls
 // hit `http://localhost:PORT` through that same global fetch, so they need the operator allowlist seam — the

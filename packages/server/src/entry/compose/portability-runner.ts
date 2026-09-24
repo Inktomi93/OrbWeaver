@@ -94,6 +94,8 @@ export interface PortabilityRunnerComposeDeps {
    *  write, and this reads, under the per-owner subdir `stagedOwnerRoot` derives from it). */
   readonly importStagingDir?: string | undefined;
   readonly stProfileDir?: string | undefined;
+  /** Where a real (non-dry) profile import writes its "what landed / what didn't" report. */
+  readonly importReportsDir: string;
 }
 
 /** The compose product: the registry the delivery core iterates + the deps import's contributions take. */
@@ -259,7 +261,7 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
           signal,
         });
         // A real run writes the "what landed / what didn't" report to disk; a dry run writes nothing.
-        const reportPath = dryRun ? undefined : await writeImportReport(report, now());
+        const reportPath = dryRun ? undefined : await writeImportReport(report, now(), deps.importReportsDir);
         return { scanned: report.scanned, changed: report.changed, failed: report.skippedCards.length, ...(reportPath !== undefined ? { reportPath } : {}) };
       }),
     runBundleImport: async ({ archive, ownerId, stagingRoot: root, signal }) =>
