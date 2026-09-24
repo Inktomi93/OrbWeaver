@@ -10,7 +10,7 @@
 import type { ChatInjection } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
-import { PROSE_SLOTS } from "@orb/contracts/prose";
+import { PROSE_SLOTS, resolveProseText } from "@orb/contracts/prose";
 import type { Db } from "@orb/db";
 import { chatInjections } from "@orb/db";
 import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
@@ -33,6 +33,11 @@ import { FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedParticipant, s
 /** The CYOA teach's ONE home — the same bytes the rpg reminder composes and a chat-level offer-choices
  *  contribution would emit. The double-teach case is only real because these are the same string. */
 const CYOA_TEACH = PROSE_SLOTS["rpg.reminder.cyoaTeach"].text;
+
+/** A teach as chat's own contribution emits it: inside the shipped `chat.teach.choicesFrame` delimiter. */
+function framed(teach: string): string {
+  return resolveProseText("chat.teach.choicesFrame", {}, { teach });
+}
 
 const STATE_BLOCK = "[Scene] a tavern at dusk";
 
@@ -199,7 +204,7 @@ describe("the merged injection array — the S2 byte pins", () => {
 
     const merged = await mergedInjections({ ctx: ctxOf(), chatId, host, aria, rpgGather: gatherOf(false), offerChoices: true });
 
-    expect(merged.map((i) => i.content)).toEqual([STATE_BLOCK, CYOA_TEACH]);
+    expect(merged.map((i) => i.content)).toEqual([STATE_BLOCK, framed(CYOA_TEACH)]);
   });
 
   test("a NON-GAME chat with the room knob ON ⇒ chat teaches, and it is the only injection", async () => {
@@ -207,7 +212,7 @@ describe("the merged injection array — the S2 byte pins", () => {
 
     const merged = await mergedInjections({ ctx: ctxOf(), chatId, host, aria, rpgGather: null, offerChoices: true });
 
-    expect(merged.map((i) => i.content)).toEqual([CYOA_TEACH]);
+    expect(merged.map((i) => i.content)).toEqual([framed(CYOA_TEACH)]);
   });
 
   // THE WIDENING'S OWN PROOF (the `TeachingContext.prose` field): the teach text is PRESET-EDITABLE, so both
@@ -230,7 +235,7 @@ describe("the merged injection array — the S2 byte pins", () => {
     expect(merged.map((i) => i.content)).toEqual([`${STATE_BLOCK}\n\n${overridden}`]);
     // …and with the game silent, the room's own teach is the OVERRIDE's bytes, never the shipped default.
     const alone = await mergedInjections({ ctx: ctxOf(), chatId, host, aria, rpgGather: null, offerChoices: true, prose });
-    expect(alone.map((i) => i.content)).toEqual([overridden]);
+    expect(alone.map((i) => i.content)).toEqual([framed(overridden)]);
   });
 
   // The collector's exact-tuple guard is still REAL and still worth keeping — it just covers a different,

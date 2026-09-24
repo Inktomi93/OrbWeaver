@@ -1278,6 +1278,25 @@ export const TEMPLATE_DEFS = [
     caps: [],
     defaultSlot: "chat.assembly.continuationNudge",
   },
+  // The frames two teaching notes carry so a note folded into a player's message never reads as their words.
+  // Each frame's one token carries the note's whole payload, so both are carrier rows. `format`, not `teach`: they wrap
+  // a note on any chat's wire, and the `teach` kicker tells an author its rows fire only on a game turn.
+  {
+    id: "chat.teach.choicesFrame",
+    kind: "format",
+    label: "Choices-teach frame",
+    fires: "A turn with Offer choices on — wraps the choices teach",
+    caps: [{ kind: "tokens", tokens: ["{{teach}}"] }],
+    defaultSlot: "chat.teach.choicesFrame",
+  },
+  {
+    id: "automation.guidance.frame",
+    kind: "format",
+    label: "Story-direction frame",
+    fires: "A turn a story-analysis rule has standing guidance for — wraps that guidance",
+    caps: [{ kind: "tokens", tokens: ["{{guidance}}"] }],
+    defaultSlot: "automation.guidance.frame",
+  },
   // ── THE GROUP-ROUND FRAMINGS (F4 re-home, owner ruling 2026-08-08 — D132(B) amendment) ─────────────────────
   // The `chat.group.*` slots a group room puts around content: the merged/narrator co-speaker card headings,
   // the per-speaker/narrator round nudges + the speaker-tag instruction, and the person heading of a
@@ -2337,10 +2356,11 @@ export interface ProseCarrierToken {
 }
 
 /** PROSE CARRIER slots — the write guard's SECOND enumeration (owner ruling 2026-08-08,
- *  option C). The user-note frame carries `{{note}}` and the game-notes frame `{{reminder}}`, each the
- *  injection's ENTIRE payload: `spliceProseTokens` is a replace, so an override that drops the token matches
- *  nothing and the frame ships as an empty wrapper (`[Note from user: ]`) with the author's note gone. That is
- *  byte-for-byte the `{{entry}}` failure the 2026-08-02 carrier ruling refuses, so these refuse with it.
+ *  option C). The user-note frame carries `{{note}}`, the game-notes frame `{{reminder}}`, the choices-teach frame
+ *  `{{teach}}` and the story-direction frame `{{guidance}}`, each the injection's ENTIRE payload:
+ *  `spliceProseTokens` is a replace, so an override that drops the token matches nothing and the frame ships as
+ *  an empty wrapper (`[Note from user: ]`) with the author's note gone. That is byte-for-byte the `{{entry}}`
+ *  failure the 2026-08-02 carrier ruling refuses, so these refuse with it.
  *
  *  WHY A SECOND LIST rather than a row in `FORMAT_STRING_CARRIER_TOKENS`: that enum keys off `FormatStringKey`
  *  and its loop reads `config.formatStrings`. These frames are `kind:"format"` rows in the same Templates tab,
@@ -2357,6 +2377,8 @@ export interface ProseCarrierToken {
 const PROSE_CARRIER_TOKENS = [
   { slotId: "chat.injection.userNote", name: "note", token: "{{note}}" },
   { slotId: "rpg.reminder.frame", name: "reminder", token: "{{reminder}}" },
+  { slotId: "chat.teach.choicesFrame", name: "teach", token: "{{teach}}" },
+  { slotId: "automation.guidance.frame", name: "guidance", token: "{{guidance}}" },
 ] as const satisfies readonly ProseCarrierToken[];
 
 /** THE CARRIER PREDICATE — every stored note-frame override that is non-blank and DROPPED its token, i.e.

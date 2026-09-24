@@ -73,6 +73,7 @@ const rpgGatherProjection: TeachingContribution = {
  *  `{{random}}`/`{{setvar}}`/… re-emit verbatim). This is chat CALLING the shared engine, not a second home
  *  for the slot. */
 const CHOICES_TEACH_SLOT_ID = "rpg.reminder.cyoaTeach" as const;
+const CHOICES_FRAME_SLOT_ID = "chat.teach.choicesFrame" as const;
 const CHOICES_NAMES_REGISTRY = createNamesOnlyRegistry();
 function resolveChoicesTeach(tctx: TeachingContext): string {
   const text = resolveProseText(CHOICES_TEACH_SLOT_ID, tctx.prose);
@@ -84,7 +85,8 @@ function resolveChoicesTeach(tctx: TeachingContext): string {
 }
 
 /** Contributor #1 — the B1 standing "offer choices" posture: when this room's resolved knob is ON, tell the
- *  model it may end a turn with the `:::choices` fence. OFF ⇒ `[]` ⇒ the turn is byte-identical.
+ *  model it may end a turn with the `:::choices` fence, inside the `chat.teach.choicesFrame` delimiter. OFF ⇒
+ *  `[]` ⇒ the turn is byte-identical.
  *
  *  THE SUPPRESSION ARM IS NOT THE COLLECTOR'S EXACT-MATCH GUARD, and this is a corrected premise (2026-08-24,
  *  B1): `substrate/teaching.ts`'s guard collapses injections that are byte-identical as a WHOLE, and A1
@@ -111,10 +113,15 @@ const offerChoicesTeach: TeachingContribution = {
     if (alreadyTaught) {
       return Promise.resolve(EMPTY_COLLECTION);
     }
+    // Framed only AFTER the containment check: the game's reminder carries the bare teach inside its own frame.
+    // A model that takes no system row folds this note into the player's message, so it carries its own
+    // delimiter and never reads as the player's words (owner ruling). The frame is a plain token splice, so the
+    // resolved teach rides inside it byte for byte.
+    const content = resolveProseText(CHOICES_FRAME_SLOT_ID, tctx.prose, { teach });
     // The SAME placement rpg's reminder uses (`in_chat` depth 0, `system`) — a teach is standing prompt
     // content for the turn about to run, and the depth-0 in-chat splice is where this codebase puts it.
     // Unstamped `origin`: the merge stamps it, and this is not game state.
-    return Promise.resolve({ injections: [{ position: "in_chat", depth: 0, role: "system", content: teach }], toolNames: [] });
+    return Promise.resolve({ injections: [{ position: "in_chat", depth: 0, role: "system", content }], toolNames: [] });
   },
 };
 

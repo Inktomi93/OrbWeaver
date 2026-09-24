@@ -336,6 +336,19 @@ export const CHAT_PROSE_SLOTS = {
     title: "Continuation cue",
     fires: "A force/auto/empty-opening round with no user input whose history would otherwise end on the model's own reply.",
   },
+  "chat.teach.choicesFrame": {
+    id: "chat.teach.choicesFrame",
+    home: "preset",
+    version: 1,
+    // The one delimiter around the offer-choices teach. On a model that folds a system note into user text the
+    // teach lands in the player's message, so it must never read as the player's words (owner ruling).
+    text: "[Instruction for your reply — not part of anyone's message:\n\n{{teach}}\n]",
+    macros: "none",
+    requiredMacros: ["{{teach}}"],
+    requiredTokens: [],
+    title: "Choices-teach frame",
+    fires: "Every turn with Offer choices on — wraps the choices teach, unless the game already taught it.",
+  },
   "chat.recovery.narrativeContinuation": {
     id: "chat.recovery.narrativeContinuation",
     home: "user",

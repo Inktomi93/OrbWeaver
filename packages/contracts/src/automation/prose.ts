@@ -15,6 +15,8 @@
 //
 // HOME = per-USER, resolved against the ROOM HOST (owner ruling on PROSE-1 owner-decision 8, option (a)) —
 // both arms fire on a room's turn, so they read the same host prose the room's other side generations do.
+// The one exception is `automation.guidance.frame`: it wraps the guidance on the chat turn itself, where the
+// turn preset's prose is in scope, so it is per-PRESET like the other turn-wire frames.
 // MACRO MODE = "none": both run over transcript excerpts, not a character context.
 //
 // The slot SHAPE comes from `#prose-slot`, never `#prose` (a `#prose` import here closes a `no-circular`
@@ -191,5 +193,19 @@ export const AUTOMATION_PROSE_SLOTS = {
     requiredTokens: [],
     title: "Story analysis — the cold start",
     fires: "A `run_analysis` pass over a rule whose state row has no arc yet (the first pass).",
+  },
+  "automation.guidance.frame": {
+    id: "automation.guidance.frame",
+    home: "preset",
+    version: 1,
+    // The one delimiter around the model-authored standing guidance. On a model that folds a system note into
+    // user text the guidance lands in a player's message, so it must never read as their words (owner ruling).
+    // The token is spliced, never macro-rendered: the guidance bytes ride inside verbatim.
+    text: "[Story direction for your reply — not part of anyone's message:\n\n{{guidance}}\n]",
+    macros: "none",
+    requiredMacros: ["{{guidance}}"],
+    requiredTokens: [],
+    title: "Story-direction frame",
+    fires: "Every turn a story-analysis rule has standing guidance — wraps that guidance.",
   },
 } as const satisfies Partial<Record<ProseSlotId, ProseSlotDef>>;

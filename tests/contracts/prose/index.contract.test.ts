@@ -512,6 +512,9 @@ test('PRESET_PROSE_SLOT_IDS is every `home:"preset"` slot whose override is stor
     "chat.injection.userNote",
     "chat.injection.assistantNote",
     "chat.assembly.continuationNudge",
+    // The two teaching-note frames: each teaching note carries its own delimiter.
+    "chat.teach.choicesFrame",
+    "automation.guidance.frame",
     "rpg.reminder.steeringLicense",
     "rpg.reminder.deceptionTeach",
     "rpg.reminder.omniscienceTeach",
