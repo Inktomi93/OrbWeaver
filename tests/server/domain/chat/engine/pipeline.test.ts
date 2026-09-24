@@ -1168,38 +1168,43 @@ describe("runTurnPipeline — roleHandling is the PRESET knob, clamped at SHAPE"
 });
 
 // The `squashSystemMessages` PROMPT knob (`params.advanced`, ST-imported from
-// `squash_system_messages`) is now a live SHAPE reader — consecutive system-note runs merge into ONE
-// `[Take the following into special consideration: …]` bracket BEFORE the system→user framing, orthogonal to `roleHandling`. Two
-// adjacent depth-0 system injections are the observable: ON ⇒ ONE bracket (merge-before-convert), OFF ⇒
-// TWO brackets even though the strict floor still row-merges them (the distinction proves the KNOB, not
-// the role-squash, drove the fold). A broken re-thread would read a now-absent field → default OFF →
+// `squash_system_messages`) is a live SHAPE reader — consecutive system-note runs merge into ONE note BEFORE
+// the system→user fold, orthogonal to `roleHandling`. Two adjacent depth-0 system injections are the
+// observable on a non-merging level: ON ⇒ ONE folded row (merge-before-convert), OFF ⇒ TWO rows (no role-squash
+// merges them, so the KNOB alone decides). A broken re-thread would read a now-absent field → default OFF →
 // fail the ON case.
 describe("runTurnPipeline — squashSystemMessages is the PRESET knob, folded at SHAPE", () => {
   const systemNotes: ChatInjection[] = [
     { position: "in_chat", depth: 0, role: "system", content: "sys-alpha" },
     { position: "in_chat", depth: 0, role: "system", content: "sys-beta" },
   ];
-  const presetSquash = (squashSystemMessages: boolean): PromptConfig => ({
+  const presetSquash = (squashSystemMessages: boolean | undefined): PromptConfig => ({
     ...DEFAULT_PROMPT_CONFIG,
-    params: { ...DEFAULT_PROMPT_CONFIG.params, advanced: { squashSystemMessages } },
+    params: { ...DEFAULT_PROMPT_CONFIG.params, advanced: { roleHandling: "none", ...(squashSystemMessages === undefined ? {} : { squashSystemMessages }) } },
   });
-  const systemBrackets = (req: TurnRequest): number => (historyText(req).match(/\[Take the following into special consideration:/g) ?? []).length;
-
-  test("preset squashSystemMessages:true ⇒ the two system notes fold into ONE bracket (preset value reached SHAPE)", async () => {
-    const { args } = baseArgs({
-      assembleContext: ctxOf({ promptConfig: presetSquash(true), chatInjections: systemNotes }),
+  const nonMerging: Resolved<"chat"> = {
+    ...CONNECTION,
+    capability: makeCapability({
+      ...CAPABILITY,
+      turns: { assistantPrefill: false, midConversationSystem: false, historySystemRows: false, roleHandlingFloor: "none", explicitPromptCache: false },
+    }),
+  };
+  const noteRows = (req: TurnRequest): string[] =>
+    req.history.flatMap((h) => {
+      const text = h.content.flatMap((p) => (p.type === "text" ? [p.text] : [])).join("");
+      return text.includes("sys-") ? [text] : [];
     });
+
+  test("preset squashSystemMessages:true ⇒ the two system notes fold into ONE row (preset value reached SHAPE)", async () => {
+    const { args } = baseArgs({ connection: nonMerging, assembleContext: ctxOf({ promptConfig: presetSquash(true), chatInjections: systemNotes }) });
     const result = await runTurnPipeline(args);
-    expect(systemBrackets(result.request)).toBe(1);
-    expect(historyText(result.request)).toContain("[Take the following into special consideration: sys-alpha\n\nsys-beta]");
+    expect(noteRows(result.request)).toEqual(["sys-alpha\n\nsys-beta"]);
   });
 
-  test("preset squashSystemMessages absent ⇒ the notes stay as TWO separate brackets (byte-identical to today)", async () => {
-    const { args } = baseArgs({
-      assembleContext: ctxOf({ promptConfig: DEFAULT_PROMPT_CONFIG, chatInjections: systemNotes }),
-    });
+  test("preset squashSystemMessages absent ⇒ the notes stay TWO separate rows", async () => {
+    const { args } = baseArgs({ connection: nonMerging, assembleContext: ctxOf({ promptConfig: presetSquash(undefined), chatInjections: systemNotes }) });
     const result = await runTurnPipeline(args);
-    expect(systemBrackets(result.request)).toBe(2);
+    expect(noteRows(result.request)).toEqual(["sys-alpha", "sys-beta"]);
   });
 });
 

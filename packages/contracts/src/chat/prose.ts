@@ -293,20 +293,6 @@ export const CHAT_PROSE_SLOTS = {
     title: "Narrator speaker-tag instruction",
     fires: 'Every MULTI-member narrator round with "Label each speaker" on (`GroupConfig.speakerTags`, on by default in narrator mode).',
   },
-  "chat.injection.systemNote": {
-    id: "chat.injection.systemNote",
-    home: "preset",
-    version: 2,
-    // A system-role injection the turn cannot deliver as a real system row folds into USER text wearing this
-    // frame. v2 drops the speaker label (owner ruling): a bracketed instruction in the Guided Generations style
-    // reads as direction without claiming a speaker. No "next message": the row can sit several turns back.
-    text: "[Take the following into special consideration: {{note}}]",
-    macros: "none",
-    requiredMacros: ["{{note}}"],
-    requiredTokens: [],
-    title: "Folded system-note frame",
-    fires: "Any system-role injection the turn folds into user text instead of a real system row.",
-  },
   "chat.injection.userNote": {
     id: "chat.injection.userNote",
     home: "preset",

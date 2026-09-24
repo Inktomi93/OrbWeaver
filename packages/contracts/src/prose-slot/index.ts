@@ -126,7 +126,6 @@ export const PROSE_SLOT_IDS = [
   "chat.group.speakerTags",
   // ── per-PRESET: the turn-wire FRAMINGS (owner ruling 2026-08-07 — "templates need to have one home in
   //    presets"). Authored in the preset Templates tab, stored in `promptConfig.prose`. ──
-  "chat.injection.systemNote",
   "chat.injection.userNote",
   "chat.injection.assistantNote",
   "chat.assembly.continuationNudge",
@@ -183,6 +182,7 @@ export const PROSE_SLOT_IDS = [
   "rpg.card.askStatic",
   "rpg.card.example",
   "rpg.reminder.cyoaTeach",
+  "rpg.reminder.frame",
   // ── per-PRESET: the cast/offstage HEADERS (census 8 + the offstage sibling) and the delta-block headings
   //    (census 9-10) — `macros:"none"`: a header/heading has no character context to substitute, so its bytes
   //    ship verbatim (owner decision 5 ruled the delta headings prose/voice, in scope). The cast header is a

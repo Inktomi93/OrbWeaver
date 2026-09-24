@@ -12,7 +12,7 @@
 //              d / e   on the LATEST user message u2: a separate block / merged into its text after the question
 //   frame      the wrapper around the note on a user placement (the product frames are quoted from contracts)
 //
-// Direct Anthropic Messages only. OR11_MODELS / OR11_NOTES / OR11_PLACEMENTS / OR11_FRAMES / OR11_TRIALS narrow or
+// Direct Anthropic Messages only. OR11_LEG labels the rows (leg 3 is haiku-4-5). OR11_MODELS / OR11_NOTES / OR11_PLACEMENTS / OR11_FRAMES / OR11_TRIALS narrow or
 // size a run; OR11_CAP_USD stops it once the estimated spend reaches the cap. Calls run OR11_CONCURRENCY at a time.
 
 import type { MessageRole } from "@orb/kit/message-role";
@@ -30,12 +30,16 @@ const DEFAULT_CONCURRENCY = 4;
 const TAIL_CHARS = 120;
 const PER_MILLION = 1_000_000;
 
+// haiku-4-5 takes no adaptive thinking or effort, so it runs the budget form the curated row cites; it 400s any
+// system row, so its `system` placement measures nothing.
+const ADAPTIVE = { thinking: { type: "adaptive" }, output_config: { effort: EFFORT } } as const;
 // List prices in USD per million tokens, read from OpenRouter's /api/v1/models (they match Anthropic's list), used
 // only for the running spend estimate and the cap.
 const MODELS = [
-  { name: "sonnet-5", direct: "claude-sonnet-5", inputPrice: 2, outputPrice: 10 },
-  { name: "opus-4-8", direct: "claude-opus-4-8", inputPrice: 5, outputPrice: 25 },
-  { name: "opus-5-5", direct: "claude-opus-5-5", inputPrice: 4, outputPrice: 20 },
+  { name: "sonnet-5", direct: "claude-sonnet-5", inputPrice: 2, outputPrice: 10, reasoning: ADAPTIVE },
+  { name: "opus-4-8", direct: "claude-opus-4-8", inputPrice: 5, outputPrice: 25, reasoning: ADAPTIVE },
+  { name: "opus-5-5", direct: "claude-opus-5-5", inputPrice: 4, outputPrice: 20, reasoning: ADAPTIVE },
+  { name: "haiku-4-5", direct: "claude-haiku-4-5-20251001", inputPrice: 1, outputPrice: 5, reasoning: { thinking: { type: "enabled", budget_tokens: 1024 } } },
 ] as const;
 type Model = (typeof MODELS)[number];
 
@@ -49,7 +53,7 @@ const NOTE_KINDS = Object.keys(NOTES) as NoteKind[];
 const PLACEMENTS = ["system", "a", "b", "c", "d", "e"] as const;
 type Placement = (typeof PLACEMENTS)[number];
 
-// `consideration` is `chat.injection.systemNote` and `guided` is `chat.injection.assistantNote` /
+// `consideration` is the deleted `chat.injection.systemNote` frame and `guided` is `chat.injection.assistantNote` /
 // `preset.guided.response` (packages/contracts/src/chat/prose.ts, packages/contracts/src/preset/prose.ts); `ooc`
 // takes the `[OOC: …]` prefix of the preset's guided rewrite and continue slots. The rest are candidates.
 const FRAMES = {
@@ -130,8 +134,7 @@ async function send(key: string, cell: Cell): Promise<Outcome> {
       model: cell.model.direct,
       max_tokens: MAX_TOKENS,
       system: SYSTEM,
-      thinking: { type: "adaptive" },
-      output_config: { effort: EFFORT },
+      ...cell.model.reasoning,
       messages: history(cell),
     }),
   });
@@ -159,6 +162,7 @@ export async function run() {
   const concurrency = Number(process.env["OR11_CONCURRENCY"] ?? DEFAULT_CONCURRENCY);
   const models = MODELS.filter((m) => pick("OR11_MODELS", MODELS.map((x) => x.name)).includes(m.name));
   const frames = pick("OR11_FRAMES", FRAME_KINDS);
+  const leg = Number(process.env["OR11_LEG"] ?? 2);
 
   const queue: { readonly cell: Cell; readonly trial: number }[] = [];
   for (const note of pick("OR11_NOTES", NOTE_KINDS)) {
@@ -197,7 +201,7 @@ export async function run() {
       const row = {
         kind: "arm",
         probe: id,
-        leg: 2,
+        leg,
         wire: "direct",
         model: cell.model.name,
         note: cell.note,
@@ -226,7 +230,7 @@ export async function run() {
     const [honoured = 0, total = 0] = (tally[cell] ?? "0/0").split("/").map(Number);
     tally[cell] = `${honoured + (row["honoured"] === true ? 1 : 0)}/${total + 1}`;
   }
-  const verdict = { kind: "verdict", probe: id, leg: 2, at: new Date().toISOString(), calls: rows.length, planned: queue.length, stoppedAtCap: stopped, estimatedSpend: spend, tally };
+  const verdict = { kind: "verdict", probe: id, leg, at: new Date().toISOString(), calls: rows.length, planned: queue.length, stoppedAtCap: stopped, estimatedSpend: spend, tally };
   out.append(verdict);
   printTable(Object.entries(tally).map(([cell, honoured]) => ({ cell, honoured })));
   return verdict;
