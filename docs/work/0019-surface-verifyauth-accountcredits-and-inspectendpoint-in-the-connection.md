@@ -1,8 +1,8 @@
 ---
 kind: work
 status: open
-updated: 2026-09-23
-priority: P2
+updated: 2026-09-24
+priority: P3
 area: client
 ---
 
