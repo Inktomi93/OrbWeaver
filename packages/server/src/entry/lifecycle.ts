@@ -361,7 +361,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
 
     // `launched` is REQUIRED and passed explicitly (#1392) — the omission here is what left the
     // auto-wipe refusal inert on every real boot.
-    await runBootMigrations({ db, databaseUrl: env.DATABASE_URL, launched: DB_LAUNCHED });
+    await runBootMigrations({ db, databaseUrl: env.DATABASE_URL, backupDir: dataDirFromDbUrl(env.DATABASE_URL) ?? ".", launched: DB_LAUNCHED });
 
     // #1649 DATA migration, immediately after the schema migrations and before anything reads a chat: the
     // host-handoff offer's `$.copyCast` key became `$.copyCharacters`, and the offer's read seam degrades an

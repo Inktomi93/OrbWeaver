@@ -23,6 +23,7 @@ export {
   createDb,
   forecastDevDbReset,
   hasPendingMigrations,
+  listBackupFiles,
   localPath,
   optimizeDb,
   preCloseHousekeeping,

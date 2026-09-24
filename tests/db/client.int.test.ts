@@ -18,6 +18,7 @@ import {
   createDb,
   forecastDevDbReset,
   hasPendingMigrations,
+  listBackupFiles,
   localPath,
   preCloseHousekeeping,
   pruneDbBackups,
@@ -256,14 +257,17 @@ const HOUR_MS = 3_600_000;
 const DB_FILE = "orbweaver.db";
 const BASE_DAY = 20_000; // an arbitrary fixed day index; absolute value is irrelevant to the sweep
 
-/** A scratch dir holding a live db file + the named siblings; returns its path and the `file:` url. */
-function backupFixture(names: readonly string[]): { dir: string; url: string } {
+/** A scratch dir holding a live db file, plus a `backups/` dir holding the named files; returns the dir,
+ *  the backup dir and the `file:` url. */
+function backupFixture(names: readonly string[]): { dir: string; backupDir: string; url: string } {
   const dir = mkdtempSync(join(tmpdir(), `orb-prune-${pid}-`));
+  const backupDir = join(dir, "backups");
+  mkdirSync(backupDir);
   writeFileSync(join(dir, DB_FILE), "db");
   for (const name of names) {
-    writeFileSync(join(dir, name), "x");
+    writeFileSync(join(backupDir, name), "x");
   }
-  return { dir, url: `file:${join(dir, DB_FILE)}` };
+  return { dir, backupDir, url: `file:${join(dir, DB_FILE)}` };
 }
 
 function backupName(stamp: number, suffix = ""): string {
@@ -274,10 +278,10 @@ test("pruneDbBackups keeps the 5 newest same-day backups and deletes the rest", 
   // 12 backups an hour apart inside ONE day: the per-day rule adds nothing beyond the newest, so the
   // recent-5 cap is what's under test.
   const stamps = Array.from({ length: 12 }, (_, i) => BASE_DAY * DAY_MS + i * HOUR_MS);
-  const { dir, url } = backupFixture(stamps.map((s) => backupName(s)));
+  const { dir, backupDir, url } = backupFixture(stamps.map((s) => backupName(s)));
   try {
-    const deleted = pruneDbBackups(url);
-    const survivors = stamps.filter((s) => existsSync(join(dir, backupName(s))));
+    const deleted = pruneDbBackups(url, backupDir);
+    const survivors = stamps.filter((s) => existsSync(join(backupDir, backupName(s))));
     expect(survivors).toEqual(stamps.slice(-5));
     expect(deleted).toHaveLength(7);
     expect(existsSync(join(dir, DB_FILE))).toBe(true); // never the live db
@@ -290,10 +294,10 @@ test("pruneDbBackups keeps the newest of each of the last 7 days on top of the r
   // One backup per day for 10 consecutive days: recent-5 covers days 0-4, the daily rollup extends the
   // history to 7 distinct days, and days 7-9 (the oldest three) go.
   const stamps = Array.from({ length: 10 }, (_, k) => (BASE_DAY - k) * DAY_MS);
-  const { dir, url } = backupFixture(stamps.map((s) => backupName(s)));
+  const { dir, backupDir, url } = backupFixture(stamps.map((s) => backupName(s)));
   try {
-    pruneDbBackups(url);
-    const survivors = stamps.filter((s) => existsSync(join(dir, backupName(s))));
+    pruneDbBackups(url, backupDir);
+    const survivors = stamps.filter((s) => existsSync(join(backupDir, backupName(s))));
     expect(survivors).toEqual(stamps.slice(0, 7));
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -306,7 +310,7 @@ test("pruneDbBackups takes the -wal/-shm sidecars with their backup, and orphane
   const kept = BASE_DAY * DAY_MS + 12 * HOUR_MS;
   const dropped = kept - HOUR_MS;
   const orphanDay = (BASE_DAY - 30) * DAY_MS; // old enough to fall outside the daily window either way
-  const { dir, url } = backupFixture([
+  const { dir, backupDir, url } = backupFixture([
     backupName(kept),
     backupName(kept, "-wal"),
     backupName(kept, "-shm"),
@@ -320,15 +324,15 @@ test("pruneDbBackups takes the -wal/-shm sidecars with their backup, and orphane
     // Four more same-day backups: `kept` is then the 5th-newest (retained, boundary case) and `dropped`
     // the 6th (evicted) — and neither is its day's newest, so the daily rollup can't rescue `dropped`.
     for (let i = 1; i <= 4; i++) {
-      writeFileSync(join(dir, backupName(kept + i * HOUR_MS)), "x");
+      writeFileSync(join(backupDir, backupName(kept + i * HOUR_MS)), "x");
     }
-    pruneDbBackups(url);
-    expect(existsSync(join(dir, backupName(kept, "-wal")))).toBe(true);
-    expect(existsSync(join(dir, backupName(kept, "-shm")))).toBe(true);
-    expect(existsSync(join(dir, backupName(dropped)))).toBe(false);
-    expect(existsSync(join(dir, backupName(dropped, "-wal")))).toBe(false);
-    expect(existsSync(join(dir, backupName(orphanDay, "-wal")))).toBe(false);
-    expect(existsSync(join(dir, backupName(orphanDay, "-shm")))).toBe(false);
+    pruneDbBackups(url, backupDir);
+    expect(existsSync(join(backupDir, backupName(kept, "-wal")))).toBe(true);
+    expect(existsSync(join(backupDir, backupName(kept, "-shm")))).toBe(true);
+    expect(existsSync(join(backupDir, backupName(dropped)))).toBe(false);
+    expect(existsSync(join(backupDir, backupName(dropped, "-wal")))).toBe(false);
+    expect(existsSync(join(backupDir, backupName(orphanDay, "-wal")))).toBe(false);
+    expect(existsSync(join(backupDir, backupName(orphanDay, "-shm")))).toBe(false);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -355,17 +359,18 @@ test("pruneDbBackups matches ONLY `<db>.backup-<digits>` — adversarial neighbo
   ];
   // Plus a real old backup, so a pass that deletes nothing at all can't masquerade as a pass.
   const doomed = Array.from({ length: 6 }, (_, i) => BASE_DAY * DAY_MS + i * HOUR_MS);
-  const { dir, url } = backupFixture([...bystanders, ...doomed.map((s) => backupName(s))]);
+  const { dir, backupDir, url } = backupFixture([...bystanders, ...doomed.map((s) => backupName(s))]);
   try {
     // A DIRECTORY named exactly like a backup: the sweep is files-only and must never recurse into it.
-    const dirTrap = join(dir, backupName(BASE_DAY * DAY_MS - DAY_MS));
+    const dirTrap = join(backupDir, backupName(BASE_DAY * DAY_MS - DAY_MS));
     mkdirSync(dirTrap);
     writeFileSync(join(dirTrap, "inside.txt"), "x");
 
-    const deleted = pruneDbBackups(url);
-    expect(deleted).toEqual([join(dir, backupName(doomed[0] ?? 0))]);
-    for (const name of [DB_FILE, ...bystanders]) {
-      expect({ name, exists: existsSync(join(dir, name)) }).toEqual({ name, exists: true });
+    const deleted = pruneDbBackups(url, backupDir);
+    expect(deleted).toEqual([join(backupDir, backupName(doomed[0] ?? 0))]);
+    expect(existsSync(join(dir, DB_FILE))).toBe(true);
+    for (const name of bystanders) {
+      expect({ name, exists: existsSync(join(backupDir, name)) }).toEqual({ name, exists: true });
     }
     expect(existsSync(join(dirTrap, "inside.txt"))).toBe(true);
   } finally {
@@ -383,16 +388,16 @@ test("pruneDbBackups never deletes a `.keep`-pinned backup, however old", () => 
   // recent-5 cap evicts, so a green here cannot come from the budget rescuing it.
   const stamps = Array.from({ length: 12 }, (_, i) => BASE_DAY * DAY_MS + i * HOUR_MS);
   const pinnedStamp = stamps[0] ?? 0;
-  const { dir, url } = backupFixture(stamps.map((s) => backupName(s)));
+  const { dir, backupDir, url } = backupFixture(stamps.map((s) => backupName(s)));
   try {
-    writeFileSync(join(dir, `${backupName(pinnedStamp)}.keep`), "");
-    const deleted = pruneDbBackups(url);
-    expect(existsSync(join(dir, backupName(pinnedStamp)))).toBe(true);
-    expect(deleted).not.toContain(join(dir, backupName(pinnedStamp)));
+    writeFileSync(join(backupDir, `${backupName(pinnedStamp)}.keep`), "");
+    const deleted = pruneDbBackups(url, backupDir);
+    expect(existsSync(join(backupDir, backupName(pinnedStamp)))).toBe(true);
+    expect(deleted).not.toContain(join(backupDir, backupName(pinnedStamp)));
     // The pin is ADDITIVE — the recent-5 budget is unchanged, so the six between it and them still go.
     expect(deleted).toHaveLength(6);
     // The marker itself is outside the sweep's pattern and survives too (removing a pin is a hand act).
-    expect(existsSync(join(dir, `${backupName(pinnedStamp)}.keep`))).toBe(true);
+    expect(existsSync(join(backupDir, `${backupName(pinnedStamp)}.keep`))).toBe(true);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -404,12 +409,12 @@ test("a `.keep` marker pins its OWN stamp only — the twin one hour older is st
   const stamps = Array.from({ length: 12 }, (_, i) => BASE_DAY * DAY_MS + i * HOUR_MS);
   const pinnedStamp = stamps[1] ?? 0;
   const neighbour = stamps[0] ?? 0;
-  const { dir, url } = backupFixture(stamps.map((s) => backupName(s)));
+  const { dir, backupDir, url } = backupFixture(stamps.map((s) => backupName(s)));
   try {
-    writeFileSync(join(dir, `${backupName(pinnedStamp)}.keep`), "");
-    pruneDbBackups(url);
-    expect(existsSync(join(dir, backupName(pinnedStamp)))).toBe(true);
-    expect(existsSync(join(dir, backupName(neighbour)))).toBe(false);
+    writeFileSync(join(backupDir, `${backupName(pinnedStamp)}.keep`), "");
+    pruneDbBackups(url, backupDir);
+    expect(existsSync(join(backupDir, backupName(pinnedStamp)))).toBe(true);
+    expect(existsSync(join(backupDir, backupName(neighbour)))).toBe(false);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -417,20 +422,20 @@ test("a `.keep` marker pins its OWN stamp only — the twin one hour older is st
 
 test("a `.keep` marker for a stamp with no base copy pins nothing — orphan sidecars still go", () => {
   const orphan = (BASE_DAY - 30) * DAY_MS;
-  const { dir, url } = backupFixture([backupName(orphan, "-wal"), backupName(orphan, "-shm")]);
+  const { dir, backupDir, url } = backupFixture([backupName(orphan, "-wal"), backupName(orphan, "-shm")]);
   try {
-    writeFileSync(join(dir, `${backupName(orphan)}.keep`), "");
-    pruneDbBackups(url);
-    expect(existsSync(join(dir, backupName(orphan, "-wal")))).toBe(false);
-    expect(existsSync(join(dir, backupName(orphan, "-shm")))).toBe(false);
+    writeFileSync(join(backupDir, `${backupName(orphan)}.keep`), "");
+    pruneDbBackups(url, backupDir);
+    expect(existsSync(join(backupDir, backupName(orphan, "-wal")))).toBe(false);
+    expect(existsSync(join(backupDir, backupName(orphan, "-shm")))).toBe(false);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 });
 
 test("pruneDbBackups is a no-op for :memory: / non-file urls", () => {
-  expect(pruneDbBackups(":memory:")).toEqual([]);
-  expect(pruneDbBackups("libsql://example.turso.io")).toEqual([]);
+  expect(pruneDbBackups(":memory:", tmpdir())).toEqual([]);
+  expect(pruneDbBackups("libsql://example.turso.io", tmpdir())).toEqual([]);
 });
 
 // --- forecastDevDbReset (the dev-db DROP tripwire, #534) ---------------------------------------------
@@ -624,10 +629,10 @@ test("backupBeforeMigrate is idempotent for an unchanged source — a second boo
     const url = `file:${join(dir, DB_FILE)}`;
     const db = await createDb(url);
     await runMigrations(db, MIGRATIONS_DIR);
-    const first = await backupBeforeMigrate(db, url);
+    const first = await backupBeforeMigrate(db, url, dir);
     expect(first).toBeDefined();
     // The SECOND call is the one that used to throw "output file already exists" and abort boot.
-    const second = await backupBeforeMigrate(db, url);
+    const second = await backupBeforeMigrate(db, url, dir);
     expect(second).toBe(first);
     expect(existsSync(String(first))).toBe(true);
   } finally {
@@ -641,10 +646,10 @@ test("backupBeforeMigrate REPLACES the debris of an interrupted backup rather th
     const url = `file:${join(dir, DB_FILE)}`;
     const db = await createDb(url);
     await runMigrations(db, MIGRATIONS_DIR);
-    const path = String(await backupBeforeMigrate(db, url));
+    const path = String(await backupBeforeMigrate(db, url, dir));
     // What an interrupted VACUUM INTO leaves behind: a file at the destination that is not a readable db.
     writeFileSync(path, "half a database");
-    const retried = await backupBeforeMigrate(db, url);
+    const retried = await backupBeforeMigrate(db, url, dir);
     expect(retried).toBe(path);
     // The retry produced a REAL snapshot, not a reused corpse: it opens and carries the migrated schema.
     const restored = await createDb(`file:${path}`);
@@ -696,7 +701,7 @@ test("backupBeforeMigrate ABORTS on a failed copy and leaves no partial file beh
     );
 
     // (a) it ABORTS, and the message is the operator's recovery instruction rather than a bare driver error.
-    await expect(backupBeforeMigrate(failing, url)).rejects.toThrow(/pre-migrate backup .* FAILED/);
+    await expect(backupBeforeMigrate(failing, url, dir)).rejects.toThrow(/pre-migrate backup .* FAILED/);
 
     // (b) NOTHING is left at the destination. Asserted over the whole directory rather than a recomputed
     // path, so a partial copy under ANY of the three names (base/-wal/-shm) fails this.
@@ -741,7 +746,7 @@ test("CONTROL: a partial copy the cleanup does not remove IS visible to the debr
         }),
     );
 
-    await expect(backupBeforeMigrate(failing, url)).rejects.toThrow(/pre-migrate backup .* FAILED/);
+    await expect(backupBeforeMigrate(failing, url, dir)).rejects.toThrow(/pre-migrate backup .* FAILED/);
     // The SAME assertion the fence makes — here it finds debris, which is what makes the fence meaningful.
     expect(readdirSync(dir).filter((name) => name.includes(".backup-"))).not.toEqual([]);
   } finally {
@@ -818,5 +823,61 @@ test("createDb auto-creates the parent dir RELATIVE to cwd for a bare file:./ ur
     expect(existsSync(scratch)).toBe(true); // created here, relative — not at the filesystem root
   } finally {
     rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+// --- the backup DIRECTORY (`backups/` beside `db/`, never inside it) ---------------------------------
+// Both verbs take the directory explicitly. A pin is read from THAT directory only: a `.keep` beside the db
+// names nothing, so a stale marker left in the old location cannot silently exempt a copy in the new one.
+
+test("backupBeforeMigrate writes the copy into the given backup dir, not beside the db", async () => {
+  const dir = mkdtempSync(join(tmpdir(), `orb-backupdir-${pid}-`));
+  try {
+    const url = `file:${join(dir, DB_FILE)}`;
+    const backupDir = join(dir, "backups");
+    const db = await createDb(url);
+    await runMigrations(db, MIGRATIONS_DIR);
+    const path = String(await backupBeforeMigrate(db, url, backupDir));
+    expect(path.startsWith(`${backupDir}/`)).toBe(true);
+    expect(existsSync(path)).toBe(true);
+    expect(readdirSync(dir).filter((name) => name.includes(".backup-"))).toEqual([]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("pruneDbBackups honours a `.keep` pin in the backup dir and ignores one beside the db", () => {
+  const stamps = Array.from({ length: 12 }, (_, i) => BASE_DAY * DAY_MS + i * HOUR_MS);
+  const pinnedInBackupDir = stamps[0] ?? 0;
+  const pinnedBesideDb = stamps[1] ?? 0;
+  const { dir, backupDir, url } = backupFixture(stamps.map((s) => backupName(s)));
+  try {
+    writeFileSync(join(backupDir, `${backupName(pinnedInBackupDir)}.keep`), "");
+    writeFileSync(join(dir, `${backupName(pinnedBesideDb)}.keep`), "");
+    const deleted = pruneDbBackups(url, backupDir);
+    expect(existsSync(join(backupDir, backupName(pinnedInBackupDir)))).toBe(true);
+    // The marker beside the db is not in the backup dir, so its stamp is swept like any other.
+    expect(deleted).toContain(join(backupDir, backupName(pinnedBesideDb)));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("listBackupFiles names every backup copy, sidecar and pin for the base, and nothing else", () => {
+  const stamp = BASE_DAY * DAY_MS;
+  const { dir, backupDir } = backupFixture([
+    backupName(stamp),
+    backupName(stamp, "-wal"),
+    backupName(stamp, "-shm"),
+    `${backupName(stamp)}.keep`,
+    "other.db.backup-1",
+    `${DB_FILE}-wal`,
+    `${DB_FILE}.backup-12a`,
+  ]);
+  try {
+    const expected = [backupName(stamp), backupName(stamp, "-shm"), backupName(stamp, "-wal"), `${backupName(stamp)}.keep`];
+    expect([...listBackupFiles(backupDir, DB_FILE)].sort()).toEqual([...expected].sort());
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
   }
 });

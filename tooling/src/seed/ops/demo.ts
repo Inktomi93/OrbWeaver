@@ -343,7 +343,7 @@ export async function runDemoSeed(argv: readonly string[]): Promise<ExitCode> {
 
   const now = (): number => Date.now();
   const db = await createDb(env.DATABASE_URL);
-  await runBootMigrations({ db, databaseUrl: env.DATABASE_URL, launched: DB_LAUNCHED });
+  await runBootMigrations({ db, databaseUrl: env.DATABASE_URL, backupDir: dirname(filePath ?? "."), launched: DB_LAUNCHED });
   log("db migrated from the baseline");
 
   await runFullSeed({
