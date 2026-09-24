@@ -15,6 +15,7 @@ import type {
   ListSessionsParams,
   ListUsersParams,
   ResetPasswordParams,
+  RestartParams,
   RevokeSessionParams,
   RevokeUserSessionsParams,
   SetEnabledParams,
@@ -65,6 +66,15 @@ interface SessionAdminPort {
  *  `false` when the caller doesn't own the character, it's gone, or it has no embeddable text. */
 interface EmbedProducerPort {
   readonly embedCharacterCard: (principal: Principal, characterId: CharacterId) => Promise<boolean>;
+}
+
+/** The process restart the composition root owns (`entry/lifecycle.ts`), injected because a domain may neither close
+ *  the app nor end the process. */
+export interface ServerRestartPort {
+  /** True when the launcher that respawns on the restart exit code started this process (`@orb/kit/supervisor`). */
+  readonly supervised: boolean;
+  /** Closes the app and exits with the restart code on a later tick, so the caller's answer is sent first. Never throws. */
+  readonly restart: () => void;
 }
 
 /** The DI bundle the admin verbs close over, wired at the composition root. admin reads `users` directly
@@ -123,6 +133,7 @@ export interface AdminContext {
   readonly emitUserEvent: EmitUserEvent;
   readonly sessions: SessionAdminPort;
   readonly embed: EmbedProducerPort;
+  readonly serverRestart: ServerRestartPort;
 }
 
 /** The user-administration + gating surface. All verbs are global-role gated in their own body: requireAdmin
@@ -140,4 +151,6 @@ export interface AdminService {
   readonly revokeSession: (params: RevokeSessionParams) => Promise<void>;
   readonly revokeUserSessions: (params: RevokeUserSessionsParams) => Promise<RevokeUserSessionsResult>;
   readonly embedCharacterCard: (params: EmbedCharacterCardParams) => Promise<void>;
+  /** Owner-only: close the app and exit with the restart code. Refuses an unsupervised process and a second call. */
+  readonly restart: (params: RestartParams) => Promise<void>;
 }

@@ -26,6 +26,7 @@ import type { AdminService } from "@orb/server/domain/admin";
 import { createAdminService } from "@orb/server/domain/admin";
 import { createSessionsService } from "@orb/server/domain/sessions";
 import { createLocalLightUserSeed } from "@orb/server/entry/boot";
+import { UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
 import { buildAuditStatementIfPrecedingWrote } from "@orb/server/foundation/observability";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import type { AdminContext } from "../../../../packages/server/src/domain/admin/context.ts";
@@ -255,6 +256,7 @@ export function makeHarness(db: Db): AdminHarness {
         return Promise.resolve(true);
       },
     },
+    serverRestart: UNSUPERVISED_RESTART,
   };
 
   return {

@@ -237,3 +237,25 @@ describe("rate-limit gate — the window is the ENV window (a wrong window silen
     await expect(enforce(authedCall(uid("user_window"), "chat.send"))).resolves.toBeUndefined();
   });
 });
+
+describe("rate-limit gate — the restart bucket outlives the restart it throttles", () => {
+  // The restart bucket's fixed cap and window, mirrored so the test can step to them (`entry/rate-limit-gate.ts`).
+  const RestartCap = 3;
+  const RestartWindowMs = 600_000;
+  const RestartT0 = Math.floor(1_700_000_000_000 / RestartWindowMs) * RestartWindowMs;
+
+  test("past the cap a restart is refused, by a fresh gate over the same db too, until the window rolls", async () => {
+    const db = await freshDb();
+    const clock = { now: RestartT0 };
+    for (let i = 0; i < RestartCap; i += 1) {
+      // Each restart ends the process, so every call rides a new gate: only the durable rows carry the count.
+      await gateAt(db, clock).enforce(authedCall(uid("user_owner"), "admin.restart"));
+    }
+    await expect(gateAt(db, clock).enforce(authedCall(uid("user_owner"), "admin.restart"))).rejects.toBeInstanceOf(DomainRateLimitError);
+    // Control: the owner's ordinary requests still pass, and the restart bucket reopens with the next window.
+    await expect(gateAt(db, clock).enforce(authedCall(uid("user_owner"), "admin.listUsers"))).resolves.toBeUndefined();
+    clock.now = RestartT0 + RestartWindowMs;
+    await expect(gateAt(db, clock).enforce(authedCall(uid("user_owner"), "admin.restart"))).resolves.toBeUndefined();
+    expect(await keysInScope(db, "restart")).toHaveLength(2);
+  });
+});

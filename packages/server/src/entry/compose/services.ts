@@ -58,6 +58,7 @@ import type { AssetId, CharacterId, ChatId, PersonaId, PluginId, PresetId, UserI
 import { castId, ID_PREFIX, newId } from "@orb/kit/ids";
 import { packShowcaseBundle, readShowcaseManifest } from "@orb/showcase-plugins";
 import { and, eq, isNull } from "drizzle-orm";
+import type { ServerRestartPort } from "#domain/admin";
 import { can, requireAdmin, requireOwner } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
 import type { AutomationService } from "#domain/automation";
@@ -213,7 +214,18 @@ export interface ServicesDeps {
   /** Audit D2/D3: force the REPLY tap on, independent of `env.WIRE_CAPTURE_REPLY`. Absent ⇒
    *  `isWireReplyCaptureEnabled()` (env) decides. Inert unless the request sink is wired at all. */
   readonly wireCaptureReply?: boolean;
+  /** The process restart `admin.restart` drives (`entry/lifecycle.ts` builds it; a test passes an unsupervised one). */
+  readonly serverRestart: ServerRestartPort;
 }
+
+/** The restart port for a composition no supervisor started (a seed script, a test graph). `admin.restart` refuses as
+ *  unsupervised before it reaches `restart`, which throws if anything ever does. */
+export const UNSUPERVISED_RESTART: ServerRestartPort = {
+  supervised: false,
+  restart: (): void => {
+    throw new Error("compose: nothing supervises this process, so nothing may restart it");
+  },
+};
 
 /** What the composition root hands back: the transport `Services` bundle + the boot handles the lifecycle
  *  supervises/probes/wires. */
@@ -720,6 +732,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // R6 — the chat-anchored campaign READ the orb-native chat-bundle export carries. A standalone factory
     // (db only), so it wires here rather than waiting on the rpg compose seam below.
     exportRpgGame: createExportRpgGame({ db }),
+    serverRestart: deps.serverRestart,
   });
 
   // ── imagery (the imagery seam). `resolveViewerVisibility` is a late-bound forward-ref (chat composes below);

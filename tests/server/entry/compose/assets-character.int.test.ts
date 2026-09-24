@@ -22,7 +22,7 @@ import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import { connectionBindings, userConnections } from "@orb/db";
 import type { ConnectionBindingId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createServices } from "@orb/server/entry/compose";
+import { createServices, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
 import { describe, vi } from "vitest";
 import { createPersonaSeedLatch } from "../../../../packages/server/src/entry/compose/assets-character.ts";
 import { createFrozenClock } from "../../../support/clock.ts";
@@ -230,6 +230,7 @@ describe("compose/assets-character.ts — resolveGreetingTemplate narrows to Pre
     const wireBody = `{"id":"chatcmpl-test","choices":[{"index":0,"message":{"role":"assistant","content":${JSON.stringify(fakeGreetingText)}},"finish_reason":"stop"}],"usage":{"prompt_tokens":1,"completion_tokens":1}}`;
     const fakeFetch: typeof fetch = () => Promise.resolve(new Response(wireBody, { status: 200, headers: { "content-type": "application/json" } }));
     const { services } = await createServices({
+      serverRestart: UNSUPERVISED_RESTART,
       db,
       now: clock.now,
       ownerId: castId<UserId>("user_greet_owner"),
