@@ -4,7 +4,7 @@
 # MODE-AWARE ENTRY (see the MODE + --debug dispatch block below for the grammar):
 #
 #   pnpm stack up|start-fg|down|restart|status [dev|prod] [--debug]
-#     dev  (default)  this file — watched server + vite + engines posture, exactly as before
+#     dev  (default)  this file — watched server + vite, exactly as before
 #     prod            tooling/src/stack/ops/prod-entry.ts — detached production server, no vite, no build step
 #     start-fg prod   tooling/src/stack/ops/prod-entry.ts — the production server in the FOREGROUND (this terminal
 #                     owns it, Ctrl-C stops it, no pidfile) — the on-box direct run that replaced `pnpm start`
@@ -22,13 +22,11 @@
 #   bash tooling/src/stack/stack.sh restart
 #   bash tooling/src/stack/stack.sh restart --force   (or: force-restart) NUKE then boot
 #                                            — force teardown by PORT-HOLDER +
-#                                            detached vLLM fleet + pidfile group,
-#                                            ignoring ownership/pins, then a fresh
-#                                            start where the CALLER's ENGINES_POSTURE/
-#                                            VLLM_DISABLED/WIRE_CAPTURE/DEBUG_TOKEN
-#                                            WIN over any pinned posture. For when the
-#                                            stack is wedged (unknown-owner ports,
-#                                            stale pin, accumulated detached fleets).
+#                                            pidfile group, ignoring ownership/pins,
+#                                            then a fresh start where the CALLER's
+#                                            WIRE_CAPTURE/DEBUG_TOKEN WIN over any
+#                                            pinned value. For when the stack is
+#                                            wedged (unknown-owner ports, stale pin).
 #   bash tooling/src/stack/stack.sh status         ports, pids, healthz, SERVED-MODULE freshness, env pins
 #   bash tooling/src/stack/stack.sh logs [server|client] [n]
 #
@@ -42,24 +40,23 @@
 # (agent harnesses wrap commands in bash -c) — the chain kills itself with exit
 # 143. And nothing owning the ports means a second server can silently take
 # 8788 and serve the wrong DB to the Vite proxy. Fix: the whole stack (dev.sh →
-# tsx watch + engines owner, plus vite) lives in ONE process group; stop kills
+# node --watch, plus vite) lives in ONE process group; stop kills
 # the group by id read from the pidfile. No patterns anywhere.
 #
 # BOOT ORDER (one readiness semantics): server first → poll /healthz bounded →
 # THEN vite. So vite-answering == everything-ready; Playwright gates on :5173.
 #
 # ENV PINS: exported here with `: "${VAR:=default}"` so a host export still
-# wins. VLLM_DISABLED=true maps to ENGINES_POSTURE=off (no engines in-stack;
-# an explicit ENGINES_POSTURE from the caller — e.g. e2e's adopt-only — wins,
-# then the `.env` pin, then the adopt-only default; every boot path prints the
-# effective posture AND which of the three it came from — #1567) ·
-# AUTH_MODE=single-user · deterministic DEV-ONLY secrets so a caller flipping
+# wins. AUTH_MODE=single-user · deterministic DEV-ONLY secrets so a caller flipping
 # AUTH_MODE=local/oidc doesn't trip the env superRefine boot-fatality
 # (packages/server/src/foundation/env/index.ts) · DEV_SEED=on, the dev twin of
 # the e2e harness stamp: it keeps the default-persona seeder's auto-create arm
 # ON so a DB regen never greets the operator with the FORCED first-run persona
 # dialog (that dialog is the real-stack behavior). To rehearse a real first
 # sign-in: `DEV_SEED=off pnpm stack restart` (host export wins).
+#
+# Model engines are not this script's business: a vLLM box is a connection row the server dials, and
+# whoever runs it does so outside this repo.
 #
 # Run dir + logs live in .cache/stack/ (gitignored, never /tmp). Each boot
 # ROTATES the previous run's log to `<log>.1` instead of truncating it (#524:
@@ -80,8 +77,6 @@
 # pidfile, so one shared file would have `pnpm stack stop` killing the wrong
 # stack. The `--isolated` snap-stage doesn't need it (it boots stack.sh from a
 # SEPARATE worktree, so $REPO — and the run dir under it — already differ).
-# Engines keep their own .cache/stack run dir (engines.sh); a second stack is
-# engines-off by construction (VLLM_DISABLED=true), so they never collide.
 
 set -u
 REPO="$(cd "$(dirname "$0")/../../.." && pwd)"
@@ -106,12 +101,9 @@ VITE_PORT="${VITE_PORT:-5173}"
 : "${VITE_API_TARGET:=http://127.0.0.1:$BACKEND_PORT}"
 export VITE_PORT VITE_API_TARGET
 HEALTHZ="http://127.0.0.1:$BACKEND_PORT/healthz"
-# Boot readiness bounds (seconds). Under adopt-or-start the vLLM fleet cold-spawns
-# DURING server boot, so the server-healthz gate has to clear a full model cold-load
-# (the gen 8B alone runs well past a minute) — 60s falsely tore down a server that was
-# still coming up. The wrapper readiness poll must stay AHEAD of the server gate + a
-# cold vite compile (~55s) so it never declares boot-timeout while the leader is
-# legitimately still booting. Override via env for slower/faster hardware.
+# Boot readiness bounds (seconds). The wrapper readiness poll must stay AHEAD of the server gate + a
+# cold vite compile (~55s) so it never declares boot-timeout while the leader is legitimately still
+# booting. Override via env for slower/faster hardware.
 # The DEFAULTS are LOAD-SCALED and derived by node, never spelled here (#1232 — the ONE budget
 # policy lives at
 # tooling/src/_shared/load-budget.ts and the shell half is tooling/src/stack/lib/boot-budgets.ts). A
@@ -132,11 +124,6 @@ apply_boot_budgets() {
     esac
   done <<<"$out"
 }
-# vLLM fleet ports (embed/rerank/gen) — force teardown polls these free after SIGKILLing the detached
-# fleet. Read through the SAME env vars engines.sh uses (same literal fallbacks, since bash can't import
-# foundation/env): a bare literal list here silently ignored a VLLM_*_PORT override, so teardown polled
-# ports the fleet never bound and reported the fleet gone while it was still holding VRAM.
-FLEET_PORTS=("${VLLM_EMBED_PORT:-8701}" "${VLLM_RERANK_PORT:-8702}" "${VLLM_GEN_PORT:-8703}")
 mkdir -p "$RUN_DIR"
 
 # ── MODE + --debug dispatch (mode-aware stack control) ───────────────────────
@@ -152,7 +139,7 @@ mkdir -p "$RUN_DIR"
 # prod`, the FOREGROUND on-box run (`NODE_ENV=production node <entry>.ts` in this terminal, no pidfile)
 # that replaced `pnpm start`. That supervisor owns the production lifecycle (identity-verified adopt/stop,
 # bounded drain watch, client-dist preflight, and the foreground run); nothing below this block runs in
-# prod mode, because prod has no vite, no engines management, and no dev env pins.
+# prod mode, because prod has no vite and no dev env pins.
 #
 # --debug is ORTHOGONAL to mode: it arms DEBUG_TOKEN/WIRE_CAPTURE/RPG_TRACE as a PROCESS ENV OVERLAY on
 # the stack we are about to spawn. It NEVER edits `.env` (the workflow this replaces did, and left the
@@ -167,9 +154,9 @@ mkdir -p "$RUN_DIR"
 # bash and accepted a mode ONLY in argument position 2. Everything it did not recognise FELL THROUGH TO
 # DEV — silently. `up --debug prod` armed debug on the DEV stack; `up --nope` ran dev with the flag
 # dropped on the floor; and `restart --force prod` reached `do_force_restart`, which SIGKILLs whatever
-# holds :8788/:5173 **and the entire detached vLLM fleet**, drops the pidfile, and boots DEV — a
-# destructive verb executed against the mode the operator did not ask for. Unit tests could not see any
-# of it, because the shell decided before the parser was ever called.
+# holds :8788/:5173, drops the pidfile, and boots DEV — a destructive verb executed against the mode the
+# operator did not ask for. Unit tests could not see any of it, because the shell decided before the
+# parser was ever called.
 #
 # So: nothing falls through. An unclassifiable invocation exits 2 with usage and touches nothing.
 ORIG_ARGV=("$@")
@@ -217,109 +204,11 @@ fi
 set -- "$STACK_VERB" ${STACK_FORCE:+--force} ${STACK_REST[@]+"${STACK_REST[@]}"}
 
 # ── env pins (host export wins; `:=` only fills the gap) ─────────────────────
-PIN_VARS=(VLLM_DISABLED AUTH_FALLBACK AUTH_MODE SESSION_SECRET CREDENTIALS_KEY LOCAL_INITIAL_PASSWORD DEV_SEED)
+PIN_VARS=(AUTH_FALLBACK AUTH_MODE SESSION_SECRET CREDENTIALS_KEY LOCAL_INITIAL_PASSWORD DEV_SEED)
 declare -A PIN_SRC
 for v in "${PIN_VARS[@]}"; do
   if [ -n "${!v:+x}" ]; then PIN_SRC[$v]=host; else PIN_SRC[$v]=pinned; fi
 done
-# Engine topology (A.4): if the caller set ENGINES_POSTURE (e.g. e2e's adopt-only), it wins and we pass it
-# through untouched. A caller-set VLLM_DISABLED (normalized — the schema takes exactly "true"|"false", and a
-# stale ambient `VLLM_DISABLED=1` from the pre-rebuild devcontainer is fatal) also wins, mapped by the env
-# resolver. Otherwise the DEFAULT is ENGINES_POSTURE=adopt-only (owner ruling 2026-08-01): a bare
-# `pnpm stack restart` ADOPTS a running fleet — never spawns one — so a warm fleet is usable by default.
-# The old engines-off default silently unwired the vllm backend on any restart that lost the posture env
-# (the 12:39 incident: saved vllm connection + bare restart = every turn dead in 2ms, zero logs).
-# Engines-off is now the explicit opt-in: ENGINES_POSTURE=off or VLLM_DISABLED=true.
-#
-# THE SOURCE RIDES THE VALUE (#1567). "adopt-only" printed with no provenance is what let a spawn hide in
-# plain sight: the supervisor's posture and the SERVER's posture are resolved by different code, and the
-# server re-reads `.env` with override:true AFTER spawn. So we resolve host → .env pin → default here,
-# record which one won in ENGINES_POSTURE_SRC, and print both on every boot (`posture_report`).
-ENGINES_POSTURE_SRC=""
-env_file_posture() { # the `.env` pin, if any — the value the SERVER's resolver will actually see
-  [ -f "$REPO/.env" ] || return 0
-  sed -n 's/^[[:space:]]*ENGINES_POSTURE[[:space:]]*=[[:space:]]*\([^[:space:]#]*\).*/\1/p' "$REPO/.env" | tail -1
-}
-ENV_FILE_POSTURE="$(env_file_posture)"
-#
-# ONE POSTURE VARIABLE ALWAYS REACHES engines.sh (#1618 — the #1567 spawn through its SECOND door).
-# The old shape branched on `VLLM_DISABLED` being NON-EMPTY, which is true of `false`/`0`/`no` as well:
-# such a caller set NO `ENGINES_POSTURE`, SKIPPED the `.env` pin below, and engines.sh — which reads only
-# `ENGINES_POSTURE` — fell back to its own `adopt-or-start` default and SPAWNED, while the server ran
-# `.env`'s adopt-only. The branch's own comment claimed the caller "gets the mapping the server's resolver
-# applies", and that was the false premise: the server's resolver is not in this path at all.
-# So: a TRUTHY VLLM_DISABLED maps EXPLICITLY to `ENGINES_POSTURE=off` (the documented off⇔disabled
-# mapping, now spelled where engines.sh can see it), and a FALSY one normalises and FALLS THROUGH to the
-# `.env` pin / default exactly like unset — because "vllm is not disabled" says nothing about which of
-# off/adopt-only/adopt-or-start the operator wants.
-# CASE-INSENSITIVE, and that is a SAFETY property, not a nicety (verifier v-L2-tooling, #1618 residual):
-# the case-sensitive first cut read `VLLM_DISABLED=TRUE` as falsy, then the else-branch below REWROTE it to
-# `false` and exported it — an operator who spelled the spawn-safety switch in caps had their stated intent
-# silently inverted, on the one variable whose whole job is "do not start 38 GB of vLLM". `${x,,}` is a bash
-# 4 expansion; this script is already bash-only (arrays above).
-vllm_disabled_truthy() {
-  case "${VLLM_DISABLED:-}" in
-    "") return 1 ;;
-    *)
-      case "${VLLM_DISABLED,,}" in
-        1 | on | yes | true) return 0 ;;
-        *) return 1 ;;
-      esac
-      ;;
-  esac
-}
-if [ -n "${ENGINES_POSTURE:-}" ]; then
-  ENGINES_POSTURE_SRC=host
-  export ENGINES_POSTURE
-elif vllm_disabled_truthy; then
-  # Normalized because the server's env schema takes exactly "true"|"false" (a stale ambient
-  # `VLLM_DISABLED=1` from the pre-rebuild devcontainer is fatal), and mapped to the posture so the
-  # supervisor and the server agree without either guessing.
-  VLLM_DISABLED=true
-  ENGINES_POSTURE=off
-  ENGINES_POSTURE_SRC="VLLM_DISABLED=true"
-  export VLLM_DISABLED ENGINES_POSTURE
-else
-  # A falsy VLLM_DISABLED is normalised for the schema and then IGNORED as a posture input.
-  if [ -n "${VLLM_DISABLED:-}" ]; then
-    VLLM_DISABLED=false
-    export VLLM_DISABLED
-  fi
-  if [ -n "$ENV_FILE_POSTURE" ]; then
-    # The .env pin is what the server will run under regardless of what we pass; the supervisor honouring a
-    # DIFFERENT posture is exactly the #1567 split (an .env-pinned adopt-only that still cold-spawned 38 GB
-    # of vLLM, owner-witnessed 2026-09-04). Adopt it so one posture governs both halves. Today's `.env` pins
-    # adopt-only, which is also the default below — so this branch changes no VALUE, only its provenance…
-    # and the provenance is the half that decides whether engines.sh may spawn.
-    ENGINES_POSTURE="$ENV_FILE_POSTURE"
-    ENGINES_POSTURE_SRC=.env
-  else
-    ENGINES_POSTURE=adopt-only
-    ENGINES_POSTURE_SRC=default
-  fi
-  export ENGINES_POSTURE
-fi
-
-# Test seam, the posture twin of STACK_DISPATCH_PROBE (#1618): print what engines.sh will actually receive
-# and stop, so the RESOLUTION can be driven without spawning a stack or a single vLLM process. Deliberately
-# AFTER the posture block and BEFORE any action — that is the surface under test
-# (tests/tooling/stack/index.int.test.ts). The standing ban on running the real launcher is in
-# AGENTS.md "Engines".
-if [ -n "${STACK_POSTURE_PROBE:-}" ]; then
-  echo "POSTURE engines=${ENGINES_POSTURE:-—} source=${ENGINES_POSTURE_SRC:-—} vllm-disabled=${VLLM_DISABLED:-—} env-pin=${ENV_FILE_POSTURE:-—}"
-  exit 0
-fi
-
-# The one posture line every boot path prints BEFORE it boots (up · restart · force-restart · start-fg).
-# It names the effective value, where it came from, and — when a host export is overriding an .env pin —
-# the value the server itself will resolve, which is the pair that made #1567 invisible.
-posture_report() {
-  local line="stack: engines posture ${ENGINES_POSTURE:-—} (${ENGINES_POSTURE_SRC:-via VLLM_DISABLED=${VLLM_DISABLED:-—}})"
-  if [ "$ENGINES_POSTURE_SRC" = host ] && [ -n "$ENV_FILE_POSTURE" ] && [ "$ENV_FILE_POSTURE" != "${ENGINES_POSTURE:-}" ]; then
-    line="$line — NOTE: .env pins ENGINES_POSTURE=$ENV_FILE_POSTURE and the server re-reads .env with override:true, so the SERVER will run $ENV_FILE_POSTURE"
-  fi
-  echo "$line"
-}
 # #2406: the env schema resolves an unset AUTH_FALLBACK per mode — `owner` under single-user (its only
 # credential), `deny` under every SSO mode — so this pin RESTATES what the server would reach anyway; it is
 # no longer what keeps a dev stack out of the #1864 flat-`deny` boot fatal. Kept so the stack's own env
@@ -378,8 +267,6 @@ backend_env_var() { # pid name → value (from /proc environ; keys loaded from .
 
 env_pin_report() {
   local bpid="$1" line="" v live
-  # Engine topology: whichever of ENGINES_POSTURE / VLLM_DISABLED is set (one of them always is).
-  line="$line ENGINES_POSTURE=${ENGINES_POSTURE:-—}(${ENGINES_POSTURE_SRC:-—}) VLLM_DISABLED=${VLLM_DISABLED:-—}"
   # AUTH_MODE here is the SHELL pin (this script's `:=`/host export) — it does NOT account for a checked-in
   # `.env`, which the server loads with override:true and which therefore WINS. The `effective` line below is
   # the truth; this one is only "what the launcher intended". (#301 — the pin line used to be read as gospel.)
@@ -389,13 +276,9 @@ env_pin_report() {
   done
   echo "env pins      :${line}"
   if [ -n "$bpid" ]; then
-    local lv=""
-    for v in ENGINES_POSTURE VLLM_DISABLED AUTH_MODE; do
-      live="$(backend_env_var "$bpid" "$v")"
-      lv="$lv $v=${live:-?}"
-    done
+    live="$(backend_env_var "$bpid" AUTH_MODE)"
     # NOTE: /proc/environ is the SPAWN env — it too misses a .env override (the server reads .env AFTER spawn).
-    echo "live backend  :${lv}  (from /proc/$bpid/environ — SPAWN env, also pre-.env-override)"
+    echo "live backend  : AUTH_MODE=${live:-?}  (from /proc/$bpid/environ — SPAWN env, also pre-.env-override)"
     # THE EFFECTIVE mode: the server's own resolved config (post-.env-override), read from the anonymous
     # /api/auth/config probe. This is the ONLY honest answer to "what AUTH_MODE is actually running" — if it
     # differs from the shell-pin/spawn lines above, a checked-in .env overrode them (#301).
@@ -405,12 +288,12 @@ env_pin_report() {
   fi
 }
 
-# A TERM the child never acts on is how the boot-failure path leaked an orphan (#1567): the leader
-# TERM'd dev.sh and returned, dev.sh was blocked in engines.sh with the signal QUEUED, and the moment the
-# leader died it reparented to `systemd --user` and went on to bind :8788 under a dead pidfile group.
-# dev.sh's own signal handler is fixed to exit; this is the leader's half — VERIFY the child is gone, and
-# escalate to KILL rather than trust a signal we never confirmed. Bash's BUILTIN kill only (never procps:
-# a negative pgid trips its argument parser), and only ever on our own child pid.
+# A TERM the child never acts on is how a boot-failure path can leak an orphan: the leader TERMs dev.sh
+# and returns, and if dev.sh only queued the signal it would reparent to `systemd --user` and go on to
+# bind :8788 under a dead pidfile group. dev.sh's own signal handler exits; this is the leader's half —
+# VERIFY the child is gone, and escalate to KILL rather than trust a signal we never confirmed. Bash's
+# BUILTIN kill only (never procps: a negative pgid trips its argument parser), and only ever on our own
+# child pid.
 reap_child() { # pid label → TERM, bounded wait, then KILL
   local pid="$1" label="$2" i
   [ -n "$pid" ] || return 0
@@ -429,7 +312,6 @@ run_leader() {
   local server_pid="" client_pid=""
   # shellcheck disable=SC2064
   trap 'kill -TERM ${client_pid:-} ${server_pid:-} 2>/dev/null; wait 2>/dev/null; exit 0' TERM INT HUP
-  posture_report
   echo "stack: booting server :$BACKEND_PORT (log $SERVER_LOG)"
   rotate_log "$SERVER_LOG"
   bash "$REPO/tooling/src/stack/dev.sh" >"$SERVER_LOG" 2>&1 &
@@ -544,93 +426,31 @@ do_stop() {
 }
 
 # ── FORCE teardown (--force only) ────────────────────────────────────────────
-# Force means verified escalation, never guessed ownership. The manager and detached engines each route
-# through their durable identity verifier; foreign port holders are left untouched and block the restart.
-
-# The GPU occupancy probe answers THREE things, not two (#1495). The old body ran nvidia-smi inside a
-# process substitution feeding `while read`: a MISSING or ERRORING probe produced zero rows, the loop body
-# never ran, and control fell through to an unconditional `return 0` — so force_teardown printed
-# "teardown complete — ports free, GPU idle" over VRAM that was never measured at all. The probe's failure
-# was byte-identical to its success. Exit codes, and every caller must branch on all four:
-#   0  idle          every GPU reported and all are under the floor
-#   1  busy          a GPU reported above the floor
-#   2  UNKNOWN       the probe ran and failed, printed nothing, or printed a non-number — NEVER idle
-#   3  not measured  nvidia-smi is absent from PATH, or the operator opted out. A host with no NVIDIA
-#                    tooling holds no fleet VRAM, so it must still be able to force-restart; that is a
-#                    DIFFERENT fact from "the driver is there and would not answer", which is 2.
-GPU_IDLE_FLOOR_MIB=1024
-gpu_idle() {
-  if [ "${STACK_GPU_CHECK:-on}" = skip ]; then
-    echo "stack: GPU idle check SKIPPED (STACK_GPU_CHECK=skip) — VRAM was NOT measured" >&2
-    return 3
-  fi
-  command -v nvidia-smi >/dev/null 2>&1 || return 3
-  local out used rc=0 rows=0
-  # Captured, never piped: the exit STATUS is half the answer, and a pipeline would hand back the reader's.
-  out="$(nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits 2>/dev/null)" || rc=$?
-  [ "$rc" != 0 ] && return 2
-  while read -r used; do
-    [ -z "$used" ] && continue
-    case "$used" in *[!0-9]*) return 2 ;; esac
-    rows=$((rows + 1))
-    [ "$used" -gt "$GPU_IDLE_FLOOR_MIB" ] && return 1
-  done <<<"$out"
-  # A probe that answered with no rows measured no GPU — the exact shape that used to read as idle.
-  [ "$rows" -eq 0 ] && return 2
-  return 0
-}
-
-# What a gpu_idle code says out loud. One home, so the completion line and the refusal cannot disagree.
-gpu_state_text() {
-  case "$1" in
-    0) echo "GPU idle" ;;
-    1) echo "GPU busy — VRAM above the ${GPU_IDLE_FLOOR_MIB}MiB idle floor" ;;
-    2) echo "GPU UNKNOWN — nvidia-smi could not be read; refusing to call it idle (STACK_GPU_CHECK=skip proceeds without it)" ;;
-    *) echo "GPU not measured (no nvidia-smi on PATH, or STACK_GPU_CHECK=skip)" ;;
-  esac
-}
-
-# Test seam (tests/tooling/stack/index.int.test.ts), the `STACK_DISPATCH_PROBE` convention: print the GPU
-# verdict and stop. It is the ONLY way to drive the probe's FAILURE arms — its one caller is force_teardown,
-# which SIGKILLs the live stack and the vLLM fleet before it ever asks. Deliberately after the definition
-# and before any action, so nothing is spawned and no port is touched.
-if [ -n "${STACK_GPU_PROBE:-}" ]; then
-  gpu_idle
-  gpu_probe_code=$?
-  echo "GPU code=$gpu_probe_code text=$(gpu_state_text "$gpu_probe_code")"
-  exit 0
-fi
-
+# Force means verified escalation, never guessed ownership. The manager routes through its durable
+# identity verifier; foreign port holders are left untouched and block the restart.
 force_teardown() {
   local pid p
   echo "force-restart: TEARDOWN — verified ownership only"
   do_stop || return 1
-  node "$REPO/tooling/src/stack/ops/engines-ctl.ts" stop || return 1
 
-  # POLL until ports free AND the GPU is either idle or honestly not measurable. UNKNOWN (2) never
-  # satisfies this loop: an unreadable probe is a reason to keep waiting and then REFUSE, never a pass.
-  local free gpu
+  # POLL until the ports are free.
+  local free
   for _ in $(seq 1 30); do
     free=1
-    for p in "$BACKEND_PORT" "$VITE_PORT" "${FLEET_PORTS[@]}"; do
+    for p in "$BACKEND_PORT" "$VITE_PORT"; do
       [ -n "$(port_pid "$p")" ] && free=""
     done
-    gpu_idle
-    gpu=$?
-    if [ -n "$free" ] && { [ "$gpu" = 0 ] || [ "$gpu" = 3 ]; }; then
-      echo "force-restart: teardown complete — ports free, $(gpu_state_text "$gpu")"
+    if [ -n "$free" ]; then
+      echo "force-restart: teardown complete — ports free"
       return 0
     fi
     sleep 1
   done
-  echo "force-restart: REFUSED — after 30s a foreign or unreleased resource remains:" >&2
-  for p in "$BACKEND_PORT" "$VITE_PORT" "${FLEET_PORTS[@]}"; do
+  echo "force-restart: REFUSED — after 30s a foreign or unreleased port remains:" >&2
+  for p in "$BACKEND_PORT" "$VITE_PORT"; do
     pid="$(port_pid "$p")"
     [ -n "$pid" ] && echo "force-restart:   :$p still held by pid $pid"
   done
-  gpu_idle
-  gpu=$?
-  [ "$gpu" != 0 ] && [ "$gpu" != 3 ] && echo "force-restart:   $(gpu_state_text "$gpu")" >&2
   return 1
 }
 
@@ -729,7 +549,6 @@ do_start() {
     [ "$pf" = 1 ] && return 1
   fi
 
-  posture_report
   rotate_log "$LOG"
   # setsid: new session ⇒ new process group whose PGID == the leader's PID.
   # The leader (this script, `_leader` verb — env pins ride the export) owns
@@ -749,7 +568,7 @@ do_start() {
   # Readiness = vite answering (the leader gates server-healthz BEFORE vite, so
   # vite-up ⇒ everything-up). Bounded by READINESS_TIMEOUT, which stays ahead of the
   # SERVER_HEALTHZ_TIMEOUT gate + a cold tsx/vite compile (~55s) — otherwise the
-  # wrapper false-times-out while the leader is still legitimately booting the fleet.
+  # wrapper false-times-out while the leader is still legitimately booting.
   apply_boot_budgets
   for _ in $(seq 1 "$READINESS_TIMEOUT"); do
     sleep 1
@@ -792,37 +611,13 @@ do_start() {
 }
 
 do_force_restart() {
-  # NUKE everything (ports + detached fleet + pidfile group, ignoring ownership),
-  # then boot fresh. Because we actually kill the old server, the CALLER's env
-  # (ENGINES_POSTURE/VLLM_DISABLED/WIRE_CAPTURE/DEBUG_TOKEN — all resolved at the
-  # top of this script, host export winning over the `:=` pin defaults) is what
-  # the NEW server starts under: the stale pinned posture cannot survive a real
-  # restart. Pinned SECRETS (SESSION_SECRET/CREDENTIALS_KEY/…) still default in.
+  # NUKE everything (ports + pidfile group, ignoring ownership), then boot fresh. Because we actually kill
+  # the old server, the CALLER's env (WIRE_CAPTURE/DEBUG_TOKEN — resolved at the top of this script, host
+  # export winning over the `:=` pin defaults) is what the NEW server starts under. Pinned SECRETS
+  # (SESSION_SECRET/CREDENTIALS_KEY/…) still default in.
   FORCE=1
-  # engines.sh honours ENGINES_POSTURE itself since #1567, so `off` no longer NEEDS the bridge — we keep
-  # it because VLLM_DISABLED=true is also what the SERVER's deprecated-input path maps to `off`, and a
-  # caller who forces off after a teardown must not have the fleet re-spawned by either half. The exported
-  # var is inherited by the setsid leader re-exec (and by dev.sh under it). Force-only: normal
-  # start/restart are untouched. Non-off postures reach engines.sh as before.
-  if [ "${ENGINES_POSTURE:-}" = off ]; then export VLLM_DISABLED=true; fi
-  echo "force-restart: caller posture — ENGINES_POSTURE=${ENGINES_POSTURE:-—}(${ENGINES_POSTURE_SRC:-—}) VLLM_DISABLED=${VLLM_DISABLED:-—} (wins over any pin)"
   force_teardown || return 1
   do_start
-  local rc=$?
-  # Confirm what ACTUALLY took by reading the live backend's /proc environ — the
-  # env resolver exports ENGINES_POSTURE (VLLM_DISABLED=true maps to off), so it's
-  # present in the new server's environ.
-  local bpid live vd
-  bpid="$(port_pid "$BACKEND_PORT")"
-  if [ -n "$bpid" ]; then
-    live="$(backend_env_var "$bpid" ENGINES_POSTURE)"
-    if [ -z "$live" ]; then
-      vd="$(backend_env_var "$bpid" VLLM_DISABLED)"
-      [ "$vd" = true ] && live="off(via VLLM_DISABLED)"
-    fi
-    echo "force-restart: live backend ENGINES_POSTURE=${live:-?}"
-  fi
-  return $rc
 }
 
 do_start_fg() {

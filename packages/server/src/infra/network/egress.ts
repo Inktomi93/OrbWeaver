@@ -124,7 +124,7 @@ export function shouldBlockEgress(address: string, hostname: string, allowlist: 
 //   retired host:PORT-scoped internal-backend rule got a silently dead deployment.
 //   CONTAINERS DO NOT FORCE HOST-SCOPING — checked, not assumed, so do not "simplify" the port arm away
 //   believing it breaks Docker. The container accommodation is ONE hostname and THREE ports
-//   (`tooling/src/stack/lib/engines-compose.ts` §"THE THREE DEPARTURES" 2: engine host `vllm-gen`, with
+//   (an engine compose overlay: engine host `vllm-gen`, with
 //   embed/rerank joining gen's network namespace — "the container shape of loopback-with-three-ports"),
 //   and the retired port-scoped mechanism covered it through that same env. Docker is where the widening
 //   is LEAST harmful (a private network publishing no engine port); loopback is where it bites.

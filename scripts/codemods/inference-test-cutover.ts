@@ -3,7 +3,7 @@
 // tests program, so the codemod touches exactly the sites `tsc` names and nothing it does not:
 //
 //   • import repoints — the deleted `@orb/server/infra/providers` root → `@orb/inference` (the package that
-//     absorbed its contract), the deleted `…/vllm/engine` → the tooling `engine-fleet` the fleet was yeeted to.
+//     absorbed its contract).
 //   • TS2741 "Property 'funderUserId' is missing" — every side-call arg shape gained a funder (§8.5b). The value
 //     is the nearest IN-SCOPE identifier from a priority list (`funder` … `owner` … `userId`), or the literal's own
 //     `ownerId:` value; a site with no candidate is REPORTED, never guessed.
@@ -425,7 +425,6 @@ await runCodemod(
     ctx.plan(deletions);
     ctx.plan(casts);
     ctx.plan(repointImports(ctx, "@orb/server/infra/providers", "@orb/inference"));
-    ctx.plan(repointImports(ctx, "@orb/server/infra/providers/vllm/engine", "@orb/tooling/stack/lib/engine-fleet"));
   },
   { argv: process.argv.slice(2), skipDiagnosticsCheck: true },
 );

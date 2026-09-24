@@ -22,7 +22,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFile
 import path from "node:path";
 import process from "node:process";
 import type { DevStackAdoption, DevStackIdentity, DevStackIdentityVerdict, ObservedStackProcess } from "../contract/types.ts";
-import { readObservedEngineProcess } from "./engine-fleet/index.ts";
+import { readObservedEngineProcess } from "./proc-observe.ts";
 import { pidIsAlive } from "./spawn-lock.ts";
 
 const VERSION = 1 as const;

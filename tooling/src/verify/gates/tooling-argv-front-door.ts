@@ -164,9 +164,9 @@ export const gate = defineGate({
     },
     {
       mode: "types",
-      files: { "tooling/src/stack/ops/engines.ts": 'import process from "node:process";\nexport const d = process.argv.includes("--detach");\n' },
-      expect: { count: 1, messageIncludes: "Subject: tooling/src/stack/ops/engines.ts, operation: process-argv-read" },
-      why: "THE PERMISSION IS NOT A CARVE-OUT IN THE RULE: a reviewed bash-fronted entry reds like any other reader and is licensed by its exact grant row (`tooling-argv-front-door:stack-engines`), so a new entry is a finding until someone reviews it. The family test proves this real central grant consumes the identity; module witnesses independently prove the synthetic exact-grant door",
+      files: { "tooling/src/stack/ops/prod-entry.ts": 'import process from "node:process";\nexport const d = process.argv.includes("--detach");\n' },
+      expect: { count: 1, messageIncludes: "Subject: tooling/src/stack/ops/prod-entry.ts, operation: process-argv-read" },
+      why: "THE PERMISSION IS NOT A CARVE-OUT IN THE RULE: a reviewed bash-fronted entry reds like any other reader and is licensed by its exact grant row (`tooling-argv-front-door:stack-prod-entry`), so a new entry is a finding until someone reviews it. The family test proves this real central grant consumes the identity; module witnesses independently prove the synthetic exact-grant door",
     },
     {
       mode: "types",

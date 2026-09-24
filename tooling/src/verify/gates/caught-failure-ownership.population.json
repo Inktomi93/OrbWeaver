@@ -2,16 +2,16 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 627,
+    "sites": 604,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 627,
+      "deliberate-absorb": 604,
       "unproven": 0
     },
     "byGrammar": {
-      "default": 165,
-      "empty": 317,
-      "promise": 145
+      "default": 152,
+      "empty": 308,
+      "promise": 144
     }
   },
   "rows": [
@@ -2016,31 +2016,6 @@
       "reason": "error-collection cleanup: pushed to failures[] and re-thrown as AggregateError at L148-152; partial-trace evidence is preserved"
     },
     {
-      "siteId": "tooling/src/model-ab/lib/verify.ts::parseStructured::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "same verdict-string contract as parseToolArguments above — a parse failure returns the verdict \"content is not the schema JSON\" rather than swallowing it. Ends if the return type stops being read as the probe's verdict."
-    },
-    {
-      "siteId": "tooling/src/model-ab/lib/verify.ts::parseToolArguments::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "the function's whole job is to return a verdict string or null — a JSON.parse failure IS one of the verdicts (\"arguments not valid JSON\"), not a swallowed failure. Ends if the return type stops being read as the probe's verdict."
-    },
-    {
-      "siteId": "tooling/src/model-ab/ops/probe.ts::runProbe::res.json::1",
-      "verdict": "deliberate-absorb",
-      "reason": "res.ok/status are read independently of json — a non-JSON error body just means the `message` field falls back to empty in the failure branch below; the HTTP failure itself is never lost. Ends if the ok/status path starts depending on json having parsed."
-    },
-    {
-      "siteId": "tooling/src/model-ab/ops/serve.ts::bootAndProbe::e::1",
-      "verdict": "deliberate-absorb",
-      "reason": "the boot failure is warned and returned as an explicit failed variant row with error text. Ends if callers stop publishing that row."
-    },
-    {
-      "siteId": "tooling/src/model-ab/ops/serve.ts::waitHealthy::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "a failed health poll advances to the bounded retry whose timeout or process exit is the operator verdict. Ends if one poll becomes terminal."
-    },
-    {
       "siteId": "tooling/src/motion-audit/lib/verdicts.ts::scriptAttribution::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "an unparseable sourceURL falls back to the raw string, which the pathname.includes() checks below just won't match — degrading to \"unknown\" attribution rather than throwing, consistent with this function's documented \"veto, not proof\" contract. Ends if callers start requiring pathname to be a real URL path."
@@ -2696,89 +2671,9 @@
       "reason": "ESRCH means the adopted group exited between the census and the signal — the desired end state; every other signal failure rethrows. Ends if callers require proof the signal landed."
     },
     {
-      "siteId": "tooling/src/stack/lib/engine-fleet/fleet-control.ts::fetchEngineCapacity::catch::1",
+      "siteId": "tooling/src/stack/lib/proc-observe.ts::readObservedEngineProcess::catch::1",
       "verdict": "deliberate-absorb",
-      "reason": "a /metrics capacity scrape failure returns null (absent, never a fabricated healthy snapshot); local engine observability, no auth/credential. Ends if null is read as a healthy snapshot."
-    },
-    {
-      "siteId": "tooling/src/stack/lib/engine-fleet/fleet-control.ts::fetchEngineMetrics::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "a /metrics scrape failure returns null (\"can't tell\"), and isEngineIdle/advanceAutoSleep treat null as never-idle — the conservative direction (never auto-sleeps a busy engine); local engine, no auth/credential. Ends if null ever admits an auto-sleep."
-    },
-    {
-      "siteId": "tooling/src/stack/lib/engine-fleet/fleet-control.ts::getIsSleeping::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "an /is_sleeping probe failure returns null (\"could not measure\"); local engine state read, no auth/credential — null disarms the auto-sleep timer (never sleeps on missing data). Ends if null ever admits an auto-sleep."
-    },
-    {
-      "siteId": "tooling/src/stack/lib/engine-fleet/fleet-control.ts::listListeningSockets::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "a failed `ss` listing yields \"\" and the caller answers null (pid unknown) — a read-only local socket listing for a status display, no auth/credential/network. Ends if the pid this feeds ever authorizes a signal."
-    },
-    {
-      "siteId": "tooling/src/stack/lib/engine-fleet/fleet-control.ts::postSleep::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "a POST /sleep failure returns false (engine not slept) — a local loopback engine-lifecycle op, no auth/credential; false is the conservative \"did not sleep\". Ends if this call reaches a non-loopback target."
-    },
-    {
-      "siteId": "tooling/src/stack/lib/engine-fleet/fleet-control.ts::postWakeAndAwait::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "a POST /wake_up failure returns false (engine did not wake); local engine-lifecycle op, no auth/credential. Ends if this call reaches a non-loopback target."
-    },
-    {
-      "siteId": "tooling/src/stack/lib/engine-fleet/gpu.ts::countGpus::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "a GPU-count probe failure returns 0 (no GPU/driver); local hardware probe, no auth/credential/network. Ends if the count ever gates a security decision."
-    },
-    {
-      "siteId": "tooling/src/stack/lib/engine-fleet/gpu.ts::detectGpu::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "a GPU-presence probe (nvidia-smi -L) that throws returns false (no usable GPU) — a local hardware probe, no auth/credential/network. Ends if GPU presence ever gates a security decision."
-    },
-    {
-      "siteId": "tooling/src/stack/lib/engine-fleet/proc-observe.ts::readEngineProcessLaunchMarker::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "an unreadable /proc/<pid>/environ returns null, which adoptEngineGroup treats as UNMARKED — the fail-closed direction, so it can never authorize a signal. Ends if null ever contributes to an adoptable verdict."
-    },
-    {
-      "siteId": "tooling/src/stack/lib/engine-fleet/proc-observe.ts::readObservedEngineProcess::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "an unreadable /proc process entry returns null, and verifyEngineLaunchIdentity treats null as absent/refused — NEVER \"owned\", so an unreadable process can never authorize the negative-PGID kill; fail-closed. Ends if null ever yields an \"owned\" verdict."
-    },
-    {
-      "siteId": "tooling/src/stack/lib/engine-fleet/process-identity.ts::parseEngineIdentityFile::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "a malformed engine-identity file parses to null (no launch record), so no negative-PGID signal can be authorized against it — the fail-closed direction. Ends if a null record ever authorizes a signal."
-    },
-    {
-      "siteId": "tooling/src/stack/lib/engine-fleet/process-identity.ts::readEngineIdentityFile::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "an unreadable engine-identity file returns null (no launch record); no signal can be authorized without a matching record — fail-closed. Ends if a null read ever authorizes a signal."
-    },
-    {
-      "siteId": "tooling/src/stack/lib/engine-fleet/process-identity.ts::signalAdoptedEngineGroup::error::1",
-      "verdict": "deliberate-absorb",
-      "reason": "ESRCH means the adopted group exited between the census and the signal — the desired end state; every other signal failure rethrows. Ends if callers require proof the signal landed."
-    },
-    {
-      "siteId": "tooling/src/stack/lib/engine-fleet/process-identity.ts::signalEngineLaunchIdentity::error::1",
-      "verdict": "deliberate-absorb",
-      "reason": "the kill failure is classified into a typed verdict (ESRCH → absent, else → refused) AFTER ownership was already verified \"owned\" above — propagated as a verdict, and no unverified signal is ever sent. Ends if the kill precedes ownership verification."
-    },
-    {
-      "siteId": "tooling/src/stack/lib/engine-fleet/spawn-engine.ts::resolveStoreRoot::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "a git-common-dir resolution failure falls back to the repo root (the documented non-worktree default); local path derivation, no auth/credential/network. Ends if the resolved root ever crosses a trust boundary."
-    },
-    {
-      "siteId": "tooling/src/stack/lib/engine-fleet/wake-budget.ts::runNvidiaSmi::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "a failed nvidia-smi query yields \"\" (no facts), and the caller REFUSES the wake on missing facts rather than assuming headroom — a local hardware probe, no auth/credential/network. Ends if a GPU fact ever gates a security decision."
-    },
-    {
-      "siteId": "tooling/src/stack/lib/port-health.ts::probePortHealth::error::1",
-      "verdict": "deliberate-absorb",
-      "reason": "connection refusal is the only absent verdict; every other rejection becomes an unproven result that launchOneEngine refuses before headroom or spawn. Ends if unproven can authorize launch."
+      "reason": "an unreadable /proc process entry returns null, and the dev-stack identity verifier treats null as absent/refused — NEVER \"owned\", so an unreadable process can never authorize the negative-PGID kill; fail-closed. Ends if null ever yields an \"owned\" verdict."
     },
     {
       "siteId": "tooling/src/stack/lib/prod-record.ts::parseProdRecord::catch::1",
@@ -2804,16 +2699,6 @@
       "siteId": "tooling/src/stack/ops/dev-identity-entry.ts::clearIdentity::error::1",
       "verdict": "deliberate-absorb",
       "reason": "ENOENT means the already-absent identity file needs no deletion; every other unlink failure surfaces and prevents a cleared verdict. Ends if another absence code is supported."
-    },
-    {
-      "siteId": "tooling/src/stack/ops/engines-ctl.ts::healthOk::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "a failed engine identity probe returns false and the caller refuses control of that process. Ends if false can authorize a signal."
-    },
-    {
-      "siteId": "tooling/src/stack/ops/engines-ctl.ts::safeUsername::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "an unreadable OS user identity falls back to a fixed label (\"unknown\") for a HUMAN-READABLE receipt on a marker file, never an authorization decision. Ends if the fallback ever gates a signal."
     },
     {
       "siteId": "tooling/src/stack/ops/prod-down.ts::doDown::error::1",
