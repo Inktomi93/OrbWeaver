@@ -129,7 +129,7 @@ describe("portability routes — GET /api/export/library + POST /api/import/bund
     expect(filteredPaths.some((p) => p.startsWith("tags/"))).toBe(false);
   });
 
-  test("bundle route: a library zip → import writes the ROWS for the uploading owner", async ({ db, app }): Promise<void> => {
+  test("bundle route: a library zip → import writes the ROWS for the uploading owner", async ({ db, app, importStagingDir }): Promise<void> => {
     await seedUser(db, { id: OWNER_ID, handle: castId<Handle>("portability-owner") });
     await seedUser(db, { id: TARGET_ID, handle: castId<Handle>("portability-target") });
     const owner = principalOf(OWNER_ID);
@@ -153,8 +153,8 @@ describe("portability routes — GET /api/export/library + POST /api/import/bund
     // Upload the SAME zip to the bundle route AS THE TARGET owner (header principal → CSRF gate inert). The
     // route is WORKLOAD-BACKED: it stages the zip + starts a SINGULAR `import-bundle` run (202 {workloadId});
     // the import runs when the worker drives the row. Drive it here (runWorkload over the REAL runner-env,
-    // whose `importBundle` op reads the staged zip from the same OS-temp staging root the route wrote to).
-    const importRoutes = captureImport({ workloads: app.services.workloads });
+    // whose `importBundle` op reads the staged zip from the fixture's staging root, the one the route wrote to).
+    const importRoutes = captureImport({ workloads: app.services.workloads, stagingDir: importStagingDir });
     const importHandler = importRoutes.get("POST /api/import/bundle");
     if (importHandler === undefined) {
       throw new Error("bundle route not registered");
@@ -204,7 +204,11 @@ describe("portability routes — GET /api/export/library + POST /api/import/bund
   // handle out of A's workload row (exactly what an admin sees through the deployment-wide `workloads.get`)
   // and starts an import-bundle run of their own naming it. B's run must FAIL on the containment belt with a
   // typed domain error, A's staged bytes must survive it, and A's own run must still import.
-  test("bundle route: a SECOND user naming the uploader's staged handle imports nothing and destroys nothing", async ({ db, app }): Promise<void> => {
+  test("bundle route: a SECOND user naming the uploader's staged handle imports nothing and destroys nothing", async ({
+    db,
+    app,
+    importStagingDir,
+  }): Promise<void> => {
     await seedUser(db, { id: OWNER_ID, handle: castId<Handle>("portability-owner") });
     await seedUser(db, { id: TARGET_ID, handle: castId<Handle>("portability-target") });
     const uploader = principalOf(OWNER_ID);
@@ -219,7 +223,7 @@ describe("portability routes — GET /api/export/library + POST /api/import/bund
     const exported = await exportHandler(makeCtx(uploader));
     const zip = new Uint8Array(await exported.arrayBuffer());
 
-    const importRoutes = captureImport({ workloads: app.services.workloads });
+    const importRoutes = captureImport({ workloads: app.services.workloads, stagingDir: importStagingDir });
     const importHandler = importRoutes.get("POST /api/import/bundle");
     if (importHandler === undefined) {
       throw new Error("bundle route not registered");
@@ -265,7 +269,7 @@ describe("portability routes — GET /api/export/library + POST /api/import/bund
   // loopback web origin → via:"fallback" owner → an owner-scoped library write with no cookie/preflight.
   // RED-FIRST: on the unmodified `via === "cookie"` guard the fallback+no-header case DISPATCHES the owner
   // write (202, `started` carries the owner id — the exploit); after the `via !== "header"` fix it is 403.
-  test("bundle route CSRF (#300): a fallback principal WITHOUT x-orb-csrf → 403, no owner write dispatched", async (): Promise<void> => {
+  test("bundle route CSRF (#300): a fallback principal WITHOUT x-orb-csrf → 403, no owner write dispatched", async ({ importStagingDir }): Promise<void> => {
     // A real typed double (no fabrication cast): annotating with the port type gives `args` the true
     // `StartWorkloadParams` shape, so `start` cannot silently drift if that contract changes. `ownerId` is
     // `UserId | null` on the real params, hence the widened recorder element type below.
@@ -276,7 +280,7 @@ describe("portability routes — GET /api/export/library + POST /api/import/bund
         return Promise.resolve({ id: castId<WorkloadId>("wl_csrf_test") });
       },
     };
-    const routes = captureImport({ workloads: recordingWorkloads });
+    const routes = captureImport({ workloads: recordingWorkloads, stagingDir: importStagingDir });
     const handler = routes.get("POST /api/import/bundle");
     if (handler === undefined) {
       throw new Error("bundle route not registered");

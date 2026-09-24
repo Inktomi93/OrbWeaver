@@ -156,7 +156,7 @@ function bundleHandler(deps: ImportBundleDeps): Handler {
 }
 
 describe("P-8: the full-library bundle round-trips into a fresh box, self-contained + idempotent", () => {
-  test("every entity + every asset-bearing reference travels; a re-import writes zero dupes", async ({ db, app, clock }) => {
+  test("every entity + every asset-bearing reference travels; a re-import writes zero dupes", async ({ db, app, clock, importStagingDir }) => {
     // ── SEED one-of-everything for the owner on the SOURCE box ──────────────────────────────────────────
     await seedUser(db, { id: OWNER_ID, handle: castId<Handle>("p8-source-owner") });
     const owner = principalOf(OWNER_ID);
@@ -416,14 +416,15 @@ describe("P-8: the full-library bundle round-trips into a fresh box, self-contai
         secretBoxKey: null,
         casDir,
         variantDir,
+        importStagingDir,
         sessionSecret: "test-session-secret-at-least-32-chars",
       });
 
       // The route is WORKLOAD-BACKED (#113): POST stages the zip + starts a SINGULAR `import-bundle` run,
       // returning 202 {workloadId}; the import executes when the worker drives the row. The test drives it
       // synchronously (runWorkload over the REAL runner-env — its `importBundle` op reads the staged zip the
-      // route wrote to the SAME OS-temp staging root — no running worker in the fixture).
-      const importH = bundleHandler({ workloads: fresh.services.workloads });
+      // route wrote to the SAME staging root, the fixture's temp dir — no running worker in the fixture).
+      const importH = bundleHandler({ workloads: fresh.services.workloads, stagingDir: importStagingDir });
       const runImport = async (): Promise<{
         imported: number;
         skipped: number;
@@ -731,7 +732,7 @@ describe("P-8: the full-library bundle round-trips into a fresh box, self-contai
   // journal / turn-tool-call refs, is the only way to catch a CROSS-LINK regression — turn A's planes landing
   // on turn B's restored (message, variant) id, or vice versa — rather than reading the positional-index
   // logic and trusting it.
-  test("two rpg-anchored turns each remap to their OWN restored (message, variant) — never cross-linked", async ({ db, app, clock }) => {
+  test("two rpg-anchored turns each remap to their OWN restored (message, variant) — never cross-linked", async ({ db, app, clock, importStagingDir }) => {
     const sourceOwnerId = castId<UserId>("user_r6_2turn_source_owner");
     await seedUser(db, { id: sourceOwnerId, handle: castId<Handle>("r6-2turn-source-owner") });
     const owner = principalOf(sourceOwnerId);
@@ -910,10 +911,11 @@ describe("P-8: the full-library bundle round-trips into a fresh box, self-contai
         secretBoxKey: null,
         casDir,
         variantDir,
+        importStagingDir,
         sessionSecret: "test-session-secret-at-least-32-chars",
       });
 
-      const importH = bundleHandler({ workloads: fresh.services.workloads });
+      const importH = bundleHandler({ workloads: fresh.services.workloads, stagingDir: importStagingDir });
       const req = new Request("http://t/api/import/bundle", { method: "POST", body: zip });
       const res = await importH(makeCtx(target, req));
       expect(res.status).toBe(202);
