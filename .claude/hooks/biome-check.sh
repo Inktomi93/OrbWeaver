@@ -333,11 +333,13 @@ fi
     # Group TS errors by code, show basename + line positions. Saves ~1-2KB context per error
     # vs the full expanded generic types. Full output stays in $tout.
     grep -E '^── ' "$tout"
-    grep -oP '[^/]+\(\d+,\d+\): error (TS\d+): .{0,60}' "$tout" \
+    # POSIX grep -E and awk only: macOS ships BSD grep (no -P) and Debian ships mawk (no match() arrays).
+    grep -oE '[^/]+\([0-9]+,[0-9]+\): error TS[0-9]+: .{0,60}' "$tout" \
       | awk -F'[():]' '{
           file=$1; line=$2; col=$3; code=""; msg=""
-          match($0, /error (TS[0-9]+): (.*)/, m)
-          code=m[1]; msg=m[2]
+          if (match($0, /error TS[0-9]+: /)) {
+            code=substr($0, RSTART + 6, RLENGTH - 8); msg=substr($0, RSTART + RLENGTH)
+          }
           key=code" "msg
           files[key]=files[key] ? files[key]" "file":"line : file":"line
           counts[key]++
