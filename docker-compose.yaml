@@ -40,6 +40,10 @@ services:
       # The host-side publication, echoed in so the entrypoint can refuse the no-login mode on a non-loopback
       # bind (single-user + a trusted bridge range + ORB_BIND=0.0.0.0 would make the whole LAN the owner).
       ORB_BIND: ${ORB_BIND:-127.0.0.1}
+      # Every interface INSIDE the container's own network namespace, so the published port reaches the app.
+      # A container-shape fact, not a knob: who reaches the port is ORB_BIND above. single-user refuses this
+      # bind unless AUTH_FALLBACK_TRUSTED_PEERS declares the bridge ranges (docker/orbweaver.env).
+      BIND_HOST: 0.0.0.0
     logging:
       driver: json-file
       options: { max-size: "10m", max-file: "3" }

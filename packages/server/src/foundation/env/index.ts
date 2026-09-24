@@ -17,7 +17,7 @@ import type { BindPostureInput } from "./bind.ts";
 import { resolveBindPosture } from "./bind.ts";
 import type { DiagnosticsPostureInput, OwnerFallbackCredentialInput } from "./diagnostics.ts";
 import type { OwnerFallbackPeerInput } from "./fallback-peers.ts";
-import { resolveOwnerFallbackPeers } from "./fallback-peers.ts";
+import { parseOwnerFallbackTrustedPeers, resolveOwnerFallbackPeers } from "./fallback-peers.ts";
 import type { SessionCookiePostureInput } from "./session-cookie.ts";
 
 export type { BindPosture, BindPostureInput } from "./bind.ts";
@@ -281,11 +281,12 @@ const envSchema = z
   .object({
     PORT: z.coerce.number().int().positive().default(DEFAULT_PORT),
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
-    // The listen interface (`serve({ hostname })`). UNSET is the meaningful default and differs by build:
-    // production ⇒ node's own default (every interface — what the reverse proxy target needs); NON-production
-    // ⇒ loopback only, because a dev build must not be reachable off-box (bind.ts holds the model + the
-    // 2026-08-09 incident it exists for). An EXPLICIT non-loopback value on a non-production build is
-    // boot-fatal below unless ALLOW_DEV_PUBLIC_BIND says otherwise.
+    // The listen interface (`serve({ hostname })`). UNSET is the meaningful default and differs by mode and
+    // build: `single-user` ⇒ loopback in every build (no login, so it serves this machine only); every other
+    // mode ⇒ node's own default in production (every interface — what the reverse proxy target needs) and
+    // loopback on a NON-production build (bind.ts holds the model). An EXPLICIT non-loopback value is
+    // boot-fatal below on a non-production build unless ALLOW_DEV_PUBLIC_BIND says otherwise, and under
+    // `single-user` unless AUTH_FALLBACK_TRUSTED_PEERS declares the peer set.
     BIND_HOST: z.string().min(1).optional(),
     // The deliberate-LAN-dev opt-in for the rule above. Default false. Never set this on the box that serves
     // the public FQDN: the public deployment runs `pnpm stack up prod` (NODE_ENV=production), where this knob
@@ -665,10 +666,16 @@ const envSchema = z
     // THE DEPLOY-MODE INVARIANT (PROD-LEAK, 2026-08-09) — same fail-fast class again: a NON-PRODUCTION build
     // may not be bound where an untrusted network reaches it. Refusing at PARSE (rather than at the bind
     // site) is what makes the state unrepresentable: no code path can hold an `env` that says
-    // "development + public interface". The rule itself lives in ONE home — `bind.ts::resolveBindPosture`,
-    // which `entry/lifecycle` also calls for the host it actually binds — so the refusal and the bind can
-    // never disagree.
-    const bind = resolveBindPosture({ nodeEnv: val.NODE_ENV, bindHost: val.BIND_HOST, allowDevPublicBind: val.ALLOW_DEV_PUBLIC_BIND });
+    // "development + public interface", or "single-user + public interface" without a declared peer set. The
+    // rule itself lives in ONE home — `bind.ts::resolveBindPosture`, which `entry/lifecycle` also calls for
+    // the host it actually binds — so the refusal and the bind can never disagree.
+    const bind = resolveBindPosture({
+      nodeEnv: val.NODE_ENV,
+      authMode: val.AUTH_MODE,
+      bindHost: val.BIND_HOST,
+      allowDevPublicBind: val.ALLOW_DEV_PUBLIC_BIND,
+      ownerPeersDeclared: parseOwnerFallbackTrustedPeers(val.AUTH_FALLBACK_TRUSTED_PEERS).length > 0,
+    });
     if (bind.refusal !== null) {
       ctx.addIssue({ code: "custom", path: ["BIND_HOST"], message: bind.refusal });
     }
@@ -708,7 +715,13 @@ export function processEnvSnapshot(): Record<string, string | undefined> {
  *  rule lives in `bind.ts`, and `entry/lifecycle` composes + logs. The env parse above has ALREADY refused
  *  any combination whose posture carries a refusal, so a caller here is guaranteed a bindable verdict. */
 export function bindPostureInput(): BindPostureInput {
-  return { nodeEnv: env.NODE_ENV, bindHost: env.BIND_HOST, allowDevPublicBind: env.ALLOW_DEV_PUBLIC_BIND };
+  return {
+    nodeEnv: env.NODE_ENV,
+    authMode: env.AUTH_MODE,
+    bindHost: env.BIND_HOST,
+    allowDevPublicBind: env.ALLOW_DEV_PUBLIC_BIND,
+    ownerPeersDeclared: parseOwnerFallbackTrustedPeers(env.AUTH_FALLBACK_TRUSTED_PEERS).length > 0,
+  };
 }
 
 /** The raw inputs the DIAGNOSTICS posture resolver reads — the three ops knobs that together decide who can

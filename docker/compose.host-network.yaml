@@ -21,5 +21,8 @@ services:
     environment:
       AUTH_MODE: single-user
       AUTH_FALLBACK: owner                    # single-user's only credential (the deny pairing is boot-fatal)
-      BIND_HOST: ${ORB_BIND:-127.0.0.1}       # the listen interface ON THE HOST; 0.0.0.0 gains nothing (LAN peers still 401)
+      BIND_HOST: ${ORB_BIND:-127.0.0.1}       # the listen interface ON THE HOST; the app refuses a non-loopback one
+      # The bridge ranges mean nothing here (the browser is a loopback peer), so they are dropped: with no
+      # declared peer set the app itself refuses ORB_BIND=0.0.0.0 in this mode (foundation/env/bind.ts).
+      AUTH_FALLBACK_TRUSTED_PEERS: ""
       PORT: ${ORB_PORT:-8788}
