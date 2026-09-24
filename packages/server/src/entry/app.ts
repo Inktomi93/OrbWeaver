@@ -201,7 +201,7 @@ export interface AppDeps {
   readonly sessions: AuthSessionsPort;
   readonly isShuttingDown: () => boolean;
   readonly credentialsKeyOk: () => boolean;
-  /** Whether the process runs in a container (`runsInContainer`); picks the fix the Host refusal names. */
+  /** Whether the process runs in a container (`foundation/env` `runsInContainer`); picks the fix the Host refusal names. */
   readonly inContainer: boolean;
   /** Fire-and-forget: called after the Principal resolves; must never block the request. */
   readonly seedUserCharacters: (principal: Principal) => void;

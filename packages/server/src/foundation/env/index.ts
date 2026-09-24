@@ -6,25 +6,29 @@
 // process.env; never written, parsed once, frozen, read down as the floor.
 
 import { readFileSync } from "node:fs";
+import { hostname } from "node:os";
 import { resolve } from "node:path";
 import process from "node:process";
 import { parseEnv } from "node:util";
 import type { AUTH_MODES } from "@orb/contracts/identity";
 import { authModeSchema } from "@orb/contracts/identity";
 import { AGENT_SDK_CONCURRENCY_MAX, LOG_LEVELS } from "@orb/contracts/settings";
+import { parseAllowedHosts } from "@orb/kit/allowed-hosts";
 import { z } from "zod";
 import type { AllowedHostsInput } from "./allowed-hosts.ts";
-import { allowedHostsEntryRefusal, parseAllowedHosts } from "./allowed-hosts.ts";
+import { allowedHostsEntryRefusal, machineHostnameFor } from "./allowed-hosts.ts";
 import type { BindPostureInput } from "./bind.ts";
 import { resolveBindPosture } from "./bind.ts";
+import { runsInContainer } from "./container.ts";
 import type { DiagnosticsPostureInput, OwnerFallbackCredentialInput } from "./diagnostics.ts";
 import type { OwnerFallbackPeerInput } from "./fallback-peers.ts";
 import { parseOwnerFallbackTrustedPeers, resolveOwnerFallbackPeers } from "./fallback-peers.ts";
 
-export type { AllowedHostsInput, AllowedHostsParse } from "./allowed-hosts.ts";
-export { parseAllowedHosts, resolveAllowedHosts } from "./allowed-hosts.ts";
+export type { AllowedHostsInput } from "./allowed-hosts.ts";
+export { machineHostnameFor, resolveAllowedHosts } from "./allowed-hosts.ts";
 export type { BindPosture, BindPostureInput } from "./bind.ts";
 export { bindPostureWarnings, resolveBindPosture } from "./bind.ts";
+export { CONTAINER_MARKER_FILES, runsInContainer, settingInstruction } from "./container.ts";
 export type { DiagnosticsExposure, DiagnosticsPosture, DiagnosticsPostureInput, OwnerFallbackCredentialInput } from "./diagnostics.ts";
 export { DIAGNOSTICS_EXPOSURES, diagnosticsPostureWarnings, resolveDiagnosticsPosture, resolveOwnerFallbackCredential } from "./diagnostics.ts";
 export type { OwnerFallbackPeerInput, OwnerFallbackPeerPosture } from "./fallback-peers.ts";
@@ -205,6 +209,10 @@ function refuseLaunchOnlyEnvFileKeys(ctx: z.RefinementCtx): void {
 // invocation that wants its own shell vars honored.
 const skipOverride = process.env["VITEST"] !== undefined || process.env["ORB_ENV_NO_OVERRIDE"] !== undefined;
 loadEnvFileWithOverride(!skipOverride);
+
+// Read once per process: the install shape picks every refusal's fix text and whether the machine's own name is
+// admitted by the Host allowlist.
+const IN_CONTAINER = runsInContainer();
 
 /** A boolean knob's env codec — ONE home for the posture, so no site can drift.
  *
@@ -666,6 +674,7 @@ const envSchema = z
       bindHost: val.BIND_HOST,
       allowDevPublicBind: val.ALLOW_DEV_PUBLIC_BIND,
       ownerPeersDeclared: parseOwnerFallbackTrustedPeers(val.AUTH_FALLBACK_TRUSTED_PEERS).length > 0,
+      inContainer: IN_CONTAINER,
     });
     if (bind.refusal !== null) {
       ctx.addIssue({ code: "custom", path: ["BIND_HOST"], message: bind.refusal });
@@ -717,6 +726,7 @@ export function bindPostureInput(): BindPostureInput {
     bindHost: env.BIND_HOST,
     allowDevPublicBind: env.ALLOW_DEV_PUBLIC_BIND,
     ownerPeersDeclared: parseOwnerFallbackTrustedPeers(env.AUTH_FALLBACK_TRUSTED_PEERS).length > 0,
+    inContainer: IN_CONTAINER,
   };
 }
 
@@ -739,7 +749,7 @@ export function ownerFallbackCredentialInput(): OwnerFallbackCredentialInput {
 /** The raw inputs the Host allowlist resolver reads (`allowed-hosts.ts` holds the grammar). The parse above has
  *  already refused a malformed `ALLOWED_HOSTS`; `entry/app.ts` resolves the names and mounts the request guard. */
 export function allowedHostsInput(): AllowedHostsInput {
-  return { allowedHosts: env.ALLOWED_HOSTS, oidcRedirectUris: env.OIDC_REDIRECT_URIS };
+  return { allowedHosts: env.ALLOWED_HOSTS, oidcRedirectUris: env.OIDC_REDIRECT_URIS, machineHostname: machineHostnameFor(IN_CONTAINER, hostname()) };
 }
 
 /** The raw inputs the OWNER-FALLBACK PEER-SET resolver reads (`fallback-peers.ts` holds the rule, the hazard

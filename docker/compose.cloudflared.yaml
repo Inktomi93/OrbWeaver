@@ -7,13 +7,13 @@
 # service is http://orbweaver:8788 — the compose service name on this project's network.
 #
 # NEEDS A LOGIN MODE. Every tunnelled request carries forwarding headers, so under the shipped single-user
-# default it is never the owner and answers 401. In docker/orbweaver.local.env set AUTH_MODE=local (or oidc),
-# AUTH_FALLBACK=deny and AUTH_FALLBACK_TRUSTED_PEERS= (empty). Cloudflare sends X-Forwarded-Proto: https from a
+# default it is never the owner and answers 401. In the environment: block of docker-compose.yaml set
+# AUTH_MODE: local (or oidc), AUTH_FALLBACK: deny and AUTH_FALLBACK_TRUSTED_PEERS: "" (empty). Cloudflare sends X-Forwarded-Proto: https from a
 # private address on this network, so the session cookie is Secure. Full recipe: docker/README.md,
 # "From the internet: a tunnel".
 #
-# NEEDS THE HOSTNAME ALLOWED. The app refuses a name it does not know. In docker/orbweaver.local.env set
-# ALLOWED_HOSTS=<the public hostname> (a quick tunnel's random name: ALLOWED_HOSTS=.trycloudflare.com).
+# NEEDS THE HOSTNAME ALLOWED. The app refuses a name it does not know. In the same environment: block set
+# ALLOWED_HOSTS: <the public hostname> (a quick tunnel's random name: ALLOWED_HOSTS: .trycloudflare.com).
 #
 # The token rides in the environment, so `docker inspect` shows it. To keep it in a file, mount one and set
 # TUNNEL_TOKEN_FILE instead (cloudflared reads either).

@@ -9,7 +9,6 @@ import {
   AUTH_MODE_KEY,
   applySetupValues,
   decideSetup,
-  detectedHostNames,
   isWsl2Kernel,
   openUrls,
   PORT_KEY,
@@ -184,17 +183,8 @@ test("an address answer adds typed host names to the known ones; an IP, localhos
   for (const bad of ["http://orb.lan", "orb.lan:8788", "orb lan", "-orb.lan", "orb-.lan", "*.orb.lan", "orb..lan", `${"a".repeat(64)}.lan`]) {
     expect(parseAddressAnswer(bad, []).ok).toBe(false);
   }
-});
-
-test("the machine's names are lower-cased with one .local form, whatever each OS reports", () => {
-  // Windows reports the NetBIOS name in upper case; Linux may report a domain; macOS may already report `.local`.
-  expect(detectedHostNames("DESKTOP-7Q2K")).toEqual(["desktop-7q2k", "desktop-7q2k.local"]);
-  expect(detectedHostNames("box.home.example.com")).toEqual(["box.home.example.com", "box.local"]);
-  expect(detectedHostNames("Alexs-MacBook-Pro.local")).toEqual(["nates-macbook-pro.local"]);
-  expect(detectedHostNames("game_pc")).toEqual(["game_pc", "game_pc.local"]);
-  // A name outside the server's grammar is never offered, so it can never be written.
-  expect(detectedHostNames("my box")).toEqual([]);
-  expect(detectedHostNames("")).toEqual([]);
+  // A one-label suffix would admit a whole top-level domain; the refusal says so.
+  expect(parseAddressAnswer(".com", [])).toMatchObject({ ok: false, error: expect.stringContaining("top-level domain") });
 });
 
 /** One `os.networkInterfaces()` entry, as node reports it. */

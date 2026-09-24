@@ -47,7 +47,7 @@ export function canonicalHost(authority: string): string {
   return host.endsWith(".") ? host.slice(0, -1) : host;
 }
 
-/** True for localhost, any `*.localhost` name, any IP literal, and a configured name. A leading-dot entry admits
+/** True for localhost, any `*.localhost` name, any IP literal, and a configured name (`resolveAllowedHosts`). A leading-dot entry admits
  *  its name and every subdomain. `host` is already {@link canonicalHost}. */
 export function isHostAllowed(host: string, allowedHosts: readonly string[]): boolean {
   if (host === LOCALHOST || host.endsWith(LOCALHOST_SUFFIX) || parseIp(host) !== null) {
@@ -83,7 +83,7 @@ export function reportHostNotAllowed(host: string): void {
   securityEvent(
     "host_not_allowed",
     { host },
-    "security: refused a request for a host that is not localhost, an IP address or a name in ALLOWED_HOSTS. If the host is " +
+    "security: refused a request for a host that is not localhost, an IP address, this machine's name or a name in ALLOWED_HOSTS. If the host is " +
       "your own address, add it to ALLOWED_HOSTS and restart. A name you do not recognise is a page trying to reach this " +
       "server through a visitor's browser (DNS rebinding); do not add it.",
   );

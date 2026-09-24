@@ -46,6 +46,11 @@
 // upward import is physics-illegal (§2).
 
 import type { AuthMode } from "@orb/contracts/identity";
+import { settingInstruction } from "./container.ts";
+
+const AUTH_MODE_KEY = "AUTH_MODE";
+/** The login mode that opens a single-user box to other devices. */
+const PASSWORD_MODE: AuthMode = "local";
 
 /** Non-production default: the loopback interface, and nothing else. */
 const LOOPBACK_HOST = "127.0.0.1";
@@ -66,6 +71,8 @@ export interface BindPostureInput {
   readonly allowDevPublicBind: boolean;
   /** `AUTH_FALLBACK_TRUSTED_PEERS` names at least one range: single-user's only door to a non-loopback bind. */
   readonly ownerPeersDeclared: boolean;
+  /** `runsInContainer`: picks the fix the single-user refusal and notice name. */
+  readonly inContainer: boolean;
 }
 
 /** The composed posture. Every field is a fact about this boot, safe to print in a boot log. */
@@ -120,13 +127,21 @@ function refusalFor(nodeEnv: string, bindHost: string): string {
   );
 }
 
-const SINGLE_USER_REFUSAL =
-  "AUTH_MODE=single-user serves this machine only. To let other devices sign in set AUTH_MODE=local (a session secret is generated for you). " +
-  "In a container keep the port published on loopback and the shipped AUTH_FALLBACK_TRUSTED_PEERS.";
+// The one sentence both single-user messages end with: how other devices get a login on this install.
+function otherDevicesSentence(inContainer: boolean): string {
+  return `To let other devices sign in, ${settingInstruction(inContainer, AUTH_MODE_KEY, PASSWORD_MODE)} (a session secret is generated for you).`;
+}
 
-const SINGLE_USER_NOTICE =
-  "bound to 127.0.0.1 — LOOPBACK ONLY, because AUTH_MODE=single-user has no login and serves this machine only. The LAN, a reverse " +
-  "proxy and the public FQDN will NOT reach this process (a proxy gets a 502). To let other devices sign in set AUTH_MODE=local.";
+function singleUserRefusal(inContainer: boolean): string {
+  return `AUTH_MODE=single-user serves this machine only. ${otherDevicesSentence(inContainer)}`;
+}
+
+function singleUserNotice(inContainer: boolean): string {
+  return (
+    "bound to 127.0.0.1 — LOOPBACK ONLY, because AUTH_MODE=single-user has no login and serves this machine only. The LAN, a reverse " +
+    `proxy and the public FQDN will NOT reach this process (a proxy gets a 502). ${otherDevicesSentence(inContainer)}`
+  );
+}
 
 /** The single-user arm, or `null` when the deploy-mode arms decide (every other mode, an explicit loopback
  *  bind, or a public bind the declared peer set admits). A declared peer set lifts the refusal on an
@@ -138,11 +153,11 @@ function singleUserPosture(input: BindPostureInput): BindPosture | null {
   // The hatch opens every interface only where it acts at all (non-production); in production it is inert.
   const hatchOpens = input.allowDevPublicBind && input.nodeEnv !== "production";
   if (input.bindHost === undefined && !hatchOpens) {
-    return { host: LOOPBACK_HOST, publicBind: false, refusal: null, notice: SINGLE_USER_NOTICE };
+    return { host: LOOPBACK_HOST, publicBind: false, refusal: null, notice: singleUserNotice(input.inContainer) };
   }
   const publicRequest = input.bindHost === undefined || !isLoopbackHost(input.bindHost);
   if (publicRequest && !input.ownerPeersDeclared) {
-    return { host: input.bindHost, publicBind: true, refusal: SINGLE_USER_REFUSAL, notice: NOTICE.opened };
+    return { host: input.bindHost, publicBind: true, refusal: singleUserRefusal(input.inContainer), notice: NOTICE.opened };
   }
   return null;
 }

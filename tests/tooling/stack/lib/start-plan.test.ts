@@ -9,6 +9,7 @@
 // `path.win32` execpath. A real Linux boot receipt (`pnpm start --no-build`, healthz, SIGINT → 130) is in
 // the lane report; a macOS/Windows boot remains unverified by construction.
 import { win32 } from "node:path";
+import { SETUP_COMMAND } from "@orb/contracts/identity";
 import {
   decideStartBuild,
   effectiveAuthMode,
@@ -17,7 +18,6 @@ import {
   portOverrideEnv,
   resolvePnpmInvocation,
   SERVER_ENTRY_REL,
-  SETUP_COMMAND,
   singleUserFallbackEnv,
   startBannerLines,
   startSpawnPlan,

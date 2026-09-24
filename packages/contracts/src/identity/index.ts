@@ -36,6 +36,10 @@ export const AUTH_MODES = ["single-user", "local", "forward-header", "oidc"] as 
 export type AuthMode = (typeof AUTH_MODES)[number];
 export const authModeSchema = z.enum(AUTH_MODES) satisfies z.ZodType<AuthMode>;
 
+/** The bare-metal command that sets `AUTH_MODE` and `ALLOWED_HOSTS` in `.env`. The setup wizard (tooling) runs
+ *  under it, and the server's refusals name it, so both read this one spelling. */
+export const SETUP_COMMAND = "pnpm start --setup";
+
 /** The modes that mint a session cookie, so they need the SESSION_SECRET pepper to authenticate anyone. */
 export const COOKIE_AUTH_MODES = ["local", "oidc"] as const satisfies readonly AuthMode[];
 

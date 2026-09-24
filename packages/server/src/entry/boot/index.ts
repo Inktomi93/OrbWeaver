@@ -4,7 +4,6 @@ export type { DistributedPluginApplier, DistributedPluginApplierDeps } from "./a
 export { createDistributedPluginApplier } from "./apply-distributed-plugins.ts";
 export type { BackfillPluginProvenanceOnBootDeps } from "./backfill-plugin-provenance.ts";
 export { backfillPluginProvenanceOnBoot } from "./backfill-plugin-provenance.ts";
-export { CONTAINER_MARKER_FILES, runsInContainer } from "./container.ts";
 export type { BootDisclaimerInput, BootDisclaimerLine, BootSecretProvenance } from "./disclaimer.ts";
 export { BOOT_DISCLAIMER_TOPICS, composeBootDisclaimer } from "./disclaimer.ts";
 export type { HealLegacyBackgroundPinsDeps } from "./heal-legacy-background-pins.ts";

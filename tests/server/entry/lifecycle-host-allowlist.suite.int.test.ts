@@ -3,7 +3,7 @@
 // socket with no forwarding header, so the owner fallback admits them. The only tell is the foreign `Host`.
 
 import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { hostname, tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, vi } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
@@ -35,6 +35,7 @@ const { createLifecycle } = await import("../../../packages/server/src/entry/lif
   throw error;
 });
 const { logRing } = await import("../../../packages/server/src/foundation/observability/index.ts");
+const { runsInContainer } = await import("../../../packages/server/src/foundation/env/container.ts");
 
 const lifecycle = createLifecycle({ listenPort: 0 });
 let base = "";
@@ -88,6 +89,19 @@ test("localhost, *.localhost and IP literals reach the owner on the same socket"
     expect(res.status, host).toBe(OK);
     expect(res.body, host).toContain('"authenticated":true');
   }
+});
+
+// Bare metal only: in a container the host name is a random id the server deliberately does not admit.
+test.skipIf(runsInContainer())("this machine's own name and its .local form reach the owner with ALLOWED_HOSTS unset", async () => {
+  const name = hostname().toLowerCase();
+  const label = name.split(".")[0] ?? name;
+  for (const host of [`${name}:${port}`, `${label}.local:${port}`]) {
+    const res = await me(host);
+    expect(res.status, host).toBe(OK);
+    expect(res.body, host).toContain('"authenticated":true');
+  }
+  // Control: a name that merely starts with this machine's name is still refused.
+  expect((await me(`${label}.${REBOUND_NAME}:${port}`)).status).toBe(MISDIRECTED);
 });
 
 test("the non-API refusal is a page naming the host and the key", async () => {
