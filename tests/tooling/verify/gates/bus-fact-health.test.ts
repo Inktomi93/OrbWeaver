@@ -148,12 +148,10 @@ test(
 );
 
 test(
-  "the owner deferral is keyed by (union, member): the SAME member name on another bus is still reported",
+  "identity is keyed by (union, member): the SAME member name on two different buses is reported for BOTH, independently",
   () => {
-    // The deferral list is `(union, member)` rows, and this is the row that says why. `connectionsChanged` is
-    // deferred on the USER bus (#1822). A different belted bus declaring a member of the same NAME has no
-    // deferral at all, so it must still be reported — while the user bus's own member stays silent. A
-    // bare-name key passes the second assertion and FAILS the first, which is the cross-bus leak.
+    // Identity is scoped to (union, member), never to member name alone: two different buses declaring the
+    // same member name must both be reported, one finding each, neither one merged into or masking the other.
     const sameNameTwoBuses = {
       "packages/contracts/src/user-bus/index.ts":
         'export type UserBusEvent = { type: "connectionsChanged" };\nexport const USER_BUS_EVENT_TYPES = { connectionsChanged: true } satisfies Record<UserBusEvent["type"], true>;\n',
@@ -162,8 +160,10 @@ test(
     };
     const findings = passOf(busProducerCoverage, sameNameTwoBuses).authority.effectiveFindings;
 
-    expect(findings.map(({ message }) => message ?? "")).toEqual([expect.stringContaining("Union: ChatBusEvent. Member: connectionsChanged")]);
-    expect(findings.map(({ message }) => message ?? "").filter((message) => message.includes("Union: UserBusEvent"))).toEqual([]);
+    expect(findings.map(({ message }) => message ?? "")).toEqual([
+      expect.stringContaining("Union: ChatBusEvent. Member: connectionsChanged"),
+      expect.stringContaining("Union: UserBusEvent. Member: connectionsChanged"),
+    ]);
   },
   PER_ROW_TIMEOUT_MS,
 );

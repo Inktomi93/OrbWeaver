@@ -10,6 +10,7 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { ProviderId } from "@orb/contracts/inference";
 import { pluginManifestSchema } from "@orb/contracts/plugin";
+import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import { assets, automationRules, plugins, users } from "@orb/db";
 import type { InferenceDeps, InferenceRuntime } from "@orb/inference";
@@ -75,6 +76,8 @@ export interface ConnectionHarness {
   readonly audits: AuditCall[];
   /** Every `onEmbedSpaceChanged(ownerId)` the verbs raised (the embed-space purge+reindex trigger). */
   readonly embedSpaceChanges: UserId[];
+  /** Every `emitUserEvent(ownerId, event)` the verbs raised (the per-user freshness plane). */
+  readonly emittedUserEvents: { readonly userId: UserId; readonly event: UserBusEvent }[];
   /** Every `recordProbeOutcome` the probe verb handed the credentials domain. */
   readonly probeRecords: Parameters<ConnectionContext["recordProbeOutcome"]>[0][];
   readonly requests: RecordedRequest[];
@@ -195,6 +198,7 @@ export async function makeHarness(db: Db, options: HarnessOptions = {}): Promise
   const clock = createFrozenClock();
   const audits: AuditCall[] = [];
   const embedSpaceChanges: UserId[] = [];
+  const emittedUserEvents: { readonly userId: UserId; readonly event: UserBusEvent }[] = [];
   const probeRecords: Parameters<ConnectionContext["recordProbeOutcome"]>[0][] = [];
   const requests: RecordedRequest[] = [];
   const now = (): number => clock.now();
@@ -255,6 +259,9 @@ export async function makeHarness(db: Db, options: HarnessOptions = {}): Promise
     onEmbedSpaceChanged: (ownerId): void => {
       embedSpaceChanges.push(ownerId);
     },
+    emitUserEvent: (userId, event): void => {
+      emittedUserEvents.push({ userId, event });
+    },
   };
 
   return {
@@ -263,6 +270,7 @@ export async function makeHarness(db: Db, options: HarnessOptions = {}): Promise
     runtime,
     audits,
     embedSpaceChanges,
+    emittedUserEvents,
     probeRecords,
     requests,
     advance: (ms: number): void => {

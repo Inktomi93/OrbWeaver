@@ -9,15 +9,13 @@
 //
 // MEMBERSHIP is derived from an AUDIT of the user-level mutating verbs that exist TODAY. The
 // `bus-producer-coverage` gate flags a declared-never-emitted member as dead wire — so every member below
-// EITHER has a real server emit site OR is the subject of the `user-bus-deferred-member` warning-debt policy.
-//   • `connection` is DEFERRED, not omitted: it has no per-user entity CRUD today (the model catalog is
-//     global/admin — `refreshCatalog`; a user's provider/role routing lives in USER SETTINGS →
-//     `settingsChanged`), so `connectionsChanged` is DECLARED but not yet emitted — the per-user connection
-//     store exists (domain/connection/verbs/connections.ts) but its mutations never call emitUserEvent
-//     (docs/work/0121). Kept in the union so the client map + the coverage ratchet track it explicitly.
+// has a real server emit site.
+//   • `connection` emits from every per-user connection CRUD verb and every binding change
+//     (domain/connection/verbs/connections.ts, bindings.ts), AFTER the write commits (docs/work/0121).
 //   • `themes` ride their own member though they live inside the `settings` domain (a distinct client read
 //     surface — the theme list — with its own emit sites in `settings/verbs/*-theme.ts`).
-//   • `settings` / `connection` carry NO id (a user has ONE settings blob; connection has no per-user row).
+//   • `settings` / `connection` carry NO id: a user has ONE settings blob, and the client path-invalidates
+//     the whole connection domain regardless of which row or binding changed.
 //   • `refinery` is the member the coverage survey's H1 forced:
 //     refinery shipped 15 mutating verbs with ZERO emits on any plane, so at `staleTime: Infinity`
 //     a second tab/device sat on the pre-write roster forever. Sessions and schemas are single-owned
@@ -107,9 +105,9 @@ export type UserBusEvent =
   // coarse map nothing AND a raw plugin-local `surfaceId` string is not a branded id — the shape law this file
   // opens with. The blast radius is a handful of the installer's own surfaces.
   | { type: "pluginSurfaceStateChanged"; pluginId?: PluginId }
-  // DEFERRED (no server emit yet — see the MEMBERSHIP note + the `user-bus-deferred-member` policy, #1822): a
-  // user's connection config lives in settings today, so nothing emits this. Declared so the client map +
-  // the ratchet track it for the day a per-user connection store lands.
+  // The per-user connection store: `user_connections` CRUD and `connection_bindings` changes
+  // (docs/work/0121). NO id (see the MEMBERSHIP note) — the client path-invalidates the whole connection
+  // domain regardless of which row or binding moved.
   | { type: "connectionsChanged" };
 
 /** Valid discriminators, derived from the union. The `satisfies Record<UserBusEvent["type"], true>` makes
@@ -143,10 +141,9 @@ export const USER_BUS_EVENT_TYPES = {
  *
  * It lives HERE, beside the union and the belt, for two reasons. One home: "the id-less form of member X" is
  * a fact about the union, not about whichever consumer needs it. And the emit-coverage ratchet
- * (`bus-producer-coverage`) resolves emitter identity in `server/src/{domain,transport}` — a
- * totality table parked in transport would have made every member, including the DEFERRED
- * `connectionsChanged`, read as emitted, turning the dead-wire belt permanently green (measured: it did,
- * the run before this const moved).
+ * (`bus-producer-coverage`) resolves emitter identity in `server/src/{domain,transport}` — a totality table
+ * parked in transport would make every member read as emitted regardless of whether it has a producer,
+ * which is the one thing `bus-producer-coverage` exists to catch.
  *
  * `satisfies Record<…>` is the belt: a new member fails `tsc` HERE until it declares its coarse form.
  */

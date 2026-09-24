@@ -244,8 +244,7 @@ export function roomEntityHealReads(chatId: ChatId, trpc: Trpc): readonly Invali
 // W2 FORWARD-SEAM: the rpg VERB tRPC procs (`trpc.rpg.getTrackerView`/`getGame`/`listJournal`/`getConfigView`)
 // land with the W2 rpg router — they do NOT exist on `AppRouter` yet, so each handler returns `[]` for now
 // (the map's SHAPE is the belt G11 checks; the real `trpc.rpg.*` filters wire in W2 alongside the stream hook).
-// The per-member notes name the read each will invalidate — the same "map ready, procs pending" posture the
-// user bus's `connectionsChanged` deferral takes.
+// The per-member notes name the read each will invalidate.
 type RpgBusFilterMap = {
   readonly [K in RpgBusEvent["type"]]: (event: Extract<RpgBusEvent, { type: K }>, trpc: Trpc) => readonly InvalidateFilter[];
 };
