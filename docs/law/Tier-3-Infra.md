@@ -18,6 +18,7 @@ The db-free Strategy executor turning request `Headers` (+ the raw TCP peer) int
 
 - **The mode dispatcher** — `resolve(headers, deps)` + `ownerFallbackAllowed(peerIp, headers)` (a LOOPBACK TCP peer on a request with no relay tell, never the client `Host`: a proxy can rewrite `Host`, so it is not a fact about the network). ONE branch point; modes never import each other.
 - **JWT/JWKS verification** (`jwks.ts`) — `jwksFor` (fail-closed JWKS build from the forwarded literal-or-URL; LRU-bounded, sha256-keyed, `ASSUMES(single-replica)`) + jose `jwtVerify` with a pinned RS256/ES256 alg allowlist, composed by `createForwardJwtVerifier()` into the `ForwardJwtVerifier` port the seam injects (`verifyForwardJwt`, wired at `entry/lifecycle.ts`).
+- **The Host allowlist decision** (`host-allowlist.ts`) — `refusedHost` + the throttled `host_not_allowed` notice; `entry/http/host-allowlist.ts` mounts it before the principal resolves. Deny-only (see "The Host allowlist refuses; it never admits").
 - **The pre-row `ResolvedIdentity`** — `{ externalId, handle, groups, email }` (`@orb/contracts/identity`); **NO `userId`** and NO `role` by design (infra must not know DB row ids).
 - **The per-request signals** — the `IdentityResolution` envelope `{ identity, via, hasCsrfHeader }` (`contract.ts`), where infra's `via` is `"header" | "fallback"` only (`"cookie"` is the seam's own, post-D40) and `hasCsrfHeader` comes from `csrf.ts`; the CSRF gate itself is enforced at the seam/ladder.
 - **Mint-side crypto** (`password.ts`) — scrypt + `SESSION_SECRET` pepper + constant-time verify + the dummy-hash enumeration floor; consumed by the entry login route.
@@ -60,6 +61,7 @@ Composition asymmetry: storage/crypto/network/image are *called by* domains via 
 | `SecretBox` | `entry/` boot | `credentials.context` |
 | `installEgressFirewall()` | `entry/` boot | global undici dispatcher |
 | `ipAllowlistMiddleware` | `entry/app.ts` | Hono chain |
+| `refusedHost` + `createHostNotAllowedNotice` | `entry/app.ts` via `entry/http/host-allowlist.ts` | Hono chain, before the principal middleware |
 | `Cas` / `VariantCache` | `entry/` | `assets.context`, export, the blob route |
 | `imageTransform` | `entry/` | `assets.resolve-variant` |
 | `resolve` + `ResolveDeps` | `entry/auth/seam.ts` | the seam calls infra; deps injected into infra |
@@ -88,6 +90,8 @@ Composition asymmetry: storage/crypto/network/image are *called by* domains via 
 
 **A relayed request is never the operator.** A same-host proxy or tunnel (cloudflared, `tailscale serve`, Caddy or nginx on `127.0.0.1`) makes every external request a loopback peer. `forwarded.ts::hasForwardingHeader` refuses the fallback, on every peer and in every mode, when any of `forwarded`, `x-forwarded-for`, `x-real-ip`, `cf-connecting-ip`, `x-forwarded-proto` or `x-forwarded-host` is present; presence is the signal, never the value. The refusal logs one `owner_fallback_relayed` line per TCP peer per hour (`relay-notice.ts`), because a tunnel sends every visitor from one peer. The same predicate gates the local first-run owner-password claim and its `localFirstRun` flag. The dev vite proxy sends none of these, because it does not set http-proxy's `xfwd` option. The guard fails open for a relay that sends no forwarding header, which is why prod + an SSO mode + `AUTH_FALLBACK=owner` stays boot-fatal in `foundation/env` unless `AUTH_BREAK_GLASS=true`.
 
+**The Host allowlist refuses; it never admits.** A page on a name its owner rebinds to `127.0.0.1` is same-origin with this server. Its requests arrive on a loopback socket with no relay tell, so the owner fallback, the local first-run claim and a loopback-trusted forward-header proxy would all serve it. A browser cannot set `Host`, so `host-allowlist.ts::refusedHost` judges it before the principal resolves, in every mode, with no off switch. localhost, `*.localhost` and IP literals pass; any other name must be in `ALLOWED_HOSTS` or be an `OIDC_REDIRECT_URIS` host (`foundation/env/allowed-hosts.ts` owns the grammar). `X-Forwarded-Host` from a trusted hop is judged beside `Host`, never instead of it: loopback is a trusted hop, so the rebinding page can send that header too. A passing host grants nothing, because the peer gate and the relay tell still decide the owner fallback. A refusal is a 421 that names the host and the fix, and logs one `host_not_allowed` line per host per hour.
+
 **`password.ts` — pepper, constant-time floor, loud-on-misconfig.** Passwords are HMAC-peppered with `SESSION_SECRET` before scrypt (a stolen DB alone can't offline-brute-force); `pepper()` THROWS if `SESSION_SECRET` is unset. Unknown/SSO-only handles verify against `DUMMY_PASSWORD_HASH` so scrypt always runs (defeats the enumeration timing oracle). Cost pinned (`N=2^15,r=8,p=1`); format `scrypt$salt$hash` carries an algo prefix for lazy KDF migration. **Rotating `SESSION_SECRET` invalidates all local passwords.**
 
 **Ingress `clientIp` — peer-vs-XFF trust precedence.** Start from the un-spoofable socket peer; only when the peer is a trusted proxy (private/loopback, or in `FORWARD_AUTH_TRUSTED_PROXIES`) is `X-Forwarded-For` read, from the right: skip trusted hops and take the first untrusted one. Never the leftmost entry: an appending proxy keeps the client's own value there, so reading it lets a visitor reset the login throttle or pass `IP_ALLOWLIST`. A direct public peer's forwarded headers are ignored, and `X-Real-IP` is never read (one canonical forwarded header, not a second spoofable parse path — D77). Loopback is ALWAYS allowed (self-lockout backstop). The same resolver feeds the tRPC seam + the login throttle: one observed identity for all three gates.
@@ -106,6 +110,7 @@ Composition asymmetry: storage/crypto/network/image are *called by* domains via 
 8. **CAS writes are crash-atomic + content-verified; CAS fsyncs, the variant cache does not.** *(test-time.)*
 9. **Every storage path goes through `isAssetHash`.** *(guard-first + test-time.)*
 10. **The egress firewall never re-resolves between check and connect.** *(test-time.)*
+11. **A request for a host outside localhost, IP literals and the configured names is refused before the principal resolves, in every mode.** *(test-time: `tests/server/entry/lifecycle-host-allowlist.suite.int.test.ts` and the first-run lifecycle suite.)*
 
 ## Open decisions
 

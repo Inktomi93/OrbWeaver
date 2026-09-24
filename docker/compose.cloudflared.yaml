@@ -12,6 +12,9 @@
 # private address on this network, so the session cookie is Secure. Full recipe: docker/README.md,
 # "From the internet: a tunnel".
 #
+# NEEDS THE HOSTNAME ALLOWED. The app refuses a name it does not know. In docker/orbweaver.local.env set
+# ALLOWED_HOSTS=<the public hostname> (a quick tunnel's random name: ALLOWED_HOSTS=.trycloudflare.com).
+#
 # The token rides in the environment, so `docker inspect` shows it. To keep it in a file, mount one and set
 # TUNNEL_TOKEN_FILE instead (cloudflared reads either).
 services:

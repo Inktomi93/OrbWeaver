@@ -88,5 +88,7 @@ volumes:
 #
 # The proxy must pass X-Forwarded-Proto/Host/For (the session cookie's Secure flag, the OIDC callback and the
 # IP allowlist derive from them) and must not buffer SSE (Caddy: `flush_interval -1` plus long timeouts).
+# The name people type must be in ALLOWED_HOSTS (docker/README.md, "Reaching it by name"), and the proxy must
+# pass the browser's Host through (Caddy does; nginx: `proxy_set_header Host $host`).
 # Anything public runs a login mode with AUTH_FALLBACK=deny (docker/orbweaver.env); for a tunnel instead of a
 # proxy, see docker/compose.cloudflared.yaml and "From the internet: a tunnel" in docker/README.md.

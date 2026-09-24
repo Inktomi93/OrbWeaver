@@ -33,7 +33,9 @@ its macOS and Windows boots are not yet verified on real hardware.
 server then listens on every interface and people sign in with a password; the first visit from this
 machine sets the owner's password. A phone at `http://192.168.1.20:8788` can sign in over plain http, but the password and
 the session cookie travel in clear on your network, and the login screen says so; put HTTPS in front when
-you can. For the internet, never forward a router port: run a tunnel instead. `tailscale serve --bg 8788`
+you can. An IP address works as is; to use a name instead (`http://nas.local:8788`, a tailnet or tunnel
+hostname), add it to `ALLOWED_HOSTS` in `.env`. The server refuses names it does not know, so a web page
+cannot reach it through your browser. For the internet, never forward a router port: run a tunnel instead. `tailscale serve --bg 8788`
 publishes the app to your tailnet over HTTPS, and `cloudflared tunnel run --token <token>` with a public
 hostname whose service is `http://localhost:8788` publishes it through Cloudflare. Never put a proxy or
 tunnel in front of single-user. The boot log states who can reach the box and who its owner is; the
