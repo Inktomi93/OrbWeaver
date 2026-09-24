@@ -4,11 +4,12 @@
 // squash same-role. Name-stamp runs before the squash so adjacent distinct-character rows keep every
 // speaker's label.
 //
-// ROLES FOLLOW THE AUTHOR (owner ruling). Every injection keeps the role and position its author chose; SHAPE
-// never reorders one. A system-role row stays a real `system` row only where the turn's message-handling level
-// and the model take it in that slot, and folds into user text in its neutral frame otherwise
-// ({@link deliverSystemRows}). SHAPE's own user tail (the group or continuation cue) is placed so the rows
-// around it stay legal: before a trailing system run, never after it.
+// ROLES FOLLOW THE AUTHOR (owner ruling). Every injection keeps the role and position its author chose. A
+// system-role row stays a real `system` row only where the turn's message-handling level and the model take it in
+// that slot, and folds into bare user text otherwise ({@link deliverSystemRows}). A fold inside the history leads
+// the user message it joins, at its own depth; a trailing fold follows the latest user text (OR-11). SHAPE's own
+// user tail (the group or continuation cue) is placed so the rows around it stay legal: before a trailing system
+// run, never after it.
 //
 // A TURN THAT CACHES BY EXPLICIT BLOCK MARKERS KEEPS STORED ROWS APART (`explicitCacheMarkers`). A merging level
 // still makes each same-role run one turn, but the wire does the grouping: the direct SDK folds adjacent
@@ -232,7 +233,7 @@ function isLive(entry: DeliveryEntry): boolean {
   return entry.row.content.trim().length > 0;
 }
 
-/** Fold a system row into user text in its neutral frame. */
+/** Fold a system row into user text. */
 function foldEntry(entry: DeliveryEntry, reason: ShapeFoldReason, prose: ProseOverrides | undefined): void {
   entry.row = { role: "user", content: frameInjection("user", entry.row.content, "system", prose ?? {}) };
   entry.folded = reason;
@@ -274,12 +275,14 @@ function midArrayFold(
  *   • a run INSIDE the history needs `turns.historySystemRows` ⇒ else `mid-array`; under `slotted` it must also
  *     sit between a user row and an assistant row ⇒ else `slot`.
  *
- * OpenRouter turns a system row in an illegal slot into bare, unframed user text without a signal, so the fold
- * happens here first, in its neutral frame.
+ * OpenRouter turns a system row in an illegal slot into user text in place without a signal, so the fold happens
+ * here first, where {@link leadUserText} can place it and the trace can name its reason.
  */
 /** The options {@link deliverSystemRows} and its steps read. */
 interface DeliveryOptions {
   readonly level: RoleHandling;
+  /** The level joins adjacent same-role rows into one message (every level but `none`). */
+  readonly merges: boolean;
   readonly midConversationSystem: boolean;
   readonly historySystemRows: boolean;
   readonly groupNudge: string | null;
@@ -288,9 +291,10 @@ interface DeliveryOptions {
   readonly convertsToEmptyWireRow: (content: string) => boolean;
 }
 
-/** Fold every run INSIDE the history that the level or the model does not take. Every verdict is taken before
- *  any row folds, so a folded row never becomes the user neighbour that makes the next row look legal. */
-function foldMidArrayRuns(entries: readonly DeliveryEntry[], lastNonSystem: number, opts: DeliveryOptions): void {
+/** Fold every run INSIDE the history that the level or the model does not take, and return the folded rows.
+ *  Every verdict is taken before any row folds, so a folded row never becomes the user neighbour that makes the
+ *  next row look legal. */
+function foldMidArrayRuns(entries: readonly DeliveryEntry[], lastNonSystem: number, opts: DeliveryOptions): DeliveryEntry[] {
   const placement = SYSTEM_ROW_PLACEMENT[opts.level];
   const reasons = entries.map((entry, index): ShapeFoldReason | null => {
     if (index >= lastNonSystem || entry.row.role !== "system" || !isLive(entry)) {
@@ -300,12 +304,50 @@ function foldMidArrayRuns(entries: readonly DeliveryEntry[], lastNonSystem: numb
     const after = nearestRole(entries.slice(index + 1), opts.convertsToEmptyWireRow);
     return midArrayFold(placement, before, after, opts.historySystemRows);
   });
-  entries.forEach((entry, index) => {
+  return entries.filter((entry, index) => {
     const reason = reasons[index];
-    if (reason !== null && reason !== undefined) {
-      foldEntry(entry, reason, opts.prose);
+    if (reason === null || reason === undefined) {
+      return false;
     }
+    foldEntry(entry, reason, opts.prose);
+    return true;
   });
+}
+
+/** Move each folded note inside the history up to just before the first stored row of the user text above it,
+ *  so it leads the user message it joins. Joined after that text, sonnet-5, opus-4-8 and haiku-4-5 mostly ignored
+ *  it (OR-11, `scripts/probes/openrouter/RESULTS.md`). A row assembly made above it, such as the new-chat marker,
+ *  keeps its place. The walk skips rows the squash drops and stops at the first other role, as the squash does.
+ *  A level that never joins rows keeps each user row its own message, so there the note moves only past the
+ *  user row it follows. */
+function leadUserText(entries: DeliveryEntry[], notes: readonly DeliveryEntry[], joins: boolean): void {
+  for (const note of notes) {
+    const from = entries.indexOf(note);
+    const to = leadTarget(entries, from, joins);
+    if (to < from) {
+      entries.splice(from, 1);
+      entries.splice(to, 0, note);
+    }
+  }
+}
+
+/** The index {@link leadUserText} moves the note at `from` to: the earliest stored user row it may pass, or
+ *  `from` when there is none. */
+function leadTarget(entries: readonly DeliveryEntry[], from: number, joins: boolean): number {
+  let to = from;
+  for (let at = from - 1; at >= 0; at -= 1) {
+    const entry = entries[at];
+    if (entry === undefined || (isLive(entry) && entry.row.role !== "user")) {
+      return to;
+    }
+    if (entry.row.role === "user" && entry.row.messageId !== undefined) {
+      to = at;
+    }
+    if (!joins && isLive(entry)) {
+      return to;
+    }
+  }
+  return to;
 }
 
 /** Why the TRAILING run folds, or undefined when it stays. SHAPE's user tail goes before a kept run, so under
@@ -326,7 +368,7 @@ function trailingFold(lastRole: DeliveredRole | undefined, opts: DeliveryOptions
 function deliverSystemRows(rows: readonly WireRow[], opts: DeliveryOptions): Delivery {
   const entries: DeliveryEntry[] = rows.map((row, index) => ({ row, origin: index }));
   const lastNonSystem = entries.findLastIndex((entry) => isLive(entry) && entry.row.role !== "system");
-  foldMidArrayRuns(entries, lastNonSystem, opts);
+  leadUserText(entries, foldMidArrayRuns(entries, lastNonSystem, opts), opts.merges);
 
   const trailing = entries.slice(lastNonSystem + 1).filter((entry) => entry.row.role === "system" && isLive(entry));
   const trailingReason = trailing.length === 0 ? undefined : trailingFold(entries[lastNonSystem]?.row.role, opts);
@@ -578,6 +620,7 @@ export function shape(input: ShapeInput): ShapeOutput {
   // model's own reply, rides as SHAPE's user tail.
   const delivery = deliverSystemRows(namedInput, {
     level,
+    merges,
     midConversationSystem: input.midConversationSystem === true,
     historySystemRows: input.historySystemRows === true,
     groupNudge: input.groupNudge,

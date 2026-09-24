@@ -260,7 +260,6 @@ const S1B_FROZEN_RENDERS: readonly { readonly id: ProseSlotId; readonly tokens: 
       "narration in between. Never write lines or actions for the user.]",
   },
   // packages/server/src/domain/chat/assembly/injections.ts — frameInjection's two note frames
-  { id: "chat.injection.systemNote", tokens: { note: "stay in scene" }, rendered: "[Take the following into special consideration: stay in scene]" },
   { id: "chat.injection.userNote", tokens: { note: "stay in scene" }, rendered: "[Note from user: stay in scene]" },
   {
     id: "chat.injection.assistantNote",
@@ -510,7 +509,6 @@ test('PRESET_PROSE_SLOT_IDS is every `home:"preset"` slot whose override is stor
     "chat.group.roundNudge",
     "chat.group.narratorNudge",
     "chat.group.speakerTags",
-    "chat.injection.systemNote",
     "chat.injection.userNote",
     "chat.injection.assistantNote",
     "chat.assembly.continuationNudge",
@@ -521,6 +519,7 @@ test('PRESET_PROSE_SLOT_IDS is every `home:"preset"` slot whose override is stor
     "rpg.card.askStatic",
     "rpg.card.example",
     "rpg.reminder.cyoaTeach",
+    "rpg.reminder.frame",
     "rpg.reminder.castHeader",
     "rpg.reminder.offstageHeader",
     "rpg.delta.changesHeading",

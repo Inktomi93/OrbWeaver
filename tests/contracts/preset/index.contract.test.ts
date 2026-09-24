@@ -1169,7 +1169,7 @@ test("a NUDGE missing its recommended macros is NOT refused (a lint, never a blo
 // that dropped it ships `[Note from user: ]` with the author's note gone — the `{{entry}}` failure exactly.
 // The frames store in `promptConfig.prose`, not `formatStrings`, which is why they need their own list and
 // why the divergence survived unnoticed: the enforcement split tracked storage plumbing, not the failure.
-const NOTE_CARRIER_SLOTS = ["chat.injection.systemNote", "chat.injection.userNote"] as const;
+const NOTE_CARRIER_SLOTS = ["chat.injection.userNote"] as const;
 /** A stored override as the write schema takes it — `baseVersion` is the slot version it was authored at. */
 const CARRIER_BASE_VERSION = 1;
 function withProse(slotId: string, text: string): Record<string, unknown> {
@@ -1184,6 +1184,15 @@ test("the write boundary REFUSES a note frame that dropped {{note}}, naming the 
     expect(issue?.path, slotId).toStrictEqual(["prose", slotId, "text"]);
     expect(issue?.message, slotId).toContain("{{note}}");
   }
+});
+
+// The game-notes frame's `{{reminder}}` carries the whole rpg reminder, so an override without it is refused too.
+test("the write boundary REFUSES a game-notes frame that dropped {{reminder}}, and takes one that keeps it", () => {
+  const dropped = promptConfigWriteSchema.safeParse(withProse("rpg.reminder.frame", "[Game notes.]"));
+  expect(dropped.success).toBe(false);
+  expect(dropped.error?.issues[0]?.path).toStrictEqual(["prose", "rpg.reminder.frame", "text"]);
+  expect(dropped.error?.issues[0]?.message).toContain("{{reminder}}");
+  expect(promptConfigWriteSchema.safeParse(withProse("rpg.reminder.frame", "<<{{reminder}}>>")).success).toBe(true);
 });
 
 test("blank-means-default survives the note guard, and the SPLICE's own spellings are accepted", () => {

@@ -5,13 +5,17 @@
 // carries update-guidance. On `folded` (R1) it DOES contribute `terminalTools`: the same 7 state tools, mounted
 // on the character turn as a write surface whose calls are read back rather than executed.
 
+import { PROSE_SLOTS } from "@orb/contracts/prose";
 import type { RpgActorEntry, RpgTrackerDef, RpgTrackerValue } from "@orb/contracts/rpg";
 import { buildTrackerWriteGroups, gameTrackerWriteKeys, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { messages, rpgSnapshots } from "@orb/db";
 import type { ChatId, Handle, MessageId, MessageVariantId, RpgGameId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, mintTypeId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
+import { MERGE_SEPARATOR } from "../../../../../packages/server/src/domain/chat/assembly/role-squash.ts";
+import { shape } from "../../../../../packages/server/src/domain/chat/assembly/shape.ts";
+import { convertsToEmptyWireRow } from "../../../../../packages/server/src/domain/chat/substrate/wire-history.ts";
 import { freshDb } from "../../../../support/db.ts";
 import type { RpgHarness } from "../_support.ts";
 import {
@@ -120,6 +124,51 @@ test("a game contributes ONE depth-0 system reminder injection + the rpg macro/C
   // default-on `immersiveHtml` composes the card teach into the reminder (the `:::card` grammar line).
   expect(out?.cardKeepLastX).toBe(0);
   expect(inj?.content).toContain(":::card");
+});
+
+// On a model that takes no system row the depth-0 reminder folds into the player's own message, after their
+// labelled line. It carries its own delimiter so that line never introduces it (owner ruling). The delimiters are
+// read off the frame slot, so the assertion is the structure, never the words.
+test("a folded reminder is delimited from the player's label line in a labelled multi-human room", async () => {
+  const db = await freshDb();
+  const { chatId, h } = await seedLiteGame(db);
+  const out = await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false, funderUserId: HOST_ID });
+  const [open = "", close = ""] = PROSE_SLOTS["rpg.reminder.frame"].text.split("{{reminder}}");
+  expect(open.trim()).not.toBe("");
+  expect(close.trim()).not.toBe("");
+
+  const shaped = shape({
+    canon: [
+      { role: "user", content: "I open the door.", authorName: "Nate", messageId: mintTypeId("message") },
+      { role: "user", content: "I follow him in.", authorName: "Joe", messageId: mintTypeId("message") },
+    ],
+    appendUserTurn: null,
+    injections: out?.injections,
+    output: "per-speaker",
+    cardScope: "merged",
+    scopedTargetId: null,
+    namesBehavior: "default",
+    speakers: { user: "Nate", assistant: "Aria" },
+    multiHuman: true,
+    groupNudge: null,
+    convertsToEmptyWireRow,
+  });
+  const players = `Nate: I open the door.${MERGE_SEPARATOR}Joe: I follow him in.${MERGE_SEPARATOR}`;
+  const message = shaped.history.at(-1)?.content ?? "";
+  expect(message.startsWith(players)).toBe(true);
+  const folded = message.slice(players.length);
+  expect(folded.startsWith(open)).toBe(true);
+  expect(folded.endsWith(close)).toBe(true);
+
+  // The frame is the preset's slot: a host override replaces the delimiter around the same reminder.
+  const custom = await h.chatOps.gatherTurnContext({
+    chatId,
+    pendingUserText: undefined,
+    respondsToLatestUserTurn: false,
+    funderUserId: HOST_ID,
+    prose: { "rpg.reminder.frame": { text: "<<{{reminder}}>>", baseVersion: 1 } },
+  });
+  expect(custom?.injections[0]?.content).toBe(`<<${folded.slice(open.length, folded.length - close.length)}>>`);
 });
 
 // PROSE-1 RE-HOME (owner ruling 2026-08-08, "we are putting everything in presets"): the reminder's teach and

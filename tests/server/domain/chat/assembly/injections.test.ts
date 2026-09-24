@@ -1,5 +1,5 @@
 // SHAPE substrate: spliceInChatInjections + frameInjection (the chat design doc Part II §3 rule 7 — in_chat depth
-// semantics: depth-from-end, clamp-once, depth-DESC, assistant@0→1 floor; system→user framing).
+// semantics: depth-from-end, clamp-once, depth-DESC, assistant@0→1 floor; system→user fold).
 import type { ChatInjection } from "@orb/contracts/chat";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { describe } from "vitest";
@@ -22,9 +22,10 @@ const inj = (over: Partial<ChatInjection>): ChatInjection => ({
 });
 
 describe("frameInjection", () => {
-  test("user → [Note from user: …]; a re-roled system or assistant row takes its neutral frame; assistant/system bare", () => {
+  test("user → [Note from user: …]; a re-roled assistant row takes its neutral frame; a folded system note and assistant/system stay bare", () => {
     expect(frameInjection("user", "hi")).toBe("[Note from user: hi]");
-    expect(frameInjection("user", "hi", "system")).toBe("[Take the following into special consideration: hi]");
+    // A folded system note goes bare: the probe measured a frame around it ignored (OR-11).
+    expect(frameInjection("user", "hi", "system")).toBe("hi");
     // The re-roled assistant injection carries no speaker label: it is not the user's words (owner ruling).
     expect(frameInjection("user", "hi", "assistant")).toBe("[Take the following into special consideration for your next message: hi]");
     expect(frameInjection("assistant", "hi")).toBe("hi");
@@ -41,18 +42,19 @@ describe("frameInjection", () => {
     // content still spliced in.
     const prose: ProseOverrides = {
       "chat.injection.userNote": { text: "((the table says: {{note}}))", baseVersion: 1 },
-      "chat.injection.systemNote": { text: "<<system — {{note}}>>", baseVersion: 1 },
+      "chat.injection.assistantNote": { text: "<<assistant — {{note}}>>", baseVersion: 1 },
     };
     expect(frameInjection("user", "hi", undefined, prose)).toBe("((the table says: hi))");
-    expect(frameInjection("user", "hi", "system", prose)).toBe("<<system — hi>>");
+    expect(frameInjection("user", "hi", "assistant", prose)).toBe("<<assistant — hi>>");
     // The bare roles never wear a frame at all, so no override can reach them.
+    expect(frameInjection("user", "hi", "system", prose)).toBe("hi");
     expect(frameInjection("system", "hi", undefined, prose)).toBe("hi");
     expect(frameInjection("assistant", "hi", undefined, prose)).toBe("hi");
   });
 
   test("an absent / empty override record is byte-identical to the shipped frames", () => {
     expect(frameInjection("user", "hi", undefined, {})).toBe(frameInjection("user", "hi"));
-    expect(frameInjection("user", "hi", "system", {})).toBe(frameInjection("user", "hi", "system"));
+    expect(frameInjection("user", "hi", "assistant", {})).toBe(frameInjection("user", "hi", "assistant"));
   });
 });
 
@@ -84,9 +86,9 @@ describe("spliceInChatInjections", () => {
     expect(out[HIST.length - 1]).toEqual({ role: "assistant", content: "cont", speakerless: true });
   });
 
-  test("role=system + in_chat auto-converts to user with [Take the following into special consideration: …] framing", () => {
+  test("role=system + in_chat folds to bare user text", () => {
     const out = spliceInChatInjections(HIST, [inj({ depth: 0, role: "system", content: "sys" })]);
-    expect(out.at(-1)).toEqual({ role: "user", content: "[Take the following into special consideration: sys]", speakerless: true });
+    expect(out.at(-1)).toEqual({ role: "user", content: "sys", speakerless: true });
   });
 
   test("co-located injections splice by order ASC — LOWER order lands higher/top (ST parity)", () => {
@@ -104,25 +106,24 @@ describe("spliceInChatInjections", () => {
     expect(out.at(-1)).toEqual({ role: "user", content: "[Note from user: raw]", speakerless: true });
   });
 
-  test("squashSystemMessages: consecutive same-depth system notes merge into ONE framed row (blank-line join)", () => {
+  test("squashSystemMessages: consecutive same-depth system notes merge into ONE row (blank-line join)", () => {
     const out = spliceInChatInjections(
       HIST,
       [inj({ depth: 0, role: "system", content: "sys-a" }), inj({ depth: 0, role: "system", content: "sys-b" })],
       (c) => c,
       { squashSystemMessages: true },
     );
-    // Merge-BEFORE-convert: one `[Take the following into special consideration: …]` bracket carrying both notes, not two.
-    expect(out.at(-1)).toEqual({ role: "user", content: "[Take the following into special consideration: sys-a\n\nsys-b]", speakerless: true });
-    expect(out.filter((m) => m.content.includes("[Take the following into special consideration:"))).toHaveLength(1);
+    // Merge-BEFORE-convert: one row carrying both notes, not two.
+    expect(out.slice(HIST.length)).toEqual([{ role: "user", content: "sys-a\n\nsys-b", speakerless: true }]);
   });
 
-  test("squashSystemMessages OFF (default): system notes stay SEPARATE (each its own bracket)", () => {
+  test("squashSystemMessages OFF (default): system notes stay SEPARATE (each its own row)", () => {
     const out = spliceInChatInjections(HIST, [inj({ depth: 0, role: "system", content: "sys-a" }), inj({ depth: 0, role: "system", content: "sys-b" })]);
-    expect(out.filter((m) => m.content.includes("[Take the following into special consideration:"))).toHaveLength(2);
+    expect(out.slice(HIST.length).map((m) => m.content)).toEqual(["sys-a", "sys-b"]);
   });
 
   test("squashSystemMessages: a non-system note between two system notes BREAKS the run (order-adjacency)", () => {
-    // order asc within a depth: sys(10), user(20), sys(30) → the user note sits between → two system brackets.
+    // order asc within a depth: sys(10), user(20), sys(30) → the user note sits between → two system rows.
     const out = spliceInChatInjections(
       HIST,
       [
@@ -133,7 +134,7 @@ describe("spliceInChatInjections", () => {
       (c) => c,
       { squashSystemMessages: true },
     );
-    expect(out.filter((m) => m.content.includes("[Take the following into special consideration:"))).toHaveLength(2);
+    expect(out.slice(HIST.length).map((m) => m.content)).toEqual(["sa", "[Note from user: mid]", "sb"]);
   });
 
   test("squashSystemMessages: DIFFERENT depths never merge (non-adjacent in the delivered array)", () => {
@@ -143,7 +144,7 @@ describe("spliceInChatInjections", () => {
       (c) => c,
       { squashSystemMessages: true },
     );
-    expect(out.filter((m) => m.content.includes("[Take the following into special consideration:"))).toHaveLength(2);
+    expect(out.map((m) => m.content)).toEqual(["a0", "u0", "a1", "mid-sys", "tail", "tail-sys"]);
   });
 
   test("generic: canon rows keep their extra fields through the splice (name-stamp depends on it)", () => {
@@ -174,7 +175,7 @@ describe("spliceInChatInjections — keepSystemRows (SHAPE decides the slot)", (
   test("absent/false: the fold path is byte-identical (regression pin)", () => {
     const off = spliceInChatInjections(HIST, [inj({ depth: 0, role: "system", content: "sys" })]);
     const explicitOff = spliceInChatInjections(HIST, [inj({ depth: 0, role: "system", content: "sys" })], (c) => c, { keepSystemRows: false });
-    expect(off.at(-1)).toEqual({ role: "user", content: "[Take the following into special consideration: sys]", speakerless: true });
+    expect(off.at(-1)).toEqual({ role: "user", content: "sys", speakerless: true });
     expect(explicitOff).toEqual(off);
   });
 
@@ -191,11 +192,11 @@ describe("spliceInChatInjections — keepSystemRows (SHAPE decides the slot)", (
     expect(out.at(-1)).toEqual({ role: "user", content: "[Note from user: u]", speakerless: true });
   });
 
-  test("the host's PROSE frames ride the SPLICE too — a demoted system injection wears the host's wording", () => {
+  test("the host's PROSE frames ride the SPLICE too — a re-roled assistant injection wears the host's wording", () => {
     // The splice is the other half of the frame's blast radius (the BUILD walk is the first): both funnel
     // through `frameInjection`, so threading `prose` on the splice opts is what makes the seam ONE home.
-    const prose: ProseOverrides = { "chat.injection.systemNote": { text: "<<system — {{note}}>>", baseVersion: 1 } };
-    const out = spliceInChatInjections(HIST, [inj({ depth: 0, role: "system", content: "sys" })], (c) => c, { prose });
-    expect(out.at(-1)).toEqual({ role: "user", content: "<<system — sys>>", speakerless: true });
+    const prose: ProseOverrides = { "chat.injection.assistantNote": { text: "<<assistant — {{note}}>>", baseVersion: 1 } };
+    const out = spliceInChatInjections(HIST, [inj({ depth: 1, role: "assistant", content: "cont" })], (c) => c, { prose, prefixBoundaryLen: HIST.length - 1 });
+    expect(out[HIST.length - 1]).toEqual({ role: "user", content: "<<assistant — cont>>", speakerless: true });
   });
 });

@@ -34,7 +34,7 @@ import { snapshotRowToState } from "../contract/service.ts";
 import { findGameByChat } from "../persistence/games.ts";
 import { resolveTurnSnapshotPair } from "../persistence/snapshots.ts";
 import { defaultSnapshotState } from "../substrate/default-state.ts";
-import { buildLiteReminder } from "../substrate/reminder.ts";
+import { buildLiteReminder, frameLiteReminder } from "../substrate/reminder.ts";
 import { buildRpgMacroFeed } from "./macro-view.ts";
 import { isReconcileBeat } from "./reconcile-cadence.ts";
 import { buildTrackerView } from "./tracker-view.ts";
@@ -183,7 +183,7 @@ export async function gatherTurnContext(ctx: RpgContext, args: GatherTurnContext
   // to their own system prompt). It is authored as WRITE-SURFACE guidance, not narration guidance, so a
   // reconcile beat re-states the panel without the character narrating a stocktake.
   const reconcileNote = folded?.reconcileNote ?? null;
-  const content = reconcileNote !== null ? `${reminder}\n\n${reconcileNote}` : reminder;
+  const content = frameLiteReminder(reconcileNote !== null ? `${reminder}\n\n${reconcileNote}` : reminder, prose);
   const injection: ChatInjection = { position: "in_chat", depth: 0, role: "system", content };
 
   // The macro + CEL feed (parity-plus §12) — populates `rpgSceneState`/`rpgCast`/`rpgQuests`/`rpgDelta` from the
