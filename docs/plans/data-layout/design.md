@@ -235,6 +235,44 @@ No behavior change; callers pass `dirname(path)`.
 - A second boot on the same volume logs no move.
 - The owner or the orchestrator runs this; a lane does not start containers.
 
+The legacy volume comes from the image at the branch's base commit, never from the checkout's `data/`. Host networking keeps the request a loopback peer, so the single-user owner fallback answers the upload and the blob read. Run from the merged tree:
+
+```sh
+BASE=00b02f66a
+git worktree add /tmp/orb-legacy "$BASE"
+docker build --target runtime -t orbweaver:legacy /tmp/orb-legacy
+docker build --target runtime -t orbweaver:datalayout .
+docker volume create orb-datalayout-probe
+RUN="docker run -d --network host -v orb-datalayout-probe:/app/data --env-file docker/orbweaver.env -e LOCAL_LIGHT_PREFETCH=off"
+
+# 1. The legacy image writes the flat tree and stores one blob.
+$RUN --name orb-legacy orbweaver:legacy
+until curl -fsS localhost:8788/healthz; do sleep 2; done
+printf 'x' > /tmp/orb-probe.png
+HASH=$(curl -fsS -H 'x-orb-csrf: 1' -F file=@/tmp/orb-probe.png -F kind=gallery localhost:8788/api/assets/upload | jq -r .hash)
+docker stop orb-legacy && docker rm orb-legacy
+docker run --rm -v orb-datalayout-probe:/app/data alpine ls -la /app/data   # orbweaver.db, .credentials-key, .session-secret at the root
+
+# 2. The new image moves it on the first boot and serves the same blob.
+$RUN --name orb-new orbweaver:datalayout
+until curl -fsS localhost:8788/healthz; do sleep 2; done
+docker logs orb-new 2>&1 | grep 'boot/data-layout'                        # one line: moved N entries
+curl -fsS localhost:8788/healthz                                           # status ok, never credentials_key_mismatch
+curl -fsS -o /dev/null -w '%{http_code}\n' "localhost:8788/api/blob/$HASH" # 200
+docker run --rm -v orb-datalayout-probe:/app/data alpine ls -la /app/data   # db/ backups/ assets/ secrets/ cache/ … and no legacy name
+
+# 3. The second boot moves nothing.
+docker restart orb-new
+until curl -fsS localhost:8788/healthz; do sleep 2; done
+docker logs --since 2m orb-new 2>&1 | grep -c 'boot/data-layout: moved'   # 0
+
+docker rm -f orb-new
+docker volume rm orb-datalayout-probe
+git worktree remove /tmp/orb-legacy
+```
+
+The upload answers with the stored asset's `hash`; if the field is named otherwise on the base image, read it from the response body. The shipped `docker/orbweaver.env` sets the bridge ranges as trusted peers; under host networking the request is loopback, which the fallback admits without them.
+
 ### Whole tree
 
 `pnpm check` after the train, and the push floor's node, CT and e2e smoke through the pre-push hook. No CT asserts a data path.
