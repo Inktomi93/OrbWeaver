@@ -58,7 +58,7 @@ describe("resolveCommit", () => {
     expect(resolveCommit({ head: `ref: ${BRANCH}\n`, headRef: null, packedRefs: packed })).toBeNull();
   });
 
-  test("a ref that exists NOWHERE is null — the throwaway `git init` a container build leaves behind", () => {
+  test("a ref that exists NOWHERE is null — a branch checked out before its first commit", () => {
     expect(resolveCommit({ head: `ref: ${BRANCH}\n`, headRef: null, packedRefs: "" })).toBeNull();
   });
 

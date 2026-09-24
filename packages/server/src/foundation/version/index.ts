@@ -14,11 +14,11 @@
 // additionally needs `dirty`, which no plain-file read can answer. That is a different fact, not a second
 // spelling of this one; see `@orb/kit/version-identity`'s header.)
 //
-// PRECEDENCE: a stamped `version.json` BEATS `.git`, always. An image ships no `.git`, and the build stage
-// that writes the stamp runs `git init` for the root `prepare` script — a throwaway repository whose HEAD
-// names a branch that was never committed. If `.git` won, that boot would report `unknown` while the honest
-// answer sat in a file one directory up. Both halves are proven: a stamp beside a `.git` still wins, and a
-// `git init`-shaped `.git` (HEAD present, no refs anywhere) resolves to `unknown` rather than throwing.
+// PRECEDENCE: a stamped `version.json` BEATS `.git`, always. An image ships no `.git`: the build stage moves
+// it aside before install, so the root `prepare` script (`scripts/prepare.ts`) sees a source archive with no
+// git hooks to install. If `.git` won, that boot would report `unknown` while the honest answer sat in a file
+// one directory up. Both halves are proven: a stamp beside a `.git` still wins, and a HEAD naming a branch
+// with no refs behind it (the no-`.git` shape) resolves to `unknown` rather than throwing.
 //
 // EVERY FAILURE IS AN ANSWER, NEVER A THROW. A missing `package.json`, a missing `.git`, a corrupt stamp —
 // each degrades to a named `unknown` that the surfaces render as such. A boot that dies because it could not
