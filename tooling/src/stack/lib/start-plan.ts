@@ -4,18 +4,12 @@
 // WHY THE PLATFORM IS A PARAMETER: this is the one launcher a stranger on macOS or Windows runs, and
 // nobody here has those boxes. Every platform-sensitive answer (which pnpm to exec, which node) is a
 // value computed from `{ platform, ambient env }` rather than read from the ambient process, so the win32
-// answer is unit-provable on Linux. `stack.sh` (the Linux dev supervisor: setsid, ss, /proc) is untouched
-// and stays the dev path.
-import { constants as osConstants } from "node:os";
-import type { ChildExit } from "../../_shared/proc-contract.ts";
+// answer is unit-provable on Linux. `stack.sh` (the Linux dev supervisor: setsid, ss, /proc) is untouched;
+// the cross-platform dev path is `pnpm dev` (tooling/src/dev/).
 import type { DistVerdict, PnpmInvocation, ProdSpawnPlan, StartBuildDecision, StartBuildMode, StartParse } from "../contract/types.ts";
 import { buildProdSpawnPlan, CLIENT_DIST_INDEX_REL } from "./spawn-plan.ts";
 
 export const START_USAGE = "usage: pnpm start [--build | --no-build]";
-
-/** The shell convention for "killed by signal N": exit 128+N — so a caller reading `$?` sees exactly what
- *  a bare `node <entry>.ts` would have reported. Mirrors ops/prod-up.ts's foreground arm. */
-const SIGNAL_EXIT_BASE = 128;
 
 /** pnpm's JS entry, however this process was launched. A `.cjs`/`.js`/`.mjs` tail is the whole test:
  *  `npm_execpath` is set by every package manager to the file IT was started from. */
@@ -172,12 +166,4 @@ export function startBannerLines(opts: { readonly port: number; readonly mode: s
     "  Ctrl-C stops the server.",
     "",
   ];
-}
-
-/** Mirror the child's exit faithfully: its code, or 128+signal when a signal took it (Ctrl-C ⇒ 130). */
-export function childExitCode(exit: ChildExit): number {
-  if (exit.signal === null) {
-    return exit.code ?? 0;
-  }
-  return SIGNAL_EXIT_BASE + osConstants.signals[exit.signal];
 }

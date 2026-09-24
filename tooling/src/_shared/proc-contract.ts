@@ -82,8 +82,10 @@ export interface FullPriorityChildOptions {
   readonly logPath?: string;
   /** node-level `detached` (setsid before exec). Leave false when the ARGV itself starts with `setsid`. */
   readonly detached?: boolean;
-  /** `"inherit"` gives the child THIS terminal (the foreground-run shape) — mutually exclusive with logPath. */
-  readonly stdio?: "inherit";
+  /** `"inherit"` gives the child THIS terminal (the foreground-run shape). `"pipe-stdout"` keeps stderr on
+   *  this terminal and hands stdout to the parent as {@link FullPriorityChild.stdout} (a log-formatting
+   *  pipe). Both are mutually exclusive with logPath. */
+  readonly stdio?: "inherit" | "pipe-stdout";
 }
 
 export interface ChildExit {
@@ -95,6 +97,8 @@ export interface ChildExit {
 
 export interface FullPriorityChild {
   readonly pid: number | undefined;
+  /** The child's stdout under `stdio: "pipe-stdout"` or the default piped stdio; null when inherited or logged. */
+  readonly stdout: NodeJS.ReadableStream | null;
   readonly hasExited: () => boolean;
   /** Drop the handle from the parent's event loop — without it an "exited" launcher lives exactly as long
    *  as its children (the 2026-08-03 immortal-launcher audit). */
