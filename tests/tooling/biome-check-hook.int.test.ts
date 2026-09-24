@@ -243,13 +243,13 @@ test("missing jq and malformed supported-event payloads are visible while a vali
   expect(missingTempRoot.status).toBe(2);
   expect(missingTempRoot.stderr).toContain("temporary workspace could not be created");
 
-  const unwritableTempRoot = join(scratch, "unwritable-tmp-root");
-  mkdirSync(unwritableTempRoot, { mode: 0o700 });
-  chmodSync(unwritableTempRoot, 0o000);
-  const unwritableTemp = runHook({ ...common, tempDir: unwritableTempRoot });
-  chmodSync(unwritableTempRoot, 0o700);
-  expect(unwritableTemp.status).toBe(2);
-  expect(unwritableTemp.stderr).toContain("temporary workspace could not be created");
+  // A regular file where the temp root should be: `mktemp -d` refuses it for every user, root included,
+  // where a mode-000 directory only stops a non-root user.
+  const unusableTempRoot = join(scratch, "tmp-root-is-a-file");
+  writeFileSync(unusableTempRoot, "");
+  const unusableTemp = runHook({ ...common, tempDir: unusableTempRoot });
+  expect(unusableTemp.status).toBe(2);
+  expect(unusableTemp.stderr).toContain("temporary workspace could not be created");
 });
 
 test("a main-registered launcher executes every leg in the payload worktree and preserves quoted paths", ({ scratch, repoRoot }) => {
