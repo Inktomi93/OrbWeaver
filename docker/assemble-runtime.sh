@@ -63,18 +63,23 @@ cp -R "$src/packages/client/dist" "$out/packages/client/dist"
 
 # ── the build identity stamp (owner ask 2026-09-18) ──────────────────────────────────────────────────
 # /app/version.json is how a CONTAINER answers "which commit am I?" — an image ships no .git, so nothing
-# else could. `foundation/version` PREFERS this file over .git at runtime, which also covers the build
-# stage's own throwaway `git init` (HEAD names a branch that was never committed → `unknown`).
+# else could. `foundation/version` PREFERS this file over any .git at runtime.
 #
 # The derivation is NOT forked here: this invokes the server's own reader (`buildVersionStamp`), the same
 # code that reads the stamp back at boot, so the stamp can never disagree with the reader's rules. The
 # workspace's ref files are present in this stage because .dockerignore un-ignores exactly four plain ref
-# files — and the Dockerfile moves them to `.git-refs` BEFORE its throwaway `git init`, so the stamp is read
-# through a `gitdir:` redirect root (the linked-worktree shape the reader already understands) rather than
-# from the empty repo git sees. Without the moved dir (an archive build) the stamp reads the source root.
+# files — and the Dockerfile moves them to `.git-refs` so git never sees them, so the stamp is read through a
+# `gitdir:` redirect root (the linked-worktree shape the reader already understands). Without the moved dir
+# (an archive build) the stamp reads the source root.
 # `builtAt` is passed IN rather than read inside the package: production source reads time from the
 # injected clock (the `no-raw-clock` law), and a build script is the one place that legitimately knows the
 # wall instant.
+#
+# `--config.verify-deps-before-run=false`: the Dockerfile's `pnpm deploy --legacy --prod
+# --config.node-linker=hoisted` rewrites the ROOT node_modules/.pnpm-workspace-state-v1.json with the deploy's
+# settings (nodeLinker hoisted, dev off). pnpm's default check then reads the root as out of sync and runs
+# `pnpm install --production`, which must purge node_modules and aborts without a TTY. The root node_modules
+# is still the frozen install from earlier in this stage, so there is nothing to verify.
 stamp_root="$src"
 if [ -d "$src/.git-refs" ]; then
   stamp_root="$(mktemp -d)"
@@ -83,7 +88,7 @@ if [ -d "$src/.git-refs" ]; then
 fi
 ORB_STAMP_ROOT="$stamp_root" \
 ORB_STAMP_BUILT_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-  pnpm --silent --dir "$src" run build:version-stamp \
+  pnpm --config.verify-deps-before-run=false --silent --dir "$src" run build:version-stamp \
     > "$out/version.json"
 echo "assemble-runtime: stamped version.json = $(cat "$out/version.json")"
 
