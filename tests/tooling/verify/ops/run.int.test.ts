@@ -14,7 +14,7 @@ import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import { spawnNiced, spawnNicedTranscript } from "@orb/tooling/_shared/proc";
 import { vi } from "vitest";
 import YAML from "yaml";
-import type { Parsed, StageDef, StageResult, VerifyReport } from "../../../../tooling/src/verify/index.ts";
+import type { StageDef, StageResult, VerifyReport } from "../../../../tooling/src/verify/index.ts";
 import {
   aggregateExit,
   asViolations,
@@ -37,7 +37,9 @@ import {
   workspaceBinPath,
 } from "../../../../tooling/src/verify/index.ts";
 import { HOST_POOL_ROOT_ENV } from "../../../../tooling/src/verify/lib/host-slots.ts";
+import { parseRequest } from "../../../../tooling/src/verify/lib/run-argv.ts";
 import { workingChangeClassification } from "../../../../tooling/src/verify/lib/selection.ts";
+import type { WholeRunAsk } from "../../../../tooling/src/verify/lib/whole-run-queue.ts";
 import { enterWholeRunQueue } from "../../../../tooling/src/verify/lib/whole-run-queue.ts";
 import { nonRunningStageResult, planStage } from "../../../../tooling/src/verify/ops/run.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -702,6 +704,26 @@ test("resolveSelection: bare --changed preserves modified, untracked, deleted, a
   }
 });
 
+test("the untracked read ignores a git hook's GIT_INDEX_FILE, which names another repository's index", () => {
+  // Git exports GIT_INDEX_FILE to a pre-commit hook, and the scoped commit gate runs these reads inside it.
+  const scratch = mkdtempSync(join(tmpdir(), "orb-selection-hook-env-"));
+  mkdirSync(join(scratch, "tooling/src"), { recursive: true });
+  writeFileSync(join(scratch, "tooling/src/tracked.ts"), "export const tracked = true;\n");
+  execFixtureGit(scratch, ["init", "-q"]);
+  execFixtureGit(scratch, ["config", "user.email", "selection-test@example.invalid"]);
+  execFixtureGit(scratch, ["config", "user.name", "Selection Test"]);
+  execFixtureGit(scratch, ["add", "."]);
+  execFixtureGit(scratch, ["commit", "-qm", "fixture"]);
+  writeFileSync(join(scratch, "tooling/src/untracked.ts"), "export const untracked = true;\n");
+  vi.stubEnv("GIT_INDEX_FILE", join(scratch, "no-such-index"));
+  try {
+    expect(workingChangeClassification(scratch).paths).toEqual(["tooling/src/untracked.ts"]);
+  } finally {
+    vi.unstubAllEnvs();
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
 test("resolveSelection carries root programs directly in the complete affected plan", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
   const sel = resolveSelection({ kind: "file", paths: ["tests/tooling/verify/ops/run.int.test.ts"] });
   expect(sel.tsconfigs).toContain("tsconfig.json");
@@ -1242,12 +1264,14 @@ test("spawnNicedTranscript: a bin that does not exist is a TOOL error (status nu
 // file can answer is WHICH RUNS QUEUE. The planted holder lives in a scratch runtime dir — never the real
 // /run/user/<uid> pool, where it would block an operator's live `pnpm check`.
 
-function parsedOrThrow(argv: readonly string[]): Parsed {
-  const parsedArgv = parse(argv);
+// The grammar alone (`parseRequest`): the queue asks only the tier and whether the run is scoped, and
+// resolving a real selection would cost seconds of repository reads per call.
+function parsedOrThrow(argv: readonly string[]): WholeRunAsk {
+  const parsedArgv = parseRequest(argv);
   if ("error" in parsedArgv) {
     throw new Error(`argv ${argv.join(" ")} did not parse: ${parsedArgv.error}`);
   }
-  return parsedArgv;
+  return { tier: parsedArgv.tier, scoped: parsedArgv.request !== undefined };
 }
 
 function scratchQueueEnv(): NodeJS.ProcessEnv {
@@ -1258,7 +1282,6 @@ test("a WHOLE verify run takes the host-wide queue slot; a SCOPED run does not (
   const env = scratchQueueEnv();
   const whole = await enterWholeRunQueue(process.cwd(), parsedOrThrow(["--static"]), { env, pid: 30_001, alive: (pid) => pid === 30_001 });
   expect(whole?.slot, "a whole run holds the single host slot").toBe(1);
-  // An explicit path keeps selection off the working change, whose compiler-closure plan is slow on a dirty tree.
   const scoped = await enterWholeRunQueue(process.cwd(), parsedOrThrow(["--changed", "docs/law/Constitution.md"]), { env, pid: 30_002, alive: () => true });
   expect(scoped, "a scoped run is exempt — it is the fast inner loop a lane runs beside a live battery").toBeNull();
   const commit = await enterWholeRunQueue(process.cwd(), parsedOrThrow(["--static", "--changed", "docs/law/Constitution.md"]), {

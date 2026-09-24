@@ -15,6 +15,7 @@ import type { ExitCode } from "../../_shared/exit-contract.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { warn } from "../../_shared/log.ts";
 import { spawnFullPriorityChild } from "../../_shared/proc.ts";
+import { procStartTicks } from "../../_shared/proc-stat.ts";
 import type { ProdRecord, StackInvocation } from "../contract/types.ts";
 import { debugConflictMessage, resolveDebugArming } from "../lib/debug-env.ts";
 import { classifyInstance, decideUp } from "../lib/identity.ts";
@@ -35,7 +36,6 @@ import {
   PIDFILE,
   POLL_INTERVAL_MS,
   processAlive,
-  procStartTicks,
   readEnvFile,
   readRecord,
   resolvePort,

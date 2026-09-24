@@ -19,27 +19,33 @@ import { checkoutName } from "@orb/tooling/_shared/artifacts";
 import { readConcurrencyProfile } from "@orb/tooling/_shared/concurrency-profile";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import type { HostSlotLease, HostSlotPool } from "../contract/host-slots.ts";
+import type { Tier } from "../contract/stage.ts";
 import type { HostSlotDeps } from "./host-slots.ts";
 import { acquireHostSlot } from "./host-slots.ts";
-import type { Parsed } from "./run-argv.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check (or pnpm verify [--push|--full])");
 
 /** A whole `--push` run is long and `--full` is longer, so a second run legitimately waits a long time.
- *  This QUIET-BOX base is load-scaled at acquire time; past it the head of the queue runs as the pool's
- *  single overflow run, and every later waiter stays queued. */
+ *  This QUIET-BOX base is load-scaled at acquire time; past it the head of the queue runs as an overflow
+ *  run, one at a time, and every later waiter stays queued (./host-slots.ts header). */
 const VERIFY_QUEUE_WAIT_BASE_MS = 2_700_000; // 45 minutes
+
+/** What the queue asks of a run: its tier, for the slot label, and whether it is scoped. */
+export interface WholeRunAsk {
+  readonly tier: Tier;
+  readonly scoped: boolean;
+}
 
 /** Take the whole-run slot, or `null` when this run is exempt (scoped, or the profile turned the queue
  *  off). The caller releases in a `finally`.
  *
  *  `deps` exists for the tests: they drive this with their own runtime dir and process table, never the
  *  REAL host pool, where a planted holder would block an operator's live `pnpm check`. */
-export async function enterWholeRunQueue(root: string, parsed: Parsed, deps: HostSlotDeps = {}): Promise<HostSlotLease | null> {
-  if (parsed.selection !== undefined || !readConcurrencyProfile().wholeVerifyQueue) {
+export async function enterWholeRunQueue(root: string, run: WholeRunAsk, deps: HostSlotDeps = {}): Promise<HostSlotLease | null> {
+  if (run.scoped || !readConcurrencyProfile().wholeVerifyQueue) {
     return null;
   }
-  const pool: HostSlotPool = { name: "verify", label: `${parsed.tier} ${checkoutName(root)}`, slots: 1, waitBaseMs: VERIFY_QUEUE_WAIT_BASE_MS };
+  const pool: HostSlotPool = { name: "verify", label: `${run.tier} ${checkoutName(root)}`, slots: 1, waitBaseMs: VERIFY_QUEUE_WAIT_BASE_MS };
   const lease = await acquireHostSlot(pool, {
     onQueued: (holder) => process.stderr.write(`[verify] verify: queued behind pid ${String(holder.pid)} since ${holder.startedAt} (${holder.label})\n`),
     onNotice: (message) => process.stderr.write(`[verify] ${message}\n`),

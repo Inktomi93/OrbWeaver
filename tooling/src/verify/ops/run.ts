@@ -3,7 +3,7 @@
 //
 //   pnpm verify              → --static  (today's `pnpm check`, byte-compatible)
 //   pnpm verify --changed    → the inner loop (scoped, related tests)
-//   pnpm verify --static     → the pre-commit bundle (= `pnpm check`)
+//   pnpm verify --static     → the whole static tier (= `pnpm check`); pre-commit adds `--changed`
 //   pnpm verify --push       → static + node tests + CT + e2e-smoke (the pre-push bar)
 //   pnpm verify --full       → push + cpd + full e2e + mutation-gate
 //   pnpm verify --list       → print every registry row (incl. manual) with its tiers/reason
@@ -415,7 +415,7 @@ export async function runVerify(root: string, parsed: Parsed): Promise<number> {
     return refuseUnrunnableRows(root);
   }
   // The host-wide whole-run slot, held for the WHOLE run and released in the `finally` (../lib/whole-run-queue.ts).
-  const queue = await enterWholeRunQueue(root, parsed);
+  const queue = await enterWholeRunQueue(root, { tier: parsed.tier, scoped: parsed.selection !== undefined });
   try {
     const slot = openRunSlot(root, VERIFY_INSTRUMENT);
     announceRacing(slot);

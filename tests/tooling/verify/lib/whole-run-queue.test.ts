@@ -6,25 +6,25 @@ import { join } from "node:path";
 import process from "node:process";
 import type { HostSlotLease } from "../../../../tooling/src/verify/contract/host-slots.ts";
 import { HOST_POOL_ROOT_ENV } from "../../../../tooling/src/verify/lib/host-slots.ts";
-import type { Parsed } from "../../../../tooling/src/verify/lib/run-argv.ts";
-import { parse } from "../../../../tooling/src/verify/lib/run-argv.ts";
+import { parseRequest } from "../../../../tooling/src/verify/lib/run-argv.ts";
+import type { WholeRunAsk } from "../../../../tooling/src/verify/lib/whole-run-queue.ts";
 import { enterWholeRunQueue } from "../../../../tooling/src/verify/lib/whole-run-queue.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
-function wholeRun(argv: readonly string[]): Parsed {
-  const parsed = parse(argv);
+function wholeRun(argv: readonly string[]): WholeRunAsk {
+  const parsed = parseRequest(argv);
   if ("error" in parsed) {
     throw new Error(`argv ${argv.join(" ")} did not parse: ${parsed.error}`);
   }
-  return parsed;
+  return { tier: parsed.tier, scoped: parsed.request !== undefined };
 }
 
 // Each poll moves the shared clock well under the queue's heartbeat window, so the waiters stay live
 // while the whole-run ceiling passes within a few hundred polls.
 const CLOCK_STEP_MS = 8000;
-const MACROTASKS_PER_CHECK = 3000;
+const MACROTASKS_PER_CHECK = 6000;
 
-test("two whole runs queued behind a stuck battery start one at a time, in arrival order", async () => {
+test("two whole runs queued behind a stuck battery start one ceiling apart, in arrival order", async () => {
   const env = { [HOST_POOL_ROOT_ENV]: mkdtempSync(join(tmpdir(), "orb-whole-run-queue-")) };
   const stuck = await enterWholeRunQueue(process.cwd(), wholeRun(["--push"]), { env, pid: 41_001, alive: (pid) => pid === 41_001 });
   expect(stuck?.slot, "the stuck battery holds the host slot").toBe(1);
@@ -50,18 +50,21 @@ test("two whole runs queued behind a stuck battery start one at a time, in arriv
       leases.set(pid, lease);
     }),
   );
-  const settle = async (): Promise<void> => {
-    for (let i = 0; i < MACROTASKS_PER_CHECK; i += 1) {
+  const startMs = clockMs;
+  const until = async (count: number): Promise<number> => {
+    for (let i = 0; i < MACROTASKS_PER_CHECK && admitted.length < count; i += 1) {
       await new Promise<void>((resolve) => setImmediate(resolve));
     }
+    return clockMs - startMs;
   };
 
-  await settle();
+  const firstAt = await until(1);
   expect(admitted, "past the ceiling only the first waiter starts; the second stays queued").toStrictEqual([41_002]);
   expect(leases.get(41_002)?.slot, "it runs as the overflow run, beside the stuck battery").toBeNull();
+  const secondAt = await until(2);
+  expect(admitted, "the second waiter starts at the hard ceiling while both runs are still live").toStrictEqual([41_002, 41_003]);
+  expect(secondAt, "the hard ceiling is twice the first").toBeGreaterThanOrEqual(2 * firstAt - CLOCK_STEP_MS * 4);
   leases.get(41_002)?.release();
-  await settle();
-  expect(admitted, "the second waiter starts once the first finishes").toStrictEqual([41_002, 41_003]);
   await Promise.all(pending);
   leases.get(41_003)?.release();
   stuck?.release();

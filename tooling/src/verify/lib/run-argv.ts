@@ -21,7 +21,7 @@ export interface Parsed {
 
 // The strict option schema (node:util parseArgs, stdlib — no new dep). Every accepted flag is declared;
 // `strict:true` + `allowPositionals:true` makes an UNKNOWN flag (`--bogus`) throw → we map that to exit 3
-// (misuse), never a silent-ignore. The tier markers (--static/--push/--full/--changed) and the value
+// (misuse), never a silent-ignore. The tier markers (--static/--push/--full; --changed when alone) and the value
 // selectors (--package/--scope/--tier) live here; --file/--changed's PATHS arrive as positionals (only one
 // scope selector is legal at a time, so a trailing `a b` unambiguously belongs to whichever is present).
 const OPTIONS = {
@@ -156,7 +156,7 @@ function scopeRequest(v: ParsedValues, positionals: readonly string[]): ScopeRes
 }
 
 // The bare tier markers, in registry order. `--changed` alone also names its own (inner-loop) tier; next to
-// an explicit tier it is only the selector, which is how pre-commit spells `--static --changed`.
+// `--static` it is only the selector, which is how pre-commit spells `--static --changed`.
 const TIER_MARKERS: readonly (readonly [keyof ParsedValues, Tier])[] = [
   ["static", "static"],
   ["push", "push"],
@@ -181,15 +181,25 @@ function tierFor(v: ParsedValues, scoped: boolean): Tier | { readonly error: str
   if (named.size > 1) {
     return { error: `at most one tier: got ${[...named].join(" ")}` };
   }
+  // Push and full are whole-tree bars, and a scoped run skips the whole-run queue, so a scoped test battery
+  // would run beside another checkout's. Only the commit gate's `--static --changed` pairs a tier with it.
+  if (v.changed === true && (named.has("push") || named.has("full"))) {
+    return { error: "--changed pairs only with --static (the commit gate); --push and --full run the whole tree" };
+  }
   for (const sole of named) {
     return sole;
   }
   return scoped ? "changed" : "static";
 }
 
-/** Parse argv into a run plan or a misuse error. Exported for the exit-code matrix unit test — a returned
- *  `{ error }` is what the cli maps to exit 3 (misuse); a `Parsed` is what runs. */
-export function parse(argv: readonly string[]): Parsed | { readonly error: string } {
+/** An argv's meaning before its selection is resolved: the tier, the run flags and the scope REQUEST. */
+export interface ParsedRequest extends Omit<Parsed, "selection"> {
+  readonly request: SelectionRequest | undefined; // undefined = whole scope
+}
+
+/** The grammar alone. Resolving a selection reads the repository inventory and the compiler programs, which
+ *  takes seconds, so a question about what an argv MEANS asks this and resolves nothing. */
+export function parseRequest(argv: readonly string[]): ParsedRequest | { readonly error: string } {
   const parsedArgs = parseStrict(argv);
   if ("error" in parsedArgs) {
     return { error: parsedArgs.error };
@@ -212,8 +222,16 @@ export function parse(argv: readonly string[]): Parsed | { readonly error: strin
   // every `git push` (a hook's stdout IS a TTY), streaming ~full vitest/playwright/vite output through
   // lefthook (2026-07-17). A human who wants the live stream passes --verbose.
   const verbose = values.verbose === true;
-  if ("none" in req) {
-    return { tier, selection: undefined, strictScope, list, json, verbose };
+  return { tier, request: "none" in req ? undefined : req, strictScope, list, json, verbose };
+}
+
+/** Parse argv into a run plan or a misuse error. Exported for the exit-code matrix unit test — a returned
+ *  `{ error }` is what the cli maps to exit 3 (misuse); a `Parsed` is what runs. */
+export function parse(argv: readonly string[]): Parsed | { readonly error: string } {
+  const parsed = parseRequest(argv);
+  if ("error" in parsed) {
+    return parsed;
   }
-  return { tier, selection: resolveSelection(req), strictScope, list, json, verbose };
+  const { request, ...flags } = parsed;
+  return { ...flags, selection: request === undefined ? undefined : resolveSelection(request) };
 }
