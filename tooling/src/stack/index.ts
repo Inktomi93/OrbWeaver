@@ -61,7 +61,6 @@ export { classifyInstance, decideDown, decideUp } from "./lib/identity.ts";
 export { parseListenerPid } from "./lib/proc-parse.ts";
 export { decideSpawnLock, lockHolderText, mayRemovePidfile, parseLockHolder, parseProdRecord, serializeProdRecord } from "./lib/prod-record.ts";
 export {
-  ALLOWED_HOSTS_KEY,
   AUTH_MODE_KEY,
   applySetupValues,
   decideSetup,

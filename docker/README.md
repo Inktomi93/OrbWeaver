@@ -142,8 +142,8 @@ lines from step 1 of "LAN and HTTPS", but keep `ORB_BIND` on `127.0.0.1`: the tu
 
 1. In the Cloudflare dashboard (Zero Trust → Networks → Tunnels), create a tunnel and copy its token.
 2. Add a public hostname to the tunnel whose service is `http://orbweaver:8788`, and allow that hostname:
-   `ALLOWED_HOSTS: <the public hostname>` in the `environment:` block. A quick tunnel's random name needs
-   `ALLOWED_HOSTS: .trycloudflare.com`.
+   `ALLOWED_HOSTS: <the public hostname>` in the `environment:` block. For a quick tunnel, add its exact
+   `<random>.trycloudflare.com` name. Use a dot-led suffix only for a domain whose DNS you control.
 3. Start the app with the sidecar overlay:
 
 ```sh

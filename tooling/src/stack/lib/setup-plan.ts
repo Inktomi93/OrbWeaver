@@ -1,17 +1,22 @@
 // Every decision `pnpm start`'s setup makes, pure: when to ask, the defaults `.env` offers, which values each
 // answer writes, and the in-place `.env` edit. The edit touches only the keys in SETUP_OWNED_KEYS; every other
 // byte of the file (comments, unknown keys, line endings) survives.
-import { isIP } from "node:net";
 import type { AuthMode } from "@orb/contracts/identity";
 import { authModeSchema, SETUP_COMMAND } from "@orb/contracts/identity";
-import { isAllowedHostEntry, isTopLevelSuffix, MDNS_DOMAIN, machineHostNames, splitHostList } from "@orb/kit/allowed-hosts";
+import {
+  ALLOWED_HOSTS_KEY,
+  isAllowedHostEntry,
+  isAlwaysAllowedHost,
+  isTopLevelSuffix,
+  MDNS_DOMAIN,
+  machineHostNames,
+  splitHostList,
+} from "@orb/kit/allowed-hosts";
 import { DEV_PORTS, MAX_TCP_PORT } from "../../_shared/ports.ts";
 import type { AnswerParse, SetupAnswers, SetupAudience, SetupDecision, SetupLogin, SetupMachine, SetupUrl, SetupValues } from "../contract/types.ts";
 
 export const PORT_KEY = "PORT";
 export const AUTH_MODE_KEY = "AUTH_MODE";
-/** The Host allowlist the server enforces against DNS rebinding; a name people type must be on it. */
-export const ALLOWED_HOSTS_KEY = "ALLOWED_HOSTS";
 
 /** The only keys setup ever writes. Secrets are generated as keyfiles beside the database, never written here. */
 const SETUP_OWNED_KEYS = [PORT_KEY, AUTH_MODE_KEY, ALLOWED_HOSTS_KEY] as const;
@@ -30,11 +35,9 @@ const MODE_ANSWERS: Record<AuthMode, { readonly audience: SetupAudience; readonl
   "forward-header": { audience: "network", login: "sso" },
 };
 
-// The `ALLOWED_HOSTS` grammar is `@orb/kit/allowed-hosts`, the one the server's env parse uses. `localhost`,
-// `*.localhost` and IP literals always pass the server's Host check and are never written.
-const LOCALHOST = "localhost";
+// The `ALLOWED_HOSTS` grammar and the always-allowed rule are `@orb/kit/allowed-hosts`, shared with the server; an
+// always-allowed host (localhost, `*.localhost`, an IP literal) is never written.
 const DIGITS_RE = /^\d+$/u;
-const BRACKETED_RE = /^\[(.*)\]$/u;
 const LINE_ENDING_RE = /\r$/u;
 const LINK_LOCAL_V4_PREFIX = "169.254.";
 /** Tailscale's CGNAT range, 100.64.0.0/10. */
@@ -127,11 +130,6 @@ export function parseChoiceAnswer<T extends string>(raw: string, choices: readon
   return picked === undefined ? { ok: false, error: `type a number from 1 to ${choices.length}.` } : { ok: true, value: picked };
 }
 
-function needsNoAllowedHostsEntry(host: string): boolean {
-  const unbracketed = BRACKETED_RE.exec(host)?.[1] ?? host;
-  return isIP(unbracketed) !== 0 || host === LOCALHOST || host.endsWith(`.${LOCALHOST}`);
-}
-
 /** WSL2's kernel names itself in `/proc/version`. WSL1 does not match: it shares Windows' own network stack, so
  *  its addresses are the LAN's. */
 export function isWsl2Kernel(procVersion: string): boolean {
@@ -172,7 +170,7 @@ export function openUrls(machine: SetupMachine, port: number): readonly SetupUrl
 export function parseAddressAnswer(raw: string, known: readonly string[]): AnswerParse<string | null> {
   const names = [...known];
   for (const entry of splitHostList(raw)) {
-    if (needsNoAllowedHostsEntry(entry)) {
+    if (isAlwaysAllowedHost(entry)) {
       continue;
     }
     if (isTopLevelSuffix(entry)) {

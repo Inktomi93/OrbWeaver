@@ -2,7 +2,7 @@
 // Pure (raw values injected). The grammar is `@orb/kit/allowed-hosts`, shared with the setup wizard; `foundation/env`
 // refuses a malformed entry at parse, and `infra/auth/host-allowlist.ts` matches the result.
 
-import { isHostname, isTopLevelSuffix, machineHostNames, parseAllowedHosts } from "@orb/kit/allowed-hosts";
+import { ALLOWED_HOSTS_KEY, isHostname, isTopLevelSuffix, machineHostNames, parseAllowedHosts, withoutTrailingDot } from "@orb/kit/allowed-hosts";
 
 /** The raw env values the resolver reads, passed in so this file never touches `process.env`. */
 export interface AllowedHostsInput {
@@ -29,8 +29,7 @@ function redirectUriHost(uri: string): string | null {
   if (!URL.canParse(uri)) {
     return null;
   }
-  const hostname = new URL(uri).hostname;
-  const name = hostname.endsWith(".") ? hostname.slice(0, -1) : hostname;
+  const name = withoutTrailingDot(new URL(uri).hostname);
   return isHostname(name) ? name : null;
 }
 
@@ -50,12 +49,12 @@ export function resolveAllowedHosts(input: AllowedHostsInput): readonly string[]
 export function allowedHostsEntryRefusal(entry: string): string {
   if (isTopLevelSuffix(entry)) {
     return (
-      `ALLOWED_HOSTS entry "${entry}" would allow every name under a whole top-level domain, including names anyone can ` +
+      `${ALLOWED_HOSTS_KEY} entry "${entry}" would allow every name under a whole top-level domain, including names anyone can ` +
       "register. Write your own domain behind the dot, such as .example.com, or the exact name, such as nas.local."
     );
   }
   return (
-    `ALLOWED_HOSTS entry "${entry}" is not a hostname. Write a name such as orbweaver.example.com, or ` +
+    `${ALLOWED_HOSTS_KEY} entry "${entry}" is not a hostname. Write a name such as orbweaver.example.com, or ` +
     ".example.com for that name and every subdomain, separated by commas: no scheme, port, path or wildcard. " +
     "localhost and IP addresses are always allowed and need no entry."
   );

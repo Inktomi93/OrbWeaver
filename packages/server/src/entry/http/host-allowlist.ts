@@ -2,6 +2,7 @@
 // resolves (the decision and its reason: `infra/auth/host-allowlist.ts`). The refusal names the host and the fix
 // for this install, and offers no in-app "allow" action: under single-user the rebinding page is the owner.
 
+import { ALLOWED_HOSTS_KEY } from "@orb/kit/allowed-hosts";
 import type { MiddlewareHandler } from "hono";
 import { html } from "hono/html";
 import { settingInstruction } from "#foundation/env";
@@ -12,7 +13,6 @@ import { isApiPath } from "./spa.ts";
 
 // RFC 9110 §15.5.20: this server is not authoritative for the requested host. Distinct from every auth 403.
 const MISDIRECTED_REQUEST = 421;
-const ALLOWED_HOSTS_KEY = "ALLOWED_HOSTS";
 
 export interface HostAllowlistDeps {
   /** The configured names (`resolveAllowedHosts`); localhost and IP literals pass without an entry. */

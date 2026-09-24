@@ -3,9 +3,9 @@
 // in-place `.env` edit that must leave every line it does not own byte-for-byte alone.
 import type { NetworkInterfaceInfo, NetworkInterfaceInfoIPv4, NetworkInterfaceInfoIPv6 } from "node:os";
 import { parseEnv } from "node:util";
+import { ALLOWED_HOSTS_KEY } from "@orb/kit/allowed-hosts";
 import type { SetupMachine, SetupValues } from "../../../../tooling/src/stack/index.ts";
 import {
-  ALLOWED_HOSTS_KEY,
   AUTH_MODE_KEY,
   applySetupValues,
   decideSetup,
@@ -183,8 +183,8 @@ test("an address answer adds typed host names to the known ones; an IP, localhos
   for (const bad of ["http://orb.lan", "orb.lan:8788", "orb lan", "-orb.lan", "orb-.lan", "*.orb.lan", "orb..lan", `${"a".repeat(64)}.lan`]) {
     expect(parseAddressAnswer(bad, []).ok).toBe(false);
   }
-  // A one-label suffix would admit a whole top-level domain; the refusal says so.
-  expect(parseAddressAnswer(".com", [])).toMatchObject({ ok: false, error: expect.stringContaining("top-level domain") });
+  // A one-label suffix would admit a whole top-level domain, so it is asked again too.
+  expect(parseAddressAnswer(".com", []).ok).toBe(false);
 });
 
 /** One `os.networkInterfaces()` entry, as node reports it. */

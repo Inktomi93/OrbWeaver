@@ -5,17 +5,19 @@
 import { existsSync } from "node:fs";
 import { SETUP_COMMAND } from "@orb/contracts/identity";
 
-/** The marker files a container runtime writes into every container: Docker (Engine and Desktop), then Podman. */
+/** The marker files a container runtime writes: Docker (Engine and Desktop), then Podman. containerd and CRI-O write
+ *  neither, which is why the image also declares itself. */
 export const CONTAINER_MARKER_FILES = ["/.dockerenv", "/run/.containerenv"] as const;
 
 const BARE_METAL_ENV_FILE = ".env";
 const COMPOSE_FILE = "docker-compose.yaml";
 const CONTAINER_ENV_FILE = "docker/orbweaver.local.env";
 
-/** Whether this process runs in a container, read from the runtime's own marker files. It picks which fix an
- *  operator-facing message names, and whether the machine's own name is a name this server answers to. */
-export function runsInContainer(exists: (path: string) => boolean = existsSync): boolean {
-  return CONTAINER_MARKER_FILES.some((path) => exists(path));
+/** Whether this process runs in a container: the image's own declaration (`ORB_CONTAINER`, set by the Dockerfile),
+ *  else a marker file the runtime writes. It picks which fix an operator-facing message names, and whether the
+ *  machine's own name is a name this server answers to. */
+export function runsInContainer(declared: boolean, exists: (path: string) => boolean = existsSync): boolean {
+  return declared || CONTAINER_MARKER_FILES.some((path) => exists(path));
 }
 
 /** How to set `key` to `value` on this install, as one clause ending in the restart. A container leads with the

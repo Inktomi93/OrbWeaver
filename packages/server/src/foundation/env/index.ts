@@ -13,7 +13,7 @@ import { parseEnv } from "node:util";
 import type { AUTH_MODES } from "@orb/contracts/identity";
 import { authModeSchema } from "@orb/contracts/identity";
 import { AGENT_SDK_CONCURRENCY_MAX, LOG_LEVELS } from "@orb/contracts/settings";
-import { parseAllowedHosts } from "@orb/kit/allowed-hosts";
+import { ALLOWED_HOSTS_KEY, parseAllowedHosts } from "@orb/kit/allowed-hosts";
 import { z } from "zod";
 import type { AllowedHostsInput } from "./allowed-hosts.ts";
 import { allowedHostsEntryRefusal, machineHostnameFor } from "./allowed-hosts.ts";
@@ -210,10 +210,6 @@ function refuseLaunchOnlyEnvFileKeys(ctx: z.RefinementCtx): void {
 const skipOverride = process.env["VITEST"] !== undefined || process.env["ORB_ENV_NO_OVERRIDE"] !== undefined;
 loadEnvFileWithOverride(!skipOverride);
 
-// Read once per process: the install shape picks every refusal's fix text and whether the machine's own name is
-// admitted by the Host allowlist.
-const IN_CONTAINER = runsInContainer();
-
 /** A boolean knob's env codec — ONE home for the posture, so no site can drift.
  *
  *  The params are PINNED and the pinning is the whole point: bare `z.stringbool()` is case-INSENSITIVE and
@@ -344,6 +340,10 @@ const envSchema = z
     // Deliberately NOT a `NODE_ENV` inference: this repo's env law is explicit natures, and "is this a dev
     // stack" is not the same question as "is this a development build".
     DEV_SEED: z.enum(["on", "off"]).default("off"),
+    // The container image's self-declaration (`ENV ORB_CONTAINER=true` in the Dockerfile), read with the runtime's
+    // marker files by `container.ts::runsInContainer`. It picks the fix text operator-facing refusals name, and keeps
+    // the random container host name out of the Host allowlist. Never set it on bare metal.
+    ORB_CONTAINER: envBool(false),
 
     DATABASE_URL: z.string().min(1).default("file:./data/orbweaver.db"),
     // The built client bundle (`vite build` output) the SPA registrar serves in prod. cwd-relative like
@@ -674,7 +674,7 @@ const envSchema = z
       bindHost: val.BIND_HOST,
       allowDevPublicBind: val.ALLOW_DEV_PUBLIC_BIND,
       ownerPeersDeclared: parseOwnerFallbackTrustedPeers(val.AUTH_FALLBACK_TRUSTED_PEERS).length > 0,
-      inContainer: IN_CONTAINER,
+      inContainer: runsInContainer(val.ORB_CONTAINER),
     });
     if (bind.refusal !== null) {
       ctx.addIssue({ code: "custom", path: ["BIND_HOST"], message: bind.refusal });
@@ -682,7 +682,7 @@ const envSchema = z
     // A malformed ALLOWED_HOSTS entry would match nothing, so the name the operator meant to allow would be refused
     // on every request with no hint why. Refuse it here, once per entry, naming it.
     for (const entry of parseAllowedHosts(val.ALLOWED_HOSTS).malformed) {
-      ctx.addIssue({ code: "custom", path: ["ALLOWED_HOSTS"], message: allowedHostsEntryRefusal(entry) });
+      ctx.addIssue({ code: "custom", path: [ALLOWED_HOSTS_KEY], message: allowedHostsEntryRefusal(entry) });
     }
     // The box has exactly one owner. A multi-handle list would seed >1 owner row and hit the DB unique
     // index as a raw violation later — fail fast here with a clear message instead.
@@ -726,7 +726,7 @@ export function bindPostureInput(): BindPostureInput {
     bindHost: env.BIND_HOST,
     allowDevPublicBind: env.ALLOW_DEV_PUBLIC_BIND,
     ownerPeersDeclared: parseOwnerFallbackTrustedPeers(env.AUTH_FALLBACK_TRUSTED_PEERS).length > 0,
-    inContainer: IN_CONTAINER,
+    inContainer: runsInContainer(env.ORB_CONTAINER),
   };
 }
 
@@ -749,7 +749,11 @@ export function ownerFallbackCredentialInput(): OwnerFallbackCredentialInput {
 /** The raw inputs the Host allowlist resolver reads (`allowed-hosts.ts` holds the grammar). The parse above has
  *  already refused a malformed `ALLOWED_HOSTS`; `entry/app.ts` resolves the names and mounts the request guard. */
 export function allowedHostsInput(): AllowedHostsInput {
-  return { allowedHosts: env.ALLOWED_HOSTS, oidcRedirectUris: env.OIDC_REDIRECT_URIS, machineHostname: machineHostnameFor(IN_CONTAINER, hostname()) };
+  return {
+    allowedHosts: env.ALLOWED_HOSTS,
+    oidcRedirectUris: env.OIDC_REDIRECT_URIS,
+    machineHostname: machineHostnameFor(runsInContainer(env.ORB_CONTAINER), hostname()),
+  };
 }
 
 /** The raw inputs the OWNER-FALLBACK PEER-SET resolver reads (`fallback-peers.ts` holds the rule, the hazard

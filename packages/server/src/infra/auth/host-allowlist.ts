@@ -11,15 +11,13 @@
 // let that page pass with `X-Forwarded-Host: localhost`. A proxy that rewrites `Host` to its upstream name
 // needs that name allowed too.
 
+import { ALLOWED_HOST_SUFFIX_MARK, isAlwaysAllowedHost, withoutTrailingDot } from "@orb/kit/allowed-hosts";
 import { securityEvent } from "#foundation/observability";
-import { isTrustedHop, parseIp } from "#infra/network";
+import { isTrustedHop } from "#infra/network";
 import type { HostNotAllowedNotice } from "./contract.ts";
 import { normalizeHost } from "./host.ts";
 import { createKeyedNoticeThrottle } from "./notice-throttle.ts";
 
-const LOCALHOST = "localhost";
-const LOCALHOST_SUFFIX = ".localhost";
-const SUBDOMAIN_MARKER = ".";
 const IPV6_ZONE_MARKER = "%";
 const VALUE_SEPARATOR = ",";
 // RFC 1035's name bound: a longer value is no DNS name, and the refusal and the log line echo at most this much.
@@ -44,16 +42,19 @@ export function canonicalHost(authority: string): string {
   if (zone !== -1 && host.includes(":")) {
     host = host.slice(0, zone);
   }
-  return host.endsWith(".") ? host.slice(0, -1) : host;
+  return withoutTrailingDot(host);
 }
 
-/** True for localhost, any `*.localhost` name, any IP literal, and a configured name (`resolveAllowedHosts`). A leading-dot entry admits
- *  its name and every subdomain. `host` is already {@link canonicalHost}. */
+/** True for an always-allowed host (`isAlwaysAllowedHost`: localhost, `*.localhost`, an IP literal) and a configured
+ *  name (`resolveAllowedHosts`). A leading-dot entry admits its name and every subdomain. `host` is already
+ *  {@link canonicalHost}. */
 export function isHostAllowed(host: string, allowedHosts: readonly string[]): boolean {
-  if (host === LOCALHOST || host.endsWith(LOCALHOST_SUFFIX) || parseIp(host) !== null) {
+  if (isAlwaysAllowedHost(host)) {
     return true;
   }
-  return allowedHosts.some((entry) => (entry.startsWith(SUBDOMAIN_MARKER) ? host === entry.slice(1) || host.endsWith(entry) : host === entry));
+  return allowedHosts.some((entry) =>
+    entry.startsWith(ALLOWED_HOST_SUFFIX_MARK) ? host === entry.slice(ALLOWED_HOST_SUFFIX_MARK.length) || host.endsWith(entry) : host === entry,
+  );
 }
 
 /** The first host this request names that is not allowed, canonical and length-capped, or null to admit it. Judged:

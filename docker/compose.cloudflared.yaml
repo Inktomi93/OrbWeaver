@@ -13,7 +13,8 @@
 # "From the internet: a tunnel".
 #
 # NEEDS THE HOSTNAME ALLOWED. The app refuses a name it does not know. In the same environment: block set
-# ALLOWED_HOSTS: <the public hostname> (a quick tunnel's random name: ALLOWED_HOSTS: .trycloudflare.com).
+# ALLOWED_HOSTS: <the public hostname> (a quick tunnel: its exact <random>.trycloudflare.com name). Use a dot-led
+# suffix only for a domain whose DNS you control.
 #
 # The token rides in the environment, so `docker inspect` shows it. To keep it in a file, mount one and set
 # TUNNEL_TOKEN_FILE instead (cloudflared reads either).

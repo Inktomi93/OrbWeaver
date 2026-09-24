@@ -1,7 +1,9 @@
 // entry/http/host-allowlist — the refusal the middleware sends. The refused host is attacker-chosen and echoed back,
 // so the page escapes it; a refused request never reaches a route; the fix named follows the install shape.
 
+import { ALLOWED_HOSTS_KEY } from "@orb/kit/allowed-hosts";
 import { hostAllowlist } from "@orb/server/entry/http";
+import { settingInstruction } from "@orb/server/foundation/env";
 import { Hono } from "hono";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -74,17 +76,23 @@ describe("hostAllowlist", () => {
     expect(body).not.toContain("<script>");
   });
 
+  test("an over-long bracketed IPv6 X-Forwarded-Host is refused as a name, never a 500", async () => {
+    const h = harness();
+    const res = await h.send("/api/auth/me", { host: "localhost", "x-forwarded-host": "[1:2:3:4:5:6:7:8::9]" }, TRUSTED_HOP);
+    expect(res.status).toBe(MISDIRECTED);
+    expect(h.routeHits()).toBe(0);
+  });
+
   test("a configured name passes", async () => {
     const h = harness({ allowedHosts: ["nas.local"] });
     expect((await h.send("/", { host: "NAS.local:8788" })).status).toBe(OK);
   });
 
-  test("the fix named follows the install shape: container env files, or the bare-metal setup and .env", async () => {
-    const container = await (await harness({ inContainer: true }).send("/", { host: REBOUND })).text();
-    const bare = await (await harness({ inContainer: false }).send("/", { host: REBOUND })).text();
-    expect(container).toContain("docker/orbweaver.local.env");
-    expect(container).not.toContain("pnpm start --setup");
-    expect(bare).toContain("pnpm start --setup");
-    expect(bare).not.toContain("docker/orbweaver.local.env");
+  test("the refusal carries the install shape's fix for the refused host, and not the other shape's", async () => {
+    for (const inContainer of [true, false]) {
+      const body = await (await harness({ inContainer }).send("/", { host: REBOUND })).text();
+      expect(body, String(inContainer)).toContain(settingInstruction(inContainer, ALLOWED_HOSTS_KEY, REBOUND));
+      expect(body, String(inContainer)).not.toContain(settingInstruction(!inContainer, ALLOWED_HOSTS_KEY, REBOUND));
+    }
   });
 });

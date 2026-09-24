@@ -3,9 +3,10 @@
 // never spoof its IP via XFF. Reads env once at module init; sealed executor, never @orb/db or a domain.
 
 import { getConnInfo } from "@hono/node-server/conninfo";
+import { parseIp } from "@orb/kit/ip";
 import type { Context, MiddlewareHandler } from "hono";
 import { env } from "#foundation/env";
-import { isInRanges, isPrivateOrLoopback, parseIp } from "./ip-ranges.ts";
+import { isInRanges, isPrivateOrLoopback } from "./ip-ranges.ts";
 
 const XFF_HEADER = "x-forwarded-for";
 const FORBIDDEN = 403;
