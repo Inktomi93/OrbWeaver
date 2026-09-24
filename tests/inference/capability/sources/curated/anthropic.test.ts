@@ -357,10 +357,30 @@ function turnsOn(route: typeof DIRECT | typeof OPENROUTER | typeof AGENT_SDK, mo
   return [turns?.midConversationSystem === true, turns?.historySystemRows === true, turns?.roleHandlingFloor ?? "unset"];
 }
 
-test("the measured Claude ids take a system row at the tail and mid-array on the direct wire, and floor at slotted", () => {
-  for (const model of ["claude-opus-5", "claude-opus-5-5", "claude-fable-5", "claude-fable-5-1", "claude-sonnet-5", "claude-opus-4-8"]) {
+// The tail fact is set by whether the model OBEYED an override in a tail system row, not by a 200: opus-4-8 and
+// sonnet-5 accept the row and ignore it, so a trailing system row folds to user text on them.
+const OBEYS_TAIL_SYSTEM = ["claude-opus-5", "claude-opus-5-5", "claude-fable-5", "claude-fable-5-1"];
+const IGNORES_TAIL_SYSTEM = ["claude-sonnet-5", "claude-opus-4-8"];
+
+test("the measured Claude ids take a mid-array system row on the direct wire and floor at slotted; only the obeying ids keep the tail row", () => {
+  for (const model of OBEYS_TAIL_SYSTEM) {
     expect(turnsOn(DIRECT, model), model).toStrictEqual([true, true, "slotted"]);
   }
+  for (const model of IGNORES_TAIL_SYSTEM) {
+    expect(turnsOn(DIRECT, model), model).toStrictEqual([false, true, "slotted"]);
+  }
+});
+
+// clear_at was measured on the six current ids only (a clear_at row is gone at the next user message); every other
+// id and every other wire stays off.
+test("clearAt: stated for the measured ids on the direct wire, off for an unmeasured id and off the direct wire", () => {
+  for (const model of [...OBEYS_TAIL_SYSTEM, ...IGNORES_TAIL_SYSTEM]) {
+    expect(direct(model).turns?.clearAt, model).toBe(true);
+  }
+  for (const model of ["claude-haiku-4-5", "claude-opus-4-7", "claude-mythos-5", "claude-fable-5-2"]) {
+    expect(direct(model).turns?.clearAt, model).toBeUndefined();
+  }
+  expect(viaOpenRouter("anthropic/claude-opus-5").turns?.clearAt).toBeUndefined();
 });
 
 test("haiku-4-5 400s any system row, and an unmeasured id stays fail-closed", () => {
@@ -370,14 +390,11 @@ test("haiku-4-5 400s any system row, and an unmeasured id stays fail-closed", ()
 });
 
 test("OpenRouter matches the direct wire, except opus-5 takes no mid-array system row", () => {
-  for (const model of [
-    "anthropic/claude-opus-5.5",
-    "anthropic/claude-fable-5",
-    "anthropic/claude-fable-5.1",
-    "anthropic/claude-sonnet-5",
-    "anthropic/claude-opus-4.8",
-  ]) {
+  for (const model of ["anthropic/claude-opus-5.5", "anthropic/claude-fable-5", "anthropic/claude-fable-5.1"]) {
     expect(turnsOn(OPENROUTER, model), model).toStrictEqual([true, true, "slotted"]);
+  }
+  for (const model of ["anthropic/claude-sonnet-5", "anthropic/claude-opus-4.8"]) {
+    expect(turnsOn(OPENROUTER, model), model).toStrictEqual([false, true, "slotted"]);
   }
   expect(turnsOn(OPENROUTER, "anthropic/claude-opus-5")).toStrictEqual([true, false, "slotted"]);
   expect(turnsOn(OPENROUTER, "anthropic/claude-haiku-4.5")).toStrictEqual([false, false, "strict"]);
