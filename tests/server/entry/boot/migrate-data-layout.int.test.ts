@@ -2,7 +2,20 @@
 // real filesystem with a real libSQL db. The moves are renames under a journal, so every arm here is about
 // what the step refuses, resumes or leaves alone, as much as about what it moves.
 
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  renameSync,
+  rmSync,
+  statSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, sep } from "node:path";
 import process, { pid } from "node:process";
@@ -483,7 +496,9 @@ describe("migrateDataLayout", () => {
     writeFileSync(join(root, "secrets", SECRET_FILE_NAMES.credentialsKey), "a different key\n");
     const moves = [{ from: ".credentials-key", to: join("secrets", SECRET_FILE_NAMES.credentialsKey) }];
     writeFileSync(join(root, LAYOUT_JOURNAL), JSON.stringify({ pid: 4242, moves }));
-    await expect(migrateDataLayout({ layout: layoutFor(root), pid, isPidAlive: () => false })).rejects.toThrow("both hold data");
+    const refusal = migrateDataLayout({ layout: layoutFor(root), pid, isPidAlive: () => false });
+    await expect(refusal).rejects.toThrow(join(root, ".credentials-key"));
+    await expect(refusal).rejects.toThrow(join(root, "secrets", SECRET_FILE_NAMES.credentialsKey));
     expect(readFileSync(join(root, ".credentials-key"), "utf-8")).toBe(KEY_HEX);
     expect(readFileSync(join(root, "secrets", SECRET_FILE_NAMES.credentialsKey), "utf-8")).toBe("a different key\n");
     expect(existsSync(join(root, LAYOUT_JOURNAL))).toBe(true);
@@ -493,6 +508,77 @@ describe("migrateDataLayout", () => {
     const root = freshRoot();
     mkdirSync(root, { recursive: true });
     writeFileSync(join(root, LAYOUT_JOURNAL), JSON.stringify({ pid: 4242, moves: [{ from: "variants", to: "cache/variants" }] }));
-    await expect(migrateDataLayout({ layout: layoutFor(root), pid, isPidAlive: () => false })).rejects.toThrow("both missing");
+    const refusal = migrateDataLayout({ layout: layoutFor(root), pid, isPidAlive: () => false });
+    await expect(refusal).rejects.toThrow(join(root, "variants"));
+    await expect(refusal).rejects.toThrow(join(root, "cache", "variants"));
+    expect(existsSync(join(root, LAYOUT_JOURNAL))).toBe(true);
+  });
+
+  // An EMPTY directory is a legal rename target, so the conflict check lets it through; an empty mount point
+  // at that path (a tmpfs at `cache/models`, a disk at `reports`) is not, and neither its parent nor the
+  // source shows it. The target itself must be probed when it exists.
+  test("an empty mount point at a target refuses before any write and names every entry it catches, keyed or not", async () => {
+    const root = freshRoot();
+    await plantLegacyTree(root);
+    mkdirSync(join(root, "cache", "models"), { recursive: true });
+    mkdirSync(join(root, "reports"));
+    const mounted = new Set([realpathSync(join(root, "cache", "models")), realpathSync(join(root, "reports"))]);
+    const refusal = migrateDataLayout({ layout: layoutFor(root), pid, deviceOf: (path) => (mounted.has(path) ? 2 : 1) });
+    await expect(refusal).rejects.toThrow(join(root, "models"));
+    await expect(refusal).rejects.toThrow("LOCAL_LIGHT_CACHE_DIR");
+    await expect(refusal).rejects.toThrow(join(root, "import-reports"));
+    await expect(refusal).rejects.toThrow("DATA_LAYOUT_SKIP");
+    expect(existsSync(join(root, LAYOUT_JOURNAL))).toBe(false);
+    expect(existsSync(join(root, "backups"))).toBe(false);
+    expect(existsSync(join(root, DB_FILE_NAME))).toBe(true);
+    expect(existsSync(join(root, ".credentials-key"))).toBe(true);
+    // The remedies work: the keyed entry stays by its key, the keyless one by the skip, and the rest moves.
+    const layout = layoutFor(root, { ["LOCAL_LIGHT_CACHE_DIR"]: join(root, "models", "transformers"), ["DATA_LAYOUT_SKIP"]: "import-reports" });
+    const report = await migrateDataLayout({ layout, pid, deviceOf: (path) => (mounted.has(path) ? 2 : 1) });
+    expect(report.leftInPlace).toEqual(["import-reports", "models", "notes.txt"]);
+    expect(report.moved.some((move) => move.from === DB_FILE_NAME)).toBe(true);
+    expect(readFileSync(join(root, "import-reports", "import-1.md"), "utf-8")).toBe("# report");
+    expect(readdirSync(join(root, "reports"))).toEqual([]);
+  });
+
+  // The pre-flight cannot foresee every failure (a bind mount of the same filesystem answers EBUSY with the
+  // same device number). Whatever rename(2) says, the boot must name the entry and a remedy, keep the journal
+  // for the next boot, and the remedy must let the box boot without anyone editing the journal.
+  test("a rename that fails at apply time is a named refusal every boot until the env names the remedy, then the rest moves", async () => {
+    const root = freshRoot();
+    await plantLegacyTree(root);
+    const reportsIsBusy = (from: string, to: string): void => {
+      if (to === join(root, "reports")) {
+        throw Object.assign(new Error("EBUSY: resource busy or locked"), { code: "EBUSY" });
+      }
+      renameSync(from, to);
+    };
+    // Boot 1: the entries before `import-reports` moved, the failure is named, the db (planned last) stayed.
+    const first = migrateDataLayout({ layout: layoutFor(root), pid, rename: reportsIsBusy });
+    await expect(first).rejects.toThrow(join(root, "import-reports"));
+    await expect(first).rejects.toThrow("EBUSY");
+    await expect(first).rejects.toThrow("DATA_LAYOUT_SKIP");
+    await expect(first).rejects.toThrow(join(root, LAYOUT_JOURNAL));
+    expect(existsSync(join(root, LAYOUT_JOURNAL))).toBe(true);
+    expect(existsSync(join(root, "secrets", SECRET_FILE_NAMES.credentialsKey))).toBe(true);
+    expect(existsSync(join(root, DB_FILE_NAME))).toBe(true);
+    expect(existsSync(join(root, "db", DB_FILE_NAME))).toBe(false);
+    // Boot 2, nothing changed: the same named refusal from the resume, never a raw errno.
+    const second = migrateDataLayout({ layout: layoutFor(root), pid, rename: reportsIsBusy });
+    await expect(second).rejects.toThrow(join(root, "import-reports"));
+    await expect(second).rejects.toThrow("DATA_LAYOUT_SKIP");
+    expect(existsSync(join(root, LAYOUT_JOURNAL))).toBe(true);
+    // Boot 3 with the remedy: the resume leaves the entry, moves the db, and clears the journal.
+    const third = await migrateDataLayout({ layout: layoutFor(root, { ["DATA_LAYOUT_SKIP"]: "import-reports" }), pid, rename: reportsIsBusy });
+    expect(third.resumed).toBe(true);
+    expect(third.moved.some((move) => move.from === DB_FILE_NAME)).toBe(true);
+    expect(third.leftInPlace).toEqual(["import-reports", "notes.txt"]);
+    expect(existsSync(join(root, LAYOUT_JOURNAL))).toBe(false);
+    expect(readFileSync(join(root, "import-reports", "import-1.md"), "utf-8")).toBe("# report");
+    expect(readdirSync(join(root, "db"))).toEqual([DB_FILE_NAME]);
+    expect(await probeValues(join(root, "db", DB_FILE_NAME))).toEqual(["checkpointed", "wal-only"]);
+    // Boot 4, the remedy kept: a no-op that still names what stayed.
+    const fourth = await migrateDataLayout({ layout: layoutFor(root, { ["DATA_LAYOUT_SKIP"]: "import-reports" }), pid, rename: reportsIsBusy });
+    expect(fourth).toEqual({ moved: [], leftInPlace: [], resumed: false });
   });
 });

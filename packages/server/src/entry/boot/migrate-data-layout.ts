@@ -21,7 +21,7 @@ import process from "node:process";
 import { backupBeforeMigrate, closeDb, createDb, detachWal, listBackupFiles } from "@orb/db";
 import { isPlainObject } from "@orb/kit/guards";
 import type { DataLayout, DataLayoutSlotKey } from "#foundation/data-layout";
-import { DATA_LAYOUT_DIRS, DB_FILE_NAME, SECRET_FILE_NAMES } from "#foundation/data-layout";
+import { DATA_LAYOUT_DIRS, DATA_LAYOUT_SKIP_KEY, DB_FILE_NAME, SECRET_FILE_NAMES } from "#foundation/data-layout";
 import { getLog } from "#foundation/observability";
 
 /** The in-progress marker at the data root: present only between the first rename and the last. */
@@ -76,9 +76,16 @@ export interface MigrateDataLayoutDeps {
   readonly isPidAlive?: (pid: number) => boolean;
   /** The filesystem device of a path (`lstat().dev`); injectable so a test can plant a mount boundary. */
   readonly deviceOf?: DeviceOf;
+  /** The rename itself; injectable so a test can plant a failure the pre-flight cannot foresee. */
+  readonly rename?: Rename;
 }
 
 type DeviceOf = (path: string) => number;
+type Rename = (from: string, to: string) => void;
+interface FsOps {
+  readonly deviceOf: DeviceOf;
+  readonly rename: Rename;
+}
 
 export interface DataLayoutMigrationReport {
   readonly moved: readonly DataLayoutMove[];
@@ -157,13 +164,14 @@ function writeJournal(path: string, journal: Journal): void {
 
 // The moves the current env asks for. A legacy db or keyfile moves only when it holds bytes: an empty one is
 // what a holder that reopened a moved file by its old path leaves behind, not data. Every other entry moves
-// on presence (a `.keep` pin is a meaningful empty file). The db goes LAST, so a failure on any other entry
-// never strands it; its sidecars are folded into it before the journal exists (`snapshotLegacyDb`).
+// on presence (a `.keep` pin is a meaningful empty file). An entry the operator named in `DATA_LAYOUT_SKIP`
+// is never planned, so a resume re-planned against the env drops it too. The db goes LAST, so a failure on
+// any other entry never strands it; its sidecars are folded into it before the journal exists.
 function planMoves(root: string, layout: DataLayout): PlannedMove[] {
   const entries = new Set(readdirSync(root));
   const moves: PlannedMove[] = [];
   const add = (from: string, to: string, keptBy: DataLayoutSlotKey | null = null, requireBytes = false): void => {
-    if (entries.has(from) && (!requireBytes || holdsData(join(root, from)))) {
+    if (entries.has(from) && !layout.skip.has(from) && (!requireBytes || holdsData(join(root, from)))) {
       moves.push({ from, to, keptBy });
     }
   };
@@ -186,14 +194,21 @@ function planMoves(root: string, layout: DataLayout): PlannedMove[] {
   return moves;
 }
 
-// The directory a target's bytes would land in: its nearest existing ancestor, followed through symlinks,
-// because a container that is a link onto another filesystem fails the rename exactly like a foreign source.
-function landingDir(target: string): string {
-  let probe = dirname(target);
+// Where a target's bytes would land: the target itself when it exists (an empty mount point is a legal-looking
+// rename target that fails), else its nearest existing ancestor, followed through symlinks in both cases,
+// because a link onto another filesystem fails the rename exactly like a foreign source.
+function landingPath(target: string): string {
+  let probe = target;
   while (!exists(probe)) {
     probe = dirname(probe);
   }
   return realpathSync(probe);
+}
+
+// The one remedy that needs no hand move and no journal edit: the slot key that keeps a keyed entry, or the
+// skip list for the rest.
+function wayOut(move: PlannedMove): string {
+  return move.keptBy === null ? `add ${move.from} to ${DATA_LAYOUT_SKIP_KEY} to leave it where it is` : `set ${move.keptBy} to keep it where it is`;
 }
 
 // rename(2) cannot cross a filesystem, and a mount point at either end fails it too. Refuse BEFORE the
@@ -204,17 +219,14 @@ function refuseCrossDevice(root: string, moves: readonly PlannedMove[], deviceOf
   const reasons: string[] = [];
   for (const move of moves) {
     const from = join(root, move.from);
-    const keep = move.keptBy === null ? null : `set ${move.keptBy} to keep it where it is`;
     if (deviceOf(from) !== rootDevice) {
-      reasons.push(
-        `${from} sits on another filesystem than ${root} (${keep === null ? "no env key keeps it there;" : `${keep}, or`} move it onto the data root's filesystem by hand)`,
-      );
+      reasons.push(`${from} sits on another filesystem than ${root} (${wayOut(move)}, or move it onto the data root's filesystem by hand)`);
       continue;
     }
-    const landing = landingDir(join(root, move.to));
+    const landing = landingPath(join(root, move.to));
     if (deviceOf(landing) !== rootDevice) {
       reasons.push(
-        `${from} would land in ${landing}, which sits on another filesystem than ${root} (${keep === null ? "" : `${keep}, or `}move it there by hand, or put ${landing} on the data root's filesystem)`,
+        `${from} would land at ${landing}, which sits on another filesystem than ${root} (${wayOut(move)}, or put ${landing} on the data root's filesystem)`,
       );
     }
   }
@@ -256,17 +268,32 @@ async function snapshotLegacyDb(root: string, layout: DataLayout): Promise<void>
   }
 }
 
-function applyMove(root: string, move: DataLayoutMove): void {
+// A rename the pre-flight did not foresee (EBUSY on a same-device mount, EPERM, anything) surfaces as a named
+// refusal with its way out, never a raw errno: the journal keeps this entry pending, so the next boot either
+// retries it or, once the env names the remedy, leaves it in place.
+function applyMove(root: string, move: PlannedMove, rename: Rename): void {
+  const from = join(root, move.from);
   const to = join(root, move.to);
-  mkdirSync(dirname(to), { recursive: true });
-  renameSync(join(root, move.from), to);
+  try {
+    mkdirSync(dirname(to), { recursive: true });
+    rename(from, to);
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code ?? "unknown error";
+    throw new Error(
+      `boot/data-layout: could not move ${from} to ${to} (${code}): ${wayOut(move)}, or fix ${to} and start again. ${join(root, LAYOUT_JOURNAL)} keeps the remaining moves for the next boot.`,
+      { cause: err },
+    );
+  }
 }
 
 // A journal entry's state decides it: a rename either happened or did not, so any other combination means
-// something else touched the tree and the operator has to look. The pending entries are replayed against the
-// CURRENT plan, so a slot key set after a failed move keeps its entry in place instead of failing again.
-function resumeMoves(root: string, journal: readonly DataLayoutMove[], current: readonly PlannedMove[], deviceOf: DeviceOf): DataLayoutMove[] {
-  const planned = new Map(current.map((move) => [move.from, move]));
+// something else touched the tree and the operator has to look. The pending entries are read against the
+// CURRENT plan, so a slot key or a skip set after a failed move drops its entry instead of failing again.
+function classifyJournal(
+  root: string,
+  journal: readonly DataLayoutMove[],
+  planned: ReadonlyMap<string, PlannedMove>,
+): { pending: PlannedMove[]; done: DataLayoutMove[] } {
   const pending: PlannedMove[] = [];
   const done: DataLayoutMove[] = [];
   for (const move of journal) {
@@ -286,9 +313,20 @@ function resumeMoves(root: string, journal: readonly DataLayoutMove[], current: 
       );
     }
   }
-  refuseCrossDevice(root, pending, deviceOf);
+  return { pending, done };
+}
+
+// A db still pending is claimed again before it moves: the claim before the first boot's journal says nothing
+// about who has the file open now.
+async function resumeMoves(root: string, layout: DataLayout, journal: readonly DataLayoutMove[], fs: FsOps): Promise<DataLayoutMove[]> {
+  const planned = new Map(planMoves(root, layout).map((move) => [move.from, move]));
+  const { pending, done } = classifyJournal(root, journal, planned);
+  refuseCrossDevice(root, pending, fs.deviceOf);
+  if (pending.some((move) => move.from === DB_FILE_NAME)) {
+    await snapshotLegacyDb(root, layout);
+  }
   for (const move of pending) {
-    applyMove(root, move);
+    applyMove(root, move, fs.rename);
     done.push({ from: move.from, to: move.to });
   }
   return done;
@@ -313,15 +351,15 @@ function logReport(root: string, report: DataLayoutMigrationReport): void {
 
 /**
  * Move a legacy data dir into the current layout, or do nothing on a tree already in it.
- * @throws Error before any rename when a legacy path and its target both hold data, when a source sits on
- * another filesystem, when another process holds the db or the journal, or when a journal entry's state
- * matches neither "done" nor "pending".
+ * @throws Error before any rename when a legacy path and its target both hold data, when either end of a move
+ * sits on another filesystem, when another process holds the db or the journal, or when a journal entry's
+ * state matches neither "done" nor "pending"; and after a rename fails, naming the entry and its way out.
  */
 export async function migrateDataLayout(deps: MigrateDataLayoutDeps): Promise<DataLayoutMigrationReport> {
   const root = deps.layout.root;
   const ownPid = deps.pid ?? process.pid;
   const isAlive = deps.isPidAlive ?? pidAlive;
-  const deviceOf = deps.deviceOf ?? deviceOfPath;
+  const fs: FsOps = { deviceOf: deps.deviceOf ?? deviceOfPath, rename: deps.rename ?? renameSync };
   if (!existsSync(root)) {
     ensureContainerDirs(root, new Set());
     return NO_MIGRATION;
@@ -335,7 +373,7 @@ export async function migrateDataLayout(deps: MigrateDataLayoutDeps): Promise<Da
         `boot/data-layout: ${journalPath} says process ${journal.pid} is migrating the data layout under ${root}, and that pid is alive. Wait for it to finish and start again; if nothing is migrating, delete ${journalPath} and start again.`,
       );
     }
-    const moved = resumeMoves(root, journal.moves, planMoves(root, deps.layout), deviceOf);
+    const moved = await resumeMoves(root, deps.layout, journal.moves, fs);
     rmSync(journalPath);
     ensureContainerDirs(root, new Set());
     const report = { moved, leftInPlace: leftInPlace(root), resumed: true };
@@ -357,15 +395,15 @@ export async function migrateDataLayout(deps: MigrateDataLayoutDeps): Promise<Da
       `boot/data-layout: ${root} holds a legacy path and its new location, and both hold data: ${pairs}. Keep the one in use and move or delete the other by hand, then start again. Nothing was moved.`,
     );
   }
-  refuseCrossDevice(root, planned, deviceOf);
+  refuseCrossDevice(root, planned, fs.deviceOf);
   if (planned.some((move) => move.from === DB_FILE_NAME)) {
     await snapshotLegacyDb(root, deps.layout);
   }
   const moves = planned.map((move): DataLayoutMove => ({ from: move.from, to: move.to }));
   ensureContainerDirs(root, new Set(moves.map((move) => move.to)));
   writeJournal(journalPath, { pid: ownPid, moves });
-  for (const move of moves) {
-    applyMove(root, move);
+  for (const move of planned) {
+    applyMove(root, move, fs.rename);
   }
   rmSync(journalPath);
   const report = { moved: moves, leftInPlace: leftInPlace(root), resumed: false };

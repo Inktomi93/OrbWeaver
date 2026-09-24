@@ -113,16 +113,16 @@ The legacy table, applied only to a slot the operator did not set:
 | `import-reports/` | `reports/` |
 | `assets/`, `users/`, `secrets/initial_password` | unchanged |
 
-The `variants/`, `import-reports/`, backup and keyfile rows have no env key and move whenever present. The `models/` and `import-staging/` rows move only when their slot key is unset; a set key names a directory the operator owns.
+The `variants/`, `import-reports/`, backup and keyfile rows have no env key and move whenever present. The `models/` and `import-staging/` rows move only when their slot key is unset; a set key names a directory the operator owns. `DATA_LAYOUT_SKIP` names legacy entries, comma-separated by their root name (`import-reports`, `variants`), that stay where they are; it is the way out for an entry no slot key keeps when its target cannot take it, and both a fresh plan and a resume honor it, so no journal is ever edited by hand.
 
 The protocol:
 
 1. Read the root directory once. No legacy name present and no journal: create the target directories and return. This is every boot after the first, and the fresh install.
 2. Take the lock. The journal file `.layout-migration.json` is created with `wx` and holds the pid and the planned moves. An existing journal whose pid is alive refuses the boot; a dead pid means a crashed move, and the step resumes from the journal.
-3. Refuse before any write when a legacy path and its target both hold data. The message names both paths and says to move or delete one by hand. Nothing merges.
+3. Refuse before any write when a legacy path and its target both hold data. The message names both paths and says to move or delete one by hand. Nothing merges. Refuse before any write, too, when a source, an existing target (an empty mount point at `cache/models` or `reports`) or the directory a target would land in sits on another filesystem than the root; the message names the entry and its way out (the slot key, or `DATA_LAYOUT_SKIP`).
 4. Claim the db, then snapshot it. Open the legacy db with `createDb` and leave WAL (`detachWal` in `packages/db/src/client/index.ts`), which SQLite grants only to the sole connection on the file: any other open connection, busy or idle between requests, answers `SQLITE_BUSY` and is a refusal before anything is written. Leaving WAL folds the sidecars into the main file, so the db then moves as one file. Only after the claim does `backupBeforeMigrate` copy it into `backups/`.
-5. Write the journal, then rename each entry. Every move is a same-filesystem `rename`. A directory moves as one entry.
-6. Resume applies each journal entry by its state: source present and target absent means rename; source absent and target present means done; both present or both absent means refuse, because a rename cannot produce either.
+5. Write the journal, then rename each entry. Every move is a same-filesystem `rename`. A directory moves as one entry. A rename that fails for any reason is a named refusal, never a raw errno: the message names the entry, the error code and its way out, and the journal keeps the remaining moves for the next boot.
+6. Resume applies each journal entry by its state: source present and target absent means rename; source absent and target present means done; both present or both absent means refuse, because a rename cannot produce either. The pending entries are re-planned against the current env, so a slot key or `DATA_LAYOUT_SKIP` set after a failed move leaves its entry in place, and a pending db is claimed again before it moves.
 7. Delete the journal, then log one info line listing every move. A root entry the table does not name is left in place and named in one warn line.
 
 The container runs the same code against `/app/data`. The entrypoint's `chown` walk (`docker/entrypoint.sh` L98) already covers new subdirectories. The rootfs is read-only; the volume is the only writable root, and every move stays inside it.

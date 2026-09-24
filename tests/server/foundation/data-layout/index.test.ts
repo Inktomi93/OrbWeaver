@@ -61,6 +61,12 @@ describe("resolveDataLayout", () => {
     expect(layout.explicit.has("DATABASE_URL")).toBe(true);
   });
 
+  test("DATA_LAYOUT_SKIP names legacy root entries as a set, trimmed, with blanks dropped; unset is empty", () => {
+    expect([...resolveDataLayout({ ["DATA_LAYOUT_SKIP"]: " import-reports, variants,, " }).skip].sort()).toEqual(["import-reports", "variants"]);
+    expect([...resolveDataLayout({}).skip]).toEqual([]);
+    expect([...resolveDataLayout({ ["DATA_LAYOUT_SKIP"]: "" }).skip]).toEqual([]);
+  });
+
   test("the import domain's own default is the same path the resolver derives", () => {
     expect(DEFAULT_IMPORT_STAGING_DIR).toBe(resolveDataLayout({}).importStaging);
   });
