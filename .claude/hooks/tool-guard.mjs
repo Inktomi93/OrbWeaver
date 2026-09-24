@@ -880,7 +880,7 @@ const REASONS = {
   harnessSwallowed:
     "`|| true` (or `; true`) after a harness command erases the failure — the tool reports success even when the gate was red. Let it exit non-zero; the failure list is already in reports/verify.json / reports/test-report.json.",
   gitHookBypass:
-    "This skips git hooks wholesale, not just the whole-tree `check`. The one sanctioned skip is `LEFTHOOK_EXCLUDE=check git commit …` / `LEFTHOOK_EXCLUDE=check git merge …` — it excludes only the `check` command and keeps the `commit-msg` contract (`scripts/commit-msg-check.sh`) enforced. `--no-verify`/`-n`, `-c core.hooksPath=…`, `git config core.hooksPath …` (setting it) and `LEFTHOOK=0`/`LEFTHOOK=false` all disable hooks entirely and are refused. Reading the key (`git config --get core.hooksPath`) or `--unset`-ing it stays allowed.",
+    "This skips git hooks wholesale, not just the pre-commit `check`. The one sanctioned skip is `LEFTHOOK_EXCLUDE=check git commit …` / `LEFTHOOK_EXCLUDE=check git merge …` — it excludes only the `check` command and keeps the `commit-msg` contract (`scripts/commit-msg-check.sh`) enforced. `--no-verify`/`-n`, `-c core.hooksPath=…`, `git config core.hooksPath …` (setting it) and `LEFTHOOK=0`/`LEFTHOOK=false` all disable hooks entirely and are refused. Reading the key (`git config --get core.hooksPath`) or `--unset`-ing it stays allowed.",
   gitDestructive:
     "`git stash` / `git restore` / `git checkout <path>` / `git checkout-index -f` silently destroy uncommitted work, and this tree usually carries a large uncommitted surface (doctrine ban; near-zero legitimate sightings in 133k calls). Read an old version with `git show HEAD:<path>` (redirect it to write one: `git show HEAD:<path> > <path>`); undo a probe by `rm`-ing the throwaway file; protect a risky edit with `cp <f> <f>.bak` first, then `mv <f>.bak <f>` to revert. A GLOBAL OPTION does not exempt the spelling — `git -C <worktree> checkout -- <path>` destroys exactly as much as the bare form. In an ACTIVE MERGE, `checkout --ours/--theirs <path>` is refused the same way (it discards any hand-edit already in the worktree file): take one side with `git show MERGE_HEAD:<path> > <path>` (theirs) or `git show HEAD:<path> > <path>` (ours). Read-only inspection still passes: `git stash list` / `git stash show`, and `git restore --staged <path>` (index-only, no `--worktree`).",
   biomeWrite:
@@ -2440,7 +2440,7 @@ function classifyCommandLine(command, blank, clauses, ctx) {
   }
 
   // 1b. hook-bypass spellings — DENY every spelling that skips hooks wholesale; the one sanctioned skip is
-  //     `LEFTHOOK_EXCLUDE=check git commit/merge …` (excludes only the whole-tree `check`, keeps the
+  //     `LEFTHOOK_EXCLUDE=check git commit/merge …` (excludes only the pre-commit `check`, keeps the
   //     `commit-msg` contract). `--no-verify`/`-n` on commit/merge, a `-c core.hooksPath=` global option,
   //     `git config core.hooksPath …` when it SETS the key, and a `LEFTHOOK=0`/`LEFTHOOK=false` env prefix
   //     all disable hooks entirely.
