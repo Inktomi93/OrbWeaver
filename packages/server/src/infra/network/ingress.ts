@@ -5,7 +5,7 @@
 import { getConnInfo } from "@hono/node-server/conninfo";
 import type { Context, MiddlewareHandler } from "hono";
 import { env } from "#foundation/env";
-import { isInRanges, isPrivateOrLoopback } from "./ip-ranges.ts";
+import { isInRanges, isPrivateOrLoopback, parseIp } from "./ip-ranges.ts";
 
 const XFF_HEADER = "x-forwarded-for";
 const FORBIDDEN = 403;
@@ -24,21 +24,41 @@ export function parseAllowlist(raw: string | undefined): readonly string[] {
 /** XFF-trusting proxy set — built once at module init (never rebuilt per request). */
 const TRUSTED_PROXIES = parseAllowlist(env.FORWARD_AUTH_TRUSTED_PROXIES);
 
-/** Pure peer-vs-XFF precedence: leftmost XFF hop wins only when the peer is trusted; untrusted peer's
- *  XFF is ignored (spoof-proof). */
+// A hop whose own forwarded entry is believed: loopback/private, or inside `FORWARD_AUTH_TRUSTED_PROXIES`.
+function isTrustedHop(ip: string, trustedProxies: readonly string[]): boolean {
+  return isPrivateOrLoopback(ip) || isInRanges(ip, trustedProxies);
+}
+
+/** Pure peer-vs-XFF precedence. An untrusted peer's XFF is ignored. Behind a trusted peer the list is walked
+ *  from the RIGHT, skipping trusted hops, and the first untrusted hop is the client.
+ *  @remarks SECURITY: never read the leftmost entry. An appending proxy keeps whatever the client sent on the
+ *  left, so a visitor could pick its own address, resetting the per-IP login throttle or passing
+ *  `IP_ALLOWLIST` with a private value. Only entries a trusted hop appended are facts. An unparseable entry
+ *  ends the walk at the last address a trusted hop vouched for. */
 export function resolveClientIp(args: {
   readonly peer: string | undefined;
   readonly forwarded: string | undefined;
   readonly trustedProxies: readonly string[];
 }): string | null {
   const { peer, forwarded, trustedProxies } = args;
-  if (forwarded !== undefined && forwarded.length > 0 && peer !== undefined && (isPrivateOrLoopback(peer) || isInRanges(peer, trustedProxies))) {
-    const first = forwarded.split(",")[0]?.trim();
-    if (first !== undefined && first.length > 0) {
-      return first;
+  if (peer === undefined) {
+    return null;
+  }
+  if (forwarded === undefined || !isTrustedHop(peer, trustedProxies)) {
+    return peer;
+  }
+  let client = peer;
+  for (const entry of forwarded.split(",").reverse()) {
+    const hop = entry.trim();
+    if (parseIp(hop) === null) {
+      return client;
+    }
+    client = hop;
+    if (!isTrustedHop(hop, trustedProxies)) {
+      return client;
     }
   }
-  return peer ?? null;
+  return client;
 }
 
 /** Caller IP for a live request — the per-IP rate-limit key + the allowlist gate's subject. */
