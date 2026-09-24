@@ -206,7 +206,7 @@ export function pathExists(path: string, repoRoot = root): boolean {
 /** Stage the named paths and commit THEM ALONE (a pathspec commit ignores the rest of the index, so a
  *  sibling's staged file on the shared main checkout never rides a hook's commit). The child inherits the
  *  process environment for PATH and git identity; the standing exception spelling (`LEFTHOOK_EXCLUDE=check`)
- *  is what lets a hook's commit skip the whole-tree check and keep the message contract. */
+ *  is what lets a hook's commit skip the pre-commit check and keep the message contract. */
 export function commitPaths(paths: readonly string[], message: string, repoRoot = root): boolean {
   // A deleted path is staged as a removal, and it joins the pathspec only when HEAD tracks it: a pathspec
   // naming a file git never knew fails the whole commit.
