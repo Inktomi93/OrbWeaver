@@ -38,7 +38,7 @@ import { RPG_PROSE_SLOTS } from "@orb/contracts/rpg";
 import { tokenizeContent } from "@orb/kit/content";
 import { RPG_PROFILE_FREEFORM, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { LiteReminderInput } from "../../../packages/server/src/domain/rpg/contract/params.ts";
-import { buildLiteReminder } from "../../../packages/server/src/domain/rpg/substrate/reminder.ts";
+import { buildLiteReminder, frameLiteReminder } from "../../../packages/server/src/domain/rpg/substrate/reminder.ts";
 import { REPO_ROOT } from "@orb/tooling/_shared/artifacts";
 
 const KEY = (() => {
@@ -242,7 +242,8 @@ function armReminder(teach: string, beats: readonly string[]): string {
   };
   const real = buildLiteReminder(input);
   if (!real.includes(RPG_CARD_TEACH)) throw new Error("card teach block not found in the real reminder — the constant drifted");
-  return real.replace(RPG_CARD_TEACH, teach);
+  // Framed AFTER the swap, as gather.ts frames the finished reminder: the frame wraps the whole blob.
+  return frameLiteReminder(real.replace(RPG_CARD_TEACH, teach), input.prose ?? {});
 }
 
 // ── Wire ──────────────────────────────────────────────────────────────────────────────────────────────
