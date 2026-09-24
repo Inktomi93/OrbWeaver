@@ -391,16 +391,9 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     maxDatabankBytes: () => deps.services.settings.getEffectiveConfig().maxDatabankBytes,
   });
   registerExport(app, { export: deps.exportService, registry: deps.portability });
-  registerImportBundle(app, {
-    workloads: deps.services.workloads,
-    ...(env.IMPORT_STAGING_DIR !== undefined ? { stagingDir: env.IMPORT_STAGING_DIR } : {}),
-  });
+  registerImportBundle(app, { workloads: deps.services.workloads, stagingDir: env.IMPORT_STAGING_DIR });
   registerImportChat(app, { registry: deps.portability });
-  registerImportTree(app, {
-    workloads: deps.services.workloads,
-    registry: deps.portability,
-    ...(env.IMPORT_STAGING_DIR !== undefined ? { stagingDir: env.IMPORT_STAGING_DIR } : {}),
-  });
+  registerImportTree(app, { workloads: deps.services.workloads, registry: deps.portability, stagingDir: env.IMPORT_STAGING_DIR });
   registerAuthRoutes(plain, {
     sessions: deps.sessions,
     // W7a — ending a session ends the streams it opened. The registry is transport's; the EDGE composes here,

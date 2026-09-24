@@ -2,15 +2,15 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 604,
+    "sites": 606,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 604,
+      "deliberate-absorb": 606,
       "unproven": 0
     },
     "byGrammar": {
-      "default": 151,
-      "empty": 309,
+      "default": 152,
+      "empty": 310,
       "promise": 144
     }
   },
@@ -1276,6 +1276,11 @@
       "reason": "DELIBERATE fail-closed. The owner of a resolver failure is the REQUEST that hits it — this is a speculative pre-warm asking a question it is allowed not to get an answer to, and the only consequence of `null` here is that the box keeps the lazy path it had before this file existed. `no-connection` is the ordinary answer; anything else is surfaced as a structured log naming the task + reason. Ends if the prefetch ever becomes required for correctness rather than latency."
     },
     {
+      "siteId": "packages/server/src/entry/boot/migrate-data-layout.ts::pidAlive::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "`kill(pid, 0)` ASKS a question and throws to answer it — ESRCH is \"dead\", and EPERM is a live process under another uid, which must read as alive so its journal is never resumed under it. Ends if the answer needs more than alive/dead."
+    },
+    {
       "siteId": "packages/server/src/entry/compose/automation-plugin.ts::buildAutomationPlugin.isBookAttachedToChat::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED — documented above: a refusal (kicked between admission and write) resolves to \"not attached\", never a leak. Ends if this needs to tell a raced-kick apart from an infra failure."
@@ -1494,6 +1499,11 @@
       "siteId": "packages/server/src/infra/crypto/key.ts::loadOrCreateKeyfile::err::1",
       "verdict": "deliberate-absorb",
       "reason": "FAIL-CLOSED at boot by design — any filesystem fault (permission, read-only, corrupt keyfile) returns null so no caller ever re-keys over the only recovery copy. The fault is reported on stderr; the credentials box then runs DISABLED and a cookie mode refuses to boot (`entry/lifecycle.ts`). Ends if every caller moves to refusing startup on a crypto fault."
+    },
+    {
+      "siteId": "packages/server/src/infra/crypto/key.ts::readExistingKeyfile::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "FAIL-CLOSED at boot by design — an unreadable keyfile returns null so no caller ever re-keys over the only recovery copy; the fault is reported on stderr and the caller degrades or refuses (`entry/lifecycle.ts`). Ends if every caller moves to refusing startup on a crypto fault."
     },
     {
       "siteId": "packages/server/src/infra/extraction/loaders/pdf.ts::readTitle::catch::1",
@@ -2636,7 +2646,7 @@
       "reason": "optional-read-as-absent — a truncated/garbage ledger reads as \"no reaps recorded\", which is the same line a fresh checkout prints; nothing decides anything on this file. Ends if any verdict starts reading it back."
     },
     {
-      "siteId": "tooling/src/snap/ops/stage-source.ts::seedStageData::catch::1",
+      "siteId": "tooling/src/snap/ops/stage-source.ts::linkStageAssets::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "documented degraded-but-non-fatal floor — the stage renders without avatars/cards rather than aborting the stage build, per the trailing comment. Ends if a caller starts requiring assetsDir to exist."
     },

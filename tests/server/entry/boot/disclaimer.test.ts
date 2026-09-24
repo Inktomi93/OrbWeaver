@@ -29,7 +29,10 @@ function input(over: Partial<BootDisclaimerInput> = {}): BootDisclaimerInput {
     ownerPeerWarnings: NO_WARNINGS,
     diagnosticsWarnings: NO_WARNINGS,
     forwardHeaderUnsignedClosed: false,
-    secrets: { sessionSecret: { explicit: false, keyfile: "/data/.session-secret" }, credentialsKey: { explicit: true, keyfile: "/data/.credentials-key" } },
+    secrets: {
+      sessionSecret: { explicit: false, keyfile: "/data/secrets/session_secret" },
+      credentialsKey: { explicit: true, keyfile: "/data/secrets/credentials_key" },
+    },
     ...over,
   };
 }

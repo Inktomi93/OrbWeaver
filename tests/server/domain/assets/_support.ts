@@ -64,6 +64,8 @@ export interface AssetsHarness {
   /** The injected sharp `probe` fake — override per test (e.g. mockResolvedValueOnce a landscape dim) to
    *  exercise the pose orientation computation without real decode. Defaults to a 1024×1024 png. */
   readonly imageProbe: Mock<AssetsContext["imageProbe"]>;
+  /** The temp variant-cache root, so a test can plant a pre-existing variant where the cache would look. */
+  readonly variantDir: string;
   /** rm the temp CAS + variant trees. Register via `onTestFinished`. */
   readonly cleanup: () => Promise<void>;
   /** Advance the injected frozen clock (ms). */
@@ -190,6 +192,7 @@ export async function makeHarness(db: Db): Promise<AssetsHarness> {
     emitted,
     imageTransform,
     imageProbe,
+    variantDir,
     advance: (ms: number): void => clock.advance(ms),
     cleanup: async (): Promise<void> => {
       await rm(casDir, { recursive: true, force: true });

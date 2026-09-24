@@ -16,7 +16,7 @@
 //   • `--fresh` wipes the `data/` db file (+ WAL/SHM sidecars), re-migrates from the baseline, then seeds.
 // It writes ONLY through the domain verbs against whatever `DATABASE_URL` points at; it changes no config.
 import { rmSync } from "node:fs";
-import { dirname, isAbsolute, join, resolve } from "node:path";
+import { isAbsolute, resolve } from "node:path";
 import process from "node:process";
 import { EMBED_SPACE_DIMS } from "@orb/contracts/inference";
 import {
@@ -50,6 +50,7 @@ import { createSessionsService, ownerHandles } from "@orb/server/domain/sessions
 import {
   createLocalLightUserSeed,
   DB_LAUNCHED,
+  migrateDataLayout,
   runBootMigrations,
   seedDefaultCharacters,
   seedDefaultPersona,
@@ -329,6 +330,8 @@ export async function runDemoSeed(argv: readonly string[]): Promise<ExitCode> {
     return EXIT.toolError;
   }
 
+  // The layout move first, so a `--fresh` wipe and the open below both address the db's current location.
+  await migrateDataLayout({ layout: env.DATA_LAYOUT });
   const filePath = dbFilePath(env.DATABASE_URL);
   if (args.fresh) {
     if (filePath === null) {
@@ -343,7 +346,7 @@ export async function runDemoSeed(argv: readonly string[]): Promise<ExitCode> {
 
   const now = (): number => Date.now();
   const db = await createDb(env.DATABASE_URL);
-  await runBootMigrations({ db, databaseUrl: env.DATABASE_URL, launched: DB_LAUNCHED });
+  await runBootMigrations({ db, databaseUrl: env.DATABASE_URL, backupDir: env.DATA_LAYOUT.backups, launched: DB_LAUNCHED });
   log("db migrated from the baseline");
 
   await runFullSeed({
@@ -351,7 +354,7 @@ export async function runDemoSeed(argv: readonly string[]): Promise<ExitCode> {
     now,
     sessionSecret: env.SESSION_SECRET ?? SEED_SESSION_SECRET,
     casDir: env.ASSETS_DIR,
-    variantDir: join(dirname(env.ASSETS_DIR), "variants"),
+    variantDir: env.DATA_LAYOUT.variants,
     // --fresh always re-augments (the db was just wiped); --force overrides the "already seeded" sentinel.
     force: args.force || args.fresh,
     log,

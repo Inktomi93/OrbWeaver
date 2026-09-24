@@ -39,6 +39,8 @@ export interface MigrateDeps {
   readonly db: Db;
   /** libSQL URL — backed up aside (file: URLs only; `:memory:`/not-yet-created is a no-op) before migrating. */
   readonly databaseUrl: string;
+  /** Where the pre-migrate copies and their `.keep` pins live; the retention sweep reads the same dir. */
+  readonly backupDir: string;
   /** Override the resolved migrations folder (tests). */
   readonly migrationsFolder?: string;
   /** The deployment posture, REQUIRED (#1392): `true` (what {@link DB_LAUNCHED} ships since #316) makes a
@@ -78,7 +80,7 @@ export async function runBootMigrations(deps: MigrateDeps): Promise<void> {
   }
   const willChange = baseline.status === "regenerated" || (await hasPendingMigrations(deps.db, folder));
   if (willChange) {
-    const backupPath = await backupBeforeMigrate(deps.db, deps.databaseUrl);
+    const backupPath = await backupBeforeMigrate(deps.db, deps.databaseUrl, deps.backupDir);
     if (backupPath !== undefined) {
       getLog().info({ backupPath }, "boot/migrate: backed up db before migrating");
     }
@@ -95,7 +97,7 @@ export async function runBootMigrations(deps: MigrateDeps): Promise<void> {
   getLog().info({ folder }, "boot/migrate: migrations applied; referential integrity verified");
   // Retention runs only on the boots that took a backup — a no-op boot touches the db directory not at all.
   if (willChange) {
-    const pruned = pruneDbBackups(deps.databaseUrl);
+    const pruned = pruneDbBackups(deps.databaseUrl, deps.backupDir);
     if (pruned.length > 0) {
       getLog().info({ pruned: pruned.length }, "boot/migrate: pruned stale db backups");
     }

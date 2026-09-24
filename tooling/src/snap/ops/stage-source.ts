@@ -6,7 +6,10 @@
 // VERSION TRIPWIRE: a ref whose vite.config lacks VITE_API_TARGET would proxy /api to the DEV server —
 // rejected up front via `git show`, before any worktree/install/boot work, so a bad ref costs nothing.
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { localPath } from "@orb/db";
+import type { DataLayout } from "@orb/server/foundation/data-layout";
+import { DB_FILE_NAME, DEFAULT_DATA_DIR, resolveDataLayout, SECRET_FILE_NAMES } from "@orb/server/foundation/data-layout";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { execNicedSync, runNicedSync } from "../../_shared/proc.ts";
@@ -78,9 +81,18 @@ export function pnpmInstall(dir: string): void {
   }
 }
 
-/** Give the stage its OWN db (best-effort copy of the dev db so real data renders — isolated) + assets
- *  (symlink to the content-addressed dev blob dir; a visual pass only reads). Idempotent: skips whatever
- *  already exists so a plain reboot keeps the stage's state.
+/** The dev checkout's data root: the server's default under the repo root. */
+function devDataLayout(root: string): DataLayout {
+  return resolveDataLayout({ ["DATA_DIR"]: join(root, DEFAULT_DATA_DIR) });
+}
+
+/** Give the stage its OWN db (best-effort copy of the dev db so real data renders — isolated), the two
+ *  generated boot secrets the copied rows are bound to (a copy of the db without its keys refuses to boot
+ *  or serves 503 forever), and assets (symlink to the content-addressed dev blob dir; a visual pass only
+ *  reads). Idempotent: skips whatever already exists so a plain reboot keeps the stage's state.
+ *
+ *  A dev data dir still in the LEGACY flat shape (the db at its root) is copied from NOT AT ALL and said so:
+ *  the dev stack's next boot moves it, and a stage built before that would boot empty and say nothing.
  *
  *  Returns the copy's PROVENANCE (§3.6's `dbProvenance` row field), or null when nothing was copied: the
  *  band table then answers "is this stage's data older than the dev db it came from?" from the row instead
@@ -88,28 +100,58 @@ export function pnpmInstall(dir: string): void {
  *  (memory `isolated-stage-db-is-a-fresh-dev-copy`). */
 export function seedStageData(root: string, paths: StagePaths): StageDbProvenance | null {
   mkdirSync(paths.dir, { recursive: true });
-  const devDb = join(root, "data", "orbweaver.db");
-  const stageDb = join(paths.dir, "orbweaver.db");
-  let provenance: StageDbProvenance | null = null;
-  if (existsSync(devDb) && !existsSync(stageDb)) {
-    provenance = { copiedFrom: devDb, copiedAt: new Date().toISOString(), devDbMtimeAtCopy: statSync(devDb).mtime.toISOString() };
-    // Copy the WAL/SHM sidecars too for a consistent-enough snapshot of in-flight writes.
-    for (const suffix of ["", "-wal", "-shm"]) {
-      if (existsSync(devDb + suffix)) {
-        cpSync(devDb + suffix, stageDb + suffix);
-      }
-    }
+  const dev = devDataLayout(root);
+  const devDb = localPath(dev.databaseUrl) ?? "";
+  const legacyDevDb = join(dev.root, DB_FILE_NAME);
+  if (!existsSync(devDb) && existsSync(legacyDevDb)) {
+    print(
+      `[snap-stage] the dev data dir is in the legacy layout (${legacyDevDb} at the root) — copying nothing; boot the dev stack once to migrate it, then rebuild the stage`,
+    );
+    return null;
   }
-  const devAssets = join(root, "data", "assets");
-  if (existsSync(devAssets) && !existsSync(paths.assetsDir)) {
-    // @orb-waive caught-failure-ownership(catch): documented degraded-but-non-fatal floor — the stage renders without avatars/cards rather than aborting the stage build, per the trailing comment. Ends if a caller starts requiring assetsDir to exist.
-    try {
-      symlinkSync(devAssets, paths.assetsDir, "dir");
-    } catch {
-      // No symlink (e.g. permissions) ⇒ the stage renders without avatars/cards rather than aborting.
+  const provenance = copyStageDb(devDb, localPath(paths.databaseUrl) ?? "");
+  copyStageSecrets(dev.secrets, paths.secretsDir);
+  linkStageAssets(dev.assets, paths.assetsDir);
+  return provenance;
+}
+
+function copyStageDb(devDb: string, stageDb: string): StageDbProvenance | null {
+  if (!existsSync(devDb) || existsSync(stageDb)) {
+    return null;
+  }
+  const provenance = { copiedFrom: devDb, copiedAt: new Date().toISOString(), devDbMtimeAtCopy: statSync(devDb).mtime.toISOString() };
+  mkdirSync(dirname(stageDb), { recursive: true });
+  // Copy the WAL/SHM sidecars too for a consistent-enough snapshot of in-flight writes.
+  for (const suffix of ["", "-wal", "-shm"]) {
+    if (existsSync(devDb + suffix)) {
+      cpSync(devDb + suffix, stageDb + suffix);
     }
   }
   return provenance;
+}
+
+function copyStageSecrets(devSecrets: string, stageSecrets: string): void {
+  for (const name of Object.values(SECRET_FILE_NAMES)) {
+    const devSecret = join(devSecrets, name);
+    const stageSecret = join(stageSecrets, name);
+    if (existsSync(devSecret) && !existsSync(stageSecret)) {
+      mkdirSync(stageSecrets, { recursive: true });
+      cpSync(devSecret, stageSecret);
+    }
+  }
+}
+
+function linkStageAssets(devAssets: string, stageAssets: string): void {
+  if (!existsSync(devAssets) || existsSync(stageAssets)) {
+    return;
+  }
+  mkdirSync(dirname(stageAssets), { recursive: true });
+  // @orb-waive caught-failure-ownership(catch): documented degraded-but-non-fatal floor — the stage renders without avatars/cards rather than aborting the stage build, per the trailing comment. Ends if a caller starts requiring assetsDir to exist.
+  try {
+    symlinkSync(devAssets, stageAssets, "dir");
+  } catch {
+    // No symlink (e.g. permissions) ⇒ the stage renders without avatars/cards rather than aborting.
+  }
 }
 
 /** Populate the stage dir's SOURCE (rsync for `--dirty`, `git worktree add` for a real ref) — the caller

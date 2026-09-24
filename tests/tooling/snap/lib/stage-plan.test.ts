@@ -78,11 +78,13 @@ test("stageBaseUrl uses localhost (vite v8 binds [::1] only), not 127.0.0.1", ()
 
 // ── stagePaths ──────────────────────────────────────────────────────────────────────────────────────────
 
-test("stagePaths keys every artifact off the short sha under .cache/snap-stage", () => {
+test("stagePaths keys every artifact off the short sha under .cache/snap-stage, in the server's own layout", () => {
   const paths = stagePaths("/repo", SHA);
   expect(paths.dir).toBe(`/repo/.cache/snap-stage/${SHORT}`);
-  expect(paths.databaseUrl).toBe(`file:/repo/.cache/snap-stage/${SHORT}/orbweaver.db`);
-  expect(paths.assetsDir).toBe(`/repo/.cache/snap-stage/${SHORT}/assets`);
+  expect(paths.dataDir).toBe(`/repo/.cache/snap-stage/${SHORT}/data`);
+  expect(paths.databaseUrl).toBe(`file:/repo/.cache/snap-stage/${SHORT}/data/db/orbweaver.db`);
+  expect(paths.assetsDir).toBe(`/repo/.cache/snap-stage/${SHORT}/data/assets`);
+  expect(paths.secretsDir).toBe(`/repo/.cache/snap-stage/${SHORT}/data/secrets`);
 });
 
 // ── stageDecision (the staleness rule) ──────────────────────────────────────────────────────────────────
@@ -171,21 +173,22 @@ const DEV_ENV_SAMPLE = [
   "WIRE_CAPTURE=on",
 ].join("\n");
 
-test("stageInheritedEnv forwards the DB-BOUND keys — the owner handle AND the credentials key", () => {
+test("stageInheritedEnv forwards the DB-BOUND keys — the owner handle, the credentials key and the session secret", () => {
   const inherited = stageInheritedEnv(DEV_ENV_SAMPLE);
   expect(inherited["OWNER_HANDLES"]).toBe("owner@example.com");
   expect(inherited["CREDENTIALS_KEY"]).toBe("3d0f1a2b3c4d5e6f");
+  expect(inherited["SESSION_SECRET"]).toBe("hunter2hunter2hunter2");
   // The exact key SET, so a future addition has to come through the allowlist and its reason, not by accident.
-  expect(Object.keys(inherited)).toStrictEqual(["OWNER_HANDLES", "CREDENTIALS_KEY"]);
+  expect(Object.keys(inherited)).toStrictEqual(["OWNER_HANDLES", "CREDENTIALS_KEY", "SESSION_SECRET"]);
 });
 
 test("stageInheritedEnv forwards NOTHING else — the ORB_ENV_NO_FILE hatch stays narrow", () => {
   // The negative half of the same claim: an operator's real DEBUG_TOKEN / provider key / capture switch must
   // never arm a second, less-guarded surface on the stage port. That is the whole point of the hatch, so the
-  // allowlist is pinned by NAME, not merely by the two positives above.
-  expect([...STAGE_INHERITED_ENV_KEYS]).toStrictEqual(["OWNER_HANDLES", "CREDENTIALS_KEY"]);
+  // allowlist is pinned by NAME, not merely by the positives above.
+  expect([...STAGE_INHERITED_ENV_KEYS]).toStrictEqual(["OWNER_HANDLES", "CREDENTIALS_KEY", "SESSION_SECRET"]);
   const inherited = Object.keys(stageInheritedEnv(DEV_ENV_SAMPLE));
-  for (const leaked of ["DEBUG_TOKEN", "SESSION_SECRET", "OPENROUTER_API_KEY", "WIRE_CAPTURE"]) {
+  for (const leaked of ["DEBUG_TOKEN", "OPENROUTER_API_KEY", "WIRE_CAPTURE"]) {
     expect(inherited).not.toContain(leaked);
   }
 });

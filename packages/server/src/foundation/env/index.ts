@@ -15,6 +15,7 @@ import { authModeSchema } from "@orb/contracts/identity";
 import { AGENT_SDK_CONCURRENCY_MAX, LOG_LEVELS } from "@orb/contracts/settings";
 import { ALLOWED_HOSTS_KEY, parseAllowedHosts } from "@orb/kit/allowed-hosts";
 import { z } from "zod";
+import { DEFAULT_DATA_DIR, resolveDataLayout } from "#foundation/data-layout";
 import type { AllowedHostsInput } from "./allowed-hosts.ts";
 import { allowedHostsEntryRefusal, machineHostnameFor } from "./allowed-hosts.ts";
 import type { BindPostureInput } from "./bind.ts";
@@ -345,20 +346,31 @@ const envSchema = z
     // the random container host name out of the Host allowlist. Never set it on bare metal.
     ORB_CONTAINER: envBool(false),
 
-    DATABASE_URL: z.string().min(1).default("file:./data/orbweaver.db"),
+    // THE DATA ROOT (`foundation/data-layout` holds the tree). Every slot key below that is unset derives
+    // its path from here, and the slots with no key of their own (backups, secrets, variants, reports) only
+    // ever live under it — so "copy DATA_DIR except cache/" is the whole backup rule. cwd-relative by default
+    // (a prod launch runs at the repo root — buildProdSpawnPlan sets cwd); the container exports /app/data.
+    DATA_DIR: z.string().min(1).default(DEFAULT_DATA_DIR),
+    // The db, under `<DATA_DIR>/db/` unless set. An explicit value is left where it is by the layout migration.
+    DATABASE_URL: z.string().min(1).optional(),
+    // Legacy root entries (`import-reports`, `variants`, ...) the layout migration leaves where they are,
+    // comma-separated: the way out when a target cannot take an entry no slot key keeps (a mount point at
+    // `reports/`). The refusal that needs it names the entry and this key.
+    DATA_LAYOUT_SKIP: z.string().default(""),
     // The built client bundle (`vite build` output) the SPA registrar serves in prod. cwd-relative like
-    // ASSETS_DIR (a prod launch runs at the repo root — buildProdSpawnPlan sets cwd). Missing bundle: prod
-    // boot-fatal, dev skipped.
+    // DATA_DIR. Missing bundle: prod boot-fatal, dev skipped.
     CLIENT_DIST_DIR: z.string().min(1).default("./packages/client/dist"),
     // Content-addressed asset blob root (card PNGs, avatars); the DB holds metadata, bytes live here.
-    ASSETS_DIR: z.string().min(1).default("./data/assets"),
+    // `<DATA_DIR>/assets` unless set.
+    ASSETS_DIR: z.string().min(1).optional(),
     // Where the in-process local-light tier (transformers.js/ONNX — the GPU-less box's embed/rerank/
-    // imageEmbed/background-removal) downloads and keeps its model weights. cwd-relative like ASSETS_DIR.
-    // It MUST be under the data root: transformers.js's own default is `node_modules/@huggingface/
-    // transformers/.cache/`, which (a) is on the READ-ONLY rootfs in the container, so the first download
-    // fails and local-light is dead for exactly the audience it exists for, and (b) on bare metal puts
-    // multi-GB weights inside node_modules, where every `pnpm install` throws them away.
-    LOCAL_LIGHT_CACHE_DIR: z.string().min(1).default("./data/models/transformers"),
+    // imageEmbed/background-removal) downloads and keeps its model weights: `<DATA_DIR>/cache/models/
+    // transformers` unless set. It MUST be under a writable data root: transformers.js's own default is
+    // `node_modules/@huggingface/transformers/.cache/`, which (a) is on the READ-ONLY rootfs in the
+    // container, so the first download fails and local-light is dead for exactly the audience it exists
+    // for, and (b) on bare metal puts multi-GB weights inside node_modules, where every `pnpm install`
+    // throws them away.
+    LOCAL_LIGHT_CACHE_DIR: z.string().min(1).optional(),
     // Warm the local-light weights in the BACKGROUND just after the listener binds, instead of paying the
     // whole download on the first search/import/avatar. ON by default: the stranger who clones this repo and
     // runs it is exactly the person who would otherwise meet a several-minute stall with no explanation. Set
@@ -388,19 +400,19 @@ const envSchema = z
     // pinned at the one consuming site (model-cache.ts assigns this to `DataType`).
     LOCAL_LIGHT_EMBED_DTYPE: z.enum(["fp32", "fp16", "q8", "q4", "q4f16"]).default("q8"),
     // The controlled root the bundle-import extractor stages its per-upload dir under (a portability zip
-    // decompresses to disk, not RAM). Unset ⇒ the app-owned `DEFAULT_IMPORT_STAGING_DIR`
-    // (`domain/import/substrate/staging.ts`), deliberately NOT the OS temp dir: a shared world-listable
-    // namespace lets any other local process read an unconsumed upload's bytes. Whatever the root, each
-    // upload stages under a PER-OWNER subdir of it (#1534) — the handle is a name, never a capability.
+    // decompresses to disk, not RAM). Unset ⇒ `<DATA_DIR>/cache/import-staging`, deliberately NOT the OS
+    // temp dir: a shared world-listable namespace lets any other local process read an unconsumed upload's
+    // bytes. Whatever the root, each upload stages under a PER-OWNER subdir of it (#1534) — the handle is a
+    // name, never a capability.
     IMPORT_STAGING_DIR: z.string().min(1).optional(),
     // The staged ST profile snapshot the `import-st` workload reads (one subdir per ST user profile, each
     // with characters/chats/settings.json/User Avatars). Unset ⇒ repo-root `.st-data`.
     ST_PROFILE_DIR: z.string().min(1).optional(),
     // The PER-USER runtime-state root (inference program §8.4-2): `<USER_RUNTIME_DIR>/<ownerId>/claude/` is the
     // `CLAUDE_CONFIG_DIR` every agent-sdk spawn for that user sets, so the bundled runtime's own writable state
-    // (history, statsig, its settings) lives per user and never in a process-wide dir or `~/.claude`. A root
-    // BESIDE `ASSETS_DIR` (there is no common data-root key). The Docker data volume already holds `/app/data`.
-    USER_RUNTIME_DIR: z.string().min(1).default("./data/users"),
+    // (history, statsig, its settings) lives per user and never in a process-wide dir or `~/.claude`.
+    // `<DATA_DIR>/users` unless set.
+    USER_RUNTIME_DIR: z.string().min(1).optional(),
     // GOVERNANCE (inference program F12): the env FLOOR of `AppSettings.privateEndpointAllowlist` — the
     // private/loopback hosts and CIDRs an `auth: endpoint` connection may dial, comma-separated. Per DEPLOYMENT,
     // never per principal. Unset ⇒ born `127.0.0.1,::1` under `AUTH_MODE=single-user` (one human, one box) and
@@ -492,8 +504,8 @@ const envSchema = z
     FORWARD_AUTH_JWT_ISSUER: z.string().optional(),
     FORWARD_AUTH_JWT_AUDIENCE: z.string().optional(),
 
-    // 32 random bytes for AES-256-GCM (hex or base64). Unset ⇒ `.credentials-key` is generated beside the db
-    // on first boot and reused (`infra/crypto/key.ts`); an explicit value always wins.
+    // 32 random bytes for AES-256-GCM (hex or base64). Unset ⇒ `<DATA_DIR>/secrets/credentials_key` is
+    // generated on first boot and reused (`infra/crypto/key.ts`); an explicit value always wins.
     CREDENTIALS_KEY: z.string().optional(),
 
     // Required iff AUTH_MODE=oidc. OIDC_REDIRECT_URIS is a comma-list allowlist of the full callback URLs;
@@ -536,8 +548,9 @@ const envSchema = z
     // the endpoint validates the IdP's signed `logout_token` against the issuer JWKS and revokes every session
     // row for the matching subject. No Redis dependency (unlike OpenWebUI, which degrades to a no-op without it).
     OIDC_BACKCHANNEL_LOGOUT: envBool(false),
-    // HMAC-peppers the session tokenHash so a DB leak alone can't forge a session. Unset ⇒ `.session-secret`
-    // is generated beside the db on first boot and reused (`infra/crypto/key.ts`); an explicit value wins.
+    // HMAC-peppers the session tokenHash so a DB leak alone can't forge a session. Unset ⇒
+    // `<DATA_DIR>/secrets/session_secret` is generated on first boot and reused (`infra/crypto/key.ts`); an
+    // explicit value wins.
     SESSION_SECRET: z.string().min(MIN_SESSION_SECRET_CHARS).optional(),
     // The session cookie's transport (Secure `__Host-` over https, the insecure name over plain http) is
     // decided per request by `infra/auth/transport.ts`; there is no knob. An old `SESSION_COOKIE_INSECURE` line
@@ -703,8 +716,22 @@ const envSchema = z
   // what the operator actually TYPED (an unset key is not a `deny` they chose), while every consumer of the
   // frozen `env` needs the EFFECTIVE value and must never re-derive it. Placing it here is what keeps
   // `AUTH_FALLBACK` a `"owner" | "deny"` for the whole tree — `infra/auth/config`, the two posture inputs
-  // and `entry/lifecycle` all read it unchanged and no site branches on `undefined`.
-  .transform((val) => ({ ...val, AUTH_FALLBACK: resolveAuthFallback(val.AUTH_MODE, val.AUTH_FALLBACK) }));
+  // and `entry/lifecycle` all read it unchanged and no site branches on `undefined`. The data slots resolve
+  // the same way: every slot key reads as its EFFECTIVE path, and `DATA_LAYOUT` carries the whole tree for
+  // the slots that have no key of their own.
+  .transform((val) => {
+    const layout = resolveDataLayout(val);
+    return {
+      ...val,
+      AUTH_FALLBACK: resolveAuthFallback(val.AUTH_MODE, val.AUTH_FALLBACK),
+      DATABASE_URL: layout.databaseUrl,
+      ASSETS_DIR: layout.assets,
+      LOCAL_LIGHT_CACHE_DIR: layout.models,
+      USER_RUNTIME_DIR: layout.users,
+      IMPORT_STAGING_DIR: layout.importStaging,
+      DATA_LAYOUT: layout,
+    };
+  });
 
 /** The parsed, frozen env floor. Read down by every tier; the AUTH_MODE superRefine throws here (at
  *  module load) on a misconfigured deploy. */

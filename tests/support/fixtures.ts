@@ -10,7 +10,7 @@
 //   services        — `app.services` (the transport `Services` bundle), for direct front-door calls.
 //   importStagingDir — the temp upload staging root `app` is composed over. A test that builds an upload
 //                     route passes it as `stagingDir`, so the route and the import workload agree and
-//                     nothing stages under the repo's `data/import-staging` default.
+//                     nothing stages under the repo's `data/cache/import-staging` default.
 //   providerFetch   — the transport the composed inference runtime issues EVERY provider request on.
 //                     Defaults to a REFUSING fake: an unscripted provider call fails loudly instead of
 //                     silently reaching whatever happens to be listening on this box. Override it in a

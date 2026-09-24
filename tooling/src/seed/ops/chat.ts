@@ -25,6 +25,7 @@ import { createSessionsService, ownerHandles } from "@orb/server/domain/sessions
 import {
   createLocalLightUserSeed,
   DB_LAUNCHED,
+  migrateDataLayout,
   runBootMigrations,
   seedDefaultCharacters,
   seedDefaultPersona,
@@ -98,8 +99,9 @@ export async function runChatSeed(argv: readonly string[]): Promise<ExitCode> {
   }
 
   const now = (): number => Date.now();
+  await migrateDataLayout({ layout: env.DATA_LAYOUT });
   const db = await createDb(env.DATABASE_URL);
-  await runBootMigrations({ db, databaseUrl: env.DATABASE_URL, launched: DB_LAUNCHED });
+  await runBootMigrations({ db, databaseUrl: env.DATABASE_URL, backupDir: env.DATA_LAYOUT.backups, launched: DB_LAUNCHED });
 
   const sessionSecret = env.SESSION_SECRET ?? CHAT_SEED_SESSION_SECRET;
   const handles = ownerHandles();
@@ -119,7 +121,7 @@ export async function runChatSeed(argv: readonly string[]): Promise<ExitCode> {
     ownerId,
     secretBoxKey: null,
     casDir: env.ASSETS_DIR,
-    variantDir: `${env.ASSETS_DIR}/../variants`,
+    variantDir: env.DATA_LAYOUT.variants,
     sessionSecret,
     holder: "seed-chat",
     // The seeded local-light rows embed through the scripted cache — no download, no GPU, byte-stable.

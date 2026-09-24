@@ -2,8 +2,8 @@ import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 
 // AES-256-GCM encryption-at-rest for per-user secrets. Exposed as an injectable SecretBox (the project's
 // DI idiom) so the credentials store/resolver receive it and tests can supply a known key; the
-// composition root (entry/) builds the env-backed one via `createSecretBox(credentialsKeyFromEnv())`
-// (the key path lives in ./key). UNSET/invalid key ⇒ a DISABLED box (encrypt/decrypt throw at CALL time;
+// composition root (entry/) builds the env-backed one from the key `resolveCredentialsKey` (./key) resolves
+// and `entry/boot/boot-secrets.ts` settles. UNSET/invalid key ⇒ a DISABLED box (encrypt/decrypt throw at CALL time;
 // the store rejects writes) — degrade, NEVER throw at boot.
 //
 // The AAD belt: encrypt/decrypt CARRY the `aad` parameter and bind it into the GCM tag; this box NEVER

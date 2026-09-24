@@ -471,11 +471,37 @@ describe("foundation/env — the floor parse (defaults + transforms)", () => {
   // `node_modules/@huggingface/transformers/.cache/`: that path is on the read-only rootfs in the
   // container — so the first download fails and the GPU-less tier is dead for exactly the audience it
   // exists for — and on bare metal every `pnpm install` throws multi-GB weights away.
-  test("LOCAL_LIGHT_CACHE_DIR defaults under the data root and takes an override", async () => {
+  test("LOCAL_LIGHT_CACHE_DIR defaults under the data root's cache and takes an override", async () => {
     const { env } = await reimportEnvWith({});
-    expect(env.LOCAL_LIGHT_CACHE_DIR).toBe("./data/models/transformers");
+    expect(env.LOCAL_LIGHT_CACHE_DIR).toBe("./data/cache/models/transformers");
     const overridden = await reimportEnvWith({ LOCAL_LIGHT_CACHE_DIR: "/srv/orb-models" });
     expect(overridden.env.LOCAL_LIGHT_CACHE_DIR).toBe("/srv/orb-models");
+  });
+
+  // Every data slot reads as its EFFECTIVE path, and `DATA_LAYOUT` carries the slots with no key of their own.
+  test("the data slots resolve from DATA_DIR: the defaults, a re-rooted tree, and an explicit slot that wins", async () => {
+    const { env } = await reimportEnvWith({});
+    expect(env.DATA_DIR).toBe("./data");
+    expect(env.DATABASE_URL).toBe("file:./data/db/orbweaver.db");
+    expect(env.ASSETS_DIR).toBe("./data/assets");
+    expect(env.USER_RUNTIME_DIR).toBe("./data/users");
+    expect(env.IMPORT_STAGING_DIR).toBe("./data/cache/import-staging");
+    expect(env.DATA_LAYOUT.secrets).toBe("./data/secrets");
+    expect(env.DATA_LAYOUT.backups).toBe("./data/backups");
+    expect(env.DATA_LAYOUT.variants).toBe("./data/cache/variants");
+    expect(env.DATA_LAYOUT.reports).toBe("./data/reports");
+
+    const rerooted = await reimportEnvWith({ DATA_DIR: "/srv/orb", ASSETS_DIR: "/blobs" });
+    expect(rerooted.env.DATABASE_URL).toBe("file:/srv/orb/db/orbweaver.db");
+    expect(rerooted.env.ASSETS_DIR).toBe("/blobs");
+    expect(rerooted.env.DATA_LAYOUT.secrets).toBe("/srv/orb/secrets");
+    expect([...rerooted.env.DATA_LAYOUT.explicit]).toEqual(["ASSETS_DIR"]);
+  });
+
+  // A skipped db would boot onto a fresh empty one: the parse refuses the name and names the key that keeps it.
+  test("DATA_LAYOUT_SKIP is checked at parse: a name an env key keeps refuses the boot and names that key", async () => {
+    await expect(reimportEnvWith({ DATA_LAYOUT_SKIP: "orbweaver.db" })).rejects.toThrow("DATABASE_URL");
+    await expect(reimportEnvWith({ DATA_LAYOUT_SKIP: "import-report" })).rejects.toThrow("import-reports");
   });
 
   test("rate-limit budgets are boot-env with the documented floor", async () => {

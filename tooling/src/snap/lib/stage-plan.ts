@@ -6,6 +6,7 @@
 // docs/law/Core-Tooling-Law.md §4.3).
 import { basename, dirname, join } from "node:path";
 import { parseEnv } from "node:util";
+import { resolveDataLayout } from "@orb/server/foundation/data-layout";
 import { stageBandForPort } from "../../_shared/ports.ts";
 import type { BandAccess, StageBandClaim, StageDecision, StagePaths, StageRow } from "../contract/stage.ts";
 
@@ -57,13 +58,12 @@ export function stageRowBaseUrl(row: StageRow): string {
 
 export function stagePaths(root: string, sha: string): StagePaths {
   const dir = join(root, STAGE_ROOT_REL, shortSha(sha));
-  return {
-    dir,
-    // Absolute file: URL so the stage db lives under the stage dir regardless of the server's cwd — and is
-    // trivially removed on teardown with the whole dir.
-    databaseUrl: `file:${join(dir, "orbweaver.db")}`,
-    assetsDir: join(dir, "assets"),
-  };
+  // The stage's data root is ABSOLUTE and inside the stage dir, so its db, assets and secrets live under the
+  // stage regardless of the server's cwd — and go with the whole dir on teardown. The sub-paths come from the
+  // server's own resolver, so the stage and its server never disagree on where the db is.
+  const dataDir = join(dir, "data");
+  const layout = resolveDataLayout({ ["DATA_DIR"]: dataDir });
+  return { dir, dataDir, databaseUrl: layout.databaseUrl, assetsDir: layout.assets, secretsDir: layout.secrets };
 }
 
 const MS_PER_MINUTE = 60_000;
@@ -287,8 +287,13 @@ export function markerRootFromCommonDir(gitCommonDir: string): string {
  *                       orphaned processes for the ports. Measured 2026-08-09 on a stage seeded from the dev
  *                       DB: no key ⇒ `boot-failed` + `healthz=503`; same stage, same DB, key present ⇒
  *                       `stack: up` + `healthz=200`. That failure is what made `snap --isolated` blind.
+ *   • SESSION_SECRET  — the copied DB's password hashes and session rows were peppered with the dev secret.
+ *                       The boot REFUSES to generate a pepper over rows that depend on one
+ *                       (`entry/boot/boot-secrets.ts`), so a dev box that sets the secret explicitly has to
+ *                       hand it to the stage or the stage never boots. A dev box that lets the server
+ *                       generate it has a keyfile instead, which `seedStageData` copies.
  */
-export const STAGE_INHERITED_ENV_KEYS = ["OWNER_HANDLES", "CREDENTIALS_KEY"] as const;
+export const STAGE_INHERITED_ENV_KEYS = ["OWNER_HANDLES", "CREDENTIALS_KEY", "SESSION_SECRET"] as const;
 
 /** Pick the inherited keys out of a dev `.env`'s TEXT (pure — the imperative caller supplies the bytes).
  *  A key absent from the file is absent from the result, matching the schema's own unset fallback for each. */

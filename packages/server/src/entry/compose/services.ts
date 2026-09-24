@@ -1095,6 +1095,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     workloads,
     ...(deps.importStagingDir !== undefined ? { importStagingDir: deps.importStagingDir } : {}),
     ...(deps.stProfileDir !== undefined ? { stProfileDir: deps.stProfileDir } : {}),
+    importReportsDir: env.DATA_LAYOUT.reports,
   });
 
   // THE COVERED SET of a vector sweep, from its ENUMERATION SCOPE (#2517): `null` is the bulk arm, whose

@@ -21,8 +21,11 @@ export interface StagePorts {
 
 export interface StagePaths {
   readonly dir: string;
+  /** The stage's own data root (`DATA_DIR` for its server): the db, assets and secrets below all sit under it. */
+  readonly dataDir: string;
   readonly databaseUrl: string;
   readonly assetsDir: string;
+  readonly secretsDir: string;
 }
 
 /** Where a stage's DB came from, so `--stage-status` can answer "is this stage's data older than the dev

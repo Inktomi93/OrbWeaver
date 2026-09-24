@@ -82,15 +82,16 @@ Every cross-feature dependency is a **typed op declared in the consumer domain's
 Keep the split: **only `seedOwner` runs pre-compose**, because compose binds the owner role-clients against the owner id. **Every other seed runs post-compose**, because it consumes a composed service or seeder. `entry/lifecycle.ts` is the truth.
 
 1. **`installEgressFirewall()`** — the FIRST boot step (swaps undici's global dispatcher before anything else can open a socket; `docs/law/Tier-3-Infra.md`).
-2. **env** (`foundation/env`) — the one `process.env` read (at module load); `superRefine` boot-fatality per `AUTH_MODE`.
-3. **migrate** — `backupBeforeMigrate` → chain-aware baseline drift check (boot-FATAL on a db whose applied migration is in no shipped journal entry — D163; `pnpm seed:demo --fresh` is the only wipe) → migrations → `assertReferentialIntegrity`.
-4. **seed-owner (pre-compose)** — resolves the owner id the compose graph binds against, via a TRANSIENT sessions service (compose owns the real one). The ONLY pre-compose seed.
-5. **compose** — event bus + subscriptions, role clients, every domain service + injected ops, the auth seam, the effective-config getter.
-6. **crypto decrypt-probe** — `built.services.credentials.probeKeyDecrypt()`, immediately after compose (a failure flips healthz to `credentials_key_mismatch`; boot continues).
-7. **seed (post-compose)** — env→DB credential seed (needs the composed credentials service); default preset/themes/characters/persona (the seeders are composed); `reclaimChatLocksOnBoot`; then the fire-and-forget host-offline **deferred-turn drain** (`chat.drainDeferredTurns` — the `pending_turns` reclaim; does real generation, so it must NOT block listen).
-8. **supervisors** — the workloads worker poll loop, the catalog-refresh / workload-schedule / (oidc-only) oidc-gc schedulers.
-9. **serve** — mount `app.ts` (middleware + tRPC + `entry/http`, the SPA static-serve registered LAST so every API/auth route wins by order; a missing client bundle is boot-fatal in prod, skipped-with-log in dev where vite serves the SPA), await the async bind (an `EADDRINUSE` surfaces as a server `error` event, not a throw — boot fails loudly on a dead listener), start listening; healthz goes live.
-10. **shutdown** — close the listener (healthz → 503 first, so the LB pulls traffic), stop supervisors, drain vLLM, db pre-close housekeeping.
+2. **env** (`foundation/env`) — the one `process.env` read (at module load); `superRefine` boot-fatality per `AUTH_MODE`; the data slots resolve from `DATA_DIR` through `foundation/data-layout` and ride the frozen env as `DATA_LAYOUT`.
+3. **data layout** (`entry/boot/migrate-data-layout.ts`) — before any file under the data root opens: a legacy flat data dir is renamed into the layout's tree under a journal (a snapshot of the db into `backups/` first; a legacy path whose target holds data is a refusal). Then the boot secrets' pre-db phase (`infra/crypto`): an explicit value or an existing keyfile; a missing keyfile stays `absent`; a cookie mode with an unusable pepper refuses here.
+4. **migrate** — `backupBeforeMigrate` into the layout's `backups/` → chain-aware baseline drift check (boot-FATAL on a db whose applied migration is in no shipped journal entry — D163; `pnpm seed:demo --fresh` is the only wipe) → migrations → `assertReferentialIntegrity`. Then the boot secrets settle (`entry/boot/boot-secrets.ts`): an `absent` keyfile is generated only when no row depends on it, else the boot refuses and names the file.
+5. **seed-owner (pre-compose)** — resolves the owner id the compose graph binds against, via a TRANSIENT sessions service (compose owns the real one). The ONLY pre-compose seed.
+6. **compose** — event bus + subscriptions, role clients, every domain service + injected ops, the auth seam, the effective-config getter.
+7. **crypto decrypt-probe** — `built.services.credentials.probeKeyDecrypt()`, immediately after compose (a failure flips healthz to `credentials_key_mismatch`; boot continues).
+8. **seed (post-compose)** — env→DB credential seed (needs the composed credentials service); default preset/themes/characters/persona (the seeders are composed); `reclaimChatLocksOnBoot`; then the fire-and-forget host-offline **deferred-turn drain** (`chat.drainDeferredTurns` — the `pending_turns` reclaim; does real generation, so it must NOT block listen).
+9. **supervisors** — the workloads worker poll loop, the catalog-refresh / workload-schedule / (oidc-only) oidc-gc schedulers.
+10. **serve** — mount `app.ts` (middleware + tRPC + `entry/http`, the SPA static-serve registered LAST so every API/auth route wins by order; a missing client bundle is boot-fatal in prod, skipped-with-log in dev where vite serves the SPA), await the async bind (an `EADDRINUSE` surfaces as a server `error` event, not a throw — boot fails loudly on a dead listener), start listening; healthz goes live.
+11. **shutdown** — close the listener (healthz → 503 first, so the LB pulls traffic), stop supervisors, drain vLLM, db pre-close housekeeping.
 
 ## Invariants
 

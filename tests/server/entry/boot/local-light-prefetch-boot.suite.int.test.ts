@@ -41,9 +41,8 @@ const heldCache: LocalLightModelCache = {
   },
 };
 
-vi.stubEnv("DATABASE_URL", `file:${join(TEMP_DIR, "orb.db")}`);
+vi.stubEnv("DATA_DIR", TEMP_DIR);
 vi.stubEnv("AUTH_MODE", "single-user");
-vi.stubEnv("ASSETS_DIR", join(TEMP_DIR, "assets"));
 vi.stubEnv("LOCAL_LIGHT_CACHE_DIR", CACHE_DIR);
 // Boot installs the SSRF egress firewall; this test's own polls reach the server under test through the same
 // global fetch, so it needs the operator allowlist seam (the lifecycle int test carries the same line).

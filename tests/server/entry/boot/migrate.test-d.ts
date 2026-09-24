@@ -15,7 +15,7 @@ import { expectTypeOf, test } from "vitest";
 test("`launched` is a REQUIRED MigrateDeps key — omitting it cannot typecheck", () => {
   expectTypeOf<MigrateDeps["launched"]>().toEqualTypeOf<boolean>();
   // The refusal itself: the shape the pre-fix lifecycle passed no longer satisfies MigrateDeps.
-  expectTypeOf<{ db: Db; databaseUrl: string }>().not.toExtend<MigrateDeps>();
+  expectTypeOf<{ db: Db; databaseUrl: string; backupDir: string }>().not.toExtend<MigrateDeps>();
   // …and adding the flag is what makes it satisfy it again.
-  expectTypeOf<{ db: Db; databaseUrl: string; launched: boolean }>().toExtend<MigrateDeps>();
+  expectTypeOf<{ db: Db; databaseUrl: string; backupDir: string; launched: boolean }>().toExtend<MigrateDeps>();
 });
