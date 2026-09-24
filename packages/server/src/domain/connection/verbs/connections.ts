@@ -136,6 +136,7 @@ function createCreate(ctx: ConnectionContext): ConnectionService["create"] {
       { actorUserId: ownerId, action: "connection.create", entityType: "connection", entityId: id, metadata: { providerId: provider.id, model } },
       now,
     );
+    ctx.emitUserEvent(ownerId, { type: "connectionsChanged" });
     return toView(ctx, await requireOwnedRow(ctx, ownerId, id));
   };
 }
@@ -191,6 +192,7 @@ function createUpdate(ctx: ConnectionContext): ConnectionService["update"] {
     if (spacesDiffer(before, await vectorSpacesOf(ctx, params.principal))) {
       ctx.onEmbedSpaceChanged(ownerId);
     }
+    ctx.emitUserEvent(ownerId, { type: "connectionsChanged" });
     return toView(ctx, await requireOwnedRow(ctx, ownerId, row.id));
   };
 }
@@ -205,6 +207,7 @@ function createRemove(ctx: ConnectionContext): ConnectionService["remove"] {
     if (wasVector) {
       ctx.onEmbedSpaceChanged(ownerId);
     }
+    ctx.emitUserEvent(ownerId, { type: "connectionsChanged" });
   };
 }
 

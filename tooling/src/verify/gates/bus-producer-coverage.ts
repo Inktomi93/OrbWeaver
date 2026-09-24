@@ -17,20 +17,19 @@
 // roster refuses as a blind instrument, and the definition fact's independently derived belted roster must
 // AGREE with it or the run refuses.
 //
-// THE DEFERRED MEMBERS ARE NOT AN ALLOWLIST HERE. An owner-deferred member is warning debt owned by
-// `user-bus-deferred-member` (hard/warning, `workItem: 1822`) — an error policy cannot carry that owner
-// (docs/law/gate-runtime-standardization.md §"Authority and exceptions"). This policy imports that module's exact
-// (union, member) rows so the two halves are ONE decision: deleting the deferral module when its work item
-// lands makes this policy own the member in the same edit, and `tsc` refuses any half of that removal.
+// THE DEFERRED-MEMBER CARVE-OUT IS RETIRED (0121): the one live row, `connectionsChanged`, gained its
+// canonical producer and the `user-bus-deferred-member` policy plus its shared `lib/bus-deferred-member.ts`
+// registry were deleted in the same edit, exactly as that policy's own retirement instruction required.
+// This policy now owns every declared member of every belted bus by construction — there is no second,
+// owner-authorized carve-out left to read.
 //
 // Identity — which call is a producer, which relay carries a member, which argument proves nothing — is the
 // shared `busProducerFact`'s question, not this policy's. It owns no name table, no path regex and no walk.
 //
-// FAMILY `bus-fact` — the shared reader is `lib/bus-fact.ts` (`busProducerFact`), read identically by the
-// three policies that SPLIT by authority and severity rather than by subject: this ordinary/error one, the
-// hard/error `bus-fact-health` that guards the census before any verdict is trusted, and the hard/warning
-// `user-bus-deferred-member` that owns the owner-deferred rows. The `family` string is identical across all
-// three by construction. This policy ALSO reads the sibling family's provider, `lib/bus-definition-fact.ts`
+// FAMILY `bus-fact` — the shared reader is `lib/bus-fact.ts` (`busProducerFact`), read identically by this
+// ordinary/error policy and the hard/error `bus-fact-health` that guards the census before any verdict is
+// trusted. The `family` string is identical across both by construction. This policy ALSO reads the sibling
+// family's provider, `lib/bus-definition-fact.ts`
 // (`busDefinitionFact`) — not for identity, but solely so the two independently derived belted rosters can
 // be required to AGREE, which is the guarantee that retired `bus-coverage-owner` (see below). Identity —
 // which call is a producer, which relay carries a member — is the fact's question, never this module's; it
@@ -68,7 +67,6 @@ import type { Node as MorphNode } from "ts-morph";
 import type { BusDeclarationIdentity, BusRecord } from "../contract/bus-fact.ts";
 import { recordReadyBusFact } from "../contract/bus-fact.ts";
 import { defineGate } from "../contract/policy.ts";
-import { deferralsFor } from "../lib/bus-deferred-member.ts";
 import { busDefinitionFact } from "../lib/bus-definition-fact.ts";
 import { busProducerFact } from "../lib/bus-fact.ts";
 
@@ -103,14 +101,11 @@ function assertRosterAgreement(producerBelted: ReadonlySet<string>, definitionBe
   }
 }
 
-/** Every declared member of one bus with no proven emitter and no owner deferral, as its finding. The
- *  deferrals are read THROUGH the deferral module's own selector, per bus, so "which members are deferred"
- *  is answered by `(union, member)` in one home rather than by a name in two. */
+/** Every declared member of one bus with no proven emitter, as its finding. */
 function uncoveredMembers(bus: BusRecord): readonly { readonly node: MorphNode; readonly message: string }[] {
   const emitted = new Set(bus.emitters.map(({ member }) => member.name));
-  const deferred = new Set(deferralsFor(bus.union));
   return bus.declaredMembers
-    .filter((member) => !(emitted.has(member.name) || deferred.has(member.name)))
+    .filter((member) => !emitted.has(member.name))
     .map((member) => ({ node: member.anchor.node, message: `${MESSAGE} Union: ${bus.union.exportName}. Member: ${member.name}` }));
 }
 
@@ -247,6 +242,17 @@ export const gate = defineGate({
       },
       expect: { count: 1, messageIncludes: "crew.updated" },
       why: "an arbitrary matching literal is not the injected domain-event operation",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/contracts/src/user-bus/index.ts":
+          'export type UserBusEvent = { type: "connectionsChanged" } | { type: "emitted" };\nexport const USER_BUS_EVENT_TYPES = { connectionsChanged: true, emitted: true } satisfies Record<UserBusEvent["type"], true>;\n',
+        "packages/server/src/domain/settings/verbs/update.ts":
+          'import type { UserBusEvent } from "../../../../../contracts/src/user-bus/index.ts";\nexport function update(ctx: { emitUserEvent: (userId: string, event: UserBusEvent) => void }, userId: string): void {\n  ctx.emitUserEvent(userId, { type: "emitted" });\n}\n',
+      },
+      expect: { count: 1, messageIncludes: "connectionsChanged" },
+      why: "THE RETIRED DEFERRAL'S REGRESSION GUARD (0121): `connectionsChanged` used to be the one owner-deferred member, carved out by the now-deleted `user-bus-deferred-member` policy; with that carve-out gone this policy owns it by construction the moment it loses its producer, exactly like any other declared-never-emitted member",
     },
     {
       mode: "types",
@@ -396,16 +402,6 @@ export const gate = defineGate({
           'import type { UserBusEvent } from "../../../../contracts/src/user-bus/index.ts";\nimport { defineBusChannel } from "./bus-channel.ts";\nconst bus = defineBusChannel<string, UserBusEvent>((userId) => `user:${userId}`);\nexport function publishUserEvent(userId: string, event: UserBusEvent): void {\n  bus.publish(userId, event);\n}\nexport function publishChatChanged(userId: string, chatId: string | undefined): void {\n  const event: UserBusEvent = chatId === undefined ? { type: "chatsChanged" } : { type: "chatsChanged", chatId };\n  publishUserEvent(userId, event);\n}\n',
       },
       why: "THE CONDITIONAL PUBLISHER, in the shape the live tree has it: a member built in a conditional local, relayed through the module publisher, and fanned by the one bus-channel mint whose OVERLOADED factory made the old reader blind",
-    },
-    {
-      mode: "types",
-      files: {
-        "packages/contracts/src/user-bus/index.ts":
-          'export type UserBusEvent = { type: "connectionsChanged" } | { type: "emitted" };\nexport const USER_BUS_EVENT_TYPES = { connectionsChanged: true, emitted: true } satisfies Record<UserBusEvent["type"], true>;\n',
-        "packages/server/src/domain/settings/verbs/update.ts":
-          'import type { UserBusEvent } from "../../../../../contracts/src/user-bus/index.ts";\nexport function update(ctx: { emitUserEvent: (userId: string, event: UserBusEvent) => void }, userId: string): void {\n  ctx.emitUserEvent(userId, { type: "emitted" });\n}\n',
-      },
-      why: "the owner-deferred member is owned by the warning-debt sibling, not by this error policy — the exact split the retired DEFERRED allowlist used to express as a local table, now keyed by (union, member) so a same-named member of ANOTHER bus is not silently deferred with it",
     },
     {
       mode: "types",

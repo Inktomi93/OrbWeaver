@@ -113,6 +113,7 @@ function createSetBinding(ctx: ConnectionContext): ConnectionService["setBinding
     if (actor.actorKind === "user" && VECTOR_TASKS.includes(params.task)) {
       ctx.onEmbedSpaceChanged(userId);
     }
+    ctx.emitUserEvent(userId, { type: "connectionsChanged" });
     return written;
   };
 }
@@ -136,6 +137,7 @@ function createUseForEverything(ctx: ConnectionContext): ConnectionService["useF
     if (tasks.some((task) => VECTOR_TASKS.includes(task))) {
       ctx.onEmbedSpaceChanged(userId);
     }
+    ctx.emitUserEvent(userId, { type: "connectionsChanged" });
     return written;
   };
 }
