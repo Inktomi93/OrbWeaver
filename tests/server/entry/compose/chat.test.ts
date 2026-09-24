@@ -174,10 +174,7 @@ describe("createTurnPersonaResolver — the people projection", () => {
       ),
     ),
   );
-  const seat = (userId: UserId, personaId: string | null): HumanSeatPersona => ({
-    userId,
-    personaId: personaId === null ? null : castId<PersonaId>(personaId),
-  });
+  const seat = (userId: UserId, personaId: PersonaId | null): HumanSeatPersona => ({ userId, personaId });
   const base = { anchorPersonaId: castId<PersonaId>("persona_alice"), runAsUserId: host, trigger: { kind: "none" } as const, voice: "anchor" as const };
   const names = (people: readonly { readonly name: string }[] | undefined): readonly string[] | undefined => people?.map((p) => p.name);
 
@@ -185,7 +182,12 @@ describe("createTurnPersonaResolver — the people projection", () => {
     const out = await resolve({
       ...base,
       presentHumanUserIds: [host, bob, cara, dave],
-      humanSeats: [seat(cara, "persona_cara"), seat(host, "persona_alice"), seat(dave, null), seat(bob, "persona_bob")],
+      humanSeats: [
+        seat(cara, castId<PersonaId>("persona_cara")),
+        seat(host, castId<PersonaId>("persona_alice")),
+        seat(dave, null),
+        seat(bob, castId<PersonaId>("persona_bob")),
+      ],
     });
 
     expect(out.active?.name).toBe("Alice");
@@ -194,7 +196,11 @@ describe("createTurnPersonaResolver — the people projection", () => {
   });
 
   test("a departed owner's persona never projects (the consent gate), even when a stale seat still names it", async () => {
-    const out = await resolve({ ...base, presentHumanUserIds: [host], humanSeats: [seat(host, "persona_alice"), seat(bob, "persona_bob")] });
+    const out = await resolve({
+      ...base,
+      presentHumanUserIds: [host],
+      humanSeats: [seat(host, castId<PersonaId>("persona_alice")), seat(bob, castId<PersonaId>("persona_bob"))],
+    });
 
     expect(out.people).toBeUndefined();
   });
@@ -205,7 +211,7 @@ describe("createTurnPersonaResolver — the people projection", () => {
       voice: "trigger",
       trigger: { kind: "human", userId: bob, personaId: castId<PersonaId>("persona_bob") },
       presentHumanUserIds: [host, bob],
-      humanSeats: [seat(host, "persona_alice"), seat(bob, "persona_bob")],
+      humanSeats: [seat(host, castId<PersonaId>("persona_alice")), seat(bob, castId<PersonaId>("persona_bob"))],
     });
 
     expect(out.active?.name).toBe("Bob");
@@ -213,7 +219,7 @@ describe("createTurnPersonaResolver — the people projection", () => {
   });
 
   test("a solo room projects no people", async () => {
-    const out = await resolve({ ...base, presentHumanUserIds: [host], humanSeats: [seat(host, "persona_alice")] });
+    const out = await resolve({ ...base, presentHumanUserIds: [host], humanSeats: [seat(host, castId<PersonaId>("persona_alice"))] });
     const alice = { name: "Alice", description: "Alice-DESC", placement: { kind: "in_prompt" } };
 
     expect(out).toEqual({ anchor: alice, active: alice, activeUserId: host });
