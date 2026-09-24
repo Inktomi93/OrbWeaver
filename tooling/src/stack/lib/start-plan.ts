@@ -141,14 +141,14 @@ export function startSpawnPlan(opts: {
 }
 
 /** WHO CAN LOG IN, in one line. `single-user` is the default mode and the one whose reach surprises
- *  people: the owner fallback admits a LOOPBACK peer only, so the app is owner-only from this machine and
- *  401s the LAN by construction (infra/auth/dispatch.ts — the unspoofable socket, not a `Host` header). */
+ *  people: it has no login, so the server listens on loopback only and another device cannot connect at all
+ *  (foundation/env/bind.ts). */
 function startPostureLine(mode: string, fallbackFilled: boolean): string {
   if (mode !== SINGLE_USER_MODE) {
     return `mode: ${mode} — sign in as that mode configures.`;
   }
   if (fallbackFilled) {
-    return "mode: single-user — you are the owner FROM THIS MACHINE (AUTH_FALLBACK=owner, loopback only); another device on your network gets a 401.";
+    return "mode: single-user — you are the owner FROM THIS MACHINE (AUTH_FALLBACK=owner, loopback only); another device on your network cannot connect.";
   }
   return "mode: single-user with your own AUTH_FALLBACK — left exactly as you set it.";
 }
