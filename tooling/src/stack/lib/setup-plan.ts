@@ -1,6 +1,5 @@
-// Every decision `pnpm start`'s setup makes, pure: when to ask, the defaults `.env` offers, which values each
-// answer writes, and the in-place `.env` edit. The edit touches only the keys in SETUP_OWNED_KEYS; every other
-// byte of the file (comments, unknown keys, line endings) survives.
+// Every decision `pnpm start`'s setup makes, pure: when to ask, the defaults `.env` offers, and the `.env` edits each
+// answer makes. `@orb/kit/env-file` applies the edits in place, so every other byte of the file survives.
 import type { AuthMode } from "@orb/contracts/identity";
 import { authModeSchema, SETUP_COMMAND } from "@orb/contracts/identity";
 import {
@@ -12,14 +11,16 @@ import {
   machineHostNames,
   splitHostList,
 } from "@orb/kit/allowed-hosts";
+import type { EnvEdit } from "@orb/kit/env-file";
+import { DELETE_ENV_LINE } from "@orb/kit/env-file";
 import { DEV_PORTS, MAX_TCP_PORT } from "../../_shared/ports.ts";
 import type { AnswerParse, SetupAnswers, SetupAudience, SetupDecision, SetupLogin, SetupMachine, SetupUrl, SetupValues } from "../contract/types.ts";
 
 export const PORT_KEY = "PORT";
 export const AUTH_MODE_KEY = "AUTH_MODE";
 
-/** The only keys setup ever writes. Secrets are generated as keyfiles beside the database, never written here. */
-const SETUP_OWNED_KEYS = [PORT_KEY, AUTH_MODE_KEY, ALLOWED_HOSTS_KEY] as const;
+/** The listen address key. Setup never writes a value to it; a network answer deletes it ({@link setupEnvEdits}). */
+export const BIND_HOST_KEY = "BIND_HOST";
 
 /** The mode whose ONLY credential is the loopback owner fallback (foundation/env: AUTH_MODE's default). */
 export const SINGLE_USER_MODE = "single-user";
@@ -38,7 +39,6 @@ const MODE_ANSWERS: Record<AuthMode, { readonly audience: SetupAudience; readonl
 // The `ALLOWED_HOSTS` grammar and the always-allowed rule are `@orb/kit/allowed-hosts`, shared with the server; an
 // always-allowed host (localhost, `*.localhost`, an IP literal) is never written.
 const DIGITS_RE = /^\d+$/u;
-const LINE_ENDING_RE = /\r$/u;
 const LINK_LOCAL_V4_PREFIX = "169.254.";
 /** Tailscale's CGNAT range, 100.64.0.0/10. */
 const TAILNET_FIRST_OCTET = 100;
@@ -49,8 +49,8 @@ const TAILNET_SECOND_OCTET_MAX = 127;
 const VIRTUAL_ADAPTER_RE = /^(?:docker|br-|veth|virbr|vmnet|vboxnet|vethernet|virtualbox|vmware|utun|tailscale|zt|bridge)/iu;
 const WSL2_KERNEL_RE = /microsoft-standard|wsl2/iu;
 
-/** The header of a `.env` setup creates. The file then holds only the owned keys. */
-const SETUP_FILE_HEADER = `# Written by \`${SETUP_COMMAND}\`; run it again to change these. Every other setting is in .env.example.`;
+/** The header of a `.env` setup creates. The file then holds only the keys setup writes. */
+export const SETUP_FILE_HEADER = `# Written by \`${SETUP_COMMAND}\`; run it again to change these. Every other setting is in .env.example.`;
 
 export function decideSetup(opts: { readonly envExists: boolean; readonly setup: boolean; readonly interactive: boolean }): SetupDecision {
   if (opts.setup) {
@@ -185,54 +185,13 @@ export function parseAddressAnswer(raw: string, known: readonly string[]): Answe
   return { ok: true, value: unique.length === 0 ? null : unique.join(",") };
 }
 
-type OwnedKey = (typeof SETUP_OWNED_KEYS)[number];
-
-/** `KEY=value` with an optional `export ` prefix, a quoted or bare value, and whatever follows it (an inline comment). */
-const ASSIGNMENT_PATTERNS: Readonly<Record<OwnedKey, RegExp>> = {
-  [PORT_KEY]: assignmentPattern(PORT_KEY),
-  [AUTH_MODE_KEY]: assignmentPattern(AUTH_MODE_KEY),
-  [ALLOWED_HOSTS_KEY]: assignmentPattern(ALLOWED_HOSTS_KEY),
-};
-
-function assignmentPattern(key: string): RegExp {
-  return new RegExp(`^(\\s*(?:export\\s+)?${key}\\s*=\\s*)("[^"]*"|'[^']*'|\`[^\`]*\`|[^\\s#]*)(.*)$`, "u");
-}
-
-/** The value text setup writes for each owned key; `null` leaves that key's lines as they are. */
-function ownedValues(values: SetupValues): Readonly<Record<OwnedKey, string | null>> {
-  return { [PORT_KEY]: String(values.port), [AUTH_MODE_KEY]: values.authMode, [ALLOWED_HOSTS_KEY]: values.allowedHosts };
-}
-
-/** Write `values` into `.env` text: every assignment of an owned key gets the new value in place, an owned key the
- *  file lacks is appended, and nothing else changes. `null` text is a new file. The same values applied twice give
- *  the same bytes. */
-export function applySetupValues(text: string | null, values: SetupValues): string {
-  const owned = ownedValues(values);
-  if (text === null) {
-    const assignments = SETUP_OWNED_KEYS.flatMap((key) => (owned[key] === null ? [] : [`${key}=${owned[key]}`]));
-    return `${[SETUP_FILE_HEADER, ...assignments].join("\n")}\n`;
-  }
-  const eol = text.includes("\r\n") ? "\r\n" : "\n";
-  const seen = new Set<OwnedKey>();
-  const lines = text.split("\n").map((line) => {
-    const ending = LINE_ENDING_RE.test(line) ? "\r" : "";
-    const body = ending === "" ? line : line.slice(0, -1);
-    for (const key of SETUP_OWNED_KEYS) {
-      const match = ASSIGNMENT_PATTERNS[key].exec(body);
-      if (match !== null) {
-        seen.add(key);
-        const value = owned[key];
-        return value === null ? line : `${match[1]}${value}${match[3]}${ending}`;
-      }
-    }
-    return line;
-  });
-  let out = lines.join("\n");
-  for (const key of SETUP_OWNED_KEYS) {
-    const value = owned[key];
-    if (value !== null && !seen.has(key)) {
-      out = `${out}${out === "" || out.endsWith("\n") ? "" : eol}${key}=${value}${eol}`;
-    }
-  }
-  return out;
+/** The edits the answers make to `.env`, in the order a new file lists them. A network answer also deletes
+ *  `BIND_HOST`: a share from a `just-me` box pins the bind to loopback, and choosing the network opens it again. */
+export function setupEnvEdits(values: SetupValues): readonly EnvEdit[] {
+  return [
+    { key: PORT_KEY, value: String(values.port) },
+    { key: AUTH_MODE_KEY, value: values.authMode },
+    { key: ALLOWED_HOSTS_KEY, value: values.allowedHosts },
+    { key: BIND_HOST_KEY, value: values.authMode === SINGLE_USER_MODE ? null : DELETE_ENV_LINE },
+  ];
 }

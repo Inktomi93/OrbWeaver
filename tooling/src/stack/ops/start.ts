@@ -6,6 +6,9 @@
 //   pnpm start --setup        ask the setup questions again (ops/setup.ts); a first run in a terminal asks anyway
 //   pnpm start --port <n>     bind <n> for this launch only; `.env` is not written
 //
+// A server that exits with `RESTART_EXIT_CODE` (@orb/kit/supervisor) is spawned again from a re-read `.env`
+// (lib/supervisor.ts); the setup pass and the build run once per invocation, never per respawn.
+//
 // THE AUDIENCE IS A STRANGER on macOS, Windows or Linux with node 26, pnpm and a clone. The other
 // launcher, `pnpm stack` (stack.sh), is a bash supervisor built on setsid/ss//proc — Linux only — and
 // even there it made a newcomer know two more things: to `pnpm build` first, and — while AUTH_FALLBACK's
@@ -36,20 +39,12 @@ import { print, REPO_ROOT } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { warn } from "../../_shared/log.ts";
-import { childExitCode, forwardSignalsTo, spawnFullPriorityChild, spawnFullPrioritySync } from "../../_shared/proc.ts";
-import type { ProdSpawnPlan, SetupMachine, SetupResult } from "../contract/types.ts";
-import { effectiveAuthMode, isWsl2Kernel } from "../lib/setup-plan.ts";
+import { spawnFullPriorityChild, spawnFullPrioritySync } from "../../_shared/proc.ts";
+import type { ProdSpawnPlan, SetupMachine, SetupResult, StartInvocation } from "../contract/types.ts";
+import { isWsl2Kernel } from "../lib/setup-plan.ts";
 import { CLIENT_DIST_INDEX_REL } from "../lib/spawn-plan.ts";
-import {
-  decideStartBuild,
-  parseStartArgv,
-  portOverrideEnv,
-  resolvePnpmInvocation,
-  START_USAGE,
-  singleUserFallbackEnv,
-  startBannerLines,
-  startSpawnPlan,
-} from "../lib/start-plan.ts";
+import { decideStartBuild, parseStartArgv, resolvePnpmInvocation, START_USAGE, startBannerLines, startLaunch } from "../lib/start-plan.ts";
+import { superviseStart } from "../lib/supervisor.ts";
 import { AMBIENT, ENV_FILE_PATH, LOG_PATH, readEnvFile, resolvePort } from "./prod-state.ts";
 import { distVerdict } from "./prod-support.ts";
 import { runSetup } from "./setup.ts";
@@ -74,20 +69,6 @@ function runBuild(): number | null {
     return EXIT.violations;
   }
   return null;
-}
-
-/** The foreground production server: inherited stdio, forwarded signals, the child's own exit status. */
-async function runServer(plan: ProdSpawnPlan): Promise<number> {
-  const child = spawnFullPriorityChild(plan.command, [...plan.args], { cwd: plan.cwd, env: { ...plan.env }, stdio: "inherit" });
-  forwardSignalsTo(child, (signal, handler) => {
-    process.on(signal, handler);
-  });
-  const exit = await child.wait();
-  if (exit.error !== undefined) {
-    warn(`start: could not run the server — ${exit.error.message}`);
-    return EXIT.toolError;
-  }
-  return childExitCode(exit);
 }
 
 /** Where WSL2 identifies its kernel; read only on Linux, where it always exists. */
@@ -135,18 +116,14 @@ async function prepareEnvFile(setup: boolean): Promise<number | null> {
   return SETUP_OUTCOMES[result.kind]();
 }
 
-/** `pnpm start`'s whole dispatch. argv is WITHOUT the node/script prefix. */
-export async function runStart(argv: readonly string[]): Promise<number> {
-  const parsed = parseStartArgv(argv);
-  if (!parsed.ok) {
-    warn(`start: ${parsed.error}\n${START_USAGE}`);
-    return EXIT.misuse;
-  }
-  const stop = await prepareEnvFile(parsed.invocation.setup);
+/** Everything before the first spawn, once per invocation: the setup pass, the build, the bundle check. Returns an
+ *  exit code when the launch must stop. */
+async function prepareLaunch(invocation: StartInvocation): Promise<number | null> {
+  const stop = await prepareEnvFile(invocation.setup);
   if (stop !== null) {
     return stop;
   }
-  const decision = decideStartBuild(distVerdict(), parsed.invocation.build);
+  const decision = decideStartBuild(distVerdict(), invocation.build);
   log(decision.reason);
   if (decision.run) {
     const buildStop = runBuild();
@@ -161,19 +138,37 @@ export async function runStart(argv: readonly string[]): Promise<number> {
     warn(`start: there is no ${CLIENT_DIST_INDEX_REL} and --no-build was given — production boot would throw. Re-run \`pnpm start\` without --no-build.`);
     return EXIT.violations;
   }
-  // `.env` is read the way the app reads it (parsed once, file wins over the shell) for exactly two
-  // questions: which port to print, and which auth mode is in force. The app loads the file itself.
+  return null;
+}
+
+/** One spawn's plan from `.env` as it is now, and the banner for it. The app loads the file itself; the launcher reads
+ *  it for the child env overlays, the port to print and the auth mode in force. */
+function launchFromFile(invocation: StartInvocation): ProdSpawnPlan {
   const fileEnv = readEnvFile();
-  const fallbackEnv = singleUserFallbackEnv(fileEnv, AMBIENT);
-  const { port } = parsed.invocation;
-  const launchEnv = port === null ? fallbackEnv : { ...fallbackEnv, ...portOverrideEnv(fileEnv, port) };
-  const plan = startSpawnPlan({ repoRoot: REPO_ROOT, nodePath: process.execPath, baseEnv: AMBIENT, fallbackEnv: launchEnv, logPath: LOG_PATH() });
-  for (const line of startBannerLines({
-    port: port ?? resolvePort(fileEnv),
-    mode: effectiveAuthMode(fileEnv, AMBIENT),
-    fallbackFilled: Object.keys(fallbackEnv).length > 0,
-  })) {
+  const launch = startLaunch({ repoRoot: REPO_ROOT, nodePath: process.execPath, fileEnv, ambient: AMBIENT, invocation, logPath: LOG_PATH() });
+  for (const line of startBannerLines({ port: invocation.port ?? resolvePort(fileEnv), mode: launch.mode, fallbackFilled: launch.fallbackFilled })) {
     print(line);
   }
-  return await runServer(plan);
+  return launch.plan;
+}
+
+/** `pnpm start`'s whole dispatch. argv is WITHOUT the node/script prefix. */
+export async function runStart(argv: readonly string[]): Promise<number> {
+  const parsed = parseStartArgv(argv);
+  if (!parsed.ok) {
+    warn(`start: ${parsed.error}\n${START_USAGE}`);
+    return EXIT.misuse;
+  }
+  const { invocation } = parsed;
+  return await superviseStart({
+    prepare: async () => await prepareLaunch(invocation),
+    launch: () => launchFromFile(invocation),
+    spawn: (plan) => spawnFullPriorityChild(plan.command, [...plan.args], { cwd: plan.cwd, env: { ...plan.env }, stdio: "inherit" }),
+    register: (signal, handler) => {
+      process.on(signal, handler);
+    },
+    notice: (message) => {
+      warn(`start: ${message}`);
+    },
+  });
 }

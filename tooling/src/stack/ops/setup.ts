@@ -4,6 +4,7 @@ import { writeFileSync } from "node:fs";
 import { createInterface } from "node:readline";
 import { SETUP_COMMAND } from "@orb/contracts/identity";
 import { ALLOWED_HOSTS_KEY, machineHostNames, splitHostList } from "@orb/kit/allowed-hosts";
+import { applyEnvEdits } from "@orb/kit/env-file";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type {
   AnswerParse,
@@ -19,7 +20,7 @@ import type {
 import { SETUP_AUDIENCES, SETUP_LOGINS } from "../contract/types.ts";
 import {
   AUTH_MODE_KEY,
-  applySetupValues,
+  BIND_HOST_KEY,
   currentAuthMode,
   decideSetup,
   openUrls,
@@ -27,8 +28,10 @@ import {
   parseAddressAnswer,
   parseChoiceAnswer,
   parsePortAnswer,
+  SETUP_FILE_HEADER,
   SINGLE_USER_MODE,
   setupDefaults,
+  setupEnvEdits,
   setupValues,
 } from "../lib/setup-plan.ts";
 import { parseEnvText, readEnvText } from "./prod-state.ts";
@@ -169,7 +172,7 @@ async function askAll(reader: LineReader, defaults: SetupAnswers, machine: Setup
   return { port: port.value, audience: audience.value, login: login.value, allowedHosts: address.value };
 }
 
-function summaryLines(opts: SetupRunOpts, values: SetupValues): readonly string[] {
+function summaryLines(opts: SetupRunOpts, values: SetupValues, removedBindHost: boolean): readonly string[] {
   const written = [`${PORT_KEY}=${values.port}`, `${AUTH_MODE_KEY}=${values.authMode}`];
   if (values.allowedHosts !== null) {
     written.push(`${ALLOWED_HOSTS_KEY}=${values.allowedHosts}`);
@@ -177,6 +180,7 @@ function summaryLines(opts: SetupRunOpts, values: SetupValues): readonly string[
   const shared = values.authMode !== SINGLE_USER_MODE;
   return [
     `Saved ${written.join(", ")} in ${opts.envPath}. Run \`${SETUP_COMMAND}\` to change them.`,
+    ...(removedBindHost ? [`Removed ${BIND_HOST_KEY}, so the server listens where other devices can reach it.`] : []),
     ...(values.ssoPending ? SSO_PENDING_LINES : []),
     ...(shared ? reachLines(opts.machine, values.port) : []),
   ];
@@ -203,10 +207,11 @@ export async function runSetup(opts: SetupRunOpts): Promise<SetupResult> {
     return { kind: "cancelled" };
   }
   const values = setupValues(answers, currentAuthMode(fileEnv, opts.ambient));
-  const next = applySetupValues(text, values);
+  const next = applyEnvEdits(text, setupEnvEdits(values), SETUP_FILE_HEADER);
   if (next !== text) {
     writeFileSync(opts.envPath, next);
   }
-  reader.say(summaryLines(opts, values).join("\n"));
+  const removedBindHost = fileEnv[BIND_HOST_KEY] !== undefined && parseEnvText(next)[BIND_HOST_KEY] === undefined;
+  reader.say(summaryLines(opts, values, removedBindHost).join("\n"));
   return { kind: "written", values };
 }

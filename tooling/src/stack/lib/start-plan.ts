@@ -8,8 +8,19 @@
 // the cross-platform dev path is `pnpm dev` (tooling/src/dev/).
 
 import { SETUP_COMMAND } from "@orb/contracts/identity";
+import { START_SUPERVISOR, SUPERVISOR_ENV_KEY } from "@orb/kit/supervisor";
 import { MAX_TCP_PORT } from "../../_shared/ports.ts";
-import type { AnswerParse, DistVerdict, PnpmInvocation, ProdSpawnPlan, StartBuildDecision, StartBuildMode, StartParse } from "../contract/types.ts";
+import type {
+  AnswerParse,
+  DistVerdict,
+  PnpmInvocation,
+  ProdSpawnPlan,
+  StartBuildDecision,
+  StartBuildMode,
+  StartInvocation,
+  StartLaunch,
+  StartParse,
+} from "../contract/types.ts";
 import { effectiveAuthMode, PORT_KEY, parsePortAnswer, SINGLE_USER_MODE } from "./setup-plan.ts";
 import { buildProdSpawnPlan, CLIENT_DIST_INDEX_REL } from "./spawn-plan.ts";
 
@@ -113,14 +124,47 @@ export function singleUserFallbackEnv(
   return declared === undefined || declared === "" ? Object.fromEntries([["AUTH_FALLBACK", "owner"]]) : {};
 }
 
-/** The child env for `--port <n>`: this launch binds `port` and `.env` is not written.
+/** The child env for a launch that overrides `.env` values (`--port <n>`) without writing the file.
  *
- *  `.env` loads with override:true, so a PORT in the file would beat a PORT on the child env. The overlay turns
- *  the override off for this launch and restates every `.env` value on the child env, so the file still wins
- *  over the shell for every key except the one being overridden. */
-export function portOverrideEnv(fileEnv: Readonly<Record<string, string | undefined>>, port: number): Readonly<Record<string, string>> {
+ *  `.env` loads with override:true, so a value in the file would beat the same key on the child env. The overlay turns
+ *  the override off for this launch and restates every `.env` value on the child env, so the file still wins over the
+ *  shell for every key except the overridden ones. */
+export function restateFileEnv(
+  fileEnv: Readonly<Record<string, string | undefined>>,
+  overrides: Readonly<Record<string, string>>,
+): Readonly<Record<string, string>> {
   const restated = Object.entries(fileEnv).flatMap(([key, value]) => (value === undefined ? [] : [[key, value] as const]));
-  return Object.fromEntries([...restated, [PORT_KEY, String(port)], [ENV_NO_OVERRIDE, "1"]]);
+  return Object.fromEntries([...restated, ...Object.entries(overrides), [ENV_NO_OVERRIDE, "1"]]);
+}
+
+/** The `.env` values this invocation's flags override for the launch. */
+function launchOverrides(invocation: StartInvocation): Readonly<Record<string, string>> {
+  return invocation.port === null ? {} : Object.fromEntries([[PORT_KEY, String(invocation.port)]]);
+}
+
+/** One launch from the `.env` read for it: the single-user fill, the flags' overrides and the supervisor marker on the
+ *  child env. The supervisor calls this on every spawn, so a restart after a mode change drops a stale fill. */
+export function startLaunch(opts: {
+  readonly repoRoot: string;
+  readonly nodePath: string;
+  readonly fileEnv: Readonly<Record<string, string | undefined>>;
+  readonly ambient: Readonly<Record<string, string | undefined>>;
+  readonly invocation: StartInvocation;
+  readonly logPath: string;
+}): StartLaunch {
+  const overrides = launchOverrides(opts.invocation);
+  // The file as the server will read it: the overrides win over the file, so the mode is decided by both.
+  const fileView = { ...opts.fileEnv, ...overrides };
+  const fallbackEnv = singleUserFallbackEnv(fileView, opts.ambient);
+  const restated = Object.keys(overrides).length === 0 ? {} : restateFileEnv(opts.fileEnv, overrides);
+  const plan = startSpawnPlan({
+    repoRoot: opts.repoRoot,
+    nodePath: opts.nodePath,
+    baseEnv: opts.ambient,
+    launchEnv: { ...fallbackEnv, ...restated, ...Object.fromEntries([[SUPERVISOR_ENV_KEY, START_SUPERVISOR]]) },
+    logPath: opts.logPath,
+  });
+  return { plan, mode: effectiveAuthMode(fileView, opts.ambient), fallbackFilled: Object.keys(fallbackEnv).length > 0 };
 }
 
 /** Name the pnpm to run `pnpm build` with, for a `shell: false` spawn on any platform.
@@ -154,19 +198,19 @@ export function resolvePnpmInvocation(opts: {
 
 /** The production spawn, from the ONE prod spawn plan (lib/spawn-plan.ts) — identical argv, cwd and
  *  NODE_ENV to what `stack up prod` and the container run, so the no-server-build-step pin covers this
- *  launcher too. The single-user fallback rides in as part of the BASE env rather than as a second
+ *  launcher too. The launch env rides in as part of the BASE env rather than as a second
  *  overlay: `buildProdSpawnPlan`'s overlay slot belongs to `--debug`, and there is exactly one env here. */
 export function startSpawnPlan(opts: {
   readonly repoRoot: string;
   readonly nodePath: string;
   readonly baseEnv: Readonly<Record<string, string | undefined>>;
-  readonly fallbackEnv: Readonly<Record<string, string>>;
+  readonly launchEnv: Readonly<Record<string, string>>;
   readonly logPath: string;
 }): ProdSpawnPlan {
   return buildProdSpawnPlan({
     repoRoot: opts.repoRoot,
     nodePath: opts.nodePath,
-    baseEnv: { ...opts.baseEnv, ...opts.fallbackEnv },
+    baseEnv: { ...opts.baseEnv, ...opts.launchEnv },
     logPath: opts.logPath,
   });
 }
