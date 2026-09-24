@@ -126,7 +126,7 @@ The same disease-class as the slot registries, highest stakes: a mis-wired or un
 | Bus | Scope | Durability | Producer gate |
 | - | - | - | - |
 | chat | per-chat, member-scoped | **durable-first**: `emit` awaits the `chat_events` INSERT (assigns `seq`) before the ring push; 256-entry ring + durable replay, member-gated; `on()` pre-buffers so the replay/live gap dedupes by `seq` | `bus-producer-coverage` |
-| user | per-person, all devices | **live-only, fire-and-forget by design** — gap-heal = `invalidateAllUserRoots()` on every connect/reconnect | `bus-producer-coverage` (every member has a producer since 0121; the `user-bus-deferred-member` carve-out is retired) |
+| user | per-person, all devices | **live-only, fire-and-forget by design** — gap-heal = `invalidateAllUserRoots()` on every connect/reconnect | `bus-producer-coverage`; every declared member has a producer |
 | notifications | per-person durable inbox | **durable-first**: entry composes the INSERT before `publishNotification` | none (rides the inbox contract) |
 | rpg | per-chat game state | **live-only, self-healing** — a domain-minted `EventEmitter` singleton; a verb publishes AFTER its durable write; the client blanket-invalidates on every (re)connect | `bus-producer-coverage` |
 | automation | per-chat, over the `domain/automation` `notify` sink | **transient by design** — rides `defineBusChannel`; the `automation` room (`transport/trpc/stream/sources/automation.ts`) tails it rather than a standalone subscription | none |

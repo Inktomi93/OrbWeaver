@@ -150,11 +150,8 @@ test(
 test(
   "identity is keyed by (union, member): the SAME member name on two different buses is reported for BOTH, independently",
   () => {
-    // Before 0121 this fixture caught a cross-bus leak in the (now-deleted) owner-deferral registry:
-    // `connectionsChanged` was deferred on the USER bus alone, so a bare-name key would have wrongly silenced
-    // this same-named ChatBusEvent member too. The deferral carve-out is gone, but the underlying identity
-    // property — a finding is scoped to (union, member), never to member name alone — still has to hold, so
-    // both uncovered members must be reported, one finding each, neither one merged into or masking the other.
+    // Identity is scoped to (union, member), never to member name alone: two different buses declaring the
+    // same member name must both be reported, one finding each, neither one merged into or masking the other.
     const sameNameTwoBuses = {
       "packages/contracts/src/user-bus/index.ts":
         'export type UserBusEvent = { type: "connectionsChanged" };\nexport const USER_BUS_EVENT_TYPES = { connectionsChanged: true } satisfies Record<UserBusEvent["type"], true>;\n',
