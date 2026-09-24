@@ -25,6 +25,7 @@ export {
   detachWal,
   forecastDevDbReset,
   hasPendingMigrations,
+  isBackupFileName,
   listBackupFiles,
   localPath,
   optimizeDb,

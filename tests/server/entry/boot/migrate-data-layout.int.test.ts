@@ -541,6 +541,42 @@ describe("migrateDataLayout", () => {
     expect(readdirSync(join(root, "reports"))).toEqual([]);
   });
 
+  // An explicit secret replaces its keyfile the way a slot key replaces its slot, so the legacy keyfile is the
+  // operator's and stays; the other keyfile, with no explicit value, still moves.
+  test("an explicit CREDENTIALS_KEY keeps the legacy keyfile where it is and names it as left in place", async () => {
+    const root = freshRoot();
+    await plantLegacyTree(root);
+    const report = await migrateDataLayout({ layout: layoutFor(root, { ["CREDENTIALS_KEY"]: "ab".repeat(32) }), pid });
+    expect(readFileSync(join(root, ".credentials-key"), "utf-8")).toBe(KEY_HEX);
+    expect(existsSync(join(root, "secrets", SECRET_FILE_NAMES.credentialsKey))).toBe(false);
+    expect(readFileSync(join(root, "secrets", SECRET_FILE_NAMES.sessionSecret), "utf-8")).toBe(SECRET_HEX);
+    expect(report.leftInPlace).toEqual([".credentials-key", "notes.txt"]);
+  });
+
+  // A resume claims a pending db again, and the claim rewrites the file's mtime, which is what names a
+  // snapshot copy. A snapshot per resume would fill the volume under a restart policy that retries a failing
+  // move forever; the first boot's snapshot still covers the db, so a resume never takes another.
+  test("failing resume boots leave exactly the first boot's snapshot", async () => {
+    const root = freshRoot();
+    await plantLegacyTree(root);
+    const reportsIsBusy = (from: string, to: string): void => {
+      if (to === join(root, "reports")) {
+        throw Object.assign(new Error("EBUSY: resource busy or locked"), { code: "EBUSY" });
+      }
+      renameSync(from, to);
+    };
+    const snapshots = (): string[] => readdirSync(join(root, "backups")).filter((name) => BACKUP_RE.test(name) && !name.endsWith("-1") && !name.endsWith("-2"));
+    const failingBoot = async (): Promise<void> => {
+      await expect(migrateDataLayout({ layout: layoutFor(root), pid, rename: reportsIsBusy })).rejects.toThrow(join(root, "import-reports"));
+      expect(existsSync(join(root, DB_FILE_NAME))).toBe(true);
+      expect(snapshots()).toHaveLength(1);
+    };
+    await failingBoot();
+    await failingBoot();
+    await failingBoot();
+    await failingBoot();
+  });
+
   // The pre-flight cannot foresee every failure (a bind mount of the same filesystem answers EBUSY with the
   // same device number). Whatever rename(2) says, the boot must name the entry and a remedy, keep the journal
   // for the next boot, and the remedy must let the box boot without anyone editing the journal.
