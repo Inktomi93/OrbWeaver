@@ -1258,7 +1258,8 @@ test("a WHOLE verify run takes the host-wide queue slot; a SCOPED run does not (
   const env = scratchQueueEnv();
   const whole = await enterWholeRunQueue(process.cwd(), parsedOrThrow(["--static"]), { env, pid: 30_001, alive: (pid) => pid === 30_001 });
   expect(whole?.slot, "a whole run holds the single host slot").toBe(1);
-  const scoped = await enterWholeRunQueue(process.cwd(), parsedOrThrow(["--changed"]), { env, pid: 30_002, alive: () => true });
+  // An explicit path keeps selection off the working change, whose compiler-closure plan is slow on a dirty tree.
+  const scoped = await enterWholeRunQueue(process.cwd(), parsedOrThrow(["--changed", "docs/law/Constitution.md"]), { env, pid: 30_002, alive: () => true });
   expect(scoped, "a scoped run is exempt — it is the fast inner loop a lane runs beside a live battery").toBeNull();
   const commit = await enterWholeRunQueue(process.cwd(), parsedOrThrow(["--static", "--changed", "docs/law/Constitution.md"]), {
     env,
@@ -1283,7 +1284,7 @@ test("a second whole run QUEUES behind a live holder and says whose pid it is be
     alive: (pid) => pid === 31_001 || pid === 31_002,
     now: () => new Date(clockMs),
     // The wait is BUDGET-SCALED off a 45-minute base, so a real ceiling would take 45 wall-clock minutes to
-    // reach; the injected clock jumps a day per poll and lands on the degrade arm in one iteration.
+    // reach; the injected clock jumps a day per poll and lands on the overflow arm in one iteration.
     sleep: (ms) => {
       clockMs += ms + 86_400_000;
       return Promise.resolve();
@@ -1292,7 +1293,7 @@ test("a second whole run QUEUES behind a live holder and says whose pid it is be
     onNotice: () => undefined,
   });
   expect(queuedBehind, "the waiter announces the run it is behind").toStrictEqual([31_001]);
-  expect(second?.slot, "past the ceiling it PROCEEDS unslotted — a refused verify breaks a merge train").toBeNull();
+  expect(second?.slot, "past the ceiling it runs as the overflow run — a refused verify breaks a merge train").toBeNull();
 
   held?.release();
   const third = await enterWholeRunQueue(process.cwd(), parsedOrThrow(["--static"]), { env, pid: 31_003, alive: (pid) => pid === 31_003 });
