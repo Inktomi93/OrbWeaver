@@ -64,6 +64,7 @@ const OK = 200;
 const UNAUTHORIZED = 401;
 const FORBIDDEN = 403;
 const UNSUPPORTED_MEDIA_TYPE = 415;
+const MISDIRECTED = 421;
 const NOT_FOUND = 404;
 const SERVICE_UNAVAILABLE = 503;
 const INTERNAL_ERROR = 500;
@@ -137,6 +138,7 @@ function deps(overrides: Partial<AppDeps>): AppDeps {
     sessions: stub,
     isShuttingDown: (): boolean => false,
     credentialsKeyOk: (): boolean => true,
+    inContainer: false,
     seedUserCharacters: (): void => {
       // default: inert; the seed-hook test overrides this to record calls.
     },
@@ -165,6 +167,25 @@ describe("createApp", () => {
     const res = await hit(app, new Request("http://localhost/healthz"));
     expect(res.status).toBe(SERVICE_UNAVAILABLE);
     expect(await res.json()).toEqual({ status: "credentials_key_mismatch", version: versionIdentity() });
+  });
+
+  // DNS rebinding: the page's requests ride the loopback socket the owner fallback admits, with a foreign `Host`.
+  // The Host allowlist is mounted before the principal middleware, so the seam is never asked who this is.
+  test("a foreign Host on the loopback socket is refused before the seam resolves a principal", async () => {
+    let resolutions = 0;
+    const app = createApp(
+      deps({
+        seam: fakeSeam(OWNER, () => {
+          resolutions += 1;
+        }),
+      }),
+    );
+    const refused = await hit(app, new Request("http://localhost/api/auth/me", { headers: { host: "rebind.attacker.example:8788" } }));
+    expect(refused.status).toBe(MISDIRECTED);
+    expect(resolutions).toBe(0);
+    // Control: the same request for localhost resolves the principal once, so the refusal above was the Host.
+    expect((await hit(app, new Request("http://localhost/api/auth/me", { headers: { host: "localhost:8788" } }))).status).toBe(OK);
+    expect(resolutions).toBe(1);
   });
 
   test("anonymous caller → the blob route 401s (the middleware set principal=null on the context)", async () => {

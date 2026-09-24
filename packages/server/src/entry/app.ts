@@ -1,8 +1,8 @@
 // The Hono application builder: assembles the HTTP edge (middleware order, tRPC mount, non-tRPC registrars,
 // debug gate) from already-built deps. Owns no business logic and no boot protocol (see lifecycle.ts).
 //
-// Middleware order: ingress IP-allowlist runs first, then the auth seam resolves the Principal EXACTLY ONCE
-// per request onto the context — nothing downstream re-resolves identity.
+// Middleware order: ingress IP-allowlist runs first, then the Host allowlist, then the auth seam resolves the
+// Principal EXACTLY ONCE per request onto the context — nothing downstream re-resolves identity.
 
 import type { AuthMode, Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
@@ -20,11 +20,11 @@ import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import type { ExportService } from "#domain/export";
 
-import { env } from "#foundation/env";
+import { allowedHostsInput, env, resolveAllowedHosts } from "#foundation/env";
 import type { MemoryRecallInspector, RpgTraceInspector } from "#foundation/observability";
 import { observability, observabilityErrorHandler, registerDebugRoutes, securityEvent } from "#foundation/observability";
 import { versionIdentity } from "#foundation/version";
-import { createPublicHttpMintNotice, hasCsrfHeader, requestTransport } from "#infra/auth";
+import { createHostNotAllowedNotice, createPublicHttpMintNotice, hasCsrfHeader, requestTransport } from "#infra/auth";
 import { clientIp, ipAllowlistMiddleware, parseAllowlist, peerIp } from "#infra/network";
 import type { PresenceRegistry, RateLimitGate, Services, SocketRegistry } from "../transport/trpc/index.ts";
 import { appRouter, createContext } from "../transport/trpc/index.ts";
@@ -41,6 +41,7 @@ import type {
   UploadAssetsPort,
 } from "./http/index.ts";
 import {
+  hostAllowlist,
   normalizeThrownErrors,
   registerAuthMeta,
   registerAuthRoutes,
@@ -200,6 +201,8 @@ export interface AppDeps {
   readonly sessions: AuthSessionsPort;
   readonly isShuttingDown: () => boolean;
   readonly credentialsKeyOk: () => boolean;
+  /** Whether the process runs in a container (`runsInContainer`); picks the fix the Host refusal names. */
+  readonly inContainer: boolean;
   /** Fire-and-forget: called after the Principal resolves; must never block the request. */
   readonly seedUserCharacters: (principal: Principal) => void;
   /** Present in local mode. */
@@ -261,6 +264,13 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   if (allowlist.length > 0) {
     app.use("*", ipAllowlistMiddleware(allowlist));
   }
+
+  // The DNS-rebinding guard, in every mode and with no off switch: it must run before the principal resolves,
+  // because a rebound page arrives on the loopback socket the owner fallback admits (`infra/auth/host-allowlist.ts`).
+  app.use(
+    "*",
+    hostAllowlist({ allowedHosts: resolveAllowedHosts(allowedHostsInput()), inContainer: deps.inContainer, notice: createHostNotAllowedNotice(deps.now) }),
+  );
 
   // Resolve the ONE Principal per request + refresh a slid cookie session.
   app.use("*", async (c, next) => {

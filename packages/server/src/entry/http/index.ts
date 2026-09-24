@@ -28,6 +28,8 @@ export type { ExportDeps } from "./export.ts";
 export { registerExport } from "./export.ts";
 export type { HealthzDeps } from "./healthz.ts";
 export { registerHealthz } from "./healthz.ts";
+export type { HostAllowlistDeps } from "./host-allowlist.ts";
+export { hostAllowlist } from "./host-allowlist.ts";
 
 export type { ImportBundleDeps } from "./import.ts";
 export { registerImportBundle } from "./import.ts";
