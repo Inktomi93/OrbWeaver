@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, lstatSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
@@ -77,6 +77,48 @@ describe("loadOrCreateKeyfile", () => {
     expect(loadOrCreateKeyfile(keyPath)).toBeNull();
     // The corrupt file is left untouched for the operator to investigate.
     expect(readFileSync(keyPath, "utf-8")).toBe("garbage-not-a-key\n");
+  });
+
+  test("two creators racing on an empty dir both return the ONE key that won the path", () => {
+    const dir = freshDir();
+    const keyPath = join(dir, ".credentials-key");
+    const secondCreator: (Buffer | null)[] = [];
+    // The second boot runs start to finish inside the first one's window between the absence check and the
+    // publish, which is the interleaving two processes starting together can produce.
+    const first = loadOrCreateKeyfile(keyPath, () => {
+      secondCreator.push(loadOrCreateKeyfile(keyPath));
+      return randomBytes(32);
+    });
+    const second = secondCreator[0] ?? null;
+    if (first === null || second === null) {
+      throw new Error("expected both creators to return a key");
+    }
+    expect(first.equals(second)).toBe(true);
+    expect(decode32Bytes(readFileSync(keyPath, "utf-8"))?.equals(first)).toBe(true);
+    // The loser's temp file is gone; only the keyfile remains.
+    expect(readdirSync(dir)).toEqual([".credentials-key"]);
+  });
+
+  test("a dangling symlink planted at the key path is never written through", () => {
+    const dir = freshDir();
+    const keyPath = join(dir, ".credentials-key");
+    const target = join(dir, "planted-target");
+    symlinkSync(target, keyPath);
+    expect(loadOrCreateKeyfile(keyPath)).toBeNull();
+    expect(existsSync(target)).toBe(false);
+    expect(lstatSync(keyPath).isSymbolicLink()).toBe(true);
+    expect(readdirSync(dir)).toEqual([".credentials-key"]);
+  });
+
+  test("control: a symlink to an existing key is read through, so a secrets mount keeps working", () => {
+    const dir = freshDir();
+    const keyPath = join(dir, ".credentials-key");
+    const target = join(dir, "mounted-key");
+    const key = randomBytes(32);
+    writeFileSync(target, `${key.toString("hex")}\n`, { mode: 0o600 });
+    symlinkSync(target, keyPath);
+    expect(loadOrCreateKeyfile(keyPath)?.equals(key)).toBe(true);
+    expect(readFileSync(target, "utf-8")).toBe(`${key.toString("hex")}\n`);
   });
 });
 
