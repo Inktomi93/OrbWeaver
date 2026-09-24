@@ -124,6 +124,19 @@ For example, a three-line sign is enough:
     title: "CYOA teach",
     fires: "Every game turn, only when `features.cyoa` is on — teaches the standing `:::choices` fence.",
   },
+  "rpg.reminder.frame": {
+    id: "rpg.reminder.frame",
+    home: "preset",
+    version: 1,
+    // The one delimiter around the whole reminder. On a model that folds it into user text it lands in the
+    // player's message, so it must never read as the player's words (owner ruling).
+    text: "[Game notes for the narrator — not the player's words:\n\n{{reminder}}\n]",
+    macros: "none",
+    requiredMacros: ["{{reminder}}"],
+    requiredTokens: [],
+    title: "Game-notes frame",
+    fires: "Every game turn — wraps the whole steering reminder, the steering note and any reconcile note included.",
+  },
   "rpg.reminder.castHeader": {
     id: "rpg.reminder.castHeader",
     home: "preset",

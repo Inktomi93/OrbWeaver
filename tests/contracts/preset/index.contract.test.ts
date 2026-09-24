@@ -1186,6 +1186,15 @@ test("the write boundary REFUSES a note frame that dropped {{note}}, naming the 
   }
 });
 
+// The game-notes frame's `{{reminder}}` carries the whole rpg reminder, so an override without it is refused too.
+test("the write boundary REFUSES a game-notes frame that dropped {{reminder}}, and takes one that keeps it", () => {
+  const dropped = promptConfigWriteSchema.safeParse(withProse("rpg.reminder.frame", "[Game notes.]"));
+  expect(dropped.success).toBe(false);
+  expect(dropped.error?.issues[0]?.path).toStrictEqual(["prose", "rpg.reminder.frame", "text"]);
+  expect(dropped.error?.issues[0]?.message).toContain("{{reminder}}");
+  expect(promptConfigWriteSchema.safeParse(withProse("rpg.reminder.frame", "<<{{reminder}}>>")).success).toBe(true);
+});
+
 test("blank-means-default survives the note guard, and the SPLICE's own spellings are accepted", () => {
   for (const slotId of NOTE_CARRIER_SLOTS) {
     expect(promptConfigWriteSchema.safeParse(withProse(slotId, "")).success, slotId).toBe(true);

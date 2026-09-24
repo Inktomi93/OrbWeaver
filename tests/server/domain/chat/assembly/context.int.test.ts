@@ -752,7 +752,7 @@ describe("buildAssembleContext — character depthPrompt (Character's Note @ Dep
     // Same room, same note, DEFAULT preset: the shipped frame, byte-for-byte.
     const plain = await buildAssembleContext(ctx, inputOf(chatId, host, [charId]));
     const plainFramed = spliceInChatInjections(history, plain.chatInjections, undefined, { prose: plain.prose });
-    expect(plainFramed.map((r) => r.content)).toContain("[Note from user: Keep it terse.]");
+    expect(plainFramed.map((r) => r.content)).toContain(resolveProseText("chat.injection.userNote", {}, { note: "Keep it terse." }));
   });
 
   test("D66-B: assistant@depth-0 is ACCEPTED at the WRITE boundary; safety moved to the SHAPE delivery gate", () => {

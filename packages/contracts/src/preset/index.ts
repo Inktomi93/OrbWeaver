@@ -1344,7 +1344,7 @@ export const TEMPLATE_DEFS = [
     defaultSlot: "chat.group.speakerTags",
   },
   // ── THE GAME-TURN TEACHES (owner ruling 2026-08-08, "we are putting everything in presets") ────────────────
-  // The eleven slots the rpg steering reminder composes. They were `rpg_games.config.prose` for one merge; the
+  // The slots the rpg steering reminder composes. They were `rpg_games.config.prose` for one merge; the
   // ruling re-homed them to `promptConfig.prose`, which is what puts them here — a preset-homed prose slot with
   // no row is a slot no host can reach, and the two-sided coverage test in `tests/contracts/prose/` REDs on it.
   // Each row's `fires` states its GATE, because most of these are conditional on a per-game feature knob: the
@@ -1408,6 +1408,15 @@ export const TEMPLATE_DEFS = [
     fires: "A game turn with CYOA on — teaches the standing :::choices fence",
     caps: [{ kind: "tokens", tokens: ["{{user}}", "{{char}}"] }],
     defaultSlot: "rpg.reminder.cyoaTeach",
+  },
+  // The frame around the whole reminder. Its one token carries the entire reminder, so it is a carrier row.
+  {
+    id: "rpg.reminder.frame",
+    kind: "teach",
+    label: "Game-notes frame",
+    fires: "Every game turn — wraps the whole reminder so it never reads as the player's words",
+    caps: [{ kind: "tokens", tokens: ["{{reminder}}"] }],
+    defaultSlot: "rpg.reminder.frame",
   },
   // The four `macros:"none"` labels — no token vocabulary, because a header has no character context to
   // substitute and a `{{…}}` in an override would ship as literal braces.
@@ -2325,7 +2334,7 @@ export interface ProseCarrierToken {
 }
 
 /** PROSE CARRIER slots — the write guard's SECOND enumeration (owner ruling 2026-08-08,
- *  option C). The user-note frame carries `{{note}}`, which is the
+ *  option C). The user-note frame carries `{{note}}` and the game-notes frame `{{reminder}}`, each the
  *  injection's ENTIRE payload: `spliceProseTokens` is a replace, so an override that drops the token matches
  *  nothing and the frame ships as an empty wrapper (`[Note from user: ]`) with the author's note gone. That is
  *  byte-for-byte the `{{entry}}` failure the 2026-08-02 carrier ruling refuses, so these refuse with it.
@@ -2342,7 +2351,10 @@ export interface ProseCarrierToken {
  *  is the carrier-bucket's own membership test.
  *
  *  A new prose carrier = one row here; the refine below reads nothing else. */
-const PROSE_CARRIER_TOKENS = [{ slotId: "chat.injection.userNote", name: "note", token: "{{note}}" }] as const satisfies readonly ProseCarrierToken[];
+const PROSE_CARRIER_TOKENS = [
+  { slotId: "chat.injection.userNote", name: "note", token: "{{note}}" },
+  { slotId: "rpg.reminder.frame", name: "reminder", token: "{{reminder}}" },
+] as const satisfies readonly ProseCarrierToken[];
 
 /** THE CARRIER PREDICATE — every stored note-frame override that is non-blank and DROPPED its token, i.e.
  *  exactly the set {@link promptConfigWriteSchema} refuses.

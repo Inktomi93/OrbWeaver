@@ -1605,6 +1605,19 @@ describe("shape — a folded system note leads the user text it joins", () => {
     expect(apart.history.slice(1, 3).map((row) => row.messageId)).toEqual([ids.uA, ids.uB]);
   });
 
+  test("a level that never joins rows moves the note only past the user row it follows", () => {
+    const none = { roleHandling: "none" as const, roleHandlingFloor: "none" as const };
+    const out = shape(soloInput({ canon: humans, appendUserTurn: "u2", injections: [depthNote], multiHuman: true, ...none }));
+    expect(wire(out)).toEqual([
+      ["assistant", "greeting"],
+      ["user", "Alex: I open the door."],
+      ["user", "NOTE"],
+      ["user", "Joe: I follow him in."],
+      ["assistant", "a1"],
+      ["user", "u2"],
+    ]);
+  });
+
   test("the fold never moves above the new-chat marker", () => {
     const marker = inChat({ depth: BEFORE_HISTORY_DEPTH, role: "user", content: "[Start a new chat]", origin: "new-chat-marker" });
     const out = shape(soloInput({ canon: [u1, a1], appendUserTurn: "u2", injections: [marker, depthNote] }));
