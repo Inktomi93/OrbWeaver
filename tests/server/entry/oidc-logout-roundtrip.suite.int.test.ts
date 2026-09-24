@@ -63,6 +63,9 @@ const END_SESSION = "https://idp.example/application/o/orb/end-session/";
 const PEPPER = "test-session-secret-at-least-32-chars-long";
 const USER_ID = castId<UserId>("user_alice");
 const ALLOWLISTED_ORIGIN = { "x-forwarded-proto": "https", "x-forwarded-host": APP_HOST };
+/** The TLS proxy on this host: a loopback socket peer, so its `X-Forwarded-Proto: https` is believed and the
+ *  session rides the https cookie (`infra/auth/transport.ts`). */
+const PROXY_PEER = { incoming: { socket: { remoteAddress: "127.0.0.1", remotePort: 40_000, remoteFamily: "IPv4" } } };
 /** #867 — the PKCE/state transaction the authorize leg minted; the callback consumes it single-use. Its
  *  `redirectUri` is the allowlisted callback the exchange must be presented, whatever origin the request
  *  arrives on. */
@@ -139,10 +142,14 @@ async function signInWith(idToken: string | null): Promise<string> {
 
 /** Drive the REAL logout route with that cookie and return the `endSessionUrl` it hands the client. */
 async function signOut(token: string, origin: Record<string, string>): Promise<string | null> {
-  const res = await app.request("/api/auth/logout", {
-    method: "POST",
-    headers: { cookie: `${COOKIE_NAME}=${token}`, [CSRF_HEADER]: "1", ...origin },
-  });
+  const res = await app.request(
+    "/api/auth/logout",
+    {
+      method: "POST",
+      headers: { cookie: `${COOKIE_NAME}=${token}`, [CSRF_HEADER]: "1", ...origin },
+    },
+    PROXY_PEER,
+  );
   expect(res.status).toBe(200);
   return ((await res.json()) as { endSessionUrl: string | null }).endSessionUrl;
 }
@@ -151,7 +158,7 @@ async function signOut(token: string, origin: Record<string, string>): Promise<s
  *  between the exchange and the database: the route provisions through the real verb, mints through the
  *  real create verb, and the cookie is whatever the route actually wrote. */
 async function signInViaCallback(): Promise<SessionToken> {
-  const res = await app.request(`/api/auth/oidc/callback?state=${TX.state}&code=auth-code`, { headers: ALLOWLISTED_ORIGIN });
+  const res = await app.request(`/api/auth/oidc/callback?state=${TX.state}&code=auth-code`, { headers: ALLOWLISTED_ORIGIN }, PROXY_PEER);
   expect(res.status).toBe(302);
   expect(res.headers.get("location")).toBe("/");
   const setCookie = res.headers.get("set-cookie") ?? "";

@@ -36,9 +36,6 @@ import {
   resolveDiagnosticsPosture,
   resolveOwnerFallbackCredential,
   resolveOwnerFallbackPeers,
-  resolveSessionCookiePosture,
-  sessionCookiePostureInput,
-  sessionCookieWarnings,
 } from "#foundation/env";
 import { getLog, initTracing, superviseDetached, wrapLibSqlClient } from "#foundation/observability";
 import { versionIdentity } from "#foundation/version";
@@ -50,10 +47,9 @@ import {
   createPasswordHasher,
   createRelayedFallbackNotice,
   ownerFallbackAllowed,
-  SESSION_COOKIE_NAME,
 } from "#infra/auth";
-import { credentialsKeyFromEnv, dataDirFromDbUrl, SESSION_SECRET_KEYFILE, sessionSecretFromEnv } from "#infra/crypto";
-import { installEgressFirewall } from "#infra/network";
+import { bootSecretProvenance, credentialsKeyFromEnv, dataDirFromDbUrl, SESSION_SECRET_KEYFILE, sessionSecretFromEnv } from "#infra/crypto";
+import { installEgressFirewall, parseAllowlist } from "#infra/network";
 import { createCas } from "#infra/storage";
 import { startCatalogRefreshScheduler } from "../transport/jobs/catalog-refresh-scheduler.ts";
 import { startOidcGcScheduler } from "../transport/jobs/oidc-gc-scheduler.ts";
@@ -64,6 +60,7 @@ import { createApp } from "./app.ts";
 import { createAuthSeam, createHostPrincipalResolver } from "./auth/index.ts";
 import {
   backfillPluginProvenanceOnBoot,
+  composeBootDisclaimer,
   createLocalLightUserSeed,
   DB_LAUNCHED,
   healLegacyBackgroundPinsOnBoot,
@@ -457,15 +454,10 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       ownerId = seededId;
     }
 
-    // The DIAGNOSTICS POSTURE report (foundation/env/diagnostics.ts holds the model): one line stating who
-    // can reach the box, who can open /api/_debug, and what the recorders are holding — then a WARN per
-    // exposure that needs closing, each naming the knob that closes it. A healthy posture logs the info
-    // line and nothing else, so a warn here is always a real standing item, never boot noise.
+    // The DIAGNOSTICS POSTURE report (foundation/env/diagnostics.ts holds the model): who can reach the box,
+    // who can open /api/_debug, and what the recorders are holding. Its warnings join the boot disclaimer.
     const diagnostics = resolveDiagnosticsPosture(diagnosticsPostureInput());
     log.info({ diagnostics }, "boot: diagnostics posture (perimeter × credential × retention)");
-    for (const warning of diagnosticsPostureWarnings(diagnostics)) {
-      log.warn({ security: true, diagnostics: diagnostics.exposure }, `boot: ${warning}`);
-    }
 
     // The stable per-replica lock-holder tag — threaded into both compose (chat turn-lock) and the boot
     // reclaim (wipes this replica's own orphaned chat_locks).
@@ -609,23 +601,6 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // optional); every non-local mode leaves all three route deps absent.
     const localAuth = env.AUTH_MODE === "local" ? buildLocalAuthDeps(built.sessions, sessionSecret) : undefined;
 
-    // forward-header fail-closed belt: warn loudly at boot so a non-authentik proxy deploy (no signed
-    // JWT) isn't left silently rejecting every request.
-    if (env.AUTH_MODE === "forward-header" && (env.FORWARD_AUTH_TRUSTED_PROXIES === undefined || env.FORWARD_AUTH_TRUSTED_PROXIES.trim().length === 0)) {
-      log.warn(
-        "boot: AUTH_MODE=forward-header with FORWARD_AUTH_TRUSTED_PROXIES unset — the UNSIGNED trusted-header path is FAIL-CLOSED (raw identity headers are rejected). Set FORWARD_AUTH_TRUSTED_PROXIES to the trusted proxy/client source range(s) to enable it; the signed-JWT (authentik) path is unaffected.",
-      );
-    }
-
-    // BREAK-GLASS active: the loopback-owner fallback is deliberately on in an SSO deploy (foundation/env
-    // lets the otherwise-fatal prod triple boot when AUTH_BREAK_GLASS=true). Warn loudly EVERY boot so a
-    // recovery flag left set is impossible to miss — revert AUTH_FALLBACK=deny + AUTH_BREAK_GLASS off when done.
-    if (env.AUTH_MODE !== "single-user" && env.AUTH_FALLBACK === "owner" && env.AUTH_BREAK_GLASS) {
-      log.warn(
-        "boot: AUTH_BREAK_GLASS=true with AUTH_FALLBACK=owner — the un-credentialed LOOPBACK-peer owner fallback is ACTIVE in an SSO deploy (on-box recovery). SSO is bypassed for any request on a loopback socket that carries no forwarding header (incl. a same-host reverse proxy that sends none). This is a temporary break-glass posture: set AUTH_FALLBACK=deny and unset AUTH_BREAK_GLASS as soon as recovery is done.",
-      );
-    }
-
     const oidcWiring = env.AUTH_MODE === "oidc" ? buildOidcDeps(db, now) : undefined;
     stopOidcGc = oidcWiring === undefined ? null : oidcWiring.stopOidcGc;
 
@@ -717,49 +692,33 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       ...(oidcWiring === undefined ? {} : { oidc: oidcWiring.oidc }),
     });
 
-    // The DEPLOY-MODE INVARIANT (PROD-LEAK, 2026-08-09 — foundation/env/bind.ts holds the model): a
-    // NON-PRODUCTION build listens on LOOPBACK ONLY unless ALLOW_DEV_PUBLIC_BIND opens it, and an explicit
-    // dev public bind was already refused at env parse. Production is unchanged (unset ⇒ every interface).
-    // `hostname` is OMITTED rather than defaulted to "0.0.0.0" so the production path stays byte-identical
-    // to node's own default — passing "0.0.0.0" would silently drop the IPv6 listener.
+    // The DEPLOY-MODE INVARIANT (foundation/env/bind.ts holds the model): `hostname` is OMITTED rather than
+    // defaulted to "0.0.0.0" so the production path stays byte-identical to node's own default — passing
+    // "0.0.0.0" would silently drop the IPv6 listener.
     const bind = resolveBindPosture(bindPostureInput());
-    // The notice is the posture's OWN sentence (bind.ts holds it) because the restriction has to be
-    // discoverable at the moment of confusion: an operator whose FQDN suddenly answers 502 greps this log,
-    // and the 502 belongs to the proxy — it cannot carry the hint.
-    log.info({ nodeEnv: env.NODE_ENV, bindHost: bind.host ?? "*", publicBind: bind.publicBind }, `boot: ${bind.notice}`);
-    for (const warning of bindPostureWarnings(bindPostureInput(), bind)) {
-      log.warn({ security: true }, `boot: ${warning}`);
-    }
+    const ownerPeers = resolveOwnerFallbackPeers(ownerFallbackPeerInput());
 
-    // THE WIDENED OWNER-FALLBACK PEER SET (`AUTH_FALLBACK_TRUSTED_PEERS` — foundation/env/fallback-peers.ts
-    // holds the model). Silent unless the knob is actually admitting somebody; while it is, it announces
-    // itself every boot, names the ranges back, and names the mitigation — it re-opens on purpose the exact
-    // property #298 f2 removed, and an operator must never rediscover that from an incident.
-    for (const warning of ownerFallbackPeerWarnings(resolveOwnerFallbackPeers(ownerFallbackPeerInput()))) {
-      log.warn({ security: true }, `boot: ${warning}`);
-    }
-
-    // THE SESSION-COOKIE TRANSPORT posture (`SESSION_COOKIE_INSECURE` — foundation/env/session-cookie.ts
-    // holds the model and the cost). The notice is ALWAYS logged, like the bind one and for the same reason:
-    // "sign-in does nothing at the LAN address" has no other tell, and the operator reading this log while
-    // confused needs the cookie's actual NAME and transport in front of them. The WARN then fires for as long
-    // as the downgrade is on — the session cookie IS the credential, and once it rides plain http anyone on
-    // that path can take it.
-    const sessionCookie = resolveSessionCookiePosture(sessionCookiePostureInput());
-    log.info({ sessionCookie: { name: SESSION_COOKIE_NAME, secure: sessionCookie.secure } }, `boot: ${sessionCookie.notice}`);
-    for (const warning of sessionCookieWarnings(sessionCookiePostureInput(), sessionCookie)) {
-      log.warn({ security: true, sessionCookie: SESSION_COOKIE_NAME }, `boot: ${warning}`);
-    }
-
-    // single-user has NO credential but the loopback owner fallback (env fatals single-user+deny), so a
-    // PUBLICLY-bound single-user box is "no auth, every reachable caller can be owner" — intended (the
-    // zero-setup first-run mode), but it must announce itself. The SSO modes get the boot-FATAL guard in
-    // foundation/env instead; single-user is exempt there (it has no other door) and warns here.
-    if (env.AUTH_MODE === "single-user" && bind.publicBind) {
-      log.warn(
-        { security: true },
-        "boot: AUTH_MODE=single-user on a PUBLIC bind — this box has NO login: the un-credentialed owner fallback is its only auth, so any caller that reaches it over a loopback socket is the OWNER. A relayed request (one carrying a forwarding header) is refused, but a proxy that sends no forwarding header is invisible, so never put a proxy or tunnel in front of this mode. Intended for a private/first-run box only; put it behind SSO (AUTH_MODE=oidc/local/forward-header) before exposing it.",
-      );
+    // THE BOOT DISCLAIMER (`boot/disclaimer.ts`): ONE contiguous group, logged just before the listener binds,
+    // so an operator reads what this box is, who reaches it and who is its owner in one place. Every standing
+    // exposure is one `security:true` line naming its fix; a healthy box logs only information.
+    for (const line of composeBootDisclaimer({
+      authMode: env.AUTH_MODE,
+      authFallback: env.AUTH_FALLBACK,
+      breakGlass: env.AUTH_BREAK_GLASS,
+      bind,
+      bindWarnings: bindPostureWarnings(bindPostureInput(), bind),
+      ownerPeers,
+      ownerPeerWarnings: ownerFallbackPeerWarnings(ownerPeers),
+      diagnosticsWarnings: diagnosticsPostureWarnings(diagnostics),
+      forwardHeaderUnsignedClosed: env.AUTH_MODE === "forward-header" && parseAllowlist(env.FORWARD_AUTH_TRUSTED_PROXIES).length === 0,
+      secrets: bootSecretProvenance(),
+    })) {
+      const fields = { bootDisclaimer: true, topic: line.topic, ...(line.security ? { security: true } : {}) };
+      if (line.level === "warn") {
+        log.warn(fields, `boot: ${line.text}`);
+      } else {
+        log.info(fields, `boot: ${line.text}`);
+      }
     }
 
     // Await the bind, don't assume it: serve() binds asynchronously, and a bind failure (EADDRINUSE)

@@ -17,8 +17,7 @@ import type { BindPostureInput } from "./bind.ts";
 import { resolveBindPosture } from "./bind.ts";
 import type { DiagnosticsPostureInput, OwnerFallbackCredentialInput } from "./diagnostics.ts";
 import type { OwnerFallbackPeerInput } from "./fallback-peers.ts";
-import { resolveOwnerFallbackPeers } from "./fallback-peers.ts";
-import type { SessionCookiePostureInput } from "./session-cookie.ts";
+import { parseOwnerFallbackTrustedPeers, resolveOwnerFallbackPeers } from "./fallback-peers.ts";
 
 export type { BindPosture, BindPostureInput } from "./bind.ts";
 export { bindPostureWarnings, resolveBindPosture } from "./bind.ts";
@@ -26,8 +25,6 @@ export type { DiagnosticsExposure, DiagnosticsPosture, DiagnosticsPostureInput, 
 export { DIAGNOSTICS_EXPOSURES, diagnosticsPostureWarnings, resolveDiagnosticsPosture, resolveOwnerFallbackCredential } from "./diagnostics.ts";
 export type { OwnerFallbackPeerInput, OwnerFallbackPeerPosture } from "./fallback-peers.ts";
 export { ownerFallbackPeerWarnings, parseOwnerFallbackTrustedPeers, resolveOwnerFallbackPeers } from "./fallback-peers.ts";
-export type { SessionCookiePosture, SessionCookiePostureInput } from "./session-cookie.ts";
-export { resolveSessionCookiePosture, sessionCookieWarnings } from "./session-cookie.ts";
 
 const DEFAULT_PORT = 8788;
 // vLLM loopback engine ports (must match what the stack supervisor passes).
@@ -281,11 +278,12 @@ const envSchema = z
   .object({
     PORT: z.coerce.number().int().positive().default(DEFAULT_PORT),
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
-    // The listen interface (`serve({ hostname })`). UNSET is the meaningful default and differs by build:
-    // production ⇒ node's own default (every interface — what the reverse proxy target needs); NON-production
-    // ⇒ loopback only, because a dev build must not be reachable off-box (bind.ts holds the model + the
-    // 2026-08-09 incident it exists for). An EXPLICIT non-loopback value on a non-production build is
-    // boot-fatal below unless ALLOW_DEV_PUBLIC_BIND says otherwise.
+    // The listen interface (`serve({ hostname })`). UNSET is the meaningful default and differs by mode and
+    // build: `single-user` ⇒ loopback in every build (no login, so it serves this machine only); every other
+    // mode ⇒ node's own default in production (every interface — what the reverse proxy target needs) and
+    // loopback on a NON-production build (bind.ts holds the model). An EXPLICIT non-loopback value is
+    // boot-fatal below on a non-production build unless ALLOW_DEV_PUBLIC_BIND says otherwise, and under
+    // `single-user` unless AUTH_FALLBACK_TRUSTED_PEERS declares the peer set.
     BIND_HOST: z.string().min(1).optional(),
     // The deliberate-LAN-dev opt-in for the rule above. Default false. Never set this on the box that serves
     // the public FQDN: the public deployment runs `pnpm stack up prod` (NODE_ENV=production), where this knob
@@ -524,24 +522,9 @@ const envSchema = z
     // HMAC-peppers the session tokenHash so a DB leak alone can't forge a session. Unset ⇒ `.session-secret`
     // is generated beside the db on first boot and reused (`infra/crypto/key.ts`); an explicit value wins.
     SESSION_SECRET: z.string().min(MIN_SESSION_SECRET_CHARS).optional(),
-    // THE PLAIN-HTTP LAN OPT-IN (`session-cookie.ts` holds the model, the cost and the never-auto-detect
-    // rule). Default false ⇒ the session cookie stays `__Host-orb_session` + `Secure`, byte-identical to
-    // before this knob existed. `true` ⇒ a DISTINCT, non-`__Host-` cookie name with no `Secure` attribute, so
-    // a browser on `http://192.168.1.20:8788` will actually keep the login. The house envBool vocabulary:
-    // only lowercase `true`/`false` parse, `1`/`on`/`TRUE` are a loud boot refusal.
-    //
-    // WHY IT IS *NOT* IN `LAUNCH_ONLY_ENV_KEYS`, argued rather than assumed (the #301 table above is the
-    // thing it most resembles). Both launch-only keys answer "WHO IS THE OWNER with no credential" — an
-    // AUTHORIZATION widening that a forgotten `.env` line silently grants to a mode that never asked for it,
-    // where the per-mode default already supplies the value each mode wants, so a pin can only restate or
-    // invert it. This knob is the other class: it changes the TRANSPORT of a credential the caller must still
-    // present, grants nobody anything, has no per-mode default that could make a pin redundant, and is the
-    // `ALLOW_DEV_PUBLIC_BIND` shape exactly — a deliberate reachability/security downgrade, opt-in, announced
-    // in a standing boot WARN for as long as it is on. `ALLOW_DEV_PUBLIC_BIND` is `.env`-settable for that
-    // reason and this follows it. The practical half: `.env` is the ONLY persistent home a bare-metal
-    // operator has (docker sets it in the CONTAINER env, which is unaffected either way), so banning it here
-    // would push the decision into an un-greppable shell export — the opposite of what #301 protects.
-    SESSION_COOKIE_INSECURE: envBool(false),
+    // The session cookie's transport (Secure `__Host-` over https, the insecure name over plain http) is
+    // decided per request by `infra/auth/transport.ts`; there is no knob. An old `SESSION_COOKIE_INSECURE` line
+    // is an unknown key, which zod strips, so it is inert.
 
     RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(RATE_LIMIT_WINDOW_MS_DEFAULT),
     RATE_LIMIT_AI_TURN: z.coerce.number().int().positive().default(RATE_LIMIT_AI_TURN_DEFAULT),
@@ -665,10 +648,16 @@ const envSchema = z
     // THE DEPLOY-MODE INVARIANT (PROD-LEAK, 2026-08-09) — same fail-fast class again: a NON-PRODUCTION build
     // may not be bound where an untrusted network reaches it. Refusing at PARSE (rather than at the bind
     // site) is what makes the state unrepresentable: no code path can hold an `env` that says
-    // "development + public interface". The rule itself lives in ONE home — `bind.ts::resolveBindPosture`,
-    // which `entry/lifecycle` also calls for the host it actually binds — so the refusal and the bind can
-    // never disagree.
-    const bind = resolveBindPosture({ nodeEnv: val.NODE_ENV, bindHost: val.BIND_HOST, allowDevPublicBind: val.ALLOW_DEV_PUBLIC_BIND });
+    // "development + public interface", or "single-user + public interface" without a declared peer set. The
+    // rule itself lives in ONE home — `bind.ts::resolveBindPosture`, which `entry/lifecycle` also calls for
+    // the host it actually binds — so the refusal and the bind can never disagree.
+    const bind = resolveBindPosture({
+      nodeEnv: val.NODE_ENV,
+      authMode: val.AUTH_MODE,
+      bindHost: val.BIND_HOST,
+      allowDevPublicBind: val.ALLOW_DEV_PUBLIC_BIND,
+      ownerPeersDeclared: parseOwnerFallbackTrustedPeers(val.AUTH_FALLBACK_TRUSTED_PEERS).length > 0,
+    });
     if (bind.refusal !== null) {
       ctx.addIssue({ code: "custom", path: ["BIND_HOST"], message: bind.refusal });
     }
@@ -708,7 +697,13 @@ export function processEnvSnapshot(): Record<string, string | undefined> {
  *  rule lives in `bind.ts`, and `entry/lifecycle` composes + logs. The env parse above has ALREADY refused
  *  any combination whose posture carries a refusal, so a caller here is guaranteed a bindable verdict. */
 export function bindPostureInput(): BindPostureInput {
-  return { nodeEnv: env.NODE_ENV, bindHost: env.BIND_HOST, allowDevPublicBind: env.ALLOW_DEV_PUBLIC_BIND };
+  return {
+    nodeEnv: env.NODE_ENV,
+    authMode: env.AUTH_MODE,
+    bindHost: env.BIND_HOST,
+    allowDevPublicBind: env.ALLOW_DEV_PUBLIC_BIND,
+    ownerPeersDeclared: parseOwnerFallbackTrustedPeers(env.AUTH_FALLBACK_TRUSTED_PEERS).length > 0,
+  };
 }
 
 /** The raw inputs the DIAGNOSTICS posture resolver reads — the three ops knobs that together decide who can
@@ -725,14 +720,6 @@ export function diagnosticsPostureInput(): DiagnosticsPostureInput {
  *  reader; `entry/lifecycle` composes it into the auth seam, which owns no copy of the rule. */
 export function ownerFallbackCredentialInput(): OwnerFallbackCredentialInput {
   return { nodeEnv: env.NODE_ENV, authFallback: env.AUTH_FALLBACK, fallbackWidened: resolveOwnerFallbackPeers(ownerFallbackPeerInput()).widened };
-}
-
-/** The raw inputs the SESSION-COOKIE TRANSPORT resolver reads (`session-cookie.ts` holds the model, the
- *  cost and the never-auto-detect rule). Same seam shape as `bindPostureInput`: this file stays the pure
- *  `process.env` reader; `infra/auth/modes/cookie-session.ts` turns the verdict into the cookie name +
- *  attributes, and `entry/lifecycle` logs the notice and the standing warning. */
-export function sessionCookiePostureInput(): SessionCookiePostureInput {
-  return { insecure: env.SESSION_COOKIE_INSECURE, authMode: env.AUTH_MODE };
 }
 
 /** The raw inputs the OWNER-FALLBACK PEER-SET resolver reads (`fallback-peers.ts` holds the rule, the hazard

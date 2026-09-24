@@ -15,6 +15,8 @@ export const TEST_IDS = {
   loginOidc: "login-oidc",
   // A7 — the OIDC callback error line rendered above the Continue button when /login?authError=<code> is set.
   loginAuthError: "login-auth-error",
+  // The plain-http warning above a cookie-mode login; `data-client-scope` carries private or public.
+  loginTransportNotice: "login-transport-notice",
   // B4 — the local-mode FIRST-RUN owner-password setup form (rendered in place of the credential form on a
   // fresh local box: password + confirm + submit + inline error).
   firstRunSetupForm: "first-run-setup-form",
@@ -31,6 +33,9 @@ export const TEST_IDS = {
   firstRunPersonaName: "first-run-persona-name",
   firstRunPersonaCreate: "first-run-persona-create",
   adminUsersSection: "admin-users-section",
+  // The read-only "who can sign in" panel in the Multi-user section, and the `.env` line it shows.
+  adminSharingPanel: "admin-sharing-panel",
+  adminSharingEnvLine: "admin-sharing-env-line",
   // A2 — the OIDC_REQUIRE_APPROVAL account-approval queue + its per-row Approve action + empty state.
   adminApprovalsSection: "admin-approvals-section",
   adminApproveButton: "admin-approve",

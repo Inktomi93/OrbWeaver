@@ -17,6 +17,7 @@ import { useAuthConfig } from "#data";
 import { testId, useFocusOnMount } from "#lib";
 import { LoginFirstRunForm } from "../components/login-first-run-form.tsx";
 import { LoginLocalForm } from "../components/login-local-form.tsx";
+import { LoginTransportNotice } from "../components/login-transport-notice.tsx";
 import { authErrorMessage } from "../lib/auth-error.ts";
 import { shouldAutoRedirectToSso } from "../lib/sso-redirect.ts";
 
@@ -87,11 +88,13 @@ export function LoginBody({
       return config.localFirstRun ? (
         <Stack gap="block">
           <Heading level={1}>Set up your server</Heading>
+          <LoginTransportNotice transport={config.transport} clientScope={config.clientScope} />
           <LoginFirstRunForm ownerHandle={config.defaultHandle} onDone={onDone} />
         </Stack>
       ) : (
         <Stack gap="block">
           <Heading level={1}>Sign in</Heading>
+          <LoginTransportNotice transport={config.transport} clientScope={config.clientScope} />
           <LoginLocalForm defaultHandle={config.defaultHandle} onLoggedIn={onDone} />
         </Stack>
       );
@@ -99,6 +102,7 @@ export function LoginBody({
       return (
         <Stack gap="block">
           <Heading level={1}>Sign in</Heading>
+          <LoginTransportNotice transport={config.transport} clientScope={config.clientScope} />
           <Text size="label" tone="muted">
             You'll be redirected to {config.oidcProviderName}, then back here.
           </Text>

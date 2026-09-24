@@ -23,9 +23,8 @@ import type { MultiUserConfig } from "../contract/types.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm seed:demo (node tooling/src/seed/cli.ts <demo|chat|multi-user>)");
 
-// The two session-cookie names the app can mint under — `__Host-orb_session` by default,
-// `orb_session_insecure` when the box runs `SESSION_COOKIE_INSECURE=true` (#2413, the plain-http LAN
-// posture). A MINT under one is accompanied by a `Max-Age=0` CLEAR of the other in the same response, which
+// The two session-cookie names the app can mint under — `__Host-orb_session` over https behind a trusted
+// proxy, `orb_session_insecure` over plain http (`infra/auth/transport.ts`). A MINT under one is accompanied by a `Max-Age=0` CLEAR of the other in the same response, which
 // is why the check below needs a non-empty VALUE and not merely the name: `includes("<name>=")` matches the
 // clearing cookie too and would report "the credential works" for a login that minted nothing.
 const SESSION_COOKIE_MINTED = /(?:^|,\s*)(?:__Host-orb_session|orb_session_insecure)=[^;,\s]/u;

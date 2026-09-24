@@ -992,7 +992,7 @@ export function SessionRecoveryReauthStory(): ReactElement {
 
 /**
  * THE NO-401 IDENTITY SWAP (§4.4.1 × §4.2.1) — the one attack path no other sensor can reach. When another
- * human signs in on this browser, the shared `__Host-orb_session` cookie becomes THEIRS while this warm tab
+ * human signs in on this browser, the shared session cookie becomes THEIRS while this warm tab
  * keeps rendering the previous human's cache: every request now succeeds, so nothing 401s, so neither belt
  * ever fires. The visibility probe's identity compare is the only thing left that can notice.
  *

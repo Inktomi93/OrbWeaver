@@ -11,8 +11,11 @@
 // re-pointed: their subject does not exist. What survives is the claim this module was written for — ONE
 // module-private `useIsBoxOwner()` predicate, per-KEY rather than per-section.
 
+import type { AuthMode } from "@orb/contracts/identity";
+import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import type { AuthConfig } from "../../../../../packages/client/src/data/auth-config.ts";
 import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { GovernanceSectionsStory } from "../_ct-stories.tsx";
@@ -133,4 +136,64 @@ test("Multi-user's Reset clears only the keys the viewer may clear — delegated
 
   await page.locator("#config-anchor-admin-multi-user").getByRole("button", { name: "Reset to defaults" }).click();
   await expect.poll(() => lastPartial(trpc), { intervals: [20, 50, 100] }).toStrictEqual({ discreetLogin: null });
+});
+
+// The read-only sharing panel beside the seating switch: letting other devices sign in is an env change
+// (AUTH_MODE), never a runtime switch, so the panel states the box's posture and the exact `.env` line.
+function authConfigFor(mode: AuthMode): AuthConfig {
+  return {
+    mode,
+    requiresLogin: mode === "local" || mode === "oidc",
+    localEnabled: mode === "local",
+    oidcEnabled: mode === "oidc",
+    oidcProviderName: "Test IdP",
+    localFirstRun: false,
+    discreetLogin: false,
+    defaultHandle: "owner",
+    multiHumanCapable: mode !== "single-user",
+    forbidExternalMedia: true,
+    trustHtml: false,
+    allowInteractiveCards: false,
+    uploads: DEFAULT_UPLOAD_CAPS,
+    transport: "http",
+    clientScope: "private",
+  };
+}
+
+async function stubAuthConfig(page: Page, mode: AuthMode): Promise<void> {
+  const body = JSON.stringify(authConfigFor(mode));
+  await page.route("**/api/auth/config", (route) => route.fulfill({ status: 200, contentType: "application/json", body }));
+}
+
+test("single-user: the sharing panel gives the .env line that lets other devices sign in", async ({ mount, page }) => {
+  await stub(page, OWNER);
+  await stubAuthConfig(page, "single-user");
+  await mount(<GovernanceSectionsStory />);
+
+  const panel = page.getByTestId("admin-sharing-panel");
+  await expect(panel).toHaveAttribute("data-auth-mode", "single-user");
+  await expect(panel.getByTestId("admin-sharing-env-line")).toHaveText("AUTH_MODE=local");
+});
+
+test("oidc: the sharing panel states the running mode's line", async ({ mount, page }) => {
+  await stub(page, OWNER);
+  await stubAuthConfig(page, "oidc");
+  await mount(<GovernanceSectionsStory />);
+
+  const panel = page.getByTestId("admin-sharing-panel");
+  await expect(panel).toHaveAttribute("data-auth-mode", "oidc");
+  await expect(panel.getByTestId("admin-sharing-env-line")).toHaveText("AUTH_MODE=oidc");
+});
+
+// Read-only by ruling: the auth mode is a boot fact, so the panel offers nothing to toggle, for any viewer.
+test("the sharing panel is read-only: no switch, no field, no button, even for the owner", async ({ mount, page }) => {
+  await stub(page, OWNER);
+  await stubAuthConfig(page, "single-user");
+  await mount(<GovernanceSectionsStory />);
+
+  const panel = page.getByTestId("admin-sharing-panel");
+  await expect(panel).toBeVisible();
+  await expect(panel.getByRole("switch")).toHaveCount(0);
+  await expect(panel.getByRole("textbox")).toHaveCount(0);
+  await expect(panel.getByRole("button")).toHaveCount(0);
 });
