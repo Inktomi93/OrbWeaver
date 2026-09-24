@@ -41,7 +41,7 @@ import { isOwner } from "#domain/admin";
 import type { SessionsService, UserPrincipalFields } from "#domain/sessions";
 import { ownerHandles } from "#domain/sessions";
 import type { AuthConfig, ForwardJwtVerifier, IdentityResolution, OidcTransactionStore, RelayedFallbackNotice } from "#infra/auth";
-import { authConfigFromEnv, hasCsrfHeader, resolve, selectSignedForwardJwt, sessionCookieFor } from "#infra/auth";
+import { authConfigFromEnv, hasCsrfHeader, readRequestCookie, resolve, selectSignedForwardJwt, sessionCookieFor } from "#infra/auth";
 import { publishUserEvent } from "../../transport/trpc/index.ts";
 
 /** The boot-time deps the seam binds once. `config` is the test/override seam — production parses
@@ -122,26 +122,8 @@ export interface AuthSeam {
  * plain-http sibling origin can plant.
  */
 export function readSessionCookie(headers: Headers, transport: RequestTransport): SessionToken | null {
-  const raw = headers.get("cookie");
-  if (raw === null) {
-    return null;
-  }
-  const name = sessionCookieFor(transport).name;
-  for (const part of raw.split(";")) {
-    const eq = part.indexOf("=");
-    if (eq === -1) {
-      continue;
-    }
-    if (part.slice(0, eq).trim() === name) {
-      // @orb-waive caught-failure-ownership(catch): a cookie value that fails to percent-decode is not a session token, and `null` here means exactly "no cookie session" — the caller's unauthenticated path. A client-supplied malformed header is not an operator event. Ends if a malformed cookie should be distinguished from an absent one.
-      try {
-        return castId<SessionToken>(decodeURIComponent(part.slice(eq + 1).trim()));
-      } catch {
-        return null;
-      }
-    }
-  }
-  return null;
+  const value = readRequestCookie(headers, sessionCookieFor(transport).name);
+  return value === null ? null : castId<SessionToken>(value);
 }
 
 /** The cookie arm's product: the Principal PLUS the session row that admitted it (see `SeamResult`). */
