@@ -742,15 +742,20 @@ describe("SESSION_COOKIE_INSECURE — deleted, and an old line is inert", () => 
 // hint why. The parse refuses it instead, naming the entry.
 describe("ALLOWED_HOSTS — a malformed entry is a parse refusal naming it", () => {
   test.each(["nas.local:8788", "*.example.com", "https://orb.example"])("ALLOWED_HOSTS containing %j refuses boot, naming it", async (entry) => {
-    const refusal = reimportEnvWith({ ALLOWED_HOSTS: `ok.example, ${entry}` });
-    await expect(refusal).rejects.toThrow("ALLOWED_HOSTS entry");
-    await expect(refusal).rejects.toThrow(entry);
+    await expect(reimportEnvWith({ ALLOWED_HOSTS: `ok.example, ${entry}` })).rejects.toThrow(entry);
   });
 
-  test("a one-label suffix such as .com refuses boot and says it would allow a whole top-level domain", async () => {
-    const refusal = reimportEnvWith({ ALLOWED_HOSTS: "nas.local, .com" });
-    await expect(refusal).rejects.toThrow("whole top-level domain");
-    await expect(refusal).rejects.toThrow(".com");
+  test("a one-label suffix such as .lan refuses boot, naming it", async () => {
+    await expect(reimportEnvWith({ ALLOWED_HOSTS: "nas.local, .lan" })).rejects.toThrow(".lan");
+  });
+
+  test("an image that declares itself (ORB_CONTAINER=true) is a container: its host name is not admitted", async () => {
+    const declared = await reimportEnvWith({ ORB_CONTAINER: "true" });
+    expect(declared.allowedHostsInput().machineHostname).toBeNull();
+    expect(declared.bindPostureInput().inContainer).toBe(true);
+    // Control, on this bare-metal runner: without the declaration the machine's name is read.
+    const bare = await reimportEnvWith({});
+    expect(bare.allowedHostsInput().machineHostname).not.toBeNull();
   });
 
   test("well-formed names boot and reach the resolver beside the OIDC callback hosts", async () => {

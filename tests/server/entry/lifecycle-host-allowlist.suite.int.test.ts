@@ -5,6 +5,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { hostname, tmpdir } from "node:os";
 import { join } from "node:path";
+import { ALLOWED_HOSTS_KEY } from "@orb/kit/allowed-hosts";
 import { afterAll, beforeAll, vi } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 import { requestWithHost } from "../../support/host-request.ts";
@@ -35,7 +36,9 @@ const { createLifecycle } = await import("../../../packages/server/src/entry/lif
   throw error;
 });
 const { logRing } = await import("../../../packages/server/src/foundation/observability/index.ts");
-const { runsInContainer } = await import("../../../packages/server/src/foundation/env/container.ts");
+const { bindPostureInput, settingInstruction } = await import("../../../packages/server/src/foundation/env/index.ts");
+// The install shape the booted server itself detected.
+const inContainer = bindPostureInput().inContainer;
 
 const lifecycle = createLifecycle({ listenPort: 0 });
 let base = "";
@@ -72,9 +75,8 @@ test("a rebound name reaching the loopback socket is refused before the owner re
   const res = await me(`${REBOUND_NAME}:${port}`);
   expect(res.status).toBe(MISDIRECTED);
   expect(res.body).not.toContain('"authenticated":true');
-  // The refusal names the exact line an operator adds when the name is really theirs.
-  expect(res.body).toContain(`ALLOWED_HOSTS=${REBOUND_NAME}`);
   expect(res.contentType).toContain("application/json");
+  expect((JSON.parse(res.body) as { host: string }).host).toBe(REBOUND_NAME);
 });
 
 test("a page on the rebound name cannot pass by forging X-Forwarded-Host from the loopback socket", async () => {
@@ -92,7 +94,7 @@ test("localhost, *.localhost and IP literals reach the owner on the same socket"
 });
 
 // Bare metal only: in a container the host name is a random id the server deliberately does not admit.
-test.skipIf(runsInContainer())("this machine's own name and its .local form reach the owner with ALLOWED_HOSTS unset", async () => {
+test.skipIf(inContainer)("this machine's own name and its .local form reach the owner with ALLOWED_HOSTS unset", async () => {
   const name = hostname().toLowerCase();
   const label = name.split(".")[0] ?? name;
   for (const host of [`${name}:${port}`, `${label}.local:${port}`]) {
@@ -104,11 +106,12 @@ test.skipIf(runsInContainer())("this machine's own name and its .local form reac
   expect((await me(`${label}.${REBOUND_NAME}:${port}`)).status).toBe(MISDIRECTED);
 });
 
-test("the non-API refusal is a page naming the host and the key", async () => {
+test("the non-API refusal is a page carrying this install's fix for the refused host", async () => {
   const res = await requestWithHost(base, "/", { host: REBOUND_NAME });
   expect(res.status).toBe(MISDIRECTED);
   expect(res.contentType).toContain("text/html");
-  expect(res.body).toContain(`ALLOWED_HOSTS=${REBOUND_NAME}`);
+  // The page carries this install's fix for the refused host (the shape the booted server detected).
+  expect(res.body).toContain(settingInstruction(inContainer, ALLOWED_HOSTS_KEY, REBOUND_NAME));
 });
 
 test("repeated requests for one refused name log one security line", async () => {

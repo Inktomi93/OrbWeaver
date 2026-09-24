@@ -67,6 +67,10 @@ describe("resolveClientIp — a visitor-supplied leftmost value is never the cli
     expect(resolveClientIp({ peer: "127.0.0.1", forwarded: `${Visitor}, unknown`, trustedProxies: [] })).toBe("127.0.0.1");
     expect(resolveClientIp({ peer: "127.0.0.1", forwarded: "not-an-ip, 10.0.0.2", trustedProxies: [] })).toBe("10.0.0.2");
   });
+
+  test("an over-long IPv6 hop is unparseable, never a thrown error that turns the request into a 500", () => {
+    expect(resolveClientIp({ peer: "127.0.0.1", forwarded: "1:2:3:4:5:6:7:8::9", trustedProxies: [] })).toBe("127.0.0.1");
+  });
 });
 
 describe("isIngressAllowed — the allowlist gate decision", () => {

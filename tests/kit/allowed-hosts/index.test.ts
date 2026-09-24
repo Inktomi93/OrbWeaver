@@ -1,7 +1,16 @@
 // @orb/kit/allowed-hosts — the ALLOWED_HOSTS grammar the server's env parse and the setup wizard share. A malformed
 // entry must be caught: it would match nothing, so the name the operator meant would be refused on every request.
 
-import { isAllowedHostEntry, isHostname, isTopLevelSuffix, machineHostNames, parseAllowedHosts, splitHostList } from "@orb/kit/allowed-hosts";
+import {
+  isAllowedHostEntry,
+  isAlwaysAllowedHost,
+  isHostname,
+  isTopLevelSuffix,
+  machineHostNames,
+  parseAllowedHosts,
+  splitHostList,
+  withoutTrailingDot,
+} from "@orb/kit/allowed-hosts";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
@@ -62,4 +71,18 @@ test("isHostname takes a bare name only; isAllowedHostEntry also takes a dot-led
   expect(isHostname(".nas.local")).toBe(false);
   expect(isAllowedHostEntry(".nas.local")).toBe(true);
   expect(isAllowedHostEntry(".")).toBe(false);
+});
+
+test("the always-allowed rule: localhost, *.localhost and IP literals (bare or bracketed) need no entry", () => {
+  for (const host of ["localhost", "app.localhost", "127.0.0.1", "100.101.102.103", "::1", "[::1]", "::ffff:127.0.0.1"]) {
+    expect(isAlwaysAllowedHost(host), host).toBe(true);
+  }
+  for (const host of ["nas.local", "localhost.attacker.example", "evil-localhost", "0x7f000001", "[nas.local]", "1:2:3:4:5:6:7:8::9"]) {
+    expect(isAlwaysAllowedHost(host), host).toBe(false);
+  }
+});
+
+test("withoutTrailingDot drops exactly one dot", () => {
+  expect(withoutTrailingDot("example.com.")).toBe("example.com");
+  expect(withoutTrailingDot("example.com")).toBe("example.com");
 });

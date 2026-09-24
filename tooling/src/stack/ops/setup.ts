@@ -3,7 +3,7 @@
 import { writeFileSync } from "node:fs";
 import { createInterface } from "node:readline";
 import { SETUP_COMMAND } from "@orb/contracts/identity";
-import { machineHostNames, splitHostList } from "@orb/kit/allowed-hosts";
+import { ALLOWED_HOSTS_KEY, machineHostNames, splitHostList } from "@orb/kit/allowed-hosts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type {
   AnswerParse,
@@ -18,7 +18,6 @@ import type {
 } from "../contract/types.ts";
 import { SETUP_AUDIENCES, SETUP_LOGINS } from "../contract/types.ts";
 import {
-  ALLOWED_HOSTS_KEY,
   AUTH_MODE_KEY,
   applySetupValues,
   currentAuthMode,

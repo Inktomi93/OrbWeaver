@@ -1,6 +1,11 @@
-// The `ALLOWED_HOSTS` grammar, one home for the server's env parse (`foundation/env/allowed-hosts.ts`) and the
-// `pnpm start --setup` wizard that writes the key. An entry is a hostname or a dot-led suffix; localhost and IP
-// literals pass the server's Host check without one, so the grammar has no IP form.
+// The `ALLOWED_HOSTS` grammar and the always-allowed rule, one home for the server (its env parse and its Host
+// check) and the `pnpm start --setup` wizard that writes the key. An entry is a hostname or a dot-led suffix;
+// localhost and IP literals always pass, so the grammar has no IP form.
+
+import { parseIp } from "#ip";
+
+/** The env key the operator's extra names live under. */
+export const ALLOWED_HOSTS_KEY = "ALLOWED_HOSTS";
 
 /** A parsed value: canonical entries, plus every entry that failed the grammar (the env refusal names each one). */
 export interface AllowedHostsParse {
@@ -14,6 +19,23 @@ export const ALLOWED_HOST_SUFFIX_MARK = ".";
 // RFC 1035 name and label bounds. The label also admits `_`, which browsers accept in a host.
 const MAX_NAME_CHARS = 253;
 const LABEL_RE = /^[a-z0-9_](?:[a-z0-9_-]{0,61}[a-z0-9_])?$/u;
+const TRAILING_DOT = ".";
+const LOCALHOST = "localhost";
+const LOCALHOST_SUFFIX = `.${LOCALHOST}`;
+const BRACKETED_RE = /^\[(.*)\]$/u;
+
+/** Drop one trailing dot: `example.com.` names the same DNS node as `example.com`. */
+export function withoutTrailingDot(name: string): string {
+  return name.endsWith(TRAILING_DOT) ? name.slice(0, -TRAILING_DOT.length) : name;
+}
+
+/** The names that pass the Host check with no entry: localhost, any `*.localhost` name (never resolved through public
+ *  DNS), and any IP literal, bare or bracketed (a rebinding attack needs a DNS name). `host` is lower-cased, with no
+ *  port and no trailing dot. */
+export function isAlwaysAllowedHost(host: string): boolean {
+  const unbracketed = BRACKETED_RE.exec(host)?.[1] ?? host;
+  return host === LOCALHOST || host.endsWith(LOCALHOST_SUFFIX) || parseIp(unbracketed) !== null;
+}
 
 /** Split a comma list into canonical entries: trimmed, lower-cased (hostnames are case-insensitive; Windows
  *  reports NetBIOS names in upper case), one trailing dot dropped (`example.com.` is the same DNS node), empties
@@ -22,7 +44,7 @@ export function splitHostList(raw: string | null | undefined): readonly string[]
   return (raw ?? "")
     .split(ENTRY_SEPARATOR)
     .map((entry) => entry.trim().toLowerCase())
-    .map((entry) => (entry.endsWith(".") ? entry.slice(0, -1) : entry))
+    .map(withoutTrailingDot)
     .filter((entry) => entry.length > 0);
 }
 
