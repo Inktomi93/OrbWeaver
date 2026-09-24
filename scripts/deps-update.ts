@@ -71,7 +71,9 @@ if (result.status !== 0) {
 
 // The component-testing package trails `@playwright/test`, and the two must stay on one version: both take
 // the lower of the two, then one more install applies it.
-const [testSpec, componentSpec] = PLAYWRIGHT_PAIR.map((name) => readWorkspace().catalog[name] ?? "");
+const catalog = readWorkspace().catalog;
+const testSpec = catalog[PLAYWRIGHT_PAIR[0]] ?? "";
+const componentSpec = catalog[PLAYWRIGHT_PAIR[1]] ?? "";
 if (testSpec !== componentSpec) {
   const lower = compareVersions(testSpec, componentSpec) <= 0 ? testSpec : componentSpec;
   let text = readFileSync(WORKSPACE_FILE, "utf8");
