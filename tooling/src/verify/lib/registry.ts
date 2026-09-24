@@ -302,7 +302,15 @@ const GATING_STAGES: readonly StageDef[] = [
     tiers: ["changed", ...STATIC],
     argv: ["pnpm", "check:docs"],
     classify: ownScheme,
-    scopedArgv: (sel) => (sel.docsPaths.length === 0 ? "skip-empty" : ["node", "tooling/src/doc/cli.ts", "format", "--check", ...sel.docsPaths]),
+    // `docsPaths` covers only the docs trees, while `check:docs` also owns instruction files and other
+    // admitted markdown. A changed markdown file outside `docsPaths` runs the whole check (seconds), so a
+    // scoped commit never skips a file the whole tier would fail.
+    scopedArgv: (sel) => {
+      if (sel.existingPaths.some((path) => path.endsWith(".md") && !sel.docsPaths.includes(path))) {
+        return ["pnpm", "check:docs"];
+      }
+      return sel.docsPaths.length === 0 ? "skip-empty" : ["node", "tooling/src/doc/cli.ts", "format", "--check", ...sel.docsPaths];
+    },
   },
 
   // ── tests stage-group (§3.7: the eight lanes as ONE concept with tier + scope) ──

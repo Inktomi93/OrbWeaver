@@ -158,7 +158,7 @@ test("T15 — a loaded reading STRETCHES a budget, and the stretch is capped in 
   // subject still surfaces inside one lane's patience.
   expect(budget(180_000, () => ({ loadavg1: 10_000, cpuCount: 24 }))).toBe(600_000);
   // A base ALREADY above the ceiling is returned untouched — the ceiling caps the STRETCH; it never
-  // shrinks a budget its author deliberately declared (model-ab's 15-minute cold-load boot is the live case).
+  // shrinks a budget its author deliberately declared (a 15-minute model cold-load boot is the live case).
   expect(budget(900_000, readLoaded)).toBe(900_000);
 });
 

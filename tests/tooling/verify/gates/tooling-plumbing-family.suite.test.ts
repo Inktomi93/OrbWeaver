@@ -97,8 +97,10 @@ const GRANT_POLICIES: readonly GatePolicy[] = [projectHome, browserDoor, artifac
 // with the act it licensed; 16 since `tooling-project-home:ops-conformance` died with the legacy conformance
 // runner at df2a54b09 (#2176 Phase F); 17 since `tooling-child-process-door:stack-start` licensed the
 // portable `pnpm start` launcher, whose children are the production server and its client build and which
-// cannot ride the niced doors at all (they exec POSIX `nice`, absent on Windows). The exact-subject arm
-// below still pins every survivor to a live file.
+// cannot ride the niced doors at all (they exec POSIX `nice`, absent on Windows); 16 when
+// `tooling-child-process-door:stack-engines` left with the engine fleet; 17 since
+// `tooling-child-process-door:dev` licensed `pnpm dev` (D252) for the `pnpm start` reason. The
+// exact-subject arm below still pins every survivor to a live file.
 const PLUMBING_GRANT_COUNT = 17;
 const REAL_TREE_BUDGET_MS = scaledBudget(300_000);
 

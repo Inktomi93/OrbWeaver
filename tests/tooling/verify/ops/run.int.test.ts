@@ -190,9 +190,9 @@ process.exitCode = await runVerify(${JSON.stringify(scratch)}, parsed);
 // `Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.` whenever BOTH are
 // present — and the parent routinely exports one (an agent shell and a `pnpm` run both do; `FORCE_COLOR=3`
 // measured on the run that surfaced this). Not setting it left the INHERITED one in place, so the warning
-// rode the stderr of every node child of every stage: noise in each stage log, and a real failure in
-// `tests/tooling/stack/ops/engines-compose.int.test.ts`, which asserts a compose child prints NOTHING on
-// stderr and was instead reading node's complaint about our own contradictory env.
+// rode the stderr of every node child of every stage: noise in each stage log, and a real failure in any
+// suite that asserts a child prints NOTHING on stderr and instead reads node's complaint about our own
+// contradictory env.
 test("a stage child carries NO_COLOR and never an inherited FORCE_COLOR (#2469)", { timeout: scaledBudget(60_000) }, async ({ fakeBin, repoRoot, scratch }) => {
   const seen = join(scratch, "stage-colour-env");
   await fakeBin(
@@ -578,9 +578,9 @@ test("public command families keep one canonical front door", () => {
     .scripts;
   expect(scripts["check:type-ownership"]).toContain("tests-membership");
   expect(scripts["check:tests-membership"]).toBeUndefined();
-  expect(scripts["engines"]).toContain("tooling/src/stack/engines.sh");
-  for (const verb of ["start", "stop", "status", "sleep", "wake", "reconcile"]) {
-    expect(scripts[`engines:${verb}`]).toBeUndefined();
+  expect(scripts["stack"]).toContain("tooling/src/stack/stack.sh");
+  for (const verb of ["up", "down", "restart", "status"]) {
+    expect(scripts[`stack:${verb}`]).toBeUndefined();
   }
 });
 
@@ -1258,8 +1258,15 @@ test("a WHOLE verify run takes the host-wide queue slot; a SCOPED run does not (
   const env = scratchQueueEnv();
   const whole = await enterWholeRunQueue(process.cwd(), parsedOrThrow(["--static"]), { env, pid: 30_001, alive: (pid) => pid === 30_001 });
   expect(whole?.slot, "a whole run holds the single host slot").toBe(1);
-  const scoped = await enterWholeRunQueue(process.cwd(), parsedOrThrow(["--changed"]), { env, pid: 30_002, alive: () => true });
+  // An explicit path keeps selection off the working change, whose compiler-closure plan is slow on a dirty tree.
+  const scoped = await enterWholeRunQueue(process.cwd(), parsedOrThrow(["--changed", "docs/law/Constitution.md"]), { env, pid: 30_002, alive: () => true });
   expect(scoped, "a scoped run is exempt — it is the fast inner loop a lane runs beside a live battery").toBeNull();
+  const commit = await enterWholeRunQueue(process.cwd(), parsedOrThrow(["--static", "--changed", "docs/law/Constitution.md"]), {
+    env,
+    pid: 30_003,
+    alive: () => true,
+  });
+  expect(commit, "the pre-commit spelling is scoped, so a commit never waits behind a whole battery").toBeNull();
   whole?.release();
   rmSync(env[HOST_POOL_ROOT_ENV] ?? "", { recursive: true, force: true });
 });
@@ -1277,7 +1284,7 @@ test("a second whole run QUEUES behind a live holder and says whose pid it is be
     alive: (pid) => pid === 31_001 || pid === 31_002,
     now: () => new Date(clockMs),
     // The wait is BUDGET-SCALED off a 45-minute base, so a real ceiling would take 45 wall-clock minutes to
-    // reach; the injected clock jumps a day per poll and lands on the degrade arm in one iteration.
+    // reach; the injected clock jumps a day per poll and lands on the overflow arm in one iteration.
     sleep: (ms) => {
       clockMs += ms + 86_400_000;
       return Promise.resolve();
@@ -1286,7 +1293,7 @@ test("a second whole run QUEUES behind a live holder and says whose pid it is be
     onNotice: () => undefined,
   });
   expect(queuedBehind, "the waiter announces the run it is behind").toStrictEqual([31_001]);
-  expect(second?.slot, "past the ceiling it PROCEEDS unslotted — a refused verify breaks a merge train").toBeNull();
+  expect(second?.slot, "past the ceiling it runs as the overflow run — a refused verify breaks a merge train").toBeNull();
 
   held?.release();
   const third = await enterWholeRunQueue(process.cwd(), parsedOrThrow(["--static"]), { env, pid: 31_003, alive: (pid) => pid === 31_003 });

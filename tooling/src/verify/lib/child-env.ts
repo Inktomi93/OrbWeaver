@@ -7,9 +7,9 @@
 //
 // NOT SETTING IT WAS NEVER ENOUGH (#2469, 2026-09-19). The value arrives INHERITED: an agent shell and a
 // `pnpm` run both export it (`FORCE_COLOR=3` measured on the run that surfaced this), so the warning rode
-// the stderr of every node child of every stage — noise in each stage log, and a real failure in
-// `tests/tooling/stack/ops/engines-compose.int.test.ts`, which asserts that a compose child prints NOTHING
-// on stderr and was instead reading node's complaint about our own contradictory env. Dropping the key is
+// the stderr of every node child of every stage — noise in each stage log, and a real failure in any
+// suite that asserts a child prints NOTHING on stderr and instead reads node's complaint about our own
+// contradictory env. Dropping the key is
 // the whole fix, and it lives here rather than inline so the claim has a name and a pin
 // (`tests/tooling/verify/ops/run.int.test.ts`, which plants `FORCE_COLOR` in the parent as its control).
 import process from "node:process";

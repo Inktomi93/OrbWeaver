@@ -60,13 +60,6 @@ describe("mode projects (default, no override)", () => {
     }
   });
 
-  test("every mode adopts an existing model fleet without cold-spawning one", () => {
-    for (const mode of MODE_PROJECTS) {
-      expect(mode.webServerEnv["ENGINES_POSTURE"], mode.name).toBe("adopt-only");
-      expect(mode.webServerEnv["VLLM_DISABLED"], mode.name).toBe("true");
-    }
-  });
-
   test("no mode targets a dev-stack port, and each pins its own DATABASE_URL", () => {
     for (const mode of MODE_PROJECTS) {
       for (const url of [mode.baseUrl, mode.backendUrl]) {
