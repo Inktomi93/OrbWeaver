@@ -49,7 +49,7 @@ test.describe("with clipboard permission", () => {
 
     await expect.poll(() => readClipboard(page)).toBe(TEXT);
     await expect(status).not.toBeEmpty();
-    await expect(status).not.toHaveAttribute("data-failed");
+    await expect(status).toHaveAttribute("data-outcome", "copied");
     // No fallback on success.
     await expect(page.getByRole("textbox")).toHaveCount(0);
   });
@@ -107,7 +107,7 @@ test("an insecure page selects the text in a read-only field and says so", async
   await expect(field).toHaveValue(MULTILINE);
   await expect(field).not.toBeEditable();
   await expect.poll(() => field.evaluate((el: HTMLTextAreaElement) => [el.selectionStart, el.selectionEnd])).toEqual([0, MULTILINE.length]);
-  await expect(statusOf(page)).toHaveAttribute("data-failed", "");
+  await expect(statusOf(page)).toHaveAttribute("data-outcome", "insecure");
   await expect(statusOf(page)).not.toBeEmpty();
 });
 
@@ -148,13 +148,52 @@ test("a refused write falls back the same way, with its own reason", async ({ mo
   await page.getByRole("button", { name: copyActionName(INSECURE), exact: true }).click();
   await expect(page.getByRole("textbox", { name: INSECURE, exact: true })).toBeFocused();
 
-  // Both say something, and not the same thing.
+  // Each control reports its own outcome, and the two messages differ.
+  await expect(page.getByRole("status").nth(0)).toHaveAttribute("data-outcome", "refused");
+  await expect(page.getByRole("status").nth(1)).toHaveAttribute("data-outcome", "insecure");
   await expect
     .poll(async () => {
       const [refused = "", insecure = ""] = await page.getByRole("status").allTextContents();
       return refused !== "" && insecure !== "" && refused !== insecure;
     })
     .toBe(true);
+});
+
+test("a secure page without the Clipboard API is a refusal, not an insecure page", async ({ mount, page }) => {
+  await mount(<CopyButton text={TEXT} what={WHAT} />);
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: undefined });
+    Object.defineProperty(globalThis, "isSecureContext", { configurable: true, value: true });
+  });
+  await page.getByRole("button", { name: copyActionName(WHAT), exact: true }).click();
+  await expect(statusOf(page)).toHaveAttribute("data-outcome", "refused");
+  await expect(page.getByRole("textbox", { name: WHAT, exact: true })).toBeFocused();
+});
+
+test("a stale press that settles after a newer one cannot overwrite the newer result", async ({ mount, page }) => {
+  await mount(<CopyButton text={TEXT} what={WHAT} />);
+  // Each write waits until the test settles it, in any order: `true` resolves it, `false` rejects it.
+  const settlers = await page.evaluateHandle(() => {
+    const pending: ((ok: boolean) => void)[] = [];
+    navigator.clipboard.writeText = (): Promise<void> =>
+      new Promise<void>((resolve, reject) => {
+        pending.push((ok) => (ok ? resolve() : reject(new Error("denied"))));
+      });
+    return pending;
+  });
+  const button = page.getByRole("button", { name: copyActionName(WHAT), exact: true });
+  await button.click();
+  await button.click();
+  await expect.poll(() => settlers.evaluate((pending) => pending.length)).toBe(2);
+
+  await settlers.evaluate((pending) => pending[1]?.(true));
+  await expect(statusOf(page)).toHaveAttribute("data-outcome", "copied");
+
+  await settlers.evaluate((pending) => pending[0]?.(false));
+  // Two frames for the stale rejection to reach a commit if the guard were missing.
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  await expect(statusOf(page)).toHaveAttribute("data-outcome", "copied");
+  await expect(page.getByRole("textbox")).toHaveCount(0);
 });
 
 test("a later success removes the manual-copy field", async ({ mount, page }) => {
@@ -171,7 +210,7 @@ test("a later success removes the manual-copy field", async ({ mount, page }) =>
   });
   await button.click();
   await expect(page.getByRole("textbox")).toHaveCount(0);
-  await expect(statusOf(page)).not.toHaveAttribute("data-failed");
+  await expect(statusOf(page)).toHaveAttribute("data-outcome", "copied");
   await expect.poll(() => readClipboard(page)).toBe(TEXT);
 });
 

@@ -82,7 +82,7 @@ function InviteMintForm({ chatId }: { readonly chatId: ChatId }): ReactElement {
       }
       const link = `${globalThis.location.origin}/join/${encodeURIComponent(token)}`;
       setMintedLink(link);
-      await copyWithNotice(link, "Invite link copied — anyone with it can join.");
+      await copyWithNotice(link, { copied: "Invite link copied — anyone with it can join.", fallback: "Copy it from the dialog." });
       return values;
     } catch (error) {
       if (values.mode === "handle" && isBadRequest(error)) {

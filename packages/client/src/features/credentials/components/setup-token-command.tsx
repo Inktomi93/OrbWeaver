@@ -7,7 +7,7 @@ import { Kbd } from "@orb/ui/kbd";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { CLAUDE_SETUP_TOKEN_COMMAND } from "../lib/add-connection-form-model.ts";
+import { CLAUDE_SETUP_TOKEN_COMMAND, CLAUDE_SETUP_TOKEN_COPY_SUBJECT } from "../lib/add-connection-form-model.ts";
 
 export function SetupTokenCommand(): ReactElement {
   return (
@@ -18,11 +18,7 @@ export function SetupTokenCommand(): ReactElement {
       <Row align="baseline" gap="field">
         {/* A command the user types: `<kbd>` is its element, and the chip marks where it starts and ends. */}
         <Kbd size="command">{CLAUDE_SETUP_TOKEN_COMMAND}</Kbd>
-        <CopyButton
-          copiedHint="Paste it into a terminal on that machine."
-          text={CLAUDE_SETUP_TOKEN_COMMAND}
-          what={`the command ${CLAUDE_SETUP_TOKEN_COMMAND}`}
-        />
+        <CopyButton copiedHint="Paste it into a terminal on that machine." text={CLAUDE_SETUP_TOKEN_COMMAND} what={CLAUDE_SETUP_TOKEN_COPY_SUBJECT} />
       </Row>
     </Stack>
   );

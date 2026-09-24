@@ -7,7 +7,7 @@ import { tv } from "#lib";
 export const copyButtonVariants = tv({
   slots: {
     root: "flex min-w-0 flex-1 flex-wrap items-center gap-field",
-    status: "empty:sr-only data-failed:text-warning",
+    status: "empty:sr-only data-[outcome=insecure]:text-warning data-[outcome=refused]:text-warning",
     field: "basis-full font-mono",
   },
 });
