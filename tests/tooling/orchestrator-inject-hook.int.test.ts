@@ -7,6 +7,7 @@ import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "../support/tool-fixtures.ts";
+import { scaledBudget } from "./_load-budget.ts";
 
 const HOOK = fileURLToPath(new URL("../../.claude/hooks/orchestrator-inject.mjs", import.meta.url));
 const SKILL = fileURLToPath(new URL("../../.claude/skills/orchestrator/SKILL.md", import.meta.url));
@@ -14,6 +15,8 @@ const SETTINGS = fileURLToPath(new URL("../../.claude/settings.json", import.met
 // The harness replaces any additionalContext string longer than this with a file path and a preview.
 const HARNESS_CAP = 10_000;
 const LABEL_END = "\n\n";
+// Well under the registered hook timeout; a hook that blocks (a FIFO transcript) fails here instead of hanging.
+const HOOK_RUN_BASE_MS = 5000;
 
 // The harness's SessionStart stdin. Computed keys because the wire vocabulary is the harness's snake_case.
 const MAIN_PAYLOAD = {
@@ -42,7 +45,7 @@ function registeredParts(): number[] {
 }
 
 function runHook(hook: string, part: number, payload: object): string {
-  const run = spawnSync(process.execPath, [hook, String(part)], { input: JSON.stringify(payload), encoding: "utf8" });
+  const run = spawnSync(process.execPath, [hook, String(part)], { input: JSON.stringify(payload), encoding: "utf8", timeout: scaledBudget(HOOK_RUN_BASE_MS) });
   expect(run.status, run.stderr).toBe(0);
   return run.stdout;
 }
@@ -107,6 +110,18 @@ test("a sidechain transcript gets no injection even without a subagent path", ({
   }
 });
 
+test("a transcript path that is not a regular file still injects, and never blocks", ({ scratch }) => {
+  const fifo = join(scratch, "fifo.jsonl");
+  const made = spawnSync("mkfifo", [fifo]);
+  expect(made.status, "mkfifo").toBe(0);
+
+  for (const transcript of [scratch, fifo]) {
+    for (const part of registeredParts()) {
+      expect(injected(runHook(HOOK, part, { ...MAIN_PAYLOAD, ["transcript_path"]: transcript })), transcript).toMatch(/^Orchestrator skill, part /);
+    }
+  }
+});
+
 /** A section of exactly `size` chars, heading included. */
 function sizedSection(name: string, size: number): string {
   const heading = `## ${name}\n\n`;
@@ -124,9 +139,11 @@ test("a skill that outgrows the registered parts makes the last part name the un
     [`${intro}${loose}`, "## Loose5"],
   ] as const) {
     const hook = plantHook(join(scratch, unread.slice(3)), `---\nname: orchestrator\n---\n\n${body}`);
-    const contexts = registeredParts().map((part) => injected(runHook(hook, part, MAIN_PAYLOAD)));
-    for (const context of contexts) {
+    const parts = registeredParts();
+    const contexts = parts.map((part) => injected(runHook(hook, part, MAIN_PAYLOAD)));
+    for (const [index, context] of contexts.entries()) {
       expect(context.length, unread).toBeLessThanOrEqual(HARNESS_CAP);
+      expect(context.startsWith(`Orchestrator skill, part ${index + 1} of ${parts.length},`), "every label counts the delivered parts").toBe(true);
     }
     const last = withoutLabel(contexts.at(-1) ?? "");
     expect(last.startsWith("The skill outgrew its injected parts."), "the notice leads the last part").toBe(true);

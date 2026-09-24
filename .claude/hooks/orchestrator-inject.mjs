@@ -13,7 +13,7 @@
 // MAIN ONLY. A subagent, or a session launched with `--agent`, runs a role, not the orchestrator. The
 // discriminators are those of `is_subagent()` in the user-level context-sentinel.py hook: the payload's
 // agent fields, a `/subagents/` transcript path, and `isSidechain` on the transcript's latest entry.
-import { closeSync, fstatSync, openSync, readFileSync, readSync } from "node:fs";
+import { closeSync, fstatSync, openSync, readFileSync, readSync, statSync } from "node:fs";
 import process from "node:process";
 
 const SKILL_PATH = new URL("../skills/orchestrator/SKILL.md", import.meta.url);
@@ -38,16 +38,24 @@ function readPayload() {
   }
 }
 
-// The latest transcript entry that carries `isSidechain` decides. A missing transcript is a fresh main session.
+// The latest transcript entry that carries `isSidechain` decides. A missing or unreadable transcript is a
+// fresh main session. The type is checked before `open`, because opening a FIFO blocks until a writer appears.
 function isSidechainTranscript(path) {
   let fd;
   try {
+    if (!statSync(path).isFile()) {
+      return false;
+    }
     fd = openSync(path, "r");
   } catch {
     return false;
   }
   try {
-    const size = fstatSync(fd).size;
+    const stat = fstatSync(fd);
+    if (!stat.isFile()) {
+      return false;
+    }
+    const size = stat.size;
     const length = Math.min(size, TRANSCRIPT_TAIL_BYTES);
     const buffer = Buffer.alloc(length);
     readSync(fd, buffer, 0, length, size - length);
@@ -61,6 +69,8 @@ function isSidechainTranscript(path) {
         // A partial first line of the tail, or a blank line, is not an entry.
       }
     }
+    return false;
+  } catch {
     return false;
   } finally {
     closeSync(fd);
@@ -119,7 +129,7 @@ function context(index) {
   if (index === REGISTERED_PARTS && parts.length > REGISTERED_PARTS) {
     return overflowPart(parts.slice(REGISTERED_PARTS - 1).join(""));
   }
-  return partLabel(index, parts.length) + parts[index - 1];
+  return partLabel(index, Math.min(parts.length, REGISTERED_PARTS)) + parts[index - 1];
 }
 
 function emit(additionalContext) {
@@ -127,9 +137,9 @@ function emit(additionalContext) {
 }
 
 const requested = Number(process.argv[2]);
-if (!isSubagent(readPayload()) && Number.isInteger(requested) && requested >= 1 && requested <= REGISTERED_PARTS) {
+if (Number.isInteger(requested) && requested >= 1 && requested <= REGISTERED_PARTS) {
   try {
-    const text = context(requested);
+    const text = isSubagent(readPayload()) ? null : context(requested);
     if (text !== null) {
       emit(text);
     }
