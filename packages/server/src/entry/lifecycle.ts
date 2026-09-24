@@ -658,6 +658,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       sessions: built.sessions,
       isShuttingDown: () => isShuttingDown,
       credentialsKeyOk: () => credentialsKeyOk,
+      inContainer: bindPostureInput().inContainer,
       seedUserCharacters: (principal: Principal): void => {
         // CHAINED, not parallel: the demo chats attach to the cards this user is getting right now, so they
         // must not race the pack. `ensureSeeded` never throws, so the `.then` is unconditional.

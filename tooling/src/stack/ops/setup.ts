@@ -2,6 +2,8 @@
 // lib/setup-plan.ts makes every decision; this file only reads lines, prints, and writes the file.
 import { writeFileSync } from "node:fs";
 import { createInterface } from "node:readline";
+import { SETUP_COMMAND } from "@orb/contracts/identity";
+import { ALLOWED_HOSTS_KEY, machineHostNames, splitHostList } from "@orb/kit/allowed-hosts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type {
   AnswerParse,
@@ -16,19 +18,15 @@ import type {
 } from "../contract/types.ts";
 import { SETUP_AUDIENCES, SETUP_LOGINS } from "../contract/types.ts";
 import {
-  ALLOWED_HOSTS_KEY,
   AUTH_MODE_KEY,
   applySetupValues,
   currentAuthMode,
   decideSetup,
-  detectedHostNames,
-  hostList,
   openUrls,
   PORT_KEY,
   parseAddressAnswer,
   parseChoiceAnswer,
   parsePortAnswer,
-  SETUP_COMMAND,
   SINGLE_USER_MODE,
   setupDefaults,
   setupValues,
@@ -138,7 +136,7 @@ function reachLines(machine: SetupMachine, port: number): readonly string[] {
 /** The address question. It is pre-filled with this machine's own names, so Enter is always a working answer: an
  *  IP address needs no entry, and the detected names are written for people who type a name. */
 async function askAddress(reader: LineReader, machine: SetupMachine, port: number, current: string | null): Promise<{ readonly value: string | null } | null> {
-  const known: readonly string[] = [...new Set([...hostList(current), ...detectedHostNames(machine.hostname)])];
+  const known: readonly string[] = [...new Set([...splitHostList(current), ...machineHostNames(machine.hostname)])];
   reader.say(reachLines(machine, port).join("\n"));
   return await reader.ask(
     `Any other name people will type to reach this? An IP address needs no entry. [${known.length === 0 ? "none" : known.join(", ")}]: `,

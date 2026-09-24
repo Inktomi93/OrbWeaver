@@ -6,9 +6,10 @@ import { join } from "node:path";
 import process from "node:process";
 import { PassThrough } from "node:stream";
 import { parseEnv } from "node:util";
+import { ALLOWED_HOSTS_KEY } from "@orb/kit/allowed-hosts";
 import { afterEach, vi } from "vitest";
 import type { SetupMachine } from "../../../../tooling/src/stack/index.ts";
-import { ALLOWED_HOSTS_KEY, AUTH_MODE_KEY, PORT_KEY, runSetup } from "../../../../tooling/src/stack/index.ts";
+import { AUTH_MODE_KEY, PORT_KEY, runSetup } from "../../../../tooling/src/stack/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 interface Driven {
@@ -115,11 +116,12 @@ test("an unusable answer is asked again instead of written", async ({ scratch })
 
 test("each answer boots under the server's own env schema and binds where the answer said", async ({ scratch }) => {
   const cases = [
-    { answers: ["", "1"], mode: "single-user", port: 8788, publicBind: false },
-    { answers: ["9100", "2", "1", ""], mode: "local", port: 9100, publicBind: true },
-    { answers: ["", "2", "2", "192.168.1.20"], mode: "local", port: 8788, publicBind: true },
-    // A written ALLOWED_HOSTS must parse under the server's own grammar, not only this file's copy of it.
-    { answers: ["", "2", "1", "Game_PC.home.lan., .example.com"], mode: "local", port: 8788, publicBind: true },
+    { answers: ["", "1"], mode: "single-user", port: 8788, publicBind: false, hosts: [] },
+    { answers: ["9100", "2", "1", ""], mode: "local", port: 9100, publicBind: true, hosts: [] },
+    { answers: ["", "2", "2", "192.168.1.20"], mode: "local", port: 8788, publicBind: true, hosts: [] },
+    // A written ALLOWED_HOSTS must pass the server's env parse (a malformed entry refuses the import) and reach its
+    // resolver, so the Host allowlist admits the names the operator typed.
+    { answers: ["", "2", "1", "Game_PC.home.lan., .example.com"], mode: "local", port: 8788, publicBind: true, hosts: ["game_pc.home.lan", ".example.com"] },
   ] as const;
   for (const [index, row] of cases.entries()) {
     const dir = join(scratch, `case-${index}`);
@@ -130,6 +132,7 @@ test("each answer boots under the server's own env schema and binds where the an
     expect(server.env.PORT).toBe(row.port);
     // "people on my network" must be reachable from the LAN under `pnpm start`, and "just me" must not.
     expect(server.resolveBindPosture(server.bindPostureInput()).publicBind).toBe(row.publicBind);
+    expect(server.resolveAllowedHosts(server.allowedHostsInput())).toEqual(expect.arrayContaining([...row.hosts]));
   }
 });
 

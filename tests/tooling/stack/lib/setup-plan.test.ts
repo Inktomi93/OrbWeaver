@@ -3,13 +3,12 @@
 // in-place `.env` edit that must leave every line it does not own byte-for-byte alone.
 import type { NetworkInterfaceInfo, NetworkInterfaceInfoIPv4, NetworkInterfaceInfoIPv6 } from "node:os";
 import { parseEnv } from "node:util";
+import { ALLOWED_HOSTS_KEY } from "@orb/kit/allowed-hosts";
 import type { SetupMachine, SetupValues } from "../../../../tooling/src/stack/index.ts";
 import {
-  ALLOWED_HOSTS_KEY,
   AUTH_MODE_KEY,
   applySetupValues,
   decideSetup,
-  detectedHostNames,
   isWsl2Kernel,
   openUrls,
   PORT_KEY,
@@ -172,7 +171,7 @@ test("an edit is idempotent: the same values applied twice give the same bytes, 
 test("an address answer adds typed host names to the known ones; an IP, localhost or Enter adds nothing", () => {
   expect(parseAddressAnswer("Orb.Home.Lan", [])).toEqual({ ok: true, value: "orb.home.lan" });
   expect(parseAddressAnswer(" orb.lan, .example.com ", [])).toEqual({ ok: true, value: "orb.lan,.example.com" });
-  for (const needsNoEntry of ["192.168.1.20", "[fe80::1]", "::1", "localhost", ""]) {
+  for (const needsNoEntry of ["192.168.1.20", "[fe80::1]", "fe80::1%eth0", "[fe80::1%eth0]", "::1", "localhost", ""]) {
     expect(parseAddressAnswer(needsNoEntry, [])).toEqual({ ok: true, value: null });
     expect(parseAddressAnswer(needsNoEntry, ["box", "box.local"])).toEqual({ ok: true, value: "box,box.local" });
   }
@@ -184,17 +183,8 @@ test("an address answer adds typed host names to the known ones; an IP, localhos
   for (const bad of ["http://orb.lan", "orb.lan:8788", "orb lan", "-orb.lan", "orb-.lan", "*.orb.lan", "orb..lan", `${"a".repeat(64)}.lan`]) {
     expect(parseAddressAnswer(bad, []).ok).toBe(false);
   }
-});
-
-test("the machine's names are lower-cased with one .local form, whatever each OS reports", () => {
-  // Windows reports the NetBIOS name in upper case; Linux may report a domain; macOS may already report `.local`.
-  expect(detectedHostNames("DESKTOP-7Q2K")).toEqual(["desktop-7q2k", "desktop-7q2k.local"]);
-  expect(detectedHostNames("box.home.example.com")).toEqual(["box.home.example.com", "box.local"]);
-  expect(detectedHostNames("Alexs-MacBook-Pro.local")).toEqual(["nates-macbook-pro.local"]);
-  expect(detectedHostNames("game_pc")).toEqual(["game_pc", "game_pc.local"]);
-  // A name outside the server's grammar is never offered, so it can never be written.
-  expect(detectedHostNames("my box")).toEqual([]);
-  expect(detectedHostNames("")).toEqual([]);
+  // A one-label suffix would admit a whole top-level domain, so it is asked again too.
+  expect(parseAddressAnswer(".com", []).ok).toBe(false);
 });
 
 /** One `os.networkInterfaces()` entry, as node reports it. */

@@ -1,18 +1,20 @@
 // entry/lifecycle — the local first-run gate as production wires it. A fresh `AUTH_MODE=local` box with no
-// LOCAL_INITIAL_PASSWORD offers the owner-password claim only to a loopback request with no relay tell. The
-// route and flag unit tests inject their own gate, so only a booted lifecycle proves the headers reach it.
+// LOCAL_INITIAL_PASSWORD offers the owner-password claim only to a loopback request with no relay tell and an
+// allowed `Host`. The route and flag unit tests inject their own gate, so only a booted lifecycle proves it.
 
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, vi } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
+import { requestWithHost } from "../../support/host-request.ts";
 
 const TEMP_DIR = mkdtempSync(join(tmpdir(), "orb-lifecycle-first-run-"));
 const OWNER_PASSWORD = "correct-horse-battery";
 const OK = 200;
 const UNAUTHORIZED = 401;
 const FORBIDDEN = 403;
+const MISDIRECTED = 421;
 const BOOT_TIMEOUT_MS = 120_000;
 // A same-host tunnel connects over loopback and adds this header; the request is a stranger's.
 const RELAYED = { "x-forwarded-for": "203.0.113.9" } as const;
@@ -38,6 +40,9 @@ const { createLifecycle } = await import("../../../packages/server/src/entry/lif
 
 const lifecycle = createLifecycle({ listenPort: 0 });
 let base = "";
+// The same listener by IP literal, for the raw requests that carry their own `Host`.
+let loopbackBase = "";
+let port = "";
 
 beforeAll(async () => {
   await lifecycle.boot();
@@ -45,7 +50,9 @@ beforeAll(async () => {
   if (address === null) {
     throw new Error("boot completed without a bound listener");
   }
-  base = `http://localhost:${String(address.port)}`;
+  port = String(address.port);
+  base = `http://localhost:${port}`;
+  loopbackBase = `http://127.0.0.1:${port}`;
 }, BOOT_TIMEOUT_MS);
 
 afterAll(async () => {
@@ -74,6 +81,20 @@ async function formPost(path: string, fields: Record<string, string>, extra: Rec
 
 test("the localFirstRun flag is false for a relayed loopback request and true for a bare one", async () => {
   expect(await localFirstRun(RELAYED)).toBe(false);
+  expect(await localFirstRun()).toBe(true);
+});
+
+test("a page on a name rebound to loopback is refused the first-run flag and the claim", async () => {
+  const host = `rebind.attacker.example:${port}`;
+  expect((await requestWithHost(loopbackBase, "/api/auth/config", { host })).status).toBe(MISDIRECTED);
+  const claim = await requestWithHost(loopbackBase, "/api/auth/first-run", {
+    host,
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded", "x-orb-csrf": "1" },
+    body: new URLSearchParams({ password: OWNER_PASSWORD }).toString(),
+  });
+  expect(claim.status).toBe(MISDIRECTED);
+  // Still unset: the refused claim wrote nothing, so the bare loopback claim below still succeeds.
   expect(await localFirstRun()).toBe(true);
 });
 

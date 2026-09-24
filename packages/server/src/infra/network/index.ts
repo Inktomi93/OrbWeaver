@@ -41,5 +41,4 @@ export {
   isInRanges,
   isPrivateOrLoopback,
   matchesCidr,
-  parseIp,
 } from "./ip-ranges.ts";
