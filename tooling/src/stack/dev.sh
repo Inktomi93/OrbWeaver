@@ -2,9 +2,9 @@
 # ── the dev server boot: the watched server ──────────────────────────────────
 #
 # This is the SERVER half of the dev stack — `pnpm stack up` runs it (via `bash
-# tooling/src/stack/stack.sh` → this file by path) and adds vite on top. There is no
-# `pnpm dev` alias any more: `pnpm stack` is the ONE front door (a foreground,
-# vite-less server run is `bash tooling/src/stack/dev.sh` by hand).
+# tooling/src/stack/stack.sh` → this file by path) and adds vite on top. `pnpm stack` is this
+# box's supervisor; the cross-platform, bash-free front door is `pnpm dev` (tooling/src/dev/, D252).
+# A foreground, vite-less server run is `bash tooling/src/stack/dev.sh` by hand.
 #
 # Model engines are not this script's business: a vLLM box is a connection row the server dials, and
 # whoever runs it does so outside this repo. Ctrl-C tears down THIS script + the watched server.
@@ -52,6 +52,6 @@ node --watch --watch-preserve-output \
   --watch-path="$REPO/packages/db/src" \
   --watch-path="$REPO/packages/kit/src" \
   "$REPO/packages/server/src/entry/index.ts" \
-  > >("$BIN/pino-pretty" --config "$REPO/tooling/src/stack/ops/pino-pretty.json") &
+  > >("$BIN/pino-pretty" --config "$REPO/tooling/src/dev/lib/pino-pretty.json") &
 SERVER_PID=$!
 wait "$SERVER_PID"
