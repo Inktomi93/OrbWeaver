@@ -416,10 +416,10 @@ async function withCompilerTransformCache(pluginPromise: ReturnType<typeof babel
  * from sibling packages), so `/@fs/` would otherwise hand out every file under it. Setting `deny` REPLACES
  * Vite's built-in default, so the first block re-lists that default floor verbatim
  * (`.env`/keys/certs/.npmrc/.git — Vite 8.1 default) and the rest is orbweaver's own:
- *   • `.credentials-key` — infra/crypto's auto-generated 32-byte credential-encryption key
- *     (`<dirname(DATABASE_URL)>/.credentials-key`, mode 0o600). NOT covered by the default `*.{…,key,…}`
- *     glob — that matches a `.key` EXTENSION; this filename ends in `-key`. Leaking it decrypts every
- *     stored provider API key, so it is the single highest-value target.
+ *   • `.credentials-key` and `.session-secret` — infra/crypto's generated boot secrets, beside whatever db
+ *     DATABASE_URL names (mode 0o600), so ANYWHERE under the root, not only `data/`. NOT covered by the
+ *     default `*.{…,key,…}` glob — that matches a `.key` EXTENSION. Leaking the first decrypts every stored
+ *     provider API key; the second is the password and session pepper.
  *   • `*.db` (+ `-wal`/`-shm`) / `*.sqlite*` — the SQLite database, ANYWHERE under the root (a test
  *     fixture db, a package-local scratch db), which is why these stay globstar-prefixed.
  *   • `<root>/data/**` — THE ENTIRE RUNTIME DATA DIR, denied wholesale rather than file-class by
@@ -456,6 +456,7 @@ function devFsDeny(workspaceRoot: string): readonly string[] {
     ".yarnrc.yml",
     "**/.git/**",
     "**/.credentials-key",
+    "**/.session-secret",
     "**/*.db",
     "**/*.db-wal",
     "**/*.db-shm",

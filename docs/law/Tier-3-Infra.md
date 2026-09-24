@@ -23,10 +23,10 @@ The db-free Strategy executor turning request `Headers` (+ the raw TCP peer) int
 - **Mint-side crypto** (`password.ts`) — scrypt + `SESSION_SECRET` pepper + constant-time verify + the dummy-hash enumeration floor; consumed by the entry login route.
 - **Post-D40 (Route A): the cookie modes are inert at infra.** `modes/cookie-session.ts` resolves `null` and homes only `SESSION_COOKIE_NAME` (`__Host-orb_session`); the cookie→user read is the DOMAIN step `sessions.validate(token)` (returns `userId`), called DIRECTLY by the seam BEFORE infra's `resolve`. There is deliberately no `validateCookie`/`upsertUser`/`determineRole` in `ResolveDeps` — an infra port for validation would be forced to drop the `userId` (invariant 3), reintroducing the "validate threw the id away" bug.
 
-### `infra/crypto` — the `SecretBox` + the auto-key boot path
+### `infra/crypto` — the `SecretBox` + the boot secrets path
 
 - **`secrets.ts`** — `createSecretBox(key)` → AES-256-GCM `{ enabled, encrypt(plaintext, aad), decrypt(sealed, aad) }`; fresh 12-byte IV per seal; the `Sealed` `{ciphertext, iv, tag}` shape. **Carries the `aad` parameter, never derives the value** (the `${userId}|${provider}` string is `domain/credentials`' single `aadFor()` site).
-- **`key.ts`** — `credentialsKeyFromEnv`/`resolveAutoKey`: decode `CREDENTIALS_KEY` (hex OR base64, exactly 32 bytes) or the `CREDENTIALS_KEY_AUTO` path (generate + persist `.credentials-key` mode 0600 next to the DB). **Degrades, never throws at boot** — no/invalid key → a disabled box; encrypt/decrypt throw at CALL time only.
+- **`key.ts`** — `credentialsKeyFromEnv` and `sessionSecretFromEnv`: an explicit `CREDENTIALS_KEY` (hex OR base64, exactly 32 bytes) or `SESSION_SECRET` always wins; an unset one is generated once into `.credentials-key` or `.session-secret` beside the db (mode 0600, one path rule for both) and read back on every boot. **Degrades, never throws at boot** — no/invalid credentials key → a disabled box; encrypt/decrypt throw at CALL time only. A missing session secret is `null`; `entry/lifecycle.ts` refuses a cookie mode on it. The generated value never enters `process.env`.
 
 ### `infra/network` — raw fetch adapters + the SSRF/edge checks
 
@@ -67,7 +67,7 @@ Composition asymmetry: storage/crypto/network/image are *called by* domains via 
 ## Spine intersections
 
 - **§7.1 — the three-tier split:** verification = `infra/auth` (no `userId`); resolution + the `users` upsert = `domain/sessions` (`sessions.validate` called directly by the seam, D40); minting + the `Principal` = `entry/auth/seam.ts`. A 5th mode is a `tsc`-checked addition (`MODE_RESOLVERS` is a `Record<AuthConfig["mode"], ModeResolver>` mapped type + the NEW MODE CHECKLIST).
-- **§7.2 — `CREDENTIALS_KEY_AUTO` is an `infra/crypto` boot side-effect,** not a settings concern; "back up `.credentials-key` alongside the DB" is the operator invariant. `password.ts`'s pepper is the same read-env-DOWN posture.
+- **§7.2 — the generated boot secrets are an `infra/crypto` boot side-effect,** not a settings concern; "back up `.credentials-key` and `.session-secret` with the DB" is the operator invariant. `password.ts` takes the pepper `entry/lifecycle.ts` resolved once, never reading env itself.
 - **§7.4 — one home:** `ResolvedIdentity` → `@orb/contracts/identity`; `AuthConfig`/`ResolveDeps` → `infra/auth/contract.ts` (infra-internal); `SecretBox`/`Sealed`/`Cas`/`VariantCache` → adapter-own contracts (server-down only, NOT `@orb/contracts` — no client need).
 
 ## Esoteric quirks
@@ -76,7 +76,7 @@ Composition asymmetry: storage/crypto/network/image are *called by* domains via 
 
 **The GCM AAD binding.** `aad` binds `${userId}|${provider}` into the GCM tag; a row moved to a different slot fails tag verification loudly — never a silent wrong decrypt. The string must stay byte-identical across refactors; the box carries it verbatim and is the wrong place to "normalize" it.
 
-**The box degrades, never crashes at boot.** Unset/malformed/wrong-length key → `enabled:false`. A corrupt existing `.credentials-key` fails closed (never overwritten). The first-boot auto-write notice goes to stderr (logger unavailable — `logger → env → crypto` would cycle), silenced under `VITEST`.
+**The box degrades, never crashes at boot.** Malformed/wrong-length explicit key → `enabled:false`. A keyfile that exists but is corrupt or unreadable fails closed and is never overwritten: a new value would orphan every stored credential, or every local password and session. The first-boot write notice and the fault notice go to stderr (logger unavailable — `logger → env → crypto` would cycle), silenced under `NODE_ENV=test`.
 
 **CAS fsync vs variant-cache no-fsync — the deliberate durability asymmetry.** The CAS is CANON: temp under `rootDir/.tmp` (same filesystem — a cross-device rename silently degrades to non-atomic copy) → fsync file → rename → EXPLICIT `fsyncDir(parent)` (`atomically` never fsyncs the directory). The variant cache is reproducible, so `fsync:false`. Dedup bumps the existing blob's mtime (injected clock) so GC's grace window protects deduped re-imports; `ENOENT` there = concurrent GC swept it → write fresh.
 

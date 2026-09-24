@@ -34,6 +34,7 @@
 // narrower than every other privileged surface in the app (D17 — see the verdict's own doc).
 
 import type { Principal } from "@orb/contracts/identity";
+import { isCookieAuthMode } from "@orb/contracts/identity";
 import type { Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { isOwner } from "#domain/admin";
@@ -350,7 +351,7 @@ export function createAuthSeam(deps: AuthSeamDeps): AuthSeam {
   const config = deps.config ?? authConfigFromEnv();
   // FAIL-CLOSED default: an omitted dep is the STRICT debug gate, never a widened one (see the dep's doc).
   const ownerFallbackIsOperatorCredential = deps.ownerFallbackIsOperatorCredential ?? false;
-  const isCookieMode = config.mode === "local" || config.mode === "oidc";
+  const isCookieMode = isCookieAuthMode(config.mode);
   // Bound once: the owner-fallback arm and the frozen-host bridge map the SAME row fields (D135); this arm
   // adds the request-path `enabled` gate its two sibling arms already apply.
   const resolveFallbackPrincipal = createFallbackPrincipalResolver(deps.sessions);

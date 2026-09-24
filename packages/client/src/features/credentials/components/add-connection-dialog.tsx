@@ -118,7 +118,7 @@ function AddConnectionGate({
         action={<DialogClose render={<Button intent="secondary">Close</Button>} />}
         icon={<Icon icon={LockOpen} size="md" />}
         title="Key storage is turned off on this server"
-        description="No encryption key is configured, so a provider key saved here could not be stored. Set CREDENTIALS_KEY in the server environment (or CREDENTIALS_KEY_AUTO to have the server generate and persist one), restart, and add the connection then."
+        description="The server has no usable encryption key, so a provider key saved here could not be stored. It generates one beside its database on first boot; the server log says why it could not. Fix that file, or set CREDENTIALS_KEY in the server environment, restart, and add the connection then."
       />
     );
   }

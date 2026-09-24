@@ -4,6 +4,7 @@
 // middleware already resolved — deliberately not a second resolution call (drift-free by construction).
 
 import type { AuthMode } from "@orb/contracts/identity";
+import { isCookieAuthMode } from "@orb/contracts/identity";
 import { resolveUploadCaps } from "@orb/contracts/uploads";
 import type { Hono } from "hono";
 import { peerIp } from "#infra/network";
@@ -58,7 +59,7 @@ export function registerAuthMeta(app: Hono<PrincipalEnv>, deps: AuthMetaDeps): v
     const localFirstRun = deps.localFirstRun !== undefined && (await deps.localFirstRun(peerIp(c), c.req.raw.headers));
     return c.json({
       mode: deps.mode,
-      requiresLogin: deps.mode === "local" || deps.mode === "oidc",
+      requiresLogin: isCookieAuthMode(deps.mode),
       localEnabled: deps.mode === "local",
       oidcEnabled: deps.mode === "oidc",
       oidcProviderName: deps.oidcProviderName,
