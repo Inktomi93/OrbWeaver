@@ -124,7 +124,8 @@ interface Liveness {
  *  starting up to about a second after its own record. */
 const REUSE_TOLERANCE_MS = 2000;
 
-type HolderState = "live" | "gone" | "reused";
+const HOLDER_STATES = ["live", "gone", "reused"] as const;
+type HolderState = (typeof HOLDER_STATES)[number];
 
 function holderState(liveness: Liveness, holder: HostSlotHolder): HolderState {
   if (!liveness.alive(holder.pid)) {
