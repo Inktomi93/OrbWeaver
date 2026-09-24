@@ -8,11 +8,12 @@
 // Local login: password-form → verify (injected `authenticate` port) → sessions.create → set cookie.
 // Registered only when the op is provided (fail-closed in non-local modes).
 //
-// OIDC login: openid-client v6 flow — discovery → PKCE + state + nonce → buildAuthorizationUrl (redirect)
-// → callback: consume the PKCE txn → the injected code→token `exchange` → claims → provisionIdentity →
-// mint cookie. Registered only when `OidcRoutesDeps` is supplied. The two I/O round-trips (discovery and
-// the token exchange) both arrive as INJECTED deps (#762 / #867) — this file performs no HTTP to the IdP
-// itself, which is what makes the whole callback drivable in-process by a test.
+// OIDC login: openid-client v6 flow — discovery → PKCE + state + nonce → binding cookie → buildAuthorizationUrl
+// (redirect) → callback: binding cookie must match `state` (login CSRF) → consume the PKCE txn → the injected
+// code→token `exchange` → claims → provisionIdentity → mint cookie. Registered only when `OidcRoutesDeps` is
+// supplied. The two I/O round-trips (discovery and the token exchange) both arrive as INJECTED deps
+// (#762 / #867) — this file performs no HTTP to the IdP itself, which is what makes the whole callback
+// drivable in-process by a test.
 //
 // Origin-flexible callback: the redirect_uri is derived per-request from the origin and accepted only if
 // it exact-matches the OIDC_REDIRECT_URIS allowlist — never reflects an attacker-supplied origin
@@ -32,7 +33,19 @@ import type { RevokedSessionsSummary } from "#domain/sessions";
 import { groupRoleGovernanceActive } from "#domain/sessions";
 import { getLog, groupsLogFields, securityEvent } from "#foundation/observability";
 import type { BackchannelLogoutVerifier, OidcExchange, OidcTransaction, PublicHttpMintNotice } from "#infra/auth";
-import { hasCsrfHeader, MIN_PASSWORD_LENGTH, reportPublicHttpMint, requestClientScope, requestTransport, SESSION_COOKIES, sessionCookieFor } from "#infra/auth";
+import {
+  hasCsrfHeader,
+  MIN_PASSWORD_LENGTH,
+  OIDC_BINDING_COOKIES,
+  OIDC_TRANSACTION_TTL_MS,
+  oidcBindingCookieFor,
+  readRequestCookie,
+  reportPublicHttpMint,
+  requestClientScope,
+  requestTransport,
+  SESSION_COOKIES,
+  sessionCookieFor,
+} from "#infra/auth";
 import { clientIp, peerIp } from "#infra/network";
 import type { RateLimiter } from "../../transport/rate-limit.ts";
 import { createRateLimiter } from "../../transport/rate-limit.ts";
@@ -216,6 +229,48 @@ function writeSetCookies(c: Context, values: readonly string[]): void {
   for (const value of values) {
     c.header("Set-Cookie", value, { append: true });
   }
+}
+
+/** The authorize leg's binding cookie: the transaction's `state` under the transport's binding name, alive
+ *  exactly as long as the transaction. The value is `randomState()` output (base64url), so the raw write
+ *  round-trips through {@link readRequestCookie}'s decode unchanged. */
+function serializeOidcBindingCookie(state: string, transport: RequestTransport): string {
+  const { name, attrs } = oidcBindingCookieFor(transport);
+  return `${name}=${state}; Max-Age=${OIDC_TRANSACTION_TTL_MS / MS_PER_SECOND}; ${attrs}`;
+}
+
+/** Clear every binding name once the callback has spent the binding (the logout pattern: the `__Host-` clear
+ *  is dropped over plain http, and that cookie is never read there). */
+function serializeClearedOidcBindingCookies(): readonly string[] {
+  return OIDC_BINDING_COOKIES.map(({ name, attrs }) => `${name}=; Max-Age=0; ${attrs}`);
+}
+
+/**
+ * Consume the callback's transaction only when this browser started it: the request must carry the binding
+ * cookie the authorize leg set, under its own transport's name, holding exactly the returned `state`.
+ * Anything else is `null`, the invalid-state refusal, and the transaction is left untouched.
+ *
+ * This is the login-CSRF control. The attack it stops: an attacker starts a login in their own browser,
+ * stops at the callback URL, and makes a victim open it; without the binding the victim is signed into the
+ * attacker's account and may store credentials there. Do not drop the check, fall back to the other
+ * transport's name, or accept a missing cookie "for compatibility" — each of those reopens the attack.
+ *
+ * Plain `!==` is enough: both sides come from the caller's own request, so timing reveals nothing it lacks.
+ * A matched binding is spent with its transaction, so it is cleared even when the transaction has expired.
+ */
+async function consumeBoundTransaction(c: Context, store: OidcMintStore, state: string): Promise<OidcTransaction | null> {
+  const transport = requestTransport(c);
+  const binding = readRequestCookie(c.req.raw.headers, oidcBindingCookieFor(transport).name);
+  if (binding === null || binding.length === 0 || binding !== state) {
+    securityEvent(
+      "oidc_callback_unbound",
+      { transport, bindingPresent: binding !== null },
+      "security: OIDC callback state is not bound to this browser (missing or mismatched binding cookie) — a login-CSRF attempt, a second login tab, or a callback opened in another browser; no transaction consumed, no session minted",
+    );
+    return null;
+  }
+  writeSetCookies(c, serializeClearedOidcBindingCookies());
+  return await store.consume(state);
 }
 
 /** The OIDC RP-Initiated Logout query parameters. Wire-fixed snake_case (OIDC Core / RP-Initiated Logout
@@ -754,6 +809,7 @@ function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDep
       redirectUri,
       createdAt: deps.now(),
     });
+    writeSetCookies(c, [serializeOidcBindingCookie(state, transport)]);
     const url = buildAuthorizationUrl(config, {
       redirect_uri: redirectUri,
       scope: oidc.scope,
@@ -781,7 +837,7 @@ function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDep
   // literals or `sanitizeOidcErrorCode` output), so this widens no leak surface over the prior 401/403 JSON.
   app.get(OIDC_CALLBACK_ROUTE, async (c) => {
     const incoming = new URL(c.req.url);
-    const tx = await oidc.store.consume(incoming.searchParams.get("state") ?? "");
+    const tx = await consumeBoundTransaction(c, oidc.store, incoming.searchParams.get("state") ?? "");
     if (tx === null) {
       return loginErrorRedirect(c, AUTH_ERROR_INVALID_STATE);
     }
