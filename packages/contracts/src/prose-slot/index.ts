@@ -126,7 +126,6 @@ export const PROSE_SLOT_IDS = [
   "chat.group.speakerTags",
   // ── per-PRESET: the turn-wire FRAMINGS (owner ruling 2026-08-07 — "templates need to have one home in
   //    presets"). Authored in the preset Templates tab, stored in `promptConfig.prose`. ──
-  "chat.injection.systemNote",
   "chat.injection.userNote",
   "chat.injection.assistantNote",
   "chat.assembly.continuationNudge",

@@ -3,7 +3,7 @@
 **Run:** 2026-08-01 (F4/F4a/F5/OR-5/OR-7) · 2026-08-08 (OR-5b/OR-7b) · 2026-09-23 (OR-8, OR-9, OR-10) · 2026-09-24 (OR-11) · **Wire:** `anthropic/claude-sonnet-5`
 via OpenRouter (Anthropic pinned, `allow_fallbacks:false`), plus the Anthropic Messages API for F5's native
 reference arms.
-**Spend:** ~$0.20 OpenRouter + ~$0.12 Anthropic native ≈ **$0.32** (08-01) · **$0.152** OpenRouter (08-08) · **$0.104** OpenRouter + ~$0.10 Anthropic native (09-23, OR-8) · **$0.86** OpenRouter + ~$0.7 Anthropic native (09-23, OR-9) · **$0.07** OpenRouter + ~$0.6 Anthropic native (09-23, OR-10) · about $0.08 + $1.79 Anthropic native (09-24, OR-11 legs 1 and 2, estimated at list prices).
+**Spend:** ~$0.20 OpenRouter + ~$0.12 Anthropic native ≈ **$0.32** (08-01) · **$0.152** OpenRouter (08-08) · **$0.104** OpenRouter + ~$0.10 Anthropic native (09-23, OR-8) · **$0.86** OpenRouter + ~$0.7 Anthropic native (09-23, OR-9) · **$0.07** OpenRouter + ~$0.6 Anthropic native (09-23, OR-10) · about $0.08 + $1.79 + $0.20 Anthropic native (09-24, OR-11 legs 1, 2 and 3, estimated at list prices).
 **Raw evidence:** `results/<probe>.jsonl` — every arm's HTTP status + full usage block, append-only.
 **Sibling docs:** D174.
 
@@ -18,7 +18,7 @@ reference arms.
 | **OR-8** | which layout of ADJACENT same-role rows keeps the prior call's cache entry readable? | **one message, one text block per speaker** — squashing into ONE string reads **0**; parts, or consecutive messages (which the API and OR both fold into parts), read the whole prior entry and write only the new speaker (**57** tokens) | squash the role, not the text: SHAPE's same-role merge must keep each source row its own text block |
 | **OR-9** | with signed thinking carried on each reply, which layout of a same-role run is accepted, and which keeps the cache? | **direct: one message with thinking interleaved per reply (V1) or consecutive messages (V3) both work and read the prior entry; OpenRouter (both endpoints) 400s V1 and folds V3 into one message that keeps only the FIRST reply's thinking**; dropping earlier thinking (V2) reads **0**; a tampered signature is refused everywhere; under prefix binding (Opus 5.5, new accounts) every carried block fails because the speaker cue that preceded it was deleted, and only a kept cue (V6) is valid | keep F1; never fold reasoning-bearing rows on the openai-compat body; the carry on Opus 5.5/Fable 5.1 needs an append-only history (keep the cue), which is a design question |
 | **OR-10** | with the carry on, which placement of per-turn rows keeps every signed thinking block valid on the models that bind it (Opus 5.5, Fable 5.1)? | **deleting a speaker cue (today) and moving a depth-4 note both break binding: "error" 400s, "drop_block" drops the blocks after the edit and reads 0 cache; a turn-scoped system cue or note appended and left in place, and a speaker cue kept as an ordinary user row, stay clean with the cache growing; a turn-scoped system cue right after a reply is a placement 400; any top-level system edit drops every block** | make every per-turn row append-only: cues as kept rows, depth notes and volatile system content as turn-scoped system messages at the tail; run the carry with drop_block and alarm on drops |
-| **OR-11** | does a model OBEY an override in a depth-2 system row in its legal slot `[u, S, a, u]`, or only accept it? | **obeyed on all three: sonnet-5 5/6, opus-4-8 5/5, control opus-5-5 5/5; the same note folded to user text: sonnet-5 1/5, opus-4-8 0/5, opus-5-5 5/5** | keep `historySystemRows: true` on sonnet-5 and opus-4-8; the tail row they ignore and the depth row they obey are separate facts. Leg 2: today's fold (note merged after `u1`'s text) carries a standing note 19/30 and a next-reply note 0/30; the same note as a separate block on the LATEST user message carries 27/30 and 30/30 with the current frame |
+| **OR-11** | does a model OBEY an override in a depth-2 system row in its legal slot `[u, S, a, u]`, or only accept it? | **obeyed on all three: sonnet-5 5/6, opus-4-8 5/5, control opus-5-5 5/5; the same note folded to user text: sonnet-5 1/5, opus-4-8 0/5, opus-5-5 5/5** | keep `historySystemRows: true` on sonnet-5 and opus-4-8; the tail row they ignore and the depth row they obey are separate facts. Leg 2: today's fold (note merged after `u1`'s text) carries a standing note 19/30 and a next-reply note 0/30; the same note as a separate block on the LATEST user message carries 27/30 and 30/30 with the current frame. Leg 3, haiku-4-5 (400s any system row): the bare fold before the user text carries a next-reply note 10/10 against 2/10; no placement carries a standing note. Shipped: the depth-keeping bare fold before the user text |
 | **OR-7b** | is DROPPING reasoning still safe past ONE hop? | **YES — 3-hop chain 200/200/200 and the chain still carried a fact only a mid-chain tool result revealed** | the finding-7 deferral premise HOLDS at the shape it is actually about |
 
 ---
@@ -626,3 +626,26 @@ Sample request ids (first and last trial of a cell): today's `b/consideration` s
 - The frame: `foldEntry` in `packages/server/src/domain/chat/assembly/shape.ts:236`, which calls `frameInjection("user", …, "system", …)` at `shape.ts:237`. `frameInjection` (`packages/server/src/domain/chat/assembly/injections.ts:61`) picks the slot through `RE_ROLED_FRAME` (`injections.ts:32`); the text is `chat.injection.systemNote` in `packages/contracts/src/chat/prose.ts:303`.
 - The position: `foldMidArrayRuns` (`shape.ts:293`, called at `shape.ts:329`) folds each mid-array system row in place, at the depth the splice gave it. The trailing run folds at `shape.ts:335`.
 - The merge into the user text: the squash at `shape.ts:555` runs `squashSameRole` over `squashRuns` (`packages/server/src/domain/chat/assembly/role-squash.ts:37`). With `canonApart` an injection still joins the stored row beside it, joined with `MERGE_SEPARATOR` (`role-squash.ts:21`, a blank line). That makes today's wire placement `b`.
+
+### Leg 3: haiku-4-5, where the fold runs
+
+**Run:** 2026-09-24, same probe and constant, `OR11_LEG=3`. `claude-haiku-4-5-20251001` direct, thinking `enabled` with `budget_tokens: 1024` (it takes no adaptive thinking or effort). 141 calls, all 200, estimated $0.20 at list prices ($1/$5 per million). haiku-4-5 400s any system row, so it has no `system` control; every note it gets is a fold. Rows carry `leg: 3` in `results/or11.jsonl`. 10 trials a cell; the first `standing b/consideration` call was a smoke call, so that cell reads out of 11.
+
+| placement / frame | `standing` | `next` |
+| - | - | - |
+| `b/consideration` (the fold before this change) | 0/11 | 2/10 |
+| `b/bare` | 1/10 | 6/10 |
+| `c/consideration` | 0/10 | 9/10 |
+| `c/bare` (the shipped depth-N fold) | 0/10 | **10/10** |
+| `d/consideration` | 0/10 | |
+| `d/bare` | 0/10 | |
+| `e/consideration` (the trailing fold before this change) | 0/10 | 6/10 |
+| `e/bare` (the shipped trailing fold) | 0/10 | 9/10 |
+
+Sample request ids (first and last trial): `b/consideration` next `req_011CfNeieXsbdcbFbk5Qokgd` … `req_011CfNemAPnU1HczRZQ1F7MP`; `c/bare` next `req_011CfNequm73NFZ9tBhNJB4g` … `req_011CfNesR1XeUbHdjsV1pWHb`; `e/bare` next `req_011CfNeucmGLBjWEuA3ehruY` … `req_011CfNew5kWhdRxLA9ALEKsY`; `d/bare` standing `req_011CfNeyao4QNxrejAuo4D2k` … `req_011CfNf1Q9AZhNfDBw6cKzbf`.
+
+**Verdict.** haiku-4-5 improves under the shipped fold and loses nothing. A next-reply note goes from 2/10 to 10/10 at depth 2 and from 6/10 to 9/10 at the tail. haiku-4-5 follows no standing note in any user-text placement, the latest message included (`d` 0/10 with either frame), so no fold placement fixes that; it is the model, not the fold. At depth 2 haiku-4-5 follows a next-reply note that names a reply already given, which opus-5-5 declines (leg 2); the probe counts it as honoured.
+
+### Shipped
+
+SHAPE sends a folded system note bare (`frameInjection` gives a re-roled system note no frame, and the `chat.injection.systemNote` slot is deleted). A fold inside the history moves up to just before the first stored row of the user text above it, so it leads the user message it joins at its own depth (`leadUserText` in `packages/server/src/domain/chat/assembly/shape.ts`); a row assembly made above it, such as the new-chat marker, keeps its place. A trailing fold stays after the latest user text: `e/bare` is measured and carries, and a note placed before the latest user text was never measured. Models with `historySystemRows: true` keep real system rows.
