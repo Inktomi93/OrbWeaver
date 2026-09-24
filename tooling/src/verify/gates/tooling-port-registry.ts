@@ -55,7 +55,7 @@ const OPERATION = "port-literal";
 const MESSAGE =
   "a TCP port outside the ONE registry — a numeric literal whose value is a registry port (reserved or stage-band), or one at a port-named position carrying a number no registry row declares, is a hand-picked pair: 47 such literals across tooling, the e2e harness and the runner configs was the state this repo shipped until #1269, which is why picking a pair meant grepping and hoping (docs/law/Core-Tooling-Law.md §4.4).";
 const FIX =
-  "read the named row from _shared/ports.ts (DEV_PORTS, FIXTURE_PORTS, E2E_PORTS, CT_VITE_PORT, ENGINE_PORTS, MODEL_AB_PORT, …) or allocate a stage band (`stageBandPorts`); a NEW port is a new reserved row there, never a number picked at the call site. The registry itself carries the exact reviewed grant `(ports.ts, port-literal)`.";
+  "read the named row from _shared/ports.ts (DEV_PORTS, FIXTURE_PORTS, E2E_PORTS, E2E_FIXTURE_PROVIDER_PORT, CT_VITE_PORT, ENGINE_PORTS) or allocate a stage band (`stageBandPorts`); a NEW port is a new reserved row there, never a number picked at the call site. The registry itself carries the exact reviewed grant `(ports.ts, port-literal)`.";
 
 export const gate = defineGate({
   id: "tooling-port-registry",
