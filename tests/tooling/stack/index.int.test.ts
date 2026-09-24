@@ -332,6 +332,86 @@ test("clear-absent still REFUSES when a survivor really outlived the leader (#11
   }
 });
 
+// ── a TERM must END dev.sh, never leak an orphan server ─────────────────────────────────────────────
+//
+// `run_leader` TERMs dev.sh when the healthz gate times out and then returns, taking the process group
+// with it. bash defers a trap until the current FOREGROUND command returns, and a plain `trap cleanup TERM`
+// does not exit — the script would service the signal and then fall out of its own logic, exit 0, and
+// the watched server could outlive the leader that gave up on it. dev.sh's `on_signal` cleans up AND
+// exits 143; this drives the REAL script inside a fake repo root (dev.sh derives $REPO from its own
+// location) whose server entry writes its pid and never exits, then lands the TERM while dev.sh is inside
+// `wait "$SERVER_PID"` and reads three things: the exit code, that the node child is gone, and that the
+// script did not run on.
+const DEV_SH = fileURLToPath(new URL("../../../tooling/src/stack/dev.sh", import.meta.url));
+const DEV_SIGNAL_ARM_TIMEOUT_MS = scaledBudget(60_000);
+/** Generous vs the ~instant exit a signalled dev.sh makes, so a loaded box does not change the verdict. */
+const DEV_SIGNAL_EXIT_GRACE_MS = scaledBudget(12_000);
+const DEV_SERVER_BOOT_GRACE_MS = scaledBudget(15_000);
+const DEV_POLL_MS = 100;
+
+function fakeDevTree(): { readonly root: string; readonly pidFile: string } {
+  const root = mkdtempSync(path.join(tmpdir(), "orb-dev-signal-"));
+  mkdirSync(path.join(root, "tooling", "src", "stack", "ops"), { recursive: true });
+  mkdirSync(path.join(root, "packages", "server", "src", "entry"), { recursive: true });
+  mkdirSync(path.join(root, "node_modules", ".bin"), { recursive: true });
+  writeFileSync(path.join(root, "tooling", "src", "stack", "dev.sh"), readFileSync(DEV_SH, "utf8"));
+  writeFileSync(path.join(root, "tooling", "src", "stack", "ops", "pino-pretty.json"), "{}\n");
+  const pidFile = path.join(root, "server.pid");
+  // The watched server: publish the pid, then hang. Its survival after the TERM is the orphan's signature.
+  writeFileSync(
+    path.join(root, "packages", "server", "src", "entry", "index.ts"),
+    `import { writeFileSync } from "node:fs";\nwriteFileSync(${JSON.stringify(pidFile)}, String(process.pid));\nsetInterval(() => undefined, 60_000);\n`,
+  );
+  writeFileSync(path.join(root, "node_modules", ".bin", "pino-pretty"), "#!/usr/bin/env bash\ncat\n", { mode: 0o755 });
+  return { root, pidFile };
+}
+
+/** Poll `predicate` up to `ceilingMs` of sleeps — counted in polls, never read off a wall clock. */
+async function waitFor(predicate: () => boolean, ceilingMs: number): Promise<boolean> {
+  const polls = Math.ceil(ceilingMs / DEV_POLL_MS);
+  for (let i = 0; i < polls; i += 1) {
+    if (predicate()) {
+      return true;
+    }
+    await new Promise((resolve) => setTimeout(resolve, DEV_POLL_MS));
+  }
+  return predicate();
+}
+
+test("a TERM while dev.sh waits on the server EXITS it with 143 and reaps the server — no orphan", { timeout: DEV_SIGNAL_ARM_TIMEOUT_MS }, async () => {
+  const { root, pidFile } = fakeDevTree();
+  const child = spawn("bash", [path.join(root, "tooling", "src", "stack", "dev.sh")], { cwd: root, detached: true, stdio: "ignore" });
+  await once(child, "spawn");
+  const pid = child.pid;
+  if (pid === undefined || pid <= 1) {
+    throw new Error("dev.sh signal fixture: the disposable dev.sh did not receive a safe pid");
+  }
+  try {
+    // Land the signal only once the script is INSIDE `wait "$SERVER_PID"` — the server has published its pid.
+    expect(await waitFor(() => existsSync(pidFile), DEV_SERVER_BOOT_GRACE_MS), "the fake server must boot before the signal, or the test proves nothing").toBe(
+      true,
+    );
+    const serverPid = Number(readFileSync(pidFile, "utf8"));
+    expect(existsSync(`/proc/${serverPid}`)).toBe(true);
+    process.kill(pid, "SIGTERM");
+    const exited = await Promise.race([
+      once(child, "exit").then(() => true),
+      new Promise<boolean>((resolve) => setTimeout(() => resolve(false), DEV_SIGNAL_EXIT_GRACE_MS)),
+    ]);
+    expect(exited, "dev.sh must act on TERM immediately").toBe(true);
+    // 143 = 128 + SIGTERM, the shell's own convention. "It exited" is too weak a claim: a script that fell
+    // out of its own logic and exited 0 would satisfy it, which is the very shape the orphan comes from.
+    expect(child.exitCode, "a signalled dev.sh must exit 143 (128 + SIGTERM), not merely stop").toBe(143);
+    // The reap: the watched server dies with the script instead of outliving it.
+    expect(await waitFor(() => !existsSync(`/proc/${serverPid}`), DEV_SIGNAL_EXIT_GRACE_MS), "the watched server must not outlive a signalled dev.sh").toBe(
+      true,
+    );
+  } finally {
+    killGroup(pid);
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 // ── #1013: a leaderless group is ADOPTED by its launch marker, or it is refused ──────────────────────
 //
 // Four receipts in one session (2026-09-01) came from one premise: ownership was written once at spawn and

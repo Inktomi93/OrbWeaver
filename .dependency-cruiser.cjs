@@ -762,7 +762,7 @@ module.exports = {
     {
       name: "tooling-no-provider-families",
       comment:
-        "The tooling half of `providers-public-surface-only`. Tools sit ABOVE the cake and may import any app package (Core-Tooling-Law.md §1), so a tool reaching @orb/inference's front door is legal — what stays SEALED is the part the original rule's WHY is about: the provider FAMILIES (backends/<x>, where the agent-sdk credential firewall lives) and the contract internals. RE-POINTED 2026-09-20 from `packages/server/src/infra/providers/(backends|contract)/`, a tree the @orb/inference extraction deleted. THE OLD CARVE-OUT IS GONE WITH ITS SUBJECT: this comment used to exempt `vllm/engine`'s spawn-spec/wake-budget builders because the fleet launcher and the in-server supervisor shared them and must not drift — there is no in-server supervisor any more, the fleet left the repo for the owner's infra (docs/plans/fleet-out/design.md), and nothing in @orb/inference builds an engine argv. (Core-Tooling-Law.md §1/§4.6.)",
+        "The tooling half of `providers-public-surface-only`. Tools sit ABOVE the cake and may import any app package (Core-Tooling-Law.md §1), so a tool reaching @orb/inference's front door is legal — what stays SEALED is the part the original rule's WHY is about: the provider FAMILIES (backends/<x>, where the agent-sdk credential firewall lives) and the contract internals. There is no carve-out: `contract/index.ts` is the one open path, and no tool needs a builder from inside a family. (Core-Tooling-Law.md §1/§4.6.)",
       severity: "error",
       from: { path: "^tooling/" },
       to: {

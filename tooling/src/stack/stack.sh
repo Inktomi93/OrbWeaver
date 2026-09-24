@@ -276,13 +276,9 @@ env_pin_report() {
   done
   echo "env pins      :${line}"
   if [ -n "$bpid" ]; then
-    local lv=""
-    for v in AUTH_MODE; do
-      live="$(backend_env_var "$bpid" "$v")"
-      lv="$lv $v=${live:-?}"
-    done
+    live="$(backend_env_var "$bpid" AUTH_MODE)"
     # NOTE: /proc/environ is the SPAWN env — it too misses a .env override (the server reads .env AFTER spawn).
-    echo "live backend  :${lv}  (from /proc/$bpid/environ — SPAWN env, also pre-.env-override)"
+    echo "live backend  : AUTH_MODE=${live:-?}  (from /proc/$bpid/environ — SPAWN env, also pre-.env-override)"
     # THE EFFECTIVE mode: the server's own resolved config (post-.env-override), read from the anonymous
     # /api/auth/config probe. This is the ONLY honest answer to "what AUTH_MODE is actually running" — if it
     # differs from the shell-pin/spawn lines above, a checked-in .env overrode them (#301).

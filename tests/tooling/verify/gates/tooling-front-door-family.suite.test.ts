@@ -130,9 +130,10 @@ test("an argv grant whose entry stopped reading argv is STALE after a complete r
 
 test("every argv grant row in the central table names a subject that exists on the tree and is not a cli.ts", ({ repoRoot }) => {
   const rows = REVIEWED_GRANTS.filter((grant) => grant.policyId === argvFrontDoor.id);
-  // The literal is the pin: `_shared/entrypoint.ts`, the three bash-fronted stack entries
-  // (`dev-identity-entry`, `prod-entry`, `start-entry`) and `verify/ops/config-snapshot-entry.ts`. A new
-  // reviewed argv reader bumps it here in the same change as its grant row.
+  // The literal is the pin: `_shared/entrypoint.ts`, the two node halves stack.sh execs
+  // (`dev-identity-entry`, `prod-entry`), `start-entry` (the root `start` script runs it with node, no
+  // shell in front) and `verify/ops/config-snapshot-entry.ts`. A new reviewed argv reader bumps it here
+  // in the same change as its grant row.
   expect(rows).toHaveLength(5);
   for (const row of rows) {
     expect(existsSync(join(repoRoot, row.subject)), row.id).toBe(true);
