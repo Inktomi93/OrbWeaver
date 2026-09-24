@@ -7,6 +7,7 @@ import type { AuthMode } from "@orb/contracts/identity";
 import { isCookieAuthMode } from "@orb/contracts/identity";
 import { resolveUploadCaps } from "@orb/contracts/uploads";
 import type { Hono } from "hono";
+import { requestClientScope, requestTransport } from "#infra/auth";
 import { peerIp } from "#infra/network";
 import type { PrincipalEnv } from "./blob.ts";
 
@@ -71,6 +72,10 @@ export function registerAuthMeta(app: Hono<PrincipalEnv>, deps: AuthMetaDeps): v
       trustHtml: deps.trustHtml(),
       allowInteractiveCards: deps.allowInteractiveCards(),
       uploads: resolveUploadCaps({ maxImageBytes: deps.maxImageBytes(), maxDatabankBytes: deps.maxDatabankBytes() }),
+      // Facts about THIS request, not the box: the login screen warns when a credential would cross plain
+      // http, in red when the client is on the public internet (`infra/auth/transport.ts`).
+      transport: requestTransport(c),
+      clientScope: requestClientScope(c),
     });
   });
 

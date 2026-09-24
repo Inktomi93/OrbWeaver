@@ -5,6 +5,7 @@
 // not infra crypto). NEVER imports @orb/db or any domain (the sealed-executor invariant).
 
 export {
+  bootSecretProvenance,
   credentialsKeyFromEnv,
   dataDirFromDbUrl,
   decode32Bytes,

@@ -30,12 +30,22 @@
 // The escape hatch is deliberately a SEPARATE knob from `BIND_HOST`, so "I want the LAN" is a decision an
 // operator makes on purpose and can be found by grepping one name — never a side-effect of a host string.
 //
+// ── THE MODE ARM (single-user) ────────────────────────────────────────────────────────────────────────────
+// `single-user` has no login: its only credential is the un-credentialed owner fallback. So it listens on
+// LOOPBACK in every NODE_ENV, production included, and a non-loopback listener (an explicit `BIND_HOST` or the
+// dev hatch) is REFUSED at parse unless `AUTH_FALLBACK_TRUSTED_PEERS` declares the peer set. That knob is the
+// override on purpose: it is launch-only, warned every boot (`fallback-peers.ts`), and it is what a container
+// needs, because a published port never delivers a loopback peer. Every other mode keeps the arms above.
+//
 // ── WHAT THIS FILE DOES NOT DO ────────────────────────────────────────────────────────────────────────────
 // It is not an authorization control and does not replace the C13 deploy invariant (the server port must not
 // be directly reachable by untrusted networks — `IP_ALLOWLIST` + the reverse proxy remain the perimeter, and
-// a PRODUCTION process still binds every interface by design). It bounds exactly one thing: how far a
-// non-production build can be reached. The loopback predicate is re-spelled here rather than reused from
-// `infra/network/ip-ranges` because foundation sits BELOW infra — an upward import is physics-illegal (§2).
+// a PRODUCTION login-mode process still binds every interface by design). It bounds two things: how far a
+// non-production build can be reached, and how far a no-login box can be reached. The loopback predicate is
+// re-spelled here rather than reused from `infra/network/ip-ranges` because foundation sits BELOW infra — an
+// upward import is physics-illegal (§2).
+
+import type { AuthMode } from "@orb/contracts/identity";
 
 /** Non-production default: the loopback interface, and nothing else. */
 const LOOPBACK_HOST = "127.0.0.1";
@@ -49,10 +59,13 @@ const LOOPBACK_V4_RE = /^127(\.\d{1,3}){3}$/;
 /** The raw env values the resolver reads — passed in so this file never touches `process.env`. */
 export interface BindPostureInput {
   readonly nodeEnv: "development" | "production" | "test";
+  readonly authMode: AuthMode;
   /** `BIND_HOST` — unset means node's own default: EVERY interface. */
   readonly bindHost: string | undefined;
   /** `ALLOW_DEV_PUBLIC_BIND` — the deliberate-LAN-dev opt-in. */
   readonly allowDevPublicBind: boolean;
+  /** `AUTH_FALLBACK_TRUSTED_PEERS` names at least one range: single-user's only door to a non-loopback bind. */
+  readonly ownerPeersDeclared: boolean;
 }
 
 /** The composed posture. Every field is a fact about this boot, safe to print in a boot log. */
@@ -107,10 +120,41 @@ function refusalFor(nodeEnv: string, bindHost: string): string {
   );
 }
 
-/** Resolve the listen host + the boot verdict. Total over the four (env × host × hatch) cases; the caller
+const SINGLE_USER_REFUSAL =
+  "AUTH_MODE=single-user serves this machine only. To let other devices sign in set AUTH_MODE=local (a session secret is generated for you). " +
+  "In a container keep the port published on loopback and the shipped AUTH_FALLBACK_TRUSTED_PEERS.";
+
+const SINGLE_USER_NOTICE =
+  "bound to 127.0.0.1 — LOOPBACK ONLY, because AUTH_MODE=single-user has no login and serves this machine only. The LAN, a reverse " +
+  "proxy and the public FQDN will NOT reach this process (a proxy gets a 502). To let other devices sign in set AUTH_MODE=local.";
+
+/** The single-user arm, or `null` when the deploy-mode arms decide (every other mode, an explicit loopback
+ *  bind, or a public bind the declared peer set admits). A declared peer set lifts the refusal on an
+ *  explicit public bind; it never widens the unset default. */
+function singleUserPosture(input: BindPostureInput): BindPosture | null {
+  if (input.authMode !== "single-user") {
+    return null;
+  }
+  // The hatch opens every interface only where it acts at all (non-production); in production it is inert.
+  const hatchOpens = input.allowDevPublicBind && input.nodeEnv !== "production";
+  if (input.bindHost === undefined && !hatchOpens) {
+    return { host: LOOPBACK_HOST, publicBind: false, refusal: null, notice: SINGLE_USER_NOTICE };
+  }
+  const publicRequest = input.bindHost === undefined || !isLoopbackHost(input.bindHost);
+  if (publicRequest && !input.ownerPeersDeclared) {
+    return { host: input.bindHost, publicBind: true, refusal: SINGLE_USER_REFUSAL, notice: NOTICE.opened };
+  }
+  return null;
+}
+
+/** Resolve the listen host + the boot verdict. Total over (mode × env × host × hatch × peer set); the caller
  *  that enforces `refusal` is the env parse itself (`foundation/env/index.ts`'s superRefine), so an env
  *  carrying a refused combination cannot come into existence at all. */
 export function resolveBindPosture(input: BindPostureInput): BindPosture {
+  const singleUser = singleUserPosture(input);
+  if (singleUser !== null) {
+    return singleUser;
+  }
   const production = input.nodeEnv === "production";
   if (production) {
     // Production binds where the operator says, defaulting to every interface — the proxy target needs it.

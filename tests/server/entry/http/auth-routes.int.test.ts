@@ -9,7 +9,8 @@ import { castId } from "@orb/kit/ids";
 import type { RevokedSessionsSummary } from "@orb/server/domain/sessions";
 import type { AuthRoutesDeps, AuthSessionsPort, FirstRunRouteDeps, LocalAuthenticator } from "@orb/server/entry/http";
 import { registerAuthRoutes } from "@orb/server/entry/http";
-import { ownerFallbackAllowed } from "@orb/server/infra/auth";
+import { logger } from "@orb/server/foundation/observability";
+import { createPublicHttpMintNotice, ownerFallbackAllowed } from "@orb/server/infra/auth";
 import { Hono } from "hono";
 import { describe, vi } from "vitest";
 import { freshDb } from "../../../support/db.ts";
@@ -17,8 +18,15 @@ import { expect, test } from "../../../support/fixtures.ts";
 
 const NOW = 1_700_000_000_000;
 const THIRTY_DAYS_MS = 2_592_000_000;
-const COOKIE = "__Host-orb_session";
+// These arms drive plain http from a LAN peer (no proxy), so the mint is the http transport's cookie; the
+// transport describe below pins both names.
+const COOKIE = "orb_session_insecure";
+const SECURE_COOKIE = "__Host-orb_session";
 const CSRF = "x-orb-csrf";
+/** What a trusted proxy in front of a TLS listener adds to every request. */
+const PROXY_HTTPS = { "x-forwarded-proto": "https" } as const;
+const PUBLIC_HTTP_EVENT = "session_minted_over_public_http";
+const HOUR_MS = 3_600_000;
 const LOGIN = "/api/auth/login";
 // The route's own fixed-window size (`LOGIN_WINDOW_MS`, module-private there) — mirrored so the rollover arm
 // below can step the injected clock past a window boundary deterministically.
@@ -90,7 +98,7 @@ async function postLogin(app: Hono, ip: string, body: Record<string, string>, ex
 }
 
 describe("local login — behavioral (real app + freshDb)", () => {
-  test("valid credentials → 200 + the __Host- session cookie", async () => {
+  test("valid credentials → 200 + the session cookie", async () => {
     const app = await appWith();
     const res = await postLogin(app, "10.0.0.1", { handle: "owner", password: "hunter2pw" });
     expect(res.status).toBe(200);
@@ -483,103 +491,112 @@ describe("logout — CSRF gate (real app)", () => {
   });
 });
 
-// ── #2413: the plain-http LAN login round trip, over the REAL route ───────────────────────────────────────
+// ── Rule C: the session cookie follows the request's transport, over the REAL route ──────────────────────
 //
-// THE BUG, reproduced at the seam it was reported at. Phone → `http://192.168.1.20:8788`, correct password,
-// 200 OK — and the user stays signed out, with nothing in any log to say why. The cause is not in this app's
-// logic at all: the browser DISCARDS the Set-Cookie, because `Secure` is refused from a non-secure origin and
-// the `__Host-` prefix REQUIRES `Secure` (RFC 6265bis §4.1.2.5 / §4.1.3.2). A server-side test cannot run a
-// cookie jar, so what is asserted here is the thing the jar decides on: the exact name + attributes leaving
-// the route, against a real non-localhost `Host` over plain http, with the spec rule named. The
-// env-knob→constant wiring behind it is pinned in tests/server/foundation/env/index.test.ts.
-describe("plain-http LAN login (#2413) — the cookie the browser is asked to keep", () => {
-  /** The shape the bug report arrives in: a real LAN authority, no TLS, no proxy headers. */
-  const lanHost = "192.168.1.20:8788";
+// A browser drops a `Secure` cookie set over plain http on any origin but localhost, and the `__Host-` prefix
+// requires `Secure`. So a plain-http request is minted the prefix-less `orb_session_insecure` without
+// `Secure` (the cookie a phone at http://192.168.1.20:8788 keeps), and only a request a trusted proxy marks
+// `X-Forwarded-Proto: https` is minted `__Host-orb_session`. Each mint clears the other name.
+describe("Rule C — the minted cookie follows the request's transport", () => {
+  const creds = { handle: "owner", password: "hunter2pw" };
 
-  /** Re-register the routes from a FRESH module graph so the module-level cookie posture is resolved from
-   *  the stubbed env rather than the runner's. `unstubEnvs` in the root config tears the stub down per test. */
-  async function lanLogin(insecure: boolean): Promise<Response> {
-    if (insecure) {
-      vi.stubEnv("SESSION_COOKIE_INSECURE", "true");
+  test("plain http from a LAN peer → the insecure name without Secure, and the __Host- name cleared", async () => {
+    const app = await appWith();
+    const res = await postLogin(app, "192.168.1.55", creds);
+    expect(res.status).toBe(200);
+    const [minted, cleared] = res.headers.getSetCookie();
+    expect(minted).toContain(`${COOKIE}=tok-123`);
+    expect(minted).not.toContain("Secure");
+    for (const attr of ["HttpOnly", "SameSite=Lax", "Path=/"]) {
+      expect(minted).toContain(attr);
     }
-    vi.resetModules();
-    const { registerAuthRoutes: register } = await import("@orb/server/entry/http");
-    const db = await freshDb();
-    const app = new Hono();
-    register(app, {
-      sessions: sessionsStub(),
-      sockets: { evictSession: (): number => 0, evictUser: (): number => 0 },
-      now: (): number => NOW,
-      db,
-      resolveLoginLimit: (): number => 10,
-      authenticate: ownerAuth(castId<UserId>("usr_owner")),
+    expect(cleared).toContain(`${SECURE_COOKIE}=;`);
+    expect(cleared).toContain("Max-Age=0");
+  });
+
+  test("https asserted by a trusted proxy peer → the __Host- name with Secure, and the insecure name cleared", async () => {
+    const app = await appWith();
+    const res = await postLogin(app, "172.18.0.5", creds, PROXY_HTTPS);
+    expect(res.status).toBe(200);
+    const [minted, cleared] = res.headers.getSetCookie();
+    expect(minted).toContain(`${SECURE_COOKIE}=tok-123`);
+    expect(minted).toContain("Secure");
+    expect(cleared).toContain(`${COOKIE}=;`);
+  });
+
+  test("a PUBLIC peer forging X-Forwarded-Proto: https is still minted the http cookie", async () => {
+    const app = await appWith();
+    const res = await postLogin(app, "203.0.113.9", creds, PROXY_HTTPS);
+    expect(res.headers.getSetCookie()[0]).toContain(`${COOKIE}=tok-123`);
+  });
+
+  test("logout reads only this transport's cookie, and clears both names", async () => {
+    const revoked: string[] = [];
+    const app = await appWith({
+      sessions: sessionsStub({
+        revokeByToken: (t: string): Promise<typeof REVOKED | null> => {
+          revoked.push(t);
+          return Promise.resolve(REVOKED);
+        },
+      }),
     });
-    return await app.request(
-      LOGIN,
-      {
-        method: "POST",
-        headers: { "content-type": "application/x-www-form-urlencoded", [CSRF]: "1", host: lanHost },
-        body: new URLSearchParams({ handle: "owner", password: "hunter2pw" }).toString(),
+    const both = `${COOKIE}=tok-http; ${SECURE_COOKIE}=tok-https`;
+    const overHttp = await app.request("/api/auth/logout", { method: "POST", headers: { cookie: both, [CSRF]: "1" } }, connEnv("192.168.1.56"));
+    const overHttps = await app.request("/api/auth/logout", { method: "POST", headers: { cookie: both, [CSRF]: "1", ...PROXY_HTTPS } }, connEnv("172.18.0.6"));
+    expect(revoked).toEqual(["tok-http", "tok-https"]);
+    for (const res of [overHttp, overHttps]) {
+      expect(res.headers.getSetCookie().map((c) => c.split("=")[0])).toEqual([SECURE_COOKIE, COOKIE]);
+    }
+  });
+});
+
+// ── Rule E: a session minted over plain http from the public internet is a security line ─────────────────
+//
+// The owner ruled warn, not refuse. The line is keyed by the resolved client address (XFF-aware) and throttled
+// to one per address per hour, so a port-forwarded box logs each visitor once instead of every sign-in.
+describe("Rule E — a plain-http mint from a public client logs once per client per hour", () => {
+  const creds = { handle: "owner", password: "hunter2pw" };
+
+  function harness(): { app: Promise<Hono>; advance: (ms: number) => void; logged: () => unknown[] } {
+    let at = NOW;
+    const spy = vi.spyOn(logger, "warn");
+    return {
+      app: appWith({ publicHttpMintNotice: createPublicHttpMintNotice(() => at) }),
+      advance: (ms): void => {
+        at += ms;
       },
-      connEnv("192.168.1.55"),
-    );
+      logged: (): unknown[] =>
+        spy.mock.calls.flatMap(([bindings]) => {
+          const fields = bindings as Record<string, unknown>;
+          return fields["event"] === PUBLIC_HTTP_EVENT ? [fields["clientIp"]] : [];
+        }),
+    };
   }
 
-  // THE DEFAULT, i.e. the reported bug: the login succeeds and the cookie is one this origin's browser must
-  // throw away. Green BEFORE the fix as well — it documents the symptom, it does not prove the fix.
-  test("OFF (the default): the mint carries __Host- + Secure, which this origin's browser MUST discard", async () => {
-    const res = await lanLogin(false);
-    expect(res.status).toBe(200);
-    const [minted] = res.headers.getSetCookie();
-    expect(minted).toContain("__Host-orb_session=tok-123");
-    expect(minted).toContain("Secure");
+  test("a router port-forward (public peer, plain http) logs one line per client per hour", async () => {
+    const h = harness();
+    const app = await h.app;
+    expect((await postLogin(app, "203.0.113.9", creds)).status).toBe(200);
+    await postLogin(app, "203.0.113.9", creds);
+    await postLogin(app, "198.51.100.4", creds);
+    expect(h.logged()).toEqual(["203.0.113.9", "198.51.100.4"]);
+    h.advance(HOUR_MS);
+    await postLogin(app, "203.0.113.9", creds);
+    expect(h.logged()).toEqual(["203.0.113.9", "198.51.100.4", "203.0.113.9"]);
   });
 
-  // THE FIX, at the same seam: the same request, same non-localhost plain-http origin, now answered with a
-  // cookie that has no prefix and no `Secure` — the one a browser on `http://192.168.1.20:8788` keeps.
-  test("ON: the mint carries the bare name with NO Secure — the cookie this origin's browser keeps", async () => {
-    const res = await lanLogin(true);
-    expect(res.status).toBe(200);
-    const cookies = res.headers.getSetCookie();
-    const [minted] = cookies;
-    expect(minted).toContain("orb_session_insecure=tok-123");
-    expect(minted).not.toContain("Secure");
-    expect(minted).not.toContain("__Host-");
-    // the belts that are NOT part of the trade survive
-    expect(minted).toContain("HttpOnly");
-    expect(minted).toContain("SameSite=Lax");
-    expect(minted).toContain("Path=/");
-    // and the OTHER posture's name is cleared in the same response, so flipping the knob does not leave a
-    // live token in an already-signed-in browser
-    expect(cookies).toHaveLength(2);
-    expect(cookies[1]).toContain("__Host-orb_session=;");
-    expect(cookies[1]).toContain("Max-Age=0");
+  test("a public client behind a same-host proxy without TLS is keyed by its forwarded address", async () => {
+    const h = harness();
+    await postLogin(await h.app, "127.0.0.1", creds, { "x-forwarded-for": "203.0.113.20" });
+    expect(h.logged()).toEqual(["203.0.113.20"]);
   });
 
-  test("ON: logout clears BOTH names over the same plain-http origin", async () => {
-    vi.stubEnv("SESSION_COOKIE_INSECURE", "true");
-    vi.resetModules();
-    const { registerAuthRoutes: register } = await import("@orb/server/entry/http");
-    const db = await freshDb();
-    const app = new Hono();
-    register(app, {
-      sessions: sessionsStub(),
-      sockets: { evictSession: (): number => 0, evictUser: (): number => 0 },
-      now: (): number => NOW,
-      db,
-      resolveLoginLimit: (): number => 10,
-    });
-    const res = await app.request(
-      "/api/auth/logout",
-      { method: "POST", headers: { cookie: "orb_session_insecure=tok-123", [CSRF]: "1", host: lanHost } },
-      connEnv("192.168.1.55"),
-    );
-    expect(res.status).toBe(200);
-    const cookies = res.headers.getSetCookie();
-    expect(cookies).toHaveLength(2);
-    expect(cookies.map((c) => c.split("=")[0])).toEqual(["__Host-orb_session", "orb_session_insecure"]);
-    for (const cookie of cookies) {
-      expect(cookie).toContain("Max-Age=0");
-    }
+  // Controls: the two shapes the rule leaves silent.
+  test("a LAN client over plain http and a public client over proxied https log nothing", async () => {
+    const h = harness();
+    const app = await h.app;
+    await postLogin(app, "192.168.1.57", creds);
+    await postLogin(app, "172.18.0.5", creds, { "x-forwarded-for": "203.0.113.21", "x-forwarded-proto": "https" });
+    expect(h.logged()).toEqual([]);
   });
 });

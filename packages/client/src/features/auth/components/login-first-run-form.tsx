@@ -26,7 +26,7 @@ export interface LoginFirstRunFormProps {
   readonly onDone: () => void;
 }
 
-/** Set the owner password → `POST /api/auth/first-run` → the `__Host-orb_session` cookie. */
+/** Set the owner password → `POST /api/auth/first-run` → the session cookie. */
 export function LoginFirstRunForm({ ownerHandle, onDone }: LoginFirstRunFormProps): ReactElement {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");

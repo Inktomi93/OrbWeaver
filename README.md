@@ -24,11 +24,20 @@ the dev overlay — is [`docker/README.md`](docker/README.md).
 
 **From source** (Node 26 + pnpm, any OS — see Develop below): `pnpm install && pnpm start` builds the
 client bundle if it needs building and runs the production server in this terminal at
-<http://localhost:8788>; Ctrl-C stops it. Single-user is the default: you are the owner from *this*
-machine, and another device on your network gets a 401 until you set `AUTH_MODE=local` in `.env` (copy
-`.env.example`) and put it behind HTTPS. `pnpm start` is plain Node — no bash, no `setsid` — and it runs
-the same thing the container does (`NODE_ENV=production node packages/server/src/entry/index.ts`); its
-macOS and Windows boots are not yet verified on real hardware.
+<http://localhost:8788>; Ctrl-C stops it. Single-user is the default: it has no login, so it listens on
+*this* machine only and you are the owner here. `pnpm start` is plain Node — no bash, no `setsid` — and it
+runs the same thing the container does (`NODE_ENV=production node packages/server/src/entry/index.ts`);
+its macOS and Windows boots are not yet verified on real hardware.
+
+**Other devices, and the internet.** Set `AUTH_MODE=local` in `.env` (copy `.env.example`) and restart: the
+server then listens on every interface and people sign in with a password; the first visit from this
+machine sets the owner's password. A phone at `http://192.168.1.20:8788` can sign in over plain http, but the password and
+the session cookie travel in clear on your network, and the login screen says so; put HTTPS in front when
+you can. For the internet, never forward a router port: run a tunnel instead. `tailscale serve --bg 8788`
+publishes the app to your tailnet over HTTPS, and `cloudflared tunnel run --token <token>` with a public
+hostname whose service is `http://localhost:8788` publishes it through Cloudflare. Never put a proxy or
+tunnel in front of single-user. The boot log states who can reach the box and who its owner is; the
+tunnel recipes, including Tailscale identity instead of passwords, are in [`docker/README.md`](docker/README.md).
 
 **Work on the code** (any OS): `pnpm install && pnpm dev` runs the watched server and the vite client
 from source in this terminal. Open <http://localhost:5173>; the server listens on 8788, and `PORT` and

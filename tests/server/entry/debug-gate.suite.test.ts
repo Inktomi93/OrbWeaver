@@ -51,6 +51,7 @@ import { createAuthSeam } from "@orb/server/entry/auth";
 import type { PrincipalEnv } from "@orb/server/entry/http";
 import { recordWireCapture, registerDebugRoutes, resetWireCaptures } from "@orb/server/foundation/observability/debug";
 import type { AuthConfig, ForwardJwtVerifier } from "@orb/server/infra/auth";
+import { sessionCookieFor } from "@orb/server/infra/auth";
 import type { Context } from "hono";
 import { Hono } from "hono";
 import { afterEach, beforeEach, describe } from "vitest";
@@ -192,6 +193,10 @@ const acceptingJwtVerifier: ForwardJwtVerifier = {
 interface GateApp {
   readonly fetch: (req: Request) => Response | Promise<Response>;
 }
+
+/** The harness requests carry no `X-Forwarded-Proto`, so they are plain http and the seam reads the http
+ *  transport's cookie. */
+const SESSION_COOKIE = `${sessionCookieFor("http").name}=t`;
 
 interface GateAppOptions {
   readonly config: AuthConfig;
@@ -427,13 +432,13 @@ describe("the two real credentials still open the gate", () => {
 
   test("an OWNER session cookie authorizes with no token configured (the arm's documented purpose)", async () => {
     const app = gateApp({ config: baseConfig({ mode: "local" }), sessions: cookieSessions("owner") });
-    const res = await get(app, "/api/_debug/info", { cookie: "__Host-orb_session=t" });
+    const res = await get(app, "/api/_debug/info", { cookie: SESSION_COOKIE });
     expect(res.status).toBe(OK);
   });
 
   test("an OWNER session cookie authorizes", async () => {
     const app = gateApp({ config: baseConfig({ mode: "oidc" }), sessions: cookieSessions("owner") });
-    const res = await get(app, "/api/_debug/info", { cookie: "__Host-orb_session=t" });
+    const res = await get(app, "/api/_debug/info", { cookie: SESSION_COOKIE });
     expect(res.status).toBe(OK);
   });
 
@@ -449,7 +454,7 @@ describe("the two real credentials still open the gate", () => {
 
   test("a plain USER session cookie is still refused (the role gate denies below owner)", async () => {
     const app = gateApp({ config: baseConfig({ mode: "local" }), sessions: cookieSessions("user"), expectedToken: OPERATOR_TOKEN });
-    expect(await outcomes(app, { cookie: "__Host-orb_session=t" })).toEqual(allRefused("absent"));
+    expect(await outcomes(app, { cookie: SESSION_COOKIE })).toEqual(allRefused("absent"));
   });
 
   // THE HEADER ARM'S OTHER SUB-PATH (#1193). An UNSIGNED forward-header identity from an ALLOWLISTED proxy
@@ -502,7 +507,7 @@ describe("the bug-report WRITE route is behind the same gate", () => {
 
   test("a plain USER session cookie is refused on the WRITE too", async () => {
     const app = gateApp({ config: baseConfig({ mode: "local" }), sessions: cookieSessions("user"), expectedToken: OPERATOR_TOKEN });
-    const res = await bugReport(app, { cookie: "__Host-orb_session=t" });
+    const res = await bugReport(app, { cookie: SESSION_COOKIE });
     expect(res.status).toBe(UNAUTHORIZED);
   });
 
@@ -584,7 +589,7 @@ describe("D17: a DELEGATED admin is not the box operator — the wire ring is th
 
   test("an ADMIN session cookie cannot read another user's provider wire bytes", async () => {
     const app = gateApp({ config: baseConfig({ mode: "local" }), sessions: cookieSessions("admin"), expectedToken: OPERATOR_TOKEN });
-    const res = await get(app, "/api/_debug/wire/captures", { cookie: "__Host-orb_session=t" });
+    const res = await get(app, "/api/_debug/wire/captures", { cookie: SESSION_COOKIE });
     // The LEAK assertion runs FIRST on purpose: pre-fix it is what names the foreign prompt bytes in the
     // failure output, where a bare status mismatch would only say "200".
     expect(await res.text()).not.toContain(foreignPromptMarker);
@@ -595,7 +600,7 @@ describe("D17: a DELEGATED admin is not the box operator — the wire ring is th
   // back for the box holder, so the refusal above is about the ROLE and not about a ring nobody wrote to.
   test("the OWNER's session still reads it — proving the ring really held the foreign bytes", async () => {
     const app = gateApp({ config: baseConfig({ mode: "oidc" }), sessions: cookieSessions("owner"), expectedToken: OPERATOR_TOKEN });
-    const res = await get(app, "/api/_debug/wire/captures", { cookie: "__Host-orb_session=t" });
+    const res = await get(app, "/api/_debug/wire/captures", { cookie: SESSION_COOKIE });
     expect(res.status).toBe(OK);
     expect(await res.text()).toContain(foreignPromptMarker);
   });
@@ -609,7 +614,7 @@ describe("D17: a DELEGATED admin is not the box operator — the wire ring is th
 
   test("the narrowing is the GATE, not one route — a delegated admin is refused on every probe", async () => {
     const app = gateApp({ config: baseConfig({ mode: "local" }), sessions: cookieSessions("admin"), expectedToken: OPERATOR_TOKEN });
-    expect(await outcomes(app, { cookie: "__Host-orb_session=t" })).toEqual(allRefused("absent"));
+    expect(await outcomes(app, { cookie: SESSION_COOKIE })).toEqual(allRefused("absent"));
   });
 
   test("a signed forward-header SSO ADMIN is refused too (the role gate binds every credential arm)", async () => {

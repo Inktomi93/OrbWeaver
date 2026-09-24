@@ -33,6 +33,8 @@ const CONFIG: AuthConfig = {
   trustHtml: false,
   allowInteractiveCards: false,
   uploads: DEFAULT_UPLOAD_CAPS,
+  transport: "https",
+  clientScope: "private",
 };
 
 type FetchAuthConfig = typeof import("../../../packages/client/src/data/auth-config.ts").fetchAuthConfig;

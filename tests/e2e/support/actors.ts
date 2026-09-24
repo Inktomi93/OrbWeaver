@@ -10,7 +10,7 @@
 // one:
 //   • single-user / local HOST  → the OWNER via the un-credentialed 127.0.0.1 fallback seam (no cookie, no
 //     CSRF header; `via:"fallback"` so a mutation needs no CSRF). `ownerActor()`.
-//   • local MEMBER               → `POST /api/auth/login` (form) → the `__Host-orb_session` cookie → a cookie
+//   • local MEMBER               → `POST /api/auth/login` (form) → the session cookie → a cookie
 //     principal (`via:"cookie"`). Cookie MUTATIONS carry the `x-orb-csrf` header or the transport 403s
 //     (transport/trpc/trpc.ts — the CSRF gate keys on `via==="cookie"` + the header). `loginLocal(...)`.
 //   • forward-header             → a signed RS256 JWT (minted in-test with `jose`, the jwks.test.ts precedent;
@@ -37,9 +37,10 @@ import type { NewConnection } from "./trpc.ts";
 // front door proxies `/api/*` (login, tRPC) + `/join` to that project's Hono backend.
 
 // The wire-fixed names (declared here, not imported — the import-free-of-package-trees rule). CSRF_HEADER's
-// one home is @orb/contracts/identity; the session cookie name is entry/auth's; both are stable wire facts.
+// one home is @orb/contracts/identity; the session cookie names are infra/auth's `sessionCookieFor`. The
+// harness reaches each stack over plain http with no proxy, so a login mints the http transport's cookie.
 const CSRF_HEADER = "x-orb-csrf";
-const SESSION_COOKIE = "__Host-orb_session";
+export const SESSION_COOKIE = "orb_session_insecure";
 
 /** One authenticated principal's wire client — `query`/`mutation` over the tRPC batch shape, carrying this
  *  actor's own headers (a session cookie, a signed-JWT proxy header, or nothing for the fallback owner). The
@@ -133,7 +134,7 @@ export function ownerActor(baseUrl: string): ActorClient {
 
 // ── LOCAL MODE — a credentialed MEMBER via the login form ────────────────────────────────────────────────
 
-/** Log in a seeded LOCAL user and return an actor client bound to their `__Host-orb_session` cookie + the
+/** Log in a seeded LOCAL user and return an actor client bound to their session cookie + the
  *  `x-orb-csrf` header (so their mutations pass the CSRF gate). The member the multi-user seed mints
  *  (`FIXTURE_MEMBER_HANDLE`) is the canonical caller. `baseUrl` is the local project's vite origin. Throws if
  *  the login mints no session cookie. */

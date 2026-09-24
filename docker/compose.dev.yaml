@@ -36,6 +36,7 @@ services:
     entrypoint: ["bash", "docker/dev-entrypoint.sh"]
     command: ["pnpm", "stack", "start-fg"]
     environment:
+      BIND_HOST: !reset null                # the base container bind; a development build binds loopback only
       HOME: /app/.cache/docker-dev-home     # pnpm + its store live inside the checkout's gitignored .cache
       STACK_RUN_DIR: /app/.cache/stack-docker
       PORT: ${ORB_PORT:-8788}

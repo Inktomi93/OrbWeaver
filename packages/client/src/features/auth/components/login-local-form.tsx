@@ -22,7 +22,7 @@ export interface LoginLocalFormProps {
   readonly onLoggedIn: () => void;
 }
 
-/** Handle + password → `POST /api/auth/login` → the `__Host-orb_session` cookie. */
+/** Handle + password → `POST /api/auth/login` → the session cookie. */
 export function LoginLocalForm({ defaultHandle, onLoggedIn }: LoginLocalFormProps): ReactElement {
   const [handle, setHandle] = useState(defaultHandle ?? "");
   const [password, setPassword] = useState("");

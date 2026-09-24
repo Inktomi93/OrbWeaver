@@ -30,9 +30,11 @@ export {
   clientIp,
   ipAllowlistMiddleware,
   isIngressAllowed,
+  isTrustedHop,
   parseAllowlist,
   peerIp,
   resolveClientIp,
+  TRUSTED_PROXIES,
 } from "./ingress.ts";
 export {
   DEFAULT_TRUSTED_RANGES,
