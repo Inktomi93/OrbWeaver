@@ -133,7 +133,8 @@ removed a second time.
 | `doc/` | the docs system's structural writer — ADR/plan/item minting, status and supersession, work-item transitions and landing, archiving with link rewrites, the generated indexes, the soft freshness report; its rules are what `check:agents` runs over `docs/**` and `check:docs`/`format:docs` run over the governed tree | `doc` |
 | `agent-sync/` | Codex agent-manifest sync + the instruction-layer and docs-tree check | `agents:sync` `check:agents` |
 | `seed/` | demo · chat · multi-user seeding (three verbs) | `seed:demo` |
-| `stack/` | the dev and prod stack (bash-fronted; `start` is its node-only door) | `stack` `start` |
+| `dev/` | the cross-platform source launcher: the watched server and the vite client in the foreground, with no shell and no engine fleet (D252) | `dev` |
+| `stack/` | this dev box's dev and prod stack supervisor (bash-fronted, Linux only; `start` is its node-only door) | `stack` `start` |
 
 **Process launchers and supervisors** may live directly under `scripts/`. They adapt native tool invocation, apply the shared capacity policy, supervise processes and preserve honest exit/report behavior. They do not own duplicate policy readers, application logic or compatibility entry points. Reusable tool implementation belongs in `tooling/`. Root `package.json` scripts identify the live launchers; there is no separate filename allowlist. TypeScript launchers are owned by the Node compiler program and the shared direct-script ESLint surface.
 
@@ -250,7 +251,7 @@ REDs: any file >450 lines; any `cli.ts` >200. Declared carve with its own `mustP
 | `tooling-artifact-run-slot` | a tool filing through `artifactDir`/`artifactFile` opens `withInstrumentRun` in its `cli.ts` | hard · family `tooling-artifact`; the home located and evidenced |
 | `tooling-process-exit-home` | `process.exit(` outside `_shared/run-tool.ts` | reviewed-grant · family `process-member`, `lib/process-member-origin.ts`; grant `process-exit` |
 | `tooling-cli-entry` | every `tooling/src/<tool>/cli.ts` calls `runTool` | hard · family `tooling-program-entry`, `lib/project-home-origin.ts` against the located runner home |
-| `tooling-child-process-door` | `node:child_process` outside `_shared/proc.ts`; a full-priority door call outside a reviewed caller | reviewed-grant · the import by specifier, the doors by identity against the located `proc.ts`; grants `child-process-import` + five `full-priority-spawn` |
+| `tooling-child-process-door` | `node:child_process` outside `_shared/proc.ts`; a full-priority door call outside a reviewed caller | reviewed-grant · the import by specifier, the doors by identity against the located `proc.ts`; grants `child-process-import` + one `full-priority-spawn` per reviewed caller |
 | `tooling-port-registry` | a port literal outside `_shared/ports.ts`, in `tooling/src/**` + `tests/e2e/support/**` | reviewed-grant · family `plumbing-literals`, `lib/plumbing-literals.ts#portLiteralOf`; grant `port-literal` |
 | `tooling-clock-budget` | a fixed wall clock in `tooling/src/**` + `tests/tooling/**` | **ordinary** · family `plumbing-literals`, `#fixedClockOf`; a deliberately fixed clock is `@orb-waive tooling-clock-budget(<literal>)` at its site |
 | `tooling-runner-config-literals` | both literal laws over the three root runner configs, for the port-registry and clock-budget policies above | hard · resource; three `exact-file` ids, walked by `#runnerConfigLiteralFacts` through the one scratch parser |

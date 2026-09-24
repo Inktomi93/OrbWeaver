@@ -28,9 +28,14 @@ client bundle if it needs building and runs the production server in this termin
 machine, and another device on your network gets a 401 until you set `AUTH_MODE=local` in `.env` (copy
 `.env.example`) and put it behind HTTPS. `pnpm start` is plain Node — no bash, no `setsid` — and it runs
 the same thing the container does (`NODE_ENV=production node packages/server/src/entry/index.ts`); its
-macOS and Windows boots are not yet verified on real hardware. **On Linux**, `pnpm stack up` boots the
-watched DEV stack at <http://localhost:5173> instead; that supervisor is a bash script (`setsid`, `ss`,
-`/proc`) and stays Linux-only.
+macOS and Windows boots are not yet verified on real hardware.
+
+**Work on the code** (any OS): `pnpm install && pnpm dev` runs the watched server and the vite client
+from source in this terminal. Open <http://localhost:5173>; the server listens on 8788, and `PORT` and
+`VITE_PORT` in `.env` move them. The server restarts on a source change, and Ctrl-C stops both. `pnpm dev`
+reads the same `.env` as the server, and when the server would refuse a setting, it stops before it starts
+anything and names that setting. It is plain Node with no bash; its macOS and Windows runs are not yet verified on
+real hardware. `pnpm stack up` is the maintainers' Linux supervisor for the same dev stack (`setsid`, `ss`, `/proc`).
 
 **Back up your data (from source).** Everything the app keeps is in `data/`: the database, your assets,
 and two secrets the server generates on first boot: `data/.credentials-key`, the key that decrypts saved
@@ -44,8 +49,8 @@ of the last seven days that had one. `touch data/orbweaver.db.backup-<stamp>.kee
 that cleanup. Migrations only go forward, so to roll back an update, stop the app, put a copy in place of
 `data/orbweaver.db`, delete the `-wal`/`-shm` files beside it, and start the older checkout. Docker users: see [`docker/README.md`](docker/README.md).
 
-**Develop on Linux or WSL2.** The dev harness leans on `nice`, cgroup fencing and bash hooks, so the
-full loop (`pnpm stack`) is Linux-shaped. macOS can run the tests and `pnpm start`; it cannot run
+**Run the checks on Linux or WSL2.** The test and check harness leans on `nice`, cgroup fencing and bash
+hooks, so it is Linux-shaped. macOS can run the tests, `pnpm start` and `pnpm dev`; it cannot run
 `pnpm stack`.
 
 ## Read first

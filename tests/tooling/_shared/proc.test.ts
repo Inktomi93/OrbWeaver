@@ -52,7 +52,7 @@ vi.mock("node:child_process", () => ({
   },
 }));
 
-const { killPidGroup, spawnFullPriorityChild } = await import("@orb/tooling/_shared/proc");
+const { childExitCode, FORWARDED_SIGNALS, forwardSignalsTo, killPidGroup, spawnFullPriorityChild } = await import("@orb/tooling/_shared/proc");
 
 test("kill rethrows a non-ESRCH child.kill failure", () => {
   fake.exitCode = null;
@@ -93,6 +93,47 @@ test("killGroup absorbs only ESRCH from process-group signalling", () => {
   });
   expect(() => child.killGroup("SIGTERM")).not.toThrow();
   signalGroup.mockRestore();
+});
+
+// A foreground launcher (`pnpm start`, `pnpm dev`) must forward every stop signal to its children, or a
+// Ctrl-C or supervisor TERM leaves an orphan holding the port. The registrar is injected, so the wiring is
+// asserted without signalling this vitest worker.
+function fakeKillTarget(): { readonly killed: NodeJS.Signals[]; readonly kill: (signal: NodeJS.Signals) => void } {
+  const killed: NodeJS.Signals[] = [];
+  return { killed, kill: (signal) => killed.push(signal) };
+}
+
+test("every forwarded signal is registered, and each one forwards itself to the child", () => {
+  const child = fakeKillTarget();
+  const registered: NodeJS.Signals[] = [];
+  const handlers = new Map<NodeJS.Signals, () => void>();
+  forwardSignalsTo(child, (signal, handler) => {
+    registered.push(signal);
+    handlers.set(signal, handler);
+  });
+
+  expect(registered).toEqual([...FORWARDED_SIGNALS]);
+  expect([...FORWARDED_SIGNALS]).toEqual(["SIGINT", "SIGTERM", "SIGHUP"]);
+
+  for (const signal of FORWARDED_SIGNALS) {
+    handlers.get(signal)?.();
+  }
+  expect(child.killed).toEqual([...FORWARDED_SIGNALS]);
+});
+
+test("registering does not signal the child; the kill happens only when a handler fires", () => {
+  const child = fakeKillTarget();
+  forwardSignalsTo(child, () => {
+    // registered, never fired
+  });
+  expect(child.killed).toEqual([]);
+});
+
+test("the exit status is the child's, and a signal is 128+N, so Ctrl-C is 130", () => {
+  expect(childExitCode({ code: 0, signal: null, error: undefined })).toBe(0);
+  expect(childExitCode({ code: 7, signal: null, error: undefined })).toBe(7);
+  expect(childExitCode({ code: null, signal: "SIGINT", error: undefined })).toBe(130);
+  expect(childExitCode({ code: null, signal: "SIGTERM", error: undefined })).toBe(143);
 });
 
 // The external `kill` binary is BANNED as a process-group door (#1254, 2026-09-02): procps-ng 4.0.4 parses
