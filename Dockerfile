@@ -79,10 +79,6 @@ LABEL org.opencontainers.image.source="https://github.com/Inktomi93/orbweaver" \
 ENV NODE_ENV=production
 COPY --chown=node:node --from=build /app/runtime /app
 COPY --chown=node:node docker/entrypoint.sh /app/docker/entrypoint.sh
-# `claude` on PATH = the SDK's own bundled runtime, for the in-container `/login` path. The SDK resolves the
-# binary by package name, so the path is the deploy layout's, and the shim refuses loudly if the prune ever
-# drops it instead of silently 127-ing at `docker compose exec`.
-RUN printf '#!/bin/sh\nbin=/app/node_modules/@anthropic-ai/claude-agent-sdk-linux-x64/claude\n[ -x "$bin" ] || { echo "claude: the bundled runtime is not in this image ($bin)" >&2; exit 127; }\nexec "$bin" "$@"\n' > /usr/local/bin/claude && chmod 0755 /usr/local/bin/claude
 # /app/data is the ONE writable state root (sqlite + -wal/-shm, CAS blobs, generated secrets) — a volume;
 # /app/.cache is cwd-relative scratch (a recorder spill when WIRE_CAPTURE=on; nothing on the quiet path).
 # No `USER node` here on purpose: the entrypoint starts as root to own the data dir for PUID/PGID (a
