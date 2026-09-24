@@ -88,7 +88,7 @@ Keep the split: **only `seedOwner` runs pre-compose**, because compose binds the
 5. **compose** — event bus + subscriptions, role clients, every domain service + injected ops, the auth seam, the effective-config getter.
 6. **crypto decrypt-probe** — `built.services.credentials.probeKeyDecrypt()`, immediately after compose (a failure flips healthz to `credentials_key_mismatch`; boot continues).
 7. **seed (post-compose)** — env→DB credential seed (needs the composed credentials service); default preset/themes/characters/persona (the seeders are composed); `reclaimChatLocksOnBoot`; then the fire-and-forget host-offline **deferred-turn drain** (`chat.drainDeferredTurns` — the `pending_turns` reclaim; does real generation, so it must NOT block listen).
-8. **supervisors** — the vLLM supervisor (honor `VLLM_DISABLED`), the workloads worker poll loop, the catalog-refresh / workload-schedule / (oidc-only) oidc-gc schedulers.
+8. **supervisors** — the workloads worker poll loop, the catalog-refresh / workload-schedule / (oidc-only) oidc-gc schedulers.
 9. **serve** — mount `app.ts` (middleware + tRPC + `entry/http`, the SPA static-serve registered LAST so every API/auth route wins by order; a missing client bundle is boot-fatal in prod, skipped-with-log in dev where vite serves the SPA), await the async bind (an `EADDRINUSE` surfaces as a server `error` event, not a throw — boot fails loudly on a dead listener), start listening; healthz goes live.
 10. **shutdown** — close the listener (healthz → 503 first, so the LB pulls traffic), stop supervisors, drain vLLM, db pre-close housekeeping.
 

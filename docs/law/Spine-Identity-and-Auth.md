@@ -209,9 +209,6 @@ review re-flags something already ruled.
 - **A member sees the history they were admitted to — that is the point.** `joinHistoryVisibility`
   defaults to `full`; a member reading pre-join canon in a room they were invited to is the product
   working. A finding must name which option (§2c) was bypassed, or it is not a leak.
-- **`adopt-only` engine stacks never spawn, and fail fast when the engines are down.** That is the
-  posture (`ENGINES_POSTURE`), not broken wiring: snap/e2e stacks adopt a running fleet or refuse
-  honestly.
 - **The `permitsHost`/`viewerReadsHidden` split is two classes, not two spellings** (§2c). Do not
   "unify" them.
 
