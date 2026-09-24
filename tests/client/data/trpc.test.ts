@@ -18,6 +18,8 @@
 // behaviour is stated in the source header.
 import { createTrpcClient } from "@orb/client/data";
 import { CSRF_HEADER } from "@orb/contracts/identity";
+import type { SocketId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { afterEach, beforeEach, describe, vi } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
@@ -25,6 +27,7 @@ interface RecordedRequest {
   readonly url: string;
   readonly headers: Record<string, string>;
   readonly method: string;
+  readonly body: string | null;
 }
 
 const recorded: RecordedRequest[] = [];
@@ -45,7 +48,7 @@ beforeEach(() => {
   recorded.length = 0;
   vi.stubGlobal("fetch", (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
     const url = typeof input === "string" ? input : urlOf(input);
-    recorded.push({ url, headers: headersOf(init), method: init?.method ?? "GET" });
+    recorded.push({ url, headers: headersOf(init), method: init?.method ?? "GET", body: typeof init?.body === "string" ? init.body : null });
     return Promise.resolve(new Response("[]", { status: 200, headers: { "content-type": "application/json" } }));
   });
 });
@@ -53,6 +56,16 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
 });
+
+/** The one request the stubbed fetch recorded. */
+function onlyRequest(): RecordedRequest {
+  const request = recorded[0];
+  expect(recorded, "exactly one request reached the wire").toHaveLength(1);
+  if (request === undefined) {
+    throw new Error("no request recorded");
+  }
+  return request;
+}
 
 /** Drive one real query and hand back the single request the batch link sent. The client's own promise is
  *  irrelevant here (the stub returns an empty batch, which `@trpc/client` rejects) — the REQUEST is. */
@@ -99,5 +112,36 @@ describe("the client's tRPC wiring", () => {
     }
     expect(thrown, "the subscription must reach a subscription-capable link, never the batch link").toBeUndefined();
     expect(recorded, "and the batch link must not see it on the wire either").toEqual([]);
+  });
+
+  // Leg T of the easy-sharing plan: a relay that buffers every GET body freezes a GET EventSource, so the
+  // subscription branch opens over POST. Red against a native-EventSource link: the stubbed fetch never
+  // sees the request at all.
+  test("a subscription is a JSON POST with the CSRF header and its input in the body, never the query", async () => {
+    const client = createTrpcClient("http://localhost/api/trpc");
+    const input = { socketId: castId<SocketId>("sock_leg_t") };
+    const subscription = client.stream.connect.subscribe(input, { onError: () => undefined });
+    await vi.waitFor(() => expect(recorded).toHaveLength(1));
+    subscription.unsubscribe();
+
+    const request = onlyRequest();
+    const header = (name: string): string | undefined => Object.entries(request.headers).find(([key]) => key.toLowerCase() === name.toLowerCase())?.[1];
+    expect(request.method).toBe("POST");
+    expect(header("content-type")).toBe("application/json");
+    expect(header("accept")).toBe("text/event-stream");
+    expect(header(CSRF_HEADER)).toBe("1");
+    const url = new URL(request.url);
+    expect(url.pathname).toBe("/api/trpc/stream.connect");
+    expect(url.searchParams.has("input")).toBe(false);
+    expect(JSON.parse(request.body ?? "null")).toEqual(input);
+  });
+
+  test("CONTROL: a query with input still rides GET with the input in the query string", async () => {
+    const client = createTrpcClient("http://localhost/api/trpc");
+    await client.settings.getGlobalSetting.query({ key: "leg-t" }).catch(() => undefined);
+    const request = onlyRequest();
+    expect(request.method).toBe("GET");
+    expect(request.body).toBeNull();
+    expect(new URL(request.url).searchParams.get("input")).toBe(JSON.stringify({ 0: { key: "leg-t" } }));
   });
 });

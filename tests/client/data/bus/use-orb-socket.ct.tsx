@@ -288,24 +288,22 @@ test("the TWIN: the socket stub registered LAST still lets an impersonate stream
   await mount(<UserBusStory />);
   await expect(page.getByTestId("user-events")).toHaveText("tagsChanged");
 
-  // The impersonate subscription's OWN wire shape (an EventSource GET on that procedure — what
-  // httpSubscriptionLink opens; this story mounts no composer, so the request is made directly rather than
-  // through a second feature's UI). The socket handler sees it FIRST and must fall through.
+  // The impersonate subscription's OWN wire shape (the JSON POST `PostEventSource` sends for
+  // httpSubscriptionLink; this story mounts no composer, so the request is made directly rather than through
+  // a second feature's UI). The socket handler sees it FIRST and must fall through.
   await page.evaluate(async () => {
-    await new Promise<void>((resolve) => {
-      const source = new EventSource(`/api/trpc/chat.impersonateStream?input=${encodeURIComponent(JSON.stringify({ chatId: "chat_ct_game_01" }))}`);
-      const done = (): void => {
-        source.close();
-        resolve();
-      };
-      source.addEventListener("message", done);
-      source.addEventListener("error", done);
+    const response = await fetch("/api/trpc/chat.impersonateStream", {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "text/event-stream" },
+      body: JSON.stringify({ chatId: "chat_ct_game_01" }),
     });
+    await response.text();
   });
 
   // THE ASSERTION: the impersonate stub served it — i.e. the socket stub declined a procedure that is not
   // `stream.connect`. Reverting `isOrbSocketRequest` makes this 0 (the socket answers it with socket frames).
   await expect.poll(() => impersonation.count()).toBe(1);
+  expect(impersonation.firstInput()).toEqual({ chatId: "chat_ct_game_01" });
   // …and the socket itself is untouched: one connect, still the same one room.
   await expect.poll(() => socket.connects()).toBe(1);
   await expect.poll(() => socket.attachedChannels()).toEqual(["user"]);

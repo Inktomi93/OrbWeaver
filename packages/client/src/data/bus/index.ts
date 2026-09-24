@@ -6,6 +6,7 @@ export { applyChatBusEvent } from "./apply-chat-bus-event.ts";
 export { markTurnStopping, recoverTurnAfterStopFailure, useChatBusDeps } from "./chat-bus-writes.ts";
 export type { ChatEventSeqGuard } from "./chat-event-seq-guard.ts";
 export { createChatEventSeqGuard } from "./chat-event-seq-guard.ts";
+export { PostEventSource } from "./post-event-source.ts";
 export type { RoomSubscriber, RoomTransport } from "./room-registry.ts";
 export { createRoomRegistry, roomRegistry } from "./room-registry.ts";
 export { socketId } from "./socket-id.ts";

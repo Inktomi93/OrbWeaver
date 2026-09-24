@@ -2,16 +2,16 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 607,
+    "sites": 608,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 607,
+      "deliberate-absorb": 608,
       "unproven": 0
     },
     "byGrammar": {
       "default": 152,
       "empty": 310,
-      "promise": 145
+      "promise": 146
     }
   },
   "rows": [
@@ -64,6 +64,11 @@
       "siteId": "packages/client/src/data/auth-bootstrap.ts::logout::res.json::1",
       "verdict": "deliberate-absorb",
       "reason": "`res.ok` already confirmed the response succeeded; a malformed/absent body is a best-effort optional read that degrades to the documented null fallback (non-oidc / no end-session endpoint). Ends if endSessionUrl becomes a required field."
+    },
+    {
+      "siteId": "packages/client/src/data/bus/post-event-source.ts::PostEventSource.#start::this.#connect::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a failed fetch or a broken body is a dropped connection, exactly like a clean end; its owner is the `error` event `#scheduleReconnect` dispatches to the tRPC consumer, and it does nothing once the source is closed."
     },
     {
       "siteId": "packages/client/src/data/bus/room-registry.ts::createRoomRegistry.attemptAnnounce::wire.attach::1",

@@ -1,5 +1,5 @@
 // routeImpersonateStream — the SSE stub for `chat.impersonateStream` in Playwright CT (the `routeOrbSocket`
-// companion). It fulfills the EventSource GET with a real `text/event-stream` body carrying a SCRIPTED
+// companion). It fulfills the subscription POST with a real `text/event-stream` body carrying a SCRIPTED
 // sequence of `{ delta }` chunks in the exact tRPC SSE wire shape, so a CT drives the production path
 // end-to-end: EventSource → httpSubscriptionLink → the imperative `trpcClient.chat.impersonateStream.subscribe`
 // → useGuidedActions' `streamImpersonation` → the composer-draft store. Only the NETWORK is stubbed.
@@ -7,8 +7,8 @@
 // PROGRESSIVE FILL: Playwright's `route.fulfill` sends the body WHOLE (no chunked/delayed delivery), so all
 // frames in one response are dispatched before a CT can poll the DOM — the intermediate state is invisible.
 // To make the accumulation OBSERVABLE, this stub stages ONE delta per EventSource CONNECT: the first response
-// serves `connected + delta[0]` then closes WITHOUT a `return` frame, so the browser's EventSource
-// auto-RECONNECTS (carrying `Last-Event-ID`); the Nth reconnect serves the next delta; the final connect
+// serves `connected + delta[0]` then closes WITHOUT a `return` frame, so the client's `PostEventSource`
+// RECONNECTS (carrying `Last-Event-ID`); the Nth reconnect serves the next delta; the final connect
 // serves the terminal `return`. The reconnect IS the timing gap a CT observes between deltas — modeling the
 // real network's frame-by-frame arrival without needing a streaming body Playwright can't produce.
 //
@@ -24,10 +24,16 @@
 // then routeImpersonateStream. Registered last, this handler runs first and either serves the event-stream
 // request or falls through (route.fallback) to routeTrpc for everything else.
 
-import type { Page } from "@playwright/test";
+import type { Page, Request } from "@playwright/test";
+
+/** A subscription's input: `PostEventSource` sends it as the JSON POST body, never the query. */
+function subscriptionInput(req: Request): unknown {
+  const body = req.postData();
+  return body === null ? undefined : JSON.parse(body);
+}
 
 /** One SSE frame in the tRPC shape (fields each `\n`-terminated, then a blank line dispatches it). A `retry`
- *  field re-times the browser's EventSource reconnect delay (default ~3s) — the one-shot stub sets it low so a
+ *  field re-times the `PostEventSource` reconnect delay (default 3s) — the one-shot stub sets it low so a
  *  ZOMBIE reconnect shows up inside a CT's patience instead of after three seconds. */
 function sseFrame(fields: { event?: string; data: string; id?: string; retry?: number }): string {
   let frame = "";
@@ -62,9 +68,9 @@ function connectBody(deltas: readonly string[], connectIndex: number, retryMs: n
 export interface ImpersonateStreamRecorder {
   /** How many EventSource connects were served (first subscribe + each staged reconnect). */
   readonly count: () => number;
-  /** The decoded `?input=` of the FIRST subscribe (the reconnects carry the same input). */
+  /** The decoded input of the FIRST subscribe (the reconnects carry the same input). */
   readonly firstInput: () => unknown;
-  /** The decoded `?input=` of the most recent connect. */
+  /** The decoded input of the most recent connect. */
   readonly lastInput: () => unknown;
 }
 
@@ -89,9 +95,7 @@ export async function routeImpersonateStream(page: Page, deltas: readonly string
       await route.fallback();
       return;
     }
-    const url = new URL(req.url());
-    const inputParam = url.searchParams.get("input");
-    inputs.push(inputParam === null ? undefined : JSON.parse(inputParam));
+    inputs.push(subscriptionInput(req));
     // The connect index = how many connects we've seen so far (0-based) → which delta to serve this connect.
     await route.fulfill({
       status: 200,
@@ -184,8 +188,7 @@ export async function routeImpersonateStreamOnce(page: Page, script: OneShotScri
       await route.fallback();
       return;
     }
-    const inputParam = new URL(req.url()).searchParams.get("input");
-    inputs.push(inputParam === null ? undefined : JSON.parse(inputParam));
+    inputs.push(subscriptionInput(req));
     await route.fulfill({ status: 200, headers: { "content-type": "text/event-stream", "cache-control": "no-cache" }, body });
   });
   return {
