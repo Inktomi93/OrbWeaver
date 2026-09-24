@@ -144,6 +144,7 @@
     "knip": "^6.27.0",
     "lefthook": "catalog:",
     "lighthouse": "catalog:",
+    "openid-client": "catalog:",
     "pino-pretty": "catalog:",
     "puppeteer-core": "catalog:",
     "quickjs-emscripten-core": "catalog:",

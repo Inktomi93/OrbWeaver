@@ -53,12 +53,11 @@ test("compose publishes on loopback by default, ships a credentialed login mode,
   expect(env).toMatch(/^AUTH_FALLBACK=owner$/mu);
   expect(env).toMatch(/^AUTH_FALLBACK_TRUSTED_PEERS=172\.16\.0\.0\/12,/mu);
   expect(compose).toContain("ORB_BIND: ${ORB_BIND:-127.0.0.1}");
-  // #2413 — the plain-http LAN opt-in is DOCUMENTED in the tracked defaults and never ASSIGNED there. It
-  // serves the session credential in cleartext, so it must be a deliberate edit in the deployer's own
-  // (gitignored) file; an uncommented line here would ship every fresh `docker compose up` with a
-  // cleartext-transportable session cookie, and nothing about the running box would look different.
-  expect(env).toMatch(/^#SESSION_COOKIE_INSECURE=true$/mu);
-  expect(env, "SESSION_COOKIE_INSECURE must never be ENABLED in the tracked env file").not.toMatch(/^SESSION_COOKIE_INSECURE=/mu);
+  // single-user binds loopback unless told otherwise; inside the container the published port needs every
+  // interface, which the declared bridge ranges above make legal (the resolved shapes are pinned below).
+  expect(compose).toMatch(/^ {6}BIND_HOST: 0\.0\.0\.0(?:\s|$)/mu);
+  // The cookie transport is decided per request now; the deleted knob must not be offered as a setting.
+  expect(env).not.toContain("SESSION_COOKIE_INSECURE");
   // no secret VALUE is assigned in the tracked file (commented examples are fine)
   for (const key of ["SESSION_SECRET", "LOCAL_INITIAL_PASSWORD", "OIDC_CLIENT_SECRET", "OPENROUTER_API_KEY", "CREDENTIALS_KEY", "DEBUG_TOKEN"]) {
     expect(env, `${key} must not be assigned in the tracked env file`).not.toMatch(new RegExp(`^${key}=`, "mu"));
@@ -81,7 +80,7 @@ test("the entrypoint keeps its single *_FILE allowlist line (the agent-sdk firew
   expect(shim).toContain("keep_generated initial_password");
 });
 
-test("every compose shape resolves (base + the four overlays)", ({ repoRoot, scratch, skip }) => {
+test("every compose shape resolves (the base and every overlay)", ({ repoRoot, scratch, skip }) => {
   const probe = spawnSync("docker", ["compose", "version"], { encoding: "utf8" });
   if (probe.status !== 0) {
     // A LOUD skip, never a silent pass: without compose on the host these shapes were not validated here.
@@ -95,7 +94,8 @@ test("every compose shape resolves (base + the four overlays)", ({ repoRoot, scr
     writeFileSync(join(secretsDir, f), "");
   }
   const interpolation = join(scratch, "compose.env");
-  writeFileSync(interpolation, `ORB_SECRETS_DIR=${secretsDir}\n`);
+  // The tunnel overlay refuses to resolve without a token; a placeholder proves the shape, never a tunnel.
+  writeFileSync(interpolation, `ORB_SECRETS_DIR=${secretsDir}\nCLOUDFLARE_TUNNEL_TOKEN=placeholder-token\n`);
   const run = (files: readonly string[], profiles: readonly string[] = []): SpawnSyncReturns<string> =>
     spawnSync(
       "docker",
@@ -107,11 +107,49 @@ test("every compose shape resolves (base + the four overlays)", ({ repoRoot, scr
     [["docker-compose.yaml", "docker/compose.host-network.yaml"], []],
     [["docker-compose.yaml", "docker/compose.secrets.yaml"], []],
     [["docker-compose.yaml", "docker/compose.dev.yaml"], []],
+    [["docker-compose.yaml", "docker/compose.cloudflared.yaml"], []],
   ];
   for (const [files, profiles] of shapes) {
     const result = run(files, profiles);
     expect(result.status, `${files.join(" + ")} ${profiles.join(",")}: ${result.stderr}`).toBe(0);
   }
+
+  // The RESOLVED container environment, after compose merges env_file and every overlay's `environment:`.
+  // single-user resolves an unset BIND_HOST to loopback (foundation/env/bind.ts), so the base shape must bind
+  // every interface INSIDE the container or the published port reaches nothing; the host-network shape must
+  // drop the widened peer set so the app refuses ORB_BIND=0.0.0.0 there; the dev shape must not inherit the
+  // container bind, because a development build refuses a non-loopback BIND_HOST.
+  const resolvedEnv = (files: readonly string[]): Readonly<Record<string, string | null>> => {
+    const result = spawnSync("docker", ["compose", "--env-file", interpolation, ...files.flatMap((f) => ["-f", f]), "config", "--format", "json"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+    });
+    expect(result.status, result.stderr).toBe(0);
+    const parsed = JSON.parse(result.stdout) as { services: { orbweaver: { environment: Record<string, string | null> } } };
+    return parsed.services.orbweaver.environment;
+  };
+  const base = resolvedEnv(["docker-compose.yaml"]);
+  expect(base["BIND_HOST"]).toBe("0.0.0.0");
+  expect(base["AUTH_FALLBACK_TRUSTED_PEERS"]).toMatch(/^172\.16\.0\.0\/12,/u);
+  const hostNetwork = resolvedEnv(["docker-compose.yaml", "docker/compose.host-network.yaml"]);
+  expect(hostNetwork["BIND_HOST"]).toBe("127.0.0.1");
+  expect(hostNetwork["AUTH_FALLBACK_TRUSTED_PEERS"]).toBe("");
+  expect(resolvedEnv(["docker-compose.yaml", "docker/compose.dev.yaml"])).not.toHaveProperty("BIND_HOST");
+
+  // The tunnel sidecar only dials OUT to Cloudflare and reaches the app over the project network: it publishes
+  // nothing, and the app's own publication stays on loopback.
+  const tunnel = spawnSync(
+    "docker",
+    ["compose", "--env-file", interpolation, "-f", "docker-compose.yaml", "-f", "docker/compose.cloudflared.yaml", "config", "--format", "json"],
+    { cwd: repoRoot, encoding: "utf8" },
+  );
+  expect(tunnel.status, tunnel.stderr).toBe(0);
+  const services = (
+    JSON.parse(tunnel.stdout) as { services: Record<string, { ports?: readonly Readonly<Record<string, unknown>>[]; environment?: Record<string, string> }> }
+  ).services;
+  expect(services["cloudflared"]?.ports ?? []).toEqual([]);
+  expect(services["cloudflared"]?.environment?.["TUNNEL_TOKEN"]).toBe("placeholder-token");
+  expect(services["orbweaver"]?.ports?.map((port) => port["host_ip"])).toEqual(["127.0.0.1"]);
 });
 
 // The sandbox is PERMISSIVE by owner ruling (2026-09-01, reverting a024cbe65 / 8b77f8ad9): the container +

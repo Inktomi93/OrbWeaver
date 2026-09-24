@@ -228,8 +228,8 @@ The sanctioned `Principal`/credential construction and cookie sites; everything 
   un-credentialed `via:"fallback"` principal is not a debug-route curiosity: under `single-user` it is
   what reaches every owner- and admin-gated tRPC surface (admin-gated meaning owner ∪ admin,
   `ROLES_FOR_GLOBAL_ACTION.admin`). `ownerFallbackAllowed` is what defends that boundary.
-- `entry/http/auth-routes.ts` — the `__Host-orb_session` cookie write side; mints session tokens via
-  `domain/sessions` and never re-implements resolution.
+- `entry/http/auth-routes.ts` — the session cookie write side, under the request transport's name
+  (`infra/auth/transport.ts`); mints session tokens via `domain/sessions` and never re-implements resolution.
 - `entry/app.ts` — the `Set-Cookie` writer: the per-request auth middleware re-issues the same token
   `sessions.validate` just accepted, with a fresh max-age. It never mints; re-issuing a second copy read
   independently would silently log the caller out, so the token it writes must be the one the seam

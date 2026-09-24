@@ -33,7 +33,7 @@
 // resolution at that door is what closed it to the owner's own dev session. It is OWNER-only, deliberately
 // narrower than every other privileged surface in the app (D17 — see the verdict's own doc).
 
-import type { Principal } from "@orb/contracts/identity";
+import type { Principal, RequestTransport } from "@orb/contracts/identity";
 import { isCookieAuthMode } from "@orb/contracts/identity";
 import type { Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -41,7 +41,7 @@ import { isOwner } from "#domain/admin";
 import type { SessionsService, UserPrincipalFields } from "#domain/sessions";
 import { ownerHandles } from "#domain/sessions";
 import type { AuthConfig, ForwardJwtVerifier, IdentityResolution, OidcTransactionStore, RelayedFallbackNotice } from "#infra/auth";
-import { authConfigFromEnv, hasCsrfHeader, resolve, SESSION_COOKIE_NAME, selectSignedForwardJwt } from "#infra/auth";
+import { authConfigFromEnv, hasCsrfHeader, readRequestCookie, resolve, selectSignedForwardJwt, sessionCookieFor } from "#infra/auth";
 import { publishUserEvent } from "../../transport/trpc/index.ts";
 
 /** The boot-time deps the seam binds once. `config` is the test/override seam — production parses
@@ -73,6 +73,10 @@ export interface AuthSeamDeps {
 export interface PerRequestSeamDeps {
   readonly onSessionSlide?: (expiresAt: number) => void;
   readonly peerIp?: string;
+  /** The request's transport (`infra/auth/transport.ts`), resolved ONCE by `entry/app.ts`, which re-issues
+   *  the slid cookie under the same name. It picks the ONE cookie name this request may read. Required: a
+   *  defaulted transport would silently read the plantable plain-http name on an https request. */
+  readonly transport: RequestTransport;
 }
 
 /** The seam output: the immutable `Principal` (or `null` for anonymous/disabled → transport 401) plus the
@@ -97,7 +101,7 @@ export interface SeamResult {
  *  strictly NARROWER than the app's admin gate: OWNER only. It judges the principal `resolvePrincipal`
  *  ALREADY minted for the request rather than resolving a second time; read its doc before touching it. */
 export interface AuthSeam {
-  readonly resolvePrincipal: (headers: Headers, req?: PerRequestSeamDeps) => Promise<SeamResult>;
+  readonly resolvePrincipal: (headers: Headers, req: PerRequestSeamDeps) => Promise<SeamResult>;
   readonly debugGateAdmits: (principal: Principal | null, headers: Headers) => boolean;
 }
 
@@ -112,28 +116,14 @@ export interface AuthSeam {
  * this reader, `entry/http/auth-routes.ts` (logout → `revokeByToken`), and `entry/app.ts` (the slide's
  * `Set-Cookie` re-issue). It was three byte-identical copies; the drift-equality proof is
  * `tests/server/entry/session-cookie-parity.suite.test.ts`, which drives all three paths over one crafted
- * header. Do not re-inline a copy.
+ * header per transport. Do not re-inline a copy.
+ *
+ * It reads ONLY the transport's own name: an https request never reads the prefix-less http name, which a
+ * plain-http sibling origin can plant.
  */
-export function readSessionCookie(headers: Headers): SessionToken | null {
-  const raw = headers.get("cookie");
-  if (raw === null) {
-    return null;
-  }
-  for (const part of raw.split(";")) {
-    const eq = part.indexOf("=");
-    if (eq === -1) {
-      continue;
-    }
-    if (part.slice(0, eq).trim() === SESSION_COOKIE_NAME) {
-      // @orb-waive caught-failure-ownership(catch): a cookie value that fails to percent-decode is not a session token, and `null` here means exactly "no cookie session" — the caller's unauthenticated path. A client-supplied malformed header is not an operator event. Ends if a malformed cookie should be distinguished from an absent one.
-      try {
-        return castId<SessionToken>(decodeURIComponent(part.slice(eq + 1).trim()));
-      } catch {
-        return null;
-      }
-    }
-  }
-  return null;
+export function readSessionCookie(headers: Headers, transport: RequestTransport): SessionToken | null {
+  const value = readRequestCookie(headers, sessionCookieFor(transport).name);
+  return value === null ? null : castId<SessionToken>(value);
 }
 
 /** The cookie arm's product: the Principal PLUS the session row that admitted it (see `SeamResult`). */
@@ -143,16 +133,12 @@ interface CookieAdmission {
 }
 
 /** Cookie path: `null` when there's no cookie or the session is gone (→ fall through). */
-async function resolveCookiePrincipal(
-  sessions: SessionsService,
-  headers: Headers,
-  onSlide: ((expiresAt: number) => void) | undefined,
-): Promise<CookieAdmission | null> {
-  const token = readSessionCookie(headers);
+async function resolveCookiePrincipal(sessions: SessionsService, headers: Headers, req: PerRequestSeamDeps): Promise<CookieAdmission | null> {
+  const token = readSessionCookie(headers, req.transport);
   if (token === null) {
     return null;
   }
-  const validated = await sessions.validate(token, onSlide);
+  const validated = await sessions.validate(token, req.onSessionSlide);
   if (validated === null) {
     return null;
   }
@@ -359,11 +345,11 @@ export function createAuthSeam(deps: AuthSeamDeps): AuthSeam {
   // adds the request-path `enabled` gate its two sibling arms already apply.
   const resolveFallbackPrincipal = createFallbackPrincipalResolver(deps.sessions);
 
-  async function resolvePrincipal(headers: Headers, req?: PerRequestSeamDeps): Promise<SeamResult> {
+  async function resolvePrincipal(headers: Headers, req: PerRequestSeamDeps): Promise<SeamResult> {
     const csrfHeaderPresent = hasCsrfHeader(headers);
 
     if (isCookieMode) {
-      const admitted = await resolveCookiePrincipal(deps.sessions, headers, req?.onSessionSlide);
+      const admitted = await resolveCookiePrincipal(deps.sessions, headers, req);
       if (admitted !== null) {
         return { principal: admitted.principal, sessionId: admitted.sessionId, csrfHeaderPresent };
       }
@@ -374,7 +360,7 @@ export function createAuthSeam(deps: AuthSeamDeps): AuthSeam {
       ...(deps.verifyForwardJwt !== undefined && { verifyForwardJwt: deps.verifyForwardJwt }),
       ...(deps.oidcStore !== undefined && { oidcStore: deps.oidcStore }),
       ...(deps.relayedFallbackNotice !== undefined && { relayedFallbackNotice: deps.relayedFallbackNotice }),
-      ...(req?.peerIp !== undefined && { peerIp: req.peerIp }),
+      ...(req.peerIp !== undefined && { peerIp: req.peerIp }),
     });
     const principal = await resolveHeaderOrFallbackPrincipal(deps.sessions, res, resolveFallbackPrincipal);
     // No session id on these arms BY CONSTRUCTION: neither the peer-gated owner fallback nor an SSO header

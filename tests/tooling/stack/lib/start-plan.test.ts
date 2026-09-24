@@ -14,8 +14,10 @@ import {
   effectiveAuthMode,
   PNPM_EXECPATH_ENV,
   parseStartArgv,
+  portOverrideEnv,
   resolvePnpmInvocation,
   SERVER_ENTRY_REL,
+  SETUP_COMMAND,
   singleUserFallbackEnv,
   startBannerLines,
   startSpawnPlan,
@@ -33,12 +35,34 @@ const STALE = { state: "stale", message: "client bundle is OLDER than client/ui 
 const MISSING = { state: "missing", message: "no packages/client/dist/index.html" } as const;
 
 test("argv: no flags is auto, --build forces, --no-build skips, anything else is misuse", () => {
-  expect(parseStartArgv([])).toEqual({ ok: true, invocation: { build: "auto" } });
-  expect(parseStartArgv(["--build"])).toEqual({ ok: true, invocation: { build: "force" } });
-  expect(parseStartArgv(["--no-build"])).toEqual({ ok: true, invocation: { build: "skip" } });
+  expect(parseStartArgv([])).toEqual({ ok: true, invocation: { build: "auto", setup: false, port: null } });
+  expect(parseStartArgv(["--build"])).toEqual({ ok: true, invocation: { build: "force", setup: false, port: null } });
+  expect(parseStartArgv(["--no-build"])).toEqual({ ok: true, invocation: { build: "skip", setup: false, port: null } });
   const bad = parseStartArgv(["--prod"]);
   expect(bad.ok).toBe(false);
   expect(bad.ok ? "" : bad.error).toContain("--prod");
+});
+
+test("argv: --setup asks again, and --port takes one TCP port as the next word or after =", () => {
+  expect(parseStartArgv(["--setup"])).toEqual({ ok: true, invocation: { build: "auto", setup: true, port: null } });
+  expect(parseStartArgv(["--port", "9000", "--no-build"])).toEqual({ ok: true, invocation: { build: "skip", setup: false, port: 9000 } });
+  expect(parseStartArgv(["--port=9001", "--setup"])).toEqual({ ok: true, invocation: { build: "auto", setup: true, port: 9001 } });
+  for (const bad of [["--port"], ["--port", "--setup"], ["--port=0"], ["--port", "65536"], ["--port=eighty"]]) {
+    expect(parseStartArgv(bad).ok).toBe(false);
+  }
+});
+
+test("a --port override wins over .env for this launch only, and every other .env value still wins over the shell", () => {
+  const fileEnv = env(["PORT", "8788"], ["AUTH_MODE", "local"]);
+  const ambient = env(["AUTH_MODE", "single-user"], ["PATH", "/bin"]);
+  const overlay = portOverrideEnv(fileEnv, 9000);
+  const plan = startSpawnPlan({ repoRoot: "/repo", nodePath: "/usr/bin/node", baseEnv: ambient, fallbackEnv: overlay, logPath: "/l" });
+  // The server loads .env with override:true unless ORB_ENV_NO_OVERRIDE is set; the overlay turns that off
+  // and restates the file's values on the child env, so the only value that changes is the port.
+  expect(plan.env["PORT"]).toBe("9000");
+  expect(plan.env["AUTH_MODE"]).toBe("local");
+  expect(plan.env["ORB_ENV_NO_OVERRIDE"]).toBeDefined();
+  expect(plan.env["PATH"]).toBe("/bin");
 });
 
 test("the build decision: a missing or stale bundle builds itself, a fresh one is skipped, and the flags win both ways", () => {
@@ -147,7 +171,7 @@ test("the banner is five short lines: the URL, who can log in, how to let anothe
   expect(lines).toHaveLength(4);
   expect(lines[0]).toContain("http://localhost:8788");
   expect(lines[1]).toContain("loopback only");
-  expect(lines[2]).toContain("AUTH_MODE=local");
+  expect(lines[2]).toContain(SETUP_COMMAND);
   expect(lines[3]).toContain("Ctrl-C");
 });
 

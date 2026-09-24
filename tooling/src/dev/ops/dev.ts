@@ -8,6 +8,7 @@ import process from "node:process";
 import PinoPretty from "pino-pretty";
 import { z } from "zod";
 import { print, REPO_ROOT } from "../../_shared/artifacts.ts";
+import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { budget } from "../../_shared/load-budget.ts";
 import { warn } from "../../_shared/log.ts";
@@ -30,6 +31,8 @@ import {
   VITE_PORT_ENV,
   viteSpawnPlan,
 } from "../lib/plan.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm dev");
 
 const PACKAGES_DIR = join(REPO_ROOT, "packages");
 // How long a stopped child may drain before SIGKILL; a quiet-box base, stretched under load.

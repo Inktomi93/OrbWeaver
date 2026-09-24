@@ -22,7 +22,7 @@ interface MockResult {
 interface MockCtx {
   readonly get: (key: "principal") => Principal | null;
   readonly json: (body: Record<string, unknown>, status?: number) => MockResult;
-  readonly req: { readonly raw: { readonly headers: Headers } };
+  readonly req: { readonly header: (name: string) => string | undefined; readonly raw: { readonly headers: Headers } };
   // /config now reads the raw TCP peer via `getConnInfo(c)` (#298 f2 — the localFirstRun peer gate), which
   // reads `c.env.incoming.socket.*`. Mirror what `@hono/node-server` binds (see app.test.ts's PEER_ENV).
   readonly env: { readonly incoming: { readonly socket: { readonly remoteAddress: string } } };
@@ -55,7 +55,7 @@ async function run(handler: Handler, principal: Principal | null = null, headers
   const ctx: MockCtx = {
     get: () => principal,
     json: (body, status = OK): MockResult => ({ body, status }),
-    req: { raw: { headers } },
+    req: { header: (name: string): string | undefined => headers.get(name) ?? undefined, raw: { headers } },
     env: { incoming: { socket: { remoteAddress: peer } } },
   };
   return await handler(ctx);
@@ -105,7 +105,30 @@ describe("GET /api/auth/config", () => {
       trustHtml: false,
       allowInteractiveCards: false,
       uploads: resolveUploadCaps({ maxImageBytes: MAX_IMAGE_BYTES, maxDatabankBytes: MAX_DATABANK_BYTES }),
+      transport: "http",
+      clientScope: "private",
     });
+  });
+
+  // Rule C/E: the login screen warns from these two facts, so they are this request's, never the box's.
+  test.each([
+    ["a LAN browser over plain http", "192.168.1.20", {}, { transport: "http", clientScope: "private" }],
+    [
+      "a trusted proxy asserting https for a public visitor",
+      "172.18.0.5",
+      { "x-forwarded-proto": "https", "x-forwarded-for": "203.0.113.9" },
+      { transport: "https", clientScope: "public" },
+    ],
+    ["a router port-forward (public peer, plain http)", "203.0.113.9", {}, { transport: "http", clientScope: "public" }],
+    [
+      "a public peer forging X-Forwarded-Proto and a private X-Forwarded-For",
+      "203.0.113.9",
+      { "x-forwarded-proto": "https", "x-forwarded-for": "10.0.0.1" },
+      { transport: "http", clientScope: "public" },
+    ],
+  ] as const)("transport + clientScope for %s", async (_label, peer, headers, expected) => {
+    const body = (await run(handlers(depsFor("local")).config, null, new Headers(headers), peer)).body;
+    expect({ transport: body["transport"], clientScope: body["clientScope"] }).toEqual(expected);
   });
 
   // A8 — the human-facing IdP name for the "Continue with {name}" button; served in every mode (inert off oidc).
