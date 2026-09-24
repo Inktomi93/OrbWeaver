@@ -7,6 +7,7 @@
 import { randomUUID } from "node:crypto";
 import type { AddressInfo } from "node:net";
 import { hostname } from "node:os";
+import process from "node:process";
 import type { ServerType } from "@hono/node-server";
 import { serve } from "@hono/node-server";
 import type { AuthMode, Principal } from "@orb/contracts/identity";
@@ -15,9 +16,11 @@ import type { Db } from "@orb/db";
 import { createDb, preCloseHousekeeping } from "@orb/db";
 import type { ChatId, ChatTurnId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { RESTART_EXIT_CODE } from "@orb/kit/supervisor";
 import { formatVersionIdentity } from "@orb/kit/version-identity";
 import type { Configuration } from "openid-client";
 import { authorizationCodeGrant, discovery } from "openid-client";
+import type { ServerRestartPort } from "#domain/admin";
 import { startAutomationWatcher } from "#domain/automation";
 import type { SessionsService } from "#domain/sessions";
 import { createOidcStore, createSessionsService, ownerHandles } from "#domain/sessions";
@@ -28,6 +31,7 @@ import {
   diagnosticsPostureInput,
   diagnosticsPostureWarnings,
   env,
+  launchedBySupervisor,
   ownerFallbackCredentialInput,
   ownerFallbackPeerInput,
   ownerFallbackPeerWarnings,
@@ -482,6 +486,32 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // reclaim (wipes this replica's own orphaned chat_locks).
     const holder = hostname();
 
+    // `admin.restart`'s port: close the app as a signal does, then exit with the code the supervisor respawns on. It
+    // runs on a later tick so the owner's answer is sent first. A shutdown already under way (a signal) wins, because
+    // a second `shutdown()` returns at once and the exit would cut its drain. A failed close still exits with the
+    // code, so the respawned boot is the one that reports what is wrong.
+    const serverRestart: ServerRestartPort = {
+      supervised: launchedBySupervisor(),
+      restart: (): void => {
+        setImmediate(() => {
+          if (isShuttingDown) {
+            log.warn("restart: a shutdown is already under way, so the restart request is dropped");
+            return;
+          }
+          log.info("restart: the owner asked for a restart; shutting down for the supervisor to start this server again");
+          shutdown().then(
+            () => {
+              process.exit(RESTART_EXIT_CODE);
+            },
+            (err: unknown) => {
+              log.error({ err }, "restart: shutdown failed; exiting for the supervisor anyway");
+              process.exit(RESTART_EXIT_CODE);
+            },
+          );
+        });
+      },
+    };
+
     const built = await createServices({
       db,
       now,
@@ -494,6 +524,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       sessionSecret,
       holder,
       ...(options.providerSeams === undefined ? {} : { providerSeams: options.providerSeams }),
+      serverRestart,
     });
 
     credentialsKeyOk = await built.services.credentials.probeKeyDecrypt();

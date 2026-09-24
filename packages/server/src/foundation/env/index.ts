@@ -14,6 +14,7 @@ import type { AUTH_MODES } from "@orb/contracts/identity";
 import { authModeSchema } from "@orb/contracts/identity";
 import { AGENT_SDK_CONCURRENCY_MAX, LOG_LEVELS } from "@orb/contracts/settings";
 import { ALLOWED_HOSTS_KEY, parseAllowedHosts } from "@orb/kit/allowed-hosts";
+import { isSupervised, SUPERVISOR_ENV_KEY } from "@orb/kit/supervisor";
 import { z } from "zod";
 import { DEFAULT_DATA_DIR, resolveDataLayout } from "#foundation/data-layout";
 import type { AllowedHostsInput } from "./allowed-hosts.ts";
@@ -192,6 +193,10 @@ const LAUNCH_ONLY_ENV_KEYS = [
   {
     key: "AUTH_FALLBACK_TRUSTED_PEERS",
     why: "it widens who is the un-credentialed OWNER, and .env's override:true would carry that widening into every launch from this directory — including a dev or prod run that never meant to open it. A container passes it in the CONTAINER environment (compose `environment:`/`docker run -e`), never in the app's own .env.",
+  },
+  {
+    key: SUPERVISOR_ENV_KEY,
+    why: "pnpm start sets it on the server it supervises. In .env it would tell every launch that a supervisor will start it again, so an in-app restart would stop a server that nothing restarts. Delete the line.",
   },
 ] as const;
 
@@ -771,6 +776,12 @@ export function diagnosticsPostureInput(): DiagnosticsPostureInput {
  *  reader; `entry/lifecycle` composes it into the auth seam, which owns no copy of the rule. */
 export function ownerFallbackCredentialInput(): OwnerFallbackCredentialInput {
   return { nodeEnv: env.NODE_ENV, authFallback: env.AUTH_FALLBACK, fallbackWidened: resolveOwnerFallbackPeers(ownerFallbackPeerInput()).widened };
+}
+
+/** Was this process started by the launcher that respawns it on the restart exit code (`@orb/kit/supervisor`)? The
+ *  key is launch-only (`LAUNCH_ONLY_ENV_KEYS`), so `.env` cannot claim a supervisor that is not there. */
+export function launchedBySupervisor(): boolean {
+  return isSupervised(process.env);
 }
 
 /** The raw inputs the Host allowlist resolver reads (`allowed-hosts.ts` holds the grammar). The parse above has

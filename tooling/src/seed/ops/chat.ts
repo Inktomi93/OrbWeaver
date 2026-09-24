@@ -33,7 +33,7 @@ import {
   seedOwner,
   seedThemes,
 } from "@orb/server/entry/boot";
-import { createServices } from "@orb/server/entry/compose";
+import { createServices, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
 import { env } from "@orb/server/foundation/env";
 import { and, desc, eq } from "drizzle-orm";
 import { print } from "../../_shared/artifacts.ts";
@@ -124,6 +124,8 @@ export async function runChatSeed(argv: readonly string[]): Promise<ExitCode> {
     variantDir: env.DATA_LAYOUT.variants,
     sessionSecret,
     holder: "seed-chat",
+    // A seed run has no supervisor, so `admin.restart` refuses here.
+    serverRestart: UNSUPERVISED_RESTART,
     // The seeded local-light rows embed through the scripted cache — no download, no GPU, byte-stable.
     providerSeams: { localLight: { cache: fakeLocalLightCache(EMBED_SPACE_DIMS) } },
   });

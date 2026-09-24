@@ -8,7 +8,7 @@ import type { SessionView } from "@orb/contracts/session";
 import type { Db } from "@orb/db";
 import type { RoleClientsWithSignal } from "@orb/inference";
 import type { SessionId, UserId } from "@orb/kit/ids";
-import type { AdminService } from "#domain/admin";
+import type { AdminService, ServerRestartPort } from "#domain/admin";
 import { can, createAdminService } from "#domain/admin";
 import type { CharacterService } from "#domain/character";
 import type { EmbeddingsService } from "#domain/embeddings";
@@ -52,6 +52,8 @@ export interface AdminComposeDeps {
   readonly exportCardScripts: Parameters<typeof createExportService>[0]["exportCardScripts"];
   /** R6: the chat-anchored rpg CAMPAIGN read the orb-native chat-bundle export carries. */
   readonly exportRpgGame: Parameters<typeof createExportService>[0]["exportRpgGame"];
+  /** The process restart `admin.restart` drives; the lifecycle owns the close and the exit. */
+  readonly serverRestart: ServerRestartPort;
 }
 
 /** The admin compose product: the admin service + the two singletons built here (the ONE tool-use registry and
@@ -147,6 +149,7 @@ export function buildAdmin(deps: AdminComposeDeps): AdminComposeResult {
         return true;
       },
     },
+    serverRestart: deps.serverRestart,
   });
 
   // The ONE tool-use registry (process-lifetime; D48) — built here, before its registrants
