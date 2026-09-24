@@ -31,7 +31,6 @@ allowBuilds:
   # protobufjs: transitive via onnxruntime-node; its postinstall is non-critical but approved to silence
   # the ignored-build gate (no half-installed state).
   protobufjs: true
-  '@openrouter/sdk': set this to true or false
 
 # Centralized version source of truth. package.json deps reference these via "catalog:".
 # Versions are the latest resolved at scaffold (2026-06) — "use whatever the latest is".
