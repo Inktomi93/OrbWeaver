@@ -1,6 +1,6 @@
 // entry — `LOCAL_LIGHT_PREFETCH=off` over the WHOLE composition root (#2403): the knob's promise is that the
 // box behaves EXACTLY as it did before the warm-up existed. So this boots the same GPU-less configuration as
-// its `-boot` sibling (VLLM_DISABLED ⇒ every derive role reroutes onto the in-process tier — the arm that
+// its `-boot` sibling (no vllm host configured ⇒ every derive role reroutes onto the in-process tier — the arm that
 // DOES prefetch when the knob is on) and pins the two halves of "nothing happened": no weight load was
 // started, and no local-light row was published for an operator to misread as in-flight work.
 //
@@ -38,7 +38,6 @@ const recordingCache: LocalLightModelCache = {
 
 vi.stubEnv("DATABASE_URL", `file:${join(TEMP_DIR, "orb.db")}`);
 vi.stubEnv("AUTH_MODE", "single-user");
-vi.stubEnv("VLLM_DISABLED", "true");
 vi.stubEnv("ASSETS_DIR", join(TEMP_DIR, "assets"));
 vi.stubEnv("LOCAL_LIGHT_CACHE_DIR", join(TEMP_DIR, "models"));
 vi.stubEnv("LOCAL_LIGHT_PREFETCH", "off");
