@@ -416,17 +416,18 @@ async function withCompilerTransformCache(pluginPromise: ReturnType<typeof babel
  * from sibling packages), so `/@fs/` would otherwise hand out every file under it. Setting `deny` REPLACES
  * Vite's built-in default, so the first block re-lists that default floor verbatim
  * (`.env`/keys/certs/.npmrc/.git — Vite 8.1 default) and the rest is orbweaver's own:
- *   • `.credentials-key` and `.session-secret` — infra/crypto's generated boot secrets, beside whatever db
- *     DATABASE_URL names (mode 0o600), so ANYWHERE under the root, not only `data/`. NOT covered by the
- *     default `*.{…,key,…}` glob — that matches a `.key` EXTENSION. Leaking the first decrypts every stored
- *     provider API key; the second is the password and session pepper.
+ *   • `credentials_key` and `session_secret` — infra/crypto's generated boot secrets, under whatever data
+ *     root DATA_DIR names (mode 0o600), so ANYWHERE under the workspace root, not only `data/` (the e2e and
+ *     snap stages keep theirs under `.cache/`, and the compose secrets overlay's files sit under `docker/
+ *     secrets/`). NOT covered by the default `*.{…,key,…}` glob — that matches a `.key` EXTENSION. Leaking
+ *     the first decrypts every stored provider API key; the second is the password and session pepper.
  *   • `*.db` (+ `-wal`/`-shm`) / `*.sqlite*` — the SQLite database, ANYWHERE under the root (a test
  *     fixture db, a package-local scratch db), which is why these stay globstar-prefixed.
  *   • `<root>/data/**` — THE ENTIRE RUNTIME DATA DIR, denied wholesale rather than file-class by
  *     file-class (#1483). It is the one place on disk that is neither source nor build output: the
  *     database, the CAS blob store, derived image variants, import reports, and whatever the next feature
  *     drops there. Enumerating its classes had already fallen behind reality twice over — `data/assets/**`
- *     was denied but `data/variants/**` (the SAME CAS images, re-encoded) and `data/import-reports/**`
+ *     was denied but the variant cache (the SAME CAS images, re-encoded) and the import reports
  *     were not, and the globstar `.db` glob misses the `orbweaver.db.backup-<ts>` copies entirely (the suffix is
  *     `.backup-…`, not `.db`), so full database copies INCLUDING the encrypted credential blobs were
  *     `/@fs/`-reachable. Denying the directory means anything added under `data/` later inherits the
@@ -455,8 +456,8 @@ function devFsDeny(workspaceRoot: string): readonly string[] {
     ".npmrc",
     ".yarnrc.yml",
     "**/.git/**",
-    "**/.credentials-key",
-    "**/.session-secret",
+    "**/credentials_key",
+    "**/session_secret",
     "**/*.db",
     "**/*.db-wal",
     "**/*.db-shm",

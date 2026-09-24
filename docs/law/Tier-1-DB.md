@@ -105,10 +105,10 @@ is `pnpm seed:demo --fresh`, never a regenerated baseline against a db holding d
 >   SERVER BOOT WILL REFUSE TO START`, because that is what happens next. Still advisory BY DESIGN — a
 >   developer's own db is not a property of the commit — so a PASS verdict never means the notice was
 >   absent. Read the tail.
-> - **The pin.** The boot takes ONE pre-migrate backup (`backupBeforeMigrate`) and `pruneDbBackups` ages
->   backups out on a recent-5 + daily-7 budget. `touch data/orbweaver.db.backup-<stamp>.keep` exempts one
->   from the sweep forever. Pin the pre-reset copy the moment it exists; it is the only record of what was
->   dropped.
+> - **The pin.** The boot takes ONE pre-migrate backup (`backupBeforeMigrate`) into the data layout's
+>   `backups/` dir and `pruneDbBackups` ages that dir out on a recent-5 + daily-7 budget. `touch
+>   data/backups/orbweaver.db.backup-<stamp>.keep` exempts one from the sweep forever. Pin the pre-reset
+>   copy the moment it exists; it is the only record of what was dropped.
 
 Two lanes cannot both regenerate the pre-launch baseline against a shared history: two independently
 regenerated `0000_baseline.sql`s each miss the other's tables, and the generated files do not hand-merge.

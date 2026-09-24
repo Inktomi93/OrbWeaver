@@ -43,14 +43,17 @@
 #      AUTH_MODE=local        → SESSION_SECRET is generated once and kept in the data volume when neither the
 #                               env nor a *_FILE provides it; LOCAL_INITIAL_PASSWORD likewise — generated on the
 #                               first boot, PRINTED ONCE to the log, and kept at
-#                               $ORB_DATA_DIR/secrets/initial_password. The owner seed is first-boot-only and
+#                               $DATA_DIR/secrets/initial_password. The owner seed is first-boot-only and
 #                               never clobbers a password changed in-app, so re-exporting the kept value on
 #                               later boots is inert. Delete the file after changing your password if you
 #                               do not want the initial one on disk.
-#    Both generated files live under the data volume next to the database they protect — the pepper
-#    therefore does not survive a volume leak on its own. That is the accepted trade for a first boot with
-#    zero setup; a deployment that wants the secret elsewhere provides SESSION_SECRET / SESSION_SECRET_FILE
-#    and nothing is generated.
+#    Both generated files live in the data volume's secrets/ dir, beside the credentials key the server
+#    generates there and in the same backup unit as the database they protect — the pepper therefore does
+#    not survive a volume leak on its own. That is the accepted trade for a first boot with zero setup; a
+#    deployment that wants the secret elsewhere provides SESSION_SECRET / SESSION_SECRET_FILE and nothing is
+#    generated. The data volume's tree (db/, backups/, assets/, users/, secrets/, reports/, cache/) is the
+#    server's own layout (packages/server/src/foundation/data-layout); DATA_DIR is exported below so the
+#    shell and the server read ONE name for its root.
 set -eu
 
 load_secret() {
@@ -82,7 +85,8 @@ done
 # with `setpriv` (util-linux, in the base image) before anything else runs. PUID/PGID default to 1000 (the
 # image's `node` user). Started already non-root (`user:` in compose, `docker run --user`, rootless
 # podman)? Then nothing is chowned and the app runs as that user — the data dir must be writable by it.
-data_dir="${ORB_DATA_DIR:-/app/data}"
+data_dir="${DATA_DIR:-/app/data}"
+export DATA_DIR="${data_dir}"
 secrets_dir="${data_dir}/secrets"
 puid="${PUID:-1000}"
 pgid="${PGID:-1000}"
