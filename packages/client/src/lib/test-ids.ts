@@ -33,6 +33,9 @@ export const TEST_IDS = {
   firstRunPersonaName: "first-run-persona-name",
   firstRunPersonaCreate: "first-run-persona-create",
   adminUsersSection: "admin-users-section",
+  // The read-only "who can sign in" panel in the Multi-user section, and the `.env` line it shows.
+  adminSharingPanel: "admin-sharing-panel",
+  adminSharingEnvLine: "admin-sharing-env-line",
   // A2 — the OIDC_REQUIRE_APPROVAL account-approval queue + its per-row Approve action + empty state.
   adminApprovalsSection: "admin-approvals-section",
   adminApproveButton: "admin-approve",

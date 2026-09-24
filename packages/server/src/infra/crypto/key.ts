@@ -71,6 +71,34 @@ function keyfileBesideDb(databaseUrl: string, name: string): string | null {
   return dataDir === null ? null : join(dataDir, name);
 }
 
+// Whether an explicit env value wins over the keyfile. ONE predicate per secret, shared by its loader and by
+// `bootSecretProvenance`, so the boot disclaimer can never name a source the loader did not use.
+function explicitCredentialsKey(raw: string | undefined): raw is string {
+  return raw !== undefined && raw !== "";
+}
+
+function explicitSessionSecret(raw: string | undefined): raw is string {
+  return raw !== undefined;
+}
+
+/** Where each boot secret comes from: the explicit env value, else its keyfile (`null` for a remote db). The
+ *  boot disclaimer names it back to the operator. */
+export function bootSecretProvenance(
+  source: { readonly sessionSecret: string | undefined; readonly credentialsKey: string | undefined; readonly databaseUrl: string } = {
+    sessionSecret: env.SESSION_SECRET,
+    credentialsKey: env.CREDENTIALS_KEY,
+    databaseUrl: env.DATABASE_URL,
+  },
+): {
+  readonly sessionSecret: { readonly explicit: boolean; readonly keyfile: string | null };
+  readonly credentialsKey: { readonly explicit: boolean; readonly keyfile: string | null };
+} {
+  return {
+    sessionSecret: { explicit: explicitSessionSecret(source.sessionSecret), keyfile: keyfileBesideDb(source.databaseUrl, SESSION_SECRET_KEYFILE) },
+    credentialsKey: { explicit: explicitCredentialsKey(source.credentialsKey), keyfile: keyfileBesideDb(source.databaseUrl, CREDENTIALS_KEYFILE) },
+  };
+}
+
 // Use stderr, NOT getLog(): the logger may not be initialized at this boot point, and a logger→env→crypto
 // import cycle is the hazard. Silenced under tests, which spin temp keyfiles up and down constantly.
 function reportKeyfile(line: string): void {
@@ -165,7 +193,7 @@ export function loadOrCreateKeyfile(keyPath: string, generate: () => Buffer = ()
 /** The credentials SecretBox key: an explicit CREDENTIALS_KEY (hex or base64, exactly 32 bytes), else
  *  `.credentials-key` beside the db. Never throws: a missing or bad key DEGRADES to a disabled box. */
 export function credentialsKeyFromEnv(source: BootSecretSource = { explicit: env.CREDENTIALS_KEY, databaseUrl: env.DATABASE_URL }): Buffer | null {
-  if (source.explicit !== undefined && source.explicit !== "") {
+  if (explicitCredentialsKey(source.explicit)) {
     return decode32Bytes(source.explicit);
   }
   const keyPath = keyfileBesideDb(source.databaseUrl, CREDENTIALS_KEYFILE);
@@ -180,7 +208,7 @@ export function credentialsKeyFromEnv(source: BootSecretSource = { explicit: env
  *  chars. `null` only for a remote db URL or a keyfile fault; the caller decides whether that is fatal. The
  *  generated value is returned, never written to `process.env`. */
 export function sessionSecretFromEnv(source: BootSecretSource = { explicit: env.SESSION_SECRET, databaseUrl: env.DATABASE_URL }): string | null {
-  if (source.explicit !== undefined) {
+  if (explicitSessionSecret(source.explicit)) {
     return source.explicit;
   }
   const keyPath = keyfileBesideDb(source.databaseUrl, SESSION_SECRET_KEYFILE);
