@@ -79,7 +79,6 @@
       "Bash(pnpm exec vitest *)",
       "Bash(pnpm exec tsc --noEmit *)",
       "Bash(pnpm -r exec tsc --noEmit *)",
-      "Bash(node_modules/.bin/tsc *)",
       "Bash(pnpm typecheck)",
       "Bash(pnpm typecheck *)",
       "Bash(pnpm lint)",
