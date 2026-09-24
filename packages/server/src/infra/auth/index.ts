@@ -93,6 +93,7 @@ export type {
   ForwardJwtClaims,
   ForwardJwtVerifier,
   ForwardJwtVerifyArgs,
+  HostNotAllowedNotice,
   IdentityResolution,
   OidcCodeGrant,
   OidcDiscover,
@@ -109,6 +110,14 @@ export { hasCsrfHeader } from "./csrf.ts";
 export { MODE_RESOLVERS, ownerFallbackAllowed } from "./dispatch.ts";
 export { hasForwardingHeader } from "./forwarded.ts";
 export { normalizeHost } from "./host.ts";
+export {
+  canonicalHost,
+  createHostNotAllowedNotice,
+  type HostFacts,
+  isHostAllowed,
+  refusedHost,
+  reportHostNotAllowed,
+} from "./host-allowlist.ts";
 export { createForwardJwtVerifier, jwksCacheSize, jwksFor, resetJwksCache } from "./jwks.ts";
 export { SESSION_COOKIE_NAME_INSECURE, SESSION_COOKIE_NAME_SECURE, SESSION_COOKIES, sessionCookieFor } from "./modes/cookie-session.ts";
 export { selectSignedForwardJwt } from "./modes/forward-header.ts";

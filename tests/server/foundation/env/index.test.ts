@@ -736,3 +736,22 @@ describe("SESSION_COOKIE_INSECURE — deleted, and an old line is inert", () => 
     expect(env).not.toHaveProperty("SESSION_COOKIE_INSECURE");
   });
 });
+
+// ── ALLOWED_HOSTS: the Host allowlist's configured names (`allowed-hosts.ts` owns the grammar) ──
+// A malformed entry matches nothing, so the name the operator meant would be refused on every request with no
+// hint why. The parse refuses it instead, naming the entry.
+describe("ALLOWED_HOSTS — a malformed entry is a parse refusal naming it", () => {
+  test.each(["nas.local:8788", "*.example.com", "https://orb.example"])("ALLOWED_HOSTS containing %j refuses boot, naming it", async (entry) => {
+    const refusal = reimportEnvWith({ ALLOWED_HOSTS: `ok.example, ${entry}` });
+    await expect(refusal).rejects.toThrow("ALLOWED_HOSTS entry");
+    await expect(refusal).rejects.toThrow(entry);
+  });
+
+  test("well-formed names boot and reach the resolver beside the OIDC callback hosts", async () => {
+    const mod = await reimportEnvWith({
+      ALLOWED_HOSTS: "nas.local, .ts.net",
+      OIDC_REDIRECT_URIS: "https://orbweaver.example.com/api/auth/oidc/callback",
+    });
+    expect(mod.resolveAllowedHosts(mod.allowedHostsInput())).toEqual(["nas.local", ".ts.net", "orbweaver.example.com"]);
+  });
+});

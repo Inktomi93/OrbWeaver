@@ -13,12 +13,16 @@ import type { AUTH_MODES } from "@orb/contracts/identity";
 import { authModeSchema } from "@orb/contracts/identity";
 import { AGENT_SDK_CONCURRENCY_MAX, LOG_LEVELS } from "@orb/contracts/settings";
 import { z } from "zod";
+import type { AllowedHostsInput } from "./allowed-hosts.ts";
+import { allowedHostsEntryRefusal, parseAllowedHosts } from "./allowed-hosts.ts";
 import type { BindPostureInput } from "./bind.ts";
 import { resolveBindPosture } from "./bind.ts";
 import type { DiagnosticsPostureInput, OwnerFallbackCredentialInput } from "./diagnostics.ts";
 import type { OwnerFallbackPeerInput } from "./fallback-peers.ts";
 import { parseOwnerFallbackTrustedPeers, resolveOwnerFallbackPeers } from "./fallback-peers.ts";
 
+export type { AllowedHostsInput, AllowedHostsParse } from "./allowed-hosts.ts";
+export { parseAllowedHosts, resolveAllowedHosts } from "./allowed-hosts.ts";
 export type { BindPosture, BindPostureInput } from "./bind.ts";
 export { bindPostureWarnings, resolveBindPosture } from "./bind.ts";
 export type { DiagnosticsExposure, DiagnosticsPosture, DiagnosticsPostureInput, OwnerFallbackCredentialInput } from "./diagnostics.ts";
@@ -453,6 +457,11 @@ const envSchema = z
 
     // A request from outside this comma CIDR list (and outside loopback) gets a 403 before any auth runs.
     IP_ALLOWLIST: z.string().optional(),
+    // The names this server answers to, beyond localhost and IP addresses (always allowed): a comma list, where a
+    // leading dot admits the name and every subdomain. The OIDC_REDIRECT_URIS hosts are added on their own. Any
+    // other `Host` is refused before auth, which is what stops a DNS-rebinding page (`allowed-hosts.ts`). A
+    // malformed entry is refused at parse, naming it.
+    ALLOWED_HOSTS: z.string().optional(),
 
     // Blocks outbound HTTP to private/loopback/link-local IPs via the global undici dispatcher.
     EGRESS_FIREWALL: envBool(true),
@@ -661,6 +670,11 @@ const envSchema = z
     if (bind.refusal !== null) {
       ctx.addIssue({ code: "custom", path: ["BIND_HOST"], message: bind.refusal });
     }
+    // A malformed ALLOWED_HOSTS entry would match nothing, so the name the operator meant to allow would be refused
+    // on every request with no hint why. Refuse it here, once per entry, naming it.
+    for (const entry of parseAllowedHosts(val.ALLOWED_HOSTS).malformed) {
+      ctx.addIssue({ code: "custom", path: ["ALLOWED_HOSTS"], message: allowedHostsEntryRefusal(entry) });
+    }
     // The box has exactly one owner. A multi-handle list would seed >1 owner row and hit the DB unique
     // index as a raw violation later — fail fast here with a clear message instead.
     if (val.OWNER_HANDLES !== undefined) {
@@ -720,6 +734,12 @@ export function diagnosticsPostureInput(): DiagnosticsPostureInput {
  *  reader; `entry/lifecycle` composes it into the auth seam, which owns no copy of the rule. */
 export function ownerFallbackCredentialInput(): OwnerFallbackCredentialInput {
   return { nodeEnv: env.NODE_ENV, authFallback: env.AUTH_FALLBACK, fallbackWidened: resolveOwnerFallbackPeers(ownerFallbackPeerInput()).widened };
+}
+
+/** The raw inputs the Host allowlist resolver reads (`allowed-hosts.ts` holds the grammar). The parse above has
+ *  already refused a malformed `ALLOWED_HOSTS`; `entry/app.ts` resolves the names and mounts the request guard. */
+export function allowedHostsInput(): AllowedHostsInput {
+  return { allowedHosts: env.ALLOWED_HOSTS, oidcRedirectUris: env.OIDC_REDIRECT_URIS };
 }
 
 /** The raw inputs the OWNER-FALLBACK PEER-SET resolver reads (`fallback-peers.ts` holds the rule, the hazard
