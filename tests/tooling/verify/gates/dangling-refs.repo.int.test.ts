@@ -110,7 +110,6 @@ const EXPECTED_GRANT_IDENTITIES = [
   ["RAIL_SECTIONS", "dangling-symbol-cite"],
   ["SECTION_PANEL_DEFAULTS", "dangling-symbol-cite"],
   ["SECTION_PLACEHOLDER_COPY", "dangling-symbol-cite"],
-  ["SQLITE_BUSY", "dangling-symbol-cite"],
   ["SYSTEM_PROMPT_DYNAMIC_BOUNDARY", "dangling-symbol-cite"],
   ["TAB_EDGE_CLASSES", "dangling-symbol-cite"],
   ["infra/network/hubs/", "dangling-path-cite"],

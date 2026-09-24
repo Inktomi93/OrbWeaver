@@ -23,7 +23,7 @@ import { randomBytes } from "node:crypto";
 import { mkdtempSync, rmSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { errorMessage } from "@orb/kit/error-message";
@@ -110,6 +110,9 @@ function serverEnv(port: number, dbPath: string, debugToken: string): NodeJS.Pro
     ...process.env,
     PORT: String(port),
     DEBUG_TOKEN: debugToken,
+    // The probe's OWN data root beside its db, so its secrets, caches and reports never land in — and its
+    // boot never migrates — the checkout's real `data/`.
+    DATA_DIR: dirname(dbPath),
     DATABASE_URL: `file:${dbPath}`,
     // Skip the operator's `.env` ENTIRELY and declare the identity contract explicitly (mirrors
     // tests/e2e/support/modes.ts's HARNESS_OWNER_HANDLE) — an env-file OWNER_HANDLES once seeded the

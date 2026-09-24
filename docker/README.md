@@ -187,12 +187,17 @@ project's network (`docker network inspect orbweaver_default`), or `127.0.0.1/32
 
 ## Where your data lives
 
-- `orbweaver-data` (named volume) → `/app/data`: the sqlite database (plus `-wal`/`-shm`), uploaded and
-  seeded assets, import staging, `secrets/` (the generated session secret and first password) and
-  `.credentials-key` (the generated credentials key). **Backup = this volume.** Losing
-  `/app/data/.credentials-key` makes every stored provider key unreadable (the same blast radius as losing
-  the database).
-- The built-in CPU model tier keeps its weights in `models/transformers/` in the same volume: ~3.5 GB
+- `orbweaver-data` (named volume) → `/app/data`, laid out as `db/` (the sqlite database plus `-wal`/`-shm`),
+  `backups/` (the pre-migration copies), `assets/` (uploaded and seeded blobs), `users/` (per-user runtime
+  state), `secrets/` (the generated session secret, first password and credentials key), `reports/` (import
+  reports) and `cache/` (everything the app regenerates: model weights, image variants, import staging).
+  **Backup = this volume minus `cache/`.** Losing `secrets/credentials_key` makes every stored provider key
+  unreadable, and losing `secrets/session_secret` invalidates every local password and sign-in (the same
+  blast radius as losing the database); a boot that finds either file missing while the database still
+  depends on it refuses to start and names the file. A volume from an older image is moved into this
+  layout on the first boot, in place, and the log says what moved; a boot that cannot move an entry (a
+  mount at its new place) refuses and names the entry and its way out, such as `DATA_LAYOUT_SKIP`.
+- The built-in CPU model tier keeps its weights in `cache/models/transformers/` in the same volume: ~3.5 GB
   embedder, ~92 MB reranker, ~176 MB background-removal. They download in the background shortly after the
   server starts answering, smallest first, and only for the jobs this box actually serves on the CPU tier;
   `LOCAL_LIGHT_PREFETCH=off` leaves them to download on first use instead, and `LOCAL_LIGHT_CACHE_DIR`
@@ -205,11 +210,11 @@ project's network (`docker network inspect orbweaver_default`), or `127.0.0.1/32
   chown and refuses to boot on an unwritable data dir, saying so.
 - The image itself holds no state; `docker compose down` keeps the volume, `down -v` deletes it.
 - **Updates and the database.** Migrations run at boot, from the SQL that ships inside the image. Before a
-  boot that will CHANGE the database it copies the file aside first (`orbweaver.db.backup-<timestamp>`
-  in the same directory, with a retention sweep), then migrates, then verifies referential integrity; a
-  boot that changes nothing makes no copy. There are no "down" migrations: to roll back, stop the
-  container, put the backup file back in place of `orbweaver.db` (remove any `-wal`/`-shm` beside it),
-  and start the OLDER checkout again. Back up the whole volume before a big update:
+  boot that will CHANGE the database it copies the file aside first (`backups/orbweaver.db.backup-<timestamp>`,
+  with a retention sweep; `touch` a `.keep` beside a copy to exempt it), then migrates, then verifies
+  referential integrity; a boot that changes nothing makes no copy. There are no "down" migrations: to roll
+  back, stop the container, put the backup file back in place of `db/orbweaver.db` (remove any
+  `-wal`/`-shm` beside it), and start the OLDER checkout again. Back up the whole volume before a big update:
   `docker run --rm -v orbweaver_orbweaver-data:/data -v "$PWD":/out alpine tar czf /out/orbweaver-data.tgz -C /data .`
 
 ## Secrets as files

@@ -135,15 +135,6 @@ export const REVIEWED_GRANTS_DBSTRUCTUREPRODUCERHOME_DANGLINGREFCITATIONS: reado
       "the owning documentation repair removes, strikes, riders, or repoints `SECTION_PLACEHOLDER_COPY`; the grouped finding disappears and central zero-use reconciliation stales this row.",
   },
   {
-    id: "dangling-ref-citations:sqlite-busy",
-    policyId: "dangling-ref-citations",
-    subject: "SQLITE_BUSY",
-    operation: "dangling-symbol-cite",
-    why: "Tier-1-DB.md cites SQLite's external C-API error code `SQLITE_BUSY`. It is not a repository declaration, so the declaration index correctly cannot resolve it; this exact external symbol is the classified reviewed exception.",
-    endsWhen:
-      "the doc stops citing `SQLITE_BUSY` or the repository defines its own symbol with that name; the finding disappears and central zero-use reconciliation stales this row.",
-  },
-  {
     id: "dangling-ref-citations:tab-edge-classes",
     policyId: "dangling-ref-citations",
     subject: "TAB_EDGE_CLASSES",

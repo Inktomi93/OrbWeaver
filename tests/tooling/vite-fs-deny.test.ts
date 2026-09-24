@@ -31,17 +31,20 @@ const serves = async (relative: string): Promise<boolean> => await devServerServ
 describe("the dev server's /@fs/ deny list", () => {
   test.each([
     // The three classes that were reachable before #1483, all under the ONE runtime data dir.
-    ["data/variants/01m0jprjygf6fv5s6j2f2366d6/512.avif", "a derived image variant — the same CAS blob /api/blob owner-gates"],
-    ["data/import-reports/import-1786225291863.md", "an import report — another user's library, in prose"],
-    ["data/orbweaver.db.backup-1787470062790", "a FULL database copy: the `.backup-<ts>` suffix matches no `*.db` glob"],
+    ["data/cache/variants/01m0jprjygf6fv5s6j2f2366d6/512.avif", "a derived image variant — the same CAS blob /api/blob owner-gates"],
+    ["data/reports/import-1786225291863.md", "an import report — another user's library, in prose"],
+    ["data/backups/orbweaver.db.backup-1787470062790", "a FULL database copy: the `.backup-<ts>` suffix matches no `*.db` glob"],
     ["data/assets/ab/cdef.png", "the CAS blob store itself (denied before #1483 too — it stays denied)"],
     // The floor the data-dir rule must not have displaced.
     [".env", "the environment file — vite's own default floor, re-listed because `deny` REPLACES it"],
-    ["data/.credentials-key", "the credential-encryption key: leaking it decrypts every stored provider API key"],
-    // A keyfile sits beside whatever db DATABASE_URL names; the e2e and snap stages keep theirs under `.cache/`.
-    [".cache/e2e/local/.credentials-key", "the credential-encryption key beside a db outside data/"],
-    [".cache/e2e/local/.session-secret", "the password and session pepper beside a db outside data/"],
-    ["data/orbweaver.db", "the live SQLite database"],
+    ["data/secrets/credentials_key", "the credential-encryption key: leaking it decrypts every stored provider API key"],
+    ["data/secrets/session_secret", "the password and session pepper"],
+    // A keyfile sits under whatever data root DATA_DIR names; the e2e and snap stages keep theirs under `.cache/`,
+    // and the compose secrets overlay's files sit under `docker/secrets/`.
+    [".cache/e2e/local/secrets/credentials_key", "the credential-encryption key under a data root outside data/"],
+    [".cache/e2e/local/secrets/session_secret", "the password and session pepper under a data root outside data/"],
+    ["docker/secrets/credentials_key", "the compose secrets overlay's key file"],
+    ["data/db/orbweaver.db", "the live SQLite database"],
   ])("refuses to serve %s (%s)", async (relative) => {
     expect(await serves(relative)).toBe(false);
   });

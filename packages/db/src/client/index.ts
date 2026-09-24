@@ -11,7 +11,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } fr
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Client } from "@libsql/client";
-import { createClient } from "@libsql/client";
+import { createClient, LibsqlError } from "@libsql/client";
 import { isPlainObject } from "@orb/kit/guards";
 import { sql } from "drizzle-orm";
 import type { LibSQLDatabase } from "drizzle-orm/libsql";
@@ -129,9 +129,9 @@ export function localPath(url: string): string | undefined {
  * client (OTel) before drizzle binds it.
  */
 export async function createDb(url: string, wrap?: LibSqlWrap): Promise<Db> {
-  // Auto-create the parent dir for a `file:` db (the default lives under `data/`, beside ASSETS_DIR).
+  // Auto-create the parent dir for a `file:` db (the default lives under the data root's `db/`).
   // libSQL creates the db file lazily but NOT its parent directory, so a first boot on a fresh checkout
-  // would otherwise fail to open `file:./data/orbweaver.db`. No-op for `:memory:` / non-file URLs.
+  // would otherwise fail to open `file:./data/db/orbweaver.db`. No-op for `:memory:` / non-file URLs.
   const path = localPath(url);
   if (path !== undefined) {
     mkdirSync(dirname(path), { recursive: true });
@@ -193,6 +193,8 @@ function removeBackupFiles(backupPath: string): void {
  * Snapshot the live db BEFORE migrating (NON-OPTIONAL — `assertReferentialIntegrity` is the only
  * post-migration FK gate, so a corrupting migration must be restorable). `VACUUM INTO` runs through the
  * app connection: unlike copying the main file, its consistent snapshot includes committed WAL pages.
+ * The copy lands in `backupDir` (created if absent) as `<db basename>.backup-<stamp>`; the caller owns
+ * the directory choice so the backup unit and the live db can sit in sibling directories.
  * No-op for `:memory:` / a not-yet-created db. Returns the backup path, or undefined if none.
  *
  * RETRYABLE BY CONSTRUCTION (#1374). The name derives from the source's own mtimes, and `VACUUM INTO`
@@ -209,14 +211,15 @@ function removeBackupFiles(backupPath: string): void {
  * (a skipped pre-migration snapshot is worse than a loud refusal); the point is that the refusal is now
  * recoverable rather than permanent.
  */
-export async function backupBeforeMigrate(db: Db, url: string): Promise<string | undefined> {
+export async function backupBeforeMigrate(db: Db, url: string, backupDir: string): Promise<string | undefined> {
   const path = localPath(url);
   if (path === undefined || !existsSync(path)) {
     return;
   }
   const walPath = `${path}-wal`;
   const stamp = Math.round(Math.max(statSync(path).mtimeMs, existsSync(walPath) ? statSync(walPath).mtimeMs : 0));
-  const backupPath = `${path}.backup-${stamp}`;
+  mkdirSync(backupDir, { recursive: true });
+  const backupPath = join(backupDir, `${basename(path)}.backup-${stamp}`);
   if (existsSync(backupPath)) {
     if (await isCompleteBackup(backupPath)) {
       return backupPath;
@@ -228,7 +231,7 @@ export async function backupBeforeMigrate(db: Db, url: string): Promise<string |
   } catch (err) {
     removeBackupFiles(backupPath);
     throw new Error(
-      `@orb/db: the pre-migrate backup of ${path} to ${backupPath} FAILED (${err instanceof Error ? err.message : String(err)}); boot is aborting rather than migrating an un-backed-up database. The partial copy was removed, so a retry starts clean — free space or fix permissions in ${dirname(path)} and start again. If it keeps failing, move ${path} aside by hand; nothing has been migrated.`,
+      `@orb/db: the pre-migrate backup of ${path} to ${backupPath} FAILED (${err instanceof Error ? err.message : String(err)}); boot is aborting rather than migrating an un-backed-up database. The partial copy was removed, so a retry starts clean — free space or fix permissions in ${backupDir} and start again. If it keeps failing, move ${path} aside by hand; nothing has been migrated.`,
       { cause: err },
     );
   }
@@ -245,10 +248,10 @@ const KEEP_DAILY_BACKUPS = 7;
 const MS_PER_DAY = 86_400_000;
 
 /**
- * The PIN marker: an empty sibling file `<db>.backup-<stamp>.keep` makes that backup exempt from the
- * retention sweep, forever, in ADDITION to the recent/daily budget. Creating one is a bare
- * `touch data/orbweaver.db.backup-<stamp>.keep` — deliberately no CLI: the marker IS the mechanism, and a
- * tool that hides `touch` behind a verb is a tool that can rot.
+ * The PIN marker: an empty sibling file `<db>.backup-<stamp>.keep` in the backup dir makes that backup
+ * exempt from the retention sweep, forever, in ADDITION to the recent/daily budget. Creating one is a bare
+ * `touch data/backups/orbweaver.db.backup-<stamp>.keep` — deliberately no CLI: the marker IS the
+ * mechanism, and a tool that hides `touch` behind a verb is a tool that can rot.
  *
  * WHY IT EXISTS (2026-08-23, issue #534 — the #533 incident): a baseline-hash change auto-resets the dev
  * db at the next respawn, and the ONLY copy of what was dropped is the boot's own pre-migrate backup —
@@ -283,34 +286,61 @@ interface BackupInventory {
   readonly pinned: Set<number>;
 }
 
+// The ONE pair of anchored, regex-escaped name patterns for a db's backups: the copies with their sidecars,
+// and the pin markers. Both the retention sweep and the layout migration's enumeration read through these.
+function backupNamePatterns(base: string): { readonly backupRe: RegExp; readonly pinRe: RegExp } {
+  const escaped = RegExp.escape(base);
+  return {
+    backupRe: new RegExp(`^${escaped}\\.backup-(\\d+)(-wal|-shm)?$`, "g"),
+    pinRe: new RegExp(`^${escaped}\\.backup-(\\d+)${RegExp.escape(PIN_SUFFIX)}$`, "g"),
+  };
+}
+
+// Regular files only: a directory named like a backup is never a backup.
+function backupDirFiles(dir: string): readonly string[] {
+  return readdirSync(dir, { withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => entry.name);
+}
+
 /**
- * Every `<db>.backup-<stamp>` file (+ sidecars) in the db's OWN directory, grouped by stamp — the narrow
- * match {@link pruneDbBackups} documents — plus the stamps a `<db>.backup-<stamp>.keep` marker pins.
+ * Every `<db>.backup-<stamp>` file (+ sidecars) in `dir`, grouped by stamp — the narrow match
+ * {@link pruneDbBackups} documents — plus the stamps a `<db>.backup-<stamp>.keep` marker pins.
  * `matchAll` over an anchored `g` pattern rather than `exec`: it yields the single match or nothing, with
  * no `null` branch for the type-aware lint to mis-read.
  */
 function collectBackupInventory(dir: string, base: string): BackupInventory {
-  const escaped = RegExp.escape(base);
-  const backupRe = new RegExp(`^${escaped}\\.backup-(\\d+)(-wal|-shm)?$`, "g");
-  const pinRe = new RegExp(`^${escaped}\\.backup-(\\d+)${RegExp.escape(PIN_SUFFIX)}$`, "g");
+  const { backupRe, pinRe } = backupNamePatterns(base);
   const groups = new Map<number, BackupGroup>();
   const pinned = new Set<number>();
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    if (!entry.isFile()) {
-      continue;
-    }
-    for (const match of entry.name.matchAll(pinRe)) {
+  for (const name of backupDirFiles(dir)) {
+    for (const match of name.matchAll(pinRe)) {
       pinned.add(Number(match[1]));
     }
-    for (const match of entry.name.matchAll(backupRe)) {
+    for (const match of name.matchAll(backupRe)) {
       const stamp = Number(match[1]);
       const group = groups.get(stamp) ?? { files: [], hasBase: false };
-      group.files.push(join(dir, entry.name));
+      group.files.push(join(dir, name));
       group.hasBase ||= match[2] === undefined;
       groups.set(stamp, group);
     }
   }
   return { groups, pinned };
+}
+
+/**
+ * The names (not paths) of every backup copy, sidecar and pin marker for `base` in `dir`, by the same
+ * anchored patterns the sweep uses — so a caller relocating a backup set moves exactly what the sweep
+ * would later manage, and nothing a neighbouring file's name happens to resemble.
+ */
+export function listBackupFiles(dir: string, base: string): readonly string[] {
+  return backupDirFiles(dir).filter((name) => isBackupFileName(name, base));
+}
+
+/** Whether `name` is one of `base`'s backup copies, sidecars or pin markers, by the sweep's own patterns. */
+export function isBackupFileName(name: string, base: string): boolean {
+  const { backupRe, pinRe } = backupNamePatterns(base);
+  return [...name.matchAll(backupRe)].length > 0 || [...name.matchAll(pinRe)].length > 0;
 }
 
 /**
@@ -353,22 +383,21 @@ function retainedStamps({ groups, pinned }: BackupInventory): ReadonlySet<number
  * last {@link KEEP_DAILY_BACKUPS} days. Returns the deleted paths. No-op for `:memory:` / non-file URLs.
  * Called by the boot migrate step AFTER a successful migration — never on a no-op boot.
  *
- * This runs at BOOT against the LIVE db directory, so the match is deliberately narrow: an anchored,
+ * This runs at BOOT against a LIVE data directory, so the match is deliberately narrow: an anchored,
  * regex-ESCAPED basename (its `.` separators must not wildcard onto a neighbour), `\d+` for the stamp (so
- * `.backup-`, `.backup-12a`, `.backup-1.zip`, `-shmx` all fall through), only the db's OWN directory, no
+ * `.backup-`, `.backup-12a`, `.backup-1.zip`, `-shmx` all fall through), only `backupDir` itself, no
  * recursion, and regular FILES only (a directory named like a backup is never touched). A stamp group with
  * no base file is an orphaned sidecar and is always removed — it restores nothing on its own.
  */
-export function pruneDbBackups(url: string): readonly string[] {
+export function pruneDbBackups(url: string, backupDir: string): readonly string[] {
   const path = localPath(url);
   if (path === undefined) {
     return [];
   }
-  const dir = dirname(path);
-  if (!existsSync(dir)) {
+  if (!existsSync(backupDir)) {
     return [];
   }
-  const inventory = collectBackupInventory(dir, basename(path));
+  const inventory = collectBackupInventory(backupDir, basename(path));
   const keep = retainedStamps(inventory);
   const deleted: string[] = [];
   for (const [stamp, group] of inventory.groups) {
@@ -733,6 +762,33 @@ export async function resetDevDatabase(db: Db): Promise<void> {
 /** `PRAGMA optimize` — let SQLite refresh stats for the query planner. Cheap; run periodically + pre-close. */
 export async function optimizeDb(db: Db): Promise<void> {
   await db.run(sql`PRAGMA optimize`);
+}
+
+const ROLLBACK_JOURNAL = "delete";
+const BUSY_CODE = "SQLITE_BUSY";
+
+/**
+ * Switch the file out of WAL into the rollback journal, which SQLite grants only to the sole connection on
+ * the file: every other open connection, busy or idle between queries, holds the WAL's shared lock and the
+ * switch answers `SQLITE_BUSY` at once (a checkpoint cannot tell an idle holder apart; this can). On
+ * `sole: true` the WAL is folded into the main file and both sidecars are gone, so the file can be moved
+ * as one; the next {@link createDb} on it restores WAL.
+ */
+export async function detachWal(db: Db): Promise<{ readonly sole: boolean }> {
+  try {
+    const mode = await clientOf(db).execute(`PRAGMA journal_mode=${ROLLBACK_JOURNAL}`);
+    return { sole: mode.rows[0]?.["journal_mode"] === ROLLBACK_JOURNAL };
+  } catch (err) {
+    if (err instanceof LibsqlError && err.code === BUSY_CODE) {
+      return { sole: false };
+    }
+    throw err;
+  }
+}
+
+/** Close the connection with no housekeeping — for a handle opened only to inspect or snapshot a file. */
+export function closeDb(db: Db): void {
+  clientOf(db).close();
 }
 
 /**

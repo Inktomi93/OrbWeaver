@@ -1,14 +1,11 @@
 // entry/import/import-report — render + persist the whole-folder import's "what landed / what didn't"
 // accounting to a file a self-host owner can open. `formatImportReport` is PURE (markdown out, testable);
 // `writeImportReport` is the node:fs side (entry-tier — the domain driver stays fs-free and just returns the
-// `ImportReport` data). One file per run under `data/import-reports/`, stamped with the run clock.
+// `ImportReport` data). One file per run in the layout's `reports/` dir, stamped with the run clock.
 
 import { mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import type { ImportReport } from "#domain/import";
-
-/** Persistent home for import reports — beside the db under `data/` (resolved from cwd, the self-host root). */
-const REPORTS_DIR = "data/import-reports";
 
 // Why each still-unhandled ST plane / settings section has no importer — so the report is honest about intent,
 // not just absence (owner ruling: "record it as still-unhandled with a one-line reason"). A name not listed
@@ -322,9 +319,9 @@ function formatImportReport(report: ImportReport, generatedAt: number): string {
   ].join("\n");
 }
 
-/** Write the report to `data/import-reports/import-<stamp>.md` (created if absent) and return its path. */
-export async function writeImportReport(report: ImportReport, generatedAt: number): Promise<string> {
-  const dir = resolve(REPORTS_DIR);
+/** Write the report to `<reportsDir>/import-<stamp>.md` (the dir created if absent) and return its path. */
+export async function writeImportReport(report: ImportReport, generatedAt: number, reportsDir: string): Promise<string> {
+  const dir = resolve(reportsDir);
   await mkdir(dir, { recursive: true });
   const path = join(dir, `import-${generatedAt}.md`);
   await writeFile(path, formatImportReport(report, generatedAt), "utf8");

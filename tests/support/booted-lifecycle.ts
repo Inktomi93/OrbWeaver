@@ -19,10 +19,8 @@ export interface BootedLifecycle {
 export async function bootLifecycle(prefix: string, env: readonly EnvPin[]): Promise<BootedLifecycle> {
   const dir = mkdtempSync(join(tmpdir(), prefix));
   const pins: readonly EnvPin[] = [
-    ["DATABASE_URL", `file:${join(dir, "orb.db")}`],
-    ["ASSETS_DIR", join(dir, "assets")],
-    ["USER_RUNTIME_DIR", join(dir, "users")],
-    ["LOCAL_LIGHT_CACHE_DIR", join(dir, "models")],
+    // The whole data root: the db, assets, secrets and caches all land in the throwaway dir.
+    ["DATA_DIR", dir],
     ["LOCAL_LIGHT_PREFETCH", "off"],
     ["VLLM_DISABLED", "true"],
     ["LOG_LEVEL", "info"],

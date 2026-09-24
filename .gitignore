@@ -1,8 +1,10 @@
 # --- secrets & local state (NEVER commit) ---
 # The generated boot secrets: the ONLY decryption recovery path and the password pepper. Must stay local.
+# They live under the data root's secrets/ (ignored below as /data/), but a DATA_DIR inside the checkout
+# would put them elsewhere, so the names are ignored wherever they appear.
 # A trailing comment on a pattern line is part of the pattern, so these comments sit on their own lines.
-.credentials-key
-.session-secret
+credentials_key
+session_secret
 .env
 .env.*
 !.env.example

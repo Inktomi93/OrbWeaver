@@ -7,7 +7,6 @@
 import { randomUUID } from "node:crypto";
 import type { AddressInfo } from "node:net";
 import { hostname } from "node:os";
-import { dirname, join } from "node:path";
 import type { ServerType } from "@hono/node-server";
 import { serve } from "@hono/node-server";
 import type { AuthMode, Principal } from "@orb/contracts/identity";
@@ -48,7 +47,7 @@ import {
   createRelayedFallbackNotice,
   ownerFallbackAllowed,
 } from "#infra/auth";
-import { bootSecretProvenance, credentialsKeyFromEnv, dataDirFromDbUrl, SESSION_SECRET_KEYFILE, sessionSecretFromEnv } from "#infra/crypto";
+import { bootSecretProvenance, resolveCredentialsKey, resolveSessionSecret } from "#infra/crypto";
 import { installEgressFirewall, parseAllowlist } from "#infra/network";
 import { createCas } from "#infra/storage";
 import { startCatalogRefreshScheduler } from "../transport/jobs/catalog-refresh-scheduler.ts";
@@ -64,6 +63,7 @@ import {
   createLocalLightUserSeed,
   DB_LAUNCHED,
   healLegacyBackgroundPinsOnBoot,
+  migrateDataLayout,
   migrateHandoffOfferVocabOnBoot,
   migratePluginToolWireNamesOnBoot,
   migrateProseSlotVocabOnBoot,
@@ -83,6 +83,7 @@ import {
   seedLocalLightOnBoot,
   seedOwner,
   seedThemes,
+  settleBootSecrets,
 } from "./boot/index.ts";
 import { createAutomationWatcherEnv } from "./compose/automation-watcher.ts";
 import { createServices } from "./compose/index.ts";
@@ -218,12 +219,12 @@ function buildLocalAuthDeps(
   };
 }
 
-// The refusal names where the keyfile would live, never DATABASE_URL itself: a remote URL can carry a token.
-function missingSessionSecretMessage(mode: AuthMode, dataDir: string | null): string {
-  if (dataDir === null) {
+// The refusal names the keyfile, never DATABASE_URL itself: a remote URL can carry a token.
+function missingSessionSecretMessage(mode: AuthMode, keyfile: string | null): string {
+  if (keyfile === null) {
     return `boot: AUTH_MODE=${mode} needs a session secret, and DATABASE_URL is not a local file: database, so none can be generated. Set SESSION_SECRET (32+ characters).`;
   }
-  return `boot: AUTH_MODE=${mode} needs a session secret, and ${join(dataDir, SESSION_SECRET_KEYFILE)} could not be read or generated (the crypto: line above says why). Set SESSION_SECRET (32+ characters), or fix that file.`;
+  return `boot: AUTH_MODE=${mode} needs a session secret, and ${keyfile} could not be read or generated (the crypto: line above says why). Set SESSION_SECRET (32+ characters), or fix that file.`;
 }
 
 /** AUTH_MODE=oidc's route dependencies plus the store's GC sweeper, built together because the sweeper's
@@ -342,23 +343,29 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // below is address-gated before it can fire. No-op when EGRESS_FIREWALL=false.
     installEgressFirewall();
 
-    // The SESSION_SECRET pepper, resolved ONCE: the explicit env value, else `.session-secret` beside the db.
-    // A cookie mode without one cannot authenticate anyone, so it refuses here, before the db opens and long
-    // before the listener binds. The other modes run without it, as they always have.
-    const sessionSecret = sessionSecretFromEnv();
-    if (sessionSecret === null && isCookieAuthMode(env.AUTH_MODE)) {
-      throw new Error(missingSessionSecretMessage(env.AUTH_MODE, dataDirFromDbUrl(env.DATABASE_URL)));
+    // The data layout FIRST, before anything opens a file under it: a legacy flat data dir is renamed into
+    // the current tree (db/, backups/, secrets/, cache/ …) under a journal. Every path below reads the layout
+    // the env resolved, so nothing here can open the old location.
+    await migrateDataLayout({ layout: env.DATA_LAYOUT });
+
+    // The boot secrets, phase one of two: the explicit env value, else the keyfile under `secrets/`. A
+    // keyfile that does not exist yet is left ABSENT here — whether generating one is safe depends on the db
+    // (a pepper with passwords behind it, a key with sealed credentials behind it), so that decision waits
+    // for the migrated db below. A cookie mode with an UNUSABLE secret (a remote db, a corrupt keyfile)
+    // cannot authenticate anyone, so it refuses now, before the db opens and long before the listener binds.
+    const credentialsKey = resolveCredentialsKey();
+    const sessionSecretSource = resolveSessionSecret();
+    if (sessionSecretSource.kind === "resolved" && sessionSecretSource.value === null && isCookieAuthMode(env.AUTH_MODE)) {
+      throw new Error(missingSessionSecretMessage(env.AUTH_MODE, sessionSecretSource.path));
     }
 
     // Inject the OTel libSQL wrap so every db.execute/batch/transaction opens a child span under the active
     // request-root (the composition-root injection the tracing.ts + createDb headers document).
     db = await createDb(env.DATABASE_URL, wrapLibSqlClient);
 
-    const secretBoxKey = credentialsKeyFromEnv();
-
     // `launched` is REQUIRED and passed explicitly (#1392) — the omission here is what left the
     // auto-wipe refusal inert on every real boot.
-    await runBootMigrations({ db, databaseUrl: env.DATABASE_URL, launched: DB_LAUNCHED });
+    await runBootMigrations({ db, databaseUrl: env.DATABASE_URL, backupDir: env.DATA_LAYOUT.backups, launched: DB_LAUNCHED });
 
     // #1649 DATA migration, immediately after the schema migrations and before anything reads a chat: the
     // host-handoff offer's `$.copyCast` key became `$.copyCharacters`, and the offer's read seam degrades an
@@ -395,6 +402,15 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // recording the table-wide max(messages.seq) instead of the per-chat head. Clamp any stale join_seq
     // to the actual per-chat canon head. Idempotent — a no-op on every boot once the candidates are drained.
     await repairStaleJoinSeqOnBoot({ db });
+
+    // The boot secrets, phase two: with the schema in place, an absent keyfile is generated only when no row
+    // depends on it; otherwise this REFUSES and names the file (owner ruling — a regenerated secret would
+    // orphan every sealed credential, or every local password, session and live invite). A cookie mode still needs a
+    // usable pepper after that: a filesystem fault on the first write is the one way it can still be null.
+    const { secretBoxKey, sessionSecret } = await settleBootSecrets({ db, now, credentialsKey, sessionSecret: sessionSecretSource });
+    if (sessionSecret === null && isCookieAuthMode(env.AUTH_MODE)) {
+      throw new Error(missingSessionSecretMessage(env.AUTH_MODE, sessionSecretSource.path));
+    }
 
     // Resolve the owner id before compose (the owner role-clients bundle resolves against it). A
     // transient sessions service is built only to run the owner seed; compose owns the real one.
@@ -469,8 +485,8 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       ownerId,
       secretBoxKey,
       casDir: env.ASSETS_DIR,
-      variantDir: join(dirname(env.ASSETS_DIR), "variants"),
-      ...(env.IMPORT_STAGING_DIR !== undefined ? { importStagingDir: env.IMPORT_STAGING_DIR } : {}),
+      variantDir: env.DATA_LAYOUT.variants,
+      importStagingDir: env.IMPORT_STAGING_DIR,
       ...(env.ST_PROFILE_DIR !== undefined ? { stProfileDir: env.ST_PROFILE_DIR } : {}),
       sessionSecret,
       holder,
