@@ -12,10 +12,13 @@ export interface DataLayoutInput {
   readonly LOCAL_LIGHT_CACHE_DIR?: string | undefined;
   readonly USER_RUNTIME_DIR?: string | undefined;
   readonly IMPORT_STAGING_DIR?: string | undefined;
+  /** Comma-separated legacy root entries the layout migration leaves where they are. */
+  readonly DATA_LAYOUT_SKIP?: string | undefined;
 }
 
 /** The resolved tree. Paths keep the root's spelling (cwd-relative or absolute); `explicit` names the slots
- *  the operator set, which a layout migration must leave where they are. */
+ *  the operator set, and `skip` the legacy root entries the operator named, both of which a layout migration
+ *  must leave where they are. */
 export interface DataLayout {
   readonly root: string;
   readonly databaseUrl: string;
@@ -30,4 +33,5 @@ export interface DataLayout {
   readonly variants: string;
   readonly importStaging: string;
   readonly explicit: ReadonlySet<DataLayoutSlotKey>;
+  readonly skip: ReadonlySet<string>;
 }

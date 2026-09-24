@@ -176,7 +176,8 @@ project's network (`docker network inspect orbweaver_default`), or `127.0.0.1/32
   unreadable, and losing `secrets/session_secret` invalidates every local password and sign-in (the same
   blast radius as losing the database); a boot that finds either file missing while the database still
   depends on it refuses to start and names the file. A volume from an older image is moved into this
-  layout on the first boot, in place, and the log says what moved.
+  layout on the first boot, in place, and the log says what moved; a boot that cannot move an entry (a
+  mount at its new place) refuses and names the entry and its way out, such as `DATA_LAYOUT_SKIP`.
 - The built-in CPU model tier keeps its weights in `cache/models/transformers/` in the same volume: ~3.5 GB
   embedder, ~92 MB reranker, ~176 MB background-removal. They download in the background shortly after the
   server starts answering, smallest first, and only for the jobs this box actually serves on the CPU tier;

@@ -341,6 +341,10 @@ const envSchema = z
     DATA_DIR: z.string().min(1).default(DEFAULT_DATA_DIR),
     // The db, under `<DATA_DIR>/db/` unless set. An explicit value is left where it is by the layout migration.
     DATABASE_URL: z.string().min(1).optional(),
+    // Legacy root entries (`import-reports`, `variants`, ...) the layout migration leaves where they are,
+    // comma-separated: the way out when a target cannot take an entry no slot key keeps (a mount point at
+    // `reports/`). The refusal that needs it names the entry and this key.
+    DATA_LAYOUT_SKIP: z.string().default(""),
     // The built client bundle (`vite build` output) the SPA registrar serves in prod. cwd-relative like
     // DATA_DIR. Missing bundle: prod boot-fatal, dev skipped.
     CLIENT_DIST_DIR: z.string().min(1).default("./packages/client/dist"),

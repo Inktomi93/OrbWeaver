@@ -40,10 +40,19 @@ function isSet(value: string | undefined): value is string {
   return value !== undefined && value !== "";
 }
 
+/** The env key naming the legacy root entries a layout migration leaves in place, comma-separated. */
+export const DATA_LAYOUT_SKIP_KEY = "DATA_LAYOUT_SKIP";
+
 /** Resolve every data path from the root and the explicit slot keys. */
 export function resolveDataLayout(input: DataLayoutInput): DataLayout {
   const root = isSet(input.DATA_DIR) ? input.DATA_DIR : DEFAULT_DATA_DIR;
   const explicit = new Set<DataLayoutSlotKey>(DATA_LAYOUT_SLOT_KEYS.filter((key) => isSet(input[key])));
+  const skip = new Set(
+    (input[DATA_LAYOUT_SKIP_KEY] ?? "")
+      .split(",")
+      .map((name) => name.trim())
+      .filter((name) => name !== ""),
+  );
   const dbDir = under(root, DATA_LAYOUT_DIRS.db);
   return {
     root,
@@ -59,5 +68,6 @@ export function resolveDataLayout(input: DataLayoutInput): DataLayout {
     variants: under(root, DATA_LAYOUT_DIRS.variants),
     importStaging: isSet(input.IMPORT_STAGING_DIR) ? input.IMPORT_STAGING_DIR : under(root, DATA_LAYOUT_DIRS.importStaging),
     explicit,
+    skip,
   };
 }
