@@ -2,15 +2,15 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 603,
+    "sites": 604,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 603,
+      "deliberate-absorb": 604,
       "unproven": 0
     },
     "byGrammar": {
       "default": 151,
-      "empty": 308,
+      "empty": 309,
       "promise": 144
     }
   },
@@ -1484,6 +1484,11 @@
       "siteId": "packages/server/src/infra/crypto/key.ts::decode32Bytes::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "a non-decodable key is INDISTINGUISHABLE from a wrong-length one here, and both must reach the same null — the 32-byte check below is the validator and the file header states the contract (degrade to a DISABLED box, never throw at boot). Ends if decode gains a failure the caller must report separately."
+    },
+    {
+      "siteId": "packages/server/src/infra/crypto/key.ts::fsyncDirectory::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the key is already linked into place with its bytes fsynced, so a directory that cannot be fsynced (a FUSE or network mount answers ENOTSUP) costs only crash durability of the new entry; failing the boot over it would refuse a key that is on disk. Reported on stderr. Ends if the entry fsync becomes required for correctness."
     },
     {
       "siteId": "packages/server/src/infra/crypto/key.ts::loadOrCreateKeyfile::err::1",
