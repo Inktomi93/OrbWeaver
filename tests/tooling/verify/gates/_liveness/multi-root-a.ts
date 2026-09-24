@@ -124,7 +124,7 @@ export const MULTI_ROOT_A_ARMS: readonly RealCorpusLivenessArm[] = [
         'export type LivenessConsumerBusEvent = { type: "livenessConsumed" };\nexport const LIVENESS_CONSUMER_EVENT_TYPES = { livenessConsumed: true } satisfies Record<LivenessConsumerBusEvent["type"], true>;\n',
       ),
     ],
-    messageIncludes: "has NO consumer belt",
+    messageIncludes: "has NO consumer coverage",
   },
   {
     policy: busDefinitionBelts,
