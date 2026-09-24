@@ -1486,9 +1486,9 @@
       "reason": "a non-decodable key is INDISTINGUISHABLE from a wrong-length one here, and both must reach the same null — the 32-byte check below is the validator and the file header states the contract (degrade to a DISABLED box, never throw at boot). Ends if decode gains a failure the caller must report separately."
     },
     {
-      "siteId": "packages/server/src/infra/crypto/key.ts::loadOrCreateKeyfile::catch::1",
+      "siteId": "packages/server/src/infra/crypto/key.ts::loadOrCreateKeyfile::err::1",
       "verdict": "deliberate-absorb",
-      "reason": "FAIL-CLOSED at boot by design — any filesystem fault (permission, read-only, corrupt keyfile) returns null so `createSecretBox(null)` yields a DISABLED box rather than a partial crypto state that could overwrite the only decryption recovery path. The operator sees it as credentials being unavailable, never as silent re-keying. Ends if boot gains a channel that can refuse startup on a crypto fault."
+      "reason": "FAIL-CLOSED at boot by design — any filesystem fault (permission, read-only, corrupt keyfile) returns null so no caller ever re-keys over the only recovery copy. The fault is reported on stderr; the credentials box then runs DISABLED and a cookie mode refuses to boot (`entry/lifecycle.ts`). Ends if every caller moves to refusing startup on a crypto fault."
     },
     {
       "siteId": "packages/server/src/infra/extraction/loaders/pdf.ts::readTitle::catch::1",

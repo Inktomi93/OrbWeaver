@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-30
+updated: 2026-09-24
 ---
 
 # Orbweaver — Spine: Identity, Auth, and Permission
@@ -58,7 +58,10 @@ Code comments cite the numbered invariants below as "invariant N":
    `single-user`. A `Host`-based gate would hand owner to anyone who can reach the port: forging
    `Host: 10.x.x.x` claims a trusted LAN range outright, and a proxy's `changeOrigin` can separately
    launder a LAN request into a loopback-looking `Host` header. Gating on the peer closes both routes,
-   so every proxied or LAN request must authenticate, and SSO is mandatory everywhere Caddy fronts. The role is read, not stamped, so a request Principal and the frozen-host Principal for
+   so every proxied or LAN request must authenticate, and SSO is mandatory everywhere Caddy fronts. A
+   same-host proxy or tunnel still arrives on a loopback socket, so the gate also refuses any request
+   that carries a relay tell (`infra/auth/forwarded.ts`), on every peer and in every mode. The local
+   first-run owner-password claim and its `localFirstRun` flag use the same gate. The role is read, not stamped, so a request Principal and the frozen-host Principal for
    the same caller cannot disagree.
 8. **Sessions: the raw cookie token is never stored** (a peppered HMAC-SHA-256 `token_hash` is the
    validate lookup key); `sessions.validate` re-checks revoked/expired/`users.enabled` per request, so a

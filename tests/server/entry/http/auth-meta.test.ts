@@ -11,6 +11,7 @@ import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AuthMetaDeps } from "@orb/server/entry/http";
 import { registerAuthMeta } from "@orb/server/entry/http";
+import { ownerFallbackAllowed } from "@orb/server/infra/auth";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
@@ -136,6 +137,19 @@ describe("GET /api/auth/config", () => {
     expect((await run(config)).body["localFirstRun"]).toBe(true);
     pending = false;
     expect((await run(config)).body["localFirstRun"]).toBe(false);
+  });
+
+  // Rule B: the flag shares the first-run route's gate, so a relayed loopback request must not see the setup
+  // screen. The injected predicate is the real one `entry/lifecycle.ts` wires; what is pinned is that the
+  // registrar hands it the request's headers.
+  test("localFirstRun: FALSE for a relayed loopback request, TRUE for the bare one (control)", async () => {
+    const { config } = handlers({
+      ...depsFor("local"),
+      localFirstRun: (peer, requestHeaders) => Promise.resolve(ownerFallbackAllowed(peer, requestHeaders)),
+    });
+    expect((await run(config, null, new Headers({ "x-forwarded-for": "203.0.113.9" }))).body["localFirstRun"]).toBe(false);
+    expect((await run(config, null, new Headers({ "cf-connecting-ip": "203.0.113.9" }))).body["localFirstRun"]).toBe(false);
+    expect((await run(config)).body["localFirstRun"]).toBe(true);
   });
 
   // DRAFT-TRUST arm 1: the OTHER render-policy floor axis. Served so a client surface that previews card

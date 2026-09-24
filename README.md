@@ -38,9 +38,11 @@ anything and names that setting. It is plain Node with no bash; its macOS and Wi
 real hardware. `pnpm stack up` is the maintainers' Linux supervisor for the same dev stack (`setsid`, `ss`, `/proc`).
 
 **Back up your data (from source).** Everything the app keeps is in `data/`: the database, your assets,
-and `data/.credentials-key`, the key that decrypts saved provider keys. Back up the whole directory as one
-unit: stop the app, copy `data/`, start it again. To restore, stop the app and put the copy back. A
-database restored without its `.credentials-key` loses every saved provider key. `data/models/` is a
+and two secrets the server generates on first boot: `data/.credentials-key`, the key that decrypts saved
+provider keys, and `data/.session-secret`, the pepper for passwords and sign-ins. Back up the whole
+directory as one unit: stop the app, copy `data/`, start it again. To restore, stop the app and put the
+copy back. A database restored without its `.credentials-key` loses every saved provider key; without its
+`.session-secret`, every local password and sign-in stops working. `data/models/` is a
 download cache and can be left out. Before a boot applies new database migrations, the app also copies
 the database to `data/orbweaver.db.backup-<stamp>`. It keeps the five newest copies plus the newest of each
 of the last seven days that had one. `touch data/orbweaver.db.backup-<stamp>.keep` exempts a copy from

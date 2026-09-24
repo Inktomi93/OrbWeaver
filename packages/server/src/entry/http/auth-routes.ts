@@ -374,9 +374,9 @@ type ProvisionOutcome =
  * B4 — the local-mode FIRST-RUN owner-password setup deps. Present ONLY in local mode; its presence registers
  * `POST /api/auth/first-run`. This is an UNAUTHENTICATED endpoint that sets the owner's initial password, so
  * it is guarded like the owner-fallback, not like a normal route:
- *   • `originAllowed` — the same gate the owner-fallback uses (`ownerFallbackAllowed`, #298 f2): a LOOPBACK
- *     TCP peer only (the unspoofable socket, not the client `Host`), so a fresh deploy's first-run window is
- *     not reachable — let alone remotely-hammerable — from the LAN or the public edge.
+ *   • `originAllowed` — the same gate the owner-fallback uses (`ownerFallbackAllowed`): a LOOPBACK TCP peer
+ *     (the unspoofable socket, not the client `Host`) on a request with no relay tell, so a fresh deploy's
+ *     first-run window is not reachable from the LAN, the public edge, or a same-host tunnel.
  *   • `setOwnerPassword` — the ONE-SHOT claim (hashes with the injected PasswordHasher, then the null-guarded
  *     `sessions.claimOwnerPassword`): returns the owner `UserId` iff it set a previously-null password, else
  *     `null` (already claimed). It can NEVER overwrite an existing owner credential — that is the admin-gated
@@ -384,8 +384,8 @@ type ProvisionOutcome =
  */
 export interface FirstRunRouteDeps {
   readonly setOwnerPassword: (plainPassword: string) => Promise<UserId | null>;
-  /** True iff the raw TCP peer is loopback (#298 f2) — the setup endpoint is unreachable from any other peer. */
-  readonly originAllowed: (peerIp: string | undefined) => boolean;
+  /** True iff the raw TCP peer is loopback and the request carries no relay tell. */
+  readonly originAllowed: (peerIp: string | undefined, headers: Headers) => boolean;
 }
 
 /** Local password verification, supplied from `sessions.authenticate` by the composition root in local mode. */
@@ -601,15 +601,15 @@ function registerFirstRunRoute(app: Hono, deps: AuthRoutesDeps, firstRun: FirstR
   const limiter = loginThrottler(deps);
   app.post(FIRST_RUN_ROUTE, csrfGuard, bodyLimit({ maxSize: LOGIN_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }), async (c) => {
     // Peer gate FIRST: an unauthenticated password-set must never be reachable off-box (owner-fallback
-    // parity, #298 f2 — the LOOPBACK TCP peer, not the client `Host`). A LAN/public local deploy sets
-    // LOCAL_INITIAL_PASSWORD instead of using this screen.
-    if (!firstRun.originAllowed(peerIp(c))) {
+    // parity: the LOOPBACK TCP peer, not the client `Host`, and never a relayed request, which is what a
+    // same-host tunnel delivers over loopback). A LAN/public local deploy sets LOCAL_INITIAL_PASSWORD instead.
+    if (!firstRun.originAllowed(peerIp(c), c.req.raw.headers)) {
       securityEvent(
         "first_run_origin_rejected",
         { peerIp: peerIp(c) ?? null },
-        "security: first-run owner-password setup from a non-loopback peer — rejecting (set LOCAL_INITIAL_PASSWORD for a LAN/public-origin local deploy)",
+        "security: first-run owner-password setup from a non-loopback peer or a relayed request — rejecting (set LOCAL_INITIAL_PASSWORD for a LAN, proxied or public local deploy)",
       );
-      return c.json({ error: "first-run setup is only available from a loopback peer" }, FORBIDDEN);
+      return c.json({ error: "first-run setup is only available on this machine, not through a proxy or tunnel" }, FORBIDDEN);
     }
     const throttled = await throttleLogin(limiter, c);
     if (throttled !== null) {

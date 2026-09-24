@@ -226,10 +226,12 @@ const AUTH_MODE_REQUIRED_ENV = {
   "single-user": [],
   // B4 — LOCAL_INITIAL_PASSWORD is NO LONGER required: a fresh local box seeds the owner row with a NULL
   // password and the in-app first-run setup (`POST /api/auth/first-run`, gated on that null) claims it on
-  // first visit. SESSION_SECRET stays required (the scrypt pepper + session-token HMAC). Setting
-  // LOCAL_INITIAL_PASSWORD still works — it seeds the password at boot, so the first-run screen never appears.
-  local: ["SESSION_SECRET"],
-  oidc: ["OIDC_ISSUER", "OIDC_CLIENT_ID", "OIDC_CLIENT_SECRET", "OIDC_REDIRECT_URIS", "SESSION_SECRET"],
+  // first visit. Setting LOCAL_INITIAL_PASSWORD still works — it seeds the password at boot, so the first-run
+  // screen never appears. SESSION_SECRET is not required at parse in either cookie mode: an unset one is
+  // generated beside the db (`infra/crypto/key.ts`), and `entry/lifecycle.ts` refuses a cookie mode only when
+  // none could be read or generated. This tier owns no I/O, so the refusal cannot live here.
+  local: [],
+  oidc: ["OIDC_ISSUER", "OIDC_CLIENT_ID", "OIDC_CLIENT_SECRET", "OIDC_REDIRECT_URIS"],
   "forward-header": [],
 } as const satisfies Record<(typeof AUTH_MODES)[number], readonly string[]>;
 
@@ -475,10 +477,9 @@ const envSchema = z
     FORWARD_AUTH_JWT_ISSUER: z.string().optional(),
     FORWARD_AUTH_JWT_AUDIENCE: z.string().optional(),
 
-    // 32 random bytes for AES-256-GCM (hex or base64). Unset ⇒ per-user creds off — no host-key fallback.
+    // 32 random bytes for AES-256-GCM (hex or base64). Unset ⇒ `.credentials-key` is generated beside the db
+    // on first boot and reused (`infra/crypto/key.ts`); an explicit value always wins.
     CREDENTIALS_KEY: z.string().optional(),
-    // When CREDENTIALS_KEY is unset, auto-generate + persist a key on first boot.
-    CREDENTIALS_KEY_AUTO: envBool(false),
 
     // Required iff AUTH_MODE=oidc. OIDC_REDIRECT_URIS is a comma-list allowlist of the full callback URLs;
     // the login route derives the callback from the request origin and accepts it only on exact match.
@@ -520,7 +521,8 @@ const envSchema = z
     // the endpoint validates the IdP's signed `logout_token` against the issuer JWKS and revokes every session
     // row for the matching subject. No Redis dependency (unlike OpenWebUI, which degrades to a no-op without it).
     OIDC_BACKCHANNEL_LOGOUT: envBool(false),
-    // HMAC-peppers the session tokenHash so a DB leak alone can't forge a session.
+    // HMAC-peppers the session tokenHash so a DB leak alone can't forge a session. Unset ⇒ `.session-secret`
+    // is generated beside the db on first boot and reused (`infra/crypto/key.ts`); an explicit value wins.
     SESSION_SECRET: z.string().min(MIN_SESSION_SECRET_CHARS).optional(),
     // THE PLAIN-HTTP LAN OPT-IN (`session-cookie.ts` holds the model, the cost and the never-auto-detect
     // rule). Default false ⇒ the session cookie stays `__Host-orb_session` + `Secure`, byte-identical to

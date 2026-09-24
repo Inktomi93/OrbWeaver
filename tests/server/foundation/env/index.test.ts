@@ -108,16 +108,18 @@ describe("foundation/env — the AUTH_MODE superRefine boot-fatality", () => {
     ).rejects.toThrow("OIDC_ISSUER is required when AUTH_MODE=oidc");
   });
 
-  test("AUTH_MODE=oidc WITHOUT SESSION_SECRET → boot FAILS", async () => {
-    await expect(
-      reimportEnvWith({
-        AUTH_MODE: "oidc",
-        OIDC_ISSUER: "https://idp.example",
-        OIDC_CLIENT_ID: "x",
-        OIDC_CLIENT_SECRET: "x",
-        OIDC_REDIRECT_URIS: "https://x/api/auth/oidc/callback",
-      }),
-    ).rejects.toThrow("SESSION_SECRET is required when AUTH_MODE=oidc");
+  // Secrets default on: an unset SESSION_SECRET is generated beside the db at boot (`infra/crypto/key.ts`),
+  // and `entry/lifecycle.ts` refuses a cookie mode only when none could be read or generated.
+  test("AUTH_MODE=oidc WITHOUT SESSION_SECRET → parses (the secret is generated at boot)", async () => {
+    const { env } = await reimportEnvWith({
+      AUTH_MODE: "oidc",
+      OIDC_ISSUER: "https://idp.example",
+      OIDC_CLIENT_ID: "x",
+      OIDC_CLIENT_SECRET: "x",
+      OIDC_REDIRECT_URIS: "https://x/api/auth/oidc/callback",
+    });
+    expect(env.AUTH_MODE).toBe("oidc");
+    expect(env.SESSION_SECRET).toBeUndefined();
   });
 
   test("AUTH_MODE=oidc WITH all required vars → boots clean", async () => {
@@ -180,10 +182,16 @@ describe("foundation/env — the AUTH_MODE superRefine boot-fatality", () => {
     expect(env.LOCAL_INITIAL_PASSWORD).toBeUndefined();
   });
 
-  test("AUTH_MODE=local WITHOUT SESSION_SECRET → boot FAILS", async () => {
-    await expect(reimportEnvWith({ AUTH_MODE: "local", LOCAL_INITIAL_PASSWORD: "abcdefgh" })).rejects.toThrow(
-      "SESSION_SECRET is required when AUTH_MODE=local",
-    );
+  test("AUTH_MODE=local WITHOUT SESSION_SECRET → parses (the secret is generated at boot)", async () => {
+    const { env } = await reimportEnvWith({ AUTH_MODE: "local", LOCAL_INITIAL_PASSWORD: "abcdefgh" });
+    expect(env.AUTH_MODE).toBe("local");
+    expect(env.SESSION_SECRET).toBeUndefined();
+  });
+
+  // An existing deployment's env file may still carry the deleted opt-in; it must be inert, never a refusal.
+  test("a leftover CREDENTIALS_KEY_AUTO line is inert", async () => {
+    const { env } = await reimportEnvWith({ CREDENTIALS_KEY_AUTO: "true" });
+    expect(Object.keys(env)).not.toContain("CREDENTIALS_KEY_AUTO");
   });
 
   test("invalid AUTH_MODE enum → the Zod error names the AUTH_MODE field", async () => {
@@ -457,7 +465,6 @@ describe("foundation/env — the floor parse (defaults + transforms)", () => {
     const { env } = await reimportEnvWith({ CORPUS_AUTOINDEX: "false", EGRESS_FIREWALL: "true" });
     expect(env.CORPUS_AUTOINDEX).toBe(false);
     expect(env.EGRESS_FIREWALL).toBe(true);
-    expect(env.CREDENTIALS_KEY_AUTO).toBe(false);
   });
 
   // `envBool` is `z.stringbool` with PINNED `{truthy:["true"], falsy:["false"], case:"sensitive"}`. Bare
