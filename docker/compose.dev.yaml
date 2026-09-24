@@ -40,8 +40,5 @@ services:
       STACK_RUN_DIR: /app/.cache/stack-docker
       PORT: ${ORB_PORT:-8788}
       VITE_PORT: ${ORB_VITE_PORT:-5173}
-      # off = no local engines. adopt-only = you run vLLM at :8701/:8702/:8703 on this machine (host networking
-      # makes localhost yours). adopt-or-start needs the repo's fleet launcher + a GPU: bare metal, not this.
-      ENGINES_POSTURE: ${ENGINES_POSTURE:-off}
     volumes: !override                      # ONLY the checkout — the base file's data volume must not shadow ./data
       - .:/app

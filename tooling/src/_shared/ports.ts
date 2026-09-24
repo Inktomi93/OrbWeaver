@@ -6,7 +6,7 @@
 //
 // TWO KINDS OF ROW, and the distinction is the whole point:
 //   RESERVED — a fixed port some named thing already owns (the dev pair, the multi-user fixture, the three
-//     e2e auth-mode stacks + their scripted provider, model-ab, the CT vite, the vLLM fleet). These are
+//     e2e auth-mode stacks + their scripted provider, the CT vite, the operator's engines). These are
 //     DECLARED here and consumed by name; nothing may ever be allocated onto one.
 //   BANDS — the allocatable range. `STAGE_BANDS` is 0..9; band k is server 8888 + 10k / vite 5273 + 10k.
 //     An allocator hands out a FREE band, so a lane's stage is private by construction rather than by the
@@ -24,9 +24,9 @@
 // THE MIRROR SIDE, which this module cannot own — FOUR files, and the two reasons are DIFFERENT (owner
 // ruling 2026-09-02, #1271: house precedent, no env file and no move into @orb/kit; the `tooling-shared-
 // plumbing` arm-I gate excludes all four BY RULING, not as a deferral):
-//   • BY LANGUAGE — three shell launchers spell the same defaults in bash and cannot import a TS module:
-//     `tooling/src/stack/stack.sh` (8788/5173), `tooling/src/stack/multi-user-fixture.sh` (8790/5175) and
-//     `tooling/src/stack/engines.sh` (8701-8703). `STACK_SPAWNERS` (tooling/src/stack/lib/spawners.ts)
+//   • BY LANGUAGE — two shell launchers spell the same defaults in bash and cannot import a TS module:
+//     `tooling/src/stack/stack.sh` (8788/5173) and `tooling/src/stack/multi-user-fixture.sh` (8790/5175).
+//     `STACK_SPAWNERS` (tooling/src/stack/lib/spawners.ts)
 //     reads THIS table, so `stack status` can still name whoever holds a port; a drifted shell default
 //     shows up there, and `tests/tooling/snap/ops/fixture.test.ts` asserts the fixture pair in lockstep.
 //   • BY CAKE — `packages/client/vite.config.ts` (`5173`, `http://127.0.0.1:8788`). `tooling` sits ABOVE
@@ -84,14 +84,11 @@ export const E2E_PORTS: Readonly<Record<"singleUser" | "forwardHeader" | "local"
  *  local stack's egress allowlist can name it. Not an orbweaver server, so it has no vite side. */
 export const E2E_FIXTURE_PROVIDER_PORT = 8797;
 
-/** model-ab's own offset server (`tooling/src/model-ab/ops/serve.ts`) — never the fleet's, never a band's. */
-export const MODEL_AB_PORT = 8901;
-
 /** The playwright-ct vite. A CT run has no orbweaver server: this is the whole of its port surface. */
 export const CT_VITE_PORT = 3100;
 
-/** The vLLM fleet (`engines.sh`). The stage ADOPTS the shared fleet rather than offsetting it, so these are
- *  reserved for everyone at once — a band that landed on one would kill the box's models mid-run. */
+/** The operator's own vLLM engines, adopted as connections and launched outside this repo. The stage dials
+ *  them rather than offsetting them, so these are reserved for everyone at once. */
 export const ENGINE_PORTS: Readonly<Record<"embed" | "rerank" | "generate", number>> = {
   embed: 8701,
   rerank: 8702,
@@ -122,11 +119,10 @@ export const RESERVED_PORTS: readonly ReservedPort[] = [
   { port: E2E_PORTS.forwardHeader.vite, owner: "e2e forward-header", role: "vite", why: "SSO trusted-proxy mode's client" },
   { port: E2E_PORTS.local.server, owner: "e2e local", role: "server", why: "cookie/BFF mode's isolated stack" },
   { port: E2E_PORTS.local.vite, owner: "e2e local", role: "vite", why: "cookie/BFF mode's client" },
-  { port: MODEL_AB_PORT, owner: "model-ab", role: "server", why: "the A/B harness's own offset server" },
   { port: CT_VITE_PORT, owner: "playwright-ct", role: "vite", why: "the CT runner's vite; no orbweaver server exists in a CT run" },
-  { port: ENGINE_PORTS.embed, owner: "vLLM fleet", role: "engine", why: "embedding engine — adopted by every stack, offset by none" },
-  { port: ENGINE_PORTS.rerank, owner: "vLLM fleet", role: "engine", why: "rerank engine — adopted by every stack, offset by none" },
-  { port: ENGINE_PORTS.generate, owner: "vLLM fleet", role: "engine", why: "generation engine — adopted by every stack, offset by none" },
+  { port: ENGINE_PORTS.embed, owner: "operator engines", role: "engine", why: "embedding engine — adopted by every stack, offset by none" },
+  { port: ENGINE_PORTS.rerank, owner: "operator engines", role: "engine", why: "rerank engine — adopted by every stack, offset by none" },
+  { port: ENGINE_PORTS.generate, owner: "operator engines", role: "engine", why: "generation engine — adopted by every stack, offset by none" },
 ];
 
 /** Every reserved number, for the disjointness pin and for an allocator's "is this taken?" question. */
@@ -188,7 +184,7 @@ export function stageBandForPort(port: number): number | null {
 // ── which ports serve the orbweaver client ────────────────────────────────────────────────────────────
 
 /** Every port an orbweaver stack serves its client on, BOTH halves: `stack up prod` serves the built client
- *  from the server port. The CT vite, model-ab, the provider stub and the engines serve no app router. */
+ *  from the server port. The CT vite, the provider stub and the engines serve no app router. */
 export const ORB_APP_PORT_NUMBERS: ReadonlySet<number> = new Set(
   [DEV_PORTS, FIXTURE_PORTS, ...Object.values(E2E_PORTS), ...STAGE_BANDS.map(stageBandPorts)].flatMap((pair) => [pair.server, pair.vite]),
 );

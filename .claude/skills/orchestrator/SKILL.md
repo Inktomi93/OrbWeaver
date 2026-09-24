@@ -57,10 +57,9 @@ Run at most three lanes at once. Raise the cap only on an explicit owner ruling,
 
 ## Pre-flight
 
-1. Read engine state without running the launcher: `.cache/stack/engines.pgid`, `.cache/stack/engines.stopped`, and `ss -ltnp`.
-2. Dead pids with no `engines.stopped` marker mean the fleet died outside the stop path. Treat that as its own state.
-3. If no live drive needs the engines, run `pnpm stack down prod`, then `pnpm engines stop`, both from main. A worktree's stop refuses the engines as foreign.
-4. Before you reason about how long a background run has lasted, run `stat --format=%w <log>`. The harness can start a deferred run long after you asked.
+1. Read the stack state with `ss -ltnp` and `pnpm stack status` from main. The model engines are the owner's own box tooling outside this repo; never start or stop them.
+2. If no live drive needs the prod stack, run `pnpm stack down prod` from main.
+3. Before you reason about how long a background run has lasted, run `stat --format=%w <log>`. The harness can start a deferred run long after you asked.
 
 ## Before dispatch
 

@@ -38,7 +38,7 @@ const DEFAULT_PORT = 8788;
 // ~60s at that worst-case rate — back inside the latency class the 120s default was written for — while four
 // in flight bound any OTHER caller's queue wait to ~68s (a small POST measured 72.8s behind just two
 // unbounded flood POSTs). Not a throttle: the whole flood still goes out, in schedulable units.
-// The gen engine's --max-model-len (buildEngineArgv `gen` arm). ONE home for the window so the launcher's
+// The gen engine's --max-model-len. ONE home for the window so the launcher's
 // serve flag and the resolved ModelCapability.context.window can't drift (parity-tested + engine-self-report
 // outranks it for capability truth). The engine's OWN /v1/models max_model_len wins at runtime.
 // 65_536 on a 262_144-native checkpoint (no rope scaling involved): at gen util 0.6 the KV pool is
