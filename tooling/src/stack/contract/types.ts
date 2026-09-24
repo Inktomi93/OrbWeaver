@@ -3,6 +3,7 @@
 // the imperative half (spawn/kill/poll/probe) lives in ops/, and the dev half is stack.sh.
 import type { NetworkInterfaceInfo } from "node:os";
 import type { AuthMode } from "@orb/contracts/identity";
+import type { FullPriorityChild } from "../../_shared/proc-contract.ts";
 
 // ── The spawner census ───────────────────────────────────────────────────────────────────────────────
 
@@ -259,6 +260,30 @@ export interface StartInvocation {
 }
 
 export type StartParse = { readonly ok: true; readonly invocation: StartInvocation } | { readonly ok: false; readonly error: string };
+
+/** One launch of the server, rebuilt from `.env` on every supervised respawn (lib/start-plan.ts `startLaunch`). */
+export interface StartLaunch {
+  readonly plan: ProdSpawnPlan;
+  /** The auth mode the server boots in, for the banner. */
+  readonly mode: string;
+  /** The single-user `AUTH_FALLBACK=owner` fill is on the child env. */
+  readonly fallbackFilled: boolean;
+}
+
+/** The server child as the supervisor sees it: a signal target it can wait on. */
+export type SupervisedChild = Pick<FullPriorityChild, "kill" | "wait">;
+
+/** `pnpm start`'s supervisor, every effect injected (lib/supervisor.ts), so a test drives respawns without a spawn. */
+export interface StartSupervisorDeps {
+  /** The once-per-invocation pass before the loop (setup, build, bundle check): an exit code stops the launch. */
+  readonly prepare: () => Promise<number | null>;
+  /** Re-read `.env` and build this spawn's plan; called once per spawn. */
+  readonly launch: () => ProdSpawnPlan;
+  readonly spawn: (plan: ProdSpawnPlan) => SupervisedChild;
+  /** Registers a process signal handler (`process.on` in a live launcher). */
+  readonly register: (signal: NodeJS.Signals, handler: () => void) => void;
+  readonly notice: (message: string) => void;
+}
 
 export interface StartBuildDecision {
   readonly run: boolean;

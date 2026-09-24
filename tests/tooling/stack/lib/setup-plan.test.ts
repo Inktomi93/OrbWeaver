@@ -4,10 +4,11 @@
 import type { NetworkInterfaceInfo, NetworkInterfaceInfoIPv4, NetworkInterfaceInfoIPv6 } from "node:os";
 import { parseEnv } from "node:util";
 import { ALLOWED_HOSTS_KEY } from "@orb/kit/allowed-hosts";
+import { applyEnvEdits, DELETE_ENV_LINE } from "@orb/kit/env-file";
 import type { SetupMachine, SetupValues } from "../../../../tooling/src/stack/index.ts";
 import {
   AUTH_MODE_KEY,
-  applySetupValues,
+  BIND_HOST_KEY,
   decideSetup,
   isWsl2Kernel,
   openUrls,
@@ -16,7 +17,9 @@ import {
   parseChoiceAnswer,
   parsePortAnswer,
   SETUP_AUDIENCES,
+  SETUP_FILE_HEADER,
   setupDefaults,
+  setupEnvEdits,
   setupValues,
 } from "../../../../tooling/src/stack/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -27,6 +30,11 @@ function env(...pairs: readonly (readonly [string, string])[]): Readonly<Record<
 }
 
 const LOCAL: SetupValues = { port: 9100, authMode: "local", ssoPending: false, allowedHosts: null };
+
+/** What the setup op writes: the answers' edits through the one `.env` key writer. */
+function applySetupValues(text: string | null, values: SetupValues): string {
+  return applyEnvEdits(text, setupEnvEdits(values), SETUP_FILE_HEADER);
+}
 
 test("setup asks only when there is a terminal, and a missing .env with no terminal boots on defaults without writing", () => {
   expect(decideSetup({ envExists: false, setup: false, interactive: true })).toBe("ask");
@@ -240,4 +248,13 @@ test("ALLOWED_HOSTS is offered back as the default and edited in place like the 
   // "just me" never carries a host list into the values, whatever the default was.
   expect(setupValues({ port: 8788, audience: "just-me", login: "password", allowedHosts: "orb.lan" }, "local").allowedHosts).toBeNull();
   expect(setupValues({ port: 8788, audience: "network", login: "password", allowedHosts: "orb.lan" }, "local").allowedHosts).toBe("orb.lan");
+});
+
+test("a network answer deletes BIND_HOST so the box opens to the network again; a just-me answer leaves it", () => {
+  const pinned = "PORT=8788\nAUTH_MODE=local\nBIND_HOST=127.0.0.1\n";
+  expect(applySetupValues(pinned, LOCAL)).toBe("PORT=9100\nAUTH_MODE=local\n");
+  expect(setupEnvEdits(LOCAL)).toContainEqual({ key: BIND_HOST_KEY, value: DELETE_ENV_LINE });
+  // Control: just-me binds loopback anyway, so its answer leaves the operator's line exactly as it is.
+  const justMe: SetupValues = { port: 8788, authMode: "single-user", ssoPending: false, allowedHosts: null };
+  expect(applySetupValues(pinned, justMe)).toBe("PORT=8788\nAUTH_MODE=single-user\nBIND_HOST=127.0.0.1\n");
 });

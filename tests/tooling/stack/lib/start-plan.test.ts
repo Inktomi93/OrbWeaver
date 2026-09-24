@@ -15,8 +15,8 @@ import {
   effectiveAuthMode,
   PNPM_EXECPATH_ENV,
   parseStartArgv,
-  portOverrideEnv,
   resolvePnpmInvocation,
+  restateFileEnv,
   SERVER_ENTRY_REL,
   singleUserFallbackEnv,
   startBannerLines,
@@ -55,8 +55,8 @@ test("argv: --setup asks again, and --port takes one TCP port as the next word o
 test("a --port override wins over .env for this launch only, and every other .env value still wins over the shell", () => {
   const fileEnv = env(["PORT", "8788"], ["AUTH_MODE", "local"]);
   const ambient = env(["AUTH_MODE", "single-user"], ["PATH", "/bin"]);
-  const overlay = portOverrideEnv(fileEnv, 9000);
-  const plan = startSpawnPlan({ repoRoot: "/repo", nodePath: "/usr/bin/node", baseEnv: ambient, fallbackEnv: overlay, logPath: "/l" });
+  const overlay = restateFileEnv(fileEnv, env(["PORT", "9000"]));
+  const plan = startSpawnPlan({ repoRoot: "/repo", nodePath: "/usr/bin/node", baseEnv: ambient, launchEnv: overlay, logPath: "/l" });
   // The server loads .env with override:true unless ORB_ENV_NO_OVERRIDE is set; the overlay turns that off
   // and restates the file's values on the child env, so the only value that changes is the port.
   expect(plan.env["PORT"]).toBe("9000");
@@ -108,7 +108,7 @@ test("the spawn is the SHARED prod plan — same argv and cwd, NODE_ENV=producti
     repoRoot: "/repo",
     nodePath: "/usr/bin/node",
     baseEnv: env(["PATH", "/bin"]),
-    fallbackEnv: env(["AUTH_FALLBACK", "owner"]),
+    launchEnv: env(["AUTH_FALLBACK", "owner"]),
     logPath: "/repo/.cache/stack/prod.log",
   });
   // Asserted against the SHARED constant, never a second literal: a fork of the prod spawn is the defect
@@ -121,7 +121,7 @@ test("the spawn is the SHARED prod plan — same argv and cwd, NODE_ENV=producti
 });
 
 test("with no fallback to fill, the child env carries no AUTH_FALLBACK at all", () => {
-  const plan = startSpawnPlan({ repoRoot: "/repo", nodePath: "/usr/bin/node", baseEnv: {}, fallbackEnv: {}, logPath: "/l" });
+  const plan = startSpawnPlan({ repoRoot: "/repo", nodePath: "/usr/bin/node", baseEnv: {}, launchEnv: {}, logPath: "/l" });
   expect(plan.env["AUTH_FALLBACK"]).toBeUndefined();
 });
 

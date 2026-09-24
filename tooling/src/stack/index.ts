@@ -35,7 +35,10 @@ export type {
   StartBuildDecision,
   StartBuildMode,
   StartInvocation,
+  StartLaunch,
   StartParse,
+  StartSupervisorDeps,
+  SupervisedChild,
   UpAction,
 } from "./contract/types.ts";
 export { DEBUG_ENV_KEYS, SETUP_AUDIENCES, STACK_MODES, STACK_VERBS, START_BUILD_MODES } from "./contract/types.ts";
@@ -62,7 +65,7 @@ export { parseListenerPid } from "./lib/proc-parse.ts";
 export { decideSpawnLock, lockHolderText, mayRemovePidfile, parseLockHolder, parseProdRecord, serializeProdRecord } from "./lib/prod-record.ts";
 export {
   AUTH_MODE_KEY,
-  applySetupValues,
+  BIND_HOST_KEY,
   decideSetup,
   effectiveAuthMode,
   isWsl2Kernel,
@@ -71,8 +74,10 @@ export {
   parseAddressAnswer,
   parseChoiceAnswer,
   parsePortAnswer,
+  SETUP_FILE_HEADER,
   SINGLE_USER_MODE,
   setupDefaults,
+  setupEnvEdits,
   setupValues,
 } from "./lib/setup-plan.ts";
 export type { SourceEntry } from "./lib/source-scan.ts";
@@ -85,13 +90,15 @@ export {
   decideStartBuild,
   PNPM_EXECPATH_ENV,
   parseStartArgv,
-  portOverrideEnv,
   resolvePnpmInvocation,
+  restateFileEnv,
   START_USAGE,
   singleUserFallbackEnv,
   startBannerLines,
+  startLaunch,
   startSpawnPlan,
 } from "./lib/start-plan.ts";
+export { superviseStart } from "./lib/supervisor.ts";
 export {
   classifyDebugPosture,
   classifyDist,
