@@ -24,6 +24,8 @@ export type {
   ProdSpawnPlanOpts,
   ServedState,
   ServedVerdict,
+  SetupMachine,
+  SetupValues,
   SpawnLockAction,
   StackInvocation,
   StackMode,
@@ -36,7 +38,7 @@ export type {
   StartParse,
   UpAction,
 } from "./contract/types.ts";
-export { DEBUG_ENV_KEYS, STACK_MODES, STACK_VERBS, START_BUILD_MODES } from "./contract/types.ts";
+export { DEBUG_ENV_KEYS, SETUP_AUDIENCES, STACK_MODES, STACK_VERBS, START_BUILD_MODES } from "./contract/types.ts";
 export { formatDispatch, parseStackArgv, STACK_USAGE } from "./lib/argv.ts";
 export { debugConflictMessage, resolveDebugArming, stripDebugEnv } from "./lib/debug-env.ts";
 export {
@@ -58,6 +60,24 @@ export {
 export { classifyInstance, decideDown, decideUp } from "./lib/identity.ts";
 export { parseListenerPid } from "./lib/proc-parse.ts";
 export { decideSpawnLock, lockHolderText, mayRemovePidfile, parseLockHolder, parseProdRecord, serializeProdRecord } from "./lib/prod-record.ts";
+export {
+  ALLOWED_HOSTS_KEY,
+  AUTH_MODE_KEY,
+  applySetupValues,
+  decideSetup,
+  detectedHostNames,
+  effectiveAuthMode,
+  isWsl2Kernel,
+  openUrls,
+  PORT_KEY,
+  parseAddressAnswer,
+  parseChoiceAnswer,
+  parsePortAnswer,
+  SETUP_COMMAND,
+  SINGLE_USER_MODE,
+  setupDefaults,
+  setupValues,
+} from "./lib/setup-plan.ts";
 export type { SourceEntry } from "./lib/source-scan.ts";
 export { newestSourceEntries } from "./lib/source-scan.ts";
 export type { SpawnLockOpts } from "./lib/spawn-lock.ts";
@@ -66,11 +86,10 @@ export { buildProdSpawnPlan, CLIENT_DIST_INDEX_REL, CLIENT_DIST_REL, SERVER_ENTR
 export { STACK_SPAWNERS, spawnerForPort } from "./lib/spawners.ts";
 export {
   decideStartBuild,
-  effectiveAuthMode,
   PNPM_EXECPATH_ENV,
   parseStartArgv,
+  portOverrideEnv,
   resolvePnpmInvocation,
-  SINGLE_USER_MODE,
   START_USAGE,
   singleUserFallbackEnv,
   startBannerLines,
@@ -90,4 +109,5 @@ export {
 } from "./lib/verdicts.ts";
 export { runStackProd } from "./ops/prod.ts";
 export { probeServedTransform } from "./ops/served-probe.ts";
+export { runSetup } from "./ops/setup.ts";
 export { runStart } from "./ops/start.ts";
