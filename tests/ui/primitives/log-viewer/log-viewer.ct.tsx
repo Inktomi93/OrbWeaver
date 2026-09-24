@@ -329,33 +329,40 @@ test("the copy affordance writes the visible lines to the clipboard", async ({ m
   await expect.poll(async () => await page.evaluate(() => (globalThis as unknown as { __copied: string | null }).__copied)).toBe("alpha\nbeta");
 });
 
-test("a failed copy replaces the log body with the field, inside the panel's own box", async ({ mount, page }) => {
-  const component = await mount(<LogViewer lines={makeLines(12)} className="h-40" />);
-  // What an insecure (plain http) origin looks like: the [SecureContext] Clipboard API is absent.
-  await page.evaluate(() => {
-    Object.defineProperty(navigator, "clipboard", { configurable: true, value: undefined });
-    Object.defineProperty(globalThis, "isSecureContext", { configurable: true, value: false });
-  });
+// Two text lines at the code step: less than this is a field nobody can read or select in.
+const FIELD_MIN_HEIGHT_PX = 40;
 
-  await component.getByRole("button", { name: "Copy log" }).click();
-  const field = component.getByRole("textbox", { name: "log", exact: true });
-  await expect(field).toBeFocused();
-  await expect(component.locator("[data-slot=log-viewer-scroll]")).toBeHidden();
-  await expect
-    .poll(async () => {
-      const [fieldBox, rootBox] = await Promise.all([field.boundingBox(), component.boundingBox()]);
-      if (fieldBox === null || rootBox === null) {
-        return false;
-      }
-      return (
-        fieldBox.x >= rootBox.x - 0.5 &&
-        fieldBox.y >= rootBox.y - 0.5 &&
-        fieldBox.x + fieldBox.width <= rootBox.x + rootBox.width + 0.5 &&
-        fieldBox.y + fieldBox.height <= rootBox.y + rootBox.height + 0.5
-      );
-    })
-    .toBe(true);
-});
+// Both height arms: a fixed height, and the `max-h-*` cap every live call site passes.
+for (const bound of ["h-40", "max-h-40"] as const) {
+  test(`a failed copy replaces the log body with the field, inside the panel's own box (${bound})`, async ({ mount, page }) => {
+    const component = await mount(<LogViewer lines={makeLines(12)} className={bound} />);
+    // What an insecure (plain http) origin looks like: the [SecureContext] Clipboard API is absent.
+    await page.evaluate(() => {
+      Object.defineProperty(navigator, "clipboard", { configurable: true, value: undefined });
+      Object.defineProperty(globalThis, "isSecureContext", { configurable: true, value: false });
+    });
+
+    await component.getByRole("button", { name: "Copy log" }).click();
+    const field = component.getByRole("textbox", { name: "log", exact: true });
+    await expect(field).toBeFocused();
+    await expect(component.locator("[data-slot=log-viewer-scroll]")).toBeHidden();
+    await expect
+      .poll(async () => {
+        const [fieldBox, rootBox] = await Promise.all([field.boundingBox(), component.boundingBox()]);
+        if (fieldBox === null || rootBox === null) {
+          return false;
+        }
+        return (
+          fieldBox.height >= FIELD_MIN_HEIGHT_PX &&
+          fieldBox.x >= rootBox.x - 0.5 &&
+          fieldBox.y >= rootBox.y - 0.5 &&
+          fieldBox.x + fieldBox.width <= rootBox.x + rootBox.width + 0.5 &&
+          fieldBox.y + fieldBox.height <= rootBox.y + rootBox.height + 0.5
+        );
+      })
+      .toBe(true);
+  });
+}
 
 test.describe("a successful copy", () => {
   test.use({ permissions: ["clipboard-read", "clipboard-write"] });
