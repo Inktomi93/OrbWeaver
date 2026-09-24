@@ -3,7 +3,7 @@
 **Run:** 2026-08-01 (F4/F4a/F5/OR-5/OR-7) · 2026-08-08 (OR-5b/OR-7b) · 2026-09-23 (OR-8, OR-9, OR-10) · 2026-09-24 (OR-11) · **Wire:** `anthropic/claude-sonnet-5`
 via OpenRouter (Anthropic pinned, `allow_fallbacks:false`), plus the Anthropic Messages API for F5's native
 reference arms.
-**Spend:** ~$0.20 OpenRouter + ~$0.12 Anthropic native ≈ **$0.32** (08-01) · **$0.152** OpenRouter (08-08) · **$0.104** OpenRouter + ~$0.10 Anthropic native (09-23, OR-8) · **$0.86** OpenRouter + ~$0.7 Anthropic native (09-23, OR-9) · **$0.07** OpenRouter + ~$0.6 Anthropic native (09-23, OR-10) · about $0.08 Anthropic native (09-24, OR-11).
+**Spend:** ~$0.20 OpenRouter + ~$0.12 Anthropic native ≈ **$0.32** (08-01) · **$0.152** OpenRouter (08-08) · **$0.104** OpenRouter + ~$0.10 Anthropic native (09-23, OR-8) · **$0.86** OpenRouter + ~$0.7 Anthropic native (09-23, OR-9) · **$0.07** OpenRouter + ~$0.6 Anthropic native (09-23, OR-10) · about $0.08 + $1.79 Anthropic native (09-24, OR-11 legs 1 and 2, estimated at list prices).
 **Raw evidence:** `results/<probe>.jsonl` — every arm's HTTP status + full usage block, append-only.
 **Sibling docs:** D174.
 
@@ -18,7 +18,7 @@ reference arms.
 | **OR-8** | which layout of ADJACENT same-role rows keeps the prior call's cache entry readable? | **one message, one text block per speaker** — squashing into ONE string reads **0**; parts, or consecutive messages (which the API and OR both fold into parts), read the whole prior entry and write only the new speaker (**57** tokens) | squash the role, not the text: SHAPE's same-role merge must keep each source row its own text block |
 | **OR-9** | with signed thinking carried on each reply, which layout of a same-role run is accepted, and which keeps the cache? | **direct: one message with thinking interleaved per reply (V1) or consecutive messages (V3) both work and read the prior entry; OpenRouter (both endpoints) 400s V1 and folds V3 into one message that keeps only the FIRST reply's thinking**; dropping earlier thinking (V2) reads **0**; a tampered signature is refused everywhere; under prefix binding (Opus 5.5, new accounts) every carried block fails because the speaker cue that preceded it was deleted, and only a kept cue (V6) is valid | keep F1; never fold reasoning-bearing rows on the openai-compat body; the carry on Opus 5.5/Fable 5.1 needs an append-only history (keep the cue), which is a design question |
 | **OR-10** | with the carry on, which placement of per-turn rows keeps every signed thinking block valid on the models that bind it (Opus 5.5, Fable 5.1)? | **deleting a speaker cue (today) and moving a depth-4 note both break binding: "error" 400s, "drop_block" drops the blocks after the edit and reads 0 cache; a turn-scoped system cue or note appended and left in place, and a speaker cue kept as an ordinary user row, stay clean with the cache growing; a turn-scoped system cue right after a reply is a placement 400; any top-level system edit drops every block** | make every per-turn row append-only: cues as kept rows, depth notes and volatile system content as turn-scoped system messages at the tail; run the carry with drop_block and alarm on drops |
-| **OR-11** | does a model OBEY an override in a depth-2 system row in its legal slot `[u, S, a, u]`, or only accept it? | **obeyed on all three: sonnet-5 5/6, opus-4-8 5/5, control opus-5-5 5/5; the same note folded to user text: sonnet-5 1/5, opus-4-8 0/5, opus-5-5 5/5** | keep `historySystemRows: true` on sonnet-5 and opus-4-8; the tail row they ignore and the depth row they obey are separate facts |
+| **OR-11** | does a model OBEY an override in a depth-2 system row in its legal slot `[u, S, a, u]`, or only accept it? | **obeyed on all three: sonnet-5 5/6, opus-4-8 5/5, control opus-5-5 5/5; the same note folded to user text: sonnet-5 1/5, opus-4-8 0/5, opus-5-5 5/5** | keep `historySystemRows: true` on sonnet-5 and opus-4-8; the tail row they ignore and the depth row they obey are separate facts. Leg 2: today's fold (note merged after `u1`'s text) carries a standing note 19/30 and a next-reply note 0/30; the same note as a separate block on the LATEST user message carries 27/30 and 30/30 with the current frame |
 | **OR-7b** | is DROPPING reasoning still safe past ONE hop? | **YES — 3-hop chain 200/200/200 and the chain still carried a fact only a mid-chain tool result revealed** | the finding-7 deferral premise HOLDS at the shape it is actually about |
 
 ---
@@ -539,7 +539,7 @@ Constant: top-level system prompt, `u1` (a houseplant question), a fixed `a1` re
 | arm | the note on the wire |
 | - | - |
 | `system` | a `system` row between `u1` and `a1`: `[u1, S, a1, u2]`, what `historySystemRows: true` sends |
-| `folded` | user text in the product's fold frame (`chat.injection.systemNote`), a second text block on `u1`: what SHAPE sends when `historySystemRows` is false |
+| `folded` | user text in the product's fold frame (`chat.injection.systemNote`), a second text block on `u1` (leg 2's placement `a`; SHAPE itself merges the note into `u1`'s text, placement `b`) |
 
 ### Results (every call 200)
 
@@ -567,3 +567,62 @@ The tail row and the depth row are separate facts. A system row after the latest
 ### Consequence
 
 `historySystemRows: true` and the `slotted` floor stay on sonnet-5 and opus-4-8 on the direct wire. Setting it false would fold depth notes into the user text these models ignore. The curated row's cite now carries this evidence. OpenRouter was not probed here; its row rests on OR keeping a legal-slot system row in place upstream (SHAPING-MATRIX §7).
+
+### Leg 2: which fold carries the note
+
+**Run:** 2026-09-24, same probe, same constant. 900 calls, all 200, estimated $1.79 at list prices (sonnet-5 $2/$10, opus-4-8 $5/$25, opus-5-5 $4/$20 per million input/output tokens, from OpenRouter's models API). Rows carry `leg: 2` in `results/or11.jsonl` with every request id.
+
+Movers:
+
+- Note: `standing` is the leg-1 note. `next` is "End your next reply with the single word LANTERN.", worded as a guided steer is.
+- Placement: `a` a separate text block after `u1`; `b` merged after `u1`'s text with a blank line (what SHAPE sends today, see "Where the fold is chosen"); `c` merged before `u1`'s text; `d` a separate text block after the latest user message `u2`; `e` merged after `u2`'s text.
+- Frame: `consideration` is `chat.injection.systemNote` (`[Take the following into special consideration: …]`); `guided` is `preset.guided.response` and `chat.injection.assistantNote` (`[Take the following into special consideration for your next message: …]`); `ooc` is `[OOC: …]`, the prefix of the preset's guided rewrite and continue slots; `systemNote` `[System note: …]`, `xml` `<system_note>…</system_note>` and `bare` (the note alone) are candidates, not product frames.
+
+Every cell is 5 trials. The finalists (`b`, `c`, `d` with `consideration` and `bare`) got 10 more, so they read out of 15.
+
+`standing` note, sonnet-5 · opus-4-8:
+
+| placement | `consideration` | `guided` | `ooc` | `systemNote` | `xml` | `bare` |
+| - | - | - | - | - | - | - |
+| `system` (control, bare note) | 3/5 · 5/5 | | | | | |
+| `a` | 4/5 · 0/5 | 5/5 · 0/5 | 2/5 · 4/5 | 1/5 · 0/5 | 1/5 · 0/5 | 2/5 · 1/5 |
+| `b` | 9/15 · 10/15 | 2/5 · 1/5 | 1/5 · 1/5 | 1/5 · 0/5 | 4/5 · 0/5 | 7/15 · 15/15 |
+| `c` | 4/15 · 2/15 | 3/5 · 5/5 | 1/5 · 4/5 | 0/5 · 0/5 | 2/5 · 0/5 | 12/15 · 15/15 |
+| `d` | 12/15 · 15/15 | 2/5 · 3/5 | 1/5 · 5/5 | 1/5 · 0/5 | 0/5 · 5/5 | 11/15 · 13/15 |
+| `e` | 4/5 · 4/5 | 0/5 · 5/5 | 1/5 · 5/5 | 0/5 · 0/5 | 0/5 · 5/5 | 4/5 · 5/5 |
+
+`next` note, sonnet-5 · opus-4-8:
+
+| placement | `consideration` | `guided` | `ooc` | `systemNote` | `xml` | `bare` |
+| - | - | - | - | - | - | - |
+| `system` (control, bare note) | 5/5 · 2/5 | | | | | |
+| `a` | 1/5 · 0/5 | 0/5 · 0/5 | 0/5 · 4/5 | 2/5 · 0/5 | 2/5 · 2/5 | 3/5 · 3/5 |
+| `b` | 0/15 · 0/15 | 0/5 · 0/5 | 0/5 · 0/5 | 0/5 · 0/5 | 0/5 · 0/5 | 0/15 · 12/15 |
+| `c` | 0/15 · 13/15 | 0/5 · 5/5 | 1/5 · 2/5 | 4/5 · 5/5 | 5/5 · 2/5 | 9/15 · 15/15 |
+| `d` | 15/15 · 15/15 | 5/5 · 5/5 | 5/5 · 5/5 | 5/5 · 3/5 | 5/5 · 5/5 | 15/15 · 15/15 |
+| `e` | 5/5 · 5/5 | 3/5 · 5/5 | 5/5 · 5/5 | 5/5 · 0/5 | 5/5 · 5/5 | 5/5 · 5/5 |
+
+opus-5-5 control on the finalists (5 trials each): `standing` 5/5 on `c/consideration`, `c/bare`, `d/consideration`, `d/bare`; `next` 5/5 on `d/consideration` and `d/bare`, 0/5 on `c/consideration` and `c/bare`.
+
+Sample request ids (first and last trial of a cell): today's `b/consideration` standing sonnet-5 `req_011CfNagYicJ8u4DZgL3zieo` … `req_011CfNcAVbywmdSy9BnoZhYn`; `d/consideration` standing sonnet-5 `req_011CfNb1g9cesANnPoAKePRT` … `req_011CfNcMVKR94osvZbJ91X8b`, opus-4-8 `req_011CfNb2LArbP6L3b4U89sr7` … `req_011CfNcNsdsgydyyBE2hYSFz`, opus-5-5 `req_011CfNcBcSX3vwYcJgbBecBw` … `req_011CfNcCPbsn5wAi2sgKQVui`; `d/consideration` next sonnet-5 `req_011CfNbpi8F771P1PhojjJtj` … `req_011CfNcgna2h648GUEoquxWE`, opus-4-8 `req_011CfNbqJUxuXvcb2W5yDYak` … `req_011CfNciURBW24KbLgfrWpn4`.
+
+### Leg 2 verdict
+
+1. **Placement matters more than the frame.** A note attached to the latest user message as its own block (`d`) is followed on every model with the current frame: standing 12/15, 15/15, 5/5; next 15/15, 15/15, 5/5. Today's fold (`b`, the same frame) carries a standing note 9/15 and 10/15 and a next-reply note 0/15 on both.
+2. **At depth 2, a next-reply note is correctly not followed.** In `a`, `b` and `c` "your next reply" names `a1`, which already exists; opus-5-5 reads it that way (0/5 on `c`). So a steer worded for the next reply only works at the latest user message.
+3. **Keeping depth 2, the only strong fold is the bare note before the user text (`c/bare`):** standing 12/15, 15/15, 5/5. The same position with the current frame is the worst finalist (4/15, 2/15). A bare note reads as the user's own words, which is why it works and why it loses the operator framing.
+4. **Frames that claim system authority in user text fail on sonnet-5.** `[System note: …]` is at most 1/5 on sonnet-5 for a standing note in every placement, and `<system_note>` 0/5 at `d` and `e`. `ooc` is weak on sonnet-5 for a standing note (1/5 at `d`). `consideration` and `bare` are the consistent frames.
+5. **The system row stays the right channel where the model takes it.** Standing via `system`: sonnet-5 8/11 across both legs, opus-4-8 10/10. It is about as strong as `d` and stronger than every fold that keeps the note at its depth, except `c/bare`.
+
+### Leg 2 recommendation (not built here)
+
+- **Per-model flag:** no change. `historySystemRows` stays true on sonnet-5 and opus-4-8. Today's fold is worse than their system row.
+- **The fold path, for a model with `historySystemRows` false:** send the folded note as its own text block on the latest user message, with the current `chat.injection.systemNote` frame (placement `d`). This moves a depth-N note to depth 0, which is an owner decision. Two costs: the note's author depth no longer applies, and the previous turn's latest user message loses its note on the next call, so the history above it changes each turn (OR-10: a moving row costs the cache below it, and on a binding model the thinking after it).
+- **If the depth must stay:** put the note before the user text with no frame (`c/bare`). It is the only depth-keeping fold that works on both models, but it reads as the user's own words.
+- **Do not use** `[System note: …]` or `<system_note>` as a fold frame.
+
+### Where the fold is chosen
+
+- The frame: `foldEntry` in `packages/server/src/domain/chat/assembly/shape.ts:236`, which calls `frameInjection("user", …, "system", …)` at `shape.ts:237`. `frameInjection` (`packages/server/src/domain/chat/assembly/injections.ts:61`) picks the slot through `RE_ROLED_FRAME` (`injections.ts:32`); the text is `chat.injection.systemNote` in `packages/contracts/src/chat/prose.ts:303`.
+- The position: `foldMidArrayRuns` (`shape.ts:293`, called at `shape.ts:329`) folds each mid-array system row in place, at the depth the splice gave it. The trailing run folds at `shape.ts:335`.
+- The merge into the user text: the squash at `shape.ts:555` runs `squashSameRole` over `squashRuns` (`packages/server/src/domain/chat/assembly/role-squash.ts:37`). With `canonApart` an injection still joins the stored row beside it, joined with `MERGE_SEPARATOR` (`role-squash.ts:21`, a blank line). That makes today's wire placement `b`.
