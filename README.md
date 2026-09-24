@@ -96,8 +96,20 @@ may import what, from the tree alone.**
 
 ## Develop
 
-Requires **Node 26** (`.nvmrc`) + **pnpm** (pinned via `packageManager`; run `npm install -g pnpm@11`
-— Node 26 does not ship corepack).
+Requires **pnpm** and **Node 26**. Get both through pnpm, on any OS:
+
+```bash
+# 1. pnpm, which needs no Node to run
+curl -fsSL https://get.pnpm.io/install.sh | sh -                                     # macOS, Linux
+Invoke-WebRequest https://get.pnpm.io/install.ps1 -UseBasicParsing | Invoke-Expression  # Windows PowerShell
+# 2. Node 26
+pnpm runtime set node 26 -g
+```
+
+Any pnpm works: inside this repo it runs the version `package.json` pins. If Windows Defender blocks the
+pnpm binary, `winget install -e --id pnpm.pnpm` or `npm install -g pnpm` installs it instead. Every
+dependency version lives in the `catalog:` of `pnpm-workspace.yaml`; a `package.json` names only
+`catalog:` or `workspace:*`.
 
 ```bash
 pnpm install     # deps (hard-linked from pnpm's global store) + git hooks (lefthook, via `prepare`)
