@@ -207,6 +207,7 @@ function appDeps(): AppDeps {
     isShuttingDown: (): boolean => false,
     credentialsKeyOk: (): boolean => true,
     inContainer: false,
+    relayHosts: (): readonly string[] => [],
     seedUserCharacters: (): void => {
       // inert: the resolved principal is always null here.
     },

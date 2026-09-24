@@ -139,6 +139,7 @@ function deps(overrides: Partial<AppDeps>): AppDeps {
     isShuttingDown: (): boolean => false,
     credentialsKeyOk: (): boolean => true,
     inContainer: false,
+    relayHosts: (): readonly string[] => [],
     seedUserCharacters: (): void => {
       // default: inert; the seed-hook test overrides this to record calls.
     },

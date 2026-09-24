@@ -6,7 +6,7 @@ import { ALLOWED_HOSTS_KEY } from "@orb/kit/allowed-hosts";
 import type { MiddlewareHandler } from "hono";
 import { html } from "hono/html";
 import { settingInstruction } from "#foundation/env";
-import type { HostNotAllowedNotice } from "#infra/auth";
+import type { AllowedHostsReader, HostNotAllowedNotice } from "#infra/auth";
 import { refusedHost } from "#infra/auth";
 import { peerIp, TRUSTED_PROXIES } from "#infra/network";
 import { isApiPath } from "./spa.ts";
@@ -15,8 +15,9 @@ import { isApiPath } from "./spa.ts";
 const MISDIRECTED_REQUEST = 421;
 
 export interface HostAllowlistDeps {
-  /** The configured names (`resolveAllowedHosts`); localhost and IP literals pass without an entry. */
-  readonly allowedHosts: readonly string[];
+  /** The configured names (`resolveAllowedHosts`) and the relay registry's (`allowedHostsReader`), read on every
+   *  request because a relay host arrives after boot; localhost and IP literals pass without an entry. */
+  readonly allowedHosts: AllowedHostsReader;
   /** Picks the fix the refusal names (`settingInstruction`): the compose `environment:` block, or setup and `.env`. */
   readonly inContainer: boolean;
   readonly notice: HostNotAllowedNotice;
@@ -52,7 +53,7 @@ export function hostAllowlist(deps: HostAllowlistDeps): MiddlewareHandler {
         peer: () => peerIp(c),
         trustedProxies: TRUSTED_PROXIES,
       },
-      deps.allowedHosts,
+      deps.allowedHosts(),
     );
     if (host === null) {
       await next();

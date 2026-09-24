@@ -4,6 +4,7 @@
 import { ALLOWED_HOSTS_KEY } from "@orb/kit/allowed-hosts";
 import { hostAllowlist } from "@orb/server/entry/http";
 import { settingInstruction } from "@orb/server/foundation/env";
+import { allowedHostsReader, createRelayHostRegistry } from "@orb/server/infra/auth";
 import { Hono } from "hono";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -21,7 +22,9 @@ function peerEnv(address: string): { incoming: { socket: { remoteAddress: string
   return { incoming: { socket: { remoteAddress: address, remotePort: 54_321, remoteFamily: "IPv4" } } };
 }
 
-function harness(opts: { readonly inContainer?: boolean; readonly allowedHosts?: readonly string[] } = {}): {
+function harness(
+  opts: { readonly inContainer?: boolean; readonly allowedHosts?: readonly string[]; readonly readAllowedHosts?: () => readonly string[] } = {},
+): {
   readonly send: (path: string, headers: Record<string, string>, peer?: string) => Promise<Response>;
   readonly routeHits: () => number;
   readonly notice: ReturnType<typeof vi.fn>;
@@ -29,7 +32,11 @@ function harness(opts: { readonly inContainer?: boolean; readonly allowedHosts?:
   let hits = 0;
   const notice = vi.fn();
   const app = new Hono();
-  app.use("*", hostAllowlist({ allowedHosts: opts.allowedHosts ?? [], inContainer: opts.inContainer ?? false, notice }));
+  const allowedHosts = opts.allowedHosts ?? [];
+  app.use(
+    "*",
+    hostAllowlist({ allowedHosts: opts.readAllowedHosts ?? ((): readonly string[] => allowedHosts), inContainer: opts.inContainer ?? false, notice }),
+  );
   app.all("*", (c) => {
     hits += 1;
     return c.text("route");
@@ -86,6 +93,18 @@ describe("hostAllowlist", () => {
   test("a configured name passes", async () => {
     const h = harness({ allowedHosts: ["nas.local"] });
     expect((await h.send("/", { host: "NAS.local:8788" })).status).toBe(OK);
+  });
+
+  test("the allowed names are read per request: a name the relay registry gains after the app is built passes on the next request", async () => {
+    const relay = createRelayHostRegistry();
+    const h = harness({ readAllowedHosts: allowedHostsReader([], relay.hosts) });
+    const tunnel = "quiet-fox-lamp.trycloudflare.com";
+    expect((await h.send("/api/auth/me", { host: tunnel })).status).toBe(MISDIRECTED);
+    relay.writer.add(tunnel);
+    expect((await h.send("/api/auth/me", { host: tunnel })).status).toBe(OK);
+    relay.writer.remove(tunnel);
+    expect((await h.send("/api/auth/me", { host: tunnel })).status).toBe(MISDIRECTED);
+    expect(h.routeHits()).toBe(1);
   });
 
   test("the refusal carries the install shape's fix for the refused host, and not the other shape's", async () => {

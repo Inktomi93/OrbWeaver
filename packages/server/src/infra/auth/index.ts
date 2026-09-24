@@ -89,6 +89,7 @@ export {
 // ── Public surface ───────────────────────────────────────────────────────────────────────────────
 export { authConfigFromEnv } from "./config.ts";
 export type {
+  AllowedHostsReader,
   AuthConfig,
   ForwardJwtClaims,
   ForwardJwtVerifier,
@@ -103,6 +104,7 @@ export type {
   OidcVerifiedTokens,
   PublicHttpMintNotice,
   RelayedFallbackNotice,
+  RelayHostWriter,
   ResolveDeps,
   SessionCookie,
 } from "./contract.ts";
@@ -111,8 +113,10 @@ export { MODE_RESOLVERS, ownerFallbackAllowed } from "./dispatch.ts";
 export { hasForwardingHeader } from "./forwarded.ts";
 export { normalizeHost } from "./host.ts";
 export {
+  allowedHostsReader,
   canonicalHost,
   createHostNotAllowedNotice,
+  createRelayHostRegistry,
   type HostFacts,
   isHostAllowed,
   refusedHost,
