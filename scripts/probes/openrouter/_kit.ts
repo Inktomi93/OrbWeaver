@@ -64,6 +64,8 @@ interface OrChoice {
   readonly finish_reason?: string | null;
 }
 interface OrResponse {
+  /** The OpenRouter generation id (`gen-…`), the evidence id a probe row cites. */
+  readonly id?: string;
   readonly choices?: OrChoice[];
   readonly usage?: OrUsage;
   readonly error?: { readonly code?: number; readonly message?: string };

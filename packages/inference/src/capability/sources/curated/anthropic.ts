@@ -407,8 +407,8 @@ export const anthropicRows = [
     },
     evidence: {
       tier: "curated",
-      dated: "2026-09-23",
-      cite: "SHAPING-MATRIX §7 handling (b), direct, n=3 per cell: a tail system row and a legal-slot [u,S,a] row return 200 on opus-5 (req_011CfKhAEdeEh6hy5HbSgemF…), opus-5-5 (req_011CfKhJ4rzXWr39mUEhXSKo…), fable-5 (req_011CfKhJ4omUcAHiNHB3tvWb…), fable-5-1 (req_011CfKhJ4omHQU8PuX1mRUEn…), sonnet-5 (req_011CfKhYub3yrLNLnBRDfNb4…), opus-4-8 (req_011CfKhYuVMPxhZ1UbNk9JiX…); an illegal [a,S,u] slot 400s (req_011CfKZSZSFUfW1Jdarpf5Cb), so the floor is slotted. haiku-4-5 400s any system row (req_011CfKhZ8ALv97q91yH4eqep) and is not on this row. The tail fact is the TAIL_SYSTEM_MODELS rows'",
+      dated: "2026-09-24",
+      cite: "SHAPING-MATRIX §7 handling (b), direct, n=3 per cell: a tail system row and a legal-slot [u,S,a] row return 200 on opus-5 (req_011CfKhAEdeEh6hy5HbSgemF…), opus-5-5 (req_011CfKhJ4rzXWr39mUEhXSKo…), fable-5 (req_011CfKhJ4omUcAHiNHB3tvWb…), fable-5-1 (req_011CfKhJ4omHQU8PuX1mRUEn…), sonnet-5 (req_011CfKhYub3yrLNLnBRDfNb4…), opus-4-8 (req_011CfKhYuVMPxhZ1UbNk9JiX…); an illegal [a,S,u] slot 400s (req_011CfKZSZSFUfW1Jdarpf5Cb), so the floor is slotted. haiku-4-5 400s any system row (req_011CfKhZ8ALv97q91yH4eqep) and is not on this row. Obeyed, not only accepted (OR-11, 2026-09-24, an override in a depth-2 [u,S,a,u] row, unrelated question): sonnet-5 5/6 (req_011CfNXR4GKK4kk4M38AEE5h…), opus-4-8 5/5 (req_011CfNXSh1w73PuN9rFBMZ1W…), control opus-5-5 5/5 (req_011CfNXU8pF5RGPWKi63ZvEu…); the same note folded to user text: sonnet-5 1/5, opus-4-8 0/5. The tail fact is the TAIL_SYSTEM_MODELS rows'",
     },
   },
   {

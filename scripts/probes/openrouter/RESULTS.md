@@ -1,9 +1,9 @@
 # OpenRouter probe batch — verdicts
 
-**Run:** 2026-08-01 (F4/F4a/F5/OR-5/OR-7) · 2026-08-08 (OR-5b/OR-7b) · 2026-09-23 (OR-8, OR-9, OR-10) · **Wire:** `anthropic/claude-sonnet-5`
+**Run:** 2026-08-01 (F4/F4a/F5/OR-5/OR-7) · 2026-08-08 (OR-5b/OR-7b) · 2026-09-23 (OR-8, OR-9, OR-10) · 2026-09-24 (OR-11) · **Wire:** `anthropic/claude-sonnet-5`
 via OpenRouter (Anthropic pinned, `allow_fallbacks:false`), plus the Anthropic Messages API for F5's native
 reference arms.
-**Spend:** ~$0.20 OpenRouter + ~$0.12 Anthropic native ≈ **$0.32** (08-01) · **$0.152** OpenRouter (08-08) · **$0.104** OpenRouter + ~$0.10 Anthropic native (09-23, OR-8) · **$0.86** OpenRouter + ~$0.7 Anthropic native (09-23, OR-9) · **$0.07** OpenRouter + ~$0.6 Anthropic native (09-23, OR-10).
+**Spend:** ~$0.20 OpenRouter + ~$0.12 Anthropic native ≈ **$0.32** (08-01) · **$0.152** OpenRouter (08-08) · **$0.104** OpenRouter + ~$0.10 Anthropic native (09-23, OR-8) · **$0.86** OpenRouter + ~$0.7 Anthropic native (09-23, OR-9) · **$0.07** OpenRouter + ~$0.6 Anthropic native (09-23, OR-10) · about $0.08 Anthropic native (09-24, OR-11).
 **Raw evidence:** `results/<probe>.jsonl` — every arm's HTTP status + full usage block, append-only.
 **Sibling docs:** D174.
 
@@ -18,6 +18,7 @@ reference arms.
 | **OR-8** | which layout of ADJACENT same-role rows keeps the prior call's cache entry readable? | **one message, one text block per speaker** — squashing into ONE string reads **0**; parts, or consecutive messages (which the API and OR both fold into parts), read the whole prior entry and write only the new speaker (**57** tokens) | squash the role, not the text: SHAPE's same-role merge must keep each source row its own text block |
 | **OR-9** | with signed thinking carried on each reply, which layout of a same-role run is accepted, and which keeps the cache? | **direct: one message with thinking interleaved per reply (V1) or consecutive messages (V3) both work and read the prior entry; OpenRouter (both endpoints) 400s V1 and folds V3 into one message that keeps only the FIRST reply's thinking**; dropping earlier thinking (V2) reads **0**; a tampered signature is refused everywhere; under prefix binding (Opus 5.5, new accounts) every carried block fails because the speaker cue that preceded it was deleted, and only a kept cue (V6) is valid | keep F1; never fold reasoning-bearing rows on the openai-compat body; the carry on Opus 5.5/Fable 5.1 needs an append-only history (keep the cue), which is a design question |
 | **OR-10** | with the carry on, which placement of per-turn rows keeps every signed thinking block valid on the models that bind it (Opus 5.5, Fable 5.1)? | **deleting a speaker cue (today) and moving a depth-4 note both break binding: "error" 400s, "drop_block" drops the blocks after the edit and reads 0 cache; a turn-scoped system cue or note appended and left in place, and a speaker cue kept as an ordinary user row, stay clean with the cache growing; a turn-scoped system cue right after a reply is a placement 400; any top-level system edit drops every block** | make every per-turn row append-only: cues as kept rows, depth notes and volatile system content as turn-scoped system messages at the tail; run the carry with drop_block and alarm on drops |
+| **OR-11** | does a model OBEY an override in a depth-2 system row in its legal slot `[u, S, a, u]`, or only accept it? | **obeyed on all three: sonnet-5 5/6, opus-4-8 5/5, control opus-5-5 5/5; the same note folded to user text: sonnet-5 1/5, opus-4-8 0/5, opus-5-5 5/5** | keep `historySystemRows: true` on sonnet-5 and opus-4-8; the tail row they ignore and the depth row they obey are separate facts |
 | **OR-7b** | is DROPPING reasoning still safe past ONE hop? | **YES — 3-hop chain 200/200/200 and the chain still carried a fact only a mid-chain tool result revealed** | the finding-7 deferral premise HOLDS at the shape it is actually about |
 
 ---
@@ -525,3 +526,44 @@ Make every per-turn row append-only on these models. Each row below replaces som
 4. **System-region per-turn content** (fired lore, memory, the dynamic half). Any edit to the top-level system prompt drops every block and the whole cache (S6). Move the volatile part into a turn-scoped system message at the tail, following the last user message. The product already has a message-tail channel and a `clearAt` field for this. Keep the top-level system prompt static for the session.
 5. **When to set `drop_block`.** Always, on a binding model with the carry on. `"error"` turns any missed edit into a failed turn; `drop_block` turns it into lost reasoning on that turn. Record `input_transformations` and alarm on any `prefix_binding_mismatch`. After the changes above it should be zero, so a drop marks a new edit to find.
 
+---
+
+## OR-11 — a depth-2 system row: obeyed or only accepted
+
+**Run:** 2026-09-24. Evidence: `results/or11.jsonl` · probe: `or11-depth-system-obedience.ts` · wire: Anthropic Messages direct · models: `claude-sonnet-5`, `claude-opus-4-8`, and `claude-opus-5-5` as the control that obeys a tail system row · thinking adaptive at effort low · spend about $0.08 direct (estimated at list prices from 4.6k input and 3.1k output tokens), no OpenRouter spend.
+
+The question: sonnet-5 and opus-4-8 accept a tail system row and ignore it, so `midConversationSystem` is false for them. `historySystemRows` stays true for them, so a depth-N system row in its legal slot still goes out as `system`. Only the 200 was measured, not whether they obey it.
+
+Constant: top-level system prompt, `u1` (a houseplant question), a fixed `a1` reply, `u2` (how long to boil an egg). The note is "Standing instruction: from now on, end every reply with the single word LANTERN." Honoured means the reply ends with `LANTERN`. Mover: how the note reaches the wire.
+
+| arm | the note on the wire |
+| - | - |
+| `system` | a `system` row between `u1` and `a1`: `[u1, S, a1, u2]`, what `historySystemRows: true` sends |
+| `folded` | user text in the product's fold frame (`chat.injection.systemNote`), a second text block on `u1`: what SHAPE sends when `historySystemRows` is false |
+
+### Results (every call 200)
+
+| model | `system` honoured | `folded` honoured |
+| - | - | - |
+| sonnet-5 | **5/6** (one smoke call plus five trials) | 1/5 |
+| opus-4-8 | **5/5** | 0/5 |
+| opus-5-5 (control) | 5/5 | 5/5 |
+
+Request ids, in trial order:
+
+- sonnet-5 `system`: `req_011CfNXQZmZTRoQtXrNmjd1p` (smoke), `req_011CfNXR4GKK4kk4M38AEE5h`, `req_011CfNXR9V6crWDai7bkDQFS`, `req_011CfNXRNjp8NaqVVdjszyDJ`, `req_011CfNXRezNQVL5i3uQypeZ1` (missed), `req_011CfNXRooSzZE3SjvnUwbbY`
+- sonnet-5 `folded`: `req_011CfNXRyS8WqpUeD4GsBQud`, `req_011CfNXS7NsbZz2qHWwXpRSa`, `req_011CfNXSFAw1dLBkmDAijenn` (honoured), `req_011CfNXSQ5TdRuhrdRWvUsqh`, `req_011CfNXSWr1DCjW8qZunFZjk`
+- opus-4-8 `system`: `req_011CfNXSh1w73PuN9rFBMZ1W`, `req_011CfNXSr9ra9eCG79nHjMfc`, `req_011CfNXT18cFSH7ae3EjzS5v`, `req_011CfNXTALVwjPYeDBjDuu9h`, `req_011CfNXTJuBr5AAY42bdNtr9`
+- opus-4-8 `folded`: `req_011CfNXTSRdEdL227Mp2YaLR`, `req_011CfNXTa4WYwT1B6eBW57Ck`, `req_011CfNXTiF8jELCnXmjP6RQR`, `req_011CfNXTrJKbE3FVVisBsGZL`, `req_011CfNXTzfc25LE7tptuKnQf`
+- opus-5-5 `system`: `req_011CfNXU8pF5RGPWKi63ZvEu`, `req_011CfNXUKHXsrDKLq7nDgXQ1`, `req_011CfNXUWeexLaSu2pm2C43s`, `req_011CfNXUjVpH6UgZaCDfRMVu`, `req_011CfNXUuzMHUCw9svhU1SPK`
+- opus-5-5 `folded`: `req_011CfNXV5Z4jHigetQPwLpQx`, `req_011CfNXVGWP9jvCYpnwNxXWY`, `req_011CfNXVUhMm6D1UFhBek6Qt`, `req_011CfNXVfU1Q1dGgkHFaEzEm`, `req_011CfNXVsBhgcAUQ6VWBCTjV`
+
+### Verdict
+
+The premise is refuted. sonnet-5 and opus-4-8 obey a depth-2 system row in its legal slot as well as the control does. The fold is the weaker delivery on both: as user text in the earlier turn they mostly ignore the note. Only opus-5-5 follows it either way.
+
+The tail row and the depth row are separate facts. A system row after the latest user turn is ignored on these two models (the `TAIL_SYSTEM_MODELS` evidence); a system row before an assistant reply is obeyed.
+
+### Consequence
+
+`historySystemRows: true` and the `slotted` floor stay on sonnet-5 and opus-4-8 on the direct wire. Setting it false would fold depth notes into the user text these models ignore. The curated row's cite now carries this evidence. OpenRouter was not probed here; its row rests on OR keeping a legal-slot system row in place upstream (SHAPING-MATRIX §7).
