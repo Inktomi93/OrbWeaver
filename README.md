@@ -32,6 +32,16 @@ macOS and Windows boots are not yet verified on real hardware. **On Linux**, `pn
 watched DEV stack at <http://localhost:5173> instead; that supervisor is a bash script (`setsid`, `ss`,
 `/proc`) and stays Linux-only.
 
+**Back up your data (from source).** Everything the app keeps is in `data/`: the database, your assets,
+and `data/.credentials-key`, the key that decrypts saved provider keys. Back up the whole directory as one
+unit: stop the app, copy `data/`, start it again. To restore, stop the app and put the copy back. A
+database restored without its `.credentials-key` loses every saved provider key. `data/models/` is a
+download cache and can be left out. Before a boot applies new database migrations, the app also copies
+the database to `data/orbweaver.db.backup-<stamp>`. It keeps the five newest copies plus the newest of each
+of the last seven days that had one. `touch data/orbweaver.db.backup-<stamp>.keep` exempts a copy from
+that cleanup. Migrations only go forward, so to roll back an update, stop the app, put a copy in place of
+`data/orbweaver.db`, delete the `-wal`/`-shm` files beside it, and start the older checkout. Docker users: see [`docker/README.md`](docker/README.md).
+
 **Develop on Linux or WSL2.** The dev harness leans on `nice`, cgroup fencing and bash hooks, so the
 full loop (`pnpm stack`) is Linux-shaped. macOS can run the tests and `pnpm start`; it cannot run
 `pnpm stack`.
