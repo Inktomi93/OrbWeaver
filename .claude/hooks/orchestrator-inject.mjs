@@ -6,13 +6,14 @@
 // SIZE CONTRACT. The harness caps each `additionalContext` string at 10,000 chars; past it the session gets
 // a file path and a 2,000-char preview, and nothing prompts a read. The body is packed by `## ` section into
 // parts that each fit, and `.claude/settings.json` registers one entry per part (argv[2] is the 1-based part
-// number, REGISTERED_PARTS entries). A body that outgrows them makes the last part name the unread sections;
-// tests/tooling/orchestrator-inject-hook.int.test.ts fails on that, on a part over the cap, and on drift
-// between REGISTERED_PARTS and the registered entries.
+// number, REGISTERED_PARTS entries). A body that outgrows them makes the last registered part open with a
+// notice naming the unread sections, inside the cap; tests/tooling/orchestrator-inject-hook.int.test.ts fails
+// on that, on a part over the cap, and on drift between REGISTERED_PARTS and the registered entries.
 //
 // MAIN ONLY. A subagent, or a session launched with `--agent`, runs a role, not the orchestrator. The
-// discriminators match `is_subagent()` in the user-level context-sentinel.py hook.
-import { readFileSync } from "node:fs";
+// discriminators are those of `is_subagent()` in the user-level context-sentinel.py hook: the payload's
+// agent fields, a `/subagents/` transcript path, and `isSidechain` on the transcript's latest entry.
+import { closeSync, fstatSync, openSync, readFileSync, readSync } from "node:fs";
 import process from "node:process";
 
 const SKILL_PATH = new URL("../skills/orchestrator/SKILL.md", import.meta.url);
@@ -23,6 +24,8 @@ const FRONTMATTER = /^---\n[\s\S]*?\n---\n+/;
 // A lookahead split keeps each heading with its section, so the pieces rejoin to the exact body.
 const SECTION_SPLIT = /(?=^## )/m;
 const SECTION_HEADING = /^## .*$/gm;
+// The transcript's newest entries sit at its end; the sentinel reads the same tail size.
+const TRANSCRIPT_TAIL_BYTES = 2_000_000;
 
 function readPayload() {
   if (process.stdin.isTTY) {
@@ -35,9 +38,38 @@ function readPayload() {
   }
 }
 
+// The latest transcript entry that carries `isSidechain` decides. A missing transcript is a fresh main session.
+function isSidechainTranscript(path) {
+  let fd;
+  try {
+    fd = openSync(path, "r");
+  } catch {
+    return false;
+  }
+  try {
+    const size = fstatSync(fd).size;
+    const length = Math.min(size, TRANSCRIPT_TAIL_BYTES);
+    const buffer = Buffer.alloc(length);
+    readSync(fd, buffer, 0, length, size - length);
+    for (const line of buffer.toString("utf8").split("\n").reverse()) {
+      try {
+        const entry = JSON.parse(line);
+        if (typeof entry.isSidechain === "boolean") {
+          return entry.isSidechain;
+        }
+      } catch {
+        // A partial first line of the tail, or a blank line, is not an entry.
+      }
+    }
+    return false;
+  } finally {
+    closeSync(fd);
+  }
+}
+
 function isSubagent(payload) {
   const transcript = typeof payload.transcript_path === "string" ? payload.transcript_path : "";
-  return Boolean(payload.agent_id || payload.agent_type || transcript.includes("/subagents/"));
+  return Boolean(payload.agent_id || payload.agent_type || transcript.includes("/subagents/") || (transcript && isSidechainTranscript(transcript)));
 }
 
 function partLabel(index, total) {
@@ -60,17 +92,34 @@ function pack(body) {
   return parts;
 }
 
+function outgrewNotice(unreadSections) {
+  const headings = unreadSections.join("").match(SECTION_HEADING) ?? [];
+  return `The skill outgrew its injected parts. Read these sections of \`${SKILL_REPO_PATH}\` now: ${headings.join("; ")}.\n\n`;
+}
+
+// The notice leads the last registered part and is counted against the cap before any section is kept, so
+// it can never be the text the harness cuts. Each section that does not fit moves into the notice.
+function overflowPart(rest) {
+  const sections = rest.split(SECTION_SPLIT);
+  const label = partLabel(REGISTERED_PARTS, REGISTERED_PARTS);
+  for (let kept = sections.length - 1; kept > 0; kept--) {
+    const text = label + outgrewNotice(sections.slice(kept)) + sections.slice(0, kept).join("");
+    if (text.length <= CONTEXT_CAP) {
+      return text;
+    }
+  }
+  return label + outgrewNotice(sections);
+}
+
 function context(index) {
   const parts = pack(readFileSync(SKILL_PATH, "utf8").replace(FRONTMATTER, ""));
   if (index > parts.length) {
     return null;
   }
-  let text = partLabel(index, parts.length) + parts[index - 1];
   if (index === REGISTERED_PARTS && parts.length > REGISTERED_PARTS) {
-    const unread = parts.slice(REGISTERED_PARTS).join("").match(SECTION_HEADING) ?? [];
-    text += `\n\nThe skill outgrew its injected parts. Read these sections of \`${SKILL_REPO_PATH}\` now: ${unread.join("; ")}.`;
+    return overflowPart(parts.slice(REGISTERED_PARTS - 1).join(""));
   }
-  return text;
+  return partLabel(index, parts.length) + parts[index - 1];
 }
 
 function emit(additionalContext) {

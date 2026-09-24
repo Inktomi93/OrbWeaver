@@ -99,7 +99,7 @@ The `lane` skill carries the standing lane rules. Restate only the deltas.
 
 - A lane reports its floor. Only you call work done, after the barrier.
 - Land a change only after a `verifier` returns CONFIRMED for it. Your own evidence checks do not replace a fresh-context review.
-- For a multi-wave program, run one `verifier` pass per wave over every change landed in it. That pass covers each item; spawn no second `verifier` per item.
+- For a multi-wave program, run one `verifier` pass per wave over every change landed in it. That pass covers each item; spawn no second `verifier` per item inside a covered wave.
 - Call `side-eye` for a new UI surface or redesign, imagery or effects near text, settings panes, forms, wizards, empty, error, or loading states, and any accessibility doubt. Skip it for backend-only changes.
 - Treat scout findings as input. Check the important ones before you act on them.
 - Before a status report, check each "dispatched", "filed", "queued", or "merged" claim against the dispatch map and the tree. Retract an unsupported claim in the same message.

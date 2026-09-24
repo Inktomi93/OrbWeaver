@@ -98,14 +98,40 @@ test("a subagent, or a session launched as a role agent, gets no injection", () 
   }
 });
 
-test("a skill that outgrows the registered parts makes the last part name the unread sections", ({ scratch }) => {
-  const section = (name: string): string => `## ${name}\n\n${"- A rule.\n".repeat(450)}\n`;
-  const hook = plantHook(scratch, `---\nname: orchestrator\n---\n\n# Orchestrator\n\n${["One", "Two", "Three", "Four", "Five"].map(section).join("")}`);
+test("a sidechain transcript gets no injection even without a subagent path", ({ scratch }) => {
+  const transcript = join(scratch, "s1.jsonl");
+  writeFileSync(transcript, `${JSON.stringify({ type: "user", isSidechain: false })}\n${JSON.stringify({ type: "assistant", isSidechain: true })}\n`);
 
-  const last = injected(runHook(hook, registeredParts().length, MAIN_PAYLOAD));
-  expect(last).toContain("The skill outgrew its injected parts.");
-  expect(last).toContain("## Five");
-  expect(last.length).toBeLessThan(HARNESS_CAP);
+  for (const part of registeredParts()) {
+    expect(runHook(HOOK, part, { ...MAIN_PAYLOAD, ["transcript_path"]: transcript })).toBe("");
+  }
+});
+
+/** A section of exactly `size` chars, heading included. */
+function sizedSection(name: string, size: number): string {
+  const heading = `## ${name}\n\n`;
+  return `${heading}${"x".repeat(size - heading.length - 1)}\n`;
+}
+
+test("a skill that outgrows the registered parts makes the last part name the unread sections, within the cap", ({ scratch }) => {
+  const intro = "# Orchestrator\n\n";
+  const loose = [1, 2, 3, 4, 5].map((n) => sizedSection(`Loose${n}`, 4511)).join("");
+  // Parts 1 and 2 each fill the packing budget exactly, so the notice has no room unless it is reserved.
+  const tight = `${intro}${sizedSection("A", 9874 - intro.length)}${sizedSection("B", 9874)}${sizedSection("C", 200)}`;
+
+  for (const [body, unread] of [
+    [tight, "## C"],
+    [`${intro}${loose}`, "## Loose5"],
+  ] as const) {
+    const hook = plantHook(join(scratch, unread.slice(3)), `---\nname: orchestrator\n---\n\n${body}`);
+    const contexts = registeredParts().map((part) => injected(runHook(hook, part, MAIN_PAYLOAD)));
+    for (const context of contexts) {
+      expect(context.length, unread).toBeLessThanOrEqual(HARNESS_CAP);
+    }
+    const last = withoutLabel(contexts.at(-1) ?? "");
+    expect(last.startsWith("The skill outgrew its injected parts."), "the notice leads the last part").toBe(true);
+    expect(last.split("\n\n")[0]).toContain(unread);
+  }
 });
 
 test("an unreadable skill tells the session to load it, never injects nothing", ({ scratch }) => {
