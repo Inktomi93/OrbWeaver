@@ -64,7 +64,7 @@ Soundness. A browser cannot attach `X-Forwarded-Proto` to another user's request
 
 **Rule F, one disclaimer block.** Section 6.
 
-**Rule G, a Host allowlist against DNS rebinding (owner ruling, built).** A page on a name its owner rebinds to 127.0.0.1 reaches the server from a loopback socket with no forwarding header, so Rule B does not see it. Its one tell is the foreign `Host`, which a browser cannot forge. Every request's `Host` must be localhost, `*.localhost`, an IP literal, an `ALLOWED_HOSTS` name or an `OIDC_REDIRECT_URIS` host, in every mode and with no off switch; a trusted hop's `X-Forwarded-Host` is judged beside it. The rule and its reasons live in `docs/law/Tier-3-Infra.md` ("The Host allowlist refuses; it never admits"); the grammar lives in `packages/server/src/foundation/env/allowed-hosts.ts`.
+**Rule G, a Host allowlist against DNS rebinding (owner ruling, built).** A page on a name its owner rebinds to 127.0.0.1 reaches the server from a loopback socket with no forwarding header, so Rule B does not see it. Its one tell is the foreign `Host`, which a browser cannot forge. Every request's `Host` must be localhost, `*.localhost`, an IP literal, the machine's own name or `<name>.local` (bare metal only), an `ALLOWED_HOSTS` name or an `OIDC_REDIRECT_URIS` host, in every mode and with no off switch; a trusted hop's `X-Forwarded-Host` is judged beside it. A one-label suffix such as `.com` is a parse refusal. The rule and its reasons live in `docs/law/Tier-3-Infra.md` ("The Host allowlist refuses; it never admits"); the grammar lives in `packages/kit/src/allowed-hosts/index.ts`, shared with the setup wizard.
 
 ### 4. The matrix
 
@@ -132,7 +132,7 @@ Owner ruling: option 3 now, option 1 stays the mechanism. Option 2 waits for a s
 | `FORWARD_AUTH_TRUSTED_PROXIES` | keep | now also the trusted-proxy predicate for `X-Forwarded-Proto`; the name understates it, a rename is churn |
 | `FORWARD_AUTH_*` (headers, JWT, JWKS) | keep | |
 | `IP_ALLOWLIST` | keep | |
-| `ALLOWED_HOSTS` | new (Rule G) | the names beyond localhost and IP literals; the `OIDC_REDIRECT_URIS` hosts are added without it |
+| `ALLOWED_HOSTS` | new (Rule G) | the names beyond localhost, IP literals and the machine's own name; the `OIDC_REDIRECT_URIS` hosts are added without it |
 | `TRUSTED_PRIVATE_RANGES`, `EGRESS_*` | keep | egress, out of scope |
 | `SESSION_SECRET` | keep | explicit wins; generated when unset |
 | `SESSION_COOKIE_INSECURE` | delete | replaced by Rule C; zod strips the unknown key, so an old `.env` line is inert and the boot block states the transport rule |

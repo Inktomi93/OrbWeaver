@@ -3,12 +3,10 @@
 // byte of the file (comments, unknown keys, line endings) survives.
 import { isIP } from "node:net";
 import type { AuthMode } from "@orb/contracts/identity";
-import { authModeSchema } from "@orb/contracts/identity";
+import { authModeSchema, SETUP_COMMAND } from "@orb/contracts/identity";
+import { isAllowedHostEntry, isTopLevelSuffix, MDNS_DOMAIN, machineHostNames, splitHostList } from "@orb/kit/allowed-hosts";
 import { DEV_PORTS, MAX_TCP_PORT } from "../../_shared/ports.ts";
 import type { AnswerParse, SetupAnswers, SetupAudience, SetupDecision, SetupLogin, SetupMachine, SetupUrl, SetupValues } from "../contract/types.ts";
-
-/** The command that re-runs setup. Every "how do I change this" line names it. */
-export const SETUP_COMMAND = "pnpm start --setup";
 
 export const PORT_KEY = "PORT";
 export const AUTH_MODE_KEY = "AUTH_MODE";
@@ -32,18 +30,12 @@ const MODE_ANSWERS: Record<AuthMode, { readonly audience: SetupAudience; readonl
   "forward-header": { audience: "network", login: "sso" },
 };
 
-// The `ALLOWED_HOSTS` grammar the server parses (foundation/env/allowed-hosts.ts): an entry is an exact name
-// or a dot-led suffix; labels are 1-63 of [a-z0-9_-] with no hyphen at either end; a name is at most 253
-// characters. `localhost`, `*.localhost` and IP literals always pass the server's Host check and are never written.
+// The `ALLOWED_HOSTS` grammar is `@orb/kit/allowed-hosts`, the one the server's env parse uses. `localhost`,
+// `*.localhost` and IP literals always pass the server's Host check and are never written.
 const LOCALHOST = "localhost";
-const HOST_LABEL_RE = /^(?!-)[a-z0-9_-]{1,63}(?<!-)$/u;
-const MAX_HOST_NAME_LENGTH = 253;
-const SUFFIX_MARK = ".";
 const DIGITS_RE = /^\d+$/u;
 const BRACKETED_RE = /^\[(.*)\]$/u;
 const LINE_ENDING_RE = /\r$/u;
-/** The multicast DNS domain: most home networks resolve `<machine>.local` with no setup. */
-const MDNS_DOMAIN = "local";
 const LINK_LOCAL_V4_PREFIX = "169.254.";
 /** Tailscale's CGNAT range, 100.64.0.0/10. */
 const TAILNET_FIRST_OCTET = 100;
@@ -140,33 +132,6 @@ function needsNoAllowedHostsEntry(host: string): boolean {
   return isIP(unbracketed) !== 0 || host === LOCALHOST || host.endsWith(`.${LOCALHOST}`);
 }
 
-/** An exact host name or a dot-led suffix, in the server's `ALLOWED_HOSTS` grammar. */
-function isAllowedHostEntry(entry: string): boolean {
-  const name = entry.startsWith(SUFFIX_MARK) ? entry.slice(SUFFIX_MARK.length) : entry;
-  return name !== "" && name.length <= MAX_HOST_NAME_LENGTH && name.split(".").every((label) => HOST_LABEL_RE.test(label));
-}
-
-/** Split an `ALLOWED_HOSTS` value or an address answer into entries: trimmed, lower-cased, one trailing dot
- *  removed, empty entries dropped. */
-export function hostList(value: string | null): readonly string[] {
-  return (value ?? "")
-    .split(",")
-    .map((entry) => entry.trim().toLowerCase())
-    .map((entry) => (entry.endsWith(".") ? entry.slice(0, -1) : entry))
-    .filter((entry) => entry !== "");
-}
-
-/** The names this machine answers to: its host name, lower-cased (Windows reports NetBIOS names in upper case),
- *  and the `<name>.local` mDNS form, which macOS may already report as the host name. */
-export function detectedHostNames(hostname: string): readonly string[] {
-  const [name] = hostList(hostname);
-  const label = name?.split(".")[0];
-  if (name === undefined || label === undefined || name.startsWith(SUFFIX_MARK) || !isAllowedHostEntry(name)) {
-    return [];
-  }
-  return [...new Set([name, `${label}.${MDNS_DOMAIN}`])];
-}
-
 /** WSL2's kernel names itself in `/proc/version`. WSL1 does not match: it shares Windows' own network stack, so
  *  its addresses are the LAN's. */
 export function isWsl2Kernel(procVersion: string): boolean {
@@ -192,7 +157,7 @@ export function openUrls(machine: SetupMachine, port: number): readonly SetupUrl
   );
   const tailnet = addresses.filter(({ address }) => inTailnetRange(address));
   const lan = addresses.filter(({ name, address }) => !(inTailnetRange(address) || VIRTUAL_ADAPTER_RE.test(name)));
-  const mdns = detectedHostNames(machine.hostname).filter((host) => host.endsWith(`.${MDNS_DOMAIN}`));
+  const mdns = machineHostNames(machine.hostname).filter((host) => host.endsWith(`.${MDNS_DOMAIN}`));
   const url = (host: string): string => `http://${host}:${port}`;
   return [
     ...lan.map(({ address }) => ({ url: url(address), kind: "lan" as const })),
@@ -206,9 +171,12 @@ export function openUrls(machine: SetupMachine, port: number): readonly SetupUrl
  *  empty answer or an IP keeps `known`. `null` means there is nothing to write. */
 export function parseAddressAnswer(raw: string, known: readonly string[]): AnswerParse<string | null> {
   const names = [...known];
-  for (const entry of hostList(raw)) {
+  for (const entry of splitHostList(raw)) {
     if (needsNoAllowedHostsEntry(entry)) {
       continue;
+    }
+    if (isTopLevelSuffix(entry)) {
+      return { ok: false, error: `${JSON.stringify(entry)} would allow a whole top-level domain; type your own domain (.example.com) or the exact name.` };
     }
     if (!isAllowedHostEntry(entry)) {
       return { ok: false, error: `${JSON.stringify(entry)} is not a host name; type the name alone, with no http:// and no port.` };

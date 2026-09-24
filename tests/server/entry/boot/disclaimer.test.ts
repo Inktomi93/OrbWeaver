@@ -16,7 +16,14 @@ function input(over: Partial<BootDisclaimerInput> = {}): BootDisclaimerInput {
     authMode,
     authFallback: "owner",
     breakGlass: false,
-    bind: resolveBindPosture({ nodeEnv: "production", authMode, bindHost: undefined, allowDevPublicBind: false, ownerPeersDeclared: false }),
+    bind: resolveBindPosture({
+      nodeEnv: "production",
+      authMode,
+      bindHost: undefined,
+      allowDevPublicBind: false,
+      ownerPeersDeclared: false,
+      inContainer: false,
+    }),
     bindWarnings: NO_WARNINGS,
     ownerPeers: resolveOwnerFallbackPeers({ authFallback: "owner", trustedPeers: undefined }),
     ownerPeerWarnings: NO_WARNINGS,
@@ -47,7 +54,14 @@ describe("composeBootDisclaimer", () => {
   test("the caveat also rides a single-user box whose declared peer set opens the listener", () => {
     const widened = resolveOwnerFallbackPeers({ authFallback: "owner", trustedPeers: "172.16.0.0/12" });
     const container = input({
-      bind: resolveBindPosture({ nodeEnv: "production", authMode: "single-user", bindHost: "0.0.0.0", allowDevPublicBind: false, ownerPeersDeclared: true }),
+      bind: resolveBindPosture({
+        nodeEnv: "production",
+        authMode: "single-user",
+        bindHost: "0.0.0.0",
+        allowDevPublicBind: false,
+        ownerPeersDeclared: true,
+        inContainer: false,
+      }),
       ownerPeers: widened,
       ownerPeerWarnings: ["widened"],
     });

@@ -112,11 +112,23 @@ describe("refusedHost", () => {
   });
 
   test("the owner's box: Caddy passes Host and X-Forwarded-Host, and the OIDC callback host admits both", () => {
-    const allowed = resolveAllowedHosts({ allowedHosts: undefined, oidcRedirectUris: "https://orbweaver.inktomi.tech/api/auth/oidc/callback" });
+    const allowed = resolveAllowedHosts({
+      allowedHosts: undefined,
+      oidcRedirectUris: "https://orbweaver.inktomi.tech/api/auth/oidc/callback",
+      machineHostname: null,
+    });
     const owner = facts("orbweaver.inktomi.tech", { forwardedHost: "orbweaver.inktomi.tech" }, CADDY_PEER);
     expect(refusedHost(owner, allowed)).toBeNull();
     // Control: the same shape with nothing configured is refused, so the derived host is what admitted it.
     expect(refusedHost(owner, NONE)).toBe("orbweaver.inktomi.tech");
+  });
+
+  test("on bare metal the machine's own name and its .local form pass unconfigured; a foreign name is still refused", () => {
+    const allowed = resolveAllowedHosts({ allowedHosts: undefined, oidcRedirectUris: undefined, machineHostname: "GAME-PC" });
+    expect(refusedHost(facts("game-pc:8788"), allowed)).toBeNull();
+    expect(refusedHost(facts("Game-PC.local:8788"), allowed)).toBeNull();
+    expect(refusedHost(facts(`${REBOUND}:8788`), allowed)).toBe(REBOUND);
+    expect(refusedHost(facts("game-pc.attacker.example"), allowed)).toBe("game-pc.attacker.example");
   });
 
   test("the echoed host is capped at a DNS name's length", () => {

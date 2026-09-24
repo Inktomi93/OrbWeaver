@@ -747,11 +747,18 @@ describe("ALLOWED_HOSTS — a malformed entry is a parse refusal naming it", () 
     await expect(refusal).rejects.toThrow(entry);
   });
 
+  test("a one-label suffix such as .com refuses boot and says it would allow a whole top-level domain", async () => {
+    const refusal = reimportEnvWith({ ALLOWED_HOSTS: "nas.local, .com" });
+    await expect(refusal).rejects.toThrow("whole top-level domain");
+    await expect(refusal).rejects.toThrow(".com");
+  });
+
   test("well-formed names boot and reach the resolver beside the OIDC callback hosts", async () => {
     const mod = await reimportEnvWith({
       ALLOWED_HOSTS: "nas.local, .ts.net",
       OIDC_REDIRECT_URIS: "https://orbweaver.inktomi.tech/api/auth/oidc/callback",
     });
-    expect(mod.resolveAllowedHosts(mod.allowedHostsInput())).toEqual(["nas.local", ".ts.net", "orbweaver.inktomi.tech"]);
+    // Configured names first, then the OIDC callback host; the machine's own names (bare metal only) follow them.
+    expect(mod.resolveAllowedHosts(mod.allowedHostsInput()).slice(0, 3)).toEqual(["nas.local", ".ts.net", "orbweaver.inktomi.tech"]);
   });
 });
