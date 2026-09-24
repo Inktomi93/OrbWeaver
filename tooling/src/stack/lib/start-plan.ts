@@ -6,10 +6,18 @@
 // value computed from `{ platform, ambient env }` rather than read from the ambient process, so the win32
 // answer is unit-provable on Linux. `stack.sh` (the Linux dev supervisor: setsid, ss, /proc) is untouched;
 // the cross-platform dev path is `pnpm dev` (tooling/src/dev/).
-import type { DistVerdict, PnpmInvocation, ProdSpawnPlan, StartBuildDecision, StartBuildMode, StartParse } from "../contract/types.ts";
+import { MAX_TCP_PORT } from "../../_shared/ports.ts";
+import type { AnswerParse, DistVerdict, PnpmInvocation, ProdSpawnPlan, StartBuildDecision, StartBuildMode, StartParse } from "../contract/types.ts";
+import { effectiveAuthMode, PORT_KEY, parsePortAnswer, SETUP_COMMAND, SINGLE_USER_MODE } from "./setup-plan.ts";
 import { buildProdSpawnPlan, CLIENT_DIST_INDEX_REL } from "./spawn-plan.ts";
 
-export const START_USAGE = "usage: pnpm start [--build | --no-build]";
+const SETUP_FLAG = "--setup";
+const PORT_FLAG = "--port";
+
+export const START_USAGE = `usage: pnpm start [--build | --no-build] [${SETUP_FLAG}] [${PORT_FLAG} <n>]`;
+
+/** The server's switch that stops `.env` overriding the process env (foundation/env reads it at load). */
+const ENV_NO_OVERRIDE = "ORB_ENV_NO_OVERRIDE";
 
 /** pnpm's JS entry, however this process was launched. A `.cjs`/`.js`/`.mjs` tail is the whole test:
  *  `npm_execpath` is set by every package manager to the file IT was started from. */
@@ -18,21 +26,39 @@ const JS_ENTRY = /\.(?:c|m)?js$/u;
 /** The env key pnpm (and npm/yarn) sets to the absolute path of its own JS entry when it runs a script. */
 export const PNPM_EXECPATH_ENV = "npm_execpath";
 
-/** The mode whose ONLY credential is the loopback owner fallback (foundation/env: AUTH_MODE's default). */
-export const SINGLE_USER_MODE = "single-user";
+const BUILD_FLAGS: ReadonlyMap<string, StartBuildMode> = new Map([
+  ["--build", "force"],
+  ["--no-build", "skip"],
+]);
 
+function parsePortFlag(raw: string | undefined): AnswerParse<number> {
+  const parsed = raw === undefined || raw === "" ? null : parsePortAnswer(raw, MAX_TCP_PORT);
+  return parsed?.ok === true ? parsed : { ok: false, error: `${PORT_FLAG} needs a port from 1 to ${MAX_TCP_PORT}` };
+}
+
+/** Parse `pnpm start`'s flags. `--port` takes its value as the next word or after `=`. */
 export function parseStartArgv(argv: readonly string[]): StartParse {
+  const rest = argv.flatMap((arg) => (arg.startsWith(`${PORT_FLAG}=`) ? [PORT_FLAG, arg.slice(PORT_FLAG.length + 1)] : [arg]));
   let build: StartBuildMode = "auto";
-  for (const arg of argv) {
-    if (arg === "--build") {
-      build = "force";
-    } else if (arg === "--no-build") {
-      build = "skip";
+  let setup = false;
+  let port: number | null = null;
+  for (let arg = rest.shift(); arg !== undefined; arg = rest.shift()) {
+    const buildMode = BUILD_FLAGS.get(arg);
+    if (buildMode !== undefined) {
+      build = buildMode;
+    } else if (arg === SETUP_FLAG) {
+      setup = true;
+    } else if (arg === PORT_FLAG) {
+      const parsed = parsePortFlag(rest.shift());
+      if (!parsed.ok) {
+        return { ok: false, error: parsed.error };
+      }
+      port = parsed.value;
     } else {
       return { ok: false, error: `unknown argument ${JSON.stringify(arg)}` };
     }
   }
-  return { ok: true, invocation: { build } };
+  return { ok: true, invocation: { build, setup, port } };
 }
 
 /** Should the client bundle be (re)built before the server boots?
@@ -59,13 +85,6 @@ export function decideStartBuild(dist: DistVerdict, mode: StartBuildMode): Start
   return { run: false, reason: "client bundle is up to date — skipping the build (--build forces one)" };
 }
 
-/** The effective AUTH_MODE, with `.env`'s precedence: foundation/env loads the file with `override:true`,
- *  so a value in `.env` beats a shell export, and an absent value is the schema's `single-user` default. */
-export function effectiveAuthMode(fileEnv: Readonly<Record<string, string | undefined>>, ambient: Readonly<Record<string, string | undefined>>): string {
-  const declared = fileEnv["AUTH_MODE"] ?? ambient["AUTH_MODE"];
-  return declared === undefined || declared === "" ? SINGLE_USER_MODE : declared;
-}
-
 /** The single-user fallback the container entrypoint also states (docker/entrypoint.sh job 2), stated the
  *  same way for a bare-metal run.
  *
@@ -90,6 +109,16 @@ export function singleUserFallbackEnv(
   // AUTH_FALLBACK is an ENV NAME (the platform's SCREAMING_SNAKE vocabulary), so it is set by key rather
   // than as an object-literal property — the same idiom NODE_ENV takes in ./spawn-plan.ts.
   return declared === undefined || declared === "" ? Object.fromEntries([["AUTH_FALLBACK", "owner"]]) : {};
+}
+
+/** The child env for `--port <n>`: this launch binds `port` and `.env` is not written.
+ *
+ *  `.env` loads with override:true, so a PORT in the file would beat a PORT on the child env. The overlay turns
+ *  the override off for this launch and restates every `.env` value on the child env, so the file still wins
+ *  over the shell for every key except the one being overridden. */
+export function portOverrideEnv(fileEnv: Readonly<Record<string, string | undefined>>, port: number): Readonly<Record<string, string>> {
+  const restated = Object.entries(fileEnv).flatMap(([key, value]) => (value === undefined ? [] : [[key, value] as const]));
+  return Object.fromEntries([...restated, [PORT_KEY, String(port)], [ENV_NO_OVERRIDE, "1"]]);
 }
 
 /** Name the pnpm to run `pnpm build` with, for a `shell: false` spawn on any platform.
@@ -162,7 +191,7 @@ export function startBannerLines(opts: { readonly port: number; readonly mode: s
     "",
     `  orbweaver is running:  http://localhost:${opts.port}`,
     `  ${posture}`,
-    "  other devices need a login: set AUTH_MODE=local in .env; put HTTPS in front, or the login travels in clear.",
+    `  other devices need a login: run \`${SETUP_COMMAND}\`; put HTTPS in front, or the login travels in clear.`,
     "  Ctrl-C stops the server.",
     "",
   ];

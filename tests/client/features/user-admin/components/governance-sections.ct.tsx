@@ -139,7 +139,7 @@ test("Multi-user's Reset clears only the keys the viewer may clear — delegated
 });
 
 // The read-only sharing panel beside the seating switch: letting other devices sign in is an env change
-// (AUTH_MODE), never a runtime switch, so the panel states the box's posture and the exact `.env` line.
+// (AUTH_MODE), never a runtime switch, so the panel states the box's posture and how to change it.
 function authConfigFor(mode: AuthMode): AuthConfig {
   return {
     mode,
@@ -165,14 +165,14 @@ async function stubAuthConfig(page: Page, mode: AuthMode): Promise<void> {
   await page.route("**/api/auth/config", (route) => route.fulfill({ status: 200, contentType: "application/json", body }));
 }
 
-test("single-user: the sharing panel gives the .env line that lets other devices sign in", async ({ mount, page }) => {
+test("single-user: the sharing panel gives the setup command that lets other devices sign in", async ({ mount, page }) => {
   await stub(page, OWNER);
   await stubAuthConfig(page, "single-user");
   await mount(<GovernanceSectionsStory />);
 
   const panel = page.getByTestId("admin-sharing-panel");
   await expect(panel).toHaveAttribute("data-auth-mode", "single-user");
-  await expect(panel.getByTestId("admin-sharing-env-line")).toHaveText("AUTH_MODE=local");
+  await expect(panel.getByTestId("admin-sharing-line")).toHaveText("pnpm start --setup");
 });
 
 test("oidc: the sharing panel states the running mode's line", async ({ mount, page }) => {
@@ -182,7 +182,7 @@ test("oidc: the sharing panel states the running mode's line", async ({ mount, p
 
   const panel = page.getByTestId("admin-sharing-panel");
   await expect(panel).toHaveAttribute("data-auth-mode", "oidc");
-  await expect(panel.getByTestId("admin-sharing-env-line")).toHaveText("AUTH_MODE=oidc");
+  await expect(panel.getByTestId("admin-sharing-line")).toHaveText("AUTH_MODE=oidc");
 });
 
 // Read-only by ruling: the auth mode is a boot fact, so the panel offers nothing to toggle, for any viewer.
