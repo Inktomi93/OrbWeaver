@@ -242,6 +242,26 @@ describe("publishPrivateEndpointAllowlist — the deployment's private-endpoint 
     expect(endpointAdmission("http://127.0.0.1:8703")).toBe("admitted"); // the good entry still lands
   });
 
+  // An entry is read by the SAME parser `isInRanges` matches with (`@orb/kit/ip`). A mapped `::ffff:a.b.c.d` is
+  // an IPv4 address there, so it admits that address; a zone id is not an address there, so it is refused.
+  test("an IPv4-mapped entry admits its address and a zone-id entry is refused, as the range match reads them", async () => {
+    const warn = vi.fn();
+    const log = (await import("@orb/server/foundation/observability")).getLog();
+    const prior = log.warn;
+    log.warn = warn;
+    try {
+      publishPrivateEndpointAllowlist(["::ffff:192.168.1.10", "fe80::1%eth0", "::ffff:10.0.0.0/104"]);
+    } finally {
+      log.warn = prior;
+    }
+    const counts = warn.mock.calls[0]?.[0] as { refused?: number } | undefined;
+    expect(counts?.refused).toBe(2);
+    expect(endpointAdmission("http://192.168.1.10:8000")).toBe("admitted");
+    expect(endpointAdmission("http://[::ffff:192.168.1.10]:8000")).toBe("admitted");
+    expect(endpointAdmission("http://192.168.1.11:8000")).toBe("refused");
+    expect(endpointAdmission("http://10.0.0.5:8000")).toBe("refused");
+  });
+
   test("a private address OUTSIDE the set stays blocked while a sibling is admitted", async () => {
     publishPrivateEndpointAllowlist(["127.0.0.1"]);
     expect(endpointAdmission("http://10.0.0.5:8000")).toBe("refused");
