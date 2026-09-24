@@ -6,18 +6,21 @@
 import type { ChatInjection } from "@orb/contracts/chat";
 import { CHAT_REACT_TOOL_NAME } from "@orb/contracts/chat";
 import type { ProseOverrides } from "@orb/contracts/prose";
-import { PROSE_SLOTS } from "@orb/contracts/prose";
+import { PROSE_SLOTS, resolveProseText } from "@orb/contracts/prose";
 import type { Db } from "@orb/db";
 import type { ChatId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, mintTypeId } from "@orb/kit/ids";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { describe } from "vitest";
+import { MERGE_SEPARATOR } from "../../../../packages/server/src/domain/chat/assembly/role-squash.ts";
+import { shape } from "../../../../packages/server/src/domain/chat/assembly/shape.ts";
 import type {
   ChatRpgGatherResult,
   TeachingContext,
   TeachingContribution,
   TeachingKnobs,
 } from "../../../../packages/server/src/domain/chat/contract/context.ts";
+import { convertsToEmptyWireRow } from "../../../../packages/server/src/domain/chat/substrate/wire-history.ts";
 import { createChatTeachingContributions } from "../../../../packages/server/src/domain/chat/teaching-contribution.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
@@ -25,6 +28,11 @@ const STATE_BLOCK: ChatInjection = { position: "in_chat", depth: 0, role: "syste
 
 /** The shipped choices teach — the same slot bytes rpg's reminder resolves (S2: NO second prose home). */
 const CHOICES_TEACH = PROSE_SLOTS["rpg.reminder.cyoaTeach"].text;
+
+/** A teach as the contribution emits it: inside the shipped `chat.teach.choicesFrame` delimiter. */
+function framed(teach: string): string {
+  return resolveProseText("chat.teach.choicesFrame", {}, { teach });
+}
 
 /** The unit tier has no database; only the ATTRIBUTION contributor reads one, and no test here collects
  *  it (its behavior is `teaching-contribution.int.test.ts`'s). The `workloads/_support.ts` spelling. */
@@ -119,7 +127,7 @@ describe("createChatTeachingContributions — the offer-choices teach", () => {
   test("the knob ON teaches the SHIPPED SLOT's bytes at the reminder's own placement, attaching no tools", async () => {
     const out = await offerChoices().collect(tctxOf(null, { knobs: knobsOf({ offerChoices: true }) }));
 
-    expect(out).toEqual({ injections: [{ position: "in_chat", depth: 0, role: "system", content: CHOICES_TEACH }], toolNames: [] });
+    expect(out).toEqual({ injections: [{ position: "in_chat", depth: 0, role: "system", content: framed(CHOICES_TEACH) }], toolNames: [] });
   });
 
   test("a host PRESET OVERRIDE of the slot is what gets taught — the teach is preset-editable, never the baseline", async () => {
@@ -128,7 +136,7 @@ describe("createChatTeachingContributions — the offer-choices teach", () => {
 
     const out = await offerChoices().collect(tctxOf(null, { knobs: knobsOf({ offerChoices: true }), prose }));
 
-    expect(out.injections.map((i) => i.content)).toEqual([text]);
+    expect(out.injections.map((i) => i.content)).toEqual([framed(text)]);
   });
 
   test("an override typing {{user}}/{{char}} renders the NAMES — a teach never ships literal braces", async () => {
@@ -136,7 +144,7 @@ describe("createChatTeachingContributions — the offer-choices teach", () => {
 
     const out = await offerChoices().collect(tctxOf(null, { knobs: knobsOf({ offerChoices: true }), prose }));
 
-    expect(out.injections.map((i) => i.content)).toEqual(["Offer Nate three ways to answer Aria."]);
+    expect(out.injections.map((i) => i.content)).toEqual([framed("Offer Nate three ways to answer Aria.")]);
   });
 
   // The `{{user}}` FLOOR on a personaless turn. Not a style point: rpg's gather floors the same macro to
@@ -147,7 +155,7 @@ describe("createChatTeachingContributions — the offer-choices teach", () => {
 
     const out = await offerChoices().collect(tctxOf(null, { knobs: knobsOf({ offerChoices: true }), prose, identity: { user: undefined, char: "Aria" } }));
 
-    expect(out.injections.map((i) => i.content)).toEqual([`Offer ${DEFAULT_PERSONA_NAME} three ways.`]);
+    expect(out.injections.map((i) => i.content)).toEqual([framed(`Offer ${DEFAULT_PERSONA_NAME} three ways.`)]);
   });
 
   // THE SUPPRESSION, at the granularity rpg actually emits (`chat-ops/gather.ts:183,206` — ONE injection whose
@@ -163,7 +171,62 @@ describe("createChatTeachingContributions — the offer-choices teach", () => {
   test("a game gather WITHOUT the teach ⇒ chat still teaches (the suppression is not 'any game chat')", async () => {
     const out = await offerChoices().collect(tctxOf(gatherOf(), { knobs: knobsOf({ offerChoices: true }) }));
 
-    expect(out.injections.map((i) => i.content)).toEqual([CHOICES_TEACH]);
+    expect(out.injections.map((i) => i.content)).toEqual([framed(CHOICES_TEACH)]);
+  });
+});
+
+// On a model that takes no system row the depth-0 teach folds into the player's own message, after their labelled
+// line. It carries its own delimiter so that line never introduces it (owner ruling). The delimiters are read off
+// the frame slot, so the assertion is the structure, never the words.
+describe("createChatTeachingContributions — the offer-choices teach is delimited at its source", () => {
+  const [open = "", close = ""] = PROSE_SLOTS["chat.teach.choicesFrame"].text.split("{{teach}}");
+
+  test("a folded teach is delimited from the player's label line in a labelled multi-human room", async () => {
+    expect(open.trim()).not.toBe("");
+    expect(close.trim()).not.toBe("");
+    const out = await offerChoices().collect(tctxOf(null, { knobs: knobsOf({ offerChoices: true }) }));
+
+    const shaped = shape({
+      canon: [
+        { role: "user", content: "I open the door.", authorName: "Nate", messageId: mintTypeId("message") },
+        { role: "user", content: "I follow him in.", authorName: "Joe", messageId: mintTypeId("message") },
+      ],
+      appendUserTurn: null,
+      injections: out.injections,
+      output: "per-speaker",
+      cardScope: "merged",
+      scopedTargetId: null,
+      namesBehavior: "default",
+      speakers: { user: "Nate", assistant: "Aria" },
+      multiHuman: true,
+      groupNudge: null,
+      convertsToEmptyWireRow,
+    });
+    const players = `Nate: I open the door.${MERGE_SEPARATOR}Joe: I follow him in.${MERGE_SEPARATOR}`;
+    const message = shaped.history.at(-1)?.content ?? "";
+    expect(message.startsWith(players)).toBe(true);
+    const folded = message.slice(players.length);
+    expect(folded.startsWith(open)).toBe(true);
+    expect(folded.endsWith(close)).toBe(true);
+    // The teach itself rides whole between the delimiters.
+    expect(folded.slice(open.length, folded.length - close.length)).toBe(CHOICES_TEACH);
+  });
+
+  test("the frame is the preset's slot: a host override replaces the delimiter around the same teach", async () => {
+    const prose: ProseOverrides = { "chat.teach.choicesFrame": { text: "<<{{teach}}>>", baseVersion: 1 } };
+
+    const out = await offerChoices().collect(tctxOf(null, { knobs: knobsOf({ offerChoices: true }), prose }));
+
+    expect(out.injections.map((i) => i.content)).toEqual([`<<${CHOICES_TEACH}>>`]);
+  });
+
+  test("the game's reminder already carrying the teach still suppresses the framed teach", async () => {
+    const reminder = `${open}${STATE_BLOCK.content}\n\n${CHOICES_TEACH}${close}`;
+    const gather = gatherOf({ injections: [{ ...STATE_BLOCK, content: reminder }] });
+
+    const out = await offerChoices().collect(tctxOf(gather, { knobs: knobsOf({ offerChoices: true }) }));
+
+    expect(out).toEqual({ injections: [], toolNames: [] });
   });
 });
 

@@ -1232,6 +1232,20 @@ test("the write boundary REFUSES a game-notes frame that dropped {{reminder}}, a
   expect(promptConfigWriteSchema.safeParse(withProse("rpg.reminder.frame", "<<{{reminder}}>>")).success).toBe(true);
 });
 
+// The two teaching-note frames carry their note's whole payload the same way, so each refuses a dropped token.
+test("the write boundary REFUSES a teaching-note frame that dropped its token, and takes one that keeps it", () => {
+  for (const [slotId, token] of [
+    ["chat.teach.choicesFrame", "{{teach}}"],
+    ["automation.guidance.frame", "{{guidance}}"],
+  ] as const) {
+    const dropped = promptConfigWriteSchema.safeParse(withProse(slotId, "[A note for the model.]"));
+    expect(dropped.success, slotId).toBe(false);
+    expect(dropped.error?.issues[0]?.path, slotId).toStrictEqual(["prose", slotId, "text"]);
+    expect(dropped.error?.issues[0]?.message, slotId).toContain(token);
+    expect(promptConfigWriteSchema.safeParse(withProse(slotId, `<<${token}>>`)).success, slotId).toBe(true);
+  }
+});
+
 test("blank-means-default survives the note guard, and the SPLICE's own spellings are accepted", () => {
   for (const slotId of NOTE_CARRIER_SLOTS) {
     expect(promptConfigWriteSchema.safeParse(withProse(slotId, "")).success, slotId).toBe(true);

@@ -6,11 +6,11 @@
 // `domain-teaching-contribution-compose-only` cruiser stanza makes that physics).
 //
 // GUIDANCE IS DATA, NEVER A TEMPLATE (§2 law 6 — the whole reason this channel exists as it does): the
-// stored bytes are MODEL-authored, and they ship VERBATIM — never through `renderArmTemplate` or
-// `processMacros`. The delivery plane is macro-inert BY CHANNEL: teaching injections merge into the
-// assembly's injections splice, whose `resolveContent` hook is identity in production
-// (`chat/assembly/injections.ts`) — so a model-authored `{{getglobalvar::…}}` reaches the assembled prompt
-// as LITERAL BRACES (pinned). No `neutralizeMacros` here either: neutralization is for text entering a
+// stored bytes are MODEL-authored, and they ship VERBATIM inside the preset's `automation.guidance.frame`
+// delimiter — a plain token splice, never `renderArmTemplate` or `processMacros`. The delivery plane is
+// macro-inert BY CHANNEL: teaching injections merge into the assembly's injections splice, whose
+// `resolveContent` hook is identity in production (`chat/assembly/injections.ts`) — so a model-authored
+// `{{getglobalvar::…}}` reaches the assembled prompt as LITERAL BRACES (pinned). No `neutralizeMacros` here either: neutralization is for text entering a
 // macro-EXECUTION plane (law 7), and this plane executes nothing — mutating the bytes would break the
 // VERBATIM law for zero defense.
 //
@@ -26,6 +26,7 @@
 // deep-equal to a registry without this contribution — pinned through the REAL `collectTeaching` (the
 // B1 lesson: a fixture shaped unlike the real producer ratifies nothing).
 
+import { resolveProseText } from "@orb/contracts/prose";
 import type { Db } from "@orb/db";
 import type { TeachingCollection, TeachingContext, TeachingContribution } from "#domain/chat";
 import { selectChatGuidance } from "./persistence/rule-state.ts";
@@ -55,10 +56,13 @@ export function createAutomationTeachingContributions(deps: { readonly db: Db })
         if (guidance === null) {
           return EMPTY;
         }
+        // A model that takes no system row folds this note into a player's message, so it carries its own
+        // delimiter and never reads as that player's words (owner ruling).
+        const content = resolveProseText("automation.guidance.frame", tctx.prose, { guidance });
         return {
           // VERBATIM bytes at the authors-note register — `origin` reuses the existing axis member (the
           // spec's own naming), so the host's budget breakdown accounts it with the other steering notes.
-          injections: [{ position: "in_chat", depth: ANALYSIS_GUIDANCE_DEPTH, role: "system", content: guidance, origin: "authors-note" }],
+          injections: [{ position: "in_chat", depth: ANALYSIS_GUIDANCE_DEPTH, role: "system", content, origin: "authors-note" }],
           toolNames: [],
         };
       },

@@ -232,6 +232,10 @@
       "version": 1,
       "sha256": "f06fb31f86e01bc72d20571d37ce2aec7f423c01b03ec47d40502572d09d7f06"
     },
+    "chat.teach.choicesFrame": {
+      "version": 1,
+      "sha256": "2d07834234baee31c91f71e9f793819edcc2f0012d978b9e7c11a474cc91f15b"
+    },
     "chat.recovery.narrativeContinuation": {
       "version": 1,
       "sha256": "2f50d1b107f24221389ce4920ed783cf7c0238abf63188cf00495d2d2b08ef3d"
@@ -287,6 +291,10 @@
     "automation.analysis.firstArc": {
       "version": 1,
       "sha256": "d491672c37aec8703a0a938e2d0ec22f3341df11717c1273d195a064c1354937"
+    },
+    "automation.guidance.frame": {
+      "version": 1,
+      "sha256": "2bc826e7d78e771f9496123744afa9ff9a25cbaaceb2258391af1ed962c732f3"
     },
     "discovery.compare.system": {
       "version": 1,

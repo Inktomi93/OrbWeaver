@@ -129,6 +129,9 @@ export const PROSE_SLOT_IDS = [
   "chat.injection.userNote",
   "chat.injection.assistantNote",
   "chat.assembly.continuationNudge",
+  // The frame chat's offer-choices teach carries, so a teach folded into the player's message never reads as
+  // the player's words (owner ruling: every product-authored system note carries its own delimiter).
+  "chat.teach.choicesFrame",
   // ── per-USER: the prose-less-completion recovery ask (dogfood EMPTYGEN-REASONING) ──
   "chat.recovery.narrativeContinuation",
   // ── per-USER: the B7 `react` tool's model-facing description (the imagery.tool.* shape) ──
@@ -148,6 +151,10 @@ export const PROSE_SLOT_IDS = [
   "automation.analysis.vars",
   "automation.analysis.close",
   "automation.analysis.firstArc",
+  // ── per-PRESET: the frame around the S5 standing guidance on the turn it steers. The guidance is delivered
+  //    through the turn preset's teaching context, so its delimiter is preset-authored like the other turn-wire
+  //    frames (the same owner ruling as `chat.teach.choicesFrame`). ──
+  "automation.guidance.frame",
   // ── per-USER: discovery's three whole side-generation system prompts (S1b) ──
   "discovery.compare.system",
   "discovery.ask.system",
