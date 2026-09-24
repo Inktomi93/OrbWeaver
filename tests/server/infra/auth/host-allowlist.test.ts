@@ -76,6 +76,14 @@ describe("isHostAllowed", () => {
     expect(isHostAllowed("machine.tailnet.ts.net", allowed)).toBe(true);
     expect(isHostAllowed("attackerts.net", allowed)).toBe(false);
   });
+
+  test("a configured entry matches only a hostname: a zone-shaped value ending in the suffix is refused", () => {
+    const allowed = [".example.com"];
+    expect(refusedHost(facts("[a:%x.example.com]:8788"), allowed)).not.toBeNull();
+    expect(refusedHost(facts("a:b:%x.example.com"), allowed)).not.toBeNull();
+    // Control: a real subdomain is still admitted.
+    expect(refusedHost(facts("x.example.com:8788"), allowed)).toBeNull();
+  });
 });
 
 describe("refusedHost", () => {
