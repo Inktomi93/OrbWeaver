@@ -9,6 +9,10 @@ import type { CapabilityOverrideInput } from "@orb/contracts/inference";
  *  dated snapshot) stays on the fail-closed family cell. haiku-4-5 is absent: it 400s any system row. */
 const SYSTEM_ROW_MODELS = "^(anthropic/)?claude[-/](opus-5([-.]5)?|fable-5([-.]1)?|sonnet-5|opus-4[-.]8)$";
 
+/** The subset of {@link SYSTEM_ROW_MODELS} measured to OBEY a tail system row, not only accept it: sonnet-5 and
+ *  opus-4-8 return 200 and ignore the row's instruction, so their trailing system rows fold to user text. */
+const TAIL_SYSTEM_MODELS = "^(anthropic/)?claude[-/](opus-5([-.]5)?|fable-5([-.]1)?)$";
+
 export const anthropicRows = [
   {
     match: {
@@ -367,14 +371,11 @@ export const anthropicRows = [
       sampling: {
         exclusive: [["temperature", "topP"]],
       },
-      turns: {
-        clearAt: true,
-      },
     },
     evidence: {
       tier: "curated",
       dated: "2026-09-19",
-      cite: "§8.7 mutually-exclusive knobs on the direct wire (a RESTRICTION, compatible with D68 fail-closed — no ranges ship until a dated measured/anthropic.ts entry); clearAt = @ai-sdk/anthropic's mid-conversation-system-clear-at-2026-08-21 beta (convert-to-anthropic-prompt.ts:242-262)",
+      cite: "§8.7 mutually-exclusive knobs on the direct wire (a RESTRICTION, compatible with D68 fail-closed — no ranges ship until a dated measured/anthropic.ts entry)",
     },
   },
   {
@@ -384,7 +385,22 @@ export const anthropicRows = [
     },
     generation: {
       turns: {
-        midConversationSystem: true,
+        clearAt: true,
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-23",
+      cite: "live direct, beta mid-conversation-system-clear-at-2026-08-21: a clear_at system row is gone at the next user message (reply NONE) on opus-5 (req_011CfKVUJD3ipkDBURp19sXj), opus-5-5 (req_011CfKVV2k9iHSqTPHcwRNSD), opus-4-8 (req_011CfKVVYX44YTjbwoAKYo99), fable-5 (req_011CfKVWNKfLpeGjNyZnEYbX), fable-5-1 (req_011CfKVY2ydLzekGz4ukQwLX), sonnet-5 (req_011CfKVYxTo2sfGmeVp7nPQx); the same row without clear_at stays visible (req_011CfKVUr4Dc8kxdC8cnp66P). Other Claude ids are unmeasured and stay off",
+    },
+  },
+  {
+    match: {
+      model: SYSTEM_ROW_MODELS,
+      wire: "anthropic-messages",
+    },
+    generation: {
+      turns: {
         historySystemRows: true,
         roleHandlingFloor: "slotted",
       },
@@ -392,7 +408,7 @@ export const anthropicRows = [
     evidence: {
       tier: "curated",
       dated: "2026-09-23",
-      cite: "SHAPING-MATRIX §7 handling (b), direct, n=3 per cell: a tail system row and a legal-slot [u,S,a] row return 200 on opus-5 (req_011CfKhAEdeEh6hy5HbSgemF…), opus-5-5 (req_011CfKhJ4rzXWr39mUEhXSKo…), fable-5 (req_011CfKhJ4omUcAHiNHB3tvWb…), fable-5-1 (req_011CfKhJ4omHQU8PuX1mRUEn…), sonnet-5 (req_011CfKhYub3yrLNLnBRDfNb4…), opus-4-8 (req_011CfKhYuVMPxhZ1UbNk9JiX…); an illegal [a,S,u] slot 400s (req_011CfKZSZSFUfW1Jdarpf5Cb), so the floor is slotted. haiku-4-5 400s any system row (req_011CfKhZ8ALv97q91yH4eqep) and is not on this row",
+      cite: "SHAPING-MATRIX §7 handling (b), direct, n=3 per cell: a tail system row and a legal-slot [u,S,a] row return 200 on opus-5 (req_011CfKhAEdeEh6hy5HbSgemF…), opus-5-5 (req_011CfKhJ4rzXWr39mUEhXSKo…), fable-5 (req_011CfKhJ4omUcAHiNHB3tvWb…), fable-5-1 (req_011CfKhJ4omHQU8PuX1mRUEn…), sonnet-5 (req_011CfKhYub3yrLNLnBRDfNb4…), opus-4-8 (req_011CfKhYuVMPxhZ1UbNk9JiX…); an illegal [a,S,u] slot 400s (req_011CfKZSZSFUfW1Jdarpf5Cb), so the floor is slotted. haiku-4-5 400s any system row (req_011CfKhZ8ALv97q91yH4eqep) and is not on this row. The tail fact is the TAIL_SYSTEM_MODELS rows'",
     },
   },
   {
@@ -402,7 +418,6 @@ export const anthropicRows = [
     },
     generation: {
       turns: {
-        midConversationSystem: true,
         historySystemRows: true,
         roleHandlingFloor: "slotted",
       },
@@ -411,6 +426,40 @@ export const anthropicRows = [
       tier: "curated",
       dated: "2026-09-23",
       cite: "SHAPING-MATRIX §7: OpenRouter keeps a legal-slot system row as a `system` message in place (gen-1790135915-ad0nXVocOBSoE6gyplfQ, gen-1790135918-wkRaFfoNuh31C0pxEMFf) and folds an illegal one into bare user text with no signal (gen-1790135916-nTEe5GaIsluqhqHSU4sW), so the floor is slotted",
+    },
+  },
+  // The tail fact is whether the model OBEYED an override instruction in a system row after the latest user turn
+  // (asked an unrelated question, answered with the override token), not whether the wire returned 200.
+  {
+    match: {
+      model: TAIL_SYSTEM_MODELS,
+      wire: "anthropic-messages",
+    },
+    generation: {
+      turns: {
+        midConversationSystem: true,
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-23",
+      cite: "live direct, honoured opus-5 3/3 (req_011CfKZA5nPzm8UMcE9gn1ov), opus-5-5 3/3 (req_011CfKZACppARNHcU5QUtXk6), fable-5 3/4 (req_011CfKZAQBgV6fL2cZ3f2hCy), fable-5-1 3/4 (req_011CfKZAsYUbXLdNZCgZ3Ujc); opus-4-8 0/4 (req_011CfKZAKVezEiWgKAUZjeDe), sonnet-5 0/3 (req_011CfKZBMXif9wUiDrAE3bUt) accept the row and ignore it",
+    },
+  },
+  {
+    match: {
+      model: TAIL_SYSTEM_MODELS,
+      provider: "openrouter",
+    },
+    generation: {
+      turns: {
+        midConversationSystem: true,
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-23",
+      cite: "live OpenRouter (stream + debug.echo_upstream_body: the upstream body keeps the system row in place), honoured opus-5 3/3 (gen-1790129235-qZ8dni2ZjbXMAn8Y6V7W), opus-5.5 7/8 (gen-1790129413-rLSOAgrJgMUZMtBby6AR), fable-5 3/3 (gen-1790129245-NNVQceOZNZ9zACP08CyZ), fable-5.1 6/8 (gen-1790129408-sMw4RW5KgWQgQzzqToKQ); opus-4.8 0/3, sonnet-5 0/3 (gen-1790129243-FxXqdQ3HtspW8xJjY2D6) accept the row and ignore it",
     },
   },
   {
