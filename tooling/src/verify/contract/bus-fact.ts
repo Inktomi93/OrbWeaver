@@ -34,15 +34,6 @@ export interface BusBeltIdentity extends BusDeclarationIdentity {
   readonly anchor: BusAnchor;
 }
 
-/** One owner-deferred `(union, member)` pair: a declared member with no producer that an owner decision
- *  keeps declared. Keyed by the UNION as well as the name, so a same-named member of another bus is not
- *  silently deferred with it. Declared by the warning-debt policy that owns the work item and read by the
- *  producer-coverage policy, which must not double-report it. */
-export interface BusMemberDeferral {
-  readonly union: BusDeclarationIdentity;
-  readonly member: string;
-}
-
 export interface BusMemberIdentity {
   readonly bus: BusDeclarationIdentity;
   readonly name: string;
@@ -100,10 +91,6 @@ export interface BusNonReadyFact extends BusFactBase {
 }
 
 export type BusFact = BusReadyFact | BusNonReadyFact;
-
-export function busByUnion(fact: BusFact, selector: BusDeclarationIdentity): BusRecord | undefined {
-  return fact.buses.find(({ union }) => union.path === selector.path && union.exportName === selector.exportName);
-}
 
 /** Ordinary/reviewed consumers refuse non-ready facts and register the complete semantic denominator. */
 export function recordReadyBusFact(context: GatePolicyContext, fact: BusFact): asserts fact is BusReadyFact {
