@@ -85,7 +85,6 @@ None.
 - [0060](0060-add-an-image-and-video-quality-control-for.md) P3 Add an image and video quality control for attachments (owner)
 - [0074](0074-replace-luxon-with-temporal-once-safari-ships-stable.md) P3 Replace luxon with Temporal once Safari ships stable Temporal (owner)
 - [0083](0083-re-measure-home-boot-layout-shift-on-a.md) P3 Re-measure home-boot layout shift on a production build (owner)
-- [0147](0147-rule-the-network-and-auth-modes-forks.md) P1 Rule the network-and-auth-modes forks `network-and-auth-modes` (owner)
 - [0150](0150-make-prompt-caching-work-on-the-agent-sdk.md) P2 Make prompt caching work on the agent-sdk route (owner)
 
 ## Done
