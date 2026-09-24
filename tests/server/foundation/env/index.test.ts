@@ -7,6 +7,7 @@ import { join } from "node:path";
 import process from "node:process";
 import { AUTH_MODES } from "@orb/contracts/identity";
 import { afterAll, afterEach, beforeEach, describe, vi } from "vitest";
+import { runsInContainer } from "../../../../packages/server/src/foundation/env/container.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 // Every re-import runs with the process CWD parked in a throwaway directory. foundation/env's `.env`
@@ -753,7 +754,10 @@ describe("ALLOWED_HOSTS — a malformed entry is a parse refusal naming it", () 
     const declared = await reimportEnvWith({ ORB_CONTAINER: "true" });
     expect(declared.allowedHostsInput().machineHostname).toBeNull();
     expect(declared.bindPostureInput().inContainer).toBe(true);
-    // Control, on this bare-metal runner: without the declaration the machine's name is read.
+  });
+
+  // Control, bare metal only: in a container a marker file makes the name null whatever the declaration says.
+  test.skipIf(runsInContainer(false))("without the declaration, on bare metal, the machine's name is read", async () => {
     const bare = await reimportEnvWith({});
     expect(bare.allowedHostsInput().machineHostname).not.toBeNull();
   });

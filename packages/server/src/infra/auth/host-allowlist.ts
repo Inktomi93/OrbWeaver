@@ -18,7 +18,6 @@ import type { HostNotAllowedNotice } from "./contract.ts";
 import { normalizeHost } from "./host.ts";
 import { createKeyedNoticeThrottle } from "./notice-throttle.ts";
 
-const IPV6_ZONE_MARKER = "%";
 const VALUE_SEPARATOR = ",";
 // RFC 1035's name bound: a longer value is no DNS name, and the refusal and the log line echo at most this much.
 const MAX_ECHO_CHARS = 253;
@@ -35,14 +34,10 @@ export interface HostFacts {
   readonly trustedProxies: readonly string[];
 }
 
-/** One authority as a bare, comparable host: lower-cased, no port, no brackets, no IPv6 zone, no trailing dot. */
+/** One authority as a bare, comparable host: lower-cased, no port, no brackets, no trailing dot. An IPv6 zone id
+ *  stays on; `isAlwaysAllowedHost` owns reading an IP literal. */
 export function canonicalHost(authority: string): string {
-  let host = normalizeHost(authority);
-  const zone = host.indexOf(IPV6_ZONE_MARKER);
-  if (zone !== -1 && host.includes(":")) {
-    host = host.slice(0, zone);
-  }
-  return withoutTrailingDot(host);
+  return withoutTrailingDot(normalizeHost(authority));
 }
 
 /** True for an always-allowed host (`isAlwaysAllowedHost`: localhost, `*.localhost`, an IP literal) and a configured

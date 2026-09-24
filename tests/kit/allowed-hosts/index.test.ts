@@ -74,7 +74,7 @@ test("isHostname takes a bare name only; isAllowedHostEntry also takes a dot-led
 });
 
 test("the always-allowed rule: localhost, *.localhost and IP literals (bare or bracketed) need no entry", () => {
-  for (const host of ["localhost", "app.localhost", "127.0.0.1", "100.101.102.103", "::1", "[::1]", "::ffff:127.0.0.1"]) {
+  for (const host of ["localhost", "app.localhost", "127.0.0.1", "100.101.102.103", "::1", "[::1]", "::ffff:127.0.0.1", "fe80::1%eth0", "[fe80::1%25eth0]"]) {
     expect(isAlwaysAllowedHost(host), host).toBe(true);
   }
   for (const host of ["nas.local", "localhost.attacker.example", "evil-localhost", "0x7f000001", "[nas.local]", "1:2:3:4:5:6:7:8::9"]) {
