@@ -218,9 +218,11 @@ function InviteRow({ invite, onRevoke }: { readonly invite: InviteView; readonly
   const expiry = invite.expiresAt === null ? "never expires" : `expires ${timeLib.formatRelative(invite.expiresAt)}`;
   return (
     // ListRow floors the label's width, and in a narrow dialog Revoke takes its own line, so the limits
-    // never run under it and the label never squeezes to nothing.
+    // never run under it and the label never squeezes to nothing. Revoke is one compact control, so the
+    // row stacks below `cq-sm`: the `cq-md` default would stack it in the desktop dialog too.
     <ListRow
       stackActions={true}
+      stackActionsAt="cq-sm"
       actions={
         invite.status === "pending" ? (
           <Button

@@ -109,7 +109,7 @@ export interface ListRowProps {
   actions?: ReactNode;
   /**
    * Lets the `actions` cluster drop to its OWN LINE beneath the identity once the row itself is narrower
-   * than `@lg` (32rem) — a container query on the row's own box, never the viewport's. For a row whose
+   * than {@link ListRowProps.stackActionsAt} — a container query on the row's own box, never the viewport's. For a row whose
    * controls are REST-VISIBLE and therefore cannot buy the identity any width by hiding: below that width
    * the name and the cluster stop fitting on one line, and the name is what loses (#2486, measured at the
    * 486px settings body). Mutually exclusive with `actionsFloat`, which answers the same squeeze for a
@@ -117,6 +117,12 @@ export interface ListRowProps {
    * layout arm, never a change to what the row's `<button>` contains (#512).
    */
   stackActions?: boolean;
+  /**
+   * The container-breakpoint token below which a `stackActions` row stacks: at least twice the cluster's width.
+   * `cq-md` (32rem) fits a multi-control cluster; `cq-sm` (24rem) fits one compact control.
+   * @defaultValue "cq-md"
+   */
+  stackActionsAt?: "cq-md" | "cq-sm";
   /**
    * Lifts the `actions` cluster OUT OF FLOW at the row's inline end (fine pointers only), so a cluster
    * that is HIDDEN at rest stops reserving width the title/subtitle need. Pass it for a row whose
@@ -251,6 +257,7 @@ export function ListRow({
   actions,
   actionsFloat = false,
   stackActions = false,
+  stackActionsAt = "cq-md",
   rowTint = "body",
   clickable = false,
   selected = false,
@@ -261,7 +268,7 @@ export function ListRow({
   onClick,
   className,
 }: ListRowProps): ReactElement {
-  const slots = listRowVariants({ density, clickable, float: actionsFloat, stackActions, subtitleWrap, subtitlePlacement, rowTint, titleStep });
+  const slots = listRowVariants({ density, clickable, float: actionsFloat, stackActions, stackActionsAt, subtitleWrap, subtitlePlacement, rowTint, titleStep });
   // Stable per-row id base for the describedby wiring; the subtitle/meta ids only attach where the slot renders.
   const baseId = useId();
   const subtitleId = subtitle === undefined || subtitleDecorative ? undefined : `${baseId}-subtitle`;
