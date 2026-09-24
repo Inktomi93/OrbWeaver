@@ -33,7 +33,9 @@ test("the runtime assembler invokes the checked version-stamp entry without pnpm
   const assembler = read(repoRoot, "docker/assemble-runtime.sh");
   const manifest = JSON.parse(read(repoRoot, "package.json")) as { scripts?: Record<string, string> };
   expect(manifest.scripts?.["build:version-stamp"]).toBe("node scripts/build-version-stamp.ts");
-  expect(assembler).toContain('pnpm --silent --dir "$src" run build:version-stamp');
+  // After the hoisted `--prod` deploy rewrote the root workspace state, pnpm's dep check would try a
+  // TTY-only reinstall and abort the image build; the stamp call must opt out of it.
+  expect(assembler).toContain('pnpm --config.verify-deps-before-run=false --silent --dir "$src" run build:version-stamp');
   expect(assembler).not.toContain("node --input-type=module -e");
 });
 
@@ -106,11 +108,6 @@ test("every compose shape resolves (base + the four overlays)", ({ repoRoot, scr
     [["docker-compose.yaml", "docker/compose.host-network.yaml"], []],
     [["docker-compose.yaml", "docker/compose.secrets.yaml"], []],
     [["docker-compose.yaml", "docker/compose.dev.yaml"], []],
-    [["docker-compose.yaml", "docker/compose.engines.yaml"], ["gen"]],
-    [
-      ["docker-compose.yaml", "docker/compose.engines.yaml"],
-      ["gen", "embed", "rerank"],
-    ],
   ];
   for (const [files, profiles] of shapes) {
     const result = run(files, profiles);

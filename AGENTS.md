@@ -123,11 +123,6 @@ as the new one. If you cannot go green without a hatch, stop and report.
 - Use `pnpm check:show` to read structure verdicts and stage logs. The layout is in `UNIFIED-VERIFICATION-DESIGN.md` §3.3b.
 - Never pipe a harness run into `head` or `tail`; the exit code becomes the reader's. Never re-run a harness command to find a failure.
 
-## Engines
-
-Never run `tooling/src/stack/ops/engines.ts` or another engine launcher to inspect it, `--help` included.
-It starts vLLM on the live ports and stops engines it does not own.
-
 ## Code questions
 
 - Use `pnpm ast` for references, callers, importers and exports. Run it bare for the verb list.

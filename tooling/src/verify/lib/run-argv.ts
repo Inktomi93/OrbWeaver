@@ -155,17 +155,16 @@ function scopeRequest(v: ParsedValues, positionals: readonly string[]): ScopeRes
   return glob.length === 0 ? { error: "--scope needs a folder glob" } : { kind: "scope", glob };
 }
 
-// The bare tier markers, in registry order. `--changed` doubles as BOTH a scope selector AND its own
-// (inner-loop) tier, so it lives here too.
+// The bare tier markers, in registry order. `--changed` alone also names its own (inner-loop) tier; next to
+// an explicit tier it is only the selector, which is how pre-commit spells `--static --changed`.
 const TIER_MARKERS: readonly (readonly [keyof ParsedValues, Tier])[] = [
-  ["changed", "changed"],
   ["static", "static"],
   ["push", "push"],
   ["full", "full"],
 ];
 
-/** The tier for a run: an explicit --tier <name> or a bare tier marker wins; else a scope flag implies
- *  `changed`; else `static`. A run may name AT MOST ONE distinct tier. */
+/** The tier for a run: an explicit --tier <name> or a bare tier marker wins; else a scope flag (including
+ *  `--changed`) implies `changed`; else `static`. A run may name AT MOST ONE distinct tier. */
 function tierFor(v: ParsedValues, scoped: boolean): Tier | { readonly error: string } {
   const named = new Set<Tier>();
   for (const [key, tier] of TIER_MARKERS) {

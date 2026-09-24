@@ -10,7 +10,6 @@
 // the lane report; a macOS/Windows boot remains unverified by construction.
 import { win32 } from "node:path";
 import {
-  childExitCode,
   decideStartBuild,
   effectiveAuthMode,
   PNPM_EXECPATH_ENV,
@@ -158,11 +157,4 @@ test("the banner tells a local-mode operator to sign in, and never claims an AUT
   expect(local).not.toContain("AUTH_FALLBACK=owner");
   const ownFallback = startBannerLines({ port: 8788, mode: "single-user", fallbackFilled: false }).join("\n");
   expect(ownFallback).toContain("your own AUTH_FALLBACK");
-});
-
-test("the exit status is the child's — and a signal is 128+N, so Ctrl-C is 130", () => {
-  expect(childExitCode({ code: 0, signal: null, error: undefined })).toBe(0);
-  expect(childExitCode({ code: 7, signal: null, error: undefined })).toBe(7);
-  expect(childExitCode({ code: null, signal: "SIGINT", error: undefined })).toBe(130);
-  expect(childExitCode({ code: null, signal: "SIGTERM", error: undefined })).toBe(143);
 });

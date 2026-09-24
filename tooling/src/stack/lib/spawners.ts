@@ -1,16 +1,7 @@
 // AN E2E/SNAP/CT STACK IS NOT THE STACK. Nine other things in this repo spawn a server or a vite on this
 // box; `/healthz` carries `harness:true` for a Playwright-owned stack — we never adopt one and never kill
 // one out from under a running battery. This census is what lets `status` NAME a foreign listener.
-import {
-  CT_VITE_PORT,
-  DEV_PORTS,
-  E2E_FIXTURE_PROVIDER_PORT,
-  E2E_PORTS,
-  ENGINE_PORTS,
-  FIXTURE_PORTS,
-  STAGE_BANDS,
-  stageBandPorts,
-} from "../../_shared/ports.ts";
+import { CT_VITE_PORT, DEV_PORTS, E2E_FIXTURE_PROVIDER_PORT, E2E_PORTS, FIXTURE_PORTS, STAGE_BANDS, stageBandPorts } from "../../_shared/ports.ts";
 import type { StackSpawner } from "../contract/types.ts";
 
 /** Every port below comes from the ONE registry (`tooling/src/_shared/ports.ts`) — this census names the
@@ -26,12 +17,6 @@ export const STACK_SPAWNERS: readonly StackSpawner[] = [
     serverPort: DEV_PORTS.server,
     vitePort: null,
     discriminator: "NODE_ENV=production; pidfile .cache/stack/prod.json; no vite",
-  },
-  {
-    name: "vLLM engine fleet",
-    serverPort: null,
-    vitePort: null,
-    discriminator: `ports ${ENGINE_PORTS.embed}/${ENGINE_PORTS.rerank}/${ENGINE_PORTS.generate}; pidfile .cache/stack/engines.pgid`,
   },
   {
     name: "multi-user fixture",

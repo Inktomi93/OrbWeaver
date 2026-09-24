@@ -126,7 +126,7 @@ export function vitestConfig(runtimeOnly = false): ViteUserConfig {
       // No AUTH_FALLBACK: #2406 resolves it per AUTH_MODE, so the suite's default (unset ⇒ single-user)
       // boots at `owner` on its own. Between #1864 and #2406 this line carried the pin the flat `deny`
       // default made mandatory.
-      env: { CORPUS_AUTOINDEX: "false", LOG_LEVEL: "silent", ORB_ENV_NO_FILE: "1", VLLM_DISABLED: "true" },
+      env: { CORPUS_AUTOINDEX: "false", LOG_LEVEL: "silent", ORB_ENV_NO_FILE: "1" },
       // Native bindings need process isolation; module isolation stays at Vitest's true default.
       pool: "forks",
       maxWorkers: CONCURRENCY.vitestMaxWorkers,
