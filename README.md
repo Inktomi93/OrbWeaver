@@ -54,7 +54,8 @@ may import what, from the tree alone.**
 
 ## Develop
 
-Requires **Node 26 LTS** (`.nvmrc`) + **pnpm** (pinned via `packageManager`; run `corepack enable`).
+Requires **Node 26** (`.nvmrc`) + **pnpm** (pinned via `packageManager`; run `npm install -g pnpm@11`
+— Node 26 does not ship corepack).
 
 ```bash
 pnpm install     # deps (hard-linked from pnpm's global store) + git hooks (lefthook, via `prepare`)
