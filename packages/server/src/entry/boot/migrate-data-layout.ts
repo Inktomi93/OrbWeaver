@@ -21,8 +21,18 @@ import process from "node:process";
 import { backupBeforeMigrate, closeDb, createDb, detachWal, listBackupFiles } from "@orb/db";
 import { isPlainObject } from "@orb/kit/guards";
 import type { DataLayout, DataLayoutKeeperKey } from "#foundation/data-layout";
-import { DATA_LAYOUT_DIRS, DATA_LAYOUT_SKIP_KEY, DB_FILE_NAME, keeperRemedy, LEGACY_ENTRIES } from "#foundation/data-layout";
+import {
+  DATA_LAYOUT_DIRS,
+  DATA_LAYOUT_SKIP_KEY,
+  DB_FILE_NAME,
+  fileDatabaseUrl,
+  keeperRemedy,
+  LEGACY_ENTRIES,
+  LEGACY_SECRET_FILE_NAMES,
+} from "#foundation/data-layout";
+import { env } from "#foundation/env";
 import { getLog } from "#foundation/observability";
+import { readSessionSecretKeyfile } from "#infra/crypto";
 
 /** The in-progress marker at the data root: present only between the first rename and the last. */
 export const LAYOUT_JOURNAL = ".layout-migration.json";
@@ -70,6 +80,9 @@ export interface MigrateDataLayoutDeps {
   readonly deviceOf?: DeviceOf;
   /** The rename itself; injectable so a test can plant a failure the pre-flight cannot foresee. */
   readonly rename?: Rename;
+  /** The explicit SESSION_SECRET in use, compared with a legacy session keyfile it keeps in place; defaults to
+   *  the env's. */
+  readonly sessionSecret?: string | undefined;
 }
 
 type DeviceOf = (path: string) => number;
@@ -239,7 +252,7 @@ function ensureContainerDirs(root: string, moveTargets: ReadonlySet<string>): vo
 // which names the copy, so a snapshot per resume would fill the volume under a restart policy.
 async function claimLegacyDb(root: string, layout: DataLayout, snapshot: boolean): Promise<void> {
   const path = join(root, DB_FILE_NAME);
-  const url = `file:${path}`;
+  const url = fileDatabaseUrl(path);
   const db = await createDb(url);
   let sole: boolean;
   try {
@@ -331,10 +344,20 @@ function logReport(root: string, layout: DataLayout, report: DataLayoutMigration
     { root, resumed: report.resumed, moves: report.moved.map((move) => `${move.from} -> ${move.to}`) },
     `boot/data-layout: moved ${report.moved.length} entries of ${root} into the current layout`,
   );
-  if (report.leftInPlace.length > 0) {
-    log.warn({ root, entries: report.leftInPlace }, "boot/data-layout: root entries the layout does not name were left in place");
+  // A root entry left in place is kept by an explicit env key, named in the skip list, or not named by the
+  // layout at all; each kind gets its own warn, so a kept keyfile never reads as an unknown entry.
+  const kept = report.leftInPlace.flatMap((entry) => {
+    const keptBy = LEGACY_ENTRIES[entry]?.keptBy ?? null;
+    return keptBy !== null && layout.explicit.has(keptBy) ? [{ entry, keptBy }] : [];
+  });
+  if (kept.length > 0) {
+    log.warn({ root, kept }, `boot/data-layout: env keys keep these legacy entries at their old paths under ${root}`);
   }
   const skipped = report.leftInPlace.filter((name) => layout.skip.has(name));
+  const unnamed = report.leftInPlace.filter((name) => !(layout.skip.has(name) || kept.some((keeper) => keeper.entry === name)));
+  if (unnamed.length > 0) {
+    log.warn({ root, entries: unnamed }, "boot/data-layout: root entries the layout does not name were left in place");
+  }
   if (skipped.length > 0) {
     log.warn(
       { root, entries: skipped },
@@ -343,8 +366,31 @@ function logReport(root: string, layout: DataLayout, report: DataLayoutMigration
   }
 }
 
+// A legacy session keyfile an explicit SESSION_SECRET keeps in place still holds the pepper that every earlier
+// local password, session and live invite was hashed with. When the explicit value differs (the container
+// mints a fresh one for a volume switched to a cookie mode), those stop matching with no refusal, so every
+// boot says so while the two differ. Only this step sees both: the entrypoint cannot read a keyfile's pepper.
+function warnStrandedSessionSecret(root: string, layout: DataLayout, sessionSecret: string | undefined): void {
+  if (!layout.explicit.has("SESSION_SECRET") || sessionSecret === undefined) {
+    return;
+  }
+  const path = join(root, LEGACY_SECRET_FILE_NAMES.sessionSecret);
+  if (!holdsData(path)) {
+    return;
+  }
+  const legacy = readSessionSecretKeyfile(path);
+  if (legacy === null || legacy === sessionSecret) {
+    return;
+  }
+  getLog().warn(
+    { root, legacyKeyfile: path, keptBy: "SESSION_SECRET" },
+    `boot/data-layout: ${path} holds another session secret than the SESSION_SECRET in use, so every local password, session and live invite hashed with it no longer matches: ${keeperRemedy("SESSION_SECRET", path)}, or delete ${path} once nothing depends on it`,
+  );
+}
+
 /**
- * Move a legacy data dir into the current layout, or do nothing on a tree already in it.
+ * Move a legacy data dir into the current layout, or do nothing on a tree already in it. Warns on every boot
+ * while a legacy session keyfile sits beside a different explicit SESSION_SECRET.
  * @throws Error before any rename when a legacy path and its target both hold data, when either end of a move
  * sits on another filesystem, when another process holds the db or the journal, or when a journal entry's
  * state matches neither "done" nor "pending"; and after a rename fails, naming the entry and its way out.
@@ -358,6 +404,7 @@ export async function migrateDataLayout(deps: MigrateDataLayoutDeps): Promise<Da
     ensureContainerDirs(root, new Set());
     return NO_MIGRATION;
   }
+  warnStrandedSessionSecret(root, deps.layout, deps.sessionSecret ?? env.SESSION_SECRET);
   const journalPath = join(root, LAYOUT_JOURNAL);
   if (existsSync(journalPath)) {
     const journal = readJournal(journalPath);

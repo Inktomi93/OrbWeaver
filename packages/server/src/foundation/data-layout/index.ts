@@ -16,6 +16,8 @@ export const DEFAULT_DATA_DIR = "./data";
 export const DB_FILE_NAME = "orbweaver.db";
 /** The generated boot secrets' file names under `secrets/`; the container entrypoint writes the same names. */
 export const SECRET_FILE_NAMES = { credentialsKey: "credentials_key", sessionSecret: "session_secret" } as const;
+/** The generated boot secrets' legacy names at the root, before the layout moved them under `secrets/`. */
+export const LEGACY_SECRET_FILE_NAMES = { credentialsKey: ".credentials-key", sessionSecret: ".session-secret" } as const;
 /** The env key naming the legacy root entries a layout migration leaves in place, comma-separated. */
 export const DATA_LAYOUT_SKIP_KEY = "DATA_LAYOUT_SKIP";
 
@@ -37,8 +39,16 @@ export const DATA_LAYOUT_DIRS = {
  *  entry never strands it), each with its target and the env key that keeps it where it is. The db and the
  *  keyfiles move only with bytes: an empty one is what a holder that reopened a moved file leaves behind. */
 export const LEGACY_ENTRIES: Readonly<Record<string, LegacyEntry>> = {
-  ".credentials-key": { to: join(DATA_LAYOUT_DIRS.secrets, SECRET_FILE_NAMES.credentialsKey), keptBy: "CREDENTIALS_KEY", requireBytes: true },
-  ".session-secret": { to: join(DATA_LAYOUT_DIRS.secrets, SECRET_FILE_NAMES.sessionSecret), keptBy: "SESSION_SECRET", requireBytes: true },
+  [LEGACY_SECRET_FILE_NAMES.credentialsKey]: {
+    to: join(DATA_LAYOUT_DIRS.secrets, SECRET_FILE_NAMES.credentialsKey),
+    keptBy: "CREDENTIALS_KEY",
+    requireBytes: true,
+  },
+  [LEGACY_SECRET_FILE_NAMES.sessionSecret]: {
+    to: join(DATA_LAYOUT_DIRS.secrets, SECRET_FILE_NAMES.sessionSecret),
+    keptBy: "SESSION_SECRET",
+    requireBytes: true,
+  },
   variants: { to: DATA_LAYOUT_DIRS.variants, keptBy: null, requireBytes: false },
   models: { to: dirname(DATA_LAYOUT_DIRS.models), keptBy: "LOCAL_LIGHT_CACHE_DIR", requireBytes: false },
   "import-staging": { to: DATA_LAYOUT_DIRS.importStaging, keptBy: "IMPORT_STAGING_DIR", requireBytes: false },
@@ -46,11 +56,21 @@ export const LEGACY_ENTRIES: Readonly<Record<string, LegacyEntry>> = {
   [DB_FILE_NAME]: { to: join(DATA_LAYOUT_DIRS.db, DB_FILE_NAME), keptBy: "DATABASE_URL", requireBytes: true },
 };
 
-/** The remedy that keeps a keyed legacy entry where it is: the slot key, or the secret's own value. */
+/** The `DATABASE_URL` that opens the db file at `path`, in the path's own spelling. */
+export function fileDatabaseUrl(path: string): string {
+  return `file:${path}`;
+}
+
+/** The remedy that keeps a keyed legacy entry where it is: the secret's own value, the db's url as a working
+ *  `DATABASE_URL=` value, or the slot key. `from` is the entry's path under the root. */
 export function keeperRemedy(key: DataLayoutKeeperKey, from: string): string {
-  return (SECRET_ENV_KEYS as readonly string[]).includes(key)
-    ? `set ${key} to the value in ${from}, which keeps the file where it is`
-    : `set ${key} to keep ${from} where it is`;
+  if ((SECRET_ENV_KEYS as readonly string[]).includes(key)) {
+    return `set ${key} to the value in ${from}, which keeps the file where it is`;
+  }
+  if (key === "DATABASE_URL") {
+    return `set ${key}=${fileDatabaseUrl(from)} to keep ${from} where it is`;
+  }
+  return `set ${key} to keep ${from} where it is`;
 }
 
 // `join` drops a leading `./`; keep it so a relative root reads as relative in every log line and env dump.
@@ -65,7 +85,7 @@ function isSet(value: string | undefined): value is string {
 
 // The skip list may name only an entry no env key keeps, or a backup file: a keyed entry has a remedy that
 // keeps the app reading it, and a skipped db would boot onto a fresh empty one. A typo fails here, loudly.
-function parseSkip(raw: string | undefined): ReadonlySet<string> {
+function parseSkip(root: string, raw: string | undefined): ReadonlySet<string> {
   const skip = new Set(
     (raw ?? "")
       .split(",")
@@ -79,7 +99,7 @@ function parseSkip(raw: string | undefined): ReadonlySet<string> {
     const entry = LEGACY_ENTRIES[name];
     if (entry !== undefined && entry.keptBy !== null) {
       throw new Error(
-        `${DATA_LAYOUT_SKIP_KEY} names ${name}, which it cannot keep: ${keeperRemedy(entry.keptBy, name)}, and remove ${name} from ${DATA_LAYOUT_SKIP_KEY}`,
+        `${DATA_LAYOUT_SKIP_KEY} names ${name}, which it cannot keep: ${keeperRemedy(entry.keptBy, under(root, name))}, and remove ${name} from ${DATA_LAYOUT_SKIP_KEY}`,
       );
     }
     if (entry === undefined && !isBackupFileName(name, DB_FILE_NAME)) {
@@ -98,11 +118,11 @@ function parseSkip(raw: string | undefined): ReadonlySet<string> {
 export function resolveDataLayout(input: DataLayoutInput): DataLayout {
   const root = isSet(input.DATA_DIR) ? input.DATA_DIR : DEFAULT_DATA_DIR;
   const explicit = new Set<DataLayoutKeeperKey>([...DATA_LAYOUT_SLOT_KEYS, ...SECRET_ENV_KEYS].filter((key) => isSet(input[key])));
-  const skip = parseSkip(input[DATA_LAYOUT_SKIP_KEY]);
+  const skip = parseSkip(root, input[DATA_LAYOUT_SKIP_KEY]);
   const dbDir = under(root, DATA_LAYOUT_DIRS.db);
   return {
     root,
-    databaseUrl: isSet(input.DATABASE_URL) ? input.DATABASE_URL : `file:${under(dbDir, DB_FILE_NAME)}`,
+    databaseUrl: isSet(input.DATABASE_URL) ? input.DATABASE_URL : fileDatabaseUrl(under(dbDir, DB_FILE_NAME)),
     dbDir,
     backups: under(root, DATA_LAYOUT_DIRS.backups),
     assets: isSet(input.ASSETS_DIR) ? input.ASSETS_DIR : under(root, DATA_LAYOUT_DIRS.assets),
