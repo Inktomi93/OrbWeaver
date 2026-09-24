@@ -702,7 +702,7 @@ export function processEnvSnapshot(): Record<string, string | undefined> {
 }
 
 /** The raw inputs the BIND posture resolver reads (the deploy-mode invariant). Same seam shape as
- *  `enginesPostureInput` / `diagnosticsPostureInput`: this file stays the pure `process.env` reader, the
+ *  `diagnosticsPostureInput`: this file stays the pure `process.env` reader, the
  *  rule lives in `bind.ts`, and `entry/lifecycle` composes + logs. The env parse above has ALREADY refused
  *  any combination whose posture carries a refusal, so a caller here is guaranteed a bindable verdict. */
 export function bindPostureInput(): BindPostureInput {
@@ -711,7 +711,7 @@ export function bindPostureInput(): BindPostureInput {
 
 /** The raw inputs the DIAGNOSTICS posture resolver reads — the three ops knobs that together decide who can
  *  look inside a running box and how much is there (`diagnostics.ts` holds the model). Same seam shape as
- *  `enginesPostureInput`: this file stays the pure `process.env` reader; `lifecycle` composes + logs. The
+ *  `bindPostureInput`: this file stays the pure `process.env` reader; `lifecycle` composes + logs. The
  *  TOKEN VALUE never leaves here — only whether one is set (`resolveDiagnosticsPosture` reduces it to a
  *  boolean immediately), so no caller of the posture can echo the secret. */
 export function diagnosticsPostureInput(): DiagnosticsPostureInput {
