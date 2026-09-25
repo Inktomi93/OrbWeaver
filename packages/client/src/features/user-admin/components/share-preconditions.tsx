@@ -1,6 +1,6 @@
 // The Share card's rows before a share starts: each precondition with its verdict and its fix, then the
 // Start button, held with a visible reason while any row blocks it. The server re-checks every row on start.
-// The seating confirm stays mounted above its row: the row unmounts once the write lands, and focus moves to Start.
+// The seating confirm stays mounted above its row: its write unmounts the row, so a confirm hands focus to Start.
 
 import type { AuthMode, ShareRefusalNotice } from "@orb/contracts/identity";
 import { SETUP_COMMAND } from "@orb/contracts/identity";
@@ -11,10 +11,10 @@ import { Kbd } from "@orb/ui/kbd";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode, RefObject } from "react";
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { ConfirmDialog } from "#components";
 import { SkeletonRows } from "#data";
-import { CONTAINER_LOGIN_LINES, CONTAINER_LOGIN_STEP } from "../lib/container-login.ts";
+import { CONTAINER_LOGIN_LINES } from "../lib/container-login.ts";
 import type { PreconditionRow, ShareStartFailure } from "../lib/share-model.ts";
 import { canStartSharing, refusalRow, sharePreconditions } from "../lib/share-model.ts";
 import { ShareProse } from "./share-prose.tsx";
@@ -104,6 +104,9 @@ function PreconditionList({
   onEnableSeating,
 }: SharePreconditionsProps & { readonly mode: AuthMode }): ReactElement {
   const blockedId = useId();
+  // Where the seating confirm returns focus: Start once the write landed and unmounted the row's button; left empty,
+  // Base UI's own return goes back to that button on Cancel.
+  const seatingReturn = useRef<HTMLElement | null>(null);
   // The confirm keeps the settings it was opened for: the write empties `off` while the dialog is still closing.
   const [seatingAsk, setSeatingAsk] = useState<{ readonly open: boolean; readonly settings: readonly SeatingSetting[] }>({ open: false, settings: [] });
   const rows = sharePreconditions({ mode, localMultiUser, discreetLogin, refusal: failure?.code ?? null, standing: standing?.code ?? null });
@@ -113,7 +116,7 @@ function PreconditionList({
   const off = SEATING_SETTINGS.filter((setting) => !seating[setting]);
   return (
     <Stack gap="field">
-      <Stack gap="field" role="list" aria-label="Before you share">
+      <Stack gap="block" role="list" aria-label="Before you share">
         {rows.map((row) => (
           <PreconditionItem
             key={row.id}
@@ -122,7 +125,10 @@ function PreconditionList({
             failure={failure !== null && refusalRow(failure.code) === row.id ? failure : null}
             standing={row.id === "relay" ? relayStanding : null}
             seatingOff={off}
-            onFixSeating={(): void => setSeatingAsk({ open: true, settings: off })}
+            onFixSeating={(): void => {
+              seatingReturn.current = null;
+              setSeatingAsk({ open: true, settings: off });
+            }}
           />
         ))}
       </Stack>
@@ -151,8 +157,12 @@ function PreconditionList({
         description={`${seatingReasons(seatingAsk.settings)} ${seatingAsk.settings.length === 1 ? "It stays" : "Both stay"} on after sharing stops.`}
         confirmLabel={seatingActionLabel(seatingAsk.settings)}
         confirmIntent="primary"
-        onConfirm={onEnableSeating}
-        finalFocus={startRef}
+        onConfirm={(): Promise<void> =>
+          onEnableSeating().then((): void => {
+            seatingReturn.current = startRef.current;
+          })
+        }
+        finalFocus={seatingReturn}
       />
     </Stack>
   );
@@ -244,9 +254,14 @@ function ModeFix({ mode }: { readonly mode: AuthMode }): ReactElement {
         <Kbd size="command">{SHARE_COMMAND}</Kbd>
       </CopyButton>
       <ShareProse>
-        {`${CONTAINER_LOGIN_STEP}, then run docker compose up -d. This card cannot start a relay inside a container yet; to share a container now, run a Cloudflare tunnel beside it (docker/README.md, "Cloudflare Tunnel, as a sidecar").`}
+        In Docker, set the lines below in the environment: block of docker-compose.yaml, then run docker compose up -d. This card cannot start a relay inside a
+        container yet; to share a container now, run a Cloudflare tunnel beside it (docker/README.md, "Cloudflare Tunnel, as a sidecar").
       </ShareProse>
-      <CopyButton text={CONTAINER_LOGIN_LINES} what="the docker-compose environment lines" />
+      <CopyButton text={CONTAINER_LOGIN_LINES} what="the docker-compose environment lines">
+        <Text voice="label" className="min-w-0 font-mono whitespace-pre-wrap wrap-anywhere">
+          {CONTAINER_LOGIN_LINES}
+        </Text>
+      </CopyButton>
     </Stack>
   );
 }

@@ -67,6 +67,8 @@ interface ShareStub {
   readonly initial: ShareStatus;
   /** What `share.start` makes the server hold next, in call order; `null` refuses that call. */
   readonly starts?: readonly (ShareStatus | null)[];
+  /** The refusal a `null` start answers with. Defaults to the container refusal. */
+  readonly refusal?: { readonly reason: string; readonly message: string };
   readonly users?: readonly ListedUser[];
 }
 
@@ -101,7 +103,8 @@ async function stubShare(page: Page, stub: ShareStub): Promise<ShareServer> {
     "share.start": () => {
       const next = starts.shift();
       if (next === null || next === undefined) {
-        return trpcError({ code: "BAD_REQUEST", reason: "share_in_container", message: "This server runs in a container, which carries no relay." });
+        const refusal = stub.refusal ?? { reason: "share_in_container", message: "This server runs in a container, which carries no relay." };
+        return trpcError({ code: "BAD_REQUEST", ...refusal });
       }
       current = next;
       return current;
@@ -164,7 +167,7 @@ test("the seating fix names the one setting that is off, writes only it, and han
   await expect(card.getByRole("button", { name: "Start sharing" })).toBeFocused();
 });
 
-test("Start sharing lands focus on the link's Copy button once the relay reports its link", async ({ mount, page }) => {
+test("Start sharing parks focus on Stop sharing, then lands it on the link's Copy button once the relay reports its link", async ({ mount, page }) => {
   const server = await stubShare(page, { mode: "local", initial: OFF, starts: [STARTING] });
   await mount(<GovernanceSectionsStory />);
 
@@ -174,6 +177,8 @@ test("Start sharing lands focus on the link's Copy button once the relay reports
   await expect(precondition(card, "seating")).toHaveAttribute("data-verdict", "met");
   await card.getByRole("button", { name: "Start sharing" }).click();
   await expect(card.locator("[data-share-phase]")).toHaveAttribute("data-share-phase", "starting");
+  // Start unmounted under the press; focus waits on Stop sharing until the link arrives, never on the page.
+  await expect(card.getByRole("button", { name: "Stop sharing" })).toBeFocused();
   server.set(UP_FIRST);
 
   await expect(card.locator("[data-share-phase]")).toHaveAttribute("data-share-phase", "up");
@@ -212,6 +217,107 @@ test("a stop hands focus to Start sharing; a new link shows once, under a notice
   await notice.getByRole("button", { name: "Dismiss the link notice" }).click();
   await expect(card.locator("[data-share-notice]")).toHaveCount(0);
   await expect(linkCopy(card, SECOND_URL)).toBeFocused();
+});
+
+// The relay dies while focus sits on its link: the link unmounts, and focus goes to the control that now leads.
+test("a relay that dies under a focused link hands focus to Stop sharing while it restarts", async ({ mount, page }) => {
+  const server = await stubShare(page, { mode: "local", initial: UP_FIRST });
+  await mount(<GovernanceSectionsStory />);
+
+  const card = shareCard(page);
+  await linkCopy(card, FIRST_URL).focus();
+  server.set(DOWN_RESTARTING);
+  await expect(card.locator("[data-share-phase]")).toHaveAttribute("data-share-phase", "restarting", { timeout: 10_000 });
+  await expect(card.getByRole("button", { name: "Stop sharing" })).toBeFocused();
+});
+
+test("a relay that gives up under a focused link hands focus to Try again", async ({ mount, page }) => {
+  const server = await stubShare(page, { mode: "local", initial: UP_FIRST });
+  await mount(<GovernanceSectionsStory />);
+
+  const card = shareCard(page);
+  await linkCopy(card, FIRST_URL).focus();
+  server.set(GAVE_UP);
+  await expect(card.locator("[data-share-phase]")).toHaveAttribute("data-share-phase", "stopped", { timeout: 10_000 });
+  await expect(card.getByRole("button", { name: "Try again" })).toBeFocused();
+});
+
+// The room picker and the notice's dismiss are actions, so they render as real small buttons, not inline text.
+test("Invite someone to a room and Dismiss the link notice are small secondary buttons", async ({ mount, page }) => {
+  await stubShare(page, { mode: "local", initial: UP_FIRST, starts: [UP_SECOND] });
+  await mount(<GovernanceSectionsStory />);
+
+  const card = shareCard(page);
+  const invite = card.getByRole("button", { name: "Invite someone to a room" });
+  await expect(invite).toHaveAttribute("data-intent", "secondary");
+  await expect(invite).toHaveAttribute("data-size", "sm");
+  await card.getByRole("button", { name: "Stop sharing" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Stop sharing" }).click();
+  await card.getByRole("button", { name: "Start sharing" }).click();
+  const dismiss = card.locator('[data-share-notice="link-changed"]').getByRole("button", { name: "Dismiss the link notice" });
+  await expect(dismiss).toHaveAttribute("data-intent", "secondary");
+  await expect(dismiss).toHaveAttribute("data-size", "sm");
+});
+
+test("the seating confirm's Cancel returns focus to the button that opened it", async ({ mount, page }) => {
+  await stubShare(page, { mode: "local", resolved: SEATING_OFF, initial: OFF });
+  await mount(<GovernanceSectionsStory />);
+
+  const trigger = precondition(shareCard(page), "seating").getByRole("button", { name: "Turn both on" });
+  await trigger.click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Cancel" }).click();
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+});
+
+// The running card reads top to bottom as the link, what it exposes, how to use it, then the longer-lived option.
+test("the running card orders the link, its warning, the room picker, then the named-tunnel tip", async ({ mount, page }) => {
+  await stubShare(page, { mode: "local", initial: UP_FIRST });
+  await mount(<GovernanceSectionsStory />);
+
+  const card = shareCard(page);
+  const tops = async (): Promise<number[]> =>
+    await Promise.all(
+      [
+        card.locator(`[data-share-url="${FIRST_URL}"]`),
+        card.locator('[data-share-warning="public-link"]'),
+        card.getByRole("button", { name: "Invite someone to a room" }),
+        card.locator("[data-share-tip]"),
+      ].map(async (locator) => (await locator.boundingBox())?.y ?? Number.NaN),
+    );
+  await expect
+    .poll(async () => {
+      const [link = 0, warning = 0, invite = 0, tip = 0] = await tops();
+      return link < warning && warning < invite && invite < tip;
+    })
+    .toBe(true);
+});
+
+// Rows read as separate items: the space between two rows is wider than the space inside one.
+test("before a share, the gap between precondition rows is wider than the gap inside a row", async ({ mount, page }) => {
+  await stubShare(page, { mode: "local", resolved: SEATING_OFF, initial: OFF });
+  await mount(<GovernanceSectionsStory />);
+
+  const card = shareCard(page);
+  await expect(card.getByRole("listitem")).toHaveCount(4);
+  const gaps = (): Promise<{ between: number; within: number }> =>
+    card.getByRole("list", { name: "Before you share" }).evaluate((list) => {
+      const [first, second] = Array.from(list.children);
+      const [label, detail] = Array.from(first?.children ?? []);
+      if (first === undefined || second === undefined || label === undefined || detail === undefined) {
+        throw new Error("the precondition list lost its rows");
+      }
+      return {
+        between: second.getBoundingClientRect().top - first.getBoundingClientRect().bottom,
+        within: detail.getBoundingClientRect().top - label.getBoundingClientRect().bottom,
+      };
+    });
+  await expect
+    .poll(async () => {
+      const { between, within } = await gaps();
+      return between > within;
+    })
+    .toBe(true);
 });
 
 test("a refused start is announced on the row it belongs to, and Start sharing stays available to check again", async ({ mount, page }) => {
@@ -279,7 +385,8 @@ test("nothing above the card moves while the relay goes off, starting, up, resta
     page.getByRole("switch", { name: "Discreet login" }),
     page.getByRole("textbox", { name: "Allowed private endpoints" }),
   ];
-  const tops = (): Promise<number[]> => Promise.all(anchors.map(async (anchor) => (await anchor.boundingBox())?.y ?? Number.NaN));
+  // Page positions, not viewport ones: focus handed to Stop sharing may scroll it into view, which moves nothing.
+  const tops = (): Promise<number[]> => Promise.all(anchors.map((anchor) => anchor.evaluate((node) => node.getBoundingClientRect().top + window.scrollY)));
 
   await expect(state).toHaveAttribute("data-share-state", "off");
   const atRest = await tops();
@@ -377,6 +484,35 @@ test("a delegated admin never sees the card", async ({ mount, page }) => {
   await expect(shareCard(page)).toHaveCount(0);
   await expect.poll(() => trpc.count("share.status")).toBe(0);
 });
+
+// A server refusal can carry a long unbroken URL. It wraps inside the card at a phone width and at a desktop width.
+const LONG_URL = `http://orbweaver-first-run-setup.example.internal:8788/${"a".repeat(96)}`;
+
+for (const { width, viewport } of [
+  { width: 360, viewport: { width: 360, height: 800 } },
+  { width: 720, viewport: { width: 1440, height: 900 } },
+]) {
+  test.describe(`a refusal carrying an unbroken URL at ${String(viewport.width)}`, () => {
+    test.use({ viewport });
+
+    test("stays inside the card", async ({ mount, page }) => {
+      await stubShare(page, {
+        mode: "local",
+        initial: OFF,
+        starts: [null],
+        refusal: { reason: "share_owner_unclaimed", message: `Open ${LONG_URL} on this machine, finish setup, then start sharing.` },
+      });
+      await mount(<GovernanceSectionsStory width={width} />);
+
+      const card = shareCard(page);
+      await card.getByRole("button", { name: "Start sharing" }).click();
+      const refusal = precondition(card, "owner").getByRole("alert");
+      await expect(refusal).toBeVisible();
+      // The sentence's own box holds its text: an unbroken run past the box is the overflow a phone cannot scroll to.
+      await expect.poll(() => refusal.evaluate((node) => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1);
+    });
+  });
+}
 
 test.describe("at the narrowest content width", () => {
   test.use({ viewport: { width: 360, height: 800 } });

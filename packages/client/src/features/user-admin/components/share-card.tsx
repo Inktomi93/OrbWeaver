@@ -1,6 +1,6 @@
 // The owner's Share card: the share preconditions as rows with their fixes, then Start sharing, the live link
 // and its controls. It polls `share.status`; `/api/auth/config` is memoized per session and would go stale here.
-// Every action that unmounts its own control hands focus to the control that replaces it (see `ShareCardBody`).
+// Focus never falls to the page when a control it sits on unmounts; `ShareCardBody` names each successor.
 
 import type { RelayDownReason, ShareRelayKind } from "@orb/contracts/identity";
 import { Badge } from "@orb/ui/badge";
@@ -11,7 +11,7 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode, Ref } from "react";
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { ConfirmDialog, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useAuthConfig, useInvalidation, useTRPC } from "#data";
 import { useRevokeUserSessions } from "../hooks/use-admin-mutations.ts";
@@ -33,6 +33,19 @@ const PHASE_BADGE: Record<(typeof SHARE_PHASES)[number], { readonly label: strin
   restarting: { label: "Down", intent: "danger" },
   stopped: { label: "Down", intent: "danger" },
 };
+
+// Where focus that fell to the page goes in each phase: the relay's own controls while it starts, restarts or has
+// stopped. Off and up hand focus on their own (Start after a stop, the link's Copy after a start).
+const PHASE_FOCUS: Record<(typeof SHARE_PHASES)[number], "stop" | "tryAgain" | null> = {
+  off: null,
+  starting: "stop",
+  up: null,
+  restarting: "stop",
+  stopped: "tryAgain",
+};
+
+// An oidc box needs no relay: the badge names what it already is.
+const PUBLIC_BADGE = { label: "Public", intent: "success" } as const;
 
 const RELAY_NAME: Record<ShareRelayKind, string> = {
   quick: "Cloudflare quick tunnel",
@@ -116,16 +129,20 @@ function ShareCardBody({ localMultiUser, discreetLogin, onEnableSeating }: Share
     setMemory(nextMemory);
   }
 
-  // The focus successors. Start sharing follows a stop or the seating confirm, whose triggers unmount; the link's
-  // Copy button follows a start, but mounts only when the relay reports its link, seconds after the press.
+  // The focus successors. Start sharing follows a stop or the seating confirm, whose triggers unmount. While the relay
+  // starts, restarts or has stopped, focus that fell to the page goes to Stop sharing or Try again (the phase effect
+  // below). A start's own focus then moves on to the link's Copy button, which mounts only when the relay reports its
+  // link, seconds after the press.
   const startRef = useRef<HTMLButtonElement | null>(null);
+  const stopRef = useRef<HTMLButtonElement | null>(null);
+  const tryAgainRef = useRef<HTMLButtonElement | null>(null);
   const linkCopyRef = useRef<HTMLButtonElement | null>(null);
   const focusLinkWhenUp = useRef(false);
   const linkCopyTarget = (node: HTMLButtonElement | null): void => {
     linkCopyRef.current = node;
     if (node !== null && focusLinkWhenUp.current) {
       focusLinkWhenUp.current = false;
-      if (focusIsLost()) {
+      if (focusIsLost() || document.activeElement === stopRef.current) {
         node.focus();
       }
     }
@@ -143,28 +160,41 @@ function ShareCardBody({ localMultiUser, discreetLogin, onEnableSeating }: Share
     });
   };
   const view = shareView(status.relay);
+  // The control that replaced the one focus was on, where the phase change unmounted it: the relay's controls while
+  // it starts, restarts or has stopped. Only focus that fell to the page is moved, never focus the owner placed.
+  useEffect((): void => {
+    if (!focusIsLost()) {
+      return;
+    }
+    const successor = PHASE_FOCUS[view.phase];
+    if (successor !== null) {
+      (successor === "stop" ? stopRef : tryAgainRef).current?.focus();
+    }
+  }, [view.phase]);
   // An oidc box is public already, and a relay's random name can never sign anyone in through its identity provider:
   // the card names the box's own address and offers no relay (the server refuses one too).
   const publicOnly = authConfig?.mode === "oidc" && status.relay.state === "off";
+  const badge = publicOnly ? PUBLIC_BADGE : PHASE_BADGE[view.phase];
 
   return (
     <Stack gap="field" data-share-state={status.relay.state} data-share-phase={view.phase}>
-      <ShareProse>
-        {publicOnly
-          ? "This server already has a public address, where your identity provider signs friends in."
-          : "A public link to this server over a free relay, so friends outside your network can sign in."}
-      </ShareProse>
+      {publicOnly ? null : <ShareProse>A public link to this server over a free relay, so friends outside your network can sign in.</ShareProse>}
       <Row gap="field" align="center" role="status" aria-live="polite">
-        <Badge intent={PHASE_BADGE[view.phase].intent}>{PHASE_BADGE[view.phase].label}</Badge>
-        <ShareProse>{publicOnly ? "No relay is needed: friends join at this server's own address." : stateSentence(view)}</ShareProse>
+        <Badge intent={badge.intent}>{badge.label}</Badge>
+        <ShareProse>
+          {publicOnly ? "Friends sign in at this server's own address through your identity provider, so invite them there." : stateSentence(view)}
+        </ShareProse>
       </Row>
-      {publicOnly ? <PublicAddressPanel addresses={status.publicAddresses} /> : null}
+      {publicOnly ? <PublicAddressPanel kind="oidc" addresses={status.publicAddresses} /> : null}
       {status.relay.state === "off" && !publicOnly ? (
-        <Stack gap="field">
+        <Stack gap="block">
           {status.publicAddresses.length === 0 ? null : (
-            <ShareProse data-share-public="local">
-              {`This server already answers at ${status.publicAddresses.join(" and ")} (ALLOWED_HOSTS). If that name reaches it from the internet, friends can join there with an invite link and no relay.`}
-            </ShareProse>
+            <Stack gap="field">
+              <ShareProse>
+                This server already answers at the address below. If friends can reach it from the internet, invite them there, with no relay.
+              </ShareProse>
+              <PublicAddressPanel kind="local" addresses={status.publicAddresses} />
+            </Stack>
           )}
           <SharePreconditions
             mode={authConfig?.mode}
@@ -198,12 +228,12 @@ function ShareCardBody({ localMultiUser, discreetLogin, onEnableSeating }: Share
       )}
       <Row gap="field" align="center" className="flex-wrap">
         {view.phase === "stopped" ? (
-          <Button type="button" intent="primary" size="sm" loading={start.isPending} onClick={startSharing}>
+          <Button ref={tryAgainRef} type="button" intent="primary" size="sm" loading={start.isPending} onClick={startSharing}>
             Try again
           </Button>
         ) : null}
         {view.phase === "off" ? null : (
-          <Button type="button" intent="secondary" size="sm" onClick={(): void => setStopOpen(true)}>
+          <Button ref={stopRef} type="button" intent="secondary" size="sm" onClick={(): void => setStopOpen(true)}>
             Stop sharing
           </Button>
         )}
@@ -223,13 +253,11 @@ function ShareCardBody({ localMultiUser, discreetLogin, onEnableSeating }: Share
   );
 }
 
-function PublicAddressPanel({ addresses }: { readonly addresses: readonly string[] }): ReactElement {
+// The addresses a stranger already reaches this server at, each with its Copy, and the way into a room's invites.
+// `kind` names why they exist: an oidc box's registered return addresses, or a local box's public ALLOWED_HOSTS names.
+function PublicAddressPanel({ kind, addresses }: { readonly kind: "oidc" | "local"; readonly addresses: readonly string[] }): ReactElement {
   return (
-    <Stack gap="field" data-share-public="oidc">
-      <ShareProse>
-        Your identity provider sends people back only to the addresses registered with it, and a relay's random name is never one of them, so this card starts
-        no relay.
-      </ShareProse>
+    <Stack gap="field" data-share-public={kind}>
       {addresses.map((address) => (
         <CopyButton key={address} text={address} what={`the address ${address}`}>
           <Text voice="label" className="min-w-0 font-mono break-words" data-public-address={address}>
@@ -237,7 +265,6 @@ function PublicAddressPanel({ addresses }: { readonly addresses: readonly string
           </Text>
         </CopyButton>
       ))}
-      <ShareProse>Friends join there with an invite link. Pick a room to open its invite dialog.</ShareProse>
       <Row gap="field" align="center">
         <InviteRoomPicker />
       </Row>
@@ -257,11 +284,11 @@ interface UpPanelProps {
   readonly onDismissChange: () => void;
 }
 
+// The live link first, then what it exposes, then the way to use it, then the longer-lived alternative.
 function UpPanel({ url, changed, plainHttp, linkCopyRef, onDismissChange }: UpPanelProps): ReactElement {
   return (
     <Stack gap="field">
       {changed ? <LinkChangedNotice onDismiss={onDismissChange} /> : null}
-      <ShareProse>For anything longer than a session, use a Tailscale Funnel or a named Cloudflare tunnel, whose names survive a restart.</ShareProse>
       <CopyButton ref={linkCopyRef} text={url} what={`the share link ${url}`}>
         <Text voice="label" className="min-w-0 font-mono break-words" data-share-url={url}>
           <BreakableUrl url={url} />
@@ -280,8 +307,8 @@ function UpPanel({ url, changed, plainHttp, linkCopyRef, onDismissChange }: UpPa
             This page is on plain http, so a password typed at this address crosses your network in clear. Friends on the link use https.
           </ShareWarningText>
         ) : null}
+        <ShareProse>Sign-in attempts are throttled per visitor address, and per handle at three times that.</ShareProse>
       </Stack>
-      <ShareProse>Sign-in attempts are throttled per visitor address, and per handle at three times that.</ShareProse>
       <Stack gap="tight">
         <Row gap="field" align="center">
           <InviteRoomPicker />
@@ -290,6 +317,9 @@ function UpPanel({ url, changed, plainHttp, linkCopyRef, onDismissChange }: UpPa
           Pick a room to open its invite dialog. A friend without an account needs one from Users, or a sign-up link an admin makes in that dialog.
         </ShareProse>
       </Stack>
+      <ShareProse data-share-tip="named-tunnel">
+        For anything longer than a session, use a Tailscale Funnel or a named Cloudflare tunnel, whose names survive a restart.
+      </ShareProse>
     </Stack>
   );
 }
@@ -313,9 +343,7 @@ function LinkChangedNotice({ onDismiss }: { readonly onDismiss: () => void }): R
     <Stack gap="tight" data-share-notice="link-changed">
       <Row gap="field" align="center" className="flex-wrap">
         <Badge intent="warning">Link changed</Badge>
-        <Text voice="label" role="alert">
-          Your friends need the new link below
-        </Text>
+        <ShareWarningText role="alert">Your friends need the new link below</ShareWarningText>
       </Row>
       <ShareProse>Send it to your friends again. The old link is dead, and the relay cannot forward anyone from it.</ShareProse>
       <ShareProse>
@@ -326,7 +354,7 @@ function LinkChangedNotice({ onDismiss }: { readonly onDismiss: () => void }): R
         Old invite links still work if you replace their host with the new one. To be safe, revoke and mint them again from the room's invite dialog.
       </ShareProse>
       <Row gap="field" align="center">
-        <Button type="button" intent="ghost" size="inline" onClick={onDismiss}>
+        <Button type="button" intent="secondary" size="sm" onClick={onDismiss}>
           Dismiss the link notice
         </Button>
       </Row>

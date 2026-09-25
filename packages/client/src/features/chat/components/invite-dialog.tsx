@@ -19,7 +19,7 @@ import { Toggle } from "@orb/ui/toggle";
 import { ToggleGroup } from "@orb/ui/toggle-group";
 import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
-import type { ReactElement } from "react";
+import type { ReactElement, RefObject } from "react";
 import { useState } from "react";
 import { FormDialog } from "#components";
 import type { Trpc } from "#data";
@@ -36,13 +36,16 @@ export interface InviteDialogProps {
   readonly chatId: ChatId;
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
+  /** The room's own invite trigger: a dialog another section asked for opens with no trigger focused. */
+  readonly finalFocus?: RefObject<HTMLElement | null>;
 }
 
-export function InviteDialog({ chatId, open, onOpenChange }: InviteDialogProps): ReactElement {
+export function InviteDialog({ chatId, open, onOpenChange, finalFocus }: InviteDialogProps): ReactElement {
   return (
     <FormDialog
       open={open}
       onOpenChange={onOpenChange}
+      {...(finalFocus === undefined ? {} : { finalFocus })}
       title="Invite people"
       description="Anyone with an invite link can join until it expires or runs out of uses."
       testKey="inviteDialog"

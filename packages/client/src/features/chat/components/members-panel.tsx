@@ -68,7 +68,7 @@ import { Icon, UserPlus } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { ScrollArea } from "@orb/ui/scroll-area";
 import { Text } from "@orb/ui/text";
-import type { KeyboardEvent, ReactElement } from "react";
+import type { KeyboardEvent, ReactElement, RefObject } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { testId } from "#lib";
 import type { MemberCharacterRow, MemberPersonRow, MemberRowActions } from "../lib/member-rows.ts";
@@ -78,6 +78,9 @@ export interface MembersPanelProps extends MemberRowActions {
   readonly people: readonly MemberPersonRow[];
   readonly characters: readonly MemberCharacterRow[];
   readonly onInvitePeople?: (() => void) | undefined;
+  /** The Invite people button, for a caller whose invite dialog can open without it (a request from another
+   *  section) and must still return focus to it. The panel keeps its own ref when this is absent. */
+  readonly inviteTriggerRef?: RefObject<HTMLButtonElement | null> | undefined;
   /** The CHARACTERS section header's add door — the character half of the roster's one add/invite affordance
    *  (#162: the tab offered a way to invite humans and no way to add a character, though "add more characters
    *  or add people into it" is one feature). A rendered SLOT rather than a callback because the committed
@@ -230,11 +233,18 @@ function SectionHeader({
 }
 
 export function MembersPanel(props: MembersPanelProps): ReactElement {
-  const { people, characters, onInvitePeople } = props;
+  const { people, characters, onInvitePeople, inviteTriggerRef } = props;
   const rows: readonly MembersRow[] = [...people, ...characters];
 
   const rowRefs = useRef(new Map<string, HTMLButtonElement>());
   const inviteRef = useRef<HTMLButtonElement | null>(null);
+  // The button fills both the panel's own ref and the caller's, when it gave one.
+  const inviteTarget = (node: HTMLButtonElement | null): void => {
+    inviteRef.current = node;
+    if (inviteTriggerRef !== undefined) {
+      inviteTriggerRef.current = node;
+    }
+  };
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const pendingFocusRef = useRef<{ key: string; index: number; wasPerson: boolean } | null>(null);
   const typeaheadRef = useRef<{ buffer: string; at: number }>({ buffer: "", at: 0 });
@@ -364,7 +374,7 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
                 kicker="People"
                 action={
                   onInvitePeople === undefined ? undefined : (
-                    <Button type="button" intent="ghost" size="sm" ref={inviteRef} onClick={onInvitePeople} data-testid={testId("invitePeopleButton")}>
+                    <Button type="button" intent="ghost" size="sm" ref={inviteTarget} onClick={onInvitePeople} data-testid={testId("invitePeopleButton")}>
                       <Icon icon={UserPlus} size="sm" />
                       Invite people
                     </Button>
