@@ -139,7 +139,7 @@ export async function runChatSeed(argv: readonly string[]): Promise<ExitCode> {
   });
 
   for (const boundOwner of ownersBoundBeforeCompose) {
-    built.enqueueOwnerEmbedIndex(boundOwner);
+    await built.enqueueEmbedReindex(boundOwner);
   }
 
   // The idempotent boot seeds (owner cards, default persona, preset, themes) — safe on an already-seeded db.

@@ -303,7 +303,7 @@ export async function runFullSeed(deps: RunFullSeedDeps): Promise<RunFullSeedRes
   });
 
   for (const boundOwner of ownersBoundBeforeCompose) {
-    built.enqueueOwnerEmbedIndex(boundOwner);
+    await built.enqueueEmbedReindex(boundOwner);
   }
 
   // The idempotent boot seeds (owner cards + avatars, default persona, preset, themes) — safe to re-run.

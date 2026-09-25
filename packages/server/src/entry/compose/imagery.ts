@@ -6,7 +6,7 @@
 // FORWARD-REF: `resolveViewerVisibility` is built AFTER chat (the keystone's chat compose block) but is
 // forward-referenced by the `extractQuiet` membrane gate here. It is threaded as a late-bound getter (the
 // keystone hands a thunk that derefs the const once chat has composed) — the same late-bind discipline the
-// keystone's `materializeBackground`/`enqueueEmbedReindex` holders use to break a genuine construction cycle.
+// keystone's `materializeBackground`/`embedReindex` holders use to break a genuine construction cycle.
 
 import type { Principal } from "@orb/contracts/identity";
 import { IMAGERY_NEGATIVE_SLOT_ID } from "@orb/contracts/imagery";

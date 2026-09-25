@@ -350,6 +350,18 @@ export function superviseDetached(requestId: string, name: string, attrs: SpanAt
   });
 }
 
+/** {@link superviseDetached} for a caller that must know the work has settled, such as a seed tool that has to
+ * be deterministic: the same root span and the same operator-visible error. The promise resolves once the work
+ * succeeds or its failure is logged, and never rejects, so awaiting it cannot fail the caller's write. */
+export function superviseSettled(requestId: string, name: string, attrs: SpanAttrs, operation: () => Promise<unknown> | unknown): Promise<void> {
+  return withRequestSpan(requestId, name, attrs, operation).then(
+    () => undefined,
+    (err: unknown) => {
+      getLog().error({ ...cleanAttrs(attrs), err, requestId, spanName: name }, "detached operation failed");
+    },
+  );
+}
+
 /** Read the SDK concrete-span status code through the same internal cast `span()` uses for `.attributes`
  *  (the OTel WRITE `Span` interface omits `.status`). Degrades to `undefined` — the OK-set path, i.e. prior
  *  behavior — if a future OTel renames the property; it never throws. */

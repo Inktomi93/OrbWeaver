@@ -12,9 +12,10 @@
 //      search knob — the shipped character-fan ruling). "OFF" accidentally unsubscribing the room fan would
 //      stop every open room repainting on an entity edit, with no error anywhere.
 //   3. THE EMBED-MODEL-CHANGE REINDEX IS A TRUSTED SYSTEM TRIGGER. `caller: null` bypasses the workloads
-//      mode gate and `mode:"bulk"` spans every owner — so it must stay exactly three enqueues, both bulk,
-//      both owner-less. A `caller`/`ownerId` that drifted here would either scope the sweep to one account
-//      (leaving every other owner's vectors in the OLD embed space) or run a per-user job as nobody.
+//      mode gate and `mode:"bulk"` spans every owner — so the all-owner scope must stay exactly three enqueues,
+//      all bulk, all owner-less. A `caller`/`ownerId` that drifted here would either scope the sweep to one
+//      account (leaving every other owner's vectors in the OLD embed space) or run a per-user job as nobody.
+//      The one-owner scope (a seed bound that owner's encoder) runs the same sweeps singular for that owner.
 //
 // The workload enqueues are observed with `vi.spyOn` on the RETURNED `workloads` service — the spy firing
 // at all is the receipt that the object this seam exposes and the one `enqueueEmbedReindex` closed over are
@@ -22,6 +23,8 @@
 
 import type { DomainEvent } from "@orb/contracts/events";
 import type { Db } from "@orb/db";
+import type { UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { describe, vi } from "vitest";
 import type { DomainEventBus } from "../../../../packages/server/src/entry/compose/event-bus.ts";
 import type { SearchDiscoveryComposeDeps } from "../../../../packages/server/src/entry/compose/search-discovery.ts";
@@ -30,6 +33,7 @@ import { expect, test } from "../../../support/fixtures.ts";
 
 // @orb-waive no-test-fabrication(unknown): never dereferenced — every op this pin drives is stubbed or spied before it can reach db. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
 const NO_DB = {} as unknown as Db;
+const OWNER = castId<UserId>("u_owner");
 
 type Handler = (event: DomainEvent) => void | Promise<void>;
 
@@ -46,7 +50,7 @@ function capturingBus(): { readonly bus: DomainEventBus; readonly handlers: Hand
   return { bus, handlers };
 }
 
-function build(corpusAutoindex: boolean, bus: DomainEventBus): ReturnType<typeof buildSearchDiscovery> {
+function build(corpusAutoindex: boolean, bus: DomainEventBus, memoryEnabled = true): ReturnType<typeof buildSearchDiscovery> {
   // @orb-waive no-test-fabrication(unknown): structural stand-ins for the cluster's sibling front doors — the seam stores them. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const deps = {
     db: NO_DB,
@@ -65,6 +69,7 @@ function build(corpusAutoindex: boolean, bus: DomainEventBus): ReturnType<typeof
     corpusAutoindex,
     resolveChatCapability: vi.fn(),
     getContributions: vi.fn(() => ({})),
+    isMemoryEnabled: vi.fn(() => Promise.resolve(memoryEnabled)),
   } as unknown as SearchDiscoveryComposeDeps;
   return buildSearchDiscovery(deps);
 }
@@ -154,11 +159,9 @@ describe("buildSearchDiscovery — the embed-model-change reindex is a BOX-WIDE,
     const started = { id: "wl_1" } as Awaited<ReturnType<typeof built.workloads.start>>;
     const start = vi.spyOn(built.workloads, "start").mockResolvedValue(started);
 
-    built.enqueueEmbedReindex();
-    await vi.waitFor(() => {
-      expect(start).toHaveBeenCalledTimes(3);
-    });
+    await built.enqueueEmbedReindex(null);
 
+    expect(start).toHaveBeenCalledTimes(3);
     const calls = start.mock.calls.map((c) => c[0]);
     expect(calls.map((c) => c.input.kind).sort()).toStrictEqual(["databank-reindex", "index", "memory-backfill"]);
     for (const call of calls) {
@@ -176,12 +179,56 @@ describe("buildSearchDiscovery — the embed-model-change reindex is a BOX-WIDE,
     const built = build(true, capturingBus().bus);
     const start = vi.spyOn(built.workloads, "start").mockRejectedValue(new Error("already active"));
 
-    expect(() => {
-      built.enqueueEmbedReindex();
-    }).not.toThrow();
-    await vi.waitFor(() => {
-      expect(start).toHaveBeenCalledTimes(3);
-    });
+    await expect(built.enqueueEmbedReindex(null)).resolves.toBeUndefined();
+    await expect(built.enqueueEmbedReindex(OWNER)).resolves.toBeUndefined();
+    expect(start).toHaveBeenCalledTimes(6);
+  });
+});
+
+describe("buildSearchDiscovery — a one-owner embed reindex runs that owner's sweeps", () => {
+  type Started = Awaited<ReturnType<ReturnType<typeof buildSearchDiscovery>["workloads"]["start"]>>;
+  // @orb-waive no-test-fabrication(Started): the enqueue RESULT is never read by this seam. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+  const started = { id: "wl_1" } as Started;
+
+  test("a memory-on owner gets singular index, databank and memory sweeps, the index pass unforced", async () => {
+    const built = build(true, capturingBus().bus, true);
+    const start = vi.spyOn(built.workloads, "start").mockResolvedValue(started);
+    const purge = vi.spyOn(built.embeddings, "purgeMemoryVectors");
+
+    await built.enqueueEmbedReindex(OWNER);
+
+    const calls = start.mock.calls.map((c) => c[0]);
+    expect(new Set(calls.map((c) => c.input.kind))).toStrictEqual(new Set(["databank-reindex", "index", "memory-backfill"]));
+    for (const call of calls) {
+      expect(call.caller).toBeNull();
+      expect(call.mode).toBe("singular");
+      expect(call.ownerId).toBe(OWNER);
+    }
+    expect(calls.find((c) => c.input.kind === "index")?.input.params).toStrictEqual({ source: "all" });
+    expect(purge).not.toHaveBeenCalled();
+  });
+
+  test("a memory-off owner records the vacuous memory receipt instead of a refused memory run", async () => {
+    const built = build(true, capturingBus().bus, false);
+    const start = vi.spyOn(built.workloads, "start").mockResolvedValue(started);
+    // @orb-waive no-test-fabrication(Awaited<ReturnType<typeof built.embeddings.resolveGeneration>>): only the generation fields the receipt copies are read; the connection snapshot is never touched. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+    const generation = { id: "gen_1", epoch: 3, space: "enc-v2" } as Awaited<ReturnType<typeof built.embeddings.resolveGeneration>>;
+    vi.spyOn(built.embeddings, "resolveGeneration").mockResolvedValue(generation);
+    const purge = vi.spyOn(built.embeddings, "purgeMemoryVectors").mockResolvedValue({ segments: 0, digests: 0 });
+
+    await built.enqueueEmbedReindex(OWNER);
+
+    expect(new Set(start.mock.calls.map((c) => c[0].input.kind))).toStrictEqual(new Set(["databank-reindex", "index"]));
+    expect(purge).toHaveBeenCalledWith({ ownerId: OWNER, generation: { id: "gen_1", task: "embed", via: "embed", epoch: 3, space: "enc-v2" } });
+  });
+
+  test("with the autoindex off, a one-owner reindex enqueues nothing", async () => {
+    const built = build(false, capturingBus().bus);
+    const start = vi.spyOn(built.workloads, "start").mockResolvedValue(started);
+
+    await built.enqueueEmbedReindex(OWNER);
+
+    expect(start).not.toHaveBeenCalled();
   });
 });
 
@@ -203,6 +250,8 @@ describe("buildSearchDiscovery — the cluster product is complete", () => {
         "notifications",
         "workloads",
         "enqueueEmbedReindex",
+        "detachEmbedReindex",
+        "vacuousMemoryReceipt",
         "listCorpusOwners",
       ].sort(),
     );

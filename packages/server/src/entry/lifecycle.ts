@@ -642,9 +642,9 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // (#2481), not by a later boot.
     await seedDefaultPreset({ db, now });
     await seedThemes({ db, now });
-    await seedLocalLightOnBoot({ db, now, onEmbedSpaceBound: built.enqueueOwnerEmbedIndex });
+    await seedLocalLightOnBoot({ db, now, onEmbedSpaceBound: built.detachEmbedReindex });
     for (const boundOwner of ownersBoundBeforeCompose) {
-      built.enqueueOwnerEmbedIndex(boundOwner);
+      built.detachEmbedReindex(boundOwner);
     }
 
     // Owner-DEPENDENT boot seeds: guarded behind ownerId so a fresh OIDC box (no owner yet) can still boot.
