@@ -12,6 +12,7 @@
 
 import type { DeploymentRenderPolicy } from "@orb/contracts/chat";
 import { characters, chats, users } from "@orb/db";
+import { handleKey } from "@orb/kit/handle-key";
 import type { CharacterHandle, CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { characterDetailRow, characterPolicySweep, chatConfigRow, rpgGameForChat } from "@orb/server/foundation/observability/debug";
@@ -24,7 +25,7 @@ const BLOCKING_FLOOR: DeploymentRenderPolicy = { trustHtml: false, forbidExterna
 const TRUSTING_FLOOR: DeploymentRenderPolicy = { trustHtml: true, forbidExternalMedia: false, allowInteractiveCards: false };
 
 async function seedOwner(db: Awaited<ReturnType<typeof freshDb>>): Promise<void> {
-  await db.insert(users).values({ id: OWNER, handle: castId<Handle>("configprobe") });
+  await db.insert(users).values({ id: OWNER, handle: castId<Handle>("configprobe"), handleKey: handleKey(castId<Handle>("configprobe")) });
 }
 
 /** Seed one character with the given render-policy tri-states. */
@@ -128,7 +129,7 @@ test("the sweep carries ownerId + handle — the SAME handle under two owners is
   const db = await freshDb();
   await seedOwner(db);
   const second = castId<UserId>("user_config_probe_2");
-  await db.insert(users).values({ id: second, handle: castId<Handle>("configprobe2") });
+  await db.insert(users).values({ id: second, handle: castId<Handle>("configprobe2"), handleKey: handleKey(castId<Handle>("configprobe2")) });
 
   await seedCharacter(db, "shared", null, null);
   await db.insert(characters).values({

@@ -231,16 +231,24 @@ CREATE TABLE `chat_invites` (
 	`expires_at` integer,
 	`invited_user_id` text,
 	`status` text DEFAULT 'pending' NOT NULL,
+	`allow_signup` integer DEFAULT false NOT NULL,
+	`created_by_user_id` text,
+	`mint_mode` text,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`invited_user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE set null,
+	FOREIGN KEY (`created_by_user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE set null,
 	CONSTRAINT "chat_invites_status_check" CHECK(status in ('pending', 'accepted', 'declined', 'revoked', 'expired')),
-	CONSTRAINT "chat_invites_uses_check" CHECK(uses >= 0 and (max_uses is null or max_uses > 0))
+	CONSTRAINT "chat_invites_uses_check" CHECK(uses >= 0 and (max_uses is null or max_uses > 0)),
+	CONSTRAINT "chat_invites_signup_shape" CHECK(allow_signup = 0 OR (invited_user_id IS NULL AND max_uses IS NOT NULL AND expires_at IS NOT NULL)),
+	CONSTRAINT "chat_invites_signup_mode" CHECK(allow_signup = 0 OR mint_mode IS NOT NULL),
+	CONSTRAINT "chat_invites_mint_mode_check" CHECK(mint_mode is null or mint_mode in ('single-user', 'local', 'forward-header', 'oidc'))
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `chat_invites_token_hash_unique` ON `chat_invites` (`token_hash`);--> statement-breakpoint
 CREATE INDEX `chat_invites_chat_idx` ON `chat_invites` (`chat_id`);--> statement-breakpoint
 CREATE INDEX `chat_invites_invited_user_idx` ON `chat_invites` (`invited_user_id`);--> statement-breakpoint
+CREATE INDEX `chat_invites_created_by_user_idx` ON `chat_invites` (`created_by_user_id`);--> statement-breakpoint
 CREATE TABLE `chat_locks` (
 	`chat_id` text PRIMARY KEY NOT NULL,
 	`holder` text NOT NULL,
@@ -476,6 +484,7 @@ CREATE TABLE `user_connections` (
 	`transport` text,
 	`model_listed` integer DEFAULT true NOT NULL,
 	`allow_background` integer DEFAULT false NOT NULL,
+	`prompt_cache` text,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
@@ -565,6 +574,7 @@ CREATE TABLE `user_credentials` (
 );
 --> statement-breakpoint
 CREATE INDEX `user_credentials_owner_idx` ON `user_credentials` (`owner_id`);--> statement-breakpoint
+CREATE UNIQUE INDEX `user_credentials_owner_provider_label_unique` ON `user_credentials` (`owner_id`,`provider`,`label`);--> statement-breakpoint
 CREATE TABLE `character_documents` (
 	`character_id` text NOT NULL,
 	`document_id` text NOT NULL,
@@ -1024,7 +1034,7 @@ CREATE TABLE `presets` (
 	`name` text NOT NULL,
 	`kind` text NOT NULL,
 	`config` text NOT NULL,
-	`schema_version` integer DEFAULT 7 NOT NULL,
+	`schema_version` integer DEFAULT 8 NOT NULL,
 	`forked_from` text,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
@@ -1320,11 +1330,28 @@ CREATE UNIQUE INDEX `session_entries_chat_seq_unique` ON `session_entries` (`cha
 CREATE UNIQUE INDEX `session_entries_sdk_session_unique` ON `session_entries` (`sdk_session_id`);--> statement-breakpoint
 CREATE UNIQUE INDEX `session_entries_primary_unique` ON `session_entries` (`chat_id`,`connection_id`) WHERE "session_entries"."is_primary" = 1;--> statement-breakpoint
 CREATE INDEX `session_entries_connection_idx` ON `session_entries` (`connection_id`);--> statement-breakpoint
+CREATE TABLE `oidc_pending_signups` (
+	`external_id` text PRIMARY KEY NOT NULL,
+	`secret_hash` text NOT NULL,
+	`handle` text NOT NULL,
+	`email` text,
+	`groups` text NOT NULL,
+	`invite_token_hash` text NOT NULL,
+	`id_token_ciphertext` text,
+	`id_token_iv` text,
+	`id_token_tag` text,
+	`created_at` integer NOT NULL,
+	`expires_at` integer NOT NULL
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `oidc_pending_signups_secret_hash_unique` ON `oidc_pending_signups` (`secret_hash`);--> statement-breakpoint
+CREATE INDEX `oidc_pending_signups_expires_idx` ON `oidc_pending_signups` (`expires_at`);--> statement-breakpoint
 CREATE TABLE `oidc_transactions` (
 	`state` text PRIMARY KEY NOT NULL,
 	`code_verifier` text NOT NULL,
 	`nonce` text,
 	`redirect_uri` text,
+	`invite_token_hash` text,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	`expires_at` integer NOT NULL
 );
@@ -1578,6 +1605,7 @@ CREATE INDEX `world_book_tags_tag_idx` ON `world_book_tags` (`tag_id`);--> state
 CREATE TABLE `users` (
 	`id` text PRIMARY KEY NOT NULL,
 	`handle` text NOT NULL,
+	`handle_key` text NOT NULL,
 	`external_id` text,
 	`email` text,
 	`role` text DEFAULT 'user' NOT NULL,
@@ -1595,6 +1623,7 @@ CREATE TABLE `users` (
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `users_handle_unique` ON `users` (`handle`);--> statement-breakpoint
+CREATE UNIQUE INDEX `users_handle_key_unique` ON `users` (`handle_key`);--> statement-breakpoint
 CREATE UNIQUE INDEX `users_external_id_unique` ON `users` (`external_id`) WHERE "users"."external_id" is not null;--> statement-breakpoint
 CREATE UNIQUE INDEX `users_single_owner_unique` ON `users` (`role`) WHERE "users"."role" = 'owner';--> statement-breakpoint
 CREATE INDEX `users_owner_user_idx` ON `users` (`owner_user_id`);--> statement-breakpoint

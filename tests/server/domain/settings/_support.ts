@@ -8,6 +8,7 @@ import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { users } from "@orb/db";
+import { handleKey } from "@orb/kit/handle-key";
 import type { Handle, ThemeId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { UpstreamHeadProbe, VersionIdentity } from "@orb/kit/version-identity";
@@ -49,6 +50,7 @@ export async function seedUser(db: Db, overrides: SeedUserOverrides = {}): Promi
   await db.insert(users).values({
     id,
     handle: castId<Handle>(overrides.handle ?? id),
+    handleKey: handleKey(castId<Handle>(overrides.handle ?? id)),
     role: overrides.role ?? "user",
     enabled: true,
     passwordHash: null,

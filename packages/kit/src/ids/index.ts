@@ -153,6 +153,9 @@ export type ConnectionBindingId = TypeIdOf<"connection_binding">;
 // `Handle` = user-facing username; `ExternalId` = stable SSO `sub` (NEVER equal to
 // Handle); `SessionToken` = opaque cookie value (NEVER a session row id).
 export type Handle = Branded<"Handle">;
+/** The comparison key of a `Handle` (`@orb/kit/handle-key`): two handles with one key are one handle. Never
+ *  displayed; only `handleKey` mints it. */
+export type HandleKey = Branded<"HandleKey">;
 export type ExternalId = Branded<"ExternalId">;
 export type SessionToken = Branded<"SessionToken">;
 

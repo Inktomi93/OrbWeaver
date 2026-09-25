@@ -8,6 +8,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pid } from "node:process";
 import { createDb, runMigrations, users, workloads } from "@orb/db";
+import { handleKey } from "@orb/kit/handle-key";
 import type { Handle, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
@@ -96,7 +97,9 @@ describe("isActiveKindUniqueViolation", () => {
       const secondDb = await createDb(`file:${path}`);
       const ownerId = castId<UserId>("user_concurrent_owned");
       const ownedId = castId<WorkloadId>("workload_concurrent_owned");
-      await firstDb.insert(users).values({ id: ownerId, handle: castId<Handle>("concurrent-owned"), role: "user" });
+      await firstDb
+        .insert(users)
+        .values({ id: ownerId, handle: castId<Handle>("concurrent-owned"), handleKey: handleKey(castId<Handle>("concurrent-owned")), role: "user" });
       const base = {
         kind: "reconcile-stats" as const,
         mode: "singular" as const,

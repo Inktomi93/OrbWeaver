@@ -1,4 +1,5 @@
 import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
+import { admitsHandle } from "@orb/kit/handle-key";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { newId } from "@orb/kit/ids";
 import { getLog, groupsLogFields, securityEvent } from "#foundation/observability";
@@ -11,6 +12,7 @@ import {
   selectForProvisionByExternalId,
   selectForProvisionByHandle,
   selectForProvisionById,
+  selectIdByHandleKey,
   selectOwnerUserId,
   selectUserIdByEmail,
   updateUser,
@@ -101,7 +103,7 @@ async function updateExisting(
   // UNIQUE, so no login ever ran to do the rename.) Every other row keeps full IdP rename tracking
   // (`externalId` keys SSO, `handle` keys everything else — Spine-Identity "Esoterica").
   const handleIsPolicyOwned = policy.isBootstrapOwner && isOwnerSeedHandle(existing.handle);
-  if (!handleIsPolicyOwned && existing.handle !== identity.handle) {
+  if (!handleIsPolicyOwned && existing.handle !== identity.handle && (await renameIsFree(ctx, existing, identity))) {
     changes.handle = identity.handle;
   }
   if (identity.email !== null && existing.email !== identity.email) {
@@ -137,6 +139,37 @@ async function updateExisting(
   };
 }
 
+/** D257 — an IdP rename may not take another row's handle key or a mixed-script handle: the user keeps
+ *  their current handle, and the login proceeds. A concurrent rename onto the same key still meets
+ *  `users_handle_key_unique`. */
+async function renameIsFree(ctx: SessionsContext, existing: ProvisionCandidate, identity: ResolvedIdentity): Promise<boolean> {
+  if (!admitsHandle(identity.handle)) {
+    securityEvent(
+      "sso_rename_to_inadmissible_handle",
+      { userId: existing.id, handle: existing.handle, requested: identity.handle },
+      "security: an IdP rename asked for a mixed-script handle; keeping the current handle",
+    );
+    return false;
+  }
+  const holder = await selectIdByHandleKey(ctx.db, identity.handle);
+  if (holder === undefined || holder === existing.id) {
+    return true;
+  }
+  securityEvent(
+    "sso_rename_onto_held_handle_key",
+    { userId: existing.id, handle: existing.handle, requested: identity.handle, holder },
+    "security: an IdP rename asked for a handle that shares its key (a case variant or look-alike) with another user's; keeping the current handle",
+  );
+  return false;
+}
+
+// The operator's next step for each lost-race match. Only an exact handle match is this identity's account.
+const LOST_RACE_ADVICE: Readonly<Record<"exact" | "key-only" | "none", string>> = {
+  exact: "the winner holds this exact handle; an admin links it via admin.linkSsoIdentity",
+  "key-only": "the winner holds a look-alike of this handle (one handle key, D257), a different account; do not link it",
+  none: "the owner singleton or another unique column absorbed it",
+};
+
 /**
  * THE INSERT LOST A RACE and no row carries this identity — REACHABLE, and the comment that used to sit
  * here calling it "Unreachable" was the defect (#1478): it threw a raw Error, i.e. a 500 on the login path.
@@ -148,16 +181,24 @@ async function updateExisting(
  * REFUSED, never resolved by ADOPTION. Returning the winner's row would be exactly the auto-link-by-handle
  * account takeover the MS-W1 `handle-collision` refusal hard-denies on the sequential path (MS-W1) — this is the same
  * collision arriving through the race window, so it gets the same operator-actionable `account-exists`
- * deny: an admin links the row to this stable subject via `admin.linkSsoIdentity` (B5). No row is created
- * or updated. The extra read is diagnosis only (`handleTaken` separates a handle collision from the owner
- * singleton for the operator); it decides nothing.
+ * deny. No row is created or updated. The extra reads are diagnosis only and decide nothing: `match` separates
+ * an EXACT handle collision (the same account under a new subject, which an admin may link via
+ * `admin.linkSsoIdentity`, B5) from a KEY-ONLY one (D257: a different account that merely looks alike, which
+ * must never be linked) and from the owner singleton.
  */
+async function lostRaceMatch(ctx: SessionsContext, handle: Handle): Promise<keyof typeof LOST_RACE_ADVICE> {
+  if ((await selectForProvisionByHandle(ctx.db, handle)) !== undefined) {
+    return "exact";
+  }
+  return (await selectIdByHandleKey(ctx.db, handle)) === undefined ? "none" : "key-only";
+}
+
 async function refuseLostInsertRace(ctx: SessionsContext, identity: ResolvedIdentity): Promise<ProvisionResult> {
-  const handleTaken = (await selectForProvisionByHandle(ctx.db, identity.handle)) !== undefined;
+  const match = await lostRaceMatch(ctx, identity.handle);
   securityEvent(
     "sso_insert_lost_race",
-    { handle: identity.handle, externalId: identity.externalId, handleTaken },
-    "security: SSO first-login INSERT was absorbed by a concurrent writer that does NOT carry this stable subject (handle collision, or the owner singleton) — refusing the login rather than adopting the winning row; an admin links it via admin.linkSsoIdentity",
+    { handle: identity.handle, externalId: identity.externalId, match },
+    `security: SSO first-login INSERT was absorbed by a concurrent writer that does NOT carry this stable subject — refusing the login rather than adopting the winning row; ${LOST_RACE_ADVICE[match]}`,
   );
   return { outcome: "denied", reason: "account-exists" };
 }
@@ -167,6 +208,15 @@ async function refuseLostInsertRace(ctx: SessionsContext, identity: ResolvedIden
  *  admin; the owner is never gated). It reuses the `enabled` control `validate` and the SSO callback refuse on,
  *  rather than a `pending` role in the D17 lattice. */
 async function insertNew(ctx: SessionsContext, identity: ResolvedIdentity, resolvedRole: UserRole, enabled: boolean): Promise<ProvisionResult> {
+  // D257: a new account never takes a mixed-script handle, which can spell a look-alike the key misses.
+  if (!admitsHandle(identity.handle)) {
+    securityEvent(
+      "sso_insert_inadmissible_handle",
+      { handle: identity.handle, externalId: identity.externalId },
+      "security: SSO first login refused — the IdP handle mixes scripts (D257); no account was created",
+    );
+    return { outcome: "denied" };
+  }
   const now = ctx.now();
   await insertUser(ctx.db, {
     id: newId<UserId>(),

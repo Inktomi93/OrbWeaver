@@ -15,6 +15,7 @@ import { createEnsureUser } from "./verbs/ensure-user.ts";
 import { createLinkExternalId } from "./verbs/link-external-id.ts";
 import { createList } from "./verbs/list.ts";
 import { createLoadUserById } from "./verbs/load-user-by-id.ts";
+import { createLocalUser } from "./verbs/local-user.ts";
 import { createOwnerPassword } from "./verbs/owner-password.ts";
 import { createPendingSignup } from "./verbs/pending-signup.ts";
 import { createProvisionIdentity } from "./verbs/provision-identity.ts";
@@ -50,6 +51,7 @@ export function createSessionsService(deps: SessionsServiceDeps): SessionsServic
     ...createLinkExternalId(ctx),
     ...createOwnerPassword(ctx),
     ...createSignup(ctx),
+    ...createLocalUser(ctx),
     ...createPendingSignup(ctx),
     getOwnerUserId: (): Promise<UserId | undefined> => selectOwnerUserId(ctx.db),
   };

@@ -12,6 +12,7 @@
 // were swapped for sequential `await db.insert(...)` calls (the first row would survive the second's throw).
 
 import { users } from "@orb/db";
+import { handleKey } from "@orb/kit/handle-key";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
@@ -26,6 +27,7 @@ function userRow(id: string, handle: Handle): typeof users.$inferInsert {
   return {
     id: castId<UserId>(id),
     handle: castId<Handle>(handle),
+    handleKey: handleKey(handle),
     role: "user",
     enabled: true,
     createdAt: AT,

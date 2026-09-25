@@ -4,6 +4,7 @@
 // (synthetic excluded) newest-created first.
 
 import { characters, chatParticipants, chats, messages, users } from "@orb/db";
+import { handleKey } from "@orb/kit/handle-key";
 import type { CharacterHandle, CharacterId, ChatId, ChatParticipantId, Handle, MessageId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { characterListSummaries, chatListSummaries } from "@orb/server/foundation/observability/debug";
@@ -13,7 +14,7 @@ import { expect, test } from "../../../../../support/fixtures.ts";
 test("chatListSummaries returns a row per chat with participant + message counts, newest-updated first", async () => {
   const db = await freshDb();
   const userId = castId<UserId>("user_list");
-  await db.insert(users).values({ id: userId, handle: castId<Handle>("user_list") });
+  await db.insert(users).values({ id: userId, handle: castId<Handle>("user_list"), handleKey: handleKey(castId<Handle>("user_list")) });
 
   const olderId = castId<ChatId>("chat_list_older");
   const newerId = castId<ChatId>("chat_list_newer");
@@ -47,7 +48,7 @@ test("chatListSummaries returns a row per chat with participant + message counts
 test("characterListSummaries returns user-facing characters newest-created first, synthetic excluded", async () => {
   const db = await freshDb();
   const userId = castId<UserId>("user_char_list");
-  await db.insert(users).values({ id: userId, handle: castId<Handle>("user_char_list") });
+  await db.insert(users).values({ id: userId, handle: castId<Handle>("user_char_list"), handleKey: handleKey(castId<Handle>("user_char_list")) });
 
   await db.insert(characters).values([
     {
@@ -93,7 +94,7 @@ test("an empty db lists nothing (no fabricated rows)", async () => {
 test("chatListSummaries counts are per-chat — a second chat's rows don't bleed", async () => {
   const db = await freshDb();
   const userId = castId<UserId>("user_bleed");
-  await db.insert(users).values({ id: userId, handle: castId<Handle>("user_bleed") });
+  await db.insert(users).values({ id: userId, handle: castId<Handle>("user_bleed"), handleKey: handleKey(castId<Handle>("user_bleed")) });
   const a = castId<ChatId>("chat_bleed_a");
   const b = castId<ChatId>("chat_bleed_b");
   await db.insert(chats).values([

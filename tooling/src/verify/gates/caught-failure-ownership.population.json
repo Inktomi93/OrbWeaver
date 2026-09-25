@@ -2,15 +2,15 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 618,
+    "sites": 619,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 618,
+      "deliberate-absorb": 619,
       "unproven": 0
     },
     "byGrammar": {
       "default": 153,
-      "empty": 316,
+      "empty": 317,
       "promise": 149
     }
   },
@@ -3104,6 +3104,11 @@
       "siteId": "tooling/src/wire-tap/ops/trpc.ts::trpcOp::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "a non-JSON response body just prints the raw text as-is (the comment states this directly) — the response body itself is never lost, only the pretty-print step is skipped. Ends if the raw text stops being printed on this path."
+    },
+    {
+      "siteId": "packages/server/src/domain/credentials/verbs/add.ts::insertInFreeSlot::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a unique collision is the expected loser of a concurrent add; the retry below re-reads the free labels, and a second collision surfaces as CredentialsConflictError with its cause. Ends if the slot index or the retry goes."
     }
   ]
 }

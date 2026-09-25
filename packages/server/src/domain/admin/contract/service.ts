@@ -2,11 +2,11 @@
 // (dependency-inversion ports into sibling domains), and AdminService (the verb interface). Every
 // cross-feature/infra dep arrives as an injected op — admin sideways-imports nothing.
 
-import type { Principal } from "@orb/contracts/identity";
+import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/kit";
-import type { CharacterId, ExternalId, SessionId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
 import type {
   CreateUserParams,
@@ -60,6 +60,15 @@ interface SessionAdminPort {
    *  not explain it (so a broken audit insert surfaces as itself, never as a fake identity refusal). The
    *  identity invariant (bind-once, U1 one-linking-site) stays the sessions verb's. */
   readonly settleUnclaimedLink: (userId: UserId, externalId: ExternalId, failure?: unknown) => Promise<UnclaimedLinkOutcome>;
+  /** D257 — the local-account mint, UNEXECUTED, so `createUser` commits it with its audit row as ONE batch.
+   *  Canonical home domain/sessions, which derives the handle key; admin only orders the statements. */
+  readonly localUserInsertStatement: (row: {
+    readonly id: UserId;
+    readonly handle: Handle;
+    readonly role: UserRole;
+    readonly passwordHash: string;
+    readonly at: number;
+  }) => AwaitableBatchStmt<{ readonly id: UserId }[]>;
 }
 
 /** The inline-embed slice admin needs — composed at the root from `character` and `embeddings`. Resolves

@@ -15,6 +15,7 @@ import type { Db } from "@orb/db";
 import { assets, automationRules, plugins, users } from "@orb/db";
 import type { InferenceDeps, InferenceRuntime } from "@orb/inference";
 import { createInferenceRuntime } from "@orb/inference";
+import { handleKey } from "@orb/kit/handle-key";
 import type { AssetId, AutomationRuleId, ConnectionBindingId, Handle, PluginId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ConnectionContext, ConnectionService, EndpointAdmission } from "@orb/server/domain/connection";
@@ -92,6 +93,7 @@ export async function seedUser(db: Db, id = "user_o"): Promise<UserId> {
   await db.insert(users).values({
     id: userId,
     handle: castId<Handle>(id),
+    handleKey: handleKey(castId<Handle>(id)),
     role: "user",
     enabled: true,
     passwordHash: null,

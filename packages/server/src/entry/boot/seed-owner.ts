@@ -20,6 +20,7 @@
 
 import type { Db } from "@orb/db";
 import { users } from "@orb/db";
+import { handleKey } from "@orb/kit/handle-key";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq, isNull, ne, or } from "drizzle-orm";
@@ -30,7 +31,7 @@ const OWNER_ROLE = "owner" as const;
 
 export interface SeedOwnerDeps {
   readonly db: Db;
-  readonly sessions: Pick<SessionsService, "ensureUser">;
+  readonly sessions: Pick<SessionsService, "ensureUser" | "renameUserHandle">;
   readonly ownerHandles: readonly string[];
   readonly now: () => number;
   /** AUTH_MODE=local only: the cleartext first-boot owner password. Never logged. */
@@ -51,14 +52,15 @@ export interface SeedOwnerDeps {
  * adversary in this path, so the ambiguity that justifies a manual repair there does not exist here.
  *
  * WHAT IT WILL NOT DO. It never STEALS: a seed key some other user already holds is a refusal, loud and
- * actionable, with both rows untouched (`users_handle_unique` would reject the write anyway — this turns an
+ * actionable, with both rows untouched (`users_handle_key_unique` would reject the write anyway — this turns an
  * opaque SQLITE_CONSTRAINT into a message that names the choice). It never touches `role`, `external_id`,
  * `password_hash` or `enabled` — only the handle moves, so the owner's durable SSO binding survives the
  * migration and the D17 singleton is never a second owner row. And it is LOUD: the warn line is the
  * operator's tell that a typo'd `OWNER_HANDLES` just renamed their owner (reverting the env renames it back —
  * the row is identified by `role='owner'`, not by the handle it happens to carry).
  */
-async function adoptMovedSeedKey(db: Db, seedKey: Handle, at: number): Promise<void> {
+async function adoptMovedSeedKey(deps: SeedOwnerDeps, seedKey: Handle, at: number): Promise<void> {
+  const { db } = deps;
   const [owner] = await db.select({ id: users.id, handle: users.handle }).from(users).where(eq(users.role, OWNER_ROLE)).limit(1);
   if (owner === undefined || owner.handle === seedKey) {
     return;
@@ -68,14 +70,14 @@ async function adoptMovedSeedKey(db: Db, seedKey: Handle, at: number): Promise<v
   const [taken] = await db
     .select({ id: users.id })
     .from(users)
-    .where(and(eq(users.handle, seedKey), ne(users.id, owner.id)))
+    .where(and(eq(users.handleKey, handleKey(seedKey)), ne(users.id, owner.id)))
     .limit(1);
   if (taken !== undefined) {
     throw new Error(
-      `seedOwner: OWNER_HANDLES moved to "${seedKey}", but that handle is already held by another user (id=${taken.id}) — refusing to rename the owner row (id=${owner.id}, handle="${owner.handle}") onto it, which would take a member's handle. Point OWNER_HANDLES at an unused handle, or rename/remove that user first.`,
+      `seedOwner: OWNER_HANDLES moved to "${seedKey}", but that handle or a look-alike of it (one handle key, D257) is already held by another user (id=${taken.id}) — refusing to rename the owner row (id=${owner.id}, handle="${owner.handle}") onto it, which would take a member's handle. Point OWNER_HANDLES at an unused handle, or rename/remove that user first.`,
     );
   }
-  await db.update(users).set({ handle: seedKey, updatedAt: at }).where(eq(users.id, owner.id));
+  await deps.sessions.renameUserHandle(owner.id, seedKey, at);
   getLog().warn(
     { ownerId: owner.id, from: owner.handle, to: seedKey },
     "boot/seed-owner: OWNER_HANDLES moved — renamed the owner row onto the new seed key (role + external_id unchanged; if this was a typo, restore OWNER_HANDLES and reboot)",
@@ -96,7 +98,7 @@ export async function seedOwner(deps: SeedOwnerDeps): Promise<readonly UserId[]>
   // insert-then-collide path that made a moved OWNER_HANDLES a fatal boot.
   const seedKey = deps.ownerHandles[0];
   if (seedKey !== undefined) {
-    await adoptMovedSeedKey(deps.db, castId<Handle>(seedKey), at);
+    await adoptMovedSeedKey(deps, castId<Handle>(seedKey), at);
   }
   const seedPassword = deps.initialPassword !== undefined && deps.hashPassword !== undefined ? { plain: deps.initialPassword, hash: deps.hashPassword } : null;
   let passwordsSeeded = 0;

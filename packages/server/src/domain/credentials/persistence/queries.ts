@@ -63,8 +63,9 @@ export function rotateSealed(
     .where(and(eq(userCredentials.id, args.credentialId), eq(userCredentials.ownerId, args.ownerId)));
 }
 
-/** Insert a fresh sealed credential row. Throws the libSQL constraint error on a slot collision (the
- *  TOCTOU loser of two concurrent first-adds) — the caller classifies it via `isConstraintViolation`. */
+/** Insert a fresh sealed credential row. Throws the libSQL constraint error when the label's slot is taken
+ *  (`user_credentials_owner_provider_label_unique`, the loser of two concurrent adds); `add` classifies it
+ *  via `isConstraintViolation`. */
 export function insertSealed(
   db: Db,
   args: {
