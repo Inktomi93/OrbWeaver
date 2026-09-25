@@ -2,8 +2,7 @@
 #
 #   git clone https://github.com/Inktomi93/orbweaver && cd orbweaver
 #   docker compose up -d --build          # builds the image from this checkout (a few minutes the first time)
-#   docker compose logs orbweaver         # your generated login is printed on the FIRST boot
-#   → http://localhost:8788
+#   → http://localhost:8788                 no login by default; under AUTH_MODE=local the first boot prints one (docker compose logs orbweaver)
 #
 # ONE service, the app only. Models are yours: paste a cloud API key in Settings, or point a connection at a
 # model server you already run (Ollama / KoboldCpp / LM Studio / TabbyAPI / vLLM) at
