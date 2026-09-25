@@ -256,6 +256,31 @@ test("the ADOPTED OIDC owner survives a re-boot: same owner id, same row, no pha
 // `insertUser(role:"owner")` collided with `users_single_owner_unique` → `onConflictDoNothing` swallowed it →
 // the re-read missed → `ensureUser` threw. BOOT FATAL, before any login could rename anything — which is what
 // made `provision-identity`'s "the rename then lands the row back onto the new one" a promise nothing kept.
+// D258, the mode-flip walk: on an unclaimed oidc box a member renames at the IdP to the seed key, the operator flips to
+// a seeded mode (boot runs seedOwner) and back to oidc. The member must never end up holding the owner row.
+test("a member's IdP rename onto the seed key never becomes the owner across a mode flip and back", async ({ clock }) => {
+  const db = await freshDb();
+  const sessions = createSessionsService({ db, now: clock.now, sessionSecret: PEPPER, seedUserConnections: createLocalLightUserSeed({ db, now: clock.now }) });
+  vi.stubEnv("OWNER_HANDLES", "owner");
+  const member: ResolvedIdentity = { externalId: castId<ExternalId>("idp|mallory"), handle: castId<Handle>("mallory"), groups: [], email: null };
+
+  // oidc, unclaimed: the member joins, then renames at the IdP to the seed key.
+  await sessions.provisionIdentity(member, { ownerClaimProven: false, allowJitProvision: true });
+  await sessions.provisionIdentity({ ...member, handle: castId<Handle>("owner") }, { ownerClaimProven: false });
+
+  // The operator flips to a seeded mode: boot seeds the owner by the seed key.
+  const ownerId = (await seedOwner({ db, sessions, ownerHandles: ["owner"], now: clock.now }))[0];
+
+  // Back to oidc: the member's subject signs in again.
+  const back = await sessions.provisionIdentity({ ...member, handle: castId<Handle>("owner") }, { ownerClaimProven: false });
+
+  const rows = await db.select().from(users);
+  const memberRow = rows.find((row) => row.externalId === "idp|mallory");
+  expect(memberRow).toMatchObject({ handle: "mallory", role: "user" });
+  expect(rows.filter((row) => row.role === "owner")).toEqual([expect.objectContaining({ id: ownerId, handle: "owner", externalId: null })]);
+  expect(back).toMatchObject({ outcome: "provisioned", userId: memberRow?.id, role: "user" });
+});
+
 test("an operator who MOVES OWNER_HANDLES: the owner row follows the new key, boot survives, role/subject intact", async ({ clock }) => {
   const db = await freshDb();
   const sessions = createSessionsService({ db, now: clock.now, sessionSecret: PEPPER, seedUserConnections: createLocalLightUserSeed({ db, now: clock.now }) });

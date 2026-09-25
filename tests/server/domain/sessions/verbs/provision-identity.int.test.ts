@@ -494,6 +494,30 @@ describe("sessions.provisionIdentity — OIDC owner-flip reconciliation (#8, D17
 // UNBOUND row (single-user/local) gets linked to its SSO subject on first login. Applied to an already-BOUND
 // row it is an account takeover: the attacker only needs the victim's stored handle in the IdP, and
 // `updateExisting` would move `external_id` onto their subject — locking the victim out of their own row.
+// D258: boot's seedOwner resolves the owner row by the OWNER_HANDLES seed key, so a member row holding that key becomes
+// the owner at the next mode flip. A member's IdP rename onto the key, or a look-alike of it, keeps the old handle.
+describe("sessions.provisionIdentity — a member's IdP rename onto the owner seed key is refused", () => {
+  test.each(["owner", "Owner", "0wner"])("an unclaimed box: a member renamed at the IdP to %j keeps its handle and role", async (renamed) => {
+    vi.stubEnv("OWNER_HANDLES", "owner");
+    const member = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("alice") }), PROVEN));
+    const warn = vi.spyOn(logger, "warn");
+    const again = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>(renamed) }), PROVEN));
+    expect(again).toMatchObject({ userId: member.userId, role: "user", identityChanged: false });
+    const row = (await db.select().from(users).where(eq(users.id, member.userId)))[0];
+    expect(row?.handle).toBe("alice");
+    expect(row?.role).toBe("user");
+    const line = warn.mock.calls.map(([bindings]) => bindings as Record<string, unknown>).find((b) => b["event"] === "sso_rename_onto_reserved_handle");
+    expect(line).toMatchObject({ security: true, userId: member.userId });
+  });
+
+  test("control: the same member's IdP rename to an ordinary handle still lands", async () => {
+    vi.stubEnv("OWNER_HANDLES", "owner");
+    const member = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("alice") }), PROVEN));
+    await svc.provisionIdentity(identity({ handle: castId<Handle>("alicia") }), PROVEN);
+    expect((await db.select().from(users).where(eq(users.id, member.userId)))[0]?.handle).toBe("alicia");
+  });
+});
+
 describe("sessions.provisionIdentity — a handle match onto a BOUND row is an impostor, not a rename", () => {
   test("OWNER takeover: a different subject presenting the owner's handle is DENIED (row untouched)", async () => {
     vi.stubEnv("OWNER_HANDLES", "owner");

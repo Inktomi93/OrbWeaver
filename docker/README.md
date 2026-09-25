@@ -89,7 +89,7 @@ Under `forward-header`, end every tunnel or port-forward at your auth proxy, nev
 
 Under `forward-header`, the proxy's handle for a user is that user's identity, and a handle in `OWNER_HANDLES` is the owner. Use this mode only with an identity provider whose registration is closed, or anyone who registers the owner's handle there becomes the owner here.
 
-Under `oidc`, a box whose owner has not signed in yet prints a one-time owner claim URL at every boot (`docker compose logs orbweaver`). Sign in as the owner through that URL. A login whose handle matches `OWNER_HANDLES` claims the owner only through it, from this machine's own browser, or as a member of `OWNER_GROUP` (ADR 0258).
+Under `oidc`, a box whose owner has not signed in yet prints a one-time owner claim URL at every boot (`docker compose logs orbweaver`). Sign in as the owner through that URL. A login whose handle matches `OWNER_HANDLES` claims the owner only through it, from this machine's own browser, or as a member of `OWNER_GROUP` (ADR 0258). A reverse proxy on the same host must send `X-Forwarded-For`, as the standard nginx and Caddy configurations do. Without it, every login through the proxy counts as this machine's own browser and can claim the owner.
 
 ## LAN and HTTPS
 
