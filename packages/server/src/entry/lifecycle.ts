@@ -55,7 +55,7 @@ import {
   ownerFallbackAllowed,
 } from "#infra/auth";
 import { bootSecretProvenance, resolveCredentialsKey, resolveSessionSecret } from "#infra/crypto";
-import { installEgressFirewall, parseAllowlist } from "#infra/network";
+import { fetchPinnedDownload, installEgressFirewall, parseAllowlist } from "#infra/network";
 import type { RelayLauncher } from "#infra/relay";
 import { CLOUDFLARED_PIN, createCloudflaredBinary, createQuickTunnelLauncher, extractTgzWithTar, spawnQuickTunnel } from "#infra/relay";
 import { createCas } from "#infra/storage";
@@ -589,7 +589,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
             pin: CLOUDFLARED_PIN,
             target: `${process.platform}-${process.arch}`,
             dir: join(env.DATA_LAYOUT.cache, "relay"),
-            fetch: (url, init) => fetch(url, init),
+            fetch: (url, limits) => fetchPinnedDownload(url, { allowedHosts: CLOUDFLARED_PIN.downloadHosts, ...limits }),
             extractTgz: extractTgzWithTar,
           }),
           spawn: spawnQuickTunnel,

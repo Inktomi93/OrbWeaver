@@ -826,6 +826,33 @@ export async function fetchPluginBundle(url: string): Promise<Uint8Array> {
   return await res.bytes();
 }
 
+/** The limits a pinned-release download runs under: the exact hosts the release and its redirect hops may name,
+ *  the asset's pinned size as the byte cap, and the whole-download deadline. */
+export interface PinnedDownloadLimits {
+  readonly allowedHosts: readonly string[];
+  readonly maxBytes: number;
+  readonly deadlineMs: number;
+}
+
+/** A pinned-release download (the share relay's cloudflared): safeFetch with an exact host allowlist, so the
+ *  https pin, the per-hop private-range denial, the byte cap and the deadline all run. The caller hashes the bytes
+ *  against its pin; this door only bounds the fetch. The answer keeps its status, so a non-2xx reaches the caller
+ *  as a status with no body. */
+export async function fetchPinnedDownload(url: string, limits: PinnedDownloadLimits): Promise<Response> {
+  const res = await safeFetch(url, {
+    allowedHosts: limits.allowedHosts,
+    method: "GET",
+    maxBytes: limits.maxBytes,
+    deadlineMs: limits.deadlineMs,
+  });
+  if (res.status < OK_STATUS_MIN || res.status >= REDIRECT_STATUS_MIN) {
+    res.dispose?.(); // drop the non-2xx body + close the pinned Agent before answering
+    return new Response(null, { status: res.status });
+  }
+  // The copy re-homes the capped bytes on a plain ArrayBuffer, the only buffer a Response body accepts.
+  return new Response(new Uint8Array(await res.bytes()), { status: res.status });
+}
+
 // Must not ride a cross-origin redirect hop — a user-supplied baseUrl that 302s to an attacker host would otherwise exfil the key.
 const CREDENTIAL_HEADERS: readonly string[] = ["authorization", "cookie", "x-api-key", "api-key", "proxy-authorization"];
 
