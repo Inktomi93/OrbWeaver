@@ -188,6 +188,8 @@ const SEND_UNAVAILABLE_REASON: Record<UnavailableCause, string> = {
   "requirement-unmet": "Your connection's model can't serve this chat — pick another in Settings → Connections.",
   // The generic fallback: the resolved wire isn't built on this deployment and no specific cause fits.
   unavailable: "That connection isn't available on this server.",
+  // An in-process model (local-light) whose latest load failed; the next call retries the load.
+  "model-load-failed": "Your connection's built-in model failed to load on this server — send again to retry.",
 };
 
 /** The composer disabled-reason for an unavailable cause — the single home the Send button + the guided fire

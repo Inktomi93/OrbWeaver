@@ -44,7 +44,7 @@ import { resolveEmbed } from "./funnel/resolve-embed.ts";
 import { buildBackends } from "./registry/backends.ts";
 import type { ProviderRegistry } from "./registry/providers.ts";
 import { createProviderRegistry } from "./registry/providers.ts";
-import { checkAvailability } from "./resolve/availability.ts";
+import { checkAvailability, loadVerdict } from "./resolve/availability.ts";
 import type { ResolveArgs, ResolveOutcome, ResolverContext } from "./resolve/resolve-task.ts";
 import { connectionNotFoundMessage, resolveTask, resolveTaskWithBaseline } from "./resolve/resolve-task.ts";
 import { createProviderDiagnostics } from "./roles/diagnostics.ts";
@@ -115,6 +115,9 @@ export interface CapabilityRead extends SynthesizedCapability {
 export interface InferenceRuntime {
   readonly resolve: (args: ResolveArgs) => Promise<ResolveOutcome>;
   readonly availability: (args: ResolveArgs) => Promise<SendAvailability>;
+  /** The availability verdict's no-I/O half for a row that already resolved: a local-light model whose latest
+   *  load failed reads `model-load-failed`. The Connections readout asks it without probing endpoints. */
+  readonly loadVerdict: (resolved: ResolveOutcome["resolved"]) => SendAvailability;
   readonly executor: ProviderExecutor;
   readonly capabilities: {
     /** provider row + declared overrides + catalog row → one descriptor, for a connection the principal owns
@@ -280,7 +283,8 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
 
   return {
     resolve: (args) => resolveTask(ctx, args),
-    availability: (args) => checkAvailability(ctx, built.registry, probe, args),
+    availability: (args) => checkAvailability(ctx, built.registry, { probe, loadFailed: built.localLight.loadFailed }, args),
+    loadVerdict: (resolved) => loadVerdict(built.localLight.loadFailed, resolved),
     executor,
     capabilities: {
       for: async ({ connectionId, principal }): Promise<CapabilityRead> => {

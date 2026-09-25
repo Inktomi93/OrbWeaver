@@ -59,5 +59,6 @@ export function fakeLocalLightCache(dim: number): LocalLightModelCache {
     scorePairs: (_modelId, query, documents) => Promise.resolve(documents.map((doc) => seededStream(`${query}\n${doc}`)())),
     removeBackground: (_modelId, _image) => Promise.reject(new Error("seed fake local-light: no matte model offline")),
     preload: () => Promise.resolve(),
+    loadFailed: () => false,
   };
 }

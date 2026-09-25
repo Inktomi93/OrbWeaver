@@ -5,9 +5,11 @@
 // serve), the upsert's re-point-in-place (never a second row), `useForEverything`'s SKIP-not-refuse rule for
 // background tasks, the per-ROUTABLE-task readout `listBindings` always returns, and the embed-space trigger.
 
-import { CONNECTION_OP_CODES, ROUTABLE_TASKS } from "@orb/contracts/inference";
+import type { ProviderId } from "@orb/contracts/inference";
+import { CONNECTION_OP_CODES, LOCAL_LIGHT_SEED_ROWS, ROUTABLE_TASKS } from "@orb/contracts/inference";
 import type { AutomationRuleId, PluginId, UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { BindingView } from "@orb/server/domain/connection";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -15,6 +17,8 @@ import { BYO_BASE_URL, BYO_PROVIDER, makeHarness, seedAutomationRule, seedOwner 
 
 const PLUGIN_ID = castId<PluginId>("plugin_000001");
 const UNOWNED_RULE_ID = castId<AutomationRuleId>("automation_rule_999999");
+const LOCAL_LIGHT = castId<ProviderId>("local-light");
+const ENCODER = LOCAL_LIGHT_SEED_ROWS[0].model;
 
 describe("setBinding", () => {
   test("re-points an existing task in place — one row per (actor, task), never a second", async () => {
@@ -159,6 +163,30 @@ describe("listBindings", () => {
     expect(chat?.resolved).toMatchObject({ task: "chat", connectionId: row.id, providerId: "custom-openai", model: "m" });
     expect(chat?.unavailableCause).toBeNull();
     expect(chat?.resolved).not.toHaveProperty("credential");
+  });
+
+  test("a bound local-light row whose model failed its latest load reads blocked with `model-load-failed`", async () => {
+    const readEmbed = async (loadFailed: readonly string[]): Promise<BindingView | undefined> => {
+      const db = await freshDb();
+      const h = await makeHarness(db, { localLight: true, localLightLoadFailed: loadFailed });
+      const owner = await seedOwner(db);
+      const row = await h.svc.create({
+        principal: owner.principal,
+        providerId: LOCAL_LIGHT,
+        model: ENCODER,
+        baseUrl: null,
+        credentialId: null,
+        allowBackground: true,
+      });
+      await h.svc.setBinding({ principal: owner.principal, task: "embed", connectionId: row.id });
+      return (await h.svc.listBindings({ principal: owner.principal })).find((view) => view.task === "embed");
+    };
+    const healthy = await readEmbed([]);
+    expect(healthy?.resolved).toMatchObject({ task: "embed", model: ENCODER });
+    expect(healthy?.unavailableCause).toBeNull();
+    const failed = await readEmbed([ENCODER]);
+    expect(failed?.resolved).toBeNull();
+    expect(failed?.unavailableCause).toBe("model-load-failed");
   });
 
   test("a binding whose row was deleted reads as `no-connection`, never a dangling id", async () => {

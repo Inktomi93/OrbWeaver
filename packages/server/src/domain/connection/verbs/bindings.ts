@@ -81,6 +81,11 @@ async function bindingReadout(
   // read names the cause the pane renders; nothing is swallowed. Ends if a non-refusal error class needs to surface.
   try {
     const outcome = await ctx.runtime.resolve(args);
+    // A resolved row can still be unable to serve: its in-process model failed its latest load.
+    const loaded = ctx.runtime.loadVerdict(outcome.resolved);
+    if (!loaded.available) {
+      return { task, binding, resolved: null, unavailableCause: loaded.cause };
+    }
     return { task, binding, resolved: toResolvedView(outcome.resolved), unavailableCause: null };
   } catch {
     const availability = await ctx.runtime.availability(args);

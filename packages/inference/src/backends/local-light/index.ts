@@ -30,6 +30,7 @@ export interface LocalLightBackend {
   readonly matte: ReturnType<typeof createLocalLightMatte>;
   /** THE ACTIVE local-light embedding space tag for a model id — the same string the embed results carry. */
   readonly embedSpace: (modelId: ModelId) => string;
+  readonly loadFailed: LocalLightModelCache["loadFailed"];
 }
 
 function isModelCache(value: unknown): value is LocalLightModelCache {
@@ -59,5 +60,6 @@ export function createLocalLightBackend(deps: LocalLightBackendDeps): LocalLight
     prefetch,
     matte: createLocalLightMatte(cache),
     embedSpace,
+    loadFailed: (modelId): boolean => cache.loadFailed(modelId),
   };
 }

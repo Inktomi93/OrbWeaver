@@ -64,6 +64,8 @@ export interface HarnessOptions {
   readonly localLight?: boolean | undefined;
   /** The scripted local-light deployment's actual encoder precision. Omitted exercises the shipped q8 default. */
   readonly localLightEmbedDtype?: string | undefined;
+  /** Model ids whose latest local-light load reads as failed (needs `localLight`). */
+  readonly localLightLoadFailed?: readonly string[] | undefined;
   /** The credentials door. Default: a fake that ignores the provider id; a scenario that pins the id a secret is
    *  opened under passes the REAL credentials service's `resolve` (its AAD binds owner and provider). */
   readonly resolveCredential?: InferenceDeps["resolveCredential"] | undefined;
@@ -232,7 +234,12 @@ export async function makeHarness(db: Db, options: HarnessOptions = {}): Promise
     userRuntimeDir: (ownerId): string => `/tmp/orb-test/${ownerId}/claude`,
     embedSpace: { dims: 1024 },
     ...(options.localLight === true
-      ? { localLight: { cache: fakeModelCache(1024), ...(options.localLightEmbedDtype === undefined ? {} : { embedDtype: options.localLightEmbedDtype }) } }
+      ? {
+          localLight: {
+            cache: fakeModelCache(1024, new Set(options.localLightLoadFailed ?? [])),
+            ...(options.localLightEmbedDtype === undefined ? {} : { embedDtype: options.localLightEmbedDtype }),
+          },
+        }
       : {}),
     sdkFetch: fakeFetch(options.routes ?? [], requests),
   };
