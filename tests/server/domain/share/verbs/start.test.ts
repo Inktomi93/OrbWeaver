@@ -36,17 +36,19 @@ describe("share.start", () => {
     const h = shareHarness({ authMode: "local", ownerNeedsPassword: true });
     h.claimOwner();
     await expect(h.share.start({ principal: caller("owner") })).resolves.toEqual({
-      relay: { state: "starting", relay: "quick" },
+      relay: { state: "starting", relay: "quick", restartAfter: null },
       liveSocketCount: LIVE_SOCKETS,
+      publicAddresses: [],
     });
     expect(h.calls).toEqual(["ownerNeedsPassword", "relay.start"]);
     expect(h.audits).toEqual([{ actorUserId: caller("owner").userId, action: "share.start", entityType: "server", metadata: { relay: "starting" } }]);
   });
 
-  test("under oidc the owner has no first-run claim, so the password state is never read", async () => {
-    const h = shareHarness({ authMode: "oidc", ownerNeedsPassword: true });
-    await h.share.start({ principal: caller("owner") });
-    expect(h.calls).toEqual(["relay.start"]);
+  test("under oidc it refuses with share_oidc naming the public address, and never reads the owner or touches the relay", async () => {
+    const address = "https://orb.example.com";
+    const h = shareHarness({ authMode: "oidc", ownerNeedsPassword: true, publicAddresses: [address] });
+    await expect(h.share.start({ principal: caller("owner") })).rejects.toMatchObject({ code: "share_oidc", message: expect.stringContaining(address) });
+    expect(h.calls).toEqual([]);
   });
 
   test("an admin and a user are refused before any precondition is read or the relay is touched", async () => {

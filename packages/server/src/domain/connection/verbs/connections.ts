@@ -14,6 +14,7 @@ import type { ConnectionApi, ProviderDef, UserConnection } from "@orb/contracts/
 import { CONNECTION_OP_CODES, connectionTasks, modelIdSchema, providerDisplayLabel } from "@orb/contracts/inference";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { ModelId, UserConnectionId, UserId } from "@orb/kit/ids";
+import { nextFreeLabel } from "@orb/kit/strings";
 import { ConnectionNotFoundError } from "../contract/errors.ts";
 import type { CreateConnectionParams, UpdateConnectionParams } from "../contract/params.ts";
 import type { ConnectionView, EmbedSpaces } from "../contract/results.ts";
@@ -59,14 +60,7 @@ function requireApi(provider: ProviderDef, api: ConnectionApi): void {
 /** `<provider label> · <model>`, suffixed ` (2)`, ` (3)`… until it does not collide with the owner's labels. */
 function mintLabel(provider: ProviderDef, model: string, taken: readonly string[], explicit: string | undefined): string {
   const base = explicit?.trim() !== undefined && explicit.trim() !== "" ? explicit.trim() : `${providerDisplayLabel(provider)}${LABEL_SEPARATOR}${model}`;
-  if (!taken.includes(base)) {
-    return base;
-  }
-  let n = 2;
-  while (taken.includes(`${base} (${String(n)})`)) {
-    n += 1;
-  }
-  return `${base} (${String(n)})`;
+  return nextFreeLabel(base, taken);
 }
 
 function toView(ctx: ConnectionContext, row: UserConnection): ConnectionView {

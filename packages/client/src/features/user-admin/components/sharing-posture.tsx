@@ -4,6 +4,7 @@
 // auth rule keys on mutable.
 
 import type { AuthMode } from "@orb/contracts/identity";
+import { SETUP_COMMAND } from "@orb/contracts/identity";
 import { CopyButton } from "@orb/ui/copy-button";
 import { Kbd } from "@orb/ui/kbd";
 import { Stack } from "@orb/ui/layout";
@@ -11,6 +12,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useAuthConfig } from "#data";
 import { testId } from "#lib";
+import { CONTAINER_LOGIN_STEP } from "../lib/container-login.ts";
 
 interface SharingPosture {
   readonly posture: string;
@@ -21,10 +23,6 @@ interface SharingPosture {
   readonly instruction: string;
 }
 
-/** The launcher command that asks the setup questions again (`tooling/src/stack/lib/setup-plan.ts`, which the
- *  client cannot import). */
-const SETUP_COMMAND = "pnpm start --setup";
-
 const CHANGE_MODE = `To change it, stop the server and run ${SETUP_COMMAND}. In Docker, set AUTH_MODE in the environment: block of docker-compose.yaml.`;
 
 const ENV_LINE = "the environment line";
@@ -34,8 +32,7 @@ const SHARING_POSTURE: Record<AuthMode, SharingPosture> = {
     posture: "Only this machine can use this server: single-user mode has no login, so the server listens on this machine only.",
     line: SETUP_COMMAND,
     lineNoun: "the command",
-    instruction:
-      'To let other devices sign in, stop the server, run this command and choose "people on my network". In Docker, set AUTH_MODE: local, AUTH_FALLBACK: deny and an empty AUTH_FALLBACK_TRUSTED_PEERS in the environment: block of docker-compose.yaml, then publish the port (docker/README.md).',
+    instruction: `To let other devices sign in, stop the server, run this command and choose "people on my network". ${CONTAINER_LOGIN_STEP}, then publish the port (docker/README.md, "LAN and HTTPS").`,
   },
   local: {
     posture: "Other devices can sign in with a handle and password stored by this server.",

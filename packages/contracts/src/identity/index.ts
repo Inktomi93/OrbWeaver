@@ -62,6 +62,15 @@ export const authModeSchema = z.enum(AUTH_MODES) satisfies z.ZodType<AuthMode>;
  *  under it, and the server's refusals name it, so both read this one spelling. */
 export const SETUP_COMMAND = "pnpm start --setup";
 
+/** The `environment:` lines of `docker-compose.yaml` that switch a container to the local sign-in mode, in print
+ *  order. The shipped `docker/orbweaver.env` pairs single-user with the owner fallback and the bridge peers, which
+ *  production refuses beside a login mode, so all three keys move. A server env test boots these over that file. */
+export const CONTAINER_LOCAL_LOGIN_ENV = [
+  ["AUTH_MODE", "local"],
+  ["AUTH_FALLBACK", "deny"],
+  ["AUTH_FALLBACK_TRUSTED_PEERS", ""],
+] as const satisfies readonly (readonly [string, string])[];
+
 /** The modes that mint a session cookie, so they need the SESSION_SECRET pepper to authenticate anyone. */
 export const COOKIE_AUTH_MODES = ["local", "oidc"] as const satisfies readonly AuthMode[];
 
@@ -83,7 +92,8 @@ export const SHARE_RELAY_KINDS = ["quick"] as const;
 export type ShareRelayKind = (typeof SHARE_RELAY_KINDS)[number];
 export const shareRelayKindSchema = z.enum(SHARE_RELAY_KINDS) satisfies z.ZodType<ShareRelayKind>;
 
-/** The relay controller's states: `up` carries the public URL, `down` a reason and whether a restart is still owed. */
+/** The relay controller's states: `starting` carries the death it restarts after (null for an owner's start), `up` the
+ *  public URL, `down` a reason and whether a restart is still owed. */
 export const SHARE_STATES = ["off", "starting", "up", "down"] as const;
 export type ShareState = (typeof SHARE_STATES)[number];
 
@@ -93,9 +103,19 @@ export type RelayDownReason = (typeof RELAY_DOWN_REASONS)[number];
 
 /** The coded refusals of `share.start` (the wire's `data.reason`), each naming a fix the Share card shows. A relayed
  *  request is never the owner, so single-user answers 401 to every visitor; a same-host relay delivers each visitor
- *  from a loopback peer, so a loopback-trusted forward-header proxy would take a visitor's forged identity header. */
-export const SHARE_REFUSALS = ["share_single_user", "share_forward_header", "share_in_container", "share_owner_unclaimed"] as const;
+ *  from a loopback peer, so a loopback-trusted forward-header proxy would take a visitor's forged identity header; an
+ *  identity provider returns people only to its registered redirect addresses, which a relay's random name never is. */
+export const SHARE_REFUSALS = ["share_single_user", "share_forward_header", "share_oidc", "share_in_container", "share_owner_unclaimed"] as const;
 export type ShareRefusal = (typeof SHARE_REFUSALS)[number];
+
+/** The one home for which sign-in modes can share over a relay: null where a relayed visitor can sign in, else the
+ *  refusal. The server's start, the Share card and the `pnpm start --share` launcher all read it. */
+export const SHARE_MODE_REFUSAL = {
+  "single-user": "share_single_user",
+  "forward-header": "share_forward_header",
+  oidc: "share_oidc",
+  local: null,
+} as const satisfies Record<AuthMode, ShareRefusal | null>;
 
 /** The coded refusals of the relay binary: nothing runs unless the downloaded bytes match the pinned sha256. */
 export const RELAY_BINARY_REFUSALS = ["relay_platform_unsupported", "relay_binary_download_failed", "relay_binary_checksum_mismatch"] as const;
@@ -104,7 +124,7 @@ export type RelayBinaryRefusal = (typeof RELAY_BINARY_REFUSALS)[number];
 // One arm per share state, keyed by its own `state` literal: a missing arm or a swapped literal fails to compile.
 const relayStatusSchemas = {
   off: z.strictObject({ state: z.literal("off") }),
-  starting: z.strictObject({ state: z.literal("starting"), relay: shareRelayKindSchema }),
+  starting: z.strictObject({ state: z.literal("starting"), relay: shareRelayKindSchema, restartAfter: z.enum(RELAY_DOWN_REASONS).nullable() }),
   up: z.strictObject({ state: z.literal("up"), relay: shareRelayKindSchema, url: z.url({ protocol: /^https$/u }) }),
   down: z.strictObject({ state: z.literal("down"), relay: shareRelayKindSchema, reason: z.enum(RELAY_DOWN_REASONS), restarting: z.boolean() }),
 } as const satisfies { readonly [S in ShareState]: z.ZodObject<{ state: z.ZodLiteral<S> }> };
@@ -118,8 +138,14 @@ export const relayStatusSchema = z.discriminatedUnion("state", [
 ]);
 export type RelayStatus = z.infer<typeof relayStatusSchema>;
 
-/** `share.status`: the relay plus the live socket count, so the card shows who is connected right now. */
-export const shareStatusSchema = z.strictObject({ relay: relayStatusSchema, liveSocketCount: z.number().int().nonnegative() });
+/** `share.status`: the relay, the live sockets of every account but the caller's, and the addresses this server already
+ *  answers at from the internet (under oidc the origins of `OIDC_REDIRECT_URIS`, under local the public names in
+ *  `ALLOWED_HOSTS`), so the card can send friends there instead of through a relay. */
+export const shareStatusSchema = z.strictObject({
+  relay: relayStatusSchema,
+  liveSocketCount: z.number().int().nonnegative(),
+  publicAddresses: z.array(z.string()),
+});
 export type ShareStatus = z.infer<typeof shareStatusSchema>;
 
 /** The share fields on `/api/auth/config`. `url` is the public origin while the relay is up, served to a signed-in

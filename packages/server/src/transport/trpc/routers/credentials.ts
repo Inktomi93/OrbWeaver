@@ -33,7 +33,7 @@ export const credentialsRouter = t.router({
       z.object({
         provider: z.string().min(1),
         label: z.string().optional(),
-        key: z.string().min(1),
+        key: z.string().trim().min(1),
         metadata: providerMetadataSchema.optional(),
       }),
     )
@@ -47,6 +47,12 @@ export const credentialsRouter = t.router({
         ...(input.metadata !== undefined ? { metadata: input.metadata } : {}),
       }),
     ),
+
+  /** The explicit rotation: the named row keeps its id and label and takes the new secret. `add` never rotates. */
+  replace: authedProcedure
+    .input(z.object({ credentialId: typeIdSchema(ID_PREFIX.userCredential), key: z.string().trim().min(1) }))
+    .output(credentialViewSchema)
+    .mutation(({ ctx, input }) => ctx.services.credentials.replace({ principal: ctx.auth, credentialId: input.credentialId, key: input.key })),
 
   remove: authedProcedure
     .input(z.object({ credentialId: typeIdSchema(ID_PREFIX.userCredential) }))

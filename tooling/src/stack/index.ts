@@ -93,6 +93,7 @@ export {
   resolvePnpmInvocation,
   restateFileEnv,
   START_USAGE,
+  shareLaunchRefusal,
   singleUserFallbackEnv,
   startBannerLines,
   startLaunch,

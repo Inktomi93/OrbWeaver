@@ -13,7 +13,8 @@ docker compose up -d --build        # builds the image from the checkout (a few 
 ```
 
 Open <http://localhost:8788>. You are the owner; there is no login. Settings → Connections: add an API
-key (OpenRouter, Anthropic, …) or a model server (below), pick a character, chat. Nothing was edited to
+key (OpenRouter, Anthropic, …) or a model server (below), choose it for Chat under "Model roles", then pick a
+character and chat. Nothing was edited to
 get here; every knob is optional and lives in `docker/orbweaver.env` (the tracked defaults, commented),
 overridable in `docker/orbweaver.local.env` (gitignored).
 
@@ -60,6 +61,10 @@ There is no server-wide switch. An Anthropic API key is a different thing: a met
 | `oidc` | your identity provider (Authentik, Authelia, Keycloak, …) | the `OIDC_*` block in `docker/orbweaver.env`, HTTPS |
 | `forward-header` | a forward-auth proxy | `FORWARD_AUTH_*` — prefer the signed JWT path |
 
+Every mode except `single-user` also needs `AUTH_FALLBACK=deny` and an empty `AUTH_FALLBACK_TRUSTED_PEERS=` beside
+`AUTH_MODE`: the shipped defaults grant the no-login owner, and the app refuses to boot a login mode with them.
+On bare metal, leave both lines out of `.env`; the app refuses them there and resolves them from the mode.
+
 **How the no-login default stays safe.** The owner fallback is granted only to a request whose TCP peer is
 trusted, and the shipped env names docker's bridge ranges in `AUTH_FALLBACK_TRUSTED_PEERS` because a port
 published from a bridge network always arrives from the docker gateway. Under docker's NAT that range means
@@ -79,6 +84,8 @@ the shipped ranges, so the app refuses `ORB_BIND=0.0.0.0` in this shape too.
 `AUTH_FALLBACK` is what an un-credentialed request gets: `owner` for `single-user` (its only credential),
 `deny` for every login mode. Never `owner` with an SSO mode in production: the app refuses to boot,
 because a same-host proxy would turn every visitor into the owner.
+
+Under `forward-header`, end every tunnel or port-forward at your auth proxy, never at the app port: anything that reaches the app directly from a peer in `FORWARD_AUTH_TRUSTED_PROXIES` can set the identity header and sign in as anyone. For the same reason the Share card and `pnpm start --share` refuse to start a relay in this mode.
 
 ## LAN and HTTPS
 

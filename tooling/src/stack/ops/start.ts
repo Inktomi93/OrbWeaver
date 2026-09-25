@@ -5,7 +5,8 @@
 //   pnpm start --no-build     never build (refuses if there is no bundle — prod boot would throw)
 //   pnpm start --setup        ask the setup questions again (ops/setup.ts); a first run in a terminal asks anyway
 //   pnpm start --port <n>     bind <n> for this launch only; `.env` is not written
-//   pnpm start --share        (alias `pnpm share`) this launch in `local` mode with a public relay; `.env` is not written
+//   pnpm start --share        (alias `pnpm share`) this launch with a public relay, a single-user box in `local` mode;
+//                             an oidc or forward-header box refuses; `.env` is not written
 //
 // A server that exits with `RESTART_EXIT_CODE` (@orb/kit/supervisor) is spawned again from a re-read `.env`
 // (lib/supervisor.ts); the setup pass and the build run once per invocation, never per respawn.
@@ -45,7 +46,7 @@ import { spawnFullPriorityChild, spawnFullPrioritySync } from "../../_shared/pro
 import type { ProdSpawnPlan, SetupMachine, SetupResult, StartInvocation } from "../contract/types.ts";
 import { isWsl2Kernel } from "../lib/setup-plan.ts";
 import { CLIENT_DIST_INDEX_REL } from "../lib/spawn-plan.ts";
-import { decideStartBuild, parseStartArgv, resolvePnpmInvocation, START_USAGE, startBannerLines, startLaunch } from "../lib/start-plan.ts";
+import { decideStartBuild, parseStartArgv, resolvePnpmInvocation, START_USAGE, shareLaunchRefusal, startBannerLines, startLaunch } from "../lib/start-plan.ts";
 import { superviseStart } from "../lib/supervisor.ts";
 import { AMBIENT, ENV_FILE_PATH, LOG_PATH, readEnvFile, resolvePort } from "./prod-state.ts";
 import { distVerdict } from "./prod-support.ts";
@@ -124,6 +125,12 @@ async function prepareLaunch(invocation: StartInvocation): Promise<number | null
   const stop = await prepareEnvFile(invocation.setup);
   if (stop !== null) {
     return stop;
+  }
+  // After the setup pass, so the mode is the one this launch would boot in.
+  const shareRefused = invocation.share ? shareLaunchRefusal(readEnvFile(), AMBIENT) : null;
+  if (shareRefused !== null) {
+    warn(`start: ${shareRefused}`);
+    return EXIT.misuse;
   }
   const decision = decideStartBuild(distVerdict(), invocation.build);
   log(decision.reason);

@@ -4,6 +4,9 @@ import { Separator } from "#primitives/separator";
 import { Heading } from "#primitives/text";
 import { sectionVariants } from "./variants.ts";
 
+const HEADING_TAGS = { 2: "h2", 3: "h3", 4: "h4" } as const;
+type SectionLevel = keyof typeof HEADING_TAGS;
+
 export interface SectionProps extends ComponentProps<"section"> {
   heading?: ReactNode;
   /**
@@ -31,16 +34,16 @@ export interface SectionProps extends ComponentProps<"section"> {
    *  no vertical-space cost) — for the insider terms a section's rows can't self-explain. */
   hint?: ReactNode;
   /**
-   * The `kicker` heading's RANK. @defaultValue 3
+   * The heading's RANK, in either arm. @defaultValue 3
    *
    * h3 is right for the common case and stated below: a Section is normally a SUB-grouping of a surface
    * that already spent an h2 (a dialog title, a settings pane). It is WRONG where the Section IS a
    * top-level block of the page — home's "Not yet" band sits beside six h2 blocks and rendered h3, so the
    * outline stepped down a level for two of its seven peer blocks and they announced as children of
-   * nothing (side-eye 2026-08-16 F6). The skin does not move: `kicker` is one voice at one step, any rank.
-   * Only the `kicker` arm honours this — the `heading` arm's h3 is the settings-pane contract.
+   * nothing (side-eye 2026-08-16 F6). h4 is a Section nested inside another Section's body. The skin does not
+   * move with the rank: hierarchy is carried by the element, never by a size step.
    */
-  level?: 2 | 3;
+  level?: SectionLevel;
 }
 
 /**
@@ -61,10 +64,10 @@ export function Section({
 }: SectionProps): ReactElement {
   const slots = sectionVariants({ divider, kickerLayout });
   const hasHint = hint !== undefined && hint !== null;
-  // h3, not h2: a Section is always a SUB-heading of its hosting surface (a dialog's Title and a drawer's
-  // Title render h2), so h2 here flattened e.g. the settings modal's whole hierarchy to one level. The
-  // skin is unchanged — hierarchy is carried by weight, not size.
-  const headingNode = <h3 className={slots.heading()}>{heading}</h3>;
+  // h3 by default, not h2: a Section is normally a SUB-heading of its hosting surface (a dialog's Title and a
+  // drawer's Title render h2), so h2 here flattened e.g. the settings modal's whole hierarchy to one level.
+  const HeadingTag = HEADING_TAGS[level];
+  const headingNode = <HeadingTag className={slots.heading()}>{heading}</HeadingTag>;
 
   let headingBlock: ReactNode = null;
   if (kicker !== undefined) {

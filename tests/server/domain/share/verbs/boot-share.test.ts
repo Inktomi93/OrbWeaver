@@ -15,7 +15,7 @@ describe("share boot start", () => {
     expect(h.calls).not.toContain("relay.start");
 
     h.claimOwner();
-    await expect(h.share.resumeAfterOwnerClaim()).resolves.toEqual({ kind: "started", relay: { state: "starting", relay: "quick" } });
+    await expect(h.share.resumeAfterOwnerClaim()).resolves.toEqual({ kind: "started", relay: { state: "starting", relay: "quick", restartAfter: null } });
     expect(h.calls.filter((call) => call === "relay.start")).toHaveLength(1);
   });
 

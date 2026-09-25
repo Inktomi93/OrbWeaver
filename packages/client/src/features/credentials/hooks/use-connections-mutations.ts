@@ -64,7 +64,7 @@ export const useUseForEverything = createEntityMutation<inferInput<Trpc["connect
  *  private address this deployment does not admit, a key that is not the caller's), which the toast names
  *  while the picker shows the same message inline. */
 export const useDraftCatalogModels = createEntityMutation<inferInput<Trpc["connection"]["draftCatalogModels"]>, DraftModelListing>({
-  // `gcTime: 0` for the same reason as `useAddCredential`: the variables can carry a draft key.
+  // `gcTime: 0` for the same reason as `addCredentialOptions`: the variables can carry a draft key.
   options: (trpc) => ({ ...trpc.connection.draftCatalogModels.mutationOptions(), gcTime: 0 }),
   invalidates: () => [],
   errorToast: "Couldn't list that provider's models.",
@@ -77,11 +77,12 @@ const addCredentialOptions = (trpc: Trpc): ReturnType<Trpc["credentials"]["add"]
   gcTime: 0,
 });
 
-/** Add a provider key (plaintext key in, redacted row out). */
-export const useAddCredential = createEntityMutation<inferInput<Trpc["credentials"]["add"]>, CredentialView>({
-  options: addCredentialOptions,
+/** Replace one stored key's secret in place (every connection on it moves to the new key). `gcTime: 0` for
+ *  the same reason as {@link addCredentialOptions}. */
+export const useReplaceCredential = createEntityMutation<inferInput<Trpc["credentials"]["replace"]>, CredentialView>({
+  options: (trpc) => ({ ...trpc.credentials.replace.mutationOptions(), gcTime: 0 }),
   invalidates: (trpc) => [trpc.credentials.list.pathFilter()],
-  errorToast: "Couldn't save that key — check the value and try again.",
+  errorToast: "Couldn't replace that key — check the value and try again.",
 });
 
 /** The add dialog's key mint — `useCreateConnectionOwned`'s twin: the dialog states the failure inline. */

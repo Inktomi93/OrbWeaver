@@ -7,7 +7,7 @@
 // answer is unit-provable on Linux. `stack.sh` (the Linux dev supervisor: setsid, ss, /proc) is untouched;
 // the cross-platform dev path is `pnpm dev` (tooling/src/dev/).
 
-import { SETUP_COMMAND } from "@orb/contracts/identity";
+import { SETUP_COMMAND, SHARE_MODE_REFUSAL } from "@orb/contracts/identity";
 import { START_SUPERVISOR, SUPERVISOR_ENV_KEY } from "@orb/kit/supervisor";
 import { MAX_TCP_PORT } from "../../_shared/ports.ts";
 import type {
@@ -21,7 +21,17 @@ import type {
   StartLaunch,
   StartParse,
 } from "../contract/types.ts";
-import { AUTH_MODE_KEY, BIND_HOST_KEY, currentAudience, effectiveAuthMode, PASSWORD_MODE, PORT_KEY, parsePortAnswer, SINGLE_USER_MODE } from "./setup-plan.ts";
+import {
+  AUTH_MODE_KEY,
+  BIND_HOST_KEY,
+  currentAudience,
+  currentAuthMode,
+  effectiveAuthMode,
+  PASSWORD_MODE,
+  PORT_KEY,
+  parsePortAnswer,
+  SINGLE_USER_MODE,
+} from "./setup-plan.ts";
 import { buildProdSpawnPlan, CLIENT_DIST_INDEX_REL } from "./spawn-plan.ts";
 
 const SETUP_FLAG = "--setup";
@@ -148,16 +158,45 @@ export function restateFileEnv(
   return Object.fromEntries([...restated, ...Object.entries(overrides), [ENV_NO_OVERRIDE, "1"]]);
 }
 
-/** What `--share` overrides: the login mode and the relay, plus a loopback bind when the file is a just-me box. A
- *  network box keeps the bind it already has, and `ALLOWED_HOSTS` is never touched: the relay host lives in the
- *  server's relay registry, so a relay restart under a new name cannot be refused. */
+// The refusals `--share` answers with itself: the sign-in modes that already sign people in their own way, which a
+// relay would break. Single-user is the one refused mode the launcher fixes instead (see `shareOverrides`).
+type SsoShareRefusal = Exclude<(typeof SHARE_MODE_REFUSAL)[keyof typeof SHARE_MODE_REFUSAL], "share_single_user" | null>;
+
+function ssoShareRefusal(code: SsoShareRefusal): string {
+  switch (code) {
+    case "share_oidc":
+      return "--share refused: your identity provider sends people back only to the addresses in OIDC_REDIRECT_URIS, and a relay's random name is never one of them, so no one could sign in through it. Friends join at that address with an invite link; run pnpm start without --share.";
+    case "share_forward_header":
+      return "--share refused: a relay on this machine reaches the app from loopback, and forward-header mode trusts a loopback proxy to name the user, so a visitor could claim any account. Friends reach this server through your auth proxy; run pnpm start without --share.";
+    default: {
+      const exhaustive: never = code;
+      return exhaustive;
+    }
+  }
+}
+
+/** Why `--share` cannot serve this box, or null. An oidc or forward-header box is refused and keeps its mode; a
+ *  single-user box is not refused, because `--share` starts that run in the local sign-in mode. */
+export function shareLaunchRefusal(
+  fileEnv: Readonly<Record<string, string | undefined>>,
+  ambient: Readonly<Record<string, string | undefined>>,
+): string | null {
+  const refusal = SHARE_MODE_REFUSAL[currentAuthMode(fileEnv, ambient)];
+  return refusal === null || refusal === "share_single_user" ? null : ssoShareRefusal(refusal);
+}
+
+/** What `--share` overrides: the relay, and on a just-me box the login mode and a loopback bind. A single-user box
+ *  runs this launch in the local sign-in mode, its documented path; any other box keeps its mode and bind (an SSO box
+ *  never gets here: {@link shareLaunchRefusal}). `ALLOWED_HOSTS` is never touched: the relay host lives in the server's
+ *  relay registry, so a relay restart under a new name cannot be refused. */
 function shareOverrides(
   fileEnv: Readonly<Record<string, string | undefined>>,
   ambient: Readonly<Record<string, string | undefined>>,
 ): readonly (readonly [string, string])[] {
-  const justMe = currentAudience(fileEnv, ambient) === "just-me";
   // A relayed visitor is never the owner, so single-user would answer 401 to every friend: a share signs in.
-  return [[AUTH_MODE_KEY, PASSWORD_MODE], [SHARE_RELAY_KEY, SHARE_RELAY_QUICK], ...(justMe ? [[BIND_HOST_KEY, LOOPBACK_BIND] as const] : [])];
+  const justMe = currentAudience(fileEnv, ambient) === "just-me";
+  const signIn = justMe ? [[AUTH_MODE_KEY, PASSWORD_MODE] as const, [BIND_HOST_KEY, LOOPBACK_BIND] as const] : [];
+  return [[SHARE_RELAY_KEY, SHARE_RELAY_QUICK], ...signIn];
 }
 
 /** The `.env` values this invocation's flags override for the launch. */
@@ -267,8 +306,17 @@ export function startBannerLines(opts: {
   readonly share: boolean;
 }): readonly string[] {
   const posture = startPostureLine(opts.mode, opts.fallbackFilled);
-  const reach = opts.share
-    ? "  sharing: the server starts a public link and prints it; anyone with the link reaches the sign-in page."
-    : `  other devices need a login: run \`${SETUP_COMMAND}\`; put HTTPS in front, or the login travels in clear.`;
-  return ["", `  orbweaver is running:  http://localhost:${opts.port}`, `  ${posture}`, reach, "  Ctrl-C stops the server.", ""];
+  return ["", `  orbweaver is running:  http://localhost:${opts.port}`, `  ${posture}`, reachLine(opts), "  Ctrl-C stops the server.", ""];
+}
+
+/** How another device gets in: the share link, this machine's address under a login mode, or the setup command
+ *  that turns a login on. */
+function reachLine(opts: { readonly port: number; readonly mode: string; readonly share: boolean }): string {
+  if (opts.share) {
+    return "  sharing: the server starts a public link and prints it; anyone with the link reaches the sign-in page.";
+  }
+  if (opts.mode !== SINGLE_USER_MODE) {
+    return `  other devices: open this machine's address on port ${String(opts.port)}; put HTTPS in front, or the login travels in clear.`;
+  }
+  return `  other devices need a login: run \`${SETUP_COMMAND}\`; put HTTPS in front, or the login travels in clear.`;
 }

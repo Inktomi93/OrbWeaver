@@ -175,8 +175,9 @@ export const STEER_CUE_IMPERSONATE = "Uses your typed text as drafting direction
 // never a bare "unavailable". Full sentences (composed alone, not after an em-dash) with a trailing period.
 
 const SEND_UNAVAILABLE_REASON: Record<UnavailableCause, string> = {
-  // No chat connection is bound for YOU (the funder) — the Connections pane is the call to action (§7.2).
-  "no-connection": "You have no chat connection yet — add one in Settings → Connections to send.",
+  // No connection is BOUND to your Chat role (§7.2). A saved connection binds nothing on its own, so the copy
+  // names the role picker, not only "add one".
+  "no-connection": "No connection is set for Chat — add one or pick one under Model roles in Settings → Connections to send.",
   // The bound endpoint row's server did not answer its reachability probe (or a wake timed out).
   "endpoint-unreachable": "Can't reach your model's server — it may be down.",
   // A `claude-sub` row on a deployment where the Claude runtime does not resolve (§5.3a).

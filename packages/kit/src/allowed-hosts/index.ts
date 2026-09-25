@@ -96,6 +96,20 @@ export function machineHostNames(hostname: string): readonly string[] {
   return [...new Set([name, `${label}.${MDNS_DOMAIN}`])];
 }
 
+/** Name suffixes that resolve only inside a network, never for a stranger: `local` is mDNS (RFC 6762), `home.arpa` the
+ *  home-network domain (RFC 8375), `internal` the private-use top-level domain, `ts.net` a Tailscale tailnet; the rest
+ *  are common router and corporate defaults. */
+export const PRIVATE_NAME_SUFFIXES = ["local", "home.arpa", "internal", "lan", "home", "corp", "intranet", "localdomain", "ts.net"] as const;
+
+/** A name a stranger's resolver can find: a hostname of two or more labels, not always-allowed, and not under a
+ *  {@link PRIVATE_NAME_SUFFIXES} entry. `name` is canonical ({@link splitHostList}). */
+export function isPublicHostName(name: string): boolean {
+  if (!(isHostname(name) && name.includes(".")) || isAlwaysAllowedHost(name)) {
+    return false;
+  }
+  return !PRIVATE_NAME_SUFFIXES.some((suffix) => name === suffix || name.endsWith(`.${suffix}`));
+}
+
 /** Parse one `ALLOWED_HOSTS` value. A scheme, port, path, wildcard, bracketed IP or top-level suffix is malformed. */
 export function parseAllowedHosts(raw: string | null | undefined): AllowedHostsParse {
   const entries = splitHostList(raw);

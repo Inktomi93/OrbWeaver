@@ -10,6 +10,7 @@ import { castId } from "@orb/kit/ids";
 import { securityEvent } from "#foundation/observability";
 import { isInRanges } from "#infra/network";
 import type { AuthConfig, ResolveDeps } from "../contract.ts";
+import { canonicalHost } from "../host-allowlist.ts";
 
 // authentik joins groups with "|"; tolerate commas too.
 const GROUP_SEPARATOR = /[|,]/u;
@@ -163,7 +164,29 @@ export function selectSignedForwardJwt(headers: Headers, config: AuthConfig): st
   return config.verifyForwardJwt ? headers.get("x-authentik-jwt") : null;
 }
 
+// A SAME-HOST RELAY IS NEVER THE AUTH PROXY. The Share card's relay reaches this server from loopback, which a
+// same-host proxy's trusted range covers, and it forwards any header a visitor sends, so `Remote-User: owner` through
+// it would pass the peer gate. Its requests carry the relay's registered name as Host; that name refuses every
+// identity, signed too, since nothing the relay forwards is the proxy's word.
+function throughRelay(headers: Headers, deps: ResolveDeps): string | null {
+  const host = headers.get("host");
+  if (host === null || deps.relayHosts === undefined) {
+    return null;
+  }
+  const canonical = canonicalHost(host);
+  return deps.relayHosts().includes(canonical) ? canonical : null;
+}
+
 export function resolveForwardHeader(headers: Headers, config: AuthConfig, deps: ResolveDeps): Promise<ResolvedIdentity | null> {
+  const relayHost = throughRelay(headers, deps);
+  if (relayHost !== null) {
+    securityEvent(
+      "forwarded_via_relay",
+      { host: relayHost, peerIp: deps.peerIp ?? null },
+      "security: forward-header identity on a request through the share relay — rejecting (the relay is never the auth proxy)",
+    );
+    return Promise.resolve(null);
+  }
   const jwt = selectSignedForwardJwt(headers, config);
   if (jwt !== null) {
     return resolveSignedJwt(jwt, headers.get("x-authentik-meta-jwks"), config, deps);

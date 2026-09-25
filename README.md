@@ -52,9 +52,9 @@ The first `pnpm start` in a terminal asks for the port and who uses the app, and
 | - | - | - |
 | Just me (default) | nothing | No login. The server listens on this machine only, and you are the owner. |
 | People on my network | `pnpm start --setup`, then "people on my network" | Password login on every interface. The first visit from this machine sets the owner's password. Setup prints the addresses to open. |
-| Single sign-on | `AUTH_MODE=oidc` or `AUTH_MODE=forward-header` in `.env` | "Login modes" in [`docker/README.md`](docker/README.md) lists the keys. |
+| Single sign-on | `AUTH_MODE=oidc` or `AUTH_MODE=forward-header` in `.env` | "Login modes" in [`docker/README.md`](docker/README.md) lists the keys. Leave `AUTH_FALLBACK` and `AUTH_FALLBACK_TRUSTED_PEERS` out of `.env`: the app refuses them there and resolves them from the mode. |
 
-In Docker, change the mode in `docker/orbweaver.local.env` as "Login modes" in [`docker/README.md`](docker/README.md) says; the first `local` boot prints the password (`docker compose logs orbweaver`).
+In Docker, a login mode takes three lines, because the shipped defaults grant the no-login owner: `AUTH_MODE` (`local`, `oidc` or `forward-header`), `AUTH_FALLBACK=deny` and an empty `AUTH_FALLBACK_TRUSTED_PEERS=`. Put them in `docker/orbweaver.local.env`, or in the `environment:` block as step 1 of "LAN and HTTPS" in [`docker/README.md`](docker/README.md) shows. The first `local` boot prints the password (`docker compose logs orbweaver`).
 
 A device on your network signs in over plain http, so the password and the session cookie travel in clear; the login screen says so. Put HTTPS in front when you can. An IP address and `http://<this machine>.local:8788` work as is; add any other name to `ALLOWED_HOSTS` in `.env`. Under WSL2, turn on mirrored networking (`networkingMode=mirrored` in `.wslconfig`, Windows 11) so other devices reach the app.
 

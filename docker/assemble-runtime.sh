@@ -4,7 +4,7 @@
 #   sh docker/assemble-runtime.sh <workspace> <pnpm-deploy-output> <out>
 #
 # Runs in the Dockerfile's build stage after `pnpm build` + `pnpm --filter @orb/server deploy --legacy --prod
-# --config.node-linker=hoisted <deploy>`. Produces <out> = exactly what /app is in the runtime image:
+# --config.shamefully-hoist=true <deploy>`. Produces <out> = exactly what /app is in the runtime image:
 #
 #   <out>/node_modules            the deploy output's pruned, hoisted production node_modules
 #   <out>/packages/<name>/        the SOURCE of every @orb workspace package in the server's prod graph
@@ -75,9 +75,9 @@ cp -R "$src/packages/client/dist" "$out/packages/client/dist"
 # injected clock (the `no-raw-clock` law), and a build script is the one place that legitimately knows the
 # wall instant.
 #
-# `--config.verify-deps-before-run=false`: the Dockerfile's `pnpm deploy --legacy --prod
-# --config.node-linker=hoisted` rewrites the ROOT node_modules/.pnpm-workspace-state-v1.json with the deploy's
-# settings (nodeLinker hoisted, dev off). pnpm's default check then reads the root as out of sync and runs
+# `--config.verify-deps-before-run=false`: the Dockerfile's `pnpm deploy --legacy --prod` rewrites the ROOT
+# node_modules/.pnpm-workspace-state-v1.json with the deploy's settings (hoisting, dev off). pnpm's default
+# check then reads the root as out of sync and runs
 # `pnpm install --production`, which must purge node_modules and aborts without a TTY. The root node_modules
 # is still the frozen install from earlier in this stage, so there is nothing to verify.
 stamp_root="$src"
@@ -108,7 +108,8 @@ if [ -d "$ort" ]; then
     [ "$(basename "$archdir")" = "$arch" ] || rm -rf "$archdir"
   done
 fi
-rm -rf "$out/node_modules/onnxruntime-web"
+# The hoisted entry is a symlink into the virtual store, so the payload goes with it.
+rm -rf "$out/node_modules/onnxruntime-web" "$out"/node_modules/.pnpm/onnxruntime-web@*
 (cd "$out" && node -e 'import("@huggingface/transformers").then(() => console.log("assemble-runtime: @huggingface/transformers imports after the prune"), (e) => { console.error("assemble-runtime: the prune broke @huggingface/transformers:", e); process.exit(1); })')
 
 # Receipts the build log can be read by.

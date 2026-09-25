@@ -27,7 +27,7 @@ import type { OwnerFallbackPeerInput } from "./fallback-peers.ts";
 import { parseOwnerFallbackTrustedPeers, resolveOwnerFallbackPeers } from "./fallback-peers.ts";
 
 export type { AllowedHostsInput } from "./allowed-hosts.ts";
-export { machineHostnameFor, resolveAllowedHosts } from "./allowed-hosts.ts";
+export { machineHostnameFor, publicAddresses, resolveAllowedHosts } from "./allowed-hosts.ts";
 export type { BindPosture, BindPostureInput } from "./bind.ts";
 export { bindPostureWarnings, resolveBindPosture } from "./bind.ts";
 export { CONTAINER_MARKER_FILES, runsInContainer, settingInstruction } from "./container.ts";

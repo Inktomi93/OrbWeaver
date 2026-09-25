@@ -1,4 +1,4 @@
-// domain/credentials — COMPOSITION ROOT. Wires the 11 verbs over the injected `CredentialContext` (db +
+// domain/credentials — COMPOSITION ROOT. Wires the verbs over the injected `CredentialContext` (db +
 // determinism seam + SecretBox + the registry-known op). ZERO logic: it only calls the verb
 // factories and assembles the `CredentialsService`. The context is built at the entry composition root and
 // passed in (credentials sideways-imports none of its injected deps — domain-no-cross-feature).
@@ -14,6 +14,7 @@ import { createMaybeRevokeOnAuthFailed } from "./verbs/maybe-revoke-on-auth-fail
 import { createProbeKeyDecrypt } from "./verbs/probe-key-decrypt.ts";
 import { createRecordProbeOutcome } from "./verbs/record-probe-outcome.ts";
 import { createRemove } from "./verbs/remove.ts";
+import { createReplace } from "./verbs/replace.ts";
 import { createResolve } from "./verbs/resolve.ts";
 import { createStorageStatus } from "./verbs/storage-status.ts";
 
@@ -23,6 +24,7 @@ export function createCredentialsService(ctx: CredentialContext): CredentialsSer
     maybeRevokeOnAuthFailed: createMaybeRevokeOnAuthFailed(ctx),
     recordProbeOutcome: createRecordProbeOutcome(ctx),
     add: createAdd(ctx),
+    replace: createReplace(ctx),
     remove: createRemove(ctx),
     list: createList(ctx),
     storageStatus: createStorageStatus(ctx),
