@@ -346,14 +346,23 @@ const DEV_SIGNAL_ARM_TIMEOUT_MS = scaledBudget(60_000);
 const DEV_SIGNAL_EXIT_GRACE_MS = scaledBudget(12_000);
 const DEV_SERVER_BOOT_GRACE_MS = scaledBudget(15_000);
 const DEV_POLL_MS = 100;
+// `node --watch-path` exits on ENOENT before it runs the entry, so the fake root carries every watch root
+// dev.sh names, read from the script itself so a new root cannot silently stop the server booting.
+const DEV_WATCH_PATH_RE = /--watch-path="\$REPO\/([^"]+)"/gu;
 
 function fakeDevTree(): { readonly root: string; readonly pidFile: string } {
   const root = mkdtempSync(path.join(tmpdir(), "orb-dev-signal-"));
+  const devSh = readFileSync(DEV_SH, "utf8");
+  const watchRoots = [...devSh.matchAll(DEV_WATCH_PATH_RE)].map((match) => match[1] ?? "");
+  expect(watchRoots, "dev.sh must still name its watch roots, or this fixture reads the wrong script").toContain("packages/server/src");
+  for (const watchRoot of watchRoots) {
+    mkdirSync(path.join(root, watchRoot), { recursive: true });
+  }
   mkdirSync(path.join(root, "tooling", "src", "stack"), { recursive: true });
   mkdirSync(path.join(root, "tooling", "src", "dev", "lib"), { recursive: true });
   mkdirSync(path.join(root, "packages", "server", "src", "entry"), { recursive: true });
   mkdirSync(path.join(root, "node_modules", ".bin"), { recursive: true });
-  writeFileSync(path.join(root, "tooling", "src", "stack", "dev.sh"), readFileSync(DEV_SH, "utf8"));
+  writeFileSync(path.join(root, "tooling", "src", "stack", "dev.sh"), devSh);
   writeFileSync(path.join(root, "tooling", "src", "dev", "lib", "pino-pretty.json"), "{}\n");
   const pidFile = path.join(root, "server.pid");
   // The watched server: publish the pid, then hang. Its survival after the TERM is the orphan's signature.
