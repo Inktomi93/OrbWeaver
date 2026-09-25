@@ -30,4 +30,4 @@ export round trip. For synthetic, the seeder header states the limits.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Ruled: real. Demo data is a committed pack generated through the real verbs, as docs/plans/demo-seeding/design.md describes: a record harness drives real sessions and turns, exports through the chat bundle, and the seeder imports through the real import verb. 0165 executes it and 0166 proves it. Generating at first run is rejected: it needs a live model during install.

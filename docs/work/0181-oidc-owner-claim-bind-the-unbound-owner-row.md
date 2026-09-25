@@ -2,7 +2,7 @@
 kind: bug
 status: open
 updated: 2026-09-25
-priority: P3
+priority: P2
 area: auth
 ---
 

@@ -22,4 +22,4 @@ The owner rules the values, and a change, if any, lands with the suites that ass
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Ruled: no change. DEFAULT_MAX_OUTPUT_TOKENS stays 2048 and DEFAULT_MEMORY_SUMMARIZER_MAX_TOKENS stays 1024. No length-cut empty turn is recorded (packages/contracts/src/preset/index.ts header), and the cap is also the history-fit reserve on small-context models. Thinking that spends the cap is handled by the reasoning_budget_clamped degrade and by 0153. Reopen only on a recorded length-cut specimen, and then build the derived reserve rather than a bigger constant.
