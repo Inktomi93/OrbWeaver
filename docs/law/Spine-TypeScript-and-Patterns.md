@@ -25,7 +25,7 @@ The rule: **one home per shape, derived by who needs it; flows DOWN only.** An a
 
 ## House TypeScript style
 
-The opinionated conventions (TS 6.0.x, strict everything, ESM, `erasableSyntaxOnly`, branded `typeid` IDs, zod, the package cake). `pnpm typecheck` runs on **tsgo** — the TS7 native-preview compiler (`@typescript/native-preview`), not classic `tsc`. Raw `tsc <file>` is a hard TS5112 error since TS 6, so per-file type checks are project-scoped `tsgo -p <owning tsconfig>` (the `.claude/hooks/biome-check.sh` type leg). ⚙️ = gate- or biome-enforced; the enforcement machinery is catalogued in `Core-Enforcement-Active-Gates.md`. This section is the "how we write it" reference those gates protect.
+The opinionated conventions (TS 6.0.x, strict everything, ESM, `erasableSyntaxOnly`, branded `typeid` IDs, zod, the package cake). `pnpm typecheck` runs on **tsgo** — the TS7 native-preview compiler (`@typescript/native-preview`), not classic `tsc`. Raw `tsc <file>` is a hard TS5112 error since TS 6, so per-file type checks are project-scoped `tsgo -p <owning tsconfig>` (the `.claude/hooks/biome-check.mjs` type leg). ⚙️ = gate- or biome-enforced; the enforcement machinery is catalogued in `Core-Enforcement-Active-Gates.md`. This section is the "how we write it" reference those gates protect.
 
 ## 1. The keystone
 

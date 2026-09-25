@@ -12,6 +12,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { readConcurrencyProfile } from "@orb/tooling/_shared/concurrency-profile";
 import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import { REGISTRY } from "../../tooling/src/verify/lib/registry.ts";
 import { expect, test } from "../support/tool-fixtures.ts";
@@ -536,7 +537,7 @@ const ROWS: Row[] = [
   ["deny", "worker-over-cap", "pnpm test:ct tests/client/x.ct.tsx --workers=64"],
   ["deny", "worker-over-cap", "pnpm test:scoped tests/server/x.test.ts --maxWorkers=99"],
   ["deny", "worker-over-cap", "npx playwright test tests/client/x.ct.tsx --workers=64"],
-  ["pass", null, "pnpm test:ct tests/client/x.ct.tsx --workers=2"],
+  ["pass", null, "pnpm test:ct tests/client/x.ct.tsx --workers=1"], // one worker is at or under the cap on any machine
   ["pass", null, "pnpm test:ct tests/client/x.ct.tsx --repeat-each=3"],
   ["pass", null, "rg --max-workers=99 foo packages/client/src"], // not a runner stage: not this rule's business
   // ---- push tiers ----
@@ -854,18 +855,12 @@ test("rewrite: every wrapper prefix survives the CT rewrite verbatim, so the run
   expect(overCap.rule).toBe("worker-over-cap");
 });
 
-// #1943 F5. The cap is DATA — tooling/concurrency-profile.json is its ONE home (#1835) — so the pin
-// DERIVES the numbers from it: cap+1 denies, cap passes, and the refusal quotes the cap it read. A
-// hard-coded number here would go quietly wrong the day a cap is retuned, which is the whole reason that
-// file exists. (The corpus table's rows use absurd counts for the same reason, from the other direction.)
+// #1943 F5. The cap is DATA — tooling/concurrency-profile.json is its ONE home (#1835), derived for the
+// machine by its door — so the pin asks the same door: cap+1 denies, cap passes, and the refusal quotes the
+// cap it read. A hard-coded number here would go quietly wrong the day a cap is retuned or the suite runs on
+// a different machine. (The corpus table's rows use absurd counts for the same reason, from the other direction.)
 test("worker cap: the refusal is derived from the concurrency profile, and names the cap it read", () => {
-  const profile = JSON.parse(readFileSync(join(REPO, "tooling", "concurrency-profile.json"), "utf8")) as {
-    profiles: Record<string, { ctWorkers: number; vitestMaxWorkers: number } | undefined>;
-  };
-  const shared = profile.profiles["shared"];
-  if (shared === undefined) {
-    throw new Error("the concurrency profile has no `shared` profile — the guard reads that key");
-  }
+  const shared = readConcurrencyProfile({});
   const results = runBatch([
     { command: `pnpm test:ct tests/client/x.ct.tsx --workers=${shared.ctWorkers + 1}` },
     { command: `pnpm test:ct tests/client/x.ct.tsx --workers=${shared.ctWorkers}` },

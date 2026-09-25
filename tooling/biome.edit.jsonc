@@ -5,7 +5,7 @@
 // graph: measured 5 s / 25 CPU-s for ONE file on a quiet box, 18 s / 52 CPU-s under load, on every save in
 // every lane. Those rules are the whole-tree `lint:biome` verify stage's, which pays the crawl once per run.
 // `--skip` does not avoid the crawl; the daemon reported a fresh file as "Checked 0 files" and timed out from
-// a worktree — both measured and rejected. Consumed ONLY by .claude/hooks/biome-check.sh via --config-path.
+// a worktree — both measured and rejected. Consumed ONLY by .claude/hooks/biome-check.mjs via --config-path.
 {
   "$schema": "https://biomejs.dev/schemas/2.5.1/schema.json",
   "extends": ["../biome.json"],

@@ -1,11 +1,19 @@
-import { spawn, spawnSync } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
+// The edit hook (.claude/hooks/biome-check.mjs), driven across the real process boundary with a stub
+// `pnpm` on PATH. Every run gets its own runtime dir, so the hook's host-wide pools are the test's alone.
+import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { readConcurrencyProfile } from "@orb/tooling/_shared/concurrency-profile";
 import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
+import { HOST_POOL_ROOT_ENV, hostPoolDir } from "@orb/tooling/_shared/host-slots";
 import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
+import { TS7_SLOT_BUSY_EXIT } from "@orb/tooling/_shared/ts7-admission";
 import { expect, test } from "../support/tool-fixtures.ts";
 import { scaledBudget } from "./_load-budget.ts";
+
+const HOOK_REL = ".claude/hooks/biome-check.mjs";
 
 function git(cwd: string, ...args: string[]): void {
   execFixtureGit(cwd, ["-c", "commit.gpgsign=false", "-c", "init.defaultBranch=main", ...args]);
@@ -14,14 +22,9 @@ function git(cwd: string, ...args: string[]): void {
 function plantCheckout(scratch: string): { readonly main: string; readonly worktree: string } {
   const main = join(scratch, "main checkout");
   const worktree = join(scratch, "linked worktree");
-  mkdirSync(join(main, "tooling"), { recursive: true });
   mkdirSync(join(main, "tests", "client"), { recursive: true });
   writeFileSync(join(main, "package.json"), '{"name":"fixture","private":true}\n');
   writeFileSync(join(main, ".dependency-cruiser.cjs"), "module.exports = {};\n");
-  writeFileSync(
-    join(main, "tooling", "concurrency-profile.json"),
-    '{"profiles":{"shared":{"hookPoolSlots":3,"hookTs7Checkers":1},"dedicated":{"hookPoolSlots":3,"hookTs7Checkers":1}}}\n',
-  );
   writeFileSync(join(main, "tests", "client", "subject.dom.test.ts"), "export const subject = true;\n");
   git(main, "init", "--quiet");
   git(main, "config", "user.email", "test@orb.local");
@@ -37,7 +40,7 @@ function stubPnpm(bin: string): void {
   writeFileSync(
     join(bin, "pnpm"),
     `#!/usr/bin/env bash
-printf '%s|%s\n' "$PWD" "$*" >> "$HOOK_TEST_LOG"
+printf '%s|%s|admission=%s\n' "$PWD" "$*" "\${ORB_TS7_ADMISSION:-}" >> "$HOOK_TEST_LOG"
 # pnpm's own install/prepare reporting rides STDOUT, above the wrapped command's output. Captured
 # verbatim from this repo on 2026-09-12; see the "wrapper preamble" tests.
 wrapper_preamble() {
@@ -135,6 +138,10 @@ if [[ "$*" == *"scripts/ts7.ts"* ]] && [ "\${HOOK_TEST_MODE:-}" = "consumer-diag
   printf 'tests/client/unchanged-consumer.ts(7,3): error TS2322: Type string is not assignable to number.\n'
   exit 1
 fi
+if [[ "$*" == *"scripts/ts7.ts"* ]] && [ "\${HOOK_TEST_MODE:-}" = "ts7-busy" ]; then
+  printf 'ts7: all 1 host "ts7" typecheck slots are busy; this advisory run was SKIPPED\n' >&2
+  exit ${String(TS7_SLOT_BUSY_EXIT)}
+fi
 if [[ "$*" == *"scripts/ts7.ts"* ]] && [ "\${HOOK_TEST_MODE:-}" = "unknown-program" ]; then
   printf 'project config does not exist\n' >&2
   exit 2
@@ -156,7 +163,6 @@ interface HookRun {
   readonly mode?: string;
   readonly path?: string;
   readonly rawInput?: string;
-  readonly tempDir?: string;
 }
 
 function runHook(input: HookRun): ReturnType<typeof spawnSync> {
@@ -170,7 +176,7 @@ function runHook(input: HookRun): ReturnType<typeof spawnSync> {
       ["tool_input", Object.fromEntries([["file_path", input.file]])],
     ]),
   );
-  return spawnSync("/bin/bash", [input.hook], {
+  return spawnSync(process.execPath, [input.hook], {
     encoding: "utf8",
     input: input.rawInput ?? payload,
     env: {
@@ -178,10 +184,9 @@ function runHook(input: HookRun): ReturnType<typeof spawnSync> {
       ...Object.fromEntries([
         ["PATH", input.path ?? `${input.bin}:/usr/bin:/bin`],
         ["CLAUDE_PROJECT_DIR", input.project],
-        ["XDG_RUNTIME_DIR", input.runtime],
+        [HOST_POOL_ROOT_ENV, input.runtime],
         ["HOOK_TEST_LOG", input.log],
         ["HOOK_TEST_MODE", input.mode ?? ""],
-        ...(input.tempDir === undefined ? [] : [["TMPDIR", input.tempDir]]),
       ]),
     },
   });
@@ -191,10 +196,9 @@ function hookPayload(entries: readonly (readonly [string, unknown])[]): string {
   return JSON.stringify(Object.fromEntries(entries));
 }
 
-test("missing jq and malformed supported-event payloads are visible while a valid unsupported event is ignored", ({ scratch, repoRoot }) => {
-  const hook = join(repoRoot, ".claude/hooks/biome-check.sh");
+test("malformed supported-event payloads are visible while a valid unsupported event is ignored", ({ scratch, repoRoot }) => {
   const common = {
-    hook,
+    hook: join(repoRoot, HOOK_REL),
     project: repoRoot,
     cwd: repoRoot,
     file: join(repoRoot, "tests/tooling/biome-check-hook.int.test.ts"),
@@ -202,18 +206,6 @@ test("missing jq and malformed supported-event payloads are visible while a vali
     log: join(scratch, "pnpm.log"),
     runtime: join(scratch, "runtime"),
   };
-  mkdirSync(common.bin, { recursive: true });
-  for (const [name, target] of [
-    ["bash", "/bin/bash"],
-    ["cat", "/usr/bin/cat"],
-    ["git", "/usr/bin/git"],
-  ] as const) {
-    symlinkSync(target, join(common.bin, name));
-  }
-
-  const missingJq = runHook({ ...common, path: common.bin });
-  expect(missingJq.status).toBe(2);
-  expect(missingJq.stderr).toContain("jq is unavailable");
 
   const malformedJson = runHook({ ...common, rawInput: "not-json{" });
   expect(malformedJson.status).toBe(2);
@@ -238,18 +230,6 @@ test("missing jq and malformed supported-event payloads are visible while a vali
   });
   expect(unsupported.status).toBe(0);
   expect(unsupported.stderr).toBe("");
-
-  const missingTempRoot = runHook({ ...common, tempDir: join(scratch, "missing-tmp-root") });
-  expect(missingTempRoot.status).toBe(2);
-  expect(missingTempRoot.stderr).toContain("temporary workspace could not be created");
-
-  // A regular file where the temp root should be: `mktemp -d` refuses it for every user, root included,
-  // where a mode-000 directory only stops a non-root user.
-  const unusableTempRoot = join(scratch, "tmp-root-is-a-file");
-  writeFileSync(unusableTempRoot, "");
-  const unusableTemp = runHook({ ...common, tempDir: unusableTempRoot });
-  expect(unusableTemp.status).toBe(2);
-  expect(unusableTemp.stderr).toContain("temporary workspace could not be created");
 });
 
 test("a main-registered launcher executes every leg in the payload worktree and preserves quoted paths", ({ scratch, repoRoot }) => {
@@ -261,7 +241,7 @@ test("a main-registered launcher executes every leg in the payload worktree and 
   const hostile = "tests/client/$(touch injected).dom.test.ts";
   writeFileSync(join(checkout.worktree, hostile), "export const safe = true;\n");
   const result = runHook({
-    hook: join(repoRoot, ".claude/hooks/biome-check.sh"),
+    hook: join(repoRoot, HOOK_REL),
     project: checkout.main,
     cwd: checkout.worktree,
     file: hostile,
@@ -282,11 +262,11 @@ test("project settings use command plus args so a project path with spaces stays
   const settings = JSON.parse(readFileSync(join(repoRoot, ".claude/settings.json"), "utf8")) as unknown;
   const hooks = typeof settings === "object" && settings !== null ? Reflect.get(settings, "hooks") : undefined;
   const postToolUse = typeof hooks === "object" && hooks !== null ? Reflect.get(hooks, "PostToolUse") : undefined;
-  const script = ["$", "{CLAUDE_PROJECT_DIR}/.claude/hooks/biome-check.sh"].join("");
+  const script = ["$", `{CLAUDE_PROJECT_DIR}/${HOOK_REL}`].join("");
   expect(postToolUse).toEqual([
     {
       matcher: "Edit|Write|MultiEdit",
-      hooks: [{ type: "command", command: "bash", args: [script] }],
+      hooks: [{ type: "command", command: "node", args: [script] }],
     },
   ]);
 });
@@ -299,7 +279,7 @@ test("JSON and Markdown files may carry an explicit not-applicable plan", ({ scr
   writeFileSync(markdown, "# Fixture\n");
   for (const file of [join(checkout.worktree, "package.json"), markdown]) {
     const result = runHook({
-      hook: join(repoRoot, ".claude/hooks/biome-check.sh"),
+      hook: join(repoRoot, HOOK_REL),
       project: checkout.main,
       cwd: checkout.worktree,
       file,
@@ -322,7 +302,7 @@ test("a prose file edit runs no checker at all", ({ scratch, repoRoot }) => {
     const file = join(checkout.worktree, name);
     writeFileSync(file, "x\n");
     const result = runHook({
-      hook: join(repoRoot, ".claude/hooks/biome-check.sh"),
+      hook: join(repoRoot, HOOK_REL),
       project: checkout.main,
       cwd: checkout.worktree,
       file,
@@ -344,7 +324,7 @@ test("a foreign checkout is refused before any repository command executes", ({ 
   const log = join(scratch, "pnpm.log");
   stubPnpm(bin);
   const result = runHook({
-    hook: join(repoRoot, ".claude/hooks/biome-check.sh"),
+    hook: join(repoRoot, HOOK_REL),
     project: trusted.main,
     cwd: foreign.worktree,
     file: join(foreign.worktree, "tests/client/subject.dom.test.ts"),
@@ -367,7 +347,7 @@ test("an edited symlink that escapes the trusted checkout is refused", ({ scratc
   writeFileSync(outside, "export {};\n");
   symlinkSync(outside, link);
   const result = runHook({
-    hook: join(repoRoot, ".claude/hooks/biome-check.sh"),
+    hook: join(repoRoot, HOOK_REL),
     project: checkout.main,
     cwd: checkout.worktree,
     file: link,
@@ -393,7 +373,7 @@ test("an edit to a file OUTSIDE the checkout (scratchpad, bridge note, /tmp prob
   const outside = join(scratchpad, "branch-audit.sh");
   writeFileSync(outside, "#!/usr/bin/env bash\nexit 0\n");
   const result = runHook({
-    hook: join(repoRoot, ".claude/hooks/biome-check.sh"),
+    hook: join(repoRoot, HOOK_REL),
     project: checkout.main,
     cwd: checkout.worktree,
     file: outside,
@@ -406,57 +386,51 @@ test("an edit to a file OUTSIDE the checkout (scratchpad, bridge note, /tmp prob
   expect(existsSync(log)).toBe(false);
 });
 
-test("hostile admission directories and lock symlinks are refused without touching their targets", ({ scratch, repoRoot }) => {
+test("hostile admission directories and slot symlinks are refused without touching their targets", ({ scratch, repoRoot }) => {
   const checkout = plantCheckout(scratch);
   const bin = join(scratch, "stub bin");
   stubPnpm(bin);
-  const hook = join(repoRoot, ".claude/hooks/biome-check.sh");
   const file = join(checkout.worktree, "tests/client/subject.dom.test.ts");
-  const uid = String(process.getuid?.() ?? process.geteuid?.() ?? 0);
-  const base = { hook, project: checkout.main, cwd: checkout.worktree, file, bin };
+  const base = { hook: join(repoRoot, HOOK_REL), project: checkout.main, cwd: checkout.worktree, file, bin };
+  const hookPool = (runtime: string): string => hostPoolDir({ name: "hook", label: "", slots: 1 }, { [HOST_POOL_ROOT_ENV]: runtime });
 
   const symlinkRuntime = join(scratch, "symlink-runtime");
   const symlinkTarget = join(scratch, "attacker-directory");
   mkdirSync(symlinkRuntime, { recursive: true, mode: 0o700 });
-  chmodSync(symlinkRuntime, 0o700);
   mkdirSync(symlinkTarget, { recursive: true });
-  symlinkSync(symlinkTarget, join(symlinkRuntime, `orb-hook-pool-${uid}`));
+  symlinkSync(symlinkTarget, hookPool(symlinkRuntime));
   const symlinkPool = runHook({ ...base, log: join(scratch, "symlink.log"), runtime: symlinkRuntime });
   expect(symlinkPool.status).toBe(2);
-  expect(symlinkPool.stderr).toContain("admission directory must not be a symlink");
+  expect(symlinkPool.stderr).toContain("is a symlink or not a directory");
+  expect(existsSync(join(symlinkTarget, "queue")), "nothing was created through the link").toBe(false);
 
   const openRuntime = join(scratch, "open-runtime");
-  const openPool = join(openRuntime, `orb-hook-pool-${uid}`);
-  mkdirSync(openPool, { recursive: true, mode: 0o777 });
-  chmodSync(openRuntime, 0o700);
-  chmodSync(openPool, 0o777);
+  mkdirSync(hookPool(openRuntime), { recursive: true });
+  chmodSync(hookPool(openRuntime), 0o777);
   const insecurePool = runHook({ ...base, log: join(scratch, "open.log"), runtime: openRuntime });
   expect(insecurePool.status).toBe(2);
-  expect(insecurePool.stderr).toContain("owned mode-0700 directory");
+  expect(insecurePool.stderr).toContain("not writable by group or others");
 
   const lockRuntime = join(scratch, "lock-runtime");
-  const lockPool = join(lockRuntime, `orb-hook-pool-${uid}`);
   const target = join(scratch, "must-not-change.txt");
-  mkdirSync(lockPool, { recursive: true, mode: 0o700 });
-  chmodSync(lockRuntime, 0o700);
-  chmodSync(lockPool, 0o700);
+  mkdirSync(hookPool(lockRuntime), { recursive: true, mode: 0o700 });
   writeFileSync(target, "preserved\n");
-  symlinkSync(target, join(lockPool, "slot.1.lock"));
+  symlinkSync(target, join(hookPool(lockRuntime), "1.lock"));
   const hostileLock = runHook({ ...base, log: join(scratch, "lock.log"), runtime: lockRuntime });
   expect(hostileLock.status).toBe(2);
-  expect(hostileLock.stderr).toContain("admission lock is not an owned mode-0600 regular file");
+  expect(hostileLock.stderr).toContain("is a symlink or not a regular file");
   expect(readFileSync(target, "utf8")).toBe("preserved\n");
 });
 
 // Eleven complete hook invocations share one fixture here so each planner/tool refusal and the admission
 // non-verdict crosses the real shell boundary. Together they exceeded the generic 5s budget under load (#2308).
-test("planner failure and admission contention are visible non-verdicts", { timeout: scaledBudget(10_000) }, async ({ scratch, repoRoot }) => {
+test("planner failure and admission contention are visible non-verdicts", { timeout: scaledBudget(10_000) }, ({ scratch, repoRoot }) => {
   const checkout = plantCheckout(scratch);
   const bin = join(scratch, "stub bin");
   const log = join(scratch, "pnpm.log");
   const runtime = join(scratch, "runtime");
   stubPnpm(bin);
-  const hook = join(repoRoot, ".claude/hooks/biome-check.sh");
+  const hook = join(repoRoot, HOOK_REL);
   const file = join(checkout.worktree, "tests/client/subject.dom.test.ts");
   const broken = runHook({ hook, project: checkout.main, cwd: checkout.worktree, file, bin, log, runtime, mode: "planner-failure" });
   expect(broken.status).toBe(2);
@@ -504,27 +478,19 @@ test("planner failure and admission contention are visible non-verdicts", { time
   expect(actionable.stderr).toContain("client-cake");
   expect(actionable.stderr).toContain("client cannot import server runtime");
 
-  const pool = join(runtime, `orb-hook-pool-${String(process.getuid?.() ?? process.geteuid?.() ?? 0)}`);
+  // Every hook slot held by a LIVE process — this test's own — is admission contention: each leg says it
+  // was skipped, and nothing is spawned for it.
+  const pool = hostPoolDir({ name: "hook", label: "", slots: 1 }, { [HOST_POOL_ROOT_ENV]: runtime });
   mkdirSync(pool, { recursive: true, mode: 0o700 });
-  chmodSync(pool, 0o700);
-  const holders = [1, 2, 3].map((slot) => {
-    const lock = join(pool, `slot.${String(slot)}.lock`);
-    writeFileSync(lock, "", { mode: 0o600 });
-    chmodSync(lock, 0o600);
-    return spawn("/usr/bin/flock", [lock, "sleep", "10"], { stdio: "ignore" });
-  });
-  await new Promise<void>((resolve) => setTimeout(resolve, 100));
-  try {
-    const contended = runHook({ hook, project: checkout.main, cwd: checkout.worktree, file, bin, log, runtime });
-    expect(contended.status).toBe(2);
-    expect(contended.stderr).toContain("checks without a verdict");
-    expect(contended.stderr).toContain("shared slots busy");
-    expect(contended.stderr).toContain("SKIPPED");
-  } finally {
-    for (const holder of holders) {
-      holder.kill("SIGTERM");
-    }
+  for (let slot = 1; slot <= readConcurrencyProfile({}).hookPoolSlots; slot += 1) {
+    writeFileSync(join(pool, `${String(slot)}.lock`), JSON.stringify({ pid: process.pid, startedAt: "x", label: "a live holder" }));
   }
+  const contended = runHook({ hook, project: checkout.main, cwd: checkout.worktree, file, bin, log: join(scratch, "contended.log"), runtime });
+  expect(contended.status).toBe(2);
+  expect(contended.stderr).toContain("checks without a verdict");
+  expect(contended.stderr).toContain("shared slots busy");
+  expect(contended.stderr).toContain("SKIPPED");
+  expect(existsSync(join(scratch, "contended.log")), "a skipped leg spawns nothing").toBe(false);
 });
 
 // The hook reads two MACHINE-READABLE streams — the typecheck planner's `--json` and dep-cruiser's
@@ -532,7 +498,7 @@ test("planner failure and admission contention are visible non-verdicts", { time
 // install/prepare reporting on STDOUT above the wrapped command's output whenever it decides the store
 // needs verifying. Measured in this checkout on 2026-09-12: `Scope: all 9 workspace projects … .
 // prepare: lefthook install … Done in 1.6s using pnpm v11.15.1` landed above well-formed planner JSON,
-// `jq` refused the file, and the typecheck leg was SKIPPED behind a line that reads like noise. That is
+// the payload parse refused it, and the typecheck leg was SKIPPED behind a line that reads like noise. That is
 // a FAIL-OPEN in the one advisory every lane leans on, so each leg gets both directions here: the leg
 // must still FIRE under the preamble, and must still be SILENT under the preamble when the tree is
 // clean. The third arm is the refusal: a stream carrying preamble and NO payload must stay a loud
@@ -542,7 +508,7 @@ test("a pnpm wrapper preamble above the JSON payload cannot skip the typecheck o
   const bin = join(scratch, "stub bin");
   const runtime = join(scratch, "runtime");
   stubPnpm(bin);
-  const hook = join(repoRoot, ".claude/hooks/biome-check.sh");
+  const hook = join(repoRoot, HOOK_REL);
   const file = join(checkout.worktree, "tests/client/subject.dom.test.ts");
   const base = { hook, project: checkout.main, cwd: checkout.worktree, bin, runtime };
 
@@ -607,7 +573,7 @@ test("type diagnostics from unchanged consumers in the selected program are show
   const log = join(scratch, "pnpm.log");
   stubPnpm(bin);
   const result = runHook({
-    hook: join(repoRoot, ".claude/hooks/biome-check.sh"),
+    hook: join(repoRoot, HOOK_REL),
     project: checkout.main,
     cwd: checkout.worktree,
     file: join(checkout.worktree, "tests/client/subject.dom.test.ts"),
@@ -622,4 +588,57 @@ test("type diagnostics from unchanged consumers in the selected program are show
   // THE POINT OF THE ARM: the position belongs to a file the edit never touched, so the hook is reporting
   // the whole selected PROGRAM rather than the edited file alone.
   expect(result.stderr).toContain("unchanged-consumer.ts:7,3");
+});
+
+test("the typecheck leg asks the ts7 pool as an advisory caller, and a busy pool is a named skip, not a compiler failure", ({ scratch, repoRoot }) => {
+  const checkout = plantCheckout(scratch);
+  const bin = join(scratch, "stub bin");
+  const log = join(scratch, "pnpm.log");
+  stubPnpm(bin);
+  const result = runHook({
+    hook: join(repoRoot, HOOK_REL),
+    project: checkout.main,
+    cwd: checkout.worktree,
+    file: join(checkout.worktree, "tests/client/subject.dom.test.ts"),
+    bin,
+    log,
+    runtime: join(scratch, "runtime"),
+    mode: "ts7-busy",
+  });
+  expect(result.status).toBe(2);
+  expect(result.stderr).toContain("typecheck: tsconfig.tests-dom.json was SKIPPED — every host typecheck slot is busy");
+  expect(result.stderr).not.toContain("compiler failed");
+  const ts7Line = readFileSync(log, "utf8")
+    .split("\n")
+    .find((line) => line.includes("scripts/ts7.ts"));
+  expect(ts7Line, "the ts7 leg is spawned as an advisory try").toContain("admission=try");
+  expect(ts7Line).toContain(`--checkers ${String(readConcurrencyProfile({}).hookTs7Checkers)}`);
+});
+
+test("a program already being checked for this checkout is skipped, not run twice", ({ scratch, repoRoot }) => {
+  const checkout = plantCheckout(scratch);
+  const bin = join(scratch, "stub bin");
+  const log = join(scratch, "pnpm.log");
+  const runtime = join(scratch, "runtime");
+  stubPnpm(bin);
+  // The duplicate-suppression pool is keyed by the checkout's real path and the program.
+  const key = createHash("sha256")
+    .update(`${realpathSync(checkout.worktree)}\0tsconfig.tests-dom.json`)
+    .digest("hex")
+    .slice(0, 16);
+  const dir = hostPoolDir({ name: `hook-typecheck-${key}`, label: "", slots: 1 }, { [HOST_POOL_ROOT_ENV]: runtime });
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
+  writeFileSync(join(dir, "1.lock"), JSON.stringify({ pid: process.pid, startedAt: "x", label: "the first edit's typecheck" }));
+  const result = runHook({
+    hook: join(repoRoot, HOOK_REL),
+    project: checkout.main,
+    cwd: checkout.worktree,
+    file: join(checkout.worktree, "tests/client/subject.dom.test.ts"),
+    bin,
+    log,
+    runtime,
+  });
+  expect(result.status).toBe(2);
+  expect(result.stderr).toContain("typecheck: tsconfig.tests-dom.json is already running for this checkout; it was SKIPPED");
+  expect(readFileSync(log, "utf8")).not.toContain("scripts/ts7.ts");
 });
