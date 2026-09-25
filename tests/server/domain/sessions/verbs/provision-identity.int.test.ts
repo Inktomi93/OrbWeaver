@@ -510,6 +510,17 @@ describe("sessions.provisionIdentity — a member's IdP rename onto the owner se
     expect(line).toMatchObject({ security: true, userId: member.userId });
   });
 
+  // The JIT insert is the other writer of a new handle. A look-alike is not an exact OWNER_HANDLES match, so it is no
+  // owner claim, but its row would hold the seed key: the owner's own claim would then meet `users_handle_key_unique`.
+  test.each(["Owner", "OWNER", "0wner"])("an unclaimed box: a stranger signing in as %j creates no row, and the owner still claims", async (lookalike) => {
+    vi.stubEnv("OWNER_HANDLES", "owner");
+    const stranger = identity({ externalId: castId<ExternalId>("authentik|stranger"), handle: castId<Handle>(lookalike) });
+    expect(await svc.provisionIdentity(stranger, { ownerClaimProven: false, allowJitProvision: true })).toEqual({ outcome: "denied" });
+    expect(await rowCount()).toBe(0);
+    const owner = identity({ externalId: castId<ExternalId>("authentik|owner"), handle: castId<Handle>("owner") });
+    expect(asProvisioned(await svc.provisionIdentity(owner, PROVEN))).toMatchObject({ role: "owner" });
+  });
+
   test("control: the same member's IdP rename to an ordinary handle still lands", async () => {
     vi.stubEnv("OWNER_HANDLES", "owner");
     const member = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("alice") }), PROVEN));

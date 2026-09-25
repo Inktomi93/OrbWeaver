@@ -62,6 +62,9 @@ interface SessionAdminPort {
   readonly settleUnclaimedLink: (userId: UserId, externalId: ExternalId, failure?: unknown) => Promise<UnclaimedLinkOutcome>;
   /** D257 — the local-account mint, UNEXECUTED, so `createUser` commits it with its audit row as ONE batch.
    *  Canonical home domain/sessions, which derives the handle key; admin only orders the statements. */
+  /** D258 — is this handle an `OWNER_HANDLES` seed key or a look-alike of one? Boot's seedOwner resolves the owner row
+   *  by that key, so no admin mint may hold it. Canonical home domain/sessions (`isReservedSignupHandle`). */
+  readonly isReservedHandle: (handle: Handle) => boolean;
   readonly localUserInsertStatement: (row: {
     readonly id: UserId;
     readonly handle: Handle;

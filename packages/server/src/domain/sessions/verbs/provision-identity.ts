@@ -449,7 +449,7 @@ function refuse(identity: ResolvedIdentity, cause: ProvisionDenyCause): Provisio
       securityEvent(
         "sso_owner_claim_unproven",
         { handle: identity.handle, externalId: identity.externalId },
-        "security: an SSO login claimed the owner by an OWNER_HANDLES handle match alone — refused, nothing bound or created; the owner claims from a loopback callback, with the claim URL the boot log printed while the owner is unclaimed, or through OWNER_GROUP",
+        "security: an SSO login claimed the owner, or a new account under the owner seed key or a look-alike of it, without proof — refused, nothing bound or created; the owner claims from a loopback callback, with the claim URL the boot log printed while the owner is unclaimed, or through OWNER_GROUP",
       );
       return { outcome: "denied" };
     default: {

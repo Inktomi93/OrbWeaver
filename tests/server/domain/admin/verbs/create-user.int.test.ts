@@ -8,7 +8,7 @@ import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createAdminService } from "@orb/server/domain/admin";
 import { eq } from "drizzle-orm";
-import { describe } from "vitest";
+import { afterEach, describe, vi } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { auditActions, makeHarness, principal, seedAdminCaller, seedUser, withBrokenAudit } from "../_support.ts";
@@ -16,6 +16,10 @@ import { auditActions, makeHarness, principal, seedAdminCaller, seedUser, withBr
 const GOOD_PASSWORD = "correct-horse";
 
 describe("createUser", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   test("an admin mints a user; the password is hashed and absent from the view (audited)", async () => {
     const db = await freshDb();
     const h = makeHarness(db);
@@ -183,6 +187,27 @@ describe("createUser", () => {
         code: "invalid_handle",
       });
     }
+  });
+
+  // D258: boot's seedOwner resolves the owner row by the OWNER_HANDLES seed key, so an account holding it (or a
+  // look-alike) becomes the owner at the next seeded-mode boot. No admin mint may take it.
+  test.each(["owner", "0wner"])("the owner seed key and its look-alikes are refused (invalid_handle): %j", async (reserved) => {
+    vi.stubEnv("OWNER_HANDLES", "owner");
+    const db = await freshDb();
+    const { svc, admin } = await seedAdminCaller(db);
+    await expect(svc.createUser({ principal: principal(admin, "admin"), handle: castId<Handle>(reserved), password: GOOD_PASSWORD })).rejects.toMatchObject({
+      code: "invalid_handle",
+    });
+    expect((await db.select().from(users)).map((row) => row.handle)).toEqual(["adm"]);
+  });
+
+  test("control: a handle that only contains the seed key is minted", async () => {
+    vi.stubEnv("OWNER_HANDLES", "owner");
+    const db = await freshDb();
+    const { svc, admin } = await seedAdminCaller(db);
+    await expect(svc.createUser({ principal: principal(admin, "admin"), handle: castId<Handle>("owners"), password: GOOD_PASSWORD })).resolves.toMatchObject({
+      handle: "owners",
+    });
   });
 
   test("a plain user is denied", async () => {

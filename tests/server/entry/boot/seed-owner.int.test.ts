@@ -281,6 +281,21 @@ test("a member's IdP rename onto the seed key never becomes the owner across a m
   expect(back).toMatchObject({ outcome: "provisioned", userId: memberRow?.id, role: "user" });
 });
 
+// D258: a JIT sign-in under a look-alike of the seed key must leave the key free, or every seeded-mode boot's
+// `ensureUser(seed key)` meets `users_handle_key_unique`.
+test("after a stranger's JIT sign-in as a seed-key look-alike, a seeded-mode boot still seeds the owner", async ({ clock }) => {
+  const db = await freshDb();
+  const sessions = createSessionsService({ db, now: clock.now, sessionSecret: PEPPER, seedUserConnections: createLocalLightUserSeed({ db, now: clock.now }) });
+  vi.stubEnv("OWNER_HANDLES", "owner");
+  const stranger: ResolvedIdentity = { externalId: castId<ExternalId>("idp|stranger"), handle: castId<Handle>("Owner"), groups: [], email: null };
+  await sessions.provisionIdentity(stranger, { ownerClaimProven: false, allowJitProvision: true });
+
+  const ownerId = (await seedOwner({ db, sessions, ownerHandles: ["owner"], now: clock.now }))[0];
+
+  const rows = await db.select().from(users);
+  expect(rows).toEqual([expect.objectContaining({ id: ownerId, handle: "owner", role: "owner", externalId: null })]);
+});
+
 test("an operator who MOVES OWNER_HANDLES: the owner row follows the new key, boot survives, role/subject intact", async ({ clock }) => {
   const db = await freshDb();
   const sessions = createSessionsService({ db, now: clock.now, sessionSecret: PEPPER, seedUserConnections: createLocalLightUserSeed({ db, now: clock.now }) });

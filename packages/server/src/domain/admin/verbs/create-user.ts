@@ -45,7 +45,7 @@ function requireMintAuthority(principal: Principal, role: UserRole): void {
 
 /** Validate the create params into a clean `handle`, throwing the typed reason on each failure. The
  *  requested `role` is derived + authorized by `requireMintAuthority` BEFORE this runs. */
-function validateCreate(params: CreateUserParams, role: UserRole): Handle {
+function validateCreate(params: CreateUserParams, role: UserRole, isReservedHandle: (handle: Handle) => boolean): Handle {
   const handle = params.handle.trim();
   if (handle.length === 0) {
     throw new DomainOperationError(ADMIN_OP_CODES.invalidHandle, "handle must not be empty");
@@ -55,6 +55,10 @@ function validateCreate(params: CreateUserParams, role: UserRole): Handle {
       ADMIN_OP_CODES.invalidHandle,
       "handle is not admissible: over the length cap, blank, mixed-script, or holding an invisible or control character (D257)",
     );
+  }
+  // D258: an account holding the owner seed key, or a look-alike, becomes the owner at the next seeded-mode boot.
+  if (isReservedHandle(castId<Handle>(handle))) {
+    throw new DomainOperationError(ADMIN_OP_CODES.invalidHandle, "handle is reserved for the owner (an OWNER_HANDLES seed key or a look-alike of one)");
   }
 
   // The owner is the immutable bootstrap row — never minted through admin. Refuses even the owner caller,
@@ -119,7 +123,7 @@ export function createCreateUser(ctx: AdminContext): AdminService["createUser"] 
     const role = params.role ?? DEFAULT_ROLE;
     // Authorize before validating: the requested role selects the gate.
     requireMintAuthority(params.principal, role);
-    const handle = validateCreate(params, role);
+    const handle = validateCreate(params, role, ctx.sessions.isReservedHandle);
 
     // Friendly pre-check on the handle key (D257: a case variant or look-alike is the same handle) — the
     // key's unique index + the TOCTOU translation in insertLocalUser are the real defense.

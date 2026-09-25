@@ -7,7 +7,7 @@ import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
 import type { UserId } from "@orb/kit/ids";
 import type { ProvisionIdentityOptions } from "../contract/params.ts";
 import type { ProvisionCandidate, ProvisionDecision, ProvisionDeny, ProvisionInsert, ProvisionUpdate } from "../contract/results.ts";
-import { identityAccess, isOwnerByPolicy, isOwnerGroupMember, isSubjectMismatch } from "./role-policy.ts";
+import { identityAccess, isOwnerByPolicy, isOwnerGroupMember, isReservedSignupHandle, isSubjectMismatch } from "./role-policy.ts";
 
 const deny = (cause: ProvisionDeny["cause"]): ProvisionDeny => ({ kind: "deny", cause });
 
@@ -83,10 +83,10 @@ export function decideProvision(
   if (ownerByPolicy) {
     return decideOwner(inputs);
   }
-  // SECURITY: an unproven OWNER_HANDLES claimant is an ordinary identity, but it may not insert a row. On a fresh
-  // box that insert would be the owner itself, and anywhere else it would hold the seed-key handle the owner claims
-  // by. Do not let it fall through to the JIT insert.
-  if (claimsOwner && existing === undefined) {
+  // SECURITY (D258): no new non-owner row may hold an OWNER_HANDLES seed key or a look-alike of one, compared on the
+  // handle key. On a fresh box an unproven exact match would insert the owner itself; any holder of the key blocks the
+  // owner's own claim on `users_handle_key_unique` and breaks boot's seedOwner. Do not narrow this to an exact match.
+  if (isReservedSignupHandle(identity.handle) && existing === undefined) {
     return deny("owner-claim-unproven");
   }
   return decideNonOwner(inputs);
