@@ -10,10 +10,11 @@
 // asserted the payload's SHAPE. That is what these pin: not the values alone, but that the keys are PRESENT
 // carrying explicit `null`. A future refactor back to conditional spreads reds here.
 
+import { SIGNUP_MAX_USES } from "@orb/contracts/chat";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { INVITE_FORM_DEFAULTS, toCreateInviteInput } from "../../../../../packages/client/src/features/chat/lib/invite-form-model.ts";
+import { INVITE_FORM_DEFAULTS, toCreateInviteInput, validateInviteForm } from "../../../../../packages/client/src/features/chat/lib/invite-form-model.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A fixed submit-time clock — the projection resolves expiry presets against it. */
@@ -49,5 +50,43 @@ describe("toCreateInviteInput — the bounds are stated, never omitted", () => {
   test("link mode carries no handle; handle mode brands the trimmed draft", () => {
     expect(toCreateInviteInput(INVITE_FORM_DEFAULTS, NOW).invitedHandle).toBeUndefined();
     expect(toCreateInviteInput({ ...INVITE_FORM_DEFAULTS, mode: "handle", handle: castId<Handle>("  someone  ") }, NOW).invitedHandle).toBe("someone");
+  });
+});
+
+// D254 — a sign-up link: the switch rides the wire only for a share link, and the form refuses a shape the
+// server would refuse (no use limit or over the cap, no expiry or over the cap) before any wire call.
+// The fields the validator refuses, in order; none when it passes.
+function failingFields(values: Parameters<typeof validateInviteForm>[0]): string[] {
+  const result = validateInviteForm(values);
+  return result === undefined ? [] : Object.keys(result.fields);
+}
+
+describe("the sign-up link", () => {
+  const Signup = { ...INVITE_FORM_DEFAULTS, allowSignup: true, expiry: "7d", maxUses: SIGNUP_MAX_USES };
+
+  test("a share link with the switch on asks for sign-up; the default and handle mode never do", () => {
+    expect(toCreateInviteInput(Signup, NOW).allowSignup).toBe(true);
+    expect(Object.hasOwn(toCreateInviteInput(INVITE_FORM_DEFAULTS, NOW), "allowSignup")).toBe(false);
+    const handleMode = toCreateInviteInput({ ...Signup, mode: "handle", handle: castId<Handle>("someone") }, NOW);
+    expect(Object.hasOwn(handleMode, "allowSignup")).toBe(false);
+  });
+
+  test("the caps: a capped expiry and 1 to the maximum uses pass", () => {
+    expect(validateInviteForm(Signup)).toBeUndefined();
+    expect(validateInviteForm({ ...Signup, expiry: "1h", maxUses: 1 })).toBeUndefined();
+  });
+
+  test("an unlimited or over-cap use count fails on maxUses", () => {
+    expect(failingFields({ ...Signup, maxUses: null })).toEqual(["maxUses"]);
+    expect(failingFields({ ...Signup, maxUses: SIGNUP_MAX_USES + 1 })).toEqual(["maxUses"]);
+  });
+
+  test("no expiry, or an unknown preset, fails on expiry", () => {
+    expect(failingFields({ ...Signup, expiry: "never" })).toEqual(["expiry"]);
+    expect(failingFields({ ...Signup, expiry: "not-a-preset" })).toEqual(["expiry"]);
+  });
+
+  test("control: the same unlimited, never-expiring values pass when the switch is off", () => {
+    expect(validateInviteForm({ ...Signup, allowSignup: false, expiry: "never", maxUses: null })).toBeUndefined();
   });
 });

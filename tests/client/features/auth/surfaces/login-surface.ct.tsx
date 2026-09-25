@@ -155,3 +155,33 @@ test("local + a stashed invite on a box that is not multi-human capable → the 
   await expect(page.getByTestId("login-local-form")).toBeVisible();
   await expect(page.getByTestId("signup-invite-form")).toHaveCount(0);
 });
+
+// D254 — in oidc mode a stashed invite rides the login route to the server, which keeps only its hash. Only a
+// multi-human box hands it on; a single-human box sends the bare route.
+test("oidc + a stashed invite on a multi-human box → Continue carries ?invite= to the login route", async ({ mount, page }) => {
+  const requested: string[] = [];
+  await page.route("**/api/auth/oidc/login**", async (route) => {
+    requested.push(route.request().url());
+    await route.fulfill({ status: 200, body: "" });
+  });
+  await mount(<LoginArmStory config={config({ mode: "oidc", localEnabled: false, oidcEnabled: true, multiHumanCapable: true })} joinToken="tok_invite" />);
+  await page.getByTestId("login-oidc").click();
+
+  await expect.poll(() => requested.length).toBe(1);
+  const url = new URL(requested[0] ?? "");
+  expect(url.pathname).toBe("/api/auth/oidc/login");
+  expect(url.searchParams.get("invite")).toBe("tok_invite");
+});
+
+test("oidc + a stashed invite on a box that is not multi-human capable → Continue sends the bare route", async ({ mount, page }) => {
+  const requested: string[] = [];
+  await page.route("**/api/auth/oidc/login**", async (route) => {
+    requested.push(route.request().url());
+    await route.fulfill({ status: 200, body: "" });
+  });
+  await mount(<LoginArmStory config={config({ mode: "oidc", localEnabled: false, oidcEnabled: true, multiHumanCapable: false })} joinToken="tok_invite" />);
+  await page.getByTestId("login-oidc").click();
+
+  await expect.poll(() => requested.length).toBe(1);
+  expect(new URL(requested[0] ?? "").search).toBe("");
+});

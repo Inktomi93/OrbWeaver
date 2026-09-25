@@ -1,8 +1,8 @@
 // The /login surface — the per-mode dispatcher. Reads /api/auth/config and renders the matching body:
 // single-user (only reachable by direct nav), local (credential form), forward-header (proxy-config
 // explainer — an unauthenticated request here means the proxy didn't inject identity headers), oidc
-// (whole-window redirect, never fetch). The route owns the shell anchor; this surface owns the card
-// content + its own mount focus.
+// (whole-window redirect, never fetch; or the pending-join card when the callback held a join, D254). The
+// route owns the shell anchor; this surface owns the card content + its own mount focus.
 
 import { Button } from "@orb/ui/button";
 import { Row, Stack } from "@orb/ui/layout";
@@ -17,10 +17,11 @@ import { clearJoinStash, peekJoinStash, useAuthConfig } from "#data";
 import { testId, useFocusOnMount } from "#lib";
 import { LoginFirstRunForm } from "../components/login-first-run-form.tsx";
 import { LoginLocalForm } from "../components/login-local-form.tsx";
+import { LoginPendingJoin } from "../components/login-pending-join.tsx";
 import { LoginSignupForm } from "../components/login-signup-form.tsx";
 import { LoginTransportNotice } from "../components/login-transport-notice.tsx";
 import { authErrorMessage } from "../lib/auth-error.ts";
-import { shouldAutoRedirectToSso } from "../lib/sso-redirect.ts";
+import { isPendingJoinLanding, oidcLoginUrl, shouldAutoRedirectToSso } from "../lib/sso-redirect.ts";
 
 /** The per-mode login card content (mounted inside `LoginShellAnchor` by the /login route). */
 export function LoginSurface(): ReactElement {
@@ -35,6 +36,12 @@ export function LoginSurface(): ReactElement {
     clearJoinStash();
     setJoinToken(null);
   };
+  // D254 — the OIDC callback held a pending join and landed here with `?pendingJoin=1` (no secret in the URL).
+  const [pendingJoin, setPendingJoin] = useState(() => isPendingJoinLanding(globalThis.location.search));
+  const leavePendingJoin = (): void => {
+    globalThis.history.replaceState(null, "", globalThis.location.pathname);
+    setPendingJoin(false);
+  };
 
   const search = globalThis.location.search;
   // A7 — the OIDC callback lands here with ?authError=<sanitized code> on any failed sign-in; surface it as a
@@ -46,11 +53,12 @@ export function LoginSurface(): ReactElement {
   // only on explicit ?sso (the instant-bounce opt-in), and never with ?authError (a failed round-trip). The
   // route guard already keeps authed users off /login, so this only ever runs for the unauthenticated case.
   const autoRedirect = config.data !== undefined && shouldAutoRedirectToSso(config.data.mode, search);
+  const oidcLoginTarget = oidcLoginUrl(config.data?.multiHumanCapable === true ? joinToken : null);
   useEffect(() => {
     if (autoRedirect) {
-      globalThis.location.assign("/api/auth/oidc/login");
+      globalThis.location.assign(oidcLoginTarget);
     }
-  }, [autoRedirect]);
+  }, [autoRedirect, oidcLoginTarget]);
 
   const body = ((): ReactElement => {
     if (config.isPending) {
@@ -64,7 +72,17 @@ export function LoginSurface(): ReactElement {
       // would flash-then-vanish.
       return <LoginRedirecting providerName={config.data.oidcProviderName} />;
     }
-    return <LoginBody config={config.data} authError={authError} joinToken={joinToken} onDismissJoin={dismissJoin} onDone={goHome} />;
+    return (
+      <LoginBody
+        config={config.data}
+        authError={authError}
+        joinToken={joinToken}
+        onDismissJoin={dismissJoin}
+        pendingJoin={pendingJoin}
+        onLeavePendingJoin={leavePendingJoin}
+        onDone={goHome}
+      />
+    );
   })();
 
   return (
@@ -76,7 +94,8 @@ export function LoginSurface(): ReactElement {
 
 /** The per-mode arm dispatcher — pure (config in, arm out), router-free and CT-mountable directly.
  *  `authError` is the already-resolved OIDC callback error MESSAGE (or null); rendered above Continue.
- *  `joinToken` is the stashed invite token (or null); the local arm offers the signup form while it is set.
+ *  `joinToken` is the stashed invite token (or null); the local arm offers the signup form while it is set, and
+ *  the oidc arm hands it to the login route. `pendingJoin` shows the oidc arm's pending-join card.
  * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
 export function LoginBody({
@@ -84,12 +103,16 @@ export function LoginBody({
   authError = null,
   joinToken = null,
   onDismissJoin,
+  pendingJoin = false,
+  onLeavePendingJoin,
   onDone,
 }: {
   readonly config: AuthConfig;
   readonly authError?: string | null;
   readonly joinToken?: string | null;
   readonly onDismissJoin?: () => void;
+  readonly pendingJoin?: boolean;
+  readonly onLeavePendingJoin?: () => void;
   readonly onDone: () => void;
 }): ReactElement {
   switch (config.mode) {
@@ -116,6 +139,19 @@ export function LoginBody({
         </Stack>
       );
     case "oidc":
+      if (pendingJoin) {
+        return (
+          <LoginPendingJoin
+            providerName={config.oidcProviderName}
+            onJoined={(): void => {
+              // The account is already seated in the room, so the stash has nothing left to open.
+              onDismissJoin?.();
+              onDone();
+            }}
+            onDismiss={(): void => onLeavePendingJoin?.()}
+          />
+        );
+      }
       return (
         <Stack gap="block">
           <Heading level={1}>Sign in</Heading>
@@ -134,8 +170,9 @@ export function LoginBody({
             intent="primary"
             data-testid={testId("loginOidc")}
             onClick={(): void => {
-              // A whole-window navigation — the server 302s to the IdP; fetch can't follow the dance.
-              globalThis.location.assign("/api/auth/oidc/login");
+              // A whole-window navigation — the server 302s to the IdP; fetch can't follow the dance. A stashed
+              // invite rides along (D254) so a new identity can join through it.
+              globalThis.location.assign(oidcLoginUrl(config.multiHumanCapable ? joinToken : null));
             }}
           >
             Continue with {config.oidcProviderName}

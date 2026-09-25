@@ -2,16 +2,16 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 614,
+    "sites": 616,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 614,
+      "deliberate-absorb": 616,
       "unproven": 0
     },
     "byGrammar": {
       "default": 153,
-      "empty": 313,
-      "promise": 148
+      "empty": 314,
+      "promise": 149
     }
   },
   "rows": [
@@ -49,6 +49,11 @@
       "siteId": "packages/client/src/components/regex-script-picker.tsx::PickerRow::toggle::1",
       "verdict": "deliberate-absorb",
       "reason": "the selected mutation's own errorToast surfaces the failure. Ends if the mutation stops wiring an errorToast."
+    },
+    {
+      "siteId": "packages/client/src/data/auth-bootstrap.ts::confirmPendingJoin::res.json::1",
+      "verdict": "deliberate-absorb",
+      "reason": "an absent or malformed error body degrades to the empty object, which reads as the unknown refusal (`null`); the refusal is still reported. Ends if every refusal body becomes guaranteed."
     },
     {
       "siteId": "packages/client/src/data/auth-bootstrap.ts::firstRunSetup::res.json::1",
@@ -1379,6 +1384,11 @@
       "siteId": "packages/server/src/entry/compose/rpg.ts::safeJson::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "client-input — the docstring states the contract: `null` on non-JSON, and the caller's schema parse then fails → empty delta. Ends if this stops feeding a schema-validated read."
+    },
+    {
+      "siteId": "packages/server/src/entry/http/auth-routes.ts::admitPendingConfirm::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the CLIENT is the owner and the 400 is the surface — an unparseable body is the caller's error, answered with the same `invalid_request` code as a schema miss. Ends if body decoding gains a server-side fault worth distinguishing from bad input."
     },
     {
       "siteId": "packages/server/src/entry/http/auth-routes.ts::readSignupRequest::catch::1",
