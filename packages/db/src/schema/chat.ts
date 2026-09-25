@@ -448,6 +448,11 @@ export const messageVariants = sqliteTable(
     // what the wire needs and is NULL when nothing replayable was emitted. Typed JSON, parsed at the read seam
     // (the converters refuse an unsigned block, so a malformed row degrades to "nothing to replay").
     reasoningParts: text("reasoning_parts", { mode: "json" }).$type<readonly ChatReasoningPart[]>(),
+    // The exact speaker cue SHAPE delivered for this generation (the group round nudge), stamped at commit. A
+    // prefix-bound model binds its thinking to the prompt it saw, so the carry replays this text verbatim ahead of
+    // the reply; re-deriving it from today's prose or roster would drop the thinking. NULL when no cue was sent.
+    // HOST-PLANE: the cue is prompt material and rides no member view.
+    cue: text("cue"),
     model: text("model").$type<ModelId>(),
     // ATTRIBUTION (inference program §5.3b): which of the user's connections generated this swipe. SET NULL —
     // a deleted connection never deletes history (`selectedVariantId`'s idiom); null on user-authored rows,

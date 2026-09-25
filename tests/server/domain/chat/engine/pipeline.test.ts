@@ -125,6 +125,7 @@ function baseArgs(over: Partial<PipelineArgs> = {}): {
     // the `off`/`tool-chain` rungs, where the pipeline must not perform this read at all.
     loadReasoningParts: (): Promise<ReadonlyMap<MessageId, readonly ChatReasoningPart[]>> =>
       Promise.reject(new Error("loadReasoningParts must not be reached")),
+    loadCues: (): Promise<ReadonlyMap<MessageId, string>> => Promise.reject(new Error("loadCues must not be reached")),
     assembleContext: ctxOf(),
     canon: [userRow("u1")],
     connection: CONNECTION,

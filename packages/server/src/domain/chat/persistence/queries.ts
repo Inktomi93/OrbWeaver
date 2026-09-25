@@ -682,6 +682,25 @@ export async function loadCanonReasoningParts(db: Db, chatId: ChatId): Promise<R
   return out;
 }
 
+/** Every canon slot's delivered cue (`message_variants.cue` on the selected variant), keyed by slot id — the
+ *  replay source for a prefix-bound carry (`substrate/cue-replay`). A separate read like
+ *  {@link loadCanonReasoningParts}: the cue is prompt material, never a `MessageView` field. */
+export async function loadCanonCues(db: Db, chatId: ChatId): Promise<ReadonlyMap<MessageId, string>> {
+  const rows = await db
+    .select({ messageId: messages.id, cue: messageVariants.cue })
+    .from(messages)
+    .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+    .where(eq(messages.chatId, chatId));
+  // @orb-waive persistence-no-in-memory-state(Map): query-local regrouping of the variant rows this query just returned. Ends if it outlives the call.
+  const out = new Map<MessageId, string>();
+  for (const row of rows) {
+    if (row.cue !== null) {
+      out.set(row.messageId, row.cue);
+    }
+  }
+  return out;
+}
+
 /** One slot ⋈ its selected variant. The engine re-reads this after an append-variant/continue commit;
  *  undo/revert re-read it for the returned view. `undefined` ⇒ no such committed slot. */
 export async function loadMessageView(db: Db, messageId: MessageId): Promise<MessageView | undefined> {

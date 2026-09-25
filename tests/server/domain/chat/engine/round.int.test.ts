@@ -19,10 +19,11 @@ import { createTurnEngine } from "../../../../../packages/server/src/domain/chat
 import { driveRound } from "../../../../../packages/server/src/domain/chat/engine/round.ts";
 import { loadWitnessHorizons } from "../../../../../packages/server/src/domain/chat/memory/persistence/queries.ts";
 import { recallMemory } from "../../../../../packages/server/src/domain/chat/memory/recall/recall.ts";
-import { loadCanonHistory } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
+import { loadCanonCues, loadCanonHistory } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { makeResolved } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeChatContext, scriptedRoleTurn, seedCharacter, seedChat, seedUser, stubRunCompaction, testConnection } from "../_support.ts";
+import { makeChatContext, scriptedRoleTurn, seedCharacter, seedChat, seedMessage, seedUser, stubRunCompaction, testConnection } from "../_support.ts";
 
 const HOST = castId<UserId>("user_host");
 const cid = (k: string): CharacterId => castId<CharacterId>(`character_${k}`);
@@ -383,6 +384,68 @@ describe("driveRound — narrator round (one turn for every character, group-cha
         narratorMemberNames: [],
       }),
     ).rejects.toThrow("group-character");
+  });
+});
+
+// A prefix-bound model with the `conversation` carry binds each reply's thinking to every row before it (OR-10). The
+// commit stamps the cue each reply followed, and every later turn sends it back in place, so each request opens with
+// the one before it.
+describe("driveRound — a prefix-bound carry stamps each reply's cue and replays it", () => {
+  const prefixBound = makeResolved({
+    generation: {
+      reasoning: { mode: "adaptive", enabled: true, replay: "signed", prefixBound: true },
+      turns: {
+        assistantPrefill: false,
+        midConversationSystem: true,
+        historySystemRows: true,
+        roleHandlingFloor: "slotted",
+        explicitPromptCache: false,
+        clearAt: true,
+      },
+    },
+  });
+
+  test("each committed reply carries its delivered cue, and every request opens with the one before it", async () => {
+    const chatId = await seedChat(db, "cues");
+    // Both characters have spoken, so the name-stamp labels every reply the same way on every turn.
+    await seedMessage(db, chatId, 1, { role: "assistant", characterId: cid("a"), content: "Aria waves." });
+    await seedMessage(db, chatId, 2, { role: "assistant", characterId: cid("b"), content: "Bran nods." });
+    await seedMessage(db, chatId, 3, { role: "user", authorUserId: HOST, content: "Where to?" });
+    const requests: TurnRequest[] = [];
+    const round = (): ReturnType<typeof driveRound> =>
+      driveRound({
+        engine: realEngine(db, requests),
+        base: { ...base(chatId), assembleContext: GROUP_CTX, connection: prefixBound, intent: { carryReasoning: "conversation" } },
+        group: PER_SPEAKER,
+        speakers: [
+          { ref: charRef("a"), name: "Aria" },
+          { ref: charRef("b"), name: "Bran" },
+        ],
+        groupCharacterId: null,
+        narratorSpeakerName: "Aria, Bran",
+        narratorMemberNames: [],
+      });
+
+    await round();
+    const cues = await loadCanonCues(db, chatId);
+    const replies = (await loadCanonHistory(db, chatId)).filter((m) => m.seq > 3);
+    // Each reply's stamp is the exact last row its own request delivered.
+    const deliveredCues = requests.map((request) =>
+      request.history
+        .at(-1)
+        ?.content.map((part) => (part.type === "text" ? part.text : ""))
+        .join(""),
+    );
+    expect(replies.map((m) => cues.get(m.id))).toEqual(deliveredCues);
+    // The first speaker's cue follows the user's message, so it went out turn-scoped (S2).
+    expect(requests[0]?.history.at(-1)).toMatchObject({ role: "system", wireMeta: { clearAt: "next_user_message" } });
+
+    await round();
+    expect(requests).toHaveLength(4);
+    for (const later of [1, 2, 3]) {
+      const before = requests[later - 1]?.history ?? [];
+      expect(requests[later]?.history.slice(0, before.length), `request ${later} opens with request ${later - 1}`).toEqual(before);
+    }
   });
 });
 

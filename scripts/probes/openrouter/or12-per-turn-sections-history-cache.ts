@@ -338,6 +338,7 @@ async function runOne(args: {
     applyRegexReplace: (text, regex, replacer) => text.replace(regex, replacer),
     loadInlineReplyAssetIds: () => Promise.resolve(new Map<MessageId, ReadonlySet<AssetId>>()),
     loadReasoningParts: () => Promise.resolve(new Map<MessageId, readonly ChatReasoningPart[]>()),
+    loadCues: () => Promise.resolve(new Map<MessageId, string>()),
     runChatTurn: wire.runChatTurn,
     resolveImageUrl: () => Promise.resolve(null),
     assembleContext,

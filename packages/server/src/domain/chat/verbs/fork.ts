@@ -149,6 +149,8 @@ function forkVariantValues(args: {
     // the turn's user-macro draw record over host-authored pools. None of the three has ANY member-gated
     // reader, so a member-turned-host forker reading them through the fork's own inspector is the leak.
     promptSnapshot: hostPlane(variant.promptSnapshot),
+    // The delivered cue is prompt material, the same bytes the snapshot carries.
+    cue: hostPlane(variant.cue),
     params: hostPlane(variant.params),
     macroDraws: hostPlane(variant.macroDraws),
     // `rawContent` is the PRE-transform authored text and `macroFreezes` the volatile-macro values baked out of

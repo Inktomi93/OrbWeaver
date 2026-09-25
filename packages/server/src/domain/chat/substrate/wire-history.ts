@@ -28,6 +28,7 @@
 // holding every reply's thinking is refused on both OpenRouter endpoints (OR-9, scripts/probes/openrouter/RESULTS.md).
 
 import type { ChatContentPart, ChatReasoningPart, MessageView } from "@orb/contracts/chat";
+import type { WireMeta } from "@orb/inference";
 import { cacheDepthCovering, rowIndexAtCacheDepth } from "@orb/inference";
 import type { ContentImageRef, ContentSpan, ContentSpanKind } from "@orb/kit/content";
 import { cardWireStub, tokenizeContent } from "@orb/kit/content";
@@ -107,6 +108,9 @@ type InlineReplyAssets = ReadonlyMap<MessageId, ReadonlySet<AssetId>>;
 /** The `InlineReplyAssets` a history with no assistant-row `asset:` span needs — nobody is asked, nothing
  *  is loaded, and the predicate answers `false` for every assistant row. */
 const NO_INLINE_REPLY_ASSETS: InlineReplyAssets = new Map<MessageId, ReadonlySet<AssetId>>([]);
+
+/** A SHAPE row marked turn-scoped goes out clearing at the next user message. */
+const TURN_SCOPED: WireMeta = { clearAt: "next_user_message" };
 
 /** One dropped attachment: its alt text + which media kind the drop was (drives the per-kind warning
  *  flags and the honest placeholder label). */
@@ -455,7 +459,12 @@ export async function buildWireHistory(
       // A SHAPE fold may have re-roled a character's assistant line to `user` (`scopeToSpeaker`); its thinking
       // must not ride back on a row the wire will deliver as the user speaking.
       const parts = h.role === "assistant" && h.messageId !== undefined ? carryReasoningParts(bodyParts, env.reasoningByMessage.get(h.messageId)) : bodyParts;
-      const row: TurnMessage = h.name === undefined ? { role: h.role, content: parts } : { role: h.role, content: parts, name: h.name };
+      const row: TurnMessage = {
+        role: h.role,
+        content: parts,
+        ...(h.name === undefined ? {} : { name: h.name }),
+        ...(h.turnScoped === true ? { wireMeta: TURN_SCOPED } : {}),
+      };
       const costRow: ShapedHistoryRow = {
         role: h.role,
         content: wireCostText(parts),

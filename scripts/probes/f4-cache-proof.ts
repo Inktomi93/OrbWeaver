@@ -159,6 +159,7 @@ async function runArm(arm: Arm): Promise<TurnRecord[]> {
       applyRegexReplace: (text, regex, replacer) => text.replace(regex, replacer),
       loadInlineReplyAssetIds: () => Promise.resolve(new Map<MessageId, ReadonlySet<AssetId>>()),
       loadReasoningParts: () => Promise.resolve(new Map<MessageId, readonly ChatReasoningPart[]>()),
+      loadCues: () => Promise.resolve(new Map<MessageId, string>()),
       runChatTurn: () =>
         (async function* () {
           await Promise.resolve();

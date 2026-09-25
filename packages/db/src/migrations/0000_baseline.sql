@@ -377,6 +377,7 @@ CREATE TABLE `message_variants` (
 	`macro_freezes` text,
 	`reasoning` text,
 	`reasoning_parts` text,
+	`cue` text,
 	`model` text,
 	`connection_id` text,
 	`provider` text,

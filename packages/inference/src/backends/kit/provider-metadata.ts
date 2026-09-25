@@ -41,15 +41,31 @@ const openRouterBagSchema = z.object({
   usage: z.object({ costDetails: z.object({ upstreamInferenceCost: z.number().nullish() }).nullish() }).nullish(),
 });
 
-/** Anthropic's bag. The keys are the WIRE's own (`usage` is passed through raw and loose), which is why they
- *  are snake_cased here and nowhere else in this package. */
+/** The `reason` the API gives for a thinking block it dropped because the prefix before it changed. */
+const PREFIX_BINDING_MISMATCH = "prefix_binding_mismatch";
+
+/** Anthropic's bag. `usage` keeps the WIRE's own snake_cased keys (the SDK passes it through raw and loose), which
+ *  is why they are spelled here and nowhere else in this package; `inputTransformations` is the SDK's own key. */
 const anthropicBagSchema = z.object({
   usage: z
     .object({
       cache_creation: z.object({ ephemeral_5m_input_tokens: z.number().nullish(), ephemeral_1h_input_tokens: z.number().nullish() }).nullish(),
     })
     .nullish(),
+  inputTransformations: z.array(z.object({ type: z.string(), path: z.string(), reason: z.string() })).nullish(),
 });
+
+/** The request paths of the thinking blocks the API dropped for a prefix mismatch (`thinking.block_binding` set
+ *  to `drop_block`). `undefined` when the response carried no `input_transformations` list: absence, never a
+ *  measured zero. */
+export function prefixBindingDropsOf(bag: unknown): readonly string[] | undefined {
+  const parsed = anthropicBagSchema.safeParse(bag);
+  const transformations = parsed.success ? parsed.data.inputTransformations : undefined;
+  if (!has(transformations)) {
+    return;
+  }
+  return transformations.filter((entry) => entry.reason === PREFIX_BINDING_MISMATCH).map((entry) => entry.path);
+}
 
 /** The typed facts the agent-sdk runner accumulates for the `claude-sub` arm. An interface rather than a bag
  *  because this producer has no SDK object to parse — the frames were already read field by field. */
@@ -92,10 +108,12 @@ function anthropicArm(bag: unknown): VariantProviderMetadata | undefined {
   }
   const fiveMinute = parsed.data.usage?.cache_creation?.ephemeral_5m_input_tokens;
   const oneHour = parsed.data.usage?.cache_creation?.ephemeral_1h_input_tokens;
+  const dropped = prefixBindingDropsOf(bag);
   return {
     provider: ANTHROPIC,
     ...(has(fiveMinute) ? { cacheCreation5mTokens: fiveMinute } : {}),
     ...(has(oneHour) ? { cacheCreation1hTokens: oneHour } : {}),
+    ...(has(dropped) ? { thinkingDropped: dropped.length } : {}),
   };
 }
 

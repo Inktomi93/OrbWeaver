@@ -23,7 +23,17 @@ import type { ChatMembership } from "@orb/contracts/identity";
 import type { CostDetails, NormalizedFinishReason, ProviderId } from "@orb/contracts/inference";
 import type { EffortLevel, UserIntent } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
-import type { ChatTurnTools, GeneratedImage, HistoryRole, ReasoningContentPart, Resolved, ResolvedWarning, ToolCallInput, WireTool } from "@orb/inference";
+import type {
+  ChatTurnTools,
+  GeneratedImage,
+  HistoryRole,
+  ReasoningContentPart,
+  Resolved,
+  ResolvedWarning,
+  ToolCallInput,
+  WireMeta,
+  WireTool,
+} from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, MessageId, ModelId, PersonaId, UserConnectionId, UserId } from "@orb/kit/ids";
 import type { MacroRegistry, RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -120,6 +130,8 @@ export interface TurnMessage {
   readonly content: readonly ChatContentPart[];
   /** The per-participant label for the `completion` names-behavior, set into the wire `name` field. */
   readonly name?: string | undefined;
+  /** The row's wire hints: today a turn-scoped system cue's `clearAt`. */
+  readonly wireMeta?: WireMeta | undefined;
 }
 
 /**
@@ -193,6 +205,14 @@ export interface HistoryBudgetInput {
 export interface HistoryMacroNames {
   readonly characterNamesById: ReadonlyMap<CharacterId, RowCharacterName>;
   readonly personaNamesById: ReadonlyMap<PersonaId, RowPersonaName>;
+}
+
+/** The cue replay a prefix-bound model with the `conversation` carry needs: each stored reply's delivered cue
+ *  (`message_variants.cue`), keyed by slot, and whether the model takes a cue that follows a user row as a
+ *  turn-scoped system row (OR-10 S2) rather than a user row (S2c). */
+export interface CueReplay {
+  readonly cues: ReadonlyMap<MessageId, string>;
+  readonly turnScoped: boolean;
 }
 
 /** A streamed chunk from a role turn: text/reasoning deltas, an out-of-band honest-degrade `warning`, then one

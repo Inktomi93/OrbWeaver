@@ -207,3 +207,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D257 | [Handles compare on one Unicode key](0257-handles-compare-on-one-unicode-key.md) | active |
 | D258 | [The owner is claimed with proof, never by a handle match alone](0258-owner-claim-needs-proof.md) | active |
 | D259 | [Signup invites mint the account and the joiner's persona through one gated batch](0259-signup-invites-mint-account-and-persona-in-one-gated-batch.md) | active |
+| D260 | [prefix-bound thinking rides an append-only history](0260-prefix-bound-thinking-rides-an-append-only-history.md) | active |

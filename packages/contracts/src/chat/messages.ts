@@ -187,6 +187,10 @@ const namedProviderMetadataSchema = z.discriminatedUnion("provider", [
      *  snake-cased Anthropic usage the SDK passes through as a loose object). */
     cacheCreation5mTokens: z.number().optional(),
     cacheCreation1hTokens: z.number().optional(),
+    /** How many replayed thinking blocks the API dropped because the prefix before them changed
+     *  (`input_transformations` with reason `prefix_binding_mismatch`). Absent when the response listed no
+     *  transformations; above zero, it marks an edit the carried history should not have made. */
+    thinkingDropped: z.number().optional(),
   }),
 ]);
 

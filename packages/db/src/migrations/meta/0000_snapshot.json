@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "a0501cdc-99c4-4aae-b44e-c8335a18130b",
+  "id": "7bee4f1c-e4a5-44e9-9349-ee014d1cf9de",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -2425,6 +2425,13 @@
         },
         "reasoning_parts": {
           "name": "reasoning_parts",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cue": {
+          "name": "cue",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

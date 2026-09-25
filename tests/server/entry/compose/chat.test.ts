@@ -680,6 +680,7 @@ describe("tool delivery — the real tool-use service behind the neutral offer",
       runChatTurn: createRunChatTurnBridge({ runChatTurn }),
       resolveImageUrl: () => Promise.resolve(null),
       loadReasoningParts: () => Promise.reject(new Error("loadReasoningParts must not be reached")),
+      loadCues: () => Promise.reject(new Error("loadCues must not be reached")),
       assembleContext: {
         character: { name: "Aria", description: "a knight" },
         promptConfig: DEFAULT_PROMPT_CONFIG,

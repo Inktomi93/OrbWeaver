@@ -91,6 +91,7 @@ import { holdsLock, refreshLock, releaseLock, tryAcquireLock } from "../persiste
 import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";
 import {
+  loadCanonCues,
   loadCanonHistory,
   loadCanonReasoningParts,
   loadCanonStatRows,
@@ -286,6 +287,8 @@ function variantPayloadOf(
     costDetails: e?.costDetails ?? null,
     // The replayable reasoning blocks (A1) — stored beside `reasoning` (the rendered text), read by the assembly.
     reasoningParts: e?.reasoningParts ?? null,
+    // The cue SHAPE sent ahead of this reply, replayed verbatim before it on a prefix-bound carry.
+    cue: result.cue,
     contextBoundaryMessageId: result.contextBoundaryMessageId,
     // The pipeline window the engine measured; the reconcile + live stats mirror both read gf-gs for gen-time.
     genStartedAt,
@@ -1800,6 +1803,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
       resolveImageUrl: (ref): Promise<ResolvedMediaRef | null> => ctx.resolveImageUrl({ ownerId: prep.runAsUserId, chatId: prep.chatId, ref }),
       // §8.8: the `conversation` carry source, LAZY — the pipeline calls it only on that rung.
       loadReasoningParts: (): Promise<ReadonlyMap<MessageId, readonly ChatReasoningPart[]>> => loadCanonReasoningParts(ctx.db, prep.chatId),
+      loadCues: (): Promise<ReadonlyMap<MessageId, string>> => loadCanonCues(ctx.db, prep.chatId),
       // §6.7: the inline-reply origin set the CONVERT seam's media fence reads, LAZY and chat-scoped — the
       // pipeline asks only when an assistant row actually carries an `asset:` span.
       loadInlineReplyAssetIds: (): Promise<ReadonlyMap<MessageId, ReadonlySet<AssetId>>> => loadInlineReplyAssetIds(ctx.db, prep.chatId),
@@ -2171,6 +2175,7 @@ async function generateTextUnpersisted(ctx: ChatContext, prep: TurnPrep, onText:
       resolveImageUrl: (ref) => ctx.resolveImageUrl({ ownerId: prep.runAsUserId, chatId: prep.chatId, ref }),
       // §8.8: the `conversation` carry source, LAZY — the pipeline calls it only on that rung.
       loadReasoningParts: (): Promise<ReadonlyMap<MessageId, readonly ChatReasoningPart[]>> => loadCanonReasoningParts(ctx.db, prep.chatId),
+      loadCues: (): Promise<ReadonlyMap<MessageId, string>> => loadCanonCues(ctx.db, prep.chatId),
       // §6.7: the inline-reply origin set the CONVERT seam's media fence reads, LAZY and chat-scoped — the
       // pipeline asks only when an assistant row actually carries an `asset:` span.
       loadInlineReplyAssetIds: (): Promise<ReadonlyMap<MessageId, ReadonlySet<AssetId>>> => loadInlineReplyAssetIds(ctx.db, prep.chatId),

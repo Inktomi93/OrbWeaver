@@ -120,6 +120,7 @@ import {
   countMemberChats,
   listMemberChats,
   loadAncestorChain,
+  loadCanonCues,
   loadCanonHistory,
   loadCanonReasoningParts,
   loadChatEventBounds,
@@ -157,6 +158,7 @@ import {
 } from "../substrate/assembly-access.ts";
 import { clampMemberCard, isBelowHistoryFloor, NO_HISTORY_FLOOR, resolveCardVisibility, resolveHistoryFloorSeq } from "../substrate/auth/index.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
+import { cueReplayFor } from "../substrate/cue-replay.ts";
 import { projectViewForMember, scrubChatEventReplayForMember, scrubStreamReplayForMember, viewerReadsHidden } from "../substrate/member-visibility.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
 import { humanSeatPersonasOf, onlinePersonaIdsOf, presentAndEnabledHumanUserIdsOf, seatsMultipleHumans } from "../substrate/participants-humans.ts";
@@ -1100,6 +1102,13 @@ async function shapeNextTurn(
   const historyMacroNames: HistoryMacroNames = buildIdentityNameContext(await loadChatIdentityProducer(ctx.db, { messages: canon }));
   const inChatInjections: ChatInjection[] = [...(assembleContext.chatInjections ?? []).filter((i) => i.position === "in_chat"), ...assembled.afterHistory];
   const turns = inputs.capability?.turns;
+  const params = assembleContext.promptConfig.params;
+  // The turn's cue replay, resolved the way `fitShapedHistory` resolves the carry; a capability-less preview
+  // takes the `off` floor.
+  const cueReplay =
+    inputs.capability === undefined
+      ? undefined
+      : await cueReplayFor(inputs.capability, resolveCarryReasoning(params, inputs.capability, []), () => loadCanonCues(ctx.db, chatId));
   const shaped = shapeTurn({
     canon: assembled.sendHistory ? toShapeCanon(canon, assembleContext, historyMacroNames, previewPromptHistoryEnv(ctx, assembleContext, inputs)) : [],
     appendUserTurn: null,
@@ -1115,6 +1124,7 @@ async function shapeNextTurn(
     multiHuman: assembleContext.multiHuman === true,
     // The preview voices the primary's turn, with the cue a turn carries when its system block names no speaker.
     groupNudge: speakerCue(assembleContext, previewVoice(assembleContext, inputs.group.output)),
+    cueReplay,
     assistantPrefill: turns?.assistantPrefill === true,
     convertsToEmptyWireRow,
     // The same two system-row facts the turn reads. The preview must show the SAME delivery the wire carries —
@@ -1122,10 +1132,10 @@ async function shapeNextTurn(
     // sequence and the fold reasons.
     midConversationSystem: turns?.midConversationSystem === true,
     historySystemRows: turns?.historySystemRows === true,
-    roleHandling: assembleContext.promptConfig.params.advanced?.roleHandling,
+    roleHandling: params.advanced?.roleHandling,
     roleHandlingFloor: turns?.roleHandlingFloor,
     explicitCacheMarkers: inputs.explicitCacheMarkers,
-    squashSystemMessages: assembleContext.promptConfig.params.advanced?.squashSystemMessages,
+    squashSystemMessages: params.advanced?.squashSystemMessages,
     prose: assembleContext.prose,
   });
   return { canon, shaped };

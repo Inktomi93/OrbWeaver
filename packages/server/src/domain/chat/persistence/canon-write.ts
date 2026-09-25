@@ -66,6 +66,9 @@ interface CanonVariantInput {
    *  the assembly re-materializes onto the assistant row (`carryReasoning`, §8.8). Absent/[] ⇒ NULL: a turn
    *  whose reasoning carried no provenance has nothing replayable (the converters refuse an unsigned block). */
   readonly reasoningParts?: readonly ReasoningContentPart[] | null | undefined;
+  /** The cue SHAPE delivered ahead of this generation (`message_variants.cue`); absent ⇒ NULL. Written at
+   *  insert only: a continue extends the reply the same cue preceded. */
+  readonly cue?: string | null | undefined;
   readonly contextWindow?: number | null | undefined;
   /** The output cap the backend echoed + the APPLIED reasoning effort (what the wire carried, B1 — the
    *  requested intent is `params`). */
@@ -268,6 +271,7 @@ function variantColumns(args: {
     reasoningTokens: args.variant.reasoningTokens ?? null,
     costDetails: args.variant.costDetails ?? null,
     reasoningParts: reasoningPartsColumn(args.variant.reasoningParts),
+    cue: args.variant.cue ?? null,
     params: args.variant.params ?? null,
     promptSnapshot: args.variant.promptSnapshot ?? null,
     variableDelta: args.variant.variableDelta ?? null,
