@@ -6,15 +6,17 @@ import { synthesizeCapability } from "../../../../../packages/inference/src/capa
 import { resolveChat } from "../../../../../packages/inference/src/funnel/resolve-chat.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
-function generation(model: string): GenerationCapability {
-  const out = synthesizeCapability("generation", detectModelFamily(model), {
-    curated: curatedRows({
-      model,
-      providerId: castId<ProviderId>(model.startsWith("openai/") ? "openrouter" : "openai"),
-      wire: "openai-compat",
-      api: "chat-completions",
-    }),
+function openaiRows(model: string): ReturnType<typeof curatedRows> {
+  return curatedRows({
+    model,
+    providerId: castId<ProviderId>(model.startsWith("openai/") ? "openrouter" : "openai"),
+    wire: "openai-compat",
+    api: "chat-completions",
   });
+}
+
+function generation(model: string): GenerationCapability {
+  const out = synthesizeCapability("generation", detectModelFamily(model), { curated: openaiRows(model) });
   if (out.capability.kind !== "generation") {
     throw new Error("expected a generation capability");
   }
@@ -74,4 +76,19 @@ test("the non-reasoning GPT ids carry no reasoning and no verbosity; the reasoni
   // GPT-6 Astra alone 400s `none`, so its explicit off clamps up; its siblings take `none`.
   expect(generation("gpt-6-astra").reasoning).toMatchObject({ mandatory: true, effortLevels: ["low", "medium", "high", "xhigh", "max"] });
   expect(generation("gpt-6-sol").reasoning.mandatory).toBeUndefined();
+});
+
+// The stated-empty sampling set and signed replay belong to the reasoning ids alone. The kind floor already states
+// no sampling, so the curated cell is read off the matched rows; replay is read off the synthesized capability.
+test("the reasoning ids carry the empty sampling set and signed replay; gpt-6 is covered and gpt-5-chat-latest is not", () => {
+  const cells = (model: string): { readonly sampling: boolean; readonly replay: string | undefined } => ({
+    sampling: openaiRows(model).some((row) => row.generation?.sampling !== undefined),
+    replay: generation(model).reasoning.replay,
+  });
+  for (const model of ["gpt-6-astra", "gpt-6-sol", "gpt-6-luna-2026-09-22", "openai/gpt-6-sol", "gpt-5", "gpt-5.4-mini", "gpt-5.6-terra", "o3", "o4-mini"]) {
+    expect(cells(model), model).toEqual({ sampling: true, replay: "signed" });
+  }
+  for (const model of ["gpt-5-chat-latest", "openai/gpt-5-chat-latest", "gpt-4.1", "gpt-4o-mini"]) {
+    expect(cells(model), model).toEqual({ sampling: false, replay: undefined });
+  }
 });

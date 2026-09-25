@@ -935,6 +935,20 @@ describe("runTurnPipeline — token-budget reserve (single source of truth)", ()
     expect(large.droppedCount).toBeGreaterThan(0);
   });
 
+  test("an ask above the model's output cap reserves the cap the wire clamps to, so the fit keeps that history", async () => {
+    // Same window and chat as the large-reserve case above; this model's cap sits far below the ask, so the runner
+    // sends at most the cap and the fit must reserve no more than that.
+    const cappedConnection: Resolved<"chat"> = {
+      ...CONNECTION,
+      capability: makeCapability(makeGenerationCapability({ output: { maxTokens: { min: 1, max: 256 }, modalities: ["text"] }, context: { window: 32_768 } })),
+    };
+    const chat = Array.from({ length: 10 }, (_, i) => rowOf(i % 2 === 0 ? "user" : "assistant", `turn ${i} carrying several words to burn a few tokens here`));
+    const result = await runTurnPipeline(
+      baseArgs({ intent: { maxOutputTokens: 32_700 } satisfies UserIntent, connection: cappedConnection, canon: chat }).args,
+    );
+    expect(result.droppedCount).toBe(0);
+  });
+
   test("maxContextTokens lowers the fit ceiling below the window (the soft cap is settable)", async () => {
     // A wide window but a small user context cap → the fit trims to the cap. Uses a real chat with enough
     // rows that a ~200-token ceiling can't hold them all.

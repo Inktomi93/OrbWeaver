@@ -22,6 +22,43 @@ export const xaiRows = [
       cite: "resolve-model-capability.ts FAMILY_REASONING.xai (no reasoning by family; OR advertises the reasoning variants)",
     },
   },
+  // Each reasoning row lists the model data's `reasoningEffortOptions.supportedEfforts`. An id whose data lists no
+  // efforts (grok-4.20-*, grok-build-0.1) exposes no control and keeps the family's none.
+  {
+    match: {
+      model: "^(x-ai/)?grok-(4\\.7|4\\.6|4\\.5|4\\.5-latest|build-latest)$",
+    },
+    generation: {
+      reasoning: {
+        mode: "effort",
+        enabled: true,
+        effortLevels: ["low", "medium", "high", "xhigh"],
+        mandatory: true,
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-25",
+      cite: "docs.x.ai/developers/models/grok-4.7 'Reasoning efforts: low, medium, high, xhigh (default high)'; the page's model data: grok-4.7, grok-4.6 and grok-4.5 (aliases grok-4.5-latest, grok-build-latest) features.reasoningEffortOptions.supportedEfforts [low, medium, high, xhigh], no none, so an explicit off clamps up",
+    },
+  },
+  {
+    match: {
+      model: "^(x-ai/)?grok-4\\.3(-latest)?$",
+    },
+    generation: {
+      reasoning: {
+        mode: "effort",
+        enabled: true,
+        effortLevels: ["low", "medium", "high", "xhigh"],
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-25",
+      cite: "docs.x.ai/developers/models/grok-4.7 model data: grok-4.3 (alias grok-4.3-latest) features.reasoningEffortOptions.supportedEfforts [none, low, medium, high, xhigh], defaultEffort low; none is the off switch (`enabled`), never a level",
+    },
+  },
   // The window is xAI's `maxPromptLength`, from the model data its docs pages render; each id list is that entry's
   // name plus its documented aliases.
   {

@@ -176,9 +176,12 @@ export const openaiRows = [
       cite: "o4-mini-2025-04-16 live request: reasoning effort 'none' → 400 unsupported_value; supported values reported as low, medium, high; o3-mini shares the measured mandatory-reasoning cell",
     },
   },
+  // Anchored to the reasoning ids the effort rows above document, so a non-reasoning id such as gpt-5-chat-latest
+  // takes neither cell.
   {
     match: {
-      model: "^(openai/)?(gpt-5|o[1-9])",
+      model:
+        "^(openai/)?(gpt-(5(-mini|-nano)?|5\\.(1|2|3-codex|4|4-mini|4-nano|5)|5\\.6-(sol|terra|luna)|6-(astra|sol|luna))|o(1|3|3-mini|4-mini))(-[0-9]{4}-[0-9]{2}-[0-9]{2})?$",
     },
     generation: {
       // The reasoning models take temperature at its default only (`unsupported_value: 'temperature' does not
@@ -197,12 +200,13 @@ export const openaiRows = [
     },
     evidence: {
       tier: "curated",
-      dated: "2026-09-20",
-      cite: "rec-probe.mjs openai-h2 — req_4609158162fd4953b00a62cf6f23d82f (temperature 0.7 → 400 unsupported_value); req_f68c8dc2e4a24908a2e5be64132edbc0 (max_tokens → 400 unsupported_parameter, the H2 outputCapField row); req_8eff1a4cbff5461b820f47331f2c26b2 (max_completion_tokens + reasoning_effort low → 200)",
+      dated: "2026-09-25",
+      cite: "rec-probe.mjs openai-h2 — req_4609158162fd4953b00a62cf6f23d82f (temperature 0.7 → 400 unsupported_value); req_f68c8dc2e4a24908a2e5be64132edbc0 (max_tokens → 400 unsupported_parameter, the H2 outputCapField row); req_8eff1a4cbff5461b820f47331f2c26b2 (max_completion_tokens + reasoning_effort low → 200). GPT-6: developers.openai.com/api/docs/guides/latest-model 'When reasoning effort is not none, remove temperature, top_p, and top_logprobs'; developers.openai.com/api/docs/guides/reasoning 'reasoning items … include an encrypted_content property … that you can pass to future calls'. developers.openai.com/api/docs/models/gpt-5-chat-latest documents no reasoning effort and no reasoning tokens",
     },
   },
-  // A window row states the most input a request may carry. A GPT-5-class id caps input at its context window less
-  // its max output (OpenAI states it for GPT-5); the older ids share one window between input and output.
+  // A window row states the most input a request may carry, and its output cap the page's max output tokens. A
+  // GPT-5-class id caps input at its context window less its max output (OpenAI states it for GPT-5); the older ids
+  // share one window between input and output.
   {
     match: {
       model: "^(openai/)?gpt-(6-(astra|sol|luna)|5\\.6-(sol|terra|luna)|5\\.5|5\\.4)(-[0-9]{4}-[0-9]{2}-[0-9]{2})?$",
@@ -210,6 +214,9 @@ export const openaiRows = [
     generation: {
       context: {
         window: 922_000,
+      },
+      output: {
+        maxTokens: { min: 1, max: 128_000 },
       },
     },
     evidence: {
@@ -226,6 +233,9 @@ export const openaiRows = [
       context: {
         window: 272_000,
       },
+      output: {
+        maxTokens: { min: 1, max: 128_000 },
+      },
     },
     evidence: {
       tier: "curated",
@@ -240,6 +250,9 @@ export const openaiRows = [
     generation: {
       context: {
         window: 200_000,
+      },
+      output: {
+        maxTokens: { min: 1, max: 100_000 },
       },
     },
     evidence: {
@@ -256,6 +269,9 @@ export const openaiRows = [
       context: {
         window: 1_047_576,
       },
+      output: {
+        maxTokens: { min: 1, max: 32_768 },
+      },
     },
     evidence: {
       tier: "curated",
@@ -270,6 +286,9 @@ export const openaiRows = [
     generation: {
       context: {
         window: 128_000,
+      },
+      output: {
+        maxTokens: { min: 1, max: 16_384 },
       },
     },
     evidence: {

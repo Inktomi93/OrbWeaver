@@ -1168,6 +1168,7 @@ async function fitShapedHistory(args: {
     maxContextTokens: params.maxContextTokens,
     maxOutputTokens: params.maxOutputTokens,
     systemTokens,
+    outputCeiling: args.capability?.output.maxTokens.max,
   });
   const converted = await buildWireHistory(
     {

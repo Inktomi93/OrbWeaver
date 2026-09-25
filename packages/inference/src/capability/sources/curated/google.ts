@@ -7,7 +7,7 @@ import type { CapabilityOverrideInput } from "@orb/contracts/inference";
 export const googleRows = [
   {
     match: {
-      model: "^(google/)?gemini",
+      model: "^(google/|models/)?gemini",
     },
     kind: "generation",
     generation: {
@@ -34,7 +34,7 @@ export const googleRows = [
   },
   {
     match: {
-      model: "^(google/)?gemini-2[-.]5-flash-image",
+      model: "^(google/|models/)?gemini-2[-.]5-flash-image",
     },
     generation: {
       input: ["text", "image"],
@@ -49,8 +49,9 @@ export const googleRows = [
       cite: "§6.7 'go look at nano banana' — a chat model whose output modalities include image and that edits prior pictures across turns",
     },
   },
-  // The window is Google's input token limit. The direct route is the OpenAI-compatible layer, whose `/models` lists
-  // bare `{id, object, owned_by}` rows with a `models/` id prefix, so these rows take that prefix too.
+  // The window is Google's input token limit and the output cap its output token limit. The direct route is the
+  // OpenAI-compatible layer, whose `/models` lists bare `{id, object, owned_by}` rows with a `models/` id prefix, so
+  // these rows take that prefix too.
   {
     match: {
       model:
@@ -59,6 +60,9 @@ export const googleRows = [
     generation: {
       context: {
         window: 1_048_576,
+      },
+      output: {
+        maxTokens: { min: 1, max: 65_536 },
       },
     },
     evidence: {
@@ -75,6 +79,9 @@ export const googleRows = [
       context: {
         window: 131_072,
       },
+      output: {
+        maxTokens: { min: 1, max: 32_768 },
+      },
     },
     evidence: {
       tier: "curated",
@@ -84,17 +91,77 @@ export const googleRows = [
   },
   {
     match: {
-      model: "^(google/|models/)?gemini-(2[-.]5-flash-image|3[-.]1-flash-lite-image|3-pro-image)$",
+      model: "^(google/|models/)?gemini-(2[-.]5-flash-image|3-pro-image)$",
     },
     generation: {
       context: {
         window: 65_536,
       },
+      output: {
+        maxTokens: { min: 1, max: 32_768 },
+      },
     },
     evidence: {
       tier: "curated",
       dated: "2026-09-25",
-      cite: "Input token limit 65,536: ai.google.dev/gemini-api/docs/models/{gemini-2.5-flash-image,gemini-3.1-flash-lite-image,gemini-3-pro-image}",
+      cite: "Input token limit 65,536, output token limit 32,768: ai.google.dev/gemini-api/docs/models/{gemini-2.5-flash-image,gemini-3-pro-image}",
+    },
+  },
+  {
+    match: {
+      model: "^(google/|models/)?gemini-3[-.]1-flash-lite-image$",
+    },
+    generation: {
+      context: {
+        window: 65_536,
+      },
+      output: {
+        maxTokens: { min: 1, max: 4096 },
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-25",
+      cite: "Input token limit 65,536, output token limit 4,096: ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-lite-image",
+    },
+  },
+  // The direct route: a `custom-openai` row against Google's OpenAI-compatible layer. That layer takes reasoning as
+  // `reasoning_effort`; a token budget needs its `extra_body.google.thinking_config`, which the openai-compatible
+  // transport never sends, and its thought signatures ride tool calls, not a replayed reasoning part. The image ids
+  // are not in its effort table and keep the family cell.
+  {
+    match: {
+      model: "^(models/)?gemini-(?!.*-image)",
+      provider: "custom-openai",
+    },
+    generation: {
+      reasoning: {
+        mode: "effort",
+        enabled: true,
+        effortLevels: ["minimal", "low", "medium", "high"],
+        replay: "none",
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-25",
+      cite: "ai.google.dev/gemini-api/docs/openai 'Thinking': reasoning_effort minimal, low, medium and high map to thinking_level on Gemini 3 and thinking_budget 1,024/1,024/8,192/24,576 on Gemini 2.5; thinking_budget only through extra_body.google.thinking_config. Replay none: the layer carries a signature at tool_calls[].extra_content.google.thought_signature (github.com/vercel/ai/issues/18962), while this transport replays reasoning parts only under the anthropic and openrouter keys (backends/v4/prompt.ts). A signed-replay probe over this wire has not run",
+    },
+  },
+  {
+    match: {
+      model: "^(models/)?gemini-(3[-.]|2[-.]5-pro)(?!.*-image)",
+      provider: "custom-openai",
+    },
+    generation: {
+      reasoning: {
+        mandatory: true,
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-25",
+      cite: "ai.google.dev/gemini-api/docs/openai: 'you can set reasoning_effort to \"none\" for 2.5 models. Reasoning cannot be turned off for Gemini 2.5 Pro or 3 models.'",
     },
   },
 ] as const satisfies readonly CapabilityOverrideInput[];

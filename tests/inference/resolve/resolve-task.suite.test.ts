@@ -3,7 +3,7 @@
 // OpenRouter route — all through the real runtime fold.
 
 import type { GenerationCapability } from "@orb/contracts/inference";
-import { SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
+import { GENERATION_FLOOR, SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
 import { createInferenceRuntime, DEFAULT_EMBED_MODEL, NoConnectionError } from "@orb/inference";
 import { principal } from "../../support/factories/principal.ts";
 import { expect, test } from "../../support/fixtures.ts";
@@ -219,6 +219,94 @@ test("an id no provider page sources keeps the estimated floor", async () => {
     [OPENAI, "gpt-4.1-mini-preview"],
     [OPENAI, "gpt-oss-120b"],
   ] as const) {
-    expect((await directGeneration(route, model)).context, model).toEqual({ window: 8192, windowEstimated: true });
+    const generation = await directGeneration(route, model);
+    expect(generation.context, model).toEqual({ window: 8192, windowEstimated: true });
+    expect(generation.output.maxTokens, model).toEqual(GENERATION_FLOOR.output.maxTokens);
+  }
+});
+
+// ── A direct hosted model resolves to its provider-documented output cap ─────────────────────────────────────
+// The wire clamps `max_tokens` to this cap and the history fit reserves the same clamped value, so a missing cap
+// clamps every reply to the floor's 4,096 and a wrong one mis-sizes the history.
+
+const DIRECT_OUTPUT_CAPS: readonly (readonly [typeof OPENAI | typeof GEMINI | typeof DEEPSEEK, string, number])[] = [
+  [OPENAI, "gpt-6-astra", 128_000],
+  [OPENAI, "gpt-6-sol", 128_000],
+  [OPENAI, "gpt-6-luna", 128_000],
+  [OPENAI, "gpt-5.6-terra", 128_000],
+  [OPENAI, "gpt-5.5-2026-04-23", 128_000],
+  [OPENAI, "gpt-5.4", 128_000],
+  [OPENAI, "gpt-5.4-mini", 128_000],
+  [OPENAI, "gpt-5.3-codex", 128_000],
+  [OPENAI, "gpt-5.1", 128_000],
+  [OPENAI, "gpt-5", 128_000],
+  [OPENAI, "gpt-5-nano", 128_000],
+  [OPENAI, "o1", 100_000],
+  [OPENAI, "o3", 100_000],
+  [OPENAI, "o3-mini", 100_000],
+  [OPENAI, "o4-mini-2025-04-16", 100_000],
+  [OPENAI, "gpt-4.1", 32_768],
+  [OPENAI, "gpt-4.1-nano", 32_768],
+  [OPENAI, "gpt-4o", 16_384],
+  [OPENAI, "gpt-4o-mini-2024-07-18", 16_384],
+  [GEMINI, "gemini-3.8-flash", 65_536],
+  [GEMINI, "gemini-3.1-pro-preview", 65_536],
+  [GEMINI, "gemini-2.5-pro", 65_536],
+  [GEMINI, "models/gemini-2.5-flash", 65_536],
+  [GEMINI, "gemini-3.1-flash-image", 32_768],
+  [GEMINI, "gemini-2.5-flash-image", 32_768],
+  [GEMINI, "gemini-3-pro-image", 32_768],
+  [GEMINI, "gemini-3.1-flash-lite-image", 4096],
+  [DEEPSEEK, "deepseek-flash", 384_000],
+  [DEEPSEEK, "deepseek-v4-pro", 384_000],
+];
+
+test("every sourced direct hosted model resolves to its documented output cap", async () => {
+  for (const [route, model, max] of DIRECT_OUTPUT_CAPS) {
+    expect((await directGeneration(route, model)).output.maxTokens, model).toEqual({ min: 1, max });
+  }
+});
+
+// ── Direct xAI reasoning: the effort set each generation's model data documents ─────────────────────────────
+
+const GROK_EFFORTS = ["low", "medium", "high", "xhigh"] as const;
+
+test("each grok generation resolves to its documented reasoning efforts, and an id with none documented has no control", async () => {
+  // grok-4.5 to 4.7 list no `none`, so an explicit off clamps up; grok-4.3 lists `none` and can be switched off.
+  for (const [model, mandatory] of [
+    ["grok-4.7", true],
+    ["grok-4.6", true],
+    ["grok-4.5", true],
+    ["grok-4.5-latest", true],
+    ["grok-build-latest", true],
+    ["grok-4.3", undefined],
+    ["grok-4.3-latest", undefined],
+  ] as const) {
+    const { reasoning } = await directGeneration(XAI, model);
+    expect(reasoning, model).toMatchObject({ mode: "effort", enabled: true, effortLevels: [...GROK_EFFORTS] });
+    expect(reasoning.mandatory, model).toBe(mandatory);
+  }
+  for (const model of ["grok-4.20-0309-non-reasoning", "grok-4.20-non-reasoning", "grok-4.20-reasoning", "grok-build-0.1", "grok-code-fast-1"]) {
+    expect((await directGeneration(XAI, model)).reasoning, model).toEqual({ mode: "none", enabled: false });
+  }
+});
+
+// ── Direct Gemini: the Google family facts on the compatibility wire ────────────────────────────────────────
+// The compatibility layer takes reasoning as `reasoning_effort` and has no budget field the openai-compatible
+// transport sends, and its thought signatures ride tool calls rather than a replayed reasoning part. So a direct
+// Gemini row gets the family's tools, Google's documented effort words, and no replay.
+
+test("a models/gemini id on the direct route resolves to the Google family facts, spelled for the compatibility wire", async () => {
+  for (const [model, mandatory] of [
+    ["models/gemini-3.8-flash", true],
+    ["models/gemini-2.5-pro", true],
+    ["gemini-3.1-pro-preview", true],
+    ["models/gemini-2.5-flash", undefined],
+    ["models/gemini-2.5-flash-lite", undefined],
+  ] as const) {
+    const generation = await directGeneration(GEMINI, model);
+    expect(generation.tools, model).toMatchObject({ parallel: true });
+    expect(generation.reasoning, model).toMatchObject({ mode: "effort", enabled: true, effortLevels: ["minimal", "low", "medium", "high"], replay: "none" });
+    expect(generation.reasoning.mandatory, model).toBe(mandatory);
   }
 });
