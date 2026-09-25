@@ -22,12 +22,12 @@ Per axis: the CONTEXT band is required and pane availability is derived, not dec
 
 A designed divergence is recorded with its reason at the section definition, never left as a silent difference.
 
-## Open questions
+## Rulings
 
-- Does the band go structural via data (default yes)?
-- Does every roster LIST get search, including Extensions (default yes)?
-- Is the content inset `--spacing-section` everywhere, with the presets editor's inset demoted (default yes)?
-- Does the Extensions detail-panel toggle disappear once availability is derived (default yes)?
+- The LIST band goes structural via data. A section supplies the view hook, and the shell renders `ListPaneHeader`.
+- Every roster LIST gets search, Extensions included. A section with nothing to search declares `{planned: "<reason>"}`.
+- The content inset is `--spacing-section` everywhere. The presets editor loses its private inset; a wider canvas is a layout primitive inside the pane.
+- The Extensions detail-panel toggle is deleted once pane availability is derived.
 
 ## Rejected
 

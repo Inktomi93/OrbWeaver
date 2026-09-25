@@ -1,10 +1,9 @@
 ---
 kind: work
-status: blocked
-updated: 2026-09-23
+status: open
+updated: 2026-09-25
 priority: P2
 area: infra
-blocked: owner
 plan: containerize
 ---
 
@@ -12,13 +11,12 @@ plan: containerize
 
 ## What
 
-The app-only image ships: `Dockerfile`, `docker-compose.yaml` and the files under `docker/`. The default is
-local auth with a generated first password. Single-user mode works only with host networking. A
-trusted-peer option for single-user mode waits for the owner. The remaining steps:
+The app-only image ships: `Dockerfile`, `docker-compose.yaml` and the files under `docker/`. The default is single-user on a loopback-published port, with the bridge ranges in `AUTH_FALLBACK_TRUSTED_PEERS`. `local` generates a first password on its first boot.
 
-1. The owner rules the production auth posture, including the trusted-peer option.
-2. Prove each supported auth mode in a running container, including the external Authentik setup.
-3. Get a security review of the deployed surface.
+The production posture is ruled. The trusted-peer option ships unchanged and gets no easier LAN door. `local`, `oidc` and `forward-header` serve strangers with `AUTH_FALLBACK=deny` and HTTPS at the edge. `AUTH_FALLBACK=owner` stays boot-fatal in production cookie modes. The remaining steps:
+
+1. Prove each supported auth mode in a running container, including the external Authentik setup.
+2. Get a security review of the deployed surface.
 
 Keep source maps denied and the runtime non-root.
 
