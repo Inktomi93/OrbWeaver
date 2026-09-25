@@ -2,16 +2,17 @@
 // this table AND the two in `connection-bindings.ts` — split across two files only because the bindings
 // FK `automation_rules`/`plugins`, whose files import `chat.ts`, which FKs `user_connections` here: one file
 // would be an import cycle). A user's `user_connections` row = provider + credential + model + declared overrides
-// + extras + transport + the background-spend flag; EVERY actor's pick of a connection for a task is a
+// + extras + transport + the background-spend flag + the prompt-cache settings; EVERY actor's pick of a connection for a task is a
 // `connection_bindings` ROW (D61-B6 — a real FK junction, never a JSON id-array; replaces the settings
 // blob's `roleDefaults.<task>` leaves); runtime provider rows (plugin-shipped / admin-added) persist in
 // `provider_rows` beside the built-ins (F9). A chat is NOT an actor and neither is an rpg game (F20/§5.3):
 // every turn runs on the TRIGGERING principal's connection, so no room binds one.
 //
-// THE THREE JSON COLUMNS, each defended (§5.3 "defend or strike"): `declared` is a parsed single-owner
+// THE FOUR JSON COLUMNS, each defended (§5.3 "defend or strike"): `declared` is a parsed single-owner
 // capability DOCUMENT in `declaredCapabilitySchema` (never queried by field); `extras` is OPEN by definition
 // (the user's own body fields — its ratchet is the belt denylist applied on write AND read); `transport` is a
-// CLOSED zod object (headers / includeBody / excludeBody / responseMap), one owner, never queried. NO
+// CLOSED zod object (headers / includeBody / excludeBody / responseMap), one owner, never queried;
+// `prompt_cache` is a CLOSED zod object (`promptCacheSettingsSchema`), one owner, never queried. NO
 // `budget` column (YAGNI — a ceiling arrives with a real one), NO per-binding `model` override (the model
 // has ONE home, `user_connections.model` — "the connection IS the pick", §7.1).
 //
@@ -20,7 +21,7 @@
 // (`plugin:<name>/<id>` for a plugin row, bare for an admin row; a built-in id can never be shadowed — the
 // registry refuses it at `register()`, §5.9-1).
 
-import type { ConnectionApi, ConnectionExtrasDoc, ConnectionTransportDoc, DeclaredCapability, ProviderId } from "@orb/contracts/inference";
+import type { ConnectionApi, ConnectionExtrasDoc, ConnectionTransportDoc, DeclaredCapability, PromptCacheSettings, ProviderId } from "@orb/contracts/inference";
 import { CHAT_APIS } from "@orb/contracts/inference";
 import type { ModelId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
@@ -74,6 +75,10 @@ export const userConnections = sqliteTable(
     modelListed: integer("model_listed", { mode: "boolean" }).notNull().default(true),
     // May a `spend: "background"` task (summaries, captions, digests) run on this row unattended? (F5)
     allowBackground: integer("allow_background", { mode: "boolean" }).notNull().default(false),
+    // The user's prompt-cache settings (`promptCacheSettingsSchema`, a CLOSED zod object, one owner, never queried
+    // by field). NULL ⇒ the shipped behavior (`SHIPPED_PROMPT_CACHE`), so every row born before the column
+    // sends the bytes it always sent.
+    promptCache: text("prompt_cache", { mode: "json" }).$type<PromptCacheSettings>(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
     updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
   },

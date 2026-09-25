@@ -28,6 +28,9 @@
 //     so every built-in provider lists exactly one. A one-option combobox can only be gotten wrong.
 //   • NO prefetch status surface. §8.3's per-row `downloading/ready/failed` line was STRUCK by owner ruling.
 //   • NO per-chat or per-room override, anywhere. F20: a room never binds a connection.
+//   • NO Prompt caching tier on a connection whose wire places no explicit cache markers (`showsPromptCache`
+//     reads the capability's `turns.explicitPromptCache`): there the settings reach nothing. Where it shows it is
+//     COLLAPSED, so the untouched editor is still the four fields at both widths.
 //
 // STATED DEVIATION — THE PROVIDER IS READ-ONLY ON A SAVED ROW. The mock's Board A draws it as a combobox,
 // and the grouped four-`auth`-group picker it draws in Board G already ships, in the ADD flow
@@ -65,10 +68,12 @@ import {
 } from "../lib/connection-editor-model.ts";
 import type { FactRow } from "../lib/connection-fact-model.ts";
 import { capabilityFactRows, quirkFactRows, withDeclaredOverride, withoutDeclaredOverride } from "../lib/connection-fact-model.ts";
+import { promptCacheChangedCount, showsPromptCache } from "../lib/prompt-cache-model.ts";
 import { ModelField, SavedTextField } from "./connection-editor-essential.tsx";
 import { CapabilityRail, KindVerdict } from "./connection-editor-purpose.tsx";
 import { ConnectionExtrasEditor } from "./connection-extras-editor.tsx";
 import { FactRowList } from "./connection-fact-rows.tsx";
+import { ConnectionPromptCache } from "./connection-prompt-cache.tsx";
 import { ConnectionReachability } from "./connection-reachability.tsx";
 import { ConnectionTransportEditor } from "./connection-transport-editor.tsx";
 
@@ -196,6 +201,22 @@ function ConnectionEditorBody({ connectionId, onDone, trpc, invalidation }: Conn
             </Row>
           </Stack>
         </EditorTier>
+
+        {showsPromptCache(capabilityView.capability) ? (
+          <EditorTier
+            badge={overrideBadge(promptCacheChangedCount(connection.promptCache))}
+            defaultOpen={false}
+            kicker="On or off · system prompt · depth · how long it lasts"
+            title="Prompt caching"
+          >
+            <ConnectionPromptCache
+              busy={busy}
+              connectionLabel={connection.label}
+              onCommit={(next): void => patch({ promptCache: next })}
+              stored={connection.promptCache}
+            />
+          </EditorTier>
+        ) : null}
 
         <EditorTier
           badge={overrideBadge(declaredOverrideCount(declared))}

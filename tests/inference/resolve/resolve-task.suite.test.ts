@@ -1,7 +1,8 @@
 // Resolver behavior not owned by the broad runtime smoke: actor ridesOn precedence, explicit-row selection,
-// missing-provider refusal, and which id the capability rows read on the OpenRouter route — all through the
-// real runtime fold.
+// missing-provider refusal, the prompt-cache settings fold, and which id the capability rows read on the
+// OpenRouter route — all through the real runtime fold.
 
+import { SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
 import { createInferenceRuntime, DEFAULT_EMBED_MODEL, NoConnectionError } from "@orb/inference";
 import { principal } from "../../support/factories/principal.ts";
 import { expect, test } from "../../support/fixtures.ts";
@@ -56,6 +57,20 @@ test("a connection whose provider is absent refuses as no-connection", async () 
   stores.bindings.bind({ actorKind: "user", actorId: ownerId, task: "chat", connectionId: row.id });
   const runtime = await createInferenceRuntime(fakeDeps({ stores }));
   await expect(runtime.resolve({ task: "chat", principal: principal(ownerId) })).rejects.toBeInstanceOf(NoConnectionError);
+});
+
+test("the row's prompt-cache settings ride the resolve, and a row that stored none resolves to the shipped behavior", async () => {
+  const stores = memoryStores();
+  const ownerId = newUserId();
+  const settings = { enabled: true, cacheSystem: false, historyDepth: 4, ttl: "5m" } as const;
+  const set = fakeConnection({ ownerId, providerId: "custom-openai", model: "set-model", baseUrl: "http://set.test/v1", promptCache: settings });
+  const unset = fakeConnection({ ownerId, providerId: "custom-openai", model: "unset-model", baseUrl: "http://unset.test/v1" });
+  stores.connections.rows.set(set.id, set);
+  stores.connections.rows.set(unset.id, unset);
+  const runtime = await createInferenceRuntime(fakeDeps({ stores }));
+
+  expect((await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: set.id })).resolved.promptCache).toEqual(settings);
+  expect((await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: unset.id })).resolved.promptCache).toEqual(SHIPPED_PROMPT_CACHE);
 });
 
 // ── #2575: capability facts must survive the OpenRouter route ────────────────────────────────────────────

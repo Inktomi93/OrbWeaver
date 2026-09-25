@@ -14,7 +14,8 @@
 // row that spells it records the word the body carries. B6: the OpenAI-style rate-limit headers on the
 // response become `rateLimit`. B7: the endpoint's own response id is the row's `generationId`.
 
-import type { EFFORT_SPELLINGS, ProviderId } from "@orb/contracts/inference";
+import type { EFFORT_SPELLINGS, PromptCacheSettings, ProviderId } from "@orb/contracts/inference";
+import { SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import { createInferenceRuntime } from "@orb/inference";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -758,4 +759,84 @@ test("OR non-Anthropic model: the round's rows pass through 1:1 with no history 
     { role: "assistant", content: "Wren: Wren scouts." },
     { role: "user", content: "[Write the next reply only as Kai.]" },
   ]);
+});
+
+// ── the connection's PROMPT-CACHE settings on the OpenRouter → Anthropic route ────────────────────────────
+// The same four settings as the direct wire, pinned on the bytes OpenRouter receives: markers ride content
+// PARTS (the only place OpenRouter forwards them), the system is `messages[0]`, and there is no tool marker on
+// this route. The Anthropic provider pin is a routing fact, not a cache setting: it stays whatever caching says.
+
+/** Every content-part marker in message order: `[messageIndex, marker]`. */
+function orMarkers(body: Record<string, unknown>): readonly (readonly [number, unknown])[] {
+  const messages = Array.isArray(body["messages"]) ? (body["messages"] as Record<string, unknown>[]) : [];
+  return messages.flatMap((message, index) =>
+    (Array.isArray(message["content"]) ? (message["content"] as Record<string, unknown>[]) : []).flatMap((part) =>
+      part["cache_control"] === undefined ? [] : [[index, part["cache_control"]] as const],
+    ),
+  );
+}
+
+function orCacheTurn(promptCache: PromptCacheSettings, cacheBreakpointDepth = 1): OpenAiCompatChatRequest {
+  const connection = fakeResolved({
+    task: "chat",
+    providerId: "openrouter",
+    model: "anthropic/claude-sonnet-5",
+    capability: generationCapability({
+      turns: {
+        assistantPrefill: false,
+        midConversationSystem: false,
+        historySystemRows: false,
+        roleHandlingFloor: "strict",
+        explicitPromptCache: true,
+        cacheMinTokens: 1,
+      },
+    }),
+    secret: fakeApiKeySecret("sk-or-not-a-real-key"),
+    promptCache,
+  });
+  return orRequest({
+    connection,
+    tools: undefined,
+    cacheBreakpointDepth,
+    history: [
+      { role: "user", content: orText("u0") },
+      { role: "assistant", content: orText("a0") },
+      { role: "user", content: orText("u1") },
+      { role: "assistant", content: orText("a1") },
+      { role: "user", content: orText("u2") },
+      { role: "assistant", content: orText("a2") },
+      { role: "user", content: orText("u3") },
+    ],
+  });
+}
+
+for (const ttl of ["5m", "1h"] as const) {
+  test(`OR prompt cache ttl ${ttl}: the system part and the history pair all carry it`, async () => {
+    const markers = orMarkers(await sentBody(orCacheTurn({ ...SHIPPED_PROMPT_CACHE, ttl })));
+    // system (0), then depth 3 (a1, index 4) and depth 1 (a2, index 6) — one ttl, so the order rule holds.
+    expect(markers.map(([index]) => index)).toEqual([0, 4, 6]);
+    for (const [, marker] of markers) {
+      expect(marker).toEqual({ type: "ephemeral", ttl });
+    }
+  });
+}
+
+test("OR prompt cache: with the system block off, only the history pair is marked", async () => {
+  const body = await sentBody(orCacheTurn({ ...SHIPPED_PROMPT_CACHE, cacheSystem: false }));
+  expect(orMarkers(body).map(([index]) => index)).toEqual([4, 6]);
+});
+
+test("OR prompt cache OFF: no cache_control in the body, and the Anthropic provider pin is unchanged", async () => {
+  const req = orCacheTurn({ ...SHIPPED_PROMPT_CACHE, enabled: false });
+  const history = req.history.map((row, index) => (index === 1 ? { ...row, wireMeta: { cacheBreakpoint: true as const } } : row));
+  const body = await sentBody({ ...req, history });
+  expect(JSON.stringify(body)).not.toContain("cache_control");
+  expect(body["provider"]).toEqual({ order: ["Anthropic"], allow_fallbacks: false });
+});
+
+test("OR prompt cache depth: the connection's minimum moves the pair deeper, and never shallower than the request's depth", async () => {
+  // Request depth 1, user minimum 3 ⇒ depths 3 and 5: a1 (index 4) and a0 (index 2).
+  expect(orMarkers(await sentBody(orCacheTurn({ ...SHIPPED_PROMPT_CACHE, historyDepth: 3 }, 1))).map(([index]) => index)).toEqual([0, 2, 4]);
+  // Request depth 3 (admin-floored upstream), user minimum 1 ⇒ the request's depth stands.
+  expect(orMarkers(await sentBody(orCacheTurn({ ...SHIPPED_PROMPT_CACHE, historyDepth: 1 }, 3))).map(([index]) => index)).toEqual([0, 2, 4]);
 });

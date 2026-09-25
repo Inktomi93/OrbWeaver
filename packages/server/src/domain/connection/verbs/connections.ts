@@ -129,6 +129,7 @@ function createCreate(ctx: ConnectionContext): ConnectionService["create"] {
       transport: params.transport ?? null,
       modelListed: params.modelListed ?? true,
       allowBackground: params.allowBackground ?? false,
+      promptCache: params.promptCache ?? null,
       createdAt: now,
       updatedAt: now,
     });
@@ -173,6 +174,7 @@ async function validatedPatch(
     ...(patch.transport !== undefined ? { transport: patch.transport } : {}),
     ...(patch.modelListed !== undefined ? { modelListed: patch.modelListed } : {}),
     ...(patch.allowBackground !== undefined ? { allowBackground: patch.allowBackground } : {}),
+    ...(patch.promptCache !== undefined ? { promptCache: patch.promptCache } : {}),
   };
 }
 

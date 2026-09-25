@@ -12,7 +12,6 @@ import { acceptsAssistantPrefill, cacheMinTokensOf, scrubWireSchema } from "@orb
 import type { EffortLevel } from "@orb/contracts/preset";
 import { errorMessage } from "@orb/kit/error-message";
 import type { JsonValue } from "@orb/kit/json";
-import { estimateTokens } from "@orb/kit/tokens";
 import { z } from "zod";
 import type { ChatHistoryMessage, ChatResult, OpenAiCompatChatRequest } from "../../contract/chat.ts";
 import { ProviderError } from "../../contract/errors.ts";
@@ -23,14 +22,8 @@ import type { AddSpanEvent } from "../../contract/runtime.ts";
 import type { InferenceLog } from "../../deps.ts";
 import { resolveChat } from "../../funnel/resolve-chat.ts";
 import { effortWordOf } from "../kit/applied-effort.ts";
-import type { CacheBreakpointRow, OpenRouterRouting } from "../kit/cache-control.ts";
-import {
-  ANTHROPIC_CACHE_1H,
-  cachesByAnthropicMarkers,
-  computeCacheBreakpointPlacements,
-  effectiveProviderRouting,
-  isAnthropicModel,
-} from "../kit/cache-control.ts";
+import type { AnthropicCachePlan, OpenRouterRouting } from "../kit/cache-control.ts";
+import { anthropicCachePlan, cachesByAnthropicMarkers, effectiveProviderRouting, isAnthropicModel, placeAnthropicCacheMarkers } from "../kit/cache-control.ts";
 import { extractHttpErrorDiagnostic, providerErrorFromHttp } from "../kit/error-classify.ts";
 import { turnAbortSignal } from "../kit/idle-timeout.ts";
 import type { ProviderLogger } from "../kit/provider-log.ts";
@@ -104,46 +97,29 @@ interface CacheWriteReceipt {
 }
 
 interface CachePlacement {
-  readonly patches: Map<number, Record<string, unknown>>;
+  readonly patches: ReadonlyMap<number, Record<string, unknown>>;
   readonly written: CacheWriteReceipt;
 }
 
-const NO_CACHE_PLACEMENT: CachePlacement = { patches: new Map(), written: { historyDepths: [], systemBlocks: 0 } };
-
+/** The message-level markers: only on an OpenRouter route to an Anthropic model (OpenRouter's `cache_control`
+ *  is Anthropic-only), under the connection's plan (`null` ⇒ caching off ⇒ nothing placed). */
 function placeCache(args: {
   readonly plan: WirePlan;
   readonly req: OpenAiCompatChatRequest;
+  readonly cachePlan: AnthropicCachePlan | null;
   readonly generation: GenerationCapability;
   readonly log: ProviderLogger;
   readonly anthropicRoute: boolean;
 }): CachePlacement {
   const { plan, req, generation, log } = args;
-  if (!args.anthropicRoute) {
-    return NO_CACHE_PLACEMENT;
-  }
-  const patches = new Map<number, Record<string, unknown>>();
-  const staticText = req.systemPrompt.static.trim();
-  let systemBlocks = 0;
-  if (staticText.length > 0 && plan.rows[0]?.role === "system") {
-    patches.set(0, { cacheControl: { ...ANTHROPIC_CACHE_1H } });
-    systemBlocks = 1;
-  }
-  const historyDepths: number[] = [];
-  if (req.cacheBreakpointDepth !== undefined && generation.turns?.explicitPromptCache === true) {
-    const rows: CacheBreakpointRow[] = plan.rows.map((row) => ({ role: row.role, toolExchange: row.toolExchange, tokens: estimateTokens(row.text) }));
-    const placements = computeCacheBreakpointPlacements({
-      rows,
-      systemStaticTokens: estimateTokens(staticText),
-      depthFromEnd: req.cacheBreakpointDepth,
-      cacheMinTokens: cacheMinTokensOf(generation),
-      log,
-    });
-    for (const { index, depth } of placements) {
-      patches.set(index, { cacheControl: { ...ANTHROPIC_CACHE_1H } });
-      historyDepths.push(depth);
-    }
-  }
-  return { patches, written: { historyDepths, systemBlocks } };
+  const placed = placeAnthropicCacheMarkers({
+    plan: args.anthropicRoute ? args.cachePlan : null,
+    rows: plan.rows,
+    staticSystem: req.systemPrompt.static.trim(),
+    generation,
+    log,
+  });
+  return { patches: placed.patches, written: { historyDepths: placed.historyDepths, systemBlocks: placed.systemBlocks } };
 }
 
 // ── the per-dialect option builders ───────────────────────────────────────────────────────────────────────
@@ -487,11 +463,11 @@ function emitReceipts(args: {
   });
 }
 
-function rowOptionsFor(dialect: Dialect): ((row: ChatHistoryMessage) => SharedV4ProviderOptions | undefined) | undefined {
-  if (dialect !== "openrouter") {
+function rowOptionsFor(dialect: Dialect, cachePlan: AnthropicCachePlan | null): ((row: ChatHistoryMessage) => SharedV4ProviderOptions | undefined) | undefined {
+  if (dialect !== "openrouter" || cachePlan === null) {
     return;
   }
-  return (row) => (row.wireMeta?.cacheBreakpoint === true ? { [OPENROUTER_KEY]: { cacheControl: { ...ANTHROPIC_CACHE_1H } } } : undefined);
+  return (row) => (row.wireMeta?.cacheBreakpoint === true ? { [OPENROUTER_KEY]: { cacheControl: { ...cachePlan.directive } } } : undefined);
 }
 
 /** The openrouter mandatory-reasoning strip-and-replay-once: an endpoint that rejects `effort:"none"` gets
@@ -525,16 +501,17 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
   const attempt: { shape: TurnShape | undefined; rateLimit: RateLimitSnapshot | null } = { shape: undefined, rateLimit: null };
   const secrets = resolvedScrubSet(connection);
   const anthropicRoute = dialect === "openrouter" && isAnthropicModel(connection);
+  const cachePlan = anthropicCachePlan({ connection, requestedDepth: req.cacheBreakpointDepth, log });
   const plan = buildWirePlan({
     systemPrompt: req.systemPrompt,
     history: req.history,
-    rowOptions: rowOptionsFor(dialect),
+    rowOptions: rowOptionsFor(dialect, cachePlan),
     splitSystem: anthropicRoute,
   });
   if (plan.toolResultErrorDropped) {
     warnings.push({ code: "tool_result_error_dropped", message: "tool-result isError ignored: the OpenAI-shaped chat wire has no tool-result error field" });
   }
-  const cache = placeCache({ plan, req, generation, log, anthropicRoute });
+  const cache = placeCache({ plan, req, cachePlan, generation, log, anthropicRoute });
   const prompt = withMessageOptions(plan.prompt, OPENROUTER_KEY, cache.patches);
   const classify = (err: unknown): ProviderError => (err instanceof ProviderError ? err : providerErrorFromHttp(err, label, secrets));
   const retryOpts = {

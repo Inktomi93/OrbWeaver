@@ -228,6 +228,38 @@ describe("update", () => {
     });
   });
 
+  test("user_connections.prompt_cache: born NULL (the shipped behavior), a patch writes the whole document, NULL clears it", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    const owner = await seedOwner(db);
+    const created = await h.svc.create({ principal: owner.principal, providerId: BYO_PROVIDER, credentialId: null, baseUrl: BYO_BASE_URL, model: "qwen3" });
+    expect(created.promptCache).toBeNull();
+    const settings = { enabled: true, cacheSystem: false, historyDepth: 3, ttl: "5m" } as const;
+    await h.svc.update({ principal: owner.principal, connectionId: created.id, patch: { promptCache: settings } });
+    expect((await h.svc.get({ principal: owner.principal, connectionId: created.id })).promptCache).toEqual(settings);
+    // An unrelated patch keeps it (field-wise), and NULL is the explicit way back to the shipped behavior.
+    await h.svc.update({ principal: owner.principal, connectionId: created.id, patch: { label: "renamed" } });
+    expect((await h.svc.get({ principal: owner.principal, connectionId: created.id })).promptCache).toEqual(settings);
+    await h.svc.update({ principal: owner.principal, connectionId: created.id, patch: { promptCache: null } });
+    expect((await h.svc.get({ principal: owner.principal, connectionId: created.id })).promptCache).toBeNull();
+  });
+
+  test("user_connections.prompt_cache: create stores the settings it is handed", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    const owner = await seedOwner(db);
+    const settings = { enabled: false, cacheSystem: true, historyDepth: null, ttl: "1h" } as const;
+    const created = await h.svc.create({
+      principal: owner.principal,
+      providerId: BYO_PROVIDER,
+      credentialId: null,
+      baseUrl: BYO_BASE_URL,
+      model: "qwen3",
+      promptCache: settings,
+    });
+    expect((await h.svc.get({ principal: owner.principal, connectionId: created.id })).promptCache).toEqual(settings);
+  });
+
   test("a patch that moves a builtin row's model outside its catalog is refused and the stored model stands", async () => {
     const db = await freshDb();
     const h = await makeHarness(db);

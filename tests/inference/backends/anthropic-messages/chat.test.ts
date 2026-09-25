@@ -13,7 +13,8 @@
 // the existing `refusal` event beside the `filter` finish; the Anthropic rate-limit headers become
 // `rateLimit`, and the `msg_…` id is the row's `generationId`.
 
-import type { GenerationCapability, ProviderId } from "@orb/contracts/inference";
+import type { GenerationCapability, PromptCacheSettings, ProviderId } from "@orb/contracts/inference";
+import { SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import { castId } from "@orb/kit/ids";
 import { runAnthropicChatTurn } from "../../../../packages/inference/src/backends/anthropic-messages/chat.ts";
@@ -612,4 +613,160 @@ test("SDK pin: adjacent same-role rows group into one message and each row's mar
     { type: "text", text: "Mara leads.", cache_control: { type: "ephemeral", ttl: "1h" } },
     { type: "text", text: "Wren: Wren scouts." },
   ]);
+});
+
+// ── the connection's PROMPT-CACHE settings on the direct wire ──────────────────────────────────────────────
+// Each setting is pinned on the BYTES the converter produced. The walk reads every marker in Anthropic's prefix
+// order — tools, then the system blocks, then the messages — because that is the order the TTL rule is stated
+// in: a longer-TTL breakpoint must come before any shorter one, so a 1h marker may never follow a 5m one.
+
+const TTL_RANK: Readonly<Record<string, number>> = { "1h": 2, "5m": 1 };
+
+interface WireMarker {
+  readonly at: string;
+  readonly marker: unknown;
+}
+
+/** Every `cache_control` the body carries, in prefix order, tagged with where it rode. */
+function markersInPrefixOrder(recorded: RecordedRequest | undefined): readonly WireMarker[] {
+  const body = recorded?.body ?? {};
+  const found: WireMarker[] = [];
+  const blocksOf = (value: unknown): readonly Record<string, unknown>[] => (Array.isArray(value) ? (value as Record<string, unknown>[]) : []);
+  for (const [index, tool] of blocksOf(body["tools"]).entries()) {
+    if (tool["cache_control"] !== undefined) {
+      found.push({ at: `tool:${String(index)}`, marker: tool["cache_control"] });
+    }
+  }
+  for (const block of blocksOf(body["system"])) {
+    if (block["cache_control"] !== undefined) {
+      found.push({ at: "system", marker: block["cache_control"] });
+    }
+  }
+  for (const [index, message] of blocksOf(body["messages"]).entries()) {
+    for (const block of blocksOf(message["content"])) {
+      if (block["cache_control"] !== undefined) {
+        found.push({ at: `message:${String(index)}`, marker: block["cache_control"] });
+      }
+    }
+  }
+  return found;
+}
+
+/** No marker is followed by one with a LONGER ttl (the API's order rule). */
+function ttlOrderHolds(markers: readonly WireMarker[]): boolean {
+  const ranks = markers.map(({ marker }) => TTL_RANK[String((marker as { ttl?: unknown }).ttl)] ?? 0);
+  return ranks.every((rank, index) => index === 0 || rank <= (ranks[index - 1] ?? 0));
+}
+
+/** The `anthropic-beta` entries a request carried, or none. */
+function betasOf(recorded: RecordedRequest | undefined): readonly string[] {
+  const header = recorded?.headers?.["anthropic-beta"];
+  return header === undefined ? [] : header.split(",").map((beta) => beta.trim());
+}
+
+const CACHE_TTL_BETA = /cache-ttl/iu;
+
+/** A direct Anthropic turn over a six-row history with two tools, cacheable at any depth (floor 1 token). */
+function cacheTurn(promptCache: PromptCacheSettings, cacheBreakpointDepth = 1): AnthropicChatRequest {
+  const connection = fakeResolved({
+    task: "chat",
+    providerId: "anthropic",
+    model: "claude-opus-5",
+    capability: generationCapability({
+      turns: {
+        assistantPrefill: false,
+        midConversationSystem: false,
+        historySystemRows: false,
+        roleHandlingFloor: "strict",
+        explicitPromptCache: true,
+        cacheMinTokens: 1,
+      },
+    }),
+    baseUrl: "https://api.anthropic.com",
+    secret: fakeApiKeySecret("sk-ant-probe-not-a-real-key"),
+    promptCache,
+  });
+  const text = (value: string): [{ type: "text"; text: string }] => [{ type: "text", text: value }];
+  return turnRequest({
+    connection,
+    cacheBreakpointDepth,
+    tools: [
+      { name: "tick_clock", description: "d", parameters: { type: "object" } },
+      { name: "roll_dice", description: "d", parameters: { type: "object" } },
+    ],
+    history: [
+      { role: "user", content: text("u0") },
+      { role: "assistant", content: text("a0") },
+      { role: "user", content: text("u1") },
+      { role: "assistant", content: text("a1") },
+      { role: "user", content: text("u2") },
+      { role: "assistant", content: text("a2") },
+      { role: "user", content: text("u3") },
+    ],
+  });
+}
+
+for (const ttl of ["5m", "1h"] as const) {
+  test(`prompt cache ttl ${ttl}: every marker on the direct wire carries it, in a legal TTL order, with no cache-ttl beta`, async () => {
+    const { body } = await recordedTurn(cacheTurn({ ...SHIPPED_PROMPT_CACHE, ttl }), anthropicTextStream("ok"));
+    const markers = markersInPrefixOrder(body);
+    // The last tool, the static system block, and the history pair at depths 1 and 3 (a2 and a1).
+    expect(markers.map(({ at }) => at)).toEqual(["tool:1", "system", "message:3", "message:5"]);
+    for (const { marker } of markers) {
+      expect(marker).toEqual({ type: "ephemeral", ttl });
+    }
+    expect(ttlOrderHolds(markers)).toBe(true);
+    // No beta header is required for either TTL (Anthropic docs). Positive control: the matcher
+    // does catch the beta the old note claimed a direct 1h needed.
+    expect(betasOf(body).filter((beta) => CACHE_TTL_BETA.test(beta))).toEqual([]);
+    expect(
+      betasOf({ url: "", body: {}, headers: { "anthropic-beta": "a-beta, extended-cache-ttl-2025-04-11" } }).some((beta) => CACHE_TTL_BETA.test(beta)),
+    ).toBe(true);
+  });
+}
+
+test("the TTL order check reds on a 5m marker ahead of a 1h one (the rule the one-ttl plan exists to keep)", () => {
+  const five = { type: "ephemeral", ttl: "5m" };
+  const hour = { type: "ephemeral", ttl: "1h" };
+  expect(
+    ttlOrderHolds([
+      { at: "tool:0", marker: hour },
+      { at: "system", marker: five },
+    ]),
+  ).toBe(true);
+  expect(
+    ttlOrderHolds([
+      { at: "tool:0", marker: five },
+      { at: "system", marker: hour },
+    ]),
+  ).toBe(false);
+});
+
+test("prompt cache: with the system block off, the system carries no marker and the tools and history keep theirs", async () => {
+  const { body } = await recordedTurn(cacheTurn({ ...SHIPPED_PROMPT_CACHE, cacheSystem: false }), anthropicTextStream("ok"));
+  expect(markersInPrefixOrder(body).map(({ at }) => at)).toEqual(["tool:1", "message:3", "message:5"]);
+  const system = body?.body["system"] as Record<string, unknown>[];
+  expect(system).toEqual([{ type: "text", text: "You are a helpful assistant." }]);
+});
+
+test("prompt cache OFF: no cache_control anywhere — not the tools, the system, the history, nor a wireMeta row", async () => {
+  const lines: LogLine[] = [];
+  const req = cacheTurn({ ...SHIPPED_PROMPT_CACHE, enabled: false });
+  // A row the assembly flagged as a breakpoint of its own: caching off silences it too.
+  const history = req.history.map((row, index) => (index === 1 ? { ...row, wireMeta: { cacheBreakpoint: true as const } } : row));
+  const recorded: RecordedRequest[] = [];
+  await runAnthropicChatTurn({ ...req, history }, deps(scriptedSseFetch([anthropicTextStream("ok")], recorded), lines));
+  expect(markersInPrefixOrder(recorded[0])).toEqual([]);
+  expect(JSON.stringify(recorded[0]?.body)).not.toContain("cache_control");
+  expect(lines.find((line) => line.fields["event"] === "provider.cache")?.fields["breakpointsPlaced"]).toBe(0);
+});
+
+test("prompt cache depth: the connection's minimum moves the history pair deeper, and never shallower than the request's depth", async () => {
+  // Request depth 1 (SHAPE's), user minimum 3 ⇒ the pair sits at depths 3 and 5: a1 (message 3) and a0 (message 1).
+  const deeper = markersInPrefixOrder((await recordedTurn(cacheTurn({ ...SHIPPED_PROMPT_CACHE, historyDepth: 3 }, 1), anthropicTextStream("ok"))).body);
+  expect(deeper.map(({ at }) => at)).toEqual(["tool:1", "system", "message:1", "message:3"]);
+  // Request depth 3 (already floored by the admin `promptCacheMinDepth` upstream), user minimum 1 ⇒ the
+  // request's depth stands: the user value is bounded below by it.
+  const floored = markersInPrefixOrder((await recordedTurn(cacheTurn({ ...SHIPPED_PROMPT_CACHE, historyDepth: 1 }, 3), anthropicTextStream("ok"))).body);
+  expect(floored.map(({ at }) => at)).toEqual(["tool:1", "system", "message:1", "message:3"]);
 });

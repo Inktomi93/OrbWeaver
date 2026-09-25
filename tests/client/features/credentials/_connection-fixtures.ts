@@ -90,6 +90,7 @@ export function connectionRow(over: Partial<ConnectionRow> = {}): ConnectionRow 
     transport: null,
     modelListed: true,
     allowBackground: false,
+    promptCache: null,
     tasks: ["chat", "agent", "summarize", "structured"],
     createdAt: 0,
     updatedAt: 0,

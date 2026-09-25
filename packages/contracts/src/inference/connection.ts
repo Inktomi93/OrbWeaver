@@ -12,6 +12,7 @@ import { chatApiSchema } from "./apis.ts";
 import { declaredCapabilitySchema } from "./capability/override.ts";
 import { bindingActorKindSchema } from "./connection-ref.ts";
 import { modelIdSchema } from "./model-schema.ts";
+import { promptCacheSettingsSchema } from "./prompt-cache.ts";
 import { providerIdSchema } from "./provider-schema.ts";
 import { routableTaskSchema } from "./tasks.ts";
 
@@ -64,6 +65,8 @@ export const userConnectionSchema = z.object({
   modelListed: z.boolean(),
   /** May a `spend: "background"` task (summaries, captions, digests) run on this row unattended? (F5) */
   allowBackground: z.boolean(),
+  /** The prompt-cache settings (`prompt-cache.ts`); `null` ⇒ the shipped behavior (`SHIPPED_PROMPT_CACHE`). */
+  promptCache: promptCacheSettingsSchema.nullable(),
   createdAt: z.number().int(),
   updatedAt: z.number().int(),
 });

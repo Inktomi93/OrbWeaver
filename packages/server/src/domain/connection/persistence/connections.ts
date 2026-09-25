@@ -27,6 +27,7 @@ function toConnectionRow(row: ConnectionRow): UserConnection {
     transport: row.transport,
     modelListed: row.modelListed,
     allowBackground: row.allowBackground,
+    promptCache: row.promptCache,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
