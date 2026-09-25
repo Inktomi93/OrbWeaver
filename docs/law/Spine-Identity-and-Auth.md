@@ -108,8 +108,8 @@ Code comments cite the numbered invariants below as "invariant N":
     `decideProvision(existing, identity, ownerId, options)` (`domain/sessions/substrate/decide-provision.ts`, D259): the verb interprets its decision and runs the
     two reads the decision names, the owner row for owner adoption and the email for the collision deny. A
     batch-shaped signup statement that decides through the same function is not a second upsert. Such a
-    statement carries only the race-relevant checks in SQL: the unique indexes on handle, `external_id` and
-    the single owner, and a `NOT EXISTS` on the handle key (D257) and on email.
+    statement carries only the race-relevant checks in SQL: the unique indexes on handle, the handle key
+    (`users_handle_key_unique`, D257), `external_id` and the single owner, and a `NOT EXISTS` on the handle key (D257) and on email.
     The one such statement is the `oidc` pending-join confirm (`domain/sessions/verbs/pending-signup.ts`).
     A mode with its own upsert would carry its own, weaker, takeover
     posture. Enforcers: `infra/auth` is db-free and may not import a domain, so a mode resolver
