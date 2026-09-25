@@ -74,6 +74,83 @@ export const openaiRows = [
       cite: "rec-probe.mjs openai-h2 — req_4609158162fd4953b00a62cf6f23d82f (temperature 0.7 → 400 unsupported_value); req_f68c8dc2e4a24908a2e5be64132edbc0 (max_tokens → 400 unsupported_parameter, the H2 outputCapField row); req_8eff1a4cbff5461b820f47331f2c26b2 (max_completion_tokens + reasoning_effort low → 200)",
     },
   },
+  // A window row states the most input a request may carry. A GPT-5-class id caps input at its context window less
+  // its max output (OpenAI states it for GPT-5); the older ids share one window between input and output.
+  {
+    match: {
+      model: "^(openai/)?gpt-(6-(astra|sol|luna)|5\\.6-(sol|terra|luna)|5\\.5|5\\.4)(-[0-9]{4}-[0-9]{2}-[0-9]{2})?$",
+    },
+    generation: {
+      context: {
+        window: 922_000,
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-25",
+      cite: "1,050,000 context window, 128,000 max output tokens: developers.openai.com/api/docs/models/{gpt-6-astra,gpt-6-sol,gpt-6-luna,gpt-5.6-sol,gpt-5.6-terra,gpt-5.6-luna,gpt-5.5,gpt-5.4}; input = window − max output per openai.com/index/introducing-gpt-5-for-developers ('a maximum of 272,000 input tokens and … 128,000 reasoning & output tokens, for a total context length of 400,000'); 922,000 stated as 'Maximum input tokens' for gpt-6-astra/sol/luna at learn.microsoft.com/en-us/azure/foundry/openai/how-to/reasoning",
+    },
+  },
+  {
+    match: {
+      model: "^(openai/)?gpt-(5(-mini|-nano)?|5\\.1|5\\.2|5\\.3-codex|5\\.4-(mini|nano))(-[0-9]{4}-[0-9]{2}-[0-9]{2})?$",
+    },
+    generation: {
+      context: {
+        window: 272_000,
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-25",
+      cite: "400,000 context window, 128,000 max output tokens: developers.openai.com/api/docs/models/{gpt-5,gpt-5-mini,gpt-5-nano,gpt-5.1,gpt-5.2,gpt-5.3-codex,gpt-5.4-mini,gpt-5.4-nano}; openai.com/index/introducing-gpt-5-for-developers: 'all GPT‑5 models can accept a maximum of 272,000 input tokens'",
+    },
+  },
+  {
+    match: {
+      model: "^(openai/)?o(1|3|3-mini|4-mini)(-[0-9]{4}-[0-9]{2}-[0-9]{2})?$",
+    },
+    generation: {
+      context: {
+        window: 200_000,
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-25",
+      cite: "200,000 context window, 100,000 max output tokens: developers.openai.com/api/docs/models/{o1,o3,o3-mini,o4-mini}; no separate input cap is documented, so the fit's output reserve shares the window",
+    },
+  },
+  {
+    match: {
+      model: "^(openai/)?gpt-4\\.1(-mini|-nano)?(-[0-9]{4}-[0-9]{2}-[0-9]{2})?$",
+    },
+    generation: {
+      context: {
+        window: 1_047_576,
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-25",
+      cite: "1,047,576 context window, 32,768 max output tokens: developers.openai.com/api/docs/models/{gpt-4.1,gpt-4.1-mini,gpt-4.1-nano}",
+    },
+  },
+  {
+    match: {
+      model: "^(openai/)?gpt-4o(-mini)?(-[0-9]{4}-[0-9]{2}-[0-9]{2})?$",
+    },
+    generation: {
+      context: {
+        window: 128_000,
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-25",
+      cite: "128,000 context window, 16,384 max output tokens: developers.openai.com/api/docs/models/{gpt-4o,gpt-4o-mini}",
+    },
+  },
   {
     match: {
       model: "^(openai/)?gpt-image",

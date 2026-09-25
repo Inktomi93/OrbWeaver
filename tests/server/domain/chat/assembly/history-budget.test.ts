@@ -1,8 +1,18 @@
 // SHAPE shaper: fitHistoryToWindow (the chat design doc Part II §2 SHAPE fit-pass — the stateless-runner hard cap).
+import type { ProviderId } from "@orb/contracts/inference";
+import { GENERATION_FLOOR } from "@orb/contracts/inference";
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { fitHistoryToWindow, HISTORY_TRIM_CHUNK_FRACTION, historyTurnTokens } from "../../../../../packages/server/src/domain/chat/assembly/history-budget.ts";
+import { detectModelFamily } from "../../../../../packages/inference/src/capability/families.ts";
+import { curatedRows } from "../../../../../packages/inference/src/capability/sources/curated/loader.ts";
+import { synthesizeCapability } from "../../../../../packages/inference/src/capability/synthesize.ts";
+import {
+  buildHistoryBudget,
+  fitHistoryToWindow,
+  HISTORY_TRIM_CHUNK_FRACTION,
+  historyTurnTokens,
+} from "../../../../../packages/server/src/domain/chat/assembly/history-budget.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const turn = (content: string): { role: "user"; content: string } => ({ role: "user", content });
@@ -118,5 +128,30 @@ describe("fitHistoryToWindow", () => {
       expect(moves).toBeGreaterThan(0);
       expect(moves).toBeLessThanOrEqual(Math.ceil(trimmedGrowth / chunk));
     });
+  });
+});
+
+// The fit reads the resolved window, so a direct hosted model that resolves to the estimated floor loses most of
+// its chat on every turn.
+describe("the fit against a direct hosted model's resolved window", () => {
+  const chat = Array.from({ length: 33 }, (_, i) => turn(`row ${i} `.concat("r".repeat(3200))));
+  const budget = (windowTokens: number): Parameters<typeof fitHistoryToWindow>[1] =>
+    buildHistoryBudget({ windowTokens, maxContextTokens: undefined, maxOutputTokens: undefined, systemTokens: 1500 });
+
+  test("gpt-4.1-mini keeps a 33-row chat whole, which the estimated floor trims", () => {
+    const resolved = synthesizeCapability("generation", detectModelFamily("gpt-4.1-mini"), {
+      curated: curatedRows({ model: "gpt-4.1-mini", providerId: castId<ProviderId>("openai"), wire: "openai-compat", api: "chat-completions" }),
+    }).capability;
+    if (resolved.kind !== "generation") {
+      throw new Error("expected a generation capability");
+    }
+    expect(resolved.generation.context).toEqual({ window: 1_047_576 });
+
+    const kept = fitHistoryToWindow(chat, budget(resolved.generation.context.window));
+    expect(kept.droppedCount).toBe(0);
+    expect(kept.history).toEqual(chat);
+
+    // PLANTED CONTROL: the chat is long enough that the floor this model used to resolve to drops most of it.
+    expect(fitHistoryToWindow(chat, budget(GENERATION_FLOOR.context.window)).droppedCount).toBeGreaterThan(20);
   });
 });
