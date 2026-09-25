@@ -163,6 +163,13 @@ async function renameIsFree(ctx: SessionsContext, existing: ProvisionCandidate, 
   return false;
 }
 
+// The operator's next step for each lost-race match. Only an exact handle match is this identity's account.
+const LOST_RACE_ADVICE: Readonly<Record<"exact" | "key-only" | "none", string>> = {
+  exact: "the winner holds this exact handle; an admin links it via admin.linkSsoIdentity",
+  "key-only": "the winner holds a look-alike of this handle (one handle key, D256), a different account; do not link it",
+  none: "the owner singleton or another unique column absorbed it",
+};
+
 /**
  * THE INSERT LOST A RACE and no row carries this identity — REACHABLE, and the comment that used to sit
  * here calling it "Unreachable" was the defect (#1478): it threw a raw Error, i.e. a 500 on the login path.
@@ -174,16 +181,24 @@ async function renameIsFree(ctx: SessionsContext, existing: ProvisionCandidate, 
  * REFUSED, never resolved by ADOPTION. Returning the winner's row would be exactly the auto-link-by-handle
  * account takeover the MS-W1 `handle-collision` refusal hard-denies on the sequential path (MS-W1) — this is the same
  * collision arriving through the race window, so it gets the same operator-actionable `account-exists`
- * deny: an admin links the row to this stable subject via `admin.linkSsoIdentity` (B5). No row is created
- * or updated. The extra read is diagnosis only (`handleTaken` separates a handle collision from the owner
- * singleton for the operator); it decides nothing.
+ * deny. No row is created or updated. The extra reads are diagnosis only and decide nothing: `match` separates
+ * an EXACT handle collision (the same account under a new subject, which an admin may link via
+ * `admin.linkSsoIdentity`, B5) from a KEY-ONLY one (D256: a different account that merely looks alike, which
+ * must never be linked) and from the owner singleton.
  */
+async function lostRaceMatch(ctx: SessionsContext, handle: Handle): Promise<keyof typeof LOST_RACE_ADVICE> {
+  if ((await selectForProvisionByHandle(ctx.db, handle)) !== undefined) {
+    return "exact";
+  }
+  return (await selectIdByHandleKey(ctx.db, handle)) === undefined ? "none" : "key-only";
+}
+
 async function refuseLostInsertRace(ctx: SessionsContext, identity: ResolvedIdentity): Promise<ProvisionResult> {
-  const handleTaken = (await selectIdByHandleKey(ctx.db, identity.handle)) !== undefined;
+  const match = await lostRaceMatch(ctx, identity.handle);
   securityEvent(
     "sso_insert_lost_race",
-    { handle: identity.handle, externalId: identity.externalId, handleTaken },
-    "security: SSO first-login INSERT was absorbed by a concurrent writer that does NOT carry this stable subject (handle collision, or the owner singleton) — refusing the login rather than adopting the winning row; an admin links it via admin.linkSsoIdentity",
+    { handle: identity.handle, externalId: identity.externalId, match },
+    `security: SSO first-login INSERT was absorbed by a concurrent writer that does NOT carry this stable subject — refusing the login rather than adopting the winning row; ${LOST_RACE_ADVICE[match]}`,
   );
   return { outcome: "denied", reason: "account-exists" };
 }

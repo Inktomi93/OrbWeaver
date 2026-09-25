@@ -950,9 +950,35 @@ describe("sessions.provisionIdentity — the first-login INSERT race (#1478)", (
     expect(rows).toHaveLength(1);
     expect(rows[0]?.externalId).toBe("authentik|someone-else");
     // …and the refusal rides the security trail, naming the collision rather than a stack trace.
-    const line = warn.mock.calls.map(([bindings]) => bindings as Record<string, unknown>).find((b) => b["event"] === "sso_insert_lost_race");
+    const call = warn.mock.calls.find(([bindings]) => (bindings as Record<string, unknown>)["event"] === "sso_insert_lost_race");
+    const line = call?.[0] as Record<string, unknown> | undefined;
     expect(line?.["security"]).toBe(true);
-    expect(line?.["handleTaken"]).toBe(true);
+    // An exact handle match is an account an admin may link to this subject, so the line says how.
+    expect(line?.["match"]).toBe("exact");
+    expect(String(call?.[1])).toContain("admin.linkSsoIdentity");
+  });
+
+  test("a concurrent writer taking only the handle's KEY ⇒ denied; the line says key-only and never advises a link", async () => {
+    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    const held = await freshHeldDb();
+    const service = makeService(held.db).svc;
+    const warn = vi.spyOn(logger, "warn");
+    const parked = held.hold(/insert into "users"/i);
+
+    const pending = service.provisionIdentity(identity());
+    await parked.reached;
+    await held.db.run(
+      sql.raw(`insert into users (id, handle, handle_key, external_id, role, enabled, created_at, updated_at)
+               values ('user_lookalike', 'ALICE', '${handleKey("alice")}', 'authentik|someone-else', 'user', 1, 1, 1)`),
+    );
+    parked.release();
+
+    expect(await pending).toEqual({ outcome: "denied", reason: "account-exists" });
+    // A key-only match is a DIFFERENT account that merely looks alike: linking it to this subject would hand
+    // the look-alike's row to the wrong person, so the operator line must not suggest it.
+    const call = warn.mock.calls.find(([bindings]) => (bindings as Record<string, unknown>)["event"] === "sso_insert_lost_race");
+    expect((call?.[0] as Record<string, unknown> | undefined)?.["match"]).toBe("key-only");
+    expect(String(call?.[1])).not.toContain("linkSsoIdentity");
   });
 
   test("the SAME-subject race still resolves onto the winner's row (the shape the insert absorbs by design)", async () => {
