@@ -110,6 +110,13 @@ export interface FullPriorityChild {
   readonly wait: () => Promise<ChildExit>;
 }
 
+/** What a foreground launcher does with a stop signal it receives. `noteStop` runs on every platform; `kill` runs only
+ *  where the launcher must deliver the signal itself (`forwardSignalsTo` in ./proc.ts). */
+export interface StopSignalTarget {
+  readonly noteStop: (signal: NodeJS.Signals) => void;
+  readonly kill: (signal: NodeJS.Signals) => void;
+}
+
 export interface NicedChildOptions {
   readonly cwd?: string;
   readonly env?: NodeJS.ProcessEnv;

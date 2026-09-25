@@ -27,7 +27,12 @@ interface Harness {
   readonly notices: string[];
 }
 
-function harness(script: readonly Scripted[], launch: () => ProdSpawnPlan, prepare: () => number | null = () => null): Harness {
+function harness(
+  script: readonly Scripted[],
+  launch: () => ProdSpawnPlan,
+  prepare: () => number | null = () => null,
+  platform: NodeJS.Platform = "linux",
+): Harness {
   const plans: ProdSpawnPlan[] = [];
   const killed: NodeJS.Signals[][] = [];
   const handlers = new Map<NodeJS.Signals, (() => void)[]>();
@@ -61,6 +66,7 @@ function harness(script: readonly Scripted[], launch: () => ProdSpawnPlan, prepa
       handlers.set(signal, [...(handlers.get(signal) ?? []), handler]);
     },
     notice: (message) => notices.push(message),
+    platform,
   };
   return { deps, plans, killed, handlers, prepared, notices };
 }
@@ -147,4 +153,28 @@ test("one handler per signal across two respawns, and it reaches the current chi
     expect(handlersFor(signal), signal).toHaveLength(1);
   }
   expect(run.killed).toEqual([[], [], ["SIGINT"]]);
+});
+
+// On Windows the console delivers the Ctrl-C to the server itself, and a forwarded kill would be TerminateProcess
+// (tooling/src/_shared/proc.ts forwardSignalsTo). The supervisor still records the stop, so a restart code the
+// server exits with after it is never respawned.
+test("on win32 a Ctrl-C sends the child nothing and still stops the loop", async () => {
+  const run = harness(
+    [
+      {
+        code: RESTART_EXIT_CODE,
+        during: () => {
+          for (const handler of run.handlers.get("SIGINT") ?? []) {
+            handler();
+          }
+        },
+      },
+    ],
+    fileLaunch({ text: "" }),
+    () => null,
+    "win32",
+  );
+  expect(await superviseStart(run.deps)).toBe(RESTART_EXIT_CODE);
+  expect(run.plans).toHaveLength(1);
+  expect(run.killed).toEqual([[]]);
 });

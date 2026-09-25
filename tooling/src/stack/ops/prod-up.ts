@@ -16,13 +16,14 @@ import { EXIT } from "../../_shared/exit-contract.ts";
 import { warn } from "../../_shared/log.ts";
 import { spawnFullPriorityChild } from "../../_shared/proc.ts";
 import { procStartTicks } from "../../_shared/proc-stat.ts";
+import { SERVER_ENTRY_REL } from "../../_shared/server-entry.ts";
 import type { ProdRecord, StackInvocation } from "../contract/types.ts";
 import { debugConflictMessage, resolveDebugArming } from "../lib/debug-env.ts";
 import { classifyInstance, decideUp } from "../lib/identity.ts";
 import { mayRemovePidfile, serializeProdRecord } from "../lib/prod-record.ts";
 import type { SpawnLockOpts } from "../lib/spawn-lock.ts";
 import { acquireSpawnLock, releaseSpawnLock } from "../lib/spawn-lock.ts";
-import { buildProdSpawnPlan, SERVER_ENTRY_REL } from "../lib/spawn-plan.ts";
+import { buildProdSpawnPlan } from "../lib/spawn-plan.ts";
 import { spawnerForPort } from "../lib/spawners.ts";
 import { doDown } from "./prod-down.ts";
 import {

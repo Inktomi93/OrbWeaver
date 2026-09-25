@@ -1,6 +1,7 @@
 // `pnpm start`'s supervisor loop: the once-per-invocation pass, then spawn, wait and respawn while the server exits
 // with `RESTART_EXIT_CODE`. Each spawn's plan is rebuilt from `.env`, because a restart exists to apply a changed file.
-// Signal handlers are registered once for the whole loop and reach whichever child is current.
+// Signal handlers are registered once for the whole loop and reach whichever child is current; on win32 the console
+// reaches the child itself, so the handler only records the stop.
 import { isRestartExit } from "@orb/kit/supervisor";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { childExitCode, forwardSignalsTo } from "../../_shared/proc.ts";
@@ -17,12 +18,15 @@ export async function superviseStart(deps: StartSupervisorDeps): Promise<number>
   const state: { child: SupervisedChild | null; signal: NodeJS.Signals | null } = { child: null, signal: null };
   forwardSignalsTo(
     {
-      kill: (signal): void => {
+      noteStop: (signal): void => {
         state.signal ??= signal;
+      },
+      kill: (signal): void => {
         state.child?.kill(signal);
       },
     },
     deps.register,
+    deps.platform,
   );
   for (;;) {
     const child = deps.spawn(deps.launch());
