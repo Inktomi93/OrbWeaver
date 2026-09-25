@@ -14,7 +14,7 @@ In oidc mode, bind the seeded owner row (external_id null) to an SSO subject onl
 
 ## Why
 
-Boot seeds the owner row with the handle from OWNER_HANDLES (default "owner") and no subject. Today the first SSO login whose IdP handle matches binds as owner (provision-identity.ts, the unbound-row bind path). On an IdP with open registration, a stranger can register that handle before the owner first signs in and take the box. Local mode closes the same window with the loopback-only one-shot first-run claim. Found by the 0173 pre-build security review. Owner priority: low, because it needs an open-registration IdP and a fresh box. The fix changes the owner-ruled precedence from 2026-08-08 and 2026-08-09, so it needs an ADR first.
+Boot seeds the owner row with the handle from OWNER_HANDLES (default "owner") and no subject. Today the first SSO login whose IdP handle matches binds as owner (provision-identity.ts, the unbound-row bind path). On an IdP with open registration, a stranger can register that handle before the owner first signs in and take the box. Local mode closes the same window with the loopback-only one-shot first-run claim. Found by the 0173 pre-build security review. Owner priority: low, because it needs an open-registration IdP and a fresh box. The fix changes the owner-ruled login precedence in provision-identity.ts, so it needs an ADR first.
 
 ## Done when
 
