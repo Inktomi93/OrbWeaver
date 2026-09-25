@@ -32,9 +32,14 @@ export type SignupPersonaStatementOp = (args: { readonly ownerId: UserId; readon
   readonly statement: AwaitableBatchStmt<{ id: PersonaId }[]>;
 };
 
-/** Point the new account's current and default persona at the one its signup created, after the batch commits,
- *  so the first-run persona ask stands down and the account's later rooms seat it as that persona too. */
-export type AdoptJoinerPersonaOp = (userId: UserId, personaId: PersonaId) => Promise<void>;
+/** The settings-owned first settings row of the new account, aiming its current and default persona at the one the
+ *  batch created, so the first-run persona ask stands down and later rooms seat it as that persona too. It writes
+ *  only where the statement before it changed a row. */
+export type SignupPersonaPointersStatementOp = (args: {
+  readonly ownerId: UserId;
+  readonly personaId: PersonaId;
+  readonly at: number;
+}) => AwaitableBatchStmt<{ userId: UserId }[]>;
 
 /** Does the invite's minter still hold the authority to mint a signup invite: enabled, and a global admin? */
 export type SignupMinterCheckOp = (minterUserId: UserId) => Promise<boolean>;
@@ -43,7 +48,7 @@ export type SignupMinterCheckOp = (minterUserId: UserId) => Promise<boolean>;
 export interface SignupInviteDeps {
   readonly signupUserStatement: SignupUserStatementOp;
   readonly signupPersonaStatement: SignupPersonaStatementOp;
-  readonly adoptJoinerPersona: AdoptJoinerPersonaOp;
+  readonly signupPersonaPointersStatement: SignupPersonaPointersStatementOp;
   readonly minterMayMintSignup: SignupMinterCheckOp;
   /** The `changes()`-guarded audit insert (`buildAuditStatementIfPrecedingWrote`). */
   readonly auditStatementAfterWrite: (entry: AuditEntry, at: number) => BatchStmt;
@@ -69,7 +74,8 @@ export interface SignupInviteOps {
   /** The invite id when the raw token names a signup invite that still admits one account under this mode and
    *  whose minter still holds the authority; else null. Reads only. */
   readonly admits: (token: string) => Promise<ChatInviteId | null>;
-  /** The one gated batch: account, use, the joiner's persona, the seat as that persona, audit row, or none of them. */
+  /** The one gated batch: account, use, the joiner's persona, its pointers, the seat as that persona, audit row, or
+   *  none of them. */
   readonly redeem: (args: {
     readonly token: string;
     readonly handle: Handle;
@@ -82,8 +88,8 @@ export interface SignupInviteOps {
   readonly admitsHash: (tokenHash: string) => Promise<boolean>;
   /** The preview of a signup invite that still admits, or null. The signed-out pending join reads this. */
   readonly previewHash: (tokenHash: string) => Promise<InvitePreview | null>;
-  /** D254 — the OIDC confirm's batch: take the pending row, the gated account, the use, the joiner's persona, the
-   *  seat as that persona, the audit row, or none of them. */
+  /** D259 — the OIDC confirm's batch: take the pending row, the gated account, the use, the joiner's persona, its
+   *  pointers, the seat as that persona, the audit row, or none of them. */
   readonly redeemPending: (args: {
     readonly tokenHash: string;
     readonly userId: UserId;

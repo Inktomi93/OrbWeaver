@@ -66,6 +66,7 @@ export function createSignupInvite(
     }
     const { leading, account, userId } = attempt.build(signupAccountAdmission({ tokenHash, now: at, mode }));
     const persona = deps.signupPersonaStatement({ ownerId: userId, persona: attempt.persona, at });
+    const pointers = deps.signupPersonaPointersStatement({ ownerId: userId, personaId: persona.personaId, at });
     const audit = deps.auditStatementAfterWrite(
       {
         actorUserId: userId,
@@ -83,6 +84,7 @@ export function createSignupInvite(
         account,
         persona: persona.statement,
         personaId: persona.personaId,
+        pointers,
         audit,
         inviteId: invite.id,
         tokenHash,
@@ -98,11 +100,7 @@ export function createSignupInvite(
       }
       throw err;
     }
-    const outcome = await settle(settled, { attempt, userId, chatId: invite.chatId });
-    if (outcome.outcome === "joined") {
-      await deps.adoptJoinerPersona(userId, persona.personaId);
-    }
-    return outcome;
+    return settle(settled, { attempt, userId, chatId: invite.chatId });
   }
 
   // Every RETURNING non-empty is the one success. All empty means the chain gated off at or before the account
@@ -112,7 +110,7 @@ export function createSignupInvite(
     settled: Awaited<ReturnType<typeof redeemSignupAtomic>>,
     joined: { readonly attempt: ChainAttempt; readonly userId: UserId; readonly chatId: ChatId },
   ): Promise<SignupRedeemOutcome> {
-    const counts = [settled.accounts, settled.claims, settled.personas, settled.seats];
+    const counts = [settled.accounts, settled.claims, settled.personas, settled.pointers, settled.seats];
     if (counts.every((count) => count === 1)) {
       return { outcome: "joined", userId: joined.userId, chatId: joined.chatId };
     }
@@ -121,7 +119,7 @@ export function createSignupInvite(
       return refused((await standing(attempt.tokenHash, attempt.at)) === null ? "invite" : attempt.refusedWhileAdmitting);
     }
     throw new Error(
-      `signup batch wrote a partial chain (accounts=${settled.accounts}, claims=${settled.claims}, personas=${settled.personas}, seats=${settled.seats})`,
+      `signup batch wrote a partial chain (accounts=${settled.accounts}, claims=${settled.claims}, personas=${settled.personas}, pointers=${settled.pointers}, seats=${settled.seats})`,
     );
   }
 

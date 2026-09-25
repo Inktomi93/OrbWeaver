@@ -30,7 +30,6 @@ import type { AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
 import { createCopyHandoffCards } from "#domain/character";
 import type {
-  AdoptJoinerPersonaOp,
   ChatContext,
   ChatService,
   ChatServiceDeps,
@@ -244,20 +243,6 @@ export function createSignupMinterCheck(
   };
 }
 
-/** D254 — after a signup batch commits, point the new account's current and default persona at the persona the
- *  batch created. The account has no other persona, so both pointers are null and nothing is overwritten. */
-export function createAdoptJoinerPersona(
-  settings: Pick<SettingsService, "updateUserSettingsSection">,
-  resolvePrincipal: (userId: UserId) => Promise<Principal>,
-): AdoptJoinerPersonaOp {
-  return async (userId, personaId) => {
-    await settings.updateUserSettingsSection({
-      principal: await resolvePrincipal(userId),
-      input: { section: "seeds", patch: { currentPersonaId: personaId, defaultPersonaId: personaId } },
-    });
-  };
-}
-
 /** What `buildChatService` needs from the composition root — boot primitives + the already-built sibling
  *  services chat's injected ops route through (their front doors only). */
 export interface ChatComposeInput {
@@ -302,9 +287,9 @@ export interface ChatComposeInput {
   readonly resolveHandle: (handle: Handle) => Promise<UserId | null>;
   /** D254 — the live `AUTH_MODE`: it picks whether invites may create accounts and stamps every invite. */
   readonly authMode: AuthMode;
-  /** D254 — the foreign halves of the signup batch, all built at the root: the sessions account statement, the
-   *  persona statement, the post-commit persona pointer write, and the minter's standing check. */
-  readonly signup: Pick<SignupInviteDeps, "signupUserStatement" | "signupPersonaStatement" | "adoptJoinerPersona" | "minterMayMintSignup">;
+  /** D259 — the foreign halves of the signup batch, all built at the root: the sessions account statement, the
+   *  persona statement, the settings pointer statement, and the minter's standing check. */
+  readonly signup: Pick<SignupInviteDeps, "signupUserStatement" | "signupPersonaStatement" | "signupPersonaPointersStatement" | "minterMayMintSignup">;
 
   readonly search: SearchService;
   readonly embeddings: EmbeddingsService;

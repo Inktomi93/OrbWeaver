@@ -81,7 +81,7 @@ import { createExportRpgGame, createRpgTraceRecorder } from "#domain/rpg";
 import type { SessionsService } from "#domain/sessions";
 import { createSessionsService } from "#domain/sessions";
 import type { DefaultBackgroundSeeder, SettingsContext, SettingsServiceDeps } from "#domain/settings";
-import { createSettingsContext, createSettingsService } from "#domain/settings";
+import { createJoinerSettingsStatement, createSettingsContext, createSettingsService } from "#domain/settings";
 import type { RelayController } from "#domain/share";
 import { createShareService } from "#domain/share";
 import type { TagContext } from "#domain/tag";
@@ -128,7 +128,7 @@ import { buildAdmin } from "./admin.ts";
 import { buildAssetsCharacter } from "./assets-character.ts";
 import { buildAutomationPlugin } from "./automation-plugin.ts";
 import type { ChatComposeInput, ChatComposeResult } from "./chat.ts";
-import { buildChatService, createAdoptJoinerPersona, createSignupMinterCheck } from "./chat.ts";
+import { buildChatService, createSignupMinterCheck } from "./chat.ts";
 import { buildDatabank } from "./databank.ts";
 import { createDemoChatGameDoor } from "./demo-chat-game.ts";
 import type { EffectiveConfigWiring } from "./effective-config.ts";
@@ -907,7 +907,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     signup: {
       signupUserStatement: sessions.signupUserStatement,
       signupPersonaStatement: joinerPersonaStatement,
-      adoptJoinerPersona: createAdoptJoinerPersona(settings, resolveHostPrincipal),
+      signupPersonaPointersStatement: createJoinerSettingsStatement({ db }),
       minterMayMintSignup: createSignupMinterCheck(sessions, resolveHostPrincipal),
     },
     runChatTurn: executor.runChatTurn,

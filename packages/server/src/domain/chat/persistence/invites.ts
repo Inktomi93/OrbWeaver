@@ -241,12 +241,14 @@ export async function redeemSignupAtomic(
     /** The joiner's persona insert (persona-owned), gated on the claim; the seat after it is gated on it. */
     readonly persona: AwaitableBatchStmt<{ id: PersonaId }[]>;
     readonly personaId: PersonaId;
+    /** The new account's settings row naming that persona (settings-owned), gated on the persona insert. */
+    readonly pointers: AwaitableBatchStmt<{ userId: UserId }[]>;
     readonly audit: BatchStmt;
     readonly inviteId: ChatInviteId;
     readonly userId: UserId;
     readonly participantId: ChatParticipantId;
   },
-): Promise<{ readonly accounts: number; readonly claims: number; readonly personas: number; readonly seats: number }> {
+): Promise<{ readonly accounts: number; readonly claims: number; readonly personas: number; readonly pointers: number; readonly seats: number }> {
   const claim = db
     .update(chatInvites)
     .set({
@@ -255,7 +257,8 @@ export async function redeemSignupAtomic(
     })
     .where(sql`${signupInviteAdmits(params)} and changes() > 0`)
     .returning({ id: chatInvites.id });
-  // The seat's `changes() > 0` reads the persona insert, so the joiner is seated only as the persona they named.
+  // The seat's `changes() > 0` reads the pointer write, which reads the persona insert, so the joiner is seated only
+  // as the persona they named, and that persona is already the one they speak as.
   const seat = insertMemberAfterInviteClaimStatement(db, {
     participantId: params.participantId,
     inviteId: params.inviteId,
@@ -263,9 +266,15 @@ export async function redeemSignupAtomic(
     activePersonaId: params.personaId,
     now: params.now,
   });
-  const results = await db.batch(batchMany([...params.leading, params.account, claim, params.persona, seat, params.audit]));
-  const [accounts, claims, personas, seats] = results.slice(params.leading.length) as readonly (readonly unknown[])[];
-  return { accounts: accounts?.length ?? 0, claims: claims?.length ?? 0, personas: personas?.length ?? 0, seats: seats?.length ?? 0 };
+  const results = await db.batch(batchMany([...params.leading, params.account, claim, params.persona, params.pointers, seat, params.audit]));
+  const [accounts, claims, personas, pointers, seats] = results.slice(params.leading.length) as readonly (readonly unknown[])[];
+  return {
+    accounts: accounts?.length ?? 0,
+    claims: claims?.length ?? 0,
+    personas: personas?.length ?? 0,
+    pointers: pointers?.length ?? 0,
+    seats: seats?.length ?? 0,
+  };
 }
 
 /** Host-revoke a still-pending invite (atomic). Returns true iff it flipped. */

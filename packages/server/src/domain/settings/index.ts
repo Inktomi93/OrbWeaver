@@ -2,6 +2,7 @@
 // and every settings zod schema/parser live in @orb/contracts/settings — callers import those directly.
 
 export { createSettingsContext } from "./context.ts";
+export type { JoinerSettingsStatementOp } from "./contract/ops.ts";
 export type {
   CreateThemeParams,
   DuplicateThemeParams,
@@ -36,3 +37,4 @@ export { createExportTheme } from "./verbs/export-theme.ts";
 export { createExportUserSettings } from "./verbs/export-user-settings.ts";
 export { createImportTheme } from "./verbs/import-theme.ts";
 export { createImportUserSettings } from "./verbs/import-user-settings.ts";
+export { createJoinerSettingsStatement } from "./verbs/joiner-settings-statement.ts";

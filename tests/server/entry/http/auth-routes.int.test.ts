@@ -6,7 +6,7 @@
 import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
 import { JOINER_PERSONA_DESCRIPTION_MAX } from "@orb/contracts/persona";
 import type { Db } from "@orb/db";
-import { auditLogs, chatInvites, chatParticipants, rateLimitBuckets, users } from "@orb/db";
+import { auditLogs, chatInvites, chatParticipants, rateLimitBuckets, userSettings, users } from "@orb/db";
 import type { ChatId, ChatInviteId, ChatParticipantId, Handle, PersonaId, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RevokedSessionsSummary } from "@orb/server/domain/sessions";
@@ -21,6 +21,7 @@ import { afterEach, describe, vi } from "vitest";
 import { createSignupInvite } from "../../../../packages/server/src/domain/chat/verbs/signup-invite.ts";
 import { createJoinerPersonaStatement } from "../../../../packages/server/src/domain/persona/verbs/joiner-persona-statement.ts";
 import { createSessionsService } from "../../../../packages/server/src/domain/sessions/service.ts";
+import { createJoinerSettingsStatement } from "../../../../packages/server/src/domain/settings/verbs/joiner-settings-statement.ts";
 import { createHostPrincipalResolver } from "../../../../packages/server/src/entry/auth/seam.ts";
 import { createSignupMinterCheck } from "../../../../packages/server/src/entry/compose/chat.ts";
 import { env } from "../../../../packages/server/src/foundation/env/index.ts";
@@ -797,7 +798,6 @@ describe("local signup route (D254)", () => {
     await seedUser(db, { handle: castId<Handle>("someone-else") });
     const sessionsSvc = createSessionsService({ db, now: () => NOW, sessionSecret: "s".repeat(32), seedUserConnections: () => Promise.resolve() });
     const announced: ChatId[] = [];
-    const adopted: { readonly userId: UserId; readonly personaId: PersonaId }[] = [];
     const invites = createSignupInvite(
       {
         db,
@@ -809,10 +809,7 @@ describe("local signup route (D254)", () => {
       {
         signupUserStatement: sessionsSvc.signupUserStatement,
         signupPersonaStatement: createJoinerPersonaStatement({ db, newPersonaId: () => castId<PersonaId>("persona_signup_route") }),
-        adoptJoinerPersona: (userId, personaId) => {
-          adopted.push({ userId, personaId });
-          return Promise.resolve();
-        },
+        signupPersonaPointersStatement: createJoinerSettingsStatement({ db }),
         minterMayMintSignup: createSignupMinterCheck(sessionsSvc, createHostPrincipalResolver(sessionsSvc)),
         auditStatementAfterWrite: (entry, at) => buildAuditStatementIfPrecedingWrote(db, entry, at),
         // The local route never previews; any reach fails loudly.
@@ -859,7 +856,11 @@ describe("local signup route (D254)", () => {
     expect(seats).toHaveLength(1);
     // The seat is the persona the body named, and the new account's pointers were aimed at it.
     expect(seats[0]?.activePersonaId).toBe("persona_signup_route");
-    expect(adopted).toEqual([{ userId: newUserId, personaId: "persona_signup_route" }]);
+    const [settingsRow] = await db
+      .select({ config: userSettings.config })
+      .from(userSettings)
+      .where(eq(userSettings.userId, castId<UserId>(newUserId ?? "")));
+    expect(settingsRow?.config.seeds).toMatchObject({ currentPersonaId: "persona_signup_route", defaultPersonaId: "persona_signup_route" });
     expect(await db.select().from(auditLogs).where(eq(auditLogs.action, "invites.signup"))).toHaveLength(1);
     expect(spies.seeded).toEqual([newUserId]);
     expect(announced).toEqual([room.id]);

@@ -3,10 +3,10 @@
 // so a demoted or disabled minter is proven against the rows, not a stub.
 
 import type { Db } from "@orb/db";
-import { auditLogs, chatInvites, chatParticipants, personas, users } from "@orb/db";
+import { auditLogs, chatInvites, chatParticipants, personas, userSettings, users } from "@orb/db";
 import type { ChatId, ChatInviteId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import type { SignupInviteCapability } from "../../../../../packages/server/src/domain/chat/contract/signup.ts";
 import { countPresentMembers, findInviteByTokenHash } from "../../../../../packages/server/src/domain/chat/persistence/invites.ts";
@@ -14,6 +14,7 @@ import { createInvitePreview } from "../../../../../packages/server/src/domain/c
 import { createSignupInvite } from "../../../../../packages/server/src/domain/chat/verbs/signup-invite.ts";
 import { createJoinerPersonaStatement } from "../../../../../packages/server/src/domain/persona/verbs/joiner-persona-statement.ts";
 import { createSessionsService } from "../../../../../packages/server/src/domain/sessions/service.ts";
+import { createJoinerSettingsStatement } from "../../../../../packages/server/src/domain/settings/verbs/joiner-settings-statement.ts";
 import { createHostPrincipalResolver } from "../../../../../packages/server/src/entry/auth/seam.ts";
 import { createSignupMinterCheck } from "../../../../../packages/server/src/entry/compose/chat.ts";
 import { buildAuditStatementIfPrecedingWrote } from "../../../../../packages/server/src/foundation/observability/audit.ts";
@@ -29,12 +30,12 @@ let db: Db;
 let chatId: ChatId;
 let minter: UserId;
 let announced: ChatId[];
-let adopted: { readonly userId: UserId; readonly personaId: PersonaId }[];
+let personasMinted: number;
 
 beforeEach(async () => {
   db = await freshDb();
   announced = [];
-  adopted = [];
+  personasMinted = 0;
   minter = await seedUser(db, castId<Handle>("minter"));
   await db.update(users).set({ role: "admin" }).where(eq(users.id, minter));
   chatId = await seedChat(db, "signup-room");
@@ -52,15 +53,12 @@ beforeEach(async () => {
   });
 });
 
-function ops(capability: SignupInviteCapability = LOCAL): ReturnType<typeof createSignupInvite> {
+function ops(capability: SignupInviteCapability = LOCAL, failPointers = false): ReturnType<typeof createSignupInvite> {
   const sessions = createSessionsService({ db, now: () => FROZEN_AT, sessionSecret: "s".repeat(32), seedUserConnections: () => Promise.resolve() });
   return createSignupInvite(makeChatContext(db, { signupInvites: capability }), {
     signupUserStatement: sessions.signupUserStatement,
-    signupPersonaStatement: createJoinerPersonaStatement({ db, newPersonaId: () => castId<PersonaId>(`persona_joiner_${adopted.length}`) }),
-    adoptJoinerPersona: (userId, personaId) => {
-      adopted.push({ userId, personaId });
-      return Promise.resolve();
-    },
+    signupPersonaStatement: createJoinerPersonaStatement({ db, newPersonaId: () => castId<PersonaId>(`persona_joiner_${personasMinted++}`) }),
+    signupPersonaPointersStatement: failPointers ? failingPointers : createJoinerSettingsStatement({ db }),
     minterMayMintSignup: createSignupMinterCheck(sessions, createHostPrincipalResolver(sessions)),
     auditStatementAfterWrite: (entry, at) => buildAuditStatementIfPrecedingWrote(db, entry, at),
     assemblePreview: createInvitePreview({ db }, { loadParticipantViews: makeLoadParticipantViews(db) }),
@@ -72,6 +70,16 @@ function ops(capability: SignupInviteCapability = LOCAL): ReturnType<typeof crea
 }
 
 const PERSONA = { name: "Mira", description: "A cartographer." } as const;
+
+// A pointer write that fails inside the batch: its row names no user, so the foreign key refuses it.
+function failingPointers(): ReturnType<ReturnType<typeof createJoinerSettingsStatement>> {
+  return db.insert(userSettings).select(sql`select 'user_absent', 1, '{}', 0 where changes() > 0`).returning({ userId: userSettings.userId });
+}
+
+async function seedsOf(userId: UserId): Promise<unknown> {
+  const [row] = await db.select({ config: userSettings.config }).from(userSettings).where(eq(userSettings.userId, userId));
+  return row?.config.seeds;
+}
 
 async function signupAuditRows(): Promise<number> {
   return (await db.select().from(auditLogs).where(eq(auditLogs.action, "invites.signup"))).length;
@@ -167,8 +175,18 @@ describe("signup-invite ops — the joiner's persona", () => {
     const owned = await db.select().from(personas).where(eq(personas.ownerId, outcome.userId));
     expect(owned).toHaveLength(1);
     expect(owned[0]).toMatchObject({ id: seat?.activePersonaId, name: PERSONA.name, description: PERSONA.description });
-    // After the commit, the new account's pointers are aimed at that persona, so it is the one it speaks as.
-    expect(adopted).toEqual([{ userId: outcome.userId, personaId: seat?.activePersonaId }]);
+    // The same batch aims the new account's pointers at that persona, so it is the one it speaks as.
+    expect(await seedsOf(outcome.userId)).toMatchObject({ currentPersonaId: seat?.activePersonaId, defaultPersonaId: seat?.activePersonaId });
+  });
+
+  test("a failed pointer write leaves no account, persona, seat or spent use behind", async () => {
+    const usersBefore = (await db.select().from(users)).length;
+    const seatsBefore = (await db.select().from(chatParticipants)).length;
+    await expect(ops(LOCAL, true).redeem({ token: TOKEN, handle: castId<Handle>("friend"), passwordHash: "scrypt$fake", persona: PERSONA })).rejects.toThrow();
+    expect((await db.select().from(users)).length).toBe(usersBefore);
+    expect(await db.select().from(personas).where(eq(personas.name, PERSONA.name))).toEqual([]);
+    expect((await findInviteByTokenHash(db, `h:${TOKEN}`))?.uses).toBe(0);
+    expect((await db.select().from(chatParticipants)).length).toBe(seatsBefore);
   });
 
   test("a refused sign-up creates no persona", async () => {
@@ -178,6 +196,6 @@ describe("signup-invite ops — the joiner's persona", () => {
       outcome: "refused",
     });
     expect((await db.select().from(personas)).length).toBe(before);
-    expect(adopted).toEqual([]);
+    expect(await db.select().from(userSettings)).toEqual([]);
   });
 });

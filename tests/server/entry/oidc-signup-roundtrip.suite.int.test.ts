@@ -19,6 +19,7 @@ import { afterEach, describe, vi } from "vitest";
 import { createSignupInvite } from "../../../packages/server/src/domain/chat/verbs/signup-invite.ts";
 import { createJoinerPersonaStatement } from "../../../packages/server/src/domain/persona/verbs/joiner-persona-statement.ts";
 import { createOidcStore } from "../../../packages/server/src/domain/sessions/persistence/oidc-store.ts";
+import { createJoinerSettingsStatement } from "../../../packages/server/src/domain/settings/verbs/joiner-settings-statement.ts";
 import { createHostPrincipalResolver } from "../../../packages/server/src/entry/auth/seam.ts";
 import { createSignupMinterCheck } from "../../../packages/server/src/entry/compose/chat.ts";
 import { buildAuditStatementIfPrecedingWrote } from "../../../packages/server/src/foundation/observability/audit.ts";
@@ -92,7 +93,7 @@ async function flow(opts: { readonly requireApproval?: boolean; readonly maxUses
     {
       signupUserStatement: sessions.signupUserStatement,
       signupPersonaStatement: createJoinerPersonaStatement({ db, newPersonaId: () => mintTypeId(ID_PREFIX.persona) }),
-      adoptJoinerPersona: () => Promise.resolve(),
+      signupPersonaPointersStatement: createJoinerSettingsStatement({ db }),
       minterMayMintSignup: createSignupMinterCheck(sessions, createHostPrincipalResolver(sessions)),
       auditStatementAfterWrite: (entry, at) => buildAuditStatementIfPrecedingWrote(db, entry, at),
       assemblePreview: (chatId) => Promise.resolve({ chatId, roomName: "The room", hostHandle: castId<Handle>("host"), memberCount: 1, modeLabel: "turns" }),

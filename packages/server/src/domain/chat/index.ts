@@ -89,11 +89,11 @@ export type {
 } from "./contract/results.ts";
 export type { ChatService } from "./contract/service.ts";
 export type {
-  AdoptJoinerPersonaOp,
   SignupInviteCapability,
   SignupInviteDeps,
   SignupInviteOps,
   SignupMinterCheckOp,
+  SignupPersonaPointersStatementOp,
   SignupRedeemOutcome,
   SignupUserStatementOp,
 } from "./contract/signup.ts";
