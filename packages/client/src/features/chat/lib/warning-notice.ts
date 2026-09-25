@@ -227,6 +227,8 @@ function samplingDropDescription(knob: AdjustedKnob | undefined): string {
       // Two causes, one honest sentence: the model refuses replayed thinking, or thinking was off this turn.
       // Naming which would take a second structured field on the warning; "it wasn't used" is true of both.
       return "This reply didn't get the model's earlier thinking back — either the model won't take it, or thinking was off.";
+    case "parallelToolCalls":
+      return "This connection's runtime has no parallel tool call setting, so it decided on its own how to call tools.";
     case "temperature":
     case "topP":
     case "topK":
@@ -260,6 +262,7 @@ const KNOB_LABELS: Record<AdjustedKnob, string> = {
   frequencyPenalty: "Frequency penalty",
   logitBias: "Logit bias",
   minP: "Min-P",
+  parallelToolCalls: "Parallel tool calls",
   presencePenalty: "Presence penalty",
   quality: "Quality",
   repetitionPenalty: "Repetition penalty",

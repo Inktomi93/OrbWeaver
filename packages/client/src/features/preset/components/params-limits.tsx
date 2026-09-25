@@ -269,7 +269,10 @@ function AdvancedCluster({ form }: { readonly form: AppForm }): ReactElement {
             <SettingTrackRow>
               <form.Subscribe selector={(state): boolean => state.values.params.advanced?.parallelToolCalls === true}>
                 {(parallel): ReactElement => (
-                  <Field hint="Let the model emit several tool calls in one turn." label="Parallel tool calls">
+                  <Field
+                    hint="Let the model emit several tool calls in one turn. Claude subscription connections have no such setting, and each reply that carries tools says so."
+                    label="Parallel tool calls"
+                  >
                     <Switch checked={parallel} onCheckedChange={(on): void => form.setFieldValue("params.advanced.parallelToolCalls", on ? true : undefined)} />
                   </Field>
                 )}

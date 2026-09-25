@@ -148,13 +148,14 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
   }
   const generation = connection.capability.generation;
   const gen = toSdkGeneration(req.params, generation);
+  const warnings = [...gen.warnings, ...parallelToolWarnings(req)];
   log.capability({
     turnId: gen.turnId,
     api: req.api,
     providerId: connection.providerId,
     requestedModel: connection.model,
     turns: { ...generation.turns },
-    droppedWarnings: gen.warnings.map((w) => ({ code: w.code, message: w.message })),
+    droppedWarnings: warnings.map((w) => ({ code: w.code, message: w.message })),
   });
   const { systemPrompt, dynamicHook } = systemChannels(req);
   const { resume, disposition, savedTotals } = await resolveResume(req, sessions);
@@ -211,7 +212,24 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
     },
     log,
   );
-  return appendWarnings(result, gen.warnings, deps.now(), req.onEvent);
+  return appendWarnings(result, warnings, deps.now(), req.onEvent);
+}
+
+/** The Claude runtime takes no parallel-tool control (its query options have none), so a preset's
+ *  `advanced.parallelToolCalls` cannot reach this wire. Announced only on a turn that carries tools: without
+ *  tools the setting governs nothing on any wire. */
+function parallelToolWarnings(req: AgentSdkChatRequest): ResolvedWarning[] {
+  const carriesTools = req.toolServer !== undefined || (req.terminalTools?.length ?? 0) > 0;
+  if (!carriesTools || req.params.advanced?.parallelToolCalls === undefined) {
+    return [];
+  }
+  return [
+    {
+      code: "sampling_knob_dropped",
+      knob: "parallelToolCalls",
+      message: "parallelToolCalls ignored: the bundled Claude runtime exposes no parallel tool control on the agent-sdk wire",
+    },
+  ];
 }
 
 // Capture the SDK QUERY INPUT — the literal Anthropic body is built INSIDE the bundled subprocess. `hookContext`
