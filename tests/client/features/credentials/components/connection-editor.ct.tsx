@@ -29,6 +29,13 @@ import { ConnectionEditorNarrowStory, ConnectionEditorStory } from "../_ct-stori
 
 const CONNECTION_ID = "user_connection_cteditor0001";
 
+// The two settings-body widths, each story named ONCE: playwright-ct binds every array-element story reference
+// to its own const, so a second table naming the same story fails the bundle at eval (Spine-Testing.md §7).
+const WIDTH_ARMS = [
+  ["870", ConnectionEditorStory],
+  ["486", ConnectionEditorNarrowStory],
+] as const;
+
 /** The shipped vLLM provider row, verbatim from `contracts/inference/builtin-providers.ts` — the block the
  *  mock draws. Re-typed rather than imported because this spec runs NODE-side and the contracts barrel pulls
  *  zod through a chain the CT transform does not need; the values are pinned by the copy assertions below. */
@@ -139,10 +146,7 @@ function tier(page: Page, name: string): Locator {
 // §5.3a: "a user who has touched nothing sees FOUR fields — provider, the key-or-URL, model, and the
 // auto-minted `label` — and a 'how it's used' line". FOUR, not three: the same tier mandates `label` one
 // paragraph down, and the render is what falsified the sentence (the mock design §6-2).
-for (const [arm, Story] of [
-  ["870", ConnectionEditorStory],
-  ["486", ConnectionEditorNarrowStory],
-] as const) {
+for (const [arm, Story] of WIDTH_ARMS) {
   test(`${arm}: the untouched editor is four fields and one verdict line, with the two heavy tiers collapsed`, async ({ mount, page }) => {
     await stubEditor(page);
     const component = await mount(<Story />);
@@ -489,10 +493,7 @@ test("no Prompt caching tier on a connection whose capability places no explicit
   await expect(cacheTier(page)).toHaveCount(0);
 });
 
-for (const [arm, Story] of [
-  ["870", ConnectionEditorStory],
-  ["486", ConnectionEditorNarrowStory],
-] as const) {
+for (const [arm, Story] of WIDTH_ARMS) {
   test(`${arm}: an explicit-cache connection gets the tier, COLLAPSED, so the untouched editor keeps its four fields`, async ({ mount, page }) => {
     await stubEditor(page, { capabilities: EXPLICIT_CACHE_CAPABILITIES });
     await mount(<Story />);
