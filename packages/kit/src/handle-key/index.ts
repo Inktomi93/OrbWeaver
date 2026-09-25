@@ -6,9 +6,12 @@ import { castId } from "#ids";
 import { CASE_FOLDING, CONFUSABLE_PROTOTYPES, DEFAULT_IGNORABLE, SCRIPT_CODES } from "./unicode-data.ts";
 
 const HEX_RADIX = 16;
-const VISIBLE = /\S/u;
-// Controls and line or paragraph separators: invisible, or they break the line a handle is shown on.
-const LAYOUT_CONTROL = /[\p{Cc}\p{Zl}\p{Zp}]/u;
+// Controls, format characters, line and paragraph separators, and every space but U+0020: each is invisible,
+// breaks the line a handle is shown on, or displays as a blank a reader cannot tell from a plain space.
+const UNSEEN_OR_BREAKING = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}[\p{Zs}--\x20]]/v;
+// A code point outside White_Space and the Braille blank, which renders as nothing though it is a symbol.
+const VISIBLE = /[^\s\u2800]/u;
+const SPACE = " ";
 
 /** The longest handle any writer accepts, in code points. The key normalizes, and NFKC/NFD over a long run of
  *  combining marks is quadratic, so every boundary refuses a longer handle before a key is computed. */
@@ -153,8 +156,9 @@ function scriptsOf(char: string): ReadonlySet<string> {
 
 /**
  * Whether a handle may be written at all (D257), checked by every handle writer before its key: it is within
- * {@link HANDLE_MAX_CODE_POINTS}, it holds no default-ignorable code point, control, or line or paragraph
- * separator, its key is not blank, and its NFKC form meets the UTS 39 highly restrictive profile, one script,
+ * {@link HANDLE_MAX_CODE_POINTS}; it holds no default-ignorable code point, control, format character, line or
+ * paragraph separator, or space other than U+0020; it neither starts nor ends with a space; it holds a code
+ * point outside White_Space and U+2800; and its NFKC form meets the UTS 39 highly restrictive profile, one script,
  * or Latin with Japanese, Korean or Chinese writing; Common and Inherited characters (digits, punctuation,
  * marks) fit any script, and an unassigned code point never fits. A mixed-script handle can spell a
  * look-alike the confusable data does not map.
@@ -164,13 +168,13 @@ export function admitsHandle(text: string): boolean {
     return false;
   }
   // The key drops a default-ignorable, so a bidi override reorders what a reader sees while the key keeps the
-  // logical order: `nimda` behind a right-to-left override displays as `admin` and keys apart from it.
+  // logical order: `nimda` behind a right-to-left override displays as `admin` and keys apart from it. An edge
+  // space displays as nothing, so `admin ` would sit beside `admin` under another key.
   const data = loaded();
-  if (LAYOUT_CONTROL.test(text) || [...text].some((char) => isDefaultIgnorable(char, data))) {
+  if (UNSEEN_OR_BREAKING.test(text) || [...text].some((char) => isDefaultIgnorable(char, data))) {
     return false;
   }
-  // A key with nothing visible (only default-ignorables or blanks) names a handle no one can read or tell apart.
-  if (!VISIBLE.test(handleKey(text))) {
+  if (text.startsWith(SPACE) || text.endsWith(SPACE) || !VISIBLE.test(text)) {
     return false;
   }
   const scripted = [...text.normalize("NFKC")].map(scriptsOf).filter((scripts) => ![...scripts].every((code) => ANY_SCRIPT.has(code)));

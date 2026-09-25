@@ -18,7 +18,15 @@ const CHAR = {
   lineSeparator: String.fromCodePoint(0x20_28),
   paragraphSeparator: String.fromCodePoint(0x20_29),
   zwj: String.fromCodePoint(0x20_0d),
+  ideographicSpace: String.fromCodePoint(0x30_00),
+  noBreakSpace: String.fromCodePoint(0xa0),
+  interlinearAnchor: String.fromCodePoint(0xff_f9),
+  arabicEndOfAyah: String.fromCodePoint(0x06_dd),
+  brailleBlank: String.fromCodePoint(0x28_00),
 } as const;
+
+// Every space separator but U+0020 displays as a blank a reader cannot tell from a plain space or from nothing.
+const NON_ASCII_SPACES = [0xa0, 0x16_80, ...Array.from({ length: 11 }, (_, i) => 0x20_00 + i), 0x20_2f, 0x20_5f, 0x30_00].map((cp) => String.fromCodePoint(cp));
 
 describe("handleKey", () => {
   test.each([
@@ -92,6 +100,14 @@ describe("handleKey", () => {
     ["a line separator", `ad${CHAR.lineSeparator}min`],
     ["a paragraph separator", `ad${CHAR.paragraphSeparator}min`],
     ["a zero-width joiner inside Latin", `ad${CHAR.zwj}min`],
+    ["a trailing space", "admin "],
+    ["a leading space", " admin"],
+    ["a trailing ideographic space", `admin${CHAR.ideographicSpace}`],
+    ["an inner no-break space", `ad${CHAR.noBreakSpace}min`],
+    ["an interlinear annotation anchor (format, not default-ignorable)", `ad${CHAR.interlinearAnchor}min`],
+    ["an end-of-ayah sign inside an Arabic handle (format, not default-ignorable)", `مد${CHAR.arabicEndOfAyah}ير`],
+    ["only a Braille blank", CHAR.brailleBlank],
+    ["only spaces", "   "],
   ])("admitsHandle refuses %s: %s", (_, handle) => {
     expect(admitsHandle(handle)).toBe(false);
   });
@@ -105,8 +121,14 @@ describe("handleKey", () => {
     ["Latin with digits and punctuation", "user_01.dev"],
     ["an emoji", "😀"],
     ["Latin with an emoji", "cat😀"],
+    ["one inner space", "ad min"],
+    ["an Arabic handle", "مدير"],
   ])("control: admitsHandle allows %s: %s", (_, handle) => {
     expect(admitsHandle(handle)).toBe(true);
+  });
+
+  test("every space separator but U+0020 is refused inside a handle", () => {
+    expect(NON_ASCII_SPACES.filter((space) => admitsHandle(`ad${space}min`)).map((space) => space.codePointAt(0)?.toString(16))).toEqual([]);
   });
 
   // Stored keys mix the vendored tables with the engine's NFKC/NFD and case mapping, so an engine on another
