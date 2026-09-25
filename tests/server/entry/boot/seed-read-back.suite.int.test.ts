@@ -60,7 +60,7 @@ import { userSettingsSchema } from "@orb/contracts/settings";
 import { tagFolderTypeSchema, tagSourceSchema } from "@orb/contracts/tag";
 import { themeBackgroundSchema, themeOverrideSchema, themeSchema } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
-import type { Handle } from "@orb/kit/ids";
+import type { CharacterHandle, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import {
   seedDefaultBackgrounds,
@@ -788,7 +788,7 @@ test("every seeded row reads back through its read procedure, faithful to its cu
     ...library.items.map((item) => item.id),
     ...identities.flatMap((identity) => (identity.kind === "character" ? [identity.id] : [])),
   ]);
-  const characterRows = await db.all<{ id: string; handle: string; synthetic: number }>(sql`select id, handle, synthetic from characters`);
+  const characterRows = await db.all<{ id: string; handle: CharacterHandle; synthetic: number }>(sql`select id, handle, synthetic from characters`);
   expect(
     characterRows.filter((row) => !readCharacters.has(row.id)),
     "a seeded character no read path returns (neither the library nor a chat identity)",

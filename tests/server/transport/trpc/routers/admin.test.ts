@@ -1,11 +1,12 @@
 // admin.restart at the router: the explicit confirm is the input, so a call without it never reaches the verb, and
 // layer 1 refuses a plain user before it. The verb's own gates (owner, supervisor, single flight) are its unit test.
 
+import type { UserRole } from "@orb/contracts/identity";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 
-function harness(role: "owner" | "admin" | "user"): {
+function harness(role: UserRole): {
   readonly admin: ReturnType<typeof caller>["admin"];
   readonly restart: ReturnType<typeof vi.fn>;
 } {

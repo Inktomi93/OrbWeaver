@@ -33,7 +33,7 @@ const EPHEMERAL = "ephemeral";
 // cached turn, no signal anywhere; `scripts/probes/openrouter/RESULTS.md`). The settings column is typed, not
 // re-parsed on read, so this guard is what stands between a stored bad value and a silent 10x bill.
 
-export interface AnthropicCacheDirective {
+interface AnthropicCacheDirective {
   readonly type: typeof EPHEMERAL;
   /** Absent = the provider default (5m). Only a PROMPT_CACHE_TTLS member ever reaches the wire. */
   readonly ttl?: (typeof PROMPT_CACHE_TTLS)[number] | undefined;
