@@ -11,17 +11,16 @@
 // re-pointed: their subject does not exist. What survives is the claim this module was written for — ONE
 // module-private `useIsBoxOwner()` predicate, per-KEY rather than per-section.
 
-import type { AuthMode } from "@orb/contracts/identity";
-import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
+import type { ShareStatus } from "@orb/contracts/identity";
 import { copyActionName } from "@orb/ui/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { AuthConfig } from "../../../../../packages/client/src/data/auth-config.ts";
 import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { GovernanceSectionsStory } from "../_ct-stories.tsx";
 import type { EffectiveAppSettings } from "../app-settings-fixtures.ts";
 import { appSettingsView, effectiveAppSettings } from "../app-settings-fixtures.ts";
+import { stubAuthConfig } from "../auth-config-fixtures.ts";
 
 const UPDATE_PROC = "settings.updateAppSettings";
 
@@ -29,6 +28,8 @@ type AppSettingsOverrides = TrpcWireOutput<"settings.getAppSettingsWithOverrides
 
 const OWNER = { userId: "user_owner", handle: "owner", globalRole: "owner" } satisfies TrpcWireOutput<"sessions.me">;
 const DELEGATED_ADMIN = { userId: "user_admin", handle: "admin", globalRole: "admin" } satisfies TrpcWireOutput<"sessions.me">;
+
+const SHARE_OFF: ShareStatus = { relay: { state: "off" }, liveSocketCount: 0 };
 
 const RESOLVED: Partial<EffectiveAppSettings> = {
   localMultiUser: false,
@@ -46,6 +47,9 @@ function stub(
     "settings.getAppSettingsWithOverrides": () => appSettingsView(resolved, overrides),
     "sessions.me": () => viewer,
     [UPDATE_PROC]: () => effectiveAppSettings(RESOLVED),
+    // The owner's Share card beside the posture panel reads these; its own CT drives them.
+    "share.status": () => SHARE_OFF,
+    "admin.listUsers": () => [],
   });
 }
 
@@ -141,32 +145,6 @@ test("Multi-user's Reset clears only the keys the viewer may clear — delegated
 
 // The read-only sharing panel beside the seating switch: letting other devices sign in is an env change
 // (AUTH_MODE), never a runtime switch, so the panel states the box's posture and how to change it.
-function authConfigFor(mode: AuthMode): AuthConfig {
-  return {
-    mode,
-    requiresLogin: mode === "local" || mode === "oidc",
-    localEnabled: mode === "local",
-    oidcEnabled: mode === "oidc",
-    oidcProviderName: "Test IdP",
-    localFirstRun: false,
-    discreetLogin: false,
-    defaultHandle: "owner",
-    multiHumanCapable: mode !== "single-user",
-    forbidExternalMedia: true,
-    trustHtml: false,
-    allowInteractiveCards: false,
-    uploads: DEFAULT_UPLOAD_CAPS,
-    transport: "http",
-    clientScope: "private",
-    share: { state: "off", url: null },
-  };
-}
-
-async function stubAuthConfig(page: Page, mode: AuthMode): Promise<void> {
-  const body = JSON.stringify(authConfigFor(mode));
-  await page.route("**/api/auth/config", (route) => route.fulfill({ status: 200, contentType: "application/json", body }));
-}
-
 test("single-user: the sharing panel gives the setup command that lets other devices sign in", async ({ mount, page }) => {
   await stub(page, OWNER);
   await stubAuthConfig(page, "single-user");
