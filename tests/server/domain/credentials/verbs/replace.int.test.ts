@@ -24,6 +24,21 @@ describe("replace", () => {
     expect(await db.select().from(userCredentials)).toHaveLength(1);
   });
 
+  // The metadata's `auth` arm decides the secret kind; a replace that dropped it would turn a subscription
+  // token into an API key.
+  test("the row's metadata survives a replace: an oauthToken still resolves as oauthToken", async () => {
+    const db = await freshDb();
+    const svc = createCredentialsService(makeHarness(db).ctx);
+    const owner = await seedUser(db, { id: "user_o", role: "user" });
+    const token = await svc.add({ principal: principal(owner), provider: "claude-sub", key: "sk-ant-oat01-old", metadata: { auth: "oauthToken" } });
+    await svc.replace({ principal: principal(owner), credentialId: token.id, key: "sk-ant-oat01-new" });
+
+    expect(await svc.resolve({ ownerId: owner, credentialId: token.id, providerId: castId<ProviderId>("claude-sub") })).toMatchObject({
+      kind: "oauthToken",
+      secret: "sk-ant-oat01-new",
+    });
+  });
+
   test("a fresh key clears a revocation", async () => {
     const db = await freshDb();
     const { svc, owner, cred } = await seedCredential(db, makeHarness(db));
