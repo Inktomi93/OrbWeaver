@@ -139,6 +139,10 @@ test("relayStatusSchema accepts each state's own shape and nothing more", () => 
   expect(relayStatusSchema.parse({ state: "off" })).toEqual({ state: "off" });
   expect(relayStatusSchema.parse({ state: "up", relay: "quick", url: TUNNEL_URL })).toEqual({ state: "up", relay: "quick", url: TUNNEL_URL });
   expect(relayStatusSchema.parse({ state: "down", relay: "quick", reason: "exited", restarting: false })).toMatchObject({ restarting: false });
+  // A restart carries the death it restarts after; an owner's own start carries null, and the field is never absent.
+  expect(relayStatusSchema.parse({ state: "starting", relay: "quick", restartAfter: "exited" })).toMatchObject({ restartAfter: "exited" });
+  expect(relayStatusSchema.parse({ state: "starting", relay: "quick", restartAfter: null })).toMatchObject({ restartAfter: null });
+  expect(relayStatusSchema.safeParse({ state: "starting", relay: "quick" }).success).toBe(false);
   // A plain-http link, an up state without its URL, and an extra field are all refused.
   expect(relayStatusSchema.safeParse({ state: "up", relay: "quick", url: "http://calm-river.trycloudflare.com" }).success).toBe(false);
   expect(relayStatusSchema.safeParse({ state: "up", relay: "quick" }).success).toBe(false);
@@ -151,9 +155,11 @@ test("every SHARE_STATES member has exactly one relay status shape", () => {
 });
 
 test("shareStatusSchema is strict, so a status carrying anything else fails the router's output parser", () => {
-  expect(shareStatusSchema.parse({ relay: { state: "off" }, liveSocketCount: 2 })).toEqual({ relay: { state: "off" }, liveSocketCount: 2 });
-  expect(shareStatusSchema.safeParse({ relay: { state: "off" }, liveSocketCount: 2, owner: "owner" }).success).toBe(false);
-  expect(shareStatusSchema.safeParse({ relay: { state: "off" }, liveSocketCount: -1 }).success).toBe(false);
+  const status = { relay: { state: "off" }, liveSocketCount: 2, publicAddresses: ["https://orb.example.com"] };
+  expect(shareStatusSchema.parse(status)).toEqual(status);
+  expect(shareStatusSchema.safeParse({ ...status, owner: "owner" }).success).toBe(false);
+  expect(shareStatusSchema.safeParse({ ...status, liveSocketCount: -1 }).success).toBe(false);
+  expect(shareStatusSchema.safeParse({ relay: { state: "off" }, liveSocketCount: 2 }).success).toBe(false);
 });
 
 test("authConfigShareSchema carries only the state and a nullable link", () => {

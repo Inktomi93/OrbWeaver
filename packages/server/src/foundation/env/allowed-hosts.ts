@@ -1,8 +1,18 @@
-// The Host allowlist's configured names: `ALLOWED_HOSTS`, the `OIDC_REDIRECT_URIS` hosts and the machine's own name.
-// Pure (raw values injected). The grammar is `@orb/kit/allowed-hosts`, shared with the setup wizard; `foundation/env`
-// refuses a malformed entry at parse, and `infra/auth/host-allowlist.ts` matches the result.
+// The Host allowlist's configured names (`ALLOWED_HOSTS`, the `OIDC_REDIRECT_URIS` hosts, the machine's own name) and
+// the public addresses the Share card names from the same values. Pure (raw values injected); the grammar is
+// `@orb/kit/allowed-hosts`. `foundation/env` refuses a malformed entry at parse; `infra/auth/host-allowlist.ts` matches.
 
-import { ALLOWED_HOSTS_KEY, isHostname, isTopLevelSuffix, machineHostNames, parseAllowedHosts, withoutTrailingDot } from "@orb/kit/allowed-hosts";
+import type { AuthMode } from "@orb/contracts/identity";
+import {
+  ALLOWED_HOST_SUFFIX_MARK,
+  ALLOWED_HOSTS_KEY,
+  isHostname,
+  isPublicHostName,
+  isTopLevelSuffix,
+  machineHostNames,
+  parseAllowedHosts,
+  withoutTrailingDot,
+} from "@orb/kit/allowed-hosts";
 
 /** The raw env values the resolver reads, passed in so this file never touches `process.env`. */
 export interface AllowedHostsInput {
@@ -43,6 +53,24 @@ export function resolveAllowedHosts(input: AllowedHostsInput): readonly string[]
     .filter((host) => host !== null);
   const machine = input.machineHostname === null ? [] : machineHostNames(input.machineHostname);
   return [...new Set([...parseAllowedHosts(input.allowedHosts).hosts, ...derived, ...machine])];
+}
+
+/** The addresses a stranger already reaches this server at, for the Share card to send friends to instead of a relay:
+ *  under oidc the origin of each callback URL (the identity provider returns people only there), under local each exact
+ *  `ALLOWED_HOSTS` name that is public ({@link isPublicHostName}). Empty for the other modes. */
+export function publicAddresses(mode: AuthMode, input: AllowedHostsInput): readonly string[] {
+  if (mode === "oidc") {
+    const origins = (input.oidcRedirectUris ?? "")
+      .split(URI_SEPARATOR)
+      .map((uri) => uri.trim())
+      .filter((uri) => URL.canParse(uri))
+      .map((uri) => new URL(uri).origin);
+    return [...new Set(origins)];
+  }
+  if (mode === "local") {
+    return parseAllowedHosts(input.allowedHosts).hosts.filter((entry) => !entry.startsWith(ALLOWED_HOST_SUFFIX_MARK) && isPublicHostName(entry));
+  }
+  return [];
 }
 
 /** The parse refusal for one malformed entry, naming it and the grammar. */

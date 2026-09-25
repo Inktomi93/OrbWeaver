@@ -91,7 +91,7 @@ import { createToolUseTeachingContributions } from "#domain/tool-use";
 import type { WorkloadContributions } from "#domain/workloads";
 import { createAttachOwnedBooksByName, createImportStandaloneLorebook } from "#domain/world-info";
 import { APP_NAME, APP_URL } from "#foundation/config";
-import { bindPostureInput, env, processEnvSnapshot } from "#foundation/env";
+import { allowedHostsInput, bindPostureInput, env, processEnvSnapshot, publicAddresses } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
 import {
   addSpanEvent,
@@ -1249,6 +1249,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       inContainer: bindPostureInput().inContainer,
       ownerNeedsPassword: () => sessions.ownerNeedsPassword(),
       localSetupUrl: deps.share.localSetupUrl,
+      publicAddresses: publicAddresses(env.AUTH_MODE, allowedHostsInput()),
       liveSocketCount: (userId) => sockets.liveSocketCount(userId),
       audit,
       now,

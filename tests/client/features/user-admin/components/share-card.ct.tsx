@@ -20,13 +20,13 @@ const DELEGATED_ADMIN = { userId: "user_admin", handle: "admin", globalRole: "ad
 const FIRST_URL = "https://first-words-here.trycloudflare.com";
 const SECOND_URL = "https://other-words-now.trycloudflare.com";
 
-const OFF: ShareStatus = { relay: { state: "off" }, liveSocketCount: 0 };
-const STARTING: ShareStatus = { relay: { state: "starting", relay: "quick", restartAfter: null }, liveSocketCount: 0 };
-const UP_FIRST: ShareStatus = { relay: { state: "up", relay: "quick", url: FIRST_URL }, liveSocketCount: 3 };
-const UP_SECOND: ShareStatus = { relay: { state: "up", relay: "quick", url: SECOND_URL }, liveSocketCount: 1 };
-const DOWN_RESTARTING: ShareStatus = { relay: { state: "down", relay: "quick", reason: "exited", restarting: true }, liveSocketCount: 0 };
-const RESTART_STARTING: ShareStatus = { relay: { state: "starting", relay: "quick", restartAfter: "exited" }, liveSocketCount: 0 };
-const GAVE_UP: ShareStatus = { relay: { state: "down", relay: "quick", reason: "launch_failed", restarting: false }, liveSocketCount: 0 };
+const OFF: ShareStatus = { relay: { state: "off" }, liveSocketCount: 0, publicAddresses: [] };
+const STARTING: ShareStatus = { relay: { state: "starting", relay: "quick", restartAfter: null }, liveSocketCount: 0, publicAddresses: [] };
+const UP_FIRST: ShareStatus = { relay: { state: "up", relay: "quick", url: FIRST_URL }, liveSocketCount: 3, publicAddresses: [] };
+const UP_SECOND: ShareStatus = { relay: { state: "up", relay: "quick", url: SECOND_URL }, liveSocketCount: 1, publicAddresses: [] };
+const DOWN_RESTARTING: ShareStatus = { relay: { state: "down", relay: "quick", reason: "exited", restarting: true }, liveSocketCount: 0, publicAddresses: [] };
+const RESTART_STARTING: ShareStatus = { relay: { state: "starting", relay: "quick", restartAfter: "exited" }, liveSocketCount: 0, publicAddresses: [] };
+const GAVE_UP: ShareStatus = { relay: { state: "down", relay: "quick", reason: "launch_failed", restarting: false }, liveSocketCount: 0, publicAddresses: [] };
 
 const SEATING_ON: Partial<EffectiveAppSettings> = { localMultiUser: true, discreetLogin: true };
 const SEATING_OFF: Partial<EffectiveAppSettings> = { localMultiUser: false, discreetLogin: false };
@@ -286,6 +286,39 @@ test("Invite someone to a room opens the picked room from the room menu", async 
     .toBe(ROOM_ID);
 });
 
+test("under oidc the card offers no relay and names the address friends already reach", async ({ mount, page }) => {
+  const address = "https://orb.example.com";
+  const { trpc } = await stubShare(page, { mode: "oidc", initial: { ...OFF, publicAddresses: [address] } });
+  await mount(<GovernanceSectionsStory />);
+
+  const card = shareCard(page);
+  await expect(card.locator('[data-share-public="oidc"]')).toBeVisible();
+  await expect(card.locator(`[data-public-address="${address}"]`)).toBeVisible();
+  await expect(card.getByRole("button", { name: copyActionName(`the address ${address}`), exact: true })).toBeVisible();
+  await expect(card.getByRole("button", { name: "Start sharing" })).toHaveCount(0);
+  await expect(card.getByRole("list", { name: "Before you share" })).toHaveCount(0);
+  await expect.poll(() => trpc.count("share.status")).toBeGreaterThan(0);
+  await expect.poll(() => trpc.count("share.start")).toBe(0);
+});
+
+test("under local, a public name in ALLOWED_HOSTS is named beside the rows", async ({ mount, page }) => {
+  await stubShare(page, { mode: "local", initial: { ...OFF, publicAddresses: ["orb.example.com"] } });
+  await mount(<GovernanceSectionsStory />);
+
+  const card = shareCard(page);
+  await expect(card.locator('[data-share-public="local"]')).toBeVisible();
+  await expect(card.getByRole("button", { name: "Start sharing" })).toBeVisible();
+});
+
+test("control: under local with no public name there is no hint", async ({ mount, page }) => {
+  await stubShare(page, { mode: "local", initial: OFF });
+  await mount(<GovernanceSectionsStory />);
+
+  const card = shareCard(page);
+  await expect(card.getByRole("button", { name: "Start sharing" })).toBeVisible();
+  await expect(card.locator("[data-share-public]")).toHaveCount(0);
+});
+
 test("sign everyone out revokes every account but the owner's", async ({ mount, page }) => {
   const { trpc } = await stubShare(page, {
     mode: "local",
@@ -318,7 +351,7 @@ test.describe("at the narrowest content width", () => {
   const LongUrl = "https://recommendations-bedroom-shareholders-adjustments.trycloudflare.com";
 
   test("the running card stays inside its own width, and its link wraps only after a dot, slash or hyphen", async ({ mount, page }) => {
-    await stubShare(page, { mode: "local", initial: { relay: { state: "up", relay: "quick", url: LongUrl }, liveSocketCount: 1 } });
+    await stubShare(page, { mode: "local", initial: { relay: { state: "up", relay: "quick", url: LongUrl }, liveSocketCount: 1, publicAddresses: [] } });
     await mount(<GovernanceSectionsStory width={360} />);
 
     const card = shareCard(page);

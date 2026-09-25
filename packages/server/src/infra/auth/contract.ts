@@ -125,6 +125,9 @@ export interface ResolveDeps {
   /** Emits the `owner_fallback_relayed` security line for a refused relayed request. The composition root
    *  injects the per-peer throttled one (`createRelayedFallbackNotice`); absent, every refusal logs. */
   relayedFallbackNotice?: RelayedFallbackNotice;
+  /** The relay registry's names (`createRelayHostRegistry`). The forward-header path refuses every identity on a
+   *  request whose Host is one of them. Absent means no relay runs in this process. */
+  relayHosts?: AllowedHostsReader;
 }
 
 /** Reports one relayed request refused the owner fallback, keyed by its raw TCP peer. */

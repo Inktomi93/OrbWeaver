@@ -8,11 +8,16 @@ import { caller, LIVE_SOCKETS, shareHarness } from "../_support.ts";
 describe("share.status", () => {
   test("the owner reads the relay state and the live socket count", async () => {
     const h = shareHarness({ authMode: "local" });
-    await expect(h.share.status({ principal: caller("owner") })).resolves.toEqual({ relay: { state: "off" }, liveSocketCount: LIVE_SOCKETS });
+    await expect(h.share.status({ principal: caller("owner") })).resolves.toEqual({
+      relay: { state: "off" },
+      liveSocketCount: LIVE_SOCKETS,
+      publicAddresses: [],
+    });
     await h.share.start({ principal: caller("owner") });
     await expect(h.share.status({ principal: caller("owner") })).resolves.toEqual({
       relay: { state: "starting", relay: "quick", restartAfter: null },
       liveSocketCount: LIVE_SOCKETS,
+      publicAddresses: [],
     });
   });
 

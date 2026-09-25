@@ -103,9 +103,19 @@ export type RelayDownReason = (typeof RELAY_DOWN_REASONS)[number];
 
 /** The coded refusals of `share.start` (the wire's `data.reason`), each naming a fix the Share card shows. A relayed
  *  request is never the owner, so single-user answers 401 to every visitor; a same-host relay delivers each visitor
- *  from a loopback peer, so a loopback-trusted forward-header proxy would take a visitor's forged identity header. */
-export const SHARE_REFUSALS = ["share_single_user", "share_forward_header", "share_in_container", "share_owner_unclaimed"] as const;
+ *  from a loopback peer, so a loopback-trusted forward-header proxy would take a visitor's forged identity header; an
+ *  identity provider returns people only to its registered redirect addresses, which a relay's random name never is. */
+export const SHARE_REFUSALS = ["share_single_user", "share_forward_header", "share_oidc", "share_in_container", "share_owner_unclaimed"] as const;
 export type ShareRefusal = (typeof SHARE_REFUSALS)[number];
+
+/** The one home for which sign-in modes can share over a relay: null where a relayed visitor can sign in, else the
+ *  refusal. The server's start, the Share card and the `pnpm start --share` launcher all read it. */
+export const SHARE_MODE_REFUSAL = {
+  "single-user": "share_single_user",
+  "forward-header": "share_forward_header",
+  oidc: "share_oidc",
+  local: null,
+} as const satisfies Record<AuthMode, ShareRefusal | null>;
 
 /** The coded refusals of the relay binary: nothing runs unless the downloaded bytes match the pinned sha256. */
 export const RELAY_BINARY_REFUSALS = ["relay_platform_unsupported", "relay_binary_download_failed", "relay_binary_checksum_mismatch"] as const;
@@ -128,9 +138,14 @@ export const relayStatusSchema = z.discriminatedUnion("state", [
 ]);
 export type RelayStatus = z.infer<typeof relayStatusSchema>;
 
-/** `share.status`: the relay plus the live sockets of every account but the caller's, so the card shows who else is
- *  connected right now. */
-export const shareStatusSchema = z.strictObject({ relay: relayStatusSchema, liveSocketCount: z.number().int().nonnegative() });
+/** `share.status`: the relay, the live sockets of every account but the caller's, and the addresses this server already
+ *  answers at from the internet (under oidc the origins of `OIDC_REDIRECT_URIS`, under local the public names in
+ *  `ALLOWED_HOSTS`), so the card can send friends there instead of through a relay. */
+export const shareStatusSchema = z.strictObject({
+  relay: relayStatusSchema,
+  liveSocketCount: z.number().int().nonnegative(),
+  publicAddresses: z.array(z.string()),
+});
 export type ShareStatus = z.infer<typeof shareStatusSchema>;
 
 /** The share fields on `/api/auth/config`. `url` is the public origin while the relay is up, served to a signed-in

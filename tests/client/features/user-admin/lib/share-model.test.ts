@@ -33,15 +33,10 @@ describe("sharePreconditions", () => {
     expect(canStartSharing(sharePreconditions(READY_LOCAL))).toBe(true);
   });
 
-  test.each(["single-user", "forward-header"] satisfies AuthMode[])("%s holds the mode row and the owner row waits on it", (mode) => {
+  test.each(["single-user", "forward-header", "oidc"] satisfies AuthMode[])("%s holds the mode row and the owner row waits on it", (mode) => {
     const facts = { ...READY_LOCAL, mode };
     expect(verdicts(facts)).toMatchObject({ mode: "unmet", owner: "waiting" });
     expect(canStartSharing(sharePreconditions(facts))).toBe(false);
-  });
-
-  test("oidc needs neither an owner password nor the local seating settings", () => {
-    const facts: ShareFactsView = { mode: "oidc", localMultiUser: false, discreetLogin: false, refusal: null };
-    expect(verdicts(facts)).toStrictEqual({ mode: "met", owner: "met", seating: "met", relay: "unchecked" });
   });
 
   test.each([

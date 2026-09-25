@@ -126,6 +126,8 @@ const HOST_AMBIENT_ROUTES = defineTrpcRoutes({
   "sessions.me": { userId: USER_SETTINGS_VIEW.userId, handle: "ct_settings", globalRole: "user" },
   "settings.getAppSettings": APP_CONFIG,
   "settings.getAppSettingsWithOverrides": { resolved: APP_CONFIG, overrides: {} },
+  // Multi-user's owner-only Share card reads the relay under an owner viewer; fed at rest.
+  "share.status": { relay: { state: "off" }, liveSocketCount: 0, publicAddresses: [] },
   "persona.list": [],
   "credentials.list": [],
   "workloads.list": [],

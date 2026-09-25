@@ -41,6 +41,7 @@ export function shareHarness(options: {
   readonly inContainer?: boolean;
   readonly ownerNeedsPassword?: boolean;
   readonly startError?: Error;
+  readonly publicAddresses?: readonly string[];
 }): ShareHarness {
   const calls: string[] = [];
   const audits: AuditEntry[] = [];
@@ -70,6 +71,7 @@ export function shareHarness(options: {
       return Promise.resolve(ownerNeedsPassword);
     },
     localSetupUrl: () => LOCAL_SETUP_URL,
+    publicAddresses: options.publicAddresses ?? [],
     liveSocketCount,
     audit: (entry): Promise<void> => {
       audits.push(entry);

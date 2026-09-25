@@ -2,7 +2,7 @@
 // memory that notices a relay coming back under a new URL. Pure, so every verdict is unit-proved.
 
 import type { AuthMode, RelayBinaryRefusal, RelayDownReason, RelayStatus, ShareRefusal, ShareState } from "@orb/contracts/identity";
-import { RELAY_BINARY_REFUSALS, SHARE_REFUSALS } from "@orb/contracts/identity";
+import { RELAY_BINARY_REFUSALS, SHARE_MODE_REFUSAL, SHARE_REFUSALS } from "@orb/contracts/identity";
 import { trpcErrorReason } from "#lib";
 
 // The rows the card shows before a share starts, in the order the server checks them.
@@ -46,20 +46,18 @@ export interface PreconditionRow {
   readonly verdict: PreconditionVerdict;
 }
 
-// A relayed visitor is never the owner, so single-user refuses everyone; forward-header would trust the loopback
-// relay to name the user. Mapped over every mode so a new one fails tsc.
-const MODE_VERDICT: Record<AuthMode, "met" | "unmet"> = {
-  "single-user": "unmet",
-  "forward-header": "unmet",
-  local: "met",
-  oidc: "met",
-};
+// The mode row's verdict is the one share rule: a mode the server refuses is unmet. The card never shows the rows
+// under oidc (it names the box's own address instead), so only single-user and forward-header reach `unmet` here.
+function modeVerdict(mode: AuthMode): "met" | "unmet" {
+  return SHARE_MODE_REFUSAL[mode] === null ? "met" : "unmet";
+}
 
 /** The row that shows a refusal's sentence. The two mode refusals repeat what the mode row already knows. */
 export function refusalRow(code: ShareStartRefusal): SharePrecondition {
   switch (code) {
     case "share_single_user":
     case "share_forward_header":
+    case "share_oidc":
       return "mode";
     case "share_owner_unclaimed":
       return "owner";
@@ -76,19 +74,14 @@ export function refusalRow(code: ShareStartRefusal): SharePrecondition {
 }
 
 function ownerVerdict(facts: ShareFactsView): PreconditionVerdict {
-  if (MODE_VERDICT[facts.mode] === "unmet") {
+  if (modeVerdict(facts.mode) === "unmet") {
     return "waiting";
   }
-  // A signed-in owner under `local` signed in with the owner password, so it is claimed unless the server said
-  // otherwise; `oidc` has no owner password at all.
+  // A signed-in owner under `local` signed in with the owner password, so it is claimed unless the server said otherwise.
   return facts.refusal === "share_owner_unclaimed" ? "refused" : "met";
 }
 
 function seatingVerdict(facts: ShareFactsView): PreconditionVerdict {
-  // Under oidc every signed-in person may be seated and the sign-in page is the identity provider's.
-  if (facts.mode === "oidc") {
-    return "met";
-  }
   return facts.localMultiUser && facts.discreetLogin ? "met" : "unmet";
 }
 
@@ -99,7 +92,7 @@ function relayVerdict(facts: ShareFactsView): PreconditionVerdict {
 /** Every precondition row, in the order the server checks them. */
 export function sharePreconditions(facts: ShareFactsView): readonly PreconditionRow[] {
   const verdicts: Record<SharePrecondition, PreconditionVerdict> = {
-    mode: MODE_VERDICT[facts.mode],
+    mode: modeVerdict(facts.mode),
     owner: ownerVerdict(facts),
     seating: seatingVerdict(facts),
     relay: relayVerdict(facts),

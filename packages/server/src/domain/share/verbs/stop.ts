@@ -4,11 +4,11 @@
 import type { ShareParams } from "../contract/params.ts";
 import type { ShareContext, ShareService } from "../contract/service.ts";
 
-export function createStop(ctx: Pick<ShareContext, "requireOwner" | "relay" | "liveSocketsBesides" | "audit" | "now">): ShareService["stop"] {
+export function createStop(ctx: Pick<ShareContext, "requireOwner" | "relay" | "statusFor" | "audit" | "now">): ShareService["stop"] {
   return async ({ principal }: ShareParams) => {
     ctx.requireOwner(principal);
     ctx.relay.stop();
     await ctx.audit({ actorUserId: principal.userId, action: "share.stop", entityType: "server" }, ctx.now());
-    return { relay: ctx.relay.status(), liveSocketCount: ctx.liveSocketsBesides(principal.userId) };
+    return ctx.statusFor(principal, ctx.relay.status());
   };
 }

@@ -80,6 +80,8 @@ the shipped ranges, so the app refuses `ORB_BIND=0.0.0.0` in this shape too.
 `deny` for every login mode. Never `owner` with an SSO mode in production: the app refuses to boot,
 because a same-host proxy would turn every visitor into the owner.
 
+Under `forward-header`, end every tunnel or port-forward at your auth proxy, never at the app port: anything that reaches the app directly from a peer in `FORWARD_AUTH_TRUSTED_PROXIES` can set the identity header and sign in as anyone. For the same reason the Share card and `pnpm start --share` refuse to start a relay in this mode.
+
 ## LAN and HTTPS
 
 The port is published on `127.0.0.1` only. To reach the app from your phone or another computer:

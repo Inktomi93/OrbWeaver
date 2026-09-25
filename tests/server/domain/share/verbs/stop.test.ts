@@ -9,7 +9,11 @@ describe("share.stop", () => {
   test("the owner stops the relay, reads it off, and the stop is audited", async () => {
     const h = shareHarness({ authMode: "local" });
     await h.share.start({ principal: caller("owner") });
-    await expect(h.share.stop({ principal: caller("owner") })).resolves.toEqual({ relay: { state: "off" }, liveSocketCount: LIVE_SOCKETS });
+    await expect(h.share.stop({ principal: caller("owner") })).resolves.toEqual({
+      relay: { state: "off" },
+      liveSocketCount: LIVE_SOCKETS,
+      publicAddresses: [],
+    });
     expect(h.calls.at(-1)).toBe("relay.stop");
     expect(h.audits.at(-1)).toEqual({ actorUserId: caller("owner").userId, action: "share.stop", entityType: "server" });
   });

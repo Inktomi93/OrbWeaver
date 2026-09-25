@@ -200,14 +200,10 @@ function PreconditionDetail({ row, mode, seatingOff, onFixSeating }: Omit<Precon
     case "mode":
       return row.verdict === "met" ? <ShareProse>Visitors sign in through {MODE_NAME[mode]}.</ShareProse> : <ModeFix mode={mode} />;
     case "owner":
-      return <ShareProse>{ownerSentence(row.verdict, mode)}</ShareProse>;
+      return <ShareProse>{ownerSentence(row.verdict)}</ShareProse>;
     case "seating":
       return row.verdict === "met" ? (
-        <ShareProse>
-          {mode === "oidc"
-            ? "Your identity provider signs friends in, and this mode can seat them in rooms."
-            : "Friends can be seated in rooms, and the sign-in page names no account."}
-        </ShareProse>
+        <ShareProse>Friends can be seated in rooms, and the sign-in page names no account.</ShareProse>
       ) : (
         <SeatingFix off={seatingOff} onFix={onFixSeating} />
       );
@@ -220,12 +216,9 @@ function PreconditionDetail({ row, mode, seatingOff, onFixSeating }: Omit<Precon
   }
 }
 
-function ownerSentence(verdict: PreconditionRow["verdict"], mode: AuthMode): string {
-  if (verdict === "waiting") {
-    return "After the switch to the local mode, this browser opens the setup screen, where you set the owner password before anything is shared.";
-  }
-  return mode === "oidc"
-    ? "Your identity provider holds every password, so there is no owner password to set."
+function ownerSentence(verdict: PreconditionRow["verdict"]): string {
+  return verdict === "waiting"
+    ? "After the switch to the local mode, this browser opens the setup screen, where you set the owner password before anything is shared."
     : "You signed in with it, so no stranger can claim this server through the link.";
 }
 

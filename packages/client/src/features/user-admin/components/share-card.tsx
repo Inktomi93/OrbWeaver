@@ -143,26 +143,42 @@ function ShareCardBody({ localMultiUser, discreetLogin, onEnableSeating }: Share
     });
   };
   const view = shareView(status.relay);
+  // An oidc box is public already, and a relay's random name can never sign anyone in through its identity provider:
+  // the card names the box's own address and offers no relay (the server refuses one too).
+  const publicOnly = authConfig?.mode === "oidc" && status.relay.state === "off";
 
   return (
     <Stack gap="field" data-share-state={status.relay.state} data-share-phase={view.phase}>
-      <ShareProse>A public link to this server over a free relay, so friends outside your network can sign in.</ShareProse>
+      <ShareProse>
+        {publicOnly
+          ? "This server already has a public address, where your identity provider signs friends in."
+          : "A public link to this server over a free relay, so friends outside your network can sign in."}
+      </ShareProse>
       <Row gap="field" align="center" role="status" aria-live="polite">
         <Badge intent={PHASE_BADGE[view.phase].intent}>{PHASE_BADGE[view.phase].label}</Badge>
-        <ShareProse>{stateSentence(view)}</ShareProse>
+        <ShareProse>{publicOnly ? "No relay is needed: friends join at this server's own address." : stateSentence(view)}</ShareProse>
       </Row>
-      {status.relay.state === "off" ? (
-        <SharePreconditions
-          mode={authConfig?.mode}
-          failure={failure}
-          localMultiUser={localMultiUser}
-          discreetLogin={discreetLogin}
-          onEnableSeating={onEnableSeating}
-          onStart={startSharing}
-          starting={start.isPending}
-          startRef={startRef}
-        />
-      ) : (
+      {publicOnly ? <PublicAddressPanel addresses={status.publicAddresses} /> : null}
+      {status.relay.state === "off" && !publicOnly ? (
+        <Stack gap="field">
+          {status.publicAddresses.length === 0 ? null : (
+            <ShareProse data-share-public="local">
+              {`This server already answers at ${status.publicAddresses.join(" and ")} (ALLOWED_HOSTS). If that name reaches it from the internet, friends can join there with an invite link and no relay.`}
+            </ShareProse>
+          )}
+          <SharePreconditions
+            mode={authConfig?.mode}
+            failure={failure}
+            localMultiUser={localMultiUser}
+            discreetLogin={discreetLogin}
+            onEnableSeating={onEnableSeating}
+            onStart={startSharing}
+            starting={start.isPending}
+            startRef={startRef}
+          />
+        </Stack>
+      ) : null}
+      {status.relay.state === "off" ? null : (
         <Stack gap="field">
           {view.phase === "up" ? (
             <UpPanel
@@ -202,6 +218,28 @@ function ShareCardBody({ localMultiUser, discreetLogin, onEnableSeating }: Share
         onConfirm={(): Promise<void> => stop.mutateAsync().then(() => undefined)}
         finalFocus={startRef}
       />
+    </Stack>
+  );
+}
+
+function PublicAddressPanel({ addresses }: { readonly addresses: readonly string[] }): ReactElement {
+  return (
+    <Stack gap="field" data-share-public="oidc">
+      <ShareProse>
+        Your identity provider sends people back only to the addresses registered with it, and a relay's random name is never one of them, so this card starts
+        no relay.
+      </ShareProse>
+      {addresses.map((address) => (
+        <CopyButton key={address} text={address} what={`the address ${address}`}>
+          <Text voice="label" className="min-w-0 font-mono break-words" data-public-address={address}>
+            <BreakableUrl url={address} />
+          </Text>
+        </CopyButton>
+      ))}
+      <ShareProse>Friends join there with an invite link. Pick a room to open its invite dialog.</ShareProse>
+      <Row gap="field" align="center">
+        <InviteRoomPicker />
+      </Row>
     </Stack>
   );
 }

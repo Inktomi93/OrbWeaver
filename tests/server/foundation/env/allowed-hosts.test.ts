@@ -1,7 +1,7 @@
 // foundation/env/allowed-hosts — the names the request guard admits: ALLOWED_HOSTS, the OIDC callback hosts and the
 // machine's own name on bare metal. The grammar itself is `@orb/kit/allowed-hosts` (tests/kit/allowed-hosts).
 
-import { machineHostnameFor, resolveAllowedHosts } from "@orb/server/foundation/env";
+import { machineHostnameFor, publicAddresses, resolveAllowedHosts } from "@orb/server/foundation/env";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
@@ -41,5 +41,26 @@ describe("resolveAllowedHosts", () => {
 
   test("a malformed ALLOWED_HOSTS entry is never admitted", () => {
     expect(resolveAllowedHosts({ allowedHosts: "*.example.com,ok.example", oidcRedirectUris: undefined, machineHostname: null })).toEqual(["ok.example"]);
+  });
+});
+
+describe("publicAddresses", () => {
+  const input = {
+    allowedHosts: "orb.example.com,.example.org,nas.local,friends.example.net",
+    oidcRedirectUris: "https://orb.example.com/api/auth/oidc/callback, https://orb.example.com/other,not a url",
+    machineHostname: "box",
+  };
+
+  test("under oidc: each callback URL's origin, once, and nothing unparseable", () => {
+    expect(publicAddresses("oidc", input)).toEqual(["https://orb.example.com"]);
+  });
+
+  test("under local: the exact public names in ALLOWED_HOSTS, never a suffix entry or a private name", () => {
+    expect(publicAddresses("local", input)).toEqual(["orb.example.com", "friends.example.net"]);
+  });
+
+  test("control: the modes a relay serves or refuses name nothing", () => {
+    expect(publicAddresses("single-user", input)).toEqual([]);
+    expect(publicAddresses("forward-header", input)).toEqual([]);
   });
 });

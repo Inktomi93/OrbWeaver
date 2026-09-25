@@ -775,6 +775,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
         // `foundation/env`, beside the boot-fatality that rules the same hazard.
         ownerFallbackIsOperatorCredential: resolveOwnerFallbackCredential(ownerFallbackCredentialInput()),
         relayedFallbackNotice: createRelayedFallbackNotice(now),
+        relayHosts: relayHosts.hosts,
       }),
       services: built.services,
       rateLimit: createRateLimitGate({ db, now, resolveRateLimits: () => built.services.settings.getEffectiveConfig().rateLimits }),
