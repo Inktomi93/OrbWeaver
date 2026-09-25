@@ -113,12 +113,14 @@
 // the absolute silence ceiling · `ORB_VITEST_BIN` the vitest entry (the guard test points it at a fake).
 import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join, resolve as pathResolve, relative } from "node:path";
 import process from "node:process";
 import type { RunAlias } from "@orb/tooling/_shared/artifacts";
 import { openRunSlot, publishRunSlot, reportsPath, runFile } from "@orb/tooling/_shared/artifacts";
 import { LOAD_SUSPECT_META_KEY } from "@orb/tooling/_shared/load-budget";
+import { listProcesses, processDiagnostics, processTreeCpuMs } from "@orb/tooling/_shared/platform";
+import { signalOfExitCode } from "@orb/tooling/_shared/proc-signals";
 import { processEnvValue } from "@orb/tooling/_shared/process-env";
 import { nicedArgv } from "@orb/tooling/_shared/process-priority";
 
@@ -442,62 +444,31 @@ function loadSuspectFromReport(path: string): string[] {
   return out;
 }
 
-function readProc(pid: number, file: string): string {
-  try {
-    return readFileSync(`/proc/${pid}/${file}`, "utf-8").trim();
-  } catch {
-    return "<unreadable>";
-  }
-}
-
-/** Every live descendant pid of `pid`, depth-first, via /proc's per-thread `children` lists. */
+/** Every live descendant pid of `pid`, from one process-table read. */
 function descendants(pid: number): number[] {
+  const children = new Map<number, number[]>();
+  for (const entry of listProcesses()) {
+    if (entry.ppid !== null) {
+      children.set(entry.ppid, [...(children.get(entry.ppid) ?? []), entry.pid]);
+    }
+  }
   const out: number[] = [];
-  let tids: string[] = [];
-  try {
-    tids = readdirSync(`/proc/${pid}/task`);
-  } catch {
-    return out;
-  }
-  for (const tid of tids) {
-    const raw = readProc(pid, `task/${tid}/children`);
-    if (raw === "<unreadable>") {
-      continue;
-    }
-    for (const child of raw.split(/\s+/u).filter(Boolean)) {
-      out.push(Number(child), ...descendants(Number(child)));
+  const queue = [pid];
+  for (let next = queue.shift(); next !== undefined; next = queue.shift()) {
+    for (const child of children.get(next) ?? []) {
+      if (!out.includes(child)) {
+        out.push(child);
+        queue.push(child);
+      }
     }
   }
-  return [...new Set(out)];
+  return out;
 }
 
-/** Total CPU jiffies (utime + stime) burned by `pid` and every descendant. `/proc/<pid>/stat` fields 14/15,
- *  read past the parenthesised comm (which can itself contain spaces). Unreadable/dead pids contribute 0. */
-function treeCpuJiffies(pid: number): number {
-  let total = 0;
-  for (const p of [pid, ...descendants(pid)]) {
-    const stat = readProc(p, "stat");
-    const tail = stat.slice(stat.lastIndexOf(")") + 2).split(" ");
-    // After the comm, field 3 is `state`; utime/stime are the overall fields 14/15 ⇒ indices 11/12 here.
-    total += (Number(tail[11]) || 0) + (Number(tail[12]) || 0);
-  }
-  return total;
-}
-
-/** One pid's forensic block: state, threads, what the kernel is blocked in, argv, and its open fds. */
+/** One pid's forensic block: what the platform can say about it (state, threads, wchan and fds on Linux;
+ *  the command line everywhere). */
 function procBlock(pid: number, label: string): string {
-  const status = readProc(pid, "status")
-    .split("\n")
-    .filter((l) => /^(Name|State|Threads|PPid):/u.test(l))
-    .join(" | ");
-  let fds = "<unreadable>";
-  try {
-    fds = readdirSync(`/proc/${pid}/fd`).join(",");
-  } catch {
-    /* the process may have already gone, or /proc is not Linux-shaped */
-  }
-  const cmd = readProc(pid, "cmdline").replaceAll("\0", " ");
-  return [`${label} pid=${pid}`, `  status : ${status}`, `  wchan  : ${readProc(pid, "wchan")}`, `  cmdline: ${cmd}`, `  fds    : ${fds}`].join("\n");
+  return [`${label} pid=${pid}`, processDiagnostics(pid)].join("\n");
 }
 
 /** The wedge evidence file. Attempt-suffixed so a re-run never overwrites the first wedge's dump. */
@@ -642,12 +613,12 @@ function runOnce({ args, reportFile, label, attempt, previousFiles }: AttemptReq
     };
     const tickMs = Math.max(WATCHDOG_MIN_MS, Math.min(WATCHDOG_MAX_MS, Math.floor(limit / WATCHDOG_DIVISOR)));
     const startedAt = Date.now();
-    let lastCpu = child.pid === undefined ? 0 : treeCpuJiffies(child.pid);
+    let lastCpu = child.pid === undefined ? 0 : processTreeCpuMs(child.pid);
     const watchdog = setInterval(() => {
       // PROGRESS, not silence, is the liveness signal (2026-09-01 capture — see the header). A single long
       // test file emits nothing for its whole duration, so CPU burned anywhere in the process tree counts
       // as activity exactly like output does.
-      const cpu = child.pid === undefined ? lastCpu : treeCpuJiffies(child.pid);
+      const cpu = child.pid === undefined ? lastCpu : processTreeCpuMs(child.pid);
       const burned = cpu - lastCpu;
       lastCpu = cpu;
       const sinceOutput = Date.now() - lastOutput;
@@ -681,14 +652,17 @@ function runOnce({ args, reportFile, label, attempt, previousFiles }: AttemptReq
     // pass — and since #2472 it is not a VERDICT either. A vitest the kernel killed (SIGKILL from an OOM
     // reap, SIGABRT from a heap abort, SIGSEGV) never finalized, which is the owner's exit-2 class in its
     // purest form: "exit 134/137, a heap abort, or a wall-clock kill … means THE RUN IS NOT A VERDICT".
-    child.on("exit", (code, signal) =>
+    // The direct child is niced-exec, which mirrors the real vitest's signal death as 128+N; read the
+    // signal back through the same convention, or a kernel-killed vitest reads as a product red.
+    child.on("exit", (code, signal) => {
+      const died = signal ?? (code === null ? null : signalOfExitCode(code));
       finish({
         wedged: false,
-        code: signal ? 1 : (code ?? 1),
-        nonVerdict: signal ? `the vitest process itself was terminated by ${signal} before it finalized` : nonVerdict,
+        code: died === null ? (code ?? 1) : 1,
+        nonVerdict: died === null ? nonVerdict : `the vitest process itself was terminated by ${died} before it finalized`,
         unreported: unreportedSpecs(args, completed),
-      }),
-    );
+      });
+    });
   });
 }
 

@@ -317,6 +317,27 @@ export function processTreeCpuMs(pid: number, deps: PlatformDeps = {}): number {
   return entries.filter((entry) => tree.has(entry.pid)).reduce((total, entry) => total + (entry.cpuMs ?? 0), 0);
 }
 
+/** The Linux `/proc` forensics a wedge dump wants: the status lines that name the state and thread count,
+ *  the kernel function the process is blocked in, and its open fds. Elsewhere only the command line is
+ *  knowable, and the block says so. */
+export function processDiagnostics(pid: number, deps: PlatformDeps = {}): string {
+  const info = processInfo(pid, deps);
+  const cmdline = info === null ? "<gone>" : info.cmdline;
+  if (supportedPlatform(deps) !== "linux") {
+    return `  cmdline: ${cmdline}`;
+  }
+  const readFile = deps.readFile ?? readFileOrNull;
+  const status = (readFile(`${PROC}/${String(pid)}/status`) ?? "")
+    .split("\n")
+    .filter((line) => STATUS_LINE_RE.test(line))
+    .join(" | ");
+  const wchan = readFile(`${PROC}/${String(pid)}/wchan`) ?? "<unreadable>";
+  const fds = (deps.readDir ?? readDirOrEmpty)(`${PROC}/${String(pid)}/fd`).join(",");
+  return [`  status : ${status}`, `  wchan  : ${wchan}`, `  cmdline: ${cmdline}`, `  fds    : ${fds}`].join("\n");
+}
+
+const STATUS_LINE_RE = /^(?:Name|State|Threads|PPid):/u;
+
 /** Running inside WSL2, whose own addresses other devices cannot reach without Windows port forwarding.
  *  WSL1 does not match: it shares Windows' own network stack. */
 export function isWsl2(deps: PlatformDeps = {}): boolean {

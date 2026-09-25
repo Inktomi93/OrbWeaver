@@ -4,9 +4,10 @@
 // call `lowerChildPriority` (measured cheaper — see that export's header). A full-priority door's child
 // stays at this process's own priority either way.
 //
-// THE AMBIENT-ENV DOOR MOVED OUT (#1848) to ./process-env.ts — same functions, same names, same behaviour
-// — when the run-marker sweep was wired into the transcript door's kill path and this file reached its
-// 450-line cap. Reading the environment is not a subprocess capability; spawning is, and that half is here.
+// THE AMBIENT-ENV DOOR is ./process-env.ts: reading the environment is not a subprocess capability;
+// spawning is, and that half is here. The run-marker policy is NOT imported here either — the transcript
+// door takes its post-group-kill teardown injected (`TranscriptTeardown`), because `run-marker.ts` reads
+// the process table through `platform.ts`, which spawns through this file.
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { closeSync, openSync } from "node:fs";
 import process from "node:process";
@@ -28,8 +29,6 @@ import type {
 } from "./proc-contract.ts";
 import { inheritedProcessEnv } from "./process-env.ts";
 import { lowerChildPriority, nicedArgv } from "./process-priority.ts";
-import type { RunMarkerSweep } from "./run-marker.ts";
-import { armRunMarkerTeardown, describeRunMarkerSweep, sweepRunMarker } from "./run-marker.ts";
 
 /** The doors' option + result shapes live in ./proc-contract.ts (split at the 450-line cap, #2242) and
  *  are re-exported here for the same reason `PrunedRun` is re-exported from ./artifacts.ts: this module is
@@ -333,21 +332,25 @@ export function spawnNicedTranscript(cmd: string, args: readonly string[], opts:
     const child = DOORS.spawn(cmd, [...args], { cwd: opts.cwd, shell: false, env: opts.env, detached: DETACHED_GROUP_LEADER });
     lowerChildPriority(child.pid);
     // THE GROUP KILL IS NOT THE WHOLE TEARDOWN (#1848). Playwright's browsers and vite's service children
-    // leave the group, so the marker sweep runs AFTER it and the promise waits for that sweep to finish —
+    // leave the group, so the caller's teardown runs AFTER it and the promise waits for it to finish —
     // otherwise the transcript would resolve before the line saying what it reaped.
-    let sweeping: Promise<RunMarkerSweep> | null = null;
+    let sweeping: Promise<string | null> | null = null;
+    const teardown = opts.teardown;
+    const killGroup = (): void => {
+      killPidGroup(child.pid, "SIGKILL");
+    };
     const timer = setTimeout(() => {
       chunks.push(`\n[proc] TIMED OUT after ${opts.timeoutMs}ms — killed the process group of pid ${child.pid ?? "?"}\n`);
-      killPidGroup(child.pid, "SIGKILL");
-      sweeping = opts.runMarker === undefined ? null : sweepRunMarker(opts.runMarker);
+      killGroup();
+      sweeping = teardown === undefined ? null : teardown.afterTimeoutKill();
     }, opts.timeoutMs);
-    // THE OPERATOR'S Ctrl-C is the other kill path, and it used to reach nothing: the runner died, the
-    // stage child died with the terminal, and the browsers stayed. run-marker.ts owns that policy.
-    const guard = armRunMarkerTeardown(opts.runMarker, () => killPidGroup(child.pid, "SIGKILL"));
+    // THE OPERATOR'S Ctrl-C is the other kill path: without the guard the runner dies, the stage child
+    // dies with the terminal, and the browsers stay. The caller's teardown owns that policy.
+    const guard = teardown === undefined ? null : teardown.arm(killGroup);
     const settle = async (code: number | null): Promise<void> => {
       clearTimeout(timer);
-      guard.dispose();
-      const line = sweeping === null ? null : describeRunMarkerSweep(await sweeping);
+      guard?.dispose();
+      const line = sweeping === null ? null : await sweeping;
       resolvePromise({ code, transcript: `${chunks.join("")}${line === null ? "" : `${line}\n`}` });
     };
     /** Settle, and NAME a teardown that itself failed — the promise must resolve on every path, or the one

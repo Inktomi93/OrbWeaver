@@ -16,6 +16,7 @@ import { afterAll, vi } from "vitest";
 import type { ChromiumIdentity } from "../../support/chromium-processes.ts";
 import {
   chromiumDescendantIdentities,
+  identityKey,
   leakChromiumArgs,
   livingChromiumIdentities,
   terminateChromiumIdentities,
@@ -295,8 +296,8 @@ setTimeout(() => process.exit(0), 500);`;
     expect(result.code, result.stderr).toBe(0);
     captured = witness.stop();
     const living = livingChromiumIdentities(captured);
-    const descendantKeys = new Set(chromiumDescendantIdentities(process.pid).map((identity) => `${identity.pid}:${identity.startTime}`));
-    const stillDescendants = living.filter((identity) => descendantKeys.has(`${identity.pid}:${identity.startTime}`));
+    const descendantKeys = new Set(chromiumDescendantIdentities(process.pid).map(identityKey));
+    const stillDescendants = living.filter((identity) => descendantKeys.has(identityKey(identity)));
 
     expect(captured.length).toBeGreaterThan(0);
     expect(living.length).toBeGreaterThan(0);

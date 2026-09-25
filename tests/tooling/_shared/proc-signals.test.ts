@@ -1,7 +1,7 @@
 // A foreground launcher (`pnpm start`, `pnpm dev`) must pass every stop signal on to its children, or a
 // Ctrl-C or supervisor TERM leaves an orphan holding the port. The registrar and the platform are injected,
 // so the wiring is asserted for every platform without signalling this vitest worker.
-import { childExitCode, FORWARDED_SIGNALS, forwardSignalsTo } from "@orb/tooling/_shared/proc-signals";
+import { childExitCode, FORWARDED_SIGNALS, forwardSignalsTo, signalOfExitCode } from "@orb/tooling/_shared/proc-signals";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 function fakeStopTarget(): {
@@ -69,4 +69,13 @@ test("the exit status is the child's, and a signal is 128+N, so Ctrl-C is 130", 
   expect(childExitCode({ code: 7, signal: null, error: undefined })).toBe(7);
   expect(childExitCode({ code: null, signal: "SIGINT", error: undefined })).toBe(130);
   expect(childExitCode({ code: null, signal: "SIGTERM", error: undefined })).toBe(143);
+});
+
+test("a mirrored exit code names its signal back, and a plain code names none", () => {
+  expect(signalOfExitCode(childExitCode({ code: null, signal: "SIGKILL", error: undefined }))).toBe("SIGKILL");
+  expect(signalOfExitCode(130)).toBe("SIGINT");
+  expect(signalOfExitCode(134), "the name a person expects, not its alias").toBe("SIGABRT");
+  expect(signalOfExitCode(0)).toBeNull();
+  expect(signalOfExitCode(1)).toBeNull();
+  expect(signalOfExitCode(128)).toBeNull();
 });

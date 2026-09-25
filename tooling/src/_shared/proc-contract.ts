@@ -154,17 +154,23 @@ export interface TranscriptOptions {
   /** Called with every stdout/stderr chunk AS IT ARRIVES, tagged by stream, so a caller can mirror the
    *  child live (the verify runner's `--verbose`) without giving up the captured transcript. */
   readonly onChunk?: (chunk: string, stream: "stdout" | "stderr") => void;
-  /** THE RUN MARKER this child (and every descendant) carries in its environment — `_shared/run-marker.ts`.
-   *  With it set, the kill paths below stop being blind to a process that LEFT THE GROUP: after the group
-   *  kill they sweep every live pid whose `/proc/<pid>/environ` names this marker. Playwright starts each
-   *  browser in its own session, so without this a timed-out CT stage leaves its whole Chromium fleet
-   *  running (72 of them, up to 40 h old, on 2026-09-06 — #1848). The CALLER passes the value it also put
-   *  in `env`; a caller that sets neither keeps the old group-only behaviour.
-   *
-   *  IT MUST BE AN IDENTITY THE CALLER MINTED, NEVER AN INHERITED ONE (#2504) — this value is SIGKILLed,
-   *  and `run-marker.ts`'s outer `ORB_RUN_MARKER` names a run that may merely CONTAIN the caller. The verify
-   *  runner therefore hands its own `runLease` here and stamps the inherited marker only into `env`. */
-  readonly runMarker?: string;
+  /** THE SECOND HALF OF EVERY KILL PATH, for a child whose descendants LEAVE THE GROUP: Playwright starts
+   *  each browser in its own session, so the group kill alone leaves a timed-out CT stage's whole Chromium
+   *  fleet running. The verify runner builds this from `_shared/run-marker.ts` (`runMarkerTranscriptTeardown`)
+   *  over the lease it minted; the door itself knows no marker policy, which is what keeps the platform
+   *  module (a `proc.ts` importer) reachable from `run-marker.ts` without an import cycle. A caller that
+   *  sets nothing keeps the group-only behaviour. */
+  readonly teardown?: TranscriptTeardown;
+}
+
+/** What the transcript door does beyond its own group kill — see {@link TranscriptOptions.teardown}. */
+export interface TranscriptTeardown {
+  /** Runs AFTER the timeout's group kill; the promise's line, when not null, closes the transcript, and the
+   *  door waits for it so the transcript never resolves before it can say what was reaped. */
+  readonly afterTimeoutKill: () => Promise<string | null>;
+  /** Installs the operator-signal guard (Ctrl-C, SIGTERM, SIGHUP) around the live child, given the door's
+   *  own group kill to run first. Disposed on every exit path. */
+  readonly arm: (killGroup: () => void) => { readonly dispose: () => void };
 }
 
 export interface TranscriptResult {

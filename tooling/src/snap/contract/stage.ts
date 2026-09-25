@@ -301,17 +301,6 @@ export interface StageLimits {
   readonly cap: number;
 }
 
-/** ONE established TCP socket as `ss -tnp` reports it: the local port it terminates, the peer it faces,
- *  and the pid owning the LOCAL end (null when `ss` named none). The stage timer's raw signal — a band
- *  port's clients are found by matching each connection's PEER port against the local port of another
- *  connection, which is how a loopback pair identifies both of its ends from one snapshot. */
-export interface EstablishedConnection {
-  readonly localPort: number;
-  readonly peerHost: string;
-  readonly peerPort: number;
-  readonly pid: number | null;
-}
-
 export interface EnsureStageOpts {
   readonly ref?: string;
   readonly fresh: boolean;

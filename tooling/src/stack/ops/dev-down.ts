@@ -144,14 +144,25 @@ async function sweepPorts(ctx: StackContext): Promise<PortSweep> {
     if (pid === undefined) {
       continue;
     }
+    const free = (): boolean => listeningPids().get(port) === undefined;
     const info = processInfo(pid);
-    if (info === null || !info.cmdline.includes(ctx.repoRoot)) {
-      refused.push({ port, pid, cmdline: info === null ? null : info.cmdline });
+    // A holder with no command line is on its way out (the first port's group kill reaches this one too, and
+    // an exiting process keeps its pid and its socket row for a moment, not its argv): wait for the port
+    // instead of judging a process that can no longer be identified.
+    if (info === null || info.cmdline === "") {
+      if (await settle(free, budget(TERM_GRACE_BASE_MS))) {
+        freed.push(port);
+      } else {
+        refused.push({ port, pid, cmdline: null });
+      }
+      continue;
+    }
+    if (!info.cmdline.includes(ctx.repoRoot)) {
+      refused.push({ port, pid, cmdline: info.cmdline });
       continue;
     }
     log(`:${String(port)} is still held by pid ${String(pid)} from this checkout; stopping its group`);
     signalHolder(pid, "SIGTERM");
-    const free = (): boolean => listeningPids().get(port) === undefined;
     if (!(await settle(free, budget(TERM_GRACE_BASE_MS)))) {
       signalHolder(pid, "SIGKILL");
       if (!(await settle(free, budget(KILL_GRACE_BASE_MS)))) {

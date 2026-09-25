@@ -2,14 +2,14 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 626,
+    "sites": 624,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 626,
+      "deliberate-absorb": 624,
       "unproven": 0
     },
     "byGrammar": {
-      "default": 156,
+      "default": 154,
       "empty": 319,
       "promise": 151
     }
@@ -1906,6 +1906,11 @@
       "reason": "the EEXIST throw IS \"this slot is taken\" — the catch arm reads the holder and either moves to the next slot (live) or STEALS the slot with a printed note (dead). Every path out of it is owned and visible. Ends if this stops re-deciding and starts swallowing."
     },
     {
+      "siteId": "tooling/src/_shared/http-probe.ts::httpJsonSync::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a body that is not JSON is \"no answer\" to a liveness probe, which every caller reads as \"not up\", never as a verdict about the thing probed. Ends if a caller distinguishes the failure kinds."
+    },
+    {
       "siteId": "tooling/src/_shared/http-probe.ts::httpOk::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "a refused connection, a timeout and a non-2xx are all \"not answering\" to a liveness probe, which every caller reads as \"not up yet\", never as a verdict about the thing probed. Ends if a caller distinguishes the failure kinds."
@@ -1979,16 +1984,6 @@
       "siteId": "tooling/src/_shared/run-marker.ts::aliveBySignal::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "`kill(pid, 0)` ASKS a question and throws to answer \"no\" — the throw IS the ESRCH answer, exactly as _shared/run-retention.ts's pidAlive states it. Ends if this needs to tell EPERM from ESRCH."
-    },
-    {
-      "siteId": "tooling/src/_shared/run-marker.ts::parentFromProc::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "an unreadable /proc/<pid>/status ends the ancestor walk, which can only make the exclusion set SMALLER-BUT-SAFE — the walk starts at THIS process, whose own status is always readable. Ends if the walk is ever used to select targets rather than exclude them."
-    },
-    {
-      "siteId": "tooling/src/_shared/run-marker.ts::readProcFile::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "a pid that exits mid-scan (or another user's) answers null, which every caller reads as \"not provably mine\" and therefore DO NOT SIGNAL. Ends if null ever authorizes a signal."
     },
     {
       "siteId": "tooling/src/_shared/run-marker.ts::signalPid::error::1",
@@ -2559,11 +2554,6 @@
       "siteId": "tooling/src/snap/ops/filmstrip-capture.ts::startFilmstripCapture::stopProtocol::1",
       "verdict": "deliberate-absorb",
       "reason": "the timeout callback has no awaiter; stopProtocol memoizes the original promise and stop() awaits it, then returns the rejection as typed cleanup evidence. Ends if stop() stops awaiting that memoized promise."
-    },
-    {
-      "siteId": "tooling/src/snap/ops/fixture.ts::curlJson::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "fail-closed floor — a parse failure returns null, and fixtureStatus() below turns any null into `{ up: false, reason: \"… unreachable\" }`, never a silent pass. Ends if that fail-closed mapping is removed."
     },
     {
       "siteId": "tooling/src/snap/ops/fixture.ts::resolveFixtureTarget::catch::1",

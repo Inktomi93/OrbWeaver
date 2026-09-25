@@ -21,11 +21,13 @@
 // fixture actually seeds) is a loud refusal, never a guess.
 
 import process from "node:process";
+import { REPO_ROOT } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { httpJsonSync, httpOkSync } from "../../_shared/http-probe.ts";
+import { listeningPids, processInfo } from "../../_shared/platform.ts";
 import { FIXTURE_PORTS } from "../../_shared/ports.ts";
-import { runNicedSync } from "../../_shared/proc.ts";
 import { SESSION_COOKIE_MINTED } from "../../_shared/session-cookie.ts";
-import { FIXTURE_CREDENTIALS } from "../../stack/index.ts";
+import { FIXTURE_CREDENTIALS, fixtureEnv, RUN_DIR_ENV, readLeaderRecord } from "../../stack/index.ts";
 import type { AuthConfig, FixtureStatus, FixtureTarget, FixtureTargetOverride, PortOwnerAuthProbe } from "../contract/fixture.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
@@ -46,7 +48,7 @@ function stripSlash(url: string): string {
 
 /** Resolve the fixture's two origins: explicit override \> env (SNAP_FIXTURE_SERVER_URL /
  *  SNAP_FIXTURE_BASE_URL) \> the offset-pair defaults. Pure apart from the env read (injectable for tests).
- *  An unparseable server URL falls back to the default port for the `/proc` check rather than throwing —
+ *  An unparseable server URL falls back to the default port for the owner check rather than throwing —
  *  the health probe below will refuse loudly on the same URL anyway, with a reason a human can act on. */
 export function resolveFixtureTarget(
   override: FixtureTargetOverride = {},
@@ -64,23 +66,6 @@ export function resolveFixtureTarget(
     /* keep the default port — the status probe refuses on the bad URL with a readable reason */
   }
   return { serverUrl, baseUrl, serverPort };
-}
-
-function curlOk(url: string): boolean {
-  return runNicedSync("curl", ["-sf", "-m", "2", url], { stdio: "ignore" }).status === 0;
-}
-
-function curlJson(url: string): unknown | null {
-  const res = runNicedSync("curl", ["-sf", "-m", "2", url]);
-  if (res.status !== 0) {
-    return null;
-  }
-  // @orb-waive caught-failure-ownership(catch): fail-closed floor — a parse failure returns null, and fixtureStatus() below turns any null into `{ up: false, reason: "… unreachable" }`, never a silent pass. Ends if that fail-closed mapping is removed.
-  try {
-    return JSON.parse(res.stdout);
-  } catch {
-    return null;
-  }
 }
 
 function authConfig(value: unknown): AuthConfig | null {
@@ -106,29 +91,36 @@ function authConfig(value: unknown): AuthConfig | null {
   };
 }
 
-/** Env-pin mismatch check — reads the LIVE process's actual AUTH_MODE off /proc, since a `.env`-loaded or
- *  since-restarted value can drift from what a caller thinks is running.
+/** The port-owner proof: the fixture's OWN leader record names the auth mode it launched with and the
+ *  pids it spawned, so the process holding the port is the fixture's when it is one of those pids or a
+ *  child of one (the watched server runs under its watcher). A `.env`-loaded or since-restarted value can
+ *  drift from what a caller thinks is running, which is why the record, not the caller, answers.
  *
  *  #1507: this used to return `boolean | null` and its own header said null meant "can't prove it's the
  *  fixture, same as a mismatch" — but `fixtureStatus` only refused on `false`, so every unprovable case
- *  (no `ss` on PATH, a port owner belonging to another user, no `/proc`, a non-Linux host) fell through to
- *  `{ up: true }`. The comment was the contract and the code was the defect; the union below makes the
- *  third outcome unignorable at the call site. */
+ *  fell through to `{ up: true }`. The union makes the third outcome unignorable at the call site. */
 function livePortOwnerAuthMode(serverPort: number): PortOwnerAuthProbe {
-  const pid = runNicedSync("bash", ["-c", `ss -tlnp 2>/dev/null | grep ':${serverPort} ' | grep -oP 'pid=\\K[0-9]+' | head -1`]).stdout.trim();
-  if (pid === "") {
-    return {
-      kind: "unreadable",
-      reason: `no process could be identified as the owner of :${String(serverPort)} (ss printed no pid — no ss on PATH, or the port belongs to another user)`,
-    };
+  const runDir = fixtureEnv(REPO_ROOT, {})[RUN_DIR_ENV] ?? "";
+  const read = readLeaderRecord(runDir, REPO_ROOT);
+  if (read.kind !== "record") {
+    return { kind: "unreadable", reason: `no fixture record under ${runDir} (${read.kind}) — nothing proves who owns :${String(serverPort)}` };
   }
-  const res = runNicedSync("bash", ["-c", `tr '\\0' '\\n' </proc/${pid}/environ 2>/dev/null | grep '^AUTH_MODE=' | cut -d= -f2-`]);
-  if (res.status !== 0) {
-    return { kind: "unreadable", reason: `/proc/${pid}/environ (the owner of :${String(serverPort)}) could not be read` };
+  const record = read.record;
+  if (record.ports.server !== serverPort) {
+    return { kind: "unreadable", reason: `the fixture record names :${String(record.ports.server)}, not :${String(serverPort)}` };
   }
-  const mode = res.stdout.trim();
+  const holder = listeningPids().get(serverPort);
+  if (holder === undefined) {
+    return { kind: "unreadable", reason: `no process could be identified as the owner of :${String(serverPort)}` };
+  }
+  const own = new Set([record.pid, ...record.children]);
+  const holderParent = processInfo(holder)?.ppid ?? null;
+  if (!(own.has(holder) || (holderParent !== null && own.has(holderParent)))) {
+    return { kind: "unreadable", reason: `pid ${String(holder)} owns :${String(serverPort)} but the fixture record does not name it or its parent` };
+  }
+  const mode = record.pins.values.AUTH_MODE ?? "";
   if (mode === "") {
-    return { kind: "unreadable", reason: `pid ${pid} owns :${String(serverPort)} but carries no AUTH_MODE in its spawn environ` };
+    return { kind: "unreadable", reason: "the fixture record carries no AUTH_MODE" };
   }
   return mode === "local" ? { kind: "local" } : { kind: "not-local", mode };
 }
@@ -141,15 +133,15 @@ function livePortOwnerAuthMode(serverPort: number): PortOwnerAuthProbe {
  *  drift `pnpm stack status` surfaces). */
 export function fixtureStatus(target: FixtureTarget): FixtureStatus {
   return fixtureVerdict(target, {
-    healthz: curlOk(`${target.serverUrl}/healthz`),
-    config: authConfig(curlJson(`${target.serverUrl}/api/auth/config`)),
+    healthz: httpOkSync(`${target.serverUrl}/healthz`),
+    config: authConfig(httpJsonSync(`${target.serverUrl}/api/auth/config`)),
     owner: (): PortOwnerAuthProbe => livePortOwnerAuthMode(target.serverPort),
   });
 }
 
 /** The DECISION half, split out of the probes so every arm — including the one that used to fall through —
- *  is provable without a running fixture (#1507). `owner` is a thunk: the /proc read only happens once the
- *  cheap HTTP evidence has already agreed, exactly as before. */
+ *  is provable without a running fixture (#1507). `owner` is a thunk: the record and process-table read only
+ *  happens once the cheap HTTP evidence has already agreed, exactly as before. */
 export function fixtureVerdict(
   target: FixtureTarget,
   probes: { readonly healthz: boolean; readonly config: AuthConfig | null; readonly owner: () => PortOwnerAuthProbe },

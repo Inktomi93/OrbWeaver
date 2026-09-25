@@ -1,86 +1,49 @@
-import { readdirSync, readFileSync, readlinkSync } from "node:fs";
-import { basename } from "node:path";
+// The chromium processes a test's launcher left behind, read through the platform module: a descendant
+// census keyed on the command line, which the run-marker argument makes unique per launch, so a pid the OS
+// reuses never reads as the browser that carried it.
 import process from "node:process";
+import { listProcesses, processGroupId, processInfo } from "@orb/tooling/_shared/platform";
 import { runMarkerArg } from "@orb/tooling/_shared/run-marker";
 
-const PROC_PID_RE = /^[0-9]+$/;
-const PROC_PPID_RE = /^PPid:\s+([0-9]+)$/m;
-const DEFAULT_SAMPLE_MS = 10;
+// One sample is a full process-table read (tens of ms under load); a shorter interval starves the test's
+// own event loop, and a leaked chromium stays a descendant for far longer than this.
+const DEFAULT_SAMPLE_MS = 50;
+const CHROMIUM_RE = /headless_shell|chrome|chromium/u;
 
 export interface ChromiumIdentity {
   readonly pid: number;
-  readonly startTime: string;
-  readonly processGroup: number;
+  /** The command line as launched; with the run marker in it, unique per browser process. */
+  readonly cmdline: string;
 }
 
-function processParents(): ReadonlyMap<number, number> {
-  const parents = new Map<number, number>();
-  for (const entry of readdirSync("/proc")) {
-    if (!PROC_PID_RE.test(entry)) {
-      continue;
-    }
-    try {
-      const parent = PROC_PPID_RE.exec(readFileSync(`/proc/${entry}/status`, "utf8"))?.[1];
-      if (parent !== undefined) {
-        parents.set(Number(entry), Number(parent));
-      }
-    } catch {
-      // A process may exit between the /proc directory read and its metadata reads.
-    }
-  }
-  return parents;
-}
-
-function descendantPids(rootPid: number, parents: ReadonlyMap<number, number>): Set<number> {
-  const descendants = new Set([rootPid]);
-  let grew = true;
-  while (grew) {
-    grew = false;
-    for (const [pid, parent] of parents) {
-      if (!descendants.has(pid) && descendants.has(parent)) {
-        descendants.add(pid);
-        grew = true;
-      }
-    }
-  }
-  return descendants;
-}
-
-// /proc/<pid>/stat fields after the closing command parenthesis start at field 3 (state). Process group
-// is field 5 and starttime is field 22. starttime makes a PID an identity instead of a reusable number.
-function processIdentity(pid: number): ChromiumIdentity | null {
-  try {
-    const stat = readFileSync(`/proc/${pid}/stat`, "utf8");
-    const fields = stat.slice(stat.lastIndexOf(") ") + 2).split(" ");
-    const processGroup = Number(fields[2]);
-    const startTime = fields[19];
-    if (!Number.isSafeInteger(processGroup) || startTime === undefined) {
-      return null;
-    }
-    return { pid, processGroup, startTime };
-  } catch {
-    return null;
-  }
+export function identityKey(identity: ChromiumIdentity): string {
+  return `${String(identity.pid)}:${identity.cmdline}`;
 }
 
 /** Chromium identities that are descendants NOW. Call while the launcher is still alive. */
 export function chromiumDescendantIdentities(rootPid: number): ChromiumIdentity[] {
-  const descendants = descendantPids(rootPid, processParents());
-  const identities: ChromiumIdentity[] = [];
-  for (const pid of descendants) {
-    if (pid === rootPid) {
-      continue;
+  const entries = listProcesses();
+  const children = new Map<number, number[]>();
+  const byPid = new Map(entries.map((entry) => [entry.pid, entry] as const));
+  for (const entry of entries) {
+    if (entry.ppid !== null) {
+      children.set(entry.ppid, [...(children.get(entry.ppid) ?? []), entry.pid]);
     }
-    try {
-      const executable = basename(readlinkSync(`/proc/${pid}/exe`));
-      if (executable.includes("headless_shell") || executable.includes("chrome") || executable.includes("chromium")) {
-        const identity = processIdentity(pid);
-        if (identity !== null) {
-          identities.push(identity);
-        }
+  }
+  const identities: ChromiumIdentity[] = [];
+  const queue = [rootPid];
+  const seen = new Set<number>([rootPid]);
+  for (let next = queue.shift(); next !== undefined; next = queue.shift()) {
+    for (const child of children.get(next) ?? []) {
+      if (seen.has(child)) {
+        continue;
       }
-    } catch {
-      // Same process-exit race as the ancestry census.
+      seen.add(child);
+      queue.push(child);
+      const entry = byPid.get(child);
+      if (entry !== undefined && CHROMIUM_RE.test(entry.cmdline)) {
+        identities.push({ pid: child, cmdline: entry.cmdline });
+      }
     }
   }
   return identities;
@@ -88,7 +51,7 @@ export function chromiumDescendantIdentities(rootPid: number): ChromiumIdentity[
 
 /** Exact captured identities still alive, independent of their current parent and immune to PID reuse. */
 export function livingChromiumIdentities(identities: readonly ChromiumIdentity[]): ChromiumIdentity[] {
-  return identities.filter((identity) => processIdentity(identity.pid)?.startTime === identity.startTime);
+  return identities.filter((identity) => processInfo(identity.pid)?.cmdline === identity.cmdline);
 }
 
 export interface ChromiumWitness {
@@ -101,7 +64,7 @@ export function watchChromiumDescendants(rootPid: number, sampleMs = DEFAULT_SAM
   const observed = new Map<string, ChromiumIdentity>();
   const sample = (): void => {
     for (const identity of chromiumDescendantIdentities(rootPid)) {
-      observed.set(`${identity.pid}:${identity.startTime}`, identity);
+      observed.set(identityKey(identity), identity);
     }
   };
   sample();
@@ -130,26 +93,26 @@ export function leakChromiumArgs(userDataDir: string, marker: string | null): re
   return marker === null ? [...base, "about:blank"] : [...base, runMarkerArg(marker), "about:blank"];
 }
 
+function signalQuietly(target: number, signal: NodeJS.Signals): void {
+  try {
+    process.kill(target, signal);
+  } catch {
+    // The exact captured process or group may finish while the planted-red assertion unwinds.
+  }
+}
+
 /** Cleanup for planted leak controls: signal only captured, still-matching Chromium groups/identities. */
 export function terminateChromiumIdentities(identities: readonly ChromiumIdentity[]): void {
   const living = livingChromiumIdentities(identities);
-  const ownGroup = processIdentity(process.pid)?.processGroup;
-  const groups = new Set(living.map((identity) => identity.processGroup));
+  const ownGroup = processGroupId(process.pid);
+  const groups = new Set(living.map((identity) => processGroupId(identity.pid)).filter((group): group is number => group !== null));
   for (const group of groups) {
     if (group <= 1 || group === ownGroup) {
       continue;
     }
-    try {
-      process.kill(-group, "SIGTERM");
-    } catch {
-      // The exact captured group may finish while the planted-red assertion unwinds.
-    }
+    signalQuietly(-group, "SIGTERM");
   }
   for (const identity of living) {
-    try {
-      process.kill(identity.pid, "SIGTERM");
-    } catch {
-      // Same race for a Chromium process outside a distinct group.
-    }
+    signalQuietly(identity.pid, "SIGTERM");
   }
 }

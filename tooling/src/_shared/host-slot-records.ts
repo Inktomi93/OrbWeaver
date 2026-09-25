@@ -1,9 +1,8 @@
 // The host slot pools' FILE LAYER (./host-slots.ts holds the doors and the queue): the owned-directory and
 // planted-entry refusals, the slot/ticket record reader, the liveness verdict, and the one exclusive-create
 // sweep. Every rule in the host-slots.ts header binds here too; this module only owns where it is enforced.
-import { chmodSync, lstatSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, lstatSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import process from "node:process";
-import { procStartTicks } from "./proc-stat.ts";
 
 /** Who holds a slot, as its file records it. */
 export interface HostSlotHolder {
@@ -52,11 +51,11 @@ function refusePlantedEntry(path: string): void {
   }
 }
 
-/** A slot file or a queue ticket. Only a ticket carries `beatMs`, its last heartbeat. `startTicks` is the
- *  writer's own `/proc` start ticks, or `null` where it had none to read. */
+/** A slot file or a queue ticket. `beatMs` is the writer's last heartbeat: a holder rewrites its slot file
+ *  and a waiter its ticket on a timer, so a record whose beat stopped belongs to a frozen writer or to a
+ *  pid the OS handed to something else. `null` is a record an older writer left without one. */
 export interface PoolRecord extends HostSlotHolder {
   readonly beatMs: number | null;
-  readonly startTicks: string | null;
 }
 
 export function readHolder(path: string): PoolRecord | null {
@@ -77,37 +76,37 @@ export function readHolder(path: string): PoolRecord | null {
       startedAt: typeof row["startedAt"] === "string" ? row["startedAt"] : "unknown",
       label: typeof row["label"] === "string" ? row["label"] : "",
       beatMs: typeof row["beatMs"] === "number" ? row["beatMs"] : null,
-      startTicks: typeof row["startTicks"] === "string" ? row["startTicks"] : null,
     };
   } catch {
     return null;
   }
 }
 
-/** The process table as this module reads it. Injected as ONE unit: a test that fakes `alive` gets no real
- *  `/proc` start ticks for its fake pids unless it fakes those too. */
+/** The process table and the clock as this module reads them, injected as one unit so a faked table
+ *  never meets a real clock. `staleAfterMs` is how long a record may go without a beat. */
 export interface Liveness {
   readonly alive: (pid: number) => boolean;
-  readonly startTicks: (pid: number) => string | null;
+  readonly nowMs: () => number;
+  readonly staleAfterMs: number;
 }
 
-const HOLDER_STATES = ["live", "gone", "reused"] as const;
+const HOLDER_STATES = ["live", "gone", "silent"] as const;
 type HolderState = (typeof HOLDER_STATES)[number];
 
-/** `alive` runs first: a pid that is gone, or foreign (EPERM), never reaches the `/proc` read, so the read
- *  only ever sees our own processes. A pid that exits between the two reads `null` and is gone next poll. */
+/** `alive` runs first: a pid that is gone, or foreign (EPERM), is gone. A live pid whose record's beat is
+ *  older than the window is silent: a frozen holder, or a recycled pid that never refreshes a file it does
+ *  not know. A record with no beat at all is judged by the pid alone. */
 export function holderState(liveness: Liveness, holder: PoolRecord): HolderState {
   if (!liveness.alive(holder.pid)) {
     return "gone";
   }
-  if (holder.startTicks === null) {
+  if (holder.beatMs === null) {
     return "live";
   }
-  const current = liveness.startTicks(holder.pid);
-  return current === null || current === holder.startTicks ? "live" : "reused";
+  return liveness.nowMs() - holder.beatMs <= liveness.staleAfterMs ? "live" : "silent";
 }
 
-export const STATE_TEXT: Readonly<Record<Exclude<HolderState, "live">, string>> = { gone: "no such process", reused: "reused by a newer process" };
+export const STATE_TEXT: Readonly<Record<Exclude<HolderState, "live">, string>> = { gone: "no such process", silent: "no heartbeat" };
 
 export function defaultAlive(pid: number): boolean {
   // @orb-waive caught-failure-ownership(catch): `kill(pid, 0)` ASKS A QUESTION and throws to answer "no" — the throw IS the ESRCH answer, not a lost failure, and the caller acts on the boolean by stealing the slot and saying so out loud. Ends if this ever needs to distinguish EPERM from ESRCH.
@@ -119,10 +118,13 @@ export function defaultAlive(pid: number): boolean {
   }
 }
 
-/** Start ticks exist only where `/proc` does; everywhere else no ticks are recorded and `kill(pid, 0)` alone
- *  decides (the host-slots.ts header). */
-export function platformStartTicks(pid: number): string | null {
-  return process.platform === "linux" ? procStartTicks(pid) : null;
+/** Rewrite a record in place through a rename, so a reader never sees a torn record. The temp file is
+ *  created exclusively; a leftover one is removed first, never written through. */
+export function rewriteRecord(path: string, record: PoolRecord, pid: number): void {
+  const tmp = `${path}.${String(pid)}.tmp`;
+  rmSync(tmp, { force: true });
+  writeFileSync(tmp, `${JSON.stringify(record)}\n`, { flag: "wx" });
+  renameSync(tmp, path);
 }
 
 interface SweepInput {
@@ -150,8 +152,8 @@ export function takeAnySlot(input: SweepInput, onNotice: ((message: string) => v
       const holder = readHolder(path);
       // A LIVE holder is a holder, even if its pid is OURS. Exempting our own pid so a recycled pid could
       // be stolen made the cap silently double-issue: one process holding both CT slots was handed slot 1
-      // a third time, because it read its own record as debris. `holderState` catches a recycled pid by its
-      // `/proc` start ticks instead.
+      // a third time, because it read its own record as debris. A recycled pid is caught by its silence
+      // instead: the new process never refreshes a file it does not know.
       const state = holder === null ? "gone" : holderState(input.liveness, holder);
       if (holder !== null && state === "live") {
         continue;

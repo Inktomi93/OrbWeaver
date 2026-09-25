@@ -26,8 +26,8 @@ import { errorMessage } from "@orb/kit/error-message";
 import { readConcurrencyProfile } from "../../_shared/concurrency-profile.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { runGit } from "../../_shared/git.ts";
+import { listeningPids } from "../../_shared/platform.ts";
 import { RESERVED_PORTS, STAGE_BANDS, stageBandPorts } from "../../_shared/ports.ts";
-import { killPidGroup, runNicedSync } from "../../_shared/proc.ts";
 import { processEnvValue } from "../../_shared/process-env.ts";
 import { pidAlive } from "../../_shared/run-retention.ts";
 import type { StageBandView, StageRow, StageSweepEvidence, StageSweepVerdict } from "../contract/stage.ts";
@@ -51,7 +51,7 @@ import { sessionStatusSummary } from "./session-registry.ts";
 import { stageBandViews, stageLimits } from "./stage-census.ts";
 import { repoRoot } from "./stage-git.ts";
 import { clearRow, markerRoot, readBands } from "./stage-marker.ts";
-import { listeningPids, pidElapsedSeconds, pidIsStageRooted, stageDirs } from "./stage-probe.ts";
+import { killProcessGroup, pidElapsedSeconds, pidIsStageRooted, stageDirs } from "./stage-probe.ts";
 import { describeStageReaps, recordStageReap } from "./stage-reap-log.ts";
 import { removeStageDir } from "./stage-source.ts";
 import { stopStage } from "./stage-teardown.ts";
@@ -209,21 +209,12 @@ function reapBand(home: string, view: StageBandView, pids: readonly number[]): s
   if (view.row !== null) {
     stopStage(view.row.dir, { server: view.row.serverPort, vite: view.row.vitePort });
   }
-  const killed = pids.filter((pid) => pidIsStageRooted(pid) && killGroupOf(pid));
+  const killed = pids.filter((pid) => pidIsStageRooted(pid) && killProcessGroup(pid));
   clearRow(home, view.band);
   if (view.row !== null) {
     recordStageReap(home, view.row, "sweep");
   }
   return `band ${view.band}: reaped a stranded stage (stopped ${view.row === null ? "(no row)" : shortSha(view.row.sha)}, killed ${killed.length} process group(s), cleared the row)`;
-}
-
-function killGroupOf(pid: number): boolean {
-  const pgid = runNicedSync("ps", ["-o", "pgid=", "-p", String(pid)]).stdout.trim();
-  if (pgid.length === 0) {
-    return false;
-  }
-  killPidGroup(Number(pgid), "SIGTERM");
-  return true;
 }
 
 function reconcileDanglingRow(root: string, home: string, row: StageRow, nowMs: number): string {
@@ -331,6 +322,6 @@ function teardownRowlessBand(view: StageBandView, pids: readonly number[]): read
   if (!(view.bandBound && view.bandIsStageRooted)) {
     return [];
   }
-  const killed = pids.filter((pid) => killGroupOf(pid));
+  const killed = pids.filter((pid) => killProcessGroup(pid));
   return [`band ${view.band}: row-less teardown — killed ${killed.length} stage-rooted band process group(s)`];
 }
