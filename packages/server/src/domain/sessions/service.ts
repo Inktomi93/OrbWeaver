@@ -16,6 +16,7 @@ import { createLinkExternalId } from "./verbs/link-external-id.ts";
 import { createList } from "./verbs/list.ts";
 import { createLoadUserById } from "./verbs/load-user-by-id.ts";
 import { createOwnerPassword } from "./verbs/owner-password.ts";
+import { createPendingSignup } from "./verbs/pending-signup.ts";
 import { createProvisionIdentity } from "./verbs/provision-identity.ts";
 import { createResolveHandle } from "./verbs/resolve-handle.ts";
 import { createRevoke } from "./verbs/revoke.ts";
@@ -49,6 +50,7 @@ export function createSessionsService(deps: SessionsServiceDeps): SessionsServic
     ...createLinkExternalId(ctx),
     ...createOwnerPassword(ctx),
     ...createSignup(ctx),
+    ...createPendingSignup(ctx),
     getOwnerUserId: (): Promise<UserId | undefined> => selectOwnerUserId(ctx.db),
   };
 }

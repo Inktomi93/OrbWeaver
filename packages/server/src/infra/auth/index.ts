@@ -129,8 +129,11 @@ export {
   OIDC_BINDING_COOKIE_NAME_INSECURE,
   OIDC_BINDING_COOKIE_NAME_SECURE,
   OIDC_BINDING_COOKIES,
+  OIDC_PENDING_JOIN_COOKIES,
+  OIDC_PENDING_JOIN_TTL_MS,
   OIDC_TRANSACTION_TTL_MS,
   oidcBindingCookieFor,
+  oidcPendingJoinCookieFor,
 } from "./modes/oidc.ts";
 export { createOidcConfigCache } from "./oidc-discovery.ts";
 export { createOidcExchange } from "./oidc-exchange.ts";

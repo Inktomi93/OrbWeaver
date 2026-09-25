@@ -10,6 +10,7 @@ import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import type { SignupInviteCapability } from "../../../../../packages/server/src/domain/chat/contract/signup.ts";
 import { countPresentMembers, findInviteByTokenHash } from "../../../../../packages/server/src/domain/chat/persistence/invites.ts";
+import { createInvitePreview } from "../../../../../packages/server/src/domain/chat/verbs/invite-preview.ts";
 import { createSignupInvite } from "../../../../../packages/server/src/domain/chat/verbs/signup-invite.ts";
 import { createSessionsService } from "../../../../../packages/server/src/domain/sessions/service.ts";
 import { createHostPrincipalResolver } from "../../../../../packages/server/src/entry/auth/seam.ts";
@@ -17,7 +18,7 @@ import { createSignupMinterCheck } from "../../../../../packages/server/src/entr
 import { buildAuditStatementIfPrecedingWrote } from "../../../../../packages/server/src/foundation/observability/audit.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { FROZEN_AT, makeChatContext, seedChat, seedParticipant, seedUser } from "../_support.ts";
+import { FROZEN_AT, makeChatContext, makeLoadParticipantViews, seedChat, seedParticipant, seedUser } from "../_support.ts";
 
 const DAY_MS = 86_400_000;
 const TOKEN = "tok_signup";
@@ -54,10 +55,9 @@ function ops(capability: SignupInviteCapability = LOCAL): ReturnType<typeof crea
     signupUserStatement: sessions.signupUserStatement,
     minterMayMintSignup: createSignupMinterCheck(sessions, createHostPrincipalResolver(sessions)),
     auditStatementAfterWrite: (entry, at) => buildAuditStatementIfPrecedingWrote(db, entry, at),
+    assemblePreview: createInvitePreview({ db }, { loadParticipantViews: makeLoadParticipantViews(db) }),
     emit: (event) => {
-      if (event.type === "chatUpdated") {
-        announced.push(event.chatId);
-      }
+      announced.push(event.chatId);
       return Promise.resolve();
     },
   });

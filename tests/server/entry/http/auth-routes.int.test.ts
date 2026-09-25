@@ -17,7 +17,6 @@ import { createPublicHttpMintNotice, ownerFallbackAllowed } from "@orb/server/in
 import { eq, like } from "drizzle-orm";
 import { Hono } from "hono";
 import { afterEach, describe, vi } from "vitest";
-import type { SignupInviteOps } from "../../../../packages/server/src/domain/chat/contract/signup.ts";
 import { createSignupInvite } from "../../../../packages/server/src/domain/chat/verbs/signup-invite.ts";
 import { createSessionsService } from "../../../../packages/server/src/domain/sessions/service.ts";
 import { createHostPrincipalResolver } from "../../../../packages/server/src/entry/auth/seam.ts";
@@ -642,7 +641,7 @@ describe("local signup route (D254)", () => {
   }
 
   /** Stub chat ops: `tok_good` names a live invite, anything else names nothing; a redeem refuses as taken. */
-  function stubInvites(spies: Spies): SignupInviteOps {
+  function stubInvites(spies: Spies): SignupRouteDeps["invites"] {
     return {
       admits: (token) => {
         spies.admitted += 1;
@@ -802,10 +801,10 @@ describe("local signup route (D254)", () => {
         signupUserStatement: sessionsSvc.signupUserStatement,
         minterMayMintSignup: createSignupMinterCheck(sessionsSvc, createHostPrincipalResolver(sessionsSvc)),
         auditStatementAfterWrite: (entry, at) => buildAuditStatementIfPrecedingWrote(db, entry, at),
+        // The local route never previews; any reach fails loudly.
+        assemblePreview: () => Promise.reject(new Error("assemblePreview not reached by the local route")),
         emit: (event) => {
-          if (event.type === "chatUpdated") {
-            announced.push(event.chatId);
-          }
+          announced.push(event.chatId);
           return Promise.resolve();
         },
       },

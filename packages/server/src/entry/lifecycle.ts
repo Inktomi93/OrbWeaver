@@ -298,7 +298,11 @@ function missingSessionSecretMessage(mode: AuthMode, keyfile: string | null): st
  *  thing that started it. The issuer discovery is lazy + SINGLE-FLIGHT-memoized (a cold IdP must not fail
  *  boot; the concurrency contract — one shared attempt, no cached rejection — is `infra/auth/oidc-discovery`
  *  and is proven there, #762). */
-function buildOidcDeps(db: Db, now: () => number): { oidc: OidcRoutesDeps; stopOidcGc: () => void } {
+function buildOidcDeps(
+  db: Db,
+  now: () => number,
+  built: Pick<ServicesResult, "sessions" | "signupInvites" | "seedUserConnections">,
+): { oidc: OidcRoutesDeps; stopOidcGc: () => void } {
   const issuerUrlStr = env.OIDC_ISSUER ?? "";
   const issuerUrl = issuerUrlStr.length > 0 ? new URL(issuerUrlStr) : new URL("http://localhost");
   const clientId = env.OIDC_CLIENT_ID ?? "";
@@ -338,6 +342,13 @@ function buildOidcDeps(db: Db, now: () => number): { oidc: OidcRoutesDeps; stopO
       // A5 — register the back-channel logout endpoint only when OIDC_BACKCHANNEL_LOGOUT=on. The verifier
       // is the sealed infra/auth JWKS checker; clientId is the required `aud` on the logout_token.
       ...(env.OIDC_BACKCHANNEL_LOGOUT ? { backchannelLogout: { verify: createBackchannelLogoutVerifier().verify, clientId } } : {}),
+      // D254 — signup through an invite for an identity the JIT gate closes on: the pending join and its confirm.
+      signup: {
+        invites: built.signupInvites,
+        pending: built.sessions,
+        sessionIsLive: async (token: SessionToken): Promise<boolean> => (await built.sessions.validate(token)) !== null,
+        seedUserConnections: built.seedUserConnections,
+      },
     },
     stopOidcGc: startOidcGcScheduler({ sweep: store.deleteExpired, now, scheduleInterval }),
   };
@@ -749,7 +760,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
           })
         : undefined;
 
-    const oidcWiring = env.AUTH_MODE === "oidc" ? buildOidcDeps(db, now) : undefined;
+    const oidcWiring = env.AUTH_MODE === "oidc" ? buildOidcDeps(db, now, built) : undefined;
     stopOidcGc = oidcWiring === undefined ? null : oidcWiring.stopOidcGc;
 
     const app = createApp({

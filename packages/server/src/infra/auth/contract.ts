@@ -45,6 +45,8 @@ export interface OidcTransaction {
   nonce: string;
   redirectUri: string;
   createdAt: number;
+  /** D254 — the peppered hash of the signup invite the login carried (`?invite=`), or null. Never the raw token. */
+  inviteTokenHash: string | null;
 }
 
 // consume is atomic + single-use — a replayed state finds nothing the second time.

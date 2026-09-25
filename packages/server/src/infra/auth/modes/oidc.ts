@@ -38,6 +38,26 @@ export function oidcBindingCookieFor(transport: RequestTransport): SessionCookie
 /** Every binding cookie, https first. The callback clears all of them once the binding is spent. */
 export const OIDC_BINDING_COOKIES: readonly SessionCookie[] = [OIDC_BINDING_COOKIE_BY_TRANSPORT.https, OIDC_BINDING_COOKIE_BY_TRANSPORT.http];
 
+// THE PENDING-JOIN COOKIE (D254) carries the fresh secret that names a signed-out visitor's frozen identity
+// between the callback and the confirm. It is never the `state`. `SameSite=Strict` is enough and is what we
+// want: the confirm and the preview are same-origin fetches, and a cross-site request must never carry it.
+
+/** How long a pending join stays confirmable. The cookie's Max-Age is this same window. */
+export const OIDC_PENDING_JOIN_TTL_MS = 600_000;
+
+const PENDING_JOIN_COOKIE_BY_TRANSPORT = {
+  https: { name: "__Host-orb_join_pending", attrs: "Path=/; HttpOnly; Secure; SameSite=Strict" },
+  http: { name: "orb_join_pending_insecure", attrs: "Path=/; HttpOnly; SameSite=Strict" },
+} as const satisfies Record<RequestTransport, SessionCookie>;
+
+/** The pending-join cookie for a request's transport. A request reads only its own transport's name. */
+export function oidcPendingJoinCookieFor(transport: RequestTransport): SessionCookie {
+  return PENDING_JOIN_COOKIE_BY_TRANSPORT[transport];
+}
+
+/** Every pending-join cookie, https first. A spent or refused join clears all of them. */
+export const OIDC_PENDING_JOIN_COOKIES: readonly SessionCookie[] = [PENDING_JOIN_COOKIE_BY_TRANSPORT.https, PENDING_JOIN_COOKIE_BY_TRANSPORT.http];
+
 export function resolveOidc(): Promise<ResolvedIdentity | null> {
   return resolveCookieSession();
 }

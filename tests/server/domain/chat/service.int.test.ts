@@ -135,6 +135,16 @@ function makeService(
 
     holder: "replica-test",
     lockTtlMs: 60_000,
+    // D254 — the signup ops' foreign halves; this suite drives no signup, so any reach fails loudly.
+    signup: {
+      signupUserStatement: () => {
+        throw new Error("signupUserStatement not stubbed in this test");
+      },
+      minterMayMintSignup: () => Promise.reject(new Error("minterMayMintSignup not stubbed in this test")),
+      auditStatementAfterWrite: () => {
+        throw new Error("auditStatementAfterWrite not stubbed in this test");
+      },
+    },
   };
   return { service: createChatService(ctx, deps).service, events };
 }

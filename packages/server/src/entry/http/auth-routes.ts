@@ -20,6 +20,8 @@
 // (open-redirect class). The validated redirect_uri is stored in the transaction and reconstructed at the
 // callback so the token exchange presents the same redirect_uri the IdP saw, even behind a proxy.
 
+import type { PendingJoinErrorCode } from "@orb/contracts/chat";
+import { invitePreviewSchema, pendingJoinConfirmRequestSchema } from "@orb/contracts/chat";
 import type { RequestTransport, ResolvedIdentity, SignupErrorCode, SignupRequest, UserRole } from "@orb/contracts/identity";
 import { signupRequestSchema } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
@@ -31,7 +33,7 @@ import { bodyLimit } from "hono/body-limit";
 import type { Configuration } from "openid-client";
 import { buildAuthorizationUrl, calculatePKCECodeChallenge, randomNonce, randomPKCECodeVerifier, randomState } from "openid-client";
 import type { SignupInviteOps } from "#domain/chat";
-import type { RevokedSessionsSummary } from "#domain/sessions";
+import type { RevokedSessionsSummary, SessionsService } from "#domain/sessions";
 import { groupRoleGovernanceActive } from "#domain/sessions";
 import { getLog, groupsLogFields, securityEvent } from "#foundation/observability";
 import type { BackchannelLogoutVerifier, OidcExchange, OidcTransaction, PublicHttpMintNotice } from "#infra/auth";
@@ -39,8 +41,11 @@ import {
   hasCsrfHeader,
   MIN_PASSWORD_LENGTH,
   OIDC_BINDING_COOKIES,
+  OIDC_PENDING_JOIN_COOKIES,
+  OIDC_PENDING_JOIN_TTL_MS,
   OIDC_TRANSACTION_TTL_MS,
   oidcBindingCookieFor,
+  oidcPendingJoinCookieFor,
   readRequestCookie,
   reportPublicHttpMint,
   requestClientScope,
@@ -107,6 +112,13 @@ const OIDC_BACKCHANNEL_BODY_MAX_BYTES = OIDC_BACKCHANNEL_BODY_KIB * BYTES_PER_KI
 const OIDC_LOGIN_ROUTE = "/api/auth/oidc/login";
 const OIDC_CALLBACK_ROUTE = "/api/auth/oidc/callback";
 const OIDC_BACKCHANNEL_LOGOUT_ROUTE = "/api/auth/oidc/backchannel-logout";
+// D254 — the signed-out pending join: the surface the callback lands on, and its two same-origin routes.
+const OIDC_PENDING_JOIN_SURFACE = "/login?pendingJoin=1";
+const OIDC_PENDING_PREVIEW_ROUTE = "/api/auth/oidc/pending/preview";
+const OIDC_PENDING_CONFIRM_ROUTE = "/api/auth/oidc/pending/confirm";
+const INVITE_PARAM = "invite";
+// A real invite token is 43 base64url chars. A longer param is carried as no invite, never hashed or stored.
+const INVITE_PARAM_MAX_CHARS = 128;
 const HANDLE_FIELD = "handle";
 const PASSWORD_FIELD = "password";
 const LOGOUT_TOKEN_FIELD = "logout_token";
@@ -135,7 +147,7 @@ function loginErrorRedirect(c: Context, code: string): Response {
 /** MS-W1 — map a provision deny to its authError code: the collision deny (`account-exists`) gets its own
  *  operator-actionable code so the login surface can tell the user to have an admin LINK the account (B5);
  *  every other refusal is the generic not-authorized. */
-function oidcDenyErrorCode(reason: "account-exists" | undefined): string {
+function oidcDenyErrorCode(reason: ProvisionDenyReason | undefined): string {
   return reason === "account-exists" ? AUTH_ERROR_ACCOUNT_EXISTS : AUTH_ERROR_NOT_AUTHORIZED;
 }
 
@@ -433,7 +445,11 @@ type ProvisionOutcome =
        *  their OTHER live devices re-read the viewer instead of rendering the pre-rename identity. */
       readonly identityChanged: boolean;
     }
-  | { readonly outcome: "denied"; readonly reason?: "account-exists" };
+  | { readonly outcome: "denied"; readonly reason?: ProvisionDenyReason };
+
+/** Why the callback's `provisionIdentity` refused, where the route tells it apart: `account-exists` gets its
+ *  own authError, and `jit-closed` alone may become a pending join (D254). */
+type ProvisionDenyReason = "account-exists" | "jit-closed";
 
 /**
  * B4 — the local-mode FIRST-RUN owner-password setup deps. Present ONLY in local mode; its presence registers
@@ -502,6 +518,19 @@ export interface OidcRoutesDeps {
     readonly verify: BackchannelLogoutVerifier["verify"];
     readonly clientId: string;
   };
+  /** D254 — present when invites may create OIDC accounts; its presence makes the login carry `?invite=`, lets
+   *  the callback offer a pending join, and registers the pending preview and confirm routes. */
+  readonly signup?: OidcSignupDeps;
+}
+
+/** D254 — what the OIDC signup-through-invite routes need. */
+export interface OidcSignupDeps {
+  readonly invites: Pick<SignupInviteOps, "tokenHashOf" | "admitsHash" | "previewHash" | "redeemPending" | "announceJoined">;
+  readonly pending: Pick<SessionsService, "recordPendingSignup" | "readPendingSignup" | "preparePendingSignup">;
+  /** Is this cookie token a live session? A signed-in caller joins through the in-app dialog, never here. */
+  readonly sessionIsLive: (token: SessionToken) => Promise<boolean>;
+  /** The new account's local-light floor, run after the commit (total by contract). */
+  readonly seedUserConnections: (userId: UserId) => Promise<void>;
 }
 
 export interface AuthRoutesDeps {
@@ -534,7 +563,7 @@ export interface SignupRouteDeps {
   /** Is this cookie token a live session? A signed-in caller joins through the in-app dialog, never here. */
   readonly sessionIsLive: (token: SessionToken) => Promise<boolean>;
   /** Chat's signup ops: the invite pre-check, the one gated batch, and the join announcement. */
-  readonly invites: SignupInviteOps;
+  readonly invites: Pick<SignupInviteOps, "admits" | "redeem" | "announceJoined">;
   /** The sessions front-door predicate over `OWNER_HANDLES` and the single-user placeholder, case-insensitive. */
   readonly isReservedHandle: (handle: Handle) => boolean;
   /** Does an account already carry the handle, case-insensitively? */
@@ -966,6 +995,7 @@ function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDep
       nonce,
       redirectUri,
       createdAt: deps.now(),
+      inviteTokenHash: inviteTokenHashOf(c, oidc),
     });
     writeSetCookies(c, [serializeOidcBindingCookie(state, transport)]);
     const url = buildAuthorizationUrl(config, {
@@ -988,6 +1018,38 @@ function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDep
     if (provisioned.identityChanged) {
       publishUserEvent(provisioned.userId, { type: "identityChanged" });
     }
+  };
+
+  // The callback's tail once a usable identity exists: provision, then refuse, hold as a pending join, or mint.
+  const provisionAndMint = async (
+    c: Context,
+    login: { readonly identity: ResolvedIdentity & { readonly externalId: ExternalId }; readonly tx: OidcTransaction; readonly idToken: string | null },
+  ): Promise<Response> => {
+    // A1/A2 — the OIDC caller resolves admission from env and hands the verb resolved booleans (it stays
+    // mode-agnostic). forward-header never routes here, so its JIT is unaffected.
+    const provisioned = await deps.sessions.provisionIdentity(login.identity, {
+      allowJitProvision: oidc.allowJitProvision,
+      requireApproval: oidc.requireApproval,
+    });
+    if (provisioned.outcome === "denied") {
+      // D254 — the JIT gate, and only the JIT gate, may turn into a pending join when a signup invite rode in.
+      const pending = provisioned.reason === "jit-closed" ? await offerPendingJoin(c, oidc, login) : null;
+      // MS-W1 — a collision deny gets its own operator-actionable code; every other refusal is generic.
+      return pending ?? loginErrorRedirect(c, oidcDenyErrorCode(provisioned.reason));
+    }
+    if (!provisioned.enabled) {
+      return loginErrorRedirect(c, AUTH_ERROR_ACCOUNT_DISABLED);
+    }
+    fanIdentityChange(provisioned);
+    const session = await deps.sessions.create({
+      userId: provisioned.userId,
+      userAgent: c.req.header("user-agent") ?? null,
+      // #141 — the verified id_token rides into the session row (sealed by the verb) so THIS session's own
+      // logout can present it as `id_token_hint`. An IdP that omitted it degrades to a bare end-session URL.
+      oidcIdToken: login.idToken,
+    });
+    writeMintedSession(c, deps, session);
+    return c.redirect("/", FOUND);
   };
 
   // A7 — the callback is a TOP-LEVEL browser navigation, so every failure lands back on /login with a
@@ -1027,36 +1089,154 @@ function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDep
     if (identity === null) {
       return loginErrorRedirect(c, AUTH_ERROR_NO_IDENTITY);
     }
-    // A1/A2 — the OIDC caller resolves admission from env and hands the verb resolved booleans (it stays
-    // mode-agnostic). forward-header never routes here, so its JIT is unaffected.
-    const provisioned = await deps.sessions.provisionIdentity(identity, {
-      allowJitProvision: oidc.allowJitProvision,
-      requireApproval: oidc.requireApproval,
-    });
-    if (provisioned.outcome === "denied") {
-      // MS-W1 — a collision deny gets its own operator-actionable code; every other refusal is generic.
-      return loginErrorRedirect(c, oidcDenyErrorCode(provisioned.reason));
-    }
-    if (!provisioned.enabled) {
-      return loginErrorRedirect(c, AUTH_ERROR_ACCOUNT_DISABLED);
-    }
-    fanIdentityChange(provisioned);
-    const session = await deps.sessions.create({
-      userId: provisioned.userId,
-      userAgent: c.req.header("user-agent") ?? null,
-      // #141 — the verified id_token rides into the session row (sealed by the verb) so THIS session's own
-      // logout can present it as `id_token_hint`. An IdP that omitted it degrades to a bare end-session URL.
-      oidcIdToken: exchange.idToken,
-    });
-    writeMintedSession(c, deps, session);
-    return c.redirect("/", FOUND);
+    return await provisionAndMint(c, { identity, tx, idToken: exchange.idToken });
   });
+
+  if (oidc.signup !== undefined) {
+    registerOidcPendingJoin(app, deps, oidc, oidc.signup);
+  }
 
   // A5 — RP back-channel logout. Registered only when OIDC_BACKCHANNEL_LOGOUT=on (deps.backchannelLogout set).
   // The IdP calls this server-to-server; the signed logout_token IS the authentication (no cookie, no CSRF).
   if (oidc.backchannelLogout !== undefined) {
     registerBackchannelLogout(app, deps, oidc, oidc.backchannelLogout);
   }
+}
+
+/** D254 — the peppered hash of a login's `?invite=`, or null. The route never says whether the invite is valid:
+ *  an absent, over-long or unknown token mints the same transaction and the same redirect. The raw token is
+ *  hashed here and never stored or logged. */
+function inviteTokenHashOf(c: Context, oidc: OidcRoutesDeps): string | null {
+  const raw = new URL(c.req.url).searchParams.get(INVITE_PARAM);
+  if (oidc.signup === undefined || raw === null || raw.length === 0 || raw.length > INVITE_PARAM_MAX_CHARS) {
+    return null;
+  }
+  return oidc.signup.invites.tokenHashOf(raw);
+}
+
+/** D254 — the pending-join cookie holding a fresh secret, alive exactly as long as the pending row. */
+function serializePendingJoinCookie(secret: string, transport: RequestTransport): string {
+  const { name, attrs } = oidcPendingJoinCookieFor(transport);
+  return `${name}=${secret}; Max-Age=${OIDC_PENDING_JOIN_TTL_MS / MS_PER_SECOND}; ${attrs}`;
+}
+
+/** Clear every pending-join name (the logout pattern: the `__Host-` clear is dropped over plain http). */
+function serializeClearedPendingJoinCookies(): readonly string[] {
+  return OIDC_PENDING_JOIN_COOKIES.map(({ name, attrs }) => `${name}=; Max-Age=0; ${attrs}`);
+}
+
+/**
+ * D254 — a JIT-closed identity that signed in with a signup invite gets a pending join instead of a refusal,
+ * but only while the invite still admits one account under this mode and its minter still holds the
+ * authority. Nothing is provisioned: the identity is frozen under a fresh secret that rides only the pending
+ * cookie, and the browser lands on the pending surface, whose URL carries no secret. Returns null (the
+ * caller refuses as before) when there is no signup path.
+ */
+async function offerPendingJoin(
+  c: Context,
+  oidc: OidcRoutesDeps,
+  login: { readonly identity: ResolvedIdentity & { readonly externalId: ExternalId }; readonly tx: OidcTransaction; readonly idToken: string | null },
+): Promise<Response | null> {
+  const { signup } = oidc;
+  const inviteTokenHash = login.tx.inviteTokenHash;
+  if (signup === undefined || inviteTokenHash === null || !(await signup.invites.admitsHash(inviteTokenHash))) {
+    return null;
+  }
+  const secret = await signup.pending.recordPendingSignup({ identity: login.identity, inviteTokenHash, idToken: login.idToken });
+  writeSetCookies(c, [serializePendingJoinCookie(secret, requestTransport(c))]);
+  getLog().info(
+    { handle: login.identity.handle, externalId: login.identity.externalId },
+    "auth: OIDC login held as a pending join (JIT closed, signup invite)",
+  );
+  return c.redirect(OIDC_PENDING_JOIN_SURFACE, FOUND);
+}
+
+/** D254 — one pending-join refusal on the wire: a fixed code, and the pending cookie cleared with it. */
+function pendingJoinRefusal(c: Context, code: PendingJoinErrorCode, status: typeof BAD_REQUEST | typeof CONFLICT | typeof NOT_FOUND): Response {
+  writeSetCookies(c, serializeClearedPendingJoinCookies());
+  return c.json({ error: code }, status);
+}
+
+/** D254 — the raw pending secret under the request transport's name, or null. */
+function pendingJoinSecret(c: Context): string | null {
+  const secret = readRequestCookie(c.req.raw.headers, oidcPendingJoinCookieFor(requestTransport(c)).name);
+  return secret !== null && secret.length > 0 ? secret : null;
+}
+
+/** D254 — the confirm's steps before any write: the per-address bucket, the live-session refusal, the strict
+ *  empty body, and the pending secret. Returns the secret, or the refusal to send. */
+async function admitPendingConfirm(c: Context, signup: OidcSignupDeps, addressLimiter: RateLimiter): Promise<Response | string> {
+  const throttled = await throttleLogin(addressLimiter, c);
+  if (throttled !== null) {
+    return throttled;
+  }
+  const token = readSessionCookie(c.req.raw.headers, requestTransport(c));
+  if (token !== null && (await signup.sessionIsLive(token))) {
+    return c.json({ error: "already_signed_in" satisfies PendingJoinErrorCode }, CONFLICT);
+  }
+  let raw: unknown;
+  // @orb-waive caught-failure-ownership(catch): the CLIENT is the owner and the 400 is the surface — an unparseable body is the caller's error, answered with the same `invalid_request` code as a schema miss. Ends if body decoding gains a server-side fault worth distinguishing from bad input.
+  try {
+    raw = await c.req.json();
+  } catch {
+    raw = undefined;
+  }
+  if (!pendingJoinConfirmRequestSchema.safeParse(raw).success) {
+    return c.json({ error: "invalid_request" satisfies PendingJoinErrorCode }, BAD_REQUEST);
+  }
+  return pendingJoinSecret(c) ?? pendingJoinRefusal(c, "join_unavailable", NOT_FOUND);
+}
+
+/**
+ * D254 — the signed-out pending join's two routes, both same-origin POSTs behind `csrfGuard`. The preview shows
+ * the room the pending invite opens and nothing else. The confirm takes no token input: the pending cookie
+ * names the join, `preparePendingSignup` re-decides the frozen identity, and chat's one batch takes the pending
+ * row, inserts the account, spends a use, seats it and audits it, or does none of that. A session mints only
+ * after that batch, and only for an enabled account: under OIDC_REQUIRE_APPROVAL the account waits disabled.
+ */
+function registerOidcPendingJoin(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDeps, signup: OidcSignupDeps): void {
+  const addressLimiter = loginThrottler(deps);
+  const bodyCap = bodyLimit({ maxSize: LOGIN_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) });
+  app.post(OIDC_PENDING_PREVIEW_ROUTE, csrfGuard, bodyCap, async (c) => {
+    const throttled = await throttleLogin(addressLimiter, c);
+    if (throttled !== null) {
+      return throttled;
+    }
+    const secret = pendingJoinSecret(c);
+    const pending = secret === null ? null : await signup.pending.readPendingSignup(secret);
+    const preview = pending === null ? null : await signup.invites.previewHash(pending.inviteTokenHash);
+    if (preview === null) {
+      return pendingJoinRefusal(c, "join_unavailable", NOT_FOUND);
+    }
+    return c.json(invitePreviewSchema.parse(preview));
+  });
+  app.post(OIDC_PENDING_CONFIRM_ROUTE, csrfGuard, bodyCap, async (c) => {
+    const secret = await admitPendingConfirm(c, signup, addressLimiter);
+    if (secret instanceof Response) {
+      return secret;
+    }
+    const plan = await signup.pending.preparePendingSignup({ secret, requireApproval: oidc.requireApproval });
+    if (plan === null) {
+      return pendingJoinRefusal(c, "join_unavailable", NOT_FOUND);
+    }
+    const outcome = await signup.invites.redeemPending({
+      tokenHash: plan.inviteTokenHash,
+      userId: plan.userId,
+      handle: plan.handle,
+      statements: plan.statements,
+    });
+    if (outcome.outcome === "refused") {
+      return outcome.reason === "handle-taken" ? pendingJoinRefusal(c, "account_exists", CONFLICT) : pendingJoinRefusal(c, "join_unavailable", NOT_FOUND);
+    }
+    writeSetCookies(c, serializeClearedPendingJoinCookies());
+    if (plan.enabled) {
+      const session = await deps.sessions.create({ userId: outcome.userId, userAgent: c.req.header("user-agent") ?? null, oidcIdToken: plan.oidcIdToken });
+      writeMintedSession(c, deps, session);
+    }
+    await signup.seedUserConnections(outcome.userId);
+    await signup.invites.announceJoined(outcome.chatId);
+    return c.json({ signedIn: plan.enabled });
+  });
 }
 
 /** A5 — POST /api/auth/oidc/backchannel-logout. Validates the IdP `logout_token` against the issuer JWKS
@@ -1294,7 +1474,10 @@ export function oidcSessionIdentity(
   claims: { readonly [claim: string]: unknown } | undefined,
   claimMap: OidcClaimMap,
   groupsSeparator?: string,
-): ResolvedIdentity | null {
+): (ResolvedIdentity & { readonly externalId: ExternalId }) | null {
   const identity = identityFromClaims(claims, claimMap, groupsSeparator);
-  return identity === null || identity.externalId === null ? null : identity;
+  if (identity === null || identity.externalId === null) {
+    return null;
+  }
+  return { ...identity, externalId: identity.externalId };
 }

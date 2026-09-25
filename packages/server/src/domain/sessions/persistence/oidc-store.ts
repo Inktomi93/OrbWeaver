@@ -3,6 +3,7 @@ import { oidcTransactions } from "@orb/db/schema";
 import { and, eq, gt, lte } from "drizzle-orm";
 import type { OidcTransaction } from "#infra/auth";
 import { OIDC_TRANSACTION_TTL_MS } from "#infra/auth";
+import { deleteExpiredPendingSignups } from "./pending-signups.ts";
 
 interface DomainOidcStore {
   mint: (tx: OidcTransaction) => Promise<void>;
@@ -20,6 +21,7 @@ export function createOidcStore(db: Db, now: () => number): DomainOidcStore {
         codeVerifier: tx.codeVerifier,
         nonce: tx.nonce,
         redirectUri: tx.redirectUri,
+        inviteTokenHash: tx.inviteTokenHash,
         createdAt: tx.createdAt,
         expiresAt: tx.createdAt + OIDC_TRANSACTION_TTL_MS,
       });
@@ -51,13 +53,16 @@ export function createOidcStore(db: Db, now: () => number): DomainOidcStore {
         nonce: row.nonce ?? "",
         redirectUri: row.redirectUri ?? "",
         createdAt: row.createdAt,
+        inviteTokenHash: row.inviteTokenHash,
       };
     },
 
-    /** Scheduled GC path; never touches a live row, so a concurrent in-flight PKCE flow is safe. */
+    /** Scheduled GC path; never touches a live row, so a concurrent in-flight PKCE flow is safe. It also reaps
+     *  expired pending joins (D254): an unconfirmed join leaves no identity at rest past its window. */
     async deleteExpired(before: number): Promise<number> {
       const reaped = await db.delete(oidcTransactions).where(lte(oidcTransactions.expiresAt, before)).returning({ state: oidcTransactions.state });
-      return reaped.length;
+      const pending = await deleteExpiredPendingSignups(db, before);
+      return reaped.length + pending;
     },
   };
 }

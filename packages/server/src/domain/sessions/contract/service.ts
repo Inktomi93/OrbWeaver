@@ -11,6 +11,7 @@ import type { Sealed } from "#infra/crypto";
 import type { CreateSessionParams, ProvisionIdentityOptions } from "./params.ts";
 import type {
   CreateSessionResult,
+  PendingSignupPlan,
   ProvisionResult,
   RevokedSession,
   RevokedSessionsSummary,
@@ -56,6 +57,14 @@ export interface SessionsContext {
    *  pane repairs. Idempotent by the `(owner_id, label)` unique, so the `onConflictDoNothing` loser calling it
    *  for the WINNER's id double-seeds nothing. */
   seedUserConnections: (userId: UserId) => Promise<void>;
+  /** D254 — mint the fresh secret a pending OIDC join rides in its cookie (256 bits of CSPRNG entropy). */
+  mintPendingSecret: () => string;
+  /** D254 — the peppered, domain-separated hash of a pending-join secret: the pending row's only lookup key. */
+  hashPendingSecret: (secret: string) => string;
+  /** D254 — seal and open the pending row's id_token; the AAD is the row's secret hash, so a blob lifted to
+   *  another row fails GCM verification. */
+  sealPendingIdToken: (idToken: string, secretHash: string) => Sealed;
+  openPendingIdToken: (sealed: Sealed, secretHash: string) => string;
 }
 
 export interface SessionsService {
@@ -130,6 +139,19 @@ export interface SessionsService {
   };
   /** D254 — does any account carry this handle, compared case-insensitively? @internal */
   signupHandleTaken: (handle: Handle) => Promise<boolean>;
+  /** D254 — freeze a JIT-closed OIDC identity that arrived with a signup invite as a pending join, replacing
+   *  any earlier one for the subject; returns the raw secret for the pending cookie. @internal */
+  recordPendingSignup: (args: {
+    readonly identity: ResolvedIdentity & { readonly externalId: ExternalId };
+    readonly inviteTokenHash: string;
+    readonly idToken: string | null;
+  }) => Promise<string>;
+  /** D254 — the invite hash of the live pending join under this raw secret, or null. Reads only. @internal */
+  readPendingSignup: (secret: string) => Promise<{ readonly inviteTokenHash: string } | null>;
+  /** D254 — the confirm's plan for the live pending join under this raw secret, or null when there is none
+   *  or the frozen identity may no longer join: the access gate refuses, it is the owner, or it now matches
+   *  an account. @internal */
+  preparePendingSignup: (args: { readonly secret: string; readonly requireApproval: boolean }) => Promise<PendingSignupPlan | null>;
   /** B4 — is this a fresh local box whose owner row has no password yet (first-run setup pending)? Drives
    *  the `localFirstRun` config flag. @internal */
   ownerNeedsPassword: () => Promise<boolean>;

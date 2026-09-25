@@ -14,8 +14,9 @@ import type { ChatId, ChatInviteId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import type { ClaimChatOp } from "../../../../../packages/server/src/domain/chat/contract/context.ts";
+import type { AssembleInvitePreviewOp, ClaimChatOp } from "../../../../../packages/server/src/domain/chat/contract/context.ts";
 import { ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
+import { createInvitePreview } from "../../../../../packages/server/src/domain/chat/verbs/invite-preview.ts";
 import { createInvites } from "../../../../../packages/server/src/domain/chat/verbs/invites.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
@@ -42,6 +43,7 @@ function makeDeps(): {
   emit: () => Promise<void>;
   loadParticipantViews: (chatId: ChatId) => Promise<readonly ParticipantView[]>;
   claimChat: ClaimChatOp;
+  assemblePreview: AssembleInvitePreviewOp;
 } {
   return {
     emit: (): Promise<void> => {
@@ -50,6 +52,7 @@ function makeDeps(): {
     },
     loadParticipantViews,
     claimChat: noClaim,
+    assemblePreview: createInvitePreview({ db }, { loadParticipantViews }),
   };
 }
 
