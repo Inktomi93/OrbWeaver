@@ -51,6 +51,7 @@ export const CONTAINER_LOCAL_LOGIN_ENV = [
 
 /** The modes that mint a session cookie, so they need the SESSION_SECRET pepper to authenticate anyone. */
 export const COOKIE_AUTH_MODES = ["local", "oidc"] as const satisfies readonly AuthMode[];
+export type CookieAuthMode = (typeof COOKIE_AUTH_MODES)[number];
 
 export function isCookieAuthMode(mode: AuthMode): boolean {
   return (COOKIE_AUTH_MODES as readonly AuthMode[]).includes(mode);

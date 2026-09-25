@@ -2,7 +2,7 @@
 // and its controls. It polls `share.status`; `/api/auth/config` is memoized per session and would go stale here.
 // Focus never falls to the page when a control it sits on unmounts; `ShareCardBody` names each successor.
 
-import type { RelayDownReason, ShareRelayKind } from "@orb/contracts/identity";
+import type { CookieAuthMode, RelayDownReason, ShareRelayKind } from "@orb/contracts/identity";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
@@ -261,7 +261,7 @@ function ShareCardBody({ localMultiUser, discreetLogin, onEnableSeating }: Share
 
 // The addresses a stranger already reaches this server at, each with its Copy, and the way into a room's invites.
 // `kind` names why they exist: an oidc box's registered return addresses, or a local box's public ALLOWED_HOSTS names.
-function PublicAddressPanel({ kind, addresses }: { readonly kind: "oidc" | "local"; readonly addresses: readonly string[] }): ReactElement {
+function PublicAddressPanel({ kind, addresses }: { readonly kind: CookieAuthMode; readonly addresses: readonly string[] }): ReactElement {
   return (
     <Stack gap="field" data-share-public={kind}>
       {addresses.map((address) => (

@@ -1,5 +1,5 @@
 // entry/index — the process entry point, spawned for real. An environment the env parse refuses must stop the boot
-// with the refused keys named, one line each, and no parser dump or stack trace to bury them.
+// with each refused key named by its path, and no parser dump or stack trace to bury them.
 
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
