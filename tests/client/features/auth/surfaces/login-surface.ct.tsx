@@ -16,13 +16,13 @@ const ROOM_ID = "chat_01j0000000000000000000000b";
 const ROOM = { chatId: ROOM_ID, roomName: "Tavern Night", hostHandle: "alex", memberCount: 3, modeLabel: "The characters take turns." };
 
 /** Answer the sign-up preview: the room for a live token, the signup pre-check's 404 for a dead one. */
-async function stubSignupPreview(page: Page, live: boolean): Promise<{ readonly bodies: unknown[] }> {
+async function stubSignupPreview(page: Page, live: boolean, room: object = ROOM): Promise<{ readonly bodies: unknown[] }> {
   const bodies: unknown[] = [];
   await page.route("**/api/auth/signup/preview", async (route) => {
     bodies.push(route.request().postDataJSON());
     expect(route.request().headers()["x-orb-csrf"]).toBe("1");
     if (live) {
-      await route.fulfill({ status: 200, json: ROOM });
+      await route.fulfill({ status: 200, json: room });
       return;
     }
     await route.fulfill({ status: 404, json: { error: "invite_unavailable" } });
@@ -193,6 +193,15 @@ test("local + a stashed invite on a multi-human box → the signup form, posting
   expect(posted).toEqual({ token: "tok_invite", handle: "friend", password: "hunter2pw", persona: { name: "Mira", description: "" } });
   // P2-3 — the new account lands in the room it joined, not on Home.
   await expect(page.getByTestId("ct-login-landing")).toHaveText(`chat=${ROOM_ID} section=chats`);
+});
+
+// With discreet login on, the preview carries no host handle (the owner's login handle); the form still names the room.
+test("local + a stashed invite under discreet login → the room is named without a host", async ({ mount, page }) => {
+  const { hostHandle: _host, ...anonymous } = ROOM;
+  await stubSignupPreview(page, true, anonymous);
+  await mount(<LoginArmStory config={config({ mode: "local", multiHumanCapable: true, discreetLogin: true })} joinToken="tok_invite" />);
+  await expect(page.getByTestId("signup-invite-room")).toHaveText(`You're invited to ${ROOM.roomName} (3 members). ${ROOM.modeLabel}`);
+  await expect(page.getByTestId("signup-invite-form")).toBeVisible();
 });
 
 // P2-1 — a used or expired link shows the unavailable state, never the four fields that could only end in a refusal.

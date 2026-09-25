@@ -62,6 +62,9 @@ export function LoginArmStory({
 export function LoginPendingJoinStory({ config }: { readonly config: AuthConfig }): ReactElement {
   const [done, setDone] = useState(false);
   const [left, setLeft] = useState(false);
+  // Where the shell would land after the join: a signed-in confirm selects the joined room.
+  const activeChatId = useActiveChatId();
+  const activeSection = useActiveSection();
   return (
     <CtDataProviders>
       <div style={{ width: 360, padding: 16 }}>
@@ -76,6 +79,7 @@ export function LoginPendingJoinStory({ config }: { readonly config: AuthConfig 
           }}
         />
         {done ? <p data-testid="ct-login-done">done</p> : null}
+        <output data-testid="ct-login-landing">{`chat=${activeChatId ?? "none"} section=${activeSection}`}</output>
       </div>
     </CtDataProviders>
   );

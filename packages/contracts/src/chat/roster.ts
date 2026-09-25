@@ -653,6 +653,12 @@ export const invitePreviewSchema = z.strictObject({
 });
 export type InvitePreview = z.infer<typeof invitePreviewSchema>;
 
+/** D260 — the invite preview a SIGNED-OUT door answers (the local sign-up form, the OIDC pending join). The host
+ *  handle is left out while discreet login is on: in local mode it is the owner's login handle, which discreet login
+ *  keeps off the sign-in page. STRICT, like the signed-in preview. */
+export const signedOutInvitePreviewSchema = invitePreviewSchema.extend({ hostHandle: brandedId<Handle>().optional() });
+export type SignedOutInvitePreview = z.infer<typeof signedOutInvitePreviewSchema>;
+
 // ── Signup through an invite (D259) ──
 const SIGNUP_TOKEN_MAX_CHARS = 128;
 export const SIGNUP_HANDLE_MIN_CHARS = 2;
@@ -691,7 +697,7 @@ export const pendingJoinConfirmRequestSchema = z.strictObject({ persona: joinerP
 export type PendingJoinConfirmRequest = z.infer<typeof pendingJoinConfirmRequestSchema>;
 
 /** D259 — the confirm's answer. `signedIn` is false when the new account waits for an admin's approval. */
-export const pendingJoinConfirmResultSchema = z.strictObject({ signedIn: z.boolean() });
+export const pendingJoinConfirmResultSchema = z.strictObject({ signedIn: z.boolean(), chatId: typeIdSchema(ID_PREFIX.chat) });
 export type PendingJoinConfirmResult = z.infer<typeof pendingJoinConfirmResultSchema>;
 
 /** D259 — the pending-join routes' refusal codes (`{ error: <code> }`). The client maps each to its own copy. */

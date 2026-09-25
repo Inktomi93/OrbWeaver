@@ -4,6 +4,7 @@
 // credential-form carve-out).
 
 import type { PendingJoinErrorCode } from "@orb/contracts/chat";
+import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Row, Stack } from "@orb/ui/layout";
 import { Skeleton } from "@orb/ui/skeleton";
@@ -45,7 +46,8 @@ function refusalCopy(code: PendingJoinErrorCode | null, providerName: string): s
 export interface LoginPendingJoinProps {
   readonly providerName: string;
   /** Fires after the account is created and signed in. */
-  readonly onJoined: () => void;
+  /** Signed in and seated: the caller lands in the joined room. */
+  readonly onJoined: (chatId: ChatId) => void;
   /** Leave the pending join and show the plain sign-in card. */
   readonly onDismiss: () => void;
 }
@@ -108,7 +110,7 @@ export function LoginPendingJoin({ providerName, onJoined, onDismiss }: LoginPen
           return;
         }
         if (result.signedIn) {
-          onJoined();
+          onJoined(result.chatId);
           return;
         }
         setState({ kind: "approval" });

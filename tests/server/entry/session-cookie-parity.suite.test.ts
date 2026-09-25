@@ -142,7 +142,14 @@ async function viaLogout(cookieLines: readonly string[], transport: RequestTrans
     },
   };
   const app = new Hono();
-  registerAuthRoutes(app, { sessions, sockets: INERT_EVICTION, now: (): number => FROZEN_NOW, db: NO_DB, resolveLoginLimit: (): number => 10 });
+  registerAuthRoutes(app, {
+    sessions,
+    sockets: INERT_EVICTION,
+    now: (): number => FROZEN_NOW,
+    db: NO_DB,
+    resolveLoginLimit: (): number => 10,
+    discreetLogin: (): boolean => false,
+  });
 
   const headers = craft(cookieLines, transport);
   headers.set(CSRF_HEADER, "1"); // logout is CSRF-gated; without it the route 403s before parsing

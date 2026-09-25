@@ -42,9 +42,9 @@ interface Captured {
   readonly csrf: (string | undefined)[];
 }
 
-async function stubPending(page: Page, confirm: { readonly status: number; readonly json: object }): Promise<Captured> {
+async function stubPending(page: Page, confirm: { readonly status: number; readonly json: object }, preview: object = PREVIEW): Promise<Captured> {
   const captured: Captured = { bodies: [], csrf: [] };
-  await page.route("**/api/auth/oidc/pending/preview", (route) => route.fulfill({ status: 200, json: PREVIEW }));
+  await page.route("**/api/auth/oidc/pending/preview", (route) => route.fulfill({ status: 200, json: preview }));
   await page.route("**/api/auth/oidc/pending/confirm", async (route) => {
     captured.bodies.push(route.request().postDataJSON());
     captured.csrf.push(route.request().headers()["x-orb-csrf"]);
@@ -58,8 +58,26 @@ async function namePersona(page: Page): Promise<void> {
   await page.getByTestId("joiner-persona-name").fill("Mira");
 }
 
+// Discreet login leaves the host handle out of the preview; the card names the room alone.
+test("under discreet login the preview names the room without a host", async ({ mount, page }) => {
+  const { hostHandle: _host, ...anonymous } = PREVIEW;
+  await stubPending(page, { status: 200, json: { signedIn: true, chatId: PREVIEW.chatId } }, anonymous);
+  await mount(<LoginPendingJoinStory config={{ ...OIDC, discreetLogin: true }} />);
+  await expect(page.getByTestId("pending-join")).toContainText(`You're invited to ${PREVIEW.roomName} (2 members).`);
+});
+
+// The account is seated in the room it joined, so a signed-in confirm lands there, as the local sign-up does.
+test("a signed-in confirm lands in the joined room", async ({ mount, page }) => {
+  await stubPending(page, { status: 200, json: { signedIn: true, chatId: PREVIEW.chatId } });
+  await mount(<LoginPendingJoinStory config={OIDC} />);
+  await namePersona(page);
+  await page.getByTestId("pending-join-confirm").click();
+  await expect(page.getByTestId("ct-login-done")).toBeVisible();
+  await expect(page.getByTestId("ct-login-landing")).toHaveText(`chat=${PREVIEW.chatId} section=chats`);
+});
+
 test("previews the room, marks the unnamed persona on Join and sends nothing, and confirms with only the persona, then signs in", async ({ mount, page }) => {
-  const captured = await stubPending(page, { status: 200, json: { signedIn: true } });
+  const captured = await stubPending(page, { status: 200, json: { signedIn: true, chatId: PREVIEW.chatId } });
   await mount(<LoginPendingJoinStory config={OIDC} />);
   const card = page.getByTestId("pending-join");
   await expect(card).toContainText("host");
@@ -81,7 +99,7 @@ test("previews the room, marks the unnamed persona on Join and sends nothing, an
 });
 
 test("an account held for approval shows the approval state and never signs in", async ({ mount, page }) => {
-  await stubPending(page, { status: 200, json: { signedIn: false } });
+  await stubPending(page, { status: 200, json: { signedIn: false, chatId: PREVIEW.chatId } });
   await mount(<LoginPendingJoinStory config={OIDC} />);
   await namePersona(page);
   await page.getByTestId("pending-join-confirm").click();
@@ -118,7 +136,7 @@ test("no live pending join offers no Join, only the way back to sign-in", async 
 });
 
 test("Not now leaves the card for the plain sign-in", async ({ mount, page }) => {
-  await stubPending(page, { status: 200, json: { signedIn: true } });
+  await stubPending(page, { status: 200, json: { signedIn: true, chatId: PREVIEW.chatId } });
   await mount(<LoginPendingJoinStory config={OIDC} />);
   await page.getByTestId("pending-join-dismiss").click();
 

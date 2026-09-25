@@ -4,6 +4,7 @@
 // (whole-window redirect, never fetch; or the pending-join card when the callback held a join, D259). The
 // route owns the shell anchor; this surface owns the card content + its own mount focus.
 
+import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Row, Stack } from "@orb/ui/layout";
 import { Skeleton } from "@orb/ui/skeleton";
@@ -100,6 +101,12 @@ export function LoginSurface(): ReactElement {
  *  the oidc arm hands it to the login route. `pendingJoin` shows the oidc arm's pending-join card.
  * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
+// A new account is seated in the room it joined: land there, through the seam the signed-in join dialog uses.
+function landInJoinedRoom(chatId: ChatId): void {
+  setActiveSection("chats");
+  selectChat(chatId);
+}
+
 export function LoginBody({
   config,
   authError = null,
@@ -145,9 +152,10 @@ export function LoginBody({
         return (
           <LoginPendingJoin
             providerName={config.oidcProviderName}
-            onJoined={(): void => {
+            onJoined={(chatId): void => {
               // The account is already seated in the room, so the stash has nothing left to open.
               onDismissJoin?.();
+              landInJoinedRoom(chatId);
               onDone();
             }}
             onDismiss={(): void => onLeavePendingJoin?.()}
@@ -258,11 +266,9 @@ function LocalInviteArm({
       <LoginSignupForm
         token={joinToken}
         onSignedUp={(chatId): void => {
-          // The account is already seated in the room, so the stash has nothing left to open: land in the room
-          // through the same seam the signed-in join dialog uses.
+          // The account is already seated in the room, so the stash has nothing left to open.
           onDismissJoin?.();
-          setActiveSection("chats");
-          selectChat(chatId);
+          landInJoinedRoom(chatId);
           onDone();
         }}
         onUseSignIn={(): void => setSignIn(true)}

@@ -89,6 +89,7 @@ async function appWith(over: Partial<AuthRoutesDeps> = {}): Promise<Hono> {
     now: (): number => NOW,
     db,
     resolveLoginLimit: (): number => 10,
+    discreetLogin: (): boolean => false,
     authenticate: ownerAuth(castId<UserId>("usr_owner")),
     ...over,
   };
@@ -673,7 +674,13 @@ describe("local signup route (D259)", () => {
   }
 
   async function signupApp(
-    over: { readonly signup?: Partial<SignupRouteDeps>; readonly limit?: number; readonly sessions?: Partial<AuthSessionsPort>; readonly db?: Db } = {},
+    over: {
+      readonly signup?: Partial<SignupRouteDeps>;
+      readonly limit?: number;
+      readonly sessions?: Partial<AuthSessionsPort>;
+      readonly db?: Db;
+      readonly discreet?: boolean;
+    } = {},
   ): Promise<{ app: Hono; db: Db; spies: Spies }> {
     const db = over.db ?? (await freshDb());
     const spies: Spies = { hashed: 0, admitted: 0, redeemed: 0, seeded: [], announced: [] };
@@ -684,6 +691,7 @@ describe("local signup route (D259)", () => {
       now: (): number => NOW,
       db,
       resolveLoginLimit: (): number => over.limit ?? 10,
+      discreetLogin: (): boolean => over.discreet ?? false,
       signup: {
         multiHumanCapable: (): boolean => true,
         sessionIsLive: (): Promise<boolean> => Promise.resolve(false),
@@ -895,6 +903,18 @@ describe("local signup route (D259)", () => {
     expect(await res.json()).toEqual(PreviewRow);
   });
 
+  // Discreet login keeps the owner's login handle off the sign-in page; in local mode the host handle is one, so a
+  // signed-out preview leaves it out while discreet login is on.
+  test("preview: with discreet login on, the host handle is left out; with it off, the host is named", async () => {
+    const discreet = await signupApp({ discreet: true });
+    const hidden = await postPreview(discreet.app, "10.9.3.11", { token: Good });
+    expect(hidden.status).toBe(200);
+    const { hostHandle: _host, ...anonymous } = PreviewRow;
+    expect(await hidden.json()).toEqual(anonymous);
+    const open = await signupApp({ discreet: false });
+    expect(await (await postPreview(open.app, "10.9.3.12", { token: Good })).json()).toEqual(PreviewRow);
+  });
+
   // The route parses its answer through the STRICT preview schema: a preview op that carried one more key (a roster, a
   // hash) fails the call instead of reaching a visitor who is not a member.
   test("preview: nothing beyond the strict preview fields leaks; an extra key fails the call closed", async () => {
@@ -946,6 +966,7 @@ describe("local signup route (D259)", () => {
       now: (): number => NOW,
       db: await freshDb(),
       resolveLoginLimit: (): number => 10,
+      discreetLogin: (): boolean => false,
     });
     expect((await postPreview(app, "10.9.3.8", { token: Good })).status).toBe(404);
   });

@@ -21,8 +21,15 @@
 // callback so the token exchange presents the same redirect_uri the IdP saw, even behind a proxy. A login from
 // any other origin mints nothing and is sent to the login page on the first allowlisted callback's origin.
 
-import type { PendingJoinConfirmRequest, PendingJoinErrorCode, SignupErrorCode, SignupRequest } from "@orb/contracts/chat";
-import { invitePreviewSchema, pendingJoinConfirmRequestSchema, signupPreviewRequestSchema, signupRequestSchema, signupResultSchema } from "@orb/contracts/chat";
+import type { PendingJoinConfirmRequest, PendingJoinErrorCode, SignedOutInvitePreview, SignupErrorCode, SignupRequest } from "@orb/contracts/chat";
+import {
+  pendingJoinConfirmRequestSchema,
+  pendingJoinConfirmResultSchema,
+  signedOutInvitePreviewSchema,
+  signupPreviewRequestSchema,
+  signupRequestSchema,
+  signupResultSchema,
+} from "@orb/contracts/chat";
 import type { RequestTransport, ResolvedIdentity, UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { DomainRateLimitError } from "@orb/kit/errors";
@@ -554,6 +561,8 @@ export interface AuthRoutesDeps {
    *  a mid-session admin edit reloads the effective-config cache, so the next attempt sees the new cap (LIVE,
    *  the tRPC rate-limit-gate pattern). */
   readonly resolveLoginLimit: () => number;
+  /** Discreet login, read per request. While it is on, a signed-out invite preview leaves the host handle out. */
+  readonly discreetLogin: () => boolean;
   readonly authenticate?: LocalAuthenticator;
   /** B4 — present in local mode; registers the first-run owner-password setup route. */
   readonly firstRun?: FirstRunRouteDeps;
@@ -851,7 +860,7 @@ function registerSignupRoute(app: Hono, deps: AuthRoutesDeps, signup: SignupRout
     await signup.invites.announceJoined(outcome.chatId);
     return c.json(signupResultSchema.parse({ ok: true, chatId: outcome.chatId }));
   });
-  registerSignupPreviewRoute(app, signup, addressLimiter);
+  registerSignupPreviewRoute(app, signup, addressLimiter, deps.discreetLogin);
 }
 
 /**
@@ -860,7 +869,7 @@ function registerSignupRoute(app: Hono, deps: AuthRoutesDeps, signup: SignupRout
  * order, and answers no more than that pre-check: a dead token gets the same 404, a live one the strict invite
  * preview. It spends no per-invite bucket, like the pre-check, and writes nothing.
  */
-function registerSignupPreviewRoute(app: Hono, signup: SignupRouteDeps, addressLimiter: RateLimiter): void {
+function registerSignupPreviewRoute(app: Hono, signup: SignupRouteDeps, addressLimiter: RateLimiter, discreetLogin: () => boolean): void {
   app.post(SIGNUP_PREVIEW_ROUTE, csrfGuard, bodyLimit({ maxSize: SIGNUP_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }), async (c) => {
     const refused = await admitSignedOutCaller(c, signup, addressLimiter);
     if (refused !== null) {
@@ -875,8 +884,18 @@ function registerSignupPreviewRoute(app: Hono, signup: SignupRouteDeps, addressL
     if (preview === null) {
       return signupRefusal(c, "invite_unavailable", NOT_FOUND);
     }
-    return c.json(invitePreviewSchema.parse(preview));
+    return c.json(signedOutPreview(preview, discreetLogin()));
   });
+}
+
+/** D260 — the preview a signed-out door answers: the host handle is left out while discreet login is on, because in
+ *  local mode it is the owner's login handle. Parsed STRICT, so an extra key fails the call closed. */
+function signedOutPreview(preview: SignedOutInvitePreview, discreet: boolean): SignedOutInvitePreview {
+  if (!discreet) {
+    return signedOutInvitePreviewSchema.parse(preview);
+  }
+  const { hostHandle: _hidden, ...anonymous } = preview;
+  return signedOutInvitePreviewSchema.parse(anonymous);
 }
 
 /** D259, D260 — the steps every signed-out signup door runs before its body: the multi-human 404, the per-address
@@ -1358,7 +1377,7 @@ function registerOidcPendingJoin(app: Hono, deps: AuthRoutesDeps, oidc: OidcRout
     if (preview === null) {
       return pendingJoinRefusal(c, "join_unavailable", NOT_FOUND);
     }
-    return c.json(invitePreviewSchema.parse(preview));
+    return c.json(signedOutPreview(preview, deps.discreetLogin()));
   });
   app.post(OIDC_PENDING_CONFIRM_ROUTE, csrfGuard, bodyCap, async (c) => {
     const admitted = await admitPendingConfirm(c, signup, addressLimiter);
@@ -1386,7 +1405,7 @@ function registerOidcPendingJoin(app: Hono, deps: AuthRoutesDeps, oidc: OidcRout
     }
     await signup.seedUserConnections(outcome.userId);
     await signup.invites.announceJoined(outcome.chatId);
-    return c.json({ signedIn: plan.enabled });
+    return c.json(pendingJoinConfirmResultSchema.parse({ signedIn: plan.enabled, chatId: outcome.chatId }));
   });
 }
 

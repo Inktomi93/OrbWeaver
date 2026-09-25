@@ -4,8 +4,21 @@
 // import the fns, never hand-write `fetch`. Response shape is a structural mirror of
 // entry/http/auth-meta.ts (no proxy type to derive from, since the endpoint lives outside AppRouter).
 
-import type { InvitePreview, PendingJoinConfirmRequest, PendingJoinErrorCode, SignupErrorCode, SignupPreviewRequest, SignupRequest } from "@orb/contracts/chat";
-import { invitePreviewSchema, PENDING_JOIN_ERROR_CODES, pendingJoinConfirmResultSchema, SIGNUP_ERROR_CODES, signupResultSchema } from "@orb/contracts/chat";
+import type {
+  PendingJoinConfirmRequest,
+  PendingJoinErrorCode,
+  SignedOutInvitePreview,
+  SignupErrorCode,
+  SignupPreviewRequest,
+  SignupRequest,
+} from "@orb/contracts/chat";
+import {
+  PENDING_JOIN_ERROR_CODES,
+  pendingJoinConfirmResultSchema,
+  SIGNUP_ERROR_CODES,
+  signedOutInvitePreviewSchema,
+  signupResultSchema,
+} from "@orb/contracts/chat";
 import type { UserRole } from "@orb/contracts/identity";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { ChatId, Handle } from "@orb/kit/ids";
@@ -130,7 +143,7 @@ const PENDING_JOIN_PREVIEW_KEY = ["auth", "pendingJoin"] as const;
 /** D259 — the room a pending OIDC join opens, or null when there is no live pending join (no pending cookie, past
  *  its window, or an invite that no longer admits). A same-origin POST with the CSRF header: the pending cookie
  *  is `SameSite=Strict` and names the join, so nothing identifying rides the request. */
-async function previewPendingJoin(): Promise<InvitePreview | null> {
+async function previewPendingJoin(): Promise<SignedOutInvitePreview | null> {
   const res = await fetch("/api/auth/oidc/pending/preview", {
     method: "POST",
     credentials: "same-origin",
@@ -142,7 +155,7 @@ async function previewPendingJoin(): Promise<InvitePreview | null> {
   if (!res.ok) {
     throw new Error(`pending join preview failed (HTTP ${res.status})`);
   }
-  return invitePreviewSchema.parse(await res.json());
+  return signedOutInvitePreviewSchema.parse(await res.json());
 }
 
 const pendingJoinPreviewOptions = queryOptions({
@@ -154,13 +167,13 @@ const pendingJoinPreviewOptions = queryOptions({
 
 /** The pending-join preview as a shared read: fetched once per /login visit, never retried (the route spends
  *  the per-address sign-in bucket) and never refetched on focus. */
-export function usePendingJoinPreview(): UseQueryResult<InvitePreview | null> {
+export function usePendingJoinPreview(): UseQueryResult<SignedOutInvitePreview | null> {
   return useQuery(pendingJoinPreviewOptions);
 }
 
 /** D260 — the room a stashed local sign-up token opens, or null when it names no invite that still admits anyone.
  *  The same controls as the signup route guard it, and a dead token answers the same 404. */
-async function previewSignupInvite(token: string): Promise<InvitePreview | null> {
+async function previewSignupInvite(token: string): Promise<SignedOutInvitePreview | null> {
   const res = await fetch("/api/auth/signup/preview", {
     method: "POST",
     credentials: "same-origin",
@@ -173,17 +186,20 @@ async function previewSignupInvite(token: string): Promise<InvitePreview | null>
   if (!res.ok) {
     throw new Error(`sign-up invite preview failed (HTTP ${res.status})`);
   }
-  return invitePreviewSchema.parse(await res.json());
+  return signedOutInvitePreviewSchema.parse(await res.json());
 }
 
 // The preview read's three outcomes: still on its way, answered (a room, or null for a dead link), or failed.
-type SignupPreviewState = { readonly kind: "pending" } | { readonly kind: "answered"; readonly preview: InvitePreview | null } | { readonly kind: "failed" };
+type SignupPreviewState =
+  | { readonly kind: "pending" }
+  | { readonly kind: "answered"; readonly preview: SignedOutInvitePreview | null }
+  | { readonly kind: "failed" };
 
 /** The sign-up form's invite preview, and whether it is still on its way. A POST-shaped read fired once per mount,
  *  like the signed-in join dialog's: never retried (the route spends the per-address sign-in bucket), never
  *  refetched, and never cached under a key, because the token is a secret. `data` stays undefined when the read
  *  failed, which the form shows as the unavailable state. */
-export function useSignupInvitePreview(token: string): { readonly isPending: boolean; readonly data: InvitePreview | null | undefined } {
+export function useSignupInvitePreview(token: string): { readonly isPending: boolean; readonly data: SignedOutInvitePreview | null | undefined } {
   const [preview, setPreview] = useState<SignupPreviewState>({ kind: "pending" });
   // Guards StrictMode's dev double-invoke, which would spend a second bucket point for the same read. The answer
   // lands through the promise, never through a mutation observer: StrictMode's unsubscribe detaches an observer
@@ -212,7 +228,7 @@ function isPendingJoinErrorCode(value: unknown): value is PendingJoinErrorCode {
  *  unreadable body). */
 export async function confirmPendingJoin(
   body: PendingJoinConfirmRequest,
-): Promise<{ readonly ok: true; readonly signedIn: boolean } | { readonly ok: false; readonly code: PendingJoinErrorCode | null }> {
+): Promise<{ readonly ok: true; readonly signedIn: boolean; readonly chatId: ChatId } | { readonly ok: false; readonly code: PendingJoinErrorCode | null }> {
   const res = await fetch("/api/auth/oidc/pending/confirm", {
     method: "POST",
     credentials: "same-origin",
@@ -220,7 +236,8 @@ export async function confirmPendingJoin(
     body: JSON.stringify(body),
   });
   if (res.ok) {
-    return { ok: true, signedIn: pendingJoinConfirmResultSchema.parse(await res.json()).signedIn };
+    const result = pendingJoinConfirmResultSchema.parse(await res.json());
+    return { ok: true, signedIn: result.signedIn, chatId: result.chatId };
   }
   // @orb-waive caught-failure-ownership(res.json): an absent or malformed error body degrades to the empty object, which reads as the unknown refusal (`null`); the refusal is still reported. Ends if every refusal body becomes guaranteed.
   const parsed = (await res.json().catch(() => ({}))) as { readonly error?: unknown };
