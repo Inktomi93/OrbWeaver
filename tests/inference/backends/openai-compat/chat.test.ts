@@ -202,6 +202,25 @@ function offRequest(
   return orRequest({ connection, params, tools: undefined });
 }
 
+// The preset's parallel-tool switch turned OFF (`false`) must reach a tools request on both dialects; unset sends
+// nothing, so the endpoint's own default stands.
+test("parallelToolCalls false sends parallel_tool_calls false on both dialects; unset sends no field", async () => {
+  const direct = offRequest({ reasoning: { mode: "none", enabled: false } }, { advanced: { parallelToolCalls: false } });
+  const tools = orRequest().tools;
+  expect((await sentBody({ ...direct, tools }))["parallel_tool_calls"]).toBe(false);
+  expect((await sentBody(orRequest({ params: { advanced: { parallelToolCalls: false } } })))["parallel_tool_calls"]).toBe(false);
+  expect(await sentBody({ ...offRequest({ reasoning: { mode: "none", enabled: false } }, {}), tools })).not.toHaveProperty("parallel_tool_calls");
+  expect(await sentBody(orRequest({ params: {} }))).not.toHaveProperty("parallel_tool_calls");
+});
+
+// A stored `true` is the endpoint's own default, and some OpenAI-compatible layers refuse the field outright
+// (Gemini: `Unknown name "parallel_tool_calls"`), so it never goes out on either dialect.
+test("parallelToolCalls true sends no parallel_tool_calls field on either dialect", async () => {
+  const direct = offRequest({ reasoning: { mode: "none", enabled: false } }, { advanced: { parallelToolCalls: true } });
+  expect(await sentBody({ ...direct, tools: orRequest().tools })).not.toHaveProperty("parallel_tool_calls");
+  expect(await sentBody(orRequest({ params: { advanced: { parallelToolCalls: true } } }))).not.toHaveProperty("parallel_tool_calls");
+});
+
 test("off sends reasoning_effort none where the model can turn reasoning off, and records none as applied", async () => {
   const recorded: RecordedRequest[] = [];
   const turn = await runOpenAiCompatChatTurn(

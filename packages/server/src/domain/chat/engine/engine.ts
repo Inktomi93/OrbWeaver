@@ -67,6 +67,7 @@ import type {
 } from "../contract/memory.ts";
 import { resolveToolRecurseLimit } from "../contract/metadata.ts";
 import type {
+  DeliveredCue,
   GeneratedText,
   HistoryMacroNames,
   PlacedInlineImage,
@@ -91,6 +92,7 @@ import { holdsLock, refreshLock, releaseLock, tryAcquireLock } from "../persiste
 import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";
 import {
+  loadCanonCues,
   loadCanonHistory,
   loadCanonReasoningParts,
   loadCanonStatRows,
@@ -102,6 +104,7 @@ import {
   loadVariableDeltas,
 } from "../persistence/queries.ts";
 import { insertChatStreamEventStatements } from "../persistence/stream-events.ts";
+import { digestsDerivable } from "../substrate/digests-derivable.ts";
 import { resolveGroupBucketCharacterId } from "../substrate/group-bucket.ts";
 import { spliceInlineReplyImages } from "../substrate/inline-reply-images.ts";
 import { projectRpgTranscript } from "../substrate/rpg-transcript.ts";
@@ -285,6 +288,8 @@ function variantPayloadOf(
     costDetails: e?.costDetails ?? null,
     // The replayable reasoning blocks (A1) — stored beside `reasoning` (the rendered text), read by the assembly.
     reasoningParts: e?.reasoningParts ?? null,
+    // The cue SHAPE sent ahead of this reply, replayed verbatim before it on a prefix-bound carry.
+    cue: result.cue,
     contextBoundaryMessageId: result.contextBoundaryMessageId,
     // The pipeline window the engine measured; the reconcile + live stats mirror both read gf-gs for gen-time.
     genStartedAt,
@@ -1799,6 +1804,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
       resolveImageUrl: (ref): Promise<ResolvedMediaRef | null> => ctx.resolveImageUrl({ ownerId: prep.runAsUserId, chatId: prep.chatId, ref }),
       // §8.8: the `conversation` carry source, LAZY — the pipeline calls it only on that rung.
       loadReasoningParts: (): Promise<ReadonlyMap<MessageId, readonly ChatReasoningPart[]>> => loadCanonReasoningParts(ctx.db, prep.chatId),
+      loadCues: (): Promise<ReadonlyMap<MessageId, DeliveredCue>> => loadCanonCues(ctx.db, prep.chatId),
       // §6.7: the inline-reply origin set the CONVERT seam's media fence reads, LAZY and chat-scoped — the
       // pipeline asks only when an assistant row actually carries an `asset:` span.
       loadInlineReplyAssetIds: (): Promise<ReadonlyMap<MessageId, ReadonlySet<AssetId>>> => loadInlineReplyAssetIds(ctx.db, prep.chatId),
@@ -1945,6 +1951,10 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
             macroNames,
             embedOwnerId: prep.runAsUserId,
           });
+          // No summarize connection: digests pause (the Utility-model row says so) rather than fail every turn.
+          if (!(await digestsDerivable(ctx, prep.funderUserId))) {
+            return;
+          }
           const participants = await loadParticipants(ctx.db, prep.chatId);
           const chars = participants.flatMap((r) => {
             const actor = classifyParticipant(r);
@@ -2166,6 +2176,7 @@ async function generateTextUnpersisted(ctx: ChatContext, prep: TurnPrep, onText:
       resolveImageUrl: (ref) => ctx.resolveImageUrl({ ownerId: prep.runAsUserId, chatId: prep.chatId, ref }),
       // §8.8: the `conversation` carry source, LAZY — the pipeline calls it only on that rung.
       loadReasoningParts: (): Promise<ReadonlyMap<MessageId, readonly ChatReasoningPart[]>> => loadCanonReasoningParts(ctx.db, prep.chatId),
+      loadCues: (): Promise<ReadonlyMap<MessageId, DeliveredCue>> => loadCanonCues(ctx.db, prep.chatId),
       // §6.7: the inline-reply origin set the CONVERT seam's media fence reads, LAZY and chat-scoped — the
       // pipeline asks only when an assistant row actually carries an `asset:` span.
       loadInlineReplyAssetIds: (): Promise<ReadonlyMap<MessageId, ReadonlySet<AssetId>>> => loadInlineReplyAssetIds(ctx.db, prep.chatId),

@@ -19,7 +19,7 @@ import { describe } from "vitest";
 import { assemblePrompt } from "../../../../../packages/server/src/domain/chat/assembly/assemble.ts";
 import { BEFORE_HISTORY_DEPTH } from "../../../../../packages/server/src/domain/chat/assembly/injections.ts";
 import { computeHistoryBreakpoint, shape, toShapeCanon } from "../../../../../packages/server/src/domain/chat/assembly/shape.ts";
-import type { HistoryMacroNames } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
+import type { DeliveredCue, HistoryMacroNames } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
 import { buildWireHistory, convertsToEmptyWireRow } from "../../../../../packages/server/src/domain/chat/substrate/wire-history.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
@@ -338,6 +338,11 @@ describe("computeHistoryBreakpoint — direct math", () => {
       offsetFromEnd: 2,
       decision: "placed",
     });
+  });
+
+  // A turn-scoped cue after a committed user row is the only new row: the newest group is stable, so depth 0 pins it.
+  test("a stable newest group followed only by system rows is pinned at depth 0", () => {
+    expect(computeHistoryBreakpoint([stable("assistant"), stable("user"), volatile("system")], true)).toEqual({ offsetFromEnd: 0, decision: "placed" });
   });
 });
 
@@ -1759,5 +1764,112 @@ describe("shape — a folded system note leads the user text it joins", () => {
     // One turn later the note has moved down with its depth and leads the next user row instead.
     expect(wire(n1)[3]).toEqual(["user", "NOTE\n\nu2"]);
     expect(pinnedRow(n1)?.content).toBe("a1");
+  });
+});
+
+// ── A PREFIX-BOUND CARRY REPLAYS EVERY CUE (OR-10) ─────────────────────────────────────────────────────────
+// Opus 5.5 and Fable 5.1 bind each carried thinking block to every row before it, so a cue that is gone on the
+// next call drops every later reply's thinking. With a replay, each turn's delivered history must be a literal
+// prefix of the next turn's: the cue each reply followed comes back in the role the live turn gave it.
+describe("shape — a prefix-bound carry keeps every cue", () => {
+  const kaiCue = "[Write the next reply only as Kai.]";
+  const ariaCue = "[Write the next reply only as Aria.]";
+  type StoredRow = Parameters<typeof shape>[0]["canon"][number] & { readonly messageId: MessageId };
+  const row = (role: "user" | "assistant", content: string, authorName: string, characterId?: CharacterId): StoredRow => ({
+    role,
+    content,
+    authorName,
+    messageId: mintTypeId("message"),
+    ...(characterId === undefined ? {} : { characterId }),
+  });
+  // Both characters speak before the round, so the name-stamp labels every reply the same way on every turn.
+  const opening = [row("assistant", "g", "Aria", ARIA), row("user", "u1", "User"), row("assistant", "a1", "Kai", KAI), row("user", "u2", "User")];
+  const kaiReply = row("assistant", "first", "Kai", KAI);
+  const ariaReply = row("assistant", "second", "Aria", ARIA);
+  const nextSend = row("user", "u3", "User");
+
+  function stampOf(turn: ReturnType<typeof shape>): DeliveredCue {
+    if (turn.cue === null) {
+      throw new Error("the turn delivered no cue to stamp");
+    }
+    return turn.cue;
+  }
+
+  /** One group round and the send after it, each turn shaped with the cues the replies before it were stamped with. */
+  function round(model: Partial<Parameters<typeof shape>[0]>, turnScoped: boolean): ReturnType<typeof shape>[] {
+    const stamped = new Map<MessageId, DeliveredCue>();
+    const turn = (canon: Parameters<typeof shape>[0]["canon"], groupNudge: string): ReturnType<typeof shape> =>
+      shape(soloInput({ ...model, canon, appendUserTurn: null, groupNudge, cueReplay: { cues: new Map(stamped), turnScoped } }));
+    const kaiTurn = turn(opening, kaiCue);
+    stamped.set(kaiReply.messageId, stampOf(kaiTurn));
+    const ariaTurn = turn([...opening, kaiReply], ariaCue);
+    stamped.set(ariaReply.messageId, stampOf(ariaTurn));
+    const sendTurn = turn([...opening, kaiReply, ariaReply, nextSend], kaiCue);
+    return [kaiTurn, ariaTurn, sendTurn];
+  }
+
+  const startsWith = (later: ReturnType<typeof shape>, earlier: ReturnType<typeof shape>): void => {
+    expect(later.history.slice(0, earlier.history.length)).toEqual(earlier.history);
+  };
+
+  test("cues as kept user rows (S2c): every turn's history opens with the one before it", () => {
+    const [kaiTurn, ariaTurn, sendTurn] = round({}, false);
+    expect(kaiTurn?.cue).toEqual({ text: kaiCue, role: "user" });
+    expect(ariaTurn?.history.at(-1)).toEqual({ role: "user", content: ariaCue });
+    startsWith(ariaTurn as ReturnType<typeof shape>, kaiTurn as ReturnType<typeof shape>);
+    startsWith(sendTurn as ReturnType<typeof shape>, ariaTurn as ReturnType<typeof shape>);
+  });
+
+  test("a cue after a user row rides turn-scoped where the model takes it (S2), and a cue after a reply stays a user row", () => {
+    const measuredClaude = { roleHandlingFloor: "slotted", midConversationSystem: true, historySystemRows: true } as const;
+    const [kaiTurn, ariaTurn, sendTurn] = round(measuredClaude, true);
+    expect(kaiTurn?.history.at(-1)).toEqual({ role: "system", content: kaiCue, turnScoped: true });
+    expect(ariaTurn?.history.at(-1)).toEqual({ role: "user", content: ariaCue });
+    startsWith(ariaTurn as ReturnType<typeof shape>, kaiTurn as ReturnType<typeof shape>);
+    startsWith(sendTurn as ReturnType<typeof shape>, ariaTurn as ReturnType<typeof shape>);
+    // The replayed cues are committed bytes, so the cache still pins the newest stored reply.
+    expect(sendTurn?.breakpointDecision).toBe("placed");
+    expect(pinnedRow(sendTurn as ReturnType<typeof shape>)?.content).toBe("u3");
+  });
+
+  // The stored role is the delivered role: a user-row cue stays a user row where the turn could now send a system
+  // row, and a turn-scoped cue replays as a user row only where this turn cannot send a system row at all.
+  test("a replayed cue keeps its stored role, and falls back to a user row only where no system row may go", () => {
+    const slotted = { roleHandlingFloor: "slotted", midConversationSystem: true, historySystemRows: true } as const;
+    const replayed = (role: DeliveredCue["role"], model: Partial<Parameters<typeof shape>[0]>): ReturnType<typeof shape>["history"] =>
+      shape(
+        soloInput({
+          ...model,
+          canon: [...opening, kaiReply],
+          appendUserTurn: null,
+          groupNudge: ariaCue,
+          cueReplay: { cues: new Map([[kaiReply.messageId, { text: kaiCue, role }]]), turnScoped: true },
+        }),
+      ).history;
+    expect(replayed("user", slotted).at(-3)).toMatchObject({ role: "user", content: `u2\n\n${kaiCue}` });
+    expect(replayed("turn-scoped-system", slotted).at(-3)).toEqual({ role: "system", content: kaiCue, turnScoped: true });
+    expect(replayed("turn-scoped-system", { ...slotted, roleHandlingFloor: "strict" }).at(-3)).toMatchObject({ role: "user", content: `u2\n\n${kaiCue}` });
+  });
+
+  test("a level that folds every system row keeps the cue a user row", () => {
+    const [kaiTurn] = round({ roleHandlingFloor: "strict", midConversationSystem: true, historySystemRows: true }, true);
+    expect(kaiTurn?.history.at(-1)).toMatchObject({ role: "user", content: `u2\n\n${kaiCue}` });
+  });
+
+  test("a turn-scoped cue reaches the wire with clearAt", async () => {
+    const [kaiTurn] = round({ roleHandlingFloor: "slotted", midConversationSystem: true, historySystemRows: true }, true);
+    const converted = await buildWireHistory(
+      {
+        visionOk: false,
+        videoOk: false,
+        resolveImageUrl: () => Promise.resolve(null),
+        cardKeepLastX: undefined,
+        canon: [],
+        reasoningByMessage: new Map<MessageId, readonly ChatReasoningPart[]>(),
+        loadInlineReplyAssetIds: () => Promise.resolve(new Map<MessageId, ReadonlySet<AssetId>>()),
+      },
+      kaiTurn?.history ?? [],
+    );
+    expect(converted.at(-1)?.row).toEqual({ role: "system", content: [{ type: "text", text: kaiCue }], wireMeta: { clearAt: "next_user_message" } });
   });
 });

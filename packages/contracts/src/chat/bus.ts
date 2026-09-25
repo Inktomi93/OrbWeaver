@@ -256,6 +256,8 @@ export const ADJUSTED_KNOBS = [
   // (`capability.reasoning.replay: "none"`) or when reasoning is OFF for this turn — a carry knob on a
   // non-reasoning turn has nothing to carry.
   "carryReasoning",
+  // The preset's parallel-tool control, dropped on a wire that exposes none (the agent-sdk Claude runtime).
+  "parallelToolCalls",
 ] as const;
 export type AdjustedKnob = (typeof ADJUSTED_KNOBS)[number];
 

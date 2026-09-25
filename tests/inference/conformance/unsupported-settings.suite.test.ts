@@ -126,3 +126,28 @@ test("a user-widened sampler axis on the agent-sdk wire is ANNOUNCED, never sile
     expect(JSON.stringify(body), "an announced-dropped knob was still on the wire").not.toContain(`"${KNOB}"`);
   }
 });
+
+// A PRESET CONTROL THE SUBSCRIPTION RUNTIME CANNOT HONOUR. The Claude runtime takes no parallel-tool control (the
+// SDK's query options have none), so `advanced.parallelToolCalls` cannot reach that wire. A turn that carries tools
+// says so by name; a turn with no tools is silent, because the setting has nothing to govern there on any wire.
+const SCENE_TOOL = {
+  name: "record_scene",
+  description: "Record the scene state.",
+  parameters: { type: "object", properties: { mood: { type: "string" } }, required: ["mood"] },
+} as const;
+
+test("a preset's parallelToolCalls is ANNOUNCED as dropped on an agent-sdk turn that carries tools", async () => {
+  const { events } = await driveChat("agent-sdk", {
+    script: scriptFor("agent-sdk"),
+    params: { advanced: { parallelToolCalls: true } },
+    terminalTools: [SCENE_TOOL],
+  });
+  const dropped = events.flatMap((event) => (event.kind === "warning" && event.code === "sampling_knob_dropped" ? [event.knob] : []));
+  expect(dropped).toContain("parallelToolCalls");
+});
+
+test("with no tools on the turn, parallelToolCalls is not announced on the agent-sdk wire", async () => {
+  const { events } = await driveChat("agent-sdk", { script: scriptFor("agent-sdk"), params: { advanced: { parallelToolCalls: true } } });
+  const dropped = events.flatMap((event) => (event.kind === "warning" && event.code === "sampling_knob_dropped" ? [event.knob] : []));
+  expect(dropped).not.toContain("parallelToolCalls");
+});

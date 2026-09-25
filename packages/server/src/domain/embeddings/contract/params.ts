@@ -33,7 +33,7 @@ export type VectorTable = (typeof VECTOR_TABLES)[number];
 /** The sweep's abort, carried to the embed call. A pass checks it between items AND the embed call stops
  *  waiting on the model when it fires, so an aborted pass settles while a model is still loading. An embed cut
  *  off this way rejects before the row write, so it leaves no partial row. */
-export interface EmbedAbortParams {
+interface EmbedAbortParams {
   readonly signal?: AbortSignal | undefined;
 }
 

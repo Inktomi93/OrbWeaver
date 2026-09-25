@@ -267,10 +267,18 @@ function AdvancedCluster({ form }: { readonly form: AppForm }): ReactElement {
           <LogitBiasField form={form} />
           <SettingRowGroup>
             <SettingTrackRow>
-              <form.Subscribe selector={(state): boolean => state.values.params.advanced?.parallelToolCalls === true}>
+              {/* Unset is the model's own default, which allows parallel calls on every wire that has the control, so
+                  the switch reads on until the preset stores `false`. Off writes `false`; on clears the field. */}
+              <form.Subscribe selector={(state): boolean => state.values.params.advanced?.parallelToolCalls !== false}>
                 {(parallel): ReactElement => (
-                  <Field hint="Let the model emit several tool calls in one turn." label="Parallel tool calls">
-                    <Switch checked={parallel} onCheckedChange={(on): void => form.setFieldValue("params.advanced.parallelToolCalls", on ? true : undefined)} />
+                  <Field
+                    hint="Let the model emit several tool calls in one turn. Turn it off to ask for one call at a time. Claude subscription connections have no such setting, and each reply that carries tools says so."
+                    label="Parallel tool calls"
+                  >
+                    <Switch
+                      checked={parallel}
+                      onCheckedChange={(on): void => form.setFieldValue("params.advanced.parallelToolCalls", on ? undefined : false)}
+                    />
                   </Field>
                 )}
               </form.Subscribe>

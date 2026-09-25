@@ -17,7 +17,7 @@
 
 import type { JSONObject, LanguageModelV4CallOptions, SharedV4Headers, SharedV4ProviderOptions } from "@ai-sdk/provider";
 import type { GenerationCapability } from "@orb/contracts/inference";
-import { acceptsAssistantPrefill, cacheMinTokensOf, scrubWireSchema } from "@orb/contracts/inference";
+import { acceptsAssistantPrefill, acceptsTurnScopedSystem, bindsThinkingToPrefix, cacheMinTokensOf, scrubWireSchema } from "@orb/contracts/inference";
 import type { EffortLevel } from "@orb/contracts/preset";
 import type { AnthropicChatRequest, ChatHistoryMessage, ChatResult } from "../../contract/chat.ts";
 import { ProviderError } from "../../contract/errors.ts";
@@ -34,6 +34,7 @@ import { providerErrorFromHttp } from "../kit/error-classify.ts";
 import { turnAbortSignal } from "../kit/idle-timeout.ts";
 import type { ProviderLogger } from "../kit/provider-log.ts";
 import { providerLogger } from "../kit/provider-log.ts";
+import { prefixBindingDropsOf } from "../kit/provider-metadata.ts";
 import { rateLimitCanaryEvent, rateLimitFromHeaders } from "../kit/rate-limit-headers.ts";
 import { runWithPreCommitRetry } from "../kit/retry.ts";
 import { resolvedScrubSet } from "../kit/sanitize.ts";
@@ -101,7 +102,7 @@ function rowOptionsFor(
       options["cacheControl"] = { ...cachePlan.directive };
     }
     if (row.role === "system" && meta.clearAt !== undefined) {
-      if (generation.turns?.clearAt === true) {
+      if (acceptsTurnScopedSystem(generation)) {
         options["clearAt"] = meta.clearAt;
       } else {
         warnings.push({ code: "dynamic_context_demoted", message: "clearAt ignored: the curated row does not advertise the clear-at beta for this model" });
@@ -151,14 +152,24 @@ export function thinkingOf(reasoning: ResolvedReasoning): JSONObject {
 }
 
 /** Preserved thinking: on a prefix-bound model a replayed thinking block whose earlier prefix changed is a 400
- *  unless the request asks the API to drop it. Only the `conversation` carry replays thinking across turns (the
- *  dynamic system block and window trimming change that prefix); `tool-chain` replays inside one turn, where the
- *  prefix is fixed. The SDK spells `block_binding` and adds its beta. */
+ *  unless the request asks the API to drop it. Every carry rung replays thinking, so every rung asks: a missed
+ *  edit then costs that block, counted and raised by {@link raiseThinkingDrops}, never the turn. The SDK spells
+ *  `block_binding` and adds its beta; its schema admits the field only beside adaptive thinking. */
 function withBlockBinding(thinking: JSONObject, knobs: ResolvedChatKnobs, generation: GenerationCapability): JSONObject {
-  if (knobs.carryReasoning !== "conversation" || generation.reasoning.prefixBound !== true || thinking["type"] !== "adaptive") {
+  if (knobs.carryReasoning === "off" || !bindsThinkingToPrefix(generation) || thinking["type"] !== "adaptive") {
     return thinking;
   }
   return { ...thinking, blockBinding: { prefixMismatchBehavior: "drop_block" } };
+}
+
+/** The operator alarm for thinking the API dropped under `drop_block`. The carried history is built append-only,
+ *  so every drop names a prefix edit to find; the per-turn count rides the record's provider sidecar
+ *  (`thinkingDropped`). Paths only, never content. */
+function raiseThinkingDrops(log: ProviderLogger, drain: StreamDrain, turnId: string, model: string): void {
+  const paths = prefixBindingDropsOf(drain.providerMetadata?.[ANTHROPIC_KEY]) ?? [];
+  if (paths.length > 0) {
+    log.emit("error", "provider.thinking_dropped", { turnId, model, dropped: paths.length, paths });
+  }
 }
 
 /** THE TOOL-LIST CACHE BREAKPOINT (audit C4). The tool list is a large, stable prefix that changes far less
@@ -419,6 +430,7 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
     log.emit(response.rateLimit.status === "allowed" ? "debug" : "warn", "provider.rate_limit", { turnId: knobs.turnId, ...response.rateLimit });
   }
   emitReceipts({ log, req, generation, knobs, turn, written: cache.written, warnings });
+  raiseThinkingDrops(log, drain, knobs.turnId, connection.model);
   // D4: the turn's own timeline. The receipts above are the LOG surface; these three are the TRACE surface,
   // and they answer the questions a span's duration alone cannot (first-delta split, stop reason, cache hit).
   emitTurnSpanEvents({

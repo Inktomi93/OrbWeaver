@@ -33,7 +33,13 @@ import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { z } from "zod";
 import type { ProviderExecutor, WireCaptureSink } from "../../../packages/inference/src/contract/backend.ts";
-import type { AgentSdkChatRequest, AnthropicChatRequest, ChatRequest, OpenAiCompatChatRequest } from "../../../packages/inference/src/contract/chat.ts";
+import type {
+  AgentSdkChatRequest,
+  AnthropicChatRequest,
+  ChatRequest,
+  OpenAiCompatChatRequest,
+  WireTool,
+} from "../../../packages/inference/src/contract/chat.ts";
 import { ProviderError } from "../../../packages/inference/src/contract/errors.ts";
 import type { ChatEvent } from "../../../packages/inference/src/contract/events.ts";
 import type { EmbedRequest, StructuredRequest } from "../../../packages/inference/src/contract/roles.ts";
@@ -341,6 +347,8 @@ export interface ChatArmOptions {
   /** BB-004 negative arm only: remove the typed chat id immediately before the executor call, simulating an
    *  untyped consumer that bypassed the callback/id contract. The callback must then stay silent. */
   readonly omitChatIdAtRuntime?: true | undefined;
+  /** Tools the agent-sdk turn carries (its terminal-tool channel). Ignored on the hosted wires. */
+  readonly terminalTools?: readonly WireTool[] | undefined;
 }
 
 /** What `driveChat` collects out of the executor's callbacks. ONE declaration rather than a shape
@@ -381,7 +389,12 @@ function chatRequestFor(wire: Wire, options: ChatArmOptions, sink: ChatEventSink
   };
   const history = [{ role: "user" as const, content: [{ type: "text" as const, text: "Say something." }] }];
   if (wire === "agent-sdk") {
-    return { ...common, api: "agent-sdk", prompt: "Say something." } satisfies AgentSdkChatRequest;
+    return {
+      ...common,
+      api: "agent-sdk",
+      prompt: "Say something.",
+      ...(options.terminalTools !== undefined ? { terminalTools: options.terminalTools } : {}),
+    } satisfies AgentSdkChatRequest;
   }
   if (wire === "anthropic-messages") {
     return { ...common, api: "anthropic-messages", history } satisfies AnthropicChatRequest;
