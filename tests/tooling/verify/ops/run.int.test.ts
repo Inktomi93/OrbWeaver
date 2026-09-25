@@ -11,6 +11,7 @@ import process from "node:process";
 import { setTimeout as delay } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
+import { HOST_POOL_ROOT_ENV } from "@orb/tooling/_shared/host-slots";
 import { spawnNiced, spawnNicedTranscript } from "@orb/tooling/_shared/proc";
 import { vi } from "vitest";
 import YAML from "yaml";
@@ -36,7 +37,6 @@ import {
   unrunnableRegistryRows,
   workspaceBinPath,
 } from "../../../../tooling/src/verify/index.ts";
-import { HOST_POOL_ROOT_ENV } from "../../../../tooling/src/verify/lib/host-slots.ts";
 import { parseRequest } from "../../../../tooling/src/verify/lib/run-argv.ts";
 import { workingChangeClassification } from "../../../../tooling/src/verify/lib/selection.ts";
 import type { WholeRunAsk } from "../../../../tooling/src/verify/lib/whole-run-queue.ts";
@@ -1260,7 +1260,7 @@ test("spawnNicedTranscript: a bin that does not exist is a TOOL error (status nu
 // ── THE HOST-WIDE WHOLE-RUN QUEUE (#1835) ──────────────────────────────────────────────────────────────
 // Two whole batteries on one box is never faster than one after the other, so `runVerify` takes a
 // host-wide slot before its first stage. Pinned at the DOOR (`enterWholeRunQueue`) rather than by running
-// a battery: the pool's own mechanics are tests/tooling/verify/lib/host-slots.test.ts, and what only this
+// a battery: the pool's own mechanics are tests/tooling/_shared/host-slots.test.ts, and what only this
 // file can answer is WHICH RUNS QUEUE. The planted holder lives in a scratch runtime dir — never the real
 // /run/user/<uid> pool, where it would block an operator's live `pnpm check`.
 

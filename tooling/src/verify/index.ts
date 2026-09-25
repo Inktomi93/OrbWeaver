@@ -29,7 +29,6 @@ export { GATE_CONTRACT_KINDS } from "./contract/gate-corpus.ts";
 export type { GateIgnoreMarker } from "./contract/gate-ignore-marker.ts";
 export type { CheckContext, Violation } from "./contract/harness.ts";
 export type { RunHistoryEntry, RunHistoryStage, SlowdownAdvisory } from "./contract/history.ts";
-export type { HostSlotHolder, HostSlotLease, HostSlotPool } from "./contract/host-slots.ts";
 export type { ContractBannedShape, SchemaBannedShape } from "./contract/ledger-banned-shapes.ts";
 export type { GatePolicy, GatePolicyContext, GatePolicyHooks, GatePolicyProof } from "./contract/policy.ts";
 export { defineGate, GATE_POLICY_EXECUTIONS, GATE_POLICY_PROOF_MODES } from "./contract/policy.ts";

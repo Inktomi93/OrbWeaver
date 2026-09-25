@@ -1,5 +1,6 @@
-// THE HOST-WIDE SLOT POOL (tooling/src/verify/lib/host-slots.ts, #1835) — the mechanism behind "at most N
-// of these may run ON THIS BOX at once", shared by the whole-run verify queue and the CT runner cap.
+// THE HOST-WIDE SLOT POOL (tooling/src/_shared/host-slots.ts, #1835) — the mechanism behind "at most N
+// of these may run ON THIS BOX at once", shared by the whole-run verify queue, the CT runner cap, the
+// whole-program typecheck pool and the edit hook.
 //
 // WHAT IS PINNED HERE, and why each arm exists as a defect the pool could otherwise reintroduce:
 //   · the pool is HOST-WIDE — its directory is derived from $XDG_RUNTIME_DIR (per-USER), never from a
@@ -13,14 +14,14 @@
 // (clock, pid, process table, sleep) is injected — the same posture ct-runner-lock.test.ts takes. One test
 // drives the real `kill(pid, 0)` against a reaped child, so the default liveness probe is proven too.
 import { spawn, spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
-import type { HostSlotHolder, HostSlotLease, HostSlotPool } from "../../../../tooling/src/verify/contract/host-slots.ts";
-import { acquireHostSlot, HOST_POOL_ROOT_ENV, hostPoolDir, hostPoolRoot } from "../../../../tooling/src/verify/lib/host-slots.ts";
+import type { HostSlotHolder, HostSlotLease, HostSlotPool } from "@orb/tooling/_shared/host-slots";
+import { acquireHostSlot, HOST_POOL_ROOT_ENV, hostPoolDir, hostPoolRoot, tryAcquireHostSlot } from "@orb/tooling/_shared/host-slots";
 
-import { expect, test } from "../../../support/tool-fixtures.ts";
+import { expect, test } from "../../support/tool-fixtures.ts";
 
 /** A disposable per-user runtime dir — the pool's real root is $XDG_RUNTIME_DIR, so this IS the seam. */
 function scratchRuntime(): NodeJS.ProcessEnv {
@@ -52,8 +53,9 @@ function fakeClock(): { now: () => Date; sleep: (ms: number) => Promise<void> } 
 test("the pool directory is derived from $XDG_RUNTIME_DIR — per-USER, never per-checkout (#1835)", () => {
   expect(hostPoolDir(poolOf(1), { [HOST_POOL_ROOT_ENV]: "/run/user/1000" })).toBe("/run/user/1000/orb-unit-slots");
   // A shell with no runtime dir (cron/ssh) still gets a HOST-wide root, not a per-tree one.
-  expect(hostPoolRoot({}), "no XDG_RUNTIME_DIR").toBe("/tmp");
-  expect(hostPoolRoot({ [HOST_POOL_ROOT_ENV]: "   " }), "an empty value is not a directory").toBe("/tmp");
+  // The fallback is the OS temp dir, which exists on every platform; a literal `/tmp` does not on Windows.
+  expect(hostPoolRoot({}), "no XDG_RUNTIME_DIR").toBe(tmpdir());
+  expect(hostPoolRoot({ [HOST_POOL_ROOT_ENV]: "   " }), "an empty value is not a directory").toBe(tmpdir());
 });
 
 test("a free pool hands out a slot immediately, and the slot file names its holder", async () => {
@@ -452,5 +454,73 @@ test("release is idempotent and never deletes a slot a LATER run legitimately re
   mine.release(); // a second, late release from the finished run
   expect(theirs.slot).toBe(1);
   expect(JSON.parse(readFileSync(join(dir, "1.lock"), "utf8")), "the live holder still owns the slot").toMatchObject({ pid: 5002 });
+  rmSync(env[HOST_POOL_ROOT_ENV] ?? "", { recursive: true, force: true });
+});
+
+// ── the advisory door (0176): the edit hook's answer to a full pool is "skipped", never a wait ─────────
+
+test("tryAcquireHostSlot takes a free slot at once and releases it, leaving no ticket behind", () => {
+  const env = scratchRuntime();
+  const lease = tryAcquireHostSlot(poolOf(2), { env, pid: 610, alive: aliveOnly(610) });
+  expect(lease?.slot).toBe(1);
+  expect(lease?.waitedMs).toBe(0);
+  expect(readdirSync(join(hostPoolDir(poolOf(2), env), "queue")), "an advisory caller never leaves a ticket").toEqual([]);
+  lease?.release();
+  expect(existsSync(join(hostPoolDir(poolOf(2), env), "1.lock"))).toBe(false);
+  rmSync(env[HOST_POOL_ROOT_ENV] ?? "", { recursive: true, force: true });
+});
+
+test("tryAcquireHostSlot answers null at once when every slot is live, and steals a dead holder out loud", () => {
+  const env = scratchRuntime();
+  const held = tryAcquireHostSlot(poolOf(1), { env, pid: 620, alive: aliveOnly(620) });
+  expect(held?.slot).toBe(1);
+  expect(tryAcquireHostSlot(poolOf(1), { env, pid: 621, alive: aliveOnly(620, 621) }), "a live holder: skipped, not queued").toBeNull();
+  const notices: string[] = [];
+  const stolen = tryAcquireHostSlot(poolOf(1), { env, pid: 622, alive: aliveOnly(622), onNotice: (m) => notices.push(m) });
+  expect(stolen?.slot, "a dead holder never wedges an advisory caller either").toBe(1);
+  expect(notices.join("\n")).toContain("pid 620 (no such process)");
+  rmSync(env[HOST_POOL_ROOT_ENV] ?? "", { recursive: true, force: true });
+});
+
+test("tryAcquireHostSlot never jumps a live waiter: a free slot with someone queued ahead is theirs", () => {
+  const env = scratchRuntime();
+  const queue = join(hostPoolDir(poolOf(1), env), "queue");
+  mkdirSync(queue, { recursive: true, mode: 0o700 });
+  const beatMs = Date.now();
+  writeFileSync(join(queue, "0000000000000001-0000000630.json"), JSON.stringify({ pid: 630, startedAt: "x", label: "waiting", beatMs, startTicks: null }));
+  expect(tryAcquireHostSlot(poolOf(1), { env, pid: 631, alive: aliveOnly(630, 631) }), "the queued waiter goes first").toBeNull();
+  // …and a DEAD waiter ahead is pruned, so the advisory caller takes the slot.
+  const lease = tryAcquireHostSlot(poolOf(1), { env, pid: 632, alive: aliveOnly(632) });
+  expect(lease?.slot).toBe(1);
+  rmSync(env[HOST_POOL_ROOT_ENV] ?? "", { recursive: true, force: true });
+});
+
+// ── the directory is ours or it is refused (0176): the temp-dir fallback is writable by other users ────
+
+test("a symlinked or group-writable pool directory is refused before anything is written through it", async () => {
+  const env = scratchRuntime();
+  const root = env[HOST_POOL_ROOT_ENV] ?? "";
+  const target = join(root, "attacker-directory");
+  mkdirSync(target);
+  symlinkSync(target, hostPoolDir(poolOf(1), env));
+  expect(() => tryAcquireHostSlot(poolOf(1), { env, pid: 640, alive: aliveOnly(640) })).toThrow(/is a symlink or not a directory/u);
+  await expect(acquireHostSlot(poolOf(1), { env, pid: 640, alive: aliveOnly(640) })).rejects.toThrow(/is a symlink or not a directory/u);
+  expect(readdirSync(target), "nothing was written through the link").toEqual([]);
+  rmSync(hostPoolDir(poolOf(1), env));
+  mkdirSync(hostPoolDir(poolOf(1), env));
+  chmodSync(hostPoolDir(poolOf(1), env), 0o777);
+  expect(() => tryAcquireHostSlot(poolOf(1), { env, pid: 641, alive: aliveOnly(641) })).toThrow(/not writable by group or others/u);
+  rmSync(root, { recursive: true, force: true });
+});
+
+test("a planted slot symlink is refused, and its target is never read as a holder or touched", () => {
+  const env = scratchRuntime();
+  const dir = hostPoolDir(poolOf(1), env);
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
+  const target = join(env[HOST_POOL_ROOT_ENV] ?? "", "must-not-change.txt");
+  writeFileSync(target, "preserved\n");
+  symlinkSync(target, join(dir, "1.lock"));
+  expect(() => tryAcquireHostSlot(poolOf(1), { env, pid: 650, alive: aliveOnly(650) })).toThrow(/is a symlink or not a regular file/u);
+  expect(readFileSync(target, "utf8")).toBe("preserved\n");
   rmSync(env[HOST_POOL_ROOT_ENV] ?? "", { recursive: true, force: true });
 });
