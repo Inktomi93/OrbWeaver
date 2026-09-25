@@ -17,7 +17,7 @@
 # behind a symlink from /app/node_modules/@orb/<name>. Two facts force that shape and both were paid for at
 # the first host-side boot (build plan §1.4/§2): node 26 refuses type-stripping for real files under
 # node_modules (ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING), and the packages' own deps must resolve by the
-# upward walk to /app/node_modules — which the HOISTED `pnpm deploy` layout provides. The assembler discovers
+# upward walk to /app/node_modules — which the fully hoisted `pnpm deploy` layout provides. The assembler discovers
 # the package set from the deploy output, so adding a workspace package (D160: default content ships as a
 # package the server declares) never needs a Dockerfile edit.
 #
@@ -57,9 +57,12 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store,sharing=locked \
 # theme.css + tokens/index.ts are GENERATED from tokens.json before the client build consumes them
 # (`pnpm build` = the ui tokens build + `vite build`; one script, shared with the bare-metal docs).
 RUN pnpm build
-# The server's production graph, workspace deps materialized, dev deps pruned, HOISTED (see the header).
-# `--legacy` is required: this workspace does not set inject-workspace-packages.
-RUN pnpm --filter @orb/server deploy --legacy --prod --config.node-linker=hoisted /app/deploy
+# The server's production graph, workspace deps materialized, dev deps pruned, every package hoisted to the top
+# of node_modules (see the header). `--legacy` is required: this workspace does not set
+# inject-workspace-packages. `shamefully-hoist`, not `node-linker=hoisted`: pnpm 12's legacy deploy writes an
+# empty node_modules under the hoisted linker. Every patched dependency is a dev tool, so a --prod deploy never
+# installs one and pnpm would refuse its patch as unused.
+RUN pnpm --filter @orb/server deploy --legacy --prod --config.shamefully-hoist=true --config.allow-unused-patches=true /app/deploy
 RUN sh docker/assemble-runtime.sh /app /app/deploy /app/runtime
 
 # ── Stage 3: runtime ─────────────────────────────────────────────────────────────────────────────────
