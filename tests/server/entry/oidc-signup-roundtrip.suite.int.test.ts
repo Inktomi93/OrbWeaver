@@ -377,6 +377,50 @@ describe("the pending preview and confirm", () => {
   });
 });
 
+describe("a pending join claims no handle the local signup would refuse", () => {
+  test("a case variant of a taken handle is refused at the confirm: no account, no use, cookie spent", async () => {
+    const f = await flow();
+    await seedUser(f.db, { handle: castId<Handle>("rival") });
+    const secret = await pendingJoin(f, "Rival");
+    const res = await confirm(f, secret);
+    expect(res.status).toBe(404);
+    expect(setCookie(res, PENDING)).toBe("");
+    expect(await usersBySubject(f, "Rival")).toHaveLength(0);
+    expect(await inviteUses(f)).toBe(0);
+  });
+
+  test("a case variant of an owner seed handle is refused at the confirm", async () => {
+    vi.stubEnv("OWNER_HANDLES", "boss");
+    const f = await flow();
+    const secret = await pendingJoin(f, "Boss");
+    expect((await confirm(f, secret)).status).toBe(404);
+    expect(await usersBySubject(f, "Boss")).toHaveLength(0);
+    expect(await inviteUses(f)).toBe(0);
+  });
+
+  test("a case variant taken between the confirm's read and its batch writes nothing and spends no use", async () => {
+    const f = await flow();
+    const secret = await pendingJoin(f);
+    const plan = await f.sessions.preparePendingSignup({ secret, requireApproval: false });
+    if (plan === null) {
+      throw new Error("expected a plan for a live pending join");
+    }
+    await seedUser(f.db, { handle: castId<Handle>("FRIEND") });
+    const outcome = await f.invites.redeemPending({ tokenHash: plan.inviteTokenHash, userId: plan.userId, handle: plan.handle, statements: plan.statements });
+    expect(outcome).toEqual({ outcome: "refused", reason: "identity" });
+    expect(await usersBySubject(f, "friend")).toHaveLength(0);
+    expect(await inviteUses(f)).toBe(0);
+  });
+
+  test("control: a handle no row carries in any case still joins", async () => {
+    const f = await flow();
+    await seedUser(f.db, { handle: castId<Handle>("rival") });
+    const secret = await pendingJoin(f, "Rivalry");
+    expect((await confirm(f, secret)).status).toBe(200);
+    expect(await usersBySubject(f, "Rivalry")).toHaveLength(1);
+  });
+});
+
 describe("OIDC_REQUIRE_APPROVAL: an invite is not approval", () => {
   test("the confirm spends a use and seats a disabled account without a session; once enabled, the friend signs in as a member", async () => {
     const f = await flow({ requireApproval: true });

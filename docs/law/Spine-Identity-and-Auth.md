@@ -107,7 +107,7 @@ Code comments cite the numbered invariants below as "invariant N":
     singleton, in one ruled precedence. That precedence is the pure `decideProvision`
     (`domain/sessions/substrate/decide-provision.ts`, D254): the verb interprets its decision, and a
     batch-shaped signup statement that decides through the same function is not a second upsert. Such a
-    statement carries only the race-relevant checks in SQL: the unique indexes and a `NOT EXISTS` on email.
+    statement carries only the race-relevant checks in SQL: the unique indexes and a `NOT EXISTS` on the caseless handle and on email.
     The one such statement is the `oidc` pending-join confirm (`domain/sessions/verbs/pending-signup.ts`).
     A mode with its own upsert would carry its own, weaker, takeover
     posture. Enforcers: `infra/auth` is db-free and may not import a domain, so a mode resolver

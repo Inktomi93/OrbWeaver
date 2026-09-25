@@ -95,11 +95,18 @@ export async function insertUser(db: Db, row: UserInsert): Promise<void> {
   await db.insert(users).values(row).onConflictDoNothing();
 }
 
-/** D254 — does any row carry this handle, compared case-insensitively? The signup route's check before any
- *  password hashing; the account insert repeats it inside the batch. `lower()` folds ASCII only, which is the
- *  whole signup handle alphabet (`signupHandleSchema`). */
+// D254 — the one caseless handle match: the pre-check below and both signup inserts' NOT EXISTS read it, so
+// the read and the race guard cannot drift. `lower()` folds ASCII only (see `selectHandleTakenCaseless`).
+function handleMatchesCaseless(handle: Handle): SQL {
+  return sql`lower(${users.handle}) = lower(${handle})`;
+}
+
+/** D254 — does any row carry this handle, compared case-insensitively? The local signup route's check before
+ *  any password hashing and the pending-join confirm's check before it plans; each account insert repeats it
+ *  inside the batch. `lower()` folds ASCII only: that is the whole local signup handle alphabet
+ *  (`signupRequestSchema`), while an IdP handle outside ASCII compares case-sensitively. */
 export async function selectHandleTakenCaseless(db: Db, handle: Handle): Promise<boolean> {
-  const rows = await db.select({ id: users.id }).from(users).where(sql`lower(${users.handle}) = lower(${handle})`).limit(1);
+  const rows = await db.select({ id: users.id }).from(users).where(handleMatchesCaseless(handle)).limit(1);
   return rows.length > 0;
 }
 
@@ -118,7 +125,7 @@ export function insertSignupUserStatement(
   return db
     .insert(users)
     .select(
-      sql`select ${row.id}, ${row.handle}, null, null, 'user', 1, ${row.passwordHash}, 'human', null, ${row.at}, ${row.at} where ${admission} and not exists (select 1 from ${users} where lower(${users.handle}) = lower(${row.handle}))`,
+      sql`select ${row.id}, ${row.handle}, null, null, 'user', 1, ${row.passwordHash}, 'human', null, ${row.at}, ${row.at} where ${admission} and not exists (select 1 from ${users} where ${handleMatchesCaseless(row.handle)})`,
     )
     .returning({ id: users.id });
 }
@@ -138,16 +145,17 @@ interface PendingSignupAccount {
  * D254 — the OIDC pending-join confirm's account insert, UNEXECUTED, for chat's batch. It binds the subject on
  * a NEW row only, decided by `decideProvision` (the verb keeps only an insert), and writes only where the
  * pending take before it deleted a row (`changes() > 0`), `admission` (chat's opaque invite predicate) holds,
- * and no row carries the email. Handle, subject and owner collisions are the unique indexes' job: there is no
- * `onConflictDoNothing`, so a race throws and rolls the batch back. Positional over the declared column order,
- * like {@link insertSignupUserStatement}.
+ * no row carries the handle case-insensitively (the local signup's rule, so a stranger's handle is never a
+ * case variant of a member's) and no row carries the email. Exact handle, subject and owner collisions are
+ * the unique indexes' job: there is no `onConflictDoNothing`, so a race throws and rolls the batch back.
+ * Positional over the declared column order, like {@link insertSignupUserStatement}.
  */
 export function insertPendingSignupUserStatement(db: Db, row: PendingSignupAccount, admission: SQL): AwaitableBatchStmt<{ id: UserId }[]> {
   const emailFree = row.email === null ? sql`1 = 1` : sql`not exists (select 1 from ${users} where ${users.email} = ${row.email})`;
   return db
     .insert(users)
     .select(
-      sql`select ${row.id}, ${row.handle}, ${row.externalId}, ${row.email}, ${row.role}, ${row.enabled ? 1 : 0}, null, 'human', null, ${row.at}, ${row.at} where changes() > 0 and ${admission} and ${emailFree}`,
+      sql`select ${row.id}, ${row.handle}, ${row.externalId}, ${row.email}, ${row.role}, ${row.enabled ? 1 : 0}, null, 'human', null, ${row.at}, ${row.at} where changes() > 0 and ${admission} and not exists (select 1 from ${users} where ${handleMatchesCaseless(row.handle)}) and ${emailFree}`,
     )
     .returning({ id: users.id });
 }
