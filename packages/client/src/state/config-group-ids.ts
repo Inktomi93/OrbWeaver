@@ -41,6 +41,10 @@ export function isConfigGroupId(v: unknown): v is ConfigGroupId {
   return typeof v === "string" && (CONFIG_GROUP_IDS as readonly string[]).includes(v);
 }
 
+/** The Admin group's Multi-user section — the one section another feature links into (an invite's "open sharing
+ *  settings"), so its id lives beside the group vocabulary rather than in two features. */
+export const MULTI_USER_CONFIG_SUB = "multi-user";
+
 /** The LIST's four named shelves, in paint order — the settings nav's `SETTINGS_GROUPS` (User/App) with the
  *  two shelves the unification added. `user`, NOT "you" (owner correction 2026-08-30): the mobile "You"
  *  sheet is a different thing that only exists on a phone, and a desktop shelf wearing its name would be

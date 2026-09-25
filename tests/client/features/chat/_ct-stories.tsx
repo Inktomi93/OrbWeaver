@@ -72,6 +72,8 @@ import {
   setMobileViewport,
   startEditingMessage,
   toggleMessageSelected,
+  useActiveConfigGroup,
+  useActiveConfigSub,
   useActiveSection,
   useContextTab,
   useImagineSeed,
@@ -2595,12 +2597,18 @@ export function MembersKickFocusStory(): ReactElement {
 /** The invite MINT dialog (invite-dialog.tsx — §8.2) over the stubbed network: the `.ct.tsx` sets
  *  `invites.createInvite`/`invites.listInvites`/`invites.revokeInvite` per case. Mounted OPEN. */
 export function InviteDialogStory(): ReactElement {
+  const [open, setOpen] = useState(true);
+  // Where the dialog's "Open sharing settings" landed the shell, read off the real stores.
+  const section = useActiveSection();
+  const group = useActiveConfigGroup();
+  const sub = useActiveConfigSub();
   return (
     <CtDataProviders>
       <div>
         <CtToastSurface>
-          <InviteDialog chatId={CHAT_ID} open={true} onOpenChange={(): void => undefined} />
+          <InviteDialog chatId={CHAT_ID} open={open} onOpenChange={setOpen} />
         </CtToastSurface>
+        <output data-testid="ct-invite-landing">{`open=${String(open)} section=${section} group=${group ?? "none"} sub=${sub ?? "none"}`}</output>
       </div>
     </CtDataProviders>
   );

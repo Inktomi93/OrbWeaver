@@ -137,3 +137,32 @@ test("disabled disables every item and drops the group from the tab order", asyn
   await expect(left).not.toBeFocused();
   await expect(center).not.toBeFocused();
 });
+
+// `fill` — a two-way mode switch in a narrow pane: the group spans its container in equal cells, and a label too long
+// for its half wraps inside its own cell, so the options never drop to a second row.
+test("fill spans the container in equal cells on one row, even when a label must wrap", async ({ mount, page }) => {
+  await mount(
+    <div data-testid="narrow" style={{ width: 200 }}>
+      <ToggleGroup aria-label="Invite mode" defaultValue={["link"]} fill={true}>
+        <Toggle value="link">Share link</Toggle>
+        <Toggle value="handle">Invite somebody by their handle</Toggle>
+      </ToggleGroup>
+    </div>,
+  );
+  const boxes = async (): Promise<{ readonly spans: boolean; readonly oneRow: boolean; readonly equal: boolean; readonly inside: boolean }> => {
+    const container = await page.getByTestId("narrow").boundingBox();
+    const group = await page.getByRole("group", { name: "Invite mode" }).boundingBox();
+    const first = await page.getByRole("button", { name: "Share link" }).boundingBox();
+    const second = await page.getByRole("button", { name: "Invite somebody by their handle" }).boundingBox();
+    if (container === null || group === null || first === null || second === null) {
+      return { spans: false, oneRow: false, equal: false, inside: false };
+    }
+    return {
+      spans: Math.abs(group.width - container.width) <= 1,
+      oneRow: Math.abs(first.y - second.y) <= 1,
+      equal: Math.abs(first.width - second.width) <= 1,
+      inside: second.x + second.width <= group.x + group.width + 1,
+    };
+  };
+  await expect.poll(boxes).toEqual({ spans: true, oneRow: true, equal: true, inside: true });
+});

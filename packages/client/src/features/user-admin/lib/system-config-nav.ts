@@ -8,6 +8,7 @@
 // id survives anywhere.
 
 import type { ConfigSubcategory } from "#state";
+import { MULTI_USER_CONFIG_SUB } from "#state";
 
 export const MEDIA_TRUST_SUBCATEGORY: ConfigSubcategory = {
   id: "media-trust",
@@ -46,7 +47,7 @@ export const MEDIA_TRUST_SUBCATEGORY: ConfigSubcategory = {
 };
 
 export const MULTI_USER_SUBCATEGORY: ConfigSubcategory = {
-  id: "multi-user",
+  id: MULTI_USER_CONFIG_SUB,
   label: "Multi-user",
   keywords: ["auth", "login", "invite", "accounts", "humans", "discreet"],
   teach: {

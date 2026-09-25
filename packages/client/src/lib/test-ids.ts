@@ -28,6 +28,7 @@ export const TEST_IDS = {
   // token: handle + password + submit + inline error, and the controls that switch to sign-in or dismiss.
   signupInviteForm: "signup-invite-form",
   signupInviteRoom: "signup-invite-room",
+  inviteOpenSharing: "invite-open-sharing",
   signupHandle: "signup-handle",
   signupPassword: "signup-password",
   signupSubmit: "signup-submit",

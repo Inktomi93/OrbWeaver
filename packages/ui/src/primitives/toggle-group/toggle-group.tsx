@@ -15,6 +15,8 @@ export interface ToggleGroupProps extends Omit<BaseToggleGroupProps<string>, "or
    * (side-eye ARIA rec 7). The default `toggle` arm is Base UI's own `role="group"`, unchanged.
    */
   semantics?: "toggle" | "radio";
+  /** Span the container in equal cells rather than hugging the options (a two-way mode switch in a narrow pane). */
+  fill?: boolean;
 }
 
 export function ToggleGroup({
@@ -22,12 +24,13 @@ export function ToggleGroup({
   "aria-label": ariaLabel,
   "aria-labelledby": ariaLabelledby,
   semantics = "toggle",
+  fill = false,
   ...rest
 }: ToggleGroupProps): ReactElement {
   return (
     <BaseToggleGroup
       data-slot="toggle-group"
-      className={cn(toggleGroupVariants(), className)}
+      className={cn(toggleGroupVariants({ fill }), className)}
       {...(ariaLabel !== undefined ? { "aria-label": ariaLabel } : {})}
       {...(ariaLabelledby !== undefined ? { "aria-labelledby": ariaLabelledby } : {})}
       {...(semantics === "radio" ? { role: "radiogroup" } : {})}
