@@ -2,19 +2,17 @@
 // confirm's own batch through `takePendingSignupStatement`, whose expiry-gated DELETE is what makes a pending
 // join single-use. The OIDC transaction store never reads this table.
 
-import type { UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import { oidcPendingSignups, users } from "@orb/db";
-import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/kit";
+import { oidcPendingSignups } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
 import { batchStmt } from "@orb/db/kit";
-import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
-import type { SQL } from "drizzle-orm";
-import { and, eq, gt, lte, sql } from "drizzle-orm";
+import type { ExternalId, Handle } from "@orb/kit/ids";
+import { and, eq, gt, lte } from "drizzle-orm";
 import type { Sealed } from "#infra/crypto";
 
 /** A pending join as the callback writes it. */
 interface PendingSignupWrite {
-  readonly externalId: ExternalId;
+  readonly subject: ExternalId;
   readonly secretHash: string;
   readonly handle: Handle;
   readonly email: string | null;
@@ -42,8 +40,8 @@ export async function upsertPendingSignup(db: Db, row: PendingSignupWrite): Prom
   };
   await db
     .insert(oidcPendingSignups)
-    .values({ externalId: row.externalId, ...values })
-    .onConflictDoUpdate({ target: oidcPendingSignups.externalId, set: values });
+    .values({ subject: row.subject, ...values })
+    .onConflictDoUpdate({ target: oidcPendingSignups.subject, set: values });
 }
 
 /** The live pending join under this secret hash, or undefined (none, or past its window). */
@@ -70,39 +68,12 @@ export function takePendingSignupStatement(db: Db, secretHash: string, now: numb
     db
       .delete(oidcPendingSignups)
       .where(and(eq(oidcPendingSignups.secretHash, secretHash), gt(oidcPendingSignups.expiresAt, now)))
-      .returning({ externalId: oidcPendingSignups.externalId }),
+      .returning({ subject: oidcPendingSignups.subject }),
   );
-}
-
-/** The SSO signup account a confirm writes. */
-interface PendingSignupAccount {
-  readonly id: UserId;
-  readonly handle: Handle;
-  readonly externalId: ExternalId;
-  readonly email: string | null;
-  readonly role: UserRole;
-  readonly enabled: boolean;
-  readonly at: number;
-}
-
-/**
- * D254 — the confirm's account insert, UNEXECUTED. It writes only where the pending take before it deleted a
- * row, `admission` (chat's opaque invite predicate) holds, and no row carries the email. Handle, subject and
- * owner collisions are the unique indexes' job: there is no `onConflictDoNothing`, so a race throws and
- * rolls the batch back. Positional over the declared column order, like `insertSignupUserStatement`.
- */
-export function insertPendingSignupUserStatement(db: Db, row: PendingSignupAccount, admission: SQL): AwaitableBatchStmt<{ id: UserId }[]> {
-  const emailFree = row.email === null ? sql`1 = 1` : sql`not exists (select 1 from ${users} where ${users.email} = ${row.email})`;
-  return db
-    .insert(users)
-    .select(
-      sql`select ${row.id}, ${row.handle}, ${row.externalId}, ${row.email}, ${row.role}, ${row.enabled ? 1 : 0}, null, 'human', null, ${row.at}, ${row.at} where changes() > 0 and ${admission} and ${emailFree}`,
-    )
-    .returning({ id: users.id });
 }
 
 /** The reaper: every pending join past its window. Returns how many went. */
 export async function deleteExpiredPendingSignups(db: Db, before: number): Promise<number> {
-  const reaped = await db.delete(oidcPendingSignups).where(lte(oidcPendingSignups.expiresAt, before)).returning({ externalId: oidcPendingSignups.externalId });
+  const reaped = await db.delete(oidcPendingSignups).where(lte(oidcPendingSignups.expiresAt, before)).returning({ subject: oidcPendingSignups.subject });
   return reaped.length;
 }

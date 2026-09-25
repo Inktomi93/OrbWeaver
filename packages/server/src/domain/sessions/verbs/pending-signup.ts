@@ -9,14 +9,8 @@ import { newId } from "@orb/kit/ids";
 import { OIDC_PENDING_JOIN_TTL_MS } from "#infra/auth";
 import type { PendingSignupPlan, ProvisionDecision, ProvisionInsert } from "../contract/results.ts";
 import type { SessionsContext, SessionsService } from "../contract/service.ts";
-import {
-  insertPendingSignupUserStatement,
-  sealedIdTokenOfPending,
-  selectLivePendingSignup,
-  takePendingSignupStatement,
-  upsertPendingSignup,
-} from "../persistence/pending-signups.ts";
-import { selectForProvisionByExternalId, selectForProvisionByHandle, selectOwnerUserId } from "../persistence/users.ts";
+import { sealedIdTokenOfPending, selectLivePendingSignup, takePendingSignupStatement, upsertPendingSignup } from "../persistence/pending-signups.ts";
+import { insertPendingSignupUserStatement, selectForProvisionByExternalId, selectForProvisionByHandle, selectOwnerUserId } from "../persistence/users.ts";
 import { decideProvision } from "../substrate/decide-provision.ts";
 import { deriveIdentityAccess, isOwnerByPolicy } from "../substrate/role-policy.ts";
 
@@ -45,7 +39,7 @@ export function createPendingSignup(ctx: SessionsContext): PendingSignupVerbs {
     const at = ctx.now();
     const { identity } = args;
     await upsertPendingSignup(ctx.db, {
-      externalId: identity.externalId,
+      subject: identity.externalId,
       secretHash,
       handle: identity.handle,
       email: identity.email,
@@ -71,7 +65,7 @@ export function createPendingSignup(ctx: SessionsContext): PendingSignupVerbs {
       return null;
     }
     const identity: ResolvedIdentity & { readonly externalId: ExternalId } = {
-      externalId: row.externalId,
+      externalId: row.subject,
       handle: row.handle,
       email: row.email,
       groups: row.groups,
