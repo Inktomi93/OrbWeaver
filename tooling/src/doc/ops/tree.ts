@@ -2,13 +2,15 @@
 // formatted writes, and the git facts the pure rules judge. Every reader takes
 // the repository root so the tests drive it on a planted tree; git-dependent readers fail soft to an
 // empty fact, never to a throw, because a missing branch is a drift finding and not a tool crash.
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { REPO_ROOT } from "../../_shared/artifacts.ts";
+import { repoGitEnvironment } from "../../_shared/authored-repository.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { RunNicedSyncResult } from "../../_shared/proc.ts";
 import { runNicedSync } from "../../_shared/proc.ts";
-import { inheritedProcessEnv } from "../../_shared/process-env.ts";
-import type { DocsRootEntry, DocTree, GovernedDoc } from "../contract/types.ts";
+import type { CommitOutcome, DocsRootEntry, DocTree, GovernedDoc } from "../contract/types.ts";
 import { DOC_TOOL_TREE_PREFIXES, DOC_TOOL_TREES } from "../contract/vocab.ts";
 import { allItems } from "../lib/generated.ts";
 import { isCommitId } from "../lib/items.ts";
@@ -26,8 +28,10 @@ export function today(): string {
   return new Date().toISOString().slice(0, "YYYY-MM-DD".length);
 }
 
+/** Every git call runs on `repoRoot` alone: a git hook exports `GIT_DIR`/`GIT_INDEX_FILE` into its children,
+ *  and inheriting them would aim a planted repository's command at the checkout running the hook. */
 function git(repoRoot: string, args: readonly string[]): string | null {
-  const result = runNicedSync("git", args, { cwd: repoRoot });
+  const result = runNicedSync("git", args, { cwd: repoRoot, env: repoGitEnvironment() });
   return result.status === 0 ? result.stdout : null;
 }
 
@@ -203,28 +207,67 @@ export function pathExists(path: string, repoRoot = root): boolean {
   return existsSync(join(repoRoot, path));
 }
 
-/** Stage the named paths and commit THEM ALONE (a pathspec commit ignores the rest of the index, so a
- *  sibling's staged file on the shared main checkout never rides a hook's commit). The child inherits the
- *  process environment for PATH and git identity; the standing exception spelling (`LEFTHOOK_EXCLUDE=check`)
- *  is what lets a hook's commit skip the pre-commit check and keep the message contract. */
-export function commitPaths(paths: readonly string[], message: string, repoRoot = root): boolean {
-  // A deleted path is staged as a removal, and it joins the pathspec only when HEAD tracks it: a pathspec
-  // naming a file git never knew fails the whole commit.
-  const present = paths.filter((path) => existsSync(join(repoRoot, path)));
-  const gone = paths.filter((path) => !existsSync(join(repoRoot, path)));
-  if (present.length > 0 && git(repoRoot, ["add", "--", ...present]) === null) {
-    return false;
+/** The commit-message contract every hook commit must still meet; plumbing runs no `commit-msg` hook. */
+const COMMIT_MSG_CHECK = join(root, "scripts", "commit-msg-check.sh");
+
+/** A failed git step, with everything the child said: the sink is a refusal an operator reads. */
+function gitFailure(step: string, result: RunNicedSyncResult): CommitOutcome {
+  const said = `${result.stdout}${result.stderr}`.trim();
+  return { ok: false, reason: `git ${step} failed (exit ${String(result.status)})${said === "" ? "" : `: ${said}`}` };
+}
+
+/** Commit the named paths ALONE, through plumbing, from a merge hook or by hand.
+ *
+ *  Plumbing, never `git commit`: the post-merge hook fires while git's `MERGE_HEAD` still exists, and a
+ *  porcelain pathspec commit there dies with `cannot do a partial commit during a merge` (a whole-index
+ *  commit would instead mint a second merge commit). A temporary index built from `HEAD` plus exactly these
+ *  paths is what keeps a sibling's staged file on the shared main checkout off the commit. The message is
+ *  checked against the commit-message contract first, since no `commit-msg` hook runs on this path. */
+export function commitPaths(paths: readonly string[], message: string, repoRoot = root): CommitOutcome {
+  const head = git(repoRoot, ["rev-parse", "--verify", "HEAD"])?.trim();
+  if (head === undefined) {
+    return { ok: false, reason: "git has no HEAD to commit on top of" };
   }
-  if (gone.length > 0 && git(repoRoot, ["rm", "-q", "--cached", "--ignore-unmatch", "--", ...gone]) === null) {
-    return false;
+  const scratch = mkdtempSync(join(tmpdir(), "orb-landing-"));
+  try {
+    const messagePath = join(scratch, "message");
+    writeFileSync(messagePath, `${message}\n`);
+    const contract = runNicedSync("bash", [COMMIT_MSG_CHECK, messagePath], { cwd: repoRoot });
+    if (contract.status !== 0) {
+      return { ok: false, reason: `the landing message fails the commit-message contract: ${`${contract.stdout}${contract.stderr}`.trim()}` };
+    }
+    const base = repoGitEnvironment();
+    const scoped = { ...base, ["GIT_INDEX_FILE"]: join(scratch, "index") };
+    const steps: readonly (readonly [string, readonly string[]])[] = [
+      ["read-tree", ["read-tree", head]],
+      ["update-index", ["update-index", "--add", "--remove", "--", ...paths]],
+    ];
+    for (const [step, args] of steps) {
+      const result = runNicedSync("git", args, { cwd: repoRoot, env: scoped });
+      if (result.status !== 0) {
+        return gitFailure(step, result);
+      }
+    }
+    const tree = runNicedSync("git", ["write-tree"], { cwd: repoRoot, env: scoped });
+    if (tree.status !== 0) {
+      return gitFailure("write-tree", tree);
+    }
+    const commit = runNicedSync("git", ["commit-tree", tree.stdout.trim(), "-p", head, "-F", messagePath], { cwd: repoRoot, env: base });
+    if (commit.status !== 0) {
+      return gitFailure("commit-tree", commit);
+    }
+    const sha = commit.stdout.trim();
+    const subject = message.split("\n")[0] ?? "";
+    const ref = runNicedSync("git", ["update-ref", "-m", `commit: ${subject}`, "HEAD", sha, head], { cwd: repoRoot, env: base });
+    if (ref.status !== 0) {
+      return gitFailure("update-ref", ref);
+    }
+    // The checkout's own index follows for these paths, so `git status` reads clean for what just landed.
+    const index = runNicedSync("git", ["update-index", "--add", "--remove", "--", ...paths], { cwd: repoRoot, env: base });
+    return index.status === 0 ? { ok: true, sha } : gitFailure("update-index", index);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
   }
-  const tracked = gone.length === 0 ? "" : (git(repoRoot, ["ls-tree", "-r", "--name-only", "HEAD", "--", ...gone]) ?? "");
-  const pathspec = [...present, ...tracked.split("\n").filter((path) => path !== "")];
-  if (pathspec.length === 0) {
-    return true;
-  }
-  const env = inheritedProcessEnv({ ["LEFTHOOK_EXCLUDE"]: "check" });
-  return runNicedSync("git", ["commit", "-q", "-m", message, "--", ...pathspec], { cwd: repoRoot, env }).status === 0;
 }
 
 /** The commit that deleted item `id`'s file — its landing — or null when git has none. */

@@ -106,10 +106,11 @@ export function landItems(ids: readonly number[], evidence: string, repoRoot = r
   }
   const written = [...paths, ...released.map(({ doc }) => doc.path), ...regenerateIndexes(repoRoot)];
   const message = landingMessage(records, HOOK_TRAILER);
-  if (!commitPaths(written, message, repoRoot)) {
+  const commit = commitPaths(written, message, repoRoot);
+  if (!commit.ok) {
     return {
       written,
-      refusals: [`the landing commit failed — the files are written; commit them by hand with this message:\n${message}`],
+      refusals: [`the landing commit failed — ${commit.reason}. The files are written; commit them by hand with this message:\n${message}`],
       skipped,
     };
   }
