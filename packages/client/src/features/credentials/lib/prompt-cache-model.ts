@@ -1,6 +1,6 @@
 // The connection editor's Prompt caching tier as pure folds over `@orb/contracts/inference` `prompt-cache.ts`.
 // The tier shows only where the capability says `turns.explicitPromptCache`, since elsewhere the settings reach
-// nothing; every control writes the WHOLE document, and NULL is the shipped behavior.
+// nothing; its autosave form writes the WHOLE document, and NULL is the shipped behavior.
 
 import type { Capability, PromptCacheSettings, PromptCacheTtl } from "@orb/contracts/inference";
 import {
@@ -23,11 +23,6 @@ const SETTING_KEYS = ["enabled", "cacheSystem", "historyDepth", "ttl"] as const 
 export function promptCacheChangedCount(stored: PromptCacheSettings | null): number {
   const settings = effectivePromptCache(stored);
   return SETTING_KEYS.filter((key) => settings[key] !== SHIPPED_PROMPT_CACHE[key]).length;
-}
-
-/** The whole document a control writes: the effective settings with the control's own field changed. */
-export function withPromptCache(stored: PromptCacheSettings | null, change: Partial<PromptCacheSettings>): PromptCacheSettings {
-  return { ...effectivePromptCache(stored), ...change };
 }
 
 /** A committed depth-field value → the `historyDepth` to write: an empty field is `null` (automatic); a value
