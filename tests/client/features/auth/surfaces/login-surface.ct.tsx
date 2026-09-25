@@ -124,3 +124,34 @@ test("single-user → the 'no login needed' explainer (reachable only by direct 
   await mount(<LoginArmStory config={config({ mode: "single-user", requiresLogin: false, localEnabled: false })} />);
   await expect(page.getByRole("heading", { name: "Single-user mode" })).toBeVisible();
 });
+
+// D254 — a signed-out invite visit stashed its token before the guard redirected here. The local arm offers
+// the signup form, and the token rides only the POST body.
+test("local + a stashed invite on a multi-human box → the signup form, posting the stashed token", async ({ mount, page }) => {
+  let posted: unknown = null;
+  await page.route("**/api/auth/signup", async (route) => {
+    posted = route.request().postDataJSON();
+    expect(route.request().headers()["x-orb-csrf"]).toBe("1");
+    await route.fulfill({ status: 200, json: { ok: true } });
+  });
+  await mount(<LoginArmStory config={config({ mode: "local", multiHumanCapable: true })} joinToken="tok_invite" />);
+  await expect(page.getByTestId("signup-invite-form")).toBeVisible();
+  await expect(page.getByTestId("login-local-form")).toHaveCount(0);
+  await page.getByTestId("signup-handle").fill("friend");
+  await page.getByTestId("signup-password").fill("hunter2pw");
+  await page.getByTestId("signup-submit").click();
+  await expect(page.getByTestId("ct-login-done")).toBeVisible();
+  expect(posted).toEqual({ token: "tok_invite", handle: "friend", password: "hunter2pw" });
+});
+
+test("local + a stashed invite → 'I already have an account' shows the credential form", async ({ mount, page }) => {
+  await mount(<LoginArmStory config={config({ mode: "local", multiHumanCapable: true })} joinToken="tok_invite" />);
+  await page.getByTestId("signup-use-sign-in").click();
+  await expect(page.getByTestId("login-local-form")).toBeVisible();
+});
+
+test("local + a stashed invite on a box that is not multi-human capable → the plain credential form", async ({ mount, page }) => {
+  await mount(<LoginArmStory config={config({ mode: "local", multiHumanCapable: false })} joinToken="tok_invite" />);
+  await expect(page.getByTestId("login-local-form")).toBeVisible();
+  await expect(page.getByTestId("signup-invite-form")).toHaveCount(0);
+});

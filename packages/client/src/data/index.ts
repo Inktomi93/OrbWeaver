@@ -3,7 +3,7 @@
 // factories every surface builds on (§13.2: a surface not using its primitive is the review flag).
 
 export type { AuthMe } from "./auth-bootstrap.ts";
-export { AUTH_ME_KEY, fetchAuthMe, firstRunSetup, login, logout, signOut, useAuthMe } from "./auth-bootstrap.ts";
+export { AUTH_ME_KEY, fetchAuthMe, firstRunSetup, login, logout, signOut, signUpWithInvite, useAuthMe } from "./auth-bootstrap.ts";
 export type { AuthConfig } from "./auth-config.ts";
 export {
   AUTH_CONFIG_KEY,
@@ -50,6 +50,7 @@ export { importTree, relativePathOf } from "./import-tree.ts";
 export type { InvalidateFilter, Invalidation } from "./invalidation.ts";
 export { createInvalidation } from "./invalidation.ts";
 export { applyCanonView } from "./invalidation-carrier.ts";
+export { consumeInboundJoinToken, peekInboundJoinToken, stashInboundJoinToken } from "./join-token.ts";
 export { peekQueryData } from "./peek-query.ts";
 export type { AppMeta } from "./query-client.ts";
 export { createAppQueryClient } from "./query-client.ts";
@@ -61,7 +62,7 @@ export type { RestoreCardLorebookResult } from "./restore-card-lorebook.ts";
 export { restoreCardLorebook } from "./restore-card-lorebook.ts";
 export { __resetSessionFreshness, markSessionFresh, sessionFreshnessAgeMs, startSessionFreshness } from "./session-freshness.ts";
 export type { SessionResumeSnapshot } from "./session-resume.ts";
-export { takeSessionResume, writeSessionResume } from "./session-resume.ts";
+export { clearJoinStash, peekJoinStash, takeSessionResume, writeSessionResume } from "./session-resume.ts";
 export { skeletonRowCountFor } from "./skeleton-row-metrics.ts";
 export type { SkeletonRowShape, SkeletonRowsProps } from "./skeleton-rows.tsx";
 export { SkeletonRows } from "./skeleton-rows.tsx";

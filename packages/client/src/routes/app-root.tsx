@@ -10,9 +10,19 @@
 import { AriaAnnouncer } from "@orb/ui/aria-announcer";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
-import { useHuskReaper, useInvalidation, useMultiHumanCapable, useOrbSocket, useRpgBus, useSessionRecovery, useUserBus } from "#data";
+import {
+  consumeInboundJoinToken,
+  peekInboundJoinToken,
+  useHuskReaper,
+  useInvalidation,
+  useMultiHumanCapable,
+  useOrbSocket,
+  useRpgBus,
+  useSessionRecovery,
+  useUserBus,
+} from "#data";
 import { AppShell } from "#features/app-shell";
-import { clearJoinParam, JoinInviteDialog, readJoinToken } from "#features/chat";
+import { JoinInviteDialog } from "#features/chat";
 import { FirstRunPersonaDialog } from "#features/persona";
 import { announceStatus, useActiveChatId, useActiveSection, useSelectedCharacterId, useStatusAnnouncement } from "#state";
 import { AppRootSessionBoundary } from "./app-root-session-boundary/index.ts";
@@ -25,12 +35,13 @@ export function AppRoot(): ReactElement {
   // consumer). A device that has never been told still answers FALSE while the config is in flight, so
   // chrome never flashes-then-yanks; a device that HAS been told paints the right arm in its first frame.
   const multiHumanCapable = useMultiHumanCapable();
-  // The one-shot `?join=<token>` handoff — captured at mount then scrubbed from the address bar (a
-  // raw invite token must not linger in history).
-  const [joinToken, setJoinToken] = useState(readJoinToken);
+  // The one-shot invite handoff, captured at mount: the address bar's `?join=` or the token a signed-out visit
+  // stashed before sign-in (D254). Spent at once in the effect, so a raw invite token never lingers in the
+  // address bar, in history or in the tab stash.
+  const [joinToken, setJoinToken] = useState(peekInboundJoinToken);
   useEffect(() => {
     if (joinToken !== null) {
-      clearJoinParam();
+      consumeInboundJoinToken();
     }
   }, [joinToken]);
   const invalidation = useInvalidation();

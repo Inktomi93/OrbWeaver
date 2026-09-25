@@ -1,5 +1,5 @@
 // The `/join` link landing (the multi-human invites lane) — the preview-then-confirm dialog the SPA
-// root mounts when it captures a `?join=<token>` handoff (lib/join-token.ts). An ANCHOR (it owns its
+// root mounts when it captures a `?join=<token>` handoff (`data/join-token.ts`). An ANCHOR (it owns its
 // Dialog — the surface-purity rule; the first-run-persona-dialog precedent), mounted as an AppShell
 // sibling by app-root.tsx while the deployment is multi-human capable.
 //

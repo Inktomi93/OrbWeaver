@@ -26,16 +26,27 @@ import { CtDataProviders, CtRealSectionRegistry } from "../../../support/browser
  *  each mode renders its arm (esp. the forward-header explainer an unauthenticated broken-proxy request
  *  lands on). A partial config is enough — LoginBody reads only `mode` + `defaultHandle`. `authError` (A7)
  *  is the already-resolved OIDC callback error message, rendered above the Continue button in the oidc arm. */
-export function LoginArmStory({ config, authError = null }: { readonly config: AuthConfig; readonly authError?: string | null }): ReactElement {
+export function LoginArmStory({
+  config,
+  authError = null,
+  joinToken = null,
+}: {
+  readonly config: AuthConfig;
+  readonly authError?: string | null;
+  readonly joinToken?: string | null;
+}): ReactElement {
+  const [done, setDone] = useState(false);
   return (
     <div style={{ width: 360, padding: 16 }}>
       <LoginBody
         config={config}
         authError={authError}
+        joinToken={joinToken}
         onDone={(): void => {
-          // no-op in the story — the arm rendering is what the CT asserts.
+          setDone(true);
         }}
       />
+      {done ? <p data-testid="ct-login-done">done</p> : null}
     </div>
   );
 }

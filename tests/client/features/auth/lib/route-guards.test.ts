@@ -17,10 +17,11 @@
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { afterEach, vi } from "vitest";
+import { afterEach, beforeEach, vi } from "vitest";
 import type { AuthMe } from "../../../../../packages/client/src/data/auth-bootstrap.ts";
 import { redirectIfAuthed, requireAuthed } from "../../../../../packages/client/src/features/auth/lib/route-guards.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { stubTabStorage } from "../../../../support/tab-storage.ts";
 
 const AUTHED: AuthMe = { authenticated: true, handle: castId<Handle>("alice"), role: "user" };
 const ANON: AuthMe = { authenticated: false, handle: null, role: null };
@@ -74,11 +75,56 @@ function stubMeAfterFailures(failures: number, me: AuthMe): void {
   });
 }
 
+/** The redirect's full navigate options (`to`, `search`, `replace`), for the arms that assert what the next URL
+ *  carries. */
+async function redirectOptionsOf(guard: () => Promise<void>): Promise<Record<string, unknown>> {
+  try {
+    await guard();
+  } catch (err) {
+    const options: unknown = err instanceof Response ? Reflect.get(err, "options") : undefined;
+    if (typeof options === "object" && options !== null) {
+      return { ...options };
+    }
+    throw err;
+  }
+  throw new Error("expected the guard to throw a redirect");
+}
+
+beforeEach(() => {
+  // The guard reads the address bar for an inbound `?join=`; node has none, so every arm starts on a bare `/`.
+  vi.stubGlobal("location", { pathname: "/", search: "", hash: "" });
+  vi.stubGlobal("history", { replaceState: vi.fn() });
+});
+
 afterEach(() => {
   vi.unstubAllGlobals();
 });
 
 // ── requireAuthed (the `/` gate) ──
+
+test("requireAuthed: a signed-out /?join=<t> stashes t in the tab and carries it into no URL (D254)", async () => {
+  stubMe(ANON);
+  const tab = stubTabStorage();
+  const replaceState = vi.fn();
+  vi.stubGlobal("location", { pathname: "/", search: "?join=tok_invite", hash: "" });
+  vi.stubGlobal("history", { replaceState });
+
+  const options = await redirectOptionsOf(requireAuthed);
+
+  expect(options["to"]).toBe("/login");
+  expect(options["search"]).toBeUndefined();
+  expect([...tab.values()]).toEqual(["tok_invite"]);
+  // The `/?join=` history entry is scrubbed before the redirect, so Back never replays the raw token.
+  expect(replaceState).toHaveBeenCalledWith(null, "", "/");
+});
+
+test("requireAuthed: an authenticated /?join=<t> stashes nothing — the app root reads the URL itself", async () => {
+  stubMe(AUTHED);
+  const tab = stubTabStorage();
+  vi.stubGlobal("location", { pathname: "/", search: "?join=tok_invite", hash: "" });
+  await expect(requireAuthed()).resolves.toBeUndefined();
+  expect(tab.size).toBe(0);
+});
 
 test("requireAuthed: an authenticated request passes through (covers single-user's always-resolved owner)", async () => {
   stubMe(AUTHED);

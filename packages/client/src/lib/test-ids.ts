@@ -24,6 +24,15 @@ export const TEST_IDS = {
   firstRunConfirm: "first-run-confirm",
   firstRunSubmit: "first-run-submit",
   firstRunError: "first-run-error",
+  // D254 — the signup-through-invite form the login surface offers when a signed-out invite visit stashed its
+  // token: handle + password + submit + inline error, and the controls that switch to sign-in or dismiss.
+  signupInviteForm: "signup-invite-form",
+  signupHandle: "signup-handle",
+  signupPassword: "signup-password",
+  signupSubmit: "signup-submit",
+  signupError: "signup-error",
+  signupUseSignIn: "signup-use-sign-in",
+  signupDismiss: "signup-dismiss",
   accountSurface: "account-surface",
   accountLogout: "account-logout",
   // The rung-1 in-app re-auth modal body — the affordance that

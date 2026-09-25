@@ -11,12 +11,13 @@ import { WebSpinner } from "@orb/ui/spinner";
 import { Heading, Text } from "@orb/ui/text";
 import { useNavigate } from "@tanstack/react-router";
 import type { ReactElement } from "react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { AuthConfig } from "#data";
-import { useAuthConfig } from "#data";
+import { clearJoinStash, peekJoinStash, useAuthConfig } from "#data";
 import { testId, useFocusOnMount } from "#lib";
 import { LoginFirstRunForm } from "../components/login-first-run-form.tsx";
 import { LoginLocalForm } from "../components/login-local-form.tsx";
+import { LoginSignupForm } from "../components/login-signup-form.tsx";
 import { LoginTransportNotice } from "../components/login-transport-notice.tsx";
 import { authErrorMessage } from "../lib/auth-error.ts";
 import { shouldAutoRedirectToSso } from "../lib/sso-redirect.ts";
@@ -28,6 +29,12 @@ export function LoginSurface(): ReactElement {
   const config = useAuthConfig();
   const navigate = useNavigate();
   const goHome = (): void => void navigate({ to: "/", replace: true });
+  // D254 — a signed-out invite visit stashed its token before the guard sent it here; the URL never carries it.
+  const [joinToken, setJoinToken] = useState(peekJoinStash);
+  const dismissJoin = (): void => {
+    clearJoinStash();
+    setJoinToken(null);
+  };
 
   const search = globalThis.location.search;
   // A7 — the OIDC callback lands here with ?authError=<sanitized code> on any failed sign-in; surface it as a
@@ -57,7 +64,7 @@ export function LoginSurface(): ReactElement {
       // would flash-then-vanish.
       return <LoginRedirecting providerName={config.data.oidcProviderName} />;
     }
-    return <LoginBody config={config.data} authError={authError} onDone={goHome} />;
+    return <LoginBody config={config.data} authError={authError} joinToken={joinToken} onDismissJoin={dismissJoin} onDone={goHome} />;
   })();
 
   return (
@@ -69,15 +76,20 @@ export function LoginSurface(): ReactElement {
 
 /** The per-mode arm dispatcher — pure (config in, arm out), router-free and CT-mountable directly.
  *  `authError` is the already-resolved OIDC callback error MESSAGE (or null); rendered above Continue.
+ *  `joinToken` is the stashed invite token (or null); the local arm offers the signup form while it is set.
  * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
 export function LoginBody({
   config,
   authError = null,
+  joinToken = null,
+  onDismissJoin,
   onDone,
 }: {
   readonly config: AuthConfig;
   readonly authError?: string | null;
+  readonly joinToken?: string | null;
+  readonly onDismissJoin?: () => void;
   readonly onDone: () => void;
 }): ReactElement {
   switch (config.mode) {
@@ -85,12 +97,17 @@ export function LoginBody({
       // B4 — a fresh local box (owner has no password yet) renders the first-run setup form instead of the
       // credential form; the server serves `localFirstRun` only on a local/trusted origin, so this arm is
       // reachable exactly where the setup endpoint accepts a claim.
-      return config.localFirstRun ? (
-        <Stack gap="block">
-          <Heading level={1}>Set up your server</Heading>
-          <LoginTransportNotice transport={config.transport} clientScope={config.clientScope} />
-          <LoginFirstRunForm ownerHandle={config.defaultHandle} onDone={onDone} />
-        </Stack>
+      if (config.localFirstRun) {
+        return (
+          <Stack gap="block">
+            <Heading level={1}>Set up your server</Heading>
+            <LoginTransportNotice transport={config.transport} clientScope={config.clientScope} />
+            <LoginFirstRunForm ownerHandle={config.defaultHandle} onDone={onDone} />
+          </Stack>
+        );
+      }
+      return joinToken !== null && config.multiHumanCapable ? (
+        <LocalInviteArm config={config} joinToken={joinToken} onDismissJoin={onDismissJoin} onDone={onDone} />
       ) : (
         <Stack gap="block">
           <Heading level={1}>Sign in</Heading>
@@ -150,6 +167,50 @@ export function LoginBody({
     default:
       return assertNeverMode(config.mode);
   }
+}
+
+/** D254 — the local arm while an invite is stashed: create an account through it, or sign in to an existing
+ *  one (the stash stays, so the join dialog opens after sign-in), or dismiss it. */
+function LocalInviteArm({
+  config,
+  joinToken,
+  onDismissJoin,
+  onDone,
+}: {
+  readonly config: AuthConfig;
+  readonly joinToken: string;
+  readonly onDismissJoin: (() => void) | undefined;
+  readonly onDone: () => void;
+}): ReactElement {
+  const [signIn, setSignIn] = useState(false);
+  if (signIn) {
+    return (
+      <Stack gap="block">
+        <Heading level={1}>Sign in to join</Heading>
+        <LoginTransportNotice transport={config.transport} clientScope={config.clientScope} />
+        <LoginLocalForm defaultHandle={config.defaultHandle} onLoggedIn={onDone} />
+      </Stack>
+    );
+  }
+  return (
+    <Stack gap="block">
+      <Heading level={1}>You're invited</Heading>
+      <LoginTransportNotice transport={config.transport} clientScope={config.clientScope} />
+      <Text size="label" tone="muted">
+        Pick a handle and a password to create your account and join the room.
+      </Text>
+      <LoginSignupForm
+        token={joinToken}
+        onSignedUp={(): void => {
+          // The account is already seated in the room, so the stash has nothing left to open.
+          onDismissJoin?.();
+          onDone();
+        }}
+        onUseSignIn={(): void => setSignIn(true)}
+        onDismiss={(): void => onDismissJoin?.()}
+      />
+    </Stack>
+  );
 }
 
 /** Exhaustiveness backstop — a new `AUTH_MODES` member fails `tsc` here. */
