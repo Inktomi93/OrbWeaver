@@ -97,6 +97,27 @@ export function validateInviteForm(values: InviteFormValues): { fields: Record<s
   return Object.keys(fields).length > 0 ? { fields } : undefined;
 }
 
+// Whether a preset's duration fits a sign-up link's cap.
+function fitsSignupTtl(expiry: string): boolean {
+  const ms = expiryMsOf(expiry);
+  return ms !== null && ms <= SIGNUP_MAX_TTL_MS;
+}
+
+// The longest expiry preset a sign-up link may carry: a friend gets the most time the caps allow.
+const LONGEST_SIGNUP_EXPIRY = INVITE_EXPIRY_KEYS.filter(fitsSignupTtl).at(-1) ?? INVITE_FORM_DEFAULTS.expiry;
+const SIGNUP_DEFAULT_USES = 1;
+
+/** The expiry and use limit a sign-up link starts from when its switch turns on: the form's own values where they
+ *  already fit the caps, else the longest expiry the caps allow and a single use. The form never opens a sign-up
+ *  link on an error the owner did not cause. */
+export function signupBounds(values: InviteFormValues): Pick<InviteFormValues, "expiry" | "maxUses"> {
+  const usesFit = values.maxUses !== null && Number.isInteger(values.maxUses) && values.maxUses >= 1 && values.maxUses <= SIGNUP_MAX_USES;
+  return {
+    expiry: fitsSignupTtl(values.expiry) ? values.expiry : LONGEST_SIGNUP_EXPIRY,
+    maxUses: usesFit ? values.maxUses : SIGNUP_DEFAULT_USES,
+  };
+}
+
 /** Project the form values into the wire `CreateInviteInput`. `now` is the SUBMIT-time clock (an event
  *  handler, not render — the render-determinism rule doesn't bind here); expiry presets resolve to an
  *  absolute `expiresAt` epoch because that is the wire shape (`createInviteSchema`). */

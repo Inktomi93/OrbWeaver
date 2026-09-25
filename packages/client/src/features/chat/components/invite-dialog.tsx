@@ -28,7 +28,7 @@ import { notify, testId, timeLib } from "#lib";
 import { useInviteForm } from "../hooks/use-invite-form.ts";
 import { useCreateInvite, useRevokeInvite } from "../hooks/use-invite-mutations.ts";
 import type { InviteFormValues } from "../lib/invite-form-model.ts";
-import { INVITE_EXPIRY_ITEMS, inviteJoinLink, toCreateInviteInput } from "../lib/invite-form-model.ts";
+import { INVITE_EXPIRY_ITEMS, inviteJoinLink, signupBounds, toCreateInviteInput } from "../lib/invite-form-model.ts";
 
 type InviteView = inferOutput<Trpc["invites"]["listInvites"]>[number];
 
@@ -185,7 +185,21 @@ function InviteMintForm({ chatId }: { readonly chatId: ChatId }): ReactElement {
               {(mode): ReactElement | null =>
                 mode === "link" ? (
                   <Stack gap="field" data-testid={testId("inviteAllowSignup")}>
-                    <form.AppField name="allowSignup">
+                    <form.AppField
+                      name="allowSignup"
+                      listeners={{
+                        // A sign-up link needs a use limit and an expiry inside the caps: turning the switch on moves both
+                        // there, so the owner's first sight of the switch is not an inline error.
+                        onChange: ({ value }): void => {
+                          if (!value) {
+                            return;
+                          }
+                          const bounds = signupBounds(form.state.values);
+                          form.setFieldValue("expiry", bounds.expiry);
+                          form.setFieldValue("maxUses", bounds.maxUses);
+                        },
+                      }}
+                    >
                       {(field): ReactElement => (
                         <field.SwitchField
                           label="Let people without an account sign up"

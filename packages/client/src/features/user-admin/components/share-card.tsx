@@ -13,6 +13,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode, Ref } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { ConfirmDialog, QueryBoundary } from "#components";
+import type { AuthConfig } from "#data";
 import { QueryErrorState, SkeletonRows, useAuthConfig, useInvalidation, useTRPC } from "#data";
 import { useRevokeUserSessions } from "../hooks/use-admin-mutations.ts";
 import { useStartSharing, useStopSharing } from "../hooks/use-share-mutations.ts";
@@ -80,6 +81,11 @@ function stateSentence(view: ShareView): string {
     return `${downReason(view.reason)} It stopped retrying after repeated failures. Try again to share under a new link.`;
   }
   return SETTLED_SENTENCE[view.phase];
+}
+
+// A password typed on this page crosses a network in clear: plain http, from anywhere but this machine.
+function crossesNetworkInClear(authConfig: Pick<AuthConfig, "transport" | "clientScope"> | undefined): boolean {
+  return authConfig !== undefined && authConfig.transport === "http" && authConfig.clientScope !== "loopback";
 }
 
 // Focus left on a control that unmounted lands on the page body; only then does a late successor take it.
@@ -215,7 +221,7 @@ function ShareCardBody({ localMultiUser, discreetLogin, onEnableSeating }: Share
             <UpPanel
               url={view.url}
               changed={nextMemory.changed !== null}
-              plainHttp={authConfig?.transport === "http"}
+              plainHttp={crossesNetworkInClear(authConfig)}
               linkCopyRef={linkCopyTarget}
               onDismissChange={(): void => {
                 setMemory(dismissLinkChange(nextMemory));

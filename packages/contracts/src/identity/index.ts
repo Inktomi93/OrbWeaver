@@ -61,8 +61,9 @@ export function isCookieAuthMode(mode: AuthMode): boolean {
 export const REQUEST_TRANSPORTS = ["https", "http"] as const;
 export type RequestTransport = (typeof REQUEST_TRANSPORTS)[number];
 
-/** Where a request's resolved client address sits: the private/loopback set, or the public internet. */
-export const CLIENT_SCOPES = ["private", "public"] as const;
+/** Where a request's resolved client address sits: this machine (a loopback address, where nothing crosses a
+ *  network), a private network, or the public internet. */
+export const CLIENT_SCOPES = ["loopback", "private", "public"] as const;
 export type ClientScope = (typeof CLIENT_SCOPES)[number];
 
 /** The relays a share can run: a Cloudflare quick tunnel. `SHARE_RELAY` in the server env takes a member to start one at boot. */

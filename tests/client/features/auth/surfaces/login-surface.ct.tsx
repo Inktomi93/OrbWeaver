@@ -57,6 +57,13 @@ test("oidc over plain http carries the notice too", async ({ mount, page }) => {
   await expect(page.getByTestId("login-transport-notice")).toBeVisible();
 });
 
+// The owner claiming a fresh box on this machine: the password crosses no network, so the setup form carries no notice.
+test("the first-run form from this machine over plain http → no transport notice", async ({ mount, page }) => {
+  await mount(<LoginArmStory config={config({ mode: "local", localFirstRun: true, transport: "http", clientScope: "loopback" })} />);
+  await expect(page.getByTestId("first-run-setup-form")).toBeVisible();
+  await expect(page.getByTestId("login-transport-notice")).toHaveCount(0);
+});
+
 test("https → no transport notice", async ({ mount, page }) => {
   await mount(<LoginArmStory config={config({ mode: "local", transport: "https", clientScope: "public" })} />);
   await expect(page.getByTestId("login-local-form")).toBeVisible();

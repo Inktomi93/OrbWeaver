@@ -55,8 +55,10 @@
 
 import { CARD_FRAME_ROUTE } from "@orb/contracts/chat";
 import { PLUGIN_FRAME_DOC_PREFIX } from "@orb/contracts/plugin";
-import type { MiddlewareHandler, Next } from "hono";
+import { isLoopbackHost } from "@orb/kit/allowed-hosts";
+import type { Context, MiddlewareHandler, Next } from "hono";
 import { secureHeaders } from "hono/secure-headers";
+import { requestTransport } from "#infra/auth";
 
 // THE EXEMPTION LIST, and it is a MECHANICAL necessity, not a policy carve-out: `hono/secure-headers` sets
 // its headers AFTER `next()` with `.set()`, so it OVERWRITES whatever a handler wrote. A ROUTED FRAME
@@ -146,8 +148,9 @@ export interface SecurityHeadersOptions {
   readonly allowExternalMedia: () => boolean;
 }
 
-/** One fully-formed policy per (dev × allowExternalMedia) arm — never a partially-mutated directive list. */
-function policy(opts: { readonly dev: boolean; readonly external: boolean }): MiddlewareHandler {
+/** One fully-formed policy per (dev × allowExternalMedia × trustworthy origin) arm — never a partially-mutated
+ *  directive list. */
+function policy(opts: { readonly dev: boolean; readonly external: boolean; readonly trustworthy: boolean }): MiddlewareHandler {
   const mediaHosts = opts.external ? [HTTPS] : [];
   return secureHeaders({
     contentSecurityPolicy: {
@@ -199,8 +202,16 @@ function policy(opts: { readonly dev: boolean; readonly external: boolean }): Mi
     xFrameOptions: "DENY",
     xContentTypeOptions: "nosniff",
     referrerPolicy: "strict-origin-when-cross-origin",
-    crossOriginOpenerPolicy: "same-origin",
+    // A browser ignores both on an origin it does not trust (plain http to a LAN name or address) and logs an error
+    // on every page for each, so they go out only where they take effect.
+    crossOriginOpenerPolicy: opts.trustworthy ? "same-origin" : false,
+    originAgentCluster: opts.trustworthy,
   });
+}
+
+// A potentially trustworthy origin as a browser judges it: https (asserted by a trusted proxy), or a loopback host.
+function trustworthyOrigin(c: Context): boolean {
+  return isLoopbackHost(new URL(c.req.url).hostname) || requestTransport(c) === "https";
 }
 
 /**
@@ -229,20 +240,28 @@ function policy(opts: { readonly dev: boolean; readonly external: boolean }): Mi
  * below that mount.
  */
 export function securityHeaders(opts: SecurityHeadersOptions): MiddlewareHandler {
-  // Both arms are built ONCE at wiring time; the per-request work is the boolean read + a dispatch.
-  const blocked = policy({ dev: opts.dev, external: false });
-  const allowed = policy({ dev: opts.dev, external: true });
-  const appPolicy = (): MiddlewareHandler => (opts.allowExternalMedia() ? allowed : blocked);
+  // Every arm is built ONCE at wiring time; the per-request work is two boolean reads + a dispatch.
+  const arms = {
+    trusted: { blocked: policy({ dev: opts.dev, external: false, trustworthy: true }), allowed: policy({ dev: opts.dev, external: true, trustworthy: true }) },
+    untrusted: {
+      blocked: policy({ dev: opts.dev, external: false, trustworthy: false }),
+      allowed: policy({ dev: opts.dev, external: true, trustworthy: false }),
+    },
+  };
+  const appPolicy = (c: Context): MiddlewareHandler => {
+    const arm = trustworthyOrigin(c) ? arms.trusted : arms.untrusted;
+    return opts.allowExternalMedia() ? arm.allowed : arm.blocked;
+  };
   return async (c, next) => {
     if (!servesOwnPolicy(c.req.path)) {
-      await appPolicy()(c, next);
+      await appPolicy(c)(c, next);
       return;
     }
     await next();
     if (!c.res.headers.has(OWN_POLICY_HEADER)) {
       // `hono/secure-headers` awaits its `next` and then `.set()`s onto `c.res`, so handing it a spent
       // chain writes the app headers onto the already-produced response without re-running anything.
-      await appPolicy()(c, RESPONSE_ALREADY_PRODUCED);
+      await appPolicy(c)(c, RESPONSE_ALREADY_PRODUCED);
     }
   };
 }

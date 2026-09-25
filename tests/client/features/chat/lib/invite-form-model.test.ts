@@ -17,6 +17,7 @@ import { describe } from "vitest";
 import {
   INVITE_FORM_DEFAULTS,
   inviteJoinLink,
+  signupBounds,
   toCreateInviteInput,
   validateInviteForm,
 } from "../../../../../packages/client/src/features/chat/lib/invite-form-model.ts";
@@ -120,5 +121,23 @@ describe("inviteJoinLink", () => {
 
   test("the token is URL-encoded and a trailing slash on the origin is not doubled", () => {
     expect(inviteJoinLink("a/b c", { state: "up", url: `${Share}/` }, Page)).toBe(`${Share}/join/a%2Fb%20c`);
+  });
+});
+
+// Turning sign-up on must not greet the owner with an inline error: the bounds move inside the caps, and a value that
+// already fits is left as the owner set it.
+describe("signupBounds", () => {
+  test("the form's own defaults (never expires, unlimited) move to an expiry inside the cap and one use", () => {
+    const bounds = signupBounds(INVITE_FORM_DEFAULTS);
+    expect(validateInviteForm({ ...INVITE_FORM_DEFAULTS, ...bounds, allowSignup: true })).toBeUndefined();
+    expect(bounds.maxUses).toBe(1);
+  });
+
+  test("an expiry and a use limit that already fit are kept", () => {
+    expect(signupBounds({ ...INVITE_FORM_DEFAULTS, expiry: "24h", maxUses: SIGNUP_MAX_USES })).toEqual({ expiry: "24h", maxUses: SIGNUP_MAX_USES });
+  });
+
+  test("a use limit past the cap moves to one", () => {
+    expect(signupBounds({ ...INVITE_FORM_DEFAULTS, expiry: "1h", maxUses: SIGNUP_MAX_USES + 1 }).maxUses).toBe(1);
   });
 });

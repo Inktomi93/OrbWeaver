@@ -6,6 +6,7 @@
 // grouped-file BUNDLE (`createInvites(ctx, deps)`).
 
 import type { ParticipantView } from "@orb/contracts/chat";
+import { GROUP_OUTPUT_LABELS, GROUP_POLICY_LABELS } from "@orb/contracts/chat";
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";
 import { chatInvites, chatParticipants, users } from "@orb/db";
@@ -843,7 +844,8 @@ describe("previewInvite — minimal preview-then-confirm", () => {
     expect(preview.roomName).toBe("The Tavern");
     expect(preview.hostHandle).toBe(host); // the fake resolver maps handle from the host's id
     expect(preview.memberCount).toBe(1);
-    expect(preview.modeLabel).toBe("per-speaker · natural");
+    // The room's mode in the words its own Group tab uses, never the raw config values.
+    expect(preview.modeLabel).toBe(`${GROUP_OUTPUT_LABELS["per-speaker"]} · ${GROUP_POLICY_LABELS.natural}`);
   });
 
   test("a hostless participant view is an invariant failure, never an empty branded handle", async () => {

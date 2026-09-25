@@ -207,7 +207,9 @@ export type {
 export {
   DEFAULT_GROUP_CONFIG,
   DEFAULT_ROOM_OVERRIDES,
+  GROUP_OUTPUT_LABELS,
   GROUP_POLICIES,
+  GROUP_POLICY_LABELS,
   GUIDED_STEER_INPUT_MAX,
   groupConfigSchema,
   groupPolicySchema,

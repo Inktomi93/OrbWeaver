@@ -416,7 +416,10 @@ test.describe("the sign-up switch", () => {
     await dialog.getByTestId("invite-allow-signup").getByRole("switch").click();
     await dialog.getByRole("combobox", { name: "Expires" }).click();
     await page.getByRole("option", { name: "7 days" }).click();
-    await dialog.getByRole("textbox", { name: "Max uses" }).fill(String(SIGNUP_MAX_USES));
+    // Turning sign-up on already set one use; the admin raises it to the cap.
+    const maxUses = dialog.getByRole("textbox", { name: "Max uses" });
+    await maxUses.clear();
+    await maxUses.fill(String(SIGNUP_MAX_USES));
     await dialog.getByRole("button", { name: "Create link" }).click();
 
     await expect.poll(() => trpc.count("invites.createInvite"), { intervals: [20, 50, 100] }).toBe(1);
@@ -427,7 +430,9 @@ test.describe("the sign-up switch", () => {
     expect(typeof sent()?.expiresAt).toBe("number");
   });
 
-  test("the caps refuse in the form: an unlimited, never-expiring sign-up link makes no wire call", async ({ mount, page }) => {
+  // The form opens on an unlimited, never-expiring link. Turning sign-up on moves both inside the caps, so the switch
+  // never greets the owner with an inline error, and Create mints at once.
+  test("turning sign-up on moves the link inside the caps, so Create mints with no field error", async ({ mount, page }) => {
     await stubAuthConfig(page, { mode: "oidc" });
     const trpc = await routeTrpc(page, {
       "sessions.me": meAs("owner"),
@@ -439,7 +444,34 @@ test.describe("the sign-up switch", () => {
     await dialog.getByTestId("invite-allow-signup").getByRole("switch").click();
     await dialog.getByRole("button", { name: "Create link" }).click();
 
-    await expect(dialog.locator('[data-slot="field-error"]')).toHaveCount(2);
+    await expect.poll(() => trpc.count("invites.createInvite"), { intervals: [20, 50, 100] }).toBe(1);
+    const sent = (): { allowSignup?: unknown; maxUses?: unknown; expiresAt?: unknown } | undefined =>
+      (trpc.lastInput("invites.createInvite") as { input?: { allowSignup?: unknown; maxUses?: unknown; expiresAt?: unknown } }).input;
+    await expect
+      .poll(() => ({ allowSignup: sent()?.allowSignup, maxUses: sent()?.maxUses, expiry: typeof sent()?.expiresAt }))
+      .toEqual({
+        allowSignup: true,
+        maxUses: 1,
+        expiry: "number",
+      });
+    await expect(dialog.locator('[data-slot="field-error"]')).toHaveCount(0);
+  });
+
+  test("the caps still refuse in the form: a sign-up link set back to never expire makes no wire call", async ({ mount, page }) => {
+    await stubAuthConfig(page, { mode: "oidc" });
+    const trpc = await routeTrpc(page, {
+      "sessions.me": meAs("owner"),
+      "invites.listInvites": () => [],
+      "invites.createInvite": () => MINT,
+    });
+    await mount(<InviteDialogStory />);
+    const dialog = page.getByTestId("invite-dialog");
+    await dialog.getByTestId("invite-allow-signup").getByRole("switch").click();
+    await dialog.getByRole("combobox", { name: "Expires" }).click();
+    await page.getByRole("option", { name: "Never expires" }).click();
+    await dialog.getByRole("button", { name: "Create link" }).click();
+
+    await expect(dialog.locator('[data-slot="field-error"]')).toHaveCount(1);
     await expect.poll(() => trpc.count("invites.createInvite")).toBe(0);
   });
 
