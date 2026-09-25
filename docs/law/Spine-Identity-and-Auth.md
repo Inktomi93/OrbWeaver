@@ -104,10 +104,12 @@ Code comments cite the numbered invariants below as "invariant N":
     an unbound row and may never rebind a bound one (`isSubjectMismatch`,
     `domain/sessions/substrate/role-policy.ts`, shared with the admin link capability rather than
     re-spelled), together with the access gate, the collision hard-deny, the JIT gate and the owner
-    singleton, in one ruled precedence. That precedence is the pure `decideProvision`
-    (`domain/sessions/substrate/decide-provision.ts`, D259): the verb interprets its decision, and a
+    singleton, in one ruled precedence. That precedence is the pure
+    `decideProvision(existing, identity, ownerId, options)` (`domain/sessions/substrate/decide-provision.ts`, D259): the verb interprets its decision and runs the
+    two reads the decision names, the owner row for owner adoption and the email for the collision deny. A
     batch-shaped signup statement that decides through the same function is not a second upsert. Such a
-    statement carries only the race-relevant checks in SQL: the unique indexes and a `NOT EXISTS` on the handle key (D257) and on email.
+    statement carries only the race-relevant checks in SQL: the unique indexes on handle, `external_id` and
+    the single owner, and a `NOT EXISTS` on the handle key (D257) and on email.
     The one such statement is the `oidc` pending-join confirm (`domain/sessions/verbs/pending-signup.ts`).
     A mode with its own upsert would carry its own, weaker, takeover
     posture. Enforcers: `infra/auth` is db-free and may not import a domain, so a mode resolver
@@ -236,9 +238,10 @@ The sanctioned `Principal`/credential construction and cookie sites; everything 
 - `entry/http/auth-routes.ts` — the session cookie write side, under the request transport's name
   (`infra/auth/transport.ts`); mints session tokens via `domain/sessions` and never re-implements resolution.
   Its cookie sites are login, first-run, the local signup-through-invite route, and the `oidc` callback
-  and pending-join confirm routes. A signup or confirm mints only after its one gated batch commits with
-  every `RETURNING` non-empty, and a confirm mints only for an enabled account (D259). The pending-join
-  cookie (`infra/auth/modes/oidc.ts`) is `HttpOnly` and `SameSite=Strict`. It carries a fresh secret that
+  and pending-join confirm routes. A signup or confirm mints through `sessions.create` only after its one
+  gated batch commits with every `RETURNING` non-empty, and a confirm mints only for an enabled account
+  (D259). The pending-join cookie (`infra/auth/modes/oidc.ts`) is `__Host-orb_join_pending` over https and
+  `orb_join_pending_insecure` over http, both `HttpOnly` and `SameSite=Strict`. It carries a fresh secret that
   the server stores only as a peppered hash, and it is never a session.
 - `entry/app.ts` — the `Set-Cookie` writer: the per-request auth middleware re-issues the same token
   `sessions.validate` just accepted, with a fresh max-age. It never mints; re-issuing a second copy read
