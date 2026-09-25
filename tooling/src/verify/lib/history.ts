@@ -9,8 +9,8 @@
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import process from "node:process";
 import { ensureReportsDir, reportsPath } from "@orb/tooling/_shared/artifacts";
+import { runGit } from "@orb/tooling/_shared/git";
 import { warn } from "@orb/tooling/_shared/log";
-import { runNicedSync } from "@orb/tooling/_shared/proc";
 import type { RunHistoryEntry, SlowdownAdvisory } from "../contract/history.ts";
 import type { VerifyReport } from "../contract/stage.ts";
 
@@ -46,7 +46,7 @@ const RAN_MODES: ReadonlySet<string> = new Set(["full", "scoped"]);
 /** The commit under judgement, or `"unknown"` — never fabricated, so a line can always be trusted about
  *  which tree it measured. */
 export function currentSha(root: string): string {
-  const res = runNicedSync("git", ["rev-parse", "--short", "HEAD"], { cwd: root });
+  const res = runGit(root, ["rev-parse", "--short", "HEAD"]);
   return res.status === 0 && res.stdout.trim().length > 0 ? res.stdout.trim() : "unknown";
 }
 

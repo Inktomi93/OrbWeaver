@@ -208,5 +208,6 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D258 | [The owner is claimed with proof, never by a handle match alone](0258-owner-claim-needs-proof.md) | active |
 | D259 | [Signup invites mint the account and the joiner's persona through one gated batch](0259-signup-invites-mint-account-and-persona-in-one-gated-batch.md) | active |
 | D260 | [The local sign-up form previews its invite through the signup pre-check](0260-local-signup-form-previews-its-invite-through-the-pre-check.md) | active |
-| D261 | [Every account is seeded with content, never with conversations](0261-seed-content-not-conversations.md) | active |
+| D261 | [Every account is seeded with content, never with conversations](0261-seed-content-not-conversations.md) | superseded by [0263-seed-content-and-a-first-run-persona.md](0263-seed-content-and-a-first-run-persona.md) |
 | D262 | [prefix-bound thinking rides an append-only history](0262-prefix-bound-thinking-rides-an-append-only-history.md) | active |
+| D263 | [Every account is seeded with content, and names its own persona](0263-seed-content-and-a-first-run-persona.md) | active |

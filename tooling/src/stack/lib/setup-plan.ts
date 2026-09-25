@@ -47,7 +47,6 @@ const TAILNET_SECOND_OCTET_MAX = 127;
 /** Adapters whose addresses other devices on the LAN cannot open: container bridges, VM host-only networks,
  *  Hyper-V switches and VPN tunnels, by their Linux, macOS and Windows names. */
 const VIRTUAL_ADAPTER_RE = /^(?:docker|br-|veth|virbr|vmnet|vboxnet|vethernet|virtualbox|vmware|utun|tailscale|zt|bridge)/iu;
-const WSL2_KERNEL_RE = /microsoft-standard|wsl2/iu;
 
 /** The header of a `.env` setup creates. The file then holds only the keys setup writes. */
 export const SETUP_FILE_HEADER = `# Written by \`${SETUP_COMMAND}\`; run it again to change these. Every other setting is in .env.example.`;
@@ -133,12 +132,6 @@ export function parseChoiceAnswer<T extends string>(raw: string, choices: readon
   }
   const picked = DIGITS_RE.test(trimmed) ? choices[Number(trimmed) - 1] : undefined;
   return picked === undefined ? { ok: false, error: `type a number from 1 to ${choices.length}.` } : { ok: true, value: picked };
-}
-
-/** WSL2's kernel names itself in `/proc/version`. WSL1 does not match: it shares Windows' own network stack, so
- *  its addresses are the LAN's. */
-export function isWsl2Kernel(procVersion: string): boolean {
-  return WSL2_KERNEL_RE.test(procVersion);
 }
 
 function inTailnetRange(address: string): boolean {

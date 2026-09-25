@@ -22,13 +22,10 @@
 //
 // STALE SLOTS SELF-HEAL, same shape as ct-runner-lock.ts: a killed holder leaves its file behind, and a
 // slot nobody holds must never wedge the box, so an unheld slot is STOLEN with a printed note. A holder is
-// unheld when `kill(pid, 0)` says its pid is gone, or — on Linux, the one platform with `/proc` — when the
-// `/proc/<pid>/stat` start ticks of the process behind that pid differ from the ticks the holder recorded
-// for itself (the pid was reused). Start ticks count from boot, so no wall-clock step can make a live
-// holder read as reused. Never compare them with a wall-clock time: `/proc/stat` btime moves with every
-// clock step, so a live holder would read as reused and two runs would share a one-slot pool. With no
-// ticks on either side (macOS, Windows, or a record without them), `kill(pid, 0)` alone decides, which
-// works on every platform Node runs on. `kill(pid, 0)` cannot tell EPERM (a live foreign pid) from ESRCH
+// unheld when `kill(pid, 0)` says its pid is gone, or when its slot file's HEARTBEAT has stopped: a lease
+// rewrites its file with a fresh `beatMs` on a timer, so a live holder always reads fresh, and a pid the OS
+// handed to something else never refreshes a file it does not know. The same beat the queue tickets carry,
+// on every platform Node runs on. `kill(pid, 0)` cannot tell EPERM (a live foreign pid) from ESRCH
 // (gone), so a foreign pid reads as GONE and its slot is taken — the safe direction, since these pools
 // only ever contend with our own fleet.
 //
@@ -40,13 +37,13 @@
 // THE VOCABULARY IS THE CALLER'S. This module decides WHEN a caller is queued, has acquired, or has given
 // up waiting; the SENTENCES belong to the caller (`verify: queued behind pid …` reads nothing like
 // `ct: waiting for a host CT slot`). One mechanism, several dialects.
-import { existsSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import process from "node:process";
 import { refuseDirectInvocation } from "./entrypoint.ts";
-import type { HostSlotHolder, Liveness, PoolRecord } from "./host-slot-records.ts";
-import { defaultAlive, holderState, liveHolders, ownedDir, platformStartTicks, readHolder, STATE_TEXT, takeAnySlot } from "./host-slot-records.ts";
+import type { HostSlotHolder, Liveness } from "./host-slot-records.ts";
+import { defaultAlive, holderState, liveHolders, ownedDir, readHolder, rewriteRecord, STATE_TEXT, takeAnySlot } from "./host-slot-records.ts";
 import { budget } from "./load-budget.ts";
 import { processEnvValue } from "./process-env.ts";
 
@@ -121,6 +118,11 @@ const MS_PER_SECOND = 1000;
 /** A waiter rewrites its ticket on every poll, so a ticket this old belongs to a killed or frozen waiter
  *  (or a recycled pid) and is pruned. A pruned live waiter rewrites the same name and keeps its place. */
 const TICKET_STALE_MS = 30_000;
+/** A holder rewrites its slot file this often, on a timer that never holds the process open. */
+const HOLDER_BEAT_MS = 5000;
+/** A slot file silent for this long belongs to a frozen holder or a recycled pid. Generous, because a
+ *  holder blocked in a synchronous child spawn beats late, and a truly dead holder is already gone by pid. */
+const HOLDER_STALE_MS = 600_000;
 const QUEUE_DIR = "queue";
 const TICKET_SUFFIX = ".json";
 /** The overflow files, in the order the head takes them: the first at the ceiling, the second at the hard
@@ -134,9 +136,8 @@ export interface HostSlotDeps {
   readonly now?: () => Date;
   readonly pid?: number;
   readonly alive?: (pid: number) => boolean;
-  /** The `/proc` start ticks of the process behind `pid`, or `null`. Defaults to the platform's reader only
-   *  when `alive` is not injected, so a faked process table never meets a real one. */
-  readonly startTicks?: (pid: number) => string | null;
+  /** Registers the holder's heartbeat timer; `setInterval` unref'd in production, a no-op in a test. */
+  readonly beat?: (tick: () => void, everyMs: number) => (() => void) | undefined;
   readonly sleep?: (ms: number) => Promise<void>;
   readonly env?: NodeJS.ProcessEnv;
   /** Called ONCE, the first time this caller has to wait, with the holder it is queued behind. The caller
@@ -203,7 +204,7 @@ export function tryAcquireHostSlot(pool: HostSlotPoolIdentity, deps: HostSlotDep
     for (let sweep = 0; sweep <= pool.slots; sweep += 1) {
       const swept = takeAnySlot({ paths: waiter.slotPaths, body: waiter.body, liveness: waiter.liveness }, waiter.onNotice);
       if (typeof swept === "number") {
-        return lease(waiter.slotPaths[swept] ?? "", swept + 1, waiter.pid, 0);
+        return lease(waiter, waiter.slotPaths[swept] ?? "", swept + 1, 0);
       }
       if (swept === null) {
         return null;
@@ -226,8 +227,8 @@ interface Waiter {
   readonly now: () => Date;
   readonly startedMs: number;
   readonly startedAt: string;
-  readonly startTicks: string | null;
   readonly body: string;
+  readonly beat: (tick: () => void, everyMs: number) => (() => void) | undefined;
   readonly ceilingMs: number;
   readonly slotPaths: readonly string[];
   readonly overflowPaths: readonly string[];
@@ -242,11 +243,7 @@ function openWaiter(pool: HostSlotPoolIdentity, ceilingMs: number, deps: HostSlo
   const queueDir = ownedDir(join(dir, QUEUE_DIR));
   const startedMs = now().getTime();
   const startedAt = new Date(startedMs).toISOString();
-  const liveness: Liveness =
-    deps.alive === undefined
-      ? { alive: defaultAlive, startTicks: deps.startTicks ?? platformStartTicks }
-      : { alive: deps.alive, startTicks: deps.startTicks ?? ((): null => null) };
-  const startTicks = liveness.startTicks(pid);
+  const liveness: Liveness = { alive: deps.alive ?? defaultAlive, nowMs: (): number => now().getTime(), staleAfterMs: HOLDER_STALE_MS };
   return {
     pool,
     dir,
@@ -257,8 +254,8 @@ function openWaiter(pool: HostSlotPoolIdentity, ceilingMs: number, deps: HostSlo
     now,
     startedMs,
     startedAt,
-    startTicks,
-    body: `${JSON.stringify({ pid, startedAt, label: pool.label, startTicks }, null, 2)}\n`,
+    body: `${JSON.stringify({ pid, startedAt, label: pool.label, beatMs: startedMs }, null, 2)}\n`,
+    beat: deps.beat ?? defaultBeat,
     ceilingMs,
     slotPaths: Array.from({ length: pool.slots }, (_, i) => slotPath(dir, i + 1)),
     overflowPaths: OVERFLOW_FILES.map((file) => join(dir, file)),
@@ -272,7 +269,7 @@ function openWaiter(pool: HostSlotPoolIdentity, ceilingMs: number, deps: HostSlo
 function admitHead(waiter: Waiter, nowMs: number): HostSlotLease | "stole" | null {
   const swept = takeAnySlot({ paths: waiter.slotPaths, body: waiter.body, liveness: waiter.liveness }, waiter.onNotice);
   if (typeof swept === "number") {
-    return lease(waiter.slotPaths[swept] ?? "", swept + 1, waiter.pid, waiter.now().getTime() - waiter.startedMs);
+    return lease(waiter, waiter.slotPaths[swept] ?? "", swept + 1, waiter.now().getTime() - waiter.startedMs);
   }
   const level = Math.min(waiter.overflowPaths.length, Math.floor((nowMs - waiter.startedMs) / waiter.ceilingMs));
   if (swept === "stole" || level < 1) {
@@ -291,7 +288,7 @@ function admitHead(waiter: Waiter, nowMs: number): HostSlotLease | "stole" | nul
     }
     if (typeof taken === "number") {
       waiter.onNotice?.(overflowNotice(waiter, holders, index));
-      return lease(path, null, waiter.pid, waiter.now().getTime() - waiter.startedMs);
+      return lease(waiter, path, null, waiter.now().getTime() - waiter.startedMs);
     }
   }
   if (waiter.noticedLevel < level) {
@@ -329,11 +326,16 @@ function overflowNotice(waiter: Waiter, holders: readonly HostSlotHolder[], inde
 /** Rewrite this waiter's ticket through a rename, so a reader never sees a torn record and prunes it. The
  *  temp file is created exclusively: a leftover one is removed first, never written through. */
 function writeTicket(waiter: Waiter, beatMs: number): void {
-  const ticket: PoolRecord = { pid: waiter.pid, startedAt: waiter.startedAt, label: waiter.pool.label, beatMs, startTicks: waiter.startTicks };
-  const tmp = `${waiter.ticket}.${String(waiter.pid)}.tmp`;
-  rmSync(tmp, { force: true });
-  writeFileSync(tmp, `${JSON.stringify(ticket)}\n`, { flag: "wx" });
-  renameSync(tmp, waiter.ticket);
+  rewriteRecord(waiter.ticket, { pid: waiter.pid, startedAt: waiter.startedAt, label: waiter.pool.label, beatMs }, waiter.pid);
+}
+
+/** The production heartbeat: unref'd, so a holder whose only pending work is its lease still exits. */
+function defaultBeat(tick: () => void, everyMs: number): () => void {
+  const timer = setInterval(tick, everyMs);
+  timer.unref();
+  return (): void => {
+    clearInterval(timer);
+  };
 }
 
 /** Is this waiter's ticket the oldest live one? A dead, silent or unreadable ticket ahead of it is pruned
@@ -361,8 +363,20 @@ function isHead(waiter: Waiter, nowMs: number): boolean {
   return false;
 }
 
-function lease(path: string, slot: number | null, pid: number, waitedMs: number): HostSlotLease {
+/** The lease beats: while it is held, the slot file is rewritten with a fresh `beatMs`, only while the
+ *  file still names this holder, so a slot a later run legitimately re-created is never overwritten. */
+function lease(waiter: Waiter, path: string, slot: number | null, waitedMs: number): HostSlotLease {
   let released = false;
+  const { pid } = waiter;
+  const stillMine = (): boolean => {
+    const current = readHolder(path);
+    return existsSync(path) && (current === null || current.pid === pid);
+  };
+  const stopBeat = waiter.beat(() => {
+    if (!released && stillMine()) {
+      rewriteRecord(path, { pid, startedAt: waiter.startedAt, label: waiter.pool.label, beatMs: waiter.now().getTime() }, pid);
+    }
+  }, HOLDER_BEAT_MS);
   return {
     slot,
     waitedMs,
@@ -371,8 +385,8 @@ function lease(path: string, slot: number | null, pid: number, waitedMs: number)
         return;
       }
       released = true;
-      const current = readHolder(path);
-      if (existsSync(path) && (current === null || current.pid === pid)) {
+      stopBeat?.();
+      if (stillMine()) {
         rmSync(path, { force: true });
       }
     },

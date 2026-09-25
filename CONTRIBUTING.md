@@ -12,14 +12,14 @@ Two ways, and the first one is better because it carries the state:
 
 ## Developing
 
-Develop on **Linux or WSL2**. The dev harness reads whatever cgroup CPU limit the kernel already
-imposes and uses bash hooks, so the watched stack is Linux-shaped. macOS can run the tests and
-`pnpm start`; it cannot run `pnpm stack`.
+The launchers run on Linux, macOS and Windows. The checks (`pnpm check`, the test harness) need Linux or
+WSL2: they read the kernel's cgroup CPU limit and run bash hooks.
 
 ```bash
 pnpm install     # deps + git hooks
 pnpm start       # production server on http://localhost:8788
-pnpm stack up    # Linux only: the watched dev stack on http://localhost:5173
+pnpm dev         # the watched dev stack in this terminal, http://localhost:5173
+pnpm stack up    # the same dev stack detached; `pnpm stack status` and `pnpm stack down`
 ```
 
 You need pnpm and Node 26; "From source" in the README installs both through pnpm, and its Develop section adds the one-time Playwright browser install. A dependency version goes in

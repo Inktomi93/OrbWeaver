@@ -7,22 +7,19 @@
 // WHY the precedence is worth pinning: the bug this module was fixed for was an override
 // (SNAP_FIXTURE_SERVER_URL) that existed but reached NEITHER the health probe nor the browser's base URL.
 // One resolve feeding both halves is the fix; these cases are its lens.
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { DEV_PORTS, FIXTURE_PORTS } from "../../../../tooling/src/_shared/ports.ts";
 import type { PortOwnerAuthProbe } from "../../../../tooling/src/snap/contract/fixture.ts";
 import {
   defaultFixtureUsers,
   FIXTURE_BASE_URL_DEFAULT,
-  FIXTURE_CREDENTIALS,
   FIXTURE_SERVER_URL_DEFAULT,
   fixtureVerdict,
+  portOwnerFromConfig,
   resolveFixtureTarget,
   resolveFixtureUsers,
 } from "../../../../tooling/src/snap/ops/fixture.ts";
+import { FIXTURE_CREDENTIALS, fixtureEnv as fixtureRecipe } from "../../../../tooling/src/stack/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
-
-const REPO_ROOT = join(import.meta.dirname, "..", "..", "..", "..");
 
 // ── resolveFixtureTarget ────────────────────────────────────────────────────────────────────────────────
 
@@ -74,14 +71,15 @@ test("resolveFixtureTarget keeps the default port when the override URL is unpar
   expect(target.serverPort).toBe(FIXTURE_PORTS.server);
 });
 
-// ── the shell/TS hand-lockstep (bash cannot import the TS registry, so the pair lives in two files) ──────
+// ── the recipe this door probes is the stack tool's own ──────────────────────────────────────────────────
 
-test("the fixture launcher script binds the SAME offset pair the port registry declares", () => {
-  const script = readFileSync(join(REPO_ROOT, "tooling", "src", "stack", "multi-user-fixture.sh"), "utf8");
-  expect(script).toContain(`export PORT="\${FIXTURE_PORT:-${FIXTURE_PORTS.server}}"`);
-  expect(script).toContain(`export VITE_PORT="\${FIXTURE_VITE_PORT:-${FIXTURE_PORTS.vite}}"`);
-  // Its own pidfile dir — without it a second stack from this tree clobbers the dev stack's pgid.
-  expect(script).toContain("export STACK_RUN_DIR=");
+test("the fixture recipe binds the SAME offset pair the port registry declares, under its own run dir", () => {
+  const env = fixtureRecipe("/repo", {});
+  expect(env["PORT"]).toBe(String(FIXTURE_PORTS.server));
+  expect(env["VITE_PORT"]).toBe(String(FIXTURE_PORTS.vite));
+  // Its own run dir — without it a second stack from this tree clobbers the dev stack's record.
+  expect(env["STACK_RUN_DIR"]).toContain("multi-user-fixture");
+  expect(env["STACK_RUN_DIR"]).not.toBe("/repo/.cache/stack");
 });
 
 // ── roster resolution (the refusals snap turns into FIXTURE REFUSED lines) ──────────────────────────────
@@ -133,7 +131,7 @@ test("a port owner running another AUTH_MODE is refused, and the reason names th
   expect(status.up === false && status.reason).toContain("AUTH_MODE=single-user");
 });
 
-test("the /proc probe is only asked once the cheap HTTP evidence agrees", () => {
+test("the owner probe is only asked once the cheap HTTP evidence agrees", () => {
   let asked = 0;
   const owner = (): PortOwnerAuthProbe => {
     asked += 1;
@@ -142,5 +140,12 @@ test("the /proc probe is only asked once the cheap HTTP evidence agrees", () => 
   expect(fixtureVerdict(FIXTURE_TARGET, { healthz: false, config: FIXTURE_CONFIG, owner }).up).toBe(false);
   expect(fixtureVerdict(FIXTURE_TARGET, { healthz: true, config: null, owner }).up).toBe(false);
   expect(fixtureVerdict(FIXTURE_TARGET, { healthz: true, config: { mode: "single-user" }, owner }).up).toBe(false);
-  expect(asked, "a run that already knows the origin is wrong must not shell out to /proc").toBe(0);
+  expect(asked, "a run that already knows the origin is wrong must not ask the owner").toBe(0);
+});
+
+test("the port owner is the server's own word: its config's mode, and a config without one cannot be asked", () => {
+  expect(portOwnerFromConfig({ mode: "local", localEnabled: true, multiHumanCapable: true }, "http://127.0.0.1:1")).toEqual({ kind: "local" });
+  expect(portOwnerFromConfig({ mode: "single-user" }, "http://127.0.0.1:1")).toEqual({ kind: "not-local", mode: "single-user" });
+  expect(portOwnerFromConfig({ localEnabled: true, multiHumanCapable: true }, "http://127.0.0.1:1")).toMatchObject({ kind: "unreadable" });
+  expect(portOwnerFromConfig(null, "http://127.0.0.1:1")).toMatchObject({ kind: "unreadable" });
 });

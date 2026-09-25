@@ -46,14 +46,13 @@ const governedArgvEntries: ReadonlySet<string> = new Set(
 );
 
 /** REAL PROGRAMS are DERIVED, never listed. A module that enters through the one entry runner at module
- *  scope IS a process entry: running it does the work it exists for (booting the production server, the
- *  vLLM fleet, the dev-identity probe), so it must NOT be spawned here and cannot be expected to refuse.
+ *  scope IS a process entry: running it does the work it exists for (a private process boundary), so it
+ *  must NOT be spawned here and cannot be expected to refuse.
  *
- *  The hand-kept name list this replaces went stale exactly once and cost a red main: `dev-identity-entry.ts`
- *  was BORN a program in #751's stack work, the structural gate correctly passed it, this test correctly
- *  failed it, and neither was wrong about its own rule — the two halves of one law simply kept separate
- *  answers to "is this a program?". Both now read `moduleScopeCallees` + `soleExportedFunction` from
- *  `_shared/ts-workspace.ts`, so they cannot disagree and there is no row to rot. */
+ *  A hand-kept name list went stale exactly once and cost a red main: an ops module BORN a program passed
+ *  the structural gate and failed this test, and neither was wrong about its own rule — the two halves of
+ *  one law simply kept separate answers to "is this a program?". Both now read `moduleScopeCallees` +
+ *  `soleExportedFunction` from `_shared/ts-workspace.ts`, so they cannot disagree and there is no row to rot. */
 function realEntries(repoRoot: string, modules: readonly string[]): ReadonlySet<string> {
   // NARROW glob on purpose: the default workspace scope walks every package, which RACES a sibling suite
   // that creates and removes a temp fixture dir mid-glob (ts-morph throws "Directory not found" on the

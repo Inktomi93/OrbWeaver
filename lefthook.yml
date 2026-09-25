@@ -120,11 +120,13 @@ post-checkout:
 # INTO main that `git merge` itself completes (a fast-forward or a clean `--no-ff`), `pnpm doc land
 # --merged` reads the `Closes: 12, 14` trailers of the commits the merge brought in (ORIG_HEAD..HEAD),
 # DELETES those items with the merge commit as evidence (the commit message records each one), regenerates
-# the indexes and commits ONLY those paths (a pathspec commit, so a sibling's staged file never rides
-# along) under the message contract (with the pre-commit check excluded, the standing exception
-# spelling). On any other branch, or when no merged commit carries a trailer, it writes and prints
-# nothing. An id already landed is skipped; an id neither on the tree nor landed in git refuses the whole
-# batch and names the by-hand landing.
+# the indexes and commits ONLY those paths through git plumbing (a temporary index from HEAD plus those
+# paths, so a sibling's staged file never rides along). Plumbing, because this hook runs while git's
+# MERGE_HEAD still exists and a porcelain pathspec commit there is refused as a partial commit during a
+# merge; the message contract is checked by running scripts/commit-msg-check.sh on the message first,
+# since no commit-msg hook fires on that path. On any other branch, or when no merged commit carries a
+# trailer, it writes and prints nothing. An id already landed is skipped; an id neither on the tree nor
+# landed in git refuses the whole batch and names the by-hand landing.
 # THE GAP git LEAVES: a merge finished by a separate `git commit` — `--no-ff --no-commit` + `git commit`,
 # or a conflict resolved the same way — runs NO post-merge hook; git only fires post-commit for it. The
 # post-commit command below covers that gap: it is a no-op unless HEAD itself is a merge commit (a second

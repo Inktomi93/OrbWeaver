@@ -30,7 +30,7 @@
 //
 // LIFECYCLE: one stage per (checkout, sha) at .cache/snap-stage/<short-sha>/ (`pnpm install` once —
 // shared store), its OWN db (seedStageData's provenance note below — a cached stage KEEPS its old db)
-// + assets symlink; boots the worktree's stack.sh on the offset band and stays WARM. A new HEAD sha
+// + assets symlink; boots the worktree's own stack cli on the offset band and stays WARM. A new HEAD sha
 // rebuilds (stale stage torn down first); `--fresh` forces; `--stage-down` (ops/stage-status.ts) removes.
 // READ-ONLY BY CONVENTION: nothing edits the worktree source — only gitignored node_modules/db/assets.
 // ENV: boots under ORB_ENV_NO_FILE, inheriting exactly the DB-BOUND keys (lib/stage-plan.ts
@@ -69,8 +69,9 @@ import { join } from "node:path";
 import process from "node:process";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { runGit } from "../../_shared/git.ts";
 import { stageBandPorts } from "../../_shared/ports.ts";
-import { runNicedSync, spawnFullPrioritySync } from "../../_shared/proc.ts";
+import { spawnFullPrioritySync } from "../../_shared/proc.ts";
 import type { EnsureStageOpts, StagePaths, StagePorts, StageRow } from "../contract/stage.ts";
 import {
   DIRTY_STAGE_KEY,
@@ -80,7 +81,8 @@ import {
   shortSha,
   stageDecision,
   stageInheritedEnv,
-  stageLauncherPath,
+  stageLauncher,
+  stageLauncherSpawn,
   stagePaths,
   stageRowBaseUrl,
 } from "../lib/stage-plan.ts";
@@ -137,16 +139,17 @@ function bootStage(root: string, paths: StagePaths, ports: StagePorts): void {
     // export WIRE_CAPTURE=on in their own shell (process.env spread above), same as any other opt-in.
     DEBUG_TOKEN: randomBytes(DEBUG_TOKEN_BYTES).toString("hex"),
   };
-  // Resolved, not hardcoded (#447): the launcher moved with the #393 P5 tooling split, and a `--ref`
-  // stage of a pre-P5 commit still ships the old path. A ref with neither is refused BY NAME here rather
-  // than spawning a path that does not exist and reporting a generic boot failure.
-  const stackSh = stageLauncherPath(paths.dir, existsSync);
-  if (stackSh === null) {
+  // Resolved, not hardcoded (#447): an older `--ref` stage ships a shell launcher where the current tree
+  // ships the stack cli. A ref with neither is refused BY NAME here rather than spawning a path that does
+  // not exist and reporting a generic boot failure.
+  const launcher = stageLauncher(paths.dir, existsSync);
+  if (launcher === null) {
     throw new Error(missingLauncherRefusal(paths.dir));
   }
   // FULL PRIORITY, deliberately (the one census'd exception — see spawnFullPrioritySync's doc): a
   // -19 staged app times out snap navigations under load, skewing the receipts the stage exists for.
-  const res = spawnFullPrioritySync("bash", [stackSh, "start"], { cwd: paths.dir, env });
+  const spawn = stageLauncherSpawn(launcher, "up", process.execPath);
+  const res = spawnFullPrioritySync(spawn.command, [...spawn.args], { cwd: paths.dir, env });
   if (res.status !== 0) {
     throw new Error(`stage stack failed to boot — inspect ${join(paths.dir, ".cache", "stack")}/*.log`);
   }
@@ -360,5 +363,5 @@ function pruneOrphanStageDirs(root: string, keep: { readonly rowDirs: readonly s
   for (const name of orphans) {
     rmSync(join(root, STAGE_ROOT_REL, name), { recursive: true, force: true });
   }
-  runNicedSync("git", ["worktree", "prune"], { cwd: root, stdio: "ignore" });
+  runGit(root, ["worktree", "prune"], { stdio: "ignore" });
 }

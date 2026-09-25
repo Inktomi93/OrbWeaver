@@ -21,9 +21,20 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
-import { execNicedSync, execNicedSyncBuffer, spawnNiced, spawnNicedTranscript } from "@orb/tooling/_shared/proc";
+import { execNicedSync, execNicedSyncBuffer, platformSpawn, spawnNiced, spawnNicedTranscript } from "@orb/tooling/_shared/proc";
 import { expect, test } from "../../support/tool-fixtures.ts";
 import { scaledBudget } from "../_load-budget.ts";
+
+test("every door spawns through cross-spawn on win32 and through node's own spawn everywhere else", async () => {
+  const { spawn, spawnSync } = await import("node:child_process");
+  expect(platformSpawn("linux")).toEqual({ spawn, spawnSync });
+  expect(platformSpawn("darwin")).toEqual({ spawn, spawnSync });
+  const win32 = platformSpawn("win32");
+  expect(win32.spawn, "the win32 door is cross-spawn's, not node's").not.toBe(spawn);
+  expect(win32.spawnSync).not.toBe(spawnSync);
+  // cross-spawn is a working door on every platform, so the win32 choice can be exercised here.
+  expect(win32.spawnSync(process.execPath, ["-e", "0"]).status).toBe(0);
+});
 
 // WALL CLOCK, through ONE door: the subject of the arms below is a real deadline settling on real time (a
 // socket that says nothing, a child that hangs) — there is no clock to inject into the other side.

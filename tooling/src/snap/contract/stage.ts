@@ -19,6 +19,21 @@ export interface StagePorts {
   readonly vite: number;
 }
 
+/** How a staged tree is booted and stopped: its own stack cli under node, or an older ref's shell launcher. */
+const STAGE_LAUNCHER_KINDS = ["cli", "shell"] as const;
+
+export interface StageLauncher {
+  readonly kind: (typeof STAGE_LAUNCHER_KINDS)[number];
+  /** Absolute path of the launcher inside the staged tree. */
+  readonly path: string;
+}
+
+/** One launcher verb as a spawn: the command and its argv, never a shell string. */
+export interface StageLauncherSpawn {
+  readonly command: string;
+  readonly args: readonly string[];
+}
+
 export interface StagePaths {
   readonly dir: string;
   /** The stage's own data root (`DATA_DIR` for its server): the db, assets and secrets below all sit under it. */
@@ -284,17 +299,6 @@ export type StageDecision = "reuse" | "rebuild";
 export interface StageLimits {
   readonly ttlMs: number;
   readonly cap: number;
-}
-
-/** ONE established TCP socket as `ss -tnp` reports it: the local port it terminates, the peer it faces,
- *  and the pid owning the LOCAL end (null when `ss` named none). The stage timer's raw signal — a band
- *  port's clients are found by matching each connection's PEER port against the local port of another
- *  connection, which is how a loopback pair identifies both of its ends from one snapshot. */
-export interface EstablishedConnection {
-  readonly localPort: number;
-  readonly peerHost: string;
-  readonly peerPort: number;
-  readonly pid: number | null;
 }
 
 export interface EnsureStageOpts {

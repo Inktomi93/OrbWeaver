@@ -13,7 +13,7 @@ import { adrTemplate, lawTemplate, planTemplate } from "../lib/templates.ts";
 import { pendingDocProblems } from "./check.ts";
 import { regenerateIndexes } from "./indexes.ts";
 import type { WriteOutcome } from "./items.ts";
-import { formattedDoc, governedPaths, root, today, writeDoc } from "./tree.ts";
+import { formattedDoc, governedPaths, highestHistoricId, root, today, writeDoc } from "./tree.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm doc new <adr|plan|law> <slug>");
 
@@ -25,7 +25,8 @@ function titleFrom(slug: string, title: string | null): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
-/** The next free ADR id: one past the highest id in the ADR tree, skipping the reserved window. */
+/** The next free ADR id: one past the highest id in the ADR tree or ever in its history, skipping the
+ *  reserved window. A removed ruling's number is never minted again. */
 export function nextAdrId(repoRoot = root): number {
   const adrIds = governedPaths(repoRoot)
     .filter((path) => path.startsWith(DOC_TOOL_TREES.adr))
@@ -33,7 +34,7 @@ export function nextAdrId(repoRoot = root): number {
       const name = parseNumberedName(basenameOf(path));
       return name === null ? [] : [name.id];
     });
-  return nextFreeRulingId(adrIds);
+  return nextFreeRulingId([...adrIds, highestHistoricId("adr", repoRoot)]);
 }
 
 /** One minted doc: judged by the docs check as written, then written with the indexes, or refused whole. */

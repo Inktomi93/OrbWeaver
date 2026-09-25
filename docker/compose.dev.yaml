@@ -3,7 +3,7 @@
 #   docker compose -f docker-compose.yaml -f docker/compose.dev.yaml up
 #   → http://localhost:5173 (vite, hot reload)   API http://localhost:8788   logs in the terminal
 #
-# Same code path as bare metal (`pnpm stack start-fg`: the watched server + vite + the dev pins — single-user,
+# Same code path as bare metal (`pnpm stack up-fg`: the watched server + vite + the dev pins — single-user,
 # dev-only secrets, seeded persona), with node + pnpm supplied by the container instead of your machine.
 # Your checkout is bind-mounted, so edits reload live; `node_modules` is installed INTO the checkout on the
 # first boot (a fresh clone has none — this is what puts them there) and reused after.
@@ -34,7 +34,7 @@ services:
     user: "${PUID:-1000}:${PGID:-1000}"     # writes into YOUR checkout, so it must be your uid
     working_dir: /app
     entrypoint: ["bash", "docker/dev-entrypoint.sh"]
-    command: ["pnpm", "stack", "start-fg"]
+    command: ["pnpm", "stack", "up-fg"]
     environment:
       BIND_HOST: !reset null                # the base container bind; a development build binds loopback only
       HOME: /app/.cache/docker-dev-home     # pnpm + its store live inside the checkout's gitignored .cache

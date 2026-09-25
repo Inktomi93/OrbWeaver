@@ -2,7 +2,7 @@
 // a program loads, executes nothing and exits 0: a bare zero that reads as "clean" (the legacy
 // gate-authoring guide prescribed exactly that spelling for months, and pnpm printed its own ✓ lines over the silence). Every
 // tooling/src/<tool>/ops/** module must call the refusal at MODULE SCOPE, or BE a program (a module-scope
-// call to the one entry runner — stack.sh's node halves). Posture: comment-SAFE (statement nodes only).
+// call to the one entry runner). Posture: comment-SAFE (statement nodes only).
 //
 // ONE HARD POLICY (#1950). Every finding is an ABSENCE — no module-scope guard statement — so
 // there is no node to anchor a waiver on and no ordinary door by construction; the legacy findings were
@@ -192,7 +192,7 @@ export const gate = defineGate({
         "tooling/src/_shared/run-tool.ts": "export async function runTool(m: () => number): Promise<void> {\n  void m;\n}\n",
         "tooling/src/aa/ops/entry.ts": 'import { runTool } from "../../_shared/run-tool.ts";\n\nawait runTool(() => 0);\n',
       },
-      why: "DERIVED EXEMPTION, not an allowlist: a module that ends in a module-scope `runTool` IS a program (stack.sh's `ops/prod-entry.ts`/`ops/dev-identity-entry.ts` halves) — running it does the real work, so the silent-zero lie is unrepresentable there. Structural, so it can never rot into a stale path row. Replacing the runner-home verdict with `true` reds mustFlag[2]; replacing it with `false` reds this row",
+      why: "DERIVED EXEMPTION, not an allowlist: a module that ends in a module-scope `runTool` IS a program (a private process boundary such as `verify/ops/config-snapshot-entry.ts`) — running it does the real work, so the silent-zero lie is unrepresentable there. Structural, so it can never rot into a stale path row. Replacing the runner-home verdict with `true` reds mustFlag[2]; replacing it with `false` reds this row",
     },
     {
       mode: "types",

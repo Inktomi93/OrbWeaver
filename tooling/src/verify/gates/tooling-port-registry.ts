@@ -16,10 +16,9 @@
 //
 // DECLARED LIMITS, carried verbatim: (1) a port inside a STRING (`"http://localhost:5173"`) is not a numeric
 // literal and is not judged — `tests/e2e/support/target-guard.test.ts` deliberately spells the dev origins as
-// negative fixture data (mustPass[2]); (2) the three SHELL launchers (stack.sh 8788/5173,
-// multi-user-fixture.sh 8790/5175; the operator's engines 8701-8703) are the mirror side by LANGUAGE and
-// `packages/client/vite.config.ts` is the mirror side by CAKE (an upward import) — both a RULED exclusion
-// (owner, 2026-09-02), named in ports.ts's header; (3) a registry number reused with a NON-port meaning IS
+// negative fixture data (mustPass[2]); (2) `packages/client/vite.config.ts` is the mirror side by CAKE (an
+// upward import) — a RULED exclusion (owner, 2026-09-02), named in ports.ts's header; (3) a registry
+// number reused with a NON-port meaning IS
 // flagged, deliberately (a respell is a respell); the escape is an exact grant on a reviewed subject, never a
 // looser matcher (mustPass[3]).
 //

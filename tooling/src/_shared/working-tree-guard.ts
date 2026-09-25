@@ -22,7 +22,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { execNicedSync } from "./proc.ts";
+import { execGit } from "./git.ts";
 
 /** The sanctioned real-tree planter's sentinel shape (see the header). Matches `PROBE_ARTIFACT_RE` in
  *  `verify/lib/planted-fixtures.ts` — same vocabulary, same reason, kept local because that module's
@@ -41,13 +41,13 @@ export type WorkingTreeSnapshot = ReadonlyMap<string, string | null>;
 /** `git rev-parse --show-toplevel` from the caller's cwd — the WORKTREE running the suite, never the
  *  primary checkout a lane's worktree was cut from. */
 export function repoRoot(): string {
-  return execNicedSync("git", ["rev-parse", "--show-toplevel"]).trim();
+  return execGit(process.cwd(), ["rev-parse", "--show-toplevel"]).trim();
 }
 
 /** Every path `git status` calls dirty right now, minus the sentinel exemption. A rename line
  *  (`R  old -> new`) reports only the NEW path — the guard cares what exists on disk, not how it arrived. */
 function dirtyPaths(root: string): string[] {
-  const output = execNicedSync("git", ["status", "--porcelain", "--untracked-files=all"], { cwd: root });
+  const output = execGit(root, ["status", "--porcelain", "--untracked-files=all"]);
   const paths: string[] = [];
   for (const line of output.split("\n")) {
     if (line.length <= PORCELAIN_PATH_OFFSET) {

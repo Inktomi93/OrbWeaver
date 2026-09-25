@@ -14,6 +14,9 @@ export interface Frontmatter {
 }
 
 /** One tracked markdown file under a tree the tool governs, with its bytes. */
+/** How a landing commit ended: the new `HEAD`, or git's own words. */
+export type CommitOutcome = { readonly ok: true; readonly sha: string } | { readonly ok: false; readonly reason: string };
+
 export interface GovernedDoc {
   readonly path: string;
   readonly source: string;

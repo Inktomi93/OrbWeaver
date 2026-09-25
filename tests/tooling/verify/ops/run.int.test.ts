@@ -580,7 +580,7 @@ test("public command families keep one canonical front door", () => {
     .scripts;
   expect(scripts["check:type-ownership"]).toContain("tests-membership");
   expect(scripts["check:tests-membership"]).toBeUndefined();
-  expect(scripts["stack"]).toContain("tooling/src/stack/stack.sh");
+  expect(scripts["stack"]).toContain("tooling/src/stack/cli.ts");
   for (const verb of ["up", "down", "restart", "status"]) {
     expect(scripts[`stack:${verb}`]).toBeUndefined();
   }

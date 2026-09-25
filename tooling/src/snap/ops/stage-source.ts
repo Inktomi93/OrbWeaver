@@ -12,7 +12,8 @@ import type { DataLayout } from "@orb/server/foundation/data-layout";
 import { DB_FILE_NAME, DEFAULT_DATA_DIR, resolveDataLayout, SECRET_FILE_NAMES } from "@orb/server/foundation/data-layout";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { execNicedSync, runNicedSync } from "../../_shared/proc.ts";
+import { execGit, runGit } from "../../_shared/git.ts";
+import { runNicedSync } from "../../_shared/proc.ts";
 import type { StageDbProvenance, StagePaths, StageRow } from "../contract/stage.ts";
 import { DIRTY_STAGE_KEY, ISOLATION_TRIPWIRE, shortSha } from "../lib/stage-plan.ts";
 import { addWorktree, removeWorktree, worktreeExists } from "./stage-git.ts";
@@ -22,7 +23,7 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 /** Reject a ref whose vite.config predates the VITE_API_TARGET hook — read straight from git, BEFORE any
  *  worktree/install work, so a bad ref costs nothing and never boots a stage that proxies to the dev server. */
 function assertRefSupportsIsolation(root: string, sha: string): void {
-  const res = runNicedSync("git", ["show", `${sha}:packages/client/vite.config.ts`], { cwd: root });
+  const res = runGit(root, ["show", `${sha}:packages/client/vite.config.ts`]);
   if (res.status !== 0 || !res.stdout.includes(ISOLATION_TRIPWIRE)) {
     throw new Error(
       `stage ref ${shortSha(sha)} predates snap --isolated support — its packages/client/vite.config.ts lacks ` +
@@ -65,7 +66,7 @@ export function assertStageSourceSupportsIsolation(root: string, dirty: boolean,
  *  they're never candidates for deletion either. Idempotent + cheap: safe to call on every `--dirty` call. */
 export function syncDirtyTree(root: string, dir: string): void {
   mkdirSync(dir, { recursive: true });
-  const manifest = execNicedSync("git", ["ls-files", "--cached", "--others", "--exclude-standard"], { cwd: root });
+  const manifest = execGit(root, ["ls-files", "--cached", "--others", "--exclude-standard"]);
   const manifestPath = join(dir, ".rsync-manifest.txt");
   writeFileSync(manifestPath, manifest);
   const res = runNicedSync("rsync", ["-a", "--delete-missing-args", "--files-from", manifestPath, `${root}/`, `${dir}/`], { stdio: "inherit" });

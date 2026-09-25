@@ -253,7 +253,7 @@ docker compose -f docker-compose.yaml -f docker/compose.dev.yaml up
 Host networking is required (a dev build binds loopback by design), so this is Linux Engine / Podman;
 `ORB_PORT` / `ORB_VITE_PORT` move the ports when 8788/5173 are busy. It writes `node_modules` and `.cache/`
 into the checkout as your uid (`PUID`/`PGID`). On a machine with node 26 + pnpm this is the same as
-`pnpm install && pnpm stack up` (the root README).
+`pnpm install && pnpm dev` (the root README).
 
 ## Diagnostics
 

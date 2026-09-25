@@ -22,7 +22,8 @@
 // to the child, never as a group signal (the child is not its own group leader here to relay one to).
 import process from "node:process";
 import { EXIT } from "./exit-contract.ts";
-import { childExitCode, spawnFullPriorityChild } from "./proc.ts";
+import { spawnFullPriorityChild } from "./proc.ts";
+import { childExitCode } from "./proc-signals.ts";
 import { lowerToolingPriority } from "./process-priority.ts";
 
 lowerToolingPriority();

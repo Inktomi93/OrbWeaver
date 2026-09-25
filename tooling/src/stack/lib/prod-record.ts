@@ -30,7 +30,6 @@ export function parseProdRecord(text: string): ProdRecord | null {
     pgid: typeof r.pgid === "number" ? r.pgid : r.pid,
     port: r.port,
     startedAt: typeof r.startedAt === "string" ? r.startedAt : "",
-    startTicks: typeof r.startTicks === "string" ? r.startTicks : "",
     debug: r.debug === true,
     repoRoot: typeof r.repoRoot === "string" ? r.repoRoot : "",
     logPath: typeof r.logPath === "string" ? r.logPath : "",

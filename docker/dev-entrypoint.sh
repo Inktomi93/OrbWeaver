@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The dev overlay's entrypoint (docker/compose.dev.yaml): a stock node image + your bind-mounted checkout →
 # pnpm (pinned by package.json's packageManager, installed under $HOME so no root is needed), the workspace
-# install into the checkout (a fresh clone has no node_modules), then the command (`pnpm stack start-fg`).
+# install into the checkout (a fresh clone has no node_modules), then the command (`pnpm stack up-fg`).
 set -euo pipefail
 
 cd /app

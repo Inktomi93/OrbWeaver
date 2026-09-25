@@ -3,20 +3,19 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { parseEnv } from "node:util";
 import { budget } from "@orb/tooling/_shared/load-budget";
 import { print, REPO_ROOT } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { listeningPids } from "../../_shared/platform.ts";
 import { DEV_PORTS } from "../../_shared/ports.ts";
-import { runNicedSync } from "../../_shared/proc.ts";
-import { procStartTicks } from "../../_shared/proc-stat.ts";
 import type { DebugPosture, InstanceClassification, ObservedInstance, ProdRecord } from "../contract/types.ts";
+import { envFilePath, parseEnvText, readEnvText } from "../lib/env-file.ts";
 import { classifyInstance } from "../lib/identity.ts";
-import { parseListenerPid } from "../lib/proc-parse.ts";
 import { parseProdRecord } from "../lib/prod-record.ts";
+import { RUN_DIR_ENV, stackRunDir } from "../lib/stack-plan.ts";
 import { classifyDebugPosture } from "../lib/verdicts.ts";
 
-refuseDirectInvocation(import.meta.url, "bash tooling/src/stack/stack.sh <verb>");
+refuseDirectInvocation(import.meta.url, "pnpm stack <verb> prod");
 
 const DEFAULT_PORT = DEV_PORTS.server;
 // A CEILING, load-scaled through the one policy (#1232): the literal is the QUIET-BOX base.
@@ -33,7 +32,7 @@ function errnoIs(error: unknown, code: string): boolean {
 export const AMBIENT = process.env;
 
 export function runDir(): string {
-  return AMBIENT["STACK_RUN_DIR"] ?? join(REPO_ROOT, ".cache", "stack");
+  return stackRunDir(REPO_ROOT, AMBIENT[RUN_DIR_ENV]);
 }
 
 export const PIDFILE = (): string => join(runDir(), "prod.json");
@@ -53,30 +52,10 @@ export function result(line: string): void {
 // ── env + port resolution (must MATCH foundation/env, which loads .env with override:true) ───────────
 
 /** The app's `.env`: the file foundation/env loads from the repo root, where every launcher starts the server. */
-export const ENV_FILE_PATH = (): string => join(REPO_ROOT, ".env");
-
-// A leading UTF-8 byte-order mark; foundation/env strips it before parsing, so this reader does too.
-const UTF8_BOM = "\uFEFF";
-
-/** The `.env` text, or `null` when there is no file. Any other read failure throws. */
-export function readEnvText(path: string = ENV_FILE_PATH()): string | null {
-  try {
-    return readFileSync(path, "utf8");
-  } catch (error) {
-    if (errnoIs(error, "ENOENT")) {
-      return null;
-    }
-    throw error;
-  }
-}
-
-/** `.env` text parsed the way foundation/env parses it. */
-export function parseEnvText(text: string): Readonly<Record<string, string | undefined>> {
-  return parseEnv(text.startsWith(UTF8_BOM) ? text.slice(UTF8_BOM.length) : text);
-}
+export const ENV_FILE_PATH = (): string => envFilePath(REPO_ROOT);
 
 export function readEnvFile(): Readonly<Record<string, string | undefined>> {
-  return parseEnvText(readEnvText() ?? "");
+  return parseEnvText(readEnvText(ENV_FILE_PATH()) ?? "");
 }
 
 /** The port the server will ACTUALLY bind. `.env` wins over the shell — the same precedence
@@ -164,8 +143,7 @@ export async function probeDebug(port: number): Promise<{ posture: DebugPosture;
 }
 
 function listenerPid(port: number): number | null {
-  const res = runNicedSync("ss", ["-ltnp"]);
-  return res.stdout === "" ? null : parseListenerPid(res.stdout, port);
+  return listeningPids().get(port) ?? null;
 }
 
 export function processAlive(pid: number): boolean {
@@ -187,12 +165,10 @@ export async function observe(port: number): Promise<ObservedInstance & { readon
   const health = await probeHealthz(port);
   const debug = await probeDebug(port);
   // Prefer the pid the SERVING PROCESS reports about itself; fall back to the socket table's owner.
-  const pid = debug.pid ?? listenerPid(port);
   return {
     healthy: health.healthy,
     harness: health.harness,
-    listenerPid: pid,
-    listenerStartTicks: pid === null ? null : procStartTicks(pid),
+    listenerPid: debug.pid ?? listenerPid(port),
     posture: debug.posture,
   };
 }

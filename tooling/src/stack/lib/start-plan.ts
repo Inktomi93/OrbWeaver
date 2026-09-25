@@ -2,10 +2,8 @@
 // production launcher's half that can be proven without spawning anything (ops/start.ts performs them).
 //
 // WHY THE PLATFORM IS A PARAMETER: this is the one launcher a stranger on macOS or Windows runs, and
-// nobody here has those boxes. Every platform-sensitive answer (which pnpm to exec, which node) is a
-// value computed from `{ platform, ambient env }` rather than read from the ambient process, so the win32
-// answer is unit-provable on Linux. `stack.sh` (the Linux dev supervisor: setsid, ss, /proc) is untouched;
-// the cross-platform dev path is `pnpm dev` (tooling/src/dev/).
+// nobody here has those boxes. Every platform-sensitive answer is a value computed from `{ platform,
+// ambient env }` rather than read from the ambient process, so the win32 answer is unit-provable on Linux.
 
 import { SETUP_COMMAND, SHARE_MODE_REFUSAL } from "@orb/contracts/identity";
 import { START_SUPERVISOR, SUPERVISOR_ENV_KEY } from "@orb/kit/supervisor";
@@ -13,7 +11,6 @@ import { MAX_TCP_PORT } from "../../_shared/ports.ts";
 import type {
   AnswerParse,
   DistVerdict,
-  PnpmInvocation,
   ProdSpawnPlan,
   StartBuildDecision,
   StartBuildMode,
@@ -49,13 +46,6 @@ const LOOPBACK_BIND = "127.0.0.1";
 
 /** The server's switch that stops `.env` overriding the process env (foundation/env reads it at load). */
 const ENV_NO_OVERRIDE = "ORB_ENV_NO_OVERRIDE";
-
-/** pnpm's JS entry, however this process was launched. A `.cjs`/`.js`/`.mjs` tail is the whole test:
- *  `npm_execpath` is set by every package manager to the file IT was started from. */
-const JS_ENTRY = /\.(?:c|m)?js$/u;
-
-/** The env key pnpm (and npm/yarn) sets to the absolute path of its own JS entry when it runs a script. */
-export const PNPM_EXECPATH_ENV = "npm_execpath";
 
 const BUILD_FLAGS: ReadonlyMap<string, StartBuildMode> = new Map([
   ["--build", "force"],
@@ -233,35 +223,6 @@ export function startLaunch(opts: {
     logPath: opts.logPath,
   });
   return { plan, mode: effectiveAuthMode(fileView, opts.ambient), fallbackFilled: Object.keys(fallbackEnv).length > 0 };
-}
-
-/** Name the pnpm to run `pnpm build` with, for a `shell: false` spawn on any platform.
- *
- *  `npm_execpath` is the answer on all three OSes and is present for every `pnpm start`: pnpm exports the
- *  absolute path of its own `pnpm.cjs` into each script's environment, so `<this node> <pnpm.cjs> build`
- *  runs the EXACT package manager the operator invoked — no PATH lookup, no shell, no `.cmd`.
- *
- *  Only a DIRECT `node tooling/src/stack/ops/start-entry.ts` misses it. On POSIX the bare name then works
- *  (execvp finds `pnpm` on PATH). On win32 it cannot: PATH holds `pnpm.cmd`, and node refuses to spawn a
- *  `.cmd`/`.bat` without `shell: true` — which this launcher will not turn on to interpolate paths
- *  through cmd.exe. So win32 REFUSES and names the one-word fix instead of failing inside a spawn. */
-export function resolvePnpmInvocation(opts: {
-  readonly ambient: Readonly<Record<string, string | undefined>>;
-  readonly platform: NodeJS.Platform;
-  readonly nodePath: string;
-  readonly args: readonly string[];
-}): PnpmInvocation {
-  const execPath = opts.ambient[PNPM_EXECPATH_ENV];
-  if (execPath !== undefined && JS_ENTRY.test(execPath)) {
-    return { kind: "node", command: opts.nodePath, args: [execPath, ...opts.args] };
-  }
-  if (opts.platform === "win32") {
-    return {
-      kind: "refused",
-      reason: `cannot find pnpm to build with: ${PNPM_EXECPATH_ENV} is unset, and on Windows pnpm on PATH is a .cmd file node will not run without a shell. Run \`pnpm start\` (not \`node …/start-entry.ts\`), or build first with \`pnpm build\` and re-run with --no-build.`,
-    };
-  }
-  return { kind: "path", command: "pnpm", args: [...opts.args] };
 }
 
 /** The production spawn, from the ONE prod spawn plan (lib/spawn-plan.ts) — identical argv, cwd and

@@ -2,7 +2,7 @@
 // The ts7 (native TypeScript 7) launcher every type-check caller goes through: `pnpm typecheck`, Vitest's
 // `typecheck.checker`, the edit hook and the tooling ops, so its host-wide slot bounds all of them. Vitest spawns
 // this file as an executable, so it keeps its shebang and its executable bit; node runs the TypeScript directly.
-import { spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { resolve } from "node:path";
 import process from "node:process";
 import { readConcurrencyProfile } from "@orb/tooling/_shared/concurrency-profile";
@@ -100,8 +100,14 @@ if (admission.kind === "busy") {
 }
 
 // Give the Node launcher its heap allowance even when the caller did not inherit pnpm's NODE_OPTIONS.
-const result = spawnSync(process.execPath, ["--max-old-space-size=16384", tscPath, ...checkers, ...args], { stdio: "inherit" });
+// Asynchronous, not spawnSync: the host slot's lease beats on a timer, and a compiler run that blocked this
+// event loop for longer than the slot's stale window would read as a dead holder and lose its slot.
+const child = spawn(process.execPath, ["--max-old-space-size=16384", tscPath, ...checkers, ...args], { stdio: "inherit" });
+const status = await new Promise<number | null>((settle) => {
+  child.once("error", () => settle(null));
+  child.once("exit", (code) => settle(code));
+});
 if (admission.kind === "admitted") {
   admission.lease.release();
 }
-process.exit(result.status ?? ABNORMAL_COMPILER_EXIT);
+process.exit(status ?? ABNORMAL_COMPILER_EXIT);
