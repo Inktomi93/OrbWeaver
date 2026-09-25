@@ -97,6 +97,7 @@ const FORK_COLUMN_CLASS = {
   // The host-gated variant-wire trio (`loadVariantWire`) + the two HOST-PLANE provenance columns.
   promptSnapshot: "host-plane",
   cue: "host-plane",
+  cueRole: "host-plane",
   params: "host-plane",
   macroDraws: "host-plane",
   rawContent: "host-plane",
@@ -1054,6 +1055,7 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
           params: { temperature: 0.7, compaction: { instructions: "HOST-ONLY compaction prose" }, advanced: { claudeEnv: { ["GM_KNOB"]: "host-secret" } } },
           macroDraws: { gmPool: { pick: "the traitor is Z" } },
           cue: "[Write the next reply only as the host's pick.]",
+          cueRole: "user",
           rawContent: 'He shrugs. {{roll:d20}} <lie truth="pre-strip bytes"/>',
           macroFreezes: [{ name: "roll", args: "d20", value: "17" }],
           reasoning: "thinking",

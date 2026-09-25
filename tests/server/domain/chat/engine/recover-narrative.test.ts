@@ -13,7 +13,7 @@ import type { Resolved } from "@orb/inference";
 import type { AssetId, ChatId, ChatTurnId, MessageId, ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import type { TurnRequest, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
+import type { DeliveredCue, TurnRequest, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
 import { runTurnPipeline } from "../../../../../packages/server/src/domain/chat/engine/pipeline.ts";
 import { resolveTurnNarrative } from "../../../../../packages/server/src/domain/chat/engine/recover-narrative.ts";
 import type { ToolCallInput } from "../../../../../packages/server/src/domain/tool-use/contract/params.ts";
@@ -115,7 +115,7 @@ function argsOf(over: Partial<PipelineArgs>, passes: readonly (readonly TurnStre
     // §8.8: the `conversation` carry source. THROWS if reached — this harness runs the `off` rung.
     loadReasoningParts: (): Promise<ReadonlyMap<MessageId, readonly ChatReasoningPart[]>> =>
       Promise.reject(new Error("loadReasoningParts must not be reached")),
-    loadCues: (): Promise<ReadonlyMap<MessageId, string>> => Promise.reject(new Error("loadCues must not be reached")),
+    loadCues: (): Promise<ReadonlyMap<MessageId, DeliveredCue>> => Promise.reject(new Error("loadCues must not be reached")),
     // §6.7's origin set. THROWS if reached — this harness's canon carries no assistant-row `asset:` span, so
     // the lazy load must never fire (that no-read-without-cause property is the pin).
     loadInlineReplyAssetIds: (): Promise<ReadonlyMap<MessageId, ReadonlySet<AssetId>>> =>

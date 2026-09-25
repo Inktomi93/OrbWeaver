@@ -20,6 +20,7 @@
 import type {
   AssembleContext,
   ChatInjection,
+  CueRole,
   GroupConfig,
   MessageKind,
   MessageKindPolicy,
@@ -40,7 +41,7 @@ import type { CharacterId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { speakerTagsToPlain } from "@orb/kit/speaker-label";
 import type { PromptHistoryRegexEnv } from "../contract/regex.ts";
-import type { CueReplay, HistoryMacroNames } from "../contract/results.ts";
+import type { CueReplay, DeliveredCue, HistoryMacroNames } from "../contract/results.ts";
 import { applyPromptHistoryRegex } from "./history-regex.ts";
 import { frameInjection, spliceInChatInjections } from "./injections.ts";
 import { renderHistoryMacros } from "./macros.ts";
@@ -153,9 +154,9 @@ interface ShapeOutput {
    *  verbatim for `assembly/trace` to project. Stage row counts cannot see why a pin moved or vanished, so the
    *  trace never re-derives it. */
   breakpointDecision: ShapeBreakpointDecision;
-  /** The cue SHAPE delivered as this turn's tail (the group, speaker or continuation cue), or null. The commit
-   *  stamps it on the reply (`message_variants.cue`) so a prefix-bound carry can replay it. */
-  cue: string | null;
+  /** The cue SHAPE delivered as this turn's tail (the group, speaker or continuation cue) and its role, or null.
+   *  The commit stamps both on the reply so a prefix-bound carry can replay them (D262). */
+  cue: DeliveredCue | null;
   /** The new-chat marker SHAPE placed at the top of `history`, or null when the turn has none. `mergeSeparator`
    *  is the squash separator when this turn's level merges the marker into an adjacent user row, else null. The
    *  history fit trims the oldest rows first, so it places the marker again at the head of the rows it keeps
@@ -236,7 +237,7 @@ interface DeliveryEntry {
 /** The pre-squash delivered list and the cue SHAPE placed as its tail. */
 interface Delivery {
   readonly entries: readonly DeliveryEntry[];
-  readonly cue: string | null;
+  readonly cue: DeliveredCue | null;
 }
 
 function isLive(entry: DeliveryEntry): boolean {
@@ -381,22 +382,29 @@ function lastDeliveredIndex(entries: readonly DeliveryEntry[]): number {
   return entries.findLastIndex((entry) => isLive(entry) && entry.row.role !== "system");
 }
 
-/** A cue row in the role the turn gives it: a turn-scoped system row after a user row where the model takes one
- *  (OR-10 S2), else a user row. S2b measured a system cue right after a reply as a 400. */
-function cueRow(cue: string, before: DeliveredRole | undefined, systemCue: boolean): WireRow {
-  return systemCue && before === "user" ? { role: "system", content: cue, turnScoped: true } : { role: "user", content: cue };
+/** The role this turn may give a cue: turn-scoped after a user row where the turn can send one (OR-10 S2), else a
+ *  user row. S2b measured a system cue right after a reply as a 400. */
+function cueRoleAt(before: DeliveredRole | undefined, systemCue: boolean): CueRole {
+  return systemCue && before === "user" ? "turn-scoped-system" : "user";
+}
+
+function cueRow(cue: DeliveredCue): WireRow {
+  return cue.role === "turn-scoped-system" ? { role: "system", content: cue.text, turnScoped: true } : { role: "user", content: cue.text };
 }
 
 /** Put each stored reply's cue back ahead of it where the live turn placed its tail: after the last row before
  *  the reply that reaches the wire, and ahead of any system run between them. A prefix-bound model's carried
- *  thinking is valid only while every row before it is unchanged, so the replay makes the history append-only. */
-function replayCues(entries: readonly DeliveryEntry[], cues: ReadonlyMap<MessageId, string>, systemCue: boolean): DeliveryEntry[] {
+ *  thinking is valid only while every row before it is unchanged, so the replay makes the history append-only.
+ *  The cue keeps the role it was delivered in (a carry or level change never re-rolls it), except that a system
+ *  row goes out only where this turn may send one, and becomes a user row otherwise. */
+function replayCues(entries: readonly DeliveryEntry[], cues: ReadonlyMap<MessageId, DeliveredCue>, systemCue: boolean): DeliveryEntry[] {
   const out: DeliveryEntry[] = [];
   for (const entry of entries) {
     const cue = entry.row.role === "assistant" && entry.row.messageId !== undefined ? cues.get(entry.row.messageId) : undefined;
     if (cue !== undefined) {
       const before = lastDeliveredIndex(out);
-      out.splice(before + 1, 0, { row: cueRow(cue, out[before]?.row.role, systemCue), origin: null, replayed: true });
+      const role = cueRoleAt(out[before]?.row.role, systemCue) === "turn-scoped-system" ? cue.role : "user";
+      out.splice(before + 1, 0, { row: cueRow({ text: cue.text, role }), origin: null, replayed: true });
     }
     out.push(entry);
   }
@@ -421,11 +429,12 @@ function deliverSystemRows(rows: readonly WireRow[], opts: DeliveryOptions): Del
 
   const lastDelivered = entries[lastDeliveredIndex(entries)];
   const endsOnAssistant = lastDelivered === undefined || lastDelivered.row.role === "assistant";
-  const cue = opts.groupNudge ?? (endsOnAssistant && !opts.assistantPrefill ? continuationNudge(opts.prose) : null);
-  if (cue === null) {
-    return { entries, cue };
+  const text = opts.groupNudge ?? (endsOnAssistant && !opts.assistantPrefill ? continuationNudge(opts.prose) : null);
+  if (text === null) {
+    return { entries, cue: null };
   }
-  const tail: DeliveryEntry = { row: cueRow(cue, lastDelivered?.row.role, systemCue), origin: null };
+  const cue: DeliveredCue = { text, role: cueRoleAt(lastDelivered?.row.role, systemCue) };
+  const tail: DeliveryEntry = { row: cueRow(cue), origin: null };
   const keptTrailing = trailingReason === undefined ? trailing[0] : undefined;
   const at = keptTrailing === undefined ? entries.length : entries.indexOf(keptTrailing);
   return { entries: [...entries.slice(0, at), tail, ...entries.slice(at)], cue };

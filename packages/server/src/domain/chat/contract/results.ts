@@ -8,6 +8,7 @@ import type {
   AssemblySectionRow,
   AssemblySource,
   ChatContentPart,
+  CueRole,
   GroupConfig,
   MessageView,
   ReactionEmoji,
@@ -207,11 +208,18 @@ export interface HistoryMacroNames {
   readonly personaNamesById: ReadonlyMap<PersonaId, RowPersonaName>;
 }
 
-/** The cue replay a prefix-bound model with the `conversation` carry needs: each stored reply's delivered cue
- *  (`message_variants.cue`), keyed by slot, and whether the model takes a cue that follows a user row as a
- *  turn-scoped system row (OR-10 S2) rather than a user row (S2c). */
+/** The cue SHAPE delivered ahead of a reply and the role it went out in: the stamp a prefix-bound carry replays
+ *  (`message_variants.cue` + `cue_role`, D262). */
+export interface DeliveredCue {
+  readonly text: string;
+  readonly role: CueRole;
+}
+
+/** The cue replay a prefix-bound model with the `conversation` carry needs: each stored reply's delivered cue,
+ *  keyed by slot, and whether this turn may send a cue that follows a user row as a turn-scoped system row (OR-10
+ *  S2) rather than a user row (S2c). */
 export interface CueReplay {
-  readonly cues: ReadonlyMap<MessageId, string>;
+  readonly cues: ReadonlyMap<MessageId, DeliveredCue>;
   readonly turnScoped: boolean;
 }
 

@@ -4,6 +4,7 @@ import type { GenerationCapability, TurnsCapability } from "@orb/contracts/infer
 import type { CarryReasoning } from "@orb/contracts/preset";
 import type { MessageId } from "@orb/kit/ids";
 import { mintTypeId } from "@orb/kit/ids";
+import type { DeliveredCue } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
 import { cueReplayFor } from "../../../../../packages/server/src/domain/chat/substrate/cue-replay.ts";
 import { makeGenerationCapability } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -18,7 +19,7 @@ const TURNS: TurnsCapability = {
 };
 const REASONING = { mode: "adaptive", enabled: true, replay: "signed" } as const;
 const REPLY = mintTypeId("message");
-const STORED = new Map<MessageId, string>([[REPLY, "the cue"]]);
+const STORED = new Map<MessageId, DeliveredCue>([[REPLY, { text: "the cue", role: "user" }]]);
 
 function capability(prefixBound: boolean, turns: Partial<TurnsCapability> = {}): GenerationCapability {
   return makeGenerationCapability({ reasoning: { ...REASONING, prefixBound }, turns: { ...TURNS, ...turns } });

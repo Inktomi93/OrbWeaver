@@ -378,6 +378,7 @@ CREATE TABLE `message_variants` (
 	`reasoning` text,
 	`reasoning_parts` text,
 	`cue` text,
+	`cue_role` text,
 	`model` text,
 	`connection_id` text,
 	`provider` text,
@@ -419,7 +420,8 @@ CREATE TABLE `message_variants` (
 	CONSTRAINT "message_variants_token_provenance_check" CHECK(token_provenance in ('measured', 'estimated', 'unrecorded')),
 	CONSTRAINT "message_variants_cost_provenance_check" CHECK(cost_provenance in ('measured', 'estimated', 'unrecorded')),
 	CONSTRAINT "message_variants_finish_reason_check" CHECK(finish_reason is null or finish_reason in ('stop', 'length', 'filter', 'tool', 'other')),
-	CONSTRAINT "message_variants_reasoning_effort_check" CHECK(reasoning_effort is null or reasoning_effort in ('none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'))
+	CONSTRAINT "message_variants_reasoning_effort_check" CHECK(reasoning_effort is null or reasoning_effort in ('none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max')),
+	CONSTRAINT "message_variants_cue_role_check" CHECK(cue_role is null or cue_role in ('user', 'turn-scoped-system'))
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `message_variants_message_idx_unique` ON `message_variants` (`message_id`,`idx`);--> statement-breakpoint

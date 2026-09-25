@@ -19,7 +19,7 @@ import { describe } from "vitest";
 import { assemblePrompt } from "../../../../../packages/server/src/domain/chat/assembly/assemble.ts";
 import { BEFORE_HISTORY_DEPTH } from "../../../../../packages/server/src/domain/chat/assembly/injections.ts";
 import { computeHistoryBreakpoint, shape, toShapeCanon } from "../../../../../packages/server/src/domain/chat/assembly/shape.ts";
-import type { HistoryMacroNames } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
+import type { DeliveredCue, HistoryMacroNames } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
 import { buildWireHistory, convertsToEmptyWireRow } from "../../../../../packages/server/src/domain/chat/substrate/wire-history.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
@@ -1788,15 +1788,22 @@ describe("shape — a prefix-bound carry keeps every cue", () => {
   const ariaReply = row("assistant", "second", "Aria", ARIA);
   const nextSend = row("user", "u3", "User");
 
+  function stampOf(turn: ReturnType<typeof shape>): DeliveredCue {
+    if (turn.cue === null) {
+      throw new Error("the turn delivered no cue to stamp");
+    }
+    return turn.cue;
+  }
+
   /** One group round and the send after it, each turn shaped with the cues the replies before it were stamped with. */
   function round(model: Partial<Parameters<typeof shape>[0]>, turnScoped: boolean): ReturnType<typeof shape>[] {
-    const stamped = new Map<MessageId, string>();
+    const stamped = new Map<MessageId, DeliveredCue>();
     const turn = (canon: Parameters<typeof shape>[0]["canon"], groupNudge: string): ReturnType<typeof shape> =>
       shape(soloInput({ ...model, canon, appendUserTurn: null, groupNudge, cueReplay: { cues: new Map(stamped), turnScoped } }));
     const kaiTurn = turn(opening, kaiCue);
-    stamped.set(kaiReply.messageId, kaiTurn.cue ?? "");
+    stamped.set(kaiReply.messageId, stampOf(kaiTurn));
     const ariaTurn = turn([...opening, kaiReply], ariaCue);
-    stamped.set(ariaReply.messageId, ariaTurn.cue ?? "");
+    stamped.set(ariaReply.messageId, stampOf(ariaTurn));
     const sendTurn = turn([...opening, kaiReply, ariaReply, nextSend], kaiCue);
     return [kaiTurn, ariaTurn, sendTurn];
   }
@@ -1807,7 +1814,7 @@ describe("shape — a prefix-bound carry keeps every cue", () => {
 
   test("cues as kept user rows (S2c): every turn's history opens with the one before it", () => {
     const [kaiTurn, ariaTurn, sendTurn] = round({}, false);
-    expect(kaiTurn?.cue).toBe(kaiCue);
+    expect(kaiTurn?.cue).toEqual({ text: kaiCue, role: "user" });
     expect(ariaTurn?.history.at(-1)).toEqual({ role: "user", content: ariaCue });
     startsWith(ariaTurn as ReturnType<typeof shape>, kaiTurn as ReturnType<typeof shape>);
     startsWith(sendTurn as ReturnType<typeof shape>, ariaTurn as ReturnType<typeof shape>);
@@ -1823,6 +1830,25 @@ describe("shape — a prefix-bound carry keeps every cue", () => {
     // The replayed cues are committed bytes, so the cache still pins the newest stored reply.
     expect(sendTurn?.breakpointDecision).toBe("placed");
     expect(pinnedRow(sendTurn as ReturnType<typeof shape>)?.content).toBe("u3");
+  });
+
+  // The stored role is the delivered role: a user-row cue stays a user row where the turn could now send a system
+  // row, and a turn-scoped cue replays as a user row only where this turn cannot send a system row at all.
+  test("a replayed cue keeps its stored role, and falls back to a user row only where no system row may go", () => {
+    const slotted = { roleHandlingFloor: "slotted", midConversationSystem: true, historySystemRows: true } as const;
+    const replayed = (role: DeliveredCue["role"], model: Partial<Parameters<typeof shape>[0]>): ReturnType<typeof shape>["history"] =>
+      shape(
+        soloInput({
+          ...model,
+          canon: [...opening, kaiReply],
+          appendUserTurn: null,
+          groupNudge: ariaCue,
+          cueReplay: { cues: new Map([[kaiReply.messageId, { text: kaiCue, role }]]), turnScoped: true },
+        }),
+      ).history;
+    expect(replayed("user", slotted).at(-3)).toMatchObject({ role: "user", content: `u2\n\n${kaiCue}` });
+    expect(replayed("turn-scoped-system", slotted).at(-3)).toEqual({ role: "system", content: kaiCue, turnScoped: true });
+    expect(replayed("turn-scoped-system", { ...slotted, roleHandlingFloor: "strict" }).at(-3)).toMatchObject({ role: "user", content: `u2\n\n${kaiCue}` });
   });
 
   test("a level that folds every system row keeps the cue a user row", () => {

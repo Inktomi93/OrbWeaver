@@ -59,6 +59,7 @@ import type { ApplyPromptTransformsOp, ApplyRegexReplaceOp, BoundToolExecution, 
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import type { PromptHistoryRegexEnv } from "../contract/regex.ts";
 import type {
+  DeliveredCue,
   HistoryMacroNames,
   ResolvedMediaRef,
   TurnEconomics,
@@ -101,7 +102,7 @@ interface RunTurnPipelineArgs {
   readonly loadReasoningParts: () => Promise<ReadonlyMap<MessageId, readonly ChatReasoningPart[]>>;
   /** This chat's stored reply cues, keyed by canon slot id — the prefix-bound carry's replay source
    *  (`substrate/cue-replay`). LAZY like the carry source: read only when a replay applies. */
-  readonly loadCues: () => Promise<ReadonlyMap<MessageId, string>>;
+  readonly loadCues: () => Promise<ReadonlyMap<MessageId, DeliveredCue>>;
   /** §6.7's INLINE-REPLY ORIGIN SET: for each canon slot of THIS chat, the asset ids whose `message_assets`
    *  link says the model emitted that picture inside that slot's own generation. It is the sole thing that
    *  lets `substrate/wire-history` ride an assistant row's picture back as an image part — an `/imagine`
@@ -199,8 +200,8 @@ interface TurnPipelineResult {
    *  See {@link reasoningClock} for exactly which window this is and why. */
   readonly reasoningMs: number | null;
   readonly economics: TurnEconomics | null;
-  /** The cue SHAPE delivered ahead of this reply, or null — stamped on the variant at commit. */
-  readonly cue: string | null;
+  /** The cue SHAPE delivered ahead of this reply and its role, or null — stamped on the variant at commit. */
+  readonly cue: DeliveredCue | null;
   readonly cacheBreakpointFromEnd: number | null;
   readonly droppedCount: number;
   /** True when ≥1 USER-ATTACHED image part was dropped because the model lacks vision (or its asset no longer

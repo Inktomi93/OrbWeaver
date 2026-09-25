@@ -67,6 +67,7 @@ import type {
 } from "../contract/memory.ts";
 import { resolveToolRecurseLimit } from "../contract/metadata.ts";
 import type {
+  DeliveredCue,
   GeneratedText,
   HistoryMacroNames,
   PlacedInlineImage,
@@ -1803,7 +1804,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
       resolveImageUrl: (ref): Promise<ResolvedMediaRef | null> => ctx.resolveImageUrl({ ownerId: prep.runAsUserId, chatId: prep.chatId, ref }),
       // §8.8: the `conversation` carry source, LAZY — the pipeline calls it only on that rung.
       loadReasoningParts: (): Promise<ReadonlyMap<MessageId, readonly ChatReasoningPart[]>> => loadCanonReasoningParts(ctx.db, prep.chatId),
-      loadCues: (): Promise<ReadonlyMap<MessageId, string>> => loadCanonCues(ctx.db, prep.chatId),
+      loadCues: (): Promise<ReadonlyMap<MessageId, DeliveredCue>> => loadCanonCues(ctx.db, prep.chatId),
       // §6.7: the inline-reply origin set the CONVERT seam's media fence reads, LAZY and chat-scoped — the
       // pipeline asks only when an assistant row actually carries an `asset:` span.
       loadInlineReplyAssetIds: (): Promise<ReadonlyMap<MessageId, ReadonlySet<AssetId>>> => loadInlineReplyAssetIds(ctx.db, prep.chatId),
@@ -2175,7 +2176,7 @@ async function generateTextUnpersisted(ctx: ChatContext, prep: TurnPrep, onText:
       resolveImageUrl: (ref) => ctx.resolveImageUrl({ ownerId: prep.runAsUserId, chatId: prep.chatId, ref }),
       // §8.8: the `conversation` carry source, LAZY — the pipeline calls it only on that rung.
       loadReasoningParts: (): Promise<ReadonlyMap<MessageId, readonly ChatReasoningPart[]>> => loadCanonReasoningParts(ctx.db, prep.chatId),
-      loadCues: (): Promise<ReadonlyMap<MessageId, string>> => loadCanonCues(ctx.db, prep.chatId),
+      loadCues: (): Promise<ReadonlyMap<MessageId, DeliveredCue>> => loadCanonCues(ctx.db, prep.chatId),
       // §6.7: the inline-reply origin set the CONVERT seam's media fence reads, LAZY and chat-scoped — the
       // pipeline asks only when an assistant row actually carries an `asset:` span.
       loadInlineReplyAssetIds: (): Promise<ReadonlyMap<MessageId, ReadonlySet<AssetId>>> => loadInlineReplyAssetIds(ctx.db, prep.chatId),

@@ -23,7 +23,13 @@ import { BEFORE_HISTORY_DEPTH } from "../../../../../packages/server/src/domain/
 import { buildTurnUserMacros } from "../../../../../packages/server/src/domain/chat/assembly/user-macros.ts";
 import type { ChatToolOps, RunChatTurnOp } from "../../../../../packages/server/src/domain/chat/contract/context.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
-import type { HistoryMacroNames, TurnMessage, TurnRequest, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
+import type {
+  DeliveredCue,
+  HistoryMacroNames,
+  TurnMessage,
+  TurnRequest,
+  TurnStreamChunk,
+} from "../../../../../packages/server/src/domain/chat/contract/results.ts";
 import { runTurnPipeline } from "../../../../../packages/server/src/domain/chat/engine/pipeline.ts";
 // The span→wire-part dispatch moved to `substrate/wire-history.ts` with the rest of CONVERT (#1540): the read
 // verb's previews must price the SAME converted rows this pipeline prices, so the conversion is no longer an
@@ -125,7 +131,7 @@ function baseArgs(over: Partial<PipelineArgs> = {}): {
     // the `off`/`tool-chain` rungs, where the pipeline must not perform this read at all.
     loadReasoningParts: (): Promise<ReadonlyMap<MessageId, readonly ChatReasoningPart[]>> =>
       Promise.reject(new Error("loadReasoningParts must not be reached")),
-    loadCues: (): Promise<ReadonlyMap<MessageId, string>> => Promise.reject(new Error("loadCues must not be reached")),
+    loadCues: (): Promise<ReadonlyMap<MessageId, DeliveredCue>> => Promise.reject(new Error("loadCues must not be reached")),
     assembleContext: ctxOf(),
     canon: [userRow("u1")],
     connection: CONNECTION,

@@ -50,6 +50,7 @@ import { and, asc, count, desc, eq, exists, gt, gte, inArray, isNull, lt, lte, m
 import { alias } from "drizzle-orm/sqlite-core";
 import type { ChatMetadata } from "../contract/metadata.ts";
 import { parseChatMetadata } from "../contract/metadata.ts";
+import type { DeliveredCue } from "../contract/results.ts";
 import type { ChatStreamReplayEvent, StreamEventBounds, VariantWireView } from "../contract/views.ts";
 
 const LIMIT_ONE = 1;
@@ -727,17 +728,17 @@ export async function loadCanonReasoningParts(db: Db, chatId: ChatId): Promise<R
 /** Every canon slot's delivered cue (`message_variants.cue` on the selected variant), keyed by slot id — the
  *  replay source for a prefix-bound carry (`substrate/cue-replay`). A separate read like
  *  {@link loadCanonReasoningParts}: the cue is prompt material, never a `MessageView` field. */
-export async function loadCanonCues(db: Db, chatId: ChatId): Promise<ReadonlyMap<MessageId, string>> {
+export async function loadCanonCues(db: Db, chatId: ChatId): Promise<ReadonlyMap<MessageId, DeliveredCue>> {
   const rows = await db
-    .select({ messageId: messages.id, cue: messageVariants.cue })
+    .select({ messageId: messages.id, cue: messageVariants.cue, role: messageVariants.cueRole })
     .from(messages)
     .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
     .where(eq(messages.chatId, chatId));
   // @orb-waive persistence-no-in-memory-state(Map): query-local regrouping of the variant rows this query just returned. Ends if it outlives the call.
-  const out = new Map<MessageId, string>();
+  const out = new Map<MessageId, DeliveredCue>();
   for (const row of rows) {
-    if (row.cue !== null) {
-      out.set(row.messageId, row.cue);
+    if (row.cue !== null && row.role !== null) {
+      out.set(row.messageId, { text: row.cue, role: row.role });
     }
   }
   return out;

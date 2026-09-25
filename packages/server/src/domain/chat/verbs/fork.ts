@@ -151,6 +151,7 @@ function forkVariantValues(args: {
     promptSnapshot: hostPlane(variant.promptSnapshot),
     // The delivered cue is prompt material, the same bytes the snapshot carries.
     cue: hostPlane(variant.cue),
+    cueRole: hostPlane(variant.cueRole),
     params: hostPlane(variant.params),
     macroDraws: hostPlane(variant.macroDraws),
     // `rawContent` is the PRE-transform authored text and `macroFreezes` the volatile-macro values baked out of
