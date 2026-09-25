@@ -92,7 +92,7 @@ const EMPTY_CAST: readonly ChatIdentity[] = [];
 // backstop for internal callers that bypass this schema. The failure shape these arms forbid: a caller asking
 // for MORE quietly receiving LESS (the default page) than one asking for the max.
 describe("chat.listChats — the page ceiling refuses an over-bound ask (#101)", () => {
-  const page = { items: [], nextCursor: null, totalCount: 0 } as const;
+  const page = { items: [], nextCursor: null, totalCount: 0, viewerLastTurnAt: null } as const;
 
   test("the ceiling itself is servable and reaches the verb verbatim (the bound is inclusive)", async () => {
     const listChats = vi.fn<ChatService["listChats"]>(async () => page);

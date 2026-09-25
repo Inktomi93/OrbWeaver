@@ -134,6 +134,8 @@ import {
   loadStreamBounds,
   loadStreamReplay,
   loadVariantWire,
+  loadViewerLastTurnAt,
+  loadViewerLastTurns,
 } from "../persistence/queries.ts";
 import { gatherAssembleContext } from "../substrate/assemble-gather.ts";
 import type { fitHistory } from "../substrate/assembly-access.ts";
@@ -259,6 +261,7 @@ interface PreviewInputs {
 interface ChatSummaryInputs {
   readonly row: ChatRowView;
   readonly stat: { messageCount: number; lastMessageAt: number | null };
+  readonly viewerLastTurnAt: number | null;
   readonly participants: readonly ParticipantView[];
   readonly viewerUserId: UserId;
   /** The already-resolved per-caller scent line (see {@link buildSummaryPreview}) — `null` = nothing this
@@ -305,13 +308,14 @@ function seatPortraits(participants: readonly ParticipantView[]): ChatSeatPortra
   return portraits;
 }
 
-function toChatSummary({ row, stat, participants, viewerUserId, lastMessagePreview }: ChatSummaryInputs): ChatSummary {
+function toChatSummary({ row, stat, viewerLastTurnAt, participants, viewerUserId, lastMessagePreview }: ChatSummaryInputs): ChatSummary {
   return {
     id: row.id,
     title: row.title,
     starred: row.starred,
     archived: row.archived,
     lastMessageAt: stat.lastMessageAt,
+    viewerLastTurnAt,
     messageCount: stat.messageCount,
     lastMessagePreview,
     // The ONE takeover-gate predicate over the opaque pointer (§2.1) — never a re-spelled null-check, so the
@@ -379,11 +383,13 @@ async function buildSummaries(db: Db, deps: ReadDeps, rows: readonly ChatRowView
   const stats = await loadChatMessageStats(db, chatIds);
   const lastMessages = await loadChatLastMessages(db, chatIds);
   const visibility = await loadPresentVisibilityRows(db, chatIds, viewerUserId);
+  const viewerTurns = await loadViewerLastTurns(db, chatIds, viewerUserId);
   const enriched = await Promise.all(rows.map(async (row) => ({ row, names: await deps.loadParticipantViews(row.id) })));
   return enriched.map(({ row, names }) =>
     toChatSummary({
       row,
       stat: stats.get(row.id) ?? EMPTY_STATS,
+      viewerLastTurnAt: viewerTurns.get(row.id) ?? null,
       participants: names,
       viewerUserId,
       lastMessagePreview: buildSummaryPreview(lastMessages.get(row.id), visibility.get(row.id)),
@@ -697,11 +703,12 @@ function createListChats(ctx: ChatContext, deps: ReadDeps): ChatService["listCha
       ...(cursor !== undefined ? { cursor } : {}),
     });
     const totalCount = await countMemberChats(ctx.db, principal.userId, filter);
+    const viewerLastTurnAt = await loadViewerLastTurnAt(ctx.db, principal.userId, filter);
     const items = await buildSummaries(ctx.db, deps, rows, principal.userId);
     const last = rows.at(-1);
     // The cursor is the SORT key, never the row stamp: `recencyAt` is what `listMemberChats` ordered on.
     const nextCursor = rows.length === pageSize && last !== undefined ? { recencyAt: last.recencyAt, id: last.id } : null;
-    return { items, nextCursor, totalCount };
+    return { items, nextCursor, totalCount, viewerLastTurnAt };
   };
 }
 

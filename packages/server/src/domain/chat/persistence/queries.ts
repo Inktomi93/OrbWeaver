@@ -433,6 +433,20 @@ export async function countMemberChats(db: Db, userId: UserId, opts: MemberChatF
   return rows.at(0)?.total ?? 0;
 }
 
+/** When this user last spoke anywhere in the rooms this list scope covers: the newest visible message they authored,
+ *  or null when they never have. One aggregate over the whole scope, not the page, so Home can tell a first-run
+ *  account from one whose last turn sits in an older room. Same visibility predicate as the canon stats. */
+export async function loadViewerLastTurnAt(db: Db, userId: UserId, opts: MemberChatFilter): Promise<number | null> {
+  const rows = await db
+    .select({ at: max(messages.createdAt) })
+    .from(messages)
+    .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+    .innerJoin(chats, eq(chats.id, messages.chatId))
+    .innerJoin(chatParticipants, memberChatScope(db, userId, opts))
+    .where(eq(messages.authorUserId, userId));
+  return rows.at(0)?.at ?? null;
+}
+
 /** THE SEEDED-EXAMPLE DRESSING READ (the demo-chat pack heal): this user's HOSTED copy of one bundled
  *  example, found by the stable `chats.importHash` the seeder stamps, with the two dressing fields the heal
  *  can fill. `undefined` ⇒ they have no such example (never seeded, or deleted — the heal never re-creates
@@ -501,6 +515,28 @@ export async function loadChatMessageStats(db: Db, chatIds: readonly ChatId[]): 
     .groupBy(messages.chatId);
   for (const r of rows) {
     out.set(r.chatId, { messageCount: r.messageCount, lastMessageAt: r.lastMessageAt ?? null });
+  }
+  return out;
+}
+
+/** When the viewer last spoke in each of a set of rooms: the newest visible message they authored there. Batched in
+ *  ONE read like {@link loadChatMessageStats}; a room they never spoke in is absent from the map. */
+export async function loadViewerLastTurns(db: Db, chatIds: readonly ChatId[], userId: UserId): Promise<Map<ChatId, number>> {
+  // @orb-waive persistence-no-in-memory-state(Map): query-local lookup map for the viewer's per-chat last turn. Ends if it outlives the call.
+  const out = new Map<ChatId, number>();
+  if (chatIds.length === 0) {
+    return out;
+  }
+  const rows = await db
+    .select({ chatId: messages.chatId, at: max(messages.createdAt) })
+    .from(messages)
+    .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+    .where(and(inArray(messages.chatId, [...chatIds]), eq(messages.authorUserId, userId)))
+    .groupBy(messages.chatId);
+  for (const r of rows) {
+    if (r.at !== null) {
+      out.set(r.chatId, r.at);
+    }
   }
   return out;
 }

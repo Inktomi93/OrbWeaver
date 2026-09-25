@@ -19,6 +19,7 @@ function makeSummary(overrides: Partial<SummaryItem>): SummaryItem {
     title: null,
     starred: false,
     archived: false,
+    viewerLastTurnAt: null,
     gamePaused: false,
     lastMessageAt: null,
     messageCount: 0,

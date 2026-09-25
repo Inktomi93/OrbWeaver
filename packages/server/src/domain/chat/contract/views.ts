@@ -66,6 +66,9 @@ export interface ChatSummary {
    *  list's sort key — every surface renders `lastMessageAt ?? updatedAt` and `listChats` orders on exactly
    *  that expression in SQL (#150), so the row on top is the room whose stamp is the freshest. */
   readonly lastMessageAt: number | null;
+  /** When the VIEWER last spoke here: the newest visible message they authored, or null when they never have.
+   *  Per-caller, so Home resumes the room this person was in, not the room someone else was busiest in. */
+  readonly viewerLastTurnAt: number | null;
   readonly messageCount: number;
   /** The SCENT line: the newest visible message flattened to plain text
    *  (`@orb/kit/content::projectBodyForPreview` — hidden-class spans + structured spans dropped, markdown
@@ -139,6 +142,9 @@ export interface ChatListPage {
   /** The keyset boundary to pass as the next `cursor`; `null` when a short page came back (no row remains). */
   readonly nextCursor: ChatListCursor | null;
   readonly totalCount: number;
+  /** When the viewer last spoke anywhere in this list's scope (not only this page), or null for an account that
+   *  never has: Home's first-run test. */
+  readonly viewerLastTurnAt: number | null;
 }
 
 /** The `listMessages` page result (Chat-Macro-Resolution.md §1/§3) — the chronological `MessageView[]`

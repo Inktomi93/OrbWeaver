@@ -65,6 +65,11 @@ export function chatListResponder(all: readonly ScopedChatSummaryFixture[]): (in
       // or the tail-fetch guard stops one page early.
       nextCursor: items.length === limit && last !== undefined ? { recencyAt: last.lastMessageAt ?? last.updatedAt, id: last.id } : null,
       totalCount: matched.length,
+      // The census the server takes over the whole scope, never this page.
+      viewerLastTurnAt: matched.reduce<number | null>(
+        (latest, chat) => (chat.viewerLastTurnAt !== null && (latest === null || chat.viewerLastTurnAt > latest) ? chat.viewerLastTurnAt : latest),
+        null,
+      ),
     };
   };
 }
@@ -250,6 +255,9 @@ interface ChatSummaryFixture {
   readonly starred: boolean;
   readonly archived: boolean;
   readonly lastMessageAt: number | null;
+  /** When the viewer last spoke here (null = never): Home resumes the viewer's own room and tells a first-run
+   *  account apart from one that has spoken. */
+  readonly viewerLastTurnAt: number | null;
   readonly messageCount: number;
   readonly participantNames: readonly string[];
   /** The row's own character seats, in seat order — the leading portrait / AvatarStack (#192). Branded,
@@ -292,6 +300,7 @@ export function makeChatSummary(overrides: Partial<ScopedChatSummaryFixture> = {
     starred: false,
     archived: false,
     lastMessageAt: FROZEN_AT,
+    viewerLastTurnAt: FROZEN_AT,
     messageCount: 4,
     participantNames: ["Aria Nightshade"],
     filterCharacterIds: [],

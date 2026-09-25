@@ -308,6 +308,7 @@ const chatSummaryPlan = view<ChatSummaryOut>({
   starred: TYPED_ONLY,
   archived: TYPED_ONLY,
   lastMessageAt: TYPED_ONLY,
+  viewerLastTurnAt: TYPED_ONLY,
   messageCount: TYPED_ONLY,
   lastMessagePreview: TYPED_ONLY,
   isGame: TYPED_ONLY,
