@@ -5,7 +5,7 @@
 //
 // WHY a project per mode: the harness must boot the stack in a CHOSEN `AUTH_MODE` to exercise login /
 // sessions / cross-user visibility. EVERY mode (single-user included, since 2026-08-01) gets an ISOLATED
-// stack — its own DB + assets dir + a distinct port pair (mirrors the dev `multi-user-fixture.sh` recipe) —
+// stack — its own DB + assets dir + a distinct port pair (mirrors the dev `pnpm fixture` recipe) —
 // so the modes never collide and can run independently. The dev stack on 8788/5173 is untouched (these use
 // 87xx/51xx offsets), and every mode carries `E2E_HARNESS=on` so `global-setup.ts`'s target guard
 // (target-guard.ts) can PROVE the origin it seeds is a throwaway harness stack.
@@ -25,7 +25,7 @@
 // omits it — that path WANTS the operator's stack + `.env`, verbatim.
 //
 // The secrets here are DEV-ONLY deterministic literals (insecure by design — never a real deploy), matching
-// `tooling/src/stack/stack.sh` / `multi-user-fixture.sh`. `SESSION_SECRET` is ≥32 chars (the local-mode
+// the stack tool's dev pins and fixture recipe. `SESSION_SECRET` is ≥32 chars (the local-mode
 // superRefine) and `LOCAL_INITIAL_PASSWORD` ≥8 (the owner seed).
 
 import process from "node:process";
@@ -33,7 +33,7 @@ import { DEV_PORTS, E2E_PORTS, ENGINE_PORTS } from "@orb/tooling/_shared/ports";
 import { TEST_KIND_DEFINITIONS } from "@orb/tooling/_shared/test-kinds";
 import { devTargetAllowed } from "./target-guard.ts";
 
-/** One auth-mode project's boot + seed contract. `webServerEnv` is the exact env its `stack.sh start-fg`
+/** One auth-mode project's boot + seed contract. `webServerEnv` is the exact env its `pnpm stack up-fg`
  *  webServer boots with; `baseUrl` is its vite origin (the specs' `E2E_BASE_URL`); `backendUrl` is the Hono
  *  origin the owner-fallback seed hits directly. */
 export interface ModeProject {
@@ -47,7 +47,7 @@ export interface ModeProject {
    *  a full `pnpm e2e` never runs a single-user spec under `local` (where login is required) or vice-versa —
    *  the existing 22 specs stay single-user; a mode-specific spec is named `*.<mode>.spec.ts`. */
   readonly testMatch: RegExp;
-  /** The webServer env: `AUTH_MODE` + secrets + isolated DB/assets + the port pair (stack.sh reads PORT /
+  /** The webServer env: `AUTH_MODE` + secrets + isolated DB/assets + the port pair (the stack reads PORT /
    *  VITE_PORT / VITE_API_TARGET / DATABASE_URL / ASSETS_DIR). */
   readonly webServerEnv: Readonly<Record<string, string>>;
   /** Whether `global-setup.ts` runs the multi-user seed (localMultiUser + a member account) for this mode. */
@@ -103,7 +103,7 @@ const E2E_TEST_END_PATTERN = `(?:${E2E_TEST_SUFFIX_PATTERN})$`;
 export const E2E_DEBUG_TOKEN = "orbweaver-e2e-debug-token-insecure";
 
 /**
- * EACH MODE'S OWN pidfile + server/client log dir (`STACK_RUN_DIR`, stack.sh) — the #1851 instrument gap.
+ * EACH MODE'S OWN record + server/client log dir (`STACK_RUN_DIR`) — the #1851 instrument gap.
  *
  * All three mode stacks used to leave `STACK_RUN_DIR` unset, so all three wrote `.cache/stack/server.log`,
  * `client.log` AND `stack.pgid`. When `smoke.spec.ts` got `ECONNREFUSED 127.0.0.1:8796` in the 2026-09-06
@@ -113,7 +113,7 @@ export const E2E_DEBUG_TOKEN = "orbweaver-e2e-debug-token-insecure";
  * since `stop`/`status` read it.
  *
  * It rides the mode's EXISTING throwaway state root (`.cache/e2e/<mode>/`, next to its DB and assets) rather
- * than minting a second convention; stack.sh `mkdir -p`s it, so nothing has to pre-create it.
+ * than minting a second convention; the stack creates it, so nothing has to pre-create it.
  */
 const STACK_RUN_SUBDIR = "stack";
 
@@ -191,7 +191,7 @@ export const E2E_LOCAL_ENGINE_FALLBACK_MODEL = "Qwen/Qwen3-VL-8B-Instruct";
 const LOOPBACK_ENDPOINT_ALLOWLIST = "127.0.0.1";
 
 /** The seeded local-mode credentials (owner via reset, member via createUser) — shared by the seed step and
- *  the specs' `loginLocal(...)` calls. Same handles the dev `multi-user-fixture.sh` uses. */
+ *  the specs' `loginLocal(...)` calls. Same handles the dev `pnpm fixture` recipe uses. */
 export const LOCAL_OWNER = { handle: HARNESS_OWNER_HANDLE, password: "owner-dev-pass" } as const;
 export const LOCAL_MEMBER = { handle: "member", password: "member-dev-pass" } as const;
 

@@ -2,6 +2,7 @@
 // malformed path, unresolved link, and root escape refuses instead of shrinking the manifest.
 import { lstatSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { isAbsolute, relative, resolve, sep } from "node:path";
+import { runGit } from "@orb/tooling/_shared/git";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
 import { assertRepoPath, readAuthoredRepositoryInventory } from "../../_shared/authored-repository.ts";
 import type {
@@ -11,7 +12,7 @@ import type {
   PolicySemanticPath,
   PolicyWorkspacePackage,
 } from "../contract/policy-scope.ts";
-import { GIT_READ_PREFIX, repoGitEnvironment, resolveMergeBase } from "./repo-paths.ts";
+import { GIT_READ_PREFIX, resolveMergeBase } from "./repo-paths.ts";
 
 const TRACKED_ARGS = [...GIT_READ_PREFIX, "ls-files", "-z"] as const;
 const UNTRACKED_ARGS = [...GIT_READ_PREFIX, "ls-files", "--others", "--exclude-standard", "-z"] as const;
@@ -51,7 +52,7 @@ function containedRelative(root: string, canonical: string, label: string): stri
 }
 
 function gitRead(root: string, args: readonly string[]): string {
-  const result = runNicedSync("git", args, { cwd: root, env: repoGitEnvironment() });
+  const result = runGit(root, args);
   if (result.status !== 0) {
     const detail = result.stderr.trim();
     throw new Error(`git ${args.find((arg) => !arg.startsWith("-")) ?? "read"} failed with exit ${String(result.status)}${detail === "" ? "" : `: ${detail}`}`);
@@ -74,7 +75,7 @@ export function readPolicyRepositoryInventory(root: string): PolicyRepositoryInv
 }
 
 function isStandaloneNonGitRoot(root: string): boolean {
-  const result = runNicedSync("git", ["--no-optional-locks", "rev-parse", "--is-inside-work-tree"], { cwd: root, env: repoGitEnvironment() });
+  const result = runGit(root, ["--no-optional-locks", "rev-parse", "--is-inside-work-tree"]);
   if (result.status === 0) {
     return result.stdout.trim() !== "true";
   }

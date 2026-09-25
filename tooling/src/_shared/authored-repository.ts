@@ -1,10 +1,8 @@
 import { lstatSync, realpathSync, statSync } from "node:fs";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import type { AuthoredRepositoryInventory } from "./compiler-programs-contract.ts";
-import { runNicedSync } from "./proc.ts";
-import { inheritedProcessEnv } from "./process-env.ts";
+import { GIT_READ_PREFIX, runGit } from "./git.ts";
 
-export const GIT_READ_PREFIX: readonly string[] = ["--no-optional-locks"];
 const ASCII_C0_MAX = 0x1f;
 const ASCII_DELETE = 0x7f;
 
@@ -38,10 +36,6 @@ export function assertRepoPath(value: unknown, label: string): asserts value is 
   if (value.split("/").some((segment) => segment.length === 0 || segment === "." || segment === "..")) {
     throw new Error(`${label} has an invalid path segment`);
   }
-}
-
-export function repoGitEnvironment(environment: NodeJS.ProcessEnv = inheritedProcessEnv()): NodeJS.ProcessEnv {
-  return Object.fromEntries(Object.entries(environment).filter(([name]) => !name.startsWith("GIT_")));
 }
 
 function containedRelative(root: string, canonical: string, label: string): string {
@@ -79,7 +73,7 @@ function currentAuthoredFile(root: string, path: string): string | null {
 }
 
 function readPathnames(root: string, args: readonly string[]): readonly string[] {
-  const result = runNicedSync("git", args, { cwd: root, env: repoGitEnvironment() });
+  const result = runGit(root, args);
   if (result.status !== 0) {
     throw new Error(`git authored-file read failed with exit ${String(result.status)}: ${result.stderr.trim()}`);
   }

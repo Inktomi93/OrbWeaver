@@ -1,7 +1,7 @@
 // THE WorktreeRemove HOOK'S PROOF (.claude/hooks/worktree-remove.sh) — a removed worktree may not leave a
 // STAGE running behind it (#1848).
 //
-// THE DEFECT. A `snap --isolated` stage is a ~7-process stack (stack.sh, the node server, vite, the idle
+// THE DEFECT. A `snap --isolated` stage is a ~7-process stack (the stack leader, the node server, vite, the idle
 // keeper) that lives INSIDE the worktree, and the shared band table records the owning checkout. The hook
 // removed the tree without ever reading that table, so a lane torn down with a live stage kept running
 // against a DELETED cwd — holding a band, a port pair and real CPU — until the 60-minute idle keeper got

@@ -18,6 +18,7 @@ import type {
   SetupValues,
 } from "../contract/types.ts";
 import { SETUP_AUDIENCES, SETUP_LOGINS } from "../contract/types.ts";
+import { parseEnvText, readEnvText } from "../lib/env-file.ts";
 import {
   AUTH_MODE_KEY,
   BIND_HOST_KEY,
@@ -34,7 +35,6 @@ import {
   setupEnvEdits,
   setupValues,
 } from "../lib/setup-plan.ts";
-import { parseEnvText, readEnvText } from "./prod-state.ts";
 
 refuseDirectInvocation(import.meta.url, SETUP_COMMAND);
 

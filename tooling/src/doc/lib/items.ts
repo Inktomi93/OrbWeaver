@@ -161,8 +161,9 @@ export function applyPatch(source: string, item: WorkItem, patch: ItemPatch, tod
   return patch.title === undefined ? patched : withTitle(patched, patch.title);
 }
 
-export function nextItemId(items: readonly WorkItem[]): number {
-  return items.reduce((max, item) => Math.max(max, item.id), 0) + 1;
+/** One past the highest id on disk or ever seen (`floor`): a landed id is never minted again. */
+export function nextItemId(items: readonly WorkItem[], floor = 0): number {
+  return items.reduce((max, item) => Math.max(max, item.id), floor) + 1;
 }
 
 const optionalField = z.string().nullable().optional();

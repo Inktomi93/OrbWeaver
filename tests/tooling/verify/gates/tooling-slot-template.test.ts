@@ -17,8 +17,6 @@ function messageOf(finding: EffectiveFinding): string {
 }
 
 const CLASSIFIED_HOMES = {
-  "tooling/src/stack/index.ts": "export {};\n",
-  "tooling/src/stack/stack.sh": "#!/bin/sh\n",
   "tooling/src/verify/index.ts": "export {};\n",
   "tooling/src/verify/cli.ts": "export {};\n",
   "tooling/src/verify/gates/example.ts": "export {};\n",
@@ -80,12 +78,17 @@ test("the corpus classification permits only verify/gates, never another sixth s
 });
 
 test("classification liveness needs no unrelated exit-contract sentinel", () => {
-  const { "tooling/src/stack/index.ts": _index, "tooling/src/stack/stack.sh": _shell, ...withoutStack } = CLASSIFIED_HOMES;
-  expect(findings(withoutStack).some((f) => messageOf(f).includes('stale BASH_FRONTED_TOOLS row "stack"'))).toBe(true);
   const { "tooling/src/verify/gates/example.ts": _gate, ...withoutCorpus } = CLASSIFIED_HOMES;
   const found = findings({ ...withoutCorpus, "tooling/src/verify/anything/x.ts": "export {};\n" });
   expect(found.some((f) => messageOf(f).includes('stale CORPUS_SLOTS row "verify"'))).toBe(true);
-  expect(
-    findings({ ...CLASSIFIED_HOMES, "tooling/src/stack/cli.ts": "export {};\n" }).some((f) => messageOf(f).includes('BASH_FRONTED_TOOLS row "stack" is stale')),
-  ).toBe(true);
+});
+
+test("a shell file at a tool root is a stray: no tool is bash-fronted any more", () => {
+  const found = findings({
+    ...CLASSIFIED_HOMES,
+    "tooling/src/sometool/cli.ts": "export {};\n",
+    "tooling/src/sometool/index.ts": "export {};\n",
+    "tooling/src/sometool/run.sh": "#!/bin/sh\n",
+  });
+  expect(found.filter((f) => messageOf(f).includes("stray tool-root file")).map((f) => f.file)).toEqual(["tooling/src/sometool/run.sh"]);
 });

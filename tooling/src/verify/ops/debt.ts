@@ -43,8 +43,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { print, reportsPath, reportsRelPath } from "@orb/tooling/_shared/artifacts";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { runGit } from "@orb/tooling/_shared/git";
 import { warn } from "@orb/tooling/_shared/log";
-import { runNicedSync } from "@orb/tooling/_shared/proc";
 import type { RatchetRow } from "@orb/tooling/_shared/ratchet-rows";
 import { classOf, discoverBaselineFiles, formatSplit, readRatchetLedger } from "@orb/tooling/_shared/ratchet-rows";
 import { UsageError } from "@orb/tooling/_shared/run-tool";
@@ -193,7 +193,7 @@ export function liveAdmitted(root: string): LiveAdmission {
 /** The commit date a row's subject first appeared in its ledger (`git log -S`, oldest match), or null
  *  when git cannot answer — a repo without history, a subject the pickaxe never matched. */
 function firstSeen(root: string, ledger: Ledger, subject: string): string | null {
-  const res = runNicedSync("git", ["log", "--format=%as", `-S${subject}`, "--", ledger.rel], { cwd: root });
+  const res = runGit(root, ["log", "--format=%as", `-S${subject}`, "--", ledger.rel]);
   if (res.status !== 0) {
     return null;
   }

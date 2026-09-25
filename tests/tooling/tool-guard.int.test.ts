@@ -695,7 +695,7 @@ const ROWS: Row[] = [
     "inline:playwright-ct",
     "(setsid nohup bash -c 'rm -rf playwright/.cache && npx playwright test -c playwright-ct.config.ts tests/client/x.ct.tsx > /tmp/ct.log 2>&1' &)",
   ],
-  ["pass", null, 'setsid bash -c "cd /repo && bash tooling/src/stack/stack.sh restart dev > /tmp/stack.log 2>&1"'],
+  ["pass", null, 'setsid bash -c "cd /repo && bash scripts/worktree-bootstrap.sh > /tmp/bootstrap.log 2>&1"'],
   // benign substitutions stay silent — the overwhelming majority of real `$( … )` use
   ["pass", null, 'echo "$(date)"'],
   ["pass", null, 'cd "$(git rev-parse --show-toplevel)" && pnpm check'],
@@ -950,9 +950,9 @@ test("script bodies: an untracked wrapper is judged by its CONTENTS, a tracked o
   // #634: a path this command WRITES. Deliberately never created on disk — the point is that the bytes
   // that will land there are judged, not the (absent, or stale) bytes a read would find.
   const written = join(dir, "lane-written.sh");
-  // the depth cap is about UNREVIEWED bodies: a wrapper that ends in `exec bash tooling/src/stack/stack.sh`
+  // the depth cap is about UNREVIEWED bodies: a wrapper that ends in `exec bash scripts/worktree-bootstrap.sh`
   // reaches a TRACKED script, and asking about that is pure wolf-crying (25 corpus false positives)
-  const nestedTracked = writeScript(dir, "lane-stage.sh", `#!/usr/bin/env bash\nexec bash ${REPO}/tooling/src/stack/stack.sh start\n`);
+  const nestedTracked = writeScript(dir, "lane-stage.sh", `#!/usr/bin/env bash\nexec bash ${REPO}/scripts/worktree-bootstrap.sh\n`);
   const big = writeScript(dir, "lane-big.sh", `#!/usr/bin/env bash\n${"# pad\n".repeat(20_000)}git stash\n`);
   // #633: THE FORGED EXEMPTION. A throwaway repo holding the SAME bytes as `evil`. Until 2026-08-24 the
   // tracked-ness predicate asked `git ls-files` in the FILE'S OWN directory, so ANY repository answered and
@@ -970,7 +970,7 @@ test("script bodies: an untracked wrapper is judged by its CONTENTS, a tracked o
   // refused for its SIZE when named in the sanctioned `pnpm test:scoped` spelling, which teaches a lane
   // that the niced door is refused and pushes it onto an ad-hoc unniced one.
   const trackedBig = `${REPO}/tests/tooling/check-gates.repo.int.test.ts`;
-  const trackedReal = `${REPO}/tooling/src/stack/stack.sh`;
+  const trackedReal = `${REPO}/scripts/worktree-bootstrap.sh`;
 
   const rows: [string, BatchResult["decision"], string | null, Partial<Omit<BatchCase, "command">>?][] = [
     // MUST BITE — the body is what runs
@@ -1083,7 +1083,7 @@ test("script bodies: an untracked wrapper is judged by its CONTENTS, a tracked o
     // THIS repo is reviewed code however its path is spelled, and a trailing argument is an argument.
     [`bash "${trackedReal}"`, "pass", null],
     [`bash "${trackedReal}" --some-arg`, "pass", null],
-    [`R=${REPO}; bash "$R/tooling/src/stack/stack.sh"`, "pass", null],
+    [`R=${REPO}; bash "$R/scripts/worktree-bootstrap.sh"`, "pass", null],
     [`bash "${clean}" one two`, "pass", null],
     [`bash "${ct}" 2>&1 | tail -40`, "pass", null],
     [`bash ${clean} arg1 arg2`, "pass", null],

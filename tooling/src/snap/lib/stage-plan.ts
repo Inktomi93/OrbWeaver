@@ -8,7 +8,8 @@ import { basename, dirname, join } from "node:path";
 import { parseEnv } from "node:util";
 import { resolveDataLayout } from "@orb/server/foundation/data-layout";
 import { stageBandForPort } from "../../_shared/ports.ts";
-import type { BandAccess, StageBandClaim, StageDecision, StagePaths, StageRow } from "../contract/stage.ts";
+import { STACK_CLI_REL } from "../../stack/index.ts";
+import type { BandAccess, StageBandClaim, StageDecision, StageLauncher, StageLauncherSpawn, StagePaths, StageRow } from "../contract/stage.ts";
 
 // 12 hex — collision-safe for a dir name while staying human-scannable in logs.
 export const SHORT_SHA_LEN = 12;
@@ -45,7 +46,7 @@ export function shortSha(sha: string): string {
   return sha.trim().slice(0, SHORT_SHA_LEN);
 }
 
-/** `localhost`, NOT 127.0.0.1 — vite v8 binds [::1] only (see stack.sh vite_ok()); the IPv4 loopback
+/** `localhost`, NOT 127.0.0.1 — vite v8 binds [::1] only; the IPv4 loopback
  *  never answers the dev server's vite port. */
 export function stageBaseUrl(vitePort: number): string {
   return `http://localhost:${vitePort}`;
@@ -160,38 +161,60 @@ export function orphanStageDirs(dirs: readonly string[], keep: { readonly rowDir
   return dirs.filter((name) => !spared.has(name));
 }
 
-// ── THE LAUNCHER PATH (#447) ──────────────────────────────────────────────────────────────────────────
+// ── THE LAUNCHER (#447) ───────────────────────────────────────────────────────────────────────────────
 //
-// The stage boots and stops the STAGED TREE's own launcher, so the path is a property of the ref being
-// staged, not of this checkout. The #393 P5 tooling move relocated it from `scripts/dev/stack.sh` to
-// `tooling/src/stack/stack.sh` and missed this consumer: `bootStage` spawned a path that did not exist
-// (`STAGE ERROR: stage stack failed to boot` for every `--isolated`/`--dirty` caller), and `stopStage`
-// — guarded by an `existsSync` — SILENTLY DID NOTHING, which is a large part of why stages stranded
-// (#324). So the resolution is ordered and total: the current home first, the pre-P5 home second (a
-// `--ref <old-sha>` stage is a supported mode and its tree really does keep the launcher there), and
-// null when neither exists so the caller can refuse with the paths it tried instead of no-op'ing.
+// The stage boots and stops the STAGED TREE's own launcher, so the launcher is a property of the ref being
+// staged, not of this checkout: a `--ref <old-sha>` stage is a supported mode, and an older tree keeps a
+// shell launcher where the current one keeps the stack cli. The resolution is ordered and total — the
+// current home first, the older homes after, and null when a ref ships none, so the caller refuses with
+// the paths it tried instead of no-op'ing (the silent no-op is how stages stranded, #324).
 
-export const STAGE_LAUNCHER_RELS = [join("tooling", "src", "stack", "stack.sh"), join("scripts", "dev", "stack.sh")] as const;
+/** Every launcher home a staged ref may ship, newest first. */
+export const STAGE_LAUNCHERS: readonly { readonly rel: string; readonly kind: StageLauncher["kind"] }[] = [
+  { rel: STACK_CLI_REL, kind: "cli" },
+  { rel: join("tooling", "src", "stack", "stack.sh"), kind: "shell" },
+  { rel: join("scripts", "dev", "stack.sh"), kind: "shell" },
+];
 
-/** The staged tree's launcher, or null when it ships neither. `exists` is injected so this stays pure and
- *  the suite can pin every arm (including the pre-P5 ref) without a worktree. */
-export function stageLauncherPath(stageDir: string, exists: (path: string) => boolean): string | null {
-  for (const rel of STAGE_LAUNCHER_RELS) {
+/** The staged tree's launcher, or null when it ships none. `exists` is injected so this stays pure and
+ *  the suite can pin every arm (including the older refs) without a worktree. */
+export function stageLauncher(stageDir: string, exists: (path: string) => boolean): StageLauncher | null {
+  for (const { rel, kind } of STAGE_LAUNCHERS) {
     const candidate = join(stageDir, rel);
     if (exists(candidate)) {
-      return candidate;
+      return { kind, path: candidate };
     }
   }
   return null;
+}
+
+/** The spawn for one launcher verb. The cli takes its verbs under node; the shell launcher took `start`
+ *  and `stop` under bash, and an older ref's tree still does. */
+export function stageLauncherSpawn(launcher: StageLauncher, verb: "up" | "down", nodePath: string): StageLauncherSpawn {
+  if (launcher.kind === "cli") {
+    return { command: nodePath, args: [launcher.path, verb] };
+  }
+  return { command: "bash", args: [launcher.path, verb === "up" ? "start" : "stop"] };
+}
+
+/** The served-module probe of a staged tree: the cli's own verb, or the node half an older ref's shell
+ *  launcher ran; null when the ref predates the probe. */
+export function stageServedProbeSpawn(stageDir: string, exists: (path: string) => boolean, nodePath: string): StageLauncherSpawn | null {
+  const cli = join(stageDir, STACK_CLI_REL);
+  if (exists(cli)) {
+    return { command: nodePath, args: [cli, "served-probe"] };
+  }
+  const entry = join(stageDir, "tooling", "src", "stack", "ops", "prod-entry.ts");
+  return exists(entry) ? { command: nodePath, args: [entry, "served-probe"] } : null;
 }
 
 /** The refusal when a staged ref ships no launcher at all — names every path tried, because "failed to
  *  boot" without them is exactly the message that cost #447 a lane's afternoon. */
 export function missingLauncherRefusal(stageDir: string): string {
   return (
-    `stage ${stageDir} ships no dev-stack launcher — tried ${STAGE_LAUNCHER_RELS.join(" and ")}. ` +
-    "Either the ref predates both homes, or the launcher moved again and this list needs the new path " +
-    "(tooling/src/snap/lib/stage-plan.ts STAGE_LAUNCHER_RELS)."
+    `stage ${stageDir} ships no dev-stack launcher — tried ${STAGE_LAUNCHERS.map((launcher) => launcher.rel).join(", ")}. ` +
+    "Either the ref predates every home, or the launcher moved again and this list needs the new path " +
+    "(tooling/src/snap/lib/stage-plan.ts STAGE_LAUNCHERS)."
   );
 }
 

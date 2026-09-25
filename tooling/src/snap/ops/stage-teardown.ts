@@ -9,29 +9,28 @@
 // process group second, the dir third, the row last.
 //
 // THE TWO BEATS OF `stopStage`, because the first one is not guaranteed to happen:
-//  1. the STAGED TREE's own launcher (`stack.sh stop`), which reaps its pidfiles properly — resolved, not
-//     hardcoded, since the #393 P5 move (#447). That launcher is also where the #1162 honesty fix lives:
-//     it verifies GROUP DEATH by pgid (`kill -0` on the pgid plus the `pgrep -g` question) before running
-//     `dev_identity clear-absent`, and prints that verb's own verdict rather than asserting one;
+//  1. the STAGED TREE's own launcher (`stack down`, or `stack.sh stop` on an older ref), which stops its
+//     recorded group, sweeps its own ports and clears its record — resolved, not hardcoded (#447);
 //  2. the band check. Whatever the launcher did or could not do, a stage-rooted process still holding a
 //     band port after it is killed BY PROCESS GROUP.
 //
-// Beat 2 is the whole point. `stopStage` used to be a single `if (existsSync(scripts/dev/stack.sh))`
-// around beat 1 — and after the launcher moved, that guard was permanently false, so every teardown path
-// SILENTLY did nothing and then removed the dir out from under a still-running stack. That is the
-// mechanism behind #324's orphaned process groups, and it is why a launcher that cannot be found is now a
-// printed problem rather than a quiet return.
+// Beat 2 is the whole point. `stopStage` used to be a single existence check around beat 1 — and after
+// the launcher moved, that guard was permanently false, so every teardown path SILENTLY did nothing and
+// then removed the dir out from under a still-running stack. That is the mechanism behind #324's orphaned
+// process groups, and it is why a launcher that cannot be found is now a printed problem rather than a
+// quiet return.
 //
 // The group kill is fenced exactly like the sweep's: a band port held by something that is NOT
 // stage-rooted is somebody else's server and is never touched.
 import { cpSync, existsSync } from "node:fs";
 import { join } from "node:path";
+import process from "node:process";
 import { activeRunSlot } from "../../_shared/artifact-out.ts";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { runNicedSync } from "../../_shared/proc.ts";
 import type { StagePorts, StageReapArm, StageRow } from "../contract/stage.ts";
-import { missingLauncherRefusal, stageLauncherPath } from "../lib/stage-plan.ts";
+import { missingLauncherRefusal, stageLauncher, stageLauncherSpawn } from "../lib/stage-plan.ts";
 import { takeBootDeadStage } from "../lib/stage-run-binding.ts";
 import { sweepStrandedBrowsers } from "./browser-sweep.ts";
 import { clearRow } from "./stage-marker.ts";
@@ -43,9 +42,10 @@ refuseDirectInvocation(import.meta.url, "pnpm snap --stage-down");
 
 /** Stop a stage's stack, and MEAN IT — the two beats of the module header. */
 export function stopStage(dir: string, ports: StagePorts): void {
-  const stackSh = existsSync(dir) ? stageLauncherPath(dir, existsSync) : null;
-  if (stackSh !== null) {
-    runNicedSync("bash", [stackSh, "stop"], { cwd: dir, stdio: "inherit" });
+  const launcher = existsSync(dir) ? stageLauncher(dir, existsSync) : null;
+  if (launcher !== null) {
+    const spawn = stageLauncherSpawn(launcher, "down", process.execPath);
+    runNicedSync(spawn.command, spawn.args, { cwd: dir, stdio: "inherit" });
   } else if (existsSync(dir)) {
     print(`[snap-stage] no launcher to stop ${dir} with — falling back to the band's process group. ${missingLauncherRefusal(dir)}`);
   }

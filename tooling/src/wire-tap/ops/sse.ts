@@ -6,7 +6,7 @@
 // member of (or that doesn't exist yet) yields an OPEN, SILENT stream — silence can mean "not a
 // member", not only "no events". `connection open` + no error proves connect/auth/attach.
 //
-// PREREQUISITES (single-user dev stack — `pnpm stack start`): no cookie needed (the owner fallback
+// PREREQUISITES (single-user dev stack — `pnpm stack up`): no cookie needed (the owner fallback
 // resolves identity on :8788 directly) and a real chat row to hear events from. Cookie modes: export
 // SSE_TAP_COOKIE to a `Cookie:` header value from devtools. Connection: hits the server DIRECTLY on
 // PORT (default 8788), NOT the vite proxy on 5173 — deliberate, so "vite proxy ate my SSE" shows as

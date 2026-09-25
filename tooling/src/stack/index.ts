@@ -1,24 +1,24 @@
-// stack's programmatic front door — mode-aware stack control (`pnpm stack`). This tool is
-// BASH-FRONTED: `stack.sh` at the tool root is the operator entrypoint (the pgid/setsid
-// choreography is bash's wheelhouse), and every DECISION it makes is imported from here — one grammar,
-// one identity rule, one debug-arming precedence, never a second copy in shell.
+// stack's programmatic front door: the dev and prod supervisors, the production launcher and the fixture.
 export type {
   DebugArming,
   DebugConflict,
   DebugEnvKey,
   DebugPosture,
-  DevStackAdoption,
-  DevStackIdentity,
-  DevStackIdentityVerdict,
+  DevPinKey,
+  DevPins,
   DistState,
   DistVerdict,
   DrainOutcome,
+  FixtureVerb,
   InstanceClassification,
   InstanceVerdict,
+  LeaderProbes,
+  LeaderRead,
+  LeaderRecord,
+  LeaderState,
   LockHolder,
   ObservedInstance,
-  ObservedStackProcess,
-  PnpmInvocation,
+  PinSource,
   ProdRecord,
   ProdSpawnPlan,
   ProdSpawnPlanOpts,
@@ -27,7 +27,11 @@ export type {
   SetupMachine,
   SetupValues,
   SpawnLockAction,
+  StackCommand,
+  StackCommandParse,
+  StackContext,
   StackInvocation,
+  StackLogs,
   StackMode,
   StackParse,
   StackSpawner,
@@ -41,34 +45,32 @@ export type {
   SupervisedChild,
   UpAction,
 } from "./contract/types.ts";
-export { DEBUG_ENV_KEYS, SETUP_AUDIENCES, STACK_MODES, STACK_VERBS, START_BUILD_MODES } from "./contract/types.ts";
-export { formatDispatch, parseStackArgv, STACK_USAGE } from "./lib/argv.ts";
+export { DEBUG_ENV_KEYS, DEV_PIN_KEYS, FIXTURE_VERBS, LEADER_STATES, SETUP_AUDIENCES, STACK_MODES, STACK_VERBS, START_BUILD_MODES } from "./contract/types.ts";
+export { parseStackArgv, parseStackCommand, STACK_USAGE } from "./lib/argv.ts";
 export { debugConflictMessage, resolveDebugArming, stripDebugEnv } from "./lib/debug-env.ts";
-export {
-  adoptDevStackGroup,
-  adoptionText,
-  captureDevStackIdentity,
-  DEV_STACK_LAUNCH_ID_ENV,
-  devStackGroupHasMembers,
-  devStackGroupMembers,
-  devStackIdentityFilePath,
-  parseDevStackIdentity,
-  readProcessLaunchId,
-  recordedDevStackVerdict,
-  signalAdoptedDevStackGroup,
-  signalDevStackIdentity,
-  verifyDevStackIdentity,
-  writeDevStackIdentity,
-} from "./lib/dev-process-identity.ts";
+export { envFilePath, parseEnvText, readEnvText } from "./lib/env-file.ts";
+export { FIXTURE_CREDENTIALS, FIXTURE_DIR_REL, fixtureEnv } from "./lib/fixture-plan.ts";
 export { classifyInstance, decideDown, decideUp } from "./lib/identity.ts";
-export { parseListenerPid } from "./lib/proc-parse.ts";
+export {
+  HEARTBEAT_MS,
+  HEARTBEAT_STALE_MS,
+  LAUNCH_ID_ENV,
+  LEADER_RECORD_FILE,
+  leaderRecordPath,
+  leaderVerdict,
+  parseLeaderRecord,
+  readLeaderRecord,
+  recordAuthorizesSignal,
+  removeLeaderRecord,
+  serializeLeaderRecord,
+  writeLeaderRecord,
+} from "./lib/leader-record.ts";
 export { decideSpawnLock, lockHolderText, mayRemovePidfile, parseLockHolder, parseProdRecord, serializeProdRecord } from "./lib/prod-record.ts";
 export {
   AUTH_MODE_KEY,
   BIND_HOST_KEY,
   decideSetup,
   effectiveAuthMode,
-  isWsl2Kernel,
   openUrls,
   PORT_KEY,
   parseAddressAnswer,
@@ -87,10 +89,27 @@ export { acquireSpawnLock, handleHeldSpawnLock, pidIsAlive, releaseSpawnLock } f
 export { buildProdSpawnPlan, CLIENT_DIST_INDEX_REL, CLIENT_DIST_REL } from "./lib/spawn-plan.ts";
 export { STACK_SPAWNERS, spawnerForPort } from "./lib/spawners.ts";
 export {
+  cmdlineNamesCheckout,
+  devStackPins,
+  ENV_NO_FILE,
+  healthzUrl,
+  PINNED_KEYS_ENV,
+  PORT_ENV,
+  PRINTABLE_PINS,
+  printablePins,
+  RUN_DIR_ENV,
+  STACK_CLI_REL,
+  stackContext,
+  stackLogs,
+  stackPorts,
+  stackRunDir,
+  VITE_API_TARGET_ENV,
+  VITE_PORT_ENV,
+  viteUrl,
+} from "./lib/stack-plan.ts";
+export {
   decideStartBuild,
-  PNPM_EXECPATH_ENV,
   parseStartArgv,
-  resolvePnpmInvocation,
   restateFileEnv,
   START_USAGE,
   shareLaunchRefusal,
@@ -112,7 +131,12 @@ export {
   servedCarriesDiskBytes,
   valueExportNames,
 } from "./lib/verdicts.ts";
+export { doDevDown } from "./ops/dev-down.ts";
+export { doDevStatus } from "./ops/dev-status.ts";
+export { doDevUp } from "./ops/dev-up.ts";
+export { runFixture } from "./ops/fixture.ts";
 export { runStackProd } from "./ops/prod.ts";
-export { probeServedTransform } from "./ops/served-probe.ts";
+export { runStack } from "./ops/run.ts";
+export { probeServedTransform, runServedProbe } from "./ops/served-probe.ts";
 export { runSetup } from "./ops/setup.ts";
 export { runStart } from "./ops/start.ts";

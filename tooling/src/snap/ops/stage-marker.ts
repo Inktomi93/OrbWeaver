@@ -23,8 +23,8 @@ import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync 
 import { join } from "node:path";
 import process from "node:process";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { runGit } from "../../_shared/git.ts";
 import { STAGE_BAND_COUNT, stageBandForPort } from "../../_shared/ports.ts";
-import { runNicedSync } from "../../_shared/proc.ts";
 import { pidAlive } from "../../_shared/run-retention.ts";
 import type { StageBandClaim, StageBandsFile, StageDbProvenance, StageKeeper, StageRow } from "../contract/stage.ts";
 import {
@@ -95,7 +95,7 @@ export function markerRoot(root: string): string {
   if (HOME_OVERRIDE !== undefined && HOME_OVERRIDE !== "") {
     return HOME_OVERRIDE;
   }
-  const res = runNicedSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd: root });
+  const res = runGit(root, ["rev-parse", "--path-format=absolute", "--git-common-dir"]);
   // No git answer at all ⇒ keep the table local: a per-checkout table is worse than none, but one
   // written to a guessed path would be invisible to every reader including this one.
   return res.status === 0 ? markerRootFromCommonDir(res.stdout) : root;

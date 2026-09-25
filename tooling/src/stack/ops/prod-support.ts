@@ -13,13 +13,15 @@ import { CLIENT_DIST_INDEX_REL } from "../lib/spawn-plan.ts";
 import { classifyDist, debugPostureText } from "../lib/verdicts.ts";
 import { LOG_PATH, log, PIDFILE, probeDebug, runDir, TOKEN_PATH } from "./prod-state.ts";
 
-refuseDirectInvocation(import.meta.url, "bash tooling/src/stack/stack.sh <verb>");
+refuseDirectInvocation(import.meta.url, "pnpm stack <verb> prod");
 
 const TOKEN_BYTES = 24;
 const TOKEN_FILE_MODE = 0o600;
 const SECONDS_PER_HOUR = 3600;
 const SECONDS_PER_MINUTE = 60;
 const MS_PER_SECOND = 1000;
+/** A log written on any OS; a file read is split on either line ending. */
+const LINE_BREAK_RE = /\r?\n/u;
 export const DEFAULT_LOG_LINES = 40;
 
 function hasErrorCode(error: unknown, code: string): boolean {
@@ -135,7 +137,7 @@ export function readFrom(path: string, offset: number): string {
 export function tailLog(lines: number): string {
   // @orb-waive caught-failure-ownership(catch): an unreadable optional log renders the explicit no-log sentinel to the operator. Ends if missing logs become a clean shutdown claim.
   try {
-    return `${readFileSync(LOG_PATH(), "utf8").split("\n").slice(-lines).join("\n")}\n`;
+    return `${readFileSync(LOG_PATH(), "utf8").split(LINE_BREAK_RE).slice(-lines).join("\n")}\n`;
   } catch {
     return "(no log)\n";
   }

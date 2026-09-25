@@ -17,7 +17,7 @@ import { folderOf, numberedName, referencePatterns, slugify } from "../lib/names
 import { itemTemplate } from "../lib/templates.ts";
 import { introducedDocProblems, pendingDocProblems } from "./check.ts";
 import { regenerateIndexes } from "./indexes.ts";
-import { formattedDoc, governedPaths, readDoc, rewriteTextFiles, root, today, writeDoc } from "./tree.ts";
+import { formattedDoc, governedPaths, highestHistoricId, readDoc, rewriteTextFiles, root, today, writeDoc } from "./tree.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm doc <item|set|land>");
 
@@ -82,7 +82,7 @@ export function newItems(inputs: readonly NewItemInput[], repoRoot = root, date 
   if (early.length > 0) {
     return { written: [], refusals: early };
   }
-  const first = nextItemId(loadItems(repoRoot));
+  const first = nextItemId(loadItems(repoRoot), highestHistoricId("work", repoRoot));
   const pending: readonly GovernedDoc[] = inputs.map((input, index) => ({
     path: `${DOC_TOOL_TREES.work}${numberedName(first + index, slugify(input.title))}`,
     source: itemSource(input, date),

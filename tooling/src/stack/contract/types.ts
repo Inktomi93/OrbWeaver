@@ -1,8 +1,8 @@
-// stack's shapes — the PURE half of mode-aware stack control, split out of the old
-// `scripts/dev/_kit/stack-mode.ts` at the #393 P5 move. Every decision the launcher makes is typed here;
-// the imperative half (spawn/kill/poll/probe) lives in ops/, and the dev half is stack.sh.
+// stack's shapes: every decision the dev and prod supervisors, the fixture recipe and the production
+// launcher make is typed here; the imperative half (spawn, signal, poll, probe) lives in ops/.
 import type { NetworkInterfaceInfo } from "node:os";
 import type { AuthMode } from "@orb/contracts/identity";
+import type { PortPair } from "../../_shared/ports.ts";
 import type { FullPriorityChild } from "../../_shared/proc-contract.ts";
 
 // ── The spawner census ───────────────────────────────────────────────────────────────────────────────
@@ -35,13 +35,107 @@ export interface StackInvocation {
   readonly debug: boolean;
   /** `--build`: run the client `vite build` BEFORE anything is stopped (no dead-dist downtime window). */
   readonly build: boolean;
-  /** `--force`: dev-mode nuke-then-boot (existing `restart --force` behavior). */
+  /** `--force`: `up`/`restart` stop whatever this checkout runs on the ports first, instead of refusing a busy port. */
   readonly force: boolean;
   /** Positional leftovers — `logs [server|client] [n]`. */
   readonly rest: readonly string[];
 }
 
 export type StackParse = { readonly ok: true; readonly invocation: StackInvocation } | { readonly ok: false; readonly error: string };
+
+export const FIXTURE_VERBS = ["up", "down", "reset", "seed", "status"] as const;
+export type FixtureVerb = (typeof FIXTURE_VERBS)[number];
+
+/** What the one cli dispatches: a dev/prod stack verb, the production launcher with its own flags, a
+ *  fixture verb, or the served-module probe a staged tree's caller runs by name. */
+export type StackCommand =
+  | { readonly kind: "stack"; readonly invocation: StackInvocation }
+  | { readonly kind: "start"; readonly argv: readonly string[] }
+  | { readonly kind: "fixture"; readonly verb: FixtureVerb }
+  | { readonly kind: "served-probe" };
+
+export type StackCommandParse = { readonly ok: true; readonly command: StackCommand } | { readonly ok: false; readonly error: string };
+
+// ── The dev stack: pins, context, the leader record ──────────────────────────────────────────────────
+
+/** The env keys the dev stack pins when the host leaves them unset: the auth mode, its dev-only secrets and
+ *  the seed stamp. A host export wins; the pin fills the gap. */
+export const DEV_PIN_KEYS = ["AUTH_FALLBACK", "AUTH_MODE", "SESSION_SECRET", "CREDENTIALS_KEY", "LOCAL_INITIAL_PASSWORD", "DEV_SEED"] as const;
+export type DevPinKey = (typeof DEV_PIN_KEYS)[number];
+
+export const PIN_SOURCES = ["host", "pinned"] as const;
+export type PinSource = (typeof PIN_SOURCES)[number];
+
+export interface DevPins {
+  /** Every pin key with its effective value. */
+  readonly env: Readonly<Record<DevPinKey, string>>;
+  readonly sources: Readonly<Record<DevPinKey, PinSource>>;
+}
+
+export interface StackLogs {
+  readonly stack: string;
+  readonly server: string;
+  readonly client: string;
+}
+
+/** One stack's whole address: where its record and logs live, which ports it binds, and the env its
+ *  leader runs under. Built once from an env record, so the fixture and a sidecar thread their own. */
+export interface StackContext {
+  readonly repoRoot: string;
+  /** Absolute; `STACK_RUN_DIR` relative to the repo root, else `<repo>/.cache/stack`. */
+  readonly runDir: string;
+  readonly ports: PortPair;
+  readonly pins: DevPins;
+  /** The env the leader inherits: the ambient env with the pins, the ports and the run dir applied. */
+  readonly ambient: Readonly<Record<string, string | undefined>>;
+  /** The keys a foreground leader publishes into its own process before it boots. */
+  readonly launchEnv: Readonly<Record<string, string>>;
+  readonly logs: StackLogs;
+}
+
+/** The leader's record, rewritten on every heartbeat. `pgid` is null on win32, which has no process group:
+ *  there the recorded pids are the tree, stopped through `taskkill /T`. */
+export interface LeaderRecord {
+  readonly version: 2;
+  readonly pid: number;
+  readonly pgid: number | null;
+  readonly launchId: string;
+  readonly repoRoot: string;
+  readonly runDir: string;
+  readonly ports: PortPair;
+  /** The server and vite children as spawned, in boot order. */
+  readonly children: readonly number[];
+  /** The printable pins' values and every pin's source, for `status`; secrets never land here. */
+  readonly pins: { readonly values: Readonly<Partial<Record<DevPinKey, string>>>; readonly sources: Readonly<Record<DevPinKey, PinSource>> };
+  readonly startedAt: string;
+  /** Wall-clock ms of the last heartbeat; a leader whose beat stopped is stale whatever its pid says. */
+  readonly beatMs: number;
+}
+
+/** What is on disk at the record path. */
+export type LeaderRead =
+  | { readonly kind: "absent" }
+  | { readonly kind: "corrupt"; readonly path: string }
+  | { readonly kind: "record"; readonly record: LeaderRecord };
+
+/** The ownership verdict over a record and the live process table:
+ *    `live`                     — the leader is ours and beating; signal its group.
+ *    `stale-leader`             — the leader pid is ours but the beat stopped; signal its group.
+ *    `departed-with-survivors`  — the leader is gone and the group still holds members.
+ *    `departed`                 — the leader is gone and so is its group.
+ *    `absent` / `corrupt`       — no record, or one that does not parse. */
+export const LEADER_STATES = ["live", "stale-leader", "departed-with-survivors", "departed", "absent", "corrupt"] as const;
+export type LeaderState = (typeof LEADER_STATES)[number];
+
+/** The probes the verdict reads, injected so every state is provable without a process. `ownsPid` is
+ *  "alive, and its command line names this checkout"; `groupHasMembers` asks the recorded group (POSIX) or
+ *  the recorded pids (win32). */
+export interface LeaderProbes {
+  readonly now: number;
+  readonly ownsPid: (pid: number) => boolean;
+  readonly groupHasMembers: (record: LeaderRecord) => boolean;
+  readonly staleAfterMs?: number;
+}
 
 // ── The debug overlay ────────────────────────────────────────────────────────────────────────────────
 
@@ -93,55 +187,10 @@ export interface ProdRecord {
   readonly pgid: number;
   readonly port: number;
   readonly startedAt: string;
-  /** /proc/<pid>/stat field 22. Pid numbers are recycled; this makes the record reuse-proof. */
-  readonly startTicks: string;
   readonly debug: boolean;
   readonly repoRoot: string;
   readonly logPath: string;
 }
-
-/** Fresh Linux process identity used by the detached dev-stack ownership verifier. */
-export interface ObservedStackProcess {
-  readonly pid: number;
-  readonly pgid: number;
-  readonly startTicks: string;
-  readonly executable: string;
-  readonly cmdlineBase64: string;
-  readonly cwd: string;
-}
-
-/** Complete launch identity persisted before stack.sh releases control of its setsid leader. */
-export interface DevStackIdentity extends ObservedStackProcess {
-  readonly version: 1;
-  readonly repoRoot: string;
-  /** THE LAUNCH MARKER (#1013). A high-entropy token `stack.sh` mints and EXPORTS before it spawns the
-   *  setsid leader, so every member of the resulting group inherits it in its environment, and which is
-   *  recorded here from the leader's own `/proc/<pid>/environ`. It is what makes a leaderless SURVIVOR
-   *  identifiable: a live pid in the recorded group that carries this exact token was started by THIS
-   *  launch and by nothing else. OPTIONAL because a record written before the marker existed must still
-   *  parse — such a record simply cannot be adopted, which is the pre-#1013 refusal, unchanged. */
-  readonly launchId?: string | undefined;
-}
-
-/** Can a leaderless group be adopted? (#1013 — the answer the pidfile alone could never give.)
- *    `adoptable`   — every live member of the recorded group carries the recorded launch marker.
- *    `unmarked`    — at least one live member does NOT, so this is not provably our group any more.
- *    `no-marker`   — the record predates the marker (or the leader never carried one): unknowable.
- *    `empty`       — the group has no members left; there is nothing to adopt. */
-export type DevStackAdoption =
-  | { readonly kind: "adoptable"; readonly pgid: number; readonly members: readonly number[] }
-  | { readonly kind: "unmarked"; readonly pgid: number; readonly unmarked: readonly number[] }
-  | { readonly kind: "no-marker"; readonly pgid: number; readonly reason: string }
-  | { readonly kind: "empty"; readonly pgid: number };
-
-export type DevStackIdentityVerdict =
-  | { readonly verdict: "owned"; readonly pgid: number; readonly witness: ObservedStackProcess }
-  | { readonly verdict: "absent"; readonly reason: string }
-  /** The record is well-formed and ours, and the recorded LEADER has exited (#1162). Distinct from
-   *  `refused` because it is the ONLY refusal whose remaining question is answerable: ask the group
-   *  whether anything survived the leader. Empty group → nothing to clean; populated → a true alarm. */
-  | { readonly verdict: "departed"; readonly pgid: number; readonly reason: string }
-  | { readonly verdict: "refused"; readonly reason: string };
 
 const SPAWN_LOCK_ACTIONS = ["retake", "refuse", "break-stale"] as const;
 export type SpawnLockAction = (typeof SPAWN_LOCK_ACTIONS)[number];
@@ -160,16 +209,14 @@ export type LockHolder =
 // ── Instance identity ────────────────────────────────────────────────────────────────────────────────
 
 /** What we could actually observe about whoever holds the port right now. Every field is nullable because
- *  every probe can legitimately fail to answer (nothing listening / debug disarmed / no /proc). */
+ *  every probe can legitimately fail to answer (nothing listening, debug disarmed, an unnameable owner). */
 export interface ObservedInstance {
   /** `/healthz` answered 200. NOT sufficient for identity — a stale incumbent answers too. */
   readonly healthy: boolean;
   /** `/healthz` body `harness` — true ⇒ a Playwright-owned stack (E2E_HARNESS=on). */
   readonly harness: boolean | null;
-  /** The pid that owns the listening socket (`ss -ltnp`), or `/api/_debug/info`'s pid when armed. */
+  /** The pid that owns the listening socket, or `/api/_debug/info`'s pid when armed. */
   readonly listenerPid: number | null;
-  /** /proc/<listenerPid>/stat field 22 — pid-reuse defence. */
-  readonly listenerStartTicks: string | null;
 }
 
 /** The five identity verdicts, in decision order:
@@ -376,14 +423,3 @@ export interface SetupUrl {
 
 /** A parsed answer: the value, or the one-line reason the question is asked again. */
 export type AnswerParse<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly error: string };
-
-/** How to run the operator's OWN pnpm from a child process with `shell: false`, on every platform.
- *    `node`    — `<node> <pnpm.cjs> <args>`: pnpm's own JS entry, run by the node we are already in. The
- *                only spelling that works unchanged on win32, where pnpm on PATH is `pnpm.cmd` and node
- *                refuses to spawn a `.cmd`/`.bat` without `shell: true`.
- *    `path`    — bare `pnpm` resolved by the OS execvp (POSIX only; no `.cmd` indirection there).
- *    `refused` — no usable pnpm could be named, and guessing would be a lie. `reason` is the fix. */
-export type PnpmInvocation =
-  | { readonly kind: "node"; readonly command: string; readonly args: readonly string[] }
-  | { readonly kind: "path"; readonly command: string; readonly args: readonly string[] }
-  | { readonly kind: "refused"; readonly reason: string };

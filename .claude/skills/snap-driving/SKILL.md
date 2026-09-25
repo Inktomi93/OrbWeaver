@@ -47,7 +47,7 @@ capability; file the gap.
 Every case is a typed fact in `run.json`: what it answers and what it refuses to combine with is
 `reference/recipes.md` "The evidence cases" — read it once alongside `reference/flags.md`.
 
-**Preconditions.** Dev stack up: `pnpm stack status`, `pnpm stack start` (server `:8788`, vite
+**Preconditions.** Dev stack up: `pnpm stack status`, `pnpm stack up` (server `:8788`, vite
 `:5173`). A hanging snap or an instant nav error usually means the stack is down. Navigation is client
 state, not a URL: the router accepts `/` and `/login`, plus a `/$section` deep-link alias that
 redirects to `/` before it renders, so the browser URL only ever settles at `/` or `/login`. "Go to X"

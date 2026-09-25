@@ -114,7 +114,7 @@ const RATE_LIMIT_AUTHED_DEFAULT = 600;
 const RATE_LIMIT_LOGIN_DEFAULT = 10;
 
 // The `.env` file the loader below reads, cwd-relative — exactly the path dotenv resolved
-// (`path.resolve(process.cwd(), ".env")`), so a prod launch (`pnpm stack up prod` / `start-fg prod`, both
+// (`path.resolve(process.cwd(), ".env")`), so a prod launch (`pnpm stack up prod` / `up-fg prod`, both
 // cwd = repo root via buildProdSpawnPlan) keeps finding it.
 const ENV_FILE = ".env";
 // A leading UTF-8 byte-order mark. parseEnv does NOT strip it (dotenv did) — see loadEnvFileWithOverride.
@@ -342,7 +342,7 @@ const envSchema = z
     // first-run persona ask. It stays a self-stamp otherwise (`/healthz`), and nothing else branches on it.
     E2E_HARNESS: z.enum(["on", "off"]).default("off"),
     // The DEV-STACK SEED stamp — the dev twin of `E2E_HARNESS` for automation-started stacks. `on` is set by
-    // `tooling/src/stack/stack.sh` (host export wins, so `DEV_SEED=off pnpm stack restart` rehearses a REAL first
+    // the stack tool's dev pins (host export wins, so `DEV_SEED=off pnpm stack restart` rehearses a REAL first
     // sign-in). It enables the default-persona seeder's auto-create arm: without it every dev DB regen would
     // greet the operator with the forced first-run persona dialog, which is exactly the constraint that kept
     // the forced ask from shipping. Default off ⇒ a real deployment ASKS (D107's zero-personas trigger holds).
@@ -630,7 +630,7 @@ const envSchema = z
     // flag. The ruling SURVIVES the launch-centralize consolidation (#309) — its INPUT changed: `pnpm start`
     // was removed, so BOTH supported prod launchers now route through `buildProdSpawnPlan`
     // (`tooling/src/stack/lib/spawn-plan.ts` — `env: {...inherited, NODE_ENV: "production", ...}`, in the spawn plan
-    // itself, not just the status log): `pnpm stack up prod` (detached) and `pnpm stack start-fg prod`
+    // itself, not just the status log): `pnpm stack up prod` (detached) and `pnpm stack up-fg prod`
     // (foreground). The discriminator bites on every real prod path even more cleanly than before; a second
     // flag would only be a source of disagreement. The one residual (a bare
     // hand-rolled `node entry/index.ts` that omits NODE_ENV, behind a loopback proxy, with default owner) is

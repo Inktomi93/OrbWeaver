@@ -4,7 +4,7 @@
 import { parseEnv } from "node:util";
 import { RESTART_EXIT_CODE, START_SUPERVISOR, SUPERVISOR_ENV_KEY } from "@orb/kit/supervisor";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import { FORWARDED_SIGNALS } from "@orb/tooling/_shared/proc";
+import { FORWARDED_SIGNALS } from "@orb/tooling/_shared/proc-signals";
 import type { ProdSpawnPlan, StartInvocation, StartSupervisorDeps } from "../../../../tooling/src/stack/index.ts";
 import { startLaunch, superviseStart } from "../../../../tooling/src/stack/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";

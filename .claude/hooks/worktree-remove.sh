@@ -38,7 +38,7 @@ branch=$(git -C "$dir" rev-parse --abbrev-ref HEAD 2>/dev/null || true)
 
 # TEAR DOWN THE STAGE THIS WORKTREE OWNS, BEFORE THE DIRECTORY GOES (#1848).
 #
-# A `snap --isolated` stage is a ~7-process stack (stack.sh, the node server, vite, the idle keeper) living
+# A `snap --isolated` stage is a ~7-process stack (the stack cli, the node server, vite, the idle keeper) living
 # inside <worktree>/.cache/snap-stage/, and the band table (<main>/.cache/snap-stage/bands.json) records the
 # owning CHECKOUT. This hook used to remove the tree without consulting it, so a lane torn down with a live
 # stage kept running with a DELETED cwd — holding a band, a port pair and real CPU — until the 60-minute

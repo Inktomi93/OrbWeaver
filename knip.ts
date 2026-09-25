@@ -63,8 +63,8 @@ const config = {
       // mkfifo is the POSIX coreutils binary the orchestrator-inject hook test uses to plant a FIFO transcript path;
       // it is an OS tool, never an npm dependency, so knip has no package to credit it to.
       ignoreBinaries: ["orb-nonexistent-binary-xyz-123", "orb-fake-probe-bin", "mkfifo"],
-      // pino-pretty is spawned as a BINARY by tooling/src/stack/dev.sh (the dev-log pretty-pipe), never imported —
-      // invisible to import analysis. It's a root devDependency because the dev script lives at the repo root.
+      // pino-pretty is a root devDependency the dev launcher's pretty log rides; its importer is the tooling
+      // workspace (tooling/src/dev/ops/dev.ts), which knip credits to that workspace, not to the root.
       // ts7 (npm:typescript@7) is resolved by PATH STRING in scripts/ts7.ts (node_modules/ts7/bin/tsc) —
       // invisible to import analysis.
       // @typescript/native (npm:typescript@7) is imported by stryker's typescript-checker itself when
@@ -80,23 +80,11 @@ const config = {
     // @orb/tooling: every tool's cli.ts + index.ts are entries; _shared modules are entries too
     // (research-zone scripts import them by subpath until their tools promote).
     tooling: {
-      // The four BASH-SPAWNED entries are invisible to the import graph: `stack` is a bash-fronted tool
-      // (Core-Tooling-Law.md §4.1) whose .sh entrypoints exec these by path, so nothing imports them.
-      // `stack/ops/start-entry.ts` needs NO row for the opposite reason: the root `start` script names it
-      // directly (`node tooling/src/stack/ops/start-entry.ts`), and knip reads package.json scripts — a row
-      // for it is a redundant-entry hint, which is an error here.
       // The GATE CORPUS is an entry glob for the same reason one level up: `verify`'s loader IS the registry
       // — it `globSync`s `gates/*.ts` and imports each by URL at runtime (Core-Tooling-Law.md §4.3), so every
       // descriptor is a plugin nothing statically imports. Without this row knip reads all 219 `export const
       // gate` as dead, and drops every helper they alone consume with them.
-      entry: [
-        "src/*/cli.ts",
-        "src/*/index.ts",
-        "src/_shared/*.ts",
-        "src/verify/gates/*.ts",
-        "src/stack/ops/prod-entry.ts",
-        "src/verify/ops/required-live-evidence-reporter.ts",
-      ],
+      entry: ["src/*/cli.ts", "src/*/index.ts", "src/_shared/*.ts", "src/verify/gates/*.ts", "src/verify/ops/required-live-evidence-reporter.ts"],
       project: ["src/**/*.ts"],
       // The heap arm loads chrome-devtools-mcp's browser-free parser through a version-pinned dynamic
       // subpath held in a constant. Knip cannot resolve that indirection, while the heap suite exercises

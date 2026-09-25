@@ -4,6 +4,7 @@
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import { runGit } from "@orb/tooling/_shared/git";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
 import { isTypeWorldSource, predictedProgram, requiresExclusiveRoot } from "@orb/tooling/_shared/project-worlds";
 import type { CompilerProgram, PolicyRepositoryInventory, PolicySemanticPath } from "../contract/policy-scope.ts";
@@ -27,7 +28,7 @@ function sortedUnique(values: readonly string[]): readonly string[] {
 }
 
 function gitOutput(root: string, args: readonly string[]): string {
-  const result = runNicedSync("git", [...GIT_READ_PREFIX, ...args], { cwd: root });
+  const result = runGit(root, [...GIT_READ_PREFIX, ...args]);
   if (result.status !== 0) {
     throw new Error(`typecheck planning git ${args[0] ?? "read"} failed (exit ${String(result.status)}): ${result.stderr.trim()}`);
   }
@@ -37,7 +38,7 @@ function gitOutput(root: string, args: readonly string[]): string {
 /** Content identity for the native membership snapshot. Paths alone are insufficient: an import edit can
  * change closure membership without changing Git status. */
 function snapshotKey(root: string, inventory: PolicyRepositoryInventory): string {
-  const headResult = runNicedSync("git", [...GIT_READ_PREFIX, "rev-parse", "HEAD"], { cwd: root });
+  const headResult = runGit(root, [...GIT_READ_PREFIX, "rev-parse", "HEAD"]);
   const head = headResult.status === 0 ? headResult.stdout.trim() : "no-head";
   const dirty =
     headResult.status === 0

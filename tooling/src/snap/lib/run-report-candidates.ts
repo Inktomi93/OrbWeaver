@@ -3,7 +3,7 @@ import { readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { reportsPath } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { runNicedSync } from "../../_shared/proc.ts";
+import { runGit } from "../../_shared/git.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --report <index>");
 
@@ -24,7 +24,7 @@ function isMissingPath(error: unknown): boolean {
 }
 
 export function snapWorktreeRoots(root: string): readonly string[] {
-  const result = runNicedSync("git", ["worktree", "list", "--porcelain"], { cwd: root, maxBuffer: WORKTREE_OUTPUT_MAX_BYTES });
+  const result = runGit(root, ["worktree", "list", "--porcelain"], { maxBuffer: WORKTREE_OUTPUT_MAX_BYTES });
   if (result.status !== 0) {
     return [root];
   }

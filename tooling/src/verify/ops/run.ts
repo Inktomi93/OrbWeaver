@@ -40,7 +40,7 @@ import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { budget } from "@orb/tooling/_shared/load-budget";
 import { spawnNicedTranscript } from "@orb/tooling/_shared/proc";
-import { inheritedRunMarker, mintRunMarker, runLeaseEnv, runMarkerEnv } from "@orb/tooling/_shared/run-marker";
+import { inheritedRunMarker, mintRunMarker, runLeaseEnv, runMarkerEnv, runMarkerTranscriptTeardown } from "@orb/tooling/_shared/run-marker";
 import type { Selection } from "../contract/selection.ts";
 import type { StageDef, StageMode, StageResult, Tier, TranscriptAudit, VerifyReport } from "../contract/stage.ts";
 import { NOTICE_MARKER, VERIFY_INSTRUMENT, VERIFY_REPORT_NAME } from "../contract/stage.ts";
@@ -274,7 +274,7 @@ async function runOneStage(ctx: RunContext, stage: StageDef, selection: Selectio
           cwd: root,
           env,
           timeoutMs: stageTimeoutMs(stage),
-          runMarker: ctx.runLease,
+          teardown: runMarkerTranscriptTeardown(ctx.runLease),
           ...(verbose ? { onChunk: mirrorChunk } : {}),
         });
   const durationMs = Date.now() - start;

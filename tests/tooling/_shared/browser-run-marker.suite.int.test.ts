@@ -12,11 +12,12 @@
 // session must then take it away again, which is the control that says the arm can tell the two apart.
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import { closeProbeSession, launchProbeSession } from "@orb/tooling/_shared/browser";
+import { listProcesses, processInfo } from "@orb/tooling/_shared/platform";
 import type { RunMarkerDeps } from "@orb/tooling/_shared/run-marker";
 import {
   beginRunLease,
@@ -49,15 +50,17 @@ afterAll(() => {
   rmSync(LEAK_TEMP, { recursive: true, force: true, maxRetries: LEAK_TEMP_REMOVE_RETRIES, retryDelay: LEAK_TEMP_RETRY_MS });
 });
 
-/** A pid's argv, or "" when it left between the scan and the read. */
+/** A pid's argv, or "" when it left between the scan and the read: a census over a moving population,
+ *  not an operation on one process. */
 function cmdlineOf(pid: number): string {
-  // A pid that exits mid-read answers "" and is then simply not counted as a browser: this is a census over
-  // a moving population, not an operation on one process.
-  try {
-    return readFileSync(`/proc/${String(pid)}/cmdline`, "utf8").replaceAll("\0", " ");
-  } catch {
-    return "";
-  }
+  const info = processInfo(pid);
+  return info === null ? "" : info.cmdline;
+}
+
+/** The identities one live pid carries, read off the platform's process table. */
+function identitiesOfPid(pid: number): readonly string[] {
+  const entry = listProcesses().find((candidate) => candidate.pid === pid);
+  return entry === undefined ? [] : processRunIdentities(entry);
 }
 
 /** THIS FILE'S OWN LEASE (#2504). A census keyed on the RUN MARKER counts EVERY concurrently-running
@@ -90,7 +93,7 @@ test("a browser this process launches carries BOTH identities, so either sweep c
     expect(fresh, "the census named no NEW browser, so nothing below is about the launch under test").toBeDefined();
     // #1848's half, unchanged by the narrowing: the OUTER run's kill path still reaches this browser. If
     // this ever reads the lease alone, a killed run strands the browser again and the ruling is reopened.
-    expect(processRunIdentities(fresh as number), "a browser must carry the run marker AND this launcher's lease").toEqual([currentRunMarker(), FILE_LEASE]);
+    expect(identitiesOfPid(fresh as number), "a browser must carry the run marker AND this launcher's lease").toEqual([currentRunMarker(), FILE_LEASE]);
   } finally {
     await closeProbeSession(session);
   }
@@ -163,7 +166,7 @@ async function retireOwner(owner: ReturnType<typeof spawn>): Promise<void> {
 function scopedDeps(pids: readonly number[]): RunMarkerDeps {
   return {
     listPids: () => pids,
-    identitiesOf: (pid: number) => processRunIdentities(pid),
+    identitiesOf: identitiesOfPid,
     parentOf: () => null,
     selfPid: -1,
     alive: aliveNow,
@@ -173,7 +176,7 @@ function scopedDeps(pids: readonly number[]): RunMarkerDeps {
 test("an UNMARKED reparented-leak chromium is invisible to the abandoned sweep — the fixture's own hole (#1926)", async () => {
   const pid = await spawnLeakChromium("unmarked", null);
   try {
-    expect(processRunIdentities(pid), "an unmarked chromium must never appear to carry an identity").toEqual([]);
+    expect(identitiesOfPid(pid), "an unmarked chromium must never appear to carry an identity").toEqual([]);
     // Even with its (nonexistent) "owner" already gone, a sweep that only ever asks about a MARKER
     // finds nothing to reap here — proving this shape has no path back to life. This is the defect: the
     // fixture leaves such a process behind with NO recovery mechanism if its own cleanup fails.
@@ -198,8 +201,8 @@ test("a MARKED reparented-leak chromium is reaped once its owner is gone, and le
   const abandonedPid = await spawnLeakChromium("marked-abandoned", retiringOwnerMarker);
   const liveOwnedPid = await spawnLeakChromium("marked-live", liveOwnerMarker);
   try {
-    expect(processRunIdentities(abandonedPid), "the fixed fixture must stamp the marker, or it is the same hole").toEqual([retiringOwnerMarker]);
-    expect(processRunIdentities(liveOwnedPid)).toEqual([liveOwnerMarker]);
+    expect(identitiesOfPid(abandonedPid), "the fixed fixture must stamp the marker, or it is the same hole").toEqual([retiringOwnerMarker]);
+    expect(identitiesOfPid(liveOwnedPid)).toEqual([liveOwnerMarker]);
     await retireOwner(owner);
 
     const deps = scopedDeps([abandonedPid, liveOwnedPid]);
@@ -253,8 +256,8 @@ test("a chromium whose LEASE owner is gone is reaped even while its outer run li
   const held = await spawnLeasedChromium("lease-held", liveOuter, liveLease);
   try {
     // Both switches arrive through the ARGV channel, because a chromium erases its own environ.
-    expect(processRunIdentities(abandoned), "a leased chromium must answer with BOTH identities").toEqual([liveOuter, ownedLease]);
-    expect(processRunIdentities(held)).toEqual([liveOuter, liveLease]);
+    expect(identitiesOfPid(abandoned), "a leased chromium must answer with BOTH identities").toEqual([liveOuter, ownedLease]);
+    expect(identitiesOfPid(held)).toEqual([liveOuter, liveLease]);
 
     // NOW the lease is abandoned, and only now.
     await retireOwner(owner);

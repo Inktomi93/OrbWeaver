@@ -4,7 +4,7 @@
 // reaches the child itself, so the handler only records the stop.
 import { isRestartExit } from "@orb/kit/supervisor";
 import { EXIT } from "../../_shared/exit-contract.ts";
-import { childExitCode, forwardSignalsTo } from "../../_shared/proc.ts";
+import { childExitCode, forwardSignalsTo } from "../../_shared/proc-signals.ts";
 import type { StartSupervisorDeps, SupervisedChild } from "../contract/types.ts";
 
 /** Run the prepare pass once, then the server until it exits with anything but the restart code. A stop signal

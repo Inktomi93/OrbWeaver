@@ -16,13 +16,14 @@ import process from "node:process";
 import { print } from "../../_shared/artifacts.ts";
 import { readConcurrencyProfile } from "../../_shared/concurrency-profile.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { listeningPids } from "../../_shared/platform.ts";
 import { STAGE_BANDS, stageBandPorts } from "../../_shared/ports.ts";
 import type { StageAllocation, StageBandView, StageHealth, StageLimits, StageRow } from "../contract/stage.ts";
 import { allocateStageBand, resolveStageLimits, stageHealthVerdict } from "../lib/stage-bands.ts";
 import { DIRTY_STAGE_KEY } from "../lib/stage-plan.ts";
 import { liveSessionNames } from "./session-registry.ts";
 import { readBands, withBandsLock, writeRow } from "./stage-marker.ts";
-import { bandIsBound, listeningPids, pidIsStageRooted, stageHealthzOk, stageServedState, stageViteOk } from "./stage-probe.ts";
+import { bandIsBound, pidIsStageRooted, stageHealthzOk, stageServedState, stageViteOk } from "./stage-probe.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 

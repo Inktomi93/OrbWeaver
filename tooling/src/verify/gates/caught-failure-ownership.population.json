@@ -2,15 +2,15 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 621,
+    "sites": 624,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 621,
+      "deliberate-absorb": 624,
       "unproven": 0
     },
     "byGrammar": {
-      "default": 153,
-      "empty": 317,
+      "default": 154,
+      "empty": 319,
       "promise": 151
     }
   },
@@ -1906,6 +1906,16 @@
       "reason": "the EEXIST throw IS \"this slot is taken\" — the catch arm reads the holder and either moves to the next slot (live) or STEALS the slot with a printed note (dead). Every path out of it is owned and visible. Ends if this stops re-deciding and starts swallowing."
     },
     {
+      "siteId": "tooling/src/_shared/http-probe.ts::httpJsonSync::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a body that is not JSON is \"no answer\" to a liveness probe, which every caller reads as \"not up\", never as a verdict about the thing probed. Ends if a caller distinguishes the failure kinds."
+    },
+    {
+      "siteId": "tooling/src/_shared/http-probe.ts::httpOk::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a refused connection, a timeout and a non-2xx are all \"not answering\" to a liveness probe, which every caller reads as \"not up yet\", never as a verdict about the thing probed. Ends if a caller distinguishes the failure kinds."
+    },
+    {
       "siteId": "tooling/src/_shared/load-budget-cgroup.ts::readCgroupFile::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "ABSENCE IS THE ANSWER — a cgroup path that does not exist (v1, or a host without the controller) or is unreadable under this uid means exactly \"no ceiling is declared here\", the same verdict `cpu.max` spells `max`. Ends if this reader ever needs to tell \"unbounded\" from \"could not ask\"; the absence then becomes a value and this catch becomes a branch."
@@ -1919,6 +1929,26 @@
       "siteId": "tooling/src/_shared/panel-flags.ts::readPresetFile::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "panel-preset JSON parse returns null so the caller emits its option-specific refusal; no nav action is queued. Ends if parse failure stops being a refusal."
+    },
+    {
+      "siteId": "tooling/src/_shared/platform.ts::readDirOrEmpty::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a `/proc` that cannot be listed yields no processes, which a sweep reads as \"nothing observed\" and signals nothing. Ends if an empty list ever reads as a verdict."
+    },
+    {
+      "siteId": "tooling/src/_shared/platform.ts::readFileOrNull::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a `/proc` entry that vanished or is hidden answers null, and every reader here treats null as \"not observed\", never as a verdict. Ends if null ever authorizes a signal."
+    },
+    {
+      "siteId": "tooling/src/_shared/platform.ts::readLinkOrNull::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "an unreadable `/proc/<pid>/cwd` answers null, which every caller reads as \"unknown\", never as \"not ours\". Ends if null ever authorizes a signal."
+    },
+    {
+      "siteId": "tooling/src/_shared/platform.ts::win32Processes::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "PowerShell output that is not the JSON asked for is \"nothing observed\" to every caller, and nothing observed signals nothing. Ends if an empty list ever reads as a verdict."
     },
     {
       "siteId": "tooling/src/_shared/proc.ts::killPidGroup::catch::1",
@@ -1954,16 +1984,6 @@
       "siteId": "tooling/src/_shared/run-marker.ts::aliveBySignal::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "`kill(pid, 0)` ASKS a question and throws to answer \"no\" — the throw IS the ESRCH answer, exactly as _shared/run-retention.ts's pidAlive states it. Ends if this needs to tell EPERM from ESRCH."
-    },
-    {
-      "siteId": "tooling/src/_shared/run-marker.ts::parentFromProc::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "an unreadable /proc/<pid>/status ends the ancestor walk, which can only make the exclusion set SMALLER-BUT-SAFE — the walk starts at THIS process, whose own status is always readable. Ends if the walk is ever used to select targets rather than exclude them."
-    },
-    {
-      "siteId": "tooling/src/_shared/run-marker.ts::readProcFile::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "a pid that exits mid-scan (or another user's) answers null, which every caller reads as \"not provably mine\" and therefore DO NOT SIGNAL. Ends if null ever authorizes a signal."
     },
     {
       "siteId": "tooling/src/_shared/run-marker.ts::signalPid::error::1",
@@ -2536,11 +2556,6 @@
       "reason": "the timeout callback has no awaiter; stopProtocol memoizes the original promise and stop() awaits it, then returns the rejection as typed cleanup evidence. Ends if stop() stops awaiting that memoized promise."
     },
     {
-      "siteId": "tooling/src/snap/ops/fixture.ts::curlJson::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "fail-closed floor — a parse failure returns null, and fixtureStatus() below turns any null into `{ up: false, reason: \"… unreachable\" }`, never a silent pass. Ends if that fail-closed mapping is removed."
-    },
-    {
       "siteId": "tooling/src/snap/ops/fixture.ts::resolveFixtureTarget::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "documented fail-safe floor — keeps the default port, and the status probe below refuses loudly on the same bad URL with a readable reason (see the doc comment above). Ends if that downstream refusal is removed."
@@ -2756,29 +2771,14 @@
       "reason": "captured into shotError on the returned tick, which report.ts prints as FAILED and run.ts counts into the verdict. Ends if that count/print stops being read."
     },
     {
-      "siteId": "tooling/src/stack/lib/dev-process-identity.ts::parseDevStackIdentity::catch::1",
+      "siteId": "tooling/src/stack/lib/leader-record.ts::parseLeaderRecord::catch::1",
       "verdict": "deliberate-absorb",
-      "reason": "malformed identity JSON returns null and recordedDevStackVerdict refuses the existing file. Ends if null can authorize a signal."
+      "reason": "malformed record JSON is a corrupt record, which `leaderVerdict` reports and which never authorizes a signal. Ends if null can authorize a signal."
     },
     {
-      "siteId": "tooling/src/stack/lib/dev-process-identity.ts::readDevStackIdentity::catch::1",
+      "siteId": "tooling/src/stack/lib/leader-record.ts::removeLeaderRecord::error::1",
       "verdict": "deliberate-absorb",
-      "reason": "an unreadable identity returns null and the existing-path check produces a manual-cleanup refusal. Ends if null can authorize a signal."
-    },
-    {
-      "siteId": "tooling/src/stack/lib/dev-process-identity.ts::readProcessLaunchId::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "an unreadable /proc/<pid>/environ returns null, which adoptDevStackGroup treats as UNMARKED — the fail-closed direction, so it can never authorize a signal. Ends if null ever contributes to an adoptable verdict."
-    },
-    {
-      "siteId": "tooling/src/stack/lib/dev-process-identity.ts::signalAdoptedDevStackGroup::error::1",
-      "verdict": "deliberate-absorb",
-      "reason": "ESRCH means the adopted group exited between the census and the signal — the desired end state; every other signal failure rethrows. Ends if callers require proof the signal landed."
-    },
-    {
-      "siteId": "tooling/src/stack/lib/proc-observe.ts::readObservedEngineProcess::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "an unreadable /proc process entry returns null, and the dev-stack identity verifier treats null as absent/refused — NEVER \"owned\", so an unreadable process can never authorize the negative-PGID kill; fail-closed. Ends if null ever yields an \"owned\" verdict."
+      "reason": "ENOENT is the idempotent end state of a removal; every other unlink failure is rethrown. Ends if removal gains a separate operator result."
     },
     {
       "siteId": "tooling/src/stack/lib/prod-record.ts::parseProdRecord::catch::1",
@@ -2801,9 +2801,24 @@
       "reason": "ENOENT is idempotent release; every other unlink failure is rethrown. Ends if release gains an ownership-transfer acknowledgement."
     },
     {
-      "siteId": "tooling/src/stack/ops/dev-identity-entry.ts::clearIdentity::error::1",
+      "siteId": "tooling/src/stack/ops/dev-down.ts::signalPid::error::1",
       "verdict": "deliberate-absorb",
-      "reason": "ENOENT means the already-absent identity file needs no deletion; every other unlink failure surfaces and prevents a cleared verdict. Ends if another absence code is supported."
+      "reason": "ESRCH means the holder exited between the table read and the signal, the desired end state; every other failure is rethrown. Ends if callers require proof the signal landed."
+    },
+    {
+      "siteId": "tooling/src/stack/ops/dev-status.ts::effectiveAuthMode::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a server that does not answer the config probe reports \"?\" in one status line and decides nothing; the healthz line beside it already says the server is unreachable. Ends if this value drives a verdict."
+    },
+    {
+      "siteId": "tooling/src/stack/ops/dev-status.ts::tail::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "an unreadable optional log renders the explicit no-log sentinel to the operator. Ends if log content becomes a control verdict."
+    },
+    {
+      "siteId": "tooling/src/stack/ops/dev-up.ts::tailFile::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "an unreadable optional log renders the explicit no-log sentinel to the operator. Ends if log content becomes a control verdict."
     },
     {
       "siteId": "tooling/src/stack/ops/prod-down.ts::doDown::error::1",

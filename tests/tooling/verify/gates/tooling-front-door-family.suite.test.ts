@@ -49,8 +49,8 @@ const ARGV_FAMILY: readonly GatePolicy[] = [argvFrontDoor, argvHealth];
 const ALL: readonly GatePolicy[] = [...IMPORT_FAMILY, ...ARGV_FAMILY];
 const ANCHOR = "tooling/src/_shared/exit-contract.ts";
 const ANCHOR_SOURCE = "export const EXIT = { clean: 0 } as const;\n";
-const ENGINES_GRANT_ID = "tooling-argv-front-door:stack-prod-entry";
-const ENGINES = "tooling/src/stack/ops/prod-entry.ts";
+const ENGINES_GRANT_ID = "tooling-argv-front-door:verify-config-snapshot-entry";
+const ENGINES = "tooling/src/verify/ops/config-snapshot-entry.ts";
 const ENGINES_READ = 'import process from "node:process";\nexport const g = process.argv.includes("--force");\n';
 
 function grantOf(id: string): ReviewedGateGrant {
@@ -103,7 +103,7 @@ test("an ordinary waiver binds to the exact policy and the QUOTED-SPECIFIER posi
 });
 
 // ─── §4.3 GRANT IDENTITY — a real central row ──────────────────────────────────────────────────────────
-test("the stack/prod-entry argv grant is consumed exactly once by the real entry", () => {
+test("the config-snapshot-entry argv grant is consumed exactly once by the real entry", () => {
   const granted = passOf([argvFrontDoor], { [ENGINES]: ENGINES_READ }, { grants: [grantOf(ENGINES_GRANT_ID)] });
   expect(granted.toolErrors).toEqual([]);
   expect(granted.authority.effectiveFindings).toEqual([]);
@@ -123,18 +123,17 @@ test("an argv grant whose entry stopped reading argv is STALE after a complete r
   expect(stoppedReading.authority.effectiveFindings).toEqual([]);
   expect(stoppedReading.authority.authorityAlarms).toMatchObject([{ kind: "stale-reviewed-grant", grantId: ENGINES_GRANT_ID }]);
 
-  const gone = passOf([argvFrontDoor], { "tooling/src/stack/ops/other.ts": "export const other = 1;\n" }, { grants: [grantOf(ENGINES_GRANT_ID)] });
+  const gone = passOf([argvFrontDoor], { "tooling/src/verify/ops/other.ts": "export const other = 1;\n" }, { grants: [grantOf(ENGINES_GRANT_ID)] });
   expect(gone.authority.effectiveFindings).toEqual([]);
   expect(gone.authority.authorityAlarms).toMatchObject([{ kind: "stale-reviewed-grant", grantId: ENGINES_GRANT_ID }]);
 });
 
 test("every argv grant row in the central table names a subject that exists on the tree and is not a cli.ts", ({ repoRoot }) => {
   const rows = REVIEWED_GRANTS.filter((grant) => grant.policyId === argvFrontDoor.id);
-  // The literal is the pin: `_shared/entrypoint.ts`, the two node halves stack.sh execs
-  // (`dev-identity-entry`, `prod-entry`), `start-entry` (the root `start` script runs it with node, no
-  // shell in front) and `verify/ops/config-snapshot-entry.ts`. A new reviewed argv reader bumps it here
-  // in the same change as its grant row.
-  expect(rows).toHaveLength(5);
+  // The literal is the pin: `_shared/entrypoint.ts`, `_shared/niced-exec.ts` and
+  // `verify/ops/config-snapshot-entry.ts`. A new reviewed argv reader bumps it here in the same change
+  // as its grant row.
+  expect(rows).toHaveLength(3);
   for (const row of rows) {
     expect(existsSync(join(repoRoot, row.subject)), row.id).toBe(true);
     expect(row.subject.endsWith("/cli.ts"), row.id).toBe(false);

@@ -20,7 +20,7 @@ import { DEV_PORTS } from "@orb/tooling/_shared/ports";
 import type { ModeProject } from "./modes.ts";
 
 /** The canonical dev-stack ports, read from the ONE port registry (`tooling/src/_shared/ports.ts`; the
- *  same numbers `stack.sh` defaults to). A harness target holding either is refused — that stack is the
+ *  same numbers the stack tool defaults to). A harness target holding either is refused — that stack is the
  *  operator's, and its DB is their real data. */
 export const DEV_STACK_PORTS: readonly string[] = [String(DEV_PORTS.server), String(DEV_PORTS.vite)];
 

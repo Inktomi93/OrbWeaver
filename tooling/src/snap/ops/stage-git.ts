@@ -4,13 +4,14 @@
 // probes) already follow: ops/stage.ts keeps the ORCHESTRATION, its I/O primitives sit beside it by nature.
 import { existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
+import process from "node:process";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { execNicedSync, runNicedSync } from "../../_shared/proc.ts";
+import { execGit, runGit } from "../../_shared/git.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 export function repoRoot(): string {
-  return execNicedSync("git", ["rev-parse", "--show-toplevel"]).trim();
+  return execGit(process.cwd(), ["rev-parse", "--show-toplevel"]).trim();
 }
 
 /** Resolve a ref (branch/tag/sha/HEAD) to a full COMMIT sha, or null when git cannot name one from this
@@ -20,7 +21,7 @@ export function repoRoot(): string {
  *  The `^{commit}` peel is deliberate: a stage is a worktree AT A COMMIT, so a ref that names some other
  *  object (a tree, a blob) is no more usable than one that names nothing. */
 export function tryResolveRef(ref: string, root: string = repoRoot()): string | null {
-  const res = runNicedSync("git", ["rev-parse", "--verify", "--quiet", `${ref}^{commit}`], { cwd: root });
+  const res = runGit(root, ["rev-parse", "--verify", "--quiet", `${ref}^{commit}`]);
   const sha = res.stdout.trim();
   return res.status === 0 && sha !== "" ? sha : null;
 }
@@ -42,12 +43,12 @@ export function worktreeExists(dir: string): boolean {
 export function addWorktree(root: string, dir: string, sha: string): void {
   // A crashed run can leave a bare dir; `git worktree add` needs the path empty/absent.
   rmSync(dir, { recursive: true, force: true });
-  runNicedSync("git", ["worktree", "add", "--detach", dir, sha], { cwd: root, stdio: "inherit" });
+  runGit(root, ["worktree", "add", "--detach", dir, sha], { stdio: "inherit" });
 }
 
 export function removeWorktree(root: string, dir: string): void {
   // --force: the worktree carries gitignored node_modules/db — git refuses a "dirty" remove otherwise.
-  runNicedSync("git", ["worktree", "remove", "--force", dir], { cwd: root, stdio: "inherit" });
-  runNicedSync("git", ["worktree", "prune"], { cwd: root, stdio: "ignore" });
+  runGit(root, ["worktree", "remove", "--force", dir], { stdio: "inherit" });
+  runGit(root, ["worktree", "prune"], { stdio: "ignore" });
   rmSync(dir, { recursive: true, force: true });
 }

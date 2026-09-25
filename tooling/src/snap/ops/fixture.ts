@@ -1,53 +1,40 @@
 // ── fixture: the multi-user FIXTURE stack door for `snap --contexts`/`--as` ──────────────────────────
 //
 // WHY THIS EXISTS: `--contexts N` needs ≥2 DIFFERENT authenticated dev users to prove multi-human chat
-// states (host vs member views). The SHARED dev stack (:5173/:8788, tooling/src/stack/stack.sh) always boots
+// states (host vs member views). The SHARED dev stack (:5173/:8788, `pnpm stack up`) always boots
 // AUTH_MODE=single-user — one user, no login form, nothing to authenticate AS. The only door with a real
-// local-login form + a second user is `tooling/src/stack/multi-user-fixture.sh`. This module never
-// boots/stops that stack itself (unlike snap-stage.ts's `--isolated`) — it only DETECTS whether the fixture
+// local-login form + a second user is the fixture (`pnpm fixture up`, the stack tool's env recipe). This
+// module never boots/stops that stack itself (unlike snap-stage.ts's `--isolated`) — it only DETECTS whether the fixture
 // is up and healthy, and resolves its known credentials; bringing it up is `pnpm fixture up`, a
 // human/orchestrator call, not something a screenshot tool silently does.
 //
-// PORTS — AN OFFSET PAIR, SO THE FIXTURE IS A SIDECAR (fixed 2026-08-03): the fixture used to reuse
-// stack.sh's own 8788/5173, which made `--contexts` unusable whenever the owner's dev stack was up (they
-// were mutually exclusive tenants of one port pair). It now boots on 8790/5175 with its own DB, assets and
-// stack pidfile, so BOTH stacks run at once — the same isolation recipe every e2e mode uses
-// (tests/e2e/support/modes.ts). The pair itself is READ from `_shared/ports.ts` (`FIXTURE_PORTS`), which is
-// where multi-user-fixture.sh's defaults are mirrored — this module no longer respells them, so the only
-// hand-lockstep left here is the credentials below;
+// PORTS — AN OFFSET PAIR, SO THE FIXTURE IS A SIDECAR: the fixture boots on its own pair with its own DB,
+// assets and stack record, so BOTH stacks run at once — the same isolation recipe every e2e mode uses
+// (tests/e2e/support/modes.ts). The pair is READ from `_shared/ports.ts` (`FIXTURE_PORTS`) and the
+// credentials from the stack tool's own recipe, so nothing is respelled here;
 // `resolveFixtureTarget` is the ONE seam every port/URL decision flows through, so an override
 // (`--fixture-server`/`--fixture-base`, or SNAP_FIXTURE_SERVER_URL/SNAP_FIXTURE_BASE_URL) reaches the
 // health probe AND the browser's base URL together — never one without the other.
 //
 // AUTH DOOR: the same one a browser uses — `POST /api/auth/login` (handle+password form → the session
-// cookie), never a bypass. Credentials mirror multi-user-fixture.sh's own defaults
-// (its header docstring): owner/owner-dev-pass, member/member-dev-pass. A handle outside this map (or a
-// `--contexts N` bigger than the fixture actually seeds) is a loud refusal, never a guess.
+// cookie), never a bypass. A handle outside the fixture's roster (or a `--contexts N` bigger than the
+// fixture actually seeds) is a loud refusal, never a guess.
 
 import process from "node:process";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { httpJsonSync, httpOkSync } from "../../_shared/http-probe.ts";
 import { FIXTURE_PORTS } from "../../_shared/ports.ts";
-import { runNicedSync } from "../../_shared/proc.ts";
 import { SESSION_COOKIE_MINTED } from "../../_shared/session-cookie.ts";
+import { FIXTURE_CREDENTIALS } from "../../stack/index.ts";
 import type { AuthConfig, FixtureStatus, FixtureTarget, FixtureTargetOverride, PortOwnerAuthProbe } from "../contract/fixture.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
-// The fixture's OFFSET pair comes from the ONE port registry (_shared/ports.ts `FIXTURE_PORTS`, which
-// mirrors multi-user-fixture.sh's FIXTURE_PORT/FIXTURE_VITE_PORT defaults) — NOT the dev stack's pair, so
-// both run side by side. It used to be two literals respelled here (#1271). `localhost` for the vite
-// origin, 127.0.0.1 for the server: vite v8 binds [::1] only (see stack.sh's vite_ok()).
+// The fixture's OFFSET pair comes from the ONE port registry (_shared/ports.ts `FIXTURE_PORTS`) — NOT the
+// dev stack's pair, so both run side by side. `localhost` for the vite origin, 127.0.0.1 for the server:
+// vite v8 binds [::1] only.
 export const FIXTURE_SERVER_URL_DEFAULT = `http://127.0.0.1:${FIXTURE_PORTS.server}`;
 export const FIXTURE_BASE_URL_DEFAULT = `http://localhost:${FIXTURE_PORTS.vite}`;
-
-// The credentials multi-user-fixture.sh mints (its own header docstring is the source of truth — kept in
-// lockstep by hand since the fixture is a shell script, not an importable module). Order is the
-// `--contexts N` default assignment order (context 0 = owner, context 1 = member); a 3rd/4th dev user
-// would need the fixture script extended first (refused below, not fabricated).
-export const FIXTURE_CREDENTIALS: readonly { readonly handle: string; readonly password: string }[] = [
-  { handle: "owner", password: "owner-dev-pass" },
-  { handle: "member", password: "member-dev-pass" },
-];
 
 const FIXTURE_UP_REMEDY = "run `pnpm fixture up`";
 
@@ -59,7 +46,7 @@ function stripSlash(url: string): string {
 
 /** Resolve the fixture's two origins: explicit override \> env (SNAP_FIXTURE_SERVER_URL /
  *  SNAP_FIXTURE_BASE_URL) \> the offset-pair defaults. Pure apart from the env read (injectable for tests).
- *  An unparseable server URL falls back to the default port for the `/proc` check rather than throwing —
+ *  An unparseable server URL falls back to the default port for the refusal lines rather than throwing —
  *  the health probe below will refuse loudly on the same URL anyway, with a reason a human can act on. */
 export function resolveFixtureTarget(
   override: FixtureTargetOverride = {},
@@ -77,23 +64,6 @@ export function resolveFixtureTarget(
     /* keep the default port — the status probe refuses on the bad URL with a readable reason */
   }
   return { serverUrl, baseUrl, serverPort };
-}
-
-function curlOk(url: string): boolean {
-  return runNicedSync("curl", ["-sf", "-m", "2", url], { stdio: "ignore" }).status === 0;
-}
-
-function curlJson(url: string): unknown | null {
-  const res = runNicedSync("curl", ["-sf", "-m", "2", url]);
-  if (res.status !== 0) {
-    return null;
-  }
-  // @orb-waive caught-failure-ownership(catch): fail-closed floor — a parse failure returns null, and fixtureStatus() below turns any null into `{ up: false, reason: "… unreachable" }`, never a silent pass. Ends if that fail-closed mapping is removed.
-  try {
-    return JSON.parse(res.stdout);
-  } catch {
-    return null;
-  }
 }
 
 function authConfig(value: unknown): AuthConfig | null {
@@ -119,51 +89,38 @@ function authConfig(value: unknown): AuthConfig | null {
   };
 }
 
-/** Env-pin mismatch check ported from stack.sh's `env_pin_report` — reads the LIVE process's actual
- *  AUTH_MODE off /proc, since a `.env`-loaded or since-restarted value can drift from what a caller thinks
- *  is running.
+/** The port-owner proof: the process answering on the port names its OWN auth mode in `/api/auth/config`
+ *  (`mode` is the server's live `AUTH_MODE`, not a record about it), so a `.env`-loaded or since-restarted
+ *  value cannot drift from what this reads, and an override (`--fixture-server`) is proven the same way as
+ *  the default pair. A config without a mode is "could not ask", never "answered yes".
  *
  *  #1507: this used to return `boolean | null` and its own header said null meant "can't prove it's the
  *  fixture, same as a mismatch" — but `fixtureStatus` only refused on `false`, so every unprovable case
- *  (no `ss` on PATH, a port owner belonging to another user, no `/proc`, a non-Linux host) fell through to
- *  `{ up: true }`. The comment was the contract and the code was the defect; the union below makes the
- *  third outcome unignorable at the call site. */
-function livePortOwnerAuthMode(serverPort: number): PortOwnerAuthProbe {
-  const pid = runNicedSync("bash", ["-c", `ss -tlnp 2>/dev/null | grep ':${serverPort} ' | grep -oP 'pid=\\K[0-9]+' | head -1`]).stdout.trim();
-  if (pid === "") {
-    return {
-      kind: "unreadable",
-      reason: `no process could be identified as the owner of :${String(serverPort)} (ss printed no pid — no ss on PATH, or the port belongs to another user)`,
-    };
+ *  fell through to `{ up: true }`. The union makes the third outcome unignorable at the call site. */
+export function portOwnerFromConfig(config: AuthConfig | null, serverUrl: string): PortOwnerAuthProbe {
+  if (config?.mode === undefined) {
+    return { kind: "unreadable", reason: `${serverUrl}/api/auth/config names no auth mode` };
   }
-  const res = runNicedSync("bash", ["-c", `tr '\\0' '\\n' </proc/${pid}/environ 2>/dev/null | grep '^AUTH_MODE=' | cut -d= -f2-`]);
-  if (res.status !== 0) {
-    return { kind: "unreadable", reason: `/proc/${pid}/environ (the owner of :${String(serverPort)}) could not be read` };
-  }
-  const mode = res.stdout.trim();
-  if (mode === "") {
-    return { kind: "unreadable", reason: `pid ${pid} owns :${String(serverPort)} but carries no AUTH_MODE in its spawn environ` };
-  }
-  return mode === "local" ? { kind: "local" } : { kind: "not-local", mode };
+  return config.mode === "local" ? { kind: "local" } : { kind: "not-local", mode: config.mode };
 }
 
 /** Is the multi-user FIXTURE (not a single-user stack) live at `target`? Checks three things a caller could
  *  otherwise be fooled by: the origin answers at all, `/api/auth/config` reports `localEnabled`+
  *  `multiHumanCapable` (a single-user stack's config is `single-user`/`false`/`false` — the tell if an
- *  override aimed this at the dev stack), AND the live process's own `AUTH_MODE` env (a stale/mismatched
- *  pidfile can serve `local`-shaped config while the actual bound process is still `single-user` — the exact
- *  drift `stack.sh status` surfaces). */
+ *  override aimed this at the dev stack), AND the live process's own `mode` (the same answer, read as the
+ *  owner's word rather than a capability flag — the drift `pnpm stack status` surfaces). */
 export function fixtureStatus(target: FixtureTarget): FixtureStatus {
+  const config = authConfig(httpJsonSync(`${target.serverUrl}/api/auth/config`));
   return fixtureVerdict(target, {
-    healthz: curlOk(`${target.serverUrl}/healthz`),
-    config: authConfig(curlJson(`${target.serverUrl}/api/auth/config`)),
-    owner: (): PortOwnerAuthProbe => livePortOwnerAuthMode(target.serverPort),
+    healthz: httpOkSync(`${target.serverUrl}/healthz`),
+    config,
+    owner: (): PortOwnerAuthProbe => portOwnerFromConfig(config, target.serverUrl),
   });
 }
 
 /** The DECISION half, split out of the probes so every arm — including the one that used to fall through —
- *  is provable without a running fixture (#1507). `owner` is a thunk: the /proc read only happens once the
- *  cheap HTTP evidence has already agreed, exactly as before. */
+ *  is provable without a running fixture (#1507). `owner` is a thunk, asked only once the cheap HTTP
+ *  evidence has already agreed. */
 export function fixtureVerdict(
   target: FixtureTarget,
   probes: { readonly healthz: boolean; readonly config: AuthConfig | null; readonly owner: () => PortOwnerAuthProbe },
@@ -216,7 +173,7 @@ export function resolveFixtureUsers(
     const c = byHandle.get(h);
     if (c === undefined) {
       return {
-        error: `unknown fixture handle "${h}" — known dev users: ${FIXTURE_CREDENTIALS.map((u) => u.handle).join(", ")} (extend tooling/src/stack/multi-user-fixture.sh to seed more)`,
+        error: `unknown fixture handle "${h}" — known dev users: ${FIXTURE_CREDENTIALS.map((u) => u.handle).join(", ")} (extend the stack tool's fixture recipe to seed more)`,
       };
     }
     users.push(c);

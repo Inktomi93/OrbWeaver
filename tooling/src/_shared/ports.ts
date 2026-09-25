@@ -21,14 +21,8 @@
 // PURE — no env, no I/O, no imports. Every consumer that ALSO honours an env override (PORT, VITE_PORT,
 // FIXTURE_PORT, SNAP_BASE_URL, …) keeps that override at its own call site and uses these as the default.
 //
-// THE MIRROR SIDE, which this module cannot own — FOUR files, and the two reasons are DIFFERENT (owner
-// ruling 2026-09-02, #1271: house precedent, no env file and no move into @orb/kit; the `tooling-shared-
-// plumbing` arm-I gate excludes all four BY RULING, not as a deferral):
-//   • BY LANGUAGE — two shell launchers spell the same defaults in bash and cannot import a TS module:
-//     `tooling/src/stack/stack.sh` (8788/5173) and `tooling/src/stack/multi-user-fixture.sh` (8790/5175).
-//     `STACK_SPAWNERS` (tooling/src/stack/lib/spawners.ts)
-//     reads THIS table, so `stack status` can still name whoever holds a port; a drifted shell default
-//     shows up there, and `tests/tooling/snap/ops/fixture.test.ts` asserts the fixture pair in lockstep.
+// THE MIRROR SIDE, which this module cannot own (owner ruling 2026-09-02, #1271: house precedent, no env
+// file and no move into @orb/kit; the port-registry gate excludes it BY RULING, not as a deferral):
 //   • BY CAKE — `packages/client/vite.config.ts` (`5173`, `http://127.0.0.1:8788`). `tooling` sits ABOVE
 //     the package cake, so importing `@orb/tooling` from `packages/**` is an UPWARD import and is
 //     automatically wrong (constitution §2) — this is a boundary, not a preference. Those two values are
@@ -65,14 +59,14 @@ export interface ReservedPort {
 
 // ── the reserved rows, by name (this is the consumer surface) ─────────────────────────────────────────
 
-/** The dev stack `pnpm stack up` binds (mirrors `stack.sh` BACKEND_PORT/VITE_PORT + vite.config strictPort).
+/** The dev stack `pnpm stack up` binds (the stack tool's default pair; vite.config binds it with strictPort).
  *  `:5173` serves MAIN, never a lane's branch (the lane skill, "Rendered proof") — a lane measures a stage band instead. */
 export const DEV_PORTS: PortPair = { server: 8788, vite: 5173 };
 
-/** The multi-user fixture stack (`multi-user-fixture.sh`) — an OFFSET pair so it can run beside dev. */
+/** The multi-user fixture stack (`pnpm fixture up`) — an OFFSET pair so it can run beside dev. */
 export const FIXTURE_PORTS: PortPair = { server: 8790, vite: 5175 };
 
-/** The three e2e auth-mode projects (`tests/e2e/support/modes.ts`). Each boots its own `stack.sh start-fg`
+/** The three e2e auth-mode projects (`tests/e2e/support/modes.ts`). Each boots its own `pnpm stack up-fg`
  *  with an isolated DB, so all three pairs must be free simultaneously during `pnpm e2e`. */
 export const E2E_PORTS: Readonly<Record<"singleUser" | "forwardHeader" | "local", PortPair>> = {
   singleUser: { server: 8796, vite: 5181 },

@@ -15,7 +15,7 @@ import { classifyDrainTail, DRAIN_WATCH_MS, debugPostureText } from "../lib/verd
 import { classify, LOG_PATH, log, MS_PER_SECOND, PIDFILE, POLL_INTERVAL_MS, processAlive, readEnvFile, resolvePort, result, TOKEN_PATH } from "./prod-state.ts";
 import { distVerdict, readFrom, removePidfile, safeSize, uptimeText } from "./prod-support.ts";
 
-refuseDirectInvocation(import.meta.url, "bash tooling/src/stack/stack.sh <verb>");
+refuseDirectInvocation(import.meta.url, "pnpm stack <verb> prod");
 
 function processIsGone(error: unknown): boolean {
   return typeof error === "object" && error !== null && "code" in error && error.code === "ESRCH";

@@ -28,6 +28,7 @@ import {
   runMarkerArg,
   runMarkerEnv,
   runMarkerOwnerPid,
+  runMarkerTranscriptTeardown,
   sweepAbandonedRunMarkers,
   sweepRunMarker,
   sweepRunMarkerNow,
@@ -75,34 +76,31 @@ test("a CHROMIUM is found through its cmdline, because it erases its own environ
   // Measured 2026-09-06: a chromium's /proc/<pid>/environ comes back EMPTY (it rewrites that area for its
   // process title) and its /proc/<pid>/cmdline is ONE NUL-terminated field holding every switch. Both
   // shapes are reproduced here, because both are why an environ-only, split-on-NUL reader found nothing.
-  const chromium = (path: string): Buffer =>
-    Buffer.from(path.endsWith("environ") ? "" : `/opt/chrome-headless-shell --headless --no-sandbox ${runMarkerArg(marker)} --user-data-dir=/tmp/x\0`, "utf8");
-  expect(processRunIdentities(1, chromium)).toEqual([marker]);
+  const chromium = { environ: "", cmdline: `/opt/chrome-headless-shell --headless --no-sandbox ${runMarkerArg(marker)} --user-data-dir=/tmp/x` };
+  expect(processRunIdentities(chromium)).toEqual([marker]);
   // …and an ordinary child is still found through the environment, which is the primary channel.
-  const nodeChild = (path: string): Buffer =>
-    Buffer.from(path.endsWith("environ") ? `PATH=/usr/bin\0${RUN_MARKER_ENV}=${marker}\0HOME=/root\0` : "node\0", "utf8");
-  expect(processRunIdentities(2, nodeChild)).toEqual([marker]);
-  // A process carrying somebody else's marker is not ours, and an unmarked one answers nothing.
-  expect(processRunIdentities(3, () => Buffer.from(`${RUN_MARKER_ENV}=nonsense\0`, "utf8"))).toEqual([]);
-  expect(processRunIdentities(4, () => Buffer.from("PATH=/usr/bin\0", "utf8"))).toEqual([]);
+  const nodeChild = { environ: `PATH=/usr/bin ${RUN_MARKER_ENV}=${marker} HOME=/root`, cmdline: "node" };
+  expect(processRunIdentities(nodeChild)).toEqual([marker]);
+  // A process carrying somebody else's marker is not ours, and an unmarked one answers nothing; a platform
+  // with no readable environment (win32) answers through the command line alone.
+  expect(processRunIdentities({ environ: `${RUN_MARKER_ENV}=nonsense`, cmdline: "node" })).toEqual([]);
+  expect(processRunIdentities({ environ: "PATH=/usr/bin", cmdline: "node" })).toEqual([]);
+  expect(processRunIdentities({ environ: null, cmdline: `node ${runMarkerArg(marker)}` })).toEqual([marker]);
 });
 
 test("BOTH identities are read, in both channels — a leased browser answers with its run AND its lease (#2504)", () => {
   const marker = mintRunMarker(4242, 1_700_000_000_000);
   const lease = mintRunMarker(4343, 1_700_000_000_001);
   // The production shape: a chromium stamped with both switches, environ erased by its own title rewrite.
-  const leasedChromium = (path: string): Buffer =>
-    Buffer.from(path.endsWith("environ") ? "" : `/opt/chrome-headless-shell --headless ${runMarkerArg(marker)} ${runLeaseArg(lease)}\0`, "utf8");
-  expect(processRunIdentities(1, leasedChromium)).toEqual([marker, lease]);
+  const leasedChromium = { environ: "", cmdline: `/opt/chrome-headless-shell --headless ${runMarkerArg(marker)} ${runLeaseArg(lease)}` };
+  expect(processRunIdentities(leasedChromium)).toEqual([marker, lease]);
   // …and an ordinary child, where both ride the environment.
-  const leasedChild = (path: string): Buffer =>
-    Buffer.from(path.endsWith("environ") ? `${RUN_MARKER_ENV}=${marker}\0${RUN_LEASE_ENV}=${lease}\0` : "node\0", "utf8");
-  expect(processRunIdentities(2, leasedChild)).toEqual([marker, lease]);
+  const leasedChild = { environ: `${RUN_MARKER_ENV}=${marker} ${RUN_LEASE_ENV}=${lease}`, cmdline: "node" };
+  expect(processRunIdentities(leasedChild)).toEqual([marker, lease]);
   // A LEASE ALONE is a complete identity: the CT vite server started before any marker existed still answers.
-  const leaseOnly = (path: string): Buffer => Buffer.from(path.endsWith("environ") ? `${RUN_LEASE_ENV}=${lease}\0` : "node\0", "utf8");
-  expect(processRunIdentities(3, leaseOnly)).toEqual([lease]);
+  expect(processRunIdentities({ environ: `${RUN_LEASE_ENV}=${lease}`, cmdline: "node" })).toEqual([lease]);
   // A hand-typed lease authorizes nothing, exactly as a hand-typed marker does not.
-  expect(processRunIdentities(4, () => Buffer.from(`${RUN_LEASE_ENV}=mine\0`, "utf8"))).toEqual([]);
+  expect(processRunIdentities({ environ: `${RUN_LEASE_ENV}=mine`, cmdline: "node" })).toEqual([]);
 });
 
 test("the sweep NEVER signals this process or its ancestors, whatever marker they carry", async () => {
@@ -252,7 +250,7 @@ test("a TIMED-OUT stage child leaves NO detached grandchild alive", { timeout: b
     cwd: scratch,
     env: inheritedProcessEnv(runMarkerEnv(marker)),
     timeoutMs: budget(PLANTED_TIMEOUT_BASE_MS),
-    runMarker: marker,
+    teardown: runMarkerTranscriptTeardown(marker),
   });
   const planted = existsSync(pidFile) ? Number(readFileSync(pidFile, "utf8").trim()) : null;
   try {

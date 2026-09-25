@@ -27,7 +27,7 @@ import {
   orphanStageDirs,
   SHORT_SHA_LEN,
   STAGE_INHERITED_ENV_KEYS,
-  STAGE_LAUNCHER_RELS,
+  STAGE_LAUNCHERS,
   selectsTeardownRow,
   shortSha,
   stageBandClaim,
@@ -37,8 +37,10 @@ import {
   stageDecision,
   stageIdleMs,
   stageInheritedEnv,
-  stageLauncherPath,
+  stageLauncher,
+  stageLauncherSpawn,
   stagePaths,
+  stageServedProbeSpawn,
   teardownConsent,
 } from "../../../../tooling/src/snap/lib/stage-plan.ts";
 import { readBands, stageBandVerdictFor, writeRow } from "../../../../tooling/src/snap/ops/stage-marker.ts";
@@ -370,38 +372,63 @@ test("the #108 band-collision refusal advertises the spelling that still works p
   expect(foreignStageRefusal(active({ checkout: LANE_CHECKOUT }), 4242, NOW)).toContain("--stage-down --force");
 });
 
-// ── THE LAUNCHER PATH (issue #447) ─────────────────────────────────────────────────────────────────
+// ── THE LAUNCHER (issue #447) ──────────────────────────────────────────────────────────────────────
 //
-// The #393 P5 tooling move relocated `scripts/dev/stack.sh` to `tooling/src/stack/stack.sh` and missed
-// this consumer: `bootStage` spawned a path that no longer existed (every `--isolated`/`--dirty` caller
-// got `STAGE ERROR: stage stack failed to boot`) and `stopStage`, guarded by an existsSync, silently did
-// NOTHING — which is a large part of why stages stranded at all (#324). The real-tree arm below is the
-// tripwire that would have caught the move: it fails the day the launcher relocates again.
+// A launcher move once left `bootStage` spawning a path that no longer existed (every `--isolated`/`--dirty`
+// caller got `STAGE ERROR: stage stack failed to boot`) and `stopStage`, guarded by an existsSync, silently
+// doing NOTHING — which is a large part of why stages stranded at all (#324). The real-tree arm below is
+// the tripwire that would have caught the move: it fails the day the launcher relocates again.
 
 const REPO_ROOT = join(import.meta.dirname, "..", "..", "..", "..");
+const CURRENT = STAGE_LAUNCHERS[0];
+if (CURRENT === undefined) {
+  throw new Error("STAGE_LAUNCHERS names no current launcher");
+}
 
-test("the launcher this repo SHIPS is the first candidate the stage will try", () => {
-  // The rot tripwire. A pure ordering assertion would have stayed green through the P5 move; only asking
-  // the actual tree "does this path exist" catches a relocation.
-  expect(existsSync(join(REPO_ROOT, STAGE_LAUNCHER_RELS[0])), `${STAGE_LAUNCHER_RELS[0]} must exist — the stage boots and stops through it`).toBe(true);
-  expect(stageLauncherPath(REPO_ROOT, existsSync)).toBe(join(REPO_ROOT, STAGE_LAUNCHER_RELS[0]));
+test("the launcher this repo SHIPS is the first candidate the stage will try, and it runs under node", () => {
+  // The rot tripwire. A pure ordering assertion would have stayed green through a move; only asking the
+  // actual tree "does this path exist" catches a relocation.
+  expect(existsSync(join(REPO_ROOT, CURRENT.rel)), `${CURRENT.rel} must exist — the stage boots and stops through it`).toBe(true);
+  expect(stageLauncher(REPO_ROOT, existsSync)).toEqual({ kind: "cli", path: join(REPO_ROOT, CURRENT.rel) });
+  expect(stageLauncherSpawn({ kind: "cli", path: "/stage/cli.ts" }, "up", "/usr/bin/node")).toEqual({
+    command: "/usr/bin/node",
+    args: ["/stage/cli.ts", "up"],
+  });
+  expect(stageLauncherSpawn({ kind: "cli", path: "/stage/cli.ts" }, "down", "/usr/bin/node")).toEqual({
+    command: "/usr/bin/node",
+    args: ["/stage/cli.ts", "down"],
+  });
 });
 
-test("stageLauncherPath falls back to the pre-P5 home for an OLD --ref, and refuses when a ref ships neither", () => {
+test("an OLD --ref falls back to its shell launcher under bash with the verbs that tree knew, and a ref with none refuses", () => {
   const legacyOnly = (path: string): boolean => path.endsWith(join("scripts", "dev", "stack.sh"));
-  expect(stageLauncherPath("/stage", legacyOnly)).toBe(join("/stage", "scripts", "dev", "stack.sh"));
-  // Order matters: a tree carrying BOTH (mid-move) boots the CURRENT one.
-  expect(stageLauncherPath("/stage", () => true)).toBe(join("/stage", STAGE_LAUNCHER_RELS[0]));
-  expect(stageLauncherPath("/stage", () => false)).toBeNull();
+  const legacy = stageLauncher("/stage", legacyOnly);
+  expect(legacy).toEqual({ kind: "shell", path: join("/stage", "scripts", "dev", "stack.sh") });
+  if (legacy === null) {
+    return;
+  }
+  expect(stageLauncherSpawn(legacy, "up", "/usr/bin/node")).toEqual({ command: "bash", args: [legacy.path, "start"] });
+  expect(stageLauncherSpawn(legacy, "down", "/usr/bin/node")).toEqual({ command: "bash", args: [legacy.path, "stop"] });
+  // Order matters: a tree carrying several (mid-move) boots the CURRENT one.
+  expect(stageLauncher("/stage", () => true)).toEqual({ kind: "cli", path: join("/stage", CURRENT.rel) });
+  expect(stageLauncher("/stage", () => false)).toBeNull();
+});
+
+test("the served-module probe runs the staged tree's cli, the older node half, or nothing", () => {
+  const cli = join("/stage", CURRENT.rel);
+  const entry = join("/stage", "tooling", "src", "stack", "ops", "prod-entry.ts");
+  expect(stageServedProbeSpawn("/stage", (path) => path === cli, "/n")).toEqual({ command: "/n", args: [cli, "served-probe"] });
+  expect(stageServedProbeSpawn("/stage", (path) => path === entry, "/n")).toEqual({ command: "/n", args: [entry, "served-probe"] });
+  expect(stageServedProbeSpawn("/stage", () => false, "/n")).toBeNull();
 });
 
 test("the missing-launcher refusal names every path it tried — the message #447 needed and did not get", () => {
   const refusal = missingLauncherRefusal("/stage");
-  for (const rel of STAGE_LAUNCHER_RELS) {
+  for (const { rel } of STAGE_LAUNCHERS) {
     expect(refusal).toContain(rel);
   }
   // …and points at the one place a new home is declared, so the next mover has a destination.
-  expect(refusal).toContain("STAGE_LAUNCHER_RELS");
+  expect(refusal).toContain("STAGE_LAUNCHERS");
 });
 
 test("the isolation tripwire is the exact env var vite.config reads for its proxy target", () => {

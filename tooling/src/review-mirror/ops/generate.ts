@@ -3,7 +3,7 @@
 import { copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, extname, join, resolve } from "node:path";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { runNicedSync } from "../../_shared/proc.ts";
+import { runGit } from "../../_shared/git.ts";
 import type { MirrorSummary } from "../contract/types.ts";
 import { stripComments, stripperFor } from "../lib/strip.ts";
 
@@ -43,7 +43,7 @@ const DROP_EXT = new Set([
 ]);
 
 function gitLines(root: string, args: readonly string[]): readonly string[] {
-  const result = runNicedSync("git", [...args], { cwd: root, maxBuffer: GIT_LS_MAX_BUFFER });
+  const result = runGit(root, [...args], { maxBuffer: GIT_LS_MAX_BUFFER });
   if (result.status !== 0) {
     throw new Error(`git ${args.join(" ")} failed: ${result.stderr.trim()}`);
   }

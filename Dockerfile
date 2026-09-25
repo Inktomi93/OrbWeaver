@@ -5,7 +5,7 @@
 #   docker build --target runtime -t orbweaver:dev .   # bare build
 #
 # WHAT SHIPS: the server as SOURCE (node 26 runs .ts directly — the image CMD is the same
-# `node packages/server/src/entry/index.ts` that `pnpm stack start-fg prod` runs on bare metal), the built
+# `node packages/server/src/entry/index.ts` that `pnpm stack up-fg prod` runs on bare metal), the built
 # client bundle, and a PRUNED production node_modules. No vLLM, no CUDA, no models: local engines are an
 # external server you add as a connection (identical on bare metal and in a container; the 2026-09-18 owner
 # ruling retired the GPU all-in-one image so there is ONE engine story to maintain). The previous two-target

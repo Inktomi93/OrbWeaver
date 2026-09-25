@@ -10,14 +10,13 @@
 // server still holding :3100, which is why the next run printed "Port 3100 is in use, trying another one".
 //
 // THE MECHANISM, IN TWO CHANNELS. A run mints one high-entropy marker and exports it in the ENVIRONMENT of
-// every child it spawns. `/proc/<pid>/environ` is the SPAWN environment — exported before the exec and
-// unforgeable afterwards — so a live pid carrying this exact value was started by THIS run and by nothing
-// else. That is the same evidence `stack/lib/dev-process-identity.ts` uses to adopt a leaderless dev-stack
-// survivor (#1013); this module is the general form, and the two agree on the mechanism on purpose.
+// every child it spawns. A process's spawn environment is exported before the exec and unforgeable
+// afterwards, so a live pid carrying this exact value was started by THIS run and by nothing else.
 // CHROMIUM IS THE EXCEPTION AND IT IS THE REASON THE SECOND CHANNEL EXISTS: a chromium process rewrites its
-// own environ area for its process title, so its `/proc/<pid>/environ` reads EMPTY (measured 2026-09-06 —
-// see RUN_MARKER_ARG_PREFIX). A browser is therefore stamped through its ARGV as well, and every reader
-// here asks both files.
+// own environ area for its process title, so its environment reads EMPTY (measured 2026-09-06 — see
+// RUN_MARKER_ARG_PREFIX). A browser is therefore stamped through its ARGV as well, and every reader here
+// asks both. The process table comes from the platform module: on win32 no environment is readable at
+// all, so a marker there is found only in argv, which every browser and every stamped child carries.
 //
 // SCOPED BY THE VALUE, NEVER BY THE PROGRAM NAME. `pkill -f chrome-headless` would kill a SIBLING LANE's
 // CT fleet — the exact class of harm this exists to prevent (and the standing "never pkill by name"
@@ -47,9 +46,11 @@
 // transcript — a teardown that silently killed seven processes, or silently found none, is the same
 // unreadable line, and the count is what tells an operator whether the leak is closed.
 import { randomBytes } from "node:crypto";
-import { readdirSync, readFileSync } from "node:fs";
 import process from "node:process";
 import { budget } from "./load-budget.ts";
+import type { ProcessEntry } from "./platform.ts";
+import { listProcesses } from "./platform.ts";
+import type { TranscriptTeardown } from "./proc-contract.ts";
 import { exportProcessEnv, processEnvValue } from "./process-env.ts";
 
 /** The variable every marked child carries. Spelled ONCE; the launchers set it, this module reads it. */
@@ -63,8 +64,6 @@ const MARKER_RE = /^(?<pid>[1-9]\d*)-(?<minted>[1-9]\d*)-(?<nonce>[a-z0-9]{8})$/
 const NONCE_BYTES = 4;
 /** The marker text that FOLLOWS a prefix, up to the first separator (NUL, space, or end). */
 const MARKER_VALUE_RE = /^[^\0\s]+/u;
-const PID_DIR_RE = /^\d+$/u;
-const PPID_RE = /^PPid:\s+(\d+)$/mu;
 
 /** How long a TERMed process may take to leave before the sweep escalates to KILL. Short by design — the
  *  processes this reaches are ALREADY orphans of a dead run, so the grace buys an orderly chromium exit,
@@ -148,42 +147,42 @@ export function inheritedRunMarker(read: (key: string) => string | undefined = p
   return raw !== undefined && MARKER_RE.test(raw) ? raw : null;
 }
 
-/** Every pid the /proc filesystem currently lists. */
-function listPidsFromProc(): readonly number[] {
-  return readdirSync("/proc")
-    .filter((entry) => PID_DIR_RE.test(entry))
-    .map(Number);
-}
-
 /** EVERY IDENTITY one live process carries — its outer RUN marker and its LEASE — each read from its
- *  `/proc/<pid>/environ`, else its `/proc/<pid>/cmdline`. Both /proc files are read ONCE, because a sweep
- *  asks this of every pid on the box. An empty array = unreadable, gone, or unmarked — all three are "not
+ *  environment, else its command line. An empty array = unreadable, gone, or unmarked — all three are "not
  *  provably mine", the fail-closed direction, so an unreadable process is never signalled. */
-export function processRunIdentities(pid: number, read: (path: string) => Buffer = readFileSync): readonly string[] {
-  const environ = readProcFile(pid, "environ", read);
-  const cmdline = readProcFile(pid, "cmdline", read);
+export function processRunIdentities(entry: Pick<ProcessEntry, "cmdline" | "environ">): readonly string[] {
   return [
-    markerIn(environ, `${RUN_MARKER_ENV}=`) ?? markerIn(cmdline, RUN_MARKER_ARG_PREFIX),
-    markerIn(environ, `${RUN_LEASE_ENV}=`) ?? markerIn(cmdline, RUN_LEASE_ARG_PREFIX),
+    markerIn(entry.environ, `${RUN_MARKER_ENV}=`) ?? markerIn(entry.cmdline, RUN_MARKER_ARG_PREFIX),
+    markerIn(entry.environ, `${RUN_LEASE_ENV}=`) ?? markerIn(entry.cmdline, RUN_LEASE_ARG_PREFIX),
   ].filter((value): value is string => value !== null);
 }
 
-function readProcFile(pid: number, name: string, read: (path: string) => Buffer): string | null {
-  // @orb-waive caught-failure-ownership(catch): a pid that exits mid-scan (or another user's) answers null, which every caller reads as "not provably mine" and therefore DO NOT SIGNAL. Ends if null ever authorizes a signal.
-  try {
-    return read(`/proc/${String(pid)}/${name}`).toString("utf8");
-  } catch {
-    return null;
+/** ONE process-table read per sweep, from which every default reader answers: the platform module lists
+ *  the box once, and a sweep that asked per pid would read the table as many times as it has pids. */
+function tableReaders(deps: RunMarkerDeps): Required<Pick<RunMarkerDeps, "listPids" | "identitiesOf" | "parentOf">> {
+  if (deps.listPids !== undefined && deps.identitiesOf !== undefined && deps.parentOf !== undefined) {
+    return { listPids: deps.listPids, identitiesOf: deps.identitiesOf, parentOf: deps.parentOf };
   }
+  const table = new Map(listProcesses().map((entry) => [entry.pid, entry] as const));
+  return {
+    listPids: deps.listPids ?? ((): readonly number[] => [...table.keys()]),
+    identitiesOf:
+      deps.identitiesOf ??
+      ((pid): readonly string[] => {
+        const entry = table.get(pid);
+        return entry === undefined ? [] : processRunIdentities(entry);
+      }),
+    parentOf: deps.parentOf ?? ((pid): number | null => table.get(pid)?.ppid ?? null),
+  };
 }
 
-/** The marker inside one /proc blob, or null.
+/** The marker inside one command line or environment blob, or null.
  *
  *  IT SEARCHES, IT DOES NOT SPLIT, AND THAT IS FORCED BY CHROMIUM (measured 2026-09-06): a chromium
- *  process rewrites its argv area into ONE string, so `/proc/<pid>/cmdline` comes back as a single
- *  NUL-terminated field holding every switch — a per-field `startsWith` finds nothing there. An ordinary
- *  process's cmdline/environ is NUL-SEPARATED and a search over it is the same answer. The marker's own
- *  entropy is what keeps the search honest: it is a value nothing unrelated carries. */
+ *  process rewrites its argv area into ONE string, so its command line comes back as a single field
+ *  holding every switch — a per-field `startsWith` finds nothing there. An ordinary process's fields are
+ *  separated and a search over them is the same answer. The marker's own entropy is what keeps the search
+ *  honest: it is a value nothing unrelated carries. */
 function markerIn(blob: string | null, prefix: string): string | null {
   const at = blob?.indexOf(prefix) ?? -1;
   if (blob === null || at === -1) {
@@ -191,22 +190,6 @@ function markerIn(blob: string | null, prefix: string): string | null {
   }
   const value = MARKER_VALUE_RE.exec(blob.slice(at + prefix.length))?.[0] ?? "";
   return MARKER_RE.test(value) ? value : null;
-}
-
-/** The default /proc reader, named so both sweep doors share one spelling. */
-function identitiesFromProc(pid: number): readonly string[] {
-  return processRunIdentities(pid);
-}
-
-/** A pid's parent, from `/proc/<pid>/status`. Used only to EXCLUDE — never to select a target. */
-function parentFromProc(pid: number): number | null {
-  // @orb-waive caught-failure-ownership(catch): an unreadable /proc/<pid>/status ends the ancestor walk, which can only make the exclusion set SMALLER-BUT-SAFE — the walk starts at THIS process, whose own status is always readable. Ends if the walk is ever used to select targets rather than exclude them.
-  try {
-    const match = PPID_RE.exec(readFileSync(`/proc/${String(pid)}/status`, "utf8"));
-    return match?.[1] === undefined ? null : Number(match[1]);
-  } catch {
-    return null;
-  }
 }
 
 function aliveBySignal(pid: number): boolean {
@@ -252,9 +235,8 @@ function selfAndAncestors(selfPid: number, parentOf: (pid: number) => number | n
 /** Every live pid carrying `marker` in EITHER channel, minus this process and its ancestors. A lease and a
  *  run marker are matched the same way on purpose: the value's entropy is the proof, never the channel. */
 export function markedPids(marker: string, deps: RunMarkerDeps = {}): readonly number[] {
-  const listPids = deps.listPids ?? listPidsFromProc;
-  const identitiesOf = deps.identitiesOf ?? identitiesFromProc;
-  const excluded = selfAndAncestors(deps.selfPid ?? process.pid, deps.parentOf ?? parentFromProc);
+  const { listPids, identitiesOf, parentOf } = tableReaders(deps);
+  const excluded = selfAndAncestors(deps.selfPid ?? process.pid, parentOf);
   return listPids().filter((pid) => !excluded.has(pid) && identitiesOf(pid).includes(marker));
 }
 
@@ -365,10 +347,9 @@ export function sweepAbandonedRunMarkersNow(deps: RunMarkerDeps = {}): readonly 
  *  own chain. Reading BOTH channels is what lets a SIGKILLed lease owner's browsers be reaped while the
  *  outer run it was nested inside is still alive and still legitimately holds the run marker (#2504). */
 function abandonedMarkers(deps: RunMarkerDeps): readonly string[] {
-  const listPids = deps.listPids ?? listPidsFromProc;
-  const identitiesOf = deps.identitiesOf ?? identitiesFromProc;
+  const { listPids, identitiesOf, parentOf } = tableReaders(deps);
   const alive = deps.alive ?? aliveBySignal;
-  const excluded = selfAndAncestors(deps.selfPid ?? process.pid, deps.parentOf ?? parentFromProc);
+  const excluded = selfAndAncestors(deps.selfPid ?? process.pid, parentOf);
   const abandoned = new Set<string>();
   for (const pid of listPids()) {
     for (const marker of excluded.has(pid) ? [] : identitiesOf(pid)) {
@@ -419,6 +400,18 @@ export function armRunMarkerTeardown(marker: string | undefined, killGroup: () =
     process.on(signal, onSignal);
   }
   return { dispose };
+}
+
+/** THE TRANSCRIPT DOOR'S TEARDOWN for a marked run: the graceful sweep after the door's timeout kill and
+ *  the Ctrl-C guard, both over `marker`. IT MUST BE AN IDENTITY THE CALLER MINTED, NEVER AN INHERITED ONE
+ *  (#2504) — everything carrying it is SIGKILLed, and the outer `ORB_RUN_MARKER` names a run that may merely
+ *  CONTAIN the caller. The verify runner hands its own `runLease` here and stamps the inherited marker only
+ *  into the child's `env`. */
+export function runMarkerTranscriptTeardown(marker: string, deps: RunMarkerDeps = {}): TranscriptTeardown {
+  return {
+    afterTimeoutKill: async (): Promise<string | null> => describeRunMarkerSweep(await sweepRunMarker(marker, deps)),
+    arm: (killGroup): { readonly dispose: () => void } => armRunMarkerTeardown(marker, killGroup, deps),
+  };
 }
 
 /** The one line a sweep writes into its caller's transcript — `null` when there was nothing to report, so
