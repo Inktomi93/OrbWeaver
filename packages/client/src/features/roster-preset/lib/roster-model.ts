@@ -8,12 +8,13 @@
 // counterexample: it is erased at build and points DOWN the package cake, so it can be in no cycle.
 
 import type { RosterPresetSummary } from "@orb/contracts/roster-preset";
+import { characterCountPhrase } from "./roster-copy.ts";
 
 /** The collection KIND — the `rosterPreset` config group id (registry key + the selection store's kind axis). */
 export const ROSTER_COLLECTION_ID = "rosterPreset";
 
 /** A saved roster's SCENT — the one string a library row is scanned by: its census, then the names that
- *  census counts (`3 members · 2 rules · Elara, Kael, Roan`).
+ *  census counts (`3 characters · 2 rules · Elara, Kael, Roan`).
  *
  *  IT IS THE SUBTITLE, AND THAT IS THE #1838 FIX. The census used to ride `markers` — `LibraryRow`'s
  *  TITLE-LINE trailing slot — which docks at the row's right edge. That was invisible in the 307px LIST
@@ -34,7 +35,7 @@ export const ROSTER_COLLECTION_ID = "rosterPreset";
  *  be a fact the reader has to discard on every row. Zero members cannot happen through the UI, but it is
  *  spelled honestly rather than guarded away. */
 export function rosterScent(roster: RosterPresetSummary): string {
-  const parts = [`${String(roster.memberCount)} member${roster.memberCount === 1 ? "" : "s"}`];
+  const parts = [characterCountPhrase(roster.characterCount)];
   if (roster.rules.length > 0) {
     parts.push(`${String(roster.rules.length)} rule${roster.rules.length === 1 ? "" : "s"}`);
   }

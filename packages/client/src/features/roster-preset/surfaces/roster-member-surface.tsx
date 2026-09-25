@@ -143,7 +143,12 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionMemberV
       .then(async (chatId) => {
         // This door used to report NOTHING at all — not the member skips, not the rules it switched on,
         // not the reason a rule refused (side-eye P1-2). One report, said by all three doors.
-        const notice = applyNotice({ rosterName: roster.name, result: await apply.mutateAsync({ presetId, chatId }), ruleTitleOf: titleOf });
+        const notice = applyNotice({
+          rosterName: roster.name,
+          result: await apply.mutateAsync({ presetId, chatId }),
+          started: true,
+          ruleTitleOf: titleOf,
+        });
         notify[notice.channel](notice.line);
       })
       .catch(() => undefined); // both mutations toast their own failures.

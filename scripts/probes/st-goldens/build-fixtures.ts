@@ -6,7 +6,6 @@ import { writeV2Png } from "./write-v2-png.ts";
 
 const stCharsDir = path.join(ST_RUNTIME_DIR, "data/default-user/characters");
 const stChatsDir = path.join(ST_RUNTIME_DIR, "data/default-user/chats");
-const demoChatsDir = SEED_CHATS_DIR;
 const avatarsDir = path.resolve(RIG_DIR, "../../../packages/default-content/avatars");
 
 fs.mkdirSync(stCharsDir, { recursive: true });
@@ -63,10 +62,10 @@ for (const card of DEFAULT_CHARACTER_CARDS) {
   }
 }
 
-// Copy demo chats
-const demoChats = fs.readdirSync(demoChatsDir).filter((f) => f.endsWith(".jsonl"));
-for (const file of demoChats) {
-  const content = fs.readFileSync(path.join(demoChatsDir, file), "utf-8");
+// Copy the rig's seed chats
+const seedChats = fs.readdirSync(SEED_CHATS_DIR).filter((f) => f.endsWith(".jsonl"));
+for (const file of seedChats) {
+  const content = fs.readFileSync(path.join(SEED_CHATS_DIR, file), "utf-8");
   const lines = content.split("\n").filter(Boolean);
   const firstLine = lines[0];
 

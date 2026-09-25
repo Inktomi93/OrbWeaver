@@ -52,11 +52,10 @@ import {
   DB_LAUNCHED,
   migrateDataLayout,
   runBootMigrations,
-  seedDefaultCharacters,
-  seedDefaultPersona,
   seedDefaultPreset,
   seedOwner,
   seedThemes,
+  seedUserContent,
 } from "@orb/server/entry/boot";
 import { createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
 import { env } from "@orb/server/foundation/env";
@@ -309,8 +308,7 @@ export async function runFullSeed(deps: RunFullSeedDeps): Promise<RunFullSeedRes
   // The idempotent boot seeds (owner cards + avatars, default persona, preset, themes) — safe to re-run.
   await seedDefaultPreset({ db, now });
   await seedThemes({ db, now });
-  await seedDefaultCharacters({ seeder: built.characterSeeder, owner });
-  await seedDefaultPersona({ seeder: built.personaSeeder, owner });
+  await seedUserContent({ seeder: built.contentSeeder, owner });
   log("boot seeds applied (characters + avatars, default persona, preset, themes)");
 
   // Sentinel: the second human. Present ⇒ the demo content is already seeded; skip unless forced.

@@ -22,10 +22,6 @@ export type { ActorRefIndex, ExtractionMints } from "./contract/params.ts";
 // injected ops on the chat-bundle export/import verbs. A campaign was unportable BY CONSTRUCTION while the
 // bundle's chat arm was the ST jsonl interchange (F9); these are the fidelity arm's rpg half.
 export type { ExportRpgGame, ImportRpgGame, RpgPortabilityContext, RpgPortableGame } from "./contract/portability.ts";
-// EDITSNAP-OK — the hand doors' errors-as-data VERDICT. Exported because compose CALLS those doors (the
-// demo-chat replay) and a caller that cannot name the refusal shape cannot check it; the type was already
-// the exported `RpgService`'s return type, so this adds a name, not surface.
-export type { HandDoorResult } from "./contract/results.ts";
 export type {
   RpgContext,
   RpgCopyPresetToUser,

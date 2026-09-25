@@ -454,41 +454,6 @@ export async function loadViewerLastTurnAt(db: Db, userId: UserId, opts: MemberC
   return rows.at(0)?.at ?? null;
 }
 
-/** THE SEEDED-EXAMPLE DRESSING READ (the demo-chat pack heal): this user's HOSTED copy of one bundled
- *  example, found by the stable `chats.importHash` the seeder stamps, with the two dressing fields the heal
- *  can fill. `undefined` ⇒ they have no such example (never seeded, or deleted — the heal never re-creates
- *  one; the seeded latch owns deletion-respect).
- *
- *  Scoped through the HOST participant row, which is also where `hasSeatPersona` comes from: the whole point
- *  of the heal is that a seeded room whose host seat carries no persona reads as "Playing as None" and names
- *  its rpg player actor by the bare account handle. */
-export async function loadSeededChatDressing(
-  db: Db,
-  userId: UserId,
-  importHash: string,
-): Promise<{ chatId: ChatId; hasSeatPersona: boolean; hasBackground: boolean } | undefined> {
-  const rows = await db
-    .select({ id: chats.id, metadata: chats.metadata, activePersonaId: chatParticipants.activePersonaId })
-    .from(chats)
-    .innerJoin(
-      chatParticipants,
-      and(eq(chatParticipants.chatId, chats.id), eq(chatParticipants.userId, userId), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)),
-    )
-    .where(eq(chats.importHash, importHash))
-    .limit(LIMIT_ONE);
-  const row = rows[0];
-  if (row === undefined) {
-    return;
-  }
-  const background = parseChatMetadata(row.metadata).background;
-  return {
-    chatId: row.id,
-    hasSeatPersona: row.activePersonaId !== null,
-    // A stored `kind:"none"` is "the host cleared it" — a real choice, not a hole (the heal must not undo it).
-    hasBackground: background !== undefined,
-  };
-}
-
 /** The fork children of a chat. Membership-gating per child is the verb's (a fork grants no parent
  *  membership); persistence returns the candidate rows. */
 export async function loadForkChildren(db: Db, parentChatId: ChatId): Promise<ChatRow[]> {

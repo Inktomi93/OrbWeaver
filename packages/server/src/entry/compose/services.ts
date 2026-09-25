@@ -51,10 +51,10 @@ import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { automationRules, chatParticipants, plugins, userCredentials } from "@orb/db";
 import { fetchOwned } from "@orb/db/kit";
-import { readSeedDemoChat } from "@orb/default-content";
+import { SEED_MANIFEST } from "@orb/default-content";
 import type { InferenceDeps, InferenceRuntime, Resolved, RoleClientsWithSignal } from "@orb/inference";
 import { createInferenceRuntime, resolveClaudeExecutable } from "@orb/inference";
-import type { AssetId, CharacterId, ChatId, PersonaId, PluginId, PresetId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, PluginId, PresetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, newId } from "@orb/kit/ids";
 import { packShowcaseBundle, readShowcaseManifest } from "@orb/showcase-plugins";
 import { and, eq, isNull } from "drizzle-orm";
@@ -64,8 +64,8 @@ import type { AssetsService } from "#domain/assets";
 import type { AutomationService } from "#domain/automation";
 import { createAutomationTeachingContributions } from "#domain/automation";
 import type { DefaultCharacterSeeder } from "#domain/character";
-import type { ChatContext, ChatUserMacroDefs, DemoChatSeeder, MemoryRecallRecorder, SignupInviteOps } from "#domain/chat";
-import { createDemoChatSeeder, createMemoryRecallRecorder, createResolveViewerVisibility, loadSeededChatDressing } from "#domain/chat";
+import type { ChatContext, ChatUserMacroDefs, MemoryRecallRecorder, SignupInviteOps } from "#domain/chat";
+import { createMemoryRecallRecorder, createResolveViewerVisibility } from "#domain/chat";
 import type { ConnectionContext } from "#domain/connection";
 import { createConnectionPorts, createConnectionService } from "#domain/connection";
 import { createCredentialsService } from "#domain/credentials";
@@ -73,7 +73,6 @@ import type { DatabankIngest } from "#domain/databank";
 import type { EmbeddingConnectionSnapshot, EmbeddingsIndexer, EmbeddingsService, GenerationReceipt } from "#domain/embeddings";
 import type { ExportService } from "#domain/export";
 import { createImportService } from "#domain/import";
-import { PersonaNotFoundError } from "#domain/persona";
 import { createPluginMacroRegistry } from "#domain/plugin";
 import { createCopyPresetToUser, PresetNotFoundError } from "#domain/preset";
 import type { RpgTraceRecorder } from "#domain/rpg";
@@ -81,7 +80,7 @@ import { createExportRpgGame, createRpgTraceRecorder } from "#domain/rpg";
 import type { SessionsService } from "#domain/sessions";
 import { createSessionsService } from "#domain/sessions";
 import type { DefaultBackgroundSeeder, SettingsContext, SettingsServiceDeps } from "#domain/settings";
-import { createJoinerSettingsStatement, createSettingsContext, createSettingsService } from "#domain/settings";
+import { createJoinerSettingsStatement, createSettingsContext, createSettingsService, listSeededItemKeys, recordSeededItemKeys } from "#domain/settings";
 import type { RelayController } from "#domain/share";
 import { createShareService } from "#domain/share";
 import type { TagContext } from "#domain/tag";
@@ -120,8 +119,8 @@ import { createPresenceRegistry } from "../../transport/trpc/presence-registry.t
 import type { SocketRegistry } from "../../transport/trpc/stream/socket-registry.ts";
 import { createSocketRegistry } from "../../transport/trpc/stream/socket-registry.ts";
 import { createHostPrincipalResolver } from "../auth/index.ts";
-import type { DefaultPersonaSeeder, DistributedPluginApplier, ExamplePluginSeeder } from "../boot/index.ts";
-import { createDistributedPluginApplier, createExamplePluginSeeder, createLocalLightUserSeed } from "../boot/index.ts";
+import type { DefaultPersonaSeeder, DistributedPluginApplier, ExamplePluginSeeder, UserContentSeeder } from "../boot/index.ts";
+import { createDistributedPluginApplier, createExamplePluginSeeder, createLocalLightUserSeed, createUserContentSeeder } from "../boot/index.ts";
 import type { ImportWorldInfoPort } from "../import/index.ts";
 import { buildImportContext } from "../import/index.ts";
 import { buildAdmin } from "./admin.ts";
@@ -130,7 +129,6 @@ import { buildAutomationPlugin } from "./automation-plugin.ts";
 import type { ChatComposeInput, ChatComposeResult } from "./chat.ts";
 import { buildChatService, createSignupMinterCheck } from "./chat.ts";
 import { buildDatabank } from "./databank.ts";
-import { createDemoChatGameDoor } from "./demo-chat-game.ts";
 import type { EffectiveConfigWiring } from "./effective-config.ts";
 import { createEffectiveConfigWiring } from "./effective-config.ts";
 import type { DomainEventBus } from "./event-bus.ts";
@@ -291,9 +289,9 @@ export interface ServicesResult {
   readonly characterSeeder: DefaultCharacterSeeder;
   /** Mirrors `characterSeeder`, for the default `{{user}}` persona. */
   readonly personaSeeder: DefaultPersonaSeeder;
-  /** Mirrors `characterSeeder`, for the bundled EXAMPLE conversations. MUST run AFTER `characterSeeder` —
-   *  each example attaches to seeded cards (a missing handle skips that example, never a partial room). */
-  readonly demoChatSeeder: DemoChatSeeder;
+  /** The user seed (D263): walks the manifest for an account and seeds what its seed ledger lacks. Drives
+   *  `characterSeeder` and `personaSeeder`; the boot owner step and the first-authed-request hook share it. */
+  readonly contentSeeder: UserContentSeeder;
   /** The per-user SCENE-PLATE seeder (`domain/settings`) — boot + the first-authed-request hook run it. */
   readonly backgroundSeeder: DefaultBackgroundSeeder;
   /** Mirrors `characterSeeder`, for the two SHOWCASE PLUGIN examples. Independent of the three above (it
@@ -1295,83 +1293,33 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     worldInfo,
   };
 
-  // The ONE demo-chat seeder instance boot + the app first-request hook share (the characterSeeder
-  // precedent). Built HERE, last: it needs chat's bulk write (world-info seam), character's handle lookup,
-  // rpg's create door, and the settings latch — every one of them composed above. The transcript READ is
-  // injected by the lifecycle (the bytes ship in @orb/default-content, which the seeder itself never imports).
-  const demoChatGameDoor = createDemoChatGameDoor({ rpg });
-  const demoChatSeeder = createDemoChatSeeder({
-    readTranscript: readSeedDemoChat,
-    // The curated room plate, resolved into the RECEIVING user's own owned asset (the card pack's twin).
-    resolveSeededBackground: backgroundSeeder.resolvePlate,
-    findCharacterByHandle: async ({ principal, handle }) => {
-      const ref = await character.findByHandle({ ownerId: principal.userId, handle });
-      if (ref === null) {
-        return null;
-      }
-      const detail = await character.get({ principal, characterId: ref.characterId });
-      return { characterId: ref.characterId, name: detail.name };
-    },
-    writeChats: bulkImportChats,
-    // The receiving user's own persona for the host seat — the SAME chain `startChat` walks (current, else
-    // default). A seeded example is their room; it opens playing as them, which is also what keeps the rpg
-    // player actor from resolving to their bare account handle.
-    resolveSeatPersona: async (principal): Promise<PersonaId | null> => {
-      const seeds = (await settings.getUserSettings({ principal })).config.seeds;
-      const raw = seeds.currentPersonaId ?? seeds.defaultPersonaId;
-      if (raw === null) {
-        return null;
-      }
-      // The `UserSettings` seeds tier stores these lenient (a deleted persona leaves a stale id behind), so
-      // the id is VERIFIED before it is seated — the `resolveCurrentPersona` precedent in compose/chat.ts.
-      try {
-        return (await persona.get({ principal, personaId: castId<PersonaId>(raw) })).id;
-      } catch (err) {
-        // Only a genuinely stale/deleted persona id is optional — a database, I/O, or program failure
-        // must surface (never silently stamp an example without the intended identity, #760).
-        if (err instanceof PersonaNotFoundError) {
-          return null;
-        }
-        throw err;
-      }
-    },
-    // rpg's REAL create door + the authored-setup replay through rpg's real HAND doors (entry/compose/
-    // demo-chat-game.ts owns the seat→actor-ref resolution; domain/chat stays rpg-table-blind).
-    createGame: demoChatGameDoor,
+  // The ONE user seed (D263) boot + the app first-request hook share: the manifest's items, gated by the
+  // account's seed ledger. Built here, after the roster presets it creates and the two seeders it drives.
+  const contentSeeder = createUserContentSeeder({
+    enabled: (): boolean => env.SEED_CONTENT === "on",
+    manifest: SEED_MANIFEST,
     now,
-    isSeeded: async (principal): Promise<boolean> => (await settings.getUserSettings({ principal })).config.onboarding.demoChatsSeeded,
-    markSeeded: async (principal): Promise<void> => {
-      await settings.updateUserSettingsSection({
+    seededKeys: async (userId) => new Set(await listSeededItemKeys(db, userId)),
+    recordSeeded: (userId, keys, at) => recordSeededItemKeys(db, userId, keys, at),
+    legacyLatches: async (principal) => {
+      const onboarding = (await settings.getUserSettings({ principal })).config.onboarding;
+      return { characters: onboarding.defaultCharactersSeeded, persona: onboarding.defaultPersonaSeeded };
+    },
+    seedCharacter: (principal, handle) => characterSeeder.seedCard(principal, handle),
+    seedPersona: async (principal): Promise<boolean> => {
+      await personaSeeder.ensureSeeded(principal);
+      return (await settings.getUserSettings({ principal })).config.onboarding.defaultPersonaSeeded;
+    },
+    findCharacter: async (principal, handle) => (await character.findByHandle({ ownerId: principal.userId, handle }))?.characterId ?? null,
+    createRosterPreset: async (principal, roster): Promise<void> => {
+      await rosterPreset.create({
         principal,
-        input: { section: "onboarding", patch: { demoChatsSeeded: true } },
+        input: {
+          name: roster.name,
+          description: roster.description,
+          members: roster.characterIds.map((characterId, position) => ({ kind: "character" as const, characterId, position })),
+        },
       });
-    },
-    readPackVersion: async (principal): Promise<number> => (await settings.getUserSettings({ principal })).config.onboarding.demoChatsPackVersion,
-    markPackVersion: async (principal, version): Promise<void> => {
-      await settings.updateUserSettingsSection({
-        principal,
-        input: { section: "onboarding", patch: { demoChatsPackVersion: version } },
-      });
-    },
-    // #1550's per-example evidence — WHOLE-set replace, never a merge (a slug that finally landed has to be
-    // able to leave). The seeder owns what goes in it; this pair is only the settings door.
-    readSkippedSlugs: async (principal): Promise<readonly string[]> => (await settings.getUserSettings({ principal })).config.onboarding.demoChatsSkipped,
-    markSkippedSlugs: async (principal, slugs): Promise<void> => {
-      await settings.updateUserSettingsSection({
-        principal,
-        input: { section: "onboarding", patch: { demoChatsSkipped: [...slugs] } },
-      });
-    },
-    // ── the pack-bump HEAL's doors (only-if-unset; the seeder owns that policy) ──
-    readSeededChat: async ({ principal, importHash }) => (await loadSeededChatDressing(db, principal.userId, importHash)) ?? null,
-    // BOTH halves of the persona binding the fresh bulk write does in one shot: the host seat's own
-    // "playing as" (persona's door) and the room's anchor pin (chat's door).
-    bindSeatPersona: async ({ principal, chatId, personaId }): Promise<void> => {
-      await persona.setActivePersona({ principal, chatId, targetUserId: principal.userId, personaId });
-      await chat.setChatAnchorPersona({ principal, chatId, personaId });
-    },
-    setChatBackground: async ({ principal, chatId, background }): Promise<void> => {
-      await chat.setChatBackground({ principal, chatId, background });
     },
   });
 
@@ -1445,7 +1393,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     secretBox,
     characterSeeder,
     personaSeeder,
-    demoChatSeeder,
+    contentSeeder,
     backgroundSeeder,
     examplePluginSeeder,
     distributedPluginApplier,

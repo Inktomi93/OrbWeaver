@@ -2,14 +2,14 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 624,
+    "sites": 623,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 624,
+      "deliberate-absorb": 623,
       "unproven": 0
     },
     "byGrammar": {
-      "default": 154,
+      "default": 153,
       "empty": 319,
       "promise": 151
     }
@@ -639,11 +639,6 @@
       "siteId": "packages/default-content/src/index.ts::readSeedBackground::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "optional-read-as-absent — a missing/unreadable shipped plate means \"this pack ships none for this slug\" (`null`), so the caller skips ONE seed item instead of failing the whole seed. Ends if the pack becomes required rather than best-effort."
-    },
-    {
-      "siteId": "packages/default-content/src/index.ts::readSeedDemoChat::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "optional-read-as-absent — the header states the contract: a missing transcript skips ONE example instead of failing the seed. Ends if this transcript becomes required rather than best-effort."
     },
     {
       "siteId": "packages/inference/src/backends/agent-sdk/agent-runner.ts::probeMcpHealth::catch::1",

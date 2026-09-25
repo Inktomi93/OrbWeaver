@@ -72,9 +72,10 @@ test("the editor's Start door reports what it applied and names the room after t
     "rosterPreset.get": ROSTER_VIEW,
     "automation.listRulePresets": [PACING_PRESET],
     "chat.startChat": { chat: { id: "chat_started_ct", viewerIsHost: true, participants: [] } },
+    // `startChat` already seated every member, so the apply that follows classifies each one as present.
     "rosterPreset.applyToChat": {
-      added: ["character_ct_1", "character_ct_2"],
-      alreadyPresent: [],
+      added: [],
+      alreadyPresent: ["character_ct_1", "character_ct_2"],
       skipped: [],
       configApplied: false,
       rulesMinted: ["pacingNudge"],
@@ -88,6 +89,8 @@ test("the editor's Start door reports what it applied and names the room after t
 
   const notice = page.getByTestId("cbcf-notice");
   await expect(notice).toContainText("Adventuring Roster:");
+  await expect(notice).toContainText("started with 2 characters");
+  await expect(notice).not.toContainText("already here");
   await expect(notice).toContainText("1 rule on");
   await expect(notice).toContainText("this chat has no world book attached");
   await expect.poll(() => trpc.lastInput("chat.startChat")).toMatchObject({ title: "Adventuring Roster" });

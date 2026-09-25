@@ -22,6 +22,7 @@ import {
   tags,
   workloads,
 } from "@orb/db";
+import { SEED_MANIFEST } from "@orb/default-content";
 import type {
   AssetId,
   CharacterHandle,
@@ -30,7 +31,6 @@ import type {
   ChatSegmentId,
   EmbedGenerationId,
   Handle,
-  PersonaId,
   SessionId,
   SocketId,
   UserConnectionId,
@@ -40,8 +40,7 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { AssetsService } from "@orb/server/domain/assets";
 import { createAssetsService } from "@orb/server/domain/assets";
 import type { CharacterService } from "@orb/server/domain/character";
-import { CARD_PACK_VERSION, createCharacterService, DEFAULT_CHARACTER_CARDS, WELCOME_ASSISTANT_HANDLE } from "@orb/server/domain/character";
-import { DEMO_CHAT_PACK_VERSION, DEMO_CHATS } from "@orb/server/domain/chat";
+import { createCharacterService, WELCOME_ASSISTANT_HANDLE } from "@orb/server/domain/character";
 import type { EmbeddingsService } from "@orb/server/domain/embeddings";
 import { createEmbeddingsIndexer } from "@orb/server/domain/embeddings";
 import { seedLocalLightOnBoot } from "@orb/server/entry/boot";
@@ -233,71 +232,62 @@ function buildGraph(db: Db): ReturnType<typeof createServices> {
   });
 }
 
-describe("default-card seeder wiring", () => {
-  test("ensureSeeded seeds the owner's pack + lands the latch + stamps the welcome assistant", async () => {
+// D263 — the user seed over the REAL graph: the manifest's content lands, no room does, and the ledger
+// keeps a deleted card deleted across a cold graph (a fresh in-process memo, as a restart gives).
+const MANIFEST_CHARACTERS = SEED_MANIFEST.flatMap((item) => (item.kind === "character" ? [item.handle] : []));
+const MANIFEST_ROSTERS = SEED_MANIFEST.flatMap((item) => (item.kind === "rosterPreset" ? [item.name] : []));
+
+describe("user seed wiring", () => {
+  test("a new account gets the manifest's characters and roster presets, the welcome greeter, and no rooms", async () => {
     const db = await freshDb();
     const result = await buildGraph(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const actor = principal(owner);
 
-    expect(result.characterSeeder).toBeDefined();
-    await result.characterSeeder.ensureSeeded(actor);
+    await result.contentSeeder.ensureSeeded(actor);
 
-    // The whole authored pack through the real create path.
-    const list = await result.services.character.list({ principal: actor });
-    expect(list.items).toHaveLength(DEFAULT_CHARACTER_CARDS.length);
-
-    // The persisted latch is set + the welcome-assistant id points at the seeded Assistant.
+    const characters = await result.services.character.list({ principal: actor });
+    expect(characters.items.map((c) => c.handle).toSorted()).toEqual([...MANIFEST_CHARACTERS].toSorted());
+    const rosters = await result.services.rosterPreset.list({ principal: actor });
+    expect(rosters.map((roster) => roster.name).toSorted()).toEqual([...MANIFEST_ROSTERS].toSorted());
+    expect(rosters.every((roster) => roster.characterCount > 0)).toBe(true);
+    expect((await result.services.chat.listChats({ principal: actor })).items).toHaveLength(0);
+    const assistant = await result.services.character.findByHandle({ ownerId: owner, handle: WELCOME_ASSISTANT_HANDLE });
     const settings = await result.services.settings.getUserSettings({ principal: actor });
-    expect(settings.config.onboarding.defaultCharactersSeeded).toBe(true);
-    const assistant = await result.services.character.findByHandle({
-      ownerId: owner,
-      handle: WELCOME_ASSISTANT_HANDLE,
-    });
     expect(settings.config.seeds.welcomeAssistantCharacterId).toBe(assistant?.characterId);
-    // The pack stamp lands through the REAL settings write — the door every future pack bump migrates through.
-    expect(settings.config.onboarding.defaultCharactersPackVersion).toBe(CARD_PACK_VERSION);
   });
 
-  test("the pack stamp round-trips: a library rolled back to v0 is re-migrated, not re-seeded", async () => {
+  test("a deleted seeded character is not seeded again, even by a cold graph", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const actor = principal(owner);
     const first = await buildGraph(db);
-    await first.characterSeeder.ensureSeeded(actor);
+    await first.contentSeeder.ensureSeeded(actor);
+    const niko = await first.services.character.findByHandle({ ownerId: owner, handle: castId<CharacterHandle>("niko") });
+    await first.services.character.remove({ principal: actor, characterId: niko?.characterId ?? castId<CharacterId>("character_missing") });
 
-    // Roll the STAMP back (the latch stays set) — the pre-v2-install shape, written through the real seam.
-    await first.services.settings.updateUserSettingsSection({
-      principal: actor,
-      input: { section: "onboarding", patch: { defaultCharactersPackVersion: 0 } },
-    });
-
-    // A cold graph (fresh in-process memo) must read that stamp back and run the migration, not the seed.
     const second = await buildGraph(db);
-    await second.characterSeeder.ensureSeeded(actor);
+    await second.contentSeeder.ensureSeeded(actor);
 
-    const list = await second.services.character.list({ principal: actor });
-    expect(list.items).toHaveLength(DEFAULT_CHARACTER_CARDS.length); // no duplicate pack
-    const settings = await second.services.settings.getUserSettings({ principal: actor });
-    expect(settings.config.onboarding.defaultCharactersPackVersion).toBe(CARD_PACK_VERSION);
+    expect(await second.services.character.findByHandle({ ownerId: owner, handle: castId<CharacterHandle>("niko") })).toBeNull();
+    const characters = await second.services.character.list({ principal: actor });
+    expect(characters.items).toHaveLength(MANIFEST_CHARACTERS.length - 1);
   });
 
-  test("markSeeded never clobbers an explicit welcome-assistant pick", async () => {
+  test("the seed never clobbers an explicit welcome-greeter pick", async () => {
     const db = await freshDb();
     const result = await buildGraph(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const actor = principal(owner);
-    // The user already chose a welcome assistant before the first-run seed fires.
     await result.services.settings.updateUserSettingsSection({
       principal: actor,
       input: { section: "seeds", patch: { welcomeAssistantCharacterId: "chr_my_pick" } },
     });
 
-    await result.characterSeeder.ensureSeeded(actor);
+    await result.contentSeeder.ensureSeeded(actor);
 
     const settings = await result.services.settings.getUserSettings({ principal: actor });
-    expect(settings.config.onboarding.defaultCharactersSeeded).toBe(true); // latch still set
-    expect(settings.config.seeds.welcomeAssistantCharacterId).toBe("chr_my_pick"); // not clobbered
+    expect(settings.config.seeds.welcomeAssistantCharacterId).toBe("chr_my_pick");
   });
 });
 
@@ -880,52 +870,6 @@ describe("automation generate_image forwards diffusion params through the compos
     const reqParams = spy.mock.calls[0]?.[0];
     expect(reqParams?.mode).toBe("free");
     expect(reqParams?.prompt).toBe("a lighthouse");
-  });
-});
-
-// ── #760 — demoChatSeeder's `resolveSeatPersona` catch narrows to PersonaNotFoundError, END TO END ──────────
-// The seeder's `ensureSeeded` documents "never throws" (its own outer `.catch` just logs) — so this proves
-// the catch NOT by rejection, but by the side effect the old catch-all defect actually produces: an infra
-// failure used to be swallowed to `null` and the seed ran to completion anyway, permanently stamping
-// `demoChatsSeeded` with the WRONG identity (never retried, since `markSeeded` had already landed). The fix
-// makes `seed()` itself throw, which the outer catch logs WITHOUT calling `markSeeded` — so a database/I/O
-// failure now leaves the pack unseeded (retryable) instead of silently wrong.
-describe("compose/services — demoChatSeeder.resolveSeatPersona narrows to PersonaNotFoundError (#760)", () => {
-  test("a non-not-found persona rejection leaves the pack UNSEEDED (never silently stamps the wrong identity)", async ({ db, app, services }) => {
-    const owner = await seedUser(db, { handle: castId<Handle>("demoseedhost1") });
-    const actor = principal(owner);
-    // The example pack casts against the shipped default characters — without them every demo's
-    // `resolveSeats` comes back null and seeds nothing, which would mask the catch under test.
-    await app.characterSeeder.ensureSeeded(actor);
-    await services.settings.updateUserSettingsSection({
-      principal: actor,
-      input: { section: "seeds", patch: { defaultPersonaId: castId<PersonaId>("persona_demo_will_error") } },
-    });
-    const dbDown = new Error("persona store unreachable");
-    vi.spyOn(services.persona, "get").mockRejectedValueOnce(dbDown);
-
-    await app.demoChatSeeder.ensureSeeded(actor); // never throws — logs and returns
-
-    const onboarding = (await services.settings.getUserSettings({ principal: actor })).config.onboarding;
-    expect(onboarding.demoChatsSeeded).toBe(false);
-    expect((await services.chat.listChats({ principal: actor })).items).toHaveLength(0);
-  });
-
-  test("a genuinely stale/unowned defaultPersonaId still seeds the full pack (fallback preserved)", async ({ db, app, services }) => {
-    const owner = await seedUser(db, { handle: castId<Handle>("demoseedhost2") });
-    const actor = principal(owner);
-    await app.characterSeeder.ensureSeeded(actor);
-    await services.settings.updateUserSettingsSection({
-      principal: actor,
-      input: { section: "seeds", patch: { defaultPersonaId: castId<PersonaId>("persona_demo_gone_forever") } },
-    });
-
-    await app.demoChatSeeder.ensureSeeded(actor);
-
-    const onboarding = (await services.settings.getUserSettings({ principal: actor })).config.onboarding;
-    expect(onboarding.demoChatsSeeded).toBe(true);
-    expect(onboarding.demoChatsPackVersion).toBe(DEMO_CHAT_PACK_VERSION);
-    expect((await services.chat.listChats({ principal: actor })).items).toHaveLength(DEMO_CHATS.length);
   });
 });
 

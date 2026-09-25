@@ -90,21 +90,28 @@ export function rosterRuleLine(preset: RulePresetView | undefined, rulePresetId:
  *  The "Added N" clause is DROPPED at zero rather than printed: nothing landing is the idempotent re-apply
  *  succeeding, and "Added 0 · 3 already here" reported that success as a failure. Each refused rule is
  *  named WITH automation's own reason (build record §6.4) — a count would tell a host that something did
- *  not happen without ever saying what. */
+ *  not happen without ever saying what.
+ *
+ *  `started` marks the two Start doors. A start seats every member before the apply runs, so the apply
+ *  classifies them all as present; on a fresh room those seats are the cast it started with, and "everything
+ *  is already here" would misreport a start as a no-op re-apply. */
 function applySentence(args: {
   readonly rosterName: string;
   readonly result: ApplyRosterPresetResult;
+  readonly started: boolean;
   readonly ruleTitleOf: (id: RulePresetId) => string;
 }): string {
   const { rosterName, result, ruleTitleOf } = args;
   const parts: string[] = [];
-  if (result.added.length > 0) {
-    parts.push(`added ${result.added.length} member${result.added.length === 1 ? "" : "s"}`);
+  if (args.started) {
+    parts.push(`started with ${characterCountPhrase(result.added.length + result.alreadyPresent.length)}`);
+  } else if (result.added.length > 0) {
+    parts.push(`added ${characterCountPhrase(result.added.length)}`);
   } else if (result.alreadyPresent.length > 0) {
     parts.push(result.skipped.length === 0 ? "everything is already here" : `${result.alreadyPresent.length} already here`);
   }
   if (result.skipped.length > 0) {
-    parts.push(`${result.skipped.length} member${result.skipped.length === 1 ? "" : "s"} skipped — a character was deleted`);
+    parts.push(`${characterCountPhrase(result.skipped.length)} skipped — a character was deleted`);
   }
   const rulesOn = result.rulesMinted.length + result.rulesAlreadyPresent.length;
   if (rulesOn > 0) {
@@ -123,10 +130,16 @@ function applySentence(args: {
 export function applyNotice(args: {
   readonly rosterName: string;
   readonly result: ApplyRosterPresetResult;
+  readonly started: boolean;
   readonly ruleTitleOf: (id: RulePresetId) => string;
 }): { readonly channel: "success" | "warn"; readonly line: string } {
   const degraded = args.result.skipped.length > 0 || args.result.rulesSkipped.length > 0;
   return { channel: degraded ? "warn" : "success", line: applySentence(args) };
+}
+
+/** A roster's seats counted in one word everywhere: characters. A member is a human in a room (the vocabulary map). */
+export function characterCountPhrase(count: number): string {
+  return `${count} ${count === 1 ? "character" : "characters"}`;
 }
 
 /** The row controls' accessible names carry what the badges only SHOW (side-eye P2-1: nine tab stops and
@@ -137,8 +150,8 @@ export function applyNotice(args: {
  *  mode, speaker labels and card visibility looked identical to one that only adds seats — the same
  *  under-report P2-1 filed for the rules, one field over. "Group behavior" is the SETTINGS SECTION's own
  *  word for that blob (`settings-context-tab.tsx`), so a host reads the same name in both places. */
-export function rosterCountsSuffix(memberCount: number, ruleCount: number, hasGroupConfig: boolean): string {
-  const parts = [`${memberCount} member${memberCount === 1 ? "" : "s"}`];
+export function rosterCountsSuffix(characterCount: number, ruleCount: number, hasGroupConfig: boolean): string {
+  const parts = [characterCountPhrase(characterCount)];
   if (ruleCount > 0) {
     parts.push(`${ruleCount} rule${ruleCount === 1 ? "" : "s"}`);
   }

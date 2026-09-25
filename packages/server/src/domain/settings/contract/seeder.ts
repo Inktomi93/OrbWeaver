@@ -1,5 +1,5 @@
 // domain/settings/contract/seeder — the injected-op types for the default SCENE-PLATE seeder (the
-// `DefaultCharacterSeeder` / `DemoChatSeeder` sibling). The seeder itself imports no domain: the bytes
+// `DefaultCharacterSeeder` sibling). The seeder itself imports no domain: the bytes
 // (`@orb/default-content`), the CAS write (`assets.store`) and the settings read/patch all arrive as
 // closures the composition root builds.
 //

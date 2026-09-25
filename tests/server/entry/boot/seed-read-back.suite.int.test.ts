@@ -62,15 +62,7 @@ import { themeBackgroundSchema, themeOverrideSchema, themeSchema } from "@orb/co
 import type { Db } from "@orb/db";
 import type { CharacterHandle, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import {
-  seedDefaultBackgrounds,
-  seedDefaultCharacters,
-  seedDefaultPersona,
-  seedDefaultPreset,
-  seedDemoChats,
-  seedExamplePlugins,
-  seedThemes,
-} from "@orb/server/entry/boot";
+import { seedDefaultBackgrounds, seedDefaultPreset, seedExamplePlugins, seedThemes, seedUserContent } from "@orb/server/entry/boot";
 import { sql } from "drizzle-orm";
 import { afterAll, vi } from "vitest";
 import { z } from "zod";
@@ -587,12 +579,8 @@ const NOT_READ_BACK: ReadonlyMap<string, string> = new Map([
     "audit_logs",
     "the audit trail the seeding verbs append as a side effect; it is operator evidence, not seeded content, and no user-facing procedure reads it",
   ],
-  ["chat_import_claims", "the demo-chat seeder's idempotency ledger; it has no read procedure by design"],
   ["stats_canon_versions", "the stats rollup's internal canon-version marker; no procedure returns it"],
-  [
-    "rpg_snapshots",
-    "`rpg.getTrackerView` reads only the snapshot the head resolves to; the other rows are resolved by a swipe, a fork, a checkpoint restore or an export, none a read procedure. Every row's planes are checked in `storedDrift`",
-  ],
+  ["user_seed_ledger", "the user seed's record of which manifest items an account was given (D263); no procedure returns it"],
 ]);
 
 /** The seeded tables the test reads back row for row. */
@@ -600,18 +588,13 @@ const READ_BACK_TABLES = [
   "assets",
   "character_tags",
   "characters",
-  "chat_participants",
-  "chats",
   "gallery_items",
-  "message_variants",
-  "messages",
   "notifications",
   "personas",
   "plugins",
   "presets",
-  "rpg_games",
-  "rpg_journal",
-  "rpg_sheets",
+  "roster_preset_members",
+  "roster_presets",
   "tags",
   "themes",
   "user_settings",
@@ -678,9 +661,7 @@ test("every seeded row reads back through its read procedure, faithful to its cu
   await seedDefaultPreset({ db, now: clock.now });
   await seedThemes({ db, now: clock.now });
   await seedDefaultBackgrounds({ seeder: app.backgroundSeeder, owner: OWNER });
-  await seedDefaultCharacters({ seeder: app.characterSeeder, owner: OWNER });
-  await seedDefaultPersona({ seeder: app.personaSeeder, owner: OWNER });
-  await seedDemoChats({ seeder: app.demoChatSeeder, owner: OWNER });
+  await seedUserContent({ seeder: app.contentSeeder, owner: OWNER });
   await seedExamplePlugins({ seeder: app.examplePluginSeeder, owner: OWNER });
 
   const drift: string[] = [];
@@ -716,7 +697,8 @@ test("every seeded row reads back through its read procedure, faithful to its cu
     check(persona, personaPlan, `persona.get[${persona.name}]`);
   }
 
-  // The example chats: the room list, each room, and each whole transcript.
+  // The rooms: the seed is content, never a conversation (D263), so a fresh install holds none. The reads stay
+  // so a seeded room would still be read back and accounted for.
   const rooms = await ownerCaller.chat.listChats({ limit: PAGE });
   expect(rooms.nextCursor, "the room list fits one page").toBeNull();
   const roomDetails = await Promise.all(rooms.items.map((room) => ownerCaller.chat.getChat({ chatId: room.id })));
@@ -724,11 +706,8 @@ test("every seeded row reads back through its read procedure, faithful to its cu
   for (const room of rooms.items) {
     check(room, chatSummaryPlan, `chat.listChats[${room.title ?? room.id}]`);
   }
-  // A fresh install's owner has typed nothing yet: the example rooms' user lines are imported history, so Home greets
-  // a first run instead of "you left off" at the seed moment.
-  expect(rooms.items.length, "the fresh install seeds example rooms").toBeGreaterThan(0);
+  expect(rooms.items, "the seed creates no room").toEqual([]);
   expect(rooms.viewerLastTurnAt, "a fresh account has no typed turn").toBeNull();
-  expect(rooms.items.filter((room) => room.viewerLastTurnAt !== null).map((room) => room.title)).toEqual([]);
   for (const room of roomDetails) {
     check(room, chatDetailSchema, `chat.getChat[${room.title ?? room.id}]`);
   }
@@ -754,6 +733,10 @@ test("every seeded row reads back through its read procedure, faithful to its cu
     check(tracker, trackerViewPlan, `rpg.getTrackerView[${label}]`);
     check(journal, each(journalPlan), `rpg.listJournal[${label}]`);
   }
+
+  // The roster presets the seed lays down over its own characters.
+  const rosters = await ownerCaller.rosterPreset.list();
+  expect(rosters.length, "the seed lays down roster presets, so the roster half is exercised, not vacuous").toBeGreaterThan(0);
 
   // The settings the seeds write into, the presets, the theme palettes, the example plugins, the inbox and
   // the owned art.
@@ -824,7 +807,6 @@ test("every seeded row reads back through its read procedure, faithful to its cu
     sorted(readMessages.map((message) => message.selectedVariantId)),
   );
   expect(await idsOf(db, "select id from rpg_games"), "rpg_games ↔ rpg.getGame").toEqual(sorted(games.flatMap(({ game }) => (game === null ? [] : [game.id]))));
-  expect(games.length, "the flagship game seeded, so the RPG half is exercised, not vacuous").toBeGreaterThan(0);
   const sheetActors = await db.all<{ id: string }>(sql`select coalesce(character_id, user_id) as id from rpg_sheets`);
   expect(sorted(sheetActors.map((row) => row.id)), "rpg_sheets ↔ the roster actors rpg.getTrackerView returns").toEqual(
     sorted(games.flatMap(({ tracker }) => tracker.actors.flatMap(sheetActorOf))),
@@ -833,6 +815,10 @@ test("every seeded row reads back through its read procedure, faithful to its cu
     sorted(games.flatMap(({ journal }) => journal.map((entry) => entry.id))),
   );
   expect(await idsOf(db, "select user_id as id from user_settings"), "user_settings ↔ settings.getUserSettings").toEqual([settings.userId]);
+  expect(await idsOf(db, "select id from roster_presets"), "roster_presets ↔ rosterPreset.list").toEqual(sorted(rosters.map((roster) => roster.id)));
+  expect(await idsOf(db, "select preset_id || ':' || character_id as id from roster_preset_members"), "roster_preset_members ↔ each roster's members").toEqual(
+    sorted(rosters.flatMap((roster) => roster.members.map((member) => `${roster.id}:${member.characterId}`))),
+  );
   // A PACKAGED template is a clone source kept out of the readable list by design (its contract file's
   // header); its one reader is the `clonePackaged` verb, which no procedure exposes. It is the one seeded
   // row with no read path, named here so a second one fails.

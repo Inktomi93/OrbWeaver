@@ -24,7 +24,7 @@ const ROSTER_A: RosterPresetSummary = {
   id: castId<RosterPresetId>("roster_preset_ct_a"),
   name: "Adventuring Roster",
   description: "",
-  memberCount: 2,
+  characterCount: 2,
   members: [
     { characterId: castId<CharacterId>("character_ct_1"), position: 0, talkativeness: null, disabled: false, name: "Ash", avatarHash: null },
     { characterId: castId<CharacterId>("character_ct_2"), position: 1, talkativeness: 0.8, disabled: false, name: "Brook", avatarHash: null },
@@ -42,7 +42,7 @@ const ROSTER_B: RosterPresetSummary = {
   id: castId<RosterPresetId>("roster_preset_ct_b"),
   name: "Book Club",
   description: "",
-  memberCount: 1,
+  characterCount: 1,
   members: [{ characterId: castId<CharacterId>("character_ct_3"), position: 0, talkativeness: null, disabled: false, name: "Cinder", avatarHash: null }],
   anchorPersonaId: null,
   hasGroupConfig: false,
@@ -275,8 +275,8 @@ test("the row's apply doors announce the member and rule counts; a rules-free ro
   // #1032 adds the THIRD carried thing: ROSTER_A has `hasGroupConfig: true`, so its apply also rewrites the
   // room's reply mode / speaker labels / card visibility, and the door that does it now says so. ROSTER_B
   // carries neither rules nor group config and still announces only its members.
-  await expect(page.getByRole("button", { name: "Start a chat with Adventuring Roster — 2 members, 2 rules, group behavior", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Start a chat with Book Club — 1 member", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Start a chat with Adventuring Roster — 2 characters, 2 rules, group behavior", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Start a chat with Book Club — 1 character", exact: true })).toBeVisible();
   // Delete stays a bare name: the counts inform CONSENT at the apply doors, not the destructive one.
   await expect(page.getByRole("button", { name: "Delete Adventuring Roster", exact: true })).toBeVisible();
 });
@@ -302,8 +302,10 @@ test("Start reports the rules it switched on plus each skipped rule's REASON, an
     "automation.listRulePresets": [PACING_PRESET],
     "automation.listRules": [],
     "chat.startChat": { chat: { ...HOST_CHAT, id: "chat_started_ct" } },
+    // What the server answers after a start: `startChat` already seated every member, so the apply that
+    // follows classifies each one as present (`verbs/apply-to-chat.ts`), never as added.
     "rosterPreset.applyToChat": applyResult({
-      added: ["character_ct_1", "character_ct_2"],
+      alreadyPresent: ["character_ct_1", "character_ct_2"],
       rulesMinted: ["pacingNudge"],
       rulesSkipped: [{ rulePresetId: "autoAddLore", reason: "this chat has no world book attached" }],
     }),
@@ -314,6 +316,9 @@ test("Start reports the rules it switched on plus each skipped rule's REASON, an
 
   const notice = page.getByTestId("cbcf-notice");
   await expect(notice).toContainText("Adventuring Roster:");
+  // A fresh room reports the cast it started with; the seats the start itself made are not "already here".
+  await expect(notice).toContainText("started with 2 characters");
+  await expect(notice).not.toContainText("already here");
   await expect(notice).toContainText("1 rule on");
   // The build record §6.4 law: a skipped rule is reported WITH its reason, not as a count.
   await expect(notice).toContainText("this chat has no world book attached");

@@ -208,7 +208,7 @@ export function summaryOf(row: PresetRow, members: readonly RosterPresetMemberVi
     id: row.id,
     name: row.name,
     description: row.description,
-    memberCount: members.length,
+    characterCount: members.length,
     members,
     anchorPersonaId: row.anchorPersonaId,
     hasGroupConfig: row.groupConfig !== null,

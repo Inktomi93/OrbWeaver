@@ -1,5 +1,5 @@
 // Idempotent SHOWCASE-PLUGIN seeder — the fourth member of the seeder family (default characters, default
-// persona, demo chats, and the showcase plugins). Called both at boot (the deployment owner) and on first
+// persona, roster presets, and the showcase plugins). Called both at boot (the deployment owner) and on first
 // authed request (every new user), through the ONE shared instance so the in-process memo + the persisted
 // latch make re-runs a no-op. `ensureSeeded` never throws.
 //

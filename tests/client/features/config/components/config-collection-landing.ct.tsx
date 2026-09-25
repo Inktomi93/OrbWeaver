@@ -93,7 +93,7 @@ const ROSTER = {
   id: "roster_preset_partyone000001",
   name: "The usual party",
   description: "",
-  memberCount: 0,
+  characterCount: 0,
   members: [],
   anchorPersonaId: null,
   hasGroupConfig: false,

@@ -702,17 +702,10 @@ const onboardingSchema = z
     // WRITTEN by nothing (even in legacy-main). The first-run persona gate triggers on zero owned personas
     // (features/persona/anchors/first-run-persona-dialog.tsx), never on a "seen" flag — the rateLimits.general
     // dead-field precedent. A stored blob's stale `personaWizardSeen` is stripped by zod (unknown key); the
-    // sibling seeded-flags below are consumed (character seeder + boot seed-default-persona).
+    // sibling seeded-flags below are consumed.
+    // The PRE-LEDGER character latch: the user seed (`entry/boot/seed-user-content.ts`, D263) reads it once,
+    // on an account's first ledger pass, to record the shipped characters as already given. Nothing writes it.
     defaultCharactersSeeded: z.boolean().catch(false).default(false),
-    // The default-card PACK VERSION this library was last seeded or migrated to (`CARD_PACK_VERSION` in
-    // `domain/character/seeder/cards.ts`). A version stamp rather than a second boolean so every future pack
-    // bump reuses ONE door: the seeder re-dresses provably-unedited seeded cards whenever this trails the
-    // shipped pack, then re-stamps. `0` is the pre-stamp cohort — either a never-seeded user (the boolean
-    // latch above is the authority there) or an install seeded under the v1 pack, which is exactly the
-    // cohort the v2 migration exists for. NEVER folded into `defaultCharactersSeeded`: that latch also
-    // encodes deletion-respect (a user who deleted the pack must not get it re-created), and the migration
-    // only ever touches rows that still exist.
-    defaultCharactersPackVersion: z.number().int().min(0).catch(0).default(0),
     defaultPersonaSeeded: z.boolean().catch(false).default(false),
     // The ten bundled SCENE PLATES (`domain/settings/seeder/backgrounds.ts`) — its OWN latch, deliberately
     // not folded into `defaultCharactersSeeded` even though the plates are the default cards' scenes: the
@@ -721,36 +714,7 @@ const onboardingSchema = z
     // no pack-version twin: a plate is CONTENT-ADDRESSED, so a re-seed is a hash lookup that appends only
     // what is genuinely missing — the stamp a card pack needs to know what to re-dress has no analogue.
     defaultBackgroundsSeeded: z.boolean().catch(false).default(false),
-    // The bundled EXAMPLE conversations (`domain/chat/seeder`) — its OWN latch, deliberately not folded into
-    // `defaultCharactersSeeded`: the demo chats attach to the seeded cards, so they must be re-runnable
-    // independently (clear this alone to re-seed the examples onto a library that already has the pack).
-    demoChatsSeeded: z.boolean().catch(false).default(false),
-    // The EXAMPLE-pack version those seeded chats were last dressed to (`DEMO_CHAT_PACK_VERSION` in
-    // `domain/chat/seeder/demo-chats.ts`) — the `defaultCharactersPackVersion` twin, same reasoning. The
-    // examples' DRESSING (the curated room background, the host seat's persona binding, the flagship's
-    // authored game state) is pack content that improves between releases, while the transcripts are
-    // immutable; a stamp behind the shipped pack runs the seeder's heal, which only ever fills fields still
-    // at their seeded default (it never stomps a choice the user made in their copy of an example).
-    demoChatsPackVersion: z.number().int().min(0).catch(0).default(0),
-    // The example slugs a seed pass SKIPPED — the per-example evidence the latch above cannot carry (#1550).
-    // `demoChatsSeeded` latches unconditionally, so an example skipped during a partial seed (its cast handle
-    // not in the library yet, a transcript missing from the bundle, a parse failure) was unreachable forever:
-    // a demo room's ABSENCE reads identically whether we never created it or the user deleted it, and the
-    // latch owns deletion-respect. This records the fact at the moment we KNOW it, so a later touch can
-    // finish the job without resurrecting anything.
-    //
-    // THE SKIPPED SET, NOT THE SEEDED ONE, AND THE INVERSION IS THE SAFETY ARGUMENT. A "which examples are
-    // ours" ledger fails DANGEROUS: `.catch` on this blob (every latch here has one) means a corrupt or
-    // defaulted read says "we created none", and a retry driven off that would re-create every example the
-    // user deleted — precisely what `demoChatsSeeded` exists to prevent. A skip list fails CLOSED: empty or
-    // lost ⇒ no retries ⇒ the pre-#1550 behaviour, which is also why the pre-ledger cohort needs no backfill
-    // (their empty list seals them). The seeder DROPS a slug from here the moment it lands.
-    //
-    // NOT the `seededPluginVersions` shape below: that map answers "is this copy still ours?" for rows that
-    // EXIST and can diverge. This answers "did our own write never happen?", which has no version to compare.
-    demoChatsSkipped: z.array(z.string()).catch([]).default([]),
-    // The SHOWCASE PLUGIN examples (`entry/boot/seed-example-plugins.ts`) — its OWN latch for the same reason
-    // the demo chats have theirs: the examples are installed (disabled, ungranted) per user, and this flag is
+    // The SHOWCASE PLUGIN examples (`entry/boot/seed-example-plugins.ts`) — its OWN latch: the examples are installed (disabled, ungranted) per user, and this flag is
     // also the DELETION-RESPECT guard. A user who uninstalls an example must not find it back on their next
     // request. It gates the INSTALL half only; the upgrade half below runs on every pass, because a latch
     // that meant "never look at these rows again" is exactly what kept improvements from existing installs.

@@ -185,8 +185,8 @@ export interface BulkImportChatsResult {
    * `written`, it is not a creation tally. */
   readonly identities: readonly ImportedChatIdentity[];
   /** What this run actually WROTE, in input order (a dedup-skipped input contributes nothing). A write that
-   *  cannot say what it wrote forces its caller to re-derive the rows by a side-channel lookup: the demo-chat
-   *  seeder needs the chat id to attach its rpg game through rpg's own create door. Cross-domain retry/re-link
+   *  cannot say what it wrote forces its caller to re-derive the rows by a side-channel lookup: a caller that
+   *  attaches to the written room needs its chat id. Cross-domain retry/re-link
    *  callers consume `identities`, because this creation-only tally is intentionally empty on dedup. */
   readonly written: readonly ImportedChatIdentity[];
   readonly chatsImported: number;

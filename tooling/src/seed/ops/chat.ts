@@ -27,11 +27,10 @@ import {
   DB_LAUNCHED,
   migrateDataLayout,
   runBootMigrations,
-  seedDefaultCharacters,
-  seedDefaultPersona,
   seedDefaultPreset,
   seedOwner,
   seedThemes,
+  seedUserContent,
 } from "@orb/server/entry/boot";
 import { createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
 import { env } from "@orb/server/foundation/env";
@@ -145,8 +144,7 @@ export async function runChatSeed(argv: readonly string[]): Promise<ExitCode> {
   // The idempotent boot seeds (owner cards, default persona, preset, themes) — safe on an already-seeded db.
   await seedDefaultPreset({ db, now });
   await seedThemes({ db, now });
-  await seedDefaultCharacters({ seeder: built.characterSeeder, owner });
-  await seedDefaultPersona({ seeder: built.personaSeeder, owner });
+  await seedUserContent({ seeder: built.contentSeeder, owner });
 
   const characters = await ensureCharacters(built.services, owner, ownerId, args.characters);
   log(`characters ready: ${characters.map((c) => `${c.name}(${c.id})`).join(", ")}`);

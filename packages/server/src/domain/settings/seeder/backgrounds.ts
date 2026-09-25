@@ -15,8 +15,7 @@
 //   2. Under it, CONTENT-HASH dedup. The CAS key is sha256 of the bytes, so a plate always resolves to the
 //      same `assetHash` for a given user and "does this library already carry this plate?" is a hash lookup
 //      — no slug column, no marker field, nothing to go stale. A crash mid-run therefore re-runs cleanly
-//      instead of appending ten duplicate rows, which is exactly the demo-chat seeder's `demo-chat:<slug>`
-//      `importHash` story told with the bytes we already have.
+//      instead of appending ten duplicate rows.
 //
 // THE LATCH IS WRITTEN LAST (`createPersonaSeedLatch`'s #1412 order law): an interruption must leave the
 // latch FALSE so the next touch re-enters and finishes, rather than committing "this user is seeded" ahead

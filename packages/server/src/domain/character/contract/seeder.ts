@@ -1,6 +1,6 @@
 // domain/character/contract/seeder — the default-card seeder's typed surface; seeder/ implements
-// createDefaultCharacterSeeder over these. Wired by entry over the character front door, with the settings
-// latch ops injected so domain/character never imports domain/settings.
+// createDefaultCharacterSeeder over these. Wired by entry over the character front door; the seed ledger that
+// decides WHICH cards an account receives lives at entry (D263), so this seeder seeds one card at a time.
 
 import type { CharacterCard, CreateCharacterInput, UpdateCharacterInput } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
@@ -26,22 +26,9 @@ export interface SeedCard {
   readonly backgroundSlug: string | null;
 }
 
-/** The content fields a shipped card pack AUTHORS — the edit-detection surface of the reseed migration
- *  (`seeder/pack-v1.ts`). A prior pack's values are frozen per handle and compared byte-for-byte against the
- *  live `CharacterCard`: equal ⇒ the user never touched the seeded card and it may be re-dressed to the new
- *  pack; anything else ⇒ the row is the user's and is left alone. `name`/`nickname` are IN the set (owner
- *  ruling 2026-08-02): a rename is a user's claim of ownership over the card, so a renamed-but-otherwise-
- *  virgin card is preserved, not re-dressed back to our name. Deliberately EXCLUDES row identity and the
- *  timestamps (a pack bump rewrites those, so they can't witness an edit).
- *
- *  THE SET IS EXACTLY WHAT THE REDRESS OVERWRITES, AND THAT IS THE INVARIANT (#1443). It used to be eight
- *  face fields while `redressCard` wrote the whole create input — so a user who changed ONLY their system
- *  prompt, post-history instructions, depth prompt, `extensions`/`residualData`, or the card's authorship
- *  columns still "matched" and had that edit silently replaced by the new pack's value. A field that the
- *  migration writes and this type does not carry is that defect, re-introduced: either compare it here or do
- *  not write it. The two the migration CANNOT prove are still ours — the carried presentation
- *  (theme/background) and the avatar ASSET, neither of which a frozen fixture can name for an
- *  install-specific row — are therefore never written by a redress at all (`seeder/seed.ts`). */
+/** The content fields the shipped pack AUTHORS — the half-seeded-card test (`seeder/authored-content.ts`) compares
+ *  exactly this set against the live `CharacterCard`: equal ⇒ a card a crashed seed left undressed, safe to
+ *  finish; anything else ⇒ the row is the user's. Excludes row identity and timestamps. */
 export type SeededCardContent = Pick<
   CharacterCard,
   | "name"
@@ -65,12 +52,10 @@ export type SeededCardContent = Pick<
 >;
 
 export interface DefaultCharacterSeederDeps {
-  /** `update` applies each freshly-created card's `presentation` (the theme/background override arm) and
-   *  carries the CONTENT re-dress on a pack migration; `getCard` reads the live content the migration
-   *  compares against the prior pack's frozen fixture (and, on a resumed seed, against the shipped pack's
-   *  own authored content — #1444). `get` reads the DETAIL, which is the only projection carrying the two
-   *  carried-presentation columns (`CharacterCard` has neither), so a redress can tell an untouched card's
-   *  empty look from a look the user chose (#1443). */
+  /** `update` applies each freshly-created card's `presentation` (the theme/background override arm); `getCard`
+   *  reads the live content a resumed seed compares against the shipped pack (#1444); `get` reads the DETAIL,
+   *  the only projection carrying the carried-presentation columns, so a finished card keeps a look the user
+   *  chose (#1443). */
   readonly characters: Pick<CharacterService, "create" | "findByHandle" | "update" | "getCard" | "get">;
   /** Attach one of a seeded card's native tags as a card/pending suggestion. Idempotent + never downgrades. */
   readonly attachCardTag: (args: { readonly ownerId: UserId; readonly characterId: CharacterId; readonly tagName: string }) => Promise<boolean>;
@@ -83,19 +68,13 @@ export interface DefaultCharacterSeederDeps {
    *  at the composition root off `domain/settings`' scene-plate seeder — character never imports settings,
    *  and the seeder never touches the filesystem. */
   readonly resolveSeededBackground?: (principal: Principal, slug: string) => Promise<ThemeBackground | null>;
-  readonly isSeeded: (principal: Principal) => Promise<boolean>;
-  /** Persists the latch + (when unset) points `seeds.welcomeAssistantCharacterId` at the seeded Assistant. */
-  readonly markSeeded: (principal: Principal, welcomeAssistantId: CharacterId | null) => Promise<void>;
-  /** Reads `onboarding.defaultCharactersPackVersion` — the pack this library was last seeded/migrated to.
-   *  `0` is the pre-stamp cohort (a v1 install), which is what makes the migration reachable at all. */
-  readonly readPackVersion: (principal: Principal) => Promise<number>;
-  /** Persists the pack stamp. Written LAST on both paths (fresh seed + migration), so a crash mid-run leaves
-   *  the old stamp and the next touch re-runs — the re-run is a no-op on cards it already re-dressed
-   *  (they no longer match the prior pack's fixture). */
-  readonly markPackVersion: (principal: Principal, version: number) => Promise<void>;
+  /** Points `seeds.welcomeAssistantCharacterId` at the seeded welcome card, when it is still unset. */
+  readonly markWelcomeAssistant: (principal: Principal, welcomeAssistantId: CharacterId) => Promise<void>;
 }
 
 export interface DefaultCharacterSeeder {
-  /** Idempotent + never throws; safe on every request (an in-process memo makes steady-state a Set lookup). */
-  readonly ensureSeeded: (principal: Principal) => Promise<void>;
+  /** Seed ONE shipped card for this user: create it (or resolve the row already at its handle), tag it and dress
+   *  it. Returns its id, or `null` when the pack ships no card at the handle. Throws on a failure, so the
+   *  caller's ledger records only a card that landed. */
+  readonly seedCard: (principal: Principal, handle: CharacterHandle) => Promise<CharacterId | null>;
 }

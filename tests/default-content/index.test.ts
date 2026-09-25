@@ -1,13 +1,13 @@
-// The `@orb/default-content` pins (D160). Three properties the character/persona/demo-chat seeders stand
+// The `@orb/default-content` pins (D160). Three properties the character/persona seeders stand
 // on, and that nothing else in the tree asserts:
 //
 //   1. BYTE IDENTITY of everything this package ships. The sha256 map below is the whole shipped inventory,
 //      captured at the package move from the files' pre-move home
 //      (`packages/server/src/entry/boot/seed-assets/`) — so a green here is the MOVE's own receipt that the
-//      relocation changed no seeded byte. Two of these hashes were independently recorded before the move
-//      by the 2026-08-13 repository audit's read receipts (`assistant.png`, `ashen-spire.jsonl`), which is
+//      relocation changed no seeded byte. One of these hashes was independently recorded before the move
+//      by the 2026-08-13 repository audit's read receipts (`assistant.png`), which is
 //      the outside witness that this map was not simply re-blessed from whatever happened to be on disk.
-//   2. THE INVENTORY IS EXACT IN BOTH DIRECTIONS — a file added to `avatars/`/`demo-chats/` without a row,
+//   2. THE INVENTORY IS EXACT IN BOTH DIRECTIONS — a file added to `avatars/`/`backgrounds/` without a row,
 //      or a row whose file disappeared, reds. A seeded user's library is exactly what this package ships;
 //      an untracked addition would reach every fresh install with nobody having reviewed the bytes.
 //   3. AN ABSENT HANDLE/SLUG IS AN ABSENCE, NOT A THROW — the `null` arm both readers answer with, which is
@@ -21,7 +21,15 @@ import { createHash } from "node:crypto";
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { readSeedAvatar, readSeedBackground, readSeedDemoChat, SEED_AVATAR_MIME, SEED_BACKGROUND_MIME, SEED_BACKGROUND_PLATES } from "@orb/default-content";
+import {
+  readSeedAvatar,
+  readSeedBackground,
+  SEED_AVATAR_MIME,
+  SEED_BACKGROUND_MIME,
+  SEED_BACKGROUND_PLATES,
+  SEED_ITEM_KINDS,
+  SEED_MANIFEST,
+} from "@orb/default-content";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "../support/fixtures.ts";
@@ -61,16 +69,6 @@ const BACKGROUND_SHA256: Readonly<Record<string, string>> = {
   "sabine-bg": "60da470266cb859582c73364e937d354a8a6ebfcf643b631cb0614677ac81b7e",
 };
 
-/** sha256 of every shipped EXAMPLE transcript, by slug — verbatim export-verb output, never hand-edited. */
-const DEMO_CHAT_SHA256: Readonly<Record<string, string>> = {
-  "ashen-spire": "1605a473c6003793bcdb8e61ac7bddd5c2b32db83a52fae20a81c3ff0161f28d",
-  "birdie-rust": "e7a74bfd5eb9119ccfafb050830ee99f22172367ab20f4f816aeaba487de11b9",
-  "elias-marginalia": "a966b00c84ec4b5e9452464225507dfc987c859b976be036ceb7424edf65e7da",
-  "hana-bench": "15071df878ce2a72a30e5bff941814a242f0a3f21d46a3d706c0bcd9848e7823",
-  "midnight-run": "bf6fa486371130c75367973f6a58fd2d5aa76c43db7e7e10b68ce2138e0f1cd6",
-  "second-opinion": "26a341093bc5d946f4c47d55fb067c535aa36c7403bdd547f51c990c8bc1b5cb",
-};
-
 function sha256(bytes: Uint8Array | string): string {
   return createHash("sha256").update(bytes).digest("hex");
 }
@@ -87,24 +85,12 @@ test("the shipped avatar inventory is exactly the pinned one", async () => {
   expect(await shippedNames("avatars", ".png")).toEqual(Object.keys(AVATAR_SHA256).toSorted());
 });
 
-test("the shipped transcript inventory is exactly the pinned one", async () => {
-  expect(await shippedNames("demo-chats", ".jsonl")).toEqual(Object.keys(DEMO_CHAT_SHA256).toSorted());
-});
-
 test("every shipped avatar reads back as the bytes it shipped with, through the package reader", async () => {
   for (const [handle, digest] of Object.entries(AVATAR_SHA256)) {
     const art = await readSeedAvatar(castId<CharacterHandle>(handle));
     expect(art, `${handle} ships no avatar`).not.toBeNull();
     expect(art?.mime).toBe(SEED_AVATAR_MIME);
     expect(sha256(art?.bytes ?? new Uint8Array()), `${handle}'s seeded avatar bytes changed`).toBe(digest);
-  }
-});
-
-test("every shipped transcript reads back as the bytes it shipped with, through the package reader", async () => {
-  for (const [slug, digest] of Object.entries(DEMO_CHAT_SHA256)) {
-    const transcript = await readSeedDemoChat(slug);
-    expect(transcript, `${slug} ships no transcript`).not.toBeNull();
-    expect(sha256(transcript ?? ""), `${slug}'s seeded transcript bytes changed`).toBe(digest);
   }
 });
 
@@ -119,7 +105,6 @@ test("the reader's bytes are the file's bytes (no decode/re-encode in the path)"
 
 test("a handle or slug this package does not ship is an absence, never a throw", async () => {
   expect(await readSeedAvatar(castId<CharacterHandle>("no-such-default-character"))).toBeNull();
-  expect(await readSeedDemoChat("no-such-demo-chat")).toBeNull();
   expect(await readSeedBackground("no-such-background")).toBeNull();
 });
 
@@ -148,4 +133,22 @@ test("every shipped plate reads back as the bytes it shipped with, through the p
     expect(plate?.mime).toBe(SEED_BACKGROUND_MIME);
     expect(sha256(plate?.bytes ?? new Uint8Array()), `${slug}'s seeded plate bytes changed`).toBe(digest);
   }
+});
+
+// D263 — the seed manifest is the ledger's key space: a key seeded once is never seeded again, so two items
+// sharing a key would silently drop one, and a roster seating a character the seed never ships starts nothing.
+test("every manifest key is unique, and every roster seats only characters the manifest seeds", () => {
+  const keys = SEED_MANIFEST.map((item) => item.key);
+  expect(new Set(keys).size).toBe(keys.length);
+  expect(SEED_MANIFEST.every((item) => (SEED_ITEM_KINDS as readonly string[]).includes(item.kind))).toBe(true);
+  const seeded = new Set(SEED_MANIFEST.flatMap((item) => (item.kind === "character" ? [item.handle] : [])));
+  const seated = SEED_MANIFEST.flatMap((item) => (item.kind === "rosterPreset" ? item.characters : []));
+  expect(seated.length).toBeGreaterThan(0);
+  expect(seated.filter((handle) => !seeded.has(handle))).toEqual([]);
+});
+
+test("every seeded character ships its avatar", async () => {
+  const handles = SEED_MANIFEST.flatMap((item) => (item.kind === "character" ? [item.handle] : []));
+  const missing = (await Promise.all(handles.map(async (handle) => ((await readSeedAvatar(handle)) === null ? [handle] : [])))).flat();
+  expect(missing).toEqual([]);
 });

@@ -36,7 +36,7 @@ export const POPULATION_ROOTS = {
    *  whose census records four live sites here; without the root the conversion would have narrowed the
    *  policy and dead-lettered those markers. */
   "@showcase": ["packages/showcase-plugins/src/"],
-  /** The default-content package (D160's second family — the seeded avatars + demo-chat transcripts and
+  /** The default-content package (D160's second family — the seed manifest, the seeded avatars and
    *  their reader). Same standing as `@showcase`: an independently selectable shipped workspace member
    *  admitted to `@authored` and `@product`, while the fixed `@packages` snapshot remains unchanged. Added
    *  2026-09-18 with the package itself, because its reader carries two `optional-read-as-absent` waivers

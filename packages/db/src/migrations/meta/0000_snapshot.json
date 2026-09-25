@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "70c5ac45-998a-4b3d-add6-899709e11ef7",
+  "id": "34be58ca-aeaa-41a0-9f66-8130b9e5c7a6",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -8972,6 +8972,52 @@
         }
       },
       "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "user_seed_ledger": {
+      "name": "user_seed_ledger",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "item_key": {
+          "name": "item_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "seeded_at": {
+          "name": "seeded_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "user_seed_ledger_user_id_users_id_fk": {
+          "name": "user_seed_ledger_user_id_users_id_fk",
+          "tableFrom": "user_seed_ledger",
+          "tableTo": "users",
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "user_seed_ledger_user_id_item_key_pk": {
+          "columns": ["user_id", "item_key"],
+          "name": "user_seed_ledger_user_id_item_key_pk"
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
