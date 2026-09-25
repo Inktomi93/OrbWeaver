@@ -137,7 +137,7 @@ test("opus-5 has a curated cell now: adaptive reasoning with the full effort lad
   expect(gen.reasoning.mandatory).toBeUndefined();
   expect(gen.context).toEqual({ window: 1_000_000 });
   // PLANTED CONTROL for the regex: `opus-5` must not swallow the 4.x opus ids (their cells differ).
-  expect(direct("claude-opus-4-5-20251101").reasoning.mode).toBe("effort");
+  expect(direct("claude-opus-4-5-20251101").reasoning.mode).toBe("budget");
   expect(direct("claude-opus-4-8").reasoning.mode).toBe("adaptive");
 });
 
@@ -325,6 +325,23 @@ test("haiku-4-5: budget thinking when asked, off by default, and never an effort
   const asked = resolveChat({ effort: "high", thinkingBudgetTokens: 2048 }, haiku).reasoning;
   expect(asked).toMatchObject({ mode: "budget", enabled: true, budgetTokens: 2048 });
   expect(asked.effort).toBeUndefined();
+});
+
+// Anthropic's thinking table lists Opus 4.5 and Sonnet 4.5 as "Extended only" (`thinking: adaptive` is a 400), and
+// the effort page lists `max` for Opus 4.6 and Sonnet 4.6 but `xhigh` only from Opus 4.7 and Sonnet 5.
+test("opus-4-5 and sonnet-4-5 think by budget, never adaptive; the 4.6 ids stop at max; sonnet-5 keeps xhigh", () => {
+  for (const model of ["claude-opus-4-5-20251101", "claude-sonnet-4-5"]) {
+    const gen = direct(model);
+    expect(gen.reasoning, model).toMatchObject({ mode: "budget", enabled: true, budgetRange: { min: 1024, max: 63_000 } });
+    const asked = resolveChat({ effort: "high" }, gen).reasoning;
+    expect(asked, model).toMatchObject({ mode: "budget", enabled: true });
+    expect(asked.budgetTokens, model).toBeGreaterThanOrEqual(1024);
+    expect(asked.effort, model).toBeUndefined();
+  }
+  for (const model of ["claude-opus-4-6", "claude-sonnet-4-6"]) {
+    expect(direct(model).reasoning, model).toMatchObject({ mode: "effort", effortLevels: ["low", "medium", "high", "max"] });
+  }
+  expect(direct("claude-sonnet-5").reasoning.effortLevels).toEqual(["low", "medium", "high", "xhigh", "max"]);
 });
 
 // Anthropic's per-model table (platform.claude.com/docs/en/build-with-claude/thinking-troubleshooting) lists thinking
