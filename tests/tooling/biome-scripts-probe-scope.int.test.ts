@@ -21,7 +21,7 @@
 //      provided but ignored". #2299's row said EXIT 0 — REFUTED on this tree. Biome's default spelling
 //      REFUSES LOUDLY on an ignored path, which is the honest behaviour and is NOT the `isPathIgnored`
 //      false-clean shape #2290 closed. Exit 0 needs `--no-errors-on-unmatched`.
-//   3. The EDIT HOOK (`.claude/hooks/biome-check.sh`, `--config-path=tooling/biome.edit.jsonc
+//   3. The EDIT HOOK (`.claude/hooks/biome-check.mjs`, `--config-path=tooling/biome.edit.jsonc
 //      … --no-errors-on-unmatched`): linted `_kit.ts` and reported FIFTEEN errors. That is the dangerous
 //      answer — a hook accusing a file the shipping gate does not judge — and the cause is
 //      `biome.edit.jsonc`'s `files.experimentalScannerIgnores: [… "scripts" …]`, which suppresses nested

@@ -195,7 +195,7 @@ import { spawnSync } from "node:child_process";
 import { appendFileSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 // ── quote blanking (same length in, same length out — indexes into the blank map into the original) ──
 
@@ -634,22 +634,25 @@ const HEAVY_VERIFY_VERBS = {
 const NPX_HEAD = /^(?:\S*\/)?npx$/;
 const BIN_DIR_TOOL = /(?:^|\/)node_modules\/\.bin\/([\w.-]+)$/;
 // An explicit worker count above the fleet cap. The caps are DATA — tooling/concurrency-profile.json is
-// their ONE home (#1835) — so this reads them rather than hard-coding a number, and the shipped defaults
-// ARE the shared-host values: a flag is only ever needed to go LOWER.
+// their ONE home (#1835), derived for this machine by its door — so this asks that door rather than
+// hard-coding a number, and the shipped defaults ARE the caps: a flag is only ever needed to go LOWER.
 const WORKER_FLAG = /(?:^|\s)--(?:workers|maxWorkers|max-workers)(?:=|\s+)(\d+)/;
 const CT_RUNNER_STAGE = /\bpnpm\s+(?:run\s+)?test:ct\b/;
 const VITEST_RUNNER_STAGE = /\bpnpm\s+(?:run\s+)?test:(?:scoped|node|tooling)\b/;
-const PROFILE_REL = "tooling/concurrency-profile.json";
+/** The profile door every runner sizes itself through, or null when it cannot load. */
+const CONCURRENCY_DOOR =
+  SELF_CHECKOUT === null
+    ? null
+    : await import(pathToFileURL(path.join(SELF_CHECKOUT, "tooling", "src", "_shared", "concurrency-profile.ts")).href).catch(() => null);
 let concurrencyCapsCache;
-/** `{ct, vitest}` from the profile, or null when it cannot be read — fail-open, like every other fact this
- *  guard derives from the tree. */
+/** `{ct, vitest}` as the door derives them for this machine, or null when it cannot answer — fail-open, like
+ *  every other fact this guard derives from the tree. */
 function concurrencyCaps() {
   if (concurrencyCapsCache === undefined) {
     concurrencyCapsCache = null;
     try {
-      const profiles = JSON.parse(readFileSync(path.join(SELF_CHECKOUT ?? "", PROFILE_REL), "utf8")).profiles;
-      const active = profiles[process.env.ORB_DEDICATED_BOX === "1" ? "dedicated" : "shared"];
-      if (typeof active?.ctWorkers === "number" && typeof active?.vitestMaxWorkers === "number") {
+      const active = CONCURRENCY_DOOR?.readConcurrencyProfile();
+      if (active !== undefined) {
         concurrencyCapsCache = { ct: active.ctWorkers, vitest: active.vitestMaxWorkers };
       }
     } catch {

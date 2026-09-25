@@ -74,7 +74,7 @@ test("lowercase Codex configuration stays synced to the Claude-owned agent sourc
   // five lanes their uncommitted files to one `git stash -u`. The Codex half stays empty by the separate
   // owner ruling recorded above — this is a Claude-side registration, deliberately.
   expect(claudeHookConfig).toContain("/.claude/hooks/tool-guard.mjs");
-  expect(claudeHookConfig).toContain("/.claude/hooks/biome-check.sh");
+  expect(claudeHookConfig).toContain("/.claude/hooks/biome-check.mjs");
   expect(claudeHookConfig).toContain("/.claude/hooks/session-onboard.sh");
   expect(claudeHookConfig).toContain("/.claude/hooks/worktree-setup.sh");
   expect(claudeHookConfig).toContain("/.claude/hooks/worktree-remove.sh");
