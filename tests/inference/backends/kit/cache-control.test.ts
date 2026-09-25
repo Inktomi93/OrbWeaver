@@ -76,12 +76,12 @@ test("a stored ttl off the allowlist is stripped to the bare 5m directive and sa
 // Anthropic silently caches nothing.
 test("a history breakpoint's prefix counts the static system block once", () => {
   const conversation = [
-    { role: "user", tokens: 300 },
-    { role: "assistant", tokens: 50 },
-    { role: "user", tokens: 50 },
+    { role: "user", toolExchange: false, tokens: 300 },
+    { role: "assistant", toolExchange: false, tokens: 50 },
+    { role: "user", toolExchange: false, tokens: 50 },
   ] as const;
   const withSystemRow = computeCacheBreakpointPlacements({
-    rows: [{ role: "system", tokens: 600 }, ...conversation],
+    rows: [{ role: "system", toolExchange: false, tokens: 600 }, ...conversation],
     systemStaticTokens: 600,
     depthFromEnd: 1,
     cacheMinTokens: 1000,
