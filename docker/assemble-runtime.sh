@@ -93,8 +93,9 @@ ORB_STAMP_BUILT_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
 echo "assemble-runtime: stamped version.json = $(cat "$out/version.json")"
 
 # ── prune what this image can never execute (measured 2026-09-18: ~620 MB of a 1.2 GB node_modules) ──
-# onnxruntime-node ships every platform's binaries plus the CUDA/TensorRT providers; the slim image runs the
-# CPU provider on ONE platform (the local-light embedding backend). onnxruntime-web is the browser build
+# onnxruntime-node ships every platform's CPU binaries (its CUDA download is denied in pnpm-workspace.yaml
+# allowBuilds); the slim image runs the CPU provider on ONE platform (the local-light embedding backend).
+# onnxruntime-web is the browser build
 # @huggingface/transformers carries for bundlers — never loaded under node. Both removals are PROVEN below:
 # the transformers import (which loads the onnxruntime-node binding at import time) must still resolve.
 arch="$(node -p 'process.arch')"
@@ -106,8 +107,6 @@ if [ -d "$ort" ]; then
   for archdir in "$ort"/napi-v*/linux/*; do
     [ "$(basename "$archdir")" = "$arch" ] || rm -rf "$archdir"
   done
-  find "$ort" -name 'libonnxruntime_providers_cuda*' -delete
-  find "$ort" -name 'libonnxruntime_providers_tensorrt*' -delete
 fi
 rm -rf "$out/node_modules/onnxruntime-web"
 (cd "$out" && node -e 'import("@huggingface/transformers").then(() => console.log("assemble-runtime: @huggingface/transformers imports after the prune"), (e) => { console.error("assemble-runtime: the prune broke @huggingface/transformers:", e); process.exit(1); })')
