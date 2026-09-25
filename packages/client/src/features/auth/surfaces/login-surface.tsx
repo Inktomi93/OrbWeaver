@@ -1,7 +1,7 @@
 // The /login surface — the per-mode dispatcher. Reads /api/auth/config and renders the matching body:
 // single-user (only reachable by direct nav), local (credential form), forward-header (proxy-config
 // explainer — an unauthenticated request here means the proxy didn't inject identity headers), oidc
-// (whole-window redirect, never fetch; or the pending-join card when the callback held a join, D254). The
+// (whole-window redirect, never fetch; or the pending-join card when the callback held a join, D259). The
 // route owns the shell anchor; this surface owns the card content + its own mount focus.
 
 import { Button } from "@orb/ui/button";
@@ -30,13 +30,13 @@ export function LoginSurface(): ReactElement {
   const config = useAuthConfig();
   const navigate = useNavigate();
   const goHome = (): void => void navigate({ to: "/", replace: true });
-  // D254 — a signed-out invite visit stashed its token before the guard sent it here; the URL never carries it.
+  // D259 — a signed-out invite visit stashed its token before the guard sent it here; the URL never carries it.
   const [joinToken, setJoinToken] = useState(peekJoinStash);
   const dismissJoin = (): void => {
     clearJoinStash();
     setJoinToken(null);
   };
-  // D254 — the OIDC callback held a pending join and landed here with `?pendingJoin=1` (no secret in the URL).
+  // D259 — the OIDC callback held a pending join and landed here with `?pendingJoin=1` (no secret in the URL).
   const [pendingJoin, setPendingJoin] = useState(() => isPendingJoinLanding(globalThis.location.search));
   const leavePendingJoin = (): void => {
     globalThis.history.replaceState(null, "", globalThis.location.pathname);
@@ -171,7 +171,7 @@ export function LoginBody({
             data-testid={testId("loginOidc")}
             onClick={(): void => {
               // A whole-window navigation — the server 302s to the IdP; fetch can't follow the dance. A stashed
-              // invite rides along (D254) so a new identity can join through it.
+              // invite rides along (D259) so a new identity can join through it.
               globalThis.location.assign(oidcLoginUrl(config.multiHumanCapable ? joinToken : null));
             }}
           >
@@ -206,7 +206,7 @@ export function LoginBody({
   }
 }
 
-/** D254 — the local arm while an invite is stashed: create an account through it, or sign in to an existing
+/** D259 — the local arm while an invite is stashed: create an account through it, or sign in to an existing
  *  one (the stash stays, so the join dialog opens after sign-in), or dismiss it. */
 function LocalInviteArm({
   config,

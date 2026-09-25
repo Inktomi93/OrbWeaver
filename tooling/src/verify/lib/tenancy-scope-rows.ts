@@ -338,7 +338,7 @@ export const TABLE_SCOPING_ROWS: readonly ScopingRow[] = [
   {
     table: "oidc_pending_signups",
     scope: "global",
-    why: "transient pre-account auth state (D254) — no principal exists when it is written, previewed or taken; the one key is the peppered hash of the secret in the caller's own pending cookie.",
+    why: "transient pre-account auth state (D259) — no principal exists when it is written, previewed or taken; the one key is the peppered hash of the secret in the caller's own pending cookie.",
   },
   {
     table: "provider_rows",

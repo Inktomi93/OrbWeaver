@@ -1,4 +1,4 @@
-// D254 — the local signup account, for chat's signup batch. The statement is handed out unexecuted with its
+// D259 — the local signup account, for chat's signup batch. The statement is handed out unexecuted with its
 // minted id, because the seat and the audit row in the same batch must name the account before it exists.
 // A `local` signup carries no external identity, so it follows the `createUser` rules (a `user`-role human
 // with a password hash), not `decideProvision`.

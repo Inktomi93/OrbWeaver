@@ -231,7 +231,7 @@ export function createTurnPersonaResolver(
   };
 }
 
-/** D254 — the minter re-check a signup redeem runs before its batch: the live row must be enabled, and its
+/** D259 — the minter re-check a signup redeem runs before its batch: the live row must be enabled, and its
  *  row-derived Principal (invariant 1) must pass the same global-admin `can()` the mint asked. */
 export function createSignupMinterCheck(
   sessions: Pick<SessionsService, "loadUserById">,
@@ -285,7 +285,7 @@ export interface ChatComposeInput {
   readonly settings: SettingsService;
   readonly notifications: NotificationsService;
   readonly resolveHandle: (handle: Handle) => Promise<UserId | null>;
-  /** D254 — the live `AUTH_MODE`: it picks whether invites may create accounts and stamps every invite. */
+  /** D259 — the live `AUTH_MODE`: it picks whether invites may create accounts and stamps every invite. */
   readonly authMode: AuthMode;
   /** D259 — the foreign halves of the signup batch, all built at the root: the sessions account statement, the
    *  persona statement, the settings pointer statement, and the minter's standing check. */
@@ -397,7 +397,7 @@ export interface ChatComposeResult {
    *  `resolveMemoryConfig` merge the live turn and the corpus sweep use, so the gate cannot drift from the
    *  per-host skip it exists to pre-empt. */
   readonly isMemoryEnabled: (hostUserId: UserId) => Promise<boolean>;
-  /** D254 — the signup-invite ops the entry signup route runs, built over chat's own ctx. */
+  /** D259 — the signup-invite ops the entry signup route runs, built over chat's own ctx. */
   readonly signupInvites: SignupInviteOps;
   /** Chat's corpus sweeps, bound over the chat ctx. */
   readonly backfill: {
@@ -1501,7 +1501,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     lockTtlMs: CHAT_LOCK_TTL_MS,
     signup: {
       ...input.signup,
-      // The `changes()`-guarded audit insert: it lands only when the seat before it landed (D254).
+      // The `changes()`-guarded audit insert: it lands only when the seat before it landed (D259).
       auditStatementAfterWrite: (entry, at) => buildAuditStatementIfPrecedingWrote(db, entry, at),
     },
   };

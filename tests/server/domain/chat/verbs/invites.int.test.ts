@@ -194,9 +194,9 @@ describe("createInvite — host mints a share-link; the token is stored HASHED",
   });
 });
 
-// D254 — a signup invite creates accounts, so only a global admin mints one, only in a mode that mints them,
+// D259 — a signup invite creates accounts, so only a global admin mints one, only in a mode that mints them,
 // and only with a use cap and an expiry inside the caps on the server clock and no target.
-describe("createInvite — allowSignup authority and caps (D254)", () => {
+describe("createInvite — allowSignup authority and caps (D259)", () => {
   const DayMs = 86_400_000;
   const SignupCaps = { maxUses: 10, ttlMs: 7 * DayMs };
 

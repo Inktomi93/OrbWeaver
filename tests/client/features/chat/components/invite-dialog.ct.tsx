@@ -16,7 +16,7 @@ import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { InviteDialogStory } from "../_ct-stories.tsx";
 
 const REVOKE_RE = /Revoke/u;
-/** A plain host: the sign-up switch stays hidden, so the mint-form tests below keep their pre-D254 shape. */
+/** A plain host: the sign-up switch stays hidden, so the mint-form tests below keep their pre-D259 shape. */
 const ME_USER = { userId: "user_ct_viewer", handle: "viewer", globalRole: "user" } satisfies TrpcFixtureOutput<"sessions.me">;
 const MINTED_LINK_RE = /\/join\/tok_ct_minted$/u;
 const SHARE_OFF: AuthConfigShare = { state: "off", url: null };
@@ -396,7 +396,7 @@ test("the outstanding list renders per-invite status/uses and revokes a pending 
   await expect.poll(async () => (await readInputAtAssertion()).inviteId).toBe("chatinvite_ct_a");
 });
 
-// D254 — the sign-up switch. It is drawn for a global admin in a mode that mints signup invites and only for a
+// D259 — the sign-up switch. It is drawn for a global admin in a mode that mints signup invites and only for a
 // share link; the caps are enforced in the form before any wire call. The viewer and the mode are stubbed at
 // the network boundary (`sessions.me` and `/api/auth/config`), the two reads the dialog gates on.
 function meAs(role: UserRole): TrpcFixtureOutput<"sessions.me"> {

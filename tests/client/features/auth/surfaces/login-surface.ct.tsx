@@ -132,7 +132,7 @@ test("single-user → the 'no login needed' explainer (reachable only by direct 
   await expect(page.getByRole("heading", { name: "Single-user mode" })).toBeVisible();
 });
 
-// D254 — a signed-out invite visit stashed its token before the guard redirected here. The local arm offers
+// D259 — a signed-out invite visit stashed its token before the guard redirected here. The local arm offers
 // the signup form, and the token rides only the POST body. The joiner names a persona in the same form: the
 // account and its seat are created with it, so the form holds its submit until the persona has a name.
 test("local + a stashed invite on a multi-human box → the signup form, posting the stashed token and the persona", async ({ mount, page }) => {
@@ -167,7 +167,7 @@ test("local + a stashed invite on a box that is not multi-human capable → the 
   await expect(page.getByTestId("signup-invite-form")).toHaveCount(0);
 });
 
-// D254 — in oidc mode a stashed invite rides the login route to the server, which keeps only its hash. Only a
+// D259 — in oidc mode a stashed invite rides the login route to the server, which keeps only its hash. Only a
 // multi-human box hands it on; a single-human box sends the bare route.
 test("oidc + a stashed invite on a multi-human box → Continue carries ?invite= to the login route", async ({ mount, page }) => {
   const requested: string[] = [];

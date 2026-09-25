@@ -1,4 +1,4 @@
-// CT: the OIDC pending-join card (features/auth/components/login-pending-join.tsx, D254). The callback held a
+// CT: the OIDC pending-join card (features/auth/components/login-pending-join.tsx, D259). The callback held a
 // JIT-closed identity that arrived with a signup invite and landed on /login?pendingJoin=1. Proves the card
 // previews the room, asks the joiner for a persona, confirms with a body carrying only that persona under the CSRF
 // header, signs in only when the server says so, shows the approval state when it does not, and never offers Join

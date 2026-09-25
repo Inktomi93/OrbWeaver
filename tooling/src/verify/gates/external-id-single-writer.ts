@@ -88,7 +88,7 @@ import {
 const MESSAGE =
   "a `users.externalId` write or subject-binding writer reference outside its registered callers (Spine-Identity-and-Auth.md invariant 10 — the bind-once identity chokepoint). `externalId` is the STABLE SSO subject; it is bound only through the registered writers in sessions/persistence/users.ts (`SUBJECT_WRITERS`, verify/lib/external-id-writer.ts), each reachable only from its registered capability files, and a positional users insert outside that file binds a column no name can show. A second linking site is the fragmented-provisioning hole (OpenWebUI W1 takeover) this invariant forbids.";
 const FIX =
-  "route the bind through a registered capability (`provisionIdentity`, `linkExternalId`, or the D254 pending-join confirm) — never write the externalId column directly or reach its writer from another file. A genuinely new subject writer or caller is a `SUBJECT_WRITERS` row with its ledger ruling, never a local write.";
+  "route the bind through a registered capability (`provisionIdentity`, `linkExternalId`, or the D259 pending-join confirm) — never write the externalId column directly or reach its writer from another file. A genuinely new subject writer or caller is a `SUBJECT_WRITERS` row with its ledger ruling, never a local write.";
 
 type Anchor = { readonly node: Node; readonly token: string } | undefined;
 
@@ -455,7 +455,7 @@ export const gate = defineGate({
           "  return insertPendingSignupUserStatement(db, { id: who.id, handle: who.handle, externalId: who.externalId, email: null, role: 'user', enabled: true, at: 0 }, admission);\n" +
           "}\n",
       },
-      why: "the registered caller of the pending-join writer: the D254 confirm plans through decideProvision and binds its subject only through this one statement, passes. Drop this file from the writer's registered callers and this reds",
+      why: "the registered caller of the pending-join writer: the D259 confirm plans through decideProvision and binds its subject only through this one statement, passes. Drop this file from the writer's registered callers and this reds",
     },
     {
       mode: "source",

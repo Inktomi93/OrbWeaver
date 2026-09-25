@@ -1,4 +1,4 @@
-// domain/chat/contract/signup — the signup-invite ops (D254). The entry signup route calls them with no
+// domain/chat/contract/signup — the signup-invite ops (D259). The entry signup route calls them with no
 // Principal: the route is the signed-out door, and the authority is the invite plus its minter's standing.
 // Chat owns the invite, the seat and the order of the batch; sessions owns the account insert and hands it
 // in as a statement builder that takes chat's admission predicate, so sessions reads no chat table.
@@ -54,7 +54,7 @@ export interface SignupInviteDeps {
   readonly auditStatementAfterWrite: (entry: AuditEntry, at: number) => BatchStmt;
 }
 
-/** D254 — the sessions half of an OIDC pending join: its first two batch statements around chat's opaque
+/** D259 — the sessions half of an OIDC pending join: its first two batch statements around chat's opaque
  *  `admission`. `take` deletes the live pending row; `account` inserts only where `take` deleted one. */
 export type PendingSignupStatements = (admission: SQL) => { readonly take: BatchStmt; readonly account: AwaitableBatchStmt<{ id: UserId }[]> };
 

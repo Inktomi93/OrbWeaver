@@ -1,4 +1,4 @@
-// D254 — the signup-invite ops over a real libSQL db: the pre-check, the one gated batch, and the minter
+// D259 — the signup-invite ops over a real libSQL db: the pre-check, the one gated batch, and the minter
 // re-check at redeem. The minter check is the composition root's own factory over the real sessions service,
 // so a demoted or disabled minter is proven against the rows, not a stub.
 

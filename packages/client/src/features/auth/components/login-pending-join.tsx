@@ -1,4 +1,4 @@
-// D254 — the OIDC pending join: the callback held a JIT-closed identity that arrived with a signup invite and
+// D259 — the OIDC pending join: the callback held a JIT-closed identity that arrived with a signup invite and
 // landed here. The preview names the room, the joiner names their persona, and the confirm posts only that
 // persona, because the pending cookie alone names the join. Plain state (a submit-once confirm, the
 // credential-form carve-out).

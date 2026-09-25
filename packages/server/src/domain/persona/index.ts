@@ -16,7 +16,7 @@ export { createBulkImportPersonas } from "./persistence/import-write.ts";
 // in-memory `personaByUserName` map is not available to it).
 export { findOwnedPersonaByName } from "./persistence/queries.ts";
 export { createPersonaService } from "./service.ts";
-// D254 — the other PRINCIPAL-LESS op: the sign-up joiner's persona statement, which chat's signup batch runs.
+// D259 — the other PRINCIPAL-LESS op: the sign-up joiner's persona statement, which chat's signup batch runs.
 export { createJoinerPersonaStatement } from "./verbs/joiner-persona-statement.ts";
 // The PRINCIPAL-LESS room-plane op (contract/ops.ts) — compose-built, injected into the chat FOREIGN-inputs
 // resolver. Deliberately NOT on `PersonaService` (which is Principal-scoped by contract).

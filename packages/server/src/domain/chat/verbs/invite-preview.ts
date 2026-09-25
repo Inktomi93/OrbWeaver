@@ -1,6 +1,6 @@
 // The invite preview surface: room name, host handle, member count and mode label, and nothing else (no
 // roster identities, no history). One assembly, wired at `service.ts` into the signed-in `previewInvite` verb
-// and the signed-out pending-join preview (D254), so the two can never show different fields.
+// and the signed-out pending-join preview (D259), so the two can never show different fields.
 
 import type { GroupConfig, InvitePreview } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, GROUP_OUTPUT_LABELS, GROUP_POLICY_LABELS } from "@orb/contracts/chat";

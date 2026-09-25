@@ -158,9 +158,9 @@ export const CHAT_OP_CODES = {
    *  asked for. Refused instead (D41 no-silent-degrade). Internal surface — the callers are the turn pipeline
    *  and the host preview, both already past their own doors. */
   speakerOffRoster: "speaker_off_roster",
-  /** D254 — `createInvite` with `allowSignup` under a sign-in mode that mints no signup invites. */
+  /** D259 — `createInvite` with `allowSignup` under a sign-in mode that mints no signup invites. */
   inviteSignupUnavailable: "invite_signup_unavailable",
-  /** D254 — `createInvite` with `allowSignup` and a missing or over-cap use count or expiry, or a target. */
+  /** D259 — `createInvite` with `allowSignup` and a missing or over-cap use count or expiry, or a target. */
   inviteSignupShape: "invite_signup_shape",
 } as const;
 

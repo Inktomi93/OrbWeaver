@@ -1,4 +1,4 @@
-// The signup-invite ops (D254): the Principal-free pre-checks, the signed-out preview, and the one gated batch
+// The signup-invite ops (D259): the Principal-free pre-checks, the signed-out preview, and the one gated batch
 // that creates an account, spends one use, creates the persona the joiner named, seats the new member as it and
 // writes the audit row. The batch order is the control: the account insert runs only where the invite admits
 // (and, for an OIDC pending join, only where the pending take deleted a row), and every later statement runs only

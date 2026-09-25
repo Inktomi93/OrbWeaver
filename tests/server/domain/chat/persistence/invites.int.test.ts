@@ -554,7 +554,7 @@ describe("persistence/invites — pending_turns (deferred, boot-reclaimed)", () 
   });
 });
 
-// D254 — the signup chain: [account WHERE admits] → [claim WHERE admits AND changes()>0] → [persona WHERE
+// D259 — the signup chain: [account WHERE admits] → [claim WHERE admits AND changes()>0] → [persona WHERE
 // changes()>0] → [seat as that persona WHERE changes()>0] → [audit WHERE changes()>0]. The account insert is the
 // sessions statement and the persona insert the persona statement the verb hands in.
 describe("persistence/invites — redeemSignupAtomic (the gated signup chain)", () => {

@@ -105,7 +105,7 @@ Code comments cite the numbered invariants below as "invariant N":
     `domain/sessions/substrate/role-policy.ts`, shared with the admin link capability rather than
     re-spelled), together with the access gate, the collision hard-deny, the JIT gate and the owner
     singleton, in one ruled precedence. That precedence is the pure `decideProvision`
-    (`domain/sessions/substrate/decide-provision.ts`, D254): the verb interprets its decision, and a
+    (`domain/sessions/substrate/decide-provision.ts`, D259): the verb interprets its decision, and a
     batch-shaped signup statement that decides through the same function is not a second upsert. Such a
     statement carries only the race-relevant checks in SQL: the unique indexes and a `NOT EXISTS` on the handle key (D257) and on email.
     The one such statement is the `oidc` pending-join confirm (`domain/sessions/verbs/pending-signup.ts`).
@@ -237,7 +237,7 @@ The sanctioned `Principal`/credential construction and cookie sites; everything 
   (`infra/auth/transport.ts`); mints session tokens via `domain/sessions` and never re-implements resolution.
   Its cookie sites are login, first-run, the local signup-through-invite route, and the `oidc` callback
   and pending-join confirm routes. A signup or confirm mints only after its one gated batch commits with
-  every `RETURNING` non-empty, and a confirm mints only for an enabled account (D254). The pending-join
+  every `RETURNING` non-empty, and a confirm mints only for an enabled account (D259). The pending-join
   cookie (`infra/auth/modes/oidc.ts`) is `HttpOnly` and `SameSite=Strict`. It carries a fresh secret that
   the server stores only as a peppered hash, and it is never a session.
 - `entry/app.ts` — the `Set-Cookie` writer: the per-request auth middleware re-issues the same token

@@ -36,7 +36,7 @@ export function AppRoot(): ReactElement {
   // chrome never flashes-then-yanks; a device that HAS been told paints the right arm in its first frame.
   const multiHumanCapable = useMultiHumanCapable();
   // The one-shot invite handoff, captured at mount: the address bar's `?join=` or the token a signed-out visit
-  // stashed before sign-in (D254). Spent at once in the effect, so a raw invite token never lingers in the
+  // stashed before sign-in (D259). Spent at once in the effect, so a raw invite token never lingers in the
   // address bar, in history or in the tab stash.
   const [joinToken, setJoinToken] = useState(peekInboundJoinToken);
   useEffect(() => {

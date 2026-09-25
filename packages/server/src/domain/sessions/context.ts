@@ -35,7 +35,7 @@ export function createSessionsContext(
     // A blob moved to another session's row therefore fails GCM tag verification.
     sealIdToken: (idToken: string, sessionId: SessionId): Sealed => idTokenBox.encrypt(idToken, sessionId),
     openIdToken: (sealed: Sealed, sessionId: SessionId): string => idTokenBox.decrypt(sealed, sessionId),
-    // D254 — the pending-join secret: same CSPRNG and pepper as a session token, hashed under its own prefix so
+    // D259 — the pending-join secret: same CSPRNG and pepper as a session token, hashed under its own prefix so
     // a session token and a pending secret can never name each other's rows.
     mintPendingSecret: (): string => mintSessionToken(),
     hashPendingSecret: (secret: string): string => pendingHasher(`${PENDING_SECRET_DOMAIN}${secret}`),

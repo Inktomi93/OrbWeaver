@@ -108,7 +108,7 @@ export interface SearchDiscoveryComposeResult {
   /** The persona domain's PRINCIPAL-LESS participants op — injected into the chat compose (the FOREIGN-inputs
    *  resolver's ONE room-plane persona read). Built from the SAME `PersonaContext` as the service. */
   readonly resolvePersonasForParticipants: ResolvePersonasForParticipants;
-  /** D254 — the sign-up joiner's persona statement chat's signup batch runs. Built from the same `PersonaContext`. */
+  /** D259 — the sign-up joiner's persona statement chat's signup batch runs. Built from the same `PersonaContext`. */
   readonly joinerPersonaStatement: JoinerPersonaStatementOp;
   readonly presetCtx: PresetContext;
   readonly preset: PresetService;

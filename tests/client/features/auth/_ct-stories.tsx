@@ -51,7 +51,7 @@ export function LoginArmStory({
   );
 }
 
-/** D254 — the oidc arm on the callback's pending-join landing, inside the query providers the preview read needs.
+/** D259 — the oidc arm on the callback's pending-join landing, inside the query providers the preview read needs.
  *  `onDone` (joined and signed in) and `onLeavePendingJoin` (left the card) surface as rendered text. */
 export function LoginPendingJoinStory({ config }: { readonly config: AuthConfig }): ReactElement {
   const [done, setDone] = useState(false);

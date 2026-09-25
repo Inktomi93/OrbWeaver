@@ -188,7 +188,7 @@ interface SignupAdmissionKey {
   readonly mode: AuthMode;
 }
 
-/** D254 — what a signup invite must satisfy to admit one more account. The pre-check, the account insert
+/** D259 — what a signup invite must satisfy to admit one more account. The pre-check, the account insert
  *  and the claim all read this one predicate, so the account insert and the claim cannot disagree. */
 function signupInviteAdmits(key: SignupAdmissionKey): SQL {
   return sql.join(
@@ -206,7 +206,7 @@ function signupInviteAdmits(key: SignupAdmissionKey): SQL {
   );
 }
 
-/** The admission the sessions account insert carries in its own WHERE (D254). Sessions reads no chat table:
+/** The admission the sessions account insert carries in its own WHERE (D259). Sessions reads no chat table:
  *  this `SQL` is opaque to it. */
 export function signupAccountAdmission(key: SignupAdmissionKey): SQL {
   return sql`exists (select 1 from ${chatInvites} where ${signupInviteAdmits(key)})`;
@@ -226,7 +226,7 @@ export async function findAdmittingSignupInvite(
 }
 
 /**
- * D254 — the signup redeem as ONE batch: any `leading` statements (the OIDC pending take), the account insert
+ * D259 — the signup redeem as ONE batch: any `leading` statements (the OIDC pending take), the account insert
  * gated on the admission (and on the take), then the claim gated on the admission and on the account insert
  * having written a row, then the seat and the audit row, each gated on the statement before it having written
  * a row. `changes()` reads the statement immediately before, so a refused step zeroes the rest of the chain,

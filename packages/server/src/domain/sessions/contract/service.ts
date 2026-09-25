@@ -57,11 +57,11 @@ export interface SessionsContext {
    *  pane repairs. Idempotent by the `(owner_id, label)` unique, so the `onConflictDoNothing` loser calling it
    *  for the WINNER's id double-seeds nothing. */
   seedUserConnections: (userId: UserId) => Promise<void>;
-  /** D254 — mint the fresh secret a pending OIDC join rides in its cookie (256 bits of CSPRNG entropy). */
+  /** D259 — mint the fresh secret a pending OIDC join rides in its cookie (256 bits of CSPRNG entropy). */
   mintPendingSecret: () => string;
-  /** D254 — the peppered, domain-separated hash of a pending-join secret: the pending row's only lookup key. */
+  /** D259 — the peppered, domain-separated hash of a pending-join secret: the pending row's only lookup key. */
   hashPendingSecret: (secret: string) => string;
-  /** D254 — seal and open the pending row's id_token; the AAD is the row's secret hash, so a blob lifted to
+  /** D259 — seal and open the pending row's id_token; the AAD is the row's secret hash, so a blob lifted to
    *  another row fails GCM verification. */
   sealPendingIdToken: (idToken: string, secretHash: string) => Sealed;
   openPendingIdToken: (sealed: Sealed, secretHash: string) => string;
@@ -130,7 +130,7 @@ export interface SessionsService {
   /** The current owner's id, or `undefined` when no owner row exists yet (a fresh OIDC box before the
    *  first owner-policy login). Used by boot to decide whether owner-dependent seeds can run. @internal */
   getOwnerUserId: () => Promise<UserId | undefined>;
-  /** D254 — the UNEXECUTED signup account insert with its freshly minted id, for chat's signup batch. It
+  /** D259 — the UNEXECUTED signup account insert with its freshly minted id, for chat's signup batch. It
    *  writes only where `admission` (chat's opaque invite predicate) holds and no row holds the handle's key
    *  (D257), and it never absorbs a unique conflict. @internal */
   signupUserStatement: (args: { readonly handle: Handle; readonly passwordHash: string; readonly at: number; readonly admission: SQL }) => {
@@ -150,16 +150,16 @@ export interface SessionsService {
   }) => AwaitableBatchStmt<{ id: UserId }[]>;
   /** D257 — boot's owner seed-key rename; the handle key moves with the handle. @internal */
   renameUserHandle: (userId: UserId, handle: Handle, at: number) => Promise<void>;
-  /** D254 — freeze a JIT-closed OIDC identity that arrived with a signup invite as a pending join, replacing
+  /** D259 — freeze a JIT-closed OIDC identity that arrived with a signup invite as a pending join, replacing
    *  any earlier one for the subject; returns the raw secret for the pending cookie. @internal */
   recordPendingSignup: (args: {
     readonly identity: ResolvedIdentity & { readonly externalId: ExternalId };
     readonly inviteTokenHash: string;
     readonly idToken: string | null;
   }) => Promise<string>;
-  /** D254 — the invite hash of the live pending join under this raw secret, or null. Reads only. @internal */
+  /** D259 — the invite hash of the live pending join under this raw secret, or null. Reads only. @internal */
   readPendingSignup: (secret: string) => Promise<{ readonly inviteTokenHash: string } | null>;
-  /** D254 — the confirm's plan for the live pending join under this raw secret, or null when there is none
+  /** D259 — the confirm's plan for the live pending join under this raw secret, or null when there is none
    *  or the frozen identity may no longer join: the access gate refuses, it is the owner, or it now matches
    *  an account. @internal */
   preparePendingSignup: (args: { readonly secret: string; readonly requireApproval: boolean }) => Promise<PendingSignupPlan | null>;

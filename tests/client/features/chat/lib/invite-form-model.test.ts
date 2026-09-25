@@ -67,7 +67,7 @@ describe("toCreateInviteInput — the bounds are stated, never omitted", () => {
   });
 });
 
-// D254 — a sign-up link: the switch rides the wire only for a share link, and the form refuses a shape the
+// D259 — a sign-up link: the switch rides the wire only for a share link, and the form refuses a shape the
 // server would refuse (no use limit or over the cap, no expiry or over the cap) before any wire call.
 // The fields the validator refuses, in order; none when it passes.
 function failingFields(values: Parameters<typeof validateInviteForm>[0]): string[] {

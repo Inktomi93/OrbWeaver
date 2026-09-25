@@ -131,7 +131,7 @@ describe("local login — behavioral (real app + freshDb)", () => {
     const res = await postLogin(app, "10.0.0.3", { handle: "owner" });
     expect(res.status).toBe(400);
   });
-  // D254 — one IPv6 host holds a whole /64; a per-address key must not reset when it rotates inside it.
+  // D259 — one IPv6 host holds a whole /64; a per-address key must not reset when it rotates inside it.
   test("two IPv6 addresses in one /64 share the per-address login bucket; another /64 does not", async () => {
     const app = await appWith({ resolveLoginLimit: (): number => 1 });
     expect((await postLogin(app, "2001:db8:cc:1::1", { handle: "owner", password: "hunter2pw" })).status).toBe(200);
@@ -622,10 +622,10 @@ describe("Rule E — a plain-http mint from a public client logs once per client
   });
 });
 
-// ── D254: the local signup-through-invite route ──────────────────────────────────────────────────────────────
+// ── D259: the local signup-through-invite route ──────────────────────────────────────────────────────────────
 // The control order is ruled: CSRF, body cap, multi-human 404, per-address bucket, live-session refusal, strict
 // schema, invite pre-check, per-invite bucket, reserved/taken handles, scrypt, the batch, then the cookie.
-describe("local signup route (D254)", () => {
+describe("local signup route (D259)", () => {
   const Signup = "/api/auth/signup";
   const Good = "tok_good";
   const InviteId = castId<ChatInviteId>("chat_invite_signup_route");

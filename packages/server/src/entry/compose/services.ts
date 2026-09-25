@@ -315,7 +315,7 @@ export interface ServicesResult {
    *  `/api/_debug/wire/captures` as `enabled` so a reader can tell an off recorder from a quiet one. Surfaced
    *  because the decision lives HERE and nothing downstream can re-derive the force-flag half. */
   readonly wireCaptureOn: boolean;
-  /** D254 — chat's signup-invite ops, for the local signup route. */
+  /** D259 — chat's signup-invite ops, for the local signup route. */
   readonly signupInvites: SignupInviteOps;
   /** The per-user local-light seed, surfaced for the signup route (it runs after the signup commit). */
   readonly seedUserConnections: (userId: UserId) => Promise<void>;

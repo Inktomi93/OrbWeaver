@@ -27,7 +27,7 @@ const SUBJECT_WRITER_HOME = `${SESSIONS}persistence/users.ts`;
  *   • `claimExternalIdIfUnbound` — the atomic bind of an EXISTING row. The admin link capability and the SSO
  *     seam's owner-flip bind both ride it, so the unbound test sits inside one UPDATE and two concurrent
  *     owner logins with different subjects cannot both win.
- *   • `insertPendingSignupUserStatement` — the D254 pending-join account insert, a NEW row planned through
+ *   • `insertPendingSignupUserStatement` — the D259 pending-join account insert, a NEW row planned through
  *     `decideProvision`. It binds positionally in raw SQL, so no key-shaped write predicate can see it.
  *  The registry is per writer: a registered caller of one writer is not a caller of another. */
 export const SUBJECT_WRITERS: ReadonlyMap<string, ReadonlySet<string>> = new Map([

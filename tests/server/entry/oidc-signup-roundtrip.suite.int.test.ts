@@ -1,4 +1,4 @@
-// D254 — the OIDC signup-through-invite round trip (the `.suite.int.test.ts` exemption: one property, many
+// D259 — the OIDC signup-through-invite round trip (the `.suite.int.test.ts` exemption: one property, many
 // modules). A signed-out visitor opens a signup invite, signs in at the IdP with JIT closed, and joins only by
 // confirming. This composes the REAL login, callback, pending-preview and confirm routes, the REAL sessions
 // service and OIDC store, the REAL chat signup ops and a REAL database; only the IdP exchange is a fake that

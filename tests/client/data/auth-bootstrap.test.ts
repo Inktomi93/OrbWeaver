@@ -131,7 +131,7 @@ test("a failed logout neither broadcasts nor navigates", async () => {
   expect(assigned).toEqual([]);
 });
 
-// D254 — the OIDC pending-join confirm: a JSON body carrying only the joiner's persona under the CSRF header (the
+// D259 — the OIDC pending-join confirm: a JSON body carrying only the joiner's persona under the CSRF header (the
 // pending cookie names the join), `signedIn` read through the strict result schema, and a refusal code only when
 // it is a known one.
 const JOINER = { persona: { name: "Mira", description: "" } } as const;

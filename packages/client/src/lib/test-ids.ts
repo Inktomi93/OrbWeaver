@@ -24,7 +24,7 @@ export const TEST_IDS = {
   firstRunConfirm: "first-run-confirm",
   firstRunSubmit: "first-run-submit",
   firstRunError: "first-run-error",
-  // D254 — the signup-through-invite form the login surface offers when a signed-out invite visit stashed its
+  // D259 — the signup-through-invite form the login surface offers when a signed-out invite visit stashed its
   // token: handle + password + submit + inline error, and the controls that switch to sign-in or dismiss.
   signupInviteForm: "signup-invite-form",
   signupHandle: "signup-handle",
@@ -33,10 +33,10 @@ export const TEST_IDS = {
   signupError: "signup-error",
   signupUseSignIn: "signup-use-sign-in",
   signupDismiss: "signup-dismiss",
-  // D254 — the persona fields both signup doors ask for before the account and its seat exist.
+  // D259 — the persona fields both signup doors ask for before the account and its seat exist.
   joinerPersona: "joiner-persona",
   joinerPersonaName: "joiner-persona-name",
-  // D254 — the OIDC pending-join card: the room preview, confirm, dismiss, the inline refusal, and the two
+  // D259 — the OIDC pending-join card: the room preview, confirm, dismiss, the inline refusal, and the two
   // end states (no pending join, and an account waiting for approval).
   pendingJoin: "pending-join",
   pendingJoinConfirm: "pending-join-confirm",

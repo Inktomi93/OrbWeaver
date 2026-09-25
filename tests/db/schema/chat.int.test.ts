@@ -816,7 +816,7 @@ test("chat_invites status CHECK rejects an out-of-enum value", async () => {
   expect(caught).toBeDefined();
 });
 
-// D254 — a signup invite is untargeted, capped and expiring at the database, whatever the writer.
+// D259 — a signup invite is untargeted, capped and expiring at the database, whatever the writer.
 {
   const signupRow = (key: string, chatId: ChatId): typeof chatInvites.$inferInsert => ({
     id: castId<ChatInviteId>(`chat_invite_signup_${key}`),

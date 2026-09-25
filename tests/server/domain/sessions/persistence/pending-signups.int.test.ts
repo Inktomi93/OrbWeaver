@@ -1,4 +1,4 @@
-// D254 — the pending-join rows: the upsert that keeps one per subject, the expiry-gated take, the account
+// D259 — the pending-join rows: the upsert that keeps one per subject, the expiry-gated take, the account
 // insert gated on that take, and the reaper.
 
 import type { Db } from "@orb/db";

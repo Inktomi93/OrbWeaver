@@ -36,7 +36,7 @@ export type ResolvePersonasForParticipants = (args: {
   readonly allowedOwnerIds: readonly UserId[];
 }) => Promise<ReadonlyMap<PersonaId, PersonaListView>>;
 
-/** D254 — a sign-up joiner's persona insert, unexecuted, with the id it mints. It runs inside chat's signup batch
+/** D259 — a sign-up joiner's persona insert, unexecuted, with the id it mints. It runs inside chat's signup batch
  *  and writes only where the statement before it changed a row. */
 export type JoinerPersonaStatementOp = (args: { readonly ownerId: UserId; readonly persona: JoinerPersona; readonly at: number }) => {
   readonly personaId: PersonaId;

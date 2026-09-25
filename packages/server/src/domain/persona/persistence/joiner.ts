@@ -1,4 +1,4 @@
-// D254 — a sign-up joiner's persona as one unexecuted statement for chat's signup batch. It inserts only where the
+// D259 — a sign-up joiner's persona as one unexecuted statement for chat's signup batch. It inserts only where the
 // statement before it in that batch changed a row (`changes() > 0`), so a refused signup leaves no persona behind.
 // Positional over the declared column order of `personas`, like the sessions signup account insert.
 

@@ -28,7 +28,7 @@ test("clearJoinParam removes every join field without reserializing unrelated qu
   expect(replaceState).toHaveBeenCalledWith(null, "", "/chat/room?space=%20&plus=+&slash=%2f&tag=first&tag=second&empty=&flag#turn-4");
 });
 
-// D254 — the signed-out round trip: the guard stashes the token and scrubs the URL; after sign-in the app root
+// D259 — the signed-out round trip: the guard stashes the token and scrubs the URL; after sign-in the app root
 // opens the join dialog with the stashed token and spends it, exactly once.
 test("a stashed token opens the join dialog after sign-in, and only once", () => {
   const tab = stubTabStorage();

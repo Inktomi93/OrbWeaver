@@ -579,15 +579,15 @@ export type InviteStatus = (typeof INVITE_STATUSES)[number];
 /** @public twin: INVITE_STATUSES — drives the chat_invites status enum + CHECK (cross-package PUBLIC). */
 export const inviteStatusSchema = z.enum(INVITE_STATUSES) satisfies z.ZodType<InviteStatus>;
 
-/** The most accounts one signup invite may create (D254). */
+/** The most accounts one signup invite may create (D259). */
 export const SIGNUP_MAX_USES = 10;
 const MS_PER_DAY = 86_400_000;
-/** The longest a signup invite may live, in whole days (D254). */
+/** The longest a signup invite may live, in whole days (D259). */
 export const SIGNUP_MAX_TTL_DAYS = 7;
-/** The longest a signup invite may live, measured on the server clock at mint (D254). */
+/** The longest a signup invite may live, measured on the server clock at mint (D259). */
 export const SIGNUP_MAX_TTL_MS = SIGNUP_MAX_TTL_DAYS * MS_PER_DAY;
 
-/** D254 — which sign-in modes mint signup invites. `forward-header` already admits every identity its proxy
+/** D259 — which sign-in modes mint signup invites. `forward-header` already admits every identity its proxy
  *  lets through and `single-user` has one human. The server's mint gate and the mint dialog both read this
  *  table; a mapped record, so a new mode fails `tsc` until it is ruled. */
 export const SIGNUP_INVITES_MINTABLE: Record<AuthMode, boolean> = {
@@ -608,7 +608,7 @@ export const createInviteSchema = z.object({
   expiresAt: z.number().int().nullable().optional(),
   /** Targeted-by-handle: the exact public handle to invite (no user directory/listing). */
   invitedHandle: brandedId<Handle>().nullable().optional(),
-  /** D254 — the link may create an account for a signed-out visitor. Global admins only; it needs an explicit
+  /** D259 — the link may create an account for a signed-out visitor. Global admins only; it needs an explicit
    *  `maxUses` up to {@link SIGNUP_MAX_USES}, an explicit `expiresAt` within {@link SIGNUP_MAX_TTL_MS}, and no
    *  target. The server refuses every other shape. */
   allowSignup: z.boolean().optional(),
@@ -653,7 +653,7 @@ export const invitePreviewSchema = z.strictObject({
 });
 export type InvitePreview = z.infer<typeof invitePreviewSchema>;
 
-// ── Signup through an invite (D254) ──
+// ── Signup through an invite (D259) ──
 const SIGNUP_TOKEN_MAX_CHARS = 128;
 const SIGNUP_HANDLE_MIN_CHARS = 2;
 const SIGNUP_HANDLE_MAX_CHARS = 32;
@@ -677,16 +677,16 @@ export type SignupRequest = z.infer<typeof signupRequestSchema>;
 export const SIGNUP_ERROR_CODES = ["invalid_request", "already_signed_in", "invite_unavailable", "handle_unavailable", "weak_password"] as const;
 export type SignupErrorCode = (typeof SIGNUP_ERROR_CODES)[number];
 
-/** D254 — the OIDC pending-join confirm's body: the persona the new account is seated as, and nothing else.
+/** D259 — the OIDC pending-join confirm's body: the persona the new account is seated as, and nothing else.
  *  STRICT, so a body naming an invite or an identity fails the parse — the pending cookie alone names the join. */
 export const pendingJoinConfirmRequestSchema = z.strictObject({ persona: joinerPersonaSchema });
 export type PendingJoinConfirmRequest = z.infer<typeof pendingJoinConfirmRequestSchema>;
 
-/** D254 — the confirm's answer. `signedIn` is false when the new account waits for an admin's approval. */
+/** D259 — the confirm's answer. `signedIn` is false when the new account waits for an admin's approval. */
 export const pendingJoinConfirmResultSchema = z.strictObject({ signedIn: z.boolean() });
 export type PendingJoinConfirmResult = z.infer<typeof pendingJoinConfirmResultSchema>;
 
-/** D254 — the pending-join routes' refusal codes (`{ error: <code> }`). The client maps each to its own copy. */
+/** D259 — the pending-join routes' refusal codes (`{ error: <code> }`). The client maps each to its own copy. */
 export const PENDING_JOIN_ERROR_CODES = ["invalid_request", "already_signed_in", "join_unavailable", "account_exists"] as const;
 export type PendingJoinErrorCode = (typeof PENDING_JOIN_ERROR_CODES)[number];
 
@@ -703,7 +703,7 @@ export const inviteViewSchema = z.strictObject({
   expiresAt: z.number().nullable(),
   /** The targeted user when created by handle; null for an open share-link. */
   invitedUserId: brandedId<UserId>().nullable(),
-  /** D254 — the link may create an account for a signed-out visitor. */
+  /** D259 — the link may create an account for a signed-out visitor. */
   allowSignup: z.boolean(),
   createdAt: z.number(),
 });

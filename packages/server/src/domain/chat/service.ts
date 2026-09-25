@@ -149,7 +149,7 @@ export function createChatService(
   });
   const fork = createFork(ctx, { emit: deps.emit, loadParticipantViews });
   const imageGen = createGenerateImage(ctx, { emit: deps.emit, claimChat });
-  // ONE preview assembly for the signed-in `previewInvite` and the signed-out pending join (D254).
+  // ONE preview assembly for the signed-in `previewInvite` and the signed-out pending join (D259).
   const assemblePreview = createInvitePreview(ctx, { loadParticipantViews });
   const invites = createInvites(ctx, { emit: deps.emit, loadParticipantViews, claimChat, assemblePreview });
   const signupInvites = createSignupInvite(ctx, { ...deps.signup, assemblePreview, emit: deps.emit });

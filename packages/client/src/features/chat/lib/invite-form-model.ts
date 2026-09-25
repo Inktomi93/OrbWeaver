@@ -49,7 +49,7 @@ export interface InviteFormValues {
   readonly handle: Handle | "";
   readonly expiry: string;
   readonly maxUses: number | null;
-  /** D254 — the link may create an account for a signed-out visitor. Offered to a global admin only, in a mode
+  /** D259 — the link may create an account for a signed-out visitor. Offered to a global admin only, in a mode
    *  that mints signup invites, and only for a share link; the server re-checks every one of those. */
   readonly allowSignup: boolean;
 }

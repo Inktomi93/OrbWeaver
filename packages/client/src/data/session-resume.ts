@@ -12,7 +12,7 @@
 // a bounce it never took, and the blob would outlive the trip it was written for. It is also read
 // ONE-SHOT (`takeSessionResume` deletes as it reads), so a later reload cannot resurrect a stale target.
 //
-// The same door holds the signed-out invite handoff (D254): a `/?join=<token>` visit without a session stashes
+// The same door holds the signed-out invite handoff (D259): a `/?join=<token>` visit without a session stashes
 // the raw token here before the guard sends the tab to `/login`, so the token never rides a URL again. It
 // is tab-scoped for the same reason, and it clears when the join dialog takes it, when the visitor
 // dismisses the offer, and on sign-out.

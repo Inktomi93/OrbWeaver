@@ -1,4 +1,4 @@
-// D254 — the persona a sign-up joiner names before their account and seat exist. Both signup doors (the local
+// D259 — the persona a sign-up joiner names before their account and seat exist. Both signup doors (the local
 // form and the OIDC pending-join card) render these fields, and the server creates the persona in the same batch
 // that seats the account as it, so the joiner's first message never goes out without a name.
 

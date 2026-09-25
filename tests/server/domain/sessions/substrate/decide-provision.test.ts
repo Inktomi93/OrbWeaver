@@ -6,7 +6,7 @@ import type { ProvisionCandidate } from "../../../../../packages/server/src/doma
 import { decideProvision } from "../../../../../packages/server/src/domain/sessions/substrate/decide-provision.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
-// The pure provision decision (D254). The precedence cases the verb suite drives through a db are pinned
+// The pure provision decision (D259). The precedence cases the verb suite drives through a db are pinned
 // here without one, so the batch-shaped signup statement and the verb read one rule.
 
 const SUBJECT = castId<ExternalId>("idp|alice");

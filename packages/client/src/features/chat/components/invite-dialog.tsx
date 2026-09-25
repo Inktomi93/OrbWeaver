@@ -69,7 +69,7 @@ function isBadRequest(error: unknown): boolean {
   return data?.code === "BAD_REQUEST";
 }
 
-// D254 — the sign-up switch is drawn for a global admin in a mode that mints signup invites. A render gate
+// D259 — the sign-up switch is drawn for a global admin in a mode that mints signup invites. A render gate
 // only: an unresolved read hides it, and the mint verb refuses every other caller and mode on its own.
 function useSignupOffered(): boolean {
   const { isAdmin } = useSettingsViewerView();

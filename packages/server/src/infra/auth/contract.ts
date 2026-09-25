@@ -45,7 +45,7 @@ export interface OidcTransaction {
   nonce: string;
   redirectUri: string;
   createdAt: number;
-  /** D254 — the peppered hash of the signup invite the login carried (`?invite=`), or null. Never the raw token. */
+  /** D259 — the peppered hash of the signup invite the login carried (`?invite=`), or null. Never the raw token. */
   inviteTokenHash: string | null;
 }
 

@@ -1,4 +1,4 @@
-// D254 — the local-mode signup-through-invite form. The login surface offers it when a signed-out invite
+// D259 — the local-mode signup-through-invite form. The login surface offers it when a signed-out invite
 // visit stashed its token. Plain controlled state (the submit-once credential-form carve-out) inside a real
 // `<form>` so password managers and Enter-to-submit work. The joiner names their persona here, before the account
 // and its seat exist. The server owns every rule; the parses here only keep the button honest.
