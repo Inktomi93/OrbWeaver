@@ -104,6 +104,26 @@ export function stackContext(repoRoot: string, ambient: Readonly<Record<string, 
   return { repoRoot, runDir, ports, pins, ambient: { ...ambient, ...launchEnv }, launchEnv, logs: stackLogs(runDir) };
 }
 
+/** Where a lane's worktrees live under a checkout; a process there belongs to that lane, never to the
+ *  checkout it is nested in. */
+const WORKTREES_SEGMENTS = [".claude", "worktrees"];
+const SEPARATORS = new Set(["/", "\\"]);
+
+/** Does a process's command line name THIS checkout? The ownership test every stack signal rests on. A
+ *  path BOUNDARY, never a substring: the root followed by a separator, whitespace or the end, and never a
+ *  path under the root's own worktrees dir, so a sibling `<root>2/` and a nested lane both read as foreign. */
+export function cmdlineNamesCheckout(cmdline: string, repoRoot: string): boolean {
+  const worktrees = [repoRoot, ...WORKTREES_SEGMENTS].join(repoRoot.includes("\\") ? "\\" : "/");
+  for (let at = cmdline.indexOf(repoRoot); at !== -1; at = cmdline.indexOf(repoRoot, at + 1)) {
+    const next = cmdline.charAt(at + repoRoot.length);
+    const bounded = next === "" || SEPARATORS.has(next) || /\s/u.test(next);
+    if (bounded && !cmdline.startsWith(worktrees, at)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function healthzUrl(serverPort: number): string {
   return `http://127.0.0.1:${String(serverPort)}/healthz`;
 }

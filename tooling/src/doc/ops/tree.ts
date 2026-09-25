@@ -10,6 +10,7 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { runGit } from "../../_shared/git.ts";
 import type { RunNicedSyncResult } from "../../_shared/proc.ts";
 import { runNicedSync } from "../../_shared/proc.ts";
+import { inheritedProcessEnv } from "../../_shared/process-env.ts";
 import type { CommitOutcome, DocsRootEntry, DocTree, GovernedDoc } from "../contract/types.ts";
 import { DOC_TOOL_TREE_PREFIXES, DOC_TOOL_TREES } from "../contract/vocab.ts";
 import { allItems } from "../lib/generated.ts";
@@ -209,6 +210,8 @@ export function pathExists(path: string, repoRoot = root): boolean {
 
 /** The commit-message contract every hook commit must still meet; plumbing runs no `commit-msg` hook. */
 const COMMIT_MSG_CHECK = join(root, "scripts", "commit-msg-check.sh");
+/** The check's owner hand-commit waiver. A tool commit is never one, so the check runs without it. */
+const HUMAN_COMMIT_WAIVER_ENV = "ORB_HUMAN_COMMIT";
 
 /** A failed git step, with everything the child said: the sink is a refusal an operator reads. */
 function gitFailure(step: string, result: RunNicedSyncResult): CommitOutcome {
@@ -232,7 +235,10 @@ export function commitPaths(paths: readonly string[], message: string, repoRoot 
   try {
     const messagePath = join(scratch, "message");
     writeFileSync(messagePath, `${message}\n`);
-    const contract = runNicedSync("bash", [COMMIT_MSG_CHECK, messagePath], { cwd: repoRoot });
+    const contract = runNicedSync("bash", [COMMIT_MSG_CHECK, messagePath], {
+      cwd: repoRoot,
+      env: inheritedProcessEnv({ [HUMAN_COMMIT_WAIVER_ENV]: undefined }),
+    });
     if (contract.status !== 0) {
       return { ok: false, reason: `the landing message fails the commit-message contract: ${`${contract.stdout}${contract.stderr}`.trim()}` };
     }

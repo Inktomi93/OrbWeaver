@@ -13,6 +13,7 @@ import { killPidGroup } from "../../_shared/proc.ts";
 import type { LeaderProbes, LeaderRecord, LeaderState, StackContext } from "../contract/types.ts";
 import { leaderVerdict, readLeaderRecord, recordAuthorizesSignal, removeLeaderRecord } from "../lib/leader-record.ts";
 import { pidIsAlive } from "../lib/spawn-lock.ts";
+import { cmdlineNamesCheckout } from "../lib/stack-plan.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm stack down");
 
@@ -39,7 +40,7 @@ function ownsPid(ctx: StackContext, pid: number): boolean {
   if (info === null) {
     return false;
   }
-  return info.cmdline.includes(ctx.repoRoot);
+  return cmdlineNamesCheckout(info.cmdline, ctx.repoRoot);
 }
 
 /** POSIX: the recorded group still has a member (`kill(-pgid, 0)`, the `pgrep -g` question). win32 has no
@@ -157,7 +158,7 @@ async function sweepPorts(ctx: StackContext): Promise<PortSweep> {
       }
       continue;
     }
-    if (!info.cmdline.includes(ctx.repoRoot)) {
+    if (!cmdlineNamesCheckout(info.cmdline, ctx.repoRoot)) {
       refused.push({ port, pid, cmdline: info.cmdline });
       continue;
     }

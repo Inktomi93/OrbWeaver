@@ -89,6 +89,7 @@ export { acquireSpawnLock, handleHeldSpawnLock, pidIsAlive, releaseSpawnLock } f
 export { buildProdSpawnPlan, CLIENT_DIST_INDEX_REL, CLIENT_DIST_REL } from "./lib/spawn-plan.ts";
 export { STACK_SPAWNERS, spawnerForPort } from "./lib/spawners.ts";
 export {
+  cmdlineNamesCheckout,
   devStackPins,
   ENV_NO_FILE,
   healthzUrl,

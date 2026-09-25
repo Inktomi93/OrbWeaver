@@ -14,6 +14,7 @@ import {
   FIXTURE_BASE_URL_DEFAULT,
   FIXTURE_SERVER_URL_DEFAULT,
   fixtureVerdict,
+  portOwnerFromConfig,
   resolveFixtureTarget,
   resolveFixtureUsers,
 } from "../../../../tooling/src/snap/ops/fixture.ts";
@@ -130,7 +131,7 @@ test("a port owner running another AUTH_MODE is refused, and the reason names th
   expect(status.up === false && status.reason).toContain("AUTH_MODE=single-user");
 });
 
-test("the /proc probe is only asked once the cheap HTTP evidence agrees", () => {
+test("the owner probe is only asked once the cheap HTTP evidence agrees", () => {
   let asked = 0;
   const owner = (): PortOwnerAuthProbe => {
     asked += 1;
@@ -139,5 +140,12 @@ test("the /proc probe is only asked once the cheap HTTP evidence agrees", () => 
   expect(fixtureVerdict(FIXTURE_TARGET, { healthz: false, config: FIXTURE_CONFIG, owner }).up).toBe(false);
   expect(fixtureVerdict(FIXTURE_TARGET, { healthz: true, config: null, owner }).up).toBe(false);
   expect(fixtureVerdict(FIXTURE_TARGET, { healthz: true, config: { mode: "single-user" }, owner }).up).toBe(false);
-  expect(asked, "a run that already knows the origin is wrong must not shell out to /proc").toBe(0);
+  expect(asked, "a run that already knows the origin is wrong must not ask the owner").toBe(0);
+});
+
+test("the port owner is the server's own word: its config's mode, and a config without one cannot be asked", () => {
+  expect(portOwnerFromConfig({ mode: "local", localEnabled: true, multiHumanCapable: true }, "http://127.0.0.1:1")).toEqual({ kind: "local" });
+  expect(portOwnerFromConfig({ mode: "single-user" }, "http://127.0.0.1:1")).toEqual({ kind: "not-local", mode: "single-user" });
+  expect(portOwnerFromConfig({ localEnabled: true, multiHumanCapable: true }, "http://127.0.0.1:1")).toMatchObject({ kind: "unreadable" });
+  expect(portOwnerFromConfig(null, "http://127.0.0.1:1")).toMatchObject({ kind: "unreadable" });
 });

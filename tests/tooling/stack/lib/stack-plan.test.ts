@@ -2,7 +2,7 @@
 // the repo root from any cwd, and the ports follow the server's own `.env`-over-shell precedence.
 import { join, resolve } from "node:path";
 import { DEV_PORTS } from "../../../../tooling/src/_shared/ports.ts";
-import { devStackPins, printablePins, stackContext, stackPorts, stackRunDir } from "../../../../tooling/src/stack/index.ts";
+import { cmdlineNamesCheckout, devStackPins, printablePins, stackContext, stackPorts, stackRunDir } from "../../../../tooling/src/stack/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 test("a host export wins over a pin, an empty export does not, and every source is named", () => {
@@ -92,4 +92,27 @@ test("the context threads one run dir and one port pair into the leader env and 
   expect(ctx.ambient["PATH"]).toBe("/bin");
   expect(ctx.ambient["STACK_RUN_DIR"]).toBe(ctx.runDir);
   expect(ctx.logs).toEqual({ stack: join(ctx.runDir, "stack.log"), server: join(ctx.runDir, "server.log"), client: join(ctx.runDir, "client.log") });
+});
+
+// ── the ownership fence: a path boundary, never a substring ───────────────────────────────────────────
+
+test("a holder under this checkout's own path is ours; a nested worktree's or a sibling-prefix checkout's never is", () => {
+  const root = "/srv/orbweaver";
+  const cli = "tooling/src/stack/cli.ts _leader";
+  expect(cmdlineNamesCheckout(`node ${root}/${cli}`, root)).toBe(true);
+  expect(cmdlineNamesCheckout(`node --watch ${root}/packages/server/src/entry/main.ts`, root)).toBe(true);
+  expect(cmdlineNamesCheckout(`node ${root}`, root), "the root itself as a whole argv token").toBe(true);
+  // A lane's worktree lives UNDER the checkout; its stack is that lane's, and stopping it from here would
+  // be the exact cross-lane kill the fence exists to refuse.
+  expect(cmdlineNamesCheckout(`node ${root}/.claude/worktrees/agent-abc123/${cli}`, root)).toBe(false);
+  // A sibling checkout whose path merely starts with ours.
+  expect(cmdlineNamesCheckout(`node ${root}2/${cli}`, root)).toBe(false);
+  expect(cmdlineNamesCheckout(`node ${root}-old/${cli}`, root)).toBe(false);
+  // And the other way round: from inside a worktree, main's processes are not ours.
+  const worktree = `${root}/.claude/worktrees/agent-abc123`;
+  expect(cmdlineNamesCheckout(`node ${worktree}/${cli}`, worktree)).toBe(true);
+  expect(cmdlineNamesCheckout(`node ${root}/${cli}`, worktree)).toBe(false);
+  // win32 spells the separator the other way; the boundary holds either way.
+  expect(cmdlineNamesCheckout(String.raw`node C:\srv\orbweaver\tooling\src\stack\cli.ts`, String.raw`C:\srv\orbweaver`)).toBe(true);
+  expect(cmdlineNamesCheckout(String.raw`node C:\srv\orbweaver2\tooling\src\stack\cli.ts`, String.raw`C:\srv\orbweaver`)).toBe(false);
 });

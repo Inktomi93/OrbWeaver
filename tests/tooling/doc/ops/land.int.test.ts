@@ -4,9 +4,11 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
+import { vi } from "vitest";
 import { REPO_ROOT } from "../../../../tooling/src/_shared/artifacts.ts";
 import { execFixtureGit, runFixtureGit } from "../../../../tooling/src/_shared/git-fixture.ts";
 import { landItems, newAdr, newItem, nextAdrId } from "../../../../tooling/src/doc/index.ts";
+import { commitPaths } from "../../../../tooling/src/doc/ops/tree.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -114,4 +116,20 @@ test("a removed ADR's id is never minted again either", { timeout: GIT_ARM_TIMEO
   commitAll(root, "docs: remove the first ruling");
   expect(nextAdrId(root)).toBe(2);
   expect(newAdr({ slug: "second", title: "Second" }, root, TODAY).written[0]).toBe("docs/adr/0002-second.md");
+});
+
+test("the landing's message check ignores an ambient owner waiver: a trailer-less message is refused under ORB_HUMAN_COMMIT=1", {
+  timeout: GIT_ARM_TIMEOUT_MS,
+}, async ({ plantedTree }) => {
+  const repo = await repoWithItem(plantedTree);
+  const path = "docs/work/0001-a.md";
+  writeFileSync(join(repo, path), "# rewritten\n");
+  vi.stubEnv("ORB_HUMAN_COMMIT", "1");
+  try {
+    const outcome = commitPaths([path], "chore(work): a landing with no trailer", repo);
+    expect(outcome.ok, "the tool's own commit is never an owner hand-commit").toBe(false);
+    expect(outcome.ok ? "" : outcome.reason).toContain("Co-Authored-By");
+  } finally {
+    vi.unstubAllEnvs();
+  }
 });

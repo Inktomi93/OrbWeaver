@@ -5,7 +5,7 @@
 export interface FixtureTarget {
   readonly serverUrl: string;
   readonly baseUrl: string;
-  /** The server origin's TCP port — the `/proc` env-pin check needs the number, not the URL. */
+  /** The server origin's TCP port — the refusal lines name the number, not the URL. */
   readonly serverPort: number;
 }
 
@@ -25,7 +25,7 @@ export interface AuthConfig {
   readonly multiHumanCapable?: boolean;
 }
 
-/** What the LIVE port owner's own environment says about AUTH_MODE. THREE outcomes, not two (#1507): the
+/** What the LIVE port owner says about its own auth mode. THREE outcomes, not two (#1507): the
  *  probe can also fail to ASK, and "could not ask" is not "answered no" and is certainly not "answered
  *  yes" — the arm the old `boolean | null` let `fixtureStatus` fall through as `{ up: true }`. Every
  *  unreadable arm carries the sentence a caller needs to act on it. */

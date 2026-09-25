@@ -21,13 +21,11 @@
 // fixture actually seeds) is a loud refusal, never a guess.
 
 import process from "node:process";
-import { REPO_ROOT } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { httpJsonSync, httpOkSync } from "../../_shared/http-probe.ts";
-import { listeningPids, processInfo } from "../../_shared/platform.ts";
 import { FIXTURE_PORTS } from "../../_shared/ports.ts";
 import { SESSION_COOKIE_MINTED } from "../../_shared/session-cookie.ts";
-import { FIXTURE_CREDENTIALS, fixtureEnv, RUN_DIR_ENV, readLeaderRecord } from "../../stack/index.ts";
+import { FIXTURE_CREDENTIALS } from "../../stack/index.ts";
 import type { AuthConfig, FixtureStatus, FixtureTarget, FixtureTargetOverride, PortOwnerAuthProbe } from "../contract/fixture.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
@@ -48,7 +46,7 @@ function stripSlash(url: string): string {
 
 /** Resolve the fixture's two origins: explicit override \> env (SNAP_FIXTURE_SERVER_URL /
  *  SNAP_FIXTURE_BASE_URL) \> the offset-pair defaults. Pure apart from the env read (injectable for tests).
- *  An unparseable server URL falls back to the default port for the owner check rather than throwing —
+ *  An unparseable server URL falls back to the default port for the refusal lines rather than throwing —
  *  the health probe below will refuse loudly on the same URL anyway, with a reason a human can act on. */
 export function resolveFixtureTarget(
   override: FixtureTargetOverride = {},
@@ -91,57 +89,38 @@ function authConfig(value: unknown): AuthConfig | null {
   };
 }
 
-/** The port-owner proof: the fixture's OWN leader record names the auth mode it launched with and the
- *  pids it spawned, so the process holding the port is the fixture's when it is one of those pids or a
- *  child of one (the watched server runs under its watcher). A `.env`-loaded or since-restarted value can
- *  drift from what a caller thinks is running, which is why the record, not the caller, answers.
+/** The port-owner proof: the process answering on the port names its OWN auth mode in `/api/auth/config`
+ *  (`mode` is the server's live `AUTH_MODE`, not a record about it), so a `.env`-loaded or since-restarted
+ *  value cannot drift from what this reads, and an override (`--fixture-server`) is proven the same way as
+ *  the default pair. A config without a mode is "could not ask", never "answered yes".
  *
  *  #1507: this used to return `boolean | null` and its own header said null meant "can't prove it's the
  *  fixture, same as a mismatch" — but `fixtureStatus` only refused on `false`, so every unprovable case
  *  fell through to `{ up: true }`. The union makes the third outcome unignorable at the call site. */
-function livePortOwnerAuthMode(serverPort: number): PortOwnerAuthProbe {
-  const runDir = fixtureEnv(REPO_ROOT, {})[RUN_DIR_ENV] ?? "";
-  const read = readLeaderRecord(runDir, REPO_ROOT);
-  if (read.kind !== "record") {
-    return { kind: "unreadable", reason: `no fixture record under ${runDir} (${read.kind}) — nothing proves who owns :${String(serverPort)}` };
+export function portOwnerFromConfig(config: AuthConfig | null, serverUrl: string): PortOwnerAuthProbe {
+  if (config?.mode === undefined) {
+    return { kind: "unreadable", reason: `${serverUrl}/api/auth/config names no auth mode` };
   }
-  const record = read.record;
-  if (record.ports.server !== serverPort) {
-    return { kind: "unreadable", reason: `the fixture record names :${String(record.ports.server)}, not :${String(serverPort)}` };
-  }
-  const holder = listeningPids().get(serverPort);
-  if (holder === undefined) {
-    return { kind: "unreadable", reason: `no process could be identified as the owner of :${String(serverPort)}` };
-  }
-  const own = new Set([record.pid, ...record.children]);
-  const holderParent = processInfo(holder)?.ppid ?? null;
-  if (!(own.has(holder) || (holderParent !== null && own.has(holderParent)))) {
-    return { kind: "unreadable", reason: `pid ${String(holder)} owns :${String(serverPort)} but the fixture record does not name it or its parent` };
-  }
-  const mode = record.pins.values.AUTH_MODE ?? "";
-  if (mode === "") {
-    return { kind: "unreadable", reason: "the fixture record carries no AUTH_MODE" };
-  }
-  return mode === "local" ? { kind: "local" } : { kind: "not-local", mode };
+  return config.mode === "local" ? { kind: "local" } : { kind: "not-local", mode: config.mode };
 }
 
 /** Is the multi-user FIXTURE (not a single-user stack) live at `target`? Checks three things a caller could
  *  otherwise be fooled by: the origin answers at all, `/api/auth/config` reports `localEnabled`+
  *  `multiHumanCapable` (a single-user stack's config is `single-user`/`false`/`false` — the tell if an
- *  override aimed this at the dev stack), AND the live process's own `AUTH_MODE` env (a stale/mismatched
- *  record can serve `local`-shaped config while the actual bound process is still `single-user` — the exact
- *  drift `pnpm stack status` surfaces). */
+ *  override aimed this at the dev stack), AND the live process's own `mode` (the same answer, read as the
+ *  owner's word rather than a capability flag — the drift `pnpm stack status` surfaces). */
 export function fixtureStatus(target: FixtureTarget): FixtureStatus {
+  const config = authConfig(httpJsonSync(`${target.serverUrl}/api/auth/config`));
   return fixtureVerdict(target, {
     healthz: httpOkSync(`${target.serverUrl}/healthz`),
-    config: authConfig(httpJsonSync(`${target.serverUrl}/api/auth/config`)),
-    owner: (): PortOwnerAuthProbe => livePortOwnerAuthMode(target.serverPort),
+    config,
+    owner: (): PortOwnerAuthProbe => portOwnerFromConfig(config, target.serverUrl),
   });
 }
 
 /** The DECISION half, split out of the probes so every arm — including the one that used to fall through —
- *  is provable without a running fixture (#1507). `owner` is a thunk: the record and process-table read only
- *  happens once the cheap HTTP evidence has already agreed, exactly as before. */
+ *  is provable without a running fixture (#1507). `owner` is a thunk, asked only once the cheap HTTP
+ *  evidence has already agreed. */
 export function fixtureVerdict(
   target: FixtureTarget,
   probes: { readonly healthz: boolean; readonly config: AuthConfig | null; readonly owner: () => PortOwnerAuthProbe },
