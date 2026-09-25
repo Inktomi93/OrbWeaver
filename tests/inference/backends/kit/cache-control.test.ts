@@ -6,7 +6,11 @@
 
 import type { GenerationCapability, PromptCacheSettings } from "@orb/contracts/inference";
 import { modelIdSchema, SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
-import { anthropicCachePlan, cachesByAnthropicMarkers, computeCacheBreakpointPlacements } from "../../../../packages/inference/src/backends/kit/cache-control.ts";
+import {
+  anthropicCachePlan,
+  cachesByAnthropicMarkers,
+  computeCacheBreakpointPlacements,
+} from "../../../../packages/inference/src/backends/kit/cache-control.ts";
 import type { ProviderLogger } from "../../../../packages/inference/src/backends/kit/provider-log.ts";
 import { providerLogger } from "../../../../packages/inference/src/backends/kit/provider-log.ts";
 import { expect, test } from "../../../support/fixtures.ts";
