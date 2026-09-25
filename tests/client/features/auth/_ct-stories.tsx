@@ -51,6 +51,30 @@ export function LoginArmStory({
   );
 }
 
+/** D254 — the oidc arm on the callback's pending-join landing, inside the query providers the preview read needs.
+ *  `onDone` (joined and signed in) and `onLeavePendingJoin` (left the card) surface as rendered text. */
+export function LoginPendingJoinStory({ config }: { readonly config: AuthConfig }): ReactElement {
+  const [done, setDone] = useState(false);
+  const [left, setLeft] = useState(false);
+  return (
+    <CtDataProviders>
+      <div style={{ width: 360, padding: 16 }}>
+        <LoginBody
+          config={config}
+          pendingJoin={!left}
+          onLeavePendingJoin={(): void => {
+            setLeft(true);
+          }}
+          onDone={(): void => {
+            setDone(true);
+          }}
+        />
+        {done ? <p data-testid="ct-login-done">done</p> : null}
+      </div>
+    </CtDataProviders>
+  );
+}
+
 /** The WHOLE login scene (anchor + web backdrop + wordmark + card body) at a FIXED container width —
  *  the §0 container-model law: phone-vs-desktop is proven at the CONTAINER, not the viewport. The
  *  backdrop reads `/api/auth/config` through the query layer, so the story wraps CtDataProviders and

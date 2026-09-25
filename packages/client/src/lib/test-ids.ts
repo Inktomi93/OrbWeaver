@@ -33,6 +33,14 @@ export const TEST_IDS = {
   signupError: "signup-error",
   signupUseSignIn: "signup-use-sign-in",
   signupDismiss: "signup-dismiss",
+  // D254 — the OIDC pending-join card: the room preview, confirm, dismiss, the inline refusal, and the two
+  // end states (no pending join, and an account waiting for approval).
+  pendingJoin: "pending-join",
+  pendingJoinConfirm: "pending-join-confirm",
+  pendingJoinDismiss: "pending-join-dismiss",
+  pendingJoinError: "pending-join-error",
+  pendingJoinUnavailable: "pending-join-unavailable",
+  pendingJoinApproval: "pending-join-approval",
   accountSurface: "account-surface",
   accountLogout: "account-logout",
   // The rung-1 in-app re-auth modal body — the affordance that
@@ -114,6 +122,7 @@ export const TEST_IDS = {
   inviteDialog: "invite-dialog",
   inviteHandleInput: "invite-handle-input",
   inviteSubmit: "invite-submit",
+  inviteAllowSignup: "invite-allow-signup",
   inviteCopyLink: "invite-copy-link",
   inviteLinkResult: "invite-link-result",
   inviteOutstandingList: "invite-outstanding-list",

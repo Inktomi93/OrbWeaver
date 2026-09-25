@@ -5,6 +5,7 @@
 // host-only, with per-row Revoke on pending. Uses DISMISS mode (not PROMPT) because the form body carries
 // its own submit and the dialog's exit is just "Done".
 
+import { SIGNUP_INVITES_MINTABLE, SIGNUP_MAX_TTL_DAYS, SIGNUP_MAX_USES } from "@orb/contracts/chat";
 import type { ChatId, ChatInviteId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
@@ -21,7 +22,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { FormDialog } from "#components";
 import type { Trpc } from "#data";
-import { useInvalidation, useTRPC } from "#data";
+import { useAuthConfig, useInvalidation, useSettingsViewerView, useTRPC } from "#data";
 import { notify, testId, timeLib } from "#lib";
 import { useInviteForm } from "../hooks/use-invite-form.ts";
 import { useCreateInvite, useRevokeInvite } from "../hooks/use-invite-mutations.ts";
@@ -64,15 +65,26 @@ function isBadRequest(error: unknown): boolean {
   return data?.code === "BAD_REQUEST";
 }
 
+// D254 — the sign-up switch is drawn for a global admin in a mode that mints signup invites. A render gate
+// only: an unresolved read hides it, and the mint verb refuses every other caller and mode on its own.
+function useSignupOffered(): boolean {
+  const { isAdmin } = useSettingsViewerView();
+  const mode = useAuthConfig().data?.mode;
+  return isAdmin && mode !== undefined && SIGNUP_INVITES_MINTABLE[mode];
+}
+
 function InviteMintForm({ chatId }: { readonly chatId: ChatId }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const createInvite = useCreateInvite({ trpc, invalidation });
+  const signupOffered = useSignupOffered();
   const [mintedLink, setMintedLink] = useState<string | null>(null);
   const [handleError, setHandleError] = useState<string | null>(null);
+  const [signupError, setSignupError] = useState<string | null>(null);
 
   const save = async (values: InviteFormValues): Promise<InviteFormValues> => {
     setHandleError(null);
+    setSignupError(null);
     setMintedLink(null);
     const input = toCreateInviteInput(values, performance.timeOrigin + performance.now());
     try {
@@ -87,6 +99,10 @@ function InviteMintForm({ chatId }: { readonly chatId: ChatId }): ReactElement {
     } catch (error) {
       if (values.mode === "handle" && isBadRequest(error)) {
         setHandleError("No invitable user with that exact handle.");
+      } else if (input.allowSignup === true) {
+        // Inline, not a toast: a toast paints under the modal backdrop. The server measures the expiry on its
+        // own clock, so a longest-expiry link from a device whose clock runs ahead is refused here too.
+        setSignupError("The server refused this sign-up link. Try a shorter expiry or fewer uses.");
       } else {
         notify.error("Couldn't create the invite.");
       }
@@ -154,6 +170,30 @@ function InviteMintForm({ chatId }: { readonly chatId: ChatId }): ReactElement {
               {(field): ReactElement => <field.NumberField label="Max uses" hint="Empty = unlimited." min={1} step={1} />}
             </form.AppField>
           </Row>
+
+          {signupOffered ? (
+            <form.Subscribe selector={(state): string => state.values.mode}>
+              {(mode): ReactElement | null =>
+                mode === "link" ? (
+                  <Stack gap="field" data-testid={testId("inviteAllowSignup")}>
+                    <form.AppField name="allowSignup">
+                      {(field): ReactElement => (
+                        <field.SwitchField
+                          label="Let people without an account sign up"
+                          description={`Each use creates an account and seats it here. It needs 1 to ${SIGNUP_MAX_USES} uses and an expiry of ${SIGNUP_MAX_TTL_DAYS} days or less.`}
+                        />
+                      )}
+                    </form.AppField>
+                    {signupError === null ? null : (
+                      <Text voice="label" role="alert" className="text-destructive">
+                        {signupError}
+                      </Text>
+                    )}
+                  </Stack>
+                ) : null
+              }
+            </form.Subscribe>
+          ) : null}
 
           <Row gap="field" justify="end">
             <form.Subscribe selector={(state): string => state.values.mode}>
