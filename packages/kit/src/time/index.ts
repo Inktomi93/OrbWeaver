@@ -287,20 +287,20 @@ const RELATIVE_UNITS = [["day", MS_PER_DAY], ["hour", MS_PER_HOUR], ["minute", M
   number,
 ])[];
 
-// A deadline read seconds after it was set keeps its full length; a larger grace would overstate what is left.
-const FUTURE_GRACE_MS = MS_PER_MINUTE;
+// A deadline read seconds after it was set keeps its full length. The grace is a hundredth of the unit being floored:
+// a whole unit of grace would read every span one unit long.
+const FUTURE_GRACE_FRACTION = 100;
 
-/** A span as a count of one ladder unit. A future span is a deadline, so it floors and never reads longer than it
- *  is, after {@link FUTURE_GRACE_MS} once it spans a minute. A past span rounds. Either way a count that reaches the
- *  next unit up reads as that unit, so no label says "24 hours" or "60 minutes". */
+/** A span as a count of one ladder unit, in the unit the raw span reaches. A future span is a deadline, so it floors
+ *  and never reads longer than it is, after a grace of a hundredth of that unit. A past span rounds. Either way a count
+ *  that reaches the next unit up reads as that unit, so no label says "24 hours" or "60 minutes". */
 function relativeSpan(deltaMs: number): { readonly count: number; readonly unit: Intl.RelativeTimeFormatUnit } {
   const future = deltaMs > 0;
   const magnitude = Math.abs(deltaMs);
-  const spanMs = future && magnitude >= MS_PER_MINUTE ? magnitude + FUTURE_GRACE_MS : magnitude;
-  const step = RELATIVE_UNITS.find(([, sizeMs]) => spanMs >= sizeMs) ?? SECOND_STEP;
+  const step = RELATIVE_UNITS.find(([, sizeMs]) => magnitude >= sizeMs) ?? SECOND_STEP;
   const index = RELATIVE_UNITS.indexOf(step);
   const [unit, unitMs] = step;
-  const count = future ? Math.floor(spanMs / unitMs) : Math.round(spanMs / unitMs);
+  const count = future ? Math.floor((magnitude + unitMs / FUTURE_GRACE_FRACTION) / unitMs) : Math.round(magnitude / unitMs);
   const larger = RELATIVE_UNITS[index - 1];
   if (larger !== undefined && count * unitMs >= larger[1]) {
     return { count: Math.sign(deltaMs) * Math.round((count * unitMs) / larger[1]), unit: larger[0] };
