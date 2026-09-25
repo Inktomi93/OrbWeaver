@@ -45,6 +45,7 @@ import type {
   ChatInjection as ChatInjectionWire,
   ChatMetadata,
   ChatReasoningPart,
+  CueRole,
   DurableChatBusEvent,
   HandoffOffer,
   MacroFreezeRecord,
@@ -57,6 +58,7 @@ import type {
 } from "@orb/contracts/chat";
 import {
   CHAT_BUS_EVENT_TYPES,
+  CUE_ROLES,
   INVITE_STATUSES,
   JOIN_HISTORY_VISIBILITIES,
   LIVE_ONLY_CHAT_EVENT_TYPES,
@@ -448,6 +450,12 @@ export const messageVariants = sqliteTable(
     // what the wire needs and is NULL when nothing replayable was emitted. Typed JSON, parsed at the read seam
     // (the converters refuse an unsigned block, so a malformed row degrades to "nothing to replay").
     reasoningParts: text("reasoning_parts", { mode: "json" }).$type<readonly ChatReasoningPart[]>(),
+    // The exact cue SHAPE delivered ahead of this generation and the role it went out in, stamped together at
+    // commit (both NULL when no cue was sent). A prefix-bound model binds its thinking to the prompt it saw, so the
+    // carry replays both verbatim ahead of the reply (D262); re-deriving either from today's prose, roster or
+    // settings would drop the thinking. HOST-PLANE: the cue is prompt material and rides no member view.
+    cue: text("cue"),
+    cueRole: text("cue_role", { enum: CUE_ROLES }).$type<CueRole>(),
     model: text("model").$type<ModelId>(),
     // ATTRIBUTION (inference program §5.3b): which of the user's connections generated this swipe. SET NULL —
     // a deleted connection never deletes history (`selectedVariantId`'s idiom); null on user-authored rows,
@@ -555,6 +563,7 @@ export const messageVariants = sqliteTable(
     check("message_variants_cost_provenance_check", sql.raw(`cost_provenance in (${checkList(TOKEN_PROVENANCES)})`)),
     check("message_variants_finish_reason_check", sql.raw(`finish_reason is null or finish_reason in (${checkList(NORMALIZED_FINISH_REASONS)})`)),
     check("message_variants_reasoning_effort_check", sql.raw(`reasoning_effort is null or reasoning_effort in (${checkList(EFFORT_LEVELS)})`)),
+    check("message_variants_cue_role_check", sql.raw(`cue_role is null or cue_role in (${checkList(CUE_ROLES)})`)),
   ],
 );
 

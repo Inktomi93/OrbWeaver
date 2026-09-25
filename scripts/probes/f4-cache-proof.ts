@@ -34,6 +34,7 @@ import { estimateTokens } from "@orb/kit/tokens";
 import { SessionCache } from "../../packages/inference/src/backends/agent-sdk/session/store.ts";
 import { extractTrailingSystemRows, splitAgentHistory } from "../../packages/inference/src/backends/agent-sdk/turn-input.ts";
 import { BEFORE_HISTORY_DEPTH } from "../../packages/server/src/domain/chat/assembly/injections.ts";
+import type { DeliveredCue } from "../../packages/server/src/domain/chat/contract/results.ts";
 import { makeCapability, makeGenerationCapability, makeResolved } from "../../tests/support/factories/resolved-connection.ts";
 
 const BASE_REF = "83a73e291";
@@ -159,6 +160,7 @@ async function runArm(arm: Arm): Promise<TurnRecord[]> {
       applyRegexReplace: (text, regex, replacer) => text.replace(regex, replacer),
       loadInlineReplyAssetIds: () => Promise.resolve(new Map<MessageId, ReadonlySet<AssetId>>()),
       loadReasoningParts: () => Promise.resolve(new Map<MessageId, readonly ChatReasoningPart[]>()),
+      loadCues: () => Promise.resolve(new Map<MessageId, DeliveredCue>()),
       runChatTurn: () =>
         (async function* () {
           await Promise.resolve();

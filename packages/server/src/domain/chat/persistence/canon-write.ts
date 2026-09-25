@@ -36,6 +36,7 @@ import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
+import type { DeliveredCue } from "../contract/results.ts";
 import { loadMaxMessageSeq } from "./queries.ts";
 
 /** The generation record for one `message_variants` row: all content + economics + the per-swipe snapshot.
@@ -66,6 +67,10 @@ interface CanonVariantInput {
    *  the assembly re-materializes onto the assistant row (`carryReasoning`, §8.8). Absent/[] ⇒ NULL: a turn
    *  whose reasoning carried no provenance has nothing replayable (the converters refuse an unsigned block). */
   readonly reasoningParts?: readonly ReasoningContentPart[] | null | undefined;
+  /** The cue SHAPE delivered ahead of this generation and its role (`message_variants.cue` + `cue_role`, one value
+   *  so the pair is written together); absent ⇒ both NULL. Written at insert only: a continue extends the reply
+   *  the same cue preceded. */
+  readonly cue?: DeliveredCue | null | undefined;
   readonly contextWindow?: number | null | undefined;
   /** The output cap the backend echoed + the APPLIED reasoning effort (what the wire carried, B1 — the
    *  requested intent is `params`). */
@@ -268,6 +273,8 @@ function variantColumns(args: {
     reasoningTokens: args.variant.reasoningTokens ?? null,
     costDetails: args.variant.costDetails ?? null,
     reasoningParts: reasoningPartsColumn(args.variant.reasoningParts),
+    cue: args.variant.cue?.text ?? null,
+    cueRole: args.variant.cue?.role ?? null,
     params: args.variant.params ?? null,
     promptSnapshot: args.variant.promptSnapshot ?? null,
     variableDelta: args.variant.variableDelta ?? null,

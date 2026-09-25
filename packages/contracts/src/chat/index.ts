@@ -153,6 +153,7 @@ export { CHAT_LIST_MAX_LIMIT, chatListCursorSchema } from "./listing.ts";
 // from `@orb/kit/macro`; contracts owns only the persisted/wire ARRAY (`MacroFreezeRecord`) + its parse seam.
 export type {
   ChatReasoningPart,
+  CueRole,
   MacroFreezeRecord,
   MessageAssetOrigin,
   MessageSlot,
@@ -170,6 +171,7 @@ export type {
 } from "./messages.ts";
 export {
   CHAT_MESSAGE_LIST_MAX_LIMIT,
+  CUE_ROLES,
   chatReasoningPartSchema,
   combineTokenProvenance,
   INLINE_REPLY_ORIGIN,

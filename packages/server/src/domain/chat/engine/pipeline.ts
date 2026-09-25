@@ -59,6 +59,7 @@ import type { ApplyPromptTransformsOp, ApplyRegexReplaceOp, BoundToolExecution, 
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import type { PromptHistoryRegexEnv } from "../contract/regex.ts";
 import type {
+  DeliveredCue,
   HistoryMacroNames,
   ResolvedMediaRef,
   TurnEconomics,
@@ -79,6 +80,7 @@ import {
   toShapeCanon,
   voiceContextForSpeaker,
 } from "../substrate/assembly-access.ts";
+import { cueReplayFor } from "../substrate/cue-replay.ts";
 import { buildWireHistory, convertsToEmptyWireRow, dropEmptyWireRows, fitWireHistory } from "../substrate/wire-history.ts";
 
 /** What `runTurnPipeline` consumes — the immutable assemble ctx + the loaded canon + the resolved connection
@@ -98,6 +100,9 @@ interface RunTurnPipelineArgs {
    *  Injected (the domain holds no db handle) and LAZY — called only when the resolved rung is
    *  `conversation`, so a turn that carries nothing performs no read. */
   readonly loadReasoningParts: () => Promise<ReadonlyMap<MessageId, readonly ChatReasoningPart[]>>;
+  /** This chat's stored reply cues, keyed by canon slot id — the prefix-bound carry's replay source
+   *  (`substrate/cue-replay`). LAZY like the carry source: read only when a replay applies. */
+  readonly loadCues: () => Promise<ReadonlyMap<MessageId, DeliveredCue>>;
   /** §6.7's INLINE-REPLY ORIGIN SET: for each canon slot of THIS chat, the asset ids whose `message_assets`
    *  link says the model emitted that picture inside that slot's own generation. It is the sole thing that
    *  lets `substrate/wire-history` ride an assistant row's picture back as an image part — an `/imagine`
@@ -195,6 +200,8 @@ interface TurnPipelineResult {
    *  See {@link reasoningClock} for exactly which window this is and why. */
   readonly reasoningMs: number | null;
   readonly economics: TurnEconomics | null;
+  /** The cue SHAPE delivered ahead of this reply and its role, or null — stamped on the variant at commit. */
+  readonly cue: DeliveredCue | null;
   readonly cacheBreakpointFromEnd: number | null;
   readonly droppedCount: number;
   /** True when ≥1 USER-ATTACHED image part was dropped because the model lacks vision (or its asset no longer
@@ -643,6 +650,12 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
   // and skip the continuation nudge) and {@link shapeTail} (drop the continue verb's fallback row).
   const prefillHonored = honorsAssistantPrefill(args);
 
+  // §8.8 REASONING CARRY — resolved HERE, once, off the ONE funnel policy (`resolveCarryReasoning`): SHAPE reads it
+  // for the cue replay and the CONVERT step below for the carried thinking, both upstream of every wire call. The
+  // warnings sink is deliberately a THROWAWAY: the backend's own `resolveChat` raises the drop on the turn stream,
+  // and raising it twice would show the user two notices for one decision.
+  const carryReasoning = resolveCarryReasoning(effectiveIntent, generationOf(args.connection), []);
+
   const shaped = shapeTurn({
     canon: assembled.sendHistory ? toShapeCanon(args.canon, ctx, args.historyMacroNames ?? EMPTY_HISTORY_MACRO_NAMES, promptHistoryEnv(ctx, args)) : [],
     appendUserTurn: shapeTail(args, prefillHonored),
@@ -654,6 +667,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     speakers,
     multiHuman: ctx.multiHuman === true,
     groupNudge: cue,
+    cueReplay: await cueReplayFor(generationOf(args.connection), carryReasoning, args.loadCues),
     // roleHandling is the preset's user-intent knob (per-turn override wins via the fold); SHAPE clamps it
     // against the model's roleHandlingFloor.
     assistantPrefill: prefillHonored,
@@ -684,13 +698,6 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
   // regex pass (§3.9 pin: a promptOnly/AI_OUTPUT script sees the FULL card bytes; the stub replaces them for
   // the wire below it). All six connection modes consume the resulting TurnMessage[], so the collapse is
   // uniform per backend.
-  // §8.8 REASONING CARRY — resolved HERE, once, off the ONE funnel policy (`resolveCarryReasoning`), because
-  // the `conversation` rung materializes prior turns' thinking at the history-build seam below, which runs
-  // upstream of every wire call. The warnings sink is deliberately a THROWAWAY: the backend's own
-  // `resolveChat` raises the drop on the turn stream, and raising it twice would show the user two notices
-  // for one decision.
-  const carryReasoning = resolveCarryReasoning(effectiveIntent, generationOf(args.connection), []);
-
   const converted = await buildWireHistory(
     {
       visionOk: acceptsImageInput(generationOf(args.connection)),
@@ -760,6 +767,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     // (regex scripts, the <think> demux) and none of that changes how long the model spent producing them.
     reasoningMs: loop.reasoningMs,
     economics: loop.economics,
+    cue: shaped.cue,
     cacheBreakpointFromEnd: structured.request.cacheBreakpointFromEnd,
     droppedCount: fitted.droppedCount,
     contextBoundaryMessageId: fitted.earliestKeptMessageId,

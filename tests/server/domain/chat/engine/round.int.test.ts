@@ -7,6 +7,7 @@
 
 import type { AssembleContext, ChatBusEvent, GroupConfig, MessageView, SpeakerRef } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
+import type { CarryReasoning } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import type { CharacterId, ChatId, Handle, MessageId, UserId } from "@orb/kit/ids";
@@ -19,10 +20,11 @@ import { createTurnEngine } from "../../../../../packages/server/src/domain/chat
 import { driveRound } from "../../../../../packages/server/src/domain/chat/engine/round.ts";
 import { loadWitnessHorizons } from "../../../../../packages/server/src/domain/chat/memory/persistence/queries.ts";
 import { recallMemory } from "../../../../../packages/server/src/domain/chat/memory/recall/recall.ts";
-import { loadCanonHistory } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
+import { loadCanonCues, loadCanonHistory } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { makeResolved } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeChatContext, scriptedRoleTurn, seedCharacter, seedChat, seedUser, stubRunCompaction, testConnection } from "../_support.ts";
+import { makeChatContext, scriptedRoleTurn, seedCharacter, seedChat, seedMessage, seedUser, stubRunCompaction, testConnection } from "../_support.ts";
 
 const HOST = castId<UserId>("user_host");
 const cid = (k: string): CharacterId => castId<CharacterId>(`character_${k}`);
@@ -383,6 +385,91 @@ describe("driveRound — narrator round (one turn for every character, group-cha
         narratorMemberNames: [],
       }),
     ).rejects.toThrow("group-character");
+  });
+});
+
+// A prefix-bound model with the `conversation` carry binds each reply's thinking to every row before it (OR-10). The
+// commit stamps the cue each reply followed, and every later turn sends it back in place, so each request opens with
+// the one before it.
+describe("driveRound — a prefix-bound carry stamps each reply's cue and replays it", () => {
+  const prefixBound = makeResolved({
+    generation: {
+      reasoning: { mode: "adaptive", enabled: true, replay: "signed", prefixBound: true },
+      turns: {
+        assistantPrefill: false,
+        midConversationSystem: true,
+        historySystemRows: true,
+        roleHandlingFloor: "slotted",
+        explicitPromptCache: false,
+        clearAt: true,
+      },
+    },
+  });
+
+  /** A chat where both characters have spoken, so the name-stamp labels every reply the same way on every turn. */
+  async function seedRoom(key: string): Promise<ChatId> {
+    const chatId = await seedChat(db, key);
+    await seedMessage(db, chatId, 1, { role: "assistant", characterId: cid("a"), content: "Aria waves." });
+    await seedMessage(db, chatId, 2, { role: "assistant", characterId: cid("b"), content: "Bran nods." });
+    await seedMessage(db, chatId, 3, { role: "user", authorUserId: HOST, content: "Where to?" });
+    return chatId;
+  }
+
+  /** One Aria-then-Bran round under `carryReasoning`, each request captured into `requests`. */
+  function roundOf(chatId: ChatId, requests: TurnRequest[], carryReasoning: CarryReasoning): ReturnType<typeof driveRound> {
+    return driveRound({
+      engine: realEngine(db, requests),
+      base: { ...base(chatId), assembleContext: GROUP_CTX, connection: prefixBound, intent: { carryReasoning } },
+      group: PER_SPEAKER,
+      speakers: [
+        { ref: charRef("a"), name: "Aria" },
+        { ref: charRef("b"), name: "Bran" },
+      ],
+      groupCharacterId: null,
+      narratorSpeakerName: "Aria, Bran",
+      narratorMemberNames: [],
+    });
+  }
+
+  test("each committed reply carries its delivered cue, and every request opens with the one before it", async () => {
+    const chatId = await seedRoom("cues");
+    const requests: TurnRequest[] = [];
+    const round = (): ReturnType<typeof driveRound> => roundOf(chatId, requests, "conversation");
+
+    await round();
+    const cues = await loadCanonCues(db, chatId);
+    const replies = (await loadCanonHistory(db, chatId)).filter((m) => m.seq > 3);
+    // Each reply's stamp is the exact last row its own request delivered.
+    const deliveredCues = requests.map((request) =>
+      request.history
+        .at(-1)
+        ?.content.map((part) => (part.type === "text" ? part.text : ""))
+        .join(""),
+    );
+    expect(replies.map((m) => cues.get(m.id)?.text)).toEqual(deliveredCues);
+    expect(replies.map((m) => cues.get(m.id)?.role)).toEqual(["turn-scoped-system", "user"]);
+    // The first speaker's cue follows the user's message, so it went out turn-scoped (S2).
+    expect(requests[0]?.history.at(-1)).toMatchObject({ role: "system", wireMeta: { clearAt: "next_user_message" } });
+
+    await round();
+    expect(requests).toHaveLength(4);
+    for (const later of [1, 2, 3]) {
+      const before = requests[later - 1]?.history ?? [];
+      expect(requests[later]?.history.slice(0, before.length), `request ${later} opens with request ${later - 1}`).toEqual(before);
+    }
+  });
+
+  // A reply's thinking is bound to the rows its own request sent. A reply written with the carry off went out
+  // after a user-row cue, so turning the carry on later must replay that cue as the same user row, never as the
+  // turn-scoped system row the new setting would pick.
+  test("a cue replays in the role it was delivered in after the carry changes mid-chat", async () => {
+    const chatId = await seedRoom("carry-change");
+    const requests: TurnRequest[] = [];
+    await roundOf(chatId, requests, "off");
+    await roundOf(chatId, requests, "conversation");
+    const ariaBefore = requests[0]?.history ?? [];
+    expect(requests[2]?.history.slice(0, ariaBefore.length)).toEqual(ariaBefore);
+    expect(requests[3]?.history.slice(0, ariaBefore.length)).toEqual(ariaBefore);
   });
 });
 

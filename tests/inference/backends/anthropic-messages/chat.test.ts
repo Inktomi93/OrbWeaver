@@ -252,6 +252,14 @@ function eventCodes(turn: ChatResult): readonly string[] {
   return turn.events.flatMap((e) => (e.kind === "warning" ? [e.code] : []));
 }
 
+// The preset's parallel-tool switch turned OFF (`false`) disables parallel tool use; unset leaves the default.
+test("parallelToolCalls false sends disable_parallel_tool_use; unset sends none", async () => {
+  const off = await recordedTurn(turnRequest({ params: { effort: "high", advanced: { parallelToolCalls: false } } }), anthropicTextStream("ok"));
+  expect(off.body?.body["tool_choice"]).toMatchObject({ type: "auto", disable_parallel_tool_use: true });
+  const unset = await recordedTurn(turnRequest({ params: { effort: "high" } }), anthropicTextStream("ok"));
+  expect(JSON.stringify(unset.body?.body ?? {})).not.toContain("disable_parallel_tool_use");
+});
+
 // #2575: Fable 5.1, Mythos 5.1 and Opus 5.5 answer a forced `tool_choice` (`any` / `tool`) with a 400
 // ("tool_choice: type "tool" and "any" are not supported for this model"). The rpg state round sends
 // `required`; on those models the wire must send `auto` instead and SAY so, never the request that 400s.
@@ -505,6 +513,64 @@ test("carry `conversation` on a prefix-bound model asks the API to drop a stale 
   // CONTROLS: no carry on the same model, and the same carry on a model whose thinking is not prefix-bound.
   expect(await thinkingOfTurn("claude-opus-5-5", "off")).not.toHaveProperty("block_binding");
   expect(await thinkingOfTurn("claude-opus-5", "conversation")).not.toHaveProperty("block_binding");
+});
+
+// Any carry replays thinking over a prefix something else can edit, so a missed edit must cost the block, never
+// the turn: `tool-chain` asks for `drop_block` too.
+test("carry `tool-chain` on a prefix-bound model also asks the API to drop a stale thinking block", async () => {
+  for (const model of ["claude-opus-5-5", "claude-fable-5-1"]) {
+    expect(await thinkingOfTurn(model, "tool-chain"), model).toMatchObject({ block_binding: { prefix_mismatch_behavior: "drop_block" } });
+  }
+});
+
+/** The same script with the API's `input_transformations` on its `message_delta`. */
+function withInputTransformations(stream: SseEvent[], transformations: readonly Record<string, string>[]): SseEvent[] {
+  return stream.map((event) => (event.event === "message_delta" ? { ...event, data: { ...event.data, input_transformations: transformations } } : event));
+}
+
+// The chat assembly marks a speaker cue after a user row turn-scoped (OR-10 S2). On a model that takes a clear-at row
+// it goes out as a system message that clears at the next user message, under the beta the SDK adds for it.
+test("a turn-scoped system row reaches the direct wire with clear_at and its beta", async () => {
+  const { body } = await recordedTurn(
+    turnRequest({
+      connection: curatedConnection("claude-fable-5-1"),
+      tools: undefined,
+      history: [
+        { role: "user", content: [{ type: "text", text: "Where to?" }] },
+        { role: "system", content: [{ type: "text", text: "CUE" }], wireMeta: { clearAt: "next_user_message" } },
+      ],
+    }),
+    anthropicTextStream("ok"),
+  );
+  expect(body?.body["messages"]).toMatchObject([{ role: "user" }, { role: "system", clear_at: "next_user_message" }]);
+  expect(body?.headers?.["anthropic-beta"]).toContain("mid-conversation-system-clear-at-2026-08-21");
+});
+
+const DROPPED_PATHS = ["messages.1.content.0", "messages.3.content.0"] as const;
+
+// Every block the API drops for a changed prefix names an edit the history should not have made. The turn records
+// how many dropped and the log raises it for the operator; a clean turn records zero and raises nothing.
+test("a thinking block dropped for a prefix mismatch is counted on the record and raised as an operator alarm", async () => {
+  const request = turnRequest({
+    connection: curatedConnection("claude-fable-5-1"),
+    tools: undefined,
+    params: { effort: "high", carryReasoning: "conversation" },
+  });
+  const lines: LogLine[] = [];
+  const dropped = withInputTransformations(
+    anthropicTextStream("ok"),
+    DROPPED_PATHS.map((path) => ({ type: "thinking_dropped", path, reason: "prefix_binding_mismatch" })),
+  );
+  const turn = await runAnthropicChatTurn(request, deps(scriptedSseFetch([dropped], []), lines));
+  expect(turn.providerMetadata).toMatchObject({ provider: "anthropic", thinkingDropped: 2 });
+  const alarm = lines.find((line) => line.fields["event"] === "provider.thinking_dropped");
+  expect(alarm?.level).toBe("error");
+  expect(alarm?.fields).toMatchObject({ dropped: 2, paths: [...DROPPED_PATHS], model: "claude-fable-5-1" });
+
+  const cleanLines: LogLine[] = [];
+  const clean = await runAnthropicChatTurn(request, deps(scriptedSseFetch([withInputTransformations(anthropicTextStream("ok"), [])], []), cleanLines));
+  expect(clean.providerMetadata).toMatchObject({ provider: "anthropic", thinkingDropped: 0 });
+  expect(cleanLines.find((line) => line.fields["event"] === "provider.thinking_dropped")).toBeUndefined();
 });
 
 // The SDK streams every function tool's input eagerly by default (`toolStreaming` defaults to true, so each tool

@@ -191,8 +191,20 @@ function openAiCompatibleShape(req: OpenAiCompatChatRequest, knobs: ResolvedChat
       ...(req.responseFormat !== undefined ? { responseFormat: jsonResponseFormat(req.responseFormat, req.responseFormat.schema) } : {}),
       providerOptions,
     },
-    extraBody: {},
+    extraBody: parallelToolCallsBody(req),
   };
+}
+
+/** The preset asked for one tool call at a time on a tools request. Only `false` goes out: a stored `true` is the
+ *  endpoint's own default, and some OpenAI-compatible layers refuse the field (Gemini: `Unknown name
+ *  "parallel_tool_calls"`). */
+function disablesParallelToolCalls(req: OpenAiCompatChatRequest): boolean {
+  return req.tools !== undefined && req.params.advanced?.parallelToolCalls === false;
+}
+
+// The @ai-sdk/openai-compatible provider models no `parallel_tool_calls`, so the switch rides the raw body.
+function parallelToolCallsBody(req: OpenAiCompatChatRequest): Record<string, unknown> {
+  return disablesParallelToolCalls(req) ? { parallel_tool_calls: false } : {};
 }
 
 /** THE OPENROUTER PLUGIN UNION (audit C3), validated against the 3.0.0 dist's own shape
@@ -326,7 +338,6 @@ function openRouterShape(req: OpenAiCompatChatRequest, knobs: ResolvedChatKnobs,
   const { routing, models } = openRouterExtras(connection, warnings);
   const search = webSearchOptions(connection.extras, warnings);
   const debug = debugOptions(connection.extras, warnings);
-  const parallel = req.params.advanced?.parallelToolCalls;
   const compression =
     req.params.providerContextCompression === true
       ? { id: CONTEXT_COMPRESSION_PLUGIN, enabled: true, engine: MIDDLE_OUT_ENGINE }
@@ -361,7 +372,7 @@ function openRouterShape(req: OpenAiCompatChatRequest, knobs: ResolvedChatKnobs,
       ...(debug !== undefined ? { debug } : {}),
     },
     openRouterChat: {
-      ...(req.tools !== undefined && parallel !== undefined ? { parallelToolCalls: parallel } : {}),
+      ...(disablesParallelToolCalls(req) ? { parallelToolCalls: false } : {}),
       ...(req.responseFormat?.strict !== undefined ? { strict: req.responseFormat.strict } : {}),
     },
   };

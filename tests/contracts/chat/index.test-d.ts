@@ -154,9 +154,10 @@ test("ChatWarning IS the bus's warning payload — the two spellings cannot drif
 type WarningPayload<E> = E extends { readonly type: "warning" } ? Omit<E, "type" | "chatId"> : never;
 
 test("every ADJUSTED_KNOBS member names a real UserIntent knob (the tuple cannot drift into fiction)", () => {
-  // A knob the user cannot set is a knob no provider can drop, so a name outside `UserIntent` could only
-  // ever produce a notice about a setting that does not exist. `never` is the whole pin.
-  expectTypeOf<Exclude<AdjustedKnob, keyof UserIntent>>().toEqualTypeOf<never>();
+  // A knob the user cannot set is a knob no provider can drop, so a name outside `UserIntent` (or its
+  // `advanced` block, where `parallelToolCalls` lives) could only ever produce a notice about a setting that
+  // does not exist. `never` is the whole pin.
+  expectTypeOf<Exclude<AdjustedKnob, keyof UserIntent | keyof NonNullable<UserIntent["advanced"]>>>().toEqualTypeOf<never>();
 });
 
 test("free text on the chat bus is turnStarted.model + the ANCHORED delta.memberText (D16 anchor allowlist)", () => {

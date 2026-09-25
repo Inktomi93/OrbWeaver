@@ -20,6 +20,7 @@ import { measuredRows } from "../../../packages/inference/src/capability/sources
 import { synthesizeCapability } from "../../../packages/inference/src/capability/synthesize.ts";
 import { createProviderExecutor } from "../../../packages/inference/src/roles/executor.ts";
 import { BEFORE_HISTORY_DEPTH } from "../../../packages/server/src/domain/chat/assembly/injections.ts";
+import type { DeliveredCue } from "../../../packages/server/src/domain/chat/contract/results.ts";
 import { resolveGuidedActionText } from "../../../packages/server/src/domain/chat/assembly/macros.ts";
 import { runTurnPipeline } from "../../../packages/server/src/domain/chat/engine/pipeline.ts";
 import { buildCommittedMessageView } from "../../../packages/server/src/domain/chat/persistence/canon-write.ts";
@@ -338,6 +339,7 @@ async function runOne(args: {
     applyRegexReplace: (text, regex, replacer) => text.replace(regex, replacer),
     loadInlineReplyAssetIds: () => Promise.resolve(new Map<MessageId, ReadonlySet<AssetId>>()),
     loadReasoningParts: () => Promise.resolve(new Map<MessageId, readonly ChatReasoningPart[]>()),
+    loadCues: () => Promise.resolve(new Map<MessageId, DeliveredCue>()),
     runChatTurn: wire.runChatTurn,
     resolveImageUrl: () => Promise.resolve(null),
     assembleContext,

@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "d79d445e-15ac-44f2-9839-d61811cb07ee",
+  "id": "70c5ac45-998a-4b3d-add6-899709e11ef7",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -2430,6 +2430,20 @@
           "notNull": false,
           "autoincrement": false
         },
+        "cue": {
+          "name": "cue",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cue_role": {
+          "name": "cue_role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "model": {
           "name": "model",
           "type": "text",
@@ -2743,6 +2757,10 @@
         "message_variants_reasoning_effort_check": {
           "name": "message_variants_reasoning_effort_check",
           "value": "reasoning_effort is null or reasoning_effort in ('none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max')"
+        },
+        "message_variants_cue_role_check": {
+          "name": "message_variants_cue_role_check",
+          "value": "cue_role is null or cue_role in ('user', 'turn-scoped-system')"
         }
       }
     },

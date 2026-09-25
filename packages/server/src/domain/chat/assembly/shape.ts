@@ -20,6 +20,7 @@
 import type {
   AssembleContext,
   ChatInjection,
+  CueRole,
   GroupConfig,
   MessageKind,
   MessageKindPolicy,
@@ -40,7 +41,7 @@ import type { CharacterId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { speakerTagsToPlain } from "@orb/kit/speaker-label";
 import type { PromptHistoryRegexEnv } from "../contract/regex.ts";
-import type { HistoryMacroNames } from "../contract/results.ts";
+import type { CueReplay, DeliveredCue, HistoryMacroNames } from "../contract/results.ts";
 import { applyPromptHistoryRegex } from "./history-regex.ts";
 import { frameInjection, spliceInChatInjections } from "./injections.ts";
 import { renderHistoryMacros } from "./macros.ts";
@@ -84,6 +85,8 @@ interface WireRow {
   content: string;
   name?: string;
   messageId?: MessageId | undefined;
+  /** A system cue that clears at the next user message (`clearAt`); set only on a `system` row. */
+  turnScoped?: true;
 }
 
 type GroupOutput = GroupConfig["output"];
@@ -106,6 +109,9 @@ interface ShapeInput {
   multiHuman?: boolean | undefined;
   /** The group nudge (`[Write the next reply only as X.]`), set only on a multi-speaker round. */
   groupNudge: string | null;
+  /** The stored cues to replay on a prefix-bound carry (`substrate/cue-replay`). Absent ⇒ no replay, and the
+   *  turn's own cue is a user row. */
+  cueReplay?: CueReplay | undefined;
   resolveContent?: (content: string) => string;
   /** Model accepts a delivered trailing-assistant message as response prefill: `true` ⇒ deliver verbatim
    *  (no continuation nudge); `false` (default) ⇒ nudge a trailing-assistant to a user tail. */
@@ -148,6 +154,9 @@ interface ShapeOutput {
    *  verbatim for `assembly/trace` to project. Stage row counts cannot see why a pin moved or vanished, so the
    *  trace never re-derives it. */
   breakpointDecision: ShapeBreakpointDecision;
+  /** The cue SHAPE delivered as this turn's tail (the group, speaker or continuation cue) and its role, or null.
+   *  The commit stamps both on the reply so a prefix-bound carry can replay them (D262). */
+  cue: DeliveredCue | null;
   /** The new-chat marker SHAPE placed at the top of `history`, or null when the turn has none. `mergeSeparator`
    *  is the squash separator when this turn's level merges the marker into an adjacent user row, else null. The
    *  history fit trims the oldest rows first, so it places the marker again at the head of the rows it keeps
@@ -216,17 +225,19 @@ const NO_STABLE_PREFIX: BreakpointOutcome = { offsetFromEnd: undefined, decision
 const PREFIX_DISRUPTED: BreakpointOutcome = { offsetFromEnd: undefined, decision: "in-prefix-injection-or-squash" };
 
 /** One row on its way to the wire: the row, where it came from (an index into the name-stamped rows, or `null`
- *  for SHAPE's own user tail), and why it folded, if a system row did. */
+ *  for a cue SHAPE placed), and why it folded, if a system row did. `replayed` marks a stored reply's cue, which
+ *  is as stable as the reply it precedes. */
 interface DeliveryEntry {
   row: WireRow;
   readonly origin: number | null;
   folded?: ShapeFoldReason;
+  readonly replayed?: true;
 }
 
-/** The pre-squash delivered list and the user tail SHAPE placed in it. */
+/** The pre-squash delivered list and the cue SHAPE placed as its tail. */
 interface Delivery {
   readonly entries: readonly DeliveryEntry[];
-  readonly tailUser: string | null;
+  readonly cue: DeliveredCue | null;
 }
 
 function isLive(entry: DeliveryEntry): boolean {
@@ -289,6 +300,7 @@ interface DeliveryOptions {
   readonly assistantPrefill: boolean;
   readonly prose: ProseOverrides | undefined;
   readonly convertsToEmptyWireRow: (content: string) => boolean;
+  readonly cueReplay: CueReplay | undefined;
 }
 
 /** Fold every run INSIDE the history that the level or the model does not take, and return the folded rows.
@@ -365,9 +377,46 @@ function trailingFold(lastRole: DeliveredRole | undefined, opts: DeliveryOptions
   return placement === "slot" && lastRole !== "user" && !cued ? "slot" : undefined;
 }
 
+/** The last row before the end of `entries` that reaches the wire as a user or assistant row. */
+function lastDeliveredIndex(entries: readonly DeliveryEntry[]): number {
+  return entries.findLastIndex((entry) => isLive(entry) && entry.row.role !== "system");
+}
+
+/** The role this turn may give a cue: turn-scoped after a user row where the turn can send one (OR-10 S2), else a
+ *  user row. S2b measured a system cue right after a reply as a 400. */
+function cueRoleAt(before: DeliveredRole | undefined, systemCue: boolean): CueRole {
+  return systemCue && before === "user" ? "turn-scoped-system" : "user";
+}
+
+function cueRow(cue: DeliveredCue): WireRow {
+  return cue.role === "turn-scoped-system" ? { role: "system", content: cue.text, turnScoped: true } : { role: "user", content: cue.text };
+}
+
+/** Put each stored reply's cue back ahead of it where the live turn placed its tail: after the last row before
+ *  the reply that reaches the wire, and ahead of any system run between them. A prefix-bound model's carried
+ *  thinking is valid only while every row before it is unchanged, so the replay makes the history append-only.
+ *  The cue keeps the role it was delivered in (a carry or level change never re-rolls it), except that a system
+ *  row goes out only where this turn may send one, and becomes a user row otherwise. */
+function replayCues(entries: readonly DeliveryEntry[], cues: ReadonlyMap<MessageId, DeliveredCue>, systemCue: boolean): DeliveryEntry[] {
+  const out: DeliveryEntry[] = [];
+  for (const entry of entries) {
+    const cue = entry.row.role === "assistant" && entry.row.messageId !== undefined ? cues.get(entry.row.messageId) : undefined;
+    if (cue !== undefined) {
+      const before = lastDeliveredIndex(out);
+      const role = cueRoleAt(out[before]?.row.role, systemCue) === "turn-scoped-system" ? cue.role : "user";
+      out.splice(before + 1, 0, { row: cueRow({ text: cue.text, role }), origin: null, replayed: true });
+    }
+    out.push(entry);
+  }
+  return out;
+}
+
 function deliverSystemRows(rows: readonly WireRow[], opts: DeliveryOptions): Delivery {
-  const entries: DeliveryEntry[] = rows.map((row, index) => ({ row, origin: index }));
-  const lastNonSystem = entries.findLastIndex((entry) => isLive(entry) && entry.row.role !== "system");
+  // The replayed and the live cue share one role rule, so a reply's cue reads the same on every later turn.
+  const systemCue = opts.cueReplay?.turnScoped === true && SYSTEM_ROW_PLACEMENT[opts.level] !== "fold";
+  const stored: DeliveryEntry[] = rows.map((row, index) => ({ row, origin: index }));
+  const entries = opts.cueReplay === undefined ? stored : replayCues(stored, opts.cueReplay.cues, systemCue);
+  const lastNonSystem = lastDeliveredIndex(entries);
   leadUserText(entries, foldMidArrayRuns(entries, lastNonSystem, opts), opts.merges);
 
   const trailing = entries.slice(lastNonSystem + 1).filter((entry) => entry.row.role === "system" && isLive(entry));
@@ -378,16 +427,17 @@ function deliverSystemRows(rows: readonly WireRow[], opts: DeliveryOptions): Del
     }
   }
 
-  const lastDelivered = entries.findLast((entry) => isLive(entry) && entry.row.role !== "system");
+  const lastDelivered = entries[lastDeliveredIndex(entries)];
   const endsOnAssistant = lastDelivered === undefined || lastDelivered.row.role === "assistant";
-  const tailUser = opts.groupNudge ?? (endsOnAssistant && !opts.assistantPrefill ? continuationNudge(opts.prose) : null);
-  if (tailUser === null) {
-    return { entries, tailUser };
+  const text = opts.groupNudge ?? (endsOnAssistant && !opts.assistantPrefill ? continuationNudge(opts.prose) : null);
+  if (text === null) {
+    return { entries, cue: null };
   }
-  const tail: DeliveryEntry = { row: { role: "user", content: tailUser }, origin: null };
+  const cue: DeliveredCue = { text, role: cueRoleAt(lastDelivered?.row.role, systemCue) };
+  const tail: DeliveryEntry = { row: cueRow(cue), origin: null };
   const keptTrailing = trailingReason === undefined ? trailing[0] : undefined;
   const at = keptTrailing === undefined ? entries.length : entries.indexOf(keptTrailing);
-  return { entries: [...entries.slice(0, at), tail, ...entries.slice(at)], tailUser };
+  return { entries: [...entries.slice(0, at), tail, ...entries.slice(at)], cue };
 }
 
 /** Which spliced rows repeat byte for byte on the next turn, so the cache may pin them: the committed canon
@@ -410,6 +460,9 @@ function stableRows(
  * injection and above any row a volatile row merged into. A depth-N note therefore moves the pin up instead of
  * removing it, so the history above the note is read from the cache every turn.
  *
+ * Depth 0 is a legal pin: the covering depth never reaches past the stable run, so depth 0 means only system rows
+ * (transparent to the depth) follow the pinned row, such as a turn-scoped cue after a committed user row.
+ *
  * `delivered` is the final delivered history with each row's stability (a merged row is stable only when every
  * row in it is). @internal — exported for the unit test.
  */
@@ -423,7 +476,7 @@ export function computeHistoryBreakpoint(
   const firstVolatile = delivered.findIndex((row) => !row.stable);
   const pinLimit = (firstVolatile === -1 ? delivered.length : firstVolatile) - 1;
   const offsetFromEnd = cacheDepthCovering(delivered, pinLimit);
-  if (offsetFromEnd === undefined || offsetFromEnd < 1) {
+  if (offsetFromEnd === undefined) {
     return PREFIX_DISRUPTED;
   }
   return { offsetFromEnd, decision: "placed" };
@@ -627,6 +680,7 @@ export function shape(input: ShapeInput): ShapeOutput {
     assistantPrefill: input.assistantPrefill === true,
     prose: input.prose,
     convertsToEmptyWireRow: input.convertsToEmptyWireRow,
+    cueReplay: input.cueReplay,
   });
   const deliveredRows = delivery.entries.map((entry) => entry.row);
   const history = runSquash(deliveredRows);
@@ -634,12 +688,12 @@ export function shape(input: ShapeInput): ShapeOutput {
   // The committed prefix the cache may pin: every canon row before this turn's own row. A turn with no row of its
   // own (a round, a forced turn) whose only new row is SHAPE's cue has a fully committed canon, so the cue is the
   // only volatile row and the pin is the last canon row before it.
-  const stableCount = withTail.length - (input.appendUserTurn === null && delivery.tailUser !== null ? 0 : 1);
+  const stableCount = withTail.length - (input.appendUserTurn === null && delivery.cue !== null ? 0 : 1);
   const stable = stableRows(withTail, stableCount, injected);
   const historyStable = squashRunsFor(deliveredRows, squash).map((run) =>
     run.every((index) => {
-      const origin = delivery.entries[index]?.origin;
-      return origin !== null && origin !== undefined && stable[origin] === true;
+      const entry = delivery.entries[index];
+      return entry?.replayed === true || (entry?.origin !== null && entry?.origin !== undefined && stable[entry.origin] === true);
     }),
   );
   const breakpoint = computeHistoryBreakpoint(
@@ -655,6 +709,7 @@ export function shape(input: ShapeInput): ShapeOutput {
     history,
     cacheBreakpointFromEnd: breakpoint.offsetFromEnd,
     breakpointDecision: breakpoint.decision,
+    cue: delivery.cue,
     newChatMarker: marker === undefined ? null : { content: marker.content, mergeSeparator: merges ? MERGE_SEPARATOR : null },
     stages: { multiCharacter, withTail, injected, squashed, named, delivered },
   };

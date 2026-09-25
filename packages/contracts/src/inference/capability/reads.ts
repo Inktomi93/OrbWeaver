@@ -70,6 +70,17 @@ export function reasoningReplayOf(capability: GenerationCapability): ReasoningRe
   return capability.reasoning.replay ?? REASONING_REPLAY_FLOOR;
 }
 
+/** Is a replayed thinking block valid only while everything before it is unchanged (`reasoning.prefixBound`)?
+ *  Absent ⇒ false: the model accepts an edited prefix. */
+export function bindsThinkingToPrefix(capability: GenerationCapability): boolean {
+  return capability.reasoning.prefixBound === true;
+}
+
+/** MAY a mid-conversation system row carry `clearAt: "next_user_message"` on this wire (`turns.clearAt`)? */
+export function acceptsTurnScopedSystem(capability: GenerationCapability): boolean {
+  return capability.turns?.clearAt === true;
+}
+
 export function acceptsMidConversationSystem(capability: GenerationCapability): boolean {
   return capability.turns?.midConversationSystem === true;
 }

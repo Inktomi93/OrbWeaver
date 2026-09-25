@@ -40,6 +40,12 @@ export type MessageAssetOrigin = (typeof MESSAGE_ASSET_ORIGINS)[number];
  *  the literal is how a fence silently widens to every assistant-row asset. */
 export const INLINE_REPLY_ORIGIN: MessageAssetOrigin = "inline-reply";
 
+/** The role a reply's cue went out in (`message_variants.cue_role`): a user row, or a system row that clears at the
+ *  next user message. A prefix-bound carry replays the stored role, never a role re-derived from today's settings
+ *  (D262). */
+export const CUE_ROLES = ["user", "turn-scoped-system"] as const;
+export type CueRole = (typeof CUE_ROLES)[number];
+
 export const TOKEN_PROVENANCES = ["measured", "estimated", "unrecorded"] as const;
 export type TokenProvenance = (typeof TOKEN_PROVENANCES)[number];
 export const tokenProvenanceSchema = z.enum(TOKEN_PROVENANCES) satisfies z.ZodType<TokenProvenance>;
@@ -187,6 +193,10 @@ const namedProviderMetadataSchema = z.discriminatedUnion("provider", [
      *  snake-cased Anthropic usage the SDK passes through as a loose object). */
     cacheCreation5mTokens: z.number().optional(),
     cacheCreation1hTokens: z.number().optional(),
+    /** How many replayed thinking blocks the API dropped because the prefix before them changed
+     *  (`input_transformations` with reason `prefix_binding_mismatch`). Absent when the response listed no
+     *  transformations; above zero, it marks an edit the carried history should not have made. */
+    thinkingDropped: z.number().optional(),
   }),
 ]);
 
