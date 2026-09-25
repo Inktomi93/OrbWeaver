@@ -37,6 +37,7 @@
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { sessions as sessionsTable, users } from "@orb/db";
+import { handleKey } from "@orb/kit/handle-key";
 import type { ExternalId, Handle, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
@@ -103,7 +104,9 @@ beforeEach(async () => {
   // provisioning takes the subject-match update path. (Seeding it UNBOUND makes the MS-W1 collision
   // hard-deny fire instead, which is that control working: a subject-bearing login may never auto-link
   // onto an existing unbound account by handle.)
-  await db.insert(users).values({ id: USER_ID, handle: castId<Handle>("alice"), externalId: castId<ExternalId>("sub-alice") });
+  await db
+    .insert(users)
+    .values({ id: USER_ID, handle: castId<Handle>("alice"), handleKey: handleKey(castId<Handle>("alice")), externalId: castId<ExternalId>("sub-alice") });
   sessions = createSessionsService({
     db,
     now: (): number => NOW,

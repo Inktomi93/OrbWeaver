@@ -25,6 +25,7 @@ import { invitePreviewSchema, pendingJoinConfirmRequestSchema, signupRequestSche
 import type { RequestTransport, ResolvedIdentity, UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { DomainRateLimitError } from "@orb/kit/errors";
+import { admitsHandle, withinHandleLength } from "@orb/kit/handle-key";
 import type { ExternalId, Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Context, Hono, MiddlewareHandler } from "hono";
@@ -614,15 +615,15 @@ function handleThrottleKey(rawHandle: string): string {
 /** B1 — consume one point on the HANDLE axis; 429 when that account is over budget, else null. Runs BESIDE
  *  the per-IP consume (both must pass) and, like it, BEFORE `authenticate` — a throttle that let the KDF run
  *  first would have already tested the attacker's guess. */
-async function throttleLoginHandle(limiter: RateLimiter, c: Context, handleKey: string): Promise<Response | null> {
+async function throttleLoginHandle(limiter: RateLimiter, c: Context, throttleKey: string): Promise<Response | null> {
   try {
-    await limiter.consume(handleKey);
+    await limiter.consume(throttleKey);
     return null;
   } catch (err) {
     if (err instanceof DomainRateLimitError) {
       securityEvent(
         "login_handle_throttled",
-        { handle: handleKey, clientIp: clientIp(c) },
+        { handle: throttleKey, clientIp: clientIp(c) },
         "security: login attempts against ONE handle over the per-handle throttle (a distributed brute force, or a targeted flood of the account) — 429",
       );
       return throttledResponse(c, err);
@@ -884,7 +885,7 @@ async function admitSignupAttempt(
   if (inviteThrottled !== null) {
     return inviteThrottled;
   }
-  if (signup.isReservedHandle(attempt.handle) || (await signup.handleTaken(attempt.handle))) {
+  if (!admitsHandle(attempt.handle) || signup.isReservedHandle(attempt.handle) || (await signup.handleTaken(attempt.handle))) {
     return signupRefusal(c, "handle_unavailable", CONFLICT);
   }
   return null;
@@ -1435,6 +1436,12 @@ export function identityFromClaims(
   if (typeof username !== "string" || username.length === 0) {
     // Already fail-closed (no identity ⇒ no session), so there is no guard-less login to report — and
     // warning here would drown the real signal in noise from probes and misdirected requests.
+    return null;
+  }
+  // D257: refused, never truncated — a cut IdP name could land on another member's handle, and the key's
+  // normalization is quadratic in a long run of combining marks.
+  if (!withinHandleLength(username)) {
+    securityEvent("oidc_username_too_long", { length: username.length }, "security: an OIDC login's username exceeds the handle cap (D257); no identity");
     return null;
   }
   // Branded ONCE here, so the two observability calls below and the returned identity all speak about the

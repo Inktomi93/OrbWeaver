@@ -34,8 +34,9 @@
 //      evaluates repeated selectors as a union; splitting them can duplicate or widen execution. The shard
 //      reports are merged into the ONE `--outputFile.json` path the rest of the repo reads. A wedge is a
 //      per-process race, so a wedge now costs ONE literal project shard instead of the whole run's verdict.
-//   2. WATCHDOG — PROGRESS, NOT SILENCE. Each shard is spawned via `nice -19` as a process-group leader and
-//      its output tee'd live, but SILENCE ALONE IS NOT THE WEDGE SIGNAL. **Truth repair, measured
+//   2. WATCHDOG — PROGRESS, NOT SILENCE. Each shard is spawned through `niced-exec.ts` (TOOLING_PRIORITY,
+//      10 on every OS) as a process-group leader and its output tee'd live, but SILENCE ALONE IS NOT THE
+//      WEDGE SIGNAL. **Truth repair, measured
 //      2026-09-01:** the previous version of this file claimed 300s was "~2.5× the longest legitimate quiet
 //      gap, the 120s `ast-observability` serial rows". That sentence was wrong TWICE, and it made this
 //      watchdog the primary defect it was written to fix. (i) It cited a file that has not existed since
@@ -119,6 +120,7 @@ import type { RunAlias } from "@orb/tooling/_shared/artifacts";
 import { openRunSlot, publishRunSlot, reportsPath, runFile } from "@orb/tooling/_shared/artifacts";
 import { LOAD_SUSPECT_META_KEY } from "@orb/tooling/_shared/load-budget";
 import { processEnvValue } from "@orb/tooling/_shared/process-env";
+import { nicedArgv } from "@orb/tooling/_shared/process-priority";
 
 const DEFAULT_HANG_MS = 300_000;
 const MS_PER_SEC = 1000;
@@ -582,9 +584,10 @@ function runOnce({ args, reportFile, label, attempt, previousFiles }: AttemptReq
   // Freshness guarantee: a STALE report must never be read as this attempt's verdict.
   rmSync(reportFile, { force: true });
   mkdirSync(dirname(reportFile), { recursive: true });
-  // `nice -19` preserves the homelab-protecting priority floor. `detached` makes the child a process-group
-  // leader so a wedge can SIGKILL the WHOLE group (parent + orphaned workers).
-  const child = spawn("nice", ["-n", "19", process.execPath, vitestBin(), ...args], {
+  // Routed through `niced-exec.ts` (the portable `nice -n 19` replacement): it lowers its OWN priority
+  // before exec'ing vitest, preserving the homelab-protecting floor. `detached` makes the child a
+  // process-group leader so a wedge can SIGKILL the WHOLE group (parent + orphaned workers).
+  const child = spawn(process.execPath, nicedArgv(process.execPath, [vitestBin(), ...args]), {
     cwd: root,
     detached: true,
     stdio: ["inherit", "pipe", "pipe"],

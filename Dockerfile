@@ -24,7 +24,7 @@
 # Bases are pinned tag+digest (bump deliberately: `docker buildx imagetools inspect <ref>`).
 
 # ── Stage 1: deps — the cached dependency fetch ──────────────────────────────────────────────────────
-FROM node:26-bookworm@sha256:0353e48e0e8a993db87b720c242f54b207059d1bcc0106534896e8a11054c837 AS deps
+FROM node:26.10.0-bookworm@sha256:2aaae6d91f99fee84cfc92da9b52c22a185752d247746052bbc3f961e44478c6 AS deps
 WORKDIR /app
 # node 26 ships WITHOUT corepack (removed from the node 25+ distribution), so the pinned pnpm is installed
 # with npm. The version is READ from package.json's `packageManager` field — one home, the image cannot
@@ -66,7 +66,7 @@ RUN pnpm --filter @orb/server deploy --legacy --prod --config.shamefully-hoist=t
 RUN sh docker/assemble-runtime.sh /app /app/deploy /app/runtime
 
 # ── Stage 3: runtime ─────────────────────────────────────────────────────────────────────────────────
-FROM node:26-bookworm-slim@sha256:cd565714d4da3e84bfd341e31448f81d47c6362198f152345297c9c1154e6341 AS runtime
+FROM node:26.10.0-bookworm-slim@sha256:662933cf47f013bc8e4beb31a6116448427a82057ba7c42c97e4c5ba766504c2 AS runtime
 WORKDIR /app
 ARG GIT_SHA=unknown
 ARG IMAGE_VERSION=dev

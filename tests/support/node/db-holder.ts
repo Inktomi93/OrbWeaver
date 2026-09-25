@@ -16,4 +16,6 @@ if (dbPath === undefined || readyPath === undefined) {
 const db = await createDb(`file:${dbPath}`);
 await db.all(sql`SELECT name FROM sqlite_master`);
 writeFileSync(readyPath, "held");
-setInterval(() => undefined, HOLD_TICK_MS);
+// The tick closes over `db` to keep it reachable. Unreferenced, the handle is garbage once this module body
+// ends, and its finalizer closes the connection and drops the lock mid-test, so the migration moves the file.
+setInterval(() => db, HOLD_TICK_MS);

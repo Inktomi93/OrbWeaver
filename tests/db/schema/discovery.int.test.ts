@@ -27,6 +27,7 @@ import {
   users,
 } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/kit";
+import { handleKey } from "@orb/kit/handle-key";
 import type {
   CharacterHandle,
   CharacterId,
@@ -77,7 +78,7 @@ async function seedDigest(db: Db, chatId: ChatId, id: string, generationOwnerId:
   const groupChar = castId<CharacterId>("character_group");
   await db
     .insert(users)
-    .values({ id: ownerId, handle: castId<Handle>("h-digest-owner") })
+    .values({ id: ownerId, handle: castId<Handle>("h-digest-owner"), handleKey: handleKey(castId<Handle>("h-digest-owner")) })
     .onConflictDoNothing();
   const connectionId = castId<UserConnectionId>(`user_connection_${generationOwnerId}_embed_${MODEL}`);
   await db

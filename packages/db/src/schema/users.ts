@@ -16,7 +16,7 @@
 // design for the seat wave (AP3/AP4a).
 
 import { USER_KINDS, USER_ROLES } from "@orb/contracts/identity";
-import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
+import type { ExternalId, Handle, HandleKey, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
@@ -36,6 +36,9 @@ export const users = sqliteTable(
     // PLAIN nanoid brand (not a TypeID) — see file header. App-minted; no DB default.
     id: text("id").$type<UserId>().primaryKey(),
     handle: text("handle").$type<Handle>().notNull(),
+    // `handleKey(handle)` (`@orb/kit/handle-key`), written with every handle: the comparison key, never shown.
+    // Its unique index makes a case variant or a confusable of a held handle a conflict (D257).
+    handleKey: text("handle_key").$type<HandleKey>().notNull(),
     // Stable SSO subject — nullable (the single-user / owner-fallback path has none); UNIQUE-when-set
     // via the partial index below.
     externalId: text("external_id").$type<ExternalId>(),
@@ -63,6 +66,7 @@ export const users = sqliteTable(
   },
   (table) => [
     uniqueIndex("users_handle_unique").on(table.handle),
+    uniqueIndex("users_handle_key_unique").on(table.handleKey),
     // UNIQUE-when-set: SQLite's UNIQUE ignores NULL rows, so multiple null-externalId users coexist.
     uniqueIndex("users_external_id_unique").on(table.externalId).where(sql`${table.externalId} is not null`),
     // D17/D40 "exactly one owner" enforcer: a partial unique index over `role` scoped to owner rows makes a

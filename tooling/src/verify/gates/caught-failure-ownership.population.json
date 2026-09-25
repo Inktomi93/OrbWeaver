@@ -2,15 +2,15 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 618,
+    "sites": 621,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 618,
+      "deliberate-absorb": 621,
       "unproven": 0
     },
     "byGrammar": {
       "default": 153,
-      "empty": 314,
+      "empty": 317,
       "promise": 151
     }
   },
@@ -1061,6 +1061,11 @@
       "reason": "a resolve REFUSAL is the readout's other arm — the availability read names the cause the pane renders; nothing is swallowed. Ends if a non-refusal error class needs to surface."
     },
     {
+      "siteId": "packages/server/src/domain/credentials/verbs/add.ts::insertInFreeSlot::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a unique collision is the expected loser of a concurrent add; the retry below re-reads the free labels, and a second collision surfaces as CredentialsConflictError with its cause. Ends if the slot index or the retry goes."
+    },
+    {
       "siteId": "packages/server/src/domain/databank/ingest/index.ts::createDatabankIngest.runDocument::error::1",
       "verdict": "deliberate-absorb",
       "reason": "bookkeeping — the accumulator records this document's failure (`acc.addFailure`), surfaced to the caller via `acc.result()`; the pass continues so one bad document never aborts the batch. Ends if `addFailure` stops being read by the returned result."
@@ -1916,6 +1921,11 @@
       "reason": "panel-preset JSON parse returns null so the caller emits its option-specific refusal; no nav action is queued. Ends if parse failure stops being a refusal."
     },
     {
+      "siteId": "tooling/src/_shared/proc.ts::killPidGroup::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a failed taskkill means the tree is already gone or never spawned — the desired end state, same as POSIX ESRCH below."
+    },
+    {
       "siteId": "tooling/src/_shared/proc.ts::killPidGroup::error::1",
       "verdict": "deliberate-absorb",
       "reason": "ESRCH is the desired teardown end state; every other signal error is rethrown. Ends if callers require proof that the signal landed."
@@ -1929,6 +1939,11 @@
       "siteId": "tooling/src/_shared/proc.ts::spawnNicedTranscript.finish::settle::1",
       "verdict": "deliberate-absorb",
       "reason": "the handler OWNS the failure by putting it in the transcript this door returns (`[proc] teardown failed: …`) and settling the run as a TOOL ERROR (code null) — nothing is dropped, and the promise MUST settle here or the door written to end a hang becomes one. Ends if the handler stops resolving or stops naming the error."
+    },
+    {
+      "siteId": "tooling/src/_shared/process-priority.ts::lowerChildPriority::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the child racing to exit before this call lands is expected and harmless — the priority hint is advisory, not a correctness requirement, and the caller's own exit/error handlers own the child's real outcome. Ends if a caller starts depending on this call's success."
     },
     {
       "siteId": "tooling/src/_shared/rated-theme-fixture.ts::provisionRatedStageThemes::cleanupError::1",

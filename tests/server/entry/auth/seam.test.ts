@@ -87,6 +87,8 @@ function stubSessions(overrides: Partial<SessionsService>): SessionsService {
     preparePendingSignup: unused("preparePendingSignup") as SessionsService["preparePendingSignup"],
     signupUserStatement: unused("signupUserStatement") as SessionsService["signupUserStatement"],
     signupHandleTaken: unused("signupHandleTaken") as SessionsService["signupHandleTaken"],
+    localUserInsertStatement: unused("localUserInsertStatement") as SessionsService["localUserInsertStatement"],
+    renameUserHandle: unused("renameUserHandle") as SessionsService["renameUserHandle"],
     getOwnerUserId: unused("getOwnerUserId") as SessionsService["getOwnerUserId"],
     ...overrides,
   };

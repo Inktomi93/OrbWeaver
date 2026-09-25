@@ -1,5 +1,6 @@
 import type { Db } from "@orb/db";
 import { sessions, users } from "@orb/db";
+import { handleKey } from "@orb/kit/handle-key";
 import type { Handle, SessionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
@@ -25,7 +26,7 @@ let db: Db;
 
 beforeEach(async () => {
   db = await freshDb();
-  await db.insert(users).values({ id: USER_ID, handle: HANDLE, role: "owner" });
+  await db.insert(users).values({ id: USER_ID, handle: HANDLE, handleKey: handleKey(HANDLE), role: "owner" });
 });
 
 async function seedSession(id: string, tokenHash: string, createdAt: number = T0): Promise<SessionId> {

@@ -12,7 +12,7 @@ test("classifies a CHECK violation as kind 'check'", async () => {
   let caught: unknown;
   try {
     // `role` carries a tuple-derived CHECK; "nope" is not a USER_ROLES member.
-    await db.run(sql.raw("insert into users (id, handle, role) values ('user_chk', 'h-chk', 'nope')"));
+    await db.run(sql.raw("insert into users (id, handle, handle_key, role) values ('user_chk', 'h-chk', 'h-chk', 'nope')"));
   } catch (err) {
     caught = err;
   }

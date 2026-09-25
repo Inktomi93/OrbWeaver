@@ -5,6 +5,7 @@
 
 import type { Db } from "@orb/db";
 import { userConnections, users } from "@orb/db";
+import { handleKey } from "@orb/kit/handle-key";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createSessionsService } from "@orb/server/domain/sessions";
@@ -19,6 +20,7 @@ async function seedUser(db: Db, id: string): Promise<UserId> {
   await db.insert(users).values({
     id: userId,
     handle: castId<Handle>(id),
+    handleKey: handleKey(castId<Handle>(id)),
     role: "user",
     enabled: true,
     passwordHash: null,

@@ -6,7 +6,7 @@
 import type { UserId } from "@orb/kit/ids";
 import { newId } from "@orb/kit/ids";
 import type { SessionsContext, SessionsService } from "../contract/service.ts";
-import { insertSignupUserStatement, selectHandleTakenCaseless } from "../persistence/users.ts";
+import { insertSignupUserStatement, selectHandleKeyTaken } from "../persistence/users.ts";
 
 export function createSignup(ctx: SessionsContext): Pick<SessionsService, "signupUserStatement" | "signupHandleTaken"> {
   return {
@@ -14,6 +14,6 @@ export function createSignup(ctx: SessionsContext): Pick<SessionsService, "signu
       const userId = newId<UserId>();
       return { userId, statement: insertSignupUserStatement(ctx.db, { id: userId, handle, passwordHash, at }, admission) };
     },
-    signupHandleTaken: (handle): Promise<boolean> => selectHandleTakenCaseless(ctx.db, handle),
+    signupHandleTaken: (handle): Promise<boolean> => selectHandleKeyTaken(ctx.db, handle),
   };
 }

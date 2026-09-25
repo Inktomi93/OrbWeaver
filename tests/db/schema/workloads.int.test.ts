@@ -12,6 +12,7 @@
 import { ACTIVE_WORKLOAD_STATUSES, SCHEDULE_CADENCES, WORKLOAD_KINDS, WORKLOAD_LANES, WORKLOAD_MODES, WORKLOAD_STATUSES } from "@orb/contracts/workloads";
 import { users, workloadSchedules, workloads } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/kit";
+import { handleKey } from "@orb/kit/handle-key";
 import type { Handle, UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq, sql } from "drizzle-orm";
@@ -91,7 +92,7 @@ test("workload_schedules.cadence enum mirrors SCHEDULE_CADENCES", () => {
 test("workload_schedules insert→select round-trips (defaults mode=singular, enabled=true, JSON params)", async () => {
   const db = await freshDb();
   const ownerId = castId<UserId>("user_sched_owner");
-  await db.insert(users).values({ id: ownerId, handle: castId<Handle>("so"), role: "user" });
+  await db.insert(users).values({ id: ownerId, handle: castId<Handle>("so"), handleKey: handleKey(castId<Handle>("so")), role: "user" });
   const id = castId<WorkloadScheduleId>("workload_schedule_rt");
   await db.insert(workloadSchedules).values({
     id,
@@ -112,7 +113,7 @@ test("workload_schedules insert→select round-trips (defaults mode=singular, en
 test("workload_schedules.ownerId CASCADE-deletes with its owner (live config, not an audit row)", async () => {
   const db = await freshDb();
   const ownerId = castId<UserId>("user_sched_cascade");
-  await db.insert(users).values({ id: ownerId, handle: castId<Handle>("sc"), role: "user" });
+  await db.insert(users).values({ id: ownerId, handle: castId<Handle>("sc"), handleKey: handleKey(castId<Handle>("sc")), role: "user" });
   await db.insert(workloadSchedules).values({
     id: castId<WorkloadScheduleId>("workload_schedule_cascade"),
     ownerId,
@@ -159,7 +160,7 @@ test("workloads insert→select round-trips (defaults status=queued + mode=singu
 test("workloads.ownerId FKs users and survives a null owner", async () => {
   const db = await freshDb();
   const ownerId = castId<UserId>("user_owner");
-  await db.insert(users).values({ id: ownerId, handle: castId<Handle>("owner"), role: "admin" });
+  await db.insert(users).values({ id: ownerId, handle: castId<Handle>("owner"), handleKey: handleKey(castId<Handle>("owner")), role: "admin" });
 
   await db.insert(workloads).values({
     id: castId<WorkloadId>("workload_owned"),
@@ -203,7 +204,7 @@ test("a bad ownerId FK is rejected (the FK is enforced)", async () => {
 test("deleting an owner retains their active audit row beside an active system singular row", async () => {
   const db = await freshDb();
   const ownerId = castId<UserId>("user_delete_with_active_workload");
-  await db.insert(users).values({ id: ownerId, handle: castId<Handle>("delete-active"), role: "user" });
+  await db.insert(users).values({ id: ownerId, handle: castId<Handle>("delete-active"), handleKey: handleKey(castId<Handle>("delete-active")), role: "user" });
   await db.insert(workloads).values({
     id: castId<WorkloadId>("workload_active_system"),
     kind: "reconcile-stats",
@@ -256,7 +257,7 @@ test("a second ACTIVE BULK row of a kind collides globally (reconcile-stats, que
 test("a second ACTIVE SINGULAR row + SAME owner + SAME admission key collides (index{text} per (kind, owner, admissionKey))", async () => {
   const db = await freshDb();
   const owner = castId<UserId>("user_a");
-  await db.insert(users).values({ id: owner, handle: castId<Handle>("a"), role: "user" });
+  await db.insert(users).values({ id: owner, handle: castId<Handle>("a"), handleKey: handleKey(castId<Handle>("a")), role: "user" });
   await db.insert(workloads).values({
     id: castId<WorkloadId>("workload_a1"),
     kind: "index",
@@ -312,7 +313,7 @@ test("a second ACTIVE null-owner SINGULAR row + SAME admission key collides", as
 test("one owner runs index{text} + index{image} concurrently (per-(kind, owner, admissionKey) — different slots)", async () => {
   const db = await freshDb();
   const owner = castId<UserId>("user_a");
-  await db.insert(users).values({ id: owner, handle: castId<Handle>("a"), role: "user" });
+  await db.insert(users).values({ id: owner, handle: castId<Handle>("a"), handleKey: handleKey(castId<Handle>("a")), role: "user" });
   await db.insert(workloads).values({
     id: castId<WorkloadId>("workload_text"),
     kind: "index",
@@ -338,7 +339,7 @@ test("one owner runs index{text} + index{image} concurrently (per-(kind, owner, 
 test("a second ACTIVE index{all} collides (same admission key single-active), but coexists with a distinct one", async () => {
   const db = await freshDb();
   const owner = castId<UserId>("user_a");
-  await db.insert(users).values({ id: owner, handle: castId<Handle>("a"), role: "user" });
+  await db.insert(users).values({ id: owner, handle: castId<Handle>("a"), handleKey: handleKey(castId<Handle>("a")), role: "user" });
   await db.insert(workloads).values({
     id: castId<WorkloadId>("workload_all1"),
     kind: "index",
@@ -370,7 +371,7 @@ test("a second ACTIVE index{all} collides (same admission key single-active), bu
 test("one owner ingests two DIFFERENT documents concurrently, and the SAME document twice collides", async () => {
   const db = await freshDb();
   const owner = castId<UserId>("user_a");
-  await db.insert(users).values({ id: owner, handle: castId<Handle>("a"), role: "user" });
+  await db.insert(users).values({ id: owner, handle: castId<Handle>("a"), handleKey: handleKey(castId<Handle>("a")), role: "user" });
   await db.insert(workloads).values({
     id: castId<WorkloadId>("workload_doc_a"),
     kind: "databank-ingest",
@@ -410,8 +411,8 @@ test("two DIFFERENT owners each run their own active SINGULAR index{text} (per-o
   const db = await freshDb();
   const a = castId<UserId>("user_a");
   const b = castId<UserId>("user_b");
-  await db.insert(users).values({ id: a, handle: castId<Handle>("a"), role: "user" });
-  await db.insert(users).values({ id: b, handle: castId<Handle>("b"), role: "user" });
+  await db.insert(users).values({ id: a, handle: castId<Handle>("a"), handleKey: handleKey(castId<Handle>("a")), role: "user" });
+  await db.insert(users).values({ id: b, handle: castId<Handle>("b"), handleKey: handleKey(castId<Handle>("b")), role: "user" });
   await db.insert(workloads).values({
     id: castId<WorkloadId>("workload_a"),
     kind: "index",
@@ -438,7 +439,7 @@ test("two DIFFERENT owners each run their own active SINGULAR index{text} (per-o
 test("a SINGULAR row and a BULK row of one (kind, admissionKey) coexist (disjoint mode partitions)", async () => {
   const db = await freshDb();
   const owner = castId<UserId>("user_a");
-  await db.insert(users).values({ id: owner, handle: castId<Handle>("a"), role: "user" });
+  await db.insert(users).values({ id: owner, handle: castId<Handle>("a"), handleKey: handleKey(castId<Handle>("a")), role: "user" });
   await db.insert(workloads).values({
     id: castId<WorkloadId>("workload_singular"),
     kind: "index",

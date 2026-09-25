@@ -1,5 +1,6 @@
 import type { Db } from "@orb/db";
 import { sessions, users } from "@orb/db";
+import { handleKey } from "@orb/kit/handle-key";
 import type { Handle, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
@@ -22,7 +23,7 @@ let clock: Clock;
 beforeEach(async () => {
   db = await freshDb();
   ({ svc, clock } = makeService(db));
-  await db.insert(users).values({ id: USER_ID, handle: HANDLE, externalId: castId(EXTERNAL), role: "owner" });
+  await db.insert(users).values({ id: USER_ID, handle: HANDLE, handleKey: handleKey(HANDLE), externalId: castId(EXTERNAL), role: "owner" });
 });
 
 describe("sessions.validate — Route A (returns userId + the principal-fields)", () => {

@@ -665,7 +665,7 @@ module.exports = {
     // posture, with the resolver (a one-entry `exports` map) as the primary.
     // A FIFTH, `vllm-surface-isolation`, was DELETED rather than re-pointed, by the same document's
     // ruling: "there is no vllm module left to isolate" — the five role surfaces are gone, vLLM is a
-    // provider ROW on the openai-compat wire, and the owner's fleet left the repo (docs/plans/fleet-out/design.md).
+    // provider ROW on the openai-compat wire, and the owner's fleet left the repo (ADR 0007).
     // Following it there would have widened a provider-execution seal into the instrument tree by side
     // effect, which is the mistake the `no-raw-egress` engine-plane rows already refused to make.
     {

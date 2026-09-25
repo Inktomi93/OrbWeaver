@@ -11,6 +11,7 @@
 // only checked `count` would leave the whole point of the change untested.
 
 import { automationFires, automationRules, chats, users } from "@orb/db";
+import { handleKey } from "@orb/kit/handle-key";
 import type { AutomationFireId, AutomationRuleId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { BUG_REPORT_MAX_BODY_BYTES, recordWireCapture, registerDebugRoutes, resetWireCaptures } from "@orb/server/foundation/observability/debug";
@@ -177,7 +178,7 @@ describe("/api/_debug/automation/fires — the durable fire log behind the gate"
   async function seededApp(): Promise<{ app: Hono; chatA: ChatId; chatB: ChatId }> {
     const db = await freshDb();
     const ownerId = castId<UserId>("user_fires_route");
-    await db.insert(users).values({ id: ownerId, handle: castId<Handle>("user_fires_route") });
+    await db.insert(users).values({ id: ownerId, handle: castId<Handle>("user_fires_route"), handleKey: handleKey(castId<Handle>("user_fires_route")) });
     const chatA = castId<ChatId>("chat_fires_route_a");
     const chatB = castId<ChatId>("chat_fires_route_b");
     await db.insert(chats).values([

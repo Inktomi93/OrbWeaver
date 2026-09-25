@@ -1,1 +1,0 @@
-ALTER TABLE `user_connections` ADD `prompt_cache` text;

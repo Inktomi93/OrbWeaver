@@ -4,6 +4,7 @@
 // domain error map. The acting `Principal` is threaded as `params.principal` (the verb gates on it).
 
 import { userRoleSchema } from "@orb/contracts/identity";
+import { withinHandleLength } from "@orb/kit/handle-key";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
@@ -27,7 +28,7 @@ export const adminRouter = t.router({
   createUser: adminProcedure
     .input(
       z.object({
-        handle: brandedId<Handle>(),
+        handle: brandedId<Handle>().refine(withinHandleLength, { message: "handle is too long" }),
         password: z.string().min(1),
         role: userRoleSchema.optional(),
       }),

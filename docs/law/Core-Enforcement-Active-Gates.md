@@ -53,7 +53,7 @@ dropping a valid `defineGate` module in that directory, nothing else to register
 `tooling/src/verify/gates/GATE-AUTHORING.md` is the authoring guide; a gate's rule and its reason live
 in its own module header, never restated here.
 
-(349 registered gates)
+(350 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -162,6 +162,7 @@ in its own module header, never restated here.
 | `freeze-provenance-write-pairing-health` | freeze-provenance | hard/error | @packages | the freeze-provenance write-pairing… |
 | `gate-ignore-inventory` | — | hard/error | @authored\* | a dead @orb-gate-ignore marker… |
 | `gate-modernization` | — | hard/error | @tooling\* | a gate file breaks the gate-authoring… |
+| `handle-key-writer` | external-id-single-writer | hard/error | @server | a users write that sets handle… |
 | `home-tile-registry-completeness` | registry-definitions | ordinary/error | @client | a home tile is dishonest: a… |
 | `infra-auth-no-userid` | — | ordinary/error | @server\* | userId is forbidden under… |
 | `injected-op-caller-param` | — | ordinary/error | @server,@kit | a cross-domain op takes an entity id… |

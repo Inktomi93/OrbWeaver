@@ -11,7 +11,8 @@ import { determineRole } from "../substrate/role-policy.ts";
 //
 // THE RE-READ IS THE RESULT, NOT A HINT. `onConflictDoNothing` swallows a collision on ANY unique column,
 // and only the `users_handle_unique` one is the benign race this verb is tolerant OF — a swallow on
-// `users_single_owner_unique` (the box already has its one `role='owner'` row, under a DIFFERENT handle) or
+// `users_single_owner_unique` (the box already has its one `role='owner'` row, under a DIFFERENT handle),
+// `users_handle_key_unique` (another row holds a case variant or look-alike of this handle, D257) or
 // `users_external_id_unique` leaves NO row at this handle. Returning the locally-minted id there hands the
 // caller an id that points at nothing, and its worst consumer is boot: `seedOwner` carries it into
 // `createServices` and into the boot Principal, where `principalFromRow` DEGRADES a missing row to
@@ -42,7 +43,7 @@ export function createEnsureUser(ctx: SessionsContext): Pick<SessionsService, "e
     const settled = await selectIdByHandle(ctx.db, handle);
     if (settled === undefined) {
       throw new Error(
-        `ensureUser: no users row for handle "${handle}" after insert — the insert was rejected by a UNIQUE constraint other than the handle (a row already holds role='owner' under a different handle, or its external_id is taken). Refusing to return an id that points at no row.`,
+        `ensureUser: no users row for handle "${handle}" after insert — the insert was rejected by a UNIQUE constraint other than the handle (a row already holds role='owner' under a different handle, another row holds this handle's key as a case variant or look-alike (users_handle_key_unique, D257), or its external_id is taken). Refusing to return an id that points at no row.`,
       );
     }
     getLog().info({ handle }, "user: created tenant row");

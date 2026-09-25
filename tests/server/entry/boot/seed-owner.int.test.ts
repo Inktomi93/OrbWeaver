@@ -12,6 +12,7 @@
 
 import type { ResolvedIdentity } from "@orb/contracts/identity";
 import { users } from "@orb/db";
+import { handleKey } from "@orb/kit/handle-key";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createSessionsService } from "@orb/server/domain/sessions";
@@ -24,6 +25,8 @@ import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER_ID = castId<UserId>("u_owner");
 const OTHER_ID = castId<UserId>("u_other");
+// The stubbed-sessions cases never move the seed key, so a rename reaching the stub is a test defect.
+const RENAME_NOT_REACHED = (): Promise<void> => Promise.reject(new Error("renameUserHandle is not reached by this case"));
 
 // ≥32 chars — the SESSION_SECRET pepper floor (mirrors the sessions harness).
 const PEPPER = "test-session-secret-at-least-32-chars-long";
@@ -38,11 +41,11 @@ afterEach(() => {
 
 test("backfills a non-owner OWNER-handle row to role=owner + returns its id", async ({ clock }) => {
   const db = await freshDb();
-  await db.insert(users).values({ id: OWNER_ID, handle: castId<Handle>("owner"), role: "user" });
+  await db.insert(users).values({ id: OWNER_ID, handle: castId<Handle>("owner"), handleKey: handleKey(castId<Handle>("owner")), role: "user" });
 
   const ids = await seedOwner({
     db,
-    sessions: { ensureUser: (): Promise<UserId> => Promise.resolve(OWNER_ID) },
+    sessions: { ensureUser: (): Promise<UserId> => Promise.resolve(OWNER_ID), renameUserHandle: RENAME_NOT_REACHED },
     ownerHandles: ["owner"],
     now: clock.now,
   });
@@ -54,11 +57,11 @@ test("backfills a non-owner OWNER-handle row to role=owner + returns its id", as
 
 test("idempotent — a second run keeps role=owner and does not re-stamp updated_at", async ({ clock }) => {
   const db = await freshDb();
-  await db.insert(users).values({ id: OWNER_ID, handle: castId<Handle>("owner"), role: "user", updatedAt: 1 });
+  await db.insert(users).values({ id: OWNER_ID, handle: castId<Handle>("owner"), handleKey: handleKey(castId<Handle>("owner")), role: "user", updatedAt: 1 });
 
   await seedOwner({
     db,
-    sessions: { ensureUser: (): Promise<UserId> => Promise.resolve(OWNER_ID) },
+    sessions: { ensureUser: (): Promise<UserId> => Promise.resolve(OWNER_ID), renameUserHandle: RENAME_NOT_REACHED },
     ownerHandles: ["owner"],
     now: clock.now,
   });
@@ -69,7 +72,7 @@ test("idempotent — a second run keeps role=owner and does not re-stamp updated
   clock.advance(10_000);
   await seedOwner({
     db,
-    sessions: { ensureUser: (): Promise<UserId> => Promise.resolve(OWNER_ID) },
+    sessions: { ensureUser: (): Promise<UserId> => Promise.resolve(OWNER_ID), renameUserHandle: RENAME_NOT_REACHED },
     ownerHandles: ["owner"],
     now: clock.now,
   });
@@ -84,11 +87,13 @@ test("idempotent — a second run keeps role=owner and does not re-stamp updated
 // the pre-fix `ne(role,'owner')` WHERE excluded an already-owner row, so `enabled` stayed 0.
 test("re-enables a DISABLED already-owner row at boot (raw-write brick recovery)", async ({ clock }) => {
   const db = await freshDb();
-  await db.insert(users).values({ id: OWNER_ID, handle: castId<Handle>("owner"), role: "owner", enabled: false });
+  await db
+    .insert(users)
+    .values({ id: OWNER_ID, handle: castId<Handle>("owner"), handleKey: handleKey(castId<Handle>("owner")), role: "owner", enabled: false });
 
   await seedOwner({
     db,
-    sessions: { ensureUser: (): Promise<UserId> => Promise.resolve(OWNER_ID) },
+    sessions: { ensureUser: (): Promise<UserId> => Promise.resolve(OWNER_ID), renameUserHandle: RENAME_NOT_REACHED },
     ownerHandles: ["owner"],
     now: clock.now,
   });
@@ -103,7 +108,7 @@ test("refuses a multi-handle owner set — fail-fast, not a UNIQUE loop (D17: ex
   await expect(
     seedOwner({
       db,
-      sessions: { ensureUser: (): Promise<UserId> => Promise.resolve(OWNER_ID) },
+      sessions: { ensureUser: (): Promise<UserId> => Promise.resolve(OWNER_ID), renameUserHandle: RENAME_NOT_REACHED },
       ownerHandles: ["alice", "bob"],
       now: clock.now,
     }),
@@ -112,12 +117,12 @@ test("refuses a multi-handle owner set — fail-fast, not a UNIQUE loop (D17: ex
 
 test("leaves a non-OWNER-handle row untouched (stays role=user)", async ({ clock }) => {
   const db = await freshDb();
-  await db.insert(users).values({ id: OTHER_ID, handle: castId<Handle>("someone"), role: "user" });
+  await db.insert(users).values({ id: OTHER_ID, handle: castId<Handle>("someone"), handleKey: handleKey(castId<Handle>("someone")), role: "user" });
 
   await seedOwner({
     db,
     // ensureUser would JIT-create the owner row in production; here the test only cares the OTHER row is left alone.
-    sessions: { ensureUser: (): Promise<UserId> => Promise.resolve(OWNER_ID) },
+    sessions: { ensureUser: (): Promise<UserId> => Promise.resolve(OWNER_ID), renameUserHandle: RENAME_NOT_REACHED },
     ownerHandles: ["owner"],
     now: clock.now,
   });
@@ -286,7 +291,7 @@ test("moving OWNER_HANDLES onto a handle a MEMBER already holds refuses loudly a
   const sessions = createSessionsService({ db, now: clock.now, sessionSecret: PEPPER, seedUserConnections: createLocalLightUserSeed({ db, now: clock.now }) });
   vi.stubEnv("OWNER_HANDLES", "owner");
   await seedOwner({ db, sessions, ownerHandles: ["owner"], now: clock.now });
-  await db.insert(users).values({ id: OTHER_ID, handle: castId<Handle>("alex"), role: "user" });
+  await db.insert(users).values({ id: OTHER_ID, handle: castId<Handle>("alex"), handleKey: handleKey(castId<Handle>("alex")), role: "user" });
 
   vi.stubEnv("OWNER_HANDLES", "alex");
   await expect(seedOwner({ db, sessions, ownerHandles: ["alex"], now: clock.now })).rejects.toThrow(HANDLE_TAKEN_REFUSAL);
