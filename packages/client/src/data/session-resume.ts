@@ -101,10 +101,3 @@ export function clearJoinStash(): void {
     // Nothing reachable to clear.
   }
 }
-
-/** Read the stashed invite token and CONSUME it — the join dialog takes it exactly once. */
-export function takeJoinStash(): string | null {
-  const token = peekJoinStash();
-  clearJoinStash();
-  return token;
-}

@@ -15,5 +15,7 @@ export { createSessionsService } from "./service.ts";
 // `groupRoleGovernanceActive` rides out for the same no-fork reason: entry's OIDC claim mapper asks THIS
 // predicate — never a second env read — whether an absent `groups` claim is a normal shape or a
 // silently-disabled control (#140).
-export { groupRoleGovernanceActive, ownerHandles } from "./substrate/role-policy.ts";
+// `isReservedSignupHandle` rides out for the signup route (D254): entry refuses a reserved handle before any
+// password hashing, through this one predicate.
+export { groupRoleGovernanceActive, isReservedSignupHandle, ownerHandles } from "./substrate/role-policy.ts";
 export { createTokenHasher } from "./tokens/tokens.ts";

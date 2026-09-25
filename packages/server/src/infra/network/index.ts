@@ -28,6 +28,7 @@ export {
 
 export { type ImageGuardCaps, ImageRejectedError, isAllowedImageBuffer } from "./image-guard.ts";
 export {
+  addressThrottleKey,
   clientIp,
   ipAllowlistMiddleware,
   isIngressAllowed,

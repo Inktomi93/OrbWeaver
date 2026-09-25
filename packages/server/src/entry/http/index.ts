@@ -11,6 +11,7 @@ export type {
   OidcMintStore,
   OidcRoutesDeps,
   SessionSocketEviction,
+  SignupRouteDeps,
 } from "./auth-routes.ts";
 export {
   deriveRedirectUri,

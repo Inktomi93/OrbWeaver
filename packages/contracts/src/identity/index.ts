@@ -38,16 +38,13 @@ const SIGNUP_HANDLE_MAX_CHARS = 32;
 const SIGNUP_PASSWORD_MAX_CHARS = 256;
 const SIGNUP_HANDLE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 
-/** A handle a signup may claim: ASCII letters, digits, `.`, `_` and `-`, starting with a letter or digit. No
- *  whitespace, so a padded copy of a reserved handle never parses. The server also refuses a handle that
- *  matches an existing or reserved one case-insensitively. */
-export const signupHandleSchema = z.string().min(SIGNUP_HANDLE_MIN_CHARS).max(SIGNUP_HANDLE_MAX_CHARS).regex(SIGNUP_HANDLE_PATTERN);
-
 /** The local signup route's JSON body. STRICT: an unknown key fails the parse. The password floor is the
- *  server's; this schema only bounds the parse. */
+ *  server's; this schema only bounds the parse. The handle is ASCII letters, digits, `.`, `_` and `-`, starting
+ *  with a letter or digit, so a padded copy of a reserved handle never parses; the server also refuses a
+ *  handle that matches an existing or reserved one case-insensitively. */
 export const signupRequestSchema = z.strictObject({
   token: z.string().min(1).max(SIGNUP_TOKEN_MAX_CHARS),
-  handle: signupHandleSchema,
+  handle: z.string().min(SIGNUP_HANDLE_MIN_CHARS).max(SIGNUP_HANDLE_MAX_CHARS).regex(SIGNUP_HANDLE_PATTERN),
   password: z.string().min(1).max(SIGNUP_PASSWORD_MAX_CHARS),
 });
 export type SignupRequest = z.infer<typeof signupRequestSchema>;

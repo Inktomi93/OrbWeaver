@@ -64,7 +64,7 @@ import type { AssetsService } from "#domain/assets";
 import type { AutomationService } from "#domain/automation";
 import { createAutomationTeachingContributions } from "#domain/automation";
 import type { DefaultCharacterSeeder } from "#domain/character";
-import type { ChatContext, ChatUserMacroDefs, DemoChatSeeder, MemoryEmbedSpace, MemoryRecallRecorder } from "#domain/chat";
+import type { ChatContext, ChatUserMacroDefs, DemoChatSeeder, MemoryEmbedSpace, MemoryRecallRecorder, SignupInviteOps } from "#domain/chat";
 import { createDemoChatSeeder, createMemoryRecallRecorder, createResolveViewerVisibility, loadSeededChatDressing } from "#domain/chat";
 import type { ConnectionContext } from "#domain/connection";
 import { createConnectionPorts, createConnectionService } from "#domain/connection";
@@ -128,7 +128,7 @@ import { buildAdmin } from "./admin.ts";
 import { buildAssetsCharacter } from "./assets-character.ts";
 import { buildAutomationPlugin } from "./automation-plugin.ts";
 import type { ChatComposeInput, ChatComposeResult } from "./chat.ts";
-import { buildChatService } from "./chat.ts";
+import { buildChatService, createSignupMinterCheck } from "./chat.ts";
 import { buildDatabank } from "./databank.ts";
 import { createDemoChatGameDoor } from "./demo-chat-game.ts";
 import type { EffectiveConfigWiring } from "./effective-config.ts";
@@ -314,6 +314,10 @@ export interface ServicesResult {
    *  `/api/_debug/wire/captures` as `enabled` so a reader can tell an off recorder from a quiet one. Surfaced
    *  because the decision lives HERE and nothing downstream can re-derive the force-flag half. */
   readonly wireCaptureOn: boolean;
+  /** D254 — chat's signup-invite ops, for the local signup route. */
+  readonly signupInvites: SignupInviteOps;
+  /** The per-user local-light seed, surfaced for the signup route (it runs after the signup commit). */
+  readonly seedUserConnections: (userId: UserId) => Promise<void>;
   /** #250 — the memory-recall flight recorder's READ half. Always present (the recorder is unconditional);
    *  `lifecycle.ts` hands it to `createApp`, which registers `/api/_debug/memory/recalls` over it. */
   readonly recallRecorder: MemoryRecallRecorder;
@@ -886,6 +890,11 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     }),
     embeddings,
     resolveHandle: (handle) => sessions.resolveHandle(handle),
+    authMode: env.AUTH_MODE,
+    signup: {
+      signupUserStatement: sessions.signupUserStatement,
+      minterMayMintSignup: createSignupMinterCheck(sessions, resolveHostPrincipal),
+    },
     runChatTurn: executor.runChatTurn,
     // The Anthropic prompt-cache depth FLOOR, read PER TURN off the resolved AppSettings tier (Settings ›
     // Admin › System tuning). A thunk for the same reason `structuredOutputShape` below is one: an admin flip
@@ -1409,6 +1418,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     recallRecorder,
     toolUse,
     chatRpgOps: chatCompose.rpgChatOps,
+    signupInvites: chatCompose.signupInvites,
+    seedUserConnections,
     wireCaptureOn,
   };
 }

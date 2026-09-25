@@ -578,6 +578,13 @@ export type InviteStatus = (typeof INVITE_STATUSES)[number];
 /** @public twin: INVITE_STATUSES — drives the chat_invites status enum + CHECK (cross-package PUBLIC). */
 export const inviteStatusSchema = z.enum(INVITE_STATUSES) satisfies z.ZodType<InviteStatus>;
 
+/** The most accounts one signup invite may create (D254). */
+export const SIGNUP_MAX_USES = 10;
+const MS_PER_DAY = 86_400_000;
+const SIGNUP_MAX_TTL_DAYS = 7;
+/** The longest a signup invite may live, measured on the server clock at mint (D254). */
+export const SIGNUP_MAX_TTL_MS = SIGNUP_MAX_TTL_DAYS * MS_PER_DAY;
+
 /** Create an invite (host action). Two creation paths: a share-link (no target) OR targeted-by-handle
  *  (`invitedHandle`, resolved to a user server-side). The `token` is CSPRNG-minted + stored HASHED on the
  *  server — NEVER a client input, never returned in a view. `role` is server-forced `member` on redeem. */
@@ -589,6 +596,10 @@ export const createInviteSchema = z.object({
   expiresAt: z.number().int().nullable().optional(),
   /** Targeted-by-handle: the exact public handle to invite (no user directory/listing). */
   invitedHandle: brandedId<Handle>().nullable().optional(),
+  /** D254 — the link may create an account for a signed-out visitor. Global admins only; it needs an explicit
+   *  `maxUses` up to {@link SIGNUP_MAX_USES}, an explicit `expiresAt` within {@link SIGNUP_MAX_TTL_MS}, and no
+   *  target. The server refuses every other shape. */
+  allowSignup: z.boolean().optional(),
 });
 export type CreateInviteInput = z.infer<typeof createInviteSchema>;
 
@@ -643,6 +654,8 @@ export const inviteViewSchema = z.strictObject({
   expiresAt: z.number().nullable(),
   /** The targeted user when created by handle; null for an open share-link. */
   invitedUserId: brandedId<UserId>().nullable(),
+  /** D254 — the link may create an account for a signed-out visitor. */
+  allowSignup: z.boolean(),
   createdAt: z.number(),
 });
 export type InviteView = z.infer<typeof inviteViewSchema>;

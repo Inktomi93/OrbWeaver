@@ -15,7 +15,7 @@ import type { AuthMode, Principal } from "@orb/contracts/identity";
 import { isCookieAuthMode } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { createDb, preCloseHousekeeping } from "@orb/db";
-import type { ChatId, ChatTurnId, Handle, UserId } from "@orb/kit/ids";
+import type { ChatId, ChatTurnId, Handle, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { RESTART_EXIT_CODE } from "@orb/kit/supervisor";
 import { formatVersionIdentity } from "@orb/kit/version-identity";
@@ -23,8 +23,7 @@ import type { Configuration } from "openid-client";
 import { authorizationCodeGrant, discovery } from "openid-client";
 import type { ServerRestartPort } from "#domain/admin";
 import { startAutomationWatcher } from "#domain/automation";
-import type { SessionsService } from "#domain/sessions";
-import { createOidcStore, createSessionsService, ownerHandles } from "#domain/sessions";
+import { createOidcStore, createSessionsService, isReservedSignupHandle, ownerHandles } from "#domain/sessions";
 import type { ShareBootOutcome } from "#domain/share";
 import { createRelayController } from "#domain/share";
 import { loadWorkload, nextRunnableWorkload, reapOrphanedWorkloads, runWorkload, subscribeWorkloadWake } from "#domain/workloads";
@@ -96,8 +95,9 @@ import {
   settleBootSecrets,
 } from "./boot/index.ts";
 import { createAutomationWatcherEnv } from "./compose/automation-watcher.ts";
+import type { ServicesResult } from "./compose/index.ts";
 import { createServices } from "./compose/index.ts";
-import type { FirstRunRouteDeps, LocalAuthenticator, OidcRoutesDeps } from "./http/index.ts";
+import type { FirstRunRouteDeps, LocalAuthenticator, OidcRoutesDeps, SignupRouteDeps } from "./http/index.ts";
 import { createRateLimitGate } from "./rate-limit-gate.ts";
 
 const MS_PER_HOUR = 3_600_000;
@@ -248,14 +248,16 @@ function logShareBootOutcome(log: ReturnType<typeof getLog>, outcome: ShareBootO
  *  property the knob promises it cannot do. A containerized local deploy sets `LOCAL_INITIAL_PASSWORD`
  *  instead (docs/plans/containerize/design.md — already its documented state). */
 function buildLocalAuthDeps(
-  sessions: SessionsService,
+  built: Pick<ServicesResult, "sessions" | "signupInvites" | "seedUserConnections">,
   sessionSecret: string | null,
   onOwnerClaimed: () => void,
 ): {
   authenticate: LocalAuthenticator;
   firstRun: FirstRunRouteDeps;
   localFirstRun: (peerIp: string | undefined, headers: Headers) => Promise<boolean>;
+  signup: Omit<SignupRouteDeps, "multiHumanCapable">;
 } {
+  const { sessions } = built;
   const hasher = createPasswordHasher(sessionSecret);
   return {
     authenticate: (handle: Handle, password: string): Promise<UserId | null> => sessions.authenticate(handle, password),
@@ -271,6 +273,15 @@ function buildLocalAuthDeps(
     },
     localFirstRun: async (peerIp: string | undefined, headers: Headers): Promise<boolean> =>
       ownerFallbackAllowed(peerIp, headers) ? await sessions.ownerNeedsPassword() : false,
+    // D254 — the signup-through-invite route. `createApp` adds the per-request multi-human capability.
+    signup: {
+      sessionIsLive: async (token: SessionToken): Promise<boolean> => (await sessions.validate(token)) !== null,
+      invites: built.signupInvites,
+      isReservedHandle: isReservedSignupHandle,
+      handleTaken: (handle: Handle): Promise<boolean> => sessions.signupHandleTaken(handle),
+      hashPassword: (plain: string): Promise<string> => hasher.hash(plain),
+      seedUserConnections: built.seedUserConnections,
+    },
   };
 }
 
@@ -731,7 +742,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // A `SHARE_RELAY` start refused for an unclaimed owner starts right after the claim lands, in this process.
     const localAuth =
       env.AUTH_MODE === "local"
-        ? buildLocalAuthDeps(built.sessions, sessionSecret, () => {
+        ? buildLocalAuthDeps(built, sessionSecret, () => {
             superviseDetached(`share-resume:${randomUUID()}`, "share.resumeAfterOwnerClaim", {}, async () => {
               logShareBootOutcome(log, await built.services.share.resumeAfterOwnerClaim());
             });

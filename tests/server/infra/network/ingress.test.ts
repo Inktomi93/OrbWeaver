@@ -3,7 +3,7 @@
 // allowlist identity) and the allowlist decision (loopback/private always allowed; null ip degrades to
 // allowed — a belt, not the auth layer). The Hono middleware/context wrappers are thin shells over these.
 
-import { ipAllowlistMiddleware, isIngressAllowed, parseAllowlist, resolveClientIp } from "@orb/server/infra/network";
+import { addressThrottleKey, ipAllowlistMiddleware, isIngressAllowed, parseAllowlist, resolveClientIp } from "@orb/server/infra/network";
 import { Hono } from "hono";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -106,5 +106,23 @@ describe("ipAllowlistMiddleware — a spoofed leftmost XFF cannot pass the allow
   test("control: an allowlisted visitor the proxy appended is admitted", async () => {
     const res = await appWithAllowlist().request("/", { headers: { "x-forwarded-for": "10.9.9.9, 203.0.113.50" } }, fromLoopbackProxy);
     expect(res.status).toBe(200);
+  });
+});
+
+// D254 — the per-address throttle key. One IPv6 host holds a whole /64, so the key is the /64 prefix.
+describe("addressThrottleKey", () => {
+  test("every address inside one IPv6 /64 keys alike; the next /64 does not", () => {
+    expect(addressThrottleKey("2001:db8:aa:1::1")).toBe(addressThrottleKey("2001:db8:aa:1:ffff:ffff:ffff:ffff"));
+    expect(addressThrottleKey("2001:db8:aa:1::1")).not.toBe(addressThrottleKey("2001:db8:aa:2::1"));
+  });
+
+  test("an IPv4 address keys as itself, and its v4-mapped IPv6 spelling keys the same", () => {
+    expect(addressThrottleKey("203.0.113.7")).toBe("203.0.113.7");
+    expect(addressThrottleKey("::ffff:203.0.113.7")).toBe("203.0.113.7");
+    expect(addressThrottleKey("203.0.113.8")).not.toBe(addressThrottleKey("203.0.113.7"));
+  });
+
+  test("an unparseable address keys as itself", () => {
+    expect(addressThrottleKey("not-an-ip")).toBe("not-an-ip");
   });
 });

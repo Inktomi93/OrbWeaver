@@ -3,7 +3,8 @@ import type { Db } from "@orb/db";
 import { users } from "@orb/db";
 import type { AwaitableBatchStmt } from "@orb/db/kit";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
-import { and, eq, isNull } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import type { ProvisionCandidate } from "../contract/results.ts";
 
 // The `users`-row resolution queries. Lookups for `ensureUser` (by handle) + `provisionIdentity` (by
@@ -92,6 +93,34 @@ export async function selectUserIdByEmail(db: Db, email: string): Promise<UserId
  *  concurrent first-login loser; the verb re-reads to return the canonical row. */
 export async function insertUser(db: Db, row: UserInsert): Promise<void> {
   await db.insert(users).values(row).onConflictDoNothing();
+}
+
+/** D254 — does any row carry this handle, compared case-insensitively? The signup route's check before any
+ *  password hashing; the account insert repeats it inside the batch. `lower()` folds ASCII only, which is the
+ *  whole signup handle alphabet (`signupHandleSchema`). */
+export async function selectHandleTakenCaseless(db: Db, handle: Handle): Promise<boolean> {
+  const rows = await db.select({ id: users.id }).from(users).where(sql`lower(${users.handle}) = lower(${handle})`).limit(1);
+  return rows.length > 0;
+}
+
+/**
+ * D254 — the signup account insert, UNEXECUTED, for the caller's batch. It writes a `user`-role human with the
+ * password hash only where `admission` holds and no row carries the handle case-insensitively. There is no
+ * `onConflictDoNothing`: an exact-handle race throws and rolls the whole batch back, never a silent no-op a
+ * later statement could misread. The values are positional over the table's declared column order (the
+ * `buildAuditStatementIfPrecedingWrote` precedent), so a new `users` column is a loud column-count error.
+ */
+export function insertSignupUserStatement(
+  db: Db,
+  row: { readonly id: UserId; readonly handle: Handle; readonly passwordHash: string; readonly at: number },
+  admission: SQL,
+): AwaitableBatchStmt<{ id: UserId }[]> {
+  return db
+    .insert(users)
+    .select(
+      sql`select ${row.id}, ${row.handle}, null, null, 'user', 1, ${row.passwordHash}, 'human', null, ${row.at}, ${row.at} where ${admission} and not exists (select 1 from ${users} where lower(${users.handle}) = lower(${row.handle}))`,
+    )
+    .returning({ id: users.id });
 }
 
 /** The provision UPDATE — only the supplied keys change (`enabled` is never among them). */

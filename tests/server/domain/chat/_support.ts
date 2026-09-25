@@ -466,6 +466,8 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     newPendingTurnId: mint<PendingTurnId>("pending_turn"),
     newChatTurnId: mint<ChatTurnId>("chat_turn"),
     hashToken: (token) => `h:${token}`,
+    // D254 — a local deployment that mints signup invites; a suite overrides it to prove the refusing modes.
+    signupInvites: { mode: "local", mintable: true },
     audit: () => Promise.resolve(),
     auditStatement: (entry, at) => buildAuditStatement(db, entry, at),
     // PD user-bus lane: no-op default (the terminal path + LIST-level ops fan `chatsChanged` to members; a

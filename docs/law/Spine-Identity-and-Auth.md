@@ -234,6 +234,9 @@ The sanctioned `Principal`/credential construction and cookie sites; everything 
   `ROLES_FOR_GLOBAL_ACTION.admin`). `ownerFallbackAllowed` is what defends that boundary.
 - `entry/http/auth-routes.ts` — the session cookie write side, under the request transport's name
   (`infra/auth/transport.ts`); mints session tokens via `domain/sessions` and never re-implements resolution.
+  Its cookie sites are login, first-run, the local signup-through-invite route, and the `oidc` callback
+  and confirm routes (the confirm is not yet built). A signup or confirm mints only after its one gated
+  batch commits with every `RETURNING` non-empty (D254).
 - `entry/app.ts` — the `Set-Cookie` writer: the per-request auth middleware re-issues the same token
   `sessions.validate` just accepted, with a fresh max-age. It never mints; re-issuing a second copy read
   independently would silently log the caller out, so the token it writes must be the one the seam

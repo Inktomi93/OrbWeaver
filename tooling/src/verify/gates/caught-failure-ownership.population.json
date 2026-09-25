@@ -2,16 +2,16 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 608,
+    "sites": 614,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 608,
+      "deliberate-absorb": 614,
       "unproven": 0
     },
     "byGrammar": {
-      "default": 152,
-      "empty": 310,
-      "promise": 146
+      "default": 153,
+      "empty": 313,
+      "promise": 148
     }
   },
   "rows": [
@@ -66,6 +66,11 @@
       "reason": "`res.ok` already confirmed the response succeeded; a malformed/absent body is a best-effort optional read that degrades to the documented null fallback (non-oidc / no end-session endpoint). Ends if endSessionUrl becomes a required field."
     },
     {
+      "siteId": "packages/client/src/data/auth-bootstrap.ts::signUpWithInvite::res.json::1",
+      "verdict": "deliberate-absorb",
+      "reason": "an absent or malformed error body degrades to the empty object, which reads as the unknown refusal (`null`); the refusal is still reported. Ends if every refusal body becomes guaranteed."
+    },
+    {
       "siteId": "packages/client/src/data/bus/post-event-source.ts::PostEventSource.#start::this.#connect::1",
       "verdict": "deliberate-absorb",
       "reason": "a failed fetch or a broken body is a dropped connection, exactly like a clean end; its owner is the `error` event `#scheduleReconnect` dispatches to the tRPC consumer, and it does nothing once the source is closed."
@@ -91,9 +96,29 @@
       "reason": "refetch failures surface on the queries' own error state; consume the aggregate Promise here."
     },
     {
+      "siteId": "packages/client/src/data/join-token.ts::clearJoinParam::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a malformed percent-encoding falls back to comparing the raw key, a deliberate fail-safe so a garbled field never blocks the scrub. Ends if the fallback comparison stops being equivalent for well-formed keys."
+    },
+    {
       "siteId": "packages/client/src/data/session-freshness.ts::startSessionFreshness::deps.probe::1",
       "verdict": "deliberate-absorb",
       "reason": "a rejection means unreachable, not signed out (see the interface doc) — the reject arm deliberately leaves the clock alone so the next visible edge retries. Ends if unreachable must be distinguished from signed-out here."
+    },
+    {
+      "siteId": "packages/client/src/data/session-resume.ts::clearJoinStash::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "storage access refused means nothing was stashed to clear. Ends if the stash becomes the only way to join."
+    },
+    {
+      "siteId": "packages/client/src/data/session-resume.ts::peekJoinStash::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "storage access refused reads as no stash, the same as a tab that never had one. Ends if the stash becomes the only way to join."
+    },
+    {
+      "siteId": "packages/client/src/data/session-resume.ts::stashJoinToken::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "storage refused (private mode / disabled) — the visitor still reaches /login, and the invite link still works once they open it signed in. Ends if the stash becomes the only way to join."
     },
     {
       "siteId": "packages/client/src/data/session-resume.ts::takeSessionResume::catch::1",
@@ -161,6 +186,11 @@
       "reason": "the FAILURE is already owned and surfaced — the caller returns `{ok:false}` and the button's status line renders `HTTP <status> from <route>` either way. This try only asks whether the body ADDS a named arm; a non-JSON error page (proxy 502, HTML) is the expected miss, and `null` means \"say only what is true\". Ends if a refusal body ever becomes required rather than additive."
     },
     {
+      "siteId": "packages/client/src/features/auth/components/login-signup-form.tsx::LoginSignupForm.onSubmit::signUpWithInvite::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the FORM is the owner — a network rejection sets the visible role=alert error and re-enables submit, the same surface a coded refusal lands on. Ends if the form stops rendering its error state."
+    },
+    {
       "siteId": "packages/client/src/features/auth/lib/route-guards.ts::meOrNull::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "a thrown read returns null after the retry window exhausts, and both callers already treat null as \"unreachable\" and route to /login. Ends if a caller starts treating null as a resolved authed state instead of the unreachable case."
@@ -219,11 +249,6 @@
       "siteId": "packages/client/src/features/chat/hooks/use-guided-actions.ts::useGuidedActions.fireImpersonate::streamImpersonation::1",
       "verdict": "deliberate-absorb",
       "reason": "the .catch below explicitly toasts via notifyImpersonateFailure before restoring the typed steer — the failure is surfaced, not swallowed. Ends if the toast call is ever removed from the handler."
-    },
-    {
-      "siteId": "packages/client/src/features/chat/lib/join-token.ts::clearJoinParam::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "a malformed percent-encoding falls back to comparing the raw key, a deliberate fail-safe so a garbled field never blocks the scrub. Ends if the fallback comparison stops being equivalent for well-formed keys."
     },
     {
       "siteId": "packages/client/src/features/chat/surfaces/new-chat-picker-surface.tsx::NewChatPicker.found::startChat::1",
@@ -1356,6 +1381,11 @@
       "reason": "client-input — the docstring states the contract: `null` on non-JSON, and the caller's schema parse then fails → empty delta. Ends if this stops feeding a schema-validated read."
     },
     {
+      "siteId": "packages/server/src/entry/http/auth-routes.ts::readSignupRequest::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the CLIENT is the owner and the 400 is the surface — an unparseable body is the caller's error, answered with the same `invalid_request` code as a schema miss. Ends if body decoding gains a server-side fault worth distinguishing from bad input."
+    },
+    {
       "siteId": "packages/server/src/entry/http/auth-routes.ts::resolveEndSessionUrl::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "`null` is the DOCUMENTED degraded arm this function's JSDoc above describes — an unreachable IdP discovery means we send no end-session param and the user lands on our own `/login` instead of the IdP's logged-out page. The LOCAL logout has already happened either way, so this can only cost a redirect, never a session. Ends if end-session becomes required for correct logout."
@@ -1834,6 +1864,21 @@
       "siteId": "tooling/src/_shared/entrypoint.ts::realOrSelf::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "a deleted or virtual argv[1] fails to resolve; the caller's own doc says exactly that case is expected, so falling back to the input verbatim is the correct optional-read-as-absent behavior, not a lost failure. Ends if a resolve failure here starts meaning something other than \"no real path\"."
+    },
+    {
+      "siteId": "tooling/src/_shared/host-slots.ts::defaultAlive::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "`kill(pid, 0)` ASKS A QUESTION and throws to answer \"no\" — the throw IS the ESRCH answer, not a lost failure, and the caller acts on the boolean by stealing the slot and saying so out loud. Ends if this ever needs to distinguish EPERM from ESRCH."
+    },
+    {
+      "siteId": "tooling/src/_shared/host-slots.ts::readHolder::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the FAILURE IS THE VERDICT — an unreadable or half-written slot file is DEBRIS, and `null` is how this reader says so to its one caller, which then STEALS the slot and PRINTS that it did. Any other surfacing wedges the box on a torn write. Ends if a caller starts reading `null` as \"someone holds this\"."
+    },
+    {
+      "siteId": "tooling/src/_shared/host-slots.ts::takeAnySlot::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the EEXIST throw IS \"this slot is taken\" — the catch arm reads the holder and either moves to the next slot (live) or STEALS the slot with a printed note (dead). Every path out of it is owned and visible. Ends if this stops re-deciding and starts swallowing."
     },
     {
       "siteId": "tooling/src/_shared/load-budget-cgroup.ts::readCgroupFile::catch::1",
@@ -2834,21 +2879,6 @@
       "siteId": "tooling/src/verify/lib/history.ts::readHistory::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "documented non-critical telemetry — a torn/partial line is skipped, never failing the run whose actual verdict lives elsewhere, per the doc comment above. Ends if history entries start being load-bearing for a verdict."
-    },
-    {
-      "siteId": "tooling/src/_shared/host-slots.ts::defaultAlive::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "`kill(pid, 0)` ASKS A QUESTION and throws to answer \"no\" — the throw IS the ESRCH answer, not a lost failure, and the caller acts on the boolean by stealing the slot and saying so out loud. Ends if this ever needs to distinguish EPERM from ESRCH."
-    },
-    {
-      "siteId": "tooling/src/_shared/host-slots.ts::readHolder::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "the FAILURE IS THE VERDICT — an unreadable or half-written slot file is DEBRIS, and `null` is how this reader says so to its one caller, which then STEALS the slot and PRINTS that it did. Any other surfacing wedges the box on a torn write. Ends if a caller starts reading `null` as \"someone holds this\"."
-    },
-    {
-      "siteId": "tooling/src/_shared/host-slots.ts::takeAnySlot::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "the EEXIST throw IS \"this slot is taken\" — the catch arm reads the holder and either moves to the next slot (live) or STEALS the slot with a printed note (dead). Every path out of it is owned and visible. Ends if this stops re-deciding and starts swallowing."
     },
     {
       "siteId": "tooling/src/verify/lib/policy-pass-resolve.ts::factDependencyPaths::catch::1",

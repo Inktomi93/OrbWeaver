@@ -8,8 +8,8 @@
 import type { ParticipantView } from "@orb/contracts/chat";
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";
-import { chatInvites, chatParticipants } from "@orb/db";
-import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
+import { chatInvites, chatParticipants, users } from "@orb/db";
+import { DomainForbiddenError, DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { ChatId, ChatInviteId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
@@ -187,6 +187,88 @@ describe("createInvite — host mints a share-link; the token is stored HASHED",
       .catch((e: unknown) => e);
     expect(err).toBeInstanceOf(DomainOperationError);
     expect((err as DomainOperationError).code).toBe("invite_target_unknown");
+  });
+});
+
+// D254 — a signup invite creates accounts, so only a global admin mints one, only in a mode that mints them,
+// and only with a use cap and an expiry inside the caps on the server clock and no target.
+describe("createInvite — allowSignup authority and caps (D254)", () => {
+  const DayMs = 86_400_000;
+  const SignupCaps = { maxUses: 10, ttlMs: 7 * DayMs };
+
+  async function hostedRoom(role: "user" | "admin", key: string): Promise<{ readonly host: UserId; readonly chatId: ChatId }> {
+    const host = await seedUser(db, castId<Handle>(`host_${key}`));
+    const chatId = await seedChat(db, key);
+    await seedParticipant(db, { chatId, key: `h_${key}`, userId: host, role: "host" });
+    await db.update(users).set({ role }).where(eq(users.id, host));
+    return { host, chatId };
+  }
+
+  const valid = { allowSignup: true, maxUses: 3, expiresAt: FROZEN_AT + DayMs } as const;
+
+  test("a host whose global role is user is refused; an admin host mints it and the row is stamped", async () => {
+    const plain = await hostedRoom("user", "signup_plain");
+    const invites = createInvites(makeChatContext(db), makeDeps());
+    const err = await invites
+      .createInvite({ principal: makePrincipal(plain.host, { role: "user" }), chatId: plain.chatId, input: valid })
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(DomainForbiddenError);
+    expect(await db.select().from(chatInvites).where(eq(chatInvites.chatId, plain.chatId))).toHaveLength(0);
+
+    const admin = await hostedRoom("admin", "signup_admin");
+    const { invite } = await invites.createInvite({ principal: makePrincipal(admin.host, { role: "admin" }), chatId: admin.chatId, input: valid });
+    const [row] = await db.select().from(chatInvites).where(eq(chatInvites.id, invite.id));
+    expect(row).toMatchObject({ allowSignup: true, createdByUserId: admin.host, mintMode: "local", maxUses: 3, expiresAt: FROZEN_AT + DayMs });
+    expect(invite.allowSignup).toBe(true);
+  });
+
+  test.each([
+    ["maxUses omitted", { allowSignup: true, expiresAt: FROZEN_AT + DayMs }],
+    ["maxUses null", { ...valid, maxUses: null }],
+    ["maxUses zero", { ...valid, maxUses: 0 }],
+    ["maxUses over the cap", { ...valid, maxUses: SignupCaps.maxUses + 1 }],
+    ["expiresAt omitted", { allowSignup: true, maxUses: 3 }],
+    ["expiresAt null", { ...valid, expiresAt: null }],
+    ["expiresAt in the past", { ...valid, expiresAt: FROZEN_AT - 1 }],
+    ["expiresAt now", { ...valid, expiresAt: FROZEN_AT }],
+    ["expiresAt over the cap", { ...valid, expiresAt: FROZEN_AT + SignupCaps.ttlMs + 1 }],
+    ["a target", { ...valid, invitedHandle: castId<Handle>("someone") }],
+  ])("%s is refused with invite_signup_shape and writes no row", async (_label, input) => {
+    const admin = await hostedRoom("admin", "signup_shape");
+    const invites = createInvites(makeChatContext(db), makeDeps());
+    const err = await invites.createInvite({ principal: makePrincipal(admin.host, { role: "admin" }), chatId: admin.chatId, input }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ChatOperationError);
+    expect((err as ChatOperationError).code).toBe("invite_signup_shape");
+    expect(await db.select().from(chatInvites).where(eq(chatInvites.chatId, admin.chatId))).toHaveLength(0);
+  });
+
+  test("the caps themselves are admitted (the boundary rows)", async () => {
+    const admin = await hostedRoom("admin", "signup_bounds");
+    const invites = createInvites(makeChatContext(db), makeDeps());
+    const { invite } = await invites.createInvite({
+      principal: makePrincipal(admin.host, { role: "admin" }),
+      chatId: admin.chatId,
+      input: { allowSignup: true, maxUses: SignupCaps.maxUses, expiresAt: FROZEN_AT + SignupCaps.ttlMs },
+    });
+    expect(invite.maxUses).toBe(SignupCaps.maxUses);
+  });
+
+  test("a mode that mints no signup invites (forward-header) refuses with invite_signup_unavailable", async () => {
+    const admin = await hostedRoom("admin", "signup_fh");
+    const invites = createInvites(makeChatContext(db, { signupInvites: { mode: "forward-header", mintable: false } }), makeDeps());
+    const err = await invites
+      .createInvite({ principal: makePrincipal(admin.host, { role: "admin" }), chatId: admin.chatId, input: valid })
+      .catch((e: unknown) => e);
+    expect((err as ChatOperationError).code).toBe("invite_signup_unavailable");
+    expect(await db.select().from(chatInvites).where(eq(chatInvites.chatId, admin.chatId))).toHaveLength(0);
+  });
+
+  test("a plain share link still mints for a user-role host and is stamped with its minter and mode", async () => {
+    const plain = await hostedRoom("user", "signup_share");
+    const invites = createInvites(makeChatContext(db), makeDeps());
+    const { invite } = await invites.createInvite({ principal: makePrincipal(plain.host, { role: "user" }), chatId: plain.chatId, input: {} });
+    const [row] = await db.select().from(chatInvites).where(eq(chatInvites.id, invite.id));
+    expect(row).toMatchObject({ allowSignup: false, createdByUserId: plain.host, mintMode: "local" });
   });
 });
 

@@ -73,6 +73,7 @@ test("InviteView / InvitePreview pin the host + accept-flow shapes (no token lea
     remainingUses: 4,
     expiresAt: null,
     invitedUserId: null,
+    allowSignup: false,
     createdAt: 1,
   };
   // The InviteView wire shape exposes NO token (raw or hashed) — a leak would let anyone redeem.

@@ -124,6 +124,7 @@ export function inviteResults(joiner: UserId): InviteResults {
     remainingUses: 1,
     expiresAt: INVITE_FIXTURE_AT + 1,
     invitedUserId: null,
+    allowSignup: false,
     createdAt: INVITE_FIXTURE_AT,
   };
   const joinerRow: RedeemInviteResult["participant"] = {

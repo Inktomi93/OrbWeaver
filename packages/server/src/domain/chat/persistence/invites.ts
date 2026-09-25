@@ -7,11 +7,14 @@
 // stamps `joinSeq` from a scalar subquery over `messages`, so a message committed while the redeem is in
 // flight can never land ABOVE the floor the seat records. Both redeem doors below share that builder.
 
+import type { AuthMode } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { chatInvites, chatParticipants, pendingTurns } from "@orb/db";
+import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import type { ChatId, ChatInviteId, ChatParticipantId, PendingTurnId, PersonaId, UserId } from "@orb/kit/ids";
-import { and, asc, count, desc, eq, gt, inArray, isNull, lt, or, sql } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { insertMemberAfterInviteClaimStatement } from "./participant.ts";
 
 /** Lookup an invite by its peppered token hash. The validity gate is the verb's + {@link redeemInviteAtomic}. */
@@ -176,6 +179,87 @@ export async function acceptInviteByIdAtomic(
     return;
   }
   return { inviteId: invite.id, chatId: invite.chatId, participant };
+}
+
+/** The keys a signup admission is evaluated at: the peppered token hash, the server clock and the live mode. */
+interface SignupAdmissionKey {
+  readonly tokenHash: string;
+  readonly now: number;
+  readonly mode: AuthMode;
+}
+
+/** D254 — what a signup invite must satisfy to admit one more account. The pre-check, the account insert
+ *  and the claim all read this one predicate, so the account insert and the claim cannot disagree. */
+function signupInviteAdmits(key: SignupAdmissionKey): SQL {
+  return sql.join(
+    [
+      eq(chatInvites.tokenHash, key.tokenHash),
+      eq(chatInvites.status, "pending"),
+      eq(chatInvites.allowSignup, true),
+      eq(chatInvites.mintMode, key.mode),
+      isNull(chatInvites.invitedUserId),
+      isNotNull(chatInvites.maxUses),
+      lt(chatInvites.uses, chatInvites.maxUses),
+      gt(chatInvites.expiresAt, key.now),
+    ],
+    sql` and `,
+  );
+}
+
+/** The admission the sessions account insert carries in its own WHERE (D254). Sessions reads no chat table:
+ *  this `SQL` is opaque to it. */
+export function signupAccountAdmission(key: SignupAdmissionKey): SQL {
+  return sql`exists (select 1 from ${chatInvites} where ${signupInviteAdmits(key)})`;
+}
+
+/** The signup invite the key admits right now, or `undefined`. The pre-check before any password hashing. */
+export async function findAdmittingSignupInvite(
+  db: Db,
+  key: SignupAdmissionKey,
+): Promise<{ readonly id: ChatInviteId; readonly chatId: ChatId; readonly createdByUserId: UserId | null } | undefined> {
+  const rows = await db
+    .select({ id: chatInvites.id, chatId: chatInvites.chatId, createdByUserId: chatInvites.createdByUserId })
+    .from(chatInvites)
+    .where(signupInviteAdmits(key))
+    .limit(1);
+  return rows.at(0);
+}
+
+/**
+ * D254 — the signup redeem as ONE batch: the account insert gated on the admission, then the claim gated on
+ * the admission and on the account insert having written a row, then the seat and the audit row, each gated
+ * on the statement before it having written a row. `changes()` reads the statement immediately before, so a refused account insert zeroes the whole chain, and a thrown unique violation rolls
+ * it all back. Reports each statement's row count; the verb owns what the counts mean.
+ */
+export async function redeemSignupAtomic(
+  db: Db,
+  params: SignupAdmissionKey & {
+    readonly account: AwaitableBatchStmt<{ id: UserId }[]>;
+    readonly audit: BatchStmt;
+    readonly inviteId: ChatInviteId;
+    readonly userId: UserId;
+    readonly participantId: ChatParticipantId;
+  },
+): Promise<{ readonly accounts: number; readonly claims: number; readonly seats: number }> {
+  const claim = db
+    .update(chatInvites)
+    .set({
+      uses: sql`${chatInvites.uses} + 1`,
+      status: sql`case when ${chatInvites.uses} + 1 >= ${chatInvites.maxUses} then 'accepted' else ${chatInvites.status} end`,
+    })
+    .where(sql`${signupInviteAdmits(params)} and changes() > 0`)
+    .returning({ id: chatInvites.id });
+  // A brand-new account owns no persona yet; `null` is the honest seat floor (see `redeemInviteAtomic`).
+  const seat = insertMemberAfterInviteClaimStatement(db, {
+    participantId: params.participantId,
+    inviteId: params.inviteId,
+    userId: params.userId,
+    activePersonaId: null,
+    now: params.now,
+  });
+  const results = await db.batch(batchMany([params.account, claim, seat, params.audit]));
+  const rowCount = (index: number): number => (results[index] as readonly unknown[]).length;
+  return { accounts: rowCount(0), claims: rowCount(1), seats: rowCount(2) };
 }
 
 /** Host-revoke a still-pending invite (atomic). Returns true iff it flipped. */

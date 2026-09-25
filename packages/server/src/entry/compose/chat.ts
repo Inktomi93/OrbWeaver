@@ -8,7 +8,7 @@
 import { setTimeout as sleep } from "node:timers/promises";
 import type { DurableChatBusEvent, LiveOnlyChatBusEvent, VariablePrecondition, VariableWriteResult } from "@orb/contracts/chat";
 import { resolveRenderPolicy } from "@orb/contracts/chat";
-import type { Can, Principal } from "@orb/contracts/identity";
+import type { AuthMode, Can, Principal } from "@orb/contracts/identity";
 import { EMBED_SPACE_DIMS } from "@orb/contracts/inference";
 import type { ChoiceBlockSpec, PromptConfig, UserIntent, UserMacroSpec } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
@@ -25,6 +25,7 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import { resolvePersonaDescriptionPlacement } from "@orb/kit/persona";
 import { and, eq, isNull } from "drizzle-orm";
+import { isAdmin } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
 import { createCopyHandoffCards } from "#domain/character";
@@ -51,6 +52,9 @@ import type {
   ResolveRpgCardCorpus,
   ResolveRpgParticipants,
   SetRpgPointer,
+  SignupInviteDeps,
+  SignupInviteOps,
+  SignupMinterCheckOp,
   TurnRequest,
   TurnStreamChunk,
   TurnTrigger,
@@ -73,6 +77,7 @@ import {
   createResolveRpgCardCorpus,
   createResolveRpgParticipants,
   createSetRpgPointer,
+  createSignupInvite,
   getGroupConfig,
   getRoomOverrides,
 } from "#domain/chat";
@@ -88,13 +93,14 @@ import { PresetNotFoundError } from "#domain/preset";
 import type { ResolveRegexSources } from "#domain/regex";
 import { createCopyHandoffRegexScripts, createCountHandoffRegexScripts } from "#domain/regex";
 import type { SearchService } from "#domain/search";
+import type { SessionsService } from "#domain/sessions";
 import { createTokenHasher } from "#domain/sessions";
 import type { SettingsService } from "#domain/settings";
 import { applyStatsDelta, bumpStatsCanonVersion } from "#domain/stats";
 import type { ResolvedToolSet, ToolUseService } from "#domain/tool-use";
 import { createCopyHandoffBooks, createCountHandoffBooks } from "#domain/world-info";
 import type { AuditEntry } from "#foundation/observability";
-import { buildAuditStatement, recordMemoryLog } from "#foundation/observability";
+import { buildAuditStatement, buildAuditStatementIfPrecedingWrote, recordMemoryLog } from "#foundation/observability";
 import { createRegexApplyReplace, createRegexTest } from "#kit/regex";
 import { publishNotification } from "../../transport/trpc/index.ts";
 import { createReactToolDefinition } from "./chat-tools.ts";
@@ -226,6 +232,28 @@ export function createTurnPersonaResolver(
   };
 }
 
+/** D254 — the minter re-check a signup redeem runs before its batch: the live row must be enabled, and its
+ *  row-derived Principal (invariant 1) must pass the same global-admin `can()` the mint asked. */
+export function createSignupMinterCheck(
+  sessions: Pick<SessionsService, "loadUserById">,
+  resolvePrincipal: (userId: UserId) => Promise<Principal>,
+): SignupMinterCheckOp {
+  return async (minterUserId) => {
+    const row = await sessions.loadUserById(minterUserId);
+    return row !== null && row.enabled && isAdmin(await resolvePrincipal(minterUserId));
+  };
+}
+
+/** D254 — which sign-in modes mint signup invites. `forward-header` already admits every identity its proxy
+ *  lets through and `single-user` has one human; `oidc` turns on with its confirm flow. A mapped record, so a
+ *  new mode fails `tsc` until it is ruled. */
+const SIGNUP_INVITES_MINTABLE: Record<AuthMode, boolean> = {
+  "single-user": false,
+  local: true,
+  "forward-header": false,
+  oidc: false,
+};
+
 /** What `buildChatService` needs from the composition root — boot primitives + the already-built sibling
  *  services chat's injected ops route through (their front doors only). */
 export interface ChatComposeInput {
@@ -268,6 +296,11 @@ export interface ChatComposeInput {
   readonly settings: SettingsService;
   readonly notifications: NotificationsService;
   readonly resolveHandle: (handle: Handle) => Promise<UserId | null>;
+  /** D254 — the live `AUTH_MODE`: it picks whether invites may create accounts and stamps every invite. */
+  readonly authMode: AuthMode;
+  /** D254 — the two foreign halves of the signup batch: the sessions account statement and the minter's
+   *  standing check (sessions row + admin `can()`), both built at the root. */
+  readonly signup: Pick<SignupInviteDeps, "signupUserStatement" | "minterMayMintSignup">;
 
   readonly search: SearchService;
   readonly embeddings: EmbeddingsService;
@@ -375,6 +408,8 @@ export interface ChatComposeResult {
    *  `resolveMemoryConfig` merge the live turn and the corpus sweep use, so the gate cannot drift from the
    *  per-host skip it exists to pre-empt. */
   readonly isMemoryEnabled: (hostUserId: UserId) => Promise<boolean>;
+  /** D254 — the signup-invite ops the entry signup route runs, built over chat's own ctx. */
+  readonly signupInvites: SignupInviteOps;
   /** Chat's corpus sweeps, bound over the chat ctx. */
   readonly backfill: {
     readonly memory: (args: { signal: AbortSignal; ownerId?: UserId | null; funderUserId: UserId }) => ReturnType<typeof backfillMemory>;
@@ -925,6 +960,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     newPendingTurnId: minter(ID_PREFIX.pendingTurn),
     newChatTurnId: minter(ID_PREFIX.chatTurn),
     hashToken: createTokenHasher(input.sessionSecret),
+    signupInvites: { mode: input.authMode, mintable: SIGNUP_INVITES_MINTABLE[input.authMode] },
     audit: input.audit,
     auditStatement: (entry, at) => buildAuditStatement(db, entry, at),
     // Fans chatsChanged to every present human member's channel; the engine passes a bare chatId
@@ -1505,6 +1541,12 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     applyVariableOps: (chatId, ops, expect) => applyStandaloneVariableOps(chatCtx, chatId, ops, expect),
     resolveChatProse,
     requestTurn: chatBundle.requestTurn,
+    signupInvites: createSignupInvite(chatCtx, {
+      ...input.signup,
+      // The `changes()`-guarded audit insert: it lands only when the seat before it landed (D254).
+      auditStatementAfterWrite: (entry, at) => buildAuditStatementIfPrecedingWrote(db, entry, at),
+      emit: emitChatEvent,
+    }),
     isMemoryEnabled: async (hostUserId): Promise<boolean> => (await resolveMemoryConfig(hostUserId)).mode !== "off",
     backfill: {
       memory: (args) => backfillMemory(chatCtx, args, resolveMemoryConfig),

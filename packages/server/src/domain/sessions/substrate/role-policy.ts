@@ -74,6 +74,13 @@ export function isOwnerSeedHandle(handle: Handle): boolean {
   return ownerHandles().includes(handle);
 }
 
+/** D254 — a handle a signup may never claim: an `OWNER_HANDLES` seed key or the single-user placeholder,
+ *  compared case-insensitively, so a case variant cannot squat the key the next boot re-seeds through. */
+export function isReservedSignupHandle(handle: Handle): boolean {
+  const claimed = handle.toLowerCase();
+  return [...ownerHandles(), env.DEFAULT_USER_HANDLE].some((reserved) => reserved.toLowerCase() === claimed);
+}
+
 /**
  * THE bind-once predicate (spine U1: ONE linking rule, shared by every externalId writer). TRUE when a row
  * is already BOUND to a stable subject that DIFFERS from the incoming one — the impostor / rebind refusal.

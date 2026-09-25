@@ -816,6 +816,41 @@ test("chat_invites status CHECK rejects an out-of-enum value", async () => {
   expect(caught).toBeDefined();
 });
 
+// D254 — a signup invite is untargeted, capped and expiring at the database, whatever the writer.
+{
+  const signupRow = (key: string, chatId: ChatId): typeof chatInvites.$inferInsert => ({
+    id: castId<ChatInviteId>(`chat_invite_signup_${key}`),
+    chatId,
+    tokenHash: `h_signup_${key}`,
+    maxUses: 3,
+    expiresAt: T0 + 86_400_000,
+    allowSignup: true,
+    mintMode: "local",
+  });
+
+  async function rejects(db: Db, row: typeof chatInvites.$inferInsert): Promise<boolean> {
+    try {
+      await db.insert(chatInvites).values(row);
+      return false;
+    } catch (err) {
+      return isConstraintViolation(err)?.kind === "check";
+    }
+  }
+
+  test("chat_invites_signup_shape refuses a signup row with no use cap, no expiry, or a target; admits the capped untargeted row", async () => {
+    const db = await freshDb();
+    const chatId = await seedChat(db, { id: "chat_signup_shape" });
+    const target = await seedUser(db, { id: "usr_signup_target" });
+    expect(await rejects(db, { ...signupRow("uncapped", chatId), maxUses: null })).toBe(true);
+    expect(await rejects(db, { ...signupRow("forever", chatId), expiresAt: null })).toBe(true);
+    expect(await rejects(db, { ...signupRow("targeted", chatId), invitedUserId: target })).toBe(true);
+    expect(await rejects(db, { ...signupRow("modeless", chatId), mintMode: null })).toBe(true);
+    // Control: the capped, expiring, untargeted signup row, and an ordinary uncapped share link, both land.
+    expect(await rejects(db, signupRow("ok", chatId))).toBe(false);
+    expect(await rejects(db, { ...signupRow("plain", chatId), allowSignup: false, maxUses: null, expiresAt: null, mintMode: null })).toBe(false);
+  });
+}
+
 // ── enum test-mirrors (db column .enumValues === the canonical tuple) ─────────
 
 test("test-mirror: every chat enum column derives its canonical tuple", () => {
