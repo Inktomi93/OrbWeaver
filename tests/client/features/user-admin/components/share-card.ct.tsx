@@ -142,9 +142,16 @@ test("single-user: every row renders with its verdict and fix, and Start sharing
   await expect(precondition(card, "owner")).toHaveAttribute("data-verdict", "waiting");
   await expect(precondition(card, "seating")).toHaveAttribute("data-verdict", "unmet");
   await expect(precondition(card, "relay")).toHaveAttribute("data-verdict", "unchecked");
-  // The mode row's fixes are the launcher command and the container's environment lines.
+  // The mode row leads with its one action, the launcher command; the container's environment lines are operator
+  // detail, folded until asked for.
   await expect(precondition(card, "mode").getByRole("button", { name: copyActionName("the command pnpm start --share"), exact: true })).toBeVisible();
-  await expect(precondition(card, "mode").getByRole("button", { name: copyActionName("the docker-compose environment lines"), exact: true })).toBeVisible();
+  const containerLines = precondition(card, "mode").getByRole("button", { name: copyActionName("the docker-compose environment lines"), exact: true });
+  await expect(containerLines).toHaveCount(0);
+  const otherWays = precondition(card, "mode").getByRole("button", { name: "Other ways: a permanent switch, or Docker" });
+  await expect(otherWays).toHaveAttribute("aria-expanded", "false");
+  await otherWays.click();
+  await expect(otherWays).toHaveAttribute("aria-expanded", "true");
+  await expect(containerLines).toBeVisible();
   await expect(precondition(card, "seating").getByRole("button", { name: "Turn both on" })).toBeEnabled();
   const start = card.getByRole("button", { name: "Start sharing" });
   await expect(start).toHaveAttribute("aria-disabled", "true");
@@ -342,9 +349,12 @@ test("in a container the relay row shows its refusal before any press, and Start
   await mount(<GovernanceSectionsStory />);
 
   const card = shareCard(page);
-  await expect(precondition(card, "relay")).toHaveAttribute("data-verdict", "unmet");
+  await expect(precondition(card, "relay")).toHaveAttribute("data-verdict", "unavailable");
   await expect(precondition(card, "relay").getByRole("alert")).toHaveCount(0);
-  await expect(card.getByRole("button", { name: "Start sharing" })).toHaveAttribute("aria-disabled", "true");
+  const start = card.getByRole("button", { name: "Start sharing" });
+  await expect(start).toHaveAttribute("aria-disabled", "true");
+  // Nothing on the card fixes a container, so the held reason sends the owner to the row's way out, not to a fix.
+  await expect(start).toHaveAccessibleDescription("This card cannot share this server. The row marked Not available here names another way to share it.");
   await expect.poll(() => trpc.count("share.start")).toBe(0);
 });
 
@@ -516,6 +526,33 @@ for (const { width, viewport } of [
 
 test.describe("at the narrowest content width", () => {
   test.use({ viewport: { width: 360, height: 800 } });
+
+  // The state sentence runs to several lines at phone width; the badge labels its first line instead of floating
+  // beside the middle of the block.
+  test("the status badge sits on the first line of a wrapped state sentence", async ({ mount, page }) => {
+    await stubShare(page, { mode: "local", initial: OFF });
+    await mount(<GovernanceSectionsStory width={360} />);
+
+    const status = shareCard(page).getByRole("status");
+    await expect(status.locator('[data-slot="badge"]')).toBeVisible();
+    await expect
+      .poll(() =>
+        status.evaluate((row) => {
+          const [badge, sentence] = Array.from(row.children);
+          if (badge === undefined || sentence === undefined) {
+            return null;
+          }
+          const range = document.createRange();
+          range.selectNodeContents(sentence);
+          const lineTops = new Set(Array.from(range.getClientRects()).map((rect) => Math.round(rect.top)));
+          const first = range.getClientRects()[0];
+          const box = badge.getBoundingClientRect();
+          const middle = (box.top + box.bottom) / 2;
+          return { wrapped: lineTops.size > 1, onFirstLine: first !== undefined && middle > first.top && middle < first.bottom - 1 };
+        }),
+      )
+      .toEqual({ wrapped: true, onFirstLine: true });
+  });
 
   // A real quick-tunnel host is four random words, long enough to overflow a phone-width row unless it wraps.
   const LongUrl = "https://recommendations-bedroom-shareholders-adjustments.trycloudflare.com";

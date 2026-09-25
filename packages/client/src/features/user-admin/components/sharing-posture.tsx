@@ -12,7 +12,7 @@ import { Heading } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useAuthConfig } from "#data";
 import { testId } from "#lib";
-import { ShareProse } from "./share-prose.tsx";
+import { ShareCode, ShareProse } from "./share-prose.tsx";
 
 interface SharingPosture {
   readonly posture: string;
@@ -23,15 +23,10 @@ interface SharingPosture {
   readonly instruction: ReactNode;
 }
 
-// A command, key or file named inside a sentence reads as code, the way the copyable line above it does.
-function Code({ children }: { readonly children: string }): ReactElement {
-  return <Kbd size="command">{children}</Kbd>;
-}
-
 const CHANGE_MODE = (
   <>
-    To change it, stop the server and run <Code>{SETUP_COMMAND}</Code>. In Docker, set <Code>AUTH_MODE</Code> in the <Code>environment:</Code> block of{" "}
-    <Code>docker-compose.yaml</Code>.
+    To change it, stop the server and run <ShareCode>{SETUP_COMMAND}</ShareCode>. In Docker, set <ShareCode>AUTH_MODE</ShareCode> in the{" "}
+    <ShareCode>environment:</ShareCode> block of <ShareCode>docker-compose.yaml</ShareCode>.
   </>
 );
 

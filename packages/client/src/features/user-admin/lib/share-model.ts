@@ -9,16 +9,17 @@ import { trpcErrorReason } from "#lib";
 const SHARE_PRECONDITIONS = ["mode", "owner", "seating", "relay"] as const;
 type SharePrecondition = (typeof SHARE_PRECONDITIONS)[number];
 
-// A row's verdict. `unmet` is known now and its fix comes first; `waiting` hangs on an earlier row; `unchecked`
-// is decided by the server at start; `refused` is the server's answer to the last start, which a new start
-// re-checks.
-const PRECONDITION_VERDICTS = ["met", "unmet", "waiting", "unchecked", "refused"] as const;
+// A row's verdict. `unmet` is known now and its fix comes first; `unavailable` is known now and no fix on the card
+// clears it; `waiting` hangs on an earlier row; `unchecked` is decided by the server at start; `refused` is the
+// server's answer to the last start, which a new start re-checks.
+const PRECONDITION_VERDICTS = ["met", "unmet", "unavailable", "waiting", "unchecked", "refused"] as const;
 type PreconditionVerdict = (typeof PRECONDITION_VERDICTS)[number];
 
 // Whether a verdict holds the Start button until its fix is done.
 const VERDICT_BLOCKS_START: Record<PreconditionVerdict, boolean> = {
   met: false,
   unmet: true,
+  unavailable: true,
   waiting: true,
   unchecked: false,
   refused: false,
@@ -87,13 +88,13 @@ function seatingVerdict(facts: ShareFactsView): PreconditionVerdict {
   return facts.localMultiUser && facts.discreetLogin ? "met" : "unmet";
 }
 
-// A press's refusal is `refused`: a new start re-checks it. A standing refusal on the relay (a container) is `unmet`:
-// no start can get past it, so it holds Start with its fix before anyone presses.
+// A press's refusal is `refused`: a new start re-checks it. A standing refusal on the relay (a container) is
+// `unavailable`: no start can get past it and nothing on the card fixes it, so it holds Start before anyone presses.
 function relayVerdict(facts: ShareFactsView): PreconditionVerdict {
   if (facts.refusal !== null && refusalRow(facts.refusal) === "relay") {
     return "refused";
   }
-  return facts.standing !== null && refusalRow(facts.standing) === "relay" ? "unmet" : "unchecked";
+  return facts.standing !== null && refusalRow(facts.standing) === "relay" ? "unavailable" : "unchecked";
 }
 
 /** Every precondition row, in the order the server checks them. */
