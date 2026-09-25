@@ -1,6 +1,7 @@
 // The OWNER-GATED controls in the Multi-user admin SECTION (SET-SEAMS stage 4): whether additional humans
 // may be seated locally and which private-network destinations authenticated endpoints may reach, beside
-// the admin-writable discreet-login posture and the read-only "who can sign in" panel (`sharing-posture.tsx`).
+// the admin-writable discreet-login posture, the read-only "who can sign in" panel (`sharing-posture.tsx`) and the
+// owner's Share card (`share-card.tsx`), which is omitted for anyone else.
 //
 // ONE MODULE, ONE PREDICATE, deliberately (§4: the D17 owner-box governance fields share one owner test).
 // A second copy of the gate is a parallel truth that drifts.
@@ -27,6 +28,7 @@ import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
 import { envFloor, isOverridden, saveStateOf } from "../lib/app-override-model.ts";
 import { MULTI_USER_SUBCATEGORY } from "../lib/system-config-nav.ts";
 import { AdminOverrideResetRow, AdminOverrideSwitch } from "./admin-override-field.tsx";
+import { ShareCard } from "./share-card.tsx";
 import { SharingPosturePanel } from "./sharing-posture.tsx";
 
 const ALLOWLIST_PLACEHOLDER = "127.0.0.1:8703\n192.168.1.0/24\nollama.lan:11434";
@@ -88,6 +90,11 @@ function MultiUserBody({ sectionId }: { readonly sectionId: string }): ReactElem
       .then((resolvedAfter) => setAllowlistDraft(resolvedAfter.privateEndpointAllowlist.join("\n")))
       .catch(() => undefined);
   };
+  // The Share card's one confirmed write: only the seating keys that are off, so the patch names nothing it keeps.
+  const enableSeating = (): Promise<void> =>
+    save
+      .mutateAsync({ partial: { ...(resolved.localMultiUser ? {} : { localMultiUser: true }), ...(resolved.discreetLogin ? {} : { discreetLogin: true }) } })
+      .then(() => undefined);
   const reset = (): void => {
     save
       .mutateAsync({ partial: clearable })
@@ -100,6 +107,7 @@ function MultiUserBody({ sectionId }: { readonly sectionId: string }): ReactElem
       <Stack gap="field">
         <Text voice="gloss">Seating and sign-in posture. Multi-CHARACTER chats always work; this is about additional HUMANS.</Text>
         <SharingPosturePanel />
+        {isOwner ? <ShareCard localMultiUser={resolved.localMultiUser} discreetLogin={resolved.discreetLogin} onEnableSeating={enableSeating} /> : null}
         <AdminOverrideSwitch
           label="Allow multiple humans (local mode)"
           hint="Let additional humans be invited and seated in rooms on a local-mode install. Off = single-human. No effect outside local mode. Owner-only."
