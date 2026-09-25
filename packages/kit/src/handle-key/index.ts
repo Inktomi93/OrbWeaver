@@ -7,6 +7,22 @@ import { CASE_FOLDING, CONFUSABLE_PROTOTYPES, DEFAULT_IGNORABLE, SCRIPT_CODES } 
 
 const HEX_RADIX = 16;
 
+/** The longest handle any writer accepts, in code points. The key normalizes, and NFKC/NFD over a long run of
+ *  combining marks is quadratic, so every boundary refuses a longer handle before a key is computed. */
+export const HANDLE_MAX_CODE_POINTS = 64;
+
+/** Whether a handle is within {@link HANDLE_MAX_CODE_POINTS}, counted without normalizing it. */
+export function withinHandleLength(handle: string): boolean {
+  let count = 0;
+  for (const _ of handle) {
+    count += 1;
+    if (count > HANDLE_MAX_CODE_POINTS) {
+      return false;
+    }
+  }
+  return true;
+}
+
 interface Tables {
   readonly fold: ReadonlyMap<string, string>;
   readonly prototype: ReadonlyMap<string, string>;
@@ -129,12 +145,16 @@ function scriptsOf(char: string): ReadonlySet<string> {
 }
 
 /**
- * Whether a handle may be written at all (D256), checked by every handle writer before its key: its NFKC
+ * Whether a handle may be written at all (D256), checked by every handle writer before its key: it is within
+ * {@link HANDLE_MAX_CODE_POINTS}, and its NFKC
  * form meets the UTS 39 highly restrictive profile, one script, or Latin with Japanese, Korean or Chinese
  * writing; Common and Inherited characters (digits, punctuation, marks) fit any script, and an unassigned code
  * point never fits. A mixed-script handle can spell a look-alike the confusable data does not map.
  */
 export function admitsHandle(handle: string): boolean {
+  if (!withinHandleLength(handle)) {
+    return false;
+  }
   const scripted = [...handle.normalize("NFKC")].map(scriptsOf).filter((scripts) => ![...scripts].every((code) => ANY_SCRIPT.has(code)));
   if (scripted.some((scripts) => scripts.has(UNASSIGNED))) {
     return false;

@@ -70,6 +70,7 @@ describe("handleKey", () => {
     ["Cyrillic inside Latin", "гoot"],
     ["Latin with Hangul and Hiragana", "a한や"],
     ["an unassigned code point", "ab͸"],
+    ["65 code points", `a${"́".repeat(64)}`],
   ])("admitsHandle refuses %s: %s", (_, handle) => {
     expect(admitsHandle(handle)).toBe(false);
   });

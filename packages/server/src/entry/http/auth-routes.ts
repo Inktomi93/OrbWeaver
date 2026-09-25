@@ -26,7 +26,7 @@ import type { RequestTransport, ResolvedIdentity, SignupErrorCode, SignupRequest
 import { signupRequestSchema } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { DomainRateLimitError } from "@orb/kit/errors";
-import { admitsHandle } from "@orb/kit/handle-key";
+import { admitsHandle, withinHandleLength } from "@orb/kit/handle-key";
 import type { ExternalId, Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Context, Hono, MiddlewareHandler } from "hono";
@@ -1420,6 +1420,12 @@ export function identityFromClaims(
   if (typeof username !== "string" || username.length === 0) {
     // Already fail-closed (no identity ⇒ no session), so there is no guard-less login to report — and
     // warning here would drown the real signal in noise from probes and misdirected requests.
+    return null;
+  }
+  // D256: refused, never truncated — a cut IdP name could land on another member's handle, and the key's
+  // normalization is quadratic in a long run of combining marks.
+  if (!withinHandleLength(username)) {
+    securityEvent("oidc_username_too_long", { length: username.length }, "security: an OIDC login's username exceeds the handle cap (D256); no identity");
     return null;
   }
   // Branded ONCE here, so the two observability calls below and the returned identity all speak about the

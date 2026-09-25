@@ -693,6 +693,12 @@ describe("OIDC claim mapping (provider-agnostic — B2)", () => {
     expect(identityFromClaims(undefined, authentikClaims)).toBeNull();
   });
 
+  test("a username over 64 code points → null: refused, never truncated into another handle", () => {
+    expect(identityFromClaims({ preferred_username: `a${"\u0301".repeat(64)}`, sub: "sub-long" }, authentikClaims)).toBeNull();
+    const edge = `${"a".repeat(63)}\u{1D400}`;
+    expect(identityFromClaims({ preferred_username: edge, sub: "sub-edge" }, authentikClaims)?.handle).toBe(edge);
+  });
+
   test("no uid claim → externalId null (handle keys the row); no email → email null", () => {
     const identity = identityFromClaims({ preferred_username: "carol" }, authentikClaims);
     expect(identity).toEqual({ externalId: null, handle: "carol", groups: [], email: null });
