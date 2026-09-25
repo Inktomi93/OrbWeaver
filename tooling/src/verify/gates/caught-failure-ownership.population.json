@@ -2836,17 +2836,17 @@
       "reason": "documented non-critical telemetry — a torn/partial line is skipped, never failing the run whose actual verdict lives elsewhere, per the doc comment above. Ends if history entries start being load-bearing for a verdict."
     },
     {
-      "siteId": "tooling/src/verify/lib/host-slots.ts::defaultAlive::catch::1",
+      "siteId": "tooling/src/_shared/host-slots.ts::defaultAlive::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "`kill(pid, 0)` ASKS A QUESTION and throws to answer \"no\" — the throw IS the ESRCH answer, not a lost failure, and the caller acts on the boolean by stealing the slot and saying so out loud. Ends if this ever needs to distinguish EPERM from ESRCH."
     },
     {
-      "siteId": "tooling/src/verify/lib/host-slots.ts::readHolder::catch::1",
+      "siteId": "tooling/src/_shared/host-slots.ts::readHolder::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "the FAILURE IS THE VERDICT — an unreadable or half-written slot file is DEBRIS, and `null` is how this reader says so to its one caller, which then STEALS the slot and PRINTS that it did. Any other surfacing wedges the box on a torn write. Ends if a caller starts reading `null` as \"someone holds this\"."
     },
     {
-      "siteId": "tooling/src/verify/lib/host-slots.ts::takeAnySlot::catch::1",
+      "siteId": "tooling/src/_shared/host-slots.ts::takeAnySlot::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "the EEXIST throw IS \"this slot is taken\" — the catch arm reads the holder and either moves to the next slot (live) or STEALS the slot with a printed note (dead). Every path out of it is owned and visible. Ends if this stops re-deciding and starts swallowing."
     },

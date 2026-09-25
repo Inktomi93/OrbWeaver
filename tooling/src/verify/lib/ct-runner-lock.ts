@@ -35,11 +35,11 @@ import process from "node:process";
 import { checkoutName } from "@orb/tooling/_shared/artifacts";
 import { readConcurrencyProfile, readStageBudgets } from "@orb/tooling/_shared/concurrency-profile";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
+import type { HostSlotDeps } from "@orb/tooling/_shared/host-slots";
+import { acquireHostSlot } from "@orb/tooling/_shared/host-slots";
 import type { RunMarkerDeps } from "@orb/tooling/_shared/run-marker";
 import { describeRunMarkerSweep, inheritedRunMarker, mintRunMarker, sweepAbandonedRunMarkers, sweepRunMarkerNow } from "@orb/tooling/_shared/run-marker";
 import type { CtRunnerLock, CtRunnerLockRecord } from "../contract/scoped-test.ts";
-import type { HostSlotDeps } from "./host-slots.ts";
-import { acquireHostSlot } from "./host-slots.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm test:ct <paths…>");
 

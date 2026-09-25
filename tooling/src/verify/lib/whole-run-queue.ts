@@ -8,7 +8,7 @@
 // is what a lane runs while another lane's battery is live, and making it wait behind a 17-minute `--push`
 // would be the change that gets this whole mechanism switched off.
 //
-// IT NEVER REFUSES — a refused verify breaks a merge train (the pool's own header, ./host-slots.ts). The
+// IT NEVER REFUSES — a refused verify breaks a merge train (the pool's own header, _shared/host-slots.ts). The
 // queue applies under `ORB_DEDICATED_BOX=1` too (`wholeVerifyQueue` is true in BOTH profiles), because
 // "the box is mine" does not make two simultaneous batteries a good idea.
 //
@@ -18,16 +18,15 @@ import process from "node:process";
 import { checkoutName } from "@orb/tooling/_shared/artifacts";
 import { readConcurrencyProfile } from "@orb/tooling/_shared/concurrency-profile";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
-import type { HostSlotLease, HostSlotPool } from "../contract/host-slots.ts";
+import type { HostSlotDeps, HostSlotLease, HostSlotPool } from "@orb/tooling/_shared/host-slots";
+import { acquireHostSlot } from "@orb/tooling/_shared/host-slots";
 import type { Tier } from "../contract/stage.ts";
-import type { HostSlotDeps } from "./host-slots.ts";
-import { acquireHostSlot } from "./host-slots.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check (or pnpm verify [--push|--full])");
 
 /** A whole `--push` run is long and `--full` is longer, so a second run legitimately waits a long time.
  *  This QUIET-BOX base is load-scaled at acquire time; past it the head of the queue runs as an overflow
- *  run, one at a time, and every later waiter stays queued (./host-slots.ts header). */
+ *  run, one at a time, and every later waiter stays queued (_shared/host-slots.ts header). */
 const VERIFY_QUEUE_WAIT_BASE_MS = 2_700_000; // 45 minutes
 
 /** What the queue asks of a run: its tier, for the slot label, and whether it is scoped. */
