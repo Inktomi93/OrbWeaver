@@ -15,9 +15,9 @@ const LAYOUT_CONTROL = /[\p{Cc}\p{Zl}\p{Zp}]/u;
 export const HANDLE_MAX_CODE_POINTS = 64;
 
 /** Whether a handle is within {@link HANDLE_MAX_CODE_POINTS}, counted without normalizing it. */
-export function withinHandleLength(handle: string): boolean {
+export function withinHandleLength(text: string): boolean {
   let count = 0;
-  for (const _ of handle) {
+  for (const _ of text) {
     count += 1;
     if (count > HANDLE_MAX_CODE_POINTS) {
       return false;
@@ -105,9 +105,9 @@ function keyPass(text: string, data: Tables): string {
  * handle that mixes directions compares in logical order, not display order. Keys are comparable only under
  * one Unicode version (`unicode-data.ts`).
  */
-export function handleKey(handle: string): HandleKey {
+export function handleKey(text: string): HandleKey {
   const data = loaded();
-  return castId<HandleKey>(keyPass(keyPass(handle, data), data));
+  return castId<HandleKey>(keyPass(keyPass(text, data), data));
 }
 
 // UTS 39 section 5.1: Common and Inherited characters take any script, and Han, Hiragana, Katakana, Hangul and
@@ -159,21 +159,21 @@ function scriptsOf(char: string): ReadonlySet<string> {
  * marks) fit any script, and an unassigned code point never fits. A mixed-script handle can spell a
  * look-alike the confusable data does not map.
  */
-export function admitsHandle(handle: string): boolean {
-  if (!withinHandleLength(handle)) {
+export function admitsHandle(text: string): boolean {
+  if (!withinHandleLength(text)) {
     return false;
   }
   // The key drops a default-ignorable, so a bidi override reorders what a reader sees while the key keeps the
   // logical order: `nimda` behind a right-to-left override displays as `admin` and keys apart from it.
   const data = loaded();
-  if (LAYOUT_CONTROL.test(handle) || [...handle].some((char) => isDefaultIgnorable(char, data))) {
+  if (LAYOUT_CONTROL.test(text) || [...text].some((char) => isDefaultIgnorable(char, data))) {
     return false;
   }
   // A key with nothing visible (only default-ignorables or blanks) names a handle no one can read or tell apart.
-  if (!VISIBLE.test(handleKey(handle))) {
+  if (!VISIBLE.test(handleKey(text))) {
     return false;
   }
-  const scripted = [...handle.normalize("NFKC")].map(scriptsOf).filter((scripts) => ![...scripts].every((code) => ANY_SCRIPT.has(code)));
+  const scripted = [...text.normalize("NFKC")].map(scriptsOf).filter((scripts) => ![...scripts].every((code) => ANY_SCRIPT.has(code)));
   if (scripted.some((scripts) => scripts.has(UNASSIGNED))) {
     return false;
   }

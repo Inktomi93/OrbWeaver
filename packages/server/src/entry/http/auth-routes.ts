@@ -612,15 +612,15 @@ function handleThrottleKey(rawHandle: string): string {
 /** B1 — consume one point on the HANDLE axis; 429 when that account is over budget, else null. Runs BESIDE
  *  the per-IP consume (both must pass) and, like it, BEFORE `authenticate` — a throttle that let the KDF run
  *  first would have already tested the attacker's guess. */
-async function throttleLoginHandle(limiter: RateLimiter, c: Context, handleKey: string): Promise<Response | null> {
+async function throttleLoginHandle(limiter: RateLimiter, c: Context, throttleKey: string): Promise<Response | null> {
   try {
-    await limiter.consume(handleKey);
+    await limiter.consume(throttleKey);
     return null;
   } catch (err) {
     if (err instanceof DomainRateLimitError) {
       securityEvent(
         "login_handle_throttled",
-        { handle: handleKey, clientIp: clientIp(c) },
+        { handle: throttleKey, clientIp: clientIp(c) },
         "security: login attempts against ONE handle over the per-handle throttle (a distributed brute force, or a targeted flood of the account) — 429",
       );
       return throttledResponse(c, err);
