@@ -4,8 +4,17 @@
 // test hands in, which is the whole point of the deps interface (§11).
 
 import type { ResolvedSecret, ResolvedSecretKind } from "@orb/contracts/credentials";
-import type { Capability, ConnectionBinding, EndpointFeatures, ProviderDef, RoutableTask, Task, UserConnection } from "@orb/contracts/inference";
-import { builtinProvider, foldFeatures, modelIdSchema, providerIdSchema, requirementMet, taskDef } from "@orb/contracts/inference";
+import type {
+  Capability,
+  ConnectionBinding,
+  EndpointFeatures,
+  PromptCacheSettings,
+  ProviderDef,
+  RoutableTask,
+  Task,
+  UserConnection,
+} from "@orb/contracts/inference";
+import { builtinProvider, foldFeatures, modelIdSchema, providerIdSchema, requirementMet, SHIPPED_PROMPT_CACHE, taskDef } from "@orb/contracts/inference";
 import type { AutomationRuleId, ModelId, PluginId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
@@ -63,6 +72,7 @@ export function fakeConnection(overrides: ConnectionOverrides): UserConnection {
     transport: null,
     modelListed: true,
     allowBackground: false,
+    promptCache: null,
     createdAt: FROZEN_NOW,
     updatedAt: FROZEN_NOW,
     ...overrides,
@@ -340,6 +350,8 @@ export function fakeResolved<T extends Task>(args: {
   readonly declaredFeatures?: EndpointFeatures | undefined;
   readonly baseUrl?: string | null | undefined;
   readonly allowBackground?: boolean | undefined;
+  /** The connection's prompt-cache settings; defaults to the shipped behavior (a row that stored none). */
+  readonly promptCache?: PromptCacheSettings | undefined;
   /** The id the model facts come from; defaults to `model` (an OpenRouter alias is the case that differs). */
   readonly factsModel?: string | undefined;
 }): Resolved<T> {
@@ -364,6 +376,7 @@ export function fakeResolved<T extends Task>(args: {
     extras: args.extras ?? null,
     transport: args.transport ?? null,
     allowBackground: args.allowBackground ?? false,
+    promptCache: args.promptCache ?? SHIPPED_PROMPT_CACHE,
     factsModel: castId<ModelId>(args.factsModel ?? args.model),
   };
 }

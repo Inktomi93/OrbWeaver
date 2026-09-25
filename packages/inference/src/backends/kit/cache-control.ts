@@ -1,13 +1,18 @@
-// Anthropic `cache_control` wire constants + the provider-routing pin + the breakpoint placement
-// primitive, shared by every HTTP runner talking to an Anthropic-backed endpoint. OpenRouter's
+// Anthropic `cache_control` wire directive + the turn's cache PLAN + the provider-routing pin + the breakpoint
+// placement primitive, shared by every HTTP runner talking to an Anthropic-backed endpoint. OpenRouter's
 // `cache_control` is Anthropic-only, so we emit it iff the routed model is Anthropic, and pin the
 // Anthropic provider (order + allow_fallbacks:false) so an unpinned model can't silently land on a
 // non-caching endpoint. Measured wire facts (ttl "1h" honored, the fallback leak, the silent invalid-ttl
 // drop) are recorded in `scripts/probes/openrouter/RESULTS.md`.
 // `computeCacheBreakpointPlacements` is the pure positional core the openrouter runner maps onto its own
 // wire dialect; its DEPTH axis (role switches, tool exchanges transparent) is specified at that function.
+// `anthropicCachePlan` turns the connection's user settings (`Resolved.promptCache`, `@orb/contracts/inference`
+// `prompt-cache.ts`) into the turn's plan, and `placeAnthropicCacheMarkers` is the ONE placer both hosted
+// runners call with it.
 
-import type { GenerationCapability } from "@orb/contracts/inference";
+import type { GenerationCapability, PromptCacheSettings } from "@orb/contracts/inference";
+import { cacheMinTokensOf, PROMPT_CACHE_TTLS } from "@orb/contracts/inference";
+import { estimateTokens } from "@orb/kit/tokens";
 import { detectModelFamily } from "../../capability/families.ts";
 import type { Resolved } from "../../contract/resolved.ts";
 import type { ProviderLogger } from "./provider-log.ts";
@@ -22,43 +27,67 @@ export interface OpenRouterRouting {
 
 const EPHEMERAL = "ephemeral";
 
-// The two TTLs the Anthropic cache accepts. The allowlist is load-bearing, not decoration: an UNKNOWN ttl
-// is NOT an upstream error — OpenRouter answers 200 and silently drops the WHOLE `cache_control` block
-// (measured `ttl:"9z"` → cacheWrite 0, cacheRead 0, ~10x the cost of a cached turn, no signal anywhere;
-// `scripts/probes/openrouter/RESULTS.md`). Nothing else stands between a typo and a silent 10x bill.
-const CACHE_TTLS = ["5m", "1h"] as const;
-// Module-local by design: infra is not a type home (`no-inline-types`), and no consumer outside this file
-// needs to NAME the union — the exported tuple + the directive interface carry it.
-type CacheTtl = (typeof CACHE_TTLS)[number];
+// The two TTLs the Anthropic cache accepts (`PROMPT_CACHE_TTLS`, the contract's one tuple). The allowlist is
+// load-bearing, not decoration: an UNKNOWN ttl is NOT an upstream error — OpenRouter answers 200 and silently
+// drops the WHOLE `cache_control` block (measured `ttl:"9z"` → cacheWrite 0, cacheRead 0, ~10x the cost of a
+// cached turn, no signal anywhere; `scripts/probes/openrouter/RESULTS.md`). The settings column is typed, not
+// re-parsed on read, so this guard is what stands between a stored bad value and a silent 10x bill.
 
 export interface AnthropicCacheDirective {
   readonly type: typeof EPHEMERAL;
-  /** Absent = the provider default (5m). Only a CACHE_TTLS member ever reaches the wire. */
-  readonly ttl?: CacheTtl | undefined;
+  /** Absent = the provider default (5m). Only a PROMPT_CACHE_TTLS member ever reaches the wire. */
+  readonly ttl?: (typeof PROMPT_CACHE_TTLS)[number] | undefined;
 }
 
 // The ONE seam a ttl becomes a wire directive by. An off-allowlist value is STRIPPED (leaving the bare
 // ephemeral directive — the always-accepted 5m default) and logged loud rather than shipped: upstream gives
 // no signal at all, so this warning IS the signal (D41 no-silent-degrade).
 function anthropicCacheDirective(ttl: string, log?: ProviderLogger): AnthropicCacheDirective {
-  const allowed = CACHE_TTLS.find((candidate) => candidate === ttl);
+  const allowed = PROMPT_CACHE_TTLS.find((candidate) => candidate === ttl);
   if (allowed !== undefined) {
     return { type: EPHEMERAL, ttl: allowed };
   }
-  log?.emit("warn", "provider.cache_ttl_rejected", { ttl, accepted: [...CACHE_TTLS], applied: null });
+  log?.emit("warn", "provider.cache_ttl_rejected", { ttl, accepted: [...PROMPT_CACHE_TTLS], applied: null });
   return { type: EPHEMERAL };
 }
 
-// 1h IS honored on the OpenRouter wire with NO `anthropic-beta` header — measured on the cache-write price
-// multiplier (5m writes bill 1.25x base input, 1h writes 2.0x; findings §1). The beta header is an
-// Anthropic-DIRECT requirement that OpenRouter handles for us, so the old "a 1h variant needs a beta header
-// we don't send" note was simply wrong. Economics on a ~10k stable prefix: a 1h write costs +$0.0198 over
-// base and saves $0.0228 the first time a session goes quiet for more than five minutes — which, for RP
-// think-gaps, is essentially always. A direct-Anthropic backend must NOT reuse this constant without
-// sending the beta header itself. Typed `CacheTtl` (compile-time seal) AND built through the guard, so the
-// validated path is the only path a ttl reaches the wire by.
-const SHIPPED_CACHE_TTL: CacheTtl = "1h";
-export const ANTHROPIC_CACHE_1H: AnthropicCacheDirective = anthropicCacheDirective(SHIPPED_CACHE_TTL);
+// NEITHER TTL NEEDS A BETA HEADER, on either route: OpenRouter measured it on the cache-write price multiplier
+// (findings §1), and Anthropic's docs spell a direct `{"type":"ephemeral","ttl":"1h"}` with no `anthropic-beta`
+// entry. Do not add one; `tests/inference/backends/anthropic-messages/chat.test.ts` pins its absence. The ttl is
+// the user's per connection (`PromptCacheSettings.ttl`); `SHIPPED_PROMPT_CACHE` keeps 1h.
+
+/** One turn's explicit-cache plan. ONE directive for every marker the turn places — tools, system block,
+ *  history — which is how the TTL ORDER rule holds (a longer-TTL breakpoint must precede any shorter one, so a
+ *  1h marker may never follow a 5m one): a turn carries a single ttl, so the order cannot be violated. */
+export interface AnthropicCachePlan {
+  readonly directive: AnthropicCacheDirective;
+  /** Mark the static system block. */
+  readonly cacheSystem: boolean;
+  /** The history depth the placer resolves: max(the request's depth, the user's minimum); `undefined` ⇒ no
+   *  history breakpoint (the request carried none). */
+  readonly historyDepth: number | undefined;
+}
+
+/** The connection's settings × the request's depth → the turn's plan; `null` ⇒ caching is OFF and the turn
+ *  places no `cache_control` anywhere. THE DEPTH RULE (`prompt-cache.ts` header): the request's depth already
+ *  carries max(SHAPE's volatile boundary, the admin floor `promptCacheMinDepth`), and the user's
+ *  `historyDepth` is one more minimum on top of it, so the user can move the breakpoint deeper and never
+ *  shallower than the admin floor. A request with no depth gets no history breakpoint whatever the setting. */
+export function anthropicCachePlan(args: {
+  readonly connection: Pick<Resolved, "promptCache">;
+  readonly requestedDepth: number | undefined;
+  readonly log?: ProviderLogger | undefined;
+}): AnthropicCachePlan | null {
+  const settings: PromptCacheSettings = args.connection.promptCache;
+  if (!settings.enabled) {
+    return null;
+  }
+  return {
+    directive: anthropicCacheDirective(settings.ttl, args.log),
+    cacheSystem: settings.cacheSystem,
+    historyDepth: args.requestedDepth === undefined ? undefined : Math.max(args.requestedDepth, settings.historyDepth ?? 0),
+  };
+}
 
 const ANTHROPIC_PROVIDER_NAME = "Anthropic";
 
@@ -119,8 +148,8 @@ export function effectiveProviderRouting<T extends OpenRouterRouting>(
 // OUR depth 0 is the volatile tail whatever its role, because that is what `computeHistoryBreakpoint` counts
 // (`stableCount = withTail.length - 1` — the tail is index 0 even when it is an `assistantPrefill` row).
 // Re-anchoring here would shift every depth by one group against its own producer. The prefill is never a
-// target anyway: `computeHistoryBreakpoint` returns `undefined` below depth 1, and the admin depth knob can
-// only raise the depth, so the placer is never asked for depth 0.
+// target anyway: `computeHistoryBreakpoint` returns `undefined` below depth 1, and the admin depth floor and
+// the connection's `promptCache.historyDepth` can only raise the depth, so the placer is never asked for depth 0.
 
 /** One delivered wire row as the breakpoint placer sees it. */
 export interface CacheBreakpointRow {
@@ -202,9 +231,10 @@ export function computeCacheBreakpointPlacements(args: {
     if (index === undefined) {
       // The REQUESTED depth (never the deeper leg, which runs off the front on every short-but-cacheable
       // room and would make this line noise) is deeper than the conversation: nothing is placed, so caching
-      // is OFF for this turn. The admin `promptCacheMinDepth` FLOOR is the realistic producer — it can only
-      // push the breakpoint deeper, and "deeper than the history" means off, which an admin who raised the
-      // knob to cache HARDER has no other way to learn (D41 no-silent-degrade; the `anthropicCacheDirective`
+      // is OFF for this turn. The admin `promptCacheMinDepth` FLOOR and the connection's own
+      // `promptCache.historyDepth` are the realistic producers — each can only push the breakpoint deeper,
+      // and "deeper than the history" means off, which a user who raised the knob to cache HARDER has no
+      // other way to learn (D41 no-silent-degrade; the `anthropicCacheDirective`
       // precedent above).
       if (depth === depthFromEnd) {
         args.log?.emit("warn", "provider.cache_depth_unreachable", {
@@ -224,4 +254,61 @@ export function computeCacheBreakpointPlacements(args: {
     }
   }
   return placed;
+}
+
+/** One delivered wire row as the marker placer reads it: the depth axis inputs plus the prose it estimates. */
+export interface CacheMarkerRow {
+  readonly role: string;
+  readonly toolExchange: boolean;
+  readonly text: string;
+}
+
+/** What a turn's placement wrote: the wire-array patches (index → the message's `cacheControl` option) and the
+ *  receipt counts the runners log. */
+export interface CacheMarkerPlacement {
+  readonly patches: Map<number, { readonly cacheControl: AnthropicCacheDirective }>;
+  readonly historyDepths: readonly number[];
+  readonly systemBlocks: number;
+}
+
+const SYSTEM_ROLE = "system";
+const NO_CACHE_MARKERS: CacheMarkerPlacement = { patches: new Map(), historyDepths: [], systemBlocks: 0 };
+
+/** THE ONE message-level placer both hosted runners call (anthropic-messages direct, openai-compat on an
+ *  OpenRouter-Anthropic route): the static system block when the plan caches it and the plan's first row IS that
+ *  block, then the history pair at the plan's depth when the capability says `explicitPromptCache`. Every patch
+ *  carries the plan's one directive. A `null` plan (caching off) places nothing. */
+export function placeAnthropicCacheMarkers(args: {
+  readonly plan: AnthropicCachePlan | null;
+  readonly rows: readonly CacheMarkerRow[];
+  /** The static system half, trimmed — the cached prefix's first bytes and the floor's head start. */
+  readonly staticSystem: string;
+  readonly generation: GenerationCapability;
+  readonly log?: ProviderLogger | undefined;
+}): CacheMarkerPlacement {
+  const { plan, rows, staticSystem, generation } = args;
+  if (plan === null) {
+    return NO_CACHE_MARKERS;
+  }
+  const patches = new Map<number, { readonly cacheControl: AnthropicCacheDirective }>();
+  let systemBlocks = 0;
+  if (plan.cacheSystem && staticSystem.length > 0 && rows[0]?.role === SYSTEM_ROLE) {
+    patches.set(0, { cacheControl: { ...plan.directive } });
+    systemBlocks = 1;
+  }
+  const historyDepths: number[] = [];
+  if (plan.historyDepth !== undefined && generation.turns?.explicitPromptCache === true) {
+    const placements = computeCacheBreakpointPlacements({
+      rows: rows.map((row) => ({ role: row.role, toolExchange: row.toolExchange, tokens: estimateTokens(row.text) })),
+      systemStaticTokens: estimateTokens(staticSystem),
+      depthFromEnd: plan.historyDepth,
+      cacheMinTokens: cacheMinTokensOf(generation),
+      log: args.log,
+    });
+    for (const { index, depth } of placements) {
+      patches.set(index, { cacheControl: { ...plan.directive } });
+      historyDepths.push(depth);
+    }
+  }
+  return { patches, historyDepths, systemBlocks };
 }

@@ -37,6 +37,7 @@ function connection(overrides: Partial<UserConnection> = {}): UserConnection {
     transport: null,
     modelListed: true,
     allowBackground: false,
+    promptCache: null,
     createdAt: FROZEN_AT_MS,
     updatedAt: FROZEN_AT_MS,
     ...overrides,

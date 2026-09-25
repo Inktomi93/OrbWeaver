@@ -25,7 +25,7 @@ import type {
   Task,
   UserConnection,
 } from "@orb/contracts/inference";
-import { canFund, connectionTasks, foldFeatures, modelIdSchema, requirementMet, taskDef } from "@orb/contracts/inference";
+import { canFund, connectionTasks, effectivePromptCache, foldFeatures, modelIdSchema, requirementMet, taskDef } from "@orb/contracts/inference";
 import type { ModelId } from "@orb/kit/ids";
 import { resolveEmbedDtype } from "../backends/local-light/model-cache.ts";
 import { detectModelFamily } from "../capability/families.ts";
@@ -294,6 +294,7 @@ async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeB
     extras: connection.extras,
     transport: connection.transport,
     allowBackground: connection.allowBackground,
+    promptCache: effectivePromptCache(connection.promptCache),
     factsModel,
   };
   const warnings: ResolvedWarning[] = [...synthesized.warnings];

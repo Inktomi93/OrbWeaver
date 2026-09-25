@@ -16,7 +16,7 @@
 
 import type { ResolvedSecret, ResolvedSecretKind } from "@orb/contracts/credentials";
 import type { Capability, GenerationCapability, ResolvedConnectionView, Task } from "@orb/contracts/inference";
-import { builtinProvider, foldFeatures, generationCapabilitySchema, requirementMet, taskDef } from "@orb/contracts/inference";
+import { builtinProvider, foldFeatures, generationCapabilitySchema, requirementMet, SHIPPED_PROMPT_CACHE, taskDef } from "@orb/contracts/inference";
 import type { Resolved } from "@orb/inference";
 import type { ModelId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -115,6 +115,7 @@ export function makeResolved<T extends Task = "chat">(overrides: MakeResolvedOve
     extras: null,
     transport: null,
     allowBackground: false,
+    promptCache: SHIPPED_PROMPT_CACHE,
     factsModel: rest.model ?? castId<ModelId>("test-model"),
     ...rest,
   };

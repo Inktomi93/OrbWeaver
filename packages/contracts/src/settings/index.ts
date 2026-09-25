@@ -8,6 +8,7 @@ import { DEFAULT_GROUP_CONFIG, storedGroupConfigSchema } from "#chat";
 import { chunkParamsSchema, databankRetrievalSettingsSchema } from "#databank";
 import type { ExtractionMode, MultimodalCaptionMode } from "#imagery";
 import { IMAGERY_CAPTION_SLOT_IDS, IMAGERY_TEMPLATE_SLOT_IDS } from "#imagery";
+import { PROMPT_CACHE_DEPTH_CEIL } from "#inference";
 import { legacyProseOverrides, proseOverridesSchema, resolveProseText } from "#prose";
 import type { StructuredOutputVehicle } from "#role-clients";
 import { structuredOutputVehicleSchema } from "#role-clients";
@@ -295,7 +296,9 @@ export const DEFAULT_STRUCTURED_OUTPUT_VEHICLE: StructuredOutputVehicle = "auto"
 // The floor value 0 is therefore the exact identity: `max(0, safeDepth) === safeDepth`, i.e. an unset knob
 // leaves every wire body byte-identical.
 //
-// Ceiling 20: Anthropic's cache lookback spans ~20 blocks, so a deeper breakpoint has nothing left to find.
+// Ceiling 20: Anthropic's cache lookback spans ~20 blocks, so a deeper breakpoint has nothing left to find. The
+// constant is the inference contract's (`PROMPT_CACHE_DEPTH_CEIL`), which also bounds a connection's own
+// `promptCache.historyDepth` — the per-connection minimum this floor bounds from below.
 //
 // DEEPER THAN THE CONVERSATION MEANS OFF. "Only ever deeper" is not the same as "always safe": a depth a
 // room's history cannot reach resolves to no row at all, so NO breakpoint is placed and that turn is not
@@ -305,7 +308,7 @@ export const DEFAULT_STRUCTURED_OUTPUT_VEHICLE: StructuredOutputVehicle = "auto"
 /** The schema bound AND the born-in-DB default, deliberately the same constant: 0 = "use the turn's own
  *  computed minimum" is both the shallowest meaningful value and the shipped behavior, byte-identical. */
 export const PROMPT_CACHE_MIN_DEPTH_FLOOR = 0;
-export const PROMPT_CACHE_MIN_DEPTH_CEIL = 20;
+export const PROMPT_CACHE_MIN_DEPTH_CEIL = PROMPT_CACHE_DEPTH_CEIL;
 
 // Every field `.nullable()` AS WELL AS `.optional().catch(undefined)`: null is the CLEAR sentinel.
 export const appSettingsSchema = z.object({

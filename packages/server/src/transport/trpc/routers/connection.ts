@@ -16,6 +16,7 @@ import {
   declaredCapabilitySchema,
   modelIdSchema,
   modelListingSchema,
+  promptCacheSettingsSchema,
   providerIdSchema,
   routableTaskSchema,
 } from "@orb/contracts/inference";
@@ -42,6 +43,7 @@ const connectionFields = z.object({
   transport: connectionTransportSchema.nullable().optional(),
   modelListed: z.boolean().optional(),
   allowBackground: z.boolean().optional(),
+  promptCache: promptCacheSettingsSchema.nullable().optional(),
 });
 
 /** The actor a binding belongs to, from the caller's side; absent ⇒ the caller's own `user` bindings. */

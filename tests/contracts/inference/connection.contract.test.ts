@@ -24,6 +24,7 @@ const ROW = {
   transport: null,
   modelListed: true,
   allowBackground: false,
+  promptCache: null,
   createdAt: 1,
   updatedAt: 2,
 };
@@ -66,6 +67,13 @@ test("the JSON columns are nullable documents, and `transport` keeps its closed 
   expect(withDocs.extras).toEqual({ temperature: 0.5 });
   expect(withDocs.transport).toEqual({ headers: { "x-key": "v" }, excludeBody: ["top_k"] });
   expect(withDocs.declared).toMatchObject({ kind: "embedding" });
+});
+
+test("`promptCache` is a nullable closed document: NULL is the shipped behavior, and a set row keeps its four fields", () => {
+  expect(userConnectionSchema.parse(ROW).promptCache).toBeNull();
+  const set = { enabled: true, cacheSystem: false, historyDepth: 4, ttl: "5m" };
+  expect(userConnectionSchema.parse({ ...ROW, promptCache: set }).promptCache).toEqual(set);
+  expect(userConnectionSchema.safeParse({ ...ROW, promptCache: { ...set, ttl: "9z" } }).success).toBe(false);
 });
 
 test("a binding with a NULL connection parses — the SET-NULL state the pane renders as `no-connection`", () => {

@@ -19,7 +19,6 @@ import type { JSONObject, LanguageModelV4CallOptions, SharedV4Headers, SharedV4P
 import type { GenerationCapability } from "@orb/contracts/inference";
 import { acceptsAssistantPrefill, cacheMinTokensOf, scrubWireSchema } from "@orb/contracts/inference";
 import type { EffortLevel } from "@orb/contracts/preset";
-import { estimateTokens } from "@orb/kit/tokens";
 import type { AnthropicChatRequest, ChatHistoryMessage, ChatResult } from "../../contract/chat.ts";
 import { ProviderError } from "../../contract/errors.ts";
 import type { ChatEvent, RateLimitSnapshot } from "../../contract/events.ts";
@@ -29,8 +28,8 @@ import type { AddSpanEvent } from "../../contract/runtime.ts";
 import type { InferenceLog } from "../../deps.ts";
 import { resolveChat } from "../../funnel/resolve-chat.ts";
 import { effortWordOf } from "../kit/applied-effort.ts";
-import type { CacheBreakpointRow } from "../kit/cache-control.ts";
-import { ANTHROPIC_CACHE_1H, computeCacheBreakpointPlacements } from "../kit/cache-control.ts";
+import type { AnthropicCachePlan } from "../kit/cache-control.ts";
+import { anthropicCachePlan, placeAnthropicCacheMarkers } from "../kit/cache-control.ts";
 import { providerErrorFromHttp } from "../kit/error-classify.ts";
 import { turnAbortSignal } from "../kit/idle-timeout.ts";
 import type { ProviderLogger } from "../kit/provider-log.ts";
@@ -84,17 +83,22 @@ export function sdkEffortOf(effort: string | undefined, warnings: ResolvedWarnin
   return found;
 }
 
-/** `wireMeta` → the per-row anthropic provider options: a cache breakpoint, and on a mid-history system row
- *  the `clearAt` (only when the curated row says the model honours it) + the per-turn effort. */
-function rowOptionsFor(generation: GenerationCapability, warnings: ResolvedWarning[]): (row: ChatHistoryMessage) => SharedV4ProviderOptions | undefined {
+/** `wireMeta` → the per-row anthropic provider options: a cache breakpoint (under the turn's plan — none when
+ *  the connection turned caching off), and on a mid-history system row the `clearAt` (only when the curated row
+ *  says the model honours it) + the per-turn effort. */
+function rowOptionsFor(
+  generation: GenerationCapability,
+  cachePlan: AnthropicCachePlan | null,
+  warnings: ResolvedWarning[],
+): (row: ChatHistoryMessage) => SharedV4ProviderOptions | undefined {
   return (row) => {
     const meta = row.wireMeta;
     if (meta === undefined) {
       return;
     }
     const options: JSONObject = {};
-    if (meta.cacheBreakpoint === true) {
-      options["cacheControl"] = { ...ANTHROPIC_CACHE_1H };
+    if (meta.cacheBreakpoint === true && cachePlan !== null) {
+      options["cacheControl"] = { ...cachePlan.directive };
     }
     if (row.role === "system" && meta.clearAt !== undefined) {
       if (generation.turns?.clearAt === true) {
@@ -123,34 +127,14 @@ interface CacheWriteReceipt {
 function placeCache(args: {
   readonly plan: WirePlan;
   readonly req: AnthropicChatRequest;
+  readonly cachePlan: AnthropicCachePlan | null;
   readonly generation: GenerationCapability;
   readonly log: ProviderLogger;
   readonly toolBlocks: number;
-}): { readonly patches: Map<number, Record<string, unknown>>; readonly written: CacheWriteReceipt } {
-  const { plan, req, generation, log, toolBlocks } = args;
-  const patches = new Map<number, Record<string, unknown>>();
-  const staticText = req.systemPrompt.static.trim();
-  let systemBlocks = 0;
-  if (staticText.length > 0 && plan.rows[0]?.role === "system") {
-    patches.set(0, { cacheControl: { ...ANTHROPIC_CACHE_1H } });
-    systemBlocks = 1;
-  }
-  const historyDepths: number[] = [];
-  if (req.cacheBreakpointDepth !== undefined && generation.turns?.explicitPromptCache === true) {
-    const rows: CacheBreakpointRow[] = plan.rows.map((row) => ({ role: row.role, toolExchange: row.toolExchange, tokens: estimateTokens(row.text) }));
-    const placements = computeCacheBreakpointPlacements({
-      rows,
-      systemStaticTokens: estimateTokens(staticText),
-      depthFromEnd: req.cacheBreakpointDepth,
-      cacheMinTokens: cacheMinTokensOf(generation),
-      log,
-    });
-    for (const { index, depth } of placements) {
-      patches.set(index, { cacheControl: { ...ANTHROPIC_CACHE_1H } });
-      historyDepths.push(depth);
-    }
-  }
-  return { patches, written: { historyDepths, systemBlocks, toolBlocks } };
+}): { readonly patches: ReadonlyMap<number, Record<string, unknown>>; readonly written: CacheWriteReceipt } {
+  const { plan, req, cachePlan, generation, log, toolBlocks } = args;
+  const placed = placeAnthropicCacheMarkers({ plan: cachePlan, rows: plan.rows, staticSystem: req.systemPrompt.static.trim(), generation, log });
+  return { patches: placed.patches, written: { historyDepths: placed.historyDepths, systemBlocks: placed.systemBlocks, toolBlocks } };
 }
 
 /** The `thinking` block per the resolved reasoning MODE — the policy already ran in the funnel. The batch
@@ -180,9 +164,13 @@ function withBlockBinding(thinking: JSONObject, knobs: ResolvedChatKnobs, genera
 /** THE TOOL-LIST CACHE BREAKPOINT (audit C4). The tool list is a large, stable prefix that changes far less
  *  often than the history does, and Anthropic caches everything up to a breakpoint — so one `cacheControl` on
  *  the LAST tool caches the whole list. Placed only when the model's capability says explicit prompt caching
- *  is worth the write; `undefined` leaves every tool's provider options absent, byte-identical to before. */
-function toolCacheOptions(generation: GenerationCapability, explicit: boolean): SharedV4ProviderOptions | undefined {
-  return explicit && generation.turns?.explicitPromptCache === true ? { [ANTHROPIC_KEY]: { cacheControl: { ...ANTHROPIC_CACHE_1H } } } : undefined;
+ *  is worth the write AND the connection has caching on; `undefined` leaves every tool's provider options
+ *  absent. Tools come FIRST in Anthropic's prefix order, so this marker carries the turn's one directive: a
+ *  5m tool marker ahead of a 1h system or history marker is exactly the order the API forbids. */
+function toolCacheOptions(generation: GenerationCapability, cachePlan: AnthropicCachePlan | null, hasTools: boolean): SharedV4ProviderOptions | undefined {
+  return hasTools && cachePlan !== null && generation.turns?.explicitPromptCache === true
+    ? { [ANTHROPIC_KEY]: { cacheControl: { ...cachePlan.directive } } }
+    : undefined;
 }
 
 function anthropicOptions(
@@ -344,10 +332,11 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
   // after an `await` to its initializer (a property read is re-widened across the call).
   const response: { rateLimit: RateLimitSnapshot | null } = { rateLimit: null };
   const secrets = resolvedScrubSet(connection);
+  const cachePlan = anthropicCachePlan({ connection, requestedDepth: req.cacheBreakpointDepth, log });
   const plan = buildWirePlan({
     systemPrompt: req.systemPrompt,
     history: req.history,
-    rowOptions: rowOptionsFor(generation, warnings),
+    rowOptions: rowOptionsFor(generation, cachePlan, warnings),
     splitSystem: true,
   });
   refusePrefill(plan, generation, label);
@@ -359,8 +348,8 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
   }
   // C4: the tool list is its own cacheable prefix. Decided BEFORE `placeCache` so the receipt can count the
   // breakpoint the option builder is about to place (Anthropic's per-request breakpoint budget is small).
-  const toolCache = toolCacheOptions(generation, req.tools !== undefined && req.tools.length > 0);
-  const cache = placeCache({ plan, req, generation, log, toolBlocks: toolCache === undefined ? 0 : 1 });
+  const toolCache = toolCacheOptions(generation, cachePlan, req.tools !== undefined && req.tools.length > 0);
+  const cache = placeCache({ plan, req, cachePlan, generation, log, toolBlocks: toolCache === undefined ? 0 : 1 });
   const prompt = withMessageOptions(plan.prompt, ANTHROPIC_KEY, cache.patches);
   const options = anthropicOptions(req, knobs, warnings, { generation, toolCache });
   const call: AnthropicCall = { connection, deps: deps.transport, label, api: req.api, chatId: req.chatId };

@@ -83,6 +83,7 @@ function connectionRow(over: Partial<ConnectionRow>): ConnectionRow {
     transport: null,
     modelListed: true,
     allowBackground: true,
+    promptCache: null,
     tasks: ["chat"],
     createdAt: 0,
     updatedAt: 0,

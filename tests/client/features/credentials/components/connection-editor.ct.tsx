@@ -75,6 +75,7 @@ function connectionRow(over: Partial<ConnectionRow> = {}): ConnectionRow {
     transport: null,
     modelListed: false,
     allowBackground: true,
+    promptCache: null,
     tasks: ["chat", "agent", "summarize", "structured"],
     createdAt: 0,
     updatedAt: 0,
@@ -104,13 +105,18 @@ const CONNECTION_CAPABILITIES = {
 
 async function stubEditor(
   page: Page,
-  opts: { readonly connection?: ConnectionRow; readonly allowlist?: readonly string[]; readonly role?: (typeof USER_ROLES)[number] } = {},
+  opts: {
+    readonly connection?: ConnectionRow;
+    readonly allowlist?: readonly string[];
+    readonly role?: (typeof USER_ROLES)[number];
+    readonly capabilities?: TrpcWireOutput<"connection.capabilities">;
+  } = {},
 ): Promise<TrpcRecorder> {
   return await routeTrpc(page, {
     "sessions.me": () => ({ userId: "user_ct_editor", handle: "owner", globalRole: opts.role ?? "owner" }),
     "connection.get": () => opts.connection ?? connectionRow(),
     "connection.providersAvailable": () => [{ provider: VLLM_PROVIDER, available: true }],
-    "connection.capabilities": () => CONNECTION_CAPABILITIES,
+    "connection.capabilities": () => opts.capabilities ?? CONNECTION_CAPABILITIES,
     // An empty catalog is the TYPED-ID arm — which is what `modelListed: false` is about.
     "connection.catalogModels": () => ({ listed: false, reason: "the provider listed no models" }),
     "connection.update": () => opts.connection ?? connectionRow(),
@@ -449,4 +455,115 @@ test("the transport pair is two-up at 870 and one-up at 486", async ({ mount, pa
   await expect(narrow.getByLabel("Extra headers")).toBeVisible();
   await expect.poll(async () => Math.abs((await transportPairOffset(narrow)).dx), { intervals: [20, 50, 100] }).toBeLessThan(4);
   await expect.poll(async () => (await transportPairOffset(narrow)).dy, { intervals: [20, 50, 100] }).toBeGreaterThan(8);
+});
+
+// ── the Prompt caching tier ──────────────────────────────────────────────────────────────────────────────
+// Shown only where the capability places explicit cache markers; every control writes the WHOLE settings
+// document, and "use the defaults" writes NULL (the shipped behavior).
+
+const EXPLICIT_CACHE_CAPABILITY: NonNullable<TrpcWireOutput<"connection.capabilities">["capability"]> = {
+  kind: "generation",
+  generation: {
+    ...GENERATION_CAPABILITY.generation,
+    turns: { assistantPrefill: false, midConversationSystem: false, historySystemRows: false, roleHandlingFloor: "strict", explicitPromptCache: true },
+  },
+};
+const EXPLICIT_CACHE_CAPABILITIES = { ...CONNECTION_CAPABILITIES, capability: EXPLICIT_CACHE_CAPABILITY, baseline: EXPLICIT_CACHE_CAPABILITY };
+const SHIPPED = { enabled: true, cacheSystem: true, historyDepth: null, ttl: "1h" } as const;
+
+function cacheTier(page: Page): Locator {
+  return page.locator('[data-slot="connection-editor-tier"][data-tier="Prompt caching"]');
+}
+
+async function openCacheTier(page: Page): Promise<Locator> {
+  await cacheTier(page).getByRole("button").first().click();
+  const body = page.locator('[data-slot="connection-prompt-cache"]');
+  await expect(body).toBeVisible();
+  return body;
+}
+
+test("no Prompt caching tier on a connection whose capability places no explicit cache markers", async ({ mount, page }) => {
+  await stubEditor(page);
+  await mount(<ConnectionEditorStory />);
+  await expect(tier(page, "Advanced")).toBeVisible();
+  await expect(cacheTier(page)).toHaveCount(0);
+});
+
+for (const [arm, Story] of [
+  ["870", ConnectionEditorStory],
+  ["486", ConnectionEditorNarrowStory],
+] as const) {
+  test(`${arm}: an explicit-cache connection gets the tier, COLLAPSED, so the untouched editor keeps its four fields`, async ({ mount, page }) => {
+    await stubEditor(page, { capabilities: EXPLICIT_CACHE_CAPABILITIES });
+    await mount(<Story />);
+    await expect(cacheTier(page)).toHaveCount(1);
+    await expect(cacheTier(page).getByRole("button").first()).toHaveAttribute("aria-expanded", "false");
+    await expect(page.locator('[data-slot="connection-prompt-cache"]')).toHaveCount(0);
+  });
+}
+
+test("the caching switch writes the whole document with caching off", async ({ mount, page }) => {
+  const recorder = await stubEditor(page, { capabilities: EXPLICIT_CACHE_CAPABILITIES });
+  await mount(<ConnectionEditorStory />);
+  const body = await openCacheTier(page);
+  await body.getByRole("switch").nth(0).click();
+  await expect
+    .poll(() => recorder.lastInput("connection.update"), { intervals: [20, 50, 100] })
+    .toEqual({ connectionId: CONNECTION_ID, patch: { promptCache: { ...SHIPPED, enabled: false } } });
+});
+
+test("the system-prompt switch writes cacheSystem off and keeps the rest", async ({ mount, page }) => {
+  const recorder = await stubEditor(page, { capabilities: EXPLICIT_CACHE_CAPABILITIES });
+  await mount(<ConnectionEditorStory />);
+  const body = await openCacheTier(page);
+  await body.getByRole("switch").nth(1).click();
+  await expect
+    .poll(() => recorder.lastInput("connection.update"), { intervals: [20, 50, 100] })
+    .toEqual({ connectionId: CONNECTION_ID, patch: { promptCache: { ...SHIPPED, cacheSystem: false } } });
+});
+
+test("the TTL radio writes 5m; the options come in contract order", async ({ mount, page }) => {
+  const recorder = await stubEditor(page, { capabilities: EXPLICIT_CACHE_CAPABILITIES });
+  await mount(<ConnectionEditorStory />);
+  const body = await openCacheTier(page);
+  const radios = body.getByRole("radio");
+  await expect(radios).toHaveCount(2);
+  await expect(radios.nth(1)).toHaveAttribute("aria-checked", "true");
+  await radios.nth(0).click();
+  await expect
+    .poll(() => recorder.lastInput("connection.update"), { intervals: [20, 50, 100] })
+    .toEqual({ connectionId: CONNECTION_ID, patch: { promptCache: { ...SHIPPED, ttl: "5m" } } });
+});
+
+test("the depth field commits on Enter, never per keystroke", async ({ mount, page }) => {
+  const recorder = await stubEditor(page, { capabilities: EXPLICIT_CACHE_CAPABILITIES });
+  await mount(<ConnectionEditorStory />);
+  const body = await openCacheTier(page);
+  const depth = body.getByRole("textbox");
+  // Typed key by key: a per-keystroke write would land a 1 before the 12, and the count below would be 2.
+  await depth.pressSequentially("12");
+  await expect(depth).toHaveValue("12");
+  await depth.press("Enter");
+  await expect
+    .poll(() => recorder.lastInput("connection.update"), { intervals: [20, 50, 100] })
+    .toEqual({ connectionId: CONNECTION_ID, patch: { promptCache: { ...SHIPPED, historyDepth: 12 } } });
+  await expect.poll(() => recorder.count("connection.update"), { intervals: [20, 50, 100] }).toBe(1);
+});
+
+test("stored settings with caching off: the dependent controls are disabled, the badge counts, and the reset writes NULL", async ({ mount, page }) => {
+  const stored = { enabled: false, cacheSystem: true, historyDepth: null, ttl: "5m" } as const;
+  const recorder = await stubEditor(page, { capabilities: EXPLICIT_CACHE_CAPABILITIES, connection: connectionRow({ promptCache: stored }) });
+  await mount(<ConnectionEditorStory />);
+  await expect(cacheTier(page).locator('[data-slot="badge"]')).toHaveCount(1);
+  const body = await openCacheTier(page);
+  await expect(body.getByRole("switch").nth(0)).toBeEnabled();
+  await expect(body.getByRole("switch").nth(1)).toBeDisabled();
+  await expect(body.getByRole("textbox")).toBeDisabled();
+  for (const radio of await body.getByRole("radio").all()) {
+    await expect(radio).toHaveAttribute("aria-disabled", "true");
+  }
+  await body.getByRole("button", { name: "Use the defaults" }).click();
+  await expect
+    .poll(() => recorder.lastInput("connection.update"), { intervals: [20, 50, 100] })
+    .toEqual({ connectionId: CONNECTION_ID, patch: { promptCache: null } });
 });

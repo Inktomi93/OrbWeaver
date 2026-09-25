@@ -14,10 +14,12 @@ export interface SseEvent {
   readonly data: Record<string, unknown>;
 }
 
-/** A recorded outbound request: the parsed JSON body plus the URL it went to. */
+/** A recorded outbound request: the parsed JSON body plus the URL it went to, and (when the recorder saw them)
+ *  the request headers, keys lowercased. */
 export interface RecordedRequest {
   readonly url: string;
   readonly body: Record<string, unknown>;
+  readonly headers?: Readonly<Record<string, string>> | undefined;
 }
 
 function sseBody(events: readonly SseEvent[]): string {
@@ -35,7 +37,7 @@ export function scriptedSseFetch(
     const events = streams[Math.min(call, streams.length - 1)] ?? [];
     call += 1;
     const raw = typeof init?.body === "string" ? init.body : "{}";
-    recorded.push({ url: String(input), body: JSON.parse(raw) as Record<string, unknown> });
+    recorded.push({ url: String(input), body: JSON.parse(raw) as Record<string, unknown>, headers: Object.fromEntries(new Headers(init?.headers).entries()) });
     return Promise.resolve(new Response(sseBody(events), { status: 200, headers: { "content-type": "text/event-stream", ...headers } }));
   };
 }

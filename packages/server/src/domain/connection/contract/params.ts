@@ -10,6 +10,7 @@ import type {
   ConnectionExtrasDoc,
   ConnectionTransportDoc,
   DeclaredCapability,
+  PromptCacheSettings,
   ProviderDef,
   RoutableTask,
   Task,
@@ -54,6 +55,7 @@ export interface ConnectionFields {
   readonly transport?: ConnectionTransportDoc | null | undefined;
   readonly modelListed?: boolean | undefined;
   readonly allowBackground?: boolean | undefined;
+  readonly promptCache?: PromptCacheSettings | null | undefined;
 }
 
 export interface CreateConnectionParams extends ActorParams, ConnectionFields {}

@@ -16,6 +16,7 @@ export * from "./kinds.ts";
 export * from "./modalities.ts";
 export * from "./model-schema.ts";
 export * from "./policy.ts";
+export * from "./prompt-cache.ts";
 export * from "./provider-schema.ts";
 export * from "./providers.ts";
 export * from "./resolved.ts";
