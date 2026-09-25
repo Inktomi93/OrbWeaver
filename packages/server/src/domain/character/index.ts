@@ -70,12 +70,5 @@ export { migrateSeededCardBackgrounds } from "./persistence/migrate-seeded-backg
 export { readPluginCardData, writePluginCardData } from "./persistence/plugin-card-data.ts";
 export { createDeleteSnapshot, createListRefineryScoreTargets, createLoadOwnedCard, createStampRefinerySignals } from "./persistence/refinery-ops.ts";
 export type { DefaultCharacterSeeder, DefaultCharacterSeederDeps, SeededCardContent } from "./seeder/index.ts";
-export {
-  CARD_PACK_VERSION,
-  createDefaultCharacterSeeder,
-  DEFAULT_CHARACTER_CARDS,
-  matchesAuthoredContent,
-  PRIOR_PACK_CONTENT,
-  WELCOME_ASSISTANT_HANDLE,
-} from "./seeder/index.ts";
+export { createDefaultCharacterSeeder, DEFAULT_CHARACTER_CARDS, matchesAuthoredContent, WELCOME_ASSISTANT_HANDLE } from "./seeder/index.ts";
 export { createCharacterService } from "./service.ts";

@@ -1,12 +1,9 @@
-// seeder: createDefaultCharacterSeeder — the idempotent default-card pack. Exercised over the REAL character
-// service (real create + findByHandle + the handle_conflict translation) with an IN-MEMORY latch standing in
-// for the settings seam (the compose wiring of the real settings latch is proven in the compose slice test).
-// Covers: the whole authored pack seeded on a fresh user; the persisted latch makes a re-run a no-op
-// (deletion-respect); per-card handle_conflict tolerance resolves a pre-existing handle instead of failing;
-// welcomeAssistantId is stamped to the welcome card's id; ensureSeeded never throws on a create failure (and
-// leaves the latch unset so the next touch retries); the PRESENTATION step (carried theme + seeded
-// background) runs for FRESHLY-CREATED cards only — a conflict-resolved row belongs to the user and is never
-// re-stamped; and the pack's own shape invariants (unique handles, greetings[0] never groupOnly).
+// seeder: createDefaultCharacterSeeder — seeds ONE shipped card at a time, over the REAL character service (real
+// create + findByHandle + the handle_conflict translation). Which cards an account receives is the user seed's
+// ledger (tests/server/entry/boot/seed-user-content.int.test.ts). Covers: every card seeds; the welcome pointer
+// lands on the welcome card; a pre-existing handle resolves instead of failing; a create failure rejects so the
+// ledger records nothing; the PRESENTATION step runs for freshly-created cards only; a half-seeded card is
+// finished on the retry (#1444); and each card's native tags attach.
 
 import type { Principal } from "@orb/contracts/identity";
 import type { ThemeBackground } from "@orb/contracts/theme";
@@ -15,7 +12,7 @@ import type { Db } from "@orb/db";
 import { assets } from "@orb/db";
 import type { AssetId, CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { CharacterDetail, CharacterService } from "@orb/server/domain/character";
+import type { CharacterDetail, CharacterService, DefaultCharacterSeeder } from "@orb/server/domain/character";
 import { createCharacterService, createDefaultCharacterSeeder, DEFAULT_CHARACTER_CARDS, WELCOME_ASSISTANT_HANDLE } from "@orb/server/domain/character";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
@@ -88,37 +85,30 @@ function recordingAttach(): {
   };
 }
 
-/** An in-memory stand-in for the settings latch (isSeeded/markSeeded + the pack-version stamp), keyed by
- *  `principal.userId`. The pack-migration arm has its OWN suite (`pack-migration.int.test.ts`); here the
- *  stamp just has to behave (a fresh seed stamps the shipped pack, so a re-run migrates nothing). */
+/** A recorder for the injected welcome-pointer write, keyed by `principal.userId`. */
 function fakeLatch(): {
-  readonly isSeeded: (p: Principal) => Promise<boolean>;
-  readonly markSeeded: (p: Principal, id: CharacterId | null) => Promise<void>;
-  readonly readPackVersion: (p: Principal) => Promise<number>;
-  readonly markPackVersion: (p: Principal, version: number) => Promise<void>;
+  readonly markWelcomeAssistant: (p: Principal, id: CharacterId) => Promise<void>;
   readonly marks: MarkCall[];
 } {
-  const seeded = new Set<UserId>();
-  const versions = new Map<UserId, number>();
   const marks: MarkCall[] = [];
   return {
     marks,
-    isSeeded: (p): Promise<boolean> => Promise.resolve(seeded.has(p.userId)),
-    markSeeded: (p, welcomeAssistantId): Promise<void> => {
-      seeded.add(p.userId);
+    markWelcomeAssistant: (p, welcomeAssistantId): Promise<void> => {
       marks.push({ userId: p.userId, welcomeAssistantId });
-      return Promise.resolve();
-    },
-    readPackVersion: (p): Promise<number> => Promise.resolve(versions.get(p.userId) ?? 0),
-    markPackVersion: (p, version): Promise<void> => {
-      versions.set(p.userId, version);
       return Promise.resolve();
     },
   };
 }
 
+/** Seed every shipped card, one call per handle — what the user seed does for a fresh account. */
+async function seedAll(seeder: DefaultCharacterSeeder, actor: Principal): Promise<void> {
+  for (const handle of ALL_HANDLES) {
+    await seeder.seedCard(actor, handle);
+  }
+}
+
 describe("createDefaultCharacterSeeder", () => {
-  test("seeds the whole authored pack on a fresh user + marks the latch once", async () => {
+  test("seeds the whole authored pack on a fresh user + points the welcome greeter once", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
     const latch = fakeLatch();
@@ -130,7 +120,7 @@ describe("createDefaultCharacterSeeder", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const actor = principal(owner);
 
-    await seeder.ensureSeeded(actor);
+    await seedAll(seeder, actor);
 
     const list = await svc.list({ principal: actor });
     expect(list.items.map((c) => c.handle).sort()).toEqual(ALL_HANDLES.toSorted());
@@ -149,36 +139,11 @@ describe("createDefaultCharacterSeeder", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const actor = principal(owner);
 
-    await seeder.ensureSeeded(actor);
+    await seedAll(seeder, actor);
 
     const assistant = await svc.findByHandle({ ownerId: owner, handle: WELCOME_ASSISTANT_HANDLE });
     expect(assistant).not.toBeNull();
     expect(latch.marks[0]?.welcomeAssistantId).toBe(assistant?.characterId);
-  });
-
-  test("the persisted latch makes a re-run a no-op (deletion-respect) — even on a fresh seeder instance", async () => {
-    const db = await freshDb();
-    const svc = createCharacterService(makeHarness(db).ctx);
-    const latch = fakeLatch();
-    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const actor = principal(owner);
-
-    // First seeder seeds the pack + sets the latch.
-    await createDefaultCharacterSeeder({
-      characters: svc,
-      attachCardTag: noopAttach,
-      ...latch,
-    }).ensureSeeded(actor);
-    // A NEW seeder (fresh in-process memo) sharing the SAME persisted latch must NOT re-seed.
-    await createDefaultCharacterSeeder({
-      characters: svc,
-      attachCardTag: noopAttach,
-      ...latch,
-    }).ensureSeeded(actor);
-
-    const list = await svc.list({ principal: actor });
-    expect(list.items).toHaveLength(ALL_HANDLES.length); // no duplicates
-    expect(latch.marks).toHaveLength(1); // the second run short-circuited on the latch
   });
 
   test("handle_conflict tolerance — a pre-existing handle resolves instead of failing", async () => {
@@ -192,31 +157,31 @@ describe("createDefaultCharacterSeeder", () => {
     });
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const actor = principal(owner);
-    // A previous partial run already created the Assistant handle (latch NOT set — it crashed before marking).
+    // A previous partial run already created the Assistant handle.
     const existingAssistantId = await seedRawCharacter(db, {
       id: "character_existing_assistant",
       ownerId: owner,
       handle: WELCOME_ASSISTANT_HANDLE,
     });
 
-    await seeder.ensureSeeded(actor);
+    await seedAll(seeder, actor);
 
     // No duplicate Assistant — the rerun resolved the existing row; the other 4 cards were created.
     const list = await svc.list({ principal: actor });
     expect(list.items).toHaveLength(ALL_HANDLES.length);
     expect(list.items.filter((c) => c.handle === WELCOME_ASSISTANT_HANDLE)).toHaveLength(1);
-    // The latch lands with the EXISTING Assistant id (resolved via findByHandle), not a fresh one.
+    // The welcome pointer names the EXISTING Assistant (resolved via findByHandle), not a fresh one.
     expect(latch.marks[0]?.welcomeAssistantId).toBe(existingAssistantId);
   });
 
-  test("ensureSeeded never throws on a create failure + leaves the latch unset (retry next touch)", async () => {
+  test("a create failure rejects, so the user seed records nothing and retries on the next touch", async () => {
     const latch = fakeLatch();
     // A characters double whose create always fails with a NON-conflict error (the real-failure path).
     const failing: Pick<CharacterService, "create" | "findByHandle" | "update" | "getCard" | "get"> = {
       create: (): Promise<CharacterDetail> => Promise.reject(new Error("db is on fire")),
       findByHandle: (): Promise<null> => Promise.resolve(null),
       update: (): Promise<CharacterDetail> => Promise.reject(new Error("unreachable: nothing is ever created")),
-      getCard: (): Promise<null> => Promise.reject(new Error("unreachable: the migration arm is never reached on a fresh seed")),
+      getCard: (): Promise<null> => Promise.reject(new Error("unreachable: a failed create reads nothing")),
       get: (): Promise<CharacterDetail> => Promise.reject(new Error("unreachable: nothing is ever created")),
     };
     const seeder = createDefaultCharacterSeeder({
@@ -226,8 +191,8 @@ describe("createDefaultCharacterSeeder", () => {
     });
     const actor = principal("usr_fresh" as UserId);
 
-    await expect(seeder.ensureSeeded(actor)).resolves.toBeUndefined();
-    expect(latch.marks).toHaveLength(0); // latch NOT set — the next touch retries
+    await expect(seeder.seedCard(actor, WELCOME_ASSISTANT_HANDLE)).rejects.toThrow("db is on fire");
+    expect(latch.marks).toHaveLength(0);
   });
 
   test("each freshly-created card is stamped with its authored presentation (theme + its own scene plate)", async () => {
@@ -243,7 +208,7 @@ describe("createDefaultCharacterSeeder", () => {
       ...latch,
     });
 
-    await seeder.ensureSeeded(actor);
+    await seedAll(seeder, actor);
 
     const seeded = await Promise.all(
       DEFAULT_CHARACTER_CARDS.map(async (card) => {
@@ -278,7 +243,7 @@ describe("createDefaultCharacterSeeder", () => {
       handle: WELCOME_ASSISTANT_HANDLE,
     });
 
-    await seeder.ensureSeeded(actor);
+    await seedAll(seeder, actor);
 
     const detail = await svc.get({ principal: actor, characterId: existingId });
     expect(detail.themeOverride).toBeNull();
@@ -292,7 +257,7 @@ describe("createDefaultCharacterSeeder", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const actor = principal(owner);
     // Run one: the Assistant's row is CREATED, then its presentation edit throws — the shape of a crash
-    // between `create` and the dressing. `ensureSeeded` swallows it, so the latch never lands.
+    // between `create` and the dressing. The seed rejects, so the ledger never records the card.
     // A RUN COUNTER, not a `let flag = true` — biome narrows a literal-initialized boolean and calls the
     // read always-truthy, and a suppression would hide a real always-true condition later.
     const run = { index: 0 };
@@ -310,7 +275,7 @@ describe("createDefaultCharacterSeeder", () => {
     };
     const deps = { characters: flaky, attachCardTag: noopAttach, resolveSeededBackground: fakePlateResolver(db, owner), ...latch };
 
-    await createDefaultCharacterSeeder(deps).ensureSeeded(actor);
+    await expect(createDefaultCharacterSeeder(deps).seedCard(actor, WELCOME_ASSISTANT_HANDLE)).rejects.toThrow("the presentation write died mid-seed");
     expect(latch.marks).toHaveLength(0);
     const half = await svc.findByHandle({ ownerId: owner, handle: WELCOME_ASSISTANT_HANDLE });
     expect((await svc.get({ principal: actor, characterId: half?.characterId ?? MISSING_ID })).themeOverride).toBeNull();
@@ -319,7 +284,7 @@ describe("createDefaultCharacterSeeder", () => {
     // `created` left this card permanently themeless while the pack latched around it — a card that exists,
     // is ours byte-for-byte, and never received half of what it was authored with.
     run.index = 1;
-    await createDefaultCharacterSeeder(deps).ensureSeeded(actor);
+    await createDefaultCharacterSeeder(deps).seedCard(actor, WELCOME_ASSISTANT_HANDLE);
 
     const detail = await svc.get({ principal: actor, characterId: half?.characterId ?? MISSING_ID });
     expect(detail.themeOverride).toEqual(ASSISTANT_CARD?.presentation.themeOverride);
@@ -340,7 +305,7 @@ describe("createDefaultCharacterSeeder", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const actor = principal(owner);
 
-    await seeder.ensureSeeded(actor);
+    await seedAll(seeder, actor);
 
     // Every card's tags were attached (count = the sum across the pack), all owner-scoped.
     const expectedTotal = DEFAULT_CHARACTER_CARDS.reduce((n, c) => n + c.tags.length, 0);

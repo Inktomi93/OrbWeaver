@@ -28,30 +28,6 @@ import { expect, test } from "../../../support/fixtures.ts";
 import { makeHarness as makeAssetsHarness } from "../../domain/assets/_support.ts";
 import { makeHarness as makeCharacterHarness, principal, seedUser } from "../../domain/character/_support.ts";
 
-/** In-memory settings latch (isSeeded/markSeeded + the pack-version stamp), keyed by userId — the compose
- *  wiring of the real latch is proven in the compose slice test; here we only need the seeder to run once. */
-function fakeLatch(): {
-  readonly isSeeded: (p: Principal) => Promise<boolean>;
-  readonly markSeeded: (p: Principal) => Promise<void>;
-  readonly readPackVersion: (p: Principal) => Promise<number>;
-  readonly markPackVersion: (p: Principal, version: number) => Promise<void>;
-} {
-  const seeded = new Set<UserId>();
-  const versions = new Map<UserId, number>();
-  return {
-    isSeeded: (p): Promise<boolean> => Promise.resolve(seeded.has(p.userId)),
-    markSeeded: (p): Promise<void> => {
-      seeded.add(p.userId);
-      return Promise.resolve();
-    },
-    readPackVersion: (p): Promise<number> => Promise.resolve(versions.get(p.userId) ?? 0),
-    markPackVersion: (p, version): Promise<void> => {
-      versions.set(p.userId, version);
-      return Promise.resolve();
-    },
-  };
-}
-
 /** Build the real character seeder wired with the REAL bundled-avatar `storeAvatar`/`seedGallery` closures
  *  (the exact composition the entry root builds), over shared real character + assets services on one db. */
 async function makeSeededHarness(): Promise<{
@@ -68,12 +44,10 @@ async function makeSeededHarness(): Promise<{
   const characters = createCharacterService(makeCharacterHarness(db).ctx);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const actor = principal(owner);
-  const latch = fakeLatch();
-
   const seeder = createDefaultCharacterSeeder({
     characters,
     attachCardTag: (): Promise<boolean> => Promise.resolve(true),
-    ...latch,
+    markWelcomeAssistant: (): Promise<void> => Promise.resolve(),
     storeAvatar: async (p, handle): Promise<AssetId | null> => {
       const art = await readSeedAvatar(handle);
       if (art === null) {
@@ -107,7 +81,17 @@ async function makeSeededHarness(): Promise<{
     },
   });
 
-  return { owner, actor, assets, characters, runSeed: () => seeder.ensureSeeded(actor) };
+  return {
+    owner,
+    actor,
+    assets,
+    characters,
+    runSeed: async (): Promise<void> => {
+      for (const card of DEFAULT_CHARACTER_CARDS) {
+        await seeder.seedCard(actor, card.input.handle);
+      }
+    },
+  };
 }
 
 describe("seed imagery: default-character avatars + starter gallery", () => {

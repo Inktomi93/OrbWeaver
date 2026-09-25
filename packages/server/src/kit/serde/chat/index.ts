@@ -388,7 +388,7 @@ function parseHumanDate(lower: string, zone: string): number | null {
 
 /** The wall-clock zone this serde reads/writes ST's zone-less date forms in when a caller names none.
  *  `"UTC"` keeps the codec a PURE function of its arguments (no ambient zone read down here) and keeps every
- *  orb-authored fixture — the demo-chat seeder's jsonl, the round-trip drift guard — byte-identical. The ST
+ *  orb-authored fixture — the round-trip drift guard — byte-identical. The ST
  *  INTERCHANGE DOORS (the import collectors, the single-file import routes, the chat export) override it with
  *  {@link hostTimeZone}, because THOSE bytes were written by SillyTavern against a local clock. */
 export const ST_DEFAULT_WALL_CLOCK_ZONE = "UTC";

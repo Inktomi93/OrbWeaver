@@ -1398,6 +1398,14 @@ CREATE TABLE `themes` (
 --> statement-breakpoint
 CREATE INDEX `themes_owner_idx` ON `themes` (`owner_id`);--> statement-breakpoint
 CREATE UNIQUE INDEX `themes_owner_name_uq` ON `themes` (`owner_id`,`name`);--> statement-breakpoint
+CREATE TABLE `user_seed_ledger` (
+	`user_id` text NOT NULL,
+	`item_key` text NOT NULL,
+	`seeded_at` integer NOT NULL,
+	PRIMARY KEY(`user_id`, `item_key`),
+	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
 CREATE TABLE `user_settings` (
 	`user_id` text PRIMARY KEY NOT NULL,
 	`schema_version` integer DEFAULT 9 NOT NULL,

@@ -29,6 +29,7 @@ export type {
 export type { GlobalSettingView, ThemeView, UserSettingsView } from "./contract/views.ts";
 export { healLegacyBackgroundPins } from "./persistence/heal-legacy-background-pins.ts";
 export { migrateSeededBackgroundPicks } from "./persistence/migrate-seeded-background-picks.ts";
+export { listSeededItemKeys, recordSeededItemKeys } from "./persistence/seed-ledger.ts";
 export { ensureSeedThemes } from "./seed-themes.ts";
 export { createDefaultBackgroundSeeder } from "./seeder/backgrounds.ts";
 export { createSettingsService } from "./service.ts";

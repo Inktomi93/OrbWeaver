@@ -1,7 +1,6 @@
-// @orb/default-content — the DEFAULT CONTENT a fresh user is born with, plus the readers over it: the
-// character/persona avatar PNGs (`avatars/<handle>.png`), the EXAMPLE chat transcripts
-// (`demo-chats/<slug>.jsonl`, the verbatim bytes `GET /api/export/chat/:id?format=jsonl` produced for a
-// live-generated conversation), and the character SCENE PLATES (`backgrounds/<handle>-bg.jpg`).
+// @orb/default-content — the DEFAULT CONTENT a fresh user is born with, plus the readers over it: the seed
+// MANIFEST (`manifest.ts`, ADR 0261), the character/persona avatar PNGs (`avatars/<handle>.png`) and the
+// character SCENE PLATES (`backgrounds/<handle>-bg.jpg`). No conversation ships here: the seed is content.
 //
 // THE PLATES ARE CONTENT, NOT A PARALLEL BACKGROUND CHANNEL (owner ask 2026-09-18, "the weird seeded
 // backgrounds"). They used to be `packages/client/public/backgrounds/*.jpg` behind a static
@@ -30,7 +29,7 @@
 // one row where a reviewer can see which bytes a user now receives.
 //
 // THE SEAM IS THE INJECTED OP, NOT AN IMPORT INTO A DOMAIN: the composition root (`entry/compose/`) closes
-// over these readers and hands the bytes to the character/persona/demo-chat seeders, which stay fs-unaware.
+// over these readers and hands the bytes to the character/persona seeders, which stay fs-unaware.
 // No `domain/**` module imports this package.
 //
 // THERE IS NO GALLERY READER. The `gallery/<handle>-gallery.webp` family was placeholder art, deleted with
@@ -42,6 +41,9 @@ import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { CharacterHandle } from "@orb/kit/ids";
+
+export type { SeedItemKind, SeedManifestItem } from "./manifest.ts";
+export { SEED_ITEM_KINDS, SEED_MANIFEST } from "./manifest.ts";
 
 /** The content ROOT — `packages/default-content/`, resolved off THIS module rather than off a repo-relative
  *  literal, so every consumer reaches the bytes the same way node resolves the package. */
@@ -66,20 +68,6 @@ export async function readSeedAvatar(handle: CharacterHandle): Promise<SeedAsset
   try {
     const buf = await readFile(join(CONTENT_DIR, "avatars", `${handle}.png`));
     return { bytes: new Uint8Array(buf), mime: SEED_AVATAR_MIME };
-  } catch {
-    return null;
-  }
-}
-
-/** One shipped EXAMPLE transcript's text, by its manifest `slug` — the VERBATIM bytes the real export verb
- *  (`GET /api/export/chat/:id?format=jsonl`) produced for the live-generated conversation. `null` when the
- *  file is absent, so a missing transcript skips ONE example instead of failing the seed. */
-export async function readSeedDemoChat(slug: string): Promise<string | null> {
-  // @orb-waive caught-failure-ownership(catch): optional-read-as-absent — the header states the
-  // contract: a missing transcript skips ONE example instead of failing the seed. Ends if this transcript
-  // becomes required rather than best-effort.
-  try {
-    return await readFile(join(CONTENT_DIR, "demo-chats", `${slug}.jsonl`), "utf8");
   } catch {
     return null;
   }

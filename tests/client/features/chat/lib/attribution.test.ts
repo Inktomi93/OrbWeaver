@@ -241,7 +241,7 @@ test("user row with NO resolvable persona labels 'Traveler' — never 'You' (the
   });
   // Users are FORCED to hold a persona (boot seeds `Traveler`), so this is the unresolvable floor.
   // "You" here re-creates the exact collision the Traveler rename was minted to kill — and the model is
-  // shown this identity and writes it into the prose (seeder/demo-chats.ts:52).
+  // shown this identity and writes it into the prose.
   expect(result.name).toBe("Traveler");
   expect(result.kind).toBe("persona"); // §A.8 KIND-READY — the fallback is still the persona side
   expect(result.avatarAssetId).toBeNull();

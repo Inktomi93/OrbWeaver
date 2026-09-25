@@ -59,7 +59,7 @@ const NARRATOR_ATTRIBUTION: RowAttribution = {
 };
 // The unresolvable-persona floor. Users are FORCED to hold a persona — boot seeds one — so this branch is the
 // floor, and naming it "You" reintroduces the very collision that rename was minted to kill: the model is
-// shown the identity and writes it into the prose (seeder/demo-chats.ts:52 records exactly that happening).
+// shown the identity and writes it into the prose.
 // ONE spelling for every site that answers "what is this human called when we have no persona for
 // them?" — `DEFAULT_PERSONA_NAME` (@orb/kit/persona) is that home.
 const DEFAULT_USER_ATTRIBUTION: RowAttribution = {

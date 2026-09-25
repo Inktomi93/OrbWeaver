@@ -96,7 +96,7 @@ export interface AssetsCharacterComposeResult {
   readonly characterSeeder: DefaultCharacterSeeder;
   readonly personaSeeder: DefaultPersonaSeeder;
   /** The per-user SCENE-PLATE seeder — boot + the first-authed-request hook run `ensureSeeded`; the card and
-   *  demo-chat packs dress through its `resolvePlate`. */
+   *  card pack dresses through its `resolvePlate`. */
   readonly backgroundSeeder: DefaultBackgroundSeeder;
   readonly materializeBackgroundOp: MaterializeBackgroundOp;
 }
@@ -451,28 +451,13 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
         });
       }
     },
-    isSeeded: async (principal): Promise<boolean> => (await settings.getUserSettings({ principal })).config.onboarding.defaultCharactersSeeded,
-    // The pack stamp: an already-latched library trailing CARD_PACK_VERSION gets the reseed migration.
-    readPackVersion: async (principal): Promise<number> => (await settings.getUserSettings({ principal })).config.onboarding.defaultCharactersPackVersion,
-    markPackVersion: async (principal, version): Promise<void> => {
-      await settings.updateUserSettingsSection({
-        principal,
-        input: { section: "onboarding", patch: { defaultCharactersPackVersion: version } },
-      });
-    },
-    markSeeded: async (principal, welcomeAssistantId): Promise<void> => {
-      await settings.updateUserSettingsSection({
-        principal,
-        input: { section: "onboarding", patch: { defaultCharactersSeeded: true } },
-      });
-      if (welcomeAssistantId !== null) {
-        const current = (await settings.getUserSettings({ principal })).config;
-        if (current.seeds.welcomeAssistantCharacterId === null) {
-          await settings.updateUserSettingsSection({
-            principal,
-            input: { section: "seeds", patch: { welcomeAssistantCharacterId: welcomeAssistantId } },
-          });
-        }
+    markWelcomeAssistant: async (principal, welcomeAssistantId): Promise<void> => {
+      const current = (await settings.getUserSettings({ principal })).config;
+      if (current.seeds.welcomeAssistantCharacterId === null) {
+        await settings.updateUserSettingsSection({
+          principal,
+          input: { section: "seeds", patch: { welcomeAssistantCharacterId: welcomeAssistantId } },
+        });
       }
     },
   });

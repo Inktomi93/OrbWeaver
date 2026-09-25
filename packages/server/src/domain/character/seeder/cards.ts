@@ -26,14 +26,8 @@
 // The two hand-authored fields that DO ride a derivation's output are `creator` (above) and the scene plate;
 // both are pinned against their derivation in `tests/server/domain/character/seeder/cards.contract.test.ts`.
 //
-// RESEED: an ALREADY-SEEDED install reaches this pack through the version stamp, not the boolean latch —
-// bumping `CARD_PACK_VERSION` below is what makes `seeder/seed.ts` run its migration on every library whose
-// `UserSettings.onboarding.defaultCharactersPackVersion` trails it. That migration creates the pack's
-// net-new cards and re-dresses a prior pack's cards ONLY while they still match `seeder/pack-v1.ts`
-// byte-for-byte; an edited card is never touched. The full-reset door still exists for dev/owner use:
-// `updateUserSettingsSection({section: "onboarding", patch: {defaultCharactersSeeded: false}})` (authed tRPC
-// `settings.updateUserSettingsSection`); note the seeder's in-process `settled` memo means a flip only takes
-// effect for a user the running process has not already seeded (restart, or a different user).
+// SEEDING: each card is one item of the seed manifest (`@orb/default-content`, ADR 0261), keyed by its handle.
+// An account receives a card once; the seed ledger keeps a card the user deleted from coming back.
 
 import type { CreateCharacterInput } from "@orb/contracts/character";
 import { AUTHORED_CARD_CREATOR } from "@orb/contracts/character";
@@ -42,12 +36,6 @@ import { castId } from "@orb/kit/ids";
 import type { SeedCard } from "../contract/seeder.ts";
 
 export const WELCOME_ASSISTANT_HANDLE = castId<CharacterHandle>("assistant");
-
-/** The shipped pack's version, stamped on a library at `onboarding.defaultCharactersPackVersion` once it
- *  holds this pack. BUMP IT whenever the authored cards below change in a way existing installs should
- *  receive — that bump IS the migration trigger. `1` was the original five-card pack (shipped BEFORE the
- *  stamp existed, so v1 libraries read `0`); `2` is this ten-card pack. */
-export const CARD_PACK_VERSION = 2;
 
 /** The pack-wide provenance/posture fields every authored card carries identically (wiring note 5 of the
  *  roster doc): app-authored, no upstream source, no dates (the seeder stamps the real row timestamps), no

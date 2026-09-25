@@ -87,14 +87,12 @@ import {
   seedCasSchedules,
   seedCredentialFromEnv,
   seedDefaultBackgrounds,
-  seedDefaultCharacters,
-  seedDefaultPersona,
   seedDefaultPreset,
-  seedDemoChats,
   seedExamplePlugins,
   seedLocalLightOnBoot,
   seedOwner,
   seedThemes,
+  seedUserContent,
   settleBootSecrets,
 } from "./boot/index.ts";
 import { createAutomationWatcherEnv } from "./compose/automation-watcher.ts";
@@ -660,7 +658,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     }
 
     // Owner-DEPENDENT boot seeds: guarded behind ownerId so a fresh OIDC box (no owner yet) can still boot.
-    // In OIDC mode without an owner, these are deferred: per-user seeds (characters, persona, demo chats,
+    // In OIDC mode without an owner, these are deferred: per-user seeds (the user seed's characters, persona and rosters,
     // example plugins) fire via `seedUserCharacters` on the owner's first login; the env credential and
     // CAS schedules seed on the owner's first request after provisioning.
     // Declared OUTSIDE the guard because one step below the listener bind also needs it (the local-light
@@ -681,14 +679,12 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
         owner,
         openrouterApiKey: env.OPENROUTER_API_KEY,
       });
-      // BEFORE the cards: both packs dress through this seeder, and seeding it first is what lands the
-      // owner's background library in pack order. It also carries the `kind:"seeded"` retirement's data
-      // rewrite for this user (see `boot/seed-default-backgrounds.ts`).
+      // BEFORE the cards: they dress through this seeder, and seeding it first is what lands the owner's
+      // background library in pack order. It also carries the `kind:"seeded"` retirement's data rewrite for
+      // this user (see `boot/seed-default-backgrounds.ts`).
       await seedDefaultBackgrounds({ seeder: built.backgroundSeeder, owner });
-      await seedDefaultCharacters({ seeder: built.characterSeeder, owner });
-      await seedDefaultPersona({ seeder: built.personaSeeder, owner });
-      // AFTER the cards — each bundled example attaches to seeded characters by handle.
-      await seedDemoChats({ seeder: built.demoChatSeeder, owner });
+      // The user seed (ADR 0261): the manifest's characters, persona and roster presets the ledger lacks.
+      await seedUserContent({ seeder: built.contentSeeder, owner });
       // BEFORE the seeder, and before anything serves (#1865): the resident-plugin registry is an in-process
       // Map the respawn wiped, so every row the db calls `enabled` has no instance and contributes no surface,
       // command, transform, tool or subscription until something re-activates it. Restoring first also means
@@ -839,18 +835,11 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       relayHosts: relayHosts.hosts,
       shareState: relay.status,
       seedUserCharacters: (principal: Principal): void => {
-        // CHAINED, not parallel: the demo chats attach to the cards this user is getting right now, so they
-        // must not race the pack. `ensureSeeded` never throws, so the `.then` is unconditional.
-        // CHAINED behind the scene plates too: both packs dress through the background seeder, so running it
+        // CHAINED behind the scene plates: the seeded cards dress through the background seeder, so running it
         // first lands this user's library in pack order (and carries their `kind:"seeded"` data rewrite).
-        superviseDetached(`seed-user:${principal.userId}:characters:${randomUUID()}`, "seed.user.characters", { userId: principal.userId }, () =>
-          built.backgroundSeeder
-            .ensureSeeded(principal)
-            .then((): Promise<void> => built.characterSeeder.ensureSeeded(principal))
-            .then((): Promise<void> => built.demoChatSeeder.ensureSeeded(principal)),
-        );
-        superviseDetached(`seed-user:${principal.userId}:persona:${randomUUID()}`, "seed.user.persona", { userId: principal.userId }, () =>
-          built.personaSeeder.ensureSeeded(principal),
+        // `ensureSeeded` never throws, so the `.then` is unconditional.
+        superviseDetached(`seed-user:${principal.userId}:content:${randomUUID()}`, "seed.user.content", { userId: principal.userId }, () =>
+          built.backgroundSeeder.ensureSeeded(principal).then((): Promise<void> => built.contentSeeder.ensureSeeded(principal)),
         );
         // Independent of the character/chat chain — the example plugins attach to nothing, so they race
         // nobody. Fire-and-forget like its siblings; `ensureSeeded` never throws.

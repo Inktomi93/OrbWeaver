@@ -27,7 +27,15 @@ import type { ThemeOverride } from "@orb/contracts/theme";
 import type { ThemeId, UserId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { sql } from "drizzle-orm";
-import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import {
+  index,
+  integer,
+  // biome-ignore lint/suspicious/noDeprecatedImports: drizzle @deprecates the positional primaryKey(col) overload; we use the supported primaryKey({ columns }) object form below.
+  primaryKey,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from "drizzle-orm/sqlite-core";
 import { users } from "./users.ts";
 
 export const settings = sqliteTable("settings", {
@@ -53,6 +61,22 @@ export const userSettings = sqliteTable("user_settings", {
   config: text("config", { mode: "json" }).$type<UserSettings>().notNull(),
   updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
 });
+
+// `user_seed_ledger` (ADR 0261) — one row per seed-manifest item an account has been given. The seeder skips a
+// recorded key, so an item the user deleted is never seeded again, and a key a later build adds is simply
+// unrecorded, so it reaches the account on its next seed. The key is `@orb/default-content`'s manifest key.
+export const userSeedLedger = sqliteTable(
+  "user_seed_ledger",
+  {
+    userId: text("user_id")
+      .$type<UserId>()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    itemKey: text("item_key").notNull(),
+    seededAt: integer("seeded_at").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.itemKey] })],
+);
 
 export const themes = sqliteTable(
   "themes",

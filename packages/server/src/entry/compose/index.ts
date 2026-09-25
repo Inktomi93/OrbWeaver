@@ -2,8 +2,6 @@
 // internal file. `services.ts` is the keystone graph; the sibling files are the seams it composes.
 
 export { activePersonaIdFor, buildChatToolOps, createRunChatTurnBridge, createTaskWindowReaders, createTurnPersonaResolver, voicePersonaFor } from "./chat.ts";
-export type { DemoChatGameDoorArgs, DemoChatGameDoorDeps } from "./demo-chat-game.ts";
-export { createDemoChatGameDoor } from "./demo-chat-game.ts";
 export type { EffectiveConfigWiring } from "./effective-config.ts";
 export { createEffectiveConfigWiring } from "./effective-config.ts";
 export { createChatChangedEmitter } from "./emit-chat-changed.ts";

@@ -10,8 +10,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./avatars/*": "./avatars/*",
-    "./backgrounds/*": "./backgrounds/*",
-    "./demo-chats/*": "./demo-chats/*"
+    "./backgrounds/*": "./backgrounds/*"
   },
   "dependencies": {
     "@orb/kit": "workspace:*"
