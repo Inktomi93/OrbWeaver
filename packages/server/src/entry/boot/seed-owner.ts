@@ -74,7 +74,7 @@ async function adoptMovedSeedKey(deps: SeedOwnerDeps, seedKey: Handle, at: numbe
     .limit(1);
   if (taken !== undefined) {
     throw new Error(
-      `seedOwner: OWNER_HANDLES moved to "${seedKey}", but that handle or a look-alike of it (one handle key, D256) is already held by another user (id=${taken.id}) — refusing to rename the owner row (id=${owner.id}, handle="${owner.handle}") onto it, which would take a member's handle. Point OWNER_HANDLES at an unused handle, or rename/remove that user first.`,
+      `seedOwner: OWNER_HANDLES moved to "${seedKey}", but that handle or a look-alike of it (one handle key, D257) is already held by another user (id=${taken.id}) — refusing to rename the owner row (id=${owner.id}, handle="${owner.handle}") onto it, which would take a member's handle. Point OWNER_HANDLES at an unused handle, or rename/remove that user first.`,
     );
   }
   await deps.sessions.renameUserHandle(owner.id, seedKey, at);

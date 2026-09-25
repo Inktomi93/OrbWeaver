@@ -118,7 +118,7 @@ export const SERVER_APP_ARMS: readonly RealCorpusLivenessArm[] = [
   },
   {
     policy: handleKeyWriter,
-    // D256: a users rename that drops the key must speak on the real tree, where every real rename carries it.
+    // D257: a users rename that drops the key must speak on the real tree, where every real rename carries it.
     overlays: [
       add(
         `${SERVER}/domain/sessions/verbs/liveness-rename.ts`,

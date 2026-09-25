@@ -132,14 +132,14 @@ export interface SessionsService {
   getOwnerUserId: () => Promise<UserId | undefined>;
   /** D254 — the UNEXECUTED signup account insert with its freshly minted id, for chat's signup batch. It
    *  writes only where `admission` (chat's opaque invite predicate) holds and no row holds the handle's key
-   *  (D256), and it never absorbs a unique conflict. @internal */
+   *  (D257), and it never absorbs a unique conflict. @internal */
   signupUserStatement: (args: { readonly handle: Handle; readonly passwordHash: string; readonly at: number; readonly admission: SQL }) => {
     readonly userId: UserId;
     readonly statement: AwaitableBatchStmt<{ id: UserId }[]>;
   };
-  /** D256 — does any account carry this handle's key (any case, any confusable)? @internal */
+  /** D257 — does any account carry this handle's key (any case, any confusable)? @internal */
   signupHandleTaken: (handle: Handle) => Promise<boolean>;
-  /** D256 — admin's local-account mint, UNEXECUTED, for its audited batch; the handle key is derived here and
+  /** D257 — admin's local-account mint, UNEXECUTED, for its audited batch; the handle key is derived here and
    *  a race throws rather than being absorbed. @internal */
   localUserInsertStatement: (row: {
     readonly id: UserId;
@@ -148,7 +148,7 @@ export interface SessionsService {
     readonly passwordHash: string;
     readonly at: number;
   }) => AwaitableBatchStmt<{ id: UserId }[]>;
-  /** D256 — boot's owner seed-key rename; the handle key moves with the handle. @internal */
+  /** D257 — boot's owner seed-key rename; the handle key moves with the handle. @internal */
   renameUserHandle: (userId: UserId, handle: Handle, at: number) => Promise<void>;
   /** D254 — freeze a JIT-closed OIDC identity that arrived with a signup invite as a pending join, replacing
    *  any earlier one for the subject; returns the raw secret for the pending cookie. @internal */

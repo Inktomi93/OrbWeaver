@@ -139,7 +139,7 @@ async function updateExisting(
   };
 }
 
-/** D256 — an IdP rename may not take another row's handle key or a mixed-script handle: the user keeps
+/** D257 — an IdP rename may not take another row's handle key or a mixed-script handle: the user keeps
  *  their current handle, and the login proceeds. A concurrent rename onto the same key still meets
  *  `users_handle_key_unique`. */
 async function renameIsFree(ctx: SessionsContext, existing: ProvisionCandidate, identity: ResolvedIdentity): Promise<boolean> {
@@ -166,7 +166,7 @@ async function renameIsFree(ctx: SessionsContext, existing: ProvisionCandidate, 
 // The operator's next step for each lost-race match. Only an exact handle match is this identity's account.
 const LOST_RACE_ADVICE: Readonly<Record<"exact" | "key-only" | "none", string>> = {
   exact: "the winner holds this exact handle; an admin links it via admin.linkSsoIdentity",
-  "key-only": "the winner holds a look-alike of this handle (one handle key, D256), a different account; do not link it",
+  "key-only": "the winner holds a look-alike of this handle (one handle key, D257), a different account; do not link it",
   none: "the owner singleton or another unique column absorbed it",
 };
 
@@ -183,7 +183,7 @@ const LOST_RACE_ADVICE: Readonly<Record<"exact" | "key-only" | "none", string>> 
  * collision arriving through the race window, so it gets the same operator-actionable `account-exists`
  * deny. No row is created or updated. The extra reads are diagnosis only and decide nothing: `match` separates
  * an EXACT handle collision (the same account under a new subject, which an admin may link via
- * `admin.linkSsoIdentity`, B5) from a KEY-ONLY one (D256: a different account that merely looks alike, which
+ * `admin.linkSsoIdentity`, B5) from a KEY-ONLY one (D257: a different account that merely looks alike, which
  * must never be linked) and from the owner singleton.
  */
 async function lostRaceMatch(ctx: SessionsContext, handle: Handle): Promise<keyof typeof LOST_RACE_ADVICE> {
@@ -208,12 +208,12 @@ async function refuseLostInsertRace(ctx: SessionsContext, identity: ResolvedIden
  *  admin; the owner is never gated). It reuses the `enabled` control `validate` and the SSO callback refuse on,
  *  rather than a `pending` role in the D17 lattice. */
 async function insertNew(ctx: SessionsContext, identity: ResolvedIdentity, resolvedRole: UserRole, enabled: boolean): Promise<ProvisionResult> {
-  // D256: a new account never takes a mixed-script handle, which can spell a look-alike the key misses.
+  // D257: a new account never takes a mixed-script handle, which can spell a look-alike the key misses.
   if (!admitsHandle(identity.handle)) {
     securityEvent(
       "sso_insert_inadmissible_handle",
       { handle: identity.handle, externalId: identity.externalId },
-      "security: SSO first login refused — the IdP handle mixes scripts (D256); no account was created",
+      "security: SSO first login refused — the IdP handle mixes scripts (D257); no account was created",
     );
     return { outcome: "denied" };
   }

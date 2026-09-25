@@ -71,7 +71,7 @@ test("the U1 externalId bind-once chokepoint and its carve-out health tripwire b
   expect(verifyPolicyProofs([externalIdSingleWriter, externalIdSingleWriterHealth])).toEqual([]);
 });
 
-// D256 — the handle-key writer rides the same users-write reader. A rename that drops the key is invisible to the
+// D257 — the handle-key writer rides the same users-write reader. A rename that drops the key is invisible to the
 // subject-writer detector (no externalId anywhere), so this pins that "handle-key-writer" is the one that sees it.
 test("a users rename without its key is red under handle-key-writer and silent under the subject-writer detector", () => {
   expect(verifyPolicyProofs([handleKeyWriter])).toEqual([]);

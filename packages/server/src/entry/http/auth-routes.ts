@@ -1422,10 +1422,10 @@ export function identityFromClaims(
     // warning here would drown the real signal in noise from probes and misdirected requests.
     return null;
   }
-  // D256: refused, never truncated — a cut IdP name could land on another member's handle, and the key's
+  // D257: refused, never truncated — a cut IdP name could land on another member's handle, and the key's
   // normalization is quadratic in a long run of combining marks.
   if (!withinHandleLength(username)) {
-    securityEvent("oidc_username_too_long", { length: username.length }, "security: an OIDC login's username exceeds the handle cap (D256); no identity");
+    securityEvent("oidc_username_too_long", { length: username.length }, "security: an OIDC login's username exceeds the handle cap (D257); no identity");
     return null;
   }
   // Branded ONCE here, so the two observability calls below and the returned identity all speak about the

@@ -37,7 +37,7 @@ export const users = sqliteTable(
     id: text("id").$type<UserId>().primaryKey(),
     handle: text("handle").$type<Handle>().notNull(),
     // `handleKey(handle)` (`@orb/kit/handle-key`), written with every handle: the comparison key, never shown.
-    // Its unique index makes a case variant or a confusable of a held handle a conflict (D256).
+    // Its unique index makes a case variant or a confusable of a held handle a conflict (D257).
     handleKey: text("handle_key").$type<HandleKey>().notNull(),
     // Stable SSO subject — nullable (the single-user / owner-fallback path has none); UNIQUE-when-set
     // via the partial index below.

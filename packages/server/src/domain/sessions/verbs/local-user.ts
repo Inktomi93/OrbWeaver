@@ -1,4 +1,4 @@
-// D256 — the two handle writes other tiers make: admin's local-account mint and boot's owner seed-key rename.
+// D257 — the two handle writes other tiers make: admin's local-account mint and boot's owner seed-key rename.
 // Both run through this domain's `users` writers, so the handle key is derived where every other handle is.
 
 import type { SessionsContext, SessionsService } from "../contract/service.ts";

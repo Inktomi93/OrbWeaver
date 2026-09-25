@@ -1,4 +1,4 @@
-// Gate: handle-key-writer (D256) — a drizzle users write whose literal data sets `handle` without `handleKey` is
+// Gate: handle-key-writer (D257) — a drizzle users write whose literal data sets `handle` without `handleKey` is
 // red: an update without it keeps a stale key that admits a look-alike of the new handle. DECLARED LIMITS: data
 // the reader cannot see (a variable, a spread) is `external-id-single-writer`'s opaque-data arm; the
 // `insertUser`/`updateUser` verbs derive the key. FAMILY: external-id-single-writer, via `usersDrizzleWrite` in
@@ -12,7 +12,7 @@ const HANDLE = "handle";
 const HANDLE_KEY = "handleKey";
 
 const MESSAGE =
-  "a users write that sets `handle` without `handleKey` (D256): the key is the comparison every handle writer checks, so an update without it keeps the old key and admits a look-alike of the new handle. See docs/adr/0256-handles-compare-on-one-unicode-key.md.";
+  "a users write that sets `handle` without `handleKey` (D257): the key is the comparison every handle writer checks, so an update without it keeps the old key and admits a look-alike of the new handle. See docs/adr/0257-handles-compare-on-one-unicode-key.md.";
 const FIX =
   "write the handle through the sessions persistence verbs (`insertUser`, `updateUser`, or a statement in sessions/persistence/users.ts), which derive `handleKey` with `handleKey()` from @orb/kit/handle-key.";
 

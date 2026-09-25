@@ -1,4 +1,4 @@
-// The handle comparison key (D256): two handles with one key look alike, so they are one handle. Every
+// The handle comparison key (D257): two handles with one key look alike, so they are one handle. Every
 // `users.handle` writer compares on it and `users.handle_key` stores it; the handle a user sees is never folded.
 
 import type { HandleKey } from "#ids";
@@ -146,7 +146,7 @@ function scriptsOf(char: string): ReadonlySet<string> {
 }
 
 /**
- * Whether a handle may be written at all (D256), checked by every handle writer before its key: it is within
+ * Whether a handle may be written at all (D257), checked by every handle writer before its key: it is within
  * {@link HANDLE_MAX_CODE_POINTS}, its key is not blank, and its NFKC
  * form meets the UTS 39 highly restrictive profile, one script, or Latin with Japanese, Korean or Chinese
  * writing; Common and Inherited characters (digits, punctuation, marks) fit any script, and an unassigned code

@@ -51,7 +51,7 @@ function validateCreate(params: CreateUserParams, role: UserRole): Handle {
     throw new DomainOperationError(ADMIN_OP_CODES.invalidHandle, "handle must not be empty");
   }
   if (!admitsHandle(handle)) {
-    throw new DomainOperationError(ADMIN_OP_CODES.invalidHandle, "handle is not admissible: over the length cap, blank, or mixed-script (D256)");
+    throw new DomainOperationError(ADMIN_OP_CODES.invalidHandle, "handle is not admissible: over the length cap, blank, or mixed-script (D257)");
   }
 
   // The owner is the immutable bootstrap row — never minted through admin. Refuses even the owner caller,
@@ -85,7 +85,7 @@ async function insertLocalUser(ctx: AdminContext, row: LocalUserInsert, actorUse
     // ONE batch: the account and its audit row exist together or neither does (#1691). A rejecting audit
     // insert now un-mints the account instead of leaving a loginable row with no forensic record.
     inserted = await commitAuditedWrite(ctx, {
-      // D256: the mint is sessions' statement, which derives the handle key and mints humans only.
+      // D257: the mint is sessions' statement, which derives the handle key and mints humans only.
       write: ctx.sessions.localUserInsertStatement({ id, handle: row.handle, role: row.role, passwordHash: row.passwordHash, at: row.at }),
       entry: {
         actorUserId,
@@ -118,7 +118,7 @@ export function createCreateUser(ctx: AdminContext): AdminService["createUser"] 
     requireMintAuthority(params.principal, role);
     const handle = validateCreate(params, role);
 
-    // Friendly pre-check on the handle key (D256: a case variant or look-alike is the same handle) — the
+    // Friendly pre-check on the handle key (D257: a case variant or look-alike is the same handle) — the
     // key's unique index + the TOCTOU translation in insertLocalUser are the real defense.
     const existing = await ctx.db
       .select({ id: users.id })
