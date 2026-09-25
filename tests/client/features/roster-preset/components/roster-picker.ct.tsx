@@ -24,7 +24,7 @@ const ROSTER_A: RosterPresetSummary = {
   id: castId<RosterPresetId>("roster_preset_ct_a"),
   name: "Adventuring Roster",
   description: "",
-  memberCount: 2,
+  characterCount: 2,
   members: [
     { characterId: castId<CharacterId>("character_ct_1"), position: 0, talkativeness: null, disabled: false, name: "Ash", avatarHash: null },
     { characterId: castId<CharacterId>("character_ct_2"), position: 1, talkativeness: 0.8, disabled: false, name: "Brook", avatarHash: null },
@@ -42,7 +42,7 @@ const ROSTER_B: RosterPresetSummary = {
   id: castId<RosterPresetId>("roster_preset_ct_b"),
   name: "Book Club",
   description: "",
-  memberCount: 1,
+  characterCount: 1,
   members: [{ characterId: castId<CharacterId>("character_ct_3"), position: 0, talkativeness: null, disabled: false, name: "Cinder", avatarHash: null }],
   anchorPersonaId: null,
   hasGroupConfig: false,
@@ -275,8 +275,8 @@ test("the row's apply doors announce the member and rule counts; a rules-free ro
   // #1032 adds the THIRD carried thing: ROSTER_A has `hasGroupConfig: true`, so its apply also rewrites the
   // room's reply mode / speaker labels / card visibility, and the door that does it now says so. ROSTER_B
   // carries neither rules nor group config and still announces only its members.
-  await expect(page.getByRole("button", { name: "Start a chat with Adventuring Roster — 2 members, 2 rules, group behavior", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Start a chat with Book Club — 1 member", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Start a chat with Adventuring Roster — 2 characters, 2 rules, group behavior", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Start a chat with Book Club — 1 character", exact: true })).toBeVisible();
   // Delete stays a bare name: the counts inform CONSENT at the apply doors, not the destructive one.
   await expect(page.getByRole("button", { name: "Delete Adventuring Roster", exact: true })).toBeVisible();
 });

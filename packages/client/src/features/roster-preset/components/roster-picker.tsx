@@ -40,7 +40,7 @@ import { closeModal, openModal } from "#state";
 import { useApplyRosterPreset, useCreateRosterPreset, useRemoveRosterPreset } from "../hooks/use-roster-preset-mutations.ts";
 import type { CapturedRosterRule, RosterRuleCapture } from "../hooks/use-saved-rosters.ts";
 import { useActiveRosterChat, useRosterRuleCapture, useRulePresetCatalogue, useSavedRosters } from "../hooks/use-saved-rosters.ts";
-import { applyNotice, rosterCountsSuffix, rosterRuleLine } from "../lib/roster-copy.ts";
+import { applyNotice, characterCountPhrase, rosterCountsSuffix, rosterRuleLine } from "../lib/roster-copy.ts";
 
 /** Derived, not re-minted (no-inline-types): the hook's own return shape. */
 type SavedRosterSummary = RosterPresetSummary;
@@ -76,7 +76,7 @@ function RosterRow(props: {
 }): ReactElement {
   const { roster, canAddToChat, busy, onStart, onAddToChat, onDelete } = props;
   const memberNames = roster.members.map((m) => m.name).join(", ");
-  const counts = rosterCountsSuffix(roster.memberCount, roster.rules.length, roster.hasGroupConfig);
+  const counts = rosterCountsSuffix(roster.characterCount, roster.rules.length, roster.hasGroupConfig);
   return (
     <Stack gap="tight" padding="block" className="@container border-border border-b last:border-b-0" data-slot="roster-row">
       <Row align="center" gap="field" className="@max-md:flex-col @max-md:items-stretch">
@@ -102,7 +102,7 @@ function RosterRow(props: {
             ) : null}
           </Row>
           <Text voice="gloss" className="truncate">
-            {roster.memberCount} member{roster.memberCount === 1 ? "" : "s"} · {memberNames}
+            {characterCountPhrase(roster.characterCount)} · {memberNames}
           </Text>
         </Stack>
         <Row align="center" gap="tight" justify="end" className="shrink-0">
@@ -328,7 +328,7 @@ export function RosterPicker(): ReactElement {
       })
       .then((view) =>
         notify.success(
-          `Saved “${view.name}” — ${view.members.length} member${view.members.length === 1 ? "" : "s"}${view.rules.length > 0 ? `, ${view.rules.length} rule${view.rules.length === 1 ? "" : "s"}` : ""}.`,
+          `Saved “${view.name}” — ${characterCountPhrase(view.members.length)}${view.rules.length > 0 ? `, ${view.rules.length} rule${view.rules.length === 1 ? "" : "s"}` : ""}.`,
         ),
       )
       .catch(() => undefined); // errorToast owns the failure copy (e.g. the duplicate-name conflict).

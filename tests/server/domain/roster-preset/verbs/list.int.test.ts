@@ -28,9 +28,9 @@ describe("list", () => {
 
     const rows = await svc.list({ principal: principal(owner) });
     expect(rows.map((r) => r.name)).toEqual(["Alpha", "Zeta"]);
-    expect(rows[0]?.memberCount).toBe(1);
+    expect(rows[0]?.characterCount).toBe(1);
     expect(rows[0]?.hasGroupConfig).toBe(false);
-    expect(rows[1]?.memberCount).toBe(2);
+    expect(rows[1]?.characterCount).toBe(2);
     expect(rows[1]?.hasGroupConfig).toBe(true);
     expect(rows[1]?.members.map((m) => m.name)).toEqual(["Brook", "Ash"]);
     expect(rows[1]?.members[0]?.avatarHash).toBe("sha_brook");

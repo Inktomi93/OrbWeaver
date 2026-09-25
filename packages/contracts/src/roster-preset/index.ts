@@ -136,7 +136,8 @@ export interface RosterPresetSummary {
   readonly id: RosterPresetId;
   readonly name: string;
   readonly description: string;
-  readonly memberCount: number;
+  /** The seated characters. A member is a human (the vocabulary map), so a roster counts characters. */
+  readonly characterCount: number;
   readonly members: readonly RosterPresetMemberView[];
   readonly anchorPersonaId: PersonaId | null;
   readonly hasGroupConfig: boolean;

@@ -52,7 +52,7 @@ test("a non-empty saved-roster library reveals the 'Start from a saved roster' d
         id: "roster_preset_ct",
         name: "The Troupe",
         description: "",
-        memberCount: 1,
+        characterCount: 1,
         members: [{ characterId: "char_aria", position: 0, talkativeness: null, disabled: false, name: "Aria", avatarHash: null }],
         anchorPersonaId: null,
         hasGroupConfig: false,

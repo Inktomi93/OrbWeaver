@@ -99,12 +99,12 @@ function applySentence(args: {
   const { rosterName, result, ruleTitleOf } = args;
   const parts: string[] = [];
   if (result.added.length > 0) {
-    parts.push(`added ${result.added.length} member${result.added.length === 1 ? "" : "s"}`);
+    parts.push(`added ${characterCountPhrase(result.added.length)}`);
   } else if (result.alreadyPresent.length > 0) {
     parts.push(result.skipped.length === 0 ? "everything is already here" : `${result.alreadyPresent.length} already here`);
   }
   if (result.skipped.length > 0) {
-    parts.push(`${result.skipped.length} member${result.skipped.length === 1 ? "" : "s"} skipped — a character was deleted`);
+    parts.push(`${characterCountPhrase(result.skipped.length)} skipped — a character was deleted`);
   }
   const rulesOn = result.rulesMinted.length + result.rulesAlreadyPresent.length;
   if (rulesOn > 0) {
@@ -129,6 +129,11 @@ export function applyNotice(args: {
   return { channel: degraded ? "warn" : "success", line: applySentence(args) };
 }
 
+/** A roster's seats counted in one word everywhere: characters. A member is a human in a room (the vocabulary map). */
+export function characterCountPhrase(count: number): string {
+  return `${count} ${count === 1 ? "character" : "characters"}`;
+}
+
 /** The row controls' accessible names carry what the badges only SHOW (side-eye P2-1: nine tab stops and
  *  not one announced that applying this roster switches automation on in the room).
  *
@@ -137,8 +142,8 @@ export function applyNotice(args: {
  *  mode, speaker labels and card visibility looked identical to one that only adds seats — the same
  *  under-report P2-1 filed for the rules, one field over. "Group behavior" is the SETTINGS SECTION's own
  *  word for that blob (`settings-context-tab.tsx`), so a host reads the same name in both places. */
-export function rosterCountsSuffix(memberCount: number, ruleCount: number, hasGroupConfig: boolean): string {
-  const parts = [`${memberCount} member${memberCount === 1 ? "" : "s"}`];
+export function rosterCountsSuffix(characterCount: number, ruleCount: number, hasGroupConfig: boolean): string {
+  const parts = [characterCountPhrase(characterCount)];
   if (ruleCount > 0) {
     parts.push(`${ruleCount} rule${ruleCount === 1 ? "" : "s"}`);
   }

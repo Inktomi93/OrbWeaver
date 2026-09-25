@@ -40,7 +40,7 @@ const PARTY: RosterPresetSummary = {
   id: castId<RosterPresetId>("roster_preset_ct_party"),
   name: "Adventuring Party",
   description: "",
-  memberCount: 3,
+  characterCount: 3,
   members: [member("character_ct_1", "Ash", 0), member("character_ct_2", "Brook", 1), member("character_ct_3", "Cinder", 2)],
   anchorPersonaId: null,
   hasGroupConfig: true,
@@ -56,7 +56,7 @@ const DUET: RosterPresetSummary = {
   ...PARTY,
   id: castId<RosterPresetId>("roster_preset_ct_duet"),
   name: "Book Club",
-  memberCount: 1,
+  characterCount: 1,
   members: [member("character_ct_4", "Dara", 0)],
   rules: [{ rulePresetId: "pacingNudge", knobs: { everyN: 8, steer: "s" } }],
 };
@@ -66,7 +66,7 @@ const QUIET: RosterPresetSummary = {
   ...PARTY,
   id: castId<RosterPresetId>("roster_preset_ct_quiet"),
   name: "Quiet Table",
-  memberCount: 2,
+  characterCount: 2,
   members: [member("character_ct_5", "Ember", 0), member("character_ct_6", "Fen", 1)],
   rules: [],
 };
@@ -119,14 +119,14 @@ test("#1838: the census reads on the row's SUBTITLE line, under the name it coun
         return { text: subtitle.textContent ?? "", below: s.top >= t.bottom - 1, leftAligned: Math.abs(s.left - t.left) <= 1 };
       }),
     )
-    .toMatchObject({ text: "3 members · 2 rules · Ash, Brook, Cinder", below: true, leftAligned: true });
+    .toMatchObject({ text: "3 characters · 2 rules · Ash, Brook, Cinder", below: true, leftAligned: true });
 });
 
 test("#1838: the scent counts in words — singular arms, and no zero-rules noise", async ({ mount, page }) => {
   await stub(page);
   const rows = await mount(<RosterCollectionRowsStory width={990} />);
-  await expect(rows.getByText("1 member · 1 rule · Dara")).toBeVisible();
-  await expect(rows.getByText("2 members · Ember, Fen")).toBeVisible();
+  await expect(rows.getByText("1 character · 1 rule · Dara")).toBeVisible();
+  await expect(rows.getByText("2 characters · Ember, Fen")).toBeVisible();
   // The absent half is asserted as ABSENT, not merely un-asserted: "0 rules" on every rule-less roster is
   // the failure this arm exists to catch.
   await expect(rows.getByText("0 rules")).toHaveCount(0);
@@ -141,7 +141,7 @@ test("#1838: the row's spoken DESCRIPTION is the scent, unchanged by the move", 
   // `exact`: the row carries a kebab named "Actions for Adventuring Party", so a substring match resolves
   // to both. The ROW button's accessible name is exactly the roster's name.
   const row = rows.getByRole("button", { name: "Adventuring Party", exact: true });
-  await expect(row).toHaveAccessibleDescription("3 members · 2 rules · Ash, Brook, Cinder");
+  await expect(row).toHaveAccessibleDescription("3 characters · 2 rules · Ash, Brook, Cinder");
 });
 
 test("#1838: the host's filter string narrows the OWNER's rows", async ({ mount, page }) => {
