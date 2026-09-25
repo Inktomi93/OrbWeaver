@@ -211,8 +211,10 @@ function ConnectionEditorBody({ connectionId, onDone, trpc, invalidation }: Conn
           >
             <ConnectionPromptCache
               busy={busy}
+              connectionId={connectionId}
               connectionLabel={connection.label}
-              onCommit={(next): void => patch({ promptCache: next })}
+              onReset={(): void => patch({ promptCache: null })}
+              save={(next): Promise<unknown> => update.mutateAsync({ connectionId, patch: { promptCache: next } })}
               stored={connection.promptCache}
             />
           </EditorTier>

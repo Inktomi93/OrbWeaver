@@ -474,6 +474,8 @@ const EXPLICIT_CACHE_CAPABILITY: NonNullable<TrpcWireOutput<"connection.capabili
 };
 const EXPLICIT_CACHE_CAPABILITIES = { ...CONNECTION_CAPABILITIES, capability: EXPLICIT_CACHE_CAPABILITY, baseline: EXPLICIT_CACHE_CAPABILITY };
 const SHIPPED = { enabled: true, cacheSystem: true, historyDepth: null, ttl: "1h" } as const;
+// Comfortably past the autosave debounce, so a frozen clock run this far always closes the save window.
+const PAST_THE_SAVE_WINDOW_MS = 2000;
 
 function cacheTier(page: Page): Locator {
   return page.locator('[data-slot="connection-editor-tier"][data-tier="Prompt caching"]');
@@ -549,6 +551,25 @@ test("the depth field commits on Enter, never per keystroke", async ({ mount, pa
     .poll(() => recorder.lastInput("connection.update"), { intervals: [20, 50, 100] })
     .toEqual({ connectionId: CONNECTION_ID, patch: { promptCache: { ...SHIPPED, historyDepth: 12 } } });
   await expect.poll(() => recorder.count("connection.update"), { intervals: [20, 50, 100] }).toBe(1);
+});
+
+// The tier is an autosave form (D78): changes made inside one save window reach the server as ONE whole
+// document carrying all of them. The page clock is frozen after the tier opens, so the window closes only
+// when the test runs it forward; a write per control would land twice, the second without the first change.
+test("two changes inside one save window are written once, as one document holding both", async ({ mount, page }) => {
+  const recorder = await stubEditor(page, { capabilities: EXPLICIT_CACHE_CAPABILITIES });
+  await mount(<ConnectionEditorStory />);
+  const body = await openCacheTier(page);
+  await page.clock.install();
+  await body.getByRole("switch").nth(1).click();
+  await body.getByRole("radio").nth(0).click();
+  await page.clock.runFor(PAST_THE_SAVE_WINDOW_MS);
+  await expect
+    .poll(() => recorder.lastInput("connection.update"), { intervals: [20, 50, 100] })
+    .toEqual({ connectionId: CONNECTION_ID, patch: { promptCache: { ...SHIPPED, cacheSystem: false, ttl: "5m" } } });
+  expect(recorder.count("connection.update")).toBe(1);
+  await expect(body.getByRole("switch").nth(1)).not.toBeChecked();
+  await expect(body.getByRole("radio").nth(0)).toHaveAttribute("aria-checked", "true");
 });
 
 test("stored settings with caching off: the dependent controls are disabled, the badge counts, and the reset writes NULL", async ({ mount, page }) => {

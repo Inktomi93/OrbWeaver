@@ -1,5 +1,5 @@
-// The Prompt caching tier's pure folds: when the tier shows, the changed-field count, the whole document a
-// control writes, and the depth field's commit mapping. The shape and its bounds are the contract's.
+// The Prompt caching tier's pure folds: when the tier shows, the changed-field count, and the depth field's
+// commit mapping. The shape and its bounds are the contract's.
 
 import type { Capability } from "@orb/contracts/inference";
 import { GENERATION_FLOOR, PROMPT_CACHE_DEPTH_CEIL, SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
@@ -9,7 +9,6 @@ import {
   promptCacheDepthOf,
   promptCacheTtlOf,
   showsPromptCache,
-  withPromptCache,
 } from "../../../../../packages/client/src/features/credentials/lib/prompt-cache-model.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
@@ -36,15 +35,6 @@ test("the badge counts the fields that differ from the shipped behavior; a NULL 
   expect(promptCacheChangedCount(null)).toBe(0);
   expect(promptCacheChangedCount(SHIPPED_PROMPT_CACHE)).toBe(0);
   expect(promptCacheChangedCount({ ...SHIPPED_PROMPT_CACHE, ttl: "5m", historyDepth: 3 })).toBe(2);
-});
-
-test("a control writes the whole document: the effective settings with its one field changed", () => {
-  expect(withPromptCache(null, { ttl: "5m" })).toEqual({ ...SHIPPED_PROMPT_CACHE, ttl: "5m" });
-  expect(withPromptCache({ ...SHIPPED_PROMPT_CACHE, enabled: false }, { cacheSystem: false })).toEqual({
-    ...SHIPPED_PROMPT_CACHE,
-    enabled: false,
-    cacheSystem: false,
-  });
 });
 
 test("the depth field: empty is automatic, an in-range whole number writes, anything else writes nothing", () => {
