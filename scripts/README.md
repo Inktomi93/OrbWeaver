@@ -102,7 +102,7 @@ it manual; no standing workflow or cron exists.
 it is contract-referenced by the stack tool, the seed tool's `multi-user` verb (its env contract) and
 snap's fixture door — tooling reaching UP into `scripts/` is the inversion the zone split exists to
 forbid. Its front door is `pnpm fixture <verb>` (never a path). The vLLM engine launcher that lived
-beside it left the repo for the owner's infra (docs/plans/fleet-out/design.md).
+beside it left the repo for the owner's infra (ADR 0007).
 
 ### Server runtime data that USED to live here
 
