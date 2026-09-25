@@ -52,6 +52,14 @@ export const REVIEWED_GRANTS_Z_TO_CITATIONS: readonly ReviewedGateGrant[] = [
     endsWhen: "the version identity becomes hot-swappable within a running process (a live redeploy signal), or the query gains reachable seam coverage.",
   },
   {
+    id: "query-freshness-coverage:share-status",
+    policyId: "query-freshness-coverage",
+    subject: "share.status",
+    operation: "uncovered-query-freshness",
+    why: "the owner's Share card (features/user-admin/components/share-card.tsx:76) polls share.status through refetchInterval = sharePollMs: 1 s while starting or restarting, 5 s while up, 10 s otherwise (the per-state table in features/user-admin/lib/share-model.ts). share.start and share.stop answer with the whole ShareStatus and write it straight into the cached share.status through createEntityMutation's `echo` (features/user-admin/hooks/use-share-mutations.ts). The relay changes state inside the server process with no bus event, so the poll is the freshness source, not a missing invalidation row.",
+    endsWhen: "share.status gains reachable seam or bus coverage, or the Share card stops polling it.",
+  },
+  {
     id: "query-freshness-coverage:settings-checkforupdate",
     policyId: "query-freshness-coverage",
     subject: "settings.checkForUpdate",
