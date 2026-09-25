@@ -39,9 +39,9 @@
 // dishonest — which is what #1985 found and fixed (`load-budget-cgroup.ts#cgroupQuotaCores`).
 //
 // PURE except for `readBoxLoad` (the one `os.loadavg()` read) and `budgetCeilingMs` (the one env read); the
-// cgroup fence `readBoxLoad` folds in (quota ceiling + throttle sample) is read by `load-budget-cgroup.ts`.
-// Every judging function takes the reading as a value, so a planted control forces the loaded condition
-// instead of spinning the box.
+// cgroup CPU limit `readBoxLoad` folds in (quota ceiling + throttle sample, whatever a container, CI or a
+// systemd slice already imposes) is read by `load-budget-cgroup.ts`. Every judging function takes the
+// reading as a value, so a planted control forces the loaded condition instead of spinning the box.
 import { loadavg } from "node:os";
 import process from "node:process";
 import type { CpuThrottleSample } from "./load-budget-cgroup.ts";

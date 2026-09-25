@@ -102,6 +102,9 @@ const config = {
       // subpath held in a constant. Knip cannot resolve that indirection, while the heap suite exercises
       // the installed module and its exact-version compatibility fence.
       ignoreDependencies: ["chrome-devtools-mcp"],
+      // taskkill is the win32 OS binary killPidGroup's win32 arm execs (_shared/proc.ts) — never an npm
+      // dependency, so knip has no package to credit it to.
+      ignoreBinaries: ["taskkill"],
     },
     "packages/kit": { entry: ["src/**/index.ts!"], project: ["src/**/*.ts!"] },
     "packages/contracts": { entry: ["src/**/index.ts!"], project: ["src/**/*.ts!"] },

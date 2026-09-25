@@ -42,6 +42,13 @@ allowBuilds:
 # Versions are the latest resolved at scaffold (2026-06) — "use whatever the latest is".
 catalog:
   # --- toolchain ---
+  # cross-spawn: niced-exec.ts's win32 child spawn (proc.ts#spawnFullPriorityChild) — resolves and quotes
+  # a `.cmd`/`.bat` npm-bin shim correctly; a bare `spawn` there cannot resolve PATHEXT, and our own hand
+  # rolled quoting was a second, narrower home for the same problem. Already in the lockfile as a
+  # transitive dependency of several dev tools; pinned exact so a transitive bump cannot silently change
+  # our own Windows escaping.
+  cross-spawn: 7.0.6
+  "@types/cross-spawn": ^6.0.6
   knip: ^6.27.0
   yaml: 2.9.0
   "@typescript/native": npm:typescript@7.0.2
