@@ -252,6 +252,14 @@ function eventCodes(turn: ChatResult): readonly string[] {
   return turn.events.flatMap((e) => (e.kind === "warning" ? [e.code] : []));
 }
 
+// The preset's parallel-tool switch turned OFF (`false`) disables parallel tool use; unset leaves the default.
+test("parallelToolCalls false sends disable_parallel_tool_use; unset sends none", async () => {
+  const off = await recordedTurn(turnRequest({ params: { effort: "high", advanced: { parallelToolCalls: false } } }), anthropicTextStream("ok"));
+  expect(off.body?.body["tool_choice"]).toMatchObject({ type: "auto", disable_parallel_tool_use: true });
+  const unset = await recordedTurn(turnRequest({ params: { effort: "high" } }), anthropicTextStream("ok"));
+  expect(JSON.stringify(unset.body?.body ?? {})).not.toContain("disable_parallel_tool_use");
+});
+
 // #2575: Fable 5.1, Mythos 5.1 and Opus 5.5 answer a forced `tool_choice` (`any` / `tool`) with a 400
 // ("tool_choice: type "tool" and "any" are not supported for this model"). The rpg state round sends
 // `required`; on those models the wire must send `auto` instead and SAY so, never the request that 400s.

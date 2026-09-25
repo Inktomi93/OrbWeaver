@@ -809,6 +809,22 @@ async function openAdvanced(deck: Locator): Promise<void> {
   await deck.getByRole("button", { name: "Advanced" }).click();
 }
 
+// PARALLEL TOOL CALLS can be turned OFF. Unset is the model's own default (most allow parallel calls), so the
+// switch reads on; off writes `false`, which every wire that has the control sends; on clears the field again.
+test("PARALLEL TOOL CALLS — off saves false, and on clears the field back to the model default", async ({ mount }) => {
+  const deck = await mount(<ParamsDeckGhostStory />);
+  await openAdvanced(deck);
+
+  const toggle = deck.getByRole("switch", { name: "Parallel tool calls" });
+  await expect(toggle).toBeChecked();
+  await toggle.click();
+  await expect.poll(() => saved(deck).textContent(), savePoll()).toContain('advanced:{"parallelToolCalls":false}');
+
+  await toggle.click();
+  await expect(toggle).toBeChecked();
+  await expect.poll(() => saved(deck).textContent(), savePoll()).not.toContain("parallelToolCalls");
+});
+
 // ── #1570 item 3 · THE BOX ALWAYS SHOWS WHAT THE PRESET HOLDS, IN BOTH DIRECTIONS ────────────────
 // The field's own ruling is "a blur re-mounts with the CANONICAL serialization of what was actually stored
 // — the honest answer to 'invalid JSON is ignored'". Keyed on the stored serialization ALONE that was true

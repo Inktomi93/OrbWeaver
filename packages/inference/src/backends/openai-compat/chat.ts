@@ -191,8 +191,15 @@ function openAiCompatibleShape(req: OpenAiCompatChatRequest, knobs: ResolvedChat
       ...(req.responseFormat !== undefined ? { responseFormat: jsonResponseFormat(req.responseFormat, req.responseFormat.schema) } : {}),
       providerOptions,
     },
-    extraBody: {},
+    extraBody: parallelToolCallsBody(req),
   };
+}
+
+// The @ai-sdk/openai-compatible provider models no `parallel_tool_calls`, so the preset's switch rides the raw
+// body beside a tools request. Unset sends nothing: the endpoint's own default stands.
+function parallelToolCallsBody(req: OpenAiCompatChatRequest): Record<string, unknown> {
+  const parallel = req.params.advanced?.parallelToolCalls;
+  return req.tools !== undefined && parallel !== undefined ? { parallel_tool_calls: parallel } : {};
 }
 
 /** THE OPENROUTER PLUGIN UNION (audit C3), validated against the 3.0.0 dist's own shape
