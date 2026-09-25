@@ -3,7 +3,7 @@
 # this is how main-only procedure reaches it. The `orchestrator` skill body arrives beside this output from
 # `orchestrator-inject.mjs`, a separate additionalContext string with its own harness cap, so this output
 # only points at it. It prints, in this order, because a long output is persisted with only its head shown:
-#   1. the CPU ceiling line (`cpu-fence.sh`) and the core.hooksPath repair;
+#   1. the core.hooksPath repair;
 #   2. the account identity and the bridge inbox it owns;
 #   3. the first actions: the bridge plugin state, the injected skill, the notes to read;
 #   4. the worktree count and main's dirty state;
@@ -16,9 +16,6 @@ HOOK_IN=""; [ -t 0 ] || HOOK_IN=$(cat 2>/dev/null || true)
 SELF_REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." 2>/dev/null && pwd)
 cd "${CLAUDE_PROJECT_DIR:-$SELF_REPO_ROOT}" 2>/dev/null || exit 0
 echo "=== AUTO-ONBOARD (SessionStart hook — read, then ACT on it; re-derive nothing below) ==="
-# PER-SESSION CPU/MEMORY CEILING. Its own header owns the why.
-bash "${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/cpu-fence.sh" 2>/dev/null
-
 # core.hooksPath REPAIR. While it is set locally, lefthook does not sync the git hooks. An external tool
 # (likely Codex) sets it to the default hooks dir, which is the same as unset, so clearing that value is
 # safe. Any other value is someone's choice: warn, never touch.

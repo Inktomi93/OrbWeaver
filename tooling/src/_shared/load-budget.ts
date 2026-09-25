@@ -188,7 +188,7 @@ export function computeLoadFactor(loadavg1: number, cpuCount: number, cap = FACT
  *
  *  THE HOLE IT CLOSES. `computeLoadFactor` is `max(1, loadavg/cores)`, so it returns EXACTLY 1 for the whole
  *  band `0 < loadavg < cores` — a fenced session at 99% utilisation gets no uplift at all. That band is not
- *  a quiet box: `.claude/hooks/cpu-fence.sh` enforces `CPUQuota` through cgroup v2's 100ms period, and a
+ *  a quiet box: a cgroup CPU quota is enforced through cgroup v2's 100ms period, and a
  *  tree that wants more CPU than its slice IS STOPPED for the rest of each period it exceeds. Measured on
  *  this session's own scope while writing this (2026-09-12): `cpu.max` = `800000 100000` (8 cores),
  *  `nr_periods` 1,282,742, `nr_throttled` 158,691 — 12.4% of periods ended in a throttle, while loadavg sat

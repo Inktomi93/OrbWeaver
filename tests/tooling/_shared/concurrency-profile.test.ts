@@ -2,12 +2,11 @@
 // tooling/src/_shared/concurrency-profile.ts). Home per Spine-Testing §2: a tooling module's test lives in
 // tests/tooling/.
 //
-// WHAT THIS SUITE IS FOR (#1835). The committed JSON is read by THREE unrelated consumers — bash (two
-// hooks, via jq), TypeScript configs, scripts and tools (vitest, scripts/ts7.ts,
-// playwright-ct) and the verify tree — and only this one of them has a type checker. So the file's SHAPE is
-// pinned here: a profile that lost a field, or grew a string where a cap belongs, would otherwise reach the
-// bash readers as an empty jq result and the TS readers as `NaN` workers, which vitest reads as UNLIMITED —
-// i.e. the exact box saturation the file exists to cap, delivered by the file meant to prevent it.
+// WHAT THIS SUITE IS FOR (#1835, 0176). The committed JSON holds each profile's CEILINGS and the measured
+// cost of one unit of work; the door derives every cap from the machine. So two things are pinned here: the
+// file's SHAPE (a profile that lost a field would otherwise reach a config as `NaN` workers, which vitest
+// reads as UNLIMITED), and the DERIVATION, always against an explicit machine so no assertion depends on the
+// host running the suite. The big box keeps the committed ceilings exactly; a small box gets smaller caps.
 //
 // The two profiles are pinned by RELATION, not by literal, wherever a literal would just re-spell the JSON:
 // the point of `dedicated` is that it is never STRICTER than `shared`. The handful of absolute numbers below
@@ -15,59 +14,70 @@
 // changing one of those is a doctrine edit, and this suite is what says so.
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { tmpdir, totalmem } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
-import type { ConcurrencyProfile } from "@orb/tooling/_shared/concurrency-profile";
+import type { ConcurrencyProfile, DerivedCap, Machine, ProfileCeilings, UnitCosts } from "@orb/tooling/_shared/concurrency-profile";
 import {
   CONCURRENCY_PROFILE_NAMES,
   CONCURRENCY_PROFILE_PATH,
   DEDICATED_BOX_ENV,
+  deriveConcurrencyProfile,
   parseConcurrencyProfile,
+  parseUnitCosts,
   profileNameFor,
+  RUN_PRICED_CAPS,
   readConcurrencyProfile,
+  readMachine,
   readStageBudgets,
   stageBudgetsFor,
+  UNIT_PRICED_CAPS,
 } from "@orb/tooling/_shared/concurrency-profile";
 import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 const BODY = readFileSync(CONCURRENCY_PROFILE_PATH, "utf8");
+const COSTS = parseUnitCosts(BODY);
 
-/** The caps that are CAPS — every one must be ≥1 in both profiles (a zero worker pool never runs). */
-const POSITIVE_CAPS = [
-  "vitestMaxWorkers",
-  "ctWorkers",
-  "ts7Checkers",
-  "pnpmWorkspaceConcurrency",
-  "eslintConcurrency",
-  "strykerConcurrency",
-  "cpdWorkers",
-  "hookPoolSlots",
-  "hookTs7Checkers",
-  "ctRunnersHostWide",
-  "stageCap",
-] as const satisfies readonly (keyof ConcurrencyProfile)[];
+/** Every derived cap — each must be ≥1 in both profiles (a zero worker pool never runs). */
+const DERIVED_CAPS: readonly DerivedCap[] = [...UNIT_PRICED_CAPS, ...RUN_PRICED_CAPS];
+/** The positive integers a committed row carries: the derived caps' ceilings plus the committed stage cap. */
+const POSITIVE_CAPS: readonly (DerivedCap | "stageCap")[] = [...DERIVED_CAPS, "stageCap"];
+
+const MIB_PER_GIB = 1024;
+const BYTES_PER_MIB = 1024 * 1024;
+/** The owner's box, whose caps the ceilings were tuned on. */
+const BIG_BOX: Machine = { cores: 24, memoryMiB: 48 * MIB_PER_GIB };
+/** The 4-core box whose `process.constrainedMemory()` reads ~13.4 GiB, where 0176's OOM kills were measured. */
+const SMALL_BOX: Machine = { cores: 4, memoryMiB: 13_681 };
+
+/** A committed row without its share: the caps a machine big enough for every ceiling derives. */
+function capsOf(committed: ProfileCeilings): ConcurrencyProfile {
+  const { machineShare: _share, ...caps } = committed;
+  return caps;
+}
 
 test("both committed profiles parse, and every cap is a usable positive integer", () => {
   for (const name of CONCURRENCY_PROFILE_NAMES) {
     const profile = parseConcurrencyProfile(BODY, name);
     expect(profile.name, "the parsed profile names itself").toBe(name);
+    expect(profile.machineShare, `${name}.machineShare is a fraction of the machine`).toBeGreaterThan(0);
+    expect(profile.machineShare).toBeLessThanOrEqual(1);
     for (const cap of POSITIVE_CAPS) {
       expect(profile[cap], `${name}.${cap} must be a positive integer — a zero-sized pool never runs`).toBeGreaterThanOrEqual(1);
     }
   }
 });
 
-test("SHARED is the default and carries the exact numbers the doctrine text promises", () => {
+test("SHARED is the default and its CEILINGS carry the exact numbers the doctrine text promises", () => {
   const shared = parseConcurrencyProfile(BODY, "shared");
   // The lane skill (.claude/skills/lane/SKILL.md) points at tooling/concurrency-profile.json for these
   // values instead of quoting them ("pass a worker flag only to go below the values"). These pins keep the
-  // shared-host defaults from drifting silently.
+  // shared-host ceilings from drifting silently.
   expect(shared.vitestMaxWorkers, "vitest maxWorkers default").toBe(4);
   // 2 -> 4 by OWNER RULING 2026-09-06 (#1848). The measured CT suite is ~160 WORKER-minutes (488 files /
   // 5121 cases), so 2 workers made the push bar ~95 min and 4 makes it ~51; the box-wide bound is
-  // `ctRunnersHostWide` (<=8 Chromiums) plus the cpu-fence quota, not this per-run number.
+  // `ctRunnersHostWide` (<=8 Chromiums), not this per-run number.
   expect(shared.ctWorkers, "playwright CT workers default").toBe(4);
   expect(shared.ts7Checkers, "ts7 --checkers default").toBe(4);
   expect(shared.pnpmWorkspaceConcurrency, "pnpm -r --workspace-concurrency default").toBe(1);
@@ -76,26 +86,20 @@ test("SHARED is the default and carries the exact numbers the doctrine text prom
   expect(shared.eslintConcurrency, "eslint --concurrency default").toBe(4);
   expect(shared.strykerConcurrency, "Stryker calibration-preserving worker pool").toBe(6);
   expect(shared.cpdWorkers, "jscpd workers on the shared host").toBe(4);
-  expect(shared.hookPoolSlots, "the edit hook's HOST-WIDE pool, shared by its two file-scoped legs").toBe(4);
+  expect(shared.hookPoolSlots, "the edit hook's HOST-WIDE pool, shared by its file-scoped legs").toBe(4);
   expect(shared.hookTs7Checkers, "the edit hook's whole-program TS leg fires on every edit — it takes fewer checkers than a batch run").toBe(2);
   expect(shared.ctRunnersHostWide, "concurrent CT runners allowed across the whole host").toBe(2);
+  expect(shared.ts7RunnersHostWide, "concurrent whole-program typechecks allowed across the whole host").toBe(3);
   expect(shared.stageCap, "live snap stages per box — 3 on a host that also serves the dev stack and the homelab").toBe(3);
-  // A ceiling of 0 would mean "no ceiling" — the shared profile MUST set one, or the cpu-fence hook
-  // stands down on the very box it exists for.
-  expect(shared.sessionCpuQuotaPct, "the per-session CPUQuota% the cpu-fence hook sets").toBeGreaterThan(0);
-  expect(shared.sessionMemoryHigh, "the per-session MemoryHigh the cpu-fence hook sets").not.toBe("");
 });
 
-test("DEDICATED is never STRICTER than shared, and stands the per-session ceiling down", () => {
+test("DEDICATED is never STRICTER than shared", () => {
   const shared = parseConcurrencyProfile(BODY, "shared");
   const dedicated = parseConcurrencyProfile(BODY, "dedicated");
   for (const cap of POSITIVE_CAPS) {
     expect(dedicated[cap], `dedicated.${cap} must not be lower than shared.${cap} — the opt-in is an UNLOCK`).toBeGreaterThanOrEqual(shared[cap]);
   }
-  // The two "0 / empty means no ceiling" fields, asserted as the ABSENCE they encode: on a box that is
-  // yours alone the hook prints that it is standing down rather than throttling you.
-  expect(dedicated.sessionCpuQuotaPct, "no CPUQuota on a dedicated box").toBe(0);
-  expect(dedicated.sessionMemoryHigh, "no MemoryHigh on a dedicated box").toBe("");
+  expect(dedicated.machineShare, "a box that is yours alone is yours to size to").toBeGreaterThanOrEqual(shared.machineShare);
   expect(dedicated.strykerConcurrency, "Stryker's calibrated concurrency is profile-independent").toBe(6);
   expect(dedicated.cpdWorkers, "jscpd may use the whole dedicated 24-core box").toBe(24);
 });
@@ -104,6 +108,98 @@ test("the whole-run verify queue applies in BOTH profiles — two whole runs on 
   for (const name of CONCURRENCY_PROFILE_NAMES) {
     expect(parseConcurrencyProfile(BODY, name).wholeVerifyQueue, `${name}.wholeVerifyQueue`).toBe(true);
   }
+});
+
+// ── the derivation (0176): caps follow the machine, never past the committed ceiling ────────────────────
+
+test("the owner's 24-core/48 GB box derives EXACTLY the committed ceilings, in both profiles", () => {
+  for (const name of CONCURRENCY_PROFILE_NAMES) {
+    const committed = parseConcurrencyProfile(BODY, name);
+    expect(deriveConcurrencyProfile(committed, COSTS, BIG_BOX), `${name} on the big box`).toStrictEqual(capsOf(committed));
+  }
+});
+
+test("a 4-core/13.4 GB box derives SMALLER caps, and the host-wide typecheck pool fits its memory", () => {
+  for (const name of CONCURRENCY_PROFILE_NAMES) {
+    const committed = parseConcurrencyProfile(BODY, name);
+    const small = deriveConcurrencyProfile(committed, COSTS, SMALL_BOX);
+    for (const cap of DERIVED_CAPS) {
+      expect(small[cap], `${name}.${cap} never exceeds its ceiling`).toBeLessThanOrEqual(committed[cap]);
+      expect(small[cap], `${name}.${cap} never drops below one`).toBeGreaterThanOrEqual(1);
+    }
+    const cores = committed.machineShare * SMALL_BOX.cores;
+    expect(small.vitestMaxWorkers, `${name}: vitest workers fit the cores`).toBeLessThanOrEqual(cores);
+    expect(small.ts7Checkers, `${name}: checkers fit the cores`).toBeLessThanOrEqual(cores);
+    // THE 0176 SYMPTOM: several whole-program typechecks each sized to the whole box. The pool admits only
+    // as many runs as the profile's memory share holds at the derived checker count.
+    const run = COSTS.ts7Checker.baseMemoryMiB + small.ts7Checkers * COSTS.ts7Checker.memoryMiB;
+    expect(small.ts7RunnersHostWide * run, `${name}: the concurrent typechecks fit the memory share`).toBeLessThanOrEqual(
+      committed.machineShare * SMALL_BOX.memoryMiB,
+    );
+  }
+  const shared = deriveConcurrencyProfile(parseConcurrencyProfile(BODY, "shared"), COSTS, SMALL_BOX);
+  const committed = parseConcurrencyProfile(BODY, "shared");
+  for (const cap of ["vitestMaxWorkers", "ctWorkers", "ts7Checkers", "eslintConcurrency", "cpdWorkers", "ctRunnersHostWide", "ts7RunnersHostWide"] as const) {
+    expect(shared[cap], `shared.${cap} is strictly smaller on the small box`).toBeLessThan(committed[cap]);
+  }
+  expect(shared.ts7RunnersHostWide, "one whole-program typecheck at a time on the small box").toBe(1);
+});
+
+const FLAT_COSTS: UnitCosts = {
+  vitestWorker: { cores: 1, memoryMiB: 1000, baseMemoryMiB: 0 },
+  ctWorker: { cores: 1, memoryMiB: 1000, baseMemoryMiB: 0 },
+  ts7Checker: { cores: 1, memoryMiB: 1000, baseMemoryMiB: 4000 },
+  eslintWorker: { cores: 1, memoryMiB: 1000, baseMemoryMiB: 0 },
+  cpdWorker: { cores: 1, memoryMiB: 0, baseMemoryMiB: 0 },
+  hookLeg: { cores: 1, memoryMiB: 1000, baseMemoryMiB: 0 },
+};
+
+test("each cap is the smallest of its ceiling, its core bound and its memory bound, never below one", () => {
+  const whole = { ...parseConcurrencyProfile(BODY, "dedicated"), machineShare: 1 };
+  // Cores bind: 3 cores, plenty of memory.
+  expect(deriveConcurrencyProfile(whole, FLAT_COSTS, { cores: 3, memoryMiB: 1_000_000 }).vitestMaxWorkers).toBe(3);
+  // Memory binds: plenty of cores, 5 GiB-ish of memory.
+  expect(deriveConcurrencyProfile(whole, FLAT_COSTS, { cores: 64, memoryMiB: 5500 }).vitestMaxWorkers).toBe(5);
+  // The ceiling binds: a huge machine never goes past the committed number.
+  expect(deriveConcurrencyProfile(whole, FLAT_COSTS, { cores: 512, memoryMiB: 10_000_000 }).vitestMaxWorkers).toBe(whole.vitestMaxWorkers);
+  // A unit that prices no memory is bounded by cores alone.
+  expect(deriveConcurrencyProfile(whole, FLAT_COSTS, { cores: 6, memoryMiB: 1 }).cpdWorkers).toBe(6);
+  // The base is paid before the first unit: 6000 MiB less a 4000 base leaves room for two checkers.
+  expect(deriveConcurrencyProfile(whole, FLAT_COSTS, { cores: 64, memoryMiB: 6000 }).ts7Checkers).toBe(2);
+  // A machine too small for one unit still runs one: a zero-sized pool never runs at all.
+  const tiny = deriveConcurrencyProfile(whole, FLAT_COSTS, { cores: 1, memoryMiB: 100 });
+  for (const cap of DERIVED_CAPS) {
+    expect(tiny[cap], `${cap} on a tiny machine`).toBe(1);
+  }
+});
+
+test("the profile's machine share scales both bounds", () => {
+  const half = { ...parseConcurrencyProfile(BODY, "dedicated"), machineShare: 0.5 };
+  expect(deriveConcurrencyProfile(half, FLAT_COSTS, { cores: 8, memoryMiB: 1_000_000 }).vitestMaxWorkers, "half of 8 cores").toBe(4);
+  expect(deriveConcurrencyProfile(half, FLAT_COSTS, { cores: 64, memoryMiB: 8000 }).vitestMaxWorkers, "half of 8000 MiB").toBe(4);
+});
+
+test("a run cap prices one run at its inner cap's DERIVED size, and only the CT runs are core-bound", () => {
+  const whole = { ...parseConcurrencyProfile(BODY, "dedicated"), machineShare: 1 };
+  // 64 cores, 30000 MiB: 8 checkers (the dedicated ceiling) => a 12000 MiB run => two runs fit.
+  const roomy = deriveConcurrencyProfile(whole, FLAT_COSTS, { cores: 64, memoryMiB: 30_000 });
+  expect(roomy.ts7Checkers).toBe(8);
+  expect(roomy.ts7RunnersHostWide).toBe(2);
+  expect(roomy.pnpmWorkspaceConcurrency).toBe(2);
+  // 4 cores: the checkers drop to 4, a run to 8000 MiB, and three runs fit the same memory — the typecheck
+  // run caps ignore cores, because past the core count a typecheck only time-slices.
+  const fewCores = deriveConcurrencyProfile(whole, FLAT_COSTS, { cores: 4, memoryMiB: 30_000 });
+  expect(fewCores.ts7Checkers).toBe(4);
+  expect(fewCores.ts7RunnersHostWide).toBe(3);
+  // A CT run is 4 workers x 1 core, so 4 cores hold exactly one run whatever the memory.
+  expect(fewCores.ctRunnersHostWide).toBe(1);
+});
+
+test("readMachine reads this process's cores and memory, never more memory than the box has", () => {
+  const machine = readMachine();
+  expect(Number.isInteger(machine.cores) && machine.cores >= 1, "at least one core").toBe(true);
+  expect(machine.memoryMiB, "some memory").toBeGreaterThan(0);
+  expect(machine.memoryMiB * BYTES_PER_MIB, "a cgroup limit never reads above the physical total").toBeLessThanOrEqual(totalmem());
 });
 
 test(`${DEDICATED_BOX_ENV} selects the profile, and an unrecognised value REFUSES instead of silently meaning "shared"`, () => {
@@ -119,9 +215,16 @@ test(`${DEDICATED_BOX_ENV} selects the profile, and an unrecognised value REFUSE
   }
 });
 
-test("the env door reads the committed file end to end", () => {
-  expect(readConcurrencyProfile({}), "no env = shared").toStrictEqual(parseConcurrencyProfile(BODY, "shared"));
-  expect(readConcurrencyProfile({ [DEDICATED_BOX_ENV]: "1" })).toStrictEqual(parseConcurrencyProfile(BODY, "dedicated"));
+test("the env door reads the committed file end to end and derives for the machine it is given", () => {
+  for (const machine of [BIG_BOX, SMALL_BOX]) {
+    expect(readConcurrencyProfile({}, machine), "no env = shared").toStrictEqual(
+      deriveConcurrencyProfile(parseConcurrencyProfile(BODY, "shared"), COSTS, machine),
+    );
+    expect(readConcurrencyProfile({ [DEDICATED_BOX_ENV]: "1" }, machine)).toStrictEqual(
+      deriveConcurrencyProfile(parseConcurrencyProfile(BODY, "dedicated"), COSTS, machine),
+    );
+  }
+  expect(readConcurrencyProfile({}), "the default machine is this one").toStrictEqual(readConcurrencyProfile({}, readMachine()));
 });
 
 // ── the stage budgets (#1848): the ONE place a verify stage's hang ceiling comes from ─────────────────
@@ -140,6 +243,8 @@ test("the CT ceiling FOLLOWS ctWorkers, covers the host-slot wait, and never dip
   // (ct-runner-lock.ts reads `ctHostWaitMs` from this same row — one number, two readers).
   expect(budgets.ctSuiteMs, "the ceiling must exceed the wait a run is allowed to spend queueing").toBeGreaterThan(budgets.ctHostWaitMs);
   expect(budgets.ctSuiteMs, "…and the default floor").toBeGreaterThanOrEqual(budgets.defaultMs);
+  // A typecheck queued for a host slot waits inside its stage too, so its wait stays under the stage default.
+  expect(budgets.ts7HostWaitMs, "the typecheck queue wait fits inside a stage").toBeLessThan(budgets.defaultMs);
   // An absurdly cheap suite must still not shrink a stage's ceiling below the default.
   const cheap = BODY.replace(/"ctSuiteWorkerMinutes": \d+/u, '"ctSuiteWorkerMinutes": 1').replace(
     /"ctHostSlotWaitMinutes": \d+/u,
@@ -159,31 +264,57 @@ test("a broken stageBudgets row REFUSES loudly — never a defaulted ceiling", (
   expect(() => stageBudgetsFor(shared, BODY.replace(/"ctSuiteWorkerMinutes": \d+/u, '"ctSuiteWorkerMinutes": "165"'))).toThrow(
     /field "ctSuiteWorkerMinutes" is "165"/u,
   );
+  expect(() => stageBudgetsFor(shared, BODY.replace(/"ts7HostSlotWaitMinutes": \d+/u, '"ts7HostSlotWaitMinutes": 0'))).toThrow(
+    /field "ts7HostSlotWaitMinutes" is 0/u,
+  );
   expect(() => stageBudgetsFor(shared, BODY.replace(/"mutationGateMinutes": \d+/u, '"mutationGateMinutes": -1'))).toThrow(/field "mutationGateMinutes" is -1/u);
 });
 
-test("the budget door reads the committed file end to end, per profile", () => {
-  expect(readStageBudgets({})).toStrictEqual(stageBudgetsFor(parseConcurrencyProfile(BODY, "shared"), BODY));
-  expect(readStageBudgets({ [DEDICATED_BOX_ENV]: "1" })).toStrictEqual(stageBudgetsFor(parseConcurrencyProfile(BODY, "dedicated"), BODY));
+test("the budget door reads the committed file end to end, per profile and machine", () => {
+  for (const machine of [BIG_BOX, SMALL_BOX]) {
+    expect(readStageBudgets({}, machine)).toStrictEqual(stageBudgetsFor(readConcurrencyProfile({}, machine), BODY));
+    expect(readStageBudgets({ [DEDICATED_BOX_ENV]: "1" }, machine)).toStrictEqual(
+      stageBudgetsFor(readConcurrencyProfile({ [DEDICATED_BOX_ENV]: "1" }, machine), BODY),
+    );
+  }
+  expect(readStageBudgets({}, SMALL_BOX).ctSuiteMs, "fewer CT workers on a small box ⇒ a longer honest CT run").toBeGreaterThan(
+    readStageBudgets({}, BIG_BOX).ctSuiteMs,
+  );
 });
 
-/** The committed shared row, with one field replaced or (when `value` is absent) DROPPED — the two ways an
- *  edit to the JSON breaks it. Built by rewriting the entry list rather than mutating, so the parsed body
- *  stays the oracle for every other case in this file. */
-function sharedRowWith(field: string, value?: unknown): string {
-  const file = JSON.parse(BODY) as { readonly profiles: Record<string, Record<string, unknown>> };
-  const entries: [string, unknown][] = Object.entries(file.profiles["shared"] ?? {}).filter(([key]) => key !== field);
+/** The committed file with one shared-row field (or, given `row: "unitCosts.<name>"`, one unit-cost field)
+ *  replaced or DROPPED (when `value` is absent) — the two ways an edit to the JSON breaks it. Built by
+ *  rewriting the entry list rather than mutating, so the parsed body stays the oracle for every other case. */
+function bodyWith(path: readonly [string, string], field: string, value?: unknown): string {
+  const file = JSON.parse(BODY) as Record<string, Record<string, Record<string, unknown>>>;
+  const [section, key] = path;
+  const table = file[section] ?? {};
+  const entries: [string, unknown][] = Object.entries(table[key] ?? {}).filter(([name]) => name !== field);
   if (value !== undefined) {
     entries.push([field, value]);
   }
-  return JSON.stringify({ ...file, profiles: { ...file.profiles, shared: Object.fromEntries(entries) } });
+  return JSON.stringify({ ...file, [section]: { ...table, [key]: Object.fromEntries(entries) } });
 }
+const SHARED_ROW = ["profiles", "shared"] as const;
 
-test("worker and slot caps reject zero while the dedicated CPU quota may be zero", () => {
+test("worker and slot ceilings reject zero, and the machine share must be a fraction", () => {
   for (const cap of POSITIVE_CAPS) {
-    expect(() => parseConcurrencyProfile(sharedRowWith(cap, 0), "shared"), `${cap}=0 must refuse`).toThrow(/expected a positive integer/u);
+    expect(() => parseConcurrencyProfile(bodyWith(SHARED_ROW, cap, 0), "shared"), `${cap}=0 must refuse`).toThrow(/expected a positive integer/u);
   }
-  expect(parseConcurrencyProfile(sharedRowWith("sessionCpuQuotaPct", 0), "shared").sessionCpuQuotaPct).toBe(0);
+  for (const share of [0, -0.5, 1.5, "0.5"]) {
+    expect(() => parseConcurrencyProfile(bodyWith(SHARED_ROW, "machineShare", share), "shared"), `machineShare=${String(share)}`).toThrow(
+      /field "machineShare" is .* expected a fraction above 0 and at most 1/u,
+    );
+  }
+});
+
+test("a broken unit-cost row REFUSES loudly — never an unbounded cap", () => {
+  expect(() => parseUnitCosts('{"profiles":{}}')).toThrow(/has no "unitCosts" object/u);
+  expect(() => parseUnitCosts(bodyWith(["unitCosts", "ts7Checker"], "memoryMiB", -1))).toThrow(/"unitCosts.ts7Checker" field "memoryMiB" is -1/u);
+  expect(() => parseUnitCosts(bodyWith(["unitCosts", "ctWorker"], "cores"))).toThrow(/"unitCosts.ctWorker" field "cores" is undefined/u);
+  const free = JSON.parse(BODY) as { unitCosts: Record<string, unknown> };
+  free.unitCosts["hookLeg"] = { cores: 0, memoryMiB: 0, baseMemoryMiB: 0 };
+  expect(() => parseUnitCosts(JSON.stringify(free)), "a unit that costs nothing derives no cap").toThrow(/prices neither cores nor memory/u);
 });
 
 const CAPTURE_PRELOAD = `
@@ -263,28 +394,31 @@ test("all worker wrappers reject a malformed box switch before spawning, even wi
   expect(cpd.capture).toBeNull();
 });
 
-test("worker wrappers derive shared/dedicated defaults and preserve explicit native worker overrides", () => {
+test("worker wrappers inject the door's derived shared/dedicated caps and preserve explicit native worker overrides", () => {
+  // The child runs on this same machine, so the door's answer here IS the value the wrapper must inject.
+  const shared = readConcurrencyProfile({});
+  const dedicated = readConcurrencyProfile({ [DEDICATED_BOX_ENV]: "1" });
   const tsShared = runWrapper("ts7.ts", ["--version"], undefined).capture;
   const tsDedicated = runWrapper("ts7.ts", ["--version"], "1").capture;
   const tsExplicit = runWrapper("ts7.ts", ["--checkers", "1", "--version"], "1").capture;
-  expect(optionValue(tsShared?.args, "--checkers")).toBe("4");
-  expect(optionValue(tsDedicated?.args, "--checkers")).toBe("8");
+  expect(optionValue(tsShared?.args, "--checkers")).toBe(String(shared.ts7Checkers));
+  expect(optionValue(tsDedicated?.args, "--checkers")).toBe(String(dedicated.ts7Checkers));
   expect(tsExplicit?.args.filter((arg) => arg === "--checkers")).toHaveLength(1);
   expect(optionValue(tsExplicit?.args, "--checkers")).toBe("1");
 
   const eslintShared = runWrapper("eslint.ts", ["--version"], undefined).capture;
   const eslintDedicated = runWrapper("eslint.ts", ["--version"], "1").capture;
   const eslintExplicit = runWrapper("eslint.ts", ["--concurrency", "off", "--version"], "1").capture;
-  expect(optionValue(eslintShared?.args, "--concurrency")).toBe("4");
-  expect(optionValue(eslintDedicated?.args, "--concurrency")).toBe("8");
+  expect(optionValue(eslintShared?.args, "--concurrency")).toBe(String(shared.eslintConcurrency));
+  expect(optionValue(eslintDedicated?.args, "--concurrency")).toBe(String(dedicated.eslintConcurrency));
   expect(eslintExplicit?.args.filter((arg) => arg === "--concurrency")).toHaveLength(1);
   expect(optionValue(eslintExplicit?.args, "--concurrency")).toBe("off");
 
   const cpdShared = runWrapper("cpd.ts", ["-c", "jscpd.json"], undefined).capture;
   const cpdDedicated = runWrapper("cpd.ts", ["-c", "jscpd.json"], "1").capture;
   const cpdExplicit = runWrapper("cpd.ts", ["--workers=2", "-c", "jscpd.json"], "1").capture;
-  expect(optionValue(cpdShared?.args, "--workers")).toBe("4");
-  expect(optionValue(cpdDedicated?.args, "--workers")).toBe("24");
+  expect(optionValue(cpdShared?.args, "--workers")).toBe(String(shared.cpdWorkers));
+  expect(optionValue(cpdDedicated?.args, "--workers")).toBe(String(dedicated.cpdWorkers));
   expect(cpdExplicit?.args.filter((arg) => arg === "--workers=2" || arg === "--workers")).toEqual(["--workers=2"]);
 });
 
@@ -373,14 +507,11 @@ test("a broken profile file REFUSES loudly and names itself — never a defaulte
   expect(() => parseConcurrencyProfile("{ not json", "shared")).toThrow(/tooling\/concurrency-profile\.json is not valid JSON/u);
   expect(() => parseConcurrencyProfile("[]", "shared")).toThrow(/is not a JSON object/u);
   expect(() => parseConcurrencyProfile('{"profiles":{}}', "shared")).toThrow(/has no "shared" profile object/u);
-  expect(() => parseConcurrencyProfile(sharedRowWith("ctWorkers"), "shared"), "a field that went missing").toThrow(/field "ctWorkers" is undefined/u);
-  expect(() => parseConcurrencyProfile(sharedRowWith("vitestMaxWorkers", "4"), "shared"), "a cap that became a string").toThrow(
+  expect(() => parseConcurrencyProfile(bodyWith(SHARED_ROW, "ctWorkers"), "shared"), "a field that went missing").toThrow(/field "ctWorkers" is undefined/u);
+  expect(() => parseConcurrencyProfile(bodyWith(SHARED_ROW, "vitestMaxWorkers", "4"), "shared"), "a cap that became a string").toThrow(
     /field "vitestMaxWorkers" is "4"/u,
   );
-  expect(() => parseConcurrencyProfile(sharedRowWith("wholeVerifyQueue", "true"), "shared"), "a boolean that became a string").toThrow(
+  expect(() => parseConcurrencyProfile(bodyWith(SHARED_ROW, "wholeVerifyQueue", "true"), "shared"), "a boolean that became a string").toThrow(
     /field "wholeVerifyQueue" is "true"/u,
-  );
-  expect(() => parseConcurrencyProfile(sharedRowWith("sessionMemoryHigh", 48), "shared"), "a size string that became a number").toThrow(
-    /field "sessionMemoryHigh" is 48/u,
   );
 });
