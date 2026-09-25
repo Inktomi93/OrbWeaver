@@ -186,7 +186,10 @@ test("B1 (positive control): a row that spells reasoning_effort records the word
 
 // Off is a choice the wire has to carry: a reasoning model left without `reasoning_effort` reasons at its own
 // default, which spends the tokens and latency the user turned off.
-function offRequest(reasoning: Parameters<typeof generationCapability>[0]): OpenAiCompatChatRequest {
+function offRequest(
+  reasoning: Parameters<typeof generationCapability>[0],
+  params: OpenAiCompatChatRequest["params"] = { effort: "none" },
+): OpenAiCompatChatRequest {
   const connection = fakeResolved({
     task: "chat",
     providerId: "custom-openai",
@@ -196,7 +199,7 @@ function offRequest(reasoning: Parameters<typeof generationCapability>[0]): Open
     secret: fakeApiKeySecret("sk-box-not-a-real-key"),
     declaredFeatures: { effort: "reasoning_effort" },
   });
-  return orRequest({ connection, params: { effort: "none" }, tools: undefined });
+  return orRequest({ connection, params, tools: undefined });
 }
 
 test("off sends reasoning_effort none where the model can turn reasoning off, and records none as applied", async () => {
@@ -207,6 +210,20 @@ test("off sends reasoning_effort none where the model can turn reasoning off, an
   );
   expect(recorded[0]?.body["reasoning_effort"]).toBe("none");
   expect(turn.appliedEffort).toBe("none");
+});
+
+// An unset effort is the model's own default, never a hidden off: the field is omitted, on an optional and on a
+// mandatory model alike.
+test("an unset effort omits reasoning_effort, so the model reasons at its own default", async () => {
+  const recorded: RecordedRequest[] = [];
+  const turn = await runOpenAiCompatChatTurn(
+    offRequest({ reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "medium", "high"] } }, {}),
+    turnDeps(scriptedSseFetch([openAiTextStream("ok")], recorded)),
+  );
+  expect("reasoning_effort" in (recorded[0]?.body ?? {})).toBe(false);
+  expect(turn.appliedEffort).toBeNull();
+  const mandatory = await sentBody(offRequest({ reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "medium", "high"], mandatory: true } }, {}));
+  expect("reasoning_effort" in mandatory).toBe(false);
 });
 
 test("off on a model that cannot turn reasoning off clamps to its lowest level, and a non-reasoning model sends no field", async () => {
@@ -650,6 +667,18 @@ test("OR non-adaptive reasoning keeps its bytes: an effort-mode model sends the 
   });
   const body = await sentBody(orRequest({ connection, tools: undefined, params: {} }));
   expect(body["reasoning"]).toEqual({ effort: "medium" });
+});
+
+test("OR: an unset effort with no advertised default sends no reasoning block, and a chosen off sends effort none", async () => {
+  const connection = fakeResolved({
+    task: "chat",
+    providerId: "openrouter",
+    model: "google/gemini-3.5-flash",
+    capability: generationCapability({ reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "medium", "high"] } }),
+    secret: fakeApiKeySecret("sk-or-not-a-real-key"),
+  });
+  expect("reasoning" in (await sentBody(orRequest({ connection, tools: undefined, params: {} })))).toBe(false);
+  expect((await sentBody(orRequest({ connection, tools: undefined, params: { effort: "none" } })))["reasoning"]).toEqual({ effort: "none" });
 });
 
 // OpenRouter's own `reasoning.effort` takes `max` and forwards it upstream verbatim (audit echo: effort "max" →

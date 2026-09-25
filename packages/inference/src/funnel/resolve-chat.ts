@@ -164,16 +164,17 @@ function defaultDisplay(r: GenerationCapability["reasoning"]): ResolvedReasoning
   return r.mode === "adaptive" && r.displayModes?.includes(DEFAULT_ADAPTIVE_DISPLAY) === true ? DEFAULT_ADAPTIVE_DISPLAY : undefined;
 }
 
-// Mandatory-reasoning clamp: a model whose descriptor says `mandatory` rejects `effort:'none'` at the wire.
+// Mandatory-reasoning clamp: a model whose descriptor says `mandatory` rejects `effort:'none'` at the wire, so a
+// CHOSEN off clamps up. An unset effort is left unset: the wire then sends no field and the model uses its default.
 function clampMandatoryEffort(r: GenerationCapability["reasoning"], effort: UserIntent["effort"], warnings: ResolvedWarning[]): UserIntent["effort"] {
-  if (r.mandatory !== true || (effort !== undefined && effort !== EFFORT_OFF)) {
+  if (r.mandatory !== true || effort !== EFFORT_OFF) {
     return effort;
   }
   const lowest = lowestEffort(r.effortLevels);
   warnings.push({
     appliedEffort: lowest,
     code: "reasoning_mandatory_clamp",
-    message: `reasoning is mandatory on this model: clamped effort "${effort ?? "none"}" up to the lowest supported "${lowest}"`,
+    message: `reasoning is mandatory on this model: clamped effort "${effort}" up to the lowest supported "${lowest}"`,
   });
   return lowest;
 }
@@ -245,7 +246,7 @@ function resolveReasoning(
   const r = capability.reasoning;
   const { enabled, effort } = reasoningEnabledFor(params, capability, warnings);
   if (!enabled) {
-    return { mode: r.mode, enabled: false };
+    return { mode: r.mode, enabled: false, ...(effort === EFFORT_OFF && r.enabled ? { offChosen: true } : {}) };
   }
   const display = resolveDisplay(params.thinkingDisplay, r.displayModes, warnings) ?? defaultDisplay(r);
   const displayPart = display !== undefined ? { display } : {};

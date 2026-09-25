@@ -147,14 +147,13 @@ function openRouterReasoning(reasoning: ResolvedReasoning): JSONObject {
   return { effort: reasoning.mode === "adaptive" ? reasoning.effort : wireEffortOf(reasoning.effort) };
 }
 
-// The effort word a row that spells `reasoning_effort` sends. Off on an effort model spells `none`: the funnel
-// leaves an effort model disabled only when it can turn off (a mandatory one is clamped up), and a model sent no
-// field reasons at its own default.
+// The effort word a row that spells `reasoning_effort` sends. A chosen off spells `none` (the funnel clamps a
+// mandatory model up instead); an unset effort sends nothing, so the model reasons at its own default.
 function compatibleEffortWord(reasoning: ResolvedReasoning): LanguageModelV4CallOptions["reasoning"] {
   if (reasoning.enabled) {
     return reasoning.effort === undefined ? undefined : wireEffortOf(reasoning.effort);
   }
-  return reasoning.mode === "effort" ? REASONING_OFF : undefined;
+  return reasoning.offChosen === true ? REASONING_OFF : undefined;
 }
 
 /** The openai-compatible transport: effort rides V4 `reasoning` iff the row spells `reasoning_effort`; a
@@ -334,7 +333,8 @@ function openRouterShape(req: OpenAiCompatChatRequest, knobs: ResolvedChatKnobs,
       : { id: CONTEXT_COMPRESSION_PLUGIN, enabled: false };
   const providerOptions: SharedV4ProviderOptions = {
     [OPENROUTER_KEY]: {
-      ...(includeReasoning ? { reasoning: openRouterReasoning(knobs.reasoning) } : {}),
+      // An unset effort sends no reasoning block: the model runs at its own default rather than a hidden off.
+      ...(includeReasoning && (knobs.reasoning.enabled || knobs.reasoning.offChosen === true) ? { reasoning: openRouterReasoning(knobs.reasoning) } : {}),
       ...(models !== undefined ? { models: [...models] } : {}),
     },
   };
