@@ -1261,6 +1261,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       relay: deps.share.relay,
       enableSeating: createEnableShareSeating({
         seating: () => settings.getEffectiveConfig(),
+        overrides: async (principal) => (await settings.getAppSettingsWithOverrides({ principal })).overrides,
         updateAppSettings: (params) => settings.updateAppSettings(params),
         sessions,
         resolvePrincipal: resolveHostPrincipal,

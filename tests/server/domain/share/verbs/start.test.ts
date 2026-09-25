@@ -66,5 +66,7 @@ describe("share.start", () => {
     const h = shareHarness({ authMode: "local", startError: new DomainOperationError("relay_binary_checksum_mismatch", "not the pinned bytes") });
     await expect(h.share.start({ principal: caller("owner") })).rejects.toMatchObject({ code: "relay_binary_checksum_mismatch" });
     expect(h.audits).toEqual([]);
+    // A relay that never started leaves the seating as it found it.
+    expect(h.calls.slice(-3)).toEqual(["enableSeating", "relay.start", "restoreSeating"]);
   });
 });

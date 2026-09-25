@@ -4,6 +4,7 @@
 
 import { DomainOperationError } from "@orb/kit/errors";
 import type { ShareBootOutcome, ShareContext, ShareService } from "../contract/service.ts";
+import { startSeatedRelay } from "../substrate/start-relay.ts";
 
 export function createBootShare(ctx: Pick<ShareContext, "refusal" | "enableSeating" | "relay">): Pick<ShareService, "startAtBoot" | "resumeAfterOwnerClaim"> {
   let waitingForOwner = false;
@@ -13,9 +14,8 @@ export function createBootShare(ctx: Pick<ShareContext, "refusal" | "enableSeati
     if (refusal !== null) {
       return { kind: "refused", refusal };
     }
-    await ctx.enableSeating();
     try {
-      return { kind: "started", relay: await ctx.relay.start() };
+      return { kind: "started", relay: await startSeatedRelay(ctx) };
     } catch (err) {
       if (err instanceof DomainOperationError) {
         return { kind: "failed", code: err.code, message: err.message };

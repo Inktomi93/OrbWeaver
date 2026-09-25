@@ -37,6 +37,7 @@ describe("share boot start", () => {
   test("a relay binary refusal at boot is reported with its code, not thrown", async () => {
     const h = shareHarness({ authMode: "local", startError: new DomainOperationError("relay_platform_unsupported", "no build") });
     await expect(h.share.startAtBoot()).resolves.toEqual({ kind: "failed", code: "relay_platform_unsupported", message: "no build" });
+    expect(h.calls.slice(-3)).toEqual(["enableSeating", "relay.start", "restoreSeating"]);
   });
 
   test("once started, a later claim does not start a second relay", async () => {

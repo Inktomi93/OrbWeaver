@@ -45,6 +45,9 @@ export interface ShareFacts {
   readonly publicAddresses: readonly string[];
 }
 
+/** Puts the seating settings back as {@link ShareServiceDeps.enableSeating} found them. */
+export type RestoreSeating = () => Promise<void>;
+
 /** What a boot-time or post-claim start did, for the lifecycle's log line. */
 export type ShareBootOutcome =
   | { readonly kind: "started"; readonly relay: RelayStatus }
@@ -57,8 +60,9 @@ export interface ShareServiceDeps extends ShareFacts {
   readonly relay: RelayController;
   /** Turns on, as the owner, whichever of the two settings a public link needs is off: multi-human seating, so
    *  friends can be invited into rooms, and discreet login, so the sign-in page a stranger reaches names no
-   *  account. Every start runs it once the preconditions hold, before the relay spawns. */
-  readonly enableSeating: () => Promise<void>;
+   *  account. Every start runs it once the preconditions hold, before the relay spawns. It resolves with the step
+   *  that puts back exactly what it changed, which a start runs when the relay fails to start. */
+  readonly enableSeating: () => Promise<RestoreSeating>;
   readonly requireOwner: RequireOwner;
   /** The live stream sockets on the box, or one user's alone when `userId` is given. */
   readonly liveSocketCount: (userId?: UserId) => number;
