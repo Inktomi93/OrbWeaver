@@ -21,8 +21,15 @@
 // callback so the token exchange presents the same redirect_uri the IdP saw, even behind a proxy. A login from
 // any other origin mints nothing and is sent to the login page on the first allowlisted callback's origin.
 
-import type { PendingJoinConfirmRequest, PendingJoinErrorCode, SignupErrorCode, SignupRequest } from "@orb/contracts/chat";
-import { invitePreviewSchema, pendingJoinConfirmRequestSchema, signupRequestSchema } from "@orb/contracts/chat";
+import type { PendingJoinConfirmRequest, PendingJoinErrorCode, SignedOutInvitePreview, SignupErrorCode, SignupRequest } from "@orb/contracts/chat";
+import {
+  pendingJoinConfirmRequestSchema,
+  pendingJoinConfirmResultSchema,
+  signedOutInvitePreviewSchema,
+  signupPreviewRequestSchema,
+  signupRequestSchema,
+  signupResultSchema,
+} from "@orb/contracts/chat";
 import type { RequestTransport, ResolvedIdentity, UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { DomainRateLimitError } from "@orb/kit/errors";
@@ -75,6 +82,7 @@ const LOGIN_ROUTE = "/api/auth/login";
 const FIRST_RUN_ROUTE = "/api/auth/first-run";
 const LOGOUT_ROUTE = "/api/auth/logout";
 const SIGNUP_ROUTE = "/api/auth/signup";
+const SIGNUP_PREVIEW_ROUTE = "/api/auth/signup/preview";
 // D259 — the per-invite signup axis. The per-handle login axis caps nothing on a signup (the attacker picks the
 // handle), so the second axis keys on the invite the attempt spends against. Same window and knob as login.
 const SIGNUP_INVITE_RATE_SCOPE = "signup-invite";
@@ -553,6 +561,8 @@ export interface AuthRoutesDeps {
    *  a mid-session admin edit reloads the effective-config cache, so the next attempt sees the new cap (LIVE,
    *  the tRPC rate-limit-gate pattern). */
   readonly resolveLoginLimit: () => number;
+  /** Discreet login, read per request. While it is on, a signed-out invite preview leaves the host handle out. */
+  readonly discreetLogin: () => boolean;
   readonly authenticate?: LocalAuthenticator;
   /** B4 — present in local mode; registers the first-run owner-password setup route. */
   readonly firstRun?: FirstRunRouteDeps;
@@ -571,8 +581,8 @@ export interface SignupRouteDeps {
   readonly multiHumanCapable: () => boolean;
   /** Is this cookie token a live session? A signed-in caller joins through the in-app dialog, never here. */
   readonly sessionIsLive: (token: SessionToken) => Promise<boolean>;
-  /** Chat's signup ops: the invite pre-check, the one gated batch, and the join announcement. */
-  readonly invites: Pick<SignupInviteOps, "admits" | "redeem" | "announceJoined">;
+  /** Chat's signup ops: the invite pre-check, the preview behind it, the one gated batch, and the join announcement. */
+  readonly invites: Pick<SignupInviteOps, "admits" | "tokenHashOf" | "previewHash" | "redeem" | "announceJoined">;
   /** The sessions front-door predicate over `OWNER_HANDLES` and the single-user placeholder, case-insensitive. */
   readonly isReservedHandle: (handle: Handle) => boolean;
   /** Does an account already carry the handle, case-insensitively? */
@@ -795,8 +805,9 @@ async function carriesLiveSession(c: Context, signup: SignupRouteDeps): Promise<
   return token !== null && (await signup.sessionIsLive(token));
 }
 
-/** D259 — the strict body parse. A body that is not JSON reads as an invalid request, like a schema miss. */
-async function readSignupRequest(c: Context): Promise<ReturnType<typeof signupRequestSchema.safeParse>> {
+/** D259 — a signup door's JSON body, for its strict schema to parse. A body that is not JSON reads as undefined, so
+ *  the schema answers it as an invalid request like any other miss. */
+async function readSignupRequest(c: Context): Promise<unknown> {
   let raw: unknown;
   // @orb-waive caught-failure-ownership(catch): the CLIENT is the owner and the 400 is the surface — an unparseable body is the caller's error, answered with the same `invalid_request` code as a schema miss. Ends if body decoding gains a server-side fault worth distinguishing from bad input.
   try {
@@ -804,7 +815,7 @@ async function readSignupRequest(c: Context): Promise<ReturnType<typeof signupRe
   } catch {
     raw = undefined;
   }
-  return signupRequestSchema.safeParse(raw);
+  return raw;
 }
 
 /**
@@ -847,13 +858,49 @@ function registerSignupRoute(app: Hono, deps: AuthRoutesDeps, signup: SignupRout
     writeMintedSession(c, deps, session);
     await signup.seedUserConnections(outcome.userId);
     await signup.invites.announceJoined(outcome.chatId);
-    return c.json({ ok: true });
+    return c.json(signupResultSchema.parse({ ok: true, chatId: outcome.chatId }));
+  });
+  registerSignupPreviewRoute(app, signup, addressLimiter, deps.discreetLogin);
+}
+
+/**
+ * D260 — register `POST /api/auth/signup/preview` (local mode): the sign-up form shows who invited the visitor and to
+ * which room before it asks for anything. It runs the signup route's steps up to its invite pre-check, in the same
+ * order, and answers no more than that pre-check: a dead token gets the same 404, a live one the strict invite
+ * preview. It spends no per-invite bucket, like the pre-check, and writes nothing.
+ */
+function registerSignupPreviewRoute(app: Hono, signup: SignupRouteDeps, addressLimiter: RateLimiter, discreetLogin: () => boolean): void {
+  app.post(SIGNUP_PREVIEW_ROUTE, csrfGuard, bodyLimit({ maxSize: SIGNUP_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }), async (c) => {
+    const refused = await admitSignedOutCaller(c, signup, addressLimiter);
+    if (refused !== null) {
+      return refused;
+    }
+    const parsed = signupPreviewRequestSchema.safeParse(await readSignupRequest(c));
+    if (!parsed.success) {
+      return signupRefusal(c, "invalid_request", BAD_REQUEST);
+    }
+    const { token } = parsed.data;
+    const preview = (await signup.invites.admits(token)) === null ? null : await signup.invites.previewHash(signup.invites.tokenHashOf(token));
+    if (preview === null) {
+      return signupRefusal(c, "invite_unavailable", NOT_FOUND);
+    }
+    return c.json(signedOutPreview(preview, discreetLogin()));
   });
 }
 
-/** D259 — the signup steps before any invite work: the multi-human 404, the per-address bucket, the live-session
- *  refusal, the strict schema and the password floor. Returns the parsed request, or the refusal to send. */
-async function admitSignupRequest(c: Context, signup: SignupRouteDeps, addressLimiter: RateLimiter): Promise<Response | SignupRequest> {
+/** D260 — the preview a signed-out door answers: the host handle is left out while discreet login is on, because in
+ *  local mode it is the owner's login handle. Parsed STRICT, so an extra key fails the call closed. */
+function signedOutPreview(preview: SignedOutInvitePreview, discreet: boolean): SignedOutInvitePreview {
+  if (!discreet) {
+    return signedOutInvitePreviewSchema.parse(preview);
+  }
+  const { hostHandle: _hidden, ...anonymous } = preview;
+  return signedOutInvitePreviewSchema.parse(anonymous);
+}
+
+/** D259, D260 — the steps every signed-out signup door runs before its body: the multi-human 404, the per-address
+ *  bucket and the live-session refusal. Returns the refusal to send, or null. */
+async function admitSignedOutCaller(c: Context, signup: SignupRouteDeps, addressLimiter: RateLimiter): Promise<Response | null> {
   if (!signup.multiHumanCapable()) {
     return c.body(null, NOT_FOUND);
   }
@@ -864,7 +911,17 @@ async function admitSignupRequest(c: Context, signup: SignupRouteDeps, addressLi
   if (await carriesLiveSession(c, signup)) {
     return signupRefusal(c, "already_signed_in", CONFLICT);
   }
-  const parsed = await readSignupRequest(c);
+  return null;
+}
+
+/** D259 — the signup steps before any invite work: the signed-out steps, then the strict schema and the password
+ *  floor. Returns the parsed request, or the refusal to send. */
+async function admitSignupRequest(c: Context, signup: SignupRouteDeps, addressLimiter: RateLimiter): Promise<Response | SignupRequest> {
+  const refused = await admitSignedOutCaller(c, signup, addressLimiter);
+  if (refused !== null) {
+    return refused;
+  }
+  const parsed = signupRequestSchema.safeParse(await readSignupRequest(c));
   if (!parsed.success) {
     return signupRefusal(c, "invalid_request", BAD_REQUEST);
   }
@@ -1320,7 +1377,7 @@ function registerOidcPendingJoin(app: Hono, deps: AuthRoutesDeps, oidc: OidcRout
     if (preview === null) {
       return pendingJoinRefusal(c, "join_unavailable", NOT_FOUND);
     }
-    return c.json(invitePreviewSchema.parse(preview));
+    return c.json(signedOutPreview(preview, deps.discreetLogin()));
   });
   app.post(OIDC_PENDING_CONFIRM_ROUTE, csrfGuard, bodyCap, async (c) => {
     const admitted = await admitPendingConfirm(c, signup, addressLimiter);
@@ -1348,7 +1405,7 @@ function registerOidcPendingJoin(app: Hono, deps: AuthRoutesDeps, oidc: OidcRout
     }
     await signup.seedUserConnections(outcome.userId);
     await signup.invites.announceJoined(outcome.chatId);
-    return c.json({ signedIn: plan.enabled });
+    return c.json(pendingJoinConfirmResultSchema.parse({ signedIn: plan.enabled, chatId: outcome.chatId }));
   });
 }
 

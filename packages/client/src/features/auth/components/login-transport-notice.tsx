@@ -7,13 +7,17 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { testId } from "#lib";
 
-// A loopback client's password crosses no network, so it gets no notice.
+// A loopback client's password crosses no network, so it gets no notice. The notice speaks to the person signing in:
+// what is at risk for them and what they can do, never a server setting only the operator can change.
 const NOTICE: Record<ClientScope, { readonly tone: string; readonly copy: string } | null> = {
   loopback: null,
-  private: { tone: "text-warning", copy: "This page is on plain http: your password and session cookie travel in clear on this network." },
+  private: {
+    tone: "text-warning",
+    copy: "This page isn't encrypted: others on this network could read your password as it is sent. Sign in only on a network you trust.",
+  },
   public: {
     tone: "text-destructive",
-    copy: "This page is on plain http from the internet: your password and session cookie cross the internet in clear. Put TLS or a tunnel in front of this server.",
+    copy: "This page isn't encrypted: anyone between you and this server could read your password as it is sent. Don't sign in here; ask whoever runs this server for a secure link.",
   },
 };
 

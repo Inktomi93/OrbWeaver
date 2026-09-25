@@ -284,8 +284,9 @@ export interface ForceCharacterTurnParams extends ChatScopedParams {
 export interface RequestTurnParams {
   readonly chatId: ChatId;
   /** The non-human origin stamped on the reply slot (`"automation"` | `"plugin"`) — the cascade guard's label
-   *  (depth is the lever, not the label). A caller may not pass `"human"` here (see the verb's guard). */
-  readonly initiator: TurnInitiator;
+   *  (depth is the lever, not the label). A caller may not pass `"human"` here (see the verb's guard), and
+   *  `"import"` names only slots the bulk-import seam wrote, never a requested turn. */
+  readonly initiator: Exclude<TurnInitiator, "import">;
   /** The responsible human (D19): the rule AUTHOR / plugin INSTALLER. Owns attribution and abort rights and
    *  must be a PRESENT participant (else a leak-free NOT_FOUND). The room's frozen host funds and runs the
    *  turn. */

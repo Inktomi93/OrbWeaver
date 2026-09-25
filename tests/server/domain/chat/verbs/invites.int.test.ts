@@ -6,7 +6,6 @@
 // grouped-file BUNDLE (`createInvites(ctx, deps)`).
 
 import type { ParticipantView } from "@orb/contracts/chat";
-import { GROUP_OUTPUT_LABELS, GROUP_POLICY_LABELS } from "@orb/contracts/chat";
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";
 import { chatInvites, chatParticipants, users } from "@orb/db";
@@ -17,7 +16,7 @@ import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import type { AssembleInvitePreviewOp, ClaimChatOp } from "../../../../../packages/server/src/domain/chat/contract/context.ts";
 import { ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
-import { createInvitePreview } from "../../../../../packages/server/src/domain/chat/verbs/invite-preview.ts";
+import { createInvitePreview, guestModeSentence } from "../../../../../packages/server/src/domain/chat/verbs/invite-preview.ts";
 import { createInvites } from "../../../../../packages/server/src/domain/chat/verbs/invites.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
@@ -844,8 +843,8 @@ describe("previewInvite — minimal preview-then-confirm", () => {
     expect(preview.roomName).toBe("The Tavern");
     expect(preview.hostHandle).toBe(host); // the fake resolver maps handle from the host's id
     expect(preview.memberCount).toBe(1);
-    // The room's mode in the words its own Group tab uses, never the raw config values.
-    expect(preview.modeLabel).toBe(`${GROUP_OUTPUT_LABELS["per-speaker"]} · ${GROUP_POLICY_LABELS.natural}`);
+    // The room's mode as the guest sentence for its config, never the host's setting names or the raw values.
+    expect(preview.modeLabel).toBe(guestModeSentence({ output: "per-speaker", policy: "natural" }));
   });
 
   test("a hostless participant view is an invariant failure, never an empty branded handle", async () => {

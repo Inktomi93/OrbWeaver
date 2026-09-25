@@ -25,6 +25,7 @@ import { FormDialog } from "#components";
 import type { Trpc } from "#data";
 import { fetchLiveShare, useAuthConfig, useInvalidation, useLiveShare, useSettingsViewerView, useTRPC } from "#data";
 import { notify, testId, timeLib } from "#lib";
+import { MULTI_USER_CONFIG_SUB, openConfigTo } from "#state";
 import { useInviteForm } from "../hooks/use-invite-form.ts";
 import { useCreateInvite, useRevokeInvite } from "../hooks/use-invite-mutations.ts";
 import type { InviteFormValues } from "../lib/invite-form-model.ts";
@@ -52,7 +53,13 @@ export function InviteDialog({ chatId, open, onOpenChange, finalFocus }: InviteD
       dismissLabel="Done"
     >
       <Stack gap="block">
-        <InviteMintForm chatId={chatId} />
+        <InviteMintForm
+          chatId={chatId}
+          onOpenSharing={(): void => {
+            onOpenChange(false);
+            openConfigTo("admin", MULTI_USER_CONFIG_SUB);
+          }}
+        />
         <Separator />
         <OutstandingInvites chatId={chatId} />
       </Stack>
@@ -77,7 +84,7 @@ function useSignupOffered(): boolean {
   return isAdmin && mode !== undefined && SIGNUP_INVITES_MINTABLE[mode];
 }
 
-function InviteMintForm({ chatId }: { readonly chatId: ChatId }): ReactElement {
+function InviteMintForm({ chatId, onOpenSharing }: { readonly chatId: ChatId; readonly onOpenSharing: () => void }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const createInvite = useCreateInvite({ trpc, invalidation });
@@ -131,6 +138,7 @@ function InviteMintForm({ chatId }: { readonly chatId: ChatId }): ReactElement {
             {(field): ReactElement => (
               <ToggleGroup
                 aria-label="Invite mode"
+                fill={true}
                 value={[field.state.value]}
                 onValueChange={(groupValue): void => {
                   const next = groupValue[0];
@@ -170,7 +178,7 @@ function InviteMintForm({ chatId }: { readonly chatId: ChatId }): ReactElement {
           </form.Subscribe>
 
           <form.Subscribe selector={(state): string => state.values.mode}>
-            {(mode): ReactElement | null => (mode === "link" ? <LoopbackLinkWarning /> : null)}
+            {(mode): ReactElement | null => (mode === "link" ? <LoopbackLinkWarning onOpenSharing={onOpenSharing} /> : null)}
           </form.Subscribe>
 
           <Row gap="field" align="start">
@@ -203,7 +211,7 @@ function InviteMintForm({ chatId }: { readonly chatId: ChatId }): ReactElement {
                       {(field): ReactElement => (
                         <field.SwitchField
                           label="Let people without an account sign up"
-                          description={`Each use creates an account and seats it here. It needs 1 to ${SIGNUP_MAX_USES} uses and an expiry of ${SIGNUP_MAX_TTL_DAYS} days or less.`}
+                          description={`Each use creates an account and adds it to this room as a member. It needs 1 to ${SIGNUP_MAX_USES} uses and an expiry of ${SIGNUP_MAX_TTL_DAYS} days or less.`}
                         />
                       )}
                     </form.AppField>
@@ -228,7 +236,7 @@ function InviteMintForm({ chatId }: { readonly chatId: ChatId }): ReactElement {
 
           {mintedLink === null ? null : (
             <Stack gap="field" data-testid={testId("inviteLinkResult")}>
-              <Text voice="gloss">Copy it now — you won't see this link again.</Text>
+              <Text voice="label">Copy it now — you won't see this link again.</Text>
               {/* Copied on arrival. A failed copy lands in this control's own status and field, inside the dialog:
                   a toast would paint under the modal backdrop, and the link is shown only once. */}
               <CopyButton autoCopy={true} copiedHint="Anyone with it can join." data-testid={testId("inviteCopyLink")} text={mintedLink} what="invite link">
@@ -245,9 +253,11 @@ function InviteMintForm({ chatId }: { readonly chatId: ChatId }): ReactElement {
 }
 
 // A link minted on a loopback page opens only on this computer. While a share is up the link carries its public
-// address instead, so the warning shows only when no share is live.
-function LoopbackLinkWarning(): ReactElement | null {
+// address instead, so the warning shows only when no share is live. Only an admin reaches the sharing settings, so
+// only an admin is pointed there.
+function LoopbackLinkWarning({ onOpenSharing }: { readonly onOpenSharing: () => void }): ReactElement | null {
   const share = useLiveShare().data;
+  const { isAdmin } = useSettingsViewerView();
   if (share === undefined || share.state === "up" || !isLoopbackHost(globalThis.location.hostname)) {
     return null;
   }
@@ -256,10 +266,18 @@ function LoopbackLinkWarning(): ReactElement | null {
       <Row gap="field" align="center">
         <Badge intent="warning">Only this computer</Badge>
       </Row>
-      <Text voice="gloss" prose={true}>
-        This page is open at a local address, so a link made here opens only on this computer. To invite a friend, start sharing in Settings, under Admin and
-        Multi-user, or open this app at an address they can reach.
+      <Text voice="gloss" prose={true} className="max-w-(--reading-measure-prose)">
+        {isAdmin
+          ? "This page is open at a local address, so a link made here opens only on this computer. To invite a friend, start sharing, or open this app at an address they can reach."
+          : "This page is open at a local address, so a link made here opens only on this computer. To invite a friend, open this app at an address they can reach, or ask the owner to start sharing."}
       </Text>
+      {isAdmin ? (
+        <Row>
+          <Button type="button" intent="secondary" size="sm" onClick={onOpenSharing} data-testid={testId("inviteOpenSharing")}>
+            Open sharing settings
+          </Button>
+        </Row>
+      ) : null}
     </Stack>
   );
 }
@@ -296,8 +314,25 @@ const STATUS_INTENT: Record<InviteView["status"], "info" | "success" | "neutral"
   revoked: "danger",
 };
 
+// What the row is: a sign-up link creates accounts, so it never reads as a plain share link, Revoke included.
+function inviteKind(invite: InviteView): string {
+  if (invite.invitedUserId !== null) {
+    return "Targeted invite";
+  }
+  return invite.allowSignup ? "Sign-up link" : "Share link";
+}
+
+// The count of uses agrees with the limit it is a part of: "1 of 1 use left", "2 of 3 uses left".
+function usesLeft(invite: InviteView): string {
+  if (invite.maxUses === null) {
+    return "unlimited uses";
+  }
+  return `${invite.remainingUses ?? 0} of ${invite.maxUses} ${invite.maxUses === 1 ? "use" : "uses"} left`;
+}
+
 function InviteRow({ invite, onRevoke }: { readonly invite: InviteView; readonly onRevoke: (inviteId: ChatInviteId) => void }): ReactElement {
-  const uses = invite.maxUses === null ? "unlimited uses" : `${invite.remainingUses ?? 0} of ${invite.maxUses} uses left`;
+  const kind = inviteKind(invite);
+  const uses = usesLeft(invite);
   const expiry = invite.expiresAt === null ? "never expires" : `expires ${timeLib.formatRelative(invite.expiresAt)}`;
   return (
     // ListRow floors the label's width, and in a narrow dialog Revoke takes its own line, so the limits
@@ -308,13 +343,7 @@ function InviteRow({ invite, onRevoke }: { readonly invite: InviteView; readonly
       stackActionsAt="cq-sm"
       actions={
         invite.status === "pending" ? (
-          <Button
-            type="button"
-            intent="ghost"
-            size="sm"
-            onClick={(): void => onRevoke(invite.id)}
-            aria-label={`Revoke this ${invite.invitedUserId === null ? "share link" : "targeted invite"}`}
-          >
+          <Button type="button" intent="ghost" size="sm" onClick={(): void => onRevoke(invite.id)} aria-label={`Revoke this ${kind.toLowerCase()}`}>
             Revoke
           </Button>
         ) : null
@@ -326,7 +355,7 @@ function InviteRow({ invite, onRevoke }: { readonly invite: InviteView; readonly
       }
       subtitle={`${uses} · ${expiry}`}
       subtitleWrap={true}
-      title={invite.invitedUserId === null ? "Share link" : "Targeted invite"}
+      title={kind}
     />
   );
 }

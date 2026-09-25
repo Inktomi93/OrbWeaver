@@ -120,6 +120,7 @@ beforeEach(async () => {
     now: (): number => NOW,
     db,
     resolveLoginLimit: (): number => 10,
+    discreetLogin: (): boolean => false,
     oidc: {
       getConfig: (): Promise<OidcConfig> => Promise.resolve(fakeConfig()),
       redirectAllowlist: [CALLBACK_URI],

@@ -308,6 +308,7 @@ const chatSummaryPlan = view<ChatSummaryOut>({
   starred: TYPED_ONLY,
   archived: TYPED_ONLY,
   lastMessageAt: TYPED_ONLY,
+  viewerLastTurnAt: TYPED_ONLY,
   messageCount: TYPED_ONLY,
   lastMessagePreview: TYPED_ONLY,
   isGame: TYPED_ONLY,
@@ -723,6 +724,11 @@ test("every seeded row reads back through its read procedure, faithful to its cu
   for (const room of rooms.items) {
     check(room, chatSummaryPlan, `chat.listChats[${room.title ?? room.id}]`);
   }
+  // A fresh install's owner has typed nothing yet: the example rooms' user lines are imported history, so Home greets
+  // a first run instead of "you left off" at the seed moment.
+  expect(rooms.items.length, "the fresh install seeds example rooms").toBeGreaterThan(0);
+  expect(rooms.viewerLastTurnAt, "a fresh account has no typed turn").toBeNull();
+  expect(rooms.items.filter((room) => room.viewerLastTurnAt !== null).map((room) => room.title)).toEqual([]);
   for (const room of roomDetails) {
     check(room, chatDetailSchema, `chat.getChat[${room.title ?? room.id}]`);
   }

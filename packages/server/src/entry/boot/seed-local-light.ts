@@ -1,5 +1,5 @@
 // The local-light CONVENIENCE SEED (inference program §7.2) in its TWO halves, homed together because they
-// are one decision. The two in-process vector rows (`local-light · encoder`, `local-light · reranker`) and
+// are one decision. The two in-process vector rows (`LOCAL_LIGHT_SEED_ROWS`: the built-in encoder and reranker) and
 // their `user` bindings are ORDINARY `user_connections` rows a user may delete; without them a user's
 // `embed`/`rerank` resolve `no-connection` and search reads empty.
 //

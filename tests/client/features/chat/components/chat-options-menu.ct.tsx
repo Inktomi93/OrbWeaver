@@ -24,6 +24,7 @@ const LIST_ROW = {
   messageCount: 0,
   lastMessagePreview: null,
   isGame: true,
+  viewerLastTurnAt: null,
   participantNames: [],
   participantPortraits: [],
   viewerRole: "host",

@@ -124,7 +124,7 @@ export { requestComposerFocus, useComposerFocusRequest } from "./composer-focus-
 export type { ConfigFocus } from "./config-focus-store.ts";
 export { __resetConfigFocus, clearConfigFocus, setConfigFocus, useConfigFocus } from "./config-focus-store.ts";
 export type { ConfigGroupId, ConfigShelf } from "./config-group-ids.ts";
-export { CONFIG_GROUP_IDS, CONFIG_SHELVES, isConfigGroupId } from "./config-group-ids.ts";
+export { CONFIG_GROUP_IDS, CONFIG_SHELVES, isConfigGroupId, MULTI_USER_CONFIG_SUB } from "./config-group-ids.ts";
 export { __resetConfigGroupOpen, closeConfigGroup, openConfigGroup, useConfigGroupOpen } from "./config-group-open-store.ts";
 export type {
   CollectionGroupDefinition,

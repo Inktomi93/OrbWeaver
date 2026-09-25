@@ -33,9 +33,9 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import type { ChatContextState, ChatContextTabId } from "#lib";
-import { deriveChatTitle } from "#lib";
+import { deriveChatTitle, memberCountPhrase } from "#lib";
 import { setContextTab, useContextTab } from "#state";
-import { filterCharacters } from "../lib/roster.ts";
+import { filterCharacters, presentMemberCount } from "../lib/roster.ts";
 import { RosterChipButton } from "./chat-header.tsx";
 import { ChatRecallIndicator } from "./chat-recall-indicator.tsx";
 
@@ -137,7 +137,7 @@ export function ChatContextBand({ state }: ChatContextBandProps): ReactElement {
     state.title,
     characters.map((c) => c.displayName),
   );
-  const memberCount = state.participants.filter((p) => p.leftSeq === null).length;
+  const memberCount = presentMemberCount(state.participants);
   const preset = useActivePresetChip();
   const membersIsCurrent = membersHoldsTheView(useContextTab());
   return (
@@ -163,7 +163,7 @@ export function ChatContextBand({ state }: ChatContextBandProps): ReactElement {
             the moment the view is elsewhere. Derived from the ONE selection seam, never a second store. */}
         {membersIsCurrent ? (
           <Badge tone="soft" size="sm" intent="neutral" data-slot="chat-context-band-members">
-            {memberCount === 1 ? "1 member" : `${memberCount} members`}
+            {memberCountPhrase(memberCount)}
           </Badge>
         ) : (
           <RosterChipButton count={memberCount} onClick={openMembersCell} wordy={true} />

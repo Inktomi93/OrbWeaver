@@ -5,6 +5,7 @@
 // confirming fires `invites.redeemInvite({ token })` then closes (the story surfaces `onDone` as
 // text). A bad token renders the ONE flat "invalid or expired" state — leak-free, no oracle.
 
+import { DEAD_INVITE_SENTENCE, memberCountPhrase } from "@orb/client/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { JoinInviteDialogStory } from "../_ct-stories.tsx";
@@ -14,7 +15,7 @@ const PREVIEW = {
   roomName: "Tavern Night",
   hostHandle: "alex",
   memberCount: 3,
-  modeLabel: "Group · natural",
+  modeLabel: "Each character speaks for themselves, and the story picks who speaks next.",
 };
 
 test("mount previews the token; confirm redeems and closes into the chat", async ({ mount, page }) => {
@@ -33,8 +34,9 @@ test("mount previews the token; confirm redeems and closes into the chat", async
   await expect(page.getByTestId("join-invite-dialog")).toBeVisible();
   await expect(page.getByText("Tavern Night")).toBeVisible();
   await expect(page.getByText("Host: alex")).toBeVisible();
-  await expect(page.getByText("Members: 3")).toBeVisible();
-  await expect(page.getByText("Mode: Group · natural")).toBeVisible();
+  await expect(page.getByText(memberCountPhrase(PREVIEW.memberCount), { exact: true })).toBeVisible();
+  // The guest's mode sentence renders as the server sent it, with no host-vocabulary label in front.
+  await expect(page.getByText(PREVIEW.modeLabel, { exact: true })).toBeVisible();
   // The preview-then-confirm read fired with the RAW token in the POST body.
   await expect.poll(() => trpc.count("invites.previewInvite")).toBeGreaterThanOrEqual(1);
   await expect.poll(() => trpc.lastInput("invites.previewInvite")).toEqual({ token: "tok_ct_secret" });
@@ -54,7 +56,8 @@ test("a bad token renders the flat 'invalid or expired' state (leak-free NOT_FOU
 
   await mount(<JoinInviteDialogStory token="tok_ct_bogus" />);
 
-  await expect(page.getByText("This invite is invalid or has expired.")).toBeVisible();
+  // The one dead-link sentence every invite door shares.
+  await expect(page.getByText(DEAD_INVITE_SENTENCE, { exact: true })).toBeVisible();
   // No preview fields leak for a bad token.
   await expect(page.getByText("Host:", { exact: false })).toHaveCount(0);
 

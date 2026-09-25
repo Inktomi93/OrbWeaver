@@ -79,6 +79,16 @@ test("PHONE container (390px): card + wordmark contained, no horizontal overflow
   await expect.poll(async () => paintedPixels(canvas)).toBeGreaterThan(1000);
 });
 
+// P3-6 — the sign-in and join card is the page's one main landmark, so a screen reader can jump straight to it.
+test("the card sits inside exactly one main landmark", async ({ mount, page }) => {
+  const cfg = config({});
+  await stubAuthConfig(page, cfg);
+  await mount(<LoginSceneStory width={DESKTOP_W} config={cfg} />);
+  await expect(page.getByRole("main")).toHaveCount(1);
+  await expect(page.getByRole("main").locator('[data-slot="card-root"]')).toHaveCount(1);
+  await expect(page.getByRole("main").getByRole("heading", { name: "Sign in" })).toBeVisible();
+});
+
 test("DESKTOP container (1280px): the same ONE surface — card centered at max-w-sm, web painted", async ({ mount, page }) => {
   const cfg = config({});
   await stubAuthConfig(page, cfg);

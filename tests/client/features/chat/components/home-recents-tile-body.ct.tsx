@@ -63,6 +63,29 @@ const PAIR_ROOM = makeChatSummary({
   lastMessageAt: 1,
 });
 
+// P2-4 — the hero is where the VIEWER left off: a room someone else was busier in never takes it, and it moves to the
+// also-open list instead. An account that has never spoken gets a first-run band name, not "pick up".
+test("the hero is the room the viewer spoke in last, even below a busier room the viewer never spoke in", async ({ mount, page }) => {
+  const busy = makeChatSummary({ id: "chat_busy", title: "Someone else's room", viewerLastTurnAt: null });
+  const mine = makeChatSummary({ id: "chat_mine", title: "Where I was", lastMessageAt: 1, viewerLastTurnAt: 1 });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([busy, mine]) });
+
+  const home = await mount(<ChatRecentsPairStory />);
+  await expect(home.locator('[data-home-tile="chat.recents"] [data-home-hearth="chat_mine"]')).toBeVisible();
+  await expect(home.locator('[data-home-tile="chat.alsoOpen"]').getByText("Someone else's room")).toBeVisible();
+  await expect(home.locator('[data-home-tile="chat.alsoOpen"]').getByText("Where I was")).toHaveCount(0);
+});
+
+test("an account that has never spoken names the hero band as its first room, not a room to pick up", async ({ mount, page }) => {
+  const joined = makeChatSummary({ id: "chat_joined", title: "Tavern Night", viewerLastTurnAt: null });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([joined]) });
+
+  const home = await mount(<ChatRecentsPairStory />);
+  const band = home.locator('[data-home-tile="chat.recents"]');
+  await expect(band.getByRole("heading", { level: 2 })).toHaveText("Your first room");
+  await expect(band.locator('[data-home-hearth="chat_joined"]')).toBeVisible();
+});
+
 test("renders the HERO room in its own block, and the also-open list in a SECOND peer block", async ({ mount, page }) => {
   await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([RECENT, OLDER]) });
 

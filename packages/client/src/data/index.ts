@@ -14,6 +14,7 @@ export {
   signUpWithInvite,
   useAuthMe,
   usePendingJoinPreview,
+  useSignupInvitePreview,
 } from "./auth-bootstrap.ts";
 export type { AuthConfig } from "./auth-config.ts";
 export {

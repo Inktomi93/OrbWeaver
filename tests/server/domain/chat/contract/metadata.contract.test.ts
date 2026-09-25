@@ -200,6 +200,7 @@ describe("representative contract shapes", () => {
       participantNames: [],
       participantPortraits: [],
       lastMessagePreview: null,
+      viewerLastTurnAt: null,
       isGame: false,
       gamePaused: false,
       viewerRole: "host",

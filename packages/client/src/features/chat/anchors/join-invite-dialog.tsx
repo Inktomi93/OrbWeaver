@@ -21,7 +21,7 @@ import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
-import { testId } from "#lib";
+import { DEAD_INVITE_SENTENCE, memberCountPhrase, testId } from "#lib";
 import { selectChat, setActiveSection } from "#state";
 import { usePreviewInvite, useRedeemInvite } from "../hooks/use-invite-mutations.ts";
 
@@ -89,7 +89,7 @@ export function JoinInviteDialog({ token, onDone }: JoinInviteDialogProps): Reac
           {state.kind === "loading" ? <Text voice="quiet">Checking the invite…</Text> : null}
           {state.kind === "invalid" ? (
             <>
-              <DialogDescription>This invite is invalid or has expired.</DialogDescription>
+              <DialogDescription>{DEAD_INVITE_SENTENCE}</DialogDescription>
               <Row gap="field" justify="end">
                 <Button intent="secondary" onClick={onDone}>
                   Close
@@ -111,10 +111,10 @@ export function JoinInviteDialog({ token, onDone }: JoinInviteDialogProps): Reac
                   Host: {state.preview.hostHandle}
                 </Text>
                 <Text size="label" tone="muted">
-                  Members: {state.preview.memberCount}
+                  {memberCountPhrase(state.preview.memberCount)}
                 </Text>
                 <Text size="label" tone="muted">
-                  Mode: {state.preview.modeLabel}
+                  {state.preview.modeLabel}
                 </Text>
               </Stack>
               <Row gap="field" justify="end">

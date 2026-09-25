@@ -60,6 +60,7 @@ beforeEach(async () => {
     now,
     db,
     resolveLoginLimit: (): number => 10,
+    discreetLogin: (): boolean => false,
     oidc: {
       getConfig: (): Promise<Configuration> => Promise.resolve(new Configuration(ISSUER, "orb-client")),
       exchange: (): Promise<OidcVerifiedTokens> => {

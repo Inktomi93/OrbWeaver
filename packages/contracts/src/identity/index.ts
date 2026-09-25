@@ -40,6 +40,10 @@ export const authModeSchema = z.enum(AUTH_MODES) satisfies z.ZodType<AuthMode>;
  *  under it, and the server's refusals name it, so both read this one spelling. */
 export const SETUP_COMMAND = "pnpm start --setup";
 
+/** Where a container's way to share lives: the repository guide section that runs a tunnel beside the container. The
+ *  server's container refusal and the Share card's Docker note both name it, so both read this one spelling. */
+export const CONTAINER_SHARE_GUIDE = 'docker/README.md, "Cloudflare Tunnel, as a sidecar"';
+
 /** The `environment:` lines of `docker-compose.yaml` that switch a container to the local sign-in mode, in print
  *  order. The shipped `docker/orbweaver.env` pairs single-user with the owner fallback and the bridge peers, which
  *  production refuses beside a login mode, so all three keys move. A server env test boots these over that file. */

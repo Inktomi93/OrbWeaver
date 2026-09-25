@@ -392,7 +392,14 @@ const ownerAuth =
 describe("local login — registration", () => {
   test("login route is NOT registered without an authenticator", () => {
     const rec = recordingSessions();
-    const deps: AuthRoutesDeps = { sessions: rec.sessions, sockets: rec.sockets, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10 };
+    const deps: AuthRoutesDeps = {
+      sessions: rec.sessions,
+      sockets: rec.sockets,
+      now: (): number => NOW,
+      db: STUB_DB,
+      resolveLoginLimit: (): number => 10,
+      discreetLogin: (): boolean => false,
+    };
     expect(routesOf(deps).has("POST /api/auth/login")).toBe(false);
   });
 
@@ -404,6 +411,7 @@ describe("local login — registration", () => {
       now: (): number => NOW,
       db: STUB_DB,
       resolveLoginLimit: (): number => 10,
+      discreetLogin: (): boolean => false,
       authenticate: ownerAuth(castId<UserId>("usr_owner")),
     };
     expect(routesOf(deps).has("POST /api/auth/login")).toBe(true);
@@ -418,7 +426,14 @@ describe("logout — CSRF gate", () => {
 
   test("WITHOUT the CSRF header → 403, does NOT revoke (blocks cross-site force-logout)", async () => {
     const rec = recordingSessions();
-    const deps: AuthRoutesDeps = { sessions: rec.sessions, sockets: rec.sockets, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10 };
+    const deps: AuthRoutesDeps = {
+      sessions: rec.sessions,
+      sockets: rec.sockets,
+      now: (): number => NOW,
+      db: STUB_DB,
+      resolveLoginLimit: (): number => 10,
+      discreetLogin: (): boolean => false,
+    };
     const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: BOTH_COOKIES } }));
     expect(res.status).toBe(403);
     expect(rec.revoked).toBeNull();
@@ -429,7 +444,14 @@ describe("logout — CSRF gate", () => {
   // continue to the IdP end-session endpoint after the local revoke. The CSRF gate + revoke + clear are unchanged.
   test("WITH the CSRF header + a session cookie → revokes the token + clears the cookie (200, endSessionUrl null)", async () => {
     const rec = recordingSessions();
-    const deps: AuthRoutesDeps = { sessions: rec.sessions, sockets: rec.sockets, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10 };
+    const deps: AuthRoutesDeps = {
+      sessions: rec.sessions,
+      sockets: rec.sockets,
+      now: (): number => NOW,
+      db: STUB_DB,
+      resolveLoginLimit: (): number => 10,
+      discreetLogin: (): boolean => false,
+    };
     const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: BOTH_COOKIES, [csrf]: "1" } }));
     expect(res.status).toBe(200);
     expect(rec.revoked).toBe("tok-123");
@@ -443,7 +465,14 @@ describe("logout — CSRF gate", () => {
   // and every existing assertion (`toContain("Max-Age=0")`) would still be green.
   test("logout writes ONE Set-Cookie PER cookie name (append, never replace)", async () => {
     const rec = recordingSessions();
-    const deps: AuthRoutesDeps = { sessions: rec.sessions, sockets: rec.sockets, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10 };
+    const deps: AuthRoutesDeps = {
+      sessions: rec.sessions,
+      sockets: rec.sockets,
+      now: (): number => NOW,
+      db: STUB_DB,
+      resolveLoginLimit: (): number => 10,
+      discreetLogin: (): boolean => false,
+    };
     const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: BOTH_COOKIES, [csrf]: "1" } }));
     const cookies = res.headers.getSetCookie();
     expect(cookies).toHaveLength(2);
@@ -459,7 +488,14 @@ describe("logout — CSRF gate", () => {
   // route evicts by the session id `revokeByToken` reports — never by the user.
   test("W7a logout EVICTS the live sockets of the session it just ended — and only that session", async () => {
     const rec = recordingSessions();
-    const deps: AuthRoutesDeps = { sessions: rec.sessions, sockets: rec.sockets, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10 };
+    const deps: AuthRoutesDeps = {
+      sessions: rec.sessions,
+      sockets: rec.sockets,
+      now: (): number => NOW,
+      db: STUB_DB,
+      resolveLoginLimit: (): number => 10,
+      discreetLogin: (): boolean => false,
+    };
 
     await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: BOTH_COOKIES, [csrf]: "1" } }));
 
@@ -472,7 +508,14 @@ describe("logout — CSRF gate", () => {
   test("W7a an ALREADY-revoked cookie evicts nothing (the route ends no session, so it closes no socket)", async () => {
     const rec = recordingSessions();
     const sessions: AuthSessionsPort = { ...rec.sessions, revokeByToken: (): Promise<RevokedSessionStub | null> => Promise.resolve(null) };
-    const deps: AuthRoutesDeps = { sessions, sockets: rec.sockets, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10 };
+    const deps: AuthRoutesDeps = {
+      sessions,
+      sockets: rec.sockets,
+      now: (): number => NOW,
+      db: STUB_DB,
+      resolveLoginLimit: (): number => 10,
+      discreetLogin: (): boolean => false,
+    };
 
     const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: BOTH_COOKIES, [csrf]: "1" } }));
 
@@ -482,7 +525,14 @@ describe("logout — CSRF gate", () => {
 
   test("W7a a CSRF-refused logout evicts nothing (the 403 short-circuits before the revoke)", async () => {
     const rec = recordingSessions();
-    const deps: AuthRoutesDeps = { sessions: rec.sessions, sockets: rec.sockets, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10 };
+    const deps: AuthRoutesDeps = {
+      sessions: rec.sessions,
+      sockets: rec.sockets,
+      now: (): number => NOW,
+      db: STUB_DB,
+      resolveLoginLimit: (): number => 10,
+      discreetLogin: (): boolean => false,
+    };
 
     await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: BOTH_COOKIES } }));
 
@@ -492,7 +542,14 @@ describe("logout — CSRF gate", () => {
 
   test("WITH the CSRF header but no cookie → still clears, does not revoke (200)", async () => {
     const rec = recordingSessions();
-    const deps: AuthRoutesDeps = { sessions: rec.sessions, sockets: rec.sockets, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10 };
+    const deps: AuthRoutesDeps = {
+      sessions: rec.sessions,
+      sockets: rec.sockets,
+      now: (): number => NOW,
+      db: STUB_DB,
+      resolveLoginLimit: (): number => 10,
+      discreetLogin: (): boolean => false,
+    };
     const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { [csrf]: "1" } }));
     expect(res.status).toBe(200);
     expect(rec.revoked).toBeNull();
@@ -513,6 +570,7 @@ describe("logout — CSRF gate", () => {
       now: (): number => NOW,
       db: STUB_DB,
       resolveLoginLimit: (): number => 10,
+      discreetLogin: (): boolean => false,
       oidc,
     };
     const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: BOTH_COOKIES, [csrf]: "1" } }));
@@ -539,6 +597,7 @@ describe("logout — CSRF gate", () => {
     now: (): number => NOW,
     db: STUB_DB,
     resolveLoginLimit: (): number => 10,
+    discreetLogin: (): boolean => false,
     oidc: fakeOidcDeps({
       getConfig: () => Promise.resolve(fakeConfig({ issuer: "https://idp.example", end_session_endpoint: endSession })),
     }),
@@ -1011,6 +1070,7 @@ describe("OIDC route registration", () => {
       now: (): number => NOW,
       db: STUB_DB,
       resolveLoginLimit: (): number => 10,
+      discreetLogin: (): boolean => false,
     };
     expect(routesOf(withoutOidc).has("GET /api/auth/oidc/login")).toBe(false);
 
@@ -1020,6 +1080,7 @@ describe("OIDC route registration", () => {
       now: (): number => NOW,
       db: STUB_DB,
       resolveLoginLimit: (): number => 10,
+      discreetLogin: (): boolean => false,
       oidc: fakeOidcDeps(),
     };
     const routes = routesOf(withOidc);
@@ -1114,6 +1175,7 @@ describe("OIDC login — the redirect_uri allowlist gate", () => {
       now: (): number => NOW,
       db: STUB_DB,
       resolveLoginLimit: (): number => 10,
+      discreetLogin: (): boolean => false,
       oidc: rec.deps,
     };
   }
@@ -1220,6 +1282,7 @@ describe("OIDC login — the browser binding cookie", () => {
       now: (): number => NOW,
       db: STUB_DB,
       resolveLoginLimit: (): number => 10,
+      discreetLogin: (): boolean => false,
       oidc: fakeOidcDeps({
         getConfig: (): Promise<OidcConfig> => Promise.resolve(new Configuration(issuer, "orb-client")),
         redirectAllowlist: allowlist,
@@ -1287,6 +1350,7 @@ describe("OIDC callback — the browser binding (login CSRF)", () => {
       now: (): number => NOW,
       db: STUB_DB,
       resolveLoginLimit: (): number => 10,
+      discreetLogin: (): boolean => false,
       oidc: fakeOidcDeps({
         getConfig: (): Promise<OidcConfig> => Promise.resolve(fakeConfig({ issuer: "https://idp.example" })),
         redirectAllowlist: [callbackBase],
@@ -1414,6 +1478,7 @@ describe("OIDC callback — single-use state consume (replay/forgery/TTL gate)",
       now: (): number => NOW,
       db: STUB_DB,
       resolveLoginLimit: (): number => 10,
+      discreetLogin: (): boolean => false,
       oidc: {
         // Must NOT run when the state consume fails — the redirect short-circuits before the token exchange.
         getConfig: (): Promise<never> => {
@@ -1519,6 +1584,7 @@ describe("OIDC callback — IdP error param fails closed (declined consent / acc
       now: (): number => NOW,
       db: STUB_DB,
       resolveLoginLimit: (): number => 10,
+      discreetLogin: (): boolean => false,
       oidc: {
         // Must NOT run on an IdP-error callback — the redirect short-circuits before the token exchange.
         getConfig: (): Promise<never> => {
@@ -1633,6 +1699,7 @@ describe("OIDC callback — the injected code→token exchange (#867)", () => {
       now: (): number => NOW,
       db: STUB_DB,
       resolveLoginLimit: (): number => 10,
+      discreetLogin: (): boolean => false,
       oidc: fakeOidcDeps({
         getConfig: (): Promise<OidcConfig> => Promise.resolve(fakeConfig({ issuer: "https://idp.example" })),
         redirectAllowlist: [callbackBase],
@@ -1855,6 +1922,7 @@ describe("OIDC login + callback — the owner-claim proof handed to provisionIde
       now: (): number => NOW,
       db: STUB_DB,
       resolveLoginLimit: (): number => 10,
+      discreetLogin: (): boolean => false,
       oidc: fakeOidcDeps({
         getConfig: (): Promise<OidcConfig> => Promise.resolve(new Configuration(issuer, "orb-client")),
         exchange: (): Promise<OidcVerifiedTokens> => Promise.resolve({ claims: strangerClaims, idToken: null }),
@@ -1982,7 +2050,10 @@ describe("OIDC back-channel logout route (A5)", () => {
       getConfig: () => Promise.resolve(fakeConfig({ issuer, jwks_uri: jwksUri })),
       backchannelLogout,
     });
-    return { deps: { sessions, sockets, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10, oidc }, rec };
+    return {
+      deps: { sessions, sockets, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10, discreetLogin: (): boolean => false, oidc },
+      rec,
+    };
   }
 
   test("route is NOT registered without backchannelLogout deps (default OFF)", () => {
@@ -1993,6 +2064,7 @@ describe("OIDC back-channel logout route (A5)", () => {
       now: (): number => NOW,
       db: STUB_DB,
       resolveLoginLimit: (): number => 10,
+      discreetLogin: (): boolean => false,
       oidc: fakeOidcDeps(),
     };
     expect(routesOf(deps).has("POST /api/auth/oidc/backchannel-logout")).toBe(false);

@@ -26,9 +26,9 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useTRPC } from "#data";
 import type { ChatContextTabId } from "#lib";
-import { deriveChatTitle } from "#lib";
+import { deriveChatTitle, memberCountPhrase } from "#lib";
 import { revealContextPanel } from "#state";
-import { filterCharacters } from "../lib/roster.ts";
+import { filterCharacters, presentMemberCount } from "../lib/roster.ts";
 import { ChatRecallIndicator } from "./chat-recall-indicator.tsx";
 
 export interface ChatHeaderSurfaceProps {
@@ -40,7 +40,7 @@ type CharacterParticipant = ReturnType<typeof filterCharacters>[number];
 interface CommittedIdentity {
   readonly characters: readonly CharacterParticipant[];
   readonly title: string;
-  /** Every PRESENT seat, humans + characters — the number on the roster chip. */
+  /** The PRESENT people — the number on the roster chip. */
   readonly memberCount: number;
   /** Has the room's own read landed? `false` ⇒ there is no identity yet, only the shape of one. */
   readonly resolved: boolean;
@@ -63,7 +63,7 @@ function useCommittedIdentity(chatId: ChatId): CommittedIdentity {
       chat?.title ?? null,
       characters.map((c) => c.displayName),
     ),
-    memberCount: participants.filter((p) => p.leftSeq === null).length,
+    memberCount: presentMemberCount(participants),
     resolved: chat !== undefined,
     viewerIsHost: chat?.viewerIsHost === true,
   };
@@ -167,7 +167,7 @@ export function RosterChipButton({
           instrument register and stops breaking the floor. Both mounts take it: the topbar's crush (#846)
           is measured in the state where this chip is SHED, so the extra ~10px is not spent there. */}
       <Text as="span" voice="interactiveKicker" className="text-inherit" aria-hidden={true}>
-        {wordy ? `${count} ${count === 1 ? "member" : "members"}` : String(count)}
+        {wordy ? memberCountPhrase(count) : String(count)}
       </Text>
     </Button>
   );

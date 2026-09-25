@@ -10,6 +10,7 @@ import {
   CHAT_APIS,
   EMBEDDING_FLOOR,
   GENERATION_FLOOR,
+  LOCAL_LIGHT_SEED_ROWS,
   providerDefSchema,
   ROUTABLE_TASKS,
   TASKS,
@@ -179,9 +180,13 @@ test("bindRefusal: a background task on a row with allowBackground OFF is refuse
 // picker 40px away shows (side-eye F6: the shipped readout named the registry id and the raw model id, so
 // the comparison the readout exists for was a translation exercise).
 
-test("steady: a bound, resolving role names the connection in the PICKER's words, never a registry id", () => {
+test("steady: a bound role running on its own pick does not repeat the picker; one running on anything else names it", () => {
   const view = { binding: boundTo(OPENROUTER), resolved: { connectionId: OPENROUTER, capability: generation() }, unavailableCause: null };
-  expect(roleReadout({ view, draftConnectionId: undefined, factsOf })).toEqual({ kind: "steady", connection: "OpenRouter · Claude Opus 5" });
+  expect(roleReadout({ view, draftConnectionId: undefined, factsOf })).toEqual({ kind: "steady", connection: null });
+  // A turn that runs on a connection the picker does not show (the picker reads "Not set") is named in the
+  // PICKER's words, never a registry id.
+  const fallback = { binding: null, resolved: { connectionId: OPENROUTER, capability: generation() }, unavailableCause: null };
+  expect(roleReadout({ view: fallback, draftConnectionId: undefined, factsOf })).toEqual({ kind: "steady", connection: "OpenRouter · Claude Opus 5" });
   // The untouched picker is the one state that can never diverge, and a draft EQUAL to the persisted row
   // is not divergence either — "Not applied yet" about an applied pick is the lie this arm must not tell.
   expect(roleReadout({ view, draftConnectionId: OPENROUTER, factsOf }).kind).toBe("steady");
@@ -207,16 +212,18 @@ test("unset: nothing bound says so, and an ABSENT view is unset rather than a bl
 
 test("blocked: a bound role that would not run states its cause, and the host arm is §5.3a's sentence", () => {
   const view = { binding: boundTo(LOCAL), resolved: null, unavailableCause: "endpoint-unreachable" } as const;
-  expect(roleReadout({ view, draftConnectionId: undefined, factsOf })).toEqual({ kind: "blocked", cause: "can't reach 127.0.0.1:8000." });
+  expect(roleReadout({ view, draftConnectionId: undefined, factsOf })).toEqual({ kind: "blocked", cause: "can't reach 127.0.0.1:8000" });
   // A HOSTED row has no host to name — the sentence degrades rather than rendering "can't reach ."
   const hosted = { binding: boundTo(OPENROUTER), resolved: null, unavailableCause: "endpoint-unreachable" } as const;
-  expect(roleReadout({ view: hosted, draftConnectionId: undefined, factsOf })).toEqual({ kind: "blocked", cause: "the server isn't answering." });
+  expect(roleReadout({ view: hosted, draftConnectionId: undefined, factsOf })).toEqual({ kind: "blocked", cause: "the server isn't answering" });
   // Every other cause is a SENTENCE, never the raw code — the shipped row rendered `endpoint-unreachable`
   // as a badge, which is a schema word on a user surface.
   for (const cause of UNAVAILABLE_CAUSES) {
     const readout = roleReadout({ view: { binding: boundTo(OPENROUTER), resolved: null, unavailableCause: cause }, draftConnectionId: undefined, factsOf });
     expect(readout.kind).toBe("blocked");
     expect(readout.kind === "blocked" ? readout.cause : "").not.toContain(cause);
+    // The sentence ends with ONE period, which the readout line owns: a clause that brought its own printed two.
+    expect(readout.kind === "blocked" ? readout.cause : "").not.toMatch(/\.$/u);
   }
 });
 
@@ -339,4 +346,11 @@ test("connectionHost reads the authority out of a base URL without throwing on a
 test("connectionSummary avoids repeating the model when the auto-minted label already carries it", () => {
   expect(connectionSummary({ label: "OpenRouter · gpt-5", model: "gpt-5" })).toBe("OpenRouter · gpt-5");
   expect(connectionSummary({ label: "work key", model: "gpt-5" })).toBe("work key · gpt-5");
+});
+
+// Model roles' picker and readout both name a connection through this one label. The seeded local rows and an
+// org-scoped model id read as a person would say them, never as provider ids and repository paths.
+test("connectionSummary names a model by its own name, and the seeded local rows by what they do", () => {
+  expect(connectionSummary({ label: "work key", model: "openai/gpt-5-mini" })).toBe("work key · gpt-5-mini");
+  expect(LOCAL_LIGHT_SEED_ROWS.map(connectionSummary)).toEqual(["Built-in embeddings · jina-clip-v2", "Built-in reranker · ms-marco-MiniLM-L-6-v2"]);
 });

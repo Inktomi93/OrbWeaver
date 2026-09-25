@@ -8,11 +8,11 @@ import { SETUP_COMMAND } from "@orb/contracts/identity";
 import { CopyButton } from "@orb/ui/copy-button";
 import { Kbd } from "@orb/ui/kbd";
 import { Stack } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
-import type { ReactElement } from "react";
+import { Heading } from "@orb/ui/text";
+import type { ReactElement, ReactNode } from "react";
 import { useAuthConfig } from "#data";
 import { testId } from "#lib";
-import { ShareProse } from "./share-prose.tsx";
+import { ShareCode, ShareProse } from "./share-prose.tsx";
 
 interface SharingPosture {
   readonly posture: string;
@@ -20,10 +20,15 @@ interface SharingPosture {
   readonly line: string;
   /** What `line` is, for the copy button's name: `Copy <lineNoun> <line>`. */
   readonly lineNoun: string;
-  readonly instruction: string;
+  readonly instruction: ReactNode;
 }
 
-const CHANGE_MODE = `To change it, stop the server and run ${SETUP_COMMAND}. In Docker, set AUTH_MODE in the environment: block of docker-compose.yaml.`;
+const CHANGE_MODE = (
+  <>
+    To change it, stop the server and run <ShareCode>{SETUP_COMMAND}</ShareCode>. In Docker, set <ShareCode>AUTH_MODE</ShareCode> in the{" "}
+    <ShareCode>environment:</ShareCode> block of <ShareCode>docker-compose.yaml</ShareCode>.
+  </>
+);
 
 const ENV_LINE = "the environment line";
 
@@ -38,7 +43,7 @@ const SHARING_POSTURE: Record<AuthMode, SharingPosture> = {
     posture: "Other devices can sign in with a handle and password stored by this server.",
     line: "AUTH_MODE=local",
     lineNoun: ENV_LINE,
-    instruction: `${CHANGE_MODE} Over plain http a sign-in travels in clear; put HTTPS in front.`,
+    instruction: <>{CHANGE_MODE} Over plain http a sign-in travels in clear; put HTTPS in front.</>,
   },
   oidc: {
     posture: "People sign in through your identity provider.",
@@ -62,7 +67,9 @@ export function SharingPosturePanel(): ReactElement | null {
   const sharing = SHARING_POSTURE[config.mode];
   return (
     <Stack gap="tight" data-auth-mode={config.mode} data-testid={testId("adminSharingPanel")}>
-      <Text voice="label">Who can sign in</Text>
+      <Heading level={4} voice="label">
+        Who can sign in
+      </Heading>
       <ShareProse>{sharing.posture}</ShareProse>
       <CopyButton text={sharing.line} what={`${sharing.lineNoun} ${sharing.line}`}>
         <Kbd size="command" data-testid={testId("adminSharingLine")}>

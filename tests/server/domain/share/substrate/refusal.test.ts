@@ -1,7 +1,7 @@
 // substrate/refusal — the share preconditions as one ordered decision; the first unmet one is the refusal.
 
 import type { AuthMode } from "@orb/contracts/identity";
-import { AUTH_MODES } from "@orb/contracts/identity";
+import { AUTH_MODES, CONTAINER_SHARE_GUIDE } from "@orb/contracts/identity";
 import type { ShareFacts } from "@orb/server/domain/share";
 import { describe } from "vitest";
 import { shareRefusal, standingShareRefusal } from "../../../../../packages/server/src/domain/share/substrate/refusal.ts";
@@ -74,6 +74,11 @@ describe("standingShareRefusal", () => {
   test("a container under local is standing, and so is every refused mode", () => {
     expect(standingShareRefusal(facts("local", { inContainer: true }).facts)?.code).toBe("share_in_container");
     expect(standingShareRefusal(facts("single-user").facts)?.code).toBe("share_single_user");
+  });
+
+  // The Share card can fix nothing in a container, so the refusal is the only pointer to the way that works.
+  test("the container refusal points at the guide that shares a container", () => {
+    expect(standingShareRefusal(facts("local", { inContainer: true }).facts)?.message).toContain(CONTAINER_SHARE_GUIDE);
   });
 
   test("an unclaimed owner is not standing, and the owner row is never read", () => {

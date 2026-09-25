@@ -98,6 +98,7 @@ async function flow(): Promise<Flow> {
     now,
     db,
     resolveLoginLimit: (): number => 100,
+    discreetLogin: (): boolean => false,
     oidc,
   });
   return { app, db, claims, ownerClaim, sessions };

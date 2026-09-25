@@ -185,7 +185,8 @@ function ShareCardBody({ localMultiUser, discreetLogin, onEnableSeating }: Share
   return (
     <Stack gap="field" data-share-state={status.relay.state} data-share-phase={view.phase}>
       {publicOnly ? null : <ShareProse>A public link to this server over a free relay, so friends outside your network can sign in.</ShareProse>}
-      <Row gap="field" align="center" role="status" aria-live="polite">
+      {/* Baseline, not center: at phone width the sentence runs to several lines, and the badge labels its first. */}
+      <Row gap="field" align="baseline" role="status" aria-live="polite">
         <Badge intent={badge.intent}>{badge.label}</Badge>
         <ShareProse>
           {publicOnly ? "Friends sign in at this server's own address through your identity provider, so invite them there." : stateSentence(view)}

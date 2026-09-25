@@ -4,7 +4,7 @@
 // (the persistence layer takes the clock as a PARAM; the schema's `unixepoch()` default would be
 // non-deterministic, so every seeded row stamps `FROZEN_AT`).
 
-import type { ChatBusEvent, JoinHistoryVisibility, MessageKind, ParticipantView } from "@orb/contracts/chat";
+import type { ChatBusEvent, JoinHistoryVisibility, MessageKind, ParticipantView, TurnInitiator } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Capability } from "@orb/contracts/inference";
 import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
@@ -266,6 +266,9 @@ export async function seedMessage(
      *  contract-schema check, e.g. a tRPC input. */
     readonly id?: MessageId;
     readonly variantId?: MessageVariantId;
+    /** Who started the slot. Omitted ⇒ `human`, the column default a typed turn is born with; `import` is the
+     *  bulk-import seam's stamp. */
+    readonly initiator?: TurnInitiator;
   } = {},
 ): Promise<{ messageId: MessageId; variantId: MessageVariantId }> {
   const messageId = overrides.id ?? castId<MessageId>(`message_${chatId}_${seq}`);
@@ -280,6 +283,7 @@ export async function seedMessage(
     authorUserId: overrides.authorUserId ?? null,
     personaId: overrides.personaId ?? null,
     excludedFromPrompt: overrides.excludedFromPrompt ?? false,
+    ...(overrides.initiator === undefined ? {} : { initiator: overrides.initiator }),
     createdAt: overrides.createdAt ?? FROZEN_AT,
   });
   await db.insert(messageVariants).values({

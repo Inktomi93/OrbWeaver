@@ -241,6 +241,8 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   const app = new Hono<AppEnv>();
 
   const multiHumanCapable = (): boolean => MULTI_HUMAN_CAPABLE[env.AUTH_MODE](deps.services.settings.getEffectiveConfig());
+  // One live read for the sign-in page and the signed-out invite previews, which both keep login handles off the page.
+  const discreetLogin = (): boolean => deps.services.settings.getEffectiveConfig().discreetLogin;
 
   // Hono's onError is the only hook for a handler that throws without returning a Response; without this
   // the request-root span would seal as "ok" and the error would bypass pino/`/api/_debug`.
@@ -424,6 +426,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     db: deps.db,
     publicHttpMintNotice: createPublicHttpMintNotice(deps.now),
     resolveLoginLimit: () => deps.services.settings.getEffectiveConfig().rateLimits.login,
+    discreetLogin,
     ...(deps.authenticate !== undefined ? { authenticate: deps.authenticate } : {}),
     ...(deps.firstRun !== undefined ? { firstRun: deps.firstRun } : {}),
     ...(deps.signup !== undefined ? { signup: { ...deps.signup, multiHumanCapable } } : {}),
@@ -434,7 +437,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     defaultHandle: env.DEFAULT_USER_HANDLE,
     oidcProviderName: deps.oidcProviderName,
     ...(deps.localFirstRun !== undefined ? { localFirstRun: deps.localFirstRun } : {}),
-    discreetLogin: () => deps.services.settings.getEffectiveConfig().discreetLogin,
+    discreetLogin,
     multiHumanCapable,
     maxImageBytes: () => deps.services.settings.getEffectiveConfig().maxImageBytes,
     maxDatabankBytes: () => deps.services.settings.getEffectiveConfig().maxDatabankBytes,

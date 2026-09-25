@@ -6,7 +6,7 @@
 
 import { bindSessionRecovery, recoverIfUnauthorizedCode } from "@orb/client/data";
 import { LoginShellAnchor } from "@orb/client/features/auth";
-import { closeModal, openModal, useOpenModal } from "@orb/client/state";
+import { closeModal, openModal, useActiveChatId, useActiveSection, useOpenModal } from "@orb/client/state";
 import type { ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
@@ -36,18 +36,24 @@ export function LoginArmStory({
   readonly joinToken?: string | null;
 }): ReactElement {
   const [done, setDone] = useState(false);
+  // Where the shell would land after the arm finishes: a sign-up through an invite selects the joined room.
+  const activeChatId = useActiveChatId();
+  const activeSection = useActiveSection();
   return (
-    <div style={{ width: 360, padding: 16 }}>
-      <LoginBody
-        config={config}
-        authError={authError}
-        joinToken={joinToken}
-        onDone={(): void => {
-          setDone(true);
-        }}
-      />
-      {done ? <p data-testid="ct-login-done">done</p> : null}
-    </div>
+    <CtDataProviders>
+      <div style={{ width: 360, padding: 16 }}>
+        <LoginBody
+          config={config}
+          authError={authError}
+          joinToken={joinToken}
+          onDone={(): void => {
+            setDone(true);
+          }}
+        />
+        {done ? <p data-testid="ct-login-done">done</p> : null}
+        <output data-testid="ct-login-landing">{`chat=${activeChatId ?? "none"} section=${activeSection}`}</output>
+      </div>
+    </CtDataProviders>
   );
 }
 
@@ -56,6 +62,9 @@ export function LoginArmStory({
 export function LoginPendingJoinStory({ config }: { readonly config: AuthConfig }): ReactElement {
   const [done, setDone] = useState(false);
   const [left, setLeft] = useState(false);
+  // Where the shell would land after the join: a signed-in confirm selects the joined room.
+  const activeChatId = useActiveChatId();
+  const activeSection = useActiveSection();
   return (
     <CtDataProviders>
       <div style={{ width: 360, padding: 16 }}>
@@ -70,6 +79,7 @@ export function LoginPendingJoinStory({ config }: { readonly config: AuthConfig 
           }}
         />
         {done ? <p data-testid="ct-login-done">done</p> : null}
+        <output data-testid="ct-login-landing">{`chat=${activeChatId ?? "none"} section=${activeSection}`}</output>
       </div>
     </CtDataProviders>
   );

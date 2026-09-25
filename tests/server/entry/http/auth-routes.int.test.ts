@@ -8,7 +8,7 @@ import { JOINER_PERSONA_DESCRIPTION_MAX } from "@orb/contracts/persona";
 import type { Db } from "@orb/db";
 import { auditLogs, chatInvites, chatParticipants, rateLimitBuckets, userSettings, users } from "@orb/db";
 import type { ChatId, ChatInviteId, ChatParticipantId, Handle, PersonaId, SessionId, SessionToken, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { RevokedSessionsSummary } from "@orb/server/domain/sessions";
 import { isReservedSignupHandle } from "@orb/server/domain/sessions";
 import type { AuthRoutesDeps, AuthSessionsPort, FirstRunRouteDeps, LocalAuthenticator, SignupRouteDeps } from "@orb/server/entry/http";
@@ -89,6 +89,7 @@ async function appWith(over: Partial<AuthRoutesDeps> = {}): Promise<Hono> {
     now: (): number => NOW,
     db,
     resolveLoginLimit: (): number => 10,
+    discreetLogin: (): boolean => false,
     authenticate: ownerAuth(castId<UserId>("usr_owner")),
     ...over,
   };
@@ -643,6 +644,15 @@ describe("local signup route (D259)", () => {
     announced: ChatId[];
   }
 
+  /** The strict preview a live invite answers. */
+  const PreviewRow = {
+    chatId: mintTypeId(ID_PREFIX.chat),
+    roomName: "The room",
+    hostHandle: castId<Handle>("host"),
+    memberCount: 2,
+    modeLabel: "Everyone takes turns",
+  };
+
   /** Stub chat ops: `tok_good` names a live invite, anything else names nothing; a redeem refuses as taken. */
   function stubInvites(spies: Spies): SignupRouteDeps["invites"] {
     return {
@@ -650,6 +660,8 @@ describe("local signup route (D259)", () => {
         spies.admitted += 1;
         return Promise.resolve(token === Good ? InviteId : null);
       },
+      tokenHashOf: (token) => `h:${token}`,
+      previewHash: (tokenHash) => Promise.resolve(tokenHash === `h:${Good}` ? PreviewRow : null),
       redeem: () => {
         spies.redeemed += 1;
         return Promise.resolve({ outcome: "refused", reason: "handle-taken" });
@@ -662,7 +674,13 @@ describe("local signup route (D259)", () => {
   }
 
   async function signupApp(
-    over: { readonly signup?: Partial<SignupRouteDeps>; readonly limit?: number; readonly sessions?: Partial<AuthSessionsPort>; readonly db?: Db } = {},
+    over: {
+      readonly signup?: Partial<SignupRouteDeps>;
+      readonly limit?: number;
+      readonly sessions?: Partial<AuthSessionsPort>;
+      readonly db?: Db;
+      readonly discreet?: boolean;
+    } = {},
   ): Promise<{ app: Hono; db: Db; spies: Spies }> {
     const db = over.db ?? (await freshDb());
     const spies: Spies = { hashed: 0, admitted: 0, redeemed: 0, seeded: [], announced: [] };
@@ -673,6 +691,7 @@ describe("local signup route (D259)", () => {
       now: (): number => NOW,
       db,
       resolveLoginLimit: (): number => over.limit ?? 10,
+      discreetLogin: (): boolean => over.discreet ?? false,
       signup: {
         multiHumanCapable: (): boolean => true,
         sessionIsLive: (): Promise<boolean> => Promise.resolve(false),
@@ -840,6 +859,8 @@ describe("local signup route (D259)", () => {
     const res = await postSignup(app, "10.9.2.1", creds);
 
     expect(res.status).toBe(200);
+    // The answer names the room the account was seated in, so the client can land there.
+    expect(await res.json()).toEqual({ ok: true, chatId: room.id });
     expect(res.headers.get("set-cookie") ?? "").toContain(`${COOKIE}=tok-123`);
     expect(accountAtMint).toBe(1);
     const created = await db
@@ -866,5 +887,94 @@ describe("local signup route (D259)", () => {
     expect(announced).toEqual([room.id]);
     // The same handle again, any case, is taken now.
     expect((await postSignup(app, "10.9.2.2", { ...creds, handle: "FRIEND" })).status).toBe(409);
+  });
+
+  // D260 — the local sign-up form's invite preview: the signup route's steps up to its pre-check, answering no more.
+  const Preview = "/api/auth/signup/preview";
+
+  async function postPreview(app: Hono, ip: string, body: unknown, headers: Record<string, string> = { [CSRF]: "1" }): Promise<Response> {
+    return await app.request(Preview, { method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify(body) }, connEnv(ip));
+  }
+
+  test("preview: a live token answers the strict invite preview", async () => {
+    const { app } = await signupApp();
+    const res = await postPreview(app, "10.9.3.1", { token: Good });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual(PreviewRow);
+  });
+
+  // Discreet login keeps the owner's login handle off the sign-in page; in local mode the host handle is one, so a
+  // signed-out preview leaves it out while discreet login is on.
+  test("preview: with discreet login on, the host handle is left out; with it off, the host is named", async () => {
+    const discreet = await signupApp({ discreet: true });
+    const hidden = await postPreview(discreet.app, "10.9.3.11", { token: Good });
+    expect(hidden.status).toBe(200);
+    const { hostHandle: _host, ...anonymous } = PreviewRow;
+    expect(await hidden.json()).toEqual(anonymous);
+    const open = await signupApp({ discreet: false });
+    expect(await (await postPreview(open.app, "10.9.3.12", { token: Good })).json()).toEqual(PreviewRow);
+  });
+
+  // The route parses its answer through the STRICT preview schema: a preview op that carried one more key (a roster, a
+  // hash) fails the call instead of reaching a visitor who is not a member.
+  test("preview: nothing beyond the strict preview fields leaks; an extra key fails the call closed", async () => {
+    const leaky: Partial<SignupRouteDeps> = {
+      invites: {
+        ...stubInvites({ hashed: 0, admitted: 0, redeemed: 0, seeded: [], announced: [] }),
+        previewHash: () => Promise.resolve({ ...PreviewRow, tokenHash: `h:${Good}` }),
+      },
+    };
+    const { app } = await signupApp({ signup: leaky });
+    const res = await postPreview(app, "10.9.3.10", { token: Good });
+    expect(res.status).toBe(500);
+    const body = await res.text();
+    expect(body).not.toContain(PreviewRow.roomName);
+    expect(body).not.toContain(`h:${Good}`);
+  });
+
+  test("preview: a dead token gets the signup pre-check's own 404, byte for byte, and spends no per-invite bucket", async () => {
+    const { app, db, spies } = await signupApp();
+    const preview = await postPreview(app, "10.9.3.2", { token: "tok_spent" });
+    const signup = await postSignup(app, "10.9.3.3", { ...creds, token: "tok_spent" });
+    expect(preview.status).toBe(404);
+    expect(preview.status).toBe(signup.status);
+    expect(await preview.text()).toBe(await signup.text());
+    // Both answered at the same step: the pre-check ran once for each, and neither reached a bucket or scrypt.
+    expect(spies.admitted).toBe(2);
+    expect(spies.hashed).toBe(0);
+    expect(await inviteBuckets(db)).toBe(0);
+  });
+
+  test("preview: refused without x-orb-csrf, with a live session, off a multi-human box, and on a body with extra keys", async () => {
+    const { app, spies } = await signupApp();
+    expect((await postPreview(app, "10.9.3.4", { token: Good }, {})).status).toBe(403);
+    expect((await postPreview(app, "10.9.3.5", { token: Good, handle: "friend" })).status).toBe(400);
+    const live = await signupApp({ signup: { sessionIsLive: (): Promise<boolean> => Promise.resolve(true) } });
+    const signedIn = await postPreview(live.app, "10.9.3.6", { token: Good }, { [CSRF]: "1", cookie: `${COOKIE}=tok-live` });
+    expect(signedIn.status).toBe(409);
+    expect(await signedIn.json()).toEqual({ error: "already_signed_in" });
+    const closed = await signupApp({ signup: { multiHumanCapable: (): boolean => false } });
+    expect((await postPreview(closed.app, "10.9.3.7", { token: Good })).status).toBe(404);
+    expect(spies.admitted + live.spies.admitted + closed.spies.admitted).toBe(0);
+  });
+
+  test("preview: a deployment without the local signup door has no preview route", async () => {
+    const app = new Hono();
+    registerAuthRoutes(app, {
+      sessions: sessionsStub(),
+      sockets: { evictSession: (): number => 0, evictUser: (): number => 0 },
+      now: (): number => NOW,
+      db: await freshDb(),
+      resolveLoginLimit: (): number => 10,
+      discreetLogin: (): boolean => false,
+    });
+    expect((await postPreview(app, "10.9.3.8", { token: Good })).status).toBe(404);
+  });
+
+  test("preview: it spends the login-ip bucket the signup route spends", async () => {
+    const { app } = await signupApp({ limit: 1 });
+    expect((await postPreview(app, "10.9.3.9", { token: Good })).status).toBe(200);
+    expect((await postSignup(app, "10.9.3.9", creds)).status).toBe(429);
+    expect((await postPreview(app, "10.9.3.9", { token: Good })).status).toBe(429);
   });
 });

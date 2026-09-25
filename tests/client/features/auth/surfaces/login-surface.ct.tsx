@@ -7,8 +7,28 @@
 
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Page } from "@playwright/test";
 import type { AuthConfig } from "../../../../../packages/client/src/data/auth-config.ts";
 import { LoginArmStory } from "../_ct-stories.tsx";
+
+// D260 — the room a live sign-up token opens; the local invite arm previews it before it shows any field.
+const ROOM_ID = "chat_01j0000000000000000000000b";
+const ROOM = { chatId: ROOM_ID, roomName: "Tavern Night", hostHandle: "alex", memberCount: 3, modeLabel: "The characters take turns." };
+
+/** Answer the sign-up preview: the room for a live token, the signup pre-check's 404 for a dead one. */
+async function stubSignupPreview(page: Page, live: boolean, room: object = ROOM): Promise<{ readonly bodies: unknown[] }> {
+  const bodies: unknown[] = [];
+  await page.route("**/api/auth/signup/preview", async (route) => {
+    bodies.push(route.request().postDataJSON());
+    expect(route.request().headers()["x-orb-csrf"]).toBe("1");
+    if (live) {
+      await route.fulfill({ status: 200, json: room });
+      return;
+    }
+    await route.fulfill({ status: 404, json: { error: "invite_unavailable" } });
+  });
+  return { bodies };
+}
 
 function config(overrides: Partial<AuthConfig>): AuthConfig {
   return {
@@ -38,11 +58,18 @@ test("local over plain http from a private client → the transport notice, priv
   await mount(<LoginArmStory config={config({ mode: "local", transport: "http", clientScope: "private" })} />);
   await expect(page.getByTestId("login-transport-notice")).toBeVisible();
   await expect(page.getByTestId("login-transport-notice")).toHaveAttribute("data-client-scope", "private");
+  // P3-8 — it speaks to the person signing in, not to the operator.
+  await expect(page.getByTestId("login-transport-notice")).toHaveText(
+    "This page isn't encrypted: others on this network could read your password as it is sent. Sign in only on a network you trust.",
+  );
 });
 
 test("local over plain http from a public client → the transport notice, public scope", async ({ mount, page }) => {
   await mount(<LoginArmStory config={config({ mode: "local", transport: "http", clientScope: "public" })} />);
   await expect(page.getByTestId("login-transport-notice")).toHaveAttribute("data-client-scope", "public");
+  await expect(page.getByTestId("login-transport-notice")).toHaveText(
+    "This page isn't encrypted: anyone between you and this server could read your password as it is sent. Don't sign in here; ask whoever runs this server for a secure link.",
+  );
 });
 
 test("the first-run form over plain http carries the notice too", async ({ mount, page }) => {
@@ -140,22 +167,84 @@ test("local + a stashed invite on a multi-human box → the signup form, posting
   await page.route("**/api/auth/signup", async (route) => {
     posted = route.request().postDataJSON();
     expect(route.request().headers()["x-orb-csrf"]).toBe("1");
-    await route.fulfill({ status: 200, json: { ok: true } });
+    await route.fulfill({ status: 200, json: { ok: true, chatId: ROOM_ID } });
   });
+  const preview = await stubSignupPreview(page, true);
   await mount(<LoginArmStory config={config({ mode: "local", multiHumanCapable: true })} joinToken="tok_invite" />);
   await expect(page.getByTestId("signup-invite-form")).toBeVisible();
+  // The arm previewed the stashed token first, and names who invited the visitor and to which room.
+  expect(preview.bodies).toEqual([{ token: "tok_invite" }]);
+  await expect(page.getByTestId("signup-invite-room")).toContainText(ROOM.hostHandle);
+  await expect(page.getByTestId("signup-invite-room")).toContainText(ROOM.roomName);
   await expect(page.getByTestId("login-local-form")).toHaveCount(0);
   await page.getByTestId("signup-handle").fill("friend");
   await page.getByTestId("signup-password").fill("hunter2pw");
   const submit = page.getByTestId("signup-submit");
-  await expect(submit).toBeDisabled();
-  await page.getByTestId("joiner-persona-name").fill("  Mira ");
+  // The persona is still unnamed: submit stays reachable, and pressing it marks the name and moves focus there.
+  await expect(submit).toBeEnabled();
+  await submit.click();
+  const personaName = page.getByTestId("joiner-persona-name");
+  await expect(personaName).toHaveAttribute("aria-invalid", "true");
+  await expect(personaName).toBeFocused();
+  expect(posted).toBeNull();
+  await personaName.fill("  Mira ");
   await submit.click();
   await expect(page.getByTestId("ct-login-done")).toBeVisible();
   expect(posted).toEqual({ token: "tok_invite", handle: "friend", password: "hunter2pw", persona: { name: "Mira", description: "" } });
+  // P2-3 — the new account lands in the room it joined, not on Home.
+  await expect(page.getByTestId("ct-login-landing")).toHaveText(`chat=${ROOM_ID} section=chats`);
+});
+
+// With discreet login on, the preview carries no host handle (the owner's login handle); the form still names the room.
+test("local + a stashed invite under discreet login → the room is named without a host", async ({ mount, page }) => {
+  const { hostHandle: _host, ...anonymous } = ROOM;
+  await stubSignupPreview(page, true, anonymous);
+  await mount(<LoginArmStory config={config({ mode: "local", multiHumanCapable: true, discreetLogin: true })} joinToken="tok_invite" />);
+  await expect(page.getByTestId("signup-invite-room")).toHaveText(`You're invited to ${ROOM.roomName} (3 members). ${ROOM.modeLabel}`);
+  await expect(page.getByTestId("signup-invite-form")).toBeVisible();
+});
+
+// P2-1 — a used or expired link shows the unavailable state, never the four fields that could only end in a refusal.
+test("local + a stashed invite that no longer admits → the unavailable state, no sign-up fields", async ({ mount, page }) => {
+  await stubSignupPreview(page, false);
+  await mount(<LoginArmStory config={config({ mode: "local", multiHumanCapable: true })} joinToken="tok_spent" />);
+  await expect(page.getByTestId("invite-unavailable")).toBeVisible();
+  await expect(page.getByTestId("signup-invite-form")).toHaveCount(0);
+  await expect(page.getByTestId("signup-handle")).toHaveCount(0);
+});
+
+// P1-1 — a handle with a space fails the rule. The field says so at once, with aria-invalid, and a submit sends nothing
+// and returns focus to it; the button never goes silent.
+test("local + a stashed invite → a handle that breaks the rule is marked invalid, and submit sends nothing and focuses it", async ({ mount, page }) => {
+  let posts = 0;
+  await page.route("**/api/auth/signup", async (route) => {
+    posts += 1;
+    await route.fulfill({ status: 200, json: { ok: true } });
+  });
+  await stubSignupPreview(page, true);
+  await mount(<LoginArmStory config={config({ mode: "local", multiHumanCapable: true })} joinToken="tok_invite" />);
+  const handle = page.getByTestId("signup-handle");
+  await expect(handle).toHaveAttribute("aria-describedby", /.+/);
+  await expect(handle).not.toHaveAttribute("aria-invalid", "true");
+  await handle.fill("Sam Rivera");
+  await expect(handle).toHaveAttribute("aria-invalid", "true");
+  await page.getByTestId("signup-password").fill("hunter2pw");
+  await page.getByTestId("joiner-persona-name").fill("Sam");
+  await page.getByTestId("signup-submit").click();
+  await expect(handle).toBeFocused();
+  expect(posts).toBe(0);
+  await handle.fill("sam.rivera");
+  await expect(handle).not.toHaveAttribute("aria-invalid", "true");
+});
+
+test("local + a stashed invite → the persona name is required", async ({ mount, page }) => {
+  await stubSignupPreview(page, true);
+  await mount(<LoginArmStory config={config({ mode: "local", multiHumanCapable: true })} joinToken="tok_invite" />);
+  await expect(page.getByTestId("joiner-persona-name")).toHaveAttribute("required", "");
 });
 
 test("local + a stashed invite → 'I already have an account' shows the credential form", async ({ mount, page }) => {
+  await stubSignupPreview(page, true);
   await mount(<LoginArmStory config={config({ mode: "local", multiHumanCapable: true })} joinToken="tok_invite" />);
   await page.getByTestId("signup-use-sign-in").click();
   await expect(page.getByTestId("login-local-form")).toBeVisible();

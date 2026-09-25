@@ -3,8 +3,8 @@
 // options menu (and its server-resolved host gate) moved to the COMPOSER — see composer-chat-options.ct.tsx.
 //
 // The members entry ALWAYS renders (every chat has a roster CP-1 owner ruling
-// 2026-07-25) and it counts PRESENT participants (humans + cast, `leftSeq === null`); a departed seat is
-// excluded. It ALWAYS opens the Members context tab: the solo-chat roster POPOVER this file used to pin was
+// 2026-07-25) and it counts the PRESENT people (humans, `leftSeq === null`): a member is a human, the word the
+// invite preview counts with, so the characters and a departed seat are excluded. It ALWAYS opens the Members context tab: the solo-chat roster POPOVER this file used to pin was
 // deleted with the Members tab's size gate (#162, owner-ruled 2026-08-18) — one roster surface, every room.
 
 import type { ParticipantRole } from "@orb/contracts/identity";
@@ -47,7 +47,7 @@ function character(name: string): ParticipantFixture {
   };
 }
 
-test("a GROUP chat shows the chip counting PRESENT participants (\u00a7 6.1: Members \u2014 N)", async ({ mount, page }) => {
+test("a GROUP chat shows the chip counting the PRESENT people, never the characters (Members \u2014 N)", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.getChat": () => ({
       title: "Council of Two",
@@ -65,10 +65,10 @@ test("a GROUP chat shows the chip counting PRESENT participants (\u00a7 6.1: Mem
 
   const component = await mount(<ChatHeaderStory />);
 
-  // 1 present human + 2 characters = 3; the departed seat is excluded.
-  const chip = component.getByRole("button", { name: "Members — 3" });
+  // 1 present human; the 2 characters and the departed seat are not members.
+  const chip = component.getByRole("button", { name: "Members — 1" });
   await expect(chip).toBeVisible();
-  await expect(chip).toHaveText("3");
+  await expect(chip).toHaveText("1");
 });
 
 // ── THE PLACEHOLDER MAY NOT LIE (#216, side-eye home re-score 2026-08-18) ─────────────────────────
@@ -99,7 +99,7 @@ test("while chat.getChat is unresolved the header shows a skeleton — never 'Un
     viewerIsHost: true,
   });
 
-  await expect(component.getByRole("button", { name: "Members — 2" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Members — 1" })).toBeVisible();
   await expect(component.locator('[data-slot="chat-header-pending"]')).toHaveCount(0);
 });
 
@@ -126,7 +126,7 @@ test.describe("narrow/touch viewport", () => {
     const state = component.getByTestId("shell-state");
     await expect(state).toHaveText("contextTab=none openOverlayPanel=none");
 
-    const chip = component.getByRole("button", { name: "Members — 3" });
+    const chip = component.getByRole("button", { name: "Members — 1" });
     await chip.tap();
 
     // The overlay request now NAMES "context" — the write `resolvePanelMode` needs to reveal the sheet
@@ -139,8 +139,8 @@ test.describe("narrow/touch viewport", () => {
 // popover with its own "Add a character" — a SECOND roster surface that existed only because the Members tab
 // was size-gated out of 1:1 rooms. That gate is gone (`lib/roster.ts::membersTabJustified`), the tab is the
 // one roster home in every room state, and the popover was deleted with it. What the chip owes now is the
-// same thing in every room: the present-seat count, and a door to the one roster surface.
-test("the members chip counts every PRESENT seat and opens the Members tab — in a solo room too", async ({ mount, page }) => {
+// same thing in every room: the present-people count, and a door to the one roster surface.
+test("the members chip counts the PRESENT people and opens the Members tab — in a solo room too", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.getChat": () => ({
       title: "",
@@ -152,8 +152,8 @@ test("the members chip counts every PRESENT seat and opens the Members tab — i
 
   const component = await mount(<ChatHeaderNarrowStory />);
 
-  // 1 human + 1 character = 2.
-  const entry = component.getByRole("button", { name: "Members — 2" });
+  // 1 human; the character is not a member.
+  const entry = component.getByRole("button", { name: "Members — 1" });
   await expect(entry).toBeVisible();
 
   await entry.click();
@@ -171,7 +171,7 @@ test("a NON-host gets the same chip and the same one door (no host-forked topbar
   });
 
   const component = await mount(<ChatHeaderNarrowStory />);
-  await component.getByRole("button", { name: "Members — 2" }).click();
+  await component.getByRole("button", { name: "Members — 1" }).click();
 
   await expect(component.getByTestId("shell-state")).toHaveText("contextTab=members openOverlayPanel=context");
 });
