@@ -128,7 +128,7 @@ import { buildAdmin } from "./admin.ts";
 import { buildAssetsCharacter } from "./assets-character.ts";
 import { buildAutomationPlugin } from "./automation-plugin.ts";
 import type { ChatComposeInput, ChatComposeResult } from "./chat.ts";
-import { buildChatService, createSignupMinterCheck } from "./chat.ts";
+import { buildChatService, createAdoptJoinerPersona, createSignupMinterCheck } from "./chat.ts";
 import { buildDatabank } from "./databank.ts";
 import { createDemoChatGameDoor } from "./demo-chat-game.ts";
 import type { EffectiveConfigWiring } from "./effective-config.ts";
@@ -718,8 +718,20 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     resolveChatCapability: (args) => connection.resolveChatCapability(args),
     getContributions: getWorkloadContributions,
   });
-  const { embeddings, indexer, persona, resolvePersonasForParticipants, presetCtx, preset, stats, search, discovery, notifications, workloads } =
-    searchDiscovery;
+  const {
+    embeddings,
+    indexer,
+    persona,
+    resolvePersonasForParticipants,
+    joinerPersonaStatement,
+    presetCtx,
+    preset,
+    stats,
+    search,
+    discovery,
+    notifications,
+    workloads,
+  } = searchDiscovery;
   // Bind the embed-model-change → bulk purge+reindex enqueue now that `workloads` exists.
   enqueueEmbedReindex = searchDiscovery.enqueueEmbedReindex;
 
@@ -893,6 +905,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     authMode: env.AUTH_MODE,
     signup: {
       signupUserStatement: sessions.signupUserStatement,
+      signupPersonaStatement: joinerPersonaStatement,
+      adoptJoinerPersona: createAdoptJoinerPersona(settings, resolveHostPrincipal),
       minterMayMintSignup: createSignupMinterCheck(sessions, resolveHostPrincipal),
     },
     runChatTurn: executor.runChatTurn,

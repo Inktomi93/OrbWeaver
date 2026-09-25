@@ -1,11 +1,12 @@
 // The signup-invite ops (D254): the Principal-free pre-checks, the signed-out preview, and the one gated batch
-// that creates an account, spends one use, seats the new member and writes the audit row. The batch order is
-// the control: the account insert runs only where the invite admits (and, for an OIDC pending join, only where
-// the pending take deleted a row), and every later statement runs only where the one before it changed a row,
-// so a refused step leaves nothing behind. Never reorder it and never let a later statement run ungated: an
-// ungated insert placed after the claim seats a stranger on a spent invite.
+// that creates an account, spends one use, creates the persona the joiner named, seats the new member as it and
+// writes the audit row. The batch order is the control: the account insert runs only where the invite admits
+// (and, for an OIDC pending join, only where the pending take deleted a row), and every later statement runs only
+// where the one before it changed a row, so a refused step leaves nothing behind. Never reorder it and never let a
+// later statement run ungated: an ungated insert placed after the claim seats a stranger on a spent invite.
 
 import type { InvitePreview } from "@orb/contracts/chat";
+import type { JoinerPersona } from "@orb/contracts/persona";
 import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/kit";
 import { isConstraintViolation } from "@orb/db/kit";
 import type { ChatId, ChatInviteId, Handle, UserId } from "@orb/kit/ids";
@@ -25,6 +26,7 @@ interface ChainAttempt {
   readonly tokenHash: string;
   readonly at: number;
   readonly handle: Handle;
+  readonly persona: JoinerPersona;
   readonly build: (admission: SQL) => {
     readonly leading: readonly BatchStmt[];
     readonly account: AwaitableBatchStmt<{ id: UserId }[]>;
@@ -63,6 +65,7 @@ export function createSignupInvite(
       return refused("invite");
     }
     const { leading, account, userId } = attempt.build(signupAccountAdmission({ tokenHash, now: at, mode }));
+    const persona = deps.signupPersonaStatement({ ownerId: userId, persona: attempt.persona, at });
     const audit = deps.auditStatementAfterWrite(
       {
         actorUserId: userId,
@@ -78,6 +81,8 @@ export function createSignupInvite(
       settled = await redeemSignupAtomic(ctx.db, {
         leading,
         account,
+        persona: persona.statement,
+        personaId: persona.personaId,
         audit,
         inviteId: invite.id,
         tokenHash,
@@ -93,7 +98,11 @@ export function createSignupInvite(
       }
       throw err;
     }
-    return await settle(settled, { attempt, userId, chatId: invite.chatId });
+    const outcome = await settle(settled, { attempt, userId, chatId: invite.chatId });
+    if (outcome.outcome === "joined") {
+      await deps.adoptJoinerPersona(userId, persona.personaId);
+    }
+    return outcome;
   }
 
   // Every RETURNING non-empty is the one success. All empty means the chain gated off at or before the account
@@ -103,23 +112,31 @@ export function createSignupInvite(
     settled: Awaited<ReturnType<typeof redeemSignupAtomic>>,
     joined: { readonly attempt: ChainAttempt; readonly userId: UserId; readonly chatId: ChatId },
   ): Promise<SignupRedeemOutcome> {
-    const { accounts, claims, seats } = settled;
-    if (accounts === 1 && claims === 1 && seats === 1) {
+    const counts = [settled.accounts, settled.claims, settled.personas, settled.seats];
+    if (counts.every((count) => count === 1)) {
       return { outcome: "joined", userId: joined.userId, chatId: joined.chatId };
     }
-    if (accounts === 0 && claims === 0 && seats === 0) {
+    if (counts.every((count) => count === 0)) {
       const { attempt } = joined;
       return refused((await standing(attempt.tokenHash, attempt.at)) === null ? "invite" : attempt.refusedWhileAdmitting);
     }
-    throw new Error(`signup batch wrote a partial chain (accounts=${accounts}, claims=${claims}, seats=${seats})`);
+    throw new Error(
+      `signup batch wrote a partial chain (accounts=${settled.accounts}, claims=${settled.claims}, personas=${settled.personas}, seats=${settled.seats})`,
+    );
   }
 
-  async function redeem(args: { readonly token: string; readonly handle: Handle; readonly passwordHash: string }): Promise<SignupRedeemOutcome> {
+  async function redeem(args: {
+    readonly token: string;
+    readonly handle: Handle;
+    readonly passwordHash: string;
+    readonly persona: JoinerPersona;
+  }): Promise<SignupRedeemOutcome> {
     const at = ctx.now();
     return await runChain({
       tokenHash: ctx.hashToken(args.token),
       at,
       handle: args.handle,
+      persona: args.persona,
       build: (admission) => {
         const account = deps.signupUserStatement({ handle: args.handle, passwordHash: args.passwordHash, at, admission });
         return { leading: [], account: account.statement, userId: account.userId };
@@ -132,12 +149,14 @@ export function createSignupInvite(
     readonly tokenHash: string;
     readonly userId: UserId;
     readonly handle: Handle;
+    readonly persona: JoinerPersona;
     readonly statements: PendingSignupStatements;
   }): Promise<SignupRedeemOutcome> {
     return await runChain({
       tokenHash: args.tokenHash,
       at: ctx.now(),
       handle: args.handle,
+      persona: args.persona,
       build: (admission) => {
         const { take, account } = args.statements(admission);
         return { leading: [take], account, userId: args.userId };

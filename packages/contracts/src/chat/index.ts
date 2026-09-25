@@ -315,6 +315,8 @@ export type {
   RenderPolicyOverride,
   RosterMemberSpec,
   SeatKnobs,
+  SignupErrorCode,
+  SignupRequest,
 } from "./roster.ts";
 export {
   acceptInviteSchema,
@@ -350,11 +352,13 @@ export {
   resolveCarriedTheme,
   resolveRenderPolicy,
   rosterMemberSpecSchema,
+  SIGNUP_ERROR_CODES,
   SIGNUP_INVITES_MINTABLE,
   SIGNUP_MAX_TTL_DAYS,
   SIGNUP_MAX_TTL_MS,
   SIGNUP_MAX_USES,
   seatKnobsSchema,
+  signupRequestSchema,
   stepFromRenderPolicyOverride,
   TALKATIVENESS_DEFAULT,
 } from "./roster.ts";

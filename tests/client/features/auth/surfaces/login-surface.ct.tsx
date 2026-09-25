@@ -126,8 +126,9 @@ test("single-user → the 'no login needed' explainer (reachable only by direct 
 });
 
 // D254 — a signed-out invite visit stashed its token before the guard redirected here. The local arm offers
-// the signup form, and the token rides only the POST body.
-test("local + a stashed invite on a multi-human box → the signup form, posting the stashed token", async ({ mount, page }) => {
+// the signup form, and the token rides only the POST body. The joiner names a persona in the same form: the
+// account and its seat are created with it, so the form holds its submit until the persona has a name.
+test("local + a stashed invite on a multi-human box → the signup form, posting the stashed token and the persona", async ({ mount, page }) => {
   let posted: unknown = null;
   await page.route("**/api/auth/signup", async (route) => {
     posted = route.request().postDataJSON();
@@ -139,9 +140,12 @@ test("local + a stashed invite on a multi-human box → the signup form, posting
   await expect(page.getByTestId("login-local-form")).toHaveCount(0);
   await page.getByTestId("signup-handle").fill("friend");
   await page.getByTestId("signup-password").fill("hunter2pw");
-  await page.getByTestId("signup-submit").click();
+  const submit = page.getByTestId("signup-submit");
+  await expect(submit).toBeDisabled();
+  await page.getByTestId("joiner-persona-name").fill("  Mira ");
+  await submit.click();
   await expect(page.getByTestId("ct-login-done")).toBeVisible();
-  expect(posted).toEqual({ token: "tok_invite", handle: "friend", password: "hunter2pw" });
+  expect(posted).toEqual({ token: "tok_invite", handle: "friend", password: "hunter2pw", persona: { name: "Mira", description: "" } });
 });
 
 test("local + a stashed invite → 'I already have an account' shows the credential form", async ({ mount, page }) => {

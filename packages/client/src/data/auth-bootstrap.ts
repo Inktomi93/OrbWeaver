@@ -4,10 +4,10 @@
 // import the fns, never hand-write `fetch`. Response shape is a structural mirror of
 // entry/http/auth-meta.ts (no proxy type to derive from, since the endpoint lives outside AppRouter).
 
-import type { InvitePreview, PendingJoinConfirmRequest, PendingJoinErrorCode } from "@orb/contracts/chat";
-import { invitePreviewSchema, PENDING_JOIN_ERROR_CODES, pendingJoinConfirmResultSchema } from "@orb/contracts/chat";
-import type { SignupErrorCode, SignupRequest, UserRole } from "@orb/contracts/identity";
-import { CSRF_HEADER, SIGNUP_ERROR_CODES } from "@orb/contracts/identity";
+import type { InvitePreview, PendingJoinConfirmRequest, PendingJoinErrorCode, SignupErrorCode, SignupRequest } from "@orb/contracts/chat";
+import { invitePreviewSchema, PENDING_JOIN_ERROR_CODES, pendingJoinConfirmResultSchema, SIGNUP_ERROR_CODES } from "@orb/contracts/chat";
+import type { UserRole } from "@orb/contracts/identity";
+import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { Handle } from "@orb/kit/ids";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { queryOptions, useQuery } from "@tanstack/react-query";
@@ -101,7 +101,8 @@ function isSignupErrorCode(value: unknown): value is SignupErrorCode {
 }
 
 /** D254 — create a local account through the stashed invite. POSTs the JSON body to `/api/auth/signup`; the
- *  server creates the account, spends one invite use, seats the member, then mints the session cookie.
+ *  server creates the account, spends one invite use, creates the named persona and seats the member as it, then
+ *  mints the session cookie.
  *  Resolves with the route's refusal code on a refusal (`null` for a throttle or an unreadable body), so the
  *  form picks its own copy. */
 export async function signUpWithInvite(request: SignupRequest): Promise<{ readonly ok: true } | { readonly ok: false; readonly code: SignupErrorCode | null }> {
@@ -158,13 +159,13 @@ function isPendingJoinErrorCode(value: unknown): value is PendingJoinErrorCode {
   return typeof value === "string" && (PENDING_JOIN_ERROR_CODES as readonly string[]).includes(value);
 }
 
-/** D254 — confirm the pending OIDC join. The body is empty by contract: the pending cookie alone names the
- *  join. `signedIn` is false when the account waits for an admin's approval (no session was minted). Resolves
- *  with the route's refusal code on a refusal (`null` for a throttle or an unreadable body). */
-export async function confirmPendingJoin(): Promise<
-  { readonly ok: true; readonly signedIn: boolean } | { readonly ok: false; readonly code: PendingJoinErrorCode | null }
-> {
-  const body: PendingJoinConfirmRequest = {};
+/** D254 — confirm the pending OIDC join. The body carries only the persona the new account is seated as: the
+ *  pending cookie alone names the join. `signedIn` is false when the account waits for an admin's approval (no
+ *  session was minted). Resolves with the route's refusal code on a refusal (`null` for a throttle or an
+ *  unreadable body). */
+export async function confirmPendingJoin(
+  body: PendingJoinConfirmRequest,
+): Promise<{ readonly ok: true; readonly signedIn: boolean } | { readonly ok: false; readonly code: PendingJoinErrorCode | null }> {
   const res = await fetch("/api/auth/oidc/pending/confirm", {
     method: "POST",
     credentials: "same-origin",

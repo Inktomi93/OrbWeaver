@@ -10,6 +10,7 @@ import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import type { AuthMode, ParticipantRole } from "#identity";
 import { PARTICIPANT_ROLES } from "#identity";
+import { joinerPersonaSchema } from "#persona";
 import type { CardEmbeddableTheme, ThemeBackground, ThemeOverride } from "#theme";
 import { cardEmbeddableSubset, themeBackgroundSchema, themeOverrideSchema } from "#theme";
 import type { MemberCardVisibility } from "./metadata.ts";
@@ -652,9 +653,33 @@ export const invitePreviewSchema = z.strictObject({
 });
 export type InvitePreview = z.infer<typeof invitePreviewSchema>;
 
-/** D254 — the OIDC pending-join confirm's body: nothing. STRICT, so a body naming an invite or an identity
- *  fails the parse — the pending cookie alone names the join. */
-export const pendingJoinConfirmRequestSchema = z.strictObject({});
+// ── Signup through an invite (D254) ──
+const SIGNUP_TOKEN_MAX_CHARS = 128;
+const SIGNUP_HANDLE_MIN_CHARS = 2;
+const SIGNUP_HANDLE_MAX_CHARS = 32;
+const SIGNUP_PASSWORD_MAX_CHARS = 256;
+const SIGNUP_HANDLE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+
+/** The local signup route's JSON body. STRICT: an unknown key fails the parse. The password floor is the
+ *  server's; this schema only bounds the parse. The handle is ASCII letters, digits, `.`, `_` and `-`, starting
+ *  with a letter or digit, so a padded copy of a reserved handle never parses; the server also refuses a
+ *  handle that matches an existing or reserved one case-insensitively. `persona` is the persona the new account
+ *  is seated as. */
+export const signupRequestSchema = z.strictObject({
+  token: z.string().min(1).max(SIGNUP_TOKEN_MAX_CHARS),
+  handle: z.string().min(SIGNUP_HANDLE_MIN_CHARS).max(SIGNUP_HANDLE_MAX_CHARS).regex(SIGNUP_HANDLE_PATTERN),
+  password: z.string().min(1).max(SIGNUP_PASSWORD_MAX_CHARS),
+  persona: joinerPersonaSchema,
+});
+export type SignupRequest = z.infer<typeof signupRequestSchema>;
+
+/** The signup route's refusal codes (`{ error: <code> }`). The client maps each to its own copy. */
+export const SIGNUP_ERROR_CODES = ["invalid_request", "already_signed_in", "invite_unavailable", "handle_unavailable", "weak_password"] as const;
+export type SignupErrorCode = (typeof SIGNUP_ERROR_CODES)[number];
+
+/** D254 — the OIDC pending-join confirm's body: the persona the new account is seated as, and nothing else.
+ *  STRICT, so a body naming an invite or an identity fails the parse — the pending cookie alone names the join. */
+export const pendingJoinConfirmRequestSchema = z.strictObject({ persona: joinerPersonaSchema });
 export type PendingJoinConfirmRequest = z.infer<typeof pendingJoinConfirmRequestSchema>;
 
 /** D254 — the confirm's answer. `signedIn` is false when the new account waits for an admin's approval. */

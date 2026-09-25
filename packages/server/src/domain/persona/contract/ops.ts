@@ -20,6 +20,8 @@
 // appear in the result — which preserves the HEAL semantics for free (a departed member's persona stops
 // resolving, so a stale anchor falls to the active persona instead of being copied or resurrected).
 
+import type { JoinerPersona } from "@orb/contracts/persona";
+import type { AwaitableBatchStmt } from "@orb/db/kit";
 import type { PersonaId, UserId } from "@orb/kit/ids";
 import type { PersonaListView } from "./views.ts";
 
@@ -33,3 +35,10 @@ export type ResolvePersonasForParticipants = (args: {
   readonly personaIds: readonly PersonaId[];
   readonly allowedOwnerIds: readonly UserId[];
 }) => Promise<ReadonlyMap<PersonaId, PersonaListView>>;
+
+/** D254 — a sign-up joiner's persona insert, unexecuted, with the id it mints. It runs inside chat's signup batch
+ *  and writes only where the statement before it changed a row. */
+export type JoinerPersonaStatementOp = (args: { readonly ownerId: UserId; readonly persona: JoinerPersona; readonly at: number }) => {
+  readonly personaId: PersonaId;
+  readonly statement: AwaitableBatchStmt<{ id: PersonaId }[]>;
+};

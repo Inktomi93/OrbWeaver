@@ -5,7 +5,7 @@
 export type { PersonaContext } from "./context.ts";
 export { AssetNotFoundError, LastPersonaError, PersonaNotFoundError } from "./contract/errors.ts";
 export type { BulkImportPersonas, PersonaImportContext } from "./contract/import.ts";
-export type { ResolvePersonasForParticipants } from "./contract/ops.ts";
+export type { JoinerPersonaStatementOp, ResolvePersonasForParticipants } from "./contract/ops.ts";
 export type { CreatePersonaInput, UpdatePersonaInput } from "./contract/params.ts";
 export type { PersonaService } from "./contract/service.ts";
 export type { PersonaDetail, PersonaListView } from "./contract/views.ts";
@@ -16,6 +16,8 @@ export { createBulkImportPersonas } from "./persistence/import-write.ts";
 // in-memory `personaByUserName` map is not available to it).
 export { findOwnedPersonaByName } from "./persistence/queries.ts";
 export { createPersonaService } from "./service.ts";
+// D254 — the other PRINCIPAL-LESS op: the sign-up joiner's persona statement, which chat's signup batch runs.
+export { createJoinerPersonaStatement } from "./verbs/joiner-persona-statement.ts";
 // The PRINCIPAL-LESS room-plane op (contract/ops.ts) — compose-built, injected into the chat FOREIGN-inputs
 // resolver. Deliberately NOT on `PersonaService` (which is Principal-scoped by contract).
 export { createResolvePersonasForParticipants } from "./verbs/resolve-personas-for-participants.ts";

@@ -4,9 +4,10 @@
 // on the pure mock harness in auth-routes.test.ts. Determinism: the throttle window is pinned via `now`.
 
 import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
+import { JOINER_PERSONA_DESCRIPTION_MAX } from "@orb/contracts/persona";
 import type { Db } from "@orb/db";
 import { auditLogs, chatInvites, chatParticipants, rateLimitBuckets, users } from "@orb/db";
-import type { ChatId, ChatInviteId, ChatParticipantId, Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
+import type { ChatId, ChatInviteId, ChatParticipantId, Handle, PersonaId, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RevokedSessionsSummary } from "@orb/server/domain/sessions";
 import { isReservedSignupHandle } from "@orb/server/domain/sessions";
@@ -18,6 +19,7 @@ import { eq, like } from "drizzle-orm";
 import { Hono } from "hono";
 import { afterEach, describe, vi } from "vitest";
 import { createSignupInvite } from "../../../../packages/server/src/domain/chat/verbs/signup-invite.ts";
+import { createJoinerPersonaStatement } from "../../../../packages/server/src/domain/persona/verbs/joiner-persona-statement.ts";
 import { createSessionsService } from "../../../../packages/server/src/domain/sessions/service.ts";
 import { createHostPrincipalResolver } from "../../../../packages/server/src/entry/auth/seam.ts";
 import { createSignupMinterCheck } from "../../../../packages/server/src/entry/compose/chat.ts";
@@ -626,7 +628,7 @@ describe("local signup route (D254)", () => {
   const Signup = "/api/auth/signup";
   const Good = "tok_good";
   const InviteId = castId<ChatInviteId>("chat_invite_signup_route");
-  const creds = { token: Good, handle: "friend", password: "hunter2pw" };
+  const creds = { token: Good, handle: "friend", password: "hunter2pw", persona: { name: "Mira", description: "" } };
 
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -724,9 +726,15 @@ describe("local signup route (D254)", () => {
     expect(spies.admitted).toBe(0);
   });
 
-  test("an unknown key or a short password is refused before the invite pre-check", async () => {
+  test("an unknown key, a missing or empty persona, or a short password is refused before the invite pre-check", async () => {
     const { app, spies } = await signupApp();
     expect((await postSignup(app, "10.9.0.5", { ...creds, role: "admin" })).status).toBe(400);
+    const { persona: _persona, ...withoutPersona } = creds;
+    expect((await postSignup(app, "10.9.0.7", withoutPersona)).status).toBe(400);
+    expect((await postSignup(app, "10.9.0.8", { ...creds, persona: { name: "", description: "" } })).status).toBe(400);
+    expect(
+      (await postSignup(app, "10.9.0.9", { ...creds, persona: { name: "Mira", description: "x".repeat(JOINER_PERSONA_DESCRIPTION_MAX + 1) } })).status,
+    ).toBe(400);
     const weak = await postSignup(app, "10.9.0.6", { ...creds, password: "short" });
     expect(await weak.json()).toEqual({ error: "weak_password" });
     expect(spies.admitted).toBe(0);
@@ -789,6 +797,7 @@ describe("local signup route (D254)", () => {
     await seedUser(db, { handle: castId<Handle>("someone-else") });
     const sessionsSvc = createSessionsService({ db, now: () => NOW, sessionSecret: "s".repeat(32), seedUserConnections: () => Promise.resolve() });
     const announced: ChatId[] = [];
+    const adopted: { readonly userId: UserId; readonly personaId: PersonaId }[] = [];
     const invites = createSignupInvite(
       {
         db,
@@ -799,6 +808,11 @@ describe("local signup route (D254)", () => {
       },
       {
         signupUserStatement: sessionsSvc.signupUserStatement,
+        signupPersonaStatement: createJoinerPersonaStatement({ db, newPersonaId: () => castId<PersonaId>("persona_signup_route") }),
+        adoptJoinerPersona: (userId, personaId) => {
+          adopted.push({ userId, personaId });
+          return Promise.resolve();
+        },
         minterMayMintSignup: createSignupMinterCheck(sessionsSvc, createHostPrincipalResolver(sessionsSvc)),
         auditStatementAfterWrite: (entry, at) => buildAuditStatementIfPrecedingWrote(db, entry, at),
         // The local route never previews; any reach fails loudly.
@@ -838,12 +852,14 @@ describe("local signup route (D254)", () => {
     expect(created).toHaveLength(1);
     expect(created[0]).toMatchObject({ role: "user", enabled: true, kind: "human", passwordHash: "scrypt$9" });
     const newUserId = created[0]?.id;
-    expect(
-      await db
-        .select()
-        .from(chatParticipants)
-        .where(eq(chatParticipants.userId, castId<UserId>(newUserId ?? ""))),
-    ).toHaveLength(1);
+    const seats = await db
+      .select()
+      .from(chatParticipants)
+      .where(eq(chatParticipants.userId, castId<UserId>(newUserId ?? "")));
+    expect(seats).toHaveLength(1);
+    // The seat is the persona the body named, and the new account's pointers were aimed at it.
+    expect(seats[0]?.activePersonaId).toBe("persona_signup_route");
+    expect(adopted).toEqual([{ userId: newUserId, personaId: "persona_signup_route" }]);
     expect(await db.select().from(auditLogs).where(eq(auditLogs.action, "invites.signup"))).toHaveLength(1);
     expect(spies.seeded).toEqual([newUserId]);
     expect(announced).toEqual([room.id]);

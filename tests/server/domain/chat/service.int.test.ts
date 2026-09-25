@@ -140,6 +140,10 @@ function makeService(
       signupUserStatement: () => {
         throw new Error("signupUserStatement not stubbed in this test");
       },
+      signupPersonaStatement: () => {
+        throw new Error("signupPersonaStatement not stubbed in this test");
+      },
+      adoptJoinerPersona: () => Promise.reject(new Error("adoptJoinerPersona not stubbed in this test")),
       minterMayMintSignup: () => Promise.reject(new Error("minterMayMintSignup not stubbed in this test")),
       auditStatementAfterWrite: () => {
         throw new Error("auditStatementAfterWrite not stubbed in this test");

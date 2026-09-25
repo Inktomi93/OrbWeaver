@@ -33,6 +33,9 @@ export const TEST_IDS = {
   signupError: "signup-error",
   signupUseSignIn: "signup-use-sign-in",
   signupDismiss: "signup-dismiss",
+  // D254 — the persona fields both signup doors ask for before the account and its seat exist.
+  joinerPersona: "joiner-persona",
+  joinerPersonaName: "joiner-persona-name",
   // D254 — the OIDC pending-join card: the room preview, confirm, dismiss, the inline refusal, and the two
   // end states (no pending join, and an account waiting for approval).
   pendingJoin: "pending-join",

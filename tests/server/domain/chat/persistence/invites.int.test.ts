@@ -1,6 +1,6 @@
 import type { Db } from "@orb/db";
-import { auditLogs, chatInvites, chatParticipants, messageReactions, users } from "@orb/db";
-import type { ChatId, ChatInviteId, ChatParticipantId, Handle, MessageReactionId, PendingTurnId, UserId } from "@orb/kit/ids";
+import { auditLogs, chatInvites, chatParticipants, messageReactions, personas, users } from "@orb/db";
+import type { ChatId, ChatInviteId, ChatParticipantId, Handle, MessageReactionId, PendingTurnId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -22,6 +22,7 @@ import {
   revokeInviteById,
   signupAccountAdmission,
 } from "../../../../../packages/server/src/domain/chat/persistence/invites.ts";
+import { insertJoinerPersonaStatement } from "../../../../../packages/server/src/domain/persona/persistence/joiner.ts";
 import { insertSignupUserStatement } from "../../../../../packages/server/src/domain/sessions/persistence/users.ts";
 import { buildAuditStatementIfPrecedingWrote } from "../../../../../packages/server/src/foundation/observability/audit.ts";
 import { freshDb } from "../../../../support/db.ts";
@@ -552,8 +553,9 @@ describe("persistence/invites — pending_turns (deferred, boot-reclaimed)", () 
   });
 });
 
-// D254 — the signup chain: [account WHERE admits] → [claim WHERE admits AND changes()>0] → [seat WHERE
-// changes()>0] → [audit WHERE changes()>0]. The account insert is the sessions statement the verb hands in.
+// D254 — the signup chain: [account WHERE admits] → [claim WHERE admits AND changes()>0] → [persona WHERE
+// changes()>0] → [seat as that persona WHERE changes()>0] → [audit WHERE changes()>0]. The account insert is the
+// sessions statement and the persona insert the persona statement the verb hands in.
 describe("persistence/invites — redeemSignupAtomic (the gated signup chain)", () => {
   const Mode = "local" as const;
   const DayMs = 86_400_000;
@@ -578,12 +580,15 @@ describe("persistence/invites — redeemSignupAtomic (the gated signup chain)", 
 
   function attempt(key: string, tokenHash: string, handle: Handle, userId = castId<UserId>(`usr_signup_${handle}`)): Parameters<typeof redeemSignupAtomic>[1] {
     const admission = signupAccountAdmission({ tokenHash, now: FROZEN_AT, mode: Mode });
+    const personaId = castId<PersonaId>(`persona_signup_${handle}`);
     return {
       tokenHash,
       now: FROZEN_AT,
       mode: Mode,
       leading: [],
       account: insertSignupUserStatement(db, { id: userId, handle, passwordHash: "scrypt$fake", at: FROZEN_AT }, admission),
+      persona: insertJoinerPersonaStatement(db, { id: personaId, ownerId: userId, persona: { name: handle, description: "" }, at: FROZEN_AT }),
+      personaId,
       audit: buildAuditStatementIfPrecedingWrote(db, { actorUserId: userId, action: "invites.signup", entityType: "chat_invite", entityId: key }, FROZEN_AT),
       inviteId: castId<ChatInviteId>(`chat_invite_signup_${key}`),
       userId,
@@ -591,29 +596,33 @@ describe("persistence/invites — redeemSignupAtomic (the gated signup chain)", 
     };
   }
 
-  async function counts(chatId: ChatId, tokenHash: string): Promise<{ users: number; seats: number; audits: number; uses: number | undefined }> {
+  async function counts(
+    chatId: ChatId,
+    tokenHash: string,
+  ): Promise<{ users: number; personas: number; seats: number; audits: number; uses: number | undefined }> {
     return {
       users: (await db.select().from(users)).length,
+      personas: (await db.select().from(personas)).length,
       seats: await countPresentMembers(db, chatId),
       audits: (await db.select().from(auditLogs).where(eq(auditLogs.action, "invites.signup"))).length,
       uses: (await findInviteByTokenHash(db, tokenHash))?.uses,
     };
   }
 
-  test("a fresh signup writes one account, one use, one seat and one audit row", async () => {
+  test("a fresh signup writes one account, one use, one persona, one seat as it and one audit row", async () => {
     const chatId = await seedChat(db, "signup-fresh");
     const hash = await seedSignupInvite(chatId, "fresh", { maxUses: 2, uses: 0 });
     const before = (await db.select().from(users)).length;
-    expect(await redeemSignupAtomic(db, attempt("fresh", hash, castId<Handle>("friend")))).toEqual({ accounts: 1, claims: 1, seats: 1 });
-    expect(await counts(chatId, hash)).toEqual({ users: before + 1, seats: 1, audits: 1, uses: 1 });
+    expect(await redeemSignupAtomic(db, attempt("fresh", hash, castId<Handle>("friend")))).toEqual({ accounts: 1, claims: 1, personas: 1, seats: 1 });
+    expect(await counts(chatId, hash)).toEqual({ users: before + 1, personas: 1, seats: 1, audits: 1, uses: 1 });
   });
 
   test("an exhausted signup invite writes no account, no seat, no use and no audit row", async () => {
     const chatId = await seedChat(db, "signup-spent");
     const hash = await seedSignupInvite(chatId, "spent", { maxUses: 1, uses: 1 });
     const before = (await db.select().from(users)).length;
-    expect(await redeemSignupAtomic(db, attempt("spent", hash, castId<Handle>("stranger")))).toEqual({ accounts: 0, claims: 0, seats: 0 });
-    expect(await counts(chatId, hash)).toEqual({ users: before, seats: 0, audits: 0, uses: 1 });
+    expect(await redeemSignupAtomic(db, attempt("spent", hash, castId<Handle>("stranger")))).toEqual({ accounts: 0, claims: 0, personas: 0, seats: 0 });
+    expect(await counts(chatId, hash)).toEqual({ users: before, personas: 0, seats: 0, audits: 0, uses: 1 });
   });
 
   test("two concurrent signups on the last use give one account, one seat, uses == maxUses and one refusal", async () => {
@@ -627,11 +636,11 @@ describe("persistence/invites — redeemSignupAtomic (the gated signup chain)", 
     const outcomes = settled.map((result) => (result.status === "fulfilled" ? result.value : result.reason));
     expect(outcomes).toEqual(
       expect.arrayContaining([
-        { accounts: 1, claims: 1, seats: 1 },
-        { accounts: 0, claims: 0, seats: 0 },
+        { accounts: 1, claims: 1, personas: 1, seats: 1 },
+        { accounts: 0, claims: 0, personas: 0, seats: 0 },
       ]),
     );
-    expect(await counts(chatId, hash)).toEqual({ users: before + 1, seats: 1, audits: 1, uses: 2 });
+    expect(await counts(chatId, hash)).toEqual({ users: before + 1, personas: 1, seats: 1, audits: 1, uses: 2 });
   });
 
   test("a handle that matches an existing one case-insensitively writes nothing and spends no use", async () => {
@@ -639,8 +648,8 @@ describe("persistence/invites — redeemSignupAtomic (the gated signup chain)", 
     const hash = await seedSignupInvite(chatId, "case", { maxUses: 3, uses: 0 });
     await seedUser(db, castId<Handle>("Friend"));
     const before = (await db.select().from(users)).length;
-    expect(await redeemSignupAtomic(db, attempt("case", hash, castId<Handle>("friend")))).toEqual({ accounts: 0, claims: 0, seats: 0 });
-    expect(await counts(chatId, hash)).toEqual({ users: before, seats: 0, audits: 0, uses: 0 });
+    expect(await redeemSignupAtomic(db, attempt("case", hash, castId<Handle>("friend")))).toEqual({ accounts: 0, claims: 0, personas: 0, seats: 0 });
+    expect(await counts(chatId, hash)).toEqual({ users: before, personas: 0, seats: 0, audits: 0, uses: 0 });
   });
 
   test("a unique violation inside the batch throws and rolls the whole chain back", async () => {
@@ -650,6 +659,6 @@ describe("persistence/invites — redeemSignupAtomic (the gated signup chain)", 
     const taken = await seedUser(db, castId<Handle>("occupant"));
     const before = (await db.select().from(users)).length;
     await expect(redeemSignupAtomic(db, attempt("unique", hash, castId<Handle>("newcomer"), taken))).rejects.toThrow();
-    expect(await counts(chatId, hash)).toEqual({ users: before, seats: 0, audits: 0, uses: 0 });
+    expect(await counts(chatId, hash)).toEqual({ users: before, personas: 0, seats: 0, audits: 0, uses: 0 });
   });
 });

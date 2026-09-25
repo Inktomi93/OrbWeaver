@@ -20,10 +20,9 @@
 // (open-redirect class). The validated redirect_uri is stored in the transaction and reconstructed at the
 // callback so the token exchange presents the same redirect_uri the IdP saw, even behind a proxy.
 
-import type { PendingJoinErrorCode } from "@orb/contracts/chat";
-import { invitePreviewSchema, pendingJoinConfirmRequestSchema } from "@orb/contracts/chat";
-import type { RequestTransport, ResolvedIdentity, SignupErrorCode, SignupRequest, UserRole } from "@orb/contracts/identity";
-import { signupRequestSchema } from "@orb/contracts/identity";
+import type { PendingJoinConfirmRequest, PendingJoinErrorCode, SignupErrorCode, SignupRequest } from "@orb/contracts/chat";
+import { invitePreviewSchema, pendingJoinConfirmRequestSchema, signupRequestSchema } from "@orb/contracts/chat";
+import type { RequestTransport, ResolvedIdentity, UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { DomainRateLimitError } from "@orb/kit/errors";
 import type { ExternalId, Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
@@ -79,6 +78,9 @@ const SIGNUP_INVITE_RATE_SCOPE = "signup-invite";
 const TOO_MANY_REQUESTS = 429;
 const PAYLOAD_TOO_LARGE = 413;
 const LOGIN_BODY_KIB = 4;
+// D254 — the two signup doors also carry the joiner's persona, whose description alone may run to
+// `JOINER_PERSONA_DESCRIPTION_MAX` characters; still small, so an anonymous POST cannot grow it.
+const SIGNUP_BODY_KIB = 8;
 const BYTES_PER_KIB = 1024;
 const OIDC_BACKCHANNEL_BODY_KIB = 16;
 // Per-IP login throttle: caps brute-force + scrypt-CPU-flood on the only unauthenticated CPU-heavy endpoint
@@ -107,6 +109,7 @@ const HANDLE_KEY_MAX_CHARS = 128;
 const UNKNOWN_IP_KEY = "unknown";
 // Credentials are tiny; cap the login body so a huge POST can't DoS this unauthenticated endpoint.
 const LOGIN_BODY_MAX_BYTES = LOGIN_BODY_KIB * BYTES_PER_KIB;
+const SIGNUP_BODY_MAX_BYTES = SIGNUP_BODY_KIB * BYTES_PER_KIB;
 // A compact JWT fits comfortably; the cap bounds unauthenticated form parsing before signature validation.
 const OIDC_BACKCHANNEL_BODY_MAX_BYTES = OIDC_BACKCHANNEL_BODY_KIB * BYTES_PER_KIB;
 const OIDC_LOGIN_ROUTE = "/api/auth/oidc/login";
@@ -815,7 +818,7 @@ function registerSignupRoute(app: Hono, deps: AuthRoutesDeps, signup: SignupRout
     windowMs: LOGIN_WINDOW_MS,
     now: deps.now,
   });
-  app.post(SIGNUP_ROUTE, csrfGuard, bodyLimit({ maxSize: LOGIN_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }), async (c) => {
+  app.post(SIGNUP_ROUTE, csrfGuard, bodyLimit({ maxSize: SIGNUP_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }), async (c) => {
     const request = await admitSignupRequest(c, signup, addressLimiter);
     if (request instanceof Response) {
       return request;
@@ -825,7 +828,12 @@ function registerSignupRoute(app: Hono, deps: AuthRoutesDeps, signup: SignupRout
     if (refusal !== null) {
       return refusal;
     }
-    const outcome = await signup.invites.redeem({ token: request.token, handle, passwordHash: await signup.hashPassword(request.password) });
+    const outcome = await signup.invites.redeem({
+      token: request.token,
+      handle,
+      passwordHash: await signup.hashPassword(request.password),
+      persona: request.persona,
+    });
     if (outcome.outcome === "refused") {
       return outcome.reason === "handle-taken" ? signupRefusal(c, "handle_unavailable", CONFLICT) : signupRefusal(c, "invite_unavailable", NOT_FOUND);
     }
@@ -1163,9 +1171,14 @@ function pendingJoinSecret(c: Context): string | null {
   return secret !== null && secret.length > 0 ? secret : null;
 }
 
-/** D254 — the confirm's steps before any write: the per-address bucket, the live-session refusal, the strict
- *  empty body, and the pending secret. Returns the secret, or the refusal to send. */
-async function admitPendingConfirm(c: Context, signup: OidcSignupDeps, addressLimiter: RateLimiter): Promise<Response | string> {
+/** D254 — the confirm's steps before any write: the per-address bucket, the live-session refusal, the strict body
+ *  that carries only the joiner's persona, and the pending secret. Returns the secret and the persona, or the
+ *  refusal to send. */
+async function admitPendingConfirm(
+  c: Context,
+  signup: OidcSignupDeps,
+  addressLimiter: RateLimiter,
+): Promise<Response | { readonly secret: string; readonly persona: PendingJoinConfirmRequest["persona"] }> {
   const throttled = await throttleLogin(addressLimiter, c);
   if (throttled !== null) {
     return throttled;
@@ -1181,10 +1194,12 @@ async function admitPendingConfirm(c: Context, signup: OidcSignupDeps, addressLi
   } catch {
     raw = undefined;
   }
-  if (!pendingJoinConfirmRequestSchema.safeParse(raw).success) {
+  const body = pendingJoinConfirmRequestSchema.safeParse(raw);
+  if (!body.success) {
     return c.json({ error: "invalid_request" satisfies PendingJoinErrorCode }, BAD_REQUEST);
   }
-  return pendingJoinSecret(c) ?? pendingJoinRefusal(c, "join_unavailable", NOT_FOUND);
+  const secret = pendingJoinSecret(c);
+  return secret === null ? pendingJoinRefusal(c, "join_unavailable", NOT_FOUND) : { secret, persona: body.data.persona };
 }
 
 /**
@@ -1196,7 +1211,7 @@ async function admitPendingConfirm(c: Context, signup: OidcSignupDeps, addressLi
  */
 function registerOidcPendingJoin(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDeps, signup: OidcSignupDeps): void {
   const addressLimiter = loginThrottler(deps);
-  const bodyCap = bodyLimit({ maxSize: LOGIN_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) });
+  const bodyCap = bodyLimit({ maxSize: SIGNUP_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) });
   app.post(OIDC_PENDING_PREVIEW_ROUTE, csrfGuard, bodyCap, async (c) => {
     const throttled = await throttleLogin(addressLimiter, c);
     if (throttled !== null) {
@@ -1211,11 +1226,11 @@ function registerOidcPendingJoin(app: Hono, deps: AuthRoutesDeps, oidc: OidcRout
     return c.json(invitePreviewSchema.parse(preview));
   });
   app.post(OIDC_PENDING_CONFIRM_ROUTE, csrfGuard, bodyCap, async (c) => {
-    const secret = await admitPendingConfirm(c, signup, addressLimiter);
-    if (secret instanceof Response) {
-      return secret;
+    const admitted = await admitPendingConfirm(c, signup, addressLimiter);
+    if (admitted instanceof Response) {
+      return admitted;
     }
-    const plan = await signup.pending.preparePendingSignup({ secret, requireApproval: oidc.requireApproval });
+    const plan = await signup.pending.preparePendingSignup({ secret: admitted.secret, requireApproval: oidc.requireApproval });
     if (plan === null) {
       return pendingJoinRefusal(c, "join_unavailable", NOT_FOUND);
     }
@@ -1223,6 +1238,7 @@ function registerOidcPendingJoin(app: Hono, deps: AuthRoutesDeps, oidc: OidcRout
       tokenHash: plan.inviteTokenHash,
       userId: plan.userId,
       handle: plan.handle,
+      persona: admitted.persona,
       statements: plan.statements,
     });
     if (outcome.outcome === "refused") {

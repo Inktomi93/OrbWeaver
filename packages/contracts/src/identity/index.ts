@@ -31,28 +31,6 @@ export const userKindSchema = z.enum(USER_KINDS) satisfies z.ZodType<UserKind>;
  *  server gate keys on it. `SameSite=Lax` + this header is the whole CSRF story. */
 export const CSRF_HEADER = "x-orb-csrf";
 
-// ── Signup through an invite (D254) ──
-const SIGNUP_TOKEN_MAX_CHARS = 128;
-const SIGNUP_HANDLE_MIN_CHARS = 2;
-const SIGNUP_HANDLE_MAX_CHARS = 32;
-const SIGNUP_PASSWORD_MAX_CHARS = 256;
-const SIGNUP_HANDLE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
-
-/** The local signup route's JSON body. STRICT: an unknown key fails the parse. The password floor is the
- *  server's; this schema only bounds the parse. The handle is ASCII letters, digits, `.`, `_` and `-`, starting
- *  with a letter or digit, so a padded copy of a reserved handle never parses; the server also refuses a
- *  handle that matches an existing or reserved one case-insensitively. */
-export const signupRequestSchema = z.strictObject({
-  token: z.string().min(1).max(SIGNUP_TOKEN_MAX_CHARS),
-  handle: z.string().min(SIGNUP_HANDLE_MIN_CHARS).max(SIGNUP_HANDLE_MAX_CHARS).regex(SIGNUP_HANDLE_PATTERN),
-  password: z.string().min(1).max(SIGNUP_PASSWORD_MAX_CHARS),
-});
-export type SignupRequest = z.infer<typeof signupRequestSchema>;
-
-/** The signup route's refusal codes (`{ error: <code> }`). The client maps each to its own copy. */
-export const SIGNUP_ERROR_CODES = ["invalid_request", "already_signed_in", "invite_unavailable", "handle_unavailable", "weak_password"] as const;
-export type SignupErrorCode = (typeof SIGNUP_ERROR_CODES)[number];
-
 // The SSO mechanism selector; `foundation/env` and `infra/auth`'s `MODE_RESOLVERS` derive from this tuple.
 export const AUTH_MODES = ["single-user", "local", "forward-header", "oidc"] as const;
 export type AuthMode = (typeof AUTH_MODES)[number];

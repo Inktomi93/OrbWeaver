@@ -1,6 +1,7 @@
 // D254 — the OIDC pending join: the callback held a JIT-closed identity that arrived with a signup invite and
-// landed here. The preview names the room; the confirm posts an empty body, because the pending cookie alone
-// names the join. Plain state (a submit-once confirm, the credential-form carve-out).
+// landed here. The preview names the room, the joiner names their persona, and the confirm posts only that
+// persona, because the pending cookie alone names the join. Plain state (a submit-once confirm, the
+// credential-form carve-out).
 
 import type { PendingJoinErrorCode } from "@orb/contracts/chat";
 import { Button } from "@orb/ui/button";
@@ -11,6 +12,8 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { confirmPendingJoin, usePendingJoinPreview } from "#data";
 import { testId } from "#lib";
+import { joinerPersonaOf } from "../lib/joiner-persona.ts";
+import { JoinerPersonaFields } from "./joiner-persona-fields.tsx";
 
 /** Where a confirm left the visitor. `approval` means the account exists, disabled, with its seat. */
 type ConfirmState =
@@ -50,6 +53,9 @@ export interface LoginPendingJoinProps {
 export function LoginPendingJoin({ providerName, onJoined, onDismiss }: LoginPendingJoinProps): ReactElement {
   const preview = usePendingJoinPreview();
   const [state, setState] = useState<ConfirmState>({ kind: "idle" });
+  const [personaName, setPersonaName] = useState("");
+  const [personaDescription, setPersonaDescription] = useState("");
+  const persona = joinerPersonaOf(personaName, personaDescription);
 
   if (preview.isPending) {
     return (
@@ -84,8 +90,11 @@ export function LoginPendingJoin({ providerName, onJoined, onDismiss }: LoginPen
   }
 
   const confirm = (): void => {
+    if (persona === null) {
+      return;
+    }
     setState({ kind: "confirming" });
-    confirmPendingJoin().then(
+    confirmPendingJoin({ persona }).then(
       (result) => {
         if (!result.ok) {
           setState({ kind: "refused", copy: refusalCopy(result.code, providerName) });
@@ -107,13 +116,14 @@ export function LoginPendingJoin({ providerName, onJoined, onDismiss }: LoginPen
       <Text voice="quiet">
         {`${room.hostHandle} invited you to ${room.roomName.length > 0 ? room.roomName : "a room"} (${room.memberCount} ${room.memberCount === 1 ? "member" : "members"}, ${room.modeLabel}). Joining creates your account here.`}
       </Text>
+      <JoinerPersonaFields name={personaName} description={personaDescription} onNameChange={setPersonaName} onDescriptionChange={setPersonaDescription} />
       {state.kind === "refused" ? (
         <Text voice="label" className="text-destructive" role="alert" data-testid={testId("pendingJoinError")}>
           {state.copy}
         </Text>
       ) : null}
       <Row gap="row">
-        <Button intent="primary" disabled={state.kind === "confirming"} onClick={confirm} data-testid={testId("pendingJoinConfirm")}>
+        <Button intent="primary" disabled={state.kind === "confirming" || persona === null} onClick={confirm} data-testid={testId("pendingJoinConfirm")}>
           {state.kind === "confirming" ? "Joining…" : "Create account and join"}
         </Button>
         <Button intent="ghost" onClick={onDismiss} data-testid={testId("pendingJoinDismiss")}>
