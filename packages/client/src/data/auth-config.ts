@@ -5,7 +5,7 @@
 // features/auth re-exports this for its own login/account surfaces.
 
 import type { DeploymentRenderPolicy } from "@orb/contracts/chat";
-import type { AuthMode, ClientScope, RequestTransport } from "@orb/contracts/identity";
+import type { AuthConfigShare, AuthMode, ClientScope, RequestTransport } from "@orb/contracts/identity";
 import type { UploadCaps } from "@orb/contracts/uploads";
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import type { UseQueryResult } from "@tanstack/react-query";
@@ -60,6 +60,9 @@ export interface AuthConfig {
   readonly transport: RequestTransport;
   /** Whether THIS request's client address is private or on the public internet (the red notice case). */
   readonly clientScope: ClientScope;
+  /** The share relay's state, and its public link while it is up; the link is null for a signed-out caller. It changes
+   *  while the server runs, unlike the rest of this config, so a surface that shows it reads a fresh config. */
+  readonly share: AuthConfigShare;
 }
 
 export const AUTH_CONFIG_KEY = ["auth", "config"] as const;

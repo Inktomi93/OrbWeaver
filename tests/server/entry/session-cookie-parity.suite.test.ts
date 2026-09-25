@@ -208,6 +208,7 @@ function appDeps(): AppDeps {
     credentialsKeyOk: (): boolean => true,
     inContainer: false,
     relayHosts: (): readonly string[] => [],
+    shareState: () => ({ state: "off" }),
     seedUserCharacters: (): void => {
       // inert: the resolved principal is always null here.
     },

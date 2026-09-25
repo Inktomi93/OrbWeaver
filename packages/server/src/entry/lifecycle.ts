@@ -7,6 +7,7 @@
 import { randomUUID } from "node:crypto";
 import type { AddressInfo } from "node:net";
 import { hostname } from "node:os";
+import { join } from "node:path";
 import process from "node:process";
 import type { ServerType } from "@hono/node-server";
 import { serve } from "@hono/node-server";
@@ -24,6 +25,8 @@ import type { ServerRestartPort } from "#domain/admin";
 import { startAutomationWatcher } from "#domain/automation";
 import type { SessionsService } from "#domain/sessions";
 import { createOidcStore, createSessionsService, ownerHandles } from "#domain/sessions";
+import type { ShareBootOutcome } from "#domain/share";
+import { createRelayController } from "#domain/share";
 import { loadWorkload, nextRunnableWorkload, reapOrphanedWorkloads, runWorkload, subscribeWorkloadWake } from "#domain/workloads";
 import {
   bindPostureInput,
@@ -54,6 +57,8 @@ import {
 } from "#infra/auth";
 import { bootSecretProvenance, resolveCredentialsKey, resolveSessionSecret } from "#infra/crypto";
 import { installEgressFirewall, parseAllowlist } from "#infra/network";
+import type { RelayLauncher } from "#infra/relay";
+import { CLOUDFLARED_PIN, createCloudflaredBinary, createQuickTunnelLauncher, extractTgzWithTar, spawnQuickTunnel } from "#infra/relay";
 import { createCas } from "#infra/storage";
 import { startCatalogRefreshScheduler } from "../transport/jobs/catalog-refresh-scheduler.ts";
 import { startOidcGcScheduler } from "../transport/jobs/oidc-gc-scheduler.ts";
@@ -190,6 +195,44 @@ function scheduleInterval(fn: () => void, ms: number): () => void {
   };
 }
 
+/** One `setTimeout` as a cancel-function, unref'd so a pending relay restart never holds the process open. */
+function scheduleOnce(run: () => void, ms: number): () => void {
+  const handle = setTimeout(run, ms);
+  handle.unref();
+  return () => {
+    clearTimeout(handle);
+  };
+}
+
+/** The URL the share relay forwards to: this listener, reached over loopback when it listens on every interface. */
+function relayOrigin(address: Readonly<AddressInfo> | null, port: number): string {
+  if (address === null || address.address === "0.0.0.0" || address.address === "::") {
+    return `http://127.0.0.1:${port}`;
+  }
+  return address.family === "IPv6" ? `http://[${address.address}]:${port}` : `http://${address.address}:${port}`;
+}
+
+/** The log line for a boot-time or post-claim share start; the relay's own `up` line carries the link. */
+function logShareBootOutcome(log: ReturnType<typeof getLog>, outcome: ShareBootOutcome): void {
+  switch (outcome.kind) {
+    case "started":
+      log.info({ share: true, state: outcome.relay.state }, "share: SHARE_RELAY started the relay; its link is logged once the relay reports it");
+      return;
+    case "refused":
+      log.warn({ share: true, code: outcome.refusal.code }, `share: SHARE_RELAY did not start the relay. ${outcome.refusal.message}`);
+      return;
+    case "failed":
+      log.error({ share: true, code: outcome.code }, `share: SHARE_RELAY could not start the relay. ${outcome.message}`);
+      return;
+    case "not_waiting":
+      return;
+    default: {
+      const _exhaustive: never = outcome;
+      throw new Error(`share: unknown boot outcome ${JSON.stringify(_exhaustive)}`);
+    }
+  }
+}
+
 /** AUTH_MODE=local's route dependencies, built together because they are one feature: the form-login
  *  authenticator plus the B4 first-run owner-password setup. The route and the `localFirstRun` config flag
  *  share ONE gate (`ownerFallbackAllowed`), so the setup screen appears exactly where the setup endpoint
@@ -207,6 +250,7 @@ function scheduleInterval(fn: () => void, ms: number): () => void {
 function buildLocalAuthDeps(
   sessions: SessionsService,
   sessionSecret: string | null,
+  onOwnerClaimed: () => void,
 ): {
   authenticate: LocalAuthenticator;
   firstRun: FirstRunRouteDeps;
@@ -216,7 +260,13 @@ function buildLocalAuthDeps(
   return {
     authenticate: (handle: Handle, password: string): Promise<UserId | null> => sessions.authenticate(handle, password),
     firstRun: {
-      setOwnerPassword: async (plain: string): Promise<UserId | null> => sessions.claimOwnerPassword(await hasher.hash(plain)),
+      setOwnerPassword: async (plain: string): Promise<UserId | null> => {
+        const claimed = await sessions.claimOwnerPassword(await hasher.hash(plain));
+        if (claimed !== null) {
+          onOwnerClaimed();
+        }
+        return claimed;
+      },
       originAllowed: (peerIp: string | undefined, headers: Headers): boolean => ownerFallbackAllowed(peerIp, headers),
     },
     localFirstRun: async (peerIp: string | undefined, headers: Headers): Promise<boolean> =>
@@ -296,6 +346,9 @@ interface LifecycleOptions {
    *  boot test that must exercise the REAL graph while replacing a backend edge that would otherwise do
    *  something a test may not (fetch multi-GB model weights). Production omits it. */
   readonly providerSeams?: Parameters<typeof createServices>[0]["providerSeams"];
+  /** Composition-root test seam: the share relay's launcher, so a boot test never downloads or runs cloudflared.
+   *  Production omits it and gets the pinned, checksummed quick tunnel. */
+  readonly relayLauncher?: RelayLauncher;
 }
 
 /** Construct the lifecycle. Side-effect-free until `boot()` runs (so `index.ts` can wire signals first). */
@@ -315,6 +368,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
   let stopBuddyObserver: (() => void) | null = null;
   let stopAutomationWatcher: (() => void) | null = null;
   let stopLocalLightPrefetch: (() => void) | null = null;
+  let stopRelay: (() => void) | null = null;
   let booted = false;
   // The one relay host registry for this process: the Host allowlist reads `hosts`; `writer` is the relay controller's.
   const relayHosts = createRelayHostRegistry();
@@ -512,6 +566,30 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       },
     };
 
+    // The share relay: the server's one long-lived child, spawned in this process group. Built once, before compose,
+    // because it holds the relay registry's write side; the port is read when a relay starts, after the bind.
+    const listenPort = (): number => listenerAddress?.port ?? options.listenPort ?? env.PORT;
+    const relay = createRelayController({
+      relay: "quick",
+      launcher:
+        options.relayLauncher ??
+        createQuickTunnelLauncher({
+          binary: createCloudflaredBinary({
+            pin: CLOUDFLARED_PIN,
+            target: `${process.platform}-${process.arch}`,
+            dir: join(env.DATA_LAYOUT.cache, "relay"),
+            fetch: (url, init) => fetch(url, init),
+            extractTgz: extractTgzWithTar,
+          }),
+          spawn: spawnQuickTunnel,
+        }),
+      hosts: relayHosts.writer,
+      origin: () => relayOrigin(listenerAddress, listenPort()),
+      now,
+      schedule: scheduleOnce,
+    });
+    stopRelay = relay.stop;
+
     const built = await createServices({
       db,
       now,
@@ -525,6 +603,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       holder,
       ...(options.providerSeams === undefined ? {} : { providerSeams: options.providerSeams }),
       serverRestart,
+      share: { relay, localSetupUrl: () => `http://localhost:${listenPort()}` },
     });
 
     credentialsKeyOk = await built.services.credentials.probeKeyDecrypt();
@@ -649,7 +728,15 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
 
     // B4 — the in-app first-run owner-password setup rides the same builder (LOCAL_INITIAL_PASSWORD is now
     // optional); every non-local mode leaves all three route deps absent.
-    const localAuth = env.AUTH_MODE === "local" ? buildLocalAuthDeps(built.sessions, sessionSecret) : undefined;
+    // A `SHARE_RELAY` start refused for an unclaimed owner starts right after the claim lands, in this process.
+    const localAuth =
+      env.AUTH_MODE === "local"
+        ? buildLocalAuthDeps(built.sessions, sessionSecret, () => {
+            superviseDetached(`share-resume:${randomUUID()}`, "share.resumeAfterOwnerClaim", {}, async () => {
+              logShareBootOutcome(log, await built.services.share.resumeAfterOwnerClaim());
+            });
+          })
+        : undefined;
 
     const oidcWiring = env.AUTH_MODE === "oidc" ? buildOidcDeps(db, now) : undefined;
     stopOidcGc = oidcWiring === undefined ? null : oidcWiring.stopOidcGc;
@@ -710,6 +797,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       credentialsKeyOk: () => credentialsKeyOk,
       inContainer: bindPostureInput().inContainer,
       relayHosts: relayHosts.hosts,
+      shareState: relay.status,
       seedUserCharacters: (principal: Principal): void => {
         // CHAINED, not parallel: the demo chats attach to the cards this user is getting right now, so they
         // must not race the pack. `ensureSeeded` never throws, so the `.then` is unconditional.
@@ -792,6 +880,13 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       handle.once("error", onBindError);
     });
 
+    // After the bind: the relay forwards to the listener, so it starts only once there is one to reach.
+    if (env.SHARE_RELAY !== undefined) {
+      superviseDetached(`share-boot:${randomUUID()}`, "share.startAtBoot", { relay: env.SHARE_RELAY }, async () => {
+        logShareBootOutcome(log, await built.services.share.startAtBoot());
+      });
+    }
+
     // AFTER THE BIND, ON PURPOSE — and the only boot step that is. The local-light weights are hundreds of
     // megabytes to gigabytes (jina-clip-v2 is 874 MB at the `q8` default, 3.455 GB at fp32 —
     // `LOCAL_LIGHT_EMBED_DTYPE`), so warming them anywhere earlier would hold /healthz and the
@@ -821,6 +916,11 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     }
     isShuttingDown = true;
     log.info("shutdown: draining");
+    // The relay first: it is this process's child, and a visitor it still carries would reach a server going away.
+    if (stopRelay !== null) {
+      stopRelay();
+      stopRelay = null;
+    }
 
     if (server !== null) {
       await drainHttpServer(server, log);

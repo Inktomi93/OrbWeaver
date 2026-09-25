@@ -1,5 +1,15 @@
 import type { AuthMode, Principal, ResolvedIdentity, UserRole } from "@orb/contracts/identity";
-import { AUTH_MODES, authModeSchema, USER_ROLES, userRoleSchema, viewerViewSchema } from "@orb/contracts/identity";
+import {
+  AUTH_MODES,
+  authConfigShareSchema,
+  authModeSchema,
+  relayStatusSchema,
+  SHARE_STATES,
+  shareStatusSchema,
+  USER_ROLES,
+  userRoleSchema,
+  viewerViewSchema,
+} from "@orb/contracts/identity";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures.ts";
@@ -120,4 +130,33 @@ test("viewerViewSchema admits the three-field projection and refuses a spread Pr
   expect(JSON.stringify(refused.error?.issues)).not.toContain(SAMPLE_EXTERNAL_ID);
 
   expect(viewerViewSchema.safeParse({ ...view, globalRole: "host" }).success).toBe(false);
+});
+
+// The share relay's wire: the owner's card reads `share.status`, every caller reads `/api/auth/config`'s share fields.
+const TUNNEL_URL = "https://calm-river-four-birds.trycloudflare.com";
+
+test("relayStatusSchema accepts each state's own shape and nothing more", () => {
+  expect(relayStatusSchema.parse({ state: "off" })).toEqual({ state: "off" });
+  expect(relayStatusSchema.parse({ state: "up", relay: "quick", url: TUNNEL_URL })).toEqual({ state: "up", relay: "quick", url: TUNNEL_URL });
+  expect(relayStatusSchema.parse({ state: "down", relay: "quick", reason: "exited", restarting: false })).toMatchObject({ restarting: false });
+  // A plain-http link, an up state without its URL, and an extra field are all refused.
+  expect(relayStatusSchema.safeParse({ state: "up", relay: "quick", url: "http://calm-river.trycloudflare.com" }).success).toBe(false);
+  expect(relayStatusSchema.safeParse({ state: "up", relay: "quick" }).success).toBe(false);
+  expect(relayStatusSchema.safeParse({ state: "off", url: TUNNEL_URL }).success).toBe(false);
+  expect(relayStatusSchema.safeParse({ state: "down", relay: "quick", reason: "crashed", restarting: true }).success).toBe(false);
+});
+
+test("every SHARE_STATES member has exactly one relay status shape", () => {
+  expect(relayStatusSchema.options.map((option) => option.shape.state.value).toSorted()).toEqual(SHARE_STATES.toSorted());
+});
+
+test("shareStatusSchema is strict, so a status carrying anything else fails the router's output parser", () => {
+  expect(shareStatusSchema.parse({ relay: { state: "off" }, liveSocketCount: 2 })).toEqual({ relay: { state: "off" }, liveSocketCount: 2 });
+  expect(shareStatusSchema.safeParse({ relay: { state: "off" }, liveSocketCount: 2, owner: "owner" }).success).toBe(false);
+  expect(shareStatusSchema.safeParse({ relay: { state: "off" }, liveSocketCount: -1 }).success).toBe(false);
+});
+
+test("authConfigShareSchema carries only the state and a nullable link", () => {
+  expect(authConfigShareSchema.parse({ state: "up", url: null })).toEqual({ state: "up", url: null });
+  expect(authConfigShareSchema.safeParse({ state: "up", url: null, relay: "quick" }).success).toBe(false);
 });

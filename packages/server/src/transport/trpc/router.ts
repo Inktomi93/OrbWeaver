@@ -26,6 +26,7 @@ import { rpgRouter } from "./routers/rpg.ts";
 import { searchRouter } from "./routers/search.ts";
 import { sessionsRouter } from "./routers/sessions.ts";
 import { settingsRouter } from "./routers/settings.ts";
+import { shareRouter } from "./routers/share.ts";
 import { statsRouter } from "./routers/stats.ts";
 import { streamRouter } from "./routers/stream.ts";
 import { tagRouter } from "./routers/tag.ts";
@@ -89,6 +90,7 @@ export const appRouter = t.router({
   search: searchRouter,
   sessions: sessionsRouter,
   settings: settingsRouter,
+  share: shareRouter,
   stats: statsRouter,
   stream: streamRouter,
   tag: tagRouter,

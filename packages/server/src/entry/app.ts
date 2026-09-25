@@ -4,7 +4,7 @@
 // Middleware order: ingress IP-allowlist runs first, then the Host allowlist, then the auth seam resolves the
 // Principal EXACTLY ONCE per request onto the context — nothing downstream re-resolves identity.
 
-import type { AuthMode, Principal } from "@orb/contracts/identity";
+import type { AuthMode, Principal, RelayStatus } from "@orb/contracts/identity";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
@@ -208,6 +208,8 @@ export interface AppDeps {
   /** The relay registry's read side (`createRelayHostRegistry`): the Host allowlist admits these names beside the env
    *  list. The app never writes it; the relay controller holds the write side. */
   readonly relayHosts: AllowedHostsReader;
+  /** The share relay's state, served on `/api/auth/config`. */
+  readonly shareState: () => RelayStatus;
   /** Fire-and-forget: called after the Principal resolves; must never block the request. */
   readonly seedUserCharacters: (principal: Principal) => void;
   /** Present in local mode. */
@@ -438,6 +440,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     // The ladder's top-rung CEILING — served so the per-character "Interactive" control can say it is inert
     // deployment-wide instead of offering a capability the mint will refuse.
     allowInteractiveCards: () => deps.services.settings.getEffectiveConfig().allowInteractiveCards,
+    share: deps.shareState,
   });
   registerJoin(plain, { multiHumanCapable });
 

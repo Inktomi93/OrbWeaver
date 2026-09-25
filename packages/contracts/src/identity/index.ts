@@ -56,6 +56,54 @@ export type RequestTransport = (typeof REQUEST_TRANSPORTS)[number];
 export const CLIENT_SCOPES = ["private", "public"] as const;
 export type ClientScope = (typeof CLIENT_SCOPES)[number];
 
+/** The relays a share can run: a Cloudflare quick tunnel. `SHARE_RELAY` in the server env takes a member to start one at boot. */
+export const SHARE_RELAY_KINDS = ["quick"] as const;
+export type ShareRelayKind = (typeof SHARE_RELAY_KINDS)[number];
+export const shareRelayKindSchema = z.enum(SHARE_RELAY_KINDS) satisfies z.ZodType<ShareRelayKind>;
+
+/** The relay controller's states: `up` carries the public URL, `down` a reason and whether a restart is still owed. */
+export const SHARE_STATES = ["off", "starting", "up", "down"] as const;
+export type ShareState = (typeof SHARE_STATES)[number];
+
+/** Why a relay is down: its process ended, it reported no URL in time, or a restart could not launch it. */
+export const RELAY_DOWN_REASONS = ["exited", "no_url", "launch_failed"] as const;
+export type RelayDownReason = (typeof RELAY_DOWN_REASONS)[number];
+
+/** The coded refusals of `share.start` (the wire's `data.reason`), each naming a fix the Share card shows. A relayed
+ *  request is never the owner, so single-user answers 401 to every visitor; a same-host relay delivers each visitor
+ *  from a loopback peer, so a loopback-trusted forward-header proxy would take a visitor's forged identity header. */
+export const SHARE_REFUSALS = ["share_single_user", "share_forward_header", "share_in_container", "share_owner_unclaimed"] as const;
+export type ShareRefusal = (typeof SHARE_REFUSALS)[number];
+
+/** The coded refusals of the relay binary: nothing runs unless the downloaded bytes match the pinned sha256. */
+export const RELAY_BINARY_REFUSALS = ["relay_platform_unsupported", "relay_binary_download_failed", "relay_binary_checksum_mismatch"] as const;
+export type RelayBinaryRefusal = (typeof RELAY_BINARY_REFUSALS)[number];
+
+const relayStatusSchemas = {
+  off: z.strictObject({ state: z.literal("off") }),
+  starting: z.strictObject({ state: z.literal("starting"), relay: shareRelayKindSchema }),
+  up: z.strictObject({ state: z.literal("up"), relay: shareRelayKindSchema, url: z.url({ protocol: /^https$/u }) }),
+  down: z.strictObject({ state: z.literal("down"), relay: shareRelayKindSchema, reason: z.enum(RELAY_DOWN_REASONS), restarting: z.boolean() }),
+} as const satisfies Record<ShareState, z.ZodType<{ state: ShareState }>>;
+
+/** One relay's state as the owner's Share card reads it. */
+export const relayStatusSchema = z.discriminatedUnion("state", [
+  relayStatusSchemas.off,
+  relayStatusSchemas.starting,
+  relayStatusSchemas.up,
+  relayStatusSchemas.down,
+]);
+export type RelayStatus = z.infer<typeof relayStatusSchema>;
+
+/** `share.status`: the relay plus the live socket count, so the card shows who is connected right now. */
+export const shareStatusSchema = z.strictObject({ relay: relayStatusSchema, liveSocketCount: z.number().int().nonnegative() });
+export type ShareStatus = z.infer<typeof shareStatusSchema>;
+
+/** The share fields on `/api/auth/config`. `url` is the public origin while the relay is up, served to a signed-in
+ *  caller only; an anonymous visitor reads `null`, because the sign-in page needs no link to hand out. */
+export const authConfigShareSchema = z.strictObject({ state: z.enum(SHARE_STATES), url: z.string().nullable() });
+export type AuthConfigShare = z.infer<typeof authConfigShareSchema>;
+
 /** The pre-row output: identity resolved to its stable SSO fields, BEFORE the `users` row exists. Carries
  *  no `userId` by design. `email` is a mutable contact attribute, never an identity/join key — `null`
  *  never wipes a stored email (keep-on-null). */

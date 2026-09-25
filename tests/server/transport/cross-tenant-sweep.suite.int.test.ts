@@ -1941,6 +1941,13 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "admin.revokeSession": "admin-gated: role gate",
   "admin.revokeUserSessions": "admin-gated: role gate",
   "admin.restart": "owner-gated: role gate at the verb (takes only a confirm, reads and returns no row)",
+  // share (the owner's relay): `adminProcedure` refuses the sweep's plain-user stranger at layer 1 and `requireOwner` at
+  // the verb refuses an admin. None takes input, and the relay is a process singleton, not an owned row, so there is no
+  // foreign id and no tenant axis; the output is the relay state and a box-wide socket count behind a strict parser.
+  // The refusal matrix (user, admin, owner) is tests/server/transport/trpc/routers/share.test.ts.
+  "share.start": "owner-gated: role gate at the verb (no input; starts the process-wide relay, reads and returns no row)",
+  "share.stop": "owner-gated: role gate at the verb (no input; ends the process-wide relay, reads and returns no row)",
+  "share.status": "owner-gated: role gate at the verb (no input; the relay state and a box-wide socket count, no row)",
   // plugin (D46/D147) — RECLASSIFIED 2026-08-24. The five management verbs used to be exempt as "admin-gated:
   // the install-authority role gate precedes the pluginId ownership check". That classification is DEAD:
   // plugins are user-scoped, the `can(caller,"admin",{kind:"global"})` gate is gone from every verb, and the

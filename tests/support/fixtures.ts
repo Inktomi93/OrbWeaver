@@ -177,11 +177,12 @@ export const test = base.extend<Fixtures>({
     await rm(dir, { recursive: true, force: true });
   },
   app: async ({ db, clock, providerFetch, importStagingDir }, use): Promise<void> => {
-    const { createServices, UNSUPERVISED_RESTART } = await import("@orb/server/entry/compose");
+    const { createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } = await import("@orb/server/entry/compose");
     const casDir = await mkdtemp(join(tmpdir(), "orb-fixture-cas-"));
     const variantDir = await mkdtemp(join(tmpdir(), "orb-fixture-var-"));
     const result = await createServices({
       serverRestart: UNSUPERVISED_RESTART,
+      share: NO_SHARE_RELAY,
       db,
       now: (): number => clock.now(),
       ownerId: OWNER_USER_ID,

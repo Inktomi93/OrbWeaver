@@ -35,6 +35,7 @@ function config(overrides: Partial<AuthConfig>): AuthConfig {
     uploads: DEFAULT_UPLOAD_CAPS,
     transport: "https",
     clientScope: "private",
+    share: { state: "off", url: null },
     ...overrides,
   };
 }

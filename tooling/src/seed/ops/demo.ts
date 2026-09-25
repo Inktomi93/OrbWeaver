@@ -58,7 +58,7 @@ import {
   seedOwner,
   seedThemes,
 } from "@orb/server/entry/boot";
-import { createServices, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
+import { createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
 import { env } from "@orb/server/foundation/env";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
@@ -288,6 +288,7 @@ export async function runFullSeed(deps: RunFullSeedDeps): Promise<RunFullSeedRes
     holder: "seed-demo",
     // A seed run has no supervisor, so `admin.restart` refuses here.
     serverRestart: UNSUPERVISED_RESTART,
+    share: NO_SHARE_RELAY,
     // The seeded local-light rows embed through the scripted cache (the owner's rows come from the per-user
     // seed wired into `bootSessions` above — #2481; this seeder runs no boot sweep); there is
     // no chat connection, so the best-effort turns below log `no-connection` and keep the greeting transcript.

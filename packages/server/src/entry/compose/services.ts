@@ -82,6 +82,8 @@ import type { SessionsService } from "#domain/sessions";
 import { createSessionsService } from "#domain/sessions";
 import type { DefaultBackgroundSeeder, SettingsContext, SettingsServiceDeps } from "#domain/settings";
 import { createSettingsContext, createSettingsService } from "#domain/settings";
+import type { RelayController } from "#domain/share";
+import { createShareService } from "#domain/share";
 import type { TagContext } from "#domain/tag";
 import { createTagService } from "#domain/tag";
 import type { ToolUseService } from "#domain/tool-use";
@@ -89,7 +91,7 @@ import { createToolUseTeachingContributions } from "#domain/tool-use";
 import type { WorkloadContributions } from "#domain/workloads";
 import { createAttachOwnedBooksByName, createImportStandaloneLorebook } from "#domain/world-info";
 import { APP_NAME, APP_URL } from "#foundation/config";
-import { env, processEnvSnapshot } from "#foundation/env";
+import { bindPostureInput, env, processEnvSnapshot } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
 import {
   addSpanEvent,
@@ -216,7 +218,28 @@ export interface ServicesDeps {
   readonly wireCaptureReply?: boolean;
   /** The process restart `admin.restart` drives (`entry/lifecycle.ts` builds it; a test passes an unsupervised one). */
   readonly serverRestart: ServerRestartPort;
+  /** The share relay `share.*` drives (`entry/lifecycle.ts` builds it; a test passes {@link NO_SHARE_RELAY}). */
+  readonly share: ShareComposeDeps;
 }
+
+/** The lifecycle-owned half of the share service: the one relay controller and this machine's setup address. */
+export interface ShareComposeDeps {
+  readonly relay: RelayController;
+  readonly localSetupUrl: () => string;
+}
+
+/** The share deps for a composition that runs no relay (a seed script, a test graph): `status` reads `off`, `stop` has
+ *  nothing to end, and a start that passes the preconditions throws rather than pretend a relay started. */
+export const NO_SHARE_RELAY: ShareComposeDeps = {
+  relay: {
+    start: () => Promise.reject(new Error("compose: this composition runs no relay")),
+    stop: (): void => undefined,
+    status: () => ({ state: "off" }),
+  },
+  localSetupUrl: (): string => {
+    throw new Error("compose: this composition serves no local origin");
+  },
+};
 
 /** The restart port for a composition no supervisor started (a seed script, a test graph). `admin.restart` refuses as
  *  unsupervised before it reaches `restart`, which throws if anything ever does. */
@@ -1210,6 +1233,17 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     search,
     sessions,
     settings,
+    share: createShareService({
+      relay: deps.share.relay,
+      requireOwner,
+      authMode: env.AUTH_MODE,
+      inContainer: bindPostureInput().inContainer,
+      ownerNeedsPassword: () => sessions.ownerNeedsPassword(),
+      localSetupUrl: deps.share.localSetupUrl,
+      liveSocketCount: () => sockets.liveSocketCount(),
+      audit,
+      now,
+    }),
     stats,
     tag,
     workloads,

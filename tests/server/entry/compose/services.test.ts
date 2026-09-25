@@ -21,7 +21,7 @@ import { DEMO_CHAT_PACK_VERSION, DEMO_CHATS } from "@orb/server/domain/chat";
 import type { EmbeddingsService } from "@orb/server/domain/embeddings";
 import { createEmbeddingsIndexer } from "@orb/server/domain/embeddings";
 import { seedLocalLightOnBoot } from "@orb/server/entry/boot";
-import { createDomainEventBus, createServices, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
+import { createDomainEventBus, createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
 import { logger } from "@orb/server/foundation/observability";
 import type { SocketListener } from "@orb/server/transport/trpc";
 import { fakeLocalLightCache } from "@orb/tooling/seed";
@@ -63,6 +63,7 @@ const SERVICE_KEYS = [
   "search",
   "sessions",
   "settings",
+  "share",
   "stats",
   "tag",
   "workloads",
@@ -74,6 +75,7 @@ test("createServices builds the full graph: every Services key + the boot handle
   const clock = createFrozenClock();
   const result = await createServices({
     serverRestart: UNSUPERVISED_RESTART,
+    share: NO_SHARE_RELAY,
     db,
     now: clock.now,
     ownerId: castId<UserId>("u_owner"),
@@ -113,6 +115,7 @@ test("W7a an admin revoke-all evicts that user's live sockets through the compos
   const ownerId = castId<UserId>("u_owner");
   const result = await createServices({
     serverRestart: UNSUPERVISED_RESTART,
+    share: NO_SHARE_RELAY,
     db,
     now: clock.now,
     ownerId,
@@ -151,6 +154,7 @@ test("character.bulkAddCardTag attaches via the real tag wiring — not the iner
   const clock = createFrozenClock();
   const result = await createServices({
     serverRestart: UNSUPERVISED_RESTART,
+    share: NO_SHARE_RELAY,
     db,
     now: clock.now,
     ownerId: castId<UserId>("u_owner"),
@@ -190,6 +194,7 @@ test("character.bulkAddCardTag attaches via the real tag wiring — not the iner
 function buildGraph(db: Db): ReturnType<typeof createServices> {
   return createServices({
     serverRestart: UNSUPERVISED_RESTART,
+    share: NO_SHARE_RELAY,
     db,
     now: createFrozenClock().now,
     ownerId: castId<UserId>("u_owner"),
@@ -441,6 +446,7 @@ describe("embeddings indexer bus subscription", () => {
 function buildGatedGraph(db: Db): ReturnType<typeof createServices> {
   return createServices({
     serverRestart: UNSUPERVISED_RESTART,
+    share: NO_SHARE_RELAY,
     db,
     now: createFrozenClock().now,
     ownerId: castId<UserId>("u_owner"),
@@ -458,6 +464,7 @@ describe("notifications fan-out — record (durable) → publishNotification (li
     const clock = createFrozenClock();
     const result = await createServices({
       serverRestart: UNSUPERVISED_RESTART,
+      share: NO_SHARE_RELAY,
       db,
       now: clock.now,
       ownerId: castId<UserId>("u_owner"),
@@ -527,6 +534,7 @@ describe("persona.setActivePersona → chat bus", () => {
     const clock = createFrozenClock();
     const result = await createServices({
       serverRestart: UNSUPERVISED_RESTART,
+      share: NO_SHARE_RELAY,
       db,
       now: clock.now,
       ownerId: castId<UserId>("u_owner"),
@@ -597,6 +605,7 @@ describe("persona.remove seed re-point (owner invariant)", () => {
   function graph(db: Db): ReturnType<typeof createServices> {
     return createServices({
       serverRestart: UNSUPERVISED_RESTART,
+      share: NO_SHARE_RELAY,
       db,
       now: createFrozenClock().now,
       ownerId: castId<UserId>("u_owner"),

@@ -3,8 +3,8 @@
 // These stay raw Hono, pre-tRPC, and must never move behind auth. `/me` reads the principal app.ts's auth
 // middleware already resolved — deliberately not a second resolution call (drift-free by construction).
 
-import type { AuthMode } from "@orb/contracts/identity";
-import { isCookieAuthMode } from "@orb/contracts/identity";
+import type { AuthConfigShare, AuthMode, RelayStatus } from "@orb/contracts/identity";
+import { authConfigShareSchema, isCookieAuthMode } from "@orb/contracts/identity";
 import { resolveUploadCaps } from "@orb/contracts/uploads";
 import type { Hono } from "hono";
 import { requestClientScope, requestTransport } from "#infra/auth";
@@ -49,6 +49,13 @@ export interface AuthMetaDeps {
    *  off, and a control that offers a capability nothing honours is the dead-opt-in defect. Never a
    *  capability by itself — the frame policy is built server-side from the server's own read. */
   readonly allowInteractiveCards: () => boolean;
+  /** The share relay's live state (`domain/share`'s controller). */
+  readonly share: () => RelayStatus;
+}
+
+// The relay's state for everyone; its link only for a signed-in caller, who may hand it on through a room invite.
+function shareFields(status: RelayStatus, signedIn: boolean): AuthConfigShare {
+  return authConfigShareSchema.parse({ state: status.state, url: signedIn && status.state === "up" ? status.url : null });
 }
 
 /** Register the public bootstrap routes `GET /api/auth/config` + `GET /api/auth/me` on `app`. */
@@ -71,6 +78,7 @@ export function registerAuthMeta(app: Hono<PrincipalEnv>, deps: AuthMetaDeps): v
       forbidExternalMedia: deps.forbidExternalMedia(),
       trustHtml: deps.trustHtml(),
       allowInteractiveCards: deps.allowInteractiveCards(),
+      share: shareFields(deps.share(), c.get("principal") !== null),
       uploads: resolveUploadCaps({ maxImageBytes: deps.maxImageBytes(), maxDatabankBytes: deps.maxDatabankBytes() }),
       // Facts about THIS request, not the box: the login screen warns when a credential would cross plain
       // http, in red when the client is on the public internet (`infra/auth/transport.ts`).

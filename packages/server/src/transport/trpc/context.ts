@@ -27,6 +27,7 @@ import type { RpgService } from "#domain/rpg";
 import type { SearchService } from "#domain/search";
 import type { SessionsService } from "#domain/sessions";
 import type { SettingsService } from "#domain/settings";
+import type { ShareService } from "#domain/share";
 import type { StatsService } from "#domain/stats";
 import type { TagService } from "#domain/tag";
 import type { WorkloadService } from "#domain/workloads";
@@ -62,6 +63,8 @@ export interface Services {
   readonly search: SearchService;
   readonly sessions: SessionsService;
   readonly settings: SettingsService;
+  /** The owner's in-app share: one relay, its state, and the live socket count. */
+  readonly share: ShareService;
   readonly stats: StatsService;
   readonly tag: TagService;
   readonly workloads: WorkloadService;

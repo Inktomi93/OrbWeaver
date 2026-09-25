@@ -31,6 +31,9 @@ allowBuilds:
   # protobufjs: transitive via onnxruntime-node; its postinstall is non-critical but approved to silence
   # the ignored-build gate (no half-installed state).
   protobufjs: true
+  # cloudflared (infra/relay): DENIED. Its postinstall downloads the unpinned latest cloudflared with no checksum;
+  # the relay controller downloads the pinned version and verifies it (`infra/relay/pin.ts`).
+  cloudflared: false
 
 # The one home for dependency versions: every package.json names "catalog:" (or "workspace:*"), never a
 # version. The toolchain pins pnpm reads only from the root package.json: `packageManager`.
@@ -162,6 +165,9 @@ catalog:
   hono: ^4.12.31
   "@hono/node-server": ^2.0.6
   openid-client: ^6.8.4
+  # cloudflared: the quick-tunnel process wrapper only (`Tunnel.quick`, `use`, its output and exit events). Exact pin:
+  # the wrapper spawns and signals the binary. Never its installer; allowBuilds above denies its postinstall.
+  cloudflared: 0.7.3
   # jose: the JWKS/JWT VERIFY side of forward-header auth (infra/auth/jwks — createLocalJWKSet/
   # createRemoteJWKSet + jwtVerify with a pinned RS256/ES256 allowlist). Already in the tree as an
   # openid-client transitive; promoted to a direct @orb/server dep to name the verify surface

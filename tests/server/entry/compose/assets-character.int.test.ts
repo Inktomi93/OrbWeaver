@@ -22,7 +22,7 @@ import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import { connectionBindings, userConnections } from "@orb/db";
 import type { ConnectionBindingId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createServices, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
+import { createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
 import { describe, vi } from "vitest";
 import { createPersonaSeedLatch } from "../../../../packages/server/src/entry/compose/assets-character.ts";
 import { createFrozenClock } from "../../../support/clock.ts";
@@ -231,6 +231,7 @@ describe("compose/assets-character.ts — resolveGreetingTemplate narrows to Pre
     const fakeFetch: typeof fetch = () => Promise.resolve(new Response(wireBody, { status: 200, headers: { "content-type": "application/json" } }));
     const { services } = await createServices({
       serverRestart: UNSUPERVISED_RESTART,
+      share: NO_SHARE_RELAY,
       db,
       now: clock.now,
       ownerId: castId<UserId>("user_greet_owner"),

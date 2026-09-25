@@ -35,6 +35,7 @@ const CONFIG: AuthConfig = {
   uploads: DEFAULT_UPLOAD_CAPS,
   transport: "https",
   clientScope: "private",
+  share: { state: "off", url: null },
 };
 
 type FetchAuthConfig = typeof import("../../../packages/client/src/data/auth-config.ts").fetchAuthConfig;
