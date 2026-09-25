@@ -147,6 +147,16 @@ function openRouterReasoning(reasoning: ResolvedReasoning): JSONObject {
   return { effort: reasoning.mode === "adaptive" ? reasoning.effort : wireEffortOf(reasoning.effort) };
 }
 
+// The effort word a row that spells `reasoning_effort` sends. Off on an effort model spells `none`: the funnel
+// leaves an effort model disabled only when it can turn off (a mandatory one is clamped up), and a model sent no
+// field reasons at its own default.
+function compatibleEffortWord(reasoning: ResolvedReasoning): LanguageModelV4CallOptions["reasoning"] {
+  if (reasoning.enabled) {
+    return reasoning.effort === undefined ? undefined : wireEffortOf(reasoning.effort);
+  }
+  return reasoning.mode === "effort" ? REASONING_OFF : undefined;
+}
+
 /** The openai-compatible transport: effort rides V4 `reasoning` iff the row spells `reasoning_effort`; a
  *  budget has no slot; verbosity rides the SDK's `textVerbosity` option; the unmodelled sampler knobs ride
  *  `providerOptions[name]`, which the SDK spreads into the body. */
@@ -154,7 +164,7 @@ function openAiCompatibleShape(req: OpenAiCompatChatRequest, knobs: ResolvedChat
   const { connection } = req;
   const reasoning = knobs.reasoning;
   const spellsEffort = connection.features.effort === "reasoning_effort";
-  const effort = reasoning.enabled && reasoning.effort !== undefined && spellsEffort ? wireEffortOf(reasoning.effort) : undefined;
+  const effort = spellsEffort ? compatibleEffortWord(reasoning) : undefined;
   if (reasoning.enabled && reasoning.budgetTokens !== undefined) {
     warnings.push({
       code: "sampling_knob_dropped",

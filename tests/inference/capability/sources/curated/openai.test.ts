@@ -42,7 +42,8 @@ test("o3-mini and o4-mini clamp disabled reasoning before a request is built", (
     expect(resolveChat({ effort: "high" }, capability).reasoning, model).toMatchObject({ enabled: true, effort: "high" });
   }
 
-  expect(generation("o3").reasoning.mandatory).toBeUndefined();
+  // Controls: a model whose page lists `none`, and an id no row anchors.
+  expect(generation("gpt-5.1").reasoning.mandatory).toBeUndefined();
   expect(generation("openai/o4-mini-preview").reasoning.mandatory).toBeUndefined();
 });
 
@@ -191,4 +192,16 @@ test("the non-reasoning chat snapshots and pre-GPT-5 ids take neither cell", () 
   ]) {
     expect(cells(model), model).toEqual({ sampling: false, replay: undefined });
   }
+});
+
+// Off reaches the wire as `reasoning_effort: "none"`, so a model whose page lists no `none` must read mandatory:
+// its off then clamps to the lowest documented level instead of sending a word the model refuses.
+test("a reasoning model whose documented efforts omit none is mandatory, and one that lists none is not", () => {
+  for (const model of ["gpt-5", "gpt-5-mini", "gpt-5-nano-2025-08-07", "gpt-5.3-codex", "o1", "o3", "gpt-oss-120b", "gpt-6-astra"]) {
+    expect(generation(model).reasoning.mandatory, model).toBe(true);
+  }
+  for (const model of ["gpt-5.1", "gpt-5.2", "gpt-5.4-mini", "gpt-5.5", "gpt-5.6-terra", "gpt-6-sol", "gpt-6-luna"]) {
+    expect(generation(model).reasoning.mandatory, model).toBeUndefined();
+  }
+  expect(resolveChat({ effort: "none" }, generation("gpt-5")).reasoning).toMatchObject({ enabled: true, effort: "minimal" });
 });

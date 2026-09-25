@@ -184,6 +184,38 @@ test("B1 (positive control): a row that spells reasoning_effort records the word
   expect(turn.appliedEffort).toBe("high");
 });
 
+// Off is a choice the wire has to carry: a reasoning model left without `reasoning_effort` reasons at its own
+// default, which spends the tokens and latency the user turned off.
+function offRequest(reasoning: Parameters<typeof generationCapability>[0]): OpenAiCompatChatRequest {
+  const connection = fakeResolved({
+    task: "chat",
+    providerId: "custom-openai",
+    model: "m",
+    capability: generationCapability(reasoning),
+    baseUrl: "https://box.local/v1",
+    secret: fakeApiKeySecret("sk-box-not-a-real-key"),
+    declaredFeatures: { effort: "reasoning_effort" },
+  });
+  return orRequest({ connection, params: { effort: "none" }, tools: undefined });
+}
+
+test("off sends reasoning_effort none where the model can turn reasoning off, and records none as applied", async () => {
+  const recorded: RecordedRequest[] = [];
+  const turn = await runOpenAiCompatChatTurn(
+    offRequest({ reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "medium", "high"] } }),
+    turnDeps(scriptedSseFetch([openAiTextStream("ok")], recorded)),
+  );
+  expect(recorded[0]?.body["reasoning_effort"]).toBe("none");
+  expect(turn.appliedEffort).toBe("none");
+});
+
+test("off on a model that cannot turn reasoning off clamps to its lowest level, and a non-reasoning model sends no field", async () => {
+  const mandatory = await sentBody(offRequest({ reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "medium", "high"], mandatory: true } }));
+  expect(mandatory["reasoning_effort"]).toBe("low");
+  const plain = await sentBody(offRequest({ reasoning: { mode: "none", enabled: false } }));
+  expect("reasoning_effort" in plain).toBe(false);
+});
+
 test("B6 + B7: the response headers become the rate-limit snapshot and the endpoint's response id is the generationId", async () => {
   const recorded: RecordedRequest[] = [];
   const turn = await runOpenAiCompatChatTurn(endpointRequest("reasoning_effort"), turnDeps(scriptedSseFetch([openAiTextStream("ok")], recorded, RATE_HEADERS)));
