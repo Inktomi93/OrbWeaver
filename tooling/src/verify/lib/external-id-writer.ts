@@ -214,10 +214,16 @@ function upsertSetData(call: Node): WriteData {
   return { name: read.nameNode, data: set?.isKind(SyntaxKind.PropertyAssignment) === true ? set.getInitializer() : set };
 }
 
-// The users write whose data the keyed arm must be able to read: `insert(users).values(d)`,
-// `update(users).set(d)`, an upsert's `set`, and the persistence verbs' row or patch.
+/** A drizzle users write and its data argument: `insert(users).values(d)`, `update(users).set(d)`, or the `set`
+ *  of an upsert on a users insert, in any member spelling. Returns the verb's name node and the data. */
+export function usersDrizzleWrite(node: Node): WriteData {
+  return usersChainCall(node, "values", "insert") ?? usersChainCall(node, "set", "update") ?? upsertSetData(node);
+}
+
+// The users write whose data the keyed arm must be able to read: a drizzle users write, or the persistence
+// verbs' row or patch.
 function usersWriteData(node: Node): WriteData {
-  return usersChainCall(node, "values", "insert") ?? usersChainCall(node, "set", "update") ?? persistenceVerbData(node) ?? upsertSetData(node);
+  return usersDrizzleWrite(node) ?? persistenceVerbData(node);
 }
 
 /** OPAQUE users write data outside the two sanctioned files: a variable, a spread, or a shorthand `set` the

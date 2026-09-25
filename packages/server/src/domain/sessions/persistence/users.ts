@@ -169,6 +169,27 @@ export function insertPendingSignupUserStatement(db: Db, row: PendingSignupAccou
     .returning({ id: users.id });
 }
 
+/** D256 — admin's local-account mint, UNEXECUTED, for its audited batch: a human with a password hash and the
+ *  handle's key. No `onConflictDoNothing`: a handle or key race throws, and admin names it `user_exists`. */
+export function insertLocalUserStatement(
+  db: Db,
+  row: { readonly id: UserId; readonly handle: Handle; readonly role: UserRole; readonly passwordHash: string; readonly at: number },
+): AwaitableBatchStmt<{ id: UserId }[]> {
+  return db
+    .insert(users)
+    .values({
+      id: row.id,
+      handle: row.handle,
+      handleKey: handleKey(row.handle),
+      role: row.role,
+      kind: "human",
+      passwordHash: row.passwordHash,
+      createdAt: row.at,
+      updatedAt: row.at,
+    })
+    .returning({ id: users.id });
+}
+
 /** The provision UPDATE — only the supplied keys change (`enabled` is never among them). A handle change
  *  writes its key with it. */
 export async function updateUser(db: Db, id: UserId, patch: UserPatch): Promise<void> {

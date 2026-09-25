@@ -36,7 +36,7 @@ export interface AdminComposeDeps {
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   readonly sessions: Pick<
     SessionsService,
-    "listForUser" | "revoke" | "revokeAllForUser" | "revokeAllForUserStatement" | "linkExternalIdStatement" | "settleUnclaimedLink"
+    "listForUser" | "revoke" | "revokeAllForUser" | "revokeAllForUserStatement" | "linkExternalIdStatement" | "settleUnclaimedLink" | "localUserInsertStatement"
   >;
   /** W7a — the live-socket eviction edge for every admin revoke (see the wrapper below for the granularity
    *  ruling). Transport state, injected as a port: `domain/admin` may not import transport. */
@@ -120,6 +120,7 @@ export function buildAdmin(deps: AdminComposeDeps): AdminComposeResult {
       // claim that bound nothing. admin gates + audits around both.
       linkExternalIdStatement: sessions.linkExternalIdStatement,
       settleUnclaimedLink: sessions.settleUnclaimedLink,
+      localUserInsertStatement: sessions.localUserInsertStatement,
     },
     embed: {
       embedCharacterCard: async (principal, characterId): Promise<boolean> => {

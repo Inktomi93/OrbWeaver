@@ -25,7 +25,7 @@ import type { CreateUserParams } from "../contract/params.ts";
 import type { AdminService } from "../contract/service.ts";
 import type { AdminUserView } from "../contract/views.ts";
 import { requireAdmin, requireOwner } from "../guard.ts";
-import { userCols } from "../persistence/queries.ts";
+import { loadUser } from "../persistence/queries.ts";
 import { commitAuditedWrite } from "../substrate/audited-write.ts";
 
 const OWNER_ROLE = "owner";
@@ -80,27 +80,13 @@ async function insertLocalUser(ctx: AdminContext, row: LocalUserInsert, actorUse
   // The id is minted BEFORE the batch so the audit row can name the account it records without reading the
   // INSERT's own RETURNING back (the two statements commit together — there is no "after" to read in).
   const id = ctx.newUserId();
-  // `.returning(userCols)` omits the joined `ownerHandle` — a fresh human's owner is null, added at return.
-  let inserted: Omit<AdminUserView, "ownerHandle">[];
+  let inserted: { readonly id: UserId }[];
   try {
     // ONE batch: the account and its audit row exist together or neither does (#1691). A rejecting audit
     // insert now un-mints the account instead of leaving a loginable row with no forensic record.
     inserted = await commitAuditedWrite(ctx, {
-      write: ctx.db
-        .insert(users)
-        .values({
-          id,
-          handle: castId<Handle>(row.handle),
-          handleKey: handleKey(row.handle),
-          role: row.role,
-          // `createUser` mints humans only — agent rows come exclusively from provisionAgentPrincipal.
-          // Hardcoded (not the schema default) so a future default change can't leak agents here.
-          kind: "human",
-          passwordHash: row.passwordHash,
-          createdAt: row.at,
-          updatedAt: row.at,
-        })
-        .returning(userCols),
+      // D256: the mint is sessions' statement, which derives the handle key and mints humans only.
+      write: ctx.sessions.localUserInsertStatement({ id, handle: row.handle, role: row.role, passwordHash: row.passwordHash, at: row.at }),
       entry: {
         actorUserId,
         action: "admin.createUser",
@@ -118,13 +104,11 @@ async function insertLocalUser(ctx: AdminContext, row: LocalUserInsert, actorUse
     }
     throw err;
   }
-  const created = inserted[0];
+  const created = inserted[0] === undefined ? undefined : await loadUser(ctx.db, inserted[0].id);
   if (created === undefined) {
     throw new DomainOperationError(ADMIN_OP_CODES.userExists, "user row was not returned after insert");
   }
-  // A freshly-minted human never owns anything — `ownerHandle` is null; the joined column is omitted from
-  // `.returning`, so it's set explicitly here.
-  return { ...created, ownerHandle: null };
+  return created;
 }
 
 export function createCreateUser(ctx: AdminContext): AdminService["createUser"] {

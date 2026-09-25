@@ -25,6 +25,8 @@ import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER_ID = castId<UserId>("u_owner");
 const OTHER_ID = castId<UserId>("u_other");
+// The stubbed-sessions cases never move the seed key, so a rename reaching the stub is a test defect.
+const RENAME_NOT_REACHED = (): Promise<void> => Promise.reject(new Error("renameUserHandle is not reached by this case"));
 
 // ≥32 chars — the SESSION_SECRET pepper floor (mirrors the sessions harness).
 const PEPPER = "test-session-secret-at-least-32-chars-long";
@@ -43,7 +45,7 @@ test("backfills a non-owner OWNER-handle row to role=owner + returns its id", as
 
   const ids = await seedOwner({
     db,
-    sessions: { ensureUser: (): Promise<UserId> => Promise.resolve(OWNER_ID) },
+    sessions: { ensureUser: (): Promise<UserId> => Promise.resolve(OWNER_ID), renameUserHandle: RENAME_NOT_REACHED },
     ownerHandles: ["owner"],
     now: clock.now,
   });
@@ -59,7 +61,7 @@ test("idempotent — a second run keeps role=owner and does not re-stamp updated
 
   await seedOwner({
     db,
-    sessions: { ensureUser: (): Promise<UserId> => Promise.resolve(OWNER_ID) },
+    sessions: { ensureUser: (): Promise<UserId> => Promise.resolve(OWNER_ID), renameUserHandle: RENAME_NOT_REACHED },
     ownerHandles: ["owner"],
     now: clock.now,
   });
@@ -70,7 +72,7 @@ test("idempotent — a second run keeps role=owner and does not re-stamp updated
   clock.advance(10_000);
   await seedOwner({
     db,
-    sessions: { ensureUser: (): Promise<UserId> => Promise.resolve(OWNER_ID) },
+    sessions: { ensureUser: (): Promise<UserId> => Promise.resolve(OWNER_ID), renameUserHandle: RENAME_NOT_REACHED },
     ownerHandles: ["owner"],
     now: clock.now,
   });
@@ -91,7 +93,7 @@ test("re-enables a DISABLED already-owner row at boot (raw-write brick recovery)
 
   await seedOwner({
     db,
-    sessions: { ensureUser: (): Promise<UserId> => Promise.resolve(OWNER_ID) },
+    sessions: { ensureUser: (): Promise<UserId> => Promise.resolve(OWNER_ID), renameUserHandle: RENAME_NOT_REACHED },
     ownerHandles: ["owner"],
     now: clock.now,
   });
@@ -106,7 +108,7 @@ test("refuses a multi-handle owner set — fail-fast, not a UNIQUE loop (D17: ex
   await expect(
     seedOwner({
       db,
-      sessions: { ensureUser: (): Promise<UserId> => Promise.resolve(OWNER_ID) },
+      sessions: { ensureUser: (): Promise<UserId> => Promise.resolve(OWNER_ID), renameUserHandle: RENAME_NOT_REACHED },
       ownerHandles: ["alice", "bob"],
       now: clock.now,
     }),
@@ -120,7 +122,7 @@ test("leaves a non-OWNER-handle row untouched (stays role=user)", async ({ clock
   await seedOwner({
     db,
     // ensureUser would JIT-create the owner row in production; here the test only cares the OTHER row is left alone.
-    sessions: { ensureUser: (): Promise<UserId> => Promise.resolve(OWNER_ID) },
+    sessions: { ensureUser: (): Promise<UserId> => Promise.resolve(OWNER_ID), renameUserHandle: RENAME_NOT_REACHED },
     ownerHandles: ["owner"],
     now: clock.now,
   });

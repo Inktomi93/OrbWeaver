@@ -247,6 +247,8 @@ export function makeHarness(db: Db): AdminHarness {
       linkExternalIdStatement: sessionsSvc.linkExternalIdStatement,
       settleUnclaimedLink: (userId: UserId, externalId: ExternalId, failure?: unknown): Promise<UnclaimedLinkOutcome> =>
         sessionsSvc.settleUnclaimedLink(userId, externalId, failure),
+      // D256 — REAL: the mint rides the verb's audited batch, and the handle key is derived in sessions.
+      localUserInsertStatement: sessionsSvc.localUserInsertStatement,
     },
 
     embed: {

@@ -31,7 +31,7 @@ const OWNER_ROLE = "owner" as const;
 
 export interface SeedOwnerDeps {
   readonly db: Db;
-  readonly sessions: Pick<SessionsService, "ensureUser">;
+  readonly sessions: Pick<SessionsService, "ensureUser" | "renameUserHandle">;
   readonly ownerHandles: readonly string[];
   readonly now: () => number;
   /** AUTH_MODE=local only: the cleartext first-boot owner password. Never logged. */
@@ -59,7 +59,8 @@ export interface SeedOwnerDeps {
  * operator's tell that a typo'd `OWNER_HANDLES` just renamed their owner (reverting the env renames it back —
  * the row is identified by `role='owner'`, not by the handle it happens to carry).
  */
-async function adoptMovedSeedKey(db: Db, seedKey: Handle, at: number): Promise<void> {
+async function adoptMovedSeedKey(deps: SeedOwnerDeps, seedKey: Handle, at: number): Promise<void> {
+  const { db } = deps;
   const [owner] = await db.select({ id: users.id, handle: users.handle }).from(users).where(eq(users.role, OWNER_ROLE)).limit(1);
   if (owner === undefined || owner.handle === seedKey) {
     return;
@@ -76,10 +77,7 @@ async function adoptMovedSeedKey(db: Db, seedKey: Handle, at: number): Promise<v
       `seedOwner: OWNER_HANDLES moved to "${seedKey}", but that handle or a look-alike of it (one handle key, D256) is already held by another user (id=${taken.id}) — refusing to rename the owner row (id=${owner.id}, handle="${owner.handle}") onto it, which would take a member's handle. Point OWNER_HANDLES at an unused handle, or rename/remove that user first.`,
     );
   }
-  await db
-    .update(users)
-    .set({ handle: seedKey, handleKey: handleKey(seedKey), updatedAt: at })
-    .where(eq(users.id, owner.id));
+  await deps.sessions.renameUserHandle(owner.id, seedKey, at);
   getLog().warn(
     { ownerId: owner.id, from: owner.handle, to: seedKey },
     "boot/seed-owner: OWNER_HANDLES moved — renamed the owner row onto the new seed key (role + external_id unchanged; if this was a typo, restore OWNER_HANDLES and reboot)",
@@ -100,7 +98,7 @@ export async function seedOwner(deps: SeedOwnerDeps): Promise<readonly UserId[]>
   // insert-then-collide path that made a moved OWNER_HANDLES a fatal boot.
   const seedKey = deps.ownerHandles[0];
   if (seedKey !== undefined) {
-    await adoptMovedSeedKey(deps.db, castId<Handle>(seedKey), at);
+    await adoptMovedSeedKey(deps, castId<Handle>(seedKey), at);
   }
   const seedPassword = deps.initialPassword !== undefined && deps.hashPassword !== undefined ? { plain: deps.initialPassword, hash: deps.hashPassword } : null;
   let passwordsSeeded = 0;

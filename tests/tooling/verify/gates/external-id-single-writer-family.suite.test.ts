@@ -35,6 +35,7 @@
 import { Project } from "ts-morph";
 import { gate as externalIdSingleWriter } from "../../../../tooling/src/verify/gates/external-id-single-writer.ts";
 import { gate as externalIdSingleWriterHealth } from "../../../../tooling/src/verify/gates/external-id-single-writer-health.ts";
+import { gate as handleKeyWriter } from "../../../../tooling/src/verify/gates/handle-key-writer.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -68,6 +69,31 @@ function findingsOf(files: Readonly<Record<string, string>>): readonly { readonl
 
 test("the U1 externalId bind-once chokepoint and its carve-out health tripwire both self-prove", () => {
   expect(verifyPolicyProofs([externalIdSingleWriter, externalIdSingleWriterHealth])).toEqual([]);
+});
+
+// D256 — the handle-key writer rides the same users-write reader. A rename that drops the key is invisible to the
+// subject-writer detector (no externalId anywhere), so this pins that "handle-key-writer" is the one that sees it.
+test("a users rename without its key is red under handle-key-writer and silent under the subject-writer detector", () => {
+  expect(verifyPolicyProofs([handleKeyWriter])).toEqual([]);
+  const rename = {
+    [`${SESSIONS}/verbs/rename.ts`]:
+      'import { users } from "@orb/db";\nimport { eq } from "drizzle-orm";\nexport const rename = (db: DB, id: string, handle: H, at: number) => db.update(users).set({ handle, updatedAt: at }).where(eq(users.id, id));\n',
+    [`${SESSIONS}/verbs/pending-signup.ts`]: PENDING_CALLER,
+  };
+  expect(findingsOf(rename).map(({ policyId }) => policyId)).toEqual([]);
+  const project = new Project({ useInMemoryFileSystem: true });
+  for (const [path, source] of Object.entries({ ...BASE_TREE, ...rename })) {
+    project.createSourceFile(`${ROOT}/${path}`, source);
+  }
+  const result = runPolicyPass({
+    knownPolicies: [handleKeyWriter],
+    policies: [handleKeyWriter],
+    root: ROOT,
+    project,
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
+  expect(result.authority.effectiveFindings.map((finding) => finding.file.replace(`${ROOT}/`, ""))).toEqual([`${SESSIONS}/verbs/rename.ts`]);
 });
 
 // The registry has two readers, and a moved subject bind must trip both: the detector at the new, unregistered
