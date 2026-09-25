@@ -37,19 +37,19 @@ function cpuMaxCores(body: string | undefined): number | undefined {
 /** PURE (given the reader): THE CGROUP v2 QUOTA CEILING on this process tree in whole-CPU units, or
  *  `undefined` when the tree is unbounded (no cgroup v2, an unreadable path, every `cpu.max` reading `max`).
  *
- *  WHY IT IS AN INPUT TO THE DENOMINATOR AND NOT A CURIOSITY (#1985, measured 2026-09-12). Since #1835
- *  `.claude/hooks/cpu-fence.sh` sets `CPUQuota=<sessionCpuQuotaPct>` on each agent session's scope — 800%,
- *  i.e. EIGHT of this box's 24 threads. `cpus().length` still answers 24, so `computeLoadFactor` divided a
- *  box-wide loadavg by cores this process tree is FORBIDDEN to use, and returned a flat factor 1 for every
- *  realistic multi-lane load: the fence itself holds loadavg well under 24, which is the number the factor
- *  had to exceed before it moved at all. The measured consequence is the row this closes —
+ *  WHY IT IS AN INPUT TO THE DENOMINATOR AND NOT A CURIOSITY (#1985, measured 2026-09-12). A cgroup CPU
+ *  quota — a systemd `CPUQuota=` on the session's scope, a container's CPU limit — bounds the cores this
+ *  tree may use, and `cpus().length` cannot see it. Under an 800% quota (EIGHT of a 24-thread box)
+ *  `computeLoadFactor` divided a box-wide loadavg by cores this process tree is FORBIDDEN to use, and
+ *  returned a flat factor 1 for every realistic multi-lane load: the quota itself holds loadavg well under
+ *  24, which is the number the factor had to exceed before it moved at all. The measured consequence is the row this closes —
  *  `enforcement-registry-parity.int.test.ts` carries `scaledBudget(60_000)`, timed out under concurrent
  *  lanes and passed under lighter load inside one session on one commit, with the scaling never once
  *  engaging. The budget WAS scaled; the scaling was reading the wrong box.
  *
  *  The ceiling is the MINIMUM over the whole cgroup ANCESTRY, not the leaf: a quota on any ancestor bounds
- *  the tree. `ORB_DEDICATED_BOX=1` sets no ceiling at all, so the walk finds `max` everywhere and this
- *  returns `undefined` — the solo box keeps the physical count and its budgets stay byte-identical. */
+ *  the tree. An unbounded tree finds `max` everywhere and this returns `undefined` — it keeps the physical
+ *  count and its budgets stay byte-identical. */
 export function cgroupQuotaCores(read: CgroupFileReader): number | undefined {
   const own = read(PROC_SELF_CGROUP)
     ?.split("\n")

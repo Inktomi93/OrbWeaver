@@ -1,18 +1,29 @@
 {
-  "why": "THE ONE HOME for every worker/slot cap in the fleet (#1835). Six lanes across two accounts multiplied per-worktree caps ~6x: node_load1 peaked at 105.8 on 24 cores and PSI cpu 'some' hit 0.6 while the co-hosted homelab containers wanted ~3 cores. JSON, not TypeScript, because bash (.claude/hooks/*.sh via jq), CommonJS (scripts/*.cjs) and TypeScript (tooling/src/_shared/concurrency-profile.ts, vitest.config.ts, playwright-ct.config.ts) all have to read the same numbers with no build step in between. Change a number HERE; every reader follows.",
+  "why": "THE ONE HOME for every worker/slot cap in the fleet (#1835). Six lanes across two accounts multiplied per-worktree caps ~6x: node_load1 peaked at 105.8 on 24 cores and PSI cpu 'some' hit 0.6 while the co-hosted homelab containers wanted ~3 cores. Each profile's numbers are CEILINGS: tooling/src/_shared/concurrency-profile.ts derives every cap from the machine it runs on (os.availableParallelism(), process.constrainedMemory() else os.totalmem()) with the `unitCosts` below, and never goes past the ceiling, so the owner's 24-core/48 GB box keeps exactly these numbers while a 4-core/13.4 GB box scales down (0176: four lanes each sizing a 4-5 GB tsc to the whole box OOM-killed tsc, node and browsers alike). JSON, not TypeScript, because configs, scripts and hooks all read the same numbers with no build step in between; every reader goes through that one door. Change a number HERE; every reader follows.",
   "stageBudgets": {
-    "why": "The verify runner's per-stage HANG CEILING, DERIVED from the caps above instead of hand-typed (#1848). It was one 45-minute constant in tooling/src/verify/ops/run.ts applied to every stage, and on 2026-09-06 the product-test stage blew through it and reported `[tool-error] TIMED OUT` on a QUIET box — a stage cannot have a ceiling below its own honest runtime. MEASURED on 2026-09-06 at base 23237a3d1: the CT suite is 488 files / 5121 cases by playwright's own --list, and a 25-file systematic sample (541 cases) cost 1004 WORKER-SECONDS of test time, i.e. ~1.86s per case => ~160 worker-minutes for the whole suite (the 2026-09-02 four-worker run implies ~115, so this number is the conservative end). Divide by ctWorkers, multiply by the factor, add the host-slot wait a CT run may legitimately spend queueing, and the ceiling follows every future change to the caps by itself. It is NOT a performance budget: past it a stage is WEDGED.",
+    "why": "The verify runner's per-stage HANG CEILING, DERIVED from the caps above instead of hand-typed (#1848). It was one 45-minute constant in tooling/src/verify/ops/run.ts applied to every stage, and on 2026-09-06 the product-test stage blew through it and reported `[tool-error] TIMED OUT` on a QUIET box — a stage cannot have a ceiling below its own honest runtime. MEASURED on 2026-09-06 at base 23237a3d1: the CT suite is 488 files / 5121 cases by playwright's own --list, and a 25-file systematic sample (541 cases) cost 1004 WORKER-SECONDS of test time, i.e. ~1.86s per case => ~160 worker-minutes for the whole suite (the 2026-09-02 four-worker run implies ~115, so this number is the conservative end). Divide by ctWorkers, multiply by the factor, add the host-slot wait a CT run may legitimately spend queueing, and the ceiling follows every future change to the caps by itself. It is NOT a performance budget: past it a stage is WEDGED. `ts7HostSlotWaitMinutes` is the quiet-box wait before the head of the whole-program typecheck queue runs anyway as an overflow run: a queued typecheck is minutes of wall clock, an overflow run is the memory the queue exists to protect, so the wait is long and the load-scaled budget stretches it further on a busy box.",
     "defaultMinutes": 45,
     "ctSuiteWorkerMinutes": 165,
     "ctCeilingFactor": 1.5,
     "ctHostSlotWaitMinutes": 45,
+    "ts7HostSlotWaitMinutes": 10,
     "mutationGateMinutes": 120
+  },
+  "unitCosts": {
+    "why": "What ONE unit of each kind of work costs, MEASURED on 2026-09-25 (4-core/13.4 GB box, peak summed RSS of the whole process tree sampled every 0.5 s, one small run per point). `cores` is 1 for every unit because each is a CPU-bound worker, checker or leg. vitestWorker: `pnpm test:scoped` one tiny tooling file at 1 worker 955 MiB, two at 2 workers 1349; two server int files at 2 workers 2215 => ~830 per worker over a ~560 launcher base. ctWorker: `pnpm test:ct` one ui file at 1 worker 2518 MiB, two at 2 workers 3070 => ~550 per worker+chromium over a ~1970 base (the vite build and the playwright runner). ts7Checker: the root tsconfig.json whole program at 1 checker 4.8 GB, 2 => 5.9, 4 => 7.3; 4500 + 700 per checker is the line that covers all three points (4.2 + 0.6 under-prices the 2-checker run by 0.5 GB). eslintWorker: a file with no typed program 441 MiB (the base); one tooling file, whose worker loads the tooling program, 1540 => ~1100 per worker; a second worker on a smaller program added ~300, so 1100 is the large-program price. cpdWorker: `pnpm cpd` at 1 and 2 workers both peaked at 879 MiB, so a worker adds no measurable memory and only its core is priced. hookLeg: the edit hook's heaviest file-scoped leg is the typecheck planner at 659 MiB (dep-cruiser one file 272, biome one file under the sampler's resolution).",
+    "vitestWorker": { "cores": 1, "memoryMiB": 830, "baseMemoryMiB": 560 },
+    "ctWorker": { "cores": 1, "memoryMiB": 550, "baseMemoryMiB": 1970 },
+    "ts7Checker": { "cores": 1, "memoryMiB": 700, "baseMemoryMiB": 4500 },
+    "eslintWorker": { "cores": 1, "memoryMiB": 1100, "baseMemoryMiB": 441 },
+    "cpdWorker": { "cores": 1, "memoryMiB": 0, "baseMemoryMiB": 879 },
+    "hookLeg": { "cores": 1, "memoryMiB": 660, "baseMemoryMiB": 0 }
   },
   "envSwitch": "ORB_DEDICATED_BOX",
   "envSwitchContract": "SHELL ENVIRONMENT ONLY — tooling never reads the repo .env (a config file that silently retunes the whole fleet is the lie this file exists to end). Unset / '' / '0' => shared. '1' => dedicated. Anything else REFUSES loudly.",
   "profiles": {
     "shared": {
-      "why": "The DEFAULT. This box co-hosts the homelab and routinely runs up to three lanes per account across two accounts. ctWorkers went 2 -> 4 on 2026-09-06 by OWNER RULING (#1848), and #1835's ruling SURVIVES — its input changed: one CT worker is ~one core, the box-wide bound is `ctRunnersHostWide` (2 slots => at most 8 Chromiums, a third of a 24-core box) and `.claude/hooks/cpu-fence.sh`'s 800% per-session quota, not the per-run worker count. What actually starved the box on 2026-09-06 was per-worktree caps multiplying across six lanes PLUS 72 orphaned browsers and stranded stages; the host-wide slots, the quota and #1848's run-marker sweeps are the fix for that. At 2 workers the measured CT suite is ~80 min and the push bar ~95; at 4 it is ~41 and ~51.",
+      "why": "The DEFAULT. This box co-hosts the homelab and routinely runs up to three lanes per account across two accounts. ctWorkers went 2 -> 4 on 2026-09-06 by OWNER RULING (#1848), and #1835's ruling SURVIVES — its input changed: one CT worker is ~one core, and the box-wide bound is `ctRunnersHostWide` (2 slots => at most 8 Chromiums, a third of a 24-core box), not the per-run worker count. What actually starved the box on 2026-09-06 was per-worktree caps multiplying across six lanes PLUS 72 orphaned browsers and stranded stages; the host-wide slots and #1848's run-marker sweeps are the fix for that. At 2 workers the measured CT suite is ~80 min and the push bar ~95; at 4 it is ~41 and ~51. `machineShare` 0.5: shared work sizes itself to half the machine, which on the 24-core/48 GB box is 12 cores and 24 GB and leaves every ceiling here binding. `ts7RunnersHostWide` 3 (0176): at most three whole-program typechecks at once across every checkout; 24 GB fits three 7.3 GB four-checker runs.",
+      "machineShare": 0.5,
       "vitestMaxWorkers": 4,
       "ctWorkers": 4,
       "ts7Checkers": 4,
@@ -23,13 +34,13 @@
       "hookPoolSlots": 4,
       "hookTs7Checkers": 2,
       "ctRunnersHostWide": 2,
+      "ts7RunnersHostWide": 3,
       "stageCap": 3,
-      "sessionCpuQuotaPct": 1600,
-      "sessionMemoryHigh": "48G",
       "wholeVerifyQueue": true
     },
     "dedicated": {
-      "why": "ORB_DEDICATED_BOX=1 — one operator, nothing else on the machine. These are the MEASURED quiet-box numbers the configs used to ship as their defaults (vitest 14 = reports/tooling/VITEST-INTEGRATION-SPEEDUP.md's 6.7x sweet spot; CT 4 = #766). sessionCpuQuotaPct 0 and sessionMemoryHigh '' mean NO ceiling: the cpu-fence hook prints that it is standing down rather than setting one. stageCap 5 (#1848): a stage is a ~7-process full stack, the band RANGE (10, _shared/ports.ts) is the hard ceiling, and with no homelab to starve the reason to hold three is gone — 5 still leaves half the table for a sibling checkout.",
+      "why": "ORB_DEDICATED_BOX=1 — one operator, nothing else on the machine. These are the MEASURED quiet-box numbers the configs used to ship as their defaults (vitest 14 = reports/tooling/VITEST-INTEGRATION-SPEEDUP.md's 6.7x sweet spot; CT 4 = #766). `machineShare` 1: the whole machine is this profile's to size to. stageCap 5 (#1848): a stage is a ~7-process full stack, the band RANGE (10, _shared/ports.ts) is the hard ceiling, and with no homelab to starve the reason to hold three is gone — 5 still leaves half the table for a sibling checkout. `ts7RunnersHostWide` 4 (0176): four 8-checker runs at ~10 GB each fit 48 GB, the same arithmetic that lets `pnpmWorkspaceConcurrency` run four programs.",
+      "machineShare": 1,
       "vitestMaxWorkers": 14,
       "ctWorkers": 4,
       "ts7Checkers": 8,
@@ -40,9 +51,8 @@
       "hookPoolSlots": 8,
       "hookTs7Checkers": 4,
       "ctRunnersHostWide": 4,
+      "ts7RunnersHostWide": 4,
       "stageCap": 5,
-      "sessionCpuQuotaPct": 0,
-      "sessionMemoryHigh": "",
       "wholeVerifyQueue": true
     }
   }

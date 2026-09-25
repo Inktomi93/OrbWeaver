@@ -271,8 +271,8 @@ test("T16 — a kill is told from an ordinary red, in BOTH node kill shapes", ()
 // THE DEFECT THIS PINS. `enforcement-registry-parity.int.test.ts` carries `scaledBudget(60_000)`, timed out
 // under concurrent lanes and passed under lighter load inside ONE session on ONE commit — and the scaling
 // had never engaged, because `readBoxLoad` divided a box-wide loadavg by `cpus().length` (24) while
-// `.claude/hooks/cpu-fence.sh` (#1835) had capped the whole session tree at CPUQuota 800% = EIGHT cores.
-// The factor could only move above per-core 1.0, i.e. loadavg 24 — a number the fence itself prevents. A
+// a cgroup CPU quota had capped the whole session tree at CPUQuota 800% = EIGHT cores. The factor could
+// only move above per-core 1.0, i.e. loadavg 24 — a number the quota itself prevents. A
 // scaled budget that can never scale is the lying-instrument shape, not a too-small base.
 //
 // Both directions are planted, because a quota walk that always answered `undefined` would restore the bug
@@ -287,8 +287,8 @@ test("#1985 — the cgroup quota walk takes the MINIMUM over the ancestry, and r
   };
   expect(cgroupQuotaCores(ancestry)).toBe(2);
 
-  // ORB_DEDICATED_BOX=1 sets no ceiling at all: every `cpu.max` reads `max`, and the walk must say so
-  // rather than inventing a cap — otherwise the solo box's budgets stop being byte-identical to their base.
+  // An unbounded tree: every `cpu.max` reads `max`, and the walk must say so rather than inventing a cap —
+  // otherwise an unfenced box's budgets stop being byte-identical to their base.
   expect(cgroupQuotaCores(() => "max 100000")).toBeUndefined();
   // A v1-only / unreadable `/proc/self/cgroup` is unbounded too, never a crash and never a 0-core divisor.
   expect(cgroupQuotaCores(() => undefined)).toBeUndefined();
