@@ -1,6 +1,6 @@
 // Route-level auth gates (beforeLoad guards): gate before render, so a protected pane never flashes
 // then yanks. Thrown redirect()s, never a rendered bounce; no `next` search param, post-login always
-// lands on `/`. The axis is `me.authenticated`, not `config.requiresLogin` — the latter is false for
+// lands on `/`. An inbound invite token never rides the redirect: it moves into the tab stash (D254). The axis is `me.authenticated`, not `config.requiresLogin` — the latter is false for
 // both single-user AND forward-header, which would make the forward-header explainer unreachable and
 // let a broken forward-header proxy render the full authed shell with silently-failing queries. The
 // server stays authoritative: every tRPC procedure re-gates; these exist so the UI lands on the right surface.
@@ -14,7 +14,7 @@
 
 import { redirect } from "@tanstack/react-router";
 import type { AuthMe } from "#data";
-import { fetchAuthMe } from "#data";
+import { fetchAuthMe, stashInboundJoinToken } from "#data";
 
 // Only a transient blip should retry; ~600ms total comfortably covers a vite HMR reconnect without a
 // perceptible stall on a truly-down server (the router paints RoutePending across this window).
@@ -53,6 +53,7 @@ async function meOrNull(wait: WaitOp, retriesLeft = UNREACHABLE_RETRIES): Promis
 export async function requireAuthed(wait: WaitOp = realWait): Promise<void> {
   const me = await meOrNull(wait);
   if (me === null || !me.authenticated) {
+    stashInboundJoinToken();
     throw redirect({ to: "/login" });
   }
 }

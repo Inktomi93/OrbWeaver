@@ -4,12 +4,13 @@
 // import the fns, never hand-write `fetch`. Response shape is a structural mirror of
 // entry/http/auth-meta.ts (no proxy type to derive from, since the endpoint lives outside AppRouter).
 
-import type { UserRole } from "@orb/contracts/identity";
-import { CSRF_HEADER } from "@orb/contracts/identity";
+import type { SignupErrorCode, SignupRequest, UserRole } from "@orb/contracts/identity";
+import { CSRF_HEADER, SIGNUP_ERROR_CODES } from "@orb/contracts/identity";
 import type { Handle } from "@orb/kit/ids";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { postSessionMessage, sessionDocument } from "#lib";
+import { clearJoinStash } from "./session-resume.ts";
 
 /** The `/api/auth/me` wire shape — THIS request's seam-resolved identity (public; never a 401). */
 export interface AuthMe {
@@ -93,6 +94,30 @@ export async function firstRunSetup(password: string): Promise<void> {
   }
 }
 
+function isSignupErrorCode(value: unknown): value is SignupErrorCode {
+  return typeof value === "string" && (SIGNUP_ERROR_CODES as readonly string[]).includes(value);
+}
+
+/** D254 — create a local account through the stashed invite. POSTs the JSON body to `/api/auth/signup`; the
+ *  server creates the account, spends one invite use, seats the member, then mints the session cookie.
+ *  Resolves with the route's refusal code on a refusal (`null` for a throttle or an unreadable body), so the
+ *  form picks its own copy. */
+export async function signUpWithInvite(request: SignupRequest): Promise<{ readonly ok: true } | { readonly ok: false; readonly code: SignupErrorCode | null }> {
+  const res = await fetch("/api/auth/signup", {
+    method: "POST",
+    credentials: "same-origin",
+    // Same CSRF belt as login: without it a cross-site page could sign the visitor into an account it made.
+    headers: { [CSRF_HEADER]: "1", "content-type": "application/json" },
+    body: JSON.stringify(request),
+  });
+  if (res.ok) {
+    return { ok: true };
+  }
+  // @orb-waive caught-failure-ownership(res.json): an absent or malformed error body degrades to the empty object, which reads as the unknown refusal (`null`); the refusal is still reported. Ends if every refusal body becomes guaranteed.
+  const parsed = (await res.json().catch(() => ({}))) as { readonly error?: unknown };
+  return { ok: false, code: isSignupErrorCode(parsed.error) ? parsed.error : null };
+}
+
 /** The logout response: the IdP end-session URL to continue to, or null (non-oidc modes, or an issuer
  *  with no end_session_endpoint). Module-local: `logout` below is the only spelling of the name, and
  *  callers consume the shape through that signature (#1847). */
@@ -109,6 +134,8 @@ interface LogoutResult {
  *  switcher's foot); THROWS on failure — the calling control owns the toast. */
 export async function signOut(): Promise<void> {
   const { endSessionUrl } = await logout();
+  // A stashed invite belongs to the visitor who opened it, never to the next person on this tab (D254).
+  clearJoinStash();
   postSessionMessage({ kind: "signed-out" });
   sessionDocument.assign(endSessionUrl ?? "/login");
 }
