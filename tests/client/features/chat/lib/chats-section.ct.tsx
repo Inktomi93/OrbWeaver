@@ -316,7 +316,7 @@ test("#860: the context bracket's head band carries the room's title WHOLE and t
   // door was already open and pressing it did nothing visible. The doorway ruling is untouched — the chip
   // is still the one roster door, and it is still a button everywhere the view is elsewhere (both
   // directions are driven in the F11/F18 pin below). What changed is the state it is asserted IN.
-  await expect(band.locator('[data-slot="chat-context-band-members"]')).toHaveText("3 members");
+  await expect(band.locator('[data-slot="chat-context-band-members"]')).toHaveText("1 member");
   await expect(band.getByRole("button", { name: /^Memory — / })).toBeVisible();
   await expect(band.locator('[data-slot="chat-context-band-preset"]')).toHaveText("House style");
   // The band is ABOVE the rail, and the rail is the pane's foot: no tablist, no head strip.
@@ -326,7 +326,7 @@ test("#860: the context bracket's head band carries the room's title WHOLE and t
   // The roster chip opens the Members cell.
   await cell(component, "This chat").click();
   await expect(cell(component, "This chat")).toHaveAttribute("aria-current", "true");
-  await band.getByRole("button", { name: "Members — 3" }).click();
+  await band.getByRole("button", { name: "Members — 1" }).click();
   await expect(cell(component, "Members")).toHaveAttribute("aria-current", "true");
 });
 
@@ -464,19 +464,19 @@ test("#878 F11/F18: the memory chip shows its word, and the members chip is a DA
 
   // F18 — the pane OPENS on Members, so at rest the members chip's door is already open: it renders as the
   // inert datum pill, not as a control that does nothing.
-  await expect(band.locator('[data-slot="chat-context-band-members"]')).toHaveText("3 members");
-  await expect(band.getByRole("button", { name: "Members — 3" })).toHaveCount(0);
+  await expect(band.locator('[data-slot="chat-context-band-members"]')).toHaveText("1 member");
+  await expect(band.getByRole("button", { name: "Members — 1" })).toHaveCount(0);
 
   // …and it becomes a real door again the moment the view is elsewhere — both directions, because a
   // one-directional check passes on a chip that is stuck.
   await cell(component, "This chat").click();
   await expect(cell(component, "This chat")).toHaveAttribute("aria-current", "true");
-  await expect(band.getByRole("button", { name: "Members — 3" })).toBeVisible();
+  await expect(band.getByRole("button", { name: "Members — 1" })).toBeVisible();
   await expect(band.locator('[data-slot="chat-context-band-members"]')).toHaveCount(0);
   // …and pressing it puts the view back, which is what makes it a door and not a decoration.
-  await band.getByRole("button", { name: "Members — 3" }).click();
+  await band.getByRole("button", { name: "Members — 1" }).click();
   await expect(cell(component, "Members")).toHaveAttribute("aria-current", "true");
-  await expect(band.locator('[data-slot="chat-context-band-members"]')).toHaveText("3 members");
+  await expect(band.locator('[data-slot="chat-context-band-members"]')).toHaveText("1 member");
 });
 
 test.describe("#875 F6 — the band's chips at a coarse pointer", () => {
@@ -759,6 +759,8 @@ test("capable HOST: Members lists the humans (host chip) and the invite dialog m
     "chat.previewAssembly": () => PREVIEW,
     "invites.listInvites": () => [],
     "invites.createInvite": () => CREATED_INVITE,
+    // The mint dialog reads the viewer: a host who is not a global admin gets no sign-up switch and no sharing door.
+    "sessions.me": () => ({ userId: "user_nate", handle: "alex", globalRole: "user" }),
   });
   await stubMultiHumanCapable(page, true);
 
