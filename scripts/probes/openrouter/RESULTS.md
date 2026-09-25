@@ -1,9 +1,9 @@
 # OpenRouter probe batch — verdicts
 
-**Run:** 2026-08-01 (F4/F4a/F5/OR-5/OR-7) · 2026-08-08 (OR-5b/OR-7b) · 2026-09-23 (OR-8, OR-9, OR-10) · 2026-09-24 (OR-11) · **Wire:** `anthropic/claude-sonnet-5`
+**Run:** 2026-08-01 (F4/F4a/F5/OR-5/OR-7) · 2026-08-08 (OR-5b/OR-7b) · 2026-09-23 (OR-8, OR-9, OR-10) · 2026-09-24 (OR-11) · 2026-09-25 (OR-12) · **Wire:** `anthropic/claude-sonnet-5`
 via OpenRouter (Anthropic pinned, `allow_fallbacks:false`), plus the Anthropic Messages API for F5's native
 reference arms.
-**Spend:** ~$0.20 OpenRouter + ~$0.12 Anthropic native ≈ **$0.32** (08-01) · **$0.152** OpenRouter (08-08) · **$0.104** OpenRouter + ~$0.10 Anthropic native (09-23, OR-8) · **$0.86** OpenRouter + ~$0.7 Anthropic native (09-23, OR-9) · **$0.07** OpenRouter + ~$0.6 Anthropic native (09-23, OR-10) · about $0.08 + $1.79 + $0.20 Anthropic native (09-24, OR-11 legs 1, 2 and 3, estimated at list prices).
+**Spend:** ~$0.20 OpenRouter + ~$0.12 Anthropic native ≈ **$0.32** (08-01) · **$0.152** OpenRouter (08-08) · **$0.104** OpenRouter + ~$0.10 Anthropic native (09-23, OR-8) · **$0.86** OpenRouter + ~$0.7 Anthropic native (09-23, OR-9) · **$0.07** OpenRouter + ~$0.6 Anthropic native (09-23, OR-10) · about $0.08 + $1.79 + $0.20 Anthropic native (09-24, OR-11 legs 1, 2 and 3, estimated at list prices) · about $1.19 Anthropic and OpenAI direct (09-25, OR-12 with its smoke runs, estimated at list prices).
 **Raw evidence:** `results/<probe>.jsonl` — every arm's HTTP status + full usage block, append-only.
 **Sibling docs:** D174.
 
@@ -19,6 +19,7 @@ reference arms.
 | **OR-9** | with signed thinking carried on each reply, which layout of a same-role run is accepted, and which keeps the cache? | **direct: one message with thinking interleaved per reply (V1) or consecutive messages (V3) both work and read the prior entry; OpenRouter (both endpoints) 400s V1 and folds V3 into one message that keeps only the FIRST reply's thinking**; dropping earlier thinking (V2) reads **0**; a tampered signature is refused everywhere; under prefix binding (Opus 5.5, new accounts) every carried block fails because the speaker cue that preceded it was deleted, and only a kept cue (V6) is valid | keep F1; never fold reasoning-bearing rows on the openai-compat body; the carry on Opus 5.5/Fable 5.1 needs an append-only history (keep the cue), which is a design question |
 | **OR-10** | with the carry on, which placement of per-turn rows keeps every signed thinking block valid on the models that bind it (Opus 5.5, Fable 5.1)? | **deleting a speaker cue (today) and moving a depth-4 note both break binding: "error" 400s, "drop_block" drops the blocks after the edit and reads 0 cache; a turn-scoped system cue or note appended and left in place, and a speaker cue kept as an ordinary user row, stay clean with the cache growing; a turn-scoped system cue right after a reply is a placement 400; any top-level system edit drops every block** | make every per-turn row append-only: cues as kept rows, depth notes and volatile system content as turn-scoped system messages at the tail; run the carry with drop_block and alarm on drops |
 | **OR-11** | does a model OBEY an override in a depth-2 system row in its legal slot `[u, S, a, u]`, or only accept it? | **obeyed on all three: sonnet-5 5/6, opus-4-8 5/5, control opus-5-5 5/5; the same note folded to user text: sonnet-5 1/5, opus-4-8 0/5, opus-5-5 5/5** | keep `historySystemRows: true` on sonnet-5 and opus-4-8; the tail row they ignore and the depth row they obey are separate facts. Leg 2: today's fold (note merged after `u1`'s text) carries a standing note 19/30 and a next-reply note 0/30; the same note as a separate block on the LATEST user message carries 27/30 and 30/30 with the current frame. Leg 3, haiku-4-5 (400s any system row): the bare fold before the user text carries a next-reply note 10/10 against 2/10; no placement carries a standing note. Shipped: the depth-keeping bare fold before the user text |
+| **OR-12** | with Memory, Databank and a guided steer active, how much of the history cache does each turn read, by where the default preset places them? | **below Chat History (shipped): 0.97 of the previous prompt on sonnet-5 direct, 0.92 to 0.93 on OpenAI (0.70 in a run with one full miss); above it: 0 on both wires, every turn**; sections off: 0.99 | the default-preset move cuts input cost per turn about 11x on sonnet-5 and 2x to 3x on OpenAI; an owned preset that keeps the sections above Chat History pays the full rewrite every turn |
 | **OR-7b** | is DROPPING reasoning still safe past ONE hop? | **YES — 3-hop chain 200/200/200 and the chain still carried a fact only a mid-chain tool result revealed** | the finding-7 deferral premise HOLDS at the shape it is actually about |
 
 ---
@@ -649,3 +650,67 @@ Sample request ids (first and last trial): `b/consideration` next `req_011CfNeie
 ### Shipped
 
 SHAPE sends a folded system note bare (`frameInjection` gives a re-roled system note no frame, and the `chat.injection.systemNote` slot is deleted). A fold inside the history moves up to just before the first stored row of the user text above it, so it leads the user message it joins at its own depth (`leadUserText` in `packages/server/src/domain/chat/assembly/shape.ts`); a row assembly made above it, such as the new-chat marker, keeps its place. A trailing fold stays after the latest user text: `e/bare` is measured and carries, and a note placed before the latest user text was never measured. Models with `historySystemRows: true` keep real system rows.
+
+---
+
+## OR-12 — the history cache with Memory, Databank and a guided steer active
+
+**Run:** 2026-09-25. Evidence: `results/or12.jsonl` · probe: `or12-per-turn-sections-history-cache.ts` · wires: Anthropic Messages direct (`claude-sonnet-5`) and OpenAI chat completions direct (`gpt-4.1-mini`) · spend about $1.19 estimated at list prices, smoke runs included (sonnet-5 $2 input, $0.20 cache read, $4 cache write at the 1h TTL, $10 output; gpt-4.1-mini $0.40, $0.10, no write premium, $1.60; per million tokens, from OpenRouter's models API).
+
+The question: Memory, Databank and the guided steer change every turn. The default preset places them below Chat History. How much of the history cache does each turn read with them active, against the same history with them off, and against the same preset with the three sections above Chat History?
+
+Method: each call runs the real turn path. `runTurnPipeline` builds, shapes, converts and fits the default preset, the compose-tier turn bridge maps it, and the real `anthropic-messages` and `openai-compat` backends send it. The connection carries the resolver's own capability synthesis and the shipped prompt-cache settings (1h TTL). The OpenAI connection declares its 1,047,576-token window (see Findings). Each arm is its own nonce'd chat: 32 alternating character and user rows of filler, starting with the character (about 12k tokens on sonnet-5, 9k on OpenAI). Then five send turns, each committing the real reply, and a sixth call that resends turn 5 byte for byte. Per turn, Memory is five of ten recalled facts, Databank is three of six document chunks, and the steer is one of six. Each rotates, so all three change every turn (together about 260 tokens on sonnet-5, 350 on OpenAI). Output uses the shipped default cap.
+
+Movers:
+
+- `off`: no memory, databank or steer.
+- `below`: the shipped default preset. SHAPE folds the three into the latest user message on both models (neither takes a trailing system row).
+- `above`: the default preset with Chat History moved below the three sections, the order an owned preset can still hold. The three render in the system prompt.
+
+The read ratio is a call's cache read over the previous call's whole prompt, as `pnpm cache:check` judges it. Turn 1 is the cold write in every arm, so the steady state is turns 2 to 5 (four pairs). The replay ratio is the sixth call's read over its own prompt: it separates a placement miss from a cold or evicted cache.
+
+### Results (run `2f0fceae`, shipped output cap)
+
+| wire | arm | read ratio, mean (min) | repeat runs, mean | input $ per turn | total $ per turn | replay |
+| - | - | - | - | - | - | - |
+| sonnet-5 direct | off | 0.991 (0.968) | 0.991 | 0.0033 | 0.0046 | 0.999 |
+| sonnet-5 direct | below (shipped) | 0.972 (0.948) | 0.971 | 0.0047 | 0.0088 | 0.980 |
+| sonnet-5 direct | above | **0.000 (0.000)** | 0.000 | **0.0529** | 0.0566 | 0.999 |
+| OpenAI gpt-4.1-mini | off | 0.987 (0.984) | 0.987, 0.990 | 0.0010 | 0.0011 | 0.986 |
+| OpenAI gpt-4.1-mini | below (shipped) | 0.704 (0.000) | 0.923, 0.931 | 0.0019 | 0.0021 | 0.985 |
+| OpenAI gpt-4.1-mini | above | **0.000 (0.000)** | 0.000, 0.000 | 0.0039 | 0.0041 | 0.983 |
+
+Input $ per turn excludes output tokens, which vary with reply length: the steer makes replies longer, so the total column overstates the `below` cost of placement. Repeat runs are `197c2330` (sonnet-5 and OpenAI, at a 200-token output cap that cut some sonnet-5 replies to empty thinking) and `31c35c07` (OpenAI only, the same cap).
+
+Per-pair read ratios, turns 2 to 5 (`2f0fceae`):
+
+| wire | off | below | above |
+| - | - | - | - |
+| sonnet-5 | 0.968, 0.999, 0.999, 0.999 | 0.948, 0.979, 0.980, 0.980 | 0, 0, 0, 0 |
+| OpenAI | 0.984, 0.988, 0.992, 0.984 | 0.961, **0**, 0.934, 0.920 | 0, 0, 0, 0 |
+
+Where the wire put things, read from the captured request body: on sonnet-5 the markers sit on the static system block, on the row just above the latest user message, and on the row two above that (for example `system[0]`, `messages[37]`, `messages[39]` with the fold at `messages[40]`, the latest user message). In `above`, the memory text is in the top-level system prompt on sonnet-5 and in `messages[0]` (system) on OpenAI.
+
+Request ids, in call order (`2f0fceae`; the last of each is the replay):
+
+- sonnet-5 `off`: `req_011CfPgw2AT44afzR8EzepDF`, `req_011CfPgwHvEiqZa9tsXjKXaj`, `req_011CfPgwcaePghg2HLfgbkv3`, `req_011CfPgwqGPf65V2gfoAJbBy`, `req_011CfPgx6DZPwmPDmfDYPXAD`, `req_011CfPgxPuRwijPagdaYaA6V`
+- sonnet-5 `below`: `req_011CfPgxjbMZPe5fGXzZCCrV`, `req_011CfPgyohgsm9r1ibJBbpMf`, `req_011CfPgzSJbmdzTnWYpLqp34`, `req_011CfPh13uEeamoKFVWGm5Cu`, `req_011CfPh1WPgp4KQ9nk72NvCa`, `req_011CfPh2FKMvQdG5uRvK5CLJ`
+- sonnet-5 `above`: `req_011CfPh2yDmAibYcyewi1pki`, `req_011CfPh3WE5L7BAVoxqgEZTQ`, `req_011CfPh4FW5TYBTX73KyaY22`, `req_011CfPh4eMW1EAednRUyn3d3`, `req_011CfPh4y7cqTLuVzVkcTJFi`, `req_011CfPh5XMbhCGJtLt6ErVnZ`
+- OpenAI `off`: `req_77e10e95250545109581f0ae1d789b83`, `req_03ae8c84a2e54c4280a450788f0b9d24`, `req_33c9f8625a77416b821eec2437dcb841`, `req_91ed55f926eb47a491db23d05c69e8cc`, `req_d4312cd8da6944b8baffc492651679b0`, `req_788a936c2aa6464da137ce63fa953131`
+- OpenAI `below`: `req_adaaa6ec2e184f87a2b3b1245ed29659`, `req_c9ba1ea4eb4944dbb46285a0a92b130e`, `req_4a947846679947c2941f133a5e3cf225` (the full miss), `req_94bb37544efe476cba97075ba0153994`, `req_a388db18f850412aae900b04baf71917`, `req_05c904f4da644fea8d611d9925761829`
+- OpenAI `above`: `req_256fc36d4a5945f1803f93fa8fa51d8f`, `req_f9f54b9e65be48dbb2196a21fd51759d`, `req_60ee586360b44073b419c1001ee7d7a8`, `req_0b30ffd2ba674256a29707c8a37d2b03`, `req_6e2b267bf0164608aabff750eb277303`, `req_e4641b53ffa24a96a717e633edcceb6f`
+
+The repeat runs' ids are in `results/or12.jsonl` under their `runId`.
+
+### Verdict
+
+1. **Above Chat History, per-turn sections cost the whole history its cache on both wires.** Every steady turn read 0 and rewrote the full prompt. Each arm's replay read 0.98 to 0.999, so the cache worked; the edited system prompt made every later byte a new prefix. On sonnet-5 that is a 1h-TTL write of about 13k tokens every turn.
+2. **Below Chat History (shipped), the loss is the per-turn tail.** On sonnet-5 each turn reads 0.95 to 0.98 of the previous prompt, against 0.97 to 0.999 with the sections off (the first pair is lower in both arms). The difference is the folded sections and the previous turn's rows, which sit after the deepest marker. The replay reads 0.980, not 0.999, because the fold rides the latest user message, which carries no marker.
+3. **On OpenAI the shipped placement reads 0.92 to 0.93 in two runs.** One pair in twelve read 0 (`req_4a947846…`), and the replay after it read 0.985. The off arm read 0.98 to 0.99 on all twelve of its pairs. OpenAI caches best effort, and orb sends no `prompt_cache_key`. This sample cannot say whether that miss comes from the placement.
+4. **What the default-preset move (item 0159) bought:** input cost per turn drops from $0.0529 to $0.0047 on sonnet-5 (11x) and from $0.0039 to $0.0012 to $0.0019 on OpenAI (2x to 3x). Against sections off, the shipped placement costs $0.0014 more input per turn on sonnet-5 and up to $0.0009 on OpenAI.
+
+### Findings (not built here)
+
+- **Direct OpenAI has an 8192-token estimated window.** OpenAI's model list carries no context length, and no curated row states one, so the resolver gives `gpt-4.1-mini` (and `gpt-5.4-mini`) `window: 8192, windowEstimated: true`. Without a declared window, the history fit trims this chat to the newest rows. Every turn then moves the head, which misses the cache for a reason unrelated to placement. The first smoke call (18-line rows, no declaration) sent 9 of its 33 history rows. The probe declares the real window.
+- **The curated OpenAI family row marks `gpt-4.1-mini` as a reasoning model** (`reasoning: {mode: "effort", enabled: true}`), and it takes none. The calls here returned 200 with no reasoning tokens, so the wire does not send an effort that 400s. The row is still wrong for the 4.x ids.
+- **A 200-token output cap empties sonnet-5 replies with adaptive thinking on** (run `197c2330`: 3 of 18 replies empty, 200 output tokens each). The cache numbers are unaffected, and the shipped cap is 2048. It matters only to a preset that sets a small cap.

@@ -18,6 +18,7 @@ readable. Subject docs: D174.
 | `or9` | with signed thinking carried on each reply, which same-role-run layout is accepted and keeps the cache? (three wires, sonnet-5 and opus-5-5; `OR9_WIRES`/`OR9_MODELS`/`OR9_VARIANTS` narrow a re-run) | ~$0.8 OR + ~$0.7 native |
 | `or10` | with the carry on, which placement of cues, depth notes and system content keeps signed thinking valid under prefix binding? (opus-5-5 and fable-5-1 direct, plus OpenRouter Messages; `OR10_WIRES`/`OR10_MODELS`/`OR10_SCENARIOS`/`OR10_MODES` narrow a re-run) | ~$0.1 OR + ~$0.6 native |
 | `or11` | does a model obey a note at depth 2 as a system row, and which placement and frame of the user-text fold carries it? (direct; sonnet-5, opus-4-8, opus-5-5, haiku-4-5; `OR11_LEG` labels the rows, `OR11_MODELS`/`OR11_NOTES`/`OR11_PLACEMENTS`/`OR11_FRAMES`/`OR11_TRIALS` narrow or size a run, `OR11_CAP_USD` stops it at an estimated spend) | ~$1.3 native for the full grid |
+| `or12` | with Memory, Databank and a guided steer active, how much of the history cache does each turn read, with the sections off, below Chat History (the default preset) and above it? Runs the real turn pipeline and backends. (direct: sonnet-5 and OpenAI gpt-4.1-mini; needs `ANTHROPIC_PROBE_KEY` and `OPENAI_PROBE_KEY`; `OR12_WIRES`/`OR12_ARMS`/`OR12_TURNS` narrow a run, `OR12_CAP_USD` stops it at an estimated spend) | ~$0.5 native |
 
 ```sh
 node scripts/probes/openrouter/run.ts                 # the batch (skips probes with a completed run)
