@@ -2,6 +2,7 @@
 // missing-provider refusal, the prompt-cache settings fold, and which id the capability rows read on the
 // OpenRouter route — all through the real runtime fold.
 
+import type { GenerationCapability } from "@orb/contracts/inference";
 import { SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
 import { createInferenceRuntime, DEFAULT_EMBED_MODEL, NoConnectionError } from "@orb/inference";
 import { principal } from "../../support/factories/principal.ts";
@@ -115,4 +116,109 @@ test("#2575: a floating `~…-latest` alias folds as the target its catalog row 
   const mystery = await openRouterCapability("~anthropic/claude-mystery-latest");
   expect(mystery).not.toMatchObject({ generation: { tools: { forcedChoice: false } } });
   expect(mystery).not.toMatchObject({ generation: { reasoning: { mode: "adaptive" } } });
+});
+
+// ── A direct hosted model resolves to its provider-documented window ─────────────────────────────────────────
+// A hosted OpenAI-compatible `GET /models` names ids only (`{id, object, owned_by}`; Gemini's compatibility layer
+// answers the same shape with a `models/` id), so the advertised tier states no window and the curated row is the
+// one tier that can. Without it the fit runs against the estimated floor and drops most of the chat.
+
+function idOnlyModelList(): typeof fetch {
+  return (input) => {
+    const url = input instanceof Request ? input.url : String(input);
+    const id = url.includes("generativelanguage") ? "models/gemini-2.5-flash" : "listed-model";
+    return Promise.resolve(Response.json({ object: "list", data: [{ id, object: "model", owned_by: "provider" }] }));
+  };
+}
+
+async function directGeneration(route: { readonly providerId: string; readonly baseUrl: string | null }, model: string): Promise<GenerationCapability> {
+  const stores = memoryStores();
+  const ownerId = newUserId();
+  const row = fakeConnection({ ownerId, providerId: route.providerId, model, baseUrl: route.baseUrl });
+  stores.connections.rows.set(row.id, row);
+  const runtime = await createInferenceRuntime(fakeDeps({ stores, fetch: idOnlyModelList() }));
+  const { capability } = (await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: row.id })).resolved;
+  if (capability.kind !== "generation") {
+    throw new Error(`${model} resolved a ${capability.kind} capability`);
+  }
+  return capability.generation;
+}
+
+const OPENAI = { providerId: "openai", baseUrl: null } as const;
+const GEMINI = { providerId: "custom-openai", baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai" } as const;
+const XAI = { providerId: "custom-openai", baseUrl: "https://api.x.ai/v1" } as const;
+const DEEPSEEK = { providerId: "custom-openai", baseUrl: "https://api.deepseek.com" } as const;
+
+const DIRECT_WINDOWS: readonly (readonly [typeof OPENAI | typeof GEMINI | typeof XAI | typeof DEEPSEEK, string, number])[] = [
+  [OPENAI, "gpt-6-astra", 922_000],
+  [OPENAI, "gpt-6-sol", 922_000],
+  [OPENAI, "gpt-6-luna", 922_000],
+  [OPENAI, "gpt-5.6-sol", 922_000],
+  [OPENAI, "gpt-5.6-terra", 922_000],
+  [OPENAI, "gpt-5.6-luna", 922_000],
+  [OPENAI, "gpt-5.5-2026-04-23", 922_000],
+  [OPENAI, "gpt-5.4", 922_000],
+  [OPENAI, "gpt-5.4-mini", 272_000],
+  [OPENAI, "gpt-5.4-nano", 272_000],
+  [OPENAI, "gpt-5.3-codex", 272_000],
+  [OPENAI, "gpt-5.2", 272_000],
+  [OPENAI, "gpt-5.1", 272_000],
+  [OPENAI, "gpt-5", 272_000],
+  [OPENAI, "gpt-5-mini-2025-08-07", 272_000],
+  [OPENAI, "gpt-5-nano", 272_000],
+  [OPENAI, "o3", 200_000],
+  [OPENAI, "o1", 200_000],
+  [OPENAI, "o3-mini", 200_000],
+  [OPENAI, "o4-mini-2025-04-16", 200_000],
+  [OPENAI, "gpt-4.1", 1_047_576],
+  [OPENAI, "gpt-4.1-mini", 1_047_576],
+  [OPENAI, "gpt-4.1-nano", 1_047_576],
+  [OPENAI, "gpt-4o", 128_000],
+  [OPENAI, "gpt-4o-mini-2024-07-18", 128_000],
+  [GEMINI, "gemini-3.8-flash", 1_048_576],
+  [GEMINI, "gemini-3.7-flash", 1_048_576],
+  [GEMINI, "gemini-3.6-flash", 1_048_576],
+  [GEMINI, "gemini-3.5-flash", 1_048_576],
+  [GEMINI, "gemini-3.5-flash-lite", 1_048_576],
+  [GEMINI, "gemini-3.1-flash-lite", 1_048_576],
+  [GEMINI, "gemini-3.1-pro-preview", 1_048_576],
+  [GEMINI, "gemini-3-flash-preview", 1_048_576],
+  [GEMINI, "gemini-2.5-pro", 1_048_576],
+  [GEMINI, "gemini-2.5-flash-lite", 1_048_576],
+  [GEMINI, "models/gemini-2.5-flash", 1_048_576],
+  [GEMINI, "gemini-3.1-flash-image", 131_072],
+  [GEMINI, "gemini-3.1-flash-lite-image", 65_536],
+  [GEMINI, "gemini-3-pro-image", 65_536],
+  [GEMINI, "gemini-2.5-flash-image", 65_536],
+  [XAI, "grok-4.7", 500_000],
+  [XAI, "grok-4.6", 500_000],
+  [XAI, "grok-4.5-latest", 500_000],
+  [XAI, "grok-build-latest", 500_000],
+  [XAI, "grok-4.3", 1_000_000],
+  [XAI, "grok-4.20-reasoning", 1_000_000],
+  [XAI, "grok-4.20-0309-non-reasoning", 1_000_000],
+  [XAI, "grok-4.20-multi-agent", 1_000_000],
+  [XAI, "grok-code-fast-1", 256_000],
+  [XAI, "grok-build-0.1", 256_000],
+  [DEEPSEEK, "deepseek-flash", 1_000_000],
+  [DEEPSEEK, "deepseek-v4-pro", 1_000_000],
+  [DEEPSEEK, "deepseek-v4-flash", 1_000_000],
+];
+
+test("every sourced direct hosted model resolves to its documented window, not the estimated floor", async () => {
+  for (const [route, model, window] of DIRECT_WINDOWS) {
+    expect((await directGeneration(route, model)).context, model).toEqual({ window });
+  }
+});
+
+test("an id no provider page sources keeps the estimated floor", async () => {
+  // PLANTED CONTROL: the rows are anchored per documented id, so a retired alias and an open-weight checkpoint whose
+  // window its deployment sets stay estimated instead of inheriting a neighbour's window.
+  for (const [route, model] of [
+    [DEEPSEEK, "deepseek-chat"],
+    [OPENAI, "gpt-4.1-mini-preview"],
+    [OPENAI, "gpt-oss-120b"],
+  ] as const) {
+    expect((await directGeneration(route, model)).context, model).toEqual({ window: 8192, windowEstimated: true });
+  }
 });

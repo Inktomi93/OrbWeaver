@@ -10,13 +10,9 @@ export const openaiRows = [
       model: "^(openai/)?(gpt-|o[13]|chatgpt)",
     },
     kind: "generation",
+    // No reasoning or verbosity here: gpt-4.1 and gpt-4o have neither, and a nested `reasoning` merges one level
+    // deep, so a family cell would leak its effort levels into every id a later row turns off.
     generation: {
-      reasoning: {
-        mode: "effort",
-        enabled: true,
-        effortLevels: ["minimal", "low", "medium", "high", "xhigh"],
-      },
-      verbosity: ["low", "medium", "high"],
       tools: {
         parallel: true,
       },
@@ -27,8 +23,139 @@ export const openaiRows = [
     },
     evidence: {
       tier: "curated",
-      dated: "2026-09-20",
-      cite: "resolve-model-capability.ts FAMILY_REASONING.openai (effort, no budget) + the openai-family verbosity arm; verbosity is CURATED here and never derived from OpenRouter's inverted supported_parameters (H1: OR forwards text.verbosity for openai/gpt-5.4 while not listing it — 2026-09-20 rec-probe.mjs or-echo-gpt5 gen-1789884254-ZJVqE4m5N0aChJ7FY0x7); OR's advertised row supersedes the other fields when present",
+      dated: "2026-09-25",
+      cite: "resolve-model-capability.ts openai-family tools and structured output; OR's advertised row supersedes when present",
+    },
+  },
+  // Each reasoning row lists the efforts its model page documents. `none` is the off switch (`enabled`), never a level.
+  {
+    match: {
+      model: "^(openai/)?gpt-5(-mini|-nano)?(-[0-9]{4}-[0-9]{2}-[0-9]{2})?$",
+    },
+    generation: {
+      reasoning: {
+        mode: "effort",
+        enabled: true,
+        effortLevels: ["minimal", "low", "medium", "high"],
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-25",
+      cite: "developers.openai.com/api/docs/models/gpt-5 'Reasoning.effort supports: minimal, low, medium, and high'; openai.com/index/introducing-gpt-5-for-developers: gpt-5, gpt-5-mini and gpt-5-nano take minimal in addition to low, medium and high",
+    },
+  },
+  {
+    match: {
+      model: "^(openai/)?gpt-5\\.1(-[0-9]{4}-[0-9]{2}-[0-9]{2})?$",
+    },
+    generation: {
+      reasoning: {
+        mode: "effort",
+        enabled: true,
+        effortLevels: ["low", "medium", "high"],
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-25",
+      cite: "developers.openai.com/api/docs/models/gpt-5.1 'Reasoning.effort supports: none (default), low, medium, and high'",
+    },
+  },
+  {
+    match: {
+      model: "^(openai/)?gpt-5\\.(2|3-codex|4|4-mini|4-nano|5)(-[0-9]{4}-[0-9]{2}-[0-9]{2})?$",
+    },
+    generation: {
+      reasoning: {
+        mode: "effort",
+        enabled: true,
+        effortLevels: ["low", "medium", "high", "xhigh"],
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-25",
+      cite: "developers.openai.com/api/docs/models/{gpt-5.2,gpt-5.4,gpt-5.4-mini,gpt-5.4-nano,gpt-5.5} 'Reasoning.effort supports: none, low, medium, high and xhigh'; gpt-5.3-codex 'supports low, medium, high, and xhigh'",
+    },
+  },
+  {
+    match: {
+      model: "^(openai/)?gpt-(5\\.6-(sol|terra|luna)|6-(astra|sol|luna))(-[0-9]{4}-[0-9]{2}-[0-9]{2})?$",
+    },
+    generation: {
+      reasoning: {
+        mode: "effort",
+        enabled: true,
+        effortLevels: ["low", "medium", "high", "xhigh", "max"],
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-25",
+      cite: "developers.openai.com/api/docs/models/{gpt-5.6-sol,gpt-5.6-terra,gpt-5.6-luna,gpt-6-sol,gpt-6-luna} 'reasoning.effort supports none, low, medium (default), high, xhigh, and max'; gpt-6-astra 'supports low, medium, high, xhigh, and max'",
+    },
+  },
+  {
+    match: {
+      model: "^(openai/)?gpt-6-astra(-[0-9]{4}-[0-9]{2}-[0-9]{2})?$",
+    },
+    generation: {
+      reasoning: {
+        mandatory: true,
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-25",
+      cite: "developers.openai.com/api/docs/guides/reasoning: 'GPT-6 Astra does not support none reasoning effort. Setting … reasoning_effort (Chat Completions) to none returns HTTP 400'",
+    },
+  },
+  {
+    match: {
+      model: "^(openai/)?o[13](-[0-9]{4}-[0-9]{2}-[0-9]{2})?$",
+    },
+    generation: {
+      reasoning: {
+        mode: "effort",
+        enabled: true,
+        effortLevels: ["low", "medium", "high"],
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-25",
+      cite: "openai.com/index/introducing-gpt-5-for-developers: 'In addition to the prior values—low, medium (default), and high—GPT‑5 also supports minimal'; the o-series model pages state no wider set",
+    },
+  },
+  {
+    match: {
+      model: "^(openai/)?gpt-oss[-:](20b|120b)",
+    },
+    generation: {
+      reasoning: {
+        mode: "effort",
+        enabled: true,
+        effortLevels: ["low", "medium", "high"],
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-25",
+      cite: "developers.openai.com/api/docs/models/{gpt-oss-120b,gpt-oss-20b} 'Configurable reasoning effort … (low, medium, high)'",
+    },
+  },
+  {
+    match: {
+      model: "^(openai/)?gpt-[56]([.-]|$)",
+    },
+    generation: {
+      verbosity: ["low", "medium", "high"],
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-25",
+      cite: "openai.com/index/introducing-gpt-5-for-developers: 'GPT‑5 supports a new verbosity parameter (values: low, medium, high)'; Verbosity ✅ for gpt-6-astra/sol/luna at learn.microsoft.com/en-us/azure/foundry/openai/how-to/reasoning. Curated and never derived from OpenRouter's inverted supported_parameters (H1: OR forwards text.verbosity for openai/gpt-5.4 while not listing it, rec-probe.mjs or-echo-gpt5 gen-1789884254-ZJVqE4m5N0aChJ7FY0x7)",
     },
   },
   {
@@ -72,6 +199,83 @@ export const openaiRows = [
       tier: "curated",
       dated: "2026-09-20",
       cite: "rec-probe.mjs openai-h2 — req_4609158162fd4953b00a62cf6f23d82f (temperature 0.7 → 400 unsupported_value); req_f68c8dc2e4a24908a2e5be64132edbc0 (max_tokens → 400 unsupported_parameter, the H2 outputCapField row); req_8eff1a4cbff5461b820f47331f2c26b2 (max_completion_tokens + reasoning_effort low → 200)",
+    },
+  },
+  // A window row states the most input a request may carry. A GPT-5-class id caps input at its context window less
+  // its max output (OpenAI states it for GPT-5); the older ids share one window between input and output.
+  {
+    match: {
+      model: "^(openai/)?gpt-(6-(astra|sol|luna)|5\\.6-(sol|terra|luna)|5\\.5|5\\.4)(-[0-9]{4}-[0-9]{2}-[0-9]{2})?$",
+    },
+    generation: {
+      context: {
+        window: 922_000,
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-25",
+      cite: "1,050,000 context window, 128,000 max output tokens: developers.openai.com/api/docs/models/{gpt-6-astra,gpt-6-sol,gpt-6-luna,gpt-5.6-sol,gpt-5.6-terra,gpt-5.6-luna,gpt-5.5,gpt-5.4}; input = window − max output per openai.com/index/introducing-gpt-5-for-developers ('a maximum of 272,000 input tokens and … 128,000 reasoning & output tokens, for a total context length of 400,000'); 922,000 stated as 'Maximum input tokens' for gpt-6-astra/sol/luna at learn.microsoft.com/en-us/azure/foundry/openai/how-to/reasoning",
+    },
+  },
+  {
+    match: {
+      model: "^(openai/)?gpt-(5(-mini|-nano)?|5\\.1|5\\.2|5\\.3-codex|5\\.4-(mini|nano))(-[0-9]{4}-[0-9]{2}-[0-9]{2})?$",
+    },
+    generation: {
+      context: {
+        window: 272_000,
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-25",
+      cite: "400,000 context window, 128,000 max output tokens: developers.openai.com/api/docs/models/{gpt-5,gpt-5-mini,gpt-5-nano,gpt-5.1,gpt-5.2,gpt-5.3-codex,gpt-5.4-mini,gpt-5.4-nano}; openai.com/index/introducing-gpt-5-for-developers: 'all GPT‑5 models can accept a maximum of 272,000 input tokens'",
+    },
+  },
+  {
+    match: {
+      model: "^(openai/)?o(1|3|3-mini|4-mini)(-[0-9]{4}-[0-9]{2}-[0-9]{2})?$",
+    },
+    generation: {
+      context: {
+        window: 200_000,
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-25",
+      cite: "200,000 context window, 100,000 max output tokens: developers.openai.com/api/docs/models/{o1,o3,o3-mini,o4-mini}; no separate input cap is documented, so the fit's output reserve shares the window",
+    },
+  },
+  {
+    match: {
+      model: "^(openai/)?gpt-4\\.1(-mini|-nano)?(-[0-9]{4}-[0-9]{2}-[0-9]{2})?$",
+    },
+    generation: {
+      context: {
+        window: 1_047_576,
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-25",
+      cite: "1,047,576 context window, 32,768 max output tokens: developers.openai.com/api/docs/models/{gpt-4.1,gpt-4.1-mini,gpt-4.1-nano}",
+    },
+  },
+  {
+    match: {
+      model: "^(openai/)?gpt-4o(-mini)?(-[0-9]{4}-[0-9]{2}-[0-9]{2})?$",
+    },
+    generation: {
+      context: {
+        window: 128_000,
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-25",
+      cite: "128,000 context window, 16,384 max output tokens: developers.openai.com/api/docs/models/{gpt-4o,gpt-4o-mini}",
     },
   },
   {
