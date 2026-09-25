@@ -164,5 +164,12 @@
     "yaml": "catalog:",
     "zod": "catalog:",
     "zustand": "catalog:"
+  },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "26.10.0",
+      "onFail": "download"
+    }
   }
 }
