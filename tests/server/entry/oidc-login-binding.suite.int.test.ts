@@ -14,7 +14,7 @@ import { createLocalLightUserSeed } from "@orb/server/entry/boot";
 import type { AuthRoutesDeps } from "@orb/server/entry/http";
 import { registerAuthRoutes } from "@orb/server/entry/http";
 import type { OidcVerifiedTokens } from "@orb/server/infra/auth";
-import { OIDC_BINDING_COOKIE_NAME_SECURE, SESSION_COOKIE_NAME_SECURE } from "@orb/server/infra/auth";
+import { createOwnerClaimCode, OIDC_BINDING_COOKIE_NAME_SECURE, SESSION_COOKIE_NAME_SECURE } from "@orb/server/infra/auth";
 import { Hono } from "hono";
 import { Configuration } from "openid-client";
 import { beforeEach, describe } from "vitest";
@@ -72,6 +72,7 @@ beforeEach(async () => {
       groupsSeparator: ";",
       allowJitProvision: true,
       requireApproval: false,
+      ownerClaim: createOwnerClaimCode(),
       store: createOidcStore(db, now),
     },
   };

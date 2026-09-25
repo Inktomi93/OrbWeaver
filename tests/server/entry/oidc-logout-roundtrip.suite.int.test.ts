@@ -46,7 +46,7 @@ import { createLocalLightUserSeed } from "@orb/server/entry/boot";
 import type { AuthRoutesDeps, OidcRoutesDeps } from "@orb/server/entry/http";
 import { registerAuthRoutes } from "@orb/server/entry/http";
 import type { OidcTransaction, OidcVerifiedTokens } from "@orb/server/infra/auth";
-import { OIDC_BINDING_COOKIE_NAME_SECURE } from "@orb/server/infra/auth";
+import { createOwnerClaimCode, OIDC_BINDING_COOKIE_NAME_SECURE } from "@orb/server/infra/auth";
 import { Hono } from "hono";
 import { beforeEach, describe } from "vitest";
 import { freshDb } from "../../support/db.ts";
@@ -128,6 +128,7 @@ beforeEach(async () => {
       groupsSeparator: ";",
       allowJitProvision: true,
       requireApproval: false,
+      ownerClaim: createOwnerClaimCode(),
       // #867 — the real callback needs a real-shaped exchange. The deterministic fake stands in for a
       // grant `openid-client` has already verified; the SEAM under test is what the route does with it.
       exchange: (): Promise<OidcVerifiedTokens> => Promise.resolve({ claims: CALLBACK_CLAIMS, idToken: ID_TOKEN }),

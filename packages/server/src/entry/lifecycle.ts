@@ -44,11 +44,13 @@ import {
 } from "#foundation/env";
 import { getLog, initTracing, superviseDetached, wrapLibSqlClient } from "#foundation/observability";
 import { versionIdentity } from "#foundation/version";
+import type { OwnerClaimCode } from "#infra/auth";
 import {
   createBackchannelLogoutVerifier,
   createForwardJwtVerifier,
   createOidcConfigCache,
   createOidcExchange,
+  createOwnerClaimCode,
   createPasswordHasher,
   createRelayedFallbackNotice,
   createRelayHostRegistry,
@@ -67,6 +69,7 @@ import { setChatOpenTap } from "../transport/trpc/index.ts";
 import { createApp } from "./app.ts";
 import { createAuthSeam, createHostPrincipalResolver } from "./auth/index.ts";
 import {
+  announceOwnerClaim,
   backfillPluginProvenanceOnBoot,
   composeBootDisclaimer,
   createLocalLightUserSeed,
@@ -273,7 +276,7 @@ function buildLocalAuthDeps(
     },
     localFirstRun: async (peerIp: string | undefined, headers: Headers): Promise<boolean> =>
       ownerFallbackAllowed(peerIp, headers) ? await sessions.ownerNeedsPassword() : false,
-    // D254 — the signup-through-invite route. `createApp` adds the per-request multi-human capability.
+    // D259 — the signup-through-invite route. `createApp` adds the per-request multi-human capability.
     signup: {
       sessionIsLive: async (token: SessionToken): Promise<boolean> => (await sessions.validate(token)) !== null,
       invites: built.signupInvites,
@@ -302,6 +305,7 @@ function buildOidcDeps(
   db: Db,
   now: () => number,
   built: Pick<ServicesResult, "sessions" | "signupInvites" | "seedUserConnections">,
+  ownerClaim: OwnerClaimCode,
 ): { oidc: OidcRoutesDeps; stopOidcGc: () => void } {
   const issuerUrlStr = env.OIDC_ISSUER ?? "";
   const issuerUrl = issuerUrlStr.length > 0 ? new URL(issuerUrlStr) : new URL("http://localhost");
@@ -319,11 +323,7 @@ function buildOidcDeps(
       // fake and no IdP. Nothing here is env-switchable on purpose: a knob that could swap the exchange for
       // a fake would be an authentication bypass wearing a test affordance.
       exchange: createOidcExchange(authorizationCodeGrant),
-      // The full callback URLs the per-request derived origin must exact-match.
-      redirectAllowlist: (env.OIDC_REDIRECT_URIS ?? "")
-        .split(",")
-        .map((u) => u.trim())
-        .filter((u) => u.length > 0),
+      redirectAllowlist: oidcRedirectAllowlist(),
       scope: env.OIDC_SCOPES,
       claims: {
         usernameClaim: env.OIDC_USERNAME_CLAIM,
@@ -342,16 +342,25 @@ function buildOidcDeps(
       // A5 — register the back-channel logout endpoint only when OIDC_BACKCHANNEL_LOGOUT=on. The verifier
       // is the sealed infra/auth JWKS checker; clientId is the required `aud` on the logout_token.
       ...(env.OIDC_BACKCHANNEL_LOGOUT ? { backchannelLogout: { verify: createBackchannelLogoutVerifier().verify, clientId } } : {}),
-      // D254 — signup through an invite for an identity the JIT gate closes on: the pending join and its confirm.
+      // D259 — signup through an invite for an identity the JIT gate closes on: the pending join and its confirm.
       signup: {
         invites: built.signupInvites,
         pending: built.sessions,
         sessionIsLive: async (token: SessionToken): Promise<boolean> => (await built.sessions.validate(token)) !== null,
         seedUserConnections: built.seedUserConnections,
       },
+      ownerClaim,
     },
     stopOidcGc: startOidcGcScheduler({ sweep: store.deleteExpired, now, scheduleInterval }),
   };
+}
+
+/** The full OIDC callback URLs the per-request derived origin must exact-match (`OIDC_REDIRECT_URIS`). */
+function oidcRedirectAllowlist(): readonly string[] {
+  return (env.OIDC_REDIRECT_URIS ?? "")
+    .split(",")
+    .map((u) => u.trim())
+    .filter((u) => u.length > 0);
 }
 
 /** The lifecycle handle `index.ts` drives: boot once, shut down once (idempotent). */
@@ -510,10 +519,12 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     });
 
     // OIDC LAZY-MINT (#1853): in OIDC mode the owner identity comes from the IdP, not from env config.
-    // Don't seed a placeholder owner row at boot — the first OIDC login whose identity matches owner
-    // policy (OWNER_HANDLES or OWNER_GROUP) lazy-mints the owner row via `provisionIdentity`. For every
-    // other mode (single-user, local, forward-header), seed the owner at boot as before.
+    // Don't seed a placeholder owner row at boot — the first OIDC login that claims the owner lazy-mints the
+    // owner row via `provisionIdentity`: an OWNER_GROUP member, or an OWNER_HANDLES match with proof (a loopback
+    // callback or the boot claim code `announceOwnerClaim` prints). For every other mode (single-user, local,
+    // forward-header), seed the owner at boot as before.
     let ownerId: UserId | undefined;
+    const ownerClaim = createOwnerClaimCode();
     if (env.AUTH_MODE === "oidc") {
       ownerId = await bootSessions.getOwnerUserId();
       if (ownerId !== undefined) {
@@ -521,6 +532,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       } else {
         log.info("boot(oidc): no owner row yet — the first owner-policy OIDC login will create it; owner-dependent boot seeds are deferred");
       }
+      await announceOwnerClaim({ log, sessions: bootSessions, ownerId, ownerClaim, redirectAllowlist: oidcRedirectAllowlist() });
     } else {
       const handles = ownerHandles();
       // AUTH_MODE=local: seed the owner's first-boot form-login password so a non-local-origin deploy isn't
@@ -765,7 +777,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
           })
         : undefined;
 
-    const oidcWiring = env.AUTH_MODE === "oidc" ? buildOidcDeps(db, now, built) : undefined;
+    const oidcWiring = env.AUTH_MODE === "oidc" ? buildOidcDeps(db, now, built, ownerClaim) : undefined;
     stopOidcGc = oidcWiring === undefined ? null : oidcWiring.stopOidcGc;
 
     const app = createApp({

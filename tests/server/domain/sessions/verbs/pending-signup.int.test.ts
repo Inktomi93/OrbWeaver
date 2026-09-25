@@ -1,4 +1,4 @@
-// D254 — the pending OIDC join verbs over a real db: the callback's record, the preview's read, and the
+// D259 — the pending OIDC join verbs over a real db: the callback's record, the preview's read, and the
 // confirm's plan through `decideProvision`, which refuses an identity that may no longer join.
 
 import type { ResolvedIdentity } from "@orb/contracts/identity";

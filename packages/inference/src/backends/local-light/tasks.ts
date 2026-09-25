@@ -11,7 +11,7 @@ import type { ModelId } from "@orb/kit/ids";
 import { ProviderError } from "../../contract/errors.ts";
 import type { EmbedRequest, ImageEmbedRequest, RerankRequest } from "../../contract/roles.ts";
 import type { LocalLightModelCache } from "./model-cache.ts";
-import { normalizeVector, throwIfAborted } from "./model-cache.ts";
+import { abortableWait, normalizeVector, throwIfAborted } from "./model-cache.ts";
 
 /** The bundled models — the rows `curated/local-light.ts` lists; the encoder + reranker are the SEEDED rows
  *  (`LOCAL_LIGHT_SEED_ROWS`, contracts), the matte is the imagery op's default. */
@@ -76,9 +76,12 @@ export function createLocalLightEmbed(cache: LocalLightModelCache, spaceTag: (mo
     const kept = selectInputs(inputs, req.instruction);
     const raw =
       kept.length > 0
-        ? await cache.embedTexts(
-            modelId,
-            kept.map((k) => k.text),
+        ? await abortableWait(
+            cache.embedTexts(
+              modelId,
+              kept.map((k) => k.text),
+            ),
+            req.signal,
           )
         : [];
     throwIfAborted(req.signal);
@@ -105,10 +108,13 @@ export function createLocalLightRerank(cache: LocalLightModelCache): (req: Reran
     if (kept.length === 0) {
       return { hits: [], model: modelId, usage: { totalTokens: null } };
     }
-    const scores = await cache.scorePairs(
-      modelId,
-      query,
-      kept.map((doc) => doc.text ?? ""),
+    const scores = await abortableWait(
+      cache.scorePairs(
+        modelId,
+        query,
+        kept.map((doc) => doc.text ?? ""),
+      ),
+      req.signal,
     );
     throwIfAborted(req.signal);
     const hits = kept.map((doc, i) => ({ id: doc.id, score: scores[i] ?? 0 })).sort((a, b) => b.score - a.score);
@@ -169,7 +175,7 @@ export function createLocalLightImageEmbed(
   return async (req) => {
     throwIfAborted(req.signal);
     const modelId = req.connection.model;
-    const vectors = await embedByKind(cache, modelId, req.input);
+    const vectors = await abortableWait(embedByKind(cache, modelId, req.input), req.signal);
     throwIfAborted(req.signal);
     return { vectors, model: spaceTag(modelId) };
   };
@@ -182,7 +188,7 @@ export function createLocalLightMatte(
   return async (bytes, opts) => {
     throwIfAborted(opts?.signal);
     const modelId = opts?.model !== undefined && opts.model.trim().length > 0 ? modelIdSchema.parse(opts.model) : DEFAULT_MATTE_MODEL;
-    const out = await cache.removeBackground(modelId, bytes);
+    const out = await abortableWait(cache.removeBackground(modelId, bytes), opts?.signal);
     throwIfAborted(opts?.signal);
     return out;
   };

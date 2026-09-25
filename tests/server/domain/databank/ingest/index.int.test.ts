@@ -177,6 +177,31 @@ test("an abort during the first chunk stops the rest of that document and does n
   expect(result).toMatchObject({ documents: 1, chunksUpserted: 1, chunksNoop: 0, chunksPruned: 0, failed: [] });
 });
 
+test("an abort while a chunk's embed waits on the model is a cancelled pass, not a failed document", async () => {
+  const db = await freshDb();
+  const { h, documentId, owner } = await seedDoc(db, "owner");
+  const controller = new AbortController();
+  h.roleClients.embed.mockImplementation((_input, opts) => {
+    const sweepSignal = (opts as { readonly signal?: AbortSignal } | undefined)?.signal;
+    if (sweepSignal === undefined) {
+      return Promise.reject(new Error("the sweep's signal did not reach the embed call"));
+    }
+    const cut = Promise.withResolvers<never>();
+    sweepSignal.addEventListener("abort", () => {
+      cut.reject(sweepSignal.reason);
+    });
+    controller.abort(new Error("shutdown"));
+    return cut.promise;
+  });
+  const prune = vi.spyOn(h.ctx, "pruneDocumentChunks");
+
+  const result = await h.ingest.reindex({ ownerId: owner, scope: { kind: "document", documentId }, mode: "chunk-embed", signal: controller.signal });
+
+  expect(result).toMatchObject({ documents: 1, chunksUpserted: 0, chunksPruned: 0, failed: [] });
+  expect(await db.select().from(documentChunks).where(eq(documentChunks.documentId, documentId))).toEqual([]);
+  expect(prune).not.toHaveBeenCalled();
+});
+
 test("mode:'re-extract' refreshes canon + version for a document stamped by an OLDER extractor", async () => {
   const db = await freshDb();
   // The harness injects the REAL infra/extraction dispatcher + its EXTRACTOR_VERSION ("1").

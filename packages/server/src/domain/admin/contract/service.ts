@@ -69,6 +69,9 @@ interface SessionAdminPort {
     readonly passwordHash: string;
     readonly at: number;
   }) => AwaitableBatchStmt<{ readonly id: UserId }[]>;
+  /** D258 — is this handle an `OWNER_HANDLES` seed key or a look-alike of one? Boot's seedOwner resolves the owner row
+   *  by that key, so no admin mint may hold it. Canonical home domain/sessions (`isReservedSignupHandle`). */
+  readonly isReservedHandle: (handle: Handle) => boolean;
 }
 
 /** The inline-embed slice admin needs — composed at the root from `character` and `embeddings`. Resolves

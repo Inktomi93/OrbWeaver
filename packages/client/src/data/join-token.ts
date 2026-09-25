@@ -5,7 +5,7 @@
 // history/bookmarks/shoulder-surfing are exactly the leak the token-in-POST-body transport shape
 // exists to avoid). Read via `location` directly (not router search state): the router deliberately
 // has no search schema — this is a one-shot inbound handoff, not navigable state. A signed-out visit moves
-// the token into the tab stash (`session-resume.ts`, D254) before the guard redirects to `/login`.
+// the token into the tab stash (`session-resume.ts`, D259) before the guard redirects to `/login`.
 
 import { clearJoinStash, peekJoinStash, stashJoinToken } from "./session-resume.ts";
 

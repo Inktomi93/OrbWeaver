@@ -279,6 +279,35 @@ export function humanizeDuration(ms: number): string {
   return parts.join(" ");
 }
 
+// The relative-time ladder, largest unit first. A unit is chosen once the span reaches it; a sub-second span reads
+// in seconds.
+const SECOND_STEP = ["second", MS_PER_SECOND] as const;
+const RELATIVE_UNITS = [["day", MS_PER_DAY], ["hour", MS_PER_HOUR], ["minute", MS_PER_MINUTE], SECOND_STEP] as const satisfies readonly (readonly [
+  Intl.RelativeTimeFormatUnit,
+  number,
+])[];
+
+// A deadline read seconds after it was set keeps its full length. The grace is a hundredth of the unit being floored:
+// a whole unit of grace would read every span one unit long.
+const FUTURE_GRACE_FRACTION = 100;
+
+/** A span as a count of one ladder unit, in the unit the raw span reaches. A future span is a deadline, so it floors
+ *  and never reads longer than it is, after a grace of a hundredth of that unit. A past span rounds. Either way a count
+ *  that reaches the next unit up reads as that unit, so no label says "24 hours" or "60 minutes". */
+function relativeSpan(deltaMs: number): { readonly count: number; readonly unit: Intl.RelativeTimeFormatUnit } {
+  const future = deltaMs > 0;
+  const magnitude = Math.abs(deltaMs);
+  const step = RELATIVE_UNITS.find(([, sizeMs]) => magnitude >= sizeMs) ?? SECOND_STEP;
+  const index = RELATIVE_UNITS.indexOf(step);
+  const [unit, unitMs] = step;
+  const count = future ? Math.floor((magnitude + unitMs / FUTURE_GRACE_FRACTION) / unitMs) : Math.round(magnitude / unitMs);
+  const larger = RELATIVE_UNITS[index - 1];
+  if (larger !== undefined && count * unitMs >= larger[1]) {
+    return { count: Math.sign(deltaMs) * Math.round((count * unitMs) / larger[1]), unit: larger[0] };
+  }
+  return { count: Math.sign(deltaMs) * count, unit };
+}
+
 export function createTimeLib(config: TimeLibConfig = {}): TimeLib {
   const now = config.now ?? ((): number => Date.now());
   const locale = config.locale;
@@ -321,16 +350,8 @@ export function createTimeLib(config: TimeLibConfig = {}): TimeLib {
       if (magnitude >= RELATIVE_HORIZON_MS) {
         return formatDate(epochMs);
       }
-      if (magnitude >= MS_PER_DAY) {
-        return relative.format(Math.trunc(deltaMs / MS_PER_DAY), "day");
-      }
-      if (magnitude >= MS_PER_HOUR) {
-        return relative.format(Math.trunc(deltaMs / MS_PER_HOUR), "hour");
-      }
-      if (magnitude >= MS_PER_MINUTE) {
-        return relative.format(Math.trunc(deltaMs / MS_PER_MINUTE), "minute");
-      }
-      return relative.format(Math.trunc(deltaMs / MS_PER_SECOND), "second");
+      const { count, unit } = relativeSpan(deltaMs);
+      return relative.format(count, unit);
     },
     formatRelativeCompact: (epochMs): string => compactStamp(now() - epochMs),
     formatRelativeAgo: (epochMs): string => {

@@ -109,7 +109,7 @@ describe("GET /api/auth/config", () => {
       allowInteractiveCards: false,
       uploads: resolveUploadCaps({ maxImageBytes: MAX_IMAGE_BYTES, maxDatabankBytes: MAX_DATABANK_BYTES }),
       transport: "http",
-      clientScope: "private",
+      clientScope: "loopback",
       share: { state: "off", url: null },
     });
   });
@@ -117,6 +117,7 @@ describe("GET /api/auth/config", () => {
   // Rule C/E: the login screen warns from these two facts, so they are this request's, never the box's.
   test.each([
     ["a LAN browser over plain http", "192.168.1.20", {}, { transport: "http", clientScope: "private" }],
+    ["a browser on this machine over plain http", "127.0.0.1", {}, { transport: "http", clientScope: "loopback" }],
     [
       "a trusted proxy asserting https for a public visitor",
       "172.18.0.5",

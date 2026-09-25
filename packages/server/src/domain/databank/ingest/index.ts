@@ -114,6 +114,7 @@ async function ingestOne(ctx: DatabankContext, doc: LoadedDocument, signal: Abor
       model: space.model,
       dim: space.dim,
       fkRefs: { documentId: doc.id, chunkIdx: chunk.idx, charStart: chunk.start, charEnd: chunk.end },
+      signal,
     });
     if (stored.outcome === "noop") {
       chunksNoop += 1;
@@ -198,7 +199,11 @@ export function createDatabankIngest(ctx: DatabankContext): DatabankIngest {
         acc.addCounts(await ingestOne(ctx, source, signal));
       }
     } catch (error) {
-      acc.addFailure(documentId, error);
+      // An abort that cut off the embed's wait on the model is the pass being cancelled, not this document
+      // failing: its chunk was never written, and the rerun resumes it.
+      if (!isAborted(signal)) {
+        acc.addFailure(documentId, error);
+      }
     }
   };
 

@@ -58,7 +58,7 @@ describe("storeSegments — the batched verbatim lens", () => {
 
     expect(result?.outcome).toBe("written");
     expect(result?.contentHash).toBe("precomputed-seg-hash");
-    expect(h.roleClients.embed).toHaveBeenCalledWith([SEGMENT_TEXT]);
+    expect(h.roleClients.embed).toHaveBeenCalledWith([SEGMENT_TEXT], { signal: undefined });
     const rows = await db.select().from(chatSegments).where(eq(chatSegments.chatId, chatId));
     expect(rows).toHaveLength(1);
     expect(rows[0]?.text).toBe(SEGMENT_TEXT);
@@ -100,7 +100,7 @@ describe("storeSegments — the batched verbatim lens", () => {
     ]);
 
     expect(h.roleClients.embed).toHaveBeenCalledTimes(1);
-    expect(h.roleClients.embed).toHaveBeenCalledWith(["part one", "part two", "next block"]);
+    expect(h.roleClients.embed).toHaveBeenCalledWith(["part one", "part two", "next block"], { signal: undefined });
     expect(results.map((r) => r.outcome)).toEqual(["written", "written", "written"]);
     const rows = await db.select().from(chatSegments).where(eq(chatSegments.chatId, chatId));
     // TWO chunks of block 0 coexist — the storage half of "chunk it, never truncate it".
@@ -121,7 +121,7 @@ describe("storeSegments — the batched verbatim lens", () => {
     const results = await svc.storeSegments([settled, segment(chatId, { blockIdx: 1, text: "fresh", contentHash: "fresh-h" })]);
 
     expect(results.map((r) => r.outcome)).toEqual(["noop", "written"]);
-    expect(h.roleClients.embed).toHaveBeenCalledWith(["fresh"]); // the settled chunk never reached the engine
+    expect(h.roleClients.embed).toHaveBeenCalledWith(["fresh"], { signal: undefined }); // the settled chunk never reached the engine
   });
 
   test("an empty batch is a no-op: no embed, no rows, no results", async () => {

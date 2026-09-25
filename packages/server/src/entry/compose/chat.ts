@@ -231,7 +231,7 @@ export function createTurnPersonaResolver(
   };
 }
 
-/** D254 — the minter re-check a signup redeem runs before its batch: the live row must be enabled, and its
+/** D259 — the minter re-check a signup redeem runs before its batch: the live row must be enabled, and its
  *  row-derived Principal (invariant 1) must pass the same global-admin `can()` the mint asked. */
 export function createSignupMinterCheck(
   sessions: Pick<SessionsService, "loadUserById">,
@@ -285,11 +285,11 @@ export interface ChatComposeInput {
   readonly settings: SettingsService;
   readonly notifications: NotificationsService;
   readonly resolveHandle: (handle: Handle) => Promise<UserId | null>;
-  /** D254 — the live `AUTH_MODE`: it picks whether invites may create accounts and stamps every invite. */
+  /** D259 — the live `AUTH_MODE`: it picks whether invites may create accounts and stamps every invite. */
   readonly authMode: AuthMode;
-  /** D254 — the two foreign halves of the signup batch: the sessions account statement and the minter's
-   *  standing check (sessions row + admin `can()`), both built at the root. */
-  readonly signup: Pick<SignupInviteDeps, "signupUserStatement" | "minterMayMintSignup">;
+  /** D259 — the foreign halves of the signup batch, all built at the root: the sessions account statement, the
+   *  persona statement, the settings pointer statement, and the minter's standing check. */
+  readonly signup: Pick<SignupInviteDeps, "signupUserStatement" | "signupPersonaStatement" | "signupPersonaPointersStatement" | "minterMayMintSignup">;
 
   readonly search: SearchService;
   readonly embeddings: EmbeddingsService;
@@ -397,7 +397,7 @@ export interface ChatComposeResult {
    *  `resolveMemoryConfig` merge the live turn and the corpus sweep use, so the gate cannot drift from the
    *  per-host skip it exists to pre-empt. */
   readonly isMemoryEnabled: (hostUserId: UserId) => Promise<boolean>;
-  /** D254 — the signup-invite ops the entry signup route runs, built over chat's own ctx. */
+  /** D259 — the signup-invite ops the entry signup route runs, built over chat's own ctx. */
   readonly signupInvites: SignupInviteOps;
   /** Chat's corpus sweeps, bound over the chat ctx. */
   readonly backfill: {
@@ -1288,6 +1288,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         contentHash: params.contentHash,
         model: params.model,
         dim: EMBED_SPACE_DIMS,
+        signal: params.signal,
       });
       if (result.generationId === undefined || result.generationEpoch === undefined) {
         throw new Error("embeddings store omitted its generation receipt");
@@ -1297,7 +1298,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // The SEGMENT half is a BATCH op (#172): memory hands over every pending chunk — one chat's on the live
     // path, the whole corpus's on the sweep — and embeddings submits them to the engine as ONE flood. The
     // space tag (`model`/`dim`) is stamped here, the same single home the digest arm above reads.
-    embeddingsStoreSegments: async (params) => {
+    embeddingsStoreSegments: async (params, signal) => {
       // One host + one space per chat in the flood (the corpus sweep hands over many chats at once).
       const rows: EmbeddingSegmentRow[] = [];
       for (const p of params) {
@@ -1320,7 +1321,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
           dim: EMBED_SPACE_DIMS,
         });
       }
-      const results = rows.length === 0 ? [] : await input.embeddings.storeSegments(rows);
+      const results = rows.length === 0 ? [] : await input.embeddings.storeSegments(rows, signal);
       return memorySegmentReceipts(rows, results);
     },
     // The SHRINK half of the same seam: memory stores every block that exists, then reclaims the ones that
@@ -1501,7 +1502,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     lockTtlMs: CHAT_LOCK_TTL_MS,
     signup: {
       ...input.signup,
-      // The `changes()`-guarded audit insert: it lands only when the seat before it landed (D254).
+      // The `changes()`-guarded audit insert: it lands only when the seat before it landed (D259).
       auditStatementAfterWrite: (entry, at) => buildAuditStatementIfPrecedingWrote(db, entry, at),
     },
   };

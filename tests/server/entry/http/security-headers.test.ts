@@ -511,3 +511,35 @@ describe("securityHeaders", () => {
     expect(h.get("strict-transport-security")).toBeNull();
   });
 });
+
+// A browser ignores COOP and Origin-Agent-Cluster on an origin it does not trust, and logs an error for each on every
+// page: plain http to a LAN address gets neither; a loopback origin, which a browser does trust, keeps both.
+describe("the two isolation headers follow the origin's trust", () => {
+  // A LAN browser's connection, as the node adapter hands it to the app.
+  const LanPeer = { incoming: { socket: { remoteAddress: "192.168.1.30", remotePort: 50_000, remoteFamily: "IPv4" } } };
+
+  async function isolationHeaders(url: string): Promise<{ readonly coop: string | null; readonly oac: string | null }> {
+    const app = new Hono();
+    app.use("*", securityHeaders({ dev: false, allowExternalMedia: () => false }));
+    app.get("/", (c) => c.text("ok"));
+    const res = await app.request(url, {}, LanPeer);
+    return { coop: res.headers.get("cross-origin-opener-policy"), oac: res.headers.get("origin-agent-cluster") };
+  }
+
+  test.each(["http://192.168.1.20:8788/", "http://nas.local/"])("plain http to %s sends neither", async (url) => {
+    expect(await isolationHeaders(url)).toEqual({ coop: null, oac: null });
+  });
+
+  test.each(["http://localhost:8788/", "http://127.0.0.1:8788/", "http://[::1]:8788/"])("control: %s keeps both", async (url) => {
+    expect(await isolationHeaders(url)).toEqual({ coop: "same-origin", oac: "?1" });
+  });
+
+  test("the CSP and the frame ban go out on the untrusted origin too", async () => {
+    const app = new Hono();
+    app.use("*", securityHeaders({ dev: false, allowExternalMedia: () => false }));
+    app.get("/", (c) => c.text("ok"));
+    const res = await app.request("http://192.168.1.20:8788/", {}, LanPeer);
+    expect(res.headers.get("content-security-policy")).toContain("default-src 'self'");
+    expect(res.headers.get("x-frame-options")).toBe("DENY");
+  });
+});

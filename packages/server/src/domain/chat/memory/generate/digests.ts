@@ -385,6 +385,7 @@ export async function storeTier0(ctx: ChatContext, plan: DigestPlan, texts: read
       keywords: parsed.keywords,
       isGroup,
       speakerCharacterIds: blockSpeakerIds(item.block.rows),
+      signal: plan.signal,
     });
     assertStoreSpace(plan.embedSpace, receipt);
     written += 1;
@@ -459,6 +460,7 @@ interface ConsolidationTierPlan {
   readonly pending: readonly ConsPending[];
   readonly speakerMap: ReadonlyMap<string, CharacterId[]>;
   readonly skipped: number;
+  readonly signal: AbortSignal | undefined;
 }
 
 /** Walk tiers 0..maxTier-1, consolidating each complete `fanOut`-group of tier-k digests into a tier-(k+1)
@@ -599,7 +601,7 @@ export async function collectConsolidationTier(
       },
     });
   }
-  return { embedSpace: args.embedSpace, parentTier, pending, speakerMap, skipped };
+  return { embedSpace: args.embedSpace, parentTier, pending, speakerMap, skipped, signal };
 }
 
 /** The consolidation summarize batch (per-item-isolated on failure) — same wire home as `summarizeDigestBatch`
@@ -665,6 +667,7 @@ export async function storeConsolidationTier(
       keywords: parsed.keywords,
       isGroup: scope.isGroup,
       speakerCharacterIds: unionSpeakers(item.ordered, plan.speakerMap),
+      signal: plan.signal,
     });
     assertStoreSpace(plan.embedSpace, receipt);
     written += 1;

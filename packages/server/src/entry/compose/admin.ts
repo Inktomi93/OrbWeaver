@@ -15,6 +15,7 @@ import type { EmbeddingsService } from "#domain/embeddings";
 import type { ExportService } from "#domain/export";
 import { createExportService } from "#domain/export";
 import type { SessionsService } from "#domain/sessions";
+import { isReservedSignupHandle } from "#domain/sessions";
 import type { ToolUseService } from "#domain/tool-use";
 import { createToolUseService } from "#domain/tool-use";
 import type { AuditEntry } from "#foundation/observability";
@@ -121,6 +122,7 @@ export function buildAdmin(deps: AdminComposeDeps): AdminComposeResult {
       linkExternalIdStatement: sessions.linkExternalIdStatement,
       settleUnclaimedLink: sessions.settleUnclaimedLink,
       localUserInsertStatement: sessions.localUserInsertStatement,
+      isReservedHandle: isReservedSignupHandle,
     },
     embed: {
       embedCharacterCard: async (principal, characterId): Promise<boolean> => {

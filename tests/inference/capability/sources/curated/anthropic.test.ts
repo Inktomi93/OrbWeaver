@@ -327,6 +327,22 @@ test("haiku-4-5: budget thinking when asked, off by default, and never an effort
   expect(asked.effort).toBeUndefined();
 });
 
+// Anthropic's per-model table (platform.claude.com/docs/en/build-with-claude/thinking-troubleshooting) lists thinking
+// Off by default on the 4.5 ids, opus-4-6 and sonnet-4-6, and On on sonnet-5. With effort unset the wire sends
+// `thinking: disabled` there, so "reasoning on this turn" must agree: a carry has nothing to carry.
+test("the default-off Claude ids count an unset effort as reasoning off; sonnet-5 counts it on", () => {
+  for (const model of ["claude-haiku-4-5", "claude-sonnet-4-5", "claude-opus-4-5", "claude-opus-4-6", "claude-sonnet-4-6"]) {
+    const knobs = resolveChat({ carryReasoning: "tool-chain" }, direct(model));
+    expect(knobs.reasoning.enabled, model).toBe(false);
+    expect(knobs.carryReasoning, model).toBe("off");
+    expect(
+      knobs.warnings.some((w) => w.code === "sampling_knob_dropped" && w.knob === "carryReasoning" && w.message.includes("reasoning is off")),
+      model,
+    ).toBe(true);
+  }
+  expect(resolveChat({ carryReasoning: "tool-chain" }, direct("claude-sonnet-5")).carryReasoning).toBe("tool-chain");
+});
+
 // Preserved thinking (Claude API model-migration notes): on fable-5-1 / mythos-5-1 / opus-5-5 a replayed thinking
 // block over an edited prefix is refused for accounts created on or after 2026-08-31 unless the request asks the
 // API to drop it. This key's account predates that (an edited-prefix replay returned 200: req_011CfKs6JMgTb3Y9up4Y1F3N);

@@ -1,4 +1,4 @@
-// D254 — the pending OIDC join. The callback freezes a JIT-closed identity that arrived with a signup invite;
+// D259 — the pending OIDC join. The callback freezes a JIT-closed identity that arrived with a signup invite;
 // the confirm plans its account through `decideProvision` (spine invariant 10), so this is not a second upsert.
 // The plan's SQL carries only the race-relevant checks: the pending take, the invite admission, the handle-key
 // and email NOT EXISTS, and the unique indexes. Everything else was decided from the rows read here.
@@ -89,8 +89,11 @@ export function createPendingSignup(ctx: SessionsContext): PendingSignupVerbs {
     }
     const existing = (await selectForProvisionByExternalId(ctx.db, identity.externalId)) ?? (await selectForProvisionByHandle(ctx.db, identity.handle));
     const ownerId = await selectOwnerUserId(ctx.db);
-    // The invite is the JIT admission for this one identity; approval stays the caller's resolved flag.
-    const insert = insertOf(decideProvision(existing, identity, ownerId, { allowJitProvision: true, requireApproval: args.requireApproval }));
+    // The invite is the JIT admission for this one identity; approval stays the caller's resolved flag. An invite is
+    // never owner-claim proof (D258); owner-by-policy is refused above in any case.
+    const insert = insertOf(
+      decideProvision(existing, identity, ownerId, { allowJitProvision: true, requireApproval: args.requireApproval, ownerClaimProven: false }),
+    );
     if (insert === null) {
       return null;
     }

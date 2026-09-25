@@ -25,7 +25,7 @@ import type { CharacterId, ExternalId, Handle, SessionId, UserId } from "@orb/ki
 import { castId } from "@orb/kit/ids";
 import type { AdminService } from "@orb/server/domain/admin";
 import { createAdminService } from "@orb/server/domain/admin";
-import { createSessionsService } from "@orb/server/domain/sessions";
+import { createSessionsService, isReservedSignupHandle } from "@orb/server/domain/sessions";
 import { createLocalLightUserSeed } from "@orb/server/entry/boot";
 import { UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
 import { buildAuditStatementIfPrecedingWrote } from "@orb/server/foundation/observability";
@@ -249,6 +249,8 @@ export function makeHarness(db: Db): AdminHarness {
         sessionsSvc.settleUnclaimedLink(userId, externalId, failure),
       // D257 — REAL: the mint rides the verb's audited batch, and the handle key is derived in sessions.
       localUserInsertStatement: sessionsSvc.localUserInsertStatement,
+      // D258 — REAL: the reserved-key rule is sessions', read at call time from OWNER_HANDLES.
+      isReservedHandle: isReservedSignupHandle,
     },
 
     embed: {

@@ -8,7 +8,7 @@ import { Button } from "@orb/ui/button";
 import { Icon, Users } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { clearRoomInvite, goToLanding, openModal, useRoomInviteRequest, useTurnSpeakerCharacterId } from "#state";
 import { useKickMember, useNominateHostHandoff, useSelfLeave, useSetMemberHistoryVisibility } from "../hooks/use-membership-mutations.ts";
@@ -69,6 +69,8 @@ export function CommittedMembersTab({ chatId, chat, isHost, multiHumanCapable }:
   const nominateHost = useNominateHostHandoff({ trpc, invalidation });
   const setHistoryVisibility = useSetMemberHistoryVisibility({ trpc, invalidation });
   const [inviteOpen, setInviteOpen] = useState(false);
+  // A requested dialog opens with nothing of this tab focused, so its close returns focus here by name.
+  const inviteTriggerRef = useRef<HTMLButtonElement | null>(null);
   // Another section's invite request for this room opens the dialog, derived in render; closing it spends the request.
   const inviteRequested = useRoomInviteRequest() === chatId;
   const moveInvite = (open: boolean): void => {
@@ -142,6 +144,7 @@ export function CommittedMembersTab({ chatId, chat, isHost, multiHumanCapable }:
         people={people}
         characters={characters}
         onInvitePeople={hostMembership ? (): void => setInviteOpen(true) : undefined}
+        inviteTriggerRef={inviteTriggerRef}
         // The roster's ADD door, character half (#162 — "add more characters or add people into it" is ONE
         // feature, and this tab used to offer only the human half). The SAME picker the character bar's "+" opens;
         // gated on `isHost` alone, not `hostMembership`, because adding a character is a single-human
@@ -203,7 +206,7 @@ export function CommittedMembersTab({ chatId, chat, isHost, multiHumanCapable }:
         onViewCharacter={(characterId): void => setViewCardCharacterId(characterId)}
       />
 
-      {hostMembership ? <InviteDialog chatId={chatId} open={inviteOpen || inviteRequested} onOpenChange={moveInvite} /> : null}
+      {hostMembership ? <InviteDialog chatId={chatId} open={inviteOpen || inviteRequested} onOpenChange={moveInvite} finalFocus={inviteTriggerRef} /> : null}
       {viewCardCharacterId === null ? null : (
         <MemberCardViewer
           chatId={chatId}

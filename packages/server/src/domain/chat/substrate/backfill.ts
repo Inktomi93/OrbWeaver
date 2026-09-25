@@ -9,7 +9,8 @@
 //   - `backfillGroupCharacters` — mint the synthetic group character for every >1-character room that
 //     lacks one. Idempotent: `findSyntheticGroupCharacter` short-circuits an existing mint.
 //
-// Cooperative abort: the signal is checked between chats/buckets — a partial sweep is safe.
+// Cooperative abort: the signal is checked between chats/buckets and cuts off an embed waiting on the model —
+// a partial sweep is safe.
 //
 // The shared group-bucket FK is structurally satisfied, not caught (#41): `scopesFor` resolves the shared
 // bucket's `scopedCharacterId` through `resolveGroupBucketCharacterId`, which is find-OR-MINT — it persists
@@ -502,7 +503,7 @@ export async function backfillMemory(
   resolveMemoryConfig: ResolveBackfillMemoryConfig,
 ): Promise<MemoryBackfillSweepCounts> {
   const sweep = await planAllBuckets(ctx, args, resolveMemoryConfig);
-  const segments = await storeAllSegments(ctx, sweep.segments);
+  const segments = await storeAllSegments(ctx, sweep.segments, args.signal);
   const perPlanTexts = await summarizeAllPending(ctx, args.funderUserId, sweep.plans);
   const committed = await commitAllPlans(ctx, sweep.plans, perPlanTexts, { signal: args.signal, funderUserId: args.funderUserId });
   const failed = sweep.failed + segments.failed + committed.failed;
@@ -525,16 +526,24 @@ export async function backfillMemory(
  *  the same deliberate throughput-for-memory bargain PHASE 1 already makes for the digest inputs, and bounded
  *  by the same thing (a steady-state sweep changes almost nothing; a first full backfill holds the corpus's
  *  aged-out text, which the db is about to store anyway). */
-async function storeAllSegments(ctx: ChatContext, collected: readonly SegmentWork[]): Promise<{ written: number; skippedOverWindow: number; failed: number }> {
+async function storeAllSegments(
+  ctx: ChatContext,
+  collected: readonly SegmentWork[],
+  signal: AbortSignal,
+): Promise<{ written: number; skippedOverWindow: number; failed: number }> {
   const pending = collected.flatMap((c) => c.pending).sort((a, b) => a.text.length - b.text.length);
   const skippedOverWindow = collected.reduce((n, c) => n + c.skippedOverWindow, 0);
   try {
-    const stored = await storeSegments(ctx, {
-      embedSpace: null,
-      pending,
-      skipped: collected.reduce((n, c) => n + c.skipped, 0),
-      skippedOverWindow,
-    });
+    const stored = await storeSegments(
+      ctx,
+      {
+        embedSpace: null,
+        pending,
+        skipped: collected.reduce((n, c) => n + c.skipped, 0),
+        skippedOverWindow,
+      },
+      signal,
+    );
     return { written: stored.written, skippedOverWindow: stored.skippedOverWindow, failed: 0 };
   } catch (err) {
     // ISOLATED like every other phase (#41): one poisoned chunk (a filtered vector, a dead engine) must not

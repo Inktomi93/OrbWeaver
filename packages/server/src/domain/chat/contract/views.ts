@@ -29,8 +29,9 @@ export type {
   // The full chat read (getChat, fork, start, the invite joins) — a wire node: its strict twin
   // (`chatDetailSchema`) is the invite joins' tRPC output parser.
   ChatDetail,
-  // The present-tense context-fit budget (previewContextFit) — the cross-boundary wire node
+  // The present-tense context-fit budget (previewContextFit) and its unbound state — the cross-boundary wire nodes
   // (`@orb/contracts/chat`), re-exported type-only so the service + front door share the ONE name.
+  ContextFitAnswer,
   ContextFitPreview,
   InvitePreview,
   InviteView,

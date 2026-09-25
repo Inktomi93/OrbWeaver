@@ -91,7 +91,7 @@ function dottedQuad(value: bigint): string {
   return octets.join(".");
 }
 
-/** The per-address throttle key (D254): an IPv4 address as itself, an IPv6 address by its /64 prefix. One host
+/** The per-address throttle key (D259): an IPv4 address as itself, an IPv6 address by its /64 prefix. One host
  *  usually holds a whole /64, so a full-address key lets it rotate addresses and reset its bucket at will. An
  *  unparseable address keys as itself. */
 export function addressThrottleKey(ip: string): string {

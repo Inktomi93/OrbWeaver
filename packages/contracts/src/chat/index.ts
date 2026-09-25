@@ -47,7 +47,9 @@ export type {
   ChatInjection,
   ChatInjectionInput,
   ChatInjectionOrigin,
+  ContextFitAnswer,
   ContextFitPreview,
+  ContextFitUnbound,
   MemoryRecallCandidate,
   MemoryRecallSlice,
   MemoryRecallVerdict,
@@ -205,7 +207,9 @@ export type {
 export {
   DEFAULT_GROUP_CONFIG,
   DEFAULT_ROOM_OVERRIDES,
+  GROUP_OUTPUT_LABELS,
   GROUP_POLICIES,
+  GROUP_POLICY_LABELS,
   GUIDED_STEER_INPUT_MAX,
   groupConfigSchema,
   groupPolicySchema,
@@ -315,6 +319,8 @@ export type {
   RenderPolicyOverride,
   RosterMemberSpec,
   SeatKnobs,
+  SignupErrorCode,
+  SignupRequest,
 } from "./roster.ts";
 export {
   acceptInviteSchema,
@@ -350,11 +356,13 @@ export {
   resolveCarriedTheme,
   resolveRenderPolicy,
   rosterMemberSpecSchema,
+  SIGNUP_ERROR_CODES,
   SIGNUP_INVITES_MINTABLE,
   SIGNUP_MAX_TTL_DAYS,
   SIGNUP_MAX_TTL_MS,
   SIGNUP_MAX_USES,
   seatKnobsSchema,
+  signupRequestSchema,
   stepFromRenderPolicyOverride,
   TALKATIVENESS_DEFAULT,
 } from "./roster.ts";

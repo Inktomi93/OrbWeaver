@@ -9,6 +9,7 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 const SECTION_IDS_PATH = "packages/client/src/state/section-ids.ts";
 const ROUTER_PATH = "packages/client/src/routes/router.tsx";
+const VITE_CONFIG_PATH = "packages/client/vite.config.ts";
 
 function clientSource(path: string): string {
   return readFileSync(fileURLToPath(new URL(`../../../../${path}`, import.meta.url)), "utf8");
@@ -43,4 +44,15 @@ export function staticRouteSegments(): readonly string[] {
     throw new Error(`${ROUTER_PATH}: the "/$section" alias route not found — the reader rotted`);
   }
   return [...source.matchAll(/\bpath: "\/(?<segment>[^"$/]+)"/gu)].map((m) => m.groups?.["segment"] ?? "");
+}
+
+/** The first segments the dev front door proxies to the server (`server.proxy` in the client's vite config),
+ *  such as `/join/:token`: the server answers them before the SPA router, so none is an unknown section. */
+export function serverRouteSegments(): readonly string[] {
+  const source = clientSource(VITE_CONFIG_PATH);
+  const proxy = /\n {4}proxy: \{(?<body>[\s\S]*?)\n {4}\},/u.exec(source)?.groups?.["body"];
+  if (proxy === undefined) {
+    throw new Error(`${VITE_CONFIG_PATH}: the server.proxy block not found — the reader rotted`);
+  }
+  return [...proxy.matchAll(/^ {6}"\/(?<segment>[^"/]+)": \{/gmu)].map((m) => m.groups?.["segment"] ?? "");
 }

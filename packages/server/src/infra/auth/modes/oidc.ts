@@ -38,7 +38,7 @@ export function oidcBindingCookieFor(transport: RequestTransport): SessionCookie
 /** Every binding cookie, https first. The callback clears all of them once the binding is spent. */
 export const OIDC_BINDING_COOKIES: readonly SessionCookie[] = [OIDC_BINDING_COOKIE_BY_TRANSPORT.https, OIDC_BINDING_COOKIE_BY_TRANSPORT.http];
 
-// THE PENDING-JOIN COOKIE (D254) carries the fresh secret that names a signed-out visitor's frozen identity
+// THE PENDING-JOIN COOKIE (D259) carries the fresh secret that names a signed-out visitor's frozen identity
 // between the callback and the confirm. It is never the `state`. `SameSite=Strict` is enough and is what we
 // want: the confirm and the preview are same-origin fetches, and a cross-site request must never carry it.
 

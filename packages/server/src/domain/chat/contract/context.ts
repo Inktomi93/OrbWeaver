@@ -1076,6 +1076,8 @@ export interface StoreDigestParams {
   readonly keywords: readonly string[];
   readonly isGroup: boolean;
   readonly speakerCharacterIds: readonly CharacterId[];
+  /** The pass's abort: the embed stops waiting on the model when it fires, before any row is written. */
+  readonly signal?: AbortSignal | undefined;
 }
 
 /** memory's verbatim-segment CHUNK write payload → `embeddings.storeSegments`. `(chatId, blockIdx, chunkIdx)`
@@ -1122,7 +1124,7 @@ export type EmbeddingsStoreOp = (params: StoreDigestParams) => Promise<MemorySto
  * one chat's chunks. Nothing here decides concurrency — that is the provider surface's.
  * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
-export type EmbeddingsStoreSegmentsOp = (params: readonly StoreSegmentParams[]) => Promise<readonly MemoryStoreReceipt[]>;
+export type EmbeddingsStoreSegmentsOp = (params: readonly StoreSegmentParams[], signal?: AbortSignal) => Promise<readonly MemoryStoreReceipt[]>;
 
 /** memory's digest SHRINK reclaim — the blocks-that-no-longer-exist half of the build. `keepPerTier[k]` is
  *  the surviving block COUNT at tier k; every stored row with `blockIdx >= keepPerTier[tier]` is beyond canon
@@ -1342,7 +1344,7 @@ export interface ChatContext {
   readonly newChatTurnId: () => ChatTurnId;
   /** Hashes an invite token before persistence — never stored raw. */
   readonly hashToken: (token: string) => string;
-  /** D254 — whether this mode mints signup invites, and the mode every invite is stamped with. */
+  /** D259 — whether this mode mints signup invites, and the mode every invite is stamped with. */
   readonly signupInvites: SignupInviteCapability;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   /** Unexecuted audit insert for the host-handoff swap's all-or-nothing forensic record. */
@@ -1529,6 +1531,6 @@ export interface ChatServiceDeps {
   readonly holder: string;
   /** The per-chat lock TTL (ms), sized for one turn. */
   readonly lockTtlMs: number;
-  /** D254 — the foreign halves of the signup-invite ops (sessions account statement, minter check, audit). */
+  /** D259 — the foreign halves of the signup-invite ops (sessions account statement, minter check, audit). */
   readonly signup: SignupInviteDeps;
 }

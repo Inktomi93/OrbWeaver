@@ -1,7 +1,7 @@
 // The READ-ONLY sharing panel in the Multi-user section. Whether other devices can sign in is the auth mode,
 // a boot fact the server reads from the environment once; the panel states it, names how to change it, and
 // offers nothing to toggle, only a copy of the line. A runtime switch would make the one boot invariant every
-// auth rule keys on mutable.
+// auth rule keys on mutable. The container's switch lives once, on the Share card's mode row below this panel.
 
 import type { AuthMode } from "@orb/contracts/identity";
 import { SETUP_COMMAND } from "@orb/contracts/identity";
@@ -12,7 +12,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useAuthConfig } from "#data";
 import { testId } from "#lib";
-import { CONTAINER_LOGIN_STEP } from "../lib/container-login.ts";
+import { ShareProse } from "./share-prose.tsx";
 
 interface SharingPosture {
   readonly posture: string;
@@ -32,7 +32,7 @@ const SHARING_POSTURE: Record<AuthMode, SharingPosture> = {
     posture: "Only this machine can use this server: single-user mode has no login, so the server listens on this machine only.",
     line: SETUP_COMMAND,
     lineNoun: "the command",
-    instruction: `To let other devices sign in, stop the server, run this command and choose "people on my network". ${CONTAINER_LOGIN_STEP}, then publish the port (docker/README.md, "LAN and HTTPS").`,
+    instruction: 'To let other devices sign in, stop the server, run this command and choose "people on my network".',
   },
   local: {
     posture: "Other devices can sign in with a handle and password stored by this server.",
@@ -63,13 +63,13 @@ export function SharingPosturePanel(): ReactElement | null {
   return (
     <Stack gap="tight" data-auth-mode={config.mode} data-testid={testId("adminSharingPanel")}>
       <Text voice="label">Who can sign in</Text>
-      <Text voice="gloss">{sharing.posture}</Text>
+      <ShareProse>{sharing.posture}</ShareProse>
       <CopyButton text={sharing.line} what={`${sharing.lineNoun} ${sharing.line}`}>
         <Kbd size="command" data-testid={testId("adminSharingLine")}>
           {sharing.line}
         </Kbd>
       </CopyButton>
-      <Text voice="gloss">{sharing.instruction}</Text>
+      <ShareProse>{sharing.instruction}</ShareProse>
     </Stack>
   );
 }

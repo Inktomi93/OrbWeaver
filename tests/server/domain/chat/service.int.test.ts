@@ -135,10 +135,16 @@ function makeService(
 
     holder: "replica-test",
     lockTtlMs: 60_000,
-    // D254 — the signup ops' foreign halves; this suite drives no signup, so any reach fails loudly.
+    // D259 — the signup ops' foreign halves; this suite drives no signup, so any reach fails loudly.
     signup: {
       signupUserStatement: () => {
         throw new Error("signupUserStatement not stubbed in this test");
+      },
+      signupPersonaStatement: () => {
+        throw new Error("signupPersonaStatement not stubbed in this test");
+      },
+      signupPersonaPointersStatement: () => {
+        throw new Error("signupPersonaPointersStatement not stubbed in this test");
       },
       minterMayMintSignup: () => Promise.reject(new Error("minterMayMintSignup not stubbed in this test")),
       auditStatementAfterWrite: () => {

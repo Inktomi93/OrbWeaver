@@ -41,7 +41,14 @@ export type AppSettingsClaimPath = keyof AppSettings | `${keyof AppSettings}.${s
  *  a deeper claim would encode form internals in the contribution. The APP tier additionally allows a leaf
  *  path (see {@link AppSettingsClaimPath}). */
 export type SettingsKeyClaim =
-  | { readonly tier: "user"; readonly section: UserSettingsSection; readonly keys: readonly string[] }
+  | {
+      readonly tier: "user";
+      readonly section: UserSettingsSection;
+      readonly keys: readonly string[];
+      /** Owned keys that hold a library the user builds (the seeded background plates), not a setting with a
+       *  default: the section patches them, and `@modified` never counts them. Each must also be in `keys`. */
+      readonly libraryKeys?: readonly string[];
+    }
   | { readonly tier: "app"; readonly keys: readonly AppSettingsClaimPath[] };
 
 /** A contributed config section (§6c). `nav` reuses the existing `ConfigSubcategory` so a contributed

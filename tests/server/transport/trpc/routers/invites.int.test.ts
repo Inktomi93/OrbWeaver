@@ -9,7 +9,7 @@
 // carried-blob schemas strip it, so a stale card cannot fail a join and the key never reaches the joiner.
 
 import "../../../../support/composed-real.ts";
-import { groupConfigSchema } from "@orb/contracts/chat";
+import { GROUP_OUTPUT_LABELS, GROUP_POLICY_LABELS, groupConfigSchema } from "@orb/contracts/chat";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import { chatParticipants } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
@@ -64,7 +64,13 @@ describe("invites — the strict output parsers accept the real producers", () =
     await expect(ownerCaller.invites.listInvites({ chatId })).resolves.toEqual([created.invite]);
 
     const preview = await otherCaller.invites.previewInvite({ token: created.token });
-    expect(preview).toEqual({ chatId, roomName: "The Ruins", hostHandle: "fixture-owner", memberCount: 1, modeLabel: "narrator · natural" });
+    expect(preview).toEqual({
+      chatId,
+      roomName: "The Ruins",
+      hostHandle: "fixture-owner",
+      memberCount: 1,
+      modeLabel: `${GROUP_OUTPUT_LABELS.narrator} · ${GROUP_POLICY_LABELS.natural}`,
+    });
 
     const joined = await otherCaller.invites.redeemInvite({ token: created.token });
     expect(joined.participant).toMatchObject({ userId: OTHER_USER_ID, role: "member", kind: "human" });

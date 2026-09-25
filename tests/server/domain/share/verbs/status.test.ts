@@ -12,12 +12,14 @@ describe("share.status", () => {
       relay: { state: "off" },
       liveSocketCount: LIVE_SOCKETS,
       publicAddresses: [],
+      standingRefusal: null,
     });
     await h.share.start({ principal: caller("owner") });
     await expect(h.share.status({ principal: caller("owner") })).resolves.toEqual({
       relay: { state: "starting", relay: "quick", restartAfter: null },
       liveSocketCount: LIVE_SOCKETS,
       publicAddresses: [],
+      standingRefusal: null,
     });
   });
 

@@ -19,8 +19,9 @@ import {
   serializeSessionCookie,
 } from "@orb/server/entry/http";
 import { logger } from "@orb/server/foundation/observability";
-import type { OidcTransaction, OidcVerifiedTokens } from "@orb/server/infra/auth";
+import type { OidcTransaction, OidcVerifiedTokens, OwnerClaimCode } from "@orb/server/infra/auth";
 import {
+  createOwnerClaimCode,
   OIDC_BINDING_COOKIE_NAME_INSECURE,
   OIDC_BINDING_COOKIE_NAME_SECURE,
   OIDC_TRANSACTION_TTL_MS,
@@ -181,6 +182,7 @@ function fakeOidcDeps(over: Partial<OidcRoutesDeps> = {}): OidcRoutesDeps {
     groupsSeparator: ";",
     allowJitProvision: true,
     requireApproval: false,
+    ownerClaim: createOwnerClaimCode(),
     store: { mint: () => Promise.resolve(), consume: () => Promise.resolve(null) },
     ...over,
   };
@@ -1092,6 +1094,7 @@ describe("OIDC login — the redirect_uri allowlist gate", () => {
         groupsSeparator: ";",
         allowJitProvision: true,
         requireApproval: false,
+        ownerClaim: createOwnerClaimCode(),
         store: {
           mint: (): Promise<void> => {
             rec.mints += 1;
@@ -1104,9 +1107,8 @@ describe("OIDC login — the redirect_uri allowlist gate", () => {
     return rec;
   }
 
-  test("an off-allowlist origin → 400, NO transaction minted, no discovery round-trip", async () => {
-    const rec = recordingOidc(["https://chat.example.com/api/auth/oidc/callback"]);
-    const deps: AuthRoutesDeps = {
+  function loginDepsFor(rec: MintRecorder): AuthRoutesDeps {
+    return {
       sessions: recordingSessions().sessions,
       sockets: INERT_EVICTION,
       now: (): number => NOW,
@@ -1114,31 +1116,93 @@ describe("OIDC login — the redirect_uri allowlist gate", () => {
       resolveLoginLimit: (): number => 10,
       oidc: rec.deps,
     };
-    const res = await handlerFor(deps, "GET /api/auth/oidc/login")(makeCtx({ headers: { "x-forwarded-host": "evil.example", "x-forwarded-proto": "https" } }));
-    expect(res.status).toBe(400);
+  }
+
+  const canonicalCallback = "https://chat.example.com/api/auth/oidc/callback";
+  const canonicalLogin = "https://chat.example.com/login";
+
+  // The owner's ruling for a login started anywhere the allowlist does not name: send the browser to the login page
+  // on the configured origin. The target is built from OIDC_REDIRECT_URIS alone, so no request header can steer it.
+  test("an off-allowlist origin → 302 to the configured origin's login page, NO transaction minted, no discovery round-trip", async () => {
+    const rec = recordingOidc([canonicalCallback]);
+    const res = await handlerFor(
+      loginDepsFor(rec),
+      "GET /api/auth/oidc/login",
+    )(makeCtx({ headers: { "x-forwarded-host": "evil.example", "x-forwarded-proto": "https" } }));
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe(canonicalLogin);
+    expect(res.headers.getSetCookie()).toEqual([]);
     expect(rec.mints).toBe(0);
   });
 
-  // The callback scheme and the cookie transport agree (Rule C): a header the transport rule does not
-  // believe cannot derive the https callback either, so the login refuses before any IdP round-trip.
+  // The callback scheme and the cookie transport agree (Rule C): a header the transport rule does not believe cannot
+  // derive the https callback either. The request already names the configured host, so a redirect to that host's
+  // login page would send the browser back to the same refusal: the login answers the misconfiguration instead.
   test.each([
-    ["a public peer forging X-Forwarded-Proto: https", "203.0.113.9", "https"],
-    ["a trusted proxy whose chain carries a forged http", "127.0.0.1", "https, http"],
-  ])("%s → 400, no transaction minted", async (_label, peer, forwardedProto) => {
-    const rec = recordingOidc(["https://chat.example.com/api/auth/oidc/callback"]);
-    const deps: AuthRoutesDeps = {
-      sessions: recordingSessions().sessions,
-      sockets: INERT_EVICTION,
-      now: (): number => NOW,
-      db: STUB_DB,
-      resolveLoginLimit: (): number => 10,
-      oidc: rec.deps,
-    };
-    const res = await handlerFor(
-      deps,
-      "GET /api/auth/oidc/login",
-    )(makeCtx({ peer, headers: { "x-forwarded-host": "chat.example.com", "x-forwarded-proto": forwardedProto } }));
+    ["a public peer forging X-Forwarded-Proto: https", "203.0.113.9", { "x-forwarded-host": "chat.example.com", "x-forwarded-proto": "https" }],
+    ["a trusted proxy whose chain carries a forged http", "127.0.0.1", { "x-forwarded-host": "chat.example.com", "x-forwarded-proto": "https, http" }],
+    ["a proxy that sends no X-Forwarded-Proto", "127.0.0.1", { host: "chat.example.com" }],
+  ])("%s → the explanatory refusal naming X-Forwarded-Proto, never a redirect to itself", async (_label, peer, headers) => {
+    const rec = recordingOidc([canonicalCallback]);
+    const res = await handlerFor(loginDepsFor(rec), "GET /api/auth/oidc/login")(makeCtx({ peer, headers }));
     expect(res.status).toBe(400);
+    expect(res.headers.get("location")).toBeNull();
+    expect(((await res.json()) as { error: string }).error).toContain("X-Forwarded-Proto");
+    expect(rec.mints).toBe(0);
+  });
+
+  test("the configured host with the right scheme but a callback path the route never serves → the refusal names the path", async () => {
+    const rec = recordingOidc(["https://chat.example.com/oidc/callback"]);
+    const res = await handlerFor(
+      loginDepsFor(rec),
+      "GET /api/auth/oidc/login",
+    )(makeCtx({ peer: "127.0.0.1", headers: { "x-forwarded-host": "chat.example.com", "x-forwarded-proto": "https" } }));
+    expect(res.status).toBe(400);
+    expect(res.headers.get("location")).toBeNull();
+    expect(((await res.json()) as { error: string }).error).toContain("https://chat.example.com/api/auth/oidc/callback");
+  });
+
+  test.each([
+    ["a LAN origin over plain http", "192.168.1.20", { host: "192.168.1.10:8788" }],
+    ["a loopback origin", "127.0.0.1", { host: "localhost:8788" }],
+    ["a quick-tunnel link", "127.0.0.1", { host: "random-words.trycloudflare.com", "x-forwarded-for": "198.51.100.7", "cf-connecting-ip": "198.51.100.7" }],
+  ])("%s → 302 to the configured origin's login page", async (_label, peer, headers) => {
+    const rec = recordingOidc([canonicalCallback]);
+    const res = await handlerFor(loginDepsFor(rec), "GET /api/auth/oidc/login")(makeCtx({ peer, headers }));
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe(canonicalLogin);
+    expect(rec.mints).toBe(0);
+  });
+
+  // The open-redirect abuse case: every header a client controls names the attacker, and none of them reaches Location.
+  test("a spoofed Host and X-Forwarded-Host still redirect only to the configured origin", async () => {
+    const rec = recordingOidc([canonicalCallback]);
+    const res = await handlerFor(
+      loginDepsFor(rec),
+      "GET /api/auth/oidc/login",
+    )(
+      makeCtx({
+        peer: "203.0.113.9",
+        url: "http://evil.example/api/auth/oidc/login?next=https://evil.example/",
+        headers: { host: "evil.example", "x-forwarded-host": "evil.example", "x-forwarded-proto": "https" },
+      }),
+    );
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe(canonicalLogin);
+    expect(new URL(res.headers.get("location") ?? "").host).toBe("chat.example.com");
+  });
+
+  test("with several callback URLs configured, the first one names the origin", async () => {
+    const rec = recordingOidc([canonicalCallback, "http://192.168.1.10:8788/api/auth/oidc/callback"]);
+    const res = await handlerFor(loginDepsFor(rec), "GET /api/auth/oidc/login")(makeCtx({ peer: "192.168.1.20", headers: { host: "nas.local:8788" } }));
+    expect(res.headers.get("location")).toBe(canonicalLogin);
+  });
+
+  test("with no callback URL configured there is no origin to send the browser to → 400, no transaction minted", async () => {
+    const rec = recordingOidc([]);
+    const res = await handlerFor(loginDepsFor(rec), "GET /api/auth/oidc/login")(makeCtx({ headers: { host: "192.168.1.10" } }));
+    expect(res.status).toBe(400);
+    expect(res.headers.get("location")).toBeNull();
     expect(rec.mints).toBe(0);
   });
 });
@@ -1372,6 +1436,7 @@ describe("OIDC callback — single-use state consume (replay/forgery/TTL gate)",
         groupsSeparator: ";",
         allowJitProvision: true,
         requireApproval: false,
+        ownerClaim: createOwnerClaimCode(),
         store: {
           mint: (): Promise<void> => Promise.resolve(),
           consume: (s: string): Promise<OidcTransaction | null> => {
@@ -1469,6 +1534,7 @@ describe("OIDC callback — IdP error param fails closed (declined consent / acc
         groupsSeparator: ";",
         allowJitProvision: true,
         requireApproval: false,
+        ownerClaim: createOwnerClaimCode(),
         store: {
           mint: (): Promise<void> => Promise.resolve(),
           // The single-use consume STILL fires on the error path — a failed login must not leave a replayable txn.
@@ -1755,6 +1821,126 @@ describe("OIDC callback — the injected code→token exchange (#867)", () => {
 // A5 — RP back-channel logout ROUTE. The JWKS signature + claim checklist lives in infra/auth/backchannel
 // (unit-tested there against a locally-signed token); HERE we prove the route wiring: registration gating,
 // the verify→revoke path, and the fail-closed 400s. The verifier is a stub so the route logic is isolated.
+// The owner claim's proof is decided HERE, where the peer and the transaction are in hand: a loopback callback with
+// no relay header, or a login that carried the live boot claim code. The verb then refuses an unproven handle claim.
+describe("OIDC login + callback — the owner-claim proof handed to provisionIdentity", () => {
+  const publicCallback = "https://app.example/api/auth/oidc/callback";
+  const loopbackCallback = "http://localhost:8788/api/auth/oidc/callback";
+  const lanCallback = "http://192.168.1.10:8788/api/auth/oidc/callback";
+  const issuer = { issuer: "https://idp.example", authorization_endpoint: "https://idp.example/authorize" };
+  // biome-ignore lint/style/useNamingConvention: OIDC claim names are wire-fixed snake_case (OIDC Core).
+  const strangerClaims: Record<string, unknown> = { preferred_username: "owner", sub: "sub-stranger" };
+
+  interface ClaimHarness {
+    readonly deps: AuthRoutesDeps;
+    readonly claim: OwnerClaimCode;
+    /** The `ownerClaimProven` each callback handed the verb, in order. */
+    readonly proofs: (boolean | undefined)[];
+  }
+
+  function claimHarness(): ClaimHarness {
+    const pending = new Map<string, OidcTransaction>();
+    const proofs: (boolean | undefined)[] = [];
+    const claim = createOwnerClaimCode();
+    const session = recordingSessions();
+    const deps: AuthRoutesDeps = {
+      sessions: {
+        ...session.sessions,
+        provisionIdentity: (_identity, options): Promise<{ outcome: "denied" }> => {
+          proofs.push(options?.ownerClaimProven);
+          return Promise.resolve({ outcome: "denied" });
+        },
+      },
+      sockets: session.sockets,
+      now: (): number => NOW,
+      db: STUB_DB,
+      resolveLoginLimit: (): number => 10,
+      oidc: fakeOidcDeps({
+        getConfig: (): Promise<OidcConfig> => Promise.resolve(new Configuration(issuer, "orb-client")),
+        exchange: (): Promise<OidcVerifiedTokens> => Promise.resolve({ claims: strangerClaims, idToken: null }),
+        redirectAllowlist: [publicCallback, loopbackCallback, lanCallback],
+        ownerClaim: claim,
+        store: {
+          mint: (tx: OidcTransaction): Promise<void> => {
+            pending.set(tx.state, tx);
+            return Promise.resolve();
+          },
+          consume: (state: string): Promise<OidcTransaction | null> => {
+            const tx = pending.get(state) ?? null;
+            pending.delete(state);
+            return Promise.resolve(tx);
+          },
+        },
+      }),
+    };
+    return { deps, claim, proofs };
+  }
+
+  interface Arrival {
+    readonly peer: string;
+    readonly origin: string;
+    readonly headers: Record<string, string>;
+    readonly query?: string;
+  }
+
+  const viaProxy: Arrival = { peer: "127.0.0.1", origin: "https://app.example", headers: { "x-forwarded-proto": "https", "x-forwarded-host": "app.example" } };
+  const onLoopback: Arrival = { peer: "127.0.0.1", origin: "http://localhost:8788", headers: { host: "localhost:8788" } };
+  const fromLan: Arrival = { peer: "192.168.1.20", origin: "http://192.168.1.10:8788", headers: { host: "192.168.1.10:8788" } };
+
+  /** One whole login: the authorize leg, then the callback carrying the binding cookie it set. */
+  async function signIn(h: ClaimHarness, arrival: Arrival): Promise<void> {
+    const start = await handlerFor(
+      h.deps,
+      "GET /api/auth/oidc/login",
+    )(makeCtx({ peer: arrival.peer, headers: arrival.headers, url: `${arrival.origin}/api/auth/oidc/login${arrival.query ?? ""}` }));
+    const state = new URL(start.headers.get("location") ?? "").searchParams.get("state") ?? "";
+    const binding = start.headers.getSetCookie()[0]?.split(";")[0] ?? "";
+    await handlerFor(
+      h.deps,
+      "GET /api/auth/oidc/callback",
+    )(
+      makeCtx({
+        peer: arrival.peer,
+        headers: { ...arrival.headers, cookie: binding },
+        url: `${arrival.origin}/api/auth/oidc/callback?state=${state}&code=grant`,
+      }),
+    );
+  }
+
+  test("a callback relayed from off the box, with no claim code, hands the verb an unproven claim", async () => {
+    const h = claimHarness();
+    await signIn(h, viaProxy);
+    expect(h.proofs).toEqual([false]);
+  });
+
+  test("a LAN callback with no relay header is not the box operator", async () => {
+    const h = claimHarness();
+    await signIn(h, fromLan);
+    expect(h.proofs).toEqual([false]);
+  });
+
+  test("a loopback callback with no relay header proves the claim", async () => {
+    const h = claimHarness();
+    await signIn(h, onLoopback);
+    expect(h.proofs).toEqual([true]);
+  });
+
+  test("the boot claim code proves one relayed login and is then spent", async () => {
+    const h = claimHarness();
+    const code = h.claim.issue();
+    await signIn(h, { ...viaProxy, query: `?ownerClaim=${code}` });
+    await signIn(h, { ...viaProxy, query: `?ownerClaim=${code}` });
+    expect(h.proofs).toEqual([true, false]);
+  });
+
+  test("a code that is not the live one proves nothing", async () => {
+    const h = claimHarness();
+    const code = h.claim.issue();
+    await signIn(h, { ...viaProxy, query: `?ownerClaim=${code}x` });
+    expect(h.proofs).toEqual([false]);
+  });
+});
+
 describe("OIDC back-channel logout route (A5)", () => {
   const clientId = "orb-client";
   const jwksUri = "https://idp.example/jwks";

@@ -67,6 +67,15 @@ export type GroupPolicy = (typeof GROUP_POLICIES)[number];
  *  (`smart_arbitration_degraded`, D41). A NARRATOR round never buys that arbiter call (see the arm below). */
 export const groupPolicySchema = z.enum(GROUP_POLICIES).catch("natural").default("natural") satisfies z.ZodType<GroupPolicy>;
 
+/** The policy names a person reads: the room's Group tab and the invite preview say the same words. */
+export const GROUP_POLICY_LABELS: Record<GroupPolicy, string> = {
+  natural: "Natural",
+  list: "Everyone, in order",
+  pooled: "Round-robin",
+  manual: "Only when I pick",
+  smart: "Smart (side-LLM)",
+};
+
 // Auto-mode (opt-in AI→AI chaining) — MUST live on BOTH union arms (both arms are strict).
 // Defaults make the OFF path byte-identical (no timer / no auto-turn / no scheduling).
 const AUTO_MODE_MAX_TURNS_MIN = 1;
@@ -143,6 +152,12 @@ export const groupConfigSchema = z.discriminatedUnion("output", [
   }),
 ]);
 export type GroupConfig = z.infer<typeof groupConfigSchema>;
+
+/** The output names a person reads, beside {@link GROUP_POLICY_LABELS}. */
+export const GROUP_OUTPUT_LABELS: Record<GroupConfig["output"], string> = {
+  "per-speaker": "Per-speaker",
+  narrator: "Narrator",
+};
 
 /** Keys a STORED group blob may still carry from a retired field (above: `groupCharacterId`). Finite and
  *  non-growing BY CONSTRUCTION — every WRITE door refuses a retired key against the strict arms, so the only

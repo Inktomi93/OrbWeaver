@@ -25,7 +25,7 @@ import type { MemoryRecallInspector, RpgTraceInspector } from "#foundation/obser
 import { observability, observabilityErrorHandler, registerDebugRoutes, securityEvent } from "#foundation/observability";
 import { versionIdentity } from "#foundation/version";
 import type { AllowedHostsReader } from "#infra/auth";
-import { allowedHostsReader, createHostNotAllowedNotice, createPublicHttpMintNotice, hasCsrfHeader, requestTransport } from "#infra/auth";
+import { allowedHostsReader, createHostNotAllowedNotice, createPublicHttpMintNotice, hasCsrfHeader, ownerFallbackAllowed, requestTransport } from "#infra/auth";
 import { clientIp, ipAllowlistMiddleware, parseAllowlist, peerIp } from "#infra/network";
 import type { PresenceRegistry, RateLimitGate, Services, SocketRegistry } from "../transport/trpc/index.ts";
 import { appRouter, createContext } from "../transport/trpc/index.ts";
@@ -217,7 +217,7 @@ export interface AppDeps {
   readonly authenticate?: LocalAuthenticator;
   /** B4 — present in local mode; registers the first-run owner-password setup route + drives the config flag. */
   readonly firstRun?: FirstRunRouteDeps;
-  /** D254 — present in local mode; registers the signup-through-invite route (the app adds the capability). */
+  /** D259 — present in local mode; registers the signup-through-invite route (the app adds the capability). */
   readonly signup?: Omit<SignupRouteDeps, "multiHumanCapable">;
   /** B4 — present in local mode; the peer-scoped "owner needs a first-run password" read for /api/auth/config
    *  (gated on a loopback TCP peer and no relay tell, never the client `Host`). */
@@ -366,6 +366,9 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     credentialsKeyOk: deps.credentialsKeyOk,
     isHarnessStack: () => env.E2E_HARNESS === "on",
     version: versionIdentity,
+    // ADR 0076: loopback-only on purpose, with no trusted-peer widening; the owner reads the version through
+    // `settings.getVersion` from anywhere.
+    identityVisible: (peer, headers) => ownerFallbackAllowed(peer, headers),
   });
   registerBlob(app, { assets: deps.assets, cas: deps.cas });
 

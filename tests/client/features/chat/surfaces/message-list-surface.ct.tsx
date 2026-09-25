@@ -582,6 +582,25 @@ test("the divider carries the compaction fact + a peek that reveals the summary"
   await expect(page.locator('[data-slot="compact-summary-text"]')).toContainText("swore an oath by the river");
 });
 
+// A room whose host has no chat connection bound answers the fit's unbound state: the transcript renders as usual and
+// the divider defers to the canon stamps (none here), so no budget line is drawn.
+test("an unbound fit renders the transcript with no budget divider", async ({ mount, page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const trpc = await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...ROSTER_STUB,
+    "chat.previewContextFit": (): { unbound: true } => ({ unbound: true }),
+    "chat.listMessages": () => makeMessagesPage([USER_VIEW, AI_VIEW]),
+  });
+  await routeOrbSocket(page, { frames: [] });
+
+  const component = await mount(<MessageListSurfaceStory />);
+
+  await expect(component.locator(`[data-message-id="${AI_VIEW.id}"]`)).toBeVisible();
+  await expect.poll(() => trpc.count("chat.previewContextFit")).toBeGreaterThan(0);
+  await expect(component.locator('[data-slot="context-boundary-divider"]')).toHaveCount(0);
+});
+
 test("no compaction fact when previewContextFit reports no covering summary (plain cutoff line)", async ({ mount, page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await routeTrpc(page, {

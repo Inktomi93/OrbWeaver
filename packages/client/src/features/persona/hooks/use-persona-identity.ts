@@ -17,5 +17,8 @@ export interface PersonaSeedPatchVars {
 export const useSetPersonaSeed = createEntityMutation<PersonaSeedPatchVars, unknown>({
   options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
   busDriven: true, // emits `settingsChanged` → USER_BUS_FILTERS covers getUserSettings.
+  // The response is the row `getUserSettings` serves: the /join landing waits on these pointers, so it opens
+  // on the write itself instead of on the bus tick after it.
+  echo: (trpc) => trpc.settings.getUserSettings.queryKey(),
   errorToast: "Couldn't update your persona.",
 });

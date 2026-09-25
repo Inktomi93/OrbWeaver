@@ -1,13 +1,13 @@
-// The SSO provision decision, pure over what the caller already read (D254, spine invariant 10). The ruled
-// precedence is: bind-once subject match, owner exemption, access gate, owner-flip adoption, MS-W1 collision
-// deny, A1 JIT gate, owner singleton reconcile, then write. `provisionIdentity` interprets the decision; a
-// batch-shaped signup statement calls the same function, so the rules have one home.
+// The SSO provision decision, pure over what the caller already read (D259, spine invariant 10). The ruled
+// precedence is: bind-once subject match, owner exemption, owner-claim proof (D258), access gate, owner-flip adoption,
+// MS-W1 collision deny, A1 JIT gate, owner singleton reconcile, then write. `provisionIdentity` interprets the
+// decision; a batch-shaped signup statement calls the same function, so the rules have one home.
 
 import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
 import type { UserId } from "@orb/kit/ids";
 import type { ProvisionIdentityOptions } from "../contract/params.ts";
 import type { ProvisionCandidate, ProvisionDecision, ProvisionDeny, ProvisionInsert, ProvisionUpdate } from "../contract/results.ts";
-import { deriveIdentityAccess, isOwnerByPolicy, isSubjectMismatch } from "./role-policy.ts";
+import { identityAccess, isOwnerByPolicy, isOwnerGroupMember, isReservedSignupHandle, isSubjectMismatch } from "./role-policy.ts";
 
 const deny = (cause: ProvisionDeny["cause"]): ProvisionDeny => ({ kind: "deny", cause });
 
@@ -67,20 +67,46 @@ export function decideProvision(
   if (existing !== undefined && isSubjectMismatch(existing.externalId, identity.externalId)) {
     return deny("subject-mismatch");
   }
-  // The owner exemption: matched by row identity, never by a role compare; never gated or re-derived.
+  // An OWNER_GROUP member is the IdP operator's grant; an OWNER_HANDLES match needs the caller's proof.
+  const claimProven = options.ownerClaimProven || isOwnerGroupMember(identity.groups);
+  // The owner exemption: matched by row identity, never by a role compare.
   if (existing !== undefined && ownerId !== undefined && existing.id === ownerId) {
-    return { kind: "update", existing, resolvedRole: existing.role, isBootstrapOwner: true, ownerSingletonDowngrade: false };
+    return decideOwnerRow(existing, identity, claimProven);
   }
-  const access = deriveIdentityAccess(identity.handle, identity.groups);
+  const claimsOwner = isOwnerByPolicy(identity.handle, identity.groups);
+  const ownerByPolicy = claimsOwner && claimProven;
+  const access = identityAccess(ownerByPolicy, identity.groups);
   if (access.outcome === "deny") {
     return deny("access-gate");
   }
-  if (!isOwnerByPolicy(identity.handle, identity.groups)) {
-    return decideNonOwner({ existing, identity, derivedRole: access.role, ownerId, options });
+  const inputs: DecisionInputs = { existing, identity, derivedRole: access.role, ownerId, options };
+  if (ownerByPolicy) {
+    return decideOwner(inputs);
   }
-  // The owner is never blocked by MS-W1 or A1. Owner-flip adoption tries the unbound owner row first, unless
-  // this subject already owns the matched row.
-  const write = existing === undefined ? decideInsert(access.role, ownerId, options) : decideUpdate(existing, access.role, ownerId);
+  // SECURITY (D258): no new non-owner row may hold an OWNER_HANDLES seed key or a look-alike of one, compared on the
+  // handle key. On a fresh box an unproven exact match would insert the owner itself; any holder of the key blocks the
+  // owner's own claim on `users_handle_key_unique` and breaks boot's seedOwner. Do not narrow this to an exact match.
+  if (isReservedSignupHandle(identity.handle) && existing === undefined) {
+    return deny("owner-claim-unproven");
+  }
+  return decideNonOwner(inputs);
+}
+
+/** The matched row is the owner row: never gated or re-derived. Binding a subject onto the UNBOUND owner row is an
+ *  owner claim, so it needs proof and goes through the compare-and-swap bind; the bound owner's own login and a
+ *  null-subject login claim nothing. */
+function decideOwnerRow(existing: ProvisionCandidate, identity: ResolvedIdentity, claimProven: boolean): ProvisionDecision {
+  const subject = identity.externalId;
+  if (existing.externalId !== null || subject === null) {
+    return { kind: "update", existing, resolvedRole: existing.role, isBootstrapOwner: true, ownerSingletonDowngrade: false };
+  }
+  return claimProven ? { kind: "bind-owner-row", owner: existing, externalId: subject } : deny("owner-claim-unproven");
+}
+
+/** The proven owner is never blocked by MS-W1 or A1. Owner-flip adoption tries the unbound owner row first, unless
+ *  this subject already owns the matched row. */
+function decideOwner({ existing, identity, derivedRole, ownerId, options }: DecisionInputs): ProvisionDecision {
+  const write = existing === undefined ? decideInsert(derivedRole, ownerId, options) : decideUpdate(existing, derivedRole, ownerId);
   const subject = identity.externalId;
   if (subject === null || ownerId === undefined || existing?.externalId === subject) {
     return write;

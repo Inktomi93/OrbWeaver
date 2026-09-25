@@ -58,8 +58,11 @@ export interface EmbeddingConnectionSnapshot {
   readonly features: unknown;
   readonly extras: unknown;
   readonly transport: unknown;
-  readonly embed: (input: string | readonly string[], opts?: { inputType?: "query" | "document"; instruction?: string }) => Promise<EmbedResult>;
-  readonly imageEmbed: (input: ImageEmbedInput) => Promise<ImageEmbedResult>;
+  readonly embed: (
+    input: string | readonly string[],
+    opts?: { inputType?: "query" | "document"; instruction?: string; signal?: AbortSignal | undefined },
+  ) => Promise<EmbedResult>;
+  readonly imageEmbed: (input: ImageEmbedInput, opts?: { signal?: AbortSignal | undefined }) => Promise<ImageEmbedResult>;
 }
 
 export interface PinnedGeneration extends GenerationReceipt {
@@ -129,7 +132,7 @@ export interface EmbeddingsService {
    * A one-element call is the live post-turn path; the corpus sweep passes every chat's pending chunks at
    * once, which is what turns the segment phase from N serialized embeds into one saturated flood.
    */
-  readonly storeSegments: (params: readonly SegmentStoreParams[]) => Promise<readonly StoreResult[]>;
+  readonly storeSegments: (params: readonly SegmentStoreParams[], signal?: AbortSignal) => Promise<readonly StoreResult[]>;
   /** The only path that writes `hub_score` — the discovery → embeddings seam. Takes pre-computed scores. */
   readonly writeHubScores: (params: WriteHubScoresParams) => Promise<WriteHubScoresResult>;
   /** Maintenance: wipe a primary vector table (plain `DELETE FROM`). */

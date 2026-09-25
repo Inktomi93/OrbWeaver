@@ -102,6 +102,7 @@ export type {
   OidcTransaction,
   OidcTransactionStore,
   OidcVerifiedTokens,
+  OwnerClaimCode,
   PublicHttpMintNotice,
   RelayedFallbackNotice,
   RelayHostWriter,
@@ -137,6 +138,7 @@ export {
 } from "./modes/oidc.ts";
 export { createOidcConfigCache } from "./oidc-discovery.ts";
 export { createOidcExchange } from "./oidc-exchange.ts";
+export { createOwnerClaimCode } from "./owner-claim.ts";
 export {
   createPasswordHasher,
   DUMMY_PASSWORD_HASH,

@@ -41,6 +41,10 @@ interface ModifiedContribution {
 /** One claimed key's verdict — the whole compare, at either tier, in one place. */
 function keyModified(claim: SettingsKeyClaim, key: string, reads: SettingsReads): boolean {
   if (claim.tier === "user") {
+    // A library is content the user (or a first-run seeder) adds to, never a value that moved off a default.
+    if (claim.libraryKeys?.includes(key) === true) {
+      return false;
+    }
     const path = `${claim.section}.${key}`;
     return settingsValueDiffers(settingsValueAtPath(reads.userConfig, path), settingsValueAtPath(DEFAULT_USER_SETTINGS, path));
   }

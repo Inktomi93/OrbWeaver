@@ -1,4 +1,4 @@
-// The OIDC pending-join rows (D254). A row is written at the callback, read by the preview, and taken by the
+// The OIDC pending-join rows (D259). A row is written at the callback, read by the preview, and taken by the
 // confirm's own batch through `takePendingSignupStatement`, whose expiry-gated DELETE is what makes a pending
 // join single-use. The OIDC transaction store never reads this table.
 

@@ -1231,6 +1231,34 @@ test("a modified band announces its label and its mark as separate words", async
   await expect(band).toHaveAccessibleName(`${FIRST_GROUP_LABEL} ${CONFIG_MODIFIED_MARK}`);
 });
 
+// A fresh account's first run seeds its background library with the shipped plates. A library is content, not a
+// setting moved off its default, so it marks nothing; the avatar-shape stub above is the control that does.
+test("a seeded background library marks no shelf as modified", async ({ mount, page }) => {
+  await stub(page, MANY_TAGS, SCRIPTS, {
+    "settings.getUserSettings": () => ({
+      userId: "user_ct_config",
+      schemaVersion: 1,
+      config: {
+        ...DEFAULT_USER_SETTINGS,
+        appearance: {
+          ...DEFAULT_USER_SETTINGS.appearance,
+          backgroundLibrary: [
+            { entryId: "entry_seeded_plate", assetId: "asset_01j0000000000000000000000p", assetHash: "hash_seeded_plate", mime: "image/jpeg", name: "Plate" },
+          ],
+        },
+      },
+      configUnreadable: null,
+      updatedAt: 0,
+    }),
+  });
+  const workspace = await mount(<ConfigWorkspaceStory />);
+
+  const shelf = workspace.locator(LIST_PANE).locator('[data-config-shelf="user"]');
+  await expect(shelf).toBeVisible();
+  await expect(appearanceRows(workspace).first()).toBeVisible();
+  await expect(shelf.locator('[data-slot="config-shelf-modified"]')).toHaveCount(0);
+});
+
 test("the shelf's modified mark is a BADGE, not a second kicker of the same rank", async ({ mount, page }) => {
   await stubModified(page);
   const workspace = await mount(<ConfigWorkspaceStory />);

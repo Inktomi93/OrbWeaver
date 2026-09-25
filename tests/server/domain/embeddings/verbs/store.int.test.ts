@@ -257,7 +257,7 @@ describe("store — image lenses (image_embeddings)", () => {
     });
 
     expect(result.outcome).toBe("written");
-    expect(h.roleClients.imageEmbed).toHaveBeenCalledWith({ kind: "image", input: IMG });
+    expect(h.roleClients.imageEmbed).toHaveBeenCalledWith({ kind: "image", input: IMG }, { signal: undefined });
     const rows = await db.select().from(imageEmbeddings).where(eq(imageEmbeddings.assetId, assetId));
     expect(rows).toHaveLength(1);
     expect(rows[0]?.lens).toBe("image-raw");
@@ -294,10 +294,13 @@ describe("store — image lenses (image_embeddings)", () => {
       ownerId: owner,
     });
 
-    expect(h.roleClients.imageEmbed).toHaveBeenCalledWith({
-      kind: "multimodal",
-      input: { image: IMG, text: TEST_CAPTION },
-    });
+    expect(h.roleClients.imageEmbed).toHaveBeenCalledWith(
+      {
+        kind: "multimodal",
+        input: { image: IMG, text: TEST_CAPTION },
+      },
+      { signal: undefined },
+    );
     const rows = await db.select().from(imageEmbeddings).where(eq(imageEmbeddings.assetId, assetId));
     // Both lenses coexist for one asset in one space (the unique key is (assetId, model, lens)).
     expect(rows).toHaveLength(2);
@@ -331,7 +334,7 @@ describe("store — image lenses (image_embeddings)", () => {
     });
 
     expect(written.outcome).toBe("written");
-    expect(h.roleClients.embed).toHaveBeenCalledWith(TEST_CAPTION);
+    expect(h.roleClients.embed).toHaveBeenCalledWith(TEST_CAPTION, { signal: undefined });
     // The image embedder is never reached in this arm — asking it would be the bug, not the fallback.
     expect(h.roleClients.imageEmbed).not.toHaveBeenCalled();
     const rows = await db.select().from(imageEmbeddings).where(eq(imageEmbeddings.assetId, assetId));
@@ -424,7 +427,7 @@ describe("store — the chat-block digest lens", () => {
 
     expect(result.outcome).toBe("written");
     expect(result.contentHash).toBe("precomputed-digest-hash");
-    expect(h.roleClients.embed).toHaveBeenCalledWith(digestText);
+    expect(h.roleClients.embed).toHaveBeenCalledWith(digestText, { signal: undefined });
     const rows = await db.select().from(chatDigests).where(eq(chatDigests.chatId, chatId));
     expect(rows).toHaveLength(1);
     expect(rows[0]?.text).toBe(digestText);

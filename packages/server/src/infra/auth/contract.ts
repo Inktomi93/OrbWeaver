@@ -45,8 +45,22 @@ export interface OidcTransaction {
   nonce: string;
   redirectUri: string;
   createdAt: number;
-  /** D254 — the peppered hash of the signup invite the login carried (`?invite=`), or null. Never the raw token. */
+  /** D259 — the peppered hash of the signup invite the login carried (`?invite=`), or null. Never the raw token. */
   inviteTokenHash: string | null;
+}
+
+/**
+ * The one-time owner claim code: minted at boot while the owner is unclaimed, printed to the operator's log, and
+ * presented once on an OIDC login. It lives in process memory only, so a restart mints a fresh code and forgets
+ * every login it held.
+ */
+export interface OwnerClaimCode {
+  /** Mint a fresh code, retiring the live one and every login it held. Returns the code for the boot log. */
+  readonly issue: () => string;
+  /** Tie an OIDC login's `state` to the live code when `presented` is that code. */
+  readonly hold: (state: string, presented: string) => boolean;
+  /** True when this `state` held the live code. A true answer spends the code, for every held login. */
+  readonly redeem: (state: string) => boolean;
 }
 
 // consume is atomic + single-use — a replayed state finds nothing the second time.

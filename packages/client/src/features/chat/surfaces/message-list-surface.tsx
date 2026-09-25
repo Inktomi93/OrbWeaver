@@ -264,17 +264,19 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
   // until it resolves (or if it errors) the canon-stamp resolver — the per-generation provenance — is the
   // fallback. Paused during a live turn (the canon isn't settled; the ghost row carries no boundary).
   const previewFit = useQuery({ ...trpc.chat.previewContextFit.queryOptions({ chatId }), enabled: !live });
-  // A RESOLVED preview is authoritative — a `null` boundary means "everything fits" (suppress the divider),
-  // NOT "fall back". Only an unresolved/errored preview defers to the canon-stamp resolver.
-  const contextBoundaryMessageId = previewFit.data !== undefined ? previewFit.data.boundaryMessageId : resolveContextBoundaryMessageId(messages);
+  // A RESOLVED fit is authoritative — a `null` boundary means "everything fits" (suppress the divider), NOT "fall
+  // back". An unresolved or errored read, or a room with no chat connection bound (no model, so no window), defers to
+  // the canon-stamp resolver.
+  const fit = previewFit.data === undefined || "unbound" in previewFit.data ? undefined : previewFit.data;
+  const contextBoundaryMessageId = fit !== undefined ? fit.boundaryMessageId : resolveContextBoundaryMessageId(messages);
   // The budget line the boundary divider carries once the preview resolves: "N of M used · R reserved" — or,
   // when the connected model's window is a fallback GUESS (`ceilingEstimated`, e.g. an unreachable catalog),
   // the used total with the window named unknown. Never a ratio against a fabricated denominator (D41).
-  const contextBoundaryLabel = previewFit.data !== undefined ? contextFitLabel(previewFit.data) : undefined;
+  const contextBoundaryLabel = fit !== undefined ? contextFitLabel(fit) : undefined;
   // The compaction fact: when a compactSummary covers the span above the boundary, the divider says the older
   // messages are compacted into a summary + offers a peek at that text. Null ⇒ nothing above is compacted.
   // (The noun is COMPACTION, not memory — this is `chats.compactSummary`, not the Memory plane.)
-  const contextBoundaryCompactSummary = previewFit.data?.compactSummary ?? null;
+  const contextBoundaryCompactSummary = fit?.compactSummary ?? null;
 
   // `meta.exceedsViewport` is the virtualizer's OWN measurement of this row against the scrollport — the
   // only honest answer to "is this turn taller than the reader's screen", which is what decides whether

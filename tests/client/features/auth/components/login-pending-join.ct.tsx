@@ -1,7 +1,8 @@
-// CT: the OIDC pending-join card (features/auth/components/login-pending-join.tsx, D254). The callback held a
+// CT: the OIDC pending-join card (features/auth/components/login-pending-join.tsx, D259). The callback held a
 // JIT-closed identity that arrived with a signup invite and landed on /login?pendingJoin=1. Proves the card
-// previews the room, confirms with an EMPTY body under the CSRF header, signs in only when the server says so,
-// shows the approval state when it does not, and never offers Join once the pending join is gone.
+// previews the room, asks the joiner for a persona, confirms with a body carrying only that persona under the CSRF
+// header, signs in only when the server says so, shows the approval state when it does not, and never offers Join
+// once the pending join is gone.
 
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -46,22 +47,31 @@ async function stubPending(page: Page, confirm: { readonly status: number; reado
   return captured;
 }
 
-test("previews the room and confirms with an empty body under the CSRF header, then signs in", async ({ mount, page }) => {
+/** Name the persona, the one field Join waits for. */
+async function namePersona(page: Page): Promise<void> {
+  await page.getByTestId("joiner-persona-name").fill("Mira");
+}
+
+test("previews the room, holds Join until the persona has a name, and confirms with only the persona, then signs in", async ({ mount, page }) => {
   const captured = await stubPending(page, { status: 200, json: { signedIn: true } });
   await mount(<LoginPendingJoinStory config={OIDC} />);
   const card = page.getByTestId("pending-join");
   await expect(card).toContainText("host");
   await expect(card).toContainText("The room");
-  await page.getByTestId("pending-join-confirm").click();
+  const confirm = page.getByTestId("pending-join-confirm");
+  await expect(confirm).toBeDisabled();
+  await namePersona(page);
+  await confirm.click();
 
   await expect(page.getByTestId("ct-login-done")).toBeVisible();
-  expect(captured.bodies).toEqual([{}]);
+  expect(captured.bodies).toEqual([{ persona: { name: "Mira", description: "" } }]);
   expect(captured.csrf).toEqual(["1"]);
 });
 
 test("an account held for approval shows the approval state and never signs in", async ({ mount, page }) => {
   await stubPending(page, { status: 200, json: { signedIn: false } });
   await mount(<LoginPendingJoinStory config={OIDC} />);
+  await namePersona(page);
   await page.getByTestId("pending-join-confirm").click();
 
   await expect(page.getByTestId("pending-join-approval")).toBeVisible();
@@ -71,6 +81,7 @@ test("an account held for approval shows the approval state and never signs in",
 test("a refused confirm renders inline and keeps the visitor signed out", async ({ mount, page }) => {
   await stubPending(page, { status: 409, json: { error: "account_exists" } });
   await mount(<LoginPendingJoinStory config={OIDC} />);
+  await namePersona(page);
   await page.getByTestId("pending-join-confirm").click();
 
   await expect(page.getByTestId("pending-join-error")).toBeVisible();

@@ -130,6 +130,9 @@ function toMessageInput(m: ParsedChatMessage, seatsByName: ReadonlyMap<string, C
 
 /** The whole bulk-write input for one example: the parsed transcript + the manifest's roster/metadata.
  *
+ *  The transcript's own timeline is moved so its newest spoken row lands at `now`, keeping every gap: an example
+ *  is created at seed time, so a fresh install's home must not read as a room left weeks ago.
+ *
  *  `anchorPersonaId` is the RECEIVING USER'S persona (never a shipped constant): the bulk write seats it on
  *  the host participant AND pins it as the room's anchor, so an example opens "Playing as <them>" and every
  *  identity projection built off the seat — the persona panel, the rpg player actor's name — reads them
@@ -147,8 +150,10 @@ function toChatInput(args: {
   const { demo, parsed, seats, anchorPersonaId, background, now } = args;
   const seatsByName = new Map(seats.map((s) => [s.name, s.characterId]));
   const spoken = parsed.messages;
-  const sendDates = spoken.flatMap((m) => (m.sendDate !== null ? [m.sendDate] : []));
-  const createdAt = parsed.createDate ?? sendDates[0] ?? now;
+  const authoredDates = spoken.flatMap((m) => (m.sendDate !== null ? [m.sendDate] : []));
+  const shift = authoredDates.length > 0 ? now - Math.max(...authoredDates) : 0;
+  const sendDates = authoredDates.map((at) => at + shift);
+  const createdAt = parsed.createDate === null ? (sendDates[0] ?? now) : Math.min(parsed.createDate + shift, now);
   return {
     title: demo.title,
     importedFrom: importedFromFor(demo),
@@ -164,7 +169,7 @@ function toChatInput(args: {
     // The curated plate joins the room-behavior blob HERE rather than in the manifest: an example with no
     // behavior blob but a curated background still needs a `metadata` object to carry it.
     ...(demo.metadata === undefined && background === undefined ? {} : { metadata: { ...demo.metadata, ...(background === undefined ? {} : { background }) } }),
-    messages: spoken.map((m) => toMessageInput(m, seatsByName, m.sendDate ?? createdAt)),
+    messages: spoken.map((m) => toMessageInput(m, seatsByName, m.sendDate === null ? createdAt : m.sendDate + shift)),
   };
 }
 

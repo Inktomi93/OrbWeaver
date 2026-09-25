@@ -19,7 +19,7 @@ import { Button } from "@orb/ui/button";
 import type { DialogPopupProps } from "@orb/ui/dialog";
 import { Dialog, DialogClose, DialogDescription, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Row, Stack } from "@orb/ui/layout";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement, ReactNode, RefObject } from "react";
 import { testId } from "#lib";
 
 /** A registered test-id key (the registry is the API — never a new literal). */
@@ -67,6 +67,9 @@ export interface FormDialogProps {
    * given (that footer already carries a Cancel).
    */
   readonly dismissLabel?: string;
+  /** Where focus goes on close. Give one when the dialog can open with no trigger focused (a request from another
+   *  section), or its close drops focus on the page body. */
+  readonly finalFocus?: RefObject<HTMLElement | null>;
 }
 
 /**
@@ -74,10 +77,25 @@ export interface FormDialogProps {
  * body, with an optional PROMPT-mode Cancel/Confirm footer. Form-body dialogs put their submit inside
  * `children` (FormSubmitButton); single-control prompts pass `submit`.
  */
-export function FormDialog({ open, onOpenChange, title, description, testKey, size, children, submit, dismissLabel }: FormDialogProps): ReactElement {
+export function FormDialog({
+  open,
+  onOpenChange,
+  title,
+  description,
+  testKey,
+  size,
+  children,
+  submit,
+  dismissLabel,
+  finalFocus,
+}: FormDialogProps): ReactElement {
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
-      <DialogPopup {...(size === undefined ? {} : { size })} {...(testKey === undefined ? {} : { "data-testid": testId(testKey) })}>
+      <DialogPopup
+        {...(size === undefined ? {} : { size })}
+        {...(testKey === undefined ? {} : { "data-testid": testId(testKey) })}
+        {...(finalFocus === undefined ? {} : { finalFocus })}
+      >
         <Stack gap="block">
           <DialogTitle>{title}</DialogTitle>
           {description === undefined ? null : <DialogDescription>{description}</DialogDescription>}

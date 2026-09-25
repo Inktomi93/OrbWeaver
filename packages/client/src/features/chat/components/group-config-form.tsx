@@ -4,8 +4,8 @@
 // setDraftGroupConfig directly. Output is the DU discriminator — a mode switch re-derives the coupled
 // speakerTags default so the legible default follows the mode.
 
-import type { GroupConfig, GroupPolicy, MemberCardVisibility } from "@orb/contracts/chat";
-import { DEFAULT_GROUP_CONFIG, GROUP_POLICIES, MEMBER_CARD_VISIBILITY_LEVELS } from "@orb/contracts/chat";
+import type { GroupConfig, MemberCardVisibility } from "@orb/contracts/chat";
+import { DEFAULT_GROUP_CONFIG, GROUP_OUTPUT_LABELS, GROUP_POLICIES, GROUP_POLICY_LABELS, MEMBER_CARD_VISIBILITY_LEVELS } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { Accordion, AccordionItem, AccordionPanel, AccordionTrigger } from "@orb/ui/accordion";
 import { Stack } from "@orb/ui/layout";
@@ -23,16 +23,9 @@ import { defaultSpeakerTags, fromGroupConfigForm, GROUP_CONFIG_ENTITY_PREFIX, to
 
 type GroupOutput = GroupConfig["output"];
 
-const POLICY_LABELS: Record<GroupPolicy, string> = {
-  natural: "Natural",
-  list: "Everyone, in order",
-  pooled: "Round-robin",
-  manual: "Only when I pick",
-  smart: "Smart (side-LLM)",
-};
 const POLICY_ITEMS: SelectItems<string> = GROUP_POLICIES.map((value) => ({
   value,
-  label: POLICY_LABELS[value],
+  label: GROUP_POLICY_LABELS[value],
 }));
 
 const VISIBILITY_LABELS: Record<MemberCardVisibility, string> = {
@@ -108,8 +101,8 @@ export function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps
                   }}
                   aria-label="How the characters reply"
                 >
-                  <Toggle value="per-speaker">Per-speaker</Toggle>
-                  <Toggle value="narrator">Narrator</Toggle>
+                  <Toggle value="per-speaker">{GROUP_OUTPUT_LABELS["per-speaker"]}</Toggle>
+                  <Toggle value="narrator">{GROUP_OUTPUT_LABELS.narrator}</Toggle>
                 </ToggleGroup>
                 <Text voice="gloss">
                   {field.state.value === "narrator"

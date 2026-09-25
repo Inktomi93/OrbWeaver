@@ -130,7 +130,7 @@ async function resolveJoinerPersona(ctx: ChatContext, joinerUserId: UserId): Pro
   return (await ctx.resolveCurrentPersona(joinerUserId)) ?? (await ctx.resolveDefaultPersona(joinerUserId));
 }
 
-/** D254 — the gates on an `allowSignup` mint, after `requireHost`. The mode must mint signup invites, the host
+/** D259 — the gates on an `allowSignup` mint, after `requireHost`. The mode must mint signup invites, the host
  *  must be a global admin, and the link must be untargeted with a use cap and an expiry inside the caps on the
  *  server clock. An omitted field never takes a default here: a signup link is spelled out or refused. */
 function assertSignupMint(ctx: ChatContext, principal: Principal, input: CreateInviteInput, at: number): void {

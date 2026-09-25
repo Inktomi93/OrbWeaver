@@ -2,35 +2,19 @@
 // directly. The literal parse is `@orb/kit/ip` (one home, shared with the Host allowlist grammar); a mapped
 // loopback (`::ffff:127.0.0.1`) reduces to its IPv4 value there, so it matches `127.0.0.0/8` here.
 
-import { parseIp } from "@orb/kit/ip";
+import { parseCidr, parseIp } from "@orb/kit/ip";
 
 const ONE = 1n;
 
 // biome-ignore-start lint/suspicious/noBitwiseOperators: prefix masking is shift+AND on the integer address.
 /** True if `ip` falls inside `cidr` (e.g. "10.0.0.0/8", "fc00::/7", or a bare IP = /max). */
 export function matchesCidr(ip: string, cidr: string): boolean {
-  const slash = cidr.indexOf("/");
-  const netStr = slash === -1 ? cidr : cidr.slice(0, slash);
-  const net = parseIp(netStr);
+  const range = parseCidr(cidr);
   const addr = parseIp(ip);
-  if (!(net && addr) || net.bits !== addr.bits) {
+  if (range === null || addr === null || range.net.bits !== addr.bits) {
     return false;
   }
-  let prefix: number;
-  if (slash === -1) {
-    prefix = net.bits;
-  } else {
-    const prefixStr = cidr.slice(slash + 1);
-    // A trailing-slash / empty prefix ("10.0.0.0/") must NOT silently become /0 (Number("")===0), which
-    // would match EVERY address — a fail-open misconfiguration. Reject it.
-    if (prefixStr.trim() === "") {
-      return false;
-    }
-    prefix = Number(prefixStr);
-  }
-  if (!Number.isInteger(prefix) || prefix < 0 || prefix > net.bits) {
-    return false;
-  }
+  const { net, prefix } = range;
   if (prefix === 0) {
     return true;
   }

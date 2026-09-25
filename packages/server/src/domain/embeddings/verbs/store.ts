@@ -90,7 +90,7 @@ async function storeCardText(ctx: EmbeddingsContext, p: CardTextStoreParams): Pr
       generationVia: generation.via,
     };
   }
-  const embedded = await generation.connection.embed(p.content);
+  const embedded = await generation.connection.embed(p.content, { signal: p.signal });
   const vector = firstVector(embedded.vectors, p.lens, embedded.model);
   assertSpace(embedded.model, p.dim, vector);
   await upsertCharacterEmbedding(ctx.db, {
@@ -180,11 +180,11 @@ async function storeImage(ctx: EmbeddingsContext, p: ImageRawStoreParams | Image
   // indexer never asks for it in the degraded arm.
   let embedded: EmbedResult | ImageEmbedResult;
   if (p.lens === "image-raw") {
-    embedded = await generation.connection.imageEmbed({ kind: "image", input: p.content });
+    embedded = await generation.connection.imageEmbed({ kind: "image", input: p.content }, { signal: p.signal });
   } else if (p.via === "embed") {
-    embedded = await generation.connection.embed(p.caption);
+    embedded = await generation.connection.embed(p.caption, { signal: p.signal });
   } else {
-    embedded = await generation.connection.imageEmbed({ kind: "multimodal", input: { image: p.content, text: p.caption } });
+    embedded = await generation.connection.imageEmbed({ kind: "multimodal", input: { image: p.content, text: p.caption } }, { signal: p.signal });
   }
   const vector = firstVector(embedded.vectors, p.lens, embedded.model);
   assertSpace(embedded.model, p.dim, vector);
@@ -236,7 +236,7 @@ async function storeDigest(ctx: EmbeddingsContext, p: DigestStoreParams): Promis
       generationVia: generation.via,
     };
   }
-  const embedded = await generation.connection.embed(p.text);
+  const embedded = await generation.connection.embed(p.text, { signal: p.signal });
   const vector = firstVector(embedded.vectors, p.lens, embedded.model);
   assertSpace(embedded.model, p.dim, vector);
   await upsertChatDigest(ctx.db, {
@@ -287,7 +287,7 @@ async function storeChunk(ctx: EmbeddingsContext, p: DocumentChunkStoreParams): 
       generationVia: generation.via,
     };
   }
-  const embedded = await generation.connection.embed(p.content);
+  const embedded = await generation.connection.embed(p.content, { signal: p.signal });
   const vector = firstVector(embedded.vectors, p.lens, embedded.model);
   assertSpace(embedded.model, p.dim, vector);
   await upsertDocumentChunk(ctx.db, {

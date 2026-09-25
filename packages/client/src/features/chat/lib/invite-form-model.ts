@@ -10,6 +10,7 @@
 
 import type { CreateInviteInput } from "@orb/contracts/chat";
 import { SIGNUP_MAX_TTL_DAYS, SIGNUP_MAX_TTL_MS, SIGNUP_MAX_USES } from "@orb/contracts/chat";
+import type { AuthConfigShare } from "@orb/contracts/identity";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SelectItems } from "@orb/ui/select";
@@ -48,7 +49,7 @@ export interface InviteFormValues {
   readonly handle: Handle | "";
   readonly expiry: string;
   readonly maxUses: number | null;
-  /** D254 — the link may create an account for a signed-out visitor. Offered to a global admin only, in a mode
+  /** D259 — the link may create an account for a signed-out visitor. Offered to a global admin only, in a mode
    *  that mints signup invites, and only for a share link; the server re-checks every one of those. */
   readonly allowSignup: boolean;
 }
@@ -96,6 +97,27 @@ export function validateInviteForm(values: InviteFormValues): { fields: Record<s
   return Object.keys(fields).length > 0 ? { fields } : undefined;
 }
 
+// Whether a preset's duration fits a sign-up link's cap.
+function fitsSignupTtl(expiry: string): boolean {
+  const ms = expiryMsOf(expiry);
+  return ms !== null && ms <= SIGNUP_MAX_TTL_MS;
+}
+
+// The longest expiry preset a sign-up link may carry: a friend gets the most time the caps allow.
+const LONGEST_SIGNUP_EXPIRY = INVITE_EXPIRY_KEYS.filter(fitsSignupTtl).at(-1) ?? INVITE_FORM_DEFAULTS.expiry;
+const SIGNUP_DEFAULT_USES = 1;
+
+/** The expiry and use limit a sign-up link starts from when its switch turns on: the form's own values where they
+ *  already fit the caps, else the longest expiry the caps allow and a single use. The form never opens a sign-up
+ *  link on an error the owner did not cause. */
+export function signupBounds(values: InviteFormValues): Pick<InviteFormValues, "expiry" | "maxUses"> {
+  const usesFit = values.maxUses !== null && Number.isInteger(values.maxUses) && values.maxUses >= 1 && values.maxUses <= SIGNUP_MAX_USES;
+  return {
+    expiry: fitsSignupTtl(values.expiry) ? values.expiry : LONGEST_SIGNUP_EXPIRY,
+    maxUses: usesFit ? values.maxUses : SIGNUP_DEFAULT_USES,
+  };
+}
+
 /** Project the form values into the wire `CreateInviteInput`. `now` is the SUBMIT-time clock (an event
  *  handler, not render — the render-determinism rule doesn't bind here); expiry presets resolve to an
  *  absolute `expiresAt` epoch because that is the wire shape (`createInviteSchema`). */
@@ -112,4 +134,13 @@ export function toCreateInviteInput(values: InviteFormValues, now: number): Crea
     expiresAt: expiryMs === null ? null : Math.floor(now) + expiryMs,
     ...(asksSignup(values) ? { allowSignup: true } : {}),
   };
+}
+
+const TRAILING_SLASHES = /\/+$/u;
+
+/** The link a minted share-link token opens. While a share is up it is the share's public link: a friend cannot open
+ *  this page's own origin when it is loopback or reachable only on this network. Otherwise it is this page's origin. */
+export function inviteJoinLink(token: string, share: AuthConfigShare, pageOrigin: string): string {
+  const shared = share.state === "up" ? share.url : null;
+  return `${(shared ?? pageOrigin).replace(TRAILING_SLASHES, "")}/join/${encodeURIComponent(token)}`;
 }

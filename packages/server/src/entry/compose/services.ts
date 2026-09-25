@@ -81,7 +81,7 @@ import { createExportRpgGame, createRpgTraceRecorder } from "#domain/rpg";
 import type { SessionsService } from "#domain/sessions";
 import { createSessionsService } from "#domain/sessions";
 import type { DefaultBackgroundSeeder, SettingsContext, SettingsServiceDeps } from "#domain/settings";
-import { createSettingsContext, createSettingsService } from "#domain/settings";
+import { createJoinerSettingsStatement, createSettingsContext, createSettingsService } from "#domain/settings";
 import type { RelayController } from "#domain/share";
 import { createShareService } from "#domain/share";
 import type { TagContext } from "#domain/tag";
@@ -148,6 +148,7 @@ import { buildRpg } from "./rpg.ts";
 import type { SearchDiscoveryComposeResult } from "./search-discovery.ts";
 import { buildSearchDiscovery } from "./search-discovery.ts";
 import { createSessionEntryWriter } from "./session-entries.ts";
+import { createEnableShareSeating } from "./share-seating.ts";
 import { buildSideGenParams } from "./side-gen-params.ts";
 import { createProbeUpstreamHead } from "./update-check.ts";
 import { buildWorkloadContributions } from "./workload-contributions.ts";
@@ -315,7 +316,7 @@ export interface ServicesResult {
    *  `/api/_debug/wire/captures` as `enabled` so a reader can tell an off recorder from a quiet one. Surfaced
    *  because the decision lives HERE and nothing downstream can re-derive the force-flag half. */
   readonly wireCaptureOn: boolean;
-  /** D254 — chat's signup-invite ops, for the local signup route. */
+  /** D259 — chat's signup-invite ops, for the local signup route. */
   readonly signupInvites: SignupInviteOps;
   /** The per-user local-light seed, surfaced for the signup route (it runs after the signup commit). */
   readonly seedUserConnections: (userId: UserId) => Promise<void>;
@@ -543,6 +544,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       ...(knobs.truncateTo === undefined ? {} : { truncateTo: knobs.truncateTo }),
       ...(knobs.inputType === undefined ? {} : { inputType: knobs.inputType }),
       ...(knobs.instruction === undefined ? {} : { instruction: knobs.instruction }),
+      ...(opts?.signal === undefined ? {} : { signal: opts.signal }),
     });
   };
   const isResolvedTask = <T extends Resolved["task"]>(candidate: Resolved, task: T): candidate is Resolved<T> => candidate.task === task;
@@ -563,11 +565,11 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       }
       return executeEmbed(generationConnection, input, opts);
     },
-    imageEmbed: (input): ReturnType<EmbeddingConnectionSnapshot["imageEmbed"]> => {
+    imageEmbed: (input, opts): ReturnType<EmbeddingConnectionSnapshot["imageEmbed"]> => {
       if (!isResolvedTask(generationConnection, "imageEmbed")) {
         throw new Error("generation is not an image embed connection");
       }
-      return runtime.executor.imageEmbed({ connection: generationConnection, input });
+      return runtime.executor.imageEmbed({ connection: generationConnection, input, ...(opts?.signal === undefined ? {} : { signal: opts.signal }) });
     },
   });
   const resolveEmbeddingConnection: import("#domain/embeddings").ResolveEmbeddingConnection = async (ownerId, task, connectionId) => {
@@ -740,8 +742,20 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     getContributions: getWorkloadContributions,
     isMemoryEnabled: (ownerId) => isMemoryEnabled(ownerId),
   });
-  const { embeddings, indexer, persona, resolvePersonasForParticipants, presetCtx, preset, stats, search, discovery, notifications, workloads } =
-    searchDiscovery;
+  const {
+    embeddings,
+    indexer,
+    persona,
+    resolvePersonasForParticipants,
+    joinerPersonaStatement,
+    presetCtx,
+    preset,
+    stats,
+    search,
+    discovery,
+    notifications,
+    workloads,
+  } = searchDiscovery;
   // Bind the embed-space sweep enqueue now that `workloads` exists.
   embedReindex = searchDiscovery;
 
@@ -915,6 +929,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     authMode: env.AUTH_MODE,
     signup: {
       signupUserStatement: sessions.signupUserStatement,
+      signupPersonaStatement: joinerPersonaStatement,
+      signupPersonaPointersStatement: createJoinerSettingsStatement({ db }),
       minterMayMintSignup: createSignupMinterCheck(sessions, resolveHostPrincipal),
     },
     runChatTurn: executor.runChatTurn,
@@ -1256,6 +1272,13 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     settings,
     share: createShareService({
       relay: deps.share.relay,
+      enableSeating: createEnableShareSeating({
+        seating: () => settings.getEffectiveConfig(),
+        overrides: async (principal) => (await settings.getAppSettingsWithOverrides({ principal })).overrides,
+        updateAppSettings: (params) => settings.updateAppSettings(params),
+        sessions,
+        resolvePrincipal: resolveHostPrincipal,
+      }),
       requireOwner,
       authMode: env.AUTH_MODE,
       inContainer: bindPostureInput().inContainer,

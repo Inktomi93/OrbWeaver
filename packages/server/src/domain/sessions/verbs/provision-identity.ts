@@ -18,7 +18,7 @@ import {
   updateUser,
 } from "../persistence/users.ts";
 import { decideProvision } from "../substrate/decide-provision.ts";
-import { isOwnerSeedHandle, reDeriveRoleOnLogin } from "../substrate/role-policy.ts";
+import { isOwnerSeedHandle, isReservedSignupHandle, reDeriveRoleOnLogin } from "../substrate/role-policy.ts";
 
 // The SSO seam upsert. Keys on the stable `externalId` first (a username rename updates `handle` on the
 // same row), falling back to `handle` — a fallback that may BIND an unbound row and may NEVER REBIND a bound
@@ -103,7 +103,7 @@ async function updateExisting(
   // UNIQUE, so no login ever ran to do the rename.) Every other row keeps full IdP rename tracking
   // (`externalId` keys SSO, `handle` keys everything else — Spine-Identity "Esoterica").
   const handleIsPolicyOwned = policy.isBootstrapOwner && isOwnerSeedHandle(existing.handle);
-  if (!handleIsPolicyOwned && existing.handle !== identity.handle && (await renameIsFree(ctx, existing, identity))) {
+  if (!handleIsPolicyOwned && existing.handle !== identity.handle && (await renameIsFree(ctx, existing, identity, policy.isBootstrapOwner))) {
     changes.handle = identity.handle;
   }
   if (identity.email !== null && existing.email !== identity.email) {
@@ -142,7 +142,18 @@ async function updateExisting(
 /** D257 — an IdP rename may not take another row's handle key or a mixed-script handle: the user keeps
  *  their current handle, and the login proceeds. A concurrent rename onto the same key still meets
  *  `users_handle_key_unique`. */
-async function renameIsFree(ctx: SessionsContext, existing: ProvisionCandidate, identity: ResolvedIdentity): Promise<boolean> {
+async function renameIsFree(ctx: SessionsContext, existing: ProvisionCandidate, identity: ResolvedIdentity, isBootstrapOwner: boolean): Promise<boolean> {
+  // SECURITY (D258): boot's seedOwner resolves the owner row by the OWNER_HANDLES seed key, so a member row holding
+  // that key (or a look-alike) becomes the owner at the next mode flip. Only the owner row may move onto a seed key,
+  // which is the operator's key migration. Do not narrow this to "while an owner row exists": the unclaimed box is the case.
+  if (!isBootstrapOwner && isReservedSignupHandle(identity.handle)) {
+    securityEvent(
+      "sso_rename_onto_reserved_handle",
+      { userId: existing.id, handle: existing.handle, requested: identity.handle },
+      "security: an IdP rename asked a member row for an OWNER_HANDLES seed key or a look-alike of it; keeping the current handle",
+    );
+    return false;
+  }
   if (!admitsHandle(identity.handle)) {
     securityEvent(
       "sso_rename_to_inadmissible_handle",
@@ -433,6 +444,14 @@ function refuse(identity: ResolvedIdentity, cause: ProvisionDenyCause): Provisio
         "user: SSO login denied — JIT provisioning is off (OIDC_SIGNUP) and this identity has no existing account (deny-by-default; set OIDC_SIGNUP=on to allow it)",
       );
       return { outcome: "denied", reason: "jit-closed" };
+    case "owner-claim-unproven":
+      // The boot claim code never rides this line: the operator finds it in the boot log.
+      securityEvent(
+        "sso_owner_claim_unproven",
+        { handle: identity.handle, externalId: identity.externalId },
+        "security: an SSO login claimed the owner, or a new account under the owner seed key or a look-alike of it, without proof — refused, nothing bound or created; the owner claims from a loopback callback, with the claim URL the boot log printed while the owner is unclaimed, or through OWNER_GROUP",
+      );
+      return { outcome: "denied" };
     default: {
       const exhaustive: never = cause;
       throw new Error(`provisionIdentity: unknown deny cause ${String(exhaustive)}`);
@@ -466,6 +485,8 @@ async function apply(ctx: SessionsContext, identity: ResolvedIdentity, ownerId: 
       return await write(ctx, identity, ownerId, decision);
     case "adopt-unbound-owner":
       return (await tryAdoptUnboundOwner(ctx, identity, decision)) ?? (await write(ctx, identity, ownerId, decision.otherwise));
+    case "bind-owner-row":
+      return await bindOwnerSubject(ctx, decision.owner, identity, decision.externalId);
     case "require-free-email":
       if ((await selectUserIdByEmail(ctx.db, decision.email)) !== undefined) {
         return denyAccountExists(identity, "email");
@@ -479,7 +500,7 @@ async function apply(ctx: SessionsContext, identity: ResolvedIdentity, ownerId: 
 }
 
 export function createProvisionIdentity(ctx: SessionsContext): Pick<SessionsService, "provisionIdentity"> {
-  async function provisionIdentity(identity: ResolvedIdentity, options: ProvisionIdentityOptions = {}): Promise<ProvisionResult> {
+  async function provisionIdentity(identity: ResolvedIdentity, options: ProvisionIdentityOptions): Promise<ProvisionResult> {
     const existing = await findExisting(ctx, identity);
     reportNullSubjectOnBoundRow(existing, identity);
     // OPERATOR RECOVERY for the subject-mismatch refusal (the accepted trade, owner-ruled 2026-08-08): the ONE

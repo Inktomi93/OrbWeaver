@@ -33,12 +33,14 @@ export interface ShareStartFailure {
   readonly message: string;
 }
 
-/** The facts the rows read: the boot-fixed sign-in mode, the two seating settings and the last start refusal. */
+/** The facts the rows read: the boot-fixed sign-in mode, the two seating settings, the last start refusal, and the
+ *  refusal the server knows without a start (`ShareStatus.standingRefusal`). */
 export interface ShareFactsView {
   readonly mode: AuthMode;
   readonly localMultiUser: boolean;
   readonly discreetLogin: boolean;
   readonly refusal: ShareStartRefusal | null;
+  readonly standing: ShareRefusal | null;
 }
 
 export interface PreconditionRow {
@@ -85,8 +87,13 @@ function seatingVerdict(facts: ShareFactsView): PreconditionVerdict {
   return facts.localMultiUser && facts.discreetLogin ? "met" : "unmet";
 }
 
+// A press's refusal is `refused`: a new start re-checks it. A standing refusal on the relay (a container) is `unmet`:
+// no start can get past it, so it holds Start with its fix before anyone presses.
 function relayVerdict(facts: ShareFactsView): PreconditionVerdict {
-  return facts.refusal !== null && refusalRow(facts.refusal) === "relay" ? "refused" : "unchecked";
+  if (facts.refusal !== null && refusalRow(facts.refusal) === "relay") {
+    return "refused";
+  }
+  return facts.standing !== null && refusalRow(facts.standing) === "relay" ? "unmet" : "unchecked";
 }
 
 /** Every precondition row, in the order the server checks them. */

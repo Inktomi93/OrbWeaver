@@ -21,6 +21,7 @@ const REFUSAL_TIMEOUT_MS = scaledBudget(60_000);
 const POLL_MS = 250;
 const SIGTERM_EXIT = 143;
 const VIOLATIONS_EXIT = 1;
+const STACK_FRAME_RE = /^\s+at /mu;
 
 async function freePort(): Promise<number> {
   const server = createServer();
@@ -134,6 +135,7 @@ test("a setting the server would refuse stops the launch before either child sta
   try {
     expect(await exitOf(child, REFUSAL_TIMEOUT_MS), output()).toBe(VIOLATIONS_EXIT);
     expect(output()).toContain("OIDC_ISSUER");
+    expect(output(), "a refusal is the named keys alone, never a stack").not.toMatch(STACK_FRAME_RE);
     expect(existsSync(join(scratch, "data")), "the server never booted, so it created no data dir").toBe(false);
     expect(await portRefuses(serverPort)).toBe(true);
     expect(await portRefuses(vitePort)).toBe(true);
