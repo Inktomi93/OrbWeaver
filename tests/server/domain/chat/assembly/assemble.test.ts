@@ -1,7 +1,7 @@
 // assembly/assemble — the BUILD section walk (the chat design doc Part II §2 phase 3 + §3 rules 1/2/3). Pins: the
 // macro→frame order, render-ONCE {{original}} recovery (card + room override), the static/dynamic split, the
 // chat_history pivot → after-history injection, sendHistory, and the system-block chat-injection routing.
-import type { AssembleCharacter, AssembleContext, ChatInjection } from "@orb/contracts/chat";
+import type { AssembleCharacter, AssembleContext, AssembledPrompt, ChatInjection } from "@orb/contracts/chat";
 import { CHAT_INJECTION_POSITIONS } from "@orb/contracts/chat";
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_MARKER_TEMPLATES, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
@@ -14,6 +14,7 @@ import { assemblePrompt, assemblePromptWithSlices, previewSection } from "../../
 import { BEFORE_HISTORY_DEPTH } from "../../../../../packages/server/src/domain/chat/assembly/injections.ts";
 import { shapeContextForSpeaker, speakerCue, voiceContextForSpeaker } from "../../../../../packages/server/src/domain/chat/assembly/speaker-card.ts";
 import { buildTurnUserMacros } from "../../../../../packages/server/src/domain/chat/assembly/user-macros.ts";
+import { PACKAGED_PRESETS } from "../../../../../packages/server/src/domain/preset/contract/packaged.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 let sectionSeq = 0;
@@ -1645,5 +1646,65 @@ describe("assemblePrompt — the per-turn registry reaches every render seam", (
 
     expect(out.static).toBe("Mood: grim");
     expect(out.trace.staticCacheBusters).toEqual([]);
+  });
+});
+
+// Every wire sends the static half, then the dynamic half, so this is the system block's delivered order.
+const deliveredOrder = (out: AssembledPrompt): string[] => [...out.trace.staticSections, ...out.trace.dynamicSections];
+const withIds = (config: PromptConfig, ids: readonly string[]): PromptConfig => ({
+  ...config,
+  sections: ids.map((id) => config.sections.find((s) => s.id === id)).filter((s): s is PromptSection => s !== undefined),
+});
+const FULL_CARD: AssembleCharacter = { name: "Aria", description: "DESC", personality: "PERS", scenario: "SCEN", exampleMessages: "<START>\nAria: EX" };
+const presetCtx = (over: Partial<AssembleContext> = {}): AssembleContext =>
+  ctxOf({ character: FULL_CARD, activePersona: { name: "Nate", description: "PERSONA" }, worldInfoBefore: "LORE-B", worldInfoAfter: "LORE-A", ...over });
+const DEFAULT_SYSTEM_IDS = ["main", "wi-before", "char-desc", "char-pers", "scenario", "persona", "wi-after", "examples"];
+const GM_CONFIG = PACKAGED_PRESETS["rpg-gm"].config;
+
+describe("assemblePrompt — what the static/dynamic split moves on the shipped presets (D251)", () => {
+  test("the default preset with no per-turn content arrives whole in drag order", () => {
+    const out = assemblePrompt(DEFAULT_PROMPT_CONFIG, presetCtx());
+
+    expect(out.dynamic).toBe("");
+    expect(deliveredOrder(out)).toEqual(DEFAULT_SYSTEM_IDS);
+  });
+
+  test.each([
+    ["default", DEFAULT_PROMPT_CONFIG],
+    ["rpg-gm", GM_CONFIG],
+  ])("%s: keyword-fired lore leaves its World info anchor for the end of the system block", (_name, config) => {
+    const out = assemblePrompt(config, presetCtx({ worldInfoBeforeDynamic: "FIRED-B", worldInfoAfterDynamic: "FIRED-A" }));
+    const system = [out.static, out.dynamic].join("\n\n");
+
+    expect(out.dynamic).toBe("FIRED-B\n\nFIRED-A");
+    expect(system.indexOf("FIRED-B")).toBeGreaterThan(system.indexOf("Aria: EX"));
+    expect(deliveredOrder(out).slice(-2)).toEqual(["wi-before", "wi-after"]);
+  });
+
+  test("the v7 default order (memory, databank, guided directly above Chat History) already closes the system block, so nothing moves", () => {
+    const v7 = withIds(DEFAULT_PROMPT_CONFIG, [...DEFAULT_SYSTEM_IDS, "memory", "databank", "guided-instruction", "chat-history", "post-history"]);
+    const out = assemblePrompt(v7, presetCtx({ memory: "MEM", databank: "DOCS", guidedInstruction: "STEER" }));
+
+    expect(deliveredOrder(out)).toEqual([...DEFAULT_SYSTEM_IDS, "memory", "databank", "guided-instruction"]);
+  });
+
+  test("a trigger gate on a default section moves it below every stable section", () => {
+    const gated: PromptConfig = {
+      ...DEFAULT_PROMPT_CONFIG,
+      sections: DEFAULT_PROMPT_CONFIG.sections.map((s) => (s.id === "scenario" ? { ...s, trigger: ["normal"] } : s)),
+    };
+    const out = assemblePrompt(gated, presetCtx());
+
+    expect(deliveredOrder(out)).toEqual([...DEFAULT_SYSTEM_IDS.filter((id) => id !== "scenario"), "scenario"]);
+  });
+
+  test("the GM preset's per-turn game-state sections classify as the cached static half", () => {
+    const ctx = presetCtx();
+    const halves = ["game-frame", "server-context", "gm-secrets", "continuity", "cast"].map((id) => {
+      const section = GM_CONFIG.sections.find((s) => s.id === id);
+      return section === undefined ? "absent" : previewSection(section, ctx, GM_CONFIG).half;
+    });
+
+    expect(halves).toEqual(["static", "static", "static", "static", "static"]);
   });
 });
