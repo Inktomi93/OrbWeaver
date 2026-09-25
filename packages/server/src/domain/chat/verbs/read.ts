@@ -24,7 +24,9 @@ import type {
   AssemblePersona,
   ChatInjection,
   ChatReasoningPart,
+  ContextFitAnswer,
   ContextFitPreview,
+  ContextFitUnbound,
   EffectiveRegexView,
   GroupConfig,
   JoinHistoryVisibility,
@@ -35,7 +37,7 @@ import type {
 } from "@orb/contracts/chat";
 import { buildIdentityNameContext, CHAT_LIST_MAX_LIMIT, CHAT_MESSAGE_LIST_MAX_LIMIT, DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
-import type { GenerationCapability, SendAvailability } from "@orb/contracts/inference";
+import type { GenerationCapability, SendAvailability, UnavailableCause } from "@orb/contracts/inference";
 import { acceptsImageInput, acceptsVideoInput } from "@orb/contracts/inference";
 import type { GuidedActionKind, PromptConfig, TemplateDefId, UserMacroSpec } from "@orb/contracts/preset";
 import {
@@ -1398,9 +1400,18 @@ function resolveContextFitPreview(env: {
   return { ...common, boundaryMessageId, compactSummary: boundaryMessageId !== null ? compactSummary : null };
 }
 
+const NO_CONNECTION = "no-connection" satisfies UnavailableCause;
+const CONTEXT_FIT_UNBOUND: ContextFitUnbound = { unbound: true };
+
 function createPreviewContextFit(ctx: ChatContext, deps: ReadDeps): ChatService["previewContextFit"] {
-  return async ({ principal, chatId, speakerCharacterId }: PreviewContextFitParams): Promise<ContextFitPreview> => {
+  return async ({ principal, chatId, speakerCharacterId }: PreviewContextFitParams): Promise<ContextFitAnswer> => {
     const membership = await requireParticipant(ctx, principal, chatId);
+    // The same verdict the composer's send gate reads, so the fit and the send button agree on "unbound".
+    const hostUserId = hostUserIdOf(await loadParticipants(ctx.db, chatId));
+    const availability = hostUserId === null ? null : await deps.checkSendAvailability({ funderUserId: hostUserId, chatId });
+    if (availability !== null && !availability.available && availability.cause === NO_CONNECTION) {
+      return CONTEXT_FIT_UNBOUND;
+    }
     const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
       anchorPersonaId: membership.chat.anchorPersonaId,
       speakerCharacterId,

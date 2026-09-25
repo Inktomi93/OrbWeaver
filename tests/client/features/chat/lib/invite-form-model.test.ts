@@ -14,7 +14,13 @@ import { createInviteSchema, SIGNUP_MAX_USES } from "@orb/contracts/chat";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { INVITE_FORM_DEFAULTS, toCreateInviteInput, validateInviteForm } from "../../../../../packages/client/src/features/chat/lib/invite-form-model.ts";
+import {
+  INVITE_FORM_DEFAULTS,
+  inviteJoinLink,
+  signupBounds,
+  toCreateInviteInput,
+  validateInviteForm,
+} from "../../../../../packages/client/src/features/chat/lib/invite-form-model.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A fixed submit-time clock — the projection resolves expiry presets against it. */
@@ -61,7 +67,7 @@ describe("toCreateInviteInput — the bounds are stated, never omitted", () => {
   });
 });
 
-// D254 — a sign-up link: the switch rides the wire only for a share link, and the form refuses a shape the
+// D259 — a sign-up link: the switch rides the wire only for a share link, and the form refuses a shape the
 // server would refuse (no use limit or over the cap, no expiry or over the cap) before any wire call.
 // The fields the validator refuses, in order; none when it passes.
 function failingFields(values: Parameters<typeof validateInviteForm>[0]): string[] {
@@ -96,5 +102,42 @@ describe("the sign-up link", () => {
 
   test("control: the same unlimited, never-expiring values pass when the switch is off", () => {
     expect(validateInviteForm({ ...Signup, allowSignup: false, expiry: "never", maxUses: null })).toBeUndefined();
+  });
+});
+
+// A friend opens an invite at the address the server is reachable at: during a share that is the share's public link.
+describe("inviteJoinLink", () => {
+  const Page = "http://localhost:5173";
+  const Share = "https://calm-river-four-birds.trycloudflare.com";
+
+  test("while a share is up the link opens at the share's public origin", () => {
+    expect(inviteJoinLink("tok", { state: "up", url: Share }, Page)).toBe(`${Share}/join/tok`);
+  });
+
+  test("with no live share, or a share that is not up yet, the link opens at this page's origin", () => {
+    expect(inviteJoinLink("tok", { state: "off", url: null }, Page)).toBe(`${Page}/join/tok`);
+    expect(inviteJoinLink("tok", { state: "starting", url: null }, Page)).toBe(`${Page}/join/tok`);
+  });
+
+  test("the token is URL-encoded and a trailing slash on the origin is not doubled", () => {
+    expect(inviteJoinLink("a/b c", { state: "up", url: `${Share}/` }, Page)).toBe(`${Share}/join/a%2Fb%20c`);
+  });
+});
+
+// Turning sign-up on must not greet the owner with an inline error: the bounds move inside the caps, and a value that
+// already fits is left as the owner set it.
+describe("signupBounds", () => {
+  test("the form's own defaults (never expires, unlimited) move to an expiry inside the cap and one use", () => {
+    const bounds = signupBounds(INVITE_FORM_DEFAULTS);
+    expect(validateInviteForm({ ...INVITE_FORM_DEFAULTS, ...bounds, allowSignup: true })).toBeUndefined();
+    expect(bounds.maxUses).toBe(1);
+  });
+
+  test("an expiry and a use limit that already fit are kept", () => {
+    expect(signupBounds({ ...INVITE_FORM_DEFAULTS, expiry: "24h", maxUses: SIGNUP_MAX_USES })).toEqual({ expiry: "24h", maxUses: SIGNUP_MAX_USES });
+  });
+
+  test("a use limit past the cap moves to one", () => {
+    expect(signupBounds({ ...INVITE_FORM_DEFAULTS, expiry: "1h", maxUses: SIGNUP_MAX_USES + 1 }).maxUses).toBe(1);
   });
 });

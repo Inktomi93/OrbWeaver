@@ -5,7 +5,7 @@
 // non-participant is default-denied (leak-free NOT_FOUND). Reached through the BUNDLE `createRead(ctx, deps)`.
 
 import type { CharacterCard } from "@orb/contracts/character";
-import type { AssemblePersona, ChatListCursor, MemberCardVisibility } from "@orb/contracts/chat";
+import type { AssemblePersona, ChatListCursor, ContextFitAnswer, ContextFitPreview, MemberCardVisibility } from "@orb/contracts/chat";
 import { characterRegexTierKey, SHAPE_BREAKPOINT_DECISIONS } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { GenerationCapability, ProviderId } from "@orb/contracts/inference";
@@ -17,6 +17,7 @@ import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
 import { characterBooks, chatParticipants, chats as chatsTable, messages, messageVariants, personaBooks, worldBooks, worldEntries } from "@orb/db";
+import { NoConnectionError } from "@orb/inference";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, ChatInviteId, Handle, ModelId, PersonaId, PresetId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -2292,7 +2293,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     const ctx = makeChatContext(db, { getCard: () => Promise.resolve(secretCard) });
     const { previewContextFit, getActivePresetConfig } = createRead(ctx, makeDeps());
 
-    const fit = await previewContextFit({ principal: principal(member), chatId });
+    const fit = fitOf(await previewContextFit({ principal: principal(member), chatId }));
     const config = await getActivePresetConfig({ principal: principal(member), chatId });
 
     expect(JSON.stringify(fit)).not.toContain("SECRET-");
@@ -2647,6 +2648,14 @@ describe("read — durable chat-bus log (the chat room SSE resume)", () => {
   });
 });
 
+/** The fit, for a room whose host has a chat connection bound; the unbound answer fails the test here. */
+function fitOf(answer: ContextFitAnswer): ContextFitPreview {
+  if ("unbound" in answer) {
+    throw new Error("expected a fit, got the unbound answer");
+  }
+  return answer;
+}
+
 describe("previewContextFit — present-tense fit budget (engine-stamp parity)", () => {
   // A real capability with a MID window so the fit trims SOME rows but keeps id-bearing ones (mirrors the
   // pipeline test's boundary anchor). previewFit must reproduce the SAME boundary the engine stamps: the
@@ -2672,6 +2681,21 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
     };
   }
 
+  // A room whose host has bound no chat connection has no model and so no window: the fit answers that state
+  // instead of refusing, so opening such a room makes no failed read.
+  test("with no chat connection bound it answers unbound, never a refusal", async () => {
+    const host = await seedUser(db, castId<Handle>("fit_unbound"));
+    const chatId = await seedRoom("fit_unbound", host);
+    await seedMessage(db, chatId, 1, { role: "user", content: "hi" });
+    const { previewContextFit } = createRead(makeChatContext(db), {
+      ...makeFitDeps(midCapability),
+      resolveConnection: () => Promise.reject(new NoConnectionError('no connection is bound for "chat"')),
+      checkSendAvailability: () => Promise.resolve({ available: false, cause: "no-connection" }),
+    });
+
+    await expect(previewContextFit({ principal: principal(host), chatId })).resolves.toEqual({ unbound: true });
+  });
+
   test("reproduces the engine's stamped boundary (earliest kept id) + honest budget numbers", async () => {
     const host = await seedUser(db, castId<Handle>("fit_host"));
     const chatId = await seedRoom("fit", host);
@@ -2687,7 +2711,7 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
     );
 
     const { previewContextFit } = createRead(makeChatContext(db), makeFitDeps(midCapability));
-    const fit = await previewContextFit({ principal: principal(host), chatId });
+    const fit = fitOf(await previewContextFit({ principal: principal(host), chatId }));
 
     // The fit trimmed SOME rows (0 < droppedCount < 11 → real rows survive), the boundary is the earliest
     // KEPT message id (message_<chatId>_<seq> for seq = droppedCount + 1 — the seeded 1-indexed scheme), and
@@ -2716,7 +2740,7 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
     const tiny = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] }, context: { window: 200 } });
 
     const { previewContextFit } = createRead(makeChatContext(db), makeFitDeps(tiny));
-    const fit = await previewContextFit({ principal: principal(host), chatId });
+    const fit = fitOf(await previewContextFit({ principal: principal(host), chatId }));
 
     // Everything older than the newest real row drops (5 canon rows; the nudge rides irreducibly and is
     // uncounted as a drop), and the boundary NAMES the survivor — the newest seeded row.
@@ -2734,7 +2758,7 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
     const wide = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] }, context: { window: 1_000_000 } });
 
     const { previewContextFit } = createRead(makeChatContext(db), makeFitDeps(wide));
-    const fit = await previewContextFit({ principal: principal(host), chatId });
+    const fit = fitOf(await previewContextFit({ principal: principal(host), chatId }));
 
     expect(fit.droppedCount).toBe(0);
     expect(fit.boundaryMessageId).toBeNull();
@@ -2757,7 +2781,7 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
     const wide = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] }, context: { window: 1_000_000 } });
 
     const { previewContextFit } = createRead(makeChatContext(db), makeFitDeps(wide));
-    const fit = await previewContextFit({ principal: principal(host), chatId });
+    const fit = fitOf(await previewContextFit({ principal: principal(host), chatId }));
 
     // Covered rows (seq 1-2) fell out of the shaped history, so the fit dropped nothing MORE; the boundary is
     // the first row STILL in the prompt above the coverage point (seq 3), and the marker is exposed.
@@ -2778,12 +2802,12 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
     const tiny = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] }, context: { window: 260 } });
 
     const { previewContextFit } = createRead(makeChatContext(db), makeFitDeps(tiny));
-    const fit = await previewContextFit({ principal: principal(host), chatId });
+    const fit = fitOf(await previewContextFit({ principal: principal(host), chatId }));
 
     // The shaped input already excludes seq 1-2; the tiny window then trims some of the post-marker rows. The
     // boundary NAMES a survivor with seq > 2 (never a covered row), and the marker covers everything above it.
     expect(fit.boundaryMessageId).not.toBeNull();
-    const boundarySeq = Number((fit.boundaryMessageId ?? "").toString().split("_").at(-1));
+    const boundarySeq = Number((fit.boundaryMessageId ?? "").split("_").at(-1));
     expect(boundarySeq).toBeGreaterThan(2);
     expect(fit.compactSummary).toBe("the story so far");
   });
@@ -2799,7 +2823,7 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
     const tiny = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] }, context: { window: 260 } });
 
     const { previewContextFit } = createRead(makeChatContext(db), makeFitDeps(tiny));
-    const fit = await previewContextFit({ principal: principal(host), chatId });
+    const fit = fitOf(await previewContextFit({ principal: principal(host), chatId }));
 
     expect(fit.droppedCount).toBeGreaterThan(0);
     expect(fit.compactSummary).toBeNull();
@@ -2849,7 +2873,7 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
 
     const ctx = makeChatContext(db, { rpg: cardWindowRpg(0) });
     const { previewContextFit } = createRead(ctx, makeFitDeps(wideEnoughForStubs));
-    const fit = await previewContextFit({ principal: principal(host), chatId });
+    const fit = fitOf(await previewContextFit({ principal: principal(host), chatId }));
 
     // Every card collapses to `[card: cN]` before the fit prices it, so the whole transcript fits: nothing
     // is dropped and the divider has no line to draw. Pre-fix the three raw bodies (~6000 tokens) blew the
@@ -2880,7 +2904,7 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
 
     const tight = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] }, context: { window: 2800 } });
     const { previewContextFit } = createRead(makeChatContext(db), makeFitDeps(tight));
-    const fit = await previewContextFit({ principal: principal(host), chatId });
+    const fit = fitOf(await previewContextFit({ principal: principal(host), chatId }));
 
     expect(fit.droppedCount).toBe(0);
     expect(fit.boundaryMessageId).toBeNull();
@@ -2908,7 +2932,7 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
     // which is the other half of the honesty claim: the fit tracks the window, it does not just always stub.
     const ctx = makeChatContext(db, { rpg: cardWindowRpg(1) });
     const { previewContextFit } = createRead(ctx, makeFitDeps(wideEnoughForStubs));
-    const fit = await previewContextFit({ principal: principal(host), chatId });
+    const fit = fitOf(await previewContextFit({ principal: principal(host), chatId }));
 
     expect(fit.usedTokens).toBeGreaterThan(1000);
   });

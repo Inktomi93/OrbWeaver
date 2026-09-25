@@ -11,6 +11,8 @@
 export { FirstRunPersonaDialog } from "./anchors/first-run-persona-dialog.tsx";
 export type { PersonaPanelRowProps } from "./components/persona-panel-row.tsx";
 export { PersonaPanelRow } from "./components/persona-panel-row.tsx";
+// The state the first-run gate stands down in; the /join landing waits for it (app-root).
+export { useViewerCanSpeak } from "./hooks/use-viewer-can-speak.ts";
 export { personaChrome } from "./lib/persona-chrome.tsx";
 export { personaListSection } from "./lib/persona-list-section.tsx";
 export { personaNotificationsSection } from "./lib/persona-notifications-section.tsx";

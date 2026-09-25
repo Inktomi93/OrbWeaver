@@ -6,7 +6,7 @@ import { Menu, MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuTrigger } fro
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
-import { useTRPC } from "#data";
+import { QueryErrorState, useTRPC } from "#data";
 import { deriveChatTitle } from "#lib";
 import { openRoomInvite } from "#state";
 
@@ -18,7 +18,7 @@ export function InviteRoomPicker(): ReactElement {
     <Menu>
       <MenuTrigger
         render={
-          <Button type="button" intent="ghost" size="inline">
+          <Button type="button" intent="secondary" size="sm">
             Invite someone to a room
           </Button>
         }
@@ -28,7 +28,7 @@ export function InviteRoomPicker(): ReactElement {
           <MenuGroupLabel>Your newest rooms</MenuGroupLabel>
           <QueryBoundary
             fallback={<MenuItem disabled={true}>Loading rooms</MenuItem>}
-            renderError={(): ReactElement => <MenuItem disabled={true}>The rooms could not be read. Close this menu and open it again.</MenuItem>}
+            renderError={(_error, retry): ReactElement => <QueryErrorState label="your rooms" onRetry={retry} />}
           >
             <RoomItems />
           </QueryBoundary>

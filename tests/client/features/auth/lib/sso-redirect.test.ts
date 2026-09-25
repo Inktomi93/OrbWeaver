@@ -33,7 +33,7 @@ describe("shouldAutoRedirectToSso (A9)", () => {
   });
 });
 
-// D254 — the pending-join landing and the invite hand-off to the OIDC login route.
+// D259 — the pending-join landing and the invite hand-off to the OIDC login route.
 describe("the OIDC signup-invite hand-off", () => {
   test("the pending-join landing never auto-redirects, even beside ?sso", () => {
     expect(isPendingJoinLanding("?pendingJoin=1")).toBe(true);

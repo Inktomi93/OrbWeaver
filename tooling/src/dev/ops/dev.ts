@@ -5,6 +5,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import process from "node:process";
+import { EnvRefusedError } from "@orb/server/foundation/env/refusal";
 import PinoPretty from "pino-pretty";
 import { z } from "zod";
 import { print, REPO_ROOT } from "../../_shared/artifacts.ts";
@@ -78,11 +79,10 @@ async function preflightServerEnv(): Promise<ServerEnv | null> {
   try {
     return (await import("@orb/server/foundation/env")).env;
   } catch (error) {
-    if (!(error instanceof z.ZodError)) {
+    if (!(error instanceof EnvRefusedError)) {
       throw error;
     }
-    const issues = error.issues.map((issue) => `  ${issue.path.join(".")}: ${issue.message}`);
-    warn([`dev: not starting; the server would refuse this environment (.env in ${process.cwd()}, then the shell):`, ...issues].join("\n"));
+    warn(`dev: not starting; the server would refuse this environment (.env in ${process.cwd()}, then the shell).\n${error.message}`);
     return null;
   }
 }

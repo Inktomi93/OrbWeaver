@@ -63,3 +63,7 @@ export const APPEARANCE_BACKGROUND_SUBCATEGORY: ConfigSubcategory = {
  *  Lives beside the nav entry (both are this section's non-JSX identity data, shared by the def and the
  *  body without either importing the other). */
 export const APPEARANCE_BACKGROUND_KEYS = APPEARANCE_OWNER_KEYS.background;
+
+/** The owned key that is a library, not a setting: the backgrounds a user uploads and the plates a first run seeds. It
+ *  never marks the section Modified. */
+export const APPEARANCE_BACKGROUND_LIBRARY_KEYS = ["backgroundLibrary"] as const satisfies readonly (typeof APPEARANCE_BACKGROUND_KEYS)[number][];

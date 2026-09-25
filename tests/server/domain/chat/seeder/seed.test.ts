@@ -31,6 +31,15 @@ const TRANSCRIPT = [
   '{"name":"Someone","is_user":false,"mes":"hi","send_date":1754000001000}',
 ].join("\n");
 
+/** A transcript authored weeks before any seed clock: two turns a minute apart. */
+const TRANSCRIPT_WEEKS_AGO = [
+  '{"user_name":"Traveler","character_name":"Someone","create_date":"August 2, 2026 8:05am","chat_metadata":{}}',
+  '{"name":"Traveler","is_user":true,"mes":"hello","send_date":1750000000000}',
+  '{"name":"Someone","is_user":false,"mes":"hi","send_date":1750000060000}',
+].join("\n");
+
+const SEED_NOW = 1_754_000_000_000;
+
 /** The rpg flagship's real export shape: an rpg hand write anchors its snapshot on a CONTENT-LESS narrator row
  *  (the state-anchor law), and an ST transcript has nowhere to put that state — so it exports as `"mes":""`.
  *  The generating session put EIGHT of them ahead of its first user turn. */
@@ -122,7 +131,7 @@ function makeHarness(options: HarnessOptions = {}): { readonly deps: DemoChatSee
     // and what this suite asserts is WHICH plate the manifest curated, which the hash carries.
     resolveSeededBackground: (_principal, slug): Promise<ThemeBackground> =>
       Promise.resolve({ kind: "asset", assetId: `asset_plate_${slug}`, assetHash: slug, mime: "image/jpeg", externalUrl: "", provenanceUrl: "" }),
-    now: (): number => 1_754_000_000_000,
+    now: (): number => SEED_NOW,
   };
   return { deps, rec };
 }
@@ -152,8 +161,20 @@ test("rpg STATE-ANCHOR slots never seed: a content-less assistant row is a snaps
   const [chat] = rec.chats;
   expect(chat?.messages.map((m) => m.variants[0]?.content)).toEqual(["greeting", "hello", "hi"]);
   // The dates the room is sorted + stamped by must come from the SPOKEN rows too — an anchor's timestamp is
-  // the host's setup click, not a beat of the conversation.
-  expect(chat?.updatedAt).toBe(1_754_000_002_000);
+  // the host's setup click, not a beat of the conversation. The timeline lands at the seed clock (see below).
+  expect(chat?.updatedAt).toBe(SEED_NOW);
+});
+
+// An example is created at seed time: its timeline is moved so the newest spoken row is the seed clock, with every
+// gap kept, so a fresh install's home never reads as a room the user left weeks ago.
+test("an example's timeline ends at the seed clock, keeping the gaps between its rows", async () => {
+  const { deps, rec } = makeHarness({ transcript: TRANSCRIPT_WEEKS_AGO });
+  await createDemoChatSeeder(deps).ensureSeeded(PRINCIPAL);
+
+  const [chat] = rec.chats;
+  expect(chat?.updatedAt).toBe(SEED_NOW);
+  expect(chat?.messages.map((m) => m.createdAt)).toEqual([SEED_NOW - 60_000, SEED_NOW]);
+  expect(chat?.createdAt).toBeLessThanOrEqual(SEED_NOW);
 });
 
 // ── #1550: a skipped example is OWED a later attempt, and a deleted one is still never resurrected ──────

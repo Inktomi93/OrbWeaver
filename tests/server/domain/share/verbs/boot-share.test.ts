@@ -13,10 +13,12 @@ describe("share boot start", () => {
     expect(refused).toMatchObject({ kind: "refused", refusal: { code: "share_owner_unclaimed" } });
     expect(refused.kind === "refused" ? refused.refusal.message : "").toContain(`Open ${LOCAL_SETUP_URL} on this machine`);
     expect(h.calls).not.toContain("relay.start");
+    expect(h.calls).not.toContain("enableSeating");
 
     h.claimOwner();
     await expect(h.share.resumeAfterOwnerClaim()).resolves.toEqual({ kind: "started", relay: { state: "starting", relay: "quick", restartAfter: null } });
-    expect(h.calls.filter((call) => call === "relay.start")).toHaveLength(1);
+    // The launcher's share skips no step the card runs: the seating goes on before the relay.
+    expect(h.calls.filter((call) => call === "enableSeating" || call === "relay.start")).toEqual(["enableSeating", "relay.start"]);
   });
 
   test("a claim with no boot start waiting starts nothing", async () => {
@@ -35,6 +37,7 @@ describe("share boot start", () => {
   test("a relay binary refusal at boot is reported with its code, not thrown", async () => {
     const h = shareHarness({ authMode: "local", startError: new DomainOperationError("relay_platform_unsupported", "no build") });
     await expect(h.share.startAtBoot()).resolves.toEqual({ kind: "failed", code: "relay_platform_unsupported", message: "no build" });
+    expect(h.calls.slice(-3)).toEqual(["enableSeating", "relay.start", "restoreSeating"]);
   });
 
   test("once started, a later claim does not start a second relay", async () => {

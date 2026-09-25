@@ -58,7 +58,7 @@ export function createOidcStore(db: Db, now: () => number): DomainOidcStore {
     },
 
     /** Scheduled GC path; never touches a live row, so a concurrent in-flight PKCE flow is safe. It also reaps
-     *  expired pending joins (D254): an unconfirmed join leaves no identity at rest past its window. */
+     *  expired pending joins (D259): an unconfirmed join leaves no identity at rest past its window. */
     async deleteExpired(before: number): Promise<number> {
       const reaped = await db.delete(oidcTransactions).where(lte(oidcTransactions.expiresAt, before)).returning({ state: oidcTransactions.state });
       const pending = await deleteExpiredPendingSignups(db, before);

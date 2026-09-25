@@ -147,6 +147,14 @@ test("the loopback first-run claim starts the waiting relay in-process; its host
   expect(await shareConfig()).toEqual({ state: "up", url: null });
 });
 
+// A share turns on the seating a public link needs: invites (multi-human) and a blank sign-in form, so the page a
+// stranger reaches through the link never pre-fills the owner's handle.
+test("the share the claim started left discreet login and multi-human seating on", async () => {
+  const res = await fetch(`${base}/api/auth/config`);
+  expect(res.status).toBe(OK);
+  expect(await res.json()).toMatchObject({ discreetLogin: true, defaultHandle: null, multiHumanCapable: true });
+});
+
 test("share.stop drops the relay host at once; share.start runs a new relay whose old name stays refused", async () => {
   const stopped = await shareMutation("stop");
   expect(stopped.status).toBe(OK);

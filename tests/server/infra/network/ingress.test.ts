@@ -109,7 +109,7 @@ describe("ipAllowlistMiddleware — a spoofed leftmost XFF cannot pass the allow
   });
 });
 
-// D254 — the per-address throttle key. One IPv6 host holds a whole /64, so the key is the /64 prefix.
+// D259 — the per-address throttle key. One IPv6 host holds a whole /64, so the key is the /64 prefix.
 describe("addressThrottleKey", () => {
   test("every address inside one IPv6 /64 keys alike; the next /64 does not", () => {
     expect(addressThrottleKey("2001:db8:aa:1::1")).toBe(addressThrottleKey("2001:db8:aa:1:ffff:ffff:ffff:ffff"));

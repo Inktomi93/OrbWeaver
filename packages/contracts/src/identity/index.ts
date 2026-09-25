@@ -31,28 +31,6 @@ export const userKindSchema = z.enum(USER_KINDS) satisfies z.ZodType<UserKind>;
  *  server gate keys on it. `SameSite=Lax` + this header is the whole CSRF story. */
 export const CSRF_HEADER = "x-orb-csrf";
 
-// ── Signup through an invite (D254) ──
-const SIGNUP_TOKEN_MAX_CHARS = 128;
-const SIGNUP_HANDLE_MIN_CHARS = 2;
-const SIGNUP_HANDLE_MAX_CHARS = 32;
-const SIGNUP_PASSWORD_MAX_CHARS = 256;
-const SIGNUP_HANDLE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
-
-/** The local signup route's JSON body. STRICT: an unknown key fails the parse. The password floor is the
- *  server's; this schema only bounds the parse. The handle is ASCII letters, digits, `.`, `_` and `-`, starting
- *  with a letter or digit, so a padded copy of a reserved handle never parses; the server also refuses a
- *  handle that matches an existing or reserved one case-insensitively. */
-export const signupRequestSchema = z.strictObject({
-  token: z.string().min(1).max(SIGNUP_TOKEN_MAX_CHARS),
-  handle: z.string().min(SIGNUP_HANDLE_MIN_CHARS).max(SIGNUP_HANDLE_MAX_CHARS).regex(SIGNUP_HANDLE_PATTERN),
-  password: z.string().min(1).max(SIGNUP_PASSWORD_MAX_CHARS),
-});
-export type SignupRequest = z.infer<typeof signupRequestSchema>;
-
-/** The signup route's refusal codes (`{ error: <code> }`). The client maps each to its own copy. */
-export const SIGNUP_ERROR_CODES = ["invalid_request", "already_signed_in", "invite_unavailable", "handle_unavailable", "weak_password"] as const;
-export type SignupErrorCode = (typeof SIGNUP_ERROR_CODES)[number];
-
 // The SSO mechanism selector; `foundation/env` and `infra/auth`'s `MODE_RESOLVERS` derive from this tuple.
 export const AUTH_MODES = ["single-user", "local", "forward-header", "oidc"] as const;
 export type AuthMode = (typeof AUTH_MODES)[number];
@@ -73,6 +51,7 @@ export const CONTAINER_LOCAL_LOGIN_ENV = [
 
 /** The modes that mint a session cookie, so they need the SESSION_SECRET pepper to authenticate anyone. */
 export const COOKIE_AUTH_MODES = ["local", "oidc"] as const satisfies readonly AuthMode[];
+export type CookieAuthMode = (typeof COOKIE_AUTH_MODES)[number];
 
 export function isCookieAuthMode(mode: AuthMode): boolean {
   return (COOKIE_AUTH_MODES as readonly AuthMode[]).includes(mode);
@@ -83,8 +62,9 @@ export function isCookieAuthMode(mode: AuthMode): boolean {
 export const REQUEST_TRANSPORTS = ["https", "http"] as const;
 export type RequestTransport = (typeof REQUEST_TRANSPORTS)[number];
 
-/** Where a request's resolved client address sits: the private/loopback set, or the public internet. */
-export const CLIENT_SCOPES = ["private", "public"] as const;
+/** Where a request's resolved client address sits: this machine (a loopback address, where nothing crosses a
+ *  network), a private network, or the public internet. */
+export const CLIENT_SCOPES = ["loopback", "private", "public"] as const;
 export type ClientScope = (typeof CLIENT_SCOPES)[number];
 
 /** The relays a share can run: a Cloudflare quick tunnel. `SHARE_RELAY` in the server env takes a member to start one at boot. */
@@ -138,13 +118,19 @@ export const relayStatusSchema = z.discriminatedUnion("state", [
 ]);
 export type RelayStatus = z.infer<typeof relayStatusSchema>;
 
-/** `share.status`: the relay, the live sockets of every account but the caller's, and the addresses this server already
+/** Why a share may not start, with the sentence that names its fix. */
+const shareRefusalNoticeSchema = z.strictObject({ code: z.enum(SHARE_REFUSALS), message: z.string() });
+export type ShareRefusalNotice = z.infer<typeof shareRefusalNoticeSchema>;
+
+/** `share.status`: the relay, the live sockets of every account but the caller's, the addresses this server already
  *  answers at from the internet (under oidc the origins of `OIDC_REDIRECT_URIS`, under local the public names in
- *  `ALLOWED_HOSTS`), so the card can send friends there instead of through a relay. */
+ *  `ALLOWED_HOSTS`), so the card can send friends there instead of through a relay, and the refusal a start would
+ *  meet that is known without starting (the sign-in mode, or a container), so the card shows it before any press. */
 export const shareStatusSchema = z.strictObject({
   relay: relayStatusSchema,
   liveSocketCount: z.number().int().nonnegative(),
   publicAddresses: z.array(z.string()),
+  standingRefusal: shareRefusalNoticeSchema.nullable(),
 });
 export type ShareStatus = z.infer<typeof shareStatusSchema>;
 

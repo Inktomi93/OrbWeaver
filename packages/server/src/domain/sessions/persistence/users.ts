@@ -120,7 +120,7 @@ export async function selectIdByHandleKey(db: Db, handle: Handle): Promise<UserI
 }
 
 /**
- * D254 — the signup account insert, UNEXECUTED, for the caller's batch. It writes a `user`-role human with the
+ * D259 — the signup account insert, UNEXECUTED, for the caller's batch. It writes a `user`-role human with the
  * password hash only where `admission` holds and no row carries the handle's key. There is no
  * `onConflictDoNothing`: a key race throws and rolls the whole batch back, never a silent no-op a
  * later statement could misread. The values are positional over the table's declared column order (the
@@ -139,7 +139,7 @@ export function insertSignupUserStatement(
     .returning({ id: users.id });
 }
 
-/** The SSO signup account a pending-join confirm writes (D254). */
+/** The SSO signup account a pending-join confirm writes (D259). */
 interface PendingSignupAccount {
   readonly id: UserId;
   readonly handle: Handle;
@@ -151,7 +151,7 @@ interface PendingSignupAccount {
 }
 
 /**
- * D254 — the OIDC pending-join confirm's account insert, UNEXECUTED, for chat's batch. It binds the subject on
+ * D259 — the OIDC pending-join confirm's account insert, UNEXECUTED, for chat's batch. It binds the subject on
  * a NEW row only, decided by `decideProvision` (the verb keeps only an insert), and writes only where the
  * pending take before it deleted a row (`changes() > 0`), `admission` (chat's opaque invite predicate) holds,
  * no row carries the handle's key (so a stranger's handle is never a case variant or look-alike of a member's)

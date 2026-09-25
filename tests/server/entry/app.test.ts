@@ -369,7 +369,7 @@ describe("createApp", () => {
       uploads: { assetUpload: 67_108_864, image: 5_000_000, databankUpload: 20_971_520, importTotal: 268_435_456 },
       // This request's own transport and client scope: a loopback peer with no proxy header.
       transport: "http",
-      clientScope: "private",
+      clientScope: "loopback",
     });
   });
 

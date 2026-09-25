@@ -4,7 +4,7 @@
 
 import type { ConfigSectionContribution } from "#state";
 import { AppearanceBackgroundSection } from "../components/appearance-background-section.tsx";
-import { APPEARANCE_BACKGROUND_KEYS, APPEARANCE_BACKGROUND_SUBCATEGORY } from "./appearance-background-model.ts";
+import { APPEARANCE_BACKGROUND_KEYS, APPEARANCE_BACKGROUND_LIBRARY_KEYS, APPEARANCE_BACKGROUND_SUBCATEGORY } from "./appearance-background-model.ts";
 
 const SECTION_ID = "appearance-background";
 
@@ -12,6 +12,6 @@ export const appearanceBackgroundSection: ConfigSectionContribution = {
   id: SECTION_ID,
   anchor: "appearance",
   nav: APPEARANCE_BACKGROUND_SUBCATEGORY,
-  owns: { tier: "user", section: "appearance", keys: APPEARANCE_BACKGROUND_KEYS },
+  owns: { tier: "user", section: "appearance", keys: APPEARANCE_BACKGROUND_KEYS, libraryKeys: APPEARANCE_BACKGROUND_LIBRARY_KEYS },
   body: () => <AppearanceBackgroundSection sectionId={SECTION_ID} />,
 };

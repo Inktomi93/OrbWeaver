@@ -276,7 +276,7 @@ function buildLocalAuthDeps(
     },
     localFirstRun: async (peerIp: string | undefined, headers: Headers): Promise<boolean> =>
       ownerFallbackAllowed(peerIp, headers) ? await sessions.ownerNeedsPassword() : false,
-    // D254 — the signup-through-invite route. `createApp` adds the per-request multi-human capability.
+    // D259 — the signup-through-invite route. `createApp` adds the per-request multi-human capability.
     signup: {
       sessionIsLive: async (token: SessionToken): Promise<boolean> => (await sessions.validate(token)) !== null,
       invites: built.signupInvites,
@@ -342,7 +342,7 @@ function buildOidcDeps(
       // A5 — register the back-channel logout endpoint only when OIDC_BACKCHANNEL_LOGOUT=on. The verifier
       // is the sealed infra/auth JWKS checker; clientId is the required `aud` on the logout_token.
       ...(env.OIDC_BACKCHANNEL_LOGOUT ? { backchannelLogout: { verify: createBackchannelLogoutVerifier().verify, clientId } } : {}),
-      // D254 — signup through an invite for an identity the JIT gate closes on: the pending join and its confirm.
+      // D259 — signup through an invite for an identity the JIT gate closes on: the pending join and its confirm.
       signup: {
         invites: built.signupInvites,
         pending: built.sessions,

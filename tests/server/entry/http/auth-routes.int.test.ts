@@ -4,9 +4,10 @@
 // on the pure mock harness in auth-routes.test.ts. Determinism: the throttle window is pinned via `now`.
 
 import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
+import { JOINER_PERSONA_DESCRIPTION_MAX } from "@orb/contracts/persona";
 import type { Db } from "@orb/db";
-import { auditLogs, chatInvites, chatParticipants, rateLimitBuckets, users } from "@orb/db";
-import type { ChatId, ChatInviteId, ChatParticipantId, Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
+import { auditLogs, chatInvites, chatParticipants, rateLimitBuckets, userSettings, users } from "@orb/db";
+import type { ChatId, ChatInviteId, ChatParticipantId, Handle, PersonaId, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RevokedSessionsSummary } from "@orb/server/domain/sessions";
 import { isReservedSignupHandle } from "@orb/server/domain/sessions";
@@ -18,7 +19,9 @@ import { eq, like } from "drizzle-orm";
 import { Hono } from "hono";
 import { afterEach, describe, vi } from "vitest";
 import { createSignupInvite } from "../../../../packages/server/src/domain/chat/verbs/signup-invite.ts";
+import { createJoinerPersonaStatement } from "../../../../packages/server/src/domain/persona/verbs/joiner-persona-statement.ts";
 import { createSessionsService } from "../../../../packages/server/src/domain/sessions/service.ts";
+import { createJoinerSettingsStatement } from "../../../../packages/server/src/domain/settings/verbs/joiner-settings-statement.ts";
 import { createHostPrincipalResolver } from "../../../../packages/server/src/entry/auth/seam.ts";
 import { createSignupMinterCheck } from "../../../../packages/server/src/entry/compose/chat.ts";
 import { env } from "../../../../packages/server/src/foundation/env/index.ts";
@@ -128,7 +131,7 @@ describe("local login — behavioral (real app + freshDb)", () => {
     const res = await postLogin(app, "10.0.0.3", { handle: "owner" });
     expect(res.status).toBe(400);
   });
-  // D254 — one IPv6 host holds a whole /64; a per-address key must not reset when it rotates inside it.
+  // D259 — one IPv6 host holds a whole /64; a per-address key must not reset when it rotates inside it.
   test("two IPv6 addresses in one /64 share the per-address login bucket; another /64 does not", async () => {
     const app = await appWith({ resolveLoginLimit: (): number => 1 });
     expect((await postLogin(app, "2001:db8:cc:1::1", { handle: "owner", password: "hunter2pw" })).status).toBe(200);
@@ -619,14 +622,14 @@ describe("Rule E — a plain-http mint from a public client logs once per client
   });
 });
 
-// ── D254: the local signup-through-invite route ──────────────────────────────────────────────────────────────
+// ── D259: the local signup-through-invite route ──────────────────────────────────────────────────────────────
 // The control order is ruled: CSRF, body cap, multi-human 404, per-address bucket, live-session refusal, strict
 // schema, invite pre-check, per-invite bucket, reserved/taken handles, scrypt, the batch, then the cookie.
-describe("local signup route (D254)", () => {
+describe("local signup route (D259)", () => {
   const Signup = "/api/auth/signup";
   const Good = "tok_good";
   const InviteId = castId<ChatInviteId>("chat_invite_signup_route");
-  const creds = { token: Good, handle: "friend", password: "hunter2pw" };
+  const creds = { token: Good, handle: "friend", password: "hunter2pw", persona: { name: "Mira", description: "" } };
 
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -724,9 +727,15 @@ describe("local signup route (D254)", () => {
     expect(spies.admitted).toBe(0);
   });
 
-  test("an unknown key or a short password is refused before the invite pre-check", async () => {
+  test("an unknown key, a missing or empty persona, or a short password is refused before the invite pre-check", async () => {
     const { app, spies } = await signupApp();
     expect((await postSignup(app, "10.9.0.5", { ...creds, role: "admin" })).status).toBe(400);
+    const { persona: _persona, ...withoutPersona } = creds;
+    expect((await postSignup(app, "10.9.0.7", withoutPersona)).status).toBe(400);
+    expect((await postSignup(app, "10.9.0.8", { ...creds, persona: { name: "", description: "" } })).status).toBe(400);
+    expect(
+      (await postSignup(app, "10.9.0.9", { ...creds, persona: { name: "Mira", description: "x".repeat(JOINER_PERSONA_DESCRIPTION_MAX + 1) } })).status,
+    ).toBe(400);
     const weak = await postSignup(app, "10.9.0.6", { ...creds, password: "short" });
     expect(await weak.json()).toEqual({ error: "weak_password" });
     expect(spies.admitted).toBe(0);
@@ -799,6 +808,8 @@ describe("local signup route (D254)", () => {
       },
       {
         signupUserStatement: sessionsSvc.signupUserStatement,
+        signupPersonaStatement: createJoinerPersonaStatement({ db, newPersonaId: () => castId<PersonaId>("persona_signup_route") }),
+        signupPersonaPointersStatement: createJoinerSettingsStatement({ db }),
         minterMayMintSignup: createSignupMinterCheck(sessionsSvc, createHostPrincipalResolver(sessionsSvc)),
         auditStatementAfterWrite: (entry, at) => buildAuditStatementIfPrecedingWrote(db, entry, at),
         // The local route never previews; any reach fails loudly.
@@ -838,12 +849,18 @@ describe("local signup route (D254)", () => {
     expect(created).toHaveLength(1);
     expect(created[0]).toMatchObject({ role: "user", enabled: true, kind: "human", passwordHash: "scrypt$9" });
     const newUserId = created[0]?.id;
-    expect(
-      await db
-        .select()
-        .from(chatParticipants)
-        .where(eq(chatParticipants.userId, castId<UserId>(newUserId ?? ""))),
-    ).toHaveLength(1);
+    const seats = await db
+      .select()
+      .from(chatParticipants)
+      .where(eq(chatParticipants.userId, castId<UserId>(newUserId ?? "")));
+    expect(seats).toHaveLength(1);
+    // The seat is the persona the body named, and the new account's pointers were aimed at it.
+    expect(seats[0]?.activePersonaId).toBe("persona_signup_route");
+    const [settingsRow] = await db
+      .select({ config: userSettings.config })
+      .from(userSettings)
+      .where(eq(userSettings.userId, castId<UserId>(newUserId ?? "")));
+    expect(settingsRow?.config.seeds).toMatchObject({ currentPersonaId: "persona_signup_route", defaultPersonaId: "persona_signup_route" });
     expect(await db.select().from(auditLogs).where(eq(auditLogs.action, "invites.signup"))).toHaveLength(1);
     expect(spies.seeded).toEqual([newUserId]);
     expect(announced).toEqual([room.id]);

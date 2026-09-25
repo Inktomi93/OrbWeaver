@@ -4,7 +4,7 @@ import type { AuthMode } from "@orb/contracts/identity";
 import { AUTH_MODES } from "@orb/contracts/identity";
 import type { ShareFacts } from "@orb/server/domain/share";
 import { describe } from "vitest";
-import { shareRefusal } from "../../../../../packages/server/src/domain/share/substrate/refusal.ts";
+import { shareRefusal, standingShareRefusal } from "../../../../../packages/server/src/domain/share/substrate/refusal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const SETUP = "http://localhost:9999";
@@ -65,5 +65,20 @@ describe("shareRefusal", () => {
     expect(refusal?.code).toBe("share_oidc");
     expect(refusal?.message).toContain(PUBLIC_ADDRESS);
     expect(oidc.reads).toEqual([]);
+  });
+});
+
+// The status carries this, so the card shows a refusal no start gets past before anyone presses Start. It never reads
+// the owner row: an unclaimed owner is a refusal only a start can meet, after the first-run claim may have landed.
+describe("standingShareRefusal", () => {
+  test("a container under local is standing, and so is every refused mode", () => {
+    expect(standingShareRefusal(facts("local", { inContainer: true }).facts)?.code).toBe("share_in_container");
+    expect(standingShareRefusal(facts("single-user").facts)?.code).toBe("share_single_user");
+  });
+
+  test("an unclaimed owner is not standing, and the owner row is never read", () => {
+    const unclaimed = facts("local", { ownerNeedsPassword: true });
+    expect(standingShareRefusal(unclaimed.facts)).toBeNull();
+    expect(unclaimed.reads).toEqual([]);
   });
 });
