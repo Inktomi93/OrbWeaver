@@ -187,9 +187,12 @@ export const CHAT_API_LABELS: Record<ProviderDef["apis"][number], string> = Obje
   string
 >;
 
-/** A connection row's one-line identity — `<label> · <model>` when the label was not auto-minted from them. */
+/** A connection row's one-line identity, the one label Model roles' picker, readout and repair all show:
+ *  `<label> · <model name>` when the label was not auto-minted from the model. The model reads by its own name,
+ *  the id's last path segment, never its repository path (`jinaai/jina-clip-v2` reads `jina-clip-v2`). */
 export function connectionSummary(row: { readonly label: string; readonly model: string }): string {
-  return row.label.includes(row.model) ? row.label : `${row.label} · ${row.model}`;
+  const name = row.model.slice(row.model.lastIndexOf("/") + 1);
+  return row.label.includes(name) ? row.label : `${row.label} · ${name}`;
 }
 
 /** The inline refusal a Model-roles row shows BEFORE writing a binding (§5.3a — the slot is the first

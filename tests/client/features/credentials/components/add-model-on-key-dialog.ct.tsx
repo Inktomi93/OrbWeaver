@@ -33,7 +33,7 @@ import { ConnectionsAuthoringStory } from "../_ct-stories.tsx";
 
 const KEY_TITLE = "Add another model on this key";
 const OPENROUTER_ROW = connectionRow();
-const OPENROUTER_NAME = "OpenRouter · Claude Opus 5 · anthropic/claude-opus-5";
+const OPENROUTER_NAME = "OpenRouter · Claude Opus 5 · claude-opus-5";
 const OPENROUTER_MODELS = [
   catalogEntry("anthropic/claude-opus-5", "Claude Opus 5"),
   catalogEntry("anthropic/claude-sonnet-5", "Claude Sonnet 5"),
@@ -93,12 +93,12 @@ test("a keyed row offers it by §5.3a's name; a keyless endpoint shares its serv
   await page.keyboard.press("Escape");
   await expect(page.getByRole("menuitem")).toHaveCount(0);
 
-  await openRowMenu(page, "Home vLLM · Qwen/Qwen3-32B");
+  await openRowMenu(page, "Home vLLM · Qwen3-32B");
   await expect(page.getByRole("menuitem", { name: /Add another model on this server/ })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("menuitem")).toHaveCount(0);
 
-  await openRowMenu(page, "Orphaned · openai/gpt-5-mini");
+  await openRowMenu(page, "Orphaned · gpt-5-mini");
   await expect(page.getByRole("menuitem", { name: /Use this connection for everything/ })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: /Add another model/ })).toHaveCount(0);
 });
@@ -160,7 +160,7 @@ test("a built-in row's catalog is closed: no typed id is offered, and an empty l
   await dialog.getByRole("button", { name: "Cancel" }).click();
   await expect(dialog).toBeHidden();
 
-  const empty = await openAddModel(page, "Spare built-in · jinaai/jina-clip-v2", /Add another built-in model/, "Add another built-in model");
+  const empty = await openAddModel(page, "Spare built-in · jina-clip-v2", /Add another built-in model/, "Add another built-in model");
   await expect(
     empty.getByText(
       "Couldn't list Built-in (this device)'s models — the provider listed no models. This provider only runs models from its list, so there is nothing to type instead.",

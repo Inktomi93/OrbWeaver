@@ -41,10 +41,11 @@ export const EMBED_SPACE_DIMS = 1024;
 
 /** The two rows every user is SEEDED with (§7.2 — the vector floor is a convenience seed, never a special
  *  row): the local-light encoder and reranker, both ordinary `user_connections` on the `local-light`
- *  provider with a `user` binding for `embed` / `rerank`. The ids are the curated `local-light` rows'. */
+ *  provider with a `user` binding for `embed` / `rerank`. The ids are the curated `local-light` rows'. The label
+ *  is what Model roles shows, so it says what the row does, and it is the seed's idempotency key. */
 export const LOCAL_LIGHT_SEED_ROWS = [
-  { task: "embed", model: "jinaai/jina-clip-v2", label: "local-light · encoder" },
-  { task: "rerank", model: "Xenova/ms-marco-MiniLM-L-6-v2", label: "local-light · reranker" },
+  { task: "embed", model: "jinaai/jina-clip-v2", label: "Built-in embeddings" },
+  { task: "rerank", model: "Xenova/ms-marco-MiniLM-L-6-v2", label: "Built-in reranker" },
 ] as const;
 
 // `as const satisfies` (not a `Record<Task, TaskDef>` annotation): the literal `routable` flags must

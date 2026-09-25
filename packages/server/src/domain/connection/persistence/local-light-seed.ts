@@ -1,5 +1,5 @@
 // The local-light CONVENIENCE SEED (inference program §7.2): every user gets the two in-process vector rows —
-// `local-light · encoder` (jina-clip-v2) and `local-light · reranker` (MiniLM) — as ORDINARY `user_connections`
+// the encoder (jina-clip-v2) and the reranker (MiniLM) of `LOCAL_LIGHT_SEED_ROWS` — as ORDINARY `user_connections`
 // plus their two `user` bindings (`embed`, `rerank`). Not a special row: a user who deletes them reads
 // `no-connection` on search like any other unset task and re-adds them from the picker.
 //

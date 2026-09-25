@@ -10,6 +10,7 @@ import {
   CHAT_APIS,
   EMBEDDING_FLOOR,
   GENERATION_FLOOR,
+  LOCAL_LIGHT_SEED_ROWS,
   providerDefSchema,
   ROUTABLE_TASKS,
   TASKS,
@@ -345,4 +346,11 @@ test("connectionHost reads the authority out of a base URL without throwing on a
 test("connectionSummary avoids repeating the model when the auto-minted label already carries it", () => {
   expect(connectionSummary({ label: "OpenRouter · gpt-5", model: "gpt-5" })).toBe("OpenRouter · gpt-5");
   expect(connectionSummary({ label: "work key", model: "gpt-5" })).toBe("work key · gpt-5");
+});
+
+// Model roles' picker and readout both name a connection through this one label. The seeded local rows and an
+// org-scoped model id read as a person would say them, never as provider ids and repository paths.
+test("connectionSummary names a model by its own name, and the seeded local rows by what they do", () => {
+  expect(connectionSummary({ label: "work key", model: "openai/gpt-5-mini" })).toBe("work key · gpt-5-mini");
+  expect(LOCAL_LIGHT_SEED_ROWS.map(connectionSummary)).toEqual(["Built-in embeddings · jina-clip-v2", "Built-in reranker · ms-marco-MiniLM-L-6-v2"]);
 });

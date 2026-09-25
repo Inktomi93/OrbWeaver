@@ -230,7 +230,7 @@ test("a connection row speaks in Model roles and carries the exact bulk/backgrou
   await mount(<ConnectionsSettingsStory />);
 
   const section = page.locator("#config-anchor-connections-connections");
-  await expect(section.getByText("OpenRouter · Claude Sonnet 5 · anthropic/claude-sonnet-5", { exact: true })).toBeVisible();
+  await expect(section.getByText("OpenRouter · Claude Sonnet 5 · claude-sonnet-5", { exact: true })).toBeVisible();
   for (const label of ROLE_ROWS_ORDERED.map((row) => row.label)) {
     await expect(section.getByText(label, { exact: true })).toBeVisible();
   }
@@ -242,7 +242,7 @@ test("a connection row speaks in Model roles and carries the exact bulk/backgrou
   // context and needs the subject; a sighted reader already has it, and spelling it in pixels made the
   // trailing cluster wider than the identity block and truncated the connection's own name (measured at
   // 870px on the isolated stage, `config_to_connections`). The shipped one-word "background" had neither.
-  const switchName = "Allow background work on OpenRouter · Claude Sonnet 5 · anthropic/claude-sonnet-5";
+  const switchName = "Allow background work on OpenRouter · Claude Sonnet 5 · claude-sonnet-5";
   await expect(section.getByRole("switch", { name: switchName, exact: true })).toBeChecked();
   await expect(section.getByText("Allow background work", { exact: true })).toBeVisible();
   await expect(section.getByText(switchName, { exact: true })).toHaveCount(0);
@@ -259,7 +259,7 @@ test("the sweep is a MENU item whose gloss names the roles it will write", async
   // Not a row button any more — that is the whole point of the move.
   await expect(section.getByRole("button", { name: "Use this connection for everything it can serve" })).toHaveCount(0);
 
-  await section.getByRole("button", { name: "More actions for OpenRouter · Claude Sonnet 5 · anthropic/claude-sonnet-5" }).click();
+  await section.getByRole("button", { name: "More actions for OpenRouter · Claude Sonnet 5 · claude-sonnet-5" }).click();
   const sweep = page.getByRole("menuitem", { name: /^Use this connection for everything it can serve/u });
   await expect(sweep).toBeVisible();
   // The undo is knowable BEFORE the click — there is no default to fall back to (§7.2 F2/F16).
@@ -311,8 +311,8 @@ test("a row offers only the connections that can serve ITS task, plus the unset 
 
   await roleSelect(page, "Chat").click();
   // chat: the chat row and the utility row (both carry `chat`), never the embed-only row.
-  await expect(page.getByRole("option", { name: "OpenRouter · Claude Sonnet 5 · anthropic/claude-sonnet-5" })).toBeVisible();
-  await expect(page.getByRole("option", { name: "Cheap utility · openai/gpt-5-mini" })).toBeVisible();
+  await expect(page.getByRole("option", { name: "OpenRouter · Claude Sonnet 5 · claude-sonnet-5" })).toBeVisible();
+  await expect(page.getByRole("option", { name: "Cheap utility · gpt-5-mini" })).toBeVisible();
   await expect(page.getByRole("option", { name: /Local embedder/ })).toHaveCount(0);
   // A REQUIRED row's unset item says "Not set"; the optional (vector-space) rows say "None" — leaving one
   // unset means search reads nothing, which is not the same sentence as "no default".
@@ -332,7 +332,7 @@ test("a background task refuses a row with background work off — disabled, wit
   await mount(<ConnectionsSettingsStory />);
 
   await roleSelect(page, "Utility model").click();
-  const refused = page.getByRole("option", { name: "Cheap utility · openai/gpt-5-mini" });
+  const refused = page.getByRole("option", { name: "Cheap utility · gpt-5-mini" });
   await expect(refused).toBeDisabled();
   await expect(refused).toHaveAccessibleDescription("This connection doesn't allow background work — turn it on to use it here.");
   await page.keyboard.press("Escape");
@@ -343,7 +343,7 @@ test("a background task refuses a row with background work off — disabled, wit
 
   // The SAME row on an attended task is bindable — the refusal is about the task's spend, not the row.
   await roleSelect(page, "Chat").click();
-  await expect(page.getByRole("option", { name: "Cheap utility · openai/gpt-5-mini" })).toBeEnabled();
+  await expect(page.getByRole("option", { name: "Cheap utility · gpt-5-mini" })).toBeEnabled();
 });
 
 // THE REPAIR, which is the half §5.3a adds and the shipped row did not have: a refusal with no adjacent
@@ -353,9 +353,9 @@ test("the refused row is repaired INLINE — the same sentence plus the switch t
   await mount(<ConnectionsSettingsStory />);
 
   const roles = page.locator("#config-anchor-connections-model-roles");
-  await expect(roles.getByText("Cheap utility · openai/gpt-5-mini doesn't allow background work — turn it on to use it here.")).toBeVisible();
+  await expect(roles.getByText("Cheap utility · gpt-5-mini doesn't allow background work — turn it on to use it here.")).toBeVisible();
 
-  const repair = roles.getByRole("switch", { name: "Allow background work on Cheap utility · openai/gpt-5-mini" });
+  const repair = roles.getByRole("switch", { name: "Allow background work on Cheap utility · gpt-5-mini" });
   await expect(repair).not.toBeChecked();
   await repair.click();
   await expect
@@ -382,7 +382,7 @@ test("picking a connection writes EXACTLY that task's binding", async ({ mount, 
   await mount(<ConnectionsSettingsStory />);
 
   await roleSelect(page, "Text embedding").click();
-  await page.getByRole("option", { name: "Local embedder · Qwen/Qwen3-VL-Embedding-2B" }).click();
+  await page.getByRole("option", { name: "Local embedder · Qwen3-VL-Embedding-2B" }).click();
 
   await expect
     .poll(() => recorder.lastInput("connection.setBinding"), { intervals: [20, 50, 100] })
@@ -409,13 +409,13 @@ test("an unreconciled pick says 'Not applied yet' and still names what a turn US
   await expect(chat).toContainText("OpenRouter · Claude Sonnet 5");
 
   await chat.click();
-  await page.getByRole("option", { name: "Cheap utility · openai/gpt-5-mini" }).click();
+  await page.getByRole("option", { name: "Cheap utility · gpt-5-mini" }).click();
 
   // The steady sentence is GONE and the divergence sentence names the PERSISTED row — never the pick. A
   // surface that painted "Running on Cheap utility" here would be the 2026-08-01 phantom again.
-  await expect(page.getByText("Not applied yet — still running on OpenRouter · Claude Sonnet 5 · anthropic/claude-sonnet-5.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Not applied yet — still running on OpenRouter · Claude Sonnet 5 · claude-sonnet-5.", { exact: true })).toBeVisible();
   await expect(persisted).toHaveCount(0);
-  await expect(page.getByText("Running on Cheap utility · openai/gpt-5-mini.")).toHaveCount(0);
+  await expect(page.getByText("Running on Cheap utility · gpt-5-mini.")).toHaveCount(0);
 
   release();
 });
@@ -754,9 +754,7 @@ test.describe("coarse pointer — the row's picker and its repair switch meet th
 
     // SCOPED to the roles section: the connection LIST row carries a switch with the IDENTICAL name, which
     // is §5.3a's intent (one switch, named one way on both surfaces) and a page-wide locator's ambiguity.
-    const repair = page
-      .locator("#config-anchor-connections-model-roles")
-      .getByRole("switch", { name: "Allow background work on Cheap utility · openai/gpt-5-mini" });
+    const repair = page.locator("#config-anchor-connections-model-roles").getByRole("switch", { name: "Allow background work on Cheap utility · gpt-5-mini" });
     await expect(repair).toBeVisible();
     await expect(repair).toBeInViewport();
     await expect.poll(async () => await hitExtent(repair, "y"), { intervals: [20, 50, 100, 200] }).toBeGreaterThanOrEqual(floor);

@@ -5,6 +5,7 @@
 // row gets it back on the next seed without duplicating the other one. Every id comes from the injected
 // minters, so the assertions are deterministic.
 
+import { LOCAL_LIGHT_SEED_ROWS } from "@orb/contracts/inference";
 import { connectionBindings, userConnections } from "@orb/db";
 import type { ConnectionBindingId, UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -15,6 +16,9 @@ import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
 import { seedUser } from "../_support.ts";
+
+// The two seeded labels, in the order the sorted read returns them.
+const SEED_LABELS: readonly string[] = LOCAL_LIGHT_SEED_ROWS.map((seed) => seed.label).toSorted((a, b) => (a < b ? -1 : 1));
 
 /** The injected deps. `serial` keeps ids unique across seeds in one test (the PK is global, not per owner). */
 function seedDeps(db: Awaited<ReturnType<typeof freshDb>>, serial = 0): Parameters<typeof seedLocalLightConnections>[0] {
@@ -39,7 +43,7 @@ test("seeds the two vector rows plus their two `user` bindings", async () => {
   const owner = await seedUser(db, "user_a");
   expect(await seedLocalLightConnections(seedDeps(db), owner)).toBe(2);
   const rows = await db.select().from(userConnections).where(eq(userConnections.ownerId, owner));
-  expect(rows.map((row) => row.label).toSorted()).toEqual(["local-light · encoder", "local-light · reranker"]);
+  expect(rows.map((row) => row.label).toSorted()).toEqual(SEED_LABELS);
   expect(rows.every((row) => row.providerId === "local-light" && row.allowBackground)).toBe(true);
   const bindings = await db.select().from(connectionBindings).where(eq(connectionBindings.userId, owner));
   expect(bindings.map((row) => row.task).toSorted()).toEqual(["embed", "rerank"]);
@@ -94,10 +98,10 @@ test("re-seeds a row the user DELETED — and does NOT silently re-point the bin
   const db = await freshDb();
   const owner = await seedUser(db, "user_a");
   await seedLocalLightConnections(seedDeps(db), owner);
-  await db.delete(userConnections).where(and(eq(userConnections.ownerId, owner), eq(userConnections.label, "local-light · reranker")));
+  await db.delete(userConnections).where(and(eq(userConnections.ownerId, owner), eq(userConnections.label, LOCAL_LIGHT_SEED_ROWS[1].label)));
   expect(await seedLocalLightConnections(seedDeps(db, 1), owner), "exactly the missing row comes back").toBe(1);
   const rows = await db.select().from(userConnections).where(eq(userConnections.ownerId, owner));
-  expect(rows.map((row) => row.label).toSorted()).toEqual(["local-light · encoder", "local-light · reranker"]);
+  expect(rows.map((row) => row.label).toSorted()).toEqual(SEED_LABELS);
   // The delete SET NULL the binding, and a task that already HAS a row is never re-written: the user's
   // `rerank` reads `no-connection` until they pick from the picker, exactly like any other unset task.
   const rerank = (
