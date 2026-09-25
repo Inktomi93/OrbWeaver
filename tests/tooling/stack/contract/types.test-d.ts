@@ -1,9 +1,6 @@
-// Type-level pin for the stack grammar + identity vocabulary. Three properties no runtime test can see:
-//   • the shell's dispatch table is TOTAL over `StackVerb` — `formatDispatch` maps every verb to a
-//     stack.sh case label through a `Record<StackVerb, string>`, so a verb added to the tuple without a
-//     shell label fails tsc, never at 2am in a launcher;
+// Type-level pin for the stack grammar + identity vocabulary. Two properties no runtime test can see:
 //   • the parse result is a DISCRIMINATED union — an `ok:false` result carries no `invocation`, so a
-//     caller cannot read one without narrowing (the shell exits 2 on the error arm);
+//     caller cannot read one without narrowing (the cli exits 2 on the error arm);
 //   • every identity verdict the classifier can emit is a verdict the up/down deciders handle.
 import { expectTypeOf, test } from "vitest";
 import type { InstanceClassification, InstanceVerdict, STACK_VERBS, StackParse, StackVerb } from "../../../../tooling/src/stack/index.ts";

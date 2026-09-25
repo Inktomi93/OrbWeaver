@@ -10,7 +10,6 @@ import {
   AUTH_MODE_KEY,
   BIND_HOST_KEY,
   decideSetup,
-  isWsl2Kernel,
   openUrls,
   PORT_KEY,
   parseAddressAnswer,
@@ -228,13 +227,6 @@ test("the URLs to open list LAN IPv4 first, then tailnet, then the .local name, 
   ]);
   // Under WSL2 every address above is the VM's own: none is printed as if another device could open it.
   expect(openUrls({ ...machine, wsl: true }, 9100)).toEqual([]);
-});
-
-test("WSL2 is told apart from WSL1 and plain Linux by the kernel's own version line", () => {
-  expect(isWsl2Kernel("Linux version 5.15.153.1-microsoft-standard-WSL2 (root@1c0f1e4c) (gcc)")).toBe(true);
-  // WSL1 shares Windows' network stack, so its addresses are the LAN's.
-  expect(isWsl2Kernel("Linux version 4.4.0-19041-Microsoft (Microsoft@Microsoft.com) (gcc version 5.4.0)")).toBe(false);
-  expect(isWsl2Kernel("Linux version 7.0.0-31-generic (buildd@lcy02) (gcc)")).toBe(false);
 });
 
 test("ALLOWED_HOSTS is offered back as the default and edited in place like the other owned keys", () => {

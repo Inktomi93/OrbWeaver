@@ -70,7 +70,7 @@ Everything the app keeps is in `data/`, or wherever `DATA_DIR` points. Stop the 
 
 ### Work on the code
 
-`pnpm dev` runs the watched server and the vite client from source in this terminal; open <http://localhost:5173>. The server restarts on a source change, and Ctrl-C stops both. The checks (`pnpm check`, the test harness) need Linux or WSL2. `pnpm stack up` is the maintainers' Linux supervisor for the same dev stack.
+`pnpm dev` runs the watched server and the vite client from source in this terminal; open <http://localhost:5173>. The server restarts on a source change, and Ctrl-C stops both. The checks (`pnpm check`, the test harness) need Linux or WSL2. `pnpm stack up` runs the same dev stack detached, and `pnpm stack down` stops it.
 
 ## Read first
 

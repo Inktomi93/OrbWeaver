@@ -1,24 +1,20 @@
 // Every DECISION `pnpm start` makes (tooling/src/stack/lib/start-plan.ts, through the tool front door):
-// the build decision, the single-user AUTH_FALLBACK fill, the spawn-plan reuse, the banner and the
-// platform-parameterised pnpm resolution.
+// the build decision, the single-user AUTH_FALLBACK fill, the spawn-plan reuse and the banner. The
+// platform-parameterised pnpm resolution is the platform module's, proven in tests/tooling/_shared/.
 //
 // WHY THIS IS THE PROOF AND NOT A LIVE DRIVE: booting the real thing binds the operator's :8788 (the same
 // refusal `tests/tooling/stack/index.test.ts` records for `stack up prod`), and the answers that matter
 // most here are for macOS and WINDOWS — platforms this box does not have. Every platform-sensitive answer
-// is therefore a value computed from `{platform, env}`, and the win32 arm is asserted from Linux with a
-// `path.win32` execpath. A real Linux boot receipt (`pnpm start --no-build`, healthz, SIGINT → 130) is in
-// the lane report; a macOS/Windows boot remains unverified by construction.
+// is therefore a value computed from `{platform, env}`. A macOS/Windows boot remains unverified by construction.
 import { readFileSync, writeFileSync } from "node:fs";
-import { join, win32 } from "node:path";
+import { join } from "node:path";
 import { parseEnv } from "node:util";
 import { SETUP_COMMAND } from "@orb/contracts/identity";
 import { SERVER_ENTRY_REL } from "@orb/tooling/_shared/server-entry";
 import {
   decideStartBuild,
   effectiveAuthMode,
-  PNPM_EXECPATH_ENV,
   parseStartArgv,
-  resolvePnpmInvocation,
   restateFileEnv,
   shareLaunchRefusal,
   singleUserFallbackEnv,
@@ -127,47 +123,6 @@ test("the spawn is the SHARED prod plan — same argv and cwd, NODE_ENV=producti
 test("with no fallback to fill, the child env carries no AUTH_FALLBACK at all", () => {
   const plan = startSpawnPlan({ repoRoot: "/repo", nodePath: "/usr/bin/node", baseEnv: {}, launchEnv: {}, logPath: "/l" });
   expect(plan.env["AUTH_FALLBACK"]).toBeUndefined();
-});
-
-test("pnpm resolves through npm_execpath — node runs pnpm's own JS entry, which is the ONLY win32-safe spelling", () => {
-  // The win32 arm, asserted from Linux: PATH there holds `pnpm.cmd`, which node refuses to spawn without
-  // `shell: true` — so the answer must be `<node> <pnpm.cjs>` and never the bare name.
-  const windowsExecpath = win32.join("C:\\", "Users", "stranger", "AppData", "Local", "pnpm", "pnpm.cjs");
-  const onWindows = resolvePnpmInvocation({
-    ambient: Object.fromEntries([[PNPM_EXECPATH_ENV, windowsExecpath]]),
-    platform: "win32",
-    nodePath: "C:\\Program Files\\nodejs\\node.exe",
-    args: ["build"],
-  });
-  expect(onWindows).toEqual({ kind: "node", command: "C:\\Program Files\\nodejs\\node.exe", args: [windowsExecpath, "build"] });
-
-  const onLinux = resolvePnpmInvocation({
-    ambient: Object.fromEntries([[PNPM_EXECPATH_ENV, "/home/u/.cache/node/corepack/v1/pnpm/11.15.1/bin/pnpm.cjs"]]),
-    platform: "linux",
-    nodePath: "/usr/bin/node",
-    args: ["build"],
-  });
-  expect(onLinux.kind).toBe("node");
-});
-
-test("without npm_execpath: POSIX falls back to `pnpm` on PATH, win32 REFUSES and names the fix", () => {
-  const posix = resolvePnpmInvocation({ ambient: {}, platform: "darwin", nodePath: "/usr/local/bin/node", args: ["build"] });
-  expect(posix).toEqual({ kind: "path", command: "pnpm", args: ["build"] });
-
-  const windows = resolvePnpmInvocation({ ambient: {}, platform: "win32", nodePath: "node.exe", args: ["build"] });
-  expect(windows.kind).toBe("refused");
-  // A refusal that does not tell a stranger what to type is the same dead end as a spawn failure.
-  expect(windows.kind === "refused" ? windows.reason : "").toContain("pnpm start");
-});
-
-test("a non-JS npm_execpath is not treated as a JS entry (a `.cmd`/shim path takes the platform arm instead)", () => {
-  const shimmed = resolvePnpmInvocation({
-    ambient: Object.fromEntries([[PNPM_EXECPATH_ENV, win32.join("C:\\", "npm", "pnpm.cmd")]]),
-    platform: "win32",
-    nodePath: "node.exe",
-    args: ["build"],
-  });
-  expect(shimmed.kind).toBe("refused");
 });
 
 test("the banner is five short lines: the URL, who can log in, how to let another device in, and Ctrl-C", () => {

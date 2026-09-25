@@ -6,7 +6,6 @@
 // here IS the application serving the operator's requests — a `nice -19` production server degrades the
 // very thing the launcher exists to run.
 import { mkdirSync, writeFileSync } from "node:fs";
-import { constants as osConstants } from "node:os";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { print, REPO_ROOT } from "../../_shared/artifacts.ts";
@@ -15,7 +14,7 @@ import type { ExitCode } from "../../_shared/exit-contract.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { warn } from "../../_shared/log.ts";
 import { spawnFullPriorityChild } from "../../_shared/proc.ts";
-import { procStartTicks } from "../../_shared/proc-stat.ts";
+import { childExitCode, forwardSignalsTo } from "../../_shared/proc-signals.ts";
 import { SERVER_ENTRY_REL } from "../../_shared/server-entry.ts";
 import type { ProdRecord, StackInvocation } from "../contract/types.ts";
 import { debugConflictMessage, resolveDebugArming } from "../lib/debug-env.ts";
@@ -46,14 +45,11 @@ import {
 } from "./prod-state.ts";
 import { buildClient, debugToken, distVerdict, removePidfile, reportDebugPosture, tailLog } from "./prod-support.ts";
 
-refuseDirectInvocation(import.meta.url, "bash tooling/src/stack/stack.sh <verb>");
+refuseDirectInvocation(import.meta.url, "pnpm stack <verb> prod");
 
 const BOOT_POLL_MAX_MS = 120_000;
 // Log lines echoed when a boot dies or times out — enough to carry a stack trace, short enough to read.
 const BOOT_FAILURE_LOG_LINES = 20;
-// The shell convention for "process killed by signal N": exit 128+N. Foreground prod mirrors its child's
-// exit faithfully so a script (or CI) reading `$?` sees exactly what a bare `node <entry>.ts` would report.
-const SIGNAL_EXIT_BASE = 128;
 
 /** Resolve `--debug` into a spawn overlay, or refuse loudly. `undefined` = debug was not asked for; `null`
  *  = REFUSED (the caller returns EXIT.violations without touching the running instance). */
@@ -173,7 +169,6 @@ async function spawnProdLocked(port: number, debug: boolean, overlay: Readonly<R
     pgid: pid,
     port,
     startedAt: new Date().toISOString(),
-    startTicks: procStartTicks(pid) ?? "",
     debug,
     repoRoot: REPO_ROOT,
     logPath: plan.logPath,
@@ -212,10 +207,10 @@ async function spawnProdLocked(port: number, debug: boolean, overlay: Readonly<R
   return EXIT.violations;
 }
 
-/** `start-fg prod` — run the PRODUCTION server in the FOREGROUND: `NODE_ENV=production node <entry>.ts` in
+/** `up-fg prod` — run the PRODUCTION server in the FOREGROUND: `NODE_ENV=production node <entry>.ts` in
  *  THIS terminal, stdio inherited, the CALLER supervising and reaping it (Ctrl-C stops it). No detach, no
- *  pidfile — the on-box direct run that replaced the removed `pnpm start`. Foreground OWNS the port it
- *  boots: any live listener, ours or foreign, is a refusal (two servers cannot both bind :port). */
+ *  pidfile. Foreground OWNS the port it boots: any live listener, ours or foreign, is a refusal (two
+ *  servers cannot both bind :port). */
 export async function doUpFg(invocation: StackInvocation): Promise<ExitCode> {
   const fileEnv = readEnvFile();
   const port = resolvePort(fileEnv);
@@ -249,19 +244,21 @@ async function spawnProdForeground(port: number, overlay: Readonly<Record<string
   });
   log(`foreground — NODE_ENV=production node ${SERVER_ENTRY_REL} on :${port}. This terminal owns it (Ctrl-C to stop); no pidfile.`);
   const child = spawnFullPriorityChild(plan.command, plan.args, { cwd: plan.cwd, env: { ...plan.env }, stdio: "inherit" });
-  // The child shares this process group + terminal, so Ctrl-C (SIGINT) reaches it directly. We register our
-  // OWN handlers so a signal does not kill this launcher before the child finishes its bounded drain — we
-  // forward the signal and resolve on the child's exit, mirroring its status.
-  const forward = (signal: NodeJS.Signals): void => child.kill(signal);
-  process.on("SIGINT", () => forward("SIGINT"));
-  process.on("SIGTERM", () => forward("SIGTERM"));
-  process.on("SIGHUP", () => forward("SIGHUP"));
+  // Our own handlers keep a signal from killing this launcher before the child finishes its bounded drain:
+  // the signal is passed on and the launcher resolves on the child's exit, mirroring its status.
+  forwardSignalsTo(
+    { noteStop: (): void => undefined, kill: (signal): void => child.kill(signal) },
+    (signal, handler) => {
+      process.on(signal, handler);
+    },
+    process.platform,
+  );
   const exit = await child.wait();
   if (exit.error !== undefined) {
     log(`spawn failed — ${exit.error.message}`);
     return EXIT.violations;
   }
-  return (exit.signal === null ? (exit.code ?? 0) : SIGNAL_EXIT_BASE + osConstants.signals[exit.signal]) as ExitCode;
+  return childExitCode(exit) as ExitCode;
 }
 
 /** `restart` — BUILD FIRST, then stop. A restart --build that stopped the server first would open a window

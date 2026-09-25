@@ -1,5 +1,5 @@
 // @instrument-proof: #1837's SECOND defect — a stage that never served a settled app stayed UP. Two lanes on
-// 2026-09-06 killed its ~7-process group by hand (the stack leader, dev.sh, the node watchers) after it sat
+// 2026-09-06 killed its ~7-process group by hand (the stack leader, the node watchers) after it sat
 // on a band for 16 minutes; nothing reaped it before the 60 min keeper TTL, and every reuse in between would
 // have inherited the same dead app. This pins the arm that ends it: a PLANTED readiness failure against a
 // stage this run booted must leave ZERO of that stage's processes alive, clear the row, and say which arm

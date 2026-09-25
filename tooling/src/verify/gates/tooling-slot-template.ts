@@ -1,11 +1,11 @@
 // Policy: tooling-slot-template (docs/law/Core-Tooling-Law.md §4.1) — the five-slot tool template.
 // Arms: (A) a loose file at tooling/src/ root; (B) a tool dir missing index.ts, or missing cli.ts
-// without a BASH_FRONTED_TOOLS row AND without being an ENGINE DIR — a dir some file under snap/ imports
-// through `<tool>/index.ts` (owner ask 2026-09-06, #1315: Snap is the sole rendered front door, so the
-// engines behind its arms own no argv door; DERIVED from snap's import specifiers, never a row); (C) a tool-root entry outside {cli.ts,index.ts,contract/,ops/,lib/}
-// (+ *.sh for bash-fronted rows); (D) a subdir under _shared/ (the plumbing floor is FLAT by design);
-// (E) stale BASH_FRONTED_TOOLS row (no such dir, or the dir grew a cli.ts); (F) stale CORPUS_SLOTS row
-// (no such tool dir, or the named slot dir is gone). Comment posture: fs-shape only, comment-SAFE.
+// without being an ENGINE DIR — a dir some file under snap/ imports through `<tool>/index.ts` (owner ask
+// 2026-09-06, #1315: Snap is the sole rendered front door, so the engines behind its arms own no argv
+// door; DERIVED from snap's import specifiers, never a row); (C) a tool-root entry outside
+// {cli.ts,index.ts,contract/,ops/,lib/}; (D) a subdir under _shared/ (the plumbing floor is FLAT by
+// design); (F) stale CORPUS_SLOTS row (no such tool dir, or the named slot dir is gone). Comment
+// posture: fs-shape only, comment-SAFE.
 //
 // The legacy descriptor walked `tooling/src` with `existsSync`/`readdirSync` and received every harness
 // candidate although it read only tooling source for the engine clause. The final hard resource policy uses
@@ -21,14 +21,6 @@ const TOOLING_SRC = "tooling/src";
 const SHARED = "_shared";
 const TOOL_ROOT_FILES = new Set(["cli.ts", "index.ts"]);
 const TOOL_SLOT_DIRS = new Set(["contract", "ops", "lib"]);
-
-/** Tools whose ENTRYPOINT is bash (`.sh` at the tool root, no cli.ts required). Stale arm E reds a row
- *  naming a dead dir or a dir that has grown a cli.ts (the row then exempts nothing and must go). */
-const BASH_FRONTED_TOOLS: Readonly<Record<string, { readonly why: string }>> = {
-  stack: {
-    why: "the pgid/setsid/process-group choreography IS the tool (stack.sh · dev.sh, plus the shell they call: multi-user-fixture.sh); the TS half under ops/ holds only the decisions the shell asks for. Ends if stack grows a cli.ts or the shells leave the tool root",
-  },
-};
 
 /** Tools carrying ONE extra slot dir beyond `{contract,ops,lib}` because their subject is a PLUGIN CORPUS
  *  the tool loads rather than code the tool calls. Stale arm F reds a row whose tool or slot dir is gone.
@@ -85,7 +77,6 @@ function toolDirViolations(entries: readonly ResourceTreeEntry[], tool: string, 
   const rel = `${TOOLING_SRC}/${tool}`;
   const members = children(entries, rel);
   const names = new Set(members.map((entry) => entry.path.slice(rel.length + 1)));
-  const bashFronted = tool in BASH_FRONTED_TOOLS;
   if (!names.has("index.ts")) {
     out.push({
       file: rel,
@@ -93,10 +84,10 @@ function toolDirViolations(entries: readonly ResourceTreeEntry[], tool: string, 
     });
   }
   // An ENGINE dir (index.ts entered by a snap arm) owns no argv door: Snap is the sole rendered front door.
-  if (!(names.has("cli.ts") || bashFronted || (names.has("index.ts") && engines.has(tool)))) {
+  if (!(names.has("cli.ts") || (names.has("index.ts") && engines.has(tool)))) {
     out.push({
       file: rel,
-      message: `tool "${tool}" has no cli.ts — the argv front door is mandatory, or a BASH_FRONTED_TOOLS row, or the dir is an ENGINE a snap arm enters through its index.ts (docs/law/Core-Tooling-Law.md §4.1)`,
+      message: `tool "${tool}" has no cli.ts — the argv front door is mandatory, or the dir is an ENGINE a snap arm enters through its index.ts (docs/law/Core-Tooling-Law.md §4.1)`,
     });
   }
   for (const entry of members) {
@@ -110,7 +101,7 @@ function toolDirViolations(entries: readonly ResourceTreeEntry[], tool: string, 
       }
       continue;
     }
-    if (TOOL_ROOT_FILES.has(name) || (bashFronted && name.endsWith(".sh"))) {
+    if (TOOL_ROOT_FILES.has(name)) {
       continue;
     }
     out.push({
@@ -175,29 +166,8 @@ function staleCorpusRows(entries: readonly ResourceTreeEntry[]): readonly FsViol
   return out;
 }
 
-function staleBashRows(entries: readonly ResourceTreeEntry[]): readonly FsViolation[] {
-  const out: FsViolation[] = [];
-  for (const [tool, row] of Object.entries(BASH_FRONTED_TOOLS)) {
-    const dir = `${TOOLING_SRC}/${tool}`;
-    if (!hasPath(entries, dir, "directory")) {
-      out.push({
-        file: entries[0]?.path ?? TOOLING_SRC,
-        message: `stale BASH_FRONTED_TOOLS row "${tool}" — no such tool dir (row why: ${row.why}). Delete the row (docs/law/Core-Tooling-Law.md §4.1).`,
-      });
-    } else if (hasPath(entries, `${dir}/cli.ts`, "file")) {
-      out.push({
-        file: `${TOOLING_SRC}/${tool}/cli.ts`,
-        message: `BASH_FRONTED_TOOLS row "${tool}" is stale — the tool has a cli.ts now. Delete the row (docs/law/Core-Tooling-Law.md §4.1).`,
-      });
-    }
-  }
-  return out;
-}
-
 // Every proof includes the classified homes: liveness is part of the policy on every corpus.
 const CLASSIFIED_HOMES = {
-  "tooling/src/stack/index.ts": "export {};\n",
-  "tooling/src/stack/stack.sh": "#!/bin/sh\n",
   "tooling/src/verify/index.ts": "export {};\n",
   "tooling/src/verify/cli.ts": "export {};\n",
   "tooling/src/verify/gates/example.ts": "export {};\n",
@@ -215,14 +185,14 @@ export const gate = defineGate({
   resources: [{ kind: "authored-tree", id: "tooling-slot" }],
   message:
     "a @orb/tooling tree entry violates the five-slot tool template — every tool is cli.ts + index.ts + {contract/,ops/,lib/}; _shared/ is flat plumbing; nothing else lives at a tool root (docs/law/Core-Tooling-Law.md §2.5/§4.1).",
-  fix: "add the missing front door, move the stray into ops//lib/, (bash-fronted) add the BASH_FRONTED_TOOLS row with its why, or (an engine) enter it from a snap arm through its index.ts — an engine dir owns no cli.ts.",
+  fix: "add the missing front door, move the stray into ops//lib/, or (an engine) enter it from a snap arm through its index.ts — an engine dir owns no cli.ts.",
   create: (ctx) => ({
     evaluate: () => {
       const entries = readyResourceValue(ctx.resources.authoredTree("tooling-slot"));
       for (const violation of scanTree(entries, engineTools(ctx.files, ctx.relativePath))) {
         ctx.report.file(violation.file, { line: 1, column: 1, message: violation.message });
       }
-      for (const violation of [...staleBashRows(entries), ...staleCorpusRows(entries)]) {
+      for (const violation of staleCorpusRows(entries)) {
         ctx.report.file(violation.file, { line: 1, column: 1, message: violation.message });
       }
     },

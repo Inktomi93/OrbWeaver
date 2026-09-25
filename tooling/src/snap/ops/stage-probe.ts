@@ -18,7 +18,7 @@ import { budget } from "../../_shared/load-budget.ts";
 import { killPidGroup, runNicedSync } from "../../_shared/proc.ts";
 import type { ServedState } from "../../stack/index.ts";
 import type { EstablishedConnection, StagePorts } from "../contract/stage.ts";
-import { STAGE_ROOT_REL, stageBaseUrl } from "../lib/stage-plan.ts";
+import { STAGE_ROOT_REL, stageBaseUrl, stageServedProbeSpawn } from "../lib/stage-plan.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -144,8 +144,8 @@ export function bandIsBound(ports: StagePorts, bound: ReadonlyMap<number, number
 /** Is the process holding a band port actually a SNAP STAGE? The sweep's one hard fence (#324): a stage
  *  runs out of `.cache/snap-stage/<key>/`, so both its cwd and its argv name that path, and anything else
  *  on a band port — the dev stack on a mis-set PORT, an unrelated server — is never ours to kill. Both
- *  signals are read because either alone can be missing (a `/proc` we cannot readlink; a `stack.sh` child
- *  re-exec'd with a bare argv). No signal at all ⇒ FALSE: "I could not identify it" is not "it is a stage". */
+ *  signals are read because either alone can be missing (a `/proc` we cannot readlink; a child re-exec'd
+ *  with a bare argv). No signal at all ⇒ FALSE: "I could not identify it" is not "it is a stage". */
 export function pidIsStageRooted(pid: number): boolean {
   const cwd = runNicedSync("readlink", ["-f", `/proc/${pid}/cwd`]);
   if (cwd.status === 0 && cwd.stdout.includes(STAGE_ROOT_REL)) {
@@ -166,7 +166,7 @@ export function pidElapsedSeconds(pid: number): number | null {
   return Number.isFinite(seconds) ? seconds : null;
 }
 
-/** Kill a pid's whole PROCESS GROUP — a stage leader is `stack.sh` with dev.sh/node/vite children, and
+/** Kill a pid's whole PROCESS GROUP — a stage leader is the stack cli with node and vite children, and
  *  killing the leader alone leaves exactly the orphans #324 is about. Returns whether a group was named. */
 export function killProcessGroup(pid: number): boolean {
   const pgid = runNicedSync("ps", ["-o", "pgid=", "-p", String(pid)]).stdout.trim();
@@ -202,20 +202,19 @@ export function stageViteOk(vitePort: number): boolean {
 /** Probe 3 of 3: is that vite serving the code that is ON DISK, or a transform from before its watcher died?
  *
  *  THE VERB ALREADY EXISTS and is not re-spelled here: `tooling/src/stack/ops/served-probe.ts`, reached
- *  through `prod-entry.ts served-probe` exactly as `stack.sh`'s `served_probe()` reaches it (`stack.sh:441`).
- *  We run the STAGE'S OWN COPY of it, from the stage dir, with the stage's `VITE_PORT` — so the comparison is
- *  that tree's disk source against that tree's vite, never ours against theirs.
+ *  through the stack cli's `served-probe` verb. We run the STAGE'S OWN COPY of it, from the stage dir, with
+ *  the stage's `VITE_PORT` — so the comparison is that tree's disk source against that tree's vite, never
+ *  ours against theirs.
  *
- *  A child, not an import, for one reason: the whole stage path is SYNCHRONOUS (spawnSync boots, `ss`
- *  probes, JSON writes) and `probeServedTransform` is async. The bash front door already spawns it; this is
- *  the same door from node.
+ *  A child, not an import, for one reason: the whole stage path is SYNCHRONOUS (spawnSync boots, socket
+ *  probes, JSON writes) and `probeServedTransform` is async.
  *
  *  Exit codes are the stack tool's contract: 0 fresh · 1 stale · 2 could-not-measure. A ref whose tree
  *  predates the probe entry has nothing to run, which is `unverifiable` — an honest "I could not measure",
  *  which `stageHealthVerdict` then reads by source kind. */
 export function stageServedState(stageDir: string, vitePort: number): ServedState {
-  const entry = join(stageDir, "tooling", "src", "stack", "ops", "prod-entry.ts");
-  if (!existsSync(entry)) {
+  const spawn = stageServedProbeSpawn(stageDir, existsSync, process.execPath);
+  if (spawn === null) {
     return "unverifiable";
   }
   const env: NodeJS.ProcessEnv = {
@@ -223,7 +222,7 @@ export function stageServedState(stageDir: string, vitePort: number): ServedStat
     ...process.env,
     VITE_PORT: String(vitePort),
   };
-  const res = runNicedSync("node", [entry, "served-probe"], { cwd: stageDir, env, timeout: budget(SERVED_PROBE_BASE_MS) });
+  const res = runNicedSync(spawn.command, spawn.args, { cwd: stageDir, env, timeout: budget(SERVED_PROBE_BASE_MS) });
   const state = SERVED_STATE_RE.exec(res.stdout);
   if (state === null) {
     return "unverifiable";

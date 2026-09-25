@@ -29,7 +29,7 @@ interface UserRow {
   readonly handle?: string;
 }
 
-/** The fixture contract arrives as env from the launcher (multi-user-fixture.sh) so the shell and this tool
+/** The fixture contract arrives as env from the launcher (`pnpm fixture`, the stack tool's recipe) so the launcher and this tool
  *  share ONE source of truth. SEED_BASE_URL has NO default: an unset-env default of the operator's LIVE dev
  *  stack (8788) is the exact fail-open shape that once rewrote the operator's real `routing.roleDefaults` in
  *  globalSetup — one missing export away from repeating. */

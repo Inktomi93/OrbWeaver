@@ -1,13 +1,12 @@
 // A HEALTH CHECK VALIDATES THE PORT, NOT YOUR PROCESS. A stale incumbent answers `/healthz` happily.
 // Adopt/stop decisions therefore need an INSTANCE IDENTITY: the pid the port's listener actually belongs
-// to (or `/api/_debug/info`'s `pid` when the debug surface is armed), matched against the pidfile record
-// INCLUDING /proc start-ticks so pid reuse cannot spoof it.
+// to (or `/api/_debug/info`'s `pid` when the debug surface is armed), matched against the pidfile record.
 import type { InstanceClassification, ObservedInstance, ProdRecord, UpAction } from "../contract/types.ts";
 
 /** THE identity decision — [[health-check-validates-the-port-not-your-process]] in code.
  *
  *  Order matters: the harness stamp is checked FIRST (a battery-owned stack must be untouchable even if
- *  something about our record coincidentally matched), then pid identity, then start-ticks. */
+ *  something about our record coincidentally matched), then pid identity. */
 export function classifyInstance(opts: {
   readonly record: ProdRecord | null;
   readonly observed: ObservedInstance;
@@ -37,9 +36,6 @@ export function classifyInstance(opts: {
   }
   if (observed.listenerPid !== null && observed.listenerPid !== record.pid) {
     return { verdict: "foreign", reason: `the port is held by pid ${observed.listenerPid}, but our record says pid ${record.pid}` };
-  }
-  if (record.startTicks !== "" && observed.listenerStartTicks !== null && observed.listenerStartTicks !== record.startTicks) {
-    return { verdict: "foreign", reason: `pid ${record.pid} matches but its start time does not — the pid was recycled by an unrelated process` };
   }
   return observed.healthy
     ? { verdict: "ours-healthy", reason: `pid ${record.pid} verified by identity and answering /healthz` }

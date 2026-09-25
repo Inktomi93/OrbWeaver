@@ -1,53 +1,40 @@
 // ── fixture: the multi-user FIXTURE stack door for `snap --contexts`/`--as` ──────────────────────────
 //
 // WHY THIS EXISTS: `--contexts N` needs ≥2 DIFFERENT authenticated dev users to prove multi-human chat
-// states (host vs member views). The SHARED dev stack (:5173/:8788, tooling/src/stack/stack.sh) always boots
+// states (host vs member views). The SHARED dev stack (:5173/:8788, `pnpm stack up`) always boots
 // AUTH_MODE=single-user — one user, no login form, nothing to authenticate AS. The only door with a real
-// local-login form + a second user is `tooling/src/stack/multi-user-fixture.sh`. This module never
-// boots/stops that stack itself (unlike snap-stage.ts's `--isolated`) — it only DETECTS whether the fixture
+// local-login form + a second user is the fixture (`pnpm fixture up`, the stack tool's env recipe). This
+// module never boots/stops that stack itself (unlike snap-stage.ts's `--isolated`) — it only DETECTS whether the fixture
 // is up and healthy, and resolves its known credentials; bringing it up is `pnpm fixture up`, a
 // human/orchestrator call, not something a screenshot tool silently does.
 //
-// PORTS — AN OFFSET PAIR, SO THE FIXTURE IS A SIDECAR (fixed 2026-08-03): the fixture used to reuse
-// stack.sh's own 8788/5173, which made `--contexts` unusable whenever the owner's dev stack was up (they
-// were mutually exclusive tenants of one port pair). It now boots on 8790/5175 with its own DB, assets and
-// stack pidfile, so BOTH stacks run at once — the same isolation recipe every e2e mode uses
-// (tests/e2e/support/modes.ts). The pair itself is READ from `_shared/ports.ts` (`FIXTURE_PORTS`), which is
-// where multi-user-fixture.sh's defaults are mirrored — this module no longer respells them, so the only
-// hand-lockstep left here is the credentials below;
+// PORTS — AN OFFSET PAIR, SO THE FIXTURE IS A SIDECAR: the fixture boots on its own pair with its own DB,
+// assets and stack record, so BOTH stacks run at once — the same isolation recipe every e2e mode uses
+// (tests/e2e/support/modes.ts). The pair is READ from `_shared/ports.ts` (`FIXTURE_PORTS`) and the
+// credentials from the stack tool's own recipe, so nothing is respelled here;
 // `resolveFixtureTarget` is the ONE seam every port/URL decision flows through, so an override
 // (`--fixture-server`/`--fixture-base`, or SNAP_FIXTURE_SERVER_URL/SNAP_FIXTURE_BASE_URL) reaches the
 // health probe AND the browser's base URL together — never one without the other.
 //
 // AUTH DOOR: the same one a browser uses — `POST /api/auth/login` (handle+password form → the session
-// cookie), never a bypass. Credentials mirror multi-user-fixture.sh's own defaults
-// (its header docstring): owner/owner-dev-pass, member/member-dev-pass. A handle outside this map (or a
-// `--contexts N` bigger than the fixture actually seeds) is a loud refusal, never a guess.
+// cookie), never a bypass. A handle outside the fixture's roster (or a `--contexts N` bigger than the
+// fixture actually seeds) is a loud refusal, never a guess.
 
 import process from "node:process";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { FIXTURE_PORTS } from "../../_shared/ports.ts";
 import { runNicedSync } from "../../_shared/proc.ts";
 import { SESSION_COOKIE_MINTED } from "../../_shared/session-cookie.ts";
+import { FIXTURE_CREDENTIALS } from "../../stack/index.ts";
 import type { AuthConfig, FixtureStatus, FixtureTarget, FixtureTargetOverride, PortOwnerAuthProbe } from "../contract/fixture.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
-// The fixture's OFFSET pair comes from the ONE port registry (_shared/ports.ts `FIXTURE_PORTS`, which
-// mirrors multi-user-fixture.sh's FIXTURE_PORT/FIXTURE_VITE_PORT defaults) — NOT the dev stack's pair, so
-// both run side by side. It used to be two literals respelled here (#1271). `localhost` for the vite
-// origin, 127.0.0.1 for the server: vite v8 binds [::1] only (see stack.sh's vite_ok()).
+// The fixture's OFFSET pair comes from the ONE port registry (_shared/ports.ts `FIXTURE_PORTS`) — NOT the
+// dev stack's pair, so both run side by side. `localhost` for the vite origin, 127.0.0.1 for the server:
+// vite v8 binds [::1] only.
 export const FIXTURE_SERVER_URL_DEFAULT = `http://127.0.0.1:${FIXTURE_PORTS.server}`;
 export const FIXTURE_BASE_URL_DEFAULT = `http://localhost:${FIXTURE_PORTS.vite}`;
-
-// The credentials multi-user-fixture.sh mints (its own header docstring is the source of truth — kept in
-// lockstep by hand since the fixture is a shell script, not an importable module). Order is the
-// `--contexts N` default assignment order (context 0 = owner, context 1 = member); a 3rd/4th dev user
-// would need the fixture script extended first (refused below, not fabricated).
-export const FIXTURE_CREDENTIALS: readonly { readonly handle: string; readonly password: string }[] = [
-  { handle: "owner", password: "owner-dev-pass" },
-  { handle: "member", password: "member-dev-pass" },
-];
 
 const FIXTURE_UP_REMEDY = "run `pnpm fixture up`";
 
@@ -119,9 +106,8 @@ function authConfig(value: unknown): AuthConfig | null {
   };
 }
 
-/** Env-pin mismatch check ported from stack.sh's `env_pin_report` — reads the LIVE process's actual
- *  AUTH_MODE off /proc, since a `.env`-loaded or since-restarted value can drift from what a caller thinks
- *  is running.
+/** Env-pin mismatch check — reads the LIVE process's actual AUTH_MODE off /proc, since a `.env`-loaded or
+ *  since-restarted value can drift from what a caller thinks is running.
  *
  *  #1507: this used to return `boolean | null` and its own header said null meant "can't prove it's the
  *  fixture, same as a mismatch" — but `fixtureStatus` only refused on `false`, so every unprovable case
@@ -151,8 +137,8 @@ function livePortOwnerAuthMode(serverPort: number): PortOwnerAuthProbe {
  *  otherwise be fooled by: the origin answers at all, `/api/auth/config` reports `localEnabled`+
  *  `multiHumanCapable` (a single-user stack's config is `single-user`/`false`/`false` — the tell if an
  *  override aimed this at the dev stack), AND the live process's own `AUTH_MODE` env (a stale/mismatched
- *  pidfile can serve `local`-shaped config while the actual bound process is still `single-user` — the exact
- *  drift `stack.sh status` surfaces). */
+ *  record can serve `local`-shaped config while the actual bound process is still `single-user` — the exact
+ *  drift `pnpm stack status` surfaces). */
 export function fixtureStatus(target: FixtureTarget): FixtureStatus {
   return fixtureVerdict(target, {
     healthz: curlOk(`${target.serverUrl}/healthz`),
@@ -216,7 +202,7 @@ export function resolveFixtureUsers(
     const c = byHandle.get(h);
     if (c === undefined) {
       return {
-        error: `unknown fixture handle "${h}" — known dev users: ${FIXTURE_CREDENTIALS.map((u) => u.handle).join(", ")} (extend tooling/src/stack/multi-user-fixture.sh to seed more)`,
+        error: `unknown fixture handle "${h}" — known dev users: ${FIXTURE_CREDENTIALS.map((u) => u.handle).join(", ")} (extend the stack tool's fixture recipe to seed more)`,
       };
     }
     users.push(c);

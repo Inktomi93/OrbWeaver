@@ -1,19 +1,16 @@
-// Unit tests for the PURE half of mode-aware stack control (tooling/src/stack/lib/, through the tool front door) — argv
+// Unit tests for the PURE half of stack control (tooling/src/stack/lib/, through the tool front door) — argv
 // parsing, the debug env overlay + its `.env` precedence conflict, the prod spawn plan (argv/env
-// SNAPSHOTS), the pidfile codec, instance-identity classification, client-dist freshness, drain
-// classification and the /proc + `ss` parsers.
+// SNAPSHOTS), the pidfile codec, instance-identity classification, client-dist freshness and drain
+// classification.
 //
 // WHY THESE ARE UNIT TESTS AND NOT A LIVE DRIVE: a real `stack up prod` binds :8788 — the SAME port the
 // operator's live dev stack holds — and killing/booting it from a test would take the box down mid-run.
-// The launcher is proven by argv/env snapshots + the pure
-// decision logic; the first real production launch is the owner's. This file's home is tests/tooling/ per
-// docs/law/Spine-Testing.md §2 (a test of a scripts/ tool), same as snap-stage.test.ts / snap-flags.test.ts.
+// The launcher is proven by argv/env snapshots + the pure decision logic; the dev supervisor's live cycle
+// runs on a private run dir in index.int.test.ts.
 import { readFileSync } from "node:fs";
 import { SERVER_ENTRY_REL } from "@orb/tooling/_shared/server-entry";
-import type { DevStackIdentity, ObservedInstance, ProdRecord } from "../../../tooling/src/stack/index.ts";
+import type { ObservedInstance, ProdRecord } from "../../../tooling/src/stack/index.ts";
 import {
-  adoptDevStackGroup,
-  adoptionText,
   buildProdSpawnPlan,
   CLIENT_DIST_INDEX_REL,
   classifyDebugPosture,
@@ -27,25 +24,19 @@ import {
   decideDown,
   decideSpawnLock,
   decideUp,
-  devStackGroupHasMembers,
-  formatDispatch,
   lockHolderText,
   mayRemovePidfile,
-  parseDevStackIdentity,
-  parseListenerPid,
   parseLockHolder,
   parseProdRecord,
   parseStackArgv,
+  parseStackCommand,
   resolveDebugArming,
   SERVER_DRAIN_MS,
   STACK_SPAWNERS,
   serializeProdRecord,
   servedCarriesDiskBytes,
-  signalAdoptedDevStackGroup,
-  signalDevStackIdentity,
   spawnerForPort,
   valueExportNames,
-  verifyDevStackIdentity,
 } from "../../../tooling/src/stack/index.ts";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
@@ -53,56 +44,6 @@ import { expect, test } from "../../support/tool-fixtures.ts";
 const DRAIN_MS_RE = /const SHUTDOWN_DRAIN_MS = ([\d_]+);/u;
 /** An un-credentialed 200 from /api/_debug must print as an ALARM post-AUTHFIX-2, not as a dev posture. */
 const UNCREDENTIALED_ALARM = /NO credential|investigate/u;
-const MANUAL_CLEANUP_RE = /manual cleanup|relaunch/u;
-
-const DEV_IDENTITY: DevStackIdentity = {
-  version: 1,
-  repoRoot: "/repo",
-  pid: 4242,
-  pgid: 4242,
-  startTicks: "123",
-  executable: "/usr/bin/bash",
-  cmdlineBase64: Buffer.from("bash\0/repo/tooling/src/stack/stack.sh\0_leader\0").toString("base64"),
-  cwd: "/repo",
-};
-
-test("dev-stack identity rejects corrupt, <=1, and stale/reused records before any signal", () => {
-  expect(parseDevStackIdentity("garbage")).toBeNull();
-  expect(parseDevStackIdentity(JSON.stringify({ ...DEV_IDENTITY, pid: 1, pgid: 1 }))).toBeNull();
-  expect(verifyDevStackIdentity(DEV_IDENTITY, { readProcess: () => ({ ...DEV_IDENTITY, startTicks: "999" }) }).verdict).toBe("refused");
-  const calls: number[] = [];
-  expect(
-    signalDevStackIdentity(DEV_IDENTITY, "SIGKILL", { readProcess: () => ({ ...DEV_IDENTITY, startTicks: "999" }), kill: (target) => calls.push(target) })
-      .verdict,
-  ).toBe("refused");
-  expect(calls).toEqual([]);
-});
-
-test("a valid owned dev-stack group is the only shape that reaches the negative-PGID signal", () => {
-  const calls: Array<readonly [number, NodeJS.Signals]> = [];
-  expect(signalDevStackIdentity(DEV_IDENTITY, "SIGTERM", { readProcess: () => DEV_IDENTITY, kill: (target, signal) => calls.push([target, signal]) })).toEqual({
-    verdict: "signaled",
-    pgid: DEV_IDENTITY.pgid,
-  });
-  expect(calls).toEqual([[-DEV_IDENTITY.pgid, "SIGTERM"]]);
-});
-
-test("a dead leader refuses a stable same-group survivor without signaling it", () => {
-  const survivor = { ...DEV_IDENTITY, pid: 5000 };
-  const processTable = new Map<number, DevStackIdentity>([[survivor.pid, survivor]]);
-  const calls: Array<readonly [number, NodeJS.Signals]> = [];
-  expect(
-    signalDevStackIdentity(DEV_IDENTITY, "SIGTERM", {
-      readProcess: (pid) => processTable.get(pid) ?? null,
-      kill: (target, signal) => calls.push([target, signal]),
-    }),
-    // #1162 renamed this arm from `refused` to `departed` — a distinct verdict, because it is the ONLY
-    // refusal with a remaining answerable question (does the GROUP still hold a member?). The RULING is
-    // untouched: a dead leader still signals nothing, and the reason still demands manual cleanup.
-  ).toEqual({ verdict: "departed", pgid: DEV_IDENTITY.pgid, reason: expect.stringMatching(MANUAL_CLEANUP_RE) });
-  expect(calls).toEqual([]);
-  expect(verifyDevStackIdentity(DEV_IDENTITY, { readProcess: () => ({ ...DEV_IDENTITY, startTicks: "reused" }) }).verdict).toBe("refused");
-});
 
 // ── argv ─────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -110,16 +51,13 @@ test("a bare invocation is `status dev` — the pre-mode default", () => {
   expect(parseStackArgv([])).toEqual({ ok: true, invocation: { verb: "status", mode: "dev", debug: false, build: false, force: false, rest: [] } });
 });
 
-test("every pre-mode call site parses to exactly what it did before modes existed", () => {
-  // These three are spelled by NAME in playwright.config.ts, snap-stage.ts and multi-user-fixture.sh —
-  // a regression here silently breaks the e2e battery and the visual-review stage.
-  expect(parseStackArgv(["start"])).toEqual({ ok: true, invocation: { verb: "up", mode: "dev", debug: false, build: false, force: false, rest: [] } });
-  expect(parseStackArgv(["stop"])).toEqual({ ok: true, invocation: { verb: "down", mode: "dev", debug: false, build: false, force: false, rest: [] } });
+test("the verbs the callers spell by name parse to their invocation, and the dropped aliases are unknown words", () => {
+  // `up-fg` is spelled by NAME in playwright.config.ts and docker/compose.dev.yaml; `up`/`down` by the
+  // snap stage — a regression here silently breaks the e2e battery and the visual-review stage.
+  expect(parseStackArgv(["up"])).toEqual({ ok: true, invocation: { verb: "up", mode: "dev", debug: false, build: false, force: false, rest: [] } });
+  expect(parseStackArgv(["up-fg"])).toMatchObject({ ok: true, invocation: { verb: "up-fg", mode: "dev" } });
+  expect(parseStackArgv(["down"])).toEqual({ ok: true, invocation: { verb: "down", mode: "dev", debug: false, build: false, force: false, rest: [] } });
   expect(parseStackArgv(["restart", "--force"])).toEqual({
-    ok: true,
-    invocation: { verb: "restart", mode: "dev", debug: false, build: false, force: true, rest: [] },
-  });
-  expect(parseStackArgv(["force-restart"])).toEqual({
     ok: true,
     invocation: { verb: "restart", mode: "dev", debug: false, build: false, force: true, rest: [] },
   });
@@ -127,6 +65,23 @@ test("every pre-mode call site parses to exactly what it did before modes existe
     ok: true,
     invocation: { verb: "logs", mode: "dev", debug: false, build: false, force: false, rest: ["server", "80"] },
   });
+  // The shell-era spellings are gone, not aliased: a word the grammar does not know exits with usage.
+  for (const dropped of ["stop", "start-fg", "force-restart"]) {
+    expect(parseStackArgv([dropped]), dropped).toMatchObject({ ok: false, error: expect.stringContaining(`unknown verb '${dropped}'`) });
+  }
+});
+
+test("the one cli dispatches the launcher, the fixture and the served probe by their first word", () => {
+  expect(parseStackCommand(["start", "--share", "--port", "9000"])).toEqual({ ok: true, command: { kind: "start", argv: ["--share", "--port", "9000"] } });
+  expect(parseStackCommand(["fixture"])).toEqual({ ok: true, command: { kind: "fixture", verb: "up" } });
+  expect(parseStackCommand(["fixture", "reset"])).toEqual({ ok: true, command: { kind: "fixture", verb: "reset" } });
+  expect(parseStackCommand(["fixture", "frobnicate"])).toMatchObject({ ok: false });
+  expect(parseStackCommand(["served-probe"])).toEqual({ ok: true, command: { kind: "served-probe" } });
+  expect(parseStackCommand(["up", "prod", "--debug"])).toMatchObject({
+    ok: true,
+    command: { kind: "stack", invocation: { verb: "up", mode: "prod", debug: true } },
+  });
+  expect(parseStackCommand([])).toMatchObject({ ok: true, command: { kind: "stack", invocation: { verb: "status", mode: "dev" } } });
 });
 
 test("mode is positional and debug is orthogonal to it", () => {
@@ -196,45 +151,22 @@ test("an empty WIRE_CAPTURE/RPG_TRACE value is a conflict too", () => {
   expect(arming.kind).toBe("refused");
 });
 
-// ── the shell dispatch contract ──────────────────────────────────────────────────────────────────────
+// ── the prod refusals ────────────────────────────────────────────────────────────────────────────────
 
-test("--force and the setsid leader are REFUSED in prod, but start-fg (FOREGROUND prod) is accepted", () => {
-  // `--force` reaches stack.sh's do_force_restart, which SIGKILLs the port holders AND the detached vLLM
-  // fleet ignoring ownership. Prod's whole safety story is that it only signals what it can prove is its
-  // own, so there is no prod force. `_leader` is the dev-only setsid re-exec target (prod has no leader).
-  // Dropping either quietly would be the same defect class as the shell falling through to dev.
+test("--force and the leader are REFUSED in prod, but up-fg (FOREGROUND prod) is accepted", () => {
+  // Prod's whole safety story is that it only signals what it can prove is its own, so there is no prod
+  // force. `_leader` is the dev-only re-exec target (prod has no leader). Dropping either quietly would be
+  // the same defect class as falling through to dev.
   expect(parseStackArgv(["restart", "prod", "--force"])).toEqual({ ok: false, error: expect.stringContaining("--force is dev-only") });
   expect(parseStackArgv(["_leader", "prod"])).toEqual({ ok: false, error: expect.stringContaining("dev-only") });
   // …and both those stay legal in dev.
   expect(parseStackArgv(["restart", "--force"])).toMatchObject({ ok: true, invocation: { force: true, mode: "dev" } });
-  expect(parseStackArgv(["start-fg"])).toMatchObject({ ok: true, invocation: { verb: "up-fg", mode: "dev" } });
-  // start-fg IS valid in prod now — the FOREGROUND on-box run that replaced the removed `pnpm start`
-  // (launch-centralize / #309). It is the same up-fg verb, this time carrying mode=prod.
-  expect(parseStackArgv(["start-fg", "prod"])).toMatchObject({ ok: true, invocation: { verb: "up-fg", mode: "prod", debug: false } });
-  expect(parseStackArgv(["start-fg", "prod", "--debug"])).toMatchObject({ ok: true, invocation: { verb: "up-fg", mode: "prod", debug: true } });
+  expect(parseStackArgv(["_leader"])).toMatchObject({ ok: true, invocation: { verb: "_leader", mode: "dev" } });
+  // up-fg IS valid in prod — the FOREGROUND on-box run. It is the same verb, this time carrying mode=prod.
+  expect(parseStackArgv(["up-fg", "prod"])).toMatchObject({ ok: true, invocation: { verb: "up-fg", mode: "prod", debug: false } });
+  expect(parseStackArgv(["up-fg", "prod", "--debug"])).toMatchObject({ ok: true, invocation: { verb: "up-fg", mode: "prod", debug: true } });
   // --build (client bundle) composes with foreground prod, exactly as with detached `up prod`.
-  expect(parseStackArgv(["start-fg", "prod", "--build"])).toMatchObject({ ok: true, invocation: { verb: "up-fg", mode: "prod", build: true } });
-});
-
-test("formatDispatch emits the shell contract, one line per rest argument", () => {
-  const parsed = parseStackArgv(["logs", "server", "80"]);
-  expect(parsed.ok).toBe(true);
-  if (!parsed.ok) {
-    return;
-  }
-  expect(formatDispatch(parsed.invocation)).toBe("verb=logs\nmode=dev\ndebug=\nbuild=\nforce=\nrest=server\nrest=80\n");
-});
-
-test("formatDispatch maps every verb back to a stack.sh case label", () => {
-  const label = (argv: readonly string[]): string => {
-    const parsed = parseStackArgv(argv);
-    return parsed.ok ? (formatDispatch(parsed.invocation).split("\n")[0] ?? "") : "PARSE-FAILED";
-  };
-  expect(label(["up"])).toBe("verb=start");
-  expect(label(["down"])).toBe("verb=stop");
-  expect(label(["force-restart"])).toBe("verb=restart");
-  expect(label(["start-fg"])).toBe("verb=start-fg");
-  expect(label(["_leader"])).toBe("verb=_leader");
+  expect(parseStackArgv(["up-fg", "prod", "--build"])).toMatchObject({ ok: true, invocation: { verb: "up-fg", mode: "prod", build: true } });
 });
 
 // ── pidfile ownership on a failed spawn ──────────────────────────────────────────────────────────────
@@ -359,7 +291,6 @@ const RECORD: ProdRecord = {
   pgid: 4242,
   port: 8788,
   startedAt: "2026-08-06T12:00:00.000Z",
-  startTicks: "998877",
   debug: false,
   repoRoot: "/repo",
   logPath: "/repo/.cache/stack/prod.log",
@@ -374,9 +305,9 @@ test("the pidfile round-trips, and a truncated write reads as `no record` rather
 
 // ── instance identity ────────────────────────────────────────────────────────────────────────────────
 
-const OBSERVED: ObservedInstance = { healthy: true, harness: null, listenerPid: 4242, listenerStartTicks: "998877" };
+const OBSERVED: ObservedInstance = { healthy: true, harness: null, listenerPid: 4242 };
 
-test("a matching pid AND start-time AND a healthy port is the only route to `ours-healthy`", () => {
+test("a matching pid AND a healthy port is the only route to `ours-healthy`", () => {
   expect(classifyInstance({ record: RECORD, observed: OBSERVED, recordProcessAlive: true }).verdict).toBe("ours-healthy");
 });
 
@@ -391,14 +322,9 @@ test("a HARNESS stack is untouchable — checked before anything else", () => {
 
 test("a healthy port is NOT identity — a stale incumbent on our port classifies foreign", () => {
   // [[health-check-validates-the-port-not-your-process]]: /healthz answers 200 for whoever holds :8788.
-  const verdict = classifyInstance({ record: RECORD, observed: { ...OBSERVED, listenerPid: 9999, listenerStartTicks: "111" }, recordProcessAlive: true });
+  const verdict = classifyInstance({ record: RECORD, observed: { ...OBSERVED, listenerPid: 9999 }, recordProcessAlive: true });
   expect(verdict.verdict).toBe("foreign");
   expect(decideDown(verdict).action).toBe("refuse");
-});
-
-test("a RECYCLED pid does not pass identity — start-ticks are the tiebreak", () => {
-  const verdict = classifyInstance({ record: RECORD, observed: { ...OBSERVED, listenerStartTicks: "555555" }, recordProcessAlive: true });
-  expect(verdict.verdict).toBe("foreign");
 });
 
 test("`up` on a verified-healthy instance ADOPTS in place — never a second spawn", () => {
@@ -408,7 +334,7 @@ test("`up` on a verified-healthy instance ADOPTS in place — never a second spa
 test("an empty port with a stale pidfile is `absent` — spawn, and stop is a no-op", () => {
   const verdict = classifyInstance({
     record: RECORD,
-    observed: { healthy: false, harness: null, listenerPid: null, listenerStartTicks: null },
+    observed: { healthy: false, harness: null, listenerPid: null },
     recordProcessAlive: false,
   });
   expect(verdict.verdict).toBe("absent");
@@ -585,109 +511,4 @@ test("no answer is UNREACHABLE and a type-only module is UNVERIFIABLE — neithe
   expect(classifyServedTransform({ file: "packages/ui/src/canary.ts", diskSource: CANARY_SOURCE, servedBody: null }).state).toBe("unreachable");
   expect(classifyServedTransform({ file: "packages/ui/src/t.ts", diskSource: "export type A = 1;\n", servedBody: "" }).state).toBe("unverifiable");
   expect(classifyServedTransform({ file: null, diskSource: null, servedBody: null }).state).toBe("unverifiable");
-});
-
-// ── the system-probe parsers ─────────────────────────────────────────────────────────────────────────
-
-const SS_OUTPUT = [
-  "State  Recv-Q Send-Q Local Address:Port  Peer Address:Port Process",
-  'LISTEN 0      511          0.0.0.0:8788       0.0.0.0:*     users:(("node",pid=4242,fd=23))',
-  'LISTEN 0      511             [::1]:5173          [::]:*     users:(("node",pid=5150,fd=31))',
-  "LISTEN 0      511          0.0.0.0:8796       0.0.0.0:*",
-].join("\n");
-
-test("the listener pid is read off the LOCAL address column, not any `:port` on the line", () => {
-  expect(parseListenerPid(SS_OUTPUT, 8788)).toBe(4242);
-  expect(parseListenerPid(SS_OUTPUT, 5173)).toBe(5150);
-  // Bound but owned by another user (no `pid=` without privileges) — a null owner, not a wrong one.
-  expect(parseListenerPid(SS_OUTPUT, 8796)).toBeNull();
-  expect(parseListenerPid(SS_OUTPUT, 9999)).toBeNull();
-});
-
-// ── #1162: the group probe the teardown warning never ran ──────────────────────────────────────────
-// `do_stop`'s "still has verified survivors after KILL" asserted a fact about SURVIVORS from a verdict
-// that only ever spoke about the LEADER. `devStackGroupHasMembers` is the missing question, and it is the
-// same one `pgrep -g` answers: ESRCH = the group is empty, EPERM = a member exists that we may not signal.
-test("the group residue probe reads kill(-pgid, 0) the way pgrep -g does (#1162)", () => {
-  const asked: number[] = [];
-  expect(devStackGroupHasMembers(4242, (target) => void asked.push(target))).toBe(true);
-  // The NEGATIVE pgid is the whole mechanism — a positive one asks about the dead leader instead.
-  expect(asked).toEqual([-4242]);
-  expect(
-    devStackGroupHasMembers(4242, () => {
-      throw Object.assign(new Error("no such process group"), { code: "ESRCH" });
-    }),
-  ).toBe(false);
-  expect(
-    devStackGroupHasMembers(4242, () => {
-      throw Object.assign(new Error("not permitted"), { code: "EPERM" });
-    }),
-  ).toBe(true);
-});
-
-// ── #1013: adoption is a STRICTER door, never a relaxation of the standing rule ──────────────────────
-//
-// The rule above ("a dead leader refuses a stable same-group survivor without signaling it") is intact and
-// its arm is untouched. What changed is the PREMISE it rested on — "a survivor carries no launch identity"
-// — which was true only because nothing stamped one. `stack.sh` now mints a per-launch marker and exports
-// it before the setsid spawn, so every member of the group inherits it and the record keeps the leader's
-// copy. These pin that the new door needs MORE evidence than the pgid, not less: UNANIMITY among live
-// members, because a pgid can be reused and an unrelated process can end up in a group we did not start.
-const MARKER = "3f2504e0-4f89-11d3-9a0c-0305e82c3301";
-const MARKED: DevStackIdentity = { ...DEV_IDENTITY, launchId: MARKER };
-
-test("a leaderless group whose every live member carries the launch marker is ADOPTABLE (#1013)", () => {
-  const adoption = adoptDevStackGroup(MARKED, { members: () => [5000, 5001], launchIdOf: () => MARKER });
-  expect(adoption).toEqual({ kind: "adoptable", pgid: MARKED.pgid, members: [5000, 5001] });
-  expect(adoptionText(adoption)).toContain("ADOPTED by launch marker");
-});
-
-test("ONE unmarked member refuses the whole group — adoption is unanimous or nothing (#1013)", () => {
-  // The reused-pgid / unrelated-joiner case. A majority is not evidence: the signal is a GROUP signal, so
-  // anything short of unanimity would land it on a process this launch never started.
-  const adoption = adoptDevStackGroup(MARKED, { members: () => [5000, 5001], launchIdOf: (pid) => (pid === 5001 ? null : MARKER) });
-  expect(adoption).toEqual({ kind: "unmarked", pgid: MARKED.pgid, unmarked: [5001] });
-  expect(adoptionText(adoption)).toContain("5001");
-  expect(adoptionText(adoption)).toContain("manual cleanup required");
-  // A member carrying a DIFFERENT launch's marker is just as foreign as one carrying none.
-  expect(adoptDevStackGroup(MARKED, { members: () => [5000], launchIdOf: () => "00000000-0000-4000-8000-000000000000" }).kind).toBe("unmarked");
-});
-
-test("a record with NO marker is unadoptable — the pre-#1013 refusal, unchanged (#1013)", () => {
-  // Every pidfile written before the marker existed lands here, and so does one written by a launcher that
-  // exported none. The old refusal is the fallback, not an error path.
-  const adoption = adoptDevStackGroup(DEV_IDENTITY, { members: () => [5000], launchIdOf: () => MARKER });
-  expect(adoption.kind).toBe("no-marker");
-  expect(adoptionText(adoption)).toContain("carries no launch marker");
-});
-
-test("an EMPTY group is neither adoptable nor an alarm (#1013)", () => {
-  expect(adoptDevStackGroup(MARKED, { members: () => [], launchIdOf: () => MARKER })).toEqual({ kind: "empty", pgid: MARKED.pgid });
-});
-
-test("only an ADOPTABLE group reaches the negative-PGID signal (#1013)", () => {
-  const calls: Array<readonly [number, NodeJS.Signals]> = [];
-  const kill = (target: number, sig: NodeJS.Signals): number => calls.push([target, sig]);
-
-  expect(signalAdoptedDevStackGroup(MARKED, "SIGTERM", { members: () => [5000], launchIdOf: () => MARKER, kill }).kind).toBe("adoptable");
-  // The NEGATIVE pgid is the whole mechanism — a positive one would signal the dead leader instead.
-  expect(calls).toEqual([[-MARKED.pgid, "SIGTERM"]]);
-
-  // …and every refusing shape signals NOTHING, which is the standing rule this door had to preserve.
-  calls.length = 0;
-  signalAdoptedDevStackGroup(MARKED, "SIGKILL", { members: () => [5000, 5001], launchIdOf: (pid) => (pid === 5001 ? null : MARKER), kill });
-  signalAdoptedDevStackGroup(DEV_IDENTITY, "SIGKILL", { members: () => [5000], launchIdOf: () => MARKER, kill });
-  signalAdoptedDevStackGroup(MARKED, "SIGKILL", { members: () => [], launchIdOf: () => MARKER, kill });
-  expect(calls, "an unmarked, unmarkable or empty group must never be signalled").toEqual([]);
-});
-
-test("a malformed marker makes the whole record CORRUPT, not merely unmarked (#1013)", () => {
-  // Silently dropping a bad marker would turn a tampered pidfile into an ordinary pre-#1013 record and
-  // re-open the door the marker closes, so the parse refuses the file outright.
-  expect(parseDevStackIdentity(JSON.stringify(MARKED))).toEqual(MARKED);
-  expect(parseDevStackIdentity(JSON.stringify({ ...DEV_IDENTITY, launchId: "short" }))).toBeNull();
-  expect(parseDevStackIdentity(JSON.stringify({ ...DEV_IDENTITY, launchId: `${MARKER}; rm -rf /` }))).toBeNull();
-  expect(parseDevStackIdentity(JSON.stringify({ ...DEV_IDENTITY, launchId: 42 }))).toBeNull();
-  // …and a record with no marker at all still parses: an old pidfile must stay stoppable.
-  expect(parseDevStackIdentity(JSON.stringify(DEV_IDENTITY))).toEqual(DEV_IDENTITY);
 });

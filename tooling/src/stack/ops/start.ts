@@ -11,30 +11,23 @@
 // A server that exits with `RESTART_EXIT_CODE` (@orb/kit/supervisor) is spawned again from a re-read `.env`
 // (lib/supervisor.ts); the setup pass and the build run once per invocation, never per respawn.
 //
-// THE AUDIENCE IS A STRANGER on macOS, Windows or Linux with node 26, pnpm and a clone. The other
-// launcher, `pnpm stack` (stack.sh), is a bash supervisor built on setsid/ss//proc — Linux only — and
-// even there it made a newcomer know two more things: to `pnpm build` first, and — while AUTH_FALLBACK's
-// schema default was a flat `deny` (#1864..#2406) — to export AUTH_FALLBACK=owner, because that default
-// paired boot-fatally with the default AUTH_MODE=single-user. This op closes all three; #2406 also closed
-// the third at the schema (unset now resolves per mode), so the fill below is now a restatement of the
-// resolved value rather than the thing that makes a bare boot possible. `pnpm stack` is unchanged as the
-// Linux dev path.
+// THE AUDIENCE IS A STRANGER on macOS, Windows or Linux with node 26, pnpm and a clone: it builds the
+// client when needed, asks the setup questions once, and fills the single-user fallback so the banner can
+// say who can log in (the schema resolves the same value; the fill only makes the posture legible).
 //
 // PORTABILITY IS THE CONTRACT, so nothing here may reach for a POSIX-ism:
 //   • every spawn is `shell: false` with an argv array (no shell string, no quoting, no injection door);
-//   • node is `process.execPath`, pnpm is resolved per platform (lib/start-plan.ts `resolvePnpmInvocation`);
-//   • no setsid/`ss`//proc: this launcher stays in the FOREGROUND, so the terminal IS the supervisor and
-//     there is no pidfile, no port probe and no process table to read;
+//   • node is `process.execPath`, pnpm is resolved per platform (`_shared/platform.ts` `pnpmInvocation`);
+//   • this launcher stays in the FOREGROUND, so the terminal IS the supervisor and there is no pidfile, no
+//     port probe and no process table to read;
 //   • paths are composed with node:path, and the server spawn is the SHARED `buildProdSpawnPlan`.
 // What cannot be proven here is a macOS/Windows BOOT — this box is Linux. The substitutes are `shell:
-// false` everywhere and platform-parameterised units for the win32 pnpm answer (tests/tooling/stack/) and the
-// win32 stop signal (tests/tooling/_shared/proc.test.ts).
+// false` everywhere and platform-parameterised units for the win32 pnpm answer and the win32 stop signal.
 //
 // FULL PRIORITY, deliberately (policy `tooling-child-process-door`, reviewed grant
 // `tooling-child-process-door:stack-start`): the child spawned here IS the application serving the
 // operator's requests. The niced doors are also structurally unavailable — they exec the POSIX `nice`
 // binary, which does not exist on Windows.
-import { readFileSync } from "node:fs";
 import { hostname, networkInterfaces } from "node:os";
 import process from "node:process";
 import { SETUP_COMMAND } from "@orb/contracts/identity";
@@ -42,11 +35,11 @@ import { print, REPO_ROOT } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { warn } from "../../_shared/log.ts";
+import { isWsl2, pnpmInvocation } from "../../_shared/platform.ts";
 import { spawnFullPriorityChild, spawnFullPrioritySync } from "../../_shared/proc.ts";
 import type { ProdSpawnPlan, SetupMachine, SetupResult, StartInvocation } from "../contract/types.ts";
-import { isWsl2Kernel } from "../lib/setup-plan.ts";
 import { CLIENT_DIST_INDEX_REL } from "../lib/spawn-plan.ts";
-import { decideStartBuild, parseStartArgv, resolvePnpmInvocation, START_USAGE, shareLaunchRefusal, startBannerLines, startLaunch } from "../lib/start-plan.ts";
+import { decideStartBuild, parseStartArgv, START_USAGE, shareLaunchRefusal, startBannerLines, startLaunch } from "../lib/start-plan.ts";
 import { superviseStart } from "../lib/supervisor.ts";
 import { AMBIENT, ENV_FILE_PATH, LOG_PATH, readEnvFile, resolvePort } from "./prod-state.ts";
 import { distVerdict } from "./prod-support.ts";
@@ -61,7 +54,7 @@ function log(message: string): void {
 /** Run the root `pnpm build` (the ui tokens build + the client's vite build). Returns an exit code when the
  *  caller must stop, `null` when the build succeeded. */
 function runBuild(): number | null {
-  const pnpm = resolvePnpmInvocation({ ambient: AMBIENT, platform: process.platform, nodePath: process.execPath, args: ["build"] });
+  const pnpm = pnpmInvocation({ ambient: AMBIENT, platform: process.platform, nodePath: process.execPath, args: ["build"] });
   if (pnpm.kind === "refused") {
     warn(`start: ${pnpm.reason}`);
     return EXIT.toolError;
@@ -74,15 +67,8 @@ function runBuild(): number | null {
   return null;
 }
 
-/** Where WSL2 identifies its kernel; read only on Linux, where it always exists. */
-const PROC_VERSION = "/proc/version";
-
 function thisMachine(): SetupMachine {
-  return {
-    hostname: hostname(),
-    interfaces: networkInterfaces(),
-    wsl: process.platform === "linux" && isWsl2Kernel(readFileSync(PROC_VERSION, "utf8")),
-  };
+  return { hostname: hostname(), interfaces: networkInterfaces(), wsl: isWsl2() };
 }
 
 /** What each setup outcome means for the launch: an exit code to stop with, or `null` to go on. */
