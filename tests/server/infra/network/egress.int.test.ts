@@ -37,8 +37,9 @@
 // The safeFetch path is untouched by all of it: its unconditional private-range denial never consults the
 // allowlist (the `ownerConfiguredEndpoint` class is the one named opt-out, compose-bound, not caller-suppliable).
 
+import type { LookupFunction } from "node:net";
 import process from "node:process";
-import { endpointAdmission, installEgressFirewall, publishPrivateEndpointAllowlist } from "@orb/server/infra/network";
+import { __setFirewallLookupForTest, endpointAdmission, installEgressFirewall, publishPrivateEndpointAllowlist } from "@orb/server/infra/network";
 import type { Dispatcher } from "undici";
 import { getGlobalDispatcher, setGlobalDispatcher } from "undici";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, vi } from "vitest";
@@ -80,6 +81,18 @@ async function dialVerdict(url: string): Promise<"BLOCKED" | "attempted"> {
     (e: unknown) => e,
   );
   return errorChainText(err).includes("SSRF_BLOCKED") ? "BLOCKED" : "attempted";
+}
+
+/** A firewall lookup that answers every name with `address`, in both shapes node's lookup callback takes. */
+function answering(address: string): LookupFunction {
+  const family = address.includes(":") ? 6 : 4;
+  return (_hostname, options, callback): void => {
+    if (options.all === true) {
+      callback(null, [{ address, family }]);
+      return;
+    }
+    callback(null, address, family);
+  };
 }
 
 describe("installEgressFirewall — boot-installed global SSRF dispatcher (s7 HIGH regression)", () => {
@@ -140,6 +153,7 @@ describe("publishPrivateEndpointAllowlist — the deployment's private-endpoint 
   });
   afterEach(() => {
     publishPrivateEndpointAllowlist([]);
+    __setFirewallLookupForTest(null);
   });
   afterAll(() => {
     setGlobalDispatcher(original);
@@ -321,6 +335,49 @@ describe("publishPrivateEndpointAllowlist — the deployment's private-endpoint 
     expect(endpointAdmission("https://openrouter.ai")).toBe("public");
     expect(endpointAdmission("ftp://openrouter.ai")).toBe("invalid");
     expect(endpointAdmission("not-a-url")).toBe("invalid");
+  });
+
+  // An address the range parser cannot read is in NO range, so a gate that only asks "is it in a blocked range?"
+  // passes it. Node dials a zone-scoped `fe80::1%lo`, and `@orb/kit/ip` returns null for it. Each gate gets its own
+  // control pair first, which proves the injected answer is the one that gate judges. Every dial takes its own
+  // port, so an admitted dial that did connect cannot hand a pooled socket to the next dial.
+  test("the unlisted-host gate refuses a resolved address the range parser cannot read", async () => {
+    publishPrivateEndpointAllowlist(["127.0.0.0/8"]);
+    __setFirewallLookupForTest(answering("10.0.0.5"));
+    expect(await dialVerdict("http://unlisted.test:8711/x")).toBe("BLOCKED");
+    __setFirewallLookupForTest(answering("127.0.0.9"));
+    expect(await dialVerdict("http://unlisted.test:8712/x")).toBe("attempted");
+    __setFirewallLookupForTest(answering("fe80::1%lo"));
+    expect(await dialVerdict("http://unlisted.test:8713/x")).toBe("BLOCKED");
+  });
+
+  test("the declared-host gate refuses a resolved address the range parser cannot read", async () => {
+    publishPrivateEndpointAllowlist(["declared.lan"]);
+    __setFirewallLookupForTest(answering("169.254.169.254"));
+    expect(await dialVerdict("http://declared.lan:8721/x")).toBe("BLOCKED");
+    __setFirewallLookupForTest(answering("127.0.0.1"));
+    expect(await dialVerdict("http://declared.lan:8722/x")).toBe("attempted");
+    __setFirewallLookupForTest(answering("fe80::1%lo"));
+    expect(await dialVerdict("http://declared.lan:8723/x")).toBe("BLOCKED");
+  });
+
+  // `@orb/kit/ip` refuses a leading-zero octet, so `127.0.0.01` is no address here. Nor is it a hostname a URL can
+  // carry: WHATWG reads a host whose last label is a number as IPv4. It is refused and counted, never a dead key.
+  test("a leading-zero IPv4 entry is refused and COUNTED — neither a range nor a dead host key", async () => {
+    const warn = vi.fn();
+    const log = (await import("@orb/server/foundation/observability")).getLog();
+    const prior = log.warn;
+    log.warn = warn;
+    try {
+      publishPrivateEndpointAllowlist(["127.0.0.01", "012.0.0.1", "127.0.0.2"]);
+    } finally {
+      log.warn = prior;
+    }
+    const counts = warn.mock.calls[0]?.[0] as { refused?: number; hosts?: number } | undefined;
+    expect(counts?.refused).toBe(2);
+    expect(counts?.hosts).toBe(0);
+    expect(endpointAdmission("http://127.0.0.1:8000")).toBe("refused");
+    expect(endpointAdmission("http://127.0.0.2:8000")).toBe("admitted");
   });
 });
 

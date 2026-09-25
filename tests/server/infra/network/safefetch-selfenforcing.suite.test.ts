@@ -46,6 +46,26 @@ describe("safeFetch self-enforcing SSRF (global firewall NOT installed)", () => 
       });
     }
 
+    // The range check can only judge an address it can read. A string `@orb/kit/ip` returns null for is in NO range,
+    // so before the fail-closed arm it passed as "not private" and was pinned and dialled. The leading-zero case is
+    // the sharp one: the kit once read `012.0.0.1` as decimal 12.0.0.1 (public) while getaddrinfo and WHATWG URL
+    // read it as octal 10.0.0.1 (private).
+    for (const [label, addr] of [
+      ["zone-scoped link-local", "fe80::1%eth0"],
+      ["leading-zero IPv4", "012.0.0.1"],
+      ["non-address", "not-an-address"],
+    ] as const) {
+      test(`refuses a resolved address the range parser cannot read: ${label} (${addr})`, async () => {
+        withResolver({ "unreadable.test": [PUBLIC_ADDR, addr] });
+        const fetchSpy = stubOkFetch();
+        await expect(safeFetch("https://unreadable.test/x", { allowedHosts: ANY_HOST })).rejects.toMatchObject({
+          name: "EgressBlockedError",
+          reason: "private-address",
+        });
+        expect(fetchSpy).not.toHaveBeenCalled();
+      });
+    }
+
     test("a MIXED answer [public, private] rejects the whole fetch (any private addr wins)", async () => {
       withResolver({ "mixed.test": [PUBLIC_ADDR, "10.1.2.3"] });
       const fetchSpy = stubOkFetch();

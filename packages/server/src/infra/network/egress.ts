@@ -1,4 +1,5 @@
 import { lookup as dnsLookup } from "node:dns";
+import type { LookupFunction } from "node:net";
 import { parseIp } from "@orb/kit/ip";
 import { Agent, buildConnector, setGlobalDispatcher } from "undici";
 import { env } from "#foundation/env";
@@ -169,6 +170,8 @@ const PREFIX_RE = /^\d{1,3}$/;
 const BRACKETED_V6_RE = /^\[([^\]]+)\](?::(\d+))?$/;
 /** One DNS label's charset. `_` is admitted because internal names use it; `-` may not lead or trail. */
 const HOSTNAME_LABEL_RE = /^[a-z0-9_-]+$/;
+/** A label WHATWG URL reads as a number (decimal, or `0x` hex). A host ending in one parses as IPv4, never as a name. */
+const NUMERIC_LABEL_RE = /^(?:\d+|0x[0-9a-f]*)$/;
 /** The port a URL that states none actually dials, by scheme. */
 const DEFAULT_PORT_BY_PROTOCOL: Readonly<Record<string, number>> = { "http:": 80, "https:": 443 };
 
@@ -194,12 +197,15 @@ function isHostnameEntry(host: string): boolean {
   if (host.length === 0 || host.length > HOSTNAME_MAX_LENGTH) {
     return false;
   }
-  return host
-    .split(".")
-    .every(
-      (label) =>
-        label.length > 0 && label.length <= HOSTNAME_LABEL_MAX_LENGTH && HOSTNAME_LABEL_RE.test(label) && !label.startsWith("-") && !label.endsWith("-"),
-    );
+  const labels = host.split(".");
+  // No URL carries a name whose last label is a number, so `127.0.0.01` (no address to `@orb/kit/ip`) is refused
+  // here rather than kept as a host key nothing can match.
+  if (NUMERIC_LABEL_RE.test(labels.at(-1) ?? "")) {
+    return false;
+  }
+  return labels.every(
+    (label) => label.length > 0 && label.length <= HOSTNAME_LABEL_MAX_LENGTH && HOSTNAME_LABEL_RE.test(label) && !label.startsWith("-") && !label.endsWith("-"),
+  );
 }
 
 /** Split an OPTIONAL `:port` suffix off an entry. Order matters: the bracketed IPv6 form first (its address
@@ -399,6 +405,14 @@ function addressInAdmittedRanges(address: string): boolean {
   return isInRanges(address, privateEndpointAllowlist.ranges) && !isInRanges(address, NEVER_ADMISSIBLE_RANGES);
 }
 
+// The first resolved address a gate refuses, or undefined to admit them all: the ONE resolved-address judgement for
+// both connector lookups and safeFetch's pin. SECURITY: an address `@orb/kit/ip` cannot read is refused before
+// `refused` is asked. It is in no range, so a range test alone passes it, and node dials a zone-scoped
+// `fe80::1%eth0` that the parser returns null for. Fail closed; never let `refused` see such an address first.
+function firstRefusedAddress(addresses: readonly string[], refused: (address: string) => boolean): string | undefined {
+  return addresses.find((address) => parseIp(address) === null || refused(address));
+}
+
 /** Is this connect target admitted by the deployment allowlist — by exact host(:port), or by a literal
  *  address inside an admitted range? A hostname that is NOT listed but resolves inside an admitted range is
  *  judged at the DNS gate (`allowlistedConnect`), where the resolved address is in hand.
@@ -418,6 +432,11 @@ function admittedByAllowlist(hostname: string, port: number | null): boolean {
   }
   return parseIp(host) !== null && addressInAdmittedRanges(host);
 }
+
+/** The DNS lookup both connector gates below judge: real `dns.lookup` in prod. A test injects its answer through
+ *  {@link __setFirewallLookupForTest}, since no hostname a URL can carry makes the real resolver return an unreadable
+ *  address. Read at call time, so an injection reaches an already-installed firewall. */
+let firewallLookup: LookupFunction = dnsLookup;
 
 export function installEgressFirewall(): void {
   if (!env.EGRESS_FIREWALL) {
@@ -442,7 +461,7 @@ export function installEgressFirewall(): void {
 
   const baseConnect = buildConnector({
     lookup(hostname, options, callback): void {
-      dnsLookup(hostname, options, (err, address, family): void => {
+      firewallLookup(hostname, options, (err, address, family): void => {
         if (err) {
           callback(err, address as string, family as number);
           return;
@@ -452,9 +471,9 @@ export function installEgressFirewall(): void {
         // A hostname NOT listed by name, whose RESOLVED address lands inside an admitted RANGE, is admitted
         // here — the one gate where the address is in hand. It is PORT-BLIND by construction (no port
         // reaches a dns.lookup override), which is exactly why `ranges` only ever holds any-port entries.
-        const blocked = addrs.find((a) => shouldBlockEgress(a, hostname, allowlist, ranges) && !addressInAdmittedRanges(a));
+        const blocked = firstRefusedAddress(addrs, (a) => shouldBlockEgress(a, hostname, allowlist, ranges) && !addressInAdmittedRanges(a));
         if (blocked !== undefined) {
-          securityEvent("egress_blocked", { hostname, address: blocked }, "security: egress SSRF blocked (private address)");
+          securityEvent("egress_blocked", { hostname, address: blocked }, "security: egress SSRF blocked (private or unreadable address)");
           callback(new Error(`SSRF_BLOCKED: ${hostname} → ${blocked}`), address as string, family);
           return;
         }
@@ -470,18 +489,18 @@ export function installEgressFirewall(): void {
   // (undici skips it) and was already judged at `admittedByAllowlist`.
   const allowlistedConnect = buildConnector({
     lookup(hostname, options, callback): void {
-      dnsLookup(hostname, options, (err, address, family): void => {
+      firewallLookup(hostname, options, (err, address, family): void => {
         if (err) {
           callback(err, address as string, family as number);
           return;
         }
         const addrs: string[] = Array.isArray(address) ? address.map((a) => String((a as { address?: unknown }).address ?? a)) : [String(address)];
-        const blocked = addrs.find((a) => isInRanges(a, NEVER_ADMISSIBLE_RANGES));
+        const blocked = firstRefusedAddress(addrs, (a) => isInRanges(a, NEVER_ADMISSIBLE_RANGES));
         if (blocked !== undefined) {
           securityEvent(
             "egress_blocked",
             { hostname, address: blocked },
-            "security: egress SSRF blocked (allowlisted host resolved link-local/never-admissible)",
+            "security: egress SSRF blocked (allowlisted host resolved link-local/never-admissible or unreadable)",
           );
           callback(new Error(`SSRF_BLOCKED: ${hostname} → ${blocked}`), address as string, family);
           return;
@@ -635,6 +654,13 @@ function assertTestOnly(name: string): void {
 export function __setEgressResolverForTest(resolver: EgressResolver | null): void {
   assertTestOnly("__setEgressResolverForTest");
   egressResolver = resolver ?? defaultResolver;
+}
+
+/** TEST-ONLY seam: inject the DNS lookup the global firewall's two connector gates judge; pass `null` to restore
+ *  real dns.lookup. Throws outside NODE_ENV=test — NEVER usable in production. */
+export function __setFirewallLookupForTest(lookup: LookupFunction | null): void {
+  assertTestOnly("__setFirewallLookupForTest");
+  firewallLookup = lookup ?? dnsLookup;
 }
 
 /** TEST-ONLY seam: build the SAME single-use pinned dispatcher safeFetch pins per request, so an
@@ -864,7 +890,7 @@ function validateUrl(url: URL, options: SafeFetchOptions): void {
   }
 }
 
-/** Resolve→validate→pin: DNS-resolve the host, reject if ANY address is private/reserved, and pin the
+/** Resolve→validate→pin: DNS-resolve the host, reject if ANY address is private/reserved or unreadable, and pin the
  *  validated set into a single-use per-request dispatcher (the name cannot re-resolve between check and
  *  connect — DNS-rebind closed). Returns `undefined` for the owner-configured-endpoint class, which
  *  defers address gating to the global firewall (its LAN endpoint is the declared intent). */
@@ -878,11 +904,10 @@ async function resolveValidatePin(url: URL, options: SafeFetchOptions): Promise<
     blockEgress("unresolvable", host, `host ${host} did not resolve to any address`);
   }
   const ranges = privateEgressRanges();
-  for (const address of addresses) {
-    if (isInRanges(address, ranges)) {
-      // The address is LOGGED (observability) but never surfaced in the thrown error.
-      blockEgress("private-address", host, `host ${host} resolves to a private/reserved address`, { address });
-    }
+  const blocked = firstRefusedAddress(addresses, (address) => isInRanges(address, ranges));
+  if (blocked !== undefined) {
+    // The address is LOGGED (observability) but never surfaced in the thrown error.
+    blockEgress("private-address", host, `host ${host} resolves to a private, reserved or unreadable address`, { address: blocked });
   }
   return pinnedAgent(addresses);
 }
