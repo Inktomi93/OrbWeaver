@@ -114,3 +114,18 @@ describe("credentials — CredentialView output boundary", () => {
     expect(`${cause.message} ${JSON.stringify(cause)}`).not.toContain("sealed_ciphertext");
   });
 });
+
+// The verbs trim the key before sealing, so a whitespace-only key would store an empty secret.
+describe("credentials — a blank key is refused at the input", () => {
+  test("add refuses a whitespace-only key and never reaches the verb", async () => {
+    const add = vi.fn<CredentialsService["add"]>(async () => VIEW);
+    await expect(caller(ctxWith({ add })).credentials.add({ provider: "openrouter", key: "   " })).toThrowTRPCError("BAD_REQUEST");
+    expect(add).not.toHaveBeenCalled();
+  });
+
+  test("replace refuses a whitespace-only key and never reaches the verb", async () => {
+    const replace = vi.fn<CredentialsService["replace"]>(async () => VIEW);
+    await expect(caller(ctxWith({ replace })).credentials.replace({ credentialId: VIEW.id, key: "   " })).toThrowTRPCError("BAD_REQUEST");
+    expect(replace).not.toHaveBeenCalled();
+  });
+});
