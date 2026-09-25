@@ -737,6 +737,49 @@ describe("createTurnEngine — post-turn memory build (fire-and-forget, §3a)", 
     expect(warning).toMatchObject({ type: "warning", chatId, code: "memory_build_failed" });
   });
 
+  // No summarize connection: digests are paused (the Model roles Utility-model row says so), not failing. The
+  // segments still build; the digest build is not attempted, and the turn raises no failure notice.
+  test("with no summarize connection the segments build, digests are skipped, and no failure notice is raised", async () => {
+    const chatId = await seedChat(db, "memnosummarizer");
+    await seedUser(db, castId<Handle>("host"));
+    const char = await seedCharacter(db, HOST, "aria");
+    await seedParticipant(db, { chatId, key: "aria", characterId: char });
+    const events: ChatBusEvent[] = [];
+    const ctx = makeChatContext(db, {
+      runChatTurn: OK_TURN,
+      summarizeAvailability: () => Promise.resolve({ available: false, cause: "no-connection" }),
+    });
+    const built = Promise.withResolvers<void>();
+    const generateSegments = vi.fn(() => {
+      built.resolve();
+      return Promise.resolve({ written: 1, skipped: 0 });
+    });
+    const generateDigests = vi.fn(() => Promise.reject(new Error("no summarize connection is bound")));
+    const engine = createTurnEngine(ctx, {
+      emit: (event: DurableChatBusEvent): Promise<void> => {
+        events.push(event);
+        return Promise.resolve();
+      },
+      holder: "replica-1",
+      lockTtlMs: 60_000,
+      generateSegments,
+      generateDigests,
+      loadWitnessHorizons,
+      recallMemory,
+      runCompaction: stubRunCompaction,
+    });
+
+    await engine.runTurn(prepOf(chatId));
+    await built.promise;
+    for (let i = 0; i < 20; i += 1) {
+      await new Promise<void>((resolve) => setImmediate(resolve));
+    }
+
+    expect(generateSegments).toHaveBeenCalledOnce();
+    expect(generateDigests).not.toHaveBeenCalled();
+    expect(events.filter((e) => e.type === "warning")).toEqual([]);
+  });
+
   test("F3: threads the resolved character NAME map into the segment + digest builds (not raw typeids)", async () => {
     const chatId = await seedChat(db, "memnames");
     await seedUser(db, castId<Handle>("host"));

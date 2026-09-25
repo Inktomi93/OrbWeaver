@@ -102,6 +102,7 @@ import {
   loadVariableDeltas,
 } from "../persistence/queries.ts";
 import { insertChatStreamEventStatements } from "../persistence/stream-events.ts";
+import { digestsDerivable } from "../substrate/digests-derivable.ts";
 import { resolveGroupBucketCharacterId } from "../substrate/group-bucket.ts";
 import { spliceInlineReplyImages } from "../substrate/inline-reply-images.ts";
 import { projectRpgTranscript } from "../substrate/rpg-transcript.ts";
@@ -1945,6 +1946,10 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
             macroNames,
             embedOwnerId: prep.runAsUserId,
           });
+          // No summarize connection: digests pause (the Utility-model row says so) rather than fail every turn.
+          if (!(await digestsDerivable(ctx, prep.funderUserId))) {
+            return;
+          }
           const participants = await loadParticipants(ctx.db, prep.chatId);
           const chars = participants.flatMap((r) => {
             const actor = classifyParticipant(r);

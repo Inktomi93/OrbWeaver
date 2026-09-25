@@ -44,6 +44,7 @@ import { loadWitnessHorizons } from "../memory/persistence/queries.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";
+import { digestsDerivable } from "./digests-derivable.ts";
 import { resolveGroupBucketCharacterId } from "./group-bucket.ts";
 import { hostUserIdOf } from "./participants-host.ts";
 
@@ -209,13 +210,10 @@ async function planOneChat(ctx: ChatContext, deps: PlanDeps, chatId: ChatId, swe
   }
 }
 
-/** Digests need the funder's summarize task. With no summarize connection bound they are not derivable, the same
- *  as Memory off: the sweep embeds segments and records memory complete, so search is never held behind a digest
- *  build that cannot run. The user sees why on the Model roles pane (the Utility model row). Any other
- *  unavailability is a fault the per-chat plan still surfaces. */
+/** The sweep's digest verdict (`digestsDerivable`), read once per sweep. Paused digests still let the sweep record
+ *  memory complete, so search is never held behind a digest build that cannot run; one operator note per sweep. */
 async function digestsDerivableFor(ctx: ChatContext, funderUserId: UserId): Promise<boolean> {
-  const availability = await ctx.summarizeAvailability(funderUserId);
-  if (availability.available || availability.cause !== "no-connection") {
+  if (await digestsDerivable(ctx, funderUserId)) {
     return true;
   }
   getLog().warn({ funderUserId }, "memory backfill: no summarize connection is bound, so digests are skipped this pass (segments still embed)");
