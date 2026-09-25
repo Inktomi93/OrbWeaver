@@ -86,10 +86,6 @@ export interface FullPriorityChildOptions {
    *  this terminal and hands stdout to the parent as {@link FullPriorityChild.stdout} (a log-formatting
    *  pipe). Both are mutually exclusive with logPath. */
   readonly stdio?: "inherit" | "pipe-stdout";
-  /** win32 ONLY: a `.cmd`/`.bat` npm-bin shim is a batch script the OS cannot exec directly. Never set this
-   *  on POSIX — a shell there reopens the unescaped-argv injection door the niced/full-priority split
-   *  exists to avoid. */
-  readonly shell?: boolean;
 }
 
 export interface ChildExit {

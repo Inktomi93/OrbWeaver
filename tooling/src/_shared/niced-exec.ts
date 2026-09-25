@@ -11,9 +11,17 @@
 // passing through whatever argv it is invoked with. It never calls `process.exit` — `run-tool.ts` is the
 // one exit home, and this file is not a `runTool` program — so it sets `process.exitCode` and lets the
 // event loop drain; a registered `process.on(signal, …)` listener does not itself keep node alive.
+//
+// NOT `detached`: the real child shares THIS process's own group (a package.json script's, or a niced
+// door's synthetic detached group). A caller that kills the launcher's GROUP — the wedge watchdog and
+// Ctrl-C in scripts/vitest-supervised.ts — must reach the real command too, and a detached child would be
+// orphaned by exactly that kill. SIGINT/SIGQUIT/SIGHUP are what the terminal (or a group kill) already
+// delivers to EVERY member of that shared group directly — the real child gets its own copy without any
+// relay, so this launcher only ignores them (a no-op handler, so it does not die first and orphan the
+// child by exiting). SIGTERM is typically aimed at ONE pid, this launcher's — that one IS relayed, direct
+// to the child, never as a group signal (the child is not its own group leader here to relay one to).
 import process from "node:process";
 import { EXIT } from "./exit-contract.ts";
-import { needsWindowsShell, quoteWindowsShellArg } from "./niced-exec-shell.ts";
 import { childExitCode, spawnFullPriorityChild } from "./proc.ts";
 import { lowerToolingPriority } from "./process-priority.ts";
 
@@ -27,27 +35,14 @@ function run(argv: readonly string[]): void {
     return;
   }
 
-  const shell = needsWindowsShell(cmd, process.platform);
-  const child = spawnFullPriorityChild(cmd, shell ? args.map(quoteWindowsShellArg) : args, {
-    stdio: "inherit",
-    shell,
-    // Its OWN process group on POSIX — never this launcher's. A package.json script's child shares the
-    // terminal's foreground group by default, so a Ctrl-C reaches BOTH the launcher and an un-detached
-    // real child directly, and the explicit forward below would deliver a SECOND SIGINT — vitest and
-    // Playwright can skip graceful teardown on a double signal. Detaching makes this launcher the ONE path
-    // in: the terminal signals it, and it alone decides whether and how to relay. win32 `detached` opens a
-    // console window instead, so it stays off there — win32's terminal delivery is a different mechanism.
-    detached: process.platform !== "win32",
-  });
+  const child = spawnFullPriorityChild(cmd, args, { stdio: "inherit" });
 
-  // Forwarded to the child's OWN process group (killGroup), never a single-process kill: detaching it
-  // above is what makes this the only delivery path, so relaying once here is exactly once, never twice.
-  const forward = (signal: NodeJS.Signals): void => {
-    child.killGroup(signal);
-  };
-  process.on("SIGINT", () => forward("SIGINT"));
-  process.on("SIGTERM", () => forward("SIGTERM"));
-  process.on("SIGHUP", () => forward("SIGHUP"));
+  // Never dying from these is the whole point — they already reached the real child directly.
+  const ignore = (): void => undefined;
+  process.on("SIGINT", ignore);
+  process.on("SIGQUIT", ignore);
+  process.on("SIGHUP", ignore);
+  process.on("SIGTERM", () => child.kill("SIGTERM"));
 
   child
     .wait()

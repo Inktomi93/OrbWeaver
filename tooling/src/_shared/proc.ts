@@ -11,6 +11,7 @@ import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { closeSync, openSync } from "node:fs";
 import { constants as osConstants } from "node:os";
 import process from "node:process";
+import crossSpawn from "cross-spawn";
 import { budget } from "./load-budget.ts";
 import type {
   CaptureCeilingOption,
@@ -230,12 +231,15 @@ export function spawnFullPrioritySync(
  *  else rides spawnNicedChild. */
 export function spawnFullPriorityChild(cmd: string, args: readonly string[], opts: FullPriorityChildOptions = {}): FullPriorityChild {
   const logFd = opts.logPath === undefined ? undefined : openSync(opts.logPath, "a");
-  const child = spawn(cmd, [...args], {
+  // win32 ONLY: a bare command name (`biome`, not `biome.exe`) needs PATHEXT resolution a shell-less
+  // `spawn` cannot do, and a `.cmd`/`.bat` npm-bin shim needs a shell cross-spawn adds and quotes
+  // correctly — POSIX never touches cross-spawn, since node's own `spawn` is already correct there.
+  const spawnFn = process.platform === "win32" ? crossSpawn : spawn;
+  const child = spawnFn(cmd, [...args], {
     ...(opts.cwd === undefined ? {} : { cwd: opts.cwd }),
     ...(opts.env === undefined ? {} : { env: opts.env }),
     detached: opts.detached ?? false,
     stdio: childStdio(opts.stdio, logFd),
-    ...(opts.shell === undefined ? {} : { shell: opts.shell }),
   });
   if (logFd !== undefined) {
     // The child holds its own dups; the parent copy would leak one fd per spawn (engines audit, 08-03).

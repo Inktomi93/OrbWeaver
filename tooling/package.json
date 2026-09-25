@@ -22,6 +22,7 @@
     "@orb/server": "workspace:*",
     "@playwright/test": "catalog:",
     "chrome-devtools-mcp": "catalog:",
+    "cross-spawn": "catalog:",
     "dependency-cruiser": "catalog:",
     "eslint": "catalog:",
     "pino-pretty": "catalog:",
@@ -33,6 +34,7 @@
   "devDependencies": {
     "@orb/db": "workspace:*",
     "@orb/ui": "workspace:*",
+    "@types/cross-spawn": "catalog:",
     "@stryker-mutator/api": "catalog:",
     "@tailwindcss/oxide": "catalog:",
     "@trpc/client": "catalog:",
