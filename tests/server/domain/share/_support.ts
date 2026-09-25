@@ -63,6 +63,10 @@ export function shareHarness(options: {
       },
       status: (): RelayStatus => status,
     },
+    enableSeating: (): Promise<void> => {
+      calls.push("enableSeating");
+      return Promise.resolve();
+    },
     requireOwner,
     authMode: options.authMode,
     inContainer: options.inContainer ?? false,

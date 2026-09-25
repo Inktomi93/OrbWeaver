@@ -14,7 +14,12 @@ import { createInviteSchema, SIGNUP_MAX_USES } from "@orb/contracts/chat";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { INVITE_FORM_DEFAULTS, toCreateInviteInput, validateInviteForm } from "../../../../../packages/client/src/features/chat/lib/invite-form-model.ts";
+import {
+  INVITE_FORM_DEFAULTS,
+  inviteJoinLink,
+  toCreateInviteInput,
+  validateInviteForm,
+} from "../../../../../packages/client/src/features/chat/lib/invite-form-model.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A fixed submit-time clock — the projection resolves expiry presets against it. */
@@ -96,5 +101,24 @@ describe("the sign-up link", () => {
 
   test("control: the same unlimited, never-expiring values pass when the switch is off", () => {
     expect(validateInviteForm({ ...Signup, allowSignup: false, expiry: "never", maxUses: null })).toBeUndefined();
+  });
+});
+
+// A friend opens an invite at the address the server is reachable at: during a share that is the share's public link.
+describe("inviteJoinLink", () => {
+  const Page = "http://localhost:5173";
+  const Share = "https://calm-river-four-birds.trycloudflare.com";
+
+  test("while a share is up the link opens at the share's public origin", () => {
+    expect(inviteJoinLink("tok", { state: "up", url: Share }, Page)).toBe(`${Share}/join/tok`);
+  });
+
+  test("with no live share, or a share that is not up yet, the link opens at this page's origin", () => {
+    expect(inviteJoinLink("tok", { state: "off", url: null }, Page)).toBe(`${Page}/join/tok`);
+    expect(inviteJoinLink("tok", { state: "starting", url: null }, Page)).toBe(`${Page}/join/tok`);
+  });
+
+  test("the token is URL-encoded and a trailing slash on the origin is not doubled", () => {
+    expect(inviteJoinLink("a/b c", { state: "up", url: `${Share}/` }, Page)).toBe(`${Share}/join/a%2Fb%20c`);
   });
 });

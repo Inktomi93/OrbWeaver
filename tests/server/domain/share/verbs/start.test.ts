@@ -1,4 +1,5 @@
-// share.start — the owner gate, then the preconditions in order, each refusing with its code before the relay is touched.
+// share.start — the owner gate, then the preconditions in order, each refusing with its code before the relay is touched,
+// then the seating a public link needs, then the relay.
 
 import { DomainForbiddenError, DomainOperationError } from "@orb/kit/errors";
 import { describe } from "vitest";
@@ -32,7 +33,7 @@ describe("share.start", () => {
     expect(h.calls).toEqual(["ownerNeedsPassword"]);
   });
 
-  test("control: once the owner is claimed, start runs the relay and audits the owner", async () => {
+  test("control: once the owner is claimed, start turns the seating on, runs the relay and audits the owner", async () => {
     const h = shareHarness({ authMode: "local", ownerNeedsPassword: true });
     h.claimOwner();
     await expect(h.share.start({ principal: caller("owner") })).resolves.toEqual({
@@ -40,7 +41,7 @@ describe("share.start", () => {
       liveSocketCount: LIVE_SOCKETS,
       publicAddresses: [],
     });
-    expect(h.calls).toEqual(["ownerNeedsPassword", "relay.start"]);
+    expect(h.calls).toEqual(["ownerNeedsPassword", "enableSeating", "relay.start"]);
     expect(h.audits).toEqual([{ actorUserId: caller("owner").userId, action: "share.start", entityType: "server", metadata: { relay: "starting" } }]);
   });
 

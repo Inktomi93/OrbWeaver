@@ -5,6 +5,7 @@ import {
   isAllowedHostEntry,
   isAlwaysAllowedHost,
   isHostname,
+  isLoopbackHost,
   isPublicHostName,
   isTopLevelSuffix,
   machineHostNames,
@@ -80,6 +81,16 @@ test("the always-allowed rule: localhost, *.localhost and IP literals (bare or b
   }
   for (const host of ["nas.local", "localhost.attacker.example", "evil-localhost", "0x7f000001", "[nas.local]", "1:2:3:4:5:6:7:8::9"]) {
     expect(isAlwaysAllowedHost(host), host).toBe(false);
+  }
+});
+
+// An invite link minted on a loopback page opens nothing on a friend's device, so the invite dialog warns there.
+test("isLoopbackHost: localhost names, 127.0.0.0/8 and ::1 in any spelling; never a LAN address or a lookalike name", () => {
+  for (const host of ["localhost", "app.localhost", "127.0.0.1", "127.255.255.254", "::1", "[::1]", "::ffff:127.0.0.1"]) {
+    expect(isLoopbackHost(host), host).toBe(true);
+  }
+  for (const host of ["128.0.0.1", "126.255.255.255", "192.168.1.20", "::2", "[fe80::1]", "nas.local", "localhost.attacker.example", "0x7f000001"]) {
+    expect(isLoopbackHost(host), host).toBe(false);
   }
 });
 

@@ -147,6 +147,7 @@ import type { RpgComposeResult } from "./rpg.ts";
 import { buildRpg } from "./rpg.ts";
 import { buildSearchDiscovery } from "./search-discovery.ts";
 import { createSessionEntryWriter } from "./session-entries.ts";
+import { createEnableShareSeating } from "./share-seating.ts";
 import { buildSideGenParams } from "./side-gen-params.ts";
 import { createProbeUpstreamHead } from "./update-check.ts";
 import { buildWorkloadContributions } from "./workload-contributions.ts";
@@ -1258,6 +1259,12 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     settings,
     share: createShareService({
       relay: deps.share.relay,
+      enableSeating: createEnableShareSeating({
+        seating: () => settings.getEffectiveConfig(),
+        updateAppSettings: (params) => settings.updateAppSettings(params),
+        sessions,
+        resolvePrincipal: resolveHostPrincipal,
+      }),
       requireOwner,
       authMode: env.AUTH_MODE,
       inContainer: bindPostureInput().inContainer,

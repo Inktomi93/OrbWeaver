@@ -61,6 +61,10 @@ export type ShareBootOutcome =
 /** What the composition root hands the share service. */
 export interface ShareServiceDeps extends ShareFacts {
   readonly relay: RelayController;
+  /** Turns on, as the owner, whichever of the two settings a public link needs is off: multi-human seating, so
+   *  friends can be invited into rooms, and discreet login, so the sign-in page a stranger reaches names no
+   *  account. Every start runs it once the preconditions hold, before the relay spawns. */
+  readonly enableSeating: () => Promise<void>;
   readonly requireOwner: RequireOwner;
   /** The live stream sockets on the box, or one user's alone when `userId` is given. */
   readonly liveSocketCount: (userId?: UserId) => number;

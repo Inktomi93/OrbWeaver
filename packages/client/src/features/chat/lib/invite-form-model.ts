@@ -10,6 +10,7 @@
 
 import type { CreateInviteInput } from "@orb/contracts/chat";
 import { SIGNUP_MAX_TTL_DAYS, SIGNUP_MAX_TTL_MS, SIGNUP_MAX_USES } from "@orb/contracts/chat";
+import type { AuthConfigShare } from "@orb/contracts/identity";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SelectItems } from "@orb/ui/select";
@@ -112,4 +113,13 @@ export function toCreateInviteInput(values: InviteFormValues, now: number): Crea
     expiresAt: expiryMs === null ? null : Math.floor(now) + expiryMs,
     ...(asksSignup(values) ? { allowSignup: true } : {}),
   };
+}
+
+const TRAILING_SLASHES = /\/+$/u;
+
+/** The link a minted share-link token opens. While a share is up it is the share's public link: a friend cannot open
+ *  this page's own origin when it is loopback or reachable only on this network. Otherwise it is this page's origin. */
+export function inviteJoinLink(token: string, share: AuthConfigShare, pageOrigin: string): string {
+  const shared = share.state === "up" ? share.url : null;
+  return `${(shared ?? pageOrigin).replace(TRAILING_SLASHES, "")}/join/${encodeURIComponent(token)}`;
 }

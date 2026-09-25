@@ -6,6 +6,7 @@
 // its own submit and the dialog's exit is just "Done".
 
 import { SIGNUP_INVITES_MINTABLE, SIGNUP_MAX_TTL_DAYS, SIGNUP_MAX_USES } from "@orb/contracts/chat";
+import { isLoopbackHost } from "@orb/kit/allowed-hosts";
 import type { ChatId, ChatInviteId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
@@ -22,12 +23,12 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { FormDialog } from "#components";
 import type { Trpc } from "#data";
-import { useAuthConfig, useInvalidation, useSettingsViewerView, useTRPC } from "#data";
+import { fetchLiveShare, useAuthConfig, useInvalidation, useLiveShare, useSettingsViewerView, useTRPC } from "#data";
 import { notify, testId, timeLib } from "#lib";
 import { useInviteForm } from "../hooks/use-invite-form.ts";
 import { useCreateInvite, useRevokeInvite } from "../hooks/use-invite-mutations.ts";
 import type { InviteFormValues } from "../lib/invite-form-model.ts";
-import { INVITE_EXPIRY_ITEMS, toCreateInviteInput } from "../lib/invite-form-model.ts";
+import { INVITE_EXPIRY_ITEMS, inviteJoinLink, toCreateInviteInput } from "../lib/invite-form-model.ts";
 
 type InviteView = inferOutput<Trpc["invites"]["listInvites"]>[number];
 
@@ -88,13 +89,14 @@ function InviteMintForm({ chatId }: { readonly chatId: ChatId }): ReactElement {
     setMintedLink(null);
     const input = toCreateInviteInput(values, performance.timeOrigin + performance.now());
     try {
+      // Read before the mint: the token shows once, so a link must never be built on a share state that failed to load.
+      const share = values.mode === "link" ? await fetchLiveShare() : null;
       const { token } = await createInvite.mutateAsync({ chatId, input });
-      if (values.mode === "handle") {
+      if (share === null) {
         notify.success(`Invited ${values.handle.trim()} — they'll see it in their notifications.`);
         return { ...values, handle: "" };
       }
-      const link = `${globalThis.location.origin}/join/${encodeURIComponent(token)}`;
-      setMintedLink(link);
+      setMintedLink(inviteJoinLink(token, share, globalThis.location.origin));
       return values;
     } catch (error) {
       if (values.mode === "handle" && isBadRequest(error)) {
@@ -164,6 +166,10 @@ function InviteMintForm({ chatId }: { readonly chatId: ChatId }): ReactElement {
             }
           </form.Subscribe>
 
+          <form.Subscribe selector={(state): string => state.values.mode}>
+            {(mode): ReactElement | null => (mode === "link" ? <LoopbackLinkWarning /> : null)}
+          </form.Subscribe>
+
           <Row gap="field" align="start">
             <form.AppField name="expiry">{(field): ReactElement => <field.SelectField label="Expires" items={INVITE_EXPIRY_ITEMS} />}</form.AppField>
             <form.AppField name="maxUses">
@@ -218,6 +224,26 @@ function InviteMintForm({ chatId }: { readonly chatId: ChatId }): ReactElement {
         </Stack>
       </form>
     </form.AppForm>
+  );
+}
+
+// A link minted on a loopback page opens only on this computer. While a share is up the link carries its public
+// address instead, so the warning shows only when no share is live.
+function LoopbackLinkWarning(): ReactElement | null {
+  const share = useLiveShare().data;
+  if (share === undefined || share.state === "up" || !isLoopbackHost(globalThis.location.hostname)) {
+    return null;
+  }
+  return (
+    <Stack gap="tight" role="note" data-invite-warning="loopback">
+      <Row gap="field" align="center">
+        <Badge intent="warning">Only this computer</Badge>
+      </Row>
+      <Text voice="gloss">
+        This page is open at a local address, so a link made here opens only on this computer. To invite a friend, start sharing in Settings, under Admin and
+        Multi-user, or open this app at an address they can reach.
+      </Text>
+    </Stack>
   );
 }
 

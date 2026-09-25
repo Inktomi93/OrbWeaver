@@ -19,9 +19,11 @@ export type { AuthConfig } from "./auth-config.ts";
 export {
   AUTH_CONFIG_KEY,
   fetchAuthConfig,
+  fetchLiveShare,
   useAuthConfig,
   useExternalMediaBlocked,
   useInteractiveCardsAllowed,
+  useLiveShare,
   useMultiHumanCapable,
   useRenderPolicyFloor,
   useUploadCaps,

@@ -24,6 +24,11 @@ const LOCALHOST = "localhost";
 const LOCALHOST_SUFFIX = `.${LOCALHOST}`;
 const BRACKETED_RE = /^\[(.*)\]$/u;
 const IPV6_ZONE_MARKER = "%";
+// 127.0.0.0/8 as a 32-bit range, and ::1.
+const IPV4_BITS = 32;
+const LOOPBACK_V4_FIRST = 0x7f_00_00_00n;
+const LOOPBACK_V4_END = 0x80_00_00_00n;
+const LOOPBACK_V6 = 1n;
 
 /** Drop one trailing dot: `example.com.` names the same DNS node as `example.com`. */
 export function withoutTrailingDot(name: string): string {
@@ -35,6 +40,19 @@ export function withoutTrailingDot(name: string): string {
  *  name). `host` is lower-cased, with no port and no trailing dot. */
 export function isAlwaysAllowedHost(host: string): boolean {
   return host === LOCALHOST || host.endsWith(LOCALHOST_SUFFIX) || parseIp(ipLiteralAddress(host)) !== null;
+}
+
+/** A name only this machine reaches: localhost, any `*.localhost` name, an address in 127.0.0.0/8, or `::1`, bare or
+ *  bracketed. A link on such a name opens nothing on another device. `host` is lower-cased, with no port. */
+export function isLoopbackHost(host: string): boolean {
+  if (host === LOCALHOST || host.endsWith(LOCALHOST_SUFFIX)) {
+    return true;
+  }
+  const ip = parseIp(ipLiteralAddress(host));
+  if (ip === null) {
+    return false;
+  }
+  return ip.bits === IPV4_BITS ? ip.value >= LOOPBACK_V4_FIRST && ip.value < LOOPBACK_V4_END : ip.value === LOOPBACK_V6;
 }
 
 // The address part of a possible IP literal: brackets removed, and an IPv6 zone id (`%eth0`, or `%25eth0` in URL
