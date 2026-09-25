@@ -1,6 +1,6 @@
 // @orb/kit/ip — the one IP literal parse. It is total: request headers reach it, so malformed input is null.
 
-import { parseIp } from "@orb/kit/ip";
+import { parseCidr, parseIp } from "@orb/kit/ip";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
@@ -42,4 +42,31 @@ test("an IPv6 literal with more than eight groups around `::` is null, never a t
   expect(parseIp("1:2:3:4:5:6:7:8::9")).toBeNull();
   // Control: the same shape with room for the `::` still parses.
   expect(parseIp("1:2:3:4:5:6::9")?.bits).toBe(128);
+});
+
+// The CIDR grammar the egress guard matches with and boot refuses by (`TRUSTED_PRIVATE_RANGES`). A range it cannot
+// read would fence nothing, so each refusal below is a range an operator could believe they had set.
+describe("parseCidr", () => {
+  test("reads a v4 range, a v6 range and a bare address as a range of one", () => {
+    expect(parseCidr("10.0.0.0/8")).toMatchObject({ net: { bits: 32 }, prefix: 8 });
+    expect(parseCidr("fd00::/8")).toMatchObject({ net: { bits: 128 }, prefix: 8 });
+    expect(parseCidr("192.168.7.5")).toMatchObject({ net: { bits: 32 }, prefix: 32 });
+    expect(parseCidr("0.0.0.0/0")).toMatchObject({ prefix: 0 });
+  });
+
+  test.each([
+    "10.0.0.0/",
+    "10.0.0.0/33",
+    "fd00::/129",
+    "10.0.0.0/-1",
+    "10.0.0.0/8/9",
+    "10.0.0.0/eight",
+    "10.0.0.0/8.5",
+    "fe80::1%eth0",
+    "010.0.0.0/8",
+    "lan-subnet",
+    "",
+  ])("%j is no range", (cidr) => {
+    expect(parseCidr(cidr)).toBeNull();
+  });
 });

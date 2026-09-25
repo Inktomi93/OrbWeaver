@@ -25,6 +25,7 @@ import { runsInContainer } from "./container.ts";
 import type { DiagnosticsPostureInput, OwnerFallbackCredentialInput } from "./diagnostics.ts";
 import type { OwnerFallbackPeerInput } from "./fallback-peers.ts";
 import { parseOwnerFallbackTrustedPeers, resolveOwnerFallbackPeers } from "./fallback-peers.ts";
+import { trustedPrivateRangeRefusal, unreadableTrustedPrivateRanges } from "./private-ranges.ts";
 
 export type { AllowedHostsInput } from "./allowed-hosts.ts";
 export { machineHostnameFor, publicAddresses, resolveAllowedHosts } from "./allowed-hosts.ts";
@@ -35,6 +36,7 @@ export type { DiagnosticsExposure, DiagnosticsPosture, DiagnosticsPostureInput, 
 export { DIAGNOSTICS_EXPOSURES, diagnosticsPostureWarnings, resolveDiagnosticsPosture, resolveOwnerFallbackCredential } from "./diagnostics.ts";
 export type { OwnerFallbackPeerInput, OwnerFallbackPeerPosture } from "./fallback-peers.ts";
 export { ownerFallbackPeerWarnings, parseOwnerFallbackTrustedPeers, resolveOwnerFallbackPeers } from "./fallback-peers.ts";
+export { parseTrustedPrivateRanges } from "./private-ranges.ts";
 
 const DEFAULT_PORT = 8788;
 // vLLM loopback engine ports (must match what the stack supervisor passes).
@@ -704,6 +706,12 @@ const envSchema = z
     // on every request with no hint why. Refuse it here, once per entry, naming it.
     for (const entry of parseAllowedHosts(val.ALLOWED_HOSTS).malformed) {
       ctx.addIssue({ code: "custom", path: [ALLOWED_HOSTS_KEY], message: allowedHostsEntryRefusal(entry) });
+    }
+    // An unreadable TRUSTED_PRIVATE_RANGES entry fences nothing, so the range the operator meant stays reachable
+    // through the egress guard with no hint why. Refuse it here, once per entry, naming it.
+    for (const entry of unreadableTrustedPrivateRanges(val.TRUSTED_PRIVATE_RANGES)) {
+      const refusal = trustedPrivateRangeRefusal(entry);
+      ctx.addIssue({ code: "custom", path: [refusal.key], message: refusal.message });
     }
     // The box has exactly one owner. A multi-handle list would seed >1 owner row and hit the DB unique
     // index as a raw violation later — fail fast here with a clear message instead.

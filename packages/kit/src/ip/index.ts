@@ -134,3 +134,31 @@ export function parseIp(ip: string): ParsedIp | null {
 }
 
 // biome-ignore-end lint/suspicious/noBitwiseOperators: end of the block above
+
+/** A CIDR range, or a bare address as a range of one: its network address and prefix length in bits. */
+export interface ParsedCidr {
+  readonly net: ParsedIp;
+  readonly prefix: number;
+}
+
+const PREFIX_MARK = "/";
+
+/** Parse `10.0.0.0/8`, `fc00::/7` or a bare address into a range, or null when the address is unreadable or the
+ *  prefix is empty, not an integer, or longer than the address. */
+export function parseCidr(cidr: string): ParsedCidr | null {
+  const slash = cidr.indexOf(PREFIX_MARK);
+  const net = parseIp(slash === -1 ? cidr : cidr.slice(0, slash));
+  if (net === null) {
+    return null;
+  }
+  if (slash === -1) {
+    return { net, prefix: net.bits };
+  }
+  const prefixText = cidr.slice(slash + 1);
+  // SECURITY: an empty prefix (`10.0.0.0/`) must never become /0 (`Number("")` is 0), which matches every address.
+  if (prefixText.trim() === "") {
+    return null;
+  }
+  const prefix = Number(prefixText);
+  return Number.isInteger(prefix) && prefix >= 0 && prefix <= net.bits ? { net, prefix } : null;
+}

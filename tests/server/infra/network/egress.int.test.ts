@@ -39,7 +39,13 @@
 
 import type { LookupFunction } from "node:net";
 import process from "node:process";
-import { __setFirewallLookupForTest, endpointAdmission, installEgressFirewall, publishPrivateEndpointAllowlist } from "@orb/server/infra/network";
+import {
+  __firewallConnectForTest,
+  __setFirewallLookupForTest,
+  endpointAdmission,
+  installEgressFirewall,
+  publishPrivateEndpointAllowlist,
+} from "@orb/server/infra/network";
 import type { Dispatcher } from "undici";
 import { getGlobalDispatcher, setGlobalDispatcher } from "undici";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, vi } from "vitest";
@@ -378,6 +384,38 @@ describe("publishPrivateEndpointAllowlist — the deployment's private-endpoint 
     expect(counts?.hosts).toBe(0);
     expect(endpointAdmission("http://127.0.0.1:8000")).toBe("refused");
     expect(endpointAdmission("http://127.0.0.2:8000")).toBe("admitted");
+  });
+});
+
+// A zone-scoped literal (`::1%lo`) is an IP to node, which skips the DNS lookup for it, and no address to
+// `@orb/kit/ip`, so neither the literal gate nor the lookup gate judges it. No URL can carry one (WHATWG refuses a
+// zone), so these drive the connect function the global dispatcher uses. Nothing listens on the ports: a dial that
+// gets through fails ECONNREFUSED, which is the evidence that it was attempted.
+describe("the firewall connect function refuses a zone-scoped host before any socket", () => {
+  function connectVerdict(hostname: string, port: string): Promise<string> {
+    const connect = __firewallConnectForTest();
+    return new Promise((resolve) => {
+      connect({ hostname, host: `[${hostname}]:${port}`, protocol: "http:", port }, (err, socket) => {
+        socket?.destroy();
+        resolve(err === null ? "connected" : errorChainText(err));
+      });
+    });
+  }
+
+  beforeAll(() => {
+    publishPrivateEndpointAllowlist([]);
+  });
+
+  test.each([
+    ["the IPv6 loopback on a zone", "::1%lo", "8741"],
+    ["a link-local address on a zone", "fe80::1%orbzone0", "8742"],
+    ["a percent-encoded zone", "::1%25lo", "8743"],
+  ])("%s (%s) is refused", async (_label, hostname, port) => {
+    expect(await connectVerdict(hostname, port)).toContain("SSRF_BLOCKED");
+  });
+
+  test("control: the same function refuses the zone-free loopback literal, so the gate under test is the zone one", async () => {
+    expect(await connectVerdict("::1", "8744")).toContain("SSRF_BLOCKED");
   });
 });
 

@@ -2,7 +2,7 @@ import { lookup as dnsLookup } from "node:dns";
 import type { LookupFunction } from "node:net";
 import { parseIp } from "@orb/kit/ip";
 import { Agent, buildConnector, setGlobalDispatcher } from "undici";
-import { env } from "#foundation/env";
+import { env, parseTrustedPrivateRanges } from "#foundation/env";
 import { getLog, securityEvent, superviseDetached } from "#foundation/observability";
 import { DEFAULT_TRUSTED_RANGES, isInRanges } from "./ip-ranges.ts";
 
@@ -52,6 +52,8 @@ function superviseEgressCleanup(reason: string, operation: () => Promise<unknown
 }
 
 const TRAILING_DOT_RE = /\.$/;
+/** The IPv6 zone separator (`fe80::1%eth0`); percent-encoded it is still a `%`. */
+const ZONE_MARK = "%";
 /** The socket family a connector lookup reports for an IPv4 and an IPv6 literal. */
 const SOCKET_FAMILY_V4 = 4;
 const SOCKET_FAMILY_V6 = 6;
@@ -64,10 +66,7 @@ function unbracket(hostname: string): string {
 }
 
 export function privateEgressRanges(): readonly string[] {
-  const extra = (env.TRUSTED_PRIVATE_RANGES ?? "")
-    .split(",")
-    .map((r) => r.trim())
-    .filter((r) => r.length > 0);
+  const extra = parseTrustedPrivateRanges(env.TRUSTED_PRIVATE_RANGES);
   return extra.length > 0 ? [...DEFAULT_TRUSTED_RANGES, ...extra] : DEFAULT_TRUSTED_RANGES;
 }
 
@@ -442,6 +441,20 @@ export function installEgressFirewall(): void {
   if (!env.EGRESS_FIREWALL) {
     return;
   }
+  const { connect, allowlist } = createFirewallConnect();
+  setGlobalDispatcher(new Agent({ connect }));
+  getLog().info({ allowlist: [...allowlist] }, "security: egress firewall installed (private egress blocked)");
+}
+
+/** TEST-ONLY seam: the connect function {@link installEgressFirewall} hands the global dispatcher, so a test can
+ *  present a connect target no URL can carry. Throws outside NODE_ENV=test. */
+export function __firewallConnectForTest(): buildConnector.connector {
+  assertTestOnly("__firewallConnectForTest");
+  return createFirewallConnect().connect;
+}
+
+/** The global firewall's connect function, over the env belt read now and the published allowlist read live. */
+function createFirewallConnect(): { readonly connect: buildConnector.connector; readonly allowlist: ReadonlySet<string> } {
   const ranges = privateEgressRanges();
   const allowlist = new Set(
     (env.EGRESS_ALLOWLIST ?? "")
@@ -511,6 +524,14 @@ export function installEgressFirewall(): void {
   });
 
   const connect: buildConnector.connector = (options, callback): void => {
+    // SECURITY: a zone-scoped literal (`::1%lo`) is an IP to node, which dials it with no DNS lookup, and no address
+    // to `@orb/kit/ip`, so neither gate below would judge it. WHATWG URL refuses a zone, so no URL carries one today;
+    // refusing any zone mark here keeps a future input path from reaching loopback or link-local through one.
+    if (options.hostname.includes(ZONE_MARK)) {
+      securityEvent("egress_blocked", { hostname: options.hostname }, "security: egress SSRF blocked (zone-scoped host)");
+      callback(new Error(`SSRF_BLOCKED: ${options.hostname} (zone-scoped host)`), null);
+      return;
+    }
     // Port is available HERE (undici passes options.port to the connector) but NOT in the lookup override
     // (node's `dns.lookup` never sees one) — so the port-scoped decision MUST live in the connect wrapper,
     // and a port-scoped entry is therefore keyed on an exact host, never on a range.
@@ -528,9 +549,7 @@ export function installEgressFirewall(): void {
     }
     baseConnect(options, callback);
   };
-
-  setGlobalDispatcher(new Agent({ connect }));
-  getLog().info({ allowlist: [...allowlist] }, "security: egress firewall installed (private egress blocked)");
+  return { connect, allowlist };
 }
 
 // ── safeFetch: the self-enforcing SSRF guard for any user-influenced outbound URL ──────────────────
