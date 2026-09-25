@@ -6,7 +6,7 @@
 
 import type { GenerationCapability, PromptCacheSettings } from "@orb/contracts/inference";
 import { modelIdSchema, SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
-import { anthropicCachePlan, cachesByAnthropicMarkers } from "../../../../packages/inference/src/backends/kit/cache-control.ts";
+import { anthropicCachePlan, cachesByAnthropicMarkers, computeCacheBreakpointPlacements } from "../../../../packages/inference/src/backends/kit/cache-control.ts";
 import type { ProviderLogger } from "../../../../packages/inference/src/backends/kit/provider-log.ts";
 import { providerLogger } from "../../../../packages/inference/src/backends/kit/provider-log.ts";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -65,4 +65,32 @@ test("a stored ttl off the allowlist is stripped to the bare 5m directive and sa
   const stored = { ...SHIPPED_PROMPT_CACHE, ttl: "9z" } as unknown as PromptCacheSettings;
   expect(planFor(stored, 1, log)?.directive).toEqual({ type: "ephemeral" });
   expect(events).toEqual(["provider.cache_ttl_rejected"]);
+});
+
+// The cached prefix is counted once. When the wire rows already open with the static system row, its tokens are
+// in `rows[0]`; adding `systemStaticTokens` again would place a history breakpoint under the real minimum, where
+// Anthropic silently caches nothing.
+test("a history breakpoint's prefix counts the static system block once", () => {
+  const conversation = [
+    { role: "user", tokens: 300 },
+    { role: "assistant", tokens: 50 },
+    { role: "user", tokens: 50 },
+  ] as const;
+  const withSystemRow = computeCacheBreakpointPlacements({
+    rows: [{ role: "system", tokens: 600 }, ...conversation],
+    systemStaticTokens: 600,
+    depthFromEnd: 1,
+    cacheMinTokens: 1000,
+  });
+  // 600 system + 300 + 50 = 950 below the 1000 minimum: nothing may be placed.
+  expect(withSystemRow).toEqual([]);
+
+  const withTopLevelSystem = computeCacheBreakpointPlacements({
+    rows: conversation,
+    systemStaticTokens: 700,
+    depthFromEnd: 1,
+    cacheMinTokens: 1000,
+  });
+  // CONTROL: the system block travels outside the rows, so its tokens still count: 700 + 300 + 50 = 1050.
+  expect(withTopLevelSystem).toEqual([{ depth: 1, index: 1 }]);
 });
