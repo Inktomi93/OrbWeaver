@@ -201,3 +201,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D251 | [Prompt sections keep their prompt-order position on every model](0251-prompt-sections-keep-prompt-order.md) | active |
 | D252 | [A cross-platform pnpm dev is the self-hoster's front door](0252-cross-platform-pnpm-dev.md) | active |
 | D253 | [The runtime data dir is one root with a fixed tree](0253-data-dir-layout.md) | active |
+| D254 | [Signup invites mint accounts through one gated batch](0254-signup-invites-mint-through-one-gated-batch.md) | active |
