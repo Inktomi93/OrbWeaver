@@ -89,6 +89,9 @@ export interface LocalLightModelCache {
   readonly removeBackground: (modelId: ModelId, image: ImageInput) => Promise<Uint8Array>;
   /** Warm a slot's memos WITHOUT running inference — the prefetch's whole surface. */
   readonly preload: (slot: LocalLightModelSlot, modelId: ModelId) => Promise<void>;
+  /** Whether the latest load of any part of this model (weights, tokenizer, processor) failed and no later
+   *  load of that part has succeeded — the availability verdict's input. */
+  readonly loadFailed: (modelId: ModelId) => boolean;
 }
 
 export interface ModelCacheConfig {
@@ -147,6 +150,28 @@ function requireTensor(out: Record<string, unknown>, key: string, modelId: Model
     throw new ProviderError({ kind: "server", retryable: false, message: `local-light model "${modelId}" produced no "${key}" output tensor` });
   }
   return value;
+}
+
+type PretrainedConfig = Awaited<ReturnType<TransformersModule["AutoConfig"]["from_pretrained"]>>;
+type AutoModelClass = Pick<TransformersModule["AutoModelForSemanticSegmentation"], "supports" | "MODEL_CLASS_MAPPINGS">;
+
+// Some published configs (briaai/RMBG-1.4) name a model CLASS as their `model_type`. transformers.js 4.x
+// picks a pipeline's model class by `model_type` key only (its class-name fallback compares one character),
+// so it refuses such a model. Rewrite the type to the key that maps to that class among the pipeline's own
+// candidates; an unknown type is left alone and the pipeline refuses it with its own message.
+function normalizeClassNamedModelType(modelConfig: PretrainedConfig, candidates: readonly AutoModelClass[]): void {
+  const modelType = modelConfig.model_type;
+  if (modelType === null || candidates.some((auto) => auto.supports(modelType))) {
+    return;
+  }
+  for (const mapping of candidates.flatMap((auto) => auto.MODEL_CLASS_MAPPINGS)) {
+    for (const [key, className] of mapping) {
+      if (className === modelType) {
+        modelConfig.model_type = key;
+        return;
+      }
+    }
+  }
 }
 
 function toImageSource(image: ImageInput): string | Blob {
@@ -224,6 +249,8 @@ interface MemoEntry<T> {
 interface ModelMemo<T> {
   (id: string): Promise<T>;
   withLease: <R>(id: string, use: (value: T) => Promise<R>) => Promise<R>;
+  /** Whether the id's most recent load rejected, until a later load of it succeeds. */
+  failed: (id: string) => boolean;
 }
 
 /** The lease-counted single-flight memo every model slot below is built from. */
@@ -234,6 +261,7 @@ function createMemo<T>(
   disposeName: string,
 ): ModelMemo<T> {
   const entries = new Map<string, MemoEntry<T>>();
+  const failedIds = new Set<string>();
   const disposeEntry = (entry: MemoEntry<T>): void => {
     if (entry.disposed || !entry.evictionPending || entry.refs > 0) {
       return;
@@ -251,13 +279,20 @@ function createMemo<T>(
     const created = load(id);
     const entry: MemoEntry<T> = { promise: created, refs: 0, evictionPending: false, disposed: false };
     entries.set(id, entry);
-    // The memo caches the RESOLVED model, never a rejection: a rejected entry evicts itself once settled.
-    // @orb-waive caught-failure-ownership(created): the rejection arm deletes the failed single-flight entry, while every awaiting caller still receives the original rejection. Precedent: the gate mustFlag fixture packages/server/src/domain/probe/opaque-rethrow-helper.ts documents the same real but syntactically opaque propagation. Ends if either behavior changes.
-    void created.catch(() => {
-      if (entries.get(id) === entry) {
-        entries.delete(id);
-      }
-    });
+    // The memo caches the RESOLVED model, never a rejection: a rejected entry evicts itself once settled, so the
+    // next call retries the load.
+    // @orb-waive caught-failure-ownership(created): the rejection arm records the failure for the availability verdict and deletes the failed single-flight entry, while every awaiting caller still receives the original rejection. Precedent: the gate mustFlag fixture packages/server/src/domain/probe/opaque-rethrow-helper.ts documents the same real but syntactically opaque propagation. Ends if either behavior changes.
+    void created.then(
+      () => {
+        failedIds.delete(id);
+      },
+      () => {
+        failedIds.add(id);
+        if (entries.get(id) === entry) {
+          entries.delete(id);
+        }
+      },
+    );
     if (entries.size > MODEL_CACHE_CAP) {
       const oldest = entries.keys().next().value;
       if (oldest !== undefined) {
@@ -282,6 +317,7 @@ function createMemo<T>(
       disposeEntry(entry);
     }
   };
+  memo.failed = (id: string): boolean => failedIds.has(id);
   return memo;
 }
 
@@ -322,20 +358,26 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
   const dtype = DEFAULT_DTYPE;
   const embedDtype = resolveEmbedDtype(config.embedDtype);
   const cacheDir = config.cacheDir === undefined ? undefined : resolve(config.cacheDir);
-  let configured = false;
-  const transformers = async (): Promise<TransformersModule> => {
+  const configure = async (): Promise<TransformersModule> => {
     const mod = await loadTransformers();
-    if (!configured) {
-      configured = true;
-      if (config.allowRemoteModels !== undefined) {
-        mod.env.allowRemoteModels = config.allowRemoteModels;
-      }
-      if (cacheDir !== undefined) {
-        await ensureCacheDir(cacheDir, config.log);
-        mod.env.cacheDir = cacheDir;
-      }
+    if (config.allowRemoteModels !== undefined) {
+      mod.env.allowRemoteModels = config.allowRemoteModels;
+    }
+    if (cacheDir !== undefined) {
+      await ensureCacheDir(cacheDir, config.log);
+      mod.env.cacheDir = cacheDir;
     }
     return mod;
+  };
+  // Every caller awaits the ONE configuration: a caller that ran ahead of it would load with the lib's default
+  // cache dir (inside node_modules). A failed configuration is dropped so the next load retries it.
+  let configured: Promise<TransformersModule> | undefined;
+  const transformers = (): Promise<TransformersModule> => {
+    configured ??= configure().catch((err: unknown) => {
+      configured = undefined;
+      throw err;
+    });
+    return configured;
   };
   const { onProgress, log } = config;
   const loadOpts =
@@ -392,8 +434,14 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
   );
   const bgRemover = createMemo(
     async (id) => {
-      const { pipeline } = await transformers();
-      return await loadWithCpuFallback(device, log, (dev) => pipeline("background-removal", id, { device: dev, dtype, ...loadOpts }));
+      const mod = await transformers();
+      const modelConfig = await mod.AutoConfig.from_pretrained(id, loadOpts);
+      normalizeClassNamedModelType(modelConfig, [
+        mod.AutoModelForImageSegmentation,
+        mod.AutoModelForSemanticSegmentation,
+        mod.AutoModelForUniversalSegmentation,
+      ]);
+      return await loadWithCpuFallback(device, log, (dev) => mod.pipeline("background-removal", id, { device: dev, dtype, config: modelConfig, ...loadOpts }));
     },
     async (p) => p.dispose(),
     config.detach,
@@ -422,10 +470,13 @@ export function createModelCache(config: ModelCacheConfig): LocalLightModelCache
     },
   };
 
+  const modelParts: readonly Pick<ModelMemo<unknown>, "failed">[] = [jinaEmbedder, reranker, tokenizer, processor, bgRemover];
+
   return {
     async preload(slot, modelId): Promise<void> {
       await slotLoaders[slot](modelId);
     },
+    loadFailed: (modelId): boolean => modelParts.some((part) => part.failed(modelId)),
     embedTexts(modelId, texts): Promise<Float32Array[]> {
       return texts.length === 0 ? Promise.resolve([]) : embedJinaTexts(modelId, texts);
     },

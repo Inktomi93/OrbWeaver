@@ -890,8 +890,15 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       const onBindError = (err: Error): void => {
         reject(err);
       };
+      // overrideGlobalObjects would swap global Response for hono's class, so a native fetch() result fails
+      // `instanceof Response`; transformers.js then never caches a downloaded model file and every local-light load fails.
       const handle = serve(
-        { fetch: app.fetch, port: options.listenPort ?? env.PORT, ...(bind.host === undefined ? {} : { hostname: bind.host }) },
+        {
+          fetch: app.fetch,
+          port: options.listenPort ?? env.PORT,
+          overrideGlobalObjects: false,
+          ...(bind.host === undefined ? {} : { hostname: bind.host }),
+        },
         (info: AddressInfo) => {
           handle.removeListener("error", onBindError);
           listenerAddress = { address: info.address, family: info.family, port: info.port };

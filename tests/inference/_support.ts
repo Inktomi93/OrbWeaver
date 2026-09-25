@@ -286,14 +286,19 @@ export function newRuleId(): AutomationRuleId {
 }
 
 /** A local-light model cache whose vectors are deterministic functions of the input — the backend's test
- *  seam (`deps.localLight.cache`), so no ONNX runtime loads. Records every call for the tasks' pins. */
-export function fakeModelCache(dims = 1024): {
+ *  seam (`deps.localLight.cache`), so no ONNX runtime loads. Records every call for the tasks' pins.
+ *  `failedModels` are the repo ids whose latest load reads as failed. */
+export function fakeModelCache(
+  dims = 1024,
+  failedModels: ReadonlySet<string> = new Set(),
+): {
   readonly embedTexts: (repo: string, texts: readonly string[]) => Promise<Float32Array[]>;
   readonly scorePairs: (repo: string, query: string, documents: readonly string[]) => Promise<number[]>;
   readonly embedImages: (repo: string, images: readonly (string | Uint8Array)[]) => Promise<Float32Array[]>;
   readonly embedClipTexts: (repo: string, texts: readonly string[]) => Promise<Float32Array[]>;
   readonly removeBackground: (repo: string, image: string | Uint8Array) => Promise<Uint8Array>;
   readonly preload: (slot: string, repo: string) => Promise<void>;
+  readonly loadFailed: (repo: string) => boolean;
   readonly calls: { method: string; repo: string; count: number }[];
 } {
   const calls: { method: string; repo: string; count: number }[] = [];
@@ -333,6 +338,7 @@ export function fakeModelCache(dims = 1024): {
       note(`preload:${slot}`, repo, 1);
       return Promise.resolve();
     },
+    loadFailed: (repo): boolean => failedModels.has(repo),
   };
 }
 

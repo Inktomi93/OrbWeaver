@@ -9,7 +9,7 @@ import type { ModelFamily } from "../contract/runtime.ts";
 const FAMILY_ANCHORS: readonly (readonly [Exclude<ModelFamily, "other">, RegExp])[] = [
   ["anthropic", /^(anthropic\/)?claude[-/]/i],
   ["openai", /^(openai\/)?(gpt-|o[13]|chatgpt|davinci)/i],
-  ["google", /^(google\/)?gemini/i],
+  ["google", /^(google\/|models\/)?gemini/i],
   ["meta", /^(meta-llama\/)?llama/i],
   ["deepseek", /^deepseek\//i],
   ["qwen", /^qwen\//i],

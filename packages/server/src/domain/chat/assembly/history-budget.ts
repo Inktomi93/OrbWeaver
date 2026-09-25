@@ -110,17 +110,21 @@ export function materializeOutputReserve(maxOutputTokens: number | undefined): n
 /** Build the `HistoryBudget` from the resolved knobs — the ONE fit-budget derivation the engine turn AND the
  *  previewFit read, so the boundary can't drift between them. `windowTokens` = the model's window;
  *  `maxContextTokens` = the user's soft cap (undefined ⇒ the window is the ceiling); the reserve is
- *  materialized from `maxOutputTokens`; `systemTokens` = the assembled system-prompt cost. */
+ *  materialized from `maxOutputTokens` and held under `outputCeiling`, the model's `output.maxTokens.max`
+ *  (undefined when no model resolved), because the wire clamps `max_tokens` to that cap; `systemTokens` = the
+ *  assembled system-prompt cost. */
 export function buildHistoryBudget(args: {
   readonly windowTokens: number;
   readonly maxContextTokens: number | undefined;
   readonly maxOutputTokens: number | undefined;
   readonly systemTokens: number;
+  readonly outputCeiling: number | undefined;
 }): HistoryBudget {
+  const reserve = materializeOutputReserve(args.maxOutputTokens);
   return {
     windowTokens: args.windowTokens,
     softMaxTokens: args.maxContextTokens,
-    reserveOutputTokens: materializeOutputReserve(args.maxOutputTokens),
+    reserveOutputTokens: args.outputCeiling === undefined ? reserve : Math.min(reserve, args.outputCeiling),
     systemTokens: args.systemTokens,
   };
 }

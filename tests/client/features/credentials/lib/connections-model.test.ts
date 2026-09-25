@@ -13,6 +13,7 @@ import {
   providerDefSchema,
   ROUTABLE_TASKS,
   TASKS,
+  UNAVAILABLE_CAUSES,
 } from "@orb/contracts/inference";
 import {
   backgroundRepairs,
@@ -212,7 +213,7 @@ test("blocked: a bound role that would not run states its cause, and the host ar
   expect(roleReadout({ view: hosted, draftConnectionId: undefined, factsOf })).toEqual({ kind: "blocked", cause: "the server isn't answering." });
   // Every other cause is a SENTENCE, never the raw code — the shipped row rendered `endpoint-unreachable`
   // as a badge, which is a schema word on a user surface.
-  for (const cause of ["runtime-missing", "background-refused", "requirement-unmet", "unavailable"] as const) {
+  for (const cause of UNAVAILABLE_CAUSES) {
     const readout = roleReadout({ view: { binding: boundTo(OPENROUTER), resolved: null, unavailableCause: cause }, draftConnectionId: undefined, factsOf });
     expect(readout.kind).toBe("blocked");
     expect(readout.kind === "blocked" ? readout.cause : "").not.toContain(cause);

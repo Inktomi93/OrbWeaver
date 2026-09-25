@@ -1,6 +1,7 @@
 // SHAPE shaper: fitHistoryToWindow (the chat design doc Part II §2 SHAPE fit-pass — the stateless-runner hard cap).
 import type { ProviderId } from "@orb/contracts/inference";
 import { GENERATION_FLOOR } from "@orb/contracts/inference";
+import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
@@ -136,7 +137,7 @@ describe("fitHistoryToWindow", () => {
 describe("the fit against a direct hosted model's resolved window", () => {
   const chat = Array.from({ length: 33 }, (_, i) => turn(`row ${i} `.concat("r".repeat(3200))));
   const budget = (windowTokens: number): Parameters<typeof fitHistoryToWindow>[1] =>
-    buildHistoryBudget({ windowTokens, maxContextTokens: undefined, maxOutputTokens: undefined, systemTokens: 1500 });
+    buildHistoryBudget({ windowTokens, maxContextTokens: undefined, maxOutputTokens: undefined, systemTokens: 1500, outputCeiling: undefined });
 
   test("gpt-4.1-mini keeps a 33-row chat whole, which the estimated floor trims", () => {
     const resolved = synthesizeCapability("generation", detectModelFamily("gpt-4.1-mini"), {
@@ -153,5 +154,47 @@ describe("the fit against a direct hosted model's resolved window", () => {
 
     // PLANTED CONTROL: the chat is long enough that the floor this model used to resolve to drops most of it.
     expect(fitHistoryToWindow(chat, budget(GENERATION_FLOOR.context.window)).droppedCount).toBeGreaterThan(20);
+  });
+});
+
+// The wire clamps `max_tokens` to the model's output cap, so the fit reserves that clamped value. Reserving the raw
+// ask would hold back context the model can never fill.
+describe("the output reserve against a direct hosted model's resolved output cap", () => {
+  const gpt4o = synthesizeCapability("generation", detectModelFamily("gpt-4o"), {
+    curated: curatedRows({ model: "gpt-4o", providerId: castId<ProviderId>("openai"), wire: "openai-compat", api: "chat-completions" }),
+  }).capability;
+  if (gpt4o.kind !== "generation") {
+    throw new Error("expected a generation capability");
+  }
+  const { window } = gpt4o.generation.context;
+  const cap = gpt4o.generation.output.maxTokens.max;
+  const askAboveCap = 100_000;
+
+  test("an ask above the cap reserves the cap, and the history it frees stays in the prompt", () => {
+    expect(cap).toBe(16_384);
+    const budget = buildHistoryBudget({
+      windowTokens: window,
+      maxContextTokens: undefined,
+      maxOutputTokens: askAboveCap,
+      systemTokens: 1500,
+      outputCeiling: cap,
+    });
+    expect(budget.reserveOutputTokens).toBe(cap);
+
+    const chat = Array.from({ length: 30 }, (_, i) => turn(`row ${i} `.concat("r".repeat(12_000))));
+    expect(fitHistoryToWindow(chat, budget).droppedCount).toBe(0);
+    // PLANTED CONTROL: reserving the raw ask out of the same window drops most of that chat.
+    expect(fitHistoryToWindow(chat, { ...budget, reserveOutputTokens: askAboveCap }).droppedCount).toBeGreaterThan(20);
+  });
+
+  test("an unset ask reserves the shared response default, never the cap", () => {
+    const budget = buildHistoryBudget({
+      windowTokens: window,
+      maxContextTokens: undefined,
+      maxOutputTokens: undefined,
+      systemTokens: 1500,
+      outputCeiling: cap,
+    });
+    expect(budget.reserveOutputTokens).toBe(DEFAULT_MAX_OUTPUT_TOKENS);
   });
 });

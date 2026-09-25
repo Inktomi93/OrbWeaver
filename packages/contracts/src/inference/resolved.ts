@@ -29,7 +29,8 @@ export interface ResolvedConnectionView {
  *  `runtime-missing` = the wire's runtime is absent on this box (the bundled `claude` executable does not
  *  resolve; renamed from `host-claude`); `background-refused` = a background task on a row whose
  *  `allowBackground` is off (`canFund`); `requirement-unmet` = the row's model cannot do the task;
- *  `unavailable` = the wire's backend is not wired (an operator error). `engine-off` is RETIRED: no row is
+ *  `unavailable` = the wire's backend is not wired (an operator error); `model-load-failed` = the in-process
+ *  model's latest load failed (the next call retries it). `engine-off` is RETIRED: no row is
  *  `no-connection` like every other absence. */
 export const UNAVAILABLE_CAUSES = [
   "no-connection",
@@ -38,6 +39,7 @@ export const UNAVAILABLE_CAUSES = [
   "background-refused",
   "requirement-unmet",
   "unavailable",
+  "model-load-failed",
 ] as const;
 export type UnavailableCause = (typeof UNAVAILABLE_CAUSES)[number];
 

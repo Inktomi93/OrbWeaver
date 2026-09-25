@@ -251,6 +251,7 @@ const UNAVAILABLE_CLAUSES: Record<UnavailableCause, string> = {
   "background-refused": "this connection doesn't allow background work.",
   "requirement-unmet": "this model can't do this job.",
   unavailable: "this connection isn't available on this server.",
+  "model-load-failed": "its built-in model failed to load on this server; the next use tries again.",
 };
 
 /** The honest silence for a refusal the server declined to name — never a raw cause code on screen. */

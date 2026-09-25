@@ -35,6 +35,7 @@ const heldCache: LocalLightModelCache = {
   embedImages: () => Promise.resolve([]),
   embedClipTexts: () => Promise.resolve([]),
   removeBackground: () => Promise.resolve(new Uint8Array()),
+  loadFailed: () => false,
   preload: (slot: string): Promise<void> => {
     preloads.push(slot);
     return held.promise;
