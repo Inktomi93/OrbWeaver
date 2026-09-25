@@ -9,6 +9,7 @@
 export {
   __pinnedAgentForTest,
   __setEgressResolverForTest,
+  __setFirewallLookupForTest,
   ANY_HOST,
   EgressBlockedError,
   ENDPOINT_ADMISSIONS,

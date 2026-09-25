@@ -2,7 +2,10 @@
 // fixed-width integer. Pure and total: malformed input returns null, never throws, because callers feed it request
 // headers. An IPv4-mapped IPv6 address (`::ffff:127.0.0.1`) reduces to its IPv4 value so it matches v4 ranges.
 
-const IPV4_RE = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+// SECURITY: an octet with a leading zero is refused, as `node:net` refuses it. getaddrinfo and WHATWG URL read
+// `012.0.0.1` as octal 10.0.0.1, so a decimal reading here would clear one address while the dialler reaches another.
+// Refusing it keeps every caller's verdict on the address that is actually dialled; do not relax it to decimal.
+const IPV4_RE = /^(0|[1-9]\d{0,2})\.(0|[1-9]\d{0,2})\.(0|[1-9]\d{0,2})\.(0|[1-9]\d{0,2})$/;
 /** A single IPv6 hextet (1–4 hex digits). */
 const HEXTET_RE = /^[0-9a-fA-F]{1,4}$/;
 
