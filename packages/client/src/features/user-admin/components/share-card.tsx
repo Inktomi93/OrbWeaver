@@ -180,7 +180,8 @@ function RunningPanel({ relay, liveSocketCount, onRestart, restarting }: Running
       </Row>
       {relay.state === "up" ? (
         <Text voice="gloss">
-          Invites are made per room: open a room, then choose Invite people in its Members tab. Each friend also needs an account from Users.
+          Invites are made per room: open a room, then choose Invite people in its Members tab. A friend without an account needs one from Users, or a sign-up
+          link an admin makes in that dialog. An account a sign-up link creates runs turns at your cost until the room's host kicks it or an admin disables it.
         </Text>
       ) : null}
     </Stack>
@@ -197,8 +198,8 @@ function ShareLink({ url }: { readonly url: string }): ReactElement {
         </Text>
       </CopyButton>
       <Text voice="gloss">
-        Anyone with this link reaches your sign-in page, and only the accounts you made can get past it. Sign-in attempts are throttled per visitor address, and
-        per handle at three times that.
+        Anyone with this link reaches your sign-in page, and only an account can get past it: one made in Users, or one a sign-up link created. Sign-in attempts
+        are throttled per visitor address, and per handle at three times that.
       </Text>
     </Stack>
   );
