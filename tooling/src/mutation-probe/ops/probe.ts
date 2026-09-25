@@ -12,6 +12,7 @@ import { join } from "node:path";
 import { budget } from "@orb/tooling/_shared/load-budget";
 import { ensureReportsDir, print, REPO_ROOT, reportsRelPath } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { runGit } from "../../_shared/git.ts";
 import { runNicedSync } from "../../_shared/proc.ts";
 import { resolveMirrors } from "../../_shared/test-mirror.ts";
 import type { MutantPopulation, MutantReceipt, ProbeSummary } from "../contract/types.ts";
@@ -134,7 +135,7 @@ export function probeMutants(options: ProbeOptions): ProbeSummary {
   // as "pristine" and restored over, and a mutation stranded by an earlier hard kill is indistinguishable
   // from a deliberate edit. The repo has already shipped one instrument-probe edit by accident (a gate
   // blinded by a broad `git add` on 2026-08-24); refuse rather than add a second way to do it.
-  const dirty = runNicedSync("git", ["status", "--porcelain", "--", options.sourceRel], { cwd: root }).stdout.trim();
+  const dirty = runGit(root, ["status", "--porcelain", "--", options.sourceRel]).stdout.trim();
   if (dirty !== "") {
     throw new Error(`${options.sourceRel} has uncommitted changes — refusing to plant into a dirty file (commit, stash, or restore it first)`);
   }

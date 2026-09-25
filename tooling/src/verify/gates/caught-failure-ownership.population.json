@@ -2,14 +2,14 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 621,
+    "sites": 625,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 621,
+      "deliberate-absorb": 625,
       "unproven": 0
     },
     "byGrammar": {
-      "default": 153,
+      "default": 157,
       "empty": 317,
       "promise": 151
     }
@@ -1919,6 +1919,26 @@
       "siteId": "tooling/src/_shared/panel-flags.ts::readPresetFile::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "panel-preset JSON parse returns null so the caller emits its option-specific refusal; no nav action is queued. Ends if parse failure stops being a refusal."
+    },
+    {
+      "siteId": "tooling/src/_shared/platform.ts::readDirOrEmpty::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a `/proc` that cannot be listed yields no processes, which a sweep reads as \"nothing observed\" and signals nothing. Ends if an empty list ever reads as a verdict."
+    },
+    {
+      "siteId": "tooling/src/_shared/platform.ts::readFileOrNull::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a `/proc` entry that vanished or is hidden answers null, and every reader here treats null as \"not observed\", never as a verdict. Ends if null ever authorizes a signal."
+    },
+    {
+      "siteId": "tooling/src/_shared/platform.ts::readLinkOrNull::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "an unreadable `/proc/<pid>/cwd` answers null, which every caller reads as \"unknown\", never as \"not ours\". Ends if null ever authorizes a signal."
+    },
+    {
+      "siteId": "tooling/src/_shared/platform.ts::win32Processes::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "PowerShell output that is not the JSON asked for is \"nothing observed\" to every caller, and nothing observed signals nothing. Ends if an empty list ever reads as a verdict."
     },
     {
       "siteId": "tooling/src/_shared/proc.ts::killPidGroup::catch::1",

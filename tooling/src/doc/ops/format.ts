@@ -54,7 +54,7 @@ import remarkFrontmatter from "remark-frontmatter";
 import remarkGfm from "remark-gfm";
 import { REPO_ROOT } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { execNicedSync } from "../../_shared/proc.ts";
+import { execGit } from "../../_shared/git.ts";
 import { DOC_TOOL_TREE_PREFIXES } from "../contract/vocab.ts";
 import type { MarkdownNode } from "../lib/format-fidelity.ts";
 import { ambiguousTemplateLiteralRefusal, escapeDeltaRefusal, fidelityKey, overflowRefusal } from "../lib/format-fidelity.ts";
@@ -293,7 +293,7 @@ export function formatTargets(explicit: readonly string[]): readonly string[] {
   if (explicit.length > 0) {
     return [...explicit];
   }
-  return execNicedSync("git", ["ls-files", "-z", "--", "docs", ...INSTRUCTION_DIRS, ...CLASS_2_TREES, "*.md"], { cwd: REPO_ROOT })
+  return execGit(REPO_ROOT, ["ls-files", "-z", "--", "docs", ...INSTRUCTION_DIRS, ...CLASS_2_TREES, "*.md"])
     .split("\0")
     .filter(
       (path) =>

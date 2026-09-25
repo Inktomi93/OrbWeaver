@@ -3,14 +3,14 @@
 
 import { resolve } from "node:path";
 import process from "node:process";
+import { runGit } from "@orb/tooling/_shared/git";
 import { budget } from "@orb/tooling/_shared/load-budget";
-import { runNicedSync } from "@orb/tooling/_shared/proc";
 import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ResourceLoad, ResourceSubprocessReceipt } from "../contract/resource.ts";
 import type { CandidateIndexDelta, CandidateIndexTextFile } from "../contract/resource-index.ts";
 import { normalizePathSet } from "../lib/policy-validation.ts";
-import { GIT_READ_PREFIX, repoGitEnvironment } from "../lib/repo-paths.ts";
+import { GIT_READ_PREFIX } from "../lib/repo-paths.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:structure");
 
@@ -18,16 +18,16 @@ const GIT_INDEX_TIMEOUT_BASE_MS = 30_000;
 const GIT_INDEX_TIMEOUT_MS = budget(GIT_INDEX_TIMEOUT_BASE_MS);
 const GIT_INDEX_MAX_BYTES = 16_777_216;
 
-/** A real-root pass must honor the hook's temporary `GIT_INDEX_FILE`; an isolated proof root must not
- *  inherit that unrelated index. Every other Git routing variable stays stripped in both forms. */
+/** The git variables a candidate-index read keeps: a real-root pass must honor the hook's temporary
+ *  `GIT_INDEX_FILE`; an isolated proof root must not inherit that unrelated index. Every other git routing
+ *  variable is dropped by the git door in both forms. */
 export function candidateIndexGitEnvironment(
   root: string,
   ambient: NodeJS.ProcessEnv = inheritedProcessEnv(),
   processRoot: string = process.cwd(),
-): NodeJS.ProcessEnv {
-  const clean = repoGitEnvironment();
+): Readonly<Record<string, string>> {
   const indexFile = ambient["GIT_INDEX_FILE"];
-  return resolve(root) === resolve(processRoot) && indexFile !== undefined ? { ...clean, ["GIT_INDEX_FILE"]: indexFile } : clean;
+  return resolve(root) === resolve(processRoot) && indexFile !== undefined ? { ["GIT_INDEX_FILE"]: indexFile } : {};
 }
 
 function subprocess(status: number | null): ResourceSubprocessReceipt {
@@ -44,10 +44,9 @@ export function loadCandidateIndexDelta(root: string, demandedPaths: readonly st
     return { status: "empty", paths: [], members: 0, reason: "candidate index delta was demanded for zero paths" };
   }
   const demanded = new Set(demandedPathsNormalized);
-  const env = candidateIndexGitEnvironment(root);
-  const diff = runNicedSync("git", [...GIT_READ_PREFIX, "diff-files", "--name-only", "-z", "--"], {
-    cwd: resolve(root),
-    env,
+  const extra = candidateIndexGitEnvironment(root);
+  const diff = runGit(resolve(root), [...GIT_READ_PREFIX, "diff-files", "--name-only", "-z", "--"], {
+    extra,
     timeout: GIT_INDEX_TIMEOUT_MS,
     maxBuffer: GIT_INDEX_MAX_BYTES,
   });
@@ -70,9 +69,8 @@ export function loadCandidateIndexDelta(root: string, demandedPaths: readonly st
 
   const files: CandidateIndexTextFile[] = [];
   for (const path of changed) {
-    const shown = runNicedSync("git", [...GIT_READ_PREFIX, "show", `:${path}`], {
-      cwd: resolve(root),
-      env,
+    const shown = runGit(resolve(root), [...GIT_READ_PREFIX, "show", `:${path}`], {
+      extra,
       timeout: GIT_INDEX_TIMEOUT_MS,
       maxBuffer: GIT_INDEX_MAX_BYTES,
     });

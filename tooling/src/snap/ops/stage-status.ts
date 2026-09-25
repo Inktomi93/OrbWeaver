@@ -25,6 +25,7 @@ import { join } from "node:path";
 import { errorMessage } from "@orb/kit/error-message";
 import { readConcurrencyProfile } from "../../_shared/concurrency-profile.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { runGit } from "../../_shared/git.ts";
 import { RESERVED_PORTS, STAGE_BANDS, stageBandPorts } from "../../_shared/ports.ts";
 import { killPidGroup, runNicedSync } from "../../_shared/proc.ts";
 import { processEnvValue } from "../../_shared/process-env.ts";
@@ -193,7 +194,7 @@ export function sweepStages(): string {
     rmSync(join(root, STAGE_ROOT_REL, name), { recursive: true, force: true });
   }
   if (orphanDirs.length > 0) {
-    runNicedSync("git", ["worktree", "prune"], { cwd: root, stdio: "ignore" });
+    runGit(root, ["worktree", "prune"], { stdio: "ignore" });
     done.push(`pruned ${orphanDirs.length} orphaned stage dir(s): ${orphanDirs.join(", ")}`);
   }
   if (done.length === 0) {
@@ -265,7 +266,7 @@ export function teardownStage(selection: { readonly force: boolean; readonly own
     rmSync(join(root, STAGE_ROOT_REL, name), { recursive: true, force: true });
   }
   if (orphanDirs.length > 0) {
-    runNicedSync("git", ["worktree", "prune"], { cwd: root, stdio: "ignore" });
+    runGit(root, ["worktree", "prune"], { stdio: "ignore" });
     results.push(`swept ${orphanDirs.length} orphaned stage dir(s)`);
   }
   if (results.length === 0) {

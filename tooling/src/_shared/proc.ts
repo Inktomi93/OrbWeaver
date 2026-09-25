@@ -9,7 +9,6 @@
 // 450-line cap. Reading the environment is not a subprocess capability; spawning is, and that half is here.
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { closeSync, openSync } from "node:fs";
-import { constants as osConstants } from "node:os";
 import process from "node:process";
 import crossSpawn from "cross-spawn";
 import { budget } from "./load-budget.ts";
@@ -24,7 +23,6 @@ import type {
   RunNicedSyncResult,
   SpawnNicedOptions,
   SpawnNicedResult,
-  StopSignalTarget,
   TranscriptOptions,
   TranscriptResult,
 } from "./proc-contract.ts";
@@ -60,6 +58,16 @@ function errnoIs(error: unknown, code: string): boolean {
 /** `detached` makes a spawned niced-exec launcher its own process-group leader — POSIX only, since on
  *  win32 it opens a visible console instead; `niced-exec.ts` forwards signals to its own child directly. */
 const DETACHED_GROUP_LEADER = process.platform !== "win32";
+
+/** The spawn functions every door uses. win32 ONLY: a bare command name (`biome`, not `biome.exe`) needs
+ *  PATHEXT resolution a shell-less `spawn` cannot do, and a `.cmd`/`.bat` npm-bin shim needs a shell that
+ *  cross-spawn adds and quotes correctly — POSIX never touches cross-spawn, since node's own `spawn` is
+ *  already correct there. One seam for every door, so a test proves the choice per platform. */
+export function platformSpawn(platform: NodeJS.Platform): { readonly spawn: typeof spawn; readonly spawnSync: typeof spawnSync } {
+  return platform === "win32" ? { spawn: crossSpawn.spawn, spawnSync: crossSpawn.sync } : { spawn, spawnSync };
+}
+
+const DOORS = platformSpawn(process.platform);
 
 /** Signal a whole process GROUP by its pgid — THE ONE door. Both child doors share it: signalling only the
  *  direct child orphans the real tree (pnpm→node→server, setsid→vllm→EngineCore). Exported for the stage
@@ -103,7 +111,7 @@ const DEFAULT_TIMEOUT_BASE_MS = 120_000;
  *  ./proc-contract.ts for the four causes it separates. */
 export function runNicedSync(cmd: string, args: readonly string[], opts: RunNicedSyncOptions = {}): RunNicedSyncResult {
   const stdio = opts.stdio === undefined || opts.stdio === "collect" ? undefined : opts.stdio;
-  const res = spawnSync(process.execPath, nicedArgv(cmd, args), {
+  const res = DOORS.spawnSync(process.execPath, nicedArgv(cmd, args), {
     ...(opts.cwd === undefined ? {} : { cwd: opts.cwd }),
     ...(opts.env === undefined ? {} : { env: opts.env }),
     ...(opts.maxBuffer === undefined ? {} : { maxBuffer: opts.maxBuffer }),
@@ -217,7 +225,7 @@ export function spawnFullPrioritySync(
   args: readonly string[],
   opts: { readonly cwd?: string; readonly env?: NodeJS.ProcessEnv; readonly stdio?: "inherit" | "ignore" } = {},
 ): { readonly status: number | null } {
-  const res = spawnSync(cmd, [...args], {
+  const res = DOORS.spawnSync(cmd, [...args], {
     ...(opts.cwd === undefined ? {} : { cwd: opts.cwd }),
     ...(opts.env === undefined ? {} : { env: opts.env }),
     stdio: opts.stdio ?? "inherit",
@@ -231,11 +239,7 @@ export function spawnFullPrioritySync(
  *  else rides spawnNicedChild. */
 export function spawnFullPriorityChild(cmd: string, args: readonly string[], opts: FullPriorityChildOptions = {}): FullPriorityChild {
   const logFd = opts.logPath === undefined ? undefined : openSync(opts.logPath, "a");
-  // win32 ONLY: a bare command name (`biome`, not `biome.exe`) needs PATHEXT resolution a shell-less
-  // `spawn` cannot do, and a `.cmd`/`.bat` npm-bin shim needs a shell cross-spawn adds and quotes
-  // correctly — POSIX never touches cross-spawn, since node's own `spawn` is already correct there.
-  const spawnFn = process.platform === "win32" ? crossSpawn : spawn;
-  const child = spawnFn(cmd, [...args], {
+  const child = DOORS.spawn(cmd, [...args], {
     ...(opts.cwd === undefined ? {} : { cwd: opts.cwd }),
     ...(opts.env === undefined ? {} : { env: opts.env }),
     detached: opts.detached ?? false,
@@ -285,37 +289,6 @@ function childStdio(
   return logFd === undefined ? ["ignore", "pipe", "pipe"] : ["ignore", logFd, logFd];
 }
 
-/** The signals a foreground launcher owes its children: Ctrl-C, a supervisor's stop, a closed terminal. */
-export const FORWARDED_SIGNALS = ["SIGINT", "SIGTERM", "SIGHUP"] as const;
-
-/** Wire each stop signal to the target. The registrar and the platform are injected (`process.on` and
- *  `process.platform` in a live launcher) so a test proves every platform's wiring without signalling its own
- *  runner. Registering our own handler is what keeps a Ctrl-C from killing the launcher before the child drains.
- *  On win32 the console already delivered the same event to the child, which shares it, and `kill` there is
- *  TerminateProcess whatever the signal: the launcher only notes the stop, so the child's own shutdown runs. */
-export function forwardSignalsTo(target: StopSignalTarget, register: (signal: NodeJS.Signals, handler: () => void) => void, platform: NodeJS.Platform): void {
-  const deliver = platform !== "win32";
-  for (const signal of FORWARDED_SIGNALS) {
-    register(signal, () => {
-      target.noteStop(signal);
-      if (deliver) {
-        target.kill(signal);
-      }
-    });
-  }
-}
-
-/** The shell convention for "killed by signal N". */
-const SIGNAL_EXIT_BASE = 128;
-
-/** Mirror a child's exit faithfully: its code, or 128+signal when a signal took it (Ctrl-C gives 130). */
-export function childExitCode(exit: ChildExit): number {
-  if (exit.signal === null) {
-    return exit.code ?? 0;
-  }
-  return SIGNAL_EXIT_BASE + osConstants.signals[exit.signal];
-}
-
 /** Long-lived detached child, priority lowered directly after spawn (own process group, reaped by
  *  `killGroup`) — the ASYNC-door half of the niced-exec.ts pair, see `lowerChildPriority`'s header. */
 export function spawnNicedChild(cmd: string, args: readonly string[], opts: NicedChildOptions = {}): NicedChild {
@@ -323,7 +296,7 @@ export function spawnNicedChild(cmd: string, args: readonly string[], opts: Nice
     throw new Error("spawnNicedChild: logPath and onOutput are mutually exclusive — a child logs to a file or pipes to its parent, never both");
   }
   const logFd = opts.logPath === undefined ? undefined : openSync(opts.logPath, "a");
-  const child = spawn(cmd, [...args], {
+  const child = DOORS.spawn(cmd, [...args], {
     ...(opts.cwd === undefined ? {} : { cwd: opts.cwd }),
     ...(opts.env === undefined ? {} : { env: opts.env }),
     // win32 `detached` opens a new console window; the launcher below stays foreground there instead.
@@ -357,7 +330,7 @@ export function spawnNicedTranscript(cmd: string, args: readonly string[], opts:
     const chunks: string[] = [];
     // `detached` so the child leads its own group: a stage is `pnpm → node → the tool`, and killing only
     // the direct child leaves the tool running with the pipes open — the promise would never settle.
-    const child = spawn(cmd, [...args], { cwd: opts.cwd, shell: false, env: opts.env, detached: DETACHED_GROUP_LEADER });
+    const child = DOORS.spawn(cmd, [...args], { cwd: opts.cwd, shell: false, env: opts.env, detached: DETACHED_GROUP_LEADER });
     lowerChildPriority(child.pid);
     // THE GROUP KILL IS NOT THE WHOLE TEARDOWN (#1848). Playwright's browsers and vite's service children
     // leave the group, so the marker sweep runs AFTER it and the promise waits for that sweep to finish —
@@ -412,7 +385,7 @@ export function spawnNicedTranscript(cmd: string, args: readonly string[], opts:
  *  (never rejects on a non-zero code — the CALLER judges codes against the exit contract). */
 export function spawnNiced(cmd: string, args: readonly string[], opts: SpawnNicedOptions = {}): Promise<SpawnNicedResult> {
   return new Promise((resolvePromise, rejectPromise) => {
-    const child = spawn(cmd, [...args], {
+    const child = DOORS.spawn(cmd, [...args], {
       cwd: opts.cwd,
       env: inheritedProcessEnv(opts.env),
       stdio: ["ignore", "pipe", "pipe"],

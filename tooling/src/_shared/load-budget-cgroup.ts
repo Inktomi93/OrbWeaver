@@ -7,6 +7,7 @@
 // `cgroupQuotaCores` below (#1985) and `load-budget.ts#throttleFactor` (#2206).
 import { readFileSync } from "node:fs";
 import { cpus } from "node:os";
+import process from "node:process";
 
 /** THE KERNEL'S OWN RECORD OF THE LIMIT BITING (#2206). `cpu.stat` counts scheduling PERIODS and how many
  *  of them ended with this tree THROTTLED — i.e. the quota, not the machine, stopped the work. */
@@ -17,8 +18,15 @@ export interface CpuThrottleSample {
 
 /** cgroup v2 writes exactly one `0::<path>` line into `/proc/self/cgroup`; v1's numbered lines are not it. */
 const CGROUP_V2_PREFIX = "0::";
-const CGROUP_V2_ROOT = "/sys/fs/cgroup";
-const PROC_SELF_CGROUP = "/proc/self/cgroup";
+
+/** The cgroup v2 files, behind the platform guard: cgroups are a Linux kernel feature, and off Linux the walk
+ *  has nothing to read and answers "no ceiling". */
+function cgroupPaths(): { readonly procSelf: string; readonly root: string } | undefined {
+  if (process.platform !== "linux") {
+    return;
+  }
+  return { procSelf: "/proc/self/cgroup", root: "/sys/fs/cgroup" };
+}
 
 /** How the quota walk reads a cgroup file: the bytes, or `undefined` for absent/unreadable. Injectable so a
  *  planted control drives the ancestry instead of the box's real one. */
@@ -52,17 +60,21 @@ function cpuMaxCores(body: string | undefined): number | undefined {
  *  the tree. An unbounded tree finds `max` everywhere and this returns `undefined` — it keeps the physical
  *  count and its budgets stay byte-identical. */
 export function cgroupQuotaCores(read: CgroupFileReader): number | undefined {
-  const own = read(PROC_SELF_CGROUP)
-    ?.split("\n")
-    .find((line) => line.startsWith(CGROUP_V2_PREFIX))
-    ?.slice(CGROUP_V2_PREFIX.length);
-  if (own === undefined || !own.startsWith("/")) {
+  const paths = cgroupPaths();
+  const own =
+    paths === undefined
+      ? undefined
+      : read(paths.procSelf)
+          ?.split("\n")
+          .find((line) => line.startsWith(CGROUP_V2_PREFIX))
+          ?.slice(CGROUP_V2_PREFIX.length);
+  if (paths === undefined || own === undefined || !own.startsWith("/")) {
     return;
   }
   const segments = own.split("/").filter((segment) => segment !== "");
   let cores: number | undefined;
   for (let depth = segments.length; depth >= 0; depth -= 1) {
-    const quota = cpuMaxCores(read(`${CGROUP_V2_ROOT}/${segments.slice(0, depth).join("/")}/cpu.max`));
+    const quota = cpuMaxCores(read(`${paths.root}/${segments.slice(0, depth).join("/")}/cpu.max`));
     if (quota !== undefined) {
       cores = cores === undefined ? quota : Math.min(cores, quota);
     }
@@ -121,17 +133,21 @@ function parseCpuStat(body: string | undefined): CpuThrottleSample | undefined {
  *  `cgroupQuotaCores` makes, for the same reason: a quota on any ancestor bounds this tree, so the
  *  enforcement that hurts most is the one that counts. `undefined` on an unfenced box. */
 export function readCpuThrottle(read: CgroupFileReader): CpuThrottleSample | undefined {
-  const own = read(PROC_SELF_CGROUP)
-    ?.split("\n")
-    .find((line) => line.startsWith(CGROUP_V2_PREFIX))
-    ?.slice(CGROUP_V2_PREFIX.length);
-  if (own === undefined || !own.startsWith("/")) {
+  const paths = cgroupPaths();
+  const own =
+    paths === undefined
+      ? undefined
+      : read(paths.procSelf)
+          ?.split("\n")
+          .find((line) => line.startsWith(CGROUP_V2_PREFIX))
+          ?.slice(CGROUP_V2_PREFIX.length);
+  if (paths === undefined || own === undefined || !own.startsWith("/")) {
     return;
   }
   const segments = own.split("/").filter((segment) => segment !== "");
   let worst: CpuThrottleSample | undefined;
   for (let depth = segments.length; depth >= 0; depth -= 1) {
-    const sample = parseCpuStat(read(`${CGROUP_V2_ROOT}/${segments.slice(0, depth).join("/")}/cpu.stat`));
+    const sample = parseCpuStat(read(`${paths.root}/${segments.slice(0, depth).join("/")}/cpu.stat`));
     if (sample !== undefined && (worst === undefined || sample.throttled / sample.periods > worst.throttled / worst.periods)) {
       worst = sample;
     }

@@ -1,8 +1,8 @@
 // Git index membership is independent of authored disk/overlay liveness and loaded once by the host.
 
 import { resolve } from "node:path";
+import { runGit } from "@orb/tooling/_shared/git";
 import { budget } from "@orb/tooling/_shared/load-budget";
-import { runNicedSync } from "@orb/tooling/_shared/proc";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ResourceLoad, ResourceSubprocessReceipt, TrackedResourceIndex } from "../contract/resource.ts";
 import { normalizePathSet } from "../lib/policy-validation.ts";
@@ -15,11 +15,10 @@ const GIT_INDEX_TIMEOUT_MS = budget(GIT_INDEX_TIMEOUT_BASE_MS);
 const GIT_INDEX_MAX_BYTES = 16_777_216;
 
 export function loadTrackedFiles(root: string): ResourceLoad<TrackedResourceIndex> {
-  const result = runNicedSync("git", ["ls-files", "-z", "--full-name"], {
-    cwd: resolve(root),
+  const result = runGit(resolve(root), ["ls-files", "-z", "--full-name"], {
     // Membership and staged bytes must describe the same candidate transaction. The shared environment
     // selector preserves a hook's GIT_INDEX_FILE only at the real invocation root.
-    env: candidateIndexGitEnvironment(root),
+    extra: candidateIndexGitEnvironment(root),
     timeout: GIT_INDEX_TIMEOUT_MS,
     maxBuffer: GIT_INDEX_MAX_BYTES,
   });

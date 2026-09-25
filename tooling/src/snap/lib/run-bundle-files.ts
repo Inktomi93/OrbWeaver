@@ -8,7 +8,7 @@ import type { InstrumentArtifactDeclaration } from "../../_shared/artifact-out.t
 import { instrumentArtifactDeclarationSchema } from "../../_shared/artifact-out.ts";
 import { artifactRef, instrumentLegacyScopeSchema } from "../../_shared/artifact-scope.ts";
 import { checkoutName } from "../../_shared/artifacts.ts";
-import { runNicedSync } from "../../_shared/proc.ts";
+import { runGit } from "../../_shared/git.ts";
 import type { Arm } from "../contract/arm-vocabulary.ts";
 import { ARMS } from "../contract/arm-vocabulary.ts";
 import type { SnapRunArtifact, SnapRunIndex } from "../contract/run-index.ts";
@@ -40,7 +40,7 @@ interface GitFailure {
 }
 
 function git(root: string, args: readonly string[]): GitRead {
-  const result = runNicedSync("git", args, { cwd: root, maxBuffer: GIT_OUTPUT_MAX_BYTES });
+  const result = runGit(root, args, { maxBuffer: GIT_OUTPUT_MAX_BYTES });
   const raw = result.stdout;
   const value = raw.trim();
   const detail = (result.stderr.trim() || value || `git exited ${String(result.status)}`).slice(0, GIT_FAILURE_DETAIL_MAX_CHARS);

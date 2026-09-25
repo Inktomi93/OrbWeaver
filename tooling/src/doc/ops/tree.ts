@@ -6,8 +6,8 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { REPO_ROOT } from "../../_shared/artifacts.ts";
-import { repoGitEnvironment } from "../../_shared/authored-repository.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { runGit } from "../../_shared/git.ts";
 import type { RunNicedSyncResult } from "../../_shared/proc.ts";
 import { runNicedSync } from "../../_shared/proc.ts";
 import type { CommitOutcome, DocsRootEntry, DocTree, GovernedDoc } from "../contract/types.ts";
@@ -31,7 +31,7 @@ export function today(): string {
 /** Every git call runs on `repoRoot` alone: a git hook exports `GIT_DIR`/`GIT_INDEX_FILE` into its children,
  *  and inheriting them would aim a planted repository's command at the checkout running the hook. */
 function git(repoRoot: string, args: readonly string[]): string | null {
-  const result = runNicedSync("git", args, { cwd: repoRoot, env: repoGitEnvironment() });
+  const result = runGit(repoRoot, args);
   return result.status === 0 ? result.stdout : null;
 }
 
@@ -236,34 +236,33 @@ export function commitPaths(paths: readonly string[], message: string, repoRoot 
     if (contract.status !== 0) {
       return { ok: false, reason: `the landing message fails the commit-message contract: ${`${contract.stdout}${contract.stderr}`.trim()}` };
     }
-    const base = repoGitEnvironment();
-    const scoped = { ...base, ["GIT_INDEX_FILE"]: join(scratch, "index") };
+    const scoped = { extra: { ["GIT_INDEX_FILE"]: join(scratch, "index") } };
     const steps: readonly (readonly [string, readonly string[]])[] = [
       ["read-tree", ["read-tree", head]],
       ["update-index", ["update-index", "--add", "--remove", "--", ...paths]],
     ];
     for (const [step, args] of steps) {
-      const result = runNicedSync("git", args, { cwd: repoRoot, env: scoped });
+      const result = runGit(repoRoot, args, scoped);
       if (result.status !== 0) {
         return gitFailure(step, result);
       }
     }
-    const tree = runNicedSync("git", ["write-tree"], { cwd: repoRoot, env: scoped });
+    const tree = runGit(repoRoot, ["write-tree"], scoped);
     if (tree.status !== 0) {
       return gitFailure("write-tree", tree);
     }
-    const commit = runNicedSync("git", ["commit-tree", tree.stdout.trim(), "-p", head, "-F", messagePath], { cwd: repoRoot, env: base });
+    const commit = runGit(repoRoot, ["commit-tree", tree.stdout.trim(), "-p", head, "-F", messagePath]);
     if (commit.status !== 0) {
       return gitFailure("commit-tree", commit);
     }
     const sha = commit.stdout.trim();
     const subject = message.split("\n")[0] ?? "";
-    const ref = runNicedSync("git", ["update-ref", "-m", `commit: ${subject}`, "HEAD", sha, head], { cwd: repoRoot, env: base });
+    const ref = runGit(repoRoot, ["update-ref", "-m", `commit: ${subject}`, "HEAD", sha, head]);
     if (ref.status !== 0) {
       return gitFailure("update-ref", ref);
     }
     // The checkout's own index follows for these paths, so `git status` reads clean for what just landed.
-    const index = runNicedSync("git", ["update-index", "--add", "--remove", "--", ...paths], { cwd: repoRoot, env: base });
+    const index = runGit(repoRoot, ["update-index", "--add", "--remove", "--", ...paths]);
     return index.status === 0 ? { ok: true, sha } : gitFailure("update-index", index);
   } finally {
     rmSync(scratch, { recursive: true, force: true });

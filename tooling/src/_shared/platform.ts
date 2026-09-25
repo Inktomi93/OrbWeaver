@@ -1,0 +1,373 @@
+// THE ONE PLATFORM MODULE: every read of the socket table or the process table, every `/proc` path and
+// every OS-specific binary lives here, branched on an injectable `platform`. The `tooling-os-neutral`
+// policy exempts this file alone; a Linux-only call anywhere else is a finding. Limits stated once: win32
+// exposes no process environment and no process group, so a run marker there is found only in argv and a
+// tree is stopped through its recorded pids; darwin folds a process's environment into its command line.
+import { readdirSync, readFileSync, readlinkSync } from "node:fs";
+import process from "node:process";
+import type { ProcessEntry, SocketRow } from "./platform-parse.ts";
+import {
+  nulJoined,
+  parseCimProcesses,
+  parseLsofSockets,
+  parseNetstatSockets,
+  parseProcStatCpuMs,
+  parseProcStatGroup,
+  parseProcStatusParent,
+  parsePsClock,
+  parsePsProcesses,
+  parseSsSockets,
+} from "./platform-parse.ts";
+import type { RunNicedSyncResult } from "./proc.ts";
+import { runNicedSync, spawnNicedChild } from "./proc.ts";
+
+export type { ProcessEntry, SocketRow } from "./platform-parse.ts";
+
+/** The platforms with a backend here. Any other platform reads nothing and never guesses. */
+export const SUPPORTED_PLATFORMS = ["linux", "darwin", "win32"] as const;
+export type SupportedPlatform = (typeof SUPPORTED_PLATFORMS)[number];
+
+/** The reads a door performs, injected so a test drives the darwin and win32 branches on Linux with
+ *  fixture output and a fake `/proc`. Production callers take the defaults. */
+export interface PlatformDeps {
+  readonly platform?: NodeJS.Platform;
+  readonly run?: (cmd: string, args: readonly string[]) => RunNicedSyncResult;
+  /** A text file, or null when it cannot be read (a pid that exited mid-scan, a hidden `/proc` entry). */
+  readonly readFile?: (path: string) => string | null;
+  readonly readDir?: (path: string) => readonly string[];
+  readonly readLink?: (path: string) => string | null;
+  /** The detached launcher `openUrl` releases at once. */
+  readonly launch?: (cmd: string, args: readonly string[]) => { readonly unref: () => void };
+}
+
+/** One established TCP socket: the local port it terminates, the peer it faces and the pid owning the
+ *  local end when the OS named it. */
+export interface EstablishedConnection {
+  readonly localPort: number;
+  readonly peerHost: string;
+  readonly peerPort: number;
+  readonly pid: number | null;
+}
+
+/** What the OS says about one live pid; `cwd` is null where the OS does not expose it (win32). */
+export interface ProcessInfo {
+  readonly pid: number;
+  readonly ppid: number | null;
+  readonly cmdline: string;
+  readonly cwd: string | null;
+}
+
+/** How to run the operator's own pnpm from a child process with `shell: false`, on every platform.
+ *    `node`    — `<node> <pnpm.cjs> <args>`: pnpm's own JS entry, run by the node we are already in. The
+ *                only spelling that works unchanged on win32, where pnpm on PATH is `pnpm.cmd` and node
+ *                refuses to spawn a `.cmd`/`.bat` without `shell: true`.
+ *    `path`    — bare `pnpm` resolved by the OS execvp (POSIX only; no `.cmd` indirection there).
+ *    `refused` — no usable pnpm could be named, and guessing would be a lie. `reason` is the fix. */
+export type PnpmInvocation =
+  | { readonly kind: "node"; readonly command: string; readonly args: readonly string[] }
+  | { readonly kind: "path"; readonly command: string; readonly args: readonly string[] }
+  | { readonly kind: "refused"; readonly reason: string };
+
+/** The env key pnpm (and npm/yarn) sets to the absolute path of its own JS entry when it runs a script. */
+export const PNPM_EXECPATH_ENV = "npm_execpath";
+/** pnpm's JS entry, however this process was launched: a `.cjs`/`.js`/`.mjs` tail is the whole test. */
+const JS_ENTRY_RE = /\.(?:c|m)?js$/u;
+
+const PROC = "/proc";
+const PROC_VERSION = "/proc/version";
+const WSL2_KERNEL_RE = /microsoft-standard|wsl2/iu;
+const PID_DIR_RE = /^\d+$/u;
+const POWERSHELL = "powershell.exe";
+const POWERSHELL_FLAGS = ["-NoProfile", "-NonInteractive", "-Command"] as const;
+const CIM_FIELDS = "ProcessId,ParentProcessId,CommandLine,KernelModeTime,UserModeTime";
+const PS_PROCESS_COLUMNS = "pid=,ppid=,time=,command=";
+
+function isSupported(platform: NodeJS.Platform): platform is SupportedPlatform {
+  return (SUPPORTED_PLATFORMS as readonly string[]).includes(platform);
+}
+
+/** The platform a door branches on, or null for one this module has no backend for. */
+function supportedPlatform(deps: PlatformDeps): SupportedPlatform | null {
+  const platform = deps.platform ?? process.platform;
+  return isSupported(platform) ? platform : null;
+}
+
+function runOf(deps: PlatformDeps): (cmd: string, args: readonly string[]) => RunNicedSyncResult {
+  return deps.run ?? ((cmd, args): RunNicedSyncResult => runNicedSync(cmd, args));
+}
+
+function readFileOrNull(path: string): string | null {
+  // @orb-waive caught-failure-ownership(catch): a `/proc` entry that vanished or is hidden answers null, and every reader here treats null as "not observed", never as a verdict. Ends if null ever authorizes a signal.
+  try {
+    return readFileSync(path, "utf8");
+  } catch {
+    return null;
+  }
+}
+
+function readLinkOrNull(path: string): string | null {
+  // @orb-waive caught-failure-ownership(catch): an unreadable `/proc/<pid>/cwd` answers null, which every caller reads as "unknown", never as "not ours". Ends if null ever authorizes a signal.
+  try {
+    return readlinkSync(path);
+  } catch {
+    return null;
+  }
+}
+
+function readDirOrEmpty(path: string): readonly string[] {
+  // @orb-waive caught-failure-ownership(catch): a `/proc` that cannot be listed yields no processes, which a sweep reads as "nothing observed" and signals nothing. Ends if an empty list ever reads as a verdict.
+  try {
+    return readdirSync(path);
+  } catch {
+    return [];
+  }
+}
+
+function stdoutOf(result: RunNicedSyncResult): string {
+  return result.status === 0 ? result.stdout : "";
+}
+
+/** ONE socket-table read: every TCP socket in the asked state. `ss` on Linux, `lsof` on darwin, `netstat` on
+ *  win32; a tool that fails to answer yields no rows, never a guess. */
+function sockets(listening: boolean, deps: PlatformDeps): readonly SocketRow[] {
+  const platform = supportedPlatform(deps);
+  return platform === null ? [] : socketsOn(platform, listening, deps);
+}
+
+function socketsOn(platform: SupportedPlatform, listening: boolean, deps: PlatformDeps): readonly SocketRow[] {
+  const run = runOf(deps);
+  switch (platform) {
+    case "linux":
+      return parseSsSockets(stdoutOf(listening ? run("ss", ["-tlnp"]) : run("ss", ["-tnp", "state", "established"])));
+    case "darwin":
+      return parseLsofSockets(stdoutOf(run("lsof", ["-nP", "-iTCP", `-sTCP:${listening ? "LISTEN" : "ESTABLISHED"}`, "-Fpn"])), listening);
+    case "win32":
+      return parseNetstatSockets(stdoutOf(run("netstat", ["-ano"]))).filter((row) => row.listening === listening);
+  }
+}
+
+/** Port to the pid listening on it. A port with no nameable owner (another user's process) is absent. */
+export function listeningPids(deps: PlatformDeps = {}): ReadonlyMap<number, number> {
+  const bound = new Map<number, number>();
+  for (const row of sockets(true, deps)) {
+    if (row.pid !== null && !bound.has(row.localPort)) {
+      bound.set(row.localPort, row.pid);
+    }
+  }
+  return bound;
+}
+
+/** Every established TCP connection the box holds, with the owner of the local end when nameable. */
+export function establishedConnections(deps: PlatformDeps = {}): readonly EstablishedConnection[] {
+  return sockets(false, deps).map((row) => ({ localPort: row.localPort, peerHost: row.peerHost, peerPort: row.peerPort, pid: row.pid }));
+}
+
+function linuxProcessInfo(pid: number, deps: PlatformDeps): ProcessInfo | null {
+  const readFile = deps.readFile ?? readFileOrNull;
+  const readLink = deps.readLink ?? readLinkOrNull;
+  const cmdline = readFile(`${PROC}/${String(pid)}/cmdline`);
+  if (cmdline === null) {
+    return null;
+  }
+  const status = readFile(`${PROC}/${String(pid)}/status`);
+  return { pid, ppid: status === null ? null : parseProcStatusParent(status), cmdline: nulJoined(cmdline), cwd: readLink(`${PROC}/${String(pid)}/cwd`) };
+}
+
+function darwinProcessInfo(pid: number, deps: PlatformDeps): ProcessInfo | null {
+  const run = runOf(deps);
+  const entry = parsePsProcesses(stdoutOf(run("ps", ["-o", PS_PROCESS_COLUMNS, "-p", String(pid)])))[0];
+  if (entry === undefined) {
+    return null;
+  }
+  const cwd = parseLsofCwd(stdoutOf(run("lsof", ["-a", "-p", String(pid), "-d", "cwd", "-Fn"])));
+  return { pid, ppid: entry.ppid, cmdline: entry.cmdline, cwd };
+}
+
+/** `lsof -a -p <pid> -d cwd -Fn` answers `p<pid>` then `n<path>`. */
+function parseLsofCwd(output: string): string | null {
+  const line = output.split("\n").find((candidate) => candidate.startsWith("n"));
+  return line === undefined ? null : line.slice(1).trim();
+}
+
+function win32Processes(deps: PlatformDeps, filter: string | null): readonly ProcessEntry[] {
+  const query = filter === null ? "Get-CimInstance Win32_Process" : `Get-CimInstance Win32_Process -Filter "${filter}"`;
+  const output = stdoutOf(runOf(deps)(POWERSHELL, [...POWERSHELL_FLAGS, `${query} | Select-Object ${CIM_FIELDS} | ConvertTo-Json -Compress`]));
+  // @orb-waive caught-failure-ownership(catch): PowerShell output that is not the JSON asked for is "nothing observed" to every caller, and nothing observed signals nothing. Ends if an empty list ever reads as a verdict.
+  try {
+    return parseCimProcesses(output);
+  } catch {
+    return [];
+  }
+}
+
+function win32ProcessInfo(pid: number, deps: PlatformDeps): ProcessInfo | null {
+  const entry = win32Processes(deps, `ProcessId = ${String(pid)}`)[0];
+  return entry === undefined ? null : { pid, ppid: entry.ppid, cmdline: entry.cmdline, cwd: null };
+}
+
+/** What the OS says about one pid, or null when it is gone or unreadable: null is "not observed", never
+ *  "not ours". */
+export function processInfo(pid: number, deps: PlatformDeps = {}): ProcessInfo | null {
+  const platform = supportedPlatform(deps);
+  return platform === null ? null : processInfoOn(platform, pid, deps);
+}
+
+function processInfoOn(platform: SupportedPlatform, pid: number, deps: PlatformDeps): ProcessInfo | null {
+  switch (platform) {
+    case "linux":
+      return linuxProcessInfo(pid, deps);
+    case "darwin":
+      return darwinProcessInfo(pid, deps);
+    case "win32":
+      return win32ProcessInfo(pid, deps);
+  }
+}
+
+/** The POSIX process group of a pid, or null: win32 has no process group, and a pid that is gone has none. */
+export function processGroupId(pid: number, deps: PlatformDeps = {}): number | null {
+  const platform = supportedPlatform(deps);
+  if (platform === null || platform === "win32") {
+    return null;
+  }
+  if (platform === "linux") {
+    const stat = (deps.readFile ?? readFileOrNull)(`${PROC}/${String(pid)}/stat`);
+    return stat === null ? null : parseProcStatGroup(stat);
+  }
+  const pgid = Number(stdoutOf(runOf(deps)("ps", ["-o", "pgid=", "-p", String(pid)])).trim());
+  return Number.isInteger(pgid) && pgid > 0 ? pgid : null;
+}
+
+/** Seconds since a pid started, or null when the OS cannot say. */
+export function processAgeSeconds(pid: number, deps: PlatformDeps = {}): number | null {
+  const platform = supportedPlatform(deps);
+  const run = runOf(deps);
+  if (platform === null) {
+    return null;
+  }
+  if (platform === "win32") {
+    const script = `(Get-CimInstance Win32_Process -Filter "ProcessId = ${String(pid)}" | ForEach-Object { [int]((Get-Date) - $_.CreationDate).TotalSeconds })`;
+    const seconds = Number(stdoutOf(run(POWERSHELL, [...POWERSHELL_FLAGS, script])).trim());
+    return Number.isInteger(seconds) && seconds >= 0 ? seconds : null;
+  }
+  return parsePsClock(stdoutOf(run("ps", ["-o", "etime=", "-p", String(pid)])));
+}
+
+function linuxProcesses(deps: PlatformDeps): readonly ProcessEntry[] {
+  const readFile = deps.readFile ?? readFileOrNull;
+  const entries: ProcessEntry[] = [];
+  for (const name of (deps.readDir ?? readDirOrEmpty)(PROC)) {
+    if (!PID_DIR_RE.test(name)) {
+      continue;
+    }
+    const cmdline = readFile(`${PROC}/${name}/cmdline`);
+    if (cmdline === null) {
+      continue;
+    }
+    const status = readFile(`${PROC}/${name}/status`);
+    const environ = readFile(`${PROC}/${name}/environ`);
+    const stat = readFile(`${PROC}/${name}/stat`);
+    entries.push({
+      pid: Number(name),
+      ppid: status === null ? null : parseProcStatusParent(status),
+      cmdline: nulJoined(cmdline),
+      environ: environ === null ? null : nulJoined(environ),
+      cpuMs: stat === null ? null : parseProcStatCpuMs(stat),
+    });
+  }
+  return entries;
+}
+
+/** Every process on the box: pid, parent, command line, environment where the OS exposes it, CPU time. */
+export function listProcesses(deps: PlatformDeps = {}): readonly ProcessEntry[] {
+  const platform = supportedPlatform(deps);
+  return platform === null ? [] : listProcessesOn(platform, deps);
+}
+
+function listProcessesOn(platform: SupportedPlatform, deps: PlatformDeps): readonly ProcessEntry[] {
+  switch (platform) {
+    case "linux":
+      return linuxProcesses(deps);
+    case "darwin":
+      // `-E` appends each process's environment to its command line; the parser keeps both in one blob.
+      return parsePsProcesses(stdoutOf(runOf(deps)("ps", ["-axEww", "-o", PS_PROCESS_COLUMNS])));
+    case "win32":
+      return win32Processes(deps, null);
+  }
+}
+
+/** CPU milliseconds burned by `pid` and every descendant, from one process-table read. */
+export function processTreeCpuMs(pid: number, deps: PlatformDeps = {}): number {
+  const entries = listProcesses(deps);
+  const children = new Map<number, number[]>();
+  for (const entry of entries) {
+    if (entry.ppid !== null) {
+      children.set(entry.ppid, [...(children.get(entry.ppid) ?? []), entry.pid]);
+    }
+  }
+  const tree = new Set<number>([pid]);
+  const queue = [pid];
+  for (let next = queue.shift(); next !== undefined; next = queue.shift()) {
+    for (const child of children.get(next) ?? []) {
+      if (!tree.has(child)) {
+        tree.add(child);
+        queue.push(child);
+      }
+    }
+  }
+  return entries.filter((entry) => tree.has(entry.pid)).reduce((total, entry) => total + (entry.cpuMs ?? 0), 0);
+}
+
+/** Running inside WSL2, whose own addresses other devices cannot reach without Windows port forwarding.
+ *  WSL1 does not match: it shares Windows' own network stack. */
+export function isWsl2(deps: PlatformDeps = {}): boolean {
+  if (supportedPlatform(deps) !== "linux") {
+    return false;
+  }
+  const version = (deps.readFile ?? readFileOrNull)(PROC_VERSION);
+  return version !== null && WSL2_KERNEL_RE.test(version);
+}
+
+/** The default-browser opener per platform; `xdg-open` is the answer on every other Unix. */
+function openerFor(platform: SupportedPlatform | null, url: string): readonly [string, readonly string[]] {
+  if (platform === "darwin") {
+    return ["open", [url]];
+  }
+  if (platform === "win32") {
+    // `start` is a cmd builtin; its first quoted argument is the window title, so the URL needs an empty one.
+    return ["cmd.exe", ["/c", "start", "", url]];
+  }
+  return ["xdg-open", [url]];
+}
+
+/** Open a URL in the default browser, detached. The child is released at once; a browser that fails to
+ *  open is the user's desktop's business, not the launcher's. */
+export function openUrl(url: string, deps: PlatformDeps = {}): void {
+  const [command, args] = openerFor(supportedPlatform(deps), url);
+  (deps.launch ?? spawnNicedChild)(command, args).unref();
+}
+
+/** Name the pnpm to run with, for a `shell: false` spawn on any platform.
+ *
+ *  `npm_execpath` is the answer on all three OSes and is present under every `pnpm <script>`: pnpm exports the
+ *  absolute path of its own `pnpm.cjs` into each script's environment, so `<this node> <pnpm.cjs> …` runs the
+ *  exact package manager the operator invoked. Only a direct `node <entry>.ts` misses it; on POSIX the bare
+ *  name then resolves through PATH, and on win32 it cannot (PATH holds `pnpm.cmd`, which node will not run
+ *  without a shell), so win32 refuses and names the one-word fix instead of failing inside a spawn. */
+export function pnpmInvocation(opts: {
+  readonly ambient: Readonly<Record<string, string | undefined>>;
+  readonly platform: NodeJS.Platform;
+  readonly nodePath: string;
+  readonly args: readonly string[];
+}): PnpmInvocation {
+  const execPath = opts.ambient[PNPM_EXECPATH_ENV];
+  if (execPath !== undefined && JS_ENTRY_RE.test(execPath)) {
+    return { kind: "node", command: opts.nodePath, args: [execPath, ...opts.args] };
+  }
+  if (opts.platform === "win32") {
+    return {
+      kind: "refused",
+      reason: `cannot find pnpm to run with: ${PNPM_EXECPATH_ENV} is unset, and on Windows pnpm on PATH is a .cmd file node will not run without a shell. Run the command through \`pnpm\` (not \`node …\`).`,
+    };
+  }
+  return { kind: "path", command: "pnpm", args: [...opts.args] };
+}

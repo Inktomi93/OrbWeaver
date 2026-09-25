@@ -2,9 +2,10 @@
 // a pinned commit) and read probe keys from the main checkout's `.env` in process. Nothing here prints a key.
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import process from "node:process";
 import { parseEnv } from "node:util";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { execNicedSync } from "../../_shared/proc.ts";
+import { execGit } from "../../_shared/git.ts";
 import { processEnvValue, withProcessEnv } from "../../_shared/process-env.ts";
 import { UsageError } from "../../_shared/run-tool.ts";
 import type { CacheCheckOptions, EnvFile } from "../contract/types.ts";
@@ -17,7 +18,7 @@ const LOOPBACK = "127.0.0.1";
 
 /** The main checkout: the parent of the git common dir, which every linked worktree shares. */
 function mainCheckoutRoot(): string {
-  return dirname(execNicedSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"]).trim());
+  return dirname(execGit(process.cwd(), ["rev-parse", "--path-format=absolute", "--git-common-dir"]).trim());
 }
 
 /** The main checkout's `.env`, parsed. Empty when the file is absent. */

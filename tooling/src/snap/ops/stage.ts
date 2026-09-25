@@ -69,8 +69,9 @@ import { join } from "node:path";
 import process from "node:process";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { runGit } from "../../_shared/git.ts";
 import { stageBandPorts } from "../../_shared/ports.ts";
-import { runNicedSync, spawnFullPrioritySync } from "../../_shared/proc.ts";
+import { spawnFullPrioritySync } from "../../_shared/proc.ts";
 import type { EnsureStageOpts, StagePaths, StagePorts, StageRow } from "../contract/stage.ts";
 import {
   DIRTY_STAGE_KEY,
@@ -360,5 +361,5 @@ function pruneOrphanStageDirs(root: string, keep: { readonly rowDirs: readonly s
   for (const name of orphans) {
     rmSync(join(root, STAGE_ROOT_REL, name), { recursive: true, force: true });
   }
-  runNicedSync("git", ["worktree", "prune"], { cwd: root, stdio: "ignore" });
+  runGit(root, ["worktree", "prune"], { stdio: "ignore" });
 }

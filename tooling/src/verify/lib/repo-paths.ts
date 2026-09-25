@@ -4,15 +4,14 @@
 import { existsSync } from "node:fs";
 import { isAbsolute, relative, resolve } from "node:path";
 import process from "node:process";
-import { GIT_READ_PREFIX, repoGitEnvironment } from "@orb/tooling/_shared/authored-repository";
-import { runNicedSync } from "@orb/tooling/_shared/proc";
+import { GIT_READ_PREFIX, runGit } from "@orb/tooling/_shared/git";
 import { UsageError } from "@orb/tooling/_shared/run-tool";
 import type { ChangedPath, ChangedPathClassification, ChangedPathStatus } from "../contract/selection.ts";
 
 export const ROOT = process.cwd();
 
 // biome-ignore lint/performance/noBarrelFile: compatibility front door keeps existing verifier imports stable after the shared path extraction.
-export { GIT_READ_PREFIX, repoGitEnvironment } from "@orb/tooling/_shared/authored-repository";
+export { GIT_READ_PREFIX, repoGitEnvironment } from "@orb/tooling/_shared/git";
 export { FIXTURE_GIT_CONFIG_ARGS, fixtureGitEnvironment } from "@orb/tooling/_shared/git-fixture";
 
 function changedPath(path: string, status: ChangedPathStatus, previousPath: string | null = null): ChangedPath {
@@ -68,7 +67,7 @@ function classifyGitNameStatus(source: string, root: string = ROOT): ChangedPath
  *  posture (it is what an IDE polling `status` is supposed to pass). It changes no output. */
 /** The authoritative git-changed classification: staged + unstaged vs HEAD, with rename identity. */
 export function gitChangedPathClassification(root: string = ROOT): ChangedPathClassification {
-  const result = runNicedSync("git", [...GIT_READ_PREFIX, "diff", "--name-status", "-z", "--find-renames", "HEAD"], { cwd: root, env: repoGitEnvironment() });
+  const result = runGit(root, [...GIT_READ_PREFIX, "diff", "--name-status", "-z", "--find-renames", "HEAD"]);
   if (result.status !== 0) {
     throw new Error(`git changed-path read failed (${String(result.status)}): ${result.stderr.trim()}`);
   }
@@ -78,7 +77,7 @@ export function gitChangedPathClassification(root: string = ROOT): ChangedPathCl
 /** `git ls-files -z <args>` as a path list, read with the same scrubbed environment as the diff above: a
  *  git hook exports `GIT_INDEX_FILE`, and inheriting it would list the hook's index, not `root`'s. */
 export function gitLsFiles(root: string, args: readonly string[]): readonly string[] {
-  const result = runNicedSync("git", [...GIT_READ_PREFIX, "ls-files", "-z", ...args], { cwd: root, env: repoGitEnvironment() });
+  const result = runGit(root, [...GIT_READ_PREFIX, "ls-files", "-z", ...args]);
   if (result.status !== 0) {
     throw new Error(`git ls-files failed (${String(result.status)}): ${result.stderr.trim()}`);
   }
@@ -144,7 +143,7 @@ export interface MergeBaseResolution {
  *  git failed. Callers must fail SAFE on it, never clean. */
 export function resolveMergeBase(root: string = ROOT): MergeBaseResolution | null {
   const git = (args: readonly string[]): { readonly status: number; readonly stdout: string } => {
-    const res = runNicedSync("git", [...GIT_READ_PREFIX, ...args], { cwd: root, env: repoGitEnvironment() });
+    const res = runGit(root, [...GIT_READ_PREFIX, ...args]);
     return { status: res.status ?? 1, stdout: res.stdout.trim() };
   };
   const candidates: { ref: (typeof MERGE_BASE_REFS)[number]; commit: string }[] = [];
@@ -179,7 +178,7 @@ export function branchChangedPaths(root: string = ROOT): readonly string[] | nul
   // `runNicedSync` over `execNicedSync` DELIBERATELY: the latter returns the child's STDERR on failure,
   // which a splitter would happily turn into "changed paths". A status check is the only honest read.
   const git = (args: readonly string[]): string | null => {
-    const res = runNicedSync("git", [...GIT_READ_PREFIX, ...args], { cwd: root, env: repoGitEnvironment() });
+    const res = runGit(root, [...GIT_READ_PREFIX, ...args]);
     return res.status === 0 ? res.stdout : null;
   };
   const base = resolveMergeBase(root);
