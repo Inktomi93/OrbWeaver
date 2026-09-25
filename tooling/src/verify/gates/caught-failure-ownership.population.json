@@ -1866,17 +1866,17 @@
       "reason": "a deleted or virtual argv[1] fails to resolve; the caller's own doc says exactly that case is expected, so falling back to the input verbatim is the correct optional-read-as-absent behavior, not a lost failure. Ends if a resolve failure here starts meaning something other than \"no real path\"."
     },
     {
-      "siteId": "tooling/src/_shared/host-slots.ts::defaultAlive::catch::1",
+      "siteId": "tooling/src/_shared/host-slot-records.ts::defaultAlive::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "`kill(pid, 0)` ASKS A QUESTION and throws to answer \"no\" — the throw IS the ESRCH answer, not a lost failure, and the caller acts on the boolean by stealing the slot and saying so out loud. Ends if this ever needs to distinguish EPERM from ESRCH."
     },
     {
-      "siteId": "tooling/src/_shared/host-slots.ts::readHolder::catch::1",
+      "siteId": "tooling/src/_shared/host-slot-records.ts::readHolder::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "the FAILURE IS THE VERDICT — an unreadable or half-written slot file is DEBRIS, and `null` is how this reader says so to its one caller, which then STEALS the slot and PRINTS that it did. Any other surfacing wedges the box on a torn write. Ends if a caller starts reading `null` as \"someone holds this\"."
     },
     {
-      "siteId": "tooling/src/_shared/host-slots.ts::takeAnySlot::catch::1",
+      "siteId": "tooling/src/_shared/host-slot-records.ts::takeAnySlot::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "the EEXIST throw IS \"this slot is taken\" — the catch arm reads the holder and either moves to the next slot (live) or STEALS the slot with a printed note (dead). Every path out of it is owned and visible. Ends if this stops re-deciding and starts swallowing."
     },

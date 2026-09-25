@@ -486,11 +486,12 @@ test("tryAcquireHostSlot never jumps a live waiter: a free slot with someone que
   const env = scratchRuntime();
   const queue = join(hostPoolDir(poolOf(1), env), "queue");
   mkdirSync(queue, { recursive: true, mode: 0o700 });
-  const beatMs = Date.now();
+  const { now } = fakeClock();
+  const beatMs = now().getTime();
   writeFileSync(join(queue, "0000000000000001-0000000630.json"), JSON.stringify({ pid: 630, startedAt: "x", label: "waiting", beatMs, startTicks: null }));
-  expect(tryAcquireHostSlot(poolOf(1), { env, pid: 631, alive: aliveOnly(630, 631) }), "the queued waiter goes first").toBeNull();
+  expect(tryAcquireHostSlot(poolOf(1), { env, pid: 631, alive: aliveOnly(630, 631), now }), "the queued waiter goes first").toBeNull();
   // …and a DEAD waiter ahead is pruned, so the advisory caller takes the slot.
-  const lease = tryAcquireHostSlot(poolOf(1), { env, pid: 632, alive: aliveOnly(632) });
+  const lease = tryAcquireHostSlot(poolOf(1), { env, pid: 632, alive: aliveOnly(632), now });
   expect(lease?.slot).toBe(1);
   rmSync(env[HOST_POOL_ROOT_ENV] ?? "", { recursive: true, force: true });
 });
