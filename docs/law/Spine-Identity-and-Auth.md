@@ -108,6 +108,7 @@ Code comments cite the numbered invariants below as "invariant N":
     (`domain/sessions/substrate/decide-provision.ts`, D254): the verb interprets its decision, and a
     batch-shaped signup statement that decides through the same function is not a second upsert. Such a
     statement carries only the race-relevant checks in SQL: the unique indexes and a `NOT EXISTS` on email.
+    The one such statement is the `oidc` pending-join confirm (`domain/sessions/verbs/pending-signup.ts`).
     A mode with its own upsert would carry its own, weaker, takeover
     posture. Enforcers: `infra/auth` is db-free and may not import a domain, so a mode resolver
     structurally cannot write; `no-direct-users-read` reds any domain outside sessions/admin touching
@@ -235,8 +236,10 @@ The sanctioned `Principal`/credential construction and cookie sites; everything 
 - `entry/http/auth-routes.ts` — the session cookie write side, under the request transport's name
   (`infra/auth/transport.ts`); mints session tokens via `domain/sessions` and never re-implements resolution.
   Its cookie sites are login, first-run, the local signup-through-invite route, and the `oidc` callback
-  and confirm routes (the confirm is not yet built). A signup or confirm mints only after its one gated
-  batch commits with every `RETURNING` non-empty (D254).
+  and pending-join confirm routes. A signup or confirm mints only after its one gated batch commits with
+  every `RETURNING` non-empty, and a confirm mints only for an enabled account (D254). The pending-join
+  cookie (`infra/auth/modes/oidc.ts`) is `HttpOnly` and `SameSite=Strict`. It carries a fresh secret that
+  the server stores only as a peppered hash, and it is never a session.
 - `entry/app.ts` — the `Set-Cookie` writer: the per-request auth middleware re-issues the same token
   `sessions.validate` just accepted, with a fresh max-age. It never mints; re-issuing a second copy read
   independently would silently log the caller out, so the token it writes must be the one the seam

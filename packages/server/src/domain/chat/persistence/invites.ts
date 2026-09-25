@@ -226,14 +226,17 @@ export async function findAdmittingSignupInvite(
 }
 
 /**
- * D254 — the signup redeem as ONE batch: the account insert gated on the admission, then the claim gated on
- * the admission and on the account insert having written a row, then the seat and the audit row, each gated
- * on the statement before it having written a row. `changes()` reads the statement immediately before, so a refused account insert zeroes the whole chain, and a thrown unique violation rolls
- * it all back. Reports each statement's row count; the verb owns what the counts mean.
+ * D254 — the signup redeem as ONE batch: any `leading` statements (the OIDC pending take), the account insert
+ * gated on the admission (and on the take), then the claim gated on the admission and on the account insert
+ * having written a row, then the seat and the audit row, each gated on the statement before it having written
+ * a row. `changes()` reads the statement immediately before, so a refused step zeroes the rest of the chain,
+ * and a thrown unique violation rolls it all back. Reports the account, claim and seat row counts; the verb
+ * owns what they mean.
  */
 export async function redeemSignupAtomic(
   db: Db,
   params: SignupAdmissionKey & {
+    readonly leading: readonly BatchStmt[];
     readonly account: AwaitableBatchStmt<{ id: UserId }[]>;
     readonly audit: BatchStmt;
     readonly inviteId: ChatInviteId;
@@ -257,8 +260,9 @@ export async function redeemSignupAtomic(
     activePersonaId: null,
     now: params.now,
   });
-  const results = await db.batch(batchMany([params.account, claim, seat, params.audit]));
-  const rowCount = (index: number): number => (results[index] as readonly unknown[]).length;
+  const results = await db.batch(batchMany([...params.leading, params.account, claim, seat, params.audit]));
+  const base = params.leading.length;
+  const rowCount = (index: number): number => (results[base + index] as readonly unknown[]).length;
   return { accounts: rowCount(0), claims: rowCount(1), seats: rowCount(2) };
 }
 

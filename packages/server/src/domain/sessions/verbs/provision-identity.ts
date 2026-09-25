@@ -382,7 +382,7 @@ function refuse(identity: ResolvedIdentity, cause: ProvisionDenyCause): Provisio
         { handle: identity.handle, externalId: identity.externalId },
         "user: SSO login denied — JIT provisioning is off (OIDC_SIGNUP) and this identity has no existing account (deny-by-default; set OIDC_SIGNUP=on to allow it)",
       );
-      return { outcome: "denied" };
+      return { outcome: "denied", reason: "jit-closed" };
     default: {
       const exhaustive: never = cause;
       throw new Error(`provisionIdentity: unknown deny cause ${String(exhaustive)}`);

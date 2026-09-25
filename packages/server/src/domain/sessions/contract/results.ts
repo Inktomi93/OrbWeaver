@@ -3,7 +3,9 @@
 // `UserId`. None is a `Principal` itself — the seam adds `via` and mints it.
 
 import type { UserRole } from "@orb/contracts/identity";
+import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/kit";
 import type { ExternalId, Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
+import type { SQL } from "drizzle-orm";
 
 /** `create` output: the raw token (returned ONCE — never stored; the route sets it as the cookie), the
  *  row id, and the 30-day expiry. `token` is the branded `SessionToken` (the opaque cookie VALUE), never
@@ -113,11 +115,12 @@ export type ProvisionDecision =
     }
   | { readonly kind: "require-free-email"; readonly email: string; readonly otherwise: ProvisionInsert | ProvisionDeny };
 
-/** Why a `provisionIdentity` login was refused. Only `account-exists` (MS-W1 collision hard-deny) needs a
- *  DISTINCT, operator-actionable message; the other refusals collapse to the generic "not authorized". Kept a
- *  single-member union (extensible) rather than enumerating every deny site, so adding a distinct reason is a
- *  local change. */
-type ProvisionDenyReason = "account-exists";
+/** Why a `provisionIdentity` login was refused, where the caller must tell it apart. `account-exists` is the
+ *  MS-W1 collision deny (operator-actionable). `jit-closed` is the A1 JIT gate and only that gate (D254): the
+ *  OIDC callback offers a pending join on it and on nothing else, so an access-gate or subject-mismatch deny
+ *  never reaches the invite path. Every other refusal carries no reason. */
+const PROVISION_DENY_REASONS = ["account-exists", "jit-closed"] as const;
+type ProvisionDenyReason = (typeof PROVISION_DENY_REASONS)[number];
 
 /** `provisionIdentity` output — a discriminated union: `provisioned` (the upserted row's live login state)
  *  or `denied` (the login gate refused the identity — no row is created/updated). Distinct from
@@ -169,6 +172,22 @@ export type UnclaimedLinkOutcome =
  *  The read itself gates NOTHING; it REPORTS `enabled` and each caller decides (the auth seam's REQUEST arm
  *  refuses a disabled row like the cookie/SSO arms do; the frozen-host bridge deliberately does not, so an
  *  offline-or-disabled host's room keeps resolving its authority for the members still in it). */
+/**
+ * D254 — a pending OIDC join ready to confirm: the frozen identity passed `decideProvision` as a fresh insert.
+ * `statements` builds the confirm's first two batch statements (take the pending row, then the gated account
+ * insert) around chat's opaque invite `admission`, so sessions reads no chat table.
+ */
+export interface PendingSignupPlan {
+  readonly inviteTokenHash: string;
+  readonly userId: UserId;
+  readonly handle: Handle;
+  /** False under OIDC_REQUIRE_APPROVAL: the account lands disabled and the confirm mints no session. */
+  readonly enabled: boolean;
+  /** The id_token the callback verified, for the session the confirm mints; null when there was none. */
+  readonly oidcIdToken: string | null;
+  readonly statements: (admission: SQL) => { readonly take: BatchStmt; readonly account: AwaitableBatchStmt<{ id: UserId }[]> };
+}
+
 export interface UserPrincipalFields {
   role: UserRole;
   handle: Handle;

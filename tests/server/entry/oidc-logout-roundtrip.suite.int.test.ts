@@ -70,7 +70,7 @@ const PROXY_PEER = { incoming: { socket: { remoteAddress: "127.0.0.1", remotePor
 /** #867 — the PKCE/state transaction the authorize leg minted; the callback consumes it single-use. Its
  *  `redirectUri` is the allowlisted callback the exchange must be presented, whatever origin the request
  *  arrives on. */
-const TX: OidcTransaction = { state: "st-1", codeVerifier: "cv-1", nonce: "nonce-1", redirectUri: CALLBACK_URI, createdAt: NOW };
+const TX: OidcTransaction = { state: "st-1", codeVerifier: "cv-1", nonce: "nonce-1", redirectUri: CALLBACK_URI, createdAt: NOW, inviteTokenHash: null };
 /** The claims the fake exchange yields — a usable username AND the stable subject `oidcSessionIdentity`
  *  requires. `alice` is the seeded row, so provisioning binds the subject onto it. */
 // biome-ignore lint/style/useNamingConvention: OIDC claim names are wire-fixed snake_case (OIDC Core).

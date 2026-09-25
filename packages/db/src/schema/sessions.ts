@@ -13,8 +13,13 @@
 // is domain/sessions persistence, NOT sealed db-free infra/auth). Natural-key PK on `state` (the OAuth
 // state param), no brand, no FK (it is pre-auth — there is no user row yet). The `oidc-store` LOGIC
 // lives in domain/sessions/persistence/oidc-store.ts; only the TABLE is here.
+//
+// `oidc_pending_signups` (D254) holds a signed-out OIDC visitor who reached the callback with a valid signup
+// invite while JIT provisioning is closed: the verified identity, frozen until the visitor confirms the join.
+// It is keyed by a hash of a fresh secret that rides only the pending cookie, never by `state`, and the
+// transaction `consume` never reads it.
 
-import type { SessionId, UserId } from "@orb/kit/ids";
+import type { ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { users } from "./users.ts";
@@ -84,9 +89,35 @@ export const oidcTransactions = sqliteTable(
     nonce: text("nonce"),
     // The redirect target to resume after a successful callback; nullable (defaults to the app root).
     redirectUri: text("redirect_uri"),
+    // D254 — the peppered hash of a signup invite the visitor arrived with; the raw token is never stored.
+    inviteTokenHash: text("invite_token_hash"),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
     // Short-lived; the store GC sweeps expired transactions.
     expiresAt: integer("expires_at").notNull(),
   },
   (table) => [index("oidc_transactions_expires_idx").on(table.expiresAt)],
+);
+
+export const oidcPendingSignups = sqliteTable(
+  "oidc_pending_signups",
+  {
+    // At most one live pending join per stable subject: a new callback replaces the old row.
+    externalId: text("external_id").$type<ExternalId>().primaryKey(),
+    // The peppered hash of the fresh secret in the pending cookie — the only lookup key. Never the `state`.
+    secretHash: text("secret_hash").notNull(),
+    handle: text("handle").$type<Handle>().notNull(),
+    email: text("email"),
+    // The IdP groups as the callback saw them; the confirm re-derives access from exactly these.
+    groups: text("groups", { mode: "json" }).$type<string[]>().notNull(),
+    // The peppered hash of the signup invite the join spends.
+    inviteTokenHash: text("invite_token_hash").notNull(),
+    // The sealed OIDC id_token for the session the confirm mints (AAD = `secret_hash`); null when the IdP
+    // sent none.
+    idTokenCiphertext: text("id_token_ciphertext"),
+    idTokenIv: text("id_token_iv"),
+    idTokenTag: text("id_token_tag"),
+    createdAt: integer("created_at").notNull(),
+    expiresAt: integer("expires_at").notNull(),
+  },
+  (table) => [uniqueIndex("oidc_pending_signups_secret_hash_unique").on(table.secretHash), index("oidc_pending_signups_expires_idx").on(table.expiresAt)],
 );

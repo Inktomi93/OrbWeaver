@@ -8,7 +8,9 @@ import type {
   DurableChatBusEvent,
   GroupConfig,
   HistoryFloorSeq,
+  InvitePreview,
   LiveOnlyChatBusEvent,
+  ParticipantView,
   PromptTransform,
   PromptTransformPoint,
   PromptTransformResult,
@@ -76,7 +78,7 @@ import type { ActiveTurns } from "./active-turns.ts";
 import type { ChatBehaviorInputs, ResolveForeignInputsOp } from "./foreign.ts";
 import type { MemoryEmbedSpace, MemoryLog, MemoryRecallPhaseEmitter, MemoryRecallSink } from "./memory.ts";
 import type { ResolvedMediaRef, TurnKind, TurnRequest, TurnStreamChunk } from "./results.ts";
-import type { SignupInviteCapability } from "./signup.ts";
+import type { SignupInviteCapability, SignupInviteDeps } from "./signup.ts";
 
 /** The node:vm ReDoS watchdog wrapping a host-side regex `text.replace` in a per-call timeout, so a
  *  catastrophic-backtracking pattern throws instead of hanging the turn. */
@@ -107,6 +109,12 @@ export type EmitChatChanged = (chatId: ChatId, options?: EmitChatChangedOptions)
  *  CALL IT BEFORE YOUR WRITE — the claim replays the creation stats over the canon present at claim, so a
  *  claim placed after the caller's own canon write counts that row twice (`verbs/claim-chat.ts` header). */
 export type ClaimChatOp = (chatId: ChatId) => Promise<void>;
+
+/** The present roster's participant views for a chat — the read-model resolver `service.ts` builds once. */
+export type LoadParticipantViewsOp = (chatId: ChatId) => Promise<readonly ParticipantView[]>;
+
+/** The invite preview for a chat the caller already cleared for preview (`verbs/invite-preview.ts`). */
+export type AssembleInvitePreviewOp = (chatId: ChatId) => Promise<InvitePreview>;
 
 /** The injected chat role: the engine builds a {@link TurnRequest} and streams chunks back. */
 export type RunChatTurnOp = (req: TurnRequest) => AsyncIterable<TurnStreamChunk>;
@@ -1521,4 +1529,6 @@ export interface ChatServiceDeps {
   readonly holder: string;
   /** The per-chat lock TTL (ms), sized for one turn. */
   readonly lockTtlMs: number;
+  /** D254 — the foreign halves of the signup-invite ops (sessions account statement, minter check, audit). */
+  readonly signup: SignupInviteDeps;
 }

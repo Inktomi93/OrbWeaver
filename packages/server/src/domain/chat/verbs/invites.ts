@@ -11,14 +11,14 @@
 // refusal, never silently degraded to a share-link.
 
 import { randomBytes } from "node:crypto";
-import type { CreateInviteInput, DurableChatBusEvent, GroupConfig, InvitePreview, InviteView, ParticipantView } from "@orb/contracts/chat";
-import { DEFAULT_GROUP_CONFIG, SIGNUP_MAX_TTL_MS, SIGNUP_MAX_USES } from "@orb/contracts/chat";
+import type { CreateInviteInput, DurableChatBusEvent, InvitePreview, InviteView, ParticipantView } from "@orb/contracts/chat";
+import { SIGNUP_MAX_TTL_MS, SIGNUP_MAX_USES } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { ChatContext } from "../context.ts";
-import type { ClaimChatOp } from "../contract/context.ts";
+import type { AssembleInvitePreviewOp, ClaimChatOp } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type {
   AcceptInviteParams,
@@ -34,7 +34,6 @@ import { requireHost } from "../guard.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import {
   acceptInviteByIdAtomic,
-  countPresentMembers,
   declineInviteById,
   findInviteById,
   findInviteByTokenHash,
@@ -46,7 +45,6 @@ import {
 import { loadChatRow, loadMemberChat } from "../persistence/queries.ts";
 import { resolveHistoryFloorSeq } from "../substrate/auth/index.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
-import { hostSeatOf } from "../substrate/participants-host.ts";
 
 /** The collaborators the invite verbs close over (see the file header). */
 interface InviteDeps {
@@ -56,6 +54,8 @@ interface InviteDeps {
    *  -- an invite has to exist first, and minting it claimed. */
   readonly claimChat: ClaimChatOp;
   readonly loadParticipantViews: (chatId: ChatId) => Promise<readonly ParticipantView[]>;
+  /** The one preview assembly (`verbs/invite-preview.ts`), wired at `service.ts`. */
+  readonly assemblePreview: AssembleInvitePreviewOp;
 }
 
 /** The invite slice of `ChatService` this grouped file owns. */
@@ -128,11 +128,6 @@ function resolveMaxUses(requested: number | null | undefined): number | null {
  *  anchor. The joiner's OWN ids only; neither resolver reads the room. */
 async function resolveJoinerPersona(ctx: ChatContext, joinerUserId: UserId): Promise<PersonaId | null> {
   return (await ctx.resolveCurrentPersona(joinerUserId)) ?? (await ctx.resolveDefaultPersona(joinerUserId));
-}
-
-/** A human-readable room-mode label for the invite preview (output × policy) — never the raw config. */
-function modeLabel(group: GroupConfig): string {
-  return `${group.output} · ${group.policy}`;
 }
 
 /** D254 — the gates on an `allowSignup` mint, after `requireHost`. The mode must mint signup invites, the host
@@ -239,23 +234,7 @@ function createPreviewInvite(ctx: ChatContext, deps: InviteDeps): ChatService["p
     if (invite === undefined || !usable) {
       throw new DomainNotFoundError("invite", "");
     }
-    const chat = await loadChatRow(ctx.db, invite.chatId);
-    if (chat === undefined) {
-      throw new DomainNotFoundError("invite", "");
-    }
-    const participants = await deps.loadParticipantViews(invite.chatId);
-    const host = hostSeatOf(participants);
-    if (host === undefined || host.handle === null) {
-      throw new Error(`previewInvite: chat ${invite.chatId} has no host participant`);
-    }
-    const memberCount = await countPresentMembers(ctx.db, invite.chatId);
-    return {
-      chatId: invite.chatId,
-      roomName: chat.title ?? "",
-      hostHandle: host.handle,
-      memberCount,
-      modeLabel: modeLabel(chat.metadata.group ?? DEFAULT_GROUP_CONFIG),
-    };
+    return await deps.assemblePreview(invite.chatId);
   };
 }
 

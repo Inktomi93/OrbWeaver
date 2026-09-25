@@ -7,6 +7,7 @@ import type { AssetId, ChatId, Handle } from "@orb/kit/ids";
 import type { ChatContext, ChatServiceDeps } from "./context.ts";
 import type { RequestTurnOp } from "./contract/results.ts";
 import type { ChatService } from "./contract/service.ts";
+import type { SignupInviteOps } from "./contract/signup.ts";
 import { createTurnEngine } from "./engine/engine.ts";
 import { generateDigests } from "./memory/generate/digests.ts";
 import { generateSegments } from "./memory/generate/segments.ts";
@@ -22,11 +23,13 @@ import { createCompaction } from "./verbs/compaction.ts";
 import { createEdit } from "./verbs/edit.ts";
 import { createFork } from "./verbs/fork.ts";
 import { createGenerateImage } from "./verbs/generate-image.ts";
+import { createInvitePreview } from "./verbs/invite-preview.ts";
 import { createInvites } from "./verbs/invites.ts";
 import { createParticipants } from "./verbs/participants.ts";
 import { createQuietGenerate } from "./verbs/quiet-generate.ts";
 import { createReactions } from "./verbs/reactions.ts";
 import { createRead } from "./verbs/read.ts";
+import { createSignupInvite } from "./verbs/signup-invite.ts";
 import { createStartChat } from "./verbs/start-chat.ts";
 import { createRequestTurn, createTurn } from "./verbs/turn.ts";
 
@@ -53,7 +56,10 @@ function resolveSeatDisplayName(
  *  injected op the entry root hands automation's `trigger_turn` arm + the plugin membrane's `turn.trigger`,
  *  never a routed verb (no principal; the turn triple is resolved internally, not passed). The return shape is
  *  inline (not a named export) per `no-inline-types` — its one consumer destructures `{ service, requestTurn }`. */
-export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): { readonly service: ChatService; readonly requestTurn: RequestTurnOp } {
+export function createChatService(
+  ctx: ChatContext,
+  deps: ChatServiceDeps,
+): { readonly service: ChatService; readonly requestTurn: RequestTurnOp; readonly signupInvites: SignupInviteOps } {
   // The quiet-generation seam: a non-canon generation through the chat's OWN resolved connection (the marker
   // build's model access — never the summarizer rail). Standalone factory, the ExtractQuiet precedent.
   const quietGenerate = createQuietGenerate({ runChatTurn: ctx.runChatTurn, resolveChatPresetParams: ctx.resolveChatPresetParams });
@@ -143,7 +149,10 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): { re
   });
   const fork = createFork(ctx, { emit: deps.emit, loadParticipantViews });
   const imageGen = createGenerateImage(ctx, { emit: deps.emit, claimChat });
-  const invites = createInvites(ctx, { emit: deps.emit, loadParticipantViews, claimChat });
+  // ONE preview assembly for the signed-in `previewInvite` and the signed-out pending join (D254).
+  const assemblePreview = createInvitePreview(ctx, { loadParticipantViews });
+  const invites = createInvites(ctx, { emit: deps.emit, loadParticipantViews, claimChat, assemblePreview });
+  const signupInvites = createSignupInvite(ctx, { ...deps.signup, assemblePreview, emit: deps.emit });
   const read = createRead(ctx, {
     loadParticipantViews,
     resolveConnection: deps.resolveConnection,
@@ -172,5 +181,6 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): { re
       compact,
     },
     requestTurn,
+    signupInvites,
   };
 }

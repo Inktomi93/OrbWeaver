@@ -7,7 +7,7 @@
 
 import { setTimeout as sleep } from "node:timers/promises";
 import type { DurableChatBusEvent, LiveOnlyChatBusEvent, VariablePrecondition, VariableWriteResult } from "@orb/contracts/chat";
-import { resolveRenderPolicy } from "@orb/contracts/chat";
+import { resolveRenderPolicy, SIGNUP_INVITES_MINTABLE } from "@orb/contracts/chat";
 import type { AuthMode, Can, Principal } from "@orb/contracts/identity";
 import { EMBED_SPACE_DIMS } from "@orb/contracts/inference";
 import type { ChoiceBlockSpec, PromptConfig, UserIntent, UserMacroSpec } from "@orb/contracts/preset";
@@ -77,7 +77,6 @@ import {
   createResolveRpgCardCorpus,
   createResolveRpgParticipants,
   createSetRpgPointer,
-  createSignupInvite,
   getGroupConfig,
   getRoomOverrides,
 } from "#domain/chat";
@@ -243,16 +242,6 @@ export function createSignupMinterCheck(
     return row !== null && row.enabled && isAdmin(await resolvePrincipal(minterUserId));
   };
 }
-
-/** D254 — which sign-in modes mint signup invites. `forward-header` already admits every identity its proxy
- *  lets through and `single-user` has one human; `oidc` turns on with its confirm flow. A mapped record, so a
- *  new mode fails `tsc` until it is ruled. */
-const SIGNUP_INVITES_MINTABLE: Record<AuthMode, boolean> = {
-  "single-user": false,
-  local: true,
-  "forward-header": false,
-  oidc: false,
-};
 
 /** What `buildChatService` needs from the composition root — boot primitives + the already-built sibling
  *  services chat's injected ops route through (their front doors only). */
@@ -1510,6 +1499,11 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     },
     holder: input.holder,
     lockTtlMs: CHAT_LOCK_TTL_MS,
+    signup: {
+      ...input.signup,
+      // The `changes()`-guarded audit insert: it lands only when the seat before it landed (D254).
+      auditStatementAfterWrite: (entry, at) => buildAuditStatementIfPrecedingWrote(db, entry, at),
+    },
   };
 
   const chatBundle = createChatService(chatCtx, chatDeps);
@@ -1541,12 +1535,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     applyVariableOps: (chatId, ops, expect) => applyStandaloneVariableOps(chatCtx, chatId, ops, expect),
     resolveChatProse,
     requestTurn: chatBundle.requestTurn,
-    signupInvites: createSignupInvite(chatCtx, {
-      ...input.signup,
-      // The `changes()`-guarded audit insert: it lands only when the seat before it landed (D254).
-      auditStatementAfterWrite: (entry, at) => buildAuditStatementIfPrecedingWrote(db, entry, at),
-      emit: emitChatEvent,
-    }),
+    signupInvites: chatBundle.signupInvites,
     isMemoryEnabled: async (hostUserId): Promise<boolean> => (await resolveMemoryConfig(hostUserId)).mode !== "off",
     backfill: {
       memory: (args) => backfillMemory(chatCtx, args, resolveMemoryConfig),

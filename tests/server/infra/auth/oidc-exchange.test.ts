@@ -34,6 +34,7 @@ const TX: OidcTransaction = {
   nonce: "nonce-ccc",
   redirectUri: "https://app.example/api/auth/oidc/callback",
   createdAt: 1_700_000_000_000,
+  inviteTokenHash: null,
 };
 
 const CALLBACK_URL = new URL("https://app.example/api/auth/oidc/callback?code=auth-code&state=state-aaa");

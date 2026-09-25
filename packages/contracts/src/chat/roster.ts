@@ -8,7 +8,7 @@
 import type { AssetId, CharacterId, ChatId, ChatParticipantId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
-import type { ParticipantRole } from "#identity";
+import type { AuthMode, ParticipantRole } from "#identity";
 import { PARTICIPANT_ROLES } from "#identity";
 import type { CardEmbeddableTheme, ThemeBackground, ThemeOverride } from "#theme";
 import { cardEmbeddableSubset, themeBackgroundSchema, themeOverrideSchema } from "#theme";
@@ -581,9 +581,20 @@ export const inviteStatusSchema = z.enum(INVITE_STATUSES) satisfies z.ZodType<In
 /** The most accounts one signup invite may create (D254). */
 export const SIGNUP_MAX_USES = 10;
 const MS_PER_DAY = 86_400_000;
-const SIGNUP_MAX_TTL_DAYS = 7;
+/** The longest a signup invite may live, in whole days (D254). */
+export const SIGNUP_MAX_TTL_DAYS = 7;
 /** The longest a signup invite may live, measured on the server clock at mint (D254). */
 export const SIGNUP_MAX_TTL_MS = SIGNUP_MAX_TTL_DAYS * MS_PER_DAY;
+
+/** D254 — which sign-in modes mint signup invites. `forward-header` already admits every identity its proxy
+ *  lets through and `single-user` has one human. The server's mint gate and the mint dialog both read this
+ *  table; a mapped record, so a new mode fails `tsc` until it is ruled. */
+export const SIGNUP_INVITES_MINTABLE: Record<AuthMode, boolean> = {
+  "single-user": false,
+  local: true,
+  "forward-header": false,
+  oidc: true,
+};
 
 /** Create an invite (host action). Two creation paths: a share-link (no target) OR targeted-by-handle
  *  (`invitedHandle`, resolved to a user server-side). The `token` is CSPRNG-minted + stored HASHED on the
@@ -640,6 +651,19 @@ export const invitePreviewSchema = z.strictObject({
   modeLabel: z.string(),
 });
 export type InvitePreview = z.infer<typeof invitePreviewSchema>;
+
+/** D254 — the OIDC pending-join confirm's body: nothing. STRICT, so a body naming an invite or an identity
+ *  fails the parse — the pending cookie alone names the join. */
+export const pendingJoinConfirmRequestSchema = z.strictObject({});
+export type PendingJoinConfirmRequest = z.infer<typeof pendingJoinConfirmRequestSchema>;
+
+/** D254 — the confirm's answer. `signedIn` is false when the new account waits for an admin's approval. */
+export const pendingJoinConfirmResultSchema = z.strictObject({ signedIn: z.boolean() });
+export type PendingJoinConfirmResult = z.infer<typeof pendingJoinConfirmResultSchema>;
+
+/** D254 — the pending-join routes' refusal codes (`{ error: <code> }`). The client maps each to its own copy. */
+export const PENDING_JOIN_ERROR_CODES = ["invalid_request", "already_signed_in", "join_unavailable", "account_exists"] as const;
+export type PendingJoinErrorCode = (typeof PENDING_JOIN_ERROR_CODES)[number];
 
 /** An invite as the host manages it. NEVER carries the token (raw or hashed) — a leak would let anyone
  *  redeem. `remainingUses` is `maxUses` minus redemptions (null = unlimited). STRICT: the output parser of

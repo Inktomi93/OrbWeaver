@@ -29,6 +29,7 @@ describe("oidc-store", () => {
       nonce: "nonce_789",
       redirectUri: "http://localhost/callback",
       createdAt: T0,
+      inviteTokenHash: null,
     };
 
     await store.mint(tx);
@@ -55,6 +56,7 @@ describe("oidc-store", () => {
       nonce: "nonce_stale",
       redirectUri: "http://localhost/callback",
       createdAt: T0,
+      inviteTokenHash: null,
     });
 
     const late = createOidcStore(db, fixedClock(T0 + OIDC_TRANSACTION_TTL_MS + 1));
@@ -74,6 +76,7 @@ describe("oidc-store", () => {
       nonce: "nonce_live",
       redirectUri: "http://localhost/callback",
       createdAt: T0,
+      inviteTokenHash: null,
     };
     await store.mint(tx);
 
@@ -90,6 +93,7 @@ describe("oidc-store", () => {
       nonce: "nonce_abandoned",
       redirectUri: "http://localhost/callback",
       createdAt: T0,
+      inviteTokenHash: null,
     });
 
     // A later, unrelated consume runs past the abandoned row's TTL — it sweeps the abandoned row as a side
@@ -108,6 +112,7 @@ describe("oidc-store", () => {
       nonce: "nonce_a",
       redirectUri: "http://localhost/callback",
       createdAt: T0,
+      inviteTokenHash: null,
     });
     await minted.mint({
       state: "state_abandoned_b",
@@ -115,6 +120,7 @@ describe("oidc-store", () => {
       nonce: "nonce_b",
       redirectUri: "http://localhost/callback",
       createdAt: T0,
+      inviteTokenHash: null,
     });
     // A LIVE row minted just before the sweep instant — expires well after it.
     const sweepAt = T0 + OIDC_TRANSACTION_TTL_MS + 1;
@@ -125,6 +131,7 @@ describe("oidc-store", () => {
       nonce: "nonce_live",
       redirectUri: "http://localhost/callback",
       createdAt: sweepAt,
+      inviteTokenHash: null,
     });
 
     // The scheduled sweep runs once past both abandoned rows' TTL but inside the live row's window.
@@ -146,6 +153,7 @@ describe("oidc-store", () => {
       nonce: "nonce_boundary",
       redirectUri: "http://localhost/callback",
       createdAt: T0,
+      inviteTokenHash: null,
     });
 
     // One ms BEFORE expiry: the row is still live (`expiresAt > before`) — the sweep must not touch it.
@@ -162,6 +170,7 @@ describe("oidc-store", () => {
       nonce: "nonce_at_expiry",
       redirectUri: "http://localhost/callback",
       createdAt: T0,
+      inviteTokenHash: null,
     });
 
     // expiresAt === T0 + TTL; sweeping AT that instant reaps it (mirrors consume's `lte` expiry gate).

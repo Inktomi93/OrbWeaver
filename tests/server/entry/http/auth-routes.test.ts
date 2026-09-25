@@ -1228,7 +1228,7 @@ describe("OIDC callback — the browser binding (login CSRF)", () => {
           mint: (): Promise<void> => Promise.resolve(),
           consume: (state: string): Promise<OidcTransaction | null> => {
             consumed += 1;
-            return Promise.resolve({ state, codeVerifier: "cv", nonce: "n", redirectUri: callbackBase, createdAt: NOW });
+            return Promise.resolve({ state, codeVerifier: "cv", nonce: "n", redirectUri: callbackBase, createdAt: NOW, inviteTokenHash: null });
           },
         },
       }),
@@ -1422,7 +1422,7 @@ describe("OIDC callback — single-use state consume (replay/forgery/TTL gate)",
 // IdP fault) shares the SAME fail-closed handler and is pinned directly in the #867 describe below.
 describe("OIDC callback — IdP error param fails closed (declined consent / access_denied)", () => {
   const callbackBase = "https://app.example/api/auth/oidc/callback";
-  const tx: OidcTransaction = { state: "s1", codeVerifier: "cv1", nonce: "n1", redirectUri: callbackBase, createdAt: NOW };
+  const tx: OidcTransaction = { state: "s1", codeVerifier: "cv1", nonce: "n1", redirectUri: callbackBase, createdAt: NOW, inviteTokenHash: null };
   const callbackUrl = (query: Record<string, string>): string => {
     const u = new URL(callbackBase);
     for (const [k, v] of Object.entries(query)) {
@@ -1529,7 +1529,7 @@ describe("OIDC callback — the injected code→token exchange (#867)", () => {
   /** The URL the request actually arrives on behind a proxy — a DIFFERENT origin from the allowlisted one
    *  the transaction stored. The exchange must be presented the STORED one (see the mint-arm test). */
   const proxyCallback = "https://proxy.internal/api/auth/oidc/callback";
-  const storedTx: OidcTransaction = { state: "s1", codeVerifier: "cv1", nonce: "n1", redirectUri: callbackBase, createdAt: NOW };
+  const storedTx: OidcTransaction = { state: "s1", codeVerifier: "cv1", nonce: "n1", redirectUri: callbackBase, createdAt: NOW, inviteTokenHash: null };
   /** A verified-claims stand-in: a usable username AND the stable subject `oidcSessionIdentity` requires. */
   const verifiedClaims: Record<string, unknown> = { preferred_username: "alice", sub: "sub-alice", email: "alice@corp.example", groups: ["staff"] };
   const authedUser = castId<UserId>("usr_x");
