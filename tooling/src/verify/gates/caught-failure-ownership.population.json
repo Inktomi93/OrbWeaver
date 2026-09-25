@@ -2,15 +2,15 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 616,
+    "sites": 617,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 616,
+      "deliberate-absorb": 617,
       "unproven": 0
     },
     "byGrammar": {
       "default": 153,
-      "empty": 314,
+      "empty": 315,
       "promise": 149
     }
   },
@@ -1904,6 +1904,11 @@
       "siteId": "tooling/src/_shared/panel-flags.ts::readPresetFile::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "panel-preset JSON parse returns null so the caller emits its option-specific refusal; no nav action is queued. Ends if parse failure stops being a refusal."
+    },
+    {
+      "siteId": "tooling/src/_shared/proc.ts::killPidGroup::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a failed taskkill means the tree is already gone or never spawned — the desired end state, same as POSIX ESRCH below."
     },
     {
       "siteId": "tooling/src/_shared/proc.ts::killPidGroup::error::1",

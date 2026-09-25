@@ -1,16 +1,14 @@
-// The ONE subprocess home (policy `tooling-child-process-door`): every tooling spawn rides the process's
-// own lowered priority (owner-endorsed 2026-08-21 — the box co-hosts the homelab; an un-throttled fleet
-// starved it, and a direct child_process import silently bypasses the floor). `lowerToolingPriority` runs
-// once at each CLI entry (`runTool`) and every child spawned afterward inherits it — `nice` is gone
-// because it does not exist on Windows. Three seams: spawnNiced (async, collected, timeout — the runCli
-// shape), runNicedSync (sync, collect or stdio passthrough — the imperative-orchestration shape),
-// execNicedSync (sync, THROWS on non-zero, returns stdout — the git-helper shape).
+// The ONE subprocess home (policy `tooling-child-process-door`): every niced spawn here goes through
+// `niced-exec.ts`, our portable replacement for `nice -n 19` (owner-endorsed 2026-08-21 — the box co-hosts
+// the homelab). It never lowers THIS process's own priority, only the launcher's, so a full-priority
+// door's child stays at this process's own priority. Three seams: spawnNiced (async, collected, timeout),
+// runNicedSync (sync, collect or stdio passthrough), execNicedSync (sync, THROWS on non-zero).
 //
 // THE AMBIENT-ENV DOOR MOVED OUT (#1848) to ./process-env.ts — same functions, same names, same behaviour
 // — when the run-marker sweep was wired into the transcript door's kill path and this file reached its
 // 450-line cap. Reading the environment is not a subprocess capability; spawning is, and that half is here.
 import { execFileSync, spawn, spawnSync } from "node:child_process";
-import { closeSync, openSync } from "node:fs";
+import { closeSync, existsSync, openSync } from "node:fs";
 import { constants as osConstants } from "node:os";
 import process from "node:process";
 import { budget } from "./load-budget.ts";
@@ -30,6 +28,7 @@ import type {
   TranscriptResult,
 } from "./proc-contract.ts";
 import { inheritedProcessEnv } from "./process-env.ts";
+import { nicedArgv } from "./process-priority.ts";
 import type { RunMarkerSweep } from "./run-marker.ts";
 import { armRunMarkerTeardown, describeRunMarkerSweep, sweepRunMarker } from "./run-marker.ts";
 
@@ -57,6 +56,10 @@ function errnoIs(error: unknown, code: string): boolean {
   return typeof error === "object" && error !== null && "code" in error && error.code === code;
 }
 
+/** `detached` makes a spawned niced-exec launcher its own process-group leader — POSIX only, since on
+ *  win32 it opens a visible console instead; `niced-exec.ts` forwards signals to its own child directly. */
+const DETACHED_GROUP_LEADER = process.platform !== "win32";
+
 /** Signal a whole process GROUP by its pgid — THE ONE door. Both child doors share it: signalling only the
  *  direct child orphans the real tree (pnpm→node→server, setsid→vllm→EngineCore). Exported for the stage
  *  teardowns (#1254): never spell this as the external `kill -SIG -<pgid>` — procps-ng 4.0.4 parses that
@@ -64,6 +67,16 @@ function errnoIs(error: unknown, code: string): boolean {
  *  became `kill(-1)` and logged the owner out (2026-09-02). The syscall takes the real negative pgid. */
 export function killPidGroup(pid: number | undefined, signal: NodeJS.Signals): void {
   if (typeof pid !== "number") {
+    return;
+  }
+  if (process.platform === "win32") {
+    // No negative-pid group kill on win32 — `taskkill /T /F` hard-terminates the tree regardless of `signal`.
+    // @orb-waive caught-failure-ownership(catch): a failed taskkill means the tree is already gone or never spawned — the desired end state, same as POSIX ESRCH below.
+    try {
+      execFileSync("taskkill", ["/PID", String(pid), "/T", "/F"], { stdio: "ignore" });
+    } catch {
+      // Empty: see the waiver above.
+    }
     return;
   }
   // @orb-waive caught-failure-ownership(error): ESRCH is the desired teardown end state; every other signal error is rethrown. Ends if callers require proof that the signal landed.
@@ -82,16 +95,14 @@ export function killPidGroup(pid: number | undefined, signal: NodeJS.Signals): v
  *  load) because a long-lived process spawns children across changing load. */
 const DEFAULT_TIMEOUT_BASE_MS = 120_000;
 
-/** Sync spawn at the tooling process's lowered priority — never throws on a non-zero status (the caller
- *  judges).
- *
- *  IT ALSO NEVER THROWS ON A FAILED SPAWN, which is why `errorCode` exists (#2284): `spawnSync` puts that
- *  failure on `res.error` and leaves `status` null, so a door that returns only `{status, stdout, stderr}`
- *  hands the caller a null it cannot interpret. See the field's own note in ./proc-contract.ts for the four
- *  causes it separates and the refusal that blamed git for one of them. */
+/** Sync spawn through niced-exec.ts's lowered priority — never throws on a non-zero status (the caller
+ *  judges). IT ALSO NEVER THROWS ON A FAILED SPAWN, which is why `errorCode` exists (#2284): `spawnSync`
+ *  puts that failure on `res.error` and leaves `status` null, so a door that returns only
+ *  `{status, stdout, stderr}` hands the caller a null it cannot interpret; see the field's own note in
+ *  ./proc-contract.ts for the four causes it separates. */
 export function runNicedSync(cmd: string, args: readonly string[], opts: RunNicedSyncOptions = {}): RunNicedSyncResult {
   const stdio = opts.stdio === undefined || opts.stdio === "collect" ? undefined : opts.stdio;
-  const res = spawnSync(cmd, [...args], {
+  const res = spawnSync(process.execPath, nicedArgv(cmd, args), {
     ...(opts.cwd === undefined ? {} : { cwd: opts.cwd }),
     ...(opts.env === undefined ? {} : { env: opts.env }),
     ...(opts.maxBuffer === undefined ? {} : { maxBuffer: opts.maxBuffer }),
@@ -108,9 +119,8 @@ export function runNicedSync(cmd: string, args: readonly string[], opts: RunNice
 }
 
 /** node types `SpawnSyncReturns.error` as a bare `Error`, but every spawn failure it carries is an
- *  `ErrnoException` whose `code` is the cause (`ENOBUFS` / `ETIMEDOUT` / `ENOENT`). Read narrowly and
- *  structurally rather than casting the whole error: a future node that reports a cause-less error still
- *  answers `undefined` here instead of throwing inside a door whose contract is "never throws". */
+ *  `ErrnoException` whose `code` is the cause (`ENOBUFS` / `ETIMEDOUT` / `ENOENT`). Read narrowly rather
+ *  than casting: a future cause-less error answers `undefined` here, not a throw in a "never throws" door. */
 function errnoCodeOf(error: Error | undefined): string | undefined {
   const code = (error as { readonly code?: unknown } | undefined)?.code;
   return typeof code === "string" ? code : undefined;
@@ -165,12 +175,11 @@ function withCapturedStderr(error: unknown): never {
   throw error;
 }
 
-/** Sync exec at the tooling process's lowered priority — THROWS on a non-zero status (execFileSync
- *  semantics), returns stdout. The git-helper shape: an unknown ref/failed command is an exception, not a
- *  verdict. */
+/** Sync exec through niced-exec.ts's lowered priority — THROWS on a non-zero status (execFileSync
+ *  semantics), returns stdout. The git-helper shape: an unknown ref/failed command is an exception. */
 export function execNicedSync(cmd: string, args: readonly string[], opts: CaptureCeilingOption & { readonly cwd?: string } = {}): string {
   try {
-    return execFileSync(cmd, [...args], {
+    return execFileSync(process.execPath, nicedArgv(cmd, args), {
       encoding: "utf8",
       stdio: capturedStdio(),
       ...(opts.cwd === undefined ? {} : { cwd: opts.cwd }),
@@ -183,13 +192,12 @@ export function execNicedSync(cmd: string, args: readonly string[], opts: Captur
   }
 }
 
-/** Sync exec at the tooling process's lowered priority returning RAW BYTES — the same throw-on-non-zero
- *  semantics as execNicedSync. Exists because a caller that HASHES its output (a `git show <commit>:<path>`
- *  → sha256) must never round-trip through a utf8 decode: the hash has to be over the blob's bytes, not
- *  over a re-encoding of them. */
+/** Sync exec through niced-exec.ts's lowered priority returning RAW BYTES — the same throw-on-non-zero
+ *  semantics as execNicedSync. Exists because a caller that HASHES its output (`git show <commit>:<path>`
+ *  → sha256) must never round-trip through a utf8 decode: the hash is over the blob's bytes, not a re-encoding. */
 export function execNicedSyncBuffer(cmd: string, args: readonly string[], opts: { readonly cwd?: string } = {}): Buffer {
   try {
-    return execFileSync(cmd, [...args], {
+    return execFileSync(process.execPath, nicedArgv(cmd, args), {
       stdio: capturedStdio(),
       ...(opts.cwd === undefined ? {} : { cwd: opts.cwd }),
     });
@@ -227,6 +235,7 @@ export function spawnFullPriorityChild(cmd: string, args: readonly string[], opt
     ...(opts.env === undefined ? {} : { env: opts.env }),
     detached: opts.detached ?? false,
     stdio: childStdio(opts.stdio, logFd),
+    ...(opts.shell === undefined ? {} : { shell: opts.shell }),
   });
   if (logFd !== undefined) {
     // The child holds its own dups; the parent copy would leak one fd per spawn (engines audit, 08-03).
@@ -303,18 +312,18 @@ export function childExitCode(exit: ChildExit): number {
   return SIGNAL_EXIT_BASE + osConstants.signals[exit.signal];
 }
 
-/** Long-lived detached child at the tooling process's lowered priority (the ephemeral-server / supervisor /
- *  daemon shape): own process group, output piped via `onOutput` OR appended to `logPath`, reaped by
- *  `killGroup`. The caller owns lifecycle; nothing here waits for exit. */
+/** Long-lived detached child through niced-exec.ts's lowered priority (server/supervisor/daemon shape): own
+ *  process group, reaped by `killGroup`. */
 export function spawnNicedChild(cmd: string, args: readonly string[], opts: NicedChildOptions = {}): NicedChild {
   if (opts.logPath !== undefined && opts.onOutput !== undefined) {
     throw new Error("spawnNicedChild: logPath and onOutput are mutually exclusive — a child logs to a file or pipes to its parent, never both");
   }
   const logFd = opts.logPath === undefined ? undefined : openSync(opts.logPath, "a");
-  const child = spawn(cmd, [...args], {
+  const child = spawn(process.execPath, nicedArgv(cmd, args), {
     ...(opts.cwd === undefined ? {} : { cwd: opts.cwd }),
     ...(opts.env === undefined ? {} : { env: opts.env }),
-    detached: true,
+    // win32 `detached` opens a new console window; the launcher below stays foreground there instead.
+    detached: DETACHED_GROUP_LEADER,
     stdio: childStdio(undefined, logFd),
   });
   if (logFd !== undefined) {
@@ -333,18 +342,25 @@ export function spawnNicedChild(cmd: string, args: readonly string[], opts: Nice
   };
 }
 
-/** Long-running child at the tooling process's lowered priority whose OUTPUT ORDER is load-bearing: stdout
- *  and stderr are captured INTERLEAVED in arrival order, with no maxBuffer ceiling at all (`CaptureCeilingOption`
- *  above is the one home for why that matters: the ceiling kills, it does not clip — so this door declines
- *  to have one). The caller names the TIME ceiling instead; past it the child's whole GROUP dies and the
- *  transcript says so, so a hang becomes a reported tool error instead of an unbounded wait. The verify
- *  runner's stage door. */
+/** Long-running child through niced-exec.ts's lowered priority whose OUTPUT ORDER is load-bearing: stdout
+ *  and stderr are captured INTERLEAVED in arrival order, with no maxBuffer ceiling (`CaptureCeilingOption`
+ *  above is the one home for why: the ceiling kills, it does not clip — so this door declines to have one).
+ *  The caller names the TIME ceiling instead; past it the child's whole GROUP dies and the transcript says
+ *  so. The verify runner's stage door. */
 export function spawnNicedTranscript(cmd: string, args: readonly string[], opts: TranscriptOptions): Promise<TranscriptResult> {
   return new Promise<TranscriptResult>((resolvePromise) => {
     const chunks: string[] = [];
+    // EXIT HONESTY vs the niced-exec wrapper: the outer spawn is always `process.execPath` (it always
+    // exists), so a missing `cmd` fails one level down as niced-exec's OWN toolError exit (2) — a number a
+    // generic classifier reads as a VIOLATION, same as tsc's real exit 2. Existence-check the path first so
+    // a vanished bin stays `code: null`, exactly as when `nice` exec'd the target in place.
+    if (cmd.includes("/") && !existsSync(cmd)) {
+      resolvePromise({ code: null, transcript: `\n[proc] spawn failed: ${cmd} does not exist\n` });
+      return;
+    }
     // `detached` so the child leads its own group: a stage is `pnpm → node → the tool`, and killing only
     // the direct child leaves the tool running with the pipes open — the promise would never settle.
-    const child = spawn(cmd, [...args], { cwd: opts.cwd, shell: false, env: opts.env, detached: true });
+    const child = spawn(process.execPath, nicedArgv(cmd, args), { cwd: opts.cwd, shell: false, env: opts.env, detached: DETACHED_GROUP_LEADER });
     // THE GROUP KILL IS NOT THE WHOLE TEARDOWN (#1848). Playwright's browsers and vite's service children
     // leave the group, so the marker sweep runs AFTER it and the promise waits for that sweep to finish —
     // otherwise the transcript would resolve before the line saying what it reaped.
@@ -394,16 +410,16 @@ export function spawnNicedTranscript(cmd: string, args: readonly string[], opts:
   });
 }
 
-/** Spawn `cmd args…` at the tooling process's lowered priority, collect utf8 output, resolve on exit
+/** Spawn `cmd args…` through niced-exec.ts's lowered priority, collect utf8 output, resolve on exit
  *  (never rejects on a non-zero code — the CALLER judges codes against the exit contract). */
 export function spawnNiced(cmd: string, args: readonly string[], opts: SpawnNicedOptions = {}): Promise<SpawnNicedResult> {
   return new Promise((resolvePromise, rejectPromise) => {
-    const child = spawn(cmd, [...args], {
+    const child = spawn(process.execPath, nicedArgv(cmd, args), {
       cwd: opts.cwd,
       env: inheritedProcessEnv(opts.env),
       stdio: ["ignore", "pipe", "pipe"],
       // Its own process group, the `spawnNicedChild`/`spawnFullPriorityChild` shape — see the timeout below.
-      detached: true,
+      detached: DETACHED_GROUP_LEADER,
     });
     let stdout = "";
     let stderr = "";
