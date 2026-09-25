@@ -524,7 +524,7 @@ export interface OidcRoutesDeps {
 }
 
 /** D254 — what the OIDC signup-through-invite routes need. */
-export interface OidcSignupDeps {
+interface OidcSignupDeps {
   readonly invites: Pick<SignupInviteOps, "tokenHashOf" | "admitsHash" | "previewHash" | "redeemPending" | "announceJoined">;
   readonly pending: Pick<SessionsService, "recordPendingSignup" | "readPendingSignup" | "preparePendingSignup">;
   /** Is this cookie token a live session? A signed-in caller joins through the in-app dialog, never here. */

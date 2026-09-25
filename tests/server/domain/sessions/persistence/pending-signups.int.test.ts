@@ -10,11 +10,11 @@ import { eq, sql } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import {
   deleteExpiredPendingSignups,
-  insertPendingSignupUserStatement,
   selectLivePendingSignup,
   takePendingSignupStatement,
   upsertPendingSignup,
 } from "../../../../../packages/server/src/domain/sessions/persistence/pending-signups.ts";
+import { insertPendingSignupUserStatement } from "../../../../../packages/server/src/domain/sessions/persistence/users.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { seedUser } from "../../../../support/factories/index.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -31,7 +31,7 @@ beforeEach(async () => {
 
 async function seedPending(secretHash: string, name = "friend"): Promise<void> {
   await upsertPendingSignup(db, {
-    externalId: castId<ExternalId>(`idp|${name}`),
+    subject: castId<ExternalId>(`idp|${name}`),
     secretHash,
     handle: castId<Handle>(name),
     email: `${name}@example.test`,
@@ -93,7 +93,7 @@ describe("persistence/pending-signups", () => {
   test("the reaper removes only rows past their window", async () => {
     await seedPending("h1", "old");
     await upsertPendingSignup(db, {
-      externalId: castId<ExternalId>("idp|young"),
+      subject: castId<ExternalId>("idp|young"),
       secretHash: "h2",
       handle: castId<Handle>("young"),
       email: null,

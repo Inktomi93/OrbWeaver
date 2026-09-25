@@ -336,6 +336,11 @@ export const TABLE_SCOPING_ROWS: readonly ScopingRow[] = [
   },
   { table: "oidc_transactions", scope: "global", why: "transient pre-identity auth state — there is no principal yet when it is written or read." },
   {
+    table: "oidc_pending_signups",
+    scope: "global",
+    why: "transient pre-account auth state (D254) — no principal exists when it is written, previewed or taken; the one key is the peppered hash of the secret in the caller's own pending cookie.",
+  },
+  {
     table: "provider_rows",
     scope: "global",
     why: "the runtime provider REGISTRY (plugin-shipped / admin-added `ProviderDef` rows, inference program §5.9-1): deployment-wide vocabulary every principal's picker reads; `origin_*` is provenance, never a read key.",

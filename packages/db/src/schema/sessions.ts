@@ -102,7 +102,9 @@ export const oidcPendingSignups = sqliteTable(
   "oidc_pending_signups",
   {
     // At most one live pending join per stable subject: a new callback replaces the old row.
-    externalId: text("external_id").$type<ExternalId>().primaryKey(),
+    // `subject`, not `externalId`: this row binds nothing. The account insert in the sessions users
+    // persistence is the one bind, and only after the confirm's batch takes this row.
+    subject: text("external_id").$type<ExternalId>().primaryKey(),
     // The peppered hash of the fresh secret in the pending cookie — the only lookup key. Never the `state`.
     secretHash: text("secret_hash").notNull(),
     handle: text("handle").$type<Handle>().notNull(),

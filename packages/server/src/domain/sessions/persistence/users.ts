@@ -123,6 +123,35 @@ export function insertSignupUserStatement(
     .returning({ id: users.id });
 }
 
+/** The SSO signup account a pending-join confirm writes (D254). */
+interface PendingSignupAccount {
+  readonly id: UserId;
+  readonly handle: Handle;
+  readonly externalId: ExternalId;
+  readonly email: string | null;
+  readonly role: UserRole;
+  readonly enabled: boolean;
+  readonly at: number;
+}
+
+/**
+ * D254 — the OIDC pending-join confirm's account insert, UNEXECUTED, for chat's batch. It binds the subject on
+ * a NEW row only, decided by `decideProvision` (the verb keeps only an insert), and writes only where the
+ * pending take before it deleted a row (`changes() > 0`), `admission` (chat's opaque invite predicate) holds,
+ * and no row carries the email. Handle, subject and owner collisions are the unique indexes' job: there is no
+ * `onConflictDoNothing`, so a race throws and rolls the batch back. Positional over the declared column order,
+ * like {@link insertSignupUserStatement}.
+ */
+export function insertPendingSignupUserStatement(db: Db, row: PendingSignupAccount, admission: SQL): AwaitableBatchStmt<{ id: UserId }[]> {
+  const emailFree = row.email === null ? sql`1 = 1` : sql`not exists (select 1 from ${users} where ${users.email} = ${row.email})`;
+  return db
+    .insert(users)
+    .select(
+      sql`select ${row.id}, ${row.handle}, ${row.externalId}, ${row.email}, ${row.role}, ${row.enabled ? 1 : 0}, null, 'human', null, ${row.at}, ${row.at} where changes() > 0 and ${admission} and ${emailFree}`,
+    )
+    .returning({ id: users.id });
+}
+
 /** The provision UPDATE — only the supplied keys change (`enabled` is never among them). */
 export async function updateUser(db: Db, id: UserId, patch: UserPatch): Promise<void> {
   await db.update(users).set(patch).where(eq(users.id, id));
