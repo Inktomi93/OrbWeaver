@@ -25,10 +25,12 @@ allowBuilds:
   lefthook: true
   # sharp (infra/image): native libvips binding install/check — approve so the binary is wired on install.
   sharp: true
-  # onnxruntime-node (@orb/inference's local-light backend): transformers.js's native ONNX runtime —
-  # postinstall fetches the platform binary (CPU; CUDA EP when present). Approve so local-light can run.
-  onnxruntime-node: true
-  # protobufjs: transitive via onnxruntime-node; its postinstall is non-critical but approved to silence
+  # onnxruntime-node (@orb/inference's local-light backend): DENIED. The tarball already carries the CPU
+  # binding for every platform local-light runs on. Its postinstall only fetches the CUDA 12 providers from
+  # api.nuget.org on linux-x64, and a failed fetch fails the whole install. local-light is the CPU tier, and
+  # model-cache.ts retries a failed device on cpu. tests/tooling/install-builds.int.test.ts pins this.
+  onnxruntime-node: false
+  # protobufjs: transitive via onnxruntime-web; its postinstall is non-critical but approved to silence
   # the ignored-build gate (no half-installed state).
   protobufjs: true
   # cloudflared (infra/relay): DENIED. Its postinstall downloads the unpinned latest cloudflared with no checksum;

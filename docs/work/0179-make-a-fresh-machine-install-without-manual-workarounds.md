@@ -10,7 +10,9 @@ area: tooling
 
 ## What
 
-Three snags hit a fresh machine. (1) Pin Node through devEngines.runtime in the root package.json so pnpm installs Node 26 itself; with pnpm 12 the lockfile entry needs checksums from unofficial-builds.nodejs.org, so generate it on a machine with open egress. (2) onnxruntime-node's postinstall downloads from api.nuget.org and fails the whole install behind a proxy; make that download lazy or non-fatal. (3) Playwright CT needs its exact browser build; name the one-time pnpm exec playwright install step where setup is documented.
+Pin Node through `devEngines.runtime` in the root package.json so pnpm installs Node 26 itself. The onnxruntime-node download is denied in `allowBuilds`, and the README names the one-time Playwright browser install; this pin is what is left.
+
+pnpm 12.6 records a checksum for every platform build of the pinned Node in the lockfile, including the musl builds that only unofficial-builds.nodejs.org publishes. It fetches them even with `supportedArchitectures` narrowed to glibc. The lane box's egress policy refuses that host, so the lockfile entry cannot be made there. Run `pnpm runtime set node 26` in the repository root on a box that reaches it, commit the `package.json` and `pnpm-lock.yaml` change, and delete `.nvmrc` in the same commit once CI reads the new pin. Until then `engines.node` with `engineStrict` in pnpm-workspace.yaml refuses a wrong Node, and `.nvmrc` feeds version managers and CI.
 
 ## Why
 
