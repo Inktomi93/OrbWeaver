@@ -23,6 +23,6 @@ export const PEPPER = "test-session-secret-at-least-32-chars-long";
  *  rows. It is also what production hands in, so the harness cannot drift from the wiring it stands for. */
 export function makeService(db: Db): { svc: SessionsService; clock: Clock } {
   const clock = createFrozenClock();
-  const seedUserConnections = createLocalLightUserSeed({ db, now: clock.now });
+  const seedUserConnections = createLocalLightUserSeed({ db, now: clock.now, onEmbedSpaceBound: () => undefined });
   return { svc: createSessionsService({ db, now: clock.now, sessionSecret: PEPPER, seedUserConnections }), clock };
 }

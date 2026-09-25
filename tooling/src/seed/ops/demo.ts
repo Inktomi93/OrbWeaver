@@ -43,7 +43,7 @@ import {
   worldEntries,
 } from "@orb/db";
 import { readSeedAvatar } from "@orb/default-content";
-import type { CharacterHandle, CharacterId, Handle } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { DEFAULT_CHARACTER_CARDS } from "@orb/server/domain/character";
 import { createSessionsService, ownerHandles } from "@orb/server/domain/sessions";
@@ -269,7 +269,14 @@ export async function runFullSeed(deps: RunFullSeedDeps): Promise<RunFullSeedRes
   const handles = ownerHandles();
   // #2481 — the owner is minted through `ensureUser` below, and this seeder never runs the boot sweep,
   // so the per-user seed is the only thing that gives the seeded owner its local-light vector floor.
-  const bootSessions = createSessionsService({ db, now, sessionSecret, seedUserConnections: createLocalLightUserSeed({ db, now }) });
+  // An owner whose encoder this seed binds gets its search sweeps enqueued once services exist (as boot does).
+  const ownersBoundBeforeCompose: UserId[] = [];
+  const bootSessions = createSessionsService({
+    db,
+    now,
+    sessionSecret,
+    seedUserConnections: createLocalLightUserSeed({ db, now, onEmbedSpaceBound: (boundOwner) => ownersBoundBeforeCompose.push(boundOwner) }),
+  });
   const ownerIds = await seedOwner({ db, sessions: bootSessions, ownerHandles: handles, now });
   const ownerId = ownerIds[0];
   if (ownerId === undefined) {
@@ -294,6 +301,10 @@ export async function runFullSeed(deps: RunFullSeedDeps): Promise<RunFullSeedRes
     // no chat connection, so the best-effort turns below log `no-connection` and keep the greeting transcript.
     providerSeams: { localLight: { cache: fakeLocalLightCache(EMBED_SPACE_DIMS) } },
   });
+
+  for (const boundOwner of ownersBoundBeforeCompose) {
+    built.enqueueOwnerEmbedIndex(boundOwner);
+  }
 
   // The idempotent boot seeds (owner cards + avatars, default persona, preset, themes) — safe to re-run.
   await seedDefaultPreset({ db, now });

@@ -497,14 +497,16 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
 
     // Resolve the owner id before compose (the owner role-clients bundle resolves against it). A
     // transient sessions service is built only to run the owner seed; compose owns the real one.
+    const ownersBoundBeforeCompose: UserId[] = [];
     const bootSessions = createSessionsService({
       db,
       now,
       sessionSecret,
       // #2481 — the owner row is MINTED here (`seedOwner` → `ensureUser`), so this transient service needs
       // the per-user seed too: on a fresh install the sweep below would otherwise be the only thing that
-      // ever seeds the owner, and it runs once per process.
-      seedUserConnections: createLocalLightUserSeed({ db, now }),
+      // ever seeds the owner, and it runs once per process. `workloads` does not exist yet, so an owner whose
+      // encoder this seed binds is held and its sweeps are enqueued once compose has built the queue.
+      seedUserConnections: createLocalLightUserSeed({ db, now, onEmbedSpaceBound: (boundOwner) => ownersBoundBeforeCompose.push(boundOwner) }),
     });
 
     // OIDC LAZY-MINT (#1853): in OIDC mode the owner identity comes from the IdP, not from env config.
@@ -640,7 +642,10 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // (#2481), not by a later boot.
     await seedDefaultPreset({ db, now });
     await seedThemes({ db, now });
-    await seedLocalLightOnBoot({ db, now });
+    await seedLocalLightOnBoot({ db, now, onEmbedSpaceBound: built.enqueueOwnerEmbedIndex });
+    for (const boundOwner of ownersBoundBeforeCompose) {
+      built.enqueueOwnerEmbedIndex(boundOwner);
+    }
 
     // Owner-DEPENDENT boot seeds: guarded behind ownerId so a fresh OIDC box (no owner yet) can still boot.
     // In OIDC mode without an owner, these are deferred: per-user seeds (characters, persona, demo chats,

@@ -204,7 +204,7 @@ export function makeHarness(db: Db): AdminHarness {
     db,
     now: () => clock.now(),
     sessionSecret: HARNESS_PEPPER,
-    seedUserConnections: createLocalLightUserSeed({ db, now: () => clock.now() }),
+    seedUserConnections: createLocalLightUserSeed({ db, now: () => clock.now(), onEmbedSpaceBound: () => undefined }),
   });
 
   const ctx: AdminContext = {
@@ -216,7 +216,7 @@ export function makeHarness(db: Db): AdminHarness {
     // property under test is that a minted account ends up holding `user_connections` rows, so a
     // recorder here would pass while the seed it stands for was gone. Same op the composition root
     // builds.
-    seedUserConnections: createLocalLightUserSeed({ db, now: () => clock.now() }),
+    seedUserConnections: createLocalLightUserSeed({ db, now: () => clock.now(), onEmbedSpaceBound: () => undefined }),
     audit: (entry: AuditCall["entry"], at: number): Promise<void> => {
       audits.push({ entry, at });
       return Promise.resolve();

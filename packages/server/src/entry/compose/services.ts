@@ -318,6 +318,9 @@ export interface ServicesResult {
   readonly signupInvites: SignupInviteOps;
   /** The per-user local-light seed, surfaced for the signup route (it runs after the signup commit). */
   readonly seedUserConnections: (userId: UserId) => Promise<void>;
+  /** Enqueue one owner's cards, documents and memory sweeps after a seed changed their embed space. Surfaced
+   *  for boot, whose owner seed and local-light sweep run outside the compose-built seed. */
+  readonly enqueueOwnerEmbedIndex: (ownerId: UserId) => void;
   /** #250 — the memory-recall flight recorder's READ half. Always present (the recorder is unconditional);
    *  `lifecycle.ts` hands it to `createApp`, which registers `/api/_debug/memory/recalls` over it. */
   readonly recallRecorder: MemoryRecallRecorder;
@@ -330,6 +333,8 @@ export interface ServicesResult {
    *  over the SAME real chat wiring with only the executor/connection faked (never a live model). */
   readonly chatRpgOps: ChatComposeResult["rpgChatOps"];
 }
+
+const OWNER_EMBED_INDEX_SPAN = "embeddings.ownerEmbedIndex";
 
 /** Construct the full service graph + the boot handles. Async: the runtime loads the provider registry's
  *  runtime rows (`provider_rows`) before any consumer that resolves against it is built. */
@@ -346,7 +351,10 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // alive at boot; this op is what covers every account minted afterwards, and it is threaded into both
   // user-minting domains (sessions below, admin further down) rather than called from one of them —
   // neither may import `domain/connection`.
-  const seedUserConnections = createLocalLightUserSeed({ db, now });
+  // A seed that newly binds the encoder schedules that owner's sweeps; `workloads` exists only far below, so the
+  // holder is late-bound like `enqueueEmbedReindex` and derefs at call time (a mint, never during compose).
+  let enqueueOwnerEmbedIndex: (ownerId: UserId) => void = () => undefined;
+  const seedUserConnections = createLocalLightUserSeed({ db, now, onEmbedSpaceBound: (ownerId) => enqueueOwnerEmbedIndex(ownerId) });
   const sessions = createSessionsService({ db, now, sessionSecret: deps.sessionSecret, seedUserConnections });
   // A connection/binding write that changes an owner's embed or imageEmbed SPACE
   // must enqueue the purge+reindex. `workloads` is built far below (the search-discovery seam), so this holder
@@ -1162,6 +1170,42 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     return generation === null ? null : { ownerId, model: generation.space, generationId: generation.id, generationEpoch: generation.epoch };
   };
 
+  // One owner's embed space changed outside the binding verb (a seed): enqueue that owner's cards, documents and
+  // memory sweeps, so each scope lands in the new target and search reads it. A memory-off owner's memory sweep
+  // is refused at admission and would derive nothing, so its vacuous receipt is recorded directly instead.
+  // Fire-and-forget under the supervised-detach boundary, like `enqueueEmbedReindex`: a duplicate or failed
+  // enqueue is logged and never fails the seed.
+  enqueueOwnerEmbedIndex = (ownerId: UserId): void => {
+    // With the autoindex off nothing embeds in the background, so no target is pinned and search reads the live
+    // space without a migration to wait on.
+    if (!resolved.corpusAutoindex) {
+      return;
+    }
+    const at = now();
+    superviseDetached(`owner-embed-index:index:${ownerId}:${String(at)}`, OWNER_EMBED_INDEX_SPAN, { workloadKind: "index" }, () =>
+      workloads.start({ input: { kind: "index", params: { source: "all" } }, caller: null, mode: "singular", ownerId }),
+    );
+    superviseDetached(`owner-embed-index:databank:${ownerId}:${String(at)}`, OWNER_EMBED_INDEX_SPAN, { workloadKind: "databank-reindex" }, () =>
+      workloads.start({
+        input: { kind: "databank-reindex", params: { scope: { kind: "owner" }, mode: "chunk-embed" } },
+        caller: null,
+        mode: "singular",
+        ownerId,
+      }),
+    );
+    superviseDetached(`owner-embed-index:memory:${ownerId}:${String(at)}`, OWNER_EMBED_INDEX_SPAN, { workloadKind: "memory-backfill" }, async () => {
+      const vacuous = await vacuousMemoryReceipt(ownerId);
+      if (vacuous === null) {
+        await workloads.start({ input: { kind: "memory-backfill", params: {} }, caller: null, mode: "singular", ownerId });
+        return;
+      }
+      await embeddings.purgeMemoryVectors({
+        ownerId,
+        generation: { id: vacuous.generationId, task: "embed", via: "embed", epoch: vacuous.generationEpoch, space: vacuous.model },
+      });
+    });
+  };
+
   // Assemble the contribution registry + close the late-bound holder the workloads verbs deref.
   workloadContributions = buildWorkloadContributions({
     db,
@@ -1421,6 +1465,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     chatRpgOps: chatCompose.rpgChatOps,
     signupInvites: chatCompose.signupInvites,
     seedUserConnections,
+    enqueueOwnerEmbedIndex: (ownerId) => enqueueOwnerEmbedIndex(ownerId),
     wireCaptureOn,
   };
 }
