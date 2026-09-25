@@ -1,7 +1,8 @@
 ---
 kind: adr
-status: active
+status: superseded
 updated: 2026-09-25
+superseded-by: docs/adr/0263-seed-content-and-a-first-run-persona.md
 ---
 
 # Every account is seeded with content, never with conversations
