@@ -257,10 +257,11 @@ interface TurnPipelineResult {
 
 /** The history-budget reserve: the model window (soft-capped by the user's `maxContextTokens`), reserving
  *  the EFFECTIVE intent's output budget + the assembled system tokens. `intent.maxOutputTokens` is already
- *  MATERIALIZED to a concrete number by `runTurnPipeline` (never undefined here), so `reserveOutputTokens`
- *  is the SAME value the runner sends as wire `max_tokens` — the two-source divergence that dropped all
- *  history is closed. It must NOT fall back to `capability.output.maxTokens.max` (the slider ceiling / on a
- *  self-hosted vLLM the whole window), which reserved the entire context and starved history (amnesia). */
+ *  MATERIALIZED to a concrete number by `runTurnPipeline` (never undefined here) and the reserve is held under
+ *  the model's `output.maxTokens.max`, the cap `resolveChat` clamps the wire `max_tokens` to, so
+ *  `reserveOutputTokens` is the SAME value the runner sends — the two-source divergence that dropped all
+ *  history is closed. The cap is a ceiling only: an unset ask must NOT fall back to it (the slider ceiling / on
+ *  a self-hosted vLLM the whole window), which reserved the entire context and starved history (amnesia). */
 function fitBudget(args: RunTurnPipelineArgs, intent: UserIntent, systemTokens: number): ReturnType<typeof buildHistoryBudget> {
   return buildHistoryBudget({
     windowTokens: generationOf(args.connection).context.window,
@@ -270,6 +271,7 @@ function fitBudget(args: RunTurnPipelineArgs, intent: UserIntent, systemTokens: 
     // Materialized in `buildHistoryBudget` to a concrete response length, mirroring the runner's `max_tokens`.
     maxOutputTokens: intent.maxOutputTokens,
     systemTokens,
+    outputCeiling: generationOf(args.connection).output.maxTokens.max,
   });
 }
 

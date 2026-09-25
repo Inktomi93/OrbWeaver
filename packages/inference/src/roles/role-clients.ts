@@ -85,6 +85,7 @@ const REFUSAL_TEXT: Record<UnavailableCause, (task: Task) => string> = {
   "background-refused": (task) => `the connection bound for "${task}" does not allow background work — enable it in Connections`,
   "requirement-unmet": (task) => `the model bound for "${task}" cannot do this task — pick another in Connections`,
   unavailable: (task) => `the connection bound for "${task}" uses a backend this server does not run`,
+  "model-load-failed": (task) => `the built-in model bound for "${task}" failed to load on this server — the next call retries it`,
 };
 
 /** The refusal for a task that cannot run, named by its availability cause. One home, so a caller that learns

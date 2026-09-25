@@ -75,6 +75,9 @@ test("boot migrates + serves healthz 200; shutdown flips it to 503 and stops acc
   const healthzUrl = `http://localhost:${String(address.port)}/healthz`;
 
   const live = await waitForHealthz(healthzUrl);
+  // The listener must leave the global Response alone: transformers.js caches a downloaded model file only
+  // when the native fetch() result passes `instanceof Response`.
+  expect(live).toBeInstanceOf(Response);
   expect(live.status).toBe(OK);
   expect(await live.json()).toEqual({ status: "ok", harness: false, version: versionIdentity() });
 

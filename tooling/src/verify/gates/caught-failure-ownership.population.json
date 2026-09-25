@@ -723,7 +723,7 @@
     {
       "siteId": "packages/inference/src/backends/local-light/model-cache.ts::createMemo.getEntry::created::1",
       "verdict": "deliberate-absorb",
-      "reason": "the rejection arm deletes the failed single-flight entry, while every awaiting caller still receives the original rejection. Precedent: the gate mustFlag fixture packages/server/src/domain/probe/opaque-rethrow-helper.ts documents the same real but syntactically opaque propagation. Ends if either behavior changes."
+      "reason": "the rejection arm records the failure for the availability verdict and deletes the failed single-flight entry, while every awaiting caller still receives the original rejection. Precedent: the gate mustFlag fixture packages/server/src/domain/probe/opaque-rethrow-helper.ts documents the same real but syntactically opaque propagation. Ends if either behavior changes."
     },
     {
       "siteId": "packages/inference/src/backends/local-light/prefetch.ts::createLocalLightPrefetch.warm::preload::1",
