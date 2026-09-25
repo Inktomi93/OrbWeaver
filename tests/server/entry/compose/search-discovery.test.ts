@@ -194,6 +194,7 @@ describe("buildSearchDiscovery — the cluster product is complete", () => {
         "embeddings",
         "indexer",
         "persona",
+        "joinerPersonaStatement",
         "resolvePersonasForParticipants",
         "presetCtx",
         "preset",
