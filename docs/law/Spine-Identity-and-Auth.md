@@ -344,7 +344,8 @@ client does when a resolved session goes stale.
 - `externalId` keys SSO (stable authentik sub/uid, unique-when-set); `handle` keys everything else
   (rename stability).
 - `users.handle_key` is the comparison key every handle writer checks, so a case variant or look-alike
-  of a held handle is that handle, and a writer refuses a mixed-script handle; the displayed handle is
+  of a held handle is that handle, and a writer refuses a mixed-script handle or one with an invisible or
+  bidi control character; the displayed handle is
   never folded (D257, `@orb/kit/handle-key`).
 - Credential AAD binds `${userId}|${provider}` — single production site
   `domain/credentials/persistence/aad.ts`; `SecretBox` carries the AAD, never derives it.

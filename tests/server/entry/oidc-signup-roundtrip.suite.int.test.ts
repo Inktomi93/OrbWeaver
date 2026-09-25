@@ -427,12 +427,14 @@ describe("a pending join claims no handle the local signup would refuse", () => 
     expect(await inviteUses(f)).toBe(0);
   });
 
-  // A key applied once missed a few two-step prototypes (`ɪ` → `i` → `l`), and a mixed-script handle can spell
-  // a look-alike the confusable data does not map; the confirm refuses both.
+  // A key applied once missed a few two-step prototypes (`ɪ` → `i` → `l`), a mixed-script handle can spell a
+  // look-alike the confusable data does not map, and a right-to-left override displays `nimda` as `admin` while
+  // keying apart from it; the confirm refuses all three.
   test.each([
     ["admin", "admɪn"],
     ["host", "hσst"],
     ["root", "гoot"],
+    ["admin", `${String.fromCodePoint(0x20_2e)}nimda`],
   ])("beside %s, the pending join as %s is refused at the confirm", async (held, joiner) => {
     const f = await flow();
     await seedUser(f.db, { handle: castId<Handle>(held) });

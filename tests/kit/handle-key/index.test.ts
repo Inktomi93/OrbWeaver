@@ -8,6 +8,18 @@ const BMP_FIRST_PRINTABLE = 0x20;
 const BMP_LAST = 0xff_ff;
 const SURROGATES = [0xd8_00, 0xdf_ff] as const;
 
+// Invisible and direction-changing characters are built from code points, so none of them sits raw in this file.
+const CHAR = {
+  rlo: String.fromCodePoint(0x20_2e),
+  rli: String.fromCodePoint(0x20_67),
+  pdi: String.fromCodePoint(0x20_69),
+  bel: String.fromCodePoint(0x07),
+  lf: String.fromCodePoint(0x0a),
+  lineSeparator: String.fromCodePoint(0x20_28),
+  paragraphSeparator: String.fromCodePoint(0x20_29),
+  zwj: String.fromCodePoint(0x20_0d),
+} as const;
+
 describe("handleKey", () => {
   test.each([
     ["an accented case variant", "Émile", "émile"],
@@ -73,6 +85,13 @@ describe("handleKey", () => {
     ["65 code points", `a${"́".repeat(64)}`],
     ["only zero-width characters", "​‍"],
     ["only an ideographic space", "　"],
+    ["a right-to-left override that displays `nimda` as `admin`", `${CHAR.rlo}nimda`],
+    ["a right-to-left isolate pair", `${CHAR.rli}admin${CHAR.pdi}`],
+    ["a bell control", `admin${CHAR.bel}`],
+    ["a line feed", `ad${CHAR.lf}min`],
+    ["a line separator", `ad${CHAR.lineSeparator}min`],
+    ["a paragraph separator", `ad${CHAR.paragraphSeparator}min`],
+    ["a zero-width joiner inside Latin", `ad${CHAR.zwj}min`],
   ])("admitsHandle refuses %s: %s", (_, handle) => {
     expect(admitsHandle(handle)).toBe(false);
   });
@@ -84,6 +103,8 @@ describe("handleKey", () => {
     ["Latin with Han and Katakana", "yamada太タ"],
     ["Latin with Hangul and Han", "kim한韓"],
     ["Latin with digits and punctuation", "user_01.dev"],
+    ["an emoji", "😀"],
+    ["Latin with an emoji", "cat😀"],
   ])("control: admitsHandle allows %s: %s", (_, handle) => {
     expect(admitsHandle(handle)).toBe(true);
   });

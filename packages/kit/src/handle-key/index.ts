@@ -7,6 +7,8 @@ import { CASE_FOLDING, CONFUSABLE_PROTOTYPES, DEFAULT_IGNORABLE, SCRIPT_CODES } 
 
 const HEX_RADIX = 16;
 const VISIBLE = /\S/u;
+// Controls and line or paragraph separators: invisible, or they break the line a handle is shown on.
+const LAYOUT_CONTROL = /[\p{Cc}\p{Zl}\p{Zp}]/u;
 
 /** The longest handle any writer accepts, in code points. The key normalizes, and NFKC/NFD over a long run of
  *  combining marks is quadratic, so every boundary refuses a longer handle before a key is computed. */
@@ -68,13 +70,17 @@ function caseFold(text: string, { fold }: Tables): string {
   return out;
 }
 
+function isDefaultIgnorable(char: string, { ignorable }: Tables): boolean {
+  const cp = char.codePointAt(0) ?? 0;
+  return ignorable.some(([first, last]) => cp >= first && cp <= last);
+}
+
 // UTS 39 internalSkeleton: NFD, drop default-ignorables, map each code point to its prototype, NFD again.
-function skeleton(text: string, { prototype, ignorable }: Tables): string {
+function skeleton(text: string, data: Tables): string {
   let out = "";
   for (const char of text.normalize("NFD")) {
-    const cp = char.codePointAt(0) ?? 0;
-    if (!ignorable.some(([first, last]) => cp >= first && cp <= last)) {
-      out += prototype.get(char) ?? char;
+    if (!isDefaultIgnorable(char, data)) {
+      out += data.prototype.get(char) ?? char;
     }
   }
   return out.normalize("NFD");
@@ -147,13 +153,20 @@ function scriptsOf(char: string): ReadonlySet<string> {
 
 /**
  * Whether a handle may be written at all (D257), checked by every handle writer before its key: it is within
- * {@link HANDLE_MAX_CODE_POINTS}, its key is not blank, and its NFKC
- * form meets the UTS 39 highly restrictive profile, one script, or Latin with Japanese, Korean or Chinese
- * writing; Common and Inherited characters (digits, punctuation, marks) fit any script, and an unassigned code
- * point never fits. A mixed-script handle can spell a look-alike the confusable data does not map.
+ * {@link HANDLE_MAX_CODE_POINTS}, it holds no default-ignorable code point, control, or line or paragraph
+ * separator, its key is not blank, and its NFKC form meets the UTS 39 highly restrictive profile, one script,
+ * or Latin with Japanese, Korean or Chinese writing; Common and Inherited characters (digits, punctuation,
+ * marks) fit any script, and an unassigned code point never fits. A mixed-script handle can spell a
+ * look-alike the confusable data does not map.
  */
 export function admitsHandle(handle: string): boolean {
   if (!withinHandleLength(handle)) {
+    return false;
+  }
+  // The key drops a default-ignorable, so a bidi override reorders what a reader sees while the key keeps the
+  // logical order: `nimda` behind a right-to-left override displays as `admin` and keys apart from it.
+  const data = loaded();
+  if (LAYOUT_CONTROL.test(handle) || [...handle].some((char) => isDefaultIgnorable(char, data))) {
     return false;
   }
   // A key with nothing visible (only default-ignorables or blanks) names a handle no one can read or tell apart.
