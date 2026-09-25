@@ -4,7 +4,7 @@
 // only keeps the button honest.
 
 import type { SignupErrorCode } from "@orb/contracts/identity";
-import { signupHandleSchema } from "@orb/contracts/identity";
+import { signupRequestSchema } from "@orb/contracts/identity";
 import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
@@ -54,7 +54,7 @@ export function LoginSignupForm({ token, onSignedUp, onUseSignIn, onDismiss }: L
   const [password, setPassword] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const canSubmit = signupHandleSchema.safeParse(handle).success && password.length > 0 && !pending;
+  const canSubmit = signupRequestSchema.shape.handle.safeParse(handle).success && password.length > 0 && !pending;
 
   const onSubmit = (event: SyntheticEvent): void => {
     event.preventDefault();
@@ -63,6 +63,7 @@ export function LoginSignupForm({ token, onSignedUp, onUseSignIn, onDismiss }: L
     }
     setPending(true);
     setError(null);
+    // @orb-waive caught-failure-ownership(signUpWithInvite): the FORM is the owner — a network rejection sets the visible role=alert error and re-enables submit, the same surface a coded refusal lands on. Ends if the form stops rendering its error state.
     signUpWithInvite({ token, handle, password }).then(
       (result) => {
         if (result.ok) {
@@ -95,7 +96,7 @@ export function LoginSignupForm({ token, onSignedUp, onUseSignIn, onDismiss }: L
           />
         </Field>
         {error === null ? null : (
-          <Text size="label" tone="destructive" role="alert" data-testid={testId("signupError")}>
+          <Text voice="label" className="text-destructive" role="alert" data-testid={testId("signupError")}>
             {error}
           </Text>
         )}

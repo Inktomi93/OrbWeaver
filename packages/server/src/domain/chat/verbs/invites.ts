@@ -11,14 +11,15 @@
 // refusal, never silently degraded to a share-link.
 
 import { randomBytes } from "node:crypto";
-import type { DurableChatBusEvent, GroupConfig, InvitePreview, InviteView, ParticipantView } from "@orb/contracts/chat";
-import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
+import type { CreateInviteInput, DurableChatBusEvent, GroupConfig, InvitePreview, InviteView, ParticipantView } from "@orb/contracts/chat";
+import { DEFAULT_GROUP_CONFIG, SIGNUP_MAX_TTL_MS, SIGNUP_MAX_USES } from "@orb/contracts/chat";
+import type { Principal } from "@orb/contracts/identity";
 
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { ChatContext } from "../context.ts";
 import type { ClaimChatOp } from "../contract/context.ts";
-import { ChatNotFoundError } from "../contract/errors.ts";
+import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type {
   AcceptInviteParams,
   CreateInviteParams,
@@ -134,6 +135,23 @@ function modeLabel(group: GroupConfig): string {
   return `${group.output} · ${group.policy}`;
 }
 
+/** D254 — the gates on an `allowSignup` mint, after `requireHost`. The mode must mint signup invites, the host
+ *  must be a global admin, and the link must be untargeted with a use cap and an expiry inside the caps on the
+ *  server clock. An omitted field never takes a default here: a signup link is spelled out or refused. */
+function assertSignupMint(ctx: ChatContext, principal: Principal, input: CreateInviteInput, at: number): void {
+  if (!ctx.signupInvites.mintable) {
+    throw new ChatOperationError(CHAT_OP_CODES.inviteSignupUnavailable, "this sign-in mode cannot create accounts through an invite");
+  }
+  ctx.can(principal, "admin", { kind: "global" });
+  const { maxUses, expiresAt, invitedHandle } = input;
+  const usesCapped = typeof maxUses === "number" && maxUses >= 1 && maxUses <= SIGNUP_MAX_USES;
+  const expiryCapped = typeof expiresAt === "number" && expiresAt > at && expiresAt <= at + SIGNUP_MAX_TTL_MS;
+  const untargeted = invitedHandle === null || invitedHandle === undefined;
+  if (!(usesCapped && expiryCapped && untargeted)) {
+    throw new ChatOperationError(CHAT_OP_CODES.inviteSignupShape, "a signup invite needs a capped use count, a capped expiry and no target");
+  }
+}
+
 /** `createInvite` — host-only. Mint a CSPRNG token, store its peppered hash, return the raw token once for
  *  the `/join/:token` link. Share-link by default; a targeted invite resolves `invitedHandle` →
  *  `invitedUserId`.
@@ -144,6 +162,10 @@ function modeLabel(group: GroupConfig): string {
 function createCreateInvite(ctx: ChatContext, claimChat: ClaimChatOp): ChatService["createInvite"] {
   return async ({ principal, chatId, input }: CreateInviteParams) => {
     await requireHost(ctx, principal, chatId);
+    const allowSignup = input.allowSignup === true;
+    if (allowSignup) {
+      assertSignupMint(ctx, principal, input, ctx.now());
+    }
     await claimChat(chatId);
     // Resolve the exact target handle → userId (sessions' injected resolver; disabled == unknown).
     let invitedUserId: UserId | null = null;
@@ -169,6 +191,9 @@ function createCreateInvite(ctx: ChatContext, claimChat: ClaimChatOp): ChatServi
       expiresAt,
       invitedUserId,
       status: "pending",
+      allowSignup,
+      createdByUserId: principal.userId,
+      mintMode: ctx.signupInvites.mode,
       createdAt: at,
     });
     // A targeted invite delivers the durable `invite` notification after the persist above commits — a
@@ -190,6 +215,7 @@ function createCreateInvite(ctx: ChatContext, claimChat: ClaimChatOp): ChatServi
       remainingUses: maxUses, // uses = 0 at creation
       expiresAt,
       invitedUserId,
+      allowSignup,
       createdAt: at,
     };
     return { invite, token };
@@ -367,6 +393,7 @@ function createListInvites(ctx: ChatContext): ChatService["listInvites"] {
       remainingUses: row.maxUses === null ? null : Math.max(0, row.maxUses - row.uses),
       expiresAt: row.expiresAt,
       invitedUserId: row.invitedUserId,
+      allowSignup: row.allowSignup,
       createdAt: row.createdAt,
     }));
   };

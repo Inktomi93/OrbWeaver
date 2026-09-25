@@ -39,6 +39,7 @@ import type {
   LocalAuthenticator,
   OidcRoutesDeps,
   PrincipalEnv,
+  SignupRouteDeps,
   UploadAssetsPort,
 } from "./http/index.ts";
 import {
@@ -216,6 +217,8 @@ export interface AppDeps {
   readonly authenticate?: LocalAuthenticator;
   /** B4 — present in local mode; registers the first-run owner-password setup route + drives the config flag. */
   readonly firstRun?: FirstRunRouteDeps;
+  /** D254 — present in local mode; registers the signup-through-invite route (the app adds the capability). */
+  readonly signup?: Omit<SignupRouteDeps, "multiHumanCapable">;
   /** B4 — present in local mode; the peer-scoped "owner needs a first-run password" read for /api/auth/config
    *  (gated on a loopback TCP peer and no relay tell, never the client `Host`). */
   readonly localFirstRun?: (peerIp: string | undefined, headers: Headers) => Promise<boolean>;
@@ -420,6 +423,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     resolveLoginLimit: () => deps.services.settings.getEffectiveConfig().rateLimits.login,
     ...(deps.authenticate !== undefined ? { authenticate: deps.authenticate } : {}),
     ...(deps.firstRun !== undefined ? { firstRun: deps.firstRun } : {}),
+    ...(deps.signup !== undefined ? { signup: { ...deps.signup, multiHumanCapable } } : {}),
     ...(deps.oidc !== undefined ? { oidc: deps.oidc } : {}),
   });
   registerAuthMeta(app, {

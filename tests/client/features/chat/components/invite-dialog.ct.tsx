@@ -35,6 +35,7 @@ const MINT = {
     remainingUses: null,
     expiresAt: null,
     invitedUserId: null,
+    allowSignup: false,
     createdAt: 1,
   },
   token: "tok_ct_minted",

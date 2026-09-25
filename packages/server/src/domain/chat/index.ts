@@ -88,6 +88,14 @@ export type {
   TurnStreamChunk,
 } from "./contract/results.ts";
 export type { ChatService } from "./contract/service.ts";
+export type {
+  SignupInviteCapability,
+  SignupInviteDeps,
+  SignupInviteOps,
+  SignupMinterCheckOp,
+  SignupRedeemOutcome,
+  SignupUserStatementOp,
+} from "./contract/signup.ts";
 export type { ChatWorkloadDeps } from "./contract/workloads.ts";
 export { requireAuthorOrHost, requireHost, requireParticipant } from "./guard.ts";
 export { generateDigests } from "./memory/generate/digests.ts";
@@ -193,4 +201,6 @@ export { createResolveViewerVisibility } from "./verbs/resolve-viewer-visibility
 // The opaque rpg-pointer WRITE op (docs/plans/rpg/design.md) — merges `metadata.rpg`; wired into `RpgContext.setPointer`
 // at the composition root (W1c). Standalone + principal-free (createGame gated host; the getMembership precedent).
 export { createSetRpgPointer } from "./verbs/set-rpg-pointer.ts";
+// D254 — the signup-invite ops the entry signup route calls, built at the chat composition root.
+export { createSignupInvite } from "./verbs/signup-invite.ts";
 export { createChatWorkloadContributions } from "./workload-contributions.ts";

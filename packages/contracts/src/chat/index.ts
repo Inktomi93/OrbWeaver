@@ -344,6 +344,8 @@ export {
   resolveCarriedTheme,
   resolveRenderPolicy,
   rosterMemberSpecSchema,
+  SIGNUP_MAX_TTL_MS,
+  SIGNUP_MAX_USES,
   seatKnobsSchema,
   stepFromRenderPolicyOverride,
   TALKATIVENESS_DEFAULT,

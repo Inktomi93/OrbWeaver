@@ -76,6 +76,7 @@ import type { ActiveTurns } from "./active-turns.ts";
 import type { ChatBehaviorInputs, ResolveForeignInputsOp } from "./foreign.ts";
 import type { MemoryEmbedSpace, MemoryLog, MemoryRecallPhaseEmitter, MemoryRecallSink } from "./memory.ts";
 import type { ResolvedMediaRef, TurnKind, TurnRequest, TurnStreamChunk } from "./results.ts";
+import type { SignupInviteCapability } from "./signup.ts";
 
 /** The node:vm ReDoS watchdog wrapping a host-side regex `text.replace` in a per-call timeout, so a
  *  catastrophic-backtracking pattern throws instead of hanging the turn. */
@@ -1333,6 +1334,8 @@ export interface ChatContext {
   readonly newChatTurnId: () => ChatTurnId;
   /** Hashes an invite token before persistence — never stored raw. */
   readonly hashToken: (token: string) => string;
+  /** D254 — whether this mode mints signup invites, and the mode every invite is stamped with. */
+  readonly signupInvites: SignupInviteCapability;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   /** Unexecuted audit insert for the host-handoff swap's all-or-nothing forensic record. */
   readonly auditStatement: (entry: AuditEntry, at: number) => BatchStmt;

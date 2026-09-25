@@ -73,6 +73,38 @@ export function clientIp(c: Context): string | null {
   });
 }
 
+const V4_BITS = 32;
+const V4_OCTETS = 4;
+const OCTET_BASE = 256n;
+// 2^64: dividing a 128-bit address by it leaves the /64 prefix.
+const V6_PREFIX_DIVISOR = 18_446_744_073_709_551_616n;
+const HEX_RADIX = 16;
+
+/** Render a parsed 32-bit address as its dotted quad, so a v4-mapped v6 literal keys like the plain v4 one. */
+function dottedQuad(value: bigint): string {
+  const octets: string[] = [];
+  let rest = value;
+  for (let i = 0; i < V4_OCTETS; i++) {
+    octets.unshift(String(rest % OCTET_BASE));
+    rest /= OCTET_BASE;
+  }
+  return octets.join(".");
+}
+
+/** The per-address throttle key (D254): an IPv4 address as itself, an IPv6 address by its /64 prefix. One host
+ *  usually holds a whole /64, so a full-address key lets it rotate addresses and reset its bucket at will. An
+ *  unparseable address keys as itself. */
+export function addressThrottleKey(ip: string): string {
+  const parsed = parseIp(ip);
+  if (parsed === null) {
+    return ip;
+  }
+  if (parsed.bits === V4_BITS) {
+    return dottedQuad(parsed.value);
+  }
+  return `${(parsed.value / V6_PREFIX_DIVISOR).toString(HEX_RADIX)}::/64`;
+}
+
 /** Raw TCP peer socket address, no XFF precedence — the anti-spoof subject for the forward-header
  *  unsigned trusted-proxy gate (a client can forge XFF/X-Real-IP but never the socket peer).
  *  `undefined` ⇒ unsigned path fails closed. */

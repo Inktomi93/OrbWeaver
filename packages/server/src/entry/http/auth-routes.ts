@@ -20,7 +20,8 @@
 // (open-redirect class). The validated redirect_uri is stored in the transaction and reconstructed at the
 // callback so the token exchange presents the same redirect_uri the IdP saw, even behind a proxy.
 
-import type { RequestTransport, ResolvedIdentity, UserRole } from "@orb/contracts/identity";
+import type { RequestTransport, ResolvedIdentity, SignupErrorCode, SignupRequest, UserRole } from "@orb/contracts/identity";
+import { signupRequestSchema } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { DomainRateLimitError } from "@orb/kit/errors";
 import type { ExternalId, Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
@@ -29,6 +30,7 @@ import type { Context, Hono, MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import type { Configuration } from "openid-client";
 import { buildAuthorizationUrl, calculatePKCECodeChallenge, randomNonce, randomPKCECodeVerifier, randomState } from "openid-client";
+import type { SignupInviteOps } from "#domain/chat";
 import type { RevokedSessionsSummary } from "#domain/sessions";
 import { groupRoleGovernanceActive } from "#domain/sessions";
 import { getLog, groupsLogFields, securityEvent } from "#foundation/observability";
@@ -46,7 +48,7 @@ import {
   SESSION_COOKIES,
   sessionCookieFor,
 } from "#infra/auth";
-import { clientIp, peerIp } from "#infra/network";
+import { addressThrottleKey, clientIp, peerIp } from "#infra/network";
 import type { RateLimiter } from "../../transport/rate-limit.ts";
 import { createRateLimiter } from "../../transport/rate-limit.ts";
 import { publishUserEvent } from "../../transport/trpc/index.ts";
@@ -56,6 +58,7 @@ const UNAUTHORIZED = 401;
 const FORBIDDEN = 403;
 const BAD_REQUEST = 400;
 const CONFLICT = 409;
+const NOT_FOUND = 404;
 const OK = 200;
 const FOUND = 302;
 const MS_PER_SECOND = 1000;
@@ -64,6 +67,10 @@ const PKCE_METHOD = "S256";
 const LOGIN_ROUTE = "/api/auth/login";
 const FIRST_RUN_ROUTE = "/api/auth/first-run";
 const LOGOUT_ROUTE = "/api/auth/logout";
+const SIGNUP_ROUTE = "/api/auth/signup";
+// D254 — the per-invite signup axis. The per-handle login axis caps nothing on a signup (the attacker picks the
+// handle), so the second axis keys on the invite the attempt spends against. Same window and knob as login.
+const SIGNUP_INVITE_RATE_SCOPE = "signup-invite";
 const TOO_MANY_REQUESTS = 429;
 const PAYLOAD_TOO_LARGE = 413;
 const LOGIN_BODY_KIB = 4;
@@ -515,6 +522,27 @@ export interface AuthRoutesDeps {
   /** The per-client throttled `session_minted_over_public_http` line, built on the composition root's clock.
    *  Absent, every such mint logs. */
   readonly publicHttpMintNotice?: PublicHttpMintNotice;
+  /** D254 — present in local mode; registers the signup-through-invite route. */
+  readonly signup?: SignupRouteDeps;
+}
+
+/** D254 — the local signup route's collaborators. Every op is injected: the route orders them and owns the
+ *  cookie, and it never reads a table itself. */
+export interface SignupRouteDeps {
+  /** The deployment's multi-human capability, read per request; false answers 404 like `/join/:token`. */
+  readonly multiHumanCapable: () => boolean;
+  /** Is this cookie token a live session? A signed-in caller joins through the in-app dialog, never here. */
+  readonly sessionIsLive: (token: SessionToken) => Promise<boolean>;
+  /** Chat's signup ops: the invite pre-check, the one gated batch, and the join announcement. */
+  readonly invites: SignupInviteOps;
+  /** The sessions front-door predicate over `OWNER_HANDLES` and the single-user placeholder, case-insensitive. */
+  readonly isReservedHandle: (handle: Handle) => boolean;
+  /** Does an account already carry the handle, case-insensitively? */
+  readonly handleTaken: (handle: Handle) => Promise<boolean>;
+  /** The scrypt password hasher bound to the `SESSION_SECRET` pepper. */
+  readonly hashPassword: (plain: string) => Promise<string>;
+  /** The new account's local-light floor, run after the commit (total by contract). */
+  readonly seedUserConnections: (userId: UserId) => Promise<void>;
 }
 
 /** The over-budget response, IDENTICAL on both throttle axes (B1). Which belt fired is an OPERATOR signal
@@ -527,11 +555,13 @@ function throttledResponse(c: Context, err: DomainRateLimitError): Response {
   return c.json({ error: "too many attempts; try again shortly" }, TOO_MANY_REQUESTS);
 }
 
-/** Consume one login-throttle point for the caller IP; returns a 429 Response when over budget, else null
- *  (proceed). Keyed on the peer-first `clientIp` the ingress gate + tRPC seam share (no drift). */
+/** Consume one login-throttle point for the caller address; returns a 429 Response when over budget, else null
+ *  (proceed). Keyed on the peer-first `clientIp` the ingress gate + tRPC seam share (no drift), grouped by
+ *  `addressThrottleKey` so an IPv6 host cannot reset its bucket by rotating inside its /64 (D254). */
 async function throttleLogin(limiter: RateLimiter, c: Context): Promise<Response | null> {
+  const ip = clientIp(c);
   try {
-    await limiter.consume(clientIp(c) ?? UNKNOWN_IP_KEY);
+    await limiter.consume(ip === null ? UNKNOWN_IP_KEY : addressThrottleKey(ip));
     return null;
   } catch (err) {
     if (err instanceof DomainRateLimitError) {
@@ -698,8 +728,133 @@ function registerFirstRunRoute(app: Hono, deps: AuthRoutesDeps, firstRun: FirstR
   });
 }
 
-/** Register the auth mint routes on `app`. Logout is always present; local login / first-run / OIDC are
- *  registered only when their injected op is supplied. */
+/** D254 — one signup refusal on the wire: a fixed code, never a message that could name which gate fired. */
+function signupRefusal(c: Context, code: SignupErrorCode, status: typeof BAD_REQUEST | typeof CONFLICT | typeof NOT_FOUND): Response {
+  return c.json({ error: code }, status);
+}
+
+/** D254 — one point on the per-invite axis, keyed on the invite id the pre-check resolved; 429 when over. */
+async function throttleSignupInvite(limiter: RateLimiter, c: Context, inviteId: string): Promise<Response | null> {
+  try {
+    await limiter.consume(inviteId);
+    return null;
+  } catch (err) {
+    if (err instanceof DomainRateLimitError) {
+      securityEvent(
+        "signup_invite_throttled",
+        { inviteId, clientIp: clientIp(c) },
+        "security: signup attempts against ONE invite over the per-invite throttle — 429",
+      );
+      return throttledResponse(c, err);
+    }
+    throw err;
+  }
+}
+
+/** D254 — does the request already carry a live session under its transport's cookie name? */
+async function carriesLiveSession(c: Context, signup: SignupRouteDeps): Promise<boolean> {
+  const token = readSessionCookie(c.req.raw.headers, requestTransport(c));
+  return token !== null && (await signup.sessionIsLive(token));
+}
+
+/** D254 — the strict body parse. A body that is not JSON reads as an invalid request, like a schema miss. */
+async function readSignupRequest(c: Context): Promise<ReturnType<typeof signupRequestSchema.safeParse>> {
+  let raw: unknown;
+  // @orb-waive caught-failure-ownership(catch): the CLIENT is the owner and the 400 is the surface — an unparseable body is the caller's error, answered with the same `invalid_request` code as a schema miss. Ends if body decoding gains a server-side fault worth distinguishing from bad input.
+  try {
+    raw = await c.req.json();
+  } catch {
+    raw = undefined;
+  }
+  return signupRequestSchema.safeParse(raw);
+}
+
+/**
+ * D254 — register `POST /api/auth/signup` (local mode): a signed-out visitor creates an account through a
+ * signup invite. The control order is ruled and each step stops the ones after it, so keep it: CSRF header,
+ * body cap, the multi-human 404, the per-address bucket, a live session refused, the strict schema and the
+ * password floor, the invite pre-check (a 404 with no invite bucket and no scrypt), the per-invite bucket,
+ * reserved and taken handles, scrypt, the one gated batch, and only then the session cookie, the account's
+ * vector floor and the join announcement. The cookie is written only for a batch whose every RETURNING
+ * came back, so a refused or partial signup never leaves a session.
+ */
+function registerSignupRoute(app: Hono, deps: AuthRoutesDeps, signup: SignupRouteDeps): void {
+  const addressLimiter = loginThrottler(deps);
+  const inviteLimiter = createRateLimiter(deps.db, {
+    scope: SIGNUP_INVITE_RATE_SCOPE,
+    points: () => deps.resolveLoginLimit(),
+    windowMs: LOGIN_WINDOW_MS,
+    now: deps.now,
+  });
+  app.post(SIGNUP_ROUTE, csrfGuard, bodyLimit({ maxSize: LOGIN_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }), async (c) => {
+    const request = await admitSignupRequest(c, signup, addressLimiter);
+    if (request instanceof Response) {
+      return request;
+    }
+    const handle = castId<Handle>(request.handle);
+    const refusal = await admitSignupAttempt(c, signup, inviteLimiter, { token: request.token, handle });
+    if (refusal !== null) {
+      return refusal;
+    }
+    const outcome = await signup.invites.redeem({ token: request.token, handle, passwordHash: await signup.hashPassword(request.password) });
+    if (outcome.outcome === "refused") {
+      return outcome.reason === "handle-taken" ? signupRefusal(c, "handle_unavailable", CONFLICT) : signupRefusal(c, "invite_unavailable", NOT_FOUND);
+    }
+    const session = await deps.sessions.create({ userId: outcome.userId, userAgent: c.req.header("user-agent") ?? null });
+    writeMintedSession(c, deps, session);
+    await signup.seedUserConnections(outcome.userId);
+    await signup.invites.announceJoined(outcome.chatId);
+    return c.json({ ok: true });
+  });
+}
+
+/** D254 — the signup steps before any invite work: the multi-human 404, the per-address bucket, the live-session
+ *  refusal, the strict schema and the password floor. Returns the parsed request, or the refusal to send. */
+async function admitSignupRequest(c: Context, signup: SignupRouteDeps, addressLimiter: RateLimiter): Promise<Response | SignupRequest> {
+  if (!signup.multiHumanCapable()) {
+    return c.body(null, NOT_FOUND);
+  }
+  const throttled = await throttleLogin(addressLimiter, c);
+  if (throttled !== null) {
+    return throttled;
+  }
+  if (await carriesLiveSession(c, signup)) {
+    return signupRefusal(c, "already_signed_in", CONFLICT);
+  }
+  const parsed = await readSignupRequest(c);
+  if (!parsed.success) {
+    return signupRefusal(c, "invalid_request", BAD_REQUEST);
+  }
+  if (parsed.data.password.length < MIN_PASSWORD_LENGTH) {
+    return signupRefusal(c, "weak_password", BAD_REQUEST);
+  }
+  return parsed.data;
+}
+
+/** D254 — the steps between the parse and scrypt: the invite pre-check (a 404 that spends no invite bucket),
+ *  the per-invite bucket, and the reserved and taken handles. Returns the refusal to send, or null. */
+async function admitSignupAttempt(
+  c: Context,
+  signup: SignupRouteDeps,
+  inviteLimiter: RateLimiter,
+  attempt: { readonly token: string; readonly handle: Handle },
+): Promise<Response | null> {
+  const inviteId = await signup.invites.admits(attempt.token);
+  if (inviteId === null) {
+    return signupRefusal(c, "invite_unavailable", NOT_FOUND);
+  }
+  const inviteThrottled = await throttleSignupInvite(inviteLimiter, c, inviteId);
+  if (inviteThrottled !== null) {
+    return inviteThrottled;
+  }
+  if (signup.isReservedHandle(attempt.handle) || (await signup.handleTaken(attempt.handle))) {
+    return signupRefusal(c, "handle_unavailable", CONFLICT);
+  }
+  return null;
+}
+
+/** Register the auth mint routes on `app`. Logout is always present; local login / first-run / signup / OIDC
+ *  are registered only when their injected op is supplied. */
 export function registerAuthRoutes(app: Hono, deps: AuthRoutesDeps): void {
   const authenticate = deps.authenticate;
   if (authenticate !== undefined) {
@@ -707,6 +862,9 @@ export function registerAuthRoutes(app: Hono, deps: AuthRoutesDeps): void {
   }
   if (deps.firstRun !== undefined) {
     registerFirstRunRoute(app, deps, deps.firstRun);
+  }
+  if (deps.signup !== undefined) {
+    registerSignupRoute(app, deps, deps.signup);
   }
 
   app.post(LOGOUT_ROUTE, async (c) => {

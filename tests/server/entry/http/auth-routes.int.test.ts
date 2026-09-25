@@ -4,16 +4,28 @@
 // on the pure mock harness in auth-routes.test.ts. Determinism: the throttle window is pinned via `now`.
 
 import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
-import type { Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
+import type { Db } from "@orb/db";
+import { auditLogs, chatInvites, chatParticipants, rateLimitBuckets, users } from "@orb/db";
+import type { ChatId, ChatInviteId, ChatParticipantId, Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RevokedSessionsSummary } from "@orb/server/domain/sessions";
-import type { AuthRoutesDeps, AuthSessionsPort, FirstRunRouteDeps, LocalAuthenticator } from "@orb/server/entry/http";
+import { isReservedSignupHandle } from "@orb/server/domain/sessions";
+import type { AuthRoutesDeps, AuthSessionsPort, FirstRunRouteDeps, LocalAuthenticator, SignupRouteDeps } from "@orb/server/entry/http";
 import { registerAuthRoutes } from "@orb/server/entry/http";
 import { logger } from "@orb/server/foundation/observability";
 import { createPublicHttpMintNotice, ownerFallbackAllowed } from "@orb/server/infra/auth";
+import { eq, like } from "drizzle-orm";
 import { Hono } from "hono";
-import { describe, vi } from "vitest";
+import { afterEach, describe, vi } from "vitest";
+import type { SignupInviteOps } from "../../../../packages/server/src/domain/chat/contract/signup.ts";
+import { createSignupInvite } from "../../../../packages/server/src/domain/chat/verbs/signup-invite.ts";
+import { createSessionsService } from "../../../../packages/server/src/domain/sessions/service.ts";
+import { createHostPrincipalResolver } from "../../../../packages/server/src/entry/auth/seam.ts";
+import { createSignupMinterCheck } from "../../../../packages/server/src/entry/compose/chat.ts";
+import { env } from "../../../../packages/server/src/foundation/env/index.ts";
+import { buildAuditStatementIfPrecedingWrote } from "../../../../packages/server/src/foundation/observability/audit.ts";
 import { freshDb } from "../../../support/db.ts";
+import { seedChat, seedUser } from "../../../support/factories/index.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const NOW = 1_700_000_000_000;
@@ -116,6 +128,13 @@ describe("local login — behavioral (real app + freshDb)", () => {
     const app = await appWith();
     const res = await postLogin(app, "10.0.0.3", { handle: "owner" });
     expect(res.status).toBe(400);
+  });
+  // D254 — one IPv6 host holds a whole /64; a per-address key must not reset when it rotates inside it.
+  test("two IPv6 addresses in one /64 share the per-address login bucket; another /64 does not", async () => {
+    const app = await appWith({ resolveLoginLimit: (): number => 1 });
+    expect((await postLogin(app, "2001:db8:cc:1::1", { handle: "owner", password: "hunter2pw" })).status).toBe(200);
+    expect((await postLogin(app, "2001:db8:cc:1::2", { handle: "owner", password: "hunter2pw" })).status).toBe(429);
+    expect((await postLogin(app, "2001:db8:cc:2::1", { handle: "owner", password: "hunter2pw" })).status).toBe(200);
   });
 });
 
@@ -598,5 +617,238 @@ describe("Rule E — a plain-http mint from a public client logs once per client
     await postLogin(app, "192.168.1.57", creds);
     await postLogin(app, "172.18.0.5", creds, { "x-forwarded-for": "203.0.113.21", "x-forwarded-proto": "https" });
     expect(h.logged()).toEqual([]);
+  });
+});
+
+// ── D254: the local signup-through-invite route ──────────────────────────────────────────────────────────────
+// The control order is ruled: CSRF, body cap, multi-human 404, per-address bucket, live-session refusal, strict
+// schema, invite pre-check, per-invite bucket, reserved/taken handles, scrypt, the batch, then the cookie.
+describe("local signup route (D254)", () => {
+  const Signup = "/api/auth/signup";
+  const Good = "tok_good";
+  const InviteId = castId<ChatInviteId>("chat_invite_signup_route");
+  const creds = { token: Good, handle: "friend", password: "hunter2pw" };
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  interface Spies {
+    hashed: number;
+    admitted: number;
+    redeemed: number;
+    seeded: UserId[];
+    announced: ChatId[];
+  }
+
+  /** Stub chat ops: `tok_good` names a live invite, anything else names nothing; a redeem refuses as taken. */
+  function stubInvites(spies: Spies): SignupInviteOps {
+    return {
+      admits: (token) => {
+        spies.admitted += 1;
+        return Promise.resolve(token === Good ? InviteId : null);
+      },
+      redeem: () => {
+        spies.redeemed += 1;
+        return Promise.resolve({ outcome: "refused", reason: "handle-taken" });
+      },
+      announceJoined: (chatId) => {
+        spies.announced.push(chatId);
+        return Promise.resolve();
+      },
+    };
+  }
+
+  async function signupApp(
+    over: { readonly signup?: Partial<SignupRouteDeps>; readonly limit?: number; readonly sessions?: Partial<AuthSessionsPort>; readonly db?: Db } = {},
+  ): Promise<{ app: Hono; db: Db; spies: Spies }> {
+    const db = over.db ?? (await freshDb());
+    const spies: Spies = { hashed: 0, admitted: 0, redeemed: 0, seeded: [], announced: [] };
+    const app = new Hono();
+    registerAuthRoutes(app, {
+      sessions: sessionsStub(over.sessions),
+      sockets: { evictSession: (): number => 0, evictUser: (): number => 0 },
+      now: (): number => NOW,
+      db,
+      resolveLoginLimit: (): number => over.limit ?? 10,
+      signup: {
+        multiHumanCapable: (): boolean => true,
+        sessionIsLive: (): Promise<boolean> => Promise.resolve(false),
+        invites: stubInvites(spies),
+        isReservedHandle: isReservedSignupHandle,
+        handleTaken: (): Promise<boolean> => Promise.resolve(false),
+        hashPassword: (plain: string): Promise<string> => {
+          spies.hashed += 1;
+          return Promise.resolve(`scrypt$${plain.length}`);
+        },
+        seedUserConnections: (userId: UserId): Promise<void> => {
+          spies.seeded.push(userId);
+          return Promise.resolve();
+        },
+        ...over.signup,
+      },
+    });
+    return { app, db, spies };
+  }
+
+  async function postSignup(app: Hono, ip: string, body: unknown, headers: Record<string, string> = { [CSRF]: "1" }): Promise<Response> {
+    return await app.request(Signup, { method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify(body) }, connEnv(ip));
+  }
+
+  async function inviteBuckets(db: Db): Promise<number> {
+    return (await db.select().from(rateLimitBuckets).where(like(rateLimitBuckets.key, "signup-invite:%"))).length;
+  }
+
+  test("without x-orb-csrf → 403 before the body is read; a deployment that is not multi-human → 404", async () => {
+    const { app, spies } = await signupApp();
+    expect((await postSignup(app, "10.9.0.1", creds, {})).status).toBe(403);
+    expect(spies.admitted).toBe(0);
+    const closed = await signupApp({ signup: { multiHumanCapable: (): boolean => false } });
+    expect((await postSignup(closed.app, "10.9.0.2", creds)).status).toBe(404);
+    expect(closed.spies.admitted).toBe(0);
+  });
+
+  test("an invalid or spent token → 404 with no password hashing and no per-invite bucket", async () => {
+    const { app, db, spies } = await signupApp();
+    const res = await postSignup(app, "10.9.0.3", { ...creds, token: "tok_spent" });
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: "invite_unavailable" });
+    expect(spies.hashed).toBe(0);
+    expect(await inviteBuckets(db)).toBe(0);
+  });
+
+  test("a request that already carries a live session → 409 and no invite work", async () => {
+    const { app, spies } = await signupApp({ signup: { sessionIsLive: (): Promise<boolean> => Promise.resolve(true) } });
+    const res = await postSignup(app, "10.9.0.4", creds, { [CSRF]: "1", cookie: `${COOKIE}=tok-live` });
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: "already_signed_in" });
+    expect(spies.admitted).toBe(0);
+  });
+
+  test("an unknown key or a short password is refused before the invite pre-check", async () => {
+    const { app, spies } = await signupApp();
+    expect((await postSignup(app, "10.9.0.5", { ...creds, role: "admin" })).status).toBe(400);
+    const weak = await postSignup(app, "10.9.0.6", { ...creds, password: "short" });
+    expect(await weak.json()).toEqual({ error: "weak_password" });
+    expect(spies.admitted).toBe(0);
+  });
+
+  test("two addresses in one IPv6 /64 share the per-address bucket", async () => {
+    const { app } = await signupApp({ limit: 1 });
+    expect((await postSignup(app, "2001:db8:aa:1::1", { ...creds, token: "tok_spent" })).status).toBe(404);
+    expect((await postSignup(app, "2001:db8:aa:1::2", { ...creds, token: "tok_spent" })).status).toBe(429);
+    // Control: another /64 has its own bucket.
+    expect((await postSignup(app, "2001:db8:aa:2::1", { ...creds, token: "tok_spent" })).status).toBe(404);
+  });
+
+  test("N+1 attempts on one invite from distinct /64s → 429 on the per-invite axis", async () => {
+    const cap = 2;
+    const { app } = await signupApp({ limit: cap });
+    const statuses: number[] = [];
+    for (const ip of ["2001:db8:b:1::1", "2001:db8:b:2::1", "2001:db8:b:3::1"]) {
+      statuses.push((await postSignup(app, ip, creds)).status);
+    }
+    expect(statuses).toEqual([409, 409, 429]);
+  });
+
+  test.each([["owner"], ["Owner"], ["OWNER"], ["Boss"]])("the reserved handle %s → 409 before any hashing", async (handle) => {
+    vi.stubEnv("OWNER_HANDLES", "boss");
+    const { app, spies } = await signupApp();
+    const res = await postSignup(app, "10.9.1.1", { ...creds, handle });
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: "handle_unavailable" });
+    expect(spies.hashed).toBe(0);
+  });
+
+  test("the single-user placeholder handle and a padded owner handle are refused", async () => {
+    const { app, spies } = await signupApp();
+    expect((await postSignup(app, "10.9.1.2", { ...creds, handle: env.DEFAULT_USER_HANDLE.toUpperCase() })).status).toBe(409);
+    expect((await postSignup(app, "10.9.1.3", { ...creds, handle: " owner" })).status).toBe(400);
+    expect(spies.hashed).toBe(0);
+  });
+
+  // Control: the real chain behind the route. The cookie is minted only after the batch committed.
+  test("a normal handle creates one account, one seat and one audit row, then the cookie, the seed and the announcement", async () => {
+    const db = await freshDb();
+    const room = await seedChat(db, { withHost: true });
+    const minter = room.hostUserId;
+    if (minter === undefined) {
+      throw new Error("seedChat withHost returned no host");
+    }
+    await db.update(users).set({ role: "admin" }).where(eq(users.id, minter));
+    await db.insert(chatInvites).values({
+      id: InviteId,
+      chatId: room.id,
+      tokenHash: `h:${Good}`,
+      maxUses: 2,
+      expiresAt: NOW + HOUR_MS,
+      allowSignup: true,
+      createdByUserId: minter,
+      mintMode: "local",
+      createdAt: NOW,
+    });
+    await seedUser(db, { handle: castId<Handle>("someone-else") });
+    const sessionsSvc = createSessionsService({ db, now: () => NOW, sessionSecret: "s".repeat(32), seedUserConnections: () => Promise.resolve() });
+    const announced: ChatId[] = [];
+    const invites = createSignupInvite(
+      {
+        db,
+        now: () => NOW,
+        hashToken: (token) => `h:${token}`,
+        newParticipantId: () => castId<ChatParticipantId>("chat_participant_signup_route"),
+        signupInvites: { mode: "local", mintable: true },
+      },
+      {
+        signupUserStatement: sessionsSvc.signupUserStatement,
+        minterMayMintSignup: createSignupMinterCheck(sessionsSvc, createHostPrincipalResolver(sessionsSvc)),
+        auditStatementAfterWrite: (entry, at) => buildAuditStatementIfPrecedingWrote(db, entry, at),
+        emit: (event) => {
+          if (event.type === "chatUpdated") {
+            announced.push(event.chatId);
+          }
+          return Promise.resolve();
+        },
+      },
+    );
+    let accountAtMint: number | null = null;
+    const { app, spies } = await signupApp({
+      db,
+      signup: { invites, handleTaken: (handle) => sessionsSvc.signupHandleTaken(handle) },
+      sessions: {
+        create: async () => {
+          accountAtMint = (
+            await db
+              .select()
+              .from(users)
+              .where(eq(users.handle, castId<Handle>("friend")))
+          ).length;
+          return { token: castId<SessionToken>("tok-123"), expiresAt: NOW + THIRTY_DAYS_MS };
+        },
+      },
+    });
+
+    const res = await postSignup(app, "10.9.2.1", creds);
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("set-cookie") ?? "").toContain(`${COOKIE}=tok-123`);
+    expect(accountAtMint).toBe(1);
+    const created = await db
+      .select()
+      .from(users)
+      .where(eq(users.handle, castId<Handle>("friend")));
+    expect(created).toHaveLength(1);
+    expect(created[0]).toMatchObject({ role: "user", enabled: true, kind: "human", passwordHash: "scrypt$9" });
+    const newUserId = created[0]?.id;
+    expect(
+      await db
+        .select()
+        .from(chatParticipants)
+        .where(eq(chatParticipants.userId, castId<UserId>(newUserId ?? ""))),
+    ).toHaveLength(1);
+    expect(await db.select().from(auditLogs).where(eq(auditLogs.action, "invites.signup"))).toHaveLength(1);
+    expect(spies.seeded).toEqual([newUserId]);
+    expect(announced).toEqual([room.id]);
+    // The same handle again, any case, is taken now.
+    expect((await postSignup(app, "10.9.2.2", { ...creds, handle: "FRIEND" })).status).toBe(409);
   });
 });

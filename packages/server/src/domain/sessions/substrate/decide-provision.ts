@@ -26,8 +26,8 @@ function decideUpdate(existing: ProvisionCandidate, derivedRole: UserRole, owner
 
 /** A2: a first-time non-owner row lands disabled under approval; the owner is never gated. */
 function decideInsert(derivedRole: UserRole, ownerId: UserId | undefined, options: ProvisionIdentityOptions): ProvisionInsert {
-  const { role, downgraded } = reconcileOwnerSingleton(derivedRole, ownerId, undefined);
-  return { kind: "insert", resolvedRole: role, enabled: role === "owner" || options.requireApproval !== true, ownerSingletonDowngrade: downgraded };
+  const { role: resolvedRole, downgraded } = reconcileOwnerSingleton(derivedRole, ownerId, undefined);
+  return { kind: "insert", resolvedRole, enabled: resolvedRole === "owner" || options.requireApproval !== true, ownerSingletonDowngrade: downgraded };
 }
 
 /** MS-W1 and A1 for a non-owner identity. A subject-bearing identity never auto-links onto an unbound row

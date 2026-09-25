@@ -1,5 +1,5 @@
 import type { Db } from "@orb/db";
-import { chatInvites, chatParticipants, messageReactions } from "@orb/db";
+import { auditLogs, chatInvites, chatParticipants, messageReactions, users } from "@orb/db";
 import type { ChatId, ChatInviteId, ChatParticipantId, Handle, MessageReactionId, PendingTurnId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
@@ -18,8 +18,12 @@ import {
   loadPendingTurnsForHost,
   loadPendingTurnsForReclaim,
   redeemInviteAtomic,
+  redeemSignupAtomic,
   revokeInviteById,
+  signupAccountAdmission,
 } from "../../../../../packages/server/src/domain/chat/persistence/invites.ts";
+import { insertSignupUserStatement } from "../../../../../packages/server/src/domain/sessions/persistence/users.ts";
+import { buildAuditStatementIfPrecedingWrote } from "../../../../../packages/server/src/foundation/observability/audit.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, seedChat, seedMessage, seedParticipant, seedPendingTurn, seedUser } from "../_support.ts";
@@ -545,5 +549,106 @@ describe("persistence/invites — pending_turns (deferred, boot-reclaimed)", () 
     expect(forHostA.map((p) => p.id)).toStrictEqual([castId<PendingTurnId>("pending_turn_a1"), castId<PendingTurnId>("pending_turn_a2")]);
     expect(await loadPendingTurnsForHost(db, hostB)).toHaveLength(1);
     expect(await loadPendingTurnsForReclaim(db)).toHaveLength(3);
+  });
+});
+
+// D254 — the signup chain: [account WHERE admits] → [claim WHERE admits AND changes()>0] → [seat WHERE
+// changes()>0] → [audit WHERE changes()>0]. The account insert is the sessions statement the verb hands in.
+describe("persistence/invites — redeemSignupAtomic (the gated signup chain)", () => {
+  const Mode = "local" as const;
+  const DayMs = 86_400_000;
+
+  async function seedSignupInvite(chatId: ChatId, key: string, over: { readonly maxUses: number; readonly uses: number }): Promise<string> {
+    const minter = await seedUser(db, castId<Handle>(`minter_${key}`));
+    const tokenHash = `hash_signup_${key}`;
+    await db.insert(chatInvites).values({
+      id: castId<ChatInviteId>(`chat_invite_signup_${key}`),
+      chatId,
+      tokenHash,
+      maxUses: over.maxUses,
+      uses: over.uses,
+      expiresAt: FROZEN_AT + DayMs,
+      allowSignup: true,
+      createdByUserId: minter,
+      mintMode: Mode,
+      createdAt: FROZEN_AT,
+    });
+    return tokenHash;
+  }
+
+  function attempt(key: string, tokenHash: string, handle: Handle, userId = castId<UserId>(`usr_signup_${handle}`)): Parameters<typeof redeemSignupAtomic>[1] {
+    const admission = signupAccountAdmission({ tokenHash, now: FROZEN_AT, mode: Mode });
+    return {
+      tokenHash,
+      now: FROZEN_AT,
+      mode: Mode,
+      account: insertSignupUserStatement(db, { id: userId, handle, passwordHash: "scrypt$fake", at: FROZEN_AT }, admission),
+      audit: buildAuditStatementIfPrecedingWrote(db, { actorUserId: userId, action: "invites.signup", entityType: "chat_invite", entityId: key }, FROZEN_AT),
+      inviteId: castId<ChatInviteId>(`chat_invite_signup_${key}`),
+      userId,
+      participantId: castId<ChatParticipantId>(`chat_participant_signup_${handle}`),
+    };
+  }
+
+  async function counts(chatId: ChatId, tokenHash: string): Promise<{ users: number; seats: number; audits: number; uses: number | undefined }> {
+    return {
+      users: (await db.select().from(users)).length,
+      seats: await countPresentMembers(db, chatId),
+      audits: (await db.select().from(auditLogs).where(eq(auditLogs.action, "invites.signup"))).length,
+      uses: (await findInviteByTokenHash(db, tokenHash))?.uses,
+    };
+  }
+
+  test("a fresh signup writes one account, one use, one seat and one audit row", async () => {
+    const chatId = await seedChat(db, "signup-fresh");
+    const hash = await seedSignupInvite(chatId, "fresh", { maxUses: 2, uses: 0 });
+    const before = (await db.select().from(users)).length;
+    expect(await redeemSignupAtomic(db, attempt("fresh", hash, castId<Handle>("friend")))).toEqual({ accounts: 1, claims: 1, seats: 1 });
+    expect(await counts(chatId, hash)).toEqual({ users: before + 1, seats: 1, audits: 1, uses: 1 });
+  });
+
+  test("an exhausted signup invite writes no account, no seat, no use and no audit row", async () => {
+    const chatId = await seedChat(db, "signup-spent");
+    const hash = await seedSignupInvite(chatId, "spent", { maxUses: 1, uses: 1 });
+    const before = (await db.select().from(users)).length;
+    expect(await redeemSignupAtomic(db, attempt("spent", hash, castId<Handle>("stranger")))).toEqual({ accounts: 0, claims: 0, seats: 0 });
+    expect(await counts(chatId, hash)).toEqual({ users: before, seats: 0, audits: 0, uses: 1 });
+  });
+
+  test("two concurrent signups on the last use give one account, one seat, uses == maxUses and one refusal", async () => {
+    const chatId = await seedChat(db, "signup-race");
+    const hash = await seedSignupInvite(chatId, "race", { maxUses: 2, uses: 1 });
+    const before = (await db.select().from(users)).length;
+    const settled = await Promise.allSettled([
+      redeemSignupAtomic(db, attempt("race", hash, castId<Handle>("alpha"))),
+      redeemSignupAtomic(db, attempt("race", hash, castId<Handle>("bravo"))),
+    ]);
+    const outcomes = settled.map((result) => (result.status === "fulfilled" ? result.value : result.reason));
+    expect(outcomes).toEqual(
+      expect.arrayContaining([
+        { accounts: 1, claims: 1, seats: 1 },
+        { accounts: 0, claims: 0, seats: 0 },
+      ]),
+    );
+    expect(await counts(chatId, hash)).toEqual({ users: before + 1, seats: 1, audits: 1, uses: 2 });
+  });
+
+  test("a handle that matches an existing one case-insensitively writes nothing and spends no use", async () => {
+    const chatId = await seedChat(db, "signup-case");
+    const hash = await seedSignupInvite(chatId, "case", { maxUses: 3, uses: 0 });
+    await seedUser(db, castId<Handle>("Friend"));
+    const before = (await db.select().from(users)).length;
+    expect(await redeemSignupAtomic(db, attempt("case", hash, castId<Handle>("friend")))).toEqual({ accounts: 0, claims: 0, seats: 0 });
+    expect(await counts(chatId, hash)).toEqual({ users: before, seats: 0, audits: 0, uses: 0 });
+  });
+
+  test("a unique violation inside the batch throws and rolls the whole chain back", async () => {
+    const chatId = await seedChat(db, "signup-unique");
+    const hash = await seedSignupInvite(chatId, "unique", { maxUses: 3, uses: 0 });
+    // The account insert reuses a live user id: its primary key collides after the admission passed.
+    const taken = await seedUser(db, castId<Handle>("occupant"));
+    const before = (await db.select().from(users)).length;
+    await expect(redeemSignupAtomic(db, attempt("unique", hash, castId<Handle>("newcomer"), taken))).rejects.toThrow();
+    expect(await counts(chatId, hash)).toEqual({ users: before, seats: 0, audits: 0, uses: 0 });
   });
 });

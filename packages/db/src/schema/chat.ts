@@ -67,7 +67,7 @@ import {
   TURN_INITIATORS,
 } from "@orb/contracts/chat";
 // PARTICIPANT_ROLES is one-homed in @orb/contracts/identity (the can() resource-role axis).
-import { PARTICIPANT_ROLES } from "@orb/contracts/identity";
+import { AUTH_MODES, PARTICIPANT_ROLES } from "@orb/contracts/identity";
 import type { CostDetails, NormalizedFinishReason, ProviderId } from "@orb/contracts/inference";
 import { NORMALIZED_FINISH_REASONS } from "@orb/contracts/inference";
 import type { EffortLevel, UserIntent, UserMacroValues } from "@orb/contracts/preset";
@@ -814,6 +814,16 @@ export const chatInvites = sqliteTable(
       .references(() => users.id, { onDelete: "set null" }),
     // pending | accepted | declined | revoked | expired — derives INVITE_STATUSES.
     status: text("status", { enum: INVITE_STATUSES }).notNull().default("pending"),
+    // D254 — the invite may create an account for a signed-out visitor, one per use.
+    allowSignup: integer("allow_signup", { mode: "boolean" }).notNull().default(false),
+    // The host who minted the invite; a signup redeem re-checks this user's standing (D254). SET NULL on user
+    // delete, and a signup invite whose minter is gone refuses.
+    createdByUserId: text("created_by_user_id")
+      .$type<UserId>()
+      .references(() => users.id, { onDelete: "set null" }),
+    // The AUTH_MODE at mint; a signup redeem refuses under any other mode (D254). Null on a row minted before
+    // the column existed, and never null on a signup row.
+    mintMode: text("mint_mode", { enum: AUTH_MODES }),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
@@ -829,6 +839,13 @@ export const chatInvites = sqliteTable(
     // NEGATIVE `uses` makes an exhausted invite redeemable again, and a `max_uses <= 0` is a cap that
     // admits nobody — a link that looks live and refuses everyone. `null` max_uses stays the unlimited arm.
     check("chat_invites_uses_check", sql.raw("uses >= 0 and (max_uses is null or max_uses > 0)")),
+    // D254 — a signup invite is untargeted, capped and expiring. The verb enforces the cap values; this holds
+    // the shape against any writer.
+    check("chat_invites_signup_shape", sql.raw("allow_signup = 0 OR (invited_user_id IS NULL AND max_uses IS NOT NULL AND expires_at IS NOT NULL)")),
+    check("chat_invites_signup_mode", sql.raw("allow_signup = 0 OR mint_mode IS NOT NULL")),
+    check("chat_invites_mint_mode_check", sql.raw(`mint_mode is null or mint_mode in (${checkList(AUTH_MODES)})`)),
+    // The minter FK: a user delete SET-NULLs these rows (`fk-columns-indexed` gate).
+    index("chat_invites_created_by_user_idx").on(t.createdByUserId),
   ],
 );
 

@@ -19,6 +19,7 @@ import { createOwnerPassword } from "./verbs/owner-password.ts";
 import { createProvisionIdentity } from "./verbs/provision-identity.ts";
 import { createResolveHandle } from "./verbs/resolve-handle.ts";
 import { createRevoke } from "./verbs/revoke.ts";
+import { createSignup } from "./verbs/signup.ts";
 import { createValidate } from "./verbs/validate.ts";
 
 /** What the composition root needs: the db handle, the injected clock, and the raw `SESSION_SECRET` pepper
@@ -47,6 +48,7 @@ export function createSessionsService(deps: SessionsServiceDeps): SessionsServic
     ...createAuthenticate(ctx),
     ...createLinkExternalId(ctx),
     ...createOwnerPassword(ctx),
+    ...createSignup(ctx),
     getOwnerUserId: (): Promise<UserId | undefined> => selectOwnerUserId(ctx.db),
   };
 }

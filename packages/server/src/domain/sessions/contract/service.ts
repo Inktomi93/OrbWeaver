@@ -6,6 +6,7 @@ import type { SessionView } from "@orb/contracts/session";
 import type { Db } from "@orb/db";
 import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/kit";
 import type { ExternalId, Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
+import type { SQL } from "drizzle-orm";
 import type { Sealed } from "#infra/crypto";
 import type { CreateSessionParams, ProvisionIdentityOptions } from "./params.ts";
 import type {
@@ -120,6 +121,15 @@ export interface SessionsService {
   /** The current owner's id, or `undefined` when no owner row exists yet (a fresh OIDC box before the
    *  first owner-policy login). Used by boot to decide whether owner-dependent seeds can run. @internal */
   getOwnerUserId: () => Promise<UserId | undefined>;
+  /** D254 — the UNEXECUTED signup account insert with its freshly minted id, for chat's signup batch. It
+   *  writes only where `admission` (chat's opaque invite predicate) holds and no handle matches
+   *  case-insensitively, and it never absorbs a unique conflict. @internal */
+  signupUserStatement: (args: { readonly handle: Handle; readonly passwordHash: string; readonly at: number; readonly admission: SQL }) => {
+    readonly userId: UserId;
+    readonly statement: AwaitableBatchStmt<{ id: UserId }[]>;
+  };
+  /** D254 — does any account carry this handle, compared case-insensitively? @internal */
+  signupHandleTaken: (handle: Handle) => Promise<boolean>;
   /** B4 — is this a fresh local box whose owner row has no password yet (first-run setup pending)? Drives
    *  the `localFirstRun` config flag. @internal */
   ownerNeedsPassword: () => Promise<boolean>;
