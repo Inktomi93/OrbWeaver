@@ -13,8 +13,10 @@ import { useNavigate } from "@tanstack/react-router";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import type { AuthConfig } from "#data";
-import { clearJoinStash, peekJoinStash, useAuthConfig } from "#data";
-import { testId, useFocusOnMount } from "#lib";
+import { clearJoinStash, peekJoinStash, useAuthConfig, useSignupInvitePreview } from "#data";
+import { inviteRoomSentence, testId, useFocusOnMount } from "#lib";
+import { selectChat, setActiveSection } from "#state";
+import { InviteUnavailable } from "../components/invite-unavailable.tsx";
 import { LoginFirstRunForm } from "../components/login-first-run-form.tsx";
 import { LoginLocalForm } from "../components/login-local-form.tsx";
 import { LoginPendingJoin } from "../components/login-pending-join.tsx";
@@ -206,8 +208,9 @@ export function LoginBody({
   }
 }
 
-/** D259 — the local arm while an invite is stashed: create an account through it, or sign in to an existing
- *  one (the stash stays, so the join dialog opens after sign-in), or dismiss it. */
+/** D259, D260 — the local arm while an invite is stashed: the invite's room first, then create an account through
+ *  it, or sign in to an existing one (the stash stays, so the join dialog opens after sign-in), or dismiss it. A
+ *  link that no longer admits anyone shows the unavailable state, never the sign-up fields. */
 function LocalInviteArm({
   config,
   joinToken,
@@ -220,6 +223,7 @@ function LocalInviteArm({
   readonly onDone: () => void;
 }): ReactElement {
   const [signIn, setSignIn] = useState(false);
+  const preview = useSignupInvitePreview(joinToken);
   if (signIn) {
     return (
       <Stack gap="block">
@@ -229,18 +233,36 @@ function LocalInviteArm({
       </Stack>
     );
   }
+  if (preview.isPending) {
+    return (
+      <Stack gap="row" aria-label="Loading your invite">
+        <Skeleton className="h-control-md w-full" />
+        <Skeleton className="h-control-md w-full" />
+      </Stack>
+    );
+  }
+  const room = preview.data;
+  if (room === null || room === undefined) {
+    return <InviteUnavailable onBack={(): void => onDismissJoin?.()} />;
+  }
   return (
     <Stack gap="block">
       <Heading level={1}>You're invited</Heading>
+      <Text voice="quiet" data-testid={testId("signupInviteRoom")}>
+        {`${inviteRoomSentence(room)} ${room.modeLabel}`}
+      </Text>
       <LoginTransportNotice transport={config.transport} clientScope={config.clientScope} />
       <Text size="label" tone="muted">
         Pick a handle and a password to create your account and join the room.
       </Text>
       <LoginSignupForm
         token={joinToken}
-        onSignedUp={(): void => {
-          // The account is already seated in the room, so the stash has nothing left to open.
+        onSignedUp={(chatId): void => {
+          // The account is already seated in the room, so the stash has nothing left to open: land in the room
+          // through the same seam the signed-in join dialog uses.
           onDismissJoin?.();
+          setActiveSection("chats");
+          selectChat(chatId);
           onDone();
         }}
         onUseSignIn={(): void => setSignIn(true)}

@@ -6,6 +6,7 @@
 
 import type { SignupErrorCode } from "@orb/contracts/chat";
 import { SIGNUP_HANDLE_MAX_CHARS, SIGNUP_HANDLE_MIN_CHARS, signupRequestSchema } from "@orb/contracts/chat";
+import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
@@ -14,7 +15,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement, SyntheticEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import { signUpWithInvite } from "#data";
-import { testId } from "#lib";
+import { DEAD_INVITE_SENTENCE, testId } from "#lib";
 import { joinerPersonaOf } from "../lib/joiner-persona.ts";
 import { JoinerPersonaFields } from "./joiner-persona-fields.tsx";
 
@@ -42,7 +43,7 @@ function refusalCopy(code: SignupErrorCode | null): string {
     case "already_signed_in":
       return "You're already signed in. Open the invite link again from the app.";
     case "invite_unavailable":
-      return "This invite link has expired or is used up. Ask the host for a new one.";
+      return DEAD_INVITE_SENTENCE;
     case "handle_unavailable":
       return "That handle is taken. Pick another one.";
     case "weak_password":
@@ -57,8 +58,8 @@ function refusalCopy(code: SignupErrorCode | null): string {
 export interface LoginSignupFormProps {
   /** The stashed raw invite token. It rides the POST body only. */
   readonly token: string;
-  /** Fires after the account exists and the session cookie is minted. */
-  readonly onSignedUp: () => void;
+  /** Fires after the account exists and the session cookie is minted, with the room it is seated in. */
+  readonly onSignedUp: (chatId: ChatId) => void;
   /** Switch to the sign-in form; the stash stays, so the join dialog opens after sign-in. */
   readonly onUseSignIn: () => void;
   /** Drop the invite and show the plain sign-in form. */
@@ -104,7 +105,7 @@ export function LoginSignupForm({ token, onSignedUp, onUseSignIn, onDismiss }: L
     signUpWithInvite({ token, handle, password, persona }).then(
       (result) => {
         if (result.ok) {
-          onSignedUp();
+          onSignedUp(result.chatId);
           return;
         }
         setError(refusalCopy(result.code));

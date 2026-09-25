@@ -29,7 +29,13 @@ const OIDC: AuthConfig = {
   share: { state: "off", url: null },
 };
 
-const PREVIEW = { chatId: "chat_01j0000000000000000000000a", roomName: "The room", hostHandle: "host", memberCount: 2, modeLabel: "per-speaker · natural" };
+const PREVIEW = {
+  chatId: "chat_01j0000000000000000000000a",
+  roomName: "The room",
+  hostHandle: "host",
+  memberCount: 2,
+  modeLabel: "Each character speaks for themselves, and the story picks who speaks next.",
+};
 
 interface Captured {
   readonly bodies: unknown[];
@@ -102,7 +108,7 @@ test("no live pending join offers no Join, only the way back to sign-in", async 
     await route.fulfill({ status: 404, json: { error: "join_unavailable" } });
   });
   await mount(<LoginPendingJoinStory config={OIDC} />);
-  const unavailable = page.getByTestId("pending-join-unavailable");
+  const unavailable = page.getByTestId("invite-unavailable");
   await expect(unavailable).toBeVisible();
   await expect(page.getByTestId("pending-join-confirm")).toHaveCount(0);
   await unavailable.getByRole("button").click();

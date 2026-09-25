@@ -9,12 +9,13 @@
 // carried-blob schemas strip it, so a stale card cannot fail a join and the key never reaches the joiner.
 
 import "../../../../support/composed-real.ts";
-import { GROUP_OUTPUT_LABELS, GROUP_POLICY_LABELS, groupConfigSchema } from "@orb/contracts/chat";
+import { groupConfigSchema } from "@orb/contracts/chat";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import { chatParticipants } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { describe } from "vitest";
+import { guestModeSentence } from "../../../../../packages/server/src/domain/chat/verbs/invite-preview.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { seedCharacter } from "../../../../support/factories/character.ts";
 import { seedChat } from "../../../../support/factories/chat.ts";
@@ -69,7 +70,7 @@ describe("invites — the strict output parsers accept the real producers", () =
       roomName: "The Ruins",
       hostHandle: "fixture-owner",
       memberCount: 1,
-      modeLabel: `${GROUP_OUTPUT_LABELS.narrator} · ${GROUP_POLICY_LABELS.natural}`,
+      modeLabel: guestModeSentence({ output: "narrator", policy: "natural" }),
     });
 
     const joined = await otherCaller.invites.redeemInvite({ token: created.token });

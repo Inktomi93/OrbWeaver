@@ -673,6 +673,13 @@ export const signupRequestSchema = z.strictObject({
 });
 export type SignupRequest = z.infer<typeof signupRequestSchema>;
 
+/** D259 — the signup route's success body: the room the new account is seated in, so the client lands there. */
+export const signupResultSchema = z.strictObject({ ok: z.literal(true), chatId: typeIdSchema(ID_PREFIX.chat) });
+export type SignupResult = z.infer<typeof signupResultSchema>;
+
+/** D260 — the local sign-up form's invite preview body: the stashed token alone. STRICT, like the signup body. */
+export const signupPreviewRequestSchema = z.strictObject({ token: signupRequestSchema.shape.token });
+
 /** The signup route's refusal codes (`{ error: <code> }`). The client maps each to its own copy. */
 export const SIGNUP_ERROR_CODES = ["invalid_request", "already_signed_in", "invite_unavailable", "handle_unavailable", "weak_password"] as const;
 export type SignupErrorCode = (typeof SIGNUP_ERROR_CODES)[number];

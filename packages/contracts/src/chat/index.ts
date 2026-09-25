@@ -321,6 +321,7 @@ export type {
   SeatKnobs,
   SignupErrorCode,
   SignupRequest,
+  SignupResult,
 } from "./roster.ts";
 export {
   acceptInviteSchema,
@@ -364,7 +365,9 @@ export {
   SIGNUP_MAX_TTL_MS,
   SIGNUP_MAX_USES,
   seatKnobsSchema,
+  signupPreviewRequestSchema,
   signupRequestSchema,
+  signupResultSchema,
   stepFromRenderPolicyOverride,
   TALKATIVENESS_DEFAULT,
 } from "./roster.ts";

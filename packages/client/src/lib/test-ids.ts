@@ -27,6 +27,7 @@ export const TEST_IDS = {
   // D259 — the signup-through-invite form the login surface offers when a signed-out invite visit stashed its
   // token: handle + password + submit + inline error, and the controls that switch to sign-in or dismiss.
   signupInviteForm: "signup-invite-form",
+  signupInviteRoom: "signup-invite-room",
   signupHandle: "signup-handle",
   signupPassword: "signup-password",
   signupSubmit: "signup-submit",
@@ -42,7 +43,7 @@ export const TEST_IDS = {
   pendingJoinConfirm: "pending-join-confirm",
   pendingJoinDismiss: "pending-join-dismiss",
   pendingJoinError: "pending-join-error",
-  pendingJoinUnavailable: "pending-join-unavailable",
+  inviteUnavailable: "invite-unavailable",
   pendingJoinApproval: "pending-join-approval",
   accountSurface: "account-surface",
   accountLogout: "account-logout",

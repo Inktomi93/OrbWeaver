@@ -5,12 +5,13 @@
 // entry/http/auth-meta.ts (no proxy type to derive from, since the endpoint lives outside AppRouter).
 
 import type { InvitePreview, PendingJoinConfirmRequest, PendingJoinErrorCode, SignupErrorCode, SignupRequest } from "@orb/contracts/chat";
-import { invitePreviewSchema, PENDING_JOIN_ERROR_CODES, pendingJoinConfirmResultSchema, SIGNUP_ERROR_CODES } from "@orb/contracts/chat";
+import { invitePreviewSchema, PENDING_JOIN_ERROR_CODES, pendingJoinConfirmResultSchema, SIGNUP_ERROR_CODES, signupResultSchema } from "@orb/contracts/chat";
 import type { UserRole } from "@orb/contracts/identity";
 import { CSRF_HEADER } from "@orb/contracts/identity";
-import type { Handle } from "@orb/kit/ids";
+import type { ChatId, Handle } from "@orb/kit/ids";
 import type { UseQueryResult } from "@tanstack/react-query";
-import { queryOptions, useQuery } from "@tanstack/react-query";
+import { queryOptions, useMutation, useQuery } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 import { postSessionMessage, sessionDocument } from "#lib";
 import { clearJoinStash } from "./session-resume.ts";
 
@@ -105,7 +106,9 @@ function isSignupErrorCode(value: unknown): value is SignupErrorCode {
  *  mints the session cookie.
  *  Resolves with the route's refusal code on a refusal (`null` for a throttle or an unreadable body), so the
  *  form picks its own copy. */
-export async function signUpWithInvite(request: SignupRequest): Promise<{ readonly ok: true } | { readonly ok: false; readonly code: SignupErrorCode | null }> {
+export async function signUpWithInvite(
+  request: SignupRequest,
+): Promise<{ readonly ok: true; readonly chatId: ChatId } | { readonly ok: false; readonly code: SignupErrorCode | null }> {
   const res = await fetch("/api/auth/signup", {
     method: "POST",
     credentials: "same-origin",
@@ -114,7 +117,7 @@ export async function signUpWithInvite(request: SignupRequest): Promise<{ readon
     body: JSON.stringify(request),
   });
   if (res.ok) {
-    return { ok: true };
+    return { ok: true, chatId: signupResultSchema.parse(await res.json()).chatId };
   }
   // @orb-waive caught-failure-ownership(res.json): an absent or malformed error body degrades to the empty object, which reads as the unknown refusal (`null`); the refusal is still reported. Ends if every refusal body becomes guaranteed.
   const parsed = (await res.json().catch(() => ({}))) as { readonly error?: unknown };
@@ -153,6 +156,43 @@ const pendingJoinPreviewOptions = queryOptions({
  *  the per-address sign-in bucket) and never refetched on focus. */
 export function usePendingJoinPreview(): UseQueryResult<InvitePreview | null> {
   return useQuery(pendingJoinPreviewOptions);
+}
+
+/** D260 — the room a stashed local sign-up token opens, or null when it names no invite that still admits anyone.
+ *  The same controls as the signup route guard it, and a dead token answers the same 404. */
+async function previewSignupInvite(token: string): Promise<InvitePreview | null> {
+  const res = await fetch("/api/auth/signup/preview", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { [CSRF_HEADER]: "1", "content-type": "application/json" },
+    body: JSON.stringify({ token }),
+  });
+  if (res.status === NOT_FOUND) {
+    return null;
+  }
+  if (!res.ok) {
+    throw new Error(`sign-up invite preview failed (HTTP ${res.status})`);
+  }
+  return invitePreviewSchema.parse(await res.json());
+}
+
+/** The sign-up form's invite preview, and whether it is still on its way. A POST-shaped read fired once per mount,
+ *  like the signed-in join dialog's: never retried (the route spends the per-address sign-in bucket), never
+ *  refetched, and never cached under a key, because the token is a secret. `data` stays undefined when the read
+ *  failed, which the form shows as the unavailable state. */
+export function useSignupInvitePreview(token: string): { readonly isPending: boolean; readonly data: InvitePreview | null | undefined } {
+  const preview = useMutation({ mutationFn: previewSignupInvite, retry: false });
+  // Guards StrictMode's dev double-invoke, which would spend a second bucket point for the same read.
+  const fired = useRef(false);
+  const fire = preview.mutate;
+  useEffect(() => {
+    if (fired.current) {
+      return;
+    }
+    fired.current = true;
+    fire(token);
+  }, [fire, token]);
+  return { isPending: preview.isIdle || preview.isPending, data: preview.data };
 }
 
 function isPendingJoinErrorCode(value: unknown): value is PendingJoinErrorCode {

@@ -11,8 +11,9 @@ import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement, SyntheticEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import { confirmPendingJoin, usePendingJoinPreview } from "#data";
-import { testId } from "#lib";
+import { DEAD_INVITE_SENTENCE, inviteRoomSentence, testId } from "#lib";
 import { joinerPersonaOf } from "../lib/joiner-persona.ts";
+import { InviteUnavailable } from "./invite-unavailable.tsx";
 import { JoinerPersonaFields } from "./joiner-persona-fields.tsx";
 
 /** Where a confirm left the visitor. `approval` means the account exists, disabled, with its seat. */
@@ -31,7 +32,7 @@ function refusalCopy(code: PendingJoinErrorCode | null, providerName: string): s
     case "already_signed_in":
       return "You're already signed in. Open the invite link again from the app.";
     case "join_unavailable":
-      return `This invite has expired or is used up. Ask the host for a new one, or continue with ${providerName}.`;
+      return `${DEAD_INVITE_SENTENCE} Or continue with ${providerName}.`;
     case "account_exists":
       return `An account already exists for this identity. Continue with ${providerName} to sign in.`;
     default: {
@@ -87,15 +88,7 @@ export function LoginPendingJoin({ providerName, onJoined, onDismiss }: LoginPen
   }
   const room = preview.data;
   if (room === null || room === undefined) {
-    return (
-      <Stack gap="block" data-testid={testId("pendingJoinUnavailable")}>
-        <Heading level={1}>This invite isn't available</Heading>
-        <Text voice="quiet">It may have expired, run out of uses, or waited too long. Ask the host for a new link.</Text>
-        <Button intent="primary" onClick={onDismiss}>
-          Back to sign in
-        </Button>
-      </Stack>
-    );
+    return <InviteUnavailable onBack={onDismiss} />;
   }
 
   const confirm = (event: SyntheticEvent): void => {
@@ -128,9 +121,7 @@ export function LoginPendingJoin({ providerName, onJoined, onDismiss }: LoginPen
     <form ref={formRef} onSubmit={confirm} noValidate={true}>
       <Stack gap="block" data-testid={testId("pendingJoin")}>
         <Heading level={1}>You're invited</Heading>
-        <Text voice="quiet">
-          {`${room.hostHandle} invited you to ${room.roomName.length > 0 ? room.roomName : "a room"} (${room.memberCount} ${room.memberCount === 1 ? "member" : "members"}, ${room.modeLabel}). Joining creates your account here.`}
-        </Text>
+        <Text voice="quiet">{`${inviteRoomSentence(room)} ${room.modeLabel} Joining creates your account here.`}</Text>
         <JoinerPersonaFields
           name={personaName}
           nameError={attempts > 0 && persona === null ? "Give your persona a name." : null}

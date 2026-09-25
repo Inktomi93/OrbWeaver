@@ -67,7 +67,8 @@ export type GroupPolicy = (typeof GROUP_POLICIES)[number];
  *  (`smart_arbitration_degraded`, D41). A NARRATOR round never buys that arbiter call (see the arm below). */
 export const groupPolicySchema = z.enum(GROUP_POLICIES).catch("natural").default("natural") satisfies z.ZodType<GroupPolicy>;
 
-/** The policy names a person reads: the room's Group tab and the invite preview say the same words. */
+/** The policy names the host reads on the room's Group tab. A guest's invite preview says how the room plays in its
+ *  own words instead. */
 export const GROUP_POLICY_LABELS: Record<GroupPolicy, string> = {
   natural: "Natural",
   list: "Everyone, in order",

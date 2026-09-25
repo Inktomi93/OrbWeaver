@@ -119,6 +119,7 @@ export {
   SWIPE_NEEDS_REPLY,
   sendUnavailableReason,
 } from "./injection-copy.ts";
+export { DEAD_INVITE_SENTENCE, inviteRoomSentence, memberCountPhrase } from "./invite-copy.ts";
 export { LIST_PANE_TITLE_ID } from "./list-pane-title-id.ts";
 export { logClock } from "./log-clock.ts";
 export { messageBubbleClass } from "./message-bubble-class.ts";

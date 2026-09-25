@@ -427,7 +427,7 @@ test("a user who owns a persona never sees the gate (the automation-seeded + ret
 // the join dialog opens only once the ask has set the pointers, so the seat the join creates is never born empty.
 
 const JOIN_TOKEN = "tok_ct_join_after_persona";
-const JOIN_PREVIEW = { chatId: "chat_ct_join", roomName: "Tavern Night", hostHandle: "alex", memberCount: 2, modeLabel: "Group" };
+const JOIN_PREVIEW = { chatId: "chat_ct_join", roomName: "Tavern Night", hostHandle: "alex", memberCount: 2, modeLabel: "The characters take turns." };
 
 /** A multi-human deployment and a join token the signed-out visit stashed, both in place before the app boots. */
 async function arriveWithInvite(page: Page): Promise<void> {
