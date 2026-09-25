@@ -245,7 +245,8 @@ export function computeCacheBreakpointPlacements(args: {
       }
       continue;
     }
-    let prefixTokens = systemStaticTokens;
+    // A wire that opens with the system row already carries the static half in `rows[0]`; count it once.
+    let prefixTokens = rows[0]?.role === TOOL_DEPTH_TRANSPARENT_ROLE ? 0 : systemStaticTokens;
     for (let i = 0; i <= index; i += 1) {
       prefixTokens += rows[i]?.tokens ?? 0;
     }
