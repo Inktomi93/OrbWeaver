@@ -433,6 +433,14 @@ function refuse(identity: ResolvedIdentity, cause: ProvisionDenyCause): Provisio
         "user: SSO login denied — JIT provisioning is off (OIDC_SIGNUP) and this identity has no existing account (deny-by-default; set OIDC_SIGNUP=on to allow it)",
       );
       return { outcome: "denied", reason: "jit-closed" };
+    case "owner-claim-unproven":
+      // The boot claim code never rides this line: the operator finds it in the boot log.
+      securityEvent(
+        "sso_owner_claim_unproven",
+        { handle: identity.handle, externalId: identity.externalId },
+        "security: an SSO login claimed the owner by an OWNER_HANDLES handle match alone — refused, nothing bound or created; the owner claims from a loopback callback, with the claim URL the boot log printed while the owner is unclaimed, or through OWNER_GROUP",
+      );
+      return { outcome: "denied" };
     default: {
       const exhaustive: never = cause;
       throw new Error(`provisionIdentity: unknown deny cause ${String(exhaustive)}`);

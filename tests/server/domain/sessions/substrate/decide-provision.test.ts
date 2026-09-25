@@ -99,3 +99,60 @@ describe("decideProvision — writes", () => {
     expect(decision).toEqual({ kind: "insert", resolvedRole: "owner", enabled: true, ownerSingletonDowngrade: false });
   });
 });
+
+// The owner claim: a handle match to OWNER_HANDLES alone never makes a subject the owner. The caller's proof (a
+// loopback callback or the boot claim code) or OWNER_GROUP membership does. Each claim path is pinned unproven.
+describe("decideProvision — the owner claim needs proof", () => {
+  const boss = (over: Partial<ResolvedIdentity> = {}): ResolvedIdentity => identity({ handle: castId<Handle>("boss"), ...over });
+  const unboundOwner = row({ id: OWNER_ID, role: "owner", handle: castId<Handle>("boss"), externalId: null });
+  const unproven = { ownerClaimProven: false } as const;
+  const proven = { ownerClaimProven: true } as const;
+
+  test("binding the unbound owner row by a handle match, unproven, is refused (the mode-flip box)", () => {
+    expect(decideProvision(unboundOwner, boss(), OWNER_ID, unproven)).toEqual({ kind: "deny", cause: "owner-claim-unproven" });
+  });
+
+  test("minting the owner on an ownerless box by a handle match, unproven, is refused (the fresh oidc box)", () => {
+    expect(decideProvision(undefined, boss(), undefined, unproven)).toEqual({ kind: "deny", cause: "owner-claim-unproven" });
+  });
+
+  test("adopting the owner row by a handle match, unproven, is refused", () => {
+    expect(decideProvision(undefined, boss(), OWNER_ID, unproven)).toEqual({ kind: "deny", cause: "owner-claim-unproven" });
+  });
+
+  test("an unproven handle claimant with its own row is an ordinary login: no owner role", () => {
+    const own = row();
+    expect(decideProvision(own, boss(), undefined, unproven)).toEqual({
+      kind: "update",
+      existing: own,
+      resolvedRole: "user",
+      isBootstrapOwner: false,
+      ownerSingletonDowngrade: false,
+    });
+  });
+
+  test("an unproven handle claimant gets no owner exemption from OIDC_ALLOWED_GROUPS", () => {
+    vi.stubEnv("OIDC_ALLOWED_GROUPS", "friends");
+    expect(decideProvision(row(), boss(), OWNER_ID, unproven)).toEqual({ kind: "deny", cause: "access-gate" });
+  });
+
+  test("with the caller's proof, a handle match binds, mints and adopts", () => {
+    expect(decideProvision(unboundOwner, boss(), OWNER_ID, proven)).toMatchObject({ kind: "update", existing: unboundOwner, isBootstrapOwner: true });
+    expect(decideProvision(undefined, boss(), undefined, proven)).toMatchObject({ kind: "insert", resolvedRole: "owner" });
+    expect(decideProvision(undefined, boss(), OWNER_ID, proven)).toMatchObject({ kind: "adopt-unbound-owner", ownerId: OWNER_ID });
+  });
+
+  test("an OWNER_GROUP member claims with no proof from the caller", () => {
+    vi.stubEnv("OWNER_GROUP", "owners");
+    const member = identity({ groups: ["owners"] });
+    expect(decideProvision(undefined, member, OWNER_ID, unproven)).toMatchObject({ kind: "adopt-unbound-owner", ownerId: OWNER_ID });
+    expect(decideProvision(undefined, member, undefined, unproven)).toMatchObject({ kind: "insert", resolvedRole: "owner" });
+    expect(decideProvision(unboundOwner, boss({ groups: ["owners"] }), OWNER_ID, unproven)).toMatchObject({ kind: "update", isBootstrapOwner: true });
+  });
+
+  test("the bound owner's own login and a null-subject login claim nothing, so they need no proof", () => {
+    const boundOwner = row({ id: OWNER_ID, role: "owner", handle: castId<Handle>("boss") });
+    expect(decideProvision(boundOwner, boss(), OWNER_ID, unproven)).toMatchObject({ kind: "update", isBootstrapOwner: true });
+    expect(decideProvision(unboundOwner, boss({ externalId: null }), OWNER_ID, unproven)).toMatchObject({ kind: "update", isBootstrapOwner: true });
+  });
+});

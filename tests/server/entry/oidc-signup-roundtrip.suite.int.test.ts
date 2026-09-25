@@ -12,6 +12,7 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createSessionsService, createTokenHasher } from "@orb/server/domain/sessions";
 import type { OidcRoutesDeps } from "@orb/server/entry/http";
 import { registerAuthRoutes } from "@orb/server/entry/http";
+import { createOwnerClaimCode } from "@orb/server/infra/auth";
 import { eq, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { Configuration } from "openid-client";
@@ -109,6 +110,7 @@ async function flow(opts: { readonly requireApproval?: boolean; readonly maxUses
     groupsSeparator: ";",
     allowJitProvision: false,
     requireApproval: opts.requireApproval ?? false,
+    ownerClaim: createOwnerClaimCode(),
     store: createOidcStore(db, now),
     signup: {
       invites,

@@ -35,10 +35,10 @@ import { bodyLimit } from "hono/body-limit";
 import type { Configuration } from "openid-client";
 import { buildAuthorizationUrl, calculatePKCECodeChallenge, randomNonce, randomPKCECodeVerifier, randomState } from "openid-client";
 import type { SignupInviteOps } from "#domain/chat";
-import type { RevokedSessionsSummary, SessionsService } from "#domain/sessions";
+import type { ProvisionIdentityOptions, RevokedSessionsSummary, SessionsService } from "#domain/sessions";
 import { groupRoleGovernanceActive } from "#domain/sessions";
 import { getLog, groupsLogFields, securityEvent } from "#foundation/observability";
-import type { BackchannelLogoutVerifier, OidcExchange, OidcTransaction, PublicHttpMintNotice } from "#infra/auth";
+import type { BackchannelLogoutVerifier, OidcExchange, OidcTransaction, OwnerClaimCode, PublicHttpMintNotice } from "#infra/auth";
 import {
   hasCsrfHeader,
   MIN_PASSWORD_LENGTH,
@@ -48,6 +48,7 @@ import {
   OIDC_TRANSACTION_TTL_MS,
   oidcBindingCookieFor,
   oidcPendingJoinCookieFor,
+  ownerFallbackAllowed,
   readRequestCookie,
   reportPublicHttpMint,
   requestClientScope,
@@ -119,6 +120,8 @@ const OIDC_PENDING_JOIN_SURFACE = "/login?pendingJoin=1";
 const OIDC_PENDING_PREVIEW_ROUTE = "/api/auth/oidc/pending/preview";
 const OIDC_PENDING_CONFIRM_ROUTE = "/api/auth/oidc/pending/confirm";
 const INVITE_PARAM = "invite";
+// The owner claim: the login URL the boot log prints carries the boot claim code under this name.
+const OWNER_CLAIM_PARAM = "ownerClaim";
 // A real invite token is 43 base64url chars. A longer param is carried as no invite, never hashed or stored.
 const INVITE_PARAM_MAX_CHARS = 128;
 const HANDLE_FIELD = "handle";
@@ -401,12 +404,9 @@ export interface AuthSessionsPort {
   /** Returns WHICH session ended plus that session's OIDC end-session hint (`null` = already gone) so the
    *  route can evict that session's sockets and build the `id_token_hint` end-session URL (#141). */
   readonly revokeByToken: (token: SessionToken) => Promise<{ readonly sessionId: SessionId; readonly oidcIdToken: string | null } | null>;
-  /** `options` carries the caller-resolved admission decisions (A1 JIT gate / A2 approval). The OIDC callback
-   *  passes them from env; the verb stays mode-agnostic. */
-  readonly provisionIdentity: (
-    identity: ResolvedIdentity,
-    options?: { readonly allowJitProvision?: boolean; readonly requireApproval?: boolean },
-  ) => Promise<ProvisionOutcome>;
+  /** `options` carries the caller-resolved admission decisions (A1 JIT gate, A2 approval, the owner-claim proof).
+   *  The OIDC callback resolves them; the verb stays mode-agnostic. */
+  readonly provisionIdentity: (identity: ResolvedIdentity, options?: ProvisionIdentityOptions) => Promise<ProvisionOutcome>;
   /** A5 — revoke every live session for the user(s) bound to an IdP subject (`sub`), for back-channel
    *  logout. Returns the count revoked + WHOSE (the route evicts those users' sockets). */
   readonly revokeByExternalId: (externalId: ExternalId) => Promise<RevokedSessionsSummary>;
@@ -524,6 +524,9 @@ export interface OidcRoutesDeps {
   /** D254 — present when invites may create OIDC accounts; its presence makes the login carry `?invite=`, lets
    *  the callback offer a pending join, and registers the pending preview and confirm routes. */
   readonly signup?: OidcSignupDeps;
+  /** The boot owner claim code. A login carrying it as `?ownerClaim=` proves the owner claim once. REQUIRED, so a
+   *  mis-wired root fails to compile instead of leaving a container owner with no way to claim the box. */
+  readonly ownerClaim: OwnerClaimCode;
 }
 
 /** D254 — what the OIDC signup-through-invite routes need. */
@@ -979,8 +982,24 @@ const WEB_PROTOCOLS: readonly string[] = ["https:", "http:"];
  * started from any origin is sent only to an origin the operator wrote down. Do not derive it from the request.
  */
 function configuredLoginPage(allowlist: readonly string[]): string | null {
-  const callback = allowlist.find((uri) => URL.canParse(uri) && WEB_PROTOCOLS.includes(new URL(uri).protocol));
+  const callback = configuredCallback(allowlist);
   return callback === undefined ? null : new URL(LOGIN_SURFACE_ROUTE, callback).href;
+}
+
+function configuredCallback(allowlist: readonly string[]): string | undefined {
+  return allowlist.find((uri) => URL.canParse(uri) && WEB_PROTOCOLS.includes(new URL(uri).protocol));
+}
+
+/** The owner claim URL the boot log prints: the OIDC login route on the configured origin, carrying `code`. Null
+ *  when no http(s) callback URL is configured. */
+export function ownerClaimLoginUrl(allowlist: readonly string[], code: string): string | null {
+  const callback = configuredCallback(allowlist);
+  if (callback === undefined) {
+    return null;
+  }
+  const url = new URL(OIDC_LOGIN_ROUTE, callback);
+  url.searchParams.set(OWNER_CLAIM_PARAM, code);
+  return url.href;
 }
 
 /** The OIDC authorize-redirect + callback handlers (openid-client v6). */
@@ -1016,6 +1035,7 @@ function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDep
       createdAt: deps.now(),
       inviteTokenHash: inviteTokenHashOf(c, oidc),
     });
+    holdOwnerClaim(c, oidc, state);
     writeSetCookies(c, [serializeOidcBindingCookie(state, transport)]);
     const url = buildAuthorizationUrl(config, {
       redirect_uri: redirectUri,
@@ -1049,6 +1069,7 @@ function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDep
     const provisioned = await deps.sessions.provisionIdentity(login.identity, {
       allowJitProvision: oidc.allowJitProvision,
       requireApproval: oidc.requireApproval,
+      ownerClaimProven: ownerClaimProven(c, oidc, login.tx),
     });
     if (provisioned.outcome === "denied") {
       // D254 — the JIT gate, and only the JIT gate, may turn into a pending join when a signup invite rode in.
@@ -1131,6 +1152,37 @@ function inviteTokenHashOf(c: Context, oidc: OidcRoutesDeps): string | null {
     return null;
   }
   return oidc.signup.invites.tokenHashOf(raw);
+}
+
+/** Tie this login's `state` to the boot owner claim code when `?ownerClaim=` carries the live one. The presented
+ *  value is never logged, matched or not. */
+function holdOwnerClaim(c: Context, oidc: OidcRoutesDeps, state: string): void {
+  const presented = new URL(c.req.url).searchParams.get(OWNER_CLAIM_PARAM);
+  if (presented === null) {
+    return;
+  }
+  if (oidc.ownerClaim.hold(state, presented)) {
+    getLog().info("auth: an OIDC login carries the owner claim code");
+    return;
+  }
+  securityEvent(
+    "oidc_owner_claim_code_refused",
+    { clientIp: clientIp(c) },
+    "security: an OIDC login presented an owner claim code that is not the live one; it proves nothing",
+  );
+}
+
+/**
+ * Did this callback prove the owner claim? Yes when its login carried the live boot claim code, or when it arrives
+ * from a loopback TCP peer with no relay header, the gate the `local` first-run claim uses.
+ *
+ * SECURITY (D258): an `OWNER_HANDLES` handle match makes a subject the owner only with this proof (OWNER_GROUP aside). Never
+ * widen it with the trusted-peer ranges or a Host check: a same-host tunnel is a loopback peer, told apart only by
+ * its relay header. The code is redeemed first so a login that carried it spends it even when loopback proves it.
+ */
+function ownerClaimProven(c: Context, oidc: OidcRoutesDeps, tx: OidcTransaction): boolean {
+  const redeemed = oidc.ownerClaim.redeem(tx.state);
+  return redeemed || ownerFallbackAllowed(peerIp(c), c.req.raw.headers);
 }
 
 /** D254 — the pending-join cookie holding a fresh secret, alive exactly as long as the pending row. */

@@ -397,6 +397,52 @@ describe("sessions.provisionIdentity — OIDC owner-flip reconciliation (#8, D17
     });
   });
 
+  // The owner claim needs proof: the oidc callback passes `ownerClaimProven:false` for a login from off the box
+  // with no boot claim code, and a handle match to OWNER_HANDLES alone must then bind, adopt and create nothing.
+  describe("an unproven OWNER_HANDLES claim takes nothing", () => {
+    const unproven = { ownerClaimProven: false } as const;
+    const stranger = identity({ externalId: castId<ExternalId>("authentik|stranger"), handle: castId<Handle>("owner"), groups: [] });
+
+    function claimWarn(calls: readonly (readonly unknown[])[]): Record<string, unknown> | undefined {
+      return calls.map(([bindings]) => bindings as Record<string, unknown>).find((b) => b["event"] === "sso_owner_claim_unproven");
+    }
+
+    test("on a box flipped from single-user, the unbound owner row stays unbound", async () => {
+      vi.stubEnv("OWNER_HANDLES", "owner");
+      const seeded = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner"), groups: [] })));
+      const warn = vi.spyOn(logger, "warn");
+      expect(await svc.provisionIdentity(stranger, unproven)).toEqual({ outcome: "denied" });
+      const row = (await db.select().from(users).where(eq(users.id, seeded.userId)))[0];
+      expect(row?.externalId).toBeNull();
+      expect(row?.role).toBe("owner");
+      expect(await rowCount()).toBe(1);
+      expect(claimWarn(warn.mock.calls)).toMatchObject({ security: true, handle: "owner", externalId: "authentik|stranger" });
+    });
+
+    test("on a fresh oidc box with no owner row, no owner row is created", async () => {
+      vi.stubEnv("OWNER_HANDLES", "owner");
+      expect(await svc.provisionIdentity(stranger, { ...unproven, allowJitProvision: true })).toEqual({ outcome: "denied" });
+      expect(await rowCount()).toBe(0);
+    });
+
+    test("with proof the same login binds the unbound owner row", async () => {
+      vi.stubEnv("OWNER_HANDLES", "owner");
+      const seeded = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner"), groups: [] })));
+      const claimed = asProvisioned(await svc.provisionIdentity(stranger, { ownerClaimProven: true }));
+      expect(claimed).toMatchObject({ userId: seeded.userId, role: "owner" });
+      expect((await db.select().from(users).where(eq(users.id, seeded.userId)))[0]?.externalId).toBe("authentik|stranger");
+    });
+
+    test("an OWNER_GROUP member still binds the unbound owner row with no proof from the caller", async () => {
+      vi.stubEnv("OWNER_HANDLES", "owner");
+      const seeded = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner"), groups: [] })));
+      vi.stubEnv("OWNER_GROUP", "owners");
+      const member = identity({ externalId: castId<ExternalId>("authentik|alex"), handle: castId<Handle>("alex"), groups: ["owners"] });
+      expect(asProvisioned(await svc.provisionIdentity(member, unproven))).toMatchObject({ userId: seeded.userId, role: "owner" });
+      expect((await db.select().from(users).where(eq(users.id, seeded.userId)))[0]?.externalId).toBe("authentik|alex");
+    });
+  });
+
   test("once the owner is BOUND, another OWNER_GROUP member does NOT adopt it — downgraded to `user` (singleton holds)", async () => {
     vi.stubEnv("OWNER_HANDLES", "owner");
     const seeded = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner") })));

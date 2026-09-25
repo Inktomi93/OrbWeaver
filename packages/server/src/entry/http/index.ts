@@ -17,6 +17,7 @@ export {
   deriveRedirectUri,
   identityFromClaims,
   oidcSessionIdentity,
+  ownerClaimLoginUrl,
   registerAuthRoutes,
   serializeClearedSessionCookies,
   serializeSessionCookie,

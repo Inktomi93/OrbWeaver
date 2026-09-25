@@ -38,4 +38,9 @@ export interface ProvisionIdentityOptions {
   /** A2 — does a first-time (non-owner) SSO user provision `enabled:false` (awaiting admin approval)?
    *  Default false. `oidc` passes OIDC_REQUIRE_APPROVAL; the owner is never gated. */
   readonly requireApproval?: boolean;
+  /** D258 — did this login prove the owner claim, so an `OWNER_HANDLES` handle match may make it the owner? `oidc` passes
+   *  whether the callback came from loopback or carried the boot claim code. Default true, the `forward-header`
+   *  posture: the trusted proxy is the identity authority, so its handle is the owner's word. An `OWNER_GROUP`
+   *  member needs no proof. */
+  readonly ownerClaimProven?: boolean;
 }

@@ -70,7 +70,7 @@ export interface ProvisionCandidate {
 }
 
 /** Which ruled refusal `decideProvision` reached. The verb maps each to its log line and its `ProvisionResult`. */
-const PROVISION_DENY_CAUSES = ["subject-mismatch", "access-gate", "handle-collision", "jit-closed"] as const;
+const PROVISION_DENY_CAUSES = ["subject-mismatch", "access-gate", "handle-collision", "jit-closed", "owner-claim-unproven"] as const;
 export type ProvisionDenyCause = (typeof PROVISION_DENY_CAUSES)[number];
 
 /** A refusal: no row is created or updated. */
