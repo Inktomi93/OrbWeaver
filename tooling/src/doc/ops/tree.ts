@@ -14,7 +14,7 @@ import type { CommitOutcome, DocsRootEntry, DocTree, GovernedDoc } from "../cont
 import { DOC_TOOL_TREE_PREFIXES, DOC_TOOL_TREES } from "../contract/vocab.ts";
 import { allItems } from "../lib/generated.ts";
 import { isCommitId } from "../lib/items.ts";
-import { padId } from "../lib/names.ts";
+import { basenameOf, padId, parseNumberedName } from "../lib/names.ts";
 import { formatMarkdown } from "./format.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm doc <verb>");
@@ -270,6 +270,29 @@ export function commitPaths(paths: readonly string[], message: string, repoRoot 
 }
 
 /** The commit that deleted item `id`'s file — its landing — or null when git has none. */
+/** The highest id any file under a numbered tree ever carried, on any branch: every path git added or
+ *  deleted there. A landed or removed id is a name forever (commit subjects, `Closes:` trailers and
+ *  `landedCommit` key on it), so a mint counts history, not only the files on disk. Zero outside a
+ *  repository, where the files alone decide. */
+export function highestHistoricId(tree: "adr" | "work", repoRoot = root): number {
+  const prefix = DOC_TOOL_TREES[tree];
+  const res = runGit(repoRoot, ["log", "--all", "--diff-filter=AD", "--name-only", "--format=", "--", prefix]);
+  if (res.status !== 0) {
+    return 0;
+  }
+  let highest = 0;
+  for (const line of res.stdout.split("\n")) {
+    if (!line.startsWith(prefix)) {
+      continue;
+    }
+    const name = parseNumberedName(basenameOf(line));
+    if (name !== null) {
+      highest = Math.max(highest, name.id);
+    }
+  }
+  return highest;
+}
+
 export function landedCommit(id: number, repoRoot = root): string | null {
   const out = git(repoRoot, ["log", "-1", "--format=%H", "--diff-filter=D", "--", `:(glob)${DOC_TOOL_TREES.work}${padId(id)}-*.md`])?.trim() ?? "";
   return out === "" ? null : out;
