@@ -679,6 +679,7 @@ export type SignupResult = z.infer<typeof signupResultSchema>;
 
 /** D260 — the local sign-up form's invite preview body: the stashed token alone. STRICT, like the signup body. */
 export const signupPreviewRequestSchema = z.strictObject({ token: signupRequestSchema.shape.token });
+export type SignupPreviewRequest = z.infer<typeof signupPreviewRequestSchema>;
 
 /** The signup route's refusal codes (`{ error: <code> }`). The client maps each to its own copy. */
 export const SIGNUP_ERROR_CODES = ["invalid_request", "already_signed_in", "invite_unavailable", "handle_unavailable", "weak_password"] as const;

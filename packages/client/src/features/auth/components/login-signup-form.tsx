@@ -23,11 +23,11 @@ import { JoinerPersonaFields } from "./joiner-persona-fields.tsx";
 const HANDLE_RULE = `${SIGNUP_HANDLE_MIN_CHARS} to ${SIGNUP_HANDLE_MAX_CHARS} letters, digits, dots, dashes or underscores, starting with a letter or digit. No spaces.`;
 
 // A typed handle is judged as it is typed; an empty one only once a submit has asked for it.
-function handleErrorOf(handle: string, valid: boolean, shown: boolean): string | null {
+function handleErrorOf(typed: string, valid: boolean, shown: boolean): string | null {
   if (valid) {
     return null;
   }
-  if (handle !== "") {
+  if (typed !== "") {
     return "This handle breaks the rule above.";
   }
   return shown ? "Choose a handle." : null;

@@ -4,7 +4,7 @@
 // import the fns, never hand-write `fetch`. Response shape is a structural mirror of
 // entry/http/auth-meta.ts (no proxy type to derive from, since the endpoint lives outside AppRouter).
 
-import type { InvitePreview, PendingJoinConfirmRequest, PendingJoinErrorCode, SignupErrorCode, SignupRequest } from "@orb/contracts/chat";
+import type { InvitePreview, PendingJoinConfirmRequest, PendingJoinErrorCode, SignupErrorCode, SignupPreviewRequest, SignupRequest } from "@orb/contracts/chat";
 import { invitePreviewSchema, PENDING_JOIN_ERROR_CODES, pendingJoinConfirmResultSchema, SIGNUP_ERROR_CODES, signupResultSchema } from "@orb/contracts/chat";
 import type { UserRole } from "@orb/contracts/identity";
 import { CSRF_HEADER } from "@orb/contracts/identity";
@@ -165,7 +165,7 @@ async function previewSignupInvite(token: string): Promise<InvitePreview | null>
     method: "POST",
     credentials: "same-origin",
     headers: { [CSRF_HEADER]: "1", "content-type": "application/json" },
-    body: JSON.stringify({ token }),
+    body: JSON.stringify({ token } satisfies SignupPreviewRequest),
   });
   if (res.status === NOT_FOUND) {
     return null;

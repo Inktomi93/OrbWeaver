@@ -320,6 +320,7 @@ export type {
   RosterMemberSpec,
   SeatKnobs,
   SignupErrorCode,
+  SignupPreviewRequest,
   SignupRequest,
   SignupResult,
 } from "./roster.ts";
