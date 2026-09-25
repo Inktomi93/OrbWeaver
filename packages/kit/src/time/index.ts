@@ -279,6 +279,12 @@ export function humanizeDuration(ms: number): string {
   return parts.join(" ");
 }
 
+// A signed span in whole units, rounded on its magnitude so past and future round alike and a deadline read seconds
+// after it was set shows its full length.
+function nearestWholeUnits(deltaMs: number, unitMs: number): number {
+  return Math.sign(deltaMs) * Math.round(Math.abs(deltaMs) / unitMs);
+}
+
 export function createTimeLib(config: TimeLibConfig = {}): TimeLib {
   const now = config.now ?? ((): number => Date.now());
   const locale = config.locale;
@@ -322,15 +328,15 @@ export function createTimeLib(config: TimeLibConfig = {}): TimeLib {
         return formatDate(epochMs);
       }
       if (magnitude >= MS_PER_DAY) {
-        return relative.format(Math.trunc(deltaMs / MS_PER_DAY), "day");
+        return relative.format(nearestWholeUnits(deltaMs, MS_PER_DAY), "day");
       }
       if (magnitude >= MS_PER_HOUR) {
-        return relative.format(Math.trunc(deltaMs / MS_PER_HOUR), "hour");
+        return relative.format(nearestWholeUnits(deltaMs, MS_PER_HOUR), "hour");
       }
       if (magnitude >= MS_PER_MINUTE) {
-        return relative.format(Math.trunc(deltaMs / MS_PER_MINUTE), "minute");
+        return relative.format(nearestWholeUnits(deltaMs, MS_PER_MINUTE), "minute");
       }
-      return relative.format(Math.trunc(deltaMs / MS_PER_SECOND), "second");
+      return relative.format(nearestWholeUnits(deltaMs, MS_PER_SECOND), "second");
     },
     formatRelativeCompact: (epochMs): string => compactStamp(now() - epochMs),
     formatRelativeAgo: (epochMs): string => {

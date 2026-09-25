@@ -214,6 +214,15 @@ test("display: relative picks the largest sensible unit, both directions", () =>
   expect(lib.formatRelative(NOW_MS - 30_000)).toBe("30s ago");
 });
 
+// A deadline read seconds after it was set: a 7-day expiry must not read as six days, nor a 2h one as one.
+test("display: relative rounds to the nearest whole unit, so a fresh deadline reads its full length", () => {
+  expect(lib.formatRelative(NOW_MS + 7 * DAY_MS - 5000)).toBe("in 7d");
+  expect(lib.formatRelative(NOW_MS + 2 * HOUR_MS - 5000)).toBe("in 2h");
+  expect(lib.formatRelative(NOW_MS - 90 * MINUTE_MS - MINUTE_MS)).toBe("2h ago");
+  // Control: under half a unit past a whole one stays on it.
+  expect(lib.formatRelative(NOW_MS + 2 * DAY_MS + 3 * HOUR_MS)).toBe("in 2d");
+});
+
 // The LIST-ROW stamp form (list-pane-projection side-eye P1-2): same instant, tense dropped, so a 307px
 // pane spends 2-3 characters on recency. The unit ladder must never skip a step (a 25h span is "1d", not
 // "25h") and must stay honest at the edges — sub-minute and future both read "now".
