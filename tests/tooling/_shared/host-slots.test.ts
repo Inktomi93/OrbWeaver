@@ -14,7 +14,7 @@
 // (clock, pid, process table, sleep) is injected — the same posture ct-runner-lock.test.ts takes. One test
 // drives the real `kill(pid, 0)` against a reaped child, so the default liveness probe is proven too.
 import { spawn, spawnSync } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
@@ -507,11 +507,19 @@ test("a symlinked or group-writable pool directory is refused before anything is
   expect(() => tryAcquireHostSlot(poolOf(1), { env, pid: 640, alive: aliveOnly(640) })).toThrow(/is a symlink or not a directory/u);
   await expect(acquireHostSlot(poolOf(1), { env, pid: 640, alive: aliveOnly(640) })).rejects.toThrow(/is a symlink or not a directory/u);
   expect(readdirSync(target), "nothing was written through the link").toEqual([]);
-  rmSync(hostPoolDir(poolOf(1), env));
-  mkdirSync(hostPoolDir(poolOf(1), env));
-  chmodSync(hostPoolDir(poolOf(1), env), 0o777);
-  expect(() => tryAcquireHostSlot(poolOf(1), { env, pid: 641, alive: aliveOnly(641) })).toThrow(/not writable by group or others/u);
   rmSync(root, { recursive: true, force: true });
+});
+
+test("an own-uid pool directory that is only too permissive (0775, left by older code) is tightened, not refused", async () => {
+  const env = scratchRuntime();
+  const dir = hostPoolDir(poolOf(1), env);
+  mkdirSync(dir, { recursive: true });
+  chmodSync(dir, 0o775);
+  const lease = await acquireHostSlot(poolOf(1), { env, pid: 641, alive: aliveOnly(641) });
+  expect(lease.slot, "an own-uid directory must still be usable after the mode is fixed").toBe(1);
+  // biome-ignore lint/suspicious/noBitwiseOperators: a POSIX file mode is an OS-owned bitfield; masking it is the only way to read the permission bits.
+  expect(statSync(dir).mode & 0o777, "the too-permissive bits must be gone").toBe(0o700);
+  rmSync(env[HOST_POOL_ROOT_ENV] ?? "", { recursive: true, force: true });
 });
 
 test("a planted slot symlink is refused, and its target is never read as a holder or touched", () => {

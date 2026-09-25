@@ -1,13 +1,14 @@
-// THE CGROUP FENCE — the kernel's own record of this process tree's CPU ceiling (`cpu.max`) and of how
-// often it was stopped (`cpu.stat`). One INPUT to `load-budget.ts`'s box reading, split out of it at the
-// size cap (2026-09-18): the budget math stays there, the two once-per-process filesystem walks live here,
-// and the direction is one-way — this module imports nothing from `load-budget.ts`. Why the denominator
-// and the wall-clock stretch honour the fence at all: `cgroupQuotaCores` below (#1985) and
-// `load-budget.ts#throttleFactor` (#2206).
+// THE CGROUP READER — reads whatever CPU limit the kernel already imposes on this process tree (a
+// container, CI, or a systemd slice can all set one), never sets or changes one itself: this process's own
+// CPU ceiling (`cpu.max`) and how often it was stopped (`cpu.stat`). One INPUT to `load-budget.ts`'s box
+// reading, split out of it at the size cap (2026-09-18): the budget math stays there, the two once-per-process
+// filesystem walks live here, and the direction is one-way — this module imports nothing from
+// `load-budget.ts`. Why the denominator and the wall-clock stretch honour the limit at all:
+// `cgroupQuotaCores` below (#1985) and `load-budget.ts#throttleFactor` (#2206).
 import { readFileSync } from "node:fs";
 import { cpus } from "node:os";
 
-/** THE KERNEL'S OWN RECORD OF THE FENCE BITING (#2206). `cpu.stat` counts scheduling PERIODS and how many
+/** THE KERNEL'S OWN RECORD OF THE LIMIT BITING (#2206). `cpu.stat` counts scheduling PERIODS and how many
  *  of them ended with this tree THROTTLED — i.e. the quota, not the machine, stopped the work. */
 export interface CpuThrottleSample {
   readonly periods: number;

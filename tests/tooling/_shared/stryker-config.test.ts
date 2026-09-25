@@ -121,8 +121,8 @@ test("native Stryker configs preserve every effective option and retire JSON", a
   expect(gate).not.toHaveProperty("inPlace");
 
   const rootManifest = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as { readonly scripts: Record<string, string> };
-  expect(rootManifest.scripts["test:mutation"]).toBe("nice -n 19 stryker run stryker.config.ts");
-  expect(rootManifest.scripts["test:mutation:gate"]).toBe("nice -n 19 stryker run stryker.gate.config.ts");
+  expect(rootManifest.scripts["test:mutation"]).toBe("node tooling/src/_shared/niced-exec.ts stryker run stryker.config.ts");
+  expect(rootManifest.scripts["test:mutation:gate"]).toBe("node tooling/src/_shared/niced-exec.ts stryker run stryker.gate.config.ts");
 });
 
 test("each config import owns independent mutable option branches", async () => {

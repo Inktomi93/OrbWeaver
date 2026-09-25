@@ -12,8 +12,9 @@ Two ways, and the first one is better because it carries the state:
 
 ## Developing
 
-Develop on **Linux or WSL2**. The dev harness uses `nice`, cgroup fencing and bash hooks, so the
-watched stack is Linux-shaped. macOS can run the tests and `pnpm start`; it cannot run `pnpm stack`.
+Develop on **Linux or WSL2**. The dev harness reads whatever cgroup CPU limit the kernel already
+imposes and uses bash hooks, so the watched stack is Linux-shaped. macOS can run the tests and
+`pnpm start`; it cannot run `pnpm stack`.
 
 ```bash
 pnpm install     # deps + git hooks

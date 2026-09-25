@@ -59,7 +59,7 @@
     "check:columns": "node tooling/src/ast/cli.ts columns",
     "check:regkeys": "node tooling/src/ast/cli.ts regkeys",
     "check:chains": "node tooling/src/ast/cli.ts chains",
-    "lint": "nice -n 19 biome check . --diagnostic-level=error --reporter=concise",
+    "lint": "node tooling/src/_shared/niced-exec.ts biome check . --diagnostic-level=error --reporter=concise",
     "lint:eslint": "node tooling/src/verify/cli.ts eslint",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
@@ -82,21 +82,21 @@
     "test": "pnpm test:node && pnpm test:ct --retries=2",
     "test:node": "node scripts/vitest-supervised.ts run --exclude 'tests/tooling/**' --runtime-only --reporter=default --reporter=json --outputFile.json=reports/test-report.json",
     "test:tooling": "node scripts/vitest-supervised.ts run tests/tooling --runtime-only --reporter=default --reporter=json --outputFile.json=reports/test-report-tooling.json",
-    "test:types": "nice -n 19 vitest run --project 'types-*'",
-    "test:coverage": "nice -n 19 vitest run --coverage",
-    "test:ct": "nice -n 19 node tooling/src/verify/cli.ts scoped-test ct",
-    "test:scoped": "nice -n 19 node tooling/src/verify/cli.ts scoped-test node",
-    "e2e": "nice -n 19 playwright test -c playwright.config.ts",
-    "e2e:smoke": "nice -n 19 playwright test -c playwright.config.ts --grep @smoke",
-    "e2e:live": "E2E_LIVE=1 E2E_REQUIRE_EVIDENCE=1 nice -n 19 playwright test -c playwright.config.ts start-chat-with-character.spec.ts",
+    "test:types": "node tooling/src/_shared/niced-exec.ts vitest run --project 'types-*'",
+    "test:coverage": "node tooling/src/_shared/niced-exec.ts vitest run --coverage",
+    "test:ct": "node tooling/src/verify/cli.ts scoped-test ct",
+    "test:scoped": "node tooling/src/verify/cli.ts scoped-test node",
+    "e2e": "node tooling/src/_shared/niced-exec.ts playwright test -c playwright.config.ts",
+    "e2e:smoke": "node tooling/src/_shared/niced-exec.ts playwright test -c playwright.config.ts --grep @smoke",
+    "e2e:live": "E2E_LIVE=1 E2E_REQUIRE_EVIDENCE=1 node tooling/src/_shared/niced-exec.ts playwright test -c playwright.config.ts start-chat-with-character.spec.ts",
     "cpd": "node scripts/cpd.ts -c jscpd.json",
     "cpd:report": "node scripts/cpd.ts -c jscpd.json --reporters html --output reports/cpd",
     "mutation:arid": "node tooling/src/mutation-arid/cli.ts",
     "mutation:probe": "node tooling/src/mutation-probe/cli.ts",
-    "test:mutation": "nice -n 19 stryker run stryker.config.ts",
-    "test:mutation:gate": "nice -n 19 stryker run stryker.gate.config.ts",
-    "check": "nice -n 19 node tooling/src/verify/cli.ts run --static",
-    "verify": "nice -n 19 node tooling/src/verify/cli.ts run"
+    "test:mutation": "node tooling/src/_shared/niced-exec.ts stryker run stryker.config.ts",
+    "test:mutation:gate": "node tooling/src/_shared/niced-exec.ts stryker run stryker.gate.config.ts",
+    "check": "node tooling/src/verify/cli.ts run --static",
+    "verify": "node tooling/src/verify/cli.ts run"
   },
   "devDependencies": {
     "@babel/parser": "catalog:",
@@ -164,5 +164,12 @@
     "yaml": "catalog:",
     "zod": "catalog:",
     "zustand": "catalog:"
+  },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "26.10.0",
+      "onFail": "download"
+    }
   }
 }

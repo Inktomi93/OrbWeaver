@@ -13,12 +13,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # pnpm first (reads the pinned packageManager from package.json), then node with pnpm cache.
+      # pnpm reads the pinned packageManager from package.json, then pnpm install downloads the
+      # devEngines.runtime-pinned Node itself — no separate Node setup step needed.
       - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
 
       - run: pnpm install --frozen-lockfile
 

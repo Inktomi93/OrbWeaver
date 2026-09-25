@@ -6,8 +6,8 @@
 //
 //   scratch      — mkdtemp dir, auto-rm'd after use (kills the hand-rolled cleanup respell).
 //   repoRoot     — the ONE root resolution (kills the per-file ROOT respell).
-//   runCli       — spawn tooling/src/<tool>/cli.ts via _shared/proc.spawnNiced (nice -n 19, the owner
-//                  rule); returns { code, stdout, stderr } for `toExitWith`. Tests name TOOLS, not
+//   runCli       — spawn tooling/src/<tool>/cli.ts via _shared/proc.spawnNiced (the tooling process's
+//                  lowered priority, the owner rule); returns { code, stdout, stderr } for `toExitWith`. Tests name TOOLS, not
 //                  paths — a tool move never sweeps test literals again.
 //   fakeBin      — a temp executable prepended to PATH for the test (the work-item fake-`gh` shim,
 //                  generalized); auto-restored.

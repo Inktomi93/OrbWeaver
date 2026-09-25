@@ -1,7 +1,7 @@
 // The host slot pools' FILE LAYER (./host-slots.ts holds the doors and the queue): the owned-directory and
 // planted-entry refusals, the slot/ticket record reader, the liveness verdict, and the one exclusive-create
 // sweep. Every rule in the host-slots.ts header binds here too; this module only owns where it is enforced.
-import { lstatSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, lstatSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import process from "node:process";
 import { procStartTicks } from "./proc-stat.ts";
 
@@ -23,9 +23,17 @@ function refuseForeignDir(dir: string): void {
     throw new Error(`host pool directory ${dir} is a symlink or not a directory — refusing to write through it.`);
   }
   const uid = process.getuid?.();
+  if (uid === undefined) {
+    return;
+  }
+  if (stat.uid !== uid) {
+    throw new Error(`host pool directory ${dir} must be owned by uid ${String(uid)} — refusing to use it.`);
+  }
+  // The current uid owns it, so a too-permissive mode (0775, left by older code) is OURS to fix, not a
+  // reason to refuse: tighten it in place rather than wedging every later run on a directory we made.
   // biome-ignore lint/suspicious/noBitwiseOperators: a POSIX file mode is an OS-owned bitfield; masking it is the only way to read the group and other write bits.
-  if (uid !== undefined && (stat.uid !== uid || (stat.mode & GROUP_OR_OTHER_WRITE) !== 0)) {
-    throw new Error(`host pool directory ${dir} must be owned by uid ${String(uid)} and not writable by group or others — refusing to use it.`);
+  if ((stat.mode & GROUP_OR_OTHER_WRITE) !== 0) {
+    chmodSync(dir, OWNER_ONLY_DIR);
   }
 }
 

@@ -4,9 +4,9 @@
 // supersedes that orchestrator's exit-code pins). A signal-kill (null) is ALWAYS a tool error (2), never a verdict; a
 // foreign tool's digit is never trusted to mean the scheme's 2/3.
 import { spawn, spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { delimiter, join } from "node:path";
+import { join } from "node:path";
 import process from "node:process";
 import { setTimeout as delay } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
@@ -153,7 +153,7 @@ process.exitCode = await runVerify(${JSON.stringify(scratch)}, parsed);
   let output = "";
   // biome-ignore lint/style/noProcessEnv: the child inherits fakeBin's isolated PATH and redirects its whole-run slot into scratch.
   const childEnv = Object.fromEntries([...Object.entries(process.env), [HOST_POOL_ROOT_ENV, join(scratch, "verify-slots")]]);
-  const child = spawn("nice", ["-n", "19", process.execPath, runner], {
+  const child = spawn(process.execPath, [runner], {
     cwd: repoRoot,
     detached: true,
     env: childEnv,
@@ -220,7 +220,7 @@ process.exitCode = await runVerify(${JSON.stringify(scratch)}, parsed);
   // biome-ignore lint/style/noProcessEnv: the child needs the parent's real PATH (fakeBin prepended its shim to it) plus an isolated slot root.
   const parentEnv = Object.entries(process.env);
   const childEnv = Object.fromEntries([...parentEnv, [HOST_POOL_ROOT_ENV, join(scratch, "verify-slots-colour")], ["FORCE_COLOR", "3"]]);
-  const child = spawn("nice", ["-n", "19", process.execPath, runner], { cwd: repoRoot, detached: true, env: childEnv, stdio: ["ignore", "pipe", "pipe"] });
+  const child = spawn(process.execPath, [runner], { cwd: repoRoot, detached: true, env: childEnv, stdio: ["ignore", "pipe", "pipe"] });
   let output = "";
   child.stdout.on("data", (chunk: Buffer) => {
     output += chunk.toString("utf8");
@@ -1586,7 +1586,7 @@ test("printSummary NAMES the no-verdict stages ABOVE the failure count — and d
 //
 // THE DRIVE IS THE REAL `runVerify`, over a scratch root, under a PATH holding exactly one fake `pnpm`
 // (green, and printing the `Checked N files` line `lint:biome`'s output audit demands — without it that
-// stage refuses and every arm below would be measuring the audit instead) plus `nice`, and NO `bash`.
+// stage refuses and every arm below would be measuring the audit instead), and NO `bash`.
 // `lint:hook-syntax` is the registry's only `bash` argv[0], so a REGISTERED stage — never a planted one —
 // resolves to nothing, `run.ts:272-275` settles it `code: null` WITHOUT spawning, and `:320` is the one
 // line that carries that null into `reports/verify.json` and the NO-VERDICT block. Both directions are
@@ -1599,19 +1599,6 @@ test("printSummary NAMES the no-verdict stages ABOVE the failure count — and d
 // NOT RE-PROVED HERE: the `--list` refusal (its own arm above, with its planted control) and the exit
 // contract itself — half (a) of #2225, a no-verdict forcing the RUN's exit, was REFUSED and the refusal
 // is recorded at `lib/exit-classifiers.ts:99-101`. This is a VISIBILITY pin.
-
-/** The absolute path of a system program on THIS process's PATH. `nice` must exist inside the isolated
- *  PATH below — the test and `spawnNicedTranscript` both exec through it — and an absent one would make
- *  EVERY stage a no-verdict, which is the exact answer the arm is trying to measure. So it refuses. */
-function systemProgram(name: string): string {
-  for (const dir of PHSV_PATH.split(delimiter)) {
-    const candidate = join(dir, name);
-    if (dir.length > 0 && existsSync(candidate)) {
-      return candidate;
-    }
-  }
-  throw new Error(`run.int: no ${name} on PATH — the isolated-PATH run cannot be built, so nothing below is a measurement`);
-}
 
 /** One real `pnpm verify --static` through `runVerify`, rooted at `scratch` and spawned with `isolatedPath`
  *  as its whole PATH: the stage children inherit it, so what argv[0] resolves to is this test's variable. */
@@ -1663,7 +1650,6 @@ test("the REAL run door produces childExit: an unresolvable REGISTERED stage lan
   // output audit (#1245) reads an honest measurement instead of refusing — a refusal there would put a
   // SECOND stage in the no-verdict list and the arms below would stop discriminating.
   writeFileSync(join(binDir, "pnpm"), '#!/bin/sh\necho "Checked 3 files in 0s."\nexit 0\n', { mode: 0o755 });
-  symlinkSync(systemProgram("nice"), join(binDir, "nice"));
 
   // ARM 1 — `bash` is on no PATH the child can see, and the workspace-bin rung finds nothing under the
   // scratch root either, so the registry's lint:hook-syntax row is UNRESOLVABLE at the real door.

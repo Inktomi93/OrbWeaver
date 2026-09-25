@@ -2,15 +2,15 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 617,
+    "sites": 619,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 617,
+      "deliberate-absorb": 619,
       "unproven": 0
     },
     "byGrammar": {
       "default": 153,
-      "empty": 315,
+      "empty": 317,
       "promise": 149
     }
   },
@@ -1906,6 +1906,11 @@
       "reason": "panel-preset JSON parse returns null so the caller emits its option-specific refusal; no nav action is queued. Ends if parse failure stops being a refusal."
     },
     {
+      "siteId": "tooling/src/_shared/proc.ts::killPidGroup::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a failed taskkill means the tree is already gone or never spawned — the desired end state, same as POSIX ESRCH below."
+    },
+    {
       "siteId": "tooling/src/_shared/proc.ts::killPidGroup::error::1",
       "verdict": "deliberate-absorb",
       "reason": "ESRCH is the desired teardown end state; every other signal error is rethrown. Ends if callers require proof that the signal landed."
@@ -1919,6 +1924,11 @@
       "siteId": "tooling/src/_shared/proc.ts::spawnNicedTranscript.finish::settle::1",
       "verdict": "deliberate-absorb",
       "reason": "the handler OWNS the failure by putting it in the transcript this door returns (`[proc] teardown failed: …`) and settling the run as a TOOL ERROR (code null) — nothing is dropped, and the promise MUST settle here or the door written to end a hang becomes one. Ends if the handler stops resolving or stops naming the error."
+    },
+    {
+      "siteId": "tooling/src/_shared/process-priority.ts::lowerChildPriority::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the child racing to exit before this call lands is expected and harmless — the priority hint is advisory, not a correctness requirement, and the caller's own exit/error handlers own the child's real outcome. Ends if a caller starts depending on this call's success."
     },
     {
       "siteId": "tooling/src/_shared/rated-theme-fixture.ts::provisionRatedStageThemes::cleanupError::1",
