@@ -108,6 +108,27 @@ describe("storeSegments — the batched verbatim lens", () => {
     expect(rows.find((r) => r.chunkIdx === 1)?.seqStart).toBe(5);
   });
 
+  // The memory sweep records its completion from these receipts (compose `memorySegmentReceipts` refuses a result
+  // without one), so a written chunk AND a hash-gated noop both name the owner's target generation.
+  test("every result carries the owner's target generation receipt, written and noop alike", async () => {
+    const db = await freshDb();
+    const h = makeStoreHarness(db);
+    const svc = createEmbeddingsService(h.ctx);
+    await seedUser(db, { id: OWNER });
+    const chatId = await seedChat(db);
+    const params = [segment(chatId)];
+
+    const written = (await svc.storeSegments(params))[0];
+    const noop = (await svc.storeSegments(params))[0];
+    const generation = await svc.resolveGeneration(OWNER, "embed");
+
+    expect(generation).not.toBeNull();
+    for (const result of [written, noop]) {
+      expect(result).toMatchObject({ generationId: generation?.id, generationEpoch: generation?.epoch, generationVia: "embed" });
+    }
+    expect([written?.outcome, noop?.outcome]).toEqual(["written", "noop"]);
+  });
+
   test("results are index-aligned: a mixed batch reports noop and written per ITEM, and embeds only the changed ones", async () => {
     const db = await freshDb();
     const h = makeStoreHarness(db);

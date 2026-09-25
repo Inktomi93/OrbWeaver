@@ -33,10 +33,8 @@ interface PendingSegment {
   readonly generation: PinnedGeneration;
 }
 
-/** The hash gate: read each chunk's stored `content_hash` for `(chatId, blockIdx, chunkIdx, model)` and keep
- *  only the ones that differ. The reads run CONCURRENTLY — they are independent point lookups, and the
- *  serialized version was one of the round trips this verb exists to remove. */
-async function gate(ctx: EmbeddingsContext, params: readonly SegmentStoreParams[]): Promise<PendingSegment[]> {
+/** Each owner's target generation for this batch — resolved once per owner, read by the gate and the receipts. */
+async function targetGenerations(ctx: EmbeddingsContext, params: readonly SegmentStoreParams[]): Promise<ReadonlyMap<UserId, PinnedGeneration>> {
   const generations = new Map<UserId, PinnedGeneration>();
   for (const ownerId of new Set(params.map((p) => p.ownerId))) {
     const generation = await resolveTargetGeneration(ctx, ownerId, "embed");
@@ -44,6 +42,23 @@ async function gate(ctx: EmbeddingsContext, params: readonly SegmentStoreParams[
       generations.set(ownerId, generation);
     }
   }
+  return generations;
+}
+
+/** The receipt fields `store` stamps too: the memory sweep records its completion from them, so a noop names
+ *  the generation it was gated against, not only a write. */
+function receiptOf(generation: PinnedGeneration | undefined): Pick<StoreResult, "generationId" | "generationEpoch" | "generationVia"> {
+  return generation === undefined ? {} : { generationId: generation.id, generationEpoch: generation.epoch, generationVia: generation.via };
+}
+
+/** The hash gate: read each chunk's stored `content_hash` for `(chatId, blockIdx, chunkIdx, model)` and keep
+ *  only the ones that differ. The reads run CONCURRENTLY — they are independent point lookups, and the
+ *  serialized version was one of the round trips this verb exists to remove. */
+async function gate(
+  ctx: EmbeddingsContext,
+  params: readonly SegmentStoreParams[],
+  generations: ReadonlyMap<UserId, PinnedGeneration>,
+): Promise<PendingSegment[]> {
   const existing = await Promise.all(
     params.map((p) => {
       const generation = generations.get(p.ownerId);
@@ -112,8 +127,14 @@ async function flood(
 
 export function createStoreSegments(ctx: EmbeddingsContext): EmbeddingsService["storeSegments"] {
   return async (params: readonly SegmentStoreParams[], signal?: AbortSignal): Promise<readonly StoreResult[]> => {
-    const results: StoreResult[] = params.map((p) => ({ outcome: "noop", contentHash: p.contentHash, model: p.model }));
-    const pending = params.length === 0 ? [] : await gate(ctx, params);
+    const generations = await targetGenerations(ctx, params);
+    const results: StoreResult[] = params.map((p) => ({
+      outcome: "noop",
+      contentHash: p.contentHash,
+      model: p.model,
+      ...receiptOf(generations.get(p.ownerId)),
+    }));
+    const pending = params.length === 0 ? [] : await gate(ctx, params, generations);
     if (pending.length === 0) {
       return results;
     }
@@ -139,7 +160,7 @@ export function createStoreSegments(ctx: EmbeddingsContext): EmbeddingsService["
         dim: p.dim,
         now: ctx.now(),
       });
-      results[item.index] = { outcome: "written", contentHash: p.contentHash, model: embedded.model };
+      results[item.index] = { outcome: "written", contentHash: p.contentHash, model: embedded.model, ...receiptOf(item.generation) };
     }
     return results;
   };
