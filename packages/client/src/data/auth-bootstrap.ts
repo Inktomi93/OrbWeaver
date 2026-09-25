@@ -10,8 +10,8 @@ import type { UserRole } from "@orb/contracts/identity";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { ChatId, Handle } from "@orb/kit/ids";
 import type { UseQueryResult } from "@tanstack/react-query";
-import { queryOptions, useMutation, useQuery } from "@tanstack/react-query";
-import { useEffect, useRef } from "react";
+import { queryOptions, useQuery } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
 import { postSessionMessage, sessionDocument } from "#lib";
 import { clearJoinStash } from "./session-resume.ts";
 
@@ -176,23 +176,30 @@ async function previewSignupInvite(token: string): Promise<InvitePreview | null>
   return invitePreviewSchema.parse(await res.json());
 }
 
+// The preview read's three outcomes: still on its way, answered (a room, or null for a dead link), or failed.
+type SignupPreviewState = { readonly kind: "pending" } | { readonly kind: "answered"; readonly preview: InvitePreview | null } | { readonly kind: "failed" };
+
 /** The sign-up form's invite preview, and whether it is still on its way. A POST-shaped read fired once per mount,
  *  like the signed-in join dialog's: never retried (the route spends the per-address sign-in bucket), never
  *  refetched, and never cached under a key, because the token is a secret. `data` stays undefined when the read
  *  failed, which the form shows as the unavailable state. */
 export function useSignupInvitePreview(token: string): { readonly isPending: boolean; readonly data: InvitePreview | null | undefined } {
-  const preview = useMutation({ mutationFn: previewSignupInvite, retry: false });
-  // Guards StrictMode's dev double-invoke, which would spend a second bucket point for the same read.
+  const [preview, setPreview] = useState<SignupPreviewState>({ kind: "pending" });
+  // Guards StrictMode's dev double-invoke, which would spend a second bucket point for the same read. The answer
+  // lands through the promise, never through a mutation observer: StrictMode's unsubscribe detaches an observer
+  // from a mutation already in flight, and its result would never arrive.
   const fired = useRef(false);
-  const fire = preview.mutate;
   useEffect(() => {
     if (fired.current) {
       return;
     }
     fired.current = true;
-    fire(token);
-  }, [fire, token]);
-  return { isPending: preview.isIdle || preview.isPending, data: preview.data };
+    previewSignupInvite(token).then(
+      (answer): void => setPreview({ kind: "answered", preview: answer }),
+      (): void => setPreview({ kind: "failed" }),
+    );
+  }, [token]);
+  return { isPending: preview.kind === "pending", data: preview.kind === "answered" ? preview.preview : undefined };
 }
 
 function isPendingJoinErrorCode(value: unknown): value is PendingJoinErrorCode {
