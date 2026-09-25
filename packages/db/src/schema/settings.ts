@@ -62,7 +62,7 @@ export const userSettings = sqliteTable("user_settings", {
   updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
 });
 
-// `user_seed_ledger` (ADR 0261) — one row per seed-manifest item an account has been given. The seeder skips a
+// `user_seed_ledger` (D263) — one row per seed-manifest item an account has been given. The seeder skips a
 // recorded key, so an item the user deleted is never seeded again, and a key a later build adds is simply
 // unrecorded, so it reaches the account on its next seed. The key is `@orb/default-content`'s manifest key.
 export const userSeedLedger = sqliteTable(

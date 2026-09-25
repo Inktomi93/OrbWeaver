@@ -320,7 +320,7 @@ export const TABLE_SCOPING_ROWS: readonly ScopingRow[] = [
     scope: "parent",
     why: "auth/BFF sessions — the single `userId` FK is the scope; reads are the session-resolution path, never a user-facing surface.",
   },
-  { table: "user_seed_ledger", scope: "parent", why: "the per-user seed ledger (ADR 0261) — `user_id` leads the PK and IS the FK and the scope." },
+  { table: "user_seed_ledger", scope: "parent", why: "the per-user seed ledger (D263) — `user_id` leads the PK and IS the FK and the scope." },
   { table: "user_settings", scope: "parent", why: "the per-user config tier — natural-key PK `user_id` IS the FK and the scope." },
   { table: "world_entries", scope: "parent", why: "book entries — scope derives through `world_books.ownerId`; entries stamp no owner (D23)." },
 

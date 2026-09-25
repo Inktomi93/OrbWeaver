@@ -26,7 +26,7 @@
 // The two hand-authored fields that DO ride a derivation's output are `creator` (above) and the scene plate;
 // both are pinned against their derivation in `tests/server/domain/character/seeder/cards.contract.test.ts`.
 //
-// SEEDING: each card is one item of the seed manifest (`@orb/default-content`, ADR 0261), keyed by its handle.
+// SEEDING: each card is one item of the seed manifest (`@orb/default-content`, D263), keyed by its handle.
 // An account receives a card once; the seed ledger keeps a card the user deleted from coming back.
 
 import type { CreateCharacterInput } from "@orb/contracts/character";

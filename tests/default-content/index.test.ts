@@ -135,7 +135,7 @@ test("every shipped plate reads back as the bytes it shipped with, through the p
   }
 });
 
-// ADR 0261 — the seed manifest is the ledger's key space: a key seeded once is never seeded again, so two items
+// D263 — the seed manifest is the ledger's key space: a key seeded once is never seeded again, so two items
 // sharing a key would silently drop one, and a roster seating a character the seed never ships starts nothing.
 test("every manifest key is unique, and every roster seats only characters the manifest seeds", () => {
   const keys = SEED_MANIFEST.map((item) => item.key);

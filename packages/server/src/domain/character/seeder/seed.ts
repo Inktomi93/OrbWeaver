@@ -1,5 +1,5 @@
 // domain/character/seeder/seed — the default-card seeder: seeds ONE shipped card for a user. Which cards an account
-// receives, and that a deleted card never comes back, is the seed ledger's job at entry (ADR 0261).
+// receives, and that a deleted card never comes back, is the seed ledger's job at entry (D263).
 //
 // A card is created through the real CharacterService.create verb (audit log, handle-conflict translation, the
 // character.updated emit — no raw SQL). A handle already taken resolves to the existing row instead of failing.

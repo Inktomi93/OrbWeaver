@@ -683,7 +683,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       // background library in pack order. It also carries the `kind:"seeded"` retirement's data rewrite for
       // this user (see `boot/seed-default-backgrounds.ts`).
       await seedDefaultBackgrounds({ seeder: built.backgroundSeeder, owner });
-      // The user seed (ADR 0261): the manifest's characters, persona and roster presets the ledger lacks.
+      // The user seed (D263): the manifest's characters, persona and roster presets the ledger lacks.
       await seedUserContent({ seeder: built.contentSeeder, owner });
       // BEFORE the seeder, and before anything serves (#1865): the resident-plugin registry is an in-process
       // Map the respawn wiped, so every row the db calls `enabled` has no instance and contributes no surface,

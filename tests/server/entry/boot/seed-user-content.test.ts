@@ -1,7 +1,6 @@
-// entry/boot/seed-user-content — the user seed's ledger rules (ADR 0261), over injected fakes: a recorded key is
-// never seeded again, a key a later manifest adds reaches an account that already has the rest, the operator
-// switch seeds and records nothing, a pre-ledger account's latched kinds are recorded without seeding, and one
-// failed item is left unrecorded and retried while the others land.
+// entry/boot/seed-user-content — the user seed's ledger rules (D263) over injected fakes: recorded keys, new
+// manifest items, the operator switch, pre-ledger latches, a failed item's retry, and a settled memo that is
+// kept per account. The fake keeps one ledger and one card store per account.
 
 import type { Principal } from "@orb/contracts/identity";
 import type { SeedManifestItem } from "@orb/default-content";
@@ -12,6 +11,13 @@ import { createUserContentSeeder } from "@orb/server/entry/boot";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const ACTOR = { userId: castId<UserId>("user_seed"), role: "owner", handle: castId<Handle>("seed-owner"), externalId: null, via: "header" } satisfies Principal;
+const FRIEND = {
+  userId: castId<UserId>("user_friend"),
+  role: "user",
+  handle: castId<Handle>("seed-friend"),
+  externalId: null,
+  via: "header",
+} satisfies Principal;
 
 const CHARLOTTE: SeedManifestItem = { kind: "character", key: "character:assistant", handle: castId<CharacterHandle>("assistant") };
 const NIKO: SeedManifestItem = { kind: "character", key: "character:niko", handle: castId<CharacterHandle>("niko") };
@@ -26,8 +32,12 @@ const PAIR: SeedManifestItem = {
 
 interface Fake {
   readonly deps: UserContentSeederDeps;
+  /** ACTOR's ledger; `ledgerOf` reads any account's. */
   readonly ledger: Set<string>;
+  readonly ledgerOf: (userId: UserId) => Set<string>;
   readonly seededCharacters: CharacterHandle[];
+  /** Every `seededKeys` read, by account: a skipped account is never read. */
+  readonly ledgerReads: UserId[];
   readonly rosters: { readonly name: string; readonly characterIds: readonly CharacterId[] }[];
 }
 
@@ -35,38 +45,49 @@ function fake(
   manifest: readonly SeedManifestItem[],
   over: { readonly ledger?: readonly string[]; readonly enabled?: boolean; readonly latched?: boolean; readonly failing?: CharacterHandle } = {},
 ): Fake {
-  const ledger = new Set(over.ledger ?? []);
+  const ledgers = new Map<UserId, Set<string>>([[ACTOR.userId, new Set(over.ledger ?? [])]]);
+  const ledgerOf = (userId: UserId): Set<string> => {
+    const found = ledgers.get(userId) ?? new Set<string>();
+    ledgers.set(userId, found);
+    return found;
+  };
   const seededCharacters: CharacterHandle[] = [];
+  const ledgerReads: UserId[] = [];
   const rosters: Fake["rosters"] = [];
-  const owned = new Set<CharacterHandle>();
+  const owned = new Set<string>();
   return {
-    ledger,
+    ledger: ledgerOf(ACTOR.userId),
+    ledgerOf,
     seededCharacters,
+    ledgerReads,
     rosters,
     deps: {
       enabled: (): boolean => over.enabled ?? true,
       manifest,
       now: (): number => 1,
-      seededKeys: (): Promise<ReadonlySet<string>> => Promise.resolve(new Set(ledger)),
-      recordSeeded: (_userId, keys): Promise<void> => {
+      seededKeys: (userId): Promise<ReadonlySet<string>> => {
+        ledgerReads.push(userId);
+        return Promise.resolve(new Set(ledgerOf(userId)));
+      },
+      recordSeeded: (userId, keys): Promise<void> => {
         for (const key of keys) {
-          ledger.add(key);
+          ledgerOf(userId).add(key);
         }
         return Promise.resolve();
       },
       legacyLatches: (): Promise<{ characters: boolean; persona: boolean }> =>
         Promise.resolve({ characters: over.latched ?? false, persona: over.latched ?? false }),
-      seedCharacter: (_principal, handle): Promise<CharacterId | null> => {
+      seedCharacter: (principal, handle): Promise<CharacterId | null> => {
         if (handle === over.failing) {
           return Promise.reject(new Error("the card store is down"));
         }
         seededCharacters.push(handle);
-        owned.add(handle);
+        owned.add(`${principal.userId}/${handle}`);
         return Promise.resolve(castId<CharacterId>(`character_${handle}`));
       },
       seedPersona: (): Promise<boolean> => Promise.resolve(true),
-      findCharacter: (_principal, handle): Promise<CharacterId | null> =>
-        Promise.resolve(owned.has(handle) ? castId<CharacterId>(`character_${handle}`) : null),
+      findCharacter: (principal, handle): Promise<CharacterId | null> =>
+        Promise.resolve(owned.has(`${principal.userId}/${handle}`) ? castId<CharacterId>(`character_${handle}`) : null),
       createRosterPreset: (_principal, preset): Promise<void> => {
         rosters.push({ name: preset.name, characterIds: preset.characterIds });
         return Promise.resolve();
@@ -123,4 +144,17 @@ test("a failed item is left unrecorded and retried, while the others land", asyn
   // The account is not settled, so the next touch retries the failed item and seeds nothing twice.
   await seeder.ensureSeeded(ACTOR);
   expect(f.seededCharacters).toEqual(["niko"]);
+});
+
+test("the settled memo is per account: one account settling never skips a second account's seed", async () => {
+  const f = fake([CHARLOTTE, PAIR]);
+  const seeder = createUserContentSeeder(f.deps);
+  await seeder.ensureSeeded(ACTOR);
+  await seeder.ensureSeeded(FRIEND);
+  expect([...f.ledgerOf(FRIEND.userId)].toSorted()).toEqual([CHARLOTTE.key, PAIR.key].toSorted());
+  expect(f.seededCharacters).toEqual(["assistant", "assistant"]);
+  // Both accounts are now settled: a later touch by either reads no ledger and seeds nothing.
+  await seeder.ensureSeeded(ACTOR);
+  await seeder.ensureSeeded(FRIEND);
+  expect(f.ledgerReads).toEqual([ACTOR.userId, FRIEND.userId]);
 });

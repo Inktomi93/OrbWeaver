@@ -252,8 +252,8 @@ export function RosterPicker(): ReactElement {
   /** The ONE apply report, said by every door (side-eye P1-2: the Start door applied a roster's rules in
    *  total silence, discarding the `rulesSkipped` REASONS the build record §6.4 requires be reported —
    *  and that is the exact click B10's own acceptance test names). */
-  const reportApply = (roster: SavedRosterSummary, result: ApplyRosterPresetResult): void => {
-    const notice = applyNotice({ rosterName: roster.name, result, ruleTitleOf: catalogue.titleOf });
+  const reportApply = (roster: SavedRosterSummary, result: ApplyRosterPresetResult, started: boolean): void => {
+    const notice = applyNotice({ rosterName: roster.name, result, started, ruleTitleOf: catalogue.titleOf });
     notify[notice.channel](notice.line);
   };
 
@@ -273,7 +273,7 @@ export function RosterPicker(): ReactElement {
         closeModal();
         // The POLISH call — knobs + group config + the rules rider onto the fresh room. It REPORTS: a
         // room that silently differs from the roster the host picked is the defect, not the noise.
-        reportApply(roster, await apply.mutateAsync({ presetId: roster.id, chatId }));
+        reportApply(roster, await apply.mutateAsync({ presetId: roster.id, chatId }), true);
       })
       .catch(() => undefined); // both mutations toast their own failures; the picked state survives for retry.
   };
@@ -285,7 +285,7 @@ export function RosterPicker(): ReactElement {
     apply
       .mutateAsync({ presetId: roster.id, chatId: active.chatId })
       .then((result) => {
-        reportApply(roster, result);
+        reportApply(roster, result, false);
         closeModal();
       })
       .catch(() => undefined); // errorToast owns the failure copy.

@@ -1,4 +1,4 @@
-// The user seed (ADR 0261): walks `@orb/default-content`'s manifest for one account and seeds every item the
+// The user seed (D263): walks `@orb/default-content`'s manifest for one account and seeds every item the
 // account's seed ledger has not recorded, then records it. A deleted item stays deleted because its key is
 // recorded; an item a later build adds reaches the account on its next seed. `ensureSeeded` never throws.
 //

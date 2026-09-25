@@ -232,7 +232,7 @@ function buildGraph(db: Db): ReturnType<typeof createServices> {
   });
 }
 
-// ADR 0261 — the user seed over the REAL graph: the manifest's content lands, no room does, and the ledger
+// D263 — the user seed over the REAL graph: the manifest's content lands, no room does, and the ledger
 // keeps a deleted card deleted across a cold graph (a fresh in-process memo, as a restart gives).
 const MANIFEST_CHARACTERS = SEED_MANIFEST.flatMap((item) => (item.kind === "character" ? [item.handle] : []));
 const MANIFEST_ROSTERS = SEED_MANIFEST.flatMap((item) => (item.kind === "rosterPreset" ? [item.name] : []));

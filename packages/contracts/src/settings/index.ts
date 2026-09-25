@@ -703,7 +703,7 @@ const onboardingSchema = z
     // (features/persona/anchors/first-run-persona-dialog.tsx), never on a "seen" flag — the rateLimits.general
     // dead-field precedent. A stored blob's stale `personaWizardSeen` is stripped by zod (unknown key); the
     // sibling seeded-flags below are consumed.
-    // The PRE-LEDGER character latch: the user seed (`entry/boot/seed-user-content.ts`, ADR 0261) reads it once,
+    // The PRE-LEDGER character latch: the user seed (`entry/boot/seed-user-content.ts`, D263) reads it once,
     // on an account's first ledger pass, to record the shipped characters as already given. Nothing writes it.
     defaultCharactersSeeded: z.boolean().catch(false).default(false),
     defaultPersonaSeeded: z.boolean().catch(false).default(false),

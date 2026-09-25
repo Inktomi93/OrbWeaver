@@ -580,7 +580,7 @@ const NOT_READ_BACK: ReadonlyMap<string, string> = new Map([
     "the audit trail the seeding verbs append as a side effect; it is operator evidence, not seeded content, and no user-facing procedure reads it",
   ],
   ["stats_canon_versions", "the stats rollup's internal canon-version marker; no procedure returns it"],
-  ["user_seed_ledger", "the user seed's record of which manifest items an account was given (ADR 0261); no procedure returns it"],
+  ["user_seed_ledger", "the user seed's record of which manifest items an account was given (D263); no procedure returns it"],
 ]);
 
 /** The seeded tables the test reads back row for row. */
@@ -697,7 +697,7 @@ test("every seeded row reads back through its read procedure, faithful to its cu
     check(persona, personaPlan, `persona.get[${persona.name}]`);
   }
 
-  // The rooms: the seed is content, never a conversation (ADR 0261), so a fresh install holds none. The reads stay
+  // The rooms: the seed is content, never a conversation (D263), so a fresh install holds none. The reads stay
   // so a seeded room would still be read back and accounted for.
   const rooms = await ownerCaller.chat.listChats({ limit: PAGE });
   expect(rooms.nextCursor, "the room list fits one page").toBeNull();

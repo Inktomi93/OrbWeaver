@@ -302,8 +302,10 @@ test("Start reports the rules it switched on plus each skipped rule's REASON, an
     "automation.listRulePresets": [PACING_PRESET],
     "automation.listRules": [],
     "chat.startChat": { chat: { ...HOST_CHAT, id: "chat_started_ct" } },
+    // What the server answers after a start: `startChat` already seated every member, so the apply that
+    // follows classifies each one as present (`verbs/apply-to-chat.ts`), never as added.
     "rosterPreset.applyToChat": applyResult({
-      added: ["character_ct_1", "character_ct_2"],
+      alreadyPresent: ["character_ct_1", "character_ct_2"],
       rulesMinted: ["pacingNudge"],
       rulesSkipped: [{ rulePresetId: "autoAddLore", reason: "this chat has no world book attached" }],
     }),
@@ -314,6 +316,9 @@ test("Start reports the rules it switched on plus each skipped rule's REASON, an
 
   const notice = page.getByTestId("cbcf-notice");
   await expect(notice).toContainText("Adventuring Roster:");
+  // A fresh room reports the cast it started with; the seats the start itself made are not "already here".
+  await expect(notice).toContainText("started with 2 characters");
+  await expect(notice).not.toContainText("already here");
   await expect(notice).toContainText("1 rule on");
   // The build record §6.4 law: a skipped rule is reported WITH its reason, not as a count.
   await expect(notice).toContainText("this chat has no world book attached");

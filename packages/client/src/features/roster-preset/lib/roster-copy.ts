@@ -90,15 +90,22 @@ export function rosterRuleLine(preset: RulePresetView | undefined, rulePresetId:
  *  The "Added N" clause is DROPPED at zero rather than printed: nothing landing is the idempotent re-apply
  *  succeeding, and "Added 0 · 3 already here" reported that success as a failure. Each refused rule is
  *  named WITH automation's own reason (build record §6.4) — a count would tell a host that something did
- *  not happen without ever saying what. */
+ *  not happen without ever saying what.
+ *
+ *  `started` marks the two Start doors. A start seats every member before the apply runs, so the apply
+ *  classifies them all as present; on a fresh room those seats are the cast it started with, and "everything
+ *  is already here" would misreport a start as a no-op re-apply. */
 function applySentence(args: {
   readonly rosterName: string;
   readonly result: ApplyRosterPresetResult;
+  readonly started: boolean;
   readonly ruleTitleOf: (id: RulePresetId) => string;
 }): string {
   const { rosterName, result, ruleTitleOf } = args;
   const parts: string[] = [];
-  if (result.added.length > 0) {
+  if (args.started) {
+    parts.push(`started with ${characterCountPhrase(result.added.length + result.alreadyPresent.length)}`);
+  } else if (result.added.length > 0) {
     parts.push(`added ${characterCountPhrase(result.added.length)}`);
   } else if (result.alreadyPresent.length > 0) {
     parts.push(result.skipped.length === 0 ? "everything is already here" : `${result.alreadyPresent.length} already here`);
@@ -123,6 +130,7 @@ function applySentence(args: {
 export function applyNotice(args: {
   readonly rosterName: string;
   readonly result: ApplyRosterPresetResult;
+  readonly started: boolean;
   readonly ruleTitleOf: (id: RulePresetId) => string;
 }): { readonly channel: "success" | "warn"; readonly line: string } {
   const degraded = args.result.skipped.length > 0 || args.result.rulesSkipped.length > 0;

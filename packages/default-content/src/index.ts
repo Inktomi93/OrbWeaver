@@ -1,5 +1,5 @@
 // @orb/default-content — the DEFAULT CONTENT a fresh user is born with, plus the readers over it: the seed
-// MANIFEST (`manifest.ts`, ADR 0261), the character/persona avatar PNGs (`avatars/<handle>.png`) and the
+// MANIFEST (`manifest.ts`, D263), the character/persona avatar PNGs (`avatars/<handle>.png`) and the
 // character SCENE PLATES (`backgrounds/<handle>-bg.jpg`). No conversation ships here: the seed is content.
 //
 // THE PLATES ARE CONTENT, NOT A PARALLEL BACKGROUND CHANNEL (owner ask 2026-09-18, "the weird seeded

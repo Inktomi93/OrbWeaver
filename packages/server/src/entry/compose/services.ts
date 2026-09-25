@@ -289,7 +289,7 @@ export interface ServicesResult {
   readonly characterSeeder: DefaultCharacterSeeder;
   /** Mirrors `characterSeeder`, for the default `{{user}}` persona. */
   readonly personaSeeder: DefaultPersonaSeeder;
-  /** The user seed (ADR 0261): walks the manifest for an account and seeds what its seed ledger lacks. Drives
+  /** The user seed (D263): walks the manifest for an account and seeds what its seed ledger lacks. Drives
    *  `characterSeeder` and `personaSeeder`; the boot owner step and the first-authed-request hook share it. */
   readonly contentSeeder: UserContentSeeder;
   /** The per-user SCENE-PLATE seeder (`domain/settings`) — boot + the first-authed-request hook run it. */
@@ -1293,7 +1293,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     worldInfo,
   };
 
-  // The ONE user seed (ADR 0261) boot + the app first-request hook share: the manifest's items, gated by the
+  // The ONE user seed (D263) boot + the app first-request hook share: the manifest's items, gated by the
   // account's seed ledger. Built here, after the roster presets it creates and the two seeders it drives.
   const contentSeeder = createUserContentSeeder({
     enabled: (): boolean => env.SEED_CONTENT === "on",

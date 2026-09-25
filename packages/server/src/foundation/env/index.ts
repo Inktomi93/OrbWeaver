@@ -349,7 +349,7 @@ const envSchema = z
     // Deliberately NOT a `NODE_ENV` inference: this repo's env law is explicit natures, and "is this a dev
     // stack" is not the same question as "is this a development build".
     DEV_SEED: z.enum(["on", "off"]).default("off"),
-    // The operator switch for the user seed (ADR 0261): `off` gives no account the shipped characters, persona or
+    // The operator switch for the user seed (D263): `off` gives no account the shipped characters, persona or
     // roster presets and records nothing in the seed ledger, so turning it back on seeds what was withheld.
     SEED_CONTENT: z.enum(["on", "off"]).default("on"),
     // The container image's self-declaration (`ENV ORB_CONTAINER=true` in the Dockerfile), read with the runtime's

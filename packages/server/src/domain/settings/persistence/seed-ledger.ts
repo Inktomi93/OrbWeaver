@@ -1,4 +1,4 @@
-// The per-account seed ledger (ADR 0261): which seed-manifest keys an account has been given. A recorded key is
+// The per-account seed ledger (D263): which seed-manifest keys an account has been given. A recorded key is
 // never seeded again, so a deleted seeded item stays deleted; recording is idempotent on the (user, key) key.
 
 import type { Db } from "@orb/db";

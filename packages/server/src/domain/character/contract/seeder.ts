@@ -1,6 +1,6 @@
 // domain/character/contract/seeder — the default-card seeder's typed surface; seeder/ implements
 // createDefaultCharacterSeeder over these. Wired by entry over the character front door; the seed ledger that
-// decides WHICH cards an account receives lives at entry (ADR 0261), so this seeder seeds one card at a time.
+// decides WHICH cards an account receives lives at entry (D263), so this seeder seeds one card at a time.
 
 import type { CharacterCard, CreateCharacterInput, UpdateCharacterInput } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";

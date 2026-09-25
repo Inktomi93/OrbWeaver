@@ -1,4 +1,4 @@
-// Mirror int-test for domain/settings/persistence/seed-ledger — the per-account seed ledger (ADR 0261). A recorded
+// Mirror int-test for domain/settings/persistence/seed-ledger — the per-account seed ledger (D263). A recorded
 // key reads back, a second record keeps the first time, and one account's keys never reach another's.
 
 import type { Db } from "@orb/db";

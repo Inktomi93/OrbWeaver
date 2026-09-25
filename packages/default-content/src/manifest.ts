@@ -1,4 +1,4 @@
-// The user seed's ONE manifest (ADR 0261): every item an account is seeded with, keyed and kinded. The seed is
+// The user seed's ONE manifest (D263): every item an account is seeded with, keyed and kinded. The seed is
 // content, never a conversation, so no room or transcript appears here. Each key is recorded once in the
 // account's seed ledger, so an item the user deleted is never seeded again and an item a later build adds
 // here reaches existing accounts on their next boot.
@@ -14,9 +14,10 @@ export type SeedItemKind = (typeof SEED_ITEM_KINDS)[number];
 export type SeedManifestItem =
   /** A shipped card, by its handle; the server's card pack holds its content, avatar, greetings and scene plate. */
   | { readonly kind: "character"; readonly key: string; readonly handle: CharacterHandle }
-  /** The default `{{user}}` persona. */
+  /** The default `{{user}}` persona. Only an automation-started stack receives it; a person names their own
+   *  persona in the first-run step (D263), so the item stays unrecorded on their account. */
   | { readonly kind: "persona"; readonly key: string }
-  /** A roster preset over seeded characters, which starts a group chat in one action. */
+  /** A roster preset over seeded characters, which starts a chat in one action. */
   | {
       readonly kind: "rosterPreset";
       readonly key: string;
