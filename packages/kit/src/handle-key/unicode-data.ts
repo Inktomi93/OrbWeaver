@@ -2,6 +2,7 @@
 //   https://www.unicode.org/Public/17.0.0/ucd/CaseFolding.txt sha256 ff8d8fefbf123574205085d6714c36149eb946d717a0c585c27f0f4ef58c4183
 //   https://www.unicode.org/Public/17.0.0/ucd/DerivedCoreProperties.txt sha256 24c7fed1195c482faaefd5c1e7eb821c5ee1fb6de07ecdbaa64b56a99da22c08
 //   https://www.unicode.org/Public/17.0.0/security/confusables.txt sha256 091c7f82fc39ef208faf8f94d29c244de99254675e09de163160c810d13ef22a
+//   https://www.unicode.org/Public/17.0.0/ucd/PropertyValueAliases.txt sha256 64e9a5f76f7a1e8b5a47d6a1f9a26522a251208f5276bdfa1559dac7cf2e827a
 // Entries are hex code points: `source>target` (a target may be a space-separated sequence), or `first-last`.
 
 export const UNICODE_DATA_VERSION = "17.0.0";
@@ -145,4 +146,11 @@ export const CONFUSABLE_PROTOTYPES: readonly string[] = [
   "2fad>9751;2ed8>9752;fa1c>9756;fac8>9756;2f81c>291df;2fae>975e;2faf>9762;2f9f7>2921a;2fb0>9769;2f9f8>4a6e;2f9f9>4a76;2fb1>97cb;2ed9>97e6;fac9>97db;2f9fa>97e0;2fb2>97ed;2f9fb>2940a;2fb3>97f3;fa69>97ff;faca>97ff;2fb4>9801;2eda>9875;2f9fc>4ab2;facb>980b;2f9fe>980b;2f9ff>980b;f9b4>9818;2fa00>9829;2f9fd>29496;fa6a>983b;facc>983b;f9d0>985e;2fb5>98a8;2edb>98ce;2fa01>295b6;2fb6>98db;2edc>98de;2edd>98df;2fb7>98df;2edf>98e0;2ee0>9963;2fa02>98e2;fa2a>98ef;fa2b>98fc;2fa03>4b33;fa2c>9928;2fa04>9929;2fb8>9996;2fb9>9999;2fa05>99a7;2fba>99ac;2ee2>9a6c;2fa06>99c2;f91a>99f1;2fa07>99fe;f987>9a6a;2fbb>9aa8;2fa08>4bce;2fbc>9ad8;2fbd>9adf;2fa09>29b30;facd>9b12;2fa0a>9b12;2fbe>9b25",
   "2fbf>9b2f;2fc0>9b32;2fc1>9b3c;2ee4>9b3c;2fc2>9b5a;2ee5>9c7c;f939>9b6f;2fa0b>9c40;f9f2>9c57;2fc3>9ce5;2fa0c>9cfd;2fa0d>4cce;9e43>9e42;2fa0f>9d67;2fa0e>4ced;2fa10>2a0ce;fa2d>9db4;2fa12>2a105;2fa11>4cf8;f93a>9dfa;2fa13>2a20e;f920>9e1e;2fc4>9e75;f940>9e7f;2fc5>9e7f;2fa14>2a291;f988>9e97;f9f3>9e9f;2fc6>9ea5;2ee8>9ea6;2fa15>9ebb;2fc7>9ebb;2f88f>2a392;2fc8>9ec3;2ee9>9ec4;2fc9>9ecd;f989>9ece;2fa16>4d56;2fca>9ed1;9ed2>9ed1;fa3a>58a8;2fa17>9ef9;2fcb>9ef9;2fcc>9efd;2fa18>9efe;2fa19>9f05;2fcd>9f0e;2fa1a>9f0f;2fce>9f13;2fa1b>9f16;2fcf>9f20;2fa1c>9f3b;2fd0>9f3b;fad8>9f43;2fd1>9f4a;2eec>9f50;2fd2>9f52;2eee>9f7f;2fa1d>2a600;f9c4>9f8d;2fd3>9f8d;2ef0>9f99;fad9>9f8e;f907>9f9c",
   "f908>9f9c;face>9f9c;2fd4>9f9c;2ef3>9f9f;2fd5>9fa0;cdc>c5c;1de8>1ada;2dee>1adb;1ae7>1ae5;31a>1ae9;295>a7ce;a7cf>a7ce;348>10efa;956>11b62;a41>11b62;957>11b63;a42>11b63;947>11b64;a47>11b64;5152>16ff3;1f40d>1ccfa;1f443>1ccfc;1f377>1ceba;1f3e2>1cebb;1f333>1cebc;1f34e>1cebd;1f34f>1cebd;1f352>1cebe;1f353>1cebf;28ff>1cee0;29b5>1cef0;21c4>1f8d0;21cc>1f8d1;2657>1fa55;265d>1fa57;1f514>1fbfa;6138>2b73f",
+];
+
+/** PropertyValueAliases.txt: every Script short code a code point can carry. */
+export const SCRIPT_CODES: readonly string[] = [
+  "Adlm;Aghb;Ahom;Arab;Armi;Armn;Avst;Bali;Bamu;Bass;Batk;Beng;Berf;Bhks;Bopo;Brah;Brai;Bugi;Buhd;Cakm;Cans;Cari;Cham;Cher;Chrs;Copt;Cpmn;Cprt;Cyrl;Deva;Diak;Dogr;Dsrt;Dupl;Egyp;Elba;Elym;Ethi;Gara;Geor;Glag;Gong;Gonm;Goth;Gran;Grek;Gujr;Gukh;Guru;Hang;Hani;Hano;Hatr;Hebr;Hira;Hluw;Hmng;Hmnp;Hung;Ital;Java;Kali;Kana;Kawi",
+  "Khar;Khmr;Khoj;Kits;Knda;Krai;Kthi;Lana;Laoo;Latn;Lepc;Limb;Lina;Linb;Lisu;Lyci;Lydi;Mahj;Maka;Mand;Mani;Marc;Medf;Mend;Merc;Mero;Mlym;Modi;Mong;Mroo;Mtei;Mult;Mymr;Nagm;Nand;Narb;Nbat;Newa;Nkoo;Nshu;Ogam;Olck;Onao;Orkh;Orya;Osge;Osma;Ougr;Palm;Pauc;Perm;Phag;Phli;Phlp;Phnx;Plrd;Prti;Rjng;Rohg;Runr;Samr;Sarb;Saur;Sgnw",
+  "Shaw;Shrd;Sidd;Sidt;Sind;Sinh;Sogd;Sogo;Sora;Soyo;Sund;Sunu;Sylo;Syrc;Tagb;Takr;Tale;Talu;Taml;Tang;Tavt;Tayo;Telu;Tfng;Tglg;Thaa;Thai;Tibt;Tirh;Tnsa;Todr;Tols;Toto;Tutg;Ugar;Vaii;Vith;Wara;Wcho;Xpeo;Xsux;Yezi;Yiii;Zanb;Zinh;Zyyy;Zzzz",
 ];

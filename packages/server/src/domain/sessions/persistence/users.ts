@@ -100,13 +100,13 @@ export async function insertUser(db: Db, row: UserInsert): Promise<void> {
     .onConflictDoNothing();
 }
 
-// ADR 0254 — the one handle-key match: the pre-checks below and both signup inserts' NOT EXISTS read it, so
+// D256 — the one handle-key match: the pre-checks below and both signup inserts' NOT EXISTS read it, so
 // the read and the race guard compare the same key.
 function holdsHandleKeyOf(handle: Handle): SQL {
   return sql`${users.handleKey} = ${handleKey(handle)}`;
 }
 
-/** ADR 0254 — does any row carry this handle's key (any case, any confusable)? The local signup route's check
+/** D256 — does any row carry this handle's key (any case, any confusable)? The local signup route's check
  *  before any password hashing and the pending-join confirm's check before it plans; each account insert
  *  repeats it inside the batch. */
 export async function selectHandleKeyTaken(db: Db, handle: Handle): Promise<boolean> {

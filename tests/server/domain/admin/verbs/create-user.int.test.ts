@@ -153,11 +153,22 @@ describe("createUser", () => {
     const db = await freshDb();
     const { svc, admin } = await seedAdminCaller(db);
     await seedUser(db, { id: "user_host", role: "user", handle: castId<Handle>("host") });
-    await expect(svc.createUser({ principal: principal(admin, "admin"), handle: castId<Handle>("Нost"), password: GOOD_PASSWORD })).rejects.toMatchObject({
+    await expect(svc.createUser({ principal: principal(admin, "admin"), handle: castId<Handle>("h0st"), password: GOOD_PASSWORD })).rejects.toMatchObject({
       code: "user_exists",
     });
     await expect(svc.createUser({ principal: principal(admin, "admin"), handle: castId<Handle>("hosts"), password: GOOD_PASSWORD })).resolves.toMatchObject({
       handle: "hosts",
+    });
+  });
+
+  test("a mixed-script handle is rejected (invalid_handle); a single-script non-Latin one is minted", async () => {
+    const db = await freshDb();
+    const { svc, admin } = await seedAdminCaller(db);
+    await expect(svc.createUser({ principal: principal(admin, "admin"), handle: castId<Handle>("hσst"), password: GOOD_PASSWORD })).rejects.toMatchObject({
+      code: "invalid_handle",
+    });
+    await expect(svc.createUser({ principal: principal(admin, "admin"), handle: castId<Handle>("Дмитрий"), password: GOOD_PASSWORD })).resolves.toMatchObject({
+      handle: "Дмитрий",
     });
   });
 

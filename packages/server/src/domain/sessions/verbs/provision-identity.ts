@@ -1,4 +1,5 @@
 import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
+import { admitsHandle } from "@orb/kit/handle-key";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { newId } from "@orb/kit/ids";
 import { getLog, groupsLogFields, securityEvent } from "#foundation/observability";
@@ -138,10 +139,18 @@ async function updateExisting(
   };
 }
 
-/** ADR 0254 — an IdP rename may not take another row's handle key: a user renamed onto a look-alike of a
- *  member's handle keeps their current handle, and the login proceeds. A concurrent rename onto the same key
- *  still meets `users_handle_key_unique`. */
+/** D256 — an IdP rename may not take another row's handle key or a mixed-script handle: the user keeps
+ *  their current handle, and the login proceeds. A concurrent rename onto the same key still meets
+ *  `users_handle_key_unique`. */
 async function renameIsFree(ctx: SessionsContext, existing: ProvisionCandidate, identity: ResolvedIdentity): Promise<boolean> {
+  if (!admitsHandle(identity.handle)) {
+    securityEvent(
+      "sso_rename_to_inadmissible_handle",
+      { userId: existing.id, handle: existing.handle, requested: identity.handle },
+      "security: an IdP rename asked for a mixed-script handle; keeping the current handle",
+    );
+    return false;
+  }
   const holder = await selectIdByHandleKey(ctx.db, identity.handle);
   if (holder === undefined || holder === existing.id) {
     return true;
@@ -184,6 +193,15 @@ async function refuseLostInsertRace(ctx: SessionsContext, identity: ResolvedIden
  *  admin; the owner is never gated). It reuses the `enabled` control `validate` and the SSO callback refuse on,
  *  rather than a `pending` role in the D17 lattice. */
 async function insertNew(ctx: SessionsContext, identity: ResolvedIdentity, resolvedRole: UserRole, enabled: boolean): Promise<ProvisionResult> {
+  // D256: a new account never takes a mixed-script handle, which can spell a look-alike the key misses.
+  if (!admitsHandle(identity.handle)) {
+    securityEvent(
+      "sso_insert_inadmissible_handle",
+      { handle: identity.handle, externalId: identity.externalId },
+      "security: SSO first login refused — the IdP handle mixes scripts (D256); no account was created",
+    );
+    return { outcome: "denied" };
+  }
   const now = ctx.now();
   await insertUser(ctx.db, {
     id: newId<UserId>(),

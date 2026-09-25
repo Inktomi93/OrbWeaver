@@ -4,6 +4,7 @@
 // and email NOT EXISTS, and the unique indexes. Everything else was decided from the rows read here.
 
 import type { ResolvedIdentity } from "@orb/contracts/identity";
+import { admitsHandle } from "@orb/kit/handle-key";
 import type { ExternalId, UserId } from "@orb/kit/ids";
 import { newId } from "@orb/kit/ids";
 import { OIDC_PENDING_JOIN_TTL_MS } from "#infra/auth";
@@ -82,8 +83,8 @@ export function createPendingSignup(ctx: SessionsContext): PendingSignupVerbs {
       return null;
     }
     // The local signup's handle rules: an invite is the one path where a stranger picks the handle, so a
-    // reserved seed key or a handle sharing a member's key never becomes a look-alike account.
-    if (isReservedSignupHandle(identity.handle) || (await selectHandleKeyTaken(ctx.db, identity.handle))) {
+    // reserved seed key, a mixed-script handle or one sharing a member's key never becomes a look-alike account.
+    if (!admitsHandle(identity.handle) || isReservedSignupHandle(identity.handle) || (await selectHandleKeyTaken(ctx.db, identity.handle))) {
       return null;
     }
     const existing = (await selectForProvisionByExternalId(ctx.db, identity.externalId)) ?? (await selectForProvisionByHandle(ctx.db, identity.handle));

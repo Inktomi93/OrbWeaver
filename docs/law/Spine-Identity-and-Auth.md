@@ -107,7 +107,7 @@ Code comments cite the numbered invariants below as "invariant N":
     singleton, in one ruled precedence. That precedence is the pure `decideProvision`
     (`domain/sessions/substrate/decide-provision.ts`, D254): the verb interprets its decision, and a
     batch-shaped signup statement that decides through the same function is not a second upsert. Such a
-    statement carries only the race-relevant checks in SQL: the unique indexes and a `NOT EXISTS` on the handle key and on email.
+    statement carries only the race-relevant checks in SQL: the unique indexes and a `NOT EXISTS` on the handle key (D256) and on email.
     The one such statement is the `oidc` pending-join confirm (`domain/sessions/verbs/pending-signup.ts`).
     A mode with its own upsert would carry its own, weaker, takeover
     posture. Enforcers: `infra/auth` is db-free and may not import a domain, so a mode resolver
@@ -344,6 +344,7 @@ client does when a resolved session goes stale.
 - `externalId` keys SSO (stable authentik sub/uid, unique-when-set); `handle` keys everything else
   (rename stability).
 - `users.handle_key` is the comparison key every handle writer checks, so a case variant or look-alike
-  of a held handle is that handle; the displayed handle is never folded (D254, `@orb/kit/handle-key`).
+  of a held handle is that handle, and a writer refuses a mixed-script handle; the displayed handle is
+  never folded (D256, `@orb/kit/handle-key`).
 - Credential AAD binds `${userId}|${provider}` — single production site
   `domain/credentials/persistence/aad.ts`; `SecretBox` carries the AAD, never derives it.

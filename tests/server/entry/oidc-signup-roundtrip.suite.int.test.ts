@@ -427,6 +427,27 @@ describe("a pending join claims no handle the local signup would refuse", () => 
     expect(await inviteUses(f)).toBe(0);
   });
 
+  // A key applied once missed a few two-step prototypes (`ɪ` → `i` → `l`), and a mixed-script handle can spell
+  // a look-alike the confusable data does not map; the confirm refuses both.
+  test.each([
+    ["admin", "admɪn"],
+    ["host", "hσst"],
+    ["root", "гoot"],
+  ])("beside %s, the pending join as %s is refused at the confirm", async (held, joiner) => {
+    const f = await flow();
+    await seedUser(f.db, { handle: castId<Handle>(held) });
+    const secret = await pendingJoin(f, joiner);
+    expect((await confirm(f, secret)).status).toBe(404);
+    expect(await usersBySubject(f, joiner)).toHaveLength(0);
+  });
+
+  test.each([["Дмитрий"], ["やまだ太郎"], ["Émile"]])("control: a single-script handle (%s) still joins", async (joiner) => {
+    const f = await flow();
+    const secret = await pendingJoin(f, joiner);
+    expect((await confirm(f, secret)).status).toBe(200);
+    expect(await usersBySubject(f, joiner)).toHaveLength(1);
+  });
+
   test("control: beside host, a genuinely different handle (hosts) still joins", async () => {
     const f = await flow();
     await seedUser(f.db, { handle: castId<Handle>("host") });

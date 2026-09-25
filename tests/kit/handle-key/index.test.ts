@@ -1,5 +1,5 @@
 import process from "node:process";
-import { handleKey } from "@orb/kit/handle-key";
+import { admitsHandle, handleKey } from "@orb/kit/handle-key";
 import { describe } from "vitest";
 import { UNICODE_DATA_VERSION } from "../../../packages/kit/src/handle-key/unicode-data.ts";
 import { expect, test } from "../../support/fixtures.ts";
@@ -32,6 +32,24 @@ describe("handleKey", () => {
     expect(handleKey(a)).not.toBe(handleKey(b));
   });
 
+  test("a two-step prototype shares the key: admɪn ≅ admin", () => {
+    expect(handleKey("admɪn")).toBe(handleKey("admin"));
+  });
+
+  test("the key is idempotent over the BMP", () => {
+    const moving: string[] = [];
+    for (let cp = BMP_FIRST_PRINTABLE; cp <= BMP_LAST; cp++) {
+      if (cp >= SURROGATES[0] && cp <= SURROGATES[1]) {
+        continue;
+      }
+      const key = handleKey(String.fromCodePoint(cp));
+      if (handleKey(key) !== key) {
+        moving.push(cp.toString(16));
+      }
+    }
+    expect(moving).toEqual([]);
+  });
+
   test("every BMP code point keys the same as its upper- and lower-cased forms", () => {
     const mismatches: string[] = [];
     for (let cp = BMP_FIRST_PRINTABLE; cp <= BMP_LAST; cp++) {
@@ -45,6 +63,26 @@ describe("handleKey", () => {
       }
     }
     expect(mismatches).toEqual([]);
+  });
+
+  test.each([
+    ["Greek inside Latin", "hσst"],
+    ["Cyrillic inside Latin", "гoot"],
+    ["Latin with Hangul and Hiragana", "a한や"],
+    ["an unassigned code point", "ab͸"],
+  ])("admitsHandle refuses %s: %s", (_, handle) => {
+    expect(admitsHandle(handle)).toBe(false);
+  });
+
+  test.each([
+    ["accented Latin", "Émile"],
+    ["all Cyrillic", "Дмитрий"],
+    ["Hiragana with Han", "やまだ太郎"],
+    ["Latin with Han and Katakana", "yamada太タ"],
+    ["Latin with Hangul and Han", "kim한韓"],
+    ["Latin with digits and punctuation", "user_01.dev"],
+  ])("control: admitsHandle allows %s: %s", (_, handle) => {
+    expect(admitsHandle(handle)).toBe(true);
   });
 
   // Stored keys mix the vendored tables with the engine's NFKC/NFD and case mapping, so an engine on another

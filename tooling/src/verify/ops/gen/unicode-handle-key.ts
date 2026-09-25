@@ -1,4 +1,4 @@
-// Vendors the case folding, default-ignorable and UTS 39 confusable tables the handle key reads, pinned to the
+// Vendors the case folding, default-ignorable, UTS 39 confusable and script-code tables handle keys read, pinned to the
 // engine's Unicode version (the key mixes them with the engine's NFKC/NFD), each source's SHA-256 recorded. A bump
 // re-keys every `users.handle_key` row in the same change. No `--check` arm: freshness would need the network.
 import { createHash } from "node:crypto";
@@ -21,10 +21,16 @@ const UNICODE_SOURCES = {
   caseFolding: `${PUBLIC}/ucd/CaseFolding.txt`,
   derivedCore: `${PUBLIC}/ucd/DerivedCoreProperties.txt`,
   confusables: `${PUBLIC}/security/confusables.txt`,
+  aliases: `${PUBLIC}/ucd/PropertyValueAliases.txt`,
 } as const;
+
+type UnicodeSources = { readonly [K in keyof typeof UNICODE_SOURCES]: string };
 
 const CASE_FOLDING_KEPT_STATUSES: ReadonlySet<string> = new Set(["C", "F"]);
 const DEFAULT_IGNORABLE = "Default_Ignorable_Code_Point";
+const SCRIPT_PROPERTY = "sc";
+// `Hrkt` (Katakana_Or_Hiragana) is a Script value no code point carries, and `\p{scx=Hrkt}` does not compile.
+const UNCARRIED_SCRIPTS: ReadonlySet<string> = new Set(["Hrkt"]);
 const ENTRIES_PER_LINE = 64;
 const HEX_RADIX = 16;
 
@@ -47,15 +53,17 @@ function sequence(field: string): string {
 
 // Pure: the three tables as `source>target` / `first-last` entries, each checked against the pinned version a
 // file announces, so a stale or mismatched download refuses instead of writing.
-function parseUnicodeTables(sources: { readonly caseFolding: string; readonly derivedCore: string; readonly confusables: string }): {
+function parseUnicodeTables(sources: UnicodeSources): {
   readonly caseFolding: readonly string[];
   readonly defaultIgnorable: readonly string[];
   readonly confusables: readonly string[];
+  readonly scripts: readonly string[];
 } {
   const versions = [
     [UNICODE_SOURCES.caseFolding, sources.caseFolding, `CaseFolding-${UNICODE_DATA_VERSION}.txt`],
     [UNICODE_SOURCES.derivedCore, sources.derivedCore, `DerivedCoreProperties-${UNICODE_DATA_VERSION}.txt`],
     [UNICODE_SOURCES.confusables, sources.confusables, `Version: ${UNICODE_DATA_VERSION}`],
+    [UNICODE_SOURCES.aliases, sources.aliases, `PropertyValueAliases-${UNICODE_DATA_VERSION}.txt`],
   ] as const;
   for (const [url, text, marker] of versions) {
     if (!text.includes(marker)) {
@@ -69,16 +77,20 @@ function parseUnicodeTables(sources: { readonly caseFolding: string; readonly de
     .filter(([, property]) => property === DEFAULT_IGNORABLE)
     .map(([range]) => (range ?? "").split("..").map(sequence).join("-"));
   const confusables = fields(sources.confusables).map(([source, target]) => `${sequence(source ?? "")}>${sequence(target ?? "")}`);
+  const scripts = fields(sources.aliases)
+    .filter(([property, code]) => property === SCRIPT_PROPERTY && !UNCARRIED_SCRIPTS.has(code ?? ""))
+    .map(([, code]) => code ?? "");
   for (const [name, table] of [
     ["case folding", caseFolding],
     ["default ignorable", defaultIgnorable],
     ["confusables", confusables],
+    ["script", scripts],
   ] as const) {
     if (table.length === 0) {
       throw new Error(`the ${name} table parsed empty; refusing to write a key that folds nothing`);
     }
   }
-  return { caseFolding, defaultIgnorable, confusables };
+  return { caseFolding, defaultIgnorable, confusables, scripts };
 }
 
 // One exported array of `;`-joined entry lines, so the file stays diffable and inside the formatter's width.
@@ -91,7 +103,7 @@ function constant(name: string, doc: string, entries: readonly string[]): string
 }
 
 /** Pure: the whole generated module for the parsed tables and the raw sources they came from. */
-export function renderUnicodeHandleKeyData(sources: { readonly caseFolding: string; readonly derivedCore: string; readonly confusables: string }): string {
+export function renderUnicodeHandleKeyData(sources: UnicodeSources): string {
   const tables = parseUnicodeTables(sources);
   const digest = (text: string): string => createHash("sha256").update(text).digest("hex");
   return [
@@ -99,6 +111,7 @@ export function renderUnicodeHandleKeyData(sources: { readonly caseFolding: stri
     `//   ${UNICODE_SOURCES.caseFolding} sha256 ${digest(sources.caseFolding)}`,
     `//   ${UNICODE_SOURCES.derivedCore} sha256 ${digest(sources.derivedCore)}`,
     `//   ${UNICODE_SOURCES.confusables} sha256 ${digest(sources.confusables)}`,
+    `//   ${UNICODE_SOURCES.aliases} sha256 ${digest(sources.aliases)}`,
     "// Entries are hex code points: `source>target` (a target may be a space-separated sequence), or `first-last`.",
     "",
     `export const UNICODE_DATA_VERSION = ${JSON.stringify(UNICODE_DATA_VERSION)};`,
@@ -106,6 +119,7 @@ export function renderUnicodeHandleKeyData(sources: { readonly caseFolding: stri
     constant("CASE_FOLDING", "CaseFolding.txt, statuses C and F: the full case folding.", tables.caseFolding),
     constant("DEFAULT_IGNORABLE", "DerivedCoreProperties.txt `Default_Ignorable_Code_Point` ranges.", tables.defaultIgnorable),
     constant("CONFUSABLE_PROTOTYPES", "UTS 39 confusables.txt: each source code point's prototype.", tables.confusables),
+    constant("SCRIPT_CODES", "PropertyValueAliases.txt: every Script short code a code point can carry.", tables.scripts),
   ].join("\n");
 }
 
@@ -127,12 +141,13 @@ export async function generateUnicodeHandleKeyData(root: string): Promise<number
     );
     return EXIT.misuse;
   }
-  const [caseFolding, derivedCore, confusables] = await Promise.all([
+  const [caseFolding, derivedCore, confusables, aliases] = await Promise.all([
     fetchSource(UNICODE_SOURCES.caseFolding),
     fetchSource(UNICODE_SOURCES.derivedCore),
     fetchSource(UNICODE_SOURCES.confusables),
+    fetchSource(UNICODE_SOURCES.aliases),
   ]);
-  writeFileSync(join(root, UNICODE_HANDLE_KEY_DATA_REL), renderUnicodeHandleKeyData({ caseFolding, derivedCore, confusables }));
+  writeFileSync(join(root, UNICODE_HANDLE_KEY_DATA_REL), renderUnicodeHandleKeyData({ caseFolding, derivedCore, confusables, aliases }));
   emitLine(`unicode-handle-key: wrote ${UNICODE_HANDLE_KEY_DATA_REL} from Unicode ${UNICODE_DATA_VERSION}`);
   return EXIT.clean;
 }

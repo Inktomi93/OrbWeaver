@@ -26,6 +26,7 @@ import type { RequestTransport, ResolvedIdentity, SignupErrorCode, SignupRequest
 import { signupRequestSchema } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { DomainRateLimitError } from "@orb/kit/errors";
+import { admitsHandle } from "@orb/kit/handle-key";
 import type { ExternalId, Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Context, Hono, MiddlewareHandler } from "hono";
@@ -876,7 +877,7 @@ async function admitSignupAttempt(
   if (inviteThrottled !== null) {
     return inviteThrottled;
   }
-  if (signup.isReservedHandle(attempt.handle) || (await signup.handleTaken(attempt.handle))) {
+  if (!admitsHandle(attempt.handle) || signup.isReservedHandle(attempt.handle) || (await signup.handleTaken(attempt.handle))) {
     return signupRefusal(c, "handle_unavailable", CONFLICT);
   }
   return null;

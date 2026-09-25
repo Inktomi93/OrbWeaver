@@ -484,10 +484,20 @@ describe("sessions.provisionIdentity — MS-W1 collision hard-deny (mode-switch 
     vi.stubEnv("OWNER_HANDLES", "someone-else");
     asProvisioned(await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|host"), handle: castId<Handle>("host") })));
     const before = await rowCount();
-    const result = await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|spoof"), handle: castId<Handle>("Нost") }), {
+    const result = await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|spoof"), handle: castId<Handle>("h0st") }), {
       allowJitProvision: true,
     });
     expect(result).toEqual({ outcome: "denied", reason: "account-exists" });
+    expect(await rowCount()).toBe(before);
+  });
+
+  test("a MIXED-SCRIPT handle at the mint path (signup ON) ⇒ DENIED, no row", async () => {
+    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    const before = await rowCount();
+    const result = await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|mixed"), handle: castId<Handle>("гoot") }), {
+      allowJitProvision: true,
+    });
+    expect(result.outcome).toBe("denied");
     expect(await rowCount()).toBe(before);
   });
 
@@ -601,9 +611,18 @@ describe("sessions.provisionIdentity — rename stability (externalId is the key
     vi.stubEnv("OWNER_HANDLES", "x");
     await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|host"), handle: castId<Handle>("host") }));
     const first = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("old-name") })));
-    const renamed = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("Нost") })));
+    const renamed = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("h0st") })));
     expect(renamed.userId).toBe(first.userId);
     expect(renamed.identityChanged).toBe(false);
+    const row = (await db.select().from(users).where(eq(users.id, first.userId)))[0];
+    expect(row?.handle).toBe("old-name");
+  });
+
+  test("an IdP rename onto a mixed-script handle keeps the current handle", async () => {
+    vi.stubEnv("OWNER_HANDLES", "x");
+    const first = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("old-name") })));
+    const renamed = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("hσst") })));
+    expect(renamed.userId).toBe(first.userId);
     const row = (await db.select().from(users).where(eq(users.id, first.userId)))[0];
     expect(row?.handle).toBe("old-name");
   });

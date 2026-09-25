@@ -16,6 +16,13 @@ const SOURCES = {
     "0041..005A    ; Alphabetic # L&  [26] LATIN CAPITAL LETTER A..Z",
   ].join("\n"),
   confusables: ["# Version: 17.0.0", "0441 ;\t0063 ;\tMA\t# ( с → c )", "006D ;\t0072 006E ;\tMA\t# ( m → rn )"].join("\n"),
+  aliases: [
+    "# PropertyValueAliases-17.0.0.txt",
+    "gc ; Lu                               ; Uppercase_Letter",
+    "sc ; Grek                             ; Greek",
+    "sc ; Hrkt                             ; Katakana_Or_Hiragana",
+    "sc ; Latn                             ; Latin",
+  ].join("\n"),
 } as const;
 
 test("keeps the full case folding (C and F) and drops the simple and Turkic rows, which would change every key", () => {
@@ -25,6 +32,13 @@ test("keeps the full case folding (C and F) and drops the simple and Turkic rows
   expect(rendered).not.toContain("49>131");
   expect(rendered).toContain('"ad;180b-180d"');
   expect(rendered).toContain('"441>63;6d>72 6e"');
+});
+
+test("keeps every Script code a code point can carry, and only those", () => {
+  const rendered = renderUnicodeHandleKeyData(SOURCES);
+  expect(rendered).toContain('"Grek;Latn"');
+  expect(rendered).not.toContain("Hrkt");
+  expect(rendered).not.toContain("Lu;");
 });
 
 test("refuses a source from another Unicode version instead of vendoring it", () => {

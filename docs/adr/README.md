@@ -203,3 +203,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D253 | [The runtime data dir is one root with a fixed tree](0253-data-dir-layout.md) | active |
 | D254 | [Signup invites mint accounts through one gated batch](0254-signup-invites-mint-through-one-gated-batch.md) | active |
 | D255 | [Network and auth modes: refuse only an off-box owner surface, warn on the rest](0255-network-and-auth-modes.md) | active |
+| D256 | [Handles compare on one Unicode key](0256-handles-compare-on-one-unicode-key.md) | active |

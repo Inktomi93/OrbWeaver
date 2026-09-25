@@ -14,7 +14,7 @@ import type { Principal, UserRole } from "@orb/contracts/identity";
 import { users } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/kit";
 import { DomainOperationError } from "@orb/kit/errors";
-import { handleKey } from "@orb/kit/handle-key";
+import { admitsHandle, handleKey } from "@orb/kit/handle-key";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
@@ -49,6 +49,9 @@ function validateCreate(params: CreateUserParams, role: UserRole): Handle {
   const handle = params.handle.trim();
   if (handle.length === 0) {
     throw new DomainOperationError(ADMIN_OP_CODES.invalidHandle, "handle must not be empty");
+  }
+  if (!admitsHandle(handle)) {
+    throw new DomainOperationError(ADMIN_OP_CODES.invalidHandle, "handle must be written in one script (D256)");
   }
 
   // The owner is the immutable bootstrap row — never minted through admin. Refuses even the owner caller,
@@ -131,7 +134,7 @@ export function createCreateUser(ctx: AdminContext): AdminService["createUser"] 
     requireMintAuthority(params.principal, role);
     const handle = validateCreate(params, role);
 
-    // Friendly pre-check on the handle key (ADR 0254: a case variant or look-alike is the same handle) — the
+    // Friendly pre-check on the handle key (D256: a case variant or look-alike is the same handle) — the
     // key's unique index + the TOCTOU translation in insertLocalUser are the real defense.
     const existing = await ctx.db
       .select({ id: users.id })
