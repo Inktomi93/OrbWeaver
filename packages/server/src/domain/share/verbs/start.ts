@@ -5,7 +5,7 @@ import { DomainOperationError } from "@orb/kit/errors";
 import type { ShareParams } from "../contract/params.ts";
 import type { ShareContext, ShareService } from "../contract/service.ts";
 
-export function createStart(ctx: Pick<ShareContext, "requireOwner" | "refusal" | "relay" | "liveSocketCount" | "audit" | "now">): ShareService["start"] {
+export function createStart(ctx: Pick<ShareContext, "requireOwner" | "refusal" | "relay" | "liveSocketsBesides" | "audit" | "now">): ShareService["start"] {
   return async ({ principal }: ShareParams) => {
     ctx.requireOwner(principal);
     const refusal = await ctx.refusal();
@@ -14,6 +14,6 @@ export function createStart(ctx: Pick<ShareContext, "requireOwner" | "refusal" |
     }
     const relay = await ctx.relay.start();
     await ctx.audit({ actorUserId: principal.userId, action: "share.start", entityType: "server", metadata: { relay: relay.state } }, ctx.now());
-    return { relay, liveSocketCount: ctx.liveSocketCount() };
+    return { relay, liveSocketCount: ctx.liveSocketsBesides(principal.userId) };
   };
 }

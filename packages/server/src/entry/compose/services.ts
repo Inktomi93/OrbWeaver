@@ -1249,7 +1249,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       inContainer: bindPostureInput().inContainer,
       ownerNeedsPassword: () => sessions.ownerNeedsPassword(),
       localSetupUrl: deps.share.localSetupUrl,
-      liveSocketCount: () => sockets.liveSocketCount(),
+      liveSocketCount: (userId) => sockets.liveSocketCount(userId),
       audit,
       now,
     }),

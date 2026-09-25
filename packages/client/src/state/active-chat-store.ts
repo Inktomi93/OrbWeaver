@@ -17,12 +17,13 @@
 
 import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import type { ChatContextTabId } from "#lib";
 import type { ChatHandle } from "./chat-handle.ts";
 import { committedChat, isCommitted, isLanding, landingChat } from "./chat-handle.ts";
 import { readComposerDraft } from "./composer-draft-store.ts";
 import { createPersistedStore } from "./create-persisted-store.ts";
 import type { SectionSelection } from "./section-registry.ts";
-import { openModal, setActiveSection, setOpenOverlayPanel, withContentSwap } from "./shell-store.ts";
+import { openModal, revealContextPanel, setActiveSection, setOpenOverlayPanel, withContentSwap } from "./shell-store.ts";
 
 /** The CREATION-ONLY parameters of a new chat — what a launcher pre-arms the picker with, and what the
  *  picker hands `chat.startChat`. All fields optional: an empty intent is a legal narrator-only room. */
@@ -49,6 +50,9 @@ interface ActiveChatState {
   /** The one room this device CREATED and has not left — the husk-reap candidate (§4.6). Never a claim
    *  verdict: the server owns that. `null` whenever the active room was merely opened, not created here. */
   readonly createdChatId: ChatId | null;
+  /** The room whose invite dialog another section asked to open (`openRoomInvite`). The Members tab opens its dialog
+   *  while this names its own room, and closing the dialog clears it. Any room change drops it. */
+  readonly inviteChatId: ChatId | null;
 }
 
 type PersistedActiveChatState = Pick<ActiveChatState, "handle">;
@@ -58,6 +62,7 @@ const DEFAULT_STATE: ActiveChatState = {
   handle: landingChat(),
   newChatIntent: undefined,
   createdChatId: null,
+  inviteChatId: null,
 };
 
 const CHAT_ID = typeIdSchema(ID_PREFIX.chat);
@@ -77,7 +82,9 @@ export function __migrateActiveChatForTest(persisted: unknown): ActiveChatState 
     return DEFAULT_STATE;
   }
   const parsed = CHAT_ID.safeParse(handle.id);
-  return handle.kind === "committed" && parsed.success ? { handle: committedChat(parsed.data), newChatIntent: undefined, createdChatId: null } : DEFAULT_STATE;
+  return handle.kind === "committed" && parsed.success
+    ? { handle: committedChat(parsed.data), newChatIntent: undefined, createdChatId: null, inviteChatId: null }
+    : DEFAULT_STATE;
 }
 
 const useActiveChatStore = createPersistedStore<ActiveChatState, PersistedActiveChatState>("active-chat", (): ActiveChatState => DEFAULT_STATE, {
@@ -141,7 +148,7 @@ export function selectChat(chatId: ChatId): void {
   // not leave a float ABOUT THE OLD ROOM's content painted over the new one (#1795).
   withContentSwap(() => {
     const createdChatId = releaseCreatedChat(chatId);
-    useActiveChatStore.setState({ handle: committedChat(chatId), newChatIntent: undefined, createdChatId }, true, "activeChat/select");
+    useActiveChatStore.setState({ handle: committedChat(chatId), newChatIntent: undefined, createdChatId, inviteChatId: null }, true, "activeChat/select");
   });
 }
 
@@ -150,7 +157,11 @@ export function selectChat(chatId: ChatId): void {
 export function enterCreatedChat(chatId: ChatId): void {
   withContentSwap(() => {
     releaseCreatedChat(chatId);
-    useActiveChatStore.setState({ handle: committedChat(chatId), newChatIntent: undefined, createdChatId: chatId }, true, "activeChat/enterCreated");
+    useActiveChatStore.setState(
+      { handle: committedChat(chatId), newChatIntent: undefined, createdChatId: chatId, inviteChatId: null },
+      true,
+      "activeChat/enterCreated",
+    );
   });
 }
 
@@ -158,7 +169,7 @@ export function enterCreatedChat(chatId: ChatId): void {
 export function goToLanding(): void {
   withContentSwap(() => {
     const createdChatId = releaseCreatedChat(null);
-    useActiveChatStore.setState({ handle: landingChat(), newChatIntent: undefined, createdChatId }, true, "activeChat/goToLanding");
+    useActiveChatStore.setState({ handle: landingChat(), newChatIntent: undefined, createdChatId, inviteChatId: null }, true, "activeChat/goToLanding");
   });
 }
 
@@ -175,6 +186,25 @@ export function goToLanding(): void {
 export function resumeChat(chatId: ChatId): void {
   selectChat(chatId);
   setActiveSection("chats");
+}
+
+const MEMBERS_TAB = "members" satisfies ChatContextTabId;
+
+/** Open a room's Members tab with its invite dialog, from another section (the Share card's room picker). The dialog
+ *  opens only where the viewer may invite; anywhere else the Members tab opens alone. */
+export function openRoomInvite(chatId: ChatId): void {
+  resumeChat(chatId);
+  // `resumeChat` writes inside a view transition that runs after this task. Joining it orders the reveal and the
+  // request after the select and the section change, which would otherwise clear both.
+  withContentSwap(() => {
+    revealContextPanel(MEMBERS_TAB);
+    useActiveChatStore.setState({ inviteChatId: chatId }, false, "activeChat/openRoomInvite");
+  });
+}
+
+/** Drop the invite request once its dialog closes, so reopening the room does not reopen the dialog. */
+export function clearRoomInvite(): void {
+  useActiveChatStore.setState({ inviteChatId: null }, false, "activeChat/clearRoomInvite");
 }
 
 /** Land on a chat from the LIST AND close any open LIST slide-over — the viewport-unaware intent form of
@@ -225,6 +255,11 @@ export function useActiveChatId(): ChatId | null {
 export function activeChatId(): ChatId | null {
   const { handle } = useActiveChatStore.getState();
   return isCommitted(handle) ? handle.id : null;
+}
+
+/** The room whose invite dialog another section asked to open, or null. */
+export function useRoomInviteRequest(): ChatId | null {
+  return useActiveChatStore((s) => s.inviteChatId);
 }
 
 /** The creation parameters the new-chat picker was opened with (`openNewChatPicker`), or undefined for a

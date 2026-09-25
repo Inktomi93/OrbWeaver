@@ -1,7 +1,7 @@
 // The Share card's view-model: the share preconditions as rows, the start refusal each row owns, and the
 // memory that notices a relay coming back under a new URL. Pure, so every verdict is unit-proved.
 
-import type { AuthMode, RelayBinaryRefusal, RelayStatus, ShareRefusal, ShareState } from "@orb/contracts/identity";
+import type { AuthMode, RelayBinaryRefusal, RelayDownReason, RelayStatus, ShareRefusal, ShareState } from "@orb/contracts/identity";
 import { RELAY_BINARY_REFUSALS, SHARE_REFUSALS } from "@orb/contracts/identity";
 import { trpcErrorReason } from "#lib";
 
@@ -151,6 +151,35 @@ export function rememberShareLink(memory: ShareLinkMemory, relay: RelayStatus): 
 /** The memory with the change notice dismissed. */
 export function dismissLinkChange(memory: ShareLinkMemory): ShareLinkMemory {
   return memory.changed === null ? memory : { lastUrl: memory.lastUrl, changed: null };
+}
+
+/** What the card shows for the relay. `restarting` is a death until the new link is up, `stopped` one that gave up. */
+export const SHARE_PHASES = ["off", "starting", "up", "restarting", "stopped"] as const;
+type SharePhase = (typeof SHARE_PHASES)[number];
+
+/** The relay as the card shows it: the phase, the link while up, and the death behind a restart or a stop. */
+type ShareView =
+  | { readonly phase: Extract<SharePhase, "off" | "starting"> }
+  | { readonly phase: Extract<SharePhase, "up">; readonly url: string }
+  | { readonly phase: Extract<SharePhase, "restarting" | "stopped">; readonly reason: RelayDownReason };
+
+/**
+ * Folds one relay read into what the card shows. A restart reads `restarting` from its death until its new link is
+ * up, whether the poll caught the short `down` or the restart's own `starting`.
+ */
+export function shareView(relay: RelayStatus): ShareView {
+  if (relay.state === "starting") {
+    return relay.restartAfter === null ? { phase: "starting" } : { phase: "restarting", reason: relay.restartAfter };
+  }
+  if (relay.state === "up") {
+    return { phase: "up", url: relay.url };
+  }
+  if (relay.state === "down") {
+    return { phase: relay.restarting ? "restarting" : "stopped", reason: relay.reason };
+  }
+  // Only `off` is left; a new relay state fails this assignment until it is handled above.
+  const off: { readonly state: "off" } = relay;
+  return { phase: off.state };
 }
 
 // How often each state is read again: a transition fast, a live relay for its socket count, a settled one slowly.

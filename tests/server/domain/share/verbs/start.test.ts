@@ -36,7 +36,7 @@ describe("share.start", () => {
     const h = shareHarness({ authMode: "local", ownerNeedsPassword: true });
     h.claimOwner();
     await expect(h.share.start({ principal: caller("owner") })).resolves.toEqual({
-      relay: { state: "starting", relay: "quick" },
+      relay: { state: "starting", relay: "quick", restartAfter: null },
       liveSocketCount: LIVE_SOCKETS,
     });
     expect(h.calls).toEqual(["ownerNeedsPassword", "relay.start"]);

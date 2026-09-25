@@ -10,7 +10,7 @@ import { Row } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
-import { goToLanding, openModal, useTurnSpeakerCharacterId } from "#state";
+import { clearRoomInvite, goToLanding, openModal, useRoomInviteRequest, useTurnSpeakerCharacterId } from "#state";
 import { useKickMember, useNominateHostHandoff, useSelfLeave, useSetMemberHistoryVisibility } from "../hooks/use-membership-mutations.ts";
 import { useForceCharacterTurn, useRemoveCharacterFromChat, useSetSeatKnobs } from "../hooks/use-roster-mutations.ts";
 import { useRosterPresence } from "../hooks/use-roster-presence.ts";
@@ -69,6 +69,14 @@ export function CommittedMembersTab({ chatId, chat, isHost, multiHumanCapable }:
   const nominateHost = useNominateHostHandoff({ trpc, invalidation });
   const setHistoryVisibility = useSetMemberHistoryVisibility({ trpc, invalidation });
   const [inviteOpen, setInviteOpen] = useState(false);
+  // Another section's invite request for this room opens the dialog, derived in render; closing it spends the request.
+  const inviteRequested = useRoomInviteRequest() === chatId;
+  const moveInvite = (open: boolean): void => {
+    setInviteOpen(open);
+    if (!open) {
+      clearRoomInvite();
+    }
+  };
   // The D22 member card-viewer target — a Character row's "View character" opens the CLAMPED in-room card
   // (getMemberCard) for THIS characterId, NOT a jump to the owner's editable characters library (a
   // member may not own the card, and the library isn't visibility-clamped). `null` = closed; the
@@ -195,7 +203,7 @@ export function CommittedMembersTab({ chatId, chat, isHost, multiHumanCapable }:
         onViewCharacter={(characterId): void => setViewCardCharacterId(characterId)}
       />
 
-      {hostMembership ? <InviteDialog chatId={chatId} open={inviteOpen} onOpenChange={setInviteOpen} /> : null}
+      {hostMembership ? <InviteDialog chatId={chatId} open={inviteOpen || inviteRequested} onOpenChange={moveInvite} /> : null}
       {viewCardCharacterId === null ? null : (
         <MemberCardViewer
           chatId={chatId}

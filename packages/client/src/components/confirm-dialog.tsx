@@ -17,7 +17,7 @@ import {
 import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement, ReactNode, RefObject } from "react";
 import { useState } from "react";
 
 export interface ConfirmDialogProps {
@@ -65,6 +65,8 @@ export interface ConfirmDialogProps {
   readonly confirmLoading?: boolean;
   /** Force-renders the backdrop when this confirm nests inside another open Dialog/AlertDialog. */
   readonly forceRender?: boolean;
+  /** Where focus goes on close. Give one when the act unmounts the trigger, or focus falls to the page body. */
+  readonly finalFocus?: RefObject<HTMLElement | null>;
 }
 
 /**
@@ -108,6 +110,7 @@ export function ConfirmDialog({
   confirmDisabled = false,
   confirmLoading = false,
   forceRender,
+  finalFocus,
 }: ConfirmDialogProps): ReactElement {
   // The dialog owns its open state in BOTH entry shapes, because a close that must wait for an outcome
   // cannot be Base UI's to make (#1563). Controlled callers are unaffected: `open` still wins, and every
@@ -152,7 +155,7 @@ export function ConfirmDialog({
   return (
     <AlertDialog open={isOpen} onOpenChange={moveOpen}>
       {trigger === undefined ? null : <AlertDialogTrigger render={trigger} />}
-      <AlertDialogPopup {...(forceRender === undefined ? {} : { forceRender })}>
+      <AlertDialogPopup {...(forceRender === undefined ? {} : { forceRender })} {...(finalFocus === undefined ? {} : { finalFocus })}>
         <Stack gap="block">
           <AlertDialogTitle>{title}</AlertDialogTitle>
           {description === undefined ? null : <AlertDialogDescription>{description}</AlertDialogDescription>}

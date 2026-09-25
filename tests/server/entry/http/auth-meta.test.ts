@@ -352,7 +352,11 @@ describe("GET /api/auth/config share fields", () => {
   });
 
   test("a relay that is not up serves no link, even to a signed-in caller", async () => {
-    for (const status of [RELAY_OFF, { state: "starting", relay: "quick" }, { state: "down", relay: "quick", reason: "exited", restarting: true }] as const) {
+    for (const status of [
+      RELAY_OFF,
+      { state: "starting", relay: "quick", restartAfter: null },
+      { state: "down", relay: "quick", reason: "exited", restarting: true },
+    ] as const) {
       expect((await run(handlers(withRelay(status)).config, USER)).body["share"], status.state).toEqual({ state: status.state, url: null });
     }
   });

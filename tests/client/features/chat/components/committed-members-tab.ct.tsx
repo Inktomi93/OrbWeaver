@@ -11,6 +11,8 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
+import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { CommittedMembersTabStory } from "../_ct-stories.tsx";
 
 const CHARACTER_SECTION = '[data-slot="members-characters"]';
@@ -336,4 +338,28 @@ test.describe("coarse pointer", () => {
       expect(geometry.doorsTrailBy).toBeLessThan(1);
     });
   }
+});
+
+// The Share card's room picker asks for a room's invite dialog through the active-chat store. The host's Members tab
+// opens it on mount, and closing it spends the request: a request that outlived its dialog would reopen it at once.
+const HOST = { userId: "user_riley", handle: "riley", globalRole: "owner" } satisfies TrpcWireOutput<"sessions.me">;
+
+test.describe("an invite request from another section", () => {
+  test("opens the host's invite dialog, and closing it keeps it closed", async ({ mount, page }) => {
+    await routeTrpc(page, { "sessions.me": HOST, "invites.listInvites": () => [] });
+    await mount(<CommittedMembersTabStory multiHumanCapable={true} inviteRequested={true} />);
+
+    const dialog = page.getByTestId("invite-dialog");
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole("button", { name: "Done" }).click();
+    await expect(dialog).toHaveCount(0);
+  });
+
+  test("control: with no request the dialog waits for Invite people", async ({ mount, page }) => {
+    await routeTrpc(page, { "sessions.me": HOST, "invites.listInvites": () => [] });
+    const component = await mount(<CommittedMembersTabStory multiHumanCapable={true} />);
+
+    await expect(component.getByRole("button", { name: "Invite people" })).toBeVisible();
+    await expect(page.getByTestId("invite-dialog")).toHaveCount(0);
+  });
 });

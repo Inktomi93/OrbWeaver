@@ -37,8 +37,8 @@ describe("share router", () => {
 
   test("control: the owner starts, reads and stops the share", async () => {
     const share = shareCaller("owner");
-    await expect(share.start()).resolves.toEqual({ relay: { state: "starting", relay: "quick" }, liveSocketCount: LIVE_SOCKETS });
-    await expect(share.status()).resolves.toEqual({ relay: { state: "starting", relay: "quick" }, liveSocketCount: LIVE_SOCKETS });
+    await expect(share.start()).resolves.toEqual({ relay: { state: "starting", relay: "quick", restartAfter: null }, liveSocketCount: LIVE_SOCKETS });
+    await expect(share.status()).resolves.toEqual({ relay: { state: "starting", relay: "quick", restartAfter: null }, liveSocketCount: LIVE_SOCKETS });
     await expect(share.stop()).resolves.toEqual({ relay: { state: "off" }, liveSocketCount: LIVE_SOCKETS });
   });
 

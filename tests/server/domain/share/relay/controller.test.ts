@@ -108,7 +108,7 @@ function harness(refuseLaunch: () => Error | null = () => null): Harness {
 describe("createRelayController", () => {
   test("admits the relay host the moment the relay reports its URL, and reads up with that URL", async () => {
     const h = harness();
-    expect(await h.controller.start()).toEqual({ state: "starting", relay: "quick" });
+    expect(await h.controller.start()).toEqual({ state: "starting", relay: "quick", restartAfter: null });
     expect(h.origins).toEqual([ORIGIN]);
     expect(h.registry.hosts()).toEqual([]);
     h.latest().events.onUrl(FIRST);
@@ -166,6 +166,8 @@ describe("createRelayController", () => {
     expect(h.pending().map((timer) => timer.ms)).toEqual([RELAY_RESTART_FIRST_DELAY_MS]);
     await h.fire();
     expect(h.launched).toHaveLength(2);
+    // The restart keeps its death until the new URL arrives, so a poll that missed `down` still reads a restart.
+    expect(h.controller.status()).toEqual({ state: "starting", relay: "quick", restartAfter: "exited" });
     h.latest().events.onUrl(SECOND);
     expect(h.registry.hosts()).toEqual(["quiet-lake-two-foxes.trycloudflare.com"]);
     expect(h.controller.status()).toEqual({ state: "up", relay: "quick", url: SECOND });

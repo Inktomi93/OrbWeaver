@@ -91,7 +91,7 @@ export function createRelayController(deps: RelayControllerDeps): RelayControlle
     log.warn({ share: true, reason, detail, restartInMs: delay }, "share: the relay is down; restarting it under a new link");
     cancelTimer = deps.schedule(() => {
       cancelTimer = null;
-      const next = begin();
+      const next = begin(reason);
       launch(next).catch((err: unknown) => {
         log.error({ share: true, err }, "share: a relay restart could not launch");
         died(next, "launch_failed", errorText(err));
@@ -99,10 +99,11 @@ export function createRelayController(deps: RelayControllerDeps): RelayControlle
     }, delay);
   }
 
-  function begin(): number {
+  // A restart keeps its death on `starting`: the down window is shorter than a poll, so the card would miss it.
+  function begin(restartAfter: RelayDownReason | null): number {
     cancelPending();
     generation += 1;
-    status = { state: "starting", relay: deps.relay };
+    status = { state: "starting", relay: deps.relay, restartAfter };
     return generation;
   }
 
@@ -133,7 +134,7 @@ export function createRelayController(deps: RelayControllerDeps): RelayControlle
         return status;
       }
       restarts = 0;
-      const gen = begin();
+      const gen = begin(null);
       try {
         await launch(gen);
       } catch (err) {

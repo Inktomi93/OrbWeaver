@@ -2,6 +2,7 @@
 // reachable from the internet; the relay controller owns the process and the relay host it admits.
 
 import type { AuthMode, RelayStatus, ShareRefusal, ShareRelayKind, ShareStatus } from "@orb/contracts/identity";
+import type { UserId } from "@orb/kit/ids";
 import type { RequireOwner } from "#domain/admin";
 import type { AuditEntry } from "#foundation/observability";
 import type { RelayHostWriter } from "#infra/auth";
@@ -59,8 +60,8 @@ export type ShareBootOutcome =
 export interface ShareServiceDeps extends ShareFacts {
   readonly relay: RelayController;
   readonly requireOwner: RequireOwner;
-  /** Every live stream socket on the box, so the card shows who is connected. */
-  readonly liveSocketCount: () => number;
+  /** The live stream sockets on the box, or one user's alone when `userId` is given. */
+  readonly liveSocketCount: (userId?: UserId) => number;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   readonly now: () => number;
 }
@@ -68,6 +69,8 @@ export interface ShareServiceDeps extends ShareFacts {
 /** The DI bundle the verbs close over: the deps plus the one precondition check every start runs. */
 export interface ShareContext extends ShareServiceDeps {
   readonly refusal: () => Promise<ShareRefusalNotice | null>;
+  /** The live sockets of every account but `userId`, so the owner's own tabs never read as a visitor. */
+  readonly liveSocketsBesides: (userId: UserId) => number;
 }
 
 /** The share surface. `start`, `stop` and `status` are owner-only at the verb; the two boot ops have no caller, because
