@@ -147,6 +147,8 @@ test("single-user: every row renders with its verdict and fix, and Start sharing
   await expect(precondition(card, "mode").getByRole("button", { name: copyActionName("the command pnpm start --share"), exact: true })).toBeVisible();
   const containerLines = precondition(card, "mode").getByRole("button", { name: copyActionName("the docker-compose environment lines"), exact: true });
   await expect(containerLines).toHaveCount(0);
+  // The command shows once, in its copy chip, not again in the sentence above it.
+  await expect(precondition(card, "mode").locator("kbd")).toHaveCount(1);
   const otherWays = precondition(card, "mode").getByRole("button", { name: "Other ways: a permanent switch, or Docker" });
   await expect(otherWays).toHaveAttribute("aria-expanded", "false");
   await otherWays.click();

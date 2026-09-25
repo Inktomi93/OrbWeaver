@@ -258,9 +258,7 @@ function ModeFix({ mode }: { readonly mode: AuthMode }): ReactElement {
   return (
     <Stack gap="tight">
       <ShareProse>{MODE_UNMET[mode]}</ShareProse>
-      <ShareProse>
-        To share, stop the server and start it again with <ShareCode>{SHARE_COMMAND}</ShareCode>, which also starts the relay.
-      </ShareProse>
+      <ShareProse>To share, stop the server and start it again with the command below, which also starts the relay.</ShareProse>
       <CopyButton text={SHARE_COMMAND} what={`the command ${SHARE_COMMAND}`}>
         <Kbd size="command">{SHARE_COMMAND}</Kbd>
       </CopyButton>
