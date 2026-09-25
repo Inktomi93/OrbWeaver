@@ -3,8 +3,8 @@
 
 import { COOKIE_AUTH_MODES } from "@orb/contracts/identity";
 import { z } from "zod";
-import { EnvRefusedError, formatEnvRefusal } from "../../../../packages/server/src/foundation/env/refusal.ts";
-import { expect, test } from "../../../support/fixtures.ts";
+import { EnvRefusedError, formatEnvRefusal } from "../../../../../packages/server/src/foundation/env/refusal/index.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const WHOLE_ENV_MESSAGE = "oidc needs its issuer";
 

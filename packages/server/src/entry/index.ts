@@ -3,7 +3,7 @@
 // so the orchestrator restarts the box — never leave a half-booted process pretending to be alive.
 
 import process from "node:process";
-import { EnvRefusedError } from "../foundation/env/refusal.ts";
+import { EnvRefusedError } from "#foundation/env/refusal";
 
 const EXIT_BOOT_FAILURE = 1;
 

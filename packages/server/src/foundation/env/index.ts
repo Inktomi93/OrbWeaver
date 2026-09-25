@@ -25,7 +25,7 @@ import { runsInContainer } from "./container.ts";
 import type { DiagnosticsPostureInput, OwnerFallbackCredentialInput } from "./diagnostics.ts";
 import type { OwnerFallbackPeerInput } from "./fallback-peers.ts";
 import { parseOwnerFallbackTrustedPeers, resolveOwnerFallbackPeers } from "./fallback-peers.ts";
-import { EnvRefusedError } from "./refusal.ts";
+import { EnvRefusedError } from "./refusal/index.ts";
 
 export type { AllowedHostsInput } from "./allowed-hosts.ts";
 export { machineHostnameFor, publicAddresses, resolveAllowedHosts } from "./allowed-hosts.ts";
