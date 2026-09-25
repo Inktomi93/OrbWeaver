@@ -577,6 +577,76 @@ describe("backfillMemory — the chat × scope enumeration", () => {
     expect(spy.mock.calls.some((c) => (c[0] as { phase?: string } | undefined)?.phase === "segments")).toBe(true);
   });
 
+  // A cancel (shutdown, or the owner stopping the run) cuts off whatever the sweep is waiting on. That is the run
+  // ending, not a fault: the abort propagates for the workload runner to record the run cancelled, and nothing
+  // logs an operator ERROR. The content-hash self-heal re-offers the work on the next run.
+  describe("a cancel mid-phase is not an operator error", () => {
+    async function seedOneRoom(): Promise<void> {
+      const host = await seedUser(db, castId<Handle>("host"));
+      const aria = await seedCharacter(db, host, "aria");
+      const room = await seedChat(db, "room_cancel");
+      await seedParticipant(db, { chatId: room, key: "h", userId: host, role: "host" });
+      await seedParticipant(db, { chatId: room, key: "c", characterId: aria });
+      await seedTurns(db, room, aria, 4);
+    }
+    const cfg: ResolveBackfillMemoryConfig = () => Promise.resolve({ blockSize: 2, verbatimWindow: 0, maxTier: 1 });
+
+    /** Cancel the run from inside the wait, then reject the way a cut-off wait does: with the signal's reason. */
+    function cutOff(controller: AbortController, signal: AbortSignal | undefined): Promise<never> {
+      if (signal === undefined) {
+        return Promise.reject(new Error("the sweep's signal did not reach the store"));
+      }
+      controller.abort(new Error("shutdown"));
+      return Promise.reject(signal.reason);
+    }
+
+    test("the segment flood", async () => {
+      await seedOneRoom();
+      const controller = new AbortController();
+      const store = fakeEmbeddingsStore(db);
+      const spy = vi.spyOn(logger, "error");
+      const ctx = makeChatContext(db, {
+        summarize: fakeSummarize().op,
+        embeddingsStore: store.store,
+        embeddingsStoreSegments: (_batch, signal) => cutOff(controller, signal),
+      });
+
+      await expect(backfillMemory(ctx, { signal: controller.signal, funderUserId: HOST_ID }, cfg)).rejects.toThrow("shutdown");
+
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    test("a tier-0 digest store", async () => {
+      await seedOneRoom();
+      const controller = new AbortController();
+      const store = fakeEmbeddingsStore(db);
+      const spy = vi.spyOn(logger, "error");
+      const ctx = makeChatContext(db, {
+        summarize: fakeSummarize().op,
+        embeddingsStore: (params) => cutOff(controller, params.signal),
+        embeddingsStoreSegments: store.storeSegments,
+      });
+
+      await expect(backfillMemory(ctx, { signal: controller.signal, funderUserId: HOST_ID }, cfg)).rejects.toThrow("shutdown");
+
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    test("the plan phase", async () => {
+      const host = await seedUser(db, castId<Handle>("host"));
+      await seedRooms(host);
+      const controller = new AbortController();
+      const spy = vi.spyOn(logger, "error");
+      const ctx = makeChatContext(db, {
+        mintSyntheticGroupCharacter: () => cutOff(controller, controller.signal),
+      });
+
+      await expect(backfillMemory(ctx, { signal: controller.signal, funderUserId: HOST_ID }, enabledMemory)).rejects.toThrow("shutdown");
+
+      expect(spy).not.toHaveBeenCalled();
+    });
+  });
+
   // #165: the live 895-chat run logged `chat FAILED during plan and was skipped (unexpected error)` and the
   // ops read of the pretty single-line stream never reached the serialized `err` block, so the failure was
   // undiagnosable from the log at a glance for two whole runs. The CAUSE now rides as scalar fields on the

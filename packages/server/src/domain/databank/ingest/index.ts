@@ -29,6 +29,7 @@ import { documents } from "@orb/db";
 import { chunkText } from "@orb/kit/chunk";
 import type { DocumentId, UserId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
+import { isAborted } from "#kit/abort";
 import { DatabankNoEmbedSpaceError } from "../contract/errors.ts";
 import type { DatabankContext, DatabankIngest } from "../contract/service.ts";
 import { listAllDocumentIds, listOwnedDocumentIds, loadDocument } from "../persistence/queries.ts";
@@ -49,11 +50,6 @@ interface RunDocumentArgs {
   readonly signal: AbortSignal;
   readonly acc: IngestAccumulator;
   readonly touchedOwners: Set<UserId>;
-}
-
-// Read through a call boundary so TypeScript does not freeze `AbortSignal.aborted` at its pre-await value.
-function isAborted(signal: AbortSignal): boolean {
-  return signal.aborted;
 }
 
 /** Accumulate per-document counts into the run-level result. */
