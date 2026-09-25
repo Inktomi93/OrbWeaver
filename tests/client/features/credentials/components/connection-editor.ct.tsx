@@ -567,7 +567,7 @@ test("two changes inside one save window are written once, as one document holdi
   await expect
     .poll(() => recorder.lastInput("connection.update"), { intervals: [20, 50, 100] })
     .toEqual({ connectionId: CONNECTION_ID, patch: { promptCache: { ...SHIPPED, cacheSystem: false, ttl: "5m" } } });
-  expect(recorder.count("connection.update")).toBe(1);
+  await expect.poll(() => recorder.count("connection.update"), { intervals: [20, 50, 100] }).toBe(1);
   await expect(body.getByRole("switch").nth(1)).not.toBeChecked();
   await expect(body.getByRole("radio").nth(0)).toHaveAttribute("aria-checked", "true");
 });
