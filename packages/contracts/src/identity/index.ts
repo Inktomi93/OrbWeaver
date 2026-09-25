@@ -101,12 +101,13 @@ export type ShareRefusal = (typeof SHARE_REFUSALS)[number];
 export const RELAY_BINARY_REFUSALS = ["relay_platform_unsupported", "relay_binary_download_failed", "relay_binary_checksum_mismatch"] as const;
 export type RelayBinaryRefusal = (typeof RELAY_BINARY_REFUSALS)[number];
 
+// One arm per share state, keyed by its own `state` literal: a missing arm or a swapped literal fails to compile.
 const relayStatusSchemas = {
   off: z.strictObject({ state: z.literal("off") }),
   starting: z.strictObject({ state: z.literal("starting"), relay: shareRelayKindSchema }),
   up: z.strictObject({ state: z.literal("up"), relay: shareRelayKindSchema, url: z.url({ protocol: /^https$/u }) }),
   down: z.strictObject({ state: z.literal("down"), relay: shareRelayKindSchema, reason: z.enum(RELAY_DOWN_REASONS), restarting: z.boolean() }),
-} as const satisfies Record<ShareState, z.ZodType<{ state: ShareState }>>;
+} as const satisfies { readonly [S in ShareState]: z.ZodObject<{ state: z.ZodLiteral<S> }> };
 
 /** One relay's state as the owner's Share card reads it. */
 export const relayStatusSchema = z.discriminatedUnion("state", [
