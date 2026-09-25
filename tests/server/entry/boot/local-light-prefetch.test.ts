@@ -8,7 +8,7 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { RoutableTask } from "@orb/contracts/inference";
 import type { InferenceRuntime } from "@orb/inference";
-import { DEFAULT_EMBED_MODEL, DEFAULT_MATTE_MODEL, DEFAULT_RERANK_MODEL, NoConnectionError } from "@orb/inference";
+import { DEFAULT_EMBED_MODEL, DEFAULT_RERANK_MODEL, NoConnectionError } from "@orb/inference";
 import type { Handle, ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { planLocalLightPrefetch } from "@orb/server/entry/boot";
@@ -56,8 +56,6 @@ describe("planLocalLightPrefetch", () => {
   test("plans nothing when every vector task resolves onto a hosted row (a cloud box downloads no CPU weights)", async () => {
     const plan = await planLocalLightPrefetch({ resolve: resolverFor(ALL_HOSTED), principals: [OWNER], enabled: true });
 
-    // Including `matte`: RMBG has no task to resolve, so it rides the same verdict rather than downloading
-    // unconditionally on a box that serves nothing else from the in-process tier.
     expect(plan).toEqual([]);
   });
 
@@ -76,13 +74,14 @@ describe("planLocalLightPrefetch", () => {
     expect(resolve).not.toHaveBeenCalled();
   });
 
-  test("plans rerank → embed → matte (smallest first) with the seeded rows on a local-light box", async () => {
+  // The matte model has no caller while the expressions program is parked (docs/work/0049-expressions-program.md),
+  // so a local-light box warms the embedder and reranker only.
+  test("plans rerank → embed (smallest first) with the seeded rows on a local-light box, and never the matte model", async () => {
     const plan = await planLocalLightPrefetch({ resolve: resolverFor(ALL_LOCAL_LIGHT), principals: [OWNER], enabled: true });
 
     expect(plan).toEqual([
       { slot: "rerank", modelId: DEFAULT_RERANK_MODEL },
       { slot: "embed", modelId: DEFAULT_EMBED_MODEL },
-      { slot: "matte", modelId: DEFAULT_MATTE_MODEL },
     ]);
   });
 
@@ -99,10 +98,7 @@ describe("planLocalLightPrefetch", () => {
   test("imageEmbed alone on local-light still claims the embed slot", async () => {
     const plan = await planLocalLightPrefetch({ resolve: resolverFor(IMAGE_EMBED_ONLY), principals: [OWNER], enabled: true });
 
-    expect(plan).toEqual([
-      { slot: "embed", modelId: DEFAULT_EMBED_MODEL },
-      { slot: "matte", modelId: DEFAULT_MATTE_MODEL },
-    ]);
+    expect(plan).toEqual([{ slot: "embed", modelId: DEFAULT_EMBED_MODEL }]);
   });
 
   test("carries the connection's OWN model id, not the builtin default", async () => {

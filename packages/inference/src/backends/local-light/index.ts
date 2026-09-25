@@ -15,7 +15,7 @@ export type { LocalLightModelSlot } from "../../contract/runtime.ts";
 export { LOCAL_LIGHT_MODEL_SLOTS } from "../../contract/runtime.ts";
 export type { LocalLightModelCache } from "./model-cache.ts";
 export type { LocalLightPrefetchHandle, LocalLightPrefetchRecord, LocalLightPrefetchTarget } from "./prefetch.ts";
-export { DEFAULT_EMBED_MODEL, DEFAULT_MATTE_MODEL, DEFAULT_RERANK_MODEL } from "./tasks.ts";
+export { DEFAULT_EMBED_MODEL, DEFAULT_RERANK_MODEL } from "./tasks.ts";
 
 export interface LocalLightBackendDeps {
   readonly now: () => number;
