@@ -75,6 +75,79 @@ describe("fetchPinnedDownload routes the relay download through the SSRF guard",
     await expect(fetchPinnedDownload(RELEASE_URL, limits())).rejects.toBeInstanceOf(EgressBlockedError);
   });
 
+  // The asset is up to ~55 MB. The caller streams it into the hash and the partial file, so the door must hand the
+  // body through, not buffer it: an upstream that is only read on demand shows how much the door read before answering.
+  describe("the body streams through the door", () => {
+    const chunkCount = 8;
+    const whole = Uint8Array.from({ length: chunkCount }, (_, index) => index + 1);
+
+    /** An upstream body read one byte per pull, and only when someone reads it. */
+    function onDemandAsset(): { readonly stream: ReadableStream<Uint8Array>; readonly pulled: () => number; readonly cancelled: () => boolean } {
+      let pulled = 0;
+      let cancelled = false;
+      const stream = new ReadableStream<Uint8Array>(
+        {
+          cancel(): void {
+            cancelled = true;
+          },
+          pull(controller): void {
+            pulled += 1;
+            if (pulled > chunkCount) {
+              controller.close();
+              return;
+            }
+            controller.enqueue(Uint8Array.of(pulled));
+          },
+        },
+        { highWaterMark: 0 },
+      );
+      return { stream, pulled: (): number => pulled, cancelled: (): boolean => cancelled };
+    }
+
+    function stubStreamingRelease(stream: ReadableStream<Uint8Array>): void {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn((url: string | URL) => (String(url) === RELEASE_URL ? Response.redirect(ASSET_URL, REDIRECT) : new Response(stream, { status: 200 }))),
+      );
+    }
+
+    test("the door answers after reading at most one chunk, and the caller still reads every byte", async () => {
+      withResolver();
+      const asset = onDemandAsset();
+      stubStreamingRelease(asset.stream);
+      const res = await fetchPinnedDownload(RELEASE_URL, limits(chunkCount));
+      expect(asset.pulled()).toBeLessThanOrEqual(1);
+      expect(new Uint8Array(await res.arrayBuffer())).toEqual(whole);
+    });
+
+    // A caller that stops reading (a disk error, a refused chunk) cancels the body; the cancel must reach the upstream
+    // read the door holds, or the pinned connection stays open until the deadline.
+    test.each([
+      ["before reading anything", 0],
+      ["after reading part of it", 2],
+    ])("a caller that abandons the body %s cancels the upstream read", async (_label, reads) => {
+      withResolver();
+      const asset = onDemandAsset();
+      stubStreamingRelease(asset.stream);
+      const res = await fetchPinnedDownload(RELEASE_URL, limits(chunkCount));
+      const reader = res.body?.getReader();
+      for (let read = 0; read < reads; read += 1) {
+        await reader?.read();
+      }
+      await reader?.cancel();
+      await vi.waitFor(() => expect(asset.cancelled()).toBe(true));
+    });
+
+    test("an answer that passes the pinned size after the first chunk errors the body at the wire", async () => {
+      withResolver();
+      const asset = onDemandAsset();
+      stubStreamingRelease(asset.stream);
+      const res = await fetchPinnedDownload(RELEASE_URL, limits(chunkCount / 2));
+      await expect(res.arrayBuffer()).rejects.toBeInstanceOf(Error);
+      expect(asset.pulled()).toBeLessThanOrEqual(chunkCount / 2 + 1);
+    });
+  });
+
   test("a non-2xx answer keeps its status and carries no body", async () => {
     withResolver();
     vi.stubGlobal(
