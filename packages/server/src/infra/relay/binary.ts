@@ -94,14 +94,15 @@ async function fetchAsset(deps: CloudflaredBinaryDeps, asset: CloudflaredAsset, 
 }
 
 // Streams the asset into `dest` (created exclusively, owner-only) while hashing it. The pinned size caps the stream, so a
-// hostile or wrong answer cannot fill the disk before the hash is compared.
+// hostile or wrong answer cannot fill the disk before the hash is compared. The file opens before the fetch: the body
+// arrives as a live stream holding a pinned connection, so nothing may fail between the answer and the read.
 async function download(deps: CloudflaredBinaryDeps, asset: CloudflaredAsset, dest: string): Promise<void> {
   const url = `${deps.pin.releaseBase}/${deps.pin.version}/${asset.file}`;
-  const body = await fetchAsset(deps, asset, url);
   const handle = await open(dest, "wx", PRIVATE_FILE_MODE);
   const hash = createHash("sha256");
   let received = 0;
   try {
+    const body = await fetchAsset(deps, asset, url);
     for await (const chunk of body) {
       received += chunk.byteLength;
       if (received > asset.bytes) {

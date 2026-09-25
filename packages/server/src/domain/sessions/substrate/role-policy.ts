@@ -100,16 +100,17 @@ export function isSubjectMismatch(existingExternalId: ExternalId | null, incomin
  *  — it re-spells no `role === "owner"` (the `owner-role-split` gate's target), so a consumer that needs the
  *  binary "is this the owner?" question calls THIS instead of comparing a derived role literal. */
 export function isOwnerByPolicy(handle: Handle, groups: string[]): boolean {
-  // TRIMMED like every sibling group var (#1478 item 3). `csv()` trims each configured OWNER_HANDLES /
-  // OIDC_ADMIN_GROUPS / OIDC_ALLOWED_GROUPS entry and the OIDC callback trims each CLAIMED group name, so
-  // comparing this one raw meant a `OWNER_GROUP=" owners "` box never granted owner at all — and a
-  // whitespace-only value matched a whitespace-only claim. Trim ONLY: the compare stays EXACT
-  // (case-sensitive, no prefix/fuzzy match), because anything looser is an elevation widening.
+  return isOwnerGroupMember(groups) || ownerHandles().includes(handle);
+}
+
+/** Whether the identity is in `OWNER_GROUP`. Group membership is the IdP operator's grant, so it claims the owner
+ *  with no further proof, where a handle match alone does not (`decideProvision`). */
+export function isOwnerGroupMember(groups: readonly string[]): boolean {
+  // Trimmed like every sibling group var: `csv()` trims the configured lists and the OIDC callback trims each
+  // claimed group name, so a raw compare would never match a padded `OWNER_GROUP`. Trim only: the compare stays
+  // exact (case-sensitive, no prefix or fuzzy match), because anything looser widens elevation.
   const ownerGroup = process.env["OWNER_GROUP"]?.trim();
-  if (ownerGroup !== undefined && ownerGroup.length > 0 && groups.includes(ownerGroup)) {
-    return true;
-  }
-  return ownerHandles().includes(handle);
+  return ownerGroup !== undefined && ownerGroup.length > 0 && groups.includes(ownerGroup);
 }
 
 /**
@@ -119,7 +120,11 @@ export function isOwnerByPolicy(handle: Handle, groups: string[]): boolean {
  * allowed-groups gate on top. The returned member is a subset of `UserRole` (no inline re-spell).
  */
 export function determineRole(handle: Handle, groups: string[]): UserRole {
-  if (isOwnerByPolicy(handle, groups)) {
+  return roleFor(isOwnerByPolicy(handle, groups), groups);
+}
+
+function roleFor(ownerByPolicy: boolean, groups: string[]): UserRole {
+  if (ownerByPolicy) {
     return "owner";
   }
   if (intersects(groups, adminGroups())) {
@@ -141,15 +146,20 @@ function passesAllowedGate(groups: string[]): boolean {
  *  none of those groups (and is not owner/admin — owner is exempt, admin is implicitly allowed, OpenWebUI
  *  parity). Fail-closed by construction: an empty/unparseable groups list with the gate set never passes. */
 export function deriveIdentityAccess(handle: Handle, groups: string[]): IdentityAccess {
-  const derivedRole = determineRole(handle, groups);
+  return identityAccess(isOwnerByPolicy(handle, groups), groups);
+}
+
+/** {@link deriveIdentityAccess} for an identity whose owner policy the caller already resolved. `decideProvision`
+ *  passes false for an unproven `OWNER_HANDLES` claimant, which then meets the gate like anyone else. */
+export function identityAccess(ownerByPolicy: boolean, groups: string[]): IdentityAccess {
   // Owner/admin bypass the allowed-groups gate (owner is exempt; admin — an OIDC_ADMIN_GROUPS member — is
   // implicitly allowed, OpenWebUI parity). The bypass is the GROUP predicate, NOT a role-literal comparison
   // (the owner ⊇ admin lattice lives only in `can()` — the `owner-role-split` gate forbids comparing here).
-  const privileged = isOwnerByPolicy(handle, groups) || intersects(groups, adminGroups());
+  const privileged = ownerByPolicy || intersects(groups, adminGroups());
   if (!(privileged || passesAllowedGate(groups))) {
     return { outcome: "deny" };
   }
-  return { outcome: "allow", role: derivedRole };
+  return { outcome: "allow", role: roleFor(ownerByPolicy, groups) };
 }
 
 /**

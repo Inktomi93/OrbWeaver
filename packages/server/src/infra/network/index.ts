@@ -7,6 +7,7 @@
 // the transport seam.
 
 export {
+  __firewallConnectForTest,
   __pinnedAgentForTest,
   __setEgressResolverForTest,
   __setFirewallLookupForTest,

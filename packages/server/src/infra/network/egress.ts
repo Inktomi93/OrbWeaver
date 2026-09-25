@@ -2,7 +2,7 @@ import { lookup as dnsLookup } from "node:dns";
 import type { LookupFunction } from "node:net";
 import { parseIp } from "@orb/kit/ip";
 import { Agent, buildConnector, setGlobalDispatcher } from "undici";
-import { env } from "#foundation/env";
+import { env, parseTrustedPrivateRanges } from "#foundation/env";
 import { getLog, securityEvent, superviseDetached } from "#foundation/observability";
 import { DEFAULT_TRUSTED_RANGES, isInRanges } from "./ip-ranges.ts";
 
@@ -52,6 +52,8 @@ function superviseEgressCleanup(reason: string, operation: () => Promise<unknown
 }
 
 const TRAILING_DOT_RE = /\.$/;
+/** The IPv6 zone separator (`fe80::1%eth0`); percent-encoded it is still a `%`. */
+const ZONE_MARK = "%";
 /** The socket family a connector lookup reports for an IPv4 and an IPv6 literal. */
 const SOCKET_FAMILY_V4 = 4;
 const SOCKET_FAMILY_V6 = 6;
@@ -64,10 +66,7 @@ function unbracket(hostname: string): string {
 }
 
 export function privateEgressRanges(): readonly string[] {
-  const extra = (env.TRUSTED_PRIVATE_RANGES ?? "")
-    .split(",")
-    .map((r) => r.trim())
-    .filter((r) => r.length > 0);
+  const extra = parseTrustedPrivateRanges(env.TRUSTED_PRIVATE_RANGES);
   return extra.length > 0 ? [...DEFAULT_TRUSTED_RANGES, ...extra] : DEFAULT_TRUSTED_RANGES;
 }
 
@@ -442,6 +441,20 @@ export function installEgressFirewall(): void {
   if (!env.EGRESS_FIREWALL) {
     return;
   }
+  const { connect, allowlist } = createFirewallConnect();
+  setGlobalDispatcher(new Agent({ connect }));
+  getLog().info({ allowlist: [...allowlist] }, "security: egress firewall installed (private egress blocked)");
+}
+
+/** TEST-ONLY seam: the connect function {@link installEgressFirewall} hands the global dispatcher, so a test can
+ *  present a connect target no URL can carry. Throws outside NODE_ENV=test. */
+export function __firewallConnectForTest(): buildConnector.connector {
+  assertTestOnly("__firewallConnectForTest");
+  return createFirewallConnect().connect;
+}
+
+/** The global firewall's connect function, over the env belt read now and the published allowlist read live. */
+function createFirewallConnect(): { readonly connect: buildConnector.connector; readonly allowlist: ReadonlySet<string> } {
   const ranges = privateEgressRanges();
   const allowlist = new Set(
     (env.EGRESS_ALLOWLIST ?? "")
@@ -511,6 +524,14 @@ export function installEgressFirewall(): void {
   });
 
   const connect: buildConnector.connector = (options, callback): void => {
+    // SECURITY: a zone-scoped literal (`::1%lo`) is an IP to node, which dials it with no DNS lookup, and no address
+    // to `@orb/kit/ip`, so neither gate below would judge it. WHATWG URL refuses a zone, so no URL carries one today;
+    // refusing any zone mark here keeps a future input path from reaching loopback or link-local through one.
+    if (options.hostname.includes(ZONE_MARK)) {
+      securityEvent("egress_blocked", { hostname: options.hostname }, "security: egress SSRF blocked (zone-scoped host)");
+      callback(new Error(`SSRF_BLOCKED: ${options.hostname} (zone-scoped host)`), null);
+      return;
+    }
     // Port is available HERE (undici passes options.port to the connector) but NOT in the lookup override
     // (node's `dns.lookup` never sees one) — so the port-scoped decision MUST live in the connect wrapper,
     // and a port-scoped entry is therefore keyed on an exact host, never on a range.
@@ -528,9 +549,7 @@ export function installEgressFirewall(): void {
     }
     baseConnect(options, callback);
   };
-
-  setGlobalDispatcher(new Agent({ connect }));
-  getLog().info({ allowlist: [...allowlist] }, "security: egress firewall installed (private egress blocked)");
+  return { connect, allowlist };
 }
 
 // ── safeFetch: the self-enforcing SSRF guard for any user-influenced outbound URL ──────────────────
@@ -671,7 +690,47 @@ export function __pinnedAgentForTest(addresses: readonly string[]): Agent {
   return pinnedAgent(addresses);
 }
 
+/** A validated, pinned safeFetch answer before its body is read, and what releases it. */
+interface OpenedFetch {
+  readonly response: Response;
+  readonly contentType: string | null;
+  readonly maxBytes: number;
+  /** Clear the deadline timer and close the pinned agent. */
+  readonly release: () => void;
+  /** Drop the answer unread: cancel the body (socket back to the pool) and release. */
+  readonly discard: () => void;
+  /** A body-read failure as the caller sees it: the deadline's own abort is the deadline refusal. */
+  readonly bodyError: (err: unknown) => unknown;
+}
+
 export async function safeFetch(url: string | URL, options: SafeFetchOptions): Promise<SafeFetchResult> {
+  const opened = await openSafeFetch(url, options);
+  // ONE settle guard shared by bytes() + dispose(): the response is single-use, so whichever runs first
+  // claims it (a second bytes() is the reuse error; a dispose() after a read is a no-op).
+  let settled = false;
+  return {
+    status: opened.response.status,
+    headers: opened.response.headers,
+    contentType: opened.contentType,
+    bytes: async (): Promise<Uint8Array> => {
+      if (settled) {
+        throw new EgressBlockedError("consumed", "safeFetch: response already consumed");
+      }
+      settled = true;
+      return await collectChunks(cappedChunks(opened));
+    },
+    dispose: (): void => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      opened.discard();
+    },
+  };
+}
+
+/** Resolve, validate, pin and send; answer the response with its content type checked and its body unread. */
+async function openSafeFetch(url: string | URL, options: SafeFetchOptions): Promise<OpenedFetch> {
   const maxBytes = options.maxBytes ?? DEFAULT_MAX_BYTES;
   const maxRedirects = options.maxRedirects ?? DEFAULT_MAX_REDIRECTS;
   const deadlineMs = options.deadlineMs ?? DEFAULT_DEADLINE_MS;
@@ -701,59 +760,33 @@ export async function safeFetch(url: string | URL, options: SafeFetchOptions): P
     throw err;
   }
 
+  const release = (): void => {
+    clearTimeout(timer);
+    closeAgent(agent);
+  };
+  const discard = (): void => {
+    const body = response.body;
+    if (body !== null) {
+      superviseEgressCleanup("body-discarded", () => body.cancel());
+    }
+    release();
+  };
   let contentType: string | null;
   try {
     contentType = enforceContentType(response, options.allowedContentTypes);
   } catch (err) {
-    clearTimeout(timer);
-    const body = response.body;
-    if (body !== null) {
-      superviseEgressCleanup("content-type-refusal", () => body.cancel());
-    }
-    closeAgent(agent);
+    discard();
     throw err;
   }
-
-  // ONE settle guard shared by bytes() + dispose(): the response is single-use, so whichever runs first
-  // claims it (a second bytes() is the reuse error; a dispose() after a read is a no-op).
-  let settled = false;
-  const releaseAgent = (): void => {
-    clearTimeout(timer);
-    closeAgent(agent);
-  };
   return {
-    status: response.status,
-    headers: response.headers,
+    response,
     contentType,
-    bytes: async (): Promise<Uint8Array> => {
-      if (settled) {
-        throw new EgressBlockedError("consumed", "safeFetch: response already consumed");
-      }
-      settled = true;
-      try {
-        const reader = response.body?.getReader();
-        return reader ? await readCapped(reader, maxBytes) : new Uint8Array();
-      } catch (err) {
-        if (deadlineHit()) {
-          // biome-ignore lint/style/useErrorCause: cause forwarded via EgressBlockedError super().
-          throw new EgressBlockedError("deadline", `egress deadline of ${deadlineMs}ms exceeded`, { cause: err });
-        }
-        throw err;
-      } finally {
-        releaseAgent();
-      }
-    },
-    dispose: (): void => {
-      if (settled) {
-        return;
-      }
-      settled = true;
-      const body = response.body;
-      if (body !== null) {
-        superviseEgressCleanup("caller-dispose", () => body.cancel());
-      }
-      releaseAgent();
-    },
+    maxBytes,
+    release,
+    discard,
+    // biome-ignore lint/style/useErrorCause: cause forwarded via EgressBlockedError super().
+    bodyError: (err: unknown): unknown =>
+      deadlineHit() ? new EgressBlockedError("deadline", `egress deadline of ${deadlineMs}ms exceeded`, { cause: err }) : err,
   };
 }
 
@@ -837,20 +870,51 @@ export interface PinnedDownloadLimits {
 /** A pinned-release download (the share relay's cloudflared): safeFetch with an exact host allowlist, so the
  *  https pin, the per-hop private-range denial, the byte cap and the deadline all run. The caller hashes the bytes
  *  against its pin; this door only bounds the fetch. The answer keeps its status, so a non-2xx reaches the caller
- *  as a status with no body. */
+ *  as a status with no body.
+ *
+ *  The body streams through the cap and the deadline to the caller, which writes it to the partial file as it
+ *  hashes it, so the door holds one chunk and never the asset. It reads the first chunk before answering, so a
+ *  refusal the first read shows (an answer over the pinned size, a reset) rejects the download itself. */
 export async function fetchPinnedDownload(url: string, limits: PinnedDownloadLimits): Promise<Response> {
-  const res = await safeFetch(url, {
-    allowedHosts: limits.allowedHosts,
-    method: "GET",
-    maxBytes: limits.maxBytes,
-    deadlineMs: limits.deadlineMs,
-  });
-  if (res.status < OK_STATUS_MIN || res.status >= REDIRECT_STATUS_MIN) {
-    res.dispose?.(); // drop the non-2xx body + close the pinned Agent before answering
-    return new Response(null, { status: res.status });
+  const opened = await openSafeFetch(url, { allowedHosts: limits.allowedHosts, method: "GET", maxBytes: limits.maxBytes, deadlineMs: limits.deadlineMs });
+  const { status } = opened.response;
+  if (status < OK_STATUS_MIN || status >= REDIRECT_STATUS_MIN) {
+    opened.discard();
+    return new Response(null, { status });
   }
-  // The copy re-homes the capped bytes on a plain ArrayBuffer, the only buffer a Response body accepts.
-  return new Response(new Uint8Array(await res.bytes()), { status: res.status });
+  const chunks = cappedChunks(opened);
+  const first = await chunks.next();
+  return new Response(pullStream(first, chunks), { status });
+}
+
+/**
+ * A byte stream of `first`, then the rest of `chunks`, read only as its reader asks, so nothing queues ahead of the
+ * caller. A failure of `chunks` errors the stream.
+ *
+ * SECURITY: a cancel ends `chunks` itself, whose cleanup cancels the upstream body and closes the pinned agent. Do not
+ * wrap `chunks` in another generator: ending a wrapper that has not started never reaches the one inside, which would
+ * hold the connection open until the deadline.
+ */
+function pullStream(first: IteratorResult<Uint8Array, void>, chunks: AsyncGenerator<Uint8Array, void>): ReadableStream<Uint8Array> {
+  let held: IteratorResult<Uint8Array, void> | null = first;
+  return new ReadableStream<Uint8Array>(
+    {
+      async pull(controller): Promise<void> {
+        const next = held ?? (await chunks.next());
+        held = null;
+        if (next.done === true) {
+          controller.close();
+          return;
+        }
+        controller.enqueue(next.value);
+      },
+      async cancel(): Promise<void> {
+        held = null;
+        await chunks.return();
+      },
+    },
+    { highWaterMark: 0 },
+  );
 }
 
 // Must not ride a cross-origin redirect hop — a user-supplied baseUrl that 302s to an attacker host would otherwise exfil the key.
@@ -1056,20 +1120,42 @@ function enforceContentType(response: Response, allowed: readonly string[] | und
   return contentType;
 }
 
-async function readCapped(reader: ReadableStreamDefaultReader<Uint8Array>, maxBytes: number): Promise<Uint8Array> {
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  let chunk = await reader.read();
-  while (!chunk.done) {
-    total += chunk.value.byteLength;
-    if (total > maxBytes) {
-      superviseEgressCleanup("body-over-cap", () => reader.cancel());
-      throw new EgressBlockedError("too-large", `safeFetch: response exceeded maxBytes=${maxBytes}`);
+/**
+ * The body as chunks, refused once past `maxBytes` (post-decode, so the cap is the decompression-bomb bound). The one
+ * body reader for every consumer: it releases the fetch when the body ends, fails or is abandoned, cancels a body
+ * it did not finish, and reports the deadline's abort as the deadline refusal.
+ */
+async function* cappedChunks(opened: OpenedFetch): AsyncGenerator<Uint8Array, void> {
+  const reader = opened.response.body?.getReader();
+  let finished = reader === undefined;
+  try {
+    let total = 0;
+    for (let chunk = await reader?.read(); chunk !== undefined && !chunk.done; chunk = await reader?.read()) {
+      total += chunk.value.byteLength;
+      if (total > opened.maxBytes) {
+        throw new EgressBlockedError("too-large", `safeFetch: response exceeded maxBytes=${opened.maxBytes}`);
+      }
+      yield chunk.value;
     }
-    chunks.push(chunk.value);
-    chunk = await reader.read();
+    finished = true;
+  } catch (err) {
+    throw opened.bodyError(err);
+  } finally {
+    if (!finished && reader !== undefined) {
+      superviseEgressCleanup("body-unfinished", () => reader.cancel());
+    }
+    opened.release();
   }
-  return concatChunks(chunks, total);
+}
+
+async function collectChunks(chunks: AsyncIterable<Uint8Array>): Promise<Uint8Array> {
+  const parts: Uint8Array[] = [];
+  let total = 0;
+  for await (const chunk of chunks) {
+    parts.push(chunk);
+    total += chunk.byteLength;
+  }
+  return concatChunks(parts, total);
 }
 
 function concatChunks(chunks: readonly Uint8Array[], total: number): Uint8Array {

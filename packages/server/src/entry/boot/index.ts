@@ -22,6 +22,8 @@ export type { MigratePluginToolWireNamesDeps } from "./migrate-plugin-tool-wire-
 export { migratePluginToolWireNamesOnBoot } from "./migrate-plugin-tool-wire-names.ts";
 export type { MigrateProseSlotVocabDeps } from "./migrate-prose-slot-vocab.ts";
 export { migrateProseSlotVocabOnBoot } from "./migrate-prose-slot-vocab.ts";
+export type { OwnerClaimAnnouncement } from "./owner-claim.ts";
+export { announceOwnerClaim } from "./owner-claim.ts";
 export type { ReactivatePluginsDeps, ReactivatePluginsReport } from "./reactivate-plugins.ts";
 export { reactivatePluginsOnBoot } from "./reactivate-plugins.ts";
 export type { ReclaimLocksDeps } from "./reclaim-locks.ts";

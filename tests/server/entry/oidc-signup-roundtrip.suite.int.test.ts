@@ -12,6 +12,7 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createSessionsService, createTokenHasher } from "@orb/server/domain/sessions";
 import type { OidcRoutesDeps } from "@orb/server/entry/http";
 import { registerAuthRoutes } from "@orb/server/entry/http";
+import { createOwnerClaimCode } from "@orb/server/infra/auth";
 import { eq, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { Configuration } from "openid-client";
@@ -115,6 +116,7 @@ async function flow(opts: { readonly requireApproval?: boolean; readonly maxUses
     groupsSeparator: ";",
     allowJitProvision: false,
     requireApproval: opts.requireApproval ?? false,
+    ownerClaim: createOwnerClaimCode(),
     store: createOidcStore(db, now),
     signup: {
       invites,
@@ -407,10 +409,24 @@ describe("a pending join claims no handle the local signup would refuse", () => 
     expect(await inviteUses(f)).toBe(0);
   });
 
-  test("a case variant of an owner seed handle is refused at the confirm", async () => {
+  // D258: the provision decision refuses a new row under a seed-key look-alike, so the callback holds no pending join.
+  test("a case variant of an owner seed handle is refused at the callback, before any pending row", async () => {
     vi.stubEnv("OWNER_HANDLES", "boss");
     const f = await flow();
+    f.claims.current = claimsFor("Boss");
+    const res = await callback(f, await login(f));
+    expect(res.headers.get("location")).toBe("/login?authError=not_authorized");
+    expect(setCookie(res, PENDING)).toBeNull();
+    expect(await f.db.select().from(oidcPendingSignups)).toHaveLength(0);
+    expect(await usersBySubject(f, "Boss")).toHaveLength(0);
+    expect(await inviteUses(f)).toBe(0);
+  });
+
+  // The confirm re-decides: a handle that became a seed-key look-alike after the callback is refused there.
+  test("a handle that became an owner seed-key look-alike after the callback is refused at the confirm", async () => {
+    const f = await flow();
     const secret = await pendingJoin(f, "Boss");
+    vi.stubEnv("OWNER_HANDLES", "boss");
     expect((await confirm(f, secret)).status).toBe(404);
     expect(await usersBySubject(f, "Boss")).toHaveLength(0);
     expect(await inviteUses(f)).toBe(0);

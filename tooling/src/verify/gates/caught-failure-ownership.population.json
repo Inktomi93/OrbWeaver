@@ -1571,14 +1571,14 @@
       "reason": "a PDF metadata read failure collapses to \"no title\" — no credential/auth/crypto path, the title is derived display-only content, so a malformed info dict can never fail extraction or leak. Ends if getMetadata()'s result ever gates a security decision."
     },
     {
+      "siteId": "packages/server/src/infra/network/egress.ts::createFirewallConnect::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a malformed OIDC_ISSUER URL is simply NOT added to the egress allowlist — the restrictive direction that never widens egress; env refinement already rejects a malformed issuer in oidc mode, so this only fires harmlessly in non-oidc mode. Ends if the allowlist ever becomes a denylist."
+    },
+    {
       "siteId": "packages/server/src/infra/network/egress.ts::fetchImageBytes::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "an attacker-influenceable provider image URL where every failure (SSRF egress-block, non-2xx, byte-cap, network) collapses to null and the caller drops the image; the SSRF block is already securityEvent'd at the connector before this catch, so returning null never opens egress or loses the event. Ends if a block reaches here un-logged."
-    },
-    {
-      "siteId": "packages/server/src/infra/network/egress.ts::installEgressFirewall::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "a malformed OIDC_ISSUER URL is simply NOT added to the egress allowlist — the restrictive direction that never widens egress; env refinement already rejects a malformed issuer in oidc mode, so this only fires harmlessly in non-oidc mode. Ends if the allowlist ever becomes a denylist."
     },
     {
       "siteId": "packages/server/src/infra/plugin-host/membrane.ts::attachAsync::Promise.race::1",

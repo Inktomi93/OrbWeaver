@@ -1,7 +1,7 @@
 ---
 kind: adr
 status: active
-updated: 2026-09-23
+updated: 2026-09-25
 ---
 
 # Healthz stays minimal
@@ -16,7 +16,7 @@ Not recorded in the ledger row.
 
 ## Consequences
 
-Not recorded in the ledger row.
+`/healthz` carries the build-identity block only for the box operator: a loopback TCP peer on a request with no relay header, the `ownerFallbackAllowed` check. The gate is `HealthzDeps.identityVisible` in `packages/server/src/entry/http/healthz.ts`, wired in `packages/server/src/entry/app.ts`. Every other caller, a share link or a LAN client included, gets the status fields and the `harness` stamp. A signed-in owner gets no exception on this route; the owner reads the version through `settings.getVersion`.
 
 ## Alternatives rejected
 

@@ -104,7 +104,7 @@ export interface SessionsService {
   /** The SSO seam upsert: keys on the stable `externalId`, seeds `role` from owner policy on insert,
    *  preserves `role`/`enabled` on update (unless `RE_DERIVE_ROLE_ON_LOGIN`). `options` carries the
    *  caller-resolved admission decisions (A1 JIT gate / A2 approval) — the verb stays mode-agnostic. @internal */
-  provisionIdentity: (identity: ResolvedIdentity, options?: ProvisionIdentityOptions) => Promise<ProvisionResult>;
+  provisionIdentity: (identity: ResolvedIdentity, options: ProvisionIdentityOptions) => Promise<ProvisionResult>;
   /** Resolve a bare row id → its live principal-fields, or `null` for an unknown id. @internal */
   loadUserById: (userId: UserId) => Promise<UserPrincipalFields | null>;
   /** Exact handle→userId. A disabled/unknown handle collapses to null (leak-free; exact match only). */

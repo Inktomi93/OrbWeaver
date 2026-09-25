@@ -171,6 +171,22 @@ describe("createApp", () => {
     expect(await res.json()).toEqual({ status: "credentials_key_mismatch", version: versionIdentity() });
   });
 
+  // ADR 0076: the build identity goes to the box operator only, the loopback peer with no relay header that
+  // `ownerFallbackAllowed` admits. A share link arrives through a same-host tunnel, so on a loopback socket WITH a tell.
+  test.each([
+    ["a same-host tunnel (loopback socket, X-Forwarded-For)", "127.0.0.1", { "x-forwarded-for": "198.51.100.7" }],
+    ["cloudflared (loopback socket, CF-Connecting-IP)", "127.0.0.1", { "cf-connecting-ip": "198.51.100.7" }],
+    ["a LAN peer", "192.168.1.20", {}],
+    ["a public peer", "203.0.113.9", {}],
+  ])("GET /healthz from %s → status fields only, no version", async (_label, remoteAddress, headers) => {
+    const app = createApp(deps({}));
+    const res = await app.fetch(new Request("http://localhost/healthz", { headers }), {
+      incoming: { socket: { ...PEER_ENV.incoming.socket, remoteAddress } },
+    });
+    expect(res.status).toBe(OK);
+    expect(await res.json()).toEqual({ status: "ok", harness: false });
+  });
+
   // DNS rebinding: the page's requests ride the loopback socket the owner fallback admits, with a foreign `Host`.
   // The Host allowlist is mounted before the principal middleware, so the seam is never asked who this is.
   test("a foreign Host on the loopback socket is refused before the seam resolves a principal", async () => {

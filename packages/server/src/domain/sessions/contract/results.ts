@@ -70,7 +70,7 @@ export interface ProvisionCandidate {
 }
 
 /** Which ruled refusal `decideProvision` reached. The verb maps each to its log line and its `ProvisionResult`. */
-const PROVISION_DENY_CAUSES = ["subject-mismatch", "access-gate", "handle-collision", "jit-closed"] as const;
+const PROVISION_DENY_CAUSES = ["subject-mismatch", "access-gate", "handle-collision", "jit-closed", "owner-claim-unproven"] as const;
 export type ProvisionDenyCause = (typeof PROVISION_DENY_CAUSES)[number];
 
 /** A refusal: no row is created or updated. */
@@ -102,6 +102,8 @@ export interface ProvisionUpdate {
  * the step that follows it: `adopt-unbound-owner` binds the subject onto the owner row when that row is still
  * unbound, else runs `otherwise`; `require-free-email` refuses `account-exists` when another row carries the
  * email, else runs `otherwise`. The verb runs those reads; a batch statement carries them in SQL.
+ * `bind-owner-row` binds the subject onto the unbound owner row the login matched by handle (D258). Like the
+ * adoption it is a compare-and-swap: a login that loses the claim is refused, never bound.
  */
 export type ProvisionDecision =
   | ProvisionDeny
@@ -113,7 +115,8 @@ export type ProvisionDecision =
       readonly externalId: ExternalId;
       readonly otherwise: ProvisionInsert | ProvisionUpdate;
     }
-  | { readonly kind: "require-free-email"; readonly email: string; readonly otherwise: ProvisionInsert | ProvisionDeny };
+  | { readonly kind: "require-free-email"; readonly email: string; readonly otherwise: ProvisionInsert | ProvisionDeny }
+  | { readonly kind: "bind-owner-row"; readonly owner: ProvisionCandidate; readonly externalId: ExternalId };
 
 /** Why a `provisionIdentity` login was refused, where the caller must tell it apart. `account-exists` is the
  *  MS-W1 collision deny (operator-actionable). `jit-closed` is the A1 JIT gate and only that gate (D259): the
