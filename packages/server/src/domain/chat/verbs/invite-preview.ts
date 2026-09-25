@@ -1,9 +1,9 @@
 // The invite preview surface: room name, host handle, member count and mode label, and nothing else (no
 // roster identities, no history). One assembly, wired at `service.ts` into the signed-in `previewInvite` verb
-// and the signed-out pending-join preview (D254), so the two can never show different fields.
+// and the signed-out pending-join preview (D259), so the two can never show different fields.
 
 import type { GroupConfig, InvitePreview } from "@orb/contracts/chat";
-import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
+import { DEFAULT_GROUP_CONFIG, GROUP_OUTPUT_LABELS, GROUP_POLICY_LABELS } from "@orb/contracts/chat";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { ChatId } from "@orb/kit/ids";
 import type { ChatContext } from "../context.ts";
@@ -12,9 +12,10 @@ import { countPresentMembers } from "../persistence/invites.ts";
 import { loadChatRow } from "../persistence/queries.ts";
 import { hostSeatOf } from "../substrate/participants-host.ts";
 
-/** A human-readable room-mode label for the invite preview (output × policy) — never the raw config. */
+/** A human-readable room-mode label for the invite preview (output × policy), in the words the room's own Group tab
+ *  uses — never the raw config values. */
 function modeLabel(group: GroupConfig): string {
-  return `${group.output} · ${group.policy}`;
+  return `${GROUP_OUTPUT_LABELS[group.output]} · ${GROUP_POLICY_LABELS[group.policy]}`;
 }
 
 /** Build the preview assembly. The caller has already decided the invite may be previewed; a missing room is

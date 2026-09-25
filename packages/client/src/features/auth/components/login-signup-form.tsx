@@ -1,10 +1,10 @@
-// D254 — the local-mode signup-through-invite form. The login surface offers it when a signed-out invite
+// D259 — the local-mode signup-through-invite form. The login surface offers it when a signed-out invite
 // visit stashed its token. Plain controlled state (the submit-once credential-form carve-out) inside a real
-// `<form>` so password managers and Enter-to-submit work. The server owns every rule; the handle parse here
-// only keeps the button honest.
+// `<form>` so password managers and Enter-to-submit work. The joiner names their persona here, before the account
+// and its seat exist. The server owns every rule; the parses here only keep the button honest.
 
-import type { SignupErrorCode } from "@orb/contracts/identity";
-import { signupRequestSchema } from "@orb/contracts/identity";
+import type { SignupErrorCode } from "@orb/contracts/chat";
+import { signupRequestSchema } from "@orb/contracts/chat";
 import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
@@ -14,6 +14,8 @@ import type { ReactElement, SyntheticEvent } from "react";
 import { useState } from "react";
 import { signUpWithInvite } from "#data";
 import { testId } from "#lib";
+import { joinerPersonaOf } from "../lib/joiner-persona.ts";
+import { JoinerPersonaFields } from "./joiner-persona-fields.tsx";
 
 /** The copy for a signup refusal. Exhaustive: a new wire code fails `tsc` here. */
 function refusalCopy(code: SignupErrorCode | null): string {
@@ -48,13 +50,16 @@ export interface LoginSignupFormProps {
   readonly onDismiss: () => void;
 }
 
-/** Handle + password → `POST /api/auth/signup` → a new account seated in the invite's room. */
+/** Handle + password + persona → `POST /api/auth/signup` → a new account seated in the invite's room as that persona. */
 export function LoginSignupForm({ token, onSignedUp, onUseSignIn, onDismiss }: LoginSignupFormProps): ReactElement {
   const [handle, setHandle] = useState("");
   const [password, setPassword] = useState("");
+  const [personaName, setPersonaName] = useState("");
+  const [personaDescription, setPersonaDescription] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const canSubmit = signupRequestSchema.shape.handle.safeParse(handle).success && password.length > 0 && !pending;
+  const persona = joinerPersonaOf(personaName, personaDescription);
+  const canSubmit = signupRequestSchema.shape.handle.safeParse(handle).success && password.length > 0 && persona !== null && !pending;
 
   const onSubmit = (event: SyntheticEvent): void => {
     event.preventDefault();
@@ -64,7 +69,7 @@ export function LoginSignupForm({ token, onSignedUp, onUseSignIn, onDismiss }: L
     setPending(true);
     setError(null);
     // @orb-waive caught-failure-ownership(signUpWithInvite): the FORM is the owner — a network rejection sets the visible role=alert error and re-enables submit, the same surface a coded refusal lands on. Ends if the form stops rendering its error state.
-    signUpWithInvite({ token, handle, password }).then(
+    signUpWithInvite({ token, handle, password, persona }).then(
       (result) => {
         if (result.ok) {
           onSignedUp();
@@ -95,6 +100,7 @@ export function LoginSignupForm({ token, onSignedUp, onUseSignIn, onDismiss }: L
             data-testid={testId("signupPassword")}
           />
         </Field>
+        <JoinerPersonaFields name={personaName} description={personaDescription} onNameChange={setPersonaName} onDescriptionChange={setPersonaDescription} />
         {error === null ? null : (
           <Text voice="label" className="text-destructive" role="alert" data-testid={testId("signupError")}>
             {error}

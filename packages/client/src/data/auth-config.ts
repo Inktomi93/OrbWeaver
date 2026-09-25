@@ -6,6 +6,7 @@
 
 import type { DeploymentRenderPolicy } from "@orb/contracts/chat";
 import type { AuthConfigShare, AuthMode, ClientScope, RequestTransport } from "@orb/contracts/identity";
+import { authConfigShareSchema } from "@orb/contracts/identity";
 import type { UploadCaps } from "@orb/contracts/uploads";
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import type { UseQueryResult } from "@tanstack/react-query";
@@ -90,6 +91,25 @@ const authConfigOptions = queryOptions({
   queryFn: fetchAuthConfig,
   staleTime: Number.POSITIVE_INFINITY,
 });
+
+const LIVE_SHARE_KEY = ["auth", "share"] as const;
+
+/** The share relay's state and link as the server holds them now. Unlike the rest of the config they change while
+ *  the server runs, so this read is never memoized: an invite minted during a share must carry the live link. */
+export async function fetchLiveShare(): Promise<AuthConfigShare> {
+  const res = await fetch("/api/auth/config", { credentials: "same-origin", cache: "no-store" });
+  if (!res.ok) {
+    throw new Error(`/api/auth/config: HTTP ${res.status}`);
+  }
+  return authConfigShareSchema.parse(((await res.json()) as { readonly share?: unknown }).share);
+}
+
+const liveShareOptions = queryOptions({ queryKey: LIVE_SHARE_KEY, queryFn: fetchLiveShare, staleTime: 0 });
+
+/** The live share state, read fresh each time a surface that hands out links mounts. */
+export function useLiveShare(): UseQueryResult<AuthConfigShare> {
+  return useQuery(liveShareOptions);
+}
 
 /** The deployment auth config — immutable for the session (boot-env mode), so it never refetches; the
  *  fetcher's own memo additionally dedupes across cache evictions. */

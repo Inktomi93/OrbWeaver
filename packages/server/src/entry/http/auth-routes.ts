@@ -20,10 +20,9 @@
 // (open-redirect class). The validated redirect_uri is stored in the transaction and reconstructed at the
 // callback so the token exchange presents the same redirect_uri the IdP saw, even behind a proxy.
 
-import type { PendingJoinErrorCode } from "@orb/contracts/chat";
-import { invitePreviewSchema, pendingJoinConfirmRequestSchema } from "@orb/contracts/chat";
-import type { RequestTransport, ResolvedIdentity, SignupErrorCode, SignupRequest, UserRole } from "@orb/contracts/identity";
-import { signupRequestSchema } from "@orb/contracts/identity";
+import type { PendingJoinConfirmRequest, PendingJoinErrorCode, SignupErrorCode, SignupRequest } from "@orb/contracts/chat";
+import { invitePreviewSchema, pendingJoinConfirmRequestSchema, signupRequestSchema } from "@orb/contracts/chat";
+import type { RequestTransport, ResolvedIdentity, UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { DomainRateLimitError } from "@orb/kit/errors";
 import { admitsHandle, withinHandleLength } from "@orb/kit/handle-key";
@@ -74,12 +73,15 @@ const LOGIN_ROUTE = "/api/auth/login";
 const FIRST_RUN_ROUTE = "/api/auth/first-run";
 const LOGOUT_ROUTE = "/api/auth/logout";
 const SIGNUP_ROUTE = "/api/auth/signup";
-// D254 — the per-invite signup axis. The per-handle login axis caps nothing on a signup (the attacker picks the
+// D259 — the per-invite signup axis. The per-handle login axis caps nothing on a signup (the attacker picks the
 // handle), so the second axis keys on the invite the attempt spends against. Same window and knob as login.
 const SIGNUP_INVITE_RATE_SCOPE = "signup-invite";
 const TOO_MANY_REQUESTS = 429;
 const PAYLOAD_TOO_LARGE = 413;
 const LOGIN_BODY_KIB = 4;
+// D259 — the two signup doors also carry the joiner's persona, whose description alone may run to
+// `JOINER_PERSONA_DESCRIPTION_MAX` characters; still small, so an anonymous POST cannot grow it.
+const SIGNUP_BODY_KIB = 8;
 const BYTES_PER_KIB = 1024;
 const OIDC_BACKCHANNEL_BODY_KIB = 16;
 // Per-IP login throttle: caps brute-force + scrypt-CPU-flood on the only unauthenticated CPU-heavy endpoint
@@ -108,12 +110,13 @@ const HANDLE_KEY_MAX_CHARS = 128;
 const UNKNOWN_IP_KEY = "unknown";
 // Credentials are tiny; cap the login body so a huge POST can't DoS this unauthenticated endpoint.
 const LOGIN_BODY_MAX_BYTES = LOGIN_BODY_KIB * BYTES_PER_KIB;
+const SIGNUP_BODY_MAX_BYTES = SIGNUP_BODY_KIB * BYTES_PER_KIB;
 // A compact JWT fits comfortably; the cap bounds unauthenticated form parsing before signature validation.
 const OIDC_BACKCHANNEL_BODY_MAX_BYTES = OIDC_BACKCHANNEL_BODY_KIB * BYTES_PER_KIB;
 const OIDC_LOGIN_ROUTE = "/api/auth/oidc/login";
 const OIDC_CALLBACK_ROUTE = "/api/auth/oidc/callback";
 const OIDC_BACKCHANNEL_LOGOUT_ROUTE = "/api/auth/oidc/backchannel-logout";
-// D254 — the signed-out pending join: the surface the callback lands on, and its two same-origin routes.
+// D259 — the signed-out pending join: the surface the callback lands on, and its two same-origin routes.
 const OIDC_PENDING_JOIN_SURFACE = "/login?pendingJoin=1";
 const OIDC_PENDING_PREVIEW_ROUTE = "/api/auth/oidc/pending/preview";
 const OIDC_PENDING_CONFIRM_ROUTE = "/api/auth/oidc/pending/confirm";
@@ -449,7 +452,7 @@ type ProvisionOutcome =
   | { readonly outcome: "denied"; readonly reason?: ProvisionDenyReason };
 
 /** Why the callback's `provisionIdentity` refused, where the route tells it apart: `account-exists` gets its
- *  own authError, and `jit-closed` alone may become a pending join (D254). */
+ *  own authError, and `jit-closed` alone may become a pending join (D259). */
 type ProvisionDenyReason = "account-exists" | "jit-closed";
 
 /**
@@ -519,12 +522,12 @@ export interface OidcRoutesDeps {
     readonly verify: BackchannelLogoutVerifier["verify"];
     readonly clientId: string;
   };
-  /** D254 — present when invites may create OIDC accounts; its presence makes the login carry `?invite=`, lets
+  /** D259 — present when invites may create OIDC accounts; its presence makes the login carry `?invite=`, lets
    *  the callback offer a pending join, and registers the pending preview and confirm routes. */
   readonly signup?: OidcSignupDeps;
 }
 
-/** D254 — what the OIDC signup-through-invite routes need. */
+/** D259 — what the OIDC signup-through-invite routes need. */
 interface OidcSignupDeps {
   readonly invites: Pick<SignupInviteOps, "tokenHashOf" | "admitsHash" | "previewHash" | "redeemPending" | "announceJoined">;
   readonly pending: Pick<SessionsService, "recordPendingSignup" | "readPendingSignup" | "preparePendingSignup">;
@@ -552,11 +555,11 @@ export interface AuthRoutesDeps {
   /** The per-client throttled `session_minted_over_public_http` line, built on the composition root's clock.
    *  Absent, every such mint logs. */
   readonly publicHttpMintNotice?: PublicHttpMintNotice;
-  /** D254 — present in local mode; registers the signup-through-invite route. */
+  /** D259 — present in local mode; registers the signup-through-invite route. */
   readonly signup?: SignupRouteDeps;
 }
 
-/** D254 — the local signup route's collaborators. Every op is injected: the route orders them and owns the
+/** D259 — the local signup route's collaborators. Every op is injected: the route orders them and owns the
  *  cookie, and it never reads a table itself. */
 export interface SignupRouteDeps {
   /** The deployment's multi-human capability, read per request; false answers 404 like `/join/:token`. */
@@ -587,7 +590,7 @@ function throttledResponse(c: Context, err: DomainRateLimitError): Response {
 
 /** Consume one login-throttle point for the caller address; returns a 429 Response when over budget, else null
  *  (proceed). Keyed on the peer-first `clientIp` the ingress gate + tRPC seam share (no drift), grouped by
- *  `addressThrottleKey` so an IPv6 host cannot reset its bucket by rotating inside its /64 (D254). */
+ *  `addressThrottleKey` so an IPv6 host cannot reset its bucket by rotating inside its /64 (D259). */
 async function throttleLogin(limiter: RateLimiter, c: Context): Promise<Response | null> {
   const ip = clientIp(c);
   try {
@@ -758,12 +761,12 @@ function registerFirstRunRoute(app: Hono, deps: AuthRoutesDeps, firstRun: FirstR
   });
 }
 
-/** D254 — one signup refusal on the wire: a fixed code, never a message that could name which gate fired. */
+/** D259 — one signup refusal on the wire: a fixed code, never a message that could name which gate fired. */
 function signupRefusal(c: Context, code: SignupErrorCode, status: typeof BAD_REQUEST | typeof CONFLICT | typeof NOT_FOUND): Response {
   return c.json({ error: code }, status);
 }
 
-/** D254 — one point on the per-invite axis, keyed on the invite id the pre-check resolved; 429 when over. */
+/** D259 — one point on the per-invite axis, keyed on the invite id the pre-check resolved; 429 when over. */
 async function throttleSignupInvite(limiter: RateLimiter, c: Context, inviteId: string): Promise<Response | null> {
   try {
     await limiter.consume(inviteId);
@@ -781,13 +784,13 @@ async function throttleSignupInvite(limiter: RateLimiter, c: Context, inviteId: 
   }
 }
 
-/** D254 — does the request already carry a live session under its transport's cookie name? */
+/** D259 — does the request already carry a live session under its transport's cookie name? */
 async function carriesLiveSession(c: Context, signup: SignupRouteDeps): Promise<boolean> {
   const token = readSessionCookie(c.req.raw.headers, requestTransport(c));
   return token !== null && (await signup.sessionIsLive(token));
 }
 
-/** D254 — the strict body parse. A body that is not JSON reads as an invalid request, like a schema miss. */
+/** D259 — the strict body parse. A body that is not JSON reads as an invalid request, like a schema miss. */
 async function readSignupRequest(c: Context): Promise<ReturnType<typeof signupRequestSchema.safeParse>> {
   let raw: unknown;
   // @orb-waive caught-failure-ownership(catch): the CLIENT is the owner and the 400 is the surface — an unparseable body is the caller's error, answered with the same `invalid_request` code as a schema miss. Ends if body decoding gains a server-side fault worth distinguishing from bad input.
@@ -800,7 +803,7 @@ async function readSignupRequest(c: Context): Promise<ReturnType<typeof signupRe
 }
 
 /**
- * D254 — register `POST /api/auth/signup` (local mode): a signed-out visitor creates an account through a
+ * D259 — register `POST /api/auth/signup` (local mode): a signed-out visitor creates an account through a
  * signup invite. The control order is ruled and each step stops the ones after it, so keep it: CSRF header,
  * body cap, the multi-human 404, the per-address bucket, a live session refused, the strict schema and the
  * password floor, the invite pre-check (a 404 with no invite bucket and no scrypt), the per-invite bucket,
@@ -816,7 +819,7 @@ function registerSignupRoute(app: Hono, deps: AuthRoutesDeps, signup: SignupRout
     windowMs: LOGIN_WINDOW_MS,
     now: deps.now,
   });
-  app.post(SIGNUP_ROUTE, csrfGuard, bodyLimit({ maxSize: LOGIN_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }), async (c) => {
+  app.post(SIGNUP_ROUTE, csrfGuard, bodyLimit({ maxSize: SIGNUP_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }), async (c) => {
     const request = await admitSignupRequest(c, signup, addressLimiter);
     if (request instanceof Response) {
       return request;
@@ -826,7 +829,12 @@ function registerSignupRoute(app: Hono, deps: AuthRoutesDeps, signup: SignupRout
     if (refusal !== null) {
       return refusal;
     }
-    const outcome = await signup.invites.redeem({ token: request.token, handle, passwordHash: await signup.hashPassword(request.password) });
+    const outcome = await signup.invites.redeem({
+      token: request.token,
+      handle,
+      passwordHash: await signup.hashPassword(request.password),
+      persona: request.persona,
+    });
     if (outcome.outcome === "refused") {
       return outcome.reason === "handle-taken" ? signupRefusal(c, "handle_unavailable", CONFLICT) : signupRefusal(c, "invite_unavailable", NOT_FOUND);
     }
@@ -838,7 +846,7 @@ function registerSignupRoute(app: Hono, deps: AuthRoutesDeps, signup: SignupRout
   });
 }
 
-/** D254 — the signup steps before any invite work: the multi-human 404, the per-address bucket, the live-session
+/** D259 — the signup steps before any invite work: the multi-human 404, the per-address bucket, the live-session
  *  refusal, the strict schema and the password floor. Returns the parsed request, or the refusal to send. */
 async function admitSignupRequest(c: Context, signup: SignupRouteDeps, addressLimiter: RateLimiter): Promise<Response | SignupRequest> {
   if (!signup.multiHumanCapable()) {
@@ -861,7 +869,7 @@ async function admitSignupRequest(c: Context, signup: SignupRouteDeps, addressLi
   return parsed.data;
 }
 
-/** D254 — the steps between the parse and scrypt: the invite pre-check (a 404 that spends no invite bucket),
+/** D259 — the steps between the parse and scrypt: the invite pre-check (a 404 that spends no invite bucket),
  *  the per-invite bucket, and the reserved and taken handles. Returns the refusal to send, or null. */
 async function admitSignupAttempt(
   c: Context,
@@ -1033,7 +1041,7 @@ function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDep
       requireApproval: oidc.requireApproval,
     });
     if (provisioned.outcome === "denied") {
-      // D254 — the JIT gate, and only the JIT gate, may turn into a pending join when a signup invite rode in.
+      // D259 — the JIT gate, and only the JIT gate, may turn into a pending join when a signup invite rode in.
       const pending = provisioned.reason === "jit-closed" ? await offerPendingJoin(c, oidc, login) : null;
       // MS-W1 — a collision deny gets its own operator-actionable code; every other refusal is generic.
       return pending ?? loginErrorRedirect(c, oidcDenyErrorCode(provisioned.reason));
@@ -1104,7 +1112,7 @@ function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDep
   }
 }
 
-/** D254 — the peppered hash of a login's `?invite=`, or null. The route never says whether the invite is valid:
+/** D259 — the peppered hash of a login's `?invite=`, or null. The route never says whether the invite is valid:
  *  an absent, over-long or unknown token mints the same transaction and the same redirect. The raw token is
  *  hashed here and never stored or logged. */
 function inviteTokenHashOf(c: Context, oidc: OidcRoutesDeps): string | null {
@@ -1115,7 +1123,7 @@ function inviteTokenHashOf(c: Context, oidc: OidcRoutesDeps): string | null {
   return oidc.signup.invites.tokenHashOf(raw);
 }
 
-/** D254 — the pending-join cookie holding a fresh secret, alive exactly as long as the pending row. */
+/** D259 — the pending-join cookie holding a fresh secret, alive exactly as long as the pending row. */
 function serializePendingJoinCookie(secret: string, transport: RequestTransport): string {
   const { name, attrs } = oidcPendingJoinCookieFor(transport);
   return `${name}=${secret}; Max-Age=${OIDC_PENDING_JOIN_TTL_MS / MS_PER_SECOND}; ${attrs}`;
@@ -1127,7 +1135,7 @@ function serializeClearedPendingJoinCookies(): readonly string[] {
 }
 
 /**
- * D254 — a JIT-closed identity that signed in with a signup invite gets a pending join instead of a refusal,
+ * D259 — a JIT-closed identity that signed in with a signup invite gets a pending join instead of a refusal,
  * but only while the invite still admits one account under this mode and its minter still holds the
  * authority. Nothing is provisioned: the identity is frozen under a fresh secret that rides only the pending
  * cookie, and the browser lands on the pending surface, whose URL carries no secret. Returns null (the
@@ -1152,21 +1160,26 @@ async function offerPendingJoin(
   return c.redirect(OIDC_PENDING_JOIN_SURFACE, FOUND);
 }
 
-/** D254 — one pending-join refusal on the wire: a fixed code, and the pending cookie cleared with it. */
+/** D259 — one pending-join refusal on the wire: a fixed code, and the pending cookie cleared with it. */
 function pendingJoinRefusal(c: Context, code: PendingJoinErrorCode, status: typeof BAD_REQUEST | typeof CONFLICT | typeof NOT_FOUND): Response {
   writeSetCookies(c, serializeClearedPendingJoinCookies());
   return c.json({ error: code }, status);
 }
 
-/** D254 — the raw pending secret under the request transport's name, or null. */
+/** D259 — the raw pending secret under the request transport's name, or null. */
 function pendingJoinSecret(c: Context): string | null {
   const secret = readRequestCookie(c.req.raw.headers, oidcPendingJoinCookieFor(requestTransport(c)).name);
   return secret !== null && secret.length > 0 ? secret : null;
 }
 
-/** D254 — the confirm's steps before any write: the per-address bucket, the live-session refusal, the strict
- *  empty body, and the pending secret. Returns the secret, or the refusal to send. */
-async function admitPendingConfirm(c: Context, signup: OidcSignupDeps, addressLimiter: RateLimiter): Promise<Response | string> {
+/** D259 — the confirm's steps before any write: the per-address bucket, the live-session refusal, the strict body
+ *  that carries only the joiner's persona, and the pending secret. Returns the secret and the persona, or the
+ *  refusal to send. */
+async function admitPendingConfirm(
+  c: Context,
+  signup: OidcSignupDeps,
+  addressLimiter: RateLimiter,
+): Promise<Response | { readonly secret: string; readonly persona: PendingJoinConfirmRequest["persona"] }> {
   const throttled = await throttleLogin(addressLimiter, c);
   if (throttled !== null) {
     return throttled;
@@ -1182,14 +1195,16 @@ async function admitPendingConfirm(c: Context, signup: OidcSignupDeps, addressLi
   } catch {
     raw = undefined;
   }
-  if (!pendingJoinConfirmRequestSchema.safeParse(raw).success) {
+  const body = pendingJoinConfirmRequestSchema.safeParse(raw);
+  if (!body.success) {
     return c.json({ error: "invalid_request" satisfies PendingJoinErrorCode }, BAD_REQUEST);
   }
-  return pendingJoinSecret(c) ?? pendingJoinRefusal(c, "join_unavailable", NOT_FOUND);
+  const secret = pendingJoinSecret(c);
+  return secret === null ? pendingJoinRefusal(c, "join_unavailable", NOT_FOUND) : { secret, persona: body.data.persona };
 }
 
 /**
- * D254 — the signed-out pending join's two routes, both same-origin POSTs behind `csrfGuard`. The preview shows
+ * D259 — the signed-out pending join's two routes, both same-origin POSTs behind `csrfGuard`. The preview shows
  * the room the pending invite opens and nothing else. The confirm takes no token input: the pending cookie
  * names the join, `preparePendingSignup` re-decides the frozen identity, and chat's one batch takes the pending
  * row, inserts the account, spends a use, seats it and audits it, or does none of that. A session mints only
@@ -1197,7 +1212,7 @@ async function admitPendingConfirm(c: Context, signup: OidcSignupDeps, addressLi
  */
 function registerOidcPendingJoin(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDeps, signup: OidcSignupDeps): void {
   const addressLimiter = loginThrottler(deps);
-  const bodyCap = bodyLimit({ maxSize: LOGIN_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) });
+  const bodyCap = bodyLimit({ maxSize: SIGNUP_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) });
   app.post(OIDC_PENDING_PREVIEW_ROUTE, csrfGuard, bodyCap, async (c) => {
     const throttled = await throttleLogin(addressLimiter, c);
     if (throttled !== null) {
@@ -1212,11 +1227,11 @@ function registerOidcPendingJoin(app: Hono, deps: AuthRoutesDeps, oidc: OidcRout
     return c.json(invitePreviewSchema.parse(preview));
   });
   app.post(OIDC_PENDING_CONFIRM_ROUTE, csrfGuard, bodyCap, async (c) => {
-    const secret = await admitPendingConfirm(c, signup, addressLimiter);
-    if (secret instanceof Response) {
-      return secret;
+    const admitted = await admitPendingConfirm(c, signup, addressLimiter);
+    if (admitted instanceof Response) {
+      return admitted;
     }
-    const plan = await signup.pending.preparePendingSignup({ secret, requireApproval: oidc.requireApproval });
+    const plan = await signup.pending.preparePendingSignup({ secret: admitted.secret, requireApproval: oidc.requireApproval });
     if (plan === null) {
       return pendingJoinRefusal(c, "join_unavailable", NOT_FOUND);
     }
@@ -1224,6 +1239,7 @@ function registerOidcPendingJoin(app: Hono, deps: AuthRoutesDeps, oidc: OidcRout
       tokenHash: plan.inviteTokenHash,
       userId: plan.userId,
       handle: plan.handle,
+      persona: admitted.persona,
       statements: plan.statements,
     });
     if (outcome.outcome === "refused") {

@@ -1,9 +1,9 @@
 // The share preconditions as one ordered decision: a sign-in mode a relayed visitor can use, a relay binary this
 // process can run, then (local only) a claimed owner. The first failing one is the refusal, naming its fix.
 
-import type { ShareRefusal } from "@orb/contracts/identity";
+import type { ShareRefusal, ShareRefusalNotice } from "@orb/contracts/identity";
 import { SHARE_MODE_REFUSAL } from "@orb/contracts/identity";
-import type { ShareFacts, ShareRefusalNotice } from "../contract/service.ts";
+import type { ShareFacts } from "../contract/service.ts";
 
 // Where an oidc box's friends already join: the addresses its identity provider returns people to.
 function oidcAddress(facts: ShareFacts): string {
@@ -34,15 +34,22 @@ function refusal(code: ShareRefusal, facts: ShareFacts): ShareRefusalNotice {
   return { code, message: message(code, facts) };
 }
 
-/** The first unmet precondition, or null when a share may start. `ownerNeedsPassword` is the pending read of the owner
- *  row; it is awaited only under `local`, the one mode with a first-run claim. */
-export async function shareRefusal(facts: ShareFacts): Promise<ShareRefusalNotice | null> {
+/** The first unmet precondition known without a read: the sign-in mode, then the container. The status carries it, so
+ *  the card shows a refusal no start could get past before anyone presses Start. */
+export function standingShareRefusal(facts: ShareFacts): ShareRefusalNotice | null {
   const modeRefusal = SHARE_MODE_REFUSAL[facts.authMode];
   if (modeRefusal !== null) {
     return refusal(modeRefusal, facts);
   }
-  if (facts.inContainer) {
-    return refusal("share_in_container", facts);
+  return facts.inContainer ? refusal("share_in_container", facts) : null;
+}
+
+/** The first unmet precondition, or null when a share may start. `ownerNeedsPassword` is the pending read of the owner
+ *  row; it is awaited only under `local`, the one mode with a first-run claim. */
+export async function shareRefusal(facts: ShareFacts): Promise<ShareRefusalNotice | null> {
+  const standing = standingShareRefusal(facts);
+  if (standing !== null) {
+    return standing;
   }
   if (facts.authMode === "local" && (await facts.ownerNeedsPassword())) {
     return refusal("share_owner_unclaimed", facts);

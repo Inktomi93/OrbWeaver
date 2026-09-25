@@ -1,4 +1,4 @@
-// D254 — the pending OIDC join. The callback freezes a JIT-closed identity that arrived with a signup invite;
+// D259 — the pending OIDC join. The callback freezes a JIT-closed identity that arrived with a signup invite;
 // the confirm plans its account through `decideProvision` (spine invariant 10), so this is not a second upsert.
 // The plan's SQL carries only the race-relevant checks: the pending take, the invite admission, the handle-key
 // and email NOT EXISTS, and the unique indexes. Everything else was decided from the rows read here.

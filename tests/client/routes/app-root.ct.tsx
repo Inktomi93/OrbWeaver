@@ -23,7 +23,7 @@
 import { chatWithActionName } from "@orb/client/lib";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import type { UserId } from "@orb/kit/ids";
+import type { PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
@@ -419,6 +419,93 @@ test("a user who owns a persona never sees the gate (the automation-seeded + ret
   // were going to.
   await expect(page.getByRole("button", { name: `Playing as ${HOME_PERSONA.name}` })).toBeVisible();
   await expect(page.locator('[data-home-tile="chat.recents"]')).toBeVisible();
+  await expect(page.getByTestId(testId("firstRunPersonaDialog"))).toHaveCount(0);
+});
+
+// ── A JOINER NAMES A PERSONA BEFORE THEIR SEAT (owner ruling on sign-up joiners) ──
+// The /join landing waits until the viewer can speak: a joiner with no persona meets the first-run ask first, and
+// the join dialog opens only once the ask has set the pointers, so the seat the join creates is never born empty.
+
+const JOIN_TOKEN = "tok_ct_join_after_persona";
+const JOIN_PREVIEW = { chatId: "chat_ct_join", roomName: "Tavern Night", hostHandle: "alex", memberCount: 2, modeLabel: "Group" };
+
+/** A multi-human deployment and a join token the signed-out visit stashed, both in place before the app boots. */
+async function arriveWithInvite(page: Page): Promise<void> {
+  await page.route("**/api/auth/config", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ mode: "local", multiHumanCapable: true, share: { state: "off", url: null } }),
+    }),
+  );
+  await page.addInitScript((token) => sessionStorage.setItem("orb:join-token", token), JOIN_TOKEN);
+  await page.reload();
+}
+
+function settingsWithSeeds(personaId: PersonaId | null): TrpcFixtureOutput<"settings.getUserSettings"> {
+  return {
+    userId: castId<UserId>("user_ct"),
+    schemaVersion: 1,
+    config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, currentPersonaId: personaId, defaultPersonaId: personaId } },
+    updatedAt: 0,
+    configUnreadable: null,
+  };
+}
+
+test("a joiner with no persona names one in the first-run ask before the join dialog opens", async ({ mount, page }) => {
+  await arriveWithInvite(page);
+  let personas: TrpcFixtureOutput<"persona.list"> = [];
+  let seeded: PersonaId | null = null;
+  const trpc = await routeTrpc(page, {
+    ...HOME_AMBIENT_ROUTES,
+    "chat.listChats": chatListResponder([]),
+    "databank.list": { items: [], nextCursor: null, totalCount: 0 },
+    "databank.bankHealth": EMPTY_BANK_HEALTH,
+    "character.list": NO_CHARACTERS,
+    "persona.list": () => personas,
+    "persona.create": () => {
+      personas = [{ ...HOME_PERSONA, name: "Mira" }];
+      return { ...HOME_PERSONA, name: "Mira", title: null, metadata: null, avatarAssetId: null, createdAt: 0, updatedAt: 0 };
+    },
+    "settings.getUserSettings": () => settingsWithSeeds(seeded),
+    "settings.updateUserSettingsSection": () => {
+      seeded = castId<PersonaId>(HOME_PERSONA.id);
+      return settingsWithSeeds(seeded);
+    },
+    "invites.previewInvite": () => JOIN_PREVIEW,
+  });
+  await mount(<HomePageStory />);
+
+  const gate = page.getByTestId(testId("firstRunPersonaDialog"));
+  const join = page.getByTestId(testId("joinInviteDialog"));
+  // The gate renders only once both of its reads settled, so its presence is the barrier for the join's absence.
+  await expect(gate).toBeVisible();
+  await expect(join).toHaveCount(0);
+  await expect.poll(() => trpc.count("invites.previewInvite")).toBe(0);
+
+  await page.getByTestId(testId("firstRunPersonaName")).fill("Mira");
+  await page.getByTestId(testId("firstRunPersonaCreate")).click();
+
+  await expect(gate).toHaveCount(0);
+  await expect(join).toBeVisible();
+  await expect(join.getByTestId(testId("joinInviteConfirm"))).toBeVisible();
+  await expect.poll(() => trpc.count("persona.create")).toBe(1);
+});
+
+test("control: a joiner who already speaks as a persona gets the join dialog at once, with no first-run ask", async ({ mount, page }) => {
+  await arriveWithInvite(page);
+  await routeTrpc(page, {
+    ...HOME_AMBIENT_ROUTES,
+    "chat.listChats": chatListResponder([]),
+    "databank.list": { items: [], nextCursor: null, totalCount: 0 },
+    "databank.bankHealth": EMPTY_BANK_HEALTH,
+    "character.list": NO_CHARACTERS,
+    "persona.list": PERSONAS,
+    "invites.previewInvite": () => JOIN_PREVIEW,
+  });
+  await mount(<HomePageStory />);
+
+  await expect(page.getByTestId(testId("joinInviteDialog"))).toBeVisible();
   await expect(page.getByTestId(testId("firstRunPersonaDialog"))).toHaveCount(0);
 });
 

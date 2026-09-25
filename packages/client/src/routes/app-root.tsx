@@ -23,7 +23,7 @@ import {
 } from "#data";
 import { AppShell } from "#features/app-shell";
 import { JoinInviteDialog } from "#features/chat";
-import { FirstRunPersonaDialog } from "#features/persona";
+import { FirstRunPersonaDialog, useViewerCanSpeak } from "#features/persona";
 import { announceStatus, useActiveChatId, useActiveSection, useSelectedCharacterId, useStatusAnnouncement } from "#state";
 import { AppRootSessionBoundary } from "./app-root-session-boundary/index.ts";
 
@@ -36,7 +36,7 @@ export function AppRoot(): ReactElement {
   // chrome never flashes-then-yanks; a device that HAS been told paints the right arm in its first frame.
   const multiHumanCapable = useMultiHumanCapable();
   // The one-shot invite handoff, captured at mount: the address bar's `?join=` or the token a signed-out visit
-  // stashed before sign-in (D254). Spent at once in the effect, so a raw invite token never lingers in the
+  // stashed before sign-in (D259). Spent at once in the effect, so a raw invite token never lingers in the
   // address bar, in history or in the tab stash.
   const [joinToken, setJoinToken] = useState(peekInboundJoinToken);
   useEffect(() => {
@@ -78,6 +78,9 @@ interface HydratedAppRootProps {
 /** Everything that can read or act on durable-local state mounts only after the verified user owns it. */
 function HydratedAppRoot({ multiHumanCapable, joinToken, setJoinToken }: HydratedAppRootProps): ReactElement {
   const invalidation = useInvalidation();
+  // A joiner with no persona names one in the first-run gate before the join dialog opens, so the seat the join
+  // creates is born with the persona it speaks as.
+  const canSpeak = useViewerCanSpeak();
 
   const activeSection = useActiveSection();
   const selectedCharacterId = useSelectedCharacterId();
@@ -129,8 +132,9 @@ function HydratedAppRoot({ multiHumanCapable, joinToken, setJoinToken }: Hydrate
       <AppShell />
       {/* Renders nothing once the viewer owns a persona; forces the create flow on a fresh account. */}
       <FirstRunPersonaDialog />
-      {/* The /join link landing — mounts only when a token arrived and the deployment is capable. */}
-      {multiHumanCapable && joinToken !== null ? <JoinInviteDialog token={joinToken} onDone={(): void => setJoinToken(null)} /> : null}
+      {/* The /join link landing — mounts only when a token arrived, the deployment is capable, and the viewer has a
+          persona to be seated as. */}
+      {multiHumanCapable && joinToken !== null && canSpeak ? <JoinInviteDialog token={joinToken} onDone={(): void => setJoinToken(null)} /> : null}
     </>
   );
 }

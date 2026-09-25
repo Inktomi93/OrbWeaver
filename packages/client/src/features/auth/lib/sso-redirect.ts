@@ -17,7 +17,7 @@ import type { AuthMode } from "@orb/contracts/identity";
 const FORCE_PARAM = "sso";
 /** A failed round-trip param — suppresses the redirect even when `?sso` is present, so a failure can't loop. */
 const FAILURE_PARAM = "authError";
-/** D254 — the callback's landing for a pending join. It carries no secret: the pending cookie names the join. */
+/** D259 — the callback's landing for a pending join. It carries no secret: the pending cookie names the join. */
 const PENDING_JOIN_PARAM = "pendingJoin";
 /** The OIDC login route (a whole-window navigation; the server 302s to the IdP). */
 const OIDC_LOGIN_ROUTE = "/api/auth/oidc/login";
@@ -32,12 +32,12 @@ export function shouldAutoRedirectToSso(mode: AuthMode, locationSearch: string):
   return params.has(FORCE_PARAM) && !params.has(FAILURE_PARAM) && !params.has(PENDING_JOIN_PARAM);
 }
 
-/** D254 — is this /login visit the callback's pending-join landing? */
+/** D259 — is this /login visit the callback's pending-join landing? */
 export function isPendingJoinLanding(locationSearch: string): boolean {
   return new URLSearchParams(locationSearch).has(PENDING_JOIN_PARAM);
 }
 
-/** D254 — the OIDC login URL. A stashed signup invite rides it as `?invite=` to the server, which keeps only its
+/** D259 — the OIDC login URL. A stashed signup invite rides it as `?invite=` to the server, which keeps only its
  *  peppered hash on the transaction. The route 302s at once, so the token never becomes a history entry. */
 export function oidcLoginUrl(joinToken: string | null): string {
   return joinToken === null ? OIDC_LOGIN_ROUTE : `${OIDC_LOGIN_ROUTE}?${new URLSearchParams({ invite: joinToken }).toString()}`;

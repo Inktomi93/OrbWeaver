@@ -214,6 +214,38 @@ test("display: relative picks the largest sensible unit, both directions", () =>
   expect(lib.formatRelative(NOW_MS - 30_000)).toBe("30s ago");
 });
 
+// A future span is a deadline: it never reads longer than it is. It floors in the unit the raw span reaches, after a grace
+// of a hundredth of that unit, so a link read seconds after it was minted keeps its full length. A past span may round.
+// A value that reaches the next unit reads as that unit, so no label says "in 24h" or "60m".
+test.each([
+  ["a 7-day link read seconds after minting", NOW_MS + 7 * DAY_MS - 5000, "in 7d"],
+  ["six and a half days", NOW_MS + 6 * DAY_MS + 12 * HOUR_MS, "in 6d"],
+  ["one hour thirty-one minutes", NOW_MS + HOUR_MS + 31 * MINUTE_MS, "in 1h"],
+  ["a 2h deadline read seconds later", NOW_MS + 2 * HOUR_MS - 5000, "in 2h"],
+  // One day in `numeric: "auto"` is "tomorrow": the day unit, never "in 24h".
+  ["seconds short of a day", NOW_MS + DAY_MS - 30_000, "tomorrow"],
+  ["thirty seconds short of an hour", NOW_MS + HOUR_MS - 30_000, "in 59m"],
+  ["one minute", NOW_MS + MINUTE_MS, "in 1m"],
+  ["ninety seconds", NOW_MS + 90_000, "in 1m"],
+  ["two minutes", NOW_MS + 2 * MINUTE_MS, "in 2m"],
+  ["five minutes", NOW_MS + 5 * MINUTE_MS, "in 5m"],
+  ["fifty-nine minutes", NOW_MS + 59 * MINUTE_MS, "in 59m"],
+  ["half a second short of an hour", NOW_MS + HOUR_MS - 500, "in 1h"],
+  ["half a minute", NOW_MS + 30_000, "in 30s"],
+])("display: a future span never overstates: %s", (_case, epochMs, label) => {
+  expect(lib.formatRelative(epochMs)).toBe(label);
+});
+
+test.each([
+  ["one hour forty minutes ago", NOW_MS - HOUR_MS - 40 * MINUTE_MS, "2h ago"],
+  ["twenty-three hours forty minutes ago", NOW_MS - 23 * HOUR_MS - 40 * MINUTE_MS, "yesterday"],
+  ["fifty-nine minutes forty seconds ago", NOW_MS - 59 * MINUTE_MS - 40_000, "1h ago"],
+  ["two days three hours ago", NOW_MS - 2 * DAY_MS - 3 * HOUR_MS, "2d ago"],
+  ["a fraction of a second ago", NOW_MS - 300, "now"],
+])("display: a past span rounds, and a value that reaches the next unit reads as it: %s", (_case, epochMs, label) => {
+  expect(lib.formatRelative(epochMs)).toBe(label);
+});
+
 // The LIST-ROW stamp form (list-pane-projection side-eye P1-2): same instant, tense dropped, so a 307px
 // pane spends 2-3 characters on recency. The unit ladder must never skip a step (a 25h span is "1d", not
 // "25h") and must stay honest at the edges — sub-minute and future both read "now".

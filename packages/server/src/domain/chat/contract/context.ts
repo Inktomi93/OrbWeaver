@@ -1342,7 +1342,7 @@ export interface ChatContext {
   readonly newChatTurnId: () => ChatTurnId;
   /** Hashes an invite token before persistence — never stored raw. */
   readonly hashToken: (token: string) => string;
-  /** D254 — whether this mode mints signup invites, and the mode every invite is stamped with. */
+  /** D259 — whether this mode mints signup invites, and the mode every invite is stamped with. */
   readonly signupInvites: SignupInviteCapability;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   /** Unexecuted audit insert for the host-handoff swap's all-or-nothing forensic record. */
@@ -1529,6 +1529,6 @@ export interface ChatServiceDeps {
   readonly holder: string;
   /** The per-chat lock TTL (ms), sized for one turn. */
   readonly lockTtlMs: number;
-  /** D254 — the foreign halves of the signup-invite ops (sessions account statement, minter check, audit). */
+  /** D259 — the foreign halves of the signup-invite ops (sessions account statement, minter check, audit). */
   readonly signup: SignupInviteDeps;
 }

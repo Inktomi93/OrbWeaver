@@ -1,4 +1,4 @@
-// D254 — the OIDC signup-through-invite round trip (the `.suite.int.test.ts` exemption: one property, many
+// D259 — the OIDC signup-through-invite round trip (the `.suite.int.test.ts` exemption: one property, many
 // modules). A signed-out visitor opens a signup invite, signs in at the IdP with JIT closed, and joins only by
 // confirming. This composes the REAL login, callback, pending-preview and confirm routes, the REAL sessions
 // service and OIDC store, the REAL chat signup ops and a REAL database; only the IdP exchange is a fake that
@@ -6,7 +6,7 @@
 
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import { auditLogs, chatInvites, chatParticipants, oidcPendingSignups, oidcTransactions, users } from "@orb/db";
+import { auditLogs, chatInvites, chatParticipants, oidcPendingSignups, oidcTransactions, personas, users } from "@orb/db";
 import type { ChatId, ChatInviteId, ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createSessionsService, createTokenHasher } from "@orb/server/domain/sessions";
@@ -17,7 +17,9 @@ import { Hono } from "hono";
 import { Configuration } from "openid-client";
 import { afterEach, describe, vi } from "vitest";
 import { createSignupInvite } from "../../../packages/server/src/domain/chat/verbs/signup-invite.ts";
+import { createJoinerPersonaStatement } from "../../../packages/server/src/domain/persona/verbs/joiner-persona-statement.ts";
 import { createOidcStore } from "../../../packages/server/src/domain/sessions/persistence/oidc-store.ts";
+import { createJoinerSettingsStatement } from "../../../packages/server/src/domain/settings/verbs/joiner-settings-statement.ts";
 import { createHostPrincipalResolver } from "../../../packages/server/src/entry/auth/seam.ts";
 import { createSignupMinterCheck } from "../../../packages/server/src/entry/compose/chat.ts";
 import { buildAuditStatementIfPrecedingWrote } from "../../../packages/server/src/foundation/observability/audit.ts";
@@ -39,6 +41,8 @@ const SESSION = "__Host-orb_session";
 const HTTPS = { "x-forwarded-proto": "https", "x-forwarded-host": APP_HOST };
 const PEER = { incoming: { socket: { remoteAddress: "10.20.0.1", remotePort: 40_000, remoteFamily: "IPv4" } } };
 const hashInvite = createTokenHasher(PEPPER);
+/** The persona the joiner names on the pending-join card; the confirm body carries it. */
+const PERSONA = { name: "Mira", description: "" } as const;
 
 /** Verified claims the fake exchange hands the callback: a new IdP user with a stable subject. */
 function claimsFor(name: string, over: Record<string, unknown> = {}): Record<string, unknown> {
@@ -88,6 +92,8 @@ async function flow(opts: { readonly requireApproval?: boolean; readonly maxUses
     { db, now, hashToken: hashInvite, newParticipantId: () => mintTypeId(ID_PREFIX.chatParticipant), signupInvites: { mode: "oidc", mintable: true } },
     {
       signupUserStatement: sessions.signupUserStatement,
+      signupPersonaStatement: createJoinerPersonaStatement({ db, newPersonaId: () => mintTypeId(ID_PREFIX.persona) }),
+      signupPersonaPointersStatement: createJoinerSettingsStatement({ db }),
       minterMayMintSignup: createSignupMinterCheck(sessions, createHostPrincipalResolver(sessions)),
       auditStatementAfterWrite: (entry, at) => buildAuditStatementIfPrecedingWrote(db, entry, at),
       assemblePreview: (chatId) => Promise.resolve({ chatId, roomName: "The room", hostHandle: castId<Handle>("host"), memberCount: 1, modeLabel: "turns" }),
@@ -179,7 +185,7 @@ async function post(f: Flow, path: string, cookie: string | null, shape: PostSha
   );
 }
 
-const confirm = (f: Flow, secret: string | null, body: unknown = {}): Promise<Response> =>
+const confirm = (f: Flow, secret: string | null, body: unknown = { persona: PERSONA }): Promise<Response> =>
   post(f, "/api/auth/oidc/pending/confirm", secret === null ? null : `${PENDING}=${secret}`, { body });
 
 async function usersBySubject(f: Flow, name: string): Promise<(typeof users.$inferSelect)[]> {
@@ -289,12 +295,17 @@ describe("the pending preview and confirm", () => {
     const [account] = await usersBySubject(f, "friend");
     expect(account).toMatchObject({ handle: "friend", email: "friend@example.test", role: "user", enabled: true, passwordHash: null });
     expect(await inviteUses(f)).toBe(1);
-    expect(
-      await f.db
-        .select()
-        .from(chatParticipants)
-        .where(eq(chatParticipants.userId, castId<UserId>(account?.id ?? ""))),
-    ).toHaveLength(1);
+    const seats = await f.db
+      .select()
+      .from(chatParticipants)
+      .where(eq(chatParticipants.userId, castId<UserId>(account?.id ?? "")));
+    expect(seats).toHaveLength(1);
+    // Seated as the persona the confirm body named, which the same batch created for the new account.
+    const [persona] = await f.db
+      .select()
+      .from(personas)
+      .where(eq(personas.ownerId, castId<UserId>(account?.id ?? "")));
+    expect(persona).toMatchObject({ id: seats[0]?.activePersonaId, name: PERSONA.name });
     expect(await f.db.select().from(auditLogs).where(eq(auditLogs.action, "invites.signup"))).toHaveLength(1);
     expect(f.seeded).toEqual([account?.id]);
     expect(f.announced).toEqual([f.chatId]);
@@ -319,10 +330,11 @@ describe("the pending preview and confirm", () => {
     expect(await usersBySubject(late, "friend")).toHaveLength(0);
   });
 
-  test("a body naming another invite is refused by the strict schema; without x-orb-csrf the confirm is 403", async () => {
+  test("a body naming another invite or no persona is refused by the strict schema; without x-orb-csrf the confirm is 403", async () => {
     const f = await flow();
     const secret = await pendingJoin(f);
-    expect((await confirm(f, secret, { token: "tok_other" })).status).toBe(400);
+    expect((await confirm(f, secret, { persona: PERSONA, token: "tok_other" })).status).toBe(400);
+    expect((await confirm(f, secret, {})).status).toBe(400);
     expect((await post(f, "/api/auth/oidc/pending/confirm", `${PENDING}=${secret}`, { csrf: false })).status).toBe(403);
     expect(await usersBySubject(f, "friend")).toHaveLength(0);
   });
@@ -361,7 +373,13 @@ describe("the pending preview and confirm", () => {
       throw new Error("expected a plan for a live pending join");
     }
     await f.db.delete(oidcPendingSignups);
-    const outcome = await f.invites.redeemPending({ tokenHash: plan.inviteTokenHash, userId: plan.userId, handle: plan.handle, statements: plan.statements });
+    const outcome = await f.invites.redeemPending({
+      tokenHash: plan.inviteTokenHash,
+      userId: plan.userId,
+      handle: plan.handle,
+      persona: PERSONA,
+      statements: plan.statements,
+    });
     expect(outcome).toEqual({ outcome: "refused", reason: "identity" });
     expect(await usersBySubject(f, "friend")).toHaveLength(0);
     expect(await inviteUses(f)).toBe(0);
@@ -406,7 +424,13 @@ describe("a pending join claims no handle the local signup would refuse", () => 
       throw new Error("expected a plan for a live pending join");
     }
     await seedUser(f.db, { handle: castId<Handle>("FRIEND") });
-    const outcome = await f.invites.redeemPending({ tokenHash: plan.inviteTokenHash, userId: plan.userId, handle: plan.handle, statements: plan.statements });
+    const outcome = await f.invites.redeemPending({
+      tokenHash: plan.inviteTokenHash,
+      userId: plan.userId,
+      handle: plan.handle,
+      statements: plan.statements,
+      persona: PERSONA,
+    });
     expect(outcome).toEqual({ outcome: "refused", reason: "identity" });
     expect(await usersBySubject(f, "friend")).toHaveLength(0);
     expect(await inviteUses(f)).toBe(0);

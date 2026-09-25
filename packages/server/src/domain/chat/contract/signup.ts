@@ -1,12 +1,13 @@
-// domain/chat/contract/signup — the signup-invite ops (D254). The entry signup route calls them with no
+// domain/chat/contract/signup — the signup-invite ops (D259). The entry signup route calls them with no
 // Principal: the route is the signed-out door, and the authority is the invite plus its minter's standing.
 // Chat owns the invite, the seat and the order of the batch; sessions owns the account insert and hands it
 // in as a statement builder that takes chat's admission predicate, so sessions reads no chat table.
 
 import type { InvitePreview } from "@orb/contracts/chat";
 import type { AuthMode } from "@orb/contracts/identity";
+import type { JoinerPersona } from "@orb/contracts/persona";
 import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/kit";
-import type { ChatId, ChatInviteId, Handle, UserId } from "@orb/kit/ids";
+import type { ChatId, ChatInviteId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import type { AuditEntry } from "#foundation/observability";
 
@@ -24,18 +25,36 @@ export type SignupUserStatementOp = (args: { readonly handle: Handle; readonly p
   readonly statement: AwaitableBatchStmt<{ id: UserId }[]>;
 };
 
+/** The persona-owned insert of the joiner's persona, which the seat after it names. It inserts only where the
+ *  statement before it changed a row. */
+export type SignupPersonaStatementOp = (args: { readonly ownerId: UserId; readonly persona: JoinerPersona; readonly at: number }) => {
+  readonly personaId: PersonaId;
+  readonly statement: AwaitableBatchStmt<{ id: PersonaId }[]>;
+};
+
+/** The settings-owned first settings row of the new account, aiming its current and default persona at the one the
+ *  batch created, so the first-run persona ask stands down and later rooms seat it as that persona too. It writes
+ *  only where the statement before it changed a row. */
+export type SignupPersonaPointersStatementOp = (args: {
+  readonly ownerId: UserId;
+  readonly personaId: PersonaId;
+  readonly at: number;
+}) => AwaitableBatchStmt<{ userId: UserId }[]>;
+
 /** Does the invite's minter still hold the authority to mint a signup invite: enabled, and a global admin? */
 export type SignupMinterCheckOp = (minterUserId: UserId) => Promise<boolean>;
 
 /** The foreign halves of the signup ops, wired at the composition root. */
 export interface SignupInviteDeps {
   readonly signupUserStatement: SignupUserStatementOp;
+  readonly signupPersonaStatement: SignupPersonaStatementOp;
+  readonly signupPersonaPointersStatement: SignupPersonaPointersStatementOp;
   readonly minterMayMintSignup: SignupMinterCheckOp;
   /** The `changes()`-guarded audit insert (`buildAuditStatementIfPrecedingWrote`). */
   readonly auditStatementAfterWrite: (entry: AuditEntry, at: number) => BatchStmt;
 }
 
-/** D254 — the sessions half of an OIDC pending join: its first two batch statements around chat's opaque
+/** D259 — the sessions half of an OIDC pending join: its first two batch statements around chat's opaque
  *  `admission`. `take` deletes the live pending row; `account` inserts only where `take` deleted one. */
 export type PendingSignupStatements = (admission: SQL) => { readonly take: BatchStmt; readonly account: AwaitableBatchStmt<{ id: UserId }[]> };
 
@@ -55,20 +74,27 @@ export interface SignupInviteOps {
   /** The invite id when the raw token names a signup invite that still admits one account under this mode and
    *  whose minter still holds the authority; else null. Reads only. */
   readonly admits: (token: string) => Promise<ChatInviteId | null>;
-  /** The one gated batch: account, use, seat, audit row, or none of them. */
-  readonly redeem: (args: { readonly token: string; readonly handle: Handle; readonly passwordHash: string }) => Promise<SignupRedeemOutcome>;
+  /** The one gated batch: account, use, the joiner's persona, its pointers, the seat as that persona, audit row, or
+   *  none of them. */
+  readonly redeem: (args: {
+    readonly token: string;
+    readonly handle: Handle;
+    readonly passwordHash: string;
+    readonly persona: JoinerPersona;
+  }) => Promise<SignupRedeemOutcome>;
   /** The peppered hash chat keys invites by. The OIDC login stores only this, never the raw token. */
   readonly tokenHashOf: (token: string) => string;
   /** `admits` for an invite already hashed (the OIDC transaction carries only the hash). */
   readonly admitsHash: (tokenHash: string) => Promise<boolean>;
   /** The preview of a signup invite that still admits, or null. The signed-out pending join reads this. */
   readonly previewHash: (tokenHash: string) => Promise<InvitePreview | null>;
-  /** D254 — the OIDC confirm's batch: take the pending row, the gated account, the use, the seat, the audit
-   *  row, or none of them. */
+  /** D259 — the OIDC confirm's batch: take the pending row, the gated account, the use, the joiner's persona, its
+   *  pointers, the seat as that persona, the audit row, or none of them. */
   readonly redeemPending: (args: {
     readonly tokenHash: string;
     readonly userId: UserId;
     readonly handle: Handle;
+    readonly persona: JoinerPersona;
     readonly statements: PendingSignupStatements;
   }) => Promise<SignupRedeemOutcome>;
   /** Fan `chatUpdated` for the joined room. */

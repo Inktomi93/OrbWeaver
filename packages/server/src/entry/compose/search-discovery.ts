@@ -32,8 +32,8 @@ import type { EmbeddingsIndexer, EmbeddingsService, ResolveEmbeddingConnection }
 import { createEmbeddingsIndexer, createEmbeddingsService } from "#domain/embeddings";
 import type { NotificationsService } from "#domain/notifications";
 import { createNotificationsService } from "#domain/notifications";
-import type { PersonaContext, PersonaService, ResolvePersonasForParticipants } from "#domain/persona";
-import { createPersonaService, createResolvePersonasForParticipants } from "#domain/persona";
+import type { JoinerPersonaStatementOp, PersonaContext, PersonaService, ResolvePersonasForParticipants } from "#domain/persona";
+import { createJoinerPersonaStatement, createPersonaService, createResolvePersonasForParticipants } from "#domain/persona";
 import type { PresetContext, PresetService } from "#domain/preset";
 import { createPresetService } from "#domain/preset";
 import type { SearchService } from "#domain/search";
@@ -108,6 +108,8 @@ export interface SearchDiscoveryComposeResult {
   /** The persona domain's PRINCIPAL-LESS participants op — injected into the chat compose (the FOREIGN-inputs
    *  resolver's ONE room-plane persona read). Built from the SAME `PersonaContext` as the service. */
   readonly resolvePersonasForParticipants: ResolvePersonasForParticipants;
+  /** D259 — the sign-up joiner's persona statement chat's signup batch runs. Built from the same `PersonaContext`. */
+  readonly joinerPersonaStatement: JoinerPersonaStatementOp;
   readonly presetCtx: PresetContext;
   readonly preset: PresetService;
   readonly stats: StatsService;
@@ -270,6 +272,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   };
   const persona = createPersonaService(personaCtx);
   const resolvePersonasForParticipants = createResolvePersonasForParticipants(personaCtx);
+  const joinerPersonaStatement = createJoinerPersonaStatement(personaCtx);
   const presetCtx: PresetContext = {
     db,
     now,
@@ -386,6 +389,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     indexer,
     persona,
     resolvePersonasForParticipants,
+    joinerPersonaStatement,
     presetCtx,
     preset,
     stats,

@@ -6,7 +6,7 @@
 // riding the wire, and the outstanding list (status per row; Revoke only on pending).
 
 import { SIGNUP_MAX_USES } from "@orb/contracts/chat";
-import type { AuthMode, UserRole } from "@orb/contracts/identity";
+import type { AuthConfigShare, AuthMode, UserRole } from "@orb/contracts/identity";
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -16,9 +16,35 @@ import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { InviteDialogStory } from "../_ct-stories.tsx";
 
 const REVOKE_RE = /Revoke/u;
-/** A plain host: the sign-up switch stays hidden, so the mint-form tests below keep their pre-D254 shape. */
+/** A plain host: the sign-up switch stays hidden, so the mint-form tests below keep their pre-D259 shape. */
 const ME_USER = { userId: "user_ct_viewer", handle: "viewer", globalRole: "user" } satisfies TrpcFixtureOutput<"sessions.me">;
 const MINTED_LINK_RE = /\/join\/tok_ct_minted$/u;
+const SHARE_OFF: AuthConfigShare = { state: "off", url: null };
+const SHARE_URL = "https://calm-river-four-birds.trycloudflare.com";
+
+/** `/api/auth/config` for this viewer: the mode the sign-up switch reads and the share the minted link reads. */
+async function stubAuthConfig(page: Page, opts: { readonly mode?: AuthMode; readonly share?: AuthConfigShare } = {}): Promise<void> {
+  const mode = opts.mode ?? "local";
+  const config: AuthConfig = {
+    mode,
+    requiresLogin: mode === "local" || mode === "oidc",
+    localEnabled: mode === "local",
+    oidcEnabled: mode === "oidc",
+    oidcProviderName: "Test IdP",
+    localFirstRun: false,
+    discreetLogin: false,
+    defaultHandle: null,
+    multiHumanCapable: true,
+    forbidExternalMedia: true,
+    trustHtml: false,
+    allowInteractiveCards: false,
+    uploads: DEFAULT_UPLOAD_CAPS,
+    transport: "https",
+    clientScope: "private",
+    share: opts.share ?? SHARE_OFF,
+  };
+  await page.route("**/api/auth/config", (httpRoute) => httpRoute.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(config) }));
+}
 
 interface Box {
   readonly left: number;
@@ -73,6 +99,7 @@ function outstanding(): TrpcFixtureOutput<"invites.listInvites"> {
 }
 
 test("share-link mode mints and shows the raw /join link ONCE with the copy affordance", async ({ mount, page }) => {
+  await stubAuthConfig(page);
   const trpc = await routeTrpc(page, {
     "sessions.me": ME_USER,
     "invites.listInvites": () => [],
@@ -101,10 +128,38 @@ test("share-link mode mints and shows the raw /join link ONCE with the copy affo
   await expect(page.getByTestId("invite-copy-link")).toBeVisible();
 });
 
+// While a share is live, a friend reaches this server only at the share's public link, so the minted invite carries it
+// instead of this page's origin, and the page's loopback address draws no warning.
+test("a link minted during a live share carries the share's public URL", async ({ mount, page }) => {
+  await stubAuthConfig(page, { share: { state: "up", url: SHARE_URL } });
+  await routeTrpc(page, { "sessions.me": ME_USER, "invites.listInvites": () => [], "invites.createInvite": () => MINT });
+  await mount(<InviteDialogStory />);
+  const dialog = page.getByTestId("invite-dialog");
+  await dialog.getByRole("button", { name: "Create link" }).click();
+
+  await expect(page.getByTestId("invite-link-result")).toContainText(`${SHARE_URL}/join/tok_ct_minted`);
+  await expect(dialog.locator('[data-invite-warning="loopback"]')).toHaveCount(0);
+});
+
+// The component test page is served from localhost: with no share, a link minted here opens only on this computer.
+test("on a loopback page with no share, link mode warns before the mint and handle mode does not", async ({ mount, page }) => {
+  await stubAuthConfig(page);
+  await routeTrpc(page, { "sessions.me": ME_USER, "invites.listInvites": () => [], "invites.createInvite": () => MINT });
+  await mount(<InviteDialogStory />);
+  const dialog = page.getByTestId("invite-dialog");
+  const warning = dialog.locator('[data-invite-warning="loopback"]');
+  await expect(warning).toBeVisible();
+  await expect(warning).toHaveAttribute("role", "note");
+
+  await dialog.getByRole("button", { name: "Invite by handle" }).click();
+  await expect(warning).toHaveCount(0);
+});
+
 test.describe("the automatic copy of a new link", () => {
   test.use({ permissions: ["clipboard-read", "clipboard-write"] });
 
   test("writes the new link to the clipboard exactly once", async ({ mount, page }) => {
+    await stubAuthConfig(page);
     await routeTrpc(page, {
       "sessions.me": ME_USER,
       "invites.listInvites": () => [],
@@ -130,6 +185,7 @@ test.describe("the automatic copy of a new link", () => {
 });
 
 test("a failed automatic copy shows the in-dialog manual-copy field, not a toast behind the backdrop", async ({ mount, page }) => {
+  await stubAuthConfig(page);
   await routeTrpc(page, {
     "sessions.me": ME_USER,
     "invites.listInvites": () => [],
@@ -340,38 +396,16 @@ test("the outstanding list renders per-invite status/uses and revokes a pending 
   await expect.poll(async () => (await readInputAtAssertion()).inviteId).toBe("chatinvite_ct_a");
 });
 
-// D254 — the sign-up switch. It is drawn for a global admin in a mode that mints signup invites and only for a
+// D259 — the sign-up switch. It is drawn for a global admin in a mode that mints signup invites and only for a
 // share link; the caps are enforced in the form before any wire call. The viewer and the mode are stubbed at
 // the network boundary (`sessions.me` and `/api/auth/config`), the two reads the dialog gates on.
-async function stubViewer(page: Page, opts: { readonly mode: AuthMode; readonly role: UserRole }): Promise<void> {
-  const config: AuthConfig = {
-    mode: opts.mode,
-    requiresLogin: opts.mode === "local" || opts.mode === "oidc",
-    localEnabled: opts.mode === "local",
-    oidcEnabled: opts.mode === "oidc",
-    oidcProviderName: "Test IdP",
-    localFirstRun: false,
-    discreetLogin: false,
-    defaultHandle: null,
-    multiHumanCapable: true,
-    forbidExternalMedia: true,
-    trustHtml: false,
-    allowInteractiveCards: false,
-    uploads: DEFAULT_UPLOAD_CAPS,
-    transport: "https",
-    clientScope: "private",
-    share: { state: "off", url: null },
-  };
-  await page.route("**/api/auth/config", (httpRoute) => httpRoute.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(config) }));
-}
-
 function meAs(role: UserRole): TrpcFixtureOutput<"sessions.me"> {
   return { userId: "user_ct_viewer", handle: "viewer", globalRole: role };
 }
 
 test.describe("the sign-up switch", () => {
   test("an admin in local mode mints a capped sign-up link", async ({ mount, page }) => {
-    await stubViewer(page, { mode: "local", role: "admin" });
+    await stubAuthConfig(page, { mode: "local" });
     const trpc = await routeTrpc(page, {
       "sessions.me": meAs("admin"),
       "invites.listInvites": () => [],
@@ -382,7 +416,10 @@ test.describe("the sign-up switch", () => {
     await dialog.getByTestId("invite-allow-signup").getByRole("switch").click();
     await dialog.getByRole("combobox", { name: "Expires" }).click();
     await page.getByRole("option", { name: "7 days" }).click();
-    await dialog.getByRole("textbox", { name: "Max uses" }).fill(String(SIGNUP_MAX_USES));
+    // Turning sign-up on already set one use; the admin raises it to the cap.
+    const maxUses = dialog.getByRole("textbox", { name: "Max uses" });
+    await maxUses.clear();
+    await maxUses.fill(String(SIGNUP_MAX_USES));
     await dialog.getByRole("button", { name: "Create link" }).click();
 
     await expect.poll(() => trpc.count("invites.createInvite"), { intervals: [20, 50, 100] }).toBe(1);
@@ -393,8 +430,10 @@ test.describe("the sign-up switch", () => {
     expect(typeof sent()?.expiresAt).toBe("number");
   });
 
-  test("the caps refuse in the form: an unlimited, never-expiring sign-up link makes no wire call", async ({ mount, page }) => {
-    await stubViewer(page, { mode: "oidc", role: "owner" });
+  // The form opens on an unlimited, never-expiring link. Turning sign-up on moves both inside the caps, so the switch
+  // never greets the owner with an inline error, and Create mints at once.
+  test("turning sign-up on moves the link inside the caps, so Create mints with no field error", async ({ mount, page }) => {
+    await stubAuthConfig(page, { mode: "oidc" });
     const trpc = await routeTrpc(page, {
       "sessions.me": meAs("owner"),
       "invites.listInvites": () => [],
@@ -405,12 +444,39 @@ test.describe("the sign-up switch", () => {
     await dialog.getByTestId("invite-allow-signup").getByRole("switch").click();
     await dialog.getByRole("button", { name: "Create link" }).click();
 
-    await expect(dialog.locator('[data-slot="field-error"]')).toHaveCount(2);
+    await expect.poll(() => trpc.count("invites.createInvite"), { intervals: [20, 50, 100] }).toBe(1);
+    const sent = (): { allowSignup?: unknown; maxUses?: unknown; expiresAt?: unknown } | undefined =>
+      (trpc.lastInput("invites.createInvite") as { input?: { allowSignup?: unknown; maxUses?: unknown; expiresAt?: unknown } }).input;
+    await expect
+      .poll(() => ({ allowSignup: sent()?.allowSignup, maxUses: sent()?.maxUses, expiry: typeof sent()?.expiresAt }))
+      .toEqual({
+        allowSignup: true,
+        maxUses: 1,
+        expiry: "number",
+      });
+    await expect(dialog.locator('[data-slot="field-error"]')).toHaveCount(0);
+  });
+
+  test("the caps still refuse in the form: a sign-up link set back to never expire makes no wire call", async ({ mount, page }) => {
+    await stubAuthConfig(page, { mode: "oidc" });
+    const trpc = await routeTrpc(page, {
+      "sessions.me": meAs("owner"),
+      "invites.listInvites": () => [],
+      "invites.createInvite": () => MINT,
+    });
+    await mount(<InviteDialogStory />);
+    const dialog = page.getByTestId("invite-dialog");
+    await dialog.getByTestId("invite-allow-signup").getByRole("switch").click();
+    await dialog.getByRole("combobox", { name: "Expires" }).click();
+    await page.getByRole("option", { name: "Never expires" }).click();
+    await dialog.getByRole("button", { name: "Create link" }).click();
+
+    await expect(dialog.locator('[data-slot="field-error"]')).toHaveCount(1);
     await expect.poll(() => trpc.count("invites.createInvite")).toBe(0);
   });
 
   test("hidden for a non-admin host", async ({ mount, page }) => {
-    await stubViewer(page, { mode: "local", role: "user" });
+    await stubAuthConfig(page, { mode: "local" });
     await routeTrpc(page, { "sessions.me": meAs("user"), "invites.listInvites": () => [] });
     await mount(<InviteDialogStory />);
     await expect(page.getByTestId("invite-dialog").getByRole("button", { name: "Create link" })).toBeVisible();
@@ -418,7 +484,7 @@ test.describe("the sign-up switch", () => {
   });
 
   test("hidden in a mode that mints no signup invites", async ({ mount, page }) => {
-    await stubViewer(page, { mode: "forward-header", role: "admin" });
+    await stubAuthConfig(page, { mode: "forward-header" });
     await routeTrpc(page, { "sessions.me": meAs("admin"), "invites.listInvites": () => [] });
     await mount(<InviteDialogStory />);
     await expect(page.getByTestId("invite-dialog").getByRole("button", { name: "Create link" })).toBeVisible();
@@ -426,7 +492,7 @@ test.describe("the sign-up switch", () => {
   });
 
   test("hidden for an invite by handle, and shown again for a share link", async ({ mount, page }) => {
-    await stubViewer(page, { mode: "local", role: "admin" });
+    await stubAuthConfig(page, { mode: "local" });
     await routeTrpc(page, { "sessions.me": meAs("admin"), "invites.listInvites": () => [] });
     await mount(<InviteDialogStory />);
     const dialog = page.getByTestId("invite-dialog");

@@ -93,6 +93,7 @@ export type {
   SignupInviteDeps,
   SignupInviteOps,
   SignupMinterCheckOp,
+  SignupPersonaPointersStatementOp,
   SignupRedeemOutcome,
   SignupUserStatementOp,
 } from "./contract/signup.ts";

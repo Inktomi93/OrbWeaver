@@ -75,7 +75,7 @@ export function isOwnerSeedHandle(handle: Handle): boolean {
   return ownerHandles().includes(handle);
 }
 
-/** D254 — a handle a signup may never claim: an `OWNER_HANDLES` seed key or the single-user placeholder,
+/** D259 — a handle a signup may never claim: an `OWNER_HANDLES` seed key or the single-user placeholder,
  *  compared on the handle key, so a case variant or look-alike cannot squat the key the next boot re-seeds
  *  through. */
 export function isReservedSignupHandle(handle: Handle): boolean {

@@ -102,7 +102,7 @@ afterEach(() => {
 
 // ── requireAuthed (the `/` gate) ──
 
-test("requireAuthed: a signed-out /?join=<t> stashes t in the tab and carries it into no URL (D254)", async () => {
+test("requireAuthed: a signed-out /?join=<t> stashes t in the tab and carries it into no URL (D259)", async () => {
   stubMe(ANON);
   const tab = stubTabStorage();
   const replaceState = vi.fn();

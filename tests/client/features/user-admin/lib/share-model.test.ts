@@ -18,7 +18,7 @@ import {
 } from "../../../../../packages/client/src/features/user-admin/lib/share-model.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
-const READY_LOCAL: ShareFactsView = { mode: "local", localMultiUser: true, discreetLogin: true, refusal: null };
+const READY_LOCAL: ShareFactsView = { mode: "local", localMultiUser: true, discreetLogin: true, refusal: null, standing: null };
 
 function verdicts(facts: ShareFactsView): Record<string, string> {
   return Object.fromEntries(sharePreconditions(facts).map((row) => [row.id, row.verdict]));
@@ -56,6 +56,13 @@ describe("sharePreconditions", () => {
     const container = { ...READY_LOCAL, refusal: "share_in_container" } as const;
     expect(verdicts(container)["relay"]).toBe("refused");
     expect(canStartSharing(sharePreconditions(container))).toBe(true);
+  });
+
+  test("a standing container refusal holds the relay row and Start before any press; a mode one leaves the relay row alone", () => {
+    const boxed = { ...READY_LOCAL, standing: "share_in_container" } as const;
+    expect(verdicts(boxed)["relay"]).toBe("unmet");
+    expect(canStartSharing(sharePreconditions(boxed))).toBe(false);
+    expect(verdicts({ ...READY_LOCAL, mode: "single-user", standing: "share_single_user" })["relay"]).toBe("unchecked");
   });
 
   test("every mode yields the four rows in order", () => {

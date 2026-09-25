@@ -46,7 +46,12 @@ describe("resolveTransport", () => {
 });
 
 describe("resolveClientScope", () => {
-  test.each(["127.0.0.1", "::1", "192.168.1.20", "10.1.2.3", "172.17.0.1", "100.64.3.4", "fd00::1"])("%s → private", (ip) => {
+  // This machine: nothing crosses a network, so the login notice stays silent.
+  test.each(["127.0.0.1", "127.8.9.10", "::1"])("%s → loopback", (ip) => {
+    expect(resolveClientScope(ip)).toBe("loopback");
+  });
+
+  test.each(["192.168.1.20", "10.1.2.3", "172.17.0.1", "100.64.3.4", "fd00::1"])("%s → private", (ip) => {
     expect(resolveClientScope(ip)).toBe("private");
   });
 

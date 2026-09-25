@@ -532,7 +532,7 @@ describe("sessions.provisionIdentity — MS-W1 collision hard-deny (mode-switch 
   test("the collision deny reason is DISTINCT from the plain signup-off deny", async () => {
     vi.stubEnv("OWNER_HANDLES", "someone-else");
     // signup-off deny for a brand-new identity carries NO account-exists reason: it is the JIT gate's own
-    // `jit-closed`, the one reason the OIDC callback may answer with a pending join (D254).
+    // `jit-closed`, the one reason the OIDC callback may answer with a pending join (D259).
     const signupOff = await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|new"), handle: castId<Handle>("new") }), {
       allowJitProvision: false,
     });

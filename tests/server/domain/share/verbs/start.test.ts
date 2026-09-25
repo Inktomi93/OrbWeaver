@@ -1,4 +1,5 @@
-// share.start — the owner gate, then the preconditions in order, each refusing with its code before the relay is touched.
+// share.start — the owner gate, then the preconditions in order, each refusing with its code before the relay is touched,
+// then the seating a public link needs, then the relay.
 
 import { DomainForbiddenError, DomainOperationError } from "@orb/kit/errors";
 import { describe } from "vitest";
@@ -32,15 +33,16 @@ describe("share.start", () => {
     expect(h.calls).toEqual(["ownerNeedsPassword"]);
   });
 
-  test("control: once the owner is claimed, start runs the relay and audits the owner", async () => {
+  test("control: once the owner is claimed, start turns the seating on, runs the relay and audits the owner", async () => {
     const h = shareHarness({ authMode: "local", ownerNeedsPassword: true });
     h.claimOwner();
     await expect(h.share.start({ principal: caller("owner") })).resolves.toEqual({
       relay: { state: "starting", relay: "quick", restartAfter: null },
       liveSocketCount: LIVE_SOCKETS,
       publicAddresses: [],
+      standingRefusal: null,
     });
-    expect(h.calls).toEqual(["ownerNeedsPassword", "relay.start"]);
+    expect(h.calls).toEqual(["ownerNeedsPassword", "enableSeating", "relay.start"]);
     expect(h.audits).toEqual([{ actorUserId: caller("owner").userId, action: "share.start", entityType: "server", metadata: { relay: "starting" } }]);
   });
 
@@ -64,5 +66,7 @@ describe("share.start", () => {
     const h = shareHarness({ authMode: "local", startError: new DomainOperationError("relay_binary_checksum_mismatch", "not the pinned bytes") });
     await expect(h.share.start({ principal: caller("owner") })).rejects.toMatchObject({ code: "relay_binary_checksum_mismatch" });
     expect(h.audits).toEqual([]);
+    // A relay that never started leaves the seating as it found it.
+    expect(h.calls.slice(-3)).toEqual(["enableSeating", "relay.start", "restoreSeating"]);
   });
 });

@@ -1,4 +1,4 @@
-// The SSO provision decision, pure over what the caller already read (D254, spine invariant 10). The ruled
+// The SSO provision decision, pure over what the caller already read (D259, spine invariant 10). The ruled
 // precedence is: bind-once subject match, owner exemption, access gate, owner-flip adoption, MS-W1 collision
 // deny, A1 JIT gate, owner singleton reconcile, then write. `provisionIdentity` interprets the decision; a
 // batch-shaped signup statement calls the same function, so the rules have one home.

@@ -155,11 +155,15 @@ test("every SHARE_STATES member has exactly one relay status shape", () => {
 });
 
 test("shareStatusSchema is strict, so a status carrying anything else fails the router's output parser", () => {
-  const status = { relay: { state: "off" }, liveSocketCount: 2, publicAddresses: ["https://orb.example.com"] };
+  const status = { relay: { state: "off" }, liveSocketCount: 2, publicAddresses: ["https://orb.example.com"], standingRefusal: null };
   expect(shareStatusSchema.parse(status)).toEqual(status);
   expect(shareStatusSchema.safeParse({ ...status, owner: "owner" }).success).toBe(false);
   expect(shareStatusSchema.safeParse({ ...status, liveSocketCount: -1 }).success).toBe(false);
   expect(shareStatusSchema.safeParse({ relay: { state: "off" }, liveSocketCount: 2 }).success).toBe(false);
+  // The standing refusal carries a known refusal code and its sentence, nothing else.
+  const standing = { code: "share_in_container", message: "run the relay beside this container" };
+  expect(shareStatusSchema.parse({ ...status, standingRefusal: standing })).toEqual({ ...status, standingRefusal: standing });
+  expect(shareStatusSchema.safeParse({ ...status, standingRefusal: { ...standing, code: "share_later" } }).success).toBe(false);
 });
 
 test("authConfigShareSchema carries only the state and a nullable link", () => {

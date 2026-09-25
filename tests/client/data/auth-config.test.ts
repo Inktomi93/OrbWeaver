@@ -79,3 +79,32 @@ test("a non-ok response throws an HTTP-status error", async () => {
   const fetchAuthConfig = await freshFetchAuthConfig();
   await expect(fetchAuthConfig()).rejects.toThrow("HTTP 500");
 });
+
+// The share half changes while the server runs, so the live read is never served from the memo: two calls are two
+// fetches, and each answers the share the server holds at that moment.
+test("fetchLiveShare reads fresh each call, and parses only the share fields", async () => {
+  const shares = [
+    { state: "off", url: null },
+    { state: "up", url: "https://calm-river-four-birds.trycloudflare.com" },
+  ];
+  let calls = 0;
+  vi.stubGlobal("fetch", () => {
+    const share = shares[calls];
+    calls += 1;
+    return Promise.resolve(new Response(JSON.stringify({ ...CONFIG, share }), { status: 200 }));
+  });
+  vi.resetModules();
+  const { fetchLiveShare } = await import("../../../packages/client/src/data/auth-config.ts");
+  await expect(fetchLiveShare()).resolves.toEqual(shares[0]);
+  await expect(fetchLiveShare()).resolves.toEqual(shares[1]);
+  expect(calls).toBe(2);
+});
+
+test("fetchLiveShare throws on a non-ok response or a malformed share, so no link is built on it", async () => {
+  vi.resetModules();
+  const { fetchLiveShare } = await import("../../../packages/client/src/data/auth-config.ts");
+  vi.stubGlobal("fetch", () => Promise.resolve(new Response("nope", { status: 502 })));
+  await expect(fetchLiveShare()).rejects.toThrow("HTTP 502");
+  vi.stubGlobal("fetch", () => Promise.resolve(new Response(JSON.stringify({ ...CONFIG, share: { state: "up" } }), { status: 200 })));
+  await expect(fetchLiveShare()).rejects.toThrow();
+});

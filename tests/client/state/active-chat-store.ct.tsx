@@ -52,6 +52,26 @@ test("resumeChat makes the room active AND lands in Chats — the cross-section 
   await expect(section).toHaveText("section=chats");
 });
 
+// The Share card's room picker asks for a room's invite dialog from another section: `openRoomInvite` lands in the
+// room in Chats and leaves the request for its Members tab; `clearRoomInvite` drops it once the dialog closes, so a
+// later visit to the room does not reopen the dialog.
+test("openRoomInvite lands in the room with an invite request; clearRoomInvite drops only the request", async ({ mount }) => {
+  const probe = await mount(<ActiveChatStoreProbe />);
+  const state = probe.locator("output");
+  const request = probe.getByTestId("room-invite-request");
+
+  await expect(request).toHaveText("invite=none");
+  await probe.getByRole("button", { name: "open room invite" }).click();
+  // The context panel is revealed on the Members tab; at this narrow width that is its slide-over.
+  await expect(state).toHaveText("handle=committed:chat_probe_select openOverlayPanel=context reaped=none");
+  await expect(probe.getByTestId("active-section")).toHaveText("section=chats");
+  await expect(request).toHaveText("invite=chat_probe_select");
+
+  await probe.getByRole("button", { name: "clear room invite" }).click();
+  await expect(request).toHaveText("invite=none");
+  await expect(state).toHaveText("handle=committed:chat_probe_select openOverlayPanel=context reaped=none");
+});
+
 test("a room CREATED here and then left is published as a husk-reap candidate — exactly once", async ({ mount }) => {
   const probe = await mount(<ActiveChatStoreProbe />);
   const state = probe.locator("output");

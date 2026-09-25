@@ -14,7 +14,7 @@
 // state param), no brand, no FK (it is pre-auth — there is no user row yet). The `oidc-store` LOGIC
 // lives in domain/sessions/persistence/oidc-store.ts; only the TABLE is here.
 //
-// `oidc_pending_signups` (D254) holds a signed-out OIDC visitor who reached the callback with a valid signup
+// `oidc_pending_signups` (D259) holds a signed-out OIDC visitor who reached the callback with a valid signup
 // invite while JIT provisioning is closed: the verified identity, frozen until the visitor confirms the join.
 // It is keyed by a hash of a fresh secret that rides only the pending cookie, never by `state`, and the
 // transaction `consume` never reads it.
@@ -89,7 +89,7 @@ export const oidcTransactions = sqliteTable(
     nonce: text("nonce"),
     // The redirect target to resume after a successful callback; nullable (defaults to the app root).
     redirectUri: text("redirect_uri"),
-    // D254 — the peppered hash of a signup invite the visitor arrived with; the raw token is never stored.
+    // D259 — the peppered hash of a signup invite the visitor arrived with; the raw token is never stored.
     inviteTokenHash: text("invite_token_hash"),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
     // Short-lived; the store GC sweeps expired transactions.

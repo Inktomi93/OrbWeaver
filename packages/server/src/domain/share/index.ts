@@ -7,7 +7,6 @@ export type {
   ShareBootOutcome,
   ShareContext,
   ShareFacts,
-  ShareRefusalNotice,
   ShareService,
   ShareServiceDeps,
 } from "./contract/service.ts";

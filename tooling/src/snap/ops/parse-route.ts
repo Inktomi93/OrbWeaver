@@ -5,7 +5,7 @@ import { DEFAULT_BASE } from "../../_shared/browser.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { ORB_APP_PORT_NUMBERS } from "../../_shared/ports.ts";
 import type { Args } from "../contract/types.ts";
-import { knownRouteSections, staticRouteSegments } from "../lib/section-ids.ts";
+import { knownRouteSections, serverRouteSegments, staticRouteSegments } from "../lib/section-ids.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -35,7 +35,7 @@ export function validateRouteSection(args: Args): string[] {
     return [];
   }
   const sections = knownRouteSections();
-  const statics = staticRouteSegments();
+  const statics = [...staticRouteSegments(), ...serverRouteSegments()];
   if (sections.includes(segment) || statics.includes(segment)) {
     return [];
   }

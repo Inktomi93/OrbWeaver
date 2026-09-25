@@ -74,6 +74,19 @@ export const createPersonaSchema = z.object({
 });
 export type CreatePersonaInput = z.infer<typeof createPersonaSchema>;
 
+/** D259 — the longest description a sign-up joiner may send. The signup doors are anonymous and body-capped, so the
+ *  joiner writes a short one there and a longer one later in the persona editor. */
+export const JOINER_PERSONA_DESCRIPTION_MAX = 1000;
+
+/** D259 — the persona a sign-up joiner names before their seat exists. The signup batch creates it and seats the
+ *  new account as it, so a sign-up seat never starts without a persona. STRICT: only the face's name and
+ *  description ride the signup doors. */
+export const joinerPersonaSchema = z.strictObject({
+  name: cardFaceFields.name,
+  description: cardFaceFields.description.max(JOINER_PERSONA_DESCRIPTION_MAX),
+});
+export type JoinerPersona = z.infer<typeof joinerPersonaSchema>;
+
 export const updatePersonaSchema = createPersonaSchema.partial();
 export type UpdatePersonaInput = z.infer<typeof updatePersonaSchema>;
 

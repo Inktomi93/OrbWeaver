@@ -218,6 +218,18 @@ test("an unknown section still refuses on every orb target: default, stage, regi
   expect(validateRouteSection({ ...call, base: FIXTURE_ORIGIN })).toEqual([]);
 });
 
+// @instrument-proof: 0203 — `pnpm snap /join/<token>` refused as "unknown section" on every orb target and
+// ran on any other port. `/join/:token` is a server route the dev front door proxies (`server.proxy` in the
+// client's vite config), answered by a 302 into the SPA before the router sees it.
+test("a route the dev front door proxies to the server parses clean on every orb target", () => {
+  const argvs = [["/join/qIi1H4vyldd"], ["/join/qIi1H4vyldd", "--isolated"], ["/join/qIi1H4vyldd", "--base", `http://127.0.0.1:${stageBandPorts(3).vite}`]];
+  for (const argv of argvs) {
+    expect(parseSnapArgs(argv).errors, argv.join(" ")).toEqual([]);
+  }
+  // Control: a segment that is neither a section nor a proxied server path still refuses on the same target.
+  expect(parseSnapArgs(["/joins/qIi1H4vyldd"]).errors).toContainEqual(expect.stringContaining('unknown section "joins"'));
+});
+
 // ── the design-audit arm's grammar (#1315) ───────────────────────────────────────────────────────────
 // The two flags the folded scan brought with it. `--fail-on` is a REQUIRED-VALUE flag over a closed
 // severity ladder, and a bad value has to be CLI misuse rather than a silent default: the alternative is

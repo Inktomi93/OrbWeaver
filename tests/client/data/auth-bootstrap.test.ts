@@ -131,33 +131,36 @@ test("a failed logout neither broadcasts nor navigates", async () => {
   expect(assigned).toEqual([]);
 });
 
-// D254 — the OIDC pending-join confirm: an EMPTY JSON body under the CSRF header (the pending cookie names the
-// join), `signedIn` read through the strict result schema, and a refusal code only when it is a known one.
-test("confirmPendingJoin posts an empty JSON body with CSRF and reads signedIn", async () => {
+// D259 — the OIDC pending-join confirm: a JSON body carrying only the joiner's persona under the CSRF header (the
+// pending cookie names the join), `signedIn` read through the strict result schema, and a refusal code only when
+// it is a known one.
+const JOINER = { persona: { name: "Mira", description: "" } } as const;
+
+test("confirmPendingJoin posts the persona-only JSON body with CSRF and reads signedIn", async () => {
   let seen: { readonly url: string; readonly init: RequestInit | undefined } | undefined;
   vi.stubGlobal("fetch", (url: string, init?: RequestInit) => {
     seen = { url, init };
     return Promise.resolve(new Response(JSON.stringify({ signedIn: false }), { status: 200 }));
   });
-  await expect(confirmPendingJoin()).resolves.toEqual({ ok: true, signedIn: false });
+  await expect(confirmPendingJoin(JOINER)).resolves.toEqual({ ok: true, signedIn: false });
   expect(seen?.url).toBe("/api/auth/oidc/pending/confirm");
   expect(seen?.init?.method).toBe("POST");
   expect(seen?.init?.headers).toMatchObject({ "x-orb-csrf": "1", "content-type": "application/json" });
-  expect(seen?.init?.body).toBe("{}");
+  expect(JSON.parse(String(seen?.init?.body))).toEqual(JOINER);
 });
 
 test("confirmPendingJoin returns a known refusal code, and null for an unknown or unreadable body", async () => {
   vi.stubGlobal("fetch", () => Promise.resolve(new Response(JSON.stringify({ error: "account_exists" }), { status: 409 })));
-  await expect(confirmPendingJoin()).resolves.toEqual({ ok: false, code: "account_exists" });
+  await expect(confirmPendingJoin(JOINER)).resolves.toEqual({ ok: false, code: "account_exists" });
 
   vi.stubGlobal("fetch", () => Promise.resolve(new Response(JSON.stringify({ error: "something_else" }), { status: 404 })));
-  await expect(confirmPendingJoin()).resolves.toEqual({ ok: false, code: null });
+  await expect(confirmPendingJoin(JOINER)).resolves.toEqual({ ok: false, code: null });
 
   vi.stubGlobal("fetch", () => Promise.resolve(new Response("<html>", { status: 429 })));
-  await expect(confirmPendingJoin()).resolves.toEqual({ ok: false, code: null });
+  await expect(confirmPendingJoin(JOINER)).resolves.toEqual({ ok: false, code: null });
 });
 
 test("confirmPendingJoin refuses a success body that is not the strict result shape", async () => {
   vi.stubGlobal("fetch", () => Promise.resolve(new Response(JSON.stringify({ signedIn: true, userId: "u" }), { status: 200 })));
-  await expect(confirmPendingJoin()).rejects.toThrow();
+  await expect(confirmPendingJoin(JOINER)).rejects.toThrow();
 });

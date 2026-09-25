@@ -355,6 +355,19 @@ test.describe("an invite request from another section", () => {
     await expect(dialog).toHaveCount(0);
   });
 
+  // The requested dialog opened with nothing of this tab focused (the picker that asked lives in another section), so
+  // Escape must hand focus to the tab's own Invite people button rather than drop it on the page.
+  test("Escape from the requested dialog returns focus to Invite people", async ({ mount, page }) => {
+    await routeTrpc(page, { "sessions.me": HOST, "invites.listInvites": () => [] });
+    const component = await mount(<CommittedMembersTabStory multiHumanCapable={true} inviteRequested={true} />);
+
+    const dialog = page.getByTestId("invite-dialog");
+    await expect(dialog).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
+    await expect(component.getByRole("button", { name: "Invite people" })).toBeFocused();
+  });
+
   test("control: with no request the dialog waits for Invite people", async ({ mount, page }) => {
     await routeTrpc(page, { "sessions.me": HOST, "invites.listInvites": () => [] });
     const component = await mount(<CommittedMembersTabStory multiHumanCapable={true} />);

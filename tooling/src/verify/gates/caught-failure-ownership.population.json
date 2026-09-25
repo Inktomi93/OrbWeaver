@@ -2,16 +2,16 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 619,
+    "sites": 621,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 619,
+      "deliberate-absorb": 621,
       "unproven": 0
     },
     "byGrammar": {
       "default": 153,
       "empty": 317,
-      "promise": 149
+      "promise": 151
     }
   },
   "rows": [
@@ -1061,6 +1061,11 @@
       "reason": "a resolve REFUSAL is the readout's other arm — the availability read names the cause the pane renders; nothing is swallowed. Ends if a non-refusal error class needs to surface."
     },
     {
+      "siteId": "packages/server/src/domain/credentials/verbs/add.ts::insertInFreeSlot::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a unique collision is the expected loser of a concurrent add; the retry below re-reads the free labels, and a second collision surfaces as CredentialsConflictError with its cause. Ends if the slot index or the retry goes."
+    },
+    {
       "siteId": "packages/server/src/domain/databank/ingest/index.ts::createDatabankIngest.runDocument::error::1",
       "verdict": "deliberate-absorb",
       "reason": "bookkeeping — the accumulator records this document's failure (`acc.addFailure`), surfaced to the caller via `acc.result()`; the pass continues so one bad document never aborts the batch. Ends if `addFailure` stops being read by the returned result."
@@ -1459,6 +1464,16 @@
       "siteId": "packages/server/src/entry/import/run-profile-import.ts::runProfileImport::err::1",
       "verdict": "deliberate-absorb",
       "reason": "bookkeeping — the failure is recorded into `failed` (with message), the function's own return value; one bad card never aborts the batch. Ends if `failed` stops being read by the caller."
+    },
+    {
+      "siteId": "packages/server/src/entry/index.ts::<module>::lifecycle.boot::1",
+      "verdict": "deliberate-absorb",
+      "reason": "owned: the handler logs through getLog and exits non-zero; getLog is imported after the env parse, where this policy cannot resolve it as the logger. Ends if getLog returns to a static import."
+    },
+    {
+      "siteId": "packages/server/src/entry/index.ts::<module>::shutdown::1",
+      "verdict": "deliberate-absorb",
+      "reason": "owned: the handler logs through getLog and exits non-zero; getLog is imported after the env parse, where this policy cannot resolve it as the logger. Ends if getLog returns to a static import."
     },
     {
       "siteId": "packages/server/src/foundation/env/index.ts::loadEnvFileWithOverride::catch::1",
@@ -3104,11 +3119,6 @@
       "siteId": "tooling/src/wire-tap/ops/trpc.ts::trpcOp::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "a non-JSON response body just prints the raw text as-is (the comment states this directly) — the response body itself is never lost, only the pretty-print step is skipped. Ends if the raw text stops being printed on this path."
-    },
-    {
-      "siteId": "packages/server/src/domain/credentials/verbs/add.ts::insertInFreeSlot::err::1",
-      "verdict": "deliberate-absorb",
-      "reason": "a unique collision is the expected loser of a concurrent add; the retry below re-reads the free labels, and a second collision surfaces as CredentialsConflictError with its cause. Ends if the slot index or the retry goes."
     }
   ]
 }

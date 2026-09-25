@@ -217,7 +217,7 @@ export interface AppDeps {
   readonly authenticate?: LocalAuthenticator;
   /** B4 — present in local mode; registers the first-run owner-password setup route + drives the config flag. */
   readonly firstRun?: FirstRunRouteDeps;
-  /** D254 — present in local mode; registers the signup-through-invite route (the app adds the capability). */
+  /** D259 — present in local mode; registers the signup-through-invite route (the app adds the capability). */
   readonly signup?: Omit<SignupRouteDeps, "multiHumanCapable">;
   /** B4 — present in local mode; the peer-scoped "owner needs a first-run password" read for /api/auth/config
    *  (gated on a loopback TCP peer and no relay tell, never the client `Host`). */
