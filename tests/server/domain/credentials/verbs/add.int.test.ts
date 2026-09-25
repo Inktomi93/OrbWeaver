@@ -6,13 +6,15 @@ import { builtinProvider, providerDefSchema } from "@orb/contracts/inference";
 import { userCredentials } from "@orb/db";
 import { DomainOperationError } from "@orb/kit/errors";
 import { castId } from "@orb/kit/ids";
-import { CREDENTIALS_OP_CODES, createCredentialsService } from "@orb/server/domain/credentials";
+import { CREDENTIALS_OP_CODES, CredentialsConflictError, createCredentialsService } from "@orb/server/domain/credentials";
 import { createSecretBox } from "@orb/server/infra/crypto";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db.ts";
+import { freshDb, freshHeldDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedUser } from "../_support.ts";
+
+const INSERT_CREDENTIAL = /insert into "user_credentials"/iu;
 
 describe("add", () => {
   test("an unknown provider keeps the provider_unknown refusal and writes nothing", async () => {
@@ -112,6 +114,50 @@ describe("add", () => {
     expect(second.id).not.toBe(first.id);
     expect(second.label).not.toBe("work");
     expect(await svc.resolve({ ownerId: owner, credentialId: first.id, providerId: castId<ProviderId>("openrouter") })).toMatchObject({ secret: "sk-work" });
+  });
+
+  // Both adds read the owner's labels before either inserts, so both pick "dup". The unique slot index makes the
+  // later insert collide, and `add` re-reads the labels once and takes the next free one.
+  test("two concurrent adds with one label end as `dup` and `dup (2)`, both keys kept", async () => {
+    const held = await freshHeldDb();
+    const svc = createCredentialsService(makeHarness(held.db).ctx);
+    const owner = await seedUser(held.db, { id: "user_o", role: "user" });
+    const parked = held.hold(INSERT_CREDENTIAL, 2);
+
+    const first = svc.add({ principal: principal(owner), provider: "openrouter", label: "dup", key: "sk-first" });
+    const racing = svc.add({ principal: principal(owner), provider: "openrouter", label: "dup", key: "sk-second" });
+    await parked.reached;
+    parked.release();
+    const [firstView, second] = await Promise.all([first, racing]);
+
+    expect([firstView.label, second.label].toSorted()).toEqual(["dup", "dup (2)"]);
+    const openrouter = castId<ProviderId>("openrouter");
+    expect(await svc.resolve({ ownerId: owner, credentialId: firstView.id, providerId: openrouter })).toMatchObject({ secret: "sk-first" });
+    expect(await svc.resolve({ ownerId: owner, credentialId: second.id, providerId: openrouter })).toMatchObject({ secret: "sk-second" });
+  });
+
+  // Three racers: the two losers both re-read the labels before either retry lands (the second hold), so both
+  // pick `dup (2)`. The retry that collides again is the conflict, and no stored key is overwritten.
+  test("a retry that collides again is a CredentialsConflictError and writes nothing", async () => {
+    const held = await freshHeldDb();
+    const svc = createCredentialsService(makeHarness(held.db).ctx);
+    const owner = await seedUser(held.db, { id: "user_o", role: "user" });
+    const firstInserts = held.hold(INSERT_CREDENTIAL, 3);
+    const racers = ["sk-a", "sk-b", "sk-c"].map((key) => svc.add({ principal: principal(owner), provider: "openrouter", label: "dup", key }));
+    await firstInserts.reached;
+    firstInserts.release();
+    const retries = held.hold(INSERT_CREDENTIAL, 2);
+    const settled = Promise.allSettled(racers);
+    // Without a retry every racer settles and no retry insert ever arrives; the assertions then name the defect.
+    await Promise.race([retries.reached, settled]);
+    retries.release();
+    const outcomes = await settled;
+
+    const refused = outcomes.flatMap((outcome) => (outcome.status === "rejected" ? [outcome.reason] : []));
+    expect(refused).toHaveLength(1);
+    expect(refused[0]).toBeInstanceOf(CredentialsConflictError);
+    const rows = await held.db.select({ label: userCredentials.label }).from(userCredentials);
+    expect(rows.map((row) => row.label).toSorted()).toEqual(["dup", "dup (2)"]);
   });
 
   test("the same label on another provider is its own slot", async () => {

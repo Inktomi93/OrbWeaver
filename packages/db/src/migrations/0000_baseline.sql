@@ -574,6 +574,7 @@ CREATE TABLE `user_credentials` (
 );
 --> statement-breakpoint
 CREATE INDEX `user_credentials_owner_idx` ON `user_credentials` (`owner_id`);--> statement-breakpoint
+CREATE UNIQUE INDEX `user_credentials_owner_provider_label_unique` ON `user_credentials` (`owner_id`,`provider`,`label`);--> statement-breakpoint
 CREATE TABLE `character_documents` (
 	`character_id` text NOT NULL,
 	`document_id` text NOT NULL,

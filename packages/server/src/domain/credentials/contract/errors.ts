@@ -35,5 +35,6 @@ export class CredentialsNotFoundError extends DomainOperationError {
   }
 }
 
-/** TOCTOU loser of two concurrent first-adds for the same (owner, provider) slot; maps to 409. */
+/** An add whose label slot (owner, provider, label) was taken again after its one re-read of the free labels;
+ *  maps to 409. */
 export class CredentialsConflictError extends DomainConflictError {}

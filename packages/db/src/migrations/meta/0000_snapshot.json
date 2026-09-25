@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "6ee4ba26-201d-4807-88f6-0059e581681f",
+  "id": "a0501cdc-99c4-4aae-b44e-c8335a18130b",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -3683,6 +3683,11 @@
           "name": "user_credentials_owner_idx",
           "columns": ["owner_id"],
           "isUnique": false
+        },
+        "user_credentials_owner_provider_label_unique": {
+          "name": "user_credentials_owner_provider_label_unique",
+          "columns": ["owner_id", "provider", "label"],
+          "isUnique": true
         }
       },
       "foreignKeys": {
