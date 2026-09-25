@@ -172,6 +172,19 @@ describe("createUser", () => {
     });
   });
 
+  test("a handle whose key is blank (only zero-width or blank characters) is rejected (invalid_handle)", async () => {
+    const db = await freshDb();
+    const { svc, admin } = await seedAdminCaller(db);
+    for (const blank of ["​​", "⁠", "　"]) {
+      await expect(
+        svc.createUser({ principal: principal(admin, "admin"), handle: castId<Handle>(blank), password: GOOD_PASSWORD }),
+        JSON.stringify(blank),
+      ).rejects.toMatchObject({
+        code: "invalid_handle",
+      });
+    }
+  });
+
   test("a plain user is denied", async () => {
     const db = await freshDb();
     const svc = createAdminService(makeHarness(db).ctx);

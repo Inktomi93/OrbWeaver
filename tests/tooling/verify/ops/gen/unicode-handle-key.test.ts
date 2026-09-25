@@ -1,4 +1,7 @@
-import { renderUnicodeHandleKeyData } from "../../../../../tooling/src/verify/ops/gen/unicode-handle-key.ts";
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { renderUnicodeHandleKeyData, sourcesMismatchingPins, UNICODE_SOURCE_PINS } from "../../../../../tooling/src/verify/ops/gen/unicode-handle-key.ts";
 import { expect, test } from "../../../../support/tool-fixtures.ts";
 
 const SOURCES = {
@@ -47,4 +50,17 @@ test("refuses a source from another Unicode version instead of vendoring it", ()
 
 test("refuses a table that parses empty", () => {
   expect(() => renderUnicodeHandleKeyData({ ...SOURCES, derivedCore: "# DerivedCoreProperties-17.0.0.txt\n" })).toThrow(/parsed empty/u);
+});
+
+test("a source that differs from its pinned SHA-256 is named, and the pinned ones pass", () => {
+  const pins = Object.fromEntries(Object.entries(SOURCES).map(([name, text]) => [name, createHash("sha256").update(text).digest("hex")])) as typeof SOURCES;
+  expect(sourcesMismatchingPins(SOURCES, pins)).toEqual([]);
+  expect(sourcesMismatchingPins({ ...SOURCES, confusables: `${SOURCES.confusables}\n0430 ;\t0061 ;\tMA` }, pins)).toEqual(["confusables"]);
+});
+
+test("the pins are the digests recorded in the committed tables, so a pin bump without a regeneration reds", ({ repoRoot }) => {
+  const header = readFileSync(join(repoRoot, "packages/kit/src/handle-key/unicode-data.ts"), "utf8");
+  for (const pin of Object.values(UNICODE_SOURCE_PINS)) {
+    expect(header).toContain(`sha256 ${pin}`);
+  }
 });

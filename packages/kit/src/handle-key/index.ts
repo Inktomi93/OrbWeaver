@@ -6,6 +6,7 @@ import { castId } from "#ids";
 import { CASE_FOLDING, CONFUSABLE_PROTOTYPES, DEFAULT_IGNORABLE, SCRIPT_CODES } from "./unicode-data.ts";
 
 const HEX_RADIX = 16;
+const VISIBLE = /\S/u;
 
 /** The longest handle any writer accepts, in code points. The key normalizes, and NFKC/NFD over a long run of
  *  combining marks is quadratic, so every boundary refuses a longer handle before a key is computed. */
@@ -146,13 +147,17 @@ function scriptsOf(char: string): ReadonlySet<string> {
 
 /**
  * Whether a handle may be written at all (D256), checked by every handle writer before its key: it is within
- * {@link HANDLE_MAX_CODE_POINTS}, and its NFKC
+ * {@link HANDLE_MAX_CODE_POINTS}, its key is not blank, and its NFKC
  * form meets the UTS 39 highly restrictive profile, one script, or Latin with Japanese, Korean or Chinese
  * writing; Common and Inherited characters (digits, punctuation, marks) fit any script, and an unassigned code
  * point never fits. A mixed-script handle can spell a look-alike the confusable data does not map.
  */
 export function admitsHandle(handle: string): boolean {
   if (!withinHandleLength(handle)) {
+    return false;
+  }
+  // A key with nothing visible (only default-ignorables or blanks) names a handle no one can read or tell apart.
+  if (!VISIBLE.test(handleKey(handle))) {
     return false;
   }
   const scripted = [...handle.normalize("NFKC")].map(scriptsOf).filter((scripts) => ![...scripts].every((code) => ANY_SCRIPT.has(code)));

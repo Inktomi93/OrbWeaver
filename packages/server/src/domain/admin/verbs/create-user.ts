@@ -51,7 +51,7 @@ function validateCreate(params: CreateUserParams, role: UserRole): Handle {
     throw new DomainOperationError(ADMIN_OP_CODES.invalidHandle, "handle must not be empty");
   }
   if (!admitsHandle(handle)) {
-    throw new DomainOperationError(ADMIN_OP_CODES.invalidHandle, "handle must be written in one script (D256)");
+    throw new DomainOperationError(ADMIN_OP_CODES.invalidHandle, "handle is not admissible: over the length cap, blank, or mixed-script (D256)");
   }
 
   // The owner is the immutable bootstrap row — never minted through admin. Refuses even the owner caller,
