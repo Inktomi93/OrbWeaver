@@ -4,19 +4,10 @@ import { users } from "@orb/db";
 import type { AwaitableBatchStmt } from "@orb/db/kit";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { and, eq, isNull } from "drizzle-orm";
+import type { ProvisionCandidate } from "../contract/results.ts";
 
 // The `users`-row resolution queries. Lookups for `ensureUser` (by handle) + `provisionIdentity` (by
 // externalId, then handle). Race-tolerant inserts via `onConflictDoNothing`. Timestamps arrive as params.
-
-/** The columns `provisionIdentity` needs to decide preserve-vs-update (incl. live `role`/`enabled`/`email`). */
-interface ProvisionRow {
-  id: UserId;
-  handle: Handle;
-  externalId: ExternalId | null;
-  email: string | null;
-  role: UserRole;
-  enabled: boolean;
-}
 
 /** A fresh users row (the verb mints the id + derives the role). `enabled` defaults true at the schema. */
 interface UserInsert {
@@ -58,7 +49,7 @@ export async function selectAuthByHandle(db: Db, handle: Handle): Promise<{ id: 
 }
 
 /** `loadUserById` lookup: the live row for a bare user id. */
-export async function selectForProvisionById(db: Db, id: UserId): Promise<ProvisionRow | undefined> {
+export async function selectForProvisionById(db: Db, id: UserId): Promise<ProvisionCandidate | undefined> {
   const rows = await db.select(PROVISION_COLS).from(users).where(eq(users.id, id)).limit(1);
   return rows.at(0);
 }
@@ -77,14 +68,14 @@ export async function selectOwnerUserId(db: Db): Promise<UserId | undefined> {
 }
 
 /** `provisionIdentity` lookup by the stable SSO subject (the rename-safe key). */
-export async function selectForProvisionByExternalId(db: Db, externalId: ExternalId): Promise<ProvisionRow | undefined> {
+export async function selectForProvisionByExternalId(db: Db, externalId: ExternalId): Promise<ProvisionCandidate | undefined> {
   const rows = await db.select(PROVISION_COLS).from(users).where(eq(users.externalId, externalId)).limit(1);
   return rows.at(0);
 }
 
 /** `provisionIdentity` / `ensureUser` lookup by handle (single-user rows / first SSO login of an existing
  *  handle). */
-export async function selectForProvisionByHandle(db: Db, handle: Handle): Promise<ProvisionRow | undefined> {
+export async function selectForProvisionByHandle(db: Db, handle: Handle): Promise<ProvisionCandidate | undefined> {
   const rows = await db.select(PROVISION_COLS).from(users).where(eq(users.handle, handle)).limit(1);
   return rows.at(0);
 }
