@@ -65,6 +65,7 @@ import {
   isLiveTurnPhase,
   MessageToolsRendererRegistryProvider,
   openNewChatPicker,
+  openRoomInvite,
   SlashCommandRegistryProvider,
   selectChat,
   setFocusMode,
@@ -2831,12 +2832,30 @@ export interface CommittedMembersTabStoryProps {
    *  less padding" note here was arithmetically wrong twice over (that is the LIST pane's token, and its
    *  low clamp is 272): 320 is inside the range, not an end of it. */
   readonly width?: number;
+  /** A multi-human install, where the host's invite dialog exists. */
+  readonly multiHumanCapable?: boolean;
+  /** Another section asked for this room's invite dialog (`openRoomInvite`) before the tab mounted. */
+  readonly inviteRequested?: boolean;
 }
 
+const MEMBERS_TAB_CHAT_ID = castId<ChatId>("chat_members_tab");
+
 /** The REAL Members tab body (committed-members-tab.tsx) — the surface that decides which seams reach the
- *  panel. Mounted with a host viewer and `multiHumanCapable:false`, so the People section is absent and the
+ *  panel. Mounted with a host viewer and, by default, `multiHumanCapable:false`, so the People section is absent and the
  *  arms under test are exactly the character row's: which of the group-arbiter controls (#182) exist. */
-export function CommittedMembersTabStory({ soloCharacters = false, mutedSoloSeat = false, width = 420 }: CommittedMembersTabStoryProps = {}): ReactElement {
+export function CommittedMembersTabStory({
+  soloCharacters = false,
+  mutedSoloSeat = false,
+  width = 420,
+  multiHumanCapable = false,
+  inviteRequested = false,
+}: CommittedMembersTabStoryProps = {}): ReactElement {
+  useState(() => {
+    if (inviteRequested) {
+      openRoomInvite(MEMBERS_TAB_CHAT_ID);
+    }
+    return null;
+  });
   const aria = membersTabSeat("Aria", castId<CharacterId>("character_aria"));
   const solo = mutedSoloSeat ? { ...aria, disabled: true } : aria;
   const participants: readonly ParticipantView[] = soloCharacters ? [solo] : [aria, membersTabSeat("Bryn", castId<CharacterId>("character_bryn"))];
@@ -2846,10 +2865,10 @@ export function CommittedMembersTabStory({ soloCharacters = false, mutedSoloSeat
           would agree with the very overflow this width exists to catch. */}
       <div style={{ overflow: "visible", width }}>
         <CommittedMembersTab
-          chatId={castId<ChatId>("chat_members_tab")}
+          chatId={MEMBERS_TAB_CHAT_ID}
           chat={{ participants, identities: [], viewerUserId: castId<UserId>("user_riley"), pendingHostUserId: null }}
           isHost={true}
-          multiHumanCapable={false}
+          multiHumanCapable={multiHumanCapable}
         />
       </div>
     </CtDataProviders>

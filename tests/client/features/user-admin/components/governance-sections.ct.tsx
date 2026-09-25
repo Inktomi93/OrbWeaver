@@ -29,7 +29,7 @@ type AppSettingsOverrides = TrpcWireOutput<"settings.getAppSettingsWithOverrides
 const OWNER = { userId: "user_owner", handle: "owner", globalRole: "owner" } satisfies TrpcWireOutput<"sessions.me">;
 const DELEGATED_ADMIN = { userId: "user_admin", handle: "admin", globalRole: "admin" } satisfies TrpcWireOutput<"sessions.me">;
 
-const SHARE_OFF: ShareStatus = { relay: { state: "off" }, liveSocketCount: 0 };
+const SHARE_OFF: ShareStatus = { relay: { state: "off" }, liveSocketCount: 0, publicAddresses: [] };
 
 const RESOLVED: Partial<EffectiveAppSettings> = {
   localMultiUser: false,

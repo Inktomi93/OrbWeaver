@@ -14,6 +14,7 @@ import {
   sharePollMs,
   sharePreconditions,
   shareStartFailure,
+  shareView,
 } from "../../../../../packages/client/src/features/user-admin/lib/share-model.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
@@ -32,15 +33,10 @@ describe("sharePreconditions", () => {
     expect(canStartSharing(sharePreconditions(READY_LOCAL))).toBe(true);
   });
 
-  test.each(["single-user", "forward-header"] satisfies AuthMode[])("%s holds the mode row and the owner row waits on it", (mode) => {
+  test.each(["single-user", "forward-header", "oidc"] satisfies AuthMode[])("%s holds the mode row and the owner row waits on it", (mode) => {
     const facts = { ...READY_LOCAL, mode };
     expect(verdicts(facts)).toMatchObject({ mode: "unmet", owner: "waiting" });
     expect(canStartSharing(sharePreconditions(facts))).toBe(false);
-  });
-
-  test("oidc needs neither an owner password nor the local seating settings", () => {
-    const facts: ShareFactsView = { mode: "oidc", localMultiUser: false, discreetLogin: false, refusal: null };
-    expect(verdicts(facts)).toStrictEqual({ mode: "met", owner: "met", seating: "met", relay: "unchecked" });
   });
 
   test.each([
@@ -131,7 +127,7 @@ describe("rememberShareLink", () => {
 
 describe("sharePollMs", () => {
   test("a transition polls faster than a live relay, which polls faster than a settled one", () => {
-    const starting = sharePollMs({ state: "starting", relay: "quick" });
+    const starting = sharePollMs({ state: "starting", relay: "quick", restartAfter: null });
     const restarting = sharePollMs({ state: "down", relay: "quick", reason: "exited", restarting: true });
     const up = sharePollMs(FIRST);
     const off = sharePollMs({ state: "off" });
@@ -140,5 +136,22 @@ describe("sharePollMs", () => {
     expect(starting).toBeLessThan(up);
     expect(up).toBeLessThan(off);
     expect(gaveUp).toBe(off);
+  });
+});
+
+describe("shareView", () => {
+  test("a restart reads restarting from its death until the new link, whichever of its two states the poll caught", () => {
+    expect(shareView({ state: "down", relay: "quick", reason: "exited", restarting: true })).toStrictEqual({ phase: "restarting", reason: "exited" });
+    expect(shareView({ state: "starting", relay: "quick", restartAfter: "no_url" })).toStrictEqual({ phase: "restarting", reason: "no_url" });
+    expect(shareView(SECOND)).toStrictEqual({ phase: "up", url: "https://second.trycloudflare.com" });
+  });
+
+  test("control: an owner's own start reads starting, and a relay that gave up reads stopped with its death", () => {
+    expect(shareView({ state: "starting", relay: "quick", restartAfter: null })).toStrictEqual({ phase: "starting" });
+    expect(shareView({ state: "down", relay: "quick", reason: "launch_failed", restarting: false })).toStrictEqual({
+      phase: "stopped",
+      reason: "launch_failed",
+    });
+    expect(shareView({ state: "off" })).toStrictEqual({ phase: "off" });
   });
 });

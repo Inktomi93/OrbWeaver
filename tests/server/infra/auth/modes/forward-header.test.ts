@@ -201,3 +201,33 @@ describe("forward-header — signed JWT (fail-closed)", () => {
     });
   });
 });
+
+// A same-host relay (the Share card's cloudflared) reaches this server from loopback, which a same-host auth proxy's
+// trusted range covers, and forwards whatever headers a visitor sends. Its requests carry the relay's registered name
+// as Host, so that name is the tell the identity path refuses on, signed or unsigned.
+describe("forward-header — a request through the share relay", () => {
+  const RelayHost = "calm-river-four-birds.trycloudflare.com";
+  const LoopbackTrusted = { forwardTrustedProxies: ["127.0.0.1/32"] };
+  const OwnerClaims: ForwardJwtClaims = { handle: castId<Handle>("owner"), externalId: null, groups: [], email: null };
+  const throughLoopback = (extra: Partial<ResolveDeps> = {}): ResolveDeps => ({ peerIp: "127.0.0.1", relayHosts: () => [RelayHost], ...extra });
+
+  test("an unsigned identity header on the relay's Host is refused, whatever its case or port", async () => {
+    for (const host of [RelayHost, `${RelayHost.toUpperCase()}:443`]) {
+      await expect(resolveForwardHeader(headers({ host, "remote-user": "owner" }), cfg(LoopbackTrusted), throughLoopback())).resolves.toBeNull();
+    }
+  });
+
+  test("a signed identity on the relay's Host is refused before the verifier is asked", async () => {
+    const res = await resolveForwardHeader(
+      headers({ host: RelayHost, ...SIGNED }),
+      cfg({ verifyForwardJwt: true, jwksAllowlist: ["idp.example.com"] }),
+      throughLoopback({ verifyForwardJwt: fakeVerifier(OwnerClaims) }),
+    );
+    expect(res).toBeNull();
+  });
+
+  test("control: the same loopback request under the auth proxy's own Host resolves", async () => {
+    const res = await resolveForwardHeader(headers({ host: "orb.example.com", "remote-user": "owner" }), cfg(LoopbackTrusted), throughLoopback());
+    expect(res).toEqual({ externalId: null, handle: "owner", groups: [], email: null });
+  });
+});

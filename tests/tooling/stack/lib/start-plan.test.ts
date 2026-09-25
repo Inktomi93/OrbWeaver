@@ -20,6 +20,7 @@ import {
   parseStartArgv,
   resolvePnpmInvocation,
   restateFileEnv,
+  shareLaunchRefusal,
   singleUserFallbackEnv,
   startBannerLines,
   startLaunch,
@@ -240,6 +241,24 @@ test("--share on a network file keeps its own BIND_HOST and ALLOWED_HOSTS exactl
   expect(pinned.plan.env["SHARE_RELAY"]).toBe("quick");
   // A network file with no BIND_HOST keeps the server's own default bind.
   expect(launchFrom("AUTH_MODE=local\n", true).plan.env["BIND_HOST"]).toBeUndefined();
+});
+
+// An SSO box already signs people in its own way, and a relay breaks that way: a random relay name is never an OIDC
+// redirect address, and a same-host relay would reach a forward-header box as a trusted loopback peer.
+test("--share refuses an oidc or forward-header box, from the file or the shell, and never overrides its mode", () => {
+  const bareShell = env(["PATH", "/bin"]);
+  for (const mode of ["oidc", "forward-header"] as const) {
+    expect(shareLaunchRefusal(parseEnv(`AUTH_MODE=${mode}\n`), bareShell), mode).toEqual(expect.stringContaining("--share"));
+    expect(shareLaunchRefusal(parseEnv(""), env(["PATH", "/bin"], ["AUTH_MODE", mode])), mode).not.toBeNull();
+    expect(launchFrom(`AUTH_MODE=${mode}\n`, true, bareShell).plan.env["AUTH_MODE"], mode).toBe(mode);
+  }
+});
+
+test("control: --share on a single-user or local box is not refused", () => {
+  const bareShell = env(["PATH", "/bin"]);
+  for (const text of ["", "AUTH_MODE=single-user\n", "AUTH_MODE=local\n"]) {
+    expect(shareLaunchRefusal(parseEnv(text), bareShell), text).toBeNull();
+  }
 });
 
 test("control: a plain start leaves the env to the file, and neither launch writes a byte to .env", ({ scratch }) => {

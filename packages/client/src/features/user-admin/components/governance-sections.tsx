@@ -107,7 +107,6 @@ function MultiUserBody({ sectionId }: { readonly sectionId: string }): ReactElem
       <Stack gap="field">
         <Text voice="gloss">Seating and sign-in posture. Multi-CHARACTER chats always work; this is about additional HUMANS.</Text>
         <SharingPosturePanel />
-        {isOwner ? <ShareCard localMultiUser={resolved.localMultiUser} discreetLogin={resolved.discreetLogin} onEnableSeating={enableSeating} /> : null}
         <AdminOverrideSwitch
           label="Allow multiple humans (local mode)"
           hint="Let additional humans be invited and seated in rooms on a local-mode install. Off = single-human. No effect outside local mode. Owner-only."
@@ -145,6 +144,8 @@ function MultiUserBody({ sectionId }: { readonly sectionId: string }): ReactElem
           onSave={saveAllowlist}
           onReset={reset}
         />
+        {/* Last in the section: its height changes with every relay state, and nothing below it may move. */}
+        {isOwner ? <ShareCard localMultiUser={resolved.localMultiUser} discreetLogin={resolved.discreetLogin} onEnableSeating={enableSeating} /> : null}
       </Stack>
     </Section>
   );

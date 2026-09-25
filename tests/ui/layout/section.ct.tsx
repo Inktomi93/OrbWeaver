@@ -17,6 +17,18 @@ test("renders the heading slot and does NOT self-pad (spacing is the container g
   await expect(component).toHaveCSS("row-gap", "12px");
 });
 
+test("the heading arm renders the rank asked for, and h3 without one", async ({ mount }) => {
+  const component = await mount(
+    <Section heading="Sampling">
+      <Section heading="Top-p" level={4}>
+        <p>content</p>
+      </Section>
+    </Section>,
+  );
+  await expect(component.getByRole("heading", { name: "Sampling", level: 3 })).toBeVisible();
+  await expect(component.getByRole("heading", { name: "Top-p", level: 4 })).toBeVisible();
+});
+
 test("no heading prop → no heading element", async ({ mount }) => {
   const component = await mount(
     <Section>

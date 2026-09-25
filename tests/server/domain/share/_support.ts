@@ -10,12 +10,22 @@ import { createShareService } from "@orb/server/domain/share";
 import type { AuditEntry } from "@orb/server/foundation/observability";
 
 export const LOCAL_SETUP_URL = "http://localhost:8788";
+/** The sockets of every account but the owner's: what the card shows the owner. */
 export const LIVE_SOCKETS = 3;
+// The owner's own tabs, which the box-wide count includes and the card must not.
+const OWNER_SOCKETS = 2;
 const AT = 1_750_000_000_000;
 
 export function caller(role: UserRole): Principal {
   const userId = castId<UserId>(`user_${role}`);
   return { userId, role, handle: castId<Handle>(`${role}`), externalId: null, via: "cookie" };
+}
+
+function liveSocketCount(userId?: UserId): number {
+  if (userId === undefined) {
+    return LIVE_SOCKETS + OWNER_SOCKETS;
+  }
+  return userId === caller("owner").userId ? OWNER_SOCKETS : 0;
 }
 
 export interface ShareHarness {
@@ -31,6 +41,7 @@ export function shareHarness(options: {
   readonly inContainer?: boolean;
   readonly ownerNeedsPassword?: boolean;
   readonly startError?: Error;
+  readonly publicAddresses?: readonly string[];
 }): ShareHarness {
   const calls: string[] = [];
   const audits: AuditEntry[] = [];
@@ -43,7 +54,7 @@ export function shareHarness(options: {
         if (options.startError !== undefined) {
           return Promise.reject(options.startError);
         }
-        status = { state: "starting", relay: "quick" };
+        status = { state: "starting", relay: "quick", restartAfter: null };
         return Promise.resolve(status);
       },
       stop: (): void => {
@@ -60,7 +71,8 @@ export function shareHarness(options: {
       return Promise.resolve(ownerNeedsPassword);
     },
     localSetupUrl: () => LOCAL_SETUP_URL,
-    liveSocketCount: () => LIVE_SOCKETS,
+    publicAddresses: options.publicAddresses ?? [],
+    liveSocketCount,
     audit: (entry): Promise<void> => {
       audits.push(entry);
       return Promise.resolve();

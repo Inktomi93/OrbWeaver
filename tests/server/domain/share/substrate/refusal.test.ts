@@ -8,6 +8,7 @@ import { shareRefusal } from "../../../../../packages/server/src/domain/share/su
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const SETUP = "http://localhost:9999";
+const PUBLIC_ADDRESS = "https://orb.example.com";
 
 function facts(
   authMode: AuthMode,
@@ -24,6 +25,7 @@ function facts(
         return Promise.resolve(options.ownerNeedsPassword ?? false);
       },
       localSetupUrl: (): string => SETUP,
+      publicAddresses: [PUBLIC_ADDRESS],
     },
   };
 }
@@ -32,11 +34,11 @@ const MODE_VERDICT: Record<AuthMode, string | null> = {
   "single-user": "share_single_user",
   "forward-header": "share_forward_header",
   local: null,
-  oidc: null,
+  oidc: "share_oidc",
 };
 
 describe("shareRefusal", () => {
-  test("only local and oidc let a relayed visitor sign in; every mode has a verdict", async () => {
+  test("only local lets a relayed visitor sign in; every mode has a verdict", async () => {
     for (const mode of AUTH_MODES) {
       expect((await shareRefusal(facts(mode).facts))?.code ?? null, mode).toBe(MODE_VERDICT[mode]);
     }
@@ -57,9 +59,11 @@ describe("shareRefusal", () => {
     expect(refusal?.message).toContain(`Open ${SETUP} on this machine`);
   });
 
-  test("oidc has no first-run claim, so the owner row is never read there", async () => {
+  test("oidc refuses with the address friends already reach, and never reads the owner row", async () => {
     const oidc = facts("oidc", { ownerNeedsPassword: true });
-    expect(await shareRefusal(oidc.facts)).toBeNull();
+    const refusal = await shareRefusal(oidc.facts);
+    expect(refusal?.code).toBe("share_oidc");
+    expect(refusal?.message).toContain(PUBLIC_ADDRESS);
     expect(oidc.reads).toEqual([]);
   });
 });

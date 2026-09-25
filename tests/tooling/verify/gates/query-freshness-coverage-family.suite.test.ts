@@ -30,6 +30,7 @@ const STATIC_SUBJECTS = [
   "settings.getAppSettingsWithOverrides",
   "settings.getVersion",
   "settings.checkForUpdate",
+  "share.status",
   "invites.listInvites",
   "rpg.listCheckpoints",
   "assets.listGallery",
@@ -53,9 +54,9 @@ test("the coverage, blindness, and listChatActivity debt owners pass all declare
   expect(verifyPolicyProofs(POLICIES)).toEqual([]);
 });
 
-test("all 34 production classifications are exact central grants and the listChatActivity debt remains independently visible", () => {
+test("every production classification is an exact central grant and the listChatActivity debt remains independently visible", () => {
   const grants = reviewedGrantsFor(POLICIES);
-  expect(grants).toHaveLength(34);
+  expect(grants).toHaveLength(STATIC_SUBJECTS.length);
   expect(grants.map(({ subject }) => subject).toSorted()).toEqual([...STATIC_SUBJECTS].toSorted());
   expect(grants.every(({ operation }) => operation === "uncovered-query-freshness")).toBe(true);
   const result = runPolicyPass({
@@ -104,9 +105,13 @@ test("all 34 production classifications are exact central grants and the listCha
     ).effectiveFindings,
   ).toHaveLength(3);
   const withoutCoverage = owners.map((owner) => (owner.policyId === coverage.id ? { ...owner, findings: [] } : owner));
-  expect(reconcile(grants, withoutCoverage).authorityAlarms.map(({ kind }) => kind)).toEqual(Array.from({ length: 34 }, () => "stale-reviewed-grant"));
+  expect(reconcile(grants, withoutCoverage).authorityAlarms.map(({ kind }) => kind)).toEqual(
+    Array.from({ length: STATIC_SUBJECTS.length }, () => "stale-reviewed-grant"),
+  );
   const multiplied = owners.map((owner) =>
     owner.policyId === coverage.id ? { ...owner, findings: owner.findings.flatMap((finding) => [finding, finding]) } : owner,
   );
-  expect(reconcile(grants, multiplied).authorityAlarms.map(({ kind }) => kind)).toEqual(Array.from({ length: 34 }, () => "over-broad-reviewed-grant"));
+  expect(reconcile(grants, multiplied).authorityAlarms.map(({ kind }) => kind)).toEqual(
+    Array.from({ length: STATIC_SUBJECTS.length }, () => "over-broad-reviewed-grant"),
+  );
 }, 300_000);

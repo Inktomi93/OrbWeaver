@@ -1,11 +1,12 @@
 /**
  * @module-tag requires-process-chdir
  */
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
-import { AUTH_MODES } from "@orb/contracts/identity";
+import { parseEnv } from "node:util";
+import { AUTH_MODES, CONTAINER_LOCAL_LOGIN_ENV } from "@orb/contracts/identity";
 import { afterAll, afterEach, beforeEach, describe, vi } from "vitest";
 import { runsInContainer } from "../../../../packages/server/src/foundation/env/container.ts";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -280,6 +281,14 @@ describe("foundation/env — the AUTH_MODE superRefine boot-fatality", () => {
   test("prod + single-user + AUTH_FALLBACK=owner boots (single-user is not an SSO mode — its only credential IS the fallback)", async () => {
     const { env } = await reimportEnvWith({ NODE_ENV: "production", AUTH_MODE: "single-user", AUTH_FALLBACK: "owner" });
     expect(env.AUTH_MODE).toBe("single-user");
+  });
+
+  // The login switch the admin surfaces print for a container, applied over the shipped container env the way compose
+  // applies an `environment:` block over its `env_file`. The shipped file pairs single-user with the owner fallback.
+  test("prod + the shipped docker env + the printed container login switch boots in local mode", async () => {
+    const shipped = parseEnv(readFileSync(new URL("../../../../docker/orbweaver.env", import.meta.url), "utf8"));
+    const { env } = await reimportEnvWith({ ...shipped, ...Object.fromEntries(CONTAINER_LOCAL_LOGIN_ENV), NODE_ENV: "production" });
+    expect(env.AUTH_MODE).toBe("local");
   });
 
   // ── THE CONDITIONAL DEFAULT (#2406) — what SILENCE means, per mode ────────────────────────────────────

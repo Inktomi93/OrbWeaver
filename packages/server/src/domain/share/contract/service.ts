@@ -1,7 +1,8 @@
 // domain/share — the typed surface. The owner starts, stops and reads one relay (a quick tunnel) that makes this box
 // reachable from the internet; the relay controller owns the process and the relay host it admits.
 
-import type { AuthMode, RelayStatus, ShareRefusal, ShareRelayKind, ShareStatus } from "@orb/contracts/identity";
+import type { AuthMode, Principal, RelayStatus, ShareRefusal, ShareRelayKind, ShareStatus } from "@orb/contracts/identity";
+import type { UserId } from "@orb/kit/ids";
 import type { RequireOwner } from "#domain/admin";
 import type { AuditEntry } from "#foundation/observability";
 import type { RelayHostWriter } from "#infra/auth";
@@ -40,6 +41,8 @@ export interface ShareFacts {
   readonly ownerNeedsPassword: () => Promise<boolean>;
   /** Where the owner finishes setup: this machine's own origin. */
   readonly localSetupUrl: () => string;
+  /** The addresses a stranger already reaches this server at (`publicAddresses` in `foundation/env`). */
+  readonly publicAddresses: readonly string[];
 }
 
 /** Why a share may not start, with the sentence that names its fix. */
@@ -59,8 +62,8 @@ export type ShareBootOutcome =
 export interface ShareServiceDeps extends ShareFacts {
   readonly relay: RelayController;
   readonly requireOwner: RequireOwner;
-  /** Every live stream socket on the box, so the card shows who is connected. */
-  readonly liveSocketCount: () => number;
+  /** The live stream sockets on the box, or one user's alone when `userId` is given. */
+  readonly liveSocketCount: (userId?: UserId) => number;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   readonly now: () => number;
 }
@@ -68,6 +71,9 @@ export interface ShareServiceDeps extends ShareFacts {
 /** The DI bundle the verbs close over: the deps plus the one precondition check every start runs. */
 export interface ShareContext extends ShareServiceDeps {
   readonly refusal: () => Promise<ShareRefusalNotice | null>;
+  /** What every verb answers: the relay, the live sockets of every account but the caller's (the owner's own tabs
+   *  never read as a visitor) and the public addresses. */
+  readonly statusFor: (principal: Principal, relay: RelayStatus) => ShareStatus;
 }
 
 /** The share surface. `start`, `stop` and `status` are owner-only at the verb; the two boot ops have no caller, because

@@ -402,6 +402,20 @@ test("B1 anti-spoof: an SSO header from an UNTRUSTED peer is rejected even with 
   expect(principal).toBeNull();
 });
 
+test("the seam hands its relay registry to the header path: an SSO header on a relay Host from a trusted loopback peer is refused", async () => {
+  // provisionIdentity throws (stub default): reaching it would fail the test.
+  const seam = createAuthSeam({
+    config: baseConfig({ mode: "forward-header", fallback: "deny", forwardUserHeader: "x-forwarded-user", forwardTrustedProxies: ["127.0.0.1/32"] }),
+    sessions: stubSessions({}),
+    relayHosts: () => ["calm-river-four-birds.trycloudflare.com"],
+  });
+
+  const headers = new Headers({ host: "calm-river-four-birds.trycloudflare.com", "x-forwarded-user": "owner" });
+  const { principal } = await seam.resolvePrincipal(headers, { peerIp: "127.0.0.1", transport: "http" });
+
+  expect(principal).toBeNull();
+});
+
 test("a disabled SSO row is gated to null (disable takes effect next request, not JWT-baked)", async () => {
   const seam = createAuthSeam({
     config: baseConfig({

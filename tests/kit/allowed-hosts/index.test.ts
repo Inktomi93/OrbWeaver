@@ -5,6 +5,7 @@ import {
   isAllowedHostEntry,
   isAlwaysAllowedHost,
   isHostname,
+  isPublicHostName,
   isTopLevelSuffix,
   machineHostNames,
   parseAllowedHosts,
@@ -85,4 +86,13 @@ test("the always-allowed rule: localhost, *.localhost and IP literals (bare or b
 test("withoutTrailingDot drops exactly one dot", () => {
   expect(withoutTrailingDot("example.com.")).toBe("example.com");
   expect(withoutTrailingDot("example.com")).toBe("example.com");
+});
+
+test("a public name is one a stranger's resolver can find: not one label, not an IP or localhost, not a private suffix", () => {
+  for (const name of ["orb.example.com", "friends.example.co.uk", "lan.example.com"]) {
+    expect(isPublicHostName(name), name).toBe(true);
+  }
+  for (const name of ["nas", "nas.local", "orb.home.arpa", "box.internal", "orb.lan", "pi.home", "box.tail1234.ts.net", "127.0.0.1", "app.localhost"]) {
+    expect(isPublicHostName(name), name).toBe(false);
+  }
 });
