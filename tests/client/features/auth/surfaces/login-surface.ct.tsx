@@ -58,11 +58,18 @@ test("local over plain http from a private client → the transport notice, priv
   await mount(<LoginArmStory config={config({ mode: "local", transport: "http", clientScope: "private" })} />);
   await expect(page.getByTestId("login-transport-notice")).toBeVisible();
   await expect(page.getByTestId("login-transport-notice")).toHaveAttribute("data-client-scope", "private");
+  // P3-8 — it speaks to the person signing in, not to the operator.
+  await expect(page.getByTestId("login-transport-notice")).toHaveText(
+    "This page isn't encrypted: others on this network could read your password as it is sent. Sign in only on a network you trust.",
+  );
 });
 
 test("local over plain http from a public client → the transport notice, public scope", async ({ mount, page }) => {
   await mount(<LoginArmStory config={config({ mode: "local", transport: "http", clientScope: "public" })} />);
   await expect(page.getByTestId("login-transport-notice")).toHaveAttribute("data-client-scope", "public");
+  await expect(page.getByTestId("login-transport-notice")).toHaveText(
+    "This page isn't encrypted: anyone between you and this server could read your password as it is sent. Don't sign in here; ask whoever runs this server for a secure link.",
+  );
 });
 
 test("the first-run form over plain http carries the notice too", async ({ mount, page }) => {

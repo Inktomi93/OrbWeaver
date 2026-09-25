@@ -35,7 +35,8 @@ export function LoginShellAnchor({ children }: LoginShellAnchorProps): ReactElem
     >
       <LoginWeaveBackdrop />
       {/* relative: the content column stacks above the full-bleed web canvas. */}
-      <Container name="login" className="relative w-full max-w-sm">
+      {/* The page's one landmark: the sign-in and join card is the content a screen reader jumps to. */}
+      <Container name="login" role="main" className="relative w-full max-w-sm">
         <Stack gap="block">
           <Row align="center" justify="center" gap="row" aria-hidden={true} data-slot="brand-wordmark">
             {/* Decorative pair: the mark + name — the surface's <h1> carries the page's real name. The
