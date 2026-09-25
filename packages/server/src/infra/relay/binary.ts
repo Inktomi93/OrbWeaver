@@ -80,10 +80,10 @@ function mismatch(asset: CloudflaredAsset, version: string): DomainOperationErro
   );
 }
 
-async function fetchAsset(deps: CloudflaredBinaryDeps, url: string): Promise<ReadableStream<Uint8Array>> {
+async function fetchAsset(deps: CloudflaredBinaryDeps, asset: CloudflaredAsset, url: string): Promise<ReadableStream<Uint8Array>> {
   let response: Response;
   try {
-    response = await deps.fetch(url, { signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS) });
+    response = await deps.fetch(url, { maxBytes: asset.bytes, deadlineMs: DOWNLOAD_TIMEOUT_MS });
   } catch (err) {
     throw refuse("relay_binary_download_failed", `Could not download ${url}: ${err instanceof Error ? err.message : String(err)}`);
   }
@@ -97,7 +97,7 @@ async function fetchAsset(deps: CloudflaredBinaryDeps, url: string): Promise<Rea
 // hostile or wrong answer cannot fill the disk before the hash is compared.
 async function download(deps: CloudflaredBinaryDeps, asset: CloudflaredAsset, dest: string): Promise<void> {
   const url = `${deps.pin.releaseBase}/${deps.pin.version}/${asset.file}`;
-  const body = await fetchAsset(deps, url);
+  const body = await fetchAsset(deps, asset, url);
   const handle = await open(dest, "wx", PRIVATE_FILE_MODE);
   const hash = createHash("sha256");
   let received = 0;

@@ -5,8 +5,8 @@
 export const CLOUDFLARED_TARGETS = ["linux-x64", "linux-arm64", "linux-arm", "linux-ia32", "darwin-x64", "darwin-arm64", "win32-x64", "win32-ia32"] as const;
 export type CloudflaredTarget = (typeof CLOUDFLARED_TARGETS)[number];
 
-/** How a release asset carries the executable: the file itself, or a gzip tar holding one `cloudflared` entry. */
-export const CLOUDFLARED_PACKAGINGS = ["binary", "tgz"] as const;
+// How a release asset carries the executable: the file itself, or a gzip tar holding one `cloudflared` entry.
+const CLOUDFLARED_PACKAGINGS = ["binary", "tgz"] as const;
 export type CloudflaredPackaging = (typeof CLOUDFLARED_PACKAGINGS)[number];
 
 /** One pinned release asset. `bytes` caps the download before the hash is even compared. */
@@ -22,11 +22,14 @@ export interface CloudflaredPin {
   readonly version: string;
   /** The asset URL is `${releaseBase}/${version}/${file}`. */
   readonly releaseBase: string;
+  /** The only hosts a download may reach: the release host and the host its asset redirect lands on. */
+  readonly downloadHosts: readonly string[];
   readonly assets: Readonly<Record<CloudflaredTarget, CloudflaredAsset>>;
 }
 
-/** The download transport: production passes the global fetch (the egress firewall's dispatcher); tests pass a fake. */
-export type RelayAssetFetch = (url: string, init: { readonly signal: AbortSignal }) => Promise<Response>;
+/** The download transport: production passes the pinned-download door (safeFetch over the pin's `downloadHosts`);
+ *  tests pass a fake. `maxBytes` is the asset's pinned size and `deadlineMs` bounds the whole download. */
+export type RelayAssetFetch = (url: string, limits: { readonly maxBytes: number; readonly deadlineMs: number }) => Promise<Response>;
 
 /** Unpacks the single `cloudflared` entry of a verified tgz into `intoDir`. Called only after the archive's hash matched. */
 export type ExtractTgz = (archive: string, intoDir: string) => Promise<void>;

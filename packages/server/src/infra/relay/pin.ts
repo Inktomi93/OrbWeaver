@@ -8,6 +8,8 @@ import type { CloudflaredPin } from "./contract.ts";
 export const CLOUDFLARED_PIN: CloudflaredPin = {
   version: "2026.9.3",
   releaseBase: "https://github.com/cloudflare/cloudflared/releases/download",
+  // github.com answers a release asset with a 302 to release-assets.githubusercontent.com (measured on 2026.9.3).
+  downloadHosts: ["github.com", "release-assets.githubusercontent.com"],
   assets: {
     "linux-x64": {
       file: "cloudflared-linux-amd64",
