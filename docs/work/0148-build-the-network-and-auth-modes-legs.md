@@ -1,17 +1,16 @@
 ---
 kind: work
 status: open
-updated: 2026-09-24
+updated: 2026-09-25
 priority: P1
 area: infra
-plan: network-and-auth-modes
 ---
 
 # Build the network-and-auth-modes legs
 
 ## What
 
-Build legs A to F of docs/plans/network-and-auth-modes/design.md in order: secrets default on, the relay guard on the owner fallback and first-run, bind by mode, per-request cookie transport, the boot disclaimer block, and the docs and tunnel recipes. Each leg lands alone with the floor named in the plan's test plan.
+Build legs A to F of the network-and-auth-modes program (`docs/adr/0255-network-and-auth-modes.md`) in order: secrets default on, the relay guard on the owner fallback and first-run, bind by mode, per-request cookie transport, the boot disclaimer block, and the docs and tunnel recipes. Each leg lands alone with the floor named in the plan's test plan.
 
 ## Why
 

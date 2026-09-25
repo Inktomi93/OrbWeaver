@@ -21,7 +21,7 @@ pnpm start       # production server on http://localhost:8788
 pnpm stack up    # Linux only: the watched dev stack on http://localhost:5173
 ```
 
-You need pnpm and Node 26; the README's Develop section installs both through pnpm. A dependency version goes in
+You need pnpm and Node 26; "From source" in the README installs both through pnpm, and its Develop section adds the one-time Playwright browser install. A dependency version goes in
 the `catalog:` of `pnpm-workspace.yaml`, and the `package.json` that uses it says `catalog:`.
 
 ## Before you open a PR

@@ -179,7 +179,7 @@ Every reader and writer of a data path, by slot. A line number is a locator, not
 | secrets | `packages/server/src/entry/lifecycle.ts` L337, L465 | key load and the decrypt probe |
 | secrets | `docker/entrypoint.sh` L46, L85-86, L111-119, L148-169 | `secrets_dir`, the two generated files |
 | secrets | `.gitignore` L2; `packages/client/vite.config.ts` L419-421, L458; `tests/tooling/vite-fs-deny.test.ts` L35-42 | the name in the ignore and deny lists |
-| secrets | `docs/law/Tier-3-Infra.md` L29, L70, L79; `README.md` L35-38; `docker/README.md` L121-122; `docs/plans/network-and-auth-modes/design.md` L61 | the location in law, docs and the sibling plan |
+| secrets | `docs/law/Tier-3-Infra.md` L29, L70, L79; `README.md` L35-38; `docker/README.md` L121-122; `docs/adr/0255-network-and-auth-modes.md` | the location in law, docs and the network-and-auth-modes decision |
 | root | `Dockerfile` L77-83; `docker-compose.yaml` L38, L62; `docker/compose.dev.yaml` L46; `docker/README.md` L118-135 | the volume and its doc |
 | root | `.gitignore` L19-21; `.dockerignore` L9; `packages/client/vite.config.ts` L425-437, L464 | root-anchored `data/` rules; unchanged, the new subdirectories inherit them |
 | root | `.env.example` | gains a commented `DATA_DIR` line |

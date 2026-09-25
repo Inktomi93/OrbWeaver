@@ -37,9 +37,10 @@
 #      AUTH_MODE=single-user  → AUTH_FALLBACK is exported as `owner` here (that mode's ONLY credential; the
 #                               schema refuses an EXPLICIT `deny` pairing as a box that serves nobody, and
 #                               since #2406 resolves an UNSET key to `owner` for this mode anyway — so this
-#                               export restates the resolved value rather than supplying it). Only
-#                               reachable from a loopback peer: host networking (docker/compose.host-network.yaml)
-#                               or an on-box process — a published bridge port 401s, and boot says so.
+#                               export restates the resolved value rather than supplying it). The owner
+#                               arrives through the published bridge port only because docker/orbweaver.env
+#                               declares the bridge ranges in AUTH_FALLBACK_TRUSTED_PEERS; without them only a
+#                               loopback peer is the owner (docker/compose.host-network.yaml), and boot says so.
 #      AUTH_MODE=local        → SESSION_SECRET is generated once and kept in the data volume when neither the
 #                               env nor a *_FILE provides it; LOCAL_INITIAL_PASSWORD likewise — generated on the
 #                               first boot, PRINTED ONCE to the log, and kept at

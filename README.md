@@ -11,72 +11,66 @@ per-feature template) and rebuilds the rest so the **file structure is self-docu
 
 ## Run it
 
-**Docker (any OS, nothing else to install):**
+Pick one path. Each serves the app at <http://localhost:8788>.
+
+### Docker (Linux, macOS, Windows)
 
 ```bash
 git clone https://github.com/Inktomi93/orbweaver && cd orbweaver
-docker compose up -d --build       # first run builds the image; `docker compose logs orbweaver` prints your login
+docker compose up -d --build
 ```
 
-Open <http://localhost:8788>, sign in, add an API key or point a connection at a model server you already run
-(Ollama, KoboldCpp, LM Studio, vLLM, …). The full guide — login modes, LAN/HTTPS, your own vLLM, secrets,
-the dev overlay — is [`docker/README.md`](docker/README.md).
+Open <http://localhost:8788>. There is no login: the port is published on this machine only, and you are the owner. [`docker/README.md`](docker/README.md) covers login modes, LAN and HTTPS, tunnels, secrets and backups.
 
-**From source** (Node 26 + pnpm, any OS — see Develop below): run `pnpm install && pnpm start`. The first
-run in a terminal asks for the port, who uses the app (just you, or people on your network) and how they
-sign in, and saves the answers in `.env`; you never edit that file by hand. `pnpm start --setup` asks
-again, offers your current answers, and changes only those settings. `pnpm start` then builds the client
-bundle if it needs building and runs the production server in this terminal at <http://localhost:8788>;
-Ctrl-C stops it. `pnpm start --port 9000` uses another port for one run without saving it. With no
-terminal to ask in (a service, CI, piped input), it asks nothing, writes nothing and starts on the
-defaults. "Just me" is the default: it has no login, so it listens on *this* machine only and you are the
-owner here. `pnpm start` is plain Node — no bash, no `setsid` — and it runs the same thing the container
-does (`NODE_ENV=production node packages/server/src/entry/index.ts`); its macOS and Windows boots are not
-yet verified on real hardware.
+### From source
 
-**Other devices, and the internet.** Run `pnpm start --setup` and choose "people on my network": the
-server then listens on every interface and people sign in with a password; the first visit from this
-machine sets the owner's password. Setup prints the addresses to open from another device. The IP address
-always works; the `<name>.local` address works where `.local` names resolve (macOS and most phones;
-Windows and Linux may need mDNS support). Under WSL2, other devices cannot reach WSL's own address: turn on
-mirrored networking (`networkingMode=mirrored` in `.wslconfig`, Windows 11) or forward the port from
-Windows with `netsh interface portproxy add v4tov4 listenport=8788 connectport=8788 connectaddress=<WSL address>`.
-A phone at `http://192.168.1.20:8788` can sign in over plain http, but the password and
-the session cookie travel in clear on your network, and the login screen says so; put HTTPS in front when
-you can. An IP address and this computer's own name (`http://<name>.local:8788`) work as is; any other name
-(a tailnet or tunnel hostname) goes in `ALLOWED_HOSTS` in `.env`. The server refuses names it does not know,
-so a web page cannot reach it through your browser. For the internet, never forward a router port: run a tunnel instead. `tailscale serve --bg 8788`
-publishes the app to your tailnet over HTTPS, and `cloudflared tunnel run --token <token>` with a public
-hostname whose service is `http://localhost:8788` publishes it through Cloudflare. Never put a proxy or
-tunnel in front of single-user. The boot log states who can reach the box and who its owner is; the
-tunnel recipes, including Tailscale identity instead of passwords, are in [`docker/README.md`](docker/README.md).
+Install Git, then pnpm, then Node 26 through pnpm:
 
-**Work on the code** (any OS): `pnpm install && pnpm dev` runs the watched server and the vite client
-from source in this terminal. Open <http://localhost:5173>; the server listens on 8788, and `PORT` and
-`VITE_PORT` in `.env` move them. The server restarts on a source change, and Ctrl-C stops both. `pnpm dev`
-reads the same `.env` as the server, and when the server would refuse a setting, it stops before it starts
-anything and names that setting. It is plain Node with no bash; its macOS and Windows runs are not yet verified on
-real hardware. `pnpm stack up` is the maintainers' Linux supervisor for the same dev stack (`setsid`, `ss`, `/proc`).
+```bash
+curl -fsSL https://get.pnpm.io/install.sh | sh -    # Linux, macOS
+pnpm runtime set node 26 -g
+```
 
-**Back up your data (from source).** Everything the app keeps is in `data/` (or wherever `DATA_DIR` points):
-`data/db/` holds the database, `data/assets/` your uploads, `data/users/` per-user runtime state, and
-`data/secrets/` two secrets the server generates on first boot: `credentials_key`, the key that decrypts
-saved provider keys, and `session_secret`, the pepper for passwords and sign-ins. `data/cache/` holds only
-what the app regenerates (model weights, image variants, import staging) and can be left out. So the rule is
-one sentence: stop the app, copy `data/` except `data/cache/`, start it again. To restore, stop the app and
-put the copy back. A database restored without its `credentials_key` cannot read any saved provider key, and
-without its `session_secret` no local password or sign-in works, so a boot that finds either file missing
-while the database still depends on it refuses to start and names the file. A `data/` dir from an older
-version is moved into this layout on the first boot, in place. Before a boot applies new database
-migrations, the app also copies the database to `data/backups/orbweaver.db.backup-<stamp>`. It keeps the
-five newest copies plus the newest of each of the last seven days that had one. `touch
-data/backups/orbweaver.db.backup-<stamp>.keep` exempts a copy from that cleanup. Migrations only go forward,
-so to roll back an update, stop the app, put a copy in place of `data/db/orbweaver.db`, delete the
-`-wal`/`-shm` files beside it, and start the older checkout. Docker users: see [`docker/README.md`](docker/README.md).
+```powershell
+Invoke-WebRequest https://get.pnpm.io/install.ps1 -UseBasicParsing | Invoke-Expression    # Windows PowerShell
+pnpm runtime set node 26 -g
+```
 
-**Run the checks on Linux or WSL2.** The test and check harness leans on `nice`, cgroup fencing and bash
-hooks, so it is Linux-shaped. macOS can run the tests, `pnpm start` and `pnpm dev`; it cannot run
-`pnpm stack`.
+If Windows Defender blocks the pnpm binary, run `winget install -e --id pnpm.pnpm` instead. Then, on every platform:
+
+```bash
+git clone https://github.com/Inktomi93/orbweaver && cd orbweaver
+pnpm install
+pnpm start
+```
+
+The first `pnpm start` in a terminal asks for the port and who uses the app, and saves the answers in `.env`. It builds the client bundle when needed and runs the server in this terminal; Ctrl-C stops it. With no terminal (a service, CI, piped input) it asks nothing and starts on the defaults. `pnpm start --port 9000` uses another port for one run. On Windows, use PowerShell or Windows Terminal: under Git Bash's own terminal node sees no TTY, so setup asks nothing. The macOS and Windows boots are not yet verified on real hardware.
+
+### Who can sign in
+
+| Choice | How | What happens |
+| - | - | - |
+| Just me (default) | nothing | No login. The server listens on this machine only, and you are the owner. |
+| People on my network | `pnpm start --setup`, then "people on my network" | Password login on every interface. The first visit from this machine sets the owner's password. Setup prints the addresses to open. |
+| Single sign-on | `AUTH_MODE=oidc` or `AUTH_MODE=forward-header` in `.env` | "Login modes" in [`docker/README.md`](docker/README.md) lists the keys. |
+
+In Docker, change the mode in `docker/orbweaver.local.env` as "Login modes" in [`docker/README.md`](docker/README.md) says; the first `local` boot prints the password (`docker compose logs orbweaver`).
+
+A device on your network signs in over plain http, so the password and the session cookie travel in clear; the login screen says so. Put HTTPS in front when you can. An IP address and `http://<this machine>.local:8788` work as is; add any other name to `ALLOWED_HOSTS` in `.env`. Under WSL2, turn on mirrored networking (`networkingMode=mirrored` in `.wslconfig`, Windows 11) so other devices reach the app.
+
+### Share over the internet
+
+- `pnpm share` runs one launch with a password login and a public link, which the log prints. The server downloads a pinned `cloudflared` on the first share. `.env` is not changed.
+- For a lasting address, run a tunnel: `tailscale serve --bg 8788`, or `cloudflared tunnel run --token <token>` with a public hostname whose service is `http://localhost:8788`. The recipes are in [`docker/README.md`](docker/README.md).
+- Never forward a router port. Never put a proxy or tunnel in front of "just me": a relayed request is never the owner, so it answers 401.
+
+### Back up your data
+
+Everything the app keeps is in `data/`, or wherever `DATA_DIR` points. Stop the app, copy `data/` except `data/cache/`, and start it again. `data/secrets/` holds `credentials_key` (it decrypts saved provider keys) and `session_secret` (the pepper for passwords and sign-ins); a database restored without them cannot read its keys or sign anyone in, and boot refuses and names the file. Before a boot applies new migrations, it copies the database to `data/backups/`. Migrations only go forward: to roll back, stop the app, put a backup in place of `data/db/orbweaver.db`, delete the `-wal` and `-shm` files beside it, and start the older checkout.
+
+### Work on the code
+
+`pnpm dev` runs the watched server and the vite client from source in this terminal; open <http://localhost:5173>. The server restarts on a source change, and Ctrl-C stops both. The checks (`pnpm check`, the test harness) need Linux or WSL2. `pnpm stack up` is the maintainers' Linux supervisor for the same dev stack.
 
 ## Read first
 
@@ -96,25 +90,15 @@ may import what, from the tree alone.**
 
 ## Develop
 
-Requires **pnpm** and **Node 26**. Get both through pnpm, on any OS:
+Install pnpm and Node 26 as "From source" under "Run it" says. Any pnpm works: inside this repo it runs the version `package.json` pins. Every dependency version lives in the `catalog:` of `pnpm-workspace.yaml`; a `package.json` names only `catalog:` or `workspace:*`.
 
 ```bash
-# 1. pnpm, which needs no Node to run
-curl -fsSL https://get.pnpm.io/install.sh | sh -                                     # macOS, Linux
-Invoke-WebRequest https://get.pnpm.io/install.ps1 -UseBasicParsing | Invoke-Expression  # Windows PowerShell
-# 2. Node 26
-pnpm runtime set node 26 -g
+pnpm install                               # deps (hard-linked from pnpm's global store) + git hooks (lefthook, via `prepare`)
+pnpm exec playwright install chromium      # once: the browser build the component and e2e tests run in
+pnpm check                                 # biome lint + tsc typecheck across all packages
 ```
 
-Any pnpm works: inside this repo it runs the version `package.json` pins. If Windows Defender blocks the
-pnpm binary, `winget install -e --id pnpm.pnpm` or `npm install -g pnpm` installs it instead. Every
-dependency version lives in the `catalog:` of `pnpm-workspace.yaml`; a `package.json` names only
-`catalog:` or `workspace:*`.
-
-```bash
-pnpm install     # deps (hard-linked from pnpm's global store) + git hooks (lefthook, via `prepare`)
-pnpm check       # biome lint + tsc typecheck across all packages
-```
+On Linux, `pnpm exec playwright install --with-deps chromium` also installs the browser's system libraries.
 
 **Worktrees just work** — without a symlink hack. Each `git worktree` gets its
 OWN `node_modules` (correct when branches carry different deps; fast via the shared global store). In a
