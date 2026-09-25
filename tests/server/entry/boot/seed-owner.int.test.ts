@@ -230,8 +230,8 @@ test("the ADOPTED OIDC owner survives a re-boot: same owner id, same row, no pha
     groups: ["owners"],
     email: null,
   };
-  await sessions.provisionIdentity(oidc);
-  await sessions.provisionIdentity(oidc);
+  await sessions.provisionIdentity(oidc, { ownerClaimProven: true });
+  await sessions.provisionIdentity(oidc, { ownerClaimProven: true });
 
   const secondBootOwner = (await seedOwner({ db, sessions, ownerHandles: ["owner"], now: clock.now }))[0];
   if (secondBootOwner === undefined) {

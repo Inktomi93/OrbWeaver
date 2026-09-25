@@ -209,7 +209,8 @@ async function resolveHeaderOrFallbackPrincipal(
     const userId = await sessions.ensureUser(ownerHandleForFallback(res.identity.handle));
     return await resolveFallbackPrincipal(userId);
   }
-  const provisioned = await sessions.provisionIdentity(res.identity);
+  // D258: the trusted proxy is the identity authority in forward-header, so its handle is the owner's word.
+  const provisioned = await sessions.provisionIdentity(res.identity, { ownerClaimProven: true });
   // Denied (allowlist gate refused) or disabled → anonymous → transport 401.
   if (provisioned.outcome === "denied") {
     return null;

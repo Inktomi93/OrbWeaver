@@ -89,8 +89,11 @@ export function createPendingSignup(ctx: SessionsContext): PendingSignupVerbs {
     }
     const existing = (await selectForProvisionByExternalId(ctx.db, identity.externalId)) ?? (await selectForProvisionByHandle(ctx.db, identity.handle));
     const ownerId = await selectOwnerUserId(ctx.db);
-    // The invite is the JIT admission for this one identity; approval stays the caller's resolved flag.
-    const insert = insertOf(decideProvision(existing, identity, ownerId, { allowJitProvision: true, requireApproval: args.requireApproval }));
+    // The invite is the JIT admission for this one identity; approval stays the caller's resolved flag. An invite is
+    // never owner-claim proof (D258); owner-by-policy is refused above in any case.
+    const insert = insertOf(
+      decideProvision(existing, identity, ownerId, { allowJitProvision: true, requireApproval: args.requireApproval, ownerClaimProven: false }),
+    );
     if (insert === null) {
       return null;
     }

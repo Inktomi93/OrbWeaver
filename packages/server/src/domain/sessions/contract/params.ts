@@ -29,7 +29,7 @@ export interface CreateSessionParams {
  * `isSubjectMismatch` scope note depends on that): the caller that KNOWS the mode computes these and the verb
  * just honors them. For `oidc` the callback resolves them from env (OIDC_SIGNUP / OIDC_REQUIRE_APPROVAL); for
  * `forward-header` the seam leaves the defaults (JIT on, no approval — the trusted proxy already gated WHO
- * reaches us). Both default to the pre-A1/A2 behavior so a caller that omits them is unchanged.
+ * reaches us). The A1/A2 flags default to the pre-A1/A2 behavior; the owner-claim proof has no default.
  */
 export interface ProvisionIdentityOptions {
   /** A1 — may a brand-new (non-owner) identity be JIT-provisioned? Default true. `oidc` passes OIDC_SIGNUP;
@@ -38,9 +38,9 @@ export interface ProvisionIdentityOptions {
   /** A2 — does a first-time (non-owner) SSO user provision `enabled:false` (awaiting admin approval)?
    *  Default false. `oidc` passes OIDC_REQUIRE_APPROVAL; the owner is never gated. */
   readonly requireApproval?: boolean;
-  /** D258 — did this login prove the owner claim, so an `OWNER_HANDLES` handle match may make it the owner? `oidc` passes
-   *  whether the callback came from loopback or carried the boot claim code. Default true, the `forward-header`
-   *  posture: the trusted proxy is the identity authority, so its handle is the owner's word. An `OWNER_GROUP`
-   *  member needs no proof. */
-  readonly ownerClaimProven?: boolean;
+  /** D258 — did this login prove the owner claim, so an `OWNER_HANDLES` handle match may make it the owner? REQUIRED,
+   *  so every caller states its proof and no new SSO caller inherits handle-based ownership by omission. `oidc`
+   *  passes whether the callback came from loopback or carried the boot claim code; `forward-header` passes true.
+   *  An `OWNER_GROUP` member needs no proof. */
+  readonly ownerClaimProven: boolean;
 }

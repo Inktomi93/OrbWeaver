@@ -1135,20 +1135,31 @@ describe("OIDC login — the redirect_uri allowlist gate", () => {
     expect(rec.mints).toBe(0);
   });
 
-  // The callback scheme and the cookie transport agree (Rule C): a header the transport rule does not
-  // believe cannot derive the https callback either, so the login mints nothing and goes to the configured origin.
+  // The callback scheme and the cookie transport agree (Rule C): a header the transport rule does not believe cannot
+  // derive the https callback either. The request already names the configured host, so a redirect to that host's
+  // login page would send the browser back to the same refusal: the login answers the misconfiguration instead.
   test.each([
-    ["a public peer forging X-Forwarded-Proto: https", "203.0.113.9", "https"],
-    ["a trusted proxy whose chain carries a forged http", "127.0.0.1", "https, http"],
-  ])("%s → 302 to the configured origin, no transaction minted", async (_label, peer, forwardedProto) => {
+    ["a public peer forging X-Forwarded-Proto: https", "203.0.113.9", { "x-forwarded-host": "chat.example.com", "x-forwarded-proto": "https" }],
+    ["a trusted proxy whose chain carries a forged http", "127.0.0.1", { "x-forwarded-host": "chat.example.com", "x-forwarded-proto": "https, http" }],
+    ["a proxy that sends no X-Forwarded-Proto", "127.0.0.1", { host: "chat.example.com" }],
+  ])("%s → the explanatory refusal naming X-Forwarded-Proto, never a redirect to itself", async (_label, peer, headers) => {
     const rec = recordingOidc([canonicalCallback]);
+    const res = await handlerFor(loginDepsFor(rec), "GET /api/auth/oidc/login")(makeCtx({ peer, headers }));
+    expect(res.status).toBe(400);
+    expect(res.headers.get("location")).toBeNull();
+    expect(((await res.json()) as { error: string }).error).toContain("X-Forwarded-Proto");
+    expect(rec.mints).toBe(0);
+  });
+
+  test("the configured host with the right scheme but a callback path the route never serves → the refusal names the path", async () => {
+    const rec = recordingOidc(["https://chat.example.com/oidc/callback"]);
     const res = await handlerFor(
       loginDepsFor(rec),
       "GET /api/auth/oidc/login",
-    )(makeCtx({ peer, headers: { "x-forwarded-host": "chat.example.com", "x-forwarded-proto": forwardedProto } }));
-    expect(res.status).toBe(302);
-    expect(res.headers.get("location")).toBe(canonicalLogin);
-    expect(rec.mints).toBe(0);
+    )(makeCtx({ peer: "127.0.0.1", headers: { "x-forwarded-host": "chat.example.com", "x-forwarded-proto": "https" } }));
+    expect(res.status).toBe(400);
+    expect(res.headers.get("location")).toBeNull();
+    expect(((await res.json()) as { error: string }).error).toContain("https://chat.example.com/api/auth/oidc/callback");
   });
 
   test.each([

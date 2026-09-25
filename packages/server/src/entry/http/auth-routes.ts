@@ -406,7 +406,7 @@ export interface AuthSessionsPort {
   readonly revokeByToken: (token: SessionToken) => Promise<{ readonly sessionId: SessionId; readonly oidcIdToken: string | null } | null>;
   /** `options` carries the caller-resolved admission decisions (A1 JIT gate, A2 approval, the owner-claim proof).
    *  The OIDC callback resolves them; the verb stays mode-agnostic. */
-  readonly provisionIdentity: (identity: ResolvedIdentity, options?: ProvisionIdentityOptions) => Promise<ProvisionOutcome>;
+  readonly provisionIdentity: (identity: ResolvedIdentity, options: ProvisionIdentityOptions) => Promise<ProvisionOutcome>;
   /** A5 — revoke every live session for the user(s) bound to an IdP subject (`sub`), for back-channel
    *  logout. Returns the count revoked + WHOSE (the route evicts those users' sockets). */
   readonly revokeByExternalId: (externalId: ExternalId) => Promise<RevokedSessionsSummary>;
@@ -963,29 +963,30 @@ function writeMintedSession(c: Context, deps: AuthRoutesDeps, session: { readonl
  * X-Forwarded-Host is trusted here because the allowlist is the real gate. Off-allowlist ⇒ null.
  */
 export function deriveRedirectUri(headers: Headers, transport: RequestTransport, allowlist: readonly string[]): string | null {
-  const rawHost = headers.get("x-forwarded-host")?.split(",")[0]?.trim();
-  const host = rawHost !== undefined && rawHost !== "" ? rawHost : headers.get("host");
-  if (host === null || host.length === 0) {
+  const host = requestHost(headers);
+  if (host === null) {
     return null;
   }
   const candidate = `${transport}://${host}${OIDC_CALLBACK_ROUTE}`;
   return allowlist.includes(candidate) ? candidate : null;
 }
 
+/** The host the request names: the first X-Forwarded-Host value, else Host. Untrusted; only ever compared. */
+function requestHost(headers: Headers): string | null {
+  const forwarded = headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+  const host = forwarded !== undefined && forwarded !== "" ? forwarded : headers.get("host");
+  return host === null || host.length === 0 ? null : host;
+}
+
 const WEB_PROTOCOLS: readonly string[] = ["https:", "http:"];
 
 /**
- * The login page on the configured public origin: the first http(s) `OIDC_REDIRECT_URIS` callback URL with its path
- * swapped for `/login`, or null when none is configured.
+ * The configured public callback: the first http(s) `OIDC_REDIRECT_URIS` entry. Its origin is where an off-allowlist
+ * login is sent and where the boot claim URL points.
  *
- * SECURITY: built from configuration alone. No request value (Host, X-Forwarded-Host, the URL) reaches it, so a login
- * started from any origin is sent only to an origin the operator wrote down. Do not derive it from the request.
+ * SECURITY: configuration alone. No request value (Host, X-Forwarded-Host, the URL) reaches it, so a login started
+ * from any origin is sent only to an origin the operator wrote down. Do not derive it from the request.
  */
-function configuredLoginPage(allowlist: readonly string[]): string | null {
-  const callback = configuredCallback(allowlist);
-  return callback === undefined ? null : new URL(LOGIN_SURFACE_ROUTE, callback).href;
-}
-
 function configuredCallback(allowlist: readonly string[]): string | undefined {
   return allowlist.find((uri) => URL.canParse(uri) && WEB_PROTOCOLS.includes(new URL(uri).protocol));
 }
@@ -1002,25 +1003,50 @@ export function ownerClaimLoginUrl(allowlist: readonly string[], code: string): 
   return url.href;
 }
 
+/**
+ * A login whose callback is not in the allowlist mints nothing. It is sent to the login page on the configured origin,
+ * unless it already names that host: then the redirect would come straight back here, so it gets the refusal that
+ * names the misconfiguration instead. The refusal names only configured values and the transport, never the request's
+ * own Host.
+ */
+function answerOffAllowlistLogin(c: Context, oidc: OidcRoutesDeps, transport: RequestTransport): Response {
+  const callback = configuredCallback(oidc.redirectAllowlist);
+  const configured = callback === undefined ? null : new URL(callback);
+  const sameHost = configured !== null && requestHost(c.req.raw.headers)?.toLowerCase() === configured.host;
+  const loginPage = configured === null || sameHost ? null : new URL(LOGIN_SURFACE_ROUTE, configured).href;
+  securityEvent(
+    "oidc_redirect_uri_rejected",
+    {
+      transport,
+      proto: c.req.raw.headers.get("x-forwarded-proto"),
+      host: c.req.raw.headers.get("x-forwarded-host") ?? c.req.raw.headers.get("host"),
+      allowlistSize: oidc.redirectAllowlist.length,
+      sentTo: loginPage,
+    },
+    "security: OIDC login origin not in OIDC_REDIRECT_URIS allowlist — no transaction minted; sending the browser to the configured origin's login page, or refusing when it is already there",
+  );
+  if (loginPage !== null) {
+    return c.redirect(loginPage, FOUND);
+  }
+  return c.json({ error: configured === null ? "This origin is not an allowed OIDC callback." : misconfiguredCallback(configured, transport) }, BAD_REQUEST);
+}
+
+/** Why a login on the configured host cannot match its callback: the scheme this server saw, or the callback path. */
+function misconfiguredCallback(configured: URL, transport: RequestTransport): string {
+  const expected = `${configured.origin}${OIDC_CALLBACK_ROUTE}`;
+  if (configured.protocol !== `${transport}:`) {
+    return `OIDC sign-in is misconfigured: the callback is ${configured.href}, but this request reached the server as ${transport}. The reverse proxy in front of the server must send X-Forwarded-Proto: ${configured.protocol.slice(0, -1)}, from an address the server trusts as a proxy.`;
+  }
+  return `OIDC sign-in is misconfigured: OIDC_REDIRECT_URIS must list ${expected} for sign-in on this address.`;
+}
+
 /** The OIDC authorize-redirect + callback handlers (openid-client v6). */
 function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDeps): void {
   app.get(OIDC_LOGIN_ROUTE, async (c) => {
     const transport = requestTransport(c);
     const redirectUri = deriveRedirectUri(c.req.raw.headers, transport, oidc.redirectAllowlist);
     if (redirectUri === null) {
-      const loginPage = configuredLoginPage(oidc.redirectAllowlist);
-      securityEvent(
-        "oidc_redirect_uri_rejected",
-        {
-          transport,
-          proto: c.req.raw.headers.get("x-forwarded-proto"),
-          host: c.req.raw.headers.get("x-forwarded-host") ?? c.req.raw.headers.get("host"),
-          allowlistSize: oidc.redirectAllowlist.length,
-          sentTo: loginPage,
-        },
-        "security: OIDC login origin not in OIDC_REDIRECT_URIS allowlist — no transaction minted; sending the browser to the configured origin's login page",
-      );
-      return loginPage === null ? c.json({ error: "This origin is not an allowed OIDC callback." }, BAD_REQUEST) : c.redirect(loginPage, FOUND);
+      return answerOffAllowlistLogin(c, oidc, transport);
     }
     const config = await oidc.getConfig();
     const codeVerifier = randomPKCECodeVerifier();

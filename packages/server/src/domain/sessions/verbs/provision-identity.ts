@@ -474,6 +474,8 @@ async function apply(ctx: SessionsContext, identity: ResolvedIdentity, ownerId: 
       return await write(ctx, identity, ownerId, decision);
     case "adopt-unbound-owner":
       return (await tryAdoptUnboundOwner(ctx, identity, decision)) ?? (await write(ctx, identity, ownerId, decision.otherwise));
+    case "bind-owner-row":
+      return await bindOwnerSubject(ctx, decision.owner, identity, decision.externalId);
     case "require-free-email":
       if ((await selectUserIdByEmail(ctx.db, decision.email)) !== undefined) {
         return denyAccountExists(identity, "email");
@@ -487,7 +489,7 @@ async function apply(ctx: SessionsContext, identity: ResolvedIdentity, ownerId: 
 }
 
 export function createProvisionIdentity(ctx: SessionsContext): Pick<SessionsService, "provisionIdentity"> {
-  async function provisionIdentity(identity: ResolvedIdentity, options: ProvisionIdentityOptions = {}): Promise<ProvisionResult> {
+  async function provisionIdentity(identity: ResolvedIdentity, options: ProvisionIdentityOptions): Promise<ProvisionResult> {
     const existing = await findExisting(ctx, identity);
     reportNullSubjectOnBoundRow(existing, identity);
     // OPERATOR RECOVERY for the subject-mismatch refusal (the accepted trade, owner-ruled 2026-08-08): the ONE

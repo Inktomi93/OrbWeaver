@@ -14,6 +14,9 @@ import { makeService } from "../_support.ts";
 
 const EXTERNAL = castId<ExternalId>("authentik|abc-123");
 
+/** The owner-claim proof for every case that is not about the claim (D258): the loopback or claim-code login. */
+const PROVEN = { ownerClaimProven: true } as const;
+
 let db: Db;
 let svc: SessionsService;
 
@@ -59,7 +62,7 @@ afterEach(() => {
 describe("sessions.provisionIdentity — INSERT (first SSO login) + JIT", () => {
   test("creates an enabled user keyed on externalId; default role user", async () => {
     vi.stubEnv("OWNER_HANDLES", "someone-else");
-    const result = asProvisioned(await svc.provisionIdentity(identity()));
+    const result = asProvisioned(await svc.provisionIdentity(identity(), PROVEN));
     expect(result.enabled).toBe(true);
     expect(result.role).toBe("user");
     const row = (await db.select().from(users).where(eq(users.id, result.userId)))[0];
@@ -69,7 +72,7 @@ describe("sessions.provisionIdentity — INSERT (first SSO login) + JIT", () => 
 
   test("seeds owner from OWNER_GROUP membership on insert", async () => {
     vi.stubEnv("OWNER_GROUP", "owners");
-    const result = asProvisioned(await svc.provisionIdentity(identity({ groups: ["owners"] })));
+    const result = asProvisioned(await svc.provisionIdentity(identity({ groups: ["owners"] }), PROVEN));
     expect(result.role).toBe("owner");
   });
 
@@ -77,7 +80,7 @@ describe("sessions.provisionIdentity — INSERT (first SSO login) + JIT", () => 
     vi.stubEnv("OWNER_HANDLES", "someone-else");
     vi.stubEnv("OIDC_ADMIN_GROUPS", "Orb Admins");
     const before = await rowCount();
-    const result = asProvisioned(await svc.provisionIdentity(identity({ groups: ["Orb Admins"] })));
+    const result = asProvisioned(await svc.provisionIdentity(identity({ groups: ["Orb Admins"] }), PROVEN));
     expect(result.role).toBe("admin");
     expect(await rowCount()).toBe(before + 1);
   });
@@ -91,6 +94,7 @@ describe("sessions.provisionIdentity — INSERT (first SSO login) + JIT", () => 
           handle: castId<Handle>("alice"),
           groups: ["owners"],
         }),
+        PROVEN,
       ),
     );
     expect(first.role).toBe("owner");
@@ -101,6 +105,7 @@ describe("sessions.provisionIdentity — INSERT (first SSO login) + JIT", () => 
           handle: castId<Handle>("bob"),
           groups: ["owners"],
         }),
+        PROVEN,
       ),
     );
     expect(second.role).toBe("user");
@@ -112,9 +117,9 @@ describe("sessions.provisionIdentity — INSERT (first SSO login) + JIT", () => 
 
   test("the SAME owner re-logging in keeps owner (singleton reconcile excludes its own row)", async () => {
     vi.stubEnv("OWNER_GROUP", "owners");
-    const first = asProvisioned(await svc.provisionIdentity(identity({ groups: ["owners"] })));
+    const first = asProvisioned(await svc.provisionIdentity(identity({ groups: ["owners"] }), PROVEN));
     expect(first.role).toBe("owner");
-    const again = asProvisioned(await svc.provisionIdentity(identity({ groups: ["owners"] })));
+    const again = asProvisioned(await svc.provisionIdentity(identity({ groups: ["owners"] }), PROVEN));
     expect(again.role).toBe("owner");
   });
 });
@@ -127,21 +132,21 @@ describe("sessions.provisionIdentity — INSERT (first SSO login) + JIT", () => 
 describe("sessions.provisionIdentity — the new account's vector floor (#2481)", () => {
   test("a first SSO login seeds the local-light rows", async () => {
     vi.stubEnv("OWNER_HANDLES", "someone-else");
-    const result = asProvisioned(await svc.provisionIdentity(identity()));
+    const result = asProvisioned(await svc.provisionIdentity(identity(), PROVEN));
     expect(await db.select().from(userConnections).where(eq(userConnections.ownerId, result.userId))).toHaveLength(2);
   });
 
   test("a DENIED login seeds nothing (no row to seed for)", async () => {
     vi.stubEnv("OWNER_HANDLES", "someone-else");
     vi.stubEnv("OIDC_ALLOWED_GROUPS", "Orb Users");
-    expect((await svc.provisionIdentity(identity({ groups: ["outsiders"] }))).outcome).toBe("denied");
+    expect((await svc.provisionIdentity(identity({ groups: ["outsiders"] }), PROVEN)).outcome).toBe("denied");
     expect(await db.select().from(userConnections)).toHaveLength(0);
   });
 
   test("a RETURNING user's login re-seeds nothing new", async () => {
     vi.stubEnv("OWNER_HANDLES", "someone-else");
-    const first = asProvisioned(await svc.provisionIdentity(identity()));
-    await svc.provisionIdentity(identity());
+    const first = asProvisioned(await svc.provisionIdentity(identity(), PROVEN));
+    await svc.provisionIdentity(identity(), PROVEN);
     expect(await db.select().from(userConnections).where(eq(userConnections.ownerId, first.userId))).toHaveLength(2);
   });
 });
@@ -149,7 +154,7 @@ describe("sessions.provisionIdentity — the new account's vector floor (#2481)"
 describe("sessions.provisionIdentity — OIDC_ALLOWED_GROUPS login gate (fail-closed)", () => {
   test("gate UNSET ⇒ any authenticated identity is allowed (backward-compat)", async () => {
     vi.stubEnv("OWNER_HANDLES", "someone-else");
-    const result = await svc.provisionIdentity(identity({ groups: ["whatever"] }));
+    const result = await svc.provisionIdentity(identity({ groups: ["whatever"] }), PROVEN);
     expect(result.outcome).toBe("provisioned");
   });
 
@@ -157,7 +162,7 @@ describe("sessions.provisionIdentity — OIDC_ALLOWED_GROUPS login gate (fail-cl
     vi.stubEnv("OWNER_HANDLES", "someone-else");
     vi.stubEnv("OIDC_ALLOWED_GROUPS", "Orb Users");
     const before = await rowCount();
-    const result = await svc.provisionIdentity(identity({ groups: ["outsiders"] }));
+    const result = await svc.provisionIdentity(identity({ groups: ["outsiders"] }), PROVEN);
     expect(result.outcome).toBe("denied");
     // Fail-closed: a denied login never provisions a tenant row.
     expect(await rowCount()).toBe(before);
@@ -166,7 +171,7 @@ describe("sessions.provisionIdentity — OIDC_ALLOWED_GROUPS login gate (fail-cl
   test("in an allowed group ⇒ provisioned as user", async () => {
     vi.stubEnv("OWNER_HANDLES", "someone-else");
     vi.stubEnv("OIDC_ALLOWED_GROUPS", "Orb Users");
-    const result = asProvisioned(await svc.provisionIdentity(identity({ groups: ["Orb Users"] })));
+    const result = asProvisioned(await svc.provisionIdentity(identity({ groups: ["Orb Users"] }), PROVEN));
     expect(result.role).toBe("user");
   });
 
@@ -174,16 +179,16 @@ describe("sessions.provisionIdentity — OIDC_ALLOWED_GROUPS login gate (fail-cl
     vi.stubEnv("OWNER_HANDLES", "someone-else");
     vi.stubEnv("OIDC_ALLOWED_GROUPS", "Orb Users");
     vi.stubEnv("OIDC_ADMIN_GROUPS", "Orb Admins");
-    const result = asProvisioned(await svc.provisionIdentity(identity({ groups: ["Orb Admins"] })));
+    const result = asProvisioned(await svc.provisionIdentity(identity({ groups: ["Orb Admins"] }), PROVEN));
     expect(result.role).toBe("admin");
   });
 
   test("an EXISTING user removed from all allowed groups is denied next login (row survives)", async () => {
     vi.stubEnv("OWNER_HANDLES", "someone-else");
     vi.stubEnv("OIDC_ALLOWED_GROUPS", "Orb Users");
-    const first = asProvisioned(await svc.provisionIdentity(identity({ groups: ["Orb Users"] })));
+    const first = asProvisioned(await svc.provisionIdentity(identity({ groups: ["Orb Users"] }), PROVEN));
     expect(first.role).toBe("user");
-    const again = await svc.provisionIdentity(identity({ groups: ["outsiders"] }));
+    const again = await svc.provisionIdentity(identity({ groups: ["outsiders"] }), PROVEN);
     expect(again.outcome).toBe("denied");
     // The row is not deleted — the user simply can't authenticate.
     expect(await rowCount()).toBe(1);
@@ -194,11 +199,11 @@ describe("sessions.provisionIdentity — the OWNER exemption invariant (D17)", (
   test("the owner is NEVER denied by the allowed-groups gate, even in no allowed group", async () => {
     // alice is the owner (OWNER_HANDLES) and the gate is set to a group she is NOT in.
     vi.stubEnv("OWNER_HANDLES", "alice");
-    const seed = asProvisioned(await svc.provisionIdentity(identity({ groups: [] })));
+    const seed = asProvisioned(await svc.provisionIdentity(identity({ groups: [] }), PROVEN));
     expect(seed.role).toBe("owner");
     // Now turn the gate on; alice is in NONE of the allowed groups → still allowed, still owner.
     vi.stubEnv("OIDC_ALLOWED_GROUPS", "Orb Users");
-    const again = asProvisioned(await svc.provisionIdentity(identity({ groups: [] })));
+    const again = asProvisioned(await svc.provisionIdentity(identity({ groups: [] }), PROVEN));
     expect(again.outcome).toBe("provisioned");
     expect(again.role).toBe("owner");
   });
@@ -206,13 +211,13 @@ describe("sessions.provisionIdentity — the OWNER exemption invariant (D17)", (
   test("the owner is NEVER re-derived downward even with governance active + no matching group", async () => {
     // Seed the owner by handle, then flip to a config where the owner matches NO group and governance is on.
     vi.stubEnv("OWNER_HANDLES", "alice");
-    const seed = asProvisioned(await svc.provisionIdentity(identity({ groups: ["owners"] })));
+    const seed = asProvisioned(await svc.provisionIdentity(identity({ groups: ["owners"] }), PROVEN));
     expect(seed.role).toBe("owner");
     // OWNER_GROUP now points elsewhere; OIDC_ADMIN_GROUPS active ⇒ re-derive on. The owner row must stay owner.
     vi.stubEnv("OWNER_HANDLES", undefined);
     vi.stubEnv("OWNER_GROUP", "different-owners");
     vi.stubEnv("OIDC_ADMIN_GROUPS", "Orb Admins");
-    const again = asProvisioned(await svc.provisionIdentity(identity({ groups: ["Orb Users"] })));
+    const again = asProvisioned(await svc.provisionIdentity(identity({ groups: ["Orb Users"] }), PROVEN));
     expect(again.role).toBe("owner");
     const owners = (await db.select().from(users)).filter((u) => u.role === "owner");
     expect(owners).toHaveLength(1);
@@ -223,7 +228,7 @@ describe("sessions.provisionIdentity — OIDC owner-flip reconciliation (#8, D17
   test("an owner-by-policy OIDC login BINDS onto the existing unbound (single-user seeded) owner row — no second owner, no downgrade", async () => {
     // Seed the single-user/local owner: externalId null, handle 'owner', role owner (the seed/fallback shape).
     vi.stubEnv("OWNER_HANDLES", "owner");
-    const seeded = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner"), groups: [] })));
+    const seeded = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner"), groups: [] }), PROVEN));
     expect(seeded.role).toBe("owner");
     expect(await rowCount()).toBe(1);
 
@@ -231,7 +236,7 @@ describe("sessions.provisionIdentity — OIDC owner-flip reconciliation (#8, D17
     // through OWNER_GROUP (so it does NOT resolve to the seeded row by handle or externalId).
     vi.stubEnv("OWNER_GROUP", "owners");
     const oidc = asProvisioned(
-      await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|alex"), handle: castId<Handle>("alex"), groups: ["owners"] })),
+      await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|alex"), handle: castId<Handle>("alex"), groups: ["owners"] }), PROVEN),
     );
 
     // Bound onto the SAME row — pre-fix this minted a second row and downgraded the OIDC owner to `user`.
@@ -246,7 +251,7 @@ describe("sessions.provisionIdentity — OIDC owner-flip reconciliation (#8, D17
 
     // A subsequent OIDC login now resolves the SAME row directly (by externalId → owner exemption).
     const again = asProvisioned(
-      await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|alex"), handle: castId<Handle>("alex"), groups: ["owners"] })),
+      await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|alex"), handle: castId<Handle>("alex"), groups: ["owners"] }), PROVEN),
     );
     expect(again.userId).toBe(seeded.userId);
     expect(again.role).toBe("owner");
@@ -260,13 +265,13 @@ describe("sessions.provisionIdentity — OIDC owner-flip reconciliation (#8, D17
   // `ensureUser` returned a PHANTOM id (see the cascade test in tests/server/entry/boot/seed-owner.int.test.ts).
   test("the adopted owner row keeps its OWNER_HANDLES handle across the 2nd login and N more (no IdP rename)", async () => {
     vi.stubEnv("OWNER_HANDLES", "owner");
-    const seeded = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner"), groups: [] })));
+    const seeded = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner"), groups: [] }), PROVEN));
     vi.stubEnv("OWNER_GROUP", "owners");
     const oidc = identity({ externalId: castId<ExternalId>("authentik|alex"), handle: castId<Handle>("alex"), groups: ["owners"] });
 
     /** One OIDC login → the owner row's handle afterwards (the value that must never drift). */
     async function loginAndReadHandle(): Promise<string | undefined> {
-      const result = asProvisioned(await svc.provisionIdentity(oidc));
+      const result = asProvisioned(await svc.provisionIdentity(oidc, PROVEN));
       expect(result.userId).toBe(seeded.userId);
       expect(result.role).toBe("owner");
       return (await db.select().from(users).where(eq(users.id, seeded.userId)))[0]?.handle;
@@ -288,13 +293,13 @@ describe("sessions.provisionIdentity — OIDC owner-flip reconciliation (#8, D17
   // `ensureUser(ownerHandles()[0])` finds it instead of colliding).
   test("an owner row whose handle is NOT an OWNER_HANDLES key still tracks the IdP rename (key migration)", async () => {
     vi.stubEnv("OWNER_HANDLES", "owner");
-    const seeded = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner"), groups: [] })));
+    const seeded = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner"), groups: [] }), PROVEN));
     vi.stubEnv("OWNER_GROUP", "owners");
     const oidc = identity({ externalId: castId<ExternalId>("authentik|alex"), handle: castId<Handle>("alex"), groups: ["owners"] });
-    await svc.provisionIdentity(oidc);
+    await svc.provisionIdentity(oidc, PROVEN);
     // The operator moves the owner key to the IdP handle; the next login renames the row onto it.
     vi.stubEnv("OWNER_HANDLES", "alex");
-    const migrated = asProvisioned(await svc.provisionIdentity(oidc));
+    const migrated = asProvisioned(await svc.provisionIdentity(oidc, PROVEN));
     expect(migrated.userId).toBe(seeded.userId);
     const row = (await db.select().from(users).where(eq(users.id, seeded.userId)))[0];
     expect(row?.handle).toBe("alex");
@@ -314,7 +319,7 @@ describe("sessions.provisionIdentity — OIDC owner-flip reconciliation (#8, D17
     /** Seed the single-user/local owner (unbound, handle = the OWNER_HANDLES key) on an explicit db. */
     async function seedUnboundOwner(service: SessionsService): Promise<string> {
       vi.stubEnv("OWNER_HANDLES", "owner");
-      const seeded = asProvisioned(await service.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner"), groups: [] })));
+      const seeded = asProvisioned(await service.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner"), groups: [] }), PROVEN));
       expect(seeded.role).toBe("owner");
       return seeded.userId;
     }
@@ -332,7 +337,7 @@ describe("sessions.provisionIdentity — OIDC owner-flip reconciliation (#8, D17
       // Both logins park at their claim statement, so both have already read the row as UNBOUND — the exact
       // interleaving the read-then-write bind lost. Releasing lets SQLite serialize the two claims.
       const parked = held.hold(/update "users"/i, 2);
-      const both = Promise.all([service.provisionIdentity(alex), service.provisionIdentity(bob)]);
+      const both = Promise.all([service.provisionIdentity(alex, PROVEN), service.provisionIdentity(bob, PROVEN)]);
       await parked.reached;
       parked.release();
       const results = await both;
@@ -368,7 +373,7 @@ describe("sessions.provisionIdentity — OIDC owner-flip reconciliation (#8, D17
       vi.stubEnv("OWNER_GROUP", "owners");
 
       const parked = held.hold(/update "users"/i, 2);
-      const both = Promise.all([service.provisionIdentity(alex), service.provisionIdentity(alex)]);
+      const both = Promise.all([service.provisionIdentity(alex, PROVEN), service.provisionIdentity(alex, PROVEN)]);
       await parked.reached;
       parked.release();
       const results = await both;
@@ -383,11 +388,38 @@ describe("sessions.provisionIdentity — OIDC owner-flip reconciliation (#8, D17
     // The UNCONTENDED arm (the good input, unchanged): the claim still binds, and the email refresh that now
     // rides a SECOND statement after the won claim still lands. Splitting the write is where that could have
     // been dropped silently.
+    // D258: the handle-matched bind (the login reaches the unbound owner row BY HANDLE, not by adoption) is the same
+    // claim and gets the same compare-and-swap. Both logins carry proof; only the database may pick the winner.
+    test("two PROVEN logins matching the unbound owner row by handle, with different subjects: exactly ONE binds", async () => {
+      const held = await freshHeldDb();
+      const service = makeService(held.db).svc;
+      const ownerId = await seedUnboundOwner(service);
+      const first = identity({ externalId: castId<ExternalId>("authentik|first"), handle: castId<Handle>("owner"), groups: [] });
+      const second = identity({ externalId: castId<ExternalId>("authentik|second"), handle: castId<Handle>("owner"), groups: [] });
+
+      const parked = held.hold(/update "users"/i, 2);
+      const both = Promise.all([service.provisionIdentity(first, PROVEN), service.provisionIdentity(second, PROVEN)]);
+      await parked.reached;
+      parked.release();
+      const results = await both;
+
+      expect(results.map((r) => r.outcome).sort()).toEqual(["denied", "provisioned"]);
+      expect(results.find((r) => r.outcome === "denied")).toEqual({ outcome: "denied", reason: "account-exists" });
+      const rows = await held.db.select().from(users);
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ id: ownerId, role: "owner", handle: "owner" });
+      const winner = results.find((r) => r.outcome === "provisioned");
+      expect(winner).toMatchObject({ userId: ownerId, role: "owner" });
+      // The row carries the winner's subject; the loser was told it is not bound.
+      const winnerSubject = winner === results[0] ? "authentik|first" : "authentik|second";
+      expect(rows[0]?.externalId).toBe(winnerSubject);
+    });
+
     test("the uncontended adoption still binds AND still refreshes the email claim", async () => {
       vi.stubEnv("OWNER_HANDLES", "owner");
-      const seeded = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner"), groups: [] })));
+      const seeded = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner"), groups: [] }), PROVEN));
       vi.stubEnv("OWNER_GROUP", "owners");
-      const adopted = asProvisioned(await svc.provisionIdentity({ ...alex, email: "alex@example.test" }));
+      const adopted = asProvisioned(await svc.provisionIdentity({ ...alex, email: "alex@example.test" }, PROVEN));
       expect(adopted.userId).toBe(seeded.userId);
       expect(adopted.role).toBe("owner");
       const row = (await db.select().from(users).where(eq(users.id, seeded.userId)))[0];
@@ -409,7 +441,7 @@ describe("sessions.provisionIdentity — OIDC owner-flip reconciliation (#8, D17
 
     test("on a box flipped from single-user, the unbound owner row stays unbound", async () => {
       vi.stubEnv("OWNER_HANDLES", "owner");
-      const seeded = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner"), groups: [] })));
+      const seeded = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner"), groups: [] }), PROVEN));
       const warn = vi.spyOn(logger, "warn");
       expect(await svc.provisionIdentity(stranger, unproven)).toEqual({ outcome: "denied" });
       const row = (await db.select().from(users).where(eq(users.id, seeded.userId)))[0];
@@ -427,7 +459,7 @@ describe("sessions.provisionIdentity — OIDC owner-flip reconciliation (#8, D17
 
     test("with proof the same login binds the unbound owner row", async () => {
       vi.stubEnv("OWNER_HANDLES", "owner");
-      const seeded = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner"), groups: [] })));
+      const seeded = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner"), groups: [] }), PROVEN));
       const claimed = asProvisioned(await svc.provisionIdentity(stranger, { ownerClaimProven: true }));
       expect(claimed).toMatchObject({ userId: seeded.userId, role: "owner" });
       expect((await db.select().from(users).where(eq(users.id, seeded.userId)))[0]?.externalId).toBe("authentik|stranger");
@@ -435,7 +467,7 @@ describe("sessions.provisionIdentity — OIDC owner-flip reconciliation (#8, D17
 
     test("an OWNER_GROUP member still binds the unbound owner row with no proof from the caller", async () => {
       vi.stubEnv("OWNER_HANDLES", "owner");
-      const seeded = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner"), groups: [] })));
+      const seeded = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner"), groups: [] }), PROVEN));
       vi.stubEnv("OWNER_GROUP", "owners");
       const member = identity({ externalId: castId<ExternalId>("authentik|alex"), handle: castId<Handle>("alex"), groups: ["owners"] });
       expect(asProvisioned(await svc.provisionIdentity(member, unproven))).toMatchObject({ userId: seeded.userId, role: "owner" });
@@ -445,12 +477,12 @@ describe("sessions.provisionIdentity — OIDC owner-flip reconciliation (#8, D17
 
   test("once the owner is BOUND, another OWNER_GROUP member does NOT adopt it — downgraded to `user` (singleton holds)", async () => {
     vi.stubEnv("OWNER_HANDLES", "owner");
-    const seeded = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner") })));
+    const seeded = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner") }), PROVEN));
     vi.stubEnv("OWNER_GROUP", "owners");
-    await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|alex"), handle: castId<Handle>("alex"), groups: ["owners"] }));
+    await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|alex"), handle: castId<Handle>("alex"), groups: ["owners"] }), PROVEN);
     // The owner row is now BOUND (externalId set) → a different member is NOT adopted; the singleton downgrades it.
     const other = asProvisioned(
-      await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|bob"), handle: castId<Handle>("bob"), groups: ["owners"] })),
+      await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|bob"), handle: castId<Handle>("bob"), groups: ["owners"] }), PROVEN),
     );
     expect(other.role).toBe("user");
     expect(other.userId).not.toBe(seeded.userId);
@@ -465,14 +497,15 @@ describe("sessions.provisionIdentity — OIDC owner-flip reconciliation (#8, D17
 describe("sessions.provisionIdentity — a handle match onto a BOUND row is an impostor, not a rename", () => {
   test("OWNER takeover: a different subject presenting the owner's handle is DENIED (row untouched)", async () => {
     vi.stubEnv("OWNER_HANDLES", "owner");
-    const seeded = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner"), groups: [] })));
+    const seeded = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner"), groups: [] }), PROVEN));
     vi.stubEnv("OWNER_GROUP", "owners");
     // The real owner adopts the row with their stable subject.
-    await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|alex"), handle: castId<Handle>("alex"), groups: ["owners"] }));
+    await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|alex"), handle: castId<Handle>("alex"), groups: ["owners"] }), PROVEN);
 
     // mallory registers the (now stable, publicly guessable) OWNER_HANDLES handle in the IdP and signs in.
     const attack = await svc.provisionIdentity(
       identity({ externalId: castId<ExternalId>("authentik|mallory"), handle: castId<Handle>("owner"), groups: ["owners"] }),
+      PROVEN,
     );
 
     expect(attack.outcome).toBe("denied");
@@ -485,10 +518,12 @@ describe("sessions.provisionIdentity — a handle match onto a BOUND row is an i
 
   test("USER takeover: a different subject presenting a bound user's handle is DENIED (row untouched)", async () => {
     vi.stubEnv("OWNER_HANDLES", "someone-else");
-    const victim = asProvisioned(await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|alice"), handle: castId<Handle>("alice") })));
+    const victim = asProvisioned(
+      await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|alice"), handle: castId<Handle>("alice") }), PROVEN),
+    );
 
     // alice renames herself in the IdP; our row still stores "alice", so the username is free to be re-taken.
-    const attack = await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|mallory"), handle: castId<Handle>("alice") }));
+    const attack = await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|mallory"), handle: castId<Handle>("alice") }), PROVEN);
 
     expect(attack.outcome).toBe("denied");
     const row = (await db.select().from(users).where(eq(users.id, victim.userId)))[0];
@@ -501,8 +536,8 @@ describe("sessions.provisionIdentity — a handle match onto a BOUND row is an i
     // takeover. A non-owner unbound row reached by a subject-bearing handle match is DENIED, not bound — the
     // row stays unbound until an admin links it with the stable subject (admin.linkSsoIdentity).
     vi.stubEnv("OWNER_HANDLES", "someone-else");
-    const local = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("alice") })));
-    const attempt = await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|alice"), handle: castId<Handle>("alice") }));
+    const local = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("alice") }), PROVEN));
+    const attempt = await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|alice"), handle: castId<Handle>("alice") }), PROVEN);
     expect(attempt.outcome).toBe("denied");
     const row = (await db.select().from(users).where(eq(users.id, local.userId)))[0];
     expect(row?.externalId).toBeNull(); // NOT auto-linked
@@ -517,8 +552,9 @@ describe("sessions.provisionIdentity — a handle match onto a BOUND row is an i
 describe("sessions.provisionIdentity — MS-W1 collision hard-deny (mode-switch orphan guard)", () => {
   test("HANDLE collision (unbound non-owner row, signup ON) ⇒ DENIED with reason account-exists, no bind", async () => {
     vi.stubEnv("OWNER_HANDLES", "someone-else");
-    const local = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("alice") })));
+    const local = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("alice") }), PROVEN));
     const result = await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|alice"), handle: castId<Handle>("alice") }), {
+      ownerClaimProven: true,
       allowJitProvision: true,
     });
     expect(result).toEqual({ outcome: "denied", reason: "account-exists" });
@@ -528,9 +564,10 @@ describe("sessions.provisionIdentity — MS-W1 collision hard-deny (mode-switch 
 
   test("a LOOK-ALIKE of a held handle at the mint path (signup ON) ⇒ DENIED account-exists, NO look-alike row", async () => {
     vi.stubEnv("OWNER_HANDLES", "someone-else");
-    asProvisioned(await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|host"), handle: castId<Handle>("host") })));
+    asProvisioned(await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|host"), handle: castId<Handle>("host") }), PROVEN));
     const before = await rowCount();
     const result = await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|spoof"), handle: castId<Handle>("h0st") }), {
+      ownerClaimProven: true,
       allowJitProvision: true,
     });
     expect(result).toEqual({ outcome: "denied", reason: "account-exists" });
@@ -541,6 +578,7 @@ describe("sessions.provisionIdentity — MS-W1 collision hard-deny (mode-switch 
     vi.stubEnv("OWNER_HANDLES", "someone-else");
     const before = await rowCount();
     const result = await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|mixed"), handle: castId<Handle>("гoot") }), {
+      ownerClaimProven: true,
       allowJitProvision: true,
     });
     expect(result.outcome).toBe("denied");
@@ -551,13 +589,16 @@ describe("sessions.provisionIdentity — MS-W1 collision hard-deny (mode-switch 
     vi.stubEnv("OWNER_HANDLES", "someone-else");
     // An existing account carries alice@corp.com (created via a prior login).
     asProvisioned(
-      await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|alice"), handle: castId<Handle>("alice"), email: "alice@corp.com" })),
+      await svc.provisionIdentity(
+        identity({ externalId: castId<ExternalId>("authentik|alice"), handle: castId<Handle>("alice"), email: "alice@corp.com" }),
+        PROVEN,
+      ),
     );
     const before = await rowCount();
     // A DIFFERENT IdP identity (new subject + new handle) presents the SAME email → would mint a duplicate.
     const result = await svc.provisionIdentity(
       identity({ externalId: castId<ExternalId>("authentik|alias"), handle: castId<Handle>("alice-new"), email: "alice@corp.com" }),
-      { allowJitProvision: true },
+      { ownerClaimProven: true, allowJitProvision: true },
     );
     expect(result).toEqual({ outcome: "denied", reason: "account-exists" });
     expect(await rowCount()).toBe(before); // no duplicate minted
@@ -568,6 +609,7 @@ describe("sessions.provisionIdentity — MS-W1 collision hard-deny (mode-switch 
     const before = await rowCount();
     const result = asProvisioned(
       await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|bob"), handle: castId<Handle>("bob"), email: "bob@corp.com" }), {
+        ownerClaimProven: true,
         allowJitProvision: true,
       }),
     );
@@ -580,6 +622,7 @@ describe("sessions.provisionIdentity — MS-W1 collision hard-deny (mode-switch 
     // signup-off deny for a brand-new identity carries NO account-exists reason: it is the JIT gate's own
     // `jit-closed`, the one reason the OIDC callback may answer with a pending join (D254).
     const signupOff = await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|new"), handle: castId<Handle>("new") }), {
+      ownerClaimProven: true,
       allowJitProvision: false,
     });
     expect(signupOff).toEqual({ outcome: "denied", reason: "jit-closed" });
@@ -587,8 +630,8 @@ describe("sessions.provisionIdentity — MS-W1 collision hard-deny (mode-switch 
 
   test("forward-header (NULL subject) still binds an unbound row by handle — the proxy is the authority (not a collision)", async () => {
     vi.stubEnv("OWNER_HANDLES", "someone-else");
-    const local = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("carol") })));
-    const again = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("carol") })));
+    const local = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("carol") }), PROVEN));
+    const again = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("carol") }), PROVEN));
     expect(again.userId).toBe(local.userId);
     expect(await rowCount()).toBe(1);
   });
@@ -604,10 +647,10 @@ describe("sessions.provisionIdentity — MS-W1 collision hard-deny (mode-switch 
 describe("sessions.provisionIdentity — a null-subject login onto a BOUND row is operator-visible (#34)", () => {
   test("WARNS naming the row, and the login still succeeds onto the same row (no behavior change)", async () => {
     vi.stubEnv("OWNER_HANDLES", "someone-else");
-    const bound = asProvisioned(await svc.provisionIdentity(identity({ externalId: EXTERNAL, handle: castId<Handle>("alice") })));
+    const bound = asProvisioned(await svc.provisionIdentity(identity({ externalId: EXTERNAL, handle: castId<Handle>("alice") }), PROVEN));
     const spy = vi.spyOn(logger, "warn");
     // The same handle arrives with NO subject — the guard that would have refused an IMPOSTOR here can't run.
-    const nullSubject = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("alice") })));
+    const nullSubject = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("alice") }), PROVEN));
     expect(nullSubject.userId).toBe(bound.userId); // unchanged outcome — this is a signal, not a gate
     expect(spy).toHaveBeenCalledOnce();
     const [bindings] = spy.mock.calls[0] as [Record<string, unknown>, ...unknown[]];
@@ -625,9 +668,9 @@ describe("sessions.provisionIdentity — a null-subject login onto a BOUND row i
   // identity authority. That shape must stay silent or the signal is a per-login siren nobody reads.
   test("a null-subject login onto an UNBOUND row is SILENT (the normal forward-header / single-user shape)", async () => {
     vi.stubEnv("OWNER_HANDLES", "someone-else");
-    const first = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("proxied") })));
+    const first = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("proxied") }), PROVEN));
     const spy = vi.spyOn(logger, "warn");
-    const again = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("proxied") })));
+    const again = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("proxied") }), PROVEN));
     expect(again.userId).toBe(first.userId);
     expect(spy).not.toHaveBeenCalled();
   });
@@ -635,9 +678,9 @@ describe("sessions.provisionIdentity — a null-subject login onto a BOUND row i
   // And the subject-BEARING path is silent too — that is the login the guard actually protects.
   test("a subject-bearing login onto its own bound row is SILENT", async () => {
     vi.stubEnv("OWNER_HANDLES", "someone-else");
-    await svc.provisionIdentity(identity());
+    await svc.provisionIdentity(identity(), PROVEN);
     const spy = vi.spyOn(logger, "warn");
-    await svc.provisionIdentity(identity());
+    await svc.provisionIdentity(identity(), PROVEN);
     expect(spy).not.toHaveBeenCalled();
   });
 });
@@ -645,8 +688,8 @@ describe("sessions.provisionIdentity — a null-subject login onto a BOUND row i
 describe("sessions.provisionIdentity — rename stability (externalId is the key)", () => {
   test("a handle rename updates the SAME row (no duplicate tenant)", async () => {
     vi.stubEnv("OWNER_HANDLES", "x");
-    const first = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("old-name") })));
-    const second = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("new-name") })));
+    const first = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("old-name") }), PROVEN));
+    const second = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("new-name") }), PROVEN));
     expect(second.userId).toBe(first.userId);
     expect(await rowCount()).toBe(1);
     const row = (await db.select().from(users).where(eq(users.id, first.userId)))[0];
@@ -655,9 +698,9 @@ describe("sessions.provisionIdentity — rename stability (externalId is the key
 
   test("an IdP rename onto a look-alike of another row's handle keeps the current handle", async () => {
     vi.stubEnv("OWNER_HANDLES", "x");
-    await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|host"), handle: castId<Handle>("host") }));
-    const first = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("old-name") })));
-    const renamed = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("h0st") })));
+    await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|host"), handle: castId<Handle>("host") }), PROVEN);
+    const first = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("old-name") }), PROVEN));
+    const renamed = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("h0st") }), PROVEN));
     expect(renamed.userId).toBe(first.userId);
     expect(renamed.identityChanged).toBe(false);
     const row = (await db.select().from(users).where(eq(users.id, first.userId)))[0];
@@ -666,8 +709,8 @@ describe("sessions.provisionIdentity — rename stability (externalId is the key
 
   test("an IdP rename onto a mixed-script handle keeps the current handle", async () => {
     vi.stubEnv("OWNER_HANDLES", "x");
-    const first = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("old-name") })));
-    const renamed = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("hσst") })));
+    const first = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("old-name") }), PROVEN));
+    const renamed = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("hσst") }), PROVEN));
     expect(renamed.userId).toBe(first.userId);
     const row = (await db.select().from(users).where(eq(users.id, first.userId)))[0];
     expect(row?.handle).toBe("old-name");
@@ -675,8 +718,8 @@ describe("sessions.provisionIdentity — rename stability (externalId is the key
 
   test("externalId null keys on handle (single-user / non-SSO path)", async () => {
     vi.stubEnv("OWNER_HANDLES", "x");
-    const first = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("solo") })));
-    const second = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("solo") })));
+    const first = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("solo") }), PROVEN));
+    const second = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("solo") }), PROVEN));
     expect(second.userId).toBe(first.userId);
     expect(await rowCount()).toBe(1);
   });
@@ -690,29 +733,29 @@ describe("sessions.provisionIdentity — rename stability (externalId is the key
 describe("sessions.provisionIdentity — identityChanged (W7b: what the entry callers fan on)", () => {
   test("a handle RENAME reports identityChanged; the idempotent re-login right after does NOT", async () => {
     vi.stubEnv("OWNER_HANDLES", "x");
-    const first = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("old-name") })));
+    const first = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("old-name") }), PROVEN));
     expect(first.identityChanged).toBe(false); // the INSERT — no other device holds a read of a row that did not exist
-    const renamed = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("new-name") })));
+    const renamed = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("new-name") }), PROVEN));
     expect(renamed.identityChanged).toBe(true);
     // The NEXT login writes nothing, so it must not fan again — this is the assertion that keeps the
     // per-request forward-header arm quiet.
-    expect(asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("new-name") }))).identityChanged).toBe(false);
+    expect(asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("new-name") }), PROVEN)).identityChanged).toBe(false);
   });
 
   test("a login-time role DEMOTION reports identityChanged (the security-relevant half)", async () => {
     vi.stubEnv("OWNER_HANDLES", "someone-else");
     vi.stubEnv("OIDC_ADMIN_GROUPS", "Orb Admins");
-    const promoted = asProvisioned(await svc.provisionIdentity(identity({ groups: ["Orb Admins"] })));
+    const promoted = asProvisioned(await svc.provisionIdentity(identity({ groups: ["Orb Admins"] }), PROVEN));
     expect(promoted.role).toBe("admin");
-    const demoted = asProvisioned(await svc.provisionIdentity(identity({ groups: ["eng"] })));
+    const demoted = asProvisioned(await svc.provisionIdentity(identity({ groups: ["eng"] }), PROVEN));
     expect(demoted.role).toBe("user");
     expect(demoted.identityChanged).toBe(true);
   });
 
   test("an EMAIL-only refresh does NOT report identityChanged — no identity read projects email", async () => {
     vi.stubEnv("OWNER_HANDLES", "x");
-    await svc.provisionIdentity(identity({ email: "old@example.com" }));
-    const refreshed = asProvisioned(await svc.provisionIdentity(identity({ email: "new@example.com" })));
+    await svc.provisionIdentity(identity({ email: "old@example.com" }), PROVEN);
+    const refreshed = asProvisioned(await svc.provisionIdentity(identity({ email: "new@example.com" }), PROVEN));
     // The row DID change (see the email describe below) — the flag is about what `sessions.me` projects
     // (userId/handle/globalRole), not about whether any column moved.
     expect(refreshed.identityChanged).toBe(false);
@@ -722,23 +765,23 @@ describe("sessions.provisionIdentity — identityChanged (W7b: what the entry ca
 describe("sessions.provisionIdentity — email (mutable attribute, keep-on-null)", () => {
   test("persists the email claim on INSERT", async () => {
     vi.stubEnv("OWNER_HANDLES", "x");
-    const result = asProvisioned(await svc.provisionIdentity(identity({ email: "alice@example.com" })));
+    const result = asProvisioned(await svc.provisionIdentity(identity({ email: "alice@example.com" }), PROVEN));
     const row = (await db.select().from(users).where(eq(users.id, result.userId)))[0];
     expect(row?.email).toBe("alice@example.com");
   });
 
   test("refreshes a CHANGED email on UPDATE", async () => {
     vi.stubEnv("OWNER_HANDLES", "x");
-    const first = asProvisioned(await svc.provisionIdentity(identity({ email: "old@example.com" })));
-    await svc.provisionIdentity(identity({ email: "new@example.com" }));
+    const first = asProvisioned(await svc.provisionIdentity(identity({ email: "old@example.com" }), PROVEN));
+    await svc.provisionIdentity(identity({ email: "new@example.com" }), PROVEN);
     const row = (await db.select().from(users).where(eq(users.id, first.userId)))[0];
     expect(row?.email).toBe("new@example.com");
   });
 
   test("keep-on-null: a login carrying NO email never wipes a stored one", async () => {
     vi.stubEnv("OWNER_HANDLES", "x");
-    const first = asProvisioned(await svc.provisionIdentity(identity({ email: "keep@example.com" })));
-    await svc.provisionIdentity(identity({ email: null }));
+    const first = asProvisioned(await svc.provisionIdentity(identity({ email: "keep@example.com" }), PROVEN));
+    await svc.provisionIdentity(identity({ email: null }), PROVEN);
     const row = (await db.select().from(users).where(eq(users.id, first.userId)))[0];
     expect(row?.email).toBe("keep@example.com");
   });
@@ -747,9 +790,9 @@ describe("sessions.provisionIdentity — email (mutable attribute, keep-on-null)
 describe("sessions.provisionIdentity — UPDATE role policy", () => {
   test("role is PRESERVED on update by default (no governance, no flag — manual grant survives)", async () => {
     vi.stubEnv("OWNER_HANDLES", "x");
-    const first = asProvisioned(await svc.provisionIdentity(identity()));
+    const first = asProvisioned(await svc.provisionIdentity(identity(), PROVEN));
     await db.update(users).set({ role: "admin" }).where(eq(users.id, first.userId));
-    const again = asProvisioned(await svc.provisionIdentity(identity()));
+    const again = asProvisioned(await svc.provisionIdentity(identity(), PROVEN));
     expect(again.role).toBe("admin");
   });
 
@@ -757,32 +800,32 @@ describe("sessions.provisionIdentity — UPDATE role policy", () => {
     vi.stubEnv("OWNER_HANDLES", "someone-else");
     vi.stubEnv("OIDC_ADMIN_GROUPS", "Orb Admins");
     // First login in the admin group → admin.
-    const first = asProvisioned(await svc.provisionIdentity(identity({ groups: ["Orb Admins"] })));
+    const first = asProvisioned(await svc.provisionIdentity(identity({ groups: ["Orb Admins"] }), PROVEN));
     expect(first.role).toBe("admin");
     // Next login WITHOUT the admin group → demoted to user (group change takes effect next login).
-    const again = asProvisioned(await svc.provisionIdentity(identity({ groups: ["eng"] })));
+    const again = asProvisioned(await svc.provisionIdentity(identity({ groups: ["eng"] }), PROVEN));
     expect(again.role).toBe("user");
     // And back up when re-added.
-    const promoted = asProvisioned(await svc.provisionIdentity(identity({ groups: ["Orb Admins"] })));
+    const promoted = asProvisioned(await svc.provisionIdentity(identity({ groups: ["Orb Admins"] }), PROVEN));
     expect(promoted.role).toBe("admin");
   });
 
   test("legacy RE_DERIVE_ROLE_ON_LOGIN still re-derives when set (no group governance)", async () => {
     vi.stubEnv("OWNER_GROUP", "owners");
     vi.stubEnv("RE_DERIVE_ROLE_ON_LOGIN", "true");
-    const first = asProvisioned(await svc.provisionIdentity(identity({ groups: ["owners"] })));
+    const first = asProvisioned(await svc.provisionIdentity(identity({ groups: ["owners"] }), PROVEN));
     // First login mints owner (no owner yet); this row IS the owner now.
     expect(first.role).toBe("owner");
     // The owner is exempt from re-derivation — losing the group does NOT demote (owner invariant).
-    const again = asProvisioned(await svc.provisionIdentity(identity({ groups: [] })));
+    const again = asProvisioned(await svc.provisionIdentity(identity({ groups: [] }), PROVEN));
     expect(again.role).toBe("owner");
   });
 
   test("enabled is NEVER reset on update (a disabled user can't re-enable by logging in)", async () => {
     vi.stubEnv("OWNER_HANDLES", "x");
-    const first = asProvisioned(await svc.provisionIdentity(identity()));
+    const first = asProvisioned(await svc.provisionIdentity(identity(), PROVEN));
     await db.update(users).set({ enabled: false }).where(eq(users.id, first.userId));
-    const again = asProvisioned(await svc.provisionIdentity(identity()));
+    const again = asProvisioned(await svc.provisionIdentity(identity(), PROVEN));
     expect(again.enabled).toBe(false);
     const row = (await db.select().from(users).where(eq(users.id, first.userId)))[0];
     expect(row?.enabled).toBe(false);
@@ -803,9 +846,9 @@ describe("sessions.provisionIdentity — the group gate ENGAGES at the verb (#14
   test("PRESENT + MATCHING on an UPDATE ⇒ ELEVATION (an existing `user` row is promoted to admin)", async () => {
     vi.stubEnv("OWNER_HANDLES", "someone-else");
     vi.stubEnv("OIDC_ADMIN_GROUPS", "Orb Admins");
-    const first = asProvisioned(await svc.provisionIdentity(identity({ groups: ["eng"] })));
+    const first = asProvisioned(await svc.provisionIdentity(identity({ groups: ["eng"] }), PROVEN));
     expect(first.role).toBe("user");
-    const elevated = asProvisioned(await svc.provisionIdentity(identity({ groups: ["eng", "Orb Admins"] })));
+    const elevated = asProvisioned(await svc.provisionIdentity(identity({ groups: ["eng", "Orb Admins"] }), PROVEN));
     expect(elevated.userId).toBe(first.userId);
     expect(elevated.role).toBe("admin");
     expect(elevated.identityChanged).toBe(true); // the other devices re-read the viewer
@@ -819,9 +862,9 @@ describe("sessions.provisionIdentity — the group gate ENGAGES at the verb (#14
   test("PRESENT + NON-MATCHING wipes a manual `setRole` admin grant on the next login (D65)", async () => {
     vi.stubEnv("OWNER_HANDLES", "someone-else");
     vi.stubEnv("OIDC_ADMIN_GROUPS", "Orb Admins");
-    const first = asProvisioned(await svc.provisionIdentity(identity({ groups: ["eng"] })));
+    const first = asProvisioned(await svc.provisionIdentity(identity({ groups: ["eng"] }), PROVEN));
     await db.update(users).set({ role: "admin" }).where(eq(users.id, first.userId)); // an out-of-band grant
-    const again = asProvisioned(await svc.provisionIdentity(identity({ groups: ["eng"] })));
+    const again = asProvisioned(await svc.provisionIdentity(identity({ groups: ["eng"] }), PROVEN));
     expect(again.role).toBe("user");
     expect((await db.select().from(users).where(eq(users.id, first.userId)))[0]?.role).toBe("user");
   });
@@ -832,9 +875,9 @@ describe("sessions.provisionIdentity — the group gate ENGAGES at the verb (#14
   test("ABSENT groups + OIDC_ADMIN_GROUPS ⇒ the fallback is `user` — an existing admin is DEMOTED", async () => {
     vi.stubEnv("OWNER_HANDLES", "someone-else");
     vi.stubEnv("OIDC_ADMIN_GROUPS", "Orb Admins");
-    const admin = asProvisioned(await svc.provisionIdentity(identity({ groups: ["Orb Admins"] })));
+    const admin = asProvisioned(await svc.provisionIdentity(identity({ groups: ["Orb Admins"] }), PROVEN));
     expect(admin.role).toBe("admin");
-    const claimGone = asProvisioned(await svc.provisionIdentity(identity({ groups: [] })));
+    const claimGone = asProvisioned(await svc.provisionIdentity(identity({ groups: [] }), PROVEN));
     expect(claimGone.role).toBe("user");
     expect((await db.select().from(users).where(eq(users.id, admin.userId)))[0]?.role).toBe("user");
   });
@@ -843,7 +886,7 @@ describe("sessions.provisionIdentity — the group gate ENGAGES at the verb (#14
     vi.stubEnv("OWNER_HANDLES", "someone-else");
     vi.stubEnv("OIDC_ALLOWED_GROUPS", "Orb Users");
     const before = await rowCount();
-    expect((await svc.provisionIdentity(identity({ groups: [] }))).outcome).toBe("denied");
+    expect((await svc.provisionIdentity(identity({ groups: [] }), PROVEN)).outcome).toBe("denied");
     expect(await rowCount()).toBe(before);
   });
 
@@ -854,10 +897,10 @@ describe("sessions.provisionIdentity — the group gate ENGAGES at the verb (#14
     vi.stubEnv("OIDC_ADMIN_GROUPS", undefined);
     vi.stubEnv("OIDC_ALLOWED_GROUPS", undefined);
     vi.stubEnv("RE_DERIVE_ROLE_ON_LOGIN", undefined);
-    const first = asProvisioned(await svc.provisionIdentity(identity({ groups: ["Orb Admins"] })));
+    const first = asProvisioned(await svc.provisionIdentity(identity({ groups: ["Orb Admins"] }), PROVEN));
     expect(first.role).toBe("user"); // no configured group grants anything
     await db.update(users).set({ role: "admin" }).where(eq(users.id, first.userId));
-    const again = asProvisioned(await svc.provisionIdentity(identity({ groups: [] })));
+    const again = asProvisioned(await svc.provisionIdentity(identity({ groups: [] }), PROVEN));
     expect(again.role).toBe("admin"); // the manual grant SURVIVES — removal does not auto-demote
   });
 });
@@ -870,7 +913,7 @@ describe("sessions.provisionIdentity — the groups claim is on the log line (#1
     vi.stubEnv("OWNER_HANDLES", "someone-else");
     vi.stubEnv("OIDC_ADMIN_GROUPS", "Orb Admins");
     const spy = vi.spyOn(logger, "info");
-    await svc.provisionIdentity(identity({ groups: ["Orb Admins", "eng"] }));
+    await svc.provisionIdentity(identity({ groups: ["Orb Admins", "eng"] }), PROVEN);
     const line = spy.mock.calls.map(([bindings]) => bindings as Record<string, unknown>).find((b) => b["handle"] === "alice");
     expect(line?.["groups"]).toEqual(["Orb Admins", "eng"]);
     expect(line?.["groupCount"]).toBe(2);
@@ -880,7 +923,7 @@ describe("sessions.provisionIdentity — the groups claim is on the log line (#1
     vi.stubEnv("OWNER_HANDLES", "someone-else");
     vi.stubEnv("OIDC_ALLOWED_GROUPS", "Orb Users");
     const spy = vi.spyOn(logger, "warn");
-    expect((await svc.provisionIdentity(identity({ groups: ["outsiders"] }))).outcome).toBe("denied");
+    expect((await svc.provisionIdentity(identity({ groups: ["outsiders"] }), PROVEN)).outcome).toBe("denied");
     const [bindings] = spy.mock.calls[0] as [Record<string, unknown>, ...unknown[]];
     expect(bindings["groups"]).toEqual(["outsiders"]);
     expect(bindings["handle"]).toBe("alice");
@@ -895,34 +938,36 @@ describe("sessions.provisionIdentity — allowJitProvision gate (A1, OIDC_SIGNUP
   test("allowJitProvision:false ⇒ a brand-new identity is DENIED and NO row is created", async () => {
     vi.stubEnv("OWNER_HANDLES", "someone-else");
     const before = await rowCount();
-    const result = await svc.provisionIdentity(identity(), { allowJitProvision: false });
+    const result = await svc.provisionIdentity(identity(), { ownerClaimProven: true, allowJitProvision: false });
     expect(result.outcome).toBe("denied");
     expect(await rowCount()).toBe(before); // fail-closed — no JIT row
   });
 
   test("allowJitProvision:false ⇒ an EXISTING user still logs in (the gate is on NEW rows only)", async () => {
     vi.stubEnv("OWNER_HANDLES", "someone-else");
-    const first = asProvisioned(await svc.provisionIdentity(identity())); // created with the default (true)
-    const again = asProvisioned(await svc.provisionIdentity(identity(), { allowJitProvision: false }));
+    const first = asProvisioned(await svc.provisionIdentity(identity(), PROVEN)); // created with the default (true)
+    const again = asProvisioned(await svc.provisionIdentity(identity(), { ownerClaimProven: true, allowJitProvision: false }));
     expect(again.userId).toBe(first.userId);
   });
 
   test("allowJitProvision:false ⇒ the box OWNER by handle is EXEMPT (a first owner login still provisions)", async () => {
     vi.stubEnv("OWNER_HANDLES", "alice");
-    const result = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("alice") }), { allowJitProvision: false }));
+    const result = asProvisioned(
+      await svc.provisionIdentity(identity({ handle: castId<Handle>("alice") }), { ownerClaimProven: true, allowJitProvision: false }),
+    );
     expect(result.role).toBe("owner");
   });
 
   test("allowJitProvision:false ⇒ an owner-by-GROUP first login is EXEMPT too (not just by handle)", async () => {
     vi.stubEnv("OWNER_HANDLES", "someone-else");
     vi.stubEnv("OWNER_GROUP", "owners");
-    const result = asProvisioned(await svc.provisionIdentity(identity({ groups: ["owners"] }), { allowJitProvision: false }));
+    const result = asProvisioned(await svc.provisionIdentity(identity({ groups: ["owners"] }), { ownerClaimProven: true, allowJitProvision: false }));
     expect(result.role).toBe("owner");
   });
 
   test("default (omitted, e.g. forward-header) ⇒ a brand-new non-owner identity is provisioned", async () => {
     vi.stubEnv("OWNER_HANDLES", "someone-else");
-    const result = asProvisioned(await svc.provisionIdentity(identity()));
+    const result = asProvisioned(await svc.provisionIdentity(identity(), PROVEN));
     expect(result.outcome).toBe("provisioned");
     expect(result.enabled).toBe(true);
   });
@@ -934,7 +979,7 @@ describe("sessions.provisionIdentity — allowJitProvision gate (A1, OIDC_SIGNUP
 describe("sessions.provisionIdentity — requireApproval gate (A2, OIDC_REQUIRE_APPROVAL)", () => {
   test("requireApproval:true ⇒ a first-time non-owner user is created DISABLED (enabled:false)", async () => {
     vi.stubEnv("OWNER_HANDLES", "someone-else");
-    const result = asProvisioned(await svc.provisionIdentity(identity(), { requireApproval: true }));
+    const result = asProvisioned(await svc.provisionIdentity(identity(), { ownerClaimProven: true, requireApproval: true }));
     expect(result.enabled).toBe(false);
     const row = (await db.select().from(users).where(eq(users.id, result.userId)))[0];
     expect(row?.enabled).toBe(false);
@@ -942,25 +987,25 @@ describe("sessions.provisionIdentity — requireApproval gate (A2, OIDC_REQUIRE_
 
   test("requireApproval:true ⇒ the OWNER is never gated (a first owner login is enabled)", async () => {
     vi.stubEnv("OWNER_HANDLES", "alice");
-    const result = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("alice") }), { requireApproval: true }));
+    const result = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("alice") }), { ownerClaimProven: true, requireApproval: true }));
     expect(result.role).toBe("owner");
     expect(result.enabled).toBe(true);
   });
 
   test("requireApproval:true ⇒ once enabled by an admin, the user's next login is admitted (enabled preserved)", async () => {
     vi.stubEnv("OWNER_HANDLES", "someone-else");
-    const created = asProvisioned(await svc.provisionIdentity(identity(), { requireApproval: true }));
+    const created = asProvisioned(await svc.provisionIdentity(identity(), { ownerClaimProven: true, requireApproval: true }));
     expect(created.enabled).toBe(false);
     // Admin approves (enable); update never re-derives enabled, so the next login stays enabled even if the
     // approval flag is still on.
     await db.update(users).set({ enabled: true }).where(eq(users.id, created.userId));
-    const again = asProvisioned(await svc.provisionIdentity(identity(), { requireApproval: true }));
+    const again = asProvisioned(await svc.provisionIdentity(identity(), { ownerClaimProven: true, requireApproval: true }));
     expect(again.enabled).toBe(true);
   });
 
   test("default (omitted) ⇒ a first-time user is enabled immediately", async () => {
     vi.stubEnv("OWNER_HANDLES", "someone-else");
-    const result = asProvisioned(await svc.provisionIdentity(identity()));
+    const result = asProvisioned(await svc.provisionIdentity(identity(), PROVEN));
     expect(result.enabled).toBe(true);
   });
 });
@@ -984,7 +1029,7 @@ describe("sessions.provisionIdentity — the first-login INSERT race (#1478)", (
     const warn = vi.spyOn(logger, "warn");
     const parked = held.hold(/insert into "users"/i);
 
-    const pending = service.provisionIdentity(identity());
+    const pending = service.provisionIdentity(identity(), PROVEN);
     await parked.reached;
     await held.db.run(sql.raw(plantOtherSubject));
     parked.release();
@@ -1011,7 +1056,7 @@ describe("sessions.provisionIdentity — the first-login INSERT race (#1478)", (
     const warn = vi.spyOn(logger, "warn");
     const parked = held.hold(/insert into "users"/i);
 
-    const pending = service.provisionIdentity(identity());
+    const pending = service.provisionIdentity(identity(), PROVEN);
     await parked.reached;
     await held.db.run(
       sql.raw(`insert into users (id, handle, handle_key, external_id, role, enabled, created_at, updated_at)
@@ -1033,7 +1078,7 @@ describe("sessions.provisionIdentity — the first-login INSERT race (#1478)", (
     const service = makeService(held.db).svc;
     const parked = held.hold(/insert into "users"/i);
 
-    const pending = service.provisionIdentity(identity());
+    const pending = service.provisionIdentity(identity(), PROVEN);
     await parked.reached;
     // The concurrent first login of the SAME identity: same handle AND same stable subject.
     await held.db.run(

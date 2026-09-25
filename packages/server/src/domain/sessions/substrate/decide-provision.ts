@@ -68,7 +68,7 @@ export function decideProvision(
     return deny("subject-mismatch");
   }
   // An OWNER_GROUP member is the IdP operator's grant; an OWNER_HANDLES match needs the caller's proof.
-  const claimProven = options.ownerClaimProven !== false || isOwnerGroupMember(identity.groups);
+  const claimProven = options.ownerClaimProven || isOwnerGroupMember(identity.groups);
   // The owner exemption: matched by row identity, never by a role compare.
   if (existing !== undefined && ownerId !== undefined && existing.id === ownerId) {
     return decideOwnerRow(existing, identity, claimProven);
@@ -93,12 +93,14 @@ export function decideProvision(
 }
 
 /** The matched row is the owner row: never gated or re-derived. Binding a subject onto the UNBOUND owner row is an
- *  owner claim, so it needs proof; the bound owner's own login and a null-subject login claim nothing. */
+ *  owner claim, so it needs proof and goes through the compare-and-swap bind; the bound owner's own login and a
+ *  null-subject login claim nothing. */
 function decideOwnerRow(existing: ProvisionCandidate, identity: ResolvedIdentity, claimProven: boolean): ProvisionDecision {
-  if (existing.externalId === null && identity.externalId !== null && !claimProven) {
-    return deny("owner-claim-unproven");
+  const subject = identity.externalId;
+  if (existing.externalId !== null || subject === null) {
+    return { kind: "update", existing, resolvedRole: existing.role, isBootstrapOwner: true, ownerSingletonDowngrade: false };
   }
-  return { kind: "update", existing, resolvedRole: existing.role, isBootstrapOwner: true, ownerSingletonDowngrade: false };
+  return claimProven ? { kind: "bind-owner-row", owner: existing, externalId: subject } : deny("owner-claim-unproven");
 }
 
 /** The proven owner is never blocked by MS-W1 or A1. Owner-flip adoption tries the unbound owner row first, unless
