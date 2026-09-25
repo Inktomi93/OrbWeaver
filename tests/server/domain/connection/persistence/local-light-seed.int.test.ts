@@ -37,7 +37,9 @@ function seedDeps(db: Awaited<ReturnType<typeof freshDb>>, serial = 0): Paramete
 test("seeds the two vector rows plus their two `user` bindings", async () => {
   const db = await freshDb();
   const owner = await seedUser(db, "user_a");
-  expect(await seedLocalLightConnections(seedDeps(db), owner)).toBe(2);
+  const seeded = await seedLocalLightConnections(seedDeps(db), owner);
+  expect(seeded.inserted).toBe(2);
+  expect([...seeded.boundTasks].sort(), "the seed reports the tasks it bound, so boot can schedule the sweeps").toEqual(["embed", "rerank"]);
   const rows = await db.select().from(userConnections).where(eq(userConnections.ownerId, owner));
   expect(rows.map((row) => row.label).toSorted()).toEqual(["local-light · encoder", "local-light · reranker"]);
   expect(rows.every((row) => row.providerId === "local-light" && row.allowBackground)).toBe(true);
@@ -49,7 +51,7 @@ test("is IDEMPOTENT — a second seed inserts nothing and writes no second bindi
   const db = await freshDb();
   const owner = await seedUser(db, "user_a");
   await seedLocalLightConnections(seedDeps(db), owner);
-  expect(await seedLocalLightConnections(seedDeps(db), owner), "a boot after the first is a no-op").toBe(0);
+  expect(await seedLocalLightConnections(seedDeps(db), owner), "a boot after the first is a no-op").toEqual({ inserted: 0, boundTasks: [] });
   expect(await db.select().from(userConnections).where(eq(userConnections.ownerId, owner))).toHaveLength(2);
   expect(await db.select().from(connectionBindings).where(eq(connectionBindings.userId, owner))).toHaveLength(2);
 });
@@ -95,7 +97,7 @@ test("re-seeds a row the user DELETED — and does NOT silently re-point the bin
   const owner = await seedUser(db, "user_a");
   await seedLocalLightConnections(seedDeps(db), owner);
   await db.delete(userConnections).where(and(eq(userConnections.ownerId, owner), eq(userConnections.label, "local-light · reranker")));
-  expect(await seedLocalLightConnections(seedDeps(db, 1), owner), "exactly the missing row comes back").toBe(1);
+  expect((await seedLocalLightConnections(seedDeps(db, 1), owner)).inserted, "exactly the missing row comes back").toBe(1);
   const rows = await db.select().from(userConnections).where(eq(userConnections.ownerId, owner));
   expect(rows.map((row) => row.label).toSorted()).toEqual(["local-light · encoder", "local-light · reranker"]);
   // The delete SET NULL the binding, and a task that already HAS a row is never re-written: the user's
@@ -115,7 +117,7 @@ test("one user's seed never touches another's rows", async () => {
   const first = await seedUser(db, "user_a");
   const second = await seedUser(db, "user_b");
   await seedLocalLightConnections(seedDeps(db), first);
-  expect(await seedLocalLightConnections(seedDeps(db, 1), second)).toBe(2);
+  expect((await seedLocalLightConnections(seedDeps(db, 1), second)).inserted).toBe(2);
   expect(await db.select().from(userConnections).where(eq(userConnections.ownerId, first))).toHaveLength(2);
   expect(await db.select().from(userConnections).where(eq(userConnections.ownerId, second))).toHaveLength(2);
 });

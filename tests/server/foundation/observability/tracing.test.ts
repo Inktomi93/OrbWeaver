@@ -10,6 +10,7 @@ import {
   recordThrownRequest,
   span,
   superviseDetached,
+  superviseSettled,
   withRequestSpan,
   wrapLibSqlClient,
 } from "@orb/server/foundation/observability";
@@ -122,6 +123,29 @@ describe("superviseDetached", () => {
       expect(trace.rootName).toBe("detached.probe");
       expect(trace.status).toBe("error");
       expect(trace.spans.find((entry) => entry.name === "detached.probe.child")?.status).toBe("error");
+    } finally {
+      spy.mockRestore();
+    }
+  });
+});
+
+describe("superviseSettled", () => {
+  test("resolves after a rejected operation, which superviseDetached's one log line reports once", async () => {
+    initTracing();
+    const requestId = "supervised-settled-rejection";
+    const err = new Error("settled-boom");
+    const logged = Promise.withResolvers<void>();
+    const spy = vi.spyOn(logger, "error").mockImplementationOnce(() => {
+      logged.resolve();
+    });
+
+    try {
+      await expect(superviseSettled(requestId, "settled.probe", { operationKind: "probe" }, () => Promise.reject(err))).resolves.toBeUndefined();
+      await logged.promise;
+
+      expect(spy).toHaveBeenCalledOnce();
+      expect(spy.mock.calls[0]?.[0]).toMatchObject({ err, operationKind: "probe", requestId, spanName: "settled.probe" });
+      expect(getTraceByRequestId(requestId)?.status).toBe("error");
     } finally {
       spy.mockRestore();
     }

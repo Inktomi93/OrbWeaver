@@ -38,7 +38,7 @@
 //
 // THREE late-bind / forward-ref threads this keystone owns (each breaks a genuine construction cycle; the
 // pattern is documented at each holder below): `materializeBackgroundOp` (rebound once assets is live),
-// `enqueueEmbedReindex` (bound once workloads exists), `resolveViewerVisibility` (getter threaded into imagery
+// `embedReindex` (bound once workloads exists), `resolveViewerVisibility` (getter threaded into imagery
 // before chat composes; the real const into automation after).
 
 import { randomUUID } from "node:crypto";
@@ -64,7 +64,7 @@ import type { AssetsService } from "#domain/assets";
 import type { AutomationService } from "#domain/automation";
 import { createAutomationTeachingContributions } from "#domain/automation";
 import type { DefaultCharacterSeeder } from "#domain/character";
-import type { ChatContext, ChatUserMacroDefs, DemoChatSeeder, MemoryEmbedSpace, MemoryRecallRecorder, SignupInviteOps } from "#domain/chat";
+import type { ChatContext, ChatUserMacroDefs, DemoChatSeeder, MemoryRecallRecorder, SignupInviteOps } from "#domain/chat";
 import { createDemoChatSeeder, createMemoryRecallRecorder, createResolveViewerVisibility, loadSeededChatDressing } from "#domain/chat";
 import type { ConnectionContext } from "#domain/connection";
 import { createConnectionPorts, createConnectionService } from "#domain/connection";
@@ -145,6 +145,7 @@ import { withRetrievalDegrade } from "./retrieval-degrade.ts";
 import { buildRosterPreset } from "./roster-preset.ts";
 import type { RpgComposeResult } from "./rpg.ts";
 import { buildRpg } from "./rpg.ts";
+import type { SearchDiscoveryComposeResult } from "./search-discovery.ts";
 import { buildSearchDiscovery } from "./search-discovery.ts";
 import { createSessionEntryWriter } from "./session-entries.ts";
 import { createEnableShareSeating } from "./share-seating.ts";
@@ -319,6 +320,11 @@ export interface ServicesResult {
   readonly signupInvites: SignupInviteOps;
   /** The per-user local-light seed, surfaced for the signup route (it runs after the signup commit). */
   readonly seedUserConnections: (userId: UserId) => Promise<void>;
+  /** The embed-space sweep enqueue (`search-discovery.ts`), surfaced for boot and the seed tools, whose owner seed
+   *  and local-light sweep run outside the compose-built seed. Never rejects. */
+  readonly enqueueEmbedReindex: (scope: UserId | null) => Promise<void>;
+  /** The same sweeps started detached, for a boot seed that must not wait on them. */
+  readonly detachEmbedReindex: (scope: UserId | null) => void;
   /** #250 — the memory-recall flight recorder's READ half. Always present (the recorder is unconditional);
    *  `lifecycle.ts` hands it to `createApp`, which registers `/api/_debug/memory/recalls` over it. */
   readonly recallRecorder: MemoryRecallRecorder;
@@ -347,13 +353,26 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // alive at boot; this op is what covers every account minted afterwards, and it is threaded into both
   // user-minting domains (sessions below, admin further down) rather than called from one of them —
   // neither may import `domain/connection`.
-  const seedUserConnections = createLocalLightUserSeed({ db, now });
+  // A seed that newly binds the encoder starts that owner's embed sweeps through `embedReindex` below (late-bound:
+  // it derefs at call time, a mint, never during compose).
+  const seedUserConnections = createLocalLightUserSeed({
+    db,
+    now,
+    onEmbedSpaceBound: (ownerId) => {
+      embedReindex.detachEmbedReindex(ownerId);
+    },
+  });
   const sessions = createSessionsService({ db, now, sessionSecret: deps.sessionSecret, seedUserConnections });
   // A connection/binding write that changes an owner's embed or imageEmbed SPACE
   // must enqueue the purge+reindex. `workloads` is built far below (the search-discovery seam), so this holder
   // is late-bound after it exists; the connection ctx derefs it at request time (a pane write), never during
   // boot. Until then it is an inert no-op.
-  let enqueueEmbedReindex: () => void = () => undefined;
+  let embedReindex: Pick<SearchDiscoveryComposeResult, "enqueueEmbedReindex" | "detachEmbedReindex"> = {
+    enqueueEmbedReindex: () => Promise.resolve(),
+    detachEmbedReindex: () => undefined,
+  };
+  // chat's memory-enabled read for the search-discovery seam, which composes before chat. Bound once chat exists.
+  let isMemoryEnabled: (ownerId: UserId) => Promise<boolean> = () => Promise.reject(new Error("compose: isMemoryEnabled invoked before chat wiring"));
   // materializeBackground (side-eye F-P0-2): built after `assets` + `effectiveConfig` exist (the assets-character
   // seam), but settings/character/chat compose BEFORE `assets`, so they deref this late-bound holder at request
   // time (the `spriteSheetOps` pattern). Invoked only when a user pastes an external background URL.
@@ -525,6 +544,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       ...(knobs.truncateTo === undefined ? {} : { truncateTo: knobs.truncateTo }),
       ...(knobs.inputType === undefined ? {} : { inputType: knobs.inputType }),
       ...(knobs.instruction === undefined ? {} : { instruction: knobs.instruction }),
+      ...(opts?.signal === undefined ? {} : { signal: opts.signal }),
     });
   };
   const isResolvedTask = <T extends Resolved["task"]>(candidate: Resolved, task: T): candidate is Resolved<T> => candidate.task === task;
@@ -545,11 +565,11 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       }
       return executeEmbed(generationConnection, input, opts);
     },
-    imageEmbed: (input): ReturnType<EmbeddingConnectionSnapshot["imageEmbed"]> => {
+    imageEmbed: (input, opts): ReturnType<EmbeddingConnectionSnapshot["imageEmbed"]> => {
       if (!isResolvedTask(generationConnection, "imageEmbed")) {
         throw new Error("generation is not an image embed connection");
       }
-      return runtime.executor.imageEmbed({ connection: generationConnection, input });
+      return runtime.executor.imageEmbed({ connection: generationConnection, input, ...(opts?.signal === undefined ? {} : { signal: opts.signal }) });
     },
   });
   const resolveEmbeddingConnection: import("#domain/embeddings").ResolveEmbeddingConnection = async (ownerId, task, connectionId) => {
@@ -583,7 +603,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     endpointAdmission,
     recordProbeOutcome: credentials.recordProbeOutcome,
     // The late-bound holder above, derefed at request time.
-    onEmbedSpaceChanged: () => enqueueEmbedReindex(),
+    onEmbedSpaceChanged: () => {
+      embedReindex.detachEmbedReindex(null);
+    },
     emitUserEvent: publishUserEvent,
   };
   const connection = createConnectionService(connectionCtx);
@@ -718,6 +740,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // model) — the SAME verb the client's params panel already reads, so the two can't disagree.
     resolveChatCapability: (args) => connection.resolveChatCapability(args),
     getContributions: getWorkloadContributions,
+    isMemoryEnabled: (ownerId) => isMemoryEnabled(ownerId),
   });
   const {
     embeddings,
@@ -733,8 +756,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     notifications,
     workloads,
   } = searchDiscovery;
-  // Bind the embed-model-change → bulk purge+reindex enqueue now that `workloads` exists.
-  enqueueEmbedReindex = searchDiscovery.enqueueEmbedReindex;
+  // Bind the embed-space sweep enqueue now that `workloads` exists.
+  embedReindex = searchDiscovery;
 
   // ── the refinery seam (R1) — the card-refinery pipeline over the summarize rung. Needs `character`
   // (the four injected ops) + the caller-scoped preset/prose resolvers; nothing composes on top of it.
@@ -941,6 +964,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     ],
   });
   const { service: chat, emitBusEvent: emitChatBusEvent } = chatCompose;
+  isMemoryEnabled = chatCompose.isMemoryEnabled;
 
   // The preset-ownership gate (fork-clones-the-game §3.2) — `forkGame` asks whether a source game's `gmPresetId`
   // is SAFE for the forker to carry (readable BY them). Off the preset front door `get` (the ONLY legal preset
@@ -1166,17 +1190,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const sweptOwners = async (enumerationScope: UserId | null): Promise<readonly UserId[]> =>
     enumerationScope === null ? await searchDiscovery.listCorpusOwners() : [enumerationScope];
 
-  // The memory receipt for an owner the sweep covered but produced no space for. Only completable when
-  // memory is OFF for them: they have no memory vectors, so the scope is vacuously in the target space. An
-  // ENABLED owner with no receipt was not swept and gets none.
-  const vacuousMemoryReceipt = async (ownerId: UserId): Promise<MemoryEmbedSpace | null> => {
-    if (await chatCompose.isMemoryEnabled(ownerId)) {
-      return null;
-    }
-    const generation = await embeddings.resolveGeneration(ownerId, "embed");
-    return generation === null ? null : { ownerId, model: generation.space, generationId: generation.id, generationEpoch: generation.epoch };
-  };
-
   // Assemble the contribution registry + close the late-bound holder the workloads verbs deref.
   workloadContributions = buildWorkloadContributions({
     db,
@@ -1214,7 +1227,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     purgeMemoryVectors: async (spaces, enumerationScope): Promise<void> => {
       const completed = new Map(spaces.map((space) => [space.ownerId, space]));
       for (const ownerId of await sweptOwners(enumerationScope)) {
-        const receipt = completed.get(ownerId) ?? (await vacuousMemoryReceipt(ownerId));
+        const receipt = completed.get(ownerId) ?? (await searchDiscovery.vacuousMemoryReceipt(ownerId));
         if (receipt === null) {
           continue;
         }
@@ -1443,6 +1456,10 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     chatRpgOps: chatCompose.rpgChatOps,
     signupInvites: chatCompose.signupInvites,
     seedUserConnections,
+    enqueueEmbedReindex: (scope) => embedReindex.enqueueEmbedReindex(scope),
+    detachEmbedReindex: (scope): void => {
+      embedReindex.detachEmbedReindex(scope);
+    },
     wireCaptureOn,
   };
 }

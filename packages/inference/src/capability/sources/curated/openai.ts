@@ -27,7 +27,8 @@ export const openaiRows = [
       cite: "resolve-model-capability.ts openai-family tools and structured output; OR's advertised row supersedes when present",
     },
   },
-  // Each reasoning row lists the efforts its model page documents. `none` is the off switch (`enabled`), never a level.
+  // Each reasoning row lists the efforts its model page documents. `none` is the off switch (`enabled`), never a level;
+  // a page that lists no `none` makes the row `mandatory`, so off clamps to the lowest level instead of a refused word.
   {
     match: {
       model: "^(openai/)?gpt-5(-mini|-nano)?(-[0-9]{4}-[0-9]{2}-[0-9]{2})?$",
@@ -37,12 +38,13 @@ export const openaiRows = [
         mode: "effort",
         enabled: true,
         effortLevels: ["minimal", "low", "medium", "high"],
+        mandatory: true,
       },
     },
     evidence: {
       tier: "curated",
       dated: "2026-09-25",
-      cite: "developers.openai.com/api/docs/models/gpt-5 'Reasoning.effort supports: minimal, low, medium, and high'; openai.com/index/introducing-gpt-5-for-developers: gpt-5, gpt-5-mini and gpt-5-nano take minimal in addition to low, medium and high",
+      cite: "developers.openai.com/api/docs/models/gpt-5 'Reasoning.effort supports: minimal, low, medium, and high' (no none); openai.com/index/introducing-gpt-5-for-developers: gpt-5, gpt-5-mini and gpt-5-nano take minimal in addition to low, medium and high",
     },
   },
   {
@@ -77,6 +79,21 @@ export const openaiRows = [
       tier: "curated",
       dated: "2026-09-25",
       cite: "developers.openai.com/api/docs/models/{gpt-5.2,gpt-5.4,gpt-5.4-mini,gpt-5.4-nano,gpt-5.5} 'Reasoning.effort supports: none, low, medium, high and xhigh'; gpt-5.3-codex 'supports low, medium, high, and xhigh'",
+    },
+  },
+  {
+    match: {
+      model: "^(openai/)?gpt-5\\.3-codex(-[0-9]{4}-[0-9]{2}-[0-9]{2})?$",
+    },
+    generation: {
+      reasoning: {
+        mandatory: true,
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-25",
+      cite: "developers.openai.com/api/docs/models/gpt-5.3-codex 'Reasoning.effort supports low, medium, high, and xhigh' (no none)",
     },
   },
   {
@@ -120,12 +137,13 @@ export const openaiRows = [
         mode: "effort",
         enabled: true,
         effortLevels: ["low", "medium", "high"],
+        mandatory: true,
       },
     },
     evidence: {
       tier: "curated",
       dated: "2026-09-25",
-      cite: "openai.com/index/introducing-gpt-5-for-developers: 'In addition to the prior values—low, medium (default), and high—GPT‑5 also supports minimal'; the o-series model pages state no wider set",
+      cite: "openai.com/index/introducing-gpt-5-for-developers: 'In addition to the prior values—low, medium (default), and high—GPT‑5 also supports minimal'; the o-series model pages state no wider set and no none",
     },
   },
   {
@@ -137,12 +155,13 @@ export const openaiRows = [
         mode: "effort",
         enabled: true,
         effortLevels: ["low", "medium", "high"],
+        mandatory: true,
       },
     },
     evidence: {
       tier: "curated",
       dated: "2026-09-25",
-      cite: "developers.openai.com/api/docs/models/{gpt-oss-120b,gpt-oss-20b} 'Configurable reasoning effort … (low, medium, high)'",
+      cite: "developers.openai.com/api/docs/models/{gpt-oss-120b,gpt-oss-20b} 'Configurable reasoning effort … (low, medium, high)' (no none)",
     },
   },
   {

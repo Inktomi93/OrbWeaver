@@ -107,6 +107,17 @@ describe("resolveEffective — provenance", () => {
     expect(effective.knobs.maxOutputTokens).toStrictEqual({ value: DEFAULT_MAX_OUTPUT_TOKENS, provenance: "floor" });
   });
 
+  // The readout and the wire agree: an unset effort sends no effort field, so the model runs at its own default
+  // and the readout claims no value, the same as any unset knob.
+  test("an unset effort reports no effort value, on an optional and on a mandatory model", async () => {
+    for (const mandatory of [false, true]) {
+      const reasoning = { mode: "effort" as const, enabled: true, effortLevels: ["low" as const, "high" as const], ...(mandatory ? { mandatory } : {}) };
+      const effective = await resolveWith({}, makeGenerationCapability({ reasoning }));
+      expect(effective.knobs.effort, `mandatory=${String(mandatory)}`).toBeUndefined();
+      expect(effective.stale).toStrictEqual([]);
+    }
+  });
+
   test("reasoning switched off is the effective effort `none` — not an absent knob and not staleness", async () => {
     const effective = await resolveWith({ effort: "none" }, makeGenerationCapability({ reasoning: { mode: "effort", enabled: true, effortLevels: ["low"] } }));
     expect(effective.knobs.effort).toStrictEqual({ value: "none", provenance: "explicit" });

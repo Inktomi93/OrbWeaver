@@ -81,7 +81,10 @@ function vectorFor(vector: Float32Array | null | undefined, p: SegmentStoreParam
  *  mixed-owner batch carries two tags; the previous shape folded them into one `modelTag` and stamped every
  *  row with whichever owner's flood happened to run last -- a silent cross-owner mis-tagging of the same
  *  class the space-tag derivation (`embedSpaceOf`) exists to make impossible. */
-async function flood(pending: readonly PendingSegment[]): Promise<Map<number, { readonly model: string; readonly vector: Float32Array | null }>> {
+async function flood(
+  pending: readonly PendingSegment[],
+  signal: AbortSignal | undefined,
+): Promise<Map<number, { readonly model: string; readonly vector: Float32Array | null }>> {
   const byOwner = new Map<UserId, PendingSegment[]>();
   for (const item of pending) {
     const bucket = byOwner.get(item.params.ownerId);
@@ -93,7 +96,10 @@ async function flood(pending: readonly PendingSegment[]): Promise<Map<number, { 
   }
   const out = new Map<number, { readonly model: string; readonly vector: Float32Array | null }>();
   for (const items of byOwner.values()) {
-    const result = await items[0]?.generation.connection.embed(items.map((p) => p.params.text));
+    const result = await items[0]?.generation.connection.embed(
+      items.map((p) => p.params.text),
+      { signal },
+    );
     if (result === undefined) {
       continue;
     }
@@ -105,14 +111,14 @@ async function flood(pending: readonly PendingSegment[]): Promise<Map<number, { 
 }
 
 export function createStoreSegments(ctx: EmbeddingsContext): EmbeddingsService["storeSegments"] {
-  return async (params: readonly SegmentStoreParams[]): Promise<readonly StoreResult[]> => {
+  return async (params: readonly SegmentStoreParams[], signal?: AbortSignal): Promise<readonly StoreResult[]> => {
     const results: StoreResult[] = params.map((p) => ({ outcome: "noop", contentHash: p.contentHash, model: p.model }));
     const pending = params.length === 0 ? [] : await gate(ctx, params);
     if (pending.length === 0) {
       return results;
     }
 
-    const embeddedByIndex = await flood(pending);
+    const embeddedByIndex = await flood(pending, signal);
 
     // The row writes stay SEQUENTIAL — they are db upserts, and the engine is already done by here.
     for (const [i, item] of pending.entries()) {

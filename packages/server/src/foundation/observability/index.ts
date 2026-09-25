@@ -70,6 +70,7 @@ export {
   setSpanAttrs,
   span,
   superviseDetached,
+  superviseSettled,
   withRequestSpan,
   wrapLibSqlClient,
 } from "./tracing.ts";

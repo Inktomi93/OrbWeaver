@@ -768,7 +768,7 @@ describe("corpusAutoindex indexer gate (Piece D)", () => {
     await writeAppOverride(db, { corpusAutoindex: true, schemaVersion: 2 }, createFrozenClock().now());
     const result = await buildGatedGraph(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    await seedLocalLightOnBoot({ db, now: createFrozenClock().now });
+    await seedLocalLightOnBoot({ db, now: createFrozenClock().now, onEmbedSpaceBound: () => undefined });
 
     const created = await result.services.character.create({
       principal: principal(owner),

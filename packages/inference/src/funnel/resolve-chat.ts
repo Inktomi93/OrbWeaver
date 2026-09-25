@@ -164,33 +164,39 @@ function defaultDisplay(r: GenerationCapability["reasoning"]): ResolvedReasoning
   return r.mode === "adaptive" && r.displayModes?.includes(DEFAULT_ADAPTIVE_DISPLAY) === true ? DEFAULT_ADAPTIVE_DISPLAY : undefined;
 }
 
-// Mandatory-reasoning clamp: a model whose descriptor says `mandatory` rejects `effort:'none'` at the wire.
+// Mandatory-reasoning clamp: a model whose descriptor says `mandatory` rejects `effort:'none'` at the wire, so a
+// CHOSEN off clamps up. An unset effort is left unset: the wire then sends no field and the model uses its default.
 function clampMandatoryEffort(r: GenerationCapability["reasoning"], effort: UserIntent["effort"], warnings: ResolvedWarning[]): UserIntent["effort"] {
-  if (r.mandatory !== true || (effort !== undefined && effort !== EFFORT_OFF)) {
+  if (r.mandatory !== true || effort !== EFFORT_OFF) {
     return effort;
   }
   const lowest = lowestEffort(r.effortLevels);
   warnings.push({
     appliedEffort: lowest,
     code: "reasoning_mandatory_clamp",
-    message: `reasoning is mandatory on this model: clamped effort "${effort ?? "none"}" up to the lowest supported "${lowest}"`,
+    message: `reasoning is mandatory on this model: clamped effort "${effort}" up to the lowest supported "${lowest}"`,
   });
   return lowest;
 }
 
-/** THE ON/OFF DECISION, before any budget/display/effort spelling: the model's own `enabled` axis ANDed with
- *  an effort that survived the mandatory clamp. Factored out because the CARRY resolution below needs exactly
- *  this fact and nothing else (§8.8's coherence rule), and a second derivation of "is reasoning on for this
- *  turn" is how the two halves drift. The clamp's warning goes to the caller's sink, so the funnel emits it
- *  once (from {@link resolveReasoning}) and the carry-only reader passes a throwaway. */
+/** THE ON/OFF DECISION, before any budget/display/effort spelling, over the effort that survived the mandatory
+ *  clamp. Two facts, one derivation, so the halves that read them cannot drift:
+ *   - `enabled`: the wire spells reasoning ON at a level (an effort resolved). Unset is not enabled: the wire
+ *     then sends no reasoning field.
+ *   - `on`: reasoning RUNS this turn — THE one home for that question (§8.8's carry coherence rule reads it).
+ *     The model can reason and the caller did not choose off; an unset effort runs at the model's own default,
+ *     which is on unless the model advertises reasoning off by default.
+ *  The clamp's warning goes to the caller's sink, so the funnel emits it once (from {@link resolveReasoning})
+ *  and the carry-only reader passes a throwaway. */
 function reasoningEnabledFor(
   params: UserIntent,
   capability: GenerationCapability,
   warnings: ResolvedWarning[],
-): { enabled: boolean; effort: UserIntent["effort"] } {
+): { enabled: boolean; on: boolean; effort: UserIntent["effort"] } {
   const r = capability.reasoning;
   const effort = clampMandatoryEffort(r, effectiveEffort(params, capability), warnings);
-  return { enabled: r.enabled && effort !== undefined && effort !== EFFORT_OFF, effort };
+  const defaultOff = effort === undefined && r.mandatory !== true && r.defaultEnabled === false;
+  return { enabled: r.enabled && effort !== undefined && effort !== EFFORT_OFF, on: r.enabled && effort !== EFFORT_OFF && !defaultOff, effort };
 }
 
 /** THE CARRY RESOLUTION (§8.8) — the ONE home for "how much of the model's own prior thinking rides back".
@@ -200,8 +206,8 @@ function reasoningEnabledFor(
  *
  *  Two gates, both dropping to `off` with the ordinary `sampling_knob_dropped` warning rather than greying a
  *  control the user cannot reason about (§8.7-3):
- *   1. COHERENCE (from ST, kept): carry above `off` requires reasoning to be ENABLED for this turn — a carry
- *      knob on a non-reasoning turn has nothing to carry.
+ *   1. COHERENCE (from ST, kept): carry above `off` requires reasoning to be ON for this turn — a carry knob on
+ *      a non-reasoning turn has nothing to carry. An unset effort is on at the model's own default.
  *   2. CAPABILITY: `reasoning.replay: "none"` means the wire refuses replayed thinking outright.
  *  The `text` rung needs no arm here: the parts carry their prose either way, and a wire that round-trips no
  *  provenance simply receives a part whose `meta` its converter ignores. */
@@ -210,7 +216,7 @@ export function resolveCarryReasoning(params: UserIntent, capability: Generation
   if (wanted === "off") {
     return "off";
   }
-  if (!reasoningEnabledFor(params, capability, []).enabled) {
+  if (!reasoningEnabledFor(params, capability, []).on) {
     warnings.push({ code: "sampling_knob_dropped", knob: "carryReasoning", message: CARRY_NEEDS_REASONING_WARNING });
     return "off";
   }
@@ -245,7 +251,7 @@ function resolveReasoning(
   const r = capability.reasoning;
   const { enabled, effort } = reasoningEnabledFor(params, capability, warnings);
   if (!enabled) {
-    return { mode: r.mode, enabled: false };
+    return { mode: r.mode, enabled: false, ...(effort === EFFORT_OFF && r.enabled ? { offChosen: true } : {}) };
   }
   const display = resolveDisplay(params.thinkingDisplay, r.displayModes, warnings) ?? defaultDisplay(r);
   const displayPart = display !== undefined ? { display } : {};

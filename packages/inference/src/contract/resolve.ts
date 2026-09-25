@@ -88,6 +88,9 @@ export interface ResolvedWarning {
 export interface ResolvedReasoning {
   readonly mode: ReasoningMode;
   readonly enabled: boolean;
+  /** Present only when the caller chose off (`effort: "none"`) on a model that can turn reasoning off. A disabled
+   *  turn without it left effort unset, so a wire sends no reasoning field and the model runs at its own default. */
+  readonly offChosen?: true | undefined;
   readonly effort?: EffortLevel | undefined;
   /** Present only for budget mode — dropped for adaptive (sending enabled+budget_tokens 400s some models). */
   readonly budgetTokens?: number | undefined;

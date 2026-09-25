@@ -108,6 +108,37 @@ test("carry: a MANDATORY-reasoning model clamps effort UP, and the carry survive
   expect(carryDrops(knobs)).toEqual([]);
 });
 
+// An effort-mode model with no default effort: an unset effort sends no field and the model reasons at its own
+// default, so reasoning is on for the turn and the carry stands.
+const EFFORT_SIGNED: GenerationCapability["reasoning"] = { mode: "effort", enabled: true, effortLevels: ["low", "medium", "high"], replay: "signed" };
+
+test("carry: an UNSET effort on a mandatory model keeps the carry — the model reasons at its own default", () => {
+  const knobs = resolveChat({ carryReasoning: "tool-chain" } satisfies UserIntent, generation({ reasoning: { ...EFFORT_SIGNED, mandatory: true } }));
+  expect(knobs.carryReasoning).toBe("tool-chain");
+  expect(carryDrops(knobs)).toEqual([]);
+});
+
+test("carry: an UNSET effort on an optional model keeps the carry with no false 'reasoning is off' warning", () => {
+  const knobs = resolveChat({ carryReasoning: "tool-chain" } satisfies UserIntent, generation({ reasoning: EFFORT_SIGNED }));
+  expect(knobs.carryReasoning).toBe("tool-chain");
+  expect(carryDrops(knobs)).toEqual([]);
+});
+
+test("carry: a CHOSEN off on an effort model turns the carry off with the true warning", () => {
+  const knobs = resolveChat({ effort: "none", carryReasoning: "tool-chain" } satisfies UserIntent, generation({ reasoning: EFFORT_SIGNED }));
+  expect(knobs.carryReasoning).toBe("off");
+  expect(carryDrops(knobs)[0]).toContain("reasoning is off");
+});
+
+test("carry: an UNSET effort on a model that advertises reasoning off by default leaves nothing to carry", () => {
+  const knobs = resolveChat(
+    { carryReasoning: "tool-chain" } satisfies UserIntent,
+    generation({ reasoning: { ...EFFORT_SIGNED, defaultEnabled: false, defaultEffort: "medium" } }),
+  );
+  expect(knobs.carryReasoning).toBe("off");
+  expect(carryDrops(knobs)[0]).toContain("reasoning is off");
+});
+
 test("carry: the mandatory clamp's own warning is raised ONCE, not twice (one decision, one notice)", () => {
   // `resolveCarryReasoning` re-derives "is reasoning on" through the same helper the reasoning resolution
   // uses; it passes a THROWAWAY sink so the clamp notice belongs to the reasoning fold alone.

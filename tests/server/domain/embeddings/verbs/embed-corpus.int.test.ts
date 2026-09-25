@@ -3,11 +3,12 @@
 //   • RESUMABILITY: a rerun is all hash-gate noops — zero embed calls, counts flip to skipped;
 //   • `force` bypasses the staleness short-circuit (re-embeds matched rows, still ONE row per card);
 //   • a vanished/empty card text is a skip, not an error;
-//   • cooperative abort: an aborted signal stops the sweep between items (no further reads/embeds);
+//   • cooperative abort: an aborted signal stops the sweep between items (no further reads/embeds), and an
+//     abort during an embed's wait on the model rejects the pass with no partial row;
 //   • an embed failure PROPAGATES (never swallowed) — the completed items' rows survive for the rerun.
 
 import type { Db } from "@orb/db";
-import { characterEmbeddings, embedGenerations, userConnections } from "@orb/db";
+import { characterEmbeddings, embedGenerations, embedSpaceState, userConnections } from "@orb/db";
 import type { CharacterEmbeddingId, CharacterId, EmbedGenerationId, Handle, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService, EmbedFailedError } from "@orb/server/domain/embeddings";
@@ -182,6 +183,36 @@ describe("embedCorpus — the bulk card-text sweep", () => {
     expect(await db.select().from(characterEmbeddings)).toHaveLength(1);
     const rerun = await svc.embedCorpus({ ownerId: null, force: false, signal: signal() });
     expect(rerun).toEqual({ embedded: 1, skipped: 1 });
+  });
+
+  test("an abort while an embed waits on the model rejects the pass with no partial row and no completion", async () => {
+    const db = await freshDb();
+    const seeded = await seedTwoCards(db);
+    const h = makeStoreHarness(db, { characterIds: seeded.ids, cardTexts: seeded.texts });
+    await seedHarnessConnection(db, seeded.owner, h);
+    const svc = createEmbeddingsService(h.ctx);
+    const controller = new AbortController();
+    // The first card embeds; the second waits on a model that never answers until the sweep's own signal
+    // fires, the case a shutdown hits while a model is still loading.
+    h.roleClients.embed
+      .mockResolvedValueOnce({ vectors: [fakeVector()], model: EMBED_MODEL, usage: { promptTokens: null, totalTokens: null } })
+      .mockImplementationOnce((_input, opts) => {
+        const sweepSignal = (opts as { readonly signal?: AbortSignal } | undefined)?.signal;
+        if (sweepSignal === undefined) {
+          return Promise.reject(new Error("the sweep's signal did not reach the embed call"));
+        }
+        const cut = Promise.withResolvers<never>();
+        sweepSignal.addEventListener("abort", () => {
+          cut.reject(sweepSignal.reason);
+        });
+        controller.abort(new Error("shutdown"));
+        return cut.promise;
+      });
+
+    await expect(svc.embedCorpus({ ownerId: null, force: false, signal: controller.signal })).rejects.toThrow("shutdown");
+
+    expect(await db.select().from(characterEmbeddings)).toHaveLength(1);
+    expect(await db.select().from(embedSpaceState)).toEqual([]);
   });
 });
 

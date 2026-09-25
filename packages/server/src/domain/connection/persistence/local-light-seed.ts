@@ -15,6 +15,7 @@ import { connectionBindings, userConnections } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { and, eq, inArray } from "drizzle-orm";
 import type { LocalLightSeedDeps } from "../contract/params.ts";
+import type { LocalLightSeedResult } from "../contract/results.ts";
 
 function localLightProviderId(): ProviderId {
   const provider = builtinProvider("local-light");
@@ -28,8 +29,9 @@ const LOCAL_LIGHT_PROVIDER_ID = localLightProviderId();
 const SEED_LABELS = LOCAL_LIGHT_SEED_ROWS.map((row) => row.label);
 const SEED_TASKS: readonly RoutableTask[] = LOCAL_LIGHT_SEED_ROWS.map((row) => row.task);
 
-/** Seed ONE user's two local-light rows + bindings. Returns how many connection rows were newly inserted. */
-export async function seedLocalLightConnections(deps: LocalLightSeedDeps, ownerId: UserId): Promise<number> {
+/** Seed ONE user's two local-light rows + bindings. Returns how many connection rows were newly inserted and
+ *  which tasks this call newly bound. */
+export async function seedLocalLightConnections(deps: LocalLightSeedDeps, ownerId: UserId): Promise<LocalLightSeedResult> {
   const { db } = deps;
   const now = deps.now();
   const inserted = await db
@@ -76,8 +78,7 @@ export async function seedLocalLightConnections(deps: LocalLightSeedDeps, ownerI
       ? []
       : [{ id: deps.newBindingId(), actorKind: "user" as const, userId: ownerId, ruleId: null, pluginId: null, task: seed.task, connectionId }];
   });
-  if (missing.length > 0) {
-    await db.insert(connectionBindings).values(missing).onConflictDoNothing();
-  }
-  return inserted.length;
+  const newlyBound =
+    missing.length > 0 ? await db.insert(connectionBindings).values(missing).onConflictDoNothing().returning({ task: connectionBindings.task }) : [];
+  return { inserted: inserted.length, boundTasks: newlyBound.map((row) => row.task) };
 }

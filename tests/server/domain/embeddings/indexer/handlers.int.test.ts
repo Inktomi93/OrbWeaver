@@ -209,7 +209,7 @@ describe("onAssetCreated", () => {
     // The caption still costs its one vision call, and the image embedder is never asked (there is none).
     expect(storeH.roleClients.summarize).toHaveBeenCalledTimes(1);
     expect(storeH.roleClients.imageEmbed).not.toHaveBeenCalled();
-    expect(storeH.roleClients.embed).toHaveBeenCalledWith(TEST_CAPTION);
+    expect(storeH.roleClients.embed).toHaveBeenCalledWith(TEST_CAPTION, { signal: undefined });
   });
 
   // The second cause, and the one a bare "is the slot filled?" check cannot see: the binding EXISTS and

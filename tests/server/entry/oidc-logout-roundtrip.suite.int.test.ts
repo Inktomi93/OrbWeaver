@@ -111,7 +111,7 @@ beforeEach(async () => {
     db,
     now: (): number => NOW,
     sessionSecret: PEPPER,
-    seedUserConnections: createLocalLightUserSeed({ db, now: (): number => NOW }),
+    seedUserConnections: createLocalLightUserSeed({ db, now: (): number => NOW, onEmbedSpaceBound: () => undefined }),
   });
   app = new Hono();
   const deps: AuthRoutesDeps = {

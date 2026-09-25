@@ -1288,6 +1288,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         contentHash: params.contentHash,
         model: params.model,
         dim: EMBED_SPACE_DIMS,
+        signal: params.signal,
       });
       if (result.generationId === undefined || result.generationEpoch === undefined) {
         throw new Error("embeddings store omitted its generation receipt");
@@ -1297,7 +1298,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // The SEGMENT half is a BATCH op (#172): memory hands over every pending chunk — one chat's on the live
     // path, the whole corpus's on the sweep — and embeddings submits them to the engine as ONE flood. The
     // space tag (`model`/`dim`) is stamped here, the same single home the digest arm above reads.
-    embeddingsStoreSegments: async (params) => {
+    embeddingsStoreSegments: async (params, signal) => {
       // One host + one space per chat in the flood (the corpus sweep hands over many chats at once).
       const rows: EmbeddingSegmentRow[] = [];
       for (const p of params) {
@@ -1320,7 +1321,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
           dim: EMBED_SPACE_DIMS,
         });
       }
-      const results = rows.length === 0 ? [] : await input.embeddings.storeSegments(rows);
+      const results = rows.length === 0 ? [] : await input.embeddings.storeSegments(rows, signal);
       return memorySegmentReceipts(rows, results);
     },
     // The SHRINK half of the same seam: memory stores every block that exists, then reclaims the ones that

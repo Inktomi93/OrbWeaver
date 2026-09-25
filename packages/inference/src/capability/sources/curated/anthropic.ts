@@ -197,6 +197,8 @@ export const anthropicRows = [
         mode: "effort",
         enabled: true,
         effortLevels: ["low", "medium", "high", "xhigh", "max"],
+        // Thinking is off unless the request turns it on.
+        defaultEnabled: false,
       },
       turns: {
         cacheMinTokens: 4096,
@@ -205,7 +207,7 @@ export const anthropicRows = [
     evidence: {
       tier: "curated",
       dated: "2026-09-19",
-      cite: "turns.ts OPUS_LEGACY_MIN",
+      cite: "turns.ts OPUS_LEGACY_MIN; thinking default Off for Opus 4.5 and Opus 4.6: platform.claude.com/docs/en/build-with-claude/thinking-troubleshooting per-model table (fetched 2026-09-25)",
     },
   },
   {
@@ -217,6 +219,8 @@ export const anthropicRows = [
         mode: "effort",
         enabled: true,
         effortLevels: ["low", "medium", "high", "xhigh", "max"],
+        // Thinking is off unless the request turns it on (Sonnet 5 restates its own default below).
+        defaultEnabled: false,
       },
       turns: {
         cacheMinTokens: 1024,
@@ -225,7 +229,7 @@ export const anthropicRows = [
     evidence: {
       tier: "curated",
       dated: "2026-09-19",
-      cite: "chat-models.ts Sonnet 5 / Sonnet 4.6 entries; turns.ts SONNET_MODERN_MIN",
+      cite: "chat-models.ts Sonnet 5 / Sonnet 4.6 entries; turns.ts SONNET_MODERN_MIN; thinking default Off for Sonnet 4.5 and Sonnet 4.6: platform.claude.com/docs/en/build-with-claude/thinking-troubleshooting per-model table (fetched 2026-09-25)",
     },
   },
   {
@@ -233,9 +237,11 @@ export const anthropicRows = [
       model: "^(anthropic/)?claude[-/].*sonnet-5",
     },
     generation: {
-      // Sonnet 5 thinks adaptively only (the shared sonnet row above states effort for 4.5/4.6).
+      // Sonnet 5 thinks adaptively only, and by default (the shared sonnet row above states effort and a default
+      // off for 4.5/4.6).
       reasoning: {
         mode: "adaptive",
+        defaultEnabled: true,
       },
       // Sonnet 5 alone of the sonnet row above rejects sampling parameters (4.5/4.6 accept them: the SDK table
       // says `rejectsSamplingParameters: false`, and the direct wire stays D68 fail-closed for them regardless).
@@ -253,7 +259,7 @@ export const anthropicRows = [
     evidence: {
       tier: "curated",
       dated: "2026-09-23",
-      cite: "@ai-sdk/anthropic 4.0.58 getModelCapabilities (dist/index.js:5954-5963) rejectsSamplingParameters: true for claude-sonnet-5; :5964-5973 false for sonnet-4-6; Models API 2026-09-23 max_input_tokens 1,000,000 / max_tokens 128,000 / thinking adaptive only (req_011CfKrpqBszB95ktdqBoGas)",
+      cite: "@ai-sdk/anthropic 4.0.58 getModelCapabilities (dist/index.js:5954-5963) rejectsSamplingParameters: true for claude-sonnet-5; :5964-5973 false for sonnet-4-6; Models API 2026-09-23 max_input_tokens 1,000,000 / max_tokens 128,000 / thinking adaptive only (req_011CfKrpqBszB95ktdqBoGas); thinking default On for Sonnet 5: platform.claude.com/docs/en/build-with-claude/thinking-troubleshooting per-model table (fetched 2026-09-25)",
     },
   },
   {
@@ -270,6 +276,8 @@ export const anthropicRows = [
           min: 1024,
           max: 63_000,
         },
+        // Thinking is off unless the request turns it on.
+        defaultEnabled: false,
       },
       output: {
         maxTokens: {
@@ -284,7 +292,7 @@ export const anthropicRows = [
     evidence: {
       tier: "curated",
       dated: "2026-09-23",
-      cite: "turns.ts HAIKU_45_MIN; Models API 2026-09-23 claude-haiku-4-5: max_input_tokens 200,000 / max_tokens 64,000 / thinking enabled (budget), adaptive and effort unsupported (req_011CfKrpqx2Hs1U4Rg1DZ9C6); direct budget_tokens 1024 -> 200 with a thinking block (req_011CfKrzCmQjgUPfUvzv1MBC)",
+      cite: "turns.ts HAIKU_45_MIN; Models API 2026-09-23 claude-haiku-4-5: max_input_tokens 200,000 / max_tokens 64,000 / thinking enabled (budget), adaptive and effort unsupported (req_011CfKrpqx2Hs1U4Rg1DZ9C6); direct budget_tokens 1024 -> 200 with a thinking block (req_011CfKrzCmQjgUPfUvzv1MBC); thinking default Off for Haiku 4.5: platform.claude.com/docs/en/build-with-claude/thinking-troubleshooting per-model table (fetched 2026-09-25)",
     },
   },
   {

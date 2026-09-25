@@ -147,6 +147,15 @@ function openRouterReasoning(reasoning: ResolvedReasoning): JSONObject {
   return { effort: reasoning.mode === "adaptive" ? reasoning.effort : wireEffortOf(reasoning.effort) };
 }
 
+// The effort word a row that spells `reasoning_effort` sends. A chosen off spells `none` (the funnel clamps a
+// mandatory model up instead); an unset effort sends nothing, so the model reasons at its own default.
+function compatibleEffortWord(reasoning: ResolvedReasoning): LanguageModelV4CallOptions["reasoning"] {
+  if (reasoning.enabled) {
+    return reasoning.effort === undefined ? undefined : wireEffortOf(reasoning.effort);
+  }
+  return reasoning.offChosen === true ? REASONING_OFF : undefined;
+}
+
 /** The openai-compatible transport: effort rides V4 `reasoning` iff the row spells `reasoning_effort`; a
  *  budget has no slot; verbosity rides the SDK's `textVerbosity` option; the unmodelled sampler knobs ride
  *  `providerOptions[name]`, which the SDK spreads into the body. */
@@ -154,7 +163,7 @@ function openAiCompatibleShape(req: OpenAiCompatChatRequest, knobs: ResolvedChat
   const { connection } = req;
   const reasoning = knobs.reasoning;
   const spellsEffort = connection.features.effort === "reasoning_effort";
-  const effort = reasoning.enabled && reasoning.effort !== undefined && spellsEffort ? wireEffortOf(reasoning.effort) : undefined;
+  const effort = spellsEffort ? compatibleEffortWord(reasoning) : undefined;
   if (reasoning.enabled && reasoning.budgetTokens !== undefined) {
     warnings.push({
       code: "sampling_knob_dropped",
@@ -324,7 +333,8 @@ function openRouterShape(req: OpenAiCompatChatRequest, knobs: ResolvedChatKnobs,
       : { id: CONTEXT_COMPRESSION_PLUGIN, enabled: false };
   const providerOptions: SharedV4ProviderOptions = {
     [OPENROUTER_KEY]: {
-      ...(includeReasoning ? { reasoning: openRouterReasoning(knobs.reasoning) } : {}),
+      // An unset effort sends no reasoning block: the model runs at its own default rather than a hidden off.
+      ...(includeReasoning && (knobs.reasoning.enabled || knobs.reasoning.offChosen === true) ? { reasoning: openRouterReasoning(knobs.reasoning) } : {}),
       ...(models !== undefined ? { models: [...models] } : {}),
     },
   };
@@ -577,7 +587,7 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
   // surfaced `ProviderError{kind:"aborted"}`, and `entry/compose/chat.ts` hands the rejection straight on
   // without normalising. So the classify happens HERE, outside everything that needs the raw error and
   // inside nothing that does. `classify` returns an existing `ProviderError` untouched.
-  const drain = await drainWithReplay(run, dialect === "openrouter" && !knobs.reasoning.enabled).catch((err: unknown): never => {
+  const drain = await drainWithReplay(run, dialect === "openrouter" && knobs.reasoning.offChosen === true).catch((err: unknown): never => {
     throw classify(err);
   });
   // The SDK's OWN drops (§A3), folded into the same array as the funnel's before the result is built.

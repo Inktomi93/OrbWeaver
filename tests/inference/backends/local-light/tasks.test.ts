@@ -63,6 +63,22 @@ test("embed: an aborted signal is refused at the task boundary", async () => {
   await expect(embed({ connection: embedConn(), input: "hello", signal: controller.signal })).rejects.toMatchObject({ kind: "aborted" });
 });
 
+test("embed: an abort while the model is still loading rejects at once, and the load settles unread", async () => {
+  // The load cannot be interrupted, so the request stops waiting on it. Without that, an aborted workload sits
+  // in the load and the shutdown join waits for the whole load.
+  const load = Promise.withResolvers<Float32Array[]>();
+  const cache = { ...fakeModelCache(), embedTexts: (): Promise<Float32Array[]> => load.promise };
+  const embed = createLocalLightEmbed(cache, tag);
+  const controller = new AbortController();
+
+  const pending = embed({ connection: embedConn(), input: "hello", signal: controller.signal });
+  controller.abort();
+
+  await expect(pending).rejects.toMatchObject({ kind: "aborted" });
+  load.resolve([new Float32Array(1024)]);
+  await expect(load.promise).resolves.toHaveLength(1);
+});
+
 test("rerank: caller ids preserved, sorted by score desc, topN applied, text-only query required", async () => {
   const conn = fakeResolved({
     task: "rerank",
