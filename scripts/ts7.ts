@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 // The ts7 (native TypeScript 7) launcher every type-check caller goes through: `pnpm typecheck`, Vitest's
-// `typecheck.checker`, the edit hook and the tooling ops. Vitest spawns this file as an executable, so it keeps
-// its shebang and its executable bit; node runs the TypeScript source directly.
+// `typecheck.checker`, the edit hook and the tooling ops, so its host-wide slot bounds all of them. Vitest spawns
+// this file as an executable, so it keeps its shebang and its executable bit; node runs the TypeScript directly.
 import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import process from "node:process";
 import { readConcurrencyProfile } from "@orb/tooling/_shared/concurrency-profile";
+import { admitTs7Run, TS7_POOL_NAME, TS7_SLOT_BUSY_EXIT, ts7SlotLabel } from "@orb/tooling/_shared/ts7-admission";
 
 const INCREMENTAL_OPTION = "--incremental";
 const INCREMENTAL_SHORT_OPTION = "-i";
@@ -73,8 +74,8 @@ function withoutIncremental(rawArgs: readonly string[]): string[] {
 const args = withoutIncremental(process.argv.slice(2));
 const tscPath = resolve(import.meta.dirname, "../node_modules/ts7/bin/tsc");
 
-// THE CHECKER CAP COMES FROM THE ONE PROFILE (tooling/concurrency-profile.json, #1835) — 4 checkers on a
-// shared host, 8 under ORB_DEDICATED_BOX=1. It is injected HERE rather than spelled in package.json because
+// THE CHECKER CAP COMES FROM THE ONE PROFILE (tooling/concurrency-profile.json, #1835), derived for this
+// machine under its ceiling. It is injected HERE rather than spelled in package.json because
 // `pnpm typecheck` invokes this wrapper once per discovered program, and a cap that only reaches some
 // caller paths is a cap the documented invocation does not have.
 // Read unconditionally so an explicit checker override cannot hide a malformed profile switch; the explicit
@@ -82,6 +83,25 @@ const tscPath = resolve(import.meta.dirname, "../node_modules/ts7/bin/tsc");
 const profile = readConcurrencyProfile();
 const checkers = args.includes("--checkers") ? [] : ["--checkers", String(profile.ts7Checkers)];
 
+// ONE HOST-WIDE SLOT PER WHOLE-PROGRAM RUN. The notices go to stderr on lines of their own: Vitest folds this
+// process's stderr into the output it parses, and a line that is not a `file(l,c): error TS…` diagnostic is
+// ignored there.
+const admission = await admitTs7Run(args, {
+  label: ts7SlotLabel(args, process.cwd()),
+  deps: {
+    onQueued: (holder) =>
+      process.stderr.write(`ts7: every host typecheck slot is taken; queued behind pid ${String(holder.pid)} (${holder.label}) since ${holder.startedAt}\n`),
+    onNotice: (message) => process.stderr.write(`ts7: ${message}\n`),
+  },
+});
+if (admission.kind === "busy") {
+  process.stderr.write(`ts7: all ${String(admission.slots)} host "${TS7_POOL_NAME}" typecheck slots are busy; this advisory run was SKIPPED\n`);
+  process.exit(TS7_SLOT_BUSY_EXIT);
+}
+
 // Give the Node launcher its heap allowance even when the caller did not inherit pnpm's NODE_OPTIONS.
 const result = spawnSync(process.execPath, ["--max-old-space-size=16384", tscPath, ...checkers, ...args], { stdio: "inherit" });
+if (admission.kind === "admitted") {
+  admission.lease.release();
+}
 process.exit(result.status ?? ABNORMAL_COMPILER_EXIT);

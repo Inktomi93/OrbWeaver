@@ -33,6 +33,8 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { HOST_POOL_ROOT_ENV } from "@orb/tooling/_shared/host-slots";
+import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
 import { expect, test } from "../support/tool-fixtures.ts";
 import { scaledBudget } from "./_load-budget.ts";
 
@@ -80,10 +82,12 @@ interface CompilerRun {
   readonly output: string;
 }
 
-/** Run the REAL wrapper — the file the two Vitest type projects and `pnpm typecheck` both invoke. */
-function runWrapper(repoRoot: string, program: Program): CompilerRun {
+/** Run the REAL wrapper — the file the two Vitest type projects and `pnpm typecheck` both invoke. Its host
+ *  typecheck slot lives under the scratch dir, so this two-file program never queues behind a live one. */
+function runWrapper(repoRoot: string, program: Program, runtime: string): CompilerRun {
   const result = spawnSync(process.execPath, [join(repoRoot, "scripts", "ts7.ts"), ...vitestShapedArgv(program.buildInfo, program.tsconfig)], {
     cwd: repoRoot,
+    env: inheritedProcessEnv({ [HOST_POOL_ROOT_ENV]: runtime }),
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -95,18 +99,18 @@ test("warm, changed and restored produce green/red/green through the TS7 wrapper
 }, ({ repoRoot, scratch }) => {
   const program = writeProgram(scratch);
 
-  const warm = runWrapper(repoRoot, program);
+  const warm = runWrapper(repoRoot, program, scratch);
   expect(warm.status, `the clean program must check clean:\n${warm.output}`).toBe(0);
 
   // The ONLY mutation in the whole test, and it is not the file the diagnostic lands in.
   writeFileSync(program.dep, DEP_BROKEN);
-  const changed = runWrapper(repoRoot, program);
+  const changed = runWrapper(repoRoot, program, scratch);
   expect(changed.status, "a type error introduced through an unchanged consumer must be REPORTED, not retained from the warm run").not.toBe(0);
   expect(changed.output, "and it must be the sentinel's own diagnostic").toContain("sentinel.ts");
   expect(changed.output).toContain("TS2322");
 
   writeFileSync(program.dep, DEP_CLEAN);
-  const restored = runWrapper(repoRoot, program);
+  const restored = runWrapper(repoRoot, program, scratch);
   expect(restored.status, `restoring the source must restore the verdict:\n${restored.output}`).toBe(0);
 
   // THE MECHANISM, not just the outcome: no build-info file was ever written, so there was never a warm

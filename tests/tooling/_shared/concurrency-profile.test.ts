@@ -33,7 +33,9 @@ import {
   stageBudgetsFor,
   UNIT_PRICED_CAPS,
 } from "@orb/tooling/_shared/concurrency-profile";
+import { HOST_POOL_ROOT_ENV, tryAcquireHostSlot } from "@orb/tooling/_shared/host-slots";
 import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
+import { TS7_ADMISSION_ENV, TS7_POOL_NAME, TS7_SLOT_BUSY_EXIT } from "@orb/tooling/_shared/ts7-admission";
 import { expect, test } from "../../support/tool-fixtures.ts";
 
 const BODY = readFileSync(CONCURRENCY_PROFILE_PATH, "utf8");
@@ -336,11 +338,13 @@ interface WrapperCapture {
   readonly cwd: string | null;
 }
 
+/** Runs one wrapper with its spawn captured. The host pool root is the scratch dir, so a ts7 run never
+ *  contends with — or blocks — an operator's live typecheck; `prepare` may plant pool state there first. */
 function runWrapper(
   script: "ts7.ts" | "eslint.ts" | "cpd.ts",
   args: readonly string[],
   box: string | undefined,
-  outcome = "0",
+  extra: { readonly outcome?: string; readonly env?: NodeJS.ProcessEnv; readonly prepare?: (runtime: NodeJS.ProcessEnv) => void } = {},
 ): {
   readonly status: number | null;
   readonly stderr: string;
@@ -351,7 +355,10 @@ function runWrapper(
   const captureFile = join(dir, "capture.json");
   writeFileSync(preload, CAPTURE_PRELOAD);
   const env = inheritedProcessEnv(Object.fromEntries([["ORB_WRAPPER_CAPTURE", captureFile]]));
-  env["ORB_WRAPPER_OUTCOME"] = outcome;
+  env["ORB_WRAPPER_OUTCOME"] = extra.outcome ?? "0";
+  env[HOST_POOL_ROOT_ENV] = dir;
+  Object.assign(env, extra.env);
+  extra.prepare?.({ [HOST_POOL_ROOT_ENV]: dir });
   if (box === undefined) {
     delete env[DEDICATED_BOX_ENV];
   } else {
@@ -422,19 +429,43 @@ test("worker wrappers inject the door's derived shared/dedicated caps and preser
   expect(cpdExplicit?.args.filter((arg) => arg === "--workers=2" || arg === "--workers")).toEqual(["--workers=2"]);
 });
 
-test("the CPD wrapper preserves native verdicts and makes every abnormal child outcome a loud tool error", () => {
-  expect(runWrapper("cpd.ts", ["-c", "jscpd.json"], undefined, "0").status).toBe(0);
-  expect(runWrapper("cpd.ts", ["-c", "jscpd.json"], undefined, "1").status).toBe(1);
+test("the TS7 wrapper holds a host slot for a program run, and an advisory run with every slot live exits busy without spawning", () => {
+  // A program run takes a slot and gives it back: the capture proves the compiler was spawned, and the
+  // pool is empty again afterwards (checked through the next arm, which needs every slot free to fill).
+  expect(runWrapper("ts7.ts", ["--noEmit", "-p", "tsconfig.json"], undefined).capture?.args).toContain("--noEmit");
+  const slots = readConcurrencyProfile({}).ts7RunnersHostWide;
+  const fill = (runtime: NodeJS.ProcessEnv): void => {
+    // The holder is THIS test process: live for the whole wrapper run, and never a reused pid.
+    for (let slot = 0; slot < slots; slot += 1) {
+      tryAcquireHostSlot({ name: TS7_POOL_NAME, label: "a live typecheck", slots }, { env: runtime });
+    }
+  };
+  const busy = runWrapper("ts7.ts", ["--noEmit", "-p", "tsconfig.json"], undefined, { env: { [TS7_ADMISSION_ENV]: "try" }, prepare: fill });
+  expect(busy.status).toBe(TS7_SLOT_BUSY_EXIT);
+  expect(busy.stderr).toContain("SKIPPED");
+  expect(busy.capture, "a skipped advisory run never reaches the compiler").toBeNull();
+  // …and a run that builds no program is never pooled, so it answers even with the pool full.
+  expect(runWrapper("ts7.ts", ["--version"], undefined, { env: { [TS7_ADMISSION_ENV]: "try" }, prepare: fill }).capture).not.toBeNull();
+  // A malformed admission switch refuses before spawning rather than silently queueing.
+  const bogus = runWrapper("ts7.ts", ["--noEmit", "-p", "tsconfig.json"], undefined, { env: { [TS7_ADMISSION_ENV]: "yes" } });
+  expect(bogus.status).not.toBe(0);
+  expect(bogus.stderr).toContain(`${TS7_ADMISSION_ENV}="yes"`);
+  expect(bogus.capture).toBeNull();
+});
 
-  const other = runWrapper("cpd.ts", ["-c", "jscpd.json"], undefined, "2");
+test("the CPD wrapper preserves native verdicts and makes every abnormal child outcome a loud tool error", () => {
+  expect(runWrapper("cpd.ts", ["-c", "jscpd.json"], undefined, { outcome: "0" }).status).toBe(0);
+  expect(runWrapper("cpd.ts", ["-c", "jscpd.json"], undefined, { outcome: "1" }).status).toBe(1);
+
+  const other = runWrapper("cpd.ts", ["-c", "jscpd.json"], undefined, { outcome: "2" });
   expect(other.status).toBe(2);
   expect(other.stderr).toContain("only native exits 0 and 1 are duplication verdicts");
 
-  const signalled = runWrapper("cpd.ts", ["-c", "jscpd.json"], undefined, "signal");
+  const signalled = runWrapper("cpd.ts", ["-c", "jscpd.json"], undefined, { outcome: "signal" });
   expect(signalled.status).toBe(2);
   expect(signalled.stderr).toContain("terminated by signal SIGTERM");
 
-  const failed = runWrapper("cpd.ts", ["-c", "jscpd.json"], undefined, "spawn-error");
+  const failed = runWrapper("cpd.ts", ["-c", "jscpd.json"], undefined, { outcome: "spawn-error" });
   expect(failed.status).toBe(2);
   expect(failed.stderr).toContain("failed to spawn");
   expect(failed.stderr).toContain("planted spawn failure");
