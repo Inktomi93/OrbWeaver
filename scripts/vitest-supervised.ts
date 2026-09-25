@@ -119,6 +119,7 @@ import type { RunAlias } from "@orb/tooling/_shared/artifacts";
 import { openRunSlot, publishRunSlot, reportsPath, runFile } from "@orb/tooling/_shared/artifacts";
 import { LOAD_SUSPECT_META_KEY } from "@orb/tooling/_shared/load-budget";
 import { processEnvValue } from "@orb/tooling/_shared/process-env";
+import { lowerToolingPriority } from "@orb/tooling/_shared/process-priority";
 
 const DEFAULT_HANG_MS = 300_000;
 const MS_PER_SEC = 1000;
@@ -582,9 +583,10 @@ function runOnce({ args, reportFile, label, attempt, previousFiles }: AttemptReq
   // Freshness guarantee: a STALE report must never be read as this attempt's verdict.
   rmSync(reportFile, { force: true });
   mkdirSync(dirname(reportFile), { recursive: true });
-  // `nice -19` preserves the homelab-protecting priority floor. `detached` makes the child a process-group
+  // `lowerToolingPriority` (called once in `main`) already lowered this process's own priority, and this
+  // child inherits it, preserving the homelab-protecting floor. `detached` makes the child a process-group
   // leader so a wedge can SIGKILL the WHOLE group (parent + orphaned workers).
-  const child = spawn("nice", ["-n", "19", process.execPath, vitestBin(), ...args], {
+  const child = spawn(process.execPath, [vitestBin(), ...args], {
     cwd: root,
     detached: true,
     stdio: ["inherit", "pipe", "pipe"],
@@ -903,6 +905,7 @@ function announceLoadSuspect(shards: readonly ShardResult[]): void {
 }
 
 async function main(): Promise<void> {
+  lowerToolingPriority();
   const { projects, baseArgs, report, runtimeOnly, unsupportedConfig } = parseArgs();
   if (unsupportedConfig !== undefined) {
     log(`${RUNTIME_ONLY_FLAG} requires the repository root config; ${relative(root, unsupportedConfig)} cannot honor its runtime-only config mode.`);

@@ -13,6 +13,7 @@ import process from "node:process";
 import type { ExitCode } from "./exit-contract.ts";
 import { EXIT } from "./exit-contract.ts";
 import { boxLoadKnobError } from "./load-budget.ts";
+import { lowerToolingPriority } from "./process-priority.ts";
 
 /** Throw from a tool main for CLI misuse — the runner maps it to exit 3 (misuse) with the message. */
 export class UsageError extends Error {}
@@ -41,6 +42,7 @@ function crashExit(label: string, e: unknown): never {
  *  number it computed against EXIT); throwing UsageError is the misuse door; any other throw is a tool
  *  error — never a verdict. */
 export async function runTool(main: () => Promise<number> | number): Promise<void> {
+  lowerToolingPriority();
   process.on("uncaughtException", (e) => crashExit("uncaught", e));
   process.on("unhandledRejection", (e) => crashExit("unhandled rejection", e));
   // @orb-waive caught-failure-ownership(e): the exit-contract's own door — UsageError writes ARG ERROR and escalates misuse, anything else routes through crashExit which writes stderr, escalates toolError and hard-exits. Ends if a branch here stops writing stderr or escalating.
