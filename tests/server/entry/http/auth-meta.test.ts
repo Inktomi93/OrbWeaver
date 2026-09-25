@@ -5,7 +5,7 @@
 // middleware-resolved principal (authenticated/handle/role) and never resolves a second time. Hono isn't
 // test-resolvable, so the registrar runs over a captured mock app + context (the healthz.test.ts pattern).
 
-import type { AuthMode, Principal } from "@orb/contracts/identity";
+import type { AuthMode, Principal, RelayStatus } from "@orb/contracts/identity";
 import { resolveUploadCaps } from "@orb/contracts/uploads";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -31,6 +31,8 @@ type Handler = (c: MockCtx) => MockResult | Promise<MockResult>;
 
 const OK = 200;
 const PROVIDER = "Test IdP";
+const RELAY_OFF: RelayStatus = { state: "off" };
+const RELAY_URL = "https://calm-river-four-birds.trycloudflare.com";
 
 /** Register over a captured mock app; return the two handlers keyed by path. */
 function handlers(deps: AuthMetaDeps): { config: Handler; me: Handler } {
@@ -78,6 +80,7 @@ function depsFor(mode: AuthMode, discreet = false, capable = false, forbidExtern
     // one test that needs a TRUSTING deployment spells its own deps literal, like the per-request tests do.
     trustHtml: () => false,
     allowInteractiveCards: () => false,
+    share: () => RELAY_OFF,
   };
 }
 
@@ -107,6 +110,7 @@ describe("GET /api/auth/config", () => {
       uploads: resolveUploadCaps({ maxImageBytes: MAX_IMAGE_BYTES, maxDatabankBytes: MAX_DATABANK_BYTES }),
       transport: "http",
       clientScope: "private",
+      share: { state: "off", url: null },
     });
   });
 
@@ -156,6 +160,7 @@ describe("GET /api/auth/config", () => {
       forbidExternalMedia: () => true,
       trustHtml: () => false,
       allowInteractiveCards: () => false,
+      share: () => RELAY_OFF,
     });
     expect((await run(config)).body["localFirstRun"]).toBe(true);
     pending = false;
@@ -194,6 +199,7 @@ describe("GET /api/auth/config", () => {
       forbidExternalMedia: () => true,
       trustHtml: () => trusts,
       allowInteractiveCards: () => false,
+      share: () => RELAY_OFF,
     });
     expect((await run(config)).body["trustHtml"]).toBe(false);
     trusts = true;
@@ -220,6 +226,7 @@ describe("GET /api/auth/config", () => {
       forbidExternalMedia: () => true,
       trustHtml: () => false,
       allowInteractiveCards: () => allows,
+      share: () => RELAY_OFF,
     });
     expect((await run(config)).body["allowInteractiveCards"]).toBe(false);
     allows = true;
@@ -244,6 +251,7 @@ describe("GET /api/auth/config", () => {
       forbidExternalMedia: () => forbid,
       trustHtml: () => false,
       allowInteractiveCards: () => false,
+      share: () => RELAY_OFF,
     });
     expect((await run(config)).body["forbidExternalMedia"]).toBe(true);
     forbid = false;
@@ -288,6 +296,7 @@ describe("GET /api/auth/config", () => {
       forbidExternalMedia: () => true,
       trustHtml: () => false,
       allowInteractiveCards: () => false,
+      share: () => RELAY_OFF,
     });
     expect((await run(config)).body["multiHumanCapable"]).toBe(false);
     capable = true;
@@ -307,6 +316,7 @@ describe("GET /api/auth/config", () => {
       forbidExternalMedia: () => true,
       trustHtml: () => false,
       allowInteractiveCards: () => false,
+      share: () => RELAY_OFF,
     });
     expect((await run(config)).body["defaultHandle"]).toBe("owner");
     discreet = true;
@@ -327,5 +337,23 @@ describe("GET /api/auth/me", () => {
     const res = await run(handlers(depsFor("local")).me, null);
     expect(res.status).toBe(OK);
     expect(res.body).toEqual({ authenticated: false, handle: null, role: null });
+  });
+});
+
+// The share relay's fields: its state for anyone, its link only for a signed-in caller who may hand it on through a
+// room invite. The sign-in page a stranger reaches needs no link.
+describe("GET /api/auth/config share fields", () => {
+  const withRelay = (status: RelayStatus): AuthMetaDeps => ({ ...depsFor("local"), share: () => status });
+
+  test("an up relay's link goes to a signed-in caller and never to an anonymous one", async () => {
+    const up = handlers(withRelay({ state: "up", relay: "quick", url: RELAY_URL })).config;
+    expect((await run(up, null)).body["share"]).toEqual({ state: "up", url: null });
+    expect((await run(up, USER)).body["share"]).toEqual({ state: "up", url: RELAY_URL });
+  });
+
+  test("a relay that is not up serves no link, even to a signed-in caller", async () => {
+    for (const status of [RELAY_OFF, { state: "starting", relay: "quick" }, { state: "down", relay: "quick", reason: "exited", restarting: true }] as const) {
+      expect((await run(handlers(withRelay(status)).config, USER)).body["share"], status.state).toEqual({ state: status.state, url: null });
+    }
   });
 });

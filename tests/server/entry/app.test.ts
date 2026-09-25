@@ -140,6 +140,7 @@ function deps(overrides: Partial<AppDeps>): AppDeps {
     credentialsKeyOk: (): boolean => true,
     inContainer: false,
     relayHosts: (): readonly string[] => [],
+    shareState: () => ({ state: "off" }),
     seedUserCharacters: (): void => {
       // default: inert; the seed-hook test overrides this to record calls.
     },
@@ -346,6 +347,8 @@ describe("createApp", () => {
       // The interactive-card deployment ceiling (#111 leg 3; born-in-DB floor = OFF) — the precondition the
       // per-character Interactive rung is AND-gated against before card scripts can run.
       allowInteractiveCards: false,
+      // The share relay is off, and an anonymous caller would never read its link anyway.
+      share: { state: "off", url: null },
       // The served deployment byte caps (L5 uploads catalog): route caps + the effective image ceiling.
       uploads: { assetUpload: 67_108_864, image: 5_000_000, databankUpload: 20_971_520, importTotal: 268_435_456 },
       // This request's own transport and client scope: a loopback peer with no proxy header.

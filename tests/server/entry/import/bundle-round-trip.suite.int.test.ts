@@ -401,7 +401,7 @@ describe("P-8: the full-library bundle round-trips into a fresh box, self-contai
     expect(zip.byteLength).toBeGreaterThan(0);
 
     // ── IMPORT into a FRESH box (new db + new CAS + new owner) ──────────────────────────────────────────
-    const { createServices, UNSUPERVISED_RESTART } = await import("@orb/server/entry/compose");
+    const { createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } = await import("@orb/server/entry/compose");
     const freshDatabase = await freshDb();
     const casDir = await mkdtemp(join(tmpdir(), "orb-p8-cas-"));
     const variantDir = await mkdtemp(join(tmpdir(), "orb-p8-var-"));
@@ -411,6 +411,7 @@ describe("P-8: the full-library bundle round-trips into a fresh box, self-contai
     try {
       const fresh = await createServices({
         serverRestart: UNSUPERVISED_RESTART,
+        share: NO_SHARE_RELAY,
         db: freshDatabase,
         now: (): number => clock.now(),
         ownerId: targetId,
@@ -897,7 +898,7 @@ describe("P-8: the full-library bundle round-trips into a fresh box, self-contai
     expect(zip.byteLength).toBeGreaterThan(0);
 
     // ── IMPORT into a FRESH box (new db + new CAS + new owner) ─────────────────────────────────────────
-    const { createServices, UNSUPERVISED_RESTART } = await import("@orb/server/entry/compose");
+    const { createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } = await import("@orb/server/entry/compose");
     const freshDatabase = await freshDb();
     const casDir = await mkdtemp(join(tmpdir(), "orb-r6-2turn-cas-"));
     const variantDir = await mkdtemp(join(tmpdir(), "orb-r6-2turn-var-"));
@@ -907,6 +908,7 @@ describe("P-8: the full-library bundle round-trips into a fresh box, self-contai
     try {
       const fresh = await createServices({
         serverRestart: UNSUPERVISED_RESTART,
+        share: NO_SHARE_RELAY,
         db: freshDatabase,
         now: (): number => clock.now(),
         ownerId: targetId,

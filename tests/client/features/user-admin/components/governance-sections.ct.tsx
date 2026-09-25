@@ -158,6 +158,7 @@ function authConfigFor(mode: AuthMode): AuthConfig {
     uploads: DEFAULT_UPLOAD_CAPS,
     transport: "http",
     clientScope: "private",
+    share: { state: "off", url: null },
   };
 }
 

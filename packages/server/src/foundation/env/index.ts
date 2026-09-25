@@ -11,7 +11,7 @@ import { resolve } from "node:path";
 import process from "node:process";
 import { parseEnv } from "node:util";
 import type { AUTH_MODES } from "@orb/contracts/identity";
-import { authModeSchema } from "@orb/contracts/identity";
+import { authModeSchema, shareRelayKindSchema } from "@orb/contracts/identity";
 import { AGENT_SDK_CONCURRENCY_MAX, LOG_LEVELS } from "@orb/contracts/settings";
 import { ALLOWED_HOSTS_KEY, parseAllowedHosts } from "@orb/kit/allowed-hosts";
 import { isSupervised, SUPERVISOR_ENV_KEY } from "@orb/kit/supervisor";
@@ -487,6 +487,9 @@ const envSchema = z
     // other `Host` is refused before auth, which is what stops a DNS-rebinding page (`allowed-hosts.ts`). A
     // malformed entry is refused at parse, naming it.
     ALLOWED_HOSTS: z.string().optional(),
+    // The relay to start at boot (`pnpm start --share` sets `quick`); unset starts none. The relay refuses under
+    // single-user and forward-header, in a container, and while the owner is unclaimed; the first-run claim starts it.
+    SHARE_RELAY: shareRelayKindSchema.optional(),
 
     // Blocks outbound HTTP to private/loopback/link-local IPs via the global undici dispatcher.
     EGRESS_FIREWALL: envBool(true),
