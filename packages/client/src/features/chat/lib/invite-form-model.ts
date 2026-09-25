@@ -108,7 +108,8 @@ export function toCreateInviteInput(values: InviteFormValues, now: number): Crea
   return {
     ...(values.mode === "handle" ? { invitedHandle: castId<Handle>(values.handle.trim()) } : {}),
     maxUses: values.maxUses,
-    expiresAt: expiryMs === null ? null : now + expiryMs,
+    // The wire takes whole epoch ms; the dialog's performance-based clock carries a fraction.
+    expiresAt: expiryMs === null ? null : Math.floor(now) + expiryMs,
     ...(asksSignup(values) ? { allowSignup: true } : {}),
   };
 }

@@ -17,9 +17,8 @@
 // its recorded meaning (`markRevokedByUser`, recoverable, invariant #6) instead of being silently
 // re-pointed at the destructive verb.
 //
-// REPLACE NEEDS NO NEW SERVER VERB. `credentials.add` already ROTATES the existing `(owner, provider,
-// label)` row in place and clears its revocation (`domain/credentials/verbs/add.ts`), so replacing a key is
-// the same verb with the same slot key and a new secret — every connection on the row keeps working.
+// REPLACE NAMES THE ROW BY ID. `credentials.replace` rotates this row's secret in place and clears its
+// revocation, so every connection on the row keeps working; `credentials.add` never overwrites a key.
 //
 // Immediate-commit: each control is an independent trpc.credentials.* mutation, no draft/submit lifecycle
 // (the Replace prompt's Input is the §13.4 single-controlled-input carve-out, not a form factory).
@@ -35,7 +34,7 @@ import { useState } from "react";
 import { ConfirmDialog, FormDialog } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { testId } from "#lib";
-import { useAddCredential, useClearRevokedCredential, useMarkRevokedByUser, useRemoveCredential } from "../hooks/use-connections-mutations.ts";
+import { useClearRevokedCredential, useMarkRevokedByUser, useRemoveCredential, useReplaceCredential } from "../hooks/use-connections-mutations.ts";
 import { keyRowSubtitle, keySubject, reuseSentence } from "../lib/credential-key-model.ts";
 
 type CredentialListItem = inferOutput<Trpc["credentials"]["list"]>[number];
@@ -56,7 +55,7 @@ export function CredentialKeyRow({ credential, usedBy, providerLabel, trpc, inva
   const remove = useRemoveCredential(deps);
   const markRevoked = useMarkRevokedByUser(deps);
   const clearRevoked = useClearRevokedCredential(deps);
-  const replace = useAddCredential(deps);
+  const replace = useReplaceCredential(deps);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [revokeOpen, setRevokeOpen] = useState(false);
   const [replaceOpen, setReplaceOpen] = useState(false);
@@ -68,7 +67,7 @@ export function CredentialKeyRow({ credential, usedBy, providerLabel, trpc, inva
   const subtitle = keyRowSubtitle(credential, usedBy);
 
   const submitReplacement = (): void => {
-    replace.mutate({ provider: credential.provider, label, key: replacementKey });
+    replace.mutate({ credentialId: credential.id, key: replacementKey });
     setReplacementKey("");
     setReplaceOpen(false);
   };

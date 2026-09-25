@@ -25,6 +25,7 @@ import type {
   MaybeRevokeParams,
   RecordProbeOutcomeParams,
   RemoveCredentialParams,
+  ReplaceCredentialParams,
   ResolveCredentialParams,
 } from "./params.ts";
 import type { CredentialStorageStatus, CredentialView } from "./views.ts";
@@ -61,7 +62,10 @@ export interface CredentialsService {
   readonly recordProbeOutcome: (params: RecordProbeOutcomeParams) => Promise<CredentialHealth>;
 
   // CRUD
+  /** Store a NEW key; never overwrites an existing one. */
   readonly add: (params: AddCredentialParams) => Promise<CredentialView>;
+  /** Replace one stored key's secret in place, named by id — the only way a stored secret changes. */
+  readonly replace: (params: ReplaceCredentialParams) => Promise<CredentialView>;
   readonly remove: (params: RemoveCredentialParams) => Promise<void>;
   readonly list: (params: ListCredentialsParams) => Promise<CredentialView[]>;
   /** Is per-user credential STORAGE configured on this deployment (CREDENTIAL-STORAGE-SILENT-FAIL)? The READ

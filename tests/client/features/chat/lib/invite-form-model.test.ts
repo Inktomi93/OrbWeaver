@@ -10,7 +10,7 @@
 // asserted the payload's SHAPE. That is what these pin: not the values alone, but that the keys are PRESENT
 // carrying explicit `null`. A future refactor back to conditional spreads reds here.
 
-import { SIGNUP_MAX_USES } from "@orb/contracts/chat";
+import { createInviteSchema, SIGNUP_MAX_USES } from "@orb/contracts/chat";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
@@ -39,6 +39,14 @@ describe("toCreateInviteInput — the bounds are stated, never omitted", () => {
 
     expect(input.expiresAt).toBe(NOW + 24 * MS_PER_HOUR);
     expect(input.maxUses).toBe(3);
+  });
+
+  // The dialog's submit clock is `performance.timeOrigin + performance.now()`, which carries a fraction; the wire
+  // takes whole epoch ms, so an unrounded expiry refused every expiring invite, and every sign-up link with it.
+  test("an expiry resolved against a fractional submit clock is a whole epoch the wire accepts", () => {
+    const input = toCreateInviteInput({ ...INVITE_FORM_DEFAULTS, expiry: "24h", maxUses: 3 }, NOW + 0.625);
+
+    expect(createInviteSchema.safeParse(input).success).toBe(true);
   });
 
   test("an unknown expiry key falls back to never — and says so explicitly", () => {

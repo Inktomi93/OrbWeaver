@@ -13,7 +13,8 @@ docker compose up -d --build        # builds the image from the checkout (a few 
 ```
 
 Open <http://localhost:8788>. You are the owner; there is no login. Settings → Connections: add an API
-key (OpenRouter, Anthropic, …) or a model server (below), pick a character, chat. Nothing was edited to
+key (OpenRouter, Anthropic, …) or a model server (below), choose it for Chat under "Model roles", then pick a
+character and chat. Nothing was edited to
 get here; every knob is optional and lives in `docker/orbweaver.env` (the tracked defaults, commented),
 overridable in `docker/orbweaver.local.env` (gitignored).
 
@@ -59,6 +60,10 @@ There is no server-wide switch. An Anthropic API key is a different thing: a met
 | `local` | username + password stored by the app | nothing — the first boot generates the password and prints it once (`docker compose logs orbweaver`); or set `LOCAL_INITIAL_PASSWORD` |
 | `oidc` | your identity provider (Authentik, Authelia, Keycloak, …) | the `OIDC_*` block in `docker/orbweaver.env`, HTTPS |
 | `forward-header` | a forward-auth proxy | `FORWARD_AUTH_*` — prefer the signed JWT path |
+
+Every mode except `single-user` also needs `AUTH_FALLBACK=deny` and an empty `AUTH_FALLBACK_TRUSTED_PEERS=` beside
+`AUTH_MODE`: the shipped defaults grant the no-login owner, and the app refuses to boot a login mode with them.
+On bare metal, leave both lines out of `.env`; the app refuses them there and resolves them from the mode.
 
 **How the no-login default stays safe.** The owner fallback is granted only to a request whose TCP peer is
 trusted, and the shipped env names docker's bridge ranges in `AUTH_FALLBACK_TRUSTED_PEERS` because a port

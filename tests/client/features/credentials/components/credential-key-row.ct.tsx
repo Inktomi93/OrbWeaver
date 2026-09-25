@@ -44,12 +44,11 @@ test("remove is confirm-gated on a revoked row: cancel fires nothing, confirm fi
   await expect.poll(() => (trpc.lastInput("credentials.remove") as { credentialId: string }).credentialId).toBe("user_credential_ctstory0003");
 });
 
-// REPLACE NEEDS NO NEW SERVER VERB: `credentials.add` already rotates the existing `(owner, provider, label)`
-// row in place. So the pin is that the prompt sends the row's OWN provider AND label — a replacement that
-// minted a second labelled row would leave every connection on the old key and still look like it worked.
-test("replace rotates THIS row: credentials.add with the row's own provider and label, plus the new secret", async ({ mount, page }) => {
+// The pin is that the prompt names the row by its OWN id — a replacement that minted a second row would leave
+// every connection on the old key and still look like it worked.
+test("replace rotates THIS row: credentials.replace with the row's own id, plus the new secret", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
-    "credentials.add": () => ({
+    "credentials.replace": () => ({
       id: "user_credential_ctstory0004",
       provider: "openrouter",
       label: "shared key",
@@ -71,8 +70,8 @@ test("replace rotates THIS row: credentials.add with the row's own provider and 
   await dialog.getByRole("textbox", { name: 'New OpenRouter "shared key" key' }).fill("sk-replacement");
   await dialog.getByRole("button", { name: "Replace" }).click();
 
-  await expect.poll(() => trpc.count("credentials.add"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
-  await expect.poll(() => trpc.lastInput("credentials.add")).toEqual({ provider: "openrouter", label: "shared key", key: "sk-replacement" });
+  await expect.poll(() => trpc.count("credentials.replace"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+  await expect.poll(() => trpc.lastInput("credentials.replace")).toEqual({ credentialId: "user_credential_ctstory0004", key: "sk-replacement" });
 });
 
 test("revoke is confirm-gated: cancel fires nothing, confirm fires credentials.markRevokedByUser", async ({ mount, page }) => {

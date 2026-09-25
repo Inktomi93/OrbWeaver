@@ -1,5 +1,5 @@
-// verb: add — seal + store/rotate. Asserts first-in-slot auto-active, later-in-slot inactive, rotation in
-// place (clears revocation), the secret-free view, the conflict path, and the disabled-box guard.
+// verb: add — seal + store a NEW credential; it never overwrites an existing key (a taken label gets the next
+// free one). Replacing a key's secret is the `replace` verb (replace.int.test.ts).
 
 import type { ProviderId } from "@orb/contracts/inference";
 import { builtinProvider, providerDefSchema } from "@orb/contracts/inference";
@@ -87,23 +87,40 @@ describe("add", () => {
     expect(view).not.toHaveProperty("apiKey");
   });
 
-  test("re-adding the same (provider,label) ROTATES in place (same id, key changes)", async () => {
+  // A second unlabelled key must not move every connection on the "default" key to a new secret.
+  test("an unlabelled second key is a distinct credential and the default key keeps its secret", async () => {
     const db = await freshDb();
     const svc = createCredentialsService(makeHarness(db).ctx);
     const owner = await seedUser(db, { id: "user_o", role: "user" });
-    const first = await svc.add({
-      principal: principal(owner),
-      provider: "openrouter",
-      key: "sk-old",
-    });
-    const rotated = await svc.add({
-      principal: principal(owner),
-      provider: "openrouter",
-      key: "sk-new",
-    });
-    expect(rotated.id).toBe(first.id);
-    const resolved = await svc.resolve({ ownerId: owner, credentialId: rotated.id, providerId: castId<ProviderId>("openrouter") });
-    expect(resolved).toMatchObject({ secret: "sk-new" });
+    const first = await svc.add({ principal: principal(owner), provider: "openrouter", key: "sk-old" });
+    const second = await svc.add({ principal: principal(owner), provider: "openrouter", key: "sk-new" });
+
+    expect(second.id).not.toBe(first.id);
+    expect(second.label).not.toBe(first.label);
+    const openrouter = castId<ProviderId>("openrouter");
+    expect(await svc.resolve({ ownerId: owner, credentialId: first.id, providerId: openrouter })).toMatchObject({ secret: "sk-old" });
+    expect(await svc.resolve({ ownerId: owner, credentialId: second.id, providerId: openrouter })).toMatchObject({ secret: "sk-new" });
+  });
+
+  test("a taken explicit label is never overwritten: the new key gets the next free label", async () => {
+    const db = await freshDb();
+    const svc = createCredentialsService(makeHarness(db).ctx);
+    const owner = await seedUser(db, { id: "user_o", role: "user" });
+    const first = await svc.add({ principal: principal(owner), provider: "openrouter", label: "work", key: "sk-work" });
+    const second = await svc.add({ principal: principal(owner), provider: "openrouter", label: "work", key: "sk-other" });
+
+    expect(second.id).not.toBe(first.id);
+    expect(second.label).not.toBe("work");
+    expect(await svc.resolve({ ownerId: owner, credentialId: first.id, providerId: castId<ProviderId>("openrouter") })).toMatchObject({ secret: "sk-work" });
+  });
+
+  test("the same label on another provider is its own slot", async () => {
+    const db = await freshDb();
+    const svc = createCredentialsService(makeHarness(db).ctx);
+    const owner = await seedUser(db, { id: "user_o", role: "user" });
+    await svc.add({ principal: principal(owner), provider: "openrouter", key: "sk-or" });
+    const anthropic = await svc.add({ principal: principal(owner), provider: "anthropic", key: "sk-ant" });
+    expect(anthropic.label).toBe("default");
   });
 
   test("endpoint metadata is stored without leaking the blob or a redundant presence bit in the view", async () => {
@@ -122,7 +139,7 @@ describe("add", () => {
     expect(view).not.toHaveProperty("hasMetadata");
   });
 
-  test("a fresh insert audits credential.add (rotated:false) attributed to the owner", async () => {
+  test("an add audits credential.add attributed to the owner", async () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createCredentialsService(h.ctx);
@@ -130,20 +147,7 @@ describe("add", () => {
     const view = await svc.add({ principal: principal(owner), provider: "openrouter", key: "sk-1" });
     const audit = h.audits.find((a) => a.entry.action === "credential.add");
     expect(audit?.entry).toMatchObject({ actorUserId: owner, entityType: "credential", entityId: view.id });
-    expect(audit?.entry.metadata).toMatchObject({ provider: "openrouter", rotated: false });
-  });
-
-  test("a rotation audits credential.add (rotated:true) on the same row", async () => {
-    const db = await freshDb();
-    const h = makeHarness(db);
-    const svc = createCredentialsService(h.ctx);
-    const owner = await seedUser(db, { id: "user_o", role: "user" });
-    const first = await svc.add({ principal: principal(owner), provider: "openrouter", key: "sk-old" });
-    await svc.add({ principal: principal(owner), provider: "openrouter", key: "sk-new" });
-    const rotated = h.audits.filter((a) => a.entry.action === "credential.add");
-    expect(rotated).toHaveLength(2);
-    expect(rotated[1]?.entry).toMatchObject({ actorUserId: owner, entityId: first.id });
-    expect(rotated[1]?.entry.metadata).toMatchObject({ rotated: true });
+    expect(audit?.entry.metadata).toMatchObject({ provider: "openrouter", label: "default" });
   });
 
   test("a disabled SecretBox refuses to store (credentials_disabled)", async () => {

@@ -1,6 +1,6 @@
 // verb: clearRevoked — clear a revocation (ownership-scoped). The user knows the key is valid again and
 // overrides a transient/stale revoked flag. Owner check via `fetchOwnedCredential` → `requireOwned`, then
-// `clearRevokedOwned` nulls `revoked_at`. (A key ROTATION also clears revocation — see `add`'s rotate arm.)
+// `clearRevokedOwned` nulls `revoked_at`. (A `replace` also clears revocation.)
 
 import type { CredentialContext } from "../context.ts";
 import type { ClearRevokedParams } from "../contract/params.ts";
