@@ -7,7 +7,7 @@
 import type { Node } from "ts-morph";
 import { SyntaxKind, Node as TsNode } from "ts-morph";
 import { unwrapExpression } from "./ast-read.ts";
-import { readMemberAccess, referencesModuleExport } from "./symbol-reference.ts";
+import { readMemberAccess, readStringConstant, referencesModuleExport } from "./symbol-reference.ts";
 
 const EXTERNAL_ID_KEYS: ReadonlySet<string> = new Set(["externalId", "external_id"]);
 /** The users-row write verbs: the two sessions persistence wrappers + the raw drizzle write surface. An
@@ -39,6 +39,11 @@ export const SUBJECT_WRITERS: ReadonlyMap<string, ReadonlySet<string>> = new Map
 export const EXTERNAL_ID_SANCTIONED_FILES = [PROVISION_CAPABILITY, SUBJECT_WRITER_HOME] as const;
 
 const USERS_TABLE_EXPORT = "users";
+// The persistence verbs that write users, and the argument index of the row or patch they write.
+const USERS_VERB_DATA_ARGUMENT: ReadonlyMap<string, number> = new Map([
+  ["insertUser", 1],
+  ["updateUser", 2],
+]);
 const isDbModule = (specifier: string): boolean => specifier === "@orb/db" || specifier.startsWith("@orb/db/");
 
 /** The simple name of a call's callee: `insertUser(…)` → "insertUser"; `db.x(…).set(…)` → "set". */
@@ -63,13 +68,22 @@ function isNullish(value: Node | undefined): boolean {
   return inner.isKind(SyntaxKind.NullKeyword) || (inner.isKind(SyntaxKind.Identifier) && inner.getText() === "undefined");
 }
 
-/** Is an `externalId`/`external_id` object-KEY (assignment or shorthand) a users-COLUMN BIND — its nearest
- *  enclosing call is a write verb AND its value is not literal null? A key in a `.select()` map / `audit()`
- *  metadata / a bare return object has no enclosing write call; `externalId: null` binds no subject. A
- *  ShorthandPropertyAssignment carries a live variable (never a null literal) so it always binds. */
+// A property's key as written: `externalId`, `"externalId"`, or a computed `["externalId"]` / `[KEY]`.
+function propertyKey(nameNode: Node): string | undefined {
+  if (nameNode.isKind(SyntaxKind.ComputedPropertyName)) {
+    return readStringConstant(nameNode.getExpression());
+  }
+  return nameNode.getText().replace(/["']/gu, "");
+}
+
+/** Is an `externalId`/`external_id` object-KEY (assignment or shorthand, plain, quoted or computed) a
+ *  users-COLUMN BIND — its nearest enclosing call is a write verb AND its value is not literal null? A key in a
+ *  `.select()` map / `audit()` metadata / a bare return object has no enclosing write call; `externalId: null`
+ *  binds no subject. A ShorthandPropertyAssignment carries a live variable (never a null literal) so it
+ *  always binds. */
 export function isExternalIdWriteKey(node: Node): boolean {
   if (node.isKind(SyntaxKind.PropertyAssignment)) {
-    if (!EXTERNAL_ID_KEYS.has(node.getNameNode().getText().replace(/["']/gu, "")) || isNullish(node.getInitializer())) {
+    if (!EXTERNAL_ID_KEYS.has(propertyKey(node.getNameNode()) ?? "") || isNullish(node.getInitializer())) {
       return false;
     }
   } else if (node.isKind(SyntaxKind.ShorthandPropertyAssignment)) {
@@ -83,15 +97,21 @@ export function isExternalIdWriteKey(node: Node): boolean {
   return enclosingCall !== undefined && EXTERNAL_ID_WRITE_VERBS.has(externalIdCalleeName(enclosingCall) ?? "");
 }
 
-/** Is `node` an `<expr>.externalId = <value>` (or `.external_id =`) assignment of a NON-null value — the
- *  patch-building bind (`changes.externalId = …`)? `===` (an equality read) is a different token and is NOT
- *  matched; `= null` (the un-bind) is not a bind. */
+/** Is `node` an `<expr>.externalId = <value>` (or `.external_id =`, `["externalId"] =`) assignment of a NON-null
+ *  value — the patch-building bind (`changes.externalId = …`)? `===` (an equality read) is a different token
+ *  and is NOT matched; `= null` (the un-bind) is not a bind. */
 export function isExternalIdAssignment(node: Node): boolean {
   if (!node.isKind(SyntaxKind.BinaryExpression) || node.getOperatorToken().getKind() !== SyntaxKind.EqualsToken) {
     return false;
   }
-  const lhs = node.getLeft();
-  return lhs.isKind(SyntaxKind.PropertyAccessExpression) && EXTERNAL_ID_KEYS.has(lhs.getName()) && !isNullish(node.getRight());
+  const read = readMemberAccess(node.getLeft());
+  return read !== undefined && EXTERNAL_ID_KEYS.has(read.name) && !isNullish(node.getRight());
+}
+
+/** May a keyed subject write stand in this file? provision-identity.ts builds its patch by hand, and the
+ *  persistence home binds only inside a registered writer, so a new unregistered binder there is red. */
+export function keyedWriteSanctioned(node: Node, rel: string): boolean {
+  return rel === PROVISION_CAPABILITY || (rel === SUBJECT_WRITER_HOME && insideSubjectWriter(node));
 }
 
 /** Is this identifier the NAME of the function or variable it declares (`function w(…)`, `const w = …`)? */
@@ -130,28 +150,147 @@ export function calledSubjectWriter(node: Node): string | undefined {
   return name !== undefined && SUBJECT_WRITERS.has(name) ? name : undefined;
 }
 
-/** A POSITIONAL users insert — `<db>.insert(users).select(<rows>)` in any member spelling, with `users` the
- *  `@orb/db` table by named, aliased or namespace import. Its values bind by the table's declared column
- *  order, so no name in the source says which one lands in `external_id`. Returns the `select` name to
- *  report at and the rows argument. */
-export function positionalUsersInsert(node: Node): { readonly node: Node; readonly token: string; readonly rows: Node } | undefined {
+// Is `node` a `<db>.<verb>(users)` call, with `users` the `@orb/db` table by named, aliased or namespace import?
+function isUsersTableCall(node: Node, verb: string): boolean {
+  const call = unwrapExpression(node);
+  if (!call.isKind(SyntaxKind.CallExpression) || readMemberAccess(call.getExpression())?.name !== verb) {
+    return false;
+  }
+  const table = call.getArguments()[0];
+  return table !== undefined && referencesModuleExport(unwrapExpression(table), USERS_TABLE_EXPORT, isDbModule);
+}
+
+// `<receiver>.<method>(<data>)` where the receiver is `<db>.<verb>(users)`, in any member spelling.
+function usersChainCall(node: Node, method: string, verb: string): { readonly name: Node; readonly data: Node | undefined } | undefined {
   if (!node.isKind(SyntaxKind.CallExpression)) {
     return;
   }
-  const select = readMemberAccess(node.getExpression());
-  const rows = node.getArguments()[0];
-  if (select?.name !== "select" || rows === undefined) {
+  const read = readMemberAccess(node.getExpression());
+  if (read?.name !== method || !isUsersTableCall(read.receiver, verb)) {
     return;
   }
-  const insert = unwrapExpression(select.receiver);
-  if (!insert.isKind(SyntaxKind.CallExpression) || readMemberAccess(insert.getExpression())?.name !== "insert") {
+  return { name: read.nameNode, data: node.getArguments()[0] };
+}
+
+/** A POSITIONAL users insert — `<db>.insert(users).select(<rows>)` in any member spelling. Its values bind by
+ *  the table's declared column order, so no name in the source says which one lands in `external_id`. Returns
+ *  the `select` name to report at and the rows argument. */
+export function positionalUsersInsert(node: Node): { readonly node: Node; readonly token: string; readonly rows: Node } | undefined {
+  const select = usersChainCall(node, "select", "insert");
+  if (select?.data === undefined) {
     return;
   }
-  const table = insert.getArguments()[0];
-  if (table === undefined || !referencesModuleExport(unwrapExpression(table), USERS_TABLE_EXPORT, isDbModule)) {
+  return { node: select.name, token: select.name.getText(), rows: select.data };
+}
+
+type WriteData = { readonly name: Node; readonly data: Node | undefined } | undefined;
+
+// The row or patch of the persistence verbs `insertUser(db, d)` / `updateUser(db, id, d)`, in any spelling.
+function persistenceVerbData(call: Node): WriteData {
+  if (!call.isKind(SyntaxKind.CallExpression)) {
     return;
   }
-  return { node: select.nameNode, token: select.nameNode.getText(), rows };
+  const callee = unwrapExpression(call.getExpression());
+  const read = callee.isKind(SyntaxKind.Identifier) ? { name: callee.getText(), nameNode: callee } : readMemberAccess(callee);
+  const index = read === undefined ? undefined : USERS_VERB_DATA_ARGUMENT.get(read.name);
+  return read === undefined || index === undefined ? undefined : { name: read.nameNode, data: call.getArguments()[index] };
+}
+
+// The `set` of an upsert on a users insert: `insert(users).values(…).onConflictDoUpdate({ set })`.
+function upsertSetData(call: Node): WriteData {
+  if (!call.isKind(SyntaxKind.CallExpression)) {
+    return;
+  }
+  const read = readMemberAccess(call.getExpression());
+  if (read?.name !== "onConflictDoUpdate" || usersChainCall(unwrapExpression(read.receiver), "values", "insert") === undefined) {
+    return;
+  }
+  const config = call.getArguments()[0];
+  const inner = config === undefined ? undefined : unwrapExpression(config);
+  if (inner?.isKind(SyntaxKind.ObjectLiteralExpression) !== true) {
+    return { name: read.nameNode, data: inner };
+  }
+  const set = inner.getProperty("set");
+  return { name: read.nameNode, data: set?.isKind(SyntaxKind.PropertyAssignment) === true ? set.getInitializer() : set };
+}
+
+// The users write whose data the keyed arm must be able to read: `insert(users).values(d)`,
+// `update(users).set(d)`, an upsert's `set`, and the persistence verbs' row or patch.
+function usersWriteData(node: Node): WriteData {
+  return usersChainCall(node, "values", "insert") ?? usersChainCall(node, "set", "update") ?? persistenceVerbData(node) ?? upsertSetData(node);
+}
+
+/** OPAQUE users write data outside the two sanctioned files: a variable, a spread, or a shorthand `set` the
+ *  keyed arm cannot read, so it could carry a subject under no visible key. Returns the verb to report at.
+ *  DECLARED LIMIT: a literal whose values come from elsewhere is read by key only; a value under another key
+ *  that the persistence verb renames to `externalId` is outside what a syntax pass can see. */
+export function opaqueUsersWrite(node: Node, rel: string): { readonly node: Node; readonly token: string } | undefined {
+  if (rel === PROVISION_CAPABILITY || rel === SUBJECT_WRITER_HOME) {
+    return;
+  }
+  const write = usersWriteData(node);
+  if (write === undefined) {
+    return;
+  }
+  const data = write.data === undefined ? undefined : unwrapExpression(write.data);
+  const readable =
+    data?.isKind(SyntaxKind.ObjectLiteralExpression) === true && !data.getProperties().some((property) => property.isKind(SyntaxKind.SpreadAssignment));
+  return readable ? undefined : { node: write.name, token: write.name.getText() };
+}
+
+// SQL text that writes the users table, whatever the statement's shape: `insert [or …] into users`,
+// `replace into users`, `update [or …] users`.
+const RAW_USERS_WRITE = /\b(?:insert(?:\s+or\s+\w+)?\s+into|replace\s+into|update(?:\s+or\s+\w+)?)\s+[`"']?users[`"']?(?![\w])/iu;
+const SQL_TAG = "sql";
+const SQL_RAW = "raw";
+
+// The static text of a `sql` template, an interpolated `users` table spelled as `users`, anything else as `?`.
+function sqlTemplateText(template: Node): string {
+  if (template.isKind(SyntaxKind.NoSubstitutionTemplateLiteral)) {
+    return template.getLiteralText();
+  }
+  if (!template.isKind(SyntaxKind.TemplateExpression)) {
+    return "";
+  }
+  let text = template.getHead().getLiteralText();
+  for (const span of template.getTemplateSpans()) {
+    text += referencesModuleExport(unwrapExpression(span.getExpression()), USERS_TABLE_EXPORT, isDbModule) ? USERS_TABLE_EXPORT : "?";
+    text += span.getLiteral().getLiteralText();
+  }
+  return text;
+}
+
+// The node spelling the `sql` tag, bare (`sql`) or read off a namespace (`orm.sql`, `orm["sql"]`), or undefined.
+function sqlTagName(node: Node): Node | undefined {
+  const inner = unwrapExpression(node);
+  if (inner.isKind(SyntaxKind.Identifier)) {
+    return inner.getText() === SQL_TAG ? inner : undefined;
+  }
+  const read = readMemberAccess(inner);
+  return read?.name === SQL_TAG ? read.nameNode : undefined;
+}
+
+/** RAW SQL that writes the users table outside the persistence home: a `sql` template or a `sql.raw` string
+ *  whose text inserts into or updates `users`. No drizzle verb and no key names what it binds. Returns the
+ *  `sql` tag to report at. */
+export function rawUsersWrite(node: Node, rel: string): { readonly node: Node; readonly token: string } | undefined {
+  if (rel === SUBJECT_WRITER_HOME) {
+    return;
+  }
+  if (node.isKind(SyntaxKind.TaggedTemplateExpression)) {
+    const tag = sqlTagName(node.getTag());
+    return tag !== undefined && RAW_USERS_WRITE.test(sqlTemplateText(node.getTemplate())) ? { node: tag, token: tag.getText() } : undefined;
+  }
+  if (!node.isKind(SyntaxKind.CallExpression)) {
+    return;
+  }
+  const read = readMemberAccess(node.getExpression());
+  const tag = read?.name === SQL_RAW ? sqlTagName(read.receiver) : undefined;
+  const text = node.getArguments()[0];
+  if (tag === undefined || text === undefined) {
+    return;
+  }
+  return RAW_USERS_WRITE.test(readStringConstant(text) ?? "") ? { node: tag, token: tag.getText() } : undefined;
 }
 
 // Does a positional insert's rows argument read an externalId (`${row.externalId}`, `{ externalId }`)?
@@ -187,7 +326,9 @@ export function externalIdWriteAnchor(node: Node): { readonly node: Node; readon
     const nameNode = node.getNameNode();
     return { node: nameNode, token: nameNode.getText() };
   }
-  const lhs = node.asKindOrThrow(SyntaxKind.BinaryExpression).getLeft().asKindOrThrow(SyntaxKind.PropertyAccessExpression);
-  const nameNode = lhs.getNameNode();
-  return { node: nameNode, token: nameNode.getText() };
+  const read = readMemberAccess(node.asKindOrThrow(SyntaxKind.BinaryExpression).getLeft());
+  if (read === undefined) {
+    throw new Error("externalIdWriteAnchor: an assignment isExternalIdAssignment accepted has no member read");
+  }
+  return { node: read.nameNode, token: read.nameNode.getText() };
 }

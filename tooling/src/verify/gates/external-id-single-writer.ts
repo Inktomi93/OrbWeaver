@@ -1,5 +1,5 @@
 // Gate: external-id-single-writer (Spine-Identity-and-Auth.md invariant 10 — the bind-once identity chokepoint)
-// — `users.externalId` / `external_id` is the STABLE SSO subject bound ONCE to a row. Three arms:
+// — `users.externalId` / `external_id` is the STABLE SSO subject bound ONCE to a row. Five arms:
 //   1. SUBJECT WRITERS. The registered persistence writers that bind a subject, and the only files that may
 //      name each, are `SUBJECT_WRITERS` in `verify/lib/external-id-writer.ts` — that map is the census, not
 //      this header. Any reference to a registered writer outside its callers is red however it is spelled: a
@@ -10,15 +10,21 @@
 //      lands in `external_id`. Outside `sessions/persistence/users.ts` it is red whatever it names; inside it,
 //      one whose rows read an externalId must sit inside a registered writer. DECLARED LIMIT: inside the
 //      persistence file a subject renamed before the bind (`${sub}`) reads as no externalId.
-//   3. KEYED WRITES. A BIND of a NON-NULL subject: an `externalId`/`external_id` object-KEY whose nearest
-//      enclosing call is a users write verb (insertUser/updateUser/set/values/onConflictDoUpdate), or an
-//      `<x>.externalId = …` assignment, outside the two sanctioned files (provision-identity.ts and the
-//      persistence file). A literal-`null` write (`externalId: null` — the local-user default in
-//      `ensure-user.ts`, and the operator-recovery un-bind `SET external_id = NULL`) binds no subject and is NOT
-//      the takeover vector, so it PASSES. Reads (`x.externalId`), the PROVISION_COLS SELECT map (no enclosing
-//      write call), and audit `metadata:{externalId}` (enclosing call is `audit`) are structurally excluded.
-//      DECLARED LIMIT: the write-verb callee is read through property access only, so `db["set"]` is blind
-//      (the spelling-twin ledger's `bracket` row for this gate).
+//   3. KEYED WRITES. A BIND of a NON-NULL subject: an `externalId`/`external_id` object-KEY (plain, quoted or
+//      computed) whose nearest enclosing call is a users write verb (insertUser/updateUser/set/values/
+//      onConflictDoUpdate), or an `<x>.externalId = …` / `<x>["externalId"] = …` assignment. It stands only in
+//      provision-identity.ts and, inside a registered writer, in the persistence file. A literal-`null` write
+//      (`externalId: null` — the local-user default in `ensure-user.ts`) binds no subject and PASSES. Reads, the
+//      PROVISION_COLS SELECT map and audit `metadata:{externalId}` have no enclosing write call. DECLARED LIMIT:
+//      the write-verb callee is read through property access only, so `db["set"]` is blind to this arm (the
+//      spelling-twin ledger's `bracket` row); the opaque-data arm below reads both spellings.
+//   4. OPAQUE DATA. Outside the two sanctioned files, a users write whose data the keyed arm cannot read — a
+//      variable, a spread, or an upsert `set` held in a variable — is red: it could carry a subject under no
+//      visible key. DECLARED LIMIT: a value under another key that a verb renames to `externalId` is not visible
+//      to a syntax pass.
+//   5. RAW SQL. Outside the persistence file, a `sql` template or `sql.raw` string whose text inserts into or
+//      updates `users` (an interpolated `users` table counts) is red. DECLARED LIMIT: SQL text assembled at run
+//      time (string concatenation, a non-const variable) is not read.
 // A THIRD writer or caller is exactly the fragmented N-provisioning-paths hole OpenWebUI's W1 takeover rides.
 //
 // FAMILY: this per-node detector and `external-id-single-writer-health.ts` (the whole-population carve-out
@@ -26,7 +32,8 @@
 // the two sanctioned files, and the subject-writer registry (a family means a shared `lib/` reader, never a
 // shared theme, docs/law/gate-runtime-standardization.md). `hard`: there is no marker vocabulary here — a new
 // caller is a registry row with its ledger ruling or a defect, never a reviewable exemption.
-// COMMENT POSTURE: comment-SAFE — pure node-kind subscription, no file text is matched.
+// COMMENT POSTURE: comment-SAFE — node-kind subscription; the raw-SQL arm reads template and string literal
+// text, never comments.
 //
 // POPULATION CORRECTION (re-derived 2026-09-11, #1937): the conversion had widened this policy's population
 // from the legacy `scanRoot`'s server-only reach (`packages/server/src/`, 1,493 files) to `@backend`
@@ -63,15 +70,17 @@ import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import {
-  EXTERNAL_ID_SANCTIONED_FILES,
   externalIdWriteAnchor,
   isExternalIdAssignment,
   isExternalIdWriteKey,
+  keyedWriteSanctioned,
   LINK_CAPABILITY,
+  opaqueUsersWrite,
   PENDING_SIGNUP_CAPABILITY,
   PROVISION_CAPABILITY,
   positionalInsertSanctioned,
   positionalUsersInsert,
+  rawUsersWrite,
   SUBJECT_WRITERS,
   subjectWriterReference,
 } from "../lib/external-id-writer.ts";
@@ -81,7 +90,22 @@ const MESSAGE =
 const FIX =
   "route the bind through a registered capability (`provisionIdentity`, `linkExternalId`, or the D254 pending-join confirm) — never write the externalId column directly or reach its writer from another file. A genuinely new subject writer or caller is a `SUBJECT_WRITERS` row with its ledger ruling, never a local write.";
 
-const SANCTIONED_SET: ReadonlySet<string> = new Set(EXTERNAL_ID_SANCTIONED_FILES);
+type Anchor = { readonly node: Node; readonly token: string } | undefined;
+
+// A users write the keyed arm cannot read: a positional insert, opaque data, or raw SQL text.
+function usersWriteFinding(node: Node, rel: string): Anchor {
+  const positional = positionalUsersInsert(node);
+  if (positional !== undefined) {
+    return positionalInsertSanctioned(node, positional.rows, rel) ? undefined : positional;
+  }
+  return opaqueUsersWrite(node, rel) ?? rawUsersWrite(node, rel);
+}
+
+// A keyed subject write outside provision-identity.ts and the persistence home's registered writers. The health
+// sibling re-derives the same predicate over the whole population to prove each sanctioned file still earns it.
+function keyedWriteFinding(node: Node, rel: string): Anchor {
+  return (isExternalIdWriteKey(node) || isExternalIdAssignment(node)) && !keyedWriteSanctioned(node, rel) ? externalIdWriteAnchor(node) : undefined;
+}
 
 export const gate = defineGate({
   id: "external-id-single-writer",
@@ -115,6 +139,7 @@ export const gate = defineGate({
             SyntaxKind.CallExpression,
             SyntaxKind.Identifier,
             SyntaxKind.ElementAccessExpression,
+            SyntaxKind.TaggedTemplateExpression,
           ],
           visit: (node: Node, sourceFile) => {
             const rel = ctx.relativePath(sourceFile);
@@ -123,18 +148,9 @@ export const gate = defineGate({
               judgeReference(reference, rel);
               return;
             }
-            const positional = positionalUsersInsert(node);
-            if (positional !== undefined) {
-              if (!positionalInsertSanctioned(node, positional.rows, rel)) {
-                ctx.report.node(positional.node, { token: positional.token, offset: 0 });
-              }
-              return;
-            }
-            // A sanctioned file's write is the carve-out — never reported. The health sibling re-derives the
-            // same predicate over the whole population to prove each sanctioned file still earns its carve-out.
-            if ((isExternalIdWriteKey(node) || isExternalIdAssignment(node)) && !SANCTIONED_SET.has(rel)) {
-              const anchor = externalIdWriteAnchor(node);
-              ctx.report.node(anchor.node, { token: anchor.token, offset: 0 });
+            const finding = usersWriteFinding(node, rel) ?? keyedWriteFinding(node, rel);
+            if (finding !== undefined) {
+              ctx.report.node(finding.node, { token: finding.token, offset: 0 });
             }
           },
         },
@@ -268,6 +284,97 @@ export const gate = defineGate({
       expect: { count: 1, token: "select" },
       why: "an UNREGISTERED positional subject writer in the persistence file: it reads an externalId into a users insert and no registry row names it or its callers, RED",
     },
+    {
+      mode: "source",
+      files: {
+        "packages/server/src/domain/sessions/persistence/users.ts":
+          'import { users } from "@orb/db";\nimport { eq } from "drizzle-orm";\n' +
+          "export const rebindSubject = (db: DB, id: string, sub: string) => db.update(users).set({ externalId: sub }).where(eq(users.id, id));\n",
+      },
+      expect: { count: 1, token: "externalId" },
+      why: "(a) a KEYED subject write in the persistence file outside every registered writer: the file is sanctioned, but only its registered writers may bind, or a new unregistered binder rides the carve-out, RED",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/server/src/domain/admin/verbs/raw-insert.ts":
+          'import { sql } from "drizzle-orm";\nexport const w = (db: DB, id: string, h: string, sub: string) => db.run(sql`insert into users (id, handle, handle_key, external_id) values (${id}, ${h}, ${h}, ${sub})`);\n',
+      },
+      expect: { count: 1, token: "sql" },
+      why: "(b) a RAW SQL `insert into users` outside the persistence file: no drizzle verb and no key, only text, RED",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/server/src/domain/admin/verbs/raw-update.ts":
+          'import { users } from "@orb/db";\nimport { sql } from "drizzle-orm";\nexport const w = (db: DB, id: string, sub: string) => db.run(sql`update ${users} set external_id = ${sub} where id = ${id}`);\n',
+      },
+      expect: { count: 1, token: "sql" },
+      why: "(b) a RAW SQL `update users` whose table is the interpolated `users` export, outside the persistence file, RED",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/server/src/domain/admin/verbs/raw-string.ts":
+          "import { sql } from \"drizzle-orm\";\nexport const w = (db: DB) => db.run(sql.raw(\"update users set external_id = 'x' where id = 'y'\"));\n",
+      },
+      expect: { count: 1, token: "sql" },
+      why: "(b) the `sql.raw` string spelling of a users update outside the persistence file, RED",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/server/src/domain/admin/verbs/raw-namespace.ts":
+          'import * as orm from "drizzle-orm";\nexport const w = (db: DB, id: string, sub: string) => db.run(orm.sql`update users set external_id = ${sub} where id = ${id}`);\n',
+      },
+      expect: { count: 1, token: "sql" },
+      why: "(b) the NAMESPACE tag `orm.sql` over raw users-write text: the tag is a member read, not a bare identifier, RED",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/server/src/domain/admin/verbs/opaque-values.ts":
+          'import { users } from "@orb/db";\nexport const w = (db: DB, row: R) => { const r = { ...row, externalId: row.sub }; return db.insert(users).values(r); };\n',
+      },
+      expect: { count: 1, token: "values" },
+      why: "(c) a users insert whose data is a VARIABLE: the key sits where no enclosing write call is visible, so the gate refuses what it cannot read, RED",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/server/src/domain/admin/verbs/opaque-upsert.ts":
+          'import { users } from "@orb/db";\nexport const w = (db: DB, row: R) => { const set = { externalId: row.sub }; return db.insert(users).values({ id: row.id }).onConflictDoUpdate({ target: users.id, set }); };\n',
+      },
+      expect: { count: 1, token: "onConflictDoUpdate" },
+      why: "(c) an upsert on users whose `set` is a VARIABLE carrying the subject, RED",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/server/src/domain/admin/verbs/spread-insert.ts":
+          'import { insertUser } from "../../sessions/persistence/users.ts";\nexport const go = (db: DB, identity: I) => insertUser(db, { id: "u", role: "user", enabled: true, createdAt: 0, updatedAt: 0, ...identity });\n',
+      },
+      expect: { count: 1, token: "insertUser" },
+      why: "(c) an `insertUser` whose row SPREADS an identity that can carry `externalId`, outside the sanctioned files, RED",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/server/src/domain/admin/verbs/bracket-patch.ts":
+          'export function p(changes: Record<string, string>, sub: string): void {\n  changes["externalId"] = sub;\n}\n',
+      },
+      expect: { count: 1, token: '"externalId"' },
+      why: '(d) the BRACKET assignment `changes["externalId"] = …`, the patch-building bind in another spelling, RED',
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/server/src/domain/admin/verbs/computed-key.ts":
+          'import { users } from "@orb/db";\nexport const w = (db: DB, sub: string) => db.update(users).set({ ["externalId"]: sub });\n',
+      },
+      expect: { count: 1, token: '["externalId"]' },
+      why: '(d) a COMPUTED `["externalId"]` key under a users write, RED',
+    },
   ],
   mustPass: [
     {
@@ -366,6 +473,28 @@ export const gate = defineGate({
           "}\n",
       },
       why: "the real persistence file: the local signup's positional insert binds a literal null subject and reads no externalId, the registered pending-join writer reads one, and the claim writer's declaration is its own name, passes. Cut the reads-an-externalId fence or the registered-writer exemption and this reds",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/server/src/domain/sessions/persistence/users.ts":
+          'import { users } from "@orb/db";\nimport { and, eq, isNull } from "drizzle-orm";\n' +
+          "export async function insertUser(db: DB, row: R): Promise<void> {\n  await db.insert(users).values({ ...row, handleKey: k(row.handle) }).onConflictDoNothing();\n}\n" +
+          "export function claimExternalIdIfUnbound(db: DB, id: string, externalId: E, updatedAt: number): B {\n" +
+          "  return db.update(users).set({ externalId, updatedAt }).where(and(eq(users.id, id), isNull(users.externalId))).returning({ id: users.id });\n" +
+          "}\n",
+      },
+      why: "the home's generic insert forwards its caller's row through a spread (the callers are what the other arms police), and its claim writer binds inside a registered writer, passes. Drop the home exemption from the opaque-data arm, or the registered-writer exemption from the keyed arm, and this reds",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/server/src/domain/admin/verbs/set-role.ts":
+          'import { users } from "@orb/db";\nimport { eq, sql } from "drizzle-orm";\n' +
+          "export const w = (db: DB, id: string, role: string, at: number) => db.update(users).set({ role, updatedAt: at }).where(eq(users.id, id));\n" +
+          "export const count = (db: DB) => db.get(sql`select count(*) from ${users}`);\n",
+      },
+      why: "a users write with literal data carrying no subject, and a raw SQL READ of users, outside the persistence file, pass",
     },
   ],
 });
