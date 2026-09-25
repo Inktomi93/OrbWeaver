@@ -1,17 +1,19 @@
 // Gate: external-id-single-writer-health — the WHOLE-POPULATION half of the `external-id-single-writer`
-// family (Spine-Identity-and-Auth.md U1). `external-id-single-writer.ts` judges each file's own writes;
-// this sibling proves the carve-out ITSELF is still earned: each of the two sanctioned files must still
-// contain an externalId write (a dead carve-out is RED — tooling/src/verify/gates/GATE-AUTHORING.md §4.4a mode A), and
-// link-external-id.ts must still call the one atomic claim writer (mode A for the caller half). Both
-// checks only fire when their target file is actually present in this run's resolved population — a
-// narrower request that never reaches these files is not a stale claim, so `execution: "entire-population"`
+// family (Spine-Identity-and-Auth.md invariant 10). `external-id-single-writer.ts` judges each file's own
+// writes; this sibling proves the carve-out ITSELF is still earned: each of the two sanctioned files must still
+// contain an externalId write (a dead carve-out is RED — tooling/src/verify/gates/GATE-AUTHORING.md §4.4a mode A),
+// and every registered caller in `SUBJECT_WRITERS` must still call its writer (the caller half: a registry row
+// whose caller stopped calling is a dead permission, and for the owner-flip bind it means the bind fell back
+// off the atomic claim). Both checks only fire when their target file is actually present in this run's
+// resolved population — a narrower request that never reaches these files is not a stale claim, so
+// `execution: "entire-population"`
 // (not a runtime scope flag, which the final context does not expose) is what keeps a real narrow run from
 // silently deferring rather than false-alarming: a request smaller than the full population defers this
 // policy entirely (policy-pass.ts), so it only ever judges a COMPLETE view of `@server`.
 //
 // FAMILY (fixed 2026-09-11, #1937): this policy and its sibling `external-id-single-writer.ts` both read
 // `verify/lib/external-id-writer.ts` — the ONE shared reader for the write-shape predicate, the sanctioned
-// files, and the atomic-claim-writer name. The prior conversion declared the same `family` id while each
+// files, and the subject-writer registry. The prior conversion declared the same `family` id while each
 // module carried its OWN copy of the predicate; that is a shared THEME, not a shared reader, and the design
 // doc is explicit that a family means the latter (docs/law/gate-runtime-standardization.md).
 //
@@ -61,18 +63,42 @@
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import {
-  CLAIM_WRITER,
+  calledSubjectWriter,
   EXTERNAL_ID_SANCTIONED_FILES,
-  isClaimWriterCall,
   isExternalIdAssignment,
   isExternalIdWriteKey,
   LINK_CAPABILITY,
+  PENDING_SIGNUP_CAPABILITY,
   PROVISION_CAPABILITY,
+  SUBJECT_WRITERS,
 } from "../lib/external-id-writer.ts";
 
 const STALE_PREFIX =
   "stale sanctioned-writer — this file no longer writes `users.externalId`, so its carve-out is dead (either the U1 detector broke, or the writer moved — ratchet down / re-point, Spine-Identity-and-Auth.md): ";
-const LINK_STALE = `${LINK_CAPABILITY} no longer calls ${CLAIM_WRITER} — the U1 admin link capability lost its atomic writer, or the writer was renamed (Spine-Identity-and-Auth.md)`;
+const callerStale = (caller: string, writer: string): string =>
+  `${caller} no longer calls ${writer} — a registered subject-writer caller lost its writer, or the writer was renamed (SUBJECT_WRITERS, Spine-Identity-and-Auth.md invariant 10)`;
+const callKey = (caller: string, writer: string): string => `${caller}\u0000${writer}`;
+
+const USERS_WRITER = EXTERNAL_ID_SANCTIONED_FILES[1];
+const USERS_WRITER_FIXTURE =
+  'import { users } from "@orb/db";\nexport const claimExternalIdIfUnbound = (db: DB, id: string, sub: string) => db.update(users).set({ externalId: sub });\n';
+const PROVISION_FIXTURE =
+  'import { claimExternalIdIfUnbound } from "../persistence/users.ts";\n' +
+  "export async function bindOwnerSubject(db: D, ownerId: U, externalId: E): Promise<boolean> {\n" +
+  "  const changes: { externalId?: E } = {};\n" +
+  "  changes.externalId = externalId;\n" +
+  "  return await claimExternalIdIfUnbound(db, ownerId, externalId, 0);\n" +
+  "}\n";
+const LINK_FIXTURE =
+  'import { claimExternalIdIfUnbound } from "../persistence/users.ts";\n' +
+  "export async function linkExternalId(db: D, userId: U, externalId: E): Promise<void> {\n" +
+  "  await claimExternalIdIfUnbound(db, userId, externalId, 0);\n" +
+  "}\n";
+const PENDING_SIGNUP_FIXTURE =
+  'import { insertPendingSignupUserStatement } from "../persistence/users.ts";\n' +
+  "export function account(db: D, row: R, admission: S): B {\n" +
+  "  return insertPendingSignupUserStatement(db, row, admission);\n" +
+  "}\n";
 
 export const gate = defineGate({
   id: "external-id-single-writer-health",
@@ -85,20 +111,28 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message: "the U1 externalId single-writer carve-out no longer matches the tree it exempts (Spine-Identity-and-Auth.md).",
-  fix: "if the sanctioned file genuinely stopped writing externalId, delete its row in external-id-single-writer.ts / external-id-single-writer-health.ts (and verify/lib/external-id-writer.ts); if it moved, re-point the path in all three.",
+  fix: "if the sanctioned file or registered caller genuinely stopped writing externalId, delete its row in verify/lib/external-id-writer.ts (EXTERNAL_ID_SANCTIONED_FILES or SUBJECT_WRITERS) and the matching proof rows in both family gates; if it moved or was renamed, re-point it there.",
   create: (ctx) => {
     const sanctionedWrites = new Set<string>();
-    let linkCallsClaim = false;
+    const calls = new Set<string>();
+    const reportDeadCallers = (anchor: string): void => {
+      for (const [writer, callers] of SUBJECT_WRITERS) {
+        for (const caller of callers) {
+          if (!calls.has(callKey(caller, writer))) {
+            ctx.report.file(anchor, { line: 1, message: callerStale(caller, writer) });
+          }
+        }
+      }
+    };
     return {
       visitors: [
         {
           kinds: [SyntaxKind.PropertyAssignment, SyntaxKind.ShorthandPropertyAssignment, SyntaxKind.BinaryExpression, SyntaxKind.CallExpression],
           visit: (node, sourceFile) => {
             const rel = ctx.relativePath(sourceFile);
-            if (isClaimWriterCall(node)) {
-              if (rel === LINK_CAPABILITY) {
-                linkCallsClaim = true;
-              }
+            const writer = calledSubjectWriter(node);
+            if (writer !== undefined) {
+              calls.add(callKey(rel, writer));
               return;
             }
             if (
@@ -123,9 +157,7 @@ export const gate = defineGate({
             ctx.report.file(anchor, { line: 1, message: `${STALE_PREFIX}"${rel}"` });
           }
         }
-        if (!linkCallsClaim) {
-          ctx.report.file(anchor, { line: 1, message: LINK_STALE });
-        }
+        reportDeadCallers(anchor);
       },
     };
   },
@@ -134,14 +166,14 @@ export const gate = defineGate({
       mode: "source",
       files: {
         [PROVISION_CAPABILITY]:
-          "export async function bindOwnerSubject(): Promise<void> {\n  // the writer moved away; nothing here binds externalId any more\n}\n",
-        "packages/server/src/domain/sessions/persistence/users.ts":
-          'import { users } from "@orb/db";\nexport const claimExternalIdIfUnbound = (db: DB, id: string, sub: string) => db.update(users).set({ externalId: sub });\n',
-        [LINK_CAPABILITY]:
           'import { claimExternalIdIfUnbound } from "../persistence/users.ts";\n' +
-          "export async function linkExternalId(db: D, userId: U, externalId: E): Promise<void> {\n" +
-          "  await claimExternalIdIfUnbound(db, userId, externalId, 0);\n" +
+          "export async function bindOwnerSubject(db: D, ownerId: U, externalId: E): Promise<boolean> {\n" +
+          "  // the patch-building bind moved away; only the claim call remains\n" +
+          "  return await claimExternalIdIfUnbound(db, ownerId, externalId, 0);\n" +
           "}\n",
+        [USERS_WRITER]: USERS_WRITER_FIXTURE,
+        [LINK_CAPABILITY]: LINK_FIXTURE,
+        [PENDING_SIGNUP_CAPABILITY]: PENDING_SIGNUP_FIXTURE,
       },
       expect: { count: 1, messageIncludes: "provision-identity.ts" },
       why: "MODE A: the sanctioned provision-identity.ts stopped writing externalId — the carve-out is dead and must announce itself, never stay silently ✓",
@@ -149,76 +181,68 @@ export const gate = defineGate({
     {
       mode: "source",
       files: {
-        [PROVISION_CAPABILITY]:
-          'import { claimExternalIdIfUnbound } from "../persistence/users.ts";\n' +
-          "export async function bindOwnerSubject(db: D, ownerId: U, externalId: E): Promise<boolean> {\n" +
-          "  const changes: { externalId?: E } = {};\n" +
-          "  changes.externalId = externalId;\n" +
-          "  return await claimExternalIdIfUnbound(db, ownerId, externalId, 0);\n" +
-          "}\n",
-        "packages/server/src/domain/sessions/persistence/users.ts":
-          'import { users } from "@orb/db";\nexport const claimExternalIdIfUnbound = (db: DB, id: string, sub: string) => db.update(users).set({ externalId: sub });\n',
+        [PROVISION_CAPABILITY]: PROVISION_FIXTURE,
+        [USERS_WRITER]: USERS_WRITER_FIXTURE,
         [LINK_CAPABILITY]: "export async function linkExternalId(): Promise<void> {\n  // no longer calls the atomic writer\n}\n",
+        [PENDING_SIGNUP_CAPABILITY]: PENDING_SIGNUP_FIXTURE,
       },
-      expect: { count: 1, messageIncludes: "no longer calls" },
+      expect: { count: 1, messageIncludes: "link-external-id.ts no longer calls claimExternalIdIfUnbound" },
       why: "MODE A for the caller half: link-external-id.ts stopped calling claimExternalIdIfUnbound — the admin link path lost its bind-once guard, and that must RED rather than read as health",
     },
     {
       mode: "source",
       files: {
-        [PROVISION_CAPABILITY]:
-          'import { claimExternalIdIfUnbound } from "../persistence/users.ts";\n' +
-          "export async function bindOwnerSubject(db: D, ownerId: U, externalId: E): Promise<boolean> {\n" +
-          "  const changes: { externalId?: E } = {};\n" +
-          "  changes.externalId = externalId;\n" +
-          "  return await claimExternalIdIfUnbound(db, ownerId, externalId, 0);\n" +
-          "}\n",
-        "packages/server/src/domain/sessions/persistence/users.ts":
-          'import { users } from "@orb/db";\nexport const claimExternalIdIfUnbound = (db: DB, id: string, sub: string) => db.update(users).set({ externalId: sub });\n',
+        [PROVISION_CAPABILITY]: PROVISION_FIXTURE,
+        [USERS_WRITER]: USERS_WRITER_FIXTURE,
+        [PENDING_SIGNUP_CAPABILITY]: PENDING_SIGNUP_FIXTURE,
       },
       expect: { count: 1, messageIncludes: "no longer calls" },
       why: "ABSENT-SUBJECT ARM: both sanctioned writers are intact (still writing) and link-external-id.ts is entirely DELETED from this run's population — the exact scenario the health check exists for. It must REPORT RED anchored on a file inside the resolved population (never throw 'outside the effective population')",
+    },
+    {
+      mode: "source",
+      files: {
+        [PROVISION_CAPABILITY]:
+          "export async function bindOwnerSubject(changes: { externalId?: E }, externalId: E): Promise<void> {\n" +
+          "  changes.externalId = externalId;\n" +
+          "}\n",
+        [USERS_WRITER]: USERS_WRITER_FIXTURE,
+        [LINK_CAPABILITY]: LINK_FIXTURE,
+        [PENDING_SIGNUP_CAPABILITY]: PENDING_SIGNUP_FIXTURE,
+      },
+      expect: { count: 1, messageIncludes: "provision-identity.ts no longer calls claimExternalIdIfUnbound" },
+      why: "a REGISTERED CALLER that stopped calling its writer: provision-identity.ts still writes a patch but its owner-flip bind no longer rides the atomic claim, so its registry row is dead and the bind reverted to read-then-write. The link-only check never looked here, RED",
+    },
+    {
+      mode: "source",
+      files: {
+        [PROVISION_CAPABILITY]: PROVISION_FIXTURE,
+        [USERS_WRITER]: USERS_WRITER_FIXTURE,
+        [LINK_CAPABILITY]: LINK_FIXTURE,
+        [PENDING_SIGNUP_CAPABILITY]: "export function preparePendingSignup(): null {\n  // the confirm no longer plans an account\n  return null;\n}\n",
+      },
+      expect: { count: 1, messageIncludes: "pending-signup.ts no longer calls insertPendingSignupUserStatement" },
+      why: "the pending-join confirm stopped calling its registered writer: the registry row names a caller that no longer binds, so it is a dead permission, RED",
     },
   ],
   mustPass: [
     {
       mode: "source",
       files: {
-        [PROVISION_CAPABILITY]:
-          'import { claimExternalIdIfUnbound } from "../persistence/users.ts";\n' +
-          "export async function bindOwnerSubject(db: D, ownerId: U, externalId: E): Promise<boolean> {\n" +
-          "  const changes: { externalId?: E } = {};\n" +
-          "  changes.externalId = externalId;\n" +
-          "  return await claimExternalIdIfUnbound(db, ownerId, externalId, 0);\n" +
-          "}\n",
-        "packages/server/src/domain/sessions/persistence/users.ts":
-          'import { users } from "@orb/db";\nexport const claimExternalIdIfUnbound = (db: DB, id: string, sub: string) => db.update(users).set({ externalId: sub });\n',
-        [LINK_CAPABILITY]:
-          'import { claimExternalIdIfUnbound } from "../persistence/users.ts";\n' +
-          "export async function linkExternalId(db: D, userId: U, externalId: E): Promise<void> {\n" +
-          "  await claimExternalIdIfUnbound(db, userId, externalId, 0);\n" +
-          "}\n",
+        [PROVISION_CAPABILITY]: PROVISION_FIXTURE,
+        [USERS_WRITER]: USERS_WRITER_FIXTURE,
+        [LINK_CAPABILITY]: LINK_FIXTURE,
+        [PENDING_SIGNUP_CAPABILITY]: PENDING_SIGNUP_FIXTURE,
       },
-      why: "the healthy real shape (SUBJECT PRESENT): both sanctioned files still write, and the admin link capability still calls the atomic writer — no stale finding",
+      why: "the healthy real shape (SUBJECT PRESENT): both sanctioned files still write, and every registered caller still calls its writer — no stale finding",
     },
     {
       mode: "source",
       files: {
-        [PROVISION_CAPABILITY]:
-          'import { claimExternalIdIfUnbound } from "../persistence/users.ts";\n' +
-          "export async function bindOwnerSubject(db: D, ownerId: U, externalId: E): Promise<boolean> {\n" +
-          "  const changes: { externalId?: E } = {};\n" +
-          "  changes.externalId = externalId;\n" +
-          "  return await claimExternalIdIfUnbound(db, ownerId, externalId, 0);\n" +
-          "}\n",
-        "packages/server/src/domain/sessions/persistence/users.ts":
-          'import { users } from "@orb/db";\nexport const claimExternalIdIfUnbound = (db: DB, id: string, sub: string) => db.update(users).set({ externalId: sub });\n' +
-          "export const read = (db: DB) => db.select({ id: 1, externalId: 2 });\n",
-        [LINK_CAPABILITY]:
-          'import { claimExternalIdIfUnbound } from "../persistence/users.ts";\n' +
-          "export async function linkExternalId(db: D, userId: U, externalId: E): Promise<void> {\n" +
-          "  await claimExternalIdIfUnbound(db, userId, externalId, 0);\n" +
-          "}\n",
+        [PROVISION_CAPABILITY]: PROVISION_FIXTURE,
+        [USERS_WRITER]: `${USERS_WRITER_FIXTURE}export const read = (db: DB) => db.select({ id: 1, externalId: 2 });\n`,
+        [LINK_CAPABILITY]: LINK_FIXTURE,
+        [PENDING_SIGNUP_CAPABILITY]: PENDING_SIGNUP_FIXTURE,
       },
       why: "a READ column map living beside the real write in the same sanctioned file does not count toward, or against, its carve-out — the health check reuses the exact write predicate the sibling detector uses, so a read cannot inflate the write it did not make",
     },
