@@ -168,8 +168,10 @@ function assistantMessage(row: ChatHistoryMessage, options: SharedV4ProviderOpti
 }
 
 /** One `tool` wire message per `tool-result` part. `isError` maps to the V4 `error-text` output — the
- *  anthropic converter spells it `is_error`; the OpenAI-shaped converters flatten it (recorded on the plan). */
-function toolMessages(row: ChatHistoryMessage): LanguageModelV4Message[] {
+ *  anthropic converter spells it `is_error`; the OpenAI-shaped converters flatten it (recorded on the plan).
+ *  `toolName` is the answered call's name: the openrouter converter sends it as the message's `name`, and Google
+ *  refuses an empty one. A result whose call is not in the history keeps an empty name. */
+function toolMessages(row: ChatHistoryMessage, callNames: ReadonlyMap<string, string>): LanguageModelV4Message[] {
   const out: LanguageModelV4Message[] = [];
   for (const part of row.content) {
     if (part.type === "tool-result") {
@@ -179,7 +181,7 @@ function toolMessages(row: ChatHistoryMessage): LanguageModelV4Message[] {
           {
             type: "tool-result",
             toolCallId: part.toolCallId,
-            toolName: "",
+            toolName: callNames.get(part.toolCallId) ?? "",
             output: { type: part.isError === true ? "error-text" : "text", value: part.content },
           },
         ],
@@ -190,6 +192,8 @@ function toolMessages(row: ChatHistoryMessage): LanguageModelV4Message[] {
 }
 
 interface PlanBuilder {
+  /** Tool-call id → the called tool's name, from every assistant `tool-call` part in the history. */
+  readonly callNames: ReadonlyMap<string, string>;
   readonly prompt: LanguageModelV4Message[];
   readonly names: Map<number, string>;
   readonly assistantMedia: Map<number, readonly OutboundMedia[]>;
@@ -214,7 +218,7 @@ function pushRow(builder: PlanBuilder, message: LanguageModelV4Message, row: Pla
 function pushHistoryRow(builder: PlanBuilder, row: ChatHistoryMessage, options: SharedV4ProviderOptions | undefined): void {
   const text = chatHistoryText(row.content);
   if (row.role === "tool") {
-    for (const message of toolMessages(row)) {
+    for (const message of toolMessages(row, builder.callNames)) {
       pushRow(builder, message, { role: "tool", toolExchange: true, text });
     }
     return;
@@ -245,7 +249,10 @@ function pushHistoryRow(builder: PlanBuilder, row: ChatHistoryMessage, options: 
 
 /** Build the V4 prompt + the plan (see the header). Empty rows are dropped BEFORE indexing. */
 export function buildWirePlan(args: BuildPromptArgs): WirePlan {
-  const builder: PlanBuilder = { prompt: [], names: new Map(), assistantMedia: new Map(), rows: [] };
+  const callNames = new Map(
+    args.history.flatMap((row) => row.content.flatMap((part) => (part.type === "tool-call" ? [[part.toolCallId, part.name] as const] : []))),
+  );
+  const builder: PlanBuilder = { callNames, prompt: [], names: new Map(), assistantMedia: new Map(), rows: [] };
   const staticText = args.systemPrompt.static.trim();
   const dynamicText = args.systemPrompt.dynamic.trim();
   const split = args.splitSystem === true && staticText.length > 0 && dynamicText.length > 0;
