@@ -46,7 +46,7 @@ export interface ShareFacts {
 }
 
 /** Puts the seating settings back as {@link ShareServiceDeps.enableSeating} found them. */
-export type RestoreSeating = () => Promise<void>;
+type RestoreSeating = () => Promise<void>;
 
 /** What a boot-time or post-claim start did, for the lifecycle's log line. */
 export type ShareBootOutcome =

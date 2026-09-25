@@ -27,7 +27,7 @@ export type SignupUserStatementOp = (args: { readonly handle: Handle; readonly p
 
 /** The persona-owned insert of the joiner's persona, which the seat after it names. It inserts only where the
  *  statement before it changed a row. */
-export type SignupPersonaStatementOp = (args: { readonly ownerId: UserId; readonly persona: JoinerPersona; readonly at: number }) => {
+type SignupPersonaStatementOp = (args: { readonly ownerId: UserId; readonly persona: JoinerPersona; readonly at: number }) => {
   readonly personaId: PersonaId;
   readonly statement: AwaitableBatchStmt<{ id: PersonaId }[]>;
 };
