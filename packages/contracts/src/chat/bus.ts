@@ -340,10 +340,12 @@ export type UserMacroUnknownPickOpCode = typeof USER_MACRO_UNKNOWN_PICK_OP_CODE;
 // narrow `getTurnOrigin` op — the automation cascade guard's depth source. Human turns are born
 // `"human"`/depth 0 (the column defaults); a NON-HUMAN `requestTurn` (AC-B) stamps its initiator + the parent
 // depth + 1. `"automation"` = an automation rule's `trigger_turn` arm; `"plugin"` = a Tier-2 plugin membrane
-// host-fn's turn.trigger (both funded by + consent-gated on the responsible human, depth-capped). The cascade
+// host-fn's turn.trigger (both funded by + consent-gated on the responsible human, depth-capped). `"import"` =
+// a slot the bulk-import seam wrote (a user's imported history, the seeded example rooms): nobody typed it in
+// this app, so the viewer's "where you left off" reads skip it, and no turn is ever requested with it. The cascade
 // guard treats every non-`"human"` initiator identically (depth is the lever, not the label). A new initiator
 // fails `tsc` at the `messages.initiator` CHECK derive until the enum learns it.
-export const TURN_INITIATORS = ["human", "automation", "plugin"] as const;
+export const TURN_INITIATORS = ["human", "automation", "plugin", "import"] as const;
 export type TurnInitiator = (typeof TURN_INITIATORS)[number];
 
 /** The hard cascade-depth cap — nothing fires at `automationDepth >= cap`, opt-in or

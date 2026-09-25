@@ -327,6 +327,49 @@ describe("read — listings (membership-scoped, D18)", () => {
     expect(byId.get(guested)).toBe("member");
   });
 
+  // Home resumes the room THIS viewer was in and greets an account that has never spoken: both read the viewer's own
+  // last turn, never the room's activity, which someone else's messages move.
+  test("listChats carries the viewer's own last turn, per row and over the whole scope, never the room's activity", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const joiner = await seedUser(db, castId<Handle>("joiner"));
+    const room = await seedRoom("busy", host);
+    await seedParticipant(db, { chatId: room, key: "busy_joiner", userId: joiner, role: "member" });
+    await seedMessage(db, room, 1, { role: "user", authorUserId: host, content: "the host talks", createdAt: 1000 });
+    await seedMessage(db, room, 2, { role: "assistant", content: "a character answers", createdAt: 2000 });
+
+    const { listChats } = createRead(makeChatContext(db), makeDeps());
+    const fresh = await listChats({ principal: principal(joiner) });
+    expect(fresh.viewerLastTurnAt).toBeNull();
+    expect(fresh.items.map((c) => c.viewerLastTurnAt)).toEqual([null]);
+
+    await seedMessage(db, room, 3, { role: "user", authorUserId: joiner, content: "hello", createdAt: 3000 });
+    await seedMessage(db, room, 4, { role: "assistant", content: "a later reply", createdAt: 4000 });
+    const spoken = await listChats({ principal: principal(joiner) });
+    expect(spoken.viewerLastTurnAt).toBe(3000);
+    expect(spoken.items[0]?.viewerLastTurnAt).toBe(3000);
+    // The host's own view of the same room dates the host's own turn.
+    expect((await listChats({ principal: principal(host) })).viewerLastTurnAt).toBe(1000);
+  });
+
+  // An imported history (a user's import, the seeded example rooms) is attributed to its owner but was never typed in
+  // this app: it is not where they left off. The first turn they type in that room is.
+  test("listChats skips imported turns: an imported room reads as never spoken in until the viewer types there", async () => {
+    const me = await seedUser(db, castId<Handle>("importer"));
+    const room = await seedRoom("imported", me);
+    await seedMessage(db, room, 1, { role: "user", authorUserId: me, content: "an imported line", createdAt: 5000, initiator: "import" });
+    await seedMessage(db, room, 2, { role: "assistant", content: "an imported reply", createdAt: 6000, initiator: "import" });
+
+    const { listChats } = createRead(makeChatContext(db), makeDeps());
+    const imported = await listChats({ principal: principal(me) });
+    expect(imported.viewerLastTurnAt).toBeNull();
+    expect(imported.items.map((c) => c.viewerLastTurnAt)).toEqual([null]);
+
+    await seedMessage(db, room, 3, { role: "user", authorUserId: me, content: "typed here", createdAt: 7000 });
+    const typed = await listChats({ principal: principal(me) });
+    expect(typed.viewerLastTurnAt).toBe(7000);
+    expect(typed.items[0]?.viewerLastTurnAt).toBe(7000);
+  });
+
   test("listChats excludes archived unless includeArchived", async () => {
     const me = await seedUser(db, castId<Handle>("me"));
     const live = await seedChat(db, "live");

@@ -396,6 +396,75 @@ test("the outstanding list renders per-invite status/uses and revokes a pending 
   await expect.poll(async () => (await readInputAtAssertion()).inviteId).toBe("chatinvite_ct_a");
 });
 
+// P2-6, P3-3 — a sign-up link creates accounts, so its row never reads as a plain share link, Revoke included; and a
+// one-use limit counts in the singular.
+test("a sign-up link row names itself as one, Revoke included, and a one-use limit reads '1 of 1 use left'", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "sessions.me": ME_USER,
+    "invites.listInvites": () => [
+      {
+        id: "chatinvite_ct_signup",
+        chatId: "chat_ct_keystone",
+        status: "pending",
+        maxUses: 1,
+        remainingUses: 1,
+        expiresAt: null,
+        invitedUserId: null,
+        allowSignup: true,
+        createdAt: 3,
+      },
+    ],
+  });
+  await mount(<InviteDialogStory />);
+  const list = page.getByTestId("invite-outstanding-list");
+  await expect(list.getByText("Sign-up link", { exact: true })).toBeVisible();
+  await expect(list.getByText("Share link", { exact: true })).toHaveCount(0);
+  await expect(list.getByRole("button", { name: "Revoke this sign-up link" })).toBeVisible();
+  await expect(list.getByText("1 of 1 use left", { exact: false })).toBeVisible();
+});
+
+// P3-2 — an admin on a loopback page can go straight to the sharing settings: the dialog closes and the shell lands on
+// the Admin group's Multi-user section. A host who is not an admin is not pointed at a page they cannot open.
+test("the loopback warning's 'Open sharing settings' closes the dialog and lands on Admin › Multi-user; a non-admin gets no control", async ({
+  mount,
+  page,
+}) => {
+  await stubAuthConfig(page);
+  await routeTrpc(page, { "sessions.me": { ...ME_USER, globalRole: "admin" }, "invites.listInvites": () => [] });
+  await mount(<InviteDialogStory />);
+  await page.getByTestId("invite-open-sharing").click();
+  await expect(page.getByTestId("ct-invite-landing")).toHaveText("open=false section=config group=admin sub=multi-user");
+});
+
+test("a host who is not an admin sees the loopback warning without the settings control", async ({ mount, page }) => {
+  await stubAuthConfig(page);
+  await routeTrpc(page, { "sessions.me": ME_USER, "invites.listInvites": () => [] });
+  await mount(<InviteDialogStory />);
+  await expect(page.getByTestId("invite-dialog").locator('[data-invite-warning="loopback"]')).toBeVisible();
+  await expect(page.getByTestId("invite-open-sharing")).toHaveCount(0);
+});
+
+// P3-5 — at a phone width the two invite modes stay side by side in one row, each in its own cell.
+test.describe("at a 360px viewport", () => {
+  test.use({ viewport: { width: 360, height: 800 } });
+
+  test("the invite-mode switch keeps both options on one row", async ({ mount, page }) => {
+    await stubAuthConfig(page);
+    await routeTrpc(page, { "sessions.me": ME_USER, "invites.listInvites": () => [] });
+    await mount(<InviteDialogStory />);
+    const dialog = page.getByTestId("invite-dialog");
+    const link = dialog.getByRole("button", { name: "Share link" });
+    const handle = dialog.getByRole("button", { name: "Invite by handle" });
+    // One row: the two cells share a top edge, and the second starts to the right of the first.
+    await expect
+      .poll(async () => {
+        const [a, b] = [await link.boundingBox(), await handle.boundingBox()];
+        return a !== null && b !== null && Math.abs(a.y - b.y) <= 1 && b.x > a.x;
+      })
+      .toBe(true);
+  });
+});
+
 // D259 — the sign-up switch. It is drawn for a global admin in a mode that mints signup invites and only for a
 // share link; the caps are enforced in the form before any wire call. The viewer and the mode are stubbed at
 // the network boundary (`sessions.me` and `/api/auth/config`), the two reads the dialog gates on.

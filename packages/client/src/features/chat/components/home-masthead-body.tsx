@@ -5,8 +5,8 @@
 //
 // COPY REGISTER (#104): en-US, no em-dash, no SaaS voice — a warm plain sentence about a house you live
 // in. Every number in it is DERIVED: the room count from the same `chat.listChats` page the recents tile
-// reads (identical query key ⇒ one cache entry, no second fetch), the age off the same
-// `chatSummaryRowView` projection every room row reads, through the shared relative-time formatter.
+// reads (identical query key ⇒ one cache entry, no second fetch), the age off the viewer's own last turn
+// (`ChatListPage.viewerLastTurnAt`, a census like the count), through the shared relative-time formatter.
 // Nothing here is a hardcoded six or a hardcoded week.
 //
 // ONE RECENCY VOCABULARY (side-eye 2026-08-16 F4). Three renderings of the SAME instant were visible at
@@ -40,7 +40,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { timeLib } from "#lib";
-import { chatSummaryRowView } from "../lib/chat-summary-row.ts";
+import { isFirstRun } from "../lib/home-hearth.ts";
 import { RECENTS_LIMIT } from "./home-recents-tile-body.tsx";
 
 /** Counts up to ten spelled out — a masthead sentence reads as prose, and "6 rooms" in a warm line is a
@@ -53,15 +53,34 @@ function roomCountPhrase(count: number): string {
   return `${word} ${count === 1 ? "room" : "rooms"}`;
 }
 
+// The house the viewer walks into: empty, new to them, or theirs.
+function mastheadTitle(totalCount: number, firstRun: boolean): string {
+  if (totalCount === 0) {
+    return "An empty house.";
+  }
+  return firstRun ? "Welcome in." : `${roomCountPhrase(totalCount)}, still warm.`;
+}
+
+// IT DATES THE VIEWER'S OWN LAST TURN, never a room's activity: a friend who has just joined has left off nowhere,
+// and an account that spoke last week has not "left off" a minute ago because someone else posted.
+function mastheadLine(viewerLastTurnAt: number | null, firstRun: boolean): string {
+  if (firstRun) {
+    return "Your room is below. Open it and say hello when you are ready.";
+  }
+  if (viewerLastTurnAt === null) {
+    return "Start a room and this is where you will find your way back into it.";
+  }
+  return `You left off ${timeLib.formatRelativeAgo(viewerLastTurnAt)}.`;
+}
+
 export function HomeMastheadBody(): ReactElement {
   const trpc = useTRPC();
   const { data: page } = useSuspenseQuery(trpc.chat.listChats.queryOptions({ limit: RECENTS_LIMIT }));
-  const newest = page.items[0];
-  const lastRoom = newest === undefined ? null : chatSummaryRowView(newest);
+  const firstRun = isFirstRun(page);
   return (
     <Stack gap="tight">
       <Heading level={1} voice="masthead">
-        {page.totalCount === 0 ? "An empty house." : `${roomCountPhrase(page.totalCount)}, still warm.`}
+        {mastheadTitle(page.totalCount, firstRun)}
       </Heading>
       {/* IT NAMES THE INSTANT, NOT THE ROOM (rail sweep P2-6, 2026-08-17). This line read "You left off 2w
           ago in Example — The Ashen Spire." directly above a hero island whose own title is that room and
@@ -69,11 +88,7 @@ export function HomeMastheadBody(): ReactElement {
           twice, inside 90px. The split is by ownership: the HERO is the room (it is the control you press
           to go back into it), and this sentence is the one whose whole job is "how long has it been", so
           it keeps the recency and drops the name. The hero dropped the stamp in the same pass. */}
-      <Text voice="reading">
-        {lastRoom === null
-          ? "Start a room and this is where you will find your way back into it."
-          : `You left off ${timeLib.formatRelativeAgo(lastRoom.when)}.`}
-      </Text>
+      <Text voice="reading">{mastheadLine(page.viewerLastTurnAt, firstRun)}</Text>
     </Stack>
   );
 }

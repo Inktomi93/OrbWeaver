@@ -208,6 +208,32 @@ test.describe("the sharing panel's manual-copy fallback at 360px", () => {
 
 // Read-only by ruling: the auth mode is a boot fact, so the panel offers nothing to toggle, for any viewer.
 // Its one button copies the line; it changes nothing.
+// P3-7 — the panel is a real heading, and every command, key and file the instruction names reads as code on ONE line:
+// a command broken across two lines reads as two commands.
+test.describe("at a 360px viewport", () => {
+  test.use({ viewport: { width: 360, height: 800 } });
+
+  test("oidc: 'Who can sign in' is a heading, and no command in the instruction breaks across lines", async ({ mount, page }) => {
+    await stub(page, OWNER);
+    await stubAuthConfig(page, "oidc");
+    await mount(<GovernanceSectionsStory />);
+    const panel = page.getByTestId("admin-sharing-panel");
+    await expect(panel.getByRole("heading", { level: 4, name: "Who can sign in" })).toBeVisible();
+    const commands = panel.locator("p kbd");
+    await expect(commands).toHaveCount(4);
+    // One line box each, no taller than the single-line chip the panel copies from.
+    await expect
+      .poll(async () => {
+        const chip = await panel.getByTestId("admin-sharing-line").boundingBox();
+        const heights = await commands.evaluateAll((nodes) =>
+          nodes.map((node) => ({ rects: node.getClientRects().length, height: node.getBoundingClientRect().height })),
+        );
+        return heights.every((h) => h.rects === 1 && chip !== null && h.height <= chip.height + 1);
+      })
+      .toBe(true);
+  });
+});
+
 test("the sharing panel is read-only: no switch, no field, only the copy button, even for the owner", async ({ mount, page }) => {
   await stub(page, OWNER);
   await stubAuthConfig(page, "single-user");

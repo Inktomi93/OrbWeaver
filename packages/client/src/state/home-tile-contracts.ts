@@ -57,6 +57,9 @@ export interface HomeTileContribution {
   readonly id: string;
   /** The tile's name, rendered by HOME in the `kicker` voice — a tile never draws its own band. */
   readonly title: string;
+  /** The name when it depends on live data, called unconditionally by the tile's own component like
+   *  {@link HomeTileContribution.useVisible}. Absent, or while its data loads, the static `title` stands. */
+  readonly useTitle?: () => string;
   readonly icon: LucideIcon;
   /** Canonical `(order, id)` sort — the `assembleChrome` ordering precedent, applied by `orderHomeTiles`. */
   readonly order?: number;

@@ -693,7 +693,7 @@ export function StartChatBurstStory({ chatId }: { readonly chatId: ChatId }): Re
 // Driven on the REAL pair the seam exists for (`settings.updateUserSettingsSection` → the identical
 // `settings.getUserSettings` view): a `busDriven` write reconciles via the bus, so between its 200 and the
 // bus tick the read still serves the PRE-write row — and a surface computing its honesty from that read
-// (Model roles' "a turn still uses X") calls a persisted selection unsaved for as long as the tick is
+// (Model roles' "still running on X") calls a persisted selection unsaved for as long as the tick is
 // missing. `echo` closes that window without inventing a second truth source.
 
 interface UpdateSectionVars {

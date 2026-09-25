@@ -447,7 +447,7 @@ CREATE TABLE `messages` (
 	FOREIGN KEY (`selected_variant_id`) REFERENCES `message_variants`(`id`) ON UPDATE no action ON DELETE set null,
 	CONSTRAINT "messages_role_check" CHECK(role in ('system', 'user', 'assistant')),
 	CONSTRAINT "messages_kind_check" CHECK(kind in ('standard', 'narrator', 'comment')),
-	CONSTRAINT "messages_initiator_check" CHECK(initiator in ('human', 'automation', 'plugin')),
+	CONSTRAINT "messages_initiator_check" CHECK(initiator in ('human', 'automation', 'plugin', 'import')),
 	CONSTRAINT "messages_kind_shape" CHECK((kind <> 'narrator' OR role = 'assistant')),
 	CONSTRAINT "messages_attribution_shape" CHECK((character_id IS NULL OR role = 'assistant') AND (persona_id IS NULL OR role = 'user') AND (character_id IS NULL OR author_user_id IS NULL))
 );
@@ -486,14 +486,17 @@ CREATE TABLE `user_connections` (
 	`model_listed` integer DEFAULT true NOT NULL,
 	`allow_background` integer DEFAULT false NOT NULL,
 	`prompt_cache` text,
+	`seed_slot` text,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`credential_id`) REFERENCES `user_credentials`(`id`) ON UPDATE no action ON DELETE set null,
+	CONSTRAINT "user_connections_seed_slot_check" CHECK(seed_slot is null or seed_slot in ('embed', 'rerank')),
 	CONSTRAINT "user_connections_api_check" CHECK(api in ('chat-completions', 'agent-sdk', 'anthropic-messages', 'auto'))
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `user_connections_owner_label_unique` ON `user_connections` (`owner_id`,`label`);--> statement-breakpoint
+CREATE UNIQUE INDEX `user_connections_owner_seed_slot_unique` ON `user_connections` (`owner_id`,`seed_slot`);--> statement-breakpoint
 CREATE INDEX `user_connections_credential_idx` ON `user_connections` (`credential_id`);--> statement-breakpoint
 CREATE TABLE `connection_bindings` (
 	`id` text PRIMARY KEY NOT NULL,

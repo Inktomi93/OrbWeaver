@@ -22,8 +22,11 @@
 // is the accent, and it is the only thing on its own band.
 
 import { MessagesSquare } from "@orb/ui/icons";
+import { useQuery } from "@tanstack/react-query";
+import { useTRPC } from "#data";
 import type { HomeTileContribution } from "#state";
-import { HomeRecentsTileBody } from "../components/home-recents-tile-body.tsx";
+import { HomeRecentsTileBody, RECENTS_LIMIT } from "../components/home-recents-tile-body.tsx";
+import { isFirstRun } from "./home-hearth.ts";
 
 const RECENTS_TILE_ORDER = 10;
 
@@ -36,11 +39,23 @@ const RECENTS_TILE_ORDER = 10;
  *  line; do not re-derive it by counting DOM nodes (a skeleton ROW is a bar plus its gap, not a text line). */
 const RECENTS_SKELETON_ROWS = 3;
 
+const RESUME_TITLE = "Pick up where you left off";
+const FIRST_RUN_TITLE = "Your first room";
+
+// A friend who has only just joined has nothing to pick up; the band names the room as their first one instead.
+// The same query key as the body, so this reads the body's one cache entry.
+function useRecentsTitle(): string {
+  const trpc = useTRPC();
+  const page = useQuery(trpc.chat.listChats.queryOptions({ limit: RECENTS_LIMIT })).data;
+  return page !== undefined && isFirstRun(page) ? FIRST_RUN_TITLE : RESUME_TITLE;
+}
+
 export const chatRecentsTile: HomeTileContribution = {
   id: "chat.recents",
   // The mockup's approved band copy. "Recent chats" named a data set; this names what you do with it,
   // which is what the block leads the page with.
-  title: "Pick up where you left off",
+  title: RESUME_TITLE,
+  useTitle: useRecentsTitle,
   icon: MessagesSquare,
   order: RECENTS_TILE_ORDER,
   region: "hearth",

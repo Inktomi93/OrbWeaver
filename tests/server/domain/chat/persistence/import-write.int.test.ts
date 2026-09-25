@@ -257,6 +257,19 @@ describe("createBulkImportChats", () => {
     expect(variants.map((v) => v.content).sort()).toEqual(["Hello traveller.", "Hi Aria!"]);
   });
 
+  // Imported history was not typed in this app; the viewer's last-turn reads key on this stamp to skip it.
+  test("every imported slot is born with the import initiator", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, {});
+    const character = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
+
+    await createBulkImportChats(importCtx(db, owner.id))({ ownerId: owner.id, characterId: character.id, chats: [chatInput("Aria.jsonl")] });
+
+    const slots = await db.select({ role: messages.role, initiator: messages.initiator }).from(messages);
+    expect(slots.map((slot) => slot.role).sort()).toEqual(["assistant", "user"]);
+    expect(slots.map((slot) => slot.initiator)).toEqual(["import", "import"]);
+  });
+
   test("dup-skip by importHash — a byte-identical re-import writes nothing", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});

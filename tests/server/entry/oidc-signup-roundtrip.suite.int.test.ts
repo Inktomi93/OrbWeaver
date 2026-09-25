@@ -64,7 +64,9 @@ interface Flow {
   readonly invites: ReturnType<typeof createSignupInvite>;
 }
 
-async function flow(opts: { readonly requireApproval?: boolean; readonly maxUses?: number; readonly inviteTtlMs?: number } = {}): Promise<Flow> {
+async function flow(
+  opts: { readonly requireApproval?: boolean; readonly maxUses?: number; readonly inviteTtlMs?: number; readonly discreetLogin?: boolean } = {},
+): Promise<Flow> {
   const db = await freshDb();
   const clock = { now: NOW };
   const now = (): number => clock.now;
@@ -135,6 +137,7 @@ async function flow(opts: { readonly requireApproval?: boolean; readonly maxUses
     now,
     db,
     resolveLoginLimit: (): number => 100,
+    discreetLogin: (): boolean => opts.discreetLogin ?? false,
     oidc,
   });
   return { app, db, clock, claims, seeded, announced, chatId: room.id, inviteId, sessions, invites };
@@ -285,12 +288,22 @@ describe("the pending preview and confirm", () => {
     expect((await post(f, "/api/auth/oidc/pending/preview", null)).status).toBe(404);
   });
 
+  // Discreet login keeps login handles off the signed-out pages, so the pending preview leaves the host out too.
+  test("with discreet login on, the pending preview leaves the host handle out", async () => {
+    const f = await flow({ discreetLogin: true });
+    const secret = await pendingJoin(f);
+    const res = await post(f, "/api/auth/oidc/pending/preview", `${PENDING}=${secret}`);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ chatId: f.chatId, roomName: "The room", memberCount: 1, modeLabel: "turns" });
+  });
+
   test("a confirm creates the account, spends a use, seats it, audits it, signs it in and spends the cookie", async () => {
     const f = await flow();
     const secret = await pendingJoin(f);
     const res = await confirm(f, secret);
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ signedIn: true });
+    // The joined room rides the answer, so the client lands there.
+    expect(await res.json()).toEqual({ signedIn: true, chatId: f.chatId });
     expect(setCookie(res, SESSION)?.length).toBeGreaterThan(20);
     expect(setCookie(res, PENDING)).toBe("");
     expect(setCookie(res, PENDING_INSECURE)).toBe("");
@@ -517,7 +530,7 @@ describe("OIDC_REQUIRE_APPROVAL: an invite is not approval", () => {
     const secret = await pendingJoin(f);
     const res = await confirm(f, secret);
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ signedIn: false });
+    expect(await res.json()).toEqual({ signedIn: false, chatId: f.chatId });
     expect(setCookie(res, SESSION)).toBeNull();
     const [account] = await usersBySubject(f, "friend");
     expect(account?.enabled).toBe(false);

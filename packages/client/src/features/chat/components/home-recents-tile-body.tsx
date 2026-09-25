@@ -38,6 +38,7 @@ import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { openNewChatPicker, selectChatFromList, setActiveSection } from "#state";
 import { usePrefetchRoom } from "../hooks/use-prefetch-room.ts";
+import { splitHearth } from "../lib/home-hearth.ts";
 import { HomeHearthRoom } from "./home-hearth-room.tsx";
 
 /** How many recents this tile shows — AND, through the contribution's `skeletonRows`, how many rows its
@@ -58,13 +59,12 @@ export function HomeRecentsTileBody(): ReactElement {
   // else — the owner ruled the skeleton phase STAYS (its header carries the measured trade) — and it runs
   // BEFORE the early return below so the hook order is the same on the empty-hearth arm, which warms
   // nothing.
-  usePrefetchRoom(page.items[0]?.id ?? null);
+  const { hearth } = splitHearth(page.items);
+  usePrefetchRoom(hearth?.id ?? null);
   // THE HERO'S ART BLEED (#205; the 3-face cover-crop STRIP it replaced stays deleted). It renders one
   // portrait as chroma at the island's far edge — `aria-hidden` art, no character datum at all. Since #192 the
   // face rides the chat ROW itself, so it costs no network at all: the whole-library `character.list` read
   // this used to index into is gone, and a room whose seats have no portrait simply has no bleed.
-  const hearth = page.items[0];
-
   if (hearth === undefined) {
     return (
       <EmptyState

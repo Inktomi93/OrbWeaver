@@ -58,9 +58,9 @@ describe("sharePreconditions", () => {
     expect(canStartSharing(sharePreconditions(container))).toBe(true);
   });
 
-  test("a standing container refusal holds the relay row and Start before any press; a mode one leaves the relay row alone", () => {
+  test("a standing container refusal marks the relay row unavailable and holds Start before any press; a mode one leaves the relay row alone", () => {
     const boxed = { ...READY_LOCAL, standing: "share_in_container" } as const;
-    expect(verdicts(boxed)["relay"]).toBe("unmet");
+    expect(verdicts(boxed)["relay"]).toBe("unavailable");
     expect(canStartSharing(sharePreconditions(boxed))).toBe(false);
     expect(verdicts({ ...READY_LOCAL, mode: "single-user", standing: "share_single_user" })["relay"]).toBe("unchecked");
   });

@@ -82,21 +82,13 @@ const TILE_SKELETON_ROWS = 3;
  *  (density-pass §2.3) has no glyph and the approved mock draws none. `icon` is still the tile's own
  *  identity for the doorway arm (where the mock DOES draw one) and for any registry surface that lists a
  *  tile by glyph; it simply paints nothing in the band. */
-function TileBand({
-  tile,
-  trailing,
-  headingId,
-}: {
-  readonly tile: HomeTileContribution;
-  readonly trailing: ReactNode;
-  readonly headingId: string;
-}): ReactElement {
+function TileBand({ title, trailing, headingId }: { readonly title: string; readonly trailing: ReactNode; readonly headingId: string }): ReactElement {
   return (
     <Row align="center" gap="field">
       {/* The `kicker` VOICE on a real heading element (density-pass §2.3); `level` keeps the document
           outline (a styled div would leave home with one heading and six anonymous blocks). */}
       <Heading id={headingId} level={2} voice="kicker">
-        {tile.title}
+        {title}
       </Heading>
       {/* DECORATIVE (rail re-pass N-3). The rule is the band's drawing, not its structure — the region is
           already named by the `h2` beside it — but `Separator` seals Base UI's real `role="separator"`, so
@@ -182,11 +174,11 @@ export function HomeDoorway({ tile, doorway }: { readonly tile: HomeTileContribu
  *  left 189px of blank under three lonely lines), and measures the settled body back into
  *  `surface-box-store`. `skeletonRows` stays the tile's own first-boot claim (#92): it sizes the
  *  skeleton when nothing is reserved and is the fill fallback when the pitch cannot be inverted. */
-function TileContent({ tile }: { readonly tile: HomeTileContribution }): ReactElement {
+function TileContent({ tile, title }: { readonly tile: HomeTileContribution; readonly title: string }): ReactElement {
   return (
     <QueryBoundary
       fallback={<SkeletonRows count={tile.skeletonRows ?? TILE_SKELETON_ROWS} />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label={tile.title.toLowerCase()} onRetry={retry} />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label={title.toLowerCase()} onRetry={retry} />}
       reserveBlock={tile.skeletonBlock}
       reserveKey={tile.id}
     >
@@ -197,6 +189,7 @@ function TileContent({ tile }: { readonly tile: HomeTileContribution }): ReactEl
 
 export function HomeTile({ tile }: { readonly tile: HomeTileContribution }): ReactNode {
   const visible = tile.useVisible?.() ?? true;
+  const title = tile.useTitle?.() ?? tile.title;
   const headingId = useId();
   if (!visible) {
     return null;
@@ -212,14 +205,14 @@ export function HomeTile({ tile }: { readonly tile: HomeTileContribution }): Rea
   if (tile.region === "masthead") {
     return (
       <Stack data-home-tile={tile.id} gap="row">
-        <TileContent tile={tile} />
+        <TileContent tile={tile} title={title} />
       </Stack>
     );
   }
   return (
     <Stack aria-labelledby={headingId} data-home-tile={tile.id} gap="row" role="region">
-      <TileBand headingId={headingId} tile={tile} trailing={tile.action} />
-      <TileContent tile={tile} />
+      <TileBand headingId={headingId} title={title} trailing={tile.action} />
+      <TileContent tile={tile} title={title} />
     </Stack>
   );
 }

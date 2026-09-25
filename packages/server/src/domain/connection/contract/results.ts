@@ -23,7 +23,7 @@ export interface ConnectionCapabilityView {
 }
 
 /** One Model-roles row: the actor's binding for a task AND what a turn resolves to RIGHT NOW against the
- *  PERSISTED read (§5.3a: "Not applied yet — a turn still uses …" is the readout this pair enables). */
+ *  PERSISTED read (§5.3a: "Not applied yet — still running on …" is the readout this pair enables). */
 export interface BindingView {
   /** One view per ROUTABLE task, bound or not — the pane renders every slot. */
   readonly task: RoutableTask;

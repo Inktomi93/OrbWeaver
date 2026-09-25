@@ -3,9 +3,10 @@
 // The seating confirm stays mounted above its row: its write unmounts the row, so a confirm hands focus to Start.
 
 import type { AuthMode, ShareRefusalNotice } from "@orb/contracts/identity";
-import { SETUP_COMMAND } from "@orb/contracts/identity";
+import { CONTAINER_SHARE_GUIDE, SETUP_COMMAND } from "@orb/contracts/identity";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
+import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { CopyButton } from "@orb/ui/copy-button";
 import { Kbd } from "@orb/ui/kbd";
 import { Row, Stack } from "@orb/ui/layout";
@@ -17,7 +18,7 @@ import { SkeletonRows } from "#data";
 import { CONTAINER_LOGIN_LINES } from "../lib/container-login.ts";
 import type { PreconditionRow, ShareStartFailure } from "../lib/share-model.ts";
 import { canStartSharing, refusalRow, sharePreconditions } from "../lib/share-model.ts";
-import { ShareProse } from "./share-prose.tsx";
+import { ShareCode, ShareProse } from "./share-prose.tsx";
 
 /** The launcher command that starts this box in the local sign-in mode with a relay, without writing `.env`. */
 const SHARE_COMMAND = "pnpm start --share";
@@ -40,6 +41,7 @@ const MODE_UNMET: Record<AuthMode, string> = {
 const VERDICT_BADGE: Record<PreconditionRow["verdict"], { readonly label: string; readonly intent: "success" | "warning" | "neutral" | "danger" }> = {
   met: { label: "Ready", intent: "success" },
   unmet: { label: "Needs a fix", intent: "warning" },
+  unavailable: { label: "Not available here", intent: "danger" },
   waiting: { label: "Waiting", intent: "neutral" },
   unchecked: { label: "Checked on start", intent: "neutral" },
   refused: { label: "Refused", intent: "danger" },
@@ -148,7 +150,7 @@ function PreconditionList({
             Start sharing
           </Button>
         </Row>
-        {ready ? null : <ShareProse id={blockedId}>Fix every row marked Needs a fix first; a waiting row clears when the row above it does.</ShareProse>}
+        {ready ? null : <ShareProse id={blockedId}>{heldReason(rows)}</ShareProse>}
       </Stack>
       <ConfirmDialog
         open={seatingAsk.open}
@@ -166,6 +168,13 @@ function PreconditionList({
       />
     </Stack>
   );
+}
+
+// Why Start is held. A row nothing on this card can fix is named as such, never as a fix to make.
+function heldReason(rows: readonly PreconditionRow[]): string {
+  return rows.some((row) => row.verdict === "unavailable")
+    ? `This card cannot share this server. The row marked ${VERDICT_BADGE.unavailable.label} names another way to share it.`
+    : `Fix every row marked ${VERDICT_BADGE.unmet.label} first; a waiting row clears when the row above it does.`;
 }
 
 function seatingNames(off: readonly SeatingSetting[]): string {
@@ -243,25 +252,37 @@ function ownerSentence(verdict: PreconditionRow["verdict"]): string {
     : "You signed in with it, so no stranger can claim this server through the link.";
 }
 
+// The one action first: the launcher command that shares this box. The permanent switch and the container's
+// lines are for the operator who runs the box another way, so they fold behind a disclosure.
 function ModeFix({ mode }: { readonly mode: AuthMode }): ReactElement {
   return (
     <Stack gap="tight">
       <ShareProse>{MODE_UNMET[mode]}</ShareProse>
-      <ShareProse>
-        {`To share, stop the server and start it with ${SHARE_COMMAND}. It uses the local sign-in mode for that run only and starts the relay; .env is not changed. ${SETUP_COMMAND}, under Who can sign in, changes the mode for every run instead.`}
-      </ShareProse>
+      <ShareProse>To share, stop the server and start it again with the command below, which also starts the relay.</ShareProse>
       <CopyButton text={SHARE_COMMAND} what={`the command ${SHARE_COMMAND}`}>
         <Kbd size="command">{SHARE_COMMAND}</Kbd>
       </CopyButton>
-      <ShareProse>
-        In Docker, set the lines below in the environment: block of docker-compose.yaml, then run docker compose up -d. This card cannot start a relay inside a
-        container yet; to share a container now, run a Cloudflare tunnel beside it (docker/README.md, "Cloudflare Tunnel, as a sidecar").
-      </ShareProse>
-      <CopyButton text={CONTAINER_LOGIN_LINES} what="the docker-compose environment lines">
-        <Text voice="label" className="min-w-0 font-mono whitespace-pre-wrap wrap-anywhere">
-          {CONTAINER_LOGIN_LINES}
-        </Text>
-      </CopyButton>
+      <Collapsible data-share-detail="mode">
+        <CollapsibleTrigger>Other ways: a permanent switch, or Docker</CollapsibleTrigger>
+        <CollapsiblePanel>
+          <Stack gap="tight">
+            <ShareProse>
+              <ShareCode>{SHARE_COMMAND}</ShareCode> uses the local sign-in mode for that run only and leaves <ShareCode>.env</ShareCode> as it is.{" "}
+              <ShareCode>{SETUP_COMMAND}</ShareCode>, under Who can sign in, changes the mode for every run.
+            </ShareProse>
+            <ShareProse>
+              In Docker, set the lines below in the <ShareCode>environment:</ShareCode> block of <ShareCode>docker-compose.yaml</ShareCode>, then run{" "}
+              <ShareCode>docker compose up -d</ShareCode>. This card cannot start a relay inside a container; to share one, run a Cloudflare tunnel beside it (
+              {CONTAINER_SHARE_GUIDE}).
+            </ShareProse>
+            <CopyButton text={CONTAINER_LOGIN_LINES} what="the docker-compose environment lines">
+              <Text voice="label" className="min-w-0 font-mono whitespace-pre-wrap wrap-anywhere">
+                {CONTAINER_LOGIN_LINES}
+              </Text>
+            </CopyButton>
+          </Stack>
+        </CollapsiblePanel>
+      </Collapsible>
     </Stack>
   );
 }

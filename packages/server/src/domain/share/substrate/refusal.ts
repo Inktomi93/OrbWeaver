@@ -2,7 +2,7 @@
 // process can run, then (local only) a claimed owner. The first failing one is the refusal, naming its fix.
 
 import type { ShareRefusal, ShareRefusalNotice } from "@orb/contracts/identity";
-import { SHARE_MODE_REFUSAL } from "@orb/contracts/identity";
+import { CONTAINER_SHARE_GUIDE, SHARE_MODE_REFUSAL } from "@orb/contracts/identity";
 import type { ShareFacts } from "../contract/service.ts";
 
 // Where an oidc box's friends already join: the addresses its identity provider returns people to.
@@ -20,7 +20,7 @@ function message(code: ShareRefusal, facts: ShareFacts): string {
     case "share_oidc":
       return `Your identity provider sends people back only to the addresses registered with it, and a relay's random name is never one of them, so no one could sign in through it. Friends join at ${oidcAddress(facts)} with an invite link.`;
     case "share_in_container":
-      return "This server runs in a container, which carries no relay. Run the relay as a container beside this one instead.";
+      return `This server runs in a container, which carries no relay, so it cannot share from here. Run a Cloudflare tunnel as a container beside it instead (${CONTAINER_SHARE_GUIDE}).`;
     case "share_owner_unclaimed":
       return `The owner has no password yet, so a shared link would let a stranger reach an unclaimed box. Open ${facts.localSetupUrl()} on this machine, finish setup, then start sharing.`;
     default: {

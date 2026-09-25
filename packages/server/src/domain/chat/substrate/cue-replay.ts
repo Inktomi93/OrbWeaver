@@ -1,4 +1,4 @@
-// domain/chat/substrate/cue-replay — whether a turn replays each stored reply's cue, and in which role (D260). One home
+// domain/chat/substrate/cue-replay — whether a turn replays each stored reply's cue, and in which role (D262). One home
 // for the engine turn and the host previews, so a preview shows the rows the next turn sends.
 
 import type { GenerationCapability } from "@orb/contracts/inference";

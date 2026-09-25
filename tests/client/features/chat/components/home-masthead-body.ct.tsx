@@ -41,24 +41,20 @@ test("F1 the masthead reads 'You left off just now', never 'now ago', for a seco
   await expect(subtitle).not.toHaveText(ROOM_NAME_IN_SENTENCE);
 });
 
-// ── FENCE (#150, owner-observed live 2026-08-17): the sentence reads the CONVERSATION clock ──────────
-// The live symptom was "You left off 2w ago" over a room somebody had spoken in an hour earlier. The defect
-// was SERVER-side ordering (the list sorted on `chats.updated_at` while every row displays
-// `lastMessageAt ?? updatedAt`), and this arm is the client half of that contract, pinned where a user reads
-// it: given a row whose row-stamp is two weeks old and whose last message is an hour old, the sentence says
-// ONE HOUR. It passes pre-fix — `chatSummaryRowView` always preferred `lastMessageAt` — and it is here so a
-// "simplification" to `updatedAt` on this side cannot silently re-open the same sentence.
+// The sentence dates the VIEWER'S OWN last turn: not the chat row's stamp (a turn does not touch it), and not the
+// room's newest message, which someone else may have written after the viewer left.
 const HOUR_MS = 3_600_000;
 const FORTNIGHT_MS = 14 * 24 * HOUR_MS;
+const TEN_MINUTES_MS = 600_000;
 
-test("#150 the subtitle ages the room by its last MESSAGE, not by the chat row's stamp", async ({ mount, page }) => {
+test("the subtitle dates the viewer's own last turn, not the row's stamp or someone else's later message", async ({ mount, page }) => {
   await page.clock.setFixedTime(FROZEN_AT_MS);
   const talked = makeChatSummary({
     id: "chat_talked",
     title: "The Rust Lecture",
     participantNames: ["Wren"],
-    lastMessageAt: FROZEN_AT_MS - HOUR_MS,
-    // The row itself has not been written in a fortnight — a turn does not touch it.
+    lastMessageAt: FROZEN_AT_MS - TEN_MINUTES_MS,
+    viewerLastTurnAt: FROZEN_AT_MS - HOUR_MS,
     updatedAt: FROZEN_AT_MS - FORTNIGHT_MS,
   });
   await routeTrpc(page, { "chat.listChats": chatListResponder([talked]) });
@@ -115,6 +111,17 @@ test("F3 a short page spells its count (census and page agree below the limit)",
   const heading = (await mount(<ChatMastheadTileStory />)).getByRole("heading", { level: 1 });
 
   await expect(heading).toHaveText("Three rooms, still warm.");
+});
+
+// P2-4 — a friend who has just joined a room and never spoken has left off nowhere: the masthead greets them.
+test("an account that has never spoken gets the first-run title and line, never 'You left off'", async ({ mount, page }) => {
+  await page.clock.setFixedTime(FROZEN_AT_MS);
+  const joined = makeChatSummary({ id: "chat_joined", title: "Tavern Night", lastMessageAt: FROZEN_AT_MS - TEN_MINUTES_MS, viewerLastTurnAt: null });
+  await routeTrpc(page, { "chat.listChats": chatListResponder([joined]) });
+
+  const home = await mount(<ChatMastheadTileStory />);
+  await expect(home.getByRole("heading", { level: 1 })).toHaveText("Welcome in.");
+  await expect(home.getByText(LEFT_OFF)).toHaveCount(0);
 });
 
 test("F3 an empty library opens the empty house, never 'No rooms, still warm.'", async ({ mount, page }) => {

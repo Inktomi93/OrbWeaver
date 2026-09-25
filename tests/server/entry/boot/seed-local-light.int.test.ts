@@ -55,10 +55,10 @@ test("one user's failure does NOT abort boot — every remaining user is still a
   const db = await freshDb();
   await seedUser(db, "user_a");
   await seedUser(db, "user_b");
-  // Force the seed's SECOND statement to fail for every user, with the first already applied: the boot step
-  // must swallow it per user and keep going, because a boot that throws here takes the server down over a
-  // convenience seed the pane can repair.
-  await db.run(sql`drop table connection_bindings`);
+  // Force the seed's LAST statement (the binding insert) to fail for every user, with the rows already written:
+  // the boot step must swallow it per user and keep going, because a boot that throws here takes the server down
+  // over a convenience seed the pane can repair.
+  await db.run(sql`create trigger refuse_bindings before insert on connection_bindings begin select raise(abort, 'refused'); end`);
   await expect(seedLocalLightOnBoot({ db, now: (): number => FROZEN_AT_MS, onEmbedSpaceBound: IGNORE_BOUND })).resolves.toBe(0);
   expect(await db.select().from(userConnections), "both users were attempted, not just the first").toHaveLength(4);
 });

@@ -26,6 +26,12 @@ export function filterCharacters(participants: readonly ParticipantView[]): read
   return participants.filter(isCharacter);
 }
 
+/** The room's members: the PRESENT humans. A member is a person, the word the invite preview counts with; the
+ *  characters are the Characters section, and a departed seat is gone. */
+export function presentMemberCount(participants: readonly ParticipantView[]): number {
+  return participants.filter((p) => p.kind === "human" && p.leftSeq === null).length;
+}
+
 export function buildParticipantsById(participants: readonly ParticipantView[]): ReadonlyMap<CharacterId, ParticipantView> {
   const byId = new Map<CharacterId, ParticipantView>();
   for (const participant of participants) {

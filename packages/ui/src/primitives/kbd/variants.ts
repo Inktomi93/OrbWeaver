@@ -16,8 +16,9 @@ export const kbdVariants = tv({
       // A shortcut hint beside a control: one or two glyphs at the micro step.
       key: "text-micro leading-micro tracking-micro",
       // A whole command the user reads and types out (`claude setup-token`), set in running prose: the code
-      // step, the size of the sentence around it, because micro caps make a command a squint.
-      command: "text-code leading-label",
+      // step, the size of the sentence around it, because micro caps make a command a squint. It never breaks
+      // mid-command: a wrapped command reads as two commands.
+      command: "whitespace-nowrap text-code leading-label",
     },
   },
   defaultVariants: { size: "key" },

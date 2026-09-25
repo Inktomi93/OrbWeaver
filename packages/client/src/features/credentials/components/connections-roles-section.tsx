@@ -43,6 +43,7 @@ import { useState } from "react";
 import { QueryBoundary } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
+import { cn } from "#lib";
 import { configAnchorId } from "#state";
 import { useSetBinding, useUpdateConnection } from "../hooks/use-connections-mutations.ts";
 import type { RoleConnectionFacts, RoleRequirementVerdict, RoleRow } from "../lib/connections-model.ts";
@@ -63,6 +64,9 @@ type ConnectionListItem = inferOutput<Trpc["connection"]["list"]>[number];
 type BindingView = inferOutput<Trpc["connection"]["listBindings"]>[number];
 
 const UNSET_VALUE = "";
+
+// The pane is as wide as the settings body; a sentence capped at the prose measure never runs across it.
+const PROSE_MEASURE = "max-w-(--reading-measure-prose)";
 
 // Both axes are DERIVED from their one home rather than re-spelled here (`no-inline-types`): the dot's
 // states are the keys of its own label map, and the readout's arms are whatever `roleReadout` returns — so
@@ -110,7 +114,7 @@ function ModelRolesBody(): ReactElement {
     <Section divider={true} heading={CONNECTIONS_ROLES_SUBCATEGORY.label} id={configAnchorId("connections", CONNECTIONS_ROLES_SUBCATEGORY.id)}>
       {/* The F20 sentence rides the SECTION BODY, not just the nav teach text: the body is where a user
           forms the expectation that a room might override this, and it is the width-independent one. */}
-      <Text voice="gloss">
+      <Text voice="gloss" className={PROSE_MEASURE}>
         Pick which connection each role uses. An unset role does nothing — there is no default model. Rooms never override this: a turn always runs on the
         connection of whoever triggered it.
       </Text>
@@ -179,7 +183,9 @@ function RoleSlotRow({ row, connections, view, trpc, invalidation }: RoleSlotRow
         />
         <Stack gap="tight">
           <Text voice="label">{row.heading}</Text>
-          <Text voice="gloss">{row.description}</Text>
+          <Text voice="gloss" className={PROSE_MEASURE}>
+            {row.description}
+          </Text>
           {verdicts.length === 0 ? null : <RequirementRail verdicts={verdicts} />}
           <ReadoutLine readout={readout} />
           {repairs.map((connection) => (
@@ -212,21 +218,24 @@ function RoleSlotRow({ row, connections, view, trpc, invalidation }: RoleSlotRow
 }
 
 /** The four sentences, one per arm — each spelled ONCE, so a fix lane restyling the steady arm cannot
- *  silently restyle the arm that is the opposite of steady. The blocked arm repeats the status dot's own
- *  accessible name word for word, which is what makes the amber dot decidable without colour. */
+ *  silently restyle the arm that is the opposite of steady. The running and blocked arms repeat the status
+ *  dot's own accessible name, which is what makes the dot decidable without colour. No arm says "a turn":
+ *  an embedder or a reranker runs for search and memory, never for a turn. */
 function ReadoutLine({ readout }: { readonly readout: RoleReadout }): ReactElement {
-  const className = READOUT_INK[readout.kind];
+  const className = cn(READOUT_INK[readout.kind], PROSE_MEASURE);
   if (readout.kind === "steady") {
     return (
       <Text voice="gloss" className={className}>
-        A turn uses {readout.connection}.
+        {readout.connection === null
+          ? `${ROLE_STATUS_LABELS.running} on the connection picked here.`
+          : `${ROLE_STATUS_LABELS.running} on ${readout.connection}.`}
       </Text>
     );
   }
   if (readout.kind === "divergent") {
     return (
       <Text voice="gloss" className={className}>
-        Not applied yet — a turn still uses {readout.connection}.
+        Not applied yet — still running on {readout.connection}.
       </Text>
     );
   }

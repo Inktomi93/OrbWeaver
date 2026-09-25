@@ -26,6 +26,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { selectChatFromList, setActiveSection } from "#state";
+import { splitHearth } from "../lib/home-hearth.ts";
 import { ChatSummaryRow } from "./chat-summary-row.tsx";
 import { RECENTS_LIMIT } from "./home-recents-tile-body.tsx";
 
@@ -39,7 +40,7 @@ function openRecent(chatId: ChatId): void {
 export function HomeAlsoOpenTileBody(): ReactElement {
   const trpc = useTRPC();
   const { data: page } = useSuspenseQuery(trpc.chat.listChats.queryOptions({ limit: RECENTS_LIMIT }));
-  const alsoOpen = page.items.slice(1);
+  const alsoOpen = splitHearth(page.items).rest;
 
   return (
     // `role="list"` needs `listitem` CHILDREN or the rows are generic to AT and the list announces empty —
