@@ -655,8 +655,8 @@ export type InvitePreview = z.infer<typeof invitePreviewSchema>;
 
 // ── Signup through an invite (D259) ──
 const SIGNUP_TOKEN_MAX_CHARS = 128;
-const SIGNUP_HANDLE_MIN_CHARS = 2;
-const SIGNUP_HANDLE_MAX_CHARS = 32;
+export const SIGNUP_HANDLE_MIN_CHARS = 2;
+export const SIGNUP_HANDLE_MAX_CHARS = 32;
 const SIGNUP_PASSWORD_MAX_CHARS = 256;
 const SIGNUP_HANDLE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 

@@ -148,11 +148,45 @@ test("local + a stashed invite on a multi-human box → the signup form, posting
   await page.getByTestId("signup-handle").fill("friend");
   await page.getByTestId("signup-password").fill("hunter2pw");
   const submit = page.getByTestId("signup-submit");
-  await expect(submit).toBeDisabled();
-  await page.getByTestId("joiner-persona-name").fill("  Mira ");
+  // The persona is still unnamed: submit stays reachable, and pressing it marks the name and moves focus there.
+  await expect(submit).toBeEnabled();
+  await submit.click();
+  const personaName = page.getByTestId("joiner-persona-name");
+  await expect(personaName).toHaveAttribute("aria-invalid", "true");
+  await expect(personaName).toBeFocused();
+  expect(posted).toBeNull();
+  await personaName.fill("  Mira ");
   await submit.click();
   await expect(page.getByTestId("ct-login-done")).toBeVisible();
   expect(posted).toEqual({ token: "tok_invite", handle: "friend", password: "hunter2pw", persona: { name: "Mira", description: "" } });
+});
+
+// P1-1 — a handle with a space fails the rule. The field says so at once, with aria-invalid, and a submit sends nothing
+// and returns focus to it; the button never goes silent.
+test("local + a stashed invite → a handle that breaks the rule is marked invalid, and submit sends nothing and focuses it", async ({ mount, page }) => {
+  let posts = 0;
+  await page.route("**/api/auth/signup", async (route) => {
+    posts += 1;
+    await route.fulfill({ status: 200, json: { ok: true } });
+  });
+  await mount(<LoginArmStory config={config({ mode: "local", multiHumanCapable: true })} joinToken="tok_invite" />);
+  const handle = page.getByTestId("signup-handle");
+  await expect(handle).toHaveAttribute("aria-describedby", /.+/);
+  await expect(handle).not.toHaveAttribute("aria-invalid", "true");
+  await handle.fill("Sam Rivera");
+  await expect(handle).toHaveAttribute("aria-invalid", "true");
+  await page.getByTestId("signup-password").fill("hunter2pw");
+  await page.getByTestId("joiner-persona-name").fill("Sam");
+  await page.getByTestId("signup-submit").click();
+  await expect(handle).toBeFocused();
+  expect(posts).toBe(0);
+  await handle.fill("sam.rivera");
+  await expect(handle).not.toHaveAttribute("aria-invalid", "true");
+});
+
+test("local + a stashed invite → the persona name is required", async ({ mount, page }) => {
+  await mount(<LoginArmStory config={config({ mode: "local", multiHumanCapable: true })} joinToken="tok_invite" />);
+  await expect(page.getByTestId("joiner-persona-name")).toHaveAttribute("required", "");
 });
 
 test("local + a stashed invite → 'I already have an account' shows the credential form", async ({ mount, page }) => {

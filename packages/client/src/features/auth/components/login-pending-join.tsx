@@ -8,8 +8,8 @@ import { Button } from "@orb/ui/button";
 import { Row, Stack } from "@orb/ui/layout";
 import { Skeleton } from "@orb/ui/skeleton";
 import { Heading, Text } from "@orb/ui/text";
-import type { ReactElement } from "react";
-import { useState } from "react";
+import type { ReactElement, SyntheticEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import { confirmPendingJoin, usePendingJoinPreview } from "#data";
 import { testId } from "#lib";
 import { joinerPersonaOf } from "../lib/joiner-persona.ts";
@@ -56,6 +56,15 @@ export function LoginPendingJoin({ providerName, onJoined, onDismiss }: LoginPen
   const [personaName, setPersonaName] = useState("");
   const [personaDescription, setPersonaDescription] = useState("");
   const persona = joinerPersonaOf(personaName, personaDescription);
+  // Counts confirms that met an unnamed persona, so each one moves focus to the name the card asks for.
+  const [attempts, setAttempts] = useState(0);
+  const formRef = useRef<HTMLFormElement | null>(null);
+
+  useEffect(() => {
+    if (attempts > 0) {
+      formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+    }
+  }, [attempts]);
 
   if (preview.isPending) {
     return (
@@ -89,8 +98,13 @@ export function LoginPendingJoin({ providerName, onJoined, onDismiss }: LoginPen
     );
   }
 
-  const confirm = (): void => {
+  const confirm = (event: SyntheticEvent): void => {
+    event.preventDefault();
+    if (state.kind === "confirming") {
+      return;
+    }
     if (persona === null) {
+      setAttempts((count) => count + 1);
       return;
     }
     setState({ kind: "confirming" });
@@ -111,25 +125,33 @@ export function LoginPendingJoin({ providerName, onJoined, onDismiss }: LoginPen
   };
 
   return (
-    <Stack gap="block" data-testid={testId("pendingJoin")}>
-      <Heading level={1}>You're invited</Heading>
-      <Text voice="quiet">
-        {`${room.hostHandle} invited you to ${room.roomName.length > 0 ? room.roomName : "a room"} (${room.memberCount} ${room.memberCount === 1 ? "member" : "members"}, ${room.modeLabel}). Joining creates your account here.`}
-      </Text>
-      <JoinerPersonaFields name={personaName} description={personaDescription} onNameChange={setPersonaName} onDescriptionChange={setPersonaDescription} />
-      {state.kind === "refused" ? (
-        <Text voice="label" className="text-destructive" role="alert" data-testid={testId("pendingJoinError")}>
-          {state.copy}
+    <form ref={formRef} onSubmit={confirm} noValidate={true}>
+      <Stack gap="block" data-testid={testId("pendingJoin")}>
+        <Heading level={1}>You're invited</Heading>
+        <Text voice="quiet">
+          {`${room.hostHandle} invited you to ${room.roomName.length > 0 ? room.roomName : "a room"} (${room.memberCount} ${room.memberCount === 1 ? "member" : "members"}, ${room.modeLabel}). Joining creates your account here.`}
         </Text>
-      ) : null}
-      <Row gap="row">
-        <Button intent="primary" disabled={state.kind === "confirming" || persona === null} onClick={confirm} data-testid={testId("pendingJoinConfirm")}>
-          {state.kind === "confirming" ? "Joining…" : "Create account and join"}
-        </Button>
-        <Button intent="ghost" onClick={onDismiss} data-testid={testId("pendingJoinDismiss")}>
-          Not now
-        </Button>
-      </Row>
-    </Stack>
+        <JoinerPersonaFields
+          name={personaName}
+          nameError={attempts > 0 && persona === null ? "Give your persona a name." : null}
+          description={personaDescription}
+          onNameChange={setPersonaName}
+          onDescriptionChange={setPersonaDescription}
+        />
+        {state.kind === "refused" ? (
+          <Text voice="label" className="text-destructive" role="alert" data-testid={testId("pendingJoinError")}>
+            {state.copy}
+          </Text>
+        ) : null}
+        <Row gap="row">
+          <Button intent="primary" type="submit" disabled={state.kind === "confirming"} data-testid={testId("pendingJoinConfirm")}>
+            {state.kind === "confirming" ? "Joining…" : "Create account and join"}
+          </Button>
+          <Button intent="ghost" onClick={onDismiss} data-testid={testId("pendingJoinDismiss")}>
+            Not now
+          </Button>
+        </Row>
+      </Stack>
+    </form>
   );
 }

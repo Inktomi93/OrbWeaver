@@ -52,14 +52,20 @@ async function namePersona(page: Page): Promise<void> {
   await page.getByTestId("joiner-persona-name").fill("Mira");
 }
 
-test("previews the room, holds Join until the persona has a name, and confirms with only the persona, then signs in", async ({ mount, page }) => {
+test("previews the room, marks the unnamed persona on Join and sends nothing, and confirms with only the persona, then signs in", async ({ mount, page }) => {
   const captured = await stubPending(page, { status: 200, json: { signedIn: true } });
   await mount(<LoginPendingJoinStory config={OIDC} />);
   const card = page.getByTestId("pending-join");
   await expect(card).toContainText("host");
   await expect(card).toContainText("The room");
   const confirm = page.getByTestId("pending-join-confirm");
-  await expect(confirm).toBeDisabled();
+  // Join stays reachable: pressing it with no name marks the name field and moves focus there.
+  await expect(confirm).toBeEnabled();
+  await confirm.click();
+  const name = page.getByTestId("joiner-persona-name");
+  await expect(name).toHaveAttribute("aria-invalid", "true");
+  await expect(name).toBeFocused();
+  expect(captured.bodies).toEqual([]);
   await namePersona(page);
   await confirm.click();
 
