@@ -457,6 +457,15 @@ export interface ContextFitPreview {
   compactSummary: string | null;
 }
 
+/** `previewContextFit`'s answer when the room host has bound no chat connection: with no model there is no window
+ *  to fit, so the preview says so instead of refusing. */
+export interface ContextFitUnbound {
+  readonly unbound: true;
+}
+
+/** What `previewContextFit` answers: the fit, or the unbound state. */
+export type ContextFitAnswer = ContextFitPreview | ContextFitUnbound;
+
 /** The product of the BUILD stage. `static` is the cache-stable prefix; `dynamic` the per-turn suffix;
  *  `afterHistory` the sections that splice into history as `in_chat` injections. Consumed by a
  *  `message_variants.promptSnapshot` (D26). */

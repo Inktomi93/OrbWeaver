@@ -116,13 +116,19 @@ export const relayStatusSchema = z.discriminatedUnion("state", [
 ]);
 export type RelayStatus = z.infer<typeof relayStatusSchema>;
 
-/** `share.status`: the relay, the live sockets of every account but the caller's, and the addresses this server already
+/** Why a share may not start, with the sentence that names its fix. */
+const shareRefusalNoticeSchema = z.strictObject({ code: z.enum(SHARE_REFUSALS), message: z.string() });
+export type ShareRefusalNotice = z.infer<typeof shareRefusalNoticeSchema>;
+
+/** `share.status`: the relay, the live sockets of every account but the caller's, the addresses this server already
  *  answers at from the internet (under oidc the origins of `OIDC_REDIRECT_URIS`, under local the public names in
- *  `ALLOWED_HOSTS`), so the card can send friends there instead of through a relay. */
+ *  `ALLOWED_HOSTS`), so the card can send friends there instead of through a relay, and the refusal a start would
+ *  meet that is known without starting (the sign-in mode, or a container), so the card shows it before any press. */
 export const shareStatusSchema = z.strictObject({
   relay: relayStatusSchema,
   liveSocketCount: z.number().int().nonnegative(),
   publicAddresses: z.array(z.string()),
+  standingRefusal: shareRefusalNoticeSchema.nullable(),
 });
 export type ShareStatus = z.infer<typeof shareStatusSchema>;
 

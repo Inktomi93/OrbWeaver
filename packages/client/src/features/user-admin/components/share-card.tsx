@@ -169,6 +169,7 @@ function ShareCardBody({ localMultiUser, discreetLogin, onEnableSeating }: Share
           <SharePreconditions
             mode={authConfig?.mode}
             failure={failure}
+            standing={status.standingRefusal}
             localMultiUser={localMultiUser}
             discreetLogin={discreetLogin}
             onEnableSeating={onEnableSeating}

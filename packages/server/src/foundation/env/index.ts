@@ -25,6 +25,7 @@ import { runsInContainer } from "./container.ts";
 import type { DiagnosticsPostureInput, OwnerFallbackCredentialInput } from "./diagnostics.ts";
 import type { OwnerFallbackPeerInput } from "./fallback-peers.ts";
 import { parseOwnerFallbackTrustedPeers, resolveOwnerFallbackPeers } from "./fallback-peers.ts";
+import { EnvRefusedError } from "./refusal.ts";
 
 export type { AllowedHostsInput } from "./allowed-hosts.ts";
 export { machineHostnameFor, publicAddresses, resolveAllowedHosts } from "./allowed-hosts.ts";
@@ -741,9 +742,18 @@ const envSchema = z
     };
   });
 
-/** The parsed, frozen env floor. Read down by every tier; the AUTH_MODE superRefine throws here (at
+// A refused parse throws the named refusal, which the entry point prints without a stack.
+function parseProcessEnv(): z.infer<typeof envSchema> {
+  const parsed = envSchema.safeParse(process.env);
+  if (!parsed.success) {
+    throw new EnvRefusedError(parsed.error);
+  }
+  return parsed.data;
+}
+
+/** The parsed, frozen env floor. Read down by every tier; a refused key throws {@link EnvRefusedError} here (at
  *  module load) on a misconfigured deploy. */
-export const env: Readonly<z.infer<typeof envSchema>> = Object.freeze(envSchema.parse(process.env));
+export const env: Readonly<z.infer<typeof envSchema>> = Object.freeze(parseProcessEnv());
 
 /** The raw `process.env` snapshot — the baseline the agent-sdk child env builders spread. */
 export function processEnvSnapshot(): Record<string, string | undefined> {

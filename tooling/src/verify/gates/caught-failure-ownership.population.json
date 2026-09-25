@@ -2,16 +2,16 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 616,
+    "sites": 618,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 616,
+      "deliberate-absorb": 618,
       "unproven": 0
     },
     "byGrammar": {
       "default": 153,
       "empty": 314,
-      "promise": 149
+      "promise": 151
     }
   },
   "rows": [
@@ -1459,6 +1459,16 @@
       "siteId": "packages/server/src/entry/import/run-profile-import.ts::runProfileImport::err::1",
       "verdict": "deliberate-absorb",
       "reason": "bookkeeping — the failure is recorded into `failed` (with message), the function's own return value; one bad card never aborts the batch. Ends if `failed` stops being read by the caller."
+    },
+    {
+      "siteId": "packages/server/src/entry/index.ts::<module>::lifecycle.boot::1",
+      "verdict": "deliberate-absorb",
+      "reason": "owned: the handler logs through getLog and exits non-zero; getLog is imported after the env parse, where this policy cannot resolve it as the logger. Ends if getLog returns to a static import."
+    },
+    {
+      "siteId": "packages/server/src/entry/index.ts::<module>::shutdown::1",
+      "verdict": "deliberate-absorb",
+      "reason": "owned: the handler logs through getLog and exits non-zero; getLog is imported after the env parse, where this policy cannot resolve it as the logger. Ends if getLog returns to a static import."
     },
     {
       "siteId": "packages/server/src/foundation/env/index.ts::loadEnvFileWithOverride::catch::1",

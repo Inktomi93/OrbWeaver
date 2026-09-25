@@ -2,7 +2,7 @@
 // Start button, held with a visible reason while any row blocks it. The server re-checks every row on start.
 // The seating confirm stays mounted above its row: the row unmounts once the write lands, and focus moves to Start.
 
-import type { AuthMode } from "@orb/contracts/identity";
+import type { AuthMode, ShareRefusalNotice } from "@orb/contracts/identity";
 import { SETUP_COMMAND } from "@orb/contracts/identity";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
@@ -76,6 +76,8 @@ export interface SharePreconditionsProps extends SeatingFacts {
   /** Undefined until `/api/auth/config` lands; the rows wait for it. */
   readonly mode: AuthMode | undefined;
   readonly failure: ShareStartFailure | null;
+  /** The refusal the server knows without a start; only a relay one (a container) shows on its row. */
+  readonly standing: ShareRefusalNotice | null;
   readonly onStart: () => void;
   readonly starting: boolean;
   /** The Start button, which the card and the seating confirm send focus to. */
@@ -93,6 +95,7 @@ export function SharePreconditions({ mode, ...rest }: SharePreconditionsProps): 
 function PreconditionList({
   mode,
   failure,
+  standing,
   onStart,
   starting,
   startRef,
@@ -103,7 +106,8 @@ function PreconditionList({
   const blockedId = useId();
   // The confirm keeps the settings it was opened for: the write empties `off` while the dialog is still closing.
   const [seatingAsk, setSeatingAsk] = useState<{ readonly open: boolean; readonly settings: readonly SeatingSetting[] }>({ open: false, settings: [] });
-  const rows = sharePreconditions({ mode, localMultiUser, discreetLogin, refusal: failure?.code ?? null });
+  const rows = sharePreconditions({ mode, localMultiUser, discreetLogin, refusal: failure?.code ?? null, standing: standing?.code ?? null });
+  const relayStanding = standing !== null && refusalRow(standing.code) === "relay" ? standing : null;
   const ready = canStartSharing(rows);
   const seating: Record<SeatingSetting, boolean> = { localMultiUser, discreetLogin };
   const off = SEATING_SETTINGS.filter((setting) => !seating[setting]);
@@ -116,6 +120,7 @@ function PreconditionList({
             row={row}
             mode={mode}
             failure={failure !== null && refusalRow(failure.code) === row.id ? failure : null}
+            standing={row.id === "relay" ? relayStanding : null}
             seatingOff={off}
             onFixSeating={(): void => setSeatingAsk({ open: true, settings: off })}
           />
@@ -171,11 +176,12 @@ interface PreconditionItemProps {
   readonly row: PreconditionRow;
   readonly mode: AuthMode;
   readonly failure: ShareStartFailure | null;
+  readonly standing: ShareRefusalNotice | null;
   readonly seatingOff: readonly SeatingSetting[];
   readonly onFixSeating: () => void;
 }
 
-function PreconditionItem({ row, mode, failure, seatingOff, onFixSeating }: PreconditionItemProps): ReactElement {
+function PreconditionItem({ row, mode, failure, standing, seatingOff, onFixSeating }: PreconditionItemProps): ReactElement {
   const badge = VERDICT_BADGE[row.verdict];
   return (
     <Stack gap="tight" role="listitem" data-precondition={row.id} data-verdict={row.verdict}>
@@ -186,7 +192,7 @@ function PreconditionItem({ row, mode, failure, seatingOff, onFixSeating }: Prec
       {/* The server's refusal names its own fix, so it replaces the row's standing detail; `alert` because it lands
           after the press while the status line above still reads Not sharing. */}
       {failure === null ? (
-        <PreconditionDetail row={row} mode={mode} seatingOff={seatingOff} onFixSeating={onFixSeating} />
+        <PreconditionDetail row={row} mode={mode} standing={standing} seatingOff={seatingOff} onFixSeating={onFixSeating} />
       ) : (
         <ShareProse role="alert">{`Sharing was refused. ${failure.message}`}</ShareProse>
       )}
@@ -194,7 +200,7 @@ function PreconditionItem({ row, mode, failure, seatingOff, onFixSeating }: Prec
   );
 }
 
-function PreconditionDetail({ row, mode, seatingOff, onFixSeating }: Omit<PreconditionItemProps, "failure">): ReactNode {
+function PreconditionDetail({ row, mode, standing, seatingOff, onFixSeating }: Omit<PreconditionItemProps, "failure">): ReactNode {
   const id: PreconditionRow["id"] = row.id;
   switch (id) {
     case "mode":
@@ -208,7 +214,12 @@ function PreconditionDetail({ row, mode, seatingOff, onFixSeating }: Omit<Precon
         <SeatingFix off={seatingOff} onFix={onFixSeating} />
       );
     case "relay":
-      return <ShareProse>The first share downloads the relay program and runs it only if it matches its pinned checksum.</ShareProse>;
+      // The standing refusal names its own fix; it is shown at rest, so it is not announced.
+      return standing === null ? (
+        <ShareProse>The first share downloads the relay program and runs it only if it matches its pinned checksum.</ShareProse>
+      ) : (
+        <ShareProse>{standing.message}</ShareProse>
+      );
     default: {
       const exhaustive: never = id;
       return exhaustive;

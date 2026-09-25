@@ -136,7 +136,7 @@ import type {
   ChatListPage,
   ChatStreamReplayEvent,
   ChatSummary,
-  ContextFitPreview,
+  ContextFitAnswer,
   InvitePreview,
   InviteView,
   MessagesPage,
@@ -200,8 +200,9 @@ export interface ChatService {
   readonly getVariantWire: (params: GetVariantWireParams) => Promise<VariantWireView>;
   /** The present-tense context-fit budget for the current canon against the host's effective preset +
    *  capability. Member-gated; runs the SAME fit the next real turn would, so `boundaryMessageId`
-   *  equals the canon boundary that turn stamps. Nothing persists — the transcript divider's live source. */
-  readonly previewContextFit: (params: PreviewContextFitParams) => Promise<ContextFitPreview>;
+   *  equals the canon boundary that turn stamps. Nothing persists — the transcript divider's live source. A room
+   *  whose host has bound no chat connection answers the unbound state instead of a refusal. */
+  readonly previewContextFit: (params: PreviewContextFitParams) => Promise<ContextFitAnswer>;
   /** Paged canon read — each slot joined to its selected variant + the page's macro name producer. */
   readonly listMessages: (params: ListMessagesParams) => Promise<MessagesPage>;
   /** The full sibling-variant set for one slot — `{variantId, idx}[]` ordered by idx, no content. */

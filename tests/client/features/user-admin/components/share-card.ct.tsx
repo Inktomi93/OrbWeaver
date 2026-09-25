@@ -20,13 +20,33 @@ const DELEGATED_ADMIN = { userId: "user_admin", handle: "admin", globalRole: "ad
 const FIRST_URL = "https://first-words-here.trycloudflare.com";
 const SECOND_URL = "https://other-words-now.trycloudflare.com";
 
-const OFF: ShareStatus = { relay: { state: "off" }, liveSocketCount: 0, publicAddresses: [] };
-const STARTING: ShareStatus = { relay: { state: "starting", relay: "quick", restartAfter: null }, liveSocketCount: 0, publicAddresses: [] };
-const UP_FIRST: ShareStatus = { relay: { state: "up", relay: "quick", url: FIRST_URL }, liveSocketCount: 3, publicAddresses: [] };
-const UP_SECOND: ShareStatus = { relay: { state: "up", relay: "quick", url: SECOND_URL }, liveSocketCount: 1, publicAddresses: [] };
-const DOWN_RESTARTING: ShareStatus = { relay: { state: "down", relay: "quick", reason: "exited", restarting: true }, liveSocketCount: 0, publicAddresses: [] };
-const RESTART_STARTING: ShareStatus = { relay: { state: "starting", relay: "quick", restartAfter: "exited" }, liveSocketCount: 0, publicAddresses: [] };
-const GAVE_UP: ShareStatus = { relay: { state: "down", relay: "quick", reason: "launch_failed", restarting: false }, liveSocketCount: 0, publicAddresses: [] };
+const OFF: ShareStatus = { relay: { state: "off" }, liveSocketCount: 0, publicAddresses: [], standingRefusal: null };
+const STARTING: ShareStatus = {
+  relay: { state: "starting", relay: "quick", restartAfter: null },
+  liveSocketCount: 0,
+  publicAddresses: [],
+  standingRefusal: null,
+};
+const UP_FIRST: ShareStatus = { relay: { state: "up", relay: "quick", url: FIRST_URL }, liveSocketCount: 3, publicAddresses: [], standingRefusal: null };
+const UP_SECOND: ShareStatus = { relay: { state: "up", relay: "quick", url: SECOND_URL }, liveSocketCount: 1, publicAddresses: [], standingRefusal: null };
+const DOWN_RESTARTING: ShareStatus = {
+  relay: { state: "down", relay: "quick", reason: "exited", restarting: true },
+  liveSocketCount: 0,
+  publicAddresses: [],
+  standingRefusal: null,
+};
+const RESTART_STARTING: ShareStatus = {
+  relay: { state: "starting", relay: "quick", restartAfter: "exited" },
+  liveSocketCount: 0,
+  publicAddresses: [],
+  standingRefusal: null,
+};
+const GAVE_UP: ShareStatus = {
+  relay: { state: "down", relay: "quick", reason: "launch_failed", restarting: false },
+  liveSocketCount: 0,
+  publicAddresses: [],
+  standingRefusal: null,
+};
 
 const SEATING_ON: Partial<EffectiveAppSettings> = { localMultiUser: true, discreetLogin: true };
 const SEATING_OFF: Partial<EffectiveAppSettings> = { localMultiUser: false, discreetLogin: false };
@@ -208,6 +228,20 @@ test("a refused start is announced on the row it belongs to, and Start sharing s
   await expect.poll(() => trpc.count("share.start")).toBe(1);
 });
 
+// A container carries no relay, and the server knows it without a start: the relay row shows that refusal before any
+// press and holds Start, instead of reading "checked on start" and refusing only after the press.
+test("in a container the relay row shows its refusal before any press, and Start sharing is held", async ({ mount, page }) => {
+  const standing = { code: "share_in_container", message: "This server runs in a container, which carries no relay." } as const;
+  const { trpc } = await stubShare(page, { mode: "local", initial: { ...OFF, standingRefusal: standing } });
+  await mount(<GovernanceSectionsStory />);
+
+  const card = shareCard(page);
+  await expect(precondition(card, "relay")).toHaveAttribute("data-verdict", "unmet");
+  await expect(precondition(card, "relay").getByRole("alert")).toHaveCount(0);
+  await expect(card.getByRole("button", { name: "Start sharing" })).toHaveAttribute("aria-disabled", "true");
+  await expect.poll(() => trpc.count("share.start")).toBe(0);
+});
+
 test("a relay restarting after a death reads Down until its new link, with Stop and no link", async ({ mount, page }) => {
   await stubShare(page, { mode: "local", initial: RESTART_STARTING });
   await mount(<GovernanceSectionsStory />);
@@ -351,7 +385,10 @@ test.describe("at the narrowest content width", () => {
   const LongUrl = "https://recommendations-bedroom-shareholders-adjustments.trycloudflare.com";
 
   test("the running card stays inside its own width, and its link wraps only after a dot, slash or hyphen", async ({ mount, page }) => {
-    await stubShare(page, { mode: "local", initial: { relay: { state: "up", relay: "quick", url: LongUrl }, liveSocketCount: 1, publicAddresses: [] } });
+    await stubShare(page, {
+      mode: "local",
+      initial: { relay: { state: "up", relay: "quick", url: LongUrl }, liveSocketCount: 1, publicAddresses: [], standingRefusal: null },
+    });
     await mount(<GovernanceSectionsStory width={360} />);
 
     const card = shareCard(page);
