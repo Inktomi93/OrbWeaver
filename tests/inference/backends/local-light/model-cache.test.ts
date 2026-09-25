@@ -5,10 +5,11 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import process from "node:process";
 import { modelIdSchema } from "@orb/contracts/inference";
 import { afterAll } from "vitest";
 import type { LocalLightModelCache } from "../../../../packages/inference/src/backends/local-light/model-cache.ts";
-import { createModelCache } from "../../../../packages/inference/src/backends/local-light/model-cache.ts";
+import { abortableWait, createModelCache } from "../../../../packages/inference/src/backends/local-light/model-cache.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const CACHE_DIR = mkdtempSync(join(tmpdir(), "orb-model-cache-"));
@@ -64,4 +65,38 @@ test("a config naming a model class as its model_type reaches the weight load in
   expect(failure).toBeInstanceOf(Error);
   expect(String(failure)).not.toContain(`Unsupported model type "${SEGFORMER_CLASS}"`);
   expect(String(failure)).toContain("model.onnx");
+});
+
+// A caller can pass a signal that already fired. The wait must still hand back a promise that rejects as aborted,
+// and it must still subscribe to the work, so a load that fails later is not an unhandled rejection.
+test("an already-aborted signal: the wait rejects as aborted and the work's later failure stays handled", async () => {
+  const load = Promise.withResolvers<number>();
+  const controller = new AbortController();
+  controller.abort();
+
+  let waited: Promise<number> | undefined;
+  expect(() => {
+    waited = abortableWait(load.promise, controller.signal);
+  }).not.toThrow();
+  await expect(waited).rejects.toMatchObject({ kind: "aborted" });
+
+  const unhandled: unknown[] = [];
+  const onUnhandled = (reason: unknown): void => {
+    unhandled.push(reason);
+  };
+  process.on("unhandledRejection", onUnhandled);
+  try {
+    load.reject(new Error("the load failed after the caller stopped waiting"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(unhandled).toEqual([]);
+  } finally {
+    process.off("unhandledRejection", onUnhandled);
+  }
+});
+
+test("an already-aborted signal wins over work that has already finished", async () => {
+  const controller = new AbortController();
+  controller.abort();
+
+  await expect(abortableWait(Promise.resolve(1), controller.signal)).rejects.toMatchObject({ kind: "aborted" });
 });
