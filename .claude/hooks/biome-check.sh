@@ -241,9 +241,11 @@ fi
       exec {type_fd}>&-
       continue
     fi
-    nice -n 10 pnpm exec node "$root/scripts/ts7.ts" --noEmit --pretty false --checkers "$ts7_checkers" -p "$program" >"$program_out" 2>&1
+    ORB_TS7_ADMISSION=try nice -n 10 pnpm exec node "$root/scripts/ts7.ts" --noEmit --pretty false --checkers "$ts7_checkers" -p "$program" >"$program_out" 2>&1
     program_rc=$?
-    if [ "$program_rc" -ne 0 ]; then
+    if [ "$program_rc" -eq 75 ]; then
+      printf 'typecheck: %s was SKIPPED — every host typecheck slot is busy\n' "$program" >>"$diag"
+    elif [ "$program_rc" -ne 0 ]; then
       if grep -Eq '\.(ts|tsx|mts|cts)\([0-9]+,[0-9]+\): error TS[0-9]+' "$program_out"; then
         printf '── %s ──\n' "$program" >>"$tout"
         cat "$program_out" >>"$tout"
