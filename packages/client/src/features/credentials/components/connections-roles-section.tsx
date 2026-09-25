@@ -43,6 +43,7 @@ import { useState } from "react";
 import { QueryBoundary } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
+import { cn } from "#lib";
 import { configAnchorId } from "#state";
 import { useSetBinding, useUpdateConnection } from "../hooks/use-connections-mutations.ts";
 import type { RoleConnectionFacts, RoleRequirementVerdict, RoleRow } from "../lib/connections-model.ts";
@@ -215,11 +216,12 @@ function RoleSlotRow({ row, connections, view, trpc, invalidation }: RoleSlotRow
  *  silently restyle the arm that is the opposite of steady. The blocked arm repeats the status dot's own
  *  accessible name word for word, which is what makes the amber dot decidable without colour. */
 function ReadoutLine({ readout }: { readonly readout: RoleReadout }): ReactElement {
-  const className = READOUT_INK[readout.kind];
+  // Capped at the prose measure: a readout naming a long connection never runs across a wide pane.
+  const className = cn(READOUT_INK[readout.kind], "max-w-(--reading-measure-prose)");
   if (readout.kind === "steady") {
     return (
       <Text voice="gloss" className={className}>
-        A turn uses {readout.connection}.
+        {readout.connection === null ? "A turn uses the connection picked here." : `A turn uses ${readout.connection}.`}
       </Text>
     );
   }

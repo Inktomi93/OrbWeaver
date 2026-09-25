@@ -235,27 +235,29 @@ export interface RoleConnectionFacts {
  *  feature's `lib/` is not a type home (`no-inline-types`), so the shape is DERIVED at every reader through
  *  `ReturnType<typeof roleReadout>` — one home, and a fifth arm is a `tsc` error at every consumer. */
 type RoleReadout =
-  | { readonly kind: "steady"; readonly connection: string }
+  // `connection: null` — the picker beside the sentence already shows what a turn uses, so the sentence does not
+  // say it twice; a name appears only when a turn runs on something the picker does not show.
+  | { readonly kind: "steady"; readonly connection: string | null }
   | { readonly kind: "divergent"; readonly connection: string }
   | { readonly kind: "unset" }
   | { readonly kind: "blocked"; readonly cause: string };
 
-/** The clause after "Set, but not running — ", per cause. A mapped `Record` rather than a `switch`: biome
- *  reads every arm of a cross-module union switch as unreachable, and a map makes a new `UnavailableCause`
- *  member a `tsc` error here instead of a row with no words. */
+/** The clause after "Set, but not running — ", per cause, with no closing period: the readout sentence owns its
+ *  own end. A mapped `Record` rather than a `switch`: biome reads every arm of a cross-module union switch as
+ *  unreachable, and a map makes a new `UnavailableCause` member a `tsc` error here instead of a row with no words. */
 const UNAVAILABLE_CLAUSES: Record<UnavailableCause, string> = {
-  "no-connection": "the connection it pointed at is gone.",
+  "no-connection": "the connection it pointed at is gone",
   // The host arm below wins whenever the row HAS a URL; this is the hosted-provider fallback.
-  "endpoint-unreachable": "the server isn't answering.",
-  "runtime-missing": "the Claude runtime isn't installed on this server.",
-  "background-refused": "this connection doesn't allow background work.",
-  "requirement-unmet": "this model can't do this job.",
-  unavailable: "this connection isn't available on this server.",
-  "model-load-failed": "its built-in model failed to load on this server; the next use tries again.",
+  "endpoint-unreachable": "the server isn't answering",
+  "runtime-missing": "the Claude runtime isn't installed on this server",
+  "background-refused": "this connection doesn't allow background work",
+  "requirement-unmet": "this model can't do this job",
+  unavailable: "this connection isn't available on this server",
+  "model-load-failed": "its built-in model failed to load on this server; the next use tries again",
 };
 
 /** The honest silence for a refusal the server declined to name — never a raw cause code on screen. */
-const UNAVAILABLE_UNKNOWN = "it isn't available right now.";
+const UNAVAILABLE_UNKNOWN = "it isn't available right now";
 
 /** A resolved connection the `connection.list` read does not carry (a row removed between the two reads).
  *  Named rather than blank: a readout that says nothing reads as "a turn uses <empty>". */
@@ -263,7 +265,7 @@ const UNLISTED_CONNECTION = "a connection that is no longer listed";
 
 function unavailableClause(cause: UnavailableCause | null, host: string | null): string {
   if (cause === "endpoint-unreachable" && host !== null) {
-    return `can't reach ${host}.`;
+    return `can't reach ${host}`;
   }
   return cause === null ? UNAVAILABLE_UNKNOWN : UNAVAILABLE_CLAUSES[cause];
 }
@@ -287,13 +289,16 @@ export function roleReadout(args: {
   readonly factsOf: (connectionId: string) => RoleConnectionFacts | null;
 }): RoleReadout {
   const resolved = args.view?.resolved ?? null;
+  const bound = args.view?.binding?.connectionId ?? null;
   if (resolved !== null) {
     const facts = args.factsOf(resolved.connectionId);
     const connection = facts === null ? UNLISTED_CONNECTION : facts.label;
     const draft = args.draftConnectionId;
-    return draft !== undefined && draft !== resolved.connectionId ? { kind: "divergent", connection } : { kind: "steady", connection };
+    if (draft !== undefined && draft !== resolved.connectionId) {
+      return { kind: "divergent", connection };
+    }
+    return { kind: "steady", connection: bound === resolved.connectionId ? null : connection };
   }
-  const bound = args.view?.binding?.connectionId ?? null;
   if (bound === null) {
     return { kind: "unset" };
   }

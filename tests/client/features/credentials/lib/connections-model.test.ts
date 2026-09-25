@@ -179,9 +179,13 @@ test("bindRefusal: a background task on a row with allowBackground OFF is refuse
 // picker 40px away shows (side-eye F6: the shipped readout named the registry id and the raw model id, so
 // the comparison the readout exists for was a translation exercise).
 
-test("steady: a bound, resolving role names the connection in the PICKER's words, never a registry id", () => {
+test("steady: a bound role running on its own pick does not repeat the picker; one running on anything else names it", () => {
   const view = { binding: boundTo(OPENROUTER), resolved: { connectionId: OPENROUTER, capability: generation() }, unavailableCause: null };
-  expect(roleReadout({ view, draftConnectionId: undefined, factsOf })).toEqual({ kind: "steady", connection: "OpenRouter · Claude Opus 5" });
+  expect(roleReadout({ view, draftConnectionId: undefined, factsOf })).toEqual({ kind: "steady", connection: null });
+  // A turn that runs on a connection the picker does not show (the picker reads "Not set") is named in the
+  // PICKER's words, never a registry id.
+  const fallback = { binding: null, resolved: { connectionId: OPENROUTER, capability: generation() }, unavailableCause: null };
+  expect(roleReadout({ view: fallback, draftConnectionId: undefined, factsOf })).toEqual({ kind: "steady", connection: "OpenRouter · Claude Opus 5" });
   // The untouched picker is the one state that can never diverge, and a draft EQUAL to the persisted row
   // is not divergence either — "Not applied yet" about an applied pick is the lie this arm must not tell.
   expect(roleReadout({ view, draftConnectionId: OPENROUTER, factsOf }).kind).toBe("steady");
@@ -207,16 +211,18 @@ test("unset: nothing bound says so, and an ABSENT view is unset rather than a bl
 
 test("blocked: a bound role that would not run states its cause, and the host arm is §5.3a's sentence", () => {
   const view = { binding: boundTo(LOCAL), resolved: null, unavailableCause: "endpoint-unreachable" } as const;
-  expect(roleReadout({ view, draftConnectionId: undefined, factsOf })).toEqual({ kind: "blocked", cause: "can't reach 127.0.0.1:8000." });
+  expect(roleReadout({ view, draftConnectionId: undefined, factsOf })).toEqual({ kind: "blocked", cause: "can't reach 127.0.0.1:8000" });
   // A HOSTED row has no host to name — the sentence degrades rather than rendering "can't reach ."
   const hosted = { binding: boundTo(OPENROUTER), resolved: null, unavailableCause: "endpoint-unreachable" } as const;
-  expect(roleReadout({ view: hosted, draftConnectionId: undefined, factsOf })).toEqual({ kind: "blocked", cause: "the server isn't answering." });
+  expect(roleReadout({ view: hosted, draftConnectionId: undefined, factsOf })).toEqual({ kind: "blocked", cause: "the server isn't answering" });
   // Every other cause is a SENTENCE, never the raw code — the shipped row rendered `endpoint-unreachable`
   // as a badge, which is a schema word on a user surface.
   for (const cause of UNAVAILABLE_CAUSES) {
     const readout = roleReadout({ view: { binding: boundTo(OPENROUTER), resolved: null, unavailableCause: cause }, draftConnectionId: undefined, factsOf });
     expect(readout.kind).toBe("blocked");
     expect(readout.kind === "blocked" ? readout.cause : "").not.toContain(cause);
+    // The sentence ends with ONE period, which the readout line owns: a clause that brought its own printed two.
+    expect(readout.kind === "blocked" ? readout.cause : "").not.toMatch(/\.$/u);
   }
 });
 

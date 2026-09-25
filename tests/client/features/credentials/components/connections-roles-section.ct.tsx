@@ -373,7 +373,7 @@ test("a role that already RUNS is not offered a repair it does not need", async 
   await mount(<ConnectionsSettingsStory />);
 
   const roles = page.locator("#config-anchor-connections-model-roles");
-  await expect(roles.getByText("A turn uses OpenRouter · Claude Sonnet 5 · anthropic/claude-sonnet-5.")).toBeVisible();
+  await expect(roles.getByText("A turn uses the connection picked here.", { exact: true })).toBeVisible();
   await expect(roles.getByRole("switch", { name: /^Allow background work on Cheap utility/u })).toHaveCount(0);
 });
 
@@ -403,7 +403,7 @@ test("an unreconciled pick says 'Not applied yet' and still names what a turn US
   const release = await gateTheWrite(page);
   await mount(<ConnectionsSettingsStory />);
 
-  const persisted = page.getByText("A turn uses OpenRouter · Claude Sonnet 5 · anthropic/claude-sonnet-5.");
+  const persisted = page.getByText("A turn uses the connection picked here.", { exact: true });
   const chat = roleSelect(page, "Chat");
   await expect(persisted).toBeVisible();
   await expect(chat).toContainText("OpenRouter · Claude Sonnet 5");
@@ -413,7 +413,7 @@ test("an unreconciled pick says 'Not applied yet' and still names what a turn US
 
   // The steady sentence is GONE and the divergence sentence names the PERSISTED row — never the pick. A
   // surface that painted "A turn uses Cheap utility" here would be the 2026-08-01 phantom again.
-  await expect(page.getByText("Not applied yet — a turn still uses OpenRouter · Claude Sonnet 5 · anthropic/claude-sonnet-5.")).toBeVisible();
+  await expect(page.getByText("Not applied yet — a turn still uses OpenRouter · Claude Sonnet 5 · anthropic/claude-sonnet-5.", { exact: true })).toBeVisible();
   await expect(persisted).toHaveCount(0);
   await expect(page.getByText("A turn uses Cheap utility · openai/gpt-5-mini.")).toHaveCount(0);
 
@@ -426,8 +426,8 @@ test("an unbound row says nothing is set, and names no model", async ({ mount, p
   await stubPane(page);
   await mount(<ConnectionsSettingsStory />);
 
-  await expect(page.getByText("Nothing — no connection is set.").first()).toBeVisible();
-  await expect(page.getByText("Nothing — no connection is set.")).toHaveCount(ROLE_ROWS_ORDERED.length);
+  await expect(page.getByText("Nothing — no connection is set.", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Nothing — no connection is set.", { exact: true })).toHaveCount(ROLE_ROWS_ORDERED.length);
   // The shipped sentence read "A turn uses nothing — …", in which "uses nothing" parses for a beat as
   // "uses [the thing called] nothing". It is gone.
   await expect(page.getByText("A turn uses nothing", { exact: false })).toHaveCount(0);
@@ -443,7 +443,8 @@ test("a bound row that cannot resolve repeats the dot's own words and names the 
   });
   await mount(<ConnectionsSettingsStory />);
 
-  await expect(page.getByText("Set, but not running — can't reach 127.0.0.1:8000.")).toBeVisible();
+  // Exact: the whole sentence, ending in ONE period.
+  await expect(page.getByText("Set, but not running — can't reach 127.0.0.1:8000.", { exact: true })).toBeVisible();
   // The raw cause code never reaches the surface.
   await expect(page.getByText("endpoint-unreachable", { exact: true })).toHaveCount(0);
   // …and the picker still shows the row the user chose — the store's value, never a healed substitute.
@@ -476,7 +477,7 @@ test("every dot state carries a plain-words name, and every state is decidable w
   await expect(roles.getByText(blockedSentence)).toBeVisible();
   await roles.getByRole("img", { name: ROLE_STATUS_LABELS.blocked, exact: true }).evaluate((node) => node.remove());
   await expect(roles.getByText(blockedSentence)).toBeVisible();
-  await expect(roles.getByText("A turn uses OpenRouter · Claude Sonnet 5 · anthropic/claude-sonnet-5.")).toBeVisible();
+  await expect(roles.getByText("A turn uses the connection picked here.", { exact: true })).toBeVisible();
 });
 
 // A FAILED REQUIREMENT IS NOT THE DOT. The Utility slot's three consumers fail SEPARATELY, so the rail says
@@ -528,7 +529,7 @@ test("hosted: the Connections pane paints no save status of its own", async ({ m
   await mount(<ConnectionsSettingsHostedStory />);
 
   // Barrier on a SETTLED rendered arm of the pane before reading the status seam.
-  await expect(page.getByText("A turn uses OpenRouter · Claude Sonnet 5 · anthropic/claude-sonnet-5.")).toBeVisible();
+  await expect(page.getByText("A turn uses the connection picked here.", { exact: true })).toBeVisible();
   await expect(page.getByTestId("aggregate")).toHaveText("none");
   await expect(page.locator(AUTOSAVE_STATUS)).toHaveCount(0);
 });
