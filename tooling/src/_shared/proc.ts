@@ -1,14 +1,14 @@
-// The ONE subprocess home (policy `tooling-child-process-door`): every niced spawn here goes through
-// `niced-exec.ts`, our portable replacement for `nice -n 19` (owner-endorsed 2026-08-21 — the box co-hosts
-// the homelab). It never lowers THIS process's own priority, only the launcher's, so a full-priority
-// door's child stays at this process's own priority. Three seams: spawnNiced (async, collected, timeout),
-// runNicedSync (sync, collect or stdio passthrough), execNicedSync (sync, THROWS on non-zero).
+// The ONE subprocess home (policy `tooling-child-process-door`): every niced spawn lowers the child's
+// priority (owner-endorsed 2026-08-21 — the box co-hosts the homelab), never THIS process's own. The sync
+// doors route through `niced-exec.ts`, our portable `nice -n 19`; the async doors spawn `cmd` directly and
+// call `lowerChildPriority` (measured cheaper — see that export's header). A full-priority door's child
+// stays at this process's own priority either way.
 //
 // THE AMBIENT-ENV DOOR MOVED OUT (#1848) to ./process-env.ts — same functions, same names, same behaviour
 // — when the run-marker sweep was wired into the transcript door's kill path and this file reached its
 // 450-line cap. Reading the environment is not a subprocess capability; spawning is, and that half is here.
 import { execFileSync, spawn, spawnSync } from "node:child_process";
-import { closeSync, existsSync, openSync } from "node:fs";
+import { closeSync, openSync } from "node:fs";
 import { constants as osConstants } from "node:os";
 import process from "node:process";
 import { budget } from "./load-budget.ts";
@@ -28,7 +28,7 @@ import type {
   TranscriptResult,
 } from "./proc-contract.ts";
 import { inheritedProcessEnv } from "./process-env.ts";
-import { nicedArgv } from "./process-priority.ts";
+import { lowerChildPriority, nicedArgv } from "./process-priority.ts";
 import type { RunMarkerSweep } from "./run-marker.ts";
 import { armRunMarkerTeardown, describeRunMarkerSweep, sweepRunMarker } from "./run-marker.ts";
 
@@ -312,20 +312,21 @@ export function childExitCode(exit: ChildExit): number {
   return SIGNAL_EXIT_BASE + osConstants.signals[exit.signal];
 }
 
-/** Long-lived detached child through niced-exec.ts's lowered priority (server/supervisor/daemon shape): own
- *  process group, reaped by `killGroup`. */
+/** Long-lived detached child, priority lowered directly after spawn (own process group, reaped by
+ *  `killGroup`) — the ASYNC-door half of the niced-exec.ts pair, see `lowerChildPriority`'s header. */
 export function spawnNicedChild(cmd: string, args: readonly string[], opts: NicedChildOptions = {}): NicedChild {
   if (opts.logPath !== undefined && opts.onOutput !== undefined) {
     throw new Error("spawnNicedChild: logPath and onOutput are mutually exclusive — a child logs to a file or pipes to its parent, never both");
   }
   const logFd = opts.logPath === undefined ? undefined : openSync(opts.logPath, "a");
-  const child = spawn(process.execPath, nicedArgv(cmd, args), {
+  const child = spawn(cmd, [...args], {
     ...(opts.cwd === undefined ? {} : { cwd: opts.cwd }),
     ...(opts.env === undefined ? {} : { env: opts.env }),
     // win32 `detached` opens a new console window; the launcher below stays foreground there instead.
     detached: DETACHED_GROUP_LEADER,
     stdio: childStdio(undefined, logFd),
   });
+  lowerChildPriority(child.pid);
   if (logFd !== undefined) {
     // The child holds its own dups; the parent copy would leak one fd per spawn (engines audit, 08-03).
     closeSync(logFd);
@@ -342,7 +343,7 @@ export function spawnNicedChild(cmd: string, args: readonly string[], opts: Nice
   };
 }
 
-/** Long-running child through niced-exec.ts's lowered priority whose OUTPUT ORDER is load-bearing: stdout
+/** Long-running child, priority lowered directly after spawn, whose OUTPUT ORDER is load-bearing: stdout
  *  and stderr are captured INTERLEAVED in arrival order, with no maxBuffer ceiling (`CaptureCeilingOption`
  *  above is the one home for why: the ceiling kills, it does not clip — so this door declines to have one).
  *  The caller names the TIME ceiling instead; past it the child's whole GROUP dies and the transcript says
@@ -350,17 +351,10 @@ export function spawnNicedChild(cmd: string, args: readonly string[], opts: Nice
 export function spawnNicedTranscript(cmd: string, args: readonly string[], opts: TranscriptOptions): Promise<TranscriptResult> {
   return new Promise<TranscriptResult>((resolvePromise) => {
     const chunks: string[] = [];
-    // EXIT HONESTY vs the niced-exec wrapper: the outer spawn is always `process.execPath` (it always
-    // exists), so a missing `cmd` fails one level down as niced-exec's OWN toolError exit (2) — a number a
-    // generic classifier reads as a VIOLATION, same as tsc's real exit 2. Existence-check the path first so
-    // a vanished bin stays `code: null`, exactly as when `nice` exec'd the target in place.
-    if (cmd.includes("/") && !existsSync(cmd)) {
-      resolvePromise({ code: null, transcript: `\n[proc] spawn failed: ${cmd} does not exist\n` });
-      return;
-    }
     // `detached` so the child leads its own group: a stage is `pnpm → node → the tool`, and killing only
     // the direct child leaves the tool running with the pipes open — the promise would never settle.
-    const child = spawn(process.execPath, nicedArgv(cmd, args), { cwd: opts.cwd, shell: false, env: opts.env, detached: DETACHED_GROUP_LEADER });
+    const child = spawn(cmd, [...args], { cwd: opts.cwd, shell: false, env: opts.env, detached: DETACHED_GROUP_LEADER });
+    lowerChildPriority(child.pid);
     // THE GROUP KILL IS NOT THE WHOLE TEARDOWN (#1848). Playwright's browsers and vite's service children
     // leave the group, so the marker sweep runs AFTER it and the promise waits for that sweep to finish —
     // otherwise the transcript would resolve before the line saying what it reaped.
@@ -410,17 +404,18 @@ export function spawnNicedTranscript(cmd: string, args: readonly string[], opts:
   });
 }
 
-/** Spawn `cmd args…` through niced-exec.ts's lowered priority, collect utf8 output, resolve on exit
+/** Spawn `cmd args…`, priority lowered directly after spawn, collect utf8 output, resolve on exit
  *  (never rejects on a non-zero code — the CALLER judges codes against the exit contract). */
 export function spawnNiced(cmd: string, args: readonly string[], opts: SpawnNicedOptions = {}): Promise<SpawnNicedResult> {
   return new Promise((resolvePromise, rejectPromise) => {
-    const child = spawn(process.execPath, nicedArgv(cmd, args), {
+    const child = spawn(cmd, [...args], {
       cwd: opts.cwd,
       env: inheritedProcessEnv(opts.env),
       stdio: ["ignore", "pipe", "pipe"],
       // Its own process group, the `spawnNicedChild`/`spawnFullPriorityChild` shape — see the timeout below.
       detached: DETACHED_GROUP_LEADER,
     });
+    lowerChildPriority(child.pid);
     let stdout = "";
     let stderr = "";
     let timedOut = false;

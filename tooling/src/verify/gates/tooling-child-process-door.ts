@@ -1,5 +1,5 @@
 // Policy: tooling-child-process-door (docs/law/Core-Tooling-Law.md §4.4, arms F + F2 of the
-// retired `tooling-shared-plumbing`) — every tooling spawn rides the PRIORITY_BELOW_NORMAL (10, every OS) homelab floor through the ONE
+// retired `tooling-shared-plumbing`) — every tooling spawn rides the TOOLING_PRIORITY (10, every OS) homelab floor through the ONE
 // subprocess home, `_shared/proc.ts`: a `node:child_process` import anywhere else under `tooling/src/**` is a
 // raw spawn that bypasses the floor (arm F), and a call to one of the home's FULL-PRIORITY doors
 // (`spawnFullPrioritySync`, `spawnFullPriorityChild` — the un-niced exceptions for a process a human waits
@@ -57,7 +57,7 @@ const IMPORT_OPERATION = "child-process-import";
 const SPAWN_OPERATION = "full-priority-spawn";
 
 const MESSAGE =
-  "a subprocess outside the ONE home — every tooling spawn rides the PRIORITY_BELOW_NORMAL (10, every OS) homelab floor through _shared/proc.ts (`spawnNiced`/`runNicedSync`/`spawnNicedChild`): a direct `node:child_process` import bypasses the floor, and a call to a FULL-PRIORITY door (`spawnFullPrioritySync`/`spawnFullPriorityChild`, the un-niced exceptions for a process a human waits on or that IS the workload) is licensed per caller by an exact reviewed grant, never ambient (docs/law/Core-Tooling-Law.md §4.4).";
+  "a subprocess outside the ONE home — every tooling spawn rides the TOOLING_PRIORITY (10, every OS) homelab floor through _shared/proc.ts (`spawnNiced`/`runNicedSync`/`spawnNicedChild`): a direct `node:child_process` import bypasses the floor, and a call to a FULL-PRIORITY door (`spawnFullPrioritySync`/`spawnFullPriorityChild`, the un-niced exceptions for a process a human waits on or that IS the workload) is licensed per caller by an exact reviewed grant, never ambient (docs/law/Core-Tooling-Law.md §4.4).";
 const UNREADABLE =
   "a call spelled like a full-priority spawn door whose callee the shared readers cannot place, so whether it is proc.ts's un-niced door CANNOT be established. Reported rather than passed: the spelling alone is not the identity.";
 const FIX =
@@ -146,7 +146,7 @@ export const gate = defineGate({
       grant: { subject: "tooling/src/seed/ops/raw.ts", operation: "child-process-import" },
       files: { [PROC_HOME.path]: procStub(), "tooling/src/seed/ops/raw.ts": 'import { spawn } from "node:child_process";\nexport const s = spawn;\n' },
       expect: { count: 1, token: '"node:child_process"', messageIncludes: "Subject: tooling/src/seed/ops/raw.ts, operation: child-process-import" },
-      why: "the founding shape — a direct child_process import outside proc.ts bypasses the PRIORITY_BELOW_NORMAL (10, every OS) homelab floor (arm F); the position is the quoted specifier",
+      why: "the founding shape — a direct child_process import outside proc.ts bypasses the TOOLING_PRIORITY (10, every OS) homelab floor (arm F); the position is the quoted specifier",
     },
     {
       mode: "types",

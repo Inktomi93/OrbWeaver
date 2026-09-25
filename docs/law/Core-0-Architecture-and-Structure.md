@@ -313,7 +313,7 @@ toolError: 2, misuse: 3 }` and `run-tool.ts` is the exit-honesty runner every `c
 crash ≠ verdict (an uncaught throw becomes a hard `toolError`, never a silent 1), verdicts set
 `process.exitCode` so stdout drains, and a verdict never downgrades. `proc.ts` is the ONE
 `node:child_process` door — every niced spawn rides `niced-exec.ts`, a launcher that lowers its own
-priority to `PRIORITY_BELOW_NORMAL` (10, every OS) before running the real command, because the box
+priority to `TOOLING_PRIORITY` (10, every OS) before running the real command, because the box
 co-hosts other services; an un-niced spawn needs a cited census row stating why that priority is wrong
 there.
 

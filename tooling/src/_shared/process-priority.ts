@@ -24,7 +24,29 @@ export function lowerToolingPriority(): void {
 const NICED_EXEC_ENTRY = fileURLToPath(new URL("./niced-exec.ts", import.meta.url));
 
 /** The argv that runs `cmd args…` through `niced-exec.ts`: `spawn(process.execPath, nicedArgv(cmd, args))`
- *  is the one-line replacement for the old `spawn("nice", ["-n", "19", cmd, ...args])`. */
+ *  is the one-line replacement for the old `spawn("nice", ["-n", "19", cmd, ...args])`. Reserved for a
+ *  SYNC door: it blocks anyway, so the extra process is proportionally cheap, and there is no pid to lower
+ *  directly before a sync spawn returns. An ASYNC door spawns `cmd` directly and calls
+ *  {@link lowerChildPriority} instead — measured 62ms for a niced-exec round trip against 2ms direct on
+ *  this box, and an async door DOES have the pid the moment `spawn` returns. */
 export function nicedArgv(cmd: string, args: readonly string[]): readonly string[] {
   return [NICED_EXEC_ENTRY, cmd, ...args];
+}
+
+/** Lower an already-spawned child's OS priority directly — the async-door half of the pair above. Never
+ *  throws: the child may have already exited (a fast `true`/`echo`) by the time this runs, which is not a
+ *  caller-visible failure. */
+export function lowerChildPriority(pid: number | undefined): void {
+  if (pid === undefined) {
+    return;
+  }
+  // @orb-waive caught-failure-ownership(error): the child racing to exit before this call lands is expected and harmless — the priority hint is advisory, not a correctness requirement, and the caller's own exit/error handlers own the child's real outcome. Ends if a caller starts depending on this call's success.
+  try {
+    setPriority(pid, TOOLING_PRIORITY);
+  } catch (error) {
+    const code = error instanceof Error && "code" in error ? (error as { readonly code?: unknown }).code : undefined;
+    if (code !== "ESRCH") {
+      throw error;
+    }
+  }
 }

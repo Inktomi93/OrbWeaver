@@ -34,7 +34,7 @@
 //      evaluates repeated selectors as a union; splitting them can duplicate or widen execution. The shard
 //      reports are merged into the ONE `--outputFile.json` path the rest of the repo reads. A wedge is a
 //      per-process race, so a wedge now costs ONE literal project shard instead of the whole run's verdict.
-//   2. WATCHDOG — PROGRESS, NOT SILENCE. Each shard is spawned through `niced-exec.ts` (PRIORITY_BELOW_NORMAL,
+//   2. WATCHDOG — PROGRESS, NOT SILENCE. Each shard is spawned through `niced-exec.ts` (TOOLING_PRIORITY,
 //      10 on every OS) as a process-group leader and its output tee'd live, but SILENCE ALONE IS NOT THE
 //      WEDGE SIGNAL. **Truth repair, measured
 //      2026-09-01:** the previous version of this file claimed 300s was "~2.5× the longest legitimate quiet

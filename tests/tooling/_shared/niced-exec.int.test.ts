@@ -17,6 +17,15 @@ import { scaledBudget } from "../_load-budget.ts";
 const REPO_ROOT = new URL("../../../", import.meta.url);
 const NICED_EXEC_PATH = `${REPO_ROOT.pathname}tooling/src/_shared/niced-exec.ts`;
 
+/** `/proc/<pid>/stat` field 5 (1-indexed) is the process's own group id — the one POSIX fact that proves
+ *  or disproves a shared group directly, without inferring it from signal side effects. */
+function pgrpOf(pid: number): number {
+  const stat = readFileSync(`/proc/${pid}/stat`, "utf8");
+  const afterComm = stat.slice(stat.lastIndexOf(")") + 2);
+  const fields = afterComm.split(" ");
+  return Number(fields[2]);
+}
+
 function isAlive(pid: number): boolean {
   try {
     process.kill(pid, 0);
@@ -93,6 +102,40 @@ test("SIGHUP to the launcher ends its real child, so a closed terminal never orp
       await sleep(50);
     }
     expect(isAlive(childPid), "SIGHUP to the launcher must end its real child, not just itself").toBe(false);
+  } finally {
+    if (launcher.exitCode === null && launcher.pid !== undefined) {
+      try {
+        process.kill(launcher.pid, "SIGKILL");
+      } catch {
+        // Already gone.
+      }
+    }
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test("the real child leads its OWN process group, never the launcher's, so a signal is never delivered twice (#4, leg 4)", async () => {
+  const home = mkdtempSync(path.join(tmpdir(), "orb-niced-exec-group-"));
+  const pidFile = path.join(home, "child.pid");
+  const childScript = [
+    "const { writeFileSync } = require('node:fs');",
+    `writeFileSync(${JSON.stringify(pidFile)}, String(process.pid));`,
+    "setInterval(() => undefined, 1e9);",
+  ].join("\n");
+  // NOT detached: this launcher shares ITS OWN process group with the test runner, matching the
+  // package.json-script shape the defect was measured in (a terminal's foreground group).
+  const launcher = spawn(process.execPath, [NICED_EXEC_PATH, process.execPath, "-e", childScript], { stdio: "ignore" });
+  try {
+    for (let i = 0; i < 100 && !existsSync(pidFile); i += 1) {
+      await sleep(50);
+    }
+    expect(existsSync(pidFile)).toBe(true);
+    const childPid = Number(readFileSync(pidFile, "utf8"));
+    expect(launcher.pid, "the launcher must have a real pid to compare groups against").not.toBeUndefined();
+    const launcherPgrp = pgrpOf(launcher.pid as number);
+    const childPgrp = pgrpOf(childPid);
+    expect(childPgrp, "the child's group must be its OWN pid, not the launcher's group").toBe(childPid);
+    expect(childPgrp, "the child must NOT share the launcher's group, or a terminal signal reaches it twice").not.toBe(launcherPgrp);
   } finally {
     if (launcher.exitCode === null && launcher.pid !== undefined) {
       try {

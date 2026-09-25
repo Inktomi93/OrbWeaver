@@ -44,6 +44,14 @@ export const REVIEWED_GRANTS_TOOLING_TO_PERMISSION: readonly ReviewedGateGrant[]
     endsWhen: "both observations move in-process or behind a different worker — the row is then consumed zero times and reds.",
   },
   {
+    id: "tooling-argv-front-door:niced-exec",
+    policyId: "tooling-argv-front-door",
+    subject: "tooling/src/_shared/niced-exec.ts",
+    operation: "process-argv-read",
+    why: "it has no cli.ts shape: its whole job is passing an arbitrary caller's `cmd args…` through to a real spawn, so ITS argv IS the operator's request, not a second front door narrowing one.",
+    endsWhen: "niced-exec.ts stops reading its own argv or is retired — the row is then consumed zero times and reds.",
+  },
+  {
     id: "tooling-root-config-import:knip-negative-liveness",
     policyId: "tooling-root-config-import",
     subject: "tooling/src/verify/ops/knip-negative-liveness.ts",
@@ -81,7 +89,7 @@ export const REVIEWED_GRANTS_TOOLING_TO_PERMISSION: readonly ReviewedGateGrant[]
     policyId: "tooling-child-process-door",
     subject: "tooling/src/_shared/proc.ts",
     operation: "child-process-import",
-    why: "THE subprocess home: proc.ts is where `node:child_process` is imported so every tooling spawn rides the PRIORITY_BELOW_NORMAL (10, every OS) homelab floor through `niced-exec.ts` (`spawnNiced`/`runNicedSync`/`spawnNicedChild`); the two full-priority doors are defined here too (arm F of the retired plumbing gate).",
+    why: "THE subprocess home: proc.ts is where `node:child_process` is imported so every tooling spawn rides TOOLING_PRIORITY (10, every OS) through `niced-exec.ts` (`spawnNiced`/`runNicedSync`/`spawnNicedChild`); the two full-priority doors are defined here too (arm F of the retired plumbing gate).",
     endsWhen: "the subprocess home moves — the row is then consumed zero times and reds at its dead subject, which is the legacy HOMES stale sweep.",
   },
   {
