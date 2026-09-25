@@ -1,6 +1,6 @@
 // The OpenRouter provider probe batch — one harness, five standing probes.
 //
-//   PROBES=f4,f4a,f5,or5,or5b,or7,or7b,or8,or9,or10,or11   subset (default: all)
+//   PROBES=f4,f4a,f5,or5,or5b,or7,or7b,or8,or9,or10,or11,or12   subset (default: all)
 //   FORCE=1                              re-run a probe that already has a verdict row in its JSONL
 //
 // Resume unit is the PROBE, not the arm: the cache probes are only meaningful with their arms fired
@@ -22,8 +22,9 @@ import * as or8 from "./or8-same-role-adjacency.ts";
 import * as or9 from "./or9-reasoning-in-same-role-runs.ts";
 import * as or10 from "./or10-carry-prefix-binding.ts";
 import * as or11 from "./or11-depth-system-obedience.ts";
+import * as or12 from "./or12-per-turn-sections-history-cache.ts";
 
-const ALL = [f4, f4a, f5, or5, or5b, or7, or7b, or8, or9, or10, or11];
+const ALL = [f4, f4a, f5, or5, or5b, or7, or7b, or8, or9, or10, or11, or12];
 
 const requested = (process.env["PROBES"] ?? "").trim();
 const selected = requested.length > 0 ? ALL.filter((p) => requested.split(",").includes(p.id)) : ALL;
