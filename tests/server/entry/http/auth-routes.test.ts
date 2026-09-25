@@ -1104,9 +1104,8 @@ describe("OIDC login — the redirect_uri allowlist gate", () => {
     return rec;
   }
 
-  test("an off-allowlist origin → 400, NO transaction minted, no discovery round-trip", async () => {
-    const rec = recordingOidc(["https://chat.example.com/api/auth/oidc/callback"]);
-    const deps: AuthRoutesDeps = {
+  function loginDepsFor(rec: MintRecorder): AuthRoutesDeps {
+    return {
       sessions: recordingSessions().sessions,
       sockets: INERT_EVICTION,
       now: (): number => NOW,
@@ -1114,31 +1113,82 @@ describe("OIDC login — the redirect_uri allowlist gate", () => {
       resolveLoginLimit: (): number => 10,
       oidc: rec.deps,
     };
-    const res = await handlerFor(deps, "GET /api/auth/oidc/login")(makeCtx({ headers: { "x-forwarded-host": "evil.example", "x-forwarded-proto": "https" } }));
-    expect(res.status).toBe(400);
+  }
+
+  const canonicalCallback = "https://chat.example.com/api/auth/oidc/callback";
+  const canonicalLogin = "https://chat.example.com/login";
+
+  // The owner's ruling for a login started anywhere the allowlist does not name: send the browser to the login page
+  // on the configured origin. The target is built from OIDC_REDIRECT_URIS alone, so no request header can steer it.
+  test("an off-allowlist origin → 302 to the configured origin's login page, NO transaction minted, no discovery round-trip", async () => {
+    const rec = recordingOidc([canonicalCallback]);
+    const res = await handlerFor(
+      loginDepsFor(rec),
+      "GET /api/auth/oidc/login",
+    )(makeCtx({ headers: { "x-forwarded-host": "evil.example", "x-forwarded-proto": "https" } }));
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe(canonicalLogin);
+    expect(res.headers.getSetCookie()).toEqual([]);
     expect(rec.mints).toBe(0);
   });
 
   // The callback scheme and the cookie transport agree (Rule C): a header the transport rule does not
-  // believe cannot derive the https callback either, so the login refuses before any IdP round-trip.
+  // believe cannot derive the https callback either, so the login mints nothing and goes to the configured origin.
   test.each([
     ["a public peer forging X-Forwarded-Proto: https", "203.0.113.9", "https"],
     ["a trusted proxy whose chain carries a forged http", "127.0.0.1", "https, http"],
-  ])("%s → 400, no transaction minted", async (_label, peer, forwardedProto) => {
-    const rec = recordingOidc(["https://chat.example.com/api/auth/oidc/callback"]);
-    const deps: AuthRoutesDeps = {
-      sessions: recordingSessions().sessions,
-      sockets: INERT_EVICTION,
-      now: (): number => NOW,
-      db: STUB_DB,
-      resolveLoginLimit: (): number => 10,
-      oidc: rec.deps,
-    };
+  ])("%s → 302 to the configured origin, no transaction minted", async (_label, peer, forwardedProto) => {
+    const rec = recordingOidc([canonicalCallback]);
     const res = await handlerFor(
-      deps,
+      loginDepsFor(rec),
       "GET /api/auth/oidc/login",
     )(makeCtx({ peer, headers: { "x-forwarded-host": "chat.example.com", "x-forwarded-proto": forwardedProto } }));
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe(canonicalLogin);
+    expect(rec.mints).toBe(0);
+  });
+
+  test.each([
+    ["a LAN origin over plain http", "192.168.1.20", { host: "192.168.1.10:8788" }],
+    ["a loopback origin", "127.0.0.1", { host: "localhost:8788" }],
+    ["a quick-tunnel link", "127.0.0.1", { host: "random-words.trycloudflare.com", "x-forwarded-for": "198.51.100.7", "cf-connecting-ip": "198.51.100.7" }],
+  ])("%s → 302 to the configured origin's login page", async (_label, peer, headers) => {
+    const rec = recordingOidc([canonicalCallback]);
+    const res = await handlerFor(loginDepsFor(rec), "GET /api/auth/oidc/login")(makeCtx({ peer, headers }));
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe(canonicalLogin);
+    expect(rec.mints).toBe(0);
+  });
+
+  // The open-redirect abuse case: every header a client controls names the attacker, and none of them reaches Location.
+  test("a spoofed Host and X-Forwarded-Host still redirect only to the configured origin", async () => {
+    const rec = recordingOidc([canonicalCallback]);
+    const res = await handlerFor(
+      loginDepsFor(rec),
+      "GET /api/auth/oidc/login",
+    )(
+      makeCtx({
+        peer: "203.0.113.9",
+        url: "http://evil.example/api/auth/oidc/login?next=https://evil.example/",
+        headers: { host: "evil.example", "x-forwarded-host": "evil.example", "x-forwarded-proto": "https" },
+      }),
+    );
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe(canonicalLogin);
+    expect(new URL(res.headers.get("location") ?? "").host).toBe("chat.example.com");
+  });
+
+  test("with several callback URLs configured, the first one names the origin", async () => {
+    const rec = recordingOidc([canonicalCallback, "http://192.168.1.10:8788/api/auth/oidc/callback"]);
+    const res = await handlerFor(loginDepsFor(rec), "GET /api/auth/oidc/login")(makeCtx({ peer: "192.168.1.20", headers: { host: "nas.local:8788" } }));
+    expect(res.headers.get("location")).toBe(canonicalLogin);
+  });
+
+  test("with no callback URL configured there is no origin to send the browser to → 400, no transaction minted", async () => {
+    const rec = recordingOidc([]);
+    const res = await handlerFor(loginDepsFor(rec), "GET /api/auth/oidc/login")(makeCtx({ headers: { host: "192.168.1.10" } }));
     expect(res.status).toBe(400);
+    expect(res.headers.get("location")).toBeNull();
     expect(rec.mints).toBe(0);
   });
 });

@@ -18,7 +18,8 @@
 // Origin-flexible callback: the redirect_uri is derived per-request from the origin and accepted only if
 // it exact-matches the OIDC_REDIRECT_URIS allowlist — never reflects an attacker-supplied origin
 // (open-redirect class). The validated redirect_uri is stored in the transaction and reconstructed at the
-// callback so the token exchange presents the same redirect_uri the IdP saw, even behind a proxy.
+// callback so the token exchange presents the same redirect_uri the IdP saw, even behind a proxy. A login from
+// any other origin mints nothing and is sent to the login page on the first allowlisted callback's origin.
 
 import type { PendingJoinErrorCode } from "@orb/contracts/chat";
 import { invitePreviewSchema, pendingJoinConfirmRequestSchema } from "@orb/contracts/chat";
@@ -499,7 +500,8 @@ export interface OidcRoutesDeps {
    *  a silently loginless OIDC box, and a defaulted one would let a mis-wired root fall back to
    *  something the operator never chose. */
   readonly exchange: OidcExchange;
-  /** Empty ⇒ every login 400s (fail-closed: no origin is permitted). */
+  /** The first http(s) entry names the origin a login from anywhere else is sent to. Empty ⇒ every login 400s
+   *  (fail-closed: no origin is permitted). */
   readonly redirectAllowlist: readonly string[];
   readonly scope: string;
   readonly claims: OidcClaimMap;
@@ -967,12 +969,27 @@ export function deriveRedirectUri(headers: Headers, transport: RequestTransport,
   return allowlist.includes(candidate) ? candidate : null;
 }
 
+const WEB_PROTOCOLS: readonly string[] = ["https:", "http:"];
+
+/**
+ * The login page on the configured public origin: the first http(s) `OIDC_REDIRECT_URIS` callback URL with its path
+ * swapped for `/login`, or null when none is configured.
+ *
+ * SECURITY: built from configuration alone. No request value (Host, X-Forwarded-Host, the URL) reaches it, so a login
+ * started from any origin is sent only to an origin the operator wrote down. Do not derive it from the request.
+ */
+function configuredLoginPage(allowlist: readonly string[]): string | null {
+  const callback = allowlist.find((uri) => URL.canParse(uri) && WEB_PROTOCOLS.includes(new URL(uri).protocol));
+  return callback === undefined ? null : new URL(LOGIN_SURFACE_ROUTE, callback).href;
+}
+
 /** The OIDC authorize-redirect + callback handlers (openid-client v6). */
 function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDeps): void {
   app.get(OIDC_LOGIN_ROUTE, async (c) => {
     const transport = requestTransport(c);
     const redirectUri = deriveRedirectUri(c.req.raw.headers, transport, oidc.redirectAllowlist);
     if (redirectUri === null) {
+      const loginPage = configuredLoginPage(oidc.redirectAllowlist);
       securityEvent(
         "oidc_redirect_uri_rejected",
         {
@@ -980,10 +997,11 @@ function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDep
           proto: c.req.raw.headers.get("x-forwarded-proto"),
           host: c.req.raw.headers.get("x-forwarded-host") ?? c.req.raw.headers.get("host"),
           allowlistSize: oidc.redirectAllowlist.length,
+          sentTo: loginPage,
         },
-        "security: OIDC login origin not in OIDC_REDIRECT_URIS allowlist — rejecting (no transaction minted)",
+        "security: OIDC login origin not in OIDC_REDIRECT_URIS allowlist — no transaction minted; sending the browser to the configured origin's login page",
       );
-      return c.json({ error: "This origin is not an allowed OIDC callback." }, BAD_REQUEST);
+      return loginPage === null ? c.json({ error: "This origin is not an allowed OIDC callback." }, BAD_REQUEST) : c.redirect(loginPage, FOUND);
     }
     const config = await oidc.getConfig();
     const codeVerifier = randomPKCECodeVerifier();
