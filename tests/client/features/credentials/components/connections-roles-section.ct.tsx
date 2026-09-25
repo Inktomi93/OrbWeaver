@@ -7,8 +7,8 @@
 // INPUT. For two hours the pane showed a full "OpenRouter · Claude Sonnet 5" row under a "Saved" chip while
 // the DB held nothing and every turn resolved something else. The ruling was: the readout comes from the
 // PERSISTED read and never from what the picker is showing. It still does — `{X}` is always the persisted
-// connection. What is new is that the row can now SAY the two disagree ("Not applied yet — a turn still
-// uses X."), which is §5.3a's divergence arm and the thing that would have named the incident out loud.
+// connection. What is new is that the row can now SAY the two disagree ("Not applied yet — still running
+// on X."), which is §5.3a's divergence arm and the thing that would have named the incident out loud.
 // The held-write arm below is where that is proven, because a held write is the only window in which the
 // picker and the persisted read can be observed disagreeing.
 //
@@ -373,7 +373,7 @@ test("a role that already RUNS is not offered a repair it does not need", async 
   await mount(<ConnectionsSettingsStory />);
 
   const roles = page.locator("#config-anchor-connections-model-roles");
-  await expect(roles.getByText("A turn uses the connection picked here.", { exact: true })).toBeVisible();
+  await expect(roles.getByText("Running on the connection picked here.", { exact: true })).toBeVisible();
   await expect(roles.getByRole("switch", { name: /^Allow background work on Cheap utility/u })).toHaveCount(0);
 });
 
@@ -403,7 +403,7 @@ test("an unreconciled pick says 'Not applied yet' and still names what a turn US
   const release = await gateTheWrite(page);
   await mount(<ConnectionsSettingsStory />);
 
-  const persisted = page.getByText("A turn uses the connection picked here.", { exact: true });
+  const persisted = page.getByText("Running on the connection picked here.", { exact: true });
   const chat = roleSelect(page, "Chat");
   await expect(persisted).toBeVisible();
   await expect(chat).toContainText("OpenRouter · Claude Sonnet 5");
@@ -412,10 +412,10 @@ test("an unreconciled pick says 'Not applied yet' and still names what a turn US
   await page.getByRole("option", { name: "Cheap utility · openai/gpt-5-mini" }).click();
 
   // The steady sentence is GONE and the divergence sentence names the PERSISTED row — never the pick. A
-  // surface that painted "A turn uses Cheap utility" here would be the 2026-08-01 phantom again.
-  await expect(page.getByText("Not applied yet — a turn still uses OpenRouter · Claude Sonnet 5 · anthropic/claude-sonnet-5.", { exact: true })).toBeVisible();
+  // surface that painted "Running on Cheap utility" here would be the 2026-08-01 phantom again.
+  await expect(page.getByText("Not applied yet — still running on OpenRouter · Claude Sonnet 5 · anthropic/claude-sonnet-5.", { exact: true })).toBeVisible();
   await expect(persisted).toHaveCount(0);
-  await expect(page.getByText("A turn uses Cheap utility · openai/gpt-5-mini.")).toHaveCount(0);
+  await expect(page.getByText("Running on Cheap utility · openai/gpt-5-mini.")).toHaveCount(0);
 
   release();
 });
@@ -477,7 +477,7 @@ test("every dot state carries a plain-words name, and every state is decidable w
   await expect(roles.getByText(blockedSentence)).toBeVisible();
   await roles.getByRole("img", { name: ROLE_STATUS_LABELS.blocked, exact: true }).evaluate((node) => node.remove());
   await expect(roles.getByText(blockedSentence)).toBeVisible();
-  await expect(roles.getByText("A turn uses the connection picked here.", { exact: true })).toBeVisible();
+  await expect(roles.getByText("Running on the connection picked here.", { exact: true })).toBeVisible();
 });
 
 // A FAILED REQUIREMENT IS NOT THE DOT. The Utility slot's three consumers fail SEPARATELY, so the rail says
@@ -529,7 +529,7 @@ test("hosted: the Connections pane paints no save status of its own", async ({ m
   await mount(<ConnectionsSettingsHostedStory />);
 
   // Barrier on a SETTLED rendered arm of the pane before reading the status seam.
-  await expect(page.getByText("A turn uses the connection picked here.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Running on the connection picked here.", { exact: true })).toBeVisible();
   await expect(page.getByTestId("aggregate")).toHaveText("none");
   await expect(page.locator(AUTOSAVE_STATUS)).toHaveCount(0);
 });
@@ -638,6 +638,31 @@ function identityVersusControls(page: Page): Promise<number> {
     return Math.min(...widths);
   });
 }
+
+// A wide pane never runs a sentence across its whole width: the intro and every role's description stop at the
+// prose measure, which at 870 is narrower than the section.
+test("at 870px the intro and every role description stop at the prose measure", async ({ mount, page }) => {
+  await stubTheTwoDotStates(page);
+  await mount(<ConnectionsPaneWideStory />);
+
+  const roles = page.locator("#config-anchor-connections-model-roles");
+  await expect(roles.getByText("Rooms never override this", { exact: false })).toBeVisible();
+  await expect
+    .poll(() =>
+      roles.evaluate((section) => {
+        const probe = document.createElement("div");
+        probe.style.width = "var(--reading-measure-prose)";
+        section.append(probe);
+        const measure = probe.getBoundingClientRect().width;
+        probe.remove();
+        const intro = [...section.querySelectorAll("p, span, div")].find((node) => node.textContent?.startsWith("Pick which connection") === true);
+        const descriptions = [...section.querySelectorAll("*")].filter((node) => node.childElementCount === 0 && (node.textContent?.length ?? 0) > 80);
+        const widest = Math.max(...[intro, ...descriptions].map((node) => node?.getBoundingClientRect().width ?? Number.POSITIVE_INFINITY));
+        return { narrowerThanSection: measure < section.getBoundingClientRect().width - 1, withinMeasure: widest <= measure + 1 };
+      }),
+    )
+    .toEqual({ narrowerThanSection: true, withinMeasure: true });
+});
 
 test("at 870px (context panel closed) no copy is cut, nothing bleeds, and the switch keeps its gloss", async ({ mount, page }) => {
   await stubTheTwoDotStates(page);
