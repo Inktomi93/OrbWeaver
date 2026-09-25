@@ -3,6 +3,7 @@
 // reflect what's actually persisted: an empty db is all-zero; seeded rows bump exactly their table's count.
 
 import { characters, chats, users } from "@orb/db";
+import { handleKey } from "@orb/kit/handle-key";
 import type { CharacterHandle, CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { tableCounts } from "@orb/server/foundation/observability/debug";
@@ -25,7 +26,7 @@ test("a fresh db reports zero for every backbone table (labels = schema names)",
 test("counts reflect persisted rows — exactly the seeded tables bump", async () => {
   const db = await freshDb();
   const userId = castId<UserId>("user_stats");
-  await db.insert(users).values({ id: userId, handle: castId<Handle>("user_stats") });
+  await db.insert(users).values({ id: userId, handle: castId<Handle>("user_stats"), handleKey: handleKey(castId<Handle>("user_stats")) });
   await db.insert(chats).values({ id: castId<ChatId>("chat_stats_a") });
   await db.insert(chats).values({ id: castId<ChatId>("chat_stats_b") });
   await db.insert(characters).values({

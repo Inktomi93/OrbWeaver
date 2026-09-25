@@ -5,43 +5,8 @@
     {
       "idx": 0,
       "version": "6",
-      "when": 1790280647800,
+      "when": 1790321191231,
       "tag": "0000_baseline",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "6",
-      "when": 1790289708582,
-      "tag": "0001_preset-schema-version-default-8",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "6",
-      "when": 1790292325813,
-      "tag": "0002_connection-prompt-cache",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "6",
-      "when": 1790303198646,
-      "tag": "0003_chat-invite-signup-columns",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "6",
-      "when": 1790303206671,
-      "tag": "0004_chat-invite-signup-checks",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "6",
-      "when": 1790307420819,
-      "tag": "0005_oidc-pending-signups",
       "breakpoints": true
     }
   ]

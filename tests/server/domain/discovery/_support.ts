@@ -27,6 +27,7 @@ import {
   userConnections,
   users,
 } from "@orb/db";
+import { handleKey } from "@orb/kit/handle-key";
 import type {
   AssetId,
   CharacterHandle,
@@ -425,6 +426,7 @@ async function ensureGroupChar(db: Db): Promise<void> {
     .values({
       id: DIGEST_OWNER,
       handle: castId<Handle>("user_digest_owner"),
+      handleKey: handleKey(castId<Handle>("user_digest_owner")),
       role: "user",
       enabled: true,
       passwordHash: null,

@@ -2,6 +2,7 @@ import type { UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { users } from "@orb/db";
 import type { AwaitableBatchStmt } from "@orb/db/kit";
+import { handleKey } from "@orb/kit/handle-key";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, eq, isNull, sql } from "drizzle-orm";
@@ -89,31 +90,39 @@ export async function selectUserIdByEmail(db: Db, email: string): Promise<UserId
   return rows.at(0)?.id;
 }
 
-/** Race-tolerant insert: `onConflictDoNothing` on either unique column (handle OR externalId) absorbs a
- *  concurrent first-login loser; the verb re-reads to return the canonical row. */
+/** Race-tolerant insert: `onConflictDoNothing` on any unique column (handle, its key, externalId) absorbs a
+ *  concurrent first-login loser; the verb re-reads to return the canonical row. The key is derived here, so
+ *  no caller writes a handle without it. */
 export async function insertUser(db: Db, row: UserInsert): Promise<void> {
-  await db.insert(users).values(row).onConflictDoNothing();
+  await db
+    .insert(users)
+    .values({ ...row, handleKey: handleKey(row.handle) })
+    .onConflictDoNothing();
 }
 
-// D254 — the one caseless handle match: the pre-check below and both signup inserts' NOT EXISTS read it, so
-// the read and the race guard cannot drift. `lower()` folds ASCII only (see `selectHandleTakenCaseless`).
-function handleMatchesCaseless(handle: Handle): SQL {
-  return sql`lower(${users.handle}) = lower(${handle})`;
+// ADR 0254 — the one handle-key match: the pre-checks below and both signup inserts' NOT EXISTS read it, so
+// the read and the race guard compare the same key.
+function holdsHandleKeyOf(handle: Handle): SQL {
+  return sql`${users.handleKey} = ${handleKey(handle)}`;
 }
 
-/** D254 — does any row carry this handle, compared case-insensitively? The local signup route's check before
- *  any password hashing and the pending-join confirm's check before it plans; each account insert repeats it
- *  inside the batch. `lower()` folds ASCII only: that is the whole local signup handle alphabet
- *  (`signupRequestSchema`), while an IdP handle outside ASCII compares case-sensitively. */
-export async function selectHandleTakenCaseless(db: Db, handle: Handle): Promise<boolean> {
-  const rows = await db.select({ id: users.id }).from(users).where(handleMatchesCaseless(handle)).limit(1);
-  return rows.length > 0;
+/** ADR 0254 — does any row carry this handle's key (any case, any confusable)? The local signup route's check
+ *  before any password hashing and the pending-join confirm's check before it plans; each account insert
+ *  repeats it inside the batch. */
+export async function selectHandleKeyTaken(db: Db, handle: Handle): Promise<boolean> {
+  return (await selectIdByHandleKey(db, handle)) !== undefined;
+}
+
+/** The row holding this handle's key, if any: `provisionIdentity` refuses to rename a row onto another's key. */
+export async function selectIdByHandleKey(db: Db, handle: Handle): Promise<UserId | undefined> {
+  const rows = await db.select({ id: users.id }).from(users).where(holdsHandleKeyOf(handle)).limit(1);
+  return rows.at(0)?.id;
 }
 
 /**
  * D254 — the signup account insert, UNEXECUTED, for the caller's batch. It writes a `user`-role human with the
- * password hash only where `admission` holds and no row carries the handle case-insensitively. There is no
- * `onConflictDoNothing`: an exact-handle race throws and rolls the whole batch back, never a silent no-op a
+ * password hash only where `admission` holds and no row carries the handle's key. There is no
+ * `onConflictDoNothing`: a key race throws and rolls the whole batch back, never a silent no-op a
  * later statement could misread. The values are positional over the table's declared column order (the
  * `buildAuditStatementIfPrecedingWrote` precedent), so a new `users` column is a loud column-count error.
  */
@@ -125,7 +134,7 @@ export function insertSignupUserStatement(
   return db
     .insert(users)
     .select(
-      sql`select ${row.id}, ${row.handle}, null, null, 'user', 1, ${row.passwordHash}, 'human', null, ${row.at}, ${row.at} where ${admission} and not exists (select 1 from ${users} where ${handleMatchesCaseless(row.handle)})`,
+      sql`select ${row.id}, ${row.handle}, ${handleKey(row.handle)}, null, null, 'user', 1, ${row.passwordHash}, 'human', null, ${row.at}, ${row.at} where ${admission} and not exists (select 1 from ${users} where ${holdsHandleKeyOf(row.handle)})`,
     )
     .returning({ id: users.id });
 }
@@ -145,9 +154,9 @@ interface PendingSignupAccount {
  * D254 — the OIDC pending-join confirm's account insert, UNEXECUTED, for chat's batch. It binds the subject on
  * a NEW row only, decided by `decideProvision` (the verb keeps only an insert), and writes only where the
  * pending take before it deleted a row (`changes() > 0`), `admission` (chat's opaque invite predicate) holds,
- * no row carries the handle case-insensitively (the local signup's rule, so a stranger's handle is never a
- * case variant of a member's) and no row carries the email. Exact handle, subject and owner collisions are
- * the unique indexes' job: there is no `onConflictDoNothing`, so a race throws and rolls the batch back.
+ * no row carries the handle's key (so a stranger's handle is never a case variant or look-alike of a member's)
+ * and no row carries the email. Handle, key, subject and owner races are the unique indexes' job: there is no
+ * `onConflictDoNothing`, so a race throws and rolls the batch back.
  * Positional over the declared column order, like {@link insertSignupUserStatement}.
  */
 export function insertPendingSignupUserStatement(db: Db, row: PendingSignupAccount, admission: SQL): AwaitableBatchStmt<{ id: UserId }[]> {
@@ -155,14 +164,18 @@ export function insertPendingSignupUserStatement(db: Db, row: PendingSignupAccou
   return db
     .insert(users)
     .select(
-      sql`select ${row.id}, ${row.handle}, ${row.externalId}, ${row.email}, ${row.role}, ${row.enabled ? 1 : 0}, null, 'human', null, ${row.at}, ${row.at} where changes() > 0 and ${admission} and not exists (select 1 from ${users} where ${handleMatchesCaseless(row.handle)}) and ${emailFree}`,
+      sql`select ${row.id}, ${row.handle}, ${handleKey(row.handle)}, ${row.externalId}, ${row.email}, ${row.role}, ${row.enabled ? 1 : 0}, null, 'human', null, ${row.at}, ${row.at} where changes() > 0 and ${admission} and not exists (select 1 from ${users} where ${holdsHandleKeyOf(row.handle)}) and ${emailFree}`,
     )
     .returning({ id: users.id });
 }
 
-/** The provision UPDATE — only the supplied keys change (`enabled` is never among them). */
+/** The provision UPDATE — only the supplied keys change (`enabled` is never among them). A handle change
+ *  writes its key with it. */
 export async function updateUser(db: Db, id: UserId, patch: UserPatch): Promise<void> {
-  await db.update(users).set(patch).where(eq(users.id, id));
+  await db
+    .update(users)
+    .set(patch.handle === undefined ? patch : { ...patch, handleKey: handleKey(patch.handle) })
+    .where(eq(users.id, id));
 }
 
 /** THE ONE atomic externalId claim (U1 — both sanctioned capabilities bind through this single statement).

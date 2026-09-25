@@ -1,0 +1,138 @@
+// Vendors the case folding, default-ignorable and UTS 39 confusable tables the handle key reads, pinned to the
+// engine's Unicode version (the key mixes them with the engine's NFKC/NFD), each source's SHA-256 recorded. A bump
+// re-keys every `users.handle_key` row in the same change. No `--check` arm: freshness would need the network.
+import { createHash } from "node:crypto";
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
+import process from "node:process";
+import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
+import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { emitLine, warn } from "@orb/tooling/_shared/log";
+
+export const UNICODE_HANDLE_KEY_BASELINE = "unicode-handle-key";
+const REGEN = `pnpm exec node tooling/src/verify/cli.ts baseline ${UNICODE_HANDLE_KEY_BASELINE}`;
+
+refuseDirectInvocation(import.meta.url, REGEN);
+
+const UNICODE_HANDLE_KEY_DATA_REL = "packages/kit/src/handle-key/unicode-data.ts";
+const UNICODE_DATA_VERSION = "17.0.0";
+const PUBLIC = `https://www.unicode.org/Public/${UNICODE_DATA_VERSION}`;
+const UNICODE_SOURCES = {
+  caseFolding: `${PUBLIC}/ucd/CaseFolding.txt`,
+  derivedCore: `${PUBLIC}/ucd/DerivedCoreProperties.txt`,
+  confusables: `${PUBLIC}/security/confusables.txt`,
+} as const;
+
+const CASE_FOLDING_KEPT_STATUSES: ReadonlySet<string> = new Set(["C", "F"]);
+const DEFAULT_IGNORABLE = "Default_Ignorable_Code_Point";
+const ENTRIES_PER_LINE = 64;
+const HEX_RADIX = 16;
+
+// The data lines of a UCD file: comments and blanks gone, fields split on `;` and trimmed.
+function fields(text: string): readonly (readonly string[])[] {
+  return text
+    .split("\n")
+    .map((line) => (line.split("#")[0] ?? "").trim())
+    .filter((line) => line.length > 0)
+    .map((line) => line.split(";").map((field) => field.trim()));
+}
+
+// A space-separated code point sequence, re-spelled in the one hex form the kit parser reads.
+function sequence(field: string): string {
+  return field
+    .split(/\s+/u)
+    .map((hex) => Number.parseInt(hex, HEX_RADIX).toString(HEX_RADIX))
+    .join(" ");
+}
+
+// Pure: the three tables as `source>target` / `first-last` entries, each checked against the pinned version a
+// file announces, so a stale or mismatched download refuses instead of writing.
+function parseUnicodeTables(sources: { readonly caseFolding: string; readonly derivedCore: string; readonly confusables: string }): {
+  readonly caseFolding: readonly string[];
+  readonly defaultIgnorable: readonly string[];
+  readonly confusables: readonly string[];
+} {
+  const versions = [
+    [UNICODE_SOURCES.caseFolding, sources.caseFolding, `CaseFolding-${UNICODE_DATA_VERSION}.txt`],
+    [UNICODE_SOURCES.derivedCore, sources.derivedCore, `DerivedCoreProperties-${UNICODE_DATA_VERSION}.txt`],
+    [UNICODE_SOURCES.confusables, sources.confusables, `Version: ${UNICODE_DATA_VERSION}`],
+  ] as const;
+  for (const [url, text, marker] of versions) {
+    if (!text.includes(marker)) {
+      throw new Error(`${url} does not announce ${marker}; refusing to vendor a table from another Unicode version`);
+    }
+  }
+  const caseFolding = fields(sources.caseFolding)
+    .filter(([, status]) => CASE_FOLDING_KEPT_STATUSES.has(status ?? ""))
+    .map(([code, , mapping]) => `${sequence(code ?? "")}>${sequence(mapping ?? "")}`);
+  const defaultIgnorable = fields(sources.derivedCore)
+    .filter(([, property]) => property === DEFAULT_IGNORABLE)
+    .map(([range]) => (range ?? "").split("..").map(sequence).join("-"));
+  const confusables = fields(sources.confusables).map(([source, target]) => `${sequence(source ?? "")}>${sequence(target ?? "")}`);
+  for (const [name, table] of [
+    ["case folding", caseFolding],
+    ["default ignorable", defaultIgnorable],
+    ["confusables", confusables],
+  ] as const) {
+    if (table.length === 0) {
+      throw new Error(`the ${name} table parsed empty; refusing to write a key that folds nothing`);
+    }
+  }
+  return { caseFolding, defaultIgnorable, confusables };
+}
+
+// One exported array of `;`-joined entry lines, so the file stays diffable and inside the formatter's width.
+function constant(name: string, doc: string, entries: readonly string[]): string {
+  const lines: string[] = [];
+  for (let at = 0; at < entries.length; at += ENTRIES_PER_LINE) {
+    lines.push(`  ${JSON.stringify(entries.slice(at, at + ENTRIES_PER_LINE).join(";"))},`);
+  }
+  return `/** ${doc} */\nexport const ${name}: readonly string[] = [\n${lines.join("\n")}\n];\n`;
+}
+
+/** Pure: the whole generated module for the parsed tables and the raw sources they came from. */
+export function renderUnicodeHandleKeyData(sources: { readonly caseFolding: string; readonly derivedCore: string; readonly confusables: string }): string {
+  const tables = parseUnicodeTables(sources);
+  const digest = (text: string): string => createHash("sha256").update(text).digest("hex");
+  return [
+    `// GENERATED by \`${REGEN}\`; do not hand-edit. Unicode ${UNICODE_DATA_VERSION}, from:`,
+    `//   ${UNICODE_SOURCES.caseFolding} sha256 ${digest(sources.caseFolding)}`,
+    `//   ${UNICODE_SOURCES.derivedCore} sha256 ${digest(sources.derivedCore)}`,
+    `//   ${UNICODE_SOURCES.confusables} sha256 ${digest(sources.confusables)}`,
+    "// Entries are hex code points: `source>target` (a target may be a space-separated sequence), or `first-last`.",
+    "",
+    `export const UNICODE_DATA_VERSION = ${JSON.stringify(UNICODE_DATA_VERSION)};`,
+    "",
+    constant("CASE_FOLDING", "CaseFolding.txt, statuses C and F: the full case folding.", tables.caseFolding),
+    constant("DEFAULT_IGNORABLE", "DerivedCoreProperties.txt `Default_Ignorable_Code_Point` ranges.", tables.defaultIgnorable),
+    constant("CONFUSABLE_PROTOTYPES", "UTS 39 confusables.txt: each source code point's prototype.", tables.confusables),
+  ].join("\n");
+}
+
+async function fetchSource(url: string): Promise<string> {
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`${url} answered ${String(res.status)}`);
+  }
+  return await res.text();
+}
+
+/** `baseline unicode-handle-key`: fetch the pinned sources and write the module. A failed or mismatched
+ *  download is a tool error that writes nothing. */
+export async function generateUnicodeHandleKeyData(root: string): Promise<number> {
+  const engine = process.versions["unicode"] ?? "unknown";
+  if (!UNICODE_DATA_VERSION.startsWith(`${engine}.`)) {
+    warn(
+      `unicode-handle-key: the engine speaks Unicode ${engine} but the pinned data is ${UNICODE_DATA_VERSION}; bump UNICODE_DATA_VERSION to the engine's and re-key users.handle_key`,
+    );
+    return EXIT.misuse;
+  }
+  const [caseFolding, derivedCore, confusables] = await Promise.all([
+    fetchSource(UNICODE_SOURCES.caseFolding),
+    fetchSource(UNICODE_SOURCES.derivedCore),
+    fetchSource(UNICODE_SOURCES.confusables),
+  ]);
+  writeFileSync(join(root, UNICODE_HANDLE_KEY_DATA_REL), renderUnicodeHandleKeyData({ caseFolding, derivedCore, confusables }));
+  emitLine(`unicode-handle-key: wrote ${UNICODE_HANDLE_KEY_DATA_REL} from Unicode ${UNICODE_DATA_VERSION}`);
+  return EXIT.clean;
+}

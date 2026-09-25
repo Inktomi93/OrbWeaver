@@ -20,6 +20,7 @@
 
 import type { Db } from "@orb/db";
 import { users } from "@orb/db";
+import { handleKey } from "@orb/kit/handle-key";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq, isNull, ne, or } from "drizzle-orm";
@@ -51,7 +52,7 @@ export interface SeedOwnerDeps {
  * adversary in this path, so the ambiguity that justifies a manual repair there does not exist here.
  *
  * WHAT IT WILL NOT DO. It never STEALS: a seed key some other user already holds is a refusal, loud and
- * actionable, with both rows untouched (`users_handle_unique` would reject the write anyway — this turns an
+ * actionable, with both rows untouched (`users_handle_key_unique` would reject the write anyway — this turns an
  * opaque SQLITE_CONSTRAINT into a message that names the choice). It never touches `role`, `external_id`,
  * `password_hash` or `enabled` — only the handle moves, so the owner's durable SSO binding survives the
  * migration and the D17 singleton is never a second owner row. And it is LOUD: the warn line is the
@@ -68,14 +69,17 @@ async function adoptMovedSeedKey(db: Db, seedKey: Handle, at: number): Promise<v
   const [taken] = await db
     .select({ id: users.id })
     .from(users)
-    .where(and(eq(users.handle, seedKey), ne(users.id, owner.id)))
+    .where(and(eq(users.handleKey, handleKey(seedKey)), ne(users.id, owner.id)))
     .limit(1);
   if (taken !== undefined) {
     throw new Error(
-      `seedOwner: OWNER_HANDLES moved to "${seedKey}", but that handle is already held by another user (id=${taken.id}) — refusing to rename the owner row (id=${owner.id}, handle="${owner.handle}") onto it, which would take a member's handle. Point OWNER_HANDLES at an unused handle, or rename/remove that user first.`,
+      `seedOwner: OWNER_HANDLES moved to "${seedKey}", but that handle or a look-alike of it (one handle key, ADR 0254) is already held by another user (id=${taken.id}) — refusing to rename the owner row (id=${owner.id}, handle="${owner.handle}") onto it, which would take a member's handle. Point OWNER_HANDLES at an unused handle, or rename/remove that user first.`,
     );
   }
-  await db.update(users).set({ handle: seedKey, updatedAt: at }).where(eq(users.id, owner.id));
+  await db
+    .update(users)
+    .set({ handle: seedKey, handleKey: handleKey(seedKey), updatedAt: at })
+    .where(eq(users.id, owner.id));
   getLog().warn(
     { ownerId: owner.id, from: owner.handle, to: seedKey },
     "boot/seed-owner: OWNER_HANDLES moved — renamed the owner row onto the new seed key (role + external_id unchanged; if this was a typo, restore OWNER_HANDLES and reboot)",

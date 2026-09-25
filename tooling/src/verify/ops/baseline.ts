@@ -14,6 +14,7 @@ import { generateProseBaseline } from "./gen/prose.ts";
 import { generateSnapFlagsIndex } from "./gen/snap-flags-index.ts";
 import { generateThemeCss, THEME_BASELINE } from "./gen/theme-css.ts";
 import { generateTypeConfigs } from "./gen/type-configs.ts";
+import { generateUnicodeHandleKeyData, UNICODE_HANDLE_KEY_BASELINE } from "./gen/unicode-handle-key.ts";
 import { LEDGER_CHECKS } from "./ledgers-fresh.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm exec node tooling/src/verify/cli.ts baseline <kind> [--check]");
@@ -34,6 +35,7 @@ const BASELINES: Readonly<Record<string, (root: string) => number | Promise<numb
   "snap-flags-index": generateSnapFlagsIndex,
   "type-configs": generateTypeConfigs,
   [THEME_BASELINE]: generateThemeCss,
+  [UNICODE_HANDLE_KEY_BASELINE]: generateUnicodeHandleKeyData,
 };
 
 /** This verb's usage text — ONE home, read by the refusals here and by the front door's pre-dispatch

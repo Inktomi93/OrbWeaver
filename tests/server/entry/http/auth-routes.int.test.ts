@@ -750,7 +750,7 @@ describe("local signup route (D254)", () => {
     expect(statuses).toEqual([409, 409, 429]);
   });
 
-  test.each([["owner"], ["Owner"], ["OWNER"], ["Boss"]])("the reserved handle %s → 409 before any hashing", async (handle) => {
+  test.each([["owner"], ["Owner"], ["OWNER"], ["Boss"], ["0WNER"], ["B0SS"]])("the reserved handle %s → 409 before any hashing", async (handle) => {
     vi.stubEnv("OWNER_HANDLES", "boss");
     const { app, spies } = await signupApp();
     const res = await postSignup(app, "10.9.1.1", { ...creds, handle });

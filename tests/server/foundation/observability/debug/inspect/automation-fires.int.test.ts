@@ -4,6 +4,7 @@
 // narrowings, and the limit. Seeded with the same direct row inserts the domain's own persistence tests use.
 
 import { automationFires, automationRules, chats, users } from "@orb/db";
+import { handleKey } from "@orb/kit/handle-key";
 import type { AutomationFireId, AutomationRuleId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { automationFireRows } from "@orb/server/foundation/observability/debug";
@@ -18,7 +19,7 @@ async function seedTwoRooms(
   db: Awaited<ReturnType<typeof freshDb>>,
 ): Promise<{ chatA: ChatId; chatB: ChatId; ruleA: AutomationRuleId; ruleB: AutomationRuleId }> {
   const ownerId = castId<UserId>("user_fires");
-  await db.insert(users).values({ id: ownerId, handle: castId<Handle>("user_fires") });
+  await db.insert(users).values({ id: ownerId, handle: castId<Handle>("user_fires"), handleKey: handleKey(castId<Handle>("user_fires")) });
   const chatA = castId<ChatId>("chat_fires_a");
   const chatB = castId<ChatId>("chat_fires_b");
   await db.insert(chats).values([

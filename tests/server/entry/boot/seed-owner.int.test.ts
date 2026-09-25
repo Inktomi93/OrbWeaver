@@ -12,6 +12,7 @@
 
 import type { ResolvedIdentity } from "@orb/contracts/identity";
 import { users } from "@orb/db";
+import { handleKey } from "@orb/kit/handle-key";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createSessionsService } from "@orb/server/domain/sessions";
@@ -38,7 +39,7 @@ afterEach(() => {
 
 test("backfills a non-owner OWNER-handle row to role=owner + returns its id", async ({ clock }) => {
   const db = await freshDb();
-  await db.insert(users).values({ id: OWNER_ID, handle: castId<Handle>("owner"), role: "user" });
+  await db.insert(users).values({ id: OWNER_ID, handle: castId<Handle>("owner"), handleKey: handleKey(castId<Handle>("owner")), role: "user" });
 
   const ids = await seedOwner({
     db,
@@ -54,7 +55,7 @@ test("backfills a non-owner OWNER-handle row to role=owner + returns its id", as
 
 test("idempotent — a second run keeps role=owner and does not re-stamp updated_at", async ({ clock }) => {
   const db = await freshDb();
-  await db.insert(users).values({ id: OWNER_ID, handle: castId<Handle>("owner"), role: "user", updatedAt: 1 });
+  await db.insert(users).values({ id: OWNER_ID, handle: castId<Handle>("owner"), handleKey: handleKey(castId<Handle>("owner")), role: "user", updatedAt: 1 });
 
   await seedOwner({
     db,
@@ -84,7 +85,9 @@ test("idempotent — a second run keeps role=owner and does not re-stamp updated
 // the pre-fix `ne(role,'owner')` WHERE excluded an already-owner row, so `enabled` stayed 0.
 test("re-enables a DISABLED already-owner row at boot (raw-write brick recovery)", async ({ clock }) => {
   const db = await freshDb();
-  await db.insert(users).values({ id: OWNER_ID, handle: castId<Handle>("owner"), role: "owner", enabled: false });
+  await db
+    .insert(users)
+    .values({ id: OWNER_ID, handle: castId<Handle>("owner"), handleKey: handleKey(castId<Handle>("owner")), role: "owner", enabled: false });
 
   await seedOwner({
     db,
@@ -112,7 +115,7 @@ test("refuses a multi-handle owner set — fail-fast, not a UNIQUE loop (D17: ex
 
 test("leaves a non-OWNER-handle row untouched (stays role=user)", async ({ clock }) => {
   const db = await freshDb();
-  await db.insert(users).values({ id: OTHER_ID, handle: castId<Handle>("someone"), role: "user" });
+  await db.insert(users).values({ id: OTHER_ID, handle: castId<Handle>("someone"), handleKey: handleKey(castId<Handle>("someone")), role: "user" });
 
   await seedOwner({
     db,
@@ -286,7 +289,7 @@ test("moving OWNER_HANDLES onto a handle a MEMBER already holds refuses loudly a
   const sessions = createSessionsService({ db, now: clock.now, sessionSecret: PEPPER, seedUserConnections: createLocalLightUserSeed({ db, now: clock.now }) });
   vi.stubEnv("OWNER_HANDLES", "owner");
   await seedOwner({ db, sessions, ownerHandles: ["owner"], now: clock.now });
-  await db.insert(users).values({ id: OTHER_ID, handle: castId<Handle>("alex"), role: "user" });
+  await db.insert(users).values({ id: OTHER_ID, handle: castId<Handle>("alex"), handleKey: handleKey(castId<Handle>("alex")), role: "user" });
 
   vi.stubEnv("OWNER_HANDLES", "alex");
   await expect(seedOwner({ db, sessions, ownerHandles: ["alex"], now: clock.now })).rejects.toThrow(HANDLE_TAKEN_REFUSAL);

@@ -1,6 +1,7 @@
 import type { ResolvedIdentity } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { userConnections, users } from "@orb/db";
+import { handleKey } from "@orb/kit/handle-key";
 import type { ExternalId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
@@ -479,6 +480,17 @@ describe("sessions.provisionIdentity — MS-W1 collision hard-deny (mode-switch 
     expect(row?.externalId).toBeNull();
   });
 
+  test("a LOOK-ALIKE of a held handle at the mint path (signup ON) ⇒ DENIED account-exists, NO look-alike row", async () => {
+    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    asProvisioned(await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|host"), handle: castId<Handle>("host") })));
+    const before = await rowCount();
+    const result = await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|spoof"), handle: castId<Handle>("Нost") }), {
+      allowJitProvision: true,
+    });
+    expect(result).toEqual({ outcome: "denied", reason: "account-exists" });
+    expect(await rowCount()).toBe(before);
+  });
+
   test("EMAIL collision at the mint path (new handle, signup ON) ⇒ DENIED account-exists, NO duplicate row", async () => {
     vi.stubEnv("OWNER_HANDLES", "someone-else");
     // An existing account carries alice@corp.com (created via a prior login).
@@ -583,6 +595,17 @@ describe("sessions.provisionIdentity — rename stability (externalId is the key
     expect(await rowCount()).toBe(1);
     const row = (await db.select().from(users).where(eq(users.id, first.userId)))[0];
     expect(row?.handle).toBe("new-name");
+  });
+
+  test("an IdP rename onto a look-alike of another row's handle keeps the current handle", async () => {
+    vi.stubEnv("OWNER_HANDLES", "x");
+    await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|host"), handle: castId<Handle>("host") }));
+    const first = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("old-name") })));
+    const renamed = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("Нost") })));
+    expect(renamed.userId).toBe(first.userId);
+    expect(renamed.identityChanged).toBe(false);
+    const row = (await db.select().from(users).where(eq(users.id, first.userId)))[0];
+    expect(row?.handle).toBe("old-name");
   });
 
   test("externalId null keys on handle (single-user / non-SSO path)", async () => {
@@ -886,8 +909,8 @@ describe("sessions.provisionIdentity — the first-login INSERT race (#1478)", (
   /** Plant a colliding row while the provisioning INSERT is parked before the driver. RAW sql on purpose:
    *  drizzle quotes the table name, so this statement does not match the hold pattern and is not itself
    *  held. */
-  const plantOtherSubject = `insert into users (id, handle, external_id, role, enabled, created_at, updated_at)
-                               values ('user_winner', 'alice', 'authentik|someone-else', 'user', 1, 1, 1)`;
+  const plantOtherSubject = `insert into users (id, handle, handle_key, external_id, role, enabled, created_at, updated_at)
+                               values ('user_winner', 'alice', '${handleKey("alice")}', 'authentik|someone-else', 'user', 1, 1, 1)`;
 
   test("a concurrent writer taking the HANDLE ⇒ denied account-exists; the winner's row is untouched", async () => {
     vi.stubEnv("OWNER_HANDLES", "someone-else");
@@ -923,8 +946,8 @@ describe("sessions.provisionIdentity — the first-login INSERT race (#1478)", (
     await parked.reached;
     // The concurrent first login of the SAME identity: same handle AND same stable subject.
     await held.db.run(
-      sql.raw(`insert into users (id, handle, external_id, role, enabled, created_at, updated_at)
-               values ('user_twin', 'alice', '${EXTERNAL}', 'user', 1, 1, 1)`),
+      sql.raw(`insert into users (id, handle, handle_key, external_id, role, enabled, created_at, updated_at)
+               values ('user_twin', 'alice', '${handleKey("alice")}', '${EXTERNAL}', 'user', 1, 1, 1)`),
     );
     parked.release();
 

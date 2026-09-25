@@ -11,6 +11,7 @@ import type { Db } from "@orb/db";
 import { assets, userConnections, users } from "@orb/db";
 import type { Resolved } from "@orb/inference";
 import { generationOf } from "@orb/inference";
+import { handleKey } from "@orb/kit/handle-key";
 import type { AssetId, Handle, ImageryGenerationId, ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ImageGenerateRequest, ImageryContext } from "@orb/server/domain/imagery";
@@ -25,7 +26,7 @@ const PNG_BASE64 = Buffer.from(PNG_BYTES).toString("base64");
 
 export async function seedOwner(db: Db, handle: Handle): Promise<UserId> {
   const id = castId<UserId>(`user_${handle}`);
-  await db.insert(users).values({ id, handle: castId<Handle>(handle), role: "user", enabled: true });
+  await db.insert(users).values({ id, handle: castId<Handle>(handle), handleKey: handleKey(castId<Handle>(handle)), role: "user", enabled: true });
   return id;
 }
 

@@ -1,5 +1,6 @@
 import type { Db } from "@orb/db";
 import { auditLogs, sessions, users } from "@orb/db";
+import { handleKey } from "@orb/kit/handle-key";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
@@ -23,7 +24,7 @@ let svc: SessionsService;
 beforeEach(async () => {
   db = await freshDb();
   ({ svc } = makeService(db));
-  await db.insert(users).values({ id: USER_ID, handle: castId<Handle>("alice") });
+  await db.insert(users).values({ id: USER_ID, handle: castId<Handle>("alice"), handleKey: handleKey(castId<Handle>("alice")) });
 });
 
 describe("sessions.create", () => {

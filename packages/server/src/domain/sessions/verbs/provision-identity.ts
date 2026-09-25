@@ -11,6 +11,7 @@ import {
   selectForProvisionByExternalId,
   selectForProvisionByHandle,
   selectForProvisionById,
+  selectIdByHandleKey,
   selectOwnerUserId,
   selectUserIdByEmail,
   updateUser,
@@ -101,7 +102,7 @@ async function updateExisting(
   // UNIQUE, so no login ever ran to do the rename.) Every other row keeps full IdP rename tracking
   // (`externalId` keys SSO, `handle` keys everything else — Spine-Identity "Esoterica").
   const handleIsPolicyOwned = policy.isBootstrapOwner && isOwnerSeedHandle(existing.handle);
-  if (!handleIsPolicyOwned && existing.handle !== identity.handle) {
+  if (!handleIsPolicyOwned && existing.handle !== identity.handle && (await renameIsFree(ctx, existing, identity))) {
     changes.handle = identity.handle;
   }
   if (identity.email !== null && existing.email !== identity.email) {
@@ -137,6 +138,22 @@ async function updateExisting(
   };
 }
 
+/** ADR 0254 — an IdP rename may not take another row's handle key: a user renamed onto a look-alike of a
+ *  member's handle keeps their current handle, and the login proceeds. A concurrent rename onto the same key
+ *  still meets `users_handle_key_unique`. */
+async function renameIsFree(ctx: SessionsContext, existing: ProvisionCandidate, identity: ResolvedIdentity): Promise<boolean> {
+  const holder = await selectIdByHandleKey(ctx.db, identity.handle);
+  if (holder === undefined || holder === existing.id) {
+    return true;
+  }
+  securityEvent(
+    "sso_rename_onto_held_handle_key",
+    { userId: existing.id, handle: existing.handle, requested: identity.handle, holder },
+    "security: an IdP rename asked for a handle that shares its key (a case variant or look-alike) with another user's; keeping the current handle",
+  );
+  return false;
+}
+
 /**
  * THE INSERT LOST A RACE and no row carries this identity — REACHABLE, and the comment that used to sit
  * here calling it "Unreachable" was the defect (#1478): it threw a raw Error, i.e. a 500 on the login path.
@@ -153,7 +170,7 @@ async function updateExisting(
  * singleton for the operator); it decides nothing.
  */
 async function refuseLostInsertRace(ctx: SessionsContext, identity: ResolvedIdentity): Promise<ProvisionResult> {
-  const handleTaken = (await selectForProvisionByHandle(ctx.db, identity.handle)) !== undefined;
+  const handleTaken = (await selectIdByHandleKey(ctx.db, identity.handle)) !== undefined;
   securityEvent(
     "sso_insert_lost_race",
     { handle: identity.handle, externalId: identity.externalId, handleTaken },

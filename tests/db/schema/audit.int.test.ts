@@ -4,6 +4,7 @@
 // REAL FK with SET NULL (deleting the actor nulls the column but keeps the log).
 
 import { auditLogs, users } from "@orb/db";
+import { handleKey } from "@orb/kit/handle-key";
 import type { AuditLogId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
@@ -34,7 +35,7 @@ test("an audit row inserts with an entity_id that references no existing row (D2
 test("deleting a referenced entity leaves the audit row intact (the log outlives its referents)", async () => {
   const db = await freshDb();
   const entityUser = castId<UserId>("user_audit_entity");
-  await db.insert(users).values({ id: entityUser, handle: castId<Handle>("user_audit_entity") });
+  await db.insert(users).values({ id: entityUser, handle: castId<Handle>("user_audit_entity"), handleKey: handleKey(castId<Handle>("user_audit_entity")) });
 
   // The audit row points at the user via the SOFT entity_id (no FK, no cascade).
   await db.insert(auditLogs).values({
@@ -56,7 +57,7 @@ test("deleting a referenced entity leaves the audit row intact (the log outlives
 test("deleting the actor user nulls actor_user_id but keeps the audit row (real FK, SET NULL)", async () => {
   const db = await freshDb();
   const actor = castId<UserId>("user_audit_actor");
-  await db.insert(users).values({ id: actor, handle: castId<Handle>("user_audit_actor") });
+  await db.insert(users).values({ id: actor, handle: castId<Handle>("user_audit_actor"), handleKey: handleKey(castId<Handle>("user_audit_actor")) });
 
   // actor_user_id is a REAL FK with onDelete SET NULL.
   await db.insert(auditLogs).values({

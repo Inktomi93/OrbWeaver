@@ -149,6 +149,18 @@ describe("createUser", () => {
     ).rejects.toMatchObject({ code: "user_exists" });
   });
 
+  test("a look-alike of a held handle is rejected (user_exists), and a genuinely different handle is minted", async () => {
+    const db = await freshDb();
+    const { svc, admin } = await seedAdminCaller(db);
+    await seedUser(db, { id: "user_host", role: "user", handle: castId<Handle>("host") });
+    await expect(svc.createUser({ principal: principal(admin, "admin"), handle: castId<Handle>("Нost"), password: GOOD_PASSWORD })).rejects.toMatchObject({
+      code: "user_exists",
+    });
+    await expect(svc.createUser({ principal: principal(admin, "admin"), handle: castId<Handle>("hosts"), password: GOOD_PASSWORD })).resolves.toMatchObject({
+      handle: "hosts",
+    });
+  });
+
   test("a plain user is denied", async () => {
     const db = await freshDb();
     const svc = createAdminService(makeHarness(db).ctx);

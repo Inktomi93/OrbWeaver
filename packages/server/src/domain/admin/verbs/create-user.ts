@@ -14,6 +14,7 @@ import type { Principal, UserRole } from "@orb/contracts/identity";
 import { users } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/kit";
 import { DomainOperationError } from "@orb/kit/errors";
+import { handleKey } from "@orb/kit/handle-key";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
@@ -87,6 +88,7 @@ async function insertLocalUser(ctx: AdminContext, row: LocalUserInsert, actorUse
         .values({
           id,
           handle: castId<Handle>(row.handle),
+          handleKey: handleKey(row.handle),
           role: row.role,
           // `createUser` mints humans only — agent rows come exclusively from provisionAgentPrincipal.
           // Hardcoded (not the schema default) so a future default change can't leak agents here.
@@ -129,8 +131,13 @@ export function createCreateUser(ctx: AdminContext): AdminService["createUser"] 
     requireMintAuthority(params.principal, role);
     const handle = validateCreate(params, role);
 
-    // Friendly pre-check — the unique index + the TOCTOU translation in insertLocalUser are the real defense.
-    const existing = await ctx.db.select({ id: users.id }).from(users).where(eq(users.handle, handle)).limit(LIMIT_ONE);
+    // Friendly pre-check on the handle key (ADR 0254: a case variant or look-alike is the same handle) — the
+    // key's unique index + the TOCTOU translation in insertLocalUser are the real defense.
+    const existing = await ctx.db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.handleKey, handleKey(handle)))
+      .limit(LIMIT_ONE);
     if (existing[0] !== undefined) {
       throw handleTaken(handle);
     }

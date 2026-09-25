@@ -20,6 +20,7 @@ import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import { auditLogs, sessions, users } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
+import { handleKey } from "@orb/kit/handle-key";
 import type { CharacterId, ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AdminService } from "@orb/server/domain/admin";
@@ -160,6 +161,7 @@ export async function seedUser(db: Db, overrides: SeedUserOverrides = {}): Promi
   await db.insert(users).values({
     id,
     handle: castId<Handle>(overrides.handle ?? id),
+    handleKey: handleKey(castId<Handle>(overrides.handle ?? id)),
     role: overrides.role ?? "user",
     enabled: overrides.enabled ?? true,
     passwordHash: overrides.passwordHash ?? null,

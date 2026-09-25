@@ -412,6 +412,29 @@ describe("a pending join claims no handle the local signup would refuse", () => 
     expect(await inviteUses(f)).toBe(0);
   });
 
+  // The IdP chooses these handles, so none passes through the local signup alphabet: a compatibility form, an
+  // accented case variant and a mixed-script look-alike must all meet the held handle's key.
+  test.each([
+    ["émile", "Émile"],
+    ["host", "Нost"],
+    ["host", "ｈｏｓｔ"],
+  ])("beside %s, the pending join as %s is refused at the confirm", async (held, joiner) => {
+    const f = await flow();
+    await seedUser(f.db, { handle: castId<Handle>(held) });
+    const secret = await pendingJoin(f, joiner);
+    expect((await confirm(f, secret)).status).toBe(404);
+    expect(await usersBySubject(f, joiner)).toHaveLength(0);
+    expect(await inviteUses(f)).toBe(0);
+  });
+
+  test("control: beside host, a genuinely different handle (hosts) still joins", async () => {
+    const f = await flow();
+    await seedUser(f.db, { handle: castId<Handle>("host") });
+    const secret = await pendingJoin(f, "hosts");
+    expect((await confirm(f, secret)).status).toBe(200);
+    expect(await usersBySubject(f, "hosts")).toHaveLength(1);
+  });
+
   test("control: a handle no row carries in any case still joins", async () => {
     const f = await flow();
     await seedUser(f.db, { handle: castId<Handle>("rival") });

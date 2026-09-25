@@ -5,6 +5,7 @@
 
 import type { Db } from "@orb/db";
 import { sessions as sessionsTable, users } from "@orb/db";
+import { handleKey } from "@orb/kit/handle-key";
 import type { ExternalId, Handle, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
@@ -41,7 +42,9 @@ let exchanges: number;
 
 beforeEach(async () => {
   db = await freshDb();
-  await db.insert(users).values({ id: USER_ID, handle: castId<Handle>("alice"), externalId: castId<ExternalId>("sub-alice") });
+  await db
+    .insert(users)
+    .values({ id: USER_ID, handle: castId<Handle>("alice"), handleKey: handleKey(castId<Handle>("alice")), externalId: castId<ExternalId>("sub-alice") });
   const now = (): number => NOW;
   sessions = createSessionsService({ db, now, sessionSecret: PEPPER, seedUserConnections: createLocalLightUserSeed({ db, now }) });
   exchanges = 0;
