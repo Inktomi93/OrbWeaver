@@ -1,6 +1,7 @@
 import type { ResolvedIdentity } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { userConnections, users } from "@orb/db";
+import { handleKey } from "@orb/kit/handle-key";
 import type { ExternalId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
@@ -479,6 +480,27 @@ describe("sessions.provisionIdentity — MS-W1 collision hard-deny (mode-switch 
     expect(row?.externalId).toBeNull();
   });
 
+  test("a LOOK-ALIKE of a held handle at the mint path (signup ON) ⇒ DENIED account-exists, NO look-alike row", async () => {
+    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    asProvisioned(await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|host"), handle: castId<Handle>("host") })));
+    const before = await rowCount();
+    const result = await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|spoof"), handle: castId<Handle>("h0st") }), {
+      allowJitProvision: true,
+    });
+    expect(result).toEqual({ outcome: "denied", reason: "account-exists" });
+    expect(await rowCount()).toBe(before);
+  });
+
+  test("a MIXED-SCRIPT handle at the mint path (signup ON) ⇒ DENIED, no row", async () => {
+    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    const before = await rowCount();
+    const result = await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|mixed"), handle: castId<Handle>("гoot") }), {
+      allowJitProvision: true,
+    });
+    expect(result.outcome).toBe("denied");
+    expect(await rowCount()).toBe(before);
+  });
+
   test("EMAIL collision at the mint path (new handle, signup ON) ⇒ DENIED account-exists, NO duplicate row", async () => {
     vi.stubEnv("OWNER_HANDLES", "someone-else");
     // An existing account carries alice@corp.com (created via a prior login).
@@ -583,6 +605,26 @@ describe("sessions.provisionIdentity — rename stability (externalId is the key
     expect(await rowCount()).toBe(1);
     const row = (await db.select().from(users).where(eq(users.id, first.userId)))[0];
     expect(row?.handle).toBe("new-name");
+  });
+
+  test("an IdP rename onto a look-alike of another row's handle keeps the current handle", async () => {
+    vi.stubEnv("OWNER_HANDLES", "x");
+    await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|host"), handle: castId<Handle>("host") }));
+    const first = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("old-name") })));
+    const renamed = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("h0st") })));
+    expect(renamed.userId).toBe(first.userId);
+    expect(renamed.identityChanged).toBe(false);
+    const row = (await db.select().from(users).where(eq(users.id, first.userId)))[0];
+    expect(row?.handle).toBe("old-name");
+  });
+
+  test("an IdP rename onto a mixed-script handle keeps the current handle", async () => {
+    vi.stubEnv("OWNER_HANDLES", "x");
+    const first = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("old-name") })));
+    const renamed = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("hσst") })));
+    expect(renamed.userId).toBe(first.userId);
+    const row = (await db.select().from(users).where(eq(users.id, first.userId)))[0];
+    expect(row?.handle).toBe("old-name");
   });
 
   test("externalId null keys on handle (single-user / non-SSO path)", async () => {
@@ -886,8 +928,8 @@ describe("sessions.provisionIdentity — the first-login INSERT race (#1478)", (
   /** Plant a colliding row while the provisioning INSERT is parked before the driver. RAW sql on purpose:
    *  drizzle quotes the table name, so this statement does not match the hold pattern and is not itself
    *  held. */
-  const plantOtherSubject = `insert into users (id, handle, external_id, role, enabled, created_at, updated_at)
-                               values ('user_winner', 'alice', 'authentik|someone-else', 'user', 1, 1, 1)`;
+  const plantOtherSubject = `insert into users (id, handle, handle_key, external_id, role, enabled, created_at, updated_at)
+                               values ('user_winner', 'alice', '${handleKey("alice")}', 'authentik|someone-else', 'user', 1, 1, 1)`;
 
   test("a concurrent writer taking the HANDLE ⇒ denied account-exists; the winner's row is untouched", async () => {
     vi.stubEnv("OWNER_HANDLES", "someone-else");
@@ -908,9 +950,35 @@ describe("sessions.provisionIdentity — the first-login INSERT race (#1478)", (
     expect(rows).toHaveLength(1);
     expect(rows[0]?.externalId).toBe("authentik|someone-else");
     // …and the refusal rides the security trail, naming the collision rather than a stack trace.
-    const line = warn.mock.calls.map(([bindings]) => bindings as Record<string, unknown>).find((b) => b["event"] === "sso_insert_lost_race");
+    const call = warn.mock.calls.find(([bindings]) => (bindings as Record<string, unknown>)["event"] === "sso_insert_lost_race");
+    const line = call?.[0] as Record<string, unknown> | undefined;
     expect(line?.["security"]).toBe(true);
-    expect(line?.["handleTaken"]).toBe(true);
+    // An exact handle match is an account an admin may link to this subject, so the line says how.
+    expect(line?.["match"]).toBe("exact");
+    expect(String(call?.[1])).toContain("admin.linkSsoIdentity");
+  });
+
+  test("a concurrent writer taking only the handle's KEY ⇒ denied; the line says key-only and never advises a link", async () => {
+    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    const held = await freshHeldDb();
+    const service = makeService(held.db).svc;
+    const warn = vi.spyOn(logger, "warn");
+    const parked = held.hold(/insert into "users"/i);
+
+    const pending = service.provisionIdentity(identity());
+    await parked.reached;
+    await held.db.run(
+      sql.raw(`insert into users (id, handle, handle_key, external_id, role, enabled, created_at, updated_at)
+               values ('user_lookalike', 'ALICE', '${handleKey("alice")}', 'authentik|someone-else', 'user', 1, 1, 1)`),
+    );
+    parked.release();
+
+    expect(await pending).toEqual({ outcome: "denied", reason: "account-exists" });
+    // A key-only match is a DIFFERENT account that merely looks alike: linking it to this subject would hand
+    // the look-alike's row to the wrong person, so the operator line must not suggest it.
+    const call = warn.mock.calls.find(([bindings]) => (bindings as Record<string, unknown>)["event"] === "sso_insert_lost_race");
+    expect((call?.[0] as Record<string, unknown> | undefined)?.["match"]).toBe("key-only");
+    expect(String(call?.[1])).not.toContain("linkSsoIdentity");
   });
 
   test("the SAME-subject race still resolves onto the winner's row (the shape the insert absorbs by design)", async () => {
@@ -923,8 +991,8 @@ describe("sessions.provisionIdentity — the first-login INSERT race (#1478)", (
     await parked.reached;
     // The concurrent first login of the SAME identity: same handle AND same stable subject.
     await held.db.run(
-      sql.raw(`insert into users (id, handle, external_id, role, enabled, created_at, updated_at)
-               values ('user_twin', 'alice', '${EXTERNAL}', 'user', 1, 1, 1)`),
+      sql.raw(`insert into users (id, handle, handle_key, external_id, role, enabled, created_at, updated_at)
+               values ('user_twin', 'alice', '${handleKey("alice")}', '${EXTERNAL}', 'user', 1, 1, 1)`),
     );
     parked.release();
 

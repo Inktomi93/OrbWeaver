@@ -17,6 +17,7 @@
 import type { Db } from "@orb/db";
 import { characters, chatParticipants, chats, messages, messageVariants, users } from "@orb/db";
 import { chatRecencyExpr, memberVisibleChatScope } from "@orb/db/kit";
+import { handleKey } from "@orb/kit/handle-key";
 import type { CharacterHandle, CharacterId, ChatId, ChatParticipantId, Handle, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, count, eq, exists, sql } from "drizzle-orm";
@@ -82,8 +83,8 @@ async function seedRoom(db: Db, spec: RoomSpec): Promise<void> {
 }
 
 async function seedCast(db: Db, ids: readonly CharacterId[]): Promise<void> {
-  await db.insert(users).values({ id: OWNER, handle: castId<Handle>("owner"), role: "user" });
-  await db.insert(users).values({ id: STRANGER, handle: castId<Handle>("stranger"), role: "user" });
+  await db.insert(users).values({ id: OWNER, handle: castId<Handle>("owner"), role: "user", handleKey: handleKey(castId<Handle>("owner")) });
+  await db.insert(users).values({ id: STRANGER, handle: castId<Handle>("stranger"), role: "user", handleKey: handleKey(castId<Handle>("stranger")) });
   for (const id of ids) {
     await db.insert(characters).values({
       id,

@@ -1,5 +1,6 @@
 import type { Db } from "@orb/db";
 import { userConnections, users } from "@orb/db";
+import { handleKey } from "@orb/kit/handle-key";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
@@ -84,7 +85,9 @@ describe("sessions.ensureUser", () => {
   // against a non-existent non-owner principal. A fabricated id must be a loud failure, never a return value.
   test("REFUSES to return an id that points at no row when the insert is swallowed (single-owner UNIQUE)", async () => {
     vi.stubEnv("OWNER_HANDLES", "owner");
-    await db.insert(users).values({ id: castId<UserId>("u_existing_owner"), handle: castId<Handle>("alex"), role: "owner" });
+    await db
+      .insert(users)
+      .values({ id: castId<UserId>("u_existing_owner"), handle: castId<Handle>("alex"), handleKey: handleKey(castId<Handle>("alex")), role: "owner" });
 
     await expect(svc.ensureUser(castId<Handle>("owner"))).rejects.toThrow(NO_ROW_AFTER_INSERT);
 

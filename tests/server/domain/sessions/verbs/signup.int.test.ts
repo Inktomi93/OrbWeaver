@@ -1,6 +1,6 @@
-// D254 — the sessions half of the signup batch: the account insert statement and the case-insensitive handle
-// read. The statement writes only where the admission it is handed holds and no handle matches in any case,
-// and it never absorbs a conflict.
+// D254 — the sessions half of the signup batch: the account insert statement and the handle-key read. The
+// statement writes only where the admission it is handed holds and no row carries the handle's key (any case,
+// any confusable), and it never absorbs a conflict.
 
 import type { Db } from "@orb/db";
 import { users } from "@orb/db";
@@ -52,6 +52,13 @@ describe("sessions.signupUserStatement", () => {
     expect(await rowsFor(castId<Handle>("fRIEND"))).toHaveLength(0);
   });
 
+  test("a confusable of a held handle writes nothing, even when it lands after the pre-check", async () => {
+    await seedUser(db, { handle: castId<Handle>("host") });
+    const { statement } = svc.signupUserStatement({ handle: castId<Handle>("h0st"), passwordHash: "scrypt$x", at: AT, admission: ADMITS });
+    expect(await statement).toEqual([]);
+    expect(await rowsFor(castId<Handle>("h0st"))).toHaveLength(0);
+  });
+
   test("each call mints a fresh id", () => {
     const first = svc.signupUserStatement({ handle: castId<Handle>("a1"), passwordHash: "h", at: AT, admission: ADMITS });
     const second = svc.signupUserStatement({ handle: castId<Handle>("a2"), passwordHash: "h", at: AT, admission: ADMITS });
@@ -65,5 +72,12 @@ describe("sessions.signupHandleTaken", () => {
     expect(await svc.signupHandleTaken(castId<Handle>("friend"))).toBe(true);
     expect(await svc.signupHandleTaken(castId<Handle>("FRIEND"))).toBe(true);
     expect(await svc.signupHandleTaken(castId<Handle>("stranger"))).toBe(false);
+  });
+
+  test("answers true for a confusable of a held handle, false for a genuinely different one", async () => {
+    await seedUser(db, { handle: castId<Handle>("host") });
+    expect(await svc.signupHandleTaken(castId<Handle>("h0st"))).toBe(true);
+    expect(await svc.signupHandleTaken(castId<Handle>("HOST"))).toBe(true);
+    expect(await svc.signupHandleTaken(castId<Handle>("hosts"))).toBe(false);
   });
 });

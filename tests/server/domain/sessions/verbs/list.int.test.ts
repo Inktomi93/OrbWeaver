@@ -1,5 +1,6 @@
 import type { Db } from "@orb/db";
 import { users } from "@orb/db";
+import { handleKey } from "@orb/kit/handle-key";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
@@ -18,8 +19,8 @@ beforeEach(async () => {
   db = await freshDb();
   ({ svc } = makeService(db));
   await db.insert(users).values([
-    { id: USER_ID, handle: castId<Handle>("alice") },
-    { id: OTHER_ID, handle: castId<Handle>("bob") },
+    { id: USER_ID, handle: castId<Handle>("alice"), handleKey: handleKey(castId<Handle>("alice")) },
+    { id: OTHER_ID, handle: castId<Handle>("bob"), handleKey: handleKey(castId<Handle>("bob")) },
   ]);
 });
 

@@ -15,6 +15,29 @@ function harness(role: UserRole): {
   return { admin, restart };
 }
 
+// A handle's key normalizes, and NFKC/NFD over a long run of combining marks is quadratic, so the length cap is
+// enforced before any key is computed.
+const COMBINING_MARKS = "\u0345\u0301\u0316\u0334";
+
+describe("admin.createUser handle length", () => {
+  const createUser = vi.fn(() => Promise.resolve(undefined as never));
+  const admin = (): ReturnType<typeof caller>["admin"] => caller(makeContext({ auth: principal("admin"), services: { admin: { createUser } } })).admin;
+
+  test("a handle over 64 code points answers BAD_REQUEST and the verb never runs", async () => {
+    createUser.mockClear();
+    const long = `a${COMBINING_MARKS.repeat(16)}`;
+    await expect(admin().createUser({ handle: long as never, password: "correct-horse" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(createUser).not.toHaveBeenCalled();
+  });
+
+  test("control: a handle of exactly 64 code points reaches the verb", async () => {
+    createUser.mockClear();
+    const edge = `${"a".repeat(63)}\u{1D400}`;
+    await admin().createUser({ handle: edge as never, password: "correct-horse" });
+    expect(createUser).toHaveBeenCalledOnce();
+  });
+});
+
 describe("admin.restart", () => {
   test("without the confirm it answers BAD_REQUEST and the verb never runs", async () => {
     const h = harness("owner");

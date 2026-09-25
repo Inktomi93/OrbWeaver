@@ -25,7 +25,7 @@ import { CRED_REVOKED_REASONS } from "@orb/contracts/credentials";
 import type { ProviderId } from "@orb/contracts/inference";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
-import { check, index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { checkList } from "../kit/check-list.ts";
 import { users } from "./users.ts";
 
@@ -71,6 +71,9 @@ export const userCredentials = sqliteTable(
   (table) => [
     // Owner-scoped reads (fetchOwned / list).
     index("user_credentials_owner_idx").on(table.ownerId),
+    // One slot per label: two concurrent adds that both read a label as free cannot both store it, so the
+    // later insert collides and `add` takes the next free label.
+    uniqueIndex("user_credentials_owner_provider_label_unique").on(table.ownerId, table.provider, table.label),
     // The tuple is CHECK-bound like every other closed enum column (`db-enum-from-tuple` form); the TS
     // `enum:` alone never reached SQLite, and the schema pin that asserted a refusal passed on nothing.
     check("user_credentials_revoked_reason_check", sql.raw(`revoked_reason is null or revoked_reason in (${checkList(CRED_REVOKED_REASONS)})`)),

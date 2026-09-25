@@ -1,6 +1,7 @@
 import type { Db } from "@orb/db";
 import { auditLogs, sessions, users } from "@orb/db";
 import { batchMany } from "@orb/db/kit";
+import { handleKey } from "@orb/kit/handle-key";
 import type { ExternalId, Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
@@ -23,7 +24,7 @@ let svc: SessionsService;
 beforeEach(async () => {
   db = await freshDb();
   ({ svc } = makeService(db));
-  await db.insert(users).values({ id: USER_ID, handle: castId<Handle>("alice") });
+  await db.insert(users).values({ id: USER_ID, handle: castId<Handle>("alice"), handleKey: handleKey(castId<Handle>("alice")) });
 });
 
 async function logoutAudits(): Promise<number> {
@@ -145,7 +146,9 @@ describe("sessions.revokeByExternalId (OIDC back-channel logout)", () => {
 
   test("only the SUBJECT's sessions are revoked, not a co-tenant's", async () => {
     const other = castId<UserId>("user_bob");
-    await db.insert(users).values({ id: other, handle: castId<Handle>("bob"), externalId: castId<ExternalId>("authentik|bob") });
+    await db
+      .insert(users)
+      .values({ id: other, handle: castId<Handle>("bob"), handleKey: handleKey(castId<Handle>("bob")), externalId: castId<ExternalId>("authentik|bob") });
     const aliceSession = await svc.create({ userId: USER_ID });
     const bobSession = await svc.create({ userId: other });
     expect(await svc.revokeByExternalId(External)).toEqual({ revoked: 1, userIds: [USER_ID] }); // alice only

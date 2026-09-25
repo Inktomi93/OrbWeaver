@@ -9,6 +9,7 @@
 
 import type { Db } from "@orb/db";
 import { users } from "@orb/db";
+import { handleKey } from "@orb/kit/handle-key";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
@@ -35,6 +36,7 @@ async function seedRow(id: string, handle: Handle, externalId: ExternalId | null
   await db.insert(users).values({
     id: uid,
     handle,
+    handleKey: handleKey(handle),
     externalId,
     role: "user",
     enabled: true,

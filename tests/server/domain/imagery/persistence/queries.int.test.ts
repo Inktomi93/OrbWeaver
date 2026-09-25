@@ -6,6 +6,7 @@ import type { PromptTemplateMode } from "@orb/contracts/imagery";
 import { providerIdSchema } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { assets, characters, imageryGenerations, userConnections, users } from "@orb/db";
+import { handleKey } from "@orb/kit/handle-key";
 import type { AssetId, CharacterId, Handle, ImageryGenerationId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
@@ -35,7 +36,7 @@ async function seedConnection(ownerId: UserId, suffix: string): Promise<UserConn
 
 async function seedOwnedAsset(): Promise<{ owner: UserId; assetId: AssetId; connectionId: UserConnectionId }> {
   const owner = castId<UserId>("user_owner");
-  await db.insert(users).values({ id: owner, handle: castId<Handle>("owner"), role: "user", enabled: true });
+  await db.insert(users).values({ id: owner, handle: castId<Handle>("owner"), handleKey: handleKey(castId<Handle>("owner")), role: "user", enabled: true });
   const connectionId = await seedConnection(owner, "owner");
   const assetId = castId<AssetId>("asset_gen");
   await db.insert(assets).values({
@@ -161,7 +162,7 @@ async function seedGeneration(args: SeedArgs): Promise<void> {
 
 async function seedUser(handle: Handle): Promise<UserId> {
   const id = castId<UserId>(`user_${handle}`);
-  await db.insert(users).values({ id, handle: castId<Handle>(handle), role: "user", enabled: true });
+  await db.insert(users).values({ id, handle: castId<Handle>(handle), handleKey: handleKey(castId<Handle>(handle)), role: "user", enabled: true });
   return id;
 }
 

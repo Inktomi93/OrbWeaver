@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "8ef1b41f-0823-46b2-a33d-e7badb6b0d41",
+  "id": "a0501cdc-99c4-4aae-b44e-c8335a18130b",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -1491,6 +1491,28 @@
           "autoincrement": false,
           "default": "'pending'"
         },
+        "allow_signup": {
+          "name": "allow_signup",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "created_by_user_id": {
+          "name": "created_by_user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "mint_mode": {
+          "name": "mint_mode",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "integer",
@@ -1515,6 +1537,11 @@
           "name": "chat_invites_invited_user_idx",
           "columns": ["invited_user_id"],
           "isUnique": false
+        },
+        "chat_invites_created_by_user_idx": {
+          "name": "chat_invites_created_by_user_idx",
+          "columns": ["created_by_user_id"],
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -1535,6 +1562,15 @@
           "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
+        },
+        "chat_invites_created_by_user_id_users_id_fk": {
+          "name": "chat_invites_created_by_user_id_users_id_fk",
+          "tableFrom": "chat_invites",
+          "tableTo": "users",
+          "columnsFrom": ["created_by_user_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1547,6 +1583,18 @@
         "chat_invites_uses_check": {
           "name": "chat_invites_uses_check",
           "value": "uses >= 0 and (max_uses is null or max_uses > 0)"
+        },
+        "chat_invites_signup_shape": {
+          "name": "chat_invites_signup_shape",
+          "value": "allow_signup = 0 OR (invited_user_id IS NULL AND max_uses IS NOT NULL AND expires_at IS NOT NULL)"
+        },
+        "chat_invites_signup_mode": {
+          "name": "chat_invites_signup_mode",
+          "value": "allow_signup = 0 OR mint_mode IS NOT NULL"
+        },
+        "chat_invites_mint_mode_check": {
+          "name": "chat_invites_mint_mode_check",
+          "value": "mint_mode is null or mint_mode in ('single-user', 'local', 'forward-header', 'oidc')"
         }
       }
     },
@@ -3091,6 +3139,13 @@
           "autoincrement": false,
           "default": false
         },
+        "prompt_cache": {
+          "name": "prompt_cache",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "integer",
@@ -3628,6 +3683,11 @@
           "name": "user_credentials_owner_idx",
           "columns": ["owner_id"],
           "isUnique": false
+        },
+        "user_credentials_owner_provider_label_unique": {
+          "name": "user_credentials_owner_provider_label_unique",
+          "columns": ["owner_id", "provider", "label"],
+          "isUnique": true
         }
       },
       "foreignKeys": {
@@ -6573,7 +6633,7 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": 7
+          "default": 8
         },
         "forked_from": {
           "name": "forked_from",
@@ -8478,6 +8538,104 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
+    "oidc_pending_signups": {
+      "name": "oidc_pending_signups",
+      "columns": {
+        "external_id": {
+          "name": "external_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "secret_hash": {
+          "name": "secret_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "handle": {
+          "name": "handle",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "groups": {
+          "name": "groups",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "invite_token_hash": {
+          "name": "invite_token_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "id_token_ciphertext": {
+          "name": "id_token_ciphertext",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "id_token_iv": {
+          "name": "id_token_iv",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "id_token_tag": {
+          "name": "id_token_tag",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "oidc_pending_signups_secret_hash_unique": {
+          "name": "oidc_pending_signups_secret_hash_unique",
+          "columns": ["secret_hash"],
+          "isUnique": true
+        },
+        "oidc_pending_signups_expires_idx": {
+          "name": "oidc_pending_signups_expires_idx",
+          "columns": ["expires_at"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "oidc_transactions": {
       "name": "oidc_transactions",
       "columns": {
@@ -8504,6 +8662,13 @@
         },
         "redirect_uri": {
           "name": "redirect_uri",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "invite_token_hash": {
+          "name": "invite_token_hash",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -10230,6 +10395,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "handle_key": {
+          "name": "handle_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
         "external_id": {
           "name": "external_id",
           "type": "text",
@@ -10303,6 +10475,11 @@
         "users_handle_unique": {
           "name": "users_handle_unique",
           "columns": ["handle"],
+          "isUnique": true
+        },
+        "users_handle_key_unique": {
+          "name": "users_handle_key_unique",
+          "columns": ["handle_key"],
           "isUnique": true
         },
         "users_external_id_unique": {

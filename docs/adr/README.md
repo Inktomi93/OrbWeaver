@@ -204,3 +204,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D254 | [Signup invites mint accounts through one gated batch](0254-signup-invites-mint-through-one-gated-batch.md) | active |
 | D255 | [Network and auth modes: refuse only an off-box owner surface, warn on the rest](0255-network-and-auth-modes.md) | active |
 | D256 | [Gemini limits come from curated rows, not a native Google catalog](0256-google-limits-stay-curated.md) | active |
+| D257 | [Handles compare on one Unicode key](0257-handles-compare-on-one-unicode-key.md) | active |

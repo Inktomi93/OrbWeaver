@@ -1,5 +1,6 @@
 import process from "node:process";
 import type { UserRole } from "@orb/contracts/identity";
+import { handleKey } from "@orb/kit/handle-key";
 import type { ExternalId, Handle } from "@orb/kit/ids";
 import { env } from "#foundation/env";
 import type { IdentityAccess } from "../contract/results.ts";
@@ -75,10 +76,11 @@ export function isOwnerSeedHandle(handle: Handle): boolean {
 }
 
 /** D254 — a handle a signup may never claim: an `OWNER_HANDLES` seed key or the single-user placeholder,
- *  compared case-insensitively, so a case variant cannot squat the key the next boot re-seeds through. */
+ *  compared on the handle key, so a case variant or look-alike cannot squat the key the next boot re-seeds
+ *  through. */
 export function isReservedSignupHandle(handle: Handle): boolean {
-  const claimed = handle.toLowerCase();
-  return [...ownerHandles(), env.DEFAULT_USER_HANDLE].some((reserved) => reserved.toLowerCase() === claimed);
+  const claimed = handleKey(handle);
+  return [...ownerHandles(), env.DEFAULT_USER_HANDLE].some((reserved) => handleKey(reserved) === claimed);
 }
 
 /**

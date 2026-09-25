@@ -5,6 +5,7 @@
 // D8/D25), and recent events (newest-first). Plus the NOT_FOUND short-circuit for an unknown chat.
 
 import { characters, chatEvents, chatParticipants, chats, messages, messageVariants, sessionEntries, userConnections, users } from "@orb/db";
+import { handleKey } from "@orb/kit/handle-key";
 import type {
   CharacterHandle,
   CharacterId,
@@ -41,7 +42,7 @@ interface Seeded {
 // of it into one structure.
 async function seedFullChat(db: Awaited<ReturnType<typeof freshDb>>): Promise<Seeded> {
   const userId = castId<UserId>("user_inspect");
-  await db.insert(users).values({ id: userId, handle: castId<Handle>("user_inspect") });
+  await db.insert(users).values({ id: userId, handle: castId<Handle>("user_inspect"), handleKey: handleKey(castId<Handle>("user_inspect")) });
   const connectionId = castId<UserConnectionId>("user_connection_inspect");
   await db.insert(userConnections).values({
     id: connectionId,

@@ -149,6 +149,42 @@ describe("createUser", () => {
     ).rejects.toMatchObject({ code: "user_exists" });
   });
 
+  test("a look-alike of a held handle is rejected (user_exists), and a genuinely different handle is minted", async () => {
+    const db = await freshDb();
+    const { svc, admin } = await seedAdminCaller(db);
+    await seedUser(db, { id: "user_host", role: "user", handle: castId<Handle>("host") });
+    await expect(svc.createUser({ principal: principal(admin, "admin"), handle: castId<Handle>("h0st"), password: GOOD_PASSWORD })).rejects.toMatchObject({
+      code: "user_exists",
+    });
+    await expect(svc.createUser({ principal: principal(admin, "admin"), handle: castId<Handle>("hosts"), password: GOOD_PASSWORD })).resolves.toMatchObject({
+      handle: "hosts",
+    });
+  });
+
+  test("a mixed-script handle is rejected (invalid_handle); a single-script non-Latin one is minted", async () => {
+    const db = await freshDb();
+    const { svc, admin } = await seedAdminCaller(db);
+    await expect(svc.createUser({ principal: principal(admin, "admin"), handle: castId<Handle>("hσst"), password: GOOD_PASSWORD })).rejects.toMatchObject({
+      code: "invalid_handle",
+    });
+    await expect(svc.createUser({ principal: principal(admin, "admin"), handle: castId<Handle>("Дмитрий"), password: GOOD_PASSWORD })).resolves.toMatchObject({
+      handle: "Дмитрий",
+    });
+  });
+
+  test("a handle whose key is blank (only zero-width or blank characters) is rejected (invalid_handle)", async () => {
+    const db = await freshDb();
+    const { svc, admin } = await seedAdminCaller(db);
+    for (const blank of ["​​", "⁠", "　"]) {
+      await expect(
+        svc.createUser({ principal: principal(admin, "admin"), handle: castId<Handle>(blank), password: GOOD_PASSWORD }),
+        JSON.stringify(blank),
+      ).rejects.toMatchObject({
+        code: "invalid_handle",
+      });
+    }
+  });
+
   test("a plain user is denied", async () => {
     const db = await freshDb();
     const svc = createAdminService(makeHarness(db).ctx);

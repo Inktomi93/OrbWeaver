@@ -14,6 +14,7 @@ import { gate as discoveryNoStatsRollups } from "../../../../../tooling/src/veri
 import { gate as externalIdSingleWriter } from "../../../../../tooling/src/verify/gates/external-id-single-writer.ts";
 import { gate as firehoseImportAllowlist } from "../../../../../tooling/src/verify/gates/firehose-import-allowlist.ts";
 import { gate as firehoseImportAllowlistHealth } from "../../../../../tooling/src/verify/gates/firehose-import-allowlist-health.ts";
+import { gate as handleKeyWriter } from "../../../../../tooling/src/verify/gates/handle-key-writer.ts";
 import { gate as infraAuthNoUserid } from "../../../../../tooling/src/verify/gates/infra-auth-no-userid.ts";
 import { gate as membershipEnforcer } from "../../../../../tooling/src/verify/gates/membership-enforcer.ts";
 import { gate as membershipFanGuard } from "../../../../../tooling/src/verify/gates/membership-fan-guard.ts";
@@ -114,6 +115,17 @@ export const SERVER_APP_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "externalId",
+  },
+  {
+    policy: handleKeyWriter,
+    // D257: a users rename that drops the key must speak on the real tree, where every real rename carries it.
+    overlays: [
+      add(
+        `${SERVER}/domain/sessions/verbs/liveness-rename.ts`,
+        'import { users } from "@orb/db";\nimport { eq } from "drizzle-orm";\nexport const rename = (db: D, id: U, handle: H, at: number) => db.update(users).set({ handle, updatedAt: at }).where(eq(users.id, id));\n',
+      ),
+    ],
+    messageIncludes: "handleKey",
   },
   {
     policy: firehoseImportAllowlistHealth,
