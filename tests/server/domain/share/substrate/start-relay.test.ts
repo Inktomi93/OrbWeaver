@@ -3,13 +3,14 @@
 
 import type { RelayStatus } from "@orb/contracts/identity";
 import { DomainOperationError } from "@orb/kit/errors";
-import { describe } from "vitest";
+import { getLog } from "@orb/server/foundation/observability";
+import { describe, vi } from "vitest";
 import { startSeatedRelay } from "../../../../../packages/server/src/domain/share/substrate/start-relay.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const STARTING: RelayStatus = { state: "starting", relay: "quick", restartAfter: null };
 
-function steps(startError?: Error): { readonly calls: string[]; readonly run: () => Promise<RelayStatus> } {
+function steps(startError?: Error, restoreError?: Error): { readonly calls: string[]; readonly run: () => Promise<RelayStatus> } {
   const calls: string[] = [];
   const run = (): Promise<RelayStatus> =>
     startSeatedRelay({
@@ -17,7 +18,7 @@ function steps(startError?: Error): { readonly calls: string[]; readonly run: ()
         calls.push("enableSeating");
         return Promise.resolve(() => {
           calls.push("restoreSeating");
-          return Promise.resolve();
+          return restoreError === undefined ? Promise.resolve() : Promise.reject(restoreError);
         });
       },
       relay: {
@@ -44,5 +45,18 @@ describe("startSeatedRelay", () => {
     const { calls, run } = steps(refused);
     await expect(run()).rejects.toBe(refused);
     expect(calls).toEqual(["enableSeating", "relay.start", "restoreSeating"]);
+  });
+
+  test("a restore that also fails is logged, and the relay's own error still reaches the caller", async () => {
+    const refused = new DomainOperationError("relay_binary_checksum_mismatch", "not the pinned bytes");
+    const restoreFailed = new Error("settings write refused");
+    const errorSpy = vi.spyOn(getLog(), "error").mockImplementation(() => undefined);
+    try {
+      const { run } = steps(refused, restoreFailed);
+      await expect(run()).rejects.toBe(refused);
+      expect(errorSpy).toHaveBeenCalledWith(expect.objectContaining({ err: restoreFailed }), expect.any(String));
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 });
