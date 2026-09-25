@@ -21,8 +21,16 @@
 // (`plugin:<name>/<id>` for a plugin row, bare for an admin row; a built-in id can never be shadowed — the
 // registry refuses it at `register()`, §5.9-1).
 
-import type { ConnectionApi, ConnectionExtrasDoc, ConnectionTransportDoc, DeclaredCapability, PromptCacheSettings, ProviderId } from "@orb/contracts/inference";
-import { CHAT_APIS } from "@orb/contracts/inference";
+import type {
+  ConnectionApi,
+  ConnectionExtrasDoc,
+  ConnectionTransportDoc,
+  DeclaredCapability,
+  LocalLightSeedSlot,
+  PromptCacheSettings,
+  ProviderId,
+} from "@orb/contracts/inference";
+import { CHAT_APIS, LOCAL_LIGHT_SEED_ROWS } from "@orb/contracts/inference";
 import type { ModelId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
@@ -79,13 +87,19 @@ export const userConnections = sqliteTable(
     // by field). NULL ⇒ the shipped behavior (`SHIPPED_PROMPT_CACHE`), so every row born before the column
     // sends the bytes it always sent.
     promptCache: text("prompt_cache", { mode: "json" }).$type<PromptCacheSettings>(),
+    // The local-light seed slot this row fills (its task), NULL for every row a user made. The seed keys on it,
+    // never on the label, so relabelling the seed renames the user's row in place instead of adding one.
+    seedSlot: text("seed_slot").$type<LocalLightSeedSlot>(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
     updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
-    // `(owner, label)` unique — the seed's idempotency key and the pane's collision suffix; it also serves
-    // the owner-scoped list read (`owner_id` leads it).
+    // `(owner, label)` unique — the pane's collision suffix; it also serves the owner-scoped list read
+    // (`owner_id` leads it).
     uniqueIndex("user_connections_owner_label_unique").on(t.ownerId, t.label),
+    // One row per seed slot per owner — the local-light seed's idempotency key. NULLs (user rows) never collide.
+    uniqueIndex("user_connections_owner_seed_slot_unique").on(t.ownerId, t.seedSlot),
+    check("user_connections_seed_slot_check", sql.raw(`seed_slot is null or seed_slot in (${checkList(LOCAL_LIGHT_SEED_ROWS.map((seed) => seed.task))})`)),
     // The SET-NULL parent scan on a credential delete (`fk-columns-indexed` gate).
     index("user_connections_credential_idx").on(t.credentialId),
     check("user_connections_api_check", sql.raw(`api in (${checkList(CONNECTION_APIS)})`)),

@@ -48,6 +48,10 @@ export const LOCAL_LIGHT_SEED_ROWS = [
   { task: "rerank", model: "Xenova/ms-marco-MiniLM-L-6-v2", label: "Built-in reranker" },
 ] as const;
 
+/** The seed slot a seeded row fills (`user_connections.seed_slot`): its task. The seed's idempotency key, so a
+ *  relabel or a model change never adds a row beside the one the user already has. */
+export type LocalLightSeedSlot = (typeof LOCAL_LIGHT_SEED_ROWS)[number]["task"];
+
 // `as const satisfies` (not a `Record<Task, TaskDef>` annotation): the literal `routable` flags must
 // survive so `RoutableTask` can be DERIVED from the rows rather than spelled twice.
 export const TASK_DEFS = {

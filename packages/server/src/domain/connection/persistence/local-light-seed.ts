@@ -3,17 +3,19 @@
 // plus their two `user` bindings (`embed`, `rerank`). Not a special row: a user who deletes them reads
 // `no-connection` on search like any other unset task and re-adds them from the picker.
 //
-// IDEMPOTENT by the `(owner_id, label)` unique: one `onConflictDoNothing` insert for BOTH rows, one read of the
-// user's existing bindings, one insert of the bindings still missing — three statements, no per-row round
-// trips. A boot that runs this for every existing user and a user-create hook that runs it once converge on the
-// same two rows; a re-pointed binding is the user's and is never overwritten. This function throws only on a
-// db error — the caller decides whether that is a boot warning (it is) or an un-created account (never).
+// IDEMPOTENT by the `(owner_id, seed_slot)` unique, never by the label, so a relabel renames rows instead of adding
+// them. A row seeded before the slot existed is adopted in place: the unslotted local-light row on the seed's model
+// that the user's binding for that task points at gets the slot and today's label, and keeps its binding. Then one
+// `onConflictDoNothing` insert for the slots still empty and one insert of the bindings still missing. A re-pointed
+// binding is the user's and is never overwritten. This function throws only on a db error.
 
-import type { ProviderId, RoutableTask } from "@orb/contracts/inference";
+import type { LocalLightSeedSlot, ProviderId, RoutableTask } from "@orb/contracts/inference";
 import { builtinProvider, LOCAL_LIGHT_SEED_ROWS, modelIdSchema } from "@orb/contracts/inference";
 import { connectionBindings, userConnections } from "@orb/db";
+import { batchMany, batchStmt } from "@orb/db/kit";
 import type { UserId } from "@orb/kit/ids";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull, notExists, or } from "drizzle-orm";
+import { alias } from "drizzle-orm/sqlite-core";
 import type { LocalLightSeedDeps } from "../contract/params.ts";
 import type { LocalLightSeedResult } from "../contract/results.ts";
 
@@ -26,14 +28,48 @@ function localLightProviderId(): ProviderId {
 }
 
 const LOCAL_LIGHT_PROVIDER_ID = localLightProviderId();
-const SEED_LABELS = LOCAL_LIGHT_SEED_ROWS.map((row) => row.label);
-const SEED_TASKS: readonly RoutableTask[] = LOCAL_LIGHT_SEED_ROWS.map((row) => row.task);
+const SEED_SLOTS: readonly LocalLightSeedSlot[] = LOCAL_LIGHT_SEED_ROWS.map((row) => row.task);
+const SEED_TASKS: readonly RoutableTask[] = SEED_SLOTS;
+const taken = alias(userConnections, "seed_slot_taken");
+
+/** Give each empty slot the user's pre-slot seeded row for it: the unslotted local-light row on the seed's model
+ *  that their binding for the task points at. Skipped when the slot is filled or today's label is already in use. */
+async function adoptEarlierSeedRows(deps: LocalLightSeedDeps, ownerId: UserId, now: number): Promise<void> {
+  const { db } = deps;
+  const adoptions = LOCAL_LIGHT_SEED_ROWS.map((seed) => {
+    const boundRow = db
+      .select({ id: connectionBindings.connectionId })
+      .from(connectionBindings)
+      .where(and(eq(connectionBindings.actorKind, "user"), eq(connectionBindings.userId, ownerId), eq(connectionBindings.task, seed.task)));
+    const slotOrLabelInUse = db
+      .select({ id: taken.id })
+      .from(taken)
+      .where(and(eq(taken.ownerId, ownerId), or(eq(taken.seedSlot, seed.task), eq(taken.label, seed.label))));
+    return batchStmt(
+      db
+        .update(userConnections)
+        .set({ seedSlot: seed.task, label: seed.label, updatedAt: now })
+        .where(
+          and(
+            eq(userConnections.ownerId, ownerId),
+            eq(userConnections.providerId, LOCAL_LIGHT_PROVIDER_ID),
+            eq(userConnections.model, modelIdSchema.parse(seed.model)),
+            isNull(userConnections.seedSlot),
+            inArray(userConnections.id, boundRow),
+            notExists(slotOrLabelInUse),
+          ),
+        ),
+    );
+  });
+  await db.batch(batchMany(adoptions));
+}
 
 /** Seed ONE user's two local-light rows + bindings. Returns how many connection rows were newly inserted and
  *  which tasks this call newly bound. */
 export async function seedLocalLightConnections(deps: LocalLightSeedDeps, ownerId: UserId): Promise<LocalLightSeedResult> {
   const { db } = deps;
   const now = deps.now();
+  await adoptEarlierSeedRows(deps, ownerId, now);
   const inserted = await db
     .insert(userConnections)
     .values(
@@ -41,6 +77,7 @@ export async function seedLocalLightConnections(deps: LocalLightSeedDeps, ownerI
         id: deps.newConnectionId(),
         ownerId,
         label: seed.label,
+        seedSlot: seed.task,
         providerId: LOCAL_LIGHT_PROVIDER_ID,
         credentialId: null,
         baseUrl: null,
@@ -57,23 +94,24 @@ export async function seedLocalLightConnections(deps: LocalLightSeedDeps, ownerI
         updatedAt: now,
       })),
     )
-    .onConflictDoNothing({ target: [userConnections.ownerId, userConnections.label] })
+    // Untargeted: a filled slot, or a user row already holding today's label, both leave that seed row out.
+    .onConflictDoNothing()
     .returning({ id: userConnections.id });
-  // The rows by label — this call's or an earlier seed's — and the tasks the user already bound.
+  // The rows by slot — this call's, an adopted one, or an earlier seed's — and the tasks the user already bound.
   const rows = await db
-    .select({ id: userConnections.id, label: userConnections.label })
+    .select({ id: userConnections.id, seedSlot: userConnections.seedSlot })
     .from(userConnections)
-    .where(and(eq(userConnections.ownerId, ownerId), inArray(userConnections.label, SEED_LABELS)));
+    .where(and(eq(userConnections.ownerId, ownerId), inArray(userConnections.seedSlot, SEED_SLOTS)));
   const bound = await db
     .select({ task: connectionBindings.task })
     .from(connectionBindings)
     .where(and(eq(connectionBindings.actorKind, "user"), eq(connectionBindings.userId, ownerId), inArray(connectionBindings.task, SEED_TASKS)));
   // @orb-waive persistence-no-in-memory-state(Set): query-local membership set over the binding rows this query just returned. Ends if it outlives the call.
   const boundTasks = new Set(bound.map((row) => row.task));
-  // @orb-waive persistence-no-in-memory-state(Map): query-local label→id index over the row set this query just returned. Ends if it outlives the call.
-  const idByLabel = new Map(rows.map((row) => [row.label, row.id]));
+  // @orb-waive persistence-no-in-memory-state(Map): query-local slot→id index over the row set this query just returned. Ends if it outlives the call.
+  const idBySlot = new Map(rows.map((row) => [row.seedSlot, row.id]));
   const missing = LOCAL_LIGHT_SEED_ROWS.flatMap((seed) => {
-    const connectionId = idByLabel.get(seed.label);
+    const connectionId = idBySlot.get(seed.task);
     return boundTasks.has(seed.task) || connectionId === undefined
       ? []
       : [{ id: deps.newBindingId(), actorKind: "user" as const, userId: ownerId, ruleId: null, pluginId: null, task: seed.task, connectionId }];

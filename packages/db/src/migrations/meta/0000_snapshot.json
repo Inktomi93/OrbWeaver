@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "eb0ef26a-1557-4d17-8a5b-b84a4e761d09",
+  "id": "d79d445e-15ac-44f2-9839-d61811cb07ee",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -3146,6 +3146,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "seed_slot": {
+          "name": "seed_slot",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "integer",
@@ -3167,6 +3174,11 @@
         "user_connections_owner_label_unique": {
           "name": "user_connections_owner_label_unique",
           "columns": ["owner_id", "label"],
+          "isUnique": true
+        },
+        "user_connections_owner_seed_slot_unique": {
+          "name": "user_connections_owner_seed_slot_unique",
+          "columns": ["owner_id", "seed_slot"],
           "isUnique": true
         },
         "user_connections_credential_idx": {
@@ -3198,6 +3210,10 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {
+        "user_connections_seed_slot_check": {
+          "name": "user_connections_seed_slot_check",
+          "value": "seed_slot is null or seed_slot in ('embed', 'rerank')"
+        },
         "user_connections_api_check": {
           "name": "user_connections_api_check",
           "value": "api in ('chat-completions', 'agent-sdk', 'anthropic-messages', 'auto')"
