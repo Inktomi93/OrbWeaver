@@ -256,7 +256,7 @@ function LoopbackLinkWarning(): ReactElement | null {
       <Row gap="field" align="center">
         <Badge intent="warning">Only this computer</Badge>
       </Row>
-      <Text voice="gloss">
+      <Text voice="gloss" prose={true}>
         This page is open at a local address, so a link made here opens only on this computer. To invite a friend, start sharing in Settings, under Admin and
         Multi-user, or open this app at an address they can reach.
       </Text>
