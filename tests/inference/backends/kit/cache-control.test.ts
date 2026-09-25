@@ -65,8 +65,10 @@ test("a stored ttl off the allowlist is stripped to the bare 5m directive and sa
     events.push(message);
   };
   const log = providerLogger({ debug: record, info: record, warn: record, error: record }, "anthropic-messages", "anthropic");
-  // The column is typed, not re-parsed on read: a hand-edited row is the case the guard exists for.
-  const stored = { ...SHIPPED_PROMPT_CACHE, ttl: "9z" } as unknown as PromptCacheSettings;
+  // The column is typed, not re-parsed on read: a hand-edited row is the case the guard exists for. Every other
+  // field stays the typed shipped value; only the ttl is written past the type, as the hand edit does.
+  const stored: PromptCacheSettings = { ...SHIPPED_PROMPT_CACHE };
+  Reflect.set(stored, "ttl", "9z");
   expect(planFor(stored, 1, log)?.directive).toEqual({ type: "ephemeral" });
   expect(events).toEqual(["provider.cache_ttl_rejected"]);
 });

@@ -6,7 +6,7 @@ import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import type { Page } from "@playwright/test";
 import type { AuthConfig } from "../../../../packages/client/src/data/auth-config.ts";
 
-export function authConfigFor(mode: AuthMode): AuthConfig {
+function authConfigFor(mode: AuthMode): AuthConfig {
   return {
     mode,
     requiresLogin: mode === "local" || mode === "oidc",

@@ -5,20 +5,18 @@ import type { AuthMode, RelayBinaryRefusal, RelayStatus, ShareRefusal, ShareStat
 import { RELAY_BINARY_REFUSALS, SHARE_REFUSALS } from "@orb/contracts/identity";
 import { trpcErrorReason } from "#lib";
 
-/** The rows the card shows before a share starts, in the order the server checks them. */
-export const SHARE_PRECONDITIONS = ["mode", "owner", "seating", "relay"] as const;
+// The rows the card shows before a share starts, in the order the server checks them.
+const SHARE_PRECONDITIONS = ["mode", "owner", "seating", "relay"] as const;
 type SharePrecondition = (typeof SHARE_PRECONDITIONS)[number];
 
-/**
- * A row's verdict. `unmet` is known now and its fix comes first; `waiting` hangs on an earlier row; `unchecked`
- * is decided by the server at start; `refused` is the server's answer to the last start, which a new start
- * re-checks.
- */
-export const PRECONDITION_VERDICTS = ["met", "unmet", "waiting", "unchecked", "refused"] as const;
+// A row's verdict. `unmet` is known now and its fix comes first; `waiting` hangs on an earlier row; `unchecked`
+// is decided by the server at start; `refused` is the server's answer to the last start, which a new start
+// re-checks.
+const PRECONDITION_VERDICTS = ["met", "unmet", "waiting", "unchecked", "refused"] as const;
 type PreconditionVerdict = (typeof PRECONDITION_VERDICTS)[number];
 
-/** Whether a verdict holds the Start button until its fix is done. */
-export const VERDICT_BLOCKS_START: Record<PreconditionVerdict, boolean> = {
+// Whether a verdict holds the Start button until its fix is done.
+const VERDICT_BLOCKS_START: Record<PreconditionVerdict, boolean> = {
   met: false,
   unmet: true,
   waiting: true,
@@ -98,7 +96,7 @@ function relayVerdict(facts: ShareFactsView): PreconditionVerdict {
   return facts.refusal !== null && refusalRow(facts.refusal) === "relay" ? "refused" : "unchecked";
 }
 
-/** Every precondition row, in {@link SHARE_PRECONDITIONS} order. */
+/** Every precondition row, in the order the server checks them. */
 export function sharePreconditions(facts: ShareFactsView): readonly PreconditionRow[] {
   const verdicts: Record<SharePrecondition, PreconditionVerdict> = {
     mode: MODE_VERDICT[facts.mode],
