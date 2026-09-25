@@ -1,4 +1,4 @@
-// credentials.list / credentials.add — the output boundary of the two procedures that return a
+// credentials.list / add / replace — the output boundary of the procedures that return a
 // `CredentialView`. The view is the credential row minus every secret column, projected by
 // `toCredentialView`. The tRPC output parser is the second guard: a producer that starts returning an extra
 // key (a spread row carrying `ciphertext`, a verb echoing the submitted `key`) must fail the call loudly
@@ -37,13 +37,21 @@ function ctxWith(credentials: Partial<CredentialsService>): Context {
 const ADD_INPUT = { provider: "openrouter", key: PLAINTEXT_KEY } as const;
 
 describe("credentials — CredentialView output boundary", () => {
-  test("a well-formed view passes through unchanged on list and add", async () => {
+  test("a well-formed view passes through unchanged on list, add and replace", async () => {
     const list = vi.fn<CredentialsService["list"]>(async () => [VIEW]);
     const add = vi.fn<CredentialsService["add"]>(async () => VIEW);
-    const api = caller(ctxWith({ list, add }));
+    const replace = vi.fn<CredentialsService["replace"]>(async () => VIEW);
+    const api = caller(ctxWith({ list, add, replace }));
 
     await expect(api.credentials.list()).resolves.toEqual([VIEW]);
     await expect(api.credentials.add(ADD_INPUT)).resolves.toEqual(VIEW);
+    await expect(api.credentials.replace({ credentialId: VIEW.id, key: PLAINTEXT_KEY })).resolves.toEqual(VIEW);
+  });
+
+  test("replace refuses a view echoing the plaintext key", async () => {
+    const replace = vi.fn<CredentialsService["replace"]>(async () => ({ ...VIEW, key: PLAINTEXT_KEY }));
+
+    await expect(caller(ctxWith({ replace })).credentials.replace({ credentialId: VIEW.id, key: PLAINTEXT_KEY })).toThrowTRPCError("INTERNAL_SERVER_ERROR");
   });
 
   test("list refuses a view carrying a sealed-secret column", async () => {

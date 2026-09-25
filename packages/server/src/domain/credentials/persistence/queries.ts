@@ -14,11 +14,9 @@ import type { CredentialView } from "../contract/views.ts";
 
 type CredentialRow = typeof userCredentials.$inferSelect;
 
-const LIMIT_ONE = 1;
-
 /** The revocation columns every un-revoke path nulls TOGETHER — a live row carrying a stale reason would tell
  *  the Connections pane a key was rejected when it currently works. Three writers spread it: the fresh insert,
- *  `add`'s rotate arm (a new key voids the old rejection) and the explicit clear. */
+ *  `replace`'s rotation (a new key voids the old rejection) and the explicit clear. */
 const CLEARED_REVOCATION = { revokedAt: null, revokedReason: null } as const;
 
 /** Owner-scoped fetch of one credential by id — `undefined` if missing/not-owned. */
@@ -31,24 +29,25 @@ export function listOwnedCredentials(db: Db, ownerId: UserId): Promise<Credentia
   return db.select().from(userCredentials).where(eq(userCredentials.ownerId, ownerId)).orderBy(asc(userCredentials.provider), asc(userCredentials.createdAt));
 }
 
-/** The existing row in this `(owner, provider, label)` slot (the rotate-vs-insert decision), or `undefined`. */
-export async function findSlotLabelRow(db: Db, ownerId: UserId, provider: ProviderId, label: string): Promise<{ id: UserCredentialId } | undefined> {
+/** The labels the owner already holds on this provider — `add` picks the next free one from them, so a new
+ *  key never lands on an existing row. */
+export async function listProviderLabels(db: Db, ownerId: UserId, provider: ProviderId): Promise<string[]> {
   const rows = await db
-    .select({ id: userCredentials.id })
+    .select({ label: userCredentials.label })
     .from(userCredentials)
-    .where(and(eq(userCredentials.ownerId, ownerId), eq(userCredentials.provider, provider), eq(userCredentials.label, label)))
-    .limit(LIMIT_ONE);
-  return rows[0];
+    .where(and(eq(userCredentials.ownerId, ownerId), eq(userCredentials.provider, provider)));
+  return rows.flatMap((row) => (row.label === null ? [] : [row.label]));
 }
 
-/** Rotate the sealed secret in place (preserve id; CLEAR revocation — a fresh key voids it). */
-// @orb-waive owner-scoped-writes(userCredentials): the id is not the caller's to name — `add`'s rotate arm passes the row `findSlotLabelRow` just resolved from the caller's OWN `(ownerId, provider, label)` slot, so a foreign credential is not reachable at this call. Ends the day a caller-supplied credentialId reaches rotate (then it takes `ownerId`, the `promoteActive` shape below).
+/** Rotate the sealed secret in place (preserve id; CLEAR revocation — a fresh key voids it). OWNER-SCOPED:
+ *  the credentialId is caller-supplied (`replace`), so the owner is a query predicate and a foreign id
+ *  matches no row. */
 export function rotateSealed(
   db: Db,
   args: {
+    readonly ownerId: UserId;
     readonly credentialId: UserCredentialId;
     readonly sealed: Sealed;
-    readonly metadata: ProviderMetadata;
     readonly now: number;
   },
 ): Promise<unknown> {
@@ -58,11 +57,10 @@ export function rotateSealed(
       ciphertext: args.sealed.ciphertext,
       iv: args.sealed.iv,
       tag: args.sealed.tag,
-      metadata: args.metadata,
       ...CLEARED_REVOCATION,
       updatedAt: args.now,
     })
-    .where(eq(userCredentials.id, args.credentialId));
+    .where(and(eq(userCredentials.id, args.credentialId), eq(userCredentials.ownerId, args.ownerId)));
 }
 
 /** Insert a fresh sealed credential row. Throws the libSQL constraint error on a slot collision (the

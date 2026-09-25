@@ -1804,6 +1804,7 @@ const EXEMPT: Readonly<Record<string, string>> = {
   // `fetchModels` left this router with the @orb/inference cut-over — health/inspection now hang off a
   // CONNECTION, not a credential, as `connection.probe` / `connection.verifyAuth` /
   // `connection.inspectEndpoint` / `connection.draftCatalogModels`, and all four are PROBED above.)
+  "credentials.replace": "keyless-fixture: storage-disabled guard precedes the ownership check",
   "credentials.remove": "keyless-fixture: storage-disabled guard precedes the ownership check",
   "credentials.markRevokedByUser": "keyless-fixture: storage-disabled guard precedes the ownership check",
   "credentials.clearRevoked": "keyless-fixture: storage-disabled guard precedes the ownership check",

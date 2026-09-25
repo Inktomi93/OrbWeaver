@@ -1,4 +1,4 @@
-import { formatBytes, groupThousands } from "@orb/kit/strings";
+import { formatBytes, groupThousands, nextFreeLabel } from "@orb/kit/strings";
 import { expect, test } from "../../support/fixtures.ts";
 
 // The three `escapeRegExp` tests died with the function (Node-26 program §4.7 — `RegExp.escape` owns
@@ -59,4 +59,11 @@ test("groupThousands groups plain and negative counts, and leaves short runs alo
 test("groupThousands REFUSES a non-finite count", () => {
   expect(() => groupThousands(Number.NaN)).toThrow(RangeError);
   expect(() => groupThousands(Number.POSITIVE_INFINITY)).toThrow(RangeError);
+});
+
+test("nextFreeLabel keeps a free base and skips every taken suffix", () => {
+  expect(nextFreeLabel("default", [])).toBe("default");
+  expect(nextFreeLabel("default", ["default"])).toBe("default (2)");
+  expect(nextFreeLabel("default", ["default", "default (2)", "default (3)"])).toBe("default (4)");
+  expect(nextFreeLabel("default", ["default (2)"])).toBe("default");
 });

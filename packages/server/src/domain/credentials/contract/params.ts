@@ -57,11 +57,19 @@ export interface ListCredentialsParams extends CredentialActorParams {}
 export interface AddCredentialParams extends CredentialActorParams {
   /** The provider REGISTRY id (validated against the registry in the verb). */
   readonly provider: string;
-  /** Optional — defaults to `"default"` inside the verb. Per-user labels disambiguate multiple keys. */
+  /** Optional — defaults to `"default"` inside the verb. A label the owner already holds on this provider gets
+   *  the next free spelling; `add` never overwrites an existing key. */
   readonly label?: string;
   /** The raw secret to seal (AES-256-GCM, AAD = `${ownerId}|${provider}`). Never persisted in clear. */
   readonly key: string;
   readonly metadata?: ProviderMetadata;
+}
+
+/** Replace one stored key's secret in place, named by id. */
+export interface ReplaceCredentialParams extends CredentialActorParams {
+  readonly credentialId: UserCredentialId;
+  /** The new raw secret, sealed under the row's own provider. */
+  readonly key: string;
 }
 
 export interface RemoveCredentialParams extends CredentialActorParams {

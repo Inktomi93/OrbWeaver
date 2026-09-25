@@ -105,3 +105,19 @@ export function groupThousands(value: number): string {
   const fraction = dot === -1 ? "" : unsigned.slice(dot);
   return `${negative ? "-" : ""}${whole.replace(THOUSANDS_RE, ",")}${fraction}`;
 }
+
+// ── free labels ──────────────────────────────────────────────────────────────────────────────────────
+// A user-visible name that must not collide with a sibling's: a connection label, a stored key's label.
+// The suffix counts from 2 so the first copy reads as the second of its name.
+
+/** `base` when it is free, else `base (2)`, `base (3)`… — the first spelling not in `taken`. */
+export function nextFreeLabel(base: string, taken: readonly string[]): string {
+  if (!taken.includes(base)) {
+    return base;
+  }
+  let n = 2;
+  while (taken.includes(`${base} (${String(n)})`)) {
+    n += 1;
+  }
+  return `${base} (${String(n)})`;
+}
