@@ -52,9 +52,10 @@ interface KnobProbe {
   readonly floor?: number | undefined;
 }
 
-/** The effective EFFORT the funnel landed on. Reasoning collapses several surfaces into one decision:
- *  reasoning OFF is itself the effective effort `none` (not an absent knob, and not staleness), while in
- *  `budget` mode there is no effort at all — the model takes a token budget instead of a level.
+/** The effective EFFORT the funnel landed on. Reasoning collapses several surfaces into one decision: a CHOSEN
+ *  off is itself the effective effort `none` (not an absent knob, and not staleness), while in `budget` mode there
+ *  is no effort at all — the model takes a token budget instead of a level. An UNSET effort sends no field, so the
+ *  model runs at its own default and there is no value to report, as for any unset knob.
  *
  *  A model that CANNOT REASON AT ALL (`reasoning.mode === "none"`) has no effort knob to report: emitting
  *  `none` there gave the dial's `high` something to be "clamped" from, so the readout printed
@@ -66,7 +67,7 @@ function resolvedEffortOf(reasoning: ResolvedChatKnobs["reasoning"], capability:
     return;
   }
   if (!reasoning.enabled) {
-    return EFFORT_OFF;
+    return reasoning.offChosen === true ? EFFORT_OFF : undefined;
   }
   return reasoning.mode === "budget" ? undefined : reasoning.effort;
 }

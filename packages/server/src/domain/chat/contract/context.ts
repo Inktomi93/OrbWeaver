@@ -1076,6 +1076,8 @@ export interface StoreDigestParams {
   readonly keywords: readonly string[];
   readonly isGroup: boolean;
   readonly speakerCharacterIds: readonly CharacterId[];
+  /** The pass's abort: the embed stops waiting on the model when it fires, before any row is written. */
+  readonly signal?: AbortSignal | undefined;
 }
 
 /** memory's verbatim-segment CHUNK write payload → `embeddings.storeSegments`. `(chatId, blockIdx, chunkIdx)`
@@ -1122,7 +1124,7 @@ export type EmbeddingsStoreOp = (params: StoreDigestParams) => Promise<MemorySto
  * one chat's chunks. Nothing here decides concurrency — that is the provider surface's.
  * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
-export type EmbeddingsStoreSegmentsOp = (params: readonly StoreSegmentParams[]) => Promise<readonly MemoryStoreReceipt[]>;
+export type EmbeddingsStoreSegmentsOp = (params: readonly StoreSegmentParams[], signal?: AbortSignal) => Promise<readonly MemoryStoreReceipt[]>;
 
 /** memory's digest SHRINK reclaim — the blocks-that-no-longer-exist half of the build. `keepPerTier[k]` is
  *  the surviving block COUNT at tier k; every stored row with `blockIdx >= keepPerTier[tier]` is beyond canon
@@ -1426,9 +1428,12 @@ export interface ChatContext {
   readonly summarize: SummarizeOp;
   /** The FUNDER's summarize model's context window (tokens) — the memory build's token-guard fits each
    *  summarizer call to the actual context. Resolved PER CALL through `roleClientsFor(funder).resolved("summarize")`
-   *  (inference program §7.5-1b: `capability.context.window`, no bespoke getter); a funder with no summarize
-   *  binding reads the floor. */
+   *  (inference program §7.5-1b: `capability.context.window`, no bespoke getter); a funder whose summarize task
+   *  cannot run gets the named availability refusal thrown. */
   readonly summarizerContextTokens: (funderUserId: UserId) => Promise<number>;
+  /** Can the FUNDER's summarize task run, and if not, why. The memory backfill reads it once per sweep: with no
+   *  summarize connection bound (`no-connection`) digests are not derivable, the same as Memory off. */
+  readonly summarizeAvailability: (funderUserId: UserId) => Promise<SendAvailability>;
   /** The FUNDER's EMBED model's window (tokens) — the segment build's window guard. A verbatim block that
    *  cannot fit is SKIPPED AND RECORDED, never truncated (#165). Same per-call resolution as above. */
   readonly embedContextTokens: (funderUserId: UserId) => Promise<number>;

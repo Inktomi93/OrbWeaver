@@ -30,8 +30,15 @@ export type VectorTable = (typeof VECTOR_TABLES)[number];
 // is `scope: "owner"`). Vector rows still FK to their producer only; owner-scope at search time derives from
 // the producer, never from a column here.
 
+/** The sweep's abort, carried to the embed call. A pass checks it between items AND the embed call stops
+ *  waiting on the model when it fires, so an aborted pass settles while a model is still loading. An embed cut
+ *  off this way rejects before the row write, so it leaves no partial row. */
+export interface EmbedAbortParams {
+  readonly signal?: AbortSignal | undefined;
+}
+
 /** Embed a character card's text. Unique key: `(characterId, model)`. */
-export interface CardTextStoreParams {
+export interface CardTextStoreParams extends EmbedAbortParams {
   readonly kind: "card";
   readonly lens: "card-text";
   readonly ownerId: UserId;
@@ -44,7 +51,7 @@ export interface CardTextStoreParams {
 }
 
 /** Embed an avatar image's pure visual signal (no caption influence). Unique key: `(assetId, model, lens)`. */
-export interface ImageRawStoreParams {
+export interface ImageRawStoreParams extends EmbedAbortParams {
   readonly kind: "avatar";
   readonly lens: "image-raw";
   readonly ownerId: UserId;
@@ -58,7 +65,7 @@ export interface ImageRawStoreParams {
 
 /** Embed an avatar image jointly with its generated caption (image bytes + caption → one VL vector). The
  *  caption is also persisted on the row. Unique key: `(assetId, model, lens)`. */
-export interface ImageCaptionedStoreParams {
+export interface ImageCaptionedStoreParams extends EmbedAbortParams {
   readonly kind: "avatar";
   readonly lens: "image-captioned";
   readonly ownerId: UserId;
@@ -111,7 +118,7 @@ export interface SegmentStoreParams {
 /** Embed an aged-out chat block's distilled digest. `text` is the distilled body — the embed input, the
  *  stored `chat_digests.text`, and what fills `{{memory}}`. `scopedCharacterId` is always a real
  *  `CharacterId`, never a `''` sentinel. Unique key: `(chatId, scopedCharacterId, tier, blockIdx)`. */
-export interface DigestStoreParams {
+export interface DigestStoreParams extends EmbedAbortParams {
   readonly kind: "chat-block";
   readonly lens: "digest";
   readonly ownerId: UserId;
@@ -139,7 +146,7 @@ export interface DigestStoreParams {
  *  the caller-supplied active embed space; the `fkRefs` locate the chunk in its producer document. No
  *  `ownerId` (D20 — owner derives via `documents.ownerId`); no `hubScore` (discovery-only). Unique key:
  *  `(documentId, chunkIdx, model)`. */
-export interface DocumentChunkStoreParams {
+export interface DocumentChunkStoreParams extends EmbedAbortParams {
   readonly kind: "document";
   readonly lens: "chunk";
   readonly ownerId: UserId;
@@ -241,7 +248,8 @@ export interface OwnerChunkCountsParams {
 }
 
 /** `embedCorpus` / `embedAssets` input — the resumable, `content_hash`-gated bulk sweep. `force` re-embeds
- *  matched rows; `signal` is the cooperative abort, checked between items. */
+ *  matched rows; `signal` is the cooperative abort, checked between items and at any wait on the model
+ *  ({@link EmbedAbortParams}). */
 export interface EmbedPassParams {
   readonly force: boolean;
   readonly signal: AbortSignal;

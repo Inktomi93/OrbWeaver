@@ -4,7 +4,7 @@
 //
 // The caption is the expensive half, so the sweep pre-checks both lens rows against the bytes' hash before
 // captioning: a fully-embedded asset is a pure two-read skip. `force` bypasses the pre-check and threads
-// into `store`. Cooperative abort between assets; an embed failure propagates.
+// into `store`. Cooperative abort between assets and at the embed's wait on the model; an embed failure propagates.
 //
 // The REINDEX half of purge+reindex for the image space (mirrors embed-corpus). After a complete
 // BULK sweep re-embeds every asset into the owner's active image `(model, dim)` space, it RECORDS the
@@ -60,9 +60,9 @@ async function embedOneAsset(
   ctx: EmbeddingsContext,
   deps: EmbedAssetsDeps,
   assetId: AssetId,
-  sweep: { readonly force: boolean; readonly receipts: Map<UserId, StoreResult> },
+  sweep: { readonly force: boolean; readonly signal: AbortSignal; readonly receipts: Map<UserId, StoreResult> },
 ): Promise<"embedded" | "skipped"> {
-  const { force } = sweep;
+  const { force, signal } = sweep;
   // ADMISSION FLOOR (recorded skip, read FIRST): an asset already refused by the dimension floor is honored
   // here — no byte load, no caption, no embed — so a re-index does not re-attempt it. `force` still bypasses
   // it (a deliberate re-index of everything), mirroring how `force` bypasses the hash/facet pre-check below.
@@ -112,6 +112,7 @@ async function embedOneAsset(
           model,
           dim: ctx.imageEmbedDim,
           force,
+          signal,
         });
   const analysis = await deps.analyze(ownerId, bytes);
   const captionedWrite = await deps.store({
@@ -126,6 +127,7 @@ async function embedOneAsset(
     model,
     dim: ctx.imageEmbedDim,
     force,
+    signal,
   });
   const receipt = raw.outcome === "written" ? raw : captionedWrite;
   const prior = sweep.receipts.get(ownerId);
@@ -167,7 +169,7 @@ export function createEmbedAssets(ctx: EmbeddingsContext, deps: EmbedAssetsDeps)
       if (signal.aborted) {
         break; // cooperative abort between assets — every completed embed is durable + idempotent
       }
-      const outcome = await embedOneAsset(ctx, deps, assetId, { force, receipts });
+      const outcome = await embedOneAsset(ctx, deps, assetId, { force, signal, receipts });
       if (outcome === "embedded") {
         embedded += 1;
       } else {

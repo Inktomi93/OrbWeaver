@@ -204,6 +204,36 @@ test("a `tool` history row fans out to one wire message PER tool-result part, is
   expect(plan.toolResultErrorDropped).toBe(true);
 });
 
+// OpenRouter forwards a tool result's `toolName` as the wire message's `name`, and Google refuses an empty one
+// ("Tool message must have either name or tool_call_id"), so every Gemini tool follow-up 400ed.
+test("a tool result carries the name of the call it answers", () => {
+  const plan = buildWirePlan({
+    systemPrompt: { static: "", dynamic: "" },
+    history: [
+      userRow("weather in Paris and Oslo?"),
+      {
+        role: "assistant",
+        content: [
+          { type: "tool-call", toolCallId: "c1", name: "get_weather", arguments: '{"city":"Paris"}' },
+          { type: "tool-call", toolCallId: "c2", name: "get_forecast", arguments: '{"city":"Oslo"}' },
+        ],
+      },
+      {
+        role: "tool",
+        content: [
+          { type: "tool-result", toolCallId: "c2", content: "rain" },
+          { type: "tool-result", toolCallId: "c1", content: "sun" },
+        ],
+      },
+    ],
+  });
+  const results = plan.prompt.filter((message) => message.role === "tool").flatMap((message) => message.content);
+  expect(results).toMatchObject([
+    { type: "tool-result", toolCallId: "c2", toolName: "get_forecast" },
+    { type: "tool-result", toolCallId: "c1", toolName: "get_weather" },
+  ]);
+});
+
 test("toolResultErrorDropped is false when no history tool-result ever carried isError", () => {
   const plan = buildWirePlan({
     systemPrompt: { static: "", dynamic: "" },

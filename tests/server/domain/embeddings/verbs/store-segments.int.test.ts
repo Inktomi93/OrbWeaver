@@ -58,7 +58,7 @@ describe("storeSegments — the batched verbatim lens", () => {
 
     expect(result?.outcome).toBe("written");
     expect(result?.contentHash).toBe("precomputed-seg-hash");
-    expect(h.roleClients.embed).toHaveBeenCalledWith([SEGMENT_TEXT]);
+    expect(h.roleClients.embed).toHaveBeenCalledWith([SEGMENT_TEXT], { signal: undefined });
     const rows = await db.select().from(chatSegments).where(eq(chatSegments.chatId, chatId));
     expect(rows).toHaveLength(1);
     expect(rows[0]?.text).toBe(SEGMENT_TEXT);
@@ -100,12 +100,33 @@ describe("storeSegments — the batched verbatim lens", () => {
     ]);
 
     expect(h.roleClients.embed).toHaveBeenCalledTimes(1);
-    expect(h.roleClients.embed).toHaveBeenCalledWith(["part one", "part two", "next block"]);
+    expect(h.roleClients.embed).toHaveBeenCalledWith(["part one", "part two", "next block"], { signal: undefined });
     expect(results.map((r) => r.outcome)).toEqual(["written", "written", "written"]);
     const rows = await db.select().from(chatSegments).where(eq(chatSegments.chatId, chatId));
     // TWO chunks of block 0 coexist — the storage half of "chunk it, never truncate it".
     expect(rows.map((r) => `${r.blockIdx}:${r.chunkIdx}`).sort()).toEqual(["0:0", "0:1", "1:0"]);
     expect(rows.find((r) => r.chunkIdx === 1)?.seqStart).toBe(5);
+  });
+
+  // The memory sweep records its completion from these receipts (compose `memorySegmentReceipts` refuses a result
+  // without one), so a written chunk AND a hash-gated noop both name the owner's target generation.
+  test("every result carries the owner's target generation receipt, written and noop alike", async () => {
+    const db = await freshDb();
+    const h = makeStoreHarness(db);
+    const svc = createEmbeddingsService(h.ctx);
+    await seedUser(db, { id: OWNER });
+    const chatId = await seedChat(db);
+    const params = [segment(chatId)];
+
+    const written = (await svc.storeSegments(params))[0];
+    const noop = (await svc.storeSegments(params))[0];
+    const generation = await svc.resolveGeneration(OWNER, "embed");
+
+    expect(generation).not.toBeNull();
+    for (const result of [written, noop]) {
+      expect(result).toMatchObject({ generationId: generation?.id, generationEpoch: generation?.epoch, generationVia: "embed" });
+    }
+    expect([written?.outcome, noop?.outcome]).toEqual(["written", "noop"]);
   });
 
   test("results are index-aligned: a mixed batch reports noop and written per ITEM, and embeds only the changed ones", async () => {
@@ -121,7 +142,7 @@ describe("storeSegments — the batched verbatim lens", () => {
     const results = await svc.storeSegments([settled, segment(chatId, { blockIdx: 1, text: "fresh", contentHash: "fresh-h" })]);
 
     expect(results.map((r) => r.outcome)).toEqual(["noop", "written"]);
-    expect(h.roleClients.embed).toHaveBeenCalledWith(["fresh"]); // the settled chunk never reached the engine
+    expect(h.roleClients.embed).toHaveBeenCalledWith(["fresh"], { signal: undefined }); // the settled chunk never reached the engine
   });
 
   test("an empty batch is a no-op: no embed, no rows, no results", async () => {

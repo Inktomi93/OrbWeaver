@@ -18,7 +18,12 @@
 // they converge rather than compete: a boot after a mint re-seeds nothing, and a mint on a box that just
 // booted re-seeds nothing. Neither half ever rethrows — a failed seed is a logged warning the connection pane
 // repairs with "add local-light rows".
+//
+// A seed that newly binds a vector task changes that owner's embed space exactly as a pane binding write does,
+// but it bypasses the verb that raises the reindex. So both halves hand the owner to `onEmbedSpaceBound`, the
+// per-owner sweep enqueue; without it a fresh install's search waits forever on sweeps nothing scheduled.
 
+import { taskDef } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { users } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
@@ -30,12 +35,18 @@ import { minter } from "../compose/minter.ts";
 export interface SeedLocalLightDeps {
   readonly db: Db;
   readonly now: () => number;
+  /** Called with an owner whose seed newly bound a vector task (their embed space changed). */
+  readonly onEmbedSpaceBound: (userId: UserId) => void;
 }
 
 /** One user's seed with the shared never-rethrow posture. Returns the rows newly inserted (0 on failure). */
-async function seedOneUser(seedDeps: Parameters<typeof seedLocalLightConnections>[0], userId: UserId): Promise<number> {
+async function seedOneUser(deps: SeedLocalLightDeps, userId: UserId): Promise<number> {
   try {
-    return await seedLocalLightConnections(seedDeps, userId);
+    const seeded = await seedLocalLightConnections(seedDepsFrom(deps), userId);
+    if (seeded.boundTasks.some((task) => taskDef(task).kind === "embedding")) {
+      deps.onEmbedSpaceBound(userId);
+    }
+    return seeded.inserted;
     // The DEGRADE, ruled by §7.2/§5.3b and pinned by the boot + mint tests: the owner of this failure is the
     // connection pane, which offers "add local-light rows". A rethrow would take the server down over a
     // convenience seed (boot) or un-create an account over it (a mint) — neither is a trade this seed gets
@@ -57,20 +68,18 @@ function seedDepsFrom(deps: SeedLocalLightDeps): Parameters<typeof seedLocalLigh
  *  count, which is the boot sweep's report. The shape is spelled out rather than aliased — `entry/boot` is
  *  not a type home (`no-inline-types`), and each consumer declares it in its own `contract/`. */
 export function createLocalLightUserSeed(deps: SeedLocalLightDeps): (userId: UserId) => Promise<void> {
-  const seedDeps = seedDepsFrom(deps);
   return async (userId: UserId): Promise<void> => {
-    await seedOneUser(seedDeps, userId);
+    await seedOneUser(deps, userId);
   };
 }
 
 /** The BOOT SWEEP over the accounts that exist AT BOOT (header). Returns the number of connection rows newly
  *  inserted across them (0 on a settled db). */
 export async function seedLocalLightOnBoot(deps: SeedLocalLightDeps): Promise<number> {
-  const seedDeps = seedDepsFrom(deps);
   const owners = await deps.db.select({ id: users.id }).from(users);
   let inserted = 0;
   for (const owner of owners) {
-    inserted += await seedOneUser(seedDeps, owner.id);
+    inserted += await seedOneUser(deps, owner.id);
   }
   if (inserted > 0) {
     getLog().info({ inserted, owners: owners.length }, "boot/seed-local-light: seeded local-light connections");

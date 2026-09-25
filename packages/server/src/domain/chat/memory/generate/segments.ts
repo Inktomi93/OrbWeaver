@@ -155,9 +155,9 @@ export async function collectSegments(ctx: ChatContext, args: GenerateSegmentsAr
  * and writes the rows. Returns the pass counts. Callers with the whole corpus in hand (the backfill) pass
  * every chat's chunks at once; the live path passes one chat's.
  */
-export async function storeSegments(ctx: ChatContext, collected: CollectedSegments): Promise<SegmentPassCounts> {
+export async function storeSegments(ctx: ChatContext, collected: CollectedSegments, signal?: AbortSignal): Promise<SegmentPassCounts> {
   if (collected.pending.length > 0) {
-    const receipts = await ctx.embeddingsStoreSegments(collected.pending);
+    const receipts = await ctx.embeddingsStoreSegments(collected.pending, signal);
     if (receipts.length !== collected.pending.length) {
       throw new Error("memory segment embed space changed during sweep");
     }
@@ -184,5 +184,5 @@ export async function storeSegments(ctx: ChatContext, collected: CollectedSegmen
  * one call; the corpus sweep drives the two halves separately so its embeds land as ONE flood.
  */
 export async function generateSegments(ctx: ChatContext, args: GenerateSegmentsArgs): Promise<SegmentPassCounts> {
-  return await storeSegments(ctx, await collectSegments(ctx, args));
+  return await storeSegments(ctx, await collectSegments(ctx, args), args.signal);
 }

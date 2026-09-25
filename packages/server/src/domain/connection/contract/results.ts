@@ -47,3 +47,9 @@ export type EmbedSpaces = Readonly<Partial<Record<RoutableTask, string | null>>>
 
 export type { CredentialHealth } from "@orb/contracts/credentials";
 export type { ProviderAvailability } from "@orb/contracts/inference";
+
+/** What one local-light seed wrote: the connection rows it inserted and the tasks it newly bound. */
+export interface LocalLightSeedResult {
+  readonly inserted: number;
+  readonly boundTasks: readonly RoutableTask[];
+}

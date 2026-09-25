@@ -4,18 +4,23 @@
 // the group-character sweep mints ONLY for group rooms lacking one (idempotent, host-owned); the signal
 // aborts cooperatively (an aborted sweep does zero work).
 
+import type { SendAvailability } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { characters, chatDigests, chatSegments, embedGenerations, userConnections } from "@orb/db";
 import type { CharacterHandle, CharacterId, ChatId, EmbedGenerationId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { EmbeddingsService } from "@orb/server/domain/embeddings";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { logger } from "@orb/server/foundation/observability";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
+import type { ChatContext } from "../../../../../packages/server/src/domain/chat/contract/context.ts";
 import type { ResolveBackfillMemoryConfig } from "../../../../../packages/server/src/domain/chat/contract/memory.ts";
 import { backfillGroupCharacters, backfillMemory } from "../../../../../packages/server/src/domain/chat/substrate/backfill.ts";
+import { readGeneration } from "../../../../../packages/server/src/domain/search/persistence/active-space.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import type { StoreHarness } from "../../embeddings/_support.ts";
 import { EMBED_DIM, EMBED_MODEL, makeStoreHarness } from "../../embeddings/_support.ts";
 import { makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
 import { fakeEmbeddingsStore, fakeSummarize, seedTurns } from "../memory/_support.ts";
@@ -54,6 +59,89 @@ async function seedRooms(host: UserId): Promise<{ soloChar: CharacterId; groupCh
 
 const HOST_ID = castId<UserId>("user_host");
 
+/** The memory sweep over the REAL embeddings write path and ledger, as compose wires it: one embed connection for
+ *  `host`, whose generation every segment and digest lands in. `overrides` swaps any chat op, such as the summarizer. */
+async function realMemoryWiring(
+  host: UserId,
+  overrides: Partial<ChatContext> = {},
+): Promise<{ ctx: ChatContext; embeddings: EmbeddingsService; resolved: NonNullable<Awaited<ReturnType<StoreHarness["roleClients"]["resolved"]>>> }> {
+  const harness = makeStoreHarness(db);
+  const resolved = await harness.roleClients.resolved("embed");
+  if (resolved === null) {
+    throw new Error("expected test embed connection");
+  }
+  await db
+    .insert(userConnections)
+    .values({
+      id: resolved.connectionId,
+      ownerId: host,
+      label: "memory backfill embed",
+      providerId: resolved.providerId,
+      model: resolved.model,
+    })
+    .onConflictDoNothing();
+  const embeddings = createEmbeddingsService(harness.ctx);
+  const ctx = makeChatContext(db, {
+    summarize: fakeSummarize().op,
+    resolveMemoryEmbedSpace: async (ownerId) => {
+      const generation = await embeddings.resolveGeneration(ownerId, "embed");
+      if (generation === null) {
+        throw new Error("expected test embed generation");
+      }
+      return { ownerId, model: generation.space, generationId: generation.id, generationEpoch: generation.epoch };
+    },
+    embeddingsStore: async (params) => {
+      const result = await embeddings.store({
+        kind: "chat-block",
+        lens: "digest",
+        ownerId: host,
+        chatId: params.key.chatId,
+        scopedCharacterId: params.key.scopedCharacterId,
+        isGroup: params.isGroup,
+        tier: params.key.tier,
+        blockIdx: params.key.blockIdx,
+        text: params.text,
+        topicAnchor: params.topicAnchor,
+        keywords: params.keywords,
+        speakerCharacterIds: params.speakerCharacterIds,
+        contentHash: params.contentHash,
+        model: EMBED_MODEL,
+        dim: EMBED_DIM,
+      });
+      if (result.generationId === undefined || result.generationEpoch === undefined) {
+        throw new Error("expected generation receipt");
+      }
+      return { ownerId: host, model: result.model, generationId: result.generationId, generationEpoch: result.generationEpoch };
+    },
+    embeddingsStoreSegments: async (params) => {
+      const results = await embeddings.storeSegments(
+        params.map((p) => ({
+          kind: "chat-block" as const,
+          lens: "segment" as const,
+          ownerId: host,
+          chatId: p.chatId,
+          blockIdx: p.blockIdx,
+          chunkIdx: p.chunkIdx,
+          seqStart: p.seqStart,
+          seqEnd: p.seqEnd,
+          text: p.text,
+          contentHash: p.contentHash,
+          model: EMBED_MODEL,
+          dim: EMBED_DIM,
+        })),
+      );
+      return results.map((result) => {
+        if (result.generationId === undefined || result.generationEpoch === undefined) {
+          throw new Error("expected generation receipt");
+        }
+        return { ownerId: host, model: result.model, generationId: result.generationId, generationEpoch: result.generationEpoch };
+      });
+    },
+    ...overrides,
+  });
+  return { ctx, embeddings, resolved };
+}
+
 describe("backfillMemory — the chat × scope enumeration", () => {
   test("a model change re-embeds unchanged memory before the real old-space purge", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
@@ -63,76 +151,7 @@ describe("backfillMemory — the chat × scope enumeration", () => {
     await seedParticipant(db, { chatId: room, key: "c", characterId: aria });
     await seedTurns(db, room, aria, 4);
 
-    const harness = makeStoreHarness(db);
-    const resolved = await harness.roleClients.resolved("embed");
-    if (resolved === null) {
-      throw new Error("expected test embed connection");
-    }
-    await db.insert(userConnections).values({
-      id: resolved.connectionId,
-      ownerId: host,
-      label: "memory backfill embed",
-      providerId: resolved.providerId,
-      model: resolved.model,
-    });
-    const embeddings = createEmbeddingsService(harness.ctx);
-    const ctx = makeChatContext(db, {
-      summarize: fakeSummarize().op,
-      resolveMemoryEmbedSpace: async (ownerId) => {
-        const generation = await embeddings.resolveGeneration(ownerId, "embed");
-        if (generation === null) {
-          throw new Error("expected test embed generation");
-        }
-        return { ownerId, model: generation.space, generationId: generation.id, generationEpoch: generation.epoch };
-      },
-      embeddingsStore: async (params) => {
-        const result = await embeddings.store({
-          kind: "chat-block",
-          lens: "digest",
-          ownerId: host,
-          chatId: params.key.chatId,
-          scopedCharacterId: params.key.scopedCharacterId,
-          isGroup: params.isGroup,
-          tier: params.key.tier,
-          blockIdx: params.key.blockIdx,
-          text: params.text,
-          topicAnchor: params.topicAnchor,
-          keywords: params.keywords,
-          speakerCharacterIds: params.speakerCharacterIds,
-          contentHash: params.contentHash,
-          model: EMBED_MODEL,
-          dim: EMBED_DIM,
-        });
-        if (result.generationId === undefined || result.generationEpoch === undefined) {
-          throw new Error("expected generation receipt");
-        }
-        return { ownerId: host, model: result.model, generationId: result.generationId, generationEpoch: result.generationEpoch };
-      },
-      embeddingsStoreSegments: async (params) => {
-        const results = await embeddings.storeSegments(
-          params.map((p) => ({
-            kind: "chat-block" as const,
-            lens: "segment" as const,
-            ownerId: host,
-            chatId: p.chatId,
-            blockIdx: p.blockIdx,
-            chunkIdx: p.chunkIdx,
-            seqStart: p.seqStart,
-            seqEnd: p.seqEnd,
-            text: p.text,
-            contentHash: p.contentHash,
-            model: EMBED_MODEL,
-            dim: EMBED_DIM,
-          })),
-        );
-        return results.map((result) => {
-          if (result.generationId === undefined || result.generationEpoch === undefined) {
-            throw new Error("expected generation receipt");
-          }
-          return { ownerId: host, model: result.model, generationId: result.generationId, generationEpoch: result.generationEpoch };
-        });
-      },
-    });
+    const { ctx, embeddings, resolved } = await realMemoryWiring(host);
     const cfg: ResolveBackfillMemoryConfig = () => Promise.resolve({ blockSize: 2, verbatimWindow: 0, fanOut: 4, maxTier: 1 });
     await backfillMemory(ctx, { signal: new AbortController().signal, funderUserId: HOST_ID }, cfg);
 
@@ -575,6 +594,141 @@ describe("backfillMemory — the chat × scope enumeration", () => {
     expect(counts.segments.changed).toBe(0);
     expect(counts.digests.changed).toBeGreaterThan(0); // the digest half is untouched by the segment failure
     expect(spy.mock.calls.some((c) => (c[0] as { phase?: string } | undefined)?.phase === "segments")).toBe(true);
+  });
+
+  // Memory on with NO summarize connection: digests are not derivable, the same as Memory off. The segments still
+  // embed, the digest half is skipped without failing the chat, and memory records completion, so search is not
+  // held behind a digest build that cannot run. The Model roles pane says digests pause while that slot is unset.
+  describe("Memory on with no summarize connection", () => {
+    const cfg: ResolveBackfillMemoryConfig = () => Promise.resolve({ blockSize: 2, verbatimWindow: 0, fanOut: 4, maxTier: 1 });
+    const unbound = {
+      summarizeAvailability: (): Promise<SendAvailability> => Promise.resolve({ available: false, cause: "no-connection" }),
+      summarizerContextTokens: (): Promise<number> => Promise.reject(new Error("no summarize connection is bound")),
+    } satisfies Partial<ChatContext>;
+
+    async function seedRoom(host: UserId): Promise<ChatId> {
+      const aria = await seedCharacter(db, host, "aria");
+      const room = await seedChat(db, "room_unbound");
+      await seedParticipant(db, { chatId: room, key: "h", userId: host, role: "host" });
+      await seedParticipant(db, { chatId: room, key: "c", characterId: aria });
+      await seedTurns(db, room, aria, 4);
+      return room;
+    }
+
+    test("the segments embed, no digest is made, memory completes, and the generation reads ready", async () => {
+      const host = await seedUser(db, castId<Handle>("host"));
+      await seedRoom(host);
+      const summarize = fakeSummarize();
+      const { ctx, embeddings } = await realMemoryWiring(host, { ...unbound, summarize: summarize.op });
+
+      const counts = await backfillMemory(ctx, { signal: new AbortController().signal, funderUserId: HOST_ID }, cfg);
+
+      expect(counts.failed).toBe(0);
+      expect(counts.segments.changed).toBeGreaterThan(0);
+      expect(await db.select().from(chatDigests)).toEqual([]);
+      expect(summarize.calls).toEqual([]);
+      const receipt = counts.completedSpaces.find((space) => space.ownerId === host);
+      if (receipt === undefined) {
+        throw new Error(`expected a memory completion for the host: ${JSON.stringify(counts.completedSpaces)}`);
+      }
+      const generation = await embeddings.resolveGeneration(host, "embed");
+      if (generation === null) {
+        throw new Error("expected generation");
+      }
+      await embeddings.embedCorpus({ ownerId: host, force: false, signal: new AbortController().signal });
+      await embeddings.purgeDocumentVectors({ ownerId: host, generation });
+      await embeddings.purgeMemoryVectors({
+        ownerId: host,
+        generation: { id: receipt.generationId, epoch: receipt.generationEpoch, task: "embed", via: "embed", space: receipt.model },
+      });
+      expect((await readGeneration(db, host, "embed")).status).toBe("ready");
+    });
+
+    test("once a summarizer is bound, the next backfill makes the digests", async () => {
+      const host = await seedUser(db, castId<Handle>("host"));
+      await seedRoom(host);
+      const { ctx } = await realMemoryWiring(host, unbound);
+      const unboundPass = await backfillMemory(ctx, { signal: new AbortController().signal, funderUserId: HOST_ID }, cfg);
+      expect(unboundPass.completedSpaces.map((space) => space.ownerId)).toContain(host);
+      expect(await db.select().from(chatDigests)).toEqual([]);
+
+      const { ctx: bound } = await realMemoryWiring(host);
+      const counts = await backfillMemory(bound, { signal: new AbortController().signal, funderUserId: HOST_ID }, cfg);
+
+      expect(counts.failed).toBe(0);
+      expect(counts.digests.changed).toBeGreaterThan(0);
+      expect((await db.select().from(chatDigests)).length).toBeGreaterThan(0);
+    });
+  });
+
+  // A cancel (shutdown, or the owner stopping the run) cuts off whatever the sweep is waiting on. That is the run
+  // ending, not a fault: the abort propagates for the workload runner to record the run cancelled, and nothing
+  // logs an operator ERROR. The content-hash self-heal re-offers the work on the next run.
+  describe("a cancel mid-phase is not an operator error", () => {
+    async function seedOneRoom(): Promise<void> {
+      const host = await seedUser(db, castId<Handle>("host"));
+      const aria = await seedCharacter(db, host, "aria");
+      const room = await seedChat(db, "room_cancel");
+      await seedParticipant(db, { chatId: room, key: "h", userId: host, role: "host" });
+      await seedParticipant(db, { chatId: room, key: "c", characterId: aria });
+      await seedTurns(db, room, aria, 4);
+    }
+    const cfg: ResolveBackfillMemoryConfig = () => Promise.resolve({ blockSize: 2, verbatimWindow: 0, maxTier: 1 });
+
+    /** Cancel the run from inside the wait, then reject the way a cut-off wait does: with the signal's reason. */
+    function cutOff(controller: AbortController, signal: AbortSignal | undefined): Promise<never> {
+      if (signal === undefined) {
+        return Promise.reject(new Error("the sweep's signal did not reach the store"));
+      }
+      controller.abort(new Error("shutdown"));
+      return Promise.reject(signal.reason);
+    }
+
+    test("the segment flood", async () => {
+      await seedOneRoom();
+      const controller = new AbortController();
+      const store = fakeEmbeddingsStore(db);
+      const spy = vi.spyOn(logger, "error");
+      const ctx = makeChatContext(db, {
+        summarize: fakeSummarize().op,
+        embeddingsStore: store.store,
+        embeddingsStoreSegments: (_batch, signal) => cutOff(controller, signal),
+      });
+
+      await expect(backfillMemory(ctx, { signal: controller.signal, funderUserId: HOST_ID }, cfg)).rejects.toThrow("shutdown");
+
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    test("a tier-0 digest store", async () => {
+      await seedOneRoom();
+      const controller = new AbortController();
+      const store = fakeEmbeddingsStore(db);
+      const spy = vi.spyOn(logger, "error");
+      const ctx = makeChatContext(db, {
+        summarize: fakeSummarize().op,
+        embeddingsStore: (params) => cutOff(controller, params.signal),
+        embeddingsStoreSegments: store.storeSegments,
+      });
+
+      await expect(backfillMemory(ctx, { signal: controller.signal, funderUserId: HOST_ID }, cfg)).rejects.toThrow("shutdown");
+
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    test("the plan phase", async () => {
+      const host = await seedUser(db, castId<Handle>("host"));
+      await seedRooms(host);
+      const controller = new AbortController();
+      const spy = vi.spyOn(logger, "error");
+      const ctx = makeChatContext(db, {
+        mintSyntheticGroupCharacter: () => cutOff(controller, controller.signal),
+      });
+
+      await expect(backfillMemory(ctx, { signal: controller.signal, funderUserId: HOST_ID }, enabledMemory)).rejects.toThrow("shutdown");
+
+      expect(spy).not.toHaveBeenCalled();
+    });
   });
 
   // #165: the live 895-chat run logged `chat FAILED during plan and was skipped (unexpected error)` and the

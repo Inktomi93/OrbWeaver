@@ -111,11 +111,40 @@ export function normalizeVector(v: Float32Array): Float32Array<ArrayBuffer> {
   return out;
 }
 
-// In-process ONNX inference can't be interrupted mid-run, so we check at task boundaries instead.
+function abortedError(): ProviderError {
+  return new ProviderError({ kind: "aborted", retryable: false, message: "local-light request aborted" });
+}
+
+// In-process ONNX work can't be interrupted mid-run, so a request checks at task boundaries and stops WAITING on
+// the model (see `abortableWait`) rather than stopping the model.
 export function throwIfAborted(signal: AbortSignal | undefined): void {
   if (signal?.aborted === true) {
-    throw new ProviderError({ kind: "aborted", retryable: false, message: "local-light request aborted" });
+    throw abortedError();
   }
+}
+
+/** Wait on in-process model work (a model load or an inference run) until it settles or `signal` aborts. On an
+ *  abort the request rejects at once and the work keeps running: a load settles into the cache unread, as a
+ *  prefetch does at shutdown. This is what lets an aborted workload finish while its model is still loading. */
+export function abortableWait<T>(work: Promise<T>, signal: AbortSignal | undefined): Promise<T> {
+  if (signal === undefined) {
+    return work;
+  }
+  const aborted = Promise.withResolvers<never>();
+  const onAbort = (): void => {
+    aborted.reject(abortedError());
+  };
+  // An already-fired signal still goes through the race, never a synchronous throw: the race subscribes to the
+  // work, so a load that fails after the caller stopped waiting is handled rather than an unhandled rejection.
+  if (signal.aborted) {
+    onAbort();
+  } else {
+    signal.addEventListener("abort", onAbort, { once: true });
+  }
+  // The abort is listed first so it wins over work that has also settled already.
+  return Promise.race([aborted.promise, work]).finally(() => {
+    signal.removeEventListener("abort", onAbort);
+  });
 }
 
 function tensorRows(t: Tensor): Float32Array[] {

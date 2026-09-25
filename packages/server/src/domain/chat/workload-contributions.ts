@@ -40,7 +40,7 @@ export function createChatWorkloadContributions(deps: ChatWorkloadDeps): ChatCon
       },
       // Segment + digest LLM builds per chat × scope bucket — long by construction.
       lane: "sweep",
-      // Hash-diff self-healing end to end; the signal aborts cooperatively between chats.
+      // Hash-diff self-healing end to end; the signal aborts cooperatively between chats and at an embed's model wait.
       resume: "idempotent-restart",
       run: async (ctx, _params, report, signal): Promise<MemoryBackfillResult> => {
         report({ message: "memory backfill: sweeping chats (segments + digests per scope)" });

@@ -212,7 +212,7 @@ describe("sessions.revokeByToken — the OIDC end-session hint (#141)", () => {
       db,
       now: (): number => FROZEN_AT_MS,
       sessionSecret: `${PEPPER}-rotated`,
-      seedUserConnections: createLocalLightUserSeed({ db, now: (): number => FROZEN_AT_MS }),
+      seedUserConnections: createLocalLightUserSeed({ db, now: (): number => FROZEN_AT_MS, onEmbedSpaceBound: () => undefined }),
     });
     // Mint the cookie under the ROTATED service so its token hash resolves, then plant the OLD service's
     // sealed blob on that row — exactly the state a rotation leaves behind.

@@ -537,6 +537,7 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     bumpStatsCanonVersion: () => undefined,
     summarize: notStubbed,
     summarizerContextTokens: () => Promise.resolve(32_000),
+    summarizeAvailability: () => Promise.resolve({ available: true }),
     // The embed window the segment build measures each verbatim block against (#165). The production floor
     // (env.VLLM_EMBED_MAX_MODEL_LEN) so a test block only trips the skip when it is genuinely huge.
     embedContextTokens: () => Promise.resolve(8192),

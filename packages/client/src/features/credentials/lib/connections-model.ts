@@ -82,7 +82,7 @@ const ROLE_ROWS: Record<RoutableTask, RoleRow> = {
     label: "Utility model",
     heading: "Utility model — summaries, structured extraction, captions",
     description:
-      "Point this at a cheap model; it needs background work allowed. Several things use this slot — memory digests, summaries, extraction and image captions.",
+      "Point this at a cheap model; it needs background work allowed. Several things use this slot — memory digests, summaries, extraction and image captions. While it is not set, memory digests are paused.",
     optional: false,
     requirements: [NEEDS_PROSE, NEEDS_STRUCTURED, NEEDS_CAPTION_INPUT],
   },

@@ -5,9 +5,9 @@
 //
 // THE RULE: warm a slot ONLY when a task ACTUALLY resolves to a local-light connection. A box whose vector
 // tasks run on vLLM or OpenRouter downloads nothing — its weights would be dead bytes, and an unexplained
-// multi-GB fetch on a GPU box is worse than a lazy one. `matte` (RMBG-1.4) has no task to resolve — the
-// alpha-matte op is local-light-only by construction (docs/plans/expressions/design.md) — so it rides the same
-// verdict: warmed only on a box already committed to the in-process tier, never as an unconditional download.
+// multi-GB fetch on a GPU box is worse than a lazy one. `matte` (RMBG-1.4) is never planned: nothing calls the
+// alpha-matte op while the expressions program is parked (docs/work/0049-expressions-program.md), so the
+// download would buy nothing. Un-parking expressions puts it back in this plan.
 //
 // WHOSE bindings: the boot passes the principals it can honestly ask for (today the box owner; a user-less
 // OIDC box has none and keeps the lazy path — §15c). The plan is ORDERED by `LOCAL_LIGHT_MODEL_SLOTS`
@@ -16,7 +16,7 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { RoutableTask } from "@orb/contracts/inference";
 import type { InferenceRuntime, LocalLightModelSlot, LocalLightPrefetchTarget } from "@orb/inference";
-import { DEFAULT_MATTE_MODEL, LOCAL_LIGHT_MODEL_SLOTS, NoConnectionError } from "@orb/inference";
+import { LOCAL_LIGHT_MODEL_SLOTS, NoConnectionError } from "@orb/inference";
 import type { ModelId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 
@@ -24,7 +24,7 @@ const LOCAL_LIGHT_PROVIDER_ID = "local-light";
 
 /** Which tasks feed which prefetch slot. `embed` and `imageEmbed` share ONE slot on purpose: they are the same
  *  jina-clip-v2 weights (one joint text↔image space), so warming them separately would be the same download
- *  twice — the first of them that lands on local-light claims the slot. `matte` has no task; see the header. */
+ *  twice — the first of them that lands on local-light claims the slot. `matte` is not planned; see the header. */
 const TASK_SLOTS: readonly { readonly slot: LocalLightModelSlot; readonly tasks: readonly RoutableTask[] }[] = [
   { slot: "rerank", tasks: ["rerank"] },
   { slot: "embed", tasks: ["embed", "imageEmbed"] },
@@ -82,11 +82,6 @@ export async function planLocalLightPrefetch(deps: LocalLightPrefetchPlanDeps): 
         bySlot.set(slot, modelId);
       }
     }
-  }
-  // Gated on the verdict above, never unconditional (header): no task on the in-process tier ⇒ this box is
-  // not a local-light box, and the matte model is 176 MB it would download for nothing.
-  if (bySlot.size > 0) {
-    bySlot.set("matte", DEFAULT_MATTE_MODEL);
   }
   return LOCAL_LIGHT_MODEL_SLOTS.flatMap((slot: LocalLightModelSlot) => {
     const modelId = bySlot.get(slot);

@@ -24,6 +24,7 @@ import { desc, eq } from "drizzle-orm";
 import { can, isAdmin, requireOwner } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
+import type { MemoryEmbedSpace } from "#domain/chat";
 import { createResolveStandingAsks } from "#domain/chat";
 import { resolveActiveDocumentIds } from "#domain/databank";
 import type { DiscoveryContext, DiscoveryService } from "#domain/discovery";
@@ -44,8 +45,8 @@ import { createStatsService } from "#domain/stats";
 import type { TagService } from "#domain/tag";
 import type { WorkloadContributions, WorkloadService } from "#domain/workloads";
 import { createWorkloadService } from "#domain/workloads";
-import type { AuditEntry } from "#foundation/observability";
-import { superviseDetached } from "#foundation/observability";
+import type { AuditEntry, SpanAttrs } from "#foundation/observability";
+import { superviseDetached, superviseSettled } from "#foundation/observability";
 import { requireAuthorOrHost, resolveTier0Range, setParticipantActivePersona } from "../../domain/chat/index.ts";
 import { publishUserEvent } from "../../transport/trpc/index.ts";
 import type { DomainEventBus } from "./event-bus.ts";
@@ -54,9 +55,16 @@ import { createResolvePresetUsage } from "./preset-usage.ts";
 import { createDeleteReachCapture, createRoomEntityFan } from "./room-reach.ts";
 import { createResolveVisibleRooms } from "./visible-rooms.ts";
 
-/** The embed-model-change reindex enqueue's own trace root. One name so the debug surface and any future
- *  filter agree; the two enqueues share it and are told apart by the `workloadKind` attribute. */
+/** The embed-space sweep enqueues' own trace root, for both scopes. One name so the debug surface and any future
+ *  filter agree; the enqueues share it and are told apart by the `workloadKind` attribute and the request id. */
 const EMBED_REINDEX_SPAN = "embeddings.modelChangeReindex";
+
+/** One embed-space sweep enqueue, run under its own root span. */
+interface EmbedSweep {
+  readonly requestId: string;
+  readonly attrs: SpanAttrs;
+  readonly start: () => Promise<unknown>;
+}
 
 /** Exhaustiveness guard for the closed `DomainEvent` union — a new event member without a bus route is a
  *  tsc error here, not a silent drop. */
@@ -97,6 +105,8 @@ export interface SearchDiscoveryComposeDeps {
   /** The LATE-BOUND workload contribution registry (assembled after chat, at the keystone) — the workloads
    *  verbs deref it per call as their per-kind params validator. */
   readonly getContributions: () => WorkloadContributions;
+  /** chat's memory-enabled read (LATE-BOUND: chat composes after this seam), for the memory-off receipt. */
+  readonly isMemoryEnabled: (ownerId: UserId) => Promise<boolean>;
 }
 
 /** The cluster compose product. `enqueueEmbedReindex` is returned so the keystone can bind it onto its
@@ -117,7 +127,15 @@ export interface SearchDiscoveryComposeResult {
   readonly discovery: DiscoveryService;
   readonly notifications: NotificationsService;
   readonly workloads: WorkloadService;
-  readonly enqueueEmbedReindex: () => void;
+  /** Enqueue the embed-space sweeps: `null` for every owner (a binding change), a `UserId` for that owner (a seed).
+   *  Settles once every enqueue has; never rejects, because a failed enqueue is logged in its own span. */
+  readonly enqueueEmbedReindex: (scope: UserId | null) => Promise<void>;
+  /** {@link SearchDiscoveryComposeResult.enqueueEmbedReindex} for a trigger that must not wait on it: the same
+   *  sweeps, started detached. */
+  readonly detachEmbedReindex: (scope: UserId | null) => void;
+  /** A memory-off owner's vacuous memory receipt against their current target, or `null` (memory on, or no
+   *  target). The memory sweep's terminal records it for an owner the sweep covered but built nothing for. */
+  readonly vacuousMemoryReceipt: (ownerId: UserId) => Promise<MemoryEmbedSpace | null>;
   /** The bulk-pass announce audience — every owner with corpus rows, bound over this seam's `db`. Threaded
    *  into BOTH discovery's five analytics contributions and embeddings' `index` sweep as their
    *  `listCorpusOwners` op, so the box-wide arm's `corpusRecomputed` fan reaches every owner it touched
@@ -358,30 +376,76 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     isAdmin,
   });
 
-  // An embed binding change enqueues three independent GLOBAL BULK sweeps: `index` for card/image
-  // vectors, `databank-reindex` for document chunks, and `memory-backfill` for chat segments/digests.
-  // `caller: null` is the trusted-system mode-gate bypass; `ownerId: null` spans every owner. Fire-and-forget:
-  // a duplicate run (a kind is already active → DomainConflictError) or any enqueue failure must never fail
-  // the connection/binding write that triggered it. Each enqueue uses the supervised-detach boundary: it opens
-  // its own root span, owns a rejection with structured operator telemetry, and preserves the workload kind
-  // needed to retry from the existing workload surface. The binding write receives no completion or ordering
-  // guarantee.
-  const enqueueEmbedReindex = (): void => {
-    const at = now();
-    superviseDetached(`embed-reindex:index:${at}`, EMBED_REINDEX_SPAN, { workloadKind: "index" }, () =>
-      workloads.start({ input: { kind: "index", params: { source: "all", force: true } }, caller: null, mode: "bulk", ownerId: null }),
-    );
-    superviseDetached(`embed-reindex:databank:${at}`, EMBED_REINDEX_SPAN, { workloadKind: "databank-reindex" }, () =>
-      workloads.start({
-        input: { kind: "databank-reindex", params: { scope: { kind: "owner" }, mode: "chunk-embed" } },
-        caller: null,
-        mode: "bulk",
-        ownerId: null,
-      }),
-    );
-    superviseDetached(`embed-reindex:memory:${at}`, EMBED_REINDEX_SPAN, { workloadKind: "memory-backfill" }, () =>
-      workloads.start({ input: { kind: "memory-backfill", params: {} }, caller: null, mode: "bulk", ownerId: null }),
-    );
+  // The memory receipt for an owner a sweep covers but builds no space for. Only completable when memory is OFF
+  // for them: they have no memory vectors, so the scope is vacuously in the target space. An ENABLED owner gets
+  // none; its memory sweep records its own.
+  const vacuousMemoryReceipt = async (ownerId: UserId): Promise<MemoryEmbedSpace | null> => {
+    if (await deps.isMemoryEnabled(ownerId)) {
+      return null;
+    }
+    const generation = await embeddings.resolveGeneration(ownerId, "embed");
+    return generation === null ? null : { ownerId, model: generation.space, generationId: generation.id, generationEpoch: generation.epoch };
+  };
+
+  // An owner's memory sweep: a memory-backfill run, or for a memory-off owner (refused at admission, and it
+  // would derive nothing) the vacuous receipt recorded directly.
+  const enqueueOwnerMemory = async (ownerId: UserId): Promise<unknown> => {
+    const vacuous = await vacuousMemoryReceipt(ownerId);
+    if (vacuous === null) {
+      return await workloads.start({ input: { kind: "memory-backfill", params: {} }, caller: null, mode: "singular", ownerId });
+    }
+    return await embeddings.purgeMemoryVectors({
+      ownerId,
+      generation: { id: vacuous.generationId, task: "embed", via: "embed", epoch: vacuous.generationEpoch, space: vacuous.model },
+    });
+  };
+
+  // THE EMBED-SPACE SWEEPS: `index` for card/image vectors, `databank-reindex` for document chunks and the memory
+  // sweep for chat segments/digests, so every scope lands in the new target and search reads it.
+  //   • `null` — an embed binding change: three GLOBAL BULK sweeps (`ownerId: null` spans every owner), the index
+  //     pass FORCED, because a non-forced one no-ops on rows whose text hash still matches the old space.
+  //   • a `UserId` — a seed bound that owner's encoder outside the binding verb: that owner's SINGULAR sweeps. None
+  //     with the autoindex off: then nothing embeds in the background, no target is pinned, and search reads the
+  //     live space with no migration to wait on.
+  // `caller: null` is the trusted-system mode-gate bypass. Each enqueue runs in its own root span, and a duplicate
+  // run (a kind already active → DomainConflictError) or any enqueue failure is logged there, never thrown at the
+  // write that triggered it.
+  const embedSweeps = (scope: UserId | null): readonly EmbedSweep[] => {
+    if (scope !== null && !deps.corpusAutoindex) {
+      return [];
+    }
+    const at = String(now());
+    const mode = scope === null ? "bulk" : "singular";
+    const sweep = (workloadKind: string, start: () => Promise<unknown>): EmbedSweep => ({
+      requestId: `embed-reindex:${workloadKind}:${scope ?? "all"}:${at}`,
+      attrs: { workloadKind },
+      start,
+    });
+    return [
+      sweep("index", () =>
+        workloads.start({
+          input: { kind: "index", params: scope === null ? { source: "all", force: true } : { source: "all" } },
+          caller: null,
+          mode,
+          ownerId: scope,
+        }),
+      ),
+      sweep("databank-reindex", () =>
+        workloads.start({ input: { kind: "databank-reindex", params: { scope: { kind: "owner" }, mode: "chunk-embed" } }, caller: null, mode, ownerId: scope }),
+      ),
+      sweep("memory-backfill", () =>
+        scope === null ? workloads.start({ input: { kind: "memory-backfill", params: {} }, caller: null, mode, ownerId: null }) : enqueueOwnerMemory(scope),
+      ),
+    ];
+  };
+
+  const enqueueEmbedReindex = async (scope: UserId | null): Promise<void> => {
+    await Promise.all(embedSweeps(scope).map((s) => superviseSettled(s.requestId, EMBED_REINDEX_SPAN, s.attrs, s.start)));
+  };
+  const detachEmbedReindex = (scope: UserId | null): void => {
+    for (const s of embedSweeps(scope)) {
+      superviseDetached(s.requestId, EMBED_REINDEX_SPAN, s.attrs, s.start);
+    }
   };
 
   return {
@@ -398,6 +462,8 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     notifications,
     workloads,
     enqueueEmbedReindex,
+    detachEmbedReindex,
+    vacuousMemoryReceipt,
     listCorpusOwners: () => distinctCorpusOwners(db),
   };
 }

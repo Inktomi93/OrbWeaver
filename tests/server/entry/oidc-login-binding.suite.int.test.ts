@@ -46,7 +46,12 @@ beforeEach(async () => {
     .insert(users)
     .values({ id: USER_ID, handle: castId<Handle>("alice"), handleKey: handleKey(castId<Handle>("alice")), externalId: castId<ExternalId>("sub-alice") });
   const now = (): number => NOW;
-  sessions = createSessionsService({ db, now, sessionSecret: PEPPER, seedUserConnections: createLocalLightUserSeed({ db, now }) });
+  sessions = createSessionsService({
+    db,
+    now,
+    sessionSecret: PEPPER,
+    seedUserConnections: createLocalLightUserSeed({ db, now, onEmbedSpaceBound: () => undefined }),
+  });
   exchanges = 0;
   app = new Hono();
   const deps: AuthRoutesDeps = {

@@ -1,7 +1,7 @@
 // verb: embedCorpus — bulk text catch-up sweep, driven by the embed-corpus workload. Enumerates characters
 // and routes each through the one write path (store). Resumable via store's content_hash short-circuit
-// (force bypasses it); cooperative abort between items, every completed item durable + idempotent; an embed
-// failure propagates so the rerun resumes.
+// (force bypasses it); cooperative abort between items and at the embed's wait on the model, every completed
+// item durable + idempotent; an embed failure (an abort mid-embed included) propagates so the rerun resumes.
 //
 // This is the REINDEX half of purge+reindex. After a full BULK sweep re-embeds every card into the
 // box's active `(model, dim)` space, it PURGES `character_embeddings` rows left in any OTHER space (an
@@ -27,7 +27,7 @@ async function embedOneCard(
   ctx: EmbeddingsContext,
   deps: { readonly store: EmbeddingsService["store"] },
   characterId: CharacterId,
-  sweep: { readonly force: boolean | undefined; readonly receipts: Map<UserId, StoreResult> },
+  sweep: { readonly force: boolean | undefined; readonly signal: AbortSignal; readonly receipts: Map<UserId, StoreResult> },
 ): Promise<"written" | "skipped"> {
   const text = await ctx.loadCardText(characterId);
   if (text === undefined || text.length === 0) {
@@ -47,6 +47,7 @@ async function embedOneCard(
     model: embedModel,
     dim: ctx.embedDim,
     force: sweep.force,
+    signal: sweep.signal,
   });
   const prior = sweep.receipts.get(cardOwnerId);
   if (prior !== undefined && prior.generationId !== result.generationId) {
@@ -66,7 +67,7 @@ export function createEmbedCorpus(ctx: EmbeddingsContext, deps: { readonly store
       if (signal.aborted) {
         break;
       }
-      if ((await embedOneCard(ctx, deps, characterId, { force, receipts })) === "written") {
+      if ((await embedOneCard(ctx, deps, characterId, { force, signal, receipts })) === "written") {
         embedded += 1;
       } else {
         skipped += 1;
