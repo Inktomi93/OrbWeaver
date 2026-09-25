@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-24
+updated: 2026-09-25
 ---
 
 # Orbweaver — Spine: Identity, Auth, and Permission
@@ -104,7 +104,11 @@ Code comments cite the numbered invariants below as "invariant N":
     an unbound row and may never rebind a bound one (`isSubjectMismatch`,
     `domain/sessions/substrate/role-policy.ts`, shared with the admin link capability rather than
     re-spelled), together with the access gate, the collision hard-deny, the JIT gate and the owner
-    singleton, in one ruled precedence. A mode with its own upsert would carry its own, weaker, takeover
+    singleton, in one ruled precedence. That precedence is the pure `decideProvision`
+    (`domain/sessions/substrate/decide-provision.ts`, D254): the verb interprets its decision, and a
+    batch-shaped signup statement that decides through the same function is not a second upsert. Such a
+    statement carries only the race-relevant checks in SQL: the unique indexes and a `NOT EXISTS` on email.
+    A mode with its own upsert would carry its own, weaker, takeover
     posture. Enforcers: `infra/auth` is db-free and may not import a domain, so a mode resolver
     structurally cannot write; `no-direct-users-read` reds any domain outside sessions/admin touching
     `users`. Entry is the tier where a second upsert could still be hand-written; the two callers above

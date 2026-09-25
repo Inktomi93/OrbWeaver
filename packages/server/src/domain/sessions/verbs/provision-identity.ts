@@ -3,7 +3,7 @@ import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { newId } from "@orb/kit/ids";
 import { getLog, groupsLogFields, securityEvent } from "#foundation/observability";
 import type { ProvisionIdentityOptions } from "../contract/params.ts";
-import type { ProvisionResult } from "../contract/results.ts";
+import type { ProvisionCandidate, ProvisionDecision, ProvisionDenyCause, ProvisionInsert, ProvisionResult, ProvisionUpdate } from "../contract/results.ts";
 import type { SessionsContext, SessionsService } from "../contract/service.ts";
 import {
   claimExternalIdIfUnbound,
@@ -15,7 +15,8 @@ import {
   selectUserIdByEmail,
   updateUser,
 } from "../persistence/users.ts";
-import { deriveIdentityAccess, isOwnerByPolicy, isOwnerSeedHandle, isSubjectMismatch, reDeriveRoleOnLogin } from "../substrate/role-policy.ts";
+import { decideProvision } from "../substrate/decide-provision.ts";
+import { isOwnerSeedHandle, reDeriveRoleOnLogin } from "../substrate/role-policy.ts";
 
 // The SSO seam upsert. Keys on the stable `externalId` first (a username rename updates `handle` on the
 // same row), falling back to `handle` — a fallback that may BIND an unbound row and may NEVER REBIND a bound
@@ -31,11 +32,8 @@ import { deriveIdentityAccess, isOwnerByPolicy, isOwnerSeedHandle, isSubjectMism
 // a second row the singleton then downgrades to `user`. This is what lets the owner flip single-user → OIDC
 // without db surgery; see the guarded branch below for the exact adoptability conditions.
 
-// The matched-row shape, derived from the persistence query. File-local.
-type ExistingUser = NonNullable<Awaited<ReturnType<typeof selectForProvisionByHandle>>>;
-
 /** Match by the stable `externalId` first (rename-safe), then by `handle`. */
-async function findExisting(ctx: SessionsContext, identity: ResolvedIdentity): Promise<ExistingUser | undefined> {
+async function findExisting(ctx: SessionsContext, identity: ResolvedIdentity): Promise<ProvisionCandidate | undefined> {
   if (identity.externalId !== null) {
     const byExternal = await selectForProvisionByExternalId(ctx.db, identity.externalId);
     if (byExternal !== undefined) {
@@ -80,7 +78,7 @@ async function findExisting(ctx: SessionsContext, identity: ResolvedIdentity): P
  */
 async function updateExisting(
   ctx: SessionsContext,
-  existing: ExistingUser,
+  existing: ProvisionCandidate,
   identity: ResolvedIdentity,
   policy: { resolvedRole: UserRole; isBootstrapOwner: boolean },
 ): Promise<ProvisionResult> {
@@ -148,7 +146,7 @@ async function updateExisting(
  * the SAME-SUBJECT race (the shape the race-tolerant insert exists to absorb) re-reads successfully.
  *
  * REFUSED, never resolved by ADOPTION. Returning the winner's row would be exactly the auto-link-by-handle
- * account takeover {@link denyOnCollision} hard-denies on the sequential path (MS-W1) — this is the same
+ * account takeover the MS-W1 `handle-collision` refusal hard-denies on the sequential path (MS-W1) — this is the same
  * collision arriving through the race window, so it gets the same operator-actionable `account-exists`
  * deny: an admin links the row to this stable subject via `admin.linkSsoIdentity` (B5). No row is created
  * or updated. The extra read is diagnosis only (`handleTaken` separates a handle collision from the owner
@@ -164,20 +162,12 @@ async function refuseLostInsertRace(ctx: SessionsContext, identity: ResolvedIden
   return { outcome: "denied", reason: "account-exists" };
 }
 
-/** First-login INSERT (race-tolerant) + re-read by the keyed column to return the canonical row.
- *  `requireApproval` is the caller-resolved A2 flag (undefined ⇒ off). */
-async function insertNew(
-  ctx: SessionsContext,
-  identity: ResolvedIdentity,
-  resolvedRole: UserRole,
-  requireApproval: boolean | undefined,
-): Promise<ProvisionResult> {
+/** First-login INSERT (race-tolerant) + re-read by the keyed column to return the canonical row. `enabled`
+ *  is the decided A2 verdict (OIDC_REQUIRE_APPROVAL lands a first-time non-owner row disabled, awaiting an
+ *  admin; the owner is never gated). It reuses the `enabled` control `validate` and the SSO callback refuse on,
+ *  rather than a `pending` role in the D17 lattice. */
+async function insertNew(ctx: SessionsContext, identity: ResolvedIdentity, resolvedRole: UserRole, enabled: boolean): Promise<ProvisionResult> {
   const now = ctx.now();
-  // A2 — OIDC_REQUIRE_APPROVAL (caller-resolved): a first-time NON-OWNER SSO user lands disabled (awaiting
-  // admin approval). The owner is never gated — a disabled owner would lock the box out of itself. This
-  // reuses the `enabled` control `validate` + the SSO callback already refuse on, rather than adding a
-  // `pending` role to the D17 lattice. An admin enables the row (Settings → Admin → Approvals) to grant access.
-  const enabled = resolvedRole === "owner" || requireApproval !== true;
   await insertUser(ctx.db, {
     id: newId<UserId>(),
     handle: identity.handle,
@@ -217,32 +207,21 @@ async function insertNew(
 /**
  * OWNER-FLIP RECONCILIATION (#8, D17/D135). An owner-by-policy SSO identity whose stable subject did not
  * resolve to the owner row ADOPTS the existing UNBOUND owner row — the single-user/local seeded (or
- * owner-fallback-created) owner, whose `externalId` is still null — instead of minting a SECOND row that
- * `reconcileOwnerSingleton` would downgrade to `user`, stranding the owner's whole library under an
- * un-loginable row (the owner's daily dogfood pain: a mode flip → OIDC sign-in collides with the seeded
- * owner). Returns the bound `ProvisionResult`, or `null` when this login is NOT such an adoption (the caller
- * falls through to the normal write). Owner-by-policy is asked through `isOwnerByPolicy` — the role-policy
- * home — never a `role === "owner"` lattice compare. Guarded so it can never steal a bound identity or crash
- * on the UNIQUE `external_id`: it needs a subject to bind, an UNBOUND owner to bind onto, and a subject that
- * does not already live on another row (`existing` matched by externalId ⇒ normal update, not adoption).
+ * owner-fallback-created) owner, whose `externalId` is still null — instead of minting a SECOND row the
+ * singleton would downgrade to `user`, stranding the owner's whole library under an un-loginable row.
+ * `decideProvision` names the attempt (`adopt-unbound-owner`); this runs its one read. Returns `null` when the
+ * owner row is gone or already bound, and the caller then runs the decision's `otherwise` step.
  */
 async function tryAdoptUnboundOwner(
   ctx: SessionsContext,
   identity: ResolvedIdentity,
-  existing: ExistingUser | undefined,
-  ownerId: UserId | undefined,
+  decision: Extract<ProvisionDecision, { kind: "adopt-unbound-owner" }>,
 ): Promise<ProvisionResult | null> {
-  if (identity.externalId === null || ownerId === undefined || !isOwnerByPolicy(identity.handle, identity.groups)) {
-    return null;
-  }
-  if (existing !== undefined && existing.externalId === identity.externalId) {
-    return null;
-  }
-  const owner = await selectForProvisionById(ctx.db, ownerId);
+  const owner = await selectForProvisionById(ctx.db, decision.ownerId);
   if (owner === undefined || owner.externalId !== null) {
     return null;
   }
-  return await bindOwnerSubject(ctx, owner, identity, identity.externalId);
+  return await bindOwnerSubject(ctx, owner, identity, decision.externalId);
 }
 
 /**
@@ -255,11 +234,16 @@ async function tryAdoptUnboundOwner(
  *   • the row carries a DIFFERENT subject ⇒ two owner-by-policy logins with different subjects raced for the
  *     one unbound owner row. Exactly one may hold it (`external_id` is UNIQUE and the owner is a singleton),
  *     and the loser gets the same operator-actionable `account-exists` deny the sequential collision returns
- *     — NEVER an adoption of the winner's row, which would be the auto-link takeover {@link denyOnCollision}
+ *     — NEVER an adoption of the winner's row, which would be the auto-link takeover the MS-W1 refusal
  *     hard-denies arriving through the race window instead of the front door.
  * The security line names both subjects, because "which login lost the owner row" is the whole diagnosis.
  */
-async function refuseLostOwnerBind(ctx: SessionsContext, owner: ExistingUser, identity: ResolvedIdentity, externalId: ExternalId): Promise<ProvisionResult> {
+async function refuseLostOwnerBind(
+  ctx: SessionsContext,
+  owner: ProvisionCandidate,
+  identity: ResolvedIdentity,
+  externalId: ExternalId,
+): Promise<ProvisionResult> {
   const settled = await selectForProvisionById(ctx.db, owner.id);
   if (settled !== undefined && settled.externalId === externalId) {
     return { outcome: "provisioned", userId: settled.id, enabled: settled.enabled, role: settled.role, identityChanged: false };
@@ -288,7 +272,7 @@ async function refuseLostOwnerBind(ctx: SessionsContext, owner: ExistingUser, id
  *  link capability (B5 `linkExternalId`) claims through, which is the point — ONE bind-once mechanism.
  *  The email refresh is a SEPARATE, non-security write that follows a WON claim: it must never be the thing
  *  that carries the binding, and a claim that lost writes nothing at all. */
-async function bindOwnerSubject(ctx: SessionsContext, owner: ExistingUser, identity: ResolvedIdentity, externalId: ExternalId): Promise<ProvisionResult> {
+async function bindOwnerSubject(ctx: SessionsContext, owner: ProvisionCandidate, identity: ResolvedIdentity, externalId: ExternalId): Promise<ProvisionResult> {
   // EMPTY rows = this login did not win the claim (another owner-policy login bound the row first).
   const claimed = await claimExternalIdIfUnbound(ctx.db, owner.id, externalId, ctx.now());
   if (claimed.length === 0) {
@@ -306,21 +290,12 @@ async function bindOwnerSubject(ctx: SessionsContext, owner: ExistingUser, ident
   return { outcome: "provisioned", userId: owner.id, enabled: owner.enabled, role: "owner", identityChanged: false };
 }
 
-/** The box has exactly one owner. When the owner policy would mint a second owner, downgrade to `user`
- *  (warned) so the write never surfaces as a raw unique violation. A re-login of the same owner row keeps
- *  `owner`. */
-function reconcileOwnerSingleton(derivedRole: UserRole, ownerId: UserId | undefined, existing: ExistingUser | undefined, identity: ResolvedIdentity): UserRole {
-  if (derivedRole !== "owner") {
-    return derivedRole;
-  }
-  if (ownerId === undefined || ownerId === existing?.id) {
-    return "owner";
-  }
+/** The owner singleton downgrade (D17: exactly one owner) is decided pure; the warn names the kept owner. */
+function reportOwnerSingletonDowngrade(identity: ResolvedIdentity, ownerId: UserId | undefined): void {
   getLog().warn(
     { handle: identity.handle, externalId: identity.externalId, ...groupsLogFields(identity.groups), existingOwnerId: ownerId },
     "user: owner policy matched but an owner already exists (D17: exactly one owner) — provisioning as `user`; grant admin via setRole",
   );
-  return "user";
 }
 
 /**
@@ -340,7 +315,7 @@ function reconcileOwnerSingleton(derivedRole: UserRole, ownerId: UserId | undefi
  * OBSERVABILITY ONLY — the login proceeds byte-identically. Widening the guard to refuse null-subject logins
  * would break `forward-header`, where null is the normal shape (again, the scope note).
  */
-function reportNullSubjectOnBoundRow(existing: ExistingUser | undefined, identity: ResolvedIdentity): void {
+function reportNullSubjectOnBoundRow(existing: ProvisionCandidate | undefined, identity: ResolvedIdentity): void {
   if (identity.externalId !== null || existing === undefined || existing.externalId === null) {
     return;
   }
@@ -349,27 +324,6 @@ function reportNullSubjectOnBoundRow(existing: ExistingUser | undefined, identit
     { handle: identity.handle, userId: existing.id },
     "security: a login carrying NO stable subject matched by HANDLE onto a row already bound to one — the bind-once account-takeover guard cannot evaluate this login, so the handle alone authorizes the row; expected under forward-header (the proxy is the identity authority), a MISCONFIGURATION under oidc (check OIDC_UID_CLAIM)",
   );
-}
-
-/**
- * A1 — the JIT admission gate (caller-resolved `allowJitProvision`; for oidc that is OIDC_SIGNUP, off by
- * default). A brand-new identity (no existing row) is refused when JIT is off, so the box admits only
- * identities an admin already provisioned. The box OWNER by policy is EXEMPT — the owner is provisioned by
- * boot seed / owner-flip adoption, never a "signup", and must never be locked out. Returns the denial or
- * null to proceed. Mode-agnostic: forward-header passes `true` (the trusted proxy already gated who reaches
- * us), so this never gates it.
- */
-function denyJitIfBlocked(existing: ExistingUser | undefined, identity: ResolvedIdentity, allowJitProvision: boolean | undefined): ProvisionResult | null {
-  // `allowJitProvision` undefined ⇒ JIT allowed (the forward-header / non-oidc default); only an explicit
-  // `false` (OIDC_SIGNUP off) blocks a brand-new non-owner identity.
-  if (existing !== undefined || allowJitProvision !== false || isOwnerByPolicy(identity.handle, identity.groups)) {
-    return null;
-  }
-  getLog().warn(
-    { handle: identity.handle, externalId: identity.externalId },
-    "user: SSO login denied — JIT provisioning is off (OIDC_SIGNUP) and this identity has no existing account (deny-by-default; set OIDC_SIGNUP=on to allow it)",
-  );
-  return { outcome: "denied" };
 }
 
 /**
@@ -390,26 +344,10 @@ function denyJitIfBlocked(existing: ExistingUser | undefined, identity: Resolved
  *
  * SCOPED to subject-bearing logins (`externalId !== null`): a NULL-subject login is `forward-header`, where the
  * PROXY is the identity authority — a handle-matched unbound row binds and a new handle mints as normal JIT
- * (never a collision). Owner-by-policy is exempt (provisioned by seed / owner-flip, never blocked). Returns the
- * deny, or null to proceed.
+ * (never a collision). Owner-by-policy is exempt (provisioned by seed / owner-flip, never blocked). The
+ * refusal warns with the operator's next action (link via B5) and returns the `account-exists` deny the
+ * callback maps to a DISTINCT authError. No row is created or updated.
  */
-async function denyOnCollision(ctx: SessionsContext, existing: ExistingUser | undefined, identity: ResolvedIdentity): Promise<ProvisionResult | null> {
-  if (identity.externalId === null || isOwnerByPolicy(identity.handle, identity.groups)) {
-    return null;
-  }
-  if (existing !== undefined) {
-    // A subject-match re-login (`existing.externalId === identity.externalId`) is NOT a collision — proceed.
-    // An UNBOUND row reached by handle IS the handle collision.
-    return existing.externalId === null ? denyAccountExists(identity, "handle") : null;
-  }
-  if (identity.email !== null && (await selectUserIdByEmail(ctx.db, identity.email)) !== undefined) {
-    return denyAccountExists(identity, "email");
-  }
-  return null;
-}
-
-/** The MS-W1 collision refusal — warns with the operator's next action (link via B5) and returns the
- *  `account-exists` deny the callback maps to a DISTINCT authError. No row is created or updated. */
 function denyAccountExists(identity: ResolvedIdentity, by: "handle" | "email"): ProvisionResult {
   getLog().warn(
     { handle: identity.handle, externalId: identity.externalId, collision: by },
@@ -418,105 +356,92 @@ function denyAccountExists(identity: ResolvedIdentity, by: "handle" | "email"): 
   return { outcome: "denied", reason: "account-exists" };
 }
 
-/**
- * The NON-OWNER provisioning tail (the owner paths — bind-once, owner exemption — are handled by the caller).
- * PRECEDENCE (owner-ruled 2026-08-09): access gate → owner-flip adoption → MS-W1 collision hard-deny → A1 JIT
- * gate → reconcile + mint/update. Extracted from `provisionIdentity` so that function stays within the
- * cognitive-complexity budget; the ordering is the whole point (see the callers' comments).
- */
-interface NonOwnerProvisionArgs {
-  readonly existing: ExistingUser | undefined;
-  readonly identity: ResolvedIdentity;
-  readonly ownerId: UserId | undefined;
-  readonly options: ProvisionIdentityOptions;
-}
-
-async function resolveNonOwnerProvision(ctx: SessionsContext, args: NonOwnerProvisionArgs): Promise<ProvisionResult> {
-  const { existing, identity, ownerId, options } = args;
-  // Non-owner login access gate + role from IdP groups. A denied identity creates/updates no row (fail-closed).
-  const access = deriveIdentityAccess(identity.handle, identity.groups);
-  if (access.outcome === "deny") {
-    // #140 — the groups the identity DID carry are the whole diagnosis here: an empty list means the claim
-    // never arrived (see the mapper's `oidc_groups_claim` line), a populated one that misses the allowlist
-    // means the operator's group names disagree with the IdP's.
-    getLog().warn(
-      { handle: identity.handle, externalId: identity.externalId, ...groupsLogFields(identity.groups) },
-      "user: SSO login denied — identity is in none of OIDC_ALLOWED_GROUPS (fail-closed access gate)",
-    );
-    return { outcome: "denied" };
-  }
-  // OWNER-FLIP RECONCILIATION (#8): bind an owner-by-policy login onto the existing unbound seeded owner row
-  // rather than minting a second row the singleton downgrades to `user` (see `tryAdoptUnboundOwner`).
-  const adopted = await tryAdoptUnboundOwner(ctx, identity, existing, ownerId);
-  if (adopted !== null) {
-    return adopted;
-  }
-  // MS-W1 — a non-owner subject-bearing identity that collides with an existing account (handle or email) is
-  // HARD-DENIED rather than auto-linked (W1 takeover) or minted as a duplicate (mode-switch orphan). The admin
-  // resolves it via `admin.linkSsoIdentity` (B5).
-  const collision = await denyOnCollision(ctx, existing, identity);
-  if (collision !== null) {
-    return collision;
-  }
-  // A1 — JIT admission gate (see {@link denyJitIfBlocked}); mint path only (existing === undefined).
-  const jitDenied = denyJitIfBlocked(existing, identity, options.allowJitProvision);
-  if (jitDenied !== null) {
-    return jitDenied;
-  }
-  // Reconcile a policy-matched second owner against the singleton (downgrade to `user`) before writing.
-  const resolvedRole = reconcileOwnerSingleton(access.role, ownerId, existing, identity);
-  // A non-owner `existing` reaching here is a subject-match re-login (a handle-collision was already denied).
-  return existing !== undefined
-    ? await updateExisting(ctx, existing, identity, { resolvedRole, isBootstrapOwner: false })
-    : await insertNew(ctx, identity, resolvedRole, options.requireApproval);
-}
-
-export function createProvisionIdentity(ctx: SessionsContext): Pick<SessionsService, "provisionIdentity"> {
-  async function provisionIdentity(identity: ResolvedIdentity, options: ProvisionIdentityOptions = {}): Promise<ProvisionResult> {
-    // Caller-resolved admission (the verb stays mode-agnostic). Both flags default OFF-of-gate when omitted
-    // (forward-header seam, tests): JIT allowed, no approval — resolved inside the helpers so this function
-    // stays flat.
-    const existing = await findExisting(ctx, identity);
-    reportNullSubjectOnBoundRow(existing, identity);
-    // THE HANDLE FALLBACK BINDS, IT NEVER REBINDS. `findExisting` falls back to `handle` so an UNBOUND row
-    // (the single-user/local/seeded shape) links to its SSO subject on first login. Reaching an already-BOUND
-    // row that way is not a rename — it is a different identity carrying this row's handle, and letting it
-    // through moved `external_id` onto the impostor's subject, handing them the row and locking the real
-    // owner of it out. Reachable both ways: (a) the OWNER row, whose handle is now deliberately PINNED to the
-    // `OWNER_HANDLES` key, so the takeover handle is a publicly guessable constant; (b) ANY user, through the
-    // window between an IdP rename and that user's next login, during which their old username is free to
-    // re-register while our row still stores it. `externalId` is the identity (Spine-Identity "Esoterica");
-    // a SUBJECT-BEARING login that contradicts it is refused, fail-closed, with no row written — read
-    // `isSubjectMismatch`'s scope note for which logins carry no subject and why they are trusted anyway.
-    //
-    // OPERATOR RECOVERY (the accepted trade, owner-ruled 2026-08-08): the ONE legitimate way to reach this
-    // refusal is an IdP that genuinely RE-ISSUED a stable subject (an authentik migration/rebuild), which
-    // locks that user — owner included — out of their own row. The repair is deliberately manual and
-    // out-of-band, because the alternative is a silent re-key we cannot distinguish from the impostor above:
-    //   sqlite> UPDATE users SET external_id = NULL WHERE handle = '<the locked-out handle>';
-    // The next login then takes the BIND path (unbound row + handle match) and links the new subject. This
-    // log line is the operator's tell — it names the handle and the rejected subject.
-    if (existing !== undefined && isSubjectMismatch(existing.externalId, identity.externalId)) {
+/** Each refusal's log line and result. `handle-collision` is the MS-W1 deny (`account-exists`); the rest
+ *  collapse to the generic deny. Exhaustive: a new cause fails `tsc` here. */
+function refuse(identity: ResolvedIdentity, cause: ProvisionDenyCause): ProvisionResult {
+  switch (cause) {
+    case "subject-mismatch":
       getLog().warn(
         { handle: identity.handle, externalId: identity.externalId },
         "user: SSO login refused — the handle resolves to a row already bound to a DIFFERENT stable subject (impostor / handle re-registration); externalId is the identity key",
       );
       return { outcome: "denied" };
+    case "access-gate":
+      // #140 — the groups the identity DID carry are the whole diagnosis here: an empty list means the claim
+      // never arrived (see the mapper's `oidc_groups_claim` line), a populated one that misses the allowlist
+      // means the operator's group names disagree with the IdP's.
+      getLog().warn(
+        { handle: identity.handle, externalId: identity.externalId, ...groupsLogFields(identity.groups) },
+        "user: SSO login denied — identity is in none of OIDC_ALLOWED_GROUPS (fail-closed access gate)",
+      );
+      return { outcome: "denied" };
+    case "handle-collision":
+      return denyAccountExists(identity, "handle");
+    case "jit-closed":
+      getLog().warn(
+        { handle: identity.handle, externalId: identity.externalId },
+        "user: SSO login denied — JIT provisioning is off (OIDC_SIGNUP) and this identity has no existing account (deny-by-default; set OIDC_SIGNUP=on to allow it)",
+      );
+      return { outcome: "denied" };
+    default: {
+      const exhaustive: never = cause;
+      throw new Error(`provisionIdentity: unknown deny cause ${String(exhaustive)}`);
     }
-    // PRECEDENCE (owner-ruled 2026-08-09): bind-once/subject-match (above) → owner exemption → [access gate →
-    // owner-flip adoption → MS-W1 collision hard-deny → A1 JIT gate → mint], the bracketed non-owner tail in
-    // `resolveNonOwnerProvision`. The collision deny sits AFTER every owner path (owner never blocked) and
-    // BEFORE A1/mint (a colliding identity gets the operator-actionable `account-exists`, not a silent mint).
+  }
+}
+
+/** Run a write decision: update the matched row, or insert the new one. */
+async function write(
+  ctx: SessionsContext,
+  identity: ResolvedIdentity,
+  ownerId: UserId | undefined,
+  decision: ProvisionInsert | ProvisionUpdate,
+): Promise<ProvisionResult> {
+  if (decision.ownerSingletonDowngrade) {
+    reportOwnerSingletonDowngrade(identity, ownerId);
+  }
+  if (decision.kind === "update") {
+    return await updateExisting(ctx, decision.existing, identity, { resolvedRole: decision.resolvedRole, isBootstrapOwner: decision.isBootstrapOwner });
+  }
+  return await insertNew(ctx, identity, decision.resolvedRole, decision.enabled);
+}
+
+/** Interpret a {@link decideProvision} decision, running the one read each follow-up arm names. */
+async function apply(ctx: SessionsContext, identity: ResolvedIdentity, ownerId: UserId | undefined, decision: ProvisionDecision): Promise<ProvisionResult> {
+  switch (decision.kind) {
+    case "deny":
+      return refuse(identity, decision.cause);
+    case "insert":
+    case "update":
+      return await write(ctx, identity, ownerId, decision);
+    case "adopt-unbound-owner":
+      return (await tryAdoptUnboundOwner(ctx, identity, decision)) ?? (await write(ctx, identity, ownerId, decision.otherwise));
+    case "require-free-email":
+      if ((await selectUserIdByEmail(ctx.db, decision.email)) !== undefined) {
+        return denyAccountExists(identity, "email");
+      }
+      return await apply(ctx, identity, ownerId, decision.otherwise);
+    default: {
+      const exhaustive: never = decision;
+      throw new Error(`provisionIdentity: unknown decision ${JSON.stringify(exhaustive)}`);
+    }
+  }
+}
+
+export function createProvisionIdentity(ctx: SessionsContext): Pick<SessionsService, "provisionIdentity"> {
+  async function provisionIdentity(identity: ResolvedIdentity, options: ProvisionIdentityOptions = {}): Promise<ProvisionResult> {
+    const existing = await findExisting(ctx, identity);
+    reportNullSubjectOnBoundRow(existing, identity);
+    // OPERATOR RECOVERY for the subject-mismatch refusal (the accepted trade, owner-ruled 2026-08-08): the ONE
+    // legitimate way to reach it is an IdP that genuinely RE-ISSUED a stable subject (an authentik
+    // migration/rebuild), which locks that user — owner included — out of their own row. The repair is
+    // deliberately manual and out-of-band, because the alternative is a silent re-key we cannot distinguish
+    // from an impostor:
+    //   sqlite> UPDATE users SET external_id = NULL WHERE handle = '<the locked-out handle>';
+    // The next login then takes the BIND path (unbound row + handle match) and links the new subject. The
+    // refusal's log line is the operator's tell — it names the handle and the rejected subject.
     const ownerId = await selectOwnerUserId(ctx.db);
-    // Owner exemption: the immutable bootstrap owner is matched by the existing owner row's id, never by a
-    // role-literal compare. The owner is never denied by the access gate and never re-derived downward.
-    if (existing !== undefined && ownerId !== undefined && existing.id === ownerId) {
-      return await updateExisting(ctx, existing, identity, {
-        resolvedRole: existing.role,
-        isBootstrapOwner: true,
-      });
-    }
-    return await resolveNonOwnerProvision(ctx, { existing, identity, ownerId, options });
+    return await apply(ctx, identity, ownerId, decideProvision(existing, identity, ownerId, options));
   }
   return { provisionIdentity };
 }

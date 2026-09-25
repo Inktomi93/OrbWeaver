@@ -57,6 +57,62 @@ export interface RevokedSessionsSummary {
  *  `allow` carries the derived global role. */
 export type IdentityAccess = { readonly outcome: "allow"; readonly role: UserRole } | { readonly outcome: "deny" };
 
+/** The live `users` fields the provision decision reads off a matched row. */
+export interface ProvisionCandidate {
+  readonly id: UserId;
+  readonly handle: Handle;
+  readonly externalId: ExternalId | null;
+  readonly email: string | null;
+  readonly role: UserRole;
+  readonly enabled: boolean;
+}
+
+/** Which ruled refusal `decideProvision` reached. The verb maps each to its log line and its `ProvisionResult`. */
+export const PROVISION_DENY_CAUSES = ["subject-mismatch", "access-gate", "handle-collision", "jit-closed"] as const;
+export type ProvisionDenyCause = (typeof PROVISION_DENY_CAUSES)[number];
+
+/** A refusal: no row is created or updated. */
+export interface ProvisionDeny {
+  readonly kind: "deny";
+  readonly cause: ProvisionDenyCause;
+}
+
+/** Write a brand-new row. `ownerSingletonDowngrade` reports that the owner policy matched while another owner
+ *  exists, so `resolvedRole` fell to `user`. */
+export interface ProvisionInsert {
+  readonly kind: "insert";
+  readonly resolvedRole: UserRole;
+  readonly enabled: boolean;
+  readonly ownerSingletonDowngrade: boolean;
+}
+
+/** Refresh the matched row. `isBootstrapOwner` pins the owner's role and seed handle (see `updateExisting`). */
+export interface ProvisionUpdate {
+  readonly kind: "update";
+  readonly existing: ProvisionCandidate;
+  readonly resolvedRole: UserRole;
+  readonly isBootstrapOwner: boolean;
+  readonly ownerSingletonDowngrade: boolean;
+}
+
+/**
+ * The pure provision decision (D254, spine invariant 10). Two arms name a read the decision cannot make and
+ * the step that follows it: `adopt-unbound-owner` binds the subject onto the owner row when that row is still
+ * unbound, else runs `otherwise`; `require-free-email` refuses `account-exists` when another row carries the
+ * email, else runs `otherwise`. The verb runs those reads; a batch statement carries them in SQL.
+ */
+export type ProvisionDecision =
+  | ProvisionDeny
+  | ProvisionInsert
+  | ProvisionUpdate
+  | {
+      readonly kind: "adopt-unbound-owner";
+      readonly ownerId: UserId;
+      readonly externalId: ExternalId;
+      readonly otherwise: ProvisionInsert | ProvisionUpdate;
+    }
+  | { readonly kind: "require-free-email"; readonly email: string; readonly otherwise: ProvisionInsert | ProvisionDeny };
+
 /** Why a `provisionIdentity` login was refused. Only `account-exists` (MS-W1 collision hard-deny) needs a
  *  DISTINCT, operator-actionable message; the other refusals collapse to the generic "not authorized". Kept a
  *  single-member union (extensible) rather than enumerating every deny site, so adding a distinct reason is a
