@@ -267,8 +267,17 @@ export function startBannerLines(opts: {
   readonly share: boolean;
 }): readonly string[] {
   const posture = startPostureLine(opts.mode, opts.fallbackFilled);
-  const reach = opts.share
-    ? "  sharing: the server starts a public link and prints it; anyone with the link reaches the sign-in page."
-    : `  other devices need a login: run \`${SETUP_COMMAND}\`; put HTTPS in front, or the login travels in clear.`;
-  return ["", `  orbweaver is running:  http://localhost:${opts.port}`, `  ${posture}`, reach, "  Ctrl-C stops the server.", ""];
+  return ["", `  orbweaver is running:  http://localhost:${opts.port}`, `  ${posture}`, reachLine(opts), "  Ctrl-C stops the server.", ""];
+}
+
+/** How another device gets in: the share link, this machine's address under a login mode, or the setup command
+ *  that turns a login on. */
+function reachLine(opts: { readonly port: number; readonly mode: string; readonly share: boolean }): string {
+  if (opts.share) {
+    return "  sharing: the server starts a public link and prints it; anyone with the link reaches the sign-in page.";
+  }
+  if (opts.mode !== SINGLE_USER_MODE) {
+    return `  other devices: open this machine's address on port ${String(opts.port)}; put HTTPS in front, or the login travels in clear.`;
+  }
+  return `  other devices need a login: run \`${SETUP_COMMAND}\`; put HTTPS in front, or the login travels in clear.`;
 }

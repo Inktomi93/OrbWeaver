@@ -186,6 +186,14 @@ test("the banner tells a local-mode operator to sign in, and never claims an AUT
   expect(ownFallback).toContain("your own AUTH_FALLBACK");
 });
 
+test("a login mode already lets other devices in, so its banner never sends the operator back to setup", () => {
+  for (const mode of ["local", "oidc", "forward-header"]) {
+    const lines = startBannerLines({ port: 3000, mode, fallbackFilled: false, share: false }).filter((line) => line !== "");
+    expect(lines.join("\n")).not.toContain(SETUP_COMMAND);
+    expect(lines).toHaveLength(4);
+  }
+});
+
 /** `pnpm start --share`'s launch from a `.env` text, the way ops/start.ts builds each spawn. */
 function launchFrom(text: string, share: boolean, ambient = env(["PATH", "/bin"], ["AUTH_MODE", "oidc"])): ReturnType<typeof startLaunch> {
   return startLaunch({
