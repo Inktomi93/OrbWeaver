@@ -512,8 +512,8 @@ test("the openrouter mandatory-reasoning 400 is peeled, stripped and replayed on
     return Promise.resolve(new Response(body, { status: 200, headers: { "content-type": "text/event-stream" } }));
   };
 
-  // `effort: "none"` is what makes the turn REPLAYABLE: `drainWithReplay`'s second argument is
-  // `dialect === "openrouter" && !knobs.reasoning.enabled`.
+  // A chosen `effort: "none"` is what makes the turn REPLAYABLE: `drainWithReplay`'s second argument is
+  // `dialect === "openrouter" && knobs.reasoning.offChosen === true`, the only case that sends the off block.
   const req = orRequest({ params: { effort: "none" }, tools: undefined });
   const turn = await runOpenAiCompatChatTurn(req, turnDeps(fetchImpl));
 

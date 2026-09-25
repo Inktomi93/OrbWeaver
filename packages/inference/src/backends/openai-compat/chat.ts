@@ -587,7 +587,7 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
   // surfaced `ProviderError{kind:"aborted"}`, and `entry/compose/chat.ts` hands the rejection straight on
   // without normalising. So the classify happens HERE, outside everything that needs the raw error and
   // inside nothing that does. `classify` returns an existing `ProviderError` untouched.
-  const drain = await drainWithReplay(run, dialect === "openrouter" && !knobs.reasoning.enabled).catch((err: unknown): never => {
+  const drain = await drainWithReplay(run, dialect === "openrouter" && knobs.reasoning.offChosen === true).catch((err: unknown): never => {
     throw classify(err);
   });
   // The SDK's OWN drops (§A3), folded into the same array as the funnel's before the result is built.
