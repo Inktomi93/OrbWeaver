@@ -1,7 +1,8 @@
 ---
 kind: decision
 status: open
-updated: 2026-09-23
+updated: 2026-09-25
+priority: P3
 ---
 
 # Decide the api-surface freeze and its unheld internal-versus-public half

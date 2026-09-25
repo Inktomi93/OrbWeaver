@@ -1,7 +1,8 @@
 ---
 kind: tooling
 status: open
-updated: 2026-09-23
+updated: 2026-09-25
+priority: P3
 ---
 
 # Move runner-owned report outputs into per-run slots
