@@ -351,6 +351,25 @@ describe("read — listings (membership-scoped, D18)", () => {
     expect((await listChats({ principal: principal(host) })).viewerLastTurnAt).toBe(1000);
   });
 
+  // An imported history (a user's import, the seeded example rooms) is attributed to its owner but was never typed in
+  // this app: it is not where they left off. The first turn they type in that room is.
+  test("listChats skips imported turns: an imported room reads as never spoken in until the viewer types there", async () => {
+    const me = await seedUser(db, castId<Handle>("importer"));
+    const room = await seedRoom("imported", me);
+    await seedMessage(db, room, 1, { role: "user", authorUserId: me, content: "an imported line", createdAt: 5000, initiator: "import" });
+    await seedMessage(db, room, 2, { role: "assistant", content: "an imported reply", createdAt: 6000, initiator: "import" });
+
+    const { listChats } = createRead(makeChatContext(db), makeDeps());
+    const imported = await listChats({ principal: principal(me) });
+    expect(imported.viewerLastTurnAt).toBeNull();
+    expect(imported.items.map((c) => c.viewerLastTurnAt)).toEqual([null]);
+
+    await seedMessage(db, room, 3, { role: "user", authorUserId: me, content: "typed here", createdAt: 7000 });
+    const typed = await listChats({ principal: principal(me) });
+    expect(typed.viewerLastTurnAt).toBe(7000);
+    expect(typed.items[0]?.viewerLastTurnAt).toBe(7000);
+  });
+
   test("listChats excludes archived unless includeArchived", async () => {
     const me = await seedUser(db, castId<Handle>("me"));
     const live = await seedChat(db, "live");

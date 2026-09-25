@@ -326,6 +326,8 @@ function messageStatements(args: MessageStatementsArgs): {
         characterId: slotCharacterId(message, args.characterId, args.narratorCharacterId),
         personaId: isUser ? message.personaId : null,
         selectedVariantId: null,
+        // Imported history was not typed in this app: the viewer's last-turn reads skip it.
+        initiator: "import",
         createdAt: message.createdAt,
       }),
     ),

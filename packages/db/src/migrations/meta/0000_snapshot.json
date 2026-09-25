@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "a0501cdc-99c4-4aae-b44e-c8335a18130b",
+  "id": "eb0ef26a-1557-4d17-8a5b-b84a4e761d09",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -2940,7 +2940,7 @@
         },
         "messages_initiator_check": {
           "name": "messages_initiator_check",
-          "value": "initiator in ('human', 'automation', 'plugin')"
+          "value": "initiator in ('human', 'automation', 'plugin', 'import')"
         },
         "messages_kind_shape": {
           "name": "messages_kind_shape",

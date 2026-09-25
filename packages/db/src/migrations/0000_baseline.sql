@@ -446,7 +446,7 @@ CREATE TABLE `messages` (
 	FOREIGN KEY (`selected_variant_id`) REFERENCES `message_variants`(`id`) ON UPDATE no action ON DELETE set null,
 	CONSTRAINT "messages_role_check" CHECK(role in ('system', 'user', 'assistant')),
 	CONSTRAINT "messages_kind_check" CHECK(kind in ('standard', 'narrator', 'comment')),
-	CONSTRAINT "messages_initiator_check" CHECK(initiator in ('human', 'automation', 'plugin')),
+	CONSTRAINT "messages_initiator_check" CHECK(initiator in ('human', 'automation', 'plugin', 'import')),
 	CONSTRAINT "messages_kind_shape" CHECK((kind <> 'narrator' OR role = 'assistant')),
 	CONSTRAINT "messages_attribution_shape" CHECK((character_id IS NULL OR role = 'assistant') AND (persona_id IS NULL OR role = 'user') AND (character_id IS NULL OR author_user_id IS NULL))
 );
