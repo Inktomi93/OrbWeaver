@@ -9,9 +9,15 @@ const HEX_RADIX = 16;
 // Controls, format characters, line and paragraph separators, and every space but U+0020: each is invisible,
 // breaks the line a handle is shown on, or displays as a blank a reader cannot tell from a plain space.
 const UNSEEN_OR_BREAKING = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}[\p{Zs}--\x20]]/v;
-// A code point outside White_Space and the Braille blank, which renders as nothing though it is a symbol.
-const VISIBLE = /[^\s\u2800]/u;
+// Symbols that render as nothing: the Braille blank and the musical null notehead. Refused anywhere in a handle,
+// since `admin` with one appended displays as `admin` under another key.
+const BRAILLE_PATTERN_BLANK = 0x28_00;
+const MUSICAL_SYMBOL_NULL_NOTEHEAD = 0x1_d1_59;
+const BLANK_RENDERING: ReadonlySet<string> = new Set([BRAILLE_PATTERN_BLANK, MUSICAL_SYMBOL_NULL_NOTEHEAD].map((cp) => String.fromCodePoint(cp)));
+const VISIBLE = /\S/u;
 const SPACE = " ";
+// HTML collapses a run of spaces to one, so `ad  min` displays as `ad min`.
+const SPACE_RUN = SPACE.repeat(2);
 
 /** The longest handle any writer accepts, in code points. The key normalizes, and NFKC/NFD over a long run of
  *  combining marks is quadratic, so every boundary refuses a longer handle before a key is computed. */
@@ -157,9 +163,9 @@ function scriptsOf(char: string): ReadonlySet<string> {
 /**
  * Whether a handle may be written at all (D257), checked by every handle writer before its key: it is within
  * {@link HANDLE_MAX_CODE_POINTS}; it holds no default-ignorable code point, control, format character, line or
- * paragraph separator, or space other than U+0020; it neither starts nor ends with a space; it holds a code
- * point outside White_Space and U+2800; and its NFKC form meets the UTS 39 highly restrictive profile, one script,
- * or Latin with Japanese, Korean or Chinese writing; Common and Inherited characters (digits, punctuation,
+ * paragraph separator, space other than U+0020, or blank-rendering symbol; it neither starts nor ends with a
+ * space and holds no two in a row; it holds a code point outside White_Space; and its NFKC form meets the
+ * UTS 39 highly restrictive profile, one script, or Latin with Japanese, Korean or Chinese writing; Common and Inherited characters (digits, punctuation,
  * marks) fit any script, and an unassigned code point never fits. A mixed-script handle can spell a
  * look-alike the confusable data does not map.
  */
@@ -171,10 +177,10 @@ export function admitsHandle(text: string): boolean {
   // logical order: `nimda` behind a right-to-left override displays as `admin` and keys apart from it. An edge
   // space displays as nothing, so `admin ` would sit beside `admin` under another key.
   const data = loaded();
-  if (UNSEEN_OR_BREAKING.test(text) || [...text].some((char) => isDefaultIgnorable(char, data))) {
+  if (UNSEEN_OR_BREAKING.test(text) || [...text].some((char) => isDefaultIgnorable(char, data) || BLANK_RENDERING.has(char))) {
     return false;
   }
-  if (text.startsWith(SPACE) || text.endsWith(SPACE) || !VISIBLE.test(text)) {
+  if (text.startsWith(SPACE) || text.endsWith(SPACE) || text.includes(SPACE_RUN) || !VISIBLE.test(text)) {
     return false;
   }
   const scripted = [...text.normalize("NFKC")].map(scriptsOf).filter((scripts) => ![...scripts].every((code) => ANY_SCRIPT.has(code)));

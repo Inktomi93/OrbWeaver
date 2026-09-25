@@ -23,6 +23,7 @@ const CHAR = {
   interlinearAnchor: String.fromCodePoint(0xff_f9),
   arabicEndOfAyah: String.fromCodePoint(0x06_dd),
   brailleBlank: String.fromCodePoint(0x28_00),
+  nullNotehead: String.fromCodePoint(0x1_d1_59),
 } as const;
 
 // Every space separator but U+0020 displays as a blank a reader cannot tell from a plain space or from nothing.
@@ -108,6 +109,12 @@ describe("handleKey", () => {
     ["an end-of-ayah sign inside an Arabic handle (format, not default-ignorable)", `مد${CHAR.arabicEndOfAyah}ير`],
     ["only a Braille blank", CHAR.brailleBlank],
     ["only spaces", "   "],
+    ["a trailing null notehead", `admin${CHAR.nullNotehead}`],
+    ["an inner null notehead", `ad${CHAR.nullNotehead}min`],
+    ["only a null notehead", CHAR.nullNotehead],
+    ["an inner Braille blank", `ad${CHAR.brailleBlank}min`],
+    ["a Braille blank between Braille letters", `⠁${CHAR.brailleBlank}⠃`],
+    ["two inner spaces", "ad  min"],
   ])("admitsHandle refuses %s: %s", (_, handle) => {
     expect(admitsHandle(handle)).toBe(false);
   });
@@ -122,6 +129,7 @@ describe("handleKey", () => {
     ["an emoji", "😀"],
     ["Latin with an emoji", "cat😀"],
     ["one inner space", "ad min"],
+    ["Braille letters", "⠁⠃"],
     ["an Arabic handle", "مدير"],
   ])("control: admitsHandle allows %s: %s", (_, handle) => {
     expect(admitsHandle(handle)).toBe(true);
