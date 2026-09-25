@@ -17,7 +17,7 @@ import { abortableWait, normalizeVector, throwIfAborted } from "./model-cache.ts
  *  (`LOCAL_LIGHT_SEED_ROWS`, contracts), the matte is the imagery op's default. */
 export const DEFAULT_EMBED_MODEL = modelIdSchema.parse(LOCAL_LIGHT_SEED_ROWS[0].model);
 export const DEFAULT_RERANK_MODEL = modelIdSchema.parse(LOCAL_LIGHT_SEED_ROWS[1].model);
-export const DEFAULT_MATTE_MODEL = modelIdSchema.parse("briaai/RMBG-1.4");
+const DEFAULT_MATTE_MODEL = modelIdSchema.parse("briaai/RMBG-1.4");
 
 interface KeptInput {
   readonly index: number;

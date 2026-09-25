@@ -130,13 +130,19 @@ export function abortableWait<T>(work: Promise<T>, signal: AbortSignal | undefin
   if (signal === undefined) {
     return work;
   }
-  throwIfAborted(signal);
   const aborted = Promise.withResolvers<never>();
   const onAbort = (): void => {
     aborted.reject(abortedError());
   };
-  signal.addEventListener("abort", onAbort, { once: true });
-  return Promise.race([work, aborted.promise]).finally(() => {
+  // An already-fired signal still goes through the race, never a synchronous throw: the race subscribes to the
+  // work, so a load that fails after the caller stopped waiting is handled rather than an unhandled rejection.
+  if (signal.aborted) {
+    onAbort();
+  } else {
+    signal.addEventListener("abort", onAbort, { once: true });
+  }
+  // The abort is listed first so it wins over work that has also settled already.
+  return Promise.race([aborted.promise, work]).finally(() => {
     signal.removeEventListener("abort", onAbort);
   });
 }

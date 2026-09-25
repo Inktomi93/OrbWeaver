@@ -10,8 +10,32 @@ import { automationActionSchema } from "@orb/contracts/automation";
 import type { DomainEvent } from "@orb/contracts/events";
 import { EMBED_SPACE_DIMS } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
-import { characterEmbeddings, characters as charactersTable, characterTags, chatParticipants, chats, tags, workloads } from "@orb/db";
-import type { AssetId, CharacterHandle, CharacterId, ChatParticipantId, Handle, PersonaId, SessionId, SocketId, UserId } from "@orb/kit/ids";
+import {
+  characterEmbeddings,
+  characters as charactersTable,
+  characterTags,
+  chatDigests,
+  chatParticipants,
+  chatSegments,
+  chats,
+  embedGenerations,
+  tags,
+  workloads,
+} from "@orb/db";
+import type {
+  AssetId,
+  CharacterHandle,
+  CharacterId,
+  ChatParticipantId,
+  ChatSegmentId,
+  EmbedGenerationId,
+  Handle,
+  PersonaId,
+  SessionId,
+  SocketId,
+  UserConnectionId,
+  UserId,
+} from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { AssetsService } from "@orb/server/domain/assets";
 import { createAssetsService } from "@orb/server/domain/assets";
@@ -28,6 +52,8 @@ import { fakeLocalLightCache } from "@orb/tooling/seed";
 import { eq } from "drizzle-orm";
 import type { Mock } from "vitest";
 import { describe, onTestFinished, vi } from "vitest";
+import { upsertChatSegment } from "../../../../packages/server/src/domain/embeddings/persistence/queries.ts";
+import { readGeneration } from "../../../../packages/server/src/domain/search/persistence/active-space.ts";
 import { writeAppOverride } from "../../../../packages/server/src/domain/settings/persistence/queries.ts";
 import { subscribeChatEvents } from "../../../../packages/server/src/transport/trpc/chat-events-bus.ts";
 import { subscribeNotifications } from "../../../../packages/server/src/transport/trpc/notifications-bus.ts";
@@ -37,6 +63,8 @@ import { expect, test } from "../../../support/fixtures.ts";
 import { testModelId } from "../../../support/inference-identities.ts";
 import { makeHarness as makeAssetsHarness, pngBytes, principal, seedUser } from "../../domain/assets/_support.ts";
 import { makeHarness as makeCharHarness } from "../../domain/character/_support.ts";
+import { seedChat, seedCharacter as seedChatCharacter, seedParticipant } from "../../domain/chat/_support.ts";
+import { seedTurns } from "../../domain/chat/memory/_support.ts";
 import { EMBED_DIM, makeRoleClients } from "../../domain/embeddings/_support.ts";
 
 const SERVICE_KEYS = [
@@ -898,5 +926,102 @@ describe("compose/services — demoChatSeeder.resolveSeatPersona narrows to Pers
     expect(onboarding.demoChatsSeeded).toBe(true);
     expect(onboarding.demoChatsPackVersion).toBe(DEMO_CHAT_PACK_VERSION);
     expect((await services.chat.listChats({ principal: actor })).items).toHaveLength(DEMO_CHATS.length);
+  });
+});
+
+// ── Search when the memory scope has nothing it can derive (0215) ────────────────────────────────────────────
+// Search reads one generation only once cards, memory and documents all complete it. These run the real sweeps
+// over the real graph (local-light encoder, no summarize connection) and prove memory completes, so search answers.
+describe("search when the memory scope can build no digests (0215)", () => {
+  const RunAt = 1_750_000_000_000;
+  const liveSignal = (): AbortSignal => new AbortController().signal;
+
+  async function runEmbedSweeps(result: Awaited<ReturnType<typeof buildGatedGraph>>, owner: UserId, memoryScope: UserId | null): Promise<void> {
+    const ctx = { userId: owner, ownerId: owner, now: (): number => RunAt };
+    await result.workloadContributions.index.run(ctx, { source: "all" }, vi.fn(), liveSignal());
+    await result.workloadContributions["databank-reindex"].run(ctx, { scope: { kind: "owner" }, mode: "chunk-embed" }, vi.fn(), liveSignal());
+    await result.workloadContributions["memory-backfill"].run({ ...ctx, ownerId: memoryScope }, {}, vi.fn(), liveSignal());
+  }
+
+  async function searchAnswers(result: Awaited<ReturnType<typeof buildGatedGraph>>, owner: UserId): Promise<number> {
+    const answer = await result.services.search.search({
+      ownerId: owner,
+      query: "a lighthouse keeper",
+      topN: 3,
+      over: "characters",
+      scope: { kind: "owner" },
+      rerank: false,
+    });
+    return "hits" in answer ? answer.hits.length : 0;
+  }
+
+  test("Memory off with old-model memory vectors: memory completes vacuously, the old vectors go, and search answers", async () => {
+    const db = await freshDb();
+    const result = await buildGatedGraph(db);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    await seedLocalLightOnBoot({ db, now: createFrozenClock().now, onEmbedSpaceBound: () => undefined });
+    await result.services.character.create({
+      principal: principal(owner),
+      input: { handle: castId<CharacterHandle>("bryn"), name: "Bryn", description: "a lighthouse keeper" },
+    });
+    const room = await seedChat(db, "room_old_memory");
+    await seedParticipant(db, { chatId: room, key: "h", userId: owner, role: "host" });
+    const oldGeneration = castId<EmbedGenerationId>("embed_generation_old_model");
+    await db.insert(embedGenerations).values({
+      id: oldGeneration,
+      ownerId: owner,
+      task: "embed",
+      via: "embed",
+      connectionId: null,
+      connectionRef: castId<UserConnectionId>("fixture:old-model"),
+      fingerprint: "fixture:old-model",
+      space: "old-embed-model-v0",
+      createdAt: RunAt,
+    });
+    await upsertChatSegment(db, {
+      id: castId<ChatSegmentId>("chat_segment_old_model"),
+      chatId: room,
+      blockIdx: 0,
+      chunkIdx: 0,
+      seqStart: 1,
+      seqEnd: 2,
+      text: "an old-model memory chunk",
+      embedding: new Float32Array(EMBED_SPACE_DIMS),
+      contentHash: "old",
+      model: "old-embed-model-v0",
+      generationId: oldGeneration,
+      dim: EMBED_SPACE_DIMS,
+      now: RunAt,
+    });
+
+    await runEmbedSweeps(result, owner, null);
+
+    expect((await readGeneration(db, owner, "embed")).status).toBe("ready");
+    expect(await db.select().from(chatSegments).where(eq(chatSegments.chatId, room))).toEqual([]);
+    expect(await searchAnswers(result, owner)).toBeGreaterThan(0);
+  });
+
+  test("Memory on with no summarize connection: segments embed, no digest is made, memory completes, and search answers", async () => {
+    const db = await freshDb();
+    const result = await buildGatedGraph(db);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    await seedLocalLightOnBoot({ db, now: createFrozenClock().now, onEmbedSpaceBound: () => undefined });
+    await result.services.settings.updateUserSettingsSection({ principal: principal(owner), input: { section: "memory", patch: { enabled: true } } });
+    await result.services.character.create({
+      principal: principal(owner),
+      input: { handle: castId<CharacterHandle>("bryn"), name: "Bryn", description: "a lighthouse keeper" },
+    });
+    const aria = await seedChatCharacter(db, owner, "aria");
+    const room = await seedChat(db, "room_no_summarizer");
+    await seedParticipant(db, { chatId: room, key: "h", userId: owner, role: "host" });
+    await seedParticipant(db, { chatId: room, key: "c", characterId: aria });
+    await seedTurns(db, room, aria, 24);
+
+    await runEmbedSweeps(result, owner, owner);
+
+    expect((await db.select().from(chatSegments).where(eq(chatSegments.chatId, room))).length).toBeGreaterThan(0);
+    expect(await db.select().from(chatDigests).where(eq(chatDigests.chatId, room))).toEqual([]);
+    expect((await readGeneration(db, owner, "embed")).status).toBe("ready");
+    expect(await searchAnswers(result, owner)).toBeGreaterThan(0);
   });
 });

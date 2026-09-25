@@ -1428,9 +1428,12 @@ export interface ChatContext {
   readonly summarize: SummarizeOp;
   /** The FUNDER's summarize model's context window (tokens) — the memory build's token-guard fits each
    *  summarizer call to the actual context. Resolved PER CALL through `roleClientsFor(funder).resolved("summarize")`
-   *  (inference program §7.5-1b: `capability.context.window`, no bespoke getter); a funder with no summarize
-   *  binding reads the floor. */
+   *  (inference program §7.5-1b: `capability.context.window`, no bespoke getter); a funder whose summarize task
+   *  cannot run gets the named availability refusal thrown. */
   readonly summarizerContextTokens: (funderUserId: UserId) => Promise<number>;
+  /** Can the FUNDER's summarize task run, and if not, why. The memory backfill reads it once per sweep: with no
+   *  summarize connection bound (`no-connection`) digests are not derivable, the same as Memory off. */
+  readonly summarizeAvailability: (funderUserId: UserId) => Promise<SendAvailability>;
   /** The FUNDER's EMBED model's window (tokens) — the segment build's window guard. A verbatim block that
    *  cannot fit is SKIPPED AND RECORDED, never truncated (#165). Same per-call resolution as above. */
   readonly embedContextTokens: (funderUserId: UserId) => Promise<number>;

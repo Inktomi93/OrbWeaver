@@ -196,7 +196,7 @@ export const anthropicRows = [
       reasoning: {
         mode: "effort",
         enabled: true,
-        effortLevels: ["low", "medium", "high", "xhigh", "max"],
+        effortLevels: ["low", "medium", "high", "max"],
         // Thinking is off unless the request turns it on.
         defaultEnabled: false,
       },
@@ -207,7 +207,7 @@ export const anthropicRows = [
     evidence: {
       tier: "curated",
       dated: "2026-09-19",
-      cite: "turns.ts OPUS_LEGACY_MIN; thinking default Off for Opus 4.5 and Opus 4.6: platform.claude.com/docs/en/build-with-claude/thinking-troubleshooting per-model table (fetched 2026-09-25)",
+      cite: "turns.ts OPUS_LEGACY_MIN; thinking default Off for Opus 4.5 and Opus 4.6: platform.claude.com/docs/en/build-with-claude/thinking-troubleshooting per-model table (fetched 2026-09-25); Opus 4.6 effort low to max, no xhigh: platform.claude.com/docs/en/build-with-claude/effort levels table and supported models (fetched 2026-09-25)",
     },
   },
   {
@@ -218,7 +218,7 @@ export const anthropicRows = [
       reasoning: {
         mode: "effort",
         enabled: true,
-        effortLevels: ["low", "medium", "high", "xhigh", "max"],
+        effortLevels: ["low", "medium", "high", "max"],
         // Thinking is off unless the request turns it on (Sonnet 5 restates its own default below).
         defaultEnabled: false,
       },
@@ -229,7 +229,7 @@ export const anthropicRows = [
     evidence: {
       tier: "curated",
       dated: "2026-09-19",
-      cite: "chat-models.ts Sonnet 5 / Sonnet 4.6 entries; turns.ts SONNET_MODERN_MIN; thinking default Off for Sonnet 4.5 and Sonnet 4.6: platform.claude.com/docs/en/build-with-claude/thinking-troubleshooting per-model table (fetched 2026-09-25)",
+      cite: "chat-models.ts Sonnet 5 / Sonnet 4.6 entries; turns.ts SONNET_MODERN_MIN; thinking default Off for Sonnet 4.5 and Sonnet 4.6: platform.claude.com/docs/en/build-with-claude/thinking-troubleshooting per-model table (fetched 2026-09-25); Sonnet 4.6 effort low to max, no xhigh: platform.claude.com/docs/en/build-with-claude/effort levels table and supported models (fetched 2026-09-25)",
     },
   },
   {
@@ -242,6 +242,7 @@ export const anthropicRows = [
       reasoning: {
         mode: "adaptive",
         defaultEnabled: true,
+        effortLevels: ["low", "medium", "high", "xhigh", "max"],
       },
       // Sonnet 5 alone of the sonnet row above rejects sampling parameters (4.5/4.6 accept them: the SDK table
       // says `rejectsSamplingParameters: false`, and the direct wire stays D68 fail-closed for them regardless).
@@ -259,7 +260,29 @@ export const anthropicRows = [
     evidence: {
       tier: "curated",
       dated: "2026-09-23",
-      cite: "@ai-sdk/anthropic 4.0.58 getModelCapabilities (dist/index.js:5954-5963) rejectsSamplingParameters: true for claude-sonnet-5; :5964-5973 false for sonnet-4-6; Models API 2026-09-23 max_input_tokens 1,000,000 / max_tokens 128,000 / thinking adaptive only (req_011CfKrpqBszB95ktdqBoGas); thinking default On for Sonnet 5: platform.claude.com/docs/en/build-with-claude/thinking-troubleshooting per-model table (fetched 2026-09-25)",
+      cite: "@ai-sdk/anthropic 4.0.58 getModelCapabilities (dist/index.js:5954-5963) rejectsSamplingParameters: true for claude-sonnet-5; :5964-5973 false for sonnet-4-6; Models API 2026-09-23 max_input_tokens 1,000,000 / max_tokens 128,000 / thinking adaptive only (req_011CfKrpqBszB95ktdqBoGas); thinking default On for Sonnet 5: platform.claude.com/docs/en/build-with-claude/thinking-troubleshooting per-model table (fetched 2026-09-25); Sonnet 5 effort includes xhigh: platform.claude.com/docs/en/build-with-claude/effort levels table and supported models (fetched 2026-09-25)",
+    },
+  },
+  {
+    match: {
+      model: "^(anthropic/)?claude[-/].*(opus|sonnet)-4[-.]5(?![0-9])",
+    },
+    generation: {
+      // Extended thinking only: `thinking: {type: "enabled", budget_tokens}`; `adaptive` is a 400. Opus 4.5 also
+      // takes an effort beside the budget, which the budget mode does not send. The budget stays below the 64k
+      // output cap, which the SDK enforces on `max_tokens` + budget.
+      reasoning: {
+        mode: "budget",
+        budgetRange: {
+          min: 1024,
+          max: 63_000,
+        },
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-25",
+      cite: "Opus 4.5 and Sonnet 4.5 Extended only, adaptive rejected with 400: platform.claude.com/docs/en/build-with-claude/thinking-troubleshooting per-model table (fetched 2026-09-25); Opus 4.5 is the one extended-only model that takes effort, alongside budget_tokens, and Sonnet 4.5 takes none: platform.claude.com/docs/en/build-with-claude/effort levels table and supported models (fetched 2026-09-25)",
     },
   },
   {

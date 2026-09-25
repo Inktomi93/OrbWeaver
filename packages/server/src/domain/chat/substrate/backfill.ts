@@ -27,6 +27,7 @@ import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { and, eq, isNull } from "drizzle-orm";
 import { getLog } from "#foundation/observability";
+import { isAborted } from "#kit/abort";
 import type { ChatContext } from "../context.ts";
 import type { BackfillPassCounts, MemoryBackfillSweepCounts, MemoryEmbedSpace, MemoryScope, ResolveBackfillMemoryConfig } from "../contract/memory.ts";
 import {
@@ -131,6 +132,8 @@ interface PlanSweep {
 /** The per-chat plan dependencies (bundled to keep `planOneChat` at ≤4 params). */
 interface PlanDeps {
   readonly signal: AbortSignal;
+  /** False when the funder has no summarize connection bound: digests are not derivable, as with Memory off. */
+  readonly digestsDerivable: boolean;
   readonly resolveMemoryConfig: ResolveBackfillMemoryConfig;
   /** The WORKLOAD's principal — whose summarize/embed connections the whole sweep spends (§8.5b; the
    *  corpus batch is flat across chats, so one funder per sweep, never per room). */
@@ -180,6 +183,9 @@ async function planOneChat(ctx: ChatContext, deps: PlanDeps, chatId: ChatId, swe
     recordSpace(sweep, segments.embedSpace);
   }
   sweep.segmentsScanned += 1;
+  if (!deps.digestsDerivable) {
+    return; // No summarizer: the segments above are the chat's whole memory scope this pass.
+  }
   const characterIdSet = new Set<CharacterId>(characterIds);
   for (const scope of await scopesFor(ctx, chatId, characterIds, hostUserId)) {
     if (deps.signal.aborted) {
@@ -203,6 +209,19 @@ async function planOneChat(ctx: ChatContext, deps: PlanDeps, chatId: ChatId, swe
   }
 }
 
+/** Digests need the funder's summarize task. With no summarize connection bound they are not derivable, the same
+ *  as Memory off: the sweep embeds segments and records memory complete, so search is never held behind a digest
+ *  build that cannot run. The user sees why on the Model roles pane (the Utility model row). Any other
+ *  unavailability is a fault the per-chat plan still surfaces. */
+async function digestsDerivableFor(ctx: ChatContext, funderUserId: UserId): Promise<boolean> {
+  const availability = await ctx.summarizeAvailability(funderUserId);
+  if (availability.available || availability.cause !== "no-connection") {
+    return true;
+  }
+  getLog().warn({ funderUserId }, "memory backfill: no summarize connection is bound, so digests are skipped this pass (segments still embed)");
+  return false;
+}
+
 /** PHASE 1 — plan every (chat × scope) bucket corpus-wide (segments + tier-0 collect; NO summarize). One
  *  poisoned chat is counted + logged, never kills the sweep (#41 — every EXPECTED branch returns without
  *  throwing, so a throw landing in the catch is a genuine unexpected fault). */
@@ -212,7 +231,12 @@ async function planAllBuckets(
   resolveMemoryConfig: ResolveBackfillMemoryConfig,
 ): Promise<PlanSweep> {
   const sweep: PlanSweep = { plans: [], segments: [], segmentsScanned: 0, digestsScanned: 0, failed: 0, spaces: new Map() };
-  const deps: PlanDeps = { signal: args.signal, resolveMemoryConfig, funderUserId: args.funderUserId };
+  const deps: PlanDeps = {
+    signal: args.signal,
+    resolveMemoryConfig,
+    funderUserId: args.funderUserId,
+    digestsDerivable: await digestsDerivableFor(ctx, args.funderUserId),
+  };
   for (const chatId of await loadAllChatIds(ctx, args.ownerId)) {
     if (args.signal.aborted) {
       break; // cooperative abort between chats — every completed unit is durable + idempotent
@@ -220,6 +244,10 @@ async function planAllBuckets(
     try {
       await planOneChat(ctx, deps, chatId, sweep);
     } catch (err) {
+      // A cancel is the run ending, not a fault: it propagates, and the workload runner records the run cancelled.
+      if (isAborted(args.signal)) {
+        throw err;
+      }
       sweep.failed += 1;
       // The CAUSE rides as scalar fields, not only inside the serialized `err` (#165): the dev stack's
       // pretty stream renders the message line and the object separately, and two whole 895-chat runs were
@@ -321,6 +349,10 @@ async function storeAllTier0(ctx: ChatContext, state: CommitState, perPlanTexts:
       acc.written += stored.written;
       acc.skippedEmpty += stored.skippedEmpty;
     } catch (err) {
+      // A cancel is the run ending, not a fault: it propagates, and the workload runner records the run cancelled.
+      if (isAborted(state.signal)) {
+        throw err;
+      }
       failed += 1;
       getLog().error(
         { err, chatId: plan.scope.chatId, scopedCharacterId: plan.scope.scopedCharacterId },
@@ -361,6 +393,10 @@ async function collectTierAcrossBuckets(ctx: ChatContext, state: CommitState, ti
         collected.push({ planIdx: pi, scope: plan.scope, cons });
       }
     } catch (err) {
+      // A cancel is the run ending, not a fault: it propagates, and the workload runner records the run cancelled.
+      if (isAborted(state.signal)) {
+        throw err;
+      }
       failed += 1;
       getLog().error(
         { err, chatId: plan.scope.chatId, scopedCharacterId: plan.scope.scopedCharacterId, tier },
@@ -406,6 +442,10 @@ async function summarizeAndStoreTier(ctx: ChatContext, collected: readonly Colle
       acc.written += stored.written;
       acc.skippedEmpty += stored.skippedEmpty;
     } catch (err) {
+      // A cancel is the run ending, not a fault: it propagates, and the workload runner records the run cancelled.
+      if (isAborted(state.signal)) {
+        throw err;
+      }
       failed += 1;
       getLog().error(
         { err, chatId: c.scope.chatId, scopedCharacterId: c.scope.scopedCharacterId, tier: c.cons.parentTier },
@@ -546,6 +586,10 @@ async function storeAllSegments(
     );
     return { written: stored.written, skippedOverWindow: stored.skippedOverWindow, failed: 0 };
   } catch (err) {
+    // A cancel is the run ending, not a fault: it propagates, and the workload runner records the run cancelled.
+    if (isAborted(signal)) {
+      throw err;
+    }
     // ISOLATED like every other phase (#41): one poisoned chunk (a filtered vector, a dead engine) must not
     // also cost the corpus its DIGEST half, which needs no embed of these blocks at all. Counted + logged
     // with the cause as scalars (#165), and the content-hash self-heal re-offers every unwritten chunk next

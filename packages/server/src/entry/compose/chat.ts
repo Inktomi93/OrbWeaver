@@ -1160,6 +1160,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // the digests the trigger under `allowBackground` — never a box owner's bundle.
     summarize: async (funderUserId, ...args) => (await input.roleClientsFor(funderUserId)).summarize(...args),
     summarizerContextTokens: taskWindows.summarize,
+    summarizeAvailability: async (funderUserId) => await input.connection.availability({ task: "summarize", principal: await realHostPrincipal(funderUserId) }),
     // The embed model's input cap off the resolved EMBEDDING capability (was the vLLM launch window) — the
     // SAME fact the transport's belt clamp reads, so the segment build's skip boundary and the wire's
     // last-resort cut can't disagree.
