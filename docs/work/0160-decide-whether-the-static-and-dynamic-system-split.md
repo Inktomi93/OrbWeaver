@@ -48,4 +48,4 @@ Status: not deleted. D251 keeps the split and its cache marker, so a change need
 
 ## Evidence
 
-Ruled: keep the split and close. D251 already rules it, and three consumers need both halves: splitSystem in buildWirePlan (the static row carries the system cache marker), the D50 assembled_dynamic transform, and the stored promptSnapshot rows. 0158 measures the history breakpoint, which the split does not touch, so its numbers cannot change this verdict. The preset-editor warning for per-turn content above Chat History is filed as its own P3 item.
+Ruled: keep the split (D251). splitSystem, the D50 assembled_dynamic transform and promptSnapshot need both halves; 0158 cannot change this. The editor warning is 0182.
