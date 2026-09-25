@@ -42,6 +42,7 @@ import {
   clearCorpusSelection,
   clearDatabankPhaseFilter,
   clearNewChatIntent,
+  clearRoomInvite,
   clearSectionSaveStatus,
   clearWorldEntrySelection,
   closeConfigGroup,
@@ -65,6 +66,7 @@ import {
   openImageDetail,
   openModal,
   openNewChatPicker,
+  openRoomInvite,
   publishContextTabs,
   publishNoticeBand,
   readComposerDraft,
@@ -179,6 +181,7 @@ import {
   usePresetEditorView,
   usePresetSearchQuery,
   useRefineryLandingFocusRequest,
+  useRoomInviteRequest,
   useSectionListIsScreen,
   useSectionListMode,
   useSectionRegistry,
@@ -439,6 +442,7 @@ export function ActiveChatStoreProbe(): ReactElement {
   const activeSection = useActiveSection();
   const intent = useNewChatIntent();
   const modal = useOpenModal();
+  const inviteRequest = useRoomInviteRequest();
   const [reaped, setReaped] = useState<string[]>([]);
   const [inspection, setInspection] = useState("unread");
   useEffect(() => subscribeHuskAbandoned((chatId) => setReaped((prev) => [...prev, chatId])), []);
@@ -453,6 +457,7 @@ export function ActiveChatStoreProbe(): ReactElement {
           new field in it would rewrite every one of them. `resumeChat` is the only action here whose whole
           point is the SECTION it lands in, so the section is read where that action is proved. */}
       <p data-testid="active-section">{`section=${activeSection}`}</p>
+      <p data-testid="room-invite-request">{`invite=${inviteRequest ?? "none"}`}</p>
       <button type="button" onClick={(): void => setInspection(`active=${activeChatId() ?? "none"}`)}>
         inspect active chat
       </button>
@@ -477,6 +482,13 @@ export function ActiveChatStoreProbe(): ReactElement {
           library with a room quietly active behind it. */}
       <button type="button" onClick={(): void => resumeChat(PROBE_SELECT_CHAT)}>
         resume chat
+      </button>
+      {/* The Share card's room picker: land in the room and ask its Members tab to open the invite dialog. */}
+      <button type="button" onClick={(): void => openRoomInvite(PROBE_SELECT_CHAT)}>
+        open room invite
+      </button>
+      <button type="button" onClick={(): void => clearRoomInvite()}>
+        clear room invite
       </button>
       {/* Types into the CREATED room's composer scope — the reap SKIP condition (unsent text means the
           user may come back; the TTL belt covers them if they do not). */}
