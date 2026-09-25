@@ -84,7 +84,7 @@ export type { SourceEntry } from "./lib/source-scan.ts";
 export { newestSourceEntries } from "./lib/source-scan.ts";
 export type { SpawnLockOpts } from "./lib/spawn-lock.ts";
 export { acquireSpawnLock, handleHeldSpawnLock, pidIsAlive, releaseSpawnLock } from "./lib/spawn-lock.ts";
-export { buildProdSpawnPlan, CLIENT_DIST_INDEX_REL, CLIENT_DIST_REL, SERVER_ENTRY_REL } from "./lib/spawn-plan.ts";
+export { buildProdSpawnPlan, CLIENT_DIST_INDEX_REL, CLIENT_DIST_REL } from "./lib/spawn-plan.ts";
 export { STACK_SPAWNERS, spawnerForPort } from "./lib/spawners.ts";
 export {
   decideStartBuild,

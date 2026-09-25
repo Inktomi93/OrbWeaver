@@ -97,27 +97,31 @@ async function superviseDev(server: FullPriorityChild, vite: FullPriorityChild):
   // A holder, not a `let`: the signal handler writes it, which control-flow narrowing cannot see.
   const stop: { signal: NodeJS.Signals | null } = { signal: null };
   let escalation: NodeJS.Timeout | undefined;
-  const stopBoth = (signal: NodeJS.Signals): void => {
-    // vite can hang in server.close() when stopped while its startup work is still running, so a child
-    // that outlives the grace is killed rather than left holding its port.
+  // vite can hang in server.close() when stopped while its startup work is still running, so a child
+  // that outlives the grace is killed rather than left holding its port.
+  const armEscalation = (signal: NodeJS.Signals): void => {
     escalation ??= setTimeout(() => {
       warn(`dev: a child ignored ${signal}; sending SIGKILL.`);
       server.kill("SIGKILL");
       vite.kill("SIGKILL");
     }, STOP_GRACE_MS);
+  };
+  const signalBoth = (signal: NodeJS.Signals): void => {
     server.kill(signal);
     vite.kill(signal);
   };
   forwardSignalsTo(
     {
-      kill: (signal): void => {
+      noteStop: (signal): void => {
         stop.signal ??= signal;
-        stopBoth(signal);
+        armEscalation(signal);
       },
+      kill: signalBoth,
     },
     (signal, handler) => {
       process.on(signal, handler);
     },
+    process.platform,
   );
   // One wait() per child: a second call after the exit event has fired would never resolve.
   const serverExit = server.wait().then((exit): Exited => ({ name: "server", exit }));
@@ -125,7 +129,9 @@ async function superviseDev(server: FullPriorityChild, vite: FullPriorityChild):
   const first = await Promise.race([serverExit, viteExit]);
   if (stop.signal === null) {
     warn(`dev: ${first.name} exited (${first.exit.error?.message ?? `code ${childExitCode(first.exit)}`}); stopping the other child.`);
-    stopBoth("SIGTERM");
+    // No console event reaches the survivor here, so on win32 this kill is TerminateProcess: the survivor gets no drain.
+    armEscalation("SIGTERM");
+    signalBoth("SIGTERM");
   }
   await Promise.all([serverExit, viteExit]);
   clearTimeout(escalation);

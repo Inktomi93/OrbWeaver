@@ -12,6 +12,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join, win32 } from "node:path";
 import { parseEnv } from "node:util";
 import { SETUP_COMMAND } from "@orb/contracts/identity";
+import { SERVER_ENTRY_REL } from "@orb/tooling/_shared/server-entry";
 import {
   decideStartBuild,
   effectiveAuthMode,
@@ -19,7 +20,6 @@ import {
   parseStartArgv,
   resolvePnpmInvocation,
   restateFileEnv,
-  SERVER_ENTRY_REL,
   singleUserFallbackEnv,
   startBannerLines,
   startLaunch,

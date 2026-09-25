@@ -24,6 +24,7 @@ import type {
   RunNicedSyncResult,
   SpawnNicedOptions,
   SpawnNicedResult,
+  StopSignalTarget,
   TranscriptOptions,
   TranscriptResult,
 } from "./proc-contract.ts";
@@ -46,6 +47,7 @@ export type {
   RunNicedSyncResult,
   SpawnNicedOptions,
   SpawnNicedResult,
+  StopSignalTarget,
   TranscriptOptions,
   TranscriptResult,
 } from "./proc-contract.ts";
@@ -270,12 +272,20 @@ function childStdio(
 /** The signals a foreground launcher owes its children: Ctrl-C, a supervisor's stop, a closed terminal. */
 export const FORWARDED_SIGNALS = ["SIGINT", "SIGTERM", "SIGHUP"] as const;
 
-/** Wire each forwarded signal to the child. The registrar is injected (`process.on` in a live launcher) so a
- *  test can prove the wiring without signalling its own runner. Registering our own handler is what keeps a
- *  Ctrl-C from killing the launcher before the child finishes its drain. */
-export function forwardSignalsTo(child: Pick<FullPriorityChild, "kill">, register: (signal: NodeJS.Signals, handler: () => void) => void): void {
+/** Wire each stop signal to the target. The registrar and the platform are injected (`process.on` and
+ *  `process.platform` in a live launcher) so a test proves every platform's wiring without signalling its own
+ *  runner. Registering our own handler is what keeps a Ctrl-C from killing the launcher before the child drains.
+ *  On win32 the console already delivered the same event to the child, which shares it, and `kill` there is
+ *  TerminateProcess whatever the signal: the launcher only notes the stop, so the child's own shutdown runs. */
+export function forwardSignalsTo(target: StopSignalTarget, register: (signal: NodeJS.Signals, handler: () => void) => void, platform: NodeJS.Platform): void {
+  const deliver = platform !== "win32";
   for (const signal of FORWARDED_SIGNALS) {
-    register(signal, () => child.kill(signal));
+    register(signal, () => {
+      target.noteStop(signal);
+      if (deliver) {
+        target.kill(signal);
+      }
+    });
   }
 }
 

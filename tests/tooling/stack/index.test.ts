@@ -9,6 +9,7 @@
 // decision logic; the first real production launch is the owner's. This file's home is tests/tooling/ per
 // docs/law/Spine-Testing.md §2 (a test of a scripts/ tool), same as snap-stage.test.ts / snap-flags.test.ts.
 import { readFileSync } from "node:fs";
+import { SERVER_ENTRY_REL } from "@orb/tooling/_shared/server-entry";
 import type { DevStackIdentity, ObservedInstance, ProdRecord } from "../../../tooling/src/stack/index.ts";
 import {
   adoptDevStackGroup,
@@ -37,7 +38,6 @@ import {
   parseStackArgv,
   resolveDebugArming,
   SERVER_DRAIN_MS,
-  SERVER_ENTRY_REL,
   STACK_SPAWNERS,
   serializeProdRecord,
   servedCarriesDiskBytes,

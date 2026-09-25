@@ -26,7 +26,8 @@
 //     there is no pidfile, no port probe and no process table to read;
 //   • paths are composed with node:path, and the server spawn is the SHARED `buildProdSpawnPlan`.
 // What cannot be proven here is a macOS/Windows BOOT — this box is Linux. The substitutes are `shell:
-// false` everywhere and a platform-parameterised unit for the win32 pnpm answer (tests/tooling/stack/).
+// false` everywhere and platform-parameterised units for the win32 pnpm answer (tests/tooling/stack/) and the
+// win32 stop signal (tests/tooling/_shared/proc.test.ts).
 //
 // FULL PRIORITY, deliberately (policy `tooling-child-process-door`, reviewed grant
 // `tooling-child-process-door:stack-start`): the child spawned here IS the application serving the
@@ -172,5 +173,6 @@ export async function runStart(argv: readonly string[]): Promise<number> {
     notice: (message) => {
       warn(`start: ${message}`);
     },
+    platform: process.platform,
   });
 }

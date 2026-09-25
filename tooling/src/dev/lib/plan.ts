@@ -2,6 +2,7 @@
 // Paths are composed with node:path and every spawn is node plus a JS file, so no plan needs a shell.
 import { join } from "node:path";
 import { DEV_PORTS, MAX_TCP_PORT } from "../../_shared/ports.ts";
+import { SERVER_ENTRY_IN_PACKAGE } from "../../_shared/server-entry.ts";
 import type { DevParse, DevSpawnPlan, PortParse, WorkspacePackage } from "../contract/types.ts";
 
 export const DEV_USAGE = "usage: pnpm dev";
@@ -9,8 +10,6 @@ export const DEV_USAGE = "usage: pnpm dev";
 export const SERVER_PACKAGE = "@orb/server";
 export const CLIENT_PACKAGE = "@orb/client";
 
-/** The server entry inside its package. Node runs the `.ts` source directly; there is no server build. */
-const SERVER_ENTRY_IN_PACKAGE = join("src", "entry", "index.ts");
 const SOURCE_DIR = "src";
 
 /** The env keys vite.config.ts reads for its port and its `/api` proxy target. */

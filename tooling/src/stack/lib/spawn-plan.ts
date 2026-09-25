@@ -2,11 +2,11 @@
 // 2026-08-03). This plan therefore emits `node <repo>/packages/server/src/entry/index.ts` and nothing
 // else — no loader flag, no emit, no bundle, no dist path for the SERVER. The only build artifact in this
 // repo is @orb/client's `vite build` output. An argv snapshot test pins that.
+import { join } from "node:path";
+import { SERVER_ENTRY_REL } from "../../_shared/server-entry.ts";
 import type { ProdSpawnPlan, ProdSpawnPlanOpts } from "../contract/types.ts";
 import { stripDebugEnv } from "./debug-env.ts";
 
-/** The server entry, repo-root-relative. There is NO build step: node 26 runs this `.ts` file directly. */
-export const SERVER_ENTRY_REL = "packages/server/src/entry/index.ts";
 /** The built client bundle the prod SPA registrar serves (`CLIENT_DIST_DIR`'s default, cwd-relative there). */
 export const CLIENT_DIST_REL = "packages/client/dist";
 /** `resolveSpaDistDir` throws at boot in production when this file is missing (entry/http/spa.ts). */
@@ -28,7 +28,7 @@ export function buildProdSpawnPlan(opts: ProdSpawnPlanOpts): ProdSpawnPlan {
   const inherited = opts.debugOverlay === undefined ? stripDebugEnv(opts.baseEnv) : materialize(opts.baseEnv);
   return {
     command: opts.nodePath,
-    args: [`${opts.repoRoot}/${SERVER_ENTRY_REL}`],
+    args: [join(opts.repoRoot, SERVER_ENTRY_REL)],
     // NODE_ENV is an ENV NAME (the platform's SCREAMING_SNAKE vocabulary), so it is set by key, not by an
     // object-literal property.
     env: { ...inherited, ...Object.fromEntries([["NODE_ENV", "production"]]), ...(opts.debugOverlay ?? {}) },

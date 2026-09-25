@@ -285,6 +285,8 @@ export interface StartSupervisorDeps {
   /** Registers a process signal handler (`process.on` in a live launcher). */
   readonly register: (signal: NodeJS.Signals, handler: () => void) => void;
   readonly notice: (message: string) => void;
+  /** `process.platform` in a live launcher; it decides whether a stop signal is sent on or only noted. */
+  readonly platform: NodeJS.Platform;
 }
 
 export interface StartBuildDecision {
