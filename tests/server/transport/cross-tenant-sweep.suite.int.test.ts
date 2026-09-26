@@ -212,6 +212,9 @@ interface OwnerIds {
   // per-installer scope existed. `catalogModels` re-judges a saved row's provider, and only B's own row gets
   // past the connection owner belt to that re-judgement.
   strangerPluginConnectionId: UserConnectionId;
+  // The stranger's OWN installed plugin, the actor of the plugin-grant probes: its grant binding is the
+  // stranger's to write, so the only refusal left is the connection it names.
+  strangerPluginId: PluginId;
   // #26 — A's saved party; every rosterPreset verb derives authority from `roster_presets.ownerId`, so a
   // stranger passing this id must collapse to leak-free NOT_FOUND.
   rosterPresetId: RosterPresetId;
@@ -1769,6 +1772,24 @@ const PROBES: readonly Probe[] = [
     call: (c, i) => c.connection.listBindings({ actor: { kind: "automation-rule", ruleId: i.automationRuleId } }),
     refusal: CONNECTION_ACTOR_FOREIGN,
   },
+  // The PLUGIN-GRANT actor. A plugin's `llm.quiet` spends through its grant binding, so a grant naming
+  // A's connection would spend A's key from the stranger's plugin; a grant written on A's plugin would re-route
+  // A's plugin. Both refuse before any write, and the post-sweep binding re-read is the witness.
+  {
+    path: "connection.setBinding",
+    call: (c, i) => c.connection.setBinding({ task: "summarize", connectionId: i.connectionId, actor: { kind: "plugin-grant", pluginId: i.strangerPluginId } }),
+    refusal: CONNECTION_NOT_YOURS,
+  },
+  {
+    path: "connection.setBinding",
+    call: (c, i) => c.connection.setBinding({ task: "summarize", connectionId: null, actor: { kind: "plugin-grant", pluginId: i.providerPluginId } }),
+    refusal: CONNECTION_ACTOR_FOREIGN,
+  },
+  {
+    path: "connection.listBindings",
+    call: (c, i) => c.connection.listBindings({ actor: { kind: "plugin-grant", pluginId: i.providerPluginId } }),
+    refusal: CONNECTION_ACTOR_FOREIGN,
+  },
 ];
 
 // Every remaining procedure, with WHY it is not a cross-tenant IDOR probe. A new procedure that lands in
@@ -2421,6 +2442,37 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     //    legacy row is the only way to reach `catalogModels`' provider re-judgement: the stranger owns the
     //    row, so the connection owner belt passes and the provider belt is the one under probe. ──
     const { providerPluginId, pluginProviderId } = await seedAlphaProviderPlugin(db, connectionService);
+    const strangerPluginId = mintTypeId(ID_PREFIX.plugin);
+    const strangerAssetId = castId<AssetId>("asset_stranger_plugin_bundle");
+    await db
+      .insert(assets)
+      .values({ id: strangerAssetId, ownerId: OTHER_USER_ID, kind: "plugin", mime: "application/zip", size: 64, hash: "stranger-plugin-hash", uploadedAt: 1 });
+    await db.insert(plugins).values({
+      id: strangerPluginId,
+      ownerId: OTHER_USER_ID,
+      slug: "stranger-quiet",
+      name: "stranger quiet",
+      version: "1.0.0",
+      manifest: {
+        id: "stranger-quiet",
+        name: "stranger quiet",
+        version: "1.0.0",
+        hostVersion: 1,
+        entry: "main.js",
+        description: "owned by B",
+        capabilities: ["llm.quiet"],
+      },
+      bundleAssetId: strangerAssetId,
+      grantedCapabilities: ["llm.quiet"],
+      status: "enabled",
+      origin: "upload",
+      pendingReconsent: false,
+      widenedNetHosts: [],
+      consecutiveCrashes: 0,
+      lastError: null,
+      installedAt: 1,
+      updatedAt: 1,
+    });
     const strangerPluginConnectionId = mintTypeId(ID_PREFIX.userConnection);
     await db.insert(userConnections).values({
       id: strangerPluginConnectionId,
@@ -2502,6 +2554,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
       providerPluginId,
       pluginProviderId,
       strangerPluginConnectionId,
+      strangerPluginId,
       rosterPresetId: rosterPreset.id,
       notificationId,
     };
@@ -2630,6 +2683,8 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     expect(connectionStill.model).toBe("anthropic/claude-sonnet-4"); // …and the patch's second field never landed either
     const bindingRows = await db.select().from(connectionBindings);
     expect(bindingRows.filter((row) => row.connectionId === ids.connectionId && row.userId !== OWNER_USER_ID)).toEqual([]);
+    // No stranger write landed a grant binding on A's plugin (a NULL connection is still a written row).
+    expect(bindingRows.filter((row) => row.pluginId === ids.providerPluginId || row.pluginId === ids.pluginId)).toEqual([]);
     // A's connection is keyless, so ANY row naming A's credential is one the stranger's `connection.create`
     // probe minted — the whole point of the credential-reach belt (`credentialOwned`).
     expect((await db.select().from(userConnections)).filter((row) => row.credentialId === ids.credentialId)).toEqual([]);

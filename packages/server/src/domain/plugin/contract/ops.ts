@@ -297,6 +297,8 @@ export interface PluginHostOps {
      *  installer does not own is a typed refusal of the CALL — never a silent drop, and never the plugin. */
     readonly quiet: (req: {
       readonly installerUserId: UserId;
+      /** The calling install: its `plugin-grant` binding answers before the installer's own. */
+      readonly pluginId: PluginId;
       readonly prompt: string;
       readonly signal: AbortSignal;
       readonly opts?: PluginQuietOptions;

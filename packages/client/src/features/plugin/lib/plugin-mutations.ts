@@ -269,3 +269,11 @@ export const useRunSnippet = createEntityMutation<inferInput<Trpc["plugin"]["run
   invalidates: () => [],
   errorToast: serverReason("Couldn't run that snippet."),
 });
+
+/** Point one of a plugin's grant tasks at one of the installer's own connections, or clear it. The binding
+ *  read is per actor, so only this plugin's `listBindings` reconciles. NO `errorToast`: the pane renders the
+ *  refusal inline beside the picker it belongs to. */
+export const useSetPluginGrantBinding = createEntityMutation<inferInput<Trpc["connection"]["setBinding"]>, inferOutput<Trpc["connection"]["setBinding"]>>({
+  options: (trpc) => trpc.connection.setBinding.mutationOptions(),
+  invalidates: (trpc, vars) => [trpc.connection.listBindings.queryFilter(vars.actor === undefined ? {} : { actor: vars.actor })],
+});
