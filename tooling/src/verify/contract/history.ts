@@ -28,7 +28,7 @@ export interface RunHistoryEntry {
    *  a detached worktree mid-operation). Never fabricated. */
   readonly sha: string;
   readonly exitCode: number;
-  /** The sum of the stage durations. The commit gate runs its stages at the same time, so read `wallMs` for its cost. */
+  /** The sum of the stage durations; `wallMs` adds the run's own selection and startup time. */
   readonly totalMs: number;
   /** Start to finish of the run, or null for a report with no run identity. */
   readonly wallMs: number | null;

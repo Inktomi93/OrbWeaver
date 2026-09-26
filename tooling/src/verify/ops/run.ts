@@ -140,9 +140,10 @@ interface RunContext {
   readonly verbose: boolean;
   /** This run's process marker (#1848) — in every stage child's env so a browser that left the process group
    *  still dies with the run that started it. INHERITED inside a marked run, which is why it is NOT what the
-   *  kill paths sweep (#2504): that is the stage's own lease, minted in `runOneStage`, one per STAGE because
-   *  the commit gate runs its stages concurrently and a timed-out stage's sweep must not reach a sibling. */
+   *  kill paths sweep (#2504): that is `runLease`, MINTED here, stamped beside it, one per RUN not per stage
+   *  (stages are sequential, so a timeout's reach is unchanged). */
   readonly runMarker: string;
+  readonly runLease: string;
 }
 
 /** The stage door's HANG ceiling (#1508) — the line past which a stage is WEDGED, never a performance
@@ -175,9 +176,8 @@ async function runOneStage(ctx: RunContext, stage: StageDef, selection: Selectio
   const [cmd, ...args] = argv;
   // NO_COLOR only, and an inherited FORCE_COLOR dropped — `lib/child-env.ts` owns that decision and the
   // incident behind it (#2469). BOTH IDENTITIES ride the same env (#1848, #2504): every descendant of this
-  // stage carries them, so the kill paths reach what left the process group — see `RunContext.runMarker`.
-  const runLease = mintRunMarker();
-  const identity = { ...runMarkerEnv(ctx.runMarker), ...runLeaseEnv(runLease) };
+  // stage carries them, so the kill paths reach what left the process group — see `RunContext.runLease`.
+  const identity = { ...runMarkerEnv(ctx.runMarker), ...runLeaseEnv(ctx.runLease) };
   const env = { ...colourNeutralParentEnv(), ...Object.fromEntries([["NO_COLOR", "1"]]), ...identity, ...stage.env };
   // ARGV[0] IS RESOLVED FROM EVIDENCE, AND AN UNRESOLVABLE ONE IS REFUSED WITHOUT SPAWNING (#2220/#2225):
   // the old name allowlist sent `bash` to `node_modules/.bin/bash` and made `lint:hook-syntax` an exit-2
@@ -193,7 +193,7 @@ async function runOneStage(ctx: RunContext, stage: StageDef, selection: Selectio
           cwd: root,
           env,
           timeoutMs: stageTimeoutMs(stage),
-          teardown: runMarkerTranscriptTeardown(runLease),
+          teardown: runMarkerTranscriptTeardown(ctx.runLease),
           ...(verbose ? { onChunk: mirrorChunk } : {}),
         });
   const durationMs = Date.now() - start;
@@ -266,12 +266,6 @@ function announceRacing(slot: RunSlot): void {
   }
 }
 
-/** The commit gate (D268) runs its stages at the same time. With every whole-command stage deferred, what is left
- *  narrows to the staged files, so the commit waits about as long as its slowest stage instead of their sum. */
-function runsConcurrently(parsed: Parsed): boolean {
-  return parsed.selection?.kind === "staged" && !parsed.verbose;
-}
-
 /** The run's scope label for the banner + the artifact. */
 function scopeLabel(parsed: Parsed): string {
   return parsed.selection === undefined ? "whole" : parsed.selection.label;
@@ -281,16 +275,18 @@ async function runTier(root: string, slot: RunSlot, parsed: Parsed): Promise<Ver
   const startedAt = new Date().toISOString();
   // ONE marker for the whole run, INHERITED when this verify is itself running inside a marked run: a
   // second marker would orphan every browser from the outer run's sweep, which is the hole being closed.
-  // Each stage mints its own lease in `runOneStage`, because this marker may name a run that merely CONTAINS this one.
+  // AND ONE LEASE, ALWAYS MINTED (#2504): the marker above may name a run that merely CONTAINS this one.
   const runMarker = inheritedRunMarker() ?? mintRunMarker();
+  const runLease = mintRunMarker();
   printHeadBanner(parsed.tier, scopeLabel(parsed));
 
-  const ctx: RunContext = { root, slot, verbose: parsed.verbose, runMarker };
-  const runStage = (stage: StageDef): Promise<StageResult> => {
+  const stages = stagesForTier(parsed.tier);
+  const results: StageResult[] = [];
+  for (const stage of stages) {
     const plan = planStage(stage, parsed.selection, parsed.tier, root);
     // --strict-scope: a whole-only stage under a scoped tier is a REFUSAL (misuse), not a deferral.
     if (parsed.strictScope && plan.mode === "deferred") {
-      return Promise.resolve({
+      results.push({
         name: stage.name,
         group: stage.group,
         mode: "deferred",
@@ -302,27 +298,11 @@ async function runTier(root: string, slot: RunSlot, parsed: Parsed): Promise<Ver
         runsAt: plan.runsAt,
         notices: [],
       });
+      continue;
     }
-    return runOneStage(ctx, stage, parsed.selection, parsed.tier);
-  };
-
-  const stages = stagesForTier(parsed.tier);
-  const results: StageResult[] = [];
-  if (runsConcurrently(parsed)) {
-    // Settle every stage before a throw propagates, so no sibling's process group outlives the run. The settled array
-    // keeps registry order, so the summary and the artifact read the same as a sequential run.
-    for (const settled of await Promise.allSettled(stages.map(runStage))) {
-      if (settled.status === "rejected") {
-        throw settled.reason;
-      }
-      results.push(settled.value);
-    }
-  } else {
-    // Sequential everywhere else: a whole run's stages and a lane's related tests are heavy enough that two at
-    // once flake on load, and --verbose streams one stage's output at a time. The await IS the ordering.
-    for (const stage of stages) {
-      results.push(await runStage(stage));
-    }
+    // Sequential BY DESIGN: stages share the CPU, the memory, the reports dir and the console. Concurrent commit
+    // stages were measured to thrash a 15 GB box: type-aware ESLint, tsc and the structure walk each hold gigabytes.
+    results.push(await runOneStage({ root, slot, verbose: parsed.verbose, runMarker, runLease }, stage, parsed.selection, parsed.tier));
   }
 
   const exitCode = aggregateExit(results.map((s) => s.exitCode));

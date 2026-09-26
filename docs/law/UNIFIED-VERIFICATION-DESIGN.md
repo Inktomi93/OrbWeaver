@@ -505,7 +505,6 @@ checkout's run.
 - The structure walk runs the file-local policies. It defers and prints the cross-file policies.
 - A whole-only stage defers when its path trigger matches and skips when it does not
   (`tooling/src/verify/lib/registry-triggers.ts`). Other scoped selections run a triggered whole command.
-- The commit gate's stages run at the same time; every other run keeps them in sequence (`tooling/src/verify/ops/run.ts`).
 
 The whole static tier (`pnpm check`) stays the verdict for done. It runs at pre-push inside `verify --push`
 and as the merge-train barrier on main. A half-registration across two maps can commit clean and fail

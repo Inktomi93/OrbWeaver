@@ -143,7 +143,7 @@ Lanes can share main's checkout with you.
 
 - Stage and commit on main by exact pathspec. A broad `git add` sweeps a sibling's probe into your commit.
 - Before you report, run `git status --short` and account for every line.
-- Probe a real file with `cp f f.bak`, then `mv f.bak f`, one command per Bash call. A refused chain drops its restore silently.
+- Never probe on main's checkout. Probe in a worktree or with a proof row (`lane` skill, Probes).
 
 ## Dev stack
 

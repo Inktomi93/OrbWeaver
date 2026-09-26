@@ -18,8 +18,8 @@
 # `pnpm verify` entry (UNIFIED-VERIFICATION-DESIGN.md §3 and §4.3): the tiers ARE the hook wiring.
 #   • pre-commit → `pnpm verify --static --changed staged`: the index vs HEAD (D268). An unstaged or untracked
 #     file is not in the commit, so it is not in the scope, and lefthook hides the unstaged hunks of a
-#     partially staged file while the hook runs. Only the stages that narrow to the staged files run, at the
-#     same time. Every whole-command stage (tooling/src/verify/lib/registry-triggers.ts), the cross-file
+#     partially staged file while the hook runs. Only the stages that narrow to the staged files run. Every
+#     whole-command stage (tooling/src/verify/lib/registry-triggers.ts), the cross-file
 #     structure policies and `deps:knip` defer to the whole static tier, which runs at pre-push and at the
 #     merge-train barrier (`pnpm check` on main). A scoped run takes no host-wide whole-run slot, so a commit
 #     never queues behind another checkout's battery. Stage durations: `reports/verify-history.jsonl`,

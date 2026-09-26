@@ -54,11 +54,11 @@ When a finding collides with a recorded ruling, keep the old mechanism and satis
 
 ## Probes
 
-- Probe a gate or linter with an untracked scratch file at a path the tool scans, then delete it. Not under `**/__probe*`: it is gitignored.
-- Probe a real file with `cp f f.bak`, then `mv f.bak f`, one command per Bash call, then run `git status`. A refused chain drops its restore silently.
+- Probe a gate with a `mustFlag` or `mustPass` row in its module, then run `pnpm check:policy-conformance`. The row runs in memory.
+- Probe any other tool only inside your own worktree. A file planted in a shared checkout breaks every run that reads the tree meanwhile.
+- Never create or edit a tree file to probe on a shared checkout, including main's. Report the question to the orchestrator instead.
 - Never undo a probe with `git stash`, `git checkout <path>` or `git restore`. They destroy uncommitted work.
 - Never run `git show HEAD:<path> > <path>` over a file created this session. The redirect truncates it first.
-- On a shared tree, message the orchestrator with the paths before you start and after you restore.
 - Put other scratch files in the session scratchpad. Prefix each name with your lane name.
 
 ## Red first
