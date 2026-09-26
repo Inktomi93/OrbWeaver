@@ -47,7 +47,7 @@ function gitLines(root: string, args: readonly string[]): readonly string[] {
   if (result.status !== 0) {
     throw new Error(`git ${args.join(" ")} failed: ${result.stderr.trim()}`);
   }
-  return result.stdout.split("\n").filter((line) => line !== "");
+  return result.stdout.split(/\r?\n/u).filter((line) => line !== "");
 }
 
 export function sourceCommit(root: string): string {

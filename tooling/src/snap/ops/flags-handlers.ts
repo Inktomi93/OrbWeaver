@@ -257,6 +257,9 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
   "--probe": (a) => {
     a.probe = true;
   },
+  "--visitor": (a) => {
+    a.visitor = true;
+  },
   "--baseline": (a) => {
     a.baseline = true;
   },

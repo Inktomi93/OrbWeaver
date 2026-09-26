@@ -1,6 +1,7 @@
 // Real-corpus liveness arms (#2149) for policies whose subject is the tooling tree, the gate corpus
 // included. DATA, collected by the one runner (`../real-corpus-liveness-family.suite.repo.int.test.ts`),
 // which loads the structure run's own corpus once and runs every arm against it (docs/work/0043).
+import { gate as toolingOsNeutral } from "../../../../../tooling/src/verify/gates/tooling-os-neutral.ts";
 import { gate as warningWorkitemLiveness } from "../../../../../tooling/src/verify/gates/warning-workitem-liveness.ts";
 import type { RealCorpusLivenessArm } from "../../../../support/real-corpus-liveness.ts";
 
@@ -8,6 +9,13 @@ import type { RealCorpusLivenessArm } from "../../../../support/real-corpus-live
 const ABSENT_ITEM = 99_999;
 
 export const TOOLING_ARMS: readonly RealCorpusLivenessArm[] = [
+  {
+    policy: toolingOsNeutral,
+    // A hardcoded `/tmp` beside the live tooling tree: the whole population plus one probe module must
+    // report exactly that probe, at its literal.
+    overlays: [{ kind: "add", path: "tooling/src/_shared/os-neutral-liveness-probe.ts", source: 'export const scratch = "/tmp/orb-liveness";\n' }],
+    messageIncludes: "a hardcoded `/tmp` path",
+  },
   {
     policy: warningWorkitemLiveness,
     // A warning policy whose owner names no docs/work item: the live gate corpus plus one probe module must

@@ -253,7 +253,7 @@ async function judgeSample(text: string, fx: ImpersonateFixture, key: string): P
     },
     { Authorization: `Bearer ${key}` },
   );
-  const verdictLine = (out.trim().split("\n").at(-1) ?? "").toUpperCase();
+  const verdictLine = (out.trim().split(/\r?\n/u).at(-1) ?? "").toUpperCase();
   return JUDGE_VERDICTS.find((v) => verdictLine.includes(v)) ?? "UNPARSED";
 }
 

@@ -58,7 +58,7 @@ export function readHistory(root: string): readonly RunHistoryEntry[] {
     return [];
   }
   const out: RunHistoryEntry[] = [];
-  for (const line of readFileSync(path, "utf8").split("\n")) {
+  for (const line of readFileSync(path, "utf8").split(/\r?\n/u)) {
     if (line.trim().length === 0) {
       continue;
     }

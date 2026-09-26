@@ -3,6 +3,7 @@
 // diff, runCli's fail-loud unknown-tool refusal, and the scratch/plantedTree/fakeBin seams.
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, fixturePath, test } from "./tool-fixtures.ts";
 
@@ -69,7 +70,7 @@ test("toExitWith names both codes by contract and carries output tails on mismat
 // ── the RESULT serializer: each rule + the planted negative ──────────────────────────────────────────
 test("the serializer normalizes ONLY the non-deterministic atoms", ({ repoRoot }) => {
   expect(`${repoRoot}/reports/snaps/x.png`).toMatchInlineSnapshot(`"<root>/reports/snaps/x.png"`);
-  expect("/tmp/orb-tool-abc123/tree-1").toMatchInlineSnapshot(`"<scratch>/tree-1"`);
+  expect(`${join(tmpdir(), "orb-tool-abc123")}/tree-1`).toMatchInlineSnapshot(`"<scratch>/tree-1"`);
   expect("captured 2026-08-21T17:04:05.123Z").toMatchInlineSnapshot(`"captured <ts>"`);
   expect("stage pid=48213 up").toMatchInlineSnapshot(`"stage pid=<pid> up"`);
   expect("RESULT snap routes=3 elapsed=841ms").toMatchInlineSnapshot(`"RESULT snap routes=3 elapsed=<ms>ms"`);

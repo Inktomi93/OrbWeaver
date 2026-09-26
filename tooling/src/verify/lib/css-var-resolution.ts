@@ -18,7 +18,7 @@ export interface CssVariableSite {
 function lineColumn(text: string, offset: number): { readonly line: number; readonly column: number } {
   const before = text.slice(0, offset);
   const lastNewline = before.lastIndexOf("\n");
-  return { line: before.split("\n").length, column: offset - lastNewline };
+  return { line: before.split(/\r?\n/u).length, column: offset - lastNewline };
 }
 
 function quotedStep(text: string, index: number, quote: "'" | '"'): { readonly index: number; readonly quote: "'" | '"' | undefined } {

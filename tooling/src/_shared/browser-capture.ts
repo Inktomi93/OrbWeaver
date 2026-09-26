@@ -1,7 +1,7 @@
 // Per-page console, error, and request capture. Kept separate from browser.ts so the shared launcher owns
 // resources and contexts while this module owns only the event wiring duplicated across every page.
 
-import type { BrowserContext, ConsoleMessage, Page } from "@playwright/test";
+import type { BrowserContext, CDPSession, ConsoleMessage, Page } from "@playwright/test";
 import { exactScope } from "./artifact-scope.ts";
 import type {
   CapturedConsole as BrowserCapturedConsole,
@@ -96,6 +96,20 @@ export function browserEvidenceRetention(session: ProbeSession): BrowserEvidence
   return retentionBatch(rows);
 }
 
+// Each owner page's wiring session lives as long as the page. Chromium drops the emulation a session set
+// when that session detaches, so a repair that must outlast one call goes through this session.
+const ownerPageSessions = new WeakMap<Page, CDPSession>();
+
+/** The persistent CDP session this connection wired onto `page`. Only an `"apply"` wiring registers one:
+ *  an attached sibling must never re-emulate the owner's page. */
+export function ownerPageSession(page: Page): CDPSession {
+  const cdp = ownerPageSessions.get(page);
+  if (cdp === undefined) {
+    throw new Error("INSTRUMENT ERROR: no owner CDP session for this page — it was not wired by the connection that owns its emulation");
+  }
+  return cdp;
+}
+
 /** Wire capture (and, by default, media) onto one page. Tabs and isolated contexts share this exact event
  *  contract. `"observe"` wires the events only — an ATTACHED session (a sibling on a daemon's browser)
  *  declares the owner's media for its environment contract and must never re-emulate it on the owner's
@@ -157,6 +171,7 @@ export async function wireProbePage(page: Page, capture: PageCapture, pageIndex:
     network: capture.networkLimits,
   });
   if (mediaMode === "apply") {
+    ownerPageSessions.set(page, cdp);
     await applyProbeMedia(page, media, cdp);
   }
 }

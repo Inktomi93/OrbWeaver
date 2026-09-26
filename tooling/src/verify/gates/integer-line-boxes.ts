@@ -397,7 +397,7 @@ const SINGLE_VAR_RE = /^var\(\s*(--[a-z0-9-]+)\s*\)$/u;
 /** 1-based line/column of an absolute offset in a stylesheet. */
 function positionOf(text: string, offset: number): { readonly line: number; readonly column: number } {
   const before = text.slice(0, offset);
-  return { line: before.split("\n").length, column: offset - before.lastIndexOf("\n") };
+  return { line: before.split(/\r?\n/u).length, column: offset - before.lastIndexOf("\n") };
 }
 
 /** WHERE a declaration's value finding anchors, and with WHAT token — the two are one decision, because an

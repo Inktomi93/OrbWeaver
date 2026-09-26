@@ -173,8 +173,9 @@ export const test = houseTest.extend<ToolFixtures>({
 // see it. Normalizes ONLY non-deterministic atoms; everything else serializes untouched. Inline
 // snapshots stay the house style.
 const ROOT_RE = new RegExp(REPO_ROOT.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"), "gu");
-// The mkdtemp DIR segment only — the tail class excludes `/` so inner paths (`/tree-1`) survive.
-const SCRATCH_RE = /\/tmp\/[A-Za-z0-9._-]*orb-[A-Za-z0-9._-]*/gu;
+// The mkdtemp DIR segment only, under this OS's temp dir — the tail class excludes the separators so inner
+// paths (`/tree-1`) survive.
+const SCRATCH_RE = new RegExp(`${RegExp.escape(tmpdir())}[\\\\/][A-Za-z0-9._-]*orb-[A-Za-z0-9._-]*`, "gu");
 const ISO_TS_RE = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})/gu;
 const PID_RE = /\bpid=\d+/gu;
 const RESULT_MS_RE = /\b(\d+)ms\b/gu;

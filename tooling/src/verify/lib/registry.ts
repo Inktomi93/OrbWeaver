@@ -25,6 +25,13 @@ import { mutationGateHangCeilingMs } from "./stage-budget.ts";
 
 const STATIC: readonly Tier[] = ["static", "push", "full"];
 
+/** `node --check` on every `.claude/hooks/*.mjs`, and a refusal when the glob matches nothing. */
+const HOOK_SYNTAX_LOOP = [
+  'const hooks = require("node:fs").globSync(".claude/hooks/*.mjs");',
+  'if (hooks.length === 0) { console.error("lint:hook-syntax: no .claude/hooks/*.mjs to check"); process.exit(2); }',
+  'for (const hook of hooks) require("node:child_process").execFileSync(process.execPath, ["--check", hook], { stdio: "inherit" });',
+].join(" ");
+
 /** The rows a TIER can actually run. The manual-only tail lives in ./registry-manual.ts and is
  *  concatenated below, in place — the registry ORDER is the `verify --list` order. */
 const GATING_STAGES: readonly StageDef[] = [
@@ -63,12 +70,12 @@ const GATING_STAGES: readonly StageDef[] = [
     // every session then runs unguarded — silently, while the push bar stays green. Sub-second, and it
     // catches exactly that one failure.
     //
-    // NOT a `pnpm <script>` argv, deliberately: the check is a two-token shell loop over a glob, the
-    // parity gate reconciles `pnpm <script>` argvs only (a raw-bin argv contributes to neither arm), and
-    // a package.json row for it would be a second coupled site buying nothing. `node --check` takes ONE
-    // file, so the loop is what makes this a FAMILY check rather than a hard-coded filename that goes
-    // blind the day a second hook lands.
-    argv: ["bash", "-c", 'for f in .claude/hooks/*.mjs; do node --check "$f" || exit 1; done'],
+    // NOT a `pnpm <script>` argv, deliberately: the check is a short loop over a glob, the parity gate
+    // reconciles `pnpm <script>` argvs only (a raw-bin argv contributes to neither arm), and a package.json
+    // row for it would be a second coupled site buying nothing. `node --check` takes ONE file, so the loop
+    // is what makes this a FAMILY check rather than a hard-coded filename that goes blind the day a second
+    // hook lands. The loop is node's own, not a shell's, so the stage runs on every OS.
+    argv: ["node", "-e", HOOK_SYNTAX_LOOP],
     classify: asViolations,
   },
 

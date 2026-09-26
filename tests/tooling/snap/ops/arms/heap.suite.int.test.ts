@@ -6,6 +6,7 @@
 import { copyFile, readFile, truncate, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { HOST_POOL_ROOT_ENV } from "@orb/tooling/_shared/host-slots";
 import type { HeapComparisonReceipt, HeapRetainerReceipt, HeapSnapshotReceipt, SnapRunIndex } from "@orb/tooling/snap";
 import {
   assertComparableHeapSnapshots,
@@ -100,7 +101,7 @@ test("heap provenance IDs retain their wire bytes and reject absent identities",
 test("a named session preserves exact-page labels, reports retained growth/retainers, and stays usable", async ({ plantedTree, runCli }) => {
   const root = await plantedTree({ "heap.html": FIXTURE, "sessions/.keep": "" });
   const fixture = join(root, "heap.html");
-  const env = { [SESSION_HOME_ENV]: join(root, "sessions"), [SESSION_CAP_ENV]: "1", [SESSION_TTL_ENV]: "10" };
+  const env = { [SESSION_HOME_ENV]: join(root, "sessions"), [SESSION_CAP_ENV]: "1", [SESSION_TTL_ENV]: "10", [HOST_POOL_ROOT_ENV]: join(root, "host-slots") };
   const session = "heap-arm";
   try {
     const before = await runCli("snap", ["--session", session, "--file", fixture, "--heap", "before", ...QUIET], {

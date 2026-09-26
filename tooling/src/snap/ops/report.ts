@@ -202,7 +202,7 @@ function printAriaBlock(opts: Args, ariaText: string | null, ariaError: string |
   }
   // The text path. For "did it render / is the list populated / is the dialog
   // open / what's the label" this is the whole answer — no pixels needed.
-  const lines = ariaText.split("\n");
+  const lines = ariaText.split(/\r?\n/u);
   const scope = `${opts.ariaSelector}${opts.ariaDepth !== null ? ` depth≤${opts.ariaDepth}` : ""}`;
   print(`\n--- ARIA (${scope}, ${lines.length} line(s)) ---`);
   for (const l of lines.slice(0, ARIA_MAX_LINES)) {

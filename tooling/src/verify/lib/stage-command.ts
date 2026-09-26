@@ -1,7 +1,7 @@
 // WHAT A STAGE'S `argv[0]` ACTUALLY IS — resolved from EVIDENCE on this checkout, never from a name list.
 //
 // THE DEFECT (#2220). `ops/run.ts` carried `PATH_RESOLVED = new Set(["pnpm", "node"])` and sent every
-// other argv[0] to `node_modules/.bin/<cmd>`. The registry's `lint:hook-syntax` row spells
+// other argv[0] to `node_modules/.bin/<cmd>`. The registry's `lint:hook-syntax` row then spelled
 // `["bash", "-c", "for f in .claude/hooks/*.mjs; do node --check \"$f\"; done"]`, so `bash` fell through
 // to `<root>/node_modules/.bin/bash`, which does not exist; `spawnNicedTranscript` existence-checks a
 // path-shaped command and returns `code: null`, and every classifier maps null to a TOOL ERROR. The stage

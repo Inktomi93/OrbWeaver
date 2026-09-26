@@ -97,7 +97,7 @@ function colorPermission(file: string, source: SourceEvidence): Permission | und
     return;
   }
   const sites = source.colorText
-    .split("\n")
+    .split(/\r?\n/u)
     .flatMap((line, index) =>
       COLOR_LITERAL_RE.test(line) ? [{ file, line: index + 1, message: "hardcoded color literal in a .ct.tsx — assert colors via TOKENS." }] : [],
     );

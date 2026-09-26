@@ -61,7 +61,7 @@ function resolveMaxOutputLines(override?: number): number {
  * Returns the path written to (or undefined if no overflow).
  */
 export function flushBuffer(buffer: readonly string[], tag: string, maxLines?: number): string | undefined {
-  const flat = buffer.flatMap((entry) => entry.split("\n"));
+  const flat = buffer.flatMap((entry) => entry.split(/\r?\n/u));
   const limit = resolveMaxOutputLines(maxLines);
   if (flat.length <= limit) {
     for (const line of flat) {
@@ -137,7 +137,7 @@ function renderFileEntry(snap: FileSnapshot, byPath: ReadonlyMap<string, SourceF
   }
   if (snap.wasCreated) {
     return {
-      line: `  + ${repoRel}    (created, ${sf.getFullText().split("\n").length} lines)`,
+      line: `  + ${repoRel}    (created, ${sf.getFullText().split(/\r?\n/u).length} lines)`,
       status: "created",
     };
   }
@@ -228,8 +228,8 @@ export function renderPreview(opts: {
  *  unified diff to keep the preview readable for large codemods. Use
  *  `git diff` after `--apply` for the precise view. */
 function summarizeDiff(before: string, after: string): string {
-  const beforeLines = before.split("\n");
-  const afterLines = after.split("\n");
+  const beforeLines = before.split(/\r?\n/u);
+  const afterLines = after.split(/\r?\n/u);
   // Walk forward to find the first divergence.
   const len = Math.min(beforeLines.length, afterLines.length);
   let firstChange = -1;

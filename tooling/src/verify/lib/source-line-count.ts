@@ -4,5 +4,5 @@ import type { SourceFile } from "ts-morph";
 export function authoredLineCount(sourceFile: SourceFile): number {
   const text = sourceFile.getFullText();
   const authored = text.endsWith("\n") ? text.slice(0, -1) : text;
-  return authored.split("\n").length;
+  return authored.split(/\r?\n/u).length;
 }

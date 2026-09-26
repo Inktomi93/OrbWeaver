@@ -66,7 +66,7 @@ for (const card of DEFAULT_CHARACTER_CARDS) {
 const seedChats = fs.readdirSync(SEED_CHATS_DIR).filter((f) => f.endsWith(".jsonl"));
 for (const file of seedChats) {
   const content = fs.readFileSync(path.join(SEED_CHATS_DIR, file), "utf-8");
-  const lines = content.split("\n").filter(Boolean);
+  const lines = content.split(/\r?\n/u).filter(Boolean);
   const firstLine = lines[0];
 
   if (!firstLine) {

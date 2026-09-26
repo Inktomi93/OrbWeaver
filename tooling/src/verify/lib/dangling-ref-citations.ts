@@ -171,7 +171,7 @@ export interface PathCitationScan {
 export function scanPathCitations(textByPath: ReadonlyMap<string, string>, docs: readonly string[]): PathCitationScan {
   const cites: DanglingCitation[] = [];
   for (const rel of docs) {
-    const lines = (textByPath.get(rel) ?? "").split("\n");
+    const lines = (textByPath.get(rel) ?? "").split(/\r?\n/u);
     if (hasHeadRider(lines)) {
       continue;
     }
@@ -240,7 +240,7 @@ export function scanSymbolCitations(
 ): readonly DanglingCitation[] {
   const out: DanglingCitation[] = [];
   for (const rel of docs) {
-    const lines = (textByPath.get(rel) ?? "").split("\n");
+    const lines = (textByPath.get(rel) ?? "").split(/\r?\n/u);
     if (hasHeadRider(lines)) {
       continue;
     }

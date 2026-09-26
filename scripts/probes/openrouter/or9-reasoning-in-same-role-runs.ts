@@ -268,7 +268,7 @@ async function orCall(key: string, model: Model, turns: readonly Turn[], effort:
   let reasoning = "";
   let stopReason: string | null = null;
   const details = new Map<number, Record<string, unknown>>();
-  for (const line of raw.split("\n")) {
+  for (const line of raw.split(/\r?\n/u)) {
     if (!line.startsWith("data: ") || line === "data: [DONE]") {
       continue;
     }

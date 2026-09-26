@@ -24,11 +24,11 @@ export async function runDepcruise(mode: string, pattern: string, spawn: typeof 
   // depcruise emits one text line per EDGE INSTANCE, so a value import and a type import of the same
   // module render as identical lines — dedupe before printing (order preserved; counts stay honest).
   const raw = res.stdout.trim();
-  const out = raw === "" ? "" : [...new Set(raw.split("\n"))].join("\n");
+  const out = raw === "" ? "" : [...new Set(raw.split(/\r?\n/u))].join("\n");
   print(out === "" ? `RESULT ast ${mode} ${pattern}: no edges` : out);
   // A pass-through: depcruise owns the walk, so `scanned` stays n/a rather than carrying a number this
   // process did not measure. `matches` is the edge-line count — the one result quantity we DO observe.
-  const lines = out === "" ? 0 : out.split("\n").length;
+  const lines = out === "" ? 0 : out.split(/\r?\n/u).length;
   noteMatches(lines, lines);
   // A NONZERO EXIT IS A BROKEN WALK, WITH OR WITHOUT OUTPUT (#1507).
   //

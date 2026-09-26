@@ -399,8 +399,8 @@ its process group is killed and the classifier scores a TOOL ERROR. The ceilings
 - `defaultMinutes` — every stage that does not declare its own.
 - the CT suite — `ceil(ctSuiteWorkerMinutes / ctWorkers × ctCeilingFactor) + ctHostSlotWaitMinutes`, floored
   at the default. `ctSuiteWorkerMinutes` is measured for the current suite size; the host-slot wait is in
-  the sum because a queued CT run spends it inside the stage's own wall clock, and `ct-runner-lock.ts`
-  reads that same number for the wait it grants.
+  the sum because a queued CT run spends it inside the stage's own wall clock, and the CT host pool
+  (`ctHostSlotPool` in `tooling/src/_shared/host-slots.ts`) reads that same number for the wait it grants.
 
 Change `ctWorkers` and every dependent ceiling moves with it. The runner still passes the result through
 `budget()`, so a contended box stretches it further, never shrinks it.

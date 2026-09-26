@@ -55,7 +55,7 @@ export const gate = defineGate({
         return;
       }
       const blanked = blankTsComments(sf);
-      for (const [index, line] of blanked.split("\n").entries()) {
+      for (const [index, line] of blanked.split(/\r?\n/u).entries()) {
         for (const { name, re } of SERDE_RES) {
           if (re.test(line)) {
             ctx.report.file(file, {

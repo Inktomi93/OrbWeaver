@@ -41,6 +41,7 @@ import { existsSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import process from "node:process";
+import { readConcurrencyProfile, readStageBudgets } from "./concurrency-profile.ts";
 import { refuseDirectInvocation } from "./entrypoint.ts";
 import type { HostSlotHolder, Liveness } from "./host-slot-records.ts";
 import { defaultAlive, holderState, liveHolders, ownedDir, readHolder, rewriteRecord, STATE_TEXT, takeAnySlot } from "./host-slot-records.ts";
@@ -94,6 +95,33 @@ export function hostPoolRoot(env?: NodeJS.ProcessEnv): string {
  *  glance which fleet pools are live. */
 export function hostPoolDir(pool: HostSlotPoolIdentity, env?: NodeJS.ProcessEnv): string {
   return join(hostPoolRoot(env), `orb-${pool.name}-slots`);
+}
+
+/** The CT pool's name: its directory is `<runtime>/orb-ct-slots/`. */
+export const CT_HOST_POOL_NAME = "ct";
+
+/** THE CT POOL, one identity for every live Chromium fleet a checkout holds for minutes: a `pnpm test:ct`
+ *  run and a snap session daemon. Its size and queue ceiling come from the concurrency profile, so the
+ *  wait a run may spend and the verify stage ceiling that covers it read one number. */
+export function ctHostSlotPool(label: string, env?: NodeJS.ProcessEnv): HostSlotPool {
+  return { name: CT_HOST_POOL_NAME, label, slots: readConcurrencyProfile(env).ctRunnersHostWide, waitBaseMs: readStageBudgets(env).ctHostWaitMs };
+}
+
+/** Is `pid` waiting in this pool's queue right now? A caller watching a child boot reads it so time the
+ *  child spends queued is not charged to the child's own boot budget. Only a ticket whose beat is fresh by
+ *  the queue's own rule counts: a hung waiter stops beating, and must not pause its caller's clock forever. */
+export function hostSlotQueued(pool: HostSlotPoolIdentity, pid: number, env?: NodeJS.ProcessEnv, nowMs: number = Date.now()): boolean {
+  const queueDir = join(hostPoolDir(pool, env), QUEUE_DIR);
+  const suffix = `-${String(pid).padStart(TICKET_PID_DIGITS, "0")}${TICKET_SUFFIX}`;
+  if (!existsSync(queueDir)) {
+    return false;
+  }
+  return readdirSync(queueDir)
+    .filter((name) => name.endsWith(suffix))
+    .some((name) => {
+      const ticket = readHolder(join(queueDir, name));
+      return ticket !== null && ticket.pid === pid && ticket.beatMs !== null && nowMs - ticket.beatMs <= TICKET_STALE_MS;
+    });
 }
 
 function slotPath(dir: string, slot: number): string {

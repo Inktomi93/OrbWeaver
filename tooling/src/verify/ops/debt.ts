@@ -197,7 +197,7 @@ function firstSeen(root: string, ledger: Ledger, subject: string): string | null
   if (res.status !== 0) {
     return null;
   }
-  const lines = res.stdout.split("\n").filter((l) => l.trim() !== "");
+  const lines = res.stdout.split(/\r?\n/u).filter((l) => l.trim() !== "");
   return lines.at(-1) ?? null;
 }
 

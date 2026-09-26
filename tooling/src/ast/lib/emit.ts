@@ -118,7 +118,7 @@ export function parseFlags(rest: string[]): Flags {
 export function hitOf(node: Node, kind: string): Hit {
   const sf = node.getSourceFile();
   const line = sf.getLineAndColumnAtPos(node.getStart()).line;
-  const raw = sf.getFullText().split("\n")[line - 1] ?? "";
+  const raw = sf.getFullText().split(/\r?\n/u)[line - 1] ?? "";
   const text = raw.trim().slice(0, SNIPPET_CAP);
   const full = sf.getFilePath();
   const file = full.startsWith(`${REPO_ROOT}/`) ? full.slice(REPO_ROOT.length + 1) : full;

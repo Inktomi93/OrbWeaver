@@ -24,9 +24,10 @@ import { dirname, join } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { REPO_ROOT } from "@orb/tooling/_shared/artifacts";
+import { listProcesses } from "@orb/tooling/_shared/platform";
 import { DEV_PORTS } from "@orb/tooling/_shared/ports";
 import type { NicedChild } from "@orb/tooling/_shared/proc";
-import { runNicedSync, spawnNiced, spawnNicedChild } from "@orb/tooling/_shared/proc";
+import { spawnNiced, spawnNicedChild } from "@orb/tooling/_shared/proc";
 import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
 import type { StageRow } from "@orb/tooling/snap";
 import { readBands, readStageReaps, stageKeeperLogPath } from "@orb/tooling/snap";
@@ -197,31 +198,14 @@ function pidAlive(pid: number): boolean {
 
 /** How many `--stage-keeper` processes tracing THIS SUITE's own `home` exist on the box right now.
  *  Counted by argv+env rather than by the table, because the property under test is about PROCESSES a
- *  run may leave behind, not about rows — and `ps` is the only thing that can see a child whose row was
- *  never written. Filtered to `home` because `--stage-keeper <band>` (the argv) carries no home — a
- *  box-global count would have a SIBLING lane's own live keeper move this suite's delta either way. Each
- *  candidate's `/proc/<pid>/environ` is read to confirm it inherited THIS home — the same `/proc` fence
- *  `pidIsStageRooted` (ops/stage-probe.ts) uses for cwd, so a keeper started elsewhere never counts here. */
+ *  run may leave behind, not about rows — and the process table is the only thing that can see a child
+ *  whose row was never written. Filtered to `home` because `--stage-keeper <band>` (the argv) carries no
+ *  home — a box-global count would have a SIBLING lane's own live keeper move this suite's delta either
+ *  way. Each candidate's environment must carry THIS home, so a keeper started elsewhere never counts here
+ *  (darwin folds the environment into the command line; win32 exposes none, so there nothing counts). */
 function keeperProcessCount(home: string): number {
-  // Through the house subprocess door (`_shared/proc.ts`), like every other `ps` read in this tree — it
-  // carries the nice-19 floor and never throws, so a non-zero status reads as the zero this counter
-  // reports. A proof that cannot enumerate processes has already failed its own planted control.
-  const candidates = runNicedSync("ps", ["-eo", "pid,args="])
-    .stdout.split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.includes("--stage-keeper"));
-  let count = 0;
-  for (const line of candidates) {
-    const pid = Number.parseInt(line, 10);
-    if (!Number.isInteger(pid)) {
-      continue;
-    }
-    const environ = runNicedSync("cat", [`/proc/${pid}/environ`]);
-    if (environ.status === 0 && environ.stdout.includes(`ORB_SNAP_STAGE_HOME=${home}`)) {
-      count += 1;
-    }
-  }
-  return count;
+  const marker = `ORB_SNAP_STAGE_HOME=${home}`;
+  return listProcesses().filter((entry) => entry.cmdline.includes("--stage-keeper") && (entry.environ ?? entry.cmdline).includes(marker)).length;
 }
 
 /** The session-registry row a live daemon writes — `daemonPid` is THIS process, so `liveSessionNames`

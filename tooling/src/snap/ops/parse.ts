@@ -275,6 +275,7 @@ export function parseSnapArgs(argv: string[], options: { readonly inheritedSessi
     includeHidden: false,
     route: "/",
     vnc: false,
+    visitor: false,
     waitSelector: null,
     sseSeconds: 0,
     base: DEFAULT_BASE,

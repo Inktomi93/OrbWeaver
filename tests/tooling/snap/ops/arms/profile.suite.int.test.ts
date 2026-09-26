@@ -12,6 +12,7 @@ import { join } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { HOST_POOL_ROOT_ENV } from "@orb/tooling/_shared/host-slots";
 import { vi } from "vitest";
 import { expect, test } from "../../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../../_load-budget.ts";
@@ -410,7 +411,7 @@ test("deep Fiber topology and cyclic inspection values cross the Playwright boun
 test("a profiled Snap session opens a fresh call window without reinstalling the renderer", async ({ plantedTree, repoRoot, runCli, scratch }) => {
   const fixture = await startFixture(repoRoot, plantedTree);
   const name = `react-profile-${String(process.pid)}`;
-  const env = { [SESSION_HOME_ENV]: join(scratch, "session-home") };
+  const env = { [SESSION_HOME_ENV]: join(scratch, "session-home"), [HOST_POOL_ROOT_ENV]: join(scratch, "host-slots") };
   try {
     const boot = await runCli("snap", ["/", "--base", fixture.base, "--session", name, "--react-profile", "--no-failure-evidence", ...QUIET], {
       env,

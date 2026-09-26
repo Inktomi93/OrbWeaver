@@ -137,7 +137,7 @@ function valueSpan(text: string, declarationOffset: number): { readonly start: n
 /** 1-based line/column of an absolute offset in a stylesheet. */
 function positionOf(text: string, offset: number): { readonly line: number; readonly column: number } {
   const before = text.slice(0, offset);
-  return { line: before.split("\n").length, column: offset - before.lastIndexOf("\n") };
+  return { line: before.split(/\r?\n/u).length, column: offset - before.lastIndexOf("\n") };
 }
 
 /** ONE raw motion literal and where it sits — the finding, and the waiver POSITION.

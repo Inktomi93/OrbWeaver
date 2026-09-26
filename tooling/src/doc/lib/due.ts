@@ -51,7 +51,7 @@ export function earliestUpdated(docs: readonly DescribedDoc[]): string | null {
 export function changesFromLog(log: string): ReadonlyMap<string, string> {
   const latest = new Map<string, string>();
   let date = "";
-  for (const line of log.split("\n")) {
+  for (const line of log.split(/\r?\n/u)) {
     if (/^\d{4}-\d{2}-\d{2}$/u.test(line)) {
       date = line;
       continue;

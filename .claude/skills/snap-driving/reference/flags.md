@@ -38,6 +38,7 @@ argv is wrong; nothing ran; the `ARG ERROR` line names the fix).
 | `--stage-owner <value>` | names the owner for a cross-checkout --stage-down |
 | `--stage-status` | the shared stage-band table: owner, checkout, ref, age, sessions, db provenance |
 | `--stage-sweep` | reap stages idle past the TTL and prune orphan dirs |
+| `--visitor` | send relay headers so a loopback stack serves a signed-out visitor, not its owner |
 | `--wait <value>` | after app readiness, require this selector to become visible before anything else runs |
 
 ## Reach

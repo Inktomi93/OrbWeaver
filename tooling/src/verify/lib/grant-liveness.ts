@@ -89,7 +89,7 @@ export function deadExactFindings(input: DeadExactInput): Finding[] {
  *  TWO places reports two distinct lines. 0 when the literal isn't found. Mirrors biome-grant-liveness's
  *  `lineFinder` so all four gates anchor findings the same way. */
 export function lineFinder(text: string): (path: string) => number {
-  const lines = text.split("\n");
+  const lines = text.split(/\r?\n/u);
   const cursor = new Map<string, number>();
   return (path) => {
     const quoted = `"${path}"`;

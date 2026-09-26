@@ -80,7 +80,7 @@ export function titleOf(body: string): string | null {
 
 /** The text under one `## ` heading of a body, trimmed; empty when the section is absent. */
 export function sectionText(body: string, name: string): string {
-  const lines = body.split("\n");
+  const lines = body.split(/\r?\n/u);
   const start = lines.findIndex((line) => line.trimEnd() === `## ${name}`);
   if (start === -1) {
     return "";
@@ -96,7 +96,7 @@ export function sectionText(body: string, name: string): string {
 export function sectionsOf(body: string): readonly string[] {
   const out: string[] = [];
   let inFence = false;
-  for (const line of body.split("\n")) {
+  for (const line of body.split(/\r?\n/u)) {
     if (/^\s*(```|~~~)/u.test(line)) {
       inFence = !inFence;
       continue;

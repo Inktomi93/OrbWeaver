@@ -221,11 +221,11 @@ async function parsedSnapshot(manager: object, path: string): Promise<HeapParsed
   try {
     const source = await readFile(problemPath, "utf8");
     parserProblemRows = source
-      .split("\n")
+      .split(/\r?\n/u)
       .filter((line) => line !== "")
       .flatMap((line) => {
         const parsed = record(JSON.parse(line), "DevTools heap problem report");
-        return text(parsed["message"], "DevTools heap problem message").split("\n");
+        return text(parsed["message"], "DevTools heap problem message").split(/\r?\n/u);
       });
   } catch (error) {
     if (errorCode(error) !== "ENOENT") {

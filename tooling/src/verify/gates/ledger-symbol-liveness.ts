@@ -80,7 +80,7 @@ const FIX =
  *  finds zero and a zero receipt is a refusal, not a verdict. */
 function extractPathCites(document: MarkdownDocument): { cites: { path: string; line: number; column: number }[]; scanned: number } {
   const results: { path: string; line: number; column: number }[] = [];
-  const lines = document.text.split("\n");
+  const lines = document.text.split(/\r?\n/u);
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (line === undefined) {

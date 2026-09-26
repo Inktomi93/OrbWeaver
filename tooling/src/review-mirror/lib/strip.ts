@@ -59,7 +59,7 @@ function stripTsLike(text: string, scriptKind: ts.ScriptKind): string {
     }
     output += text.slice(cursor, start);
     const span = text.slice(start, end);
-    output += DIRECTIVE_RE.test(span) ? span : ` ${"\n".repeat(span.split("\n").length - 1)}`;
+    output += DIRECTIVE_RE.test(span) ? span : ` ${"\n".repeat(span.split(/\r?\n/u).length - 1)}`;
     cursor = end;
   }
   return output + text.slice(cursor);
@@ -112,7 +112,7 @@ function stripCss(source: string): string {
 }
 
 function stripHtml(source: string): string {
-  return source.replaceAll(/<!--[\s\S]*?-->/gu, (comment) => "\n".repeat(comment.split("\n").length - 1));
+  return source.replaceAll(/<!--[\s\S]*?-->/gu, (comment) => "\n".repeat(comment.split(/\r?\n/u).length - 1));
 }
 
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: a SQL-quote-aware comment scanner is branchy by nature.
@@ -167,7 +167,7 @@ function stripSql(source: string): string {
 
 function stripHashFullLine(source: string): string {
   return source
-    .split("\n")
+    .split(/\r?\n/u)
     .map((line, index) => {
       if (index === 0 && line.startsWith("#!")) {
         return line;

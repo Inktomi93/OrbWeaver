@@ -122,6 +122,7 @@ test("scenario checkpoints refuse every explicit browser-lifetime flag while out
 
 test("a later session call cannot silently replace no-failure-evidence, and ownerless modifiers refuse while parent twins pass", () => {
   expect(SESSION_ONLY_FLAGS.has("--no-failure-evidence")).toBe(true);
+  expect(sessionOnlyFlagsIn(["--eval", "1", "--visitor"]), "the relay header is a context property, set once at boot").toEqual(["--visitor"]);
   expect(sessionOnlyFlagsIn(["--no-failure-evidence", "--eval", "1"])).toEqual(["--no-failure-evidence"]);
   for (const [argv, message] of [
     [["--scenario-summary"], "requires --scenario"],

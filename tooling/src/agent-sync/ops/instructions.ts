@@ -77,7 +77,7 @@ export function alwaysOnLines(root: string): { readonly total: number; readonly 
   const core = readAlwaysOn(root);
   total += lineCount(core);
   parts.push(`${ALWAYS_ON_FILE} ${lineCount(core)}`);
-  for (const line of core.split("\n")) {
+  for (const line of core.split(/\r?\n/u)) {
     const imported = IMPORT_LINE.exec(line)?.[1];
     if (imported !== undefined && existsSync(join(root, imported))) {
       const count = lineCount(read(root, imported));
@@ -135,7 +135,7 @@ export function ruleListLine(rel: string, paths: RulePaths): string | null {
 function ruleListProblems(root: string): readonly string[] {
   const listed = new Map<string, { readonly line: number; readonly text: string }>();
   readAlwaysOn(root)
-    .split("\n")
+    .split(/\r?\n/u)
     .forEach((text, index) => {
       const rel = RULE_LIST_LINE.exec(text)?.[1];
       if (rel !== undefined) {

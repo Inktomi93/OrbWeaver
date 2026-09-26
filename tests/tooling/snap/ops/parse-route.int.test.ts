@@ -8,6 +8,7 @@ import { createServer } from "node:http";
 import { join } from "node:path";
 import process from "node:process";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { HOST_POOL_ROOT_ENV } from "@orb/tooling/_shared/host-slots";
 import { vi } from "vitest";
 import type { CliResult } from "../../../support/tool-fixtures.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
@@ -43,7 +44,10 @@ async function fixtureServer(): Promise<{ readonly base: string; readonly close:
 test("a fixture-bound session takes file routes on later calls; a default-base session still refuses an unknown section", async ({ plantedTree, runCli }) => {
   const fixture = await fixtureServer();
   const root = await plantedTree({ "registry/.keep": "" });
-  const env = Object.fromEntries([["ORB_SNAP_SESSION_HOME", join(root, "registry")]]);
+  const env = Object.fromEntries([
+    ["ORB_SNAP_SESSION_HOME", join(root, "registry")],
+    [HOST_POOL_ROOT_ENV, join(root, "host-slots")],
+  ]);
   const snap = (args: readonly string[]): Promise<CliResult> => runCli("snap", args, { env, timeoutMs: CLI_BUDGET_MS });
   const bound = `p-route-bound-${process.pid}`;
   const orb = `p-route-orb-${process.pid}`;

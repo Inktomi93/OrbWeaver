@@ -53,7 +53,7 @@ function runFormat(write: boolean, explicit: readonly string[]): ExitCode {
   if (outcome.refused.length > 0) {
     warn(`${verb} — ${outcome.refused.length} file(s) REFUSED: formatting them would LOSE CONTENT (repair the markdown, not the formatter):`);
     for (const refusal of outcome.refused) {
-      warn(`  REFUSED ${refusal.file}\n    ${refusal.reason.split("\n").join("\n    ")}`);
+      warn(`  REFUSED ${refusal.file}\n    ${refusal.reason.split(/\r?\n/u).join("\n    ")}`);
     }
   }
   if (write) {

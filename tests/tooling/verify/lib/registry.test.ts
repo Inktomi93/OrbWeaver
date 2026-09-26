@@ -53,9 +53,9 @@ test("tests:tooling is a REAL stage at full — and at NO other tier", () => {
 test("the Bash guard has a floor below --full: syntax at STATIC, its pin at PUSH", () => {
   const syntax = stage("static", "lint:hook-syntax");
   expect(syntax.group).toBe("lint");
-  // a raw-bin argv, not `pnpm <script>`: `node --check` takes ONE file, so the family check is the loop
-  expect(syntax.argv[0]).toBe("bash");
-  expect(syntax.argv.join(" ")).toContain("node --check");
+  // a raw-bin argv, not `pnpm <script>`: `node --check` takes ONE file, so the family check is node's own loop
+  expect(syntax.argv.slice(0, 2)).toEqual(["node", "-e"]);
+  expect(syntax.argv.join(" ")).toContain('"--check"');
   expect(syntax.argv.join(" ")).toContain(".claude/hooks/*.mjs");
   expect(stagesForTier("push").some((row) => row.name === "lint:hook-syntax")).toBe(true);
 

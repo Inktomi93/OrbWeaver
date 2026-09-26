@@ -127,7 +127,7 @@ export function parseAriaSnapshot(snapshot: string): readonly AriaNode[] {
   const nodes: AriaNode[] = [];
   // Index = depth; value = the `role "name"` label contributed at that depth (absent for non-scoping roles).
   const openScopes: (string | undefined)[] = [];
-  for (const raw of snapshot.split("\n")) {
+  for (const raw of snapshot.split(/\r?\n/u)) {
     const trimmed = raw.trimStart();
     if (!trimmed.startsWith("- ")) {
       continue;

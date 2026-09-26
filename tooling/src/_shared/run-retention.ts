@@ -74,7 +74,7 @@ export function readPrunedRuns(base: string): readonly PrunedRun[] {
   // @orb-waive caught-failure-ownership(catch): no ledger yet means this instrument has pruned nothing here — the empty list is that answer at both call sites (the bounded rewrite, and the reader answering a citation). Ends if a caller must distinguish "never pruned" from "ledger unreadable".
   try {
     return readFileSync(join(base, PRUNE_LEDGER), "utf-8")
-      .split("\n")
+      .split(/\r?\n/u)
       .filter((line) => line !== "")
       .map((line) => JSON.parse(line) as PrunedRun);
   } catch {

@@ -72,7 +72,7 @@ export const gate = defineGate({
       }
       const file = ctx.relativePath(sf);
       const blanked = blankTsComments(sf);
-      for (const [index, line] of blanked.split("\n").entries()) {
+      for (const [index, line] of blanked.split(/\r?\n/u).entries()) {
         for (const { re, what } of MINT_PATTERNS) {
           const match = re.exec(line);
           if (match !== null) {

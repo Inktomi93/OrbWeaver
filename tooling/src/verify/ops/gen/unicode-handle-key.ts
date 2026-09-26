@@ -53,7 +53,7 @@ const HEX_RADIX = 16;
 // The data lines of a UCD file: comments and blanks gone, fields split on `;` and trimmed.
 function fields(text: string): readonly (readonly string[])[] {
   return text
-    .split("\n")
+    .split(/\r?\n/u)
     .map((line) => (line.split("#")[0] ?? "").trim())
     .filter((line) => line.length > 0)
     .map((line) => line.split(";").map((field) => field.trim()));
