@@ -308,11 +308,11 @@ function ConnectionBadges({ connection }: { readonly connection: ConnectionListI
           {label}
         </Badge>
       ))}
-      {connection.modelListed ? null : (
+      {connection.modelCheck === "unlisted" ? (
         <Badge intent="warning" size="sm" tone="soft">
           Model not in list
         </Badge>
-      )}
+      ) : null}
       {connection.allowBackground ? null : (
         <Badge intent="warning" size="sm" tone="soft">
           Background work off

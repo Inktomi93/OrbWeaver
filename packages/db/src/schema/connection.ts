@@ -27,10 +27,11 @@ import type {
   ConnectionTransportDoc,
   DeclaredCapability,
   LocalLightSeedSlot,
+  ModelCheck,
   PromptCacheSettings,
   ProviderId,
 } from "@orb/contracts/inference";
-import { CHAT_APIS, LOCAL_LIGHT_SEED_ROWS } from "@orb/contracts/inference";
+import { CHAT_APIS, LOCAL_LIGHT_SEED_ROWS, MODEL_CHECKS } from "@orb/contracts/inference";
 import type { ModelId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
@@ -79,8 +80,8 @@ export const userConnections = sqliteTable(
     extras: text("extras", { mode: "json" }).$type<ConnectionExtrasDoc>(),
     // The endpoint's request/response shaping — only on `auth: endpoint` rows.
     transport: text("transport", { mode: "json" }).$type<ConnectionTransportDoc>(),
-    // `true` when `model` came from the provider's list; `false` = the typed fallback (the pane says why).
-    modelListed: integer("model_listed", { mode: "boolean" }).notNull().default(true),
+    // What the provider's list said about `model` (`ModelCheck`); a row starts `unchecked` until a list answers.
+    modelCheck: text("model_check", { enum: MODEL_CHECKS }).$type<ModelCheck>().notNull().default("unchecked"),
     // May a `spend: "background"` task (summaries, captions, digests) run on this row unattended? (F5)
     allowBackground: integer("allow_background", { mode: "boolean" }).notNull().default(false),
     // The user's prompt-cache settings (`promptCacheSettingsSchema`, a CLOSED zod object, one owner, never queried
@@ -103,5 +104,6 @@ export const userConnections = sqliteTable(
     // The SET-NULL parent scan on a credential delete (`fk-columns-indexed` gate).
     index("user_connections_credential_idx").on(t.credentialId),
     check("user_connections_api_check", sql.raw(`api in (${checkList(CONNECTION_APIS)})`)),
+    check("user_connections_model_check_check", sql.raw(`model_check in (${checkList(MODEL_CHECKS)})`)),
   ],
 );

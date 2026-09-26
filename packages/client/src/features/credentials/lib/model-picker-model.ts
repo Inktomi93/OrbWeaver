@@ -7,10 +7,10 @@
 // through one shape. The device-local Recent MRU's persistence lives in `state/recent-models-store.ts`.
 //
 // THE TYPED-ID POLICY IS THE PROVIDER'S CATALOG STRATEGY (§7.4). A `url` catalog is a fetched list that can lag
-// the provider, so a typed id is always offered beside it and saved `modelListed: false`. A `builtin` catalog
+// the provider, so a typed id is always offered beside it and saved `unlisted`. A `builtin` catalog
 // IS the set the in-process runtime can run, so a typed id there names a model nothing can load.
 
-import type { ModelCatalogEntry, ModelListing, ProviderDef } from "@orb/contracts/inference";
+import type { ModelCatalogEntry, ModelCheck, ModelListing, ProviderDef } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 
 /** Where the picker's models come from, as the caller last saw it. `unlisted` is a source with no list to
@@ -356,11 +356,15 @@ export function typedModelAllowed(provider: Pick<ProviderDef, "catalog">): boole
   return provider.catalog === "url";
 }
 
-/** Whether the raw typed text came from the source's list — the connection's `modelListed` on save. Takes
- *  unvalidated form text, not a minted id (the picker mints `ModelId` only once a value is picked). */
-export function isListedModel(source: ModelCatalogSource, typedText: string): boolean {
+/** What the source's list says about the raw typed text — the connection's `modelCheck` on save. Only a list
+ *  that answered is a check; loading, failed and list-less sources are `unchecked`. Takes unvalidated form
+ *  text, not a minted id (the picker mints `ModelId` only once a value is picked). */
+export function modelCheckOf(source: ModelCatalogSource, typedText: string): ModelCheck {
   const id = typedText.trim();
-  return source.status === "listed" && id !== "" && source.models.some((entry) => entry.id === id);
+  if (source.status !== "listed" || id === "") {
+    return "unchecked";
+  }
+  return source.models.some((entry) => entry.id === id) ? "listed" : "unlisted";
 }
 
 /** Whitespace inside a typed term: a search of several words, never a model id. */
@@ -377,7 +381,7 @@ export function typedOption(args: { readonly term: string; readonly models: read
   return id;
 }
 
-/** §5.3a's `modelListed: false` sentence, verbatim, naming whose list the id was missing from. */
+/** §5.3a's unlisted-model sentence, verbatim, naming whose list the id was missing from. */
 export function unlistedModelSentence(listOwner: string): string {
   return `This model id wasn't in ${listOwner}'s list. It'll be sent as-is; if the server doesn't have it, turns will fail.`;
 }

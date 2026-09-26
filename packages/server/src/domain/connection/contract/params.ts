@@ -10,6 +10,7 @@ import type {
   ConnectionExtrasDoc,
   ConnectionTransportDoc,
   DeclaredCapability,
+  ModelCheck,
   PromptCacheSettings,
   ProviderDef,
   RoutableTask,
@@ -53,7 +54,7 @@ export interface ConnectionFields {
   readonly declared?: DeclaredCapability | null | undefined;
   readonly extras?: ConnectionExtrasDoc | null | undefined;
   readonly transport?: ConnectionTransportDoc | null | undefined;
-  readonly modelListed?: boolean | undefined;
+  readonly modelCheck?: ModelCheck | undefined;
   readonly allowBackground?: boolean | undefined;
   readonly promptCache?: PromptCacheSettings | null | undefined;
 }

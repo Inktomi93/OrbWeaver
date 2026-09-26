@@ -70,7 +70,7 @@ export function fakeConnection(overrides: ConnectionOverrides): UserConnection {
     declared: null,
     extras: null,
     transport: null,
-    modelListed: true,
+    modelCheck: "listed",
     allowBackground: false,
     promptCache: null,
     createdAt: FROZEN_NOW,

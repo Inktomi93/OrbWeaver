@@ -100,7 +100,7 @@ test("a full add mints the key, then creates the connection BY ID, and nothing h
   await expect
     .poll(() => trpc.inputs("connection.create"))
     .toEqual([
-      { providerId: "openrouter", credentialId: "user_credential_ctminted001", baseUrl: null, model: OPUS, allowBackground: false, modelListed: false },
+      { providerId: "openrouter", credentialId: "user_credential_ctminted001", baseUrl: null, model: OPUS, allowBackground: false, modelCheck: "unchecked" },
     ]);
   // The new row is on the pane, and no copy of the secret survives anywhere the page can reach.
   await expect(component.getByRole("button", { name: `OpenRouter · ${OPUS}`, exact: true })).toBeVisible();
@@ -127,7 +127,7 @@ function failFirstCreate(): TrpcResponder<"connection.create"> {
           credentialId: input.credentialId,
           baseUrl: input.baseUrl,
           model: input.model,
-          modelListed: input.modelListed ?? true,
+          modelCheck: input.modelCheck ?? "unchecked",
         });
   };
 }
@@ -199,7 +199,7 @@ test("a keyed endpoint's partial-failure retry keeps the list and saves the list
 
   await submit(dialog);
   await expect(dialog).toBeHidden();
-  await expect.poll(() => trpc.inputs("connection.create").map((input) => (input as { readonly modelListed: boolean }).modelListed)).toEqual([true, true]);
+  await expect.poll(() => trpc.inputs("connection.create").map((input) => (input as { readonly modelCheck: string }).modelCheck)).toEqual(["listed", "listed"]);
   await expect.poll(() => trpc.count("credentials.add")).toBe(1);
 });
 
@@ -476,7 +476,7 @@ test("an endpoint lists its models and the pick is saved as listed; a failed lis
   await expect(dialog).toBeHidden();
   await expect
     .poll(() => trpc.lastInput("connection.create"))
-    .toMatchObject({ providerId: "vllm", baseUrl: VLLM_URL, model: "Qwen/Qwen3-8B", modelListed: true });
+    .toMatchObject({ providerId: "vllm", baseUrl: VLLM_URL, model: "Qwen/Qwen3-8B", modelCheck: "listed" });
 
   // The second endpoint's box is down: the reason is shown and the id is typed.
   const second = await openAddDialog(page);
@@ -488,7 +488,7 @@ test("an endpoint lists its models and the pick is saved as listed; a failed lis
   await model.fill("Qwen/Qwen3-32B-AWQ");
   await submit(second);
   await expect(second).toBeHidden();
-  await expect.poll(() => trpc.lastInput("connection.create")).toMatchObject({ model: "Qwen/Qwen3-32B-AWQ", modelListed: false });
+  await expect.poll(() => trpc.lastInput("connection.create")).toMatchObject({ model: "Qwen/Qwen3-32B-AWQ", modelCheck: "unchecked" });
 });
 
 // THE BUILT-IN PROVIDER LISTS WHAT THIS DEVICE RUNS. Its catalog is closed, so the dialog reads it the moment
@@ -513,7 +513,7 @@ test("the built-in provider lists the models this device runs as soon as it is p
   await expect.poll(() => trpc.count("credentials.add")).toBe(0);
   await expect
     .poll(() => trpc.lastInput("connection.create"))
-    .toMatchObject({ providerId: "local-light", credentialId: null, baseUrl: null, model: "jinaai/jina-clip-v2", modelListed: true });
+    .toMatchObject({ providerId: "local-light", credentialId: null, baseUrl: null, model: "jinaai/jina-clip-v2", modelCheck: "listed" });
 });
 
 // A KEY BELONGS TO THE PROVIDER IT WAS PASTED FOR. Switching the provider empties the key and URL fields, so a key
@@ -561,7 +561,7 @@ test("a hosted draft lists its models under the pasted key, and the listed pick 
   await expect(dialog).toBeHidden();
   await expect
     .poll(() => trpc.lastInput("connection.create"))
-    .toMatchObject({ providerId: "openrouter", credentialId: "user_credential_ctminted001", model: OPUS, modelListed: true });
+    .toMatchObject({ providerId: "openrouter", credentialId: "user_credential_ctminted001", model: OPUS, modelCheck: "listed" });
   await expect(component.getByTestId("held-secrets")).toHaveText("0");
   await expect.poll(() => page.content()).not.toContain(SECRET);
 });
@@ -684,7 +684,7 @@ for (const { arm, width, device } of AUTHORING_ARMS) {
       await model.fill("claude-opus-5");
       await submit(dialog);
       await expect(dialog).toBeHidden();
-      await expect.poll(() => trpc.lastInput("connection.create")).toMatchObject({ providerId: "anthropic", model: "claude-opus-5", modelListed: false });
+      await expect.poll(() => trpc.lastInput("connection.create")).toMatchObject({ providerId: "anthropic", model: "claude-opus-5", modelCheck: "unchecked" });
     });
   });
 }

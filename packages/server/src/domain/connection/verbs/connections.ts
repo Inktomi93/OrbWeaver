@@ -10,7 +10,7 @@
 // column diff: the space is derived from the row's model AND its resolved capability, so a provider or
 // `declared` patch can move it without touching `model`, and an unrelated `declared` edit moves nothing.
 
-import type { ConnectionApi, ProviderDef, UserConnection } from "@orb/contracts/inference";
+import type { ConnectionApi, ModelCheck, ProviderDef, UserConnection } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES, connectionTasks, modelIdSchema, providerDisplayLabel } from "@orb/contracts/inference";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { ModelId, UserConnectionId, UserId } from "@orb/kit/ids";
@@ -43,7 +43,7 @@ function requireModelId(raw: string): ModelId {
 }
 
 /** A `builtin` catalog is the closed set the in-process runtime can load, so an id outside it can only be a
- *  typo; a `url` catalog can lag its provider and admits any id (saved `modelListed: false`, §7.4). */
+ *  typo; a `url` catalog can lag its provider and admits any id (§7.4). */
 function requireCatalogModel(ctx: ConnectionContext, ownerId: UserId, provider: ProviderDef, model: ModelId): void {
   const closed = ctx.runtime.catalogs.builtin(provider.id, ownerId);
   if (closed !== null && !closed.some((entry) => entry.id === model)) {
@@ -121,7 +121,7 @@ function createCreate(ctx: ConnectionContext): ConnectionService["create"] {
       declared: params.declared ?? null,
       extras: params.extras ?? null,
       transport: params.transport ?? null,
-      modelListed: params.modelListed ?? true,
+      modelCheck: params.modelCheck ?? "unchecked",
       allowBackground: params.allowBackground ?? false,
       promptCache: params.promptCache ?? null,
       createdAt: now,
@@ -134,6 +134,14 @@ function createCreate(ctx: ConnectionContext): ConnectionService["create"] {
     ctx.emitUserEvent(ownerId, { type: "connectionsChanged" });
     return toView(ctx, await requireOwnedRow(ctx, ownerId, id));
   };
+}
+
+/** A new model with no check of its own is `unchecked`: the stored answer was about the previous id. */
+function modelCheckPatch(row: UserConnection, model: ModelId, modelCheck: ModelCheck | undefined): Pick<Partial<UserConnection>, "modelCheck"> {
+  if (modelCheck !== undefined) {
+    return { modelCheck };
+  }
+  return model === row.model ? {} : { modelCheck: "unchecked" };
 }
 
 /** The columns a patch may write, re-validated against the row's (possibly patched) provider. */
@@ -166,7 +174,7 @@ async function validatedPatch(
     ...(patch.declared !== undefined ? { declared: patch.declared } : {}),
     ...(patch.extras !== undefined ? { extras: patch.extras } : {}),
     ...(patch.transport !== undefined ? { transport: patch.transport } : {}),
-    ...(patch.modelListed !== undefined ? { modelListed: patch.modelListed } : {}),
+    ...modelCheckPatch(row, model, patch.modelCheck),
     ...(patch.allowBackground !== undefined ? { allowBackground: patch.allowBackground } : {}),
     ...(patch.promptCache !== undefined ? { promptCache: patch.promptCache } : {}),
   };

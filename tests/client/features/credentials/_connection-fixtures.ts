@@ -88,7 +88,7 @@ export function connectionRow(over: Partial<ConnectionRow> = {}): ConnectionRow 
     declared: null,
     extras: null,
     transport: null,
-    modelListed: true,
+    modelCheck: "listed",
     allowBackground: false,
     promptCache: null,
     tasks: ["chat", "agent", "summarize", "structured"],
@@ -141,7 +141,7 @@ export async function stubConnectionsPane(page: Page, opts: PaneStubOptions = {}
       credentialId: input.credentialId,
       baseUrl: input.baseUrl,
       model: input.model,
-      modelListed: input.modelListed ?? true,
+      modelCheck: input.modelCheck ?? "unchecked",
       allowBackground: input.allowBackground ?? false,
     });
     connections.push(row);

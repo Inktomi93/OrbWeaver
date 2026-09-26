@@ -424,7 +424,7 @@ describe("a plugin provider is scoped to the owners of its enabled installs", ()
       declared: null,
       extras: null,
       transport: null,
-      modelListed: true,
+      modelCheck: "listed",
       allowBackground: true,
       createdAt: FROZEN_AT_MS,
       updatedAt: FROZEN_AT_MS,

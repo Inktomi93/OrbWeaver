@@ -247,7 +247,7 @@ interface CreatedConnection {
  * `metadata` and called `credentials.setActive`; both are gone — a credential is now a sealed secret with a
  * label, and WHICH key resolves is the connection's decision, so there is no `active` axis to set.)
  *
- * `modelListed: false` because nothing dialled the endpoint's `/v1/models` for this id — `model` is a bare
+ * No model check because nothing dialled the endpoint's `/v1/models` for this id — `model` is a bare
  * label here, exactly as before (the openai-compat runner reads capabilities, not a baked model).
  */
 export async function configureCustomProvider(host: ActorClient, baseUrl: string, model: string): Promise<void> {
@@ -257,7 +257,6 @@ export async function configureCustomProvider(host: ActorClient, baseUrl: string
     credentialId: null,
     baseUrl,
     model,
-    modelListed: false,
   };
   const connection = await host.mutation<CreatedConnection>("connection.create", input);
   await host.mutation("connection.setBinding", { task: "chat", connectionId: connection.id });

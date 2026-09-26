@@ -2,7 +2,7 @@
 // Board A): the saved-on-blur text field the URL and the auto-minted name both use, and the MODEL field over
 // the shared ModelPicker. Split out of `connection-editor.tsx` at the `component-size` cap.
 
-import type { ProviderDef } from "@orb/contracts/inference";
+import type { ModelCheck, ProviderDef } from "@orb/contracts/inference";
 import type { UserConnectionId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
@@ -13,7 +13,7 @@ import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useTRPC } from "#data";
 import { modelIdExample } from "../lib/add-connection-form-model.ts";
-import { failedCatalogSource, isListedModel, modelListSource, typedModelAllowed } from "../lib/model-picker-model.ts";
+import { failedCatalogSource, modelCheckOf, modelListSource, typedModelAllowed } from "../lib/model-picker-model.ts";
 import type { ModelPickerProps } from "./model-picker.tsx";
 import { ModelPicker } from "./model-picker.tsx";
 
@@ -52,13 +52,13 @@ export function SavedTextField({
 }
 
 /** The MODEL field: the shared {@link ModelPicker} over this row's own list (`connection.catalogModels`). A list
- *  pick saves at once; a typed id saves when focus leaves the field, never per keystroke. `modelListed` is
- *  what the list says about the saved id, so once the list has been read a stored flag it contradicts is
+ *  pick saves at once; a typed id saves when focus leaves the field, never per keystroke. `modelCheck` is
+ *  what the list says about the saved id, so once the list has answered a stored check it contradicts is
  *  corrected, and a failed read corrects nothing: it is not a check. */
 export function ModelField({
   connectionId,
   model,
-  modelListed,
+  modelCheck,
   listOwner,
   provider,
   busy,
@@ -66,12 +66,12 @@ export function ModelField({
 }: {
   readonly connectionId: UserConnectionId;
   readonly model: string;
-  readonly modelListed: boolean;
+  readonly modelCheck: ModelCheck;
   /** Whose list this is, in the user's words — an endpoint's host, or the provider's label. */
   readonly listOwner: string;
   readonly provider: ProviderDef | undefined;
   readonly busy: boolean;
-  readonly onCommit: (next: string, listed: boolean) => void;
+  readonly onCommit: (next: string, check: ModelCheck) => void;
 }): ReactElement {
   const trpc = useTRPC();
   // NON-suspense on purpose: a catalog read DIALS the provider (or the user's own box), and a failed dial is
@@ -81,8 +81,9 @@ export function ModelField({
     catalog.refetch().catch(() => undefined); // the query's own error state carries the failure
   };
   const source = catalogSource(catalog, recheck);
-  const listedNow = isListedModel(source, model);
-  const listRead = source.status === "listed" && source.models.length > 0;
+  const checkNow = modelCheckOf(source, model);
+  // The searchable list is on screen; an empty answer renders the typed field instead.
+  const listShown = source.status === "listed" && source.models.length > 0;
 
   // The draft follows the saved row: an outside save (another tab, a list pick here) replaces it.
   const [draft, setDraft] = useState(model);
@@ -95,7 +96,7 @@ export function ModelField({
   const commit = (next: string): void => {
     const id = next.trim();
     if (id !== "" && id !== model) {
-      onCommit(id, isListedModel(source, id));
+      onCommit(id, modelCheckOf(source, id));
     }
   };
 
@@ -103,11 +104,11 @@ export function ModelField({
   const correctedFor = useRef<number | null>(null);
   const answeredAt = catalog.dataUpdatedAt;
   useEffect(() => {
-    if (listRead && !busy && listedNow !== modelListed && correctedFor.current !== answeredAt) {
+    if (checkNow !== "unchecked" && !busy && checkNow !== modelCheck && correctedFor.current !== answeredAt) {
       correctedFor.current = answeredAt;
-      onCommit(model, listedNow);
+      onCommit(model, checkNow);
     }
-  }, [listRead, busy, listedNow, modelListed, model, onCommit, answeredAt]);
+  }, [busy, checkNow, modelCheck, model, onCommit, answeredAt]);
 
   return (
     <Stack
@@ -126,7 +127,7 @@ export function ModelField({
         onValueChange={(next): void => {
           setDraft(next);
           // A list pick (a row, Enter, or "use as typed") is one deliberate choice: save it now.
-          if (listRead) {
+          if (listShown) {
             commit(next);
           }
         }}
@@ -136,7 +137,7 @@ export function ModelField({
         typedAllowed={provider === undefined || typedModelAllowed(provider)}
         value={draft}
       />
-      {listRead && !listedNow ? (
+      {checkNow === "unlisted" ? (
         <Row gap="field">
           <Button disabled={catalog.isFetching} intent="secondary" onClick={recheck} size="sm">
             Check the list again

@@ -347,8 +347,9 @@ export interface NewConnection {
   readonly credentialId: UserCredentialId | null;
   readonly baseUrl: string | null;
   readonly model: string;
-  /** `false` = the id was typed, not taken from the endpoint's list (§7.4's honest fallback). */
-  readonly modelListed?: boolean;
+  /** What the endpoint's list said about the id; omitted = `unchecked`. `string`, not the homed `MODEL_CHECKS`
+   *  union, under this module's package-import-free mirror rule. */
+  readonly modelCheck?: string;
   /** Required before a `spend: "background"` task (`summarize`, the vector tasks) may be bound (F5). */
   readonly allowBackground?: boolean;
 }
