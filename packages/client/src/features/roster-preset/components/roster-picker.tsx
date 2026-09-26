@@ -207,29 +207,33 @@ function SaveCurrentRoster(props: {
   const { capture, game, presetOf } = props;
   return (
     <Stack gap="tight">
-      <Row align="center" gap="field">
-        <Input
-          aria-label="New roster name"
-          placeholder="Name this roster…"
-          value={name}
-          onChange={(e): void => setName(e.target.value)}
-          className="min-w-0 flex-1"
-        />
-        <Button
-          aria-describedby={INCLUDE_LINE_ID}
-          className="shrink-0"
-          disabled={props.busy || trimmed.length === 0 || capture.status !== "ready" || game.status === "loading"}
-          intent="outline"
-          size="sm"
-          onClick={(): void => {
-            props.onSave(trimmed, campaign && game.status === "ready" ? game.template : null);
-            setName("");
-          }}
-        >
-          <Icon icon={Users} size="sm" />
-          Save this room's roster
-        </Button>
-      </Row>
+      {/* Its own container: below `@md` the name and the Save button stack, so the input keeps its width. */}
+      <Stack className="@container">
+        <Row align="center" gap="field" className="@max-md:flex-col @max-md:items-stretch">
+          <Input
+            aria-label="New roster name"
+            placeholder="Name this roster…"
+            value={name}
+            onChange={(e): void => setName(e.target.value)}
+            // Stacked, a zero-basis `flex-1` would collapse the input's height on the column axis.
+            className="min-w-0 flex-1 @max-md:flex-none"
+          />
+          <Button
+            aria-describedby={INCLUDE_LINE_ID}
+            className="shrink-0"
+            disabled={props.busy || trimmed.length === 0 || capture.status !== "ready" || game.status === "loading"}
+            intent="outline"
+            size="sm"
+            onClick={(): void => {
+              props.onSave(trimmed, campaign && game.status === "ready" ? game.template : null);
+              setName("");
+            }}
+          >
+            <Icon icon={Users} size="sm" />
+            Save this room's roster
+          </Button>
+        </Row>
+      </Stack>
       {/* WHY THE BUTTON IS DIM, SAID OUT LOUD (#848). "Save this room's roster" is disabled until the field
           carries a name, and nothing on screen said so — a host read a permanently-dead control beside an
           empty box (side-eye 2026-08-30). The line appears only in the state it explains, and only when
