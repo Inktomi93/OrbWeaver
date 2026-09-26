@@ -246,18 +246,18 @@ export const gate = defineGate({
             SyntaxKind.BinaryExpression,
           ],
           visit: (node) => {
-            const inferredGenericShape = belongsToInferredGenericCallShape(node, ctx);
-            for (const expression of contextualExpressions(node)) {
-              const read = readContextualZodOutputTwin(expression);
-              // An exact contextual type inferred from the same schema expression is generic construction
-              // plumbing, not a second owner. Any mismatch remains visible, as does every explicit generic
-              // instantiation whose type argument supplies a concrete independent target.
-              if (inferredGenericShape) {
-                continue;
-              }
-              if (read.kind !== "none") {
-                contextualSites += 1;
-              }
+            // Read before resolving the enclosing call: almost no site pairs, and signature resolution dominates the cost.
+            const reads = contextualExpressions(node)
+              .map((expression) => readContextualZodOutputTwin(expression))
+              .filter((read) => read.kind !== "none");
+            // An exact contextual type inferred from the same schema expression is generic construction
+            // plumbing, not a second owner. Any mismatch remains visible, as does every explicit generic
+            // instantiation whose type argument supplies a concrete independent target.
+            if (reads.length === 0 || belongsToInferredGenericCallShape(node, ctx)) {
+              return;
+            }
+            for (const read of reads) {
+              contextualSites += 1;
               consume(read);
             }
           },
@@ -268,21 +268,23 @@ export const gate = defineGate({
             if (!Node.isCallExpression(node)) {
               return;
             }
+            // Read before resolving the signature: almost no argument pairs, and signature resolution dominates the cost.
+            const reads = node
+              .getArguments()
+              .flatMap((argument, index) => (Node.isExpression(argument) ? [{ index, read: readContextualZodOutputTwin(argument) }] : []))
+              .filter(({ read }) => read.kind !== "none");
+            if (reads.length === 0) {
+              return;
+            }
             const declaration = ctx.checker().getResolvedSignature(node)?.getDeclaration();
             if (declaration === undefined) {
               return;
             }
-            for (const [index, argument] of node.getArguments().entries()) {
-              if (!Node.isExpression(argument)) {
-                continue;
-              }
-              const read = readContextualZodOutputTwin(argument);
+            for (const { index, read } of reads) {
               if (argumentDerivesOwnerTypeParameter(node, declaration, index)) {
                 continue;
               }
-              if (read.kind !== "none") {
-                contextualSites += 1;
-              }
+              contextualSites += 1;
               consume(read);
             }
           },
