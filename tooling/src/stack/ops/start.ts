@@ -29,9 +29,8 @@
 //
 // FULL PRIORITY, deliberately (policy `tooling-child-process-door`, reviewed grant
 // `tooling-child-process-door:stack-start`): the child spawned here IS the application serving the
-// operator's requests, and the browser opener's child becomes the browser they use it in — a niced opener
-// would hand its priority to a browser it starts. The niced doors are also structurally unavailable — they
-// exec the POSIX `nice` binary, which does not exist on Windows.
+// operator's requests. The niced doors are also structurally unavailable — they exec the POSIX `nice`
+// binary, which does not exist on Windows.
 import { hostname, networkInterfaces } from "node:os";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -42,7 +41,6 @@ import { EXIT } from "../../_shared/exit-contract.ts";
 import { httpOk } from "../../_shared/http-probe.ts";
 import { warn } from "../../_shared/log.ts";
 import { isWsl2, openUrl, pnpmInvocation } from "../../_shared/platform.ts";
-import type { FullPriorityChild } from "../../_shared/proc.ts";
 import { spawnFullPriorityChild, spawnFullPrioritySync } from "../../_shared/proc.ts";
 import type { SetupMachine, SetupResult, StartInvocation, StartSpawn } from "../contract/types.ts";
 import { CLIENT_DIST_INDEX_REL } from "../lib/spawn-plan.ts";
@@ -176,24 +174,12 @@ async function served(port: number, alive: AbortSignal): Promise<boolean> {
   return false;
 }
 
-/** Open the app in the default browser and report an opener that could not run. The opener runs detached from this
- *  terminal on POSIX, so the Ctrl-C that stops the server never reaches a browser it starts; on win32 `detached` would
- *  open a second console, and the browser `start` launches is not attached to this one. A missing opener (a box with
- *  no desktop) is a notice, never a crash: the banner already printed the address. */
+/** Open the app in the default browser; an opener that could not run is a notice, because the banner already printed
+ *  the address. */
 async function openApp(url: string): Promise<void> {
-  const launched: FullPriorityChild[] = [];
-  openUrl(url, {
-    launch: (command, args) => {
-      const child = spawnFullPriorityChild(command, args, { stdio: "ignore", detached: process.platform !== "win32" });
-      launched.push(child);
-      return child;
-    },
-  });
-  for (const child of launched) {
-    const exit = await child.wait();
-    if (exit.error !== undefined) {
-      warn(`start: could not open a browser (${exit.error.message}); open ${url} yourself.`);
-    }
+  const error = await openUrl(url);
+  if (error !== undefined) {
+    warn(`start: could not open a browser (${error.message}); open ${url} yourself.`);
   }
 }
 

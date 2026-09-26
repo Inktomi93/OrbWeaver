@@ -50,6 +50,8 @@ const LOOPBACK_BIND = "127.0.0.1";
 export const OPEN_BROWSER_KEY = "OPEN_BROWSER";
 const OPEN_BROWSER_ON = "on";
 const OPEN_BROWSER_OFF = "off";
+/** The variables an SSH server sets in a remote session: a browser opened there would open on the remote machine. */
+const SSH_SESSION_KEYS = ["SSH_CONNECTION", "SSH_TTY"] as const;
 
 /** The server's switch that stops `.env` overriding the process env (foundation/env reads it at load). */
 const ENV_NO_OVERRIDE = "ORB_ENV_NO_OVERRIDE";
@@ -257,7 +259,8 @@ export function startAppUrl(port: number): string {
 }
 
 /** Does this invocation open the app in the default browser once the server answers? Only a start with a person at
- *  the terminal does: a service manager, a CI job or a pipe has no one to show a tab to. An unset or empty setting is
+ *  the terminal of this machine does: a service manager, a CI job or a pipe has no one to show a tab to, and an SSH
+ *  session's person sits at another machine. An unset or empty setting is
  *  `on`; a value that is neither is refused rather than read as either, so a typo cannot open a browser on a box
  *  whose owner meant to turn it off. */
 export function startBrowser(opts: {
@@ -275,7 +278,8 @@ export function startBrowser(opts: {
       reason: `${OPEN_BROWSER_KEY}=${declared} is neither ${OPEN_BROWSER_ON} nor ${OPEN_BROWSER_OFF}, so no browser was opened. Set ${OPEN_BROWSER_KEY}=${OPEN_BROWSER_OFF} in .env to stop this message.`,
     };
   }
-  return opts.interactive ? { kind: "open" } : { kind: "skip" };
+  const overSsh = SSH_SESSION_KEYS.some((key) => (opts.ambient[key] ?? "") !== "");
+  return opts.interactive && !overSsh ? { kind: "open" } : { kind: "skip" };
 }
 
 /** WHO CAN LOG IN, in one line. `single-user` is the default mode and the one whose reach surprises

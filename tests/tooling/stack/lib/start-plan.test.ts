@@ -162,6 +162,13 @@ test("the browser setting in .env wins over the shell, and an empty one is on", 
   expect(startBrowser({ interactive: true, fileEnv: parseEnv(`${OPEN_BROWSER_KEY}=\n`), ambient: {} })).toEqual({ kind: "open" });
 });
 
+test("a start over SSH opens no browser: the terminal is on another machine, and so is the person", () => {
+  for (const key of ["SSH_CONNECTION", "SSH_TTY"]) {
+    expect(startBrowser({ interactive: true, fileEnv: {}, ambient: env([key, "10.0.0.2 51000 10.0.0.1 22"]) }), key).toEqual({ kind: "skip" });
+  }
+  expect(startBrowser({ interactive: true, fileEnv: {}, ambient: env(["SSH_CONNECTION", ""]) })).toEqual({ kind: "open" });
+});
+
 /** `pnpm start --share`'s launch from a `.env` text, the way ops/start.ts builds each spawn. */
 function launchFrom(text: string, share: boolean, ambient = env(["PATH", "/bin"], ["AUTH_MODE", "oidc"])): ReturnType<typeof startLaunch> {
   return startLaunch({
