@@ -18,6 +18,8 @@ export const useCreateRosterPreset = createEntityMutation<inferInput<Trpc["roste
 
 export const useUpdateRosterPreset = createEntityMutation<inferInput<Trpc["rosterPreset"]["update"]>, RosterPresetView>({
   options: (trpc) => trpc.rosterPreset.update.mutationOptions(),
+  // The response is the full detail `rosterPreset.get` serves, so the editor shows its own write at once.
+  echo: (trpc, vars) => trpc.rosterPreset.get.queryKey({ presetId: vars.presetId }),
   busDriven: true, // emits `rosterPresetsChanged` → USER_BUS_FILTERS covers rosterPreset.path.
   errorToast: "Couldn't save the roster.",
 });
