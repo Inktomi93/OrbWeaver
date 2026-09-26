@@ -14,6 +14,7 @@ import {
   connectionRefSchema,
   connectionTransportSchema,
   declaredCapabilitySchema,
+  modelCheckSchema,
   modelIdSchema,
   modelListingSchema,
   promptCacheSettingsSchema,
@@ -41,7 +42,7 @@ const connectionFields = z.object({
   declared: declaredCapabilitySchema.nullable().optional(),
   extras: connectionExtrasSchema.nullable().optional(),
   transport: connectionTransportSchema.nullable().optional(),
-  modelListed: z.boolean().optional(),
+  modelCheck: modelCheckSchema.optional(),
   allowBackground: z.boolean().optional(),
   promptCache: promptCacheSettingsSchema.nullable().optional(),
 });

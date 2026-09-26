@@ -33,7 +33,7 @@ async function seedRow(db: Db, id: UserConnectionId, ownerId: UserId, label: str
     declared: null,
     extras: null,
     transport: null,
-    modelListed: true,
+    modelCheck: "listed",
     allowBackground: false,
     createdAt: FROZEN_AT_MS,
     updatedAt: FROZEN_AT_MS,

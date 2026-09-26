@@ -17,7 +17,7 @@
 // (the submit may go disabled under the caret, and on a phone the statement is below the fold), and it is
 // withdrawn at the first edit, because it describes the draft that was submitted, not the one being typed.
 
-import type { ProviderDef } from "@orb/contracts/inference";
+import type { ModelCheck, ProviderDef } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import { Button } from "@orb/ui/button";
 import { DialogClose } from "@orb/ui/dialog";
@@ -50,7 +50,7 @@ import {
   URL_REFUSAL_CODES,
 } from "../lib/add-connection-form-model.ts";
 import { providerPickerItems } from "../lib/connections-model.ts";
-import { failedCatalogSource, isListedModel, modelListSource } from "../lib/model-picker-model.ts";
+import { failedCatalogSource, modelCheckOf, modelListSource } from "../lib/model-picker-model.ts";
 import { AddConnectionFailure } from "./add-connection-failure.tsx";
 import type { HeldKey } from "./add-connection-provider-fields.tsx";
 import { ProviderFields } from "./add-connection-provider-fields.tsx";
@@ -149,7 +149,7 @@ function connectionInput(args: {
   readonly provider: ProviderDef;
   readonly values: AddConnectionFormValues;
   readonly credentialId: CredentialView["id"] | null;
-  readonly modelListed: boolean;
+  readonly modelCheck: ModelCheck;
 }): CreateConnectionInput {
   const { provider, values } = args;
   const label = values.label.trim();
@@ -161,7 +161,7 @@ function connectionInput(args: {
     ...(label !== "" ? { label } : {}),
     ...(values.api === "auto" ? {} : { api: values.api as ProviderDef["apis"][number] }),
     allowBackground: values.allowBackground,
-    modelListed: args.modelListed,
+    modelCheck: args.modelCheck,
   };
 }
 
@@ -241,10 +241,10 @@ function AddConnectionFormBody({ trpc, invalidation, onDone, pickerItems, provid
     }
     setSubmitFailure(null);
     // Read before the mint: the mint clears the key, which is half of the endpoint listing's draft key.
-    const modelListed = isListedModel(modelSourceFor(provider, values), values.model);
+    const modelCheck = modelCheckOf(modelSourceFor(provider, values), values.model);
     const credential = await credentialFor(provider, values);
     try {
-      await createConnection.mutateAsync(connectionInput({ provider, values, credentialId: credential?.id ?? null, modelListed }));
+      await createConnection.mutateAsync(connectionInput({ provider, values, credentialId: credential?.id ?? null, modelCheck }));
     } catch (err) {
       if (URL_REFUSAL_CODES.has(trpcErrorReason(err))) {
         markUrlRefused(errorMessage(err));
@@ -252,7 +252,7 @@ function AddConnectionFormBody({ trpc, invalidation, onDone, pickerItems, provid
       throw err;
     }
     // Recent holds models a connection was SAVED with, from the list; a pick alone never reorders the list.
-    if (modelListed) {
+    if (modelCheck === "listed") {
       pushRecentModel(provider.id, values.model.trim());
     }
     onDone();

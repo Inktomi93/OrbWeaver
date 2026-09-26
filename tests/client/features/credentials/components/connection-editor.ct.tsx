@@ -81,7 +81,7 @@ function connectionRow(over: Partial<ConnectionRow> = {}): ConnectionRow {
     // suppression-free spelling the house already uses for foreign vocabularies.
     extras: { ["top_k"]: 40, stream: false },
     transport: null,
-    modelListed: false,
+    modelCheck: "unchecked",
     allowBackground: true,
     promptCache: null,
     tasks: ["chat", "agent", "summarize", "structured"],
@@ -121,15 +121,20 @@ async function stubEditor(
     readonly catalogModels?: TrpcResponder<"connection.catalogModels">;
   } = {},
 ): Promise<TrpcRecorder> {
+  // The row the server holds: a saved model and check land on it, so the refetch after a save reads them.
+  let row = opts.connection ?? connectionRow();
   return await routeTrpc(page, {
     "sessions.me": () => ({ userId: "user_ct_editor", handle: "owner", globalRole: opts.role ?? "owner" }),
-    "connection.get": () => opts.connection ?? connectionRow(),
+    "connection.get": () => row,
     "connection.providersAvailable": () => [{ provider: VLLM_PROVIDER, available: true }],
     "connection.capabilities": () => opts.capabilities ?? CONNECTION_CAPABILITIES,
-    // An empty catalog is the TYPED-ID arm — which is what `modelListed: false` is about.
+    // A list that answers nothing is the TYPED-ID arm, and it is not a check of the saved model.
     "connection.catalogModels":
       opts.catalogModels ?? ((): TrpcWireOutput<"connection.catalogModels"> => ({ listed: false, reason: "the provider listed no models" })),
-    "connection.update": () => opts.connection ?? connectionRow(),
+    "connection.update": ({ patch }) => {
+      row = { ...row, model: patch.model ?? row.model, modelCheck: patch.modelCheck ?? row.modelCheck };
+      return row;
+    },
     "connection.probe": () => ({ status: "unreachable", checkedAt: 0, reason: "connect ECONNREFUSED" }),
     "settings.getAppSettingsWithOverrides": () => ({
       resolved: { privateEndpointAllowlist: opts.allowlist ?? [] },
@@ -196,7 +201,7 @@ const SAVED_MODEL = "Qwen/Qwen3-32B";
 
 test("a listed catalog shows the searchable list with the saved model picked, and a pick saves it as listed", async ({ mount, page }) => {
   const trpc = await stubEditor(page, {
-    connection: connectionRow({ modelListed: true }),
+    connection: connectionRow({ modelCheck: "listed" }),
     catalogModels: catalogOf([catalogEntry(SAVED_MODEL), catalogEntry("Qwen/Qwen3-8B")]),
   });
   const component = await mount(<ConnectionEditorStory />);
@@ -206,44 +211,58 @@ test("a listed catalog shows the searchable list with the saved model picked, an
   await expect(component.getByRole("button", { name: "Check the list again" })).toHaveCount(0);
 
   await component.getByRole("option", { name: /Qwen\/Qwen3-8B/ }).click();
-  await expect.poll(() => trpc.lastInput("connection.update")).toEqual({ connectionId: CONNECTION_ID, patch: { model: "Qwen/Qwen3-8B", modelListed: true } });
+  await expect
+    .poll(() => trpc.lastInput("connection.update"))
+    .toEqual({ connectionId: CONNECTION_ID, patch: { model: "Qwen/Qwen3-8B", modelCheck: "listed" } });
 });
 
-test("a saved model the list does not carry is flagged under the list, and the re-check reads the list again", async ({ mount, page }) => {
-  const trpc = await stubEditor(page, { connection: connectionRow({ modelListed: false }), catalogModels: catalogOf([catalogEntry("Qwen/Qwen3-8B")]) });
+test("an unchecked model the list does not carry is saved as unlisted, and the re-check reads the list again", async ({ mount, page }) => {
+  const trpc = await stubEditor(page, { connection: connectionRow({ modelCheck: "unchecked" }), catalogModels: catalogOf([catalogEntry("Qwen/Qwen3-8B")]) });
   const component = await mount(<ConnectionEditorStory />);
 
   await expect(component.locator('[data-slot="model-picker-picked"]')).toContainText(SAVED_MODEL);
+  await expect.poll(() => trpc.lastInput("connection.update")).toEqual({ connectionId: CONNECTION_ID, patch: { model: SAVED_MODEL, modelCheck: "unlisted" } });
   const recheck = component.getByRole("button", { name: "Check the list again" });
   await expect(recheck).toBeVisible();
-  await expect.poll(() => trpc.count("connection.catalogModels")).toBe(1);
-  await recheck.click();
+  // The save's invalidation reads the list once more; the stored check then agrees, so nothing writes again.
   await expect.poll(() => trpc.count("connection.catalogModels")).toBe(2);
-  // The stored flag already says unlisted, so the check writes nothing.
+  await recheck.click();
+  await expect.poll(() => trpc.count("connection.catalogModels")).toBe(3);
+  await expect.poll(() => trpc.count("connection.update")).toBe(1);
+});
+
+test("a stored check the list agrees with writes nothing", async ({ mount, page }) => {
+  const trpc = await stubEditor(page, { connection: connectionRow({ modelCheck: "unlisted" }), catalogModels: catalogOf([catalogEntry("Qwen/Qwen3-8B")]) });
+  const component = await mount(<ConnectionEditorStory />);
+
+  await expect(component.getByRole("button", { name: "Check the list again" })).toBeVisible();
+  await expect.poll(() => trpc.count("connection.catalogModels")).toBe(1);
   await expect.poll(() => trpc.count("connection.update")).toBe(0);
 });
 
-test("a stored flag the list contradicts is corrected once the list has been read, in both directions", async ({ mount, page }) => {
-  const trpc = await stubEditor(page, { connection: connectionRow({ modelListed: false }), catalogModels: catalogOf([catalogEntry(SAVED_MODEL)]) });
+test("a stored check the list contradicts is corrected once the list has been read", async ({ mount, page }) => {
+  const trpc = await stubEditor(page, { connection: connectionRow({ modelCheck: "unlisted" }), catalogModels: catalogOf([catalogEntry(SAVED_MODEL)]) });
   await mount(<ConnectionEditorStory />);
 
-  await expect.poll(() => trpc.lastInput("connection.update")).toEqual({ connectionId: CONNECTION_ID, patch: { model: SAVED_MODEL, modelListed: true } });
+  await expect.poll(() => trpc.lastInput("connection.update")).toEqual({ connectionId: CONNECTION_ID, patch: { model: SAVED_MODEL, modelCheck: "listed" } });
 });
 
-test("a failed list falls back to the typed id, which saves unlisted when the field loses focus, and never per keystroke", async ({ mount, page }) => {
-  const trpc = await stubEditor(page, { connection: connectionRow({ modelListed: true }), catalogModels: trpcError({ message: "connect ECONNREFUSED" }) });
+test("a failed list keeps the stored check; a typed id saves unchecked when the field loses focus, never per keystroke", async ({ mount, page }) => {
+  const trpc = await stubEditor(page, { connection: connectionRow({ modelCheck: "listed" }), catalogModels: trpcError({ message: "connect ECONNREFUSED" }) });
   const component = await mount(<ConnectionEditorStory />);
 
   const typed = component.getByRole("textbox", { name: "Model" });
   await expect(typed).toHaveValue(SAVED_MODEL);
   await expect(component.getByRole("button", { name: "Try the list again" })).toBeVisible();
-  // A failed read is not a check: the stored flag is left alone.
+  await expect.poll(() => trpc.count("connection.catalogModels")).toBe(1);
   await expect.poll(() => trpc.count("connection.update")).toBe(0);
 
   await typed.fill("Qwen/Qwen3-72B");
   await expect.poll(() => trpc.count("connection.update")).toBe(0);
   await component.getByRole("textbox", { name: "Name" }).focus();
-  await expect.poll(() => trpc.lastInput("connection.update")).toEqual({ connectionId: CONNECTION_ID, patch: { model: "Qwen/Qwen3-72B", modelListed: false } });
+  await expect
+    .poll(() => trpc.lastInput("connection.update"))
+    .toEqual({ connectionId: CONNECTION_ID, patch: { model: "Qwen/Qwen3-72B", modelCheck: "unchecked" } });
   await expect.poll(() => trpc.count("connection.update")).toBe(1);
 });
 

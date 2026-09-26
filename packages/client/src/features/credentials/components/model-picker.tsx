@@ -23,7 +23,7 @@
 //
 // THE PICKED VALUE IS SPOKEN BELOW THE LIST, NOT BY THE ROW. cmdk's `aria-selected` is its roving highlight,
 // not the chosen value; the chosen row carries a badge and the status line names the pick in words (with
-// §5.3a's `modelListed: false` sentence when the pick is typed).
+// §5.3a's unlisted-model sentence when the pick is typed).
 
 import type { ModelCatalogEntry } from "@orb/contracts/inference";
 import type { ModelId } from "@orb/kit/ids";
@@ -48,7 +48,7 @@ import { ToggleGroup } from "@orb/ui/toggle-group";
 import type { KeyboardEvent, PointerEvent, ReactElement } from "react";
 import { useDeferredValue, useEffect, useId, useRef, useState } from "react";
 import { useRecentModels } from "#state";
-import type { isListedModel, ModelPickerView, PickerEntry } from "../lib/model-picker-model.ts";
+import type { ModelPickerView, modelCheckOf, PickerEntry } from "../lib/model-picker-model.ts";
 import {
   filterByChips,
   groupModelEntries,
@@ -83,7 +83,7 @@ function modelIdOf(highlight: string): string {
 }
 
 /** The source shape, derived from the lib that owns it (a feature `lib/` exports no type aliases). */
-type ModelCatalogSource = Parameters<typeof isListedModel>[0];
+type ModelCatalogSource = Parameters<typeof modelCheckOf>[0];
 
 export interface ModelPickerProps {
   readonly source: ModelCatalogSource;

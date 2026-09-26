@@ -22,7 +22,7 @@ const ROW = {
   declared: null,
   extras: null,
   transport: null,
-  modelListed: true,
+  modelCheck: "listed",
   allowBackground: false,
   promptCache: null,
   createdAt: 1,

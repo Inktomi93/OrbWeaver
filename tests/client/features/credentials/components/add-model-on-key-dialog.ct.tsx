@@ -7,7 +7,7 @@
 //   • THE ACTION IS OFFERED ONLY WHERE IT CAN WORK, in the words of what the new row shares (key, server, or
 //     only the built-in provider), and a hosted row whose key is gone does not offer it.
 //   • THE NEW ROW COPIES provider, key, URL and api from the saved one; only the model is picked, and
-//     `modelListed` says whether it came from the list.
+//     `modelCheck` says what the list said about it.
 //   • THE PICKER'S STATES at 870, 486 and a phone: skeleton rows while loading, the empty list, the failed read
 //     with its retry, a keyboard pick, and the typed id where policy permits it — and none where it does not.
 //   • A PICK MOVES NOTHING. Recent is written when the connection is saved, the sections keep their order, and
@@ -129,7 +129,7 @@ test("the new row copies provider, key, URL and api from the saved one; a keyboa
       transport: null,
       model: "anthropic/claude-sonnet-5",
       allowBackground: false,
-      modelListed: true,
+      modelCheck: "listed",
     });
   await expect.poll(() => trpc.count("credentials.add")).toBe(0);
 });
@@ -356,7 +356,7 @@ for (const { arm, width, device } of AUTHORING_ARMS) {
       await model.fill("openai/gpt-6");
       await dialog.getByRole("button", { name: "Add connection" }).click();
       await expect(dialog).toBeHidden();
-      await expect.poll(() => trpc.lastInput("connection.create")).toMatchObject({ model: "openai/gpt-6", modelListed: false });
+      await expect.poll(() => trpc.lastInput("connection.create")).toMatchObject({ model: "openai/gpt-6", modelCheck: "unchecked" });
     });
 
     test(`${arm}: error — a failed read names its cause and retries in place`, async ({ mount, page }) => {
@@ -389,7 +389,7 @@ for (const { arm, width, device } of AUTHORING_ARMS) {
       );
       await dialog.getByRole("button", { name: "Add connection" }).click();
       await expect(dialog).toBeHidden();
-      await expect.poll(() => trpc.lastInput("connection.create")).toMatchObject({ model: "openai/gpt-6", modelListed: false });
+      await expect.poll(() => trpc.lastInput("connection.create")).toMatchObject({ model: "openai/gpt-6", modelCheck: "unlisted" });
     });
   });
 }

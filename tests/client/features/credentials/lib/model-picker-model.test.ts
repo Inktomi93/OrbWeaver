@@ -2,7 +2,7 @@
 // Ported with the picker: price is USD/token → $/M (×1e6), context compacts to K/M, the chip filter is AND
 // across active chips, the render cap is the named constant, and the provider grouping buckets, orders and caps
 // honestly. Added with the connection-era input: the typed-id option follows the provider's catalog strategy
-// and never duplicates a listed row, `modelListed` is true only for an id the list carried, a list read's
+// and never duplicates a listed row, `modelCheck` is listed or unlisted only after a list answered, a list read's
 // `listed: false` answer keeps its reason, and Enter's floor admits only the result that IS what was typed.
 
 import type { ModelCatalogEntry } from "@orb/contracts/inference";
@@ -14,8 +14,8 @@ import {
   groupModelEntries,
   hasMultiModelVendor,
   isExactMatch,
-  isListedModel,
   MODEL_PICKER_RENDER_CAP,
+  modelCheckOf,
   modelEntryLabel,
   modelListSource,
   modelPickerView,
@@ -44,7 +44,7 @@ const OPUS = entry("anthropic/claude-opus-5", "Claude Opus 5");
 const QWEN = entry("qwen/qwen3-32b");
 const MODELS = [OPUS, QWEN];
 // The source shape is derived, as every reader derives it: a feature `lib/` exports no type aliases.
-const LISTED: Parameters<typeof isListedModel>[0] = { status: "listed", models: MODELS };
+const LISTED: Parameters<typeof modelCheckOf>[0] = { status: "listed", models: MODELS };
 
 test("a url catalog permits a typed id; a builtin catalog is the closed set the runtime can load", () => {
   expect(typedModelAllowed({ catalog: "url" })).toBe(true);
@@ -62,12 +62,14 @@ test("the typed option is offered for an unlisted id and withheld for a listed o
   expect(typedOption({ term: "qwen3\t8b", models: MODELS, allowed: true })).toBeNull();
 });
 
-test("modelListed is true only for an id the list carried, and never before a list has arrived", () => {
-  expect(isListedModel(LISTED, " qwen/qwen3-32b ")).toBe(true);
-  expect(isListedModel(LISTED, "openai/gpt-6")).toBe(false);
-  expect(isListedModel(LISTED, "")).toBe(false);
-  expect(isListedModel({ status: "loading" }, "qwen/qwen3-32b")).toBe(false);
-  expect(isListedModel({ status: "unlisted", reason: "type it" }, "qwen/qwen3-32b")).toBe(false);
+test("a model check is listed or unlisted only once a list has answered, and unchecked before or without one", () => {
+  expect(modelCheckOf(LISTED, " qwen/qwen3-32b ")).toBe("listed");
+  expect(modelCheckOf(LISTED, "openai/gpt-6")).toBe("unlisted");
+  expect(modelCheckOf({ status: "listed", models: [] }, "openai/gpt-6")).toBe("unlisted");
+  expect(modelCheckOf(LISTED, "  ")).toBe("unchecked");
+  expect(modelCheckOf({ status: "loading" }, "qwen/qwen3-32b")).toBe("unchecked");
+  expect(modelCheckOf({ status: "failed", reason: "502", retry: null }, "qwen/qwen3-32b")).toBe("unchecked");
+  expect(modelCheckOf({ status: "unlisted", reason: "type it" }, "qwen/qwen3-32b")).toBe("unchecked");
 });
 
 test("a row's label is its name, or its id when the list carries no name", () => {

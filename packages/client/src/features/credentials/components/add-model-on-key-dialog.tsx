@@ -27,7 +27,7 @@ import { CONNECTION_FORM_COPY, modelIdExample } from "../lib/add-connection-form
 import type { AddModelOnKeyFormValues, addModelScope } from "../lib/add-model-on-key-form-model.ts";
 import { addModelActionGloss, addModelActionLabel } from "../lib/add-model-on-key-form-model.ts";
 import { connectionHost } from "../lib/connections-model.ts";
-import { failedCatalogSource, isListedModel, modelListSource, typedModelAllowed } from "../lib/model-picker-model.ts";
+import { failedCatalogSource, modelCheckOf, modelListSource, typedModelAllowed } from "../lib/model-picker-model.ts";
 import type { ModelPickerProps } from "./model-picker.tsx";
 import { ModelPicker } from "./model-picker.tsx";
 
@@ -75,7 +75,7 @@ function AddModelOnKeyBody({
     const catalog = peekQueryData<ModelListing>(queryClient, catalogKey);
     const source: ModelCatalogSource = catalog === undefined ? { status: "loading" } : modelListSource(catalog, null);
     const label = values.label.trim();
-    const modelListed = isListedModel(source, values.model);
+    const modelCheck = modelCheckOf(source, values.model);
     await createConnection.mutateAsync({
       providerId: connection.providerId,
       credentialId: connection.credentialId,
@@ -85,10 +85,10 @@ function AddModelOnKeyBody({
       model: values.model.trim(),
       ...(label !== "" ? { label } : {}),
       allowBackground: values.allowBackground,
-      modelListed,
+      modelCheck,
     });
     // Recent holds models a connection was SAVED with, from the list; a pick alone never reorders the list.
-    if (modelListed) {
+    if (modelCheck === "listed") {
       pushRecentModel(provider.id, values.model.trim());
     }
     onDone();

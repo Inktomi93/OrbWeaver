@@ -157,8 +157,8 @@ function ConnectionEditorBody({ connectionId, onDone, trpc, invalidation }: Conn
               connectionId={connectionId}
               listOwner={hostLabel(connection.baseUrl, providerLabel)}
               model={connection.model}
-              modelListed={connection.modelListed}
-              onCommit={(next, listed): void => patch({ model: next, modelListed: listed })}
+              modelCheck={connection.modelCheck}
+              onCommit={(next, check): void => patch({ model: next, modelCheck: check })}
               provider={provider}
             />
             <SavedTextField

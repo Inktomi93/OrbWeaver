@@ -86,7 +86,8 @@ export async function seedLocalLightConnections(deps: LocalLightSeedDeps, ownerI
         declared: null,
         extras: null,
         transport: null,
-        modelListed: true,
+        // The seed model is a member of the built-in catalog by construction.
+        modelCheck: "listed" as const,
         // The vector tasks are background spend by definition (search indexing runs unattended); the seeded
         // rows are keyless and free, so the flag is on — the picker's explicit switch governs a real key.
         allowBackground: true,
