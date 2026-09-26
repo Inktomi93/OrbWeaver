@@ -362,7 +362,7 @@ async function runOne(args: {
     writeTokens: economics?.cacheWriteTokens ?? null,
     outputTokens: economics?.tokensOut ?? null,
   };
-  const memoryNeedle = sections === null ? null : (sections.memory.split("\n")[0] ?? null);
+  const memoryNeedle = sections === null ? null : (sections.memory.split(/\r?\n/u)[0] ?? null);
   return {
     requestId: capture.headers[spec.requestIdHeader] ?? null,
     generationId: economics?.generationId ?? null,

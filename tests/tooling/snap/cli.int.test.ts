@@ -1,6 +1,8 @@
 // @instrument-proof: plants a WCAG-failing low-contrast paragraph in a local mock and asserts the
 // --contrast instrument REDs on it (exit 1, FAIL line) — with the readable twin as the negative control
 // proving the instrument is not always-red. `--file` mode: no stack, a real headless chromium.
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { expect, test } from "../../support/tool-fixtures.ts";
 import { isJudgeableMeasurement, labelRateLoad, scaledBudget } from "../_load-budget.ts";
@@ -65,6 +67,75 @@ test("dead CSS REDs the scenario aggregate and checkpoint summary", { timeout: 2
   await expect(dead).toExitWith(EXIT.violations);
   expect(clean.stdout).toContain("CHECKPOINT css PASS");
   await expect(clean).toExitWith(EXIT.clean);
+});
+
+const POINTER_HTML = `<!doctype html><html data-app-ready="settled"><body><main>pointer</main></body></html>`;
+/** One line per checkpoint naming the pointer the page sees, so a lost touch emulation is a readable diff. */
+const POINTER_EVAL = "'POINTER ' + (matchMedia('(pointer: coarse)').matches ? 'coarse' : 'fine') + ' touch=' + navigator.maxTouchPoints";
+const POINTER_LINE_RE = /POINTER (\w+ touch=\d+)/gu;
+
+// An element shot (Chromium's beyond-viewport capture) drops the page's touch emulation. The planted
+// control is the shot itself: every checkpoint takes one, so the next checkpoint reads what it left.
+test("a --mobile scenario keeps a coarse pointer across checkpoints that each take an element shot", { timeout: BROWSER_TIMEOUT_MS }, async ({
+  plantedTree,
+  runCli,
+}) => {
+  const root = await plantedTree({ "pointer.html": POINTER_HTML });
+  const checkpoint = (name: string): { readonly name: string; readonly args: readonly string[] } => ({
+    name,
+    args: ["--file", `${root}/pointer.html`, "--eval", POINTER_EVAL, "--shot-of", "main"],
+  });
+  const scenarios = await plantedTree({ "pointer.json": JSON.stringify({ name: "pointer", checkpoints: ["one", "two", "three"].map(checkpoint) }) });
+  const run = await runCli("snap", ["--scenario", `${scenarios}/pointer.json`, "--mobile", "--no-failure-evidence"], { timeoutMs: BROWSER_TIMEOUT_MS });
+  await expect(run).toExitWith(EXIT.clean);
+  expect([...run.stdout.matchAll(POINTER_LINE_RE)].map((match) => match[1])).toStrictEqual(["coarse touch=1", "coarse touch=1", "coarse touch=1"]);
+});
+
+/** Answers the document and a same-origin fetch with whether the request arrived through a relay hop. */
+async function relayEchoServer(): Promise<{ readonly base: string; readonly close: () => Promise<void> }> {
+  const server = createServer((request, response) => {
+    const hop = request.headers["x-forwarded-for"] === undefined ? "direct" : "relayed";
+    if (request.url === "/probe") {
+      response.writeHead(200, { "content-type": "text/plain" });
+      response.end(hop);
+      return;
+    }
+    response.writeHead(200, { "content-type": "text/html" });
+    response.end(
+      `<!doctype html><html data-app-ready="settled"><body><main id="hop">${hop}</main><script>globalThis.__orb={consoleErrors:()=>({records:[],dropped:0,cap:128}),resetEvidence:()=>{}}</script></body></html>`,
+    );
+  });
+  await new Promise<void>((resolve) => {
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  const { port } = server.address() as AddressInfo;
+  return {
+    base: `http://127.0.0.1:${String(port)}`,
+    close: () =>
+      new Promise<void>((resolve) => {
+        server.close(() => resolve());
+      }),
+  };
+}
+
+const HOP_EVAL = "fetch('/probe').then((r) => r.text()).then((sub) => 'HOP ' + document.getElementById('hop').textContent + '/' + sub)";
+const HOP_LINE_RE = /HOP (\w+\/\w+)/u;
+
+test("--visitor sends a relay header on the document and every subresource; without it the stack sees its own client", {
+  timeout: 2 * BROWSER_TIMEOUT_MS,
+}, async ({ runCli }) => {
+  const server = await relayEchoServer();
+  try {
+    const argv = ["/", "--base", server.base, "--eval", HOP_EVAL, "--no-shot", "--no-failure-evidence"];
+    const visitor = await runCli("snap", [...argv, "--visitor"], { timeoutMs: BROWSER_TIMEOUT_MS });
+    const owner = await runCli("snap", argv, { timeoutMs: BROWSER_TIMEOUT_MS });
+    await expect(visitor).toExitWith(EXIT.clean);
+    await expect(owner).toExitWith(EXIT.clean);
+    expect(HOP_LINE_RE.exec(visitor.stdout)?.[1]).toBe("relayed/relayed");
+    expect(HOP_LINE_RE.exec(owner.stdout)?.[1], "the control: an ordinary run is not relayed").toBe("direct/direct");
+  } finally {
+    await server.close();
+  }
 });
 
 test("the contrast instrument REDs on a planted WCAG failure (and stays green on the readable twin)", { timeout: 2 * BROWSER_TIMEOUT_MS }, async ({

@@ -69,6 +69,9 @@ export interface Args {
   includeHidden: boolean;
   route: string;
   vnc: boolean;
+  /** Every context sends the relay headers the server's owner fallback refuses, so a loopback stack serves
+   *  this browser as a signed-out visitor rather than as its owner. */
+  visitor: boolean;
   waitSelector: string | null;
   sseSeconds: number;
   base: string;

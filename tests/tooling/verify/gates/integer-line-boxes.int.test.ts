@@ -34,6 +34,7 @@ import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-co
 import { createResourceReader } from "../../../../tooling/src/verify/ops/resource-reader.ts";
 import { loadAuthoredCss } from "../../../../tooling/src/verify/ops/resource-tree.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
 const TOKENS_JSON_REL = "packages/ui/src/tokens/tokens.json";
 const ANCHOR_REL = "packages/ui/src/lib/class-merge.ts";
@@ -103,7 +104,11 @@ function populationRefusal(policyId: string, fragment: string): Record<string, u
   };
 }
 
-test("the static-class-expression family keeps its declared proofs", () => {
+// The two policies' declared rows through the conformance runner. MEASURED: 7.4 s alone at per-core load 0.4, and
+// 16.6 s under a loaded lane run. The base is twice the worst loaded reading.
+const FAMILY_PROOFS_TIMEOUT = scaledBudget(34_000);
+
+test("the static-class-expression family keeps its declared proofs", { timeout: FAMILY_PROOFS_TIMEOUT }, () => {
   expect(verifyPolicyProofs([integerLineBoxes, restTransformGrid])).toEqual([]);
 });
 

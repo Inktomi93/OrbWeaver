@@ -8,6 +8,7 @@ import type { CapturedRequest } from "../../_shared/browser-capture.ts";
 import { browserEvidenceRetention } from "../../_shared/browser-capture.ts";
 import type { ProbeSession } from "../../_shared/browser-contract.ts";
 import { summarizeOrbConsoleCompleteness } from "../../_shared/browser-diagnostics.ts";
+import { reassertOwnerDevice } from "../../_shared/browser-emulation-guard.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { printVerdictReceipt } from "../../_shared/evidence.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
@@ -170,6 +171,8 @@ async function captureScenarioCheckpoints(
     };
     await arms.measure(armCtx);
     await arms.report(armCtx);
+    // A checkpoint's analyzers can take clipped screenshots too; the next checkpoint starts on the device.
+    await reassertOwnerDevice(session.page, session.environmentContract.applied);
     evidenceRanges.push({
       consoleStart,
       consoleEnd: session.evidence.console.cursor(),

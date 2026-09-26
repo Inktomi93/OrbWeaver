@@ -23,6 +23,8 @@ import { createServer } from "node:http";
 import { join } from "node:path";
 import process from "node:process";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { HOST_POOL_ROOT_ENV } from "@orb/tooling/_shared/host-slots";
+import { listProcesses } from "@orb/tooling/_shared/platform";
 import { vi } from "vitest";
 import { appearanceMatrixContract } from "../../../../packages/client/src/lib/appearance-carrier-manifest.ts";
 import { readSessionRow } from "../../../../tooling/src/snap/lib/session-wire.ts";
@@ -113,11 +115,9 @@ function occurrenceCount(value: string, needle: string): number {
 }
 
 function browserChildren(pid: number): readonly number[] {
-  const children = readFileSync(`/proc/${pid}/task/${pid}/children`, "utf8").trim().split(/\s+/u).filter(Boolean).map(Number);
-  return children.filter((child) => {
-    const argv = readFileSync(`/proc/${child}/cmdline`, "utf8");
-    return argv.includes("chromium") && !argv.includes("--type=");
-  });
+  return listProcesses()
+    .filter((entry) => entry.ppid === pid && entry.cmdline.includes("chromium") && !entry.cmdline.includes("--type="))
+    .map((entry) => entry.pid);
 }
 
 // @instrument-proof: every matrix cell reports the synthetic origin and fresh storage through the real
@@ -129,7 +129,10 @@ test("F10 — a session matrix inherits the daemon base, isolates every cell con
     "new Promise((resolve) => setTimeout(() => resolve(JSON.stringify({origin:location.origin,owner:localStorage.getItem('f10-owner'),cell:localStorage.getItem('f10-cell')}) + (localStorage.setItem('f10-cell','set'),'')), 250))";
   const scenario = JSON.stringify({ name: "f10-one-checkpoint", checkpoints: [{ name: "cell", args: ["/", "--eval", cellEval, "--no-shot"] }] });
   const root = await plantedTree({ "registry/.keep": "", "scenario.json": scenario });
-  const env = Object.fromEntries([["ORB_SNAP_SESSION_HOME", join(root, "registry")]]);
+  const env = Object.fromEntries([
+    ["ORB_SNAP_SESSION_HOME", join(root, "registry")],
+    [HOST_POOL_ROOT_ENV, join(root, "host-slots")],
+  ]);
   const snap = (args: readonly string[]): Promise<CliResult> => runCli("snap", args, { env, timeoutMs: CLI_BUDGET_MS });
   try {
     const boot = await snap([

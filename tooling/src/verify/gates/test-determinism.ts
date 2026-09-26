@@ -122,7 +122,7 @@ export const gate = defineGate({
       // Comments are TRIVIA to a value scan. Blanking is length-preserving (comment-spans.ts), so
       // `index + 1` is still the real line — and the line stays the finding's ONLY position, which is
       // also what makes the line-adjacent escape exact.
-      for (const [index, line] of blankTsComments(sf).split("\n").entries()) {
+      for (const [index, line] of blankTsComments(sf).split(/\r?\n/u).entries()) {
         for (const { re, what } of BANNED) {
           const match = re.exec(line);
           if (match !== null) {

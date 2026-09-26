@@ -12,6 +12,7 @@ import { collectOrbConsoleDiagnostics, wirePageDiagnostics } from "@orb/tooling/
 import { BoundedEvidenceRing, browserEvidenceRetentionBatchSchema } from "@orb/tooling/_shared/browser-evidence-ring";
 import { resolveProbeMedia } from "@orb/tooling/_shared/browser-media";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { HOST_POOL_ROOT_ENV } from "@orb/tooling/_shared/host-slots";
 import { chromium } from "@playwright/test";
 import { vi } from "vitest";
 import { parseDiagnosticQuery, queryDiagnostics } from "../../../../tooling/src/snap/ops/diagnostics.ts";
@@ -320,6 +321,7 @@ test("Snap JSON and a live session export retain the lossless diagnostics ring",
   const sessionHome = join(scratch, "sessions");
   const env = Object.fromEntries([
     ["ORB_SNAP_SESSION_HOME", sessionHome],
+    [HOST_POOL_ROOT_ENV, join(scratch, "host-slots")],
     ["ORB_SESSION_CAP", "3"],
     ["ORB_SESSION_TTL_MIN", "1"],
   ]);

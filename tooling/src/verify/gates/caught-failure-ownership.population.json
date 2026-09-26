@@ -1921,17 +1921,17 @@
       "reason": "panel-preset JSON parse returns null so the caller emits its option-specific refusal; no nav action is queued. Ends if parse failure stops being a refusal."
     },
     {
-      "siteId": "tooling/src/_shared/platform.ts::readDirOrEmpty::catch::1",
+      "siteId": "tooling/src/_shared/platform-probes.ts::readDirOrEmpty::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "a `/proc` that cannot be listed yields no processes, which a sweep reads as \"nothing observed\" and signals nothing. Ends if an empty list ever reads as a verdict."
     },
     {
-      "siteId": "tooling/src/_shared/platform.ts::readFileOrNull::catch::1",
+      "siteId": "tooling/src/_shared/platform-probes.ts::readFileOrNull::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "a `/proc` entry that vanished or is hidden answers null, and every reader here treats null as \"not observed\", never as a verdict. Ends if null ever authorizes a signal."
     },
     {
-      "siteId": "tooling/src/_shared/platform.ts::readLinkOrNull::catch::1",
+      "siteId": "tooling/src/_shared/platform-probes.ts::readLinkOrNull::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "an unreadable `/proc/<pid>/cwd` answers null, which every caller reads as \"unknown\", never as \"not ours\". Ends if null ever authorizes a signal."
     },

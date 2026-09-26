@@ -239,7 +239,7 @@ function judgeText(text: string, lineComments: boolean): readonly Blanket[] {
     }
     blanked = blanked.slice(0, span.pos) + span.text.replace(/[^\n]/gu, " ") + blanked.slice(span.end);
   }
-  const codeLines = blanked.split("\n").flatMap((l, i) => (l.trim() === "" ? [] : [i + 1]));
+  const codeLines = blanked.split(/\r?\n/u).flatMap((l, i) => (l.trim() === "" ? [] : [i + 1]));
   const first = codeLines[0];
   const last = codeLines.at(-1);
   const bounds = first === undefined || last === undefined ? undefined : { first, last };

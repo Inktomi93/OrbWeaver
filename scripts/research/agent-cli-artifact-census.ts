@@ -279,7 +279,7 @@ function withoutHeredocBodies(command: string): string {
   const retained: string[] = [];
   let delimiter: string | null = null;
   let stripTabs = false;
-  for (const line of command.split("\n")) {
+  for (const line of command.split(/\r?\n/u)) {
     if (delimiter) {
       const candidate = stripTabs ? line.replace(/^\t+/, "") : line;
       if (candidate.trimEnd() === delimiter) {
@@ -493,7 +493,13 @@ function normalizeCandidate(value: string, cwd: string | undefined, kindHint?: "
   const clean = value.replace(/[),.;:'"`]+$/, "");
   const extension = extensionOf(clean);
   if (
-    !(clean.startsWith("/tmp/") || clean.includes("reports/") || clean.includes("artifacts/") || clean.includes("screenshots/") || extension !== "directory")
+    !(
+      clean.startsWith(`${os.tmpdir()}${path.sep}`) ||
+      clean.includes("reports/") ||
+      clean.includes("artifacts/") ||
+      clean.includes("screenshots/") ||
+      extension !== "directory"
+    )
   ) {
     return null;
   }

@@ -297,7 +297,7 @@ function isRecitation(title: string | null, body: string): boolean {
 }
 
 function scanCards(text: string): CardHit[] {
-  const lines = text.split("\n");
+  const lines = text.split(/\r?\n/u);
   const hits: CardHit[] = [];
   let inCodeFence = false;
   for (let i = 0; i < lines.length; i++) {

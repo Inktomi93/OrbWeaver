@@ -168,7 +168,7 @@ function transcript(root: string, s: StageResult, limit: number, ink: ShowInk): 
       exit: EXIT.toolError,
     };
   }
-  const all = raw.split("\n");
+  const all = raw.split(/\r?\n/u);
   const tail = all.slice(Math.max(0, all.length - limit));
   const head =
     all.length > tail.length ? [ink.dim(`  …${all.length - tail.length} earlier line(s) omitted (--limit N to widen; whole log: ${s.logFile})`)] : [];

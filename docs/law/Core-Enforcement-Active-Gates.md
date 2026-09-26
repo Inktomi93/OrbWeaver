@@ -53,7 +53,7 @@ dropping a valid `defineGate` module in that directory, nothing else to register
 `tooling/src/verify/gates/GATE-AUTHORING.md` is the authoring guide; a gate's rule and its reason live
 in its own module header, never restated here.
 
-(350 registered gates)
+(351 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -367,6 +367,7 @@ in its own module header, never restated here.
 | `tooling-front-door` | — | ordinary/error | @tooling | a @orb/tooling import bypasses a… |
 | `tooling-instrument-proof` | — | hard/error | @tooling,@tests\* | the instrument-proof contract is… |
 | `tooling-ops-direct-invocation` | tooling-program-entry | hard/error | @tooling\* | an ops/ module can be RUN as a… |
+| `tooling-os-neutral` | — | hard/error | @tooling,@scripts,@tests\* | an OS-specific program, path, env key… |
 | `tooling-port-registry` | plumbing-literals | reviewed-grant/error | @tooling,@tests\* | a TCP port outside the ONE registry —… |
 | `tooling-process-exit-home` | process-member | reviewed-grant/error | @tooling | a bare process.exit outside the… |
 | `tooling-project-home` | — | reviewed-grant/error | @tooling | a second ts-morph loader — the shared… |

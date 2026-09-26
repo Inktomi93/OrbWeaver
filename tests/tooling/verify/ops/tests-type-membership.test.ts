@@ -18,6 +18,11 @@ import { classifyMembership, compareRoutingParity, findTripleSlashLibLeaks, runT
 import { vi } from "vitest";
 import type { MembershipReport } from "../../../../tooling/src/verify/contract/tests-type-membership.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
+
+// The cases run the native compiler over planted repositories. MEASURED: 0.9 s to 3.4 s alone and beside a structure
+// run at per-core load 0.4, and 5.95 s inside a pre-commit hook's affected-test run. The base is twice that reading.
+vi.setConfig({ testTimeout: scaledBudget(12_000) });
 
 function withScratchDir<T>(fn: (dir: string) => T): T {
   const dir = mkdtempSync(join(tmpdir(), "orb-lib-leak-"));

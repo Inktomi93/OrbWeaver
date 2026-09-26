@@ -4,6 +4,7 @@ import { existsSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { HOST_POOL_ROOT_ENV } from "@orb/tooling/_shared/host-slots";
 import sharp from "sharp";
 import { vi } from "vitest";
 import type { FilmstripLimits } from "../../../../../tooling/src/snap/contract/filmstrip.ts";
@@ -363,6 +364,7 @@ test("contexts retain isolated owner/member identities and distinct exact contex
 test("named session captures the exact owned page and remains alive for a later call", async ({ runCli, scratch }) => {
   const fixture = join(scratch, "filmstrip-session.html");
   const name = basename(scratch).toLowerCase();
+  const env = { [HOST_POOL_ROOT_ENV]: join(scratch, "host-slots") };
   await writeFile(
     fixture,
     `<!doctype html><html lang="en" data-app-ready="settled"><body><button id="go" onclick="document.body.dataset.hit='yes'">go</button><script>globalThis.__orb={consoleErrors:()=>({records:[],dropped:0,cap:128}),resetEvidence:()=>{},snap:()=>({fixture:true})}</script></body></html>`,
@@ -371,16 +373,14 @@ test("named session captures the exact owned page and remains alive for a later 
     const boot = await runCli(
       "snap",
       ["--session", name, "--file", fixture, "--filmstrip", "--click", "#go", "--pause", "200", "--no-shot", "--no-deadcss", "--no-failure-evidence"],
-      {
-        timeoutMs: CLI_TIMEOUT_MS,
-      },
+      { env, timeoutMs: CLI_TIMEOUT_MS },
     );
     await expect(boot).toExitWith(EXIT.clean);
-    const later = await runCli("snap", ["--session", name, "--eval", "document.body.dataset.hit", "--no-shot"], { timeoutMs: CLI_TIMEOUT_MS });
+    const later = await runCli("snap", ["--session", name, "--eval", "document.body.dataset.hit", "--no-shot"], { env, timeoutMs: CLI_TIMEOUT_MS });
     await expect(later).toExitWith(EXIT.clean);
     expect(later.stdout).toContain("yes");
   } finally {
-    await runCli("snap", ["--session-close", name, "--force"], { timeoutMs: CLI_TIMEOUT_MS });
+    await runCli("snap", ["--session-close", name, "--force"], { env, timeoutMs: CLI_TIMEOUT_MS });
   }
 });
 

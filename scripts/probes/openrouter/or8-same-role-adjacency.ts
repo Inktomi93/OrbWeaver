@@ -213,7 +213,7 @@ async function orCall(key: string, rows: readonly Row[], spelling: Spelling): Pr
   let usage: OrChunk["usage"];
   let error: string | null = null;
   let upstream: unknown = null;
-  for (const line of raw.split("\n")) {
+  for (const line of raw.split(/\r?\n/u)) {
     if (!line.startsWith("data: ") || line === "data: [DONE]") {
       continue;
     }

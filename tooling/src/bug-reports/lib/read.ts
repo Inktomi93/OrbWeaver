@@ -92,7 +92,7 @@ function versionLabelOf(record: Readonly<Record<string, unknown>>): string | nul
 /** The note's first non-empty line, collapsed to one line and capped — a listing is an index, not a read. */
 function firstLineOf(note: string, cap: number): string {
   const line = note
-    .split("\n")
+    .split(/\r?\n/u)
     .map((candidate) => candidate.trim())
     .find((candidate) => candidate.length > 0);
   if (line === undefined) {

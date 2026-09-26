@@ -49,7 +49,7 @@ export function repoRoot(): string {
 function dirtyPaths(root: string): string[] {
   const output = execGit(root, ["status", "--porcelain", "--untracked-files=all"]);
   const paths: string[] = [];
-  for (const line of output.split("\n")) {
+  for (const line of output.split(/\r?\n/u)) {
     if (line.length <= PORCELAIN_PATH_OFFSET) {
       continue;
     }

@@ -12,7 +12,7 @@
 // `collectByKinds` is the dispatcher's inner loop promoted to neutral territory (§1.4/§6): ONE
 // forEachDescendant walk per file, dispatching each node only to the visitors subscribed to its kind.
 // Both the gate runner (pass.ts) and any multi-helper codemod consume this instead of N kind sweeps.
-import { existsSync, realpathSync } from "node:fs";
+import { existsSync, globSync, realpathSync } from "node:fs";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import type { FileSystemHost, KindToNodeMappings, Node, SourceFile, SyntaxKind } from "ts-morph";
 import { Project, Node as TsNode, ts } from "ts-morph";
@@ -359,6 +359,18 @@ export function searchGlobs(root: string): readonly string[] {
   return [...harnessGlobs(root), `${root}/packages/*/src/**/*.mts`, `${root}/tests/**/*.mts`];
 }
 
+const FOREIGN_TREE_RE = /(?:^|\/)(?:\.claude\/worktrees|\.cache)(?:\/|$)/u;
+
+/** The globbed files, none under a lane worktree or `.cache`; ts-morph's adder walks every directory under root. */
+function addGlobbedSourceFiles(project: Project, root: string, globs: readonly string[]): void {
+  const [include, negated] = [globs.filter((glob) => !glob.startsWith("!")), globs.filter((glob) => glob.startsWith("!")).map((glob) => glob.slice(1))];
+  for (const path of globSync(include, { exclude: negated })) {
+    if (!FOREIGN_TREE_RE.test(relative(root, path).split(sep).join("/"))) {
+      project.addSourceFileAtPath(path);
+    }
+  }
+}
+
 /** Build a workspace Project. The `types:false` arm is the shared pure-AST project the gate run uses. */
 export function getWorkspace(opts: WorkspaceOptions): Project {
   if (opts.types === true) {
@@ -371,11 +383,11 @@ export function getWorkspace(opts: WorkspaceOptions): Project {
       skipAddingFilesFromTsConfig: true,
       ...(opts.skipFileDependencyResolution === undefined ? {} : { skipFileDependencyResolution: opts.skipFileDependencyResolution }),
     });
-    project.addSourceFilesAtPaths([...(opts.globs ?? searchGlobs(opts.root))]);
+    addGlobbedSourceFiles(project, opts.root, opts.globs ?? searchGlobs(opts.root));
     return project;
   }
   const project = new Project({ skipAddingFilesFromTsConfig: true });
-  project.addSourceFilesAtPaths([...(opts.globs ?? harnessGlobs(opts.root))]);
+  addGlobbedSourceFiles(project, opts.root, opts.globs ?? harnessGlobs(opts.root));
   return project;
 }
 

@@ -113,7 +113,7 @@ export function wakeConditions(items: readonly WorkItem[]): ReadonlyMap<number, 
 /** The `Closes: 12, 14` trailer of one commit message, as ids. Absent = empty. */
 export function closesTrailer(message: string): readonly number[] {
   const ids: number[] = [];
-  for (const line of message.split("\n")) {
+  for (const line of message.split(/\r?\n/u)) {
     const match = /^Closes:\s*(.+?)\s*$/u.exec(line);
     if (match !== null) {
       ids.push(

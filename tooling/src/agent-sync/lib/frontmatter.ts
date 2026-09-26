@@ -19,7 +19,7 @@ function requiredString(record: Readonly<Record<string, unknown>>, key: string, 
 
 export function parseFrontmatter(source: string, filename: string): Readonly<Record<string, unknown>> {
   const record: Record<string, unknown> = {};
-  for (const line of source.split("\n")) {
+  for (const line of source.split(/\r?\n/u)) {
     const separator = line.indexOf(":");
     if (separator <= 0) {
       throw new Error(`${filename}: frontmatter entries must be one-line key/value pairs`);
@@ -50,7 +50,7 @@ export function parseRulePaths(source: string): RulePaths {
   if (frontmatter === undefined) {
     return { kind: "missing" };
   }
-  const lines = frontmatter.split("\n");
+  const lines = frontmatter.split(/\r?\n/u);
   const keyIndex = lines.findIndex((line) => /^paths\s*:/u.test(line));
   if (keyIndex < 0) {
     return { kind: "missing" };

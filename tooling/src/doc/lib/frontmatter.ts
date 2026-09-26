@@ -19,7 +19,7 @@ export function parseFrontmatter(source: string, path = "document.md"): Frontmat
   }
   const fields: Record<string, string> = {};
   const errors: string[] = [];
-  for (const [index, raw] of source.slice(FRONTMATTER_FENCE_LENGTH, close).split("\n").entries()) {
+  for (const [index, raw] of source.slice(FRONTMATTER_FENCE_LENGTH, close).split(/\r?\n/u).entries()) {
     const line = raw.trim();
     if (line === "" || line.startsWith("#")) {
       continue;

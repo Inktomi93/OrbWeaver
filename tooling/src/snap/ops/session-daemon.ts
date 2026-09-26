@@ -3,22 +3,24 @@
 // cli.ts only; the client spawns it through _shared/proc.ts `spawnFullPriorityChild` — own process group,
 // stdio a log file beside the socket). It boots the session's stage through the unchanged `configureStage`,
 // opens its OWN run slot (instrument `snap-session` — the `.inflight` marker's pid is this pid, so
-// `abandonedRuns` names it the moment it dies), launches ONE browser through `launchSnapSession` with the
-// debugging endpoint on, writes the repo-keyed row, and serves NDJSON requests on `<name>.sock` one at a
-// time: `call` (the capture half, ops/session-daemon-call.ts), `export`, `status`, `ping`, `close`. The TTL
-// timer is reset by `call`/`ping`, never by `status`; idle past it, SIGTERM, or `close` all run ONE shutdown
-// that waits for an in-flight call (drain before dispose), closes the browser, removes the socket + row and
-// finishes the slot. Nothing here prints to its own stdout on purpose — `print`/`warn` reach the log file
-// (this process's stdio) AND, during a request, the caller's socket through the output sink.
+// `abandonedRuns` names it the moment it dies), holds a host CT slot for its lifetime, launches ONE browser
+// through `launchSnapSession` with the debugging endpoint on, writes the repo-keyed row, and serves NDJSON
+// requests on `<name>.sock` one at a time: `call` (the capture half, ops/session-daemon-call.ts), `export`,
+// `status`, `ping`, `close`. The TTL timer is reset by `call`/`ping`, never by `status`; idle past it,
+// SIGTERM, or `close` all run ONE shutdown that waits for an in-flight call (drain before dispose), closes
+// the browser, removes the socket + row, finishes the run slot and frees the CT slot. Nothing here prints to
+// its own stdout on purpose — `print`/`warn` reach the log file (this process's stdio) AND, during a
+// request, the caller's socket through the output sink.
 import { rmSync } from "node:fs";
 import { createServer } from "node:net";
 import process from "node:process";
 import { errorMessage } from "@orb/kit/error-message";
 import { beginInstrumentRun, finishInstrumentRun } from "../../_shared/artifact-out.ts";
-import { openRunSlot, print, publishRunSlot } from "../../_shared/artifacts.ts";
+import { checkoutName, openRunSlot, print, publishRunSlot } from "../../_shared/artifacts.ts";
 import type { ProbeSession } from "../../_shared/browser-contract.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
+import { acquireHostSlot, ctHostSlotPool } from "../../_shared/host-slots.ts";
 import { warn } from "../../_shared/log.ts";
 import { killPidGroup } from "../../_shared/proc.ts";
 import { beginRunLease } from "../../_shared/run-marker.ts";
@@ -142,6 +144,15 @@ export async function runSessionDaemon(opts: Args, argv: readonly string[]): Pro
   // it beside the outer run's marker, and the shutdown sweep below signals THIS value — never the inherited
   // one, which belongs to whatever run spawned this daemon and is not ours to kill.
   const runLease = beginRunLease();
+  // A session holds a Chromium for minutes, the box load of a CT run, so it queues in the CT pool.
+  const ctSlot = await acquireHostSlot(ctHostSlotPool(`snap session ${name} ${checkoutName(root)}`), {
+    onQueued: (holder) => {
+      print(`session      ${name} waiting for a host CT slot — held by pid ${String(holder.pid)} (${holder.label}) since ${holder.startedAt}`);
+    },
+    onNotice: (message) => {
+      print(`session      ${name}: ${message}`);
+    },
+  });
   let session: ProbeSession;
   // No gate-ignore here on purpose: the catch RETHROWS the caught binding, which IS ownership under
   // caught-failure-ownership, so a marker would be a dead exemption (gate-ignore-inventory reds those).
@@ -154,6 +165,7 @@ export async function runSessionDaemon(opts: Args, argv: readonly string[]): Pro
       requireCascadeRuntime: opts.matrix,
     });
   } catch (error) {
+    ctSlot.release();
     publishRunSlot(root, slot, []);
     throw error;
   } finally {
@@ -250,6 +262,7 @@ export async function runSessionDaemon(opts: Args, argv: readonly string[]): Pro
         print(`[snap-session] ${line}`);
       }
     } finally {
+      ctSlot.release();
       resolveClosed();
       if (state.terminalReason !== null) {
         // A non-page call can retain a worker/CDP handle even after the browser closes. The daemon owns

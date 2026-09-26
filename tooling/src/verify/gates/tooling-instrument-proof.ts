@@ -290,7 +290,7 @@ export const gate = defineGate({
       if (tool === "" || tool.endsWith(".ts") || tool.endsWith(".tsx")) {
         return; // flat tests/tooling files belong to no tool mirror
       }
-      for (const [index, lineText] of text.split("\n").entries()) {
+      for (const [index, lineText] of text.split(/\r?\n/u).entries()) {
         for (const kind of PROOF_CLASS_NAMES) {
           const match = PROOF_CLASSES[kind].re.exec(lineText);
           if (match !== null) {

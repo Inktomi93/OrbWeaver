@@ -146,7 +146,7 @@ export function checkScriptErrors(pageErrors: readonly string[]): Finding[] {
   const seen = new Set<string>();
   const findings: Finding[] = [];
   for (const raw of pageErrors) {
-    const message = (raw.split("\n")[0] ?? "").trim().slice(0, SCRIPT_ERROR_MSG_MAX);
+    const message = (raw.split(/\r?\n/u)[0] ?? "").trim().slice(0, SCRIPT_ERROR_MSG_MAX);
     if (message === "" || seen.has(message)) {
       continue;
     }

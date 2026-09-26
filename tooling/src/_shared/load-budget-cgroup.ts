@@ -8,6 +8,7 @@
 import { readFileSync } from "node:fs";
 import { cpus } from "node:os";
 import process from "node:process";
+import { cgroupFiles } from "./platform-probes.ts";
 
 /** THE KERNEL'S OWN RECORD OF THE LIMIT BITING (#2206). `cpu.stat` counts scheduling PERIODS and how many
  *  of them ended with this tree THROTTLED — i.e. the quota, not the machine, stopped the work. */
@@ -18,15 +19,6 @@ export interface CpuThrottleSample {
 
 /** cgroup v2 writes exactly one `0::<path>` line into `/proc/self/cgroup`; v1's numbered lines are not it. */
 const CGROUP_V2_PREFIX = "0::";
-
-/** The cgroup v2 files, behind the platform guard: cgroups are a Linux kernel feature, and off Linux the walk
- *  has nothing to read and answers "no ceiling". */
-function cgroupPaths(): { readonly procSelf: string; readonly root: string } | undefined {
-  if (process.platform !== "linux") {
-    return;
-  }
-  return { procSelf: "/proc/self/cgroup", root: "/sys/fs/cgroup" };
-}
 
 /** How the quota walk reads a cgroup file: the bytes, or `undefined` for absent/unreadable. Injectable so a
  *  planted control drives the ancestry instead of the box's real one. */
@@ -60,12 +52,12 @@ function cpuMaxCores(body: string | undefined): number | undefined {
  *  the tree. An unbounded tree finds `max` everywhere and this returns `undefined` — it keeps the physical
  *  count and its budgets stay byte-identical. */
 export function cgroupQuotaCores(read: CgroupFileReader): number | undefined {
-  const paths = cgroupPaths();
+  const paths = cgroupFiles(process.platform);
   const own =
     paths === undefined
       ? undefined
       : read(paths.procSelf)
-          ?.split("\n")
+          ?.split(/\r?\n/u)
           .find((line) => line.startsWith(CGROUP_V2_PREFIX))
           ?.slice(CGROUP_V2_PREFIX.length);
   if (paths === undefined || own === undefined || !own.startsWith("/")) {
@@ -120,7 +112,7 @@ function parseCpuStat(body: string | undefined): CpuThrottleSample | undefined {
     return;
   }
   const read = (key: string): number | undefined => {
-    const line = body.split("\n").find((candidate) => candidate.startsWith(`${key} `));
+    const line = body.split(/\r?\n/u).find((candidate) => candidate.startsWith(`${key} `));
     const value = line === undefined ? Number.NaN : Number(line.slice(key.length + 1).trim());
     return Number.isFinite(value) && value >= 0 ? value : undefined;
   };
@@ -133,12 +125,12 @@ function parseCpuStat(body: string | undefined): CpuThrottleSample | undefined {
  *  `cgroupQuotaCores` makes, for the same reason: a quota on any ancestor bounds this tree, so the
  *  enforcement that hurts most is the one that counts. `undefined` on an unfenced box. */
 export function readCpuThrottle(read: CgroupFileReader): CpuThrottleSample | undefined {
-  const paths = cgroupPaths();
+  const paths = cgroupFiles(process.platform);
   const own =
     paths === undefined
       ? undefined
       : read(paths.procSelf)
-          ?.split("\n")
+          ?.split(/\r?\n/u)
           .find((line) => line.startsWith(CGROUP_V2_PREFIX))
           ?.slice(CGROUP_V2_PREFIX.length);
   if (paths === undefined || own === undefined || !own.startsWith("/")) {

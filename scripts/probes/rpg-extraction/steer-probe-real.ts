@@ -229,8 +229,8 @@ async function judgeOne(text: string): Promise<number> {
 }
 
 console.log("\n=== R4b verify: does the PRODUCTION reminder steer? (real buildLiteReminder) ===\n");
-console.log("sample cast line @95:", realReminder(95, []).split("\n").find((l) => l.includes("Wren")));
-console.log("sample cast line @10:", realReminder(10, []).split("\n").find((l) => l.includes("Wren")));
+console.log("sample cast line @95:", realReminder(95, []).split(/\r?\n/u).find((l) => l.includes("Wren")));
+console.log("sample cast line @10:", realReminder(10, []).split(/\r?\n/u).find((l) => l.includes("Wren")));
 console.log("\nHIGH arm (Wits pinned 95, real reminder):");
 const high = await runArm("HIGH ", WITS_HIGH);
 console.log("\nREAL-DECAY arm (Wits 95 -> 10, real reminder — production gloss):");

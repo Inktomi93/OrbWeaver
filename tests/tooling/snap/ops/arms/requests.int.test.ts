@@ -12,6 +12,7 @@ import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import process from "node:process";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { HOST_POOL_ROOT_ENV } from "@orb/tooling/_shared/host-slots";
 import { vi } from "vitest";
 import { REQUEST_BODY_CAP_BYTES, REQUEST_RING_CAPACITY } from "../../../../../tooling/src/snap/index.ts";
 import { resultPairsOf } from "../../../../../tooling/src/snap/lib/session-wire.ts";
@@ -229,6 +230,7 @@ test("a named session retains boot JSON only when the boot call activates its bo
   const home = join(root, "registry");
   const env = Object.fromEntries([
     ["ORB_SNAP_SESSION_HOME", home],
+    [HOST_POOL_ROOT_ENV, join(root, "host-slots")],
     ["ORB_SESSION_CAP", "2"],
     ["ORB_SESSION_TTL_MIN", "1"],
   ]);

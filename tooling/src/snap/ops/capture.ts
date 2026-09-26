@@ -13,6 +13,7 @@ import type { EvidenceWindowId } from "../../_shared/artifact-scope.ts";
 import { evidenceWindowId, exactScope } from "../../_shared/artifact-scope.ts";
 import type { ProbeSession } from "../../_shared/browser-contract.ts";
 import { collectOrbConsoleDiagnostics } from "../../_shared/browser-diagnostics.ts";
+import { reassertOwnerDevice } from "../../_shared/browser-emulation-guard.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ArmPageContext } from "../contract/arms.ts";
 import type { CaptureEvidence, PagePlan } from "../contract/plan.ts";
@@ -132,6 +133,9 @@ export async function capture(args: CaptureArgs): Promise<CaptureOutcome> {
     // …and the page-arm pass is handed NO trailing evals: the values are already on the outcome (the arm's
     // print/pairs/facts read them from there), so passing them again would evaluate every expression twice.
     await runPageArms({ page, opts, pageIndex, plan: armPlan, outcome, trailingEvals: [], ratePosture });
+    // The shot is the last page arm, and an element shot drops touch emulation: every later reader
+    // (the run arms, the environment verdict, the next checkpoint or call) must see the device again.
+    await reassertOwnerDevice(page, evidence.environmentContract.applied);
     const consoleGap = await collectOrbConsoleDiagnostics(page, evidence.evidence.diagnostics, evidence.evidence.diagnosticCompleteness, opts.file !== null);
     if (consoleGap !== null) {
       evidence.evidence.pageErrors.push(consoleGap, exactScope(evidence.evidence.contextIndex, pageIndex, evidence.diagnosticWindow.value));
@@ -145,6 +149,7 @@ export async function capture(args: CaptureArgs): Promise<CaptureOutcome> {
       // @orb-waive caught-failure-ownership(catch): best-effort fallback shot after the nav already failed — the RESULT line's navError still reports the real failure. Ends if the comment's "still lands" claim stops holding.
       try {
         await SHOT_ARM.lifecycle.run({ page, opts, pageIndex, plan: armPlan, outcome, trailingEvals: [], ratePosture });
+        await reassertOwnerDevice(page, evidence.environmentContract.applied);
       } catch {
         /* best effort — the report + RESULT line still land */
       }

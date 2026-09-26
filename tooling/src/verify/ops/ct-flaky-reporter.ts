@@ -205,7 +205,7 @@ class CtFlakyReporter implements Reporter {
       return;
     }
     const file = relative(process.cwd(), test.location.file);
-    for (const raw of chunk.toString().split("\n")) {
+    for (const raw of chunk.toString().split(/\r?\n/u)) {
       const line = raw.trim();
       // The liveness half (#637): every `routeTrpc` registration announces itself, so a file that calls the
       // stub and produces NO marker is a file the census could not observe — a refusal, not a clean zero.

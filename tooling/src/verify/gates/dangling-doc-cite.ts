@@ -204,7 +204,7 @@ function commentsOnlyText(path: string, text: string): string {
   const xml = XML_COMMENT_EXTS.has(ext);
   let out = "";
   let inBlock = false;
-  for (const raw of text.split("\n")) {
+  for (const raw of text.split(/\r?\n/u)) {
     if (xml) {
       out += `${xmlCommentsOfLine(raw)}\n`;
       continue;

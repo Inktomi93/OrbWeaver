@@ -70,7 +70,7 @@ export function readMarkdownFacts(path: string, text: string): MarkdownDocument 
   const headings: MarkdownHeading[] = [];
   const links: MarkdownLink[] = [];
   let fence: string | undefined;
-  for (const [index, line] of text.split("\n").entries()) {
+  for (const [index, line] of text.split(/\r?\n/u).entries()) {
     if (fence !== undefined) {
       fence = closesFence(line, fence) ? undefined : fence;
       continue;

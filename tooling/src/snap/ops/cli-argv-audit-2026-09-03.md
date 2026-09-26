@@ -275,6 +275,7 @@ The normal roster was derived from `tooling/src/snap/ops/parse.ts`, `flags-class
 | `--theme` | `V,L` theme | boot appearance | outer | composes with appearance; not dark/light alias | owned | KEEP |
 | `--upload` | `V,R,@N` selector=path list | action; direct/descendant input or Playwright filechooser trigger | checkpoint | chooser semantics; real DataTransfer drop is distinct | owned | KEEP |
 | `--viewport` | `V,L` `WIDTHxHEIGHT` | boot environment | outer | same slot as wide/mobile/desktop, different explicit value | owned | KEEP |
+| `--visitor` | `B` | boot WHERE; relay headers on every context so a loopback stack serves a signed-out visitor | outer/session boot | no alias | owned | KEEP |
 | `--vnc` | `B` | boot/session visibility | outer | no alias | owned | KEEP |
 | `--wait` | `V,L` readiness mode | call settle/readiness | checkpoint | `--wait-for` targets selector; not alias | owned | KEEP |
 | `--wait-for` | `V,R,@N` selector | action/readiness | checkpoint | distinct from global wait policy | owned | KEEP |

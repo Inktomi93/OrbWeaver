@@ -4,12 +4,12 @@ import type { ProbeSession } from "../../_shared/browser-contract.ts";
 import type { ShotPlan } from "./types.ts";
 
 /** What one capture pass needs to know about the SESSION: the two evidence rings it scopes a checkpoint
- *  over, plus (optionally) the settings-shim evidence for THIS page's context, which is what the `--theme`
- *  readiness gate reads (#1227). A `ProbeContext` satisfies it as-is; the session paths spread their
- *  context 0 in. */
+ *  over, the environment contract the pass restores after its shot, plus (optionally) the settings-shim
+ *  evidence for THIS page's context, which is what the `--theme` readiness gate reads (#1227). A
+ *  `ProbeContext` satisfies it as-is; the session paths spread their context 0 in. */
 export type CaptureEvidence = Pick<
   ProbeSession,
-  "consoleMessages" | "pageErrors" | "diagnostics" | "diagnosticCompleteness" | "diagnosticWindow" | "evidence"
+  "consoleMessages" | "pageErrors" | "diagnostics" | "diagnosticCompleteness" | "diagnosticWindow" | "evidence" | "environmentContract"
 > & {
   readonly settingsEvidence?: SettingsShimEvidence | undefined;
 };

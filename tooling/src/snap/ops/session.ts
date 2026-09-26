@@ -223,6 +223,10 @@ async function closeLaunchProfile(profile: LaunchProfile): Promise<void> {
   await profile.debugging?.close();
 }
 
+// `--visitor`: any of the server's relay headers marks a request as relayed, which refuses the loopback owner
+// fallback (packages/server/src/infra/auth/forwarded.ts). The address is RFC 5737 documentation space.
+const VISITOR_RELAY_HEADERS: Readonly<Record<string, string>> = { "x-forwarded-for": "203.0.113.7" };
+
 function buildLaunchOptions(opts: Args, profile: LaunchProfile): ProbeLaunchOptions {
   const persistent = profileOf(profile);
   return {
@@ -239,6 +243,7 @@ function buildLaunchOptions(opts: Args, profile: LaunchProfile): ProbeLaunchOpti
     device: opts.device,
     ...scaleLaunchOverride(opts),
     trace: opts.failureEvidence,
+    ...(opts.visitor ? { extraHTTPHeaders: VISITOR_RELAY_HEADERS } : {}),
     ...(persistent === null ? {} : { persistentProfileDir: persistent.profileDir, browserArgs: persistent.browserArgs }),
   };
 }

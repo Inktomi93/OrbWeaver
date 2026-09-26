@@ -155,6 +155,8 @@ Sessions:
 
 Developer harness inputs:
   --debug-token <token>   seed orb:debug-token before navigation for token-gated development routes
+  --visitor               every request carries an X-Forwarded-For relay header, so a loopback stack serves
+                          this browser as a signed-out visitor instead of its owner. Browser-lifetime.
   --fixture-server <origin>  developer fixture stack server origin (health + authentication; env fallback)
   --fixture-base <origin>    developer fixture stack Vite origin (browser navigation; env fallback)
   pnpm snap --eval 'window.__orb?.capabilities()'      discover callable development capabilities

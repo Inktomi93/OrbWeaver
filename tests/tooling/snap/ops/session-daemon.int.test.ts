@@ -18,7 +18,7 @@
 // @instrument-absence-proof: T2 — a call on a session whose daemon is GONE exits 2 with `SESSION DEAD …
 // mid-<op>`, never a comfortable RESULT from a browser that no longer exists.
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, readlinkSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, readlinkSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -26,6 +26,8 @@ import { abandonedRuns } from "@orb/tooling/_shared/artifacts";
 import { attachProbeSession, closeProbeSession } from "@orb/tooling/_shared/browser";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
+import { CT_HOST_POOL_NAME, HOST_POOL_ROOT_ENV, hostPoolDir } from "@orb/tooling/_shared/host-slots";
+import { processInfo } from "@orb/tooling/_shared/platform";
 import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
 import { markedPids, mintRunMarker, RUN_MARKER_ENV, runMarkerEnv } from "@orb/tooling/_shared/run-marker";
 import { vi } from "vitest";
@@ -128,6 +130,8 @@ interface Rig {
   readonly auditFixture: string;
   readonly bad: string;
   readonly env: Readonly<Record<string, string>>;
+  /** The case's private CT host pool, where each booted daemon holds its slot. */
+  readonly ctPool: string;
   readonly snap: (args: readonly string[], env?: Readonly<Record<string, string>>) => Promise<CliResult>;
   readonly close: (names: readonly string[]) => Promise<void>;
 }
@@ -141,7 +145,14 @@ async function rig(
 ): Promise<Rig> {
   const root = await plantedTree({ "fixture.html": FIXTURE_HTML, "audit.html": AUDIT_FIXTURE_HTML, "bad.html": BAD_CONTRAST_HTML, "registry/.keep": "" });
   const home = join(root, "registry");
-  const env = { ...envOf([[SESSION_HOME_KEY, home]]), ...extraEnv };
+  // A daemon takes a host CT slot, so the case gets its own pool: never queued behind a real CT run.
+  const env = {
+    ...envOf([
+      [SESSION_HOME_KEY, home],
+      [HOST_POOL_ROOT_ENV, join(root, "host-slots")],
+    ]),
+    ...extraEnv,
+  };
   const snap = (args: readonly string[], over: Readonly<Record<string, string>> = {}): Promise<CliResult> =>
     runCli("snap", args, { env: { ...env, ...over }, timeoutMs: CLI_BUDGET_MS });
   const close = async (names: readonly string[]): Promise<void> => {
@@ -150,7 +161,16 @@ async function rig(
     }
     await snap(["--session-sweep"]);
   };
-  return { home, fixture: join(root, "fixture.html"), auditFixture: join(root, "audit.html"), bad: join(root, "bad.html"), env, snap, close };
+  return {
+    home,
+    fixture: join(root, "fixture.html"),
+    auditFixture: join(root, "audit.html"),
+    bad: join(root, "bad.html"),
+    env,
+    ctPool: hostPoolDir({ name: CT_HOST_POOL_NAME, label: "", slots: 1 }, env),
+    snap,
+    close,
+  };
 }
 
 const uniq = (tag: string): string => `p-s1-${tag}-${process.pid}`;
@@ -338,6 +358,56 @@ test("T5 ACTIVE — a call longer than the TTL keeps its daemon, rearms only aft
     await expect(close).resolves.toMatchObject({ code: EXIT.clean });
     expect(await until(() => !pidAlive(booted.daemonPid))).toBe(true);
     expect(existsSync(join(r.home, `${a}.json`))).toBe(false);
+  } finally {
+    await r.close([a]);
+  }
+});
+
+// ── The host CT slot ─────────────────────────────────────────────────────────────────────────────────
+
+/** The pids that hold a slot file in the pool right now. */
+function slotHolders(pool: string): readonly number[] {
+  if (!existsSync(pool)) {
+    return [];
+  }
+  return readdirSync(pool)
+    .filter((file) => file.endsWith(".lock"))
+    .map((file) => (JSON.parse(readFileSync(join(pool, file), "utf8")) as { readonly pid: number }).pid);
+}
+
+test("CT SLOT — a live session daemon holds one host CT slot for its lifetime and frees it at close; a one-shot takes none", async ({
+  plantedTree,
+  runCli,
+}) => {
+  const r = await rig(plantedTree, runCli);
+  const a = uniq("ctslot");
+  try {
+    await expect(await r.snap(["--file", r.fixture, "--eval", "1", ...QUIET])).toExitWith(EXIT.clean);
+    expect(slotHolders(r.ctPool), "a one-shot capture takes no CT slot").toEqual([]);
+    await expect(await r.snap(["--session", a, "--file", r.fixture, "--eval", "1", ...QUIET])).toExitWith(EXIT.clean);
+    const { daemonPid } = rowOf(r.home, a);
+    expect(slotHolders(r.ctPool), "the live daemon holds exactly one CT slot").toEqual([daemonPid]);
+    await expect(await r.snap(["--session-close", a])).toExitWith(EXIT.clean);
+    expect(await until(() => !pidAlive(daemonPid))).toBe(true);
+    expect(slotHolders(r.ctPool), "the closed daemon released its slot").toEqual([]);
+  } finally {
+    await r.close([a]);
+  }
+});
+
+// ── The owner's device survives a call ─────────────────────────────────────────────────────────────
+
+const POINTER_EVAL = "(matchMedia('(pointer: coarse)').matches ? 1 : 0) * 10 + navigator.maxTouchPoints";
+
+test("DEVICE — a --mobile session's next call still sees a coarse pointer after a call took an element shot", async ({ plantedTree, runCli }) => {
+  const r = await rig(plantedTree, runCli);
+  const a = uniq("device");
+  try {
+    // The boot's exit is not this case's subject: it also carries the environment verdict on the screen.
+    const boot = await r.snap(["--session", a, "--file", r.fixture, "--mobile", "--eval", POINTER_EVAL, "--shot-of", "main", "--no-failure-evidence"]);
+    expect(evalValue(boot.stdout), "coarse pointer and one touch point at boot").toBe(11);
+    const next = await r.snap(["--session", a, "--eval", POINTER_EVAL, ...QUIET]);
+    expect(evalValue(next.stdout), "the element shot must not have taken the device away").toBe(11);
   } finally {
     await r.close([a]);
   }
@@ -623,12 +693,9 @@ test("attach — attachProbeSession drives the owner's LIVE page over the sessio
 // value the shutdown stopped using, so "nothing died" cannot be "nothing was there".
 function chromiumPidsCarrying(marker: string): readonly number[] {
   return markedPids(marker).filter((pid) => {
-    try {
-      return /chrome|headless_shell/u.test(readFileSync(`/proc/${String(pid)}/cmdline`, "utf8"));
-    } catch {
-      // A pid that exits between the scan and the read is simply not counted: this is a census.
-      return false;
-    }
+    // A pid that exits between the scan and the read has no info and is simply not counted: this is a census.
+    const info = processInfo(pid);
+    return info !== null && /chrome|headless_shell/u.test(info.cmdline);
   });
 }
 

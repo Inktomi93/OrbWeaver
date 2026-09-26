@@ -254,7 +254,7 @@ export function searchHelpers(query: string, maxOutputLines?: number): void {
 
 function indent(text: string, prefix: string): string {
   return text
-    .split("\n")
+    .split(/\r?\n/u)
     .map((l) => prefix + l)
     .join("\n");
 }
