@@ -19,7 +19,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { HOST_POOL_ROOT_ENV, hostPoolDir } from "@orb/tooling/_shared/host-slots";
+import { CT_HOST_POOL_NAME, HOST_POOL_ROOT_ENV, hostPoolDir } from "@orb/tooling/_shared/host-slots";
 import { vi } from "vitest";
 import { readConcurrencyProfile } from "../../../../tooling/src/_shared/concurrency-profile.ts";
 import { CT_CACHE_DIR_ENV } from "../../../../tooling/src/_shared/ct-run-slot.ts";
@@ -250,7 +250,7 @@ function scratchRuntime(): NodeJS.ProcessEnv {
 /** Where the CT host pool's slot files live for a given scratch runtime dir. The `label` and `slots` are
  *  irrelevant to the path — only `name` is — so this reads the same directory the door writes. */
 function ctSlotFile(env: NodeJS.ProcessEnv, slot: number): string {
-  return join(hostPoolDir({ name: "ct", label: "", slots: 1 }, env), `${String(slot)}.lock`);
+  return join(hostPoolDir({ name: CT_HOST_POOL_NAME, label: "", slots: 1 }, env), `${String(slot)}.lock`);
 }
 
 const HOST_CT_SLOTS = readConcurrencyProfile({}).ctRunnersHostWide;

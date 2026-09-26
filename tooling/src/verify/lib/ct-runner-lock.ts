@@ -22,9 +22,9 @@
 // STALE LOCKS SELF-HEAL: a killed run leaves its file behind, and a lock nobody holds must never wedge the
 // next run — so an unheld lock (its pid is gone) is STOLEN with a printed note, never obeyed.
 //
-// A THIRD CAP JOINED THEM (#1835): a HOST-WIDE slot pool, `ctRunnersHostWide` slots under
-// $XDG_RUNTIME_DIR. Everything above is about ONE WORKTREE, and the #1835 finding was precisely that
-// every cap on the tree was per-worktree: six lanes across two accounts each ran their own CT fleet, and
+// A THIRD CAP JOINED THEM (#1835): the HOST-WIDE CT slot pool (`ctHostSlotPool` in _shared/host-slots.ts,
+// which the snap session daemon shares). Everything above is about ONE WORKTREE, and the #1835 finding
+// was precisely that every cap on the tree was per-worktree: six lanes across two accounts each ran their own CT fleet, and
 // node_load1 peaked at 105.8 on 24 cores with the co-hosted homelab starved. The two caps answer
 // different questions and therefore behave differently — the local one REFUSES a corrupting sibling, the
 // host one WAITS for a busy box. `acquireCtRunnerSlots` is the door that composes them; its doc states
@@ -33,10 +33,9 @@ import { existsSync, mkdirSync, readFileSync, rmSync, unlinkSync, writeFileSync 
 import { join } from "node:path";
 import process from "node:process";
 import { checkoutName } from "@orb/tooling/_shared/artifacts";
-import { readConcurrencyProfile, readStageBudgets } from "@orb/tooling/_shared/concurrency-profile";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import type { HostSlotDeps } from "@orb/tooling/_shared/host-slots";
-import { acquireHostSlot } from "@orb/tooling/_shared/host-slots";
+import { acquireHostSlot, ctHostSlotPool } from "@orb/tooling/_shared/host-slots";
 import type { RunMarkerDeps } from "@orb/tooling/_shared/run-marker";
 import { describeRunMarkerSweep, inheritedRunMarker, mintRunMarker, sweepAbandonedRunMarkers, sweepRunMarkerNow } from "@orb/tooling/_shared/run-marker";
 import type { CtRunnerLock, CtRunnerLockRecord } from "../contract/scoped-test.ts";
@@ -117,16 +116,6 @@ export interface CtRunnerLockDeps {
   readonly notice?: (message: string) => void;
 }
 
-/** A CT batch is minutes, and a second lane legitimately waits that long for a host slot rather than being
- *  refused. Load-scaled at acquire time; past it the head of the queue runs as one of the pool's overflow runs.
- *
- *  THE NUMBER IS THE PROFILE'S (#1848), not a second literal: the wait a queued run may spend is spent
- *  INSIDE the verify stage's own wall clock, so the stage's hang ceiling is derived from this same row
- *  (`stageBudgets.ctHostSlotWaitMinutes`). Two hand-typed 45s would have drifted the day either moved. */
-function ctHostWaitBaseMs(): number {
-  return readStageBudgets().ctHostWaitMs;
-}
-
 /** THE DOOR the runner uses. TWO caps, in this order, because they answer two different questions:
  *
  *  1. the per-WORKTREE lock (below) — "is another runner about to corrupt MY build directory?" It REFUSES,
@@ -154,15 +143,7 @@ export async function acquireCtRunnerSlots(root: string, deps: CtRunnerLockDeps 
       deps.notice?.(`CT RUNNER SWEPT   ${line} — its run is gone, so nothing was waiting on them.`);
     }
   }
-  const host = await acquireHostSlot(
-    {
-      name: "ct",
-      label: `test:ct ${checkoutName(root)}`,
-      slots: readConcurrencyProfile().ctRunnersHostWide,
-      waitBaseMs: ctHostWaitBaseMs(),
-    },
-    deps.host,
-  );
+  const host = await acquireHostSlot(ctHostSlotPool(`test:ct ${checkoutName(root)}`), deps.host);
   return {
     kind: "held",
     lease: {

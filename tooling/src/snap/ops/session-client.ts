@@ -16,6 +16,7 @@ import { activeRunSlot } from "../../_shared/artifact-out.ts";
 import { abandonedRuns, print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
+import { ctHostSlotPool, hostSlotQueued } from "../../_shared/host-slots.ts";
 import { warn } from "../../_shared/log.ts";
 import { spawnFullPriorityChild } from "../../_shared/proc.ts";
 import type { SessionEvent, SessionRequest, SessionRequestKind, SessionRow } from "../contract/session.ts";
@@ -168,6 +169,22 @@ interface SessionCallContext {
   readonly exportOut: string | null;
 }
 
+/** The daemon's boot budget, asked once per poll. Time the daemon spends queued for a host CT slot is the
+ *  box's wait, not its boot, and the pool's own ceiling bounds it, so the budget pauses while it queues. */
+function bootBudget(daemonPid: number | undefined): () => boolean {
+  const pool = ctHostSlotPool("");
+  let deadline = Date.now() + SESSION_BOOT_TIMEOUT_MS;
+  let polledAt = Date.now();
+  return (): boolean => {
+    const now = Date.now();
+    if (daemonPid !== undefined && hostSlotQueued(pool, daemonPid)) {
+      deadline += now - polledAt;
+    }
+    polledAt = now;
+    return now > deadline;
+  };
+}
+
 /** Boot the daemon and wait for it to answer `ping` — relaying its log meanwhile. Returns null when the
  *  session is ready, else the exit code (the daemon died during boot, or the boot budget expired). */
 async function bootSession(opts: Args, ctx: SessionCallContext): Promise<number | null> {
@@ -199,7 +216,7 @@ async function bootSession(opts: Args, ctx: SessionCallContext): Promise<number 
   // The daemon outlives this client by design; without `unref` node would hold the client open until it exits.
   child.unref();
   print(`session      booting ${name} (daemon pid ${child.pid ?? "?"}, log ${logPath})`);
-  const deadline = Date.now() + SESSION_BOOT_TIMEOUT_MS;
+  const bootExpired = bootBudget(child.pid);
   let offset = 0;
   try {
     for (;;) {
@@ -211,7 +228,7 @@ async function bootSession(opts: Args, ctx: SessionCallContext): Promise<number 
       if (await pingOk(socketPath, root)) {
         return null;
       }
-      if (Date.now() > deadline) {
+      if (bootExpired()) {
         child.killGroup("SIGKILL");
         print(`SESSION BOOT FAILED  ${name} did not answer within ${SESSION_BOOT_TIMEOUT_MS}ms — its log is above (${logPath})`);
         return EXIT.toolError;

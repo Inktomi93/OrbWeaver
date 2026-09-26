@@ -22,7 +22,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import type { HostSlotHolder, HostSlotLease, HostSlotPool } from "@orb/tooling/_shared/host-slots";
-import { acquireHostSlot, HOST_POOL_ROOT_ENV, hostPoolDir, hostPoolRoot, tryAcquireHostSlot } from "@orb/tooling/_shared/host-slots";
+import { acquireHostSlot, HOST_POOL_ROOT_ENV, hostPoolDir, hostPoolRoot, hostSlotQueued, tryAcquireHostSlot } from "@orb/tooling/_shared/host-slots";
 
 import { expect, test } from "../../support/tool-fixtures.ts";
 
@@ -525,5 +525,28 @@ test("a planted slot symlink is refused, and its target is never read as a holde
   symlinkSync(target, join(dir, "1.lock"));
   expect(() => tryAcquireHostSlot(poolOf(1), { env, pid: 650, alive: aliveOnly(650) })).toThrow(/is a symlink or not a regular file/u);
   expect(readFileSync(target, "utf8")).toBe("preserved\n");
+  rmSync(env[HOST_POOL_ROOT_ENV] ?? "", { recursive: true, force: true });
+});
+
+test("hostSlotQueued names exactly the pid waiting in the queue, and only while it waits", async () => {
+  const env = scratchRuntime();
+  const clock = fakeClock();
+  const held = await acquireHostSlot(poolOf(1), { env, pid: 1200, alive: aliveOnly(1200) });
+  expect(hostSlotQueued(poolOf(1), 1201, env), "no ticket before it asks").toBe(false);
+  const seenWhileWaiting: boolean[] = [];
+  const waiter = await acquireHostSlot(poolOf(1, 5000), {
+    env,
+    pid: 1201,
+    alive: aliveOnly(1200, 1201),
+    now: clock.now,
+    sleep: async (ms) => {
+      seenWhileWaiting.push(hostSlotQueued(poolOf(1), 1201, env), hostSlotQueued(poolOf(1), 120, env), hostSlotQueued(poolOf(1), 1200, env));
+      await clock.sleep(ms);
+    },
+  });
+  expect(seenWhileWaiting.slice(0, 3), "the waiter, not a pid whose digits prefix it, not the holder").toStrictEqual([true, false, false]);
+  expect(hostSlotQueued(poolOf(1), 1201, env), "an admitted waiter holds no ticket").toBe(false);
+  waiter.release();
+  held.release();
   rmSync(env[HOST_POOL_ROOT_ENV] ?? "", { recursive: true, force: true });
 });

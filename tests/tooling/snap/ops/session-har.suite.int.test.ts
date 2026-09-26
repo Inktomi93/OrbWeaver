@@ -9,6 +9,7 @@ import { launchProbeSession, settle, withProbeSession } from "@orb/tooling/_shar
 import { browserEvidenceRetentionBatchSchema } from "@orb/tooling/_shared/browser-evidence-ring";
 import { networkRecordsForPages, selectNetworkBodies, wirePageNetwork } from "@orb/tooling/_shared/browser-network";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { HOST_POOL_ROOT_ENV } from "@orb/tooling/_shared/host-slots";
 import type { CDPSession } from "@playwright/test";
 import { chromium } from "@playwright/test";
 import { vi } from "vitest";
@@ -301,6 +302,7 @@ test("session export snapshots the CDP HAR without closing its browser owner", a
   const home = join(scratch, "sessions");
   const env = Object.fromEntries([
     ["ORB_SNAP_SESSION_HOME", home],
+    [HOST_POOL_ROOT_ENV, join(scratch, "host-slots")],
     ["ORB_SESSION_CAP", "2"],
     ["ORB_SESSION_TTL_MIN", "1"],
   ]);

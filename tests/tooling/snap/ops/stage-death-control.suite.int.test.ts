@@ -12,6 +12,7 @@ import { join } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
+import { HOST_POOL_ROOT_ENV } from "@orb/tooling/_shared/host-slots";
 import { spawnNiced } from "@orb/tooling/_shared/proc";
 import { vi } from "vitest";
 import { listeningPids } from "../../../../tooling/src/_shared/platform.ts";
@@ -80,6 +81,7 @@ test("T4 — killing one half of a real daemon-bound stage makes death sticky, s
   const name = `p-t4-stage-death-${process.pid}`;
   const env = envOf([
     ["ORB_SNAP_SESSION_HOME", sessionHome],
+    [HOST_POOL_ROOT_ENV, join(scratch, "host-slots")],
     ["ORB_STAGE_CAP", "10"],
   ]);
   const snap = (args: readonly string[]): Promise<CliResult> => runCli("snap", args, { cwd: ownerCheckout, env, timeoutMs: CLI_BUDGET_MS });

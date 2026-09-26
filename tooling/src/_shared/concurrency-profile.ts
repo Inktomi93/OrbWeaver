@@ -87,7 +87,7 @@ const RUN_OF: Readonly<Record<RunPricedCap, { readonly of: UnitPricedCap; readon
  *  · `hookPoolSlots`           → the edit hook's host-wide pool, shared by its file-scoped legs
  *  · `hookTs7Checkers`         → the `--checkers` the edit hook's whole-program ts7 leg passes (smaller than
  *                                `ts7Checkers`: it fires on every edit, beside whatever else is running)
- *  · `ctRunnersHostWide`       → verify/lib/ct-runner-lock.ts's host slot pool
+ *  · `ctRunnersHostWide`       → _shared/host-slots.ts's CT pool: CT runs and snap session daemons at once
  *  · `ts7RunnersHostWide`      → scripts/ts7.ts's host slot pool: whole-program typechecks on this box at once
  *  · `stageCap`                → snap's live-stage cap, the BASE `resolveStageLimits` starts from
  *                                (`ORB_STAGE_CAP` still overrides it). Committed, not derived: no stage cost
@@ -302,7 +302,7 @@ export function readMachine(): Machine {
  *  Every field answers "past this the stage is WEDGED", not "this stage should be faster":
  *  · `defaultMs`   → every stage without a ceiling of its own
  *  · `ctSuiteMs`   → the whole-CT-suite stage, which is the one that outgrew the constant
- *  · `ctHostWaitMs`→ how long a CT run may queue for a host-wide slot (ct-runner-lock.ts reads it too, so
+ *  · `ctHostWaitMs`→ how long a CT run may queue for a host-wide slot (the CT host pool reads it too, so
  *                    the wait a run may spend and the ceiling that must cover it cannot drift apart).
  *  · `ts7HostWaitMs` → how long a whole-program typecheck may queue for a host-wide ts7 slot before the head
  *                    of the queue runs as an overflow run (scripts/ts7.ts).

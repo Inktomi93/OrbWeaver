@@ -18,7 +18,7 @@
 // @instrument-absence-proof: T2 — a call on a session whose daemon is GONE exits 2 with `SESSION DEAD …
 // mid-<op>`, never a comfortable RESULT from a browser that no longer exists.
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, readlinkSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, readlinkSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -26,6 +26,7 @@ import { abandonedRuns } from "@orb/tooling/_shared/artifacts";
 import { attachProbeSession, closeProbeSession } from "@orb/tooling/_shared/browser";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
+import { CT_HOST_POOL_NAME, HOST_POOL_ROOT_ENV, hostPoolDir } from "@orb/tooling/_shared/host-slots";
 import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
 import { markedPids, mintRunMarker, RUN_MARKER_ENV, runMarkerEnv } from "@orb/tooling/_shared/run-marker";
 import { vi } from "vitest";
@@ -128,6 +129,8 @@ interface Rig {
   readonly auditFixture: string;
   readonly bad: string;
   readonly env: Readonly<Record<string, string>>;
+  /** The case's private CT host pool, where each booted daemon holds its slot. */
+  readonly ctPool: string;
   readonly snap: (args: readonly string[], env?: Readonly<Record<string, string>>) => Promise<CliResult>;
   readonly close: (names: readonly string[]) => Promise<void>;
 }
@@ -141,7 +144,14 @@ async function rig(
 ): Promise<Rig> {
   const root = await plantedTree({ "fixture.html": FIXTURE_HTML, "audit.html": AUDIT_FIXTURE_HTML, "bad.html": BAD_CONTRAST_HTML, "registry/.keep": "" });
   const home = join(root, "registry");
-  const env = { ...envOf([[SESSION_HOME_KEY, home]]), ...extraEnv };
+  // A daemon takes a host CT slot, so the case gets its own pool: never queued behind a real CT run.
+  const env = {
+    ...envOf([
+      [SESSION_HOME_KEY, home],
+      [HOST_POOL_ROOT_ENV, join(root, "host-slots")],
+    ]),
+    ...extraEnv,
+  };
   const snap = (args: readonly string[], over: Readonly<Record<string, string>> = {}): Promise<CliResult> =>
     runCli("snap", args, { env: { ...env, ...over }, timeoutMs: CLI_BUDGET_MS });
   const close = async (names: readonly string[]): Promise<void> => {
@@ -150,7 +160,16 @@ async function rig(
     }
     await snap(["--session-sweep"]);
   };
-  return { home, fixture: join(root, "fixture.html"), auditFixture: join(root, "audit.html"), bad: join(root, "bad.html"), env, snap, close };
+  return {
+    home,
+    fixture: join(root, "fixture.html"),
+    auditFixture: join(root, "audit.html"),
+    bad: join(root, "bad.html"),
+    env,
+    ctPool: hostPoolDir({ name: CT_HOST_POOL_NAME, label: "", slots: 1 }, env),
+    snap,
+    close,
+  };
 }
 
 const uniq = (tag: string): string => `p-s1-${tag}-${process.pid}`;
@@ -338,6 +357,38 @@ test("T5 ACTIVE — a call longer than the TTL keeps its daemon, rearms only aft
     await expect(close).resolves.toMatchObject({ code: EXIT.clean });
     expect(await until(() => !pidAlive(booted.daemonPid))).toBe(true);
     expect(existsSync(join(r.home, `${a}.json`))).toBe(false);
+  } finally {
+    await r.close([a]);
+  }
+});
+
+// ── The host CT slot ─────────────────────────────────────────────────────────────────────────────────
+
+/** The pids that hold a slot file in the pool right now. */
+function slotHolders(pool: string): readonly number[] {
+  if (!existsSync(pool)) {
+    return [];
+  }
+  return readdirSync(pool)
+    .filter((file) => file.endsWith(".lock"))
+    .map((file) => (JSON.parse(readFileSync(join(pool, file), "utf8")) as { readonly pid: number }).pid);
+}
+
+test("CT SLOT — a live session daemon holds one host CT slot for its lifetime and frees it at close; a one-shot takes none", async ({
+  plantedTree,
+  runCli,
+}) => {
+  const r = await rig(plantedTree, runCli);
+  const a = uniq("ctslot");
+  try {
+    await expect(await r.snap(["--file", r.fixture, "--eval", "1", ...QUIET])).toExitWith(EXIT.clean);
+    expect(slotHolders(r.ctPool), "a one-shot capture takes no CT slot").toEqual([]);
+    await expect(await r.snap(["--session", a, "--file", r.fixture, "--eval", "1", ...QUIET])).toExitWith(EXIT.clean);
+    const { daemonPid } = rowOf(r.home, a);
+    expect(slotHolders(r.ctPool), "the live daemon holds exactly one CT slot").toEqual([daemonPid]);
+    await expect(await r.snap(["--session-close", a])).toExitWith(EXIT.clean);
+    expect(await until(() => !pidAlive(daemonPid))).toBe(true);
+    expect(slotHolders(r.ctPool), "the closed daemon released its slot").toEqual([]);
   } finally {
     await r.close([a]);
   }
