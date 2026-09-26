@@ -41,21 +41,18 @@ describe("share router", () => {
       relay: { state: "starting", relay: "quick", restartAfter: null },
       liveSocketCount: LIVE_SOCKETS,
       publicAddresses: [],
-      standingRefusal: null,
     });
     await expect(share.status()).resolves.toEqual({
       relay: { state: "starting", relay: "quick", restartAfter: null },
       liveSocketCount: LIVE_SOCKETS,
       publicAddresses: [],
-      standingRefusal: null,
     });
-    await expect(share.stop()).resolves.toEqual({ relay: { state: "off" }, liveSocketCount: LIVE_SOCKETS, publicAddresses: [], standingRefusal: null });
+    await expect(share.stop()).resolves.toEqual({ relay: { state: "off" }, liveSocketCount: LIVE_SOCKETS, publicAddresses: [] });
   });
 
   test("the strict output parser refuses a status carrying anything beyond its shape", async () => {
     const leaky = {
-      status: () =>
-        Promise.resolve({ relay: { state: "off" as const }, liveSocketCount: 0, publicAddresses: [], standingRefusal: null, ownerPasswordHash: "scrypt$…" }),
+      status: () => Promise.resolve({ relay: { state: "off" as const }, liveSocketCount: 0, publicAddresses: [], ownerPasswordHash: "scrypt$…" }),
     };
     const share = caller(makeContext({ auth: principal("owner"), services: { share: leaky } })).share;
     await expect(share.status()).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });

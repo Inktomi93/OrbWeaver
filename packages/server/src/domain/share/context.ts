@@ -2,7 +2,7 @@
 // precondition check every start path runs over the injected facts, and the one status every verb answers.
 
 import type { ShareContext, ShareServiceDeps } from "./contract/service.ts";
-import { shareRefusal, standingShareRefusal } from "./substrate/refusal.ts";
+import { shareRefusal } from "./substrate/refusal.ts";
 
 export function createShareContext(deps: ShareServiceDeps): ShareContext {
   return {
@@ -12,7 +12,6 @@ export function createShareContext(deps: ShareServiceDeps): ShareContext {
       relay,
       liveSocketCount: deps.liveSocketCount() - deps.liveSocketCount(principal.userId),
       publicAddresses: [...deps.publicAddresses],
-      standingRefusal: standingShareRefusal(deps),
     }),
   };
 }

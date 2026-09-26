@@ -119,7 +119,7 @@ function stub(page: Page, viewer: TrpcWireOutput<"sessions.me">): Promise<TrpcRe
     "admin.listUsers": () => USERS,
     "sessions.me": () => viewer,
     // Multi-user's owner-only Share card reads the relay; fed at rest.
-    "share.status": () => ({ relay: { state: "off" as const }, liveSocketCount: 0, publicAddresses: [], standingRefusal: null }),
+    "share.status": () => ({ relay: { state: "off" as const }, liveSocketCount: 0, publicAddresses: [] }),
     // About (last at this anchor) suspends on the version identity — unfed, its boundary renders the error
     // state and its anchor never lands, which reads as a short pane rather than as a missing stub.
     "settings.getVersion": () => ({ version: "0.4.1", commit: "823d76f4343a1cea086b17a1b5bf212b44c17a7d", short: "823d76f4343a", source: "checkout" }),

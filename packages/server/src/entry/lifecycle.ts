@@ -7,7 +7,6 @@
 import { randomUUID } from "node:crypto";
 import type { AddressInfo } from "node:net";
 import { hostname } from "node:os";
-import { join } from "node:path";
 import process from "node:process";
 import type { ServerType } from "@hono/node-server";
 import { serve } from "@hono/node-server";
@@ -58,7 +57,7 @@ import {
 } from "#infra/auth";
 import { bootSecretProvenance, resolveCredentialsKey, resolveSessionSecret } from "#infra/crypto";
 import { fetchPinnedDownload, installEgressFirewall, parseAllowlist } from "#infra/network";
-import type { RelayLauncher } from "#infra/relay";
+import type { CloudflaredPin, RelayAssetFetch, SpawnRelay } from "#infra/relay";
 import { CLOUDFLARED_PIN, createCloudflaredBinary, createQuickTunnelLauncher, extractTgzWithTar, spawnQuickTunnel } from "#infra/relay";
 import { createCas } from "#infra/storage";
 import { startCatalogRefreshScheduler } from "../transport/jobs/catalog-refresh-scheduler.ts";
@@ -375,9 +374,10 @@ interface LifecycleOptions {
    *  boot test that must exercise the REAL graph while replacing a backend edge that would otherwise do
    *  something a test may not (fetch multi-GB model weights). Production omits it. */
   readonly providerSeams?: Parameters<typeof createServices>[0]["providerSeams"];
-  /** Composition-root test seam: the share relay's launcher, so a boot test never downloads or runs cloudflared.
-   *  Production omits it and gets the pinned, checksummed quick tunnel. */
-  readonly relayLauncher?: RelayLauncher;
+  /** Composition-root test seam: the share relay's pin, download and spawn, so a boot test never reaches the network
+   *  or runs cloudflared. The checksum verifier and its directory in the data layout stay production's. Production
+   *  omits it and gets the pinned release over the pinned-download door and a real quick tunnel. */
+  readonly relaySeams?: { readonly pin: CloudflaredPin; readonly fetch: RelayAssetFetch; readonly spawn: SpawnRelay };
 }
 
 /** Construct the lifecycle. Side-effect-free until `boot()` runs (so `index.ts` can wire signals first). */
@@ -603,20 +603,23 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // The share relay: the server's one long-lived child, spawned in this process group. Built once, before compose,
     // because it holds the relay registry's write side; the port is read when a relay starts, after the bind.
     const listenPort = (): number => listenerAddress?.port ?? options.listenPort ?? env.PORT;
+    const relaySeams: NonNullable<LifecycleOptions["relaySeams"]> = options.relaySeams ?? {
+      pin: CLOUDFLARED_PIN,
+      fetch: (url, limits) => fetchPinnedDownload(url, { allowedHosts: CLOUDFLARED_PIN.downloadHosts, ...limits }),
+      spawn: spawnQuickTunnel,
+    };
     const relay = createRelayController({
       relay: "quick",
-      launcher:
-        options.relayLauncher ??
-        createQuickTunnelLauncher({
-          binary: createCloudflaredBinary({
-            pin: CLOUDFLARED_PIN,
-            target: `${process.platform}-${process.arch}`,
-            dir: join(env.DATA_LAYOUT.cache, "relay"),
-            fetch: (url, limits) => fetchPinnedDownload(url, { allowedHosts: CLOUDFLARED_PIN.downloadHosts, ...limits }),
-            extractTgz: extractTgzWithTar,
-          }),
-          spawn: spawnQuickTunnel,
+      launcher: createQuickTunnelLauncher({
+        binary: createCloudflaredBinary({
+          pin: relaySeams.pin,
+          target: `${process.platform}-${process.arch}`,
+          dir: env.DATA_LAYOUT.relay,
+          fetch: relaySeams.fetch,
+          extractTgz: extractTgzWithTar,
         }),
+        spawn: relaySeams.spawn,
+      }),
       hosts: relayHosts.writer,
       origin: () => relayOrigin(listenerAddress, listenPort()),
       now,

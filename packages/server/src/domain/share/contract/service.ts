@@ -36,7 +36,6 @@ export interface RelayControllerDeps {
 /** The facts a share's preconditions read. */
 export interface ShareFacts {
   readonly authMode: AuthMode;
-  readonly inContainer: boolean;
   /** Read only under `local`, the one mode with a first-run owner claim. */
   readonly ownerNeedsPassword: () => Promise<boolean>;
   /** Where the owner finishes setup: this machine's own origin. */

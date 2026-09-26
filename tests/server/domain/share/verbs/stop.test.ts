@@ -13,7 +13,6 @@ describe("share.stop", () => {
       relay: { state: "off" },
       liveSocketCount: LIVE_SOCKETS,
       publicAddresses: [],
-      standingRefusal: null,
     });
     expect(h.calls.at(-1)).toBe("relay.stop");
     expect(h.audits.at(-1)).toEqual({ actorUserId: caller("owner").userId, action: "share.stop", entityType: "server" });

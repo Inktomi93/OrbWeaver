@@ -9,17 +9,15 @@ import { trpcErrorReason } from "#lib";
 const SHARE_PRECONDITIONS = ["mode", "owner", "seating", "relay"] as const;
 type SharePrecondition = (typeof SHARE_PRECONDITIONS)[number];
 
-// A row's verdict. `unmet` is known now and its fix comes first; `unavailable` is known now and no fix on the card
-// clears it; `waiting` hangs on an earlier row; `unchecked` is decided by the server at start; `refused` is the
-// server's answer to the last start, which a new start re-checks.
-const PRECONDITION_VERDICTS = ["met", "unmet", "unavailable", "waiting", "unchecked", "refused"] as const;
+// A row's verdict. `unmet` is known now and its fix comes first; `waiting` hangs on an earlier row; `unchecked` is
+// decided by the server at start; `refused` is the server's answer to the last start, which a new start re-checks.
+const PRECONDITION_VERDICTS = ["met", "unmet", "waiting", "unchecked", "refused"] as const;
 type PreconditionVerdict = (typeof PRECONDITION_VERDICTS)[number];
 
 // Whether a verdict holds the Start button until its fix is done.
 const VERDICT_BLOCKS_START: Record<PreconditionVerdict, boolean> = {
   met: false,
   unmet: true,
-  unavailable: true,
   waiting: true,
   unchecked: false,
   refused: false,
@@ -34,14 +32,12 @@ export interface ShareStartFailure {
   readonly message: string;
 }
 
-/** The facts the rows read: the boot-fixed sign-in mode, the two seating settings, the last start refusal, and the
- *  refusal the server knows without a start (`ShareStatus.standingRefusal`). */
+/** The facts the rows read: the boot-fixed sign-in mode, the two seating settings and the last start refusal. */
 export interface ShareFactsView {
   readonly mode: AuthMode;
   readonly localMultiUser: boolean;
   readonly discreetLogin: boolean;
   readonly refusal: ShareStartRefusal | null;
-  readonly standing: ShareRefusal | null;
 }
 
 export interface PreconditionRow {
@@ -64,7 +60,6 @@ export function refusalRow(code: ShareStartRefusal): SharePrecondition {
       return "mode";
     case "share_owner_unclaimed":
       return "owner";
-    case "share_in_container":
     case "relay_platform_unsupported":
     case "relay_binary_download_failed":
     case "relay_binary_checksum_mismatch":
@@ -88,13 +83,9 @@ function seatingVerdict(facts: ShareFactsView): PreconditionVerdict {
   return facts.localMultiUser && facts.discreetLogin ? "met" : "unmet";
 }
 
-// A press's refusal is `refused`: a new start re-checks it. A standing refusal on the relay (a container) is
-// `unavailable`: no start can get past it and nothing on the card fixes it, so it holds Start before anyone presses.
+// Only a start downloads and checks the relay, so the row is known only after a press.
 function relayVerdict(facts: ShareFactsView): PreconditionVerdict {
-  if (facts.refusal !== null && refusalRow(facts.refusal) === "relay") {
-    return "refused";
-  }
-  return facts.standing !== null && refusalRow(facts.standing) === "relay" ? "unavailable" : "unchecked";
+  return facts.refusal !== null && refusalRow(facts.refusal) === "relay" ? "refused" : "unchecked";
 }
 
 /** Every precondition row, in the order the server checks them. */

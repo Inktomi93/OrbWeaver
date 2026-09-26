@@ -19,12 +19,6 @@ describe("share.start", () => {
     expect(h.calls).toEqual([]);
   });
 
-  test("in a container it refuses with share_in_container", async () => {
-    const h = shareHarness({ authMode: "local", inContainer: true });
-    await expect(h.share.start({ principal: caller("owner") })).rejects.toMatchObject({ code: "share_in_container" });
-    expect(h.calls).toEqual([]);
-  });
-
   test("with an unclaimed owner it refuses, names the local setup, and never starts the relay", async () => {
     const h = shareHarness({ authMode: "local", ownerNeedsPassword: true });
     const refusal = h.share.start({ principal: caller("owner") });
@@ -40,7 +34,6 @@ describe("share.start", () => {
       relay: { state: "starting", relay: "quick", restartAfter: null },
       liveSocketCount: LIVE_SOCKETS,
       publicAddresses: [],
-      standingRefusal: null,
     });
     expect(h.calls).toEqual(["ownerNeedsPassword", "enableSeating", "relay.start"]);
     expect(h.audits).toEqual([{ actorUserId: caller("owner").userId, action: "share.start", entityType: "server", metadata: { relay: "starting" } }]);

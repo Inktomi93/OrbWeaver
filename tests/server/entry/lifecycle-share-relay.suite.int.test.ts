@@ -1,12 +1,12 @@
-// entry/lifecycle — the share relay as production wires it, over a fake launcher (no download, no tunnel). A fresh
+// entry/lifecycle — the share relay as production wires it, over a fake download and spawn (no network, no tunnel). A fresh
 // `AUTH_MODE=local` box launched with `SHARE_RELAY=quick` must not start the relay while the owner is unclaimed; the
 // loopback first-run claim starts it in-process; its host is admitted only while it is up; shutdown ends it.
 
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { RelayEvents, RelayLauncher } from "@orb/server/infra/relay";
 import { afterAll, beforeAll, vi } from "vitest";
+import { fakeRelaySeams } from "../../support/fake-relay.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import { requestWithHost } from "../../support/host-request.ts";
 
@@ -38,34 +38,11 @@ const { createLifecycle } = await import("../../../packages/server/src/entry/lif
 });
 const { logRing } = await import("../../../packages/server/src/foundation/observability/index.ts");
 
-interface FakeRelay {
-  readonly origin: string;
-  readonly events: RelayEvents;
-  stopped: boolean;
-}
+const relaySeams = fakeRelaySeams();
+const relays = relaySeams.relays;
+const latestRelay = relaySeams.latest;
 
-const relays: FakeRelay[] = [];
-const launcher: RelayLauncher = {
-  launch: (origin, events) => {
-    const relay: FakeRelay = { origin, events, stopped: false };
-    relays.push(relay);
-    return Promise.resolve({
-      stop: (): void => {
-        relay.stopped = true;
-      },
-    });
-  },
-};
-
-function latestRelay(): FakeRelay {
-  const relay = relays.at(-1);
-  if (relay === undefined) {
-    throw new Error("no relay was launched");
-  }
-  return relay;
-}
-
-const lifecycle = createLifecycle({ listenPort: 0, relayLauncher: launcher });
+const lifecycle = createLifecycle({ listenPort: 0, relaySeams });
 let base = "";
 let loopbackBase = "";
 let port = "";

@@ -38,7 +38,6 @@ export interface ShareHarness {
 
 export function shareHarness(options: {
   readonly authMode: AuthMode;
-  readonly inContainer?: boolean;
   readonly ownerNeedsPassword?: boolean;
   readonly startError?: Error;
   readonly publicAddresses?: readonly string[];
@@ -72,7 +71,6 @@ export function shareHarness(options: {
     },
     requireOwner,
     authMode: options.authMode,
-    inContainer: options.inContainer ?? false,
     ownerNeedsPassword: (): Promise<boolean> => {
       calls.push("ownerNeedsPassword");
       return Promise.resolve(ownerNeedsPassword);

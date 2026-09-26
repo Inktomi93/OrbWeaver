@@ -18,7 +18,7 @@ import {
 } from "../../../../../packages/client/src/features/user-admin/lib/share-model.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
-const READY_LOCAL: ShareFactsView = { mode: "local", localMultiUser: true, discreetLogin: true, refusal: null, standing: null };
+const READY_LOCAL: ShareFactsView = { mode: "local", localMultiUser: true, discreetLogin: true, refusal: null };
 
 function verdicts(facts: ShareFactsView): Record<string, string> {
   return Object.fromEntries(sharePreconditions(facts).map((row) => [row.id, row.verdict]));
@@ -53,16 +53,9 @@ describe("sharePreconditions", () => {
     const unclaimed = { ...READY_LOCAL, refusal: "share_owner_unclaimed" } as const;
     expect(verdicts(unclaimed)["owner"]).toBe("refused");
     expect(canStartSharing(sharePreconditions(unclaimed))).toBe(true);
-    const container = { ...READY_LOCAL, refusal: "share_in_container" } as const;
-    expect(verdicts(container)["relay"]).toBe("refused");
-    expect(canStartSharing(sharePreconditions(container))).toBe(true);
-  });
-
-  test("a standing container refusal marks the relay row unavailable and holds Start before any press; a mode one leaves the relay row alone", () => {
-    const boxed = { ...READY_LOCAL, standing: "share_in_container" } as const;
-    expect(verdicts(boxed)["relay"]).toBe("unavailable");
-    expect(canStartSharing(sharePreconditions(boxed))).toBe(false);
-    expect(verdicts({ ...READY_LOCAL, mode: "single-user", standing: "share_single_user" })["relay"]).toBe("unchecked");
+    const download = { ...READY_LOCAL, refusal: "relay_binary_download_failed" } as const;
+    expect(verdicts(download)["relay"]).toBe("refused");
+    expect(canStartSharing(sharePreconditions(download))).toBe(true);
   });
 
   test("every mode yields the four rows in order", () => {
@@ -73,11 +66,10 @@ describe("sharePreconditions", () => {
 });
 
 describe("refusalRow", () => {
-  test("the relay binary refusals and the container land on the relay row", () => {
+  test("the relay binary refusals land on the relay row", () => {
     for (const code of RELAY_BINARY_REFUSALS) {
       expect(refusalRow(code)).toBe("relay");
     }
-    expect(refusalRow("share_in_container")).toBe("relay");
   });
 
   test("the mode refusals land on the mode row and the unclaimed owner on the owner row", () => {
