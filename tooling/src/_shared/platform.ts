@@ -18,8 +18,8 @@ import {
   parsePsProcesses,
   parseSsSockets,
 } from "./platform-parse.ts";
-import type { RunNicedSyncResult } from "./proc.ts";
-import { runNicedSync, spawnNicedChild } from "./proc.ts";
+import type { FullPriorityChild, RunNicedSyncResult } from "./proc.ts";
+import { runNicedSync, spawnFullPriorityChild } from "./proc.ts";
 
 export type { ProcessEntry, SocketRow } from "./platform-parse.ts";
 
@@ -36,9 +36,12 @@ export interface PlatformDeps {
   readonly readFile?: (path: string) => string | null;
   readonly readDir?: (path: string) => readonly string[];
   readonly readLink?: (path: string) => string | null;
-  /** The detached launcher `openUrl` releases at once. */
-  readonly launch?: (cmd: string, args: readonly string[]) => { readonly unref: () => void };
+  /** Starts the default-browser opener; `openUrl` releases it at once and reads how it ended. */
+  readonly launch?: (cmd: string, args: readonly string[]) => OpenerChild;
 }
+
+/** The default-browser opener as `openUrl` sees it: released at once, and awaited only for how it ended. */
+export type OpenerChild = Pick<FullPriorityChild, "unref" | "wait">;
 
 /** One established TCP socket: the local port it terminates, the peer it faces and the pid owning the
  *  local end when the OS named it. */
@@ -360,11 +363,24 @@ function openerFor(platform: SupportedPlatform | null, url: string): readonly [s
   return ["xdg-open", [url]];
 }
 
-/** Open a URL in the default browser, detached. The child is released at once; a browser that fails to
- *  open is the user's desktop's business, not the launcher's. */
-export function openUrl(url: string, deps: PlatformDeps = {}): void {
+/** The default launcher. Full priority, because a browser the opener starts keeps the opener's priority for its whole
+ *  life. No stdio, because that browser outlives this process: an unread pipe would stall it and a closed one could kill
+ *  it. Detached on POSIX, so the Ctrl-C that stops the caller never reaches the browser; win32 `detached` would open a
+ *  second console, and the browser `start` launches is not attached to this one. */
+function launchOpener(cmd: string, args: readonly string[]): OpenerChild {
+  return spawnFullPriorityChild(cmd, args, { stdio: "ignore", detached: process.platform !== "win32" });
+}
+
+/** Open a URL in the default browser. The opener is released at once, so the caller can exit before it does; the
+ *  promise answers the error when the opener could not run (a box with no desktop has none), never throws it, and
+ *  otherwise `undefined`. Whether a browser then appears is the desktop's business. */
+export async function openUrl(url: string, deps: PlatformDeps = {}): Promise<Error | undefined> {
   const [command, args] = openerFor(supportedPlatform(deps), url);
-  (deps.launch ?? spawnNicedChild)(command, args).unref();
+  const opener = (deps.launch ?? launchOpener)(command, args);
+  // Asked before the release: a spawn failure is emitted on the next tick, and `wait` is its only listener.
+  const exit = opener.wait();
+  opener.unref();
+  return (await exit).error;
 }
 
 /** Name the pnpm to run with, for a `shell: false` spawn on any platform.

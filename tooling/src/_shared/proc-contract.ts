@@ -84,8 +84,10 @@ export interface FullPriorityChildOptions {
   readonly detached?: boolean;
   /** `"inherit"` gives the child THIS terminal (the foreground-run shape). `"pipe-stdout"` keeps stderr on
    *  this terminal and hands stdout to the parent as {@link FullPriorityChild.stdout} (a log-formatting
-   *  pipe). Both are mutually exclusive with logPath. */
-  readonly stdio?: "inherit" | "pipe-stdout";
+   *  pipe). `"ignore"` gives it neither: a child that outlives this process and whose output nobody reads (a
+   *  browser the default-browser opener starts), which an unread pipe would stall and a closed one would kill.
+   *  All three are mutually exclusive with logPath. */
+  readonly stdio?: "inherit" | "pipe-stdout" | "ignore";
 }
 
 export interface ChildExit {

@@ -12,6 +12,7 @@ import type {
   AnswerParse,
   DistVerdict,
   ProdSpawnPlan,
+  StartBrowser,
   StartBuildDecision,
   StartBuildMode,
   StartInvocation,
@@ -43,6 +44,14 @@ const SHARE_RELAY_QUICK = "quick";
 /** A just-me box shared in `local` binds loopback: production `local` otherwise listens on every interface, which
  *  would open the LAN over plain http beside the relay. */
 const LOOPBACK_BIND = "127.0.0.1";
+
+/** The launcher's own `.env` switch: `off` stops an interactive start opening the app in the browser. The server never
+ *  reads it. The file wins over the shell, the precedence the server applies to its own keys. */
+export const OPEN_BROWSER_KEY = "OPEN_BROWSER";
+const OPEN_BROWSER_ON = "on";
+const OPEN_BROWSER_OFF = "off";
+/** The variables an SSH server sets in a remote session: a browser opened there would open on the remote machine. */
+const SSH_SESSION_KEYS = ["SSH_CONNECTION", "SSH_TTY"] as const;
 
 /** The server's switch that stops `.env` overriding the process env (foundation/env reads it at load). */
 const ENV_NO_OVERRIDE = "ORB_ENV_NO_OVERRIDE";
@@ -244,6 +253,35 @@ export function startSpawnPlan(opts: {
   });
 }
 
+/** The address the banner prints and the browser opens. */
+export function startAppUrl(port: number): string {
+  return `http://localhost:${String(port)}`;
+}
+
+/** Does this invocation open the app in the default browser once the server answers? Only a start with a person at
+ *  the terminal of this machine does: a service manager, a CI job or a pipe has no one to show a tab to, and an SSH
+ *  session's person sits at another machine. An unset or empty setting is
+ *  `on`; a value that is neither is refused rather than read as either, so a typo cannot open a browser on a box
+ *  whose owner meant to turn it off. */
+export function startBrowser(opts: {
+  readonly interactive: boolean;
+  readonly fileEnv: Readonly<Record<string, string | undefined>>;
+  readonly ambient: Readonly<Record<string, string | undefined>>;
+}): StartBrowser {
+  const declared = opts.fileEnv[OPEN_BROWSER_KEY] ?? opts.ambient[OPEN_BROWSER_KEY] ?? "";
+  if (declared === OPEN_BROWSER_OFF) {
+    return { kind: "skip" };
+  }
+  if (declared !== "" && declared !== OPEN_BROWSER_ON) {
+    return {
+      kind: "refused",
+      reason: `${OPEN_BROWSER_KEY}=${declared} is neither ${OPEN_BROWSER_ON} nor ${OPEN_BROWSER_OFF}, so no browser was opened. Set ${OPEN_BROWSER_KEY}=${OPEN_BROWSER_OFF} in .env to stop this message.`,
+    };
+  }
+  const overSsh = SSH_SESSION_KEYS.some((key) => (opts.ambient[key] ?? "") !== "");
+  return opts.interactive && !overSsh ? { kind: "open" } : { kind: "skip" };
+}
+
 /** WHO CAN LOG IN, in one line. `single-user` is the default mode and the one whose reach surprises
  *  people: it has no login, so the server listens on loopback only and another device cannot connect at all
  *  (foundation/env/bind.ts). */
@@ -267,7 +305,7 @@ export function startBannerLines(opts: {
   readonly share: boolean;
 }): readonly string[] {
   const posture = startPostureLine(opts.mode, opts.fallbackFilled);
-  return ["", `  orbweaver is running:  http://localhost:${opts.port}`, `  ${posture}`, reachLine(opts), "  Ctrl-C stops the server.", ""];
+  return ["", `  orbweaver is running:  ${startAppUrl(opts.port)}`, `  ${posture}`, reachLine(opts), "  Ctrl-C stops the server.", ""];
 }
 
 /** How another device gets in: the share link, this machine's address under a login mode, or the setup command

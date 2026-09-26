@@ -1,15 +1,18 @@
 // `pnpm start`'s supervisor (tooling/src/stack/lib/supervisor.ts, through the tool front door): every respawn rebuilds
-// the plan from `.env` as it is then, the prepare pass runs once per invocation, and each signal has one handler that
-// reaches the current child. The effects are injected, so the loop is driven without spawning a server.
+// the plan from `.env` as it is then, the prepare pass runs once per invocation, each signal has one handler that
+// reaches the current child, and an interactive start opens the app in the browser once, after the server first
+// answers. The effects are injected, so the loop is driven without spawning a server or a browser.
 import { parseEnv } from "node:util";
 import { RESTART_EXIT_CODE, START_SUPERVISOR, SUPERVISOR_ENV_KEY } from "@orb/kit/supervisor";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { FORWARDED_SIGNALS } from "@orb/tooling/_shared/proc-signals";
-import type { ProdSpawnPlan, StartInvocation, StartSupervisorDeps } from "../../../../tooling/src/stack/index.ts";
-import { startLaunch, superviseStart } from "../../../../tooling/src/stack/index.ts";
+import type { ProdSpawnPlan, StartBrowser, StartInvocation, StartSpawn, StartSupervisorDeps } from "../../../../tooling/src/stack/index.ts";
+import { OPEN_BROWSER_KEY, startBrowser, startLaunch, superviseStart } from "../../../../tooling/src/stack/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
 const INVOCATION: StartInvocation = { build: "skip", setup: false, port: null, share: false };
+const PORT = 8788;
+const APP_URL = "http://localhost:8788";
 
 /** One scripted child exit; `during` runs while that child is alive, before it exits. */
 interface Scripted {
@@ -25,19 +28,34 @@ interface Harness {
   readonly handlers: Map<NodeJS.Signals, (() => void)[]>;
   readonly prepared: { count: number };
   readonly notices: string[];
+  /** Every URL the injected opener was asked to open. */
+  readonly opened: string[];
+  /** The port of every `/healthz` wait the supervisor started. */
+  readonly waits: number[];
 }
+
+/** The browser half of a harness: whether this invocation opens one, and how each child's `/healthz` wait ends. */
+interface BrowserScript {
+  readonly browser: () => StartBrowser;
+  /** One entry per wait, in order: `true` answers at once, `false` never answers (the wait ends when that child exits). */
+  readonly answers: readonly boolean[];
+}
+
+const NO_BROWSER: BrowserScript = { browser: () => ({ kind: "skip" }), answers: [] };
 
 function harness(
   script: readonly Scripted[],
-  launch: () => ProdSpawnPlan,
-  prepare: () => number | null = () => null,
-  platform: NodeJS.Platform = "linux",
+  launch: () => StartSpawn,
+  opts: { readonly prepare?: () => number | null; readonly platform?: NodeJS.Platform; readonly browser?: BrowserScript } = {},
 ): Harness {
+  const { prepare = (): number | null => null, platform = "linux", browser = NO_BROWSER } = opts;
   const plans: ProdSpawnPlan[] = [];
   const killed: NodeJS.Signals[][] = [];
   const handlers = new Map<NodeJS.Signals, (() => void)[]>();
   const prepared = { count: 0 };
   const notices: string[] = [];
+  const opened: string[] = [];
+  const waits: number[] = [];
   const deps: StartSupervisorDeps = {
     prepare: async () => {
       prepared.count += 1;
@@ -67,21 +85,43 @@ function harness(
     },
     notice: (message) => notices.push(message),
     platform,
+    browser: browser.browser,
+    served: async (port, signal) => {
+      const answers = browser.answers[waits.length];
+      waits.push(port);
+      if (answers === true) {
+        return await Promise.resolve(true);
+      }
+      return await new Promise<boolean>((resolve) => {
+        signal.addEventListener("abort", () => resolve(false));
+      });
+    },
+    openApp: async (url) => {
+      opened.push(url);
+      await Promise.resolve();
+    },
   };
-  return { deps, plans, killed, handlers, prepared, notices };
+  return { deps, plans, killed, handlers, prepared, notices, opened, waits };
 }
 
 /** A launch that reads a mutable `.env` text on every call, the way ops/start.ts reads the file. */
-function fileLaunch(file: { text: string }): () => ProdSpawnPlan {
-  return () =>
-    startLaunch({
+function fileLaunch(file: { text: string }): () => StartSpawn {
+  return () => ({
+    plan: startLaunch({
       repoRoot: "/repo",
       nodePath: "/usr/bin/node",
       fileEnv: parseEnv(file.text),
       ambient: Object.fromEntries([["PATH", "/bin"]]),
       invocation: INVOCATION,
       logPath: "/l",
-    }).plan;
+    }).plan,
+    port: PORT,
+  });
+}
+
+/** The browser decision `ops/start.ts` makes after the prepare pass, from a terminal answer and a `.env` text. */
+function fileBrowser(interactive: boolean, text: string): () => StartBrowser {
+  return () => startBrowser({ interactive, fileEnv: parseEnv(text), ambient: {} });
 }
 
 test("a file switched from single-user to local between two runs yields a child env without AUTH_FALLBACK", async () => {
@@ -117,7 +157,7 @@ test("the prepare pass runs once across two respawns, and any other exit ends th
 });
 
 test("a prepare pass that stops the launch spawns nothing, and a child that cannot run is a tool error", async () => {
-  const stopped = harness([], fileLaunch({ text: "" }), () => 3);
+  const stopped = harness([], fileLaunch({ text: "" }), { prepare: () => 3 });
   expect(await superviseStart(stopped.deps)).toBe(3);
   expect(stopped.plans).toHaveLength(0);
   const broken = harness([{ code: null }], fileLaunch({ text: "" }));
@@ -171,10 +211,51 @@ test("on win32 a Ctrl-C sends the child nothing and still stops the loop", async
       },
     ],
     fileLaunch({ text: "" }),
-    () => null,
-    "win32",
+    { platform: "win32" },
   );
   expect(await superviseStart(run.deps)).toBe(RESTART_EXIT_CODE);
   expect(run.plans).toHaveLength(1);
   expect(run.killed).toEqual([[]]);
+});
+
+test("an interactive start opens the app once, after the server first answers, however often it respawns", async () => {
+  const run = harness([{ code: RESTART_EXIT_CODE }, { code: RESTART_EXIT_CODE }, { code: 0 }], fileLaunch({ text: "" }), {
+    browser: { browser: fileBrowser(true, ""), answers: [true] },
+  });
+  expect(await superviseStart(run.deps)).toBe(0);
+  expect(run.plans).toHaveLength(3);
+  expect(run.opened).toEqual([APP_URL]);
+  // Once opened, a respawn waits for nothing: the tab the person has is already pointed at the server.
+  expect(run.waits).toEqual([PORT]);
+});
+
+test("a child that exits before it answers hands the open to its respawn", async () => {
+  const run = harness([{ code: RESTART_EXIT_CODE }, { code: 0 }], fileLaunch({ text: "" }), {
+    browser: { browser: fileBrowser(true, ""), answers: [false, true] },
+  });
+  expect(await superviseStart(run.deps)).toBe(0);
+  expect(run.waits).toEqual([PORT, PORT]);
+  expect(run.opened).toEqual([APP_URL]);
+});
+
+test("a non-interactive start and the off setting never open a browser and never wait for one", async () => {
+  const offLine = `${OPEN_BROWSER_KEY}=off\n`;
+  for (const [label, browser] of [
+    ["no terminal", fileBrowser(false, "")],
+    ["off in .env", fileBrowser(true, offLine)],
+  ] as const) {
+    const run = harness([{ code: RESTART_EXIT_CODE }, { code: 0 }], fileLaunch({ text: offLine }), { browser: { browser, answers: [true, true] } });
+    expect(await superviseStart(run.deps), label).toBe(0);
+    expect(run.opened, label).toEqual([]);
+    expect(run.waits, label).toEqual([]);
+  }
+});
+
+test("a setting that is neither on nor off opens nothing and says so once", async () => {
+  const run = harness([{ code: RESTART_EXIT_CODE }, { code: 0 }], fileLaunch({ text: "" }), {
+    browser: { browser: fileBrowser(true, `${OPEN_BROWSER_KEY}=false\n`), answers: [true, true] },
+  });
+  expect(await superviseStart(run.deps)).toBe(0);
+  expect(run.opened).toEqual([]);
+  expect(run.notices.filter((notice) => notice.includes(OPEN_BROWSER_KEY))).toHaveLength(1);
 });

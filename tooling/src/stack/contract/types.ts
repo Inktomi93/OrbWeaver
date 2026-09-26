@@ -319,6 +319,16 @@ export interface StartLaunch {
   readonly fallbackFilled: boolean;
 }
 
+/** One supervised spawn: the plan, and the port the server answers `/healthz` and the app on. */
+export interface StartSpawn {
+  readonly plan: ProdSpawnPlan;
+  readonly port: number;
+}
+
+/** Whether an invocation opens the app in the default browser (lib/start-plan.ts `startBrowser`). `refused` is a
+ *  setting that is neither `on` nor `off`: nothing opens, and the reason is printed once. */
+export type StartBrowser = { readonly kind: "open" } | { readonly kind: "skip" } | { readonly kind: "refused"; readonly reason: string };
+
 /** The server child as the supervisor sees it: a signal target it can wait on. */
 export type SupervisedChild = Pick<FullPriorityChild, "kill" | "wait">;
 
@@ -327,13 +337,19 @@ export interface StartSupervisorDeps {
   /** The once-per-invocation pass before the loop (setup, build, bundle check): an exit code stops the launch. */
   readonly prepare: () => Promise<number | null>;
   /** Re-read `.env` and build this spawn's plan; called once per spawn. */
-  readonly launch: () => ProdSpawnPlan;
+  readonly launch: () => StartSpawn;
   readonly spawn: (plan: ProdSpawnPlan) => SupervisedChild;
   /** Registers a process signal handler (`process.on` in a live launcher). */
   readonly register: (signal: NodeJS.Signals, handler: () => void) => void;
   readonly notice: (message: string) => void;
   /** `process.platform` in a live launcher; it decides whether a stop signal is sent on or only noted. */
   readonly platform: NodeJS.Platform;
+  /** Called once, after the prepare pass: its setup may have just written the setting. */
+  readonly browser: () => StartBrowser;
+  /** Resolves true once the server on `port` answers `/healthz`, false once `signal` aborts first (that child exited). */
+  readonly served: (port: number, signal: AbortSignal) => Promise<boolean>;
+  /** Opens `url` in the default browser; settles when the opener exits. */
+  readonly openApp: (url: string) => Promise<void>;
 }
 
 export interface StartBuildDecision {

@@ -2,16 +2,16 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 623,
+    "sites": 624,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 623,
+      "deliberate-absorb": 624,
       "unproven": 0
     },
     "byGrammar": {
       "default": 153,
       "empty": 319,
-      "promise": 151
+      "promise": 152
     }
   },
   "rows": [
@@ -2794,6 +2794,11 @@
       "siteId": "tooling/src/stack/lib/spawn-lock.ts::releaseSpawnLock::error::1",
       "verdict": "deliberate-absorb",
       "reason": "ENOENT is idempotent release; every other unlink failure is rethrown. Ends if release gains an ownership-transfer acknowledgement."
+    },
+    {
+      "siteId": "tooling/src/stack/lib/supervisor.ts::superviseStart::openWhenServed::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the open has no awaiter, because an opener can outlive the server; a rejection is printed to the operator through `notice`, and the server keeps running because a browser is a convenience. Ends if the open gains an awaiter."
     },
     {
       "siteId": "tooling/src/stack/ops/dev-down.ts::signalPid::error::1",
