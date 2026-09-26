@@ -5,6 +5,7 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import process, { env } from "node:process";
+import { pnpmInvocation } from "@orb/tooling/_shared/platform";
 import { parse } from "yaml";
 
 const WORKSPACE_FILE = "pnpm-workspace.yaml";
@@ -46,21 +47,24 @@ const typescriptAliases = Object.entries(workspace.catalog)
   .map(([name]) => name);
 const held = [TYPESCRIPT, ...typescriptAliases, ...patched];
 
-const pnpm = env["npm_execpath"];
-if (pnpm === undefined) {
-  console.error("run this through pnpm: pnpm deps:update");
-  process.exit(1);
-}
 const resolveAge = String(workspace.minimumReleaseAge + RESOLVE_MARGIN_MINUTES);
 console.log(`holding: ${held.join(", ")}`);
 console.log(`resolving only versions at least ${resolveAge} minutes old (the install gate is ${workspace.minimumReleaseAge})`);
 
-// A JavaScript pnpm entry runs under this node; the native pnpm binary runs directly.
-const command = /\.[cm]?js$/u.test(pnpm) ? process.execPath : pnpm;
-const args = [...(command === pnpm ? [] : [pnpm]), "update", "--recursive", "--latest", ...held.map((name) => `!${name}`)];
+/** The operator's own pnpm with `args`, however it was installed; exits when no pnpm can be named. */
+function pnpmCommand(args: readonly string[]): { readonly command: string; readonly args: readonly string[] } {
+  const pnpm = pnpmInvocation({ ambient: env, platform: process.platform, nodePath: process.execPath, args });
+  if (pnpm.kind === "refused") {
+    console.error(`${pnpm.reason} (pnpm deps:update)`);
+    process.exit(1);
+  }
+  return pnpm;
+}
+
+const update = pnpmCommand(["update", "--recursive", "--latest", ...held.map((name) => `!${name}`)]);
 // The environment variable: in a pnpm 12 probe it moved the cutoff, while neither `--config.minimumReleaseAge`
 // nor `--minimum-release-age` resolved the same versions.
-const result = spawnSync(command, args, { stdio: "inherit", env: { ...env, PNPM_CONFIG_MINIMUM_RELEASE_AGE: resolveAge } });
+const result = spawnSync(update.command, [...update.args], { stdio: "inherit", env: { ...env, PNPM_CONFIG_MINIMUM_RELEASE_AGE: resolveAge } });
 if (result.error !== undefined) {
   console.error(`failed to start pnpm: ${result.error.message}`);
   process.exit(1);
@@ -82,6 +86,7 @@ if (testSpec !== componentSpec) {
   }
   writeFileSync(WORKSPACE_FILE, text);
   console.log(`aligned ${PLAYWRIGHT_PAIR.join(" and ")} on ${lower}`);
-  const install = spawnSync(command, [...(command === pnpm ? [] : [pnpm]), "install"], { stdio: "inherit" });
-  process.exit(install.status ?? 1);
+  const install = pnpmCommand(["install"]);
+  const installed = spawnSync(install.command, [...install.args], { stdio: "inherit" });
+  process.exit(installed.status ?? 1);
 }
