@@ -2,7 +2,7 @@
 // `pnpm` on PATH. Every run gets its own runtime dir, so the hook's host-wide pools are the test's alone.
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { readConcurrencyProfile } from "@orb/tooling/_shared/concurrency-profile";
@@ -404,12 +404,13 @@ test("hostile admission directories and slot symlinks are refused without touchi
   expect(symlinkPool.stderr).toContain("is a symlink or not a directory");
   expect(existsSync(join(symlinkTarget, "queue")), "nothing was created through the link").toBe(false);
 
+  // A too-open pool directory this uid owns is not hostile: the slot layer tightens it to 0700 and admits the run.
   const openRuntime = join(scratch, "open-runtime");
   mkdirSync(hookPool(openRuntime), { recursive: true });
   chmodSync(hookPool(openRuntime), 0o777);
-  const insecurePool = runHook({ ...base, log: join(scratch, "open.log"), runtime: openRuntime });
-  expect(insecurePool.status).toBe(2);
-  expect(insecurePool.stderr).toContain("not writable by group or others");
+  const openPool = runHook({ ...base, log: join(scratch, "open.log"), runtime: openRuntime });
+  expect(openPool.status).toBe(0);
+  expect(statSync(hookPool(openRuntime)).mode.toString(8).slice(-3), "the pool is tightened to owner-only").toBe("700");
 
   const lockRuntime = join(scratch, "lock-runtime");
   const target = join(scratch, "must-not-change.txt");

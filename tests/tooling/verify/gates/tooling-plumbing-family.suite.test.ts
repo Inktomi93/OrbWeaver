@@ -99,9 +99,11 @@ const GRANT_POLICIES: readonly GatePolicy[] = [projectHome, browserDoor, artifac
 // portable `pnpm start` launcher, whose children are the production server and its client build and which
 // cannot ride the niced doors at all (they exec POSIX `nice`, absent on Windows); 16 when
 // `tooling-child-process-door:stack-engines` left with the engine fleet; 17 since
-// `tooling-child-process-door:dev` licensed `pnpm dev` (D252) for the `pnpm start` reason. The
-// exact-subject arm below still pins every survivor to a live file.
-const PLUMBING_GRANT_COUNT = 17;
+// `tooling-child-process-door:dev` licensed `pnpm dev` (D252) for the `pnpm start` reason; 19 since
+// `:stack-dev-up` and `:stack-prod-up` licensed the Node stack supervisors, whose children are the dev and
+// production servers; 20 since `:platform-open-url` licensed `openUrl`'s opener, whose child becomes the
+// browser. The exact-subject arm below still pins every survivor to a live file.
+const PLUMBING_GRANT_COUNT = 20;
 const REAL_TREE_BUDGET_MS = scaledBudget(300_000);
 
 const PROC_HOME = "tooling/src/_shared/proc.ts";

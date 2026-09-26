@@ -319,15 +319,31 @@ test("a broken unit-cost row REFUSES loudly — never an unbounded cap", () => {
   expect(() => parseUnitCosts(JSON.stringify(free)), "a unit that costs nothing derives no cap").toThrow(/prices neither cores nor memory/u);
 });
 
+// Both spawn doors are captured, because the wrappers use both: eslint and cpd block on spawnSync, while ts7 spawns
+// asynchronously so its host slot's lease keeps beating. The async fake settles on the next tick, as a real child does.
 const CAPTURE_PRELOAD = `
 const fs = require("node:fs");
+const { EventEmitter } = require("node:events");
 const childProcess = require("node:child_process");
-childProcess.spawnSync = (command, args, options) => {
+function capture(command, args, options) {
   fs.writeFileSync(process.env.ORB_WRAPPER_CAPTURE, JSON.stringify({ command, args, cwd: options?.cwd ?? null }));
-  const outcome = process.env.ORB_WRAPPER_OUTCOME ?? "0";
+  return process.env.ORB_WRAPPER_OUTCOME ?? "0";
+}
+childProcess.spawnSync = (command, args, options) => {
+  const outcome = capture(command, args, options);
   if (outcome === "spawn-error") return { status: null, signal: null, error: new Error("planted spawn failure") };
   if (outcome === "signal") return { status: null, signal: "SIGTERM" };
   return { status: Number(outcome), signal: null };
+};
+childProcess.spawn = (command, args, options) => {
+  const outcome = capture(command, args, options);
+  const child = new EventEmitter();
+  process.nextTick(() => {
+    if (outcome === "spawn-error") child.emit("error", new Error("planted spawn failure"));
+    else if (outcome === "signal") child.emit("exit", null, "SIGTERM");
+    else child.emit("exit", Number(outcome), null);
+  });
+  return child;
 };
 require("node:module").syncBuiltinESMExports();
 `;
@@ -391,7 +407,7 @@ test("all worker wrappers reject a malformed box switch before spawning, even wi
     const result = runWrapper(script, args, "true");
     expect(result.status, script).toBe(expectedStatus);
     expect(result.stderr, script).toContain(`${DEDICATED_BOX_ENV}="true"`);
-    expect(result.capture, `${script} must refuse before spawnSync`).toBeNull();
+    expect(result.capture, `${script} must refuse before spawning`).toBeNull();
   }
 
   const cpd = runWrapper("cpd.ts", ["--workers", "1", "--version"], "true");
