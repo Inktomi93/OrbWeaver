@@ -7,6 +7,7 @@
 // why Analytics' twin surfaces each carry their own inset rather than a shared one at `analytics-content.tsx`.
 
 import type { CharacterId } from "@orb/kit/ids";
+import { formatUsd } from "@orb/kit/strings";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { ArrowLeft, ChartColumn, Icon } from "@orb/ui/icons";
@@ -19,16 +20,7 @@ import { useRef } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, useTRPC } from "#data";
 import { testId, timeLib, useFocusOnMount } from "#lib";
-import {
-  formatCompact,
-  formatCount,
-  formatDurationMs,
-  formatMs,
-  formatPercent,
-  formatThroughput,
-  formatUsd,
-  UNRECORDED_NOTE,
-} from "../lib/analytics-view-model.ts";
+import { formatCompact, formatCount, formatDurationMs, formatMs, formatPercent, formatThroughput, UNRECORDED_NOTE } from "../lib/analytics-view-model.ts";
 
 export interface AnalyticsCharacterSurfaceProps {
   readonly characterId: CharacterId;

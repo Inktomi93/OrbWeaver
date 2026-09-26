@@ -23,6 +23,7 @@ import { notify } from "#lib";
 import { pushRecentModel } from "#state";
 import { useAddModelOnKeyForm } from "../hooks/use-add-model-on-key-form.ts";
 import { useCreateConnection } from "../hooks/use-connections-mutations.ts";
+import { useSignInCheckAfterSave } from "../hooks/use-sign-in-check.ts";
 import { CONNECTION_FORM_COPY, modelIdExample } from "../lib/add-connection-form-model.ts";
 import type { AddModelOnKeyFormValues, addModelScope } from "../lib/add-model-on-key-form-model.ts";
 import { addModelActionGloss, addModelActionLabel } from "../lib/add-model-on-key-form-model.ts";
@@ -69,6 +70,7 @@ function AddModelOnKeyBody({
 }): ReactElement {
   const queryClient = useQueryClient();
   const createConnection = useCreateConnection({ trpc, invalidation });
+  const checkSignIn = useSignInCheckAfterSave({ trpc, invalidation });
   const catalogKey = trpc.connection.catalogModels.queryKey({ connectionId: connection.id });
 
   const save = async (values: AddModelOnKeyFormValues): Promise<AddModelOnKeyFormValues> => {
@@ -76,7 +78,7 @@ function AddModelOnKeyBody({
     const source: ModelCatalogSource = catalog === undefined ? { status: "loading" } : modelListSource(catalog, null);
     const label = values.label.trim();
     const modelCheck = modelCheckOf(source, values.model);
-    await createConnection.mutateAsync({
+    const created = await createConnection.mutateAsync({
       providerId: connection.providerId,
       credentialId: connection.credentialId,
       baseUrl: connection.baseUrl,
@@ -87,6 +89,7 @@ function AddModelOnKeyBody({
       allowBackground: values.allowBackground,
       modelCheck,
     });
+    checkSignIn(provider, created.id);
     // Recent holds models a connection was SAVED with, from the list; a pick alone never reorders the list.
     if (modelCheck === "listed") {
       pushRecentModel(provider.id, values.model.trim());

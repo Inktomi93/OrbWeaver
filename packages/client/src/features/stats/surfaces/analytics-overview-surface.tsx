@@ -13,6 +13,7 @@
 // containing-block CT below and mounted standalone in CT stories with no `analytics-content.tsx` wrapper
 // at all — so the inset goes on the same element that already owns the scroll here, not one level up.
 
+import { formatUsd } from "@orb/kit/strings";
 import { BarList } from "@orb/ui/bar-list";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
@@ -39,7 +40,6 @@ import {
   formatPercent,
   formatSignedDelta,
   formatThroughput,
-  formatUsd,
   momentumBarItems,
   UNRECORDED_NOTE,
 } from "../lib/analytics-view-model.ts";

@@ -518,6 +518,35 @@ test("the built-in provider lists the models this device runs as soon as it is p
 
 // A KEY BELONGS TO THE PROVIDER IT WAS PASTED FOR. Switching the provider empties the key and URL fields, so a key
 // typed for one vendor is never saved under, or sent to, another.
+test("saving a Claude-subscription connection checks its sign-in once, against the row it created", async ({ mount, page }) => {
+  const trpc = await stubConnectionsPane(page);
+  await mount(<ConnectionsAuthoringStory width={870} />);
+
+  const dialog = await openAddDialog(page);
+  await pickProvider(page, dialog, "Claude subscription");
+  await dialog.getByLabel("Setup token", { exact: true }).fill(SECRET);
+  await dialog.getByRole("textbox", { name: "Model" }).fill("claude-sonnet-5");
+  await submit(dialog);
+  await expect(dialog).toBeHidden();
+
+  await expect.poll(() => trpc.inputs("connection.verifyAuth")).toEqual([{ connectionId: "user_connection_ctcreated01" }]);
+});
+
+test("saving a connection on any other provider runs no sign-in check", async ({ mount, page }) => {
+  const trpc = await stubConnectionsPane(page);
+  await mount(<ConnectionsAuthoringStory width={870} />);
+
+  const dialog = await openAddDialog(page);
+  await pickProvider(page, dialog, "OpenRouter");
+  await dialog.getByLabel("API key", { exact: true }).fill(SECRET);
+  await dialog.getByRole("textbox", { name: "Model" }).fill(OPUS);
+  await submit(dialog);
+  await expect(dialog).toBeHidden();
+
+  await expect.poll(() => trpc.count("connection.create")).toBe(1);
+  await expect.poll(() => trpc.count("connection.verifyAuth")).toBe(0);
+});
+
 test("switching the provider empties the key and the server URL typed for the previous one", async ({ mount, page }) => {
   const trpc = await stubConnectionsPane(page);
   const component = await mount(<ConnectionsAuthoringStory width={870} />);

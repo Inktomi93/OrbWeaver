@@ -54,10 +54,6 @@ const MILLION = 1_000_000;
 const PERCENT = 100;
 const SECONDS_PRECISION = 1;
 const COMPACT_PRECISION = 1;
-const USD_PRECISION = 2;
-/** Below this the two-decimal form is all zeros — the threshold the sub-cent arm switches at. */
-const SUB_CENT = 0.01;
-const SUB_CENT_PRECISION = 4;
 const HOURS_PER_DAY = 24;
 /** How many trailing id characters a duplicate-name disambiguator shows. */
 const SHORT_REF_LEN = 4;
@@ -139,19 +135,6 @@ export function formatTokens(n: number | null, provenance: TokenProvenance): str
     return EM_DASH;
   }
   return `${provenance === "estimated" ? "~" : ""}${formatCompact(n)} tok`;
-}
-
-/** A USD figure: `—` unrecorded · `$1.23` · `$0.0037` below a cent. The sub-cent arm exists because a
- *  library of 50 rows all reading `$0.00` against a `$0.037` total says every model was free; two extra
- *  digits are what make the rows differ from each other and sum to something. */
-export function formatUsd(n: number | null): string {
-  if (n === null) {
-    return EM_DASH;
-  }
-  if (n > 0 && n < SUB_CENT) {
-    return `$${n.toFixed(SUB_CENT_PRECISION)}`;
-  }
-  return `$${n.toFixed(USD_PRECISION)}`;
 }
 
 /** A 0..1 rate as a whole percent: `0.45` → `45%`; `—` when the rate has no measurement behind it, and

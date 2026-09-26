@@ -115,6 +115,22 @@ export const useProbeConnection = createEntityMutation<inferInput<Trpc["connecti
   errorToast: "Couldn't reach that server.",
 });
 
+/** The Claude-subscription sign-in check: a one-word turn on the row, so a mutation (the router's esoteric #9).
+ *  Invalidates nothing: the verdict is the mutation's own data. */
+export const useVerifySignIn = createEntityMutation<inferInput<Trpc["connection"]["verifyAuth"]>, inferOutput<Trpc["connection"]["verifyAuth"]>>({
+  options: (trpc) => trpc.connection.verifyAuth.mutationOptions(),
+  invalidates: () => [],
+  errorToast: "Couldn't check the Claude sign-in.",
+});
+
+/** The endpoint inspector: one real one-token request with the row's shaping applied, headers redacted
+ *  server-side. It dials the user's server, so a mutation. Invalidates nothing. */
+export const useInspectEndpoint = createEntityMutation<inferInput<Trpc["connection"]["inspectEndpoint"]>, inferOutput<Trpc["connection"]["inspectEndpoint"]>>({
+  options: (trpc) => trpc.connection.inspectEndpoint.mutationOptions(),
+  invalidates: () => [],
+  errorToast: "Couldn't send the test request.",
+});
+
 /** The inline "Admit `<host>`" write (§5.3a) — the deployment's private-endpoint allowlist, OWNER-gated at
  *  the verb (`domain/settings/verbs/app-settings.ts::OWNER_GATED_FIELDS`). It lives here rather than being
  *  imported from `features/user-admin`: a feature imports no other feature (UI-Arch §2.1), and the

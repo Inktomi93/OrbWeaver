@@ -23,7 +23,6 @@ import {
   formatSignedDelta,
   formatThroughput,
   formatTokens,
-  formatUsd,
   momentumBarItems,
   personaBarItems,
   seriesTokenProvenance,
@@ -91,9 +90,6 @@ describe("formatCompact", () => {
 });
 
 describe("scalar formatters", () => {
-  test("formatUsd is two decimals", () => {
-    expect(formatUsd(1.2)).toBe("$1.20");
-  });
   test("formatPercent rounds a 0..1 rate", () => {
     expect(formatPercent(0.454)).toBe("45%");
     expect(formatPercent(1)).toBe("100%");
@@ -118,19 +114,6 @@ describe("the nullable formatter family renders unrecorded as an em dash", () =>
     expect(formatTokens(null, "unrecorded")).toBe("—");
     expect(formatTokens(1200, "measured")).toBe("1.2k tok");
     expect(formatTokens(1200, "estimated")).toBe("~1.2k tok");
-  });
-  test("formatUsd: unrecorded is a dash, a measured zero is $0.00", () => {
-    expect(formatUsd(null)).toBe("—");
-    expect(formatUsd(0)).toBe("$0.00");
-  });
-  // 50 model rows all read `$0.00` against a $0.0377 library total: every per-row cost was under a cent,
-  // where two decimals can only ever print zero. Below a cent the figure keeps four, so the rows differ
-  // from each other and from a genuine nothing. At or above a cent the ordinary money form returns.
-  test("formatUsd shows four decimals below a cent, so sub-cent rows differ from each other and from 0", () => {
-    expect(formatUsd(0.0001)).toBe("$0.0001");
-    expect(formatUsd(0.0042)).toBe("$0.0042");
-    expect(formatUsd(0.01)).toBe("$0.01");
-    expect(formatUsd(0.037_678_5)).toBe("$0.04");
   });
   test("formatPercent: unrecorded is a dash, and a real-but-tiny rate is not rounded down to `never`", () => {
     expect(formatPercent(null)).toBe("—");
