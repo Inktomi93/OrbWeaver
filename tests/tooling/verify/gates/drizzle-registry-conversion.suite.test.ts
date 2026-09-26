@@ -19,6 +19,8 @@ import { gate as lifecyclePortability } from "../../../../tooling/src/verify/gat
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 
+// The one runner of these policies' declared rows, so `check:instrument-affected` reaches it by quoted id:
+// "lifecycle-portability", "domain-freshness-plane".
 test("the converted registry policies pass their production proof runtime", () => {
   expect(verifyPolicyProofs([lifecyclePortability, domainFreshnessPlane])).toEqual([]);
 });

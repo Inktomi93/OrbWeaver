@@ -268,7 +268,7 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
         const controller = new AbortController();
         const unsubscribe = liveness.onAbort(() => controller.abort());
         try {
-          return await ops.llm.quiet({ installerUserId, prompt, signal: controller.signal, ...(opts !== undefined ? { opts } : {}) });
+          return await ops.llm.quiet({ installerUserId, pluginId: id, prompt, signal: controller.signal, ...(opts !== undefined ? { opts } : {}) });
         } finally {
           unsubscribe();
         }

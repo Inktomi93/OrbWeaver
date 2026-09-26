@@ -37,6 +37,7 @@
 // list that appeared and vanished with a checkbox would make the echo a function of the draft, which is
 // precisely the coupling the guard exists to prevent.
 
+import { pluginGrantTasks } from "@orb/contracts/plugin";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
@@ -54,10 +55,11 @@ import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import type { PluginBundlePreview } from "../lib/plugin-bundle.ts";
 import { PluginBundlePreviewError, readPluginBundle, toBundleBase64 } from "../lib/plugin-bundle.ts";
-import { builtAgainstLine, REMOVE_PLUGIN_DESCRIPTION, statusCopy } from "../lib/plugin-copy.ts";
+import { builtAgainstLine, PLUGIN_MODEL_HEADING, REMOVE_PLUGIN_DESCRIPTION, statusCopy } from "../lib/plugin-copy.ts";
 import { useSetPluginEnabled, useSetPluginGrant, useUninstallPlugin, useUpgradePlugin } from "../lib/plugin-mutations.ts";
 import { PluginGrantList } from "./plugin-grant-list.tsx";
 import { PluginLogPanel } from "./plugin-log-panel.tsx";
+import { PluginModelBindings } from "./plugin-model-bindings.tsx";
 import { ReConsentNotice, UpdateCheckRow } from "./plugin-row-leaves.tsx";
 import { PluginSurfacesPanel } from "./plugin-surfaces-panel.tsx";
 
@@ -80,6 +82,7 @@ export function PluginRow({ plugin }: PluginRowProps): ReactElement {
   const enableAdmission = useRef(false);
 
   const status = statusCopy(plugin.status, plugin.reconsentPending, plugin.grantedCapabilities.length);
+  const grantTasks = pluginGrantTasks(plugin.declaredCapabilities);
   const provenance = builtAgainstLine(plugin.builtAgainst);
 
   const onEnabledChange = (next: boolean): void => {
@@ -288,6 +291,25 @@ export function PluginRow({ plugin }: PluginRowProps): ReactElement {
             )}
           </CollapsiblePanel>
         </Collapsible>
+
+        {/* The plugin's OWN model per spend task it declares — only those tasks, only the installer's own
+            connections. A plugin that routes nothing through its grant has no row here at all. */}
+        {grantTasks.length === 0 ? null : (
+          <Collapsible>
+            <CollapsibleTrigger aria-label={`${PLUGIN_MODEL_HEADING} — ${plugin.name}`} size="control">
+              <Text voice="label">{PLUGIN_MODEL_HEADING}</Text>
+            </CollapsibleTrigger>
+            <CollapsiblePanel>
+              <QueryBoundary
+                fallback={<SkeletonRows count={grantTasks.length} shape="line" />}
+                renderError={(_error, retry): ReactElement => <QueryErrorState label="this plugin's model" onRetry={retry} />}
+                reserveKey="plugin.row.model"
+              >
+                <PluginModelBindings pluginId={plugin.id} pluginName={plugin.name} tasks={grantTasks} />
+              </QueryBoundary>
+            </CollapsiblePanel>
+          </Collapsible>
+        )}
 
         <Collapsible>
           {/* "Recent activity for ${name}" already CONTAINS its visible words (2.5.3 containment — the

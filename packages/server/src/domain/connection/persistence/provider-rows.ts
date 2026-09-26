@@ -1,18 +1,17 @@
-// All db access for `provider_rows` + `plugin_provider_contributions` — the runtime's ProviderStore.
-// Provider definitions are deployment-global; plugin activations contribute to them many-to-one. The
-// contribution's composite FK includes the canonical definition hash and the literal `plugin` origin, so a
-// same-id/different-definition row and an admin row are both impossible to adopt, even across replicas.
+// All db access for `provider_rows` + `plugin_provider_claims` — the runtime's ProviderStore. An admin row is
+// deployment-wide; a plugin row is content a user reaches only through their OWN claim (D147, D265), so one
+// user's plugin can never fix, shadow or block a provider id for another. Claim owners come from `plugins`.
 
 import type { ProviderDef, ProviderId } from "@orb/contracts/inference";
 import { providerDefSchema } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
-import { pluginProviderContributions, plugins, providerRows } from "@orb/db";
+import { pluginProviderClaims, plugins, providerRows } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import type { ProviderSnapshot } from "@orb/inference";
 import type { PluginId, UserId } from "@orb/kit/ids";
-import { and, eq, exists, inArray, notExists, notInArray, or } from "drizzle-orm";
-import { conflictingProviderDefinition, indexProviderDefinitions, providerDefinitionHash } from "../substrate/provider-definitions.ts";
+import { and, eq, inArray, isNotNull, notExists, notInArray, sql } from "drizzle-orm";
+import { conflictingProviderDefinition, providerDefinitionHash } from "../substrate/provider-definitions.ts";
 
 type ProviderRow = typeof providerRows.$inferSelect;
 type ProviderRowInsert = typeof providerRows.$inferInsert;
@@ -62,51 +61,51 @@ function valuesOf(args: {
   } as const;
 }
 
-/** Drop contributions whose plugin is no longer authoritative. Provider definitions deliberately remain as
- * immutable identity tombstones: a connection or credential can retain only the ProviderId, so letting a
- * later install replace that id's definition would reroute the retained secret to the new baseUrl. */
-// @orb-waive owner-scoped-reads(plugins): the deployment-global provider registry's system reconciliation reads plugin ids authorized by the contribution's required FK, across every owner; no request-controlled id reaches this query. Ends if a user-facing door calls this helper or the contribution stops FK-anchoring pluginId.
-async function reconcileInactivePluginRows(db: Db): Promise<void> {
+/** Unlink every claim whose install is no longer enabled, then reap the plugin definitions no claim holds. The
+ *  listing below also joins on `enabled`, so an interrupted reconciliation still serves nothing it should not. */
+// @orb-waive owner-scoped-reads(plugins): the deployment-global provider registry's system reconciliation reads plugin ids authorized by the claim's required FK, across every owner; no request-controlled id reaches this query. Ends if a user-facing door calls this helper or the claim stops FK-anchoring pluginId.
+async function reconcilePluginClaims(db: Db): Promise<void> {
   const enabledPlugin = db
     .select({ id: plugins.id })
     .from(plugins)
-    .where(and(eq(plugins.id, pluginProviderContributions.pluginId), eq(plugins.status, "enabled")));
-  await db.delete(pluginProviderContributions).where(notExists(enabledPlugin));
+    .where(and(eq(plugins.id, pluginProviderClaims.pluginId), eq(plugins.status, "enabled")));
+  const claimed = db
+    .select({ providerId: pluginProviderClaims.providerId })
+    .from(pluginProviderClaims)
+    .where(and(eq(pluginProviderClaims.providerId, providerRows.id), eq(pluginProviderClaims.definitionHash, providerRows.definitionHash)));
+  await db.batch(
+    batchMany([
+      db
+        .update(pluginProviderClaims)
+        .set({ pluginId: null })
+        .where(and(isNotNull(pluginProviderClaims.pluginId), notExists(enabledPlugin))),
+      db.delete(providerRows).where(and(eq(providerRows.originKind, "plugin"), notExists(claimed))),
+    ]),
+  );
 }
 
-/** A live plugin row must have at least one contribution from an enabled plugin. The explicit status join is
- * also a fail-closed read belt if reconciliation is interrupted before it commits. `installs` is the same join
- * projected to each contributing install's OWNER: the registry serves a plugin row to exactly those users
- * (D147), so ownership comes from `plugins.owner_id` through the contribution FK, never from a caller. */
+/** Admin rows, plus one entry per claim an enabled install serves: the claim's owner and that owner's own
+ *  definition. The owner match against `plugins.owner_id` fails closed if a claim ever named another owner. */
 export async function listProviderRows(db: Db): Promise<ProviderSnapshot> {
-  await reconcileInactivePluginRows(db);
-  const enabledContribution = and(eq(plugins.id, pluginProviderContributions.pluginId), eq(plugins.status, "enabled"));
-  const contributed = db
-    .select({ providerId: pluginProviderContributions.providerId })
-    .from(pluginProviderContributions)
-    .innerJoin(plugins, enabledContribution)
-    .where(eq(pluginProviderContributions.providerId, providerRows.id));
-  const rows = await db
-    .select()
-    .from(providerRows)
-    .where(or(eq(providerRows.originKind, "admin"), exists(contributed)));
-  const installs = await db
-    .selectDistinct({ providerId: pluginProviderContributions.providerId, ownerId: plugins.ownerId })
-    .from(pluginProviderContributions)
-    .innerJoin(plugins, enabledContribution);
-  return { rows: rows.map(toProviderDef), installs };
+  await reconcilePluginClaims(db);
+  const rows = await db.select().from(providerRows).where(eq(providerRows.originKind, "admin"));
+  const served = await db
+    .select({ ownerId: pluginProviderClaims.ownerId, row: providerRows })
+    .from(pluginProviderClaims)
+    .innerJoin(plugins, and(eq(plugins.id, pluginProviderClaims.pluginId), eq(plugins.ownerId, pluginProviderClaims.ownerId), eq(plugins.status, "enabled")))
+    .innerJoin(providerRows, and(eq(providerRows.id, pluginProviderClaims.providerId), eq(providerRows.definitionHash, pluginProviderClaims.definitionHash)));
+  return { rows: rows.map(toProviderDef), installs: served.map(({ ownerId, row }) => ({ ownerId, row: toProviderDef(row) })) };
 }
 
-/** Admin rows may update admin rows, but can never adopt a plugin-contributed id. */
-export async function putAdminProviderRow(db: Db, row: ProviderDef, admin: UserId, now: number): Promise<boolean> {
-  const hash = providerDefinitionHash(row);
-  const values = valuesOf({ row, hash, origin: "admin", admin, now });
-  const written = await db
-    .insert(providerRows)
-    .values(values)
-    .onConflictDoUpdate({ target: providerRows.id, set: values, setWhere: eq(providerRows.originKind, "admin") })
-    .returning({ id: providerRows.id });
-  return written.length > 0;
+/** Create or replace the deployment's one admin definition of `row.id`. The namespace CHECK keeps a plugin id
+ *  out of this table's admin rows, so an admin write can never touch a user's claim. */
+export async function putAdminProviderRow(db: Db, row: ProviderDef, admin: UserId, now: number): Promise<void> {
+  await db.batch(
+    batchMany([
+      db.delete(providerRows).where(and(eq(providerRows.id, row.id), eq(providerRows.originKind, "admin"))),
+      db.insert(providerRows).values(valuesOf({ row, hash: providerDefinitionHash(row), origin: "admin", admin, now })),
+    ]),
+  );
 }
 
 export async function deleteAdminProviderRow(db: Db, id: ProviderId): Promise<boolean> {
@@ -117,75 +116,81 @@ export async function deleteAdminProviderRow(db: Db, id: ProviderId): Promise<bo
   return removed.length > 0;
 }
 
-interface ExistingProvider {
-  readonly id: ProviderId;
-  readonly definitionHash: string;
-  readonly originKind: "plugin" | "admin";
+// @orb-waive owner-scoped-reads(plugins): resolves the OWNER a claim is written for; the pluginId is the lifecycle lane's own install, never request input, and the owner comes from this row rather than from any caller. Ends if a user-facing door passes a pluginId here directly.
+async function pluginOwner(db: Db, pluginId: PluginId): Promise<UserId> {
+  const [row] = await db.select({ ownerId: plugins.ownerId }).from(plugins).where(eq(plugins.id, pluginId));
+  if (row === undefined) {
+    throw new Error(`provider claims: plugin ${pluginId} has no row to claim for`);
+  }
+  return row.ownerId;
 }
 
-async function existingFor(db: Db, ids: readonly ProviderId[]): Promise<readonly ExistingProvider[]> {
+async function ownerClaims(
+  db: Db,
+  ownerId: UserId,
+  ids: readonly ProviderId[],
+): Promise<readonly { readonly id: ProviderId; readonly definitionHash: string }[]> {
   if (ids.length === 0) {
     return [];
   }
   return await db
-    .select({ id: providerRows.id, definitionHash: providerRows.definitionHash, originKind: providerRows.originKind })
-    .from(providerRows)
-    .where(inArray(providerRows.id, [...ids]));
+    .select({ id: pluginProviderClaims.providerId, definitionHash: pluginProviderClaims.definitionHash })
+    .from(pluginProviderClaims)
+    .where(and(eq(pluginProviderClaims.ownerId, ownerId), inArray(pluginProviderClaims.providerId, [...ids])));
 }
 
-/** Replace one plugin install's complete contribution set. The batch is all writes, hence one libSQL
- *  transaction. Composite-FK failure is the race belt: if another replica creates/conflicts after the reads,
- *  no contribution or definition from this attempt commits. A ProviderId's first canonical definition is
- *  permanent: later versions publish a new id rather than changing where retained connections send secrets. */
+/** Link one plugin install's complete provider set to its owner's claims, in one batch. A claim is permanent
+ *  for its owner: a changed definition of an id the owner already claimed is refused, because a retained
+ *  connection or credential names only the ProviderId and would follow it to the new baseUrl. The claim upsert
+ *  re-links only a claim with the same definition, so a claim a concurrent writer bound differently is left
+ *  untouched; the re-read after the batch reports it as the conflict and unlinks this install. */
 export async function replacePluginProviderRows(
   db: Db,
   rows: readonly ProviderDef[],
   pluginId: PluginId,
   now: number,
 ): Promise<{ readonly ok: true } | { readonly ok: false; readonly conflictingId: ProviderId }> {
+  const ownerId = await pluginOwner(db, pluginId);
   const desired = rows.map((row) => ({ row, hash: providerDefinitionHash(row) }));
   const ids = desired.map(({ row }) => row.id);
-  const existing = await existingFor(db, ids);
-  const conflict = conflictingProviderDefinition(desired, existing);
+  const conflict = conflictingProviderDefinition(desired, await ownerClaims(db, ownerId, ids));
   if (conflict !== undefined) {
     return { ok: false, conflictingId: conflict };
   }
-  const byId = indexProviderDefinitions(existing);
   const writes: BatchStmt[] = [];
   for (const { row, hash } of desired) {
-    const current = byId.get(row.id);
-    const values = valuesOf({ row, hash, origin: "plugin", admin: null, now });
-    if (current === undefined) {
-      writes.push(db.insert(providerRows).values(values).onConflictDoNothing());
-    }
     writes.push(
       db
-        .insert(pluginProviderContributions)
-        .values({ providerId: row.id, pluginId, definitionHash: hash, providerKind: "plugin", createdAt: now })
+        .insert(providerRows)
+        .values(valuesOf({ row, hash, origin: "plugin", admin: null, now }))
+        .onConflictDoNothing(),
+    );
+    writes.push(
+      db
+        .insert(pluginProviderClaims)
+        .values({ ownerId, providerId: row.id, definitionHash: hash, pluginId, createdAt: now })
         .onConflictDoUpdate({
-          target: [pluginProviderContributions.providerId, pluginProviderContributions.pluginId],
-          set: { definitionHash: hash, providerKind: "plugin", createdAt: now },
+          target: [pluginProviderClaims.ownerId, pluginProviderClaims.providerId],
+          set: { pluginId },
+          setWhere: eq(pluginProviderClaims.definitionHash, sql`excluded.definition_hash`),
         }),
     );
   }
-  const staleContribution =
+  const staleClaim =
     ids.length === 0
-      ? eq(pluginProviderContributions.pluginId, pluginId)
-      : and(eq(pluginProviderContributions.pluginId, pluginId), notInArray(pluginProviderContributions.providerId, [...ids]));
-  writes.push(db.delete(pluginProviderContributions).where(staleContribution));
-  try {
-    await db.batch(batchMany(writes));
-  } catch (err) {
-    const after = await existingFor(db, ids);
-    const raced = conflictingProviderDefinition(desired, after);
-    if (raced !== undefined) {
-      return { ok: false, conflictingId: raced };
-    }
-    throw err;
+      ? eq(pluginProviderClaims.pluginId, pluginId)
+      : and(eq(pluginProviderClaims.pluginId, pluginId), notInArray(pluginProviderClaims.providerId, [...ids]));
+  writes.push(db.update(pluginProviderClaims).set({ pluginId: null }).where(staleClaim));
+  await db.batch(batchMany(writes));
+  const raced = conflictingProviderDefinition(desired, await ownerClaims(db, ownerId, ids));
+  if (raced !== undefined) {
+    await releasePluginProviderClaims(db, pluginId);
+    return { ok: false, conflictingId: raced };
   }
   return { ok: true };
 }
 
-export async function deletePluginProviderRows(db: Db, pluginId: PluginId): Promise<void> {
-  await db.delete(pluginProviderContributions).where(eq(pluginProviderContributions.pluginId, pluginId));
+/** Unlink every claim this install serves. The claims stay as their owner's tombstones. */
+export async function releasePluginProviderClaims(db: Db, pluginId: PluginId): Promise<void> {
+  await db.update(pluginProviderClaims).set({ pluginId: null }).where(eq(pluginProviderClaims.pluginId, pluginId));
 }

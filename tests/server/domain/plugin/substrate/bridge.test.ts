@@ -419,7 +419,7 @@ describe("buildPluginBridge — llm.quiet closes the installer over the call and
     // The whole request the op receives — no connection, no model, no chat, and a funder the guest never named.
     // `opts` is ABSENT (not `undefined`) on a plain call, so a plain quiet generation stays byte-identical to
     // what it was before the U6 widening.
-    expect(rec.calls).toEqual([{ installerUserId: INSTALLER, prompt: "summarise the scene", signal: expect.any(AbortSignal) }]);
+    expect(rec.calls).toEqual([{ installerUserId: INSTALLER, pluginId: PLUGIN_REF.id, prompt: "summarise the scene", signal: expect.any(AbortSignal) }]);
   });
 
   test("the U6 opts bag rides the SAME op and the SAME hourly floor — never a second quiet path", async () => {
@@ -438,7 +438,7 @@ describe("buildPluginBridge — llm.quiet closes the installer over the call and
 
     await bridge.llm.quiet("caption this", opts, LIVE_LIVENESS);
 
-    expect(rec.calls).toEqual([{ installerUserId: INSTALLER, prompt: "caption this", signal: expect.any(AbortSignal), opts }]);
+    expect(rec.calls).toEqual([{ installerUserId: INSTALLER, pluginId: PLUGIN_REF.id, prompt: "caption this", signal: expect.any(AbortSignal), opts }]);
     // …and it consumed the SAME hourly ceiling a PLAIN call would have: one lane, one budget. The second call
     // below is a plain one, so the third's refusal proves the two arms share a counter rather than each
     // getting their own (which is exactly what a second quiet path would have produced).

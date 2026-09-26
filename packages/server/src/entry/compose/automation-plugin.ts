@@ -26,7 +26,7 @@ import { PLUGIN_ASSET_READ_MAX_BYTES, pluginToolWireName } from "@orb/contracts/
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { ImageInput, ResponseFormat } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
-import type { RoleClientsWithSignal, SideGenSampling } from "@orb/inference";
+import type { BindingActor, RoleClientsWithSignal, SideGenSampling } from "@orb/inference";
 import { resolveSideGenSampling } from "@orb/inference";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, ChatId, PluginId, UserId } from "@orb/kit/ids";
@@ -136,8 +136,9 @@ export interface AutomationPluginComposeDeps {
    *  authority is its room's roster and needs none of this; a chat-less rule has no roster, so the account
    *  itself is the only standing fact left to re-prove per fire. */
   readonly sessions: Pick<SessionsService, "loadUserById">;
-  /** The per-FUNDER role-client binder (§8.5b): a rule spends its AUTHOR's rows, a plugin its INSTALLER's. */
-  readonly roleClientsFor: (funderUserId: UserId) => Promise<RoleClientsWithSignal>;
+  /** The per-FUNDER role-client binder (§8.5b): a rule spends its AUTHOR's rows, a plugin its INSTALLER's. An
+   *  `actor` folds that actor's own binding before the funder's (a plugin's `plugin-grant` row). */
+  readonly roleClientsFor: (funderUserId: UserId, actor?: BindingActor) => Promise<RoleClientsWithSignal>;
   /** The process-wide PLUGIN-MACRO registry — minted at the composition ROOT and
    *  handed to BOTH this plane (which writes it at activation) and chat's compose (which reads it per turn as
    *  `ChatContext.pluginMacros`). Minted there rather than here purely because chat composes FIRST: one shared
@@ -201,9 +202,11 @@ function buildQuietResponseFormat(schema: PluginQuietSchema): ResponseFormat {
   };
 }
 
-export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): Promise<AutomationPluginComposeResult> {
-  const { db, now, connection, chatCompose, worldInfo, notifications, imagery, settings, assets, admin, resolveOwnerPrincipal, roleClientsFor, pluginMacros } =
-    deps;
+/** The plugin `llm.quiet` op; the op bundle's `llm` arm below states its posture.
+ * @public Test-anchored module surface; the grant binding it resolves through is pinned at `tests/server/entry/compose/plugin-quiet-grant.suite.int.test.ts`. */
+export function buildPluginQuietLlm(
+  deps: Pick<AutomationPluginComposeDeps, "roleClientsFor" | "resolveUserPresetParams" | "assets" | "resolveOwnerPrincipal">,
+): PluginHostOps["llm"]["quiet"] {
   /** The VISION arm of the U6 `llm.quiet` widening: guest-named asset ids → bytes, read under the INSTALLER's
    *  OWN Principal (`readOwnedAssetBytes`), which is the whole wall — a guest can name an id but it can only
    *  ever reach an asset its installer owns, and a foreign/absent id THROWS rather than being dropped (a
@@ -213,10 +216,29 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     if (assetIds === undefined || assetIds.length === 0) {
       return [];
     }
-    const caller = await resolveOwnerPrincipal(installerUserId);
-    const owned = await Promise.all(assetIds.map((id) => assets.readOwnedAssetBytes(caller, castId<AssetId>(id))));
+    const caller = await deps.resolveOwnerPrincipal(installerUserId);
+    const owned = await Promise.all(assetIds.map((id) => deps.assets.readOwnedAssetBytes(caller, castId<AssetId>(id))));
     return owned.map((asset) => asset.bytes);
   };
+  return async ({ installerUserId, pluginId, prompt, signal, opts }) => {
+    // The plugin's own grant binding answers first; the installer funds either way, and both folds read only
+    // the installer's rows, so a grant can never name another user's connection.
+    const rc = await deps.roleClientsFor(installerUserId, { kind: "plugin-grant", pluginId });
+    const posture = resolveSideGenSampling(SIDE_GEN_POSTURES.quiet_generate, await deps.resolveUserPresetParams(installerUserId));
+    const images = await resolveQuietImages(installerUserId, opts?.imageAssetIds);
+    // The SCHEMA arm (§5.9-2): a schema names `structured` on the grant's `summarize` binding; no schema
+    // is prose `summarize` — the explicit two-arm dispatch, never a sniffed option.
+    const responseFormat = opts?.schema === undefined ? undefined : buildQuietResponseFormat(opts.schema);
+    const inputs = [{ systemPrompt: PLUGIN_QUIET_SYSTEM, userPrompt: prompt, ...(images.length > 0 ? { images } : {}) }];
+    const sampling = { ...posture, signal };
+    const res = responseFormat === undefined ? await rc.summarize(inputs, sampling) : await rc.structured(inputs, { ...sampling, responseFormat });
+    return { text: (res.items[0]?.text ?? "").trim() };
+  };
+}
+
+export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): Promise<AutomationPluginComposeResult> {
+  const { db, now, connection, chatCompose, worldInfo, notifications, imagery, settings, assets, admin, resolveOwnerPrincipal, roleClientsFor, pluginMacros } =
+    deps;
   const { service: chat } = chatCompose;
 
   // Automation (D46) — built AFTER its action-op collaborators (chat/world-info/imagery/notifications +
@@ -662,9 +684,10 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       },
     },
     // llm.quiet — ONE bounded, non-canon generation on the INSTALLER's own resolved `summarize`-role
-    // connection. The SAME seam `/autobg`'s `summarizeQuiet` takes (that op's header names itself the
-    // extensible shape for future quiet-LLM arms): `bindRoleClients` resolves the installer's Principal by ROW
-    // READ — a `UserId` arriving here carries no authority — and `resolveRole` decides the credential under
+    // connection, the plugin's own `plugin-grant` binding folded first. The SAME seam `/autobg`'s
+    // `summarizeQuiet` takes (that op's header names itself the extensible shape for future quiet-LLM arms):
+    // `bindRoleClients` resolves the installer's Principal by ROW READ — a `UserId` arriving here carries no
+    // authority — and `resolveRole` decides the credential under
     // that principal, so D17's hosted-credential posture governs this call exactly as it governs every other
     // derive-role call. A plugin can therefore never spend anyone but its installer.
     //
@@ -685,20 +708,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     // name the installer's own CAS). A schema outside the liftable subset, or an asset the installer does not
     // own, THROWS — a typed refusal of the CALL that reaches the guest as a rejected promise, never a silent
     // downgrade to an unconstrained/imageless generation the plugin would then mis-read as its answer.
-    llm: {
-      quiet: async ({ installerUserId, prompt, signal, opts }) => {
-        const rc = await roleClientsFor(installerUserId);
-        const posture = resolveSideGenSampling(SIDE_GEN_POSTURES.quiet_generate, await deps.resolveUserPresetParams(installerUserId));
-        const images = await resolveQuietImages(installerUserId, opts?.imageAssetIds);
-        // The SCHEMA arm (§5.9-2): a schema names `structured` on the grant's `summarize` binding; no schema
-        // is prose `summarize` — the explicit two-arm dispatch, never a sniffed option.
-        const responseFormat = opts?.schema === undefined ? undefined : buildQuietResponseFormat(opts.schema);
-        const inputs = [{ systemPrompt: PLUGIN_QUIET_SYSTEM, userPrompt: prompt, ...(images.length > 0 ? { images } : {}) }];
-        const sampling = { ...posture, signal };
-        const res = responseFormat === undefined ? await rc.summarize(inputs, sampling) : await rc.structured(inputs, { ...sampling, responseFormat });
-        return { text: (res.items[0]?.text ?? "").trim() };
-      },
-    },
+    llm: { quiet: buildPluginQuietLlm(deps) },
     // The installing user's global KV — `fetchOwned` under the installer.
     variables: {
       get: async (ownerId, key) => automation.getGlobalVariable({ principal: await resolveOwnerPrincipal(ownerId), key }),

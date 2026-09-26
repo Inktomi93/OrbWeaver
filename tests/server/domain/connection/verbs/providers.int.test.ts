@@ -46,7 +46,7 @@ describe("registerProvider / dropProvider", () => {
     const db = await freshDb();
     const h = await makeHarness(db);
     const owner = await seedOwner(db);
-    // A contribution is an installed plugin's claim: `plugin_provider_contributions.plugin_id` FKs `plugins`.
+    // A claim is written for an installed plugin's owner: `plugin_provider_claims` reads `plugins.owner_id`.
     await seedPlugin(db, owner.userId, PLUGIN_ID);
     await h.svc.registerPluginProviders({
       pluginId: PLUGIN_ID,

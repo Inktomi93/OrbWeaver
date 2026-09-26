@@ -34,6 +34,8 @@ export {
   pluginFrameResultMessage,
   pluginFrameUrl,
 } from "./frame.ts";
+export type { PluginGrantTask } from "./grant-tasks.ts";
+export { pluginGrantTasks } from "./grant-tasks.ts";
 export type {
   ChatHandle,
   HostFunctionRef,

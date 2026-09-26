@@ -45,6 +45,7 @@ import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import type { DurableChatBusEvent, LiveOnlyChatBusEvent, LiveOnlyChatEventType } from "@orb/contracts/chat";
 import { EMBED_SPACE_DIMS } from "@orb/contracts/inference";
+import { pluginGrantTasks } from "@orb/contracts/plugin";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { EmbedResult } from "@orb/contracts/providers";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
@@ -52,7 +53,7 @@ import type { Db } from "@orb/db";
 import { automationRules, chatParticipants, plugins, userCredentials } from "@orb/db";
 import { fetchOwned } from "@orb/db/kit";
 import { SEED_MANIFEST } from "@orb/default-content";
-import type { InferenceDeps, InferenceRuntime, Resolved, RoleClientsWithSignal } from "@orb/inference";
+import type { BindingActor, InferenceDeps, InferenceRuntime, Resolved, RoleClientsWithSignal } from "@orb/inference";
 import { createInferenceRuntime, resolveClaudeExecutable } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, PluginId, PresetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, newId } from "@orb/kit/ids";
@@ -280,7 +281,7 @@ export interface ServicesResult {
   readonly runtime: InferenceRuntime;
   /** The per-FUNDER `RoleClients` binder (§8.5b): the runtime's binding fold under that user's real Principal.
    *  The workloads worker binds a pass's role clients from this; entry never touches the raw executor. */
-  readonly roleClientsFor: (funderUserId: UserId) => Promise<RoleClientsWithSignal>;
+  readonly roleClientsFor: (funderUserId: UserId, actor?: BindingActor) => Promise<RoleClientsWithSignal>;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   readonly effectiveConfig: EffectiveConfigWiring;
   readonly secretBox: SecretBox;
@@ -525,7 +526,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // home, never stamped). The binder every seam receives: the runtime's per-funder fold over
   // `connection_bindings` (§7.1) under that user's own Principal.
   const resolveFunderPrincipal = createHostPrincipalResolver(sessions);
-  const roleClientsFor = async (funderUserId: UserId): Promise<RoleClientsWithSignal> => runtime.roleClientsFor(await resolveFunderPrincipal(funderUserId));
+  const roleClientsFor = async (funderUserId: UserId, actor?: BindingActor): Promise<RoleClientsWithSignal> =>
+    runtime.roleClientsFor(await resolveFunderPrincipal(funderUserId), actor);
   const executeEmbed = (
     encoderConnection: Resolved<"embed">,
     input: string | readonly string[],
@@ -597,7 +599,10 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     audit,
     credentialOwned: async (ownerId, credentialId) => (await fetchOwned(db, userCredentials, credentialId, ownerId)) !== undefined,
     ruleOwnedBy: async (ruleId, userId) => (await fetchOwned(db, automationRules, ruleId, userId)) !== undefined,
-    pluginOwnedBy: async (pluginId, userId) => (await fetchOwned(db, plugins, pluginId, userId)) !== undefined,
+    pluginGrantTasksOf: async (pluginId, userId) => {
+      const row = await fetchOwned(db, plugins, pluginId, userId);
+      return row === undefined ? null : pluginGrantTasks(row.manifest.capabilities);
+    },
     endpointAdmission,
     recordProbeOutcome: credentials.recordProbeOutcome,
     // The late-bound holder above, derefed at request time.

@@ -1,16 +1,14 @@
 // Provider-registry publication is ordered by refresh invocation, even when store reads settle out of
-// order. Plugin contributors may share one immutable ProviderId, so the final contributor removal must
-// win over an older one-contributor snapshot; admin removals use the same publication lane. Every read names
-// its viewer: a plugin row answers only the owners of its contributing installs (D147).
+// order, so a removal wins over an older snapshot; admin removals use the same publication lane. Every read
+// names its viewer: a plugin id answers only its viewer's own claimed definition (D147, D265).
 
-import type { ProviderDef } from "@orb/contracts/inference";
 import { providerDefSchema } from "@orb/contracts/inference";
 import type { PluginId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ProviderSnapshot, ProviderStore } from "../../../packages/inference/src/deps.ts";
 import { createProviderRegistry } from "../../../packages/inference/src/registry/providers.ts";
 import { expect, test } from "../../support/fixtures.ts";
-import { memoryProviderSnapshot } from "../_support.ts";
+import { memoryProviderSnapshot, memoryProviderState, memoryReleasePlugin, memoryReplacePlugin } from "../_support.ts";
 
 const PROVIDER = providerDefSchema.parse({
   id: "plugin:acme/shared",
@@ -51,26 +49,15 @@ interface ControlledProviderStore {
 }
 
 function controlledProviderStore(): ControlledProviderStore {
-  const rows = new Map<string, ProviderDef>();
-  const adminOwned = new Set<string>();
-  const contributors = new Map<string, Set<PluginId>>();
+  const state = memoryProviderState(PLUGIN_OWNERS);
   let heldRead: { readonly started: () => void; readonly released: Promise<void> } | undefined;
   let readObserver: (() => void) | undefined;
   let adminRemovalObserver: (() => void) | undefined;
   let readFailure: Error | undefined;
 
-  const removePlugin = (pluginId: PluginId): void => {
-    for (const [id, owners] of contributors) {
-      owners.delete(pluginId);
-      if (owners.size === 0) {
-        contributors.delete(id);
-      }
-    }
-  };
-
   const store: ProviderStore = {
     list: (): Promise<ProviderSnapshot> => {
-      const snapshot = memoryProviderSnapshot({ rows, admins: adminOwned, contributors, pluginOwners: PLUGIN_OWNERS });
+      const snapshot = memoryProviderSnapshot(state);
       readObserver?.();
       readObserver = undefined;
       const failure = readFailure;
@@ -86,42 +73,21 @@ function controlledProviderStore(): ControlledProviderStore {
       barrier.started();
       return barrier.released.then(() => snapshot);
     },
-    putAdmin: (next): Promise<boolean> => {
-      if ((contributors.get(next.id)?.size ?? 0) > 0) {
-        return Promise.resolve(false);
-      }
-      rows.set(next.id, next);
-      adminOwned.add(next.id);
-      return Promise.resolve(true);
+    putAdmin: (next): Promise<void> => {
+      state.admins.set(next.id, next);
+      return Promise.resolve();
     },
     removeAdmin: (id): Promise<boolean> => {
-      if (!adminOwned.delete(id)) {
+      if (!state.admins.delete(id)) {
         return Promise.resolve(false);
       }
-      rows.delete(id);
       adminRemovalObserver?.();
       adminRemovalObserver = undefined;
       return Promise.resolve(true);
     },
-    replacePlugin: (desired, pluginId): Promise<{ readonly ok: true } | { readonly ok: false; readonly conflictingId: ProviderDef["id"] }> => {
-      const conflict = desired.find((next) => {
-        const current = rows.get(next.id);
-        return adminOwned.has(next.id) || (current !== undefined && JSON.stringify(current) !== JSON.stringify(next));
-      });
-      if (conflict !== undefined) {
-        return Promise.resolve({ ok: false, conflictingId: conflict.id });
-      }
-      removePlugin(pluginId);
-      for (const next of desired) {
-        rows.set(next.id, next);
-        const owners = contributors.get(next.id) ?? new Set<PluginId>();
-        owners.add(pluginId);
-        contributors.set(next.id, owners);
-      }
-      return Promise.resolve({ ok: true });
-    },
+    replacePlugin: (desired, pluginId) => Promise.resolve(memoryReplacePlugin(state, desired, pluginId)),
     removePlugin: (pluginId): Promise<void> => {
-      removePlugin(pluginId);
+      memoryReleasePlugin(state, pluginId);
       return Promise.resolve();
     },
   };
@@ -150,7 +116,7 @@ function controlledProviderStore(): ControlledProviderStore {
   };
 }
 
-test("an older one-contributor refresh cannot republish a provider after its final plugin owner is removed", async () => {
+test("an older refresh cannot republish a provider after its serving install is removed", async () => {
   const controlled = controlledProviderStore();
   const registry = await createProviderRegistry(controlled.store);
   await registry.registerPlugin([PROVIDER], { plugin: FIRST_PLUGIN, pluginName: "acme" });
@@ -258,4 +224,21 @@ test("a plugin row answers only the owners of its contributing installs; admin a
   await registry.dropPlugin(FIRST_PLUGIN);
   expect(registry.get(PROVIDER.id, INSTALLER)).toBeUndefined();
   expect(registry.get(PROVIDER.id, OTHER_INSTALLER)).toEqual(PROVIDER);
+});
+
+test("two owners' different definitions of one plugin id each answer only their own owner", async () => {
+  const controlled = controlledProviderStore();
+  const registry = await createProviderRegistry(controlled.store);
+  const squat = providerDefSchema.parse({ ...PROVIDER, label: "Squatted" });
+  await registry.registerPlugin([squat], { plugin: OTHER_PLUGIN, pluginName: "acme" });
+  await registry.registerPlugin([PROVIDER], { plugin: FIRST_PLUGIN, pluginName: "acme" });
+
+  expect(registry.get(PROVIDER.id, INSTALLER)).toEqual(PROVIDER);
+  expect(registry.get(PROVIDER.id, OTHER_INSTALLER)).toEqual(squat);
+  expect(registry.list(INSTALLER).filter((row) => row.id === PROVIDER.id)).toEqual([PROVIDER]);
+  // The same owner's changed definition is refused: their claim is permanent.
+  await expect(registry.registerPlugin([{ ...PROVIDER, label: "Changed" }], { plugin: FIRST_PLUGIN, pluginName: "acme" })).rejects.toMatchObject({
+    kind: "invalid",
+  });
+  expect(registry.get(PROVIDER.id, INSTALLER)).toEqual(PROVIDER);
 });

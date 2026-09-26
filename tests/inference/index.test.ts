@@ -13,7 +13,7 @@ import { createInferenceRuntime, DEFAULT_EMBED_MODEL, DEFAULT_RERANK_MODEL, NoCo
 import type { UserConnectionId, UserId } from "@orb/kit/ids";
 import { principal } from "../support/factories/principal.ts";
 import { expect, test } from "../support/fixtures.ts";
-import { fakeConnection, fakeDeps, memoryStores, newPluginId, newRuleId, newUserId } from "./_support.ts";
+import { fakeConnection, fakeDeps, memoryClaimKey, memoryStores, newPluginId, newRuleId, newUserId } from "./_support.ts";
 
 /** The rejection a call produced, as a value — so two refusals can be COMPARED rather than merely matched
  *  one at a time, which is the only way to assert "these two answers are indistinguishable". A call that
@@ -334,14 +334,16 @@ test("providers.register refuses a built-in id and a mis-namespaced plugin row; 
   await expect(runtime.providers.register(bad, { plugin: newPluginId(), pluginName: "acme" })).rejects.toMatchObject({ kind: "invalid" });
   const good = { ...bad, id: "plugin:acme/relay" };
   const pluginId = newPluginId();
-  s.stores.providerStore.pluginOwners.set(pluginId, s.aliceId);
+  s.stores.providerStore.state.pluginOwners.set(pluginId, s.aliceId);
   const row = await runtime.providers.register(good, { plugin: pluginId, pluginName: "acme" });
   expect(runtime.providers.registry.get(row.id, s.aliceId)?.label).toBe("Relay");
   expect(runtime.providers.registry.get(row.id, s.bobId)).toBeUndefined();
-  expect(s.stores.providerStore.rows.has(row.id)).toBe(true);
+  const claim = (): unknown => s.stores.providerStore.state.claims.get(memoryClaimKey(s.aliceId, row.id));
+  expect(claim()).toMatchObject({ pluginId });
   await runtime.providers.dropPlugin(pluginId);
   expect(runtime.providers.registry.get(row.id, s.aliceId)).toBeUndefined();
-  expect(s.stores.providerStore.rows.has(row.id)).toBe(true);
+  // Alice's claim survives the drop as her tombstone.
+  expect(claim()).toMatchObject({ pluginId: null, row: { id: row.id } });
 });
 
 test("a registry refresh failure compensates the durable plugin contribution before activation fails", async () => {
@@ -361,7 +363,7 @@ test("a registry refresh failure compensates the durable plugin contribution bef
   const runtime = await createInferenceRuntime({ ...s.deps, providerStore });
   const pluginId = newPluginId();
   // The installer is known, so the post-restart absence below is the rollback's doing and not an unowned row.
-  durable.pluginOwners.set(pluginId, s.aliceId);
+  durable.state.pluginOwners.set(pluginId, s.aliceId);
   const row = {
     id: "plugin:acme/rollback",
     label: "Rollback",
@@ -375,7 +377,8 @@ test("a registry refresh failure compensates the durable plugin contribution bef
 
   listFailures.push(new Error("test: provider snapshot unavailable"));
   await expect(runtime.providers.registerPlugin([row], { plugin: pluginId, pluginName: "acme" })).rejects.toThrow("provider snapshot unavailable");
-  expect(durable.rows.has(row.id)).toBe(true);
+  // The compensation unlinked the claim; it stays as Alice's tombstone.
+  expect(durable.state.claims.get(memoryClaimKey(s.aliceId, row.id))?.pluginId).toBeNull();
 
   const restarted = await createInferenceRuntime(s.deps);
   expect(restarted.providers.registry.get(row.id, s.aliceId)).toBeUndefined();

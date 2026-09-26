@@ -4,9 +4,11 @@
 //   clock / ids     — the determinism seams (frozen clock + seeded ids).
 //   db              — fresh migrated libSQL `:memory:` (support/db freshDb).
 //   app             — the REAL composition root over `db` (`createServices`: frozen clock, vLLM disabled,
-//                     enabled-but-keyless SecretBox, temp CAS/variant/import-staging dirs). The fixture IS
+//                     a SecretBox keyed by `secretBoxKey`, temp CAS/variant/import-staging dirs). The fixture IS
 //                     the composed production wiring — tests exercise the real injection graph, not a
 //                     parallel test-only assembly (Spine-Testing esoterica).
+//   secretBoxKey    — the CREDENTIALS_KEY `app` composes with. Defaults to `null` (credential storage off);
+//                     a suite that must reach a verb behind the storage guard overrides it with a key.
 //   services        — `app.services` (the transport `Services` bundle), for direct front-door calls.
 //   importStagingDir — the temp upload staging root `app` is composed over. A test that builds an upload
 //                     route passes it as `stagingDir`, so the route and the import workload agree and
@@ -67,6 +69,7 @@ export interface Fixtures {
   ids: SeededIds;
   db: Db;
   providerFetch: typeof fetch;
+  secretBoxKey: Buffer | null;
   importStagingDir: string;
   app: ServicesResult;
   services: Services;
@@ -171,12 +174,15 @@ export const test = base.extend<Fixtures>({
   providerFetch: async ({}, use): Promise<void> => {
     await use(refusingFetch());
   },
+  secretBoxKey: async ({}, use): Promise<void> => {
+    await use(null);
+  },
   importStagingDir: async ({}, use): Promise<void> => {
     const dir = await mkdtemp(join(tmpdir(), "orb-fixture-staging-"));
     await use(dir);
     await rm(dir, { recursive: true, force: true });
   },
-  app: async ({ db, clock, providerFetch, importStagingDir }, use): Promise<void> => {
+  app: async ({ db, clock, providerFetch, secretBoxKey, importStagingDir }, use): Promise<void> => {
     const { createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } = await import("@orb/server/entry/compose");
     const casDir = await mkdtemp(join(tmpdir(), "orb-fixture-cas-"));
     const variantDir = await mkdtemp(join(tmpdir(), "orb-fixture-var-"));
@@ -186,7 +192,7 @@ export const test = base.extend<Fixtures>({
       db,
       now: (): number => clock.now(),
       ownerId: OWNER_USER_ID,
-      secretBoxKey: null,
+      secretBoxKey,
       casDir,
       variantDir,
       importStagingDir,

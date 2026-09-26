@@ -136,6 +136,10 @@ const NON_PORTABLE_CANON: Readonly<Record<string, NonPortableRow>> = {
     classification: "RULED-OUT",
     why: "O-4: installed CODE is not user data. Ends if plugins ever become declarative config rather than executables.",
   },
+  pluginProviderClaims: {
+    classification: "RULED-OUT",
+    why: "D265 — each claim binds a provider id to the definition a RULED-OUT `plugins` install shipped on this box; the owner's next activation re-creates it. Ends with the `plugins` row.",
+  },
   pluginKv: {
     classification: "RULED-OUT",
     why: "the KV store of RULED-OUT `plugins` — restoring a plugin's state without the plugin is worse than not restoring it. Ends with the `plugins` row.",

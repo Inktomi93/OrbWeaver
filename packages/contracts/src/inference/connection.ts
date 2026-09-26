@@ -115,6 +115,8 @@ export const CONNECTION_OP_CODES = {
   backgroundRefused: "connection_background_refused",
   /** The binding's actor (a rule, a plugin) is not the caller's. */
   actorForeign: "connection_actor_foreign",
+  /** A plugin-grant binding names a task none of the plugin's declared capabilities routes (`pluginGrantTasks`). */
+  actorTaskUnrouted: "connection_actor_task_unrouted",
   /** The row cannot serve the task (`connectionTasks` — one connection = one model = one kind). */
   taskUnservable: "connection_task_unservable",
 } as const;

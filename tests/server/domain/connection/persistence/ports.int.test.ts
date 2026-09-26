@@ -5,6 +5,7 @@
 // through the port after writing through the verb.
 
 import type { ProviderDef, ProviderId } from "@orb/contracts/inference";
+import { providerRows } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createConnectionPorts } from "../../../../../packages/server/src/domain/connection/persistence/ports.ts";
@@ -56,8 +57,9 @@ test("`providerStore` round-trips a row and its removal, stamping the injected c
     catalog: "url",
     metered: false,
   };
-  expect(await ports.providerStore.putAdmin(row, admin)).toBe(true);
+  await ports.providerStore.putAdmin(row, admin);
   expect(await ports.providerStore.list()).toEqual({ rows: [row], installs: [] });
+  expect(await db.select({ createdAt: providerRows.createdAt }).from(providerRows)).toEqual([{ createdAt: FROZEN_AT_MS }]);
   expect(await ports.providerStore.removeAdmin(id)).toBe(true);
   expect(await ports.providerStore.list()).toEqual({ rows: [], installs: [] });
 });

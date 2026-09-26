@@ -81,6 +81,9 @@ export const OWNERID_CLASSIFICATIONS: Readonly<Record<string, OwnershipClassific
   automation_rules: { why: "D46 host-authored rule (runs as its author)" },
   global_variables: { why: "D46 per-user cross-chat KV (fetchOwned)" },
   plugins: { why: "D46 true producer (the installing principal's per-user plugin registry; a plugin runs as its owner)" },
+  plugin_provider_claims: {
+    why: "D265 per-owner binding of a plugin provider id to one definition — the owner IS the scope the id resolves in, and the claim outlives its install as that owner's tombstone (plugin_id SET NULL), so there is no parent to derive the owner through; writers read it from plugins.owner_id",
+  },
   plugin_kv: {
     why: "D46 denormalized guard on the plugin_id partition — the belt WHERE (plugin_id, owner_id) makes a cross-owner KV read structurally impossible even if a plugin_id were reused; owner also drives the user-hard-delete cascade",
   },
@@ -209,8 +212,8 @@ export const gate = defineGate({
         "packages/db/src/schema/chat.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const chats = sqliteTable("chats", { id: text("id").primaryKey() });\n',
       },
-      expect: { count: 31, messageIncludes: "classifies nothing" },
-      why: "THE STALE ARM, mode (B) of §4.4a: the barrel resolves so the schema is the production one, and every classified table is GONE — a classification that outlives its subject must RED rather than sit there looking like a ruling. `count` is `Object.keys(OWNERID_CLASSIFICATIONS).length` — 31 after the two retained-generation tables joined the registry. RE-DERIVED 2026-09-20 from the exported object keys and the object literal. It is EXACT on purpose: without it the row passed on ONE stale finding as readily as on all of them, so a stale sweep that silently shrank to a single row would still have looked green (#1968/#2001). It moves with the table, which is the coupling this arm is FOR.",
+      expect: { count: 32, messageIncludes: "classifies nothing" },
+      why: "THE STALE ARM, mode (B) of §4.4a: the barrel resolves so the schema is the production one, and every classified table is GONE — a classification that outlives its subject must RED rather than sit there looking like a ruling. `count` is `Object.keys(OWNERID_CLASSIFICATIONS).length` — 32 after `plugin_provider_claims` (D265) joined the registry. RE-DERIVED 2026-09-26 from the exported object keys and the object literal. It is EXACT on purpose: without it the row passed on ONE stale finding as readily as on all of them, so a stale sweep that silently shrank to a single row would still have looked green (#1968/#2001). It moves with the table, which is the coupling this arm is FOR.",
     },
   ],
   mustPass: [

@@ -1,14 +1,11 @@
 import type { ProviderDef, ProviderId } from "@orb/contracts/inference";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import {
-  conflictingProviderDefinition,
-  indexProviderDefinitions,
-  providerDefinitionHash,
-} from "../../../../../packages/server/src/domain/connection/substrate/provider-definitions.ts";
+import { conflictingProviderDefinition, providerDefinitionHash } from "../../../../../packages/server/src/domain/connection/substrate/provider-definitions.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const PROVIDER_ID = castId<ProviderId>("plugin:test/acme");
+const SECOND_ID = castId<ProviderId>("plugin:test/second");
 const PROVIDER: ProviderDef = {
   id: PROVIDER_ID,
   label: "Acme",
@@ -21,16 +18,13 @@ const PROVIDER: ProviderDef = {
 };
 
 describe("provider definition identity", () => {
-  test("indexes definitions by their branded provider id", () => {
-    expect(indexProviderDefinitions([PROVIDER]).get(PROVIDER_ID)).toBe(PROVIDER);
-  });
-
-  test("accepts an identical plugin definition and refuses replacement or admin ownership", () => {
+  test("an owner's claim accepts the same definition and refuses a changed one", () => {
     const hash = providerDefinitionHash(PROVIDER);
     const desired = [{ row: PROVIDER, hash }];
 
-    expect(conflictingProviderDefinition(desired, [{ id: PROVIDER_ID, definitionHash: hash, originKind: "plugin" }])).toBeUndefined();
-    expect(conflictingProviderDefinition(desired, [{ id: PROVIDER_ID, definitionHash: "different", originKind: "plugin" }])).toBe(PROVIDER_ID);
-    expect(conflictingProviderDefinition(desired, [{ id: PROVIDER_ID, definitionHash: hash, originKind: "admin" }])).toBe(PROVIDER_ID);
+    expect(conflictingProviderDefinition(desired, [{ id: PROVIDER_ID, definitionHash: hash }])).toBeUndefined();
+    expect(conflictingProviderDefinition(desired, [{ id: PROVIDER_ID, definitionHash: "different" }])).toBe(PROVIDER_ID);
+    // A claim on another id never conflicts: the comparison is per provider id.
+    expect(conflictingProviderDefinition(desired, [{ id: SECOND_ID, definitionHash: "different" }])).toBeUndefined();
   });
 });

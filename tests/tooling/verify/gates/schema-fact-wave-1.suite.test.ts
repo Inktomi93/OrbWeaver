@@ -54,7 +54,9 @@ test(
 
 // The second wave: ownership classification, the D34 enum derive, and the D124 nullable-inequality reader.
 // All three consume the SAME `drizzleSchemaFact` and own no schema parsing of their own, which is why they
-// join this entry rather than growing a per-policy test file.
+// join this entry rather than growing a per-policy test file. Their ids are spelled quoted here because
+// `check:instrument-affected` reaches a family test by quoted id: "ownerid-registry", "db-enum-from-tuple",
+// "nullable-column-inequality".
 test(
   "the schema-fact consumer wave proves ownership, enum derivation, and nullable-inequality",
   () => {

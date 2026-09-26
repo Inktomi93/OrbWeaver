@@ -16,6 +16,8 @@ import { WIRE_DEFS, WIRES } from "./wires.ts";
 /** Built-ins are bare `[a-z0-9-]+`; runtime rows are `plugin:<name>/<id>`. */
 export const PROVIDER_ID = /^(?:[a-z0-9-]+|plugin:[a-z0-9-]+\/[a-z0-9-]+)$/;
 const PLUGIN_PROVIDER_ID = /^plugin:([a-z0-9-]+)\/[a-z0-9-]+$/;
+/** The namespace a plugin-contributed provider id starts with; the provider tables CHECK it. */
+export const PLUGIN_PROVIDER_ID_PREFIX = "plugin:";
 
 /** A registry id — branded so a bare string never flows where a validated provider id is expected.
  *  Validated at the producer against the registry, NO SQL CHECK (a plugin row is runtime data — a CHECK

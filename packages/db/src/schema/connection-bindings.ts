@@ -2,7 +2,7 @@
 // `connection_bindings` (EVERY actor → connection pick, as FK physics — D61-B6: a real junction, never a JSON
 // id-array; replaces the settings blob's `roleDefaults.<task>` leaves), `provider_rows` (the runtime provider
 // REGISTRY: plugin-shipped / admin-added `ProviderDef` rows beside the built-ins, F9), and
-// `plugin_provider_contributions` (the many-to-one activation ownership of a plugin row). They live
+// `plugin_provider_claims` (each user's binding of a plugin provider id to one definition). They live
 // apart from `user_connections` (`connection.ts`) only to break an import cycle: the bindings FK
 // `automation_rules` and `plugins`, whose schema files import `chat.ts`, which FKs `user_connections`.
 //
@@ -13,7 +13,7 @@
 // id can never be shadowed — the registry refuses it at `register()`, §5.9-1).
 
 import type { ChatApi, EndpointFeatures, ProviderId, RoutableTask, Task, Wire } from "@orb/contracts/inference";
-import { BINDING_ACTOR_KINDS, CATALOG_STRATEGIES, DIALECTS, PROVIDER_AUTHS, ROUTABLE_TASKS, WIRES } from "@orb/contracts/inference";
+import { BINDING_ACTOR_KINDS, CATALOG_STRATEGIES, DIALECTS, PLUGIN_PROVIDER_ID_PREFIX, PROVIDER_AUTHS, ROUTABLE_TASKS, WIRES } from "@orb/contracts/inference";
 import type { AutomationRuleId, ConnectionBindingId, PluginId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 // biome-ignore lint/suspicious/noDeprecatedImports: drizzle @deprecates positional primaryKey; the supported object form is used below.
@@ -89,20 +89,18 @@ export type ProviderRowOrigin = (typeof PROVIDER_ROW_ORIGINS)[number];
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // provider_rows — the ProviderStore's table: runtime `ProviderDef` rows. Real columns per scalar; `features`
 // is a parsed document; `apis`/`serves` are JSON arrays parsed by the canonical `providerDefSchema` before
-// this persistence boundary. Plugin ownership is MANY-TO-ONE through `plugin_provider_contributions`: the
-// same canonical definition may be activated by several owners, and one owner's disable cannot remove it
-// while another still contributes. `definition_hash` makes identity physical: a contribution's composite FK
-// cannot attach to a same-id/different-definition row, including across replicas. Plugin rows remain as
-// immutable tombstones after the last contribution leaves because retained connections/credentials name only
-// ProviderId; reusing that id for a new baseUrl would reroute their secrets. Admin rows carry only the SET-NULL
-// provenance user and can never satisfy that plugin-only FK.
+// this persistence boundary. An ADMIN row is deployment-wide and unique by id. A PLUGIN row is content only,
+// keyed by id AND `definition_hash`: two users' different definitions of one `plugin:` id are two rows, and a
+// user reaches one only through their own `plugin_provider_claims` row (D147, D265). The namespace CHECK
+// keeps the two kinds disjoint, so an admin row can never answer for a plugin id, nor a plugin row for a bare
+// one. A plugin row no claim references is unreachable and is reaped by the store's reconciliation.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 export const providerRows = sqliteTable(
   "provider_rows",
   {
     // The registry id itself (`plugin:<name>/<id>` | a bare admin id) — NOT a TypeID; the natural key.
-    id: text("id").$type<ProviderId>().primaryKey(),
+    id: text("id").$type<ProviderId>().notNull(),
     label: text("label").notNull(),
     wire: text("wire", { enum: WIRES }).$type<Wire>().notNull(),
     dialect: text("dialect", { enum: DIALECTS }),
@@ -114,7 +112,7 @@ export const providerRows = sqliteTable(
     metered: integer("metered", { mode: "boolean" }).notNull(),
     docsUrl: text("docs_url"),
     features: text("features", { mode: "json" }).$type<EndpointFeatures>(),
-    /** SHA-256 of the canonical validated ProviderDef: contribution FK belt + permanent ProviderId binding. */
+    /** SHA-256 of the canonical validated ProviderDef — half the key: one row per distinct definition of an id. */
     definitionHash: text("definition_hash").notNull(),
     originKind: text("origin_kind", { enum: PROVIDER_ROW_ORIGINS }).notNull(),
     // The admin who added it — provenance only (SET NULL; the row outlives the admin).
@@ -124,50 +122,62 @@ export const providerRows = sqliteTable(
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
-    // Parent key for the contribution table's identity FK. `originKind` prevents an identical admin row from
-    // being adopted by a plugin; `definitionHash` prevents a same-id conflicting definition from attaching.
-    uniqueIndex("provider_rows_contribution_identity_unique").on(t.id, t.definitionHash, t.originKind),
+    primaryKey({ columns: [t.id, t.definitionHash] }),
+    // An admin row is the deployment's ONE definition of its id; plugin rows are exempt because their
+    // uniqueness is per claiming owner, not per deployment.
+    uniqueIndex("provider_rows_admin_id_unique").on(t.id).where(sql`${t.originKind} = 'admin'`),
     index("provider_rows_origin_user_idx").on(t.originUserId),
     check("provider_rows_wire_check", sql.raw(`wire in (${checkList(WIRES)})`)),
     check("provider_rows_dialect_check", sql.raw(`dialect is null or dialect in (${checkList(DIALECTS)})`)),
     check("provider_rows_auth_check", sql.raw(`auth in (${checkList(PROVIDER_AUTHS)})`)),
     check("provider_rows_catalog_check", sql.raw(`catalog in (${checkList(CATALOG_STRATEGIES)})`)),
     check("provider_rows_origin_kind_check", sql.raw(`origin_kind in (${checkList(PROVIDER_ROW_ORIGINS)})`)),
-    // Plugin provenance lives in the contribution junction. Admin provenance may become NULL when the user is
-    // deleted, because the deployment row deliberately outlives its author.
+    // Plugin provenance lives in the claim. Admin provenance may become NULL when the user is deleted,
+    // because the deployment row deliberately outlives its author.
     check("provider_rows_origin_shape_check", sql.raw("(origin_kind = 'plugin' and origin_user_id is null) or origin_kind = 'admin'")),
+    check(
+      "provider_rows_namespace_check",
+      sql.raw(`(origin_kind = 'plugin') = (substr(id, 1, ${PLUGIN_PROVIDER_ID_PREFIX.length}) = '${PLUGIN_PROVIDER_ID_PREFIX}')`),
+    ),
   ],
 );
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// plugin_provider_contributions — one enabled plugin install's claim on one global provider definition.
-// The definition FK includes the hash and literal origin kind: a conflicting same-id definition and an admin
-// row both fail at the physics tier. The parent definition is immutable for the lifetime of its ProviderId;
-// deactivation removes only this plugin's active links and leaves that identity binding tombstoned.
+// plugin_provider_claims — one user's binding of a `plugin:` ProviderId to ONE definition, and the install
+// that currently serves it. The binding is permanent for its owner: a connection or credential keeps only
+// the ProviderId, so re-pointing the owner's id at another definition would reroute a retained secret to a
+// new baseUrl. `plugin_id` goes NULL when that install stops being enabled or is removed; the claim stays as
+// the owner's tombstone and dies with the user. Another user's claim on the same id is a separate row, so no
+// user can hold a provider id for anyone else (D265). The owner is the scope and has no parent to derive
+// through (the tombstone outlives the install); every writer derives it from `plugins.owner_id`.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
-export const pluginProviderContributions = sqliteTable(
-  "plugin_provider_contributions",
+export const pluginProviderClaims = sqliteTable(
+  "plugin_provider_claims",
   {
+    ownerId: text("owner_id")
+      .$type<UserId>()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
     providerId: text("provider_id").$type<ProviderId>().notNull(),
+    definitionHash: text("definition_hash").notNull(),
+    // The owner's install serving this claim now; NULL is a tombstone that serves nobody.
     pluginId: text("plugin_id")
       .$type<PluginId>()
-      .notNull()
-      .references(() => plugins.id, { onDelete: "cascade" }),
-    definitionHash: text("definition_hash").notNull(),
-    providerKind: text("provider_kind", { enum: PROVIDER_ROW_ORIGINS }).notNull().default("plugin"),
+      .references(() => plugins.id, { onDelete: "set null" }),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
-    primaryKey({ columns: [t.providerId, t.pluginId] }),
-    index("plugin_provider_contributions_plugin_idx").on(t.pluginId),
+    primaryKey({ columns: [t.ownerId, t.providerId] }),
+    // The SET-NULL parent scan on a plugin delete, and the per-install release.
+    index("plugin_provider_claims_plugin_idx").on(t.pluginId),
+    // The RESTRICT parent scan when reconciliation reaps an unclaimed definition.
+    index("plugin_provider_claims_definition_idx").on(t.providerId, t.definitionHash),
     foreignKey({
-      columns: [t.providerId, t.definitionHash, t.providerKind],
-      foreignColumns: [providerRows.id, providerRows.definitionHash, providerRows.originKind],
-      name: "plugin_provider_contributions_definition_fk",
-    })
-      .onUpdate("cascade")
-      .onDelete("cascade"),
-    check("plugin_provider_contributions_kind_check", sql.raw("provider_kind = 'plugin'")),
+      columns: [t.providerId, t.definitionHash],
+      foreignColumns: [providerRows.id, providerRows.definitionHash],
+      name: "plugin_provider_claims_definition_fk",
+    }).onDelete("restrict"),
+    check("plugin_provider_claims_namespace_check", sql.raw(`substr(provider_id, 1, ${PLUGIN_PROVIDER_ID_PREFIX.length}) = '${PLUGIN_PROVIDER_ID_PREFIX}'`)),
   ],
 );
