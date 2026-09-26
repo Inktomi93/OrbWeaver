@@ -86,6 +86,7 @@ const HOST_CHAT: TrpcFixtureOutput<"chat.getChat"> = {
   id: "chat_roster_ct",
   viewerIsHost: true,
   anchorPersonaId: null,
+  rpg: null,
   participants: [{ id: "participant_ct_1", kind: "character", characterId: "character_ct_1", talkativeness: 0.5, disabled: false, leftSeq: null }],
 };
 
@@ -419,4 +420,61 @@ test("a FAILED capture says so and offers a retry, instead of disabling Save for
   // exactly: the CT QueryClient runs `retry: false`, so nothing but this click can produce the second.
   await expect(page.getByText("No enabled rules to include.")).toBeVisible();
   await expect.poll(() => trpc.count("automation.listRules")).toBe(2);
+});
+
+// ── A campaign roster, saved from the room that plays it (D264) ────────────────────────────────────────
+// A room with a game offers a visible, default-on "start as a campaign" toggle and captures the room's
+// ruleset; a plain room offers no toggle and saves no game.
+
+/** The saved view `rosterPreset.create` answers with — the report line reads its name and counts. */
+function savedView(game: { readonly ruleset: "d20" } | null): TrpcFixtureOutput<"rosterPreset.create"> {
+  return {
+    id: "roster_preset_ct_new",
+    name: "Fresh roster",
+    description: "",
+    anchorPersonaId: null,
+    groupConfig: null,
+    game,
+    members: [],
+    rules: [],
+    createdAt: 1,
+    updatedAt: 1,
+  };
+}
+
+test("saving from a game room shows the campaign toggle on, and captures the room's ruleset", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "rosterPreset.list": [],
+    "chat.getChat": { ...HOST_CHAT, rpg: { gameId: "rpg_game_ct", engaged: true } },
+    "automation.listRules": [],
+    "automation.listRulePresets": [PACING_PRESET],
+    "rpg.getGame": { publicConfig: { ruleset: "d20" } },
+    "rosterPreset.create": savedView({ ruleset: "d20" }),
+  });
+
+  await mount(<RosterPickerHostStory />);
+  const toggle = page.getByRole("switch", { name: "Start new chats as an RPG campaign" });
+  await expect(toggle).toBeChecked();
+  await expect(page.getByText("Ruleset: D20")).toBeVisible();
+  await page.getByRole("textbox", { name: "New roster name" }).fill("Fresh roster");
+  await page.getByRole("button", { name: "Save this room's roster" }).click();
+
+  await expect.poll(() => trpc.lastInput("rosterPreset.create")).toMatchObject({ input: { name: "Fresh roster", game: { ruleset: "d20" } } });
+});
+
+test("saving from a plain room offers no campaign toggle and saves no game", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "rosterPreset.list": [],
+    "chat.getChat": HOST_CHAT,
+    "automation.listRules": [],
+    "automation.listRulePresets": [PACING_PRESET],
+    "rosterPreset.create": savedView(null),
+  });
+
+  await mount(<RosterPickerHostStory />);
+  await page.getByRole("textbox", { name: "New roster name" }).fill("Fresh roster");
+  await expect(page.getByRole("switch", { name: "Start new chats as an RPG campaign" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Save this room's roster" }).click();
+
+  await expect.poll(() => trpc.lastInput("rosterPreset.create")).toMatchObject({ input: { name: "Fresh roster", game: null } });
 });

@@ -18,7 +18,7 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { MemberDrillHeader } from "#components";
+import { MemberDrillHeader, SettingSwitchRow } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { CollectionMemberView } from "#lib";
 import { talkativenessLevel, useFocusOnMount } from "#lib";
@@ -26,7 +26,7 @@ import { clearCollectionSelection } from "#state";
 import { useUpdateRosterPreset } from "../hooks/use-roster-preset-mutations.ts";
 import { useRulePresetCatalogue } from "../hooks/use-saved-rosters.ts";
 import { useStartRoster } from "../hooks/use-start-roster.ts";
-import { rosterRuleKnobGloss } from "../lib/roster-copy.ts";
+import { rosterRuleKnobGloss, rulesetLine } from "../lib/roster-copy.ts";
 
 /** The stored seats, resent VERBATIM on a rename (the update verb is a full replace). The view's ids
  *  stay BRANDED end to end (`CharacterId` — brand-in-name-position; the wire's `z.input` accepts them). */
@@ -129,6 +129,23 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionMemberV
     });
   };
 
+  // The campaign toggle writes at once. It resends the STORED fields, never the unsaved name/description
+  // drafts, so flipping it cannot also save half-typed text.
+  const onCampaignChange = (next: boolean): void => {
+    update.mutate({
+      presetId,
+      input: {
+        name: roster.name,
+        description: roster.description,
+        anchorPersonaId: roster.anchorPersonaId,
+        groupConfig: roster.groupConfig,
+        game: next ? (roster.game ?? {}) : null,
+        members: memberInputsOf(roster),
+        rules: ruleInputsOf(roster),
+      },
+    });
+  };
+
   const onStart = (): void => {
     start.startRoster(roster);
   };
@@ -188,6 +205,13 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionMemberV
             real <h3> under it (side-eye P2-5: the editor's only heading was the roster name, so heading
             navigation gave a screen-reader user one stop in a two-section surface, while the sibling
             "This chat" pane names every section at level 3). */}
+        <SettingSwitchRow
+          checked={roster.game !== null}
+          disabled={busy}
+          {...(roster.game === null ? {} : { description: rulesetLine(roster.game) })}
+          label="RPG campaign"
+          onChange={onCampaignChange}
+        />
         <Section kicker="Members">
           {roster.members.map((member) => (
             <Row align="center" gap="field" key={member.characterId}>

@@ -9,6 +9,7 @@
 import type { RulePresetId, RulePresetKnobValueInputs, RulePresetView } from "@orb/contracts/automation";
 import { rulePresetKnobBagToInputs } from "@orb/contracts/automation";
 import type { RosterPresetSummary } from "@orb/contracts/roster-preset";
+import type { RpgGameTemplate } from "@orb/contracts/rpg";
 import { skipToken, useQuery, useSuspenseQueries, useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
@@ -125,4 +126,21 @@ export function useRosterRuleCapture(active: ActiveRosterChat | null): RosterRul
     return { status: "loading", rules: [], retry };
   }
   return { status: "ready", rules: deriveEnabledRosterRules(rulesQuery.data), retry };
+}
+
+/** The open HOST room's game as "Save this room's roster" captures it (D264): `none` for a room without a game
+ *  (nothing to offer), `loading` while the ruleset is read, and `ready` with the template the roster stores. */
+type RoomGameCapture = { readonly status: "none" } | { readonly status: "loading" } | { readonly status: "ready"; readonly template: RpgGameTemplate };
+
+export function useRoomGameCapture(active: ActiveRosterChat | null): RoomGameCapture {
+  const trpc = useTRPC();
+  const gameChatId = active !== null && active.isHost && active.detail.rpg !== null ? active.chatId : null;
+  const gameQuery = useQuery(trpc.rpg.getGame.queryOptions(gameChatId === null ? skipToken : { chatId: gameChatId }));
+  if (gameChatId === null) {
+    return { status: "none" };
+  }
+  if (gameQuery.data === undefined) {
+    return { status: "loading" };
+  }
+  return { status: "ready", template: { ruleset: gameQuery.data.publicConfig.ruleset } };
 }
