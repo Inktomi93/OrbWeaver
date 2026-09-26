@@ -46,6 +46,7 @@ const TOOL_CLIS = [
   "bug-reports",
   "cache-check",
   "codemod",
+  "dev",
   "doc",
   "mutation-arid",
   "mutation-probe",
@@ -53,6 +54,7 @@ const TOOL_CLIS = [
   "review-mirror",
   "seed",
   "snap",
+  "stack",
   "verify",
   "wire-tap",
 ] as const;

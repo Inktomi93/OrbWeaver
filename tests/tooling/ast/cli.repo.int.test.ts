@@ -8,6 +8,10 @@ import { scaledBudget, spawnNodeWithBudget } from "../_load-budget.ts";
 const REPO_ROOT = fileURLToPath(new URL("../../../", import.meta.url));
 const AST_CLI = fileURLToPath(new URL("../../../tooling/src/ast/cli.ts", import.meta.url));
 const SPAWN_TIMEOUT_MS = scaledBudget(120_000);
+// registry-candidates is a lens over the whole harness corpus, so it is the file's one long run. MEASURED as a bare
+// `pnpm ast registry-candidates --json --max 1`: 146 s at per-core load 0.7, and 126 s beside three whole typechecks.
+// The base is twice the worst reading.
+const WHOLE_CORPUS_LENS_TIMEOUT_MS = scaledBudget(292_000);
 
 interface AstRun {
   readonly stdout: string;
@@ -31,8 +35,8 @@ function parseEpilogue(stderr: string): Record<string, string> {
   return fields;
 }
 
-function runAst(argv: readonly string[]): AstRun {
-  const result = spawnNodeWithBudget([AST_CLI, ...argv], REPO_ROOT, SPAWN_TIMEOUT_MS, `pnpm ast ${argv.join(" ")}`);
+function runAst(argv: readonly string[], timeoutMs: number = SPAWN_TIMEOUT_MS): AstRun {
+  const result = spawnNodeWithBudget([AST_CLI, ...argv], REPO_ROOT, timeoutMs, `pnpm ast ${argv.join(" ")}`);
   return { ...result, epilogue: parseEpilogue(result.stderr) };
 }
 
@@ -89,7 +93,7 @@ test(
 test(
   "a narrated real lens keeps stdout directly JSON-parseable",
   () => {
-    const run = runAst(["registry-candidates", "--json", "--max", "1"]);
+    const run = runAst(["registry-candidates", "--json", "--max", "1"], WHOLE_CORPUS_LENS_TIMEOUT_MS);
     expect(run.status).toBe(0);
     const parsed = JSON.parse(run.stdout) as { label: string; total: number; shown: number; hits: unknown[]; meta: { verb: string } };
     expect(parsed.label).toBe("registry-candidates");
@@ -99,7 +103,7 @@ test(
     expect(parsed.meta.verb).toBe("registry-candidates");
     expect(run.stderr).toContain("registry-candidates is an INFORMATIONAL lens");
   },
-  SPAWN_TIMEOUT_MS,
+  WHOLE_CORPUS_LENS_TIMEOUT_MS,
 );
 
 test(
