@@ -69,7 +69,9 @@ test("every mirror policy is a hard error with no temporary work item", () => {
 
 // This one assertion serially drives three policies' complete proof sets, including each resource row's
 // isolated filesystem, Git index and parser setup. It measured 2.8s alone and 8.5s under load (#2308).
-test("the mirror-index family keeps its two-sided proofs", { timeout: scaledBudget(15_000) }, () => {
+// Every declared proof row of the family through the conformance runner. MEASURED alone: 18.2 s at per-core load 0.4,
+// and 36.2 s beside three whole typechecks. The base is twice the loaded reading.
+test("the mirror-index family keeps its two-sided proofs", { timeout: scaledBudget(73_000) }, () => {
   expect(verifyPolicyProofs(policies)).toEqual([]);
 });
 
