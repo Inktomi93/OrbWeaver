@@ -41,6 +41,12 @@ export interface SpawnNicedResult {
  *  warning are one declaration that both doors take, and the executing half of the guarantee lives with the
  *  caller whose payload is large (`ops/eslint.ts#readDiscoveredPopulation` refuses by name and is pinned by a
  *  planted tiny-ceiling control). */
+/** The program and argv a sync door spawns so its child runs at the tooling priority (`process-priority.ts`). */
+export interface NicedCommand {
+  readonly command: string;
+  readonly args: readonly string[];
+}
+
 export interface CaptureCeilingOption {
   readonly maxBuffer?: number;
 }

@@ -2,8 +2,10 @@
 // launcher that lowers ITS OWN priority then runs the real command, so the child inherits it on Linux,
 // macOS and Windows. Nothing here lowers the CALLER's own priority — a full-priority child spawned by the
 // same process must stay at that process's real priority, not a niced door's leftover.
-import { constants, setPriority } from "node:os";
+import { constants, getPriority, setPriority } from "node:os";
+import process from "node:process";
 import { fileURLToPath } from "node:url";
+import type { NicedCommand } from "./proc-contract.ts";
 
 /** Below-normal, not `PRIORITY_LOW` (19): on Windows 19 maps to the IDLE priority class, which can starve
  *  a run behind a busy desktop. `PRIORITY_BELOW_NORMAL` (10) is below-normal on every OS. */
@@ -23,14 +25,15 @@ export function lowerToolingPriority(): void {
 
 const NICED_EXEC_ENTRY = fileURLToPath(new URL("./niced-exec.ts", import.meta.url));
 
-/** The argv that runs `cmd args…` through `niced-exec.ts`: `spawn(process.execPath, nicedArgv(cmd, args))`
- *  is the one-line replacement for the old `spawn("nice", ["-n", "19", cmd, ...args])`. Reserved for a
- *  SYNC door: it blocks anyway, so the extra process is proportionally cheap, and there is no pid to lower
- *  directly before a sync spawn returns. An ASYNC door spawns `cmd` directly and calls
- *  {@link lowerChildPriority} instead — measured 62ms for a niced-exec round trip against 2ms direct on
- *  this box, and an async door DOES have the pid the moment `spawn` returns. */
-export function nicedArgv(cmd: string, args: readonly string[]): readonly string[] {
-  return [NICED_EXEC_ENTRY, cmd, ...args];
+/** The command a SYNC door spawns to run `cmd args…` at {@link TOOLING_PRIORITY}: a sync spawn returns no pid
+ *  to lower before the child runs. POSIX uses `nice`, which execs `cmd` in place; win32 has no `nice`, so it
+ *  boots the `niced-exec.ts` launcher, which costs a node start per call. `nice` adds to the caller's own
+ *  niceness, so it gets the distance to the target, never below zero. An ASYNC door spawns `cmd` directly and
+ *  calls {@link lowerChildPriority} instead. */
+export function nicedCommand(cmd: string, args: readonly string[], platform: NodeJS.Platform = process.platform): NicedCommand {
+  return platform === "win32"
+    ? { command: process.execPath, args: [NICED_EXEC_ENTRY, cmd, ...args] }
+    : { command: "nice", args: ["-n", String(Math.max(0, TOOLING_PRIORITY - getPriority())), cmd, ...args] };
 }
 
 /** Lower an already-spawned child's OS priority directly — the async-door half of the pair above. Never

@@ -1,6 +1,6 @@
 // The ONE subprocess home (policy `tooling-child-process-door`): every niced spawn lowers the child's
 // priority (owner-endorsed 2026-08-21 — the box co-hosts the homelab), never THIS process's own. The sync
-// doors route through `niced-exec.ts`, our portable `nice -n 19`; the async doors spawn `cmd` directly and
+// doors spawn through `nicedCommand` (`nice` on POSIX, the `niced-exec.ts` launcher on win32); the async doors spawn `cmd` directly and
 // call `lowerChildPriority` (measured cheaper — see that export's header). A full-priority door's child
 // stays at this process's own priority either way.
 //
@@ -28,7 +28,7 @@ import type {
   TranscriptResult,
 } from "./proc-contract.ts";
 import { inheritedProcessEnv } from "./process-env.ts";
-import { lowerChildPriority, nicedArgv } from "./process-priority.ts";
+import { lowerChildPriority, nicedCommand } from "./process-priority.ts";
 
 /** The doors' option + result shapes live in ./proc-contract.ts (split at the 450-line cap, #2242) and
  *  are re-exported here for the same reason `PrunedRun` is re-exported from ./artifacts.ts: this module is
@@ -103,14 +103,15 @@ export function killPidGroup(pid: number | undefined, signal: NodeJS.Signals): v
  *  load) because a long-lived process spawns children across changing load. */
 const DEFAULT_TIMEOUT_BASE_MS = 120_000;
 
-/** Sync spawn through niced-exec.ts's lowered priority — never throws on a non-zero status (the caller
+/** Sync spawn at the lowered priority (`nicedCommand`) — never throws on a non-zero status (the caller
  *  judges). IT ALSO NEVER THROWS ON A FAILED SPAWN, which is why `errorCode` exists (#2284): `spawnSync`
  *  puts that failure on `res.error` and leaves `status` null, so a door that returns only
  *  `{status, stdout, stderr}` hands the caller a null it cannot interpret; see the field's own note in
  *  ./proc-contract.ts for the four causes it separates. */
 export function runNicedSync(cmd: string, args: readonly string[], opts: RunNicedSyncOptions = {}): RunNicedSyncResult {
   const stdio = opts.stdio === undefined || opts.stdio === "collect" ? undefined : opts.stdio;
-  const res = DOORS.spawnSync(process.execPath, nicedArgv(cmd, args), {
+  const niced = nicedCommand(cmd, args);
+  const res = DOORS.spawnSync(niced.command, niced.args, {
     ...(opts.cwd === undefined ? {} : { cwd: opts.cwd }),
     ...(opts.env === undefined ? {} : { env: opts.env }),
     ...(opts.maxBuffer === undefined ? {} : { maxBuffer: opts.maxBuffer }),
@@ -183,11 +184,12 @@ function withCapturedStderr(error: unknown): never {
   throw error;
 }
 
-/** Sync exec through niced-exec.ts's lowered priority — THROWS on a non-zero status (execFileSync
+/** Sync exec at the lowered priority (`nicedCommand`) — THROWS on a non-zero status (execFileSync
  *  semantics), returns stdout. The git-helper shape: an unknown ref/failed command is an exception. */
 export function execNicedSync(cmd: string, args: readonly string[], opts: CaptureCeilingOption & { readonly cwd?: string } = {}): string {
   try {
-    return execFileSync(process.execPath, nicedArgv(cmd, args), {
+    const niced = nicedCommand(cmd, args);
+    return execFileSync(niced.command, niced.args, {
       encoding: "utf8",
       stdio: capturedStdio(),
       ...(opts.cwd === undefined ? {} : { cwd: opts.cwd }),
@@ -200,12 +202,13 @@ export function execNicedSync(cmd: string, args: readonly string[], opts: Captur
   }
 }
 
-/** Sync exec through niced-exec.ts's lowered priority returning RAW BYTES — the same throw-on-non-zero
+/** Sync exec at the lowered priority (`nicedCommand`) returning RAW BYTES — the same throw-on-non-zero
  *  semantics as execNicedSync. Exists because a caller that HASHES its output (`git show <commit>:<path>`
  *  → sha256) must never round-trip through a utf8 decode: the hash is over the blob's bytes, not a re-encoding. */
 export function execNicedSyncBuffer(cmd: string, args: readonly string[], opts: { readonly cwd?: string } = {}): Buffer {
   try {
-    return execFileSync(process.execPath, nicedArgv(cmd, args), {
+    const niced = nicedCommand(cmd, args);
+    return execFileSync(niced.command, niced.args, {
       stdio: capturedStdio(),
       ...(opts.cwd === undefined ? {} : { cwd: opts.cwd }),
     });

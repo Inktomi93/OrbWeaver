@@ -122,7 +122,7 @@ import { LOAD_SUSPECT_META_KEY } from "@orb/tooling/_shared/load-budget";
 import { listProcesses, processDiagnostics, processTreeCpuMs } from "@orb/tooling/_shared/platform";
 import { signalOfExitCode } from "@orb/tooling/_shared/proc-signals";
 import { processEnvValue } from "@orb/tooling/_shared/process-env";
-import { nicedArgv } from "@orb/tooling/_shared/process-priority";
+import { nicedCommand } from "@orb/tooling/_shared/process-priority";
 
 const DEFAULT_HANG_MS = 300_000;
 const MS_PER_SEC = 1000;
@@ -555,10 +555,10 @@ function runOnce({ args, reportFile, label, attempt, previousFiles }: AttemptReq
   // Freshness guarantee: a STALE report must never be read as this attempt's verdict.
   rmSync(reportFile, { force: true });
   mkdirSync(dirname(reportFile), { recursive: true });
-  // Routed through `niced-exec.ts` (the portable `nice -n 19` replacement): it lowers its OWN priority
-  // before exec'ing vitest, preserving the homelab-protecting floor. `detached` makes the child a
-  // process-group leader so a wedge can SIGKILL the WHOLE group (parent + orphaned workers).
-  const child = spawn(process.execPath, nicedArgv(process.execPath, [vitestBin(), ...args]), {
+  // `nicedCommand` keeps the homelab-protecting priority floor. `detached` makes the child a process-group
+  // leader so a wedge can SIGKILL the WHOLE group (parent + orphaned workers).
+  const niced = nicedCommand(process.execPath, [vitestBin(), ...args]);
+  const child = spawn(niced.command, niced.args, {
     cwd: root,
     detached: true,
     stdio: ["inherit", "pipe", "pipe"],
