@@ -41,6 +41,7 @@ import type {
   ChatId,
   DocumentId,
   MessageId,
+  ModelId,
   NotificationId,
   PersonaId,
   PluginId,
@@ -61,11 +62,12 @@ import type {
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { AutomationService } from "@orb/server/domain/automation";
 import type { ConnectionService } from "@orb/server/domain/connection";
+import { CREDENTIALS_OP_CODES } from "@orb/server/domain/credentials";
 import { appRouter } from "@orb/server/transport/trpc";
 import { strToU8, zipSync } from "fflate";
 import { describe } from "vitest";
 import type { AppCaller } from "../../support/fixtures.ts";
-import { expect, OWNER_USER_ID, test } from "../../support/fixtures.ts";
+import { expect, OTHER_USER_ID, OWNER_USER_ID, test } from "../../support/fixtures.ts";
 import { principal as automationPrincipal } from "../domain/automation/_support.ts";
 import { seedChat, seedMessage, seedParticipant } from "../domain/chat/_support.ts";
 
@@ -206,6 +208,10 @@ interface OwnerIds {
   // post-sweep pins require it to stay disabled. The provider id is what the stranger's providerId doors aim at.
   providerPluginId: PluginId;
   pluginProviderId: ProviderId;
+  // D147 — the one STRANGER-owned id here: B's own connection saved on A's plugin provider before the
+  // per-installer scope existed. `catalogModels` re-judges a saved row's provider, and only B's own row gets
+  // past the connection owner belt to that re-judgement.
+  strangerPluginConnectionId: UserConnectionId;
   // #26 — A's saved party; every rosterPreset verb derives authority from `roster_presets.ownerId`, so a
   // stranger passing this id must collapse to leak-free NOT_FOUND.
   rosterPresetId: RosterPresetId;
@@ -1737,6 +1743,24 @@ const PROBES: readonly Probe[] = [
     call: (c, i) => c.connection.draftCatalogModels({ providerId: i.pluginProviderId, key: ATTACKER_TEXT }),
     refusal: CONNECTION_PROVIDER_UNKNOWN,
   },
+  // `update` re-points the stranger's OWN row at A's provider, so the connection owner belt passes and the
+  // provider belt is the only refusal. A landed patch would route the row's key to A's host; the post-sweep
+  // pin reads every connection naming A's provider.
+  {
+    path: "connection.update",
+    call: async (c, i) => {
+      const own = await c.connection.create({ label: "stranger own row", providerId: "openrouter", credentialId: null, baseUrl: null, model: "x" });
+      return c.connection.update({ connectionId: own.id, patch: { providerId: i.pluginProviderId, model: "x" } });
+    },
+    refusal: CONNECTION_PROVIDER_UNKNOWN,
+  },
+  // A saved row is re-judged, never trusted: the stranger's legacy row on A's provider must refuse before the
+  // catalog read dials A's host.
+  {
+    path: "connection.catalogModels",
+    call: (c, i) => c.connection.catalogModels({ connectionId: i.strangerPluginConnectionId }),
+    refusal: CONNECTION_PROVIDER_UNKNOWN,
+  },
   // The ACTOR axis: a binding list may be read for a rule/plugin actor, and the actor must be the caller's
   // (`ruleOwnedBy`). A's automation rule is the foreign actor here. The no-actor arm is self-scoped (the
   // caller's own `user` bindings) and carries no foreign id, so this row is the whole cross-tenant surface.
@@ -1792,7 +1816,8 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "tag.listTagsWithUsage": "self-scoped",
   "tag.listTagFilterVocabulary": "self-scoped: the same owned rows as listTagsWithUsage, projected — no foreign id on the input",
   "tag.pruneUnusedTags": "self-scoped: prunes the caller's own unused tags",
-  "credentials.add": "self-scoped",
+  "credentials.add":
+    "self-scoped by owner; its PROVIDER axis (D147) is probed in the keyed-storage describe below, because this keyless fixture refuses at the storage guard before the provider check",
   "credentials.list": "self-scoped",
   // Param-free and ROW-free: one boolean about the DEPLOYMENT's SecretBox (is a CREDENTIALS_KEY configured),
   // identical for every authenticated caller. There is no tenant axis for a cross-tenant probe to cross.
@@ -2010,6 +2035,67 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "settings.getGlobalSetting": "admin-gated: raw global KV",
   "settings.setGlobalSetting": "admin-gated: raw global KV",
 };
+
+/** D147 — owner A's ENABLED provider plugin and the provider row it contributes. The plugin row is seeded
+ *  directly because the install front door stores the bundle in the real CAS; the contribution goes through
+ *  the REAL connection door (`registerPluginProviders` → `provider_rows` + `plugin_provider_contributions` → the
+ *  live registry), which is the exact path an activation takes. The row relabels a hosted API and pins A's host. */
+async function seedAlphaProviderPlugin(
+  db: Parameters<typeof seedChat>[0],
+  connectionService: Pick<ConnectionService, "registerPluginProviders">,
+): Promise<{ readonly providerPluginId: PluginId; readonly pluginProviderId: ProviderId }> {
+  const providerAssetId = castId<AssetId>("asset_alpha_provider_bundle");
+  await db
+    .insert(assets)
+    .values({ id: providerAssetId, ownerId: OWNER_USER_ID, kind: "plugin", mime: "application/zip", size: 64, hash: "alpha-provider-hash", uploadedAt: 1 });
+  const providerPluginId = mintTypeId(ID_PREFIX.plugin);
+  const pluginProviderId = castId<ProviderId>("plugin:alpha-relay/hosted");
+  await db.insert(plugins).values({
+    id: providerPluginId,
+    ownerId: OWNER_USER_ID,
+    slug: "alpha-relay",
+    name: "alpha relay",
+    version: "1.0.0",
+    manifest: {
+      id: "alpha-relay",
+      name: "alpha relay",
+      version: "1.0.0",
+      hostVersion: 1,
+      entry: "main.js",
+      description: "owned by A",
+      capabilities: ["net.fetch"],
+      netHosts: ["relay.alpha.example"],
+    },
+    bundleAssetId: providerAssetId,
+    grantedCapabilities: ["net.fetch"],
+    status: "enabled",
+    origin: "upload",
+    pendingReconsent: false,
+    widenedNetHosts: [],
+    consecutiveCrashes: 0,
+    lastError: null,
+    installedAt: 1,
+    updatedAt: 1,
+  });
+  await connectionService.registerPluginProviders({
+    pluginId: providerPluginId,
+    pluginName: "alpha-relay",
+    rows: [
+      {
+        id: pluginProviderId,
+        label: MARK.pluginProvider,
+        wire: "openai-compat",
+        dialect: "openai-compatible",
+        auth: "apiKey",
+        baseUrl: "https://relay.alpha.example/v1",
+        apis: ["chat-completions"],
+        catalog: "url",
+        metered: false,
+      },
+    ],
+  });
+  return { providerPluginId, pluginProviderId };
+}
 
 describe("cross-tenant IDOR sweep — the completeness guard (grows with the router)", () => {
   test("EVERY router procedure is classified as either a PROBE or an EXEMPT(reason)", () => {
@@ -2330,59 +2416,20 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
       updatedAt: 1,
     });
 
-    // ── D147 — A's ENABLED provider plugin and the provider row it contributes. The plugin row is seeded
-    //    directly for the reason above; the contribution goes through the REAL connection door
-    //    (`registerPluginProviders` → `provider_rows` + `plugin_provider_contributions` → the live registry),
-    //    which is the exact path an activation takes. The row relabels a hosted API and pins A's host. ──
-    const providerAssetId = castId<AssetId>("asset_alpha_provider_bundle");
-    await db
-      .insert(assets)
-      .values({ id: providerAssetId, ownerId: OWNER_USER_ID, kind: "plugin", mime: "application/zip", size: 64, hash: "alpha-provider-hash", uploadedAt: 1 });
-    const providerPluginId = mintTypeId(ID_PREFIX.plugin);
-    const pluginProviderId = castId<ProviderId>("plugin:alpha-relay/hosted");
-    await db.insert(plugins).values({
-      id: providerPluginId,
-      ownerId: OWNER_USER_ID,
-      slug: "alpha-relay",
-      name: "alpha relay",
-      version: "1.0.0",
-      manifest: {
-        id: "alpha-relay",
-        name: "alpha relay",
-        version: "1.0.0",
-        hostVersion: 1,
-        entry: "main.js",
-        description: "owned by A",
-        capabilities: ["net.fetch"],
-        netHosts: ["relay.alpha.example"],
-      },
-      bundleAssetId: providerAssetId,
-      grantedCapabilities: ["net.fetch"],
-      status: "enabled",
-      origin: "upload",
-      pendingReconsent: false,
-      widenedNetHosts: [],
-      consecutiveCrashes: 0,
-      lastError: null,
-      installedAt: 1,
-      updatedAt: 1,
-    });
-    await connectionService.registerPluginProviders({
-      pluginId: providerPluginId,
-      pluginName: "alpha-relay",
-      rows: [
-        {
-          id: pluginProviderId,
-          label: MARK.pluginProvider,
-          wire: "openai-compat",
-          dialect: "openai-compatible",
-          auth: "apiKey",
-          baseUrl: "https://relay.alpha.example/v1",
-          apis: ["chat-completions"],
-          catalog: "url",
-          metered: false,
-        },
-      ],
+    // ── D147 — A's ENABLED provider plugin and the provider row it contributes (see `seedAlphaProviderPlugin`),
+    //    plus the stranger's OWN connection saved on that row before the per-installer scope existed. The
+    //    legacy row is the only way to reach `catalogModels`' provider re-judgement: the stranger owns the
+    //    row, so the connection owner belt passes and the provider belt is the one under probe. ──
+    const { providerPluginId, pluginProviderId } = await seedAlphaProviderPlugin(db, connectionService);
+    const strangerPluginConnectionId = mintTypeId(ID_PREFIX.userConnection);
+    await db.insert(userConnections).values({
+      id: strangerPluginConnectionId,
+      ownerId: OTHER_USER_ID,
+      label: "stranger legacy relay row",
+      providerId: pluginProviderId,
+      credentialId: null,
+      baseUrl: null,
+      model: castId<ModelId>("relay-model"),
     });
 
     // #1627 — a durable row in A's INBOX, seeded DIRECTLY: notifications are raised by PRODUCERS (a
@@ -2454,6 +2501,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
       pluginId,
       providerPluginId,
       pluginProviderId,
+      strangerPluginConnectionId,
       rosterPresetId: rosterPreset.id,
       notificationId,
     };
@@ -2585,8 +2633,10 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     // A's connection is keyless, so ANY row naming A's credential is one the stranger's `connection.create`
     // probe minted — the whole point of the credential-reach belt (`credentialOwned`).
     expect((await db.select().from(userConnections)).filter((row) => row.credentialId === ids.credentialId)).toEqual([]);
-    // D147: no connection anywhere names A's plugin provider — the stranger's `create` on it never landed.
-    expect((await db.select().from(userConnections)).filter((row) => row.providerId === ids.pluginProviderId)).toEqual([]);
+    // D147: no connection names A's plugin provider except the stranger's seeded legacy row — the stranger's
+    // `create` and `update` on it never landed.
+    const onAlphaProvider = (await db.select().from(userConnections)).filter((row) => row.providerId === ids.pluginProviderId);
+    expect(onAlphaProvider.map((row) => row.id)).toEqual([ids.strangerPluginConnectionId]);
 
     // ── #755 — WRITE-authority for the owner-scoped E5 candidates the marker detector is STRUCTURALLY BLIND
     //    to. An UPDATE probe OVERWRITES A's marker field with the attacker's value ("hacked"), and a DELETE
@@ -2825,5 +2875,24 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     const strangerLibrary = await otherCaller.character.list();
     expect(strangerLibrary.items.map((c) => c.name)).not.toContain(MARK.character); // no copy of A's card landed in B's library
     expect(strangerLibrary.items.map((c) => c.id)).not.toContain(ids.characterId); // …and B never acquired A's row itself
+  });
+});
+
+describe("cross-tenant IDOR sweep — the credential door's provider axis (keyed storage)", () => {
+  // `credentials.add` judges the provider only past the storage guard, which the sweep's keyless `app` never
+  // passes. The provider id is half the sealed key's AAD, so admitting a stranger here seals their key for
+  // A's plugin host. This runs the composed `findProvider` wiring (entry/compose/services.ts) end to end.
+  test.override("secretBoxKey", Buffer.alloc(32, 7));
+
+  test("a stranger cannot seal a key under owner A's plugin provider", async ({ db, ownerCaller, otherCaller, services }) => {
+    const { pluginProviderId } = await seedAlphaProviderPlugin(db, services.connection);
+    const refusal: Refusal = { code: "BAD_REQUEST", reason: CREDENTIALS_OP_CODES.providerUnknown };
+
+    // CONTROL: the installer passes the same door, so the stranger's refusal is the scope and not the storage guard.
+    await expect(ownerCaller.credentials.add({ provider: pluginProviderId, key: "sk-owner-key" })).resolves.toMatchObject({ provider: pluginProviderId });
+    const verdict = await leakVerdict("credentials.add", () => otherCaller.credentials.add({ provider: pluginProviderId, key: ATTACKER_TEXT }), false, refusal);
+    expect(verdict).toBeNull();
+    const sealedForAlpha = (await db.select().from(userCredentials)).filter((row) => row.provider === pluginProviderId);
+    expect(sealedForAlpha.map((row) => row.ownerId)).toEqual([OWNER_USER_ID]);
   });
 });
