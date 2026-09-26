@@ -61,17 +61,20 @@ export interface ProcessInfo {
 }
 
 /** How to run the operator's own pnpm from a child process with `shell: false`, on every platform.
- *    `node`    — `<node> <pnpm.cjs> <args>`: pnpm's own JS entry, run by the node we are already in. The
- *                only spelling that works unchanged on win32, where pnpm on PATH is `pnpm.cmd` and node
- *                refuses to spawn a `.cmd`/`.bat` without `shell: true`.
+ *    `node`    — `<node> <pnpm.cjs> <args>`: pnpm's own JS entry, run by the node we are already in. On win32
+ *                pnpm on PATH is `pnpm.cmd`, and node refuses to spawn a `.cmd`/`.bat` without `shell: true`.
+ *    `binary`  — `<pnpm executable> <args>`: the standalone pnpm the README installs is a native executable
+ *                (`pnpm.exe` on win32), which spawns directly on every platform.
  *    `path`    — bare `pnpm` resolved by the OS execvp (POSIX only; no `.cmd` indirection there).
  *    `refused` — no usable pnpm could be named, and guessing would be a lie. `reason` is the fix. */
 export type PnpmInvocation =
   | { readonly kind: "node"; readonly command: string; readonly args: readonly string[] }
+  | { readonly kind: "binary"; readonly command: string; readonly args: readonly string[] }
   | { readonly kind: "path"; readonly command: string; readonly args: readonly string[] }
   | { readonly kind: "refused"; readonly reason: string };
 
-/** The env key pnpm (and npm/yarn) sets to the absolute path of its own JS entry when it runs a script. */
+/** The env key pnpm (and npm/yarn) sets to the absolute path of its own entry when it runs a script: a JS file, or the
+ *  executable itself for a standalone pnpm. */
 export const PNPM_EXECPATH_ENV = "npm_execpath";
 /** pnpm's JS entry, however this process was launched: a `.cjs`/`.js`/`.mjs` tail is the whole test. */
 const JS_ENTRY_RE = /\.(?:c|m)?js$/u;
@@ -386,8 +389,8 @@ export async function openUrl(url: string, deps: PlatformDeps = {}): Promise<Err
 /** Name the pnpm to run with, for a `shell: false` spawn on any platform.
  *
  *  `npm_execpath` is the answer on all three OSes and is present under every `pnpm <script>`: pnpm exports the
- *  absolute path of its own `pnpm.cjs` into each script's environment, so `<this node> <pnpm.cjs> …` runs the
- *  exact package manager the operator invoked. Only a direct `node <entry>.ts` misses it; on POSIX the bare
+ *  absolute path of its own entry into each script's environment, so `<this node> <pnpm.cjs> …`, or the standalone
+ *  executable itself, runs the exact package manager the operator invoked. Only a direct `node <entry>.ts` misses it; on POSIX the bare
  *  name then resolves through PATH, and on win32 it cannot (PATH holds `pnpm.cmd`, which node will not run
  *  without a shell), so win32 refuses and names the one-word fix instead of failing inside a spawn. */
 export function pnpmInvocation(opts: {
@@ -397,8 +400,10 @@ export function pnpmInvocation(opts: {
   readonly args: readonly string[];
 }): PnpmInvocation {
   const execPath = opts.ambient[PNPM_EXECPATH_ENV];
-  if (execPath !== undefined && JS_ENTRY_RE.test(execPath)) {
-    return { kind: "node", command: opts.nodePath, args: [execPath, ...opts.args] };
+  if (execPath !== undefined && execPath !== "") {
+    return JS_ENTRY_RE.test(execPath)
+      ? { kind: "node", command: opts.nodePath, args: [execPath, ...opts.args] }
+      : { kind: "binary", command: execPath, args: [...opts.args] };
   }
   if (opts.platform === "win32") {
     return {

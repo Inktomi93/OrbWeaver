@@ -181,6 +181,19 @@ test("openUrl's default launcher answers a missing opener with its error instead
   }
 });
 
+// The README's install line installs the standalone pnpm, whose `npm_execpath` is the native executable itself
+// (`…/@pnpm/exe/pnpm`, `pnpm.exe` on Windows), not a JS entry. Refusing it stopped every Windows first start.
+test("pnpmInvocation runs a standalone pnpm's own executable on every platform", () => {
+  const ambient = Object.fromEntries([["npm_execpath", "C:\\Users\\me\\AppData\\Local\\pnpm\\node_modules\\@pnpm\\exe\\pnpm.exe"]]);
+  for (const platform of ["win32", "linux", "darwin"] as const) {
+    expect(pnpmInvocation({ ambient, platform, nodePath: "/n", args: ["build"] }), platform).toEqual({
+      kind: "binary",
+      command: "C:\\Users\\me\\AppData\\Local\\pnpm\\node_modules\\@pnpm\\exe\\pnpm.exe",
+      args: ["build"],
+    });
+  }
+});
+
 test("pnpmInvocation runs pnpm's own JS entry under every platform, falls back to PATH on POSIX, and refuses on win32", () => {
   const ambient = Object.fromEntries([["npm_execpath", "/opt/pnpm/dist/pnpm.cjs"]]);
   expect(pnpmInvocation({ ambient, platform: "win32", nodePath: "/n", args: ["build"] })).toEqual({
