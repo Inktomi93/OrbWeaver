@@ -105,7 +105,7 @@ export const REVIEWED_GRANTS_TOOLING_TO_PERMISSION: readonly ReviewedGateGrant[]
     policyId: "tooling-child-process-door",
     subject: "tooling/src/stack/ops/start.ts",
     operation: "full-priority-spawn",
-    why: "`pnpm start`, the portable one-command launcher: the child it spawns IS the production server answering the operator's requests (the prod-up row's reason, on the cross-platform path), and the niced doors are structurally unavailable to it — they exec the POSIX `nice` binary, which does not exist on Windows.",
+    why: "`pnpm start`, the portable one-command launcher: the child it spawns IS the production server answering the operator's requests (the prod-up row's reason, on the cross-platform path), and its default-browser opener starts the browser the operator uses the app in, which a niced opener would hand its lowered priority to. The niced doors are also structurally unavailable to it — they exec the POSIX `nice` binary, which does not exist on Windows.",
     endsWhen: "`pnpm start` is retired, or stops spawning the server and its client build — the row is then consumed zero times and reds.",
   },
   {

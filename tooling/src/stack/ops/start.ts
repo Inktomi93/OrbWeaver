@@ -8,6 +8,9 @@
 //   pnpm start --share        (alias `pnpm share`) this launch with a public relay, a single-user box in `local` mode;
 //                             an oidc or forward-header box refuses; `.env` is not written
 //
+// A start in a terminal opens the app in the default browser once the server first answers `/healthz`, once per
+// invocation; `OPEN_BROWSER=off` in `.env` turns that off, and a start with no terminal never opens one.
+//
 // A server that exits with `RESTART_EXIT_CODE` (@orb/kit/supervisor) is spawned again from a re-read `.env`
 // (lib/supervisor.ts); the setup pass and the build run once per invocation, never per respawn.
 //
@@ -26,20 +29,25 @@
 //
 // FULL PRIORITY, deliberately (policy `tooling-child-process-door`, reviewed grant
 // `tooling-child-process-door:stack-start`): the child spawned here IS the application serving the
-// operator's requests. The niced doors are also structurally unavailable — they exec the POSIX `nice`
-// binary, which does not exist on Windows.
+// operator's requests, and the browser opener's child becomes the browser they use it in — a niced opener
+// would hand its priority to a browser it starts. The niced doors are also structurally unavailable — they
+// exec the POSIX `nice` binary, which does not exist on Windows.
 import { hostname, networkInterfaces } from "node:os";
 import process from "node:process";
+import { setTimeout as sleep } from "node:timers/promises";
 import { SETUP_COMMAND } from "@orb/contracts/identity";
 import { print, REPO_ROOT } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
+import { httpOk } from "../../_shared/http-probe.ts";
 import { warn } from "../../_shared/log.ts";
-import { isWsl2, pnpmInvocation } from "../../_shared/platform.ts";
+import { isWsl2, openUrl, pnpmInvocation } from "../../_shared/platform.ts";
+import type { FullPriorityChild } from "../../_shared/proc.ts";
 import { spawnFullPriorityChild, spawnFullPrioritySync } from "../../_shared/proc.ts";
-import type { ProdSpawnPlan, SetupMachine, SetupResult, StartInvocation } from "../contract/types.ts";
+import type { SetupMachine, SetupResult, StartInvocation, StartSpawn } from "../contract/types.ts";
 import { CLIENT_DIST_INDEX_REL } from "../lib/spawn-plan.ts";
-import { decideStartBuild, parseStartArgv, START_USAGE, shareLaunchRefusal, startBannerLines, startLaunch } from "../lib/start-plan.ts";
+import { healthzUrl } from "../lib/stack-plan.ts";
+import { decideStartBuild, parseStartArgv, START_USAGE, shareLaunchRefusal, startBannerLines, startBrowser, startLaunch } from "../lib/start-plan.ts";
 import { superviseStart } from "../lib/supervisor.ts";
 import { AMBIENT, ENV_FILE_PATH, LOG_PATH, readEnvFile, resolvePort } from "./prod-state.ts";
 import { distVerdict } from "./prod-support.ts";
@@ -47,8 +55,16 @@ import { runSetup } from "./setup.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm start");
 
+/** How often the browser open asks whether the server answers yet. */
+const SERVED_POLL_MS = 500;
+
 function log(message: string): void {
   print(`start: ${message}`);
+}
+
+/** A person at the terminal: setup may ask questions, and the app may open in their browser. */
+function interactive(): boolean {
+  return process.stdin.isTTY === true && process.stdout.isTTY === true;
 }
 
 /** Run the root `pnpm build` (the ui tokens build + the client's vite build). Returns an exit code when the
@@ -96,7 +112,7 @@ async function prepareEnvFile(setup: boolean): Promise<number | null> {
   const result = await runSetup({
     envPath: ENV_FILE_PATH(),
     setup,
-    interactive: process.stdin.isTTY === true && process.stdout.isTTY === true,
+    interactive: interactive(),
     input: process.stdin,
     output: process.stdout,
     ambient: AMBIENT,
@@ -138,14 +154,47 @@ async function prepareLaunch(invocation: StartInvocation): Promise<number | null
 
 /** One spawn's plan from `.env` as it is now, and the banner for it. The app loads the file itself; the launcher reads
  *  it for the child env overlays, the port to print and the auth mode in force. */
-function launchFromFile(invocation: StartInvocation): ProdSpawnPlan {
+function launchFromFile(invocation: StartInvocation): StartSpawn {
   const fileEnv = readEnvFile();
   const launch = startLaunch({ repoRoot: REPO_ROOT, nodePath: process.execPath, fileEnv, ambient: AMBIENT, invocation, logPath: LOG_PATH() });
   const port = invocation.port ?? resolvePort(fileEnv);
   for (const line of startBannerLines({ port, mode: launch.mode, fallbackFilled: launch.fallbackFilled, share: invocation.share })) {
     print(line);
   }
-  return launch.plan;
+  return { plan: launch.plan, port };
+}
+
+/** Poll `/healthz` until the server answers or the child it belongs to exits. The timer is unref'd, so a launcher
+ *  whose server has exited never waits out a poll interval before it can exit too. */
+async function served(port: number, alive: AbortSignal): Promise<boolean> {
+  while (!alive.aborted) {
+    if (await httpOk(healthzUrl(port))) {
+      return true;
+    }
+    await sleep(SERVED_POLL_MS, undefined, { ref: false });
+  }
+  return false;
+}
+
+/** Open the app in the default browser and report an opener that could not run. The opener runs detached from this
+ *  terminal on POSIX, so the Ctrl-C that stops the server never reaches a browser it starts; on win32 `detached` would
+ *  open a second console, and the browser `start` launches is not attached to this one. A missing opener (a box with
+ *  no desktop) is a notice, never a crash: the banner already printed the address. */
+async function openApp(url: string): Promise<void> {
+  const launched: FullPriorityChild[] = [];
+  openUrl(url, {
+    launch: (command, args) => {
+      const child = spawnFullPriorityChild(command, args, { stdio: "ignore", detached: process.platform !== "win32" });
+      launched.push(child);
+      return child;
+    },
+  });
+  for (const child of launched) {
+    const exit = await child.wait();
+    if (exit.error !== undefined) {
+      warn(`start: could not open a browser (${exit.error.message}); open ${url} yourself.`);
+    }
+  }
 }
 
 /** `pnpm start`'s whole dispatch. argv is WITHOUT the node/script prefix. */
@@ -167,5 +216,8 @@ export async function runStart(argv: readonly string[]): Promise<number> {
       warn(`start: ${message}`);
     },
     platform: process.platform,
+    browser: () => startBrowser({ interactive: interactive(), fileEnv: readEnvFile(), ambient: AMBIENT }),
+    served,
+    openApp,
   });
 }

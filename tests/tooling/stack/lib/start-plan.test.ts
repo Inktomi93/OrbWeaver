@@ -14,11 +14,13 @@ import { SERVER_ENTRY_REL } from "@orb/tooling/_shared/server-entry";
 import {
   decideStartBuild,
   effectiveAuthMode,
+  OPEN_BROWSER_KEY,
   parseStartArgv,
   restateFileEnv,
   shareLaunchRefusal,
   singleUserFallbackEnv,
   startBannerLines,
+  startBrowser,
   startLaunch,
   startSpawnPlan,
 } from "../../../../tooling/src/stack/index.ts";
@@ -148,6 +150,16 @@ test("a login mode already lets other devices in, so its banner never sends the 
     expect(lines.join("\n")).not.toContain(SETUP_COMMAND);
     expect(lines).toHaveLength(4);
   }
+});
+
+test("the browser setting in .env wins over the shell, and an empty one is on", () => {
+  const offInShell = env([OPEN_BROWSER_KEY, "off"]);
+  expect(startBrowser({ interactive: true, fileEnv: parseEnv(`${OPEN_BROWSER_KEY}=on\n`), ambient: offInShell })).toEqual({ kind: "open" });
+  expect(startBrowser({ interactive: true, fileEnv: parseEnv(`${OPEN_BROWSER_KEY}=off\n`), ambient: env([OPEN_BROWSER_KEY, "on"]) })).toEqual({
+    kind: "skip",
+  });
+  expect(startBrowser({ interactive: true, fileEnv: {}, ambient: offInShell })).toEqual({ kind: "skip" });
+  expect(startBrowser({ interactive: true, fileEnv: parseEnv(`${OPEN_BROWSER_KEY}=\n`), ambient: {} })).toEqual({ kind: "open" });
 });
 
 /** `pnpm start --share`'s launch from a `.env` text, the way ops/start.ts builds each spawn. */
