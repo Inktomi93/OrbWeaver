@@ -303,6 +303,22 @@ test("dropping an emptied row between two user rows keeps the pin on the same st
   }
 });
 
+// A turn-scoped cue after a committed user row leaves only a system row below the pin, so SHAPE pins that user row at
+// depth 0 (system rows consume no depth). The re-anchor must hand that depth on, or the turn goes out uncached.
+test("a depth-0 pin with only a system row below it survives the re-anchor", async () => {
+  const shaped: ShapedRow[] = [row("assistant", "g"), row("user", "u1"), { role: "system", content: "cue", turnScoped: true }];
+  const { kept, cacheBreakpointFromEnd } = dropEmptyWireRows(await buildWireHistory(env, shaped), 0);
+  expect(cacheBreakpointFromEnd).toBe(0);
+  expect(
+    kept[
+      rowIndexAtCacheDepth(
+        kept.map((wire) => wire.row),
+        0,
+      ) ?? -1
+    ]?.row.content,
+  ).toEqual([{ type: "text", text: "u1" }]);
+});
+
 // The new-chat marker is the oldest row, so the fit trims it first. The turn and the previews both fit through
 // `fitWireHistory`, so the rows the wire sends and the cost the preview reports include the marker again.
 const MARKER = "[Start a new chat]";
