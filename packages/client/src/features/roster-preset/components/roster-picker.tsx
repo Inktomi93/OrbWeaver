@@ -1,8 +1,7 @@
 // The Saved-rosters modal body: the owner's roster
 // library with the three affordance families the program doc's §6 sketches, in ONE surface:
-//   · per row — START a chat from the roster (members in position order + the anchor persona through the
-//     REAL `useStartChat`, then the `applyToChat` polish call for knobs + config: two calls is CORRECT,
-//     call 1 alone yields a fully valid room and the polish is idempotently retryable);
+//   · per row — START a chat from the roster through the ONE start door, `hooks/use-start-roster.ts` (the
+//     Home rosters tile and the library editor press the same door);
 //   · per row — ADD the roster to the OPEN room (additive `applyToChat`; result toast "Added N…"),
 //     rendered only when a room is open (the server's host gate refuses a non-host with chat's own
 //     leak-free error — the affordance itself stays capability-quiet rather than lying);
@@ -34,12 +33,13 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { ConfirmDialog } from "#components";
-import { useInvalidation, useStartChat, useTRPC } from "#data";
+import { useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import { closeModal, openModal } from "#state";
 import { useApplyRosterPreset, useCreateRosterPreset, useRemoveRosterPreset } from "../hooks/use-roster-preset-mutations.ts";
 import type { CapturedRosterRule, RosterRuleCapture } from "../hooks/use-saved-rosters.ts";
 import { useActiveRosterChat, useRosterRuleCapture, useRulePresetCatalogue, useSavedRosters } from "../hooks/use-saved-rosters.ts";
+import { useStartRoster } from "../hooks/use-start-roster.ts";
 import { applyNotice, characterCountPhrase, rosterCountsSuffix, rosterRuleLine } from "../lib/roster-copy.ts";
 
 /** Derived, not re-minted (no-inline-types): the hook's own return shape. */
@@ -245,37 +245,22 @@ export function RosterPicker(): ReactElement {
   const create = useCreateRosterPreset({ trpc, invalidation });
   const remove = useRemoveRosterPreset({ trpc, invalidation });
   const apply = useApplyRosterPreset({ trpc, invalidation });
-  const { startChat, isPending: isStarting } = useStartChat();
+  // The room paints as soon as it exists; the start door's polish call and its report follow.
+  const start = useStartRoster({ onEntered: closeModal });
   const [confirmDelete, setConfirmDelete] = useState<SavedRosterSummary | null>(null);
-  const busy = isStarting || create.isPending || remove.isPending || apply.isPending;
+  const busy = start.isPending || create.isPending || remove.isPending || apply.isPending;
 
   /** The ONE apply report, said by every door (side-eye P1-2: the Start door applied a roster's rules in
    *  total silence, discarding the `rulesSkipped` REASONS the build record §6.4 requires be reported —
-   *  and that is the exact click B10's own acceptance test names). */
-  const reportApply = (roster: SavedRosterSummary, result: ApplyRosterPresetResult, started: boolean): void => {
-    const notice = applyNotice({ rosterName: roster.name, result, started, ruleTitleOf: catalogue.titleOf });
+   *  and that is the exact click B10's own acceptance test names). The start door reports through the
+   *  same `applyNotice` inside `useStartRoster`. */
+  const reportApply = (roster: SavedRosterSummary, result: ApplyRosterPresetResult): void => {
+    const notice = applyNotice({ rosterName: roster.name, result, started: false, ruleTitleOf: catalogue.titleOf });
     notify[notice.channel](notice.line);
   };
 
   const onStart = (roster: SavedRosterSummary): void => {
-    if (isStarting) {
-      return; // one creation at a time — a double-fire would mint two rooms for one intent.
-    }
-    // @orb-waive caught-failure-ownership(startChat): startChat and apply.mutateAsync each carry their own errorToast (use-start-chat.ts, useApplyRosterPreset); the swallow only silences the unhandled-rejection warning, and the picked roster survives for retry. Ends if either mutation stops owning its failure copy.
-    startChat({
-      characterIds: roster.members.map((m) => m.characterId),
-      anchorPersonaId: roster.anchorPersonaId,
-      // The room is named after the roster it was started from (side-eye P3-4): the name was discarded the
-      // moment it was used, so a room born from "Spire Trio" showed as its character list.
-      title: roster.name,
-    })
-      .then(async (chatId) => {
-        closeModal();
-        // The POLISH call — knobs + group config + the rules rider onto the fresh room. It REPORTS: a
-        // room that silently differs from the roster the host picked is the defect, not the noise.
-        reportApply(roster, await apply.mutateAsync({ presetId: roster.id, chatId }), true);
-      })
-      .catch(() => undefined); // both mutations toast their own failures; the picked state survives for retry.
+    start.startRoster(roster);
   };
 
   const onAddToChat = (roster: SavedRosterSummary): void => {
@@ -285,7 +270,7 @@ export function RosterPicker(): ReactElement {
     apply
       .mutateAsync({ presetId: roster.id, chatId: active.chatId })
       .then((result) => {
-        reportApply(roster, result, false);
+        reportApply(roster, result);
         closeModal();
       })
       .catch(() => undefined); // errorToast owns the failure copy.

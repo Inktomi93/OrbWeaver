@@ -12,6 +12,8 @@
 //     (whose loading/error/zero arms the `.ct.tsx` drives through `trpcHold`/`trpcError`) and the
 //     "Add to this chat" door's report.
 //   · `RosterMemberEditorStory` — the library editor (`surfaces/roster-member-surface.tsx`).
+//   · `HomeRostersTileStory` — the Home "Rosters" tile, mounted through the REAL home frame so its
+//     `useVisible` gate and its heading are the shipped ones.
 //   · `RosterCollectionRowsStory` — the CONFIG COLLECTION's rows (`components/roster-collection-rows.tsx`),
 //     which are a different surface from the picker's: same library, drawn into the CONTENT pane by the
 //     config host, and therefore measured at PANE widths (#1838's ink-void matrix).
@@ -20,8 +22,10 @@
 
 import { QueryBoundary } from "@orb/client/components";
 import { SkeletonRows, useTRPC } from "@orb/client/data";
+import { HomeSurface } from "@orb/client/features/home";
 import type { NotifyInput } from "@orb/client/lib";
-import { bindNotify, toNotice } from "@orb/client/lib";
+import { bindNotify, createContributorRegistry, toNotice } from "@orb/client/lib";
+import type { HomeTileContribution } from "@orb/client/state";
 import { selectChat } from "@orb/client/state";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -30,6 +34,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { RosterCollectionRows } from "../../../../packages/client/src/features/roster-preset/components/roster-collection-rows.tsx";
 import { RosterPicker } from "../../../../packages/client/src/features/roster-preset/components/roster-picker.tsx";
+import { rosterPresetHomeTile } from "../../../../packages/client/src/features/roster-preset/lib/home-rosters-tile.tsx";
 import { RosterMemberSurface } from "../../../../packages/client/src/features/roster-preset/surfaces/roster-member-surface.tsx";
 import { CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
 import { CONTENT_COLUMN_NARROW_PANE, CONTENT_COLUMN_WIDE_PANE } from "../../../support/browser/measure-content-column.ts";
@@ -173,5 +178,18 @@ export function RosterMemberContentColumnStory(): ReactElement {
       </button>
       <RosterMemberEditorStory width={width} />
     </>
+  );
+}
+
+/** The Home "Rosters" tile alone in the real home frame. `width` is the pane: 360 is the phone column. */
+export function HomeRostersTileStory({ width = 360 }: { readonly width?: number } = {}): ReactElement {
+  const sink = useNoticeSink();
+  return (
+    <CtDataProviders>
+      <div style={{ width }}>
+        <HomeSurface onNewChat={(): void => undefined} tiles={createContributorRegistry<HomeTileContribution>("home-tiles", [rosterPresetHomeTile])} />
+      </div>
+      {sink.node}
+    </CtDataProviders>
   );
 }
