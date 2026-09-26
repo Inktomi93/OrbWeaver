@@ -7,6 +7,8 @@
 // and a hook removed before measurement. Every arm exits 2 and names the absent population; none can
 // produce a clean empty profile.
 import { readFile, stat, symlink } from "node:fs/promises";
+import type { RequestListener } from "node:http";
+import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import process from "node:process";
@@ -109,8 +111,7 @@ document.documentElement.dataset.appReady = "settled";
 `;
 
 interface ViteServer {
-  readonly httpServer: { readonly address: () => string | AddressInfo | null } | null;
-  readonly listen: () => Promise<void>;
+  readonly middlewares: RequestListener;
   readonly close: () => Promise<void>;
 }
 
@@ -200,15 +201,23 @@ async function startFixture(repoRoot: string, plantedTree: (files: Readonly<Reco
   });
   await symlink(join(repoRoot, "packages", "client", "node_modules"), join(root, "node_modules"), "dir");
   const viteUrl = pathToFileURL(join(repoRoot, "packages", "client", "node_modules", "vite", "dist", "node", "index.js")).href;
+  // Vite reads `port: 0` as unset and walks up from 5173, which lands on a real Orb app port (the fixture stack's
+  // 5175) when parallel suites hold the ports below it; snap then judges the route as the app's. Middleware mode
+  // behind a server bound to port 0 gets a true ephemeral port.
   const vite = (await import(viteUrl)) as { readonly createServer: (config: unknown) => Promise<ViteServer> };
-  const server = await vite.createServer({ root, configFile: false, logLevel: "silent", server: { host: "127.0.0.1", port: 0 } });
-  await server.listen();
-  const address = server.httpServer?.address();
-  if (address === null || address === undefined || typeof address === "string") {
-    await server.close();
-    throw new Error("the React profile Vite fixture did not bind a loopback port");
-  }
-  return { base: `http://127.0.0.1:${String(address.port)}`, close: async () => await server.close() };
+  const middleware = await vite.createServer({ root, configFile: false, logLevel: "silent", appType: "spa", server: { middlewareMode: true, hmr: false } });
+  const server = createServer(middleware.middlewares);
+  await new Promise<void>((resolve) => {
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  const { port } = server.address() as AddressInfo;
+  const close = async (): Promise<void> => {
+    await new Promise<void>((resolve) => {
+      server.close(() => resolve());
+    });
+    await middleware.close();
+  };
+  return { base: `http://127.0.0.1:${String(port)}`, close };
 }
 
 function artifactPath(stdout: string): string {
