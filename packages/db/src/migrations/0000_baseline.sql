@@ -522,21 +522,23 @@ CREATE UNIQUE INDEX `connection_bindings_user_task_unique` ON `connection_bindin
 CREATE UNIQUE INDEX `connection_bindings_rule_task_unique` ON `connection_bindings` (`rule_id`,`task`) WHERE "connection_bindings"."actor_kind" = 'automation-rule';--> statement-breakpoint
 CREATE UNIQUE INDEX `connection_bindings_plugin_task_unique` ON `connection_bindings` (`plugin_id`,`task`) WHERE "connection_bindings"."actor_kind" = 'plugin-grant';--> statement-breakpoint
 CREATE INDEX `connection_bindings_connection_idx` ON `connection_bindings` (`connection_id`);--> statement-breakpoint
-CREATE TABLE `plugin_provider_contributions` (
+CREATE TABLE `plugin_provider_claims` (
+	`owner_id` text NOT NULL,
 	`provider_id` text NOT NULL,
-	`plugin_id` text NOT NULL,
 	`definition_hash` text NOT NULL,
-	`provider_kind` text DEFAULT 'plugin' NOT NULL,
+	`plugin_id` text,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
-	PRIMARY KEY(`provider_id`, `plugin_id`),
-	FOREIGN KEY (`plugin_id`) REFERENCES `plugins`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`provider_id`,`definition_hash`,`provider_kind`) REFERENCES `provider_rows`(`id`,`definition_hash`,`origin_kind`) ON UPDATE cascade ON DELETE cascade,
-	CONSTRAINT "plugin_provider_contributions_kind_check" CHECK(provider_kind = 'plugin')
+	PRIMARY KEY(`owner_id`, `provider_id`),
+	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`plugin_id`) REFERENCES `plugins`(`id`) ON UPDATE no action ON DELETE set null,
+	FOREIGN KEY (`provider_id`,`definition_hash`) REFERENCES `provider_rows`(`id`,`definition_hash`) ON UPDATE no action ON DELETE restrict,
+	CONSTRAINT "plugin_provider_claims_namespace_check" CHECK(substr(provider_id, 1, 7) = 'plugin:')
 );
 --> statement-breakpoint
-CREATE INDEX `plugin_provider_contributions_plugin_idx` ON `plugin_provider_contributions` (`plugin_id`);--> statement-breakpoint
+CREATE INDEX `plugin_provider_claims_plugin_idx` ON `plugin_provider_claims` (`plugin_id`);--> statement-breakpoint
+CREATE INDEX `plugin_provider_claims_definition_idx` ON `plugin_provider_claims` (`provider_id`,`definition_hash`);--> statement-breakpoint
 CREATE TABLE `provider_rows` (
-	`id` text PRIMARY KEY NOT NULL,
+	`id` text NOT NULL,
 	`label` text NOT NULL,
 	`wire` text NOT NULL,
 	`dialect` text,
@@ -552,16 +554,18 @@ CREATE TABLE `provider_rows` (
 	`origin_kind` text NOT NULL,
 	`origin_user_id` text,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	PRIMARY KEY(`id`, `definition_hash`),
 	FOREIGN KEY (`origin_user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE set null,
 	CONSTRAINT "provider_rows_wire_check" CHECK(wire in ('openai-compat', 'anthropic-messages', 'agent-sdk', 'local-light')),
 	CONSTRAINT "provider_rows_dialect_check" CHECK(dialect is null or dialect in ('openai-compatible', 'openrouter')),
 	CONSTRAINT "provider_rows_auth_check" CHECK(auth in ('apiKey', 'oauthToken', 'endpoint', 'none')),
 	CONSTRAINT "provider_rows_catalog_check" CHECK(catalog in ('url', 'builtin')),
 	CONSTRAINT "provider_rows_origin_kind_check" CHECK(origin_kind in ('plugin', 'admin')),
-	CONSTRAINT "provider_rows_origin_shape_check" CHECK((origin_kind = 'plugin' and origin_user_id is null) or origin_kind = 'admin')
+	CONSTRAINT "provider_rows_origin_shape_check" CHECK((origin_kind = 'plugin' and origin_user_id is null) or origin_kind = 'admin'),
+	CONSTRAINT "provider_rows_namespace_check" CHECK((origin_kind = 'plugin') = (substr(id, 1, 7) = 'plugin:'))
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `provider_rows_contribution_identity_unique` ON `provider_rows` (`id`,`definition_hash`,`origin_kind`);--> statement-breakpoint
+CREATE UNIQUE INDEX `provider_rows_admin_id_unique` ON `provider_rows` (`id`) WHERE "provider_rows"."origin_kind" = 'admin';--> statement-breakpoint
 CREATE INDEX `provider_rows_origin_user_idx` ON `provider_rows` (`origin_user_id`);--> statement-breakpoint
 CREATE TABLE `user_credentials` (
 	`id` text PRIMARY KEY NOT NULL,

@@ -225,7 +225,7 @@ export function createActivate(
     }
 
     // The complete provider set is one store transaction. A conflict writes nothing and converts the enabled
-    // recovery marker to `errored`; no provider row from a refused activation becomes globally discoverable.
+    // recovery marker to `errored`; no provider row from a refused activation becomes discoverable.
     const providerError = await providerActivationError(providerLifecycle, providers, input.pluginId, slug);
     if (providerError !== null) {
       discardActivation(ctx, instance, handles);

@@ -2038,7 +2038,7 @@ const EXEMPT: Readonly<Record<string, string>> = {
 
 /** D147 — owner A's ENABLED provider plugin and the provider row it contributes. The plugin row is seeded
  *  directly because the install front door stores the bundle in the real CAS; the contribution goes through
- *  the REAL connection door (`registerPluginProviders` → `provider_rows` + `plugin_provider_contributions` → the
+ *  the REAL connection door (`registerPluginProviders` → `provider_rows` + `plugin_provider_claims` → the
  *  live registry), which is the exact path an activation takes. The row relabels a hosted API and pins A's host. */
 async function seedAlphaProviderPlugin(
   db: Parameters<typeof seedChat>[0],

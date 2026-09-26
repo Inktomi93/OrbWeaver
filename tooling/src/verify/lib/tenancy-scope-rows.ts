@@ -39,6 +39,11 @@ export const TABLE_SCOPING_ROWS: readonly ScopingRow[] = [
   },
   { table: "daily_stats", scope: "ownerId", why: "D23 parentless per-user aggregate (×day)." },
   {
+    table: "plugin_provider_claims",
+    scope: "ownerId",
+    why: "D265 — one user's binding of a plugin provider id to a definition; the owner IS the scope a plugin id resolves in, and the claim outlives its install (ownerid-registry owns the stamp's justification).",
+  },
+  {
     table: "embed_generations",
     scope: "ownerId",
     why: "D23 per-owner immutable vector provenance — the retained owner remains the tenancy belt after a deleted connection is SET NULL.",
@@ -160,11 +165,6 @@ export const TABLE_SCOPING_ROWS: readonly ScopingRow[] = [
     table: "connection_bindings",
     scope: "parent",
     why: "an actor → connection pick (inference program §5.3): the owner DERIVES one FK away through the arm's actor (`users` / `automation_rules.ownerId` / `plugins.ownerId`), so the row carries no stamp of its own (D23 no doubling).",
-  },
-  {
-    table: "plugin_provider_contributions",
-    scope: "parent",
-    why: "an enabled plugin install's claim on a deployment-global provider definition: authority derives through the plugin FK, while the provider parent is global; no owner stamp is duplicated (D23).",
   },
 
   // ── (c) junction-derived — a pure LINK; BOTH parents must be reachable by the caller. ──────────────────
@@ -344,7 +344,7 @@ export const TABLE_SCOPING_ROWS: readonly ScopingRow[] = [
   {
     table: "provider_rows",
     scope: "global",
-    why: "the runtime provider REGISTRY (plugin-shipped / admin-added `ProviderDef` rows, inference program §5.9-1): deployment-wide vocabulary every principal's picker reads; `origin_*` is provenance, never a read key.",
+    why: "the runtime provider REGISTRY content (plugin-shipped / admin-added `ProviderDef` rows, inference program §5.9-1): admin rows are deployment-wide; a plugin row is reached only through its reader's own `plugin_provider_claims` row (D265); `origin_*` is provenance, never a read key.",
   },
   { table: "rate_limit_buckets", scope: "global", why: "transport-tier counters (producer: transport/rate-limit.ts) — keyed by bucket, never by tenant." },
   {

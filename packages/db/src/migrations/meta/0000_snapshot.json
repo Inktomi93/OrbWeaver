@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "74968edb-294d-4631-a31c-4e05b72da00d",
+  "id": "70ad2a59-cc0b-4b0c-94c4-0c54201a320e",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -3375,18 +3375,18 @@
         }
       }
     },
-    "plugin_provider_contributions": {
-      "name": "plugin_provider_contributions",
+    "plugin_provider_claims": {
+      "name": "plugin_provider_claims",
       "columns": {
-        "provider_id": {
-          "name": "provider_id",
+        "owner_id": {
+          "name": "owner_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "plugin_id": {
-          "name": "plugin_id",
+        "provider_id": {
+          "name": "provider_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -3399,13 +3399,12 @@
           "notNull": true,
           "autoincrement": false
         },
-        "provider_kind": {
-          "name": "provider_kind",
+        "plugin_id": {
+          "name": "plugin_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'plugin'"
+          "notNull": false,
+          "autoincrement": false
         },
         "created_at": {
           "name": "created_at",
@@ -3417,43 +3416,57 @@
         }
       },
       "indexes": {
-        "plugin_provider_contributions_plugin_idx": {
-          "name": "plugin_provider_contributions_plugin_idx",
+        "plugin_provider_claims_plugin_idx": {
+          "name": "plugin_provider_claims_plugin_idx",
           "columns": ["plugin_id"],
+          "isUnique": false
+        },
+        "plugin_provider_claims_definition_idx": {
+          "name": "plugin_provider_claims_definition_idx",
+          "columns": ["provider_id", "definition_hash"],
           "isUnique": false
         }
       },
       "foreignKeys": {
-        "plugin_provider_contributions_plugin_id_plugins_id_fk": {
-          "name": "plugin_provider_contributions_plugin_id_plugins_id_fk",
-          "tableFrom": "plugin_provider_contributions",
-          "tableTo": "plugins",
-          "columnsFrom": ["plugin_id"],
+        "plugin_provider_claims_owner_id_users_id_fk": {
+          "name": "plugin_provider_claims_owner_id_users_id_fk",
+          "tableFrom": "plugin_provider_claims",
+          "tableTo": "users",
+          "columnsFrom": ["owner_id"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "plugin_provider_contributions_definition_fk": {
-          "name": "plugin_provider_contributions_definition_fk",
-          "tableFrom": "plugin_provider_contributions",
+        "plugin_provider_claims_plugin_id_plugins_id_fk": {
+          "name": "plugin_provider_claims_plugin_id_plugins_id_fk",
+          "tableFrom": "plugin_provider_claims",
+          "tableTo": "plugins",
+          "columnsFrom": ["plugin_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "plugin_provider_claims_definition_fk": {
+          "name": "plugin_provider_claims_definition_fk",
+          "tableFrom": "plugin_provider_claims",
           "tableTo": "provider_rows",
-          "columnsFrom": ["provider_id", "definition_hash", "provider_kind"],
-          "columnsTo": ["id", "definition_hash", "origin_kind"],
-          "onDelete": "cascade",
-          "onUpdate": "cascade"
+          "columnsFrom": ["provider_id", "definition_hash"],
+          "columnsTo": ["id", "definition_hash"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {
-        "plugin_provider_contributions_provider_id_plugin_id_pk": {
-          "columns": ["provider_id", "plugin_id"],
-          "name": "plugin_provider_contributions_provider_id_plugin_id_pk"
+        "plugin_provider_claims_owner_id_provider_id_pk": {
+          "columns": ["owner_id", "provider_id"],
+          "name": "plugin_provider_claims_owner_id_provider_id_pk"
         }
       },
       "uniqueConstraints": {},
       "checkConstraints": {
-        "plugin_provider_contributions_kind_check": {
-          "name": "plugin_provider_contributions_kind_check",
-          "value": "provider_kind = 'plugin'"
+        "plugin_provider_claims_namespace_check": {
+          "name": "plugin_provider_claims_namespace_check",
+          "value": "substr(provider_id, 1, 7) = 'plugin:'"
         }
       }
     },
@@ -3463,7 +3476,7 @@
         "id": {
           "name": "id",
           "type": "text",
-          "primaryKey": true,
+          "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
@@ -3575,10 +3588,11 @@
         }
       },
       "indexes": {
-        "provider_rows_contribution_identity_unique": {
-          "name": "provider_rows_contribution_identity_unique",
-          "columns": ["id", "definition_hash", "origin_kind"],
-          "isUnique": true
+        "provider_rows_admin_id_unique": {
+          "name": "provider_rows_admin_id_unique",
+          "columns": ["id"],
+          "isUnique": true,
+          "where": "\"provider_rows\".\"origin_kind\" = 'admin'"
         },
         "provider_rows_origin_user_idx": {
           "name": "provider_rows_origin_user_idx",
@@ -3597,7 +3611,12 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {},
+      "compositePrimaryKeys": {
+        "provider_rows_id_definition_hash_pk": {
+          "columns": ["id", "definition_hash"],
+          "name": "provider_rows_id_definition_hash_pk"
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraints": {
         "provider_rows_wire_check": {
@@ -3623,6 +3642,10 @@
         "provider_rows_origin_shape_check": {
           "name": "provider_rows_origin_shape_check",
           "value": "(origin_kind = 'plugin' and origin_user_id is null) or origin_kind = 'admin'"
+        },
+        "provider_rows_namespace_check": {
+          "name": "provider_rows_namespace_check",
+          "value": "(origin_kind = 'plugin') = (substr(id, 1, 7) = 'plugin:')"
         }
       }
     },

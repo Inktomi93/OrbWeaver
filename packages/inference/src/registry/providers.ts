@@ -3,10 +3,9 @@
 // so a runtime row can never inherit another id's sealed credentials by AAD. Rows persist in `provider_rows`;
 // a connection on a not-yet-activated plugin provider reads `no-connection` until activation, never a parse
 // error.
-// SCOPE (D147): every read names its viewer. A `plugin:` row answers only a viewer who owns an enabled install
-// contributing it; any other viewer gets the same `undefined` an unregistered id gets. The namespace is the
-// discriminant because both write doors pin it: an admin row may not take a `plugin:` id and a built-in row
-// is refused one by schema. A plugin row with no known installer answers nobody.
+// SCOPE (D147, D265): every read names its viewer. A `plugin:` id answers a viewer only with THAT viewer's own
+// claimed definition, served by their enabled install; any other viewer gets the same `undefined` an
+// unregistered id gets. Two viewers may hold different definitions of one id, and neither sees the other's.
 
 import type { ProviderDef, ProviderId } from "@orb/contracts/inference";
 import { BUILTIN_PROVIDERS, isPluginProviderId, pluginNameOfProviderId, providerDefSchema } from "@orb/contracts/inference";
@@ -17,7 +16,7 @@ import type { ProviderOrigin, ProviderSnapshot } from "../contract/runtime.ts";
 import type { ProviderStore } from "../deps.ts";
 
 export interface ProviderRegistry {
-  /** The row `viewer` may use: a built-in or admin row, or a plugin row one of `viewer`'s enabled installs contributes. */
+  /** The row `viewer` may use: a built-in or admin row, or `viewer`'s own plugin row their enabled install serves. */
   readonly get: (id: string, viewer: UserId) => ProviderDef | undefined;
   /** Every row `viewer` may use, under the same rule as {@link ProviderRegistry.get}. */
   readonly list: (viewer: UserId) => readonly ProviderDef[];
@@ -26,25 +25,25 @@ export interface ProviderRegistry {
   /** Refuses a built-in id, a plugin row whose namespace is not its own plugin's, and a malformed row. */
   readonly register: (row: unknown, origin: ProviderOrigin) => Promise<ProviderDef>;
   readonly drop: (id: ProviderId) => Promise<void>;
-  /** Validate the complete manifest set, then atomically replace this plugin install's contributions. */
+  /** Validate the complete manifest set, then atomically link it to this plugin install owner's claims. */
   readonly registerPlugin: (rows: readonly unknown[], origin: Extract<ProviderOrigin, { readonly plugin: PluginId }>) => Promise<readonly ProviderDef[]>;
-  /** Remove only this plugin install's active contributions; the ProviderId's immutable definition remains. */
+  /** Unlink this plugin install's claims; each owner's claimed definition remains as their tombstone. */
   readonly dropPlugin: (pluginId: PluginId) => Promise<void>;
   /** Re-read the store — plugin activation on another replica, an admin edit. */
   readonly refresh: () => Promise<void>;
 }
 
-function installersByProvider(snapshot: ProviderSnapshot): Map<string, ReadonlySet<UserId>> {
-  const byProvider = new Map<string, Set<UserId>>();
-  for (const install of snapshot.installs) {
-    const owners = byProvider.get(install.providerId) ?? new Set<UserId>();
-    owners.add(install.ownerId);
-    byProvider.set(install.providerId, owners);
+function servedByOwner(snapshot: ProviderSnapshot): Map<UserId, ReadonlyMap<string, ProviderDef>> {
+  const byOwner = new Map<UserId, Map<string, ProviderDef>>();
+  for (const { ownerId, row } of snapshot.installs) {
+    const rows = byOwner.get(ownerId) ?? new Map<string, ProviderDef>();
+    rows.set(row.id, row);
+    byOwner.set(ownerId, rows);
   }
-  return byProvider;
+  return byOwner;
 }
 
-function replaceEntries<V>(target: Map<string, V>, next: ReadonlyMap<string, V>): void {
+function replaceEntries<K, V>(target: Map<K, V>, next: ReadonlyMap<K, V>): void {
   target.clear();
   for (const [key, value] of next) {
     target.set(key, value);
@@ -53,12 +52,12 @@ function replaceEntries<V>(target: Map<string, V>, next: ReadonlyMap<string, V>)
 
 export async function createProviderRegistry(store: ProviderStore): Promise<ProviderRegistry> {
   const builtins = new Map<string, ProviderDef>(BUILTIN_PROVIDERS.map((row) => [row.id, row]));
+  // Admin rows: deployment-wide. Plugin rows live only in `served`, per owner.
   const runtime = new Map<string, ProviderDef>();
-  const installers = new Map<string, ReadonlySet<UserId>>();
+  const served = new Map<UserId, ReadonlyMap<string, ProviderDef>>();
   let publicationTail: Promise<void> = Promise.resolve();
 
-  const usableBy = (row: ProviderDef, viewer: UserId): boolean => !isPluginProviderId(row.id) || (installers.get(row.id)?.has(viewer) ?? false);
-  const rowOf = (id: string): ProviderDef | undefined => builtins.get(id) ?? runtime.get(id);
+  const deploymentRowOf = (id: string): ProviderDef | undefined => builtins.get(id) ?? runtime.get(id);
 
   const publishInOrder = <T>(publish: () => Promise<T> | T): Promise<T> => {
     const publication = publicationTail.then(publish);
@@ -71,9 +70,9 @@ export async function createProviderRegistry(store: ProviderStore): Promise<Prov
   };
 
   const refresh = (): Promise<void> => {
-    // Start the read at invocation time, but publish snapshots in invocation order. Two plugin installs can
-    // contribute the same immutable ProviderId, so their per-plugin lifecycle lanes do not order the final
-    // removal against an older one-contributor read.
+    // Start the read at invocation time, but publish snapshots in invocation order. Each snapshot carries
+    // every owner's served rows, and per-plugin lifecycle lanes do not order one install's removal against an
+    // older read taken for another install.
     let read: Promise<ProviderSnapshot>;
     try {
       read = store.list();
@@ -92,7 +91,7 @@ export async function createProviderRegistry(store: ProviderStore): Promise<Prov
         throw listed.error;
       }
       replaceEntries(runtime, new Map(listed.value.rows.filter((row) => !builtins.has(row.id)).map((row) => [row.id, row])));
-      replaceEntries(installers, installersByProvider(listed.value));
+      replaceEntries(served, servedByOwner(listed.value));
     });
   };
   await refresh();
@@ -129,7 +128,7 @@ export async function createProviderRegistry(store: ProviderStore): Promise<Prov
       throw new ProviderError({
         kind: "invalid",
         retryable: false,
-        message: `provider "${replaced.conflictingId}" already has a different definition or admin owner`,
+        message: `provider "${replaced.conflictingId}" is already bound to a different definition for this installer; a changed definition needs a new provider id`,
       });
     }
     try {
@@ -137,14 +136,14 @@ export async function createProviderRegistry(store: ProviderStore): Promise<Prov
     } catch (publishError) {
       // The DB write is authoritative only once the live registry has accepted the same snapshot. A failed
       // publish is therefore compensated before activation reports failure; otherwise restart could discover
-      // a contribution from an activation whose guest never became resident.
+      // a claim link from an activation whose guest never became resident.
       try {
         await store.removePlugin(origin.plugin);
-        // A later refresh may already have captured this contribution while our failed publication was
+        // A later refresh may already have captured this claim link while our failed publication was
         // queued. Publish the post-rollback store snapshot after those captures so none can resurrect it.
         await refresh();
       } catch (rollbackError) {
-        const failure = new Error(`provider activation failed and plugin ${origin.plugin}'s contribution rollback failed`, { cause: publishError });
+        const failure = new Error(`provider activation failed and plugin ${origin.plugin}'s claim rollback failed`, { cause: publishError });
         Object.defineProperty(failure, "rollbackError", { value: rollbackError });
         throw failure;
       }
@@ -154,15 +153,9 @@ export async function createProviderRegistry(store: ProviderStore): Promise<Prov
   };
 
   return {
-    get: (id, viewer): ProviderDef | undefined => {
-      const row = rowOf(id);
-      return row !== undefined && usableBy(row, viewer) ? row : undefined;
-    },
-    list: (viewer) => [...builtins.values(), ...runtime.values()].filter((row) => usableBy(row, viewer)),
-    deploymentRow: (id): ProviderDef | undefined => {
-      const row = rowOf(id);
-      return row === undefined || isPluginProviderId(row.id) ? undefined : row;
-    },
+    get: (id, viewer): ProviderDef | undefined => deploymentRowOf(id) ?? served.get(viewer)?.get(id),
+    list: (viewer) => [...builtins.values(), ...runtime.values(), ...(served.get(viewer)?.values() ?? [])],
+    deploymentRow: deploymentRowOf,
     register: async (raw, origin): Promise<ProviderDef> => {
       const row = parseRow(raw);
       if (builtins.has(row.id)) {
@@ -178,9 +171,7 @@ export async function createProviderRegistry(store: ProviderStore): Promise<Prov
             message: "an admin-added provider id is bare; the plugin: namespace is reserved for plugin manifests",
           });
         }
-        if (!(await store.putAdmin(row, origin.admin))) {
-          throw new ProviderError({ kind: "invalid", retryable: false, message: `provider "${row.id}" is plugin-owned and cannot be adopted by an admin` });
-        }
+        await store.putAdmin(row, origin.admin);
         await publishInOrder(() => runtime.set(row.id, row));
       }
       return row;

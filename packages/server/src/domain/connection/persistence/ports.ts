@@ -1,14 +1,14 @@
 // The runtime's FOUR persistence ports over this domain's tables (inference program §11): the package owns no
-// `@orb/db`, so the composition root hands it these — read/lookup/list over `user_connections`,
-// `connection_bindings`, `provider_rows` and the catalog-snapshot KV. WRITES to the three tables stay in this
-// domain's verbs (`own-tables-only`); the ports are the runtime's READ side plus the registry's row persistence.
+// `@orb/db`, so the composition root hands it these — read/lookup/list over `user_connections`, `connection_bindings`,
+// `provider_rows` with `plugin_provider_claims`, and the catalog-snapshot KV. WRITES stay in this domain
+// (`own-tables-only`); the ports are the runtime's READ side plus the registry's row persistence.
 
 import type { Db } from "@orb/db";
 import type { ConnectionPorts } from "../contract/service.ts";
 import { lookupBinding } from "./bindings.ts";
 import { createSnapshotStore } from "./catalog-snapshot.ts";
 import { fetchConnectionById, listOwnedConnections } from "./connections.ts";
-import { deleteAdminProviderRow, deletePluginProviderRows, listProviderRows, putAdminProviderRow, replacePluginProviderRows } from "./provider-rows.ts";
+import { deleteAdminProviderRow, listProviderRows, putAdminProviderRow, releasePluginProviderClaims, replacePluginProviderRows } from "./provider-rows.ts";
 
 export function createConnectionPorts(deps: { readonly db: Db; readonly now: () => number }): ConnectionPorts {
   const { db, now } = deps;
@@ -25,7 +25,7 @@ export function createConnectionPorts(deps: { readonly db: Db; readonly now: () 
       putAdmin: (row, admin) => putAdminProviderRow(db, row, admin, now()),
       removeAdmin: (id) => deleteAdminProviderRow(db, id),
       replacePlugin: (rows, pluginId) => replacePluginProviderRows(db, rows, pluginId, now()),
-      removePlugin: (pluginId) => deletePluginProviderRows(db, pluginId),
+      removePlugin: (pluginId) => releasePluginProviderClaims(db, pluginId),
     },
     snapshotStore: createSnapshotStore(db, now),
   };

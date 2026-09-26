@@ -68,7 +68,7 @@ export const ID_PREFIX = {
   userCredential: "user_credential",
   // A user's CONNECTION row (`user_connections`): provider + credential + model + declared overrides — the
   // unit every per-task binding references by id (@orb/contracts/inference §5.3). `provider_rows` has NO
-  // TypeID: the registry id (`openrouter`, `plugin:<name>/<id>`) IS its natural key.
+  // TypeID: the registry id (`openrouter`, `plugin:<name>/<id>`) with its definition hash IS its natural key.
   userConnection: "user_connection",
   // One actor's (user / automation rule / plugin grant) pick of a connection for ONE routable task
   // (`connection_bindings`) — an FK junction row, never a JSON id-array (D61-B6).

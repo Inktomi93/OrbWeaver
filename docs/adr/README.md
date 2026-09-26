@@ -212,3 +212,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D262 | [prefix-bound thinking rides an append-only history](0262-prefix-bound-thinking-rides-an-append-only-history.md) | active |
 | D263 | [Every account is seeded with content, and names its own persona](0263-seed-content-and-a-first-run-persona.md) | active |
 | D264 | [A roster preset carries a game template and starts through startChat's game birth](0264-roster-preset-carries-a-game-template.md) | active |
+| D265 | [A plugin provider id is claimed per owner](0265-a-plugin-provider-id-is-claimed-per-owner.md) | active |

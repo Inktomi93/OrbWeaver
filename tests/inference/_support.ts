@@ -86,62 +86,79 @@ export interface MemoryStores {
   readonly bindings: BindingStore & {
     readonly bind: (args: { actorKind: ConnectionBinding["actorKind"]; actorId: string; task: RoutableTask; connectionId: UserConnectionId | null }) => void;
   };
-  /** `pluginOwners` stands in for the `plugins.owner_id` column the real store joins through: a plugin
-   *  contribution serves only its install's owner, and an install with no recorded owner serves nobody. */
-  readonly providerStore: ProviderStore & { readonly rows: Map<string, ProviderDef>; readonly pluginOwners: Map<PluginId, UserId> };
+  readonly providerStore: ProviderStore & { readonly state: MemoryProviderState };
   readonly snapshotStore: SnapshotStore & { readonly entries: Map<string, string> };
 }
 
-/** The in-memory twin of `listProviderRows`: admin rows and contributed plugin rows, plus each contribution's
- *  install owner. Shared by every fake provider store so the registry reads one snapshot shape. */
-export function memoryProviderSnapshot(args: {
-  readonly rows: ReadonlyMap<string, ProviderDef>;
-  readonly admins: ReadonlySet<string>;
-  readonly contributors: ReadonlyMap<string, ReadonlySet<PluginId>>;
-  readonly pluginOwners: ReadonlyMap<PluginId, UserId>;
-}): ProviderSnapshot {
-  const { rows, admins, contributors, pluginOwners } = args;
-  const live = [...rows.entries()].filter(([id]) => admins.has(id) || (contributors.get(id)?.size ?? 0) > 0).map(([, row]) => row);
-  const installs = [...contributors.entries()].flatMap(([providerId, plugins]) =>
-    [...plugins].flatMap((pluginId) => {
-      const ownerId = pluginOwners.get(pluginId);
-      return ownerId === undefined ? [] : [{ providerId: providerIdSchema.parse(providerId), ownerId }];
-    }),
-  );
-  return { rows: live, installs };
+/** One owner's claim on a `plugin:` id: that owner's definition, and the install serving it (`null` = tombstone). */
+interface MemoryClaim {
+  readonly ownerId: UserId;
+  readonly row: ProviderDef;
+  pluginId: PluginId | null;
 }
 
-function memoryPluginConflict(args: {
-  readonly desired: readonly ProviderDef[];
-  readonly rows: ReadonlyMap<string, ProviderDef>;
-  readonly admins: ReadonlySet<string>;
-}): ProviderDef | undefined {
-  const { desired, rows, admins } = args;
-  return desired.find((row) => {
-    if (admins.has(row.id)) {
-      return true;
-    }
-    const current = rows.get(row.id);
-    return current !== undefined && JSON.stringify(current) !== JSON.stringify(row);
-  });
+/** The in-memory twin of the provider tables: admin rows by id and per-owner claims keyed by
+ *  {@link memoryClaimKey}. `pluginOwners` stands in for `plugins.owner_id`, which every claim writer reads. */
+export interface MemoryProviderState {
+  readonly admins: Map<string, ProviderDef>;
+  readonly claims: Map<string, MemoryClaim>;
+  readonly pluginOwners: Map<PluginId, UserId>;
 }
 
-function removeMemoryPlugin(contributors: Map<string, Set<PluginId>>, pluginId: PluginId): void {
-  for (const [id, owners] of contributors) {
-    owners.delete(pluginId);
-    if (owners.size === 0) {
-      contributors.delete(id);
+export function memoryClaimKey(ownerId: UserId, providerId: string): string {
+  return `${ownerId}|${providerId}`;
+}
+
+export function memoryProviderState(pluginOwners: ReadonlyMap<PluginId, UserId> = new Map<PluginId, UserId>()): MemoryProviderState {
+  return { admins: new Map(), claims: new Map(), pluginOwners: new Map(pluginOwners) };
+}
+
+/** The in-memory twin of `listProviderRows`: admin rows, and each served claim with its owner's own definition. */
+export function memoryProviderSnapshot(state: MemoryProviderState): ProviderSnapshot {
+  const installs = [...state.claims.values()].filter((claim) => claim.pluginId !== null).map(({ ownerId, row }) => ({ ownerId, row }));
+  return { rows: [...state.admins.values()], installs };
+}
+
+/** The in-memory twin of `releasePluginProviderClaims`: the install's claims become tombstones. */
+export function memoryReleasePlugin(state: MemoryProviderState, pluginId: PluginId): void {
+  for (const claim of state.claims.values()) {
+    if (claim.pluginId === pluginId) {
+      claim.pluginId = null;
     }
   }
+}
+
+/** The in-memory twin of `replacePluginProviderRows`: a claim is permanent per owner, independent across owners. */
+export function memoryReplacePlugin(
+  state: MemoryProviderState,
+  desired: readonly ProviderDef[],
+  pluginId: PluginId,
+): { readonly ok: true } | { readonly ok: false; readonly conflictingId: ProviderDef["id"] } {
+  const ownerId = state.pluginOwners.get(pluginId);
+  if (ownerId === undefined) {
+    throw new Error(`tests/inference: plugin ${pluginId} has no owner to claim for`);
+  }
+  const conflict = desired.find((row) => {
+    const claim = state.claims.get(memoryClaimKey(ownerId, row.id));
+    return claim !== undefined && JSON.stringify(claim.row) !== JSON.stringify(row);
+  });
+  if (conflict !== undefined) {
+    return { ok: false, conflictingId: conflict.id };
+  }
+  memoryReleasePlugin(state, pluginId);
+  for (const row of desired) {
+    const key = memoryClaimKey(ownerId, row.id);
+    const claim = state.claims.get(key) ?? { ownerId, row, pluginId: null };
+    claim.pluginId = pluginId;
+    state.claims.set(key, claim);
+  }
+  return { ok: true };
 }
 
 export function memoryStores(): MemoryStores {
   const rows = new Map<UserConnectionId, UserConnection>();
   const bindingRows = new Map<string, ConnectionBinding>();
-  const providerRows = new Map<string, ProviderDef>();
-  const providerAdmins = new Set<string>();
-  const providerContributors = new Map<string, Set<PluginId>>();
-  const pluginOwners = new Map<PluginId, UserId>();
+  const providerState = memoryProviderState();
   const entries = new Map<string, string>();
   const key = (actorKind: string, actorId: string, task: string): string => `${actorKind}|${actorId}|${task}`;
   return {
@@ -165,40 +182,16 @@ export function memoryStores(): MemoryStores {
       },
     },
     providerStore: {
-      rows: providerRows,
-      pluginOwners,
-      list: () => Promise.resolve(memoryProviderSnapshot({ rows: providerRows, admins: providerAdmins, contributors: providerContributors, pluginOwners })),
-      putAdmin: (row): Promise<boolean> => {
-        if ((providerContributors.get(row.id)?.size ?? 0) > 0) {
-          return Promise.resolve(false);
-        }
-        providerRows.set(row.id, row);
-        providerAdmins.add(row.id);
-        return Promise.resolve(true);
+      state: providerState,
+      list: () => Promise.resolve(memoryProviderSnapshot(providerState)),
+      putAdmin: (row): Promise<void> => {
+        providerState.admins.set(row.id, row);
+        return Promise.resolve();
       },
-      removeAdmin: (id): Promise<boolean> => {
-        if (!providerAdmins.delete(id)) {
-          return Promise.resolve(false);
-        }
-        providerRows.delete(id);
-        return Promise.resolve(true);
-      },
-      replacePlugin: (desired, pluginId): Promise<{ readonly ok: true } | { readonly ok: false; readonly conflictingId: ProviderDef["id"] }> => {
-        const conflict = memoryPluginConflict({ desired, rows: providerRows, admins: providerAdmins });
-        if (conflict !== undefined) {
-          return Promise.resolve({ ok: false, conflictingId: conflict.id });
-        }
-        removeMemoryPlugin(providerContributors, pluginId);
-        for (const row of desired) {
-          providerRows.set(row.id, row);
-          const owners = providerContributors.get(row.id) ?? new Set<PluginId>();
-          owners.add(pluginId);
-          providerContributors.set(row.id, owners);
-        }
-        return Promise.resolve({ ok: true as const });
-      },
+      removeAdmin: (id): Promise<boolean> => Promise.resolve(providerState.admins.delete(id)),
+      replacePlugin: (desired, pluginId) => Promise.resolve(memoryReplacePlugin(providerState, desired, pluginId)),
       removePlugin: (pluginId): Promise<void> => {
-        removeMemoryPlugin(providerContributors, pluginId);
+        memoryReleasePlugin(providerState, pluginId);
         return Promise.resolve();
       },
     },
