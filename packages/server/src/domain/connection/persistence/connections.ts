@@ -25,7 +25,7 @@ function toConnectionRow(row: ConnectionRow): UserConnection {
     declared: row.declared,
     extras: row.extras,
     transport: row.transport,
-    modelListed: row.modelListed,
+    modelCheck: row.modelCheck,
     allowBackground: row.allowBackground,
     promptCache: row.promptCache,
     createdAt: row.createdAt,

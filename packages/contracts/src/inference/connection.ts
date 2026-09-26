@@ -47,6 +47,12 @@ export type ConnectionExtrasDoc = z.infer<typeof connectionExtrasSchema>;
 export const connectionApiSchema = z.union([chatApiSchema, z.literal("auto")]);
 export type ConnectionApi = z.infer<typeof connectionApiSchema>;
 
+/** What the provider's list says about a connection's `model`. `listed` and `unlisted` are the answer of a list
+ *  read that succeeded; `unchecked` is a model no list has answered for yet, and a failed read changes nothing. */
+export const MODEL_CHECKS = ["listed", "unlisted", "unchecked"] as const;
+export type ModelCheck = (typeof MODEL_CHECKS)[number];
+export const modelCheckSchema = z.enum(MODEL_CHECKS) satisfies z.ZodType<ModelCheck>;
+
 export const userConnectionSchema = z.object({
   id: typeIdSchema(ID_PREFIX.userConnection),
   ownerId: brandedId<UserId>(),
@@ -61,8 +67,7 @@ export const userConnectionSchema = z.object({
   declared: declaredCapabilitySchema.nullable(),
   extras: connectionExtrasSchema.nullable(),
   transport: connectionTransportSchema.nullable(),
-  /** `true` when `model` came from the provider's list; `false` = typed fallback — the pane says why. */
-  modelListed: z.boolean(),
+  modelCheck: modelCheckSchema,
   /** May a `spend: "background"` task (summaries, captions, digests) run on this row unattended? (F5) */
   allowBackground: z.boolean(),
   /** The prompt-cache settings (`prompt-cache.ts`); `null` ⇒ the shipped behavior (`SHIPPED_PROMPT_CACHE`). */

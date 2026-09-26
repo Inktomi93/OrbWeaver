@@ -8,9 +8,10 @@
 
 import type { Db } from "@orb/db";
 import { connectionBindings } from "@orb/db";
+import { isConstraintViolation } from "@orb/db/kit";
 import type { ConnectionBindingId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { describe } from "vitest";
 import {
   deleteOwnedConnection,
@@ -44,7 +45,7 @@ async function seedRow(db: Db, id: UserConnectionId, ownerId: UserId, label: str
     declared: null,
     extras: null,
     transport: null,
-    modelListed: true,
+    modelCheck: "listed",
     allowBackground: false,
     createdAt: FROZEN_AT_MS,
     updatedAt: FROZEN_AT_MS,
@@ -103,9 +104,23 @@ describe("writes", () => {
     const other = await seedUser(db, "user_b");
     await seedRow(db, ROW_ID, owner, "mine");
     await updateOwnedConnection(db, owner, ROW_ID, { model: testModelId("m2") });
-    expect(await fetchOwnedConnection(db, owner, ROW_ID)).toMatchObject({ model: "m2", label: "mine", modelListed: true });
+    expect(await fetchOwnedConnection(db, owner, ROW_ID)).toMatchObject({ model: "m2", label: "mine", modelCheck: "listed" });
     await updateOwnedConnection(db, other, ROW_ID, { model: testModelId("stolen") });
     expect((await fetchOwnedConnection(db, owner, ROW_ID))?.model, "the owner predicate is the write's fence").toBe("m2");
+  });
+
+  test("user_connections.model_check refuses a value outside MODEL_CHECKS", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    await seedRow(db, ROW_ID, owner, "mine");
+    let caught: unknown;
+    try {
+      await db.run(sql`update user_connections set model_check = 'maybe' where id = ${ROW_ID}`);
+    } catch (err) {
+      caught = err;
+    }
+    expect(isConstraintViolation(caught)?.kind).toBe("check");
+    expect((await fetchOwnedConnection(db, owner, ROW_ID))?.modelCheck).toBe("listed");
   });
 
   test("deleting a row leaves its binding alive with a NULL connection (SET NULL, not a dangling id)", async () => {

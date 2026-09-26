@@ -155,9 +155,9 @@ describe("create", () => {
       credentialId: null,
       baseUrl: BYO_BASE_URL,
       model: "not-in-any-list",
-      modelListed: false,
+      modelCheck: "unlisted",
     });
-    expect(view).toMatchObject({ model: "not-in-any-list", modelListed: false });
+    expect(view).toMatchObject({ model: "not-in-any-list", modelCheck: "unlisted" });
   });
 
   test("writes one durable audit row naming the provider and model", async () => {
@@ -173,6 +173,43 @@ describe("create", () => {
       entityId: view.id,
       metadata: { providerId: "custom-openai", model: "qwen3" },
     });
+  });
+});
+
+describe("model check", () => {
+  test("user_connections.model_check: a new row is unchecked unless its create carries the list's answer", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    const owner = await seedOwner(db);
+    const fresh = await h.svc.create({ principal: owner.principal, providerId: BYO_PROVIDER, credentialId: null, baseUrl: BYO_BASE_URL, model: "qwen3" });
+    const picked = await h.svc.create({
+      principal: owner.principal,
+      providerId: BYO_PROVIDER,
+      credentialId: null,
+      baseUrl: BYO_BASE_URL,
+      model: "qwen3-8b",
+      modelCheck: "listed",
+    });
+    expect([fresh.modelCheck, picked.modelCheck]).toEqual(["unchecked", "listed"]);
+  });
+
+  test("user_connections.model_check: a new model without its own check is unchecked; an unrelated patch keeps the check", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    const owner = await seedOwner(db);
+    const created = await h.svc.create({
+      principal: owner.principal,
+      providerId: BYO_PROVIDER,
+      credentialId: null,
+      baseUrl: BYO_BASE_URL,
+      model: "qwen3",
+      modelCheck: "unlisted",
+    });
+    const relabelled = await h.svc.update({ principal: owner.principal, connectionId: created.id, patch: { label: "renamed" } });
+    const sameModel = await h.svc.update({ principal: owner.principal, connectionId: created.id, patch: { model: "qwen3" } });
+    const moved = await h.svc.update({ principal: owner.principal, connectionId: created.id, patch: { model: "qwen3-next" } });
+    const checked = await h.svc.update({ principal: owner.principal, connectionId: created.id, patch: { modelCheck: "listed" } });
+    expect([relabelled.modelCheck, sameModel.modelCheck, moved.modelCheck, checked.modelCheck]).toEqual(["unlisted", "unlisted", "unchecked", "listed"]);
   });
 });
 
@@ -214,7 +251,6 @@ describe("update", () => {
       model: "qwen3",
       label: "my box",
       extras: { temperature: 0.5 },
-      modelListed: false,
       allowBackground: true,
     });
     const updated = await h.svc.update({ principal: owner.principal, connectionId: created.id, patch: { model: "qwen3-next" } });
@@ -222,7 +258,6 @@ describe("update", () => {
       model: "qwen3-next",
       label: "my box",
       extras: { temperature: 0.5 },
-      modelListed: false,
       allowBackground: true,
       baseUrl: BYO_BASE_URL,
     });

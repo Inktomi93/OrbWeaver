@@ -24,6 +24,8 @@
 
 import type { RulePresetId, RulePresetKnobDescriptor, RulePresetKnobValue, RulePresetKnobView, RulePresetView } from "@orb/contracts/automation";
 import type { ApplyRosterPresetResult, RosterPresetSummary } from "@orb/contracts/roster-preset";
+import type { RpgGameTemplate } from "@orb/contracts/rpg";
+import { RPG_RULESET_DEFAULT, RPG_RULESET_LABEL } from "@orb/contracts/rpg";
 
 /** A stored knob bag as either surface holds it — the view's RESOLVED bag or the wire INPUT bag (whose
  *  `string[]` arm assigns into this readonly one). */
@@ -164,4 +166,10 @@ export function rosterCountsSuffix(roster: Pick<RosterPresetSummary, "characterC
     parts.push("starts a game");
   }
   return ` — ${parts.join(", ")}`;
+}
+
+/** The ruleset a campaign roster's game is born with, as one read-only line (an omitted ruleset is rpg's
+ *  birth default). The save door and the editor both say it. */
+export function rulesetLine(game: RpgGameTemplate): string {
+  return `Ruleset: ${RPG_RULESET_LABEL[game.ruleset ?? RPG_RULESET_DEFAULT]}`;
 }

@@ -139,18 +139,24 @@ test("a signaled native child stays a tool error through the real wrapper and do
     "b/tsconfig.json": JSON.stringify({ extends: "../tsconfig.base.json", files: ["value.ts"] }),
     "b/value.ts": "export const value = 1;\n",
   });
+  // The wrapper spawns the compiler asynchronously (its host slot's lease beats on a timer), so the plant replaces
+  // `spawn`, and only for the compiler itself: the call whose argv carries ts7's `tsc` and names program a.
   const preload = join(scratch, "signal-one-compiler.cjs");
   writeFileSync(
     preload,
     'const cp = require("node:child_process");\n' +
-      "const real = cp.spawnSync;\n" +
-      "cp.spawnSync = (command, args, options) => {\n" +
-      '  if (args?.at(-1) === "a/tsconfig.json") {\n' +
+      'const { EventEmitter } = require("node:events");\n' +
+      "const real = cp.spawn;\n" +
+      "cp.spawn = (command, args, options) => {\n" +
+      '  if (args?.some((arg) => /[\\\\/]ts7[\\\\/]bin[\\\\/]tsc$/u.test(arg)) && args.at(-1) === "a/tsconfig.json") {\n' +
       '    process.stdout.write("partial.ts(1,1): error TS2322: emitted before signal\\n");\n' +
-      '    return { status: null, signal: "SIGTERM" };\n' +
+      "    const child = new EventEmitter();\n" +
+      '    process.nextTick(() => child.emit("exit", null, "SIGTERM"));\n' +
+      "    return child;\n" +
       "  }\n" +
       "  return real(command, args, options);\n" +
-      "};\n",
+      "};\n" +
+      'require("node:module").syncBuiltinESMExports();\n',
   );
   const result = await runCli("verify", ["typecheck"], {
     cwd: scratch,

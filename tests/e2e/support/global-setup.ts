@@ -122,7 +122,7 @@ interface SeededConnection {
 
 /** The row to author, with its model resolved the way the PANE resolves one (§7.4): ask the endpoint's own
  *  `/v1/models` server-side, take the first id it lists, else write the declared fallback with
- *  `modelListed: false` — the product's typed-id arm, not a fabrication. The non-live suite is model-free and
+ *  no model check — the product's typed-id arm, not a fabrication. The non-live suite is model-free and
  *  only needs the row + binding to exist, so a fleet that is down must not abort the whole run; a @live spec
  *  against a down fleet fails on its own turn, where it belongs. Called ONLY when the row is missing, so a
  *  re-run against a surviving DB costs no dial. */
@@ -140,7 +140,7 @@ async function engineConnectionInput(baseUrl: string): Promise<NewConnection> {
     credentialId: null,
     baseUrl: E2E_LOCAL_ENGINE_BASE_URL,
     model: first?.id ?? E2E_LOCAL_ENGINE_FALLBACK_MODEL,
-    modelListed: first !== undefined,
+    ...(first === undefined ? {} : { modelCheck: "listed" }),
     // `summarize` is `spend: "background"`; without this the binding below is refused inline (`canFund`, F5).
     allowBackground: true,
   };

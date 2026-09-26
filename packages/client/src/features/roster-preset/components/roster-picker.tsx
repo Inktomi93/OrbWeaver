@@ -23,6 +23,7 @@
 
 import type { RulePresetView } from "@orb/contracts/automation";
 import type { ApplyRosterPresetResult, RosterPresetSummary } from "@orb/contracts/roster-preset";
+import type { RpgGameTemplate } from "@orb/contracts/rpg";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
@@ -32,15 +33,15 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { ConfirmDialog } from "#components";
-import { useInvalidation, useTRPC } from "#data";
+import { ConfirmDialog, SettingSwitchRow } from "#components";
+import { QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import { closeModal, openModal } from "#state";
 import { useApplyRosterPreset, useCreateRosterPreset, useRemoveRosterPreset } from "../hooks/use-roster-preset-mutations.ts";
 import type { CapturedRosterRule, RosterRuleCapture } from "../hooks/use-saved-rosters.ts";
-import { useActiveRosterChat, useRosterRuleCapture, useRulePresetCatalogue, useSavedRosters } from "../hooks/use-saved-rosters.ts";
+import { useActiveRosterChat, useRoomGameCapture, useRosterRuleCapture, useRulePresetCatalogue, useSavedRosters } from "../hooks/use-saved-rosters.ts";
 import { useStartRoster } from "../hooks/use-start-roster.ts";
-import { applyNotice, characterCountPhrase, rosterCountsSuffix, rosterRuleLine } from "../lib/roster-copy.ts";
+import { applyNotice, characterCountPhrase, rosterCountsSuffix, rosterRuleLine, rulesetLine } from "../lib/roster-copy.ts";
 
 /** Derived, not re-minted (no-inline-types): the hook's own return shape. */
 type SavedRosterSummary = RosterPresetSummary;
@@ -195,37 +196,44 @@ function RosterRulesIncludeLine(props: {
 function SaveCurrentRoster(props: {
   readonly busy: boolean;
   readonly capture: RosterRuleCapture;
+  readonly game: ReturnType<typeof useRoomGameCapture>;
   readonly presetOf: (id: CapturedRosterRule["rulePresetId"]) => RulePresetView | undefined;
-  readonly onSave: (name: string) => void;
+  readonly onSave: (name: string, game: RpgGameTemplate | null) => void;
 }): ReactElement {
   const [name, setName] = useState("");
+  // A game room's roster starts campaigns by default (D264), and the toggle below always says so.
+  const [campaign, setCampaign] = useState(true);
   const trimmed = name.trim();
-  const { capture, presetOf } = props;
+  const { capture, game, presetOf } = props;
   return (
     <Stack gap="tight">
-      <Row align="center" gap="field">
-        <Input
-          aria-label="New roster name"
-          placeholder="Name this roster…"
-          value={name}
-          onChange={(e): void => setName(e.target.value)}
-          className="min-w-0 flex-1"
-        />
-        <Button
-          aria-describedby={INCLUDE_LINE_ID}
-          className="shrink-0"
-          disabled={props.busy || trimmed.length === 0 || capture.status !== "ready"}
-          intent="outline"
-          size="sm"
-          onClick={(): void => {
-            props.onSave(trimmed);
-            setName("");
-          }}
-        >
-          <Icon icon={Users} size="sm" />
-          Save this room's roster
-        </Button>
-      </Row>
+      {/* Its own container: below `@md` the name and the Save button stack, so the input keeps its width. */}
+      <Stack className="@container">
+        <Row align="center" gap="field" className="@max-md:flex-col @max-md:items-stretch">
+          <Input
+            aria-label="New roster name"
+            placeholder="Name this roster…"
+            value={name}
+            onChange={(e): void => setName(e.target.value)}
+            // Stacked, a zero-basis `flex-1` would collapse the input's height on the column axis.
+            className="min-w-0 flex-1 @max-md:flex-none"
+          />
+          <Button
+            aria-describedby={INCLUDE_LINE_ID}
+            className="shrink-0"
+            disabled={props.busy || trimmed.length === 0 || capture.status !== "ready" || game.status === "loading"}
+            intent="outline"
+            size="sm"
+            onClick={(): void => {
+              props.onSave(trimmed, campaign && game.status === "ready" ? game.template : null);
+              setName("");
+            }}
+          >
+            <Icon icon={Users} size="sm" />
+            Save this room's roster
+          </Button>
+        </Row>
+      </Stack>
       {/* WHY THE BUTTON IS DIM, SAID OUT LOUD (#848). "Save this room's roster" is disabled until the field
           carries a name, and nothing on screen said so — a host read a permanently-dead control beside an
           empty box (side-eye 2026-08-30). The line appears only in the state it explains, and only when
@@ -233,6 +241,30 @@ function SaveCurrentRoster(props: {
           never claim the wrong reason. */}
       {trimmed.length === 0 && capture.status === "ready" ? <Text voice="gloss">Name this roster to save it.</Text> : null}
       <RosterRulesIncludeLine capture={capture} presetOf={presetOf} />
+      {game.status === "none" ? null : (
+        // Its own container, so the row stacks when the dialog is narrow instead of crushing the label.
+        <Stack className="@container">
+          {game.status === "error" ? (
+            <Stack gap="tight">
+              <SettingSwitchRow
+                checked={false}
+                disabled={true}
+                disabledReason="This roster saves without a game."
+                label="Start new chats as an RPG campaign"
+                onChange={setCampaign}
+              />
+              <QueryErrorState label="this room's game" onRetry={game.retry} />
+            </Stack>
+          ) : (
+            <SettingSwitchRow
+              checked={campaign}
+              description={game.status === "ready" ? rulesetLine(game.template) : "Checking this room's game…"}
+              label="Start new chats as an RPG campaign"
+              onChange={setCampaign}
+            />
+          )}
+        </Stack>
+      )}
     </Stack>
   );
 }
@@ -241,6 +273,7 @@ export function RosterPicker(): ReactElement {
   const rosters = useSavedRosters();
   const active = useActiveRosterChat();
   const ruleCapture = useRosterRuleCapture(active);
+  const gameCapture = useRoomGameCapture(active);
   // The catalogue is a static CODE catalogue and every door in this surface needs it: the include-line's
   // knob gloss, and the apply report's naming of a REFUSED rule (which can happen from the library plane,
   // with no room open at all — so it is not gated on hosting the way the capture read is).
@@ -281,7 +314,7 @@ export function RosterPicker(): ReactElement {
       .catch(() => undefined); // errorToast owns the failure copy.
   };
 
-  const onSave = (name: string): void => {
+  const onSave = (name: string, game: RpgGameTemplate | null): void => {
     if (active === null) {
       return;
     }
@@ -304,6 +337,7 @@ export function RosterPicker(): ReactElement {
           description: "",
           anchorPersonaId: active.detail.anchorPersonaId,
           groupConfig: active.detail.group,
+          game,
           members: seats.map((seat, index) => ({
             kind: "character" as const,
             characterId: seat.characterId,
@@ -380,7 +414,9 @@ export function RosterPicker(): ReactElement {
           ))}
         </Stack>
       )}
-      {active?.isHost === true ? <SaveCurrentRoster busy={busy} capture={ruleCapture} presetOf={catalogue.presetOf} onSave={onSave} /> : null}
+      {active?.isHost === true ? (
+        <SaveCurrentRoster busy={busy} capture={ruleCapture} game={gameCapture} presetOf={catalogue.presetOf} onSave={onSave} />
+      ) : null}
       <ConfirmDialog
         open={confirmDelete !== null}
         onOpenChange={(open): void => {

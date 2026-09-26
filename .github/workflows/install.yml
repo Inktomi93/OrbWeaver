@@ -66,11 +66,16 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           pnpm start < /dev/null > "$RUNNER_TEMP/start.log" 2>&1 &
+          start_pid=$!
+          # The server logs to this same output (pnpm start runs it in the foreground), so start.log is the whole story.
+          show_log() { echo "--- start.log"; cat "$RUNNER_TEMP/start.log"; }
+          # Measured cold: 31 s to 50 s from here to /healthz on these runners, the client build 25 s to 38 s of it.
           for _ in $(seq 1 120); do
             if curl -fsS "$HEALTHZ" > /dev/null 2>&1; then break; fi
+            if ! kill -0 "$start_pid" 2> /dev/null; then echo "pnpm start exited before /healthz answered"; show_log; exit 1; fi
             sleep 5
           done
-          curl -fsS "$HEALTHZ"
+          if ! curl -fsS "$HEALTHZ"; then echo "the server never answered /healthz"; show_log; exit 1; fi
           echo
           # Newest match: pnpm may run the script through `sh -c`, whose command line matches too.
           supervisor=$(pgrep -n -f "tooling/src/stack/cli.ts start")
@@ -93,15 +98,30 @@ jobs:
             -RedirectStandardInput $noInput `
             -RedirectStandardOutput (Join-Path $env:RUNNER_TEMP "start.log") `
             -RedirectStandardError (Join-Path $env:RUNNER_TEMP "start.err.log")
+          # The server logs to this same output (start.cmd runs pnpm start in the foreground), so these two are the whole story.
+          function Show-StartLog {
+            foreach ($name in "start.log", "start.err.log") {
+              Write-Host "--- $name"
+              Get-Content (Join-Path $env:RUNNER_TEMP $name) -ErrorAction Continue
+            }
+          }
+          # Measured cold on the POSIX runners: 31 s to 50 s to /healthz, the client build 25 s to 38 s of it.
           $up = $false
           for ($i = 0; $i -lt 120 -and -not $up; $i++) {
+            if ($start.HasExited) {
+              Show-StartLog
+              throw "start.cmd exited with code $($start.ExitCode) before /healthz answered"
+            }
             try {
               $up = (Invoke-WebRequest $env:HEALTHZ -UseBasicParsing -TimeoutSec 5).StatusCode -eq 200
             } catch {
               Start-Sleep -Seconds 5
             }
           }
-          if (-not $up) { throw "the server never answered /healthz" }
+          if (-not $up) {
+            Show-StartLog
+            throw "the server never answered /healthz"
+          }
           # No console Ctrl-C can reach a process started from a runner step, so the stop is a tree kill.
           taskkill /PID $start.Id /T /F
           Start-Sleep -Seconds 3

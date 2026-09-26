@@ -204,7 +204,7 @@ export function rowsFromExtras(extras: Readonly<Record<string, unknown>> | null,
 
 // ── the Diagnostics tier: the private-endpoint admission affordance ────────────────────────────────────
 
-/** The host the `modelListed` sentence names — the endpoint's own host for a self-hosted row, the provider's
+/** The host the unlisted-model sentence names — the endpoint's own host for a self-hosted row, the provider's
  *  LABEL for a hosted one (a user has no URL to recognise there, and "api.openai.com" is not the noun they
  *  picked). Distinct from {@link endpointHostOf}, which answers a NETWORK question and must never fall back
  *  to a label. */

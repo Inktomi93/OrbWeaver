@@ -259,3 +259,55 @@ test("the editor column is CENTERED, capped, and BREATHES past @5xl (#1664)", as
   expect(wide.columnWidth).toBeCloseTo(wide.widePx, 0);
   expect(Math.abs(wide.leftGutter - wide.rightGutter)).toBeLessThanOrEqual(1);
 });
+
+// ── The campaign toggle (D264) ─────────────────────────────────────────────────────────────────────────
+// It writes `game` straight through the update verb, and the update's response seeds the editor's own read,
+// so the next Start reads the cleared roster without waiting for the bus.
+
+const CAMPAIGN_VIEW: TrpcWireOutput<"rosterPreset.get"> = { ...ROSTER_VIEW, game: { ruleset: "d20" } };
+
+test("a campaign roster's toggle is on and names its ruleset", async ({ mount, page }) => {
+  await routeTrpc(page, { "rosterPreset.get": CAMPAIGN_VIEW, "automation.listRulePresets": [PACING_PRESET] });
+
+  await mount(<RosterMemberEditorStory />);
+
+  await expect(page.getByRole("switch", { name: "RPG campaign" })).toBeChecked();
+  await expect(page.getByText("Ruleset: D20")).toBeVisible();
+});
+
+test("turning the campaign toggle off clears the template, and the next Start starts a plain chat", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "rosterPreset.get": CAMPAIGN_VIEW,
+    "automation.listRulePresets": [PACING_PRESET],
+    "rosterPreset.update": ROSTER_VIEW,
+    "chat.startChat": { chat: { id: "chat_started_ct", viewerIsHost: true, participants: [] } },
+    "rosterPreset.applyToChat": {
+      added: [],
+      alreadyPresent: ["character_ct_1", "character_ct_2"],
+      skipped: [],
+      configApplied: false,
+      rulesMinted: [],
+      rulesAlreadyPresent: [],
+      rulesSkipped: [],
+    },
+  });
+
+  await mount(<RosterMemberEditorStory />);
+  const toggle = page.getByRole("switch", { name: "RPG campaign" });
+  await toggle.click();
+
+  await expect
+    .poll(() => trpc.lastInput("rosterPreset.update"))
+    .toMatchObject({ presetId: "roster_preset_ct_a", input: { name: "Adventuring Roster", game: null } });
+  await expect(toggle).not.toBeChecked();
+  await expect(page.getByText("Ruleset: D20")).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Start chat", exact: true }).click();
+  await expect
+    .poll(() => trpc.lastInput("chat.startChat"))
+    .toEqual({
+      characterIds: ["character_ct_1", "character_ct_2"],
+      anchorPersonaId: null,
+      title: "Adventuring Roster",
+    });
+});

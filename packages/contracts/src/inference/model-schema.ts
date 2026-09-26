@@ -2,7 +2,7 @@
 // Catalog rows are an open discovery aid: endpoint connections deliberately support a typed fallback when
 // discovery fails or returns no rows. The trust-boundary invariant is therefore exactly normalized,
 // non-empty text, branded only after this parser succeeds. Membership in a catalog is evidence
-// (`user_connections.model_listed`), never validity; inventing a closed model registry would reject the
+// (`user_connections.model_check`), never validity; inventing a closed model registry would reject the
 // supported fallback and every model a plugin or endpoint learns after startup.
 
 import type { ModelId } from "@orb/kit/ids";

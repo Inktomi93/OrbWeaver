@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "1d3d44dd-77f1-493a-adda-c4af6fe20e60",
+  "id": "74968edb-294d-4631-a31c-4e05b72da00d",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -3141,13 +3141,13 @@
           "notNull": false,
           "autoincrement": false
         },
-        "model_listed": {
-          "name": "model_listed",
-          "type": "integer",
+        "model_check": {
+          "name": "model_check",
+          "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": true
+          "default": "'unchecked'"
         },
         "allow_background": {
           "name": "allow_background",
@@ -3235,6 +3235,10 @@
         "user_connections_api_check": {
           "name": "user_connections_api_check",
           "value": "api in ('chat-completions', 'agent-sdk', 'anthropic-messages', 'auto')"
+        },
+        "user_connections_model_check_check": {
+          "name": "user_connections_model_check_check",
+          "value": "model_check in ('listed', 'unlisted', 'unchecked')"
         }
       }
     },

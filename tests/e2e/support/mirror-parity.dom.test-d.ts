@@ -435,7 +435,7 @@ test("the connection + Model-roles mirrors track `@orb/contracts/inference`", ()
   pin<Subset<Exclude<keyof UserConnection, keyof NewConnection>>>(keys<NewConnection, UserConnection>());
   expectTypeOf<Total<UserConnection>["baseUrl"]>().toExtend<Total<NewConnection>["baseUrl"]>();
   expectTypeOf<Total<UserConnection>["credentialId"]>().toExtend<Total<NewConnection>["credentialId"]>();
-  expectTypeOf<Total<UserConnection>["modelListed"]>().toExtend<Total<NewConnection>["modelListed"]>();
+  expectTypeOf<Total<UserConnection>["modelCheck"]>().toExtend<Total<NewConnection>["modelCheck"]>();
   expectTypeOf<Total<UserConnection>["allowBackground"]>().toExtend<Total<NewConnection>["allowBackground"]>();
 
   // `TaskBinding.binding` mirrors the ROW (`ConnectionBinding`) and `.resolved` the persisted-resolve view.

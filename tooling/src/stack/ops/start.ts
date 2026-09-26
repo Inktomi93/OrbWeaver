@@ -47,7 +47,7 @@ import { CLIENT_DIST_INDEX_REL } from "../lib/spawn-plan.ts";
 import { healthzUrl } from "../lib/stack-plan.ts";
 import { decideStartBuild, parseStartArgv, START_USAGE, shareLaunchRefusal, startBannerLines, startBrowser, startLaunch } from "../lib/start-plan.ts";
 import { superviseStart } from "../lib/supervisor.ts";
-import { AMBIENT, ENV_FILE_PATH, LOG_PATH, readEnvFile, resolvePort } from "./prod-state.ts";
+import { AMBIENT, ENV_FILE_PATH, LOG_PATH, MS_PER_SECOND, readEnvFile, resolvePort } from "./prod-state.ts";
 import { distVerdict } from "./prod-support.ts";
 import { runSetup } from "./setup.ts";
 
@@ -73,7 +73,11 @@ function runBuild(): number | null {
     warn(`start: ${pnpm.reason}`);
     return EXIT.toolError;
   }
+  // Timestamped at both ends, so a slow first build reads as progress rather than a hang.
+  const started = Date.now();
+  log(`client build started at ${new Date(started).toISOString()}`);
   const res = spawnFullPrioritySync(pnpm.command, [...pnpm.args], { cwd: REPO_ROOT, stdio: "inherit" });
+  log(`client build ended at ${new Date().toISOString()} after ${((Date.now() - started) / MS_PER_SECOND).toFixed(1)} s`);
   if (res.status !== 0) {
     warn("start: the build FAILED — nothing was started. Fix the build output above and re-run `pnpm start`.");
     return EXIT.violations;

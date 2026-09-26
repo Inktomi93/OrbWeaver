@@ -81,7 +81,7 @@ function connectionRow(over: Partial<ConnectionRow>): ConnectionRow {
     declared: null,
     extras: null,
     transport: null,
-    modelListed: true,
+    modelCheck: "listed",
     allowBackground: true,
     promptCache: null,
     tasks: ["chat"],
@@ -246,6 +246,30 @@ test("a connection row speaks in Model roles and carries the exact bulk/backgrou
   await expect(section.getByRole("switch", { name: switchName, exact: true })).toBeChecked();
   await expect(section.getByText("Allow background work", { exact: true })).toBeVisible();
   await expect(section.getByText(switchName, { exact: true })).toHaveCount(0);
+});
+
+// The badge reports a list read that did not carry the model. A row no list has answered for yet, such as a
+// fresh connection, has nothing to report.
+test("a fresh connection and a listed one carry no model-not-in-list badge", async ({ mount, page }) => {
+  await stubPane(page, {
+    connections: [
+      connectionRow({ id: "user_connection_ctcheck00001", label: "Fresh", modelCheck: "unchecked" }),
+      connectionRow({ id: "user_connection_ctcheck00002", label: "Listed", modelCheck: "listed" }),
+    ],
+  });
+  await mount(<ConnectionsSettingsStory />);
+
+  const section = page.locator("#config-anchor-connections-connections");
+  // Both rows rendered, so the absent badge is an answer and not an empty list.
+  await expect(section.getByRole("switch")).toHaveCount(2);
+  await expect(section.getByText("Model not in list", { exact: true })).toHaveCount(0);
+});
+
+test("a model a list read did not carry is badged", async ({ mount, page }) => {
+  await stubPane(page, { connections: [connectionRow({ modelCheck: "unlisted" })] });
+  await mount(<ConnectionsSettingsStory />);
+
+  await expect(page.locator("#config-anchor-connections-connections").getByText("Model not in list", { exact: true })).toBeVisible();
 });
 
 // THE THREE NO-DEFAULTS ACTIONS LIVE IN A MENU, not on the row. The sweep writes up to six bindings in one

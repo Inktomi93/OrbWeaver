@@ -170,7 +170,7 @@ export const E2E_LOCAL_ENGINE_PROVIDER = "vllm";
 export const E2E_LOCAL_ENGINE_LABEL = "e2e local engine";
 
 /** The model id written when the engine's own `/v1/models` answers nothing (no engine running). The row is
- *  then saved `modelListed: false` — the product's own typed-id fallback (§7.4), not a fabrication: the
+ *  then saved `unchecked` — the product's own typed-id fallback (§7.4), not a fabrication: the
  *  non-live suite is model-free and only needs the row + binding to EXIST. The id is the operator's
  *  default gen model; the launcher that serves it lives outside this repo. */
 export const E2E_LOCAL_ENGINE_FALLBACK_MODEL = "Qwen/Qwen3-VL-8B-Instruct";
