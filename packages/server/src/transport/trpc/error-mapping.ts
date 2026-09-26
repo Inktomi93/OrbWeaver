@@ -146,7 +146,11 @@ function providerWireArm(kind: ProviderErrorKind): ProviderWireArm {
     case "server":
       return { code: "SERVICE_UNAVAILABLE", copy: "The provider failed to answer. Try again in a moment." };
     case "max_output":
-      return { code: "BAD_REQUEST", copy: "The request asked for more output than this model will produce." };
+      // Only a capped reply with no text fails: one that wrote text returns truncated. So the cap went to thinking.
+      return {
+        code: "BAD_REQUEST",
+        copy: "The model used its whole output cap on thinking and wrote no reply. Raise Max output tokens in the preset, then try again.",
+      };
     case "aborted":
     case "unknown":
       return UNCLASSIFIED;

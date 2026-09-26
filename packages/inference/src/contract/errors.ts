@@ -34,6 +34,7 @@ export const PROVIDER_ERROR_KINDS = [
   "invalid",
   "model_unavailable",
   "server",
+  // The reply reached its output cap before writing any text; a capped reply WITH text is returned truncated.
   "max_output",
   "aborted",
   "unknown",
