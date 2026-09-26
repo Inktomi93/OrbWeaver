@@ -1,8 +1,8 @@
-# ── overlay: a Cloudflare Tunnel in front, as a sidecar ─────────────────────────────────────────────
+# ── overlay: a named Cloudflare Tunnel on your own hostname, in its own container ───────────────────
 #
 #   CLOUDFLARE_TUNNEL_TOKEN=<your tunnel token> docker compose -f docker-compose.yaml -f docker/compose.cloudflared.yaml up -d --build
 #
-# The sidecar dials OUT to Cloudflare; nothing is published and no router port is opened. In the Cloudflare
+# The tunnel dials OUT to Cloudflare; nothing is published and no router port is opened. In the Cloudflare
 # dashboard (Zero Trust → Networks → Tunnels) create a tunnel, copy its token, and add a public hostname whose
 # service is http://orbweaver:8788 — the compose service name on this project's network.
 #
@@ -13,8 +13,9 @@
 # "From the internet: a tunnel".
 #
 # NEEDS THE HOSTNAME ALLOWED. The app refuses a name it does not know. In the same environment: block set
-# ALLOWED_HOSTS: <the public hostname> (a quick tunnel: its exact <random>.trycloudflare.com name). Use a dot-led
-# suffix only for a domain whose DNS you control.
+# ALLOWED_HOSTS: <the public hostname>. Use a dot-led suffix only for a domain whose DNS you control.
+#
+# For a one-press link with no account, use the Share card instead (docker/README.md, "Share with one press").
 #
 # The token rides in the environment, so `docker inspect` shows it. To keep it in a file, mount one and set
 # TUNNEL_TOKEN_FILE instead (cloudflared reads either).

@@ -1,7 +1,8 @@
 ---
 kind: adr
-status: active
-updated: 2026-09-24
+status: superseded
+updated: 2026-09-26
+superseded-by: docs/adr/0267-pre-commit-runs-the-static-tier-over-the-staged-change.md
 ---
 
 # Pre-commit runs the static tier over the working change

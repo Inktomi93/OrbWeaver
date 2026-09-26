@@ -149,19 +149,27 @@ out from this machine and terminates TLS for you. Every tunnelled request carrie
 single-user is never the owner through one. Switch to a login first with the `environment:`
 lines from step 1 of "LAN and HTTPS", but keep `ORB_BIND` on `127.0.0.1`: the tunnel does not need the port.
 
-### Cloudflare Tunnel, as a sidecar
+### Share with one press
+
+Switch to `AUTH_MODE: local` (step 1 of "LAN and HTTPS"), sign in as the owner, and press **Start sharing** in
+Admin → Multi-user. The first share downloads the pinned `cloudflared` release, checks its sha256 and keeps it
+in `cache/relay/` in the data volume, so later shares download nothing. The container needs outbound HTTPS to
+`github.com` for that one download. The link is a random `trycloudflare.com` name that changes on every start,
+and a container restart ends the share. Nothing else to run: no second container and no `ALLOWED_HOSTS` entry.
+
+### A lasting address: Cloudflare Tunnel on your own hostname
 
 1. In the Cloudflare dashboard (Zero Trust → Networks → Tunnels), create a tunnel and copy its token.
 2. Add a public hostname to the tunnel whose service is `http://orbweaver:8788`, and allow that hostname:
-   `ALLOWED_HOSTS: <the public hostname>` in the `environment:` block. For a quick tunnel, add its exact
-   `<random>.trycloudflare.com` name. Use a dot-led suffix only for a domain whose DNS you control.
-3. Start the app with the sidecar overlay:
+   `ALLOWED_HOSTS: <the public hostname>` in the `environment:` block. Use a dot-led suffix only for a domain
+   whose DNS you control.
+3. Start the app with the tunnel overlay, which runs `cloudflared` as a second container:
 
 ```sh
 CLOUDFLARE_TUNNEL_TOKEN=<token> docker compose -f docker-compose.yaml -f docker/compose.cloudflared.yaml up -d --build
 ```
 
-The sidecar sends `X-Forwarded-Proto: https` from its address on this project's network, so the session
+The tunnel container sends `X-Forwarded-Proto: https` from its address on this project's network, so the session
 cookie is `Secure`. The token rides in the environment; the overlay's header shows how to keep it in a file.
 Cloudflare Access in front is optional and adds its own login before the app's.
 
@@ -201,7 +209,8 @@ project's network (`docker network inspect orbweaver_default`), or `127.0.0.1/32
 - `orbweaver-data` (named volume) → `/app/data`, laid out as `db/` (the sqlite database plus `-wal`/`-shm`),
   `backups/` (the pre-migration copies), `assets/` (uploaded and seeded blobs), `users/` (per-user runtime
   state), `secrets/` (the generated session secret, first password and credentials key), `reports/` (import
-  reports) and `cache/` (everything the app regenerates: model weights, image variants, import staging).
+  reports) and `cache/` (everything the app regenerates: model weights, image variants, import staging, the
+  share relay).
   **Backup = this volume minus `cache/`.** Losing `secrets/credentials_key` makes every stored provider key
   unreadable, and losing `secrets/session_secret` invalidates every local password and sign-in (the same
   blast radius as losing the database); a boot that finds either file missing while the database still

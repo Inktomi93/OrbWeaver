@@ -487,7 +487,7 @@ Change `ctWorkers` and every dependent ceiling moves with it. The runner still p
 **The tiers ARE the hook wiring (§3):** "run everything" is a named tier, not a folklore N-command pipe
 (`lefthook.yml`).
 
-- **pre-commit and pre-merge-commit → `pnpm verify --static --changed`.** A type, lint, boundary or file-local structure red in the change ⇒ cannot commit (§4.3).
+- **pre-commit and pre-merge-commit → `pnpm verify --static --changed staged`.** A type, lint, boundary or file-local structure red in the staged change ⇒ cannot commit (§4.3).
 - **pre-push → `pnpm verify --push`.** ONE command, ONE summary, ONE exit, ONE json. Its membership comes
   from the registry; it replaces a piped multi-command sequence with run-all-report-all and a max-severity exit.
 - **CI → `pnpm verify --full`** (`.github/workflows/ci.yml`), `workflow_dispatch`-only — the hooks are the
@@ -495,7 +495,8 @@ Change `ctWorkers` and every dependent ceiling moves with it. The runner still p
 
 ### 4.3 Scoped static at commit
 
-Pre-commit runs the static-tier stages over the working change, not the whole tree (D223). `--changed`
+Pre-commit runs the static-tier stages over the staged change, not the whole tree (D267): `--changed staged`
+selects the index against `HEAD`, so an unstaged or untracked file stays out of the commit's scope. `--changed`
 beside an explicit tier is only the selector, so the related tests of the `changed` tier stay out of the
 commit gate. A scoped run takes no host-wide whole-run slot, so a commit never waits behind another
 checkout's run.

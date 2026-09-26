@@ -61,6 +61,7 @@ A device on your network signs in over plain http, so the password and the sessi
 ### Share over the internet
 
 - `pnpm share` runs one launch with a password login and a public link, which the log prints. The server downloads a pinned `cloudflared` on the first share. `.env` is not changed.
+- In Docker, or once the app runs in the local sign-in mode, the owner presses Start sharing in Admin → Multi-user. It downloads the same pinned `cloudflared` into `data/cache/relay/`.
 - For a lasting address, run a tunnel: `tailscale serve --bg 8788`, or `cloudflared tunnel run --token <token>` with a public hostname whose service is `http://localhost:8788`. The recipes are in [`docker/README.md`](docker/README.md).
 - Never forward a router port. Never put a proxy or tunnel in front of "just me": a relayed request is never the owner, so it answers 401.
 
