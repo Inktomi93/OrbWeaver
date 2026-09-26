@@ -11,7 +11,7 @@ import type { CueReplay, DeliveredCue } from "../contract/results.ts";
  *  turns' thinking, and on a prefix-bound model that thinking is valid only while every row before it is
  *  unchanged, so the cue each reply followed must come back byte for byte (OR-10, `scripts/probes/openrouter/RESULTS.md`).
  *  `tool-chain` replays inside one turn, whose history still holds its cue. Continue and impersonate nudges stay
- *  outside until a probe measures them (`docs/work/0154-keep-carried-thinking-valid-on-models-that-bind.md`).
+ *  outside until a probe measures them (D262).
  *  `loadCues` is read only when a replay applies. */
 export async function cueReplayFor(
   capability: GenerationCapability,
