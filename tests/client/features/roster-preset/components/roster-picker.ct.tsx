@@ -478,3 +478,45 @@ test("saving from a plain room offers no campaign toggle and saves no game", asy
 
   await expect.poll(() => trpc.lastInput("rosterPreset.create")).toMatchObject({ input: { name: "Fresh roster", game: null } });
 });
+
+test("a failed game read says so with a Retry, and the roster still saves, without a game", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "rosterPreset.list": [],
+    "chat.getChat": { ...HOST_CHAT, rpg: { gameId: "rpg_game_ct", engaged: true } },
+    "automation.listRules": [],
+    "automation.listRulePresets": [PACING_PRESET],
+    "rpg.getGame": trpcError({ message: "scripted getGame failure" }),
+    "rosterPreset.create": savedView(null),
+  });
+
+  await mount(<RosterPickerHostStory />);
+  await expect(page.getByText("Couldn't load this room's game.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Retry" })).toBeVisible();
+  // The toggle stays visible, off and unavailable, and says why.
+  const toggle = page.getByRole("switch", { name: "Start new chats as an RPG campaign" });
+  await expect(toggle).toBeDisabled();
+  await expect(toggle).not.toBeChecked();
+  await expect(page.getByText("This roster saves without a game.")).toBeVisible();
+  await page.getByRole("textbox", { name: "New roster name" }).fill("Fresh roster");
+  await page.getByRole("button", { name: "Save this room's roster" }).click();
+
+  await expect.poll(() => trpc.lastInput("rosterPreset.create")).toMatchObject({ input: { name: "Fresh roster", game: null } });
+});
+
+test("Retry after a failed game read restores the campaign toggle with the room's ruleset", async ({ mount, page }) => {
+  let attempts = 0;
+  await routeTrpc(page, {
+    "rosterPreset.list": [],
+    "chat.getChat": { ...HOST_CHAT, rpg: { gameId: "rpg_game_ct", engaged: true } },
+    "automation.listRules": [],
+    "automation.listRulePresets": [PACING_PRESET],
+    "rpg.getGame": () => (attempts++ === 0 ? trpcError({ message: "scripted getGame failure" }) : { publicConfig: { ruleset: "d20" } }),
+  });
+
+  await mount(<RosterPickerHostStory />);
+  await page.getByRole("button", { name: "Retry" }).click();
+
+  await expect(page.getByRole("switch", { name: "Start new chats as an RPG campaign" })).toBeChecked();
+  await expect(page.getByText("Ruleset: D20")).toBeVisible();
+  await expect(page.getByText("Couldn't load this room's game.")).toHaveCount(0);
+});

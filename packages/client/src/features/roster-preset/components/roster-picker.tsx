@@ -34,7 +34,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { ConfirmDialog, SettingSwitchRow } from "#components";
-import { useInvalidation, useTRPC } from "#data";
+import { QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import { closeModal, openModal } from "#state";
 import { useApplyRosterPreset, useCreateRosterPreset, useRemoveRosterPreset } from "../hooks/use-roster-preset-mutations.ts";
@@ -244,12 +244,25 @@ function SaveCurrentRoster(props: {
       {game.status === "none" ? null : (
         // Its own container, so the row stacks when the dialog is narrow instead of crushing the label.
         <Stack className="@container">
-          <SettingSwitchRow
-            checked={campaign}
-            description={game.status === "ready" ? rulesetLine(game.template) : "Checking this room's game…"}
-            label="Start new chats as an RPG campaign"
-            onChange={setCampaign}
-          />
+          {game.status === "error" ? (
+            <Stack gap="tight">
+              <SettingSwitchRow
+                checked={false}
+                disabled={true}
+                disabledReason="This roster saves without a game."
+                label="Start new chats as an RPG campaign"
+                onChange={setCampaign}
+              />
+              <QueryErrorState label="this room's game" onRetry={game.retry} />
+            </Stack>
+          ) : (
+            <SettingSwitchRow
+              checked={campaign}
+              description={game.status === "ready" ? rulesetLine(game.template) : "Checking this room's game…"}
+              label="Start new chats as an RPG campaign"
+              onChange={setCampaign}
+            />
+          )}
         </Stack>
       )}
     </Stack>

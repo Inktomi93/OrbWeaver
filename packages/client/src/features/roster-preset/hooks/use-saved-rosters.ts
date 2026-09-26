@@ -129,8 +129,13 @@ export function useRosterRuleCapture(active: ActiveRosterChat | null): RosterRul
 }
 
 /** The open HOST room's game as "Save this room's roster" captures it (D264): `none` for a room without a game
- *  (nothing to offer), `loading` while the ruleset is read, and `ready` with the template the roster stores. */
-type RoomGameCapture = { readonly status: "none" } | { readonly status: "loading" } | { readonly status: "ready"; readonly template: RpgGameTemplate };
+ *  (nothing to offer), `loading` while the ruleset is read, `error` with a retry when the read failed, and
+ *  `ready` with the template the roster stores. */
+type RoomGameCapture =
+  | { readonly status: "none" }
+  | { readonly status: "loading" }
+  | { readonly status: "error"; readonly retry: () => void }
+  | { readonly status: "ready"; readonly template: RpgGameTemplate };
 
 export function useRoomGameCapture(active: ActiveRosterChat | null): RoomGameCapture {
   const trpc = useTRPC();
@@ -138,6 +143,15 @@ export function useRoomGameCapture(active: ActiveRosterChat | null): RoomGameCap
   const gameQuery = useQuery(trpc.rpg.getGame.queryOptions(gameChatId === null ? skipToken : { chatId: gameChatId }));
   if (gameChatId === null) {
     return { status: "none" };
+  }
+  // A failed read must not hold Save forever: the error case lets the roster save without a game.
+  if (gameQuery.isError) {
+    return {
+      status: "error",
+      retry: (): void => {
+        gameQuery.refetch().catch(() => undefined); // the query's own error state carries the failure
+      },
+    };
   }
   if (gameQuery.data === undefined) {
     return { status: "loading" };
