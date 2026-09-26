@@ -17,21 +17,37 @@ export type SeedManifestItem =
   /** The default `{{user}}` persona. Only an automation-started stack receives it; a person names their own
    *  persona in the first-run step (D263), so the item stays unrecorded on their account. */
   | { readonly kind: "persona"; readonly key: string }
-  /** A roster preset over seeded characters, which starts a chat in one action. */
+  /** A roster preset over seeded characters, which starts a chat in one action. `startsGame` makes that start
+   *  a game too: the seeder stores rpg's default game template on the preset (D264). */
   | {
       readonly kind: "rosterPreset";
       readonly key: string;
       readonly name: string;
       readonly description: string;
       readonly characters: readonly CharacterHandle[];
+      readonly startsGame: boolean;
     };
 
 function character(handle: string): SeedManifestItem {
   return { kind: "character", key: `character:${handle}`, handle: castId<CharacterHandle>(handle) };
 }
 
-function roster(slug: string, name: string, description: string, handles: readonly string[]): SeedManifestItem {
-  return { kind: "rosterPreset", key: `roster:${slug}`, name, description, characters: handles.map((handle) => castId<CharacterHandle>(handle)) };
+type RosterItem = Extract<SeedManifestItem, { readonly kind: "rosterPreset" }>;
+
+function roster(slug: string, name: string, description: string, handles: readonly string[]): RosterItem {
+  return {
+    kind: "rosterPreset",
+    key: `roster:${slug}`,
+    name,
+    description,
+    characters: handles.map((handle) => castId<CharacterHandle>(handle)),
+    startsGame: false,
+  };
+}
+
+/** A roster whose start is an RPG campaign: the room is born with its game. */
+function campaign(slug: string, name: string, description: string, handles: readonly string[]): RosterItem {
+  return { ...roster(slug, name, description, handles), startsGame: true };
 }
 
 /** Every seeded item, in seed order: characters before the roster presets that seat them. */
@@ -50,4 +66,10 @@ export const SEED_MANIFEST: readonly SeedManifestItem[] = [
   roster("ashen-spire", "The Ashen Spire", "A dark lady, the knight she hired, and a sword with opinions.", ["morgatha", "sabine", "calamity"]),
   roster("midnight-run", "Midnight Run", "Two night owls, one convenience store, and a cursed apartment.", ["niko", "kohaku"]),
   roster("second-opinion", "Second Opinion", "Charlotte drafts it, JFC tears it down.", ["assistant", "jfc-coder"]),
+  campaign(
+    "storm-the-spire",
+    "Storm the Spire",
+    "An RPG campaign: you and a sellsword knight take the contract on the Ashen Spire, and its undying queen is expecting you.",
+    ["sabine", "morgatha"],
+  ),
 ];

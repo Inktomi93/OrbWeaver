@@ -39,6 +39,9 @@ export function rosterScent(roster: RosterPresetSummary): string {
   if (roster.rules.length > 0) {
     parts.push(`${String(roster.rules.length)} rule${roster.rules.length === 1 ? "" : "s"}`);
   }
+  if (roster.game !== null) {
+    parts.push("game");
+  }
   const names = roster.members.map((member) => member.name).join(", ");
   if (names !== "") {
     parts.push(names);

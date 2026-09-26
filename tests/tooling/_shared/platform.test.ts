@@ -2,6 +2,8 @@
 // it would run on darwin and win32 and the output that tool documents, so a wrong flag or a wrong column is
 // a red here rather than on a machine nobody has. The Linux branch reads a planted `/proc`.
 
+import { vi } from "vitest";
+import type { OpenerChild } from "../../../tooling/src/_shared/platform.ts";
 import {
   establishedConnections,
   isWsl2,
@@ -148,22 +150,35 @@ test("isWsl2 reads /proc/version on Linux only", () => {
   expect(isWsl2({ platform: "win32", ...wsl }), "no /proc/version is read off Linux").toBe(false);
 });
 
-test("openUrl launches the platform's opener detached and releases it at once", () => {
+test("openUrl launches the platform's opener, releases it at once and reports how it ended", async () => {
   const launched: string[] = [];
   let released = 0;
-  const launch = (cmd: string, args: readonly string[]): { readonly unref: () => void } => {
+  const launch = (cmd: string, args: readonly string[]): OpenerChild => {
     launched.push([cmd, ...args].join(" "));
     return {
       unref: (): void => {
         released += 1;
       },
+      wait: async () => await Promise.resolve({ code: 0, signal: null, error: undefined }),
     };
   };
-  openUrl("http://localhost:8788", { platform: "linux", launch });
-  openUrl("http://localhost:8788", { platform: "darwin", launch });
-  openUrl("http://localhost:8788", { platform: "win32", launch });
+  expect(await openUrl("http://localhost:8788", { platform: "linux", launch })).toBeUndefined();
+  expect(await openUrl("http://localhost:8788", { platform: "darwin", launch })).toBeUndefined();
+  expect(await openUrl("http://localhost:8788", { platform: "win32", launch })).toBeUndefined();
   expect(launched).toEqual(["xdg-open http://localhost:8788", "open http://localhost:8788", "cmd.exe /c start  http://localhost:8788"]);
   expect(released).toBe(3);
+});
+
+// A box with no desktop has no opener at all. Through the default launcher that is an answer, never an uncaught
+// `error` event: the caller is a foreground server launcher, and a crash there stops the server a person is using.
+test("openUrl's default launcher answers a missing opener with its error instead of crashing", async ({ scratch }) => {
+  vi.stubEnv("PATH", scratch);
+  try {
+    const error = await openUrl("http://localhost:8788", { platform: "linux" });
+    expect(error?.message).toContain("ENOENT");
+  } finally {
+    vi.unstubAllEnvs();
+  }
 });
 
 test("pnpmInvocation runs pnpm's own JS entry under every platform, falls back to PATH on POSIX, and refuses on win32", () => {

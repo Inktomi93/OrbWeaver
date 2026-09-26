@@ -13,7 +13,7 @@ import { pathToFileURL } from "node:url";
 import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import { HOST_POOL_ROOT_ENV } from "@orb/tooling/_shared/host-slots";
 import { spawnNiced, spawnNicedTranscript } from "@orb/tooling/_shared/proc";
-import { vi } from "vitest";
+import { beforeAll, vi } from "vitest";
 import YAML from "yaml";
 import type { StageDef, StageResult, VerifyReport } from "../../../../tooling/src/verify/index.ts";
 import {
@@ -44,6 +44,14 @@ import { enterWholeRunQueue } from "../../../../tooling/src/verify/lib/whole-run
 import { nonRunningStageResult, planStage } from "../../../../tooling/src/verify/ops/run.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+
+// The selection cases' cold compiler snapshot (one native TS7 closure read per program) is paid here, once per file,
+// never inside a case's budget: which case would pay it depends on the `-t` filter, and it stretches far more under lane
+// load than any case's own planning. MEASURED: about 10 s at per-core load 0.5, and 78 s to 86 s beside three whole
+// typechecks at per-core load 1.0. The hook base is twice the loaded reading.
+beforeAll(() => {
+  resolveSelection({ kind: "file", paths: ["packages/kit/src/ids/index.ts"] });
+}, scaledBudget(180_000));
 
 /** A parse result that IS a misuse error (what main() maps to exit 3). */
 function isMisuse(argv: readonly string[]): boolean {
@@ -588,6 +596,9 @@ test("public command families keep one canonical front door", () => {
 
 // ── V2 scope propagation (§3.4) — the ONE selection resolver feeds every stage's scopedArgv ──
 const AFFECTED_PLAN_TIMEOUT = scaledBudget(20_000);
+// The path-trigger case plans nine selections on the warm snapshot. MEASURED: 11.1 s at per-core load 0.5, and 9.1 s to
+// 21.6 s beside three whole typechecks. The base is twice the worst loaded reading.
+const PATH_TRIGGER_TIMEOUT = scaledBudget(45_000);
 
 test(
   "resolveSelection --file: derives the per-tool views (eslint surface, tsc owner, depcruise, docs)",
@@ -605,8 +616,7 @@ test(
     // A docs file is NOT in the eslint/tsc/depcruise surfaces.
     expect(sel.eslintPaths).not.toContain("docs/law/Constitution.md");
   },
-  // Affected planning asks native TS7 for every program closure on a cold snapshot. The first selection in
-  // a process pays that startup; later selections reuse the content-keyed membership snapshot. Spelled
+  // Affected planning reuses the content-keyed membership snapshot the file's `beforeAll` reads cold. Spelled
   // `scaledBudget` from the vitest seam like the other ~70 suites: identical arithmetic over the same
   // policy, and the seam is also the door that refuses a mis-spelled `ORB_BOX_LOAD` in a worker (#1666).
   scaledBudget(20_000),
@@ -827,8 +837,10 @@ test("types:native per --package runs every imported consumer exactly once", { t
 // their measured cost admits running them for every non-empty changed selection.
 
 test("#2277 — a path-triggered stage runs its WHOLE argv or nothing: the no-honest-scoped-form ruling, pinned directly", {
-  timeout: AFFECTED_PLAN_TIMEOUT,
+  timeout: PATH_TRIGGER_TIMEOUT,
 }, () => {
+  // One untouched selection serves every stage's negative direction: the selection does not depend on the stage.
+  const miss = resolveSelection({ kind: "file", paths: ["README.md"] });
   // Each pair is [stage, a path that MUST trigger it] — taken from the trigger table's stated subject.
   for (const [name, triggering] of [
     // The whole-tree ownership reconciliation over every type program.
@@ -853,7 +865,6 @@ test("#2277 — a path-triggered stage runs its WHOLE argv or nothing: the no-ho
     expect(row.scopedArgv?.(hit), `${name}: a triggered run is the WHOLE command, never a narrowed fileset`).toEqual(row.argv);
     // AND THE NEGATIVE DIRECTION, without which the arm above would pass against a trigger that matched
     // everything — which is the shape that would quietly put all eight on every scoped run.
-    const miss = resolveSelection({ kind: "file", paths: ["README.md"] });
     expect(row.scopedArgv?.(miss), `${name}: an untouched subject is not owed`).toBe("skip-empty");
   }
 });

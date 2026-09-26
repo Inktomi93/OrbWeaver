@@ -30,7 +30,7 @@ import { chatDocumentVisibilitySchema } from "@orb/contracts/databank";
 
 import { generatePictureRequestSchema } from "@orb/contracts/imagery";
 import { choiceBlockValuesSchema, userIntentSchema, userMacroValuesSchema } from "@orb/contracts/preset";
-import { rpgRulesetSchema } from "@orb/contracts/rpg";
+import { rpgGameTemplateSchema } from "@orb/contracts/rpg";
 import { themeBackgroundSchema } from "@orb/contracts/theme";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { TrackedEnvelope } from "@trpc/server";
@@ -61,7 +61,7 @@ const startChatSchema = z.object({
   temporary: z.boolean().optional(),
   // #40 DRAFT-TIME game start — mints the lite game right after chat creation, BEFORE the opening turn
   // (turn 1 in-game). `ruleset` rides rpg's own setting schema (the trust boundary); omit = `freeform`.
-  startAsGame: z.object({ ruleset: rpgRulesetSchema.optional() }).optional(),
+  startAsGame: rpgGameTemplateSchema.optional(),
 });
 
 // `getMemberCard` (D22) — read ONE roster character's card, field-clamped to the room's `memberCardVisibility`.

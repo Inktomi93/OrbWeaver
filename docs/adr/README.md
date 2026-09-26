@@ -211,3 +211,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D261 | [Every account is seeded with content, never with conversations](0261-seed-content-not-conversations.md) | superseded by [0263-seed-content-and-a-first-run-persona.md](0263-seed-content-and-a-first-run-persona.md) |
 | D262 | [prefix-bound thinking rides an append-only history](0262-prefix-bound-thinking-rides-an-append-only-history.md) | active |
 | D263 | [Every account is seeded with content, and names its own persona](0263-seed-content-and-a-first-run-persona.md) | active |
+| D264 | [A roster preset carries a game template and starts through startChat's game birth](0264-roster-preset-carries-a-game-template.md) | active |

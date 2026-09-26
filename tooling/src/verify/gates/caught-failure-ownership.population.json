@@ -441,14 +441,9 @@
       "reason": "useOpenRefinery's own errorToast surfaces the failure. Ends if useOpenRefinery drops its errorToast."
     },
     {
-      "siteId": "packages/client/src/features/roster-preset/components/roster-picker.tsx::RosterPicker.onStart::startChat::1",
+      "siteId": "packages/client/src/features/roster-preset/hooks/use-start-roster.ts::useStartRoster.startRoster::startChat::1",
       "verdict": "deliberate-absorb",
-      "reason": "startChat and apply.mutateAsync each carry their own errorToast (use-start-chat.ts, useApplyRosterPreset); the swallow only silences the unhandled-rejection warning, and the picked roster survives for retry. Ends if either mutation stops owning its failure copy."
-    },
-    {
-      "siteId": "packages/client/src/features/roster-preset/surfaces/roster-member-surface.tsx::RosterMemberSurface.onStart::startChat::1",
-      "verdict": "deliberate-absorb",
-      "reason": "startChat and apply.mutateAsync each carry their own errorToast (use-start-chat.ts, useApplyRosterPreset); the swallow only silences the unhandled-rejection warning. Ends if either mutation stops owning its failure copy."
+      "reason": "startChat and apply.mutateAsync each carry their own errorToast (use-start-chat.ts, useApplyRosterPreset); the swallow only silences the unhandled-rejection warning, and the roster survives for retry. Ends if either mutation stops owning its failure copy."
     },
     {
       "siteId": "packages/client/src/features/rpg/components/rpg-dice-tool-card.tsx::parseDiceResult::catch::1",
@@ -2794,6 +2789,11 @@
       "siteId": "tooling/src/stack/lib/spawn-lock.ts::releaseSpawnLock::error::1",
       "verdict": "deliberate-absorb",
       "reason": "ENOENT is idempotent release; every other unlink failure is rethrown. Ends if release gains an ownership-transfer acknowledgement."
+    },
+    {
+      "siteId": "tooling/src/stack/lib/supervisor.ts::superviseStart::openWhenServed::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the open has no awaiter, because an opener can outlive the server; a rejection is printed to the operator through `notice`, and the server keeps running because a browser is a convenience. Ends if the open gains an awaiter."
     },
     {
       "siteId": "tooling/src/stack/ops/dev-down.ts::signalPid::error::1",

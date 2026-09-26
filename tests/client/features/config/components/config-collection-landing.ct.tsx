@@ -97,6 +97,7 @@ const ROSTER = {
   members: [],
   anchorPersonaId: null,
   hasGroupConfig: false,
+  game: null,
   rules: [],
   updatedAt: 1_760_000_000_000,
 };

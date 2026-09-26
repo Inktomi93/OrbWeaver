@@ -1192,6 +1192,7 @@ CREATE TABLE `roster_presets` (
 	`description` text DEFAULT '' NOT NULL,
 	`anchor_persona_id` text,
 	`group_config` text,
+	`game_template` text,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,

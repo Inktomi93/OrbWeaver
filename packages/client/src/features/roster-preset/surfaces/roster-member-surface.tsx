@@ -19,13 +19,14 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { MemberDrillHeader } from "#components";
-import { useInvalidation, useStartChat, useTRPC } from "#data";
+import { useInvalidation, useTRPC } from "#data";
 import type { CollectionMemberView } from "#lib";
-import { notify, talkativenessLevel, useFocusOnMount } from "#lib";
+import { talkativenessLevel, useFocusOnMount } from "#lib";
 import { clearCollectionSelection } from "#state";
-import { useApplyRosterPreset, useUpdateRosterPreset } from "../hooks/use-roster-preset-mutations.ts";
+import { useUpdateRosterPreset } from "../hooks/use-roster-preset-mutations.ts";
 import { useRulePresetCatalogue } from "../hooks/use-saved-rosters.ts";
-import { applyNotice, rosterRuleKnobGloss } from "../lib/roster-copy.ts";
+import { useStartRoster } from "../hooks/use-start-roster.ts";
+import { rosterRuleKnobGloss } from "../lib/roster-copy.ts";
 
 /** The stored seats, resent VERBATIM on a rename (the update verb is a full replace). The view's ids
  *  stay BRANDED end to end (`CharacterId` — brand-in-name-position; the wire's `z.input` accepts them). */
@@ -82,14 +83,12 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionMemberV
   const invalidation = useInvalidation();
   const { data: roster } = useSuspenseQuery(trpc.rosterPreset.get.queryOptions({ presetId }));
   // B10's rules rider — the catalogue row behind each captured rule preset: its TITLE, and the knob
-  // LABELS the stored bag's gloss is built from. Shared with the picker through the one hook (the query is
-  // gated off a rules-free roster, but the Start door below can report a REFUSED rule by name whatever this
-  // roster carries, so the gate is `true` once either use needs it). A stored id the catalogue no longer
-  // offers falls back to the raw id — degraded but visible, matching the apply's reported skip.
-  const { presetOf, titleOf } = useRulePresetCatalogue(true);
+  // LABELS the stored bag's gloss is built from. Shared with the picker and the start door through the one
+  // hook (one query key). A stored id the catalogue no longer offers falls back to the raw id — degraded
+  // but visible, matching the apply's reported skip.
+  const { presetOf } = useRulePresetCatalogue(true);
   const update = useUpdateRosterPreset({ trpc, invalidation });
-  const apply = useApplyRosterPreset({ trpc, invalidation });
-  const { startChat, isPending: isStarting } = useStartChat();
+  const start = useStartRoster();
   // Focus lands on the surface wrapper at mount (surface-a11y-focus — the tag-member-surface idiom).
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
@@ -108,7 +107,7 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionMemberV
    * A once-seeded value, not a ref: it is read during render, and refs are handler/cleanup-only here.
    */
   const [openedFrom] = useState(() => ({ name: roster.name, description: roster.description }));
-  const busy = update.isPending || apply.isPending || isStarting;
+  const busy = update.isPending || start.isPending;
   const dirty = name.trim() !== openedFrom.name || description !== openedFrom.description;
   // BOTH MOVED — a real conflict between two writers, surfaced rather than resolved (the tracker's third
   // case). Save stays live because saving is then a DELIBERATE overwrite; what changes is that the host is
@@ -123,6 +122,7 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionMemberV
         description,
         anchorPersonaId: roster.anchorPersonaId,
         groupConfig: roster.groupConfig,
+        game: roster.game,
         members: memberInputsOf(roster),
         rules: ruleInputsOf(roster),
       },
@@ -130,28 +130,7 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionMemberV
   };
 
   const onStart = (): void => {
-    if (isStarting) {
-      return; // one creation at a time.
-    }
-    // @orb-waive caught-failure-ownership(startChat): startChat and apply.mutateAsync each carry their own errorToast (use-start-chat.ts, useApplyRosterPreset); the swallow only silences the unhandled-rejection warning. Ends if either mutation stops owning its failure copy.
-    startChat({
-      characterIds: roster.members.map((m) => m.characterId),
-      anchorPersonaId: roster.anchorPersonaId,
-      // The room is named after the roster it was started from (side-eye P3-4).
-      title: roster.name,
-    })
-      .then(async (chatId) => {
-        // This door used to report NOTHING at all — not the member skips, not the rules it switched on,
-        // not the reason a rule refused (side-eye P1-2). One report, said by all three doors.
-        const notice = applyNotice({
-          rosterName: roster.name,
-          result: await apply.mutateAsync({ presetId, chatId }),
-          started: true,
-          ruleTitleOf: titleOf,
-        });
-        notify[notice.channel](notice.line);
-      })
-      .catch(() => undefined); // both mutations toast their own failures.
+    start.startRoster(roster);
   };
 
   return (

@@ -136,3 +136,27 @@ describe("update", () => {
     expect(cleared.rules).toEqual([]);
   });
 });
+
+describe("update — the game template", () => {
+  test("full replace: an echoed template survives the update, and an omitted one clears it", async () => {
+    const db = await freshDb();
+    const svc = createRosterPresetService(makeHarness(db).ctx);
+    const owner = (await seedUser(db)).id;
+    const c = (await seedCharacter(db, { ownerId: owner })).id;
+    const created = await svc.create({ principal: principal(owner), input: { name: "Campaign", description: "", game: {}, members: [memberSpec(c, 0)] } });
+
+    const renamed = await svc.update({
+      principal: principal(owner),
+      presetId: created.id,
+      input: { name: "Campaign II", description: "", game: created.game, members: [memberSpec(c, 0)] },
+    });
+    expect(renamed.game).toEqual({});
+
+    const cleared = await svc.update({
+      principal: principal(owner),
+      presetId: created.id,
+      input: { name: "Campaign II", description: "", members: [memberSpec(c, 0)] },
+    });
+    expect(cleared.game).toBeNull();
+  });
+});

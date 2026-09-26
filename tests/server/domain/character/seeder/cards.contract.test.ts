@@ -3,7 +3,8 @@
 // themeBackgroundSchema for the carried presentation), so a hand-authored pack edit can never ship a card
 // the create verb would reject or a background/theme blob the boundary would silently degrade.
 // Also pins the pack's own structural invariants: unique handles, the welcome-slot handle present,
-// greetings[0] is NEVER groupOnly (the first message is always solo-eligible), tags present, and each card's
+// greetings[0] is NEVER groupOnly (the first message is always solo-eligible) with at least one alternate
+// beside it, tags present, lore that parses as a world book (D263 seeds it with the card), and each card's
 // seeded background slug EXISTS in the one seeded-background catalog (the card ↔ catalog coupling).
 //
 // AND, SINCE #900, THE PACK'S DERIVED-FIELD PARITY. A seed row is a shape a REAL user receives, so any field
@@ -21,6 +22,7 @@
 
 import { AUTHORED_CARD_CREATOR, characterProvenanceOf, createCharacterSchema } from "@orb/contracts/character";
 import { CARD_EMBEDDABLE_THEME_KEYS, themeOverrideSchema } from "@orb/contracts/theme";
+import { createBookSchema, createEntrySchema } from "@orb/contracts/world-info";
 import { SEED_BACKGROUND_PLATES } from "@orb/default-content";
 import { DEFAULT_CHARACTER_CARDS, WELCOME_ASSISTANT_HANDLE } from "@orb/server/domain/character";
 import { describe } from "vitest";
@@ -59,11 +61,27 @@ describe("DEFAULT_CHARACTER_CARDS — the authored pack parses at the write boun
 
     test(`${handle}: greetings[0] is never groupOnly + every greeting carries text`, () => {
       const greetings = card.input.greetings ?? [];
-      expect(greetings.length, `${handle} has at least one greeting`).toBeGreaterThan(0);
+      // The first message plus at least one alternate: a new user's swipe on the opening always has somewhere to go.
+      expect(greetings.length, `${handle} has at least two greetings`).toBeGreaterThanOrEqual(2);
       expect(greetings[0]?.groupOnly, `${handle} first message must be solo-eligible`).not.toBe(true);
       for (const [index, greeting] of greetings.entries()) {
         expect(greeting.text.trim().length, `${handle} greeting ${index} is non-empty`).toBeGreaterThan(0);
       }
+    });
+
+    test(`${handle}: ships lore that parses as a world book, with keyed, uniquely titled entries`, () => {
+      const book = createBookSchema.safeParse({ name: card.lore.name, description: card.lore.description ?? undefined });
+      expect(book.success ? null : book.error.issues, `${handle} lore book`).toBeNull();
+      expect(card.lore.entries.length, `${handle} ships at least one lore entry`).toBeGreaterThan(0);
+      for (const entry of card.lore.entries) {
+        const parsed = createEntrySchema.safeParse(entry);
+        expect(parsed.success ? null : parsed.error.issues, `${handle} lore entry ${entry.title}`).toBeNull();
+        // A keyless entry fires on every turn; seeded lore fires only when the chat names what it concerns.
+        expect(entry.keys.length, `${handle} lore entry ${entry.title} is keyed`).toBeGreaterThan(0);
+      }
+      // The lorebook import refuses duplicate titles, so a duplicate would fail the whole card's seed.
+      const titles = card.lore.entries.map((entry) => entry.title);
+      expect(new Set(titles).size, `${handle} lore entry titles are unique`).toBe(titles.length);
     });
 
     test(`${handle}: the carried presentation parses + points at a real seeded background`, () => {

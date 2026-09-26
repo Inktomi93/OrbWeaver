@@ -14,12 +14,24 @@ import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import { assets, characterSummaries, characters, chatParticipants, chats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
-import type { AssetId, CharacterHandle, CharacterId, CharacterSnapshotId, ChatId, ChatParticipantId, Handle, UserId } from "@orb/kit/ids";
+import type {
+  AssetId,
+  CharacterHandle,
+  CharacterId,
+  CharacterSnapshotId,
+  ChatId,
+  ChatParticipantId,
+  Handle,
+  UserId,
+  WorldBookId,
+  WorldEntryId,
+} from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { CharacterContext } from "../../../../packages/server/src/domain/character/context.ts";
 import type { AttachCardTagOp, DetachCardTagOp } from "../../../../packages/server/src/domain/character/contract/service.ts";
 import { bumpStatsCanonVersion } from "../../../../packages/server/src/domain/stats/write/apply-delta.ts";
-import { createCopyCharacterBooks } from "../../../../packages/server/src/domain/world-info/index.ts";
+import type { BulkImportLorebook, HasPrimaryBook } from "../../../../packages/server/src/domain/world-info/index.ts";
+import { createBulkImportLorebook, createCopyCharacterBooks, createHasPrimaryBook } from "../../../../packages/server/src/domain/world-info/index.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
@@ -338,4 +350,20 @@ export async function seedCharacterSummary(db: Db, args: { readonly characterId:
  *  `support/factories/principal` — character keeps its existing positional `(id, role, handle?)` convention. */
 export function principal(userId: UserId, role: UserRole = "user", handle: Handle = castId<Handle>(userId)): Principal {
   return makePrincipal(userId, { role, handle });
+}
+
+/** World-info's REAL lorebook import pair over the same db — the default-card seeder's lore step writes through
+ *  the actual import, so the primary-book seat a test reads is the one the product writes. Seeded ids, frozen
+ *  clock (the harness determinism). */
+export function realLorebookImport(db: Db): { readonly importLorebook: BulkImportLorebook; readonly hasPrimaryBook: HasPrimaryBook } {
+  const ids = createSeededIds();
+  return {
+    importLorebook: createBulkImportLorebook({
+      db,
+      now: createFrozenClock().now,
+      newBookId: () => castId<WorldBookId>(ids.next("world_book")),
+      newEntryId: () => castId<WorldEntryId>(ids.next("world_entry")),
+    }),
+    hasPrimaryBook: createHasPrimaryBook({ db }),
+  };
 }

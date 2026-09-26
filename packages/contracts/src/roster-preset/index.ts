@@ -10,6 +10,10 @@
 // parse yields, and chat's `setGroupConfig` RE-parses at apply — so a stored blob that predates a
 // GroupConfig evolution degrades loudly at apply, never silently at assemble. NULL = the preset carries
 // its roster only and never touches a room's config.
+//
+// `game` (D264) is rpg's own `RpgGameTemplate`, the shape chat's `startAsGame` takes: a roster that carries one starts
+// its room as a game, born in the same atomic creation batch. It is a START-time template only: an apply to
+// an existing room never creates a game. NULL = the roster starts a plain chat.
 
 import type { CharacterId, PersonaId, RosterPresetId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
@@ -18,6 +22,8 @@ import type { RulePresetId, RulePresetKnobValues } from "#automation";
 import { RULE_PRESET_IDS, rulePresetIdSchema, rulePresetKnobValuesSchema } from "#automation";
 import type { GroupConfigInput } from "#chat";
 import { characterMemberSpecSchema, groupConfigSchema } from "#chat";
+import type { RpgGameTemplate } from "#rpg";
+import { rpgGameTemplateSchema } from "#rpg";
 
 /** Sanity rail on a roster's size (the program doc's "lean: 25 — matches nothing structural"). */
 export const ROSTER_PRESET_MEMBER_MAX = 25;
@@ -77,6 +83,8 @@ export const createRosterPresetSchema = z.object({
    *  deleted persona degrades the preset (SET NULL), never blocks it. */
   anchorPersonaId: typeIdSchema(ID_PREFIX.persona).nullable().optional(),
   groupConfig: groupConfigSchema.nullable().optional(),
+  /** The game a start births with the room. Full-replace like every field, so an editor rename echoes it. */
+  game: rpgGameTemplateSchema.nullable().optional(),
   members: rosterPresetMembersSchema,
   /** B10's rules rider — the room's captured ENABLED rule presets. Defaulted `[]` (a roster without
    *  rules never touches a room's rules at apply); full-replace like every other field, so the
@@ -122,6 +130,8 @@ export interface RosterPresetView {
   readonly anchorPersonaId: PersonaId | null;
   /** The stored room-behavior blob (lenient input — chat re-parses at apply). NULL = roster only. */
   readonly groupConfig: GroupConfigInput | null;
+  /** The game a start births with the room. NULL = the roster starts a plain chat. */
+  readonly game: RpgGameTemplate | null;
   readonly members: readonly RosterPresetMemberView[];
   /** B10's rules rider — capture order (= apply order). Empty = the roster carries no rules. */
   readonly rules: readonly RosterPresetRuleView[];
@@ -141,6 +151,8 @@ export interface RosterPresetSummary {
   readonly members: readonly RosterPresetMemberView[];
   readonly anchorPersonaId: PersonaId | null;
   readonly hasGroupConfig: boolean;
+  /** The game a start births with the room — the start door hands it to `startChat` as `startAsGame`. */
+  readonly game: RpgGameTemplate | null;
   /** B10's rules rider — the picker's "N rules" badge reads the length; a roster row caps at the
    *  catalogue size, so the "preview" is simply all of them (the members posture). */
   readonly rules: readonly RosterPresetRuleView[];
