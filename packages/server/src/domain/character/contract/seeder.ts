@@ -5,7 +5,9 @@
 import type { CharacterCard, CreateCharacterInput, UpdateCharacterInput } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import type { ThemeBackground } from "@orb/contracts/theme";
+import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
 import type { AssetId, CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
+import type { BulkImportLorebook, HasPrimaryBook } from "#domain/world-info";
 import type { CharacterService } from "./service.ts";
 
 /** One authored default card: the create input, its author-shipped native tags (attached separately —
@@ -24,6 +26,9 @@ export interface SeedCard {
    *  plate; `resolveSeededBackground` turns that into the receiving user's own `kind:"asset"` ref at seed
    *  time. `null` ⇒ this card ships no plate (it seeds background-less rather than blank-referencing one). */
   readonly backgroundSlug: string | null;
+  /** The card's lore, seeded as its PRIMARY world book: the shape a card's embedded lorebook imports as, so a
+   *  shipped card and an imported one land their lore through the same world-info door. */
+  readonly lore: BulkImportLorebookInput;
 }
 
 /** The content fields the shipped pack AUTHORS — the half-seeded-card test (`seeder/authored-content.ts`) compares
@@ -68,6 +73,12 @@ export interface DefaultCharacterSeederDeps {
    *  at the composition root off `domain/settings`' scene-plate seeder — character never imports settings,
    *  and the seeder never touches the filesystem. */
   readonly resolveSeededBackground?: (principal: Principal, slug: string) => Promise<ThemeBackground | null>;
+  /** World-info's own lorebook import, which writes a card's lore as its primary book. Wired at the
+   *  composition root; character never imports world-info at runtime. */
+  readonly importLorebook: BulkImportLorebook;
+  /** Asked before a resumed seed writes lore: the import REPLACES an existing primary book, and a book already
+   *  in that seat is the user's. */
+  readonly hasPrimaryBook: HasPrimaryBook;
   /** Points `seeds.welcomeAssistantCharacterId` at the seeded welcome card, when it is still unset. */
   readonly markWelcomeAssistant: (principal: Principal, welcomeAssistantId: CharacterId) => Promise<void>;
 }

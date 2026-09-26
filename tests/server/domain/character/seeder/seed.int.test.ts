@@ -3,22 +3,23 @@
 // ledger (tests/server/entry/boot/seed-user-content.int.test.ts). Covers: every card seeds; the welcome pointer
 // lands on the welcome card; a pre-existing handle resolves instead of failing; a create failure rejects so the
 // ledger records nothing; the PRESENTATION step runs for freshly-created cards only; a half-seeded card is
-// finished on the retry (#1444); and each card's native tags attach.
+// finished on the retry (#1444); each card's native tags attach; and each card's lore lands as its primary
+// world book, without a resumed seed ever replacing a primary book the user put in the seat.
 
 import type { Principal } from "@orb/contracts/identity";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import { canonicalBackgroundSource } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
-import { assets } from "@orb/db";
+import { assets, characterBooks, worldEntries } from "@orb/db";
 import type { AssetId, CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { CharacterDetail, CharacterService, DefaultCharacterSeeder } from "@orb/server/domain/character";
 import { createCharacterService, createDefaultCharacterSeeder, DEFAULT_CHARACTER_CARDS, WELCOME_ASSISTANT_HANDLE } from "@orb/server/domain/character";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeHarness, principal, seedAsset, seedRawCharacter, seedUser } from "../_support.ts";
+import { makeHarness, principal, realLorebookImport, seedAsset, seedRawCharacter, seedUser } from "../_support.ts";
 
 /** The per-user plate resolver the composition root wires off `domain/settings`' scene-plate seeder. Faked
  *  here as a pure slug→asset mapping: this suite is about the CARD DRESSING, not the CAS, and the real op's
@@ -100,6 +101,16 @@ function fakeLatch(): {
   };
 }
 
+/** The entry titles of a character's PRIMARY book, read straight off the junction the lore import writes. */
+async function primaryBookEntryTitles(db: Db, characterId: CharacterId): Promise<string[]> {
+  const rows = await db
+    .select({ title: worldEntries.title })
+    .from(characterBooks)
+    .innerJoin(worldEntries, eq(worldEntries.worldBookId, characterBooks.worldBookId))
+    .where(and(eq(characterBooks.characterId, characterId), eq(characterBooks.role, "primary")));
+  return rows.map((row) => row.title).toSorted();
+}
+
 /** Seed every shipped card, one call per handle — what the user seed does for a fresh account. */
 async function seedAll(seeder: DefaultCharacterSeeder, actor: Principal): Promise<void> {
   for (const handle of ALL_HANDLES) {
@@ -113,6 +124,7 @@ describe("createDefaultCharacterSeeder", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     const latch = fakeLatch();
     const seeder = createDefaultCharacterSeeder({
+      ...realLorebookImport(db),
       characters: svc,
       attachCardTag: noopAttach,
       ...latch,
@@ -132,6 +144,7 @@ describe("createDefaultCharacterSeeder", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     const latch = fakeLatch();
     const seeder = createDefaultCharacterSeeder({
+      ...realLorebookImport(db),
       characters: svc,
       attachCardTag: noopAttach,
       ...latch,
@@ -151,6 +164,7 @@ describe("createDefaultCharacterSeeder", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     const latch = fakeLatch();
     const seeder = createDefaultCharacterSeeder({
+      ...realLorebookImport(db),
       characters: svc,
       attachCardTag: noopAttach,
       ...latch,
@@ -185,6 +199,8 @@ describe("createDefaultCharacterSeeder", () => {
       get: (): Promise<CharacterDetail> => Promise.reject(new Error("unreachable: nothing is ever created")),
     };
     const seeder = createDefaultCharacterSeeder({
+      importLorebook: () => Promise.reject(new Error("unreachable: nothing is ever created")),
+      hasPrimaryBook: () => Promise.reject(new Error("unreachable: nothing is ever created")),
       characters: failing,
       attachCardTag: noopAttach,
       ...latch,
@@ -202,6 +218,7 @@ describe("createDefaultCharacterSeeder", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const actor = principal(owner);
     const seeder = createDefaultCharacterSeeder({
+      ...realLorebookImport(db),
       characters: svc,
       attachCardTag: noopAttach,
       resolveSeededBackground: fakePlateResolver(db, owner),
@@ -230,6 +247,7 @@ describe("createDefaultCharacterSeeder", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     const latch = fakeLatch();
     const seeder = createDefaultCharacterSeeder({
+      ...realLorebookImport(db),
       characters: svc,
       attachCardTag: noopAttach,
       ...latch,
@@ -273,7 +291,7 @@ describe("createDefaultCharacterSeeder", () => {
         return svc.update(params);
       },
     };
-    const deps = { characters: flaky, attachCardTag: noopAttach, resolveSeededBackground: fakePlateResolver(db, owner), ...latch };
+    const deps = { characters: flaky, attachCardTag: noopAttach, resolveSeededBackground: fakePlateResolver(db, owner), ...realLorebookImport(db), ...latch };
 
     await expect(createDefaultCharacterSeeder(deps).seedCard(actor, WELCOME_ASSISTANT_HANDLE)).rejects.toThrow("the presentation write died mid-seed");
     expect(latch.marks).toHaveLength(0);
@@ -298,6 +316,7 @@ describe("createDefaultCharacterSeeder", () => {
     const latch = fakeLatch();
     const attach = recordingAttach();
     const seeder = createDefaultCharacterSeeder({
+      ...realLorebookImport(db),
       characters: svc,
       attachCardTag: attach.attachCardTag,
       ...latch,
@@ -317,5 +336,63 @@ describe("createDefaultCharacterSeeder", () => {
     const assistant = await svc.findByHandle({ ownerId: owner, handle: WELCOME_ASSISTANT_HANDLE });
     const assistantTags = attach.calls.filter((c) => c.characterId === assistant?.characterId).map((c) => c.tagName);
     expect(assistantTags).toEqual([...(ASSISTANT_CARD?.tags ?? [])]);
+  });
+
+  test("every seeded card lands its lore as its primary world book", async () => {
+    const db = await freshDb();
+    const svc = createCharacterService(makeHarness(db).ctx);
+    const seeder = createDefaultCharacterSeeder({ ...realLorebookImport(db), characters: svc, attachCardTag: noopAttach, ...fakeLatch() });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+
+    await seedAll(seeder, principal(owner));
+
+    for (const card of DEFAULT_CHARACTER_CARDS) {
+      const row = await svc.findByHandle({ ownerId: owner, handle: card.input.handle });
+      const titles = await primaryBookEntryTitles(db, row?.characterId ?? MISSING_ID);
+      expect(titles, `${card.input.handle} primary book`).toEqual(card.lore.entries.map((entry) => entry.title).toSorted());
+    }
+  });
+
+  test("a resumed seed finishes missing lore, but never replaces a primary book the user put in the seat", async () => {
+    const db = await freshDb();
+    const svc = createCharacterService(makeHarness(db).ctx);
+    const lore = realLorebookImport(db);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const actor = principal(owner);
+    // Run one crashes at the lore step for every card, so each row lands dressed but book-less.
+    const run = { index: 0 };
+    const crashing = {
+      ...lore,
+      importLorebook: (args: Parameters<typeof lore.importLorebook>[0]): ReturnType<typeof lore.importLorebook> =>
+        run.index === 0 ? Promise.reject(new Error("the lore write died mid-seed")) : lore.importLorebook(args),
+    };
+    const seeder = createDefaultCharacterSeeder({ ...crashing, characters: svc, attachCardTag: noopAttach, ...fakeLatch() });
+    const [kept, finished] = DEFAULT_CHARACTER_CARDS;
+    if (kept === undefined || finished === undefined) {
+      throw new Error("the pack ships fewer than two cards");
+    }
+    await expect(seeder.seedCard(actor, kept.input.handle)).rejects.toThrow("the lore write died mid-seed");
+    await expect(seeder.seedCard(actor, finished.input.handle)).rejects.toThrow("the lore write died mid-seed");
+    const keptId = (await svc.findByHandle({ ownerId: owner, handle: kept.input.handle }))?.characterId ?? MISSING_ID;
+    const finishedId = (await svc.findByHandle({ ownerId: owner, handle: finished.input.handle }))?.characterId ?? MISSING_ID;
+    // Between the runs the user gives the first card a primary book of their own.
+    await lore.importLorebook({
+      ownerId: owner,
+      characterId: keptId,
+      book: {
+        name: "My notes",
+        description: null,
+        entries: [
+          { title: "Mine", description: null, content: "What I wrote.", keys: ["mine"], enabled: true, priority: 0, ignoreBudget: false, metadata: null },
+        ],
+      },
+    });
+
+    run.index = 1;
+    await seeder.seedCard(actor, kept.input.handle);
+    await seeder.seedCard(actor, finished.input.handle);
+
+    expect(await primaryBookEntryTitles(db, keptId)).toEqual(["Mine"]);
+    expect(await primaryBookEntryTitles(db, finishedId)).toEqual(finished.lore.entries.map((entry) => entry.title).toSorted());
   });
 });

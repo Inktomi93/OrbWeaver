@@ -42,6 +42,7 @@ import type { DefaultBackgroundSeeder, SeededPlateAsset, SettingsService } from 
 import { createDefaultBackgroundSeeder, migrateSeededBackgroundPicks } from "#domain/settings";
 import { bumpStatsCanonVersion } from "#domain/stats";
 import type { TagService } from "#domain/tag";
+import type { BulkImportLorebook, HasPrimaryBook } from "#domain/world-info";
 import { createCopyCharacterBooks } from "#domain/world-info";
 import { env } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
@@ -84,6 +85,9 @@ export interface AssetsCharacterComposeDeps {
   /** Request-time forward-ref: the persona service (composes after this seam) — the persona seeder's create
    *  plus the `list` its layer-2 artifact probe reads (`createPersonaSeedLatch`). */
   readonly getPersona: () => Pick<PersonaService, "create" | "list">;
+  /** World-info's lorebook import pair, composed after this seam (world-info builds over character). Read at
+   *  seed time, never during composition. */
+  readonly getLorebookImport: () => { readonly importLorebook: BulkImportLorebook; readonly hasPrimaryBook: HasPrimaryBook };
 }
 
 /** The assets/character compose product. `materializeBackgroundOp` is the constructed op the keystone rebinds
@@ -416,6 +420,8 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
   // The one idempotent instance boot + the app first-request hook share.
   const characterSeeder = createDefaultCharacterSeeder({
     resolveSeededBackground: backgroundSeeder.resolvePlate,
+    importLorebook: (args) => deps.getLorebookImport().importLorebook(args),
+    hasPrimaryBook: (args) => deps.getLorebookImport().hasPrimaryBook(args),
     characters: character,
     attachCardTag: ({ ownerId, characterId, tagName }): Promise<boolean> =>
       tag.attachCardTagByName({ ownerId, characterId, tagName, source: "card", status: "pending" }),

@@ -709,6 +709,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     newBackgroundEntryId: settingsDeps.newBackgroundEntryId,
     getPreset: () => preset,
     getPersona: () => persona,
+    getLorebookImport: () => worldInfoCompose.importWorldInfo,
     resolveUserPresetParams,
   });
   const { assets, character, galleryCtx, characterSeeder, personaSeeder, backgroundSeeder } = assetsCharacter;
