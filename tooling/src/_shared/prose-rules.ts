@@ -44,7 +44,7 @@ export function proseOnly(source: string): string {
   let inFence = false;
   let inOwnerVoice = false;
   let inFrontmatter = source.startsWith(`${FRONTMATTER_FENCE}\n`);
-  for (const [index, line] of source.split("\n").entries()) {
+  for (const [index, line] of source.split(/\r?\n/u).entries()) {
     if (inFrontmatter) {
       inFrontmatter = index === 0 || line !== FRONTMATTER_FENCE;
       out.push(blank(line));
@@ -77,7 +77,7 @@ export function glossaryWords(claudeSource: string): ReadonlySet<string> {
   if (start < 0) {
     return words;
   }
-  const section = claudeSource.slice(start).split("\n").slice(1);
+  const section = claudeSource.slice(start).split(/\r?\n/u).slice(1);
   for (const line of section) {
     if (line.startsWith("## ")) {
       break;
@@ -104,7 +104,7 @@ export function proseFindings(relPath: string, source: string, allowed: Readonly
   const rules = [...HISTORY_RULES, COUNT_RULE, ...banned];
   const findings: string[] = [];
   proseOnly(source)
-    .split("\n")
+    .split(/\r?\n/u)
     .forEach((raw, index) => {
       const line = raw.replace(LINK_TARGET_PATTERN, (match) => `](${blank(match.slice(2, -1))})`);
       for (const rule of rules) {
@@ -120,7 +120,7 @@ export function proseFindings(relPath: string, source: string, allowed: Readonly
 /** Relative markdown link targets (no scheme, no pure anchor), with any `#anchor` removed. */
 export function markdownLinkTargets(source: string): readonly { readonly line: number; readonly target: string }[] {
   const targets: { line: number; target: string }[] = [];
-  const masked = proseOnly(source).split("\n");
+  const masked = proseOnly(source).split(/\r?\n/u);
   masked.forEach((line, index) => {
     for (const match of line.matchAll(MARKDOWN_LINK_PATTERN)) {
       const raw = match[1] ?? "";
@@ -145,7 +145,7 @@ const NOT_A_PATH = /[\s*<>{}$?…|,;()[\]"'=]|\.\.\./u;
 function backtickedPaths(source: string, prefixes: readonly string[]): readonly { readonly line: number; readonly path: string }[] {
   const paths: { line: number; path: string }[] = [];
   let inFence = false;
-  source.split("\n").forEach((line, index) => {
+  source.split(/\r?\n/u).forEach((line, index) => {
     if (FENCE_PATTERN.test(line)) {
       inFence = !inFence;
       return;
@@ -182,5 +182,5 @@ export function lineCount(source: string): number {
   if (source === "") {
     return 0;
   }
-  return source.endsWith("\n") ? source.split("\n").length - 1 : source.split("\n").length;
+  return source.endsWith("\n") ? source.split(/\r?\n/u).length - 1 : source.split(/\r?\n/u).length;
 }

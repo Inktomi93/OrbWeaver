@@ -74,7 +74,7 @@ function queryCandidates(css: CssFacts): CssLengthCandidate[] {
   const out: CssLengthCandidate[] = [];
   const shell = css.files.find(({ path }) => path === SHELL_STYLESHEET);
   if (shell !== undefined) {
-    for (const [index, line] of blankCssComments(shell.text).split("\n").entries()) {
+    for (const [index, line] of blankCssComments(shell.text).split(/\r?\n/u).entries()) {
       const token = line.trim();
       if (!(token.startsWith("@") && LENGTH_RE.test(token))) {
         continue;

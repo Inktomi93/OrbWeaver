@@ -27,6 +27,7 @@ import { attachProbeSession, closeProbeSession } from "@orb/tooling/_shared/brow
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
 import { CT_HOST_POOL_NAME, HOST_POOL_ROOT_ENV, hostPoolDir } from "@orb/tooling/_shared/host-slots";
+import { processInfo } from "@orb/tooling/_shared/platform";
 import { inheritedProcessEnv } from "@orb/tooling/_shared/process-env";
 import { markedPids, mintRunMarker, RUN_MARKER_ENV, runMarkerEnv } from "@orb/tooling/_shared/run-marker";
 import { vi } from "vitest";
@@ -692,12 +693,9 @@ test("attach — attachProbeSession drives the owner's LIVE page over the sessio
 // value the shutdown stopped using, so "nothing died" cannot be "nothing was there".
 function chromiumPidsCarrying(marker: string): readonly number[] {
   return markedPids(marker).filter((pid) => {
-    try {
-      return /chrome|headless_shell/u.test(readFileSync(`/proc/${String(pid)}/cmdline`, "utf8"));
-    } catch {
-      // A pid that exits between the scan and the read is simply not counted: this is a census.
-      return false;
-    }
+    // A pid that exits between the scan and the read has no info and is simply not counted: this is a census.
+    const info = processInfo(pid);
+    return info !== null && /chrome|headless_shell/u.test(info.cmdline);
   });
 }
 

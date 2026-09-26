@@ -42,7 +42,7 @@ const TSC_LINE = /^(?<file>[^(]+)\((?<line>\d+),(?<col>\d+)\): error TS(?<code>\
 
 function readTscLog(path: string): Diagnostic[] {
   const out: Diagnostic[] = [];
-  for (const raw of readFileSync(path, "utf8").split("\n")) {
+  for (const raw of readFileSync(path, "utf8").split(/\r?\n/u)) {
     const m = TSC_LINE.exec(raw);
     if (m?.groups === undefined) {
       continue;

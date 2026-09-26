@@ -24,7 +24,7 @@ export function loadExactFiles(reader: ResourceReader, ids: readonly ExactResour
     if (loaded.status !== "ready") {
       return { status: loaded.status, paths, members: files.size, reason: `exact resource ${id} (${path}) is unavailable: ${loaded.reason}` };
     }
-    files.set(id, Object.freeze({ id, path, text: loaded.value, bytes: Buffer.byteLength(loaded.value), lines: loaded.value.split("\n").length }));
+    files.set(id, Object.freeze({ id, path, text: loaded.value, bytes: Buffer.byteLength(loaded.value), lines: loaded.value.split(/\r?\n/u).length }));
   }
   // `members` is what the door MEASURED — every demanded id — which here equals the served set precisely
   // because a single miss has already refused the fact.

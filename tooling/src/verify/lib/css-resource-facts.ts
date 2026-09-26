@@ -18,7 +18,7 @@ import { splitSelectorListWithOffsets } from "./css-rules.ts";
 function position(text: string, file: string, offset: number): CssSourcePosition {
   const before = text.slice(0, offset);
   const newline = before.lastIndexOf("\n");
-  return { file, line: before.split("\n").length, column: offset - newline, offset };
+  return { file, line: before.split(/\r?\n/u).length, column: offset - newline, offset };
 }
 
 function customPropertyNameAt(text: string, start: number): string | undefined {

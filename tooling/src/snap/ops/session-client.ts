@@ -150,7 +150,7 @@ function relayLog(logPath: string, offset: number): number {
       return offset;
     }
     const text = readFileSync(logPath, "utf8").slice(offset);
-    for (const line of text.split("\n").filter((entry) => entry !== "")) {
+    for (const line of text.split(/\r?\n/u).filter((entry) => entry !== "")) {
       print(`daemon       ${line}`);
     }
     return size;

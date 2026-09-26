@@ -21,6 +21,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
+import { processInfo } from "@orb/tooling/_shared/platform";
 import { execNicedSync, execNicedSyncBuffer, platformSpawn, spawnNiced, spawnNicedTranscript } from "@orb/tooling/_shared/proc";
 import { expect, test } from "../../support/tool-fixtures.ts";
 import { scaledBudget } from "../_load-budget.ts";
@@ -80,10 +81,10 @@ async function readPids(file: string): Promise<ChildPids> {
   throw new Error("the planted child never published its pids — the fixture, not the door, is broken");
 }
 
-/** `/proc` is the honest answer to "is it gone": `process.kill(pid, 0)` would answer EPERM-vs-ESRCH, and
- *  a zombie is still a directory. Linux-only, like every other process pin in this tree. */
+/** The process table is the honest answer to "is it gone": `process.kill(pid, 0)` would answer
+ *  EPERM-vs-ESRCH, and a zombie is still listed. */
 function alive(pid: number): boolean {
-  return existsSync(`/proc/${pid}`);
+  return processInfo(pid) !== null;
 }
 
 async function waitGone(pid: number): Promise<boolean> {

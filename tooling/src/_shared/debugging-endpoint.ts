@@ -41,7 +41,7 @@ export async function readDebuggingPort(profileDir: string): Promise<number> {
   for (let attempt = 0; attempt < DEBUG_PORT_ATTEMPTS; attempt += 1) {
     // @orb-waive caught-failure-ownership(catch): the file exists only after Chrome binds its ephemeral endpoint; the bounded loop owns the race and throws below when its budget expires. Ends if exhaustion stops throwing.
     try {
-      const [line] = (await readFile(file, "utf8")).split("\n");
+      const [line] = (await readFile(file, "utf8")).split(/\r?\n/u);
       const port = Number(line);
       if (Number.isInteger(port) && port > 0) {
         return port;

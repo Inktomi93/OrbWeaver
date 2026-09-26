@@ -48,7 +48,7 @@ function compactArrayAt(lines: readonly string[], index: number): CompactArray |
 }
 
 function stableJson(value: JsonObject): string {
-  const lines = JSON.stringify(value, null, 2).split("\n");
+  const lines = JSON.stringify(value, null, 2).split(/\r?\n/u);
   const rendered: string[] = [];
   for (let index = 0; index < lines.length; index += 1) {
     const compact = compactArrayAt(lines, index);

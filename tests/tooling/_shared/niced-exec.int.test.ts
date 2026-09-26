@@ -15,6 +15,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
+import { listProcesses, processGroupId } from "@orb/tooling/_shared/platform";
 import { runNicedSync } from "@orb/tooling/_shared/proc";
 import { TOOLING_PRIORITY } from "@orb/tooling/_shared/process-priority";
 import { expect, test } from "../../support/tool-fixtures.ts";
@@ -32,27 +33,27 @@ function isAlive(pid: number): boolean {
   }
 }
 
-/** The one direct child of `pid`, read from `/proc` rather than inferred from signal side effects — the
- *  Linux fact a niced launcher's real command is discoverable by, since niced-exec exposes no pid of its
- *  own for it. */
+/** The one direct child of `pid`, read from the process table rather than inferred from signal side
+ *  effects — the fact a niced launcher's real command is discoverable by, since niced-exec exposes no pid
+ *  of its own for it. */
 async function firstChildOf(pid: number): Promise<number> {
-  const childrenFile = `/proc/${pid}/task/${pid}/children`;
   for (let i = 0; i < 100; i += 1) {
-    if (existsSync(childrenFile)) {
-      const text = readFileSync(childrenFile, "utf8").trim();
-      if (text !== "") {
-        return Number(text.split(" ")[0]);
-      }
+    const child = listProcesses().find((entry) => entry.ppid === pid);
+    if (child !== undefined) {
+      return child.pid;
     }
     await sleep(50);
   }
-  throw new Error(`niced-exec (pid ${pid}) never published a real child in /proc — the fixture, not the launcher, is broken`);
+  throw new Error(`niced-exec (pid ${pid}) never published a real child in the process table — the fixture, not the launcher, is broken`);
 }
 
-/** `/proc/<pid>/stat` field 5 (1-indexed) is the process's own group id. */
+/** The process's own group id, or a refusal: a test that cannot read it has no subject. */
 function pgrpOf(pid: number): number {
-  const stat = readFileSync(`/proc/${pid}/stat`, "utf8");
-  return Number(stat.slice(stat.lastIndexOf(")") + 2).split(" ")[2]);
+  const group = processGroupId(pid);
+  if (group === null) {
+    throw new Error(`no process group for pid ${String(pid)}`);
+  }
+  return group;
 }
 
 async function waitGone(pid: number, budgetMs: number): Promise<boolean> {

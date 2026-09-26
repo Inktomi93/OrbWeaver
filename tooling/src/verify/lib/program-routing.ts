@@ -112,7 +112,7 @@ function readProgramClosure(root: string, program: CompilerProgram): ReadonlySet
     );
   }
   const members = new Set<string>();
-  for (const line of result.stdout.split("\n")) {
+  for (const line of result.stdout.split(/\r?\n/u)) {
     const value = line.trim();
     if (value === "" || value.includes(`${sep}node_modules${sep}`) || value.includes("/node_modules/")) {
       continue;

@@ -275,7 +275,7 @@ export function mentionsWaiverOf(segment: string, policyId: string): boolean {
  *  begins with the opener. Fixture text, so `\n`-separated; a mention mid-sentence names nothing here. */
 export function markerFormIdsOf(segment: string): readonly string[] {
   const ids: string[] = [];
-  for (const line of segment.split("\n")) {
+  for (const line of segment.split(/\r?\n/u)) {
     const match = MARKER_LINE_RE.exec(line);
     if (match?.[1] !== undefined) {
       ids.push(match[1]);

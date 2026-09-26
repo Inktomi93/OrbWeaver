@@ -234,7 +234,7 @@ export function landingMessage(records: readonly LandingRecord[], trailer: strin
     [
       `${padId(record.id)} ${record.title}`,
       `  evidence: ${record.evidence}`,
-      ...record.what.split("\n").map((line) => (line.trim() === "" ? "" : `  ${line.trimEnd()}`)),
+      ...record.what.split(/\r?\n/u).map((line) => (line.trim() === "" ? "" : `  ${line.trimEnd()}`)),
     ].join("\n"),
   );
   return `${header}\n\n${blocks.join("\n\n")}\n\n${trailer}`;

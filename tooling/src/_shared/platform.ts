@@ -1,23 +1,15 @@
 // THE ONE PLATFORM MODULE: every read of the socket table or the process table, every `/proc` path and
-// every OS-specific binary lives here, branched on an injectable `platform`. The `tooling-os-neutral`
-// policy exempts this file alone; a Linux-only call anywhere else is a finding. Limits stated once: win32
-// exposes no process environment and no process group, so a run marker there is found only in argv and a
-// tree is stopped through its recorded pids; darwin folds a process's environment into its command line.
-import { readdirSync, readFileSync, readlinkSync } from "node:fs";
+// every OS-specific binary lives here or in its leaf, branched on an injectable `platform`. The
+// `tooling-os-neutral` policy exempts these two files alone; a Linux-only call anywhere else is a finding. This
+// file holds the spawns and openers; `platform-probes.ts` is the leaf with the `/proc` and `/sys` reads. Limits
+// stated once: win32 exposes no process environment and no process group, so a run marker there is found
+// only in argv and a tree is stopped through its recorded pids; darwin folds a process's environment into
+// its command line.
 import process from "node:process";
 import type { ProcessEntry, SocketRow } from "./platform-parse.ts";
-import {
-  nulJoined,
-  parseCimProcesses,
-  parseLsofSockets,
-  parseNetstatSockets,
-  parseProcStatCpuMs,
-  parseProcStatGroup,
-  parseProcStatusParent,
-  parsePsClock,
-  parsePsProcesses,
-  parseSsSockets,
-} from "./platform-parse.ts";
+import { parseCimProcesses, parseLsofSockets, parseNetstatSockets, parsePsClock, parsePsProcesses, parseSsSockets } from "./platform-parse.ts";
+import type { ProcReads } from "./platform-probes.ts";
+import { linuxIsWsl2, linuxProcessDiagnostics, linuxProcesses, linuxProcessGroup, linuxProcessInfo } from "./platform-probes.ts";
 import type { FullPriorityChild, RunNicedSyncResult } from "./proc.ts";
 import { runNicedSync, spawnFullPriorityChild } from "./proc.ts";
 
@@ -29,13 +21,9 @@ export type SupportedPlatform = (typeof SUPPORTED_PLATFORMS)[number];
 
 /** The reads a door performs, injected so a test drives the darwin and win32 branches on Linux with
  *  fixture output and a fake `/proc`. Production callers take the defaults. */
-export interface PlatformDeps {
+export interface PlatformDeps extends ProcReads {
   readonly platform?: NodeJS.Platform;
   readonly run?: (cmd: string, args: readonly string[]) => RunNicedSyncResult;
-  /** A text file, or null when it cannot be read (a pid that exited mid-scan, a hidden `/proc` entry). */
-  readonly readFile?: (path: string) => string | null;
-  readonly readDir?: (path: string) => readonly string[];
-  readonly readLink?: (path: string) => string | null;
   /** Starts the default-browser opener; `openUrl` releases it at once and reads how it ended. */
   readonly launch?: (cmd: string, args: readonly string[]) => OpenerChild;
 }
@@ -76,10 +64,6 @@ export const PNPM_EXECPATH_ENV = "npm_execpath";
 /** pnpm's JS entry, however this process was launched: a `.cjs`/`.js`/`.mjs` tail is the whole test. */
 const JS_ENTRY_RE = /\.(?:c|m)?js$/u;
 
-const PROC = "/proc";
-const PROC_VERSION = "/proc/version";
-const WSL2_KERNEL_RE = /microsoft-standard|wsl2/iu;
-const PID_DIR_RE = /^\d+$/u;
 const POWERSHELL = "powershell.exe";
 const POWERSHELL_FLAGS = ["-NoProfile", "-NonInteractive", "-Command"] as const;
 const CIM_FIELDS = "ProcessId,ParentProcessId,CommandLine,KernelModeTime,UserModeTime";
@@ -97,33 +81,6 @@ function supportedPlatform(deps: PlatformDeps): SupportedPlatform | null {
 
 function runOf(deps: PlatformDeps): (cmd: string, args: readonly string[]) => RunNicedSyncResult {
   return deps.run ?? ((cmd, args): RunNicedSyncResult => runNicedSync(cmd, args));
-}
-
-function readFileOrNull(path: string): string | null {
-  // @orb-waive caught-failure-ownership(catch): a `/proc` entry that vanished or is hidden answers null, and every reader here treats null as "not observed", never as a verdict. Ends if null ever authorizes a signal.
-  try {
-    return readFileSync(path, "utf8");
-  } catch {
-    return null;
-  }
-}
-
-function readLinkOrNull(path: string): string | null {
-  // @orb-waive caught-failure-ownership(catch): an unreadable `/proc/<pid>/cwd` answers null, which every caller reads as "unknown", never as "not ours". Ends if null ever authorizes a signal.
-  try {
-    return readlinkSync(path);
-  } catch {
-    return null;
-  }
-}
-
-function readDirOrEmpty(path: string): readonly string[] {
-  // @orb-waive caught-failure-ownership(catch): a `/proc` that cannot be listed yields no processes, which a sweep reads as "nothing observed" and signals nothing. Ends if an empty list ever reads as a verdict.
-  try {
-    return readdirSync(path);
-  } catch {
-    return [];
-  }
 }
 
 function stdoutOf(result: RunNicedSyncResult): string {
@@ -163,17 +120,6 @@ export function listeningPids(deps: PlatformDeps = {}): ReadonlyMap<number, numb
 /** Every established TCP connection the box holds, with the owner of the local end when nameable. */
 export function establishedConnections(deps: PlatformDeps = {}): readonly EstablishedConnection[] {
   return sockets(false, deps).map((row) => ({ localPort: row.localPort, peerHost: row.peerHost, peerPort: row.peerPort, pid: row.pid }));
-}
-
-function linuxProcessInfo(pid: number, deps: PlatformDeps): ProcessInfo | null {
-  const readFile = deps.readFile ?? readFileOrNull;
-  const readLink = deps.readLink ?? readLinkOrNull;
-  const cmdline = readFile(`${PROC}/${String(pid)}/cmdline`);
-  if (cmdline === null) {
-    return null;
-  }
-  const status = readFile(`${PROC}/${String(pid)}/status`);
-  return { pid, ppid: status === null ? null : parseProcStatusParent(status), cmdline: nulJoined(cmdline), cwd: readLink(`${PROC}/${String(pid)}/cwd`) };
 }
 
 function darwinProcessInfo(pid: number, deps: PlatformDeps): ProcessInfo | null {
@@ -217,8 +163,10 @@ export function processInfo(pid: number, deps: PlatformDeps = {}): ProcessInfo |
 
 function processInfoOn(platform: SupportedPlatform, pid: number, deps: PlatformDeps): ProcessInfo | null {
   switch (platform) {
-    case "linux":
-      return linuxProcessInfo(pid, deps);
+    case "linux": {
+      const info = linuxProcessInfo(pid, deps);
+      return info === null ? null : { pid, ...info };
+    }
     case "darwin":
       return darwinProcessInfo(pid, deps);
     case "win32":
@@ -233,8 +181,7 @@ export function processGroupId(pid: number, deps: PlatformDeps = {}): number | n
     return null;
   }
   if (platform === "linux") {
-    const stat = (deps.readFile ?? readFileOrNull)(`${PROC}/${String(pid)}/stat`);
-    return stat === null ? null : parseProcStatGroup(stat);
+    return linuxProcessGroup(pid, deps);
   }
   const pgid = Number(stdoutOf(runOf(deps)("ps", ["-o", "pgid=", "-p", String(pid)])).trim());
   return Number.isInteger(pgid) && pgid > 0 ? pgid : null;
@@ -253,31 +200,6 @@ export function processAgeSeconds(pid: number, deps: PlatformDeps = {}): number 
     return Number.isInteger(seconds) && seconds >= 0 ? seconds : null;
   }
   return parsePsClock(stdoutOf(run("ps", ["-o", "etime=", "-p", String(pid)])));
-}
-
-function linuxProcesses(deps: PlatformDeps): readonly ProcessEntry[] {
-  const readFile = deps.readFile ?? readFileOrNull;
-  const entries: ProcessEntry[] = [];
-  for (const name of (deps.readDir ?? readDirOrEmpty)(PROC)) {
-    if (!PID_DIR_RE.test(name)) {
-      continue;
-    }
-    const cmdline = readFile(`${PROC}/${name}/cmdline`);
-    if (cmdline === null) {
-      continue;
-    }
-    const status = readFile(`${PROC}/${name}/status`);
-    const environ = readFile(`${PROC}/${name}/environ`);
-    const stat = readFile(`${PROC}/${name}/stat`);
-    entries.push({
-      pid: Number(name),
-      ppid: status === null ? null : parseProcStatusParent(status),
-      cmdline: nulJoined(cmdline),
-      environ: environ === null ? null : nulJoined(environ),
-      cpuMs: stat === null ? null : parseProcStatCpuMs(stat),
-    });
-  }
-  return entries;
 }
 
 /** Every process on the box: pid, parent, command line, environment where the OS exposes it, CPU time. */
@@ -329,17 +251,9 @@ export function processDiagnostics(pid: number, deps: PlatformDeps = {}): string
   if (supportedPlatform(deps) !== "linux") {
     return `  cmdline: ${cmdline}`;
   }
-  const readFile = deps.readFile ?? readFileOrNull;
-  const status = (readFile(`${PROC}/${String(pid)}/status`) ?? "")
-    .split("\n")
-    .filter((line) => STATUS_LINE_RE.test(line))
-    .join(" | ");
-  const wchan = readFile(`${PROC}/${String(pid)}/wchan`) ?? "<unreadable>";
-  const fds = (deps.readDir ?? readDirOrEmpty)(`${PROC}/${String(pid)}/fd`).join(",");
+  const { status, wchan, fds } = linuxProcessDiagnostics(pid, deps);
   return [`  status : ${status}`, `  wchan  : ${wchan}`, `  cmdline: ${cmdline}`, `  fds    : ${fds}`].join("\n");
 }
-
-const STATUS_LINE_RE = /^(?:Name|State|Threads|PPid):/u;
 
 /** Running inside WSL2, whose own addresses other devices cannot reach without Windows port forwarding.
  *  WSL1 does not match: it shares Windows' own network stack. */
@@ -347,8 +261,7 @@ export function isWsl2(deps: PlatformDeps = {}): boolean {
   if (supportedPlatform(deps) !== "linux") {
     return false;
   }
-  const version = (deps.readFile ?? readFileOrNull)(PROC_VERSION);
-  return version !== null && WSL2_KERNEL_RE.test(version);
+  return linuxIsWsl2(deps);
 }
 
 /** The default-browser opener per platform; `xdg-open` is the answer on every other Unix. */

@@ -110,7 +110,7 @@ function ssRow(line: string): SocketRow | null {
 /** `ss -tlnp` (listening) or `ss -tnp state established`: one row per socket, the owner pid from `pid=`. */
 export function parseSsSockets(output: string): readonly SocketRow[] {
   return output
-    .split("\n")
+    .split(/\r?\n/u)
     .map(ssRow)
     .filter((row): row is SocketRow => row !== null);
 }
@@ -120,7 +120,7 @@ export function parseSsSockets(output: string): readonly SocketRow[] {
 export function parseLsofSockets(output: string, listening: boolean): readonly SocketRow[] {
   const rows: SocketRow[] = [];
   let pid: number | null = null;
-  for (const line of output.split("\n")) {
+  for (const line of output.split(/\r?\n/u)) {
     const field = line[0];
     const value = line.slice(1).trim();
     if (field === "p") {
@@ -150,7 +150,7 @@ function netstatRow(line: string): SocketRow | null {
 /** `netstat -ano`: `TCP <local> <peer> <STATE> <pid>`; UDP rows carry no state and are dropped. */
 export function parseNetstatSockets(output: string): readonly SocketRow[] {
   return output
-    .split("\n")
+    .split(/\r?\n/u)
     .map(netstatRow)
     .filter((row): row is SocketRow => row !== null);
 }
@@ -225,7 +225,7 @@ function psRow(line: string): ProcessEntry | null {
 /** `ps -axo pid=,ppid=,time=,command=`: three numeric columns lead, the command runs to the end. */
 export function parsePsProcesses(output: string): readonly ProcessEntry[] {
   return output
-    .split("\n")
+    .split(/\r?\n/u)
     .map(psRow)
     .filter((row): row is ProcessEntry => row !== null);
 }

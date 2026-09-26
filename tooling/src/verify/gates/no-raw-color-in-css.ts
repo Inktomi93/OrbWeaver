@@ -107,7 +107,7 @@ function valuePosition(text: string, declarationOffset: number, value: string): 
   }
   const before = text.slice(0, offset);
   const newline = before.lastIndexOf("\n");
-  return { line: before.split("\n").length, column: offset - newline };
+  return { line: before.split(/\r?\n/u).length, column: offset - newline };
 }
 
 export const gate = defineGate({

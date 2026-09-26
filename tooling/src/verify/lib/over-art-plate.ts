@@ -107,7 +107,7 @@ export interface Site {
 /** 1-based line/column of an absolute offset. */
 function positionOf(text: string, offset: number): { readonly line: number; readonly column: number } {
   const before = text.slice(0, offset);
-  return { line: before.split("\n").length, column: offset - before.lastIndexOf("\n") };
+  return { line: before.split(/\r?\n/u).length, column: offset - before.lastIndexOf("\n") };
 }
 
 /** Where one selector's SUBJECT is spelled, in the raw stylesheet. The selector list's authored spans come

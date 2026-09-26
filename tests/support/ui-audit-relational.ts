@@ -14,7 +14,7 @@ export const AUDIT_ARGV = ["--design-audit", "--no-shot", "--no-deadcss", "--no-
  *  `--out <path>` and wrote the report exactly there; snap's `--out` names the SHOT base, and the arm
  *  files its report inside the run slot under its own producer arm (#1342). */
 export function auditReport(stdout: string): string {
-  const line = stdout.split("\n").find((entry) => entry.startsWith("report "));
+  const line = stdout.split(/\r?\n/u).find((entry) => entry.startsWith("report "));
   expect(line, `no report line in:\n${stdout}`).toBeTypeOf("string");
   return String(line).slice("report".length).trim();
 }
@@ -26,7 +26,7 @@ export function auditReport(stdout: string): string {
  *  the identical output, and a second copy is the shape tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md row 4 was paid for. */
 export function findingSelectors(stdout: string, rule: string): readonly string[] {
   const rows: string[] = [];
-  for (const line of stdout.split("\n")) {
+  for (const line of stdout.split(/\r?\n/u)) {
     const fields = line.trim().split(/\s+/u);
     if (fields[1] === rule && (fields[0] ?? "").startsWith("P") && fields[2] !== undefined) {
       rows.push(fields[2]);

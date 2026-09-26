@@ -121,7 +121,7 @@ function readCommitted<T>(root: string, rel: string): T | undefined {
 export function snapFlagsIndexDrift(root: string): LedgerFreshness {
   const abs = join(root, SNAP_FLAGS_INDEX_REL);
   const derivedText = deriveSnapFlagsIndexMarkdown();
-  const derivedRows = derivedText.split("\n").filter((line) => line.startsWith("| `")).length;
+  const derivedRows = derivedText.split(/\r?\n/u).filter((line) => line.startsWith("| `")).length;
   const base = { ledger: SNAP_FLAGS_INDEX_REL, regen: REGEN_SNAP_FLAGS_INDEX, derived: derivedRows } as const;
   if (!existsSync(abs)) {
     return { ...base, drift: [MISSING(REGEN_SNAP_FLAGS_INDEX)] };
@@ -136,7 +136,7 @@ export function snapFlagsIndexDrift(root: string): LedgerFreshness {
 async function activeGatesIndexDrift(root: string): Promise<LedgerFreshness> {
   const abs = join(root, ACTIVE_GATES_INDEX_REL);
   const derivedText = await deriveActiveGatesIndex(root);
-  const derivedRows = derivedText.split("\n").filter((line) => line.startsWith("| `")).length;
+  const derivedRows = derivedText.split(/\r?\n/u).filter((line) => line.startsWith("| `")).length;
   const base = { ledger: ACTIVE_GATES_INDEX_REL, regen: REGEN_ACTIVE_GATES_INDEX, derived: derivedRows } as const;
   if (!existsSync(abs)) {
     return { ...base, drift: [MISSING(REGEN_ACTIVE_GATES_INDEX)] };

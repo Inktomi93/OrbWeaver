@@ -50,7 +50,7 @@ function walk(dir: string, out: string[]): void {
 }
 
 function lineCount(file: string): number {
-  return readFileSync(file, "utf8").replace(TRAILING_NL, "").split("\n").length;
+  return readFileSync(file, "utf8").replace(TRAILING_NL, "").split(/\r?\n/u).length;
 }
 
 /** The band width for a given cap — the max of a flat 15 lines and 3% of the cap, so a bigger cap (the

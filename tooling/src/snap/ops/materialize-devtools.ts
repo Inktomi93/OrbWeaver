@@ -189,7 +189,7 @@ async function debugPort(profile: string): Promise<number> {
   for (let attempt = 0; attempt < DEBUG_PORT_ATTEMPTS; attempt += 1) {
     // @orb-waive caught-failure-ownership(catch): Chrome creates this file only after binding the ephemeral endpoint; the bounded retry loop owns the race and throws when its budget expires. Ends if exhaustion stops throwing.
     try {
-      const [line] = (await readFile(file, "utf8")).split("\n");
+      const [line] = (await readFile(file, "utf8")).split(/\r?\n/u);
       const port = Number(line);
       if (Number.isInteger(port) && port > 0) {
         return port;

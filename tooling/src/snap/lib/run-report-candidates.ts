@@ -29,7 +29,7 @@ export function snapWorktreeRoots(root: string): readonly string[] {
     return [root];
   }
   const roots = result.stdout
-    .split("\n")
+    .split(/\r?\n/u)
     .filter((line) => line.startsWith("worktree "))
     .map((line) => line.slice("worktree ".length));
   return roots.length === 0 ? [root] : roots;

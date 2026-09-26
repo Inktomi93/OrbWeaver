@@ -109,7 +109,7 @@ function hitAt(body: string, re: RegExp): string | null {
   return (
     body
       .slice(idx, idx + HIT_RECEIPT_CHARS)
-      .split("\n")[0]
+      .split(/\r?\n/u)[0]
       ?.trim() ?? ""
   );
 }

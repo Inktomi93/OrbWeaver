@@ -142,10 +142,10 @@ test("a no-tail verb still answers --help, and a real flag still reaches its ver
   expect(blind.stdout, "it still prints the map").toContain("the stage registry");
   expect(blind.stdout, "and then names what it cannot run").toContain("REFUSED");
   expect(blind.stdout, "a `pnpm <script>` row is unrunnable without pnpm on PATH").toContain("lint:biome");
-  // AND IT IS NOT INDISCRIMINATE: `lint:hook-syntax`'s argv[0] is `bash`, which /usr/bin DOES hold, so
+  // AND IT IS NOT INDISCRIMINATE: `lint:hook-syntax`'s argv[0] is `node`, which /usr/bin DOES hold, so
   // that row stays out of the refusal. The resolver answers per row from evidence — the property #2220
   // was missing when a name allowlist sent `bash` to a node_modules/.bin that never had it.
-  expect(blind.stdout).not.toContain('argv[0] "bash"');
+  expect(blind.stdout).not.toContain('argv[0] "node"');
 });
 
 // The abort itself takes ~5s (v8 fills the heap first), which is exactly vitest's default testTimeout —

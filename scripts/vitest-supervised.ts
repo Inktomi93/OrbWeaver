@@ -579,7 +579,7 @@ function runOnce({ args, reportFile, label, attempt, previousFiles }: AttemptReq
     lastOutput = Date.now();
     lastProgress = lastOutput;
     const text = carry + chunk.toString();
-    const lines = text.split("\n");
+    const lines = text.split(/\r?\n/u);
     carry = lines.pop() ?? "";
     for (const line of lines) {
       const m = line.match(RESULT_LINE_RE);

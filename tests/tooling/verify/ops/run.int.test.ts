@@ -1430,7 +1430,8 @@ test("lint:hook-syntax RUNS and produces a real verdict — clean on the tree, R
   const row = stage("lint:hook-syntax");
   const [cmd, ...args] = row.argv;
   const resolved = resolveStageCommand(process.cwd(), cmd, PHSV_PATH);
-  expect(resolved.kind, "#2220: argv[0] `bash` used to resolve to a nonexistent node_modules/.bin/bash").toBe("system-program");
+  // `node` resolves to the workspace's pinned runtime first (`node_modules/.bin/node`), the version pin rung.
+  expect(resolved.kind, "#2220: a stage's argv[0] must resolve to something runnable").toBe("workspace-bin");
   if (resolved.kind === "unresolvable") {
     throw new Error("unreachable");
   }
@@ -1662,7 +1663,7 @@ test("the REAL run door produces childExit: an unresolvable REGISTERED stage lan
   // SECOND stage in the no-verdict list and the arms below would stop discriminating.
   writeFileSync(join(binDir, "pnpm"), '#!/bin/sh\necho "Checked 3 files in 0s."\nexit 0\n', { mode: 0o755 });
 
-  // ARM 1 — `bash` is on no PATH the child can see, and the workspace-bin rung finds nothing under the
+  // ARM 1 — `node` is on no PATH the child can see, and the workspace-bin rung finds nothing under the
   // scratch root either, so the registry's lint:hook-syntax row is UNRESOLVABLE at the real door.
   const refused = await runIsolatedStatic(repoRoot, scratch, binDir);
   expect(refused.code, `an unresolvable stage is a TOOL ERROR, and the run's exit says so:\n${refused.output}`).toBe(2);
@@ -1677,7 +1678,7 @@ test("the REAL run door produces childExit: an unresolvable REGISTERED stage lan
   // The refusal text is NOT on stdout — compact mode prints one glyph line and the transcript goes to the
   // per-stage log, which is exactly why the excerpt is cut into the artifact: a bot reading only
   // reports/verify.json still learns WHICH command could not be found.
-  expect(refusedRow?.failureExcerpt, "the refusal names the command it could not find").toContain('its argv[0] "bash" resolves to nothing runnable');
+  expect(refusedRow?.failureExcerpt, "the refusal names the command it could not find").toContain('its argv[0] "node" resolves to nothing runnable');
   expect(Object.is(refusedRow?.childExit, null), `childExit must be null, not absent or 0: ${JSON.stringify(refusedRow)}`).toBe(true);
   const measured = ranStages(refused.report).filter((s) => s.name !== "lint:hook-syntax");
   expect(measured.length, "the fake pnpm stages are the control population").toBeGreaterThan(0);
@@ -1686,9 +1687,9 @@ test("the REAL run door produces childExit: an unresolvable REGISTERED stage lan
     "every stage whose child DID report an exit carries that digit, not a constant",
   ).toStrictEqual(measured.map(() => 0));
 
-  // ARM 2 — THE NEGATIVE CONTROL: the same registry, the same door, `bash` now resolvable. Without it
+  // ARM 2 — THE NEGATIVE CONTROL: the same registry, the same door, `node` now resolvable. Without it
   // the arm above would pass against a runner that named every stage no-verdict.
-  writeFileSync(join(binDir, "bash"), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+  writeFileSync(join(binDir, "node"), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
   const resolvedRun = await runIsolatedStatic(repoRoot, scratch, binDir);
   expect(resolvedRun.code, `every stage resolved and measured:\n${resolvedRun.output}`).toBe(0);
   expect(resolvedRun.output, "a run where every stage reported an exit prints NO block at all").not.toContain("NO VERDICT");

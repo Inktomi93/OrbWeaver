@@ -187,7 +187,7 @@ export function worktreeBranches(repoRoot = root): readonly string[] {
     return [];
   }
   return out
-    .split("\n")
+    .split(/\r?\n/u)
     .filter((line) => line.startsWith("branch refs/heads/"))
     .map((line) => line.slice("branch refs/heads/".length))
     .filter((branch) => branch !== MAIN);
@@ -195,7 +195,7 @@ export function worktreeBranches(repoRoot = root): readonly string[] {
 
 export function unmergedBranches(repoRoot = root): readonly string[] {
   const out = git(repoRoot, ["branch", "--no-merged", MAIN, "--format=%(refname:short)"]);
-  return out === null ? [] : out.split("\n").filter((line) => line !== "");
+  return out === null ? [] : out.split(/\r?\n/u).filter((line) => line !== "");
 }
 
 /** One git pass for the soft freshness tier: date + changed paths per commit since `since`. */
@@ -262,7 +262,7 @@ export function commitPaths(paths: readonly string[], message: string, repoRoot 
       return gitFailure("commit-tree", commit);
     }
     const sha = commit.stdout.trim();
-    const subject = message.split("\n")[0] ?? "";
+    const subject = message.split(/\r?\n/u)[0] ?? "";
     const ref = runGit(repoRoot, ["update-ref", "-m", `commit: ${subject}`, "HEAD", sha, head]);
     if (ref.status !== 0) {
       return gitFailure("update-ref", ref);
@@ -287,7 +287,7 @@ export function highestHistoricId(tree: "adr" | "work", repoRoot = root): number
     return 0;
   }
   let highest = 0;
-  for (const line of res.stdout.split("\n")) {
+  for (const line of res.stdout.split(/\r?\n/u)) {
     if (!line.startsWith(prefix)) {
       continue;
     }

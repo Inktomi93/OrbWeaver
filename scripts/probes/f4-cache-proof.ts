@@ -31,6 +31,7 @@ import type { AssetId, ChatId, MessageId, ModelId, UserConnectionId, UserId } fr
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { estimateTokens } from "@orb/kit/tokens";
+import { execGit } from "@orb/tooling/_shared/git";
 import { SessionCache } from "../../packages/inference/src/backends/agent-sdk/session/store.ts";
 import { extractTrailingSystemRows, splitAgentHistory } from "../../packages/inference/src/backends/agent-sdk/turn-input.ts";
 import { BEFORE_HISTORY_DEPTH } from "../../packages/server/src/domain/chat/assembly/injections.ts";
@@ -133,7 +134,7 @@ const HUMAN = castId<UserId>("user_f4proof");
 async function runArm(arm: Arm): Promise<TurnRecord[]> {
   if (arm === "base") {
     const target = new URL(HISTORY_BUDGET_PATH, `file://${REPO_ROOT}`).href;
-    const source = execFileSync("git", ["-C", REPO_ROOT, "show", `${BASE_REF}:${HISTORY_BUDGET_PATH}`], { encoding: "utf8" });
+    const source = execGit(REPO_ROOT, ["show", `${BASE_REF}:${HISTORY_BUDGET_PATH}`]);
     registerHooks({
       load: (url, context, nextLoad) => (url === target ? { format: "module-typescript", source, shortCircuit: true } : nextLoad(url, context)),
     });

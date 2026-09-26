@@ -290,7 +290,9 @@ export function normalizeBrowserNetworkHeaders(headers: Readonly<Record<string, 
   if (headers === undefined) {
     return [];
   }
-  return Object.entries(headers).flatMap(([name, value]) => (typeof value === "string" ? value.split("\n").map((member) => ({ name, value: member })) : []));
+  return Object.entries(headers).flatMap(([name, value]) =>
+    typeof value === "string" ? value.split(/\r?\n/u).map((member) => ({ name, value: member })) : [],
+  );
 }
 
 interface NetworkCookieInput {

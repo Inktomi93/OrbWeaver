@@ -243,7 +243,7 @@ export function jsonl(probe: string) {
       }
       return fs
         .readFileSync(file, "utf8")
-        .split("\n")
+        .split(/\r?\n/u)
         .filter((l) => l.trim().length > 0)
         .map((l): JsonlRow => JSON.parse(l) as JsonlRow)
         // A `blocked` verdict is a probe that couldn't measure (e.g. the capture arm produced nothing to

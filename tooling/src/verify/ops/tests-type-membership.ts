@@ -41,7 +41,7 @@ function programClosure(root: string, program: PolicyProgramMembership): readonl
     return;
   }
   const files = res.stdout
-    .split("\n")
+    .split(/\r?\n/u)
     .map((line) => line.trim())
     .filter((line) => line !== "");
   if ((files.length === 0 && program.files.length > 0) || files.some((file) => !isAbsolute(file))) {

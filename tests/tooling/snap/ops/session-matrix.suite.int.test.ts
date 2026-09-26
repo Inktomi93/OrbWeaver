@@ -24,6 +24,7 @@ import { join } from "node:path";
 import process from "node:process";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { HOST_POOL_ROOT_ENV } from "@orb/tooling/_shared/host-slots";
+import { listProcesses } from "@orb/tooling/_shared/platform";
 import { vi } from "vitest";
 import { appearanceMatrixContract } from "../../../../packages/client/src/lib/appearance-carrier-manifest.ts";
 import { readSessionRow } from "../../../../tooling/src/snap/lib/session-wire.ts";
@@ -114,11 +115,9 @@ function occurrenceCount(value: string, needle: string): number {
 }
 
 function browserChildren(pid: number): readonly number[] {
-  const children = readFileSync(`/proc/${pid}/task/${pid}/children`, "utf8").trim().split(/\s+/u).filter(Boolean).map(Number);
-  return children.filter((child) => {
-    const argv = readFileSync(`/proc/${child}/cmdline`, "utf8");
-    return argv.includes("chromium") && !argv.includes("--type=");
-  });
+  return listProcesses()
+    .filter((entry) => entry.ppid === pid && entry.cmdline.includes("chromium") && !entry.cmdline.includes("--type="))
+    .map((entry) => entry.pid);
 }
 
 // @instrument-proof: every matrix cell reports the synthetic origin and fresh storage through the real

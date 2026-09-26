@@ -144,7 +144,7 @@ const EXCERPT_LINES = 8; // failure excerpt: the last N non-blank output lines (
  *  print their error summary. Lands in reports/verify.json + the tail console block so a bot never has to
  *  open the per-stage log to learn WHY a stage failed. */
 function failureExcerpt(output: string): string {
-  const lines = output.split("\n").filter((l) => l.trim().length > 0);
+  const lines = output.split(/\r?\n/u).filter((l) => l.trim().length > 0);
   return lines.slice(-EXCERPT_LINES).join("\n");
 }
 
@@ -152,7 +152,7 @@ function failureExcerpt(output: string): string {
  *  reaches nobody — it lands in reports/verify/<stage>.log and the console shows one ✓ line. */
 export function noticesIn(output: string): string[] {
   const out: string[] = [];
-  for (const line of output.split("\n")) {
+  for (const line of output.split(/\r?\n/u)) {
     const at = line.indexOf(NOTICE_MARKER);
     if (at !== -1) {
       out.push(line.slice(at + NOTICE_MARKER.length).trim());
