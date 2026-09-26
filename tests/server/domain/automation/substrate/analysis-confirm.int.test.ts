@@ -142,7 +142,7 @@ test("a confirmed suggestTurn runs the room's guided turn in the AUTHOR frame at
   const { db, host, chatId, rule, pending, captured } = await setup();
   const act: AnalysisConfirmAct = { kind: "suggestTurn", steerText: "Cut to the chase.", automationDepth: 2 };
   await runAnalysisConfirm(makeDeps(db, captured), pending, rule, act);
-  expect(captured.turns).toEqual([{ authorUserId: host, chatId, automationDepth: 2, guided: "Cut to the chase." }]);
+  expect(captured.turns).toEqual([{ authorUserId: host, ruleId: rule.id, chatId, automationDepth: 2, guided: "Cut to the chase." }]);
 });
 
 test("C3: a confirmed REWRITE forwards the card's variant pin + content hash VERBATIM, in the author frame", async () => {

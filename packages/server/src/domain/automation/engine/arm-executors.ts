@@ -308,6 +308,7 @@ async function runGenerateImage(
   const subjectCharacterId = action.subjectCharacterId ?? (frame.fact.character === undefined ? undefined : castId<CharacterId>(frame.fact.character.id));
   await deps.ops.imagery.generatePicture({
     authorUserId: frame.authorUserId,
+    ruleId: frame.origin.ruleId,
     chatId: frame.chatId,
     // The firing rule's child depth — compose stamps it onto the non-quiet posted image so the resulting
     // `messageCommitted` fact rides at depth ≥ 1 and a non-opted re-fire is cascade-suppressed.
@@ -351,6 +352,7 @@ async function runTriggerTurn(deps: ArmExecutorDeps, action: Extract<AutomationA
   try {
     await deps.ops.chat.requestTurn({
       authorUserId: frame.authorUserId,
+      ruleId: frame.origin.ruleId,
       chatId,
       automationDepth: frame.origin.automationDepth,
       ...(action.speakerCharacterId !== undefined ? { speakerCharacterId: action.speakerCharacterId } : {}),

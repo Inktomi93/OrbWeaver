@@ -5,6 +5,7 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { ExtractionMode as CatalogExtractionMode, MultimodalCaptionMode, PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery";
+import type { BindingActor } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId } from "@orb/kit/ids";
 
 // The mode SUBSETS home in `@orb/contracts/imagery` (the canonical `EXTRACTION_MODES`/`MULTIMODAL_MODES`
@@ -29,6 +30,8 @@ export type ReusePolicy = "prefer" | "never";
  *  (`negative`/`size`/`useAvatarReference`/`reuse` land with I2/I3 — doc 05 FORK 2 + the reuse gate.) */
 export interface GeneratePictureParams {
   readonly caller: Principal;
+  /** The binding actor whose own generateImage binding is folded before the caller's (an automation rule's). */
+  readonly actor?: BindingActor | undefined;
   readonly chatId?: ChatId | undefined;
   readonly mode: PromptTemplateMode;
   readonly prompt?: string | undefined;

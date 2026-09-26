@@ -23,9 +23,13 @@ const DEFAULT_IMAGE_COUNT = 1;
 
 /** Resolve the generateImage role + the capability of the SAME model the request will hit (one resolution so
  *  the B3 gate and the request build read the same model). A resolve failure wraps into `ImageryNotConfiguredError`. */
-async function resolveGenerateImageOrThrow(ctx: ImageryContext, caller: GeneratePictureParams["caller"]): Promise<ResolvedGenerateImage> {
+async function resolveGenerateImageOrThrow(
+  ctx: ImageryContext,
+  caller: GeneratePictureParams["caller"],
+  actor?: GeneratePictureParams["actor"],
+): Promise<ResolvedGenerateImage> {
   try {
-    return await ctx.resolveGenerateImage(caller);
+    return await (actor === undefined ? ctx.resolveGenerateImage(caller) : ctx.resolveGenerateImage(caller, actor));
   } catch (err) {
     const error = new ImageryNotConfiguredError("imagery: no generateImage role is configured for this caller");
     error.cause = err;
@@ -179,7 +183,7 @@ export function createGeneratePicture(ctx: ImageryContext, deps: { readonly reso
     const size = SIZE_PRESETS[p.size ?? defaultSizeFor(p.mode)];
 
     // Step 6: resolve role + capability (one resolution — the B3 gate + the request build read the same model).
-    const resolution = await resolveGenerateImageOrThrow(ctx, p.caller);
+    const resolution = await resolveGenerateImageOrThrow(ctx, p.caller, p.actor);
     // Step 7: B3 avatar-reference gate — an init image (or a drop-with-warning when the model can't edit).
     const reference = await avatarReferenceGate(ctx, p, { model: resolution.connection.model, capability: resolution.capability }, subjectCharacterId);
     const edit = composeEdit(reference.edit);

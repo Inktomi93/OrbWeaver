@@ -86,8 +86,8 @@ export function buildImagery(deps: ImageryComposeDeps): ImageryService {
     db,
     now,
     newGenerationId: minter(ID_PREFIX.imageryGeneration),
-    resolveGenerateImage: async (caller) => {
-      const { resolved } = await connection.resolve({ task: "generateImage", principal: caller });
+    resolveGenerateImage: async (caller, actor) => {
+      const { resolved } = await connection.resolve({ task: "generateImage", principal: caller, ...(actor !== undefined ? { actor } : {}) });
       return { connection: resolved as Resolved<"generateImage">, capability: generationOf(resolved) };
     },
     generateImage: async (req) => {

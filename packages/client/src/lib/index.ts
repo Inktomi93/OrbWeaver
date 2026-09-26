@@ -41,7 +41,19 @@ export type {
 export { COLLECTION_LARGE_GROUP } from "./collection-contracts.ts";
 export type { ConfigQueryToken, ParsedConfigQuery } from "./config-search-tokens.ts";
 export { applyConfigToken, CONFIG_QUERY_TOKENS, findHighlightRanges, parseConfigQuery, partialConfigToken } from "./config-search-tokens.ts";
-export { CONNECTION_ROLE_LABELS } from "./connection-role-labels.ts";
+export type { RoleBindingView, RoleConnectionFacts, RoleRequirementVerdict, RoleRow } from "./connection-roles.ts";
+export {
+  backgroundRepairs,
+  bindRefusal,
+  CONNECTION_ROLE_LABELS,
+  connectionHost,
+  connectionSummary,
+  ROLE_ROWS_ORDERED,
+  ROLE_STATUS_LABELS,
+  roleReadout,
+  roleRequirementVerdicts,
+  roleStatus,
+} from "./connection-roles.ts";
 export type {
   CharacterDetailAnchor,
   CharacterDetailContribution,

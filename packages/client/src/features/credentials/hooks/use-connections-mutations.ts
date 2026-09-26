@@ -30,25 +30,11 @@ export const useCreateConnectionOwned = createEntityMutation<inferInput<Trpc["co
   invalidates: connectionReads,
 });
 
-/** A FIELD-WISE patch on one row (ground5 M6: never a GET→whole-blob PUT). */
-export const useUpdateConnection = createEntityMutation<inferInput<Trpc["connection"]["update"]>, ConnectionView>({
-  options: (trpc) => trpc.connection.update.mutationOptions(),
-  invalidates: connectionReads,
-  errorToast: "Couldn't save that connection.",
-});
-
 /** Delete a row — every binding on it SET-NULLs to `no-connection`; history keeps its attribution. */
 export const useRemoveConnection = createEntityMutation<inferInput<Trpc["connection"]["remove"]>, unknown>({
   options: (trpc) => trpc.connection.remove.mutationOptions(),
   invalidates: connectionReads,
   errorToast: "Couldn't remove that connection.",
-});
-
-/** Write ONE `user` binding (`connectionId: null` clears it). */
-export const useSetBinding = createEntityMutation<inferInput<Trpc["connection"]["setBinding"]>, unknown>({
-  options: (trpc) => trpc.connection.setBinding.mutationOptions(),
-  invalidates: connectionReads,
-  errorToast: "Couldn't change that role.",
 });
 
 /** §5.3a's one-click survivor: write every compatible `user` binding to this row at once. */

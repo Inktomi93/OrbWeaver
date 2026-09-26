@@ -99,6 +99,9 @@ export interface TurnOriginRead {
  *  the author Principal); automation stays imagery-blind about the orchestration. */
 export interface AutomationImageRequest {
   readonly authorUserId: UserId;
+  /** The firing rule. Compose resolves the spend as that rule's binding actor, so a connection the author bound
+   *  to this rule is used before their own role binding (the resolver's actor hop). */
+  readonly ruleId: AutomationRuleId;
   /** C5 — NULL on an owner-GLOBAL rule's fire. Imagery's own `GeneratePictureParams.chatId` was already
    *  optional, so this widening is automation-internal at the TYPE; the BEHAVIOURAL half is imagery's
    *  chat-less caption path (`domain/imagery/verbs/extract-prompt.ts`), which is why a global
@@ -141,6 +144,9 @@ export interface AutomationImageResult {
  *  cannot spoof a different origin) + the funder resolved from the room's host. */
 export interface AutomationTurnRequest {
   readonly authorUserId: UserId;
+  /** The firing rule. Compose resolves the spend as that rule's binding actor, so a connection the author bound
+   *  to this rule is used before their own role binding (the resolver's actor hop). */
+  readonly ruleId: AutomationRuleId;
   readonly chatId: ChatId;
   readonly automationDepth: number;
   /** Force the speaker; absent ⇒ normal arbitration. */

@@ -25,7 +25,7 @@ import type { Locator, Page } from "@playwright/test";
 // how a copy change goes green against a string nobody ships. A deep relative import (the `test-ids.ts`
 // precedent in the sibling key-row CT): this module is pure `.ts`, so it is safe in a node-side CT spec,
 // while the feature's own front door is a barrel that would pull `.tsx` in with it.
-import { ROLE_ROWS_ORDERED, ROLE_STATUS_LABELS } from "../../../../../packages/client/src/features/credentials/lib/connections-model.ts";
+import { ROLE_ROWS_ORDERED, ROLE_STATUS_LABELS } from "../../../../../packages/client/src/lib/connection-roles.ts";
 import { hitExtent, touchFloorPx } from "../../../../support/browser/touch-floor.ts";
 import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";

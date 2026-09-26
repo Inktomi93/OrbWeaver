@@ -18,7 +18,7 @@ import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { characterPersonas, chatParticipants, personas, users } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
-import type { ChatDeltaEvent, ChatEvent, ChatRequest, ChatResult, ChatTurnInput, Resolved, RoleClientsWithSignal } from "@orb/inference";
+import type { BindingActor, ChatDeltaEvent, ChatEvent, ChatRequest, ChatResult, ChatTurnInput, Resolved, RoleClientsWithSignal } from "@orb/inference";
 import { NoConnectionError, toChatRequest, unavailableRefusal } from "@orb/inference";
 import type { AssetId, ChatId, Handle, PersonaId, PresetId, TypeIdOf, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -751,11 +751,12 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   // declared capability — through the runtime's user-binding fold. There is no per-chat routing overlay
   // (`chats.metadata.providerRouting` was deleted with `RouteChatAssignment`, §7.1: a routing preference is a
   // property of the connection you picked, never of the room).
-  const resolveChatFor = async (funderUserId: UserId, signal?: AbortSignal): Promise<Resolved<"chat">> => {
+  const resolveChatFor = async (funderUserId: UserId, signal?: AbortSignal, actor?: BindingActor): Promise<Resolved<"chat">> => {
     const { resolved } = await input.connection.resolve({
       task: "chat",
       principal: await realHostPrincipal(funderUserId),
       ...(signal === undefined ? {} : { signal }),
+      ...(actor === undefined ? {} : { actor }),
     });
     return resolved as Resolved<"chat">;
   };
@@ -1446,7 +1447,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // THE TURN'S OWN RESOLVE and the #54 pre-send gate, both keyed on the FUNDER (§8.4-3): the composer says
     // AVAILABLE against the member's own connection and the turn spends that same connection — a host-keyed
     // gate here was exactly the failure verify8 H1 named.
-    resolveConnection: ({ funderUserId }) => resolveChatFor(funderUserId),
+    resolveConnection: ({ funderUserId, actor }) => resolveChatFor(funderUserId, undefined, actor),
     checkSendAvailability: async ({ funderUserId }) => input.connection.availability({ task: "chat", principal: await realHostPrincipal(funderUserId) }),
     resolveForeignInputs: async ({ runAsUserId, anchorPersonaId, presentHumanUserIds, humanSeats, trigger, voice, presetOverride }) => {
       const us = await input.settings.loadUserSettings(runAsUserId);

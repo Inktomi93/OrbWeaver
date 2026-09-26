@@ -28,6 +28,7 @@ import type { PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery"
 import type { UserIntent, UserMacroValues } from "@orb/contracts/preset";
 import type { RpgGameTemplate } from "@orb/contracts/rpg";
 import type { ThemeBackground } from "@orb/contracts/theme";
+import type { BindingActor } from "@orb/inference";
 import type {
   AssetId,
   CharacterId,
@@ -300,6 +301,8 @@ export interface RequestTurnParams {
   /** A one-turn guided steer (the rendered `guidedTemplate`) placed via GATHER→BUILD, exactly like a human
    *  send's `guided`. */
   readonly guided?: GuidedSteer | undefined;
+  /** The binding actor whose own chat binding the turn folds before the funder's (an automation rule's). */
+  readonly actor?: BindingActor | undefined;
 }
 
 /** `compact` — the manual compaction lever; produces the portable checkpoint. */

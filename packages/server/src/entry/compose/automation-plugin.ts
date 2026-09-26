@@ -237,6 +237,8 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
         initiator: "automation",
         triggeredBy: req.authorUserId,
         automationDepth: req.automationDepth,
+        // The rule is the binding actor: a connection its author bound to it is spent before their own role.
+        actor: { kind: "automation-rule", ruleId: req.ruleId },
         ...(req.speakerCharacterId !== undefined ? { speakerCharacterId: req.speakerCharacterId } : {}),
         ...(req.guided !== undefined ? { guided: { action: "response", input: req.guided } } : {}),
       });
@@ -252,6 +254,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       const caller = await resolveOwnerPrincipal(req.authorUserId);
       const picture = await imagery.generatePicture({
         caller,
+        actor: { kind: "automation-rule", ruleId: req.ruleId },
         // C5 — an owner-GLOBAL rule's fire carries NO chat. Imagery's own param is optional and now behaves
         // chat-lessly for the caption modes, so the null maps onto the absent field rather than inventing a
         // room; the automation-side admission matrix is what guarantees only a caption mode gets here.

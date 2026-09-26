@@ -52,10 +52,9 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useId, useState } from "react";
-import { QueryBoundary } from "#components";
+import { QueryBoundary, useUpdateConnection } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { QueryErrorState, SkeletonRows } from "#data";
-import { useUpdateConnection } from "../hooks/use-connections-mutations.ts";
 import type { ExtraRow } from "../lib/connection-editor-model.ts";
 import {
   capabilityBadges,
