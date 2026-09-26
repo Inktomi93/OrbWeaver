@@ -155,10 +155,11 @@ function ConnectionEditorBody({ connectionId, onDone, trpc, invalidation }: Conn
             <ModelField
               busy={busy}
               connectionId={connectionId}
+              listOwner={hostLabel(connection.baseUrl, providerLabel)}
               model={connection.model}
               modelListed={connection.modelListed}
-              onCommit={(next): void => patch({ model: next, modelListed: true })}
-              host={hostLabel(connection.baseUrl, providerLabel)}
+              onCommit={(next, listed): void => patch({ model: next, modelListed: listed })}
+              provider={provider}
             />
             <SavedTextField
               busy={busy}

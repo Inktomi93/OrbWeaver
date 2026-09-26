@@ -23,8 +23,9 @@
 import type { USER_ROLES } from "@orb/contracts/identity";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
+import type { TrpcRecorder, TrpcResponder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
+import { catalogEntry, catalogOf } from "../_connection-fixtures.ts";
 import { ConnectionEditorNarrowStory, ConnectionEditorStory } from "../_ct-stories.tsx";
 
 const CONNECTION_ID = "user_connection_cteditor0001";
@@ -117,6 +118,7 @@ async function stubEditor(
     readonly allowlist?: readonly string[];
     readonly role?: (typeof USER_ROLES)[number];
     readonly capabilities?: TrpcWireOutput<"connection.capabilities">;
+    readonly catalogModels?: TrpcResponder<"connection.catalogModels">;
   } = {},
 ): Promise<TrpcRecorder> {
   return await routeTrpc(page, {
@@ -125,7 +127,8 @@ async function stubEditor(
     "connection.providersAvailable": () => [{ provider: VLLM_PROVIDER, available: true }],
     "connection.capabilities": () => opts.capabilities ?? CONNECTION_CAPABILITIES,
     // An empty catalog is the TYPED-ID arm — which is what `modelListed: false` is about.
-    "connection.catalogModels": () => ({ listed: false, reason: "the provider listed no models" }),
+    "connection.catalogModels":
+      opts.catalogModels ?? ((): TrpcWireOutput<"connection.catalogModels"> => ({ listed: false, reason: "the provider listed no models" })),
     "connection.update": () => opts.connection ?? connectionRow(),
     "connection.probe": () => ({ status: "unreachable", checkedAt: 0, reason: "connect ECONNREFUSED" }),
     "settings.getAppSettingsWithOverrides": () => ({
@@ -187,14 +190,61 @@ test("a tier header is a BUTTON with aria-expanded, and opens from the keyboard"
 
 // ── the copy §5.3a makes law ───────────────────────────────────────────────────────────────────────────
 
-test("the typed-model fallback carries §5.3a's sentence verbatim, with its re-check action", async ({ mount, page }) => {
-  await stubEditor(page);
+// ── the model field: the shared ModelPicker over the saved row's own list ─────────────────────────────
+
+const SAVED_MODEL = "Qwen/Qwen3-32B";
+
+test("a listed catalog shows the searchable list with the saved model picked, and a pick saves it as listed", async ({ mount, page }) => {
+  const trpc = await stubEditor(page, {
+    connection: connectionRow({ modelListed: true }),
+    catalogModels: catalogOf([catalogEntry(SAVED_MODEL), catalogEntry("Qwen/Qwen3-8B")]),
+  });
   const component = await mount(<ConnectionEditorStory />);
 
-  await expect(
-    component.getByText("This model id wasn't in 127.0.0.1:8000's list. It'll be sent as-is; if the server doesn't have it, turns will fail."),
-  ).toBeVisible();
-  await expect(component.getByRole("button", { name: "Check the list again" })).toBeVisible();
+  await expect(component.getByRole("combobox", { name: "Search 127.0.0.1:8000 models" })).toBeVisible();
+  await expect(component.locator('[data-slot="model-picker-picked"]')).toContainText(SAVED_MODEL);
+  await expect(component.getByRole("button", { name: "Check the list again" })).toHaveCount(0);
+
+  await component.getByRole("option", { name: /Qwen\/Qwen3-8B/ }).click();
+  await expect.poll(() => trpc.lastInput("connection.update")).toEqual({ connectionId: CONNECTION_ID, patch: { model: "Qwen/Qwen3-8B", modelListed: true } });
+});
+
+test("a saved model the list does not carry is flagged under the list, and the re-check reads the list again", async ({ mount, page }) => {
+  const trpc = await stubEditor(page, { connection: connectionRow({ modelListed: false }), catalogModels: catalogOf([catalogEntry("Qwen/Qwen3-8B")]) });
+  const component = await mount(<ConnectionEditorStory />);
+
+  await expect(component.locator('[data-slot="model-picker-picked"]')).toContainText(SAVED_MODEL);
+  const recheck = component.getByRole("button", { name: "Check the list again" });
+  await expect(recheck).toBeVisible();
+  await expect.poll(() => trpc.count("connection.catalogModels")).toBe(1);
+  await recheck.click();
+  await expect.poll(() => trpc.count("connection.catalogModels")).toBe(2);
+  // The stored flag already says unlisted, so the check writes nothing.
+  await expect.poll(() => trpc.count("connection.update")).toBe(0);
+});
+
+test("a stored flag the list contradicts is corrected once the list has been read, in both directions", async ({ mount, page }) => {
+  const trpc = await stubEditor(page, { connection: connectionRow({ modelListed: false }), catalogModels: catalogOf([catalogEntry(SAVED_MODEL)]) });
+  await mount(<ConnectionEditorStory />);
+
+  await expect.poll(() => trpc.lastInput("connection.update")).toEqual({ connectionId: CONNECTION_ID, patch: { model: SAVED_MODEL, modelListed: true } });
+});
+
+test("a failed list falls back to the typed id, which saves unlisted when the field loses focus, and never per keystroke", async ({ mount, page }) => {
+  const trpc = await stubEditor(page, { connection: connectionRow({ modelListed: true }), catalogModels: trpcError({ message: "connect ECONNREFUSED" }) });
+  const component = await mount(<ConnectionEditorStory />);
+
+  const typed = component.getByRole("textbox", { name: "Model" });
+  await expect(typed).toHaveValue(SAVED_MODEL);
+  await expect(component.getByRole("button", { name: "Try the list again" })).toBeVisible();
+  // A failed read is not a check: the stored flag is left alone.
+  await expect.poll(() => trpc.count("connection.update")).toBe(0);
+
+  await typed.fill("Qwen/Qwen3-72B");
+  await expect.poll(() => trpc.count("connection.update")).toBe(0);
+  await component.getByRole("textbox", { name: "Name" }).focus();
+  await expect.poll(() => trpc.lastInput("connection.update")).toEqual({ connectionId: CONNECTION_ID, patch: { model: "Qwen/Qwen3-72B", modelListed: false } });
+  await expect.poll(() => trpc.count("connection.update")).toBe(1);
 });
 
 test("the four block names are §5.3a's words, never the schema's", async ({ mount, page }) => {
