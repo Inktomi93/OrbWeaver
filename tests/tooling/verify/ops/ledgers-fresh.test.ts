@@ -31,6 +31,7 @@ import {
   typeConfigsDrift,
 } from "@orb/tooling/verify";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
 const STAGE = "ledgers:fresh";
 
@@ -177,7 +178,11 @@ test("a COMPLETE reason stops the wrap: an ordinary comment after it is never ap
 
 // ── the registry contract: complete populations at whole tiers and selected-path triggers ──
 
-test("the stage runs at every whole-tree tier and uses its complete argv for selected paths", () => {
+// One cold `resolveSelection`. MEASURED: 3.2 s alone at per-core load 0.3, and 5.7 s beside a whole affected-test run.
+// The base is twice the worst loaded reading.
+const SELECTION_TIMEOUT = scaledBudget(12_000);
+
+test("the stage runs at every whole-tree tier and uses its complete argv for selected paths", { timeout: SELECTION_TIMEOUT }, () => {
   const stage = REGISTRY.find((entry) => entry.name === STAGE);
   expect(stage, `${STAGE} must be registered`).toBeDefined();
   expect(stage?.tiers).toEqual(["changed", "static", "push", "full"]);
