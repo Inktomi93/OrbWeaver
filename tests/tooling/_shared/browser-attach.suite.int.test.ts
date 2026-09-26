@@ -29,7 +29,8 @@ import { pathToFileURL } from "node:url";
 import { attachProbeSession, closeProbeSession, launchProbeSession } from "@orb/tooling/_shared/browser";
 import { openProbeContext } from "@orb/tooling/_shared/browser-context";
 import type { ProbeSession } from "@orb/tooling/_shared/browser-contract";
-import { reassertOwnerViewport } from "@orb/tooling/_shared/browser-emulation-guard";
+import { reassertOwnerDevice, reassertOwnerViewport } from "@orb/tooling/_shared/browser-emulation-guard";
+import { MOBILE_DEVICE } from "@orb/tooling/_shared/browser-environment";
 import type { BrowserContext, Page } from "@playwright/test";
 import { chromium } from "@playwright/test";
 import { snapshot } from "lighthouse";
@@ -458,6 +459,54 @@ test("reassertOwnerViewport refuses to run against a page it did not create — 
     });
     try {
       await expect(reassertOwnerViewport(sibling.page, CORRUPTIBLE_VIEWPORT)).rejects.toThrow(/did not create/u);
+    } finally {
+      await closeProbeSession(sibling);
+    }
+  } finally {
+    await closeProbeSession(session);
+  }
+});
+
+const READ_DEVICE_JS = "({coarse: matchMedia('(pointer: coarse)').matches, fine: matchMedia('(pointer: fine)').matches, touch: navigator.maxTouchPoints})";
+const MOBILE_VIEWPORT = { width: 430, height: 932 } as const;
+
+test("an element shot drops the owner's touch emulation, and reassertOwnerDevice restores it through the owner session", async ({ scratch }) => {
+  const session = await launchProbeSession({
+    headless: true,
+    viewport: MOBILE_VIEWPORT,
+    device: MOBILE_DEVICE,
+    colorScheme: null,
+    reducedMotion: false,
+    localStorage: [],
+    persistentProfileDir: scratch,
+  });
+  try {
+    await session.page.setContent("<main>device</main>");
+    expect(await session.page.evaluate(READ_DEVICE_JS)).toStrictEqual({ coarse: true, fine: false, touch: 1 });
+    // Planted control: the clipped capture a `--shot-of` takes leaves a desktop pointer behind.
+    await session.page.locator("main").screenshot();
+    expect(await session.page.evaluate(READ_DEVICE_JS)).toStrictEqual({ coarse: false, fine: true, touch: 0 });
+
+    await reassertOwnerDevice(session.page, session.environmentContract.applied);
+    expect(await session.page.evaluate(READ_DEVICE_JS)).toStrictEqual({ coarse: true, fine: false, touch: 1 });
+  } finally {
+    await closeProbeSession(session);
+  }
+});
+
+test("reassertOwnerDevice refuses a page an attached connection wired — a sibling never re-emulates the owner", async ({ scratch }) => {
+  const session = await launchDebuggableAtViewport(scratch);
+  try {
+    const sibling = await attachProbeSession(await debuggingEndpoint(scratch), {
+      viewport: CORRUPTIBLE_VIEWPORT,
+      device: null,
+      colorScheme: null,
+      reducedMotion: false,
+      contrast: null,
+      reducedTransparency: false,
+    });
+    try {
+      await expect(reassertOwnerDevice(sibling.page, { hasTouch: true })).rejects.toThrow(/no owner CDP session/u);
     } finally {
       await closeProbeSession(sibling);
     }

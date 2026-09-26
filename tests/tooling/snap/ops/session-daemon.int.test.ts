@@ -394,6 +394,24 @@ test("CT SLOT — a live session daemon holds one host CT slot for its lifetime 
   }
 });
 
+// ── The owner's device survives a call ─────────────────────────────────────────────────────────────
+
+const POINTER_EVAL = "(matchMedia('(pointer: coarse)').matches ? 1 : 0) * 10 + navigator.maxTouchPoints";
+
+test("DEVICE — a --mobile session's next call still sees a coarse pointer after a call took an element shot", async ({ plantedTree, runCli }) => {
+  const r = await rig(plantedTree, runCli);
+  const a = uniq("device");
+  try {
+    // The boot's exit is not this case's subject: it also carries the environment verdict on the screen.
+    const boot = await r.snap(["--session", a, "--file", r.fixture, "--mobile", "--eval", POINTER_EVAL, "--shot-of", "main", "--no-failure-evidence"]);
+    expect(evalValue(boot.stdout), "coarse pointer and one touch point at boot").toBe(11);
+    const next = await r.snap(["--session", a, "--eval", POINTER_EVAL, ...QUIET]);
+    expect(evalValue(next.stdout), "the element shot must not have taken the device away").toBe(11);
+  } finally {
+    await r.close([a]);
+  }
+});
+
 // ── T6: the cap ──────────────────────────────────────────────────────────────────────────────────────
 
 test("T6 — at the cap the next boot exits 2 naming the live sessions with idle ages; closing one admits it", async ({ plantedTree, runCli }) => {

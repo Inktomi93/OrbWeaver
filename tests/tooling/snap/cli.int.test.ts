@@ -67,6 +67,28 @@ test("dead CSS REDs the scenario aggregate and checkpoint summary", { timeout: 2
   await expect(clean).toExitWith(EXIT.clean);
 });
 
+const POINTER_HTML = `<!doctype html><html data-app-ready="settled"><body><main>pointer</main></body></html>`;
+/** One line per checkpoint naming the pointer the page sees, so a lost touch emulation is a readable diff. */
+const POINTER_EVAL = "'POINTER ' + (matchMedia('(pointer: coarse)').matches ? 'coarse' : 'fine') + ' touch=' + navigator.maxTouchPoints";
+const POINTER_LINE_RE = /POINTER (\w+ touch=\d+)/gu;
+
+// An element shot (Chromium's beyond-viewport capture) drops the page's touch emulation. The planted
+// control is the shot itself: every checkpoint takes one, so the next checkpoint reads what it left.
+test("a --mobile scenario keeps a coarse pointer across checkpoints that each take an element shot", { timeout: BROWSER_TIMEOUT_MS }, async ({
+  plantedTree,
+  runCli,
+}) => {
+  const root = await plantedTree({ "pointer.html": POINTER_HTML });
+  const checkpoint = (name: string): { readonly name: string; readonly args: readonly string[] } => ({
+    name,
+    args: ["--file", `${root}/pointer.html`, "--eval", POINTER_EVAL, "--shot-of", "main"],
+  });
+  const scenarios = await plantedTree({ "pointer.json": JSON.stringify({ name: "pointer", checkpoints: ["one", "two", "three"].map(checkpoint) }) });
+  const run = await runCli("snap", ["--scenario", `${scenarios}/pointer.json`, "--mobile", "--no-failure-evidence"], { timeoutMs: BROWSER_TIMEOUT_MS });
+  await expect(run).toExitWith(EXIT.clean);
+  expect([...run.stdout.matchAll(POINTER_LINE_RE)].map((match) => match[1])).toStrictEqual(["coarse touch=1", "coarse touch=1", "coarse touch=1"]);
+});
+
 test("the contrast instrument REDs on a planted WCAG failure (and stays green on the readable twin)", { timeout: 2 * BROWSER_TIMEOUT_MS }, async ({
   plantedTree,
   runCli,
