@@ -9,10 +9,15 @@ import { gate as danglingDocCite } from "../../../../tooling/src/verify/gates/da
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
 const policies = [dCitationIntegrity, danglingDocCite] as const;
 
-test("the text-citation family keeps its two-sided proofs", () => {
+// The two policies' declared rows through the conformance runner. MEASURED: 6.2 s alone at per-core load 0.4, and
+// 7.6 s beside a whole affected-test run. The base is twice the worst loaded reading.
+const FAMILY_PROOFS_TIMEOUT = scaledBudget(15_000);
+
+test("the text-citation family keeps its two-sided proofs", { timeout: FAMILY_PROOFS_TIMEOUT }, () => {
   expect(verifyPolicyProofs(policies)).toEqual([]);
 });
 
