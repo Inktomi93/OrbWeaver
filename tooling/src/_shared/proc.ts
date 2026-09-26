@@ -278,9 +278,9 @@ export function spawnFullPriorityChild(cmd: string, args: readonly string[], opt
 function childStdio(
   stdio: FullPriorityChildOptions["stdio"],
   logFd: number | undefined,
-): "inherit" | ["ignore", "pipe", "inherit"] | ["ignore", number, number] | ["ignore", "pipe", "pipe"] {
-  if (stdio === "inherit") {
-    return "inherit";
+): "inherit" | "ignore" | ["ignore", "pipe", "inherit"] | ["ignore", number, number] | ["ignore", "pipe", "pipe"] {
+  if (stdio === "inherit" || stdio === "ignore") {
+    return stdio;
   }
   if (stdio === "pipe-stdout") {
     return ["ignore", "pipe", "inherit"];

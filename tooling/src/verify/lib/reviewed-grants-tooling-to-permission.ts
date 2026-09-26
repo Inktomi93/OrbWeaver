@@ -109,6 +109,14 @@ export const REVIEWED_GRANTS_TOOLING_TO_PERMISSION: readonly ReviewedGateGrant[]
     endsWhen: "`pnpm start` is retired, or stops spawning the server and its client build — the row is then consumed zero times and reds.",
   },
   {
+    id: "tooling-child-process-door:platform-open-url",
+    policyId: "tooling-child-process-door",
+    subject: "tooling/src/_shared/platform.ts",
+    operation: "full-priority-spawn",
+    why: "`openUrl`'s default-browser opener: the browser it starts inherits the opener's priority for its whole life, so a niced opener would hand the lowered priority to the browser a person uses the app in.",
+    endsWhen: "`openUrl` is deleted or stops spawning an opener — the row is then consumed zero times and reds.",
+  },
+  {
     id: "tooling-child-process-door:stack-dev-up",
     policyId: "tooling-child-process-door",
     subject: "tooling/src/stack/ops/dev-up.ts",

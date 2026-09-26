@@ -42,7 +42,11 @@ test("affected routing retains concrete parents for exclusive roots, shared root
   ]);
 });
 
-test("primary routing follows native roots for DOM runtime/type tests, Node tests, helpers, tooling and package source", ({ repoRoot }) => {
+// The first plan against the real repository parses every native program's config in process. MEASURED: 3.3 s at
+// per-core load 0.4, and 10.9 s beside three whole typechecks at per-core load 1.1. The base is twice the loaded reading.
+test("primary routing follows native roots for DOM runtime/type tests, Node tests, helpers, tooling and package source", {
+  timeout: scaledBudget(22_000),
+}, ({ repoRoot }) => {
   const cases: readonly (readonly [string, string])[] = [
     ["tests/client/agent-nav/index.dom.test.ts", "tsconfig.tests-dom.json"],
     ["tests/ui/primitives/input/index.dom.test-d.ts", "tsconfig.tests-dom.json"],
@@ -65,7 +69,9 @@ test("primary routing follows native roots for DOM runtime/type tests, Node test
   }
 });
 
-test("ambient and inherited tsconfig edits select every native dependent program", ({ repoRoot }) => {
+// Run first in its process it pays the same config parse as the primary case above. MEASURED alone: 4.3 s and 4.8 s at
+// per-core load 0.6 to 0.7, and 5.0 s to 16.8 s beside three whole typechecks. The base is twice the worst loaded reading.
+test("ambient and inherited tsconfig edits select every native dependent program", { timeout: scaledBudget(34_000) }, ({ repoRoot }) => {
   const plan = planTypecheckPrograms(repoRoot, [present("reset.d.ts"), present("tsconfig.base.json")], "primary");
   const ambient = plan.subjects.find((subject) => subject.path === "reset.d.ts")?.selectedPrograms;
   const inherited = plan.subjects.find((subject) => subject.path === "tsconfig.base.json")?.selectedPrograms;

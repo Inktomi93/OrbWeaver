@@ -36,11 +36,13 @@ export type {
   StackParse,
   StackSpawner,
   StackVerb,
+  StartBrowser,
   StartBuildDecision,
   StartBuildMode,
   StartInvocation,
   StartLaunch,
   StartParse,
+  StartSpawn,
   StartSupervisorDeps,
   SupervisedChild,
   UpAction,
@@ -109,12 +111,14 @@ export {
 } from "./lib/stack-plan.ts";
 export {
   decideStartBuild,
+  OPEN_BROWSER_KEY,
   parseStartArgv,
   restateFileEnv,
   START_USAGE,
   shareLaunchRefusal,
   singleUserFallbackEnv,
   startBannerLines,
+  startBrowser,
   startLaunch,
   startSpawnPlan,
 } from "./lib/start-plan.ts";

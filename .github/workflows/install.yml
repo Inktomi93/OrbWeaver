@@ -1,0 +1,143 @@
+name: install
+
+# Proves the README's "Run it" paths on fresh runners. Each source job runs the README's install lines, a
+# non-interactive `pnpm start` (start.cmd on Windows), waits for /healthz and stops the server. The docker job
+# runs the README's Docker lines the same way. The `dev-engines` row skips `pnpm runtime set node 26 -g` to
+# learn whether package.json `devEngines.runtime` (onFail: download) gives `pnpm start` its Node alone.
+# Manual only, like ci.yml.
+on:
+  workflow_dispatch:
+
+env:
+  HEALTHZ: http://127.0.0.1:8788/healthz
+
+jobs:
+  source:
+    name: source (${{ matrix.os }}, ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, node: global }
+          - { os: macos-latest, node: global }
+          - { os: windows-latest, node: global }
+          - { os: ubuntu-latest, node: dev-engines }
+    steps:
+      # The README's `git clone`, at the ref this run was dispatched on.
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm (README, Linux and macOS)
+        if: runner.os != 'Windows'
+        run: |
+          # The script refuses to guess the shell when SHELL is unset, which a terminal always sets.
+          export SHELL="${SHELL:-/bin/bash}"
+          curl -fsSL https://get.pnpm.io/install.sh | sh -
+          # A terminal picks these up from the shell profile the script edits; a runner step does not.
+          if [ "$RUNNER_OS" = macOS ]; then pnpm_home="$HOME/Library/pnpm"; else pnpm_home="${XDG_DATA_HOME:-$HOME/.local/share}/pnpm"; fi
+          echo "PNPM_HOME=$pnpm_home" >> "$GITHUB_ENV"
+          echo "$pnpm_home/bin" >> "$GITHUB_PATH"
+
+      - name: Install pnpm (README, Windows PowerShell)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://get.pnpm.io/install.ps1 -UseBasicParsing | Invoke-Expression
+          # A new console picks these up from the user environment the script sets; a runner step does not.
+          $pnpmHome = Join-Path $env:LOCALAPPDATA "pnpm"
+          "PNPM_HOME=$pnpmHome" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Join-Path $pnpmHome "bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+
+      - name: Install Node 26 through pnpm (README)
+        if: matrix.node == 'global'
+        run: pnpm runtime set node 26 -g
+
+      - run: pnpm install
+
+      # Which Node a pnpm script runs: the evidence the dev-engines row exists to collect.
+      - name: Report the Node versions
+        shell: bash
+        run: |
+          node --version || echo "no node on PATH"
+          pnpm exec node -e "console.log('pnpm scripts run node', process.version, 'from', process.execPath)"
+
+      - name: Start, wait for /healthz, stop (Linux and macOS)
+        if: runner.os != 'Windows'
+        run: |
+          pnpm start < /dev/null > "$RUNNER_TEMP/start.log" 2>&1 &
+          for _ in $(seq 1 120); do
+            if curl -fsS "$HEALTHZ" > /dev/null 2>&1; then break; fi
+            sleep 5
+          done
+          curl -fsS "$HEALTHZ"
+          echo
+          # Newest match: pnpm may run the script through `sh -c`, whose command line matches too.
+          supervisor=$(pgrep -n -f "tooling/src/stack/cli.ts start")
+          # The Ctrl-C a person sends: the supervisor forwards it to the server and exits with it.
+          kill -INT "$supervisor"
+          for _ in $(seq 1 60); do
+            if ! kill -0 "$supervisor" 2> /dev/null; then break; fi
+            sleep 1
+          done
+          if kill -0 "$supervisor" 2> /dev/null; then echo "pnpm start is still running after Ctrl-C"; exit 1; fi
+          if curl -fsS "$HEALTHZ" > /dev/null 2>&1; then echo "the server still answers after the stop"; exit 1; fi
+
+      - name: Start with start.cmd, wait for /healthz, stop (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $noInput = Join-Path $env:RUNNER_TEMP "no-input.txt"
+          New-Item -ItemType File -Path $noInput -Force | Out-Null
+          $start = Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "start.cmd" -NoNewWindow -PassThru `
+            -RedirectStandardInput $noInput `
+            -RedirectStandardOutput (Join-Path $env:RUNNER_TEMP "start.log") `
+            -RedirectStandardError (Join-Path $env:RUNNER_TEMP "start.err.log")
+          $up = $false
+          for ($i = 0; $i -lt 120 -and -not $up; $i++) {
+            try {
+              $up = (Invoke-WebRequest $env:HEALTHZ -UseBasicParsing -TimeoutSec 5).StatusCode -eq 200
+            } catch {
+              Start-Sleep -Seconds 5
+            }
+          }
+          if (-not $up) { throw "the server never answered /healthz" }
+          # No console Ctrl-C can reach a process started from a runner step, so the stop is a tree kill.
+          taskkill /PID $start.Id /T /F
+          Start-Sleep -Seconds 3
+          $stillUp = $true
+          try { Invoke-WebRequest $env:HEALTHZ -UseBasicParsing -TimeoutSec 5 | Out-Null } catch { $stillUp = $false }
+          if ($stillUp) { throw "the server still answers after the stop" }
+
+      - name: Show the start log
+        if: always()
+        shell: bash
+        run: cat "$RUNNER_TEMP"/start*.log || true
+
+  docker:
+    name: docker (ubuntu-latest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      # The README's `git clone`, at the ref this run was dispatched on.
+      - uses: actions/checkout@v4
+
+      - run: docker compose up -d --build
+
+      - name: Wait for /healthz
+        run: |
+          for _ in $(seq 1 60); do
+            if curl -fsS "$HEALTHZ" > /dev/null 2>&1; then break; fi
+            sleep 5
+          done
+          curl -fsS "$HEALTHZ"
+
+      - name: Show the container log
+        if: always()
+        run: docker compose logs orbweaver
+
+      - name: Stop
+        if: always()
+        run: |
+          docker compose down
+          if curl -fsS "$HEALTHZ" > /dev/null 2>&1; then echo "the app still answers after docker compose down"; exit 1; fi
