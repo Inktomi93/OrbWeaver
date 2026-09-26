@@ -1,7 +1,7 @@
-import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { chmodSync, mkdirSync, writeFileSync } from "node:fs";
+import { dirname, join, relative } from "node:path";
 import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
-import { createSemanticWorkspace } from "@orb/tooling/_shared/ts-workspace";
+import { createSemanticWorkspace, getWorkspace } from "@orb/tooling/_shared/ts-workspace";
 import { buildLiveness, collectOrphanCandidates, collectTypeOnlyCandidates } from "@orb/tooling/ast";
 import { Node } from "ts-morph";
 import { vi } from "vitest";
@@ -155,6 +155,25 @@ test("authored source views exclude ignored worktrees and dependencies", ({ scra
       .getSourceFiles()
       .map((sourceFile) => sourceFile.getFilePath()),
   ).not.toEqual(expect.arrayContaining([expect.stringContaining("/.claude/worktrees/"), expect.stringContaining("/node_modules/decoy/")]));
+});
+
+// A root-level file makes the checkout root the common ancestor of the globbed files, and a nested lane
+// worktree holds a transient `.cache` snapshot that can vanish or be unreadable mid-walk. The gate corpus
+// must load its globbed files without walking into either.
+test("the gate corpus loads only its globbed files and never walks another checkout's tree", ({ scratch }) => {
+  write(scratch, "root.ts", "export const root = 1;\n");
+  write(scratch, "tooling/src/a.ts", "export const a = 1;\n");
+  const snapshots = join(scratch, ".claude", "worktrees", "lane", ".cache");
+  write(scratch, ".claude/worktrees/lane/.cache/config-snapshot-x/tooling/src/b.ts", "export const b = 1;\n");
+  chmodSync(snapshots, 0o000);
+  try {
+    const files = getWorkspace({ root: scratch })
+      .getSourceFiles()
+      .map((sourceFile) => relative(scratch, sourceFile.getFilePath()));
+    expect(files.toSorted()).toEqual(["root.ts", "tooling/src/a.ts"]);
+  } finally {
+    chmodSync(snapshots, 0o755);
+  }
 });
 
 function initializeZeroProgramRepository(scratch: string, files: Readonly<Record<string, string>>): void {
