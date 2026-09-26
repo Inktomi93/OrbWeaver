@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { execFixtureGit, runFixtureGit } from "../../../../tooling/src/_shared/git-fixture.ts";
 import { drift, driftFacts, landItems, landMerged, newItem, newPlan, overview, setStatus } from "../../../../tooling/src/doc/index.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
 const TODAY = "2026-09-23";
 const IDENTITY = ["-c", "user.name=Doc Test", "-c", "user.email=doc@example.invalid"];
@@ -255,7 +256,12 @@ test("drift reads the repository: a stale doing item and an unlanded Closes trai
   ]);
 });
 
-test("drift reports a Closes trailer buried deeper than a fixed recent-commit window would reach", async ({ plantedTree }) => {
+// The two deep-history drift cases pay for 205 filler commits, one git process each. MEASURED alone: 20.4 s and
+// 31.7 s at per-core load 0.4 to 0.6, and 17.6 s and 23.2 s beside three whole typechecks. Each base is twice its worst
+// reading.
+test("drift reports a Closes trailer buried deeper than a fixed recent-commit window would reach", { timeout: scaledBudget(41_000) }, async ({
+  plantedTree,
+}) => {
   const root = await repo(plantedTree);
   newItem({ title: "A", kind: "work", priority: null, area: null, plan: null, lane: null }, root, TODAY);
   commitAll(root, "chore(work): items");
@@ -271,7 +277,9 @@ test("drift reports a Closes trailer buried deeper than a fixed recent-commit wi
   ]);
 });
 
-test("drift stays silent on a Closes trailer whose item already landed (deleted), even deep in a long history", async ({ plantedTree }) => {
+test("drift stays silent on a Closes trailer whose item already landed (deleted), even deep in a long history", { timeout: scaledBudget(64_000) }, async ({
+  plantedTree,
+}) => {
   const root = await repo(plantedTree);
   newItem({ title: "A", kind: "work", priority: null, area: null, plan: null, lane: null }, root, TODAY);
   commitAll(root, "chore(work): items");

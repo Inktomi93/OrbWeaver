@@ -31,6 +31,10 @@ test("two whole runs queued behind a stuck battery start one ceiling apart, in a
 
   let clockMs = 9_000_000;
   const alive = (pid: number): boolean => [41_001, 41_002, 41_003].includes(pid);
+  // An admitted run's lease beats on a timer. Here the timer is driven by the shared clock: every poll beats every
+  // live lease, as a real timer would across that much time. Without it the overflow run reads as silent, and so
+  // dead, one stale window after it starts, and the second waiter takes its file at the first ceiling.
+  const beats = new Set<() => void>();
   const admitted: number[] = [];
   const leases = new Map<number, HostSlotLease | null>();
   const pending = [41_002, 41_003].map((pid) =>
@@ -41,7 +45,16 @@ test("two whole runs queued behind a stuck battery start one ceiling apart, in a
       now: () => new Date(clockMs),
       sleep: async (ms) => {
         clockMs += ms + CLOCK_STEP_MS;
+        for (const tick of beats) {
+          tick();
+        }
         await new Promise<void>((resolve) => setImmediate(resolve));
+      },
+      beat: (tick) => {
+        beats.add(tick);
+        return (): void => {
+          beats.delete(tick);
+        };
       },
       onQueued: () => undefined,
       onNotice: () => undefined,
