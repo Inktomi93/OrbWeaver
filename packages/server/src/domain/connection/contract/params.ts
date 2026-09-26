@@ -6,6 +6,7 @@
 import type { Principal } from "@orb/contracts/identity";
 import type {
   BindingActorKind,
+  CapabilityTarget,
   ConnectionApi,
   ConnectionExtrasDoc,
   ConnectionTransportDoc,
@@ -32,9 +33,11 @@ export interface ResolveTaskParams extends ActorParams {
   readonly connectionId?: UserConnectionId | undefined;
 }
 
-/** `resolveChatCapability` — the caller's OWN chat connection, credential-free (the params panel, the rpg lite
- *  gate, the Connections pane's readout). */
-export interface ResolveChatCapabilityParams extends ActorParams {}
+/** `resolveChatCapability` — one of the caller's OWN connections as the chat funnel sees it, credential-free
+ *  (the params panel, the rpg lite gate, the Connections pane's readout). Absent `target` ⇒ the chat role. */
+export interface ResolveChatCapabilityParams extends ActorParams {
+  readonly target?: CapabilityTarget | undefined;
+}
 
 export interface ListConnectionsParams extends ActorParams {}
 

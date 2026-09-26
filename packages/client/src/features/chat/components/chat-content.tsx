@@ -7,14 +7,15 @@
 // turn. A chat row exists from the creation click now (D166), so
 // there is no promotion left to survive and the key is simply the id.
 
-import type { ChatWarning, TurnAbortReason } from "@orb/contracts/chat";
+import type { TurnAbortReason } from "@orb/contracts/chat";
 import type { ReactElement } from "react";
+import { useState } from "react";
 import type { ChatBusDeps } from "#data";
 import { useChatBusDeps } from "#data";
-import type { ChatSurfaceContribution, ContributorRegistry, NotifyAction, ToolRenderer } from "#lib";
+import type { ChatSurfaceContribution, ContributorRegistry, NotifyAction, NotifyNotice, ToolRenderer } from "#lib";
 import { notify, turnAbortNotice } from "#lib";
 import { chatDeletedFromList, isLanding, openConfigTo, openNewChatPicker, selectChat, useActiveChatHandle } from "#state";
-import { warningNotice } from "../lib/warning-notice.ts";
+import { createWarningSurface } from "../lib/turn-warning-surface.ts";
 import { ChatLandingSurface } from "../surfaces/chat-landing-surface.tsx";
 import { ChatRoomSurface } from "../surfaces/chat-room-surface.tsx";
 
@@ -44,24 +45,22 @@ const OPEN_CONNECTIONS: NotifyAction = {
   },
 };
 
-// The honest-degrade seam: a domain `warning` bus event (non-vision image strip, tools/structured-output/
-// memory/compaction degrades) surfaces through the injected `onWarning` callback — `data/` may not import
-// `features/`, so the code→copy mapper is wired HERE, in the feature. It's a WARN notice, not an error and
-// not plain info: the turn/image still produced a result, but the thing the user asked for did not happen,
-// and as `info` it arrived with no identity at all (side-eye P2-1). Module-stable so `busDeps` stays
-// referentially calm. Every warning surfaces (the mapper is total — no silenced code).
-function surfaceWarning(warning: ChatWarning): void {
-  const notice = warningNotice(warning);
-  notify.warn(warning.code === "custom_parameters_ignored" ? { ...notice, action: OPEN_CONNECTIONS } : notice);
+// The honest-degrade seam: a domain `warning` bus event surfaces through the injected callbacks — `data/` may
+// not import `features/`, so the cadence and the code→copy mapper are wired HERE, in the feature. It's a WARN
+// notice: the turn still produced a result, but something the user asked for did not happen.
+function warnNotice(notice: NotifyNotice): void {
+  notify.warn(notice);
 }
 
 export function ChatContent({ surfaceContributors, toolRenderers }: ChatContentProps): ReactElement {
   const handle = useActiveChatHandle();
   const baseBusDeps = useChatBusDeps();
+  // One cadence per mounted Chats body: it remembers the last turn's drops per connection across room switches.
+  const [warningSurface] = useState(() => createWarningSurface({ warn: warnNotice, openConnections: OPEN_CONNECTIONS }));
   // `chatDeletedFromList` is a no-op unless the deleted chat IS the active one, so wiring it here is the
   // whole transition: a host delete elsewhere, a husk reap, or the TTL sweep firing against this very tab all
   // land the reader on the landing surface instead of a room whose row is gone (R3 — the verifier's R1-3).
-  const busDeps: ChatBusDeps = { ...baseBusDeps, onTurnAbort: surfaceTurnAbort, onWarning: surfaceWarning, onChatDeleted: chatDeletedFromList };
+  const busDeps: ChatBusDeps = { ...baseBusDeps, ...warningSurface, onTurnAbort: surfaceTurnAbort, onChatDeleted: chatDeletedFromList };
 
   if (isLanding(handle)) {
     return <ChatLandingSurface onNewChat={openNewChatPicker} />;

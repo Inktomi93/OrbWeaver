@@ -586,10 +586,19 @@ const PROBES: readonly Probe[] = [
   { path: "preset.update", call: (c, i) => c.preset.update({ id: i.presetId, name: "hacked" }) },
   { path: "preset.remove", call: (c, i) => c.preset.remove({ id: i.presetId }) },
   { path: "preset.resetToDefault", call: (c, i) => c.preset.resetToDefault({ id: i.presetId }) },
-  // The effective-profile read: it takes A's preset id, so a missing owner predicate would project A's
-  // generation knobs to a stranger. The capability half is Principal-only (no id to aim), so the preset
-  // read is the whole attack surface — and it must collapse leak-free.
+  // The effective-profile read has TWO ids a stranger can aim. A's preset id: a missing owner predicate
+  // would project A's generation knobs, so the preset read must collapse leak-free.
   { path: "preset.resolveEffective", call: (c, i) => c.preset.resolveEffective({ id: i.presetId }) },
+  // …and A's connection id as the TARGET, on the stranger's OWN preset, so only the connection's owner check
+  // stands between the stranger and A's model: the preset half passes by construction.
+  {
+    path: "preset.resolveEffective",
+    call: async (c, i) => {
+      const own = await c.preset.create({ name: "stranger's own", kind: "chat" });
+      return c.preset.resolveEffective({ id: own.id, target: { kind: "connection", connectionId: i.connectionId } });
+    },
+    refusal: CONNECTION_NOT_YOURS,
+  },
   // The backward-bindings read (#279): it takes A's preset id and answers with A's active-pick flag plus
   // the ROOMS whose GM voice points at it — two facts a stranger must not learn. Both gates must hold: the
   // verb's own readable-preset predicate (which is what this probe attacks), and, behind it, the
@@ -1693,6 +1702,12 @@ const PROBES: readonly Probe[] = [
   },
   { path: "connection.remove", call: (c, i) => c.connection.remove({ connectionId: i.connectionId }), refusal: CONNECTION_NOT_YOURS },
   { path: "connection.capabilities", call: (c, i) => c.connection.capabilities({ connectionId: i.connectionId }), refusal: CONNECTION_NOT_YOURS },
+  // The capability read's CONNECTION target: A's row by id must refuse before the runtime describes A's model.
+  {
+    path: "connection.resolveChatCapability",
+    call: (c, i) => c.connection.resolveChatCapability({ target: { kind: "connection", connectionId: i.connectionId } }),
+    refusal: CONNECTION_NOT_YOURS,
+  },
   { path: "connection.catalogModels", call: (c, i) => c.connection.catalogModels({ connectionId: i.connectionId }), refusal: CONNECTION_NOT_YOURS },
   { path: "connection.probe", call: (c, i) => c.connection.probe({ connectionId: i.connectionId }), refusal: CONNECTION_NOT_YOURS },
   { path: "connection.accountCredits", call: (c, i) => c.connection.accountCredits({ connectionId: i.connectionId }), refusal: CONNECTION_NOT_YOURS },
@@ -1891,9 +1906,6 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "discovery.charactersByImageFacet": "self-scoped: userId = principal.userId; facet/value are allowlisted strings, not an owned id",
   "discovery.home": "self-scoped: userId = principal.userId",
   "discovery.themeDetail": "self-scoped: userId = principal.userId; clusterIdx is a facet index, not an owned id (the theme list is owner-scoped)",
-  "connection.resolveChatCapability":
-    "self-scoped: folds the caller's OWN `chat` binding through the runtime resolver from principal.userId — " +
-    "NO input at all (no caller-supplied user id/role/connection id), so there is no foreign id to probe",
   "connection.list": "self-scoped: takes NO input; listOwnedConnections filters WHERE user_connections.owner_id = principal.userId",
   // The multiplexed socket (SSE-1). `attach`/`detach` are ordinary mutations and ARE probed below. `connect`
   // is the one EventSource and NEVER TERMINATES, so the sweep's drain would hang on it — the exemption is the

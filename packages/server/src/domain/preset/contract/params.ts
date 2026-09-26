@@ -3,6 +3,7 @@
 // owner per row and gates by ownerId === userId.
 
 import type { Principal } from "@orb/contracts/identity";
+import type { CapabilityTarget } from "@orb/contracts/inference";
 import type { PromptConfig } from "@orb/contracts/preset";
 import type { PresetId, UserId } from "@orb/kit/ids";
 import type { PackagedPresetKey } from "./packaged.ts";
@@ -79,6 +80,8 @@ export interface ResetToDefaultParams {
 export interface ResolveEffectiveParams {
   readonly principal: Principal;
   readonly id: PresetId;
+  /** Which of the caller's connections to project against; absent ⇒ the chat role. */
+  readonly target?: CapabilityTarget | undefined;
 }
 
 /** Read one readable preset's BACKWARD bindings (#279). Carries the whole `Principal` for the same reason

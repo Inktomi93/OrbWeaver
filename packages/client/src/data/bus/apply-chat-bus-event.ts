@@ -26,6 +26,10 @@ export interface ChatBusDeps {
    *  transition, and until R3 nothing was on the other end of it. Wired at the composition root like the two
    *  callbacks above (`data/` may not import `features/`, and the landing action is `#state`'s). */
   readonly onChatDeleted?: (chatId: ChatId) => void;
+  /** A turn began on what it names — the key the warning cadence compares one turn's drops against the last. */
+  readonly onTurnStarted?: (chatId: ChatId, turn: { readonly provider: string; readonly model: string }) => void;
+  /** A turn ended, completed or aborted. Its `warning` events all arrive before this. */
+  readonly onTurnSettled?: (chatId: ChatId) => void;
 }
 
 function assertNever(value: never): never {
@@ -58,6 +62,7 @@ export function applyChatBusEvent(event: ChatBusEvent, deps: ChatBusDeps): void 
         speakerCharacterId: event.speakerCharacterId,
         targetMessageId: event.targetMessageId,
       });
+      deps.onTurnStarted?.(event.chatId, { provider: event.provider, model: event.model });
       return;
     // The pre-provider `{{memory}}` recall phase (#313) — the header brain-icon's live feed. Its own store
     // axis, invalidates nothing (no canon changed): recalling → recalled:N, or absent = idle.
@@ -76,11 +81,13 @@ export function applyChatBusEvent(event: ChatBusEvent, deps: ChatBusDeps): void 
     // ── Turn terminals (own the slot lifecycle, then reconcile canon) ──
     case "turnCompleted":
       deps.stream.completeTurn(event.chatId, event.messageId);
+      deps.onTurnSettled?.(event.chatId);
       deps.invalidate(event);
       return;
     case "turnAborted":
       deps.stream.abortTurn(event.chatId, event.reason);
       deps.onTurnAbort?.(event.reason, event.chatId);
+      deps.onTurnSettled?.(event.chatId);
       deps.invalidate(event);
       return;
 

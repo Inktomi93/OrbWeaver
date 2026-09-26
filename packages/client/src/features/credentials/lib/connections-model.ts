@@ -15,6 +15,8 @@ import type {
 } from "@orb/contracts/inference";
 import { bindingTaskOf, canFund, EMBED_SPACE_DIMS, providerDisplayLabel, requirementMet, taskDef } from "@orb/contracts/inference";
 import type { SelectItems, SelectOptionGroup } from "@orb/ui/select";
+// Direct, not through `#lib`: this module stays barrel-free because node-side CT specs import it.
+import { CONNECTION_ROLE_LABELS } from "../../../lib/connection-role-labels.ts";
 
 /** ONE CLAUSE of what a Model-roles slot demands of the connection bound to it, as the row's `Needs:` rail
  *  renders it: the user's word for the clause, the `CapabilityRequirement` `requirementMet` judges it by,
@@ -71,7 +73,7 @@ export interface RoleRow {
 const ROLE_ROWS: Record<RoutableTask, RoleRow> = {
   chat: {
     task: "chat",
-    label: "Chat",
+    label: CONNECTION_ROLE_LABELS.chat,
     heading: "Chat",
     description: "The main conversation model. Every turn you trigger runs on it.",
     optional: false,
@@ -79,7 +81,7 @@ const ROLE_ROWS: Record<RoutableTask, RoleRow> = {
   },
   summarize: {
     task: "summarize",
-    label: "Utility model",
+    label: CONNECTION_ROLE_LABELS.summarize,
     heading: "Utility model — summaries, structured extraction, captions",
     description:
       "Point this at a cheap model; it needs background work allowed. Several things use this slot — memory digests, summaries, extraction and image captions. While it is not set, memory digests are paused.",
@@ -88,7 +90,7 @@ const ROLE_ROWS: Record<RoutableTask, RoleRow> = {
   },
   generateImage: {
     task: "generateImage",
-    label: "Image generation",
+    label: CONNECTION_ROLE_LABELS.generateImage,
     heading: "Image generation",
     description: "Renders pictures from prompts (the /imagine surface). Optional — leaving it unset means /imagine says so instead of failing.",
     optional: true,
@@ -96,7 +98,7 @@ const ROLE_ROWS: Record<RoutableTask, RoleRow> = {
   },
   embed: {
     task: "embed",
-    label: "Text embedding",
+    label: CONNECTION_ROLE_LABELS.embed,
     heading: "Text embedding",
     description: "Vectorizes text for search and memory. Changing it re-embeds your whole index.",
     optional: false,
@@ -104,7 +106,7 @@ const ROLE_ROWS: Record<RoutableTask, RoleRow> = {
   },
   imageEmbed: {
     task: "imageEmbed",
-    label: "Image embedding",
+    label: CONNECTION_ROLE_LABELS.imageEmbed,
     heading: "Image embedding",
     description: "A multimodal embedder for searching images directly. Unset falls back to the captioned-text lens.",
     optional: true,
@@ -112,7 +114,7 @@ const ROLE_ROWS: Record<RoutableTask, RoleRow> = {
   },
   rerank: {
     task: "rerank",
-    label: "Rerank",
+    label: CONNECTION_ROLE_LABELS.rerank,
     heading: "Rerank",
     description: "Reorders retrieved results by relevance.",
     optional: false,

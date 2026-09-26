@@ -3,7 +3,7 @@
 // thing decided here is the PROJECTION: `resolveChatCapability` hands back the credential-free
 // `ResolvedConnectionView`, never the `Resolved` a backend consumes.
 
-import type { ResolvedConnectionView, SendAvailability } from "@orb/contracts/inference";
+import type { CapabilityTarget, ResolvedConnectionView, SendAvailability } from "@orb/contracts/inference";
 import type { ResolveOutcome } from "@orb/inference";
 import { ConnectionNotFoundError } from "../contract/errors.ts";
 import type { ResolveChatCapabilityParams, ResolveTaskParams } from "../contract/params.ts";
@@ -33,9 +33,19 @@ export function createAvailability(ctx: ConnectionContext): ConnectionService["a
     });
 }
 
+const CHAT_ROLE: CapabilityTarget = { kind: "role", task: "chat" };
+
 export function createResolveChatCapability(ctx: ConnectionContext): ConnectionService["resolveChatCapability"] {
   return async (params: ResolveChatCapabilityParams): Promise<ResolvedConnectionView> => {
-    const outcome = await ctx.runtime.resolve({ task: "chat", principal: params.principal });
+    const target = params.target ?? CHAT_ROLE;
+    if (target.kind === "role") {
+      return toResolvedView((await ctx.runtime.resolve({ task: target.task, principal: params.principal })).resolved);
+    }
+    // The owner check runs before the runtime read, as every id-taking verb here does (see `createCapabilities`).
+    if ((await fetchOwnedConnection(ctx.db, params.principal.userId, target.connectionId)) === null) {
+      throw new ConnectionNotFoundError(target.connectionId);
+    }
+    const outcome = await ctx.runtime.resolve({ task: "chat", principal: params.principal, connectionId: target.connectionId });
     return toResolvedView(outcome.resolved);
   };
 }

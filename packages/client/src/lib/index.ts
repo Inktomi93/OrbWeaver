@@ -41,6 +41,7 @@ export type {
 export { COLLECTION_LARGE_GROUP } from "./collection-contracts.ts";
 export type { ConfigQueryToken, ParsedConfigQuery } from "./config-search-tokens.ts";
 export { applyConfigToken, CONFIG_QUERY_TOKENS, findHighlightRanges, parseConfigQuery, partialConfigToken } from "./config-search-tokens.ts";
+export { CONNECTION_ROLE_LABELS } from "./connection-role-labels.ts";
 export type {
   CharacterDetailAnchor,
   CharacterDetailContribution,

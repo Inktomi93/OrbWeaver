@@ -4,11 +4,51 @@
 // `availability` answers a VERDICT where `resolve` throws; and `capabilities` refuses a row that is not the
 // caller's rather than describing a stranger's model.
 
+import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
 import { NoConnectionError } from "@orb/inference";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { BYO_BASE_URL, BYO_PROVIDER, makeHarness, seedOwner } from "../_support.ts";
+
+describe("resolveChatCapability — the target", () => {
+  test("a role target resolves through that role's binding, and a connection target names the row itself", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    const owner = await seedOwner(db);
+    const chat = await h.svc.create({ principal: owner.principal, providerId: BYO_PROVIDER, credentialId: null, baseUrl: BYO_BASE_URL, model: "chat-m" });
+    const utility = await h.svc.create({
+      principal: owner.principal,
+      providerId: BYO_PROVIDER,
+      credentialId: null,
+      baseUrl: BYO_BASE_URL,
+      model: "util-m",
+      allowBackground: true,
+    });
+    const spare = await h.svc.create({ principal: owner.principal, providerId: BYO_PROVIDER, credentialId: null, baseUrl: BYO_BASE_URL, model: "spare-m" });
+    await h.svc.setBinding({ principal: owner.principal, task: "chat", connectionId: chat.id });
+    await h.svc.setBinding({ principal: owner.principal, task: "summarize", connectionId: utility.id });
+
+    const byDefault = await h.svc.resolveChatCapability({ principal: owner.principal });
+    const byRole = await h.svc.resolveChatCapability({ principal: owner.principal, target: { kind: "role", task: "summarize" } });
+    const byRow = await h.svc.resolveChatCapability({ principal: owner.principal, target: { kind: "connection", connectionId: spare.id } });
+    expect([byDefault.connectionId, byRole.connectionId, byRow.connectionId]).toEqual([chat.id, utility.id, spare.id]);
+  });
+
+  test("a role with nothing bound refuses as no connection, and another user's row reads NOT FOUND", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    const owner = await seedOwner(db);
+    const other = await seedOwner(db, "user_b");
+    const theirs = await h.svc.create({ principal: other.principal, providerId: BYO_PROVIDER, credentialId: null, baseUrl: BYO_BASE_URL, model: "m" });
+    await expect(h.svc.resolveChatCapability({ principal: owner.principal, target: { kind: "role", task: "summarize" } })).rejects.toBeInstanceOf(
+      NoConnectionError,
+    );
+    await expect(h.svc.resolveChatCapability({ principal: owner.principal, target: { kind: "connection", connectionId: theirs.id } })).rejects.toMatchObject({
+      code: CONNECTION_OP_CODES.notFound,
+    });
+  });
+});
 
 describe("resolve / availability", () => {
   test("an unbound task throws on resolve and reads `no-connection` on availability — never a born default", async () => {

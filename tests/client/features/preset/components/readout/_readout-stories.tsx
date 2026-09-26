@@ -189,6 +189,7 @@ function RetryProbe({ error }: { readonly error: unknown }): ReactElement {
   return (
     <div style={{ width: 380 }}>
       <EffectiveProfile
+        subject="chat role"
         effective={undefined}
         error={error}
         onRetry={(): void => {
@@ -209,7 +210,7 @@ export function EffectiveProfilePendingStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ width: 380 }}>
-        <EffectiveProfile effective={undefined} error={null} onRetry={noRetry} />
+        <EffectiveProfile effective={undefined} error={null} onRetry={noRetry} subject="chat role" />
       </div>
     </CtDataProviders>
   );
@@ -251,6 +252,7 @@ export function EffectiveProfileSettledStory(): ReactElement {
     <CtDataProviders>
       <div style={{ width: 380 }}>
         <EffectiveProfile
+          subject="chat role"
           contextWindow={32_768}
           effective={{
             model: "qwen3-32b",
@@ -281,6 +283,7 @@ export function LongModelPathReadoutStory(): ReactElement {
       <div style={{ width: 380 }}>
         <CapabilityCard capability={makeGenerationCapability()} model={LOCAL_WEIGHTS_PATH} />
         <EffectiveProfile
+          subject="chat role"
           contextWindow={32_768}
           effective={{
             model: LOCAL_WEIGHTS_PATH,
@@ -310,10 +313,11 @@ export function EffectiveProfileShapeMatchStory(): ReactElement {
     <CtDataProviders>
       <div style={{ display: "flex", gap: 24 }}>
         <div data-testid="pending-panel" style={{ width: 380 }}>
-          <EffectiveProfile effective={undefined} error={null} onRetry={noRetry} />
+          <EffectiveProfile effective={undefined} error={null} onRetry={noRetry} subject="chat role" />
         </div>
         <div data-testid="settled-panel" style={{ width: 380 }}>
           <EffectiveProfile
+            subject="chat role"
             contextWindow={32_768}
             effective={{
               model: "qwen3-32b",

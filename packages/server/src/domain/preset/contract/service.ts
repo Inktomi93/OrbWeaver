@@ -4,7 +4,7 @@
 // root, so preset never imports `connection` (the sideways-import ban, Constitution.md §2).
 
 import type { Principal } from "@orb/contracts/identity";
-import type { ResolvedConnectionView } from "@orb/contracts/inference";
+import type { CapabilityTarget, ResolvedConnectionView } from "@orb/contracts/inference";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { PresetId } from "@orb/kit/ids";
@@ -24,10 +24,13 @@ import type {
 import type { PresetImportOutcome } from "./portability.ts";
 import type { EffectivePreset, PresetDetail, PresetSummary, PresetUsageView } from "./views.ts";
 
-/** The injected chat-role capability read — `connection.resolveChatCapability` at the composition root. Takes
- *  the acting Principal and NOTHING else (no caller-supplied user id or role), so the injected op can only
- *  ever answer for the caller's own connection. */
-export type ResolveChatCapabilityOp = (params: { readonly principal: Principal }) => Promise<ResolvedConnectionView>;
+/** The injected capability read — `connection.resolveChatCapability` at the composition root. Takes the acting
+ *  Principal and an optional target (a role or a connection id, owner-checked by the connection domain), and no
+ *  caller-supplied user id, so the injected op can only ever answer for the caller's own connections. */
+export type ResolveChatCapabilityOp = (params: {
+  readonly principal: Principal;
+  readonly target?: CapabilityTarget | undefined;
+}) => Promise<ResolvedConnectionView>;
 
 /**
  * The injected BACKWARD-BINDINGS read (#279) — "where is this preset bound from outside the library".

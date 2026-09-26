@@ -27,9 +27,9 @@
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { makeCapability, makeGenerationCapability, makeResolvedView } from "../../../../../support/factories/resolved-connection.ts";
+import { makeCapability, makeGenerationCapability, makeResolvedView, TEST_CONNECTION_ID } from "../../../../../support/factories/resolved-connection.ts";
 import type { TrpcResponder, TrpcRoutes, TrpcWireOutput } from "../../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../../../../support/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../../support/node/route-trpc.ts";
 import {
   EffectiveProfileFailedStory,
   EffectiveProfileMissingPresetStory,
@@ -231,6 +231,44 @@ const SETTINGS_VIEW: TrpcWireOutput<"settings.getUserSettings"> = {
  *  EFFECTIVE panel, and a co-pending capability read would let its own gate account for a quiet screen. */
 const CAPABILITY = makeResolvedView({ capability: makeCapability(makeGenerationCapability()) });
 
+type ConnectionRow = TrpcWireOutput<"connection.list">[number];
+
+function connectionRow(over: Partial<ConnectionRow>): ConnectionRow {
+  return {
+    id: TEST_CONNECTION_ID,
+    ownerId: "user_ct_readout",
+    label: "OpenRouter · qwen3-32b",
+    providerId: "openrouter",
+    providerLabel: "OpenRouter",
+    credentialId: null,
+    baseUrl: null,
+    model: "qwen3-32b",
+    api: "auto",
+    declared: null,
+    extras: null,
+    transport: null,
+    modelCheck: "listed",
+    allowBackground: true,
+    promptCache: null,
+    tasks: ["chat", "summarize"],
+    createdAt: 0,
+    updatedAt: 0,
+    ...over,
+  };
+}
+
+/** The row the chat role resolves to (the capability factory's connection id). */
+const CHAT_ROW = connectionRow({});
+/** A second chat-capable row on the user's own server — the switch target. */
+const LOCAL_ROW = connectionRow({
+  id: "user_connection_ctlocal001",
+  label: "Local qwen",
+  providerId: "custom-openai",
+  providerLabel: "Custom OpenAI-compatible",
+  baseUrl: "http://127.0.0.1:8000/v1",
+  model: "Qwen/Qwen3-8B",
+});
+
 /** `effective` is the routeTrpc HANDLER for `preset.resolveEffective`, not its value — routeTrpc CALLS each
  *  map value, so wrapping a handler again answers with a function and the query settles to an error. */
 // The resolve handler for each wiring arm, hoisted so the route map reads as one line per arm. Written as
@@ -266,6 +304,7 @@ function readoutRoutes(
   | "preset.get"
   | "preset.list"
   | "settings.getUserSettings"
+  | "connection.list"
   | "connection.resolveChatCapability"
   | "preset.resolveEffective"
   | "preset.listUsage"
@@ -275,7 +314,10 @@ function readoutRoutes(
     "preset.get": () => PRESET_DETAIL,
     "preset.list": () => [PRESET_DETAIL],
     "settings.getUserSettings": () => SETTINGS_VIEW,
-    "connection.resolveChatCapability": () => CAPABILITY,
+    // The switcher's list: the chat row the capability read resolves, and a second row to switch to.
+    "connection.list": () => [CHAT_ROW, LOCAL_ROW],
+    "connection.resolveChatCapability": (input) =>
+      input?.target?.kind === "connection" ? { ...CAPABILITY, connectionId: LOCAL_ROW.id, model: LOCAL_ROW.model } : CAPABILITY,
     "preset.resolveEffective": effective,
     // #649 — the CONTEXT panel's backward-BINDINGS read (`preset.listUsage`). Not this file's subject, but
     // every readout mount fires it, and unfed it rode `routeTrpc`'s null so the usage/gm-room resolve path
@@ -348,4 +390,74 @@ test("WIRING — Retry fires a REAL re-read: the click issues a second resolve t
   await probe.getByRole("button", { name: "Retry" }).click();
   await expect(probe.getByText("max output", { exact: true })).toBeVisible();
   await expect(probe.getByText(FAILURE_RE)).toHaveCount(0);
+});
+
+// ── THE SWITCHER (§5.3a): which role or connection the panel describes ──────────────────────────────────
+
+/** The switcher's own Select, by the name the component gives it. */
+const SWITCHER_NAME = "Connection to describe";
+
+test("the panel defaults to the chat role and names the role, provider and model in view", async ({ mount, page }) => {
+  await routeTrpc(page, readoutRoutes(settledResolve));
+  const probe = await mount(<PresetReadoutParamsBoundStory />);
+
+  const inView = probe.locator('[data-slot="capability-in-view"]');
+  await expect(inView).toContainText("OpenRouter");
+  // The RESOLVED model, from the capability read — what the next chat turn actually runs.
+  await expect(inView).toContainText(CAPABILITY.model);
+  await expect(probe.getByRole("combobox", { name: SWITCHER_NAME })).toBeVisible();
+});
+
+test("switching to a connection re-reads both halves against that connection", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, readoutRoutes(settledResolve));
+  const probe = await mount(<PresetReadoutParamsBoundStory />);
+
+  await probe.getByRole("combobox", { name: SWITCHER_NAME }).click();
+  await page.getByRole("option", { name: "Local qwen" }).click();
+
+  const target = { kind: "connection", connectionId: LOCAL_ROW.id };
+  await expect.poll(() => trpc.lastInput("preset.resolveEffective")).toEqual({ id: PRESET, target });
+  await expect.poll(() => trpc.lastInput("connection.resolveChatCapability")).toEqual({ target });
+  await expect(probe.locator('[data-slot="capability-in-view"]')).toContainText("Custom OpenAI-compatible");
+});
+
+test("a role whose binding is stale shows the failure band with the server's reason, never a blank panel", async ({ mount, page }) => {
+  const unbound = 'no connection is bound for "summarize"';
+  await routeTrpc(
+    page,
+    readoutRoutes((input) =>
+      input.target?.kind === "role" && input.target.task === "summarize" ? trpcError({ code: "BAD_REQUEST", message: unbound }) : settledResolve(),
+    ),
+  );
+  const probe = await mount(<PresetReadoutParamsBoundStory />);
+
+  await expect(probe.getByText("max output", { exact: true })).toBeVisible();
+  await probe.getByRole("combobox", { name: SWITCHER_NAME }).click();
+  await page.getByRole("option", { name: "Utility model role" }).click();
+
+  await expect(probe.getByText(FAILURE_RE)).toBeVisible();
+  await expect(probe.getByText(unbound, { exact: true })).toBeVisible();
+});
+
+test("a pending read after a switch holds the skeleton, and a failed one shows the causeless band", async ({ mount, page }) => {
+  const held = trpcHold();
+  await routeTrpc(
+    page,
+    readoutRoutes((input) => {
+      if (input.target?.kind === "connection") {
+        return held;
+      }
+      return input.target?.kind === "role" && input.target.task === "summarize" ? trpcError({ message: "socket hang up" }) : settledResolve();
+    }),
+  );
+  const probe = await mount(<PresetReadoutParamsBoundStory />);
+
+  await expect(probe.getByText("max output", { exact: true })).toBeVisible();
+  await probe.getByRole("combobox", { name: SWITCHER_NAME }).click();
+  await page.getByRole("option", { name: "Local qwen" }).click();
+  await expect(probe.locator('[aria-busy="true"] [data-slot="skeleton"]').first()).toBeVisible();
+
+  await probe.getByRole("combobox", { name: SWITCHER_NAME }).click();
+  await page.getByRole("option", { name: "Utility model role" }).click();
+  await expect(probe.getByText(CAUSELESS_FAILURE_RE)).toBeVisible();
 });

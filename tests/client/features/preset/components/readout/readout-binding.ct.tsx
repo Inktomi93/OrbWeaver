@@ -133,6 +133,7 @@ function readoutRoutes(): TrpcRoutes<
   | "preset.get"
   | "preset.list"
   | "settings.getUserSettings"
+  | "connection.list"
   | "connection.resolveChatCapability"
   | "preset.resolveEffective"
   | "preset.listUsage"
@@ -144,6 +145,8 @@ function readoutRoutes(): TrpcRoutes<
     "preset.get": () => PRESET_DETAIL,
     "preset.list": () => [PRESET_DETAIL],
     "settings.getUserSettings": () => SETTINGS_VIEW,
+    // The Params panel's switcher list; this file's subject is not the switcher, so the user has no connections.
+    "connection.list": () => [],
     "connection.resolveChatCapability": () => trpcError({ message: "no chat connection configured" }),
     "preset.resolveEffective": () => ({ presetId: PRESET, model: "qwen3-32b", knobs: {}, stale: [], qualityMapping: null }),
     // #649 — the CONTEXT panel's backward-BINDINGS read (`preset.listUsage`). Not this file's subject, but
