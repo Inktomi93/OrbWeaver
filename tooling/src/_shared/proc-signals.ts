@@ -42,7 +42,7 @@ const SIGNAL_BY_NUMBER: ReadonlyMap<number, NodeJS.Signals> = (Object.keys(osCon
 );
 
 /** The inverse of {@link childExitCode}: the signal a mirrored exit code names, or null for a plain code. A
- *  supervisor whose child runs through the mirror (niced-exec) sees a signal death as a code, and must
+ *  supervisor whose child runs through the mirror (the win32 niced-exec launcher) sees a signal death as a code, and must
  *  still tell it from a verdict. */
 export function signalOfExitCode(code: number): NodeJS.Signals | null {
   return SIGNAL_BY_NUMBER.get(code - SIGNAL_EXIT_BASE) ?? null;

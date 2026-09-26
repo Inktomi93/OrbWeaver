@@ -54,7 +54,7 @@ When a finding collides with a recorded ruling, keep the old mechanism and satis
 
 ## Probes
 
-- Probe a gate with a `mustFlag` or `mustPass` row in its module, then run `pnpm check:policy-conformance`. The row runs in memory.
+- Probe a gate with a `mustFlag` or `mustPass` row in its module, in your own worktree, then run `pnpm check:policy-conformance`. The row runs in memory.
 - Probe any other tool only inside your own worktree. A file planted in a shared checkout breaks every run that reads the tree meanwhile.
 - Never create or edit a tree file to probe on a shared checkout, including main's. Report the question to the orchestrator instead.
 - Never undo a probe with `git stash`, `git checkout <path>` or `git restore`. They destroy uncommitted work.

@@ -65,7 +65,7 @@ export const REVIEWED_GRANTS_TOOLING_TO_PERMISSION: readonly ReviewedGateGrant[]
     policyId: "tooling-child-process-door",
     subject: "tooling/src/_shared/proc.ts",
     operation: "child-process-import",
-    why: "THE subprocess home: proc.ts is where `node:child_process` is imported so every tooling spawn rides TOOLING_PRIORITY (10, every OS) through `niced-exec.ts` (`spawnNiced`/`runNicedSync`/`spawnNicedChild`); the two full-priority doors are defined here too (arm F of the retired plumbing gate).",
+    why: "THE subprocess home: proc.ts is where `node:child_process` is imported so every tooling spawn rides TOOLING_PRIORITY (10, every OS) (`spawnNiced`/`runNicedSync`/`spawnNicedChild`); the two full-priority doors are defined here too (arm F of the retired plumbing gate).",
     endsWhen: "the subprocess home moves — the row is then consumed zero times and reds at its dead subject, which is the legacy HOMES stale sweep.",
   },
   {
@@ -74,7 +74,7 @@ export const REVIEWED_GRANTS_TOOLING_TO_PERMISSION: readonly ReviewedGateGrant[]
     subject: "tooling/src/_shared/niced-exec.ts",
     operation: "full-priority-spawn",
     why: 'this file IS the `nice` replacement: it lowers its own priority first, so calling `spawnFullPriorityChild` here means only "no further wrapping" — the real command still inherits the lowered priority, exactly as it would under `nice`.',
-    endsWhen: "niced-exec.ts stops being the one launcher every niced door routes through — the row is then consumed zero times and reds.",
+    endsWhen: "niced-exec.ts stops being the launcher for package.json scripts and the win32 sync doors — the row is then consumed zero times and reds.",
   },
   {
     id: "tooling-child-process-door:snap-session-client",

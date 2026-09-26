@@ -1,7 +1,6 @@
-// The cross-platform replacement for `nice -n 19`, which does not exist on Windows: `niced-exec.ts` is a
-// launcher that lowers ITS OWN priority then runs the real command, so the child inherits it on Linux,
-// macOS and Windows. Nothing here lowers the CALLER's own priority — a full-priority child spawned by the
-// same process must stay at that process's real priority, not a niced door's leftover.
+// The tooling priority and how a child reaches it on every OS: `nice` on POSIX, the `niced-exec.ts` launcher
+// on win32. Nothing here lowers the CALLER's own priority — a full-priority child spawned by the same
+// process must stay at that process's real priority, not a niced door's leftover.
 import { constants, getPriority, setPriority } from "node:os";
 import process from "node:process";
 import { fileURLToPath } from "node:url";

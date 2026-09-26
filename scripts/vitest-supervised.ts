@@ -34,7 +34,7 @@
 //      evaluates repeated selectors as a union; splitting them can duplicate or widen execution. The shard
 //      reports are merged into the ONE `--outputFile.json` path the rest of the repo reads. A wedge is a
 //      per-process race, so a wedge now costs ONE literal project shard instead of the whole run's verdict.
-//   2. WATCHDOG — PROGRESS, NOT SILENCE. Each shard is spawned through `niced-exec.ts` (TOOLING_PRIORITY,
+//   2. WATCHDOG — PROGRESS, NOT SILENCE. Each shard is spawned through `nicedCommand` (TOOLING_PRIORITY,
 //      10 on every OS) as a process-group leader and its output tee'd live, but SILENCE ALONE IS NOT THE
 //      WEDGE SIGNAL. **Truth repair, measured
 //      2026-09-01:** the previous version of this file claimed 300s was "~2.5× the longest legitimate quiet
@@ -652,8 +652,8 @@ function runOnce({ args, reportFile, label, attempt, previousFiles }: AttemptReq
     // pass — and since #2472 it is not a VERDICT either. A vitest the kernel killed (SIGKILL from an OOM
     // reap, SIGABRT from a heap abort, SIGSEGV) never finalized, which is the owner's exit-2 class in its
     // purest form: "exit 134/137, a heap abort, or a wall-clock kill … means THE RUN IS NOT A VERDICT".
-    // The direct child is niced-exec, which mirrors the real vitest's signal death as 128+N; read the
-    // signal back through the same convention, or a kernel-killed vitest reads as a product red.
+    // On win32 the direct child is the niced-exec launcher, which mirrors vitest's signal death as 128+N; read
+    // the signal back through that convention too, or a kernel-killed vitest reads as a product red.
     child.on("exit", (code, signal) => {
       const died = signal ?? (code === null ? null : signalOfExitCode(code));
       finish({

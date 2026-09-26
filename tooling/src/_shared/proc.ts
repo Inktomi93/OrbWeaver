@@ -54,8 +54,8 @@ function errnoIs(error: unknown, code: string): boolean {
   return typeof error === "object" && error !== null && "code" in error && error.code === code;
 }
 
-/** `detached` makes a spawned niced-exec launcher its own process-group leader — POSIX only, since on
- *  win32 it opens a visible console instead; `niced-exec.ts` forwards signals to its own child directly. */
+/** `detached` makes a spawned child its own process-group leader — POSIX only, since on win32 it opens a
+ *  visible console instead. */
 const DETACHED_GROUP_LEADER = process.platform !== "win32";
 
 /** The spawn functions every door uses. win32 ONLY: a bare command name (`biome`, not `biome.exe`) needs

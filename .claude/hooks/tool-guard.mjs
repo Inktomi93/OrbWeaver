@@ -605,7 +605,7 @@ const VITEST_HEAD = /^\s*(?:npx\s+vitest|vitest|\S*node_modules\/\.bin\/vitest|p
 // ENTRY SPELLING decides the heap ceiling, and these are the tools that need it — typed eslint (380 corpus
 // sightings), tsc (269), the in-process ts-morph verbs (the recorded exit-134 OOM),
 // stryker, jscpd, knip, depcruise. The priority floor does NOT depend on the spelling (every
-// _shared/proc.ts niced door routes through the `niced-exec.ts` launcher regardless of caller), so this
+// _shared/proc.ts niced door lowers its child regardless of caller), so this
 // rule is about the heap FLOOR, never politeness.
 // PRECISION, the guard's first law: only the spellings with NO floor at all are refused — `npx <tool>`,
 // `<path>/node_modules/.bin/<tool>`, and a bare `node <heavy script>`. EVERY `pnpm …` spelling passes
