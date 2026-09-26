@@ -26,7 +26,7 @@ import { describe, onTestFinished } from "vitest";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { makeHarness as makeAssetsHarness } from "../../domain/assets/_support.ts";
-import { makeHarness as makeCharacterHarness, principal, seedUser } from "../../domain/character/_support.ts";
+import { makeHarness as makeCharacterHarness, principal, realLorebookImport, seedUser } from "../../domain/character/_support.ts";
 
 /** Build the real character seeder wired with the REAL bundled-avatar `storeAvatar`/`seedGallery` closures
  *  (the exact composition the entry root builds), over shared real character + assets services on one db. */
@@ -45,6 +45,7 @@ async function makeSeededHarness(): Promise<{
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const actor = principal(owner);
   const seeder = createDefaultCharacterSeeder({
+    ...realLorebookImport(db),
     characters,
     attachCardTag: (): Promise<boolean> => Promise.resolve(true),
     markWelcomeAssistant: (): Promise<void> => Promise.resolve(),

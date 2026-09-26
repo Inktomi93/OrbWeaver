@@ -14,7 +14,7 @@ import { RosterPresetNameConflictError } from "../contract/errors.ts";
 import type { CreateRosterPresetParams } from "../contract/params.ts";
 import type { RosterPresetService } from "../contract/service.ts";
 import { insertPresetWithMembers, ownedPresetNameTaken } from "../persistence/queries.ts";
-import { ensureAnchorOwned, ensureMembersOwned, loadView, parsedGroupConfig, resolveCastRules } from "../substrate/authored-input.ts";
+import { ensureAnchorOwned, ensureMembersOwned, loadView, parsedGameTemplate, parsedGroupConfig, resolveCastRules } from "../substrate/authored-input.ts";
 import { normalizeMembers } from "../substrate/members.ts";
 
 export function createCreate(ctx: RosterPresetContext): RosterPresetService["create"] {
@@ -27,6 +27,7 @@ export function createCreate(ctx: RosterPresetContext): RosterPresetService["cre
     const anchorPersonaId = input.anchorPersonaId === null || input.anchorPersonaId === undefined ? null : castId<PersonaId>(input.anchorPersonaId);
     await ensureAnchorOwned(ctx, ownerId, anchorPersonaId);
     const groupConfig = parsedGroupConfig(input.groupConfig);
+    const gameTemplate = parsedGameTemplate(input.game);
     // B10's rules rider — the same belt posture as groupConfig: automation's own injected validation
     // refuses a bad bag HERE; what lands is the resolved OUTPUT.
     const rules = resolveCastRules(ctx, input.rules);
@@ -37,7 +38,17 @@ export function createCreate(ctx: RosterPresetContext): RosterPresetService["cre
     const presetId = ctx.newRosterPresetId();
     await insertPresetWithMembers(
       ctx.db,
-      { id: presetId, ownerId, name: input.name, description: input.description ?? "", anchorPersonaId, groupConfig, createdAt: at, updatedAt: at },
+      {
+        id: presetId,
+        ownerId,
+        name: input.name,
+        description: input.description ?? "",
+        anchorPersonaId,
+        groupConfig,
+        gameTemplate,
+        createdAt: at,
+        updatedAt: at,
+      },
       members,
       rules,
     );
@@ -47,7 +58,7 @@ export function createCreate(ctx: RosterPresetContext): RosterPresetService["cre
         action: "rosterPreset.create",
         entityType: "roster_preset",
         entityId: presetId,
-        metadata: { name: input.name, members: members.length, rules: rules.length },
+        metadata: { name: input.name, members: members.length, rules: rules.length, game: gameTemplate !== null },
       },
       at,
     );

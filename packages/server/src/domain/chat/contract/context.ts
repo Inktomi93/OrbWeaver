@@ -26,7 +26,7 @@ import type { SendAvailability } from "@orb/contracts/inference";
 import type { NotificationEvent, PresenceView } from "@orb/contracts/notifications";
 import type { ChoiceBlockSpec, UserIntent, UserMacroSpec } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
-import type { ChatRpgPointer, RpgActorRef, RpgRuleset } from "@orb/contracts/rpg";
+import type { ChatRpgPointer, RpgActorRef, RpgGameTemplate } from "@orb/contracts/rpg";
 import type { BlockKey, MemoryQueryOptions, ScoredBlock } from "@orb/contracts/search";
 import type { MemorySummarizerConfig } from "@orb/contracts/settings";
 import type { ApplyStatsDelta, BumpStatsCanonVersion } from "@orb/contracts/stats";
@@ -778,7 +778,7 @@ export interface ChatRpgOps {
   /** The #40 DRAFT-TIME game birth plan. RPG constructs its own table statements and minted id; chat folds
    *  them into the room's creation batch and stores only the opaque pointer. No domain constructs the
    *  other's rows, while room/game/pointer are one durable commit. */
-  readonly planGameBirth: (chatId: ChatId, params: { readonly ruleset?: RpgRuleset | undefined }) => ChatRpgGameBirthPlan;
+  readonly planGameBirth: (chatId: ChatId, params: RpgGameTemplate) => ChatRpgGameBirthPlan;
   /** Post-commit in-process notification for a successfully committed birth plan. */
   readonly gameBirthCommitted: (chatId: ChatId) => void;
   /** The GM-voice preset redirect: the game's `gmPresetId` (or `null` = not a game / no override), resolved

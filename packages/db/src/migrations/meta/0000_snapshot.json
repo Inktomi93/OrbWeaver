@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "34be58ca-aeaa-41a0-9f66-8130b9e5c7a6",
+  "id": "1d3d44dd-77f1-493a-adda-c4af6fe20e60",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -7627,6 +7627,13 @@
         },
         "group_config": {
           "name": "group_config",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "game_template": {
+          "name": "game_template",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

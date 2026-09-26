@@ -586,6 +586,7 @@ const NOT_READ_BACK: ReadonlyMap<string, string> = new Map([
 /** The seeded tables the test reads back row for row. */
 const READ_BACK_TABLES = [
   "assets",
+  "character_books",
   "character_tags",
   "characters",
   "gallery_items",
@@ -598,6 +599,8 @@ const READ_BACK_TABLES = [
   "tags",
   "themes",
   "user_settings",
+  "world_books",
+  "world_entries",
 ] as const;
 
 /** The actor a roster sheet belongs to (`rpg_sheets` holds characterId XOR userId); a cast NPC has no sheet row. */
@@ -738,6 +741,14 @@ test("every seeded row reads back through its read procedure, faithful to its cu
   const rosters = await ownerCaller.rosterPreset.list();
   expect(rosters.length, "the seed lays down roster presets, so the roster half is exercised, not vacuous").toBeGreaterThan(0);
 
+  // The lore each seeded card carries: its books, their entries, and the character attachments.
+  const books = await ownerCaller.worldInfo.listBooks();
+  const bookEntries = await Promise.all(books.map((book) => ownerCaller.worldInfo.listEntries({ bookId: book.id })));
+  const characterBookLists = await Promise.all(
+    library.items.map(async (item) => ({ characterId: item.id, books: await ownerCaller.worldInfo.listForCharacter({ characterId: item.id }) })),
+  );
+  expect(books.length, "every seeded card ships lore, so the lore half is exercised, not vacuous").toBeGreaterThan(0);
+
   // The settings the seeds write into, the presets, the theme palettes, the example plugins, the inbox and
   // the owned art.
   const settings = await ownerCaller.settings.getUserSettings();
@@ -819,6 +830,14 @@ test("every seeded row reads back through its read procedure, faithful to its cu
   expect(await idsOf(db, "select preset_id || ':' || character_id as id from roster_preset_members"), "roster_preset_members ↔ each roster's members").toEqual(
     sorted(rosters.flatMap((roster) => roster.members.map((member) => `${roster.id}:${member.characterId}`))),
   );
+  expect(await idsOf(db, "select id from world_books"), "world_books ↔ worldInfo.listBooks").toEqual(sorted(books.map((book) => book.id)));
+  expect(await idsOf(db, "select id from world_entries"), "world_entries ↔ worldInfo.listEntries").toEqual(
+    sorted(bookEntries.flatMap((entries) => entries.map((entry) => entry.id))),
+  );
+  expect(
+    await idsOf(db, "select character_id || ':' || world_book_id || ':' || role as id from character_books"),
+    "character_books ↔ worldInfo.listForCharacter",
+  ).toEqual(sorted(characterBookLists.flatMap(({ characterId, books: attached }) => attached.map((book) => `${characterId}:${book.id}:${book.role ?? ""}`))));
   // A PACKAGED template is a clone source kept out of the readable list by design (its contract file's
   // header); its one reader is the `clonePackaged` verb, which no procedure exposes. It is the one seeded
   // row with no read path, named here so a second one fails.

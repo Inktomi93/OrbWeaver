@@ -153,7 +153,7 @@ export async function updatePresetWithMembers(
   args: {
     readonly ownerId: UserId;
     readonly presetId: RosterPresetId;
-    readonly patch: Pick<typeof rosterPresets.$inferInsert, "anchorPersonaId" | "description" | "groupConfig" | "name" | "updatedAt">;
+    readonly patch: Pick<typeof rosterPresets.$inferInsert, "anchorPersonaId" | "description" | "gameTemplate" | "groupConfig" | "name" | "updatedAt">;
     readonly members: readonly MemberWrite[];
     readonly rules: readonly CastRuleWrite[];
   },
@@ -195,6 +195,7 @@ export function viewOf(row: PresetRow, members: readonly RosterPresetMemberView[
     description: row.description,
     anchorPersonaId: row.anchorPersonaId,
     groupConfig: row.groupConfig ?? null,
+    game: row.gameTemplate ?? null,
     members,
     rules,
     createdAt: row.createdAt,
@@ -212,6 +213,7 @@ export function summaryOf(row: PresetRow, members: readonly RosterPresetMemberVi
     members,
     anchorPersonaId: row.anchorPersonaId,
     hasGroupConfig: row.groupConfig !== null,
+    game: row.gameTemplate ?? null,
     rules,
     updatedAt: row.updatedAt,
   };

@@ -7,6 +7,7 @@
 // under the latch is not brought back; only the items those latches never covered are seeded.
 
 import type { Principal } from "@orb/contracts/identity";
+import type { RpgGameTemplate } from "@orb/contracts/rpg";
 import type { SeedManifestItem } from "@orb/default-content";
 import { errorMessage } from "@orb/kit/error-message";
 import type { CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
@@ -34,7 +35,12 @@ export interface UserContentSeederDeps {
   readonly findCharacter: (principal: Principal, handle: CharacterHandle) => Promise<CharacterId | null>;
   readonly createRosterPreset: (
     principal: Principal,
-    preset: { readonly name: string; readonly description: string; readonly characterIds: readonly CharacterId[] },
+    preset: {
+      readonly name: string;
+      readonly description: string;
+      readonly characterIds: readonly CharacterId[];
+      readonly game: RpgGameTemplate | null;
+    },
   ) => Promise<void>;
 }
 
@@ -68,7 +74,9 @@ export function createUserContentSeeder(deps: UserContentSeederDeps): UserConten
         // Every seated character is gone (the user deleted them): there is nothing to start, so the item settles
         // without a preset rather than retrying forever.
         if (characterIds.length > 0) {
-          await deps.createRosterPreset(principal, { name: item.name, description: item.description, characterIds });
+          // A campaign roster carries rpg's default template (`{}` ⇒ the birth-default ruleset); the manifest
+          // package sits below contracts and cannot name a ruleset itself.
+          await deps.createRosterPreset(principal, { name: item.name, description: item.description, characterIds, game: item.startsGame ? {} : null });
         }
         return true;
       }

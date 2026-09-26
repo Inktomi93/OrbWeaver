@@ -123,16 +123,21 @@ export function createDefaultCharacterSeeder(deps: DefaultCharacterSeederDeps): 
     return background === null ? card.presentation : { ...card.presentation, backgroundOverride: background };
   }
 
-  /** The two post-create steps.
+  /** The three post-create steps.
    *  1. PRESENTATION (carried theme + the card's own scene plate): a post-create edit because both fields
    *     live on the UPDATE arm only — the create schema carries neither.
-   *  2. The starter gallery.
+   *  2. LORE, as the card's primary world book.
+   *  3. The starter gallery.
    *
-   *  `force` is FALSE for the resumed-seed arm: a card that already carries a theme or a background chose it.
-   *  A freshly created row has nothing to lose, so it is written unconditionally. */
+   *  `force` is FALSE for the resumed-seed arm: a card that already carries a theme, a background or a
+   *  primary book chose it. A freshly created row has nothing to lose, so it is written unconditionally. */
   async function dressCard(principal: Principal, card: SeedCard, characterId: CharacterId, force: boolean): Promise<void> {
     if (force || (await presentationIsUnset(principal, characterId))) {
       await deps.characters.update({ principal, characterId, input: await presentationFor(principal, card) });
+    }
+    const ownerId = principal.userId;
+    if (force || !(await deps.hasPrimaryBook({ ownerId, characterId }))) {
+      await deps.importLorebook({ ownerId, characterId, book: card.lore });
     }
     if (deps.seedGallery !== undefined) {
       await deps.seedGallery(principal, characterId, card.input.handle);

@@ -2,16 +2,16 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 624,
+    "sites": 623,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 624,
+      "deliberate-absorb": 623,
       "unproven": 0
     },
     "byGrammar": {
       "default": 153,
       "empty": 319,
-      "promise": 152
+      "promise": 151
     }
   },
   "rows": [
@@ -441,14 +441,9 @@
       "reason": "useOpenRefinery's own errorToast surfaces the failure. Ends if useOpenRefinery drops its errorToast."
     },
     {
-      "siteId": "packages/client/src/features/roster-preset/components/roster-picker.tsx::RosterPicker.onStart::startChat::1",
+      "siteId": "packages/client/src/features/roster-preset/hooks/use-start-roster.ts::useStartRoster.startRoster::startChat::1",
       "verdict": "deliberate-absorb",
-      "reason": "startChat and apply.mutateAsync each carry their own errorToast (use-start-chat.ts, useApplyRosterPreset); the swallow only silences the unhandled-rejection warning, and the picked roster survives for retry. Ends if either mutation stops owning its failure copy."
-    },
-    {
-      "siteId": "packages/client/src/features/roster-preset/surfaces/roster-member-surface.tsx::RosterMemberSurface.onStart::startChat::1",
-      "verdict": "deliberate-absorb",
-      "reason": "startChat and apply.mutateAsync each carry their own errorToast (use-start-chat.ts, useApplyRosterPreset); the swallow only silences the unhandled-rejection warning. Ends if either mutation stops owning its failure copy."
+      "reason": "startChat and apply.mutateAsync each carry their own errorToast (use-start-chat.ts, useApplyRosterPreset); the swallow only silences the unhandled-rejection warning, and the roster survives for retry. Ends if either mutation stops owning its failure copy."
     },
     {
       "siteId": "packages/client/src/features/rpg/components/rpg-dice-tool-card.tsx::parseDiceResult::catch::1",

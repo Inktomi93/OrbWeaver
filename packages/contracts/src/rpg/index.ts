@@ -244,7 +244,7 @@ export {
   rpgStatResolutionSchema,
 } from "./profile.ts";
 export { RPG_PROSE_SLOTS } from "./prose.ts";
-export type { RpgRuleset, RpgRulesetVocabulary } from "./ruleset.ts";
+export type { RpgGameTemplate, RpgRuleset, RpgRulesetVocabulary } from "./ruleset.ts";
 export {
   applyRulesetVocabulary,
   RPG_RULESET_CONSEQUENCE,
@@ -253,6 +253,7 @@ export {
   RPG_RULESET_LABEL,
   RPG_RULESET_PROFILE,
   RPG_RULESETS,
+  rpgGameTemplateSchema,
   rpgRulesetSchema,
 } from "./ruleset.ts";
 export type { RpgSheet } from "./sheet.ts";

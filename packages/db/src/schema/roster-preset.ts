@@ -16,6 +16,7 @@
 
 import type { RulePresetId, RulePresetKnobValues } from "@orb/contracts/automation";
 import type { GroupConfigInput } from "@orb/contracts/chat";
+import type { RpgGameTemplate } from "@orb/contracts/rpg";
 import type { CharacterId, PersonaId, RosterPresetId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import {
@@ -53,6 +54,9 @@ export const rosterPresets = sqliteTable(
     // the write verb and RE-parsed by chat's `setGroupConfig` at apply (a stale blob after a GroupConfig
     // evolution degrades loudly at apply, never silently). NULL = the preset carries its roster only.
     groupConfig: text("group_config", { mode: "json" }).$type<GroupConfigInput>(),
+    // OPTIONAL game a start births with the room — rpg's `RpgGameTemplate`, parsed at the write verb and
+    // handed to chat's `startAsGame` at start (rpg re-parses at birth). NULL = the roster starts a plain chat.
+    gameTemplate: text("game_template", { mode: "json" }).$type<RpgGameTemplate>(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
     updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
   },

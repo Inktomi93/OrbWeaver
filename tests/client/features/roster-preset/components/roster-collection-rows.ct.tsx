@@ -44,6 +44,7 @@ const PARTY: RosterPresetSummary = {
   members: [member("character_ct_1", "Ash", 0), member("character_ct_2", "Brook", 1), member("character_ct_3", "Cinder", 2)],
   anchorPersonaId: null,
   hasGroupConfig: true,
+  game: null,
   rules: [
     { rulePresetId: "sceneVeil", knobs: { veilWord: "((fade))", redirect: "cut" } },
     { rulePresetId: "pacingNudge", knobs: { everyN: 4, steer: "s" } },

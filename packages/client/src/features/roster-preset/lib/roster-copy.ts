@@ -23,7 +23,7 @@
 // what the apply reports as a skip.
 
 import type { RulePresetId, RulePresetKnobDescriptor, RulePresetKnobValue, RulePresetKnobView, RulePresetView } from "@orb/contracts/automation";
-import type { ApplyRosterPresetResult } from "@orb/contracts/roster-preset";
+import type { ApplyRosterPresetResult, RosterPresetSummary } from "@orb/contracts/roster-preset";
 
 /** A stored knob bag as either surface holds it — the view's RESOLVED bag or the wire INPUT bag (whose
  *  `string[]` arm assigns into this readonly one). */
@@ -150,13 +150,18 @@ export function characterCountPhrase(count: number): string {
  *  mode, speaker labels and card visibility looked identical to one that only adds seats — the same
  *  under-report P2-1 filed for the rules, one field over. "Group behavior" is the SETTINGS SECTION's own
  *  word for that blob (`settings-context-tab.tsx`), so a host reads the same name in both places. */
-export function rosterCountsSuffix(characterCount: number, ruleCount: number, hasGroupConfig: boolean): string {
-  const parts = [characterCountPhrase(characterCount)];
+export function rosterCountsSuffix(roster: Pick<RosterPresetSummary, "characterCount" | "game" | "hasGroupConfig" | "rules">): string {
+  const parts = [characterCountPhrase(roster.characterCount)];
+  const ruleCount = roster.rules.length;
   if (ruleCount > 0) {
     parts.push(`${ruleCount} rule${ruleCount === 1 ? "" : "s"}`);
   }
-  if (hasGroupConfig) {
+  if (roster.hasGroupConfig) {
     parts.push("group behavior");
+  }
+  // A start births a game; the apply doors never do, but naming it on every door keeps one grammar.
+  if (roster.game !== null) {
+    parts.push("starts a game");
   }
   return ` — ${parts.join(", ")}`;
 }

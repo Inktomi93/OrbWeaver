@@ -709,6 +709,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     newBackgroundEntryId: settingsDeps.newBackgroundEntryId,
     getPreset: () => preset,
     getPersona: () => persona,
+    getLorebookImport: () => worldInfoCompose.importWorldInfo,
     resolveUserPresetParams,
   });
   const { assets, character, galleryCtx, characterSeeder, personaSeeder, backgroundSeeder } = assetsCharacter;
@@ -1317,6 +1318,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
         input: {
           name: roster.name,
           description: roster.description,
+          game: roster.game,
           members: roster.characterIds.map((characterId, position) => ({ kind: "character" as const, characterId, position })),
         },
       });
