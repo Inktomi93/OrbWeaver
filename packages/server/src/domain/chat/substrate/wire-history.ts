@@ -583,7 +583,9 @@ function shiftBreakpoint(
     kept.map((wire) => wire.row),
     keptAtOrAbove,
   );
-  return shifted !== undefined && shifted >= 1 ? shifted : null;
+  // Depth 0 is a real pin: the covering depth never reaches past the pinned row, so depth 0 means only system rows
+  // (transparent to the depth) follow it, the shape a turn-scoped cue after a committed user row leaves.
+  return shifted ?? null;
 }
 
 /** The ROWS THE FIT PRICES — the single spelling of the fit's input (#1540). Both callers hand
