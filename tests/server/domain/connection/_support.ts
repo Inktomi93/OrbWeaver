@@ -8,7 +8,7 @@
 // Determinism: a frozen clock + counter-minted ids (no `Date.now()`, no unseeded typeid — `test-determinism`).
 
 import type { Principal } from "@orb/contracts/identity";
-import type { ProviderId } from "@orb/contracts/inference";
+import type { ProviderId, RoutableTask } from "@orb/contracts/inference";
 import { pluginManifestSchema } from "@orb/contracts/plugin";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
@@ -54,6 +54,8 @@ export interface HarnessOptions {
   readonly credentialOwned?: ((ownerId: UserId, credentialId: UserCredentialId) => boolean) | undefined;
   readonly ruleOwned?: boolean | undefined;
   readonly pluginOwned?: boolean | undefined;
+  /** The tasks an owned plugin routes through its grant. Default: `summarize`, the one task `llm.quiet` routes. */
+  readonly pluginGrantTasks?: readonly RoutableTask[] | undefined;
   /** Canned HTTP. An unmatched request answers 404 and is still recorded. */
   readonly routes?: readonly FakeRoute[] | undefined;
   /** The bundled `claude` runtime — absent ⇒ the agent-sdk wire is NOT built (the shipped default). */
@@ -122,8 +124,8 @@ export async function seedAutomationRule(db: Db, ownerId: UserId, id = "automati
   return ruleId;
 }
 
-/** The FK target a plugin provider contribution needs: one installed plugin row (and the bundle asset its own
- *  FK requires). A contribution is an install's claim, so a scenario without the install cannot publish rows. */
+/** The FK target a plugin-keyed row needs (a provider claim's serving install, a grant binding): one installed
+ *  plugin row and the bundle asset its own FK requires. */
 export async function seedPlugin(db: Db, ownerId: UserId, id = "plugin_provider_test", slug = "provider-test"): Promise<PluginId> {
   const pluginId = castId<PluginId>(id);
   const bundleAssetId = castId<AssetId>(`asset_${id}`);
@@ -259,7 +261,7 @@ export async function makeHarness(db: Db, options: HarnessOptions = {}): Promise
     },
     credentialOwned: (ownerId, credentialId) => Promise.resolve(options.credentialOwned?.(ownerId, credentialId) ?? true),
     ruleOwnedBy: () => Promise.resolve(options.ruleOwned ?? true),
-    pluginOwnedBy: () => Promise.resolve(options.pluginOwned ?? true),
+    pluginGrantTasksOf: () => Promise.resolve(options.pluginOwned === false ? null : (options.pluginGrantTasks ?? ["summarize"])),
     endpointAdmission: options.admission ?? defaultAdmission,
     recordProbeOutcome: (args) => {
       probeRecords.push(args);

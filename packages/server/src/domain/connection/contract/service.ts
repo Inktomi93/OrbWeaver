@@ -7,7 +7,7 @@
 // sibling runtime.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { ConnectionBinding, ModelListing, ResolvedConnectionView, SendAvailability } from "@orb/contracts/inference";
+import type { ConnectionBinding, ModelListing, ResolvedConnectionView, RoutableTask, SendAvailability } from "@orb/contracts/inference";
 import type { AccountCredits, EndpointInspection, GenerationCost, VerifyAuthResult } from "@orb/contracts/providers";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
@@ -58,8 +58,9 @@ export interface ConnectionContext {
   readonly credentialOwned: (ownerId: UserId, credentialId: UserCredentialId) => Promise<boolean>;
   /** Is this rule the caller's (its author)? Bound to the automation domain. */
   readonly ruleOwnedBy: (ruleId: AutomationRuleId, userId: UserId) => Promise<boolean>;
-  /** Is this plugin the caller's (its installer)? Bound to the plugin domain. */
-  readonly pluginOwnedBy: (pluginId: PluginId, userId: UserId) => Promise<boolean>;
+  /** The tasks this plugin routes through its own grant (`pluginGrantTasks` of its declared capabilities),
+   *  or `null` when the plugin is not the caller's or does not exist (collapsed). Bound to the plugin row. */
+  readonly pluginGrantTasksOf: (pluginId: PluginId, userId: UserId) => Promise<readonly RoutableTask[] | null>;
   /** The F12 write-time admission read (infra/network, over the published allowlist). */
   readonly endpointAdmission: (baseUrl: string) => EndpointAdmission;
   /** The ROW half of a probe (credentials domain): revoke / strike / clear + the throttle window. */

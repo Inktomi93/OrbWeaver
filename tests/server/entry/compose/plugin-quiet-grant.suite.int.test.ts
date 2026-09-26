@@ -5,6 +5,7 @@
 
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
 import "../../../support/composed-real.ts";
+import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { assets, plugins } from "@orb/db";
 import type { AssetId, PluginId, UserConnectionId, UserId } from "@orb/kit/ids";
@@ -88,5 +89,10 @@ describe("plugin llm.quiet resolves the plugin-grant summarize binding", () => {
 
     expect(await quiet({ installerUserId: OWNER_USER_ID, pluginId: granted, prompt: "caption this", signal })).toEqual({ text: GRANT_HOST });
     expect(await quiet({ installerUserId: OWNER_USER_ID, pluginId: ungranted, prompt: "caption this", signal })).toEqual({ text: USER_HOST });
+
+    // The composed door reads the plugin's own manifest: `llm.quiet` routes `summarize`, never `chat`.
+    await expect(
+      ownerCaller.connection.setBinding({ task: "chat", connectionId: grant, actor: { kind: "plugin-grant", pluginId: granted } }),
+    ).rejects.toMatchObject({ cause: { code: CONNECTION_OP_CODES.actorTaskUnrouted } });
   });
 });

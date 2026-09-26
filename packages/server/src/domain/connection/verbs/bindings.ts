@@ -20,8 +20,10 @@ import { VECTOR_TASKS } from "../substrate/embed-space.ts";
 import { curatedKindOf } from "../substrate/kind.ts";
 import { toResolvedView } from "../substrate/resolved-view.ts";
 
-/** The caller's actor, proven: absent ⇒ their own `user` arm; a rule/plugin arm must be theirs. */
-async function storedActorFor(ctx: ConnectionContext, userId: UserId, actor: BindingActorInput | undefined): Promise<StoredActor> {
+/** The caller's actor, proven: absent ⇒ their own `user` arm; a rule/plugin arm must be theirs. A plugin grant
+ *  that `binds` a connection must name a task the plugin routes: an inert grant on any other task would go live
+ *  the day a capability starts routing it. Clearing one (`binds` absent) stays open so a stale row can go. */
+async function storedActorFor(ctx: ConnectionContext, userId: UserId, actor: BindingActorInput | undefined, binds?: RoutableTask): Promise<StoredActor> {
   if (actor === undefined) {
     return { actorKind: "user", actorId: userId };
   }
@@ -31,8 +33,12 @@ async function storedActorFor(ctx: ConnectionContext, userId: UserId, actor: Bin
     }
     return { actorKind: "automation-rule", actorId: actor.ruleId };
   }
-  if (!(await ctx.pluginOwnedBy(actor.pluginId, userId))) {
+  const routed = await ctx.pluginGrantTasksOf(actor.pluginId, userId);
+  if (routed === null) {
     throw new DomainOperationError(CONNECTION_OP_CODES.actorForeign, `plugin ${actor.pluginId} is not yours.`);
+  }
+  if (binds !== undefined && !routed.includes(binds)) {
+    throw new DomainOperationError(CONNECTION_OP_CODES.actorTaskUnrouted, `this plugin routes nothing through ${binds}.`);
   }
   return { actorKind: "plugin-grant", actorId: actor.pluginId };
 }
@@ -96,7 +102,7 @@ async function bindingReadout(
 function createSetBinding(ctx: ConnectionContext): ConnectionService["setBinding"] {
   return async (params: SetBindingParams): Promise<ConnectionBinding> => {
     const userId = params.principal.userId;
-    const actor = await storedActorFor(ctx, userId, params.actor);
+    const actor = await storedActorFor(ctx, userId, params.actor, params.connectionId === null ? undefined : params.task);
     if (params.connectionId !== null) {
       const row = await fetchOwnedConnection(ctx.db, userId, params.connectionId);
       if (row === null) {

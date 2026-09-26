@@ -45,6 +45,7 @@ import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import type { DurableChatBusEvent, LiveOnlyChatBusEvent, LiveOnlyChatEventType } from "@orb/contracts/chat";
 import { EMBED_SPACE_DIMS } from "@orb/contracts/inference";
+import { pluginGrantTasks } from "@orb/contracts/plugin";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { EmbedResult } from "@orb/contracts/providers";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
@@ -598,7 +599,10 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     audit,
     credentialOwned: async (ownerId, credentialId) => (await fetchOwned(db, userCredentials, credentialId, ownerId)) !== undefined,
     ruleOwnedBy: async (ruleId, userId) => (await fetchOwned(db, automationRules, ruleId, userId)) !== undefined,
-    pluginOwnedBy: async (pluginId, userId) => (await fetchOwned(db, plugins, pluginId, userId)) !== undefined,
+    pluginGrantTasksOf: async (pluginId, userId) => {
+      const row = await fetchOwned(db, plugins, pluginId, userId);
+      return row === undefined ? null : pluginGrantTasks(row.manifest.capabilities);
+    },
     endpointAdmission,
     recordProbeOutcome: credentials.recordProbeOutcome,
     // The late-bound holder above, derefed at request time.

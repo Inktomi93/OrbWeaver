@@ -13,7 +13,7 @@ import type { BindingView } from "@orb/server/domain/connection";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { BYO_BASE_URL, BYO_PROVIDER, makeHarness, seedAutomationRule, seedOwner } from "../_support.ts";
+import { BYO_BASE_URL, BYO_PROVIDER, makeHarness, seedAutomationRule, seedOwner, seedPlugin } from "../_support.ts";
 
 const PLUGIN_ID = castId<PluginId>("plugin_000001");
 const UNOWNED_RULE_ID = castId<AutomationRuleId>("automation_rule_999999");
@@ -57,6 +57,29 @@ describe("setBinding", () => {
     await expect(
       h.svc.setBinding({ principal: owner.principal, task: "chat", connectionId: row.id, actor: { kind: "plugin-grant", pluginId: PLUGIN_ID } }),
     ).rejects.toMatchObject({ code: CONNECTION_OP_CODES.actorForeign });
+  });
+
+  test("a plugin grant binds only a task the plugin's declared capabilities route; clearing one stays open", async () => {
+    // An inert grant on an unrouted task would go live the day a capability starts routing it, spending on a
+    // model the owner picked for nothing. The write refuses it; a clear of a legacy row is still allowed.
+    const db = await freshDb();
+    const h = await makeHarness(db, { pluginGrantTasks: ["summarize"] });
+    const owner = await seedOwner(db);
+    const pluginId = await seedPlugin(db, owner.userId);
+    const row = await h.svc.create({
+      principal: owner.principal,
+      providerId: BYO_PROVIDER,
+      credentialId: null,
+      baseUrl: BYO_BASE_URL,
+      model: "m",
+      allowBackground: true,
+    });
+    const actor = { kind: "plugin-grant", pluginId } as const;
+    await expect(h.svc.setBinding({ principal: owner.principal, task: "chat", connectionId: row.id, actor })).rejects.toMatchObject({
+      code: CONNECTION_OP_CODES.actorTaskUnrouted,
+    });
+    expect((await h.svc.setBinding({ principal: owner.principal, task: "summarize", connectionId: row.id, actor })).connectionId).toBe(row.id);
+    expect((await h.svc.setBinding({ principal: owner.principal, task: "chat", connectionId: null, actor })).connectionId).toBeNull();
   });
 
   test("an actor's bindings are its OWN — a rule's pick does not read back as the user's", async () => {
