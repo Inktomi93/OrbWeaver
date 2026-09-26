@@ -1,11 +1,14 @@
-# Shell scripts and container files must stay LF: a Windows clone with core.autocrlf=true would otherwise
-# COPY a CRLF entrypoint into the image and boot fails with `/bin/sh^M: bad interpreter` (a lesson borrowed
-# from SillyTavern's Dockerfile, which dos2unix's its entrypoint at build time instead).
-*.sh          text eol=lf
-Dockerfile    text eol=lf
-*.yaml        text eol=lf
-*.yml         text eol=lf
-*.env         text eol=lf
-*.env.example text eol=lf
+# Every text file checks out LF on every platform. The build and the checks hash and byte-compare checked-in text
+# (the token schema pins, the ledgers, the db baseline, the content sha pins), so git's default Windows
+# core.autocrlf=true would otherwise turn a fresh clone into a hash mismatch, and a CRLF shell entrypoint copied
+# into the image fails with `/bin/sh^M: bad interpreter`.
+* text=auto eol=lf
+
 # Batch files stay CRLF: cmd.exe can misread labels and blocks in a batch file with LF line endings.
-*.cmd         text eol=crlf
+*.cmd text eol=crlf
+
+# Binary assets: never converted, never diffed as text.
+*.png   binary
+*.jpg   binary
+*.avif  binary
+*.woff2 binary
