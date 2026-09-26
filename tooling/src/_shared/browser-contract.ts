@@ -137,6 +137,8 @@ export interface ProbeLaunchOptions {
   readonly trace?: boolean;
   readonly persistentProfileDir?: string;
   readonly browserArgs?: readonly string[];
+  /** Headers every request from every context carries, set on the context before its first page. */
+  readonly extraHTTPHeaders?: Readonly<Record<string, string>>;
   /** Focused retention proofs inject small caps; production omits this and uses measured policy caps. */
   readonly evidenceLimits?: BrowserEvidenceLimits;
 }

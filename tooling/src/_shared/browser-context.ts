@@ -162,6 +162,9 @@ async function seedContext(context: BrowserContext, opts: ProbeLaunchOptions, se
 export async function buildProbeContext(args: BuildContextArgs): Promise<ProbeContext> {
   const { opts, sessionCookie, deviceDescriptor, contextIndex } = args;
   const context = await openRecordedContext(args);
+  if (opts.extraHTTPHeaders !== undefined) {
+    await context.setExtraHTTPHeaders({ ...opts.extraHTTPHeaders });
+  }
   const settingsEvidence = await seedContext(context, opts, sessionCookie);
   const capture = createPageCapture(resolveProbeMedia(opts), contextIndex, opts.evidenceLimits);
   const pages: Page[] = [];
