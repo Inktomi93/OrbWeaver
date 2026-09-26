@@ -42,7 +42,11 @@ test("affected routing retains concrete parents for exclusive roots, shared root
   ]);
 });
 
-test("primary routing follows native roots for DOM runtime/type tests, Node tests, helpers, tooling and package source", ({ repoRoot }) => {
+// The first plan against the real repository parses every native program's config in process. MEASURED: 3.3 s at
+// per-core load 0.4, and 10.9 s beside three whole typechecks at per-core load 1.1. The base is twice the loaded reading.
+test("primary routing follows native roots for DOM runtime/type tests, Node tests, helpers, tooling and package source", {
+  timeout: scaledBudget(22_000),
+}, ({ repoRoot }) => {
   const cases: readonly (readonly [string, string])[] = [
     ["tests/client/agent-nav/index.dom.test.ts", "tsconfig.tests-dom.json"],
     ["tests/ui/primitives/input/index.dom.test-d.ts", "tsconfig.tests-dom.json"],
