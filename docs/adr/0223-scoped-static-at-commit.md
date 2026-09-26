@@ -8,7 +8,7 @@ updated: 2026-09-24
 
 ## Context
 
-Pre-commit ran the whole static tier. Every whole run waits for the host-wide whole-run slot that every worktree on both accounts shares (`tooling/src/verify/lib/whole-run-queue.ts`). The whole static tier runs for minutes, and the cross-file structure policies take most of that time. `tooling/src/verify/lib/history.ts` records each run's stage durations. When several lanes committed at once, each commit waited inside its hook behind other checkouts' runs. Lanes then used the `LEFTHOOK_EXCLUDE` bypass, which skips every check.
+Pre-commit ran the whole static tier. Every whole run waits for the host-wide whole-run slot that every worktree on both accounts shares (`tooling/src/verify/lib/whole-run-queue.ts`). The whole static tier runs for minutes, and the cross-file structure policies take most of that time. `tooling/src/verify/lib/history.ts` records each run's stage durations. When several lanes committed at once, each commit waited inside its hook behind other checkouts' runs. Lanes then committed with `LEFTHOOK_EXCLUDE=check git commit`, which skips every pre-commit check.
 
 ## Decision
 

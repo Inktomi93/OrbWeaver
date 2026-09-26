@@ -196,8 +196,8 @@ function openAiCompatibleShape(req: OpenAiCompatChatRequest, knobs: ResolvedChat
 }
 
 /** The preset asked for one tool call at a time on a tools request. Only `false` goes out: a stored `true` is the
- *  endpoint's own default, and some OpenAI-compatible layers refuse the field (Gemini: `Unknown name
- *  "parallel_tool_calls"`). */
+ *  endpoint's own default, and some OpenAI-compatible layers refuse the field (Gemini answers
+ *  `Unknown name "parallel_tool_calls"`). */
 function disablesParallelToolCalls(req: OpenAiCompatChatRequest): boolean {
   return req.tools !== undefined && req.params.advanced?.parallelToolCalls === false;
 }

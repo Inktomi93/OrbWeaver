@@ -261,6 +261,8 @@ export const WITHHELD_VARIANT_SOURCES: Readonly<Record<string, string>> = {
   "primitives/table/variants.ts::tableVariants": "density/align/sortActive need a populated table model — story with a table fixture",
   "primitives/tabs/variants.ts::tabsVariants": "layout axis is geometry; tab colour states are selection-driven, not arms",
   "primitives/toast/variants.ts::toastVariants": "placement axis needs the toast viewport/provider flow — story with the popup wave",
+  "primitives/toggle-group/variants.ts::toggleGroupVariants":
+    "fill axis is layout geometry (grid cells, width, wrap) — the colour arms live on the child Toggles, and toggle is storied",
 };
 
 // The theme axis is homed in the keys module (the pure vocabulary home) — re-exported here so the

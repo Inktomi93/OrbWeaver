@@ -5,7 +5,7 @@
 // carries the CSRF header (a cookie mutation without it is a 403 — the belt every logout regression hits).
 
 import type { Handle } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { afterEach, beforeEach, vi } from "vitest";
 import { confirmPendingJoin, fetchAuthMe, login, logout, signOut } from "../../../packages/client/src/data/auth-bootstrap.ts";
 import { bindSessionDocumentHost } from "../../../packages/client/src/lib/session-document-host.ts";
@@ -135,14 +135,15 @@ test("a failed logout neither broadcasts nor navigates", async () => {
 // pending cookie names the join), `signedIn` read through the strict result schema, and a refusal code only when
 // it is a known one.
 const JOINER = { persona: { name: "Mira", description: "" } } as const;
+const JOINED_CHAT = mintTypeId(ID_PREFIX.chat);
 
-test("confirmPendingJoin posts the persona-only JSON body with CSRF and reads signedIn", async () => {
+test("confirmPendingJoin posts the persona-only JSON body with CSRF and reads signedIn and the joined chat", async () => {
   let seen: { readonly url: string; readonly init: RequestInit | undefined } | undefined;
   vi.stubGlobal("fetch", (url: string, init?: RequestInit) => {
     seen = { url, init };
-    return Promise.resolve(new Response(JSON.stringify({ signedIn: false }), { status: 200 }));
+    return Promise.resolve(new Response(JSON.stringify({ signedIn: false, chatId: JOINED_CHAT }), { status: 200 }));
   });
-  await expect(confirmPendingJoin(JOINER)).resolves.toEqual({ ok: true, signedIn: false });
+  await expect(confirmPendingJoin(JOINER)).resolves.toEqual({ ok: true, signedIn: false, chatId: JOINED_CHAT });
   expect(seen?.url).toBe("/api/auth/oidc/pending/confirm");
   expect(seen?.init?.method).toBe("POST");
   expect(seen?.init?.headers).toMatchObject({ "x-orb-csrf": "1", "content-type": "application/json" });
@@ -161,6 +162,6 @@ test("confirmPendingJoin returns a known refusal code, and null for an unknown o
 });
 
 test("confirmPendingJoin refuses a success body that is not the strict result shape", async () => {
-  vi.stubGlobal("fetch", () => Promise.resolve(new Response(JSON.stringify({ signedIn: true, userId: "u" }), { status: 200 })));
+  vi.stubGlobal("fetch", () => Promise.resolve(new Response(JSON.stringify({ signedIn: true, chatId: JOINED_CHAT, userId: "u" }), { status: 200 })));
   await expect(confirmPendingJoin(JOINER)).rejects.toThrow();
 });
