@@ -106,6 +106,29 @@ export function groupThousands(value: number): string {
   return `${negative ? "-" : ""}${whole.replace(THOUSANDS_RE, ",")}${fraction}`;
 }
 
+// ── dollar amounts ───────────────────────────────────────────────────────────────────────────────────
+// The ONE USD formatter, lifted from the stats view-model when the connection editor's account balance
+// became its second feature (AGENTS.md: a second copy of a helper is a defect). `null` is an amount nobody
+// recorded, never zero, so it renders the em dash rather than `$0.00`.
+
+const USD_PRECISION = 2;
+/** Below this the two-decimal form is all zeros, so the sub-cent arm keeps four and real charges differ. */
+const SUB_CENT = 0.01;
+const SUB_CENT_PRECISION = 4;
+const UNRECORDED_AMOUNT = "—";
+
+/** A USD figure: `—` unrecorded · `$1.23` · `$0.0037` below a cent · `-$1.20` overspent. Throws
+ *  `RangeError` on a non-finite amount, for the reason stated above {@link formatBytes}. */
+export function formatUsd(amount: number | null): string {
+  if (amount === null) {
+    return UNRECORDED_AMOUNT;
+  }
+  assertDisplayableCount("formatUsd", amount, true);
+  const sign = amount < 0 ? "-" : "";
+  const size = Math.abs(amount);
+  return `${sign}$${size > 0 && size < SUB_CENT ? size.toFixed(SUB_CENT_PRECISION) : size.toFixed(USD_PRECISION)}`;
+}
+
 // ── free labels ──────────────────────────────────────────────────────────────────────────────────────
 // A user-visible name that must not collide with a sibling's: a connection label, a stored key's label.
 // The suffix counts from 2 so the first copy reads as the second of its name.

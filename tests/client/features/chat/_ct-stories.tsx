@@ -177,6 +177,7 @@ import type { PendingAttachment } from "../../../../packages/client/src/features
 import { speakerThemesByName } from "../../../../packages/client/src/features/chat/lib/attribution.ts";
 import { useChatsSelectionTitle } from "../../../../packages/client/src/features/chat/lib/chats-selection-title.ts";
 import type { MemberCharacterRow, MemberPersonRow } from "../../../../packages/client/src/features/chat/lib/member-rows.ts";
+import { createWarningSurface } from "../../../../packages/client/src/features/chat/lib/turn-warning-surface.ts";
 import { warningNotice } from "../../../../packages/client/src/features/chat/lib/warning-notice.ts";
 import { enableAppearanceMessageRegistry } from "../../../../packages/client/src/lib/appearance-message-registry.ts";
 import type { SlashArgOffer } from "../../../../packages/client/src/lib/contribution-contracts.ts";
@@ -2957,6 +2958,50 @@ export function ProviderAdjustmentWarningStory(): ReactElement {
         }
       >
         raise budget clamp
+      </button>
+    </CtToastSurface>
+  );
+}
+
+/** The per-turn warning CADENCE through the production path: whole turns (start, drops, complete) go through
+ *  the REAL reducer into the SAME `createWarningSurface` factory `chat-content.tsx` wires, and out through the
+ *  real toast outlet. Each button plays one turn on the same connection. */
+export function TurnWarningCadenceStory(): ReactElement {
+  const [surface] = useState(() =>
+    createWarningSurface({ warn: (notice): void => notify.warn(notice), openConnections: { label: "Open Connections", onClick: (): void => undefined } }),
+  );
+  const busDeps: ChatBusDeps = { stream: chatStream, invalidate: (): void => undefined, ...surface };
+  const playTurn = (adjustments: readonly ("effort_dropped" | "sampling_knob_dropped")[]): void => {
+    applyChatBusEvent(
+      {
+        type: "turnStarted",
+        chatId: CHAT_ID,
+        intent: "send",
+        api: null,
+        provider: testProviderId("openrouter"),
+        model: "anthropic/claude-sonnet-5",
+        speakerCharacterId: null,
+        targetMessageId: null,
+      },
+      busDeps,
+    );
+    for (const adjustment of adjustments) {
+      applyChatBusEvent(
+        adjustment === "sampling_knob_dropped"
+          ? { type: "warning", chatId: CHAT_ID, code: "settings_adjusted", adjustment, knob: "topP" }
+          : { type: "warning", chatId: CHAT_ID, code: "settings_adjusted", adjustment },
+        busDeps,
+      );
+    }
+    applyChatBusEvent({ type: "turnCompleted", chatId: CHAT_ID, intent: "send", messageId: null }, busDeps);
+  };
+  return (
+    <CtToastSurface>
+      <button type="button" data-testid="turn-top-p" onClick={(): void => playTurn(["sampling_knob_dropped"])}>
+        turn with a Top-P drop
+      </button>
+      <button type="button" data-testid="turn-top-p-effort" onClick={(): void => playTurn(["sampling_knob_dropped", "effort_dropped"])}>
+        turn with Top-P and effort drops
       </button>
     </CtToastSurface>
   );

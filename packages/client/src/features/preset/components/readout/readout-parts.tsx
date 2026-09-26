@@ -96,8 +96,11 @@ export function EffectiveProfile({
   error,
   onRetry,
   contextWindow,
+  subject,
 }: {
   readonly effective: EffectiveProfileRow | undefined;
+  /** What the profile was resolved against, as the signature line names it (`chat role`, a connection's name). */
+  readonly subject: string;
   /** The resolve's THROWN error — `null` while the read is still PENDING. With `effective` undefined those
    *  two are exhaustive (see above); a settled-successful read always carries a profile.
    *
@@ -150,7 +153,7 @@ export function EffectiveProfile({
         </Stack>
       )}
       <Text voice="gloss">
-        {resolvedForLabel(effective.model)} · chat role
+        {resolvedForLabel(effective.model)} · {subject}
         {effective.stale.length === 0
           ? ""
           : /* IT NAMES THE TAB, NOT THE MODULE (side-eye 2026-08-22 P3-3). "the deck" is this feature's

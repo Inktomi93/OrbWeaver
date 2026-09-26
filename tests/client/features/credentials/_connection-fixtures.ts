@@ -121,7 +121,20 @@ export interface PaneStubOptions {
   readonly catalogModels?: TrpcResponder<"connection.catalogModels">;
   /** Replaces `connection.draftCatalogModels` — the add dialog's list for an endpoint or built-in draft. */
   readonly draftCatalogModels?: TrpcResponder<"connection.draftCatalogModels">;
+  /** Replaces `connection.verifyAuth` — the sign-in check a saved subscription row runs. */
+  readonly verifyAuth?: TrpcResponder<"connection.verifyAuth">;
 }
+
+/** A passing sign-in check, as the agent-sdk backend answers it. */
+export const SIGNED_IN: TrpcWireOutput<"connection.verifyAuth"> = {
+  source: "max-pro-sub",
+  ok: true,
+  apiKeySource: "none",
+  model: "claude-sonnet-5",
+  reply: "ok",
+  costUsd: 0,
+  account: { email: "owner@example.com", subscriptionType: "max" },
+};
 
 /** The whole Connections pane's network, stateful across an add (header). */
 export async function stubConnectionsPane(page: Page, opts: PaneStubOptions = {}): Promise<TrpcRecorder> {
@@ -159,6 +172,7 @@ export async function stubConnectionsPane(page: Page, opts: PaneStubOptions = {}
     "connection.catalogModels": opts.catalogModels ?? catalogOf([]),
     "connection.draftCatalogModels": opts.draftCatalogModels ?? catalogOf([]),
     "connection.useForEverything": [],
+    "connection.verifyAuth": opts.verifyAuth ?? SIGNED_IN,
   });
 }
 

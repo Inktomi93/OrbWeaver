@@ -20,7 +20,8 @@
 // falls back to itself, which is the honest answer and is exactly what the guarded narrow buys.
 
 import type { AutomationActionType, AutomationFireOutcome, AutomationRunOutcome, ChatTriggerType, DomainTriggerType } from "@orb/contracts/automation";
-import { AUTOMATION_ACTION_TYPES, CHAT_TRIGGER_TYPES, DOMAIN_TRIGGER_TYPES, SPEND_ARM_TYPES } from "@orb/contracts/automation";
+import { AUTOMATION_ACTION_TYPES, AUTOMATION_ARM_BINDING_TASK, CHAT_TRIGGER_TYPES, DOMAIN_TRIGGER_TYPES, SPEND_ARM_TYPES } from "@orb/contracts/automation";
+import type { RoutableTask } from "@orb/contracts/inference";
 import type { BadgeProps } from "@orb/ui/badge";
 import { timeLib } from "#lib";
 
@@ -141,6 +142,11 @@ export function armLabel(type: AutomationActionType): string {
  *  irreversible). The set is the contract's, never re-spelled here. */
 export function hasSpendArm(actions: readonly { readonly type: AutomationActionType }[]): boolean {
   return actions.some((action) => (SPEND_ARM_TYPES as readonly AutomationActionType[]).includes(action.type));
+}
+
+/** The tasks a rule's arms spend through its own binding, in no particular order and without repeats. */
+export function ruleBindingTasks(actions: readonly { readonly type: AutomationActionType }[]): readonly RoutableTask[] {
+  return [...new Set(actions.map((action) => AUTOMATION_ARM_BINDING_TASK[action.type]).filter((task): task is RoutableTask => task !== null))];
 }
 
 // ── B4, the rate-capped OFFER toggle's copy ─────────────────────────────────────────────────────────────

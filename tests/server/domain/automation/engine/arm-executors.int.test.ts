@@ -557,6 +557,7 @@ test("generate_image renders the prompt + maps the FULL IC-C args onto imagery.g
   // The NON-projected fields (subjectCharacterId/useAvatarReference — the I4 lesson) ride through.
   expect(captured.images[0]).toEqual({
     authorUserId: host,
+    ruleId: frame.origin.ruleId,
     chatId,
     automationDepth: 1, // the firing rule's child depth (origin.automationDepth) — compose stamps it on the posted image (N1)
     mode: "character",
@@ -597,7 +598,14 @@ test("trigger_turn dispatches requestTurn with the author/chat/depth + rendered 
   expect(captured.turns).toHaveLength(1);
   // The funder = the rule AUTHOR (→ triggeredBy); the cascade depth is the origin CHILD-depth; the steer is
   // macro-rendered (the arm renders `guidedTemplate` before the op). initiator is fixed at compose (not here).
-  expect(captured.turns[0]).toEqual({ authorUserId: host, chatId, automationDepth: 1, speakerCharacterId: speaker, guided: "steer-1" });
+  expect(captured.turns[0]).toEqual({
+    authorUserId: host,
+    ruleId: frame.origin.ruleId,
+    chatId,
+    automationDepth: 1,
+    speakerCharacterId: speaker,
+    guided: "steer-1",
+  });
 });
 
 test("trigger_turn with no steer / no forced speaker omits both fields (normal arbitration)", async () => {
@@ -608,7 +616,7 @@ test("trigger_turn with no steer / no forced speaker omits both fields (normal a
   const outcome = await dispatch(arm({ type: "trigger_turn" }), frame);
 
   expect(outcome).toEqual({ ok: true });
-  expect(captured.turns[0]).toEqual({ authorUserId: host, chatId, automationDepth: 1 });
+  expect(captured.turns[0]).toEqual({ authorUserId: host, ruleId: frame.origin.ruleId, chatId, automationDepth: 1 });
 });
 
 test("trigger_turn maps a requestTurn refusal (consent/authority/depth throw) to a typed arm_error, no fabricated success", async () => {

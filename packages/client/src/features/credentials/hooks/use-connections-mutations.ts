@@ -30,25 +30,11 @@ export const useCreateConnectionOwned = createEntityMutation<inferInput<Trpc["co
   invalidates: connectionReads,
 });
 
-/** A FIELD-WISE patch on one row (ground5 M6: never a GET→whole-blob PUT). */
-export const useUpdateConnection = createEntityMutation<inferInput<Trpc["connection"]["update"]>, ConnectionView>({
-  options: (trpc) => trpc.connection.update.mutationOptions(),
-  invalidates: connectionReads,
-  errorToast: "Couldn't save that connection.",
-});
-
 /** Delete a row — every binding on it SET-NULLs to `no-connection`; history keeps its attribution. */
 export const useRemoveConnection = createEntityMutation<inferInput<Trpc["connection"]["remove"]>, unknown>({
   options: (trpc) => trpc.connection.remove.mutationOptions(),
   invalidates: connectionReads,
   errorToast: "Couldn't remove that connection.",
-});
-
-/** Write ONE `user` binding (`connectionId: null` clears it). */
-export const useSetBinding = createEntityMutation<inferInput<Trpc["connection"]["setBinding"]>, unknown>({
-  options: (trpc) => trpc.connection.setBinding.mutationOptions(),
-  invalidates: connectionReads,
-  errorToast: "Couldn't change that role.",
 });
 
 /** §5.3a's one-click survivor: write every compatible `user` binding to this row at once. */
@@ -113,6 +99,22 @@ export const useProbeConnection = createEntityMutation<inferInput<Trpc["connecti
   options: (trpc) => trpc.connection.probe.mutationOptions(),
   invalidates: () => [],
   errorToast: "Couldn't reach that server.",
+});
+
+/** The Claude-subscription sign-in check: a one-word turn on the row, so a mutation (the router's esoteric #9).
+ *  Invalidates nothing: the verdict is the mutation's own data. */
+export const useVerifySignIn = createEntityMutation<inferInput<Trpc["connection"]["verifyAuth"]>, inferOutput<Trpc["connection"]["verifyAuth"]>>({
+  options: (trpc) => trpc.connection.verifyAuth.mutationOptions(),
+  invalidates: () => [],
+  errorToast: "Couldn't check the Claude sign-in.",
+});
+
+/** The endpoint inspector: one real one-token request with the row's shaping applied, headers redacted
+ *  server-side. It dials the user's server, so a mutation. Invalidates nothing. */
+export const useInspectEndpoint = createEntityMutation<inferInput<Trpc["connection"]["inspectEndpoint"]>, inferOutput<Trpc["connection"]["inspectEndpoint"]>>({
+  options: (trpc) => trpc.connection.inspectEndpoint.mutationOptions(),
+  invalidates: () => [],
+  errorToast: "Couldn't send the test request.",
 });
 
 /** The inline "Admit `<host>`" write (§5.3a) — the deployment's private-endpoint allowlist, OWNER-gated at

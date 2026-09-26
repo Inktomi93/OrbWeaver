@@ -10,7 +10,8 @@
 
 import type { Capability, DeclaredCapability, ModelKind, RoutableTask, Task } from "@orb/contracts/inference";
 import { BELT_OWNED_BODY_KEYS, requirementMet, taskDef } from "@orb/contracts/inference";
-import { ROLE_ROWS_ORDERED } from "./connections-model.ts";
+// Direct, not through `#lib`: node-side CT specs import this module.
+import { ROLE_ROWS_ORDERED } from "../../../lib/connection-roles.ts";
 
 // ── the Purpose tier: the inferred-kind verdict ────────────────────────────────────────────────────────
 

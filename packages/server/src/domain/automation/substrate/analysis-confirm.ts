@@ -64,7 +64,7 @@ export async function runAnalysisConfirm(deps: AnalysisConfirmDeps, pending: Pen
     case "suggestTurn": {
       // The same seam trigger_turn rides — cascade depth, initiator membership, and frozen host funding all
       // resolve INSIDE requestTurn; the author frame holds (§3-S4's identity law).
-      await deps.ops.chat.requestTurn({ authorUserId, chatId, automationDepth: act.automationDepth, guided: act.steerText });
+      await deps.ops.chat.requestTurn({ authorUserId, ruleId, chatId, automationDepth: act.automationDepth, guided: act.steerText });
       return;
     }
     default: {

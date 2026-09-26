@@ -23,7 +23,7 @@ import type { GenerationType, GuidedImpersonatePerson, UserIntent, UserMacroSpec
 import { PRESET_FORMAT_SLOT_IDS, SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { composeProse, legacyProseOverrides, resolveProseText } from "@orb/contracts/prose";
 import { batchMany, isConstraintViolation } from "@orb/db/kit";
-import type { Resolved, WireTool } from "@orb/inference";
+import type { BindingActor, Resolved, WireTool } from "@orb/inference";
 import { resolveSideGenSampling } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, MessageId, PendingTurnId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroFreeze, MacroRegistry, UserMacroDef } from "@orb/kit/macro";
@@ -118,7 +118,11 @@ interface TurnDeps {
   readonly emit: (event: DurableChatBusEvent) => Promise<void>;
   readonly prng: () => number;
   readonly delay: (ms: number) => Promise<void>;
-  readonly resolveConnection: (args: { readonly funderUserId: UserId; readonly chatId: ChatId }) => Promise<Resolved<"chat">>;
+  readonly resolveConnection: (args: {
+    readonly funderUserId: UserId;
+    readonly chatId: ChatId;
+    readonly actor?: BindingActor | undefined;
+  }) => Promise<Resolved<"chat">>;
   /** The foreign half of the assemble ctx (preset/persona/settings), resolved at the composition root. The
    *  chat-internal half is gathered by `gatherAssembleContext`. */
   readonly resolveForeignInputs: ResolveForeignInputsOp;
@@ -2625,7 +2629,11 @@ async function resolveRequestTurn(ctx: ChatContext, deps: TurnDeps, params: Requ
   }
   // Freeze the room's host once for funding and assembly; the responsible human remains the initiator.
   const identity = { triggeredBy, funderUserId: room.hostUserId, runAsUserId: room.hostUserId };
-  const connection = await deps.resolveConnection({ funderUserId: identity.funderUserId, chatId });
+  const connection = await deps.resolveConnection({
+    funderUserId: identity.funderUserId,
+    chatId,
+    ...(params.actor !== undefined ? { actor: params.actor } : {}),
+  });
   return { chat, room, connection, identity };
 }
 

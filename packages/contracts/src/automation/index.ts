@@ -14,6 +14,7 @@ import { PROMPT_TRANSFORM_POINTS } from "#chat";
 import type { DomainEventType } from "#events";
 import { generateImageActionArgsSchema } from "#imagery";
 import { NOTIFICATION_RECIPIENTS } from "#notifications";
+import type { RoutableTask } from "../inference/tasks.ts";
 
 /** `ChatBusEvent` discriminators automation may trigger on — a subset of the frozen chat-bus union.
  *  The tail after `chatCreated` is reserved (criterion: first real rule request). */
@@ -329,6 +330,24 @@ export const AUTOMATION_ARM_SCOPE: Record<AutomationActionType, AutomationArmSco
   ["set_chat_background"]: "chat-required",
   ["run_analysis"]: "chat-required",
   ["run_tool"]: "chat-independent",
+};
+
+/** WHICH ROUTABLE TASK an arm spends through the RULE'S OWN binding: compose passes the rule as the binding actor
+ *  on exactly these arms' resolves (`entry/compose/automation-plugin.ts`), so a connection the author bound to the
+ *  rule is used before their own role binding. `run_analysis` is `chat` because its confirmed turn suggestion rides
+ *  the same turn seam. `null` ⇒ the arm spends nothing through a rule binding. A rule's connection editor offers
+ *  exactly these tasks. Bracketed keys for the reason {@link AUTOMATION_ARM_SCOPE} states. */
+export const AUTOMATION_ARM_BINDING_TASK: Record<AutomationActionType, RoutableTask | null> = {
+  ["set_variable"]: null,
+  ["transform_draft"]: null,
+  ["insert_world_info_entry"]: null,
+  ["surface_quick_reply"]: null,
+  ["post_notification"]: null,
+  ["trigger_turn"]: "chat",
+  ["generate_image"]: "generateImage",
+  ["set_chat_background"]: null,
+  ["run_analysis"]: "chat",
+  ["run_tool"]: null,
 };
 
 // Rendered/stored bounds (named — `noMagicNumbers`).

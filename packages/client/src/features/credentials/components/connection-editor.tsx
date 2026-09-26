@@ -52,10 +52,9 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useId, useState } from "react";
-import { QueryBoundary } from "#components";
+import { QueryBoundary, useUpdateConnection } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { QueryErrorState, SkeletonRows } from "#data";
-import { useUpdateConnection } from "../hooks/use-connections-mutations.ts";
 import type { ExtraRow } from "../lib/connection-editor-model.ts";
 import {
   capabilityBadges,
@@ -69,10 +68,12 @@ import {
 import type { FactRow } from "../lib/connection-fact-model.ts";
 import { capabilityFactRows, quirkFactRows, withDeclaredOverride, withoutDeclaredOverride } from "../lib/connection-fact-model.ts";
 import { promptCacheChangedCount, showsPromptCache } from "../lib/prompt-cache-model.ts";
+import { ConnectionAccount } from "./connection-account.tsx";
 import { ModelField, SavedTextField } from "./connection-editor-essential.tsx";
 import { CapabilityRail, KindVerdict } from "./connection-editor-purpose.tsx";
 import { ConnectionExtrasEditor } from "./connection-extras-editor.tsx";
 import { FactRowList } from "./connection-fact-rows.tsx";
+import { ConnectionInspector } from "./connection-inspector.tsx";
 import { ConnectionPromptCache } from "./connection-prompt-cache.tsx";
 import { ConnectionReachability } from "./connection-reachability.tsx";
 import { ConnectionTransportEditor } from "./connection-transport-editor.tsx";
@@ -267,6 +268,7 @@ function ConnectionEditorBody({ connectionId, onDone, trpc, invalidation }: Conn
                   For a server that doesn't speak plain OpenAI. Headers go out with the request; the map reads a reply that puts things in different places.
                 </Text>
                 <ConnectionTransportEditor busy={busy} onCommit={(next): void => patch({ transport: next })} transport={connection.transport} />
+                <ConnectionInspector connectionId={connectionId} invalidation={invalidation} trpc={trpc} />
               </Stack>
             )}
             <ConnectionReachability
@@ -276,6 +278,7 @@ function ConnectionEditorBody({ connectionId, onDone, trpc, invalidation }: Conn
               trpc={trpc}
               wakeable={provider?.features?.sleep !== undefined}
             />
+            {provider === undefined ? null : <ConnectionAccount connectionId={connectionId} invalidation={invalidation} provider={provider} trpc={trpc} />}
           </Stack>
         </EditorTier>
       </Stack>

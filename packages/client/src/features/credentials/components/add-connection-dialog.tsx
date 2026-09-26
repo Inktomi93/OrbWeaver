@@ -37,6 +37,7 @@ import { trpcErrorReason } from "#lib";
 import { pushRecentModel } from "#state";
 import { useAddConnectionForm } from "../hooks/use-add-connection-form.ts";
 import { useAddCredentialOwned, useCreateConnectionOwned, useDraftCatalogModels } from "../hooks/use-connections-mutations.ts";
+import { useSignInCheckAfterSave } from "../hooks/use-sign-in-check.ts";
 import type { AddConnectionFormValues } from "../lib/add-connection-form-model.ts";
 import {
   acceptsKey,
@@ -169,6 +170,7 @@ function AddConnectionFormBody({ trpc, invalidation, onDone, pickerItems, provid
   const deps = { trpc, invalidation };
   const addCredential = useAddCredentialOwned(deps);
   const createConnection = useCreateConnectionOwned(deps);
+  const checkSignIn = useSignInCheckAfterSave(deps);
   const draftModels = useDraftCatalogModels(deps);
   const [listing, setListing] = useState<DraftListing | null>(null);
   const [held, setHeld] = useState<HeldKey | null>(null);
@@ -244,7 +246,8 @@ function AddConnectionFormBody({ trpc, invalidation, onDone, pickerItems, provid
     const modelCheck = modelCheckOf(modelSourceFor(provider, values), values.model);
     const credential = await credentialFor(provider, values);
     try {
-      await createConnection.mutateAsync(connectionInput({ provider, values, credentialId: credential?.id ?? null, modelCheck }));
+      const created = await createConnection.mutateAsync(connectionInput({ provider, values, credentialId: credential?.id ?? null, modelCheck }));
+      checkSignIn(provider, created.id);
     } catch (err) {
       if (URL_REFUSAL_CODES.has(trpcErrorReason(err))) {
         markUrlRefused(errorMessage(err));

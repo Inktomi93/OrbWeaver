@@ -28,12 +28,13 @@ import type { AutomationActionInput } from "@orb/contracts/automation";
 import type { InvocationChat } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import { automationRules, chats } from "@orb/db";
-import type { AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
+import type { AutomationRuleId, ChatId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { RuleValidationError } from "@orb/server/domain/automation";
 import { loadPresentRole } from "@orb/server/domain/chat";
 import type { PluginToolHandle } from "@orb/server/domain/tool-use";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { eq } from "drizzle-orm";
+import type { MockInstance } from "vitest";
 import { vi } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 import { principal, seedHostChat, seedUser } from "../../domain/automation/_support.ts";
@@ -227,4 +228,86 @@ test("C5: a global rule cannot capture into a CHAT variable, and its chat-less f
   expect(executed.mock.calls[0]?.[2].chatId).toBeNull();
   expect(authorTool.calls).toEqual([{ argsJson: ARGS_TEMPLATE, chat: null }]);
   expect(await app.automation.getGlobalVariable({ principal: principal(author), key: "mood" })).toBe(`author:${ARGS_TEMPLATE}`);
+});
+
+// ── the rule as a BINDING ACTOR (item 0025) ─────────────────────────────────────────────────────────────
+// A rule's spend resolves with `{ kind: "automation-rule", ruleId }`, so a connection the author bound to the
+// rule is used before their own role binding, and a rule with none falls back to it. Observed on the REAL
+// connection service through a call-through spy: the resolved row is the evidence of which connection was spent.
+
+/** Two of the author's endpoint rows: one bound to their own role, one for the rule. */
+async function seedTwoRows(app: ServicesResult, author: UserId): Promise<{ readonly own: UserConnectionId; readonly rules: UserConnectionId }> {
+  const actor = principal(author);
+  const own = await app.services.connection.create({
+    principal: actor,
+    providerId: "custom-openai",
+    credentialId: null,
+    baseUrl: "https://own-box.example.invalid/v1",
+    model: "own-model",
+  });
+  const rules = await app.services.connection.create({
+    principal: actor,
+    providerId: "custom-openai",
+    credentialId: null,
+    baseUrl: "https://rule-box.example.invalid/v1",
+    model: "rule-model",
+  });
+  return { own: own.id, rules: rules.id };
+}
+
+/** The connection the first resolve of `task` landed on, read off the real service's own answer. */
+async function resolvedRowFor(spy: MockInstance<ServicesResult["services"]["connection"]["resolve"]>, task: string): Promise<UserConnectionId | null> {
+  const index = spy.mock.calls.findIndex(([params]) => params.task === task);
+  const result = index === -1 ? undefined : spy.mock.results[index];
+  if (result === undefined || result.type !== "return") {
+    return null;
+  }
+  const outcome = await result.value;
+  return outcome.resolved.connectionId;
+}
+
+const QUIET_FREE_IMAGE: AutomationActionInput = {
+  type: "generate_image",
+  mode: "free",
+  prompt: "a lighthouse at dusk",
+  n: 1,
+  useAvatarReference: false,
+  reuse: "never",
+  quiet: true,
+};
+
+test("a generate_image rule spends the connection bound to the rule, and without one the author's own", async ({ app, db }) => {
+  const { author, chatId } = await seedScene(db);
+  const actor = principal(author);
+  const rows = await seedTwoRows(app, author);
+  await app.services.connection.setBinding({ principal: actor, task: "generateImage", connectionId: rows.own });
+  const ruleId = await mintEnabledRule(app, author, chatId, QUIET_FREE_IMAGE);
+
+  const unbound = vi.spyOn(app.services.connection, "resolve");
+  await app.automation.runRuleNow({ principal: actor, ruleId });
+  expect(await resolvedRowFor(unbound, "generateImage")).toBe(rows.own);
+  unbound.mockRestore();
+
+  await app.services.connection.setBinding({ principal: actor, task: "generateImage", connectionId: rows.rules, actor: { kind: "automation-rule", ruleId } });
+  const bound = vi.spyOn(app.services.connection, "resolve");
+  await app.automation.runRuleNow({ principal: actor, ruleId });
+  expect(await resolvedRowFor(bound, "generateImage")).toBe(rows.rules);
+});
+
+test("a trigger_turn rule's turn resolves the rule's own chat binding first, and without one the host's", async ({ app, db }) => {
+  const { author, chatId } = await seedScene(db);
+  const actor = principal(author);
+  const rows = await seedTwoRows(app, author);
+  await app.services.connection.setBinding({ principal: actor, task: "chat", connectionId: rows.own });
+  const ruleId = await mintEnabledRule(app, author, chatId, { type: "trigger_turn" });
+
+  const unbound = vi.spyOn(app.services.connection, "resolve");
+  await app.automation.runRuleNow({ principal: actor, ruleId });
+  expect(await resolvedRowFor(unbound, "chat")).toBe(rows.own);
+  unbound.mockRestore();
+
+  await app.services.connection.setBinding({ principal: actor, task: "chat", connectionId: rows.rules, actor: { kind: "automation-rule", ruleId } });
+  const bound = vi.spyOn(app.services.connection, "resolve");
+  await app.automation.runRuleNow({ principal: actor, ruleId });
+  expect(await resolvedRowFor(bound, "chat")).toBe(rows.rules);
 });

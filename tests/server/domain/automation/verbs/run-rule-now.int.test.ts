@@ -82,7 +82,7 @@ describe("what a manual run LIFTS", () => {
     const result = await fixture.svc.runRuleNow({ principal: principal(fixture.host), ruleId });
 
     expect(result).toEqual({ outcome: "fired" });
-    expect(turns).toEqual([{ authorUserId: fixture.host, chatId: fixture.chatId, automationDepth: 1, guided: "Do the thing." }]);
+    expect(turns).toEqual([{ authorUserId: fixture.host, ruleId, chatId: fixture.chatId, automationDepth: 1, guided: "Do the thing." }]);
   });
 
   test("a rate-capped rule RUNS (without this, confirming an F4 invitation would refuse identically)", async () => {

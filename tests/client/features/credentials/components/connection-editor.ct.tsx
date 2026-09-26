@@ -25,7 +25,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import type { TrpcRecorder, TrpcResponder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
-import { catalogEntry, catalogOf } from "../_connection-fixtures.ts";
+import { ALL_AVAILABLE, catalogEntry, catalogOf, SIGNED_IN } from "../_connection-fixtures.ts";
 import { ConnectionEditorNarrowStory, ConnectionEditorStory } from "../_ct-stories.tsx";
 
 const CONNECTION_ID = "user_connection_cteditor0001";
@@ -119,6 +119,11 @@ async function stubEditor(
     readonly role?: (typeof USER_ROLES)[number];
     readonly capabilities?: TrpcWireOutput<"connection.capabilities">;
     readonly catalogModels?: TrpcResponder<"connection.catalogModels">;
+    /** The row's provider; the default is the vLLM row the connection fixture is on. */
+    readonly provider?: TrpcWireOutput<"connection.providersAvailable">[number]["provider"];
+    readonly accountCredits?: TrpcResponder<"connection.accountCredits">;
+    readonly verifyAuth?: TrpcResponder<"connection.verifyAuth">;
+    readonly inspectEndpoint?: TrpcResponder<"connection.inspectEndpoint">;
   } = {},
 ): Promise<TrpcRecorder> {
   // The row the server holds: a saved model and check land on it, so the refetch after a save reads them.
@@ -126,7 +131,10 @@ async function stubEditor(
   return await routeTrpc(page, {
     "sessions.me": () => ({ userId: "user_ct_editor", handle: "owner", globalRole: opts.role ?? "owner" }),
     "connection.get": () => row,
-    "connection.providersAvailable": () => [{ provider: VLLM_PROVIDER, available: true }],
+    "connection.providersAvailable": () => [{ provider: opts.provider ?? VLLM_PROVIDER, available: true }],
+    "connection.accountCredits": opts.accountCredits ?? { total: 10, used: 5.8 },
+    "connection.verifyAuth": opts.verifyAuth ?? SIGNED_IN,
+    "connection.inspectEndpoint": opts.inspectEndpoint ?? INSPECTED,
     "connection.capabilities": () => opts.capabilities ?? CONNECTION_CAPABILITIES,
     // A list that answers nothing is the TYPED-ID arm, and it is not a check of the saved model.
     "connection.catalogModels":
@@ -444,6 +452,120 @@ test("a non-owner is offered no admission at all", async ({ mount, page }) => {
 
   await expect(component.getByRole("button", { name: "Check again" })).toBeVisible();
   await expect(component.locator('[data-slot="connection-admit-host"]')).toHaveCount(0);
+});
+
+// ── the account block and the endpoint inspector ───────────────────────────────────────────────────────
+
+/** A shipped provider row by id, from the same registry the pane reads. */
+function builtinRow(id: string): TrpcWireOutput<"connection.providersAvailable">[number]["provider"] {
+  const row = ALL_AVAILABLE.find((entry) => entry.provider.id === id);
+  if (row === undefined) {
+    throw new Error(`no built-in provider ${id}`);
+  }
+  return row.provider;
+}
+
+/** A hosted row: no server URL, a saved key. */
+function hostedRow(providerId: string): ConnectionRow {
+  return connectionRow({ providerId, providerLabel: builtinRow(providerId).label, baseUrl: null, credentialId: "user_credential_cteditor001" });
+}
+
+const INSPECTED: TrpcWireOutput<"connection.inspectEndpoint"> = {
+  ok: true,
+  request: { url: "http://127.0.0.1:8000/v1/chat/completions", headers: { authorization: "Bearer ***" }, body: '{\n  "model": "Qwen/Qwen3-32B"\n}' },
+  response: { status: 200, statusText: "OK", bodyPreview: '{"choices":[{"message":{"content":"pong"}}]}' },
+};
+
+test("an OpenRouter row reads its credit balance in Diagnostics", async ({ mount, page }) => {
+  const trpc = await stubEditor(page, { provider: builtinRow("openrouter"), connection: hostedRow("openrouter") });
+  const component = await mount(<ConnectionEditorStory />);
+  await tier(page, "Diagnostics").click();
+
+  await expect(component.locator('[data-slot="connection-credits-balance"]')).toContainText("$4.20");
+  await expect.poll(() => trpc.inputs("connection.accountCredits")).toEqual([{ connectionId: CONNECTION_ID }]);
+  await expect(component.locator('[data-slot="connection-sign-in"]')).toHaveCount(0);
+});
+
+test("a failed balance read is stated in the block and reads again on request", async ({ mount, page }) => {
+  let reads = 0;
+  const trpc = await stubEditor(page, {
+    provider: builtinRow("openrouter"),
+    connection: hostedRow("openrouter"),
+    accountCredits: () => {
+      reads += 1;
+      return reads === 1 ? trpcError({ code: "BAD_GATEWAY", message: "openrouter.ai answered 502" }) : { total: 10, used: 5.8 };
+    },
+  });
+  const component = await mount(<ConnectionEditorStory />);
+  await tier(page, "Diagnostics").click();
+
+  const retry = component.getByRole("button", { name: "Read it again" });
+  await expect(retry).toBeVisible();
+  await expect(component.locator('[data-slot="connection-credits-balance"]')).toHaveCount(0);
+  await retry.click();
+  await expect(component.locator('[data-slot="connection-credits-balance"]')).toContainText("$4.20");
+  await expect.poll(() => trpc.count("connection.accountCredits")).toBe(2);
+});
+
+test("a row on another backend never requests the balance and is offered no sign-in check", async ({ mount, page }) => {
+  const trpc = await stubEditor(page);
+  const component = await mount(<ConnectionEditorStory />);
+  await tier(page, "Diagnostics").click();
+
+  await expect(component.getByRole("button", { name: "Check again" })).toBeVisible();
+  await expect(component.locator('[data-slot="connection-credits"]')).toHaveCount(0);
+  await expect(component.locator('[data-slot="connection-sign-in"]')).toHaveCount(0);
+  await expect.poll(() => trpc.count("connection.accountCredits")).toBe(0);
+});
+
+test("a Claude-subscription row checks its sign-in on request and shows the account behind it", async ({ mount, page }) => {
+  const trpc = await stubEditor(page, { provider: builtinRow("claude-sub"), connection: hostedRow("claude-sub") });
+  const component = await mount(<ConnectionEditorStory />);
+  await tier(page, "Diagnostics").click();
+
+  await expect(component.locator('[data-slot="connection-sign-in-verdict"]')).toHaveCount(0);
+  await component.getByRole("button", { name: "Check sign-in" }).click();
+  await expect.poll(() => trpc.inputs("connection.verifyAuth")).toEqual([{ connectionId: CONNECTION_ID }]);
+  const verdict = component.locator('[data-slot="connection-sign-in-verdict"]');
+  await expect(verdict).toHaveAttribute("data-ok", "true");
+  await expect(verdict).toContainText("owner@example.com");
+  await expect(component.locator('[data-slot="connection-credits"]')).toHaveCount(0);
+});
+
+test("a sign-in check that does not pass is marked as failing, with the reply it got", async ({ mount, page }) => {
+  await stubEditor(page, { provider: builtinRow("claude-sub"), connection: hostedRow("claude-sub"), verifyAuth: { ...SIGNED_IN, ok: false, reply: "hello" } });
+  const component = await mount(<ConnectionEditorStory />);
+  await tier(page, "Diagnostics").click();
+
+  await component.getByRole("button", { name: "Check sign-in" }).click();
+  const verdict = component.locator('[data-slot="connection-sign-in-verdict"]');
+  await expect(verdict).toHaveAttribute("data-ok", "false");
+  await expect(verdict).toContainText("hello");
+});
+
+test("the test request shows the shaped request and what the server answered", async ({ mount, page }) => {
+  const trpc = await stubEditor(page);
+  const component = await mount(<ConnectionEditorStory />);
+  await tier(page, "Diagnostics").click();
+
+  await component.getByRole("button", { name: "Send a test request" }).click();
+  await expect.poll(() => trpc.inputs("connection.inspectEndpoint")).toEqual([{ connectionId: CONNECTION_ID }]);
+  const inspection = component.locator('[data-slot="connection-inspection"]');
+  await expect(inspection).toHaveAttribute("data-ok", "true");
+  await expect(inspection).toContainText("Bearer ***");
+  await expect(component.locator('[data-slot="connection-inspection-response"]')).toContainText("pong");
+});
+
+test("a test request that never got an answer says why and shows no response", async ({ mount, page }) => {
+  await stubEditor(page, { inspectEndpoint: { ...INSPECTED, ok: false, response: null, error: "connect ECONNREFUSED" } });
+  const component = await mount(<ConnectionEditorStory />);
+  await tier(page, "Diagnostics").click();
+
+  await component.getByRole("button", { name: "Send a test request" }).click();
+  const inspection = component.locator('[data-slot="connection-inspection"]');
+  await expect(inspection).toHaveAttribute("data-ok", "false");
+  await expect(inspection).toContainText("ECONNREFUSED");
+  await expect(component.locator('[data-slot="connection-inspection-response"]')).toHaveCount(0);
 });
 
 // ── what must not render ───────────────────────────────────────────────────────────────────────────────

@@ -12,6 +12,7 @@
 // on screen at the same time. So it renders only in the UNDRILLED state; drilled, CONTENT owns it.
 
 import { modelDisplayName } from "@orb/kit/model-name";
+import { formatUsd } from "@orb/kit/strings";
 import { BarList } from "@orb/ui/bar-list";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
@@ -23,7 +24,7 @@ import { QueryBoundary } from "#components";
 import { QueryErrorState, useTRPC } from "#data";
 import { testId } from "#lib";
 import { useSelectedAnalyticsCharacterId } from "#state";
-import { byModelBarItems, formatCompact, formatMs, formatTokens, formatUsd, UNRECORDED_NOTE } from "../lib/analytics-view-model.ts";
+import { byModelBarItems, formatCompact, formatMs, formatTokens, UNRECORDED_NOTE } from "../lib/analytics-view-model.ts";
 import { LibraryScopeNotice } from "./library-scope-notice.tsx";
 
 export function AnalyticsModelsTab(): ReactElement {

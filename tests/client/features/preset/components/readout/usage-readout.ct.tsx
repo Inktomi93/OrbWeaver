@@ -68,6 +68,7 @@ function usageRoutes(
   | "preset.get"
   | "preset.list"
   | "settings.getUserSettings"
+  | "connection.list"
   | "connection.resolveChatCapability"
   | "preset.resolveEffective"
   | "preset.listUsage"
@@ -77,6 +78,8 @@ function usageRoutes(
     "preset.get": () => PRESET_DETAIL,
     "preset.list": () => [PRESET_DETAIL],
     "settings.getUserSettings": () => SETTINGS_VIEW,
+    // The Params panel's switcher list; this file's subject is not the switcher, so the user has no connections.
+    "connection.list": () => [],
     "connection.resolveChatCapability": () => trpcError({ message: "no chat connection configured" }),
     "preset.resolveEffective": () => ({ presetId: PRESET, model: "qwen3-32b", knobs: {}, stale: [], qualityMapping: null }),
     "preset.listUsage": () => usage,

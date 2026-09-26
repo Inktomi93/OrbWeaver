@@ -1,4 +1,4 @@
-import { formatBytes, groupThousands, nextFreeLabel } from "@orb/kit/strings";
+import { formatBytes, formatUsd, groupThousands, nextFreeLabel } from "@orb/kit/strings";
 import { expect, test } from "../../support/fixtures.ts";
 
 // The three `escapeRegExp` tests died with the function (Node-26 program §4.7 — `RegExp.escape` owns
@@ -6,6 +6,24 @@ import { expect, test } from "../../support/fixtures.ts";
 // tautology test, and the literal-match invariant they guarded is exercised where it MATTERS — the
 // consumers' own suites (`tests/kit/speaker-label/*`, `tests/kit/world-info/*`, the openai-compat
 // credential scrub), which run real names/keys/secrets through the built regexes.
+
+// `formatUsd` — `null` is unrecorded and renders a dash, never `$0.00`. Below a cent the figure keeps four
+// decimals: 50 model rows once all read `$0.00` against a $0.0377 total, because two decimals can only
+// print zero there. An overspent balance keeps its sign outside the dollar mark.
+test("formatUsd: unrecorded is a dash, a measured zero is $0.00, and two decimals from a cent up", () => {
+  expect(formatUsd(null)).toBe("—");
+  expect(formatUsd(0)).toBe("$0.00");
+  expect(formatUsd(1.2)).toBe("$1.20");
+  expect(formatUsd(0.01)).toBe("$0.01");
+  expect(formatUsd(0.037_678_5)).toBe("$0.04");
+});
+
+test("formatUsd keeps four decimals below a cent and signs a negative outside the dollar mark", () => {
+  expect(formatUsd(0.0001)).toBe("$0.0001");
+  expect(formatUsd(0.0042)).toBe("$0.0042");
+  expect(formatUsd(-1.2)).toBe("-$1.20");
+  expect(() => formatUsd(Number.NaN)).toThrow(RangeError);
+});
 
 // `formatBytes` — the ONE human byte-size formatter (promoted from `@orb/ui/file-dropzone` +
 // `features/databank` when the per-chat document rack became its third consumer). The boundaries are what

@@ -9,6 +9,7 @@
 // they keep the CSRF gate tRPC applies to mutations. Do NOT demote to `.query()`.
 
 import {
+  capabilityTargetSchema,
   connectionApiSchema,
   connectionExtrasSchema,
   connectionRefSchema,
@@ -72,7 +73,11 @@ export const connectionRouter = t.router({
     .mutation(({ ctx, input }) => ctx.services.connection.remove({ principal: ctx.auth, connectionId: input.connectionId })),
 
   // The caller's OWN chat connection end-to-end, credential-free — the params panel + rpg lite gate read it.
-  resolveChatCapability: authedProcedure.query(({ ctx }) => ctx.services.connection.resolveChatCapability({ principal: ctx.auth })),
+  resolveChatCapability: authedProcedure
+    .input(z.object({ target: capabilityTargetSchema.optional() }).optional())
+    .query(({ ctx, input }) =>
+      ctx.services.connection.resolveChatCapability({ principal: ctx.auth, ...(input?.target !== undefined ? { target: input.target } : {}) }),
+    ),
 
   capabilities: authedProcedure
     .input(z.object({ connectionId }))

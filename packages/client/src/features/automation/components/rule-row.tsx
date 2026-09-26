@@ -92,6 +92,7 @@ import {
   armLabel,
   hasSpendArm,
   lastRunLine,
+  ruleBindingTasks,
   ruleGloss,
   runOutcomeNotice,
   SUGGEST_ON_REFUSAL_HELP,
@@ -107,6 +108,7 @@ import {
   ruleUnreadableLine,
   ruleUnreadableRunRefusal,
 } from "../lib/rule-refusal-copy.ts";
+import { RuleConnections } from "./rule-connections.tsx";
 import { RuleFireLog } from "./rule-fire-log.tsx";
 
 /** One row of the rule list — tRPC-inferred so a wire reshape breaks here at compile time. */
@@ -214,6 +216,7 @@ export function RuleRow({ chatId, rule }: RuleRowProps): ReactElement {
   // `actions` is `[]` for BOTH an unreadable blob and a rule with no arms yet; only this flag separates them.
   const unreadable = rule.actionsCorrupt;
   const runRefusal = runNowRefusal(rule);
+  const bindingTasks = unreadable ? [] : ruleBindingTasks(rule.actions);
 
   const onEnabledChange = (next: boolean): void => {
     if (enableAdmission.current) {
@@ -376,6 +379,19 @@ export function RuleRow({ chatId, rule }: RuleRowProps): ReactElement {
             ) : null}
 
             {testResult === null ? null : <TestResultView name={rule.name} result={testResult} />}
+
+            {/* Its own disclosure, so the two reads behind it run only when a host opens it; absent on a rule whose
+                arms spend nothing through a binding, and on an unreadable rule (its arms are unknown). */}
+            {bindingTasks.length === 0 ? null : (
+              <Collapsible>
+                <CollapsibleTrigger aria-label={`Connections for ${rule.name}`} size="control">
+                  <Text voice="label">Connections</Text>
+                </CollapsibleTrigger>
+                <CollapsiblePanel>
+                  <RuleConnections ruleId={rule.id} ruleName={rule.name} tasks={bindingTasks} />
+                </CollapsiblePanel>
+              </Collapsible>
+            )}
 
             <Collapsible>
               {/* The NAME disambiguates, the LABEL does not repeat it (WCAG 2.5.3 is satisfied by containment —

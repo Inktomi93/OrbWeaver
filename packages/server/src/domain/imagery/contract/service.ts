@@ -10,7 +10,7 @@ import type { PromptTemplateMode } from "@orb/contracts/imagery";
 import type { GenerationCapability } from "@orb/contracts/inference";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import type { Resolved } from "@orb/inference";
+import type { BindingActor, Resolved } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, ImageryGenerationId, ModelId, UserId } from "@orb/kit/ids";
 import type { EditImageParams, ExtractionMode, ExtractPromptParams, GeneratePictureParams, MultimodalMode, ReadProvenanceParams } from "./params.ts";
 import type { ExtractedPrompt, GeneratedPicture, GenerationProvenance, ImageryWarning } from "./results.ts";
@@ -127,7 +127,7 @@ export interface ImageryContext {
   readonly db: Db;
   readonly now: () => number;
   readonly newGenerationId: () => ImageryGenerationId;
-  readonly resolveGenerateImage: (caller: Principal) => Promise<ResolvedGenerateImage>;
+  readonly resolveGenerateImage: (caller: Principal, actor?: BindingActor) => Promise<ResolvedGenerateImage>;
   /** The sealed `infra/providers` generateImage executor role (bound at compose). */
   readonly generateImage: (req: ImageGenerateRequest) => Promise<ImageGenerateResult>;
   /** Download a provider-returned generated-image URL to bytes through the SSRF-safe egress wrapper. `null`

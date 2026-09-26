@@ -13,12 +13,15 @@
 // The mount is 384px — the narrowest REAL host (the docked CONTEXT pane), never a roomy story width.
 
 import { DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
+import type { ProviderId } from "@orb/contracts/inference";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatId, ModelId, UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
+import { ROLE_STATUS_LABELS } from "../../../../../packages/client/src/lib/connection-roles.ts";
 import { hitExtent, touchFloorPx } from "../../../../support/browser/touch-floor.ts";
+import { makeResolvedView } from "../../../../support/factories/resolved-connection.ts";
 import { HOST_BAND, openContextSections } from "../../../../support/node/open-context-sections.ts";
 import type { TrpcFixtureOutput, TrpcRecorder, TrpcResponder, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
@@ -206,6 +209,8 @@ interface StubOverrides {
   readonly mint?: TrpcResponder<"automation.createRuleFromPreset">;
   readonly setEnabled?: TrpcResponder<"automation.setRuleEnabled">;
   readonly testRule?: TrpcResponder<"automation.testRule">;
+  /** The rule's own bindings (its Connections disclosure); the default binds nothing, falling back to the author. */
+  readonly ruleBindings?: TrpcResponder<"connection.listBindings">;
 }
 
 function stub(page: Page, overrides: StubOverrides = {}): Promise<TrpcRecorder> {
@@ -221,6 +226,18 @@ function stub(page: Page, overrides: StubOverrides = {}): Promise<TrpcRecorder> 
     "automation.createRuleFromPreset": overrides.mint ?? (() => [RULE]),
     "automation.deleteRule": () => null,
     "worldInfo.listForChat": () => overrides.books ?? ROOM_BOOKS,
+    "connection.list": () => [OWN_ROW, RULE_ROW],
+    "connection.listBindings": overrides.ruleBindings ?? ((): TrpcWireOutput<"connection.listBindings"> => ruleBindingViews(null)),
+    "connection.setBinding": (input) => ({
+      id: "connection_binding_ctrule",
+      actorKind: "automation-rule",
+      userId: null,
+      ruleId: "automationrule_ct1",
+      pluginId: null,
+      task: input.task,
+      connectionId: input.connectionId,
+    }),
+    "connection.update": () => OWN_ROW,
   });
 }
 
@@ -1693,3 +1710,138 @@ for (const [arm, width] of Object.entries(REVIEW_WIDTHS)) {
     await component.screenshot({ path: ctSnapPath(`cbii-rules-3-${arm}`) });
   });
 }
+
+// ── a rule's CONNECTIONS (item 0025): the rule as a binding actor ──────────────────────────────────────
+// The disclosure offers one role slot per task the rule's arms spend (`generate_image` → Image generation). Every
+// write carries the rule as the actor, and the slot reads the rule's OWN `listBindings` view.
+
+type ConnectionListRow = TrpcWireOutput<"connection.list">[number];
+type BindingViewRow = TrpcWireOutput<"connection.listBindings">[number];
+
+function imageRow(id: string, label: string, model: string): ConnectionListRow {
+  return {
+    id,
+    ownerId: "user_ct_rules",
+    label,
+    providerId: "custom-openai",
+    providerLabel: "Custom OpenAI-compatible",
+    credentialId: null,
+    baseUrl: "https://images.example.invalid/v1",
+    model,
+    api: "auto",
+    declared: null,
+    extras: null,
+    transport: null,
+    modelCheck: "unchecked",
+    allowBackground: false,
+    promptCache: null,
+    tasks: ["chat", "generateImage"],
+    createdAt: 0,
+    updatedAt: 0,
+  };
+}
+
+const OWN_ROW = imageRow("user_connection_ctrules_own", "Own box", "own-model");
+const RULE_ROW = imageRow("user_connection_ctrules_rul", "Rule box", "rule-model");
+const RULE_ACTOR = { kind: "automation-rule", ruleId: "automationrule_ct1" } as const;
+
+/** The rule's `listBindings` answer: `bound` is the rule's own pick for Image generation. With none, the
+ *  resolver's fold lands on the author's own row, which is what the view reports as resolved. */
+function ruleBindingViews(bound: string | null, over: Partial<BindingViewRow> = {}): TrpcWireOutput<"connection.listBindings"> {
+  return (["chat", "summarize", "generateImage", "embed", "imageEmbed", "rerank"] as const).map((task): BindingViewRow => {
+    if (task !== "generateImage") {
+      return { task, binding: null, resolved: null, unavailableCause: null };
+    }
+    const connectionId = bound ?? OWN_ROW.id;
+    return {
+      task,
+      binding:
+        bound === null
+          ? null
+          : {
+              id: "connection_binding_ctrule",
+              actorKind: "automation-rule",
+              userId: null,
+              ruleId: "automationrule_ct1",
+              pluginId: null,
+              task,
+              connectionId: bound,
+            },
+      resolved: makeResolvedView({
+        task,
+        connectionId: castId<UserConnectionId>(connectionId),
+        providerId: castId<ProviderId>("custom-openai"),
+        model: castId<ModelId>(connectionId === RULE_ROW.id ? RULE_ROW.model : OWN_ROW.model),
+      }),
+      unavailableCause: null,
+      ...over,
+    };
+  });
+}
+
+async function openRuleConnections(page: Page): Promise<Locator> {
+  await openRule(page, "Illustrate the scene");
+  await page.getByRole("button", { name: "Connections for Illustrate the scene" }).click();
+  return page.locator('[data-slot="rule-connections"]');
+}
+
+test("a rule's slot binds a connection AS THE RULE, and reads the rule's own bindings back", async ({ mount, page }) => {
+  const trpc = await stub(page);
+  await mount(<RulesSectionStory chatId={CHAT} />);
+  const slots = await openRuleConnections(page);
+
+  await expect.poll(() => trpc.lastInput("connection.listBindings")).toEqual({ actor: RULE_ACTOR });
+  // Only the task this rule's arm spends is offered: one slot, for Image generation.
+  await expect(slots.getByRole("combobox")).toHaveCount(1);
+  // Unbound, the rule runs on the author's own row: the slot says it is running, not "not set".
+  await expect(slots.getByRole("img", { name: ROLE_STATUS_LABELS.running })).toBeVisible();
+
+  await slots.getByRole("combobox", { name: "Image generation connection" }).click();
+  await page.getByRole("option", { name: /Rule box/ }).click();
+  await expect.poll(() => trpc.lastInput("connection.setBinding")).toEqual({ task: "generateImage", connectionId: RULE_ROW.id, actor: RULE_ACTOR });
+});
+
+test("reopening a rule shows the binding saved for it", async ({ mount, page }) => {
+  await stub(page, { ruleBindings: () => ruleBindingViews(RULE_ROW.id) });
+  await mount(<RulesSectionStory chatId={CHAT} />);
+  const slots = await openRuleConnections(page);
+
+  await expect(slots.getByRole("combobox", { name: "Image generation connection" })).toContainText("Rule box");
+});
+
+test("a rule bound to a connection that is gone says it is set but not running", async ({ mount, page }) => {
+  await stub(page, { ruleBindings: () => ruleBindingViews("user_connection_ctrules_gone", { resolved: null, unavailableCause: "no-connection" }) });
+  await mount(<RulesSectionStory chatId={CHAT} />);
+  const slots = await openRuleConnections(page);
+
+  await expect(slots.getByRole("img", { name: ROLE_STATUS_LABELS.blocked })).toBeVisible();
+});
+
+test("the rule's connections hold a skeleton while they load, and a refused read is an error with a retry", async ({ mount, page }) => {
+  const held = trpcHold();
+  await stub(page, { ruleBindings: () => held });
+  await mount(<RulesSectionStory chatId={CHAT} />);
+  await openRule(page, "Illustrate the scene");
+  await page.getByRole("button", { name: "Connections for Illustrate the scene" }).click();
+  await expect(page.locator('[aria-busy="true"] [data-slot="skeleton"]').first()).toBeVisible();
+});
+
+test("a rule whose connections the caller may not read shows the error state, not an empty slot", async ({ mount, page }) => {
+  await stub(page, {
+    ruleBindings: () => trpcError({ code: "BAD_REQUEST", message: "rule automationrule_ct1 is not yours.", reason: "connection_actor_foreign" }),
+  });
+  await mount(<RulesSectionStory chatId={CHAT} />);
+  await openRule(page, "Illustrate the scene");
+  await page.getByRole("button", { name: "Connections for Illustrate the scene" }).click();
+
+  await expect(page.locator('[data-slot="query-error"]')).toBeVisible();
+  await expect(page.locator('[data-slot="rule-connections"]')).toHaveCount(0);
+});
+
+test("a rule whose arms spend nothing through a binding offers no Connections disclosure", async ({ mount, page }) => {
+  await stub(page, { rules: [FREE_RULE] });
+  await mount(<RulesSectionStory chatId={CHAT} />);
+  await openRule(page, "Count the beats");
+
+  await expect(page.getByRole("button", { name: "Connections for Count the beats" })).toHaveCount(0);
+});

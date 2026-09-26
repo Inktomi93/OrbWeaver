@@ -7,6 +7,7 @@
 // (today: a format string that dropped its carrier token). Reads keep the plain schema on purpose, so a
 // preset that already carries a broken wrapper still loads and can be fixed in the editor.
 
+import { capabilityTargetSchema } from "@orb/contracts/inference";
 import { promptConfigWriteSchema } from "@orb/contracts/preset";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
@@ -76,11 +77,13 @@ export const presetRouter = t.router({
     .mutation(({ ctx, input }) => ctx.services.preset.resetToDefault({ userId: ctx.auth.userId, id: input.id })),
 
   // The editor's effective-profile read (redesign §4.3): the generation funnel projected for THIS preset
-  // against the caller's own chat model. Caller-scoped both ways — the preset must be readable by them, and
-  // the capability half takes only the resolved Principal.
+  // against one of the caller's own connections (the chat role unless a target names another). Caller-scoped
+  // both ways — the preset must be readable by them, and the capability half is owner-checked by connection.
   resolveEffective: authedProcedure
-    .input(z.object({ id: typeIdSchema(ID_PREFIX.preset) }))
-    .query(({ ctx, input }) => ctx.services.preset.resolveEffective({ principal: ctx.auth, id: input.id })),
+    .input(z.object({ id: typeIdSchema(ID_PREFIX.preset), target: capabilityTargetSchema.optional() }))
+    .query(({ ctx, input }) =>
+      ctx.services.preset.resolveEffective({ principal: ctx.auth, id: input.id, ...(input.target !== undefined ? { target: input.target } : {}) }),
+    ),
 
   // The CONTEXT panel's backward bindings (#279) — principal-carrying like `resolveEffective`, because its
   // room half is membership-scoped (D18) and is resolved for the ACTING caller, never a supplied user id.

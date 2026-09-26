@@ -5,9 +5,18 @@
 
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
+import { routableTaskSchema } from "./tasks.ts";
 
 export const connectionRefSchema = z.object({ connectionId: typeIdSchema(ID_PREFIX.userConnection) });
 export type ConnectionRef = z.output<typeof connectionRefSchema>;
+
+/** WHICH connection a capability read describes: a role, resolved through the caller's own bindings as a turn
+ *  would, or one of the caller's own connections by id. Absent ⇒ the chat role. */
+export const capabilityTargetSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("role"), task: routableTaskSchema }),
+  z.object({ kind: z.literal("connection"), connectionId: typeIdSchema(ID_PREFIX.userConnection) }),
+]);
+export type CapabilityTarget = z.output<typeof capabilityTargetSchema>;
 
 /** The actor kinds a binding row may carry — ALL per-user: `user` (that user's defaults per task, replacing
  *  the settings blob's `roleDefaults` leaves), `automation-rule` (the rule's AUTHOR picks a row for it),

@@ -34,6 +34,7 @@ import type { MaterializeBackgroundOp, ThemeBackground, ThemeOverride } from "@o
 import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import type {
+  BindingActor,
   ChatToolDefinition,
   GeneratedImage,
   ProviderErrorKind,
@@ -1524,8 +1525,13 @@ export interface ChatServiceDeps {
   readonly prng: () => number;
   /** The inter-turn delay for the auto-mode chain. */
   readonly delay: (ms: number) => Promise<void>;
-  /** The frozen room HOST's chat connection for a turn. The room binds nothing (F20), so `chatId` is provenance only. */
-  readonly resolveConnection: (args: { readonly funderUserId: UserId; readonly chatId: ChatId }) => Promise<Resolved<"chat">>;
+  /** The frozen room HOST's chat connection for a turn. The room binds nothing (F20), so `chatId` is provenance
+   *  only; `actor` (a rule's requested turn) folds that actor's own binding first. */
+  readonly resolveConnection: (args: {
+    readonly funderUserId: UserId;
+    readonly chatId: ChatId;
+    readonly actor?: BindingActor | undefined;
+  }) => Promise<Resolved<"chat">>;
   /** The deterministic pre-send serveability verdict for the room HOST's chat connection (#54) — the
    *  honest-refusal gate the composer disables SEND on. Fires no turn or API call. Wired at the composition root. */
   readonly checkSendAvailability: (args: { readonly funderUserId: UserId; readonly chatId: ChatId }) => Promise<SendAvailability>;

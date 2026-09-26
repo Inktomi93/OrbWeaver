@@ -41,16 +41,15 @@ import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { usePresetEditorView, useSelectedPresetId, useSelectedPresetSectionId } from "#state";
 import { useReadoutBinding } from "../../hooks/use-readout-binding.ts";
-import { chatCapabilityOf } from "../../lib/chat-capability.ts";
 import { qualityMappingGloss } from "../../lib/effective-knobs.ts";
 import type { PresetEditorView } from "../../lib/preset-nav.ts";
 import { PRESET_EDITOR_VIEWS } from "../../lib/preset-nav.ts";
 import { templateStoredText } from "../../lib/template-rows.ts";
 import { ActionsReadout } from "./actions-readout.tsx";
+import { CapabilityPanel } from "./capability-panel.tsx";
 import { DataReadout } from "./data-readout.tsx";
 import { PromptReadout } from "./prompt-readout.tsx";
 import { ReadoutBindingChip } from "./readout-binding.tsx";
-import { CapabilityCard, EffectiveProfile } from "./readout-parts.tsx";
 import { TransformsReadout } from "./transforms-readout.tsx";
 import { UsageReadout } from "./usage-readout.tsx";
 
@@ -98,9 +97,6 @@ function ActiveProfile({
   readonly name: string;
   readonly isSystemDefault: boolean;
 }): ReactElement {
-  const trpc = useTRPC();
-  const capability = useQuery(trpc.connection.resolveChatCapability.queryOptions());
-  const effective = useQuery(trpc.preset.resolveEffective.queryOptions({ id: presetId }));
   return (
     <Stack gap="section" padding="block">
       <Section kicker="Active preset">
@@ -113,19 +109,7 @@ function ActiveProfile({
         </Row>
         {isSystemDefault ? <Text voice="gloss">The built-in preset runs generation until you activate one of your own.</Text> : null}
       </Section>
-      {/* The resolve's ERROR rides alongside its data (F-02): absent+no-error is PENDING, absent+error is a
-          settled failure. Handing only the data over would make the panel state one as the other — and the
-          ERROR OBJECT goes down whole (2026-08-08), because the band discriminates on tRPC's structured
-          `data.code` to decide which cause it is entitled to name. `refetch` makes its Retry a real re-read. */}
-      <EffectiveProfile
-        contextWindow={chatCapabilityOf(capability.data)?.context.window}
-        effective={effective.data ?? undefined}
-        error={effective.error}
-        onRetry={(): void => {
-          effective.refetch().catch(() => undefined); // The query's error state owns the retry failure.
-        }}
-      />
-      <CapabilityCard capability={chatCapabilityOf(capability.data)} model={effective.data?.model} />
+      <CapabilityPanel presetId={presetId} />
     </Stack>
   );
 }
@@ -160,8 +144,6 @@ function OpenPresetReadout({ presetId }: { readonly presetId: PresetId }): React
   const view = (PRESET_EDITOR_VIEWS.find((entry) => entry.id === storedView) ?? PRESET_EDITOR_VIEWS[0])?.id;
   const selectedSectionId = useSelectedPresetSectionId();
   const preset = useQuery(trpc.preset.get.queryOptions({ id: presetId }));
-  const effective = useQuery(trpc.preset.resolveEffective.queryOptions({ id: presetId }));
-  const capability = useQuery(trpc.connection.resolveChatCapability.queryOptions());
 
   const config = preset.data?.config;
   if (config === undefined) {
@@ -194,18 +176,10 @@ function OpenPresetReadout({ presetId }: { readonly presetId: PresetId }): React
           rather than unread. */}
       {view === "transforms" ? <TransformsReadout attachable={preset.data?.isSystemDefault !== true} config={config} presetId={presetId} /> : null}
       {view === "params" ? (
-        <>
-          <EffectiveProfile
-            contextWindow={chatCapabilityOf(capability.data)?.context.window}
-            effective={effective.data ?? undefined}
-            error={effective.error}
-            onRetry={(): void => {
-              effective.refetch().catch(() => undefined); // The query's error state owns the retry failure.
-            }}
-          />
-          <CapabilityCard capability={chatCapabilityOf(capability.data)} model={effective.data?.model} />
-          <QualityMapping effective={effective.data ?? undefined} quality={config.params.quality} />
-        </>
+        <CapabilityPanel
+          footer={(effective): ReactElement | null => <QualityMapping effective={effective} quality={config.params.quality} />}
+          presetId={presetId}
+        />
       ) : null}
       {/* THE BACKWARD BINDINGS (#279) sit under whichever panel is projected, once — "what depends on this
           preset" is a property of the preset, not of the active hand, so it is not in `BINDING_VIEWS`'

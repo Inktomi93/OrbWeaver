@@ -44,6 +44,19 @@ export function warningNotice(warning: ChatWarning): NotifyNotice {
   return warning.code === "settings_adjusted" ? settingsAdjustedNotice(warning) : plainNotice(warning.code);
 }
 
+/** A turn's drops as ONE notice (`turn-warning-cadence.ts`): a single drop keeps its own notice, and several
+ *  share a title that counts them while the description lists each drop's own title. */
+export function turnDropsNotice(warnings: readonly ChatWarning[]): NotifyNotice {
+  const [only] = warnings;
+  if (warnings.length === 1 && only !== undefined) {
+    return warningNotice(only);
+  }
+  return {
+    title: `This reply ran without ${String(warnings.length)} things you asked for`,
+    description: `${warnings.map((warning) => warningNotice(warning).title).join(". ")}.`,
+  };
+}
+
 /** The outcomes whose notice is fully determined by the code — every `PLAIN_CHAT_WARNING_CODES` member. */
 function plainNotice(code: PlainChatWarningCode): NotifyNotice {
   switch (code) {
