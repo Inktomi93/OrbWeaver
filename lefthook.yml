@@ -11,20 +11,19 @@
 # `isolation: "worktree"` dispatch. With --force the chain survives the key. Commands run from the worktree root (lefthook resolves it per-worktree), so a
 # fresh worktree just needs `pnpm install` (or `pnpm run worktree:bootstrap`) and the gates work.
 #
-# GREEN-TO-COMMIT is enforced HERE, not by discipline: the static stages run over what the commit records,
-# so a type/lint/boundary-red change cannot be committed. `test:types` stays whole on every
-# non-empty change (its path trigger is the identity) because test-file type errors are its blind spot.
+# GREEN-TO-COMMIT is enforced HERE, not by discipline: the stages that narrow to what the commit records run
+# over it, so a type/lint/boundary-red change cannot be committed.
 #
 # Split (scoped static gate at COMMIT, whole static + behavioral tests at PUSH) — both via the ONE
 # `pnpm verify` entry (UNIFIED-VERIFICATION-DESIGN.md §3 and §4.3): the tiers ARE the hook wiring.
-#   • pre-commit → `pnpm verify --static --changed staged`: the static-tier stages over the index vs HEAD
-#     (D267). An unstaged or untracked file is not in the commit, so it is not in the scope, and lefthook
-#     hides the unstaged hunks of a partially staged file while the hook runs. Scoped stages narrow to it (affected type programs, file-local structure
-#     policies); whole-only stages run in full when a path trigger matches. Cross-file structure policies and
-#     `deps:knip` defer to the whole static tier, which runs at pre-push and at the merge-train barrier
-#     (`pnpm check` on main). A scoped run takes no host-wide whole-run slot, so a commit never queues
-#     behind another checkout's battery. Stage durations: `reports/verify-history.jsonl`, written by
-#     tooling/src/verify/lib/history.ts.
+#   • pre-commit → `pnpm verify --static --changed staged`: the index vs HEAD (D268). An unstaged or untracked
+#     file is not in the commit, so it is not in the scope, and lefthook hides the unstaged hunks of a
+#     partially staged file while the hook runs. Only the stages that narrow to the staged files run, at the
+#     same time. Every whole-command stage (tooling/src/verify/lib/registry-triggers.ts), the cross-file
+#     structure policies and `deps:knip` defer to the whole static tier, which runs at pre-push and at the
+#     merge-train barrier (`pnpm check` on main). A scoped run takes no host-wide whole-run slot, so a commit
+#     never queues behind another checkout's battery. Stage durations: `reports/verify-history.jsonl`,
+#     written by tooling/src/verify/lib/history.ts.
 #   • pre-push → `pnpm verify --push` (ONE command, ONE summary, ONE exit code, ONE json): the static
 #     bundle + `pnpm test` (unit/integration/contract AND the Playwright CT suite — merged 2026-07-17,
 #     the test script composes `pnpm test:ct --retries=2` so parallelism flakes retry instead of blocking)
@@ -51,7 +50,7 @@
 # it happens instead of withholding every byte until the command exits. `NO_COLOR:"1"` on each command
 # makes the gate tools (Biome/tsc/depcruise/vitest) emit plain, greppable text. An interactive `pnpm check`
 # in a TTY is unaffected (still colorizes).
-# The staged scope leans on lefthook's pre-commit hiding of unstaged hunks (D267); older lefthook lacks it.
+# The staged scope leans on lefthook's pre-commit hiding of unstaged hunks (D268); older lefthook lacks it.
 min_version: 2.1.10
 
 colors: false

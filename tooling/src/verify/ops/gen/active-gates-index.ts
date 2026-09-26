@@ -55,8 +55,8 @@ structural gate, and a resolve-time or lint-time fact (the package cake, depende
 property a structural gate would only restate.
 
 **Fast lane** — \`pnpm check\` = biome (lint+format) → eslint (doc-comment + react-surface rules) → tsc
-→ test:types → check:structure (Layer 3, below) → depcruise (Layer 4). lefthook runs these stages over
-the staged change at pre-commit (\`pnpm verify --static --changed staged\`, D267) and \`pnpm verify --push\` at
+→ test:types → check:structure (Layer 3, below) → depcruise (Layer 4). lefthook runs the stages that narrow
+to the staged change at pre-commit (\`pnpm verify --static --changed staged\`, D268) and \`pnpm verify --push\` at
 pre-push (the whole static tier plus the CT suite and \`e2e:smoke\`).
 There is no standing CI (D62): \`.github/workflows/ci.yml\` is \`workflow_dispatch\`-only.
 

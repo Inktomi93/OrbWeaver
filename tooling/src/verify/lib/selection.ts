@@ -95,14 +95,14 @@ function resolveChanged(kind: "changed" | "file", explicit: readonly string[], r
     : classifiedSelection({ kind, labelWord: kind, classification: workingChangeClassification(root), gitRef: "HEAD" }, root);
 }
 
-// The staged selection runs every stage the working change runs. No vitest `--changed` ref: that selector reads the
-// working tree, so the related-test lane takes the staged files as explicit subjects instead.
+// The commit gate's selection. No vitest `--changed` ref: that selector reads the working tree, so the related-test
+// lane takes the staged files as explicit subjects instead.
 function resolveStaged(root: string): Selection {
-  return classifiedSelection({ kind: "changed", labelWord: "staged", classification: gitStagedPathClassification(root), gitRef: undefined }, root);
+  return classifiedSelection({ kind: "staged", labelWord: "staged", classification: gitStagedPathClassification(root), gitRef: undefined }, root);
 }
 
 interface ClassifiedSelectionInput {
-  readonly kind: "changed" | "file";
+  readonly kind: "changed" | "staged" | "file";
   readonly labelWord: string;
   readonly classification: ChangedPathClassification;
   readonly gitRef: string | undefined;

@@ -39,9 +39,9 @@ import {
 } from "../../../../tooling/src/verify/index.ts";
 import { parseRequest } from "../../../../tooling/src/verify/lib/run-argv.ts";
 import { workingChangeClassification } from "../../../../tooling/src/verify/lib/selection.ts";
+import { nonRunningStageResult, planStage } from "../../../../tooling/src/verify/lib/stage-plan.ts";
 import type { WholeRunAsk } from "../../../../tooling/src/verify/lib/whole-run-queue.ts";
 import { enterWholeRunQueue } from "../../../../tooling/src/verify/lib/whole-run-queue.ts";
-import { nonRunningStageResult, planStage } from "../../../../tooling/src/verify/ops/run.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 

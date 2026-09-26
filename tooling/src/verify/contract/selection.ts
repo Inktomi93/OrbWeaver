@@ -39,8 +39,8 @@ export interface ChangedPathClassification {
 
 /** The resolved selection — the superset every stage's `scopedArgv` reads from (§3.4). */
 export interface Selection {
-  /** The kind of scope this run covers, for the summary header + the artifact. */
-  readonly kind: "changed" | "file" | "package" | "scope" | "whole";
+  /** The kind of scope this run covers, for the summary header + the artifact. `staged` is the commit gate (D268). */
+  readonly kind: "changed" | "staged" | "file" | "package" | "scope" | "whole";
   readonly label: string;
   /** Every selected repo-relative posix path (deletions KEPT — mirror-expansion needs them, §3.4). */
   readonly paths: readonly string[];

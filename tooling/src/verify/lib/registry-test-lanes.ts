@@ -115,7 +115,7 @@ export const TEST_LANE_STAGES: readonly StageDef[] = [
     // second scoped derivation would either duplicate or narrow it. That makes it a whole-only static row,
     // which means `WHOLE_COMMAND_PATH_TRIGGERS` (lib/registry-triggers.ts) owns its cheap-skip — it is
     // authored with `static` and the trigger table DECORATES it into `changed` with a
-    // `tooling/src/**`-or-`tests/tooling/**` gate, so a product-only commit pays nothing and a lane's own
+    // `tooling/src/**`-or-`tests/tooling/**` gate, so a product-only change pays nothing and a lane's own
     // `verify --changed` recertifies the instruments it touched. `applyPathTriggers` THROWS on a whole-only
     // static row missing from that table, which is how this row's accounting was forced at authoring time.
   },

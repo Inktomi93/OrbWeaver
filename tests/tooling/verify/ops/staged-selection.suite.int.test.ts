@@ -4,8 +4,10 @@
 import { mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { execFixtureGit } from "@orb/tooling/_shared/git-fixture";
-import { REGISTRY, resolveSelection } from "../../../../tooling/src/verify/index.ts";
+import { REGISTRY, resolveSelection, stagesForTier } from "../../../../tooling/src/verify/index.ts";
+import { planStage } from "../../../../tooling/src/verify/lib/stage-plan.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
 const FILES = {
   staged: "packages/client/src/staged.ts",
@@ -64,4 +66,23 @@ test("control: the working-change selection over the same repo still sees the un
   plantRepo(repoRoot, scratch);
   const working = resolveSelection({ kind: "changed", paths: [] }, scratch);
   expect(working.existingPaths).toEqual(expect.arrayContaining([FILES.unstaged, FILES.untracked, FILES.staged]));
+});
+
+// D268: a commit runs only what narrows to its files. A staged selection that matches every near-identity trigger
+// must still plan no stage's whole command; the working-change control plans them.
+test("the commit gate defers every whole command its change triggers, and the working change runs them", { timeout: scaledBudget(20_000) }, ({
+  repoRoot,
+  scratch,
+}) => {
+  plantRepo(repoRoot, scratch);
+  const staged = resolveSelection({ kind: "staged" }, scratch);
+  const working = resolveSelection({ kind: "changed", paths: [] }, scratch);
+  const wholeAt = (selection: typeof staged): readonly string[] =>
+    stagesForTier("static")
+      .filter((stage) => JSON.stringify(planStage(stage, selection, "static", scratch).argv) === JSON.stringify(stage.argv))
+      .map((stage) => stage.name);
+  expect(wholeAt(staged)).toEqual([]);
+  expect(wholeAt(working)).toEqual(expect.arrayContaining(["types:testd", "ledgers:fresh", "types:ownership"]));
+  const testd = stagesForTier("static").find((stage) => stage.name === "types:testd");
+  expect(testd === undefined ? null : planStage(testd, staged, "static", scratch).mode).toBe("deferred");
 });

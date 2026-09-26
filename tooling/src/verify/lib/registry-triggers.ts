@@ -45,6 +45,7 @@
 // MUTATE the tree); it is stricter than the design for a scoped run, and this is the one home saying so
 // (orchestrator ruling, 2026-09-13).
 import { ACTIVE_GATES_INDEX_REL, SNAP_FLAGS_INDEX_REL } from "../contract/ledger-paths.ts";
+import type { Selection } from "../contract/selection.ts";
 import type { ScopedArgv, StageDef, Tier } from "../contract/stage.ts";
 
 // Every path but a markdown file. Biome processes no markdown here (`files.ignoreUnknown`; a `biome check` of a
@@ -143,7 +144,9 @@ const CHANGED: Tier = "changed";
 /** The registry with its path triggers applied — the ONE place the table becomes behaviour.
  *
  *  A triggered stage gains the `changed` tier and a `scopedArgv` that returns its OWN WHOLE `argv` when the
- *  selection matches and `skip-empty` when it does not. It is a DECORATION of the authored rows rather than
+ *  selection matches and `skip-empty` when it does not. The commit gate (a `staged` selection) DEFERS a matched
+ *  stage instead (D268): a whole command costs a commit its whole-tree price, and pre-push runs the whole static
+ *  tier anyway. The match still decides between "deferred" (owed at push) and "skipped" (not owed at all). It is a DECORATION of the authored rows rather than
  *  a field on each row because the trigger table is one concept with one home: spelling twelve regexes
  *  inline would put the accounting (which stages are covered, which are declined and why) in twelve places,
  *  which is how the lone `DOC_CATALOG_PATH_RE` stayed lone. */
@@ -159,7 +162,12 @@ export function applyPathTriggers(stages: readonly StageDef[]): readonly StageDe
     if (paths === undefined) {
       return stage;
     }
-    const scopedArgv = (sel: { readonly paths: readonly string[] }): ScopedArgv => (sel.paths.some((path) => paths.test(path)) ? stage.argv : "skip-empty");
+    const scopedArgv = (sel: Pick<Selection, "kind" | "paths">): ScopedArgv => {
+      if (!sel.paths.some((path) => paths.test(path))) {
+        return "skip-empty";
+      }
+      return sel.kind === "staged" ? "whole-only" : stage.argv;
+    };
     return { ...stage, tiers: stage.tiers.includes(CHANGED) ? stage.tiers : [CHANGED, ...stage.tiers], scopedArgv };
   });
 }

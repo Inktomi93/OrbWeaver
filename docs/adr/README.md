@@ -214,4 +214,5 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D264 | [A roster preset carries a game template and starts through startChat's game birth](0264-roster-preset-carries-a-game-template.md) | active |
 | D265 | [A plugin provider id is claimed per owner](0265-a-plugin-provider-id-is-claimed-per-owner.md) | active |
 | D266 | [A container shares through the pinned relay download](0266-a-container-shares-through-the-pinned-relay-download.md) | active |
-| D267 | [Pre-commit runs the static tier over the staged change](0267-pre-commit-runs-the-static-tier-over-the-staged-change.md) | active |
+| D267 | [Pre-commit runs the static tier over the staged change](0267-pre-commit-runs-the-static-tier-over-the-staged-change.md) | superseded by [0268-the-commit-gate-runs-only-what-narrows-to-the-staged-files.md](0268-the-commit-gate-runs-only-what-narrows-to-the-staged-files.md) |
+| D268 | [The commit gate runs only what narrows to the staged files](0268-the-commit-gate-runs-only-what-narrows-to-the-staged-files.md) | active |

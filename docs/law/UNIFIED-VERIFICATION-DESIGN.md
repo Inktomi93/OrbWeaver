@@ -110,7 +110,7 @@ demand. Query `pnpm verify --list` for its current tier membership.
 **Conditional tier membership, the mechanism.** One step of the ladder CAN be narrowed by a fact about the
 RUN, declared as registry DATA beside the tiers list (`StageDef.tierPrecondition`) and rendered by
 `verify --list` on the tier it narrows. No row declares one today — the field, the runner's plan/notice
-path (`ops/run.ts`) and their producer-driven proof (`tests/tooling/verify/ops/run.int.test.ts` against a
+path (`lib/stage-plan.ts`) and their producer-driven proof (`tests/tooling/verify/ops/run.int.test.ts` against a
 synthetic row) are kept for the next expensive stage that needs a conditional step, and
 `tests/tooling/verify/lib/registry.test.ts` reds if a row grows one without this text moving.
 
@@ -495,7 +495,7 @@ Change `ctWorkers` and every dependent ceiling moves with it. The runner still p
 
 ### 4.3 Scoped static at commit
 
-Pre-commit runs the static-tier stages over the staged change, not the whole tree (D267): `--changed staged`
+Pre-commit runs the stages that narrow to the staged change, not the whole tree (D268): `--changed staged`
 selects the index against `HEAD`, so an unstaged or untracked file stays out of the commit's scope. `--changed`
 beside an explicit tier is only the selector, so the related tests of the `changed` tier stay out of the
 commit gate. A scoped run takes no host-wide whole-run slot, so a commit never waits behind another
@@ -503,7 +503,9 @@ checkout's run.
 
 - The type check runs every native program whose import closure contains a changed file.
 - The structure walk runs the file-local policies. It defers and prints the cross-file policies.
-- A whole-only stage runs its whole command when its path trigger matches (`tooling/src/verify/lib/registry-triggers.ts`). `deps:knip` has no trigger and defers.
+- A whole-only stage defers when its path trigger matches and skips when it does not
+  (`tooling/src/verify/lib/registry-triggers.ts`). Other scoped selections run a triggered whole command.
+- The commit gate's stages run at the same time; every other run keeps them in sequence (`tooling/src/verify/ops/run.ts`).
 
 The whole static tier (`pnpm check`) stays the verdict for done. It runs at pre-push inside `verify --push`
 and as the merge-train barrier on main. A half-registration across two maps can commit clean and fail

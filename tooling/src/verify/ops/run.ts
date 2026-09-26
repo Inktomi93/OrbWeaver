@@ -42,7 +42,7 @@ import { budget } from "@orb/tooling/_shared/load-budget";
 import { spawnNicedTranscript } from "@orb/tooling/_shared/proc";
 import { inheritedRunMarker, mintRunMarker, runLeaseEnv, runMarkerEnv, runMarkerTranscriptTeardown } from "@orb/tooling/_shared/run-marker";
 import type { Selection } from "../contract/selection.ts";
-import type { StageDef, StageMode, StageResult, Tier, TranscriptAudit, VerifyReport } from "../contract/stage.ts";
+import type { StageDef, StageResult, Tier, TranscriptAudit, VerifyReport } from "../contract/stage.ts";
 import { NOTICE_MARKER, VERIFY_INSTRUMENT, VERIFY_REPORT_NAME } from "../contract/stage.ts";
 import { colourNeutralParentEnv } from "../lib/child-env.ts";
 import { aggregateExit, noVerdictStages } from "../lib/exit-classifiers.ts";
@@ -52,66 +52,10 @@ import type { Parsed } from "../lib/run-argv.ts";
 import { printHeadBanner, printList, printSummary, stageLine } from "../lib/run-render.ts";
 import { stageHangCeilingBaseMs } from "../lib/stage-budget.ts";
 import { refuseUnrunnableRows, resolveStageCommand, unresolvableCommandTranscript } from "../lib/stage-command.ts";
+import { nonRunningStageResult, planStage } from "../lib/stage-plan.ts";
 import { enterWholeRunQueue } from "../lib/whole-run-queue.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check (or pnpm verify [--push|--full])");
-
-/** Resolve how a stage runs at this tier+scope: its concrete argv, or a mode sentinel. */
-export function planStage(
-  stage: StageDef,
-  selection: Selection | undefined,
-  tier?: Tier,
-  root?: string,
-): {
-  readonly mode: StageMode;
-  readonly argv: readonly [string, ...string[]] | null;
-  readonly runsAt: string | null;
-} {
-  if (selection === undefined) {
-    // CONDITIONAL TIER MEMBERSHIP (#1523). A whole-tier run has no Selection, so a stage that belongs to
-    // this tier only under a condition asks its own precondition here. `null` (cannot tell) RUNS: an
-    // expensive stage skipped on an unanswerable question is a false clean wearing a tier's clothes.
-    const precondition = stage.tierPrecondition;
-    if (precondition !== undefined && tier !== undefined && precondition.tiers.includes(tier) && precondition.satisfied(root ?? process.cwd()) === false) {
-      return { mode: "skipped", argv: null, runsAt: unconditionalTier(stage) };
-    }
-    return { mode: "full", argv: stage.argv, runsAt: null };
-  }
-  // Scoped run: a stage with no scopedArgv is whole-only ⇒ deferred.
-  if (stage.scopedArgv === undefined) {
-    return { mode: "deferred", argv: null, runsAt: pushOrStatic(stage) };
-  }
-  const scoped = stage.scopedArgv(selection);
-  if (scoped === "whole-only") {
-    return { mode: "deferred", argv: null, runsAt: pushOrStatic(stage) };
-  }
-  if (scoped === "skip-empty") {
-    return { mode: "skipped", argv: null, runsAt: null };
-  }
-  return { mode: "scoped", argv: scoped, runsAt: null };
-}
-
-/** Where a precondition-skipped stage DOES run unconditionally — the notice must name a tier that will
- *  actually run it, never the one that just declined. */
-function unconditionalTier(stage: StageDef): string {
-  const conditional = new Set(stage.tierPrecondition?.tiers ?? []);
-  for (const t of ["static", "push", "full"] as const) {
-    if (stage.tiers.includes(t) && !conditional.has(t)) {
-      return `verify --${t}`;
-    }
-  }
-  return "verify --full";
-}
-
-/** The tier a deferred stage runs at — the lowest non-changed tier it belongs to (for the notice). */
-function pushOrStatic(stage: StageDef): string {
-  for (const t of ["static", "push", "full"] as const) {
-    if (stage.tiers.includes(t)) {
-      return `verify --${t}`;
-    }
-  }
-  return "verify --full";
-}
 
 /** Where per-stage transcripts live inside a run's slot; published as the `reports/verify/` alias. */
 const STAGES_SEGMENT = "stages";
@@ -196,35 +140,9 @@ interface RunContext {
   readonly verbose: boolean;
   /** This run's process marker (#1848) — in every stage child's env so a browser that left the process group
    *  still dies with the run that started it. INHERITED inside a marked run, which is why it is NOT what the
-   *  kill paths sweep (#2504): that is `runLease`, MINTED here, stamped beside it, one per RUN not per stage
-   *  (stages are sequential, so a timeout's reach is unchanged). */
+   *  kill paths sweep (#2504): that is the stage's own lease, minted in `runOneStage`, one per STAGE because
+   *  the commit gate runs its stages concurrently and a timed-out stage's sweep must not reach a sibling. */
   readonly runMarker: string;
-  readonly runLease: string;
-}
-
-/** THE RESULT A STAGE THAT DID NOT RUN PUBLISHES — one home, and EXPORTED so the notice has a producer
- *  test (#1566). It was inline, which left the notice provable only through a hand-built `StageResult`:
- *  a renderer pin that stayed green with the notice line deleted. This is the smallest honest seam — the
- *  planner decides, this shapes the row, and both are now reachable from a test.
- *
- *  THE NOTICE IS THE CONDITION, in the stage's own words. `stageLine` says THAT the precondition
- *  declined; this says WHICH one, so a reader can tell "my diff touched no instrument" from "the gate is
- *  broken" without opening the registry — and because `notices` is a `StageResult` field, the same string
- *  is in verify.json by construction. */
-export function nonRunningStageResult(stage: StageDef, plan: { readonly mode: StageMode; readonly runsAt: string | null }): StageResult {
-  return {
-    name: stage.name,
-    group: stage.group,
-    mode: plan.mode,
-    ok: true, // a deferred/skipped stage is not a failure — it just didn't run here
-    exitCode: EXIT.clean,
-    durationMs: 0,
-    logFile: null,
-    failureExcerpt: null,
-    runsAt: plan.runsAt,
-    notices:
-      plan.mode === "skipped" && plan.runsAt !== null && stage.tierPrecondition !== undefined ? [`tier precondition: ${stage.tierPrecondition.reason}`] : [],
-  };
 }
 
 /** The stage door's HANG ceiling (#1508) — the line past which a stage is WEDGED, never a performance
@@ -257,8 +175,9 @@ async function runOneStage(ctx: RunContext, stage: StageDef, selection: Selectio
   const [cmd, ...args] = argv;
   // NO_COLOR only, and an inherited FORCE_COLOR dropped — `lib/child-env.ts` owns that decision and the
   // incident behind it (#2469). BOTH IDENTITIES ride the same env (#1848, #2504): every descendant of this
-  // stage carries them, so the kill paths reach what left the process group — see `RunContext.runLease`.
-  const identity = { ...runMarkerEnv(ctx.runMarker), ...runLeaseEnv(ctx.runLease) };
+  // stage carries them, so the kill paths reach what left the process group — see `RunContext.runMarker`.
+  const runLease = mintRunMarker();
+  const identity = { ...runMarkerEnv(ctx.runMarker), ...runLeaseEnv(runLease) };
   const env = { ...colourNeutralParentEnv(), ...Object.fromEntries([["NO_COLOR", "1"]]), ...identity, ...stage.env };
   // ARGV[0] IS RESOLVED FROM EVIDENCE, AND AN UNRESOLVABLE ONE IS REFUSED WITHOUT SPAWNING (#2220/#2225):
   // the old name allowlist sent `bash` to `node_modules/.bin/bash` and made `lint:hook-syntax` an exit-2
@@ -274,7 +193,7 @@ async function runOneStage(ctx: RunContext, stage: StageDef, selection: Selectio
           cwd: root,
           env,
           timeoutMs: stageTimeoutMs(stage),
-          teardown: runMarkerTranscriptTeardown(ctx.runLease),
+          teardown: runMarkerTranscriptTeardown(runLease),
           ...(verbose ? { onChunk: mirrorChunk } : {}),
         });
   const durationMs = Date.now() - start;
@@ -347,6 +266,12 @@ function announceRacing(slot: RunSlot): void {
   }
 }
 
+/** The commit gate (D268) runs its stages at the same time. With every whole-command stage deferred, what is left
+ *  narrows to the staged files, so the commit waits about as long as its slowest stage instead of their sum. */
+function runsConcurrently(parsed: Parsed): boolean {
+  return parsed.selection?.kind === "staged" && !parsed.verbose;
+}
+
 /** The run's scope label for the banner + the artifact. */
 function scopeLabel(parsed: Parsed): string {
   return parsed.selection === undefined ? "whole" : parsed.selection.label;
@@ -356,18 +281,16 @@ async function runTier(root: string, slot: RunSlot, parsed: Parsed): Promise<Ver
   const startedAt = new Date().toISOString();
   // ONE marker for the whole run, INHERITED when this verify is itself running inside a marked run: a
   // second marker would orphan every browser from the outer run's sweep, which is the hole being closed.
-  // AND ONE LEASE, ALWAYS MINTED (#2504): the marker above may name a run that merely CONTAINS this one.
+  // Each stage mints its own lease in `runOneStage`, because this marker may name a run that merely CONTAINS this one.
   const runMarker = inheritedRunMarker() ?? mintRunMarker();
-  const runLease = mintRunMarker();
   printHeadBanner(parsed.tier, scopeLabel(parsed));
 
-  const stages = stagesForTier(parsed.tier);
-  const results: StageResult[] = [];
-  for (const stage of stages) {
+  const ctx: RunContext = { root, slot, verbose: parsed.verbose, runMarker };
+  const runStage = (stage: StageDef): Promise<StageResult> => {
     const plan = planStage(stage, parsed.selection, parsed.tier, root);
     // --strict-scope: a whole-only stage under a scoped tier is a REFUSAL (misuse), not a deferral.
     if (parsed.strictScope && plan.mode === "deferred") {
-      results.push({
+      return Promise.resolve({
         name: stage.name,
         group: stage.group,
         mode: "deferred",
@@ -379,11 +302,27 @@ async function runTier(root: string, slot: RunSlot, parsed: Parsed): Promise<Ver
         runsAt: plan.runsAt,
         notices: [],
       });
-      continue;
     }
-    // Sequential BY DESIGN: stages share the CPU, the reports dir and the console — they run one at a
-    // time in registry order, exactly as the old sync loop ran them. The await IS the ordering.
-    results.push(await runOneStage({ root, slot, verbose: parsed.verbose, runMarker, runLease }, stage, parsed.selection, parsed.tier));
+    return runOneStage(ctx, stage, parsed.selection, parsed.tier);
+  };
+
+  const stages = stagesForTier(parsed.tier);
+  const results: StageResult[] = [];
+  if (runsConcurrently(parsed)) {
+    // Settle every stage before a throw propagates, so no sibling's process group outlives the run. The settled array
+    // keeps registry order, so the summary and the artifact read the same as a sequential run.
+    for (const settled of await Promise.allSettled(stages.map(runStage))) {
+      if (settled.status === "rejected") {
+        throw settled.reason;
+      }
+      results.push(settled.value);
+    }
+  } else {
+    // Sequential everywhere else: a whole run's stages and a lane's related tests are heavy enough that two at
+    // once flake on load, and --verbose streams one stage's output at a time. The await IS the ordering.
+    for (const stage of stages) {
+      results.push(await runStage(stage));
+    }
   }
 
   const exitCode = aggregateExit(results.map((s) => s.exitCode));

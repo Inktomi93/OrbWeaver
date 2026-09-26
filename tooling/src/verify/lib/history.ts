@@ -28,6 +28,7 @@ function historyEntry(root: string, report: VerifyReport, pid: number = process.
     sha: currentSha(root),
     exitCode: report.exitCode,
     totalMs: report.stages.reduce((n, s) => n + s.durationMs, 0),
+    wallMs: report.run === undefined ? null : Date.parse(report.run.finishedAt) - Date.parse(report.run.startedAt),
     stages: report.stages.map((s) => ({ name: s.name, mode: s.mode, durationMs: s.durationMs })),
   };
 }
