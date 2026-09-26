@@ -1,17 +1,21 @@
 // The ESSENTIAL tier's two non-trivial fields (inference program §5.3a · the step-3b mock `editor.html`
-// Board A): the saved-on-blur text field the URL and the auto-minted name both use, and the MODEL field with
-// its listed/typed fork. Split out of `connection-editor.tsx` at the `component-size` cap.
+// Board A): the saved-on-blur text field the URL and the auto-minted name both use, and the MODEL field over
+// the shared ModelPicker. Split out of `connection-editor.tsx` at the `component-size` cap.
 
+import type { ProviderDef } from "@orb/contracts/inference";
 import type { UserConnectionId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
-import { Select } from "@orb/ui/select";
-import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTRPC } from "#data";
+import { modelIdExample } from "../lib/add-connection-form-model.ts";
+import { failedCatalogSource, isListedModel, modelListSource, typedModelAllowed } from "../lib/model-picker-model.ts";
+import type { ModelPickerProps } from "./model-picker.tsx";
+import { ModelPicker } from "./model-picker.tsx";
 
 /** A saved text field: uncontrolled, committed on BLUR. The row is the truth; the draft only exists between
  *  a keystroke and a blur, which is the window a controlled field would have to reconcile against a
@@ -47,58 +51,109 @@ export function SavedTextField({
   );
 }
 
-/** The MODEL field: the provider's own list when it has one, the typed fallback when it does not — and the
- *  typed fallback carries §5.3a's sentence VERBATIM, under the field where the decision was made, with its
- *  re-check action inside the notice. It ships today only as a subtitle clause on the list row
- *  (`typed model id — sent as-is`); the full sentence had no home. */
+/** The MODEL field: the shared {@link ModelPicker} over this row's own list (`connection.catalogModels`). A list
+ *  pick saves at once; a typed id saves when focus leaves the field, never per keystroke. `modelListed` is
+ *  what the list says about the saved id, so once the list has been read a stored flag it contradicts is
+ *  corrected, and a failed read corrects nothing: it is not a check. */
 export function ModelField({
   connectionId,
   model,
   modelListed,
-  host,
+  listOwner,
+  provider,
   busy,
   onCommit,
 }: {
   readonly connectionId: UserConnectionId;
   readonly model: string;
   readonly modelListed: boolean;
-  readonly host: string;
+  /** Whose list this is, in the user's words — an endpoint's host, or the provider's label. */
+  readonly listOwner: string;
+  readonly provider: ProviderDef | undefined;
   readonly busy: boolean;
-  readonly onCommit: (next: string) => void;
+  readonly onCommit: (next: string, listed: boolean) => void;
 }): ReactElement {
   const trpc = useTRPC();
   // NON-suspense on purpose: a catalog read DIALS the provider (or the user's own box), and a failed dial is
   // the typed-id arm, not an error boundary for the whole editor.
   const catalog = useQuery({ ...trpc.connection.catalogModels.queryOptions({ connectionId }), retry: false });
-  const listed = catalog.data?.listed === true ? catalog.data.models : [];
+  const recheck = (): void => {
+    catalog.refetch().catch(() => undefined); // the query's own error state carries the failure
+  };
+  const source = catalogSource(catalog, recheck);
+  const listedNow = isListedModel(source, model);
+  const listRead = source.status === "listed" && source.models.length > 0;
+
+  // The draft follows the saved row: an outside save (another tab, a list pick here) replaces it.
+  const [draft, setDraft] = useState(model);
+  const [savedSeen, setSavedSeen] = useState(model);
+  if (model !== savedSeen) {
+    setSavedSeen(model);
+    setDraft(model);
+  }
+
+  const commit = (next: string): void => {
+    const id = next.trim();
+    if (id !== "" && id !== model) {
+      onCommit(id, isListedModel(source, id));
+    }
+  };
+
+  // One correction per list answer: a save that comes back unchanged must not write again.
+  const correctedFor = useRef<number | null>(null);
+  const answeredAt = catalog.dataUpdatedAt;
+  useEffect(() => {
+    if (listRead && !busy && listedNow !== modelListed && correctedFor.current !== answeredAt) {
+      correctedFor.current = answeredAt;
+      onCommit(model, listedNow);
+    }
+  }, [listRead, busy, listedNow, modelListed, model, onCommit, answeredAt]);
 
   return (
-    <Stack gap="tight">
-      {listed.length === 0 ? (
-        <SavedTextField busy={busy} description="The model id your server serves." label="Model" onCommit={onCommit} value={model} />
-      ) : (
-        <Field label="Model">
-          <Select
-            aria-label="Model"
-            disabled={busy}
-            items={listed.map((entry) => ({ label: entry.id, value: entry.id }))}
-            onValueChange={(next): void => onCommit(String(next))}
-            value={model}
-          />
-        </Field>
-      )}
-      {modelListed ? null : (
-        <Stack data-slot="connection-model-unlisted" gap="tight">
-          <Text className="text-warning" voice="gloss">
-            This model id wasn't in {host}'s list. It'll be sent as-is; if the server doesn't have it, turns will fail.
-          </Text>
-          <Row gap="field">
-            <Button disabled={catalog.isFetching} intent="secondary" onClick={(): void => void catalog.refetch()} size="sm">
-              Check the list again
-            </Button>
-          </Row>
-        </Stack>
-      )}
+    <Stack
+      gap="tight"
+      onBlur={(event): void => {
+        // Focus leaving the whole field is the typed id's save; moving inside it is not.
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+          commit(draft);
+        }
+      }}
+    >
+      <ModelPicker
+        error={null}
+        focusOnList={false}
+        listOwner={listOwner}
+        onValueChange={(next): void => {
+          setDraft(next);
+          // A list pick (a row, Enter, or "use as typed") is one deliberate choice: save it now.
+          if (listRead) {
+            commit(next);
+          }
+        }}
+        placeholder={provider === undefined ? "" : modelIdExample(provider)}
+        recentKey={provider?.id ?? ""}
+        source={source}
+        typedAllowed={provider === undefined || typedModelAllowed(provider)}
+        value={draft}
+      />
+      {listRead && !listedNow ? (
+        <Row gap="field">
+          <Button disabled={catalog.isFetching} intent="secondary" onClick={recheck} size="sm">
+            Check the list again
+          </Button>
+        </Row>
+      ) : null}
     </Stack>
   );
+}
+
+/** The saved row's list read as the picker's source. */
+function catalogSource(
+  catalog: { readonly isError: boolean; readonly error: unknown; readonly data: Parameters<typeof modelListSource>[0] | undefined },
+  retry: () => void,
+): ModelPickerProps["source"] {
+  if (catalog.isError) {
+    return failedCatalogSource(catalog.error, retry);
+  }
+  return catalog.data === undefined ? { status: "loading" } : modelListSource(catalog.data, retry);
 }

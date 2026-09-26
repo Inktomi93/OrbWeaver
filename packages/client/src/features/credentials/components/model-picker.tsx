@@ -102,6 +102,9 @@ export interface ModelPickerProps {
   readonly recentKey: string;
   /** A model already on a saved connection this picker adds beside — marked in the list, still pickable. */
   readonly currentModel?: string | null;
+  /** Whether the search box takes the caret once the list lands. On in a dialog, whose step is the pick;
+   *  off in the editor, where the list is one field among several. @defaultValue true */
+  readonly focusOnList?: boolean;
 }
 
 export function ModelPicker(props: ModelPickerProps): ReactElement {
@@ -138,7 +141,7 @@ export function ModelPicker(props: ModelPickerProps): ReactElement {
 /** The searchable list. `models: null` is the loading arm: the same frame with skeleton rows in it, so the
  *  dialog does not jump when the catalog lands. */
 function ListedPicker(props: ModelPickerProps & { readonly models: readonly ModelCatalogEntry[] | null }): ReactElement {
-  const { value, onValueChange, typedAllowed, listOwner, error, recentKey, models } = props;
+  const { value, onValueChange, typedAllowed, listOwner, error, recentKey, models, focusOnList = true } = props;
   const labelId = useId();
   const pickerId = useId();
   const errorId = useId();
@@ -167,10 +170,10 @@ function ListedPicker(props: ModelPickerProps & { readonly models: readonly Mode
   // when a saved row's catalog lands — so focus never falls back to the document. Found through the picker's
   // own box: cmdk mints the input's id, and `CommandInput` keeps its ref for its own ARIA corrections.
   useEffect(() => {
-    if (listReady) {
+    if (listReady && focusOnList) {
       document.getElementById(pickerId)?.querySelector<HTMLInputElement>("input[cmdk-input]")?.focus();
     }
-  }, [listReady, pickerId]);
+  }, [listReady, focusOnList, pickerId]);
 
   // A pointer the user MOVES over the list hands it the highlight. Chromium also fires a zero-movement
   // pointermove when the list renders under a still cursor; that one is not the user choosing a row.
