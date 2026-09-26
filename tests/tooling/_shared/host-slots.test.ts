@@ -540,7 +540,12 @@ test("hostSlotQueued names exactly the pid waiting in the queue, and only while 
     alive: aliveOnly(1200, 1201),
     now: clock.now,
     sleep: async (ms) => {
-      seenWhileWaiting.push(hostSlotQueued(poolOf(1), 1201, env), hostSlotQueued(poolOf(1), 120, env), hostSlotQueued(poolOf(1), 1200, env));
+      const nowMs = clock.now().getTime();
+      seenWhileWaiting.push(
+        hostSlotQueued(poolOf(1), 1201, env, nowMs),
+        hostSlotQueued(poolOf(1), 120, env, nowMs),
+        hostSlotQueued(poolOf(1), 1200, env, nowMs),
+      );
       await clock.sleep(ms);
     },
   });
@@ -548,5 +553,20 @@ test("hostSlotQueued names exactly the pid waiting in the queue, and only while 
   expect(hostSlotQueued(poolOf(1), 1201, env), "an admitted waiter holds no ticket").toBe(false);
   waiter.release();
   held.release();
+  rmSync(env[HOST_POOL_ROOT_ENV] ?? "", { recursive: true, force: true });
+});
+
+test("hostSlotQueued does not count a ticket whose beat has stopped, even for a live pid", () => {
+  const env = scratchRuntime();
+  const queue = join(hostPoolDir(poolOf(1), env), "queue");
+  mkdirSync(queue, { recursive: true });
+  const hourMs = 3_600_000;
+  const nowMs = 1_000_000_000_000;
+  const beatMs = nowMs - hourMs;
+  const ticket = `${String(beatMs).padStart(16, "0")}-${String(process.pid).padStart(10, "0")}.json`;
+  writeFileSync(join(queue, ticket), JSON.stringify({ pid: process.pid, startedAt: new Date(beatMs).toISOString(), label: "a hung daemon", beatMs }));
+  expect(hostSlotQueued(poolOf(1), process.pid, env, nowMs), "a live pid whose ticket went silent an hour ago is not waiting").toBe(false);
+  writeFileSync(join(queue, ticket), JSON.stringify({ pid: process.pid, startedAt: new Date(beatMs).toISOString(), label: "a waiting daemon", beatMs: nowMs }));
+  expect(hostSlotQueued(poolOf(1), process.pid, env, nowMs), "the same ticket with a fresh beat is waiting").toBe(true);
   rmSync(env[HOST_POOL_ROOT_ENV] ?? "", { recursive: true, force: true });
 });

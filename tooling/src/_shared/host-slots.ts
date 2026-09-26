@@ -108,11 +108,20 @@ export function ctHostSlotPool(label: string, env?: NodeJS.ProcessEnv): HostSlot
 }
 
 /** Is `pid` waiting in this pool's queue right now? A caller watching a child boot reads it so time the
- *  child spends queued is not charged to the child's own boot budget. */
-export function hostSlotQueued(pool: HostSlotPoolIdentity, pid: number, env?: NodeJS.ProcessEnv): boolean {
+ *  child spends queued is not charged to the child's own boot budget. Only a ticket whose beat is fresh by
+ *  the queue's own rule counts: a hung waiter stops beating, and must not pause its caller's clock forever. */
+export function hostSlotQueued(pool: HostSlotPoolIdentity, pid: number, env?: NodeJS.ProcessEnv, nowMs: number = Date.now()): boolean {
   const queueDir = join(hostPoolDir(pool, env), QUEUE_DIR);
   const suffix = `-${String(pid).padStart(TICKET_PID_DIGITS, "0")}${TICKET_SUFFIX}`;
-  return existsSync(queueDir) && readdirSync(queueDir).some((name) => name.endsWith(suffix));
+  if (!existsSync(queueDir)) {
+    return false;
+  }
+  return readdirSync(queueDir)
+    .filter((name) => name.endsWith(suffix))
+    .some((name) => {
+      const ticket = readHolder(join(queueDir, name));
+      return ticket !== null && ticket.pid === pid && ticket.beatMs !== null && nowMs - ticket.beatMs <= TICKET_STALE_MS;
+    });
 }
 
 function slotPath(dir: string, slot: number): string {

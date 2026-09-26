@@ -105,8 +105,8 @@ function populationRefusal(policyId: string, fragment: string): Record<string, u
 }
 
 // The two policies' declared rows through the conformance runner. MEASURED: 7.4 s alone at per-core load 0.4, and
-// 8.0 s beside a whole affected-test run. The base is twice the worst loaded reading.
-const FAMILY_PROOFS_TIMEOUT = scaledBudget(16_000);
+// 16.6 s under a loaded lane run. The base is twice the worst loaded reading.
+const FAMILY_PROOFS_TIMEOUT = scaledBudget(34_000);
 
 test("the static-class-expression family keeps its declared proofs", { timeout: FAMILY_PROOFS_TIMEOUT }, () => {
   expect(verifyPolicyProofs([integerLineBoxes, restTransformGrid])).toEqual([]);
