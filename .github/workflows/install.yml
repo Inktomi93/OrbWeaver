@@ -2,8 +2,8 @@ name: install
 
 # Proves the README's "Run it" paths on fresh runners. Each source job runs the README's install lines, a
 # non-interactive `pnpm start` (start.cmd on Windows), waits for /healthz and stops the server. The docker job
-# runs the README's Docker lines the same way. The `dev-engines` row skips `pnpm runtime set node 26 -g` to
-# learn whether package.json `devEngines.runtime` (onFail: download) gives `pnpm start` its Node alone.
+# runs the README's Docker lines the same way. No job installs Node: package.json `devEngines.runtime`
+# (onFail: download) makes pnpm fetch the pinned Node itself, which is the README's path.
 # Manual only, like ci.yml.
 on:
   workflow_dispatch:
@@ -13,17 +13,13 @@ env:
 
 jobs:
   source:
-    name: source (${{ matrix.os }}, ${{ matrix.node }})
+    name: source (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - { os: ubuntu-latest, node: global }
-          - { os: macos-latest, node: global }
-          - { os: windows-latest, node: global }
-          - { os: ubuntu-latest, node: dev-engines }
+        os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       # The README's `git clone`, at the ref this run was dispatched on.
       - uses: actions/checkout@v4
@@ -49,13 +45,9 @@ jobs:
           "PNPM_HOME=$pnpmHome" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           Join-Path $pnpmHome "bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
 
-      - name: Install Node 26 through pnpm (README)
-        if: matrix.node == 'global'
-        run: pnpm runtime set node 26 -g
-
       - run: pnpm install
 
-      # Which Node a pnpm script runs: the evidence the dev-engines row exists to collect.
+      # Which Node a pnpm script runs: proof that pnpm fetched the pinned one.
       - name: Report the Node versions
         shell: bash
         run: |

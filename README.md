@@ -24,16 +24,14 @@ Open <http://localhost:8788>. There is no login: the port is published on this m
 
 ### From source
 
-Install Git, then pnpm, then Node 26 through pnpm:
+Install Git, then pnpm. pnpm fetches the Node version this repo pins by itself, so there is no Node to install:
 
 ```bash
 curl -fsSL https://get.pnpm.io/install.sh | sh -    # Linux, macOS
-pnpm runtime set node 26 -g
 ```
 
 ```powershell
 Invoke-WebRequest https://get.pnpm.io/install.ps1 -UseBasicParsing | Invoke-Expression    # Windows PowerShell
-pnpm runtime set node 26 -g
 ```
 
 If Windows Defender blocks the pnpm binary, run `winget install -e --id pnpm.pnpm` instead. Then, on every platform:
