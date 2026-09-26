@@ -136,7 +136,7 @@ test("every compose shape resolves (the base and every overlay)", ({ repoRoot, s
   expect(hostNetwork["AUTH_FALLBACK_TRUSTED_PEERS"]).toBe("");
   expect(resolvedEnv(["docker-compose.yaml", "docker/compose.dev.yaml"])).not.toHaveProperty("BIND_HOST");
 
-  // The tunnel sidecar only dials OUT to Cloudflare and reaches the app over the project network: it publishes
+  // The tunnel container only dials OUT to Cloudflare and reaches the app over the project network: it publishes
   // nothing, and the app's own publication stays on loopback.
   const tunnel = spawnSync(
     "docker",

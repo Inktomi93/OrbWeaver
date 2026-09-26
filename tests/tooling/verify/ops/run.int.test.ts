@@ -881,13 +881,17 @@ test("#2277 — the DECLINED rows keep deferring: no path set over-approximates 
   }
 });
 
-test("#2304 — the cheap identity-triggered checks run their whole command for every changed selection", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
+// The cheap whole-command checks run for every source change; knip's negations still run for any path, since
+// deleting any tracked file can kill one, while the three that read no markdown skip a markdown-only change.
+test("the cheap whole-command checks run for source, and only knip's negations run for a markdown-only change", { timeout: AFFECTED_PLAN_TIMEOUT }, () => {
+  const source = resolveSelection({ kind: "file", paths: ["packages/kit/src/ids/index.ts"] });
+  const markdown = resolveSelection({ kind: "file", paths: ["README.md"] });
   for (const name of ["types:testd", "config:biome-rule-liveness", "config:knip-negative-liveness", "ledgers:fresh"]) {
-    const row = stage(name);
-    for (const path of ["README.md", "packages/kit/src/ids/index.ts"]) {
-      const selection = resolveSelection({ kind: "file", paths: [path] });
-      expect(row.scopedArgv?.(selection), `${name}: ${path}`).toEqual(row.argv);
-    }
+    expect(stage(name).scopedArgv?.(source), `${name}: source`).toEqual(stage(name).argv);
+  }
+  expect(stage("config:knip-negative-liveness").scopedArgv?.(markdown)).toEqual(stage("config:knip-negative-liveness").argv);
+  for (const name of ["types:testd", "config:biome-rule-liveness", "ledgers:fresh"]) {
+    expect(stage(name).scopedArgv?.(markdown), `${name}: markdown`).toBe("skip-empty");
   }
 });
 

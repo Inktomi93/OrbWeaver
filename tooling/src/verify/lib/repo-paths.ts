@@ -65,13 +65,22 @@ function classifyGitNameStatus(source: string, root: string = ROOT): ChangedPath
  *  `grep --cached` and nothing else — re-derived 2026-09-05), but a checker has no business locking the
  *  operator's index while they work: `--no-optional-locks` is git's own flag for exactly this reader
  *  posture (it is what an IDE polling `status` is supposed to pass). It changes no output. */
-/** The authoritative git-changed classification: staged + unstaged vs HEAD, with rename identity. */
-export function gitChangedPathClassification(root: string = ROOT): ChangedPathClassification {
-  const result = runGit(root, [...GIT_READ_PREFIX, "diff", "--name-status", "-z", "--find-renames", "HEAD"]);
+function gitDiffClassification(root: string, diffArgs: readonly string[]): ChangedPathClassification {
+  const result = runGit(root, [...GIT_READ_PREFIX, "diff", ...diffArgs, "--name-status", "-z", "--find-renames", "HEAD"]);
   if (result.status !== 0) {
     throw new Error(`git changed-path read failed (${String(result.status)}): ${result.stderr.trim()}`);
   }
   return classifyGitNameStatus(result.stdout, root);
+}
+
+/** The authoritative git-changed classification: staged + unstaged vs HEAD, with rename identity. */
+export function gitChangedPathClassification(root: string = ROOT): ChangedPathClassification {
+  return gitDiffClassification(root, []);
+}
+
+/** The index vs HEAD, with rename identity: what the next commit records, and nothing only on disk. */
+export function gitStagedPathClassification(root: string = ROOT): ChangedPathClassification {
+  return gitDiffClassification(root, ["--cached"]);
 }
 
 /** `git ls-files -z <args>` as a path list, read with the same scrubbed environment as the diff above: a

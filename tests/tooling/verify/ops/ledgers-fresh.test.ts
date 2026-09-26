@@ -187,9 +187,14 @@ test("the stage runs at every whole-tree tier and uses its complete argv for sel
   expect(stage, `${STAGE} must be registered`).toBeDefined();
   expect(stage?.tiers).toEqual(["changed", "static", "push", "full"]);
   expect(stage?.argv).toEqual(["pnpm", "check:ledgers-fresh"]);
-  // #2304's identity trigger changes when the stage runs, never the population it derives.
+  // The trigger changes when the stage runs, never the population it derives: source and a markdown ledger run the
+  // whole command, and plain markdown, which no ledger derives from, owes nothing.
+  // The trigger reads only the selection's paths, so one resolved selection is re-pointed per case.
   const selection = resolveSelection({ kind: "file", paths: ["README.md"] });
-  expect(stage?.scopedArgv?.(selection)).toEqual(stage?.argv);
+  expect(stage?.scopedArgv?.(selection)).toBe("skip-empty");
+  for (const path of ["tooling/src/verify/ops/ledgers-fresh.ts", SNAP_FLAGS_INDEX_REL]) {
+    expect(stage?.scopedArgv?.({ ...selection, paths: [path] }), path).toEqual(stage?.argv);
+  }
 });
 
 test("a stale ledger never suppresses its sibling's verdict from the same run", () => {

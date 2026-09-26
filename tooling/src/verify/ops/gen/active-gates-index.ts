@@ -14,11 +14,10 @@ import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import type { GateAuthority } from "../../contract/gate-authority.ts";
+import { ACTIVE_GATES_INDEX_REL } from "../../contract/ledger-paths.ts";
 import type { GatePolicy } from "../../contract/policy.ts";
 import type { PopulationExpr } from "../../contract/population.ts";
 import { loadGateCorpus } from "../../lib/loader.ts";
-
-export const ACTIVE_GATES_INDEX_REL = "docs/law/Core-Enforcement-Active-Gates.md";
 
 const REGEN_COMMAND = "pnpm exec node tooling/src/verify/cli.ts baseline active-gates-index";
 
@@ -57,7 +56,7 @@ property a structural gate would only restate.
 
 **Fast lane** — \`pnpm check\` = biome (lint+format) → eslint (doc-comment + react-surface rules) → tsc
 → test:types → check:structure (Layer 3, below) → depcruise (Layer 4). lefthook runs these stages over
-the working change at pre-commit (\`pnpm verify --static --changed\`, D223) and \`pnpm verify --push\` at
+the staged change at pre-commit (\`pnpm verify --static --changed staged\`, D267) and \`pnpm verify --push\` at
 pre-push (the whole static tier plus the CT suite and \`e2e:smoke\`).
 There is no standing CI (D62): \`.github/workflows/ci.yml\` is \`workflow_dispatch\`-only.
 

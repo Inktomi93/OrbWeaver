@@ -34,10 +34,11 @@ import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import type { CaughtFailureJudgment, CaughtFailurePopulation } from "../contract/caught-failure.ts";
 import { THEME } from "../contract/css-family.ts";
+import { ACTIVE_GATES_INDEX_REL, SNAP_FLAGS_INDEX_REL } from "../contract/ledger-paths.ts";
 import type { LedgerFreshness } from "../contract/scoped.ts";
-import { ACTIVE_GATES_INDEX_REL, deriveActiveGatesIndex } from "./gen/active-gates-index.ts";
+import { deriveActiveGatesIndex } from "./gen/active-gates-index.ts";
 import { deriveCaughtFailurePopulation, POPULATION_REL } from "./gen/caught-failure-population.ts";
-import { deriveSnapFlagsIndexMarkdown, SNAP_FLAGS_INDEX_REL } from "./gen/snap-flags-index.ts";
+import { deriveSnapFlagsIndexMarkdown } from "./gen/snap-flags-index.ts";
 import { deriveThemeCss, THEME_BASELINE, THEME_REGEN } from "./gen/theme-css.ts";
 import { deriveTypeConfigFiles } from "./gen/type-configs.ts";
 

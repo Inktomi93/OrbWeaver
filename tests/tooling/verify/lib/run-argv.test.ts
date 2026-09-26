@@ -19,6 +19,13 @@ test("--changed beside an explicit tier is only the selector: pre-commit runs th
   expect(tierAndScope(["--changed", DOC]), "alone, --changed still names the inner-loop tier").toStrictEqual(["changed", "changed"]);
 });
 
+// The commit gate spells `--changed staged`: the index, never the working change; `git` and bare keep the working change.
+test("--changed staged selects the index; bare and git select the working change", () => {
+  expect(tierAndScope(["--static", "--changed", "staged"])).toStrictEqual(["static", "staged"]);
+  expect(tierAndScope(["--static", "--changed", "git"])).toStrictEqual(["static", "changed"]);
+  expect(tierAndScope(["--static", "--changed"])).toStrictEqual(["static", "changed"]);
+});
+
 test("--changed beside --push or --full stays misuse: those tiers are whole-tree bars, and a scoped one would skip the queue", () => {
   for (const argv of [
     ["--push", "--changed", DOC],

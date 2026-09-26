@@ -10,6 +10,7 @@
 //
 // The membership is registry DATA (UNIFIED-VERIFICATION-DESIGN §3.1), so these arms read the registry
 // rather than a prose table.
+import { ACTIVE_GATES_INDEX_REL, SNAP_FLAGS_INDEX_REL } from "../../../../tooling/src/verify/contract/ledger-paths.ts";
 import type { StageDef, Tier } from "../../../../tooling/src/verify/contract/stage.ts";
 import { stagesForTier } from "../../../../tooling/src/verify/lib/registry.ts";
 import { applyPathTriggers, WHOLE_COMMAND_PATH_TRIGGERS } from "../../../../tooling/src/verify/lib/registry-triggers.ts";
@@ -109,6 +110,38 @@ test("structure:policy-conformance runs every final policy's proofs at STATIC, w
   expect(stagesForTier("push").some((candidate) => candidate.name === "structure:policy-conformance")).toBe(true);
   expect(stagesForTier("full").some((candidate) => candidate.name === "structure:policy-conformance")).toBe(true);
   expect(stagesForTier("changed").some((candidate) => candidate.name === "structure:policy-conformance")).toBe(true);
+});
+
+// A markdown-only change owes none of the near-identity stages: no type, Biome grant or ledger reads a doc. The
+// controls keep the admission complete: a markdown LEDGER, every source and config path, and a `.md`-lookalike.
+test("the near-identity triggers skip a markdown-only change and still admit every input they read", () => {
+  const trigger = (name: string): RegExp => {
+    const paths = WHOLE_COMMAND_PATH_TRIGGERS[name]?.paths;
+    if (paths === undefined || paths === null) {
+      throw new Error(`${name} has no path trigger`);
+    }
+    return paths;
+  };
+  const nearIdentity = ["types:testd", "config:biome-rule-liveness", "ledgers:fresh"] as const;
+  for (const name of nearIdentity) {
+    for (const doc of ["docs/adr/0267-the-commit-and-push-gates-judge-a-snapshot.md", "README.md", "docker/README.md"]) {
+      expect(trigger(name).test(doc), `${name} skips ${doc}`).toBe(false);
+    }
+    for (const input of [
+      "packages/server/src/entry/lifecycle.ts",
+      "tests/types/share.test-d.ts",
+      "packages/ui/src/tokens/tokens.json",
+      "biome.json",
+      "pnpm-lock.yaml",
+      "tooling/src/doc/lib/notes.md.ts",
+    ]) {
+      expect(trigger(name).test(input), `${name} admits ${input}`).toBe(true);
+    }
+  }
+  for (const ledger of [ACTIVE_GATES_INDEX_REL, SNAP_FLAGS_INDEX_REL]) {
+    expect(trigger("ledgers:fresh").test(ledger), `ledgers:fresh admits the markdown ledger ${ledger}`).toBe(true);
+    expect(trigger("types:testd").test(ledger)).toBe(false);
+  }
 });
 
 test("#2303 — every whole-only static stage must have an explicit trigger-table decision", () => {

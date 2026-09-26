@@ -44,7 +44,13 @@
 // rule is about WHOLE-TREE runs (`check:structure`, `pnpm check`, the `.repo.int` planters, which also
 // MUTATE the tree); it is stricter than the design for a scoped run, and this is the one home saying so
 // (orchestrator ruling, 2026-09-13).
+import { ACTIVE_GATES_INDEX_REL, SNAP_FLAGS_INDEX_REL } from "../contract/ledger-paths.ts";
 import type { ScopedArgv, StageDef, Tier } from "../contract/stage.ts";
+
+// Every path but a markdown file. Biome processes no markdown here (`files.ignoreUnknown`; a `biome check` of a
+// doc processes zero files), and no TypeScript program imports a `.md` for its type.
+const NOT_MARKDOWN = /^(?!.*\.md$)/u;
+const MARKDOWN_LEDGERS = [ACTIVE_GATES_INDEX_REL, SNAP_FLAGS_INDEX_REL].map((path) => RegExp.escape(path)).join("|");
 
 /** One stage's trigger: the paths that can change its verdict, or `null` with the reason none can be
  *  written. `why` is load-bearing on BOTH arms — it is the evidence a future reader re-derives against. */
@@ -100,25 +106,25 @@ export const WHOLE_COMMAND_PATH_TRIGGERS: Readonly<Record<string, StageTrigger>>
     why: "every authored TS root, ambient and imported closure against its declared compiler owner. Broad ON PURPOSE and still not the identity: a docs-only, JSON-only or asset-only commit cannot move a compiler program's membership.",
   },
 
-  // ── the identity-triggered rows. No narrower path set completely over-approximates their inputs, so a
-  // non-empty changed selection runs the whole command. This is deliberate admission, not scoped analysis. ──
+  // ── the near-identity rows. No narrower SOURCE set completely over-approximates their inputs, so any change but a
+  // markdown-only one runs the whole command. This is deliberate admission, not scoped analysis. ──
   "types:testd": {
-    paths: /./u,
-    why: "a `.test-d.ts` asserts against the TYPES of arbitrary source, so no narrower path set is complete. The identity trigger deliberately runs the whole assertion lane for every non-empty changed selection.",
+    paths: NOT_MARKDOWN,
+    why: "a `.test-d.ts` asserts against the TYPES of arbitrary source, so every path but markdown is admitted: a `.md` is never a type input, so a docs-only change cannot move an assertion.",
   },
   "config:biome-rule-liveness": {
-    paths: /./u,
-    why: "the subject is biome.json's GRANT TABLE plus every path those grants name — and whether a granted rule still FIRES depends on the content of the granted file. The identity trigger is the only complete changed-path approximation, and still runs the whole command.",
+    paths: NOT_MARKDOWN,
+    why: "the subject is biome.json's GRANT TABLE plus every path those grants name — and whether a granted rule still FIRES depends on the content of the granted file. Biome processes no markdown and no grant names one, so every other path is admitted.",
   },
   "config:knip-negative-liveness": {
     paths: /./u,
     why: "the subject is knip.ts's literal negations judged against the git INDEX, so deleting or renaming ANY tracked file can kill a negation that names it. No narrower pattern is complete; the stage reads one config and one index listing, so the identity trigger costs nothing.",
   },
   "ledgers:fresh": {
-    paths: /./u,
-    why: "the caught-failure census is derived from a whole-repo ts-morph walk, so any source edit can add, remove or re-verdict a site; the doc ledgers add authored documents. The identity trigger is intentionally complete and runs the whole reconciler.",
+    paths: new RegExp(`${NOT_MARKDOWN.source}|^(?:${MARKDOWN_LEDGERS})$`, "u"),
+    why: "the caught-failure census is derived from a whole-repo ts-morph walk, so any source edit can add, remove or re-verdict a site. Every ledger derives from source, never from markdown, so a markdown edit matters only when it is one of the markdown ledgers themselves (`contract/ledger-paths.ts`).",
   },
-  // Knip remains declined: it is materially different from the three cheap identity-triggered rows above.
+  // Knip remains declined: it is materially different from the cheap near-identity rows above.
   "deps:knip": {
     paths: null,
     why: "reachability over the WHOLE import graph — deleting the last importer of a file makes an unrelated module orphaned, so the trigger is every source file plus every manifest. Complete means the identity.",

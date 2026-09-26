@@ -9,7 +9,7 @@ import type { PolicySemanticPath } from "../contract/policy-scope.ts";
 import type { ChangedPathClassification, CtView, Selection, SelectionRequest } from "../contract/selection.ts";
 import { ctView } from "./ct-view.ts";
 import { planTypecheckPrograms } from "./program-routing.ts";
-import { classifyExplicitPaths, gitChangedPathClassification, gitLsFiles, packageDir, ROOT } from "./repo-paths.ts";
+import { classifyExplicitPaths, gitChangedPathClassification, gitLsFiles, gitStagedPathClassification, packageDir, ROOT } from "./repo-paths.ts";
 
 // ── the path-zone predicates (lifted verbatim from check/file.ts — kept in ONE place) ──
 // Mirrors the native ESLint config's scoped population — and the mirroring is LOAD-BEARING, not
@@ -90,10 +90,27 @@ function authoredPathsUnder(prefix: string, root: string): readonly string[] {
 
 /** Resolve a `changed`/`file` selection from explicit paths (or git when none given). */
 function resolveChanged(kind: "changed" | "file", explicit: readonly string[], root: string): Selection {
-  const classification = explicit.length > 0 ? classifyExplicitPaths(explicit, root) : workingChangeClassification(root);
+  return explicit.length > 0
+    ? classifiedSelection({ kind, labelWord: kind, classification: classifyExplicitPaths(explicit, root), gitRef: undefined }, root)
+    : classifiedSelection({ kind, labelWord: kind, classification: workingChangeClassification(root), gitRef: "HEAD" }, root);
+}
+
+// The staged selection runs every stage the working change runs. No vitest `--changed` ref: that selector reads the
+// working tree, so the related-test lane takes the staged files as explicit subjects instead.
+function resolveStaged(root: string): Selection {
+  return classifiedSelection({ kind: "changed", labelWord: "staged", classification: gitStagedPathClassification(root), gitRef: undefined }, root);
+}
+
+interface ClassifiedSelectionInput {
+  readonly kind: "changed" | "file";
+  readonly labelWord: string;
+  readonly classification: ChangedPathClassification;
+  readonly gitRef: string | undefined;
+}
+
+function classifiedSelection({ kind, labelWord, classification, gitRef }: ClassifiedSelectionInput, root: string): Selection {
   const { paths, existingPaths } = classification;
-  const gitRef = explicit.length > 0 ? undefined : "HEAD";
-  const label = `${kind} (${paths.length} file${paths.length === 1 ? "" : "s"})`;
+  const label = `${labelWord} (${paths.length} file${paths.length === 1 ? "" : "s"})`;
   return {
     kind,
     label,
@@ -183,6 +200,8 @@ export function resolveSelection(req: SelectionRequest, root: string = ROOT): Se
       return resolveChanged("changed", req.paths, root);
     case "file":
       return resolveChanged("file", req.paths, root);
+    case "staged":
+      return resolveStaged(root);
     case "package":
       return resolvePackage(req.name, root);
     case "scope":

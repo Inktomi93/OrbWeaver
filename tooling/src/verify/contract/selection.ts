@@ -73,6 +73,7 @@ export interface Selection {
 
 export type SelectionRequest =
   | { readonly kind: "changed"; readonly paths: readonly string[] } // explicit paths, else git diff
+  | { readonly kind: "staged" } // the index vs HEAD: exactly what the next commit records
   | { readonly kind: "file"; readonly paths: readonly string[] } // sugar for changed + explicit paths
   | { readonly kind: "package"; readonly name: string }
   | { readonly kind: "scope"; readonly glob: string };

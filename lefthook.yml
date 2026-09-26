@@ -11,14 +11,15 @@
 # `isolation: "worktree"` dispatch. With --force the chain survives the key. Commands run from the worktree root (lefthook resolves it per-worktree), so a
 # fresh worktree just needs `pnpm install` (or `pnpm run worktree:bootstrap`) and the gates work.
 #
-# GREEN-TO-COMMIT is enforced HERE, not by discipline: the static stages run over the commit's working
-# change, so a type/lint/boundary-red change cannot be committed. `test:types` stays whole on every
+# GREEN-TO-COMMIT is enforced HERE, not by discipline: the static stages run over what the commit records,
+# so a type/lint/boundary-red change cannot be committed. `test:types` stays whole on every
 # non-empty change (its path trigger is the identity) because test-file type errors are its blind spot.
 #
 # Split (scoped static gate at COMMIT, whole static + behavioral tests at PUSH) — both via the ONE
 # `pnpm verify` entry (UNIFIED-VERIFICATION-DESIGN.md §3 and §4.3): the tiers ARE the hook wiring.
-#   • pre-commit → `pnpm verify --static --changed`: the static-tier stages over the working change vs
-#     HEAD plus untracked files. Scoped stages narrow to it (affected type programs, file-local structure
+#   • pre-commit → `pnpm verify --static --changed staged`: the static-tier stages over the index vs HEAD
+#     (D267). An unstaged or untracked file is not in the commit, so it is not in the scope, and lefthook
+#     hides the unstaged hunks of a partially staged file while the hook runs. Scoped stages narrow to it (affected type programs, file-local structure
 #     policies); whole-only stages run in full when a path trigger matches. Cross-file structure policies and
 #     `deps:knip` defer to the whole static tier, which runs at pre-push and at the merge-train barrier
 #     (`pnpm check` on main). A scoped run takes no host-wide whole-run slot, so a commit never queues
@@ -50,6 +51,9 @@
 # it happens instead of withholding every byte until the command exits. `NO_COLOR:"1"` on each command
 # makes the gate tools (Biome/tsc/depcruise/vitest) emit plain, greppable text. An interactive `pnpm check`
 # in a TTY is unaffected (still colorizes).
+# The staged scope leans on lefthook's pre-commit hiding of unstaged hunks (D267); older lefthook lacks it.
+min_version: 2.1.10
+
 colors: false
 output:
   - summary
@@ -60,7 +64,7 @@ pre-commit:
   follow: true
   commands:
     check:
-      run: pnpm verify --static --changed
+      run: pnpm verify --static --changed staged
       env:
         NO_COLOR: "1"
 
@@ -68,13 +72,13 @@ pre-commit:
 # this hole): git runs `pre-merge-commit` (NOT `pre-commit`) for a NON-conflicted auto-merge commit
 # (`git merge <branch>` that commits by itself), so merges skipped the gate entirely. A CONFLICTED merge
 # concluded via `git commit` already runs pre-commit — this hook covers precisely the uncovered path.
-# Same body as pre-commit: the merged working tree is in place when the hook fires, and its diff against
-# HEAD is everything the merge brings in. Bypass: `git merge --no-verify` (emergencies).
+# Same body as pre-commit: the merge result is staged when the hook fires, and the index against HEAD is
+# everything the merge brings in. Bypass: `git merge --no-verify` (emergencies).
 pre-merge-commit:
   follow: true
   commands:
     check:
-      run: pnpm verify --static --changed
+      run: pnpm verify --static --changed staged
       env:
         NO_COLOR: "1"
 
