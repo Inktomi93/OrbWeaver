@@ -26,7 +26,7 @@ import type { ChatDocumentVisibility } from "@orb/contracts/databank";
 import type { Principal } from "@orb/contracts/identity";
 import type { PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery";
 import type { UserIntent, UserMacroValues } from "@orb/contracts/preset";
-import type { RpgRuleset } from "@orb/contracts/rpg";
+import type { RpgGameTemplate } from "@orb/contracts/rpg";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type {
   AssetId,
@@ -81,7 +81,7 @@ export interface StartChatParams extends ChatActorParams {
   /** #40 DRAFT-TIME game start: mint a lite game atomically with the new chat (turn 1 is already in-game).
    *  Threaded BLIND to the injected `ChatRpgOps.planGameBirth` (the pointer precedent);
    *  `ruleset` is rpg's own setting axis (omit = `freeform`, the birth default — #862). */
-  readonly startAsGame?: { readonly ruleset?: RpgRuleset | undefined } | undefined;
+  readonly startAsGame?: RpgGameTemplate | undefined;
 }
 
 /** `listChats` — the caller's membership library, newest-CONVERSATION-first (#150: the ONE recency clock,

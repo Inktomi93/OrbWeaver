@@ -1,6 +1,6 @@
 // The Home "Rosters" tile: the account's rosters render in the real home frame, one press starts a chat
-// through the one start door (the room first, then the polish and its report), and an empty library
-// leaves no tile at all.
+// through the one start door (the room first, then the polish and its report), a campaign roster's press
+// hands its game to the room's creation, and an empty library leaves no tile at all.
 
 import type { RosterPresetSummary } from "@orb/contracts/roster-preset";
 import type { CharacterId, RosterPresetId } from "@orb/kit/ids";
@@ -22,6 +22,7 @@ const SPIRE: RosterPresetSummary = {
   ],
   anchorPersonaId: null,
   hasGroupConfig: false,
+  game: null,
   rules: [],
   updatedAt: 1,
 };
@@ -34,8 +35,18 @@ const SAVED: RosterPresetSummary = {
   members: [{ characterId: castId<CharacterId>("character_ct_cinder"), position: 0, talkativeness: null, disabled: false, name: "Cinder", avatarHash: null }],
   anchorPersonaId: null,
   hasGroupConfig: true,
+  game: null,
   rules: [],
   updatedAt: 1,
+};
+
+// A campaign: starting it births the room's game with it.
+const CAMPAIGN: RosterPresetSummary = {
+  ...SPIRE,
+  id: castId<RosterPresetId>("roster_preset_ct_campaign"),
+  name: "Storm the Spire",
+  description: "An RPG campaign.",
+  game: { ruleset: "d20" },
 };
 
 function applyResult(over: Partial<TrpcFixtureOutput<"rosterPreset.applyToChat">> = {}): TrpcFixtureOutput<"rosterPreset.applyToChat"> {
@@ -71,8 +82,34 @@ test("one press starts the room with the roster's cast in order, then applies th
   await expect.poll(() => trpc.count("chat.startChat")).toBe(1);
   await expect
     .poll(() => trpc.lastInput("chat.startChat"))
-    .toMatchObject({ characterIds: ["character_ct_morgatha", "character_ct_sabine", "character_ct_calamity"], title: "The Ashen Spire" });
+    .toEqual({
+      characterIds: ["character_ct_morgatha", "character_ct_sabine", "character_ct_calamity"],
+      anchorPersonaId: null,
+      title: "The Ashen Spire",
+    });
   await expect.poll(() => trpc.lastInput("rosterPreset.applyToChat")).toEqual({ presetId: SPIRE.id, chatId: "chat_started_ct" });
+});
+
+test("a campaign roster says it starts a game, and its press hands the game to the room's creation", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "rosterPreset.list": [CAMPAIGN],
+    "automation.listRulePresets": [],
+    "chat.startChat": { chat: { id: "chat_campaign_ct", viewerIsHost: true, participants: [] } },
+    "rosterPreset.applyToChat": applyResult({ alreadyPresent: ["character_ct_morgatha", "character_ct_sabine", "character_ct_calamity"] }),
+  });
+
+  await mount(<HomeRostersTileStory />);
+  await page.getByRole("button", { name: "Start a chat with Storm the Spire — 3 characters, starts a game" }).click();
+
+  await expect(page.getByTestId("cbcf-notice")).toContainText("Storm the Spire: started with 3 characters");
+  await expect
+    .poll(() => trpc.lastInput("chat.startChat"))
+    .toEqual({
+      characterIds: ["character_ct_morgatha", "character_ct_sabine", "character_ct_calamity"],
+      anchorPersonaId: null,
+      title: "Storm the Spire",
+      startAsGame: { ruleset: "d20" },
+    });
 });
 
 test("an empty library renders no tile, not a heading over nothing", async ({ mount, page }) => {

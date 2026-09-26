@@ -19,6 +19,7 @@ import {
   chatSegments,
   chats,
   embedGenerations,
+  rpgGames,
   tags,
   workloads,
 } from "@orb/db";
@@ -43,6 +44,7 @@ import type { CharacterService } from "@orb/server/domain/character";
 import { createCharacterService, WELCOME_ASSISTANT_HANDLE } from "@orb/server/domain/character";
 import type { EmbeddingsService } from "@orb/server/domain/embeddings";
 import { createEmbeddingsIndexer } from "@orb/server/domain/embeddings";
+import { listSeededItemKeys } from "@orb/server/domain/settings";
 import { seedLocalLightOnBoot } from "@orb/server/entry/boot";
 import { createDomainEventBus, createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
 import { logger } from "@orb/server/foundation/observability";
@@ -236,6 +238,8 @@ function buildGraph(db: Db): ReturnType<typeof createServices> {
 // keeps a deleted card deleted across a cold graph (a fresh in-process memo, as a restart gives).
 const MANIFEST_CHARACTERS = SEED_MANIFEST.flatMap((item) => (item.kind === "character" ? [item.handle] : []));
 const MANIFEST_ROSTERS = SEED_MANIFEST.flatMap((item) => (item.kind === "rosterPreset" ? [item.name] : []));
+const MANIFEST_CAMPAIGNS = SEED_MANIFEST.flatMap((item) => (item.kind === "rosterPreset" && item.startsGame ? [item.name] : []));
+const MANIFEST_CAMPAIGN_KEYS = SEED_MANIFEST.flatMap((item) => (item.kind === "rosterPreset" && item.startsGame ? [item.key] : []));
 
 describe("user seed wiring", () => {
   test("a new account gets the manifest's characters and roster presets, the welcome greeter, and no rooms", async () => {
@@ -272,6 +276,39 @@ describe("user seed wiring", () => {
     expect(await second.services.character.findByHandle({ ownerId: owner, handle: castId<CharacterHandle>("niko") })).toBeNull();
     const characters = await second.services.character.list({ principal: actor });
     expect(characters.items).toHaveLength(MANIFEST_CHARACTERS.length - 1);
+  });
+
+  test("a campaign roster seeds through the ledger with its game, and its start births one room and one game", async () => {
+    const db = await freshDb();
+    const result = await buildGraph(db);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const actor = principal(owner);
+
+    await result.contentSeeder.ensureSeeded(actor);
+
+    const rosters = await result.services.rosterPreset.list({ principal: actor });
+    const campaigns = rosters.filter((roster) => roster.game !== null);
+    expect(campaigns.map((roster) => roster.name)).toEqual(MANIFEST_CAMPAIGNS);
+    const [campaign] = campaigns;
+    if (campaign === undefined) {
+      throw new Error("the manifest seeds no campaign roster");
+    }
+    // The ledger records the campaign's own key, so a user who deletes it never gets it back.
+    expect(await listSeededItemKeys(db, owner)).toEqual(expect.arrayContaining(MANIFEST_CAMPAIGN_KEYS));
+
+    // The start door's two calls, as `useStartRoster` makes them.
+    const started = await result.services.chat.startChat({
+      principal: actor,
+      characterIds: campaign.members.map((member) => member.characterId),
+      anchorPersonaId: campaign.anchorPersonaId,
+      title: campaign.name,
+      ...(campaign.game === null ? {} : { startAsGame: campaign.game }),
+    });
+    await result.services.rosterPreset.applyToChat({ principal: actor, presetId: campaign.id, chatId: started.chat.id });
+
+    expect(await db.select({ id: chats.id }).from(chats)).toEqual([{ id: started.chat.id }]);
+    const games = await db.select().from(rpgGames);
+    expect(games.map((game) => game.chatId)).toEqual([started.chat.id]);
   });
 
   test("the seed never clobbers an explicit welcome-greeter pick", async () => {

@@ -24,6 +24,7 @@ const ROSTER_VIEW: TrpcWireOutput<"rosterPreset.get"> = {
   description: "",
   anchorPersonaId: null,
   groupConfig: null,
+  game: null,
   members: [
     { characterId: "character_ct_1", position: 0, talkativeness: 0.5, disabled: false, name: "Ash", avatarHash: null },
     { characterId: "character_ct_2", position: 1, talkativeness: null, disabled: true, name: "Brook", avatarHash: null },

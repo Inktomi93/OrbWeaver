@@ -16,6 +16,7 @@
 // whole mutation DATA, and this response wraps the row alongside `opening`.) Cache surgery
 // is legal here and only here (`client-cache-surgery-only-in-data`).
 
+import type { RpgGameTemplate } from "@orb/contracts/rpg";
 import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import { useQueryClient } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
@@ -33,6 +34,7 @@ interface StartChatVars {
   anchorPersonaId?: PersonaId | null | undefined;
   title?: string | null | undefined;
   temporary?: true | undefined;
+  startAsGame?: RpgGameTemplate | undefined;
 }
 
 // The verb's own output — derived, never re-spelled: `result.chat` must stay byte-compatible with what
@@ -70,6 +72,7 @@ export function useStartChat(): UseStartChatResult {
         anchorPersonaId: intent.anchorPersonaId ?? null,
         title: intent.title ?? null,
         ...(intent.temporary === true ? { temporary: true as const } : {}),
+        ...(intent.startAsGame === undefined ? {} : { startAsGame: intent.startAsGame }),
       });
       const chatId = result.chat.id;
       // The echo seed (see the header): the response IS the row `getChat` serves.

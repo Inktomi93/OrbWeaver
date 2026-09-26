@@ -8,11 +8,11 @@
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
 import "../../../support/composed-real.ts";
 import { rulePresetKnobBagToInputs } from "@orb/contracts/automation";
-import { chatParticipants } from "@orb/db";
+import { chatParticipants, chats, rosterPresets, rpgGames } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { Handle } from "@orb/kit/ids";
+import type { CharacterId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { describe } from "vitest";
 import { principal } from "../../../support/factories/principal.ts";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -181,5 +181,70 @@ describe("roster-preset applyToChat — composed-real (createServices)", () => {
       .from(chatParticipants)
       .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.kind, "character"), isNull(chatParticipants.leftSeq)));
     expect(seats.map((s) => s.characterId)).toEqual([hc]);
+  });
+});
+
+// A roster's game template rides the one start door: the client hands `roster.game` to `chat.startChat` as
+// `startAsGame`, then applies the roster. These pin that sequence over the REAL graph, where rpg's own
+// `planGameBirth` folds the game into chat's single creation batch.
+describe("starting a campaign roster — composed-real (createServices)", () => {
+  test("the start creates exactly one room and one game, born with the roster's ruleset", async ({ services, db }) => {
+    const host = await seedUser(db, castId<Handle>("cphost"));
+    const hostP = principal(host);
+    const knight = await seedCharacter(db, host, "cp_knight");
+    const queen = await seedCharacter(db, host, "cp_queen");
+    await services.rosterPreset.create({
+      principal: hostP,
+      input: {
+        name: "Storm",
+        description: "",
+        game: { ruleset: "d20" },
+        members: [
+          { kind: "character", characterId: knight, position: 0 },
+          { kind: "character", characterId: queen, position: 1 },
+        ],
+      },
+    });
+    const [roster] = await services.rosterPreset.list({ principal: hostP });
+    if (roster === undefined) {
+      throw new Error("the campaign roster was not listed");
+    }
+
+    const started = await services.chat.startChat({
+      principal: hostP,
+      characterIds: roster.members.map((member) => member.characterId),
+      anchorPersonaId: roster.anchorPersonaId,
+      title: roster.name,
+      ...(roster.game === null ? {} : { startAsGame: roster.game }),
+    });
+    await services.rosterPreset.applyToChat({ principal: hostP, presetId: roster.id, chatId: started.chat.id });
+
+    expect(await db.select({ id: chats.id }).from(chats)).toEqual([{ id: started.chat.id }]);
+    const games = await db.select().from(rpgGames);
+    expect(games.map((game) => game.chatId)).toEqual([started.chat.id]);
+    expect(games[0]?.config.ruleset).toBe("d20");
+    expect(started.chat.rpg).toEqual({ gameId: games[0]?.id, engaged: true });
+  });
+
+  test("a stored template whose ruleset no longer parses fails the start whole: no room, no seats, no game", async ({ services, db }) => {
+    const host = await seedUser(db, castId<Handle>("cphost2"));
+    const hostP = principal(host);
+    const knight = await seedCharacter(db, host, "cp_knight2");
+    const created = await services.rosterPreset.create({
+      principal: hostP,
+      input: { name: "Stale", description: "", game: {}, members: [{ kind: "character", characterId: knight, position: 0 }] },
+    });
+    // A ruleset a later build retired: the write seam refuses it, so only a stored row can still carry it.
+    await db.run(sql`update ${rosterPresets} set game_template = '{"ruleset":"retired"}' where id = ${created.id}`);
+    const roster = await services.rosterPreset.get({ principal: hostP, presetId: created.id });
+    const characterIds: CharacterId[] = roster.members.map((member) => member.characterId);
+
+    await expect(
+      services.chat.startChat({ principal: hostP, characterIds, title: roster.name, ...(roster.game === null ? {} : { startAsGame: roster.game }) }),
+    ).rejects.toThrow();
+
+    expect(await db.select().from(chats)).toHaveLength(0);
+    expect(await db.select().from(chatParticipants)).toHaveLength(0);
+    expect(await db.select().from(rpgGames)).toHaveLength(0);
   });
 });

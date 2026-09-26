@@ -5,7 +5,7 @@ import { blobUrl } from "@orb/contracts/assets";
 import type { RosterPresetSummary } from "@orb/contracts/roster-preset";
 import { AvatarStack, avatarStackInlineSize } from "@orb/ui/avatar-stack";
 import { Button } from "@orb/ui/button";
-import { Icon, MessagesSquare } from "@orb/ui/icons";
+import { Icon, MessagesSquare, Swords } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { useSuspenseQuery } from "@tanstack/react-query";
@@ -31,13 +31,15 @@ function RosterStartRow(props: {
       actions={
         // The name carries what the press applies (rules, group behavior): consent belongs on the control.
         <Button
-          aria-label={`Start a chat with ${roster.name}${rosterCountsSuffix(roster.characterCount, roster.rules.length, roster.hasGroupConfig)}`}
+          aria-label={`Start a chat with ${roster.name}${rosterCountsSuffix(roster)}`}
           disabled={busy}
           intent="ghost"
           onClick={(): void => onStart(roster)}
           size="sm"
         >
-          <Icon icon={MessagesSquare} size="sm" />
+          {/* A campaign's Start wears the chat list's game glyph: the control that births the game says so,
+              and the name keeps its width at the phone column. */}
+          <Icon icon={roster.game === null ? MessagesSquare : Swords} size="sm" />
           Start
         </Button>
       }

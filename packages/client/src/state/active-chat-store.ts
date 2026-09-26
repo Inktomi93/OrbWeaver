@@ -15,6 +15,7 @@
 // The client NEVER decides that a room is a husk: the verb re-checks `started_at IS NULL` and no-ops
 // otherwise, and the 24h TTL belt is the real guarantee. Nav is never blocked on it.
 
+import type { RpgGameTemplate } from "@orb/contracts/rpg";
 import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { ChatContextTabId } from "#lib";
@@ -37,6 +38,9 @@ export interface NewChatIntent {
    *  `startChat` is the only writer of the column, and a fork is born non-temporary.
    *  @defaultValue undefined (a plain, permanent new chat). */
   readonly temporary?: boolean | undefined;
+  /** Start the room as a game: rpg births it in the room's own creation batch, so the first turn is in-game.
+   *  @defaultValue undefined (a plain chat). */
+  readonly startAsGame?: RpgGameTemplate | undefined;
 }
 
 interface ActiveChatState {

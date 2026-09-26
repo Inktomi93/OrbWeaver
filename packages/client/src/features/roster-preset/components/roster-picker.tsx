@@ -76,7 +76,7 @@ function RosterRow(props: {
 }): ReactElement {
   const { roster, canAddToChat, busy, onStart, onAddToChat, onDelete } = props;
   const memberNames = roster.members.map((m) => m.name).join(", ");
-  const counts = rosterCountsSuffix(roster.characterCount, roster.rules.length, roster.hasGroupConfig);
+  const counts = rosterCountsSuffix(roster);
   return (
     <Stack gap="tight" padding="block" className="@container border-border border-b last:border-b-0" data-slot="roster-row">
       <Row align="center" gap="field" className="@max-md:flex-col @max-md:items-stretch">
@@ -100,6 +100,11 @@ function RosterRow(props: {
                 group behavior
               </Badge>
             ) : null}
+            {roster.game === null ? null : (
+              <Badge className="shrink-0" intent="neutral" tone="soft">
+                game
+              </Badge>
+            )}
           </Row>
           <Text voice="gloss" className="truncate">
             {characterCountPhrase(roster.characterCount)} · {memberNames}

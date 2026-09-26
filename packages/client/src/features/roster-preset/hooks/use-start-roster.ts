@@ -1,6 +1,6 @@
 // The one roster start door: the picker, the library editor and the Home tile all start a chat here.
-// `startChat` mints a valid room atomically; the `applyToChat` polish after it is additive and idempotent,
-// so a failed polish is retried through "Add to chat", never by minting a second room.
+// `startChat` mints the room atomically, with the roster's game when it carries one (D264). The additive,
+// idempotent `applyToChat` polish follows, so a failed polish is retried through "Add to chat".
 
 import type { ApplyRosterPresetResult, RosterPresetSummary } from "@orb/contracts/roster-preset";
 import { useInvalidation, useStartChat, useTRPC } from "#data";
@@ -10,7 +10,7 @@ import { useApplyRosterPreset } from "./use-roster-preset-mutations.ts";
 import { useRulePresetCatalogue } from "./use-saved-rosters.ts";
 
 /** What a start reads off a roster. Both the list summary and the editor's full view carry these fields. */
-type StartableRoster = Pick<RosterPresetSummary, "anchorPersonaId" | "id" | "members" | "name">;
+type StartableRoster = Pick<RosterPresetSummary, "anchorPersonaId" | "game" | "id" | "members" | "name">;
 
 export interface UseStartRosterResult {
   /** Start a chat from `roster` and report what landed. Failures are toasted by the two mutations' own
@@ -49,6 +49,8 @@ export function useStartRoster(options: { readonly onEntered?: () => void } = {}
         anchorPersonaId: roster.anchorPersonaId,
         // The room is named after the roster it was started from.
         title: roster.name,
+        // The game is born inside the room's own creation batch, so a failed birth leaves no room behind (D264).
+        ...(roster.game === null ? {} : { startAsGame: roster.game }),
       })
         .then(async (chatId) => {
           options.onEntered?.();

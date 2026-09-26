@@ -238,3 +238,50 @@ describe("create — the rules rider (B10)", () => {
     ).rejects.toThrow(/cannot ride a saved cast/);
   });
 });
+
+describe("create — the game template", () => {
+  test("a template is stored as rpg's parse output and served on get and list; a roster without one reads null", async () => {
+    const db = await freshDb();
+    const svc = createRosterPresetService(makeHarness(db).ctx);
+    const owner = (await seedUser(db)).id;
+    const c = (await seedCharacter(db, { ownerId: owner })).id;
+
+    const campaign = await svc.create({
+      principal: principal(owner),
+      input: { name: "Campaign", description: "", game: { ruleset: "d20" }, members: [memberSpec(c, 0)] },
+    });
+    const plain = await svc.create({ principal: principal(owner), input: { name: "Plain", description: "", members: [memberSpec(c, 0)] } });
+
+    expect(campaign.game).toEqual({ ruleset: "d20" });
+    expect(plain.game).toBeNull();
+    expect((await svc.get({ principal: principal(owner), presetId: campaign.id })).game).toEqual({ ruleset: "d20" });
+    const listed = await svc.list({ principal: principal(owner) });
+    expect(listed.map((row) => [row.name, row.game])).toEqual([
+      ["Campaign", { ruleset: "d20" }],
+      ["Plain", null],
+    ]);
+    const stored = await db.select().from(rosterPresets).where(eq(rosterPresets.id, campaign.id));
+    expect(stored[0]?.gameTemplate).toEqual({ ruleset: "d20" });
+  });
+
+  test("a ruleset rpg does not know refuses at the verb seam, and no row lands", async () => {
+    const db = await freshDb();
+    const svc = createRosterPresetService(makeHarness(db).ctx);
+    const owner = (await seedUser(db)).id;
+    const c = (await seedCharacter(db, { ownerId: owner })).id;
+
+    await expect(
+      svc.create({
+        principal: principal(owner),
+        input: {
+          name: "Bad game",
+          description: "",
+          // @orb-waive no-test-fabrication(never): a deliberately unknown ruleset — the verb-seam refusal is this test's subject. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+          game: { ruleset: "gurps" } as never,
+          members: [memberSpec(c, 0)],
+        },
+      }),
+    ).rejects.toThrow(ZodError);
+    expect(await db.select().from(rosterPresets).where(eq(rosterPresets.ownerId, owner))).toHaveLength(0);
+  });
+});

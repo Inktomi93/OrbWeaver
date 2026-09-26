@@ -31,6 +31,7 @@ const ROSTER_A: RosterPresetSummary = {
   ],
   anchorPersonaId: null,
   hasGroupConfig: true,
+  game: null,
   // B10's rules rider — TWO captured rule presets; the row badge below reads the length.
   rules: [
     { rulePresetId: "sceneVeil", knobs: { veilWord: "((fade))", redirect: "cut" } },
@@ -46,6 +47,7 @@ const ROSTER_B: RosterPresetSummary = {
   members: [{ characterId: castId<CharacterId>("character_ct_3"), position: 0, talkativeness: null, disabled: false, name: "Cinder", avatarHash: null }],
   anchorPersonaId: null,
   hasGroupConfig: false,
+  game: null,
   rules: [],
   updatedAt: 1,
 };

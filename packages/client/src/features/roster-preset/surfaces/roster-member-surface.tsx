@@ -122,6 +122,7 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionMemberV
         description,
         anchorPersonaId: roster.anchorPersonaId,
         groupConfig: roster.groupConfig,
+        game: roster.game,
         members: memberInputsOf(roster),
         rules: ruleInputsOf(roster),
       },

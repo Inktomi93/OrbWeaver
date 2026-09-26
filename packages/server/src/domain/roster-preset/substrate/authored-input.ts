@@ -7,6 +7,8 @@
 import type { GroupConfigInput } from "@orb/contracts/chat";
 import { groupConfigSchema } from "@orb/contracts/chat";
 import type { CreateRosterPresetInput, RosterPresetView } from "@orb/contracts/roster-preset";
+import type { RpgGameTemplate } from "@orb/contracts/rpg";
+import { rpgGameTemplateSchema } from "@orb/contracts/rpg";
 import type { PersonaId, RosterPresetId, UserId } from "@orb/kit/ids";
 import { RosterPresetCharacterNotFoundError, RosterPresetNotFoundError, RosterPresetPersonaNotFoundError } from "../contract/errors.ts";
 import type { CastRuleWrite, MemberWrite, RosterPresetContext } from "../contract/service.ts";
@@ -38,6 +40,13 @@ export async function ensureAnchorOwned(ctx: RosterPresetContext, ownerId: UserI
  *  GroupConfig evolution degrades loudly at apply, never silently. */
 export function parsedGroupConfig(groupConfig: GroupConfigInput | null | undefined): GroupConfigInput | null {
   return groupConfig === null || groupConfig === undefined ? null : groupConfigSchema.parse(groupConfig);
+}
+
+/** The game-template twin of {@link parsedGroupConfig}: rpg's own schema refuses a bad ruleset at the write
+ *  seam, and what is stored is the parse output. rpg's birth re-parses at start, so a stored template a
+ *  later ruleset removal orphans fails that start loudly, inside chat's atomic creation batch. */
+export function parsedGameTemplate(game: RpgGameTemplate | null | undefined): RpgGameTemplate | null {
+  return game === null || game === undefined ? null : rpgGameTemplateSchema.parse(game);
 }
 
 /** The cast-rule belt (B10's rules rider — the `parsedGroupConfig` posture, one knob bag at a time):

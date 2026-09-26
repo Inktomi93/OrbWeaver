@@ -33,6 +33,11 @@ export const rpgRulesetSchema = z.enum(RPG_RULESETS) satisfies z.ZodType<RpgRule
  *  "Freeform story" door's arm, now the birth default because starting is one action). */
 export const RPG_RULESET_DEFAULT: RpgRuleset = "freeform";
 
+/** What a game is born with when a chat starts as one: its ruleset (omit ⇒ {@link RPG_RULESET_DEFAULT}).
+ *  One shape for every start — chat's `startAsGame` and a roster preset's stored game template. */
+export const rpgGameTemplateSchema = z.object({ ruleset: rpgRulesetSchema.optional() });
+export type RpgGameTemplate = z.output<typeof rpgGameTemplateSchema>;
+
 /** The stat vocabulary each ruleset carries. Exhaustive over the axis (a new member fails `tsc` here). */
 export const RPG_RULESET_PROFILE: Readonly<Record<RpgRuleset, RpgStatProfile>> = {
   freeform: RPG_PROFILE_FREEFORM,

@@ -3,6 +3,7 @@
 // kept per account. The fake keeps one ledger and one card store per account.
 
 import type { Principal } from "@orb/contracts/identity";
+import type { RpgGameTemplate } from "@orb/contracts/rpg";
 import type { SeedManifestItem } from "@orb/default-content";
 import type { CharacterHandle, CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -28,7 +29,9 @@ const PAIR: SeedManifestItem = {
   name: "Pair",
   description: "",
   characters: [castId<CharacterHandle>("assistant"), castId<CharacterHandle>("niko")],
+  startsGame: false,
 };
+const CAMPAIGN: SeedManifestItem = { ...PAIR, key: "roster:campaign", name: "Campaign", startsGame: true };
 
 interface Fake {
   readonly deps: UserContentSeederDeps;
@@ -38,7 +41,7 @@ interface Fake {
   readonly seededCharacters: CharacterHandle[];
   /** Every `seededKeys` read, by account: a skipped account is never read. */
   readonly ledgerReads: UserId[];
-  readonly rosters: { readonly name: string; readonly characterIds: readonly CharacterId[] }[];
+  readonly rosters: { readonly name: string; readonly characterIds: readonly CharacterId[]; readonly game: RpgGameTemplate | null }[];
 }
 
 function fake(
@@ -89,7 +92,7 @@ function fake(
       findCharacter: (principal, handle): Promise<CharacterId | null> =>
         Promise.resolve(owned.has(`${principal.userId}/${handle}`) ? castId<CharacterId>(`character_${handle}`) : null),
       createRosterPreset: (_principal, preset): Promise<void> => {
-        rosters.push({ name: preset.name, characterIds: preset.characterIds });
+        rosters.push({ name: preset.name, characterIds: preset.characterIds, game: preset.game });
         return Promise.resolve();
       },
     },
@@ -157,4 +160,14 @@ test("the settled memo is per account: one account settling never skips a second
   await seeder.ensureSeeded(ACTOR);
   await seeder.ensureSeeded(FRIEND);
   expect(f.ledgerReads).toEqual([ACTOR.userId, FRIEND.userId]);
+});
+
+test("a campaign item seeds its roster with rpg's default game template; a plain roster carries none", async () => {
+  const f = fake([CHARLOTTE, NIKO, PAIR, CAMPAIGN]);
+  await createUserContentSeeder(f.deps).ensureSeeded(ACTOR);
+  expect(f.rosters.map((roster) => [roster.name, roster.game])).toEqual([
+    ["Pair", null],
+    ["Campaign", {}],
+  ]);
+  expect(f.ledger.has(CAMPAIGN.key)).toBe(true);
 });

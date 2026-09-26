@@ -1317,6 +1317,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
         input: {
           name: roster.name,
           description: roster.description,
+          game: roster.game,
           members: roster.characterIds.map((characterId, position) => ({ kind: "character" as const, characterId, position })),
         },
       });
