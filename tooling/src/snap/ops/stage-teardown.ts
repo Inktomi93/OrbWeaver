@@ -103,9 +103,9 @@ export function stopStage(dir: string, ports: StagePorts, deps: StageStopDeps = 
   return releaseBand(ports, deps);
 }
 
-/** The port half of a stop, for a band whose holders are stopped by group alone: `stopped` only when a read taken
- *  after every stop shows both band ports free. */
-export function releaseBand(ports: StagePorts, deps: StageStopDeps = REAL_STOP_DEPS): StageStopVerdict {
+// The port half of a stop, for a band whose holders are stopped by group alone: `stopped` only when a read taken
+// after every stop shows both band ports free.
+function releaseBand(ports: StagePorts, deps: StageStopDeps = REAL_STOP_DEPS): StageStopVerdict {
   // Each port reads the table fresh: stopping the server's group usually takes the vite half with it.
   const survivors = [ports.server, ports.vite].map((port) => releasePort(port, deps)).filter((reason): reason is string => reason !== null);
   if (survivors.length > 0) {

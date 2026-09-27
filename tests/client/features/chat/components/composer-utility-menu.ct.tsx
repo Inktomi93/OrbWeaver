@@ -4,6 +4,7 @@
 // name, so it is asserted through the group's role and name as well as on screen.
 
 import { ROOM_PICTURES_NOTE } from "@orb/client/lib";
+import type { ParticipantRole } from "@orb/contracts/identity";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcFixtureOutput } from "../../../../support/node/route-trpc.ts";
@@ -13,7 +14,7 @@ import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES } from "../fixtures.ts";
 
 type ParticipantFixture = NonNullable<TrpcFixtureOutput<"chat.getChat">["participants"]>[number];
 
-function human(key: string, role: "host" | "member", leftSeq: number | null = null): ParticipantFixture {
+function human(key: string, role: ParticipantRole, leftSeq: number | null = null): ParticipantFixture {
   return {
     id: `chat_participant_${key}`,
     kind: "human",

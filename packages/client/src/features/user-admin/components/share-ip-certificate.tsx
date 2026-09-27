@@ -9,7 +9,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useInvalidation, useTRPC } from "#data";
-import { notify } from "#lib";
+import { notify, timeLib } from "#lib";
 import { useIpCertificateForm } from "../hooks/use-ip-certificate-form.ts";
 import { useDisableIpCertificate, useEnableIpCertificate } from "../hooks/use-share-mutations.ts";
 import type { IpCertificateFormValues } from "../lib/share-model.ts";
@@ -25,8 +25,6 @@ const STATE_BADGE: Record<IpCertificateStatus["state"], { readonly label: string
   active: { label: "https on", intent: "success" },
   failed: { label: "Plain http only", intent: "danger" },
 };
-
-const WHEN = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
 
 function httpAddress(address: string): string {
   return address.includes(":") ? `http://[${address}]` : `http://${address}`;
@@ -96,11 +94,11 @@ function Active({ certificate }: { readonly certificate: Extract<IpCertificateSt
           {certificate.url}
         </Text>
       </CopyButton>
-      <ShareProse>{`It renews by itself from ${WHEN.format(certificate.renewAt)}; this certificate lasts until ${WHEN.format(certificate.notAfter)}.`}</ShareProse>
+      <ShareProse>{`It renews by itself from ${timeLib.formatDateTime(certificate.renewAt)}; this certificate lasts until ${timeLib.formatDateTime(certificate.notAfter)}.`}</ShareProse>
       {certificate.renewalFailure === null ? null : (
         <Stack gap="tight" role="note" data-ip-certificate-warning="renewal-failed">
           <ShareWarningText>{`The last renewal failed: ${certificate.renewalFailure.message}`}</ShareWarningText>
-          <ShareProse>{`It tries again by itself. If every try fails, https stops at ${WHEN.format(certificate.notAfter)} and only plain http answers.`}</ShareProse>
+          <ShareProse>{`It tries again by itself. If every try fails, https stops at ${timeLib.formatDateTime(certificate.notAfter)} and only plain http answers.`}</ShareProse>
         </Stack>
       )}
       <TurnOff />

@@ -23,10 +23,10 @@ export type PortraitMode = Extract<PromptTemplateMode, "character" | "face" | Mu
  *  `"never"` is the regenerate affordance (always a fresh generation). */
 export type ReusePolicy = "prefer" | "never";
 
-/** Auto-curation of a generation: the character whose gallery each returned picture joins. The picture's
- *  owner is always the caller (the generator), so the item lands in the caller's gallery only, and only when
- *  the caller owns this character; a character someone else owns keeps no gallery for the caller. */
-export interface GalleryCuration {
+// Auto-curation of a generation: the character whose gallery each returned picture joins. The picture's
+// owner is always the caller (the generator), so the item lands in the caller's gallery only, and only when
+// the caller owns this character; a character someone else owns keeps no gallery for the caller.
+interface GalleryCuration {
   readonly subjectCharacterId: CharacterId;
 }
 
