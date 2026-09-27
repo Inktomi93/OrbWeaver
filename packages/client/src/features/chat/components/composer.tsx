@@ -54,7 +54,7 @@ import { ATTACH_BUSY_MESSAGE, dropzoneRefusalMessage, triageAttachFiles } from "
 import { handleComposerKeyDown } from "../lib/composer-keydown.ts";
 import { resolveEmptySendAction } from "../lib/continue-on-empty.ts";
 import { nextTurnStatesRefusal } from "../lib/next-turn-line.ts";
-import { matchSlashCommands, resolveSlashHighlight, slashArgsInProgress, slashCompletionAria } from "../lib/slash-command.ts";
+import { matchSlashCommands, parseSlashDraft, resolveSlashHighlight, slashArgsInProgress, slashCompletionAria } from "../lib/slash-command.ts";
 import { ComposerArgHintStrip } from "./composer-arg-hint-strip.tsx";
 import { ComposerAttachmentStrip } from "./composer-attachment-strip.tsx";
 import { ActiveChatOptionsMenu } from "./composer-chat-options.tsx";
@@ -227,10 +227,19 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
       onChange("");
       return;
     }
+    // Only a real send needs the connection; a command above runs in any room.
+    if (sendAvailability.unavailable) {
+      return;
+    }
     sendMessage.send(outcome.text, files);
   };
 
   const submit = (): void => {
+    // A draft with text classifies first: a slash command is not a turn, so the send gate below never holds it.
+    if (canSubmitText) {
+      submitText(attachments.map((a) => a.file));
+      return;
+    }
     // The pre-send gate: a chat whose resolved connection can't serve refuses up front (the disabled Send is
     // the click path; this guards the Enter-key path the keydown handler calls). A draft is never unavailable.
     if (sendAvailability.unavailable) {
@@ -246,14 +255,15 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
       }
       return;
     }
-    const files = attachments.map((a) => a.file);
     // An attachment-only draft can't name a command — straight to the original send path.
-    if (canSubmitText) {
-      submitText(files);
-      return;
-    }
-    sendMessage.send(value, files);
+    sendMessage.send(
+      value,
+      attachments.map((a) => a.file),
+    );
   };
+
+  // Send stays live for a slash command in a room that cannot serve a turn: the command is not a turn.
+  const sendGated = sendAvailability.unavailable && parseSlashDraft(value).kind !== "command";
 
   const stripOpen = slashMatches.length > 0;
   const { command: highlightedCommand, activeOptionId: activeSlashOptionId } = resolveSlashHighlight(slashMatches, slashHighlight);
@@ -413,11 +423,11 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
                 stopping={stopping}
                 onStop={stopTurn.stop}
                 onSend={submit}
-                sendDisabled={sendAvailability.unavailable || !(canSubmit || canEmptySend) || sendMessage.isPending || continueOnEmpty.isPending}
+                sendDisabled={sendGated || !(canSubmit || canEmptySend) || sendMessage.isPending || continueOnEmpty.isPending}
                 sendPending={sendMessage.isPending || continueOnEmpty.isPending}
-                unavailable={sendAvailability.unavailable}
-                unavailableReason={sendAvailability.reason}
-                unavailableStatedBy={refusalStatedBy}
+                unavailable={sendGated}
+                unavailableReason={sendGated ? sendAvailability.reason : undefined}
+                unavailableStatedBy={sendGated ? refusalStatedBy : undefined}
               />
             }
           />

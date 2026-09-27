@@ -92,6 +92,10 @@ export const storedAssetSchema = z.object({
   size: z.number().int().nonnegative(),
   created: z.boolean(),
 }) satisfies z.ZodType<StoredAsset>;
+/** The body of a refused `POST /api/assets/upload` (415 wrong contents, 413 over the cap): the reason the
+ *  person can act on, worded to follow "Couldn't upload <file>:". */
+export const assetUploadRefusalSchema = z.object({ error: z.string().min(1) });
+
 /** A `gallery_item_…` TypeID — the gallery v2 curation row id. */
 export const galleryItemIdSchema = typeIdSchema(ID_PREFIX.galleryItem) satisfies z.ZodType<GalleryItemId>;
 
@@ -115,13 +119,21 @@ export interface AssetListItem {
   readonly animated: boolean;
 }
 
-/** `listOwned` wire params. `cursor`/`cursorId` are the `(uploadedAt, id)` pair of the previous page's
- *  last row — pass both or neither. */
+/** The keyset position after one owned asset: the previous page's last `(uploadedAt, assetId)`. One object,
+ *  because a tRPC infinite query carries exactly one `cursor`. */
+const ownedAssetCursorSchema = z.object({
+  uploadedAt: z.number().int(),
+  assetId: assetIdSchema,
+});
+export type OwnedAssetCursor = z.infer<typeof ownedAssetCursorSchema>;
+
+/** `listOwned` wire params. `galleryCandidatesFor` narrows to the caller's images not already in that
+ *  character's gallery (the add-picker's read); it filters inside the owner scope and never widens it. */
 export const listOwnedParamsSchema = z.object({
   kind: assetKindSchema.optional(),
   limit: z.number().int().min(ASSET_LIST_LIMIT_MIN).max(ASSET_LIST_LIMIT_MAX),
-  cursor: z.number().int().optional(),
-  cursorId: assetIdSchema.optional(),
+  galleryCandidatesFor: characterIdSchema.optional(),
+  cursor: ownedAssetCursorSchema.optional(),
 });
 export type ListOwnedParams = z.infer<typeof listOwnedParamsSchema>;
 

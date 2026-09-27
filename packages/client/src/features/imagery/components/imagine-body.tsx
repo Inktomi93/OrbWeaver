@@ -87,6 +87,7 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
   const [toGallery, setToGallery] = useState(true);
   const modeLabelId = useId();
   const galleryLabelId = useId();
+  const galleryCheckboxId = useId();
   const trpc = useTRPC();
   const galleryCharacterName = useGalleryCharacterName(trpc, seed.chatId);
   const invalidation = useInvalidation();
@@ -194,10 +195,19 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
       </Stack>
       {galleryCharacterName === undefined ? null : (
         <Row align="center" gap="field">
-          <Checkbox aria-labelledby={galleryLabelId} checked={toGallery} disabled={busy} onCheckedChange={(next): void => setToGallery(next === true)} />
-          <Text as="span" id={galleryLabelId} voice="label">
-            Add to {galleryCharacterName}'s gallery
-          </Text>
+          <Checkbox
+            aria-labelledby={galleryLabelId}
+            checked={toGallery}
+            disabled={busy}
+            id={galleryCheckboxId}
+            onCheckedChange={(next): void => setToGallery(next === true)}
+          />
+          {/* A real label, so a tap on the words toggles the box as well as naming it. */}
+          <label htmlFor={galleryCheckboxId}>
+            <Text as="span" id={galleryLabelId} voice="label">
+              Add to {galleryCharacterName}'s gallery
+            </Text>
+          </label>
         </Row>
       )}
       {generate.isPending ? (

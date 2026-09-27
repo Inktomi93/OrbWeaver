@@ -4,7 +4,7 @@
 // `fetch` is stubbed at the global boundary (the sanctioned "fake at the edges" seam — the `safeFetch`
 // precedent, `tests/server/infra/network/egress.test.ts`), never a hand-mock of `uploadAsset` itself.
 
-import { uploadAsset } from "@orb/client/data";
+import { UploadRefusedError, uploadAsset } from "@orb/client/data";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { afterEach, vi } from "vitest";
@@ -47,4 +47,25 @@ test("throws on a malformed response body (schema validation, not a bare cast)",
   vi.stubGlobal("fetch", () => Promise.resolve(new Response(JSON.stringify({ hash: SAMPLE_HASH }), { status: 200 })));
   const file = new File(["bytes"], "avatar.png", { type: "image/png" });
   await expect(uploadAsset(file, "avatar")).rejects.toThrow();
+});
+
+// A refusal the person can act on (wrong contents, over the cap) carries the server's reason, typed, so the
+// caller names it; any other failure stays a plain error with the status.
+test.each([
+  { status: 415, reason: "its contents are not a PNG, JPEG, GIF or WebP image" },
+  { status: 413, reason: "it is over the upload size limit" },
+])("a $status refusal throws UploadRefusedError with the server's reason", async ({ status, reason }) => {
+  vi.stubGlobal("fetch", () => Promise.resolve(new Response(JSON.stringify({ error: reason }), { status })));
+  const file = new File(["bytes"], "avatar.png", { type: "image/png" });
+  const refused = uploadAsset(file, "avatar");
+  await expect(refused).rejects.toBeInstanceOf(UploadRefusedError);
+  await expect(refused).rejects.toMatchObject({ reason });
+});
+
+test("a refusal status without a reason body stays a plain error with the status", async () => {
+  vi.stubGlobal("fetch", () => Promise.resolve(new Response("<html>proxy said no</html>", { status: 415, statusText: "Unsupported Media Type" })));
+  const file = new File(["bytes"], "avatar.png", { type: "image/png" });
+  const refused = uploadAsset(file, "avatar");
+  await expect(refused).rejects.toThrow("415");
+  await expect(refused).rejects.not.toBeInstanceOf(UploadRefusedError);
 });

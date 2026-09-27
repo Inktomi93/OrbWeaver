@@ -48,6 +48,29 @@ test("an UNKNOWN /command is refused with a visible reason and is NOT posted as 
   expect(trpc.count("chat.send")).toBe(0);
 });
 
+// A command is not a turn: a room whose connection cannot serve refuses a message, never a command.
+test("in a room with no connection a command still runs and an unknown one is still refused", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...CHAT_ROOM_ROUTES,
+    "chat.checkSendAvailability": () => ({ available: false, cause: "no-connection" }),
+    "chat.send": () => ({ messages: [], aborted: false }),
+  });
+  const component = await mount(<SlashComposerStory />);
+  const textarea = component.getByLabel("Message", { exact: true });
+  await expect.poll(() => trpc.count("chat.checkSendAvailability"), { intervals: [20, 50, 100] }).toBeGreaterThan(0);
+
+  await textarea.fill("/spy hello");
+  await textarea.press("Enter");
+  await expect(component.getByTestId("ct-slash-fired")).toHaveText(`${COMPOSER_CHAT_ID}:hello`);
+
+  await textarea.fill("/nope thing");
+  await textarea.press("Enter");
+  await expect(component.getByText(UNKNOWN_NOTICE)).toBeVisible();
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): both dispatches above rendered their outcome, so this count is settled.
+  expect(trpc.count("chat.send")).toBe(0);
+});
+
 test("the // escape sends a message that legitimately starts with a slash", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.send": () => ({ messages: [], aborted: false }) });
   const component = await mount(<SlashComposerStory />);
@@ -72,11 +95,13 @@ test("an UNAVAILABLE command is still offered (disabled, with its reason) and is
   await expect(lockedOffer).toBeVisible();
   await expect(lockedOffer).toBeDisabled();
   await expect(lockedOffer).toHaveAttribute("title", SLASH_LOCKED_REASON);
+  // The reason is visible on the row itself, not only on hover: a touch reader never sees a title.
+  await expect(lockedOffer).toContainText(SLASH_LOCKED_REASON);
 
   await textarea.fill("/locked");
   await component.getByRole("button", { name: "Send message" }).click();
 
-  await expect(component.getByText(SLASH_LOCKED_REASON)).toBeVisible();
+  await expect(component.getByRole("alert")).toHaveText(SLASH_LOCKED_REASON);
   await expect(component.getByTestId("ct-slash-fired")).toHaveText("");
   // @orb-waive ct-no-oneshot-live-read-assert(expect): the barriers above already awaited the completed submit path, so this count is settled.
   expect(trpc.count("chat.send")).toBe(0);
@@ -195,7 +220,7 @@ test("Enter on a HIGHLIGHTED unavailable offer refuses it with its reason (never
   // Enter must NOT complete the draft to /locked — it surfaces the reason instead (activation prevented),
   // exactly as a click on the disabled row is prevented.
   await textarea.press("Enter");
-  await expect(component.getByText(SLASH_LOCKED_REASON)).toBeVisible();
+  await expect(component.getByRole("alert")).toHaveText(SLASH_LOCKED_REASON);
   await expect(textarea).toHaveValue("/");
 });
 

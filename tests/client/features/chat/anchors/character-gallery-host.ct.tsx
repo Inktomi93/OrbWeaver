@@ -5,16 +5,7 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { CharacterGalleryHostStory } from "../_ct-stories.tsx";
-
-const ITEM = {
-  galleryItemId: "galleryitem_ct_host",
-  assetId: "asset_ct_host",
-  hash: "e".repeat(64),
-  mime: "image/png",
-  animated: false,
-  subjectCharacterId: "character_ct_gallery",
-  createdAt: 1,
-};
+import { GALLERY_CELL, ITEM } from "../_gallery-fixtures.ts";
 
 for (const viewport of [
   { name: "mobile", width: 360, height: 780 },
@@ -29,7 +20,7 @@ for (const viewport of [
     await page.getByTestId("ct-open-gallery-outside").click();
     const dialog = page.getByRole("dialog", { name: "Aria's gallery" });
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByRole("gridcell", { name: "Gallery image" })).toHaveCount(1);
+    await expect(dialog.getByRole("gridcell", { name: GALLERY_CELL })).toHaveCount(1);
     await expect(dialog.getByRole("radiogroup", { name: "Order" })).toBeInViewport({ ratio: 1 });
     await expect(dialog.getByRole("radiogroup", { name: "Show images from" })).toHaveCount(0);
     await expect

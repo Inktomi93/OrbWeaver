@@ -3,17 +3,19 @@
 // read is owner-scoped in the WHERE, never a post-filter; `metadataForOwnerAndHash` is the sole exception,
 // trusted only because the verb already resolved the owner via `loadCoParticipantOwner`.
 
-import type { AssetBlobRef, AssetKind, AssetListItem, GalleryCursor, GalleryItemView, GallerySort, StoredAsset } from "@orb/contracts/assets";
+import type { AssetBlobRef, AssetKind, AssetListItem, GalleryCursor, GalleryItemView, GallerySort, OwnedAssetCursor, StoredAsset } from "@orb/contracts/assets";
 import type { Db } from "@orb/db";
 import { assets, galleryItems, imageryGenerations } from "@orb/db";
 import type { AssetId, CharacterId, ChatId, GalleryItemId, UserId } from "@orb/kit/ids";
 import { sniffImageBytes } from "@orb/kit/image-sniff";
 import type { SQL } from "drizzle-orm";
-import { and, asc, desc, eq, exists, gt, inArray, isNull, like, lt, or } from "drizzle-orm";
+import { and, asc, desc, eq, exists, gt, inArray, isNull, like, lt, notExists, or } from "drizzle-orm";
 import type { Cas } from "#infra/storage";
 import { assertMagicMatches } from "../substrate/mime.ts";
 
 const LIMIT_ONE = 1;
+/** Any `image/*` mime — the gallery takes images only. */
+const IMAGE_MIME_PATTERN = "image/%";
 
 interface StoreBlobInput {
   readonly ownerId: UserId;
@@ -158,16 +160,30 @@ interface ListOwnedInput {
   readonly ownerId: UserId;
   readonly kind: AssetKind | undefined;
   readonly limit: number;
-  readonly cursor: number | undefined;
-  readonly cursorId: AssetId | undefined;
+  readonly galleryCandidatesFor: CharacterId | undefined;
+  readonly cursor: OwnedAssetCursor | undefined;
 }
 
-/** Gallery v1: the caller's own assets, newest-first, keyset-paged (no offset, avoids skips/dupes). */
+/** Gallery v1: the caller's own assets, newest-first, keyset-paged (no offset, avoids skips/dupes). The
+ *  gallery-candidate filter runs in the WHERE, before the limit, so a page is never short for a filtered row. */
 export async function listOwnedAssetRows(db: Db, input: ListOwnedInput): Promise<AssetListItem[]> {
+  const { cursor, galleryCandidatesFor } = input;
   const keyset =
-    input.cursor !== undefined && input.cursorId !== undefined
-      ? or(lt(assets.uploadedAt, input.cursor), and(eq(assets.uploadedAt, input.cursor), lt(assets.id, input.cursorId)))
-      : undefined;
+    cursor === undefined
+      ? undefined
+      : or(lt(assets.uploadedAt, cursor.uploadedAt), and(eq(assets.uploadedAt, cursor.uploadedAt), lt(assets.id, cursor.assetId)));
+  const galleryCandidate =
+    galleryCandidatesFor === undefined
+      ? undefined
+      : and(
+          like(assets.mime, IMAGE_MIME_PATTERN),
+          notExists(
+            db
+              .select({ id: galleryItems.id })
+              .from(galleryItems)
+              .where(and(eq(galleryItems.assetId, assets.id), eq(galleryItems.subjectCharacterId, galleryCandidatesFor))),
+          ),
+        );
   const rows = await db
     .select({
       assetId: assets.id,
@@ -179,7 +195,7 @@ export async function listOwnedAssetRows(db: Db, input: ListOwnedInput): Promise
       animated: assets.animated,
     })
     .from(assets)
-    .where(and(eq(assets.ownerId, input.ownerId), input.kind !== undefined ? eq(assets.kind, input.kind) : undefined, keyset))
+    .where(and(eq(assets.ownerId, input.ownerId), input.kind !== undefined ? eq(assets.kind, input.kind) : undefined, galleryCandidate, keyset))
     .orderBy(desc(assets.uploadedAt), desc(assets.id))
     .limit(input.limit);
   return rows;

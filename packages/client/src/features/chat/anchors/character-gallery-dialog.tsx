@@ -1,42 +1,43 @@
-// The per-character gallery modal, mounted once by `character-gallery-host.tsx`: a keyset-paged grid with "Load
-// more" (the virtualized grid has no end-of-list callback), a lightbox whose remove sits behind a confirm, the
-// add-picker and the upload zone. The "This chat" scope filters inside the caller's own gallery, never wider.
+// The per-character gallery modal, mounted once by `character-gallery-host.tsx`: the upload zone, then a
+// keyset-paged grid with "Load more", a lightbox whose remove sits behind a confirm, and the add-picker. The
+// "This chat" scope filters inside the caller's own gallery, never wider. Focus never leaves the dialog.
 
 import type { GallerySort } from "@orb/contracts/assets";
 import { blobUrl, DEFAULT_GALLERY_SORT, GALLERY_SORTS } from "@orb/contracts/assets";
-import type { AssetId, CharacterId, ChatId, GalleryItemId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, GalleryItemId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { CrossfadeImage } from "@orb/ui/crossfade-image";
 // @orb-waive dialog-via-composite(Dialog): this character-gallery picker owns its root and selection surface; ends if a gallery-dialog composite owns that species.
 import { Dialog, DialogClose, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { EmptyState } from "@orb/ui/empty-state";
-import { Icon, ImagePlus, Images, Trash2 } from "@orb/ui/icons";
+import { Icon, ImagePlus, Images } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
-import type { MediaGridItem } from "@orb/ui/media-grid";
+import type { MediaGridHandle, MediaGridItem } from "@orb/ui/media-grid";
 import { MediaGrid } from "@orb/ui/media-grid";
-import { Text } from "@orb/ui/text";
 import { Toggle } from "@orb/ui/toggle";
 import { ToggleGroup } from "@orb/ui/toggle-group";
 import type { inferOutput } from "@trpc/tanstack-react-query";
-import type { ReactElement } from "react";
+import type { ReactElement, Ref } from "react";
 import { useRef, useState } from "react";
-import { ConfirmDialog } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { GalleryAddPicker } from "../components/gallery-add-picker.tsx";
+import { GalleryLightbox } from "../components/gallery-lightbox.tsx";
+import { GalleryLoadMore } from "../components/gallery-load-more.tsx";
 import { GalleryUploadZone } from "../components/gallery-upload-zone.tsx";
 import { useGalleryCollection, useRemoveFromGallery } from "../hooks/use-character-gallery.ts";
+import { useGalleryFocus } from "../hooks/use-gallery-focus.ts";
+import { galleryImageName } from "../lib/gallery-image-name.ts";
 import { galleryThumbUrl } from "../lib/gallery-thumb.ts";
 
 type GalleryItem = inferOutput<Trpc["assets"]["listGallery"]>[number];
 
-function toGalleryGridItem(item: GalleryItem): MediaGridItem {
+function toGalleryGridItem(item: GalleryItem, index: number): MediaGridItem {
   return {
     id: item.galleryItemId,
     url: blobUrl(item.hash),
     thumbUrl: galleryThumbUrl(item.hash),
     animated: item.animated,
-    alt: "Gallery image",
+    alt: galleryImageName(index + 1, item.createdAt),
   };
 }
 
@@ -56,35 +57,6 @@ function isGallerySort(value: unknown): value is GallerySort {
   return GALLERY_SORTS.some((sort) => sort === value);
 }
 
-interface GalleryLoadMoreProps {
-  readonly hasNextPage: boolean;
-  readonly isFetchingNextPage: boolean;
-  /** The last page request failed while earlier pages are on screen. */
-  readonly failed: boolean;
-  readonly onLoadMore: () => void;
-}
-
-// Present only while the server has more: a short page ends the list, and the control goes with it.
-function GalleryLoadMore({ hasNextPage, isFetchingNextPage, failed, onLoadMore }: GalleryLoadMoreProps): ReactElement | null {
-  if (!hasNextPage) {
-    return null;
-  }
-  return (
-    <Stack gap="tight">
-      {failed ? (
-        <Text className="text-destructive" role="alert" voice="label">
-          Couldn't load more pictures. Try again.
-        </Text>
-      ) : null}
-      <Row justify="center">
-        <Button intent="secondary" size="sm" loading={isFetchingNextPage} onClick={onLoadMore}>
-          Load more
-        </Button>
-      </Row>
-    </Stack>
-  );
-}
-
 interface GalleryGridBodyProps {
   readonly isPending: boolean;
   readonly isError: boolean;
@@ -96,12 +68,13 @@ interface GalleryGridBodyProps {
   readonly characterName: string;
   readonly onActivate: (item: MediaGridItem) => void;
   readonly onAddClick: () => void;
+  readonly gridRef: Ref<MediaGridHandle>;
 }
 
 // Pending reads as a skeleton and a failed read as its error state, never the empty state: "No images"
 // over a failed read is a false claim about the reader's gallery.
 function GalleryGridBody(props: GalleryGridBodyProps): ReactElement {
-  const { isPending, isError, onRetry, scope, onShowEverywhere, gridItems, galleryLabel, characterName, onActivate, onAddClick } = props;
+  const { isPending, isError, onRetry, scope, onShowEverywhere, gridItems, galleryLabel, characterName, onActivate, onAddClick, gridRef } = props;
   if (isPending) {
     return <SkeletonRows count={6} shape="line" />;
   }
@@ -127,7 +100,7 @@ function GalleryGridBody(props: GalleryGridBodyProps): ReactElement {
       <EmptyState
         icon={<Icon icon={Images} size="lg" />}
         title="No images yet"
-        description={`Upload images below, or add ones you already have to ${characterName}'s gallery.`}
+        description={`Upload images above, or add ones you already have to ${characterName}'s gallery.`}
         action={
           <Button intent="primary" onClick={onAddClick}>
             <Icon icon={ImagePlus} size="sm" />
@@ -137,7 +110,7 @@ function GalleryGridBody(props: GalleryGridBodyProps): ReactElement {
       />
     );
   }
-  return <MediaGrid items={gridItems} ariaLabel={galleryLabel} gapToken="row" onActivate={onActivate} className="max-h-96" />;
+  return <MediaGrid items={gridItems} ariaLabel={galleryLabel} gapToken="row" onActivate={onActivate} className="max-h-64 @md:max-h-96" ref={gridRef} />;
 }
 
 export interface CharacterGalleryDialogProps {
@@ -165,17 +138,31 @@ export function CharacterGalleryDialog({ open, onOpenChange, characterId, charac
   const scopes = chatId === null ? null : GALLERY_SCOPES;
   const remove = useRemoveFromGallery({ trpc, invalidation });
 
-  const [lightbox, setLightbox] = useState<GalleryItem | null>(null);
-  const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
+  const [lightboxId, setLightboxId] = useState<GalleryItemId | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  // "Upload instead" in the add-picker opens the zone's own file chooser.
+  const uploadInputRef = useRef<HTMLInputElement>(null);
 
   const items = gallery.items;
   const gridItems = items.map(toGalleryGridItem);
-  const existingAssetIds = new Set<AssetId>(items.map((i) => i.assetId));
   const galleryLabel = `${characterName}'s gallery`;
+  // Settled on nothing: the Order strip and the header's add yield to the empty state's one action.
+  const galleryEmpty = !gallery.isPending && gallery.error === null && items.length === 0;
+  const gridRef = useRef<MediaGridHandle>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const focus = useGalleryFocus({
+    gridRef,
+    headingRef,
+    ids: items.map((i) => i.galleryItemId),
+    isFetchingNextPage: gallery.isFetchingNextPage,
+    hasNextPage: gallery.hasNextPage,
+    onLoadMore: gallery.listProps.onEndApproach,
+  });
 
+  const lightboxIndex = items.findIndex((i) => i.galleryItemId === lightboxId);
+  const lightboxItem = items[lightboxIndex];
   const openLightbox = (activated: MediaGridItem): void => {
-    setLightbox(items.find((i) => i.galleryItemId === activated.id) ?? null);
+    setLightboxId(items.find((i) => i.galleryItemId === activated.id)?.galleryItemId ?? null);
   };
   // BOTH DIALOGS CLOSE ON THE REMOVAL, NOT ON THE REQUEST (#1501). The confirm and the lightbox were
   // dismissed on the same tick as `.mutate`, so a rejected remove left the image in the gallery, the reader
@@ -188,7 +175,8 @@ export function CharacterGalleryDialog({ open, onOpenChange, characterId, charac
   // surface's own business — the removed image's own frame outlives the confirm.
   const removeItem = async (galleryItemId: GalleryItemId): Promise<void> => {
     await remove.mutateAsync({ galleryItemId });
-    setLightbox(null);
+    focus.noteRemoval(galleryItemId);
+    setLightboxId(null);
   };
 
   return (
@@ -197,55 +185,83 @@ export function CharacterGalleryDialog({ open, onOpenChange, characterId, charac
         {/* Top-anchored: the scope filter changes the body's height, and a centred popup would move the
             heading and the filter out from under the pointer. */}
         <DialogPopup anchor="top" size="lg">
-          <Stack gap="block">
+          {/* The container the grid's height reads: a phone-width dialog keeps the grid short enough that the
+              zone above it and "Load more" below it stay on screen. */}
+          <Stack gap="block" className="@container">
             <Row justify="between" align="center" gap="row">
-              <DialogTitle>{galleryLabel}</DialogTitle>
-              <Button intent="secondary" size="sm" onClick={(): void => setPickerOpen(true)}>
-                <Icon icon={ImagePlus} size="sm" />
-                Add images
-              </Button>
-            </Row>
-
-            <Row className="flex-wrap" gap="row">
-              {scopes === null ? null : (
-                <ToggleGroup
-                  aria-label="Show images from"
-                  onValueChange={(picked): void => {
-                    // A one-of-N strip has no release: clicking the active segment yields an empty array.
-                    const next = picked[0];
-                    if (isGalleryScope(next)) {
-                      setScope(next);
-                    }
-                  }}
-                  semantics="radio"
-                  value={[scope]}
-                >
-                  {scopes.map((option) => (
-                    <Toggle checked={option === scope} key={option} ref={option === "everywhere" ? everywhereRef : undefined} semantics="radio" value={option}>
-                      {GALLERY_SCOPE_LABELS[option]}
-                    </Toggle>
-                  ))}
-                </ToggleGroup>
-              )}
-              <ToggleGroup
-                aria-label="Order"
-                onValueChange={(picked): void => {
-                  const next = picked[0];
-                  if (isGallerySort(next)) {
-                    setSort(next);
+              {/* Focusable by script only: a removal that empties the gallery puts focus here. */}
+              <DialogTitle ref={headingRef} tabIndex={-1}>
+                {galleryLabel}
+              </DialogTitle>
+              <Row align="center" gap="row">
+                {galleryEmpty && scope === "everywhere" ? null : (
+                  <Button intent="secondary" size="sm" onClick={(): void => setPickerOpen(true)}>
+                    <Icon icon={ImagePlus} size="sm" />
+                    Add images
+                  </Button>
+                )}
+                <DialogClose
+                  render={
+                    <Button intent="ghost" size="sm">
+                      Close
+                    </Button>
                   }
-                }}
-                semantics="radio"
-                value={[sort]}
-              >
-                {GALLERY_SORTS.map((option) => (
-                  <Toggle checked={option === sort} key={option} semantics="radio" value={option}>
-                    {GALLERY_SORT_LABELS[option]}
-                  </Toggle>
-                ))}
-              </ToggleGroup>
+                />
+              </Row>
             </Row>
 
+            {scopes === null && galleryEmpty ? null : (
+              <Row className="flex-wrap" gap="row">
+                {scopes === null ? null : (
+                  <ToggleGroup
+                    aria-label="Show images from"
+                    onValueChange={(picked): void => {
+                      // A one-of-N strip has no release: clicking the active segment yields an empty array.
+                      const next = picked[0];
+                      if (isGalleryScope(next)) {
+                        setScope(next);
+                      }
+                    }}
+                    semantics="radio"
+                    value={[scope]}
+                  >
+                    {scopes.map((option) => (
+                      <Toggle
+                        checked={option === scope}
+                        key={option}
+                        ref={option === "everywhere" ? everywhereRef : undefined}
+                        semantics="radio"
+                        value={option}
+                      >
+                        {GALLERY_SCOPE_LABELS[option]}
+                      </Toggle>
+                    ))}
+                  </ToggleGroup>
+                )}
+                {galleryEmpty ? null : (
+                  <ToggleGroup
+                    aria-label="Order"
+                    onValueChange={(picked): void => {
+                      const next = picked[0];
+                      if (isGallerySort(next)) {
+                        setSort(next);
+                      }
+                    }}
+                    semantics="radio"
+                    value={[sort]}
+                  >
+                    {GALLERY_SORTS.map((option) => (
+                      <Toggle checked={option === sort} key={option} semantics="radio" value={option}>
+                        {GALLERY_SORT_LABELS[option]}
+                      </Toggle>
+                    ))}
+                  </ToggleGroup>
+                )}
+              </Row>
+            )}
+
+            {/* Above the grid: at a phone's height a full grid would push the zone below the fold. */}
+            <GalleryUploadZone characterId={characterId} characterName={characterName} inputRef={uploadInputRef} />
             <GalleryGridBody
               isPending={gallery.isPending}
               isError={gallery.error !== null && items.length === 0}
@@ -257,56 +273,36 @@ export function CharacterGalleryDialog({ open, onOpenChange, characterId, charac
               characterName={characterName}
               onActivate={openLightbox}
               onAddClick={(): void => setPickerOpen(true)}
+              gridRef={gridRef}
             />
             <GalleryLoadMore
               hasNextPage={gallery.hasNextPage}
               isFetchingNextPage={gallery.isFetchingNextPage}
               failed={gallery.error !== null && items.length > 0}
-              onLoadMore={gallery.listProps.onEndApproach}
+              onLoadMore={focus.loadMore}
             />
-            <GalleryUploadZone characterId={characterId} characterName={characterName} />
           </Stack>
         </DialogPopup>
       </Dialog>
 
-      <Dialog
-        open={lightbox !== null}
-        onOpenChange={(next): void => {
-          if (!next) {
-            setLightbox(null);
-          }
+      <GalleryLightbox
+        image={lightboxItem === undefined ? null : { hash: lightboxItem.hash, name: galleryImageName(lightboxIndex + 1, lightboxItem.createdAt) }}
+        characterName={characterName}
+        onClose={(): void => setLightboxId(null)}
+        onRemove={(): Promise<void> => (lightboxItem === undefined ? Promise.resolve() : removeItem(lightboxItem.galleryItemId))}
+        finalFocus={focus.lightboxFinalFocus}
+        onSettled={focus.onLightboxSettled}
+      />
+
+      <GalleryAddPicker
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        characterId={characterId}
+        onUploadInstead={(): void => {
+          setPickerOpen(false);
+          uploadInputRef.current?.click();
         }}
-      >
-        <DialogPopup size="lg">
-          {lightbox === null ? null : (
-            <Stack gap="block" className="min-h-0">
-              <DialogTitle>Gallery image</DialogTitle>
-              <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain">
-                <CrossfadeImage src={blobUrl(lightbox.hash)} alt="Gallery image" aspectRatio={1} fit="contain" className="max-h-96" />
-              </Stack>
-              <Row justify="between" align="center" gap="row" className="shrink-0">
-                <Button intent="destructive" onClick={(): void => setRemoveConfirmOpen(true)}>
-                  <Icon icon={Trash2} size="sm" />
-                  Remove from gallery
-                </Button>
-                <DialogClose render={<Button intent="ghost">Close</Button>} />
-              </Row>
-
-              <ConfirmDialog
-                confirmLabel="Remove"
-                description={`This removes the image from ${characterName}'s gallery. The image itself stays in your uploads.`}
-                forceRender={true}
-                onConfirm={(): Promise<void> => removeItem(lightbox.galleryItemId)}
-                onOpenChange={setRemoveConfirmOpen}
-                open={removeConfirmOpen}
-                title="Remove this image?"
-              />
-            </Stack>
-          )}
-        </DialogPopup>
-      </Dialog>
-
-      <GalleryAddPicker open={pickerOpen} onOpenChange={setPickerOpen} characterId={characterId} existingAssetIds={existingAssetIds} />
+      />
     </>
   );
 }

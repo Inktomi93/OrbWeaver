@@ -233,6 +233,20 @@ for (const viewport of [
     await expect.poll(() => rec.lastInput("chat.generateImage")).toMatchObject({ mode: "free", gallery: false });
   });
 
+  test(`${viewport.name}: tapping the checkbox's words toggles it, as a real label does`, async ({ mount, page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    const chatId = mintTypeId(ID_PREFIX.chat);
+    await routeTrpc(page, { "chat.getChat": roomWithCharacter(chatId), "chat.generateImage": { id: "message_ct_generated" } });
+    const cmp = await mount(<ImagineFreeStory chatId={chatId} />);
+
+    const toGallery = cmp.getByRole("checkbox", { name: "Add to Aria's gallery" });
+    await expect(toGallery).toBeChecked();
+    await cmp.getByText("Add to Aria's gallery", { exact: true }).click();
+    await expect(toGallery).not.toBeChecked();
+    await cmp.getByText("Add to Aria's gallery", { exact: true }).click();
+    await expect(toGallery).toBeChecked();
+  });
+
   test(`${viewport.name}: a guest who owns no character here is offered no gallery add`, async ({ mount, page }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     const chatId = mintTypeId(ID_PREFIX.chat);

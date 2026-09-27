@@ -1,6 +1,6 @@
-// The gallery's add-picker: a multi-select grid of the owner's own images, added to one character's gallery
-// as a per-asset batch. A partial failure keeps exactly the rejected assets selected, so a retry resubmits
-// only those. Opened from the gallery dialog (`anchors/character-gallery-dialog.tsx`).
+// The gallery's add-picker: a multi-select, keyset-paged grid of the owner's images not yet in one character's
+// gallery (the server filters), added as a per-asset batch. A partial failure keeps exactly the rejected assets
+// selected, so a retry resubmits only those. Opened from the gallery dialog (`anchors/character-gallery-dialog.tsx`).
 
 import { blobUrl } from "@orb/contracts/assets";
 import type { AssetId, CharacterId } from "@orb/kit/ids";
@@ -10,27 +10,29 @@ import { Dialog, DialogClose, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, Images } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
-import type { MediaGridItem, MediaGridKey } from "@orb/ui/media-grid";
+import type { MediaGridHandle, MediaGridItem, MediaGridKey } from "@orb/ui/media-grid";
 import { MediaGrid } from "@orb/ui/media-grid";
 import { Text } from "@orb/ui/text";
-import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
-import { GALLERY_PAGE_LIMIT, useAddToGallery } from "../hooks/use-character-gallery.ts";
+import { useAddToGallery, useGalleryCandidates } from "../hooks/use-character-gallery.ts";
+import { useGalleryFocus } from "../hooks/use-gallery-focus.ts";
+import { ownedImageName } from "../lib/gallery-image-name.ts";
 import { galleryThumbUrl } from "../lib/gallery-thumb.ts";
+import { GalleryLoadMore } from "./gallery-load-more.tsx";
 
 type OwnedAsset = inferOutput<Trpc["assets"]["listOwned"]>[number];
 
-function toOwnedGridItem(asset: OwnedAsset): MediaGridItem {
+function toOwnedGridItem(asset: OwnedAsset, index: number): MediaGridItem {
   return {
     id: asset.assetId,
     url: blobUrl(asset.hash),
     thumbUrl: galleryThumbUrl(asset.hash),
     animated: asset.animated,
-    alt: `${asset.kind} image`,
+    alt: ownedImageName(index + 1, asset.uploadedAt),
   };
 }
 
@@ -38,10 +40,11 @@ interface GalleryAddPickerProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly characterId: CharacterId;
-  readonly existingAssetIds: ReadonlySet<AssetId>;
+  /** Close the picker and open the gallery's upload chooser: the next step when nothing is left to add. */
+  readonly onUploadInstead: () => void;
 }
 
-export function GalleryAddPicker({ open, onOpenChange, characterId, existingAssetIds }: GalleryAddPickerProps): ReactElement {
+export function GalleryAddPicker({ open, onOpenChange, characterId, onUploadInstead }: GalleryAddPickerProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const add = useAddToGallery({ trpc, invalidation });
@@ -96,15 +99,9 @@ export function GalleryAddPicker({ open, onOpenChange, characterId, existingAsse
       }}
     >
       <DialogPopup size="lg">
-        <Stack gap="block">
+        <Stack gap="block" className="@container">
           <DialogTitle>Add images to the gallery</DialogTitle>
-          <OwnedAssetPicker
-            existingAssetIds={existingAssetIds}
-            failure={failure}
-            isOwned={isOwned}
-            onConfirm={confirmAdd}
-            onUploadInstead={(): void => onOpenChange(false)}
-          />
+          <OwnedAssetPicker characterId={characterId} failure={failure} isOwned={isOwned} onConfirm={confirmAdd} onUploadInstead={onUploadInstead} />
         </Stack>
       </DialogPopup>
     </Dialog>
@@ -112,21 +109,28 @@ export function GalleryAddPicker({ open, onOpenChange, characterId, existingAsse
 }
 
 interface OwnedAssetPickerProps {
-  readonly existingAssetIds: ReadonlySet<AssetId>;
+  readonly characterId: CharacterId;
   readonly failure: string | null;
   readonly isOwned: boolean;
   /** Runs the batch and RESOLVES WITH THE IDS STILL OUTSTANDING — an empty array means everything landed. */
   readonly onConfirm: (assetIds: readonly MediaGridKey[]) => Promise<readonly MediaGridKey[]>;
-  /** Close the picker, back to the gallery dialog and its upload zone. */
   readonly onUploadInstead: () => void;
 }
 
-function OwnedAssetPicker({ existingAssetIds, failure, isOwned, onConfirm, onUploadInstead }: OwnedAssetPickerProps): ReactElement {
+function OwnedAssetPicker({ characterId, failure, isOwned, onConfirm, onUploadInstead }: OwnedAssetPickerProps): ReactElement {
   const trpc = useTRPC();
-  const owned = useQuery(trpc.assets.listOwned.queryOptions({ limit: GALLERY_PAGE_LIMIT }));
+  const candidates = useGalleryCandidates({ trpc }, { characterId });
   const [selected, setSelected] = useState<ReadonlySet<MediaGridKey>>(new Set());
-  const candidates = (owned.data ?? []).filter((asset) => asset.mime.startsWith("image/") && !existingAssetIds.has(asset.assetId));
-  const gridItems = candidates.map(toOwnedGridItem);
+  const gridItems = candidates.items.map(toOwnedGridItem);
+  const gridRef = useRef<MediaGridHandle>(null);
+  const focus = useGalleryFocus({
+    gridRef,
+    headingRef: null,
+    ids: candidates.items.map((asset) => asset.assetId),
+    isFetchingNextPage: candidates.isFetchingNextPage,
+    hasNextPage: candidates.hasNextPage,
+    onLoadMore: candidates.listProps.onEndApproach,
+  });
 
   const toggle = (id: MediaGridKey): void => {
     if (isOwned) {
@@ -148,15 +152,14 @@ function OwnedAssetPicker({ existingAssetIds, failure, isOwned, onConfirm, onUpl
   const submit = (): void => void onConfirm([...selected]).then((stillOutstanding) => setSelected(new Set(stillOutstanding)));
 
   let body: ReactElement;
-  if (owned.isPending) {
+  if (candidates.isPending) {
     body = <SkeletonRows count={6} shape="line" />;
-  } else if (owned.isError) {
-    // "NOTHING LEFT TO ADD" IS A CLAIM ABOUT THE READER'S UPLOADS (#1500, the same class as the batch this
-    // dialog was filed under). A failed `assets.listOwned` emptied `candidates`, so the picker told a reader
-    // with a hundred images that every one of them was already in this gallery.
-    body = <QueryErrorState label="your images" onRetry={(): void => void owned.refetch()} />;
-  } else if (candidates.length === 0) {
-    // Every owned image is already in this gallery, so the next step is a new upload: the gallery dialog's zone.
+  } else if (candidates.error !== null && candidates.items.length === 0) {
+    // "NOTHING LEFT TO ADD" IS A CLAIM ABOUT THE READER'S UPLOADS: a failed read is its error state, never that.
+    body = <QueryErrorState label="your images" onRetry={candidates.refetch} />;
+  } else if (candidates.items.length === 0) {
+    // The server filters before the limit, so an empty first page is the whole answer. The next step is a new
+    // upload: the gallery dialog's zone.
     body = (
       <EmptyState
         icon={<Icon icon={Images} size="lg" />}
@@ -170,19 +173,37 @@ function OwnedAssetPicker({ existingAssetIds, failure, isOwned, onConfirm, onUpl
       />
     );
   } else {
-    body = <MediaGrid items={gridItems} ariaLabel="Your images" gapToken="row" selection={{ selectedIds: selected, onToggle: toggle }} className="max-h-96" />;
+    body = (
+      <MediaGrid
+        items={gridItems}
+        ariaLabel="Your images"
+        gapToken="row"
+        selection={{ selectedIds: selected, onToggle: toggle }}
+        className="max-h-64 @md:max-h-96"
+        ref={gridRef}
+      />
+    );
   }
 
   return (
     <Stack gap="block">
       {body}
+      <GalleryLoadMore
+        hasNextPage={candidates.hasNextPage}
+        isFetchingNextPage={candidates.isFetchingNextPage}
+        failed={candidates.error !== null && candidates.items.length > 0}
+        onLoadMore={focus.loadMore}
+      />
       {failure === null ? null : (
         <Text className="text-destructive" role="alert" voice="label">
           {failure}
         </Text>
       )}
-      <Row justify="between" align="center" gap="row">
-        <Text voice="gloss">{selected.size} selected</Text>
+      {/* The count never breaks inside itself; at a phone's width the buttons wrap below it instead. */}
+      <Row justify="between" align="center" gap="row" className="flex-wrap">
+        <Text voice="gloss" className="whitespace-nowrap">
+          {selected.size} selected
+        </Text>
         <Row gap="row">
           <DialogClose
             render={

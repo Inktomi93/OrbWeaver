@@ -8,8 +8,9 @@
 // ARIA shape + the highlight/hover skin. This file keeps only the slash DOMAIN: which commands match, their
 // availability, and the `/id usage` + describe formatting. A mouse click completes the offer directly.
 //
-// Unavailable commands are SHOWN, disabled, with the reason on hover — never omitted (the one-real-surface
-// rule): a user must be able to see that `/x` exists and learn what unlocks it. The keyboard highlight can
+// Unavailable commands are SHOWN, disabled, with the reason as the row's visible description — never omitted
+// (the one-real-surface rule): a user must be able to see that `/x` exists and learn what unlocks it, and a
+// touch reader never sees a hover title. The keyboard highlight can
 // still LAND on a disabled row (recognition parity), but activation is refused with the reason (the
 // composer's pick re-checks availability), matching the click path's disabled-affordance law.
 
@@ -52,7 +53,7 @@ export function ComposerSlashStrip({ matches, notice, unavailableFor, highlightI
     return {
       id: slashOptionId(command.id),
       label: offerLabel(command),
-      description: command.describe,
+      description: reason ?? command.describe,
       leading: command.icon === undefined ? undefined : <Icon icon={command.icon} size="sm" />,
       disabled: reason !== null,
       title: reason ?? undefined,

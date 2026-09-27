@@ -4,7 +4,16 @@
 
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ActivatableGrid, AnimatedDispatchGrid, BasicGrid, DerivedItemsGrid, MixedContentGrid, SelectableGrid, UnboundedGrid } from "./media-grid.fixtures.tsx";
+import {
+  ActivatableGrid,
+  AnimatedDispatchGrid,
+  BasicGrid,
+  DerivedItemsGrid,
+  HandleFocusGrid,
+  MixedContentGrid,
+  SelectableGrid,
+  UnboundedGrid,
+} from "./media-grid.fixtures.tsx";
 
 const ITEM_COUNT = 30;
 const MIN_CELL_WIDTH_PX = 100;
@@ -164,4 +173,26 @@ test("renders correctly when the parent passes a freshly-derived items array eac
   await expect(component.getByRole("gridcell", { name: "Alpha" })).toBeVisible();
   await expect(component.getByRole("gridcell", { name: "Bravo" })).toBeVisible();
   await expect(component.getByRole("gridcell", { name: "Charlie" })).toBeVisible();
+});
+
+// The imperative handle: a caller puts focus on a cell by id, even one virtualization has not mounted yet,
+// and the roving tab stop moves with it.
+test("focusItem scrolls a deep cell into view, focuses it, and makes it the tab stop", async ({ mount }) => {
+  const deep = 25;
+  const component = await mount(<HandleFocusGrid itemCount={ITEM_COUNT} targetIndex={deep} />);
+  await expect(component.getByRole("gridcell", { name: `Item ${String(deep)}` })).toHaveCount(0);
+
+  await component.getByRole("button", { name: "Focus the target" }).click();
+  const target = component.getByRole("gridcell", { name: `Item ${String(deep)}` });
+  await expect(target).toBeFocused();
+  await expect(target).toHaveAttribute("tabindex", "0");
+  await expect(component.getByTestId("found")).toHaveText("true");
+});
+
+test("focusItem answers false for an id no item has, and leaves focus alone", async ({ mount }) => {
+  const component = await mount(<HandleFocusGrid itemCount={NAV_ITEM_COUNT} targetIndex={0} />);
+  const missing = component.getByRole("button", { name: "Focus a missing item" });
+  await missing.click();
+  await expect(component.getByTestId("found")).toHaveText("false");
+  await expect(missing).toBeFocused();
 });

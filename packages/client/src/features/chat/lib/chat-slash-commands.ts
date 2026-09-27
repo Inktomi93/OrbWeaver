@@ -7,7 +7,7 @@
 
 import { LayoutGrid, Plus } from "@orb/ui/icons";
 import type { SlashCommandContribution } from "#lib";
-import { SlashGalleryMount } from "../components/slash-gallery-mount.tsx";
+import { NO_GALLERY_HERE, SlashGalleryMount } from "../components/slash-gallery-mount.tsx";
 import { SlashNewChatMount } from "../components/slash-new-chat-mount.tsx";
 
 /** `/new-chat` — opens the new-chat character picker (the palette's former hardcoded "New chat" row). */
@@ -28,7 +28,12 @@ const galleryCommand: SlashCommandContribution = {
   describe: "Open this chat's character gallery",
   keywords: ["gallery", "images", "pictures", "photos"],
   icon: LayoutGrid,
-  unavailableReason: (context) => (context.chatId === null ? "Open a chat to see its character's gallery." : null),
+  unavailableReason: (context) => {
+    if (context.chatId === null) {
+      return "Open a chat to see its character's gallery.";
+    }
+    return context.viewerGalleryCharacterId === null ? NO_GALLERY_HERE : null;
+  },
   mount: SlashGalleryMount,
 };
 

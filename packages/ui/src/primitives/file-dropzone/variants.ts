@@ -21,11 +21,14 @@ export const fileDropzoneVariants = tv({
       "data-loading:cursor-wait data-loading:opacity-70",
       "data-success:border-success",
     ],
-    input: "absolute inset-0 size-full cursor-pointer opacity-0 disabled:cursor-not-allowed",
+    input: "absolute inset-0 size-full cursor-pointer opacity-0 disabled:cursor-not-allowed aria-busy:cursor-wait",
     content: "pointer-events-none flex flex-col items-center gap-field",
     icon: "text-muted-foreground",
     instructions: "text-body leading-body text-foreground",
     hint: "text-label leading-label text-muted-foreground",
-    error: "flex items-center gap-field text-label leading-label text-destructive",
+    // `max-w-full` + `wrap-anywhere`: a refusal names the file, and a camera-roll name has no break opportunity.
+    error: "flex max-w-full items-center gap-field text-label leading-label text-destructive",
+    errorIcon: "shrink-0",
+    errorText: "min-w-0 wrap-anywhere",
   },
 });

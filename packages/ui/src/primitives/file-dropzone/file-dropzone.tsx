@@ -2,7 +2,7 @@ import { Field as BaseField } from "@base-ui/react/field";
 // The ONE byte-size formatter (kit) — this primitive spelled its own until databank's row subtitle and
 // the per-chat rack made it a third consumer.
 import { formatBytes } from "@orb/kit/strings";
-import type { ChangeEvent, ComponentPropsWithRef, DragEvent, ReactElement } from "react";
+import type { ChangeEvent, ComponentPropsWithRef, DragEvent, MouseEvent, ReactElement } from "react";
 import { useId, useState } from "react";
 import { useFieldLabelled } from "#primitives/field";
 import { AlertTriangle, Check, Icon, Upload } from "#primitives/icons";
@@ -32,10 +32,17 @@ export interface FileDropzoneProps extends Omit<ComponentPropsWithRef<"input">, 
   accept?: string;
   multiple?: boolean;
   disabled?: boolean;
-  /** Busy state: swaps the Upload glyph for a `<WebSpinner>` and inerts the input. Caller-driven, same shape as `Button.loading`. */
+  /**
+   * Busy state: swaps the Upload glyph for a `<WebSpinner>` and inerts the input. Caller-driven, same shape as
+   * `Button.loading`. The input stays focusable (`aria-disabled` + `aria-busy`, activation cancelled), because a
+   * native `disabled` drops a keyboard user's focus out of the surrounding dialog for the whole upload.
+   */
   loading?: boolean;
   /** Momentary success flash: a checkmark glyph + the success border token. Caller clears it — this primitive holds no timer. */
   success?: boolean;
+  /** The consumer's own refusal (a server refusal, a failed follow-up step), shown on this primitive's error
+   *  line after its own type and size refusals, so a zone says every refusal in one place and one style. */
+  error?: string | undefined;
   /** Client-side pre-check ceiling in bytes, injected by the consumer. Omit to skip the pre-check. */
   maxSizeBytes?: number;
   /** Fires with every processed batch, from either the native picker or a drop. */
@@ -69,15 +76,17 @@ function typeRejectionMessage(wrongType: FileDropzoneRejection[]): string | unde
   return wrongType.length === 1 ? `${first.file.name} isn't an accepted file type` : `${wrongType.length} files aren't an accepted file type`;
 }
 
-/** One announced line per batch — both refusal reasons, so a mixed batch reports each rather than the louder one. */
-function rejectionMessage(rejected: FileDropzoneRejection[], maxSizeBytes: number | undefined): string | undefined {
+/** One announced line per batch — both refusal reasons, so a mixed batch reports each rather than the louder
+ *  one — followed by the consumer's own refusal, if any. */
+function rejectionMessage(rejected: FileDropzoneRejection[], maxSizeBytes: number | undefined, consumerError: string | undefined): string | undefined {
   const parts = [
     typeRejectionMessage(rejected.filter((entry) => entry.reason === "type")),
     sizeRejectionMessage(
       rejected.filter((entry) => entry.reason === "size"),
       maxSizeBytes,
     ),
-  ].filter((part): part is string => part !== undefined);
+    consumerError,
+  ].filter((part): part is string => part !== undefined && part.length > 0);
   return parts.length === 0 ? undefined : parts.join(" · ");
 }
 
@@ -179,6 +188,7 @@ export function FileDropzone({
   loading = false,
   success = false,
   maxSizeBytes,
+  error,
   onFilesSelected,
   instructions = "Drag and drop, or click to browse",
   hint,
@@ -227,6 +237,13 @@ export function FileDropzone({
     onFilesSelected?.({ accepted: multiple ? accepted : accepted.slice(0, 1), rejected: rejectedNow });
   };
 
+  // A busy input keeps its focus but opens no file dialog: the click (which Enter and Space also fire) is cancelled.
+  const handleClick = (event: MouseEvent<HTMLInputElement>): void => {
+    if (loading) {
+      event.preventDefault();
+    }
+  };
+
   const handleChange = (event: ChangeEvent<HTMLInputElement>): void => {
     processFiles(Array.from(event.target.files ?? []));
     // Reset so re-picking the SAME file still fires a change event (the FolderPicker call).
@@ -260,7 +277,7 @@ export function FileDropzone({
 
   const nameProps = nameAttributes({ ariaLabel, ariaLabelledBy, fieldLabelled, instructions, instructionsId });
 
-  const errorMessage = rejectionMessage(rejected, maxSizeBytes);
+  const errorMessage = rejectionMessage(rejected, maxSizeBytes, error);
 
   // This div is decorative drag-highlight chrome, not the interactive control — the real control
   // is the covering <input type="file">.
@@ -284,11 +301,14 @@ export function FileDropzone({
           <input
             accept={accept}
             {...nameProps}
+            aria-busy={loading ? true : undefined}
+            aria-disabled={loading ? true : undefined}
             className={slots.input()}
             data-slot="file-dropzone-input"
-            disabled={inert}
+            disabled={disabled}
             multiple={multiple}
             onChange={handleChange}
+            onClick={handleClick}
             type="file"
             {...rest}
           />
@@ -303,8 +323,8 @@ export function FileDropzone({
       </div>
       {errorMessage === undefined ? null : (
         <p className={slots.error()} data-slot="file-dropzone-error" role="alert">
-          <Icon icon={AlertTriangle} label="Error" size="xs" />
-          {errorMessage}
+          <Icon className={slots.errorIcon()} icon={AlertTriangle} label="Error" size="xs" />
+          <span className={slots.errorText()}>{errorMessage}</span>
         </p>
       )}
     </div>

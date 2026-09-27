@@ -4,6 +4,7 @@
 // backgrounds share the PNG magic; the sniff is container-blind to the acTL animation chunk).
 
 import { describe } from "vitest";
+import { AssetContentRejectedError } from "../../../../../packages/server/src/domain/assets/contract/errors.ts";
 import { assertMagicMatches } from "../../../../../packages/server/src/domain/assets/substrate/mime.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
@@ -113,5 +114,25 @@ describe("assertMagicMatches — video family (BG-V background layer)", () => {
 
   test("an unaccepted video mime (e.g. quicktime) throws rather than passing unchecked", () => {
     expect(() => assertMagicMatches(MP4, "video/quicktime")).toThrow("cannot enforce magic for unsupported video mime");
+  });
+});
+
+// The upload route answers this class with a 4xx and shows `reason` to the person.
+describe("assertMagicMatches — the refusal is typed and carries a person-facing reason", () => {
+  const textBytes = new TextEncoder().encode("not a png at all");
+
+  test("a spoofed image (text bytes claiming image/png) throws AssetContentRejectedError with its reason", () => {
+    expect(() => assertMagicMatches(textBytes, "image/png")).toThrow(AssetContentRejectedError);
+    expect(() => assertMagicMatches(textBytes, "image/png")).toThrow(
+      expect.objectContaining({ reason: "its contents are not a PNG, JPEG, GIF or WebP image" }),
+    );
+  });
+
+  test("a claim that disagrees with the sniffed image type is refused with the typed error", () => {
+    expect(() => assertMagicMatches(GIF89, "image/png")).toThrow(expect.objectContaining({ reason: "its contents are a GIF image, not the PNG it claims" }));
+  });
+
+  test("an executable mime is refused with the typed error", () => {
+    expect(() => assertMagicMatches(new TextEncoder().encode("<svg/>"), "image/svg+xml")).toThrow(AssetContentRejectedError);
   });
 });
