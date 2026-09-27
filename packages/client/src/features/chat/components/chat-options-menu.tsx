@@ -179,7 +179,7 @@ export function ChatOptionsMenu({ chatId, title, characters, galleryCharacters }
   const { startChat } = useStartChat();
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameValue, setRenameValue] = useState("");
-  // The gallery dialog is the app root's (`CharacterGalleryHost`); this menu only names which one to open.
+  // The gallery dialog is the app root's (`CharacterGalleryAnchor`); this menu only names which one to open.
   const openGallery = (character: ChatOptionsCharacter): void => openCharacterGallery(character.characterId, { characterName: character.name, chatId });
 
   const characterIds = characters.map((c) => c.characterId);

@@ -95,6 +95,7 @@ export const storedAssetSchema = z.object({
 /** The body of a refused `POST /api/assets/upload` (415 wrong contents, 413 over the cap): the reason the
  *  person can act on, worded to follow "Couldn't upload <file>:". */
 export const assetUploadRefusalSchema = z.object({ error: z.string().min(1) });
+export type AssetUploadRefusal = z.infer<typeof assetUploadRefusalSchema>;
 
 /** A `gallery_item_…` TypeID — the gallery v2 curation row id. */
 export const galleryItemIdSchema = typeIdSchema(ID_PREFIX.galleryItem) satisfies z.ZodType<GalleryItemId>;

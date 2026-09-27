@@ -6,7 +6,7 @@ import type { ReactElement } from "react";
 import { closeCharacterGallery, useCharacterGalleryTarget } from "#state";
 import { CharacterGalleryDialog } from "./character-gallery-dialog.tsx";
 
-export function CharacterGalleryHost(): ReactElement | null {
+export function CharacterGalleryAnchor(): ReactElement | null {
   const target = useCharacterGalleryTarget();
   if (target === undefined) {
     return null;

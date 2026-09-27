@@ -12,7 +12,7 @@ import { automationActivityTab, automationQuickReplySource, automationSuggestion
 import { characterSlashCommands } from "@orb/client/features/character";
 import type { GoToSection } from "@orb/client/features/chat";
 import {
-  CharacterGalleryHost,
+  CharacterGalleryAnchor,
   ChatLandingSurface,
   ChatListAnchor,
   ChatListSurface,
@@ -2938,7 +2938,7 @@ export function CharacterGalleryDialogStory({ characterName = "Aria" }: { readon
 
 /** The app root's gallery host with two openers: one from inside a chat (`CHAT_ID`), one from outside any
  *  chat. The host shows whatever the store names, so the buttons stand in for every door. */
-export function CharacterGalleryHostStory(): ReactElement {
+export function CharacterGalleryAnchorStory(): ReactElement {
   const characterId = castId<CharacterId>("character_ct_gallery");
   return (
     <CtDataProviders>
@@ -2952,7 +2952,7 @@ export function CharacterGalleryHostStory(): ReactElement {
       >
         in chat
       </button>
-      <CharacterGalleryHost />
+      <CharacterGalleryAnchor />
     </CtDataProviders>
   );
 }

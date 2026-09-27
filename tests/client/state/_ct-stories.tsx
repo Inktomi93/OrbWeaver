@@ -45,6 +45,7 @@ import {
   clearRoomInvite,
   clearSectionSaveStatus,
   clearWorldEntrySelection,
+  closeCharacterGallery,
   closeConfigGroup,
   closeModal,
   collapseListPanel,
@@ -61,6 +62,7 @@ import {
   isCommitted,
   onGameModeStarted,
   onGameModeStopped,
+  openCharacterGallery,
   openConfigGroup,
   openConfigTo,
   openImageDetail,
@@ -141,6 +143,7 @@ import {
   useAppearanceBootHint,
   useBlockedSaveSections,
   useCharacterBulkMode,
+  useCharacterGalleryTarget,
   useCharacterSearch,
   useCharacterSortMode,
   useCharacterViewMode,
@@ -1220,6 +1223,28 @@ function SettingsSectionRegistryReader({ isAdmin }: { readonly isAdmin: boolean 
       {sections.map((section) => (
         <Fragment key={section.id}>{section.node}</Fragment>
       ))}
+    </div>
+  );
+}
+
+/** CharacterGalleryProbe drives the character-gallery intent store: any surface opens a gallery through
+ *  `openCharacterGallery`, and the app-root anchor reads `useCharacterGalleryTarget`. A CT because the read is
+ *  the reactive hook. The probe prints the target so the CT proves a room open keeps its chat, an open outside
+ *  a room names none, and close clears it. */
+export function CharacterGalleryProbe(): ReactElement {
+  const target = useCharacterGalleryTarget();
+  return (
+    <div>
+      <button type="button" onClick={(): void => openCharacterGallery(PROBE_CHARACTER, { characterName: "Aria", chatId: PROBE_SELECT_CHAT })}>
+        open in room
+      </button>
+      <button type="button" onClick={(): void => openCharacterGallery(PROBE_CHARACTER, { characterName: "Aria" })}>
+        open outside
+      </button>
+      <button type="button" onClick={(): void => closeCharacterGallery()}>
+        close
+      </button>
+      <output>{target === undefined ? "closed" : `${target.characterId} ${target.characterName} ${target.chatId ?? "no-chat"}`}</output>
     </div>
   );
 }

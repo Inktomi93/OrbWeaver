@@ -1,4 +1,4 @@
-// The per-character gallery modal, mounted once by `character-gallery-host.tsx`: the upload zone, then a
+// The per-character gallery modal, mounted once by `character-gallery-anchor.tsx`: the upload zone, then a
 // keyset-paged grid with "Load more", a lightbox whose remove sits behind a confirm, and the add-picker. The
 // "This chat" scope filters inside the caller's own gallery, never wider. Focus never leaves the dialog.
 

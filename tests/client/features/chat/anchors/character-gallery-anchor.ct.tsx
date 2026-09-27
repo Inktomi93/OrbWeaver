@@ -1,10 +1,10 @@
-// CT: the app root's gallery host (`anchors/character-gallery-host.tsx`). Any surface opens the gallery through
+// CT: the app root's gallery host (`anchors/character-gallery-anchor.tsx`). Any surface opens the gallery through
 // `openCharacterGallery`; the host shows that one dialog. From inside a chat the "This chat" scope is there;
 // from outside any chat it is absent and the read names no room. Closing clears the store, so it can reopen.
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
-import { CharacterGalleryHostStory } from "../_ct-stories.tsx";
+import { CharacterGalleryAnchorStory } from "../_ct-stories.tsx";
 import { GALLERY_CELL, ITEM } from "../_gallery-fixtures.ts";
 
 for (const viewport of [
@@ -14,7 +14,7 @@ for (const viewport of [
   test(`${viewport.name}: opened outside a chat, the gallery has no "This chat" scope and reads the whole gallery`, async ({ mount, page }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     const trpc = await routeTrpc(page, { "assets.listGallery": () => [ITEM] });
-    await mount(<CharacterGalleryHostStory />);
+    await mount(<CharacterGalleryAnchorStory />);
 
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await page.getByTestId("ct-open-gallery-outside").click();
@@ -37,7 +37,7 @@ for (const viewport of [
   test(`${viewport.name}: opened from a chat, the gallery offers "This chat" and reads that room`, async ({ mount, page }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     const trpc = await routeTrpc(page, { "assets.listGallery": () => [ITEM] });
-    await mount(<CharacterGalleryHostStory />);
+    await mount(<CharacterGalleryAnchorStory />);
 
     await page.getByTestId("ct-open-gallery-in-chat").click();
     const scope = page.getByRole("dialog", { name: "Aria's gallery" }).getByRole("radiogroup", { name: "Show images from" });

@@ -9,7 +9,7 @@
 //
 // The import route accepts already-extracted card files; a profile ZIP / dir collection is a later wave.
 
-import type { AssetKind, StoredAsset } from "@orb/contracts/assets";
+import type { AssetKind, AssetUploadRefusal, StoredAsset } from "@orb/contracts/assets";
 import { assetKindSchema } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
 import { ASSET_UPLOAD_MAX_BYTES, DATABANK_UPLOAD_MAX_BYTES, IMPORT_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
@@ -112,7 +112,7 @@ const TOO_LARGE_REASON = "it is over the upload size limit";
 
 /** The typed answer for a store refusal the person can act on; rethrows any other fault. */
 function uploadRefusal(
-  c: { readonly json: (body: { readonly error: string }, status: typeof UNSUPPORTED_MEDIA_TYPE | typeof PAYLOAD_TOO_LARGE) => Response },
+  c: { readonly json: (body: AssetUploadRefusal, status: typeof UNSUPPORTED_MEDIA_TYPE | typeof PAYLOAD_TOO_LARGE) => Response },
   err: unknown,
 ): Response {
   if (err instanceof AssetContentRejectedError) {

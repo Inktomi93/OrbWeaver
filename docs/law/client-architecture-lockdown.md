@@ -429,7 +429,7 @@ state, not a page; a `home` section also exists (a rail entry and the persisted 
 assembled at the door, D121/D211), but a route that hand-assembles other features is still forbidden. `app-root.tsx` reads the section registry and
 stays trivial. What legitimately stays on it: the `useUserBus` mount (mounted at the root so no feature
 unmount can drop it), `AriaAnnouncer`, the `?join=` token capture plus `JoinInviteDialog`,
-`FirstRunPersonaDialog`, and `CharacterGalleryHost` (the one gallery dialog every surface opens through `openCharacterGallery`). G1's anti-god-map case: a `sections={{…}}`/`modals={{…}}` object-literal map in a
+`FirstRunPersonaDialog`, and `CharacterGalleryAnchor` (the one gallery dialog every surface opens through `openCharacterGallery`). G1's anti-god-map case: a `sections={{…}}`/`modals={{…}}` object-literal map in a
 route file, or a feature front-door import in `routes/**` other than the two sanctioned composition seams
 (`router.tsx` → `features/auth`, and `app-root.tsx`), is RED.
 

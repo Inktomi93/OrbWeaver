@@ -22,7 +22,7 @@ import {
   useUserBus,
 } from "#data";
 import { AppShell } from "#features/app-shell";
-import { CharacterGalleryHost, JoinInviteDialog } from "#features/chat";
+import { CharacterGalleryAnchor, JoinInviteDialog } from "#features/chat";
 import { FirstRunPersonaDialog, useViewerCanSpeak } from "#features/persona";
 import { announceStatus, useActiveChatId, useActiveSection, useSelectedCharacterId, useStatusAnnouncement } from "#state";
 import { AppRootSessionBoundary } from "./app-root-session-boundary/index.ts";
@@ -136,7 +136,7 @@ function HydratedAppRoot({ multiHumanCapable, joinToken, setJoinToken }: Hydrate
           persona to be seated as. */}
       {multiHumanCapable && joinToken !== null && canSpeak ? <JoinInviteDialog token={joinToken} onDone={(): void => setJoinToken(null)} /> : null}
       {/* The character gallery, opened from any surface through `openCharacterGallery`; renders nothing when closed. */}
-      <CharacterGalleryHost />
+      <CharacterGalleryAnchor />
     </>
   );
 }

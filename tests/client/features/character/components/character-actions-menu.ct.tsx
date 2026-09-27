@@ -170,7 +170,7 @@ test("the archive verb wears its second face on an already-archived character", 
 });
 
 // ── "Open gallery" (item 0236 gap 3): the character panel opens the character's gallery outside any chat, so
-// the target names no room and the host shows no "This chat" scope (pinned in `character-gallery-host.ct.tsx`).
+// the target names no room and the host shows no "This chat" scope (pinned in `character-gallery-anchor.ct.tsx`).
 for (const viewport of [
   { name: "mobile", width: 360, height: 780 },
   { name: "desktop", width: 1440, height: 900 },
