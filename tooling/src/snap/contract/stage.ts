@@ -12,6 +12,7 @@
 // derived value is a second home that drifts. Ports ARE stored because they are the band's identity as the
 // row was written — a row whose ports disagree with `stageBandPorts(row.band)` is evidence of a registry
 // edit, not something to silently paper over.
+import type { ListeningPortsRead } from "../../_shared/platform.ts";
 import type { ServedState } from "../../stack/index.ts";
 
 export interface StagePorts {
@@ -22,6 +23,16 @@ export interface StagePorts {
 /** What a stage stop can claim: both ports released or held only by the stage groups it killed, or a stop it
  *  could not confirm and must not report as done. */
 export type StageStopVerdict = { readonly kind: "stopped" } | { readonly kind: "unconfirmed"; readonly reason: string };
+
+/** What a stage stop reads and does to the box, injected so a test drives a survivor without real processes or
+ *  real time. `groupOf` names the target a signal goes to (a pgid, or the pid on win32); `wait` blocks. */
+export interface StageStopDeps {
+  readonly readPorts: () => ListeningPortsRead;
+  readonly isStageRooted: (pid: number) => boolean;
+  readonly groupOf: (pid: number) => number | null;
+  readonly signalGroup: (target: number, signal: NodeJS.Signals) => void;
+  readonly wait: (ms: number) => void;
+}
 
 /** How a staged tree is booted and stopped: its own stack cli under node, or an older ref's shell launcher. */
 const STAGE_LAUNCHER_KINDS = ["cli", "shell"] as const;

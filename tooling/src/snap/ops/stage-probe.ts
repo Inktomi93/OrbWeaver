@@ -110,11 +110,17 @@ export function pidElapsedSeconds(pid: number): number | null {
   return processAgeSeconds(pid);
 }
 
+/** Where a signal for `pid`'s whole tree goes: its process group, or the pid itself on win32 (whose
+ *  `taskkill /T` takes the tree). Null when the pid is gone. */
+export function processGroupTarget(pid: number): number | null {
+  return process.platform === "win32" ? pid : processGroupId(pid);
+}
+
 /** Kill a pid's whole PROCESS GROUP — a stage leader is the stack cli with node and vite children, and
  *  killing the leader alone leaves exactly the orphans #324 is about. Returns whether a group was named.
  *  win32 has no group: the pid's tree is terminated instead. */
 export function killProcessGroup(pid: number): boolean {
-  const target = process.platform === "win32" ? pid : processGroupId(pid);
+  const target = processGroupTarget(pid);
   if (target === null) {
     return false;
   }

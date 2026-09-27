@@ -2,26 +2,20 @@
 // or on a recorded child still being this checkout's; a port holder is stopped only when its command line
 // names this checkout. Anything else is refused by pid, never guessed at.
 import process from "node:process";
-import { setTimeout as sleep } from "node:timers/promises";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ExitCode } from "../../_shared/exit-contract.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
-import { budget } from "../../_shared/load-budget.ts";
 import type { ListeningPortsRead } from "../../_shared/platform.ts";
 import { listeningPids, processGroupId, processInfo } from "../../_shared/platform.ts";
 import { killPidGroup } from "../../_shared/proc.ts";
+import { escalateStop, settle, TERM_GRACE_BASE_MS } from "../../_shared/stop-escalation.ts";
 import type { HolderUnknown, LeaderProbes, LeaderRecord, LeaderState, StackContext } from "../contract/types.ts";
 import { leaderVerdict, readLeaderRecord, recordAuthorizesSignal, removeLeaderRecord } from "../lib/leader-record.ts";
 import { pidIsAlive } from "../lib/spawn-lock.ts";
 import { cmdlineNamesCheckout } from "../lib/stack-plan.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm stack down");
-
-const SETTLE_POLL_MS = 500;
-/** Quiet-box grace for a TERM before KILL; a server's own drain is ten seconds. */
-const TERM_GRACE_BASE_MS = 15_000;
-const KILL_GRACE_BASE_MS = 10_000;
 
 export function log(message: string): void {
   print(`stack: ${message}`);
@@ -92,18 +86,6 @@ export function readVerdict(ctx: StackContext): { readonly read: ReturnType<type
   return { read, state: leaderVerdict(read, probes(ctx)) };
 }
 
-/** Poll `done` up to `ceilingMs` of sleeps, counted in polls. */
-async function settle(done: () => boolean, ceilingMs: number): Promise<boolean> {
-  const polls = Math.ceil(ceilingMs / SETTLE_POLL_MS);
-  for (let poll = 0; poll < polls; poll += 1) {
-    if (done()) {
-      return true;
-    }
-    await sleep(SETTLE_POLL_MS);
-  }
-  return done();
-}
-
 function signalGroup(record: LeaderRecord, signal: NodeJS.Signals): void {
   if (record.pgid !== null && process.platform !== "win32") {
     killPidGroup(record.pgid, signal);
@@ -117,13 +99,11 @@ function signalGroup(record: LeaderRecord, signal: NodeJS.Signals): void {
 
 /** TERM the recorded group, wait, escalate to KILL, wait again. True when the group is empty. */
 async function stopRecordedGroup(record: LeaderRecord): Promise<boolean> {
-  signalGroup(record, "SIGTERM");
-  if (await settle(() => !groupHasMembers(record), budget(TERM_GRACE_BASE_MS))) {
-    return true;
-  }
-  log(`group ${groupName(record)} ignored TERM; escalating to KILL`);
-  signalGroup(record, "SIGKILL");
-  return await settle(() => !groupHasMembers(record), budget(KILL_GRACE_BASE_MS));
+  return await escalateStop({
+    signal: (signal) => signalGroup(record, signal),
+    gone: () => !groupHasMembers(record),
+    onEscalate: () => log(`group ${groupName(record)} ignored TERM; escalating to KILL`),
+  });
 }
 
 export function groupName(record: LeaderRecord): string {
@@ -198,24 +178,18 @@ function portWatch(port: number, deps: DevPortDeps): { readonly free: () => bool
   };
 }
 
-async function awaitFree(watch: ReturnType<typeof portWatch>, ceilingMs: number): Promise<PortWait> {
-  const settled = await settle(watch.free, ceilingMs);
+/** How a wait on a port ended: a table that stopped answering outranks the wait's own result. */
+function waitOutcome(watch: ReturnType<typeof portWatch>, freed: boolean): PortWait {
   const reason = watch.lost();
   if (reason !== null) {
     return { kind: "unreadable", reason };
   }
-  return settled ? { kind: "free" } : { kind: "held" };
+  return freed ? { kind: "free" } : { kind: "held" };
 }
 
 /** TERM a holder this checkout owns, wait, escalate to KILL, wait again. */
 async function stopHolder(pid: number, watch: ReturnType<typeof portWatch>): Promise<PortWait> {
-  signalHolder(pid, "SIGTERM");
-  const termed = await awaitFree(watch, budget(TERM_GRACE_BASE_MS));
-  if (termed.kind !== "held") {
-    return termed;
-  }
-  signalHolder(pid, "SIGKILL");
-  return await awaitFree(watch, budget(KILL_GRACE_BASE_MS));
+  return waitOutcome(watch, await escalateStop({ signal: (signal) => signalHolder(pid, signal), gone: watch.free }));
 }
 
 function outcomeOf(wait: PortWait, holder: PortHolder): PortOutcome {
@@ -245,7 +219,7 @@ async function sweepPort(ctx: StackContext, port: number, deps: DevPortDeps): Pr
   // an exiting process keeps its pid and its socket row for a moment, not its argv): wait for the port
   // instead of judging a process that can no longer be identified.
   if (info === null || info.cmdline === "") {
-    return outcomeOf(await awaitFree(watch, budget(TERM_GRACE_BASE_MS)), { port, pid, cmdline: null });
+    return outcomeOf(waitOutcome(watch, await settle(watch.free, TERM_GRACE_BASE_MS)), { port, pid, cmdline: null });
   }
   const holder = { port, pid, cmdline: info.cmdline };
   if (!cmdlineNamesCheckout(info.cmdline, ctx.repoRoot)) {

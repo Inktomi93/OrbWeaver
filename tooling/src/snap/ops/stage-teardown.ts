@@ -28,23 +28,70 @@ import process from "node:process";
 import { activeRunSlot } from "../../_shared/artifact-out.ts";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import type { ListeningPortsRead } from "../../_shared/platform.ts";
 import { listeningPids } from "../../_shared/platform.ts";
-import { runNicedSync } from "../../_shared/proc.ts";
-import type { StagePorts, StageReapArm, StageRow, StageStopVerdict } from "../contract/stage.ts";
+import { killPidGroup, runNicedSync } from "../../_shared/proc.ts";
+import { escalateStopSync } from "../../_shared/stop-escalation.ts";
+import type { StagePorts, StageReapArm, StageRow, StageStopDeps, StageStopVerdict } from "../contract/stage.ts";
 import { missingLauncherRefusal, stageLauncher, stageLauncherSpawn } from "../lib/stage-plan.ts";
 import { takeBootDeadStage } from "../lib/stage-run-binding.ts";
 import { sweepStrandedBrowsers } from "./browser-sweep.ts";
-import { clearRow } from "./stage-marker.ts";
-import { killProcessGroup, pidIsStageRooted } from "./stage-probe.ts";
+import { clearRow, waitSync } from "./stage-marker.ts";
+import { pidIsStageRooted, processGroupTarget } from "./stage-probe.ts";
 import { recordStageReap } from "./stage-reap-log.ts";
 import { removeStageDir } from "./stage-source.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --stage-down");
 
-/** Stop a stage's stack, and MEAN IT — the two beats of the module header. `stopped` only when the socket table
- *  was read after the launcher stop and each port is free or was held by a stage group this killed. */
-export function stopStage(dir: string, ports: StagePorts, readPorts: () => ListeningPortsRead = () => listeningPids()): StageStopVerdict {
+const REAL_STOP_DEPS: StageStopDeps = {
+  readPorts: () => listeningPids(),
+  isStageRooted: pidIsStageRooted,
+  groupOf: processGroupTarget,
+  signalGroup: killPidGroup,
+  wait: waitSync,
+};
+
+/** Why `port` could not be shown released, or null once a read shows it free. A stage group still holding it is
+ *  stopped through the shared TERM-then-KILL escalation, polling the table; a signal alone proves nothing. */
+function releasePort(port: number, deps: StageStopDeps): string | null {
+  const bound = deps.readPorts();
+  if (bound.kind === "refused") {
+    return `cannot confirm :${port} was released after the launcher stop — ${bound.reason}`;
+  }
+  const owner = bound.value.get(port);
+  if (owner === undefined) {
+    return null;
+  }
+  if (owner.kind === "unknown") {
+    return `:${port} is still held by an owner the OS will not name`;
+  }
+  const target = deps.isStageRooted(owner.pid) ? deps.groupOf(owner.pid) : null;
+  if (target === null) {
+    return `:${port} is still held by pid ${owner.pid}, not a stage group this could kill`;
+  }
+  // A table that stops answering ends the wait; its reason outranks the wait's own result.
+  const lost: string[] = [];
+  const free = (): boolean => {
+    const read = deps.readPorts();
+    if (read.kind === "refused") {
+      lost.push(read.reason);
+      return true;
+    }
+    return !read.value.has(port);
+  };
+  const freed = escalateStopSync({ signal: (signal) => deps.signalGroup(target, signal), gone: free }, deps.wait);
+  if (lost.length > 0) {
+    return `cannot confirm :${port} was released after stopping pid ${owner.pid} — ${lost.join("; ")}`;
+  }
+  if (!freed) {
+    return `:${port} is still held by pid ${owner.pid} after TERM and KILL to its group`;
+  }
+  print(`[snap-stage] stopped the process group that held :${port} (pid ${owner.pid}) after the launcher stop`);
+  return null;
+}
+
+/** Stop a stage's stack, and MEAN IT — the two beats of the module header. `stopped` only when a read taken after
+ *  every stop shows both band ports free; a signal sent, a group named or a launcher run is not that proof. */
+export function stopStage(dir: string, ports: StagePorts, deps: StageStopDeps = REAL_STOP_DEPS): StageStopVerdict {
   const launcher = existsSync(dir) ? stageLauncher(dir, existsSync) : null;
   if (launcher !== null) {
     const spawn = stageLauncherSpawn(launcher, "down", process.execPath);
@@ -52,25 +99,17 @@ export function stopStage(dir: string, ports: StagePorts, readPorts: () => Liste
   } else if (existsSync(dir)) {
     print(`[snap-stage] no launcher to stop ${dir} with — falling back to the band's process group. ${missingLauncherRefusal(dir)}`);
   }
-  const bound = readPorts();
-  if (bound.kind === "refused") {
-    return unconfirmedStop(`cannot confirm :${ports.server} and :${ports.vite} were released after the launcher stop — ${bound.reason}`);
+  // Each port reads the table fresh: stopping the server's group usually takes the vite half with it.
+  const survivors = [ports.server, ports.vite].map((port) => releasePort(port, deps)).filter((reason): reason is string => reason !== null);
+  if (survivors.length > 0) {
+    return unconfirmedStop(`${survivors.join("; ")} after the launcher stop`);
   }
-  const survivors: string[] = [];
-  for (const port of [ports.server, ports.vite]) {
-    const owner = bound.value.get(port);
-    if (owner === undefined) {
-      continue;
-    }
-    if (owner.kind === "pid" && pidIsStageRooted(owner.pid) && killProcessGroup(owner.pid)) {
-      print(`[snap-stage] killed the process group still holding :${port} (pid ${owner.pid}) after the launcher stop`);
-      continue;
-    }
-    survivors.push(
-      `:${port} is still held by ${owner.kind === "pid" ? `pid ${owner.pid}, not a stage group this could kill` : "an owner the OS will not name"}`,
-    );
+  const after = deps.readPorts();
+  if (after.kind === "refused") {
+    return unconfirmedStop(`cannot confirm :${ports.server} and :${ports.vite} stayed released — ${after.reason}`);
   }
-  return survivors.length === 0 ? { kind: "stopped" } : unconfirmedStop(`${survivors.join("; ")} after the launcher stop`);
+  const rebound = [ports.server, ports.vite].filter((port) => after.value.has(port));
+  return rebound.length === 0 ? { kind: "stopped" } : unconfirmedStop(`${rebound.map((port) => `:${port}`).join(" and ")} bound again after the stop`);
 }
 
 function unconfirmedStop(reason: string): StageStopVerdict {
