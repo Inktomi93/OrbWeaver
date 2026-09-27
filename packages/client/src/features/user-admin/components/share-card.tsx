@@ -309,7 +309,7 @@ function UpPanel({ url, changed, plainHttp, linkCopyRef, onDismissChange }: UpPa
           sign-up link creates runs AI turns at your cost until the room's host kicks it or an admin disables it.
         </ShareWarningText>
         {plainHttp ? (
-          <ShareWarningText>
+          <ShareWarningText data-share-warning="plain-http">
             This page is on plain http, so a password typed at this address crosses your network in clear. Friends on the link use https.
           </ShareWarningText>
         ) : null}

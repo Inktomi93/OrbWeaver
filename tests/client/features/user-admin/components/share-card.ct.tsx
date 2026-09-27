@@ -1,12 +1,14 @@
 // CT: the owner's Share card, mounted inside the real Multi-user section. It proves the precondition rows and their
 // fixes, the link and its copy button on `up`, the "link changed" notice, where focus lands after each action that
-// unmounts its own control, the refusal announcement, and that nothing above the card moves as the relay changes.
+// unmounts its own control, the refusal announcement, that nothing above the card moves as the relay changes, and
+// that the plain-http warning shows exactly when a password on this page crosses a network in clear.
 // Assertions ride roles, focus, geometry and the card's data attributes; no copy is asserted.
 
 import type { AuthMode, ShareStatus } from "@orb/contracts/identity";
 import { copyActionName } from "@orb/ui/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
+import type { AuthConfig } from "../../../../../packages/client/src/data/auth-config.ts";
 import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { GovernanceSectionsStory } from "../_ct-stories.tsx";
@@ -66,6 +68,8 @@ interface ShareStub {
   /** The refusal a `null` start answers with. Defaults to a failed relay download. */
   readonly refusal?: { readonly reason: string; readonly message: string };
   readonly users?: readonly ListedUser[];
+  /** How the owner's own request reached the server. Defaults to plain http from a private network. */
+  readonly reach?: Pick<AuthConfig, "transport" | "clientScope">;
 }
 
 interface ShareServer {
@@ -77,7 +81,7 @@ interface ShareServer {
 // The server's relay is one mutable status: start and stop move it, the test moves it between polls, and every poll
 // reads it. The settings write lands in the settings read, as the real server's does.
 async function stubShare(page: Page, stub: ShareStub): Promise<ShareServer> {
-  await stubAuthConfig(page, stub.mode);
+  await stubAuthConfig(page, stub.mode, stub.reach);
   let current = stub.initial;
   let resolved = stub.resolved ?? SEATING_ON;
   const starts = [...(stub.starts ?? [])];
@@ -297,6 +301,30 @@ test("the running card orders the link, its warning, the room picker, then the n
     })
     .toBe(true);
 });
+
+// The owner's own page is on plain http. From another machine, private or public, the owner's password crosses a
+// network in clear; from this machine it crosses none, and over https it is encrypted.
+const PLAIN_HTTP_CASES: readonly { readonly reach: Pick<AuthConfig, "transport" | "clientScope">; readonly warns: boolean }[] = [
+  { reach: { transport: "http", clientScope: "private" }, warns: true },
+  { reach: { transport: "http", clientScope: "public" }, warns: true },
+  { reach: { transport: "http", clientScope: "loopback" }, warns: false },
+  { reach: { transport: "https", clientScope: "public" }, warns: false },
+];
+
+for (const { reach, warns } of PLAIN_HTTP_CASES) {
+  test(`${reach.transport} from a ${reach.clientScope} client ${warns ? "warns" : "does not warn"} that a password crosses the network in clear`, async ({
+    mount,
+    page,
+  }) => {
+    await stubShare(page, { mode: "local", initial: UP_FIRST, reach });
+    await mount(<GovernanceSectionsStory />);
+
+    const card = shareCard(page);
+    // The running panel is up in every case, so a missing warning is the predicate's answer, not an unmounted panel.
+    await expect(card.locator('[data-share-warning="public-link"]')).toBeVisible();
+    await expect(card.locator('[data-share-warning="plain-http"]')).toHaveCount(warns ? 1 : 0);
+  });
+}
 
 // Rows read as separate items: the space between two rows is wider than the space inside one.
 test("before a share, the gap between precondition rows is wider than the gap inside a row", async ({ mount, page }) => {
