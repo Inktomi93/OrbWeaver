@@ -129,6 +129,11 @@ test("a dropped knob's NAME rides the carrier", async () => {
   expect(event).toMatchObject({ code: "settings_adjusted", adjustment: "sampling_knob_dropped", knob: "topK" });
 });
 
+test("a carry downgrade rides the carrier as its own class, naming the carry knob", async () => {
+  const [event] = await busEventsFor({ code: "carry_reasoning_downgraded", knob: "carryReasoning", message: "conversation ran as tool-chain" });
+  expect(event).toMatchObject({ adjustment: "carry_reasoning_downgraded", code: "settings_adjusted", knob: "carryReasoning" });
+});
+
 test("a clamp carries the VALUE the provider actually used — tokens", async () => {
   const [event] = await busEventsFor({ appliedBudget: 1536, code: "reasoning_budget_clamped", message: "clamped to 1536" });
   expect(event).toMatchObject({ adjustment: "reasoning_budget_clamped", appliedBudget: 1536, code: "settings_adjusted" });

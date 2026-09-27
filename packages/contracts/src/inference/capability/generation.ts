@@ -129,6 +129,10 @@ export const reasoningCapabilitySchema = z.object({
   /** Replayed thinking is bound to the conversation prefix: a block whose earlier system, tools or messages
    *  changed is refused unless the request asks the API to drop it (`drop_block`). */
   prefixBound: z.boolean().optional(),
+  /** A prefix edit before a carried thinking block cannot fail this route's turn: the wire asks the API to drop
+   *  the block (`drop_block`), or the route's runtime builds its own requests and carries none of ours. Absent ⇒
+   *  false, so a prefix-bound model on the route keeps its thinking inside one turn (`carryReasoning: tool-chain`). */
+  prefixEditSafe: z.boolean().optional(),
   supportsMaxTokens: z.boolean().optional(),
 });
 export type ReasoningCapability = z.infer<typeof reasoningCapabilitySchema>;

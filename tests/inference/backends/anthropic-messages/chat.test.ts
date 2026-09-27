@@ -523,6 +523,60 @@ test("carry `tool-chain` on a prefix-bound model also asks the API to drop a sta
   }
 });
 
+// Models released after 2026-10-01 run the prefix check on every account, and no curated row can name them yet. An
+// id no row measured fails closed: its carried turn asks the API to drop a stale block. Every measured older id,
+// which runs no prefix check, keeps the exact thinking field and beta header it sent before that row existed.
+const UNMEASURED_CLAUDE = ["claude-opus-5-6", "claude-sonnet-5-1", "claude-fable-5-2", "claude-mythos-5-2", "claude-opus-5-20261104"];
+
+async function bindingWireOf(model: string): Promise<{ readonly thinking: unknown; readonly beta: string | undefined }> {
+  const { body } = await recordedTurn(
+    turnRequest({ connection: curatedConnection(model), tools: undefined, params: { effort: "high", carryReasoning: "conversation" } }),
+    anthropicTextStream("ok"),
+  );
+  return { thinking: body?.body["thinking"], beta: body?.headers?.["anthropic-beta"] };
+}
+
+test("an unmeasured Claude id with the carry on asks the API to drop a stale thinking block, under its beta", async () => {
+  for (const model of UNMEASURED_CLAUDE) {
+    expect(await bindingWireOf(model), model).toStrictEqual({
+      thinking: { type: "adaptive", display: "summarized", block_binding: { prefix_mismatch_behavior: "drop_block" } },
+      beta: "thinking-binding-controls-2026-08-01",
+    });
+  }
+});
+
+const ADAPTIVE_SUMMARIZED = { type: "adaptive", display: "summarized" } as const;
+const ADAPTIVE_BARE = { type: "adaptive" } as const;
+const BUDGET = { type: "enabled", budget_tokens: 15_959 } as const;
+const DISABLED = { type: "disabled" } as const;
+
+/** Each measured older id's thinking field with the carry on, as the direct wire sent it before the fail-closed row. */
+const OLDER_CLAUDE_THINKING = {
+  "claude-opus-5": ADAPTIVE_SUMMARIZED,
+  "claude-sonnet-5": ADAPTIVE_SUMMARIZED,
+  "claude-fable-5": ADAPTIVE_SUMMARIZED,
+  "claude-mythos-5": ADAPTIVE_SUMMARIZED,
+  "claude-opus-4-8": ADAPTIVE_SUMMARIZED,
+  "claude-opus-4-7": ADAPTIVE_SUMMARIZED,
+  "claude-opus-4-6": ADAPTIVE_BARE,
+  "claude-sonnet-4-6": ADAPTIVE_BARE,
+  "claude-opus-4-5": BUDGET,
+  "claude-sonnet-4-5": BUDGET,
+  "claude-haiku-4-5": BUDGET,
+  "claude-opus-4-5-20251101": BUDGET,
+  "claude-sonnet-4-5-20250929": BUDGET,
+  "claude-haiku-4-5-20251001": BUDGET,
+  "claude-opus-4-1-20250805": DISABLED,
+  "claude-sonnet-4-20250514": DISABLED,
+  "claude-3-7-sonnet-20250219": DISABLED,
+} as const;
+
+test("every measured older Claude id keeps its wire with the carry on: no block_binding and no binding beta", async () => {
+  for (const [model, thinking] of Object.entries(OLDER_CLAUDE_THINKING)) {
+    expect(await bindingWireOf(model), model).toStrictEqual({ thinking, beta: undefined });
+  }
+});
+
 /** The same script with the API's `input_transformations` on its `message_delta`. */
 function withInputTransformations(stream: SseEvent[], transformations: readonly Record<string, string>[]): SseEvent[] {
   return stream.map((event) => (event.event === "message_delta" ? { ...event, data: { ...event.data, input_transformations: transformations } } : event));
