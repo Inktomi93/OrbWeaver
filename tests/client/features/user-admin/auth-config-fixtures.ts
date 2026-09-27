@@ -27,7 +27,8 @@ function authConfigFor(mode: AuthMode): AuthConfig {
   };
 }
 
-export async function stubAuthConfig(page: Page, mode: AuthMode): Promise<void> {
-  const body = JSON.stringify(authConfigFor(mode));
+/** `reach` is how the request reached the server; the default is plain http from a private network. */
+export async function stubAuthConfig(page: Page, mode: AuthMode, reach?: Pick<AuthConfig, "transport" | "clientScope">): Promise<void> {
+  const body = JSON.stringify({ ...authConfigFor(mode), ...reach });
   await page.route("**/api/auth/config", (route) => route.fulfill({ status: 200, contentType: "application/json", body }));
 }

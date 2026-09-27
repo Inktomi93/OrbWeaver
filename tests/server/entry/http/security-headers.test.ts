@@ -513,16 +513,24 @@ describe("securityHeaders", () => {
 });
 
 // A browser ignores COOP and Origin-Agent-Cluster on an origin it does not trust, and logs an error for each on every
-// page: plain http to a LAN address gets neither; a loopback origin, which a browser does trust, keeps both.
+// page: plain http to a LAN address gets neither; a loopback origin and an https origin behind a trusted proxy, which a
+// browser does trust, keep both.
 describe("the two isolation headers follow the origin's trust", () => {
   // A LAN browser's connection, as the node adapter hands it to the app.
   const LanPeer = { incoming: { socket: { remoteAddress: "192.168.1.30", remotePort: 50_000, remoteFamily: "IPv4" } } };
 
-  async function isolationHeaders(url: string): Promise<{ readonly coop: string | null; readonly oac: string | null }> {
+  // A public visitor reaching the app directly: not a hop whose forwarded headers are believed.
+  const PublicPeer = { incoming: { socket: { remoteAddress: "203.0.113.5", remotePort: 50_000, remoteFamily: "IPv4" } } };
+
+  async function isolationHeaders(
+    url: string,
+    init: RequestInit = {},
+    peer: typeof LanPeer = LanPeer,
+  ): Promise<{ readonly coop: string | null; readonly oac: string | null }> {
     const app = new Hono();
     app.use("*", securityHeaders({ dev: false, allowExternalMedia: () => false }));
     app.get("/", (c) => c.text("ok"));
-    const res = await app.request(url, {}, LanPeer);
+    const res = await app.request(url, init, peer);
     return { coop: res.headers.get("cross-origin-opener-policy"), oac: res.headers.get("origin-agent-cluster") };
   }
 
@@ -532,6 +540,17 @@ describe("the two isolation headers follow the origin's trust", () => {
 
   test.each(["http://localhost:8788/", "http://127.0.0.1:8788/", "http://[::1]:8788/"])("control: %s keeps both", async (url) => {
     expect(await isolationHeaders(url)).toEqual({ coop: "same-origin", oac: "?1" });
+  });
+
+  // The https origin is the one the gating must never cost: a TLS proxy speaks plain http to the app, so the
+  // trusted hop's `X-Forwarded-Proto` is the only sign of it, for a LAN name and a public name alike.
+  test.each(["http://nas.local/", "http://orb.example.com/"])("https via a trusted proxy to %s keeps both", async (url) => {
+    expect(await isolationHeaders(url, { headers: { "X-Forwarded-Proto": "https" } })).toEqual({ coop: "same-origin", oac: "?1" });
+  });
+
+  // The https check reads the same trust rule as the session cookie: a visitor's own claim of https is not believed.
+  test("a forged X-Forwarded-Proto from an untrusted public peer sends neither", async () => {
+    expect(await isolationHeaders("http://orb.example.com/", { headers: { "X-Forwarded-Proto": "https" } }, PublicPeer)).toEqual({ coop: null, oac: null });
   });
 
   test("the CSP and the frame ban go out on the untrusted origin too", async () => {
