@@ -394,7 +394,8 @@ describe("driveRound — narrator round (one turn for every character, group-cha
 describe("driveRound — a prefix-bound carry stamps each reply's cue and replays it", () => {
   const prefixBound = makeResolved({
     generation: {
-      reasoning: { mode: "adaptive", enabled: true, replay: "signed", prefixBound: true },
+      // The direct wire's cells: it sends `drop_block`, so the `conversation` carry runs there unclamped.
+      reasoning: { mode: "adaptive", enabled: true, replay: "signed", prefixBound: true, prefixEditSafe: true },
       turns: {
         assistantPrefill: false,
         midConversationSystem: true,

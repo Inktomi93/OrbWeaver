@@ -13,6 +13,13 @@ const SYSTEM_ROW_MODELS = "^(anthropic/)?claude[-/](opus-5([-.]5)?|fable-5([-.]1
  *  opus-4-8 return 200 and ignore the row's instruction, so their trailing system rows fold to user text. */
 const TAIL_SYSTEM_MODELS = "^(anthropic/)?claude[-/](opus-5([-.]5)?|fable-5([-.]1)?)$";
 
+/** The Claude generations released before preserved thinking became the rule for new models, which run no prefix
+ *  check: an exact generation, optionally a snapshot dated before 2026-10-01 and an OpenRouter `:variant`. Every
+ *  other Claude id is prefix-bound by the row that reads this, so a later release fails closed to `drop_block`.
+ *  Opus 5.5 and Fable 5.1 are absent: they run the check and state it on their own rows. */
+const UNCHECKED_GENERATIONS = "(instant|[123])([-.].*)?|opus-4([-.][015678])?|sonnet-4([-.][056])?|haiku-4[-.]5|(opus|sonnet|fable|mythos)-5";
+const UNCHECKED_MODELS = `(${UNCHECKED_GENERATIONS})(-20(1[0-9]|2[0-5])[0-9]{4}|-20260[0-9]{3})?(:[a-z-]+)?$`;
+
 export const anthropicRows = [
   {
     match: {
@@ -373,7 +380,26 @@ export const anthropicRows = [
     evidence: {
       tier: "curated",
       dated: "2026-09-22",
-      cite: 'live 2026-09-22 direct claude-fable-5-1: tool_choice any -> 400 "tool_choice: type tool and any are not supported for this model" (req_011CfKDSt2rkNRQpvSiYH8Ly); OpenRouter anthropic/claude-fable-5.1 tool_choice required -> upstream 400 (req_011CfKDWRATCcLYJ3wtdrpip); control claude-fable-5 tool_choice any -> 200 (req_011CfKDUqhmXPSzWjeFHjxyM). Mythos 5.1 per Anthropic docs (not available on this account); prefixBound = preserved thinking per the Claude API model-migration notes (drop_block accepted on fable-5-1: req_011CfKs7QaWYrtm7Zhq5SnGE)',
+      cite: 'live 2026-09-22 direct claude-fable-5-1: tool_choice any -> 400 "tool_choice: type tool and any are not supported for this model" (req_011CfKDSt2rkNRQpvSiYH8Ly); OpenRouter anthropic/claude-fable-5.1 tool_choice required -> upstream 400 (req_011CfKDWRATCcLYJ3wtdrpip); control claude-fable-5 tool_choice any -> 200 (req_011CfKDUqhmXPSzWjeFHjxyM). Mythos 5.1 per Anthropic docs (not available on this account); prefixBound = preserved thinking per the Claude API model-migration notes (drop_block accepted on fable-5-1: req_011CfKs7QaWYrtm7Zhq5SnGE). Open question for the owner: platform.claude.com/docs/en/build-with-claude/preserved-thinking (fetched 2026-09-27) says "Claude Mythos 5.1 and models before Claude Fable 5.1 don\'t run the prefix check", so prefixBound on mythos-5-1 is conservative, docs-derived, not live-probed',
+    },
+  },
+  // FAIL CLOSED for an unmeasured Claude id: every id outside UNCHECKED_GENERATIONS is prefix-bound. Without this
+  // row a later point release (opus-5-6, sonnet-5-1, fable-5-2) inherits its family row's adaptive thinking but no
+  // `prefixBound`, so a `conversation` carry replays thinking with no `drop_block` and a prefix edit is a 400.
+  // A new id measured to run no prefix check states `prefixBound: false` on its own row below this one.
+  {
+    match: {
+      model: `^(anthropic/)?claude[-/](?!${UNCHECKED_MODELS})`,
+    },
+    generation: {
+      reasoning: {
+        prefixBound: true,
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-27",
+      cite: 'docs-derived, not live-probed (no post-2026-10-01 id exists to probe). Anthropic notice (support.claude.com article 16761192): "For models released after October 1, 2026, preserved thinking will apply to all API accounts". platform.claude.com/docs/en/build-with-claude/preserved-thinking (fetched 2026-09-27): "Claude Mythos 5.1 and models before Claude Fable 5.1 don\'t run the prefix check" (the UNCHECKED_GENERATIONS list), and "Models that don\'t run the prefix check accept the object and report only model-check drops, so one request body works across models", so drop_block on an id that turns out unchecked costs nothing on the direct wire',
     },
   },
   {
@@ -407,6 +433,40 @@ export const anthropicRows = [
       tier: "curated",
       dated: "2026-09-19",
       cite: "§8.7 mutually-exclusive knobs on the direct wire (a RESTRICTION, compatible with D68 fail-closed — no ranges ship until a dated measured/anthropic.ts entry)",
+    },
+  },
+  // The routes where a prefix edit cannot fail a carried turn. OpenRouter is not one: its chat-completions body
+  // has no `block_binding` field, so a prefix-bound model there keeps its thinking inside one turn.
+  {
+    match: {
+      model: "^(anthropic/)?claude[-/]",
+      wire: "anthropic-messages",
+    },
+    generation: {
+      reasoning: {
+        prefixEditSafe: true,
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-27",
+      cite: "the direct wire sends thinking.block_binding.prefix_mismatch_behavior drop_block beside adaptive thinking on every carry above off (backends/anthropic-messages/chat.ts withBlockBinding); @ai-sdk/anthropic 4.0.58 dist/index.js:1062-1065 admits blockBinding in the adaptive arm, :4152-4177 maps it to block_binding, :4395-4396 adds thinking-binding-controls-2026-08-01, and the enabled/disabled arms carry no blockBinding, so the SDK strips it there. Live: drop_block accepted on opus-5-5 (req_011CfKs6a4VLio7HdQpBMWwz) and fable-5-1 (req_011CfKs7QaWYrtm7Zhq5SnGE); OR-10 (scripts/probes/openrouter/RESULTS.md): each prefix_binding_mismatch drop returned 200",
+    },
+  },
+  {
+    match: {
+      model: "^(anthropic/)?claude[-/]",
+      wire: "agent-sdk",
+    },
+    generation: {
+      reasoning: {
+        prefixEditSafe: true,
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-09-27",
+      cite: 'the Claude runtime builds its own requests and our history carries no thinking into it (backends/agent-sdk/turn-input.ts renders a reasoning part as [reasoning omitted]); platform.claude.com/docs/en/build-with-claude/preserved-thinking (fetched 2026-09-27): "Nothing changes for you if Claude Code, claude.ai, Claude Managed Agents, or the Claude Agent SDK builds your requests". Docs-derived, not live-probed',
     },
   },
   {

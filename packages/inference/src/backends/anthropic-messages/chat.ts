@@ -154,7 +154,8 @@ export function thinkingOf(reasoning: ResolvedReasoning): JSONObject {
 /** Preserved thinking: on a prefix-bound model a replayed thinking block whose earlier prefix changed is a 400
  *  unless the request asks the API to drop it. Every carry rung replays thinking, so every rung asks: a missed
  *  edit then costs that block, counted and raised by {@link raiseThinkingDrops}, never the turn. The SDK spells
- *  `block_binding` and adds its beta; its schema admits the field only beside adaptive thinking. */
+ *  `block_binding` and adds its beta. The API also takes the field beside `enabled` thinking, but the SDK's
+ *  `enabled` and `disabled` arms have no `blockBinding` and strip it, so it rides only beside adaptive thinking. */
 function withBlockBinding(thinking: JSONObject, knobs: ResolvedChatKnobs, generation: GenerationCapability): JSONObject {
   if (knobs.carryReasoning === "off" || !bindsThinkingToPrefix(generation) || thinking["type"] !== "adaptive") {
     return thinking;
