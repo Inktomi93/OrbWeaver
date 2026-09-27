@@ -41,11 +41,12 @@ export const useGalleryCollection = createCollectionSurface({
   idOf: (item: GalleryItem) => item.galleryItemId,
 });
 
-/** Curate an owned asset into a character's gallery (idempotent server-side). Refetches the gallery. */
+/** Curate an owned asset into a character's gallery (idempotent server-side). Refetches the gallery.
+ *  NO `errorToast`: both callers, the add-picker and the upload zone, name a failed add on their own inline
+ *  line, and a toast on top would report one failure twice. A new caller without such a line owes one. */
 export const useAddToGallery = createEntityMutation<inferInput<Trpc["assets"]["addToGallery"]>, inferOutput<Trpc["assets"]["addToGallery"]>>({
   options: (trpc) => trpc.assets.addToGallery.mutationOptions(),
   invalidates: (trpc) => [trpc.assets.listGallery.pathFilter()],
-  errorToast: "Couldn't add that image to the gallery.",
 });
 
 /**
@@ -54,8 +55,7 @@ export const useAddToGallery = createEntityMutation<inferInput<Trpc["assets"]["a
  * NO `errorToast`, deliberately (#1563a). Its ONE caller is the gallery lightbox's destructive confirm, and
  * #1563 gave `ConfirmDialog` an inline failure line that holds the dialog open with its own button as the
  * retry — so a toast on top made one refused press say the same thing twice, once in the dialog the reader
- * is looking at and once in a global notice over it. The sibling `useAddToGallery` KEEPS its toast: its
- * caller is a fire-and-forget batch add with no per-press surface of its own.
+ * is looking at and once in a global notice over it.
  *
  * ENDS WHEN a second call site appears that does not own a failure surface — then this owes the function
  * form, not a bare string, so the confirm's press stays silent while the new caller toasts.

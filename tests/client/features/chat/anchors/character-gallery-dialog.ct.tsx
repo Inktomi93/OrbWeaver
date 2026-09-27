@@ -600,6 +600,31 @@ for (const viewport of [
     await expect.poll(() => trpc.count("assets.addToGallery")).toBe(0);
   });
 
+  test(`${viewport.name}: an upload whose gallery add fails is named on one line, with no success mark and no toast`, async ({ mount, page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await capImageUploads(page);
+    const uploads = await recordUploads(page);
+    const trpc = await routeTrpc(page, { "assets.listGallery": () => [], "assets.addToGallery": () => trpcError({ code: "NOT_FOUND", message: "not found" }) });
+    await mount(<CharacterGalleryDialogToastStory />);
+
+    const zone = page.locator(DROPZONE);
+    await expect(zone.getByText(`Up to ${String(IMAGE_CAP_BYTES)} B per file`)).toBeVisible();
+    await dropFiles(zone, [SMALL_PNG]);
+
+    const line = page.getByRole("alert").filter({ hasText: "sunset.png uploaded but couldn't join Aria's gallery. It stays in your uploads." });
+    await expect(line).toBeVisible();
+    await expect(line).toBeInViewport();
+    await expect.poll(() => uploads.length).toBe(1);
+    await expect.poll(() => trpc.count("assets.addToGallery")).toBe(1);
+    // The upload landed but the picture joined nothing: the zone claims no success, and the line is the one surface.
+    await expect(zone).not.toHaveAttribute("data-success", "");
+    // A retrying toHaveCount(0) passes before a late toast paints. The mutation cache's toast hook runs before
+    // the rejection reaches the zone, so two frames past the rendered line is a settled read.
+    await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+    // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — the toast hook fired before the line rendered, and two frames have painted since.
+    expect(await page.locator(TOAST_ROOT).count()).toBe(0);
+  });
+
   test(`${viewport.name}: an image the server refuses is named, and nothing joins the gallery`, async ({ mount, page }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await capImageUploads(page);
