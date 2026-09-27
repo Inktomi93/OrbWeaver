@@ -712,6 +712,7 @@ export const chatRouter = t.router({
       prompt: input.prompt,
       n: input.n,
       size: input.size,
+      gallery: input.gallery,
     }),
   ),
 });

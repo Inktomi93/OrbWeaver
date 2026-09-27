@@ -20,7 +20,7 @@ import { batchMany } from "@orb/db/kit";
 import type { ProviderExecutor, Resolved, RoleClientsWithSignal, SideGenSampling } from "@orb/inference";
 import { generationOf, resolveSideGenSampling } from "@orb/inference";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { ChatId, Handle, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import type { AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
@@ -51,7 +51,9 @@ export interface ImageryComposeDeps {
   readonly connection: Pick<ConnectionService, "resolve">;
   /** The compose-tier executor FENCE (§7.5-1a): imagery may reach exactly `generateImage`. */
   readonly executor: Pick<ProviderExecutor, "generateImage">;
-  readonly assets: Pick<AssetsService, "store" | "readOwnedAssetBytes">;
+  readonly assets: Pick<AssetsService, "store" | "readOwnedAssetBytes" | "addToGallery">;
+  /** The owner-scoped character read the gallery add verb gates on — imagery's auto-add gate reads the same one. */
+  readonly characterOwned: (ownerId: UserId, characterId: CharacterId) => Promise<boolean>;
   readonly character: Pick<CharacterService, "getCard" | "get">;
   /** The per-FUNDER role-client binder (§8.5b): the caption + extract-quiet side calls spend the caller's /
    *  the trigger's own `summarize` row. */
@@ -165,6 +167,12 @@ export function buildImagery(deps: ImageryComposeDeps): ImageryService {
     // (avatarAssetId for B3/caption + the row's contentHash for the I3 identity hash). Throws
     // CharacterNotFoundError on missing/foreign; imagery does not re-gate.
     getCard: (caller, characterId) => character.get({ principal: caller, characterId }),
+    ownsCharacter: deps.characterOwned,
+    // The picture is the caller's own asset (stored under the caller above), so the add runs under the
+    // caller's principal and lands in the caller's gallery only.
+    addToGallery: async (caller, assetId, subjectCharacterId): Promise<void> => {
+      await assets.addToGallery({ principal: caller, assetId, subjectCharacterId });
+    },
     recordStats: async (delta): Promise<void> => {
       const batch: BatchStmt[] = [];
       applyStatsDelta(batch, db, delta);

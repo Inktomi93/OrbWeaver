@@ -25,10 +25,12 @@
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
 import { EXTRACTION_MODES } from "@orb/contracts/imagery";
 import { Button } from "@orb/ui/button";
+import { Checkbox } from "@orb/ui/checkbox";
 import { Row, Stack } from "@orb/ui/layout";
 import { WebSpinner } from "@orb/ui/spinner";
 import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
+import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useEffect, useId, useState } from "react";
@@ -80,8 +82,13 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
   const [mode, setMode] = useState<ImagineMode>(isImagineMode(seed.mode) ? seed.mode : "free");
   const [prompt, setPrompt] = useState(seed.prompt);
   const [receipt, setReceipt] = useState<ExtractedPromptResult | undefined>(undefined);
+  const [toGallery, setToGallery] = useState(true);
   const modeLabelId = useId();
+  const galleryLabelId = useId();
   const trpc = useTRPC();
+  // The server joins the picture to the room's first character's gallery; the roster read is cache-first.
+  const { data: chat } = useQuery(trpc.chat.getChat.queryOptions({ chatId: seed.chatId }));
+  const galleryCharacter = chat?.participants.find((participant) => participant.kind === "character" && participant.leftSeq === null);
   const invalidation = useInvalidation();
   const extract = useExtractPrompt({ trpc, invalidation });
   const generate = useGeneratePicture({ trpc, invalidation });
@@ -113,7 +120,8 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
     }
     // A present prompt IS the image — sent verbatim as free mode (an extraction mode previewed-then-edited
     // lands here too). An extraction mode with no prompt defers resolution to the server.
-    const request = trimmed.length > 0 ? { chatId: seed.chatId, mode: "free" as const, prompt: trimmed } : { chatId: seed.chatId, mode };
+    const base = { chatId: seed.chatId, gallery: toGallery };
+    const request = trimmed.length > 0 ? { ...base, mode: "free" as const, prompt: trimmed } : { ...base, mode };
     void generate
       .mutateAsync(request)
       .then(() => closeModal())
@@ -184,6 +192,14 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
           </Stack>
         ) : null}
       </Stack>
+      {galleryCharacter === undefined ? null : (
+        <Row align="center" gap="field">
+          <Checkbox aria-labelledby={galleryLabelId} checked={toGallery} disabled={busy} onCheckedChange={(next): void => setToGallery(next === true)} />
+          <Text as="span" id={galleryLabelId} voice="label">
+            Add to {galleryCharacter.displayName}'s gallery
+          </Text>
+        </Row>
+      )}
       {generate.isPending ? (
         <Stack data-slot="imagine-generating" gap="tight">
           <PendingLine label="Generating the image" verb="Generating the image…" />

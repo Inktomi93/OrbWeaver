@@ -735,7 +735,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     getLorebookImport: () => worldInfoCompose.importWorldInfo,
     resolveUserPresetParams,
   });
-  const { assets, character, galleryCtx, characterSeeder, personaSeeder, backgroundSeeder } = assetsCharacter;
+  const { assets, character, galleryCtx, characterSeeder, personaSeeder, backgroundSeeder, characterOwned } = assetsCharacter;
   // Now that `assets` exists, rebind the real materializeBackground op (the holder above forwards to it).
   materializeBackgroundOp = assetsCharacter.materializeBackgroundOp;
 
@@ -828,6 +828,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     connection,
     executor,
     assets,
+    characterOwned,
     character,
     roleClientsFor,
     maxImageBytes: () => effectiveConfig.getEffectiveConfig().maxImageBytes,

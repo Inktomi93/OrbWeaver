@@ -1259,6 +1259,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         mode: p.mode,
         ...(p.prompt !== undefined ? { prompt: p.prompt } : {}),
         ...(p.n !== undefined ? { n: p.n } : {}),
+        ...(p.gallery !== undefined ? { gallery: p.gallery } : {}),
       });
       return {
         images: picture.images.map((img) => ({ assetId: img.assetId })),

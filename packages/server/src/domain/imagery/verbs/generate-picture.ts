@@ -162,14 +162,38 @@ function provenanceHash(gateHash: string | null, p: GeneratePictureParams): stri
   return gateHash ?? (p.mode === "free" ? (p.identityHash ?? null) : null);
 }
 
+/** Step 1 — the gallery the pictures join: the requested character when the caller owns it, else none. Runs
+ *  before any spend. The picture's owner is the generator, so a character someone else owns (a shared room's
+ *  host's) yields the picture and no gallery row, never a row in another principal's gallery. */
+async function galleryTarget(ctx: ImageryContext, p: GeneratePictureParams): Promise<CharacterId | null> {
+  if (p.gallery === undefined) {
+    return null;
+  }
+  const owned = await ctx.ownsCharacter(p.caller.userId, p.gallery.subjectCharacterId);
+  return owned ? p.gallery.subjectCharacterId : null;
+}
+
+/** The last step — join each returned picture to the caller's gallery. Sequential: `n` is at most four, and
+ *  each add is an idempotent upsert on the picture and the character. */
+async function curate(ctx: ImageryContext, p: GeneratePictureParams, target: CharacterId | null, picture: GeneratedPicture): Promise<GeneratedPicture> {
+  if (target === null) {
+    return picture;
+  }
+  for (const image of picture.images) {
+    await ctx.addToGallery(p.caller, image.assetId, target);
+  }
+  return picture;
+}
+
 export function createGeneratePicture(ctx: ImageryContext, deps: { readonly resolvePrompt: ResolvePrompt }): ImageryService["generatePicture"] {
   return async (p: GeneratePictureParams): Promise<GeneratedPicture> => {
+    const target = await galleryTarget(ctx, p);
     // The subject the reuse gate + the provenance columns key on — only for a portrait mode carrying a subject.
     const subjectCharacterId = isPortraitMode(p.mode) && p.subjectCharacterId !== undefined ? p.subjectCharacterId : null;
     // Step 2: B2 reuse gate — a hit short-circuits before any provider call.
     const gate = await reuseGate(ctx, p, subjectCharacterId);
     if (gate.hit !== null) {
-      return gate.hit;
+      return await curate(ctx, p, target, gate.hit);
     }
     const identityHash = provenanceHash(gate.identityHash, p);
 
@@ -215,7 +239,7 @@ export function createGeneratePicture(ctx: ImageryContext, deps: { readonly reso
         edited: reference.edit !== undefined,
       },
     );
-    return {
+    return await curate(ctx, p, target, {
       images: outcome.images,
       prompt,
       promptSource: resolved.source,
@@ -227,6 +251,6 @@ export function createGeneratePicture(ctx: ImageryContext, deps: { readonly reso
       reused: false,
       // B3's drop warning + any runner edit-strip belt warning that flowed up (doc 03 §2).
       warnings: [...reference.warnings, ...outcome.warnings],
-    };
+    });
   };
 }

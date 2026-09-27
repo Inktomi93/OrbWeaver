@@ -8,13 +8,14 @@ import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import { PROSE_SLOTS } from "@orb/contracts/prose";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import { assets, userConnections, users } from "@orb/db";
+import { assets, characters, userConnections, users } from "@orb/db";
 import type { Resolved } from "@orb/inference";
 import { generationOf } from "@orb/inference";
 import { handleKey } from "@orb/kit/handle-key";
-import type { AssetId, Handle, ImageryGenerationId, ModelId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, Handle, ImageryGenerationId, ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ImageGenerateRequest, ImageryContext } from "@orb/server/domain/imagery";
+import { and, eq } from "drizzle-orm";
 import { makeResolved, TEST_CONNECTION_ID } from "../../../support/factories/resolved-connection.ts";
 import { createSeededIds } from "../../../support/ids.ts";
 
@@ -79,6 +80,8 @@ export interface ImageryHarness {
   readonly extractInstructions: string[];
   readonly captionInstructions: string[];
   readonly readAssetCalls: AssetId[];
+  /** Every `addToGallery` the verb asked for, as `(owner, asset, character)`. */
+  readonly galleryAdds: { readonly ownerId: UserId; readonly assetId: AssetId; readonly subjectCharacterId: CharacterId }[];
 }
 
 export function makeHarness(db: Db, overrides: Partial<ImageryContext> = {}): ImageryHarness {
@@ -90,6 +93,7 @@ export function makeHarness(db: Db, overrides: Partial<ImageryContext> = {}): Im
   const extractInstructions: string[] = [];
   const captionInstructions: string[] = [];
   const readAssetCalls: AssetId[] = [];
+  const galleryAdds: ImageryHarness["galleryAdds"] = [];
   const connection: Resolved<"generateImage"> = makeResolved({
     task: "generateImage",
     providerId: "openrouter",
@@ -143,7 +147,20 @@ export function makeHarness(db: Db, overrides: Partial<ImageryContext> = {}): Im
       recordedStats.push(delta);
       return Promise.resolve();
     },
+    // The real owner-scoped `characters` read compose wires, so the auto-add gate is exercised for real.
+    ownsCharacter: async (ownerId, characterId) => {
+      const rows = await db
+        .select({ id: characters.id })
+        .from(characters)
+        .where(and(eq(characters.id, characterId), eq(characters.ownerId, ownerId)))
+        .limit(1);
+      return rows.length > 0;
+    },
+    addToGallery: (caller, assetId, subjectCharacterId) => {
+      galleryAdds.push({ ownerId: caller.userId, assetId, subjectCharacterId });
+      return Promise.resolve();
+    },
     ...overrides,
   };
-  return { ctx, recordedStats, generateCalls, generateRequests, fetchImageCalls, extractInstructions, captionInstructions, readAssetCalls };
+  return { ctx, recordedStats, generateCalls, generateRequests, fetchImageCalls, extractInstructions, captionInstructions, readAssetCalls, galleryAdds };
 }

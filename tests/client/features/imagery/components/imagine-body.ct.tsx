@@ -3,8 +3,10 @@
 // fills the prompt from imagery.extractPrompt, then Generate sends that resolved prompt as free mode. Asserts
 // the RECORDED tRPC inputs (routeTrpc is the spy) against the exact seed the story used.
 
+import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { TrpcFixtureOutput, TrpcInput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { ImagineExtractStory, ImagineFreeStory } from "../_ct-stories.tsx";
 
@@ -18,7 +20,7 @@ const GENERATING_ELAPSED = /Generating the image… \d+s/u;
 
 test("imagine free mode: Generate requests chat.generateImage with the verbatim prompt", async ({ mount, page }) => {
   const chatId = mintTypeId(ID_PREFIX.chat);
-  const rec = await routeTrpc(page, { "chat.generateImage": { id: "message_ct_generated" } });
+  const rec = await routeTrpc(page, { "chat.getChat": room, "chat.generateImage": { id: "message_ct_generated" } });
   const cmp = await mount(<ImagineFreeStory chatId={chatId} />);
 
   const generate = cmp.getByRole("button", { name: "Generate" });
@@ -34,6 +36,7 @@ test("imagine extraction mode: Preview fills the prompt from extractPrompt, then
   const chatId = mintTypeId(ID_PREFIX.chat);
   const extracted = "a dim tavern, wooden beams, candlelight";
   const rec = await routeTrpc(page, {
+    "chat.getChat": room,
     "imagery.extractPrompt": { prompt: extracted, mode: "scenario", source: "extracted", costUsd: 0.001 },
     "chat.generateImage": { id: "message_ct_generated" },
   });
@@ -66,6 +69,7 @@ test("imagine extraction mode: Preview fills the prompt from extractPrompt, then
 test("#623: the read call's PRICE is rendered once it is known — the server sends costUsd and the modal keeps it", async ({ mount, page }) => {
   const chatId = mintTypeId(ID_PREFIX.chat);
   await routeTrpc(page, {
+    "chat.getChat": room,
     "imagery.extractPrompt": { prompt: "a dim tavern, candlelight", mode: "scenario", source: "extracted", costUsd: 0.0012 },
   });
   const cmp = await mount(<ImagineExtractStory chatId={chatId} />);
@@ -81,7 +85,7 @@ test("#623: the read call's PRICE is rendered once it is known — the server se
 
 test("#623: a NULL costUsd is stated, never printed as $0.0000 (which would read as free)", async ({ mount, page }) => {
   const chatId = mintTypeId(ID_PREFIX.chat);
-  await routeTrpc(page, { "imagery.extractPrompt": { prompt: "a dim tavern", mode: "scenario", source: "extracted", costUsd: null } });
+  await routeTrpc(page, { "chat.getChat": room, "imagery.extractPrompt": { prompt: "a dim tavern", mode: "scenario", source: "extracted", costUsd: null } });
   const cmp = await mount(<ImagineExtractStory chatId={chatId} />);
   await cmp.getByRole("button", READ_THE_CHAT).click();
 
@@ -91,7 +95,7 @@ test("#623: a NULL costUsd is stated, never printed as $0.0000 (which would read
 
 test("#623: an extraction mode with an empty prompt says it charges TWICE — and stops saying so once one is typed", async ({ mount, page }) => {
   const chatId = mintTypeId(ID_PREFIX.chat);
-  await routeTrpc(page, {});
+  await routeTrpc(page, { "chat.getChat": room });
   const cmp = await mount(<ImagineExtractStory chatId={chatId} />);
 
   const notice = cmp.locator('[data-slot="imagine-double-spend"]');
@@ -110,7 +114,7 @@ test("#623: an extraction mode with an empty prompt says it charges TWICE — an
 test("#623: a generate IN FLIGHT carries a spinner, an elapsed count, a time expectation, and says closing is safe", async ({ mount, page }) => {
   const chatId = mintTypeId(ID_PREFIX.chat);
   const hold = trpcHold();
-  await routeTrpc(page, { "chat.generateImage": hold });
+  await routeTrpc(page, { "chat.getChat": room, "chat.generateImage": hold });
   const cmp = await mount(<ImagineFreeStory chatId={chatId} />);
   await cmp.getByRole("button", { name: "Generate" }).click();
   await hold.requested;
@@ -126,7 +130,7 @@ test("#623: a generate IN FLIGHT carries a spinner, an elapsed count, a time exp
 test("#623: the mode strip is INERT mid-spend — the in-flight request already carries the old mode", async ({ mount, page }) => {
   const chatId = mintTypeId(ID_PREFIX.chat);
   const hold = trpcHold();
-  await routeTrpc(page, { "chat.generateImage": hold });
+  await routeTrpc(page, { "chat.getChat": room, "chat.generateImage": hold });
   const cmp = await mount(<ImagineFreeStory chatId={chatId} />);
   await cmp.getByRole("button", { name: "Generate" }).click();
   await hold.requested;
@@ -136,8 +140,84 @@ test("#623: the mode strip is INERT mid-spend — the in-flight request already 
 
 test("#623: the mode strip is ONE named group, not five loose buttons", async ({ mount, page }) => {
   const chatId = mintTypeId(ID_PREFIX.chat);
-  await routeTrpc(page, {});
+  await routeTrpc(page, { "chat.getChat": room });
   const cmp = await mount(<ImagineFreeStory chatId={chatId} />);
 
   await expect(cmp.getByRole("group", { name: "Mode" })).toBeVisible();
 });
+
+// ── The gallery opt-out. A picture generated in chat joins the room character's gallery unless the
+// request says `gallery: false`; the modal names that character and sends the checkbox as the flag.
+
+/** Every mount reads the roster for the gallery checkbox; the id echoes the request. */
+function room(input: TrpcInput<"chat.getChat">): TrpcFixtureOutput<"chat.getChat"> {
+  return roomWithCharacter(input?.chatId ?? "chat_ct_imagine");
+}
+
+function roomWithCharacter(chatId: string): TrpcFixtureOutput<"chat.getChat"> {
+  return {
+    id: chatId,
+    title: null,
+    participants: [
+      {
+        id: "chat_participant_ct_aria",
+        chatId,
+        kind: "character",
+        userId: null,
+        characterId: "character_ct_aria",
+        role: "member",
+        activePersonaId: null,
+        talkativeness: 1,
+        disabled: false,
+        joinedAt: 0,
+        joinSeq: 0,
+        leftSeq: null,
+        joinHistoryVisibility: "full",
+        displayName: "Aria",
+        handle: null,
+        avatarAssetId: null,
+        avatarHash: null,
+      },
+    ],
+    anchorPersonaId: null,
+    identities: [],
+    group: DEFAULT_GROUP_CONFIG,
+    temporary: false,
+    viewerIsHost: true,
+    background: null,
+    rpg: null,
+  };
+}
+
+for (const viewport of [
+  { name: "mobile", width: 360, height: 780 },
+  { name: "desktop", width: 1440, height: 900 },
+] as const) {
+  test(`${viewport.name}: the picture joins the room character's gallery unless the checkbox is cleared`, async ({ mount, page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    const chatId = mintTypeId(ID_PREFIX.chat);
+    const rec = await routeTrpc(page, { "chat.getChat": roomWithCharacter(chatId), "chat.generateImage": { id: "message_ct_generated" } });
+    const cmp = await mount(<ImagineFreeStory chatId={chatId} />);
+
+    const toGallery = cmp.getByRole("checkbox", { name: "Add to Aria's gallery" });
+    await expect(toGallery).toBeChecked();
+    await expect(toGallery).toBeInViewport();
+    await cmp.getByRole("button", { name: "Generate" }).click();
+    await expect.poll(() => rec.count("chat.generateImage")).toBe(1);
+    await expect.poll(() => rec.lastInput("chat.generateImage")).toMatchObject({ mode: "free", gallery: true });
+  });
+
+  test(`${viewport.name}: clearing the checkbox sends the opt-out`, async ({ mount, page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    const chatId = mintTypeId(ID_PREFIX.chat);
+    const rec = await routeTrpc(page, { "chat.getChat": roomWithCharacter(chatId), "chat.generateImage": { id: "message_ct_generated" } });
+    const cmp = await mount(<ImagineFreeStory chatId={chatId} />);
+
+    const toGallery = cmp.getByRole("checkbox", { name: "Add to Aria's gallery" });
+    await toGallery.click();
+    await expect(toGallery).not.toBeChecked();
+    await cmp.getByRole("button", { name: "Generate" }).click();
+    await expect.poll(() => rec.count("chat.generateImage")).toBe(1);
+    await expect.poll(() => rec.lastInput("chat.generateImage")).toMatchObject({ mode: "free", gallery: false });
+  });
+}

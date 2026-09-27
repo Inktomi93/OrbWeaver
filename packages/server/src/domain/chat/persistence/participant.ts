@@ -94,6 +94,19 @@ export function parseParticipant(row: ParticipantRowShape): ParticipantActor {
   return actor;
 }
 
+/** The room's subject character when a request names none: the first character seat in roster order. The
+ *  imagery shaper resolves `{{char}}` to it, so a chat-generated picture was generated for it and joins its
+ *  gallery. `null` for a room with no character seat. */
+export function firstCharacterIdOf(rows: readonly ParticipantRowShape[]): CharacterId | null {
+  for (const row of rows) {
+    const actor = classifyParticipant(row);
+    if (actor?.kind === "character") {
+      return actor.characterId;
+    }
+  }
+  return null;
+}
+
 /** A `character` participant is always `role='member'` — a character can never be the host. */
 export function assertForcedCharacterMember(p: { readonly kind: ParticipantKind; readonly role: ParticipantRole }): void {
   if (p.kind === "character" && p.role !== "member") {

@@ -5,18 +5,21 @@
 // write are stubs (imagery declares their port; the composition root binds the real infra).
 
 import type { Db } from "@orb/db";
-import { assets, characters, chats, imageryGenerations } from "@orb/db";
+import { assets, characters, chats, galleryItems, imageryGenerations } from "@orb/db";
 import type { AssetId, CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { sniffMime } from "@orb/kit/image-sniff";
+import type { AssetsService } from "@orb/server/domain/assets";
+import { createAssetsService } from "@orb/server/domain/assets";
 import type { ImageryContext } from "@orb/server/domain/imagery";
 import { createImageryService } from "@orb/server/domain/imagery";
 import { eq } from "drizzle-orm";
-import { beforeEach, describe } from "vitest";
+import { beforeEach, describe, onTestFinished } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { makeCharacter } from "../../../../support/factories/character.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { fakeCard, makeHarness, PNG_BYTES, principal, resolutionWith, seedGenerationOwner } from "../_support.ts";
+import { makeHarness as makeAssetsHarness } from "../../assets/_support.ts";
+import { fakeCard, makeHarness, PNG_BYTES, principal, resolutionWith, seedGenerationOwner, seedOwner } from "../_support.ts";
 
 let db: Db;
 
@@ -579,5 +582,114 @@ describe("generatePicture — runner warnings surface onto the result (doc 03 §
     const result = await createImageryService(ctx).generatePicture({ caller: principal(owner), mode: "free", prompt: "an edit" });
 
     expect(result.warnings).toEqual([{ code: "image_edit_dropped", detail: "img-model: the mask was dropped" }]);
+  });
+});
+
+describe("generatePicture — gallery auto-add", () => {
+  /** A real assets service over the same db: the add runs the real owner gates, so a refusal is a real one. */
+  async function realGallery(): Promise<Pick<ImageryContext, "addToGallery"> & { readonly svc: AssetsService }> {
+    const assetsHarness = await makeAssetsHarness(db);
+    onTestFinished(assetsHarness.cleanup);
+    const svc = createAssetsService(assetsHarness.ctx);
+    return {
+      svc,
+      addToGallery: async (caller, assetId, subjectCharacterId): Promise<void> => {
+        await svc.addToGallery({ principal: caller, assetId, subjectCharacterId });
+      },
+    };
+  }
+
+  test("a picture generated for an owned character joins that character's gallery", async () => {
+    const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
+    const aria = castId<CharacterId>("character_aria");
+    await db.insert(characters).values(makeCharacter({ id: aria, ownerId: owner }));
+    const gallery = await realGallery();
+    const { ctx } = makeHarness(db, {
+      addToGallery: gallery.addToGallery,
+      generateImage: () =>
+        Promise.resolve({
+          images: [
+            { base64: Buffer.from(PNG_BYTES).toString("base64"), mediaType: "image/png", url: undefined },
+            { base64: Buffer.from([...PNG_BYTES, 1]).toString("base64"), mediaType: "image/png", url: undefined },
+          ],
+          model: "img-model",
+          usage: { costUsd: 0.02 },
+          warnings: [],
+        }),
+    });
+
+    const result = await createImageryService(ctx).generatePicture({
+      caller: principal(owner),
+      mode: "free",
+      prompt: "a lighthouse",
+      n: 2,
+      gallery: { subjectCharacterId: aria },
+    });
+
+    expect(result.images).toHaveLength(2);
+    const items = await gallery.svc.listGallery({ principal: principal(owner), subjectCharacterId: aria, limit: 100 });
+    expect(items.map((item) => item.assetId).toSorted()).toEqual(result.images.map((image) => image.assetId).toSorted());
+  });
+
+  test("no gallery request adds nothing", async () => {
+    const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
+    const aria = castId<CharacterId>("character_aria");
+    await db.insert(characters).values(makeCharacter({ id: aria, ownerId: owner }));
+    const { ctx, galleryAdds } = makeHarness(db);
+
+    await createImageryService(ctx).generatePicture({ caller: principal(owner), mode: "free", prompt: "a lighthouse" });
+
+    expect(galleryAdds).toEqual([]);
+    expect(await db.select().from(galleryItems)).toEqual([]);
+  });
+
+  test("cross-tenant: a generator who does not own the character gets the picture and no gallery row anywhere", async () => {
+    const host = await seedOwner(db, castId<Handle>("host"));
+    const guest = await seedGenerationOwner(db, castId<Handle>("guest"));
+    const hostsCharacter = castId<CharacterId>("character_hosts");
+    await db.insert(characters).values(makeCharacter({ id: hostsCharacter, ownerId: host }));
+    const gallery = await realGallery();
+    const { ctx, generateCalls } = makeHarness(db, { addToGallery: gallery.addToGallery });
+
+    const result = await createImageryService(ctx).generatePicture({
+      caller: principal(guest),
+      mode: "free",
+      prompt: "a lighthouse",
+      gallery: { subjectCharacterId: hostsCharacter },
+    });
+
+    // The picture exists and is the generator's own.
+    expect(generateCalls).toEqual([1]);
+    const assetId = result.images[0]?.assetId;
+    expect(assetId).toBeDefined();
+    const stored = await db
+      .select()
+      .from(assets)
+      .where(eq(assets.id, assetId ?? castId<AssetId>("asset_missing")));
+    expect(stored[0]?.ownerId).toBe(guest);
+    // Neither principal's gallery holds it.
+    expect(await db.select().from(galleryItems)).toEqual([]);
+    expect(await gallery.svc.listGallery({ principal: principal(host), limit: 100 })).toEqual([]);
+    expect(await gallery.svc.listGallery({ principal: principal(guest), limit: 100 })).toEqual([]);
+  });
+
+  test("a reused portrait joins the gallery too", async () => {
+    const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
+    await seedPortraitFixtures(owner);
+    const { ctx, galleryAdds, generateCalls } = makeHarness(db);
+    const svc = createImageryService(ctx);
+
+    const first = await svc.generatePicture({ caller: principal(owner), chatId: CHAT, mode: "character", subjectCharacterId: ARIA });
+    const reused = await svc.generatePicture({
+      caller: principal(owner),
+      chatId: CHAT,
+      mode: "character",
+      subjectCharacterId: ARIA,
+      gallery: { subjectCharacterId: ARIA },
+    });
+
+    expect(reused.reused).toBe(true);
+    expect(generateCalls).toEqual([1]);
+    expect(galleryAdds).toEqual([{ ownerId: owner, assetId: first.images[0]?.assetId, subjectCharacterId: ARIA }]);
   });
 });

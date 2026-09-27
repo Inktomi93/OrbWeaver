@@ -23,6 +23,13 @@ export type PortraitMode = Extract<PromptTemplateMode, "character" | "face" | Mu
  *  `"never"` is the regenerate affordance (always a fresh generation). */
 export type ReusePolicy = "prefer" | "never";
 
+/** Auto-curation of a generation: the character whose gallery each returned picture joins. The picture's
+ *  owner is always the caller (the generator), so the item lands in the caller's gallery only, and only when
+ *  the caller owns this character; a character someone else owns keeps no gallery for the caller. */
+export interface GalleryCuration {
+  readonly subjectCharacterId: CharacterId;
+}
+
 /** `generatePicture` — the orchestrator's params. `caller` is the triggeredBy for
  *  spend + the CAS owner; `chatId` is provenance + the extraction-shaper's history scope (REQUIRED unless
  *  `mode:"free"` with a `prompt`); `prompt` present OR `mode:"free"` skips extraction (used verbatim);
@@ -55,6 +62,9 @@ export interface GeneratePictureParams {
    *  supersedes this). Absent ⇒ the provenance `identityHash` stays null (the additive-only guarantee — the
    *  existing free/scenario/edit paths are byte-identical). rpg reads it back via `readProvenance`. */
   readonly identityHash?: string | undefined;
+  /** Join every returned picture to the caller's gallery under this character. Absent = no auto-add. Kept
+   *  apart from `subjectCharacterId`, which also drives the portrait reuse gate and the extraction subject. */
+  readonly gallery?: GalleryCuration | undefined;
 }
 
 /** `readProvenance` — read a generated image's durable provenance by its asset (owner-scoped through the
