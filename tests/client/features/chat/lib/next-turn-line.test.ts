@@ -45,6 +45,16 @@ test("the room's no-connection verdict is the unset state; the host gets the Mod
   });
 });
 
+test("an unknown viewer in a no-connection room reads a neutral unset line with no door: it may be a member", () => {
+  for (const chatFailed of [true, false]) {
+    expect(nextTurnLine({ ...BASE, viewerIsHost: undefined, chatFailed, availabilityCause: "no-connection" })).toEqual({
+      state: "unset",
+      text: "Next reply: this chat has no chat connection set.",
+      door: undefined,
+    });
+  }
+});
+
 test("the line states the no-connection refusal and no other cause", () => {
   expect(nextTurnStatesRefusal("no-connection")).toBe(true);
   for (const cause of ["endpoint-unreachable", "runtime-missing", "unavailable", null, undefined] as const) {

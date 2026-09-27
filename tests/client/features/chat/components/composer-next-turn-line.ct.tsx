@@ -137,6 +137,21 @@ test("a member in a room whose host has no chat connection reads the unset state
   await expect(line(component).getByRole("button")).toHaveCount(0);
 });
 
+test("an unknown viewer in a no-connection room reads a neutral unset line, with no door to settings that may not be theirs", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...CHAT_ROOM_ROUTES,
+    "chat.getChat": trpcError({ message: "room boom" }),
+    "chat.checkSendAvailability": NO_CONNECTION,
+    "connection.list": [],
+  });
+  const component = await mount(<ComposerStory />);
+
+  await expect(line(component)).toHaveText("Next reply: this chat has no chat connection set.");
+  await expect(line(component)).toHaveAttribute("data-unset", "");
+  await expect(line(component).getByRole("button")).toHaveCount(0);
+});
+
 test("a host whose chat-role read fails, in a serveable room, reads the failed state in the error ink", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,

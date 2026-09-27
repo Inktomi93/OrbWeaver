@@ -72,9 +72,13 @@ function hostLine(inputs: NextTurnInputs): NextTurnLine {
 /** The line for the room as the viewer sees it. */
 export function nextTurnLine(inputs: NextTurnInputs): NextTurnLine {
   if (nextTurnStatesRefusal(inputs.availabilityCause)) {
+    // Only a known host can fix this in their own settings; an unknown viewer may be a member.
+    if (inputs.viewerIsHost === true) {
+      return { state: "unset", text: "Next reply: no chat connection is set.", door: MODEL_ROLES_DOOR };
+    }
     return inputs.viewerIsHost === false
       ? { state: "unset", text: "Next reply: the host has no chat connection set.", door: undefined }
-      : { state: "unset", text: "Next reply: no chat connection is set.", door: MODEL_ROLES_DOOR };
+      : { state: "unset", text: "Next reply: this chat has no chat connection set.", door: undefined };
   }
   if (inputs.viewerIsHost === undefined) {
     return inputs.chatFailed ? FAILED : CHECKING;
