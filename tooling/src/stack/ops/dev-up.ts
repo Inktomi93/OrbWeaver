@@ -19,7 +19,7 @@ import { debugConflictMessage, resolveDebugArming } from "../lib/debug-env.ts";
 import { LAUNCH_ID_ENV } from "../lib/leader-record.ts";
 import { pidIsAlive } from "../lib/spawn-lock.ts";
 import { healthzUrl, STACK_CLI_REL, viteUrl } from "../lib/stack-plan.ts";
-import { doDevDown, log, readVerdict, result } from "./dev-down.ts";
+import { doDevDown, log, readVerdict, refuseUnreadableTable, result } from "./dev-down.ts";
 import { rotateLog, runLeader } from "./leader.ts";
 import { readEnvFile } from "./prod-state.ts";
 import { debugToken } from "./prod-support.ts";
@@ -37,18 +37,23 @@ const LINE_BREAK_RE = /\r?\n/u;
 type Preflight =
   | { readonly kind: "free" }
   | { readonly kind: "already-up"; readonly group: string }
-  | { readonly kind: "port-conflict"; readonly server: number | null; readonly vite: number | null };
+  | { readonly kind: "port-conflict"; readonly server: number | null; readonly vite: number | null }
+  | { readonly kind: "unreadable"; readonly reason: string };
 
 /** May a leader boot? A live record is an idempotent no-op; a bound port that is not a live record is
- *  refused, because two stacks cannot share a pair and an unknown owner is never fought. */
+ *  refused, because two stacks cannot share a pair and an unknown owner is never fought. A socket table that
+ *  cannot be read is not a free pair. */
 function preflight(ctx: StackContext): Preflight {
   const { read, state } = readVerdict(ctx);
   if (read.kind === "record" && state === "live") {
     return { kind: "already-up", group: String(read.record.pgid ?? read.record.pid) };
   }
-  const bound = listeningPids();
-  const server = bound.get(ctx.ports.server) ?? null;
-  const vite = bound.get(ctx.ports.vite) ?? null;
+  const table = listeningPids();
+  if (table.kind === "refused") {
+    return { kind: "unreadable", reason: table.reason };
+  }
+  const server = table.value.get(ctx.ports.server) ?? null;
+  const vite = table.value.get(ctx.ports.vite) ?? null;
   return server === null && vite === null ? { kind: "free" } : { kind: "port-conflict", server, vite };
 }
 
@@ -150,6 +155,9 @@ export async function doDevUp(ctx: StackContext, invocation: StackInvocation): P
     result(`status=already-up pgid=${pre.group}`);
     return EXIT.clean;
   }
+  if (pre.kind === "unreadable") {
+    return refuseUnreadableTable(pre.reason, "pgid=none");
+  }
   if (pre.kind === "port-conflict") {
     return refuseConflict(ctx, pre);
   }
@@ -168,6 +176,9 @@ export async function doDevUpFg(ctx: StackContext, invocation: StackInvocation):
     log(`already running (pgid ${pre.group}) — a foreground leader must own the ports it boots`);
     result(`status=already-up pgid=${pre.group}`);
     return EXIT.violations;
+  }
+  if (pre.kind === "unreadable") {
+    return refuseUnreadableTable(pre.reason, "pgid=none");
   }
   if (pre.kind === "port-conflict") {
     return refuseConflict(ctx, pre);

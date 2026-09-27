@@ -26,7 +26,7 @@ import { errorMessage } from "@orb/kit/error-message";
 import { readConcurrencyProfile } from "../../_shared/concurrency-profile.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { runGit } from "../../_shared/git.ts";
-import { listeningPids } from "../../_shared/platform.ts";
+import { listeningPids, socketTableOrThrow } from "../../_shared/platform.ts";
 import { RESERVED_PORTS, STAGE_BANDS, stageBandPorts } from "../../_shared/ports.ts";
 import { processEnvValue } from "../../_shared/process-env.ts";
 import { pidAlive } from "../../_shared/run-retention.ts";
@@ -86,7 +86,7 @@ function bandCensus(
   // `targetSha: null` — the status read arbitrates nothing, so no row is a shared-reuse candidate and no
   // health probe is taken. A visibility read must never spawn a served-probe child per band.
   const views = stageBandViews({ rows, root, checkout: root, targetSha: null, nowMs });
-  const bound = listeningPids();
+  const bound = socketTableOrThrow(listeningPids());
   const verdicts = new Map<number, StageSweepVerdict>();
   const pids = new Map<number, readonly number[]>();
   for (const view of views) {

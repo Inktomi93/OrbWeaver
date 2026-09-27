@@ -28,6 +28,7 @@ import process from "node:process";
 import { activeRunSlot } from "../../_shared/artifact-out.ts";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import { listeningPids } from "../../_shared/platform.ts";
 import { runNicedSync } from "../../_shared/proc.ts";
 import type { StagePorts, StageReapArm, StageRow } from "../contract/stage.ts";
 import { missingLauncherRefusal, stageLauncher, stageLauncherSpawn } from "../lib/stage-plan.ts";
@@ -49,8 +50,13 @@ export function stopStage(dir: string, ports: StagePorts): void {
   } else if (existsSync(dir)) {
     print(`[snap-stage] no launcher to stop ${dir} with — falling back to the band's process group. ${missingLauncherRefusal(dir)}`);
   }
+  const bound = listeningPids();
+  if (bound.kind === "refused") {
+    print(`[snap-stage] cannot confirm :${ports.server} and :${ports.vite} were released after the launcher stop — ${bound.reason}`);
+    return;
+  }
   for (const port of [ports.server, ports.vite]) {
-    const pid = stageBandPortPid(port);
+    const pid = stageBandPortPid(port, bound.value);
     if (pid !== null && pidIsStageRooted(pid) && killProcessGroup(pid)) {
       print(`[snap-stage] killed the process group still holding :${port} (pid ${pid}) after the launcher stop`);
     }

@@ -5,11 +5,13 @@ import {
   parseCimProcesses,
   parseLsofSockets,
   parseNetstatSockets,
+  parseProcNetTcp,
   parseProcStatCpuMs,
   parseProcStatGroup,
   parseProcStatusParent,
   parsePsClock,
   parsePsProcesses,
+  parseSocketInode,
   parseSsSockets,
   splitHostPort,
 } from "../../../tooling/src/_shared/platform-parse.ts";
@@ -131,4 +133,47 @@ test("PowerShell CIM JSON: an array or one bare object, CPU from the two 100 ns 
     { pid: 11, ppid: null, cmdline: "", environ: null, cpuMs: 0 },
   ]);
   expect(parseCimProcesses("")).toEqual([]);
+});
+
+/** `/proc/net/tcp` as the kernel prints it: a header, then one row per socket ending in its inode, every
+ *  address a little-endian hex word and every port big-endian hex. */
+const PROC_NET_TCP = [
+  "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode",
+  "   0: 0100007F:2254 00000000:0000 0A 00000000:00000000 00:00000000 00000000  1000        0 5001 1 0000000000000000 100 0 0 10 0",
+  "   1: 00000000:0016 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 5002 1 0000000000000000 100 0 0 10 0",
+  "   2: 0100007F:CBA6 0100007F:2254 01 00000000:00000000 00:00000000 00000000  1000        0 5003 1 0000000000000000 20 4 30 10 -1",
+  "   3: 0100007F:CBA7 0100007F:2254 06 00000000:00000000 03:00000A2E 00000000     0        0 0 3 0000000000000000",
+  "",
+].join("\n");
+
+/** `/proc/net/tcp6`: the same columns with 32-hex-digit addresses, four little-endian words. */
+const PROC_NET_TCP6 = [
+  "  sl  local_address                         remote_address                        st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode",
+  "   0: 00000000000000000000000001000000:1435 00000000000000000000000000000000:0000 0A 00000000:00000000 00:00000000 00000000  1000        0 6001 1 0000000000000000 100 0 0 10 0",
+  "   1: 0000000000000000FFFF00000100007F:1435 0000000000000000FFFF00000100007F:CBE8 01 00000000:00000000 00:00000000 00000000  1000        0 6002 1 0000000000000000 20 4 30 10 -1",
+  "   2: 00000000000000000000000001000000:CBE9 B80D0120000000000000000005000000:01BB 01 00000000:00000000 00:00000000 00000000  1000        0 6003 1 0000000000000000 20 4 30 10 -1",
+  "",
+].join("\n");
+
+test("/proc/net/tcp: LISTEN and ESTABLISHED rows with their inode, little-endian IPv4 hosts, every other state dropped", () => {
+  expect(parseProcNetTcp(PROC_NET_TCP)).toEqual([
+    { localPort: 8788, peerHost: "", peerPort: 0, listening: true, inode: 5001 },
+    { localPort: 22, peerHost: "", peerPort: 0, listening: true, inode: 5002 },
+    { localPort: 52_134, peerHost: "127.0.0.1", peerPort: 8788, listening: false, inode: 5003 },
+  ]);
+});
+
+test("/proc/net/tcp6: four little-endian words, rendered bracketed and compressed the way ss and lsof print them", () => {
+  expect(parseProcNetTcp(PROC_NET_TCP6)).toEqual([
+    { localPort: 5173, peerHost: "", peerPort: 0, listening: true, inode: 6001 },
+    { localPort: 5173, peerHost: "[::ffff:127.0.0.1]", peerPort: 52_200, listening: false, inode: 6002 },
+    { localPort: 52_201, peerHost: "[2001:db8::5]", peerPort: 443, listening: false, inode: 6003 },
+  ]);
+  expect(parseProcNetTcp(""), "an empty table is no rows").toEqual([]);
+});
+
+test("a /proc/<pid>/fd link names a socket inode only in the socket:[n] form", () => {
+  expect(parseSocketInode("socket:[5001]")).toBe(5001);
+  expect(parseSocketInode("pipe:[5001]")).toBeNull();
+  expect(parseSocketInode("/dev/null")).toBeNull();
 });

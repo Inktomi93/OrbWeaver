@@ -11,6 +11,12 @@ export interface SocketRow {
   readonly pid: number | null;
 }
 
+/** One `/proc/net/tcp{,6}` socket before its owner is known: the kernel names the socket inode, and a
+ *  `/proc/<pid>/fd` link to `socket:[<inode>]` names the pid. */
+export interface ProcNetSocket extends Omit<SocketRow, "pid"> {
+  readonly inode: number;
+}
+
 /** One process as the OS lists it. `environ` is null where the OS gives no readable environment; `cpuMs` is
  *  null where the tool reports no CPU time. */
 export interface ProcessEntry {
@@ -45,6 +51,29 @@ const NETSTAT_LISTENING = "LISTENING";
 const NETSTAT_ESTABLISHED = "ESTABLISHED";
 /** netstat names the System Idle Process as the owner of a socket nobody holds. */
 const NETSTAT_NO_PID = "0";
+
+/** `/proc/net/tcp{,6}` column layout (proc(5)): sl local remote st tx:rx tr:when retrnsmt uid timeout inode. */
+const PROC_NET_LOCAL_COLUMN = 1;
+const PROC_NET_REMOTE_COLUMN = 2;
+const PROC_NET_STATE_COLUMN = 3;
+const PROC_NET_INODE_COLUMN = 9;
+/** The kernel's TCP state numbers (`include/net/tcp_states.h`) as `/proc/net/tcp` prints them. */
+const PROC_NET_ESTABLISHED = "01";
+const PROC_NET_LISTEN = "0A";
+/** Each address is printed as 32-bit words in host byte order: one word for IPv4, four for IPv6. */
+const PROC_NET_WORD_HEX = 8;
+const PROC_NET_ADDRESS_RE = /^([\dA-F]{8}|[\dA-F]{32}):([\dA-F]{4})$/iu;
+const SOCKET_LINK_RE = /^socket:\[(\d+)\]$/u;
+const HEX_RADIX = 16;
+/** Two hex digits per byte, 256 values per byte, 0xff the all-ones byte. */
+const BYTE_HEX = 2;
+const BYTE_VALUES = 256;
+const BYTE_MASK = 0xff;
+const BYTES_PER_WORD = 4;
+const IPV6_GROUP_BYTES = 2;
+/** `::ffff:a.b.c.d`: ten zero bytes, then two 0xff bytes, then the IPv4 address. */
+const IPV4_MAPPED_PREFIX_BYTES = 10;
+const IPV4_MAPPED_MARKER_BYTES = 2;
 
 /** `ps -axo pid=,ppid=,time=,command=` column layout; the command runs to the end of the line. */
 const PS_PID_COLUMN = 0;
@@ -153,6 +182,107 @@ export function parseNetstatSockets(output: string): readonly SocketRow[] {
     .split(/\r?\n/u)
     .map(netstatRow)
     .filter((row): row is SocketRow => row !== null);
+}
+
+/** A `/proc/net/tcp` address word list as bytes: each 8-hex-digit word is one 32-bit value printed from a
+ *  little-endian host, so its printed byte pairs run last address byte first. */
+function procNetBytes(hex: string): readonly number[] {
+  const bytes: number[] = [];
+  for (let at = 0; at < hex.length; at += PROC_NET_WORD_HEX) {
+    const word = hex.slice(at, at + PROC_NET_WORD_HEX);
+    const pairs: number[] = [];
+    for (let pair = 0; pair < PROC_NET_WORD_HEX; pair += BYTE_HEX) {
+      pairs.push(Number.parseInt(word.slice(pair, pair + BYTE_HEX), HEX_RADIX));
+    }
+    bytes.push(...pairs.reverse());
+  }
+  return bytes;
+}
+
+/** The longest run (two or more) of zero groups, the one RFC 5952 compresses to `::`; the first wins a tie. */
+function longestZeroRun(groups: readonly number[]): { readonly start: number; readonly length: number } | null {
+  let best: { start: number; length: number } | null = null;
+  let start = -1;
+  for (let index = 0; index <= groups.length; index += 1) {
+    if (index < groups.length && groups[index] === 0) {
+      start = start === -1 ? index : start;
+      continue;
+    }
+    const length = start === -1 ? 0 : index - start;
+    if (length >= 2 && (best === null || length > best.length)) {
+      best = { start, length };
+    }
+    start = -1;
+  }
+  return best;
+}
+
+/** Sixteen address bytes in the bracketed, compressed form `ss` and `lsof` print (`[::1]`, `[::ffff:127.0.0.1]`). */
+function ipv6Host(bytes: readonly number[]): string {
+  const mapped =
+    bytes.slice(0, IPV4_MAPPED_PREFIX_BYTES).every((byte) => byte === 0) &&
+    bytes.slice(IPV4_MAPPED_PREFIX_BYTES, IPV4_MAPPED_PREFIX_BYTES + IPV4_MAPPED_MARKER_BYTES).every((byte) => byte === BYTE_MASK);
+  if (mapped) {
+    return `[::ffff:${bytes.slice(IPV4_MAPPED_PREFIX_BYTES + IPV4_MAPPED_MARKER_BYTES).join(".")}]`;
+  }
+  const groups: number[] = [];
+  for (let at = 0; at < bytes.length; at += IPV6_GROUP_BYTES) {
+    groups.push((bytes[at] ?? 0) * BYTE_VALUES + (bytes[at + 1] ?? 0));
+  }
+  const run = longestZeroRun(groups);
+  const text = (part: readonly number[]): string => part.map((group) => group.toString(HEX_RADIX)).join(":");
+  if (run === null) {
+    return `[${text(groups)}]`;
+  }
+  return `[${text(groups.slice(0, run.start))}::${text(groups.slice(run.start + run.length))}]`;
+}
+
+/** `HEXADDR:HEXPORT` from `/proc/net/tcp{,6}` as a host and a port, or null for any other text. */
+function procNetEndpoint(token: string): { readonly host: string; readonly port: number } | null {
+  const match = PROC_NET_ADDRESS_RE.exec(token);
+  if (match?.[1] === undefined || match[2] === undefined) {
+    return null;
+  }
+  const bytes = procNetBytes(match[1]);
+  const host = bytes.length === BYTES_PER_WORD ? bytes.join(".") : ipv6Host(bytes);
+  return { host, port: Number.parseInt(match[2], HEX_RADIX) };
+}
+
+function procNetRow(line: string): ProcNetSocket | null {
+  const fields = line.trim().split(WHITESPACE_RE);
+  const state = fields[PROC_NET_STATE_COLUMN];
+  if (state !== PROC_NET_LISTEN && state !== PROC_NET_ESTABLISHED) {
+    return null;
+  }
+  const local = procNetEndpoint(fields[PROC_NET_LOCAL_COLUMN] ?? "");
+  const remote = procNetEndpoint(fields[PROC_NET_REMOTE_COLUMN] ?? "");
+  const inodeText = fields[PROC_NET_INODE_COLUMN] ?? "";
+  if (local === null || remote === null || !DECIMAL_RE.test(inodeText)) {
+    return null;
+  }
+  const listening = state === PROC_NET_LISTEN;
+  return {
+    localPort: local.port,
+    peerHost: listening ? "" : remote.host,
+    peerPort: listening ? 0 : remote.port,
+    listening,
+    inode: Number(inodeText),
+  };
+}
+
+/** `/proc/net/tcp` or `/proc/net/tcp6`: the LISTEN and ESTABLISHED rows with their socket inode; the header and
+ *  every other state are dropped. */
+export function parseProcNetTcp(text: string): readonly ProcNetSocket[] {
+  return text
+    .split(/\r?\n/u)
+    .map(procNetRow)
+    .filter((row): row is ProcNetSocket => row !== null);
+}
+
+/** The inode a `/proc/<pid>/fd/<n>` link names when it is a socket (`socket:[12345]`), else null. */
+export function parseSocketInode(link: string): number | null {
+  const match = SOCKET_LINK_RE.exec(link);
+  return match?.[1] === undefined ? null : Number(match[1]);
 }
 
 /** The tail of `/proc/<pid>/stat` after the parenthesised command, which may itself hold spaces and

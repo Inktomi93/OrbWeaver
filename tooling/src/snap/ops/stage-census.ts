@@ -16,7 +16,7 @@ import process from "node:process";
 import { print } from "../../_shared/artifacts.ts";
 import { readConcurrencyProfile } from "../../_shared/concurrency-profile.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { listeningPids } from "../../_shared/platform.ts";
+import { listeningPids, socketTableOrThrow } from "../../_shared/platform.ts";
 import { STAGE_BANDS, stageBandPorts } from "../../_shared/ports.ts";
 import type { StageAllocation, StageBandView, StageHealth, StageLimits, StageRow } from "../contract/stage.ts";
 import { allocateStageBand, resolveStageLimits, stageHealthVerdict } from "../lib/stage-bands.ts";
@@ -74,7 +74,7 @@ export function stageRowHealth(row: StageRow, nowMs: number): StageHealth {
 
 /** Both halves of a session's registered band must still be listening. One missing half is a dead stage,
  *  not a degraded-but-usable base; the session records the transition and refuses later calls. */
-export function stageBindingAlive(home: string, band: number, bound: ReadonlyMap<number, number> = listeningPids()): boolean {
+export function stageBindingAlive(home: string, band: number, bound: ReadonlyMap<number, number>): boolean {
   const row = readBands(home).find((candidate) => candidate.band === band);
   return row !== undefined && bound.has(row.serverPort) && bound.has(row.vitePort);
 }
@@ -88,7 +88,9 @@ export function stageBandViews(input: {
   readonly targetSha: string | null;
   readonly nowMs: number;
 }): readonly StageBandView[] {
-  const bound = listeningPids();
+  // An unreadable table throws (a tool error): every band would read unbound, and an unbound band with a
+  // foreign row is a corpse to reclaim, so allocation would boot onto a live sibling's ports.
+  const bound = socketTableOrThrow(listeningPids());
   const live = liveSessionNames(input.root);
   return STAGE_BANDS.map((band) => {
     const row = input.rows.find((candidate) => candidate.band === band) ?? null;

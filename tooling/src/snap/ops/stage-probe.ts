@@ -7,18 +7,18 @@
 // ops/stage.ts orchestrates and lib/stage-plan.ts + lib/stage-bands.ts rule; these are the raw signals all
 // of them read, every one through the platform module.
 //
-// Every negative here is "I could not measure", never "it is not there": a socket table or a process table
-// that fails to answer returns null or false, and the callers are written to treat that as unknown rather
-// than as permission to act. That is what keeps the #324 sweep from ever reaping something it merely failed
-// to identify (the #310 liveness-gate lesson).
+// Every negative here is "I could not measure", never "it is not there": a process table that fails to
+// answer returns null or false, and an unreadable socket table arrives as the platform module's refusal.
+// The callers treat both as unknown rather than as permission to act. That is what keeps the #324 sweep
+// from ever reaping something it merely failed to identify (the #310 liveness-gate lesson).
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { httpOkSync } from "../../_shared/http-probe.ts";
 import { budget } from "../../_shared/load-budget.ts";
-import type { EstablishedConnection } from "../../_shared/platform.ts";
-import { establishedConnections, listeningPids, processAgeSeconds, processGroupId, processInfo } from "../../_shared/platform.ts";
+import type { EstablishedConnection, SocketTableRead } from "../../_shared/platform.ts";
+import { establishedConnections, processAgeSeconds, processGroupId, processInfo } from "../../_shared/platform.ts";
 import { killPidGroup, runNicedSync } from "../../_shared/proc.ts";
 import type { ServedState } from "../../stack/index.ts";
 import type { StagePorts } from "../contract/stage.ts";
@@ -44,8 +44,13 @@ const LOOPBACK_HOSTS: ReadonlySet<string> = new Set(["127.0.0.1", "::1", "[::1]"
 export function foreignBandPeer(
   ports: StagePorts,
   isStageOwn: (pid: number) => boolean = pidIsStageRooted,
-  connections: readonly EstablishedConnection[] = establishedConnections(),
+  table: SocketTableRead<readonly EstablishedConnection[]> = establishedConnections(),
 ): string | null {
+  if (table.kind === "refused") {
+    // No table, no way to rule a client out: the same uncertainty the rule above counts as connected.
+    return `an unreadable connection table (${table.reason})`;
+  }
+  const connections = table.value;
   const ownerOfLocalPort = new Map<number, number>();
   for (const row of connections) {
     if (row.pid !== null && !ownerOfLocalPort.has(row.localPort)) {
@@ -71,16 +76,16 @@ export function foreignBandPeer(
   return null;
 }
 
-/** The pid bound to a stage-band port, or null — the row-less teardown's index. `bound` is injectable so a
- *  caller judging the whole table reads ONE snapshot rather than re-reading the socket table per band. */
-export function stageBandPortPid(port: number, bound: ReadonlyMap<number, number> = listeningPids()): number | null {
+/** The pid bound to a stage-band port, or null — the row-less teardown's index. `bound` is one read of the
+ *  socket table, so a caller judging the whole table reads ONE snapshot rather than re-reading it per band. */
+export function stageBandPortPid(port: number, bound: ReadonlyMap<number, number>): number | null {
   return bound.get(port) ?? null;
 }
 
 /** Is EITHER half of a band bound right now? The liveness half of the #108 ownership question —
  *  a foreign row over an unbound band is a corpse to reclaim, over a bound one it is a live sibling.
  *  The #324 sweep asks the same question before judging anything. */
-export function bandIsBound(ports: StagePorts, bound: ReadonlyMap<number, number> = listeningPids()): boolean {
+export function bandIsBound(ports: StagePorts, bound: ReadonlyMap<number, number>): boolean {
   return stageBandPortPid(ports.server, bound) !== null || stageBandPortPid(ports.vite, bound) !== null;
 }
 

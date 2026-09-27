@@ -9,7 +9,15 @@ import process from "node:process";
 import type { ProcessEntry, SocketRow } from "./platform-parse.ts";
 import { parseCimProcesses, parseLsofSockets, parseNetstatSockets, parsePsClock, parsePsProcesses, parseSsSockets } from "./platform-parse.ts";
 import type { ProcReads } from "./platform-probes.ts";
-import { linuxIsWsl2, linuxProcessDiagnostics, linuxProcesses, linuxProcessGroup, linuxProcessInfo } from "./platform-probes.ts";
+import {
+  linuxIsWsl2,
+  linuxProcessDiagnostics,
+  linuxProcesses,
+  linuxProcessGroup,
+  linuxProcessInfo,
+  linuxProcSockets,
+  PROC_NET_TCP_TABLES,
+} from "./platform-probes.ts";
 import type { FullPriorityChild, RunNicedSyncResult } from "./proc.ts";
 import { runNicedSync, spawnFullPriorityChild } from "./proc.ts";
 
@@ -90,39 +98,118 @@ function stdoutOf(result: RunNicedSyncResult): string {
   return result.status === 0 ? result.stdout : "";
 }
 
-/** ONE socket-table read: every TCP socket in the asked state. `ss` on Linux, `lsof` on darwin, `netstat` on
- *  win32; a tool that fails to answer yields no rows, never a guess. */
-function sockets(listening: boolean, deps: PlatformDeps): readonly SocketRow[] {
-  const platform = supportedPlatform(deps);
-  return platform === null ? [] : socketsOn(platform, listening, deps);
-}
+/** A socket-table read: what the OS named, or a refusal saying which tool on which platform could not answer.
+ *  Never an empty table in place of a failed read: an empty table means "nothing is listening", and a verb
+ *  that believes it reports a live server stopped or a held port free. */
+export type SocketTableRead<T> = { readonly kind: "read"; readonly value: T } | { readonly kind: "refused"; readonly reason: string };
 
-function socketsOn(platform: SupportedPlatform, listening: boolean, deps: PlatformDeps): readonly SocketRow[] {
-  const run = runOf(deps);
+/** The shell's "command not found" status; `nice` answers it when the tool it was asked to run is absent. */
+const MISSING_COMMAND_STATUS = 127;
+const MISSING_COMMAND_ERROR = "ENOENT";
+/** `lsof` exits 1 with nothing on either stream when no socket matched the filter: its empty answer. */
+const LSOF_NO_MATCH_STATUS = 1;
+const LINE_RE = /\r?\n/u;
+
+/** The tool each platform reads its socket table with, per asked state. */
+function socketTableCommand(platform: SupportedPlatform, listening: boolean): readonly [string, readonly string[]] {
   switch (platform) {
     case "linux":
-      return parseSsSockets(stdoutOf(listening ? run("ss", ["-tlnp"]) : run("ss", ["-tnp", "state", "established"])));
+      return listening ? ["ss", ["-tlnp"]] : ["ss", ["-tnp", "state", "established"]];
     case "darwin":
-      return parseLsofSockets(stdoutOf(run("lsof", ["-nP", "-iTCP", `-sTCP:${listening ? "LISTEN" : "ESTABLISHED"}`, "-Fpn"])), listening);
+      return ["lsof", ["-nP", "-iTCP", `-sTCP:${listening ? "LISTEN" : "ESTABLISHED"}`, "-Fpn"]];
     case "win32":
-      return parseNetstatSockets(stdoutOf(run("netstat", ["-ano"]))).filter((row) => row.listening === listening);
+      return ["netstat", ["-ano"]];
   }
 }
 
+function parseSocketTable(platform: SupportedPlatform, listening: boolean, stdout: string): readonly SocketRow[] {
+  switch (platform) {
+    case "linux":
+      return parseSsSockets(stdout);
+    case "darwin":
+      return parseLsofSockets(stdout, listening);
+    case "win32":
+      return parseNetstatSockets(stdout).filter((row) => row.listening === listening);
+  }
+}
+
+function isMissingCommand(result: RunNicedSyncResult): boolean {
+  return result.errorCode === MISSING_COMMAND_ERROR || result.status === MISSING_COMMAND_STATUS;
+}
+
+/** Why a tool that ran gave no usable answer, or null when its answer stands. */
+function toolFailure(platform: SupportedPlatform, result: RunNicedSyncResult): string | null {
+  if (result.errorCode !== undefined) {
+    return `could not run (${result.errorCode})`;
+  }
+  const lsofNoMatch = platform === "darwin" && result.status === LSOF_NO_MATCH_STATUS && result.stdout === "" && result.stderr === "";
+  if (result.status === 0 || lsofNoMatch) {
+    return null;
+  }
+  const said = result.stderr.trim().split(LINE_RE)[0] ?? "";
+  const status = result.status === null ? "was killed before it answered" : `exited ${String(result.status)}`;
+  return said === "" ? status : `${status} (${said})`;
+}
+
+function refused<T>(where: string): SocketTableRead<T> {
+  return { kind: "refused", reason: `socket table unreadable on ${where}` };
+}
+
+/** ONE socket-table read: every TCP socket in the asked state. `ss` on Linux, `lsof` on darwin, `netstat` on
+ *  win32. `ss` stays the Linux primary because it asks the kernel's socket diagnostics directly; only when it is
+ *  not installed does Linux read `/proc/net/tcp{,6}` and join owners through `/proc/<pid>/fd`, the same walk
+ *  `ss -p` makes. A tool that ran and failed, or a missing tool with nothing to fall back to, refuses. */
+function sockets(listening: boolean, deps: PlatformDeps): SocketTableRead<readonly SocketRow[]> {
+  const platform = supportedPlatform(deps);
+  if (platform === null) {
+    return refused(`${deps.platform ?? process.platform}: this module has no socket-table backend for the platform`);
+  }
+  const [cmd, args] = socketTableCommand(platform, listening);
+  const spelling = `\`${[cmd, ...args].join(" ")}\``;
+  const result = runOf(deps)(cmd, args);
+  if (isMissingCommand(result)) {
+    const fallback = platform === "linux" ? linuxProcSockets(listening, deps) : null;
+    if (fallback !== null) {
+      return { kind: "read", value: fallback };
+    }
+    const proc = platform === "linux" ? `, and neither ${PROC_NET_TCP_TABLES.join(" nor ")} could be read` : "";
+    return refused(`${platform}: ${spelling} is not installed${proc}`);
+  }
+  const failure = toolFailure(platform, result);
+  return failure === null ? { kind: "read", value: parseSocketTable(platform, listening, result.stdout) } : refused(`${platform}: ${spelling} ${failure}`);
+}
+
 /** Port to the pid listening on it. A port with no nameable owner (another user's process) is absent. */
-export function listeningPids(deps: PlatformDeps = {}): ReadonlyMap<number, number> {
+export function listeningPids(deps: PlatformDeps = {}): SocketTableRead<ReadonlyMap<number, number>> {
+  const table = sockets(true, deps);
+  if (table.kind === "refused") {
+    return table;
+  }
   const bound = new Map<number, number>();
-  for (const row of sockets(true, deps)) {
+  for (const row of table.value) {
     if (row.pid !== null && !bound.has(row.localPort)) {
       bound.set(row.localPort, row.pid);
     }
   }
-  return bound;
+  return { kind: "read", value: bound };
 }
 
 /** Every established TCP connection the box holds, with the owner of the local end when nameable. */
-export function establishedConnections(deps: PlatformDeps = {}): readonly EstablishedConnection[] {
-  return sockets(false, deps).map((row) => ({ localPort: row.localPort, peerHost: row.peerHost, peerPort: row.peerPort, pid: row.pid }));
+export function establishedConnections(deps: PlatformDeps = {}): SocketTableRead<readonly EstablishedConnection[]> {
+  const table = sockets(false, deps);
+  if (table.kind === "refused") {
+    return table;
+  }
+  return { kind: "read", value: table.value.map((row) => ({ localPort: row.localPort, peerHost: row.peerHost, peerPort: row.peerPort, pid: row.pid })) };
+}
+
+/** A read's value, or a throw carrying the refusal: for a caller whose only honest answer to an unreadable
+ *  table is to stop. Under `runTool` the throw is a tool error, exit 2, never a verdict. */
+export function socketTableOrThrow<T>(read: SocketTableRead<T>): T {
+  if (read.kind === "refused") {
+    throw new Error(read.reason);
+  }
+  return read.value;
 }
 
 function darwinProcessInfo(pid: number, deps: PlatformDeps): ProcessInfo | null {

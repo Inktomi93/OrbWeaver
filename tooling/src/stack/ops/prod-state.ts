@@ -6,7 +6,7 @@ import process from "node:process";
 import { budget } from "@orb/tooling/_shared/load-budget";
 import { print, REPO_ROOT } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { listeningPids } from "../../_shared/platform.ts";
+import { listeningPids, socketTableOrThrow } from "../../_shared/platform.ts";
 import { DEV_PORTS } from "../../_shared/ports.ts";
 import type { DebugPosture, InstanceClassification, ObservedInstance, ProdRecord } from "../contract/types.ts";
 import { envFilePath, parseEnvText, readEnvText } from "../lib/env-file.ts";
@@ -142,8 +142,10 @@ export async function probeDebug(port: number): Promise<{ posture: DebugPosture;
   return { posture, pid: await probeDebugPid(port) };
 }
 
+/** The socket table's owner of `port`. An unreadable table throws: a null here reads as "not bound", and the
+ *  identity verdict built on it would be a guess. */
 function listenerPid(port: number): number | null {
-  return listeningPids().get(port) ?? null;
+  return socketTableOrThrow(listeningPids()).get(port) ?? null;
 }
 
 export function processAlive(pid: number): boolean {

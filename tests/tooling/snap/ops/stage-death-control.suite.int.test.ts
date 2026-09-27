@@ -15,7 +15,7 @@ import { EXIT } from "@orb/tooling/_shared/exit-contract";
 import { HOST_POOL_ROOT_ENV } from "@orb/tooling/_shared/host-slots";
 import { spawnNiced } from "@orb/tooling/_shared/proc";
 import { vi } from "vitest";
-import { listeningPids } from "../../../../tooling/src/_shared/platform.ts";
+import { listeningPids, socketTableOrThrow } from "../../../../tooling/src/_shared/platform.ts";
 import type { SessionRow } from "../../../../tooling/src/snap/contract/session.ts";
 import type { StageRow } from "../../../../tooling/src/snap/contract/stage.ts";
 import { readSessionRow } from "../../../../tooling/src/snap/lib/session-wire.ts";
@@ -119,7 +119,7 @@ test("T4 — killing one half of a real daemon-bound stage makes death sticky, s
     expect(beforeDeathStatus.stdout).toContain(`band ${ownedBand}`);
     expect(liveStage?.dead).toBeUndefined();
 
-    const bound = listeningPids();
+    const bound = socketTableOrThrow(listeningPids());
     const serverPid = bound.get(liveStage?.serverPort ?? -1);
     const vitePid = bound.get(liveStage?.vitePort ?? -1);
     expect(serverPid, "the real stage server half must be listening").toBeDefined();
@@ -158,7 +158,7 @@ test("T4 — killing one half of a real daemon-bound stage makes death sticky, s
     // arm read RED with nothing wrong here. The property that survives is the one this test can ATTRIBUTE:
     // a sibling whose BOTH ports are bound is `live`, is not sweepable, and must therefore be neither
     // named by the sweep's own record nor altered in the table.
-    const boundPorts = listeningPids();
+    const boundPorts = socketTableOrThrow(listeningPids());
     const liveSiblings = readBands(stageHome)
       .filter((row) => row.band !== ownedBand && boundPorts.has(row.serverPort) && boundPorts.has(row.vitePort))
       .map(stageIdentity);

@@ -11,7 +11,7 @@ import { listeningPids } from "../../_shared/platform.ts";
 import type { DevPinKey, LeaderRead, LeaderState, PinSource, ServedVerdict, StackContext } from "../contract/types.ts";
 import { DEV_PIN_KEYS } from "../contract/types.ts";
 import { authConfigUrl, healthzUrl, PRINTABLE_PINS, printablePins } from "../lib/stack-plan.ts";
-import { groupName, readVerdict, result } from "./dev-down.ts";
+import { groupName, readVerdict, refuseUnreadableTable, result } from "./dev-down.ts";
 import { probeServedTransform } from "./served-probe.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm stack status");
@@ -87,7 +87,13 @@ function stackState(healthy: boolean, serverPid: number | null, vitePid: number 
 
 export async function doDevStatus(ctx: StackContext): Promise<ExitCode> {
   const { read, state } = readVerdict(ctx);
-  const bound = listeningPids();
+  const table = listeningPids();
+  if (table.kind === "refused") {
+    // Without the port owners there is no up, partial or down to report; the record alone is not the stack.
+    print(`leader        : ${leaderLine(read, state)}`);
+    return refuseUnreadableTable(table.reason, `pidfile=${read.kind === "record" ? groupName(read.record) : "none"}`);
+  }
+  const bound = table.value;
   const serverPid = bound.get(ctx.ports.server) ?? null;
   const vitePid = bound.get(ctx.ports.vite) ?? null;
   const healthy = await httpOk(healthzUrl(ctx.ports.server));

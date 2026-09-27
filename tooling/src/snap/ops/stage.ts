@@ -70,6 +70,7 @@ import process from "node:process";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { runGit } from "../../_shared/git.ts";
+import { listeningPids } from "../../_shared/platform.ts";
 import { stageBandPorts } from "../../_shared/ports.ts";
 import { spawnFullPrioritySync } from "../../_shared/proc.ts";
 import type { EnsureStageOpts, StagePaths, StagePorts, StageRow } from "../contract/stage.ts";
@@ -245,6 +246,11 @@ function bootOntoBand(input: {
     throw e;
   }
   const nowIso = new Date().toISOString();
+  const bound = listeningPids();
+  if (bound.kind === "refused") {
+    // The owner pid is shown, never judged; the stage is already up, so an unknown owner is recorded as unknown.
+    print(`[snap-stage] owner pid of :${ports.server} not recorded — ${bound.reason}`);
+  }
   const built: StageRow = {
     band,
     sha: targetSha,
@@ -252,7 +258,7 @@ function bootOntoBand(input: {
     serverPort: ports.server,
     vitePort: ports.vite,
     checkout: root,
-    ownerPid: stageBandPortPid(ports.server),
+    ownerPid: bound.kind === "read" ? stageBandPortPid(ports.server, bound.value) : null,
     startedAt: nowIso,
     // Born used: a stage booted this instant is the freshest possible, and the reaper reads THIS field.
     lastUsedAt: nowIso,
