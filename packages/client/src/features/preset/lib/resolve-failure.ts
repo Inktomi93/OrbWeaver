@@ -23,6 +23,8 @@
 // The code is read off `error.data.code`, the structured field, never message text (the `invite-dialog` /
 // `rpg-error-state` discrimination precedent).
 
+import { MODEL_ROLES_PATH_TEXT } from "#lib";
+
 /** A THROWN read, as a failure band's prop takes it: the message it may quote plus the structured code it
  *  discriminates on. Deliberately structural rather than `Error` — `useQuery().error` is a
  *  `TRPCClientErrorLike`, which is an interface with no `name`, so it is NOT assignable to `Error` (measured:
@@ -62,13 +64,13 @@ const RESOLVE_FAILURE_COPY: Record<ResolveFailureCause, ResolveFailureCopy> = {
   },
   routing: {
     headline: "Your chat model couldn't be resolved, so what the next turn will send can't be shown.",
-    guidance: "This is a routing problem, not a missing connection — fix it under Settings → Connections → Model roles.",
+    guidance: `This is a routing problem, not a missing connection — fix it under ${MODEL_ROLES_PATH_TEXT}.`,
   },
   unknown: {
     // Deliberately names the READ, not a cause: on a 500 or a dropped socket we do not know which half of
     // `(preset × chat model)` failed, and the panel has been wrong about that twice already.
     headline: "The generation profile couldn't be resolved, so what the next turn will send can't be shown.",
-    guidance: "Check your model roles under Settings → Connections → Model roles, then retry.",
+    guidance: `Check your model roles under ${MODEL_ROLES_PATH_TEXT}, then retry.`,
   },
 };
 

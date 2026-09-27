@@ -75,6 +75,7 @@ import {
   useActiveConfigGroup,
   useActiveConfigSub,
   useActiveSection,
+  useConfigTarget,
   useContextTab,
   useImagineSeed,
   useNewChatIntent,
@@ -1435,8 +1436,16 @@ function ComposerStoryInner({ tailRole = null, tailAssistantMessageId = null }: 
           shell's imagine modal reads. This story has no ModalHost, so the seed IS the observable — read
           through the real `useImagineSeed` selector, never a story-local mirror. */}
       <ImagineSeedProbe />
+      <ConfigTargetProbe />
     </div>
   );
+}
+
+/** Prints the shell section and the settings address a door wrote, as `<section>|<group>|<sub>|<setting>`.
+ *  The story mounts no settings shell, so the store action is the observable. */
+function ConfigTargetProbe(): ReactElement {
+  const target = useConfigTarget();
+  return <p data-testid="composer-config-target">{`${useActiveSection()}|${target?.group ?? ""}|${target?.sub ?? ""}|${target?.setting ?? ""}`}</p>;
 }
 
 /** Prints the imagery intent store's current `/imagine` seed as `<mode>|<prompt>` (empty when nothing has

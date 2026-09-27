@@ -4,6 +4,7 @@
 
 import type { ResolvedConnectionView, UnavailableCause } from "@orb/contracts/inference";
 import { modelDisplayName } from "@orb/kit/model-name";
+import { MODEL_ROLES_PATH } from "#lib";
 import type { CreditConnections } from "./swipe-attribution.ts";
 import { providerName } from "./swipe-attribution.ts";
 
@@ -22,41 +23,65 @@ export interface NextTurnInputs {
   readonly connections: CreditConnections;
 }
 
-/** The line's copy, whether it reports a missing connection, and whether a read it needed failed. */
-export interface NextTurnLine {
-  readonly text: string;
-  readonly unset: boolean;
-  readonly failed: boolean;
+/** The line's states: a named connection, a read still settling, no chat connection set, or a failed read. */
+const NEXT_TURN_STATES = ["named", "checking", "unset", "failed"] as const;
+type NextTurnState = (typeof NEXT_TURN_STATES)[number];
+
+/** A door after the line's sentence: `lead` is prose, `label` is the control that opens Model roles. */
+export interface NextTurnDoor {
+  readonly lead: string;
+  readonly label: string;
 }
 
-const MODEL_ROLES_PATH = "Settings → Connections → Model roles";
-const CHECKING: NextTurnLine = { text: "Next reply: checking the connection…", unset: false, failed: false };
+/** The line's sentence, its state, and the Model roles door when the viewer can fix the state there. */
+export interface NextTurnLine {
+  readonly state: NextTurnState;
+  readonly text: string;
+  readonly door: NextTurnDoor | undefined;
+}
+
+const CHECKING: NextTurnLine = { state: "checking", text: "Next reply: checking the connection…", door: undefined };
+const FAILED: NextTurnLine = { state: "failed", text: "Next reply: the connection couldn't be checked.", door: undefined };
+const MODEL_ROLES_DOOR: NextTurnDoor = { lead: `Choose one under ${MODEL_ROLES_PATH.trail} →`, label: MODEL_ROLES_PATH.leaf };
+
+/**
+ * Whether the line states this send refusal. For such a cause the line is the room's one statement of it,
+ * so the composer's refusal line stands down and its disabled controls are described by the line.
+ */
+export function nextTurnStatesRefusal(cause: UnavailableCause | null | undefined): cause is "no-connection" {
+  return cause === "no-connection";
+}
+
+/** Whether the line's chat-role read may fire: a host viewer, in a room whose verdict has settled (or failed)
+ *  without the `no-connection` refusal, which that read would only answer with a `BAD_REQUEST`. */
+export function nextTurnReadsChatRole(viewerIsHost: boolean | undefined, cause: UnavailableCause | null | undefined, verdictFailed: boolean): boolean {
+  const verdictSettled = cause !== undefined || verdictFailed;
+  return viewerIsHost === true && verdictSettled && !nextTurnStatesRefusal(cause);
+}
 
 function hostLine(inputs: NextTurnInputs): NextTurnLine {
   const { resolved, connections } = inputs;
   if (resolved !== undefined) {
     const row = connections.rows?.find((candidate) => candidate.id === resolved.connectionId);
     const connection = row?.label ?? providerName(resolved.providerId, row);
-    return { text: `Next reply: ${connection} · ${modelDisplayName(resolved.model)}`, unset: false, failed: false };
+    return { state: "named", text: `Next reply: ${connection} · ${modelDisplayName(resolved.model)}`, door: undefined };
   }
-  // A failed resolve names no cause until the room's verdict has settled or failed: an unbound role fails
-  // this read too, and that case has its own words once the verdict says `no-connection`.
-  const verdictSettled = inputs.availabilityCause !== undefined || inputs.availabilityFailed;
-  if (inputs.resolveFailed && verdictSettled) {
-    return { text: "Next reply: the chat connection couldn't be read.", unset: false, failed: true };
-  }
-  return CHECKING;
+  return inputs.resolveFailed ? FAILED : CHECKING;
 }
 
 /** The line for the room as the viewer sees it. */
 export function nextTurnLine(inputs: NextTurnInputs): NextTurnLine {
-  if (inputs.availabilityCause === "no-connection") {
+  if (nextTurnStatesRefusal(inputs.availabilityCause)) {
+    // Only a known host can fix this in their own settings; an unknown viewer may be a member.
+    if (inputs.viewerIsHost === true) {
+      return { state: "unset", text: "Next reply: no chat connection is set.", door: MODEL_ROLES_DOOR };
+    }
     return inputs.viewerIsHost === false
-      ? { text: "Next reply: the host has no chat connection set.", unset: true, failed: false }
-      : { text: `Next reply: no chat connection is set. Choose one under ${MODEL_ROLES_PATH}.`, unset: true, failed: false };
+      ? { state: "unset", text: "Next reply: the host has no chat connection set.", door: undefined }
+      : { state: "unset", text: "Next reply: this chat has no chat connection set.", door: undefined };
   }
   if (inputs.viewerIsHost === undefined) {
-    return inputs.chatFailed ? { text: "Next reply: this chat's connection couldn't be checked.", unset: false, failed: true } : CHECKING;
+    return inputs.chatFailed ? FAILED : CHECKING;
   }
-  return inputs.viewerIsHost ? hostLine(inputs) : { text: "Next reply: the host's chat connection.", unset: false, failed: false };
+  return inputs.viewerIsHost ? hostLine(inputs) : { state: "named", text: "Next reply: the host's chat connection.", door: undefined };
 }

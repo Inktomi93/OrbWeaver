@@ -4,9 +4,11 @@
 // fires the chat-role read, and an unbound role reads as unset for both. Covered at desktop, narrow and
 // mobile widths: the line wraps inside the composer and never overflows it.
 
+import { MODEL_ROLES_PATH_TEXT } from "@orb/client/lib";
 import { modelDisplayName } from "@orb/kit/model-name";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
+import { resolvedTokenColor } from "../../../../support/node/resolved-token-color.ts";
 import type { TrpcFixtureOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { ComposerStory } from "../_ct-stories.tsx";
@@ -15,7 +17,8 @@ import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES } from "../fixtures.ts";
 const LINE = '[data-slot="composer-next-turn"]';
 const WORK_KEY_ID = "user_connection_ctnextturn01";
 const MODEL = "anthropic/claude-sonnet-5";
-const MODEL_ROLES_GUIDANCE = "Choose one under Settings → Connections → Model roles.";
+const MODEL_ROLES_GUIDANCE = `Choose one under ${MODEL_ROLES_PATH_TEXT}`;
+const FAILED_SENTENCE = "Next reply: the connection couldn't be checked.";
 
 const WORK_KEY = {
   id: WORK_KEY_ID,
@@ -36,6 +39,7 @@ const RESOLVED = {
 const HOST_ROOM = { ...CHAT_ROOM_ROUTES["chat.getChat"], viewerIsHost: true } satisfies TrpcFixtureOutput<"chat.getChat">;
 const MEMBER_ROOM = { ...CHAT_ROOM_ROUTES["chat.getChat"], viewerIsHost: false } satisfies TrpcFixtureOutput<"chat.getChat">;
 const NO_CONNECTION = { available: false, cause: "no-connection" } satisfies TrpcFixtureOutput<"chat.checkSendAvailability">;
+const UNBOUND = trpcError({ code: "BAD_REQUEST", message: 'no connection is bound for "chat"' });
 
 function line(component: Locator): Locator {
   return component.locator(LINE);
@@ -62,12 +66,45 @@ test("a host with no chat connection set reads the unset state and where to fix 
     "chat.getChat": HOST_ROOM,
     "chat.checkSendAvailability": NO_CONNECTION,
     "connection.list": [],
-    "connection.resolveChatCapability": trpcError({ code: "BAD_REQUEST", message: "no chat connection" }),
+    "connection.resolveChatCapability": UNBOUND,
   });
   const component = await mount(<ComposerStory />);
 
   await expect(line(component)).toHaveText(`Next reply: no chat connection is set. ${MODEL_ROLES_GUIDANCE}`);
   await expect(line(component)).toHaveAttribute("data-unset", "");
+  await expect(line(component)).toHaveCSS("color", resolvedTokenColor("color.warning"));
+});
+
+test("a host in a no-connection room never asks for the chat role, which could only answer 400", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...CHAT_ROOM_ROUTES,
+    "chat.getChat": HOST_ROOM,
+    "chat.checkSendAvailability": NO_CONNECTION,
+    "connection.list": [],
+    "connection.resolveChatCapability": UNBOUND,
+  });
+  const component = await mount(<ComposerStory />);
+
+  // The unset line means the room read and the verdict have both landed: the read had every chance to fire.
+  await expect(line(component)).toHaveAttribute("data-unset", "");
+  await expect.poll(() => trpc.count("chat.getChat")).toBeGreaterThan(0);
+  await expect.poll(() => trpc.count("chat.checkSendAvailability")).toBeGreaterThan(0);
+  await expect.poll(() => trpc.count("connection.resolveChatCapability")).toBe(0);
+});
+
+test("the unset line's Model roles door lands on the chat model role in Settings", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...CHAT_ROOM_ROUTES,
+    "chat.getChat": HOST_ROOM,
+    "chat.checkSendAvailability": NO_CONNECTION,
+    "connection.list": [],
+  });
+  const component = await mount(<ComposerStory />);
+
+  await line(component).getByRole("button", { name: "Model roles", exact: true }).click();
+  await expect(component.getByTestId("composer-config-target")).toHaveText("config|connections|model-roles|chat-model");
 });
 
 test("a member is told the reply runs on the host's connection, and the member's own chat role is never read", async ({ mount, page }) => {
@@ -85,7 +122,7 @@ test("a member is told the reply runs on the host's connection, and the member's
   await expect.poll(() => trpc.count("connection.resolveChatCapability")).toBe(0);
 });
 
-test("a member in a room whose host has no chat connection reads the unset state", async ({ mount, page }) => {
+test("a member in a room whose host has no chat connection reads the unset state, with no door to their own settings", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     ...CHAT_ROOM_ROUTES,
@@ -97,9 +134,25 @@ test("a member in a room whose host has no chat connection reads the unset state
 
   await expect(line(component)).toHaveText("Next reply: the host has no chat connection set.");
   await expect(line(component)).toHaveAttribute("data-unset", "");
+  await expect(line(component).getByRole("button")).toHaveCount(0);
 });
 
-test("a host whose chat-role read fails, in a serveable room, is told the read failed rather than a cause", async ({ mount, page }) => {
+test("an unknown viewer in a no-connection room reads a neutral unset line, with no door to settings that may not be theirs", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...CHAT_ROOM_ROUTES,
+    "chat.getChat": trpcError({ message: "room boom" }),
+    "chat.checkSendAvailability": NO_CONNECTION,
+    "connection.list": [],
+  });
+  const component = await mount(<ComposerStory />);
+
+  await expect(line(component)).toHaveText("Next reply: this chat has no chat connection set.");
+  await expect(line(component)).toHaveAttribute("data-unset", "");
+  await expect(line(component).getByRole("button")).toHaveCount(0);
+});
+
+test("a host whose chat-role read fails, in a serveable room, reads the failed state in the error ink", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     ...CHAT_ROOM_ROUTES,
@@ -109,11 +162,13 @@ test("a host whose chat-role read fails, in a serveable room, is told the read f
   });
   const component = await mount(<ComposerStory />);
 
-  await expect(line(component)).toHaveText("Next reply: the chat connection couldn't be read.");
+  await expect(line(component)).toHaveText(FAILED_SENTENCE);
+  await expect(line(component)).toHaveAttribute("data-failed", "");
   await expect(line(component)).not.toHaveAttribute("data-unset");
+  await expect(line(component)).toHaveCSS("color", resolvedTokenColor("color.destructive"));
 });
 
-test("a host whose chat-role read AND the room's verdict read both fail is told the read failed, not left checking", async ({ mount, page }) => {
+test("a host whose chat-role read AND the room's verdict read both fail is told the check failed, not left checking", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     ...CHAT_ROOM_ROUTES,
@@ -124,11 +179,11 @@ test("a host whose chat-role read AND the room's verdict read both fail is told 
   });
   const component = await mount(<ComposerStory />);
 
-  await expect(line(component)).toHaveText("Next reply: the chat connection couldn't be read.");
+  await expect(line(component)).toHaveText(FAILED_SENTENCE);
   await expect(line(component)).toHaveAttribute("data-failed", "");
 });
 
-test("a failed room read, the read a member's line depends on, says the check failed and never reads a chat role", async ({ mount, page }) => {
+test("a failed room read, the read a member's line depends on, reads the same failure and never reads a chat role", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     ...CHAT_ROOM_ROUTES,
@@ -138,7 +193,7 @@ test("a failed room read, the read a member's line depends on, says the check fa
   });
   const component = await mount(<ComposerStory />);
 
-  await expect(line(component)).toHaveText("Next reply: this chat's connection couldn't be checked.");
+  await expect(line(component)).toHaveText(FAILED_SENTENCE);
   await expect(line(component)).toHaveAttribute("data-failed", "");
   // Host or member is unknown, so the viewer's own chat role is not a safe thing to name.
   await expect.poll(() => trpc.count("connection.resolveChatCapability")).toBe(0);
@@ -184,7 +239,6 @@ for (const viewport of [
       "chat.getChat": HOST_ROOM,
       "chat.checkSendAvailability": NO_CONNECTION,
       "connection.list": [],
-      "connection.resolveChatCapability": trpcError({ code: "BAD_REQUEST", message: "no chat connection" }),
     });
     const component = await mount(<ComposerStory />);
     const target = line(component);

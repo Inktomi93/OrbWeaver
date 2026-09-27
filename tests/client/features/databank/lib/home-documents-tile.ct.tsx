@@ -15,7 +15,7 @@
 //   · at the NARROWEST real host (390px content) the health chips stay INSIDE the tile card.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { DatabankHomeTileNarrowStory, DatabankHomeTileStory, DatabankHomeTileWithJumpGridStory } from "../_ct-stories.tsx";
+import { DatabankHomeTileNarrowStory, DatabankHomeTilePhoneStory, DatabankHomeTileStory, DatabankHomeTileWithJumpGridStory } from "../_ct-stories.tsx";
 import { INDEXING_DOC, READY_DOC, stubDatabank } from "../fixtures.ts";
 
 const TILE = '[data-home-tile="databank.documents"]';
@@ -277,6 +277,23 @@ test("Databank keeps its pill in the rail — the tile beside it is not a substi
   // The grid is REAL and derives every section from the registry — including this tile's own.
   await expect(jump.getByRole("button", { name: "Go to Chats" })).toBeVisible();
   await expect(jump.getByRole("button", { name: "Go to Databank" })).toBeVisible();
+});
+
+test("on a 360px phone an EMPTY bank's two doors wrap, and both stay inside the card", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 360, height: 780 });
+  await stubDatabank(page, {}, []);
+  const home = await mount(<DatabankHomeTilePhoneStory />);
+  const tile = home.locator(TILE);
+  const openDoor = tile.getByRole("button", { name: "Open Databank" });
+  const doors = [tile.getByRole("button", { name: "Add your first document" }), openDoor];
+  await expect(openDoor).toBeVisible();
+
+  const rightEdges = async (): Promise<readonly boolean[]> => {
+    const card = await tile.boundingBox();
+    const boxes = await Promise.all(doors.map(async (door) => await door.boundingBox()));
+    return boxes.map((box) => box !== null && card !== null && box.x + box.width <= card.x + card.width + 0.5);
+  };
+  await expect.poll(rightEdges).toEqual([true, true]);
 });
 
 test("at the narrowest real host a crowded health line WRAPS — every chip stays inside the card", async ({ mount, page }) => {

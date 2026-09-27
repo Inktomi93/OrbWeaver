@@ -14,7 +14,7 @@
 
 // The helper copy is asserted from its ONE home, never re-typed here — a re-spelled literal is how a copy
 // change goes green against a string nobody ships.
-import { IMPERSONATE_STOP_LABEL, IMAGE_GEN_SPENDS_NOW as SPENDS_RIGHT_AWAY, sendUnavailableReason } from "@orb/client/lib";
+import { IMPERSONATE_STOP_LABEL, MODEL_ROLES_PATH_TEXT, IMAGE_GEN_SPENDS_NOW as SPENDS_RIGHT_AWAY, sendUnavailableReason } from "@orb/client/lib";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -85,7 +85,13 @@ const NO_CONNECTION_REASON = sendUnavailableReason("no-connection");
 const ENDPOINT_UNREACHABLE_REASON = sendUnavailableReason("endpoint-unreachable");
 const RUNTIME_MISSING_REASON = sendUnavailableReason("runtime-missing");
 
-test("#54: no-connection — Send is aria-disabled and DESCRIBED by the cause reason, with no native title", async ({ mount, page }) => {
+// The next-turn line under the card states the no-connection refusal, so it is the one statement of it: every
+// control the refusal idles is DESCRIBED by the line rather than carrying its own copy.
+const NEXT_TURN_LINE = '[data-slot="composer-next-turn"]';
+const NO_CONNECTION_LINE = `Next reply: no chat connection is set. Choose one under ${MODEL_ROLES_PATH_TEXT}`;
+const NO_CONNECTION_IDLED = ["Draft your line", "Try another reply", "Generate reply", "Continue the reply", "Send message"] as const;
+
+test("#54: no-connection — Send is aria-disabled and DESCRIBED by the next-turn line, with no native title", async ({ mount, page }) => {
   await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.checkSendAvailability": () => ({ available: false, cause: "no-connection" }) });
   const component = await mount(<ComposerStory />); // committed; text present so it's not draft-empty-disabled
   await component.getByLabel("Message", { exact: true }).fill("hello");
@@ -95,8 +101,38 @@ test("#54: no-connection — Send is aria-disabled and DESCRIBED by the cause re
   await expect(send).not.toHaveAttribute("disabled", "");
   // The name still NAMES the control (what a voice-control user says); the reason is its DESCRIPTION.
   await expect(send).toHaveAccessibleName("Send message");
-  await expect(send).toHaveAccessibleDescription(NO_CONNECTION_REASON);
+  await expect(send).toHaveAccessibleDescription(NO_CONNECTION_LINE);
   await expect(send).not.toHaveAttribute("title");
+});
+
+test("#54: no-connection — the room holds ONE accessible statement of the refusal, and every idled control points at it", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.checkSendAvailability": () => ({ available: false, cause: "no-connection" }) });
+  const component = await mount(<ComposerStory />);
+  const line = component.locator(NEXT_TURN_LINE);
+  await expect(line).toHaveAttribute("data-unset", "");
+  await expect(line).toHaveAttribute("id", /.+/u);
+  // The id is minted once per mount (`useId`), so the settled attribute is the value every control must cite.
+  const lineId = await line.getAttribute("id");
+
+  for (const name of NO_CONNECTION_IDLED) {
+    const control = component.getByRole("button", { name, exact: true });
+    await expect(control, `${name} is idled by the refusal`).toHaveAttribute("aria-disabled", "true");
+    await expect(control, `${name} is described by the line`).toHaveAttribute("aria-describedby", lineId ?? "");
+  }
+  // Every rendered text run that states it, `sr-only` copy included (clipped, still rendered) and `display: none`
+  // excluded: the line alone.
+  const statements = (): Promise<number> =>
+    component.getByTestId("composer").evaluate((footer: HTMLElement) => {
+      const walker = document.createTreeWalker(footer, NodeFilter.SHOW_TEXT);
+      let count = 0;
+      for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
+        if (/connection is set/iu.test(node.textContent ?? "") && node.parentElement?.checkVisibility() === true) {
+          count += 1;
+        }
+      }
+      return count;
+    });
+  await expect.poll(statements).toBe(1);
 });
 
 test("#54: endpoint-unreachable — Send carries the unreachable-endpoint reason (a bound server that did not answer)", async ({ mount, page }) => {
@@ -132,9 +168,21 @@ test.describe("#2443: the band's refusal at a coarse pointer", () => {
   test.use({ hasTouch: true });
 
   test("an unserveable connection states its reason as VISIBLE copy under the guided cluster", async ({ mount, page }) => {
+    await routeTrpc(page, {
+      ...CHAT_AMBIENT_ROUTES,
+      ...CHAT_ROOM_ROUTES,
+      "chat.checkSendAvailability": () => ({ available: false, cause: "endpoint-unreachable" }),
+    });
+    const component = await mount(<ComposerStory />);
+    await expect(component.locator('[data-slot="composer-guided-refusal"]')).toHaveText(ENDPOINT_UNREACHABLE_REASON);
+  });
+
+  test("no-connection is stated once, by the next-turn line: the band's refusal line stands down", async ({ mount, page }) => {
     await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.checkSendAvailability": () => ({ available: false, cause: "no-connection" }) });
     const component = await mount(<ComposerStory />);
-    await expect(component.locator('[data-slot="composer-guided-refusal"]')).toHaveText(NO_CONNECTION_REASON);
+    await expect(component.locator(NEXT_TURN_LINE)).toHaveText(NO_CONNECTION_LINE);
+    await expect(component.locator(NEXT_TURN_LINE)).toBeVisible();
+    await expect(component.locator('[data-slot="composer-guided-refusal"]')).toHaveCount(0);
   });
 
   test("a serveable connection shows no refusal line (the band is not permanently annotated)", async ({ mount, page }) => {
@@ -150,7 +198,11 @@ test.describe("#2443: the band's refusal at a coarse pointer", () => {
 // correct because the tooltip and the per-control descriptions carry the same string there. Without this arm
 // the coarse assertion above would also pass on a line that rendered unconditionally.
 test("#2443: at a FINE pointer the refusal line does not render — the tooltip is the carrier there", async ({ mount, page }) => {
-  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.checkSendAvailability": () => ({ available: false, cause: "no-connection" }) });
+  await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...CHAT_ROOM_ROUTES,
+    "chat.checkSendAvailability": () => ({ available: false, cause: "endpoint-unreachable" }),
+  });
   const component = await mount(<ComposerStory />);
   const line = component.locator('[data-slot="composer-guided-refusal"]');
   // The node is in the DOM (the cause IS in force) but the fragment stands it down at this pointer.

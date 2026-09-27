@@ -324,8 +324,50 @@ test("an empty 'This chat' scope says so and offers the way back to everywhere",
   await expect(page.getByText("No images from this chat")).toBeVisible();
   await page.getByRole("button", { name: "Show everywhere" }).click();
   await expect(page.getByRole("radio", { name: "Everywhere" })).toHaveAttribute("aria-checked", "true");
+  // The button unmounts with the empty state; focus lands on the radio it selected, never the dialog shell.
+  await expect(page.getByRole("radio", { name: "Everywhere" })).toBeFocused();
   await expect(page.getByRole("gridcell", { name: "Gallery image" })).toHaveCount(1);
 });
+
+// A full gallery everywhere and none in this chat: the largest height change the scope strip can cause. Enough
+// rows to reach the grid's height cap at the desktop dialog's width, where a dozen fit in the empty state's height.
+const FULL_GALLERY = Array.from({ length: 40 }, (_, index) => ({
+  ...ITEM,
+  galleryItemId: `galleryitem_ct_full_${String(index)}`,
+  assetId: `asset_ct_full_${String(index)}`,
+  hash: index.toString(16).padStart(2, "0").repeat(32),
+}));
+
+for (const viewport of [
+  { name: "desktop", width: 1440, height: 900 },
+  { name: "mobile", width: 360, height: 780 },
+] as const) {
+  test(`${viewport.name}: switching to an empty 'This chat' leaves the heading and the scope strip where they were`, async ({ mount, page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await routeTrpc(page, { "assets.listGallery": (input: TrpcInput<"assets.listGallery">) => (input?.chatId === undefined ? FULL_GALLERY : []) });
+    await mount(<CharacterGalleryDialogStory />);
+
+    const heading = page.getByRole("dialog").getByRole("heading").first();
+    const strip = page.getByRole("radiogroup", { name: "Show images from" });
+    await expect(page.getByRole("gridcell", { name: "Gallery image" }).first()).toBeVisible();
+    // Read the first position after the popup's open motion has settled, or a transform skews it.
+    await expect
+      .poll(() =>
+        page
+          .locator('[data-slot="dialog-popup"]')
+          .first()
+          .evaluate((el) => el.getAnimations().length),
+      )
+      .toBe(0);
+    const tops = async (): Promise<readonly number[]> => [(await heading.boundingBox())?.y ?? Number.NaN, (await strip.boundingBox())?.y ?? Number.NaN];
+    const before = await tops();
+
+    await strip.getByRole("radio", { name: "This chat" }).click();
+    await expect(page.getByText("No images from this chat")).toBeVisible();
+    // Past the popup's own open/resize motion: the reading is the settled layout.
+    await expect.poll(tops).toEqual(before);
+  });
+}
 
 test("a failed gallery read shows its error state, never 'No images yet'", async ({ mount, page }) => {
   await routeTrpc(page, { "assets.listGallery": () => trpcError({ message: "gallery boom" }) });

@@ -67,7 +67,7 @@ export { applyCanonView } from "./invalidation-carrier.ts";
 export { consumeInboundJoinToken, peekInboundJoinToken, stashInboundJoinToken } from "./join-token.ts";
 export { peekQueryData } from "./peek-query.ts";
 export type { AppMeta } from "./query-client.ts";
-export { createAppQueryClient } from "./query-client.ts";
+export { createAppQueryClient, retryUnlessBadRequest } from "./query-client.ts";
 export type { QueryErrorStateProps } from "./query-error-state.tsx";
 export { QueryErrorState } from "./query-error-state.tsx";
 export type { QueryInlineStatesProps } from "./query-inline-states.tsx";

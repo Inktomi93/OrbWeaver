@@ -243,7 +243,7 @@ export const WITHHELD_VARIANT_SOURCES: Readonly<Record<string, string>> = {
   "primitives/compare-blocks/variants.ts::compareBlocksVariants":
     "decision axis is colour-bearing but needs the two-block comparison model — story with a fixture",
   "primitives/crossfade-image/variants.ts::crossfadeImageVariants": "image media — no text/control subject; buried-raster class is the live audit's",
-  "primitives/dialog/variants.ts::dialogVariants": "portal/overlay mount — needs the open flow; size axis is geometry",
+  "primitives/dialog/variants.ts::dialogVariants": "portal/overlay mount — needs the open flow; size and anchor axes are geometry",
   "primitives/drawer/variants.ts::drawerVariants": "portal/overlay mount — needs the open flow; side axis is geometry",
   "primitives/field/variants.ts::fieldVariants": "orientation/multiline are layout axes over a composed control — the composed controls are storied directly",
   "primitives/log-viewer/variants.ts::logViewerVariants":

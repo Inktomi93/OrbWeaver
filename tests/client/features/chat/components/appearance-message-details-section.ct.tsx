@@ -41,6 +41,12 @@ test("renders the detail chips AND the absorbed action cluster under one heading
   await expect(page.getByRole("combobox", { name: "Action cluster" })).toContainText("Reveal on hover");
 });
 
+test("Show model says what the credit names: the model, its provider and the connection", async ({ mount, page }) => {
+  await stub(page);
+  await mount(<AppearanceMessageDetailsSectionStory />);
+  await expect(page.getByRole("switch", { name: "Show model" })).toHaveAccessibleDescription(/the model, provider and connection that generated each reply/u);
+});
+
 test("toggling a detail chip patches its key, key-minimally", async ({ mount, page }) => {
   const trpc = await stub(page);
   await mount(<AppearanceMessageDetailsSectionStory />);
