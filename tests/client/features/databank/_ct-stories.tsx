@@ -267,6 +267,11 @@ export function DatabankHomeTileNarrowStory(): ReactElement {
   return <DatabankHomeTile width={390} />;
 }
 
+/** The tile at a 360px phone's content region, where the empty bank's two doors cannot share one line. */
+export function DatabankHomeTilePhoneStory(): ReactElement {
+  return <DatabankHomeTile width={360} />;
+}
+
 /** The whole tri-pane — LIST + CONTENT + CONTEXT at their production widths. The selection handoff (a row
  *  click opens THAT document in both other panes) is a property of the three TOGETHER, and a CT mounts once
  *  per test (`ct-mount-is-once-per-test`), so the pair cannot be assembled out of two mounts. */

@@ -136,6 +136,12 @@ export function CharacterGalleryDialog({ open, onOpenChange, characterId, charac
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const [scope, setScope] = useState<GalleryScope>("everywhere");
+  // "Show everywhere" unmounts itself, so focus moves to the radio it selected rather than the dialog.
+  const everywhereRef = useRef<HTMLButtonElement>(null);
+  const showEverywhere = (): void => {
+    setScope("everywhere");
+    everywhereRef.current?.focus();
+  };
   const gallery = useQuery(
     trpc.assets.listGallery.queryOptions({
       subjectCharacterId: characterId,
@@ -174,7 +180,9 @@ export function CharacterGalleryDialog({ open, onOpenChange, characterId, charac
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogPopup size="lg">
+        {/* Top-anchored: the scope filter changes the body's height, and a centred popup would move the
+            heading and the filter out from under the pointer. */}
+        <DialogPopup anchor="top" size="lg">
           <Stack gap="block">
             <Row justify="between" align="center" gap="row">
               <DialogTitle>{galleryLabel}</DialogTitle>
@@ -197,7 +205,7 @@ export function CharacterGalleryDialog({ open, onOpenChange, characterId, charac
               value={[scope]}
             >
               {GALLERY_SCOPES.map((option) => (
-                <Toggle checked={option === scope} key={option} semantics="radio" value={option}>
+                <Toggle checked={option === scope} key={option} ref={option === "everywhere" ? everywhereRef : undefined} semantics="radio" value={option}>
                   {GALLERY_SCOPE_LABELS[option]}
                 </Toggle>
               ))}
@@ -208,7 +216,7 @@ export function CharacterGalleryDialog({ open, onOpenChange, characterId, charac
               isError={gallery.isError}
               onRetry={(): void => void gallery.refetch()}
               scope={scope}
-              onShowEverywhere={(): void => setScope("everywhere")}
+              onShowEverywhere={showEverywhere}
               gridItems={gridItems}
               galleryLabel={galleryLabel}
               characterName={characterName}

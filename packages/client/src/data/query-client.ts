@@ -29,6 +29,12 @@ declare module "@tanstack/react-query" {
 const GC_TIME_MS = 300_000; // 5 minutes
 const QUERY_RETRIES = 2;
 
+/** The default retry schedule, minus a `BAD_REQUEST`: the server refused the input itself, so the same read
+ *  gets the same refusal. For a read whose refusal is an expected state rather than a fault. */
+export function retryUnlessBadRequest(failureCount: number, error: unknown): boolean {
+  return (error as { data?: { code?: string } } | null | undefined)?.data?.code !== "BAD_REQUEST" && failureCount < QUERY_RETRIES;
+}
+
 function toastFromMeta(meta: AppMeta | undefined, error: unknown): void {
   if (meta?.errorToast === undefined) {
     return;

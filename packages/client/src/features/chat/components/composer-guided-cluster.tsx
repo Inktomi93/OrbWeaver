@@ -72,6 +72,9 @@ export interface ComposerGuidedClusterProps {
    *  `sendUnavailableReason`. Engine-agnostic; the reason wins over a phase reason (both are persistent). */
   readonly sendUnavailable: boolean;
   readonly sendUnavailableReason: string | undefined;
+  /** The id of the element that already states the send refusal (the next-turn line). The band's refusal line
+   *  then stands down and each control it idles is described by that element. */
+  readonly refusalStatedBy: string | undefined;
   /** The room-level action that leads the four-home action grid. */
   readonly chatControl: ReactNode;
   /** The composer-owned terminal send/stop control; kept beside attachment tools as one physical cluster. */
@@ -81,7 +84,19 @@ export interface ComposerGuidedClusterProps {
 /** The four dual-mode guided icons + the ✨ utility menu (grouped Input · Reply · Continuation · Images · Plot —
  *  everything busy is inside the menu; the top row is just the four icons + ✨). */
 export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactElement {
-  const { chatId, value, onChange, busy = false, tailIsAssistant, imageControls, sendUnavailable, sendUnavailableReason, chatControl, sendControl } = props;
+  const {
+    chatId,
+    value,
+    onChange,
+    busy = false,
+    tailIsAssistant,
+    imageControls,
+    sendUnavailable,
+    sendUnavailableReason,
+    refusalStatedBy,
+    chatControl,
+    sendControl,
+  } = props;
   const guided = useGuidedActions({ chatId, onFireError: (firedText): void => onChange(firedText) });
   const utilities = useComposerUtilities(chatId);
   const trimmed = value.trim();
@@ -105,6 +120,9 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
   const streamOffReason = impersonating ? IMPERSONATE_IN_FLIGHT : undefined;
   const sendRefusal = sendUnavailable ? sendUnavailableReason : undefined;
   const persistentOffReason = streamOffReason ?? sendRefusal;
+  // Only while the send refusal is the cause in force: a live draft stream wins, and its own reason is the detail.
+  const offStatedBy = streamOffReason === undefined && sendUnavailable ? refusalStatedBy : undefined;
+  const bandRefusal = refusalStatedBy === undefined ? sendRefusal : undefined;
   const reasonFor = (phaseReason: string): string => persistentOffReason ?? phaseReason;
 
   // CONSUME actions clear the composer on fire; onFireError restores it on failure (D57).
@@ -144,7 +162,13 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
             {chatControl}
           </Row>
           <Row aria-label="Your message" className="shrink-0 justify-self-start" data-slot="composer-you-actions" gap="field" role="group">
-            <ImpersonateGuidedButton disabled={!idle} hasText={hasText} onPick={fireImpersonate} reason={reasonFor(IMPERSONATE_WAIT_FOR_TURN)} />
+            <ImpersonateGuidedButton
+              disabled={!idle}
+              hasText={hasText}
+              onPick={fireImpersonate}
+              reason={reasonFor(IMPERSONATE_WAIT_FOR_TURN)}
+              refusalStatedBy={offStatedBy}
+            />
             {guided.stopImpersonation === null ? null : <ImpersonateStopButton onStop={guided.stopImpersonation} />}
           </Row>
           <Row
@@ -162,9 +186,17 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
               disabled={!(canTargetTail && idle)}
               reason={reasonFor(SWIPE_NEEDS_REPLY)}
               buttonTestId="composerGuidedSwipe"
+              refusalStatedBy={offStatedBy}
               onFire={(): void => guided.fireSwipe(trimmed)}
             />
-            <ResponseGuidedButton hasText={hasText} idle={idle} characters={characters} onFire={fireResponse} disabledReason={persistentOffReason} />
+            <ResponseGuidedButton
+              hasText={hasText}
+              idle={idle}
+              characters={characters}
+              onFire={fireResponse}
+              disabledReason={persistentOffReason}
+              refusalStatedBy={offStatedBy}
+            />
             <GuidedIconButton
               icon={FastForward}
               label={hasText ? "Continue the reply with this direction" : "Continue the reply"}
@@ -173,6 +205,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
               disabled={!(canTargetTail && idle)}
               reason={reasonFor(SWIPE_NEEDS_REPLY)}
               buttonTestId="composerGuidedContinue"
+              refusalStatedBy={offStatedBy}
               onFire={(): void => fireAndClear(guided.fireContinue)}
             />
           </Row>
@@ -215,10 +248,11 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
             would otherwise stand under every empty chat on every phone. The IMPERSONATE-stream cause is
             not shown either, for two reasons: its string is a fragment written to follow "<Label> — "
             (`injection-copy.ts` guarantees full standalone sentences for the SEND causes only), and the
-            Stop that ends it is already rendered beside the icons as visible chrome. */}
-        {sendRefusal === undefined ? null : (
+            Stop that ends it is already rendered beside the icons as visible chrome. A refusal another element
+            already states (`refusalStatedBy`, the next-turn line) is not shown here either: one statement. */}
+        {bandRefusal === undefined ? null : (
           <Text as="span" className={SHOW_ONLY_AT_COARSE} data-slot="composer-guided-refusal" voice="gloss">
-            {sendRefusal}
+            {bandRefusal}
           </Text>
         )}
       </Stack>

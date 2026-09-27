@@ -39,6 +39,7 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { SkeletonRows } from "#data";
+import { MODEL_ROLES_PATH_TEXT } from "#lib";
 import type { ReadFailure } from "../lib/resolve-failure.ts";
 import { failureCause, resolveFailureMessage } from "../lib/resolve-failure.ts";
 
@@ -98,8 +99,8 @@ export function CapabilityGate({ error }: CapabilityGateProps): ReactElement {
           )}
           <Text prose={true} voice="gloss">
             {routing
-              ? "This is a routing problem, not a missing connection — fix it under Settings → Connections → Model roles."
-              : "Check your model roles under Settings → Connections → Model roles, then retry."}
+              ? `This is a routing problem, not a missing connection — fix it under ${MODEL_ROLES_PATH_TEXT}.`
+              : `Check your model roles under ${MODEL_ROLES_PATH_TEXT}, then retry.`}
           </Text>
         </Stack>
       </Row>

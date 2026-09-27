@@ -14,7 +14,7 @@ export const dialogVariants = tv({
     // and a base `p-gutter` were two padding classes tailwind-merge could not dedupe; with the spacing scale
     // registered they DO dedupe last-wins, and per-size stays because a size arm STATING its own gutter is
     // legible where an arm neutralising an inherited one is not.
-    viewport: "fixed inset-0 z-(--z-modal) flex items-center justify-center",
+    viewport: "fixed inset-0 z-(--z-modal) flex justify-center",
     popup: `relative flex max-h-full flex-col overflow-y-auto overscroll-contain ${MODAL_SURFACE} ${OVERLAY_MOTION.modalPopup}`,
     title: "text-title leading-title font-semibold",
     description: "mt-field text-body leading-body text-muted-foreground",
@@ -28,6 +28,13 @@ export const dialogVariants = tv({
       xl: { viewport: "p-gutter", popup: "h-full max-w-(--width-dialog-xl)" },
       full: { viewport: "p-0", popup: "h-full w-full max-w-none rounded-none border-0" },
     },
+    // Where the popup sits on the block axis. `top` pins its top edge at the viewport gutter, so a dialog whose
+    // body changes height (a filter that empties a grid) keeps its heading and controls under the pointer;
+    // a centred popup moves them by half the height change.
+    anchor: {
+      center: { viewport: "items-center" },
+      top: { viewport: "items-start" },
+    },
   },
-  defaultVariants: { size: "md" },
+  defaultVariants: { size: "md", anchor: "center" },
 });

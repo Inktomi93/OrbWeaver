@@ -3,27 +3,46 @@
 // member's own chat binding would name the wrong row.
 
 import type { ChatId } from "@orb/kit/ids";
+import { Button } from "@orb/ui/button";
+import { Container } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { skipToken, useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useTRPC } from "#data";
+import { retryUnlessBadRequest, useTRPC } from "#data";
 import { cn } from "#lib";
+import { openConfigTo } from "#state";
 import { useCreditConnections } from "../hooks/use-credit-connections.ts";
 import type { SendGate } from "../hooks/use-send-availability.ts";
-import { nextTurnLine } from "../lib/next-turn-line.ts";
+import { CHAT_TRACK } from "../lib/chat-track.ts";
+import type { NextTurnLine } from "../lib/next-turn-line.ts";
+import { nextTurnLine, nextTurnReadsChatRole } from "../lib/next-turn-line.ts";
 
 export interface ComposerNextTurnLineProps {
   readonly chatId: ChatId;
   /** The room's pre-send verdict (`useSendAvailability()`), shared with the Send gate. */
   readonly availability: Pick<SendGate, "cause" | "failed">;
+  /** The line's element id: the composer's disabled controls are described by it while it states the refusal. */
+  readonly id: string;
 }
 
-export function ComposerNextTurnLine({ chatId, availability }: ComposerNextTurnLineProps): ReactElement {
+// Each state's ink: an unset connection warns, a failed read is an error, the rest keep the gloss voice.
+const STATE_INK: Record<NextTurnLine["state"], string | undefined> = {
+  named: undefined,
+  checking: undefined,
+  unset: "text-warning",
+  failed: "text-destructive",
+};
+
+export function ComposerNextTurnLine({ chatId, availability, id }: ComposerNextTurnLineProps): ReactElement {
   const trpc = useTRPC();
   const chat = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
   // `null` is the tRPC no-data wire shape (a CT stub yields it): an unknown viewer, never a host.
   const viewerIsHost = chat.data?.viewerIsHost ?? undefined;
-  const resolve = useQuery(trpc.connection.resolveChatCapability.queryOptions(viewerIsHost === true ? undefined : skipToken));
+  const readsChatRole = nextTurnReadsChatRole(viewerIsHost, availability.cause, availability.failed);
+  const resolve = useQuery({
+    ...trpc.connection.resolveChatCapability.queryOptions(readsChatRole ? undefined : skipToken),
+    retry: retryUnlessBadRequest,
+  });
   const connections = useCreditConnections();
   const line = nextTurnLine({
     viewerIsHost,
@@ -35,15 +54,36 @@ export function ComposerNextTurnLine({ chatId, availability }: ComposerNextTurnL
     connections,
   });
   return (
-    <Text
-      as="p"
-      voice="gloss"
-      className={cn("min-w-0 break-words", line.unset && "text-warning")}
-      data-slot="composer-next-turn"
-      data-unset={line.unset ? "" : undefined}
-      data-failed={line.failed ? "" : undefined}
-    >
-      {line.text}
-    </Text>
+    // The card's own track, so the line starts at the card's edge; the measure caps the paragraph itself.
+    <Container className={CHAT_TRACK}>
+      <Text
+        as="p"
+        voice="gloss"
+        className={cn("min-w-0 max-w-(--reading-measure-prose) break-words", STATE_INK[line.state])}
+        data-slot="composer-next-turn"
+        data-unset={line.state === "unset" ? "" : undefined}
+        data-failed={line.state === "failed" ? "" : undefined}
+        id={id}
+      >
+        {line.text}
+        {line.door === undefined ? null : (
+          <>
+            {` ${line.door.lead} `}
+            {/* The literals are the house spelling of a settings deep link: a feature never imports another's nav. */}
+            <Button
+              className="underline"
+              intent="ghost"
+              onClick={(): void => openConfigTo("connections", "model-roles", "chat-model")}
+              size="inline"
+              type="button"
+            >
+              <Text as="span" ink="inherit" voice="gloss">
+                {line.door.label}
+              </Text>
+            </Button>
+          </>
+        )}
+      </Text>
+    </Container>
   );
 }

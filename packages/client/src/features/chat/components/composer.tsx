@@ -33,7 +33,7 @@ import type { FileDropzoneResult } from "@orb/ui/file-dropzone";
 import { Row, Stack } from "@orb/ui/layout";
 import { Textarea } from "@orb/ui/textarea";
 import type { KeyboardEvent, ReactElement } from "react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useUploadCaps } from "#data";
 import type { SlashArgOffer, SlashCommandContribution } from "#lib";
 import { IMAGE_GEN_NEEDS_TEXT, notify, testId } from "#lib";
@@ -52,6 +52,7 @@ import { useStopTurn } from "../hooks/use-stop-turn.ts";
 import { ATTACH_BUSY_MESSAGE, dropzoneRefusalMessage, triageAttachFiles } from "../lib/attach-media.ts";
 import { handleComposerKeyDown } from "../lib/composer-keydown.ts";
 import { resolveEmptySendAction } from "../lib/continue-on-empty.ts";
+import { nextTurnStatesRefusal } from "../lib/next-turn-line.ts";
 import { matchSlashCommands, resolveSlashHighlight, slashArgsInProgress, slashCompletionAria } from "../lib/slash-command.ts";
 import { ComposerArgHintStrip } from "./composer-arg-hint-strip.tsx";
 import { ComposerAttachmentStrip } from "./composer-attachment-strip.tsx";
@@ -122,6 +123,10 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
   // turn). It reaches EVERY room now: the gate used to be structurally blind on the one surface where it
   // mattered most (a fresh chat had no row to check against, §2.6 #1) — the room has a row from frame one.
   const sendAvailability = useSendAvailability(chatId);
+  // While the next-turn line states the refusal it is the room's one statement of it: the band's own refusal
+  // line stands down and every disabled control is described by the line.
+  const nextTurnId = useId();
+  const refusalStatedBy = nextTurnStatesRefusal(sendAvailability.cause) ? nextTurnId : undefined;
   const { attachments, addFiles, removeAttachment, clearAttachments } = useComposerAttachments();
 
   // P5 CYOA compose-mode focus (§5.4): a choice click in `compose` mode seeds the draft (through `value`)
@@ -397,6 +402,7 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
             imageControls={imageControls}
             sendUnavailable={sendAvailability.unavailable}
             sendUnavailableReason={sendAvailability.reason}
+            refusalStatedBy={refusalStatedBy}
             chatControl={<ActiveChatOptionsMenu chatId={chatId} />}
             sendControl={
               <ComposerSendControl
@@ -408,11 +414,12 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
                 sendPending={sendMessage.isPending || continueOnEmpty.isPending}
                 unavailable={sendAvailability.unavailable}
                 unavailableReason={sendAvailability.reason}
+                unavailableStatedBy={refusalStatedBy}
               />
             }
           />
         </ComposerDropTarget>
-        <ComposerNextTurnLine chatId={chatId} availability={sendAvailability} />
+        <ComposerNextTurnLine chatId={chatId} availability={sendAvailability} id={nextTurnId} />
       </Stack>
     </footer>
   );

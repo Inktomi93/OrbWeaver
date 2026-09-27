@@ -2,11 +2,12 @@
 // chat role, so the host's own resolution names it, a member is pointed at the host, and the room's
 // `no-connection` verdict is the unset state for both.
 
+import { MODEL_ROLES_PATH } from "@orb/client/lib";
 import type { UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { modelDisplayName } from "@orb/kit/model-name";
 import type { NextTurnInputs } from "../../../../../packages/client/src/features/chat/lib/next-turn-line.ts";
-import { nextTurnLine } from "../../../../../packages/client/src/features/chat/lib/next-turn-line.ts";
+import { nextTurnLine, nextTurnReadsChatRole, nextTurnStatesRefusal } from "../../../../../packages/client/src/features/chat/lib/next-turn-line.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
 
@@ -21,50 +22,56 @@ const BASE: NextTurnInputs = {
   resolveFailed: false,
   connections: { rows: [{ id: MINE, label: "Work key", providerLabel: "Anthropic" }], failed: false },
 };
+const FAILED = { state: "failed", text: "Next reply: the connection couldn't be checked.", door: undefined };
 
 test("a host names their resolved connection and model", () => {
-  expect(nextTurnLine(BASE)).toEqual({ text: `Next reply: Work key · ${modelDisplayName(MODEL)}`, unset: false, failed: false });
+  expect(nextTurnLine(BASE)).toEqual({ state: "named", text: `Next reply: Work key · ${modelDisplayName(MODEL)}`, door: undefined });
 });
 
 test("a host whose connection list has not loaded names the provider instead of nothing", () => {
   expect(nextTurnLine({ ...BASE, connections: { rows: undefined, failed: false } }).text).toBe(`Next reply: Anthropic · ${modelDisplayName(MODEL)}`);
 });
 
-test("the room's no-connection verdict is the unset state, worded for host and member", () => {
-  const host = nextTurnLine({ ...BASE, availabilityCause: "no-connection", resolved: undefined, resolveFailed: true });
-  expect(host.unset).toBe(true);
-  expect(host.text).toContain("Settings → Connections → Model roles");
-  expect(nextTurnLine({ ...BASE, viewerIsHost: false, availabilityCause: "no-connection" })).toEqual({
-    text: "Next reply: the host has no chat connection set.",
-    unset: true,
-    failed: false,
+test("the room's no-connection verdict is the unset state; the host gets the Model roles door, a member does not", () => {
+  expect(nextTurnLine({ ...BASE, availabilityCause: "no-connection", resolved: undefined })).toEqual({
+    state: "unset",
+    text: "Next reply: no chat connection is set.",
+    door: { lead: `Choose one under ${MODEL_ROLES_PATH.trail} →`, label: MODEL_ROLES_PATH.leaf },
   });
+  expect(nextTurnLine({ ...BASE, viewerIsHost: false, availabilityCause: "no-connection" })).toEqual({
+    state: "unset",
+    text: "Next reply: the host has no chat connection set.",
+    door: undefined,
+  });
+});
+
+test("the line states the no-connection refusal and no other cause", () => {
+  expect(nextTurnStatesRefusal("no-connection")).toBe(true);
+  for (const cause of ["endpoint-unreachable", "runtime-missing", "unavailable", null, undefined] as const) {
+    expect(nextTurnStatesRefusal(cause)).toBe(false);
+  }
+});
+
+test("the chat-role read waits for the verdict and never fires into a no-connection room or for a member", () => {
+  expect(nextTurnReadsChatRole(true, null, false)).toBe(true);
+  expect(nextTurnReadsChatRole(true, "endpoint-unreachable", false)).toBe(true);
+  expect(nextTurnReadsChatRole(true, undefined, true)).toBe(true);
+  expect(nextTurnReadsChatRole(true, undefined, false)).toBe(false);
+  expect(nextTurnReadsChatRole(true, "no-connection", false)).toBe(false);
+  expect(nextTurnReadsChatRole(false, null, false)).toBe(false);
+  expect(nextTurnReadsChatRole(undefined, null, false)).toBe(false);
 });
 
 test("a member is pointed at the host's connection, whatever the member's own resolution says", () => {
-  expect(nextTurnLine({ ...BASE, viewerIsHost: false })).toEqual({ text: "Next reply: the host's chat connection.", unset: false, failed: false });
+  expect(nextTurnLine({ ...BASE, viewerIsHost: false })).toEqual({ state: "named", text: "Next reply: the host's chat connection.", door: undefined });
 });
 
-test("a failed resolve names no cause until the room's verdict has settled", () => {
-  const failed = { ...BASE, resolved: undefined, resolveFailed: true };
-  expect(nextTurnLine({ ...failed, availabilityCause: undefined }).text).toBe("Next reply: checking the connection…");
-  expect(nextTurnLine({ ...failed, availabilityCause: null }).text).toBe("Next reply: the chat connection couldn't be read.");
+test("a host whose chat-role read failed is told the check failed", () => {
+  expect(nextTurnLine({ ...BASE, resolved: undefined, resolveFailed: true })).toEqual(FAILED);
 });
 
-test("a host whose resolve and verdict reads both failed is told the read failed, never left checking", () => {
-  expect(nextTurnLine({ ...BASE, resolved: undefined, resolveFailed: true, availabilityCause: undefined, availabilityFailed: true })).toEqual({
-    text: "Next reply: the chat connection couldn't be read.",
-    unset: false,
-    failed: true,
-  });
-});
-
-test("a failed room read leaves the viewer unknown and says the check failed", () => {
-  expect(nextTurnLine({ ...BASE, viewerIsHost: undefined, chatFailed: true })).toEqual({
-    text: "Next reply: this chat's connection couldn't be checked.",
-    unset: false,
-    failed: true,
-  });
+test("a failed room read leaves the viewer unknown and reads the same failure sentence", () => {
+  expect(nextTurnLine({ ...BASE, viewerIsHost: undefined, chatFailed: true })).toEqual(FAILED);
 });
 
 test("a member's line needs no connection read, so a failed verdict still names the host's connection", () => {
@@ -73,6 +80,7 @@ test("a member's line needs no connection read, so a failed verdict still names 
   );
 });
 
-test("an unknown viewer is still checking, never a guess", () => {
-  expect(nextTurnLine({ ...BASE, viewerIsHost: undefined }).text).toBe("Next reply: checking the connection…");
+test("an unknown viewer, or a host whose read has not settled, is still checking", () => {
+  expect(nextTurnLine({ ...BASE, viewerIsHost: undefined }).state).toBe("checking");
+  expect(nextTurnLine({ ...BASE, resolved: undefined }).text).toBe("Next reply: checking the connection…");
 });

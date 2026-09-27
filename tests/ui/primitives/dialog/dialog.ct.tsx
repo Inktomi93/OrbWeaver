@@ -1,6 +1,7 @@
 import { Dialog, DialogClose, DialogDescription, DialogPopup, DialogTitle, DialogTrigger } from "@orb/ui/dialog";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Page } from "@playwright/test";
 import { DialogHandleHarness } from "./dialog-handle.fixtures.tsx";
 
 test("opens on trigger click and closes on Escape", async ({ mount, page }) => {
@@ -174,6 +175,42 @@ test("size=full is a full-bleed presentation — no width cap, no radius, no bor
   await expect(popup).toHaveCSS("border-top-width", "0px");
   // The viewport drops its gutter padding so the popup truly fills the screen.
   await expect(page.locator('[data-slot="dialog-viewport"]')).toHaveCSS("padding-top", "0px");
+});
+
+// The anchor axis: a centred popup moves by half of any change in its own height; a `top` popup pins its top
+// edge at the viewport gutter, so its heading stays put while the body changes.
+/** How far a short popup's top edge sits below the viewport's top gutter, once its open motion has settled. */
+async function topBelowGutter(page: Page): Promise<number> {
+  const popup = page.locator('[data-slot="dialog-popup"]');
+  await expect.poll(() => popup.evaluate((el) => el.getAnimations().length)).toBe(0);
+  const readGutter = (): Promise<number> => page.locator('[data-slot="dialog-viewport"]').evaluate((el) => Number.parseFloat(getComputedStyle(el).paddingTop));
+  await expect.poll(readGutter).toBeGreaterThan(0);
+  const gutter = await readGutter();
+  return ((await popup.boundingBox())?.y ?? Number.NaN) - gutter;
+}
+
+test("anchor=top pins the popup's top edge at the viewport gutter", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await mount(
+    <Dialog defaultOpen={true}>
+      <DialogPopup anchor="top" size="lg">
+        <DialogTitle>Anchored</DialogTitle>
+      </DialogPopup>
+    </Dialog>,
+  );
+  expect(Math.abs(await topBelowGutter(page))).toBeLessThanOrEqual(1);
+});
+
+test("the default anchor centres a short popup, well below the gutter", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await mount(
+    <Dialog defaultOpen={true}>
+      <DialogPopup size="lg">
+        <DialogTitle>Centred</DialogTitle>
+      </DialogPopup>
+    </Dialog>,
+  );
+  expect(await topBelowGutter(page)).toBeGreaterThan(1);
 });
 
 // createHandle: open the dialog imperatively (no trigger) with a payload via handle.openWithPayload;

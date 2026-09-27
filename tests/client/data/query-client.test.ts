@@ -7,7 +7,7 @@
 // toast wiring silently stops firing) breaks every read/write in the app; this is the "load-bearing
 // invariant" test class (Spine-Testing §6), not a tautology over a constructor call.
 
-import { createAppQueryClient } from "@orb/client/data";
+import { createAppQueryClient, retryUnlessBadRequest } from "@orb/client/data";
 import type { Notify, NotifyInput } from "@orb/client/lib";
 import { bindNotify, toNotice } from "@orb/client/lib";
 import { MutationObserver } from "@tanstack/react-query";
@@ -124,5 +124,33 @@ describe("createAppQueryClient — global error → toast wiring", () => {
     await observer.mutate(undefined).catch(() => undefined);
 
     expect(notify.errorCalls).toEqual(["mutation failed"]);
+  });
+});
+
+describe("retryUnlessBadRequest", () => {
+  async function callsUntilSettled(error: unknown): Promise<number> {
+    const client = createAppQueryClient();
+    let calls = 0;
+    await client
+      .fetchQuery({
+        queryKey: ["__query_client_test__", "retry"],
+        queryFn: () => {
+          calls += 1;
+          return Promise.reject(error);
+        },
+        retry: retryUnlessBadRequest,
+        retryDelay: 0,
+      })
+      .catch(() => undefined);
+    return calls;
+  }
+
+  test("a BAD_REQUEST is asked once: the server refused the input, so a retry gets the same refusal", async () => {
+    expect(await callsUntilSettled({ message: "no connection is bound", data: { code: "BAD_REQUEST" } })).toBe(1);
+  });
+
+  test("any other failure keeps the default schedule: the first call plus two retries", async () => {
+    expect(await callsUntilSettled({ message: "boom", data: { code: "INTERNAL_SERVER_ERROR" } })).toBe(3);
+    expect(await callsUntilSettled(new Error("socket dropped"))).toBe(3);
   });
 });

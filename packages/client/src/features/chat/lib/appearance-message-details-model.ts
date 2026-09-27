@@ -40,7 +40,10 @@ export const APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY: ConfigSubcategory = {
       id: "show-model",
       key: "showModelIcon",
       label: "Show model",
-      teach: { summary: "Credits the model that generated the message, in its actions row on hover.", affects: ["assistant messages' hover chrome"] },
+      teach: {
+        summary: "Credits the model, provider and connection that generated each reply, in its actions row on hover.",
+        affects: ["assistant messages' hover chrome"],
+      },
     },
     {
       id: "show-token-count",
