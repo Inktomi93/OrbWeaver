@@ -117,6 +117,7 @@ export function layer(overrides: AppSettings): EffectiveAppConfig {
     ...resolveBornInDbScalars(overrides),
     localMultiUser: overrides.localMultiUser ?? DEFAULT_LOCAL_MULTI_USER,
     discreetLogin: overrides.discreetLogin ?? DEFAULT_DISCREET_LOGIN,
+    ipCertificate: overrides.ipCertificate ?? null,
     ...resolveStructuredOutput(overrides),
     promptCacheMinDepth: overrides.promptCacheMinDepth ?? PROMPT_CACHE_MIN_DEPTH_FLOOR,
   };

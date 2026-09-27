@@ -31,7 +31,7 @@ import { EnvRefusedError } from "./refusal/index.ts";
 export type { AllowedHostsInput } from "./allowed-hosts.ts";
 export { machineHostnameFor, publicAddresses, resolveAllowedHosts } from "./allowed-hosts.ts";
 export type { BindPosture, BindPostureInput } from "./bind.ts";
-export { bindPostureWarnings, resolveBindPosture } from "./bind.ts";
+export { bindPostureWarnings, loopbackOrigin, resolveBindPosture } from "./bind.ts";
 export { CONTAINER_MARKER_FILES, runsInContainer, settingInstruction } from "./container.ts";
 export type { DiagnosticsExposure, DiagnosticsPosture, DiagnosticsPostureInput, OwnerFallbackCredentialInput } from "./diagnostics.ts";
 export { DIAGNOSTICS_EXPOSURES, diagnosticsPostureWarnings, resolveDiagnosticsPosture, resolveOwnerFallbackCredential } from "./diagnostics.ts";

@@ -28,6 +28,7 @@
     "@opentelemetry/sdk-trace-base": "catalog:",
     "@opentelemetry/semantic-conventions": "catalog:",
     "@trpc/server": "catalog:",
+    "acme-client": "catalog:",
     "cloudflared": "catalog:",
     "@types/html-to-text": "catalog:",
     "drizzle-orm": "catalog:",

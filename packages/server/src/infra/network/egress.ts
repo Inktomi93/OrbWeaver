@@ -33,6 +33,12 @@ import { DEFAULT_TRUSTED_RANGES, isInRanges } from "./ip-ranges.ts";
 //   sees a port), so a hostname that RESOLVES private but whose original host(:port) is not declared still
 //   hits the guarded lookup gate and is blocked. A resolved address can only ever SUBTRACT admission
 //   (`NEVER_ADMISSIBLE_RANGES` is re-checked on it); it can never add one the original host did not have.
+//
+// SANCTIONED EGRESS OUTSIDE BOTH GATES — the IP certificate's ACME client (`infra/acme/issuer.ts`, D269). acme-client
+// dials through its own axios instance, which neither this dispatcher nor safeFetch sees, and axios honors
+// HTTP(S)_PROXY. It is admitted because no user input reaches any URL it dials: the first is the constant
+// `LETS_ENCRYPT_DIRECTORY`, and every later one is a resource URL that directory's own TLS-authenticated answers name.
+// The owner's address is only an order payload field and the CSR's SAN, never a host this server connects to.
 
 const OK_STATUS_MIN = 200;
 const REDIRECT_STATUS_MIN = 300;

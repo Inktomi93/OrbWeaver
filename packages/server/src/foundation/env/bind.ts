@@ -116,6 +116,26 @@ function isLoopbackHost(host: string): boolean {
   return LOOPBACK_ALIASES.has(normalized) || LOOPBACK_V4_RE.test(normalized);
 }
 
+// Binds that take every interface, loopback included; node's `::` listener is dual-stack, so it takes IPv4 too.
+const WILDCARD_HOSTS: ReadonlySet<string> = new Set(["0.0.0.0", "::", "[::]"]);
+const IPV6_LOOPBACK_SPELLINGS: ReadonlySet<string> = new Set(["::1", "[::1]"]);
+
+/** Where a same-host hop reaches a listener bound to `host` over loopback, so the listener sees a loopback peer; null
+ *  for a bind to one named interface that is not loopback, which no loopback connect reaches. */
+export function loopbackOrigin(host: string | undefined, port: number): string | null {
+  const normalized = host?.trim().toLowerCase();
+  if (normalized === undefined || WILDCARD_HOSTS.has(normalized)) {
+    return `http://127.0.0.1:${String(port)}`;
+  }
+  if (!isLoopbackHost(normalized)) {
+    return null;
+  }
+  if (IPV6_LOOPBACK_SPELLINGS.has(normalized)) {
+    return `http://[::1]:${String(port)}`;
+  }
+  return LOOPBACK_V4_RE.test(normalized) ? `http://${normalized}:${String(port)}` : `http://127.0.0.1:${String(port)}`;
+}
+
 function refusalFor(nodeEnv: string, bindHost: string): string {
   return (
     `BIND_HOST=${bindHost} with NODE_ENV=${nodeEnv} — a NON-PRODUCTION process must not listen where an untrusted ` +

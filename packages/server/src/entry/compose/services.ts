@@ -82,7 +82,7 @@ import type { SessionsService } from "#domain/sessions";
 import { createSessionsService } from "#domain/sessions";
 import type { DefaultBackgroundSeeder, SettingsContext, SettingsServiceDeps } from "#domain/settings";
 import { createJoinerSettingsStatement, createSettingsContext, createSettingsService, listSeededItemKeys, recordSeededItemKeys } from "#domain/settings";
-import type { RelayController } from "#domain/share";
+import type { CertificateController, RelayController } from "#domain/share";
 import { createShareService } from "#domain/share";
 import type { TagContext } from "#domain/tag";
 import { createTagService } from "#domain/tag";
@@ -223,23 +223,41 @@ export interface ServicesDeps {
   readonly share: ShareComposeDeps;
 }
 
-/** The lifecycle-owned half of the share service: the one relay controller and this machine's setup address. */
+/** The lifecycle-owned half of the share service: the one relay controller, the one IP certificate controller, this
+ *  machine's setup address, and the app listener's port and reach. */
 export interface ShareComposeDeps {
   readonly relay: RelayController;
+  readonly certificate: CertificateController;
   readonly localSetupUrl: () => string;
+  readonly appPort: () => number;
+  /** True when the app listener admits connections from beyond loopback (`BindPosture.publicBind`). */
+  readonly publicBind: boolean;
+  /** True when the app listener also takes loopback, where the IP certificate's https listener forwards. */
+  readonly loopbackUpstream: boolean;
 }
 
-/** The share deps for a composition that runs no relay (a seed script, a test graph): `status` reads `off`, `stop` has
- *  nothing to end, and a start that passes the preconditions throws rather than pretend a relay started. */
+/** The share deps for a composition that runs no relay and no https listener (a seed script, a test graph): both read
+ *  `off`, a stop has nothing to end, and a start that passes the preconditions throws rather than pretend one started. */
 export const NO_SHARE_RELAY: ShareComposeDeps = {
   relay: {
     start: () => Promise.reject(new Error("compose: this composition runs no relay")),
     stop: (): void => undefined,
     status: () => ({ state: "off" }),
   },
+  certificate: {
+    enable: () => Promise.reject(new Error("compose: this composition serves no https listener")),
+    disable: () => Promise.resolve(),
+    stop: () => Promise.resolve(),
+    status: () => ({ state: "off" }),
+  },
   localSetupUrl: (): string => {
     throw new Error("compose: this composition serves no local origin");
   },
+  appPort: (): number => {
+    throw new Error("compose: this composition serves no local origin");
+  },
+  publicBind: false,
+  loopbackUpstream: false,
 };
 
 /** The restart port for a composition no supervisor started (a seed script, a test graph). `admin.restart` refuses as
@@ -1276,6 +1294,14 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     settings,
     share: createShareService({
       relay: deps.share.relay,
+      certificate: deps.share.certificate,
+      certificateSetting: () => settings.getEffectiveConfig().ipCertificate,
+      saveCertificateSetting: async (principal, setting) => {
+        await settings.updateAppSettings({ principal, partial: { ipCertificate: setting } });
+      },
+      publicBind: deps.share.publicBind,
+      loopbackUpstream: deps.share.loopbackUpstream,
+      appPort: deps.share.appPort,
       enableSeating: createEnableShareSeating({
         seating: () => settings.getEffectiveConfig(),
         overrides: async (principal) => (await settings.getAppSettingsWithOverrides({ principal })).overrides,

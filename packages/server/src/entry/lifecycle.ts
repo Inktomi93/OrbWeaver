@@ -23,8 +23,8 @@ import { authorizationCodeGrant, discovery } from "openid-client";
 import type { ServerRestartPort } from "#domain/admin";
 import { startAutomationWatcher } from "#domain/automation";
 import { createOidcStore, createSessionsService, isReservedSignupHandle, ownerHandles } from "#domain/sessions";
-import type { ShareBootOutcome } from "#domain/share";
-import { createRelayController } from "#domain/share";
+import type { CertificateBootOutcome, CertificateController, ShareBootOutcome } from "#domain/share";
+import { createCertificateController, createRelayController } from "#domain/share";
 import { loadWorkload, nextRunnableWorkload, reapOrphanedWorkloads, runWorkload, subscribeWorkloadWake } from "#domain/workloads";
 import {
   bindPostureInput,
@@ -33,6 +33,7 @@ import {
   diagnosticsPostureWarnings,
   env,
   launchedBySupervisor,
+  loopbackOrigin,
   ownerFallbackCredentialInput,
   ownerFallbackPeerInput,
   ownerFallbackPeerWarnings,
@@ -43,6 +44,7 @@ import {
 } from "#foundation/env";
 import { getLog, initTracing, superviseDetached, wrapLibSqlClient } from "#foundation/observability";
 import { versionIdentity } from "#foundation/version";
+import { ACME_POLLING, createAcmeIssuer, createCertificateStore, LETS_ENCRYPT_DIRECTORY, openChallengeResponder } from "#infra/acme";
 import type { OwnerClaimCode } from "#infra/auth";
 import {
   createBackchannelLogoutVerifier,
@@ -56,7 +58,7 @@ import {
   ownerFallbackAllowed,
 } from "#infra/auth";
 import { bootSecretProvenance, resolveCredentialsKey, resolveSessionSecret } from "#infra/crypto";
-import { fetchPinnedDownload, installEgressFirewall, parseAllowlist } from "#infra/network";
+import { fetchPinnedDownload, installEgressFirewall, parseAllowlist, startTlsTerminator } from "#infra/network";
 import type { CloudflaredPin, RelayAssetFetch, SpawnRelay } from "#infra/relay";
 import { CLOUDFLARED_PIN, createCloudflaredBinary, createQuickTunnelLauncher, extractTgzWithTar, spawnQuickTunnel } from "#infra/relay";
 import { createCas } from "#infra/storage";
@@ -210,6 +212,27 @@ function relayOrigin(address: Readonly<AddressInfo> | null, port: number): strin
     return `http://127.0.0.1:${port}`;
   }
   return address.family === "IPv6" ? `http://[${address.address}]:${port}` : `http://${address.address}:${port}`;
+}
+
+/** The log line for the boot start of a stored IP certificate choice; the controller logs what the order does next. */
+function logCertificateBootOutcome(log: ReturnType<typeof getLog>, outcome: CertificateBootOutcome): void {
+  switch (outcome.kind) {
+    case "not_configured":
+      return;
+    case "refused":
+      log.warn(
+        { share: true, security: true, code: outcome.refusal.code },
+        `share: the stored IP certificate choice did not start. ${outcome.refusal.message}`,
+      );
+      return;
+    case "started":
+      log.info({ share: true, state: outcome.certificate.state }, "share: the stored IP certificate choice started");
+      return;
+    default: {
+      const _exhaustive: never = outcome;
+      throw new Error(`share: unknown certificate boot outcome ${JSON.stringify(_exhaustive)}`);
+    }
+  }
 }
 
 /** The log line for a boot-time or post-claim share start; the relay's own `up` line carries the link. */
@@ -398,6 +421,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
   let stopAutomationWatcher: (() => void) | null = null;
   let stopLocalLightPrefetch: (() => void) | null = null;
   let stopRelay: (() => void) | null = null;
+  let certificateController: CertificateController | null = null;
   let booted = false;
   // The one relay host registry for this process: the Host allowlist reads `hosts`; `writer` is the relay controller's.
   const relayHosts = createRelayHostRegistry();
@@ -600,6 +624,11 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       },
     };
 
+    // The DEPLOY-MODE INVARIANT (foundation/env/bind.ts holds the model): `hostname` is OMITTED rather than
+    // defaulted to "0.0.0.0" so the production path stays byte-identical to node's own default — passing
+    // "0.0.0.0" would silently drop the IPv6 listener. The IP certificate's listeners take the same interface.
+    const bind = resolveBindPosture(bindPostureInput());
+
     // The share relay: the server's one long-lived child, spawned in this process group. Built once, before compose,
     // because it holds the relay registry's write side; the port is read when a relay starts, after the bind.
     const listenPort = (): number => listenerAddress?.port ?? options.listenPort ?? env.PORT;
@@ -626,6 +655,24 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       schedule: scheduleOnce,
     });
     stopRelay = relay.stop;
+    // The IP certificate (D269): its https listener forwards to the app listener over loopback, never the bound interface
+    // address, so the app sees a trusted loopback peer (D255); its HTTP-01 responder opens on the app's interface only
+    // while a challenge is pending. A bind to one named interface has no loopback origin, and the enable refuses it.
+    const certificate = createCertificateController({
+      issuer: createAcmeIssuer({ directoryUrl: LETS_ENCRYPT_DIRECTORY, openResponder: openChallengeResponder, polling: ACME_POLLING }),
+      store: createCertificateStore(env.DATA_LAYOUT.secrets),
+      startHttps: (https) => {
+        const origin = loopbackOrigin(bind.host, listenPort());
+        if (origin === null) {
+          return Promise.reject(new Error(`the app listener on ${String(bind.host)} takes no loopback connection to forward https to`));
+        }
+        return startTlsTerminator({ ...https, host: bind.host, upstream: () => origin });
+      },
+      bindHost: bind.host,
+      now,
+      schedule: scheduleOnce,
+    });
+    certificateController = certificate;
 
     const built = await createServices({
       db,
@@ -640,7 +687,14 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       holder,
       ...(options.providerSeams === undefined ? {} : { providerSeams: options.providerSeams }),
       serverRestart,
-      share: { relay, localSetupUrl: () => `http://localhost:${listenPort()}` },
+      share: {
+        relay,
+        certificate,
+        localSetupUrl: () => `http://localhost:${listenPort()}`,
+        appPort: listenPort,
+        publicBind: bind.publicBind,
+        loopbackUpstream: loopbackOrigin(bind.host, 0) !== null,
+      },
     });
 
     credentialsKeyOk = await built.services.credentials.probeKeyDecrypt();
@@ -864,10 +918,6 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       ...(oidcWiring === undefined ? {} : { oidc: oidcWiring.oidc }),
     });
 
-    // The DEPLOY-MODE INVARIANT (foundation/env/bind.ts holds the model): `hostname` is OMITTED rather than
-    // defaulted to "0.0.0.0" so the production path stays byte-identical to node's own default — passing
-    // "0.0.0.0" would silently drop the IPv6 listener.
-    const bind = resolveBindPosture(bindPostureInput());
     const ownerPeers = resolveOwnerFallbackPeers(ownerFallbackPeerInput());
 
     // THE BOOT DISCLAIMER (`boot/disclaimer.ts`): ONE contiguous group, logged just before the listener binds,
@@ -925,6 +975,10 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
         logShareBootOutcome(log, await built.services.share.startAtBoot());
       });
     }
+    // After the bind too: the https listener forwards to the app listener, so a stored certificate serves only once it is up.
+    superviseDetached(`ip-certificate-boot:${randomUUID()}`, "share.resumeIpCertificate", {}, async () => {
+      logCertificateBootOutcome(log, await built.services.share.resumeIpCertificate());
+    });
 
     // AFTER THE BIND, ON PURPOSE — and the only boot step that is. The local-light weights are hundreds of
     // megabytes to gigabytes (jina-clip-v2 is 874 MB at the `q8` default, 3.455 GB at fp32 —
@@ -959,6 +1013,12 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     if (stopRelay !== null) {
       stopRelay();
       stopRelay = null;
+    }
+    // The https listener next, for the same reason; its certificate files stay for the next boot.
+    if (certificateController !== null) {
+      const controller = certificateController;
+      certificateController = null;
+      await controller.stop();
     }
 
     if (server !== null) {

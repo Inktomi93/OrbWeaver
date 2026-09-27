@@ -177,6 +177,10 @@ catalog:
   # cloudflared: the quick-tunnel process wrapper only (`Tunnel.quick`, `use`, its output and exit events). Exact pin:
   # the wrapper spawns and signals the binary. Never its installer; allowBuilds above denies its postinstall.
   cloudflared: 0.7.3
+  # acme-client (infra/acme): the ACME protocol client for the IP certificate (leg C, D269). Used through its low-level
+  # API only: its auto() helper types every identifier as dns. Exact pin: the adapter passes a profile field through
+  # createOrder and relies on the forge backend's iPAddress SAN, neither of which upstream documents.
+  acme-client: 5.4.0
   # jose: the JWKS/JWT VERIFY side of forward-header auth (infra/auth/jwks — createLocalJWKSet/
   # createRemoteJWKSet + jwtVerify with a pinned RS256/ES256 allowlist). Already in the tree as an
   # openid-client transitive; promoted to a direct @orb/server dep to name the verify surface

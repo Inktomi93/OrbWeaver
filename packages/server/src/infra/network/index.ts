@@ -4,7 +4,7 @@
 //
 // The ingress IP-allowlist belt (`ingress.ts`): `ipAllowlistMiddleware` + `clientIp` (peer-vs-XFF
 // trust precedence, anti-spoof) + `parseAllowlist`; mounted by `entry/app.ts`, `clientIp` reused by
-// the transport seam.
+// the transport seam. The IP certificate's https listener (`tls-terminator.ts`) forwards to the app as a loopback hop.
 
 export {
   __firewallConnectForTest,
@@ -45,5 +45,7 @@ export {
   DEFAULT_TRUSTED_RANGES,
   isInRanges,
   isPrivateOrLoopback,
+  isPublicUnicast,
   matchesCidr,
 } from "./ip-ranges.ts";
+export { startTlsTerminator, type TlsTerminator, type TlsTerminatorOptions } from "./tls-terminator.ts";

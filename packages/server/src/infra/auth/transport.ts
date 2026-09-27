@@ -1,6 +1,6 @@
-// The per-request cookie TRANSPORT and CLIENT SCOPE. The app never terminates TLS, so `https` is only ever a
-// trusted proxy's assertion. It picks the session cookie (`modes/cookie-session.ts`) and the OIDC callback
-// scheme, so the two cannot disagree.
+// The per-request cookie TRANSPORT and CLIENT SCOPE. The app's handler never sees TLS, so `https` is only ever a
+// trusted hop's assertion, this server's own IP certificate listener included (D269). It picks the session cookie
+// (`modes/cookie-session.ts`) and the OIDC callback scheme, so the two cannot disagree.
 //
 // WHY A HEADER MAY DECIDE THIS. A forged `X-Forwarded-Proto` reaches only its sender's own request: a browser
 // cannot attach a custom header to another user's navigation (a preflight this app never grants). The peer

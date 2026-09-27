@@ -132,6 +132,16 @@ describe("updateAppSettings — the owner-box governance split (F12: the private
     ).rejects.toThrow(DomainForbiddenError);
   });
 
+  test("a delegated admin writing the IP certificate choice through this generic door is refused (D269)", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const a = await seedUser(db, { id: "user_a", role: "admin" });
+    for (const ipCertificate of [{ address: "81.2.69.160", httpsPort: 8443, challengePort: 8080 }, null]) {
+      await expect(h.svc.updateAppSettings({ principal: principal(a, "admin"), partial: { ipCertificate } })).rejects.toThrow(DomainForbiddenError);
+    }
+    expect(h.svc.getEffectiveConfig().ipCertificate).toBeNull();
+  });
+
   test("the owner flips a governance field; the resolved config reflects it (audited)", async () => {
     const db = await freshDb();
     const h = makeHarness(db);

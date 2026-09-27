@@ -34,6 +34,7 @@ describe("share.start", () => {
       relay: { state: "starting", relay: "quick", restartAfter: null },
       liveSocketCount: LIVE_SOCKETS,
       publicAddresses: [],
+      certificate: { state: "off" },
     });
     expect(h.calls).toEqual(["ownerNeedsPassword", "enableSeating", "relay.start"]);
     expect(h.audits).toEqual([{ actorUserId: caller("owner").userId, action: "share.start", entityType: "server", metadata: { relay: "starting" } }]);

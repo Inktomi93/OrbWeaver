@@ -6,6 +6,8 @@ import { SCROLL_MODES } from "@orb/kit/scroll-mode";
 import { z } from "zod";
 import { DEFAULT_GROUP_CONFIG, storedGroupConfigSchema } from "#chat";
 import { chunkParamsSchema, databankRetrievalSettingsSchema } from "#databank";
+import type { IpCertificateSetting } from "#identity";
+import { ipCertificateSettingSchema } from "#identity";
 import type { ExtractionMode, MultimodalCaptionMode } from "#imagery";
 import { IMAGERY_CAPTION_SLOT_IDS, IMAGERY_TEMPLATE_SLOT_IDS } from "#imagery";
 import { PROMPT_CACHE_DEPTH_CEIL } from "#inference";
@@ -46,7 +48,7 @@ export const logLevelSchema = z.enum(LOG_LEVELS) satisfies z.ZodType<LogLevel>;
 // AppSettings — the admin-runtime override tier. Every field nullable+optional (null=CLEAR).
 // ════════════════════════════════════════════════════════════════════════════════════════════════════
 
-export const APP_SETTINGS_SCHEMA_VERSION = 8;
+export const APP_SETTINGS_SCHEMA_VERSION = 9;
 
 const SCORE_FLOOR = 0;
 const SCORE_CEIL = 1;
@@ -350,6 +352,9 @@ export const appSettingsSchema = z.object({
   privateEndpointAllowlist: z.array(z.string().min(1)).nullable().optional().catch(undefined),
   localMultiUser: z.boolean().nullable().optional().catch(undefined),
   discreetLogin: z.boolean().nullable().optional().catch(undefined),
+  // The owner's IP certificate choice (D269). Absent or null is off; only the share domain's verbs write it, after
+  // refusing a non-public address, and every start re-checks it, because this generic door can write any shape.
+  ipCertificate: ipCertificateSettingSchema.nullable().optional().catch(undefined),
   // The JSON-Schema shape structured-output requests ride (D126) — see STRUCTURED_OUTPUT_SHAPES above.
   structuredOutputShape: structuredOutputShapeSchema.nullable().optional().catch(undefined),
   // WHICH WIRE carries the schema on a backend with two (task #36) — see above. Composes with the shape.
@@ -409,6 +414,8 @@ const APP_SETTINGS_LIFTS: Record<number, (config: Record<string, unknown>) => Re
     }
     return { ...config, schemaVersion: 8 };
   },
+  // v8→v9: `ipCertificate` (D269) is purely additive/optional — an absent field reads back as off.
+  8: (config) => ({ ...config, schemaVersion: 9 }),
 };
 
 export const appSettingsConfig = defineVersionedConfig<AppSettings>({
@@ -958,6 +965,8 @@ export interface EffectiveAppConfig {
   privateEndpointAllowlist: string[];
   localMultiUser: boolean;
   discreetLogin: boolean;
+  /** Null is off: no certificate is asked for and no https listener opens. */
+  ipCertificate: IpCertificateSetting | null;
   maxImageBytes: number;
   maxDatabankBytes: number;
   promptTransformDeadlineMs: number;

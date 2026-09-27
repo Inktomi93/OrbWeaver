@@ -1,8 +1,18 @@
 // The Share card's view-model: the share preconditions as rows, the start refusal each row owns, and the
 // memory that notices a relay coming back under a new URL. Pure, so every verdict is unit-proved.
 
-import type { AuthMode, RelayBinaryRefusal, RelayDownReason, RelayStatus, ShareRefusal, ShareState } from "@orb/contracts/identity";
-import { RELAY_BINARY_REFUSALS, SHARE_MODE_REFUSAL, SHARE_REFUSALS } from "@orb/contracts/identity";
+import type {
+  AuthMode,
+  IpCertificateRefusal,
+  IpCertificateState,
+  RelayBinaryRefusal,
+  RelayDownReason,
+  RelayStatus,
+  ShareRefusal,
+  ShareState,
+  ShareStatus,
+} from "@orb/contracts/identity";
+import { IP_CERTIFICATE_REFUSALS, RELAY_BINARY_REFUSALS, SHARE_MODE_REFUSAL, SHARE_REFUSALS } from "@orb/contracts/identity";
 import { trpcErrorReason } from "#lib";
 
 // The rows the card shows before a share starts, in the order the server checks them.
@@ -189,4 +199,46 @@ const POLL_MS: Record<ShareState, (relay: RelayStatus) => number> = {
 /** The `share.status` poll interval for the current state. */
 export function sharePollMs(relay: RelayStatus): number {
   return POLL_MS[relay.state](relay);
+}
+
+// The IP certificate's poll: fast while an order runs, slowly once it settled.
+const CERTIFICATE_POLL_MS: Record<IpCertificateState, number> = {
+  off: SETTLED_POLL_MS,
+  obtaining: TRANSITION_POLL_MS,
+  active: SETTLED_POLL_MS,
+  failed: SETTLED_POLL_MS,
+};
+
+/** The `share.status` poll interval: the faster of what the relay and the IP certificate each ask for. */
+export function shareStatusPollMs(status: Pick<ShareStatus, "relay" | "certificate">): number {
+  return Math.min(sharePollMs(status.relay), CERTIFICATE_POLL_MS[status.certificate.state]);
+}
+
+/** The offer form's values; a port is null while its field is empty. */
+export interface IpCertificateFormValues {
+  readonly address: string;
+  readonly httpsPort: number | null;
+  readonly challengePort: number | null;
+}
+
+/** A fresh offer: no address, and the ports it suggests, 8443 for https and 8080 for the port-80 check. */
+export const IP_CERTIFICATE_FORM_DEFAULTS: IpCertificateFormValues = { address: "", httpsPort: 8443, challengePort: 8080 };
+
+/** The coded refusal off a failed `share.enableIpCertificate`, with the server's sentence naming the fix. */
+export interface IpCertificateRefusalView {
+  readonly code: IpCertificateRefusal;
+  readonly message: string;
+}
+
+function isIpCertificateRefusal(reason: string): reason is IpCertificateRefusal {
+  return (IP_CERTIFICATE_REFUSALS as readonly string[]).includes(reason);
+}
+
+/** The coded refusal off an enable error, or null for any other failure (which the toast reports). */
+export function ipCertificateRefusal(error: unknown): IpCertificateRefusalView | null {
+  const reason = trpcErrorReason(error);
+  if (!isIpCertificateRefusal(reason)) {
+    return null;
+  }
+  return { code: reason, message: error instanceof Error ? error.message : "" };
 }

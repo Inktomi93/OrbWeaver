@@ -216,3 +216,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D266 | [A container shares through the pinned relay download](0266-a-container-shares-through-the-pinned-relay-download.md) | active |
 | D267 | [Pre-commit runs the static tier over the staged change](0267-pre-commit-runs-the-static-tier-over-the-staged-change.md) | superseded by [0268-the-commit-gate-runs-only-what-narrows-to-the-staged-files.md](0268-the-commit-gate-runs-only-what-narrows-to-the-staged-files.md) |
 | D268 | [The commit gate runs only what narrows to the staged files](0268-the-commit-gate-runs-only-what-narrows-to-the-staged-files.md) | active |
+| D269 | [The IP certificate comes from acme-client over HTTP-01](0269-the-ip-certificate-comes-from-acme-client-over-http-01.md) | active |
