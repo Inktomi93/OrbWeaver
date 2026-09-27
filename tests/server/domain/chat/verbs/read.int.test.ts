@@ -1039,6 +1039,67 @@ describe("read — single reads", () => {
     expect((await getChat({ principal: principal(host), chatId })).viewerGalleryCharacterId).toBe(castId<CharacterId>("character_gal_room2_char"));
   });
 
+  // The viewer's owned character seats: the ⋯ menu offers a gallery only for these, because a gallery add is
+  // owner-only and a non-owner's row could only fail.
+  test("getChat's viewerOwnedCharacterIds names every present character seat the owner holds, in join order", async () => {
+    const host = await seedUser(db, castId<Handle>("own_host"));
+    const chatId = await seedChat(db, "own_room");
+    const first = await seedCharacter(db, host, "own_first");
+    const second = await seedCharacter(db, host, "own_second");
+    await seedParticipant(db, { chatId, key: "own_h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "own_c2", characterId: second, joinSeq: 2 });
+    await seedParticipant(db, { chatId, key: "own_c1", characterId: first, joinSeq: 1 });
+
+    const { getChat } = createRead(makeChatContext(db, { getCard: ownerScopedGetCard() }), makeDeps());
+    expect((await getChat({ principal: principal(host), chatId })).viewerOwnedCharacterIds).toEqual([first, second]);
+  });
+
+  test("getChat's viewerOwnedCharacterIds leaves out a departed character seat", async () => {
+    const host = await seedUser(db, castId<Handle>("own_host_left"));
+    const chatId = await seedChat(db, "own_room_left");
+    const gone = await seedCharacter(db, host, "own_gone");
+    const stays = await seedCharacter(db, host, "own_stays");
+    await seedParticipant(db, { chatId, key: "own_left_h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "own_left_c1", characterId: gone, joinSeq: 1, leftSeq: 3 });
+    await seedParticipant(db, { chatId, key: "own_left_c2", characterId: stays, joinSeq: 2 });
+
+    const { getChat } = createRead(makeChatContext(db, { getCard: ownerScopedGetCard() }), makeDeps());
+    expect((await getChat({ principal: principal(host), chatId })).viewerOwnedCharacterIds).toEqual([stays]);
+  });
+
+  test("getChat's viewerOwnedCharacterIds is empty for a guest who owns no character here", async () => {
+    const host = await seedUser(db, castId<Handle>("own_host2"));
+    const guest = await seedUser(db, castId<Handle>("own_guest"));
+    const chatId = await seedRoom("own_room2", host);
+    await seedParticipant(db, { chatId, key: "own_room2_g", userId: guest, role: "member" });
+
+    const { getChat } = createRead(makeChatContext(db, { getCard: ownerScopedGetCard() }), makeDeps());
+    expect((await getChat({ principal: principal(guest), chatId })).viewerOwnedCharacterIds).toEqual([]);
+    // The positive control in the same room: the host owns that character.
+    expect((await getChat({ principal: principal(host), chatId })).viewerOwnedCharacterIds).toEqual([castId<CharacterId>("character_own_room2_char")]);
+  });
+
+  test("in a group room with mixed owners, each viewer's set and gallery subject are their own", async () => {
+    const host = await seedUser(db, castId<Handle>("mix_host"));
+    const guest = await seedUser(db, castId<Handle>("mix_guest"));
+    const chatId = await seedChat(db, "mix_room");
+    const hostChar = await seedCharacter(db, host, "mix_host_char");
+    const guestChar = await seedCharacter(db, guest, "mix_guest_char");
+    await seedParticipant(db, { chatId, key: "mix_h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "mix_g", userId: guest, role: "member" });
+    await seedParticipant(db, { chatId, key: "mix_c1", characterId: hostChar, joinSeq: 1 });
+    await seedParticipant(db, { chatId, key: "mix_c2", characterId: guestChar, joinSeq: 2 });
+
+    const { getChat } = createRead(makeChatContext(db, { getCard: ownerScopedGetCard() }), makeDeps());
+    const hostView = await getChat({ principal: principal(host), chatId });
+    const guestView = await getChat({ principal: principal(guest), chatId });
+    expect(hostView.viewerOwnedCharacterIds).toEqual([hostChar]);
+    expect(guestView.viewerOwnedCharacterIds).toEqual([guestChar]);
+    // One source: the gallery subject is the first seat, and only its owner is named it.
+    expect(hostView.viewerGalleryCharacterId).toBe(hostChar);
+    expect(guestView.viewerGalleryCharacterId).toBeNull();
+  });
+
   test("getChat's viewerGalleryCharacterId is null in a room with no character seat", async () => {
     const host = await seedUser(db, castId<Handle>("gal_host3"));
     const chatId = await seedChat(db, "gal_room3");

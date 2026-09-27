@@ -11,7 +11,8 @@
 // the room did not have. The room has one from the creation click, so every item is simply available and the
 // #8 grey-out apparatus — the `committed` prop, the `draftKey` prop, the disabled Delete twin — is gone. The
 // owner's show-everything ruling is UNCHANGED and still binds: nothing here hides, it just no longer has a
-// phase to hide from.
+// phase to hide from. ONE EXCEPTION, owner-ruled: a character's gallery row appears only for a character the
+// viewer owns. A gallery add is owner-only, so a non-owner's row could only open a gallery whose every add fails.
 
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
@@ -162,11 +163,13 @@ interface ChatOptionsCharacter {
 export interface ChatOptionsMenuProps {
   readonly chatId: ChatId;
   readonly title: string | null;
-  /** Seeds "New chat with the same characters" and the per-character gallery entries. */
+  /** Seeds "New chat with the same characters". */
   readonly characters: readonly ChatOptionsCharacter[];
+  /** The characters whose gallery the viewer owns (`ChatDetail.viewerOwnedCharacterIds`): the gallery rows. */
+  readonly galleryCharacters: readonly ChatOptionsCharacter[];
 }
 
-export function ChatOptionsMenu({ chatId, title, characters }: ChatOptionsMenuProps): ReactElement {
+export function ChatOptionsMenu({ chatId, title, characters, galleryCharacters }: ChatOptionsMenuProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const updateTitle = useUpdateChatTitle({ trpc, invalidation });
@@ -180,7 +183,7 @@ export function ChatOptionsMenu({ chatId, title, characters }: ChatOptionsMenuPr
   const openGallery = (character: ChatOptionsCharacter): void => openCharacterGallery(character.characterId, { characterName: character.name, chatId });
 
   const characterIds = characters.map((c) => c.characterId);
-  const soloCharacter = characters.length === 1 ? characters[0] : undefined;
+  const soloGallery = galleryCharacters.length === 1 ? galleryCharacters[0] : undefined;
 
   const openRename = (): void => {
     setRenameValue(title ?? "");
@@ -218,20 +221,20 @@ export function ChatOptionsMenu({ chatId, title, characters }: ChatOptionsMenuPr
             New chat with the same characters
           </MenuItem>
         ) : null}
-        {soloCharacter !== undefined ? (
-          <MenuItem onClick={(): void => openGallery(soloCharacter)}>
+        {soloGallery !== undefined ? (
+          <MenuItem onClick={(): void => openGallery(soloGallery)}>
             <Icon icon={LayoutGrid} size="sm" />
-            {soloCharacter.name}'s gallery
+            {soloGallery.name}'s gallery
           </MenuItem>
         ) : null}
-        {characters.length > 1 ? (
+        {galleryCharacters.length > 1 ? (
           <MenuSubmenuRoot>
             <MenuSubmenuTrigger>
               <Icon icon={LayoutGrid} size="sm" />
               Character galleries
             </MenuSubmenuTrigger>
             <MenuPopup>
-              {characters.map((character) => (
+              {galleryCharacters.map((character) => (
                 <MenuItem key={character.characterId} onClick={(): void => openGallery(character)}>
                   {character.name}
                 </MenuItem>

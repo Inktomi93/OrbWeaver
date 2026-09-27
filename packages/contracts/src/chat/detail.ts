@@ -48,10 +48,13 @@ export interface ChatDetail {
    *  content" signal for a client-side own-messages filter (e.g. reattribute's `authorUserId` match).
    *  NOT an identity/whoami surface (no handle/avatar/email) — those stay deferred to auth #50. */
   readonly viewerUserId: UserId;
+  /** The present character seats the CALLER owns, in roster order (an owner-scoped read per seat). A gallery
+   *  add is owner-only, so every per-character gallery door in the room lists exactly these. */
+  readonly viewerOwnedCharacterIds: readonly CharacterId[];
   /** The character whose gallery a picture the CALLER generates here joins: the room's first present
-   *  character seat, when the caller owns it; `null` otherwise (a guest, or a room with no character).
-   *  Server-resolved with the same pick and the same owner-scoped read `chat.generateImage` uses, so the
-   *  imagine dialog never promises a gallery add the server will not make. */
+   *  character seat, when it is in {@link ChatDetail.viewerOwnedCharacterIds}; `null` otherwise (a guest, or a
+   *  room with no character). The same pick `chat.generateImage` makes, so the imagine dialog never promises a
+   *  gallery add the server will not make. */
   readonly viewerGalleryCharacterId: CharacterId | null;
   /** The pending host-handoff NOMINEE (`chats.pendingHostUserId`, Part III §2) — null when no handoff is
    *  in flight. Drives the Members-panel pending-nomination chip (FINAL-Chats §8.3); room-public (members
@@ -134,6 +137,7 @@ export const chatDetailSchema = z.strictObject({
   viewerActivePersonaId: typeIdSchema(ID_PREFIX.persona).nullable(),
   viewerIsHost: z.boolean(),
   viewerUserId: brandedId<UserId>(),
+  viewerOwnedCharacterIds: z.array(typeIdSchema(ID_PREFIX.character)).readonly(),
   viewerGalleryCharacterId: typeIdSchema(ID_PREFIX.character).nullable(),
   pendingHostUserId: brandedId<UserId>().nullable(),
   group: groupConfigSchema,

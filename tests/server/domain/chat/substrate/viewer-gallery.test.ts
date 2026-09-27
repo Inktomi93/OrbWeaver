@@ -1,10 +1,11 @@
-// `resolveViewerGalleryCharacterId` — the room's first character seat, gated on the viewer owning it. The
-// roster order and the owner-scoped read are the two inputs; each test varies one and pins the answer.
+// `resolveViewerOwnedCharacterIds` and `viewerGalleryCharacterIdOf` — the viewer's owned character seats, and
+// the room's gallery subject derived from them. The roster order and the owner-scoped read are the two inputs;
+// each test varies one and pins the answer.
 
 import type { ParticipantKind } from "@orb/contracts/chat";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { resolveViewerGalleryCharacterId } from "../../../../../packages/server/src/domain/chat/substrate/viewer-gallery.ts";
+import { resolveViewerOwnedCharacterIds, viewerGalleryCharacterIdOf } from "../../../../../packages/server/src/domain/chat/substrate/viewer-gallery.ts";
 import { makeCharacter } from "../../../../support/factories/character.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
@@ -22,7 +23,7 @@ interface Seat {
 const humanSeat = (userId: UserId): Seat => ({ kind: "human", userId, characterId: null });
 const characterSeat = (characterId: CharacterId): Seat => ({ kind: "character", userId: null, characterId });
 
-type GetCard = Parameters<typeof resolveViewerGalleryCharacterId>[0];
+type GetCard = Parameters<typeof resolveViewerOwnedCharacterIds>[0];
 
 /** An owner-scoped `getCard` over a fixed ownership table, recording every ask. */
 function ownershipRead(owned: ReadonlyMap<CharacterId, UserId>): {
@@ -44,28 +45,50 @@ const HOST_OWNS_BOTH = new Map([
   [kai, host],
 ]);
 
-test("the first character seat in roster order, when the viewer owns it", async () => {
+const MIXED_OWNERS = new Map([
+  [aria, host],
+  [kai, guest],
+]);
+
+test("the owner's set is every character seat they own, in roster order, one ownership read per seat", async () => {
   const read = ownershipRead(HOST_OWNS_BOTH);
-  const roster = [humanSeat(host), characterSeat(aria), characterSeat(kai)];
-  expect(await resolveViewerGalleryCharacterId(read.getCard, roster, host)).toBe(aria);
-  // The ownership question is the viewer's own, about the one character the pick names.
-  expect(read.asks).toEqual([{ ownerId: host, characterId: aria }]);
+  const roster = [humanSeat(host), characterSeat(kai), characterSeat(aria)];
+  expect(await resolveViewerOwnedCharacterIds(read.getCard, roster, host)).toEqual([kai, aria]);
+  expect(read.asks).toEqual([
+    { ownerId: host, characterId: kai },
+    { ownerId: host, characterId: aria },
+  ]);
 });
 
-test("the roster order decides the pick, not the id order", async () => {
+test("a guest who owns no character here has an empty set", async () => {
   const read = ownershipRead(HOST_OWNS_BOTH);
-  expect(await resolveViewerGalleryCharacterId(read.getCard, [humanSeat(host), characterSeat(kai), characterSeat(aria)], host)).toBe(kai);
+  const roster = [humanSeat(host), humanSeat(guest), characterSeat(aria), characterSeat(kai)];
+  expect(await resolveViewerOwnedCharacterIds(read.getCard, roster, guest)).toEqual([]);
 });
 
-test("null for a viewer who does not own the room's character", async () => {
-  const read = ownershipRead(HOST_OWNS_BOTH);
-  const roster = [humanSeat(host), humanSeat(guest), characterSeat(aria)];
-  expect(await resolveViewerGalleryCharacterId(read.getCard, roster, guest)).toBeNull();
-  expect(read.asks).toEqual([{ ownerId: guest, characterId: aria }]);
+test("in a group room with mixed owners, each viewer's set holds only their own characters", async () => {
+  const read = ownershipRead(MIXED_OWNERS);
+  const roster = [humanSeat(host), humanSeat(guest), characterSeat(aria), characterSeat(kai)];
+  expect(await resolveViewerOwnedCharacterIds(read.getCard, roster, host)).toEqual([aria]);
+  expect(await resolveViewerOwnedCharacterIds(read.getCard, roster, guest)).toEqual([kai]);
 });
 
-test("null, and no ownership read, in a room with no character seat", async () => {
+test("an empty set, and no ownership read, in a room with no character seat", async () => {
   const read = ownershipRead(HOST_OWNS_BOTH);
-  expect(await resolveViewerGalleryCharacterId(read.getCard, [humanSeat(host), humanSeat(guest)], host)).toBeNull();
+  expect(await resolveViewerOwnedCharacterIds(read.getCard, [humanSeat(host), humanSeat(guest)], host)).toEqual([]);
   expect(read.asks).toEqual([]);
+});
+
+test("the gallery subject is the first character seat in roster order, when the viewer owns it", () => {
+  expect(viewerGalleryCharacterIdOf([humanSeat(host), characterSeat(aria), characterSeat(kai)], [aria, kai])).toBe(aria);
+  expect(viewerGalleryCharacterIdOf([humanSeat(host), characterSeat(kai), characterSeat(aria)], [aria, kai])).toBe(kai);
+});
+
+test("no gallery subject when the viewer does not own the first seat, even if they own a later one", () => {
+  // A chat-generated picture joins the first seat's gallery; a later owned seat is never where it lands.
+  expect(viewerGalleryCharacterIdOf([humanSeat(guest), characterSeat(aria), characterSeat(kai)], [kai])).toBeNull();
+});
+
+test("no gallery subject in a room with no character seat", () => {
+  expect(viewerGalleryCharacterIdOf([humanSeat(host)], [])).toBeNull();
 });

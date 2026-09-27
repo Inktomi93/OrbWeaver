@@ -52,6 +52,62 @@ test("the composer ⋯ menu carries NONE of the panel-homed options (IA de-dup) 
   await Promise.all(PANEL_HOMED_ITEMS.map((label) => expect(page.getByRole("menuitem", { name: label })).toHaveCount(0)));
 });
 
+// ── THE GALLERY ROWS (owner ruling): a character's gallery row appears only for a character the viewer owns,
+// because a gallery add is owner-only. The server names the owned seats (`viewerOwnedCharacterIds`).
+
+function characterSeat(key: string, displayName: string): ParticipantFixture {
+  return { id: `participant_${key}`, kind: "character", role: "member", userId: null, characterId: `character_ct_${key}`, displayName, leftSeq: null };
+}
+
+/** A group room of Aria and Kai, seen by a viewer who owns `owned`. */
+function groupRoom(owned: readonly string[]): TrpcFixtureOutput<"chat.getChat"> {
+  return {
+    title: "Council of Two",
+    participants: [human("host"), human("member"), characterSeat("aria", "Aria"), characterSeat("kai", "Kai")],
+    viewerIsHost: true,
+    viewerOwnedCharacterIds: owned.map((key) => `character_ct_${key}`),
+  };
+}
+
+for (const viewport of [
+  { name: "mobile", width: 360, height: 780 },
+  { name: "desktop", width: 1440, height: 900 },
+] as const) {
+  test(`${viewport.name}: a guest who owns no character here has no gallery row in the ⋯ menu`, async ({ mount, page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await routeTrpc(page, { "chat.getChat": () => groupRoom([]), "chat.listMessages": () => makeMessagesPage([]) });
+    const component = await mount(<ComposerChatOptionsStory />);
+    await component.getByRole("button", { name: "Chat options" }).click();
+
+    // The menu is open and knows the roster: the roster-seeded item is there.
+    await expect(page.getByRole("menuitem", { name: "New chat with the same characters" })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: "Character galleries" })).toHaveCount(0);
+    await expect(page.getByRole("menuitem", { name: /gallery/u })).toHaveCount(0);
+  });
+
+  test(`${viewport.name}: in a mixed room the owner's ⋯ menu offers only the gallery they own`, async ({ mount, page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await routeTrpc(page, { "chat.getChat": () => groupRoom(["aria"]), "chat.listMessages": () => makeMessagesPage([]) });
+    const component = await mount(<ComposerChatOptionsStory />);
+    await component.getByRole("button", { name: "Chat options" }).click();
+
+    await expect(page.getByRole("menuitem", { name: "Aria's gallery" })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: "Character galleries" })).toHaveCount(0);
+    await expect(page.getByRole("menuitem", { name: /Kai/u })).toHaveCount(0);
+  });
+
+  test(`${viewport.name}: an owner of both characters gets the galleries submenu with both`, async ({ mount, page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await routeTrpc(page, { "chat.getChat": () => groupRoom(["aria", "kai"]), "chat.listMessages": () => makeMessagesPage([]) });
+    const component = await mount(<ComposerChatOptionsStory />);
+    await component.getByRole("button", { name: "Chat options" }).click();
+
+    await page.getByRole("menuitem", { name: "Character galleries" }).click();
+    await expect(page.getByRole("menuitem", { name: "Aria", exact: true })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: "Kai", exact: true })).toBeVisible();
+  });
+}
+
 test("the composer ⋯ menu is host-agnostic post-de-dup — a MEMBER sees the IDENTICAL panel-less set", async ({ mount, page }) => {
   // A member behind a host-first seat (the case the retired first-seat proxy would mis-grant host UI to) —
   // the menu has no host-gated item to leak, so it renders the same set as the host case above.

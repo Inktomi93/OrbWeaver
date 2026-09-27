@@ -26,5 +26,7 @@ export function ActiveChatOptionsMenu({ chatId }: { readonly chatId: ChatId }): 
   const trpc = useTRPC();
   const { data: chat } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
   const characters = filterCharacters(chat?.participants ?? []).map((c) => ({ characterId: c.characterId, name: c.displayName }));
-  return <ChatOptionsMenu chatId={chatId} title={chat?.title ?? null} characters={characters} />;
+  const owned = new Set(chat?.viewerOwnedCharacterIds);
+  const galleryCharacters = characters.filter((c) => owned.has(c.characterId));
+  return <ChatOptionsMenu chatId={chatId} title={chat?.title ?? null} characters={characters} galleryCharacters={galleryCharacters} />;
 }

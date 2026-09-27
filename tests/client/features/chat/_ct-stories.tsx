@@ -2639,7 +2639,7 @@ export function InviteDialogStory(): ReactElement {
 }
 
 export interface ChatOptionsMenuStoryProps {
-  /** @defaultValue false — seed one character seat (enables "New chat with the same characters" + the solo gallery). */
+  /** @defaultValue false — seed one owned character seat (enables "New chat with the same characters" + the solo gallery). */
   readonly withCharacters?: boolean;
 }
 
@@ -2654,7 +2654,12 @@ export function ChatOptionsMenuStory({ withCharacters = false }: ChatOptionsMenu
       {/* A wrapping div so `component` is the WRAPPER (the popup renders through a Portal — item
           assertions use the PAGE locator, the composer-guided-cluster precedent). */}
       <div>
-        <ChatOptionsMenu chatId={CHAT_ID} title="Test chat" characters={withCharacters ? CT_OPTIONS_CHARACTERS : []} />
+        <ChatOptionsMenu
+          chatId={CHAT_ID}
+          title="Test chat"
+          characters={withCharacters ? CT_OPTIONS_CHARACTERS : []}
+          galleryCharacters={withCharacters ? CT_OPTIONS_CHARACTERS : []}
+        />
       </div>
     </CtDataProviders>
   );
@@ -2669,7 +2674,7 @@ export function ChatGameModeMenuStory(): ReactElement {
   return (
     <CtDataProviders>
       <div>
-        <ChatOptionsMenu chatId={CHAT_ID} title="Test chat" characters={[]} />
+        <ChatOptionsMenu chatId={CHAT_ID} title="Test chat" characters={[]} galleryCharacters={[]} />
         <GameModeShellReadout />
         <GameMarkerCensus />
       </div>
