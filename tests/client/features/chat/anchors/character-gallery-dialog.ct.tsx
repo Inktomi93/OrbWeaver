@@ -287,3 +287,76 @@ test("a PARTIAL add prunes the selection to what did not land (#1501)", async ({
   await picker.getByRole("button", { name: "Add selected" }).click();
   await expect.poll(() => trpc.count("assets.addToGallery"), { intervals: [20, 50, 100] }).toBe(3);
 });
+
+// ── THE ROOM FILTER (item 0024 part 6). The grid's scope strip narrows the gallery to pictures generated in
+// the chat the dialog was opened from. The server applies `chatId` inside the caller's own gallery (the
+// cross-tenant refusal is pinned in `list-gallery.int.test.ts`); these pin that the client sends it only for
+// "This chat", keeps the character scope, and reads an empty or failed room scope honestly.
+
+/** The chat `CharacterGalleryDialogStory` opens the dialog from (`fixtures.ts` `CHAT_ID`). */
+const STORY_CHAT_ID = "chat_ct_keystone";
+const ROOM_ITEM = { ...ITEM, galleryItemId: "galleryitem_ct_room", assetId: "asset_ct_room", hash: "d".repeat(64) };
+
+function galleryFor(input: TrpcInput<"assets.listGallery">): TrpcWireOutput<"assets.listGallery"> {
+  return input?.chatId === STORY_CHAT_ID ? [ROOM_ITEM] : [ITEM, ROOM_ITEM];
+}
+
+test("the scope strip starts on Everywhere and 'This chat' re-reads the gallery for this chat only", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, { "assets.listGallery": galleryFor });
+  await mount(<CharacterGalleryDialogStory />);
+
+  const strip = page.getByRole("radiogroup", { name: "Show images from" });
+  await expect(strip.getByRole("radio", { name: "Everywhere" })).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByRole("gridcell", { name: "Gallery image" })).toHaveCount(2);
+  await expect.poll(() => trpc.lastInput("assets.listGallery")).toEqual({ subjectCharacterId: "character_ct_gallery", limit: 100 });
+
+  await strip.getByRole("radio", { name: "This chat" }).click();
+  await expect(strip.getByRole("radio", { name: "This chat" })).toHaveAttribute("aria-checked", "true");
+  await expect.poll(() => trpc.lastInput("assets.listGallery")).toEqual({ subjectCharacterId: "character_ct_gallery", chatId: STORY_CHAT_ID, limit: 100 });
+  await expect(page.getByRole("gridcell", { name: "Gallery image" })).toHaveCount(1);
+});
+
+test("an empty 'This chat' scope says so and offers the way back to everywhere", async ({ mount, page }) => {
+  await routeTrpc(page, { "assets.listGallery": (input: TrpcInput<"assets.listGallery">) => (input?.chatId === undefined ? [ITEM] : []) });
+  await mount(<CharacterGalleryDialogStory />);
+
+  await page.getByRole("radio", { name: "This chat" }).click();
+  await expect(page.getByText("No images from this chat")).toBeVisible();
+  await page.getByRole("button", { name: "Show everywhere" }).click();
+  await expect(page.getByRole("radio", { name: "Everywhere" })).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByRole("gridcell", { name: "Gallery image" })).toHaveCount(1);
+});
+
+test("a failed gallery read shows its error state, never 'No images yet'", async ({ mount, page }) => {
+  await routeTrpc(page, { "assets.listGallery": () => trpcError({ message: "gallery boom" }) });
+  await mount(<CharacterGalleryDialogStory />);
+
+  await expect(page.getByRole("button", { name: "Retry" })).toBeVisible();
+  await expect(page.getByText("No images yet")).toHaveCount(0);
+});
+
+for (const viewport of [
+  { name: "desktop", width: 1280, height: 800 },
+  { name: "narrow", width: 900, height: 800 },
+  { name: "mobile", width: 390, height: 844 },
+] as const) {
+  test(`${viewport.name}: the scope strip sits inside the dialog and inside the viewport`, async ({ mount, page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await routeTrpc(page, { "assets.listGallery": galleryFor });
+    await mount(<CharacterGalleryDialogStory />);
+
+    const strip = page.getByRole("radiogroup", { name: "Show images from" });
+    await expect(strip).toBeVisible();
+    await expect(strip).toBeInViewport({ ratio: 1 });
+    await expect
+      .poll(() =>
+        strip.evaluate((el: HTMLElement) => {
+          const dialog = el.closest('[role="dialog"]');
+          const own = el.getBoundingClientRect();
+          const box = dialog === null ? own : dialog.getBoundingClientRect();
+          return own.left >= box.left - 1 && own.right <= box.right + 1;
+        }),
+      )
+      .toBe(true);
+  });
+}

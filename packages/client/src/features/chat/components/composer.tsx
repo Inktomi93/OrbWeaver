@@ -2,7 +2,8 @@
 // message (Draft + its conditional stream Stop), Their reply (reroll/generate/continue + speaker), and Attach
 // and send (message tools + the terminal Send/turn-Stop slot). Row 2 is the growing textarea alone. Image
 // controls (attach + generate-from-text) live inside Message tools; attach still uploads local images to CAS
-// and rides the send as attachmentAssetIds.
+// and rides the send as attachmentAssetIds. Under the card, a quiet line names the connection and model the
+// next reply uses (`ComposerNextTurnLine`).
 //
 // ATTACH HAS THREE GESTURES (#376), one seam: the ✨ menu's picker, a file DRAGGED onto the composer card,
 // and a clipboard PASTE. All three land in `receiveAttachFiles` → `triageAttachFiles` (lib/attach-media.ts),
@@ -45,6 +46,7 @@ import { useContinueTurn } from "../hooks/use-continue-turn.ts";
 import { useGenerateImage } from "../hooks/use-generate-image.ts";
 import { useSendAvailability } from "../hooks/use-send-availability.ts";
 import { useSendMessage } from "../hooks/use-send-message.ts";
+import { useSharedRoom } from "../hooks/use-shared-room.ts";
 import { useSlashCommands } from "../hooks/use-slash-commands.tsx";
 import { useStopTurn } from "../hooks/use-stop-turn.ts";
 import { ATTACH_BUSY_MESSAGE, dropzoneRefusalMessage, triageAttachFiles } from "../lib/attach-media.ts";
@@ -56,6 +58,7 @@ import { ComposerAttachmentStrip } from "./composer-attachment-strip.tsx";
 import { ActiveChatOptionsMenu } from "./composer-chat-options.tsx";
 import { ComposerDropTarget } from "./composer-drop-target.tsx";
 import { ComposerGuidedCluster } from "./composer-guided-cluster.tsx";
+import { ComposerNextTurnLine } from "./composer-next-turn-line.tsx";
 import { ComposerSendControl } from "./composer-send-control.tsx";
 import { ComposerSlashStrip } from "./composer-slash-strip.tsx";
 import type { ComposerImageControls } from "./composer-utility-menu.tsx";
@@ -139,6 +142,7 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
   // Free-mode in-chat AI image generation (imagery I5 base slice): the typed composer text IS the prompt.
   // The verb posts one user message with asset: refs (D51), so it renders through the normal stream.
   const generateImage = useGenerateImage(chatId);
+  const sharedRoom = useSharedRoom(chatId);
 
   const trimmed = value.trim();
   const hasAttachments = attachments.length > 0;
@@ -306,6 +310,7 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
     generateReason: imageGenReason,
     generating: generateImage.isPending,
     onGenerate: generateFromText,
+    sharedRoom,
     // The SECOND image door (#623) — the same `openImagine` #state action the `/imagine` slash runner fires
     // (never a `#features/imagery` import, §5.1). Seeded, not cleared: nothing has been spent yet.
     onOpenImagine: (): void => openImagine({ chatId, mode: "free", prompt: trimmed }),
@@ -407,6 +412,7 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
             }
           />
         </ComposerDropTarget>
+        <ComposerNextTurnLine chatId={chatId} availability={sendAvailability} />
       </Stack>
     </footer>
   );

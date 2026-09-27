@@ -14,7 +14,7 @@
 // `available:false`. A draft's first send is what commits the chat; refusing before we know the verdict
 // would break the happy path on every fresh chat.
 
-import type { SendAvailability } from "@orb/contracts/inference";
+import type { SendAvailability, UnavailableCause } from "@orb/contracts/inference";
 import type { ChatId } from "@orb/kit/ids";
 import { skipToken, useQuery } from "@tanstack/react-query";
 import { useTRPC } from "#data";
@@ -30,12 +30,16 @@ export interface SendGate {
   readonly unavailable: boolean;
   /** The cause-specific disabled reason (title + aria) — present iff `unavailable`. */
   readonly reason: string | undefined;
+  /** The settled verdict for readouts: `null` = serveable, a cause = refused, `undefined` = not settled. */
+  readonly cause: UnavailableCause | null | undefined;
+  /** The verdict read itself failed. The gate still never refuses on it; a readout names it. */
+  readonly failed: boolean;
 }
 
 /** The pre-send serveability gate for `chatId` (null on a draft — never refused). */
 export function useSendAvailability(chatId: ChatId | null): SendGate {
   const trpc = useTRPC();
-  const { data } = useQuery({
+  const { data, isError } = useQuery({
     ...trpc.chat.checkSendAvailability.queryOptions(chatId === null ? skipToken : { chatId }),
     staleTime: AVAILABILITY_STALE_MS,
   });
@@ -44,8 +48,11 @@ export function useSendAvailability(chatId: ChatId | null): SendGate {
   const verdict: SendAvailability | null | undefined = data;
   // No verdict yet ⇒ never refuse — the gate blocks ONLY on a resolved `available:false`. `!verdict` catches
   // both `undefined` (query in-flight) AND `null` (the tRPC no-data wire shape a CT stub yields).
-  if (!verdict || verdict.available) {
-    return { unavailable: false, reason: undefined };
+  if (!verdict) {
+    return { unavailable: false, reason: undefined, cause: undefined, failed: isError };
   }
-  return { unavailable: true, reason: sendUnavailableReason(verdict.cause) };
+  if (verdict.available) {
+    return { unavailable: false, reason: undefined, cause: null, failed: false };
+  }
+  return { unavailable: true, reason: sendUnavailableReason(verdict.cause), cause: verdict.cause, failed: false };
 }

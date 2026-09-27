@@ -638,17 +638,19 @@ export function MessageToolCallsStory({ records, customToolName, prefixToolName,
 
 export interface MessageActionsRowStoryProps {
   readonly message?: MessageView;
+  /** Shows the generation credit (the row's `showModelIcon` gate). @defaultValue false */
+  readonly generationCredit?: boolean;
 }
 
 /** The actions row in isolation — Edit/Hide/Delete/Fork/Copy, gated per role (message-actions-row.tsx).
  *  Wrapped in a `.group` host (the reveal hook the real `message-row` provides, UIP-305): the cluster
  *  rests hidden (opacity-0 / pointer-events-none) and reveals on hover/focus-within — the CT hovers the
  *  host before interacting. */
-export function MessageActionsRowStory({ message }: MessageActionsRowStoryProps = {}): ReactElement {
+export function MessageActionsRowStory({ message, generationCredit = false }: MessageActionsRowStoryProps = {}): ReactElement {
   return (
     <CtDataProviders>
       <div className="group" data-testid="actions-host">
-        <MessageActionsRow message={message ?? makeMessageView()} />
+        <MessageActionsRow message={message ?? makeMessageView()} generationCredit={generationCredit} />
       </div>
     </CtDataProviders>
   );
@@ -2896,7 +2898,13 @@ export function CharacterGalleryDialogStory({ characterName = "Aria" }: { readon
   return (
     <CtDataProviders>
       <div>
-        <CharacterGalleryDialog open={open} onOpenChange={setOpen} characterId={castId<CharacterId>("character_ct_gallery")} characterName={characterName} />
+        <CharacterGalleryDialog
+          open={open}
+          onOpenChange={setOpen}
+          characterId={castId<CharacterId>("character_ct_gallery")}
+          characterName={characterName}
+          chatId={CHAT_ID}
+        />
       </div>
     </CtDataProviders>
   );
@@ -2911,7 +2919,13 @@ export function CharacterGalleryDialogToastStory(): ReactElement {
     <CtAppDataProviders>
       <CtToastSurface>
         <div>
-          <CharacterGalleryDialog open={open} onOpenChange={setOpen} characterId={castId<CharacterId>("character_ct_gallery")} characterName="Aria" />
+          <CharacterGalleryDialog
+            open={open}
+            onOpenChange={setOpen}
+            characterId={castId<CharacterId>("character_ct_gallery")}
+            characterName="Aria"
+            chatId={CHAT_ID}
+          />
         </div>
       </CtToastSurface>
     </CtAppDataProviders>

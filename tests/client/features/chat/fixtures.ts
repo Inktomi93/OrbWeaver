@@ -6,8 +6,10 @@ import type { ChatIdentity, MessageView } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import type { CharacterId, ChatId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, MessageId, MessageVariantId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { makeResolvedView } from "../../../support/factories/resolved-connection.ts";
+import { testModelId, testProviderId } from "../../../support/inference-identities.ts";
 import type { TrpcInput, TrpcRoutes, TrpcWireOutput } from "../../../support/node/route-trpc.ts";
 
 /** The `chat.listMessages` wire shape (MessagesPage — packages/server/src/domain/chat/contract/
@@ -86,6 +88,28 @@ export const COMPOSER_CHAT_ID = castId<ChatId>("chat_ct_composer");
 export const SLASH_LOCKED_REASON = "Locked in this room — join it first.";
 const FROZEN_AT = 1_750_000_000_000;
 
+/** The viewer's one connection row in the ambient feed — the row their chat role resolves to. */
+const AMBIENT_CONNECTION = {
+  id: "user_connection_ctambient001",
+  ownerId: "user_ct_viewer",
+  label: "Everyday chat",
+  providerId: "openrouter",
+  providerLabel: "OpenRouter",
+  credentialId: null,
+  baseUrl: null,
+  model: "openai/gpt-5-mini",
+  api: "auto",
+  declared: null,
+  extras: null,
+  transport: null,
+  modelCheck: "listed",
+  allowBackground: true,
+  promptCache: null,
+  tasks: ["chat"],
+  createdAt: FROZEN_AT,
+  updatedAt: FROZEN_AT,
+} as const satisfies TrpcWireOutput<"connection.list">[number];
+
 /**
  * THE AMBIENT READS OF A MOUNTED CHAT TREE (#637) — spread into every `routeTrpc` call in this feature so
  * the pipelines behind them actually RUN.
@@ -113,6 +137,8 @@ export const CHAT_AMBIENT_ROUTES: TrpcRoutes<
   | "chat.listReactions"
   | "plugin.listDisplayTransforms"
   | "notifications.presence"
+  | "connection.list"
+  | "connection.resolveChatCapability"
 > = {
   // The viewer's settings row, at the production defaults (`userSettingsSchema.parse({})`) — the same shape
   // the workloads/admin CTs feed. Real config, so a reader that keys off a tier gets a tier.
@@ -166,6 +192,18 @@ export const CHAT_AMBIENT_ROUTES: TrpcRoutes<
   // offline arm, where a null would leave every seat on the UNKNOWN branch and the pipeline inert. A CT whose
   // SUBJECT is presence overrides it after the spread.
   "notifications.presence": { onlineUserIds: [] },
+  // The room's connection readouts (item 0024): the composer's next-turn line reads the host viewer's chat
+  // role and names it against the viewer's own rows, and the swipe credit resolves connection ids against the
+  // same list. The honest default is a viewer whose chat role resolves to a row they own, so both pipelines
+  // run their named arm. A CT whose SUBJECT is a readout overrides these after the spread.
+  "connection.list": [AMBIENT_CONNECTION],
+  // The FULL wire view, built by the shared factory (capability parsed through the contract's schema), so a
+  // capability reader mounted beside the composer gets a real descriptor rather than a partial.
+  "connection.resolveChatCapability": makeResolvedView({
+    connectionId: castId<UserConnectionId>(AMBIENT_CONNECTION.id),
+    providerId: testProviderId(AMBIENT_CONNECTION.providerId),
+    model: testModelId(AMBIENT_CONNECTION.model),
+  }),
 };
 
 /**

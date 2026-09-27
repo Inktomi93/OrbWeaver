@@ -24,11 +24,21 @@ import type { FileDropzoneResult } from "@orb/ui/file-dropzone";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import type { LucideIcon } from "@orb/ui/icons";
 import { Compass, Eraser, Icon, ImagePlus, Images, ListOrdered, Pencil, Redo2, RefreshCw, Sparkles, Undo2, WandSparkles } from "@orb/ui/icons";
+import { Stack } from "@orb/ui/layout";
 import { Menu, MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuSeparator, MenuSubmenuRoot, MenuSubmenuTrigger, MenuTrigger } from "@orb/ui/menu";
+import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { IMAGE_GEN_SPENDS_NOW, IMAGINE_DOOR_HELPER, OFFER_CHOICES_ONE_SHOT, REGENERATE_PLAIN_HELPER, SWIPE_NEEDS_REPLY, testId } from "#lib";
+import {
+  IMAGE_GEN_SPENDS_NOW,
+  IMAGINE_DOOR_HELPER,
+  OFFER_CHOICES_ONE_SHOT,
+  REGENERATE_PLAIN_HELPER,
+  ROOM_PICTURES_NOTE,
+  SWIPE_NEEDS_REPLY,
+  testId,
+} from "#lib";
 import { useRecentSteers } from "#state";
 import type { useComposerUtilities } from "../hooks/use-composer-utilities.ts";
 import type { useGuidedActions } from "../hooks/use-guided-actions.ts";
@@ -47,6 +57,8 @@ export interface ComposerImageControls {
   readonly generateReason: string | undefined;
   readonly generating: boolean;
   readonly onGenerate: () => void;
+  /** True in a shared room: both image doors post the picture into the room, so the Media group says so. */
+  readonly sharedRoom: boolean;
   /** Opens the `/imagine` modal seeded with whatever is typed (#623 P1-IA) — the SECOND, safer image door.
    *
    *  ALWAYS actionable, and that asymmetry is the point: generate-from-text needs a prompt because the typed
@@ -241,7 +253,7 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
         <MenuSeparator />
         {/* MEDIA — the re-homed image/video controls (owner: image things into the menu, NOT back on the bar). */}
         <MenuGroup>
-          <MenuGroupLabel>Media</MenuGroupLabel>
+          <MediaGroupLabel sharedRoom={image.sharedRoom} />
           <AttachMediaItem maxAttachmentBytes={image.maxAttachmentBytes} disabled={image.uploadDisabled} onAddFiles={image.onAddFiles} />
           {/* TWO IMAGE DOORS, BOTH FINDABLE (#623 P1-IA). The split itself is a RULING, not an accident —
               `features/imagery/index.ts`'s scope fence keeps this fast composer-owned door in chat and calls
@@ -283,6 +295,25 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
         ) : null}
       </MenuPopup>
     </Menu>
+  );
+}
+
+/** The Media group's label. In a shared room it carries the sentence that generated pictures post into the
+ *  room: it rides the group label because a menu may own only items, groups and separators, and the label is
+ *  the group's accessible name, so a screen reader hears the sentence on entering the group. */
+function MediaGroupLabel({ sharedRoom }: { readonly sharedRoom: boolean }): ReactElement {
+  if (!sharedRoom) {
+    return <MenuGroupLabel>Media</MenuGroupLabel>;
+  }
+  return (
+    <MenuGroupLabel>
+      <Stack gap="field">
+        <Text as="span">Media</Text>
+        <Text as="span" voice="gloss" data-slot="composer-room-pictures-note">
+          {ROOM_PICTURES_NOTE}
+        </Text>
+      </Stack>
+    </MenuGroupLabel>
   );
 }
 
