@@ -15,7 +15,7 @@
 
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
-import { Icon, Images, ListChecks, MessagesSquare, Pencil, Swords, X } from "@orb/ui/icons";
+import { Icon, LayoutGrid, ListChecks, MessagesSquare, Pencil, Swords, X } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { MenuItem, MenuPopup, MenuSeparator, MenuSubmenuRoot, MenuSubmenuTrigger } from "@orb/ui/menu";
 import { Text } from "@orb/ui/text";
@@ -25,8 +25,16 @@ import { useId, useRef, useState } from "react";
 import { RowActionsMenu } from "#components";
 import type { Trpc } from "#data";
 import { createEntityMutation, useGatedQuery, useInvalidation, useStartChat, useTRPC } from "#data";
-import { enterSelectionMode, GAME_MODE_KEPT_LINE, GAME_MODE_OFF_LABEL, GAME_MODE_ON_LABEL, goToLanding, onGameModeStarted, onGameModeStopped } from "#state";
-import { CharacterGalleryDialog } from "../anchors/character-gallery-dialog.tsx";
+import {
+  enterSelectionMode,
+  GAME_MODE_KEPT_LINE,
+  GAME_MODE_OFF_LABEL,
+  GAME_MODE_ON_LABEL,
+  goToLanding,
+  onGameModeStarted,
+  onGameModeStopped,
+  openCharacterGallery,
+} from "#state";
 import { useDeleteChat, useUpdateChatTitle } from "../hooks/use-chat-row-mutations.ts";
 import { RenameChatDialog } from "./rename-chat-dialog.tsx";
 
@@ -168,7 +176,8 @@ export function ChatOptionsMenu({ chatId, title, characters }: ChatOptionsMenuPr
   const { startChat } = useStartChat();
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameValue, setRenameValue] = useState("");
-  const [galleryFor, setGalleryFor] = useState<ChatOptionsCharacter | null>(null);
+  // The gallery dialog is the app root's (`CharacterGalleryHost`); this menu only names which one to open.
+  const openGallery = (character: ChatOptionsCharacter): void => openCharacterGallery(character.characterId, { characterName: character.name, chatId });
 
   const characterIds = characters.map((c) => c.characterId);
   const soloCharacter = characters.length === 1 ? characters[0] : undefined;
@@ -210,20 +219,20 @@ export function ChatOptionsMenu({ chatId, title, characters }: ChatOptionsMenuPr
           </MenuItem>
         ) : null}
         {soloCharacter !== undefined ? (
-          <MenuItem onClick={(): void => setGalleryFor(soloCharacter)}>
-            <Icon icon={Images} size="sm" />
+          <MenuItem onClick={(): void => openGallery(soloCharacter)}>
+            <Icon icon={LayoutGrid} size="sm" />
             {soloCharacter.name}'s gallery
           </MenuItem>
         ) : null}
         {characters.length > 1 ? (
           <MenuSubmenuRoot>
             <MenuSubmenuTrigger>
-              <Icon icon={Images} size="sm" />
+              <Icon icon={LayoutGrid} size="sm" />
               Character galleries
             </MenuSubmenuTrigger>
             <MenuPopup>
               {characters.map((character) => (
-                <MenuItem key={character.characterId} onClick={(): void => setGalleryFor(character)}>
+                <MenuItem key={character.characterId} onClick={(): void => openGallery(character)}>
                   {character.name}
                 </MenuItem>
               ))}
@@ -254,20 +263,6 @@ export function ChatOptionsMenu({ chatId, title, characters }: ChatOptionsMenuPr
       </RowActionsMenu>
 
       <RenameChatDialog open={renameOpen} onOpenChange={setRenameOpen} value={renameValue} onValueChange={setRenameValue} onSave={saveRename} />
-
-      {galleryFor === null ? null : (
-        <CharacterGalleryDialog
-          open={true}
-          onOpenChange={(next): void => {
-            if (!next) {
-              setGalleryFor(null);
-            }
-          }}
-          characterId={galleryFor.characterId}
-          characterName={galleryFor.name}
-          chatId={chatId}
-        />
-      )}
     </>
   );
 }

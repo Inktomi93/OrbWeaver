@@ -302,11 +302,6 @@ function galleryFor(input: TrpcInput<"assets.listGallery">): TrpcWireOutput<"ass
   return input?.chatId === STORY_CHAT_ID ? [ROOM_ITEM] : [ITEM, ROOM_ITEM];
 }
 
-/** A recorded gallery read without the paging `direction` tRPC's infinite query adds to every page request. */
-function readInput(input: unknown): unknown {
-  return typeof input === "object" && input !== null ? Object.fromEntries(Object.entries(input).filter(([key]) => key !== "direction")) : input;
-}
-
 test("the scope strip starts on Everywhere and 'This chat' re-reads the gallery for this chat only", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, { "assets.listGallery": galleryFor });
   await mount(<CharacterGalleryDialogStory />);
@@ -314,13 +309,15 @@ test("the scope strip starts on Everywhere and 'This chat' re-reads the gallery 
   const strip = page.getByRole("radiogroup", { name: "Show images from" });
   await expect(strip.getByRole("radio", { name: "Everywhere" })).toHaveAttribute("aria-checked", "true");
   await expect(page.getByRole("gridcell", { name: "Gallery image" })).toHaveCount(2);
-  await expect.poll(() => readInput(trpc.lastInput("assets.listGallery"))).toEqual({ subjectCharacterId: "character_ct_gallery", limit: 100, sort: "newest" });
+  await expect
+    .poll(() => trpc.lastInput("assets.listGallery"))
+    .toEqual({ subjectCharacterId: "character_ct_gallery", limit: 100, sort: "newest", direction: "forward" });
 
   await strip.getByRole("radio", { name: "This chat" }).click();
   await expect(strip.getByRole("radio", { name: "This chat" })).toHaveAttribute("aria-checked", "true");
   await expect
-    .poll(() => readInput(trpc.lastInput("assets.listGallery")))
-    .toEqual({ subjectCharacterId: "character_ct_gallery", chatId: STORY_CHAT_ID, limit: 100, sort: "newest" });
+    .poll(() => trpc.lastInput("assets.listGallery"))
+    .toEqual({ subjectCharacterId: "character_ct_gallery", chatId: STORY_CHAT_ID, limit: 100, sort: "newest", direction: "forward" });
   await expect(page.getByRole("gridcell", { name: "Gallery image" })).toHaveCount(1);
 });
 
@@ -462,12 +459,13 @@ for (const viewport of [
 
     const lastOfFirstPage = NEWEST_FIRST[PAGE_SIZE - 1];
     await expect
-      .poll(() => readInput(trpc.lastInput("assets.listGallery")))
+      .poll(() => trpc.lastInput("assets.listGallery"))
       .toEqual({
         subjectCharacterId: "character_ct_gallery",
         limit: PAGE_SIZE,
         sort: "newest",
         cursor: { createdAt: lastOfFirstPage?.createdAt, galleryItemId: lastOfFirstPage?.galleryItemId },
+        direction: "forward",
       });
     // Both pages are in the grid, and the short second page ended the list.
     await expect.poll(async () => (await gridCapacity(page)).rows).toBe(Math.ceil((PAGE_SIZE + SECOND_PAGE) / (await gridCapacity(page)).columns));
@@ -490,8 +488,8 @@ for (const viewport of [
     await order.getByRole("radio", { name: "Oldest first" }).click();
     await expect(order.getByRole("radio", { name: "Oldest first" })).toHaveAttribute("aria-checked", "true");
     await expect
-      .poll(() => readInput(trpc.lastInput("assets.listGallery")))
-      .toEqual({ subjectCharacterId: "character_ct_gallery", limit: PAGE_SIZE, sort: "oldest" });
+      .poll(() => trpc.lastInput("assets.listGallery"))
+      .toEqual({ subjectCharacterId: "character_ct_gallery", limit: PAGE_SIZE, sort: "oldest", direction: "forward" });
     await expect(firstCell).toHaveAttribute("src", new RegExp(oldest?.hash ?? "missing", "u"));
   });
 }

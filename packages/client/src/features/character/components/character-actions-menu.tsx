@@ -33,7 +33,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { ConfirmDialog, RowActionsMenu } from "#components";
 import { useInvalidation, useOpenRefinery, useTRPC } from "#data";
-import { clearCharacterSelection, selectCharacter } from "#state";
+import { clearCharacterSelection, openCharacterGallery, selectCharacter } from "#state";
 import { useCreatePersonaFromCharacter, useDuplicateCharacter, useRemoveCharacter, useSetWelcomeGreeter } from "../hooks/use-character-context-mutations.ts";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
 import type { CHARACTER_ACTION_SCOPE_IDS } from "../lib/character-actions.ts";
@@ -85,6 +85,9 @@ export function CharacterActionsMenu({ characterId }: CharacterActionsMenuProps)
       // @orb-waive caught-failure-ownership(openRefinery): useOpenRefinery's own errorToast surfaces the failure; a failed open just leaves the actor on this menu. Ends if useOpenRefinery drops its errorToast.
       void openRefinery(characterId).catch(() => undefined);
     },
+    // Outside a chat there is no room to scope to, so the gallery opens without its "This chat" filter. The
+    // dialog titles itself with the name, so the row waits for the detail read the editor already shares.
+    openGallery: detail.data === undefined ? null : (): void => openCharacterGallery(characterId, { characterName: detail.data.name }),
     archive: (): void => update.mutate({ characterId, input: { archived: !archived } }),
     duplicate: (): void => setDuplicateOpen(true),
     exportCard: null,

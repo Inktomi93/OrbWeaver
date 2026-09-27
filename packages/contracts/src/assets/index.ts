@@ -141,7 +141,7 @@ export const DEFAULT_GALLERY_SORT: GallerySort = "newest";
 
 /** The keyset position after one gallery row: the previous page's last `(createdAt, galleryItemId)`. One
  *  object, because a tRPC infinite query carries exactly one `cursor`. */
-export const galleryCursorSchema = z.object({
+const galleryCursorSchema = z.object({
   createdAt: z.number().int(),
   galleryItemId: galleryItemIdSchema,
 });

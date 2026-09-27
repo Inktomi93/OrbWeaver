@@ -155,6 +155,13 @@ export const chatDetailSchema = z.strictObject({
   identities: z.array(chatIdentitySchema).readonly(),
 }) satisfies z.ZodType<ChatDetail>;
 
+/** The roster seat of {@link ChatDetail.viewerGalleryCharacterId}: the character whose gallery the viewer's
+ *  pictures here join, or `null` when the viewer owns none. The one read every gallery door uses. */
+export function viewerGalleryCharacter(detail: Pick<ChatDetail, "viewerGalleryCharacterId" | "participants">): ParticipantView | null {
+  const characterId = detail.viewerGalleryCharacterId;
+  return characterId === null ? null : (detail.participants.find((participant) => participant.characterId === characterId) ?? null);
+}
+
 /** `redeemInvite` / `acceptInvite` — the now-joined chat as the new member reads it (their own D16 floor
  *  already applied by the producer) plus their own roster row. STRICT at every owned level and the output
  *  parser of both procedures. */

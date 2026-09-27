@@ -22,6 +22,7 @@
 // elapsed count, a time expectation, and the fact that CLOSING IS SAFE — the generate flow is busDriven, so
 // the image posts into the room whether or not this modal is still open, and nothing used to say so.
 
+import { viewerGalleryCharacter } from "@orb/contracts/chat";
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
 import { EXTRACTION_MODES } from "@orb/contracts/imagery";
 import type { ChatId } from "@orb/kit/ids";
@@ -221,8 +222,7 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
  *  and is offered no add the server would refuse. The room read is cache-first. */
 function useGalleryCharacterName(trpc: Trpc, chatId: ChatId): string | undefined {
   const { data: chat } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
-  const characterId = chat?.viewerGalleryCharacterId ?? null;
-  return characterId === null ? undefined : chat?.participants.find((participant) => participant.characterId === characterId)?.displayName;
+  return chat === undefined ? undefined : viewerGalleryCharacter(chat)?.displayName;
 }
 
 /** The read call's one line: what it will cost you before, what it DID cost after. `costUsd: null` means the

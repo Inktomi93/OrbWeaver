@@ -12,6 +12,7 @@ import { automationActivityTab, automationQuickReplySource, automationSuggestion
 import { characterSlashCommands } from "@orb/client/features/character";
 import type { GoToSection } from "@orb/client/features/chat";
 import {
+  CharacterGalleryHost,
   ChatLandingSurface,
   ChatListAnchor,
   ChatListSurface,
@@ -64,6 +65,7 @@ import {
   enterSelectionMode,
   isLiveTurnPhase,
   MessageToolsRendererRegistryProvider,
+  openCharacterGallery,
   openNewChatPicker,
   openRoomInvite,
   SlashCommandRegistryProvider,
@@ -75,6 +77,7 @@ import {
   useActiveConfigGroup,
   useActiveConfigSub,
   useActiveSection,
+  useCharacterGalleryTarget,
   useConfigTarget,
   useContextTab,
   useImagineSeed,
@@ -1437,6 +1440,7 @@ function ComposerStoryInner({ tailRole = null, tailAssistantMessageId = null }: 
           through the real `useImagineSeed` selector, never a story-local mirror. */}
       <ImagineSeedProbe />
       <ConfigTargetProbe />
+      <GalleryTargetProbe />
     </div>
   );
 }
@@ -1446,6 +1450,14 @@ function ComposerStoryInner({ tailRole = null, tailAssistantMessageId = null }: 
 function ConfigTargetProbe(): ReactElement {
   const target = useConfigTarget();
   return <p data-testid="composer-config-target">{`${useActiveSection()}|${target?.group ?? ""}|${target?.sub ?? ""}|${target?.setting ?? ""}`}</p>;
+}
+
+/** Prints the gallery the ✨ menu's gallery door or `/gallery` asked the host to show, as
+ *  `<characterId>|<name>|<chatId>` (`none` outside a chat). The story mounts no host, so the store is the
+ *  observable; the host's own CT proves the store opens the dialog. */
+function GalleryTargetProbe(): ReactElement {
+  const target = useCharacterGalleryTarget();
+  return <p data-testid="composer-gallery-target">{target === undefined ? "" : `${target.characterId}|${target.characterName}|${target.chatId ?? "none"}`}</p>;
 }
 
 /** Prints the imagery intent store's current `/imagine` seed as `<mode>|<prompt>` (empty when nothing has
@@ -2915,6 +2927,27 @@ export function CharacterGalleryDialogStory({ characterName = "Aria" }: { readon
           chatId={CHAT_ID}
         />
       </div>
+    </CtDataProviders>
+  );
+}
+
+/** The app root's gallery host with two openers: one from inside a chat (`CHAT_ID`), one from outside any
+ *  chat. The host shows whatever the store names, so the buttons stand in for every door. */
+export function CharacterGalleryHostStory(): ReactElement {
+  const characterId = castId<CharacterId>("character_ct_gallery");
+  return (
+    <CtDataProviders>
+      <button type="button" data-testid="ct-open-gallery-outside" onClick={(): void => openCharacterGallery(characterId, { characterName: "Aria" })}>
+        outside
+      </button>
+      <button
+        type="button"
+        data-testid="ct-open-gallery-in-chat"
+        onClick={(): void => openCharacterGallery(characterId, { characterName: "Aria", chatId: CHAT_ID })}
+      >
+        in chat
+      </button>
+      <CharacterGalleryHost />
     </CtDataProviders>
   );
 }

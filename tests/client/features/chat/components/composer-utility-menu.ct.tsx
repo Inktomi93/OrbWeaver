@@ -10,7 +10,7 @@ import type { Page } from "@playwright/test";
 import type { TrpcFixtureOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ComposerStory } from "../_ct-stories.tsx";
-import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES } from "../fixtures.ts";
+import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES, COMPOSER_CHAT_ID } from "../fixtures.ts";
 
 type ParticipantFixture = NonNullable<TrpcFixtureOutput<"chat.getChat">["participants"]>[number];
 
@@ -94,5 +94,58 @@ for (const viewport of [
         }),
       )
       .toEqual({ noOverflow: true, insidePopup: true, popupInViewport: true });
+  });
+}
+
+// ── The gallery door (item 0236 gap 3). The Media group opens the gallery of the room character the viewer
+// owns, through the `#state` store the app root's host reads; the story's probe prints what it asked for. A
+// viewer who owns no character here gets no row: that gallery would be someone else's.
+
+function characterSeat(key: string, name: string): ParticipantFixture {
+  return {
+    id: `chat_participant_${key}`,
+    kind: "character",
+    userId: null,
+    characterId: `character_ct_${key}`,
+    role: "member",
+    displayName: name,
+    leftSeq: null,
+  };
+}
+
+/** A shared room with Aria seated: the host owns her, the guest owns nothing. Shared, so the Media label's
+ *  room note is the rendered sign that this roster has landed. */
+function galleryRoom(viewerOwnsAria: boolean): TrpcFixtureOutput<"chat.getChat"> {
+  return {
+    ...roomWith([human("hostess", "host"), human("guest", "member"), characterSeat("aria", "Aria")]),
+    viewerGalleryCharacterId: viewerOwnsAria ? "character_ct_aria" : null,
+  };
+}
+
+for (const viewport of [
+  { name: "mobile", width: 360, height: 780 },
+  { name: "desktop", width: 1440, height: 900 },
+] as const) {
+  test(`${viewport.name}: the owner's Media group opens the room character's gallery`, async ({ mount, page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.getChat": galleryRoom(true) });
+    const component = await mount(<ComposerStory />);
+    await openMediaGroup(page);
+
+    const door = page.getByRole("menuitem", { name: "Aria's gallery…", exact: true });
+    await expect(door).toBeInViewport();
+    await door.click();
+    await expect(component.getByTestId("composer-gallery-target")).toHaveText(`character_ct_aria|Aria|${COMPOSER_CHAT_ID}`);
+  });
+
+  test(`${viewport.name}: a viewer who owns no character in the room gets no gallery row`, async ({ mount, page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.getChat": galleryRoom(false) });
+    await mount(<ComposerStory />);
+    await openMediaGroup(page);
+
+    // The room note renders from the same roster read, so the absence below is settled, not pending.
+    await expect(page.locator('[data-slot="composer-room-pictures-note"]')).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: /gallery/u })).toHaveCount(0);
   });
 }

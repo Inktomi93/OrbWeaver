@@ -146,7 +146,7 @@ export {
 export type { ContentClassPolicy } from "./content-classes.ts";
 export { CONTENT_CLASS_POLICY } from "./content-classes.ts";
 export type { ChatDetail, RedeemInviteResult } from "./detail.ts";
-export { chatDetailSchema, redeemInviteResultSchema } from "./detail.ts";
+export { chatDetailSchema, redeemInviteResultSchema, viewerGalleryCharacter } from "./detail.ts";
 export type { ChatListCursor } from "./listing.ts";
 export { CHAT_LIST_MAX_LIMIT, chatListCursorSchema } from "./listing.ts";
 // `MacroFreeze` (the single occurrence) is NOT re-exported here — kit owns that shape and consumers import it

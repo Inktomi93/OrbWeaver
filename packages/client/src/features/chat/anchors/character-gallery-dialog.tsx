@@ -1,10 +1,6 @@
-// The per-character gallery modal, opened from the chat options menu. Three nested surfaces: the grid
-// of curated media, a lightbox (remove-from-gallery behind an AlertDialog confirm, never a one-click
-// cascade), and an add-picker (`components/gallery-add-picker.tsx`). Wires to the tRPC gallery
-// verbs via use-character-gallery. The grid's scope filter narrows to pictures generated in this chat; the
-// server applies it inside the caller's own gallery, so it can never show another member's pictures. The
-// grid is keyset-paged in a date order: a "Load more" control fetches the next page, because the virtualized
-// grid has no end-of-list callback. Under it, an upload zone takes picked or dropped images straight in.
+// The per-character gallery modal, mounted once by `character-gallery-host.tsx`: a keyset-paged grid with "Load
+// more" (the virtualized grid has no end-of-list callback), a lightbox whose remove sits behind a confirm, the
+// add-picker and the upload zone. The "This chat" scope filters inside the caller's own gallery, never wider.
 
 import type { GallerySort } from "@orb/contracts/assets";
 import { blobUrl, DEFAULT_GALLERY_SORT, GALLERY_SORTS } from "@orb/contracts/assets";
@@ -149,8 +145,9 @@ export interface CharacterGalleryDialogProps {
   readonly onOpenChange: (open: boolean) => void;
   readonly characterId: CharacterId;
   readonly characterName: string;
-  /** The chat the dialog was opened from — the room the "This chat" scope filters to. */
-  readonly chatId: ChatId;
+  /** The chat the dialog was opened from — the room the "This chat" scope filters to. `null` outside a chat,
+   *  where the scope strip is absent and the grid is the whole gallery. */
+  readonly chatId: ChatId | null;
 }
 
 export function CharacterGalleryDialog({ open, onOpenChange, characterId, characterName, chatId }: CharacterGalleryDialogProps): ReactElement {
@@ -165,6 +162,7 @@ export function CharacterGalleryDialog({ open, onOpenChange, characterId, charac
   };
   const [sort, setSort] = useState<GallerySort>(DEFAULT_GALLERY_SORT);
   const gallery = useGalleryCollection({ trpc }, { characterId, chatId: scope === "chat" ? chatId : null, sort });
+  const scopes = chatId === null ? null : GALLERY_SCOPES;
   const remove = useRemoveFromGallery({ trpc, invalidation });
 
   const [lightbox, setLightbox] = useState<GalleryItem | null>(null);
@@ -209,24 +207,26 @@ export function CharacterGalleryDialog({ open, onOpenChange, characterId, charac
             </Row>
 
             <Row className="flex-wrap" gap="row">
-              <ToggleGroup
-                aria-label="Show images from"
-                onValueChange={(picked): void => {
-                  // A one-of-N strip has no release: clicking the active segment yields an empty array.
-                  const next = picked[0];
-                  if (isGalleryScope(next)) {
-                    setScope(next);
-                  }
-                }}
-                semantics="radio"
-                value={[scope]}
-              >
-                {GALLERY_SCOPES.map((option) => (
-                  <Toggle checked={option === scope} key={option} ref={option === "everywhere" ? everywhereRef : undefined} semantics="radio" value={option}>
-                    {GALLERY_SCOPE_LABELS[option]}
-                  </Toggle>
-                ))}
-              </ToggleGroup>
+              {scopes === null ? null : (
+                <ToggleGroup
+                  aria-label="Show images from"
+                  onValueChange={(picked): void => {
+                    // A one-of-N strip has no release: clicking the active segment yields an empty array.
+                    const next = picked[0];
+                    if (isGalleryScope(next)) {
+                      setScope(next);
+                    }
+                  }}
+                  semantics="radio"
+                  value={[scope]}
+                >
+                  {scopes.map((option) => (
+                    <Toggle checked={option === scope} key={option} ref={option === "everywhere" ? everywhereRef : undefined} semantics="radio" value={option}>
+                      {GALLERY_SCOPE_LABELS[option]}
+                    </Toggle>
+                  ))}
+                </ToggleGroup>
+              )}
               <ToggleGroup
                 aria-label="Order"
                 onValueChange={(picked): void => {
