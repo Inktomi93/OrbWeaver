@@ -412,7 +412,7 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
             }
           />
         </ComposerDropTarget>
-        <ComposerNextTurnLine chatId={chatId} availabilityCause={sendAvailability.cause} />
+        <ComposerNextTurnLine chatId={chatId} availability={sendAvailability} />
       </Stack>
     </footer>
   );

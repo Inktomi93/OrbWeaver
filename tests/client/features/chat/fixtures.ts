@@ -6,8 +6,10 @@ import type { ChatIdentity, MessageView } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import type { CharacterId, ChatId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, MessageId, MessageVariantId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { makeResolvedView } from "../../../support/factories/resolved-connection.ts";
+import { testModelId, testProviderId } from "../../../support/inference-identities.ts";
 import type { TrpcInput, TrpcRoutes, TrpcWireOutput } from "../../../support/node/route-trpc.ts";
 
 /** The `chat.listMessages` wire shape (MessagesPage — packages/server/src/domain/chat/contract/
@@ -195,12 +197,13 @@ export const CHAT_AMBIENT_ROUTES: TrpcRoutes<
   // same list. The honest default is a viewer whose chat role resolves to a row they own, so both pipelines
   // run their named arm. A CT whose SUBJECT is a readout overrides these after the spread.
   "connection.list": [AMBIENT_CONNECTION],
-  "connection.resolveChatCapability": {
-    task: "chat",
-    connectionId: AMBIENT_CONNECTION.id,
-    providerId: AMBIENT_CONNECTION.providerId,
-    model: AMBIENT_CONNECTION.model,
-  },
+  // The FULL wire view, built by the shared factory (capability parsed through the contract's schema), so a
+  // capability reader mounted beside the composer gets a real descriptor rather than a partial.
+  "connection.resolveChatCapability": makeResolvedView({
+    connectionId: castId<UserConnectionId>(AMBIENT_CONNECTION.id),
+    providerId: testProviderId(AMBIENT_CONNECTION.providerId),
+    model: testModelId(AMBIENT_CONNECTION.model),
+  }),
 };
 
 /**

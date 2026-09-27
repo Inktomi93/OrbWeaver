@@ -113,6 +113,51 @@ test("a host whose chat-role read fails, in a serveable room, is told the read f
   await expect(line(component)).not.toHaveAttribute("data-unset");
 });
 
+test("a host whose chat-role read AND the room's verdict read both fail is told the read failed, not left checking", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...CHAT_ROOM_ROUTES,
+    "chat.getChat": HOST_ROOM,
+    "chat.checkSendAvailability": trpcError({ message: "verdict boom" }),
+    "connection.list": [WORK_KEY],
+    "connection.resolveChatCapability": trpcError({ message: "resolve boom" }),
+  });
+  const component = await mount(<ComposerStory />);
+
+  await expect(line(component)).toHaveText("Next reply: the chat connection couldn't be read.");
+  await expect(line(component)).toHaveAttribute("data-failed", "");
+});
+
+test("a failed room read, the read a member's line depends on, says the check failed and never reads a chat role", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...CHAT_ROOM_ROUTES,
+    "chat.getChat": trpcError({ message: "room boom" }),
+    "connection.list": [WORK_KEY],
+    "connection.resolveChatCapability": RESOLVED,
+  });
+  const component = await mount(<ComposerStory />);
+
+  await expect(line(component)).toHaveText("Next reply: this chat's connection couldn't be checked.");
+  await expect(line(component)).toHaveAttribute("data-failed", "");
+  // Host or member is unknown, so the viewer's own chat role is not a safe thing to name.
+  await expect.poll(() => trpc.count("connection.resolveChatCapability")).toBe(0);
+});
+
+test("a member whose room verdict read fails still names the host's connection, never stuck checking", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...CHAT_ROOM_ROUTES,
+    "chat.getChat": MEMBER_ROOM,
+    "chat.checkSendAvailability": trpcError({ message: "verdict boom" }),
+    "connection.list": [WORK_KEY],
+  });
+  const component = await mount(<ComposerStory />);
+
+  await expect(line(component)).toHaveText("Next reply: the host's chat connection.");
+  await expect(line(component)).not.toHaveAttribute("data-failed");
+});
+
 test("while the host's chat-role read is in flight the line says it is checking", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
