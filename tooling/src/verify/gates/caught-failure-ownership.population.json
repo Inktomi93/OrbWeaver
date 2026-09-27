@@ -2,16 +2,16 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 626,
+    "sites": 630,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 626,
+      "deliberate-absorb": 630,
       "unproven": 0
     },
     "byGrammar": {
       "default": 154,
-      "empty": 321,
-      "promise": 151
+      "empty": 324,
+      "promise": 152
     }
   },
   "rows": [
@@ -156,6 +156,11 @@
       "reason": "a null/unauthenticated read falls through to the ladder's fail-closed `signOut()` floor at the end of the function. Ends if this branch stops reaching signOut()."
     },
     {
+      "siteId": "packages/client/src/data/upload-asset.ts::uploadAsset::json::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a refusal body that is not JSON falls through to `throwHttpError` below, which throws with the status. Ends if that fallthrough is removed."
+    },
+    {
       "siteId": "packages/client/src/data/use-card-frame.ts::mintCardFrame::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "documented in the JSDoc above — any failure resolves to undefined and the caller renders the floor. Ends if the floor stops being an acceptable fallback UI."
@@ -229,6 +234,16 @@
       "siteId": "packages/client/src/features/chat/components/chat-list-row-menu.tsx::ChatListRowMenu.confirmDelete::actions.remove::1",
       "verdict": "deliberate-absorb",
       "reason": "useDeleteChat carries errorToast: \"Couldn't delete the chat.\" — the toast is the surface. Ends if useDeleteChat drops errorToast."
+    },
+    {
+      "siteId": "packages/client/src/features/chat/components/gallery-upload-zone.tsx::GalleryUploadZone.landOne::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a failed add is named on the dropzone's error line (`notAdded`); the mutation carries no toast. Ends if that line stops rendering."
+    },
+    {
+      "siteId": "packages/client/src/features/chat/components/gallery-upload-zone.tsx::GalleryUploadZone.landOne::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a refused upload is named on the dropzone's error line (`notUploaded`), with the server's reason when it gave one. Ends if that line stops rendering."
     },
     {
       "siteId": "packages/client/src/features/chat/components/home-quick-picks-tile-body.tsx::HomeQuickPicksTileBody.startChatWith::startChat::1",
@@ -1439,6 +1454,11 @@
       "siteId": "packages/server/src/entry/http/plugin-ui.ts::registerPluginUi::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "leak-free collapse — documented below: every domain refusal (foreign plugin, torn CAS entry, unparseable bundle) collapses to ONE NOT_FOUND, the same containment `blob.ts` gives a torn blob. Ends if a caller needs to distinguish those causes."
+    },
+    {
+      "siteId": "packages/server/src/entry/http/upload.ts::registerUpload::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "answered — a refusal the person can fix becomes a 4xx carrying its reason; any other fault is rethrown to the app's error boundary. Ends if this stops being the terminal HTTP handler."
     },
     {
       "siteId": "packages/server/src/entry/import/run-bundle-import.ts::importEntity::err::1",

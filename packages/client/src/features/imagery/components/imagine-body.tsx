@@ -22,8 +22,10 @@
 // elapsed count, a time expectation, and the fact that CLOSING IS SAFE — the generate flow is busDriven, so
 // the image posts into the room whether or not this modal is still open, and nothing used to say so.
 
+import { viewerGalleryCharacter } from "@orb/contracts/chat";
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
 import { EXTRACTION_MODES } from "@orb/contracts/imagery";
+import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Checkbox } from "@orb/ui/checkbox";
 import { Row, Stack } from "@orb/ui/layout";
@@ -85,10 +87,9 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
   const [toGallery, setToGallery] = useState(true);
   const modeLabelId = useId();
   const galleryLabelId = useId();
+  const galleryCheckboxId = useId();
   const trpc = useTRPC();
-  // The server joins the picture to the room's first character's gallery; the roster read is cache-first.
-  const { data: chat } = useQuery(trpc.chat.getChat.queryOptions({ chatId: seed.chatId }));
-  const galleryCharacter = chat?.participants.find((participant) => participant.kind === "character" && participant.leftSeq === null);
+  const galleryCharacterName = useGalleryCharacterName(trpc, seed.chatId);
   const invalidation = useInvalidation();
   const extract = useExtractPrompt({ trpc, invalidation });
   const generate = useGeneratePicture({ trpc, invalidation });
@@ -192,12 +193,21 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
           </Stack>
         ) : null}
       </Stack>
-      {galleryCharacter === undefined ? null : (
+      {galleryCharacterName === undefined ? null : (
         <Row align="center" gap="field">
-          <Checkbox aria-labelledby={galleryLabelId} checked={toGallery} disabled={busy} onCheckedChange={(next): void => setToGallery(next === true)} />
-          <Text as="span" id={galleryLabelId} voice="label">
-            Add to {galleryCharacter.displayName}'s gallery
-          </Text>
+          <Checkbox
+            aria-labelledby={galleryLabelId}
+            checked={toGallery}
+            disabled={busy}
+            id={galleryCheckboxId}
+            onCheckedChange={(next): void => setToGallery(next === true)}
+          />
+          {/* A real label, so a tap on the words toggles the box as well as naming it. */}
+          <label htmlFor={galleryCheckboxId}>
+            <Text as="span" id={galleryLabelId} voice="label">
+              Add to {galleryCharacterName}'s gallery
+            </Text>
+          </label>
         </Row>
       )}
       {generate.isPending ? (
@@ -215,6 +225,14 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
       </Row>
     </Stack>
   );
+}
+
+/** The name of the character whose gallery this viewer's picture joins, or `undefined` when there is none. The
+ *  server names that character (`viewerGalleryCharacterId`) only for its owner, so a guest gets `undefined`
+ *  and is offered no add the server would refuse. The room read is cache-first. */
+function useGalleryCharacterName(trpc: Trpc, chatId: ChatId): string | undefined {
+  const { data: chat } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  return chat === undefined ? undefined : viewerGalleryCharacter(chat)?.displayName;
 }
 
 /** The read call's one line: what it will cost you before, what it DID cost after. `costUsd: null` means the

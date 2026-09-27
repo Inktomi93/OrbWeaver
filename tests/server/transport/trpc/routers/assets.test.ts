@@ -4,6 +4,7 @@
 // The mutation verbs (add/remove) are structurally identical authedProcedures; their behavior is covered by
 // the domain slice tests.
 
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { AssetsService } from "@orb/server/domain/assets";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -29,5 +30,21 @@ describe("assets router", () => {
     const ctx = makeContext({ auth: principal("user"), services: { assets: { listGallery } } });
     await caller(ctx).assets.listGallery({ limit: 20 });
     expect(listGallery).toHaveBeenCalledWith({ principal: ctx.auth, limit: 20 });
+  });
+
+  test("listGallery passes the date order and the one-object keyset cursor through", async () => {
+    const listGallery = vi.fn<AssetsService["listGallery"]>().mockResolvedValue([]);
+    const ctx = makeContext({ auth: principal("user"), services: { assets: { listGallery } } });
+    const cursor = { createdAt: 5, galleryItemId: mintTypeId(ID_PREFIX.galleryItem) };
+    await caller(ctx).assets.listGallery({ limit: 20, sort: "oldest", cursor });
+    expect(listGallery).toHaveBeenCalledWith({ principal: ctx.auth, limit: 20, sort: "oldest", cursor });
+  });
+
+  test("listGallery refuses a sort outside the date orders", async () => {
+    const listGallery = vi.fn<AssetsService["listGallery"]>().mockResolvedValue([]);
+    const ctx = makeContext({ auth: principal("user"), services: { assets: { listGallery } } });
+    // @ts-expect-error — `name` is not a gallery sort: no name is stored, so the wire refuses it.
+    await expect(caller(ctx).assets.listGallery({ limit: 20, sort: "name" })).rejects.toThrow();
+    expect(listGallery).not.toHaveBeenCalled();
   });
 });

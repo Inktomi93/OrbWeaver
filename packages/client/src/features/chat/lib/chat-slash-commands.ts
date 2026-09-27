@@ -5,8 +5,9 @@
 //
 // Assembled at the door (main.tsx, G8) — this file exports values, never registers.
 
-import { Plus } from "@orb/ui/icons";
+import { LayoutGrid, Plus } from "@orb/ui/icons";
 import type { SlashCommandContribution } from "#lib";
+import { NO_GALLERY_HERE, SlashGalleryMount } from "../components/slash-gallery-mount.tsx";
 import { SlashNewChatMount } from "../components/slash-new-chat-mount.tsx";
 
 /** `/new-chat` — opens the new-chat character picker (the palette's former hardcoded "New chat" row). */
@@ -20,5 +21,21 @@ const newChatCommand: SlashCommandContribution = {
   mount: SlashNewChatMount,
 };
 
+/** `/gallery` — opens the gallery of this room's character, for the viewer who owns it. */
+const galleryCommand: SlashCommandContribution = {
+  id: "gallery",
+  label: "Gallery",
+  describe: "Open this chat's character gallery",
+  keywords: ["gallery", "images", "pictures", "photos"],
+  icon: LayoutGrid,
+  unavailableReason: (context) => {
+    if (context.chatId === null) {
+      return "Open a chat to see its character's gallery.";
+    }
+    return context.viewerGalleryCharacterId === null ? NO_GALLERY_HERE : null;
+  },
+  mount: SlashGalleryMount,
+};
+
 /** The chat-owned slash commands, assembled at `main.tsx` into the one slash-command registry. */
-export const chatSlashCommands: readonly SlashCommandContribution[] = [newChatCommand];
+export const chatSlashCommands: readonly SlashCommandContribution[] = [newChatCommand, galleryCommand];

@@ -51,7 +51,7 @@ import { useComposerUtilities } from "../hooks/use-composer-utilities.ts";
 import { useGuidedActions } from "../hooks/use-guided-actions.ts";
 import { filterCharacters } from "../lib/roster.ts";
 import { GuidedIconButton, ImpersonateGuidedButton, ImpersonateStopButton, ResponseGuidedButton } from "./composer-guided-buttons.tsx";
-import type { ComposerImageControls } from "./composer-utility-menu.tsx";
+import type { ComposerImageControls } from "./composer-media-group.tsx";
 import { ComposerGuidedUtilityMenu } from "./composer-utility-menu.tsx";
 import { RewriteDialog } from "./rewrite-dialog.tsx";
 import { useRewriteModal } from "./use-rewrite-modal.ts";

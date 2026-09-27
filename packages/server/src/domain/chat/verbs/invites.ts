@@ -45,6 +45,7 @@ import {
 import { loadChatRow, loadMemberChat } from "../persistence/queries.ts";
 import { resolveHistoryFloorSeq } from "../substrate/auth/index.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
+import { resolveViewerOwnedCharacterIds } from "../substrate/viewer-gallery.ts";
 
 /** The collaborators the invite verbs close over (see the file header). */
 interface InviteDeps {
@@ -287,6 +288,7 @@ function createRedeemInvite(ctx: ChatContext, deps: InviteDeps): ChatService["re
         participants,
         identities,
         viewerUserId: principal.userId,
+        viewerOwnedCharacterIds: await resolveViewerOwnedCharacterIds(ctx.getCard, participants, principal.userId),
         // The joiner's OWN D16 floor, off the row the redeem just wrote — a `from-join` joiner must not
         // receive the compaction checkpoint (a distillation of the canon their floor withholds) on the very
         // response that seats them.
@@ -347,6 +349,7 @@ function createAcceptInvite(ctx: ChatContext, deps: InviteDeps): ChatService["ac
         participants,
         identities,
         viewerUserId: principal.userId,
+        viewerOwnedCharacterIds: await resolveViewerOwnedCharacterIds(ctx.getCard, participants, principal.userId),
         // The joiner's OWN D16 floor, off the row the redeem just wrote — a `from-join` joiner must not
         // receive the compaction checkpoint (a distillation of the canon their floor withholds) on the very
         // response that seats them.

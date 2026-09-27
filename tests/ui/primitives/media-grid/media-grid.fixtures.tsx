@@ -1,10 +1,10 @@
 // CT fixtures for the MediaGrid seal. Playwright CT serializes mount props, so stateful
 // callbacks (selection toggling, activation) live HERE as fixture-local state — the tests assert
 // the resulting DOM, matching the virtual-list.fixtures.tsx convention.
-import type { MediaGridItem, MediaGridKey } from "@orb/ui/media-grid";
+import type { MediaGridHandle, MediaGridItem, MediaGridKey } from "@orb/ui/media-grid";
 import { MediaGrid } from "@orb/ui/media-grid";
 import type { ReactElement, ReactNode } from "react";
-import { Component, useState } from "react";
+import { Component, useRef, useState } from "react";
 
 function makeItems(count: number): MediaGridItem[] {
   return Array.from({ length: count }, (_, index) => ({
@@ -164,6 +164,28 @@ export function DerivedItemsGrid(): ReactElement {
       </button>
       <div style={{ height: 300, width: 300 }}>
         <MediaGrid ariaLabel="Derived grid" className="h-full" items={items} minCellWidth={100} />
+      </div>
+    </div>
+  );
+}
+
+/** A caller that moves focus by id through the imperative handle; `found` echoes what `focusItem` answered. */
+export function HandleFocusGrid({ itemCount, targetIndex }: { readonly itemCount: number; readonly targetIndex: number }): ReactElement {
+  const gridRef = useRef<MediaGridHandle>(null);
+  const [found, setFound] = useState("unasked");
+  const items = makeItems(itemCount);
+  const focus = (id: string): void => setFound(String(gridRef.current?.focusItem(id) ?? "no handle"));
+  return (
+    <div>
+      <button onClick={(): void => focus(`fixture-${targetIndex}`)} type="button">
+        Focus the target
+      </button>
+      <button onClick={(): void => focus("fixture-missing")} type="button">
+        Focus a missing item
+      </button>
+      <p data-testid="found">{found}</p>
+      <div style={{ height: 300, width: 300 }}>
+        <MediaGrid ariaLabel="Handle grid" className="h-full" items={items} minCellWidth={100} ref={gridRef} />
       </div>
     </div>
   );

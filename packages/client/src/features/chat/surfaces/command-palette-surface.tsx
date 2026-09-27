@@ -71,7 +71,7 @@ export function CommandPaletteSurface({ goToSections }: CommandPaletteSurfacePro
   // The dynamic palette sources (plugin commands, U8) share the SAME context projection as the slash commands.
   // Read null-tolerantly: a build/CT with no Provider has zero sources and the palette shows only its native
   // groups (byte-identical to before the seam).
-  const context: SlashCommandContext = { chatId };
+  const context = slash.context;
   const paletteSources = use(CommandPaletteSourceRegistryContext)?.list() ?? [];
 
   const jumpToChat = (id: ChatId): void => {

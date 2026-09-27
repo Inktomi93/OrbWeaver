@@ -44,6 +44,7 @@ import { useComposerFocusOnRequest } from "../hooks/use-composer-focus.ts";
 import { useComposerMediaDrop } from "../hooks/use-composer-media-drop.ts";
 import { useContinueTurn } from "../hooks/use-continue-turn.ts";
 import { useGenerateImage } from "../hooks/use-generate-image.ts";
+import { useRoomGalleryDoor } from "../hooks/use-room-gallery-door.ts";
 import { useSendAvailability } from "../hooks/use-send-availability.ts";
 import { useSendMessage } from "../hooks/use-send-message.ts";
 import { useSharedRoom } from "../hooks/use-shared-room.ts";
@@ -53,16 +54,16 @@ import { ATTACH_BUSY_MESSAGE, dropzoneRefusalMessage, triageAttachFiles } from "
 import { handleComposerKeyDown } from "../lib/composer-keydown.ts";
 import { resolveEmptySendAction } from "../lib/continue-on-empty.ts";
 import { nextTurnStatesRefusal } from "../lib/next-turn-line.ts";
-import { matchSlashCommands, resolveSlashHighlight, slashArgsInProgress, slashCompletionAria } from "../lib/slash-command.ts";
+import { matchSlashCommands, parseSlashDraft, resolveSlashHighlight, slashArgsInProgress, slashCompletionAria } from "../lib/slash-command.ts";
 import { ComposerArgHintStrip } from "./composer-arg-hint-strip.tsx";
 import { ComposerAttachmentStrip } from "./composer-attachment-strip.tsx";
 import { ActiveChatOptionsMenu } from "./composer-chat-options.tsx";
 import { ComposerDropTarget } from "./composer-drop-target.tsx";
 import { ComposerGuidedCluster } from "./composer-guided-cluster.tsx";
+import type { ComposerImageControls } from "./composer-media-group.tsx";
 import { ComposerNextTurnLine } from "./composer-next-turn-line.tsx";
 import { ComposerSendControl } from "./composer-send-control.tsx";
 import { ComposerSlashStrip } from "./composer-slash-strip.tsx";
-import type { ComposerImageControls } from "./composer-utility-menu.tsx";
 
 // The placeholder teaches the empty-Enter affordance in play. On an assistant tail with continue-on-empty
 // live, an empty Enter continues; on a non-assistant tail with generate-on-empty live, an empty Enter
@@ -148,6 +149,7 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
   // The verb posts one user message with asset: refs (D51), so it renders through the normal stream.
   const generateImage = useGenerateImage(chatId);
   const sharedRoom = useSharedRoom(chatId);
+  const galleryDoor = useRoomGalleryDoor(chatId);
 
   const trimmed = value.trim();
   const hasAttachments = attachments.length > 0;
@@ -225,10 +227,19 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
       onChange("");
       return;
     }
+    // Only a real send needs the connection; a command above runs in any room.
+    if (sendAvailability.unavailable) {
+      return;
+    }
     sendMessage.send(outcome.text, files);
   };
 
   const submit = (): void => {
+    // A draft with text classifies first: a slash command is not a turn, so the send gate below never holds it.
+    if (canSubmitText) {
+      submitText(attachments.map((a) => a.file));
+      return;
+    }
     // The pre-send gate: a chat whose resolved connection can't serve refuses up front (the disabled Send is
     // the click path; this guards the Enter-key path the keydown handler calls). A draft is never unavailable.
     if (sendAvailability.unavailable) {
@@ -244,14 +255,15 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
       }
       return;
     }
-    const files = attachments.map((a) => a.file);
     // An attachment-only draft can't name a command — straight to the original send path.
-    if (canSubmitText) {
-      submitText(files);
-      return;
-    }
-    sendMessage.send(value, files);
+    sendMessage.send(
+      value,
+      attachments.map((a) => a.file),
+    );
   };
+
+  // Send stays live for a slash command in a room that cannot serve a turn: the command is not a turn.
+  const sendGated = sendAvailability.unavailable && parseSlashDraft(value).kind !== "command";
 
   const stripOpen = slashMatches.length > 0;
   const { command: highlightedCommand, activeOptionId: activeSlashOptionId } = resolveSlashHighlight(slashMatches, slashHighlight);
@@ -319,6 +331,7 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
     // The SECOND image door (#623) — the same `openImagine` #state action the `/imagine` slash runner fires
     // (never a `#features/imagery` import, §5.1). Seeded, not cleared: nothing has been spent yet.
     onOpenImagine: (): void => openImagine({ chatId, mode: "free", prompt: trimmed }),
+    gallery: galleryDoor,
   };
 
   return (
@@ -410,11 +423,11 @@ export function Composer({ chatId, tailRole = null, tailAssistantMessageId = nul
                 stopping={stopping}
                 onStop={stopTurn.stop}
                 onSend={submit}
-                sendDisabled={sendAvailability.unavailable || !(canSubmit || canEmptySend) || sendMessage.isPending || continueOnEmpty.isPending}
+                sendDisabled={sendGated || !(canSubmit || canEmptySend) || sendMessage.isPending || continueOnEmpty.isPending}
                 sendPending={sendMessage.isPending || continueOnEmpty.isPending}
-                unavailable={sendAvailability.unavailable}
-                unavailableReason={sendAvailability.reason}
-                unavailableStatedBy={refusalStatedBy}
+                unavailable={sendGated}
+                unavailableReason={sendGated ? sendAvailability.reason : undefined}
+                unavailableStatedBy={sendGated ? refusalStatedBy : undefined}
               />
             }
           />

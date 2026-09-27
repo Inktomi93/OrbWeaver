@@ -84,7 +84,7 @@ export type { ReauthOutcome, SessionRecoveryHost } from "./stale-session.ts";
 export { beginSessionRecovery, bindSessionRecovery, completeReauth, recoverIfStaleSession, recoverIfUnauthorizedCode } from "./stale-session.ts";
 export type { Trpc, TrpcClient, TrpcReadError } from "./trpc.ts";
 export { createTrpcClient, createTrpcProxy, TRPCProvider, useTRPC, useTRPCClient } from "./trpc.ts";
-export { uploadAsset } from "./upload-asset.ts";
+export { UploadRefusedError, uploadAsset } from "./upload-asset.ts";
 export type { UploadDocumentResult } from "./upload-document.ts";
 export { uploadDocument } from "./upload-document.ts";
 export type { CardFrameRequest } from "./use-card-frame.ts";

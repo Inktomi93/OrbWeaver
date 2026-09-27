@@ -58,6 +58,7 @@ import { toChatDetail } from "../substrate/chat-detail.ts";
 import { viewerReadsHidden } from "../substrate/member-visibility.ts";
 import { foldChain } from "../substrate/runtime-variables.ts";
 import { canonMessageDelta, chatCreatedDelta, seatChatDelta, swipeVariantDelta } from "../substrate/stats-delta.ts";
+import { resolveViewerOwnedCharacterIds } from "../substrate/viewer-gallery.ts";
 
 /** The collaborators not on `ChatContext`. `emit` is the chat bus; `loadParticipantViews` resolves the
  *  roster read-model for the returned `ChatDetail`. */
@@ -759,6 +760,7 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
         participants,
         identities,
         viewerUserId: principal.userId,
+        viewerOwnedCharacterIds: await resolveViewerOwnedCharacterIds(ctx.getCard, participants, principal.userId),
         // The forker is the NEW room's born-here host (`joinSeq` 0) — unclamped in the fork, which already
         // carries only what their source-room floor allowed.
         viewerHistoryFloorSeq: NO_HISTORY_FLOOR,

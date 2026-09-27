@@ -83,9 +83,17 @@ const WAIVERS: Readonly<Record<string, Waiver>> = {
     coveredBy: "message-row",
     why: "the header (speaker name · timestamp · action cluster) is a #288 concept-split of message-row-parts — pure (args) => ReactNode helpers with no state, rendered only inside MessageRow; message-row.ct drives the real header slots (message-attribution / message-name-row / message-metadata-timestamp) and the name+actions structure on real rows.",
   },
-  "composer-utility-menu": {
-    coveredBy: "composer-guided-cluster",
-    why: "the ✨ utility menu renders inside the cluster; composer-guided-cluster.ct drives its Simple-send item + the menu.",
+  "composer-media-group": {
+    coveredBy: "composer-utility-menu",
+    why: "the ✨ menu's Media group is a size-cap split of composer-utility-menu.tsx and renders only inside it; composer-utility-menu.ct drives its gallery door for the owner and its absence for a guest.",
+  },
+  "gallery-lightbox": {
+    coveredBy: "character-gallery-dialog",
+    why: "the lightbox opens only from the gallery grid; character-gallery-dialog.ct drives its initial focus, its name, the remove confirm, the retry on a refused remove and the focus hand-off after a removal.",
+  },
+  "gallery-load-more": {
+    coveredBy: "character-gallery-dialog",
+    why: "the paged grids' Load more; character-gallery-dialog.ct drives it on the gallery (next cursor, the end of the list, focus to the first new image) and gallery-add-picker.ct on the picker's candidates.",
   },
   "chat-list-filter-exits": {
     coveredBy: "chat-list-surface",

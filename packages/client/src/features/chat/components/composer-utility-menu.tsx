@@ -12,61 +12,26 @@
 //              NOT a focus target inside the menuitem's accessible name — P1-C; accepts image/* + mp4/webm,
 //              #317) · the TWO image doors: Generate image from text (fast, spends on click — its typed text
 //              IS the prompt) and Imagine (opens the /imagine modal: mode strip + preview-before-spend). Both
-//              are here because both cost money and only one used to be findable (#623 P1-IA).
+//              are here because both cost money and only one used to be findable (#623 P1-IA) · the room
+//              character's gallery. The group renders from `composer-media-group.tsx`.
 //   • Plot   — game-only: the six plot steers nested under a Plot submenu (P1-B)
 // Each item is the omit-doctrine's disabled-affordance law: rendered enabled, or disabled-with-a-legible-reason,
-// never hidden.
+// never hidden — except a permission-gated one (the gallery door, for a viewer who owns no character here).
 
 import type { GuidedGameSteerKind } from "@orb/kit/guided";
 import { RPG_PLOT_STEER_KINDS, RPG_PLOT_STEERS } from "@orb/kit/guided";
 import { Button } from "@orb/ui/button";
-import type { FileDropzoneResult } from "@orb/ui/file-dropzone";
-import { FileDropzone } from "@orb/ui/file-dropzone";
 import type { LucideIcon } from "@orb/ui/icons";
-import { Compass, Eraser, Icon, ImagePlus, Images, ListOrdered, Pencil, Redo2, RefreshCw, Sparkles, Undo2, WandSparkles } from "@orb/ui/icons";
-import { Stack } from "@orb/ui/layout";
+import { Compass, Eraser, Icon, ListOrdered, Pencil, Redo2, RefreshCw, Undo2, WandSparkles } from "@orb/ui/icons";
 import { Menu, MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuSeparator, MenuSubmenuRoot, MenuSubmenuTrigger, MenuTrigger } from "@orb/ui/menu";
-import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
-import { useRef } from "react";
-import {
-  IMAGE_GEN_SPENDS_NOW,
-  IMAGINE_DOOR_HELPER,
-  OFFER_CHOICES_ONE_SHOT,
-  REGENERATE_PLAIN_HELPER,
-  ROOM_PICTURES_NOTE,
-  SWIPE_NEEDS_REPLY,
-  testId,
-} from "#lib";
+import { OFFER_CHOICES_ONE_SHOT, REGENERATE_PLAIN_HELPER, SWIPE_NEEDS_REPLY, testId } from "#lib";
 import { useRecentSteers } from "#state";
 import type { useComposerUtilities } from "../hooks/use-composer-utilities.ts";
 import type { useGuidedActions } from "../hooks/use-guided-actions.ts";
-// The picker's file-type filter is DERIVED from the shared attach vocabulary (#376) — the drop and paste
-// gestures gate on the same tuple, so the dialog filter and the runtime gate cannot drift.
-import { ATTACH_MEDIA_ACCEPT } from "../lib/attach-media.ts";
-
-/** The image controls re-homed into the ✨ utility menu (owner) — attach + generate-from-text. Owned by the
- *  composer (upload caps, the generate hook, the F-P1 clear-on-success); the wand only renders them. Homed
- *  HERE (the menu that renders them) so the cluster imports it DOWN this one edge — no import cycle. */
-export interface ComposerImageControls {
-  readonly maxAttachmentBytes: number;
-  readonly uploadDisabled: boolean;
-  readonly onAddFiles: (result: FileDropzoneResult) => void;
-  readonly canGenerate: boolean;
-  readonly generateReason: string | undefined;
-  readonly generating: boolean;
-  readonly onGenerate: () => void;
-  /** True in a shared room: both image doors post the picture into the room, so the Media group says so. */
-  readonly sharedRoom: boolean;
-  /** Opens the `/imagine` modal seeded with whatever is typed (#623 P1-IA) — the SECOND, safer image door.
-   *
-   *  ALWAYS actionable, and that asymmetry is the point: generate-from-text needs a prompt because the typed
-   *  text IS the prompt, while an extraction mode reads the conversation instead — so on the empty composer
-   *  a first-timer meets an enabled door that shows the price before spending, not a greyed-out one. Free
-   *  mode with no text is a legal seed (the modal's own Generate carries the gate). */
-  readonly onOpenImagine: () => void;
-}
+import type { ComposerImageControls } from "./composer-media-group.tsx";
+import { ComposerMediaGroup } from "./composer-media-group.tsx";
 
 interface UtilityMenuProps {
   readonly hasText: boolean;
@@ -252,32 +217,7 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
         </MenuGroup>
         <MenuSeparator />
         {/* MEDIA — the re-homed image/video controls (owner: image things into the menu, NOT back on the bar). */}
-        <MenuGroup>
-          <MediaGroupLabel sharedRoom={image.sharedRoom} />
-          <AttachMediaItem maxAttachmentBytes={image.maxAttachmentBytes} disabled={image.uploadDisabled} onAddFiles={image.onAddFiles} />
-          {/* TWO IMAGE DOORS, BOTH FINDABLE (#623 P1-IA). The split itself is a RULING, not an accident —
-              `features/imagery/index.ts`'s scope fence keeps this fast composer-owned door in chat and calls
-              /imagine "the richer surface (mode + preview) BESIDE it, not a replacement". What was defective
-              was that only the blind-spend door was discoverable: /imagine was reachable only by knowing to
-              type `/`, so a first-timer's default path spends with no mode, no preview and no stated price.
-              So the ruling stands and its symptom is closed by putting the beside-door literally beside it.
-              This row names its spend (an enabled `title` is the Regenerate/`helper` idiom, not a disabled
-              reason); the row under it is the one that lets you look first. */}
-          <MenuItem
-            closeOnClick={false}
-            disabled={!image.canGenerate}
-            title={image.canGenerate ? IMAGE_GEN_SPENDS_NOW : image.generateReason}
-            data-testid={testId("composerGenerateImage")}
-            onClick={image.canGenerate ? image.onGenerate : undefined}
-          >
-            <Icon icon={Sparkles} size="sm" />
-            {image.generating ? "Generating image…" : "Generate image from text"}
-          </MenuItem>
-          <MenuItem data-testid={testId("composerOpenImagine")} onClick={image.onOpenImagine} title={IMAGINE_DOOR_HELPER}>
-            <Icon icon={Images} size="sm" />
-            Imagine — modes & preview…
-          </MenuItem>
-        </MenuGroup>
+        <ComposerMediaGroup image={image} />
         {/* PLOT — game-only (owner: "game steers go in the magic wand"). The six plot steers nest under one Plot
             submenu (side-eye P1-B — no more flat icon-less dump). "Offer choices" USED to sit here as its own
             item; R3 moved it up to Reply, where it is reachable in every room (see its comment there). Plot
@@ -295,25 +235,6 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
         ) : null}
       </MenuPopup>
     </Menu>
-  );
-}
-
-/** The Media group's label. In a shared room it carries the sentence that generated pictures post into the
- *  room: it rides the group label because a menu may own only items, groups and separators, and the label is
- *  the group's accessible name, so a screen reader hears the sentence on entering the group. */
-function MediaGroupLabel({ sharedRoom }: { readonly sharedRoom: boolean }): ReactElement {
-  if (!sharedRoom) {
-    return <MenuGroupLabel>Media</MenuGroupLabel>;
-  }
-  return (
-    <MenuGroupLabel>
-      <Stack gap="field">
-        <Text as="span">Media</Text>
-        <Text as="span" voice="gloss" data-slot="composer-room-pictures-note">
-          {ROOM_PICTURES_NOTE}
-        </Text>
-      </Stack>
-    </MenuGroupLabel>
   );
 }
 
@@ -360,69 +281,6 @@ function PlotSteersSubmenu({ onSteer }: { readonly onSteer: (kind: GuidedGameSte
       </MenuPopup>
     </MenuSubmenuRoot>
   );
-}
-
-// Attach images & video — the sanctioned FileDropzone picker (a raw file input is gate-banned in features).
-// The input is kept OUT of the menuitem's accessible-name subtree (P1-C): it renders hidden (aria-hidden +
-// tabIndex -1 so it is neither a focus target nor an announced control), and the menuitem TRIGGERS it via a
-// ref click. The menuitem carries the single clean accessible name; `closeOnClick={false}` keeps the menu
-// open through the OS dialog. Screen readers see exactly one control: "Attach images & video, up to {size}
-// per file."
-function AttachMediaItem({
-  maxAttachmentBytes,
-  disabled,
-  onAddFiles,
-}: {
-  readonly maxAttachmentBytes: number;
-  readonly disabled: boolean;
-  readonly onAddFiles: ComposerImageControls["onAddFiles"];
-}): ReactElement {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const openPicker = (): void => {
-    inputRef.current?.click();
-  };
-  return (
-    <>
-      <MenuItem
-        closeOnClick={false}
-        disabled={disabled}
-        aria-label={`Attach images & video, up to ${formatMib(maxAttachmentBytes)} per file`}
-        data-testid={testId("composerAttachImages")}
-        onClick={disabled ? undefined : openPicker}
-      >
-        <Icon icon={ImagePlus} size="sm" />
-        Attach images & video
-      </MenuItem>
-      {/* The real picker, hidden off the accessible tree — the row above triggers its input via the ref. Kept
-          inside the popup so its focus/portal context is the menu's, never a stray body-level input. */}
-      <FileDropzone
-        ref={inputRef}
-        accept={ATTACH_MEDIA_ACCEPT}
-        multiple={true}
-        maxSizeBytes={maxAttachmentBytes}
-        disabled={disabled}
-        onFilesSelected={onAddFiles}
-        instructions=""
-        aria-hidden={true}
-        tabIndex={-1}
-        // `hidden` (display:none) drops the whole picker from BOTH layout and the accessibility tree — the row
-        // above is the only visible/announced control; a display:none file input still opens on a programmatic
-        // .click() (Chromium) and accepts setInputFiles, so the upload + CT paths are unaffected.
-        className="hidden"
-      />
-    </>
-  );
-}
-
-// The accessible-name byte-size hint (MB, one decimal) — a plain decimal render of the served image cap so the
-// menuitem's name states the limit without depending on the dropzone's own visible hint copy.
-const BYTES_PER_KIB = 1024;
-const BYTES_PER_MIB = BYTES_PER_KIB * BYTES_PER_KIB;
-const ONE_DECIMAL = 10;
-function formatMib(bytes: number): string {
-  const mib = bytes / BYTES_PER_MIB;
-  const rounded = Math.round(mib * ONE_DECIMAL) / ONE_DECIMAL;
-  return `${rounded} MB`;
 }
 
 /** Recall a fired steer back into the composer (the D57 ring). The ring is DE-DUPED on push

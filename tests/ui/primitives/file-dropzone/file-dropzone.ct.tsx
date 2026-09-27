@@ -265,12 +265,39 @@ test("keyboard: Tab focuses the real input and Enter opens the native file picke
   await fileChooserPromise;
 });
 
-test("loading swaps the Upload glyph for a spinner and inerts the input", async ({ mount, page }) => {
+test("loading swaps the Upload glyph for a spinner and inerts the input without taking its focus", async ({ mount, page }) => {
   await mount(<FileDropzone aria-label="Upload" loading={true} />);
   const root = page.locator('[data-slot="file-dropzone"]');
+  const input = page.getByLabel("Upload");
   await expect(root).toHaveAttribute("data-loading", "");
-  await expect(page.getByLabel("Upload")).toBeDisabled();
   await expect(root.getByRole("status")).toBeVisible();
+  // Busy, not disabled: a native `disabled` would drop the keyboard user's focus out of a modal mid-upload.
+  await expect(input).not.toHaveAttribute("disabled", "");
+  await expect(input).toHaveAttribute("aria-disabled", "true");
+  await expect(input).toHaveAttribute("aria-busy", "true");
+  await input.focus();
+  await expect(input).toBeFocused();
+  // Activation is refused: the click that would open the OS file dialog is cancelled.
+  await expect.poll(() => input.evaluate((el) => !el.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true })))).toBe(true);
+});
+
+test("a consumer's refusal renders on the dropzone's own error line, beside its own refusals", async ({ mount, page }) => {
+  await mount(<FileDropzone aria-label="Upload" error="Couldn't upload sunset.png: its contents are not an image." />);
+  await expect(page.locator('[data-slot="file-dropzone-error"]')).toContainText("Couldn't upload sunset.png: its contents are not an image.");
+  await expect(page.locator('[data-slot="file-dropzone-error"]')).toHaveAttribute("role", "alert");
+});
+
+test("a long unbroken file name on the error line wraps inside a phone-width box", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 360, height: 780 });
+  const longName = `${"IMG_20260927_174512_BURST0001_COVER_".repeat(4)}.png`;
+  await mount(
+    <div style={{ width: 294 }}>
+      <FileDropzone aria-label="Upload" error={`Couldn't upload ${longName}.`} />
+    </div>,
+  );
+  const root = page.locator('[data-slot="file-dropzone"]');
+  await expect(root.locator('[data-slot="file-dropzone-error"]')).toContainText(longName);
+  await expect.poll(() => root.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
 });
 
 test("success shows a checkmark glyph and the success border token", async ({ mount, page }) => {

@@ -4,7 +4,7 @@
 // tRPC output parser of `invites.redeemInvite` and `invites.acceptInvite`, so a producer that adds a key to
 // the detail, a roster row or an identity entry fails the join response instead of reaching the new member.
 
-import type { ChatId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import type { ChatRpgPointer } from "#rpg";
@@ -48,6 +48,14 @@ export interface ChatDetail {
    *  content" signal for a client-side own-messages filter (e.g. reattribute's `authorUserId` match).
    *  NOT an identity/whoami surface (no handle/avatar/email) — those stay deferred to auth #50. */
   readonly viewerUserId: UserId;
+  /** The present character seats the CALLER owns, in roster order (an owner-scoped read per seat). A gallery
+   *  add is owner-only, so every per-character gallery door in the room lists exactly these. */
+  readonly viewerOwnedCharacterIds: readonly CharacterId[];
+  /** The character whose gallery a picture the CALLER generates here joins: the room's first present
+   *  character seat, when it is in {@link ChatDetail.viewerOwnedCharacterIds}; `null` otherwise (a guest, or a
+   *  room with no character). The same pick `chat.generateImage` makes, so the imagine dialog never promises a
+   *  gallery add the server will not make. */
+  readonly viewerGalleryCharacterId: CharacterId | null;
   /** The pending host-handoff NOMINEE (`chats.pendingHostUserId`, Part III §2) — null when no handoff is
    *  in flight. Drives the Members-panel pending-nomination chip (FINAL-Chats §8.3); room-public (members
    *  already see every participant's userId), refreshed by the `chatUpdated` the nominate/accept verbs emit. */
@@ -129,6 +137,8 @@ export const chatDetailSchema = z.strictObject({
   viewerActivePersonaId: typeIdSchema(ID_PREFIX.persona).nullable(),
   viewerIsHost: z.boolean(),
   viewerUserId: brandedId<UserId>(),
+  viewerOwnedCharacterIds: z.array(typeIdSchema(ID_PREFIX.character)).readonly(),
+  viewerGalleryCharacterId: typeIdSchema(ID_PREFIX.character).nullable(),
   pendingHostUserId: brandedId<UserId>().nullable(),
   group: groupConfigSchema,
   roomOverrides: roomOverridesSchema,
@@ -148,6 +158,13 @@ export const chatDetailSchema = z.strictObject({
   updatedAt: z.number(),
   identities: z.array(chatIdentitySchema).readonly(),
 }) satisfies z.ZodType<ChatDetail>;
+
+/** The roster seat of {@link ChatDetail.viewerGalleryCharacterId}: the character whose gallery the viewer's
+ *  pictures here join, or `null` when the viewer owns none. The one read every gallery door uses. */
+export function viewerGalleryCharacter(detail: Pick<ChatDetail, "viewerGalleryCharacterId" | "participants">): ParticipantView | null {
+  const characterId = detail.viewerGalleryCharacterId;
+  return characterId === null ? null : (detail.participants.find((participant) => participant.characterId === characterId) ?? null);
+}
 
 /** `redeemInvite` / `acceptInvite` — the now-joined chat as the new member reads it (their own D16 floor
  *  already applied by the producer) plus their own roster row. STRICT at every owned level and the output

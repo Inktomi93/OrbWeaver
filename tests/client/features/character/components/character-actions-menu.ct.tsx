@@ -109,7 +109,16 @@ function detailRoutes(archived: boolean): TrpcRoutes<"character.get"> {
   return { ...routes([]), "character.get": () => characterDetail(archived) };
 }
 
-const OPEN_SCOPE_ITEMS = ["Open in Refinery", "Archive", "Duplicate", "Export card", "Convert to persona", "Set as welcome greeter", "Delete"] as const;
+const OPEN_SCOPE_ITEMS = [
+  "Open in Refinery",
+  "Open gallery",
+  "Archive",
+  "Duplicate",
+  "Export card",
+  "Convert to persona",
+  "Set as welcome greeter",
+  "Delete",
+] as const;
 
 test("the OPEN character's kebab is the vocabulary's `open` slice, in order, destructive last", async ({ mount, page }) => {
   await routeTrpc(page, detailRoutes(false));
@@ -159,3 +168,23 @@ test("the archive verb wears its second face on an already-archived character", 
   await expect(menu.getByRole("menuitem", { name: "Unarchive", exact: true })).toBeVisible();
   await expect(menu.getByRole("menuitem", { name: "Archive", exact: true })).toHaveCount(0);
 });
+
+// ── "Open gallery" (item 0236 gap 3): the character panel opens the character's gallery outside any chat, so
+// the target names no room and the host shows no "This chat" scope (pinned in `character-gallery-host.ct.tsx`).
+for (const viewport of [
+  { name: "mobile", width: 360, height: 780 },
+  { name: "desktop", width: 1440, height: 900 },
+] as const) {
+  test(`${viewport.name}: Open gallery opens this character's gallery with no room scope`, async ({ mount, page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await routeTrpc(page, detailRoutes(false));
+    await mount(<CharacterActionsMenuStory menuCharacterId={CHARACTER_ID} />);
+
+    await expect(page.getByTestId("gallery-target")).toHaveText("gallery=closed");
+    await page.getByRole("button", { name: "Character actions" }).click();
+    const door = page.getByRole("menuitem", { name: "Open gallery", exact: true });
+    await expect(door).toBeInViewport();
+    await door.click();
+    await expect(page.getByTestId("gallery-target")).toHaveText(`gallery=${CHARACTER_ID}|Zephyrine Vale|none`);
+  });
+}

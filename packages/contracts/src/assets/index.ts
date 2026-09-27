@@ -92,6 +92,10 @@ export const storedAssetSchema = z.object({
   size: z.number().int().nonnegative(),
   created: z.boolean(),
 }) satisfies z.ZodType<StoredAsset>;
+/** The body of a refused `POST /api/assets/upload` (415 wrong contents, 413 over the cap): the reason the
+ *  person can act on, worded to follow "Couldn't upload <file>:". */
+export const assetUploadRefusalSchema = z.object({ error: z.string().min(1) });
+
 /** A `gallery_item_…` TypeID — the gallery v2 curation row id. */
 export const galleryItemIdSchema = typeIdSchema(ID_PREFIX.galleryItem) satisfies z.ZodType<GalleryItemId>;
 
@@ -115,13 +119,21 @@ export interface AssetListItem {
   readonly animated: boolean;
 }
 
-/** `listOwned` wire params. `cursor`/`cursorId` are the `(uploadedAt, id)` pair of the previous page's
- *  last row — pass both or neither. */
+/** The keyset position after one owned asset: the previous page's last `(uploadedAt, assetId)`. One object,
+ *  because a tRPC infinite query carries exactly one `cursor`. */
+const ownedAssetCursorSchema = z.object({
+  uploadedAt: z.number().int(),
+  assetId: assetIdSchema,
+});
+export type OwnedAssetCursor = z.infer<typeof ownedAssetCursorSchema>;
+
+/** `listOwned` wire params. `galleryCandidatesFor` narrows to the caller's images not already in that
+ *  character's gallery (the add-picker's read); it filters inside the owner scope and never widens it. */
 export const listOwnedParamsSchema = z.object({
   kind: assetKindSchema.optional(),
   limit: z.number().int().min(ASSET_LIST_LIMIT_MIN).max(ASSET_LIST_LIMIT_MAX),
-  cursor: z.number().int().optional(),
-  cursorId: assetIdSchema.optional(),
+  galleryCandidatesFor: characterIdSchema.optional(),
+  cursor: ownedAssetCursorSchema.optional(),
 });
 export type ListOwnedParams = z.infer<typeof listOwnedParamsSchema>;
 
@@ -133,14 +145,29 @@ export const galleryAddParamsSchema = z.object({
 });
 export type GalleryAddParams = z.infer<typeof galleryAddParamsSchema>;
 
+/** The gallery's date orders over `createdAt`. No name order exists: a gallery item stores no name. */
+export const GALLERY_SORTS = ["newest", "oldest"] as const;
+export type GallerySort = (typeof GALLERY_SORTS)[number];
+/** The order a `listGallery` read that names none returns. */
+export const DEFAULT_GALLERY_SORT: GallerySort = "newest";
+
+/** The keyset position after one gallery row: the previous page's last `(createdAt, galleryItemId)`. One
+ *  object, because a tRPC infinite query carries exactly one `cursor`. */
+const galleryCursorSchema = z.object({
+  createdAt: z.number().int(),
+  galleryItemId: galleryItemIdSchema,
+});
+export type GalleryCursor = z.infer<typeof galleryCursorSchema>;
+
 /** `listGallery` wire params. `subjectCharacterId` omitted = the whole gallery. `chatId` narrows to the
- *  pictures generated in that room; it filters inside the owner scope and never widens it. */
+ *  pictures generated in that room; it filters inside the owner scope and never widens it. `sort` omitted =
+ *  {@link DEFAULT_GALLERY_SORT}; a `cursor` continues the same sort it was read under. */
 export const galleryListParamsSchema = z.object({
   subjectCharacterId: characterIdSchema.optional(),
   chatId: (typeIdSchema(ID_PREFIX.chat) satisfies z.ZodType<ChatId>).optional(),
   limit: z.number().int().min(ASSET_LIST_LIMIT_MIN).max(ASSET_LIST_LIMIT_MAX),
-  cursor: z.number().int().optional(),
-  cursorId: galleryItemIdSchema.optional(),
+  sort: z.enum(GALLERY_SORTS).optional(),
+  cursor: galleryCursorSchema.optional(),
 });
 export type GalleryListParams = z.infer<typeof galleryListParamsSchema>;
 

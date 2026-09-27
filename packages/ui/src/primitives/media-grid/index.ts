@@ -1,4 +1,5 @@
 export type {
+  MediaGridHandle,
   MediaGridItem,
   MediaGridKey,
   MediaGridProps,

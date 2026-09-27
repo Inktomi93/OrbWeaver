@@ -1,6 +1,6 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
-import type { KeyboardEvent, ReactElement } from "react";
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import type { KeyboardEvent, ReactElement, Ref } from "react";
+import { useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { GapToken } from "#lib";
 import { assertBoundedScrollHeight, cn, gapPxFor, prefersReducedMotionNow } from "#lib";
 import { Check, Icon } from "#primitives/icons";
@@ -75,6 +75,13 @@ export interface MediaGridSelection {
   readonly onToggle: (id: MediaGridKey) => void;
 }
 
+/** The grid's imperative door, for a caller that must put focus on a cell it did not click: the next image
+ *  after a removal, the first image a page load added. */
+export interface MediaGridHandle {
+  /** Move the roving focus to the cell showing `id`, scrolling it into view. `false` when no item has that id. */
+  readonly focusItem: (id: MediaGridKey) => boolean;
+}
+
 export interface MediaGridProps<T extends MediaGridItem> {
   readonly items: readonly T[];
   /** Minimum cell width (px) the responsive column count is derived from. Default 96. */
@@ -96,6 +103,8 @@ export interface MediaGridProps<T extends MediaGridItem> {
   readonly ariaLabel?: string;
   /** Caller-owned sizing/skin for the scroll container — the BOUNDED height comes from here. */
   readonly className?: string;
+  /** Imperative handle — React 19 ref-as-prop, no `forwardRef`. */
+  readonly ref?: Ref<MediaGridHandle>;
 }
 
 function pickSrc(item: MediaGridItem): string | undefined {
@@ -188,6 +197,7 @@ export function MediaGrid<T extends MediaGridItem>({
   onActivate,
   ariaLabel,
   className,
+  ref,
 }: MediaGridProps<T>): ReactElement {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [columns, setColumns] = useState(1);
@@ -268,6 +278,29 @@ export function MediaGrid<T extends MediaGridItem>({
     pendingFocusRef.current = clamped;
     rowVirtualizer.scrollToIndex(Math.floor(clamped / columns), { align: "auto" });
   }
+
+  useImperativeHandle(
+    ref,
+    (): MediaGridHandle => ({
+      focusItem: (id): boolean => {
+        const index = items.findIndex((item) => item.id === id);
+        if (index === -1) {
+          return false;
+        }
+        setFocusedIndex(index);
+        // The layout effect above focuses the cell once it has mounted, after the scroll brings it in.
+        pendingFocusRef.current = index;
+        rowVirtualizer.scrollToIndex(Math.floor(index / columns), { align: "auto" });
+        const mounted = cellRefs.current.get(index);
+        if (mounted !== undefined) {
+          mounted.focus();
+          pendingFocusRef.current = null;
+        }
+        return true;
+      },
+    }),
+    [items, columns, rowVirtualizer],
+  );
 
   function onGridKeyDown(event: KeyboardEvent<HTMLDivElement>): void {
     let next: number | null = null;
