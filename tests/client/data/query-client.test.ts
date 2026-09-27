@@ -43,12 +43,12 @@ afterEach(() => {
 });
 
 describe("createAppQueryClient — pinned defaults", () => {
-  test("query defaults: Infinity staleTime (never 'static'), the SSE-reconnect refetch, 2 retries", () => {
+  test("query defaults: Infinity staleTime (never 'static'), the SSE-reconnect refetch, retryUnlessBadRequest", () => {
     const client = createAppQueryClient();
     const defaults = client.getDefaultOptions();
     expect(defaults.queries?.staleTime).toBe(Number.POSITIVE_INFINITY);
     expect(defaults.queries?.gcTime).toBe(300_000);
-    expect(defaults.queries?.retry).toBe(2);
+    expect(defaults.queries?.retry).toBe(retryUnlessBadRequest);
     expect(defaults.queries?.refetchOnWindowFocus).toBe(false);
     expect(defaults.queries?.refetchOnReconnect).toBe(true);
     expect(defaults.queries?.refetchOnMount).toBe(true);
@@ -124,6 +124,33 @@ describe("createAppQueryClient — global error → toast wiring", () => {
     await observer.mutate(undefined).catch(() => undefined);
 
     expect(notify.errorCalls).toEqual(["mutation failed"]);
+  });
+});
+
+describe("createAppQueryClient — default retry", () => {
+  async function callsUntilSettled(error: unknown): Promise<number> {
+    const client = createAppQueryClient();
+    let calls = 0;
+    await client
+      .fetchQuery({
+        queryKey: ["__query_client_test__", "default-retry"],
+        queryFn: () => {
+          calls += 1;
+          return Promise.reject(error);
+        },
+        retryDelay: 0,
+      })
+      .catch(() => undefined);
+    return calls;
+  }
+
+  test("the DEFAULT client does not retry a BAD_REQUEST", async () => {
+    expect(await callsUntilSettled({ message: "no connection is bound", data: { code: "BAD_REQUEST" } })).toBe(1);
+  });
+
+  test("the DEFAULT client retries other errors on the default schedule", async () => {
+    expect(await callsUntilSettled({ message: "boom", data: { code: "INTERNAL_SERVER_ERROR" } })).toBe(3);
+    expect(await callsUntilSettled(new Error("socket dropped"))).toBe(3);
   });
 });
 

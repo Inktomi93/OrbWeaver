@@ -52,7 +52,7 @@ export function createAppQueryClient(): QueryClient {
       queries: {
         staleTime: Number.POSITIVE_INFINITY, // Infinity, NOT 'static' — see header
         gcTime: GC_TIME_MS,
-        retry: QUERY_RETRIES,
+        retry: retryUnlessBadRequest,
         refetchOnWindowFocus: false,
         refetchOnReconnect: true, // the SSE-gap closer — do not flip
         refetchOnMount: true,

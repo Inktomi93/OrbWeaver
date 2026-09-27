@@ -8,7 +8,7 @@ import { Container } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { skipToken, useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { retryUnlessBadRequest, useTRPC } from "#data";
+import { useTRPC } from "#data";
 import { cn } from "#lib";
 import { openConfigTo } from "#state";
 import { useCreditConnections } from "../hooks/use-credit-connections.ts";
@@ -39,10 +39,7 @@ export function ComposerNextTurnLine({ chatId, availability, id }: ComposerNextT
   // `null` is the tRPC no-data wire shape (a CT stub yields it): an unknown viewer, never a host.
   const viewerIsHost = chat.data?.viewerIsHost ?? undefined;
   const readsChatRole = nextTurnReadsChatRole(viewerIsHost, availability.cause, availability.failed);
-  const resolve = useQuery({
-    ...trpc.connection.resolveChatCapability.queryOptions(readsChatRole ? undefined : skipToken),
-    retry: retryUnlessBadRequest,
-  });
+  const resolve = useQuery(trpc.connection.resolveChatCapability.queryOptions(readsChatRole ? undefined : skipToken));
   const connections = useCreditConnections();
   const line = nextTurnLine({
     viewerIsHost,
