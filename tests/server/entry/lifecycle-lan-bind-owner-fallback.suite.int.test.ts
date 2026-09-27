@@ -10,6 +10,7 @@ import { afterAll, beforeAll, vi } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 import { requestWithHost } from "../../support/host-request.ts";
 import { lanAddress } from "../../support/node/lan-address.ts";
+import { selfSignedIpPair, tlsRequest } from "../../support/node/tls-hop.ts";
 
 const LAN = lanAddress();
 const LOOPBACK = "127.0.0.1";
@@ -34,6 +35,9 @@ const { createLifecycle } = await import("../../../packages/server/src/entry/lif
   rmSync(TEMP_DIR, { force: true, recursive: true });
   throw error;
 });
+
+const { loopbackOrigin } = await import("../../../packages/server/src/foundation/env/index.ts");
+const { startTlsTerminator } = await import("../../../packages/server/src/infra/network/index.ts");
 
 const lifecycle = createLifecycle({ listenPort: 0 });
 let port = 0;
@@ -70,6 +74,21 @@ test("a relayed request on the loopback listener is refused the owner fallback",
   expect(await isOwner(LOOPBACK, { "x-forwarded-for": VISITOR })).toBe(false);
   expect(await isOwner(LOOPBACK, { "cf-connecting-ip": VISITOR })).toBe(false);
   expect(await isOwner(LOOPBACK, { forwarded: `for=${VISITOR}` })).toBe(false);
+});
+
+// The IP certificate's https listener as the lifecycle wires it, on the app's interface forwarding to its loopback
+// origin: every request it forwards carries `x-forwarded-proto` (and `x-forwarded-for`), so none is the owner.
+test("an owner-fallback request through the https hop is refused by its forwarding tell; straight to loopback it is the owner", async () => {
+  const pair = selfSignedIpPair(LAN);
+  const terminator = await startTlsTerminator({ port: 0, host: LAN, ...pair, upstream: () => loopbackOrigin(LAN, port) });
+  try {
+    const relayed = await tlsRequest({ host: LAN, port: terminator.port, ca: pair.certificatePem, path: "/api/auth/me" });
+    expect(relayed.status).toBe(OK);
+    expect((JSON.parse(relayed.body) as { authenticated: boolean }).authenticated).toBe(false);
+  } finally {
+    await terminator.close();
+  }
+  expect(await isOwner(LOOPBACK)).toBe(true);
 });
 
 test("a peer outside the declared set gets no fallback, this machine's own LAN address included", async () => {
