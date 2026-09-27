@@ -1,10 +1,11 @@
 // The per-character gallery modal, opened from the chat options menu. Three nested surfaces: the grid
 // of curated media, a lightbox (remove-from-gallery behind an AlertDialog confirm, never a one-click
 // cascade), and an add-picker (multi-select grid of the owner's own assets). Wires to the tRPC gallery
-// verbs via use-character-gallery.
+// verbs via use-character-gallery. The grid's scope filter narrows to pictures generated in this chat; the
+// server applies it inside the caller's own gallery, so it can never show another member's pictures.
 
 import { blobUrl } from "@orb/contracts/assets";
-import type { AssetId, CharacterId, GalleryItemId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, GalleryItemId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { CrossfadeImage } from "@orb/ui/crossfade-image";
 // @orb-waive dialog-via-composite(Dialog): this character-gallery picker owns its root and selection surface; ends if a gallery-dialog composite owns that species.
@@ -15,6 +16,8 @@ import { Row, Stack } from "@orb/ui/layout";
 import type { MediaGridItem, MediaGridKey } from "@orb/ui/media-grid";
 import { MediaGrid } from "@orb/ui/media-grid";
 import { Text } from "@orb/ui/text";
+import { Toggle } from "@orb/ui/toggle";
+import { ToggleGroup } from "@orb/ui/toggle-group";
 import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
@@ -55,8 +58,22 @@ function toOwnedGridItem(asset: OwnedAsset): MediaGridItem {
   };
 }
 
+/** The grid's scope: the whole gallery, or only pictures generated in this chat. Words from the chat's
+ *  existing scope chips (`docs/law/vocabulary-map.md`, the Documents rack). */
+const GALLERY_SCOPES = ["everywhere", "chat"] as const;
+type GalleryScope = (typeof GALLERY_SCOPES)[number];
+const GALLERY_SCOPE_LABELS: Record<GalleryScope, string> = { everywhere: "Everywhere", chat: "This chat" };
+
+function isGalleryScope(value: unknown): value is GalleryScope {
+  return GALLERY_SCOPES.some((scope) => scope === value);
+}
+
 interface GalleryGridBodyProps {
   readonly isPending: boolean;
+  readonly isError: boolean;
+  readonly onRetry: () => void;
+  readonly scope: GalleryScope;
+  readonly onShowEverywhere: () => void;
   readonly gridItems: readonly MediaGridItem[];
   readonly galleryLabel: string;
   readonly characterName: string;
@@ -64,10 +81,29 @@ interface GalleryGridBodyProps {
   readonly onAddClick: () => void;
 }
 
-// Pending reads as a skeleton, never the empty state.
-function GalleryGridBody({ isPending, gridItems, galleryLabel, characterName, onActivate, onAddClick }: GalleryGridBodyProps): ReactElement {
+// Pending reads as a skeleton and a failed read as its error state, never the empty state: "No images"
+// over a failed read is a false claim about the reader's gallery.
+function GalleryGridBody(props: GalleryGridBodyProps): ReactElement {
+  const { isPending, isError, onRetry, scope, onShowEverywhere, gridItems, galleryLabel, characterName, onActivate, onAddClick } = props;
   if (isPending) {
     return <SkeletonRows count={6} shape="line" />;
+  }
+  if (isError) {
+    return <QueryErrorState label={galleryLabel} onRetry={onRetry} />;
+  }
+  if (gridItems.length === 0 && scope === "chat") {
+    return (
+      <EmptyState
+        icon={<Icon icon={Images} size="lg" />}
+        title="No images from this chat"
+        description={`Pictures generated in this chat show here once you add them to ${characterName}'s gallery.`}
+        action={
+          <Button intent="secondary" onClick={onShowEverywhere}>
+            Show everywhere
+          </Button>
+        }
+      />
+    );
   }
   if (gridItems.length === 0) {
     return (
@@ -92,14 +128,18 @@ export interface CharacterGalleryDialogProps {
   readonly onOpenChange: (open: boolean) => void;
   readonly characterId: CharacterId;
   readonly characterName: string;
+  /** The chat the dialog was opened from — the room the "This chat" scope filters to. */
+  readonly chatId: ChatId;
 }
 
-export function CharacterGalleryDialog({ open, onOpenChange, characterId, characterName }: CharacterGalleryDialogProps): ReactElement {
+export function CharacterGalleryDialog({ open, onOpenChange, characterId, characterName, chatId }: CharacterGalleryDialogProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
+  const [scope, setScope] = useState<GalleryScope>("everywhere");
   const gallery = useQuery(
     trpc.assets.listGallery.queryOptions({
       subjectCharacterId: characterId,
+      ...(scope === "chat" ? { chatId } : {}),
       limit: GALLERY_PAGE_LIMIT,
     }),
   );
@@ -144,8 +184,31 @@ export function CharacterGalleryDialog({ open, onOpenChange, characterId, charac
               </Button>
             </Row>
 
+            <ToggleGroup
+              aria-label="Show images from"
+              onValueChange={(picked): void => {
+                // A one-of-N strip has no release: clicking the active segment yields an empty array.
+                const next = picked[0];
+                if (isGalleryScope(next)) {
+                  setScope(next);
+                }
+              }}
+              semantics="radio"
+              value={[scope]}
+            >
+              {GALLERY_SCOPES.map((option) => (
+                <Toggle checked={option === scope} key={option} semantics="radio" value={option}>
+                  {GALLERY_SCOPE_LABELS[option]}
+                </Toggle>
+              ))}
+            </ToggleGroup>
+
             <GalleryGridBody
               isPending={gallery.isPending}
+              isError={gallery.isError}
+              onRetry={(): void => void gallery.refetch()}
+              scope={scope}
+              onShowEverywhere={(): void => setScope("everywhere")}
               gridItems={gridItems}
               galleryLabel={galleryLabel}
               characterName={characterName}

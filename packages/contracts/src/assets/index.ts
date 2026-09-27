@@ -3,7 +3,7 @@
 // Assets are per-user and owner-gated; the 64-hex hash is NOT a capability. The `/blob/:hash` route is
 // app-gated: the caller resolves from the session cookie, never served on hash alone.
 
-import type { AssetId, CharacterId, GalleryItemId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, GalleryItemId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
@@ -133,9 +133,11 @@ export const galleryAddParamsSchema = z.object({
 });
 export type GalleryAddParams = z.infer<typeof galleryAddParamsSchema>;
 
-/** `listGallery` wire params. `subjectCharacterId` omitted = the whole gallery. */
+/** `listGallery` wire params. `subjectCharacterId` omitted = the whole gallery. `chatId` narrows to the
+ *  pictures generated in that room; it filters inside the owner scope and never widens it. */
 export const galleryListParamsSchema = z.object({
   subjectCharacterId: characterIdSchema.optional(),
+  chatId: (typeIdSchema(ID_PREFIX.chat) satisfies z.ZodType<ChatId>).optional(),
   limit: z.number().int().min(ASSET_LIST_LIMIT_MIN).max(ASSET_LIST_LIMIT_MAX),
   cursor: z.number().int().optional(),
   cursorId: galleryItemIdSchema.optional(),

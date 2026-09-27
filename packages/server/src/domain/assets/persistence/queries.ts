@@ -5,10 +5,10 @@
 
 import type { AssetBlobRef, AssetKind, AssetListItem, GalleryItemView, StoredAsset } from "@orb/contracts/assets";
 import type { Db } from "@orb/db";
-import { assets, galleryItems } from "@orb/db";
-import type { AssetId, CharacterId, GalleryItemId, UserId } from "@orb/kit/ids";
+import { assets, galleryItems, imageryGenerations } from "@orb/db";
+import type { AssetId, CharacterId, ChatId, GalleryItemId, UserId } from "@orb/kit/ids";
 import { sniffImageBytes } from "@orb/kit/image-sniff";
-import { and, asc, desc, eq, inArray, isNull, like, lt, or } from "drizzle-orm";
+import { and, asc, desc, eq, exists, inArray, isNull, like, lt, or } from "drizzle-orm";
 import type { Cas } from "#infra/storage";
 import { assertMagicMatches } from "../substrate/mime.ts";
 
@@ -296,6 +296,7 @@ export async function deleteGalleryItemRow(db: Db, galleryItemId: GalleryItemId)
 interface ListGalleryInput {
   readonly ownerId: UserId;
   readonly subjectCharacterId: CharacterId | undefined;
+  readonly chatId: ChatId | undefined;
   readonly limit: number;
   readonly cursor: number | undefined;
   readonly cursorId: GalleryItemId | undefined;
@@ -354,12 +355,23 @@ export async function importGalleryItem(db: Db, input: ImportGalleryItemInput): 
   return { created: true };
 }
 
-/** Gallery v2: the caller's gallery via the asset join, newest-first, keyset-paged by `(createdAt, id)`. */
+/** Gallery v2: the caller's gallery via the asset join, newest-first, keyset-paged by `(createdAt, id)`.
+ *  The room filter is an EXISTS over imagery provenance, never a join: one asset can carry several provenance
+ *  rows for the same chat, and a join would list its gallery item once per row. */
 export async function listGalleryViewRows(db: Db, input: ListGalleryInput): Promise<GalleryItemView[]> {
   const keyset =
     input.cursor !== undefined && input.cursorId !== undefined
       ? or(lt(galleryItems.createdAt, input.cursor), and(eq(galleryItems.createdAt, input.cursor), lt(galleryItems.id, input.cursorId)))
       : undefined;
+  const bornInRoom =
+    input.chatId === undefined
+      ? undefined
+      : exists(
+          db
+            .select({ id: imageryGenerations.id })
+            .from(imageryGenerations)
+            .where(and(eq(imageryGenerations.assetId, galleryItems.assetId), eq(imageryGenerations.chatId, input.chatId))),
+        );
   const rows = await db
     .select({
       galleryItemId: galleryItems.id,
@@ -376,6 +388,7 @@ export async function listGalleryViewRows(db: Db, input: ListGalleryInput): Prom
       and(
         eq(assets.ownerId, input.ownerId),
         input.subjectCharacterId !== undefined ? eq(galleryItems.subjectCharacterId, input.subjectCharacterId) : undefined,
+        bornInRoom,
         keyset,
       ),
     )

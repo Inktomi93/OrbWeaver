@@ -32,21 +32,20 @@
 
 import type { MessageView } from "@orb/contracts/chat";
 import type { ChatId, MessageId } from "@orb/kit/ids";
-import { modelDisplayName } from "@orb/kit/model-name";
 import { Button } from "@orb/ui/button";
-import { Code, Copy, Cpu, Eye, EyeOff, GitFork, Icon, Pencil, Redo2, SmilePlus, Undo2 } from "@orb/ui/icons";
+import { Code, Copy, Eye, EyeOff, GitFork, Icon, Pencil, Redo2, SmilePlus, Undo2 } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { MenuItem } from "@orb/ui/menu";
-import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { HIDE_AT_COARSE, ROW_ACTION_INLINE, RowActionsMenu } from "#components";
+import { ROW_ACTION_INLINE, RowActionsMenu } from "#components";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
-import { cn, copyWithNotice, NEEDS_CONTINUATION, notify, testId } from "#lib";
+import { copyWithNotice, NEEDS_CONTINUATION, notify, testId } from "#lib";
 import { startEditingMessage } from "#state";
 import { useReactionsEnabled, useReactionsForVariant, useViewerSeatId } from "../hooks/use-message-reactions.ts";
 import { MESSAGE_ACTIONS_MENU_NAME, MESSAGE_EDIT_NAME, MESSAGE_FORK_NAME, MESSAGE_REACTION_ADD_NAME } from "../lib/message-action-names.ts";
 import { MESSAGE_ACTION_ICON_CLASS, messageActionsRevealClass } from "../lib/message-actions-reveal.ts";
+import { GenerationCredit } from "./generation-credit.tsx";
 import { RowReactionPicker } from "./row-reaction-picker.tsx";
 import { VariantWireViewer } from "./variant-wire-viewer.tsx";
 
@@ -121,6 +120,11 @@ function showWireTraceFor(viewerIsHost: boolean, role: MessageView["role"]): boo
   return viewerIsHost && role === "assistant";
 }
 
+/** The credit gate — hoisted for the complexity budget only. */
+function renderGenerationCredit(show: boolean, message: MessageView): ReactElement | null {
+  return show ? <GenerationCredit message={message} /> : null;
+}
+
 export interface MessageActionsRowProps {
   readonly message: MessageView;
   /** Optional — a caller without it still forks + notifies, just doesn't switch the active chat. */
@@ -136,67 +140,9 @@ export interface MessageActionsRowProps {
    *  ever refuse — and is never told the plane exists. Absent ⇒ NOT host (fail-closed: a caller that forgets
    *  to thread it hides the item rather than exposing it). The server gate is the AUTHORITY; this is UX. */
   readonly viewerIsHost?: boolean | undefined;
-  /** #167 — the raw model identifier to credit this reply to, or null/absent for no credit. Already gated
-   *  by the `showModelIcon` appearance toggle by the row; this component only decides how it PRINTS. */
-  readonly modelCredit?: string | null | undefined;
-}
-
-/** THE MODEL CREDIT (#167, owner rulings 2026-08-18). It used to be a datum in the metadata row, printed as
- *  the RAW identifier — which for a self-hosted engine is a 106-character absolute weights path, and which
- *  sat under every single reply at 1.59:1 over background art (measured live, the owner's room). It is an
- *  attribution about the reply, not a fact the reader came for, so it belongs in the row's reveal cluster
- *  with the other per-message affordances: nothing at rest, name on hover / keyboard focus-within (the
- *  cluster's own `messageActionsRevealClass` posture — no new tab stop, no tooltip, no fake button).
- *
- *  THEN THE TEXT ITSELF WENT (second ruling, same day, verbatim-adjacent): "we have our model icon with
- *  model name on hover, but we ALSO have a long-ass raw model name text — the latter is ugly and needs to
- *  go." Moving the string into the reveal cluster made it quieter; it did not make it not-a-string. The
- *  ONE rendering is the GLYPH; the name lives on `title` (pointer) and in an sr-only sentence (AT). The
- *  earlier ruling's shape is intact — same slot, same `showModelIcon` gate, same cluster — only its text
- *  node is gone, so this is a narrowing of #167 rather than a reversal of it.
- *
- *  Keeps the `message-metadata-model` slot on this semantically-equivalent element (rule 0.7).
- *
- *  #220 — IT STANDS DOWN AT A COARSE POINTER, and that is #167's own ruling carried through rather than an
- *  exception to it. The credit's whole posture is "nothing at rest, name on hover"; at a touch pointer
- *  there is no hover, so `REVEAL_AT_COARSE` was printing it permanently — a rest-visible weights string in
- *  the middle of the name band (measured centre-stage on --mobile, with the speaker's own name down to 65px
- *  and three wrapped lines). It is a DATUM, not a verb, so it takes `HIDE_AT_COARSE` (a plain drop) rather
- *  than an overflow twin: there is no action to move into the menu, and a menu item that only states a
- *  string would be a fake affordance. The datum stays reachable on any fine pointer and, for a host, in
- *  the kebab's wire trace. */
-function renderModelCredit(model: string | null | undefined): ReactElement | null {
-  if (model === null || model === undefined || model.trim() === "") {
-    return null;
-  }
-  const shown = modelDisplayName(model);
-  return (
-    <Text
-      as="span"
-      voice="gloss"
-      className={cn("inline-flex items-center", HIDE_AT_COARSE)}
-      data-slot="message-metadata-model"
-      // THE NAME LIVES ON HOVER NOW, UNCONDITIONALLY. #167 put it on `title` only when the derivation
-      // shortened the identifier (the #115 stutter rule): with the string also printed, a title that
-      // repeated it verbatim was noise. The printed string is gone, so `title` is the ONLY door the name
-      // has and it is always open. The DERIVED name, not the raw identifier — the 106-character weights
-      // path is exactly what the owner ruled out of the transcript; a host who needs the exact identity
-      // has the kebab's wire trace.
-      title={shown}
-    >
-      {/* THE GLYPH IS THE WHOLE RENDERING (owner ruling, 2026-08-18): "we have our model icon with model
-          name on hover, but we ALSO have a long-ass raw model name text — the latter is ugly and needs to
-          go." The visible `{shown}` span is DELETED here, at the transcript's one model-text site (swept:
-          `pnpm ast refs modelDisplayName` — every other caller is outside the transcript, in
-          credentials/preset/refinery/stats). The datum is not lost, it has two doors that are not rest
-          text: `title` above for a pointer, and the sr-only lead below for AT — which is why the glyph
-          carries `aria-hidden` and the sentence carries the name. */}
-      <Icon aria-hidden={true} className={MESSAGE_ACTION_ICON_CLASS} icon={Cpu} size="sm" />
-      <Text as="span" className="sr-only">
-        Generated by {shown}
-      </Text>
-    </Text>
-  );
+  /** Show the generation credit (`GenerationCredit`). The row gates it on the `showModelIcon` appearance
+   *  toggle; absent ⇒ no credit. */
+  readonly generationCredit?: boolean | undefined;
 }
 
 export function MessageActionsRow({
@@ -204,7 +150,7 @@ export function MessageActionsRow({
   onChatForked,
   messageActions,
   viewerIsHost = false,
-  modelCredit,
+  generationCredit = false,
   characterNames = [],
 }: MessageActionsRowProps): ReactElement {
   const trpc = useTRPC();
@@ -306,7 +252,7 @@ export function MessageActionsRow({
 
   return (
     <Row ref={clusterRef} gap="field" align="center" justify="end" data-slot="message-actions-row" className={messageActionsRevealClass(messageActions)}>
-      {renderModelCredit(modelCredit)}
+      {renderGenerationCredit(generationCredit, message)}
       {editable ? (
         // #220 THE COARSE COLLAPSE (row-reveal.ts). At a touch pointer `REVEAL_AT_COARSE` pins this whole
         // cluster ON, and every icon button is a ≥44px box by token construction — measured on --mobile,

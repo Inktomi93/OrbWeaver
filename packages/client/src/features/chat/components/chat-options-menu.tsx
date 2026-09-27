@@ -265,6 +265,7 @@ export function ChatOptionsMenu({ chatId, title, characters }: ChatOptionsMenuPr
           }}
           characterId={galleryFor.characterId}
           characterName={galleryFor.name}
+          chatId={chatId}
         />
       )}
     </>
