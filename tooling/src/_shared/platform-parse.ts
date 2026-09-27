@@ -40,6 +40,9 @@ const SS_PEER_COLUMN = 4;
 const SS_FILTER_SHIFT = 1;
 const SS_LISTEN = "LISTEN";
 const SS_ESTABLISHED = "ESTAB";
+/** `ss` always prints its column header, `State` first with `-l` and `Recv-Q` first under a state filter; output
+ *  without it (empty, or a `Usage:` line) is not a socket table. */
+const SS_HEADER_RE = /^\s*(?:State|Recv-Q)\s/mu;
 
 /** `netstat -ano` column layout: Proto Local Peer State PID. */
 const NETSTAT_PROTO_COLUMN = 0;
@@ -51,6 +54,8 @@ const NETSTAT_LISTENING = "LISTENING";
 const NETSTAT_ESTABLISHED = "ESTABLISHED";
 /** netstat names the System Idle Process as the owner of a socket nobody holds. */
 const NETSTAT_NO_PID = "0";
+/** `netstat -ano` always prints its column header, `Proto` first; output without it is not a socket table. */
+const NETSTAT_HEADER_RE = /^\s*Proto\s/mu;
 
 /** `/proc/net/tcp{,6}` column layout (proc(5)): sl local remote st tx:rx tr:when retrnsmt uid timeout inode. */
 const PROC_NET_LOCAL_COLUMN = 1;
@@ -136,8 +141,12 @@ function ssRow(line: string): SocketRow | null {
   return socketRow(fields[SS_LOCAL_COLUMN - shift] ?? "", fields[SS_PEER_COLUMN - shift] ?? "", state === SS_LISTEN, pid === null ? null : Number(pid[1]));
 }
 
-/** `ss -tlnp` (listening) or `ss -tnp state established`: one row per socket, the owner pid from `pid=`. */
-export function parseSsSockets(output: string): readonly SocketRow[] {
+/** `ss -tlnp` (listening) or `ss -tnp state established`: one row per socket, the owner pid from `pid=`. Null when
+ *  the output carries no `ss` header, so an empty or foreign answer is never read as "no sockets". */
+export function parseSsSockets(output: string): readonly SocketRow[] | null {
+  if (!SS_HEADER_RE.test(output)) {
+    return null;
+  }
   return output
     .split(/\r?\n/u)
     .map(ssRow)
@@ -176,8 +185,12 @@ function netstatRow(line: string): SocketRow | null {
   return socketRow(fields[NETSTAT_LOCAL_COLUMN] ?? "", fields[NETSTAT_PEER_COLUMN] ?? "", state === NETSTAT_LISTENING, pid);
 }
 
-/** `netstat -ano`: `TCP <local> <peer> <STATE> <pid>`; UDP rows carry no state and are dropped. */
-export function parseNetstatSockets(output: string): readonly SocketRow[] {
+/** `netstat -ano`: `TCP <local> <peer> <STATE> <pid>`; UDP rows carry no state and are dropped. Null when the
+ *  output carries no `netstat` header. */
+export function parseNetstatSockets(output: string): readonly SocketRow[] | null {
+  if (!NETSTAT_HEADER_RE.test(output)) {
+    return null;
+  }
   return output
     .split(/\r?\n/u)
     .map(netstatRow)

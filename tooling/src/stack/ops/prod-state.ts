@@ -142,10 +142,15 @@ export async function probeDebug(port: number): Promise<{ posture: DebugPosture;
   return { posture, pid: await probeDebugPid(port) };
 }
 
-/** The socket table's owner of `port`. An unreadable table throws: a null here reads as "not bound", and the
- *  identity verdict built on it would be a guess. */
+/** The socket table's owner of `port`, or null when it is free. An unreadable table, or a port bound by an owner
+ *  the OS will not name, throws: a null here reads as "not bound", and the identity verdict built on it would be a
+ *  guess. */
 function listenerPid(port: number): number | null {
-  return socketTableOrThrow(listeningPids()).get(port) ?? null;
+  const owner = socketTableOrThrow(listeningPids()).get(port);
+  if (owner?.kind === "unknown") {
+    throw new Error(`:${String(port)} is bound, but the OS names no owner for it; the prod instance cannot be identified`);
+  }
+  return owner === undefined ? null : owner.pid;
 }
 
 export function processAlive(pid: number): boolean {

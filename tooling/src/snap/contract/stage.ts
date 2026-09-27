@@ -19,6 +19,10 @@ export interface StagePorts {
   readonly vite: number;
 }
 
+/** What a stage stop can claim: both ports released or held only by the stage groups it killed, or a stop it
+ *  could not confirm and must not report as done. */
+export type StageStopVerdict = { readonly kind: "stopped" } | { readonly kind: "unconfirmed"; readonly reason: string };
+
 /** How a staged tree is booted and stopped: its own stack cli under node, or an older ref's shell launcher. */
 const STAGE_LAUNCHER_KINDS = ["cli", "shell"] as const;
 

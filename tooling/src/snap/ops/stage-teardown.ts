@@ -28,21 +28,23 @@ import process from "node:process";
 import { activeRunSlot } from "../../_shared/artifact-out.ts";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
+import type { ListeningPortsRead } from "../../_shared/platform.ts";
 import { listeningPids } from "../../_shared/platform.ts";
 import { runNicedSync } from "../../_shared/proc.ts";
-import type { StagePorts, StageReapArm, StageRow } from "../contract/stage.ts";
+import type { StagePorts, StageReapArm, StageRow, StageStopVerdict } from "../contract/stage.ts";
 import { missingLauncherRefusal, stageLauncher, stageLauncherSpawn } from "../lib/stage-plan.ts";
 import { takeBootDeadStage } from "../lib/stage-run-binding.ts";
 import { sweepStrandedBrowsers } from "./browser-sweep.ts";
 import { clearRow } from "./stage-marker.ts";
-import { killProcessGroup, pidIsStageRooted, stageBandPortPid } from "./stage-probe.ts";
+import { killProcessGroup, pidIsStageRooted } from "./stage-probe.ts";
 import { recordStageReap } from "./stage-reap-log.ts";
 import { removeStageDir } from "./stage-source.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --stage-down");
 
-/** Stop a stage's stack, and MEAN IT — the two beats of the module header. */
-export function stopStage(dir: string, ports: StagePorts): void {
+/** Stop a stage's stack, and MEAN IT — the two beats of the module header. `stopped` only when the socket table
+ *  was read after the launcher stop and each port is free or was held by a stage group this killed. */
+export function stopStage(dir: string, ports: StagePorts, readPorts: () => ListeningPortsRead = () => listeningPids()): StageStopVerdict {
   const launcher = existsSync(dir) ? stageLauncher(dir, existsSync) : null;
   if (launcher !== null) {
     const spawn = stageLauncherSpawn(launcher, "down", process.execPath);
@@ -50,25 +52,43 @@ export function stopStage(dir: string, ports: StagePorts): void {
   } else if (existsSync(dir)) {
     print(`[snap-stage] no launcher to stop ${dir} with — falling back to the band's process group. ${missingLauncherRefusal(dir)}`);
   }
-  const bound = listeningPids();
+  const bound = readPorts();
   if (bound.kind === "refused") {
-    print(`[snap-stage] cannot confirm :${ports.server} and :${ports.vite} were released after the launcher stop — ${bound.reason}`);
-    return;
+    return unconfirmedStop(`cannot confirm :${ports.server} and :${ports.vite} were released after the launcher stop — ${bound.reason}`);
   }
+  const survivors: string[] = [];
   for (const port of [ports.server, ports.vite]) {
-    const pid = stageBandPortPid(port, bound.value);
-    if (pid !== null && pidIsStageRooted(pid) && killProcessGroup(pid)) {
-      print(`[snap-stage] killed the process group still holding :${port} (pid ${pid}) after the launcher stop`);
+    const owner = bound.value.get(port);
+    if (owner === undefined) {
+      continue;
     }
+    if (owner.kind === "pid" && pidIsStageRooted(owner.pid) && killProcessGroup(owner.pid)) {
+      print(`[snap-stage] killed the process group still holding :${port} (pid ${owner.pid}) after the launcher stop`);
+      continue;
+    }
+    survivors.push(
+      `:${port} is still held by ${owner.kind === "pid" ? `pid ${owner.pid}, not a stage group this could kill` : "an owner the OS will not name"}`,
+    );
   }
+  return survivors.length === 0 ? { kind: "stopped" } : unconfirmedStop(`${survivors.join("; ")} after the launcher stop`);
+}
+
+function unconfirmedStop(reason: string): StageStopVerdict {
+  print(`[snap-stage] ${reason}`);
+  return { kind: "unconfirmed", reason };
 }
 
 /** Stop it, remove its dir, clear its row, and RECORD WHICH ARM did it (#1163). Ports come from the ROW,
  *  because the stage being removed may sit on a different band than the one a caller is about to boot on;
  *  the dir is removed against the row's OWN checkout, so a sibling's stranded worktree is removable from
  *  here (`git worktree remove` is repo-wide — the #108 rule). */
-export function tearDownStageRow(home: string, row: StageRow, arm: StageReapArm, nowMs: number = Date.now()): void {
-  stopStage(row.dir, { server: row.serverPort, vite: row.vitePort });
+export function tearDownStageRow(home: string, row: StageRow, arm: StageReapArm, nowMs: number = Date.now()): StageStopVerdict {
+  const stop = stopStage(row.dir, { server: row.serverPort, vite: row.vitePort });
+  if (stop.kind === "unconfirmed") {
+    // The row and dir stay: removing them would call the band free while its ports may still be held.
+    print(`[snap-stage] band ${row.band} is NOT torn down — its stop is not confirmed; the row is kept for \`--stage-sweep\``);
+    return stop;
+  }
   // The stage's stack dies by process group; a BROWSER never does (#1848 — playwright sessions it). Every
   // arm that ends a stage therefore also reaps browsers whose own run is gone, which is the state a lane
   // torn down mid-drive leaves behind.
@@ -78,6 +98,7 @@ export function tearDownStageRow(home: string, row: StageRow, arm: StageReapArm,
   removeStageDir(row.checkout, row);
   clearRow(home, row.band);
   recordStageReap(home, row, arm, nowMs);
+  return stop;
 }
 
 /** THE FIFTH ARM, AND THE ONE THAT FIRES INSIDE A RUN (#1837). A stage whose app never settled — warm-up

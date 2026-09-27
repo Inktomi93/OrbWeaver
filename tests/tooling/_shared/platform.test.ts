@@ -3,7 +3,7 @@
 // a red here rather than on a machine nobody has. The Linux branch reads a planted `/proc`.
 
 import { vi } from "vitest";
-import type { OpenerChild, SocketTableRead } from "../../../tooling/src/_shared/platform.ts";
+import type { OpenerChild, PlatformDeps, PortOwner, SocketTableRead } from "../../../tooling/src/_shared/platform.ts";
 import {
   establishedConnections,
   isWsl2,
@@ -38,18 +38,25 @@ function fakeRun(answers: Readonly<Record<string, string>>): { run: (cmd: string
 const LSOF_LISTEN = "lsof -nP -iTCP -sTCP:LISTEN -Fpn";
 const LSOF_ESTABLISHED = "lsof -nP -iTCP -sTCP:ESTABLISHED -Fpn";
 const NETSTAT = "netstat -ano";
+/** The column headers both tools always print; an answer without one is not a socket table. */
+const SS_LISTEN_HEADER = "State Recv-Q Send-Q Local Address:Port Peer Address:Port Process\n";
+const NETSTAT_HEADER = "\nActive Connections\n\n  Proto  Local Address  Foreign Address  State  PID\n";
+/** A named owner, as the listening map carries it. */
+function named(value: number): PortOwner {
+  return { kind: "pid", pid: value };
+}
 const CIM_ALL =
   "powershell.exe -NoProfile -NonInteractive -Command Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,CommandLine,KernelModeTime,UserModeTime | ConvertTo-Json -Compress";
 
 test("listeningPids asks each platform its own socket-table tool and answers port → pid", () => {
-  const linux = fakeRun({ "ss -tlnp": 'LISTEN 0 511 127.0.0.1:8788 0.0.0.0:* users:(("node",pid=1234,fd=23))\n' });
-  expect(listeningPids({ platform: "linux", run: linux.run })).toEqual({ kind: "read", value: new Map([[8788, 1234]]) });
+  const linux = fakeRun({ "ss -tlnp": `${SS_LISTEN_HEADER}LISTEN 0 511 127.0.0.1:8788 0.0.0.0:* users:(("node",pid=1234,fd=23))\n` });
+  expect(listeningPids({ platform: "linux", run: linux.run })).toEqual({ kind: "read", value: new Map([[8788, named(1234)]]) });
   const darwin = fakeRun({ [LSOF_LISTEN]: "p1234\nf23\nn127.0.0.1:8788\n" });
-  expect(listeningPids({ platform: "darwin", run: darwin.run })).toEqual({ kind: "read", value: new Map([[8788, 1234]]) });
+  expect(listeningPids({ platform: "darwin", run: darwin.run })).toEqual({ kind: "read", value: new Map([[8788, named(1234)]]) });
   const win32 = fakeRun({
-    [NETSTAT]: "  TCP    127.0.0.1:8788    0.0.0.0:0    LISTENING    1234\n  TCP    127.0.0.1:52000    127.0.0.1:8788    ESTABLISHED    77\n",
+    [NETSTAT]: `${NETSTAT_HEADER}  TCP    127.0.0.1:8788    0.0.0.0:0    LISTENING    1234\n  TCP    127.0.0.1:52000    127.0.0.1:8788    ESTABLISHED    77\n`,
   });
-  expect(listeningPids({ platform: "win32", run: win32.run })).toEqual({ kind: "read", value: new Map([[8788, 1234]]) });
+  expect(listeningPids({ platform: "win32", run: win32.run })).toEqual({ kind: "read", value: new Map([[8788, named(1234)]]) });
   expect([linux.calls, darwin.calls, win32.calls]).toEqual([["ss -tlnp"], [LSOF_LISTEN], [NETSTAT]]);
 });
 
@@ -137,8 +144,8 @@ test("a missing ss falls back to /proc/net/tcp{,6}, with owners read off the /pr
   expect(listeningPids({ platform: "linux", run: MISSING_SS.run, ...NET_PROC })).toEqual({
     kind: "read",
     value: new Map([
-      [8788, 1234],
-      [5173, 1234],
+      [8788, named(1234)],
+      [5173, named(1234)],
     ]),
   });
   expect(establishedConnections({ platform: "linux", run: MISSING_SS.run, ...NET_PROC })).toEqual({
@@ -152,8 +159,8 @@ test("a missing ss falls back to /proc/net/tcp{,6}, with owners read off the /pr
   expect(listeningPids({ platform: "linux", run: spawnFailed.run, ...NET_PROC }), "a spawn that could not start is missing too").toEqual({
     kind: "read",
     value: new Map([
-      [8788, 1234],
-      [5173, 1234],
+      [8788, named(1234)],
+      [5173, named(1234)],
     ]),
   });
 });
@@ -165,6 +172,46 @@ test("a missing ss over an unreadable /proc/net is a refusal naming both, never 
   expect(refusalOf(read)).toEqual(expect.stringContaining("/proc/net/tcp"));
   expect(refusalOf(establishedConnections({ platform: "linux", run: MISSING_SS.run, ...bare }))).toEqual(
     expect.stringContaining("`ss -tnp state established`"),
+  );
+});
+
+test("a listener the OS names no owner for is still bound: /proc with an unreadable fd dir, and an ss row without pid=", () => {
+  const foreign = plantedNetProc({
+    files: {
+      "/proc/net/tcp": [
+        "  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode",
+        "   0: 0100007F:1F90 00000000:0000 0A 00000000:00000000 00:00000000 00000000  1001        0 777 1 0000000000000000 100 0 0 10 0",
+        "",
+      ].join("\n"),
+    },
+    dirs: { "/proc": ["42"] },
+    links: {},
+  });
+  const viaProc = listeningPids({ platform: "linux", run: MISSING_SS.run, ...foreign });
+  expect(viaProc, "a LISTEN row whose owner is hidden must read as bound").toEqual({ kind: "read", value: new Map([[8080, { kind: "unknown" }]]) });
+  const unnamed = fakeRun({ "ss -tlnp": "State Recv-Q Send-Q Local Address:Port Peer Address:Port Process\nLISTEN 0 128 0.0.0.0:22 0.0.0.0:*\n" });
+  const viaSs = listeningPids({ platform: "linux", run: unnamed.run });
+  expect(viaSs, "an ss listener with no users column must read as bound").toEqual({ kind: "read", value: new Map([[22, { kind: "unknown" }]]) });
+  const halves = fakeRun({
+    "ss -tlnp": `${SS_LISTEN_HEADER}LISTEN 0 128 0.0.0.0:8788 0.0.0.0:*\nLISTEN 0 128 [::]:8788 [::]:* users:(("node",pid=1234,fd=23))\n`,
+  });
+  expect(listeningPids({ platform: "linux", run: halves.run }), "a named half of one listener wins over an unnamed half").toEqual({
+    kind: "read",
+    value: new Map([[8788, named(1234)]]),
+  });
+});
+
+test("a tool that exits 0 without its table header answered nothing, and that is a refusal, not an empty table", () => {
+  const answer = (stdout: string): Pick<PlatformDeps, "run"> => ({ run: (): RunNicedSyncResult => ({ status: 0, stdout, stderr: "" }) });
+  expect(refusalOf(listeningPids({ platform: "linux", ...answer("") }))).toEqual(expect.stringContaining("linux: `ss -tlnp` printed no socket table"));
+  expect(refusalOf(listeningPids({ platform: "linux", ...answer("Usage: ss [ OPTIONS ]\n") }))).toEqual(
+    expect.stringContaining("`ss -tlnp` printed no socket table"),
+  );
+  expect(refusalOf(establishedConnections({ platform: "win32", ...answer("") }))).toEqual(
+    expect.stringContaining("win32: `netstat -ano` printed no socket table"),
+  );
+  expect(refusalOf(listeningPids({ platform: "darwin", ...answer("") }))).toEqual(
+    expect.stringContaining("darwin: `lsof -nP -iTCP -sTCP:LISTEN -Fpn` printed no socket table"),
   );
 });
 
@@ -186,7 +233,7 @@ test("establishedConnections carries the peer and the local owner on every platf
     kind: "read",
     value: [{ localPort: 52_134, peerHost: "127.0.0.1", peerPort: 8788, pid: 999 }],
   });
-  const win32 = fakeRun({ [NETSTAT]: "  TCP    127.0.0.1:52134    127.0.0.1:8788    ESTABLISHED    999\n" });
+  const win32 = fakeRun({ [NETSTAT]: `${NETSTAT_HEADER}  TCP    127.0.0.1:52134    127.0.0.1:8788    ESTABLISHED    999\n` });
   expect(establishedConnections({ platform: "win32", run: win32.run })).toEqual({
     kind: "read",
     value: [{ localPort: 52_134, peerHost: "127.0.0.1", peerPort: 8788, pid: 999 }],

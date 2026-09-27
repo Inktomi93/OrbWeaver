@@ -71,6 +71,14 @@ test("ss under a state filter drops the State column, and the peer is read off t
   ]);
 });
 
+test("ss and netstat answers without their column header are not socket tables: null, never no rows", () => {
+  expect(parseSsSockets("")).toBeNull();
+  expect(parseSsSockets("Usage: ss [ OPTIONS ]\n")).toBeNull();
+  expect(parseSsSockets("State Recv-Q Send-Q Local Address:Port Peer Address:Port Process\n"), "a header over no rows is an empty table").toEqual([]);
+  expect(parseNetstatSockets("")).toBeNull();
+  expect(parseNetstatSockets("The requested operation requires elevation.\n")).toBeNull();
+});
+
 test("lsof field output: a process set opens with p, every n line is one of its sockets, other letters are skipped", () => {
   expect(parseLsofSockets(LSOF_LISTENING, true)).toEqual([
     { localPort: 8788, peerHost: "", peerPort: 0, listening: true, pid: 1234 },

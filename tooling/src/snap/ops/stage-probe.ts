@@ -17,7 +17,7 @@ import process from "node:process";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { httpOkSync } from "../../_shared/http-probe.ts";
 import { budget } from "../../_shared/load-budget.ts";
-import type { EstablishedConnection, SocketTableRead } from "../../_shared/platform.ts";
+import type { EstablishedConnection, PortOwner, SocketTableRead } from "../../_shared/platform.ts";
 import { establishedConnections, processAgeSeconds, processGroupId, processInfo } from "../../_shared/platform.ts";
 import { killPidGroup, runNicedSync } from "../../_shared/proc.ts";
 import type { ServedState } from "../../stack/index.ts";
@@ -76,17 +76,19 @@ export function foreignBandPeer(
   return null;
 }
 
-/** The pid bound to a stage-band port, or null — the row-less teardown's index. `bound` is one read of the
- *  socket table, so a caller judging the whole table reads ONE snapshot rather than re-reading it per band. */
-export function stageBandPortPid(port: number, bound: ReadonlyMap<number, number>): number | null {
-  return bound.get(port) ?? null;
+/** The named pid bound to a stage-band port, or null when the port is free or its owner is unnamed. `bound` is
+ *  one read of the socket table, so a caller judging the whole table reads ONE snapshot. Null is never "free":
+ *  ask {@link bandIsBound} for that. */
+export function stageBandPortPid(port: number, bound: ReadonlyMap<number, PortOwner>): number | null {
+  const owner = bound.get(port);
+  return owner?.kind === "pid" ? owner.pid : null;
 }
 
 /** Is EITHER half of a band bound right now? The liveness half of the #108 ownership question —
  *  a foreign row over an unbound band is a corpse to reclaim, over a bound one it is a live sibling.
  *  The #324 sweep asks the same question before judging anything. */
-export function bandIsBound(ports: StagePorts, bound: ReadonlyMap<number, number>): boolean {
-  return stageBandPortPid(ports.server, bound) !== null || stageBandPortPid(ports.vite, bound) !== null;
+export function bandIsBound(ports: StagePorts, bound: ReadonlyMap<number, PortOwner>): boolean {
+  return bound.has(ports.server) || bound.has(ports.vite);
 }
 
 /** Is the process holding a band port actually a SNAP STAGE? The sweep's one hard fence (#324): a stage

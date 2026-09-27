@@ -73,7 +73,7 @@ import { runGit } from "../../_shared/git.ts";
 import { listeningPids } from "../../_shared/platform.ts";
 import { stageBandPorts } from "../../_shared/ports.ts";
 import { spawnFullPrioritySync } from "../../_shared/proc.ts";
-import type { EnsureStageOpts, StagePaths, StagePorts, StageRow } from "../contract/stage.ts";
+import type { EnsureStageOpts, StagePaths, StagePorts, StageRow, StageStopVerdict } from "../contract/stage.ts";
 import {
   DIRTY_STAGE_KEY,
   missingLauncherRefusal,
@@ -186,10 +186,18 @@ function claimRow(claim: {
   };
 }
 
+/** A boot onto a band whose old stack may still hold the ports would fail against it, or serve the old stack:
+ *  an unconfirmed stop ends this run as a tool error. */
+function refuseUnconfirmedStop(row: StageRow, stop: StageStopVerdict): void {
+  if (stop.kind === "unconfirmed") {
+    throw new Error(`stage ${shortSha(row.sha)} on band ${row.band} could not be replaced: ${stop.reason}`);
+  }
+}
+
 /** Tear a stage down and forget it — the shape every rebuild/reap path shares. Ports come from the ROW,
  *  because the stage being removed may sit on a different band than the one we are about to boot on. */
 function dropStage(root: string, home: string, row: StageRow): void {
-  stopStage(row.dir, { server: row.serverPort, vite: row.vitePort });
+  refuseUnconfirmedStop(row, stopStage(row.dir, { server: row.serverPort, vite: row.vitePort }));
   removeStageDir(root, row);
   clearRow(home, row.band);
 }
@@ -346,7 +354,12 @@ function resolveStageRow(root: string, opts: EnsureStageOpts): ResolvedStage {
     print(
       `[snap-stage] reaping the stranded stage ${shortSha(allocation.row.sha)} on band ${allocation.band} (owner ${allocation.row.checkout}, last used ${allocation.row.lastUsedAt})`,
     );
-    stopStage(allocation.row.dir, { server: allocation.row.serverPort, vite: allocation.row.vitePort });
+    const stop = stopStage(allocation.row.dir, { server: allocation.row.serverPort, vite: allocation.row.vitePort });
+    if (stop.kind === "unconfirmed") {
+      // Put the strand's row back over our claim: the band is not ours to boot on while its ports may be held.
+      writeRow(home, allocation.row);
+    }
+    refuseUnconfirmedStop(allocation.row, stop);
     removeStageDir(allocation.row.checkout, allocation.row);
     // The row is NOT cleared here — the lock already replaced it with our claim — so this arm records its
     // own ledger entry rather than going through `tearDownStageRow` (#1163). The strand's old keeper, if

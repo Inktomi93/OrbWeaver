@@ -106,7 +106,6 @@ export type SocketTableRead<T> = { readonly kind: "read"; readonly value: T } | 
 /** The shell's "command not found" status; `nice` answers it when the tool it was asked to run is absent. */
 const MISSING_COMMAND_STATUS = 127;
 const MISSING_COMMAND_ERROR = "ENOENT";
-/** `lsof` exits 1 with nothing on either stream when no socket matched the filter: its empty answer. */
 const LSOF_NO_MATCH_STATUS = 1;
 const LINE_RE = /\r?\n/u;
 
@@ -122,14 +121,16 @@ function socketTableCommand(platform: SupportedPlatform, listening: boolean): re
   }
 }
 
-function parseSocketTable(platform: SupportedPlatform, listening: boolean, stdout: string): readonly SocketRow[] {
+/** The rows a tool's answer holds, or null when the answer is not its socket table. `lsof -F` prints no header,
+ *  so its only table-shaped test is that an exit-0 answer names at least one process. */
+function parseSocketTable(platform: SupportedPlatform, listening: boolean, stdout: string): readonly SocketRow[] | null {
   switch (platform) {
     case "linux":
       return parseSsSockets(stdout);
     case "darwin":
-      return parseLsofSockets(stdout, listening);
+      return stdout.trim() === "" ? null : parseLsofSockets(stdout, listening);
     case "win32":
-      return parseNetstatSockets(stdout).filter((row) => row.listening === listening);
+      return parseNetstatSockets(stdout)?.filter((row) => row.listening === listening) ?? null;
   }
 }
 
@@ -138,12 +139,11 @@ function isMissingCommand(result: RunNicedSyncResult): boolean {
 }
 
 /** Why a tool that ran gave no usable answer, or null when its answer stands. */
-function toolFailure(platform: SupportedPlatform, result: RunNicedSyncResult): string | null {
+function toolFailure(result: RunNicedSyncResult): string | null {
   if (result.errorCode !== undefined) {
     return `could not run (${result.errorCode})`;
   }
-  const lsofNoMatch = platform === "darwin" && result.status === LSOF_NO_MATCH_STATUS && result.stdout === "" && result.stderr === "";
-  if (result.status === 0 || lsofNoMatch) {
+  if (result.status === 0) {
     return null;
   }
   const said = result.stderr.trim().split(LINE_RE)[0] ?? "";
@@ -175,23 +175,51 @@ function sockets(listening: boolean, deps: PlatformDeps): SocketTableRead<readon
     const proc = platform === "linux" ? `, and neither ${PROC_NET_TCP_TABLES.join(" nor ")} could be read` : "";
     return refused(`${platform}: ${spelling} is not installed${proc}`);
   }
-  const failure = toolFailure(platform, result);
-  return failure === null ? { kind: "read", value: parseSocketTable(platform, listening, result.stdout) } : refused(`${platform}: ${spelling} ${failure}`);
+  // The one empty answer taken as a table: `lsof` exits 1 with both streams empty when no socket matched the
+  // filter, and a box with nothing in that state is real. Any other non-zero exit, or text on stderr, refuses.
+  if (platform === "darwin" && result.status === LSOF_NO_MATCH_STATUS && result.stdout === "" && result.stderr === "") {
+    return { kind: "read", value: [] };
+  }
+  const failure = toolFailure(result);
+  if (failure !== null) {
+    return refused(`${platform}: ${spelling} ${failure}`);
+  }
+  const rows = parseSocketTable(platform, listening, result.stdout);
+  return rows === null ? refused(`${platform}: ${spelling} printed no socket table`) : { kind: "read", value: rows };
 }
 
-/** Port to the pid listening on it. A port with no nameable owner (another user's process) is absent. */
-export function listeningPids(deps: PlatformDeps = {}): SocketTableRead<ReadonlyMap<number, number>> {
+/** Who holds a bound port: the pid the OS named, or `unknown` when it named none (another user's process, or
+ *  one whose fds this user cannot list). A port with an unknown owner is bound all the same. */
+export type PortOwner = { readonly kind: "pid"; readonly pid: number } | { readonly kind: "unknown" };
+
+/** One read of every listening port and its owner. */
+export type ListeningPortsRead = SocketTableRead<ReadonlyMap<number, PortOwner>>;
+
+/** Every listening port with its owner. A port the OS names no owner for is present as `unknown`, never absent:
+ *  absent means free, and a caller that frees or boots on that word would act on a live listener. */
+export function listeningPids(deps: PlatformDeps = {}): ListeningPortsRead {
   const table = sockets(true, deps);
   if (table.kind === "refused") {
     return table;
   }
-  const bound = new Map<number, number>();
+  const bound = new Map<number, PortOwner>();
   for (const row of table.value) {
-    if (row.pid !== null && !bound.has(row.localPort)) {
-      bound.set(row.localPort, row.pid);
+    // A named owner wins over an unnamed row for the same port (IPv4 and IPv6 halves of one listener).
+    if (row.pid !== null && bound.get(row.localPort)?.kind !== "pid") {
+      bound.set(row.localPort, { kind: "pid", pid: row.pid });
+    } else if (!bound.has(row.localPort)) {
+      bound.set(row.localPort, { kind: "unknown" });
     }
   }
   return { kind: "read", value: bound };
+}
+
+/** A port's owner as a pid, or its absence spelled for an operator line. */
+export function describePortOwner(owner: PortOwner | undefined): string {
+  if (owner === undefined) {
+    return "not bound";
+  }
+  return owner.kind === "pid" ? `pid ${String(owner.pid)}` : "bound, owner unknown";
 }
 
 /** Every established TCP connection the box holds, with the owner of the local end when nameable. */

@@ -8,9 +8,10 @@ import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import type { ExitCode } from "../../_shared/exit-contract.ts";
 import { EXIT } from "../../_shared/exit-contract.ts";
 import { budget } from "../../_shared/load-budget.ts";
+import type { ListeningPortsRead } from "../../_shared/platform.ts";
 import { listeningPids, processGroupId, processInfo } from "../../_shared/platform.ts";
 import { killPidGroup } from "../../_shared/proc.ts";
-import type { LeaderProbes, LeaderRecord, LeaderState, StackContext } from "../contract/types.ts";
+import type { HolderUnknown, LeaderProbes, LeaderRecord, LeaderState, StackContext } from "../contract/types.ts";
 import { leaderVerdict, readLeaderRecord, recordAuthorizesSignal, removeLeaderRecord } from "../lib/leader-record.ts";
 import { pidIsAlive } from "../lib/spawn-lock.ts";
 import { cmdlineNamesCheckout } from "../lib/stack-plan.ts";
@@ -31,11 +32,27 @@ export function result(line: string): void {
   print(`\nRESULT stack ${line}`);
 }
 
-/** The `RESULT` for a verb that needed the socket table and could not read it: exit 2, never a verdict. Without
- *  the port owners no verb here can say stopped, free or down. */
-export function refuseUnreadableTable(reason: string, fields: string): ExitCode {
-  log(`cannot read which process holds the stack's ports: ${reason}`);
-  result(`status=unknown ${fields} reason=socket-table-unreadable`);
+/** The socket-table read every dev verb decides on, injected so a test drives a refused table or a hidden owner
+ *  through the verb itself. */
+export interface DevPortDeps {
+  readonly readPorts: () => ListeningPortsRead;
+}
+
+export const REAL_PORT_DEPS: DevPortDeps = { readPorts: () => listeningPids() };
+
+/** The `RESULT` for a verb that cannot name the holder of the stack's ports: exit 2, never a verdict. Without
+ *  the owner no verb here can say stopped, free or down, and nothing can be signalled. */
+export function refuseUnknownHolder(why: HolderUnknown, fields: string): ExitCode {
+  if (why.kind === "unreadable") {
+    log(`cannot read which process holds the stack's ports: ${why.reason}`);
+    result(`status=unknown ${fields} reason=socket-table-unreadable`);
+    return EXIT.toolError;
+  }
+  const ports = why.ports.map((port) => `:${String(port)}`).join(" and ");
+  log(
+    `${ports} ${why.ports.length === 1 ? "is" : "are"} bound, but the OS names no owner (another user's process, or fds this user cannot read); nothing here can identify or stop the holder`,
+  );
+  result(`status=unknown ${fields} ports=${why.ports.join(",")} reason=port-owner-unknown`);
   return EXIT.toolError;
 }
 
@@ -145,7 +162,12 @@ interface PortHolder {
 }
 
 type PortSweep =
-  | { readonly kind: "swept"; readonly freed: readonly number[]; readonly refused: readonly PortHolder[] }
+  | {
+      readonly kind: "swept";
+      readonly freed: readonly number[];
+      readonly refused: readonly PortHolder[];
+      readonly ownerUnknown: readonly number[];
+    }
   | { readonly kind: "unreadable"; readonly reason: string };
 
 /** How a wait for one port ended; `unreadable` wins over the wait, because a silent table is not a free port. */
@@ -156,15 +178,16 @@ type PortOutcome =
   | { readonly kind: "unbound" }
   | { readonly kind: "freed" }
   | { readonly kind: "held"; readonly holder: PortHolder }
+  | { readonly kind: "owner-unknown" }
   | { readonly kind: "unreadable"; readonly reason: string };
 
 /** A port's holder as the settle loop polls it. A table that stops answering ends the wait and is kept, so the
  *  sweep reports it instead of reading the silence as a freed port. */
-function portWatch(port: number): { readonly free: () => boolean; readonly lost: () => string | null } {
+function portWatch(port: number, deps: DevPortDeps): { readonly free: () => boolean; readonly lost: () => string | null } {
   let lost: string | null = null;
   return {
     free: (): boolean => {
-      const table = listeningPids();
+      const table = deps.readPorts();
       if (table.kind === "refused") {
         lost = table.reason;
         return true;
@@ -203,16 +226,20 @@ function outcomeOf(wait: PortWait, holder: PortHolder): PortOutcome {
 }
 
 /** One port: unbound, freed, held by a holder this sweep may not or could not stop, or an unreadable table. */
-async function sweepPort(ctx: StackContext, port: number): Promise<PortOutcome> {
-  const table = listeningPids();
+async function sweepPort(ctx: StackContext, port: number, deps: DevPortDeps): Promise<PortOutcome> {
+  const table = deps.readPorts();
   if (table.kind === "refused") {
     return { kind: "unreadable", reason: table.reason };
   }
-  const pid = table.value.get(port);
-  if (pid === undefined) {
+  const owner = table.value.get(port);
+  if (owner === undefined) {
     return { kind: "unbound" };
   }
-  const watch = portWatch(port);
+  if (owner.kind === "unknown") {
+    return { kind: "owner-unknown" };
+  }
+  const pid = owner.pid;
+  const watch = portWatch(port, deps);
   const info = processInfo(pid);
   // A holder with no command line is on its way out (the first port's group kill reaches this one too, and
   // an exiting process keeps its pid and its socket row for a moment, not its argv): wait for the port
@@ -230,21 +257,24 @@ async function sweepPort(ctx: StackContext, port: number): Promise<PortOutcome> 
 
 /** The ports after the record: a holder whose command line names this checkout is stopped through its
  *  group; any other holder is refused by pid. This is how a stack whose record is gone is still found. */
-async function sweepPorts(ctx: StackContext): Promise<PortSweep> {
+async function sweepPorts(ctx: StackContext, deps: DevPortDeps): Promise<PortSweep> {
   const freed: number[] = [];
   const refused: PortHolder[] = [];
+  const ownerUnknown: number[] = [];
   for (const port of [ctx.ports.server, ctx.ports.vite]) {
-    const outcome = await sweepPort(ctx, port);
+    const outcome = await sweepPort(ctx, port, deps);
     if (outcome.kind === "unreadable") {
       return outcome;
     }
     if (outcome.kind === "held") {
       refused.push(outcome.holder);
+    } else if (outcome.kind === "owner-unknown") {
+      ownerUnknown.push(port);
     } else if (outcome.kind === "freed") {
       freed.push(port);
     }
   }
-  return { kind: "swept", freed, refused };
+  return { kind: "swept", freed, refused, ownerUnknown };
 }
 
 /** The record's half of the teardown: the group name for the result line, and whether it is still held. */
@@ -279,16 +309,19 @@ async function stopRecorded(ctx: StackContext, quiet: boolean): Promise<{ readon
 }
 
 /** The whole teardown. `quiet` skips the "nothing to stop" line for a restart. */
-export async function doDevDown(ctx: StackContext, opts: { readonly quiet?: boolean } = {}): Promise<ExitCode> {
+export async function doDevDown(ctx: StackContext, opts: { readonly quiet?: boolean } = {}, deps: DevPortDeps = REAL_PORT_DEPS): Promise<ExitCode> {
   const { group, stuck } = await stopRecorded(ctx, opts.quiet === true);
   if (stuck) {
     result(`status=stuck pgid=${group}`);
     return EXIT.violations;
   }
-  const sweep = await sweepPorts(ctx);
+  const sweep = await sweepPorts(ctx, deps);
+  // In both refusals the record stays: nothing here proves the stack stopped.
   if (sweep.kind === "unreadable") {
-    // The record stays: nothing here proves the stack stopped.
-    return refuseUnreadableTable(sweep.reason, `pgid=${group}`);
+    return refuseUnknownHolder(sweep, `pgid=${group}`);
+  }
+  if (sweep.ownerUnknown.length > 0) {
+    return refuseUnknownHolder({ kind: "owner-unknown", ports: sweep.ownerUnknown }, `pgid=${group}`);
   }
   if (sweep.refused.length > 0) {
     for (const holder of sweep.refused) {

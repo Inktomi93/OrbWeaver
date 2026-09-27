@@ -22,6 +22,7 @@ import { join } from "node:path";
 import { REPO_ROOT } from "@orb/tooling/_shared/artifacts";
 import { spawnNiced } from "@orb/tooling/_shared/proc";
 import { vi } from "vitest";
+import type { PortOwner } from "../../../../tooling/src/_shared/platform.ts";
 import { stageBandPorts } from "../../../../tooling/src/_shared/ports.ts";
 import type { StageBandsFile, StageRow } from "../../../../tooling/src/snap/contract/stage.ts";
 import { BANDS_REL, LEGACY_ACTIVE_REL, STAGE_ROOT_REL } from "../../../../tooling/src/snap/lib/stage-plan.ts";
@@ -379,14 +380,19 @@ test("T4 — one vanished port marks the registered band dead with the operation
   const live = row(7, { sessions: ["p-stage-owner"] });
   const sibling = row(2);
   writeBands(home, [sibling, live]);
-  const both = new Map([
-    [live.serverPort, 1001],
-    [live.vitePort, 1002],
+  const both = new Map<number, PortOwner>([
+    [live.serverPort, { kind: "pid", pid: 1001 }],
+    [live.vitePort, { kind: "pid", pid: 1002 }],
   ]);
   expect(stageBindingAlive(home, 7, both)).toBe(true);
+  const unnamed = new Map<number, PortOwner>([
+    [live.serverPort, { kind: "unknown" }],
+    [live.vitePort, { kind: "unknown" }],
+  ]);
+  expect(stageBindingAlive(home, 7, unnamed), "a port bound by an owner the OS will not name is still bound").toBe(true);
 
   // The killed-half plant: server remains, vite is gone. A one-port check would lie green here.
-  expect(stageBindingAlive(home, 7, new Map([[live.serverPort, 1001]]))).toBe(false);
+  expect(stageBindingAlive(home, 7, new Map<number, PortOwner>([[live.serverPort, { kind: "pid", pid: 1001 }]]))).toBe(false);
   markStageDead(home, 7, FROZEN_ISO, "--goto settings");
   expect(readBands(home).find((entry) => entry.band === 7)?.dead).toEqual({ detectedAt: FROZEN_ISO, op: "--goto settings" });
   expect(readBands(home).find((entry) => entry.band === 2)).toEqual(sibling);

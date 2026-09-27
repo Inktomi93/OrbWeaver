@@ -51,7 +51,7 @@ import { sessionStatusSummary } from "./session-registry.ts";
 import { stageBandViews, stageLimits } from "./stage-census.ts";
 import { repoRoot } from "./stage-git.ts";
 import { clearRow, markerRoot, readBands } from "./stage-marker.ts";
-import { killProcessGroup, pidElapsedSeconds, pidIsStageRooted, stageDirs } from "./stage-probe.ts";
+import { killProcessGroup, pidElapsedSeconds, pidIsStageRooted, stageBandPortPid, stageDirs } from "./stage-probe.ts";
 import { describeStageReaps, recordStageReap } from "./stage-reap-log.ts";
 import { removeStageDir } from "./stage-source.ts";
 import { stopStage } from "./stage-teardown.ts";
@@ -91,7 +91,9 @@ function bandCensus(
   const pids = new Map<number, readonly number[]>();
   for (const view of views) {
     const ports = stageBandPorts(view.band);
-    const held = [bound.get(ports.server), bound.get(ports.vite)].filter((pid): pid is number => pid !== undefined);
+    // Named pids only: an unnamed holder has no age or group to read, and it already keeps the band from
+    // reading stage-rooted, so no verdict here reaps it.
+    const held = [stageBandPortPid(ports.server, bound), stageBandPortPid(ports.vite, bound)].filter((pid): pid is number => pid !== null);
     pids.set(view.band, held);
     verdicts.set(view.band, stageSweepVerdict(evidenceFor(view, held, nowMs), stageLimits().ttlMs));
   }
@@ -207,7 +209,10 @@ export function sweepStages(): string {
  *  group kill is the backstop for exactly the detached-leader case that made #324. */
 function reapBand(home: string, view: StageBandView, pids: readonly number[]): string {
   if (view.row !== null) {
-    stopStage(view.row.dir, { server: view.row.serverPort, vite: view.row.vitePort });
+    const stop = stopStage(view.row.dir, { server: view.row.serverPort, vite: view.row.vitePort });
+    if (stop.kind === "unconfirmed") {
+      return `band ${view.band}: stranded stage ${shortSha(view.row.sha)} NOT reaped — its stop is not confirmed (${stop.reason}); the row is kept`;
+    }
   }
   const killed = pids.filter((pid) => pidIsStageRooted(pid) && killProcessGroup(pid));
   clearRow(home, view.band);
@@ -306,7 +311,10 @@ function foreignSkipLine(row: StageRow, inUse: boolean, checkout: string, nowMs:
 function teardownRow(root: string, home: string, row: StageRow): string {
   const whose = row.checkout === root ? "" : ` owned by ${row.checkout}`;
   try {
-    stopStage(row.dir, { server: row.serverPort, vite: row.vitePort });
+    const stop = stopStage(row.dir, { server: row.serverPort, vite: row.vitePort });
+    if (stop.kind === "unconfirmed") {
+      return `band ${row.band}: partial teardown of ${shortSha(row.sha)}${whose}: the stack stop is not confirmed (${stop.reason}); the row and ${row.sha === DIRTY_STAGE_KEY ? "dir" : "worktree"} are kept`;
+    }
     removeStageDir(row.checkout, row);
   } catch (e) {
     return `band ${row.band}: partial teardown of ${shortSha(row.sha)}${whose}: ${errorMessage(e)}`;

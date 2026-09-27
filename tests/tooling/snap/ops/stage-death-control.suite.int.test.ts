@@ -120,8 +120,12 @@ test("T4 — killing one half of a real daemon-bound stage makes death sticky, s
     expect(liveStage?.dead).toBeUndefined();
 
     const bound = socketTableOrThrow(listeningPids());
-    const serverPid = bound.get(liveStage?.serverPort ?? -1);
-    const vitePid = bound.get(liveStage?.vitePort ?? -1);
+    const pidOn = (port: number): number | undefined => {
+      const owner = bound.get(port);
+      return owner?.kind === "pid" ? owner.pid : undefined;
+    };
+    const serverPid = pidOn(liveStage?.serverPort ?? -1);
+    const vitePid = pidOn(liveStage?.vitePort ?? -1);
     expect(serverPid, "the real stage server half must be listening").toBeDefined();
     expect(vitePid, "the real stage vite half must be listening").toBeDefined();
     expect(vitePid).not.toBe(serverPid);
