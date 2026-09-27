@@ -24,7 +24,7 @@ import {
   sessionSocketPath,
 } from "../lib/session-plan.ts";
 import { readSessionRow } from "../lib/session-wire.ts";
-import { markerRoot } from "./stage-marker.ts";
+import { markerRoot, waitSync } from "./stage-marker.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --session-status");
 
@@ -153,7 +153,7 @@ function withBootLock<T>(home: string, fn: () => T): T {
       if (!(error instanceof Error && "code" in error && error.code === "EEXIST")) {
         throw error;
       }
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT)), 0, 0, BOOT_LOCK_POLL_MS);
+      waitSync(BOOT_LOCK_POLL_MS);
     }
   }
   try {

@@ -29,10 +29,11 @@ import { activeRunSlot } from "../../_shared/artifact-out.ts";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { listeningPids } from "../../_shared/platform.ts";
+import { stageBandPorts } from "../../_shared/ports.ts";
 import { killPidGroup, runNicedSync } from "../../_shared/proc.ts";
 import { escalateStopSync } from "../../_shared/stop-escalation.ts";
-import type { StagePorts, StageReapArm, StageRow, StageStopDeps, StageStopVerdict } from "../contract/stage.ts";
-import { missingLauncherRefusal, stageLauncher, stageLauncherSpawn } from "../lib/stage-plan.ts";
+import type { StageBandView, StagePorts, StageReapArm, StageRow, StageStopDeps, StageStopVerdict } from "../contract/stage.ts";
+import { missingLauncherRefusal, shortSha, stageLauncher, stageLauncherSpawn } from "../lib/stage-plan.ts";
 import { takeBootDeadStage } from "../lib/stage-run-binding.ts";
 import { sweepStrandedBrowsers } from "./browser-sweep.ts";
 import { clearRow, waitSync } from "./stage-marker.ts";
@@ -99,6 +100,12 @@ export function stopStage(dir: string, ports: StagePorts, deps: StageStopDeps = 
   } else if (existsSync(dir)) {
     print(`[snap-stage] no launcher to stop ${dir} with — falling back to the band's process group. ${missingLauncherRefusal(dir)}`);
   }
+  return releaseBand(ports, deps);
+}
+
+/** The port half of a stop, for a band whose holders are stopped by group alone: `stopped` only when a read taken
+ *  after every stop shows both band ports free. */
+export function releaseBand(ports: StagePorts, deps: StageStopDeps = REAL_STOP_DEPS): StageStopVerdict {
   // Each port reads the table fresh: stopping the server's group usually takes the vite half with it.
   const survivors = [ports.server, ports.vite].map((port) => releasePort(port, deps)).filter((reason): reason is string => reason !== null);
   if (survivors.length > 0) {
@@ -115,6 +122,37 @@ export function stopStage(dir: string, ports: StagePorts, deps: StageStopDeps = 
 function unconfirmedStop(reason: string): StageStopVerdict {
   print(`[snap-stage] ${reason}`);
   return { kind: "unconfirmed", reason };
+}
+
+/** Reap a stranded band: the polite stop first when its row names a dir (the stack's own `stop` reaps its
+ *  pidfiles), then the stage groups still on the band's ports, the backstop for the detached-leader case that
+ *  made #324. The row is cleared only when a read after the stop shows the ports free. */
+export function reapStrandedBand(home: string, view: StageBandView, deps: StageStopDeps = REAL_STOP_DEPS): string {
+  const stop =
+    view.row === null ? releaseBand(stageBandPorts(view.band), deps) : stopStage(view.row.dir, { server: view.row.serverPort, vite: view.row.vitePort }, deps);
+  const stage = view.row === null ? "" : ` ${shortSha(view.row.sha)}`;
+  if (stop.kind === "unconfirmed") {
+    return `band ${view.band}: stranded stage${stage} NOT reaped — its stop is not confirmed (${stop.reason}); the row is kept`;
+  }
+  clearRow(home, view.band);
+  if (view.row !== null) {
+    recordStageReap(home, view.row, "sweep");
+  }
+  return `band ${view.band}: reaped a stranded stage (stopped ${view.row === null ? "(no row)" : shortSha(view.row.sha)}, cleared the row)`;
+}
+
+/** The row-less fallback: a band bound by a stage-rooted process no row accounts for (a killed-mid-write
+ *  table, or a pre-#1276 stage). Stop its groups by the band's ports; never touch a holder we could not identify. */
+export function tearDownRowlessBand(view: StageBandView, deps: StageStopDeps = REAL_STOP_DEPS): readonly string[] {
+  if (!(view.bandBound && view.bandIsStageRooted)) {
+    return [];
+  }
+  const stop = releaseBand(stageBandPorts(view.band), deps);
+  return [
+    stop.kind === "stopped"
+      ? `band ${view.band}: row-less teardown — stopped the stage-rooted band process group(s)`
+      : `band ${view.band}: row-less teardown NOT confirmed — ${stop.reason}`,
+  ];
 }
 
 /** Stop it, remove its dir, clear its row, and RECORD WHICH ARM did it (#1163). Ports come from the ROW,

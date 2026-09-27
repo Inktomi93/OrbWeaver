@@ -2,7 +2,7 @@
 // when that file crossed the tooling line cap (docs/law/Core-Tooling-Law.md §4.3). One command family:
 // read the band ports' owners (ONE socket-table read for the whole table), read the box's ESTABLISHED
 // connections so a band can be asked whether anything is actually DRIVING it (#1163's interaction signal),
-// decide whether a bound port belongs to a STAGE, age a process, kill a process group, take the THREE
+// decide whether a bound port belongs to a STAGE, age a process, name the group a stop signals, take the THREE
 // health probes of design §3.6, and list the stage dirs on disk. Nothing here boots, tears down or judges —
 // ops/stage.ts orchestrates and lib/stage-plan.ts + lib/stage-bands.ts rule; these are the raw signals all
 // of them read, every one through the platform module.
@@ -19,7 +19,7 @@ import { httpOkSync } from "../../_shared/http-probe.ts";
 import { budget } from "../../_shared/load-budget.ts";
 import type { EstablishedConnection, PortOwner, SocketTableRead } from "../../_shared/platform.ts";
 import { establishedConnections, processAgeSeconds, processGroupId, processInfo } from "../../_shared/platform.ts";
-import { killPidGroup, runNicedSync } from "../../_shared/proc.ts";
+import { runNicedSync } from "../../_shared/proc.ts";
 import type { ServedState } from "../../stack/index.ts";
 import type { StagePorts } from "../contract/stage.ts";
 import { STAGE_ROOT_REL, stageBaseUrl, stageServedProbeSpawn } from "../lib/stage-plan.ts";
@@ -111,21 +111,10 @@ export function pidElapsedSeconds(pid: number): number | null {
 }
 
 /** Where a signal for `pid`'s whole tree goes: its process group, or the pid itself on win32 (whose
- *  `taskkill /T` takes the tree). Null when the pid is gone. */
+ *  `taskkill /T` takes the tree). Null when the pid is gone. A stage leader is the stack cli with node and vite
+ *  children, and signalling the leader alone leaves exactly the orphans #324 is about. */
 export function processGroupTarget(pid: number): number | null {
   return process.platform === "win32" ? pid : processGroupId(pid);
-}
-
-/** Kill a pid's whole PROCESS GROUP — a stage leader is the stack cli with node and vite children, and
- *  killing the leader alone leaves exactly the orphans #324 is about. Returns whether a group was named.
- *  win32 has no group: the pid's tree is terminated instead. */
-export function killProcessGroup(pid: number): boolean {
-  const target = processGroupTarget(pid);
-  if (target === null) {
-    return false;
-  }
-  killPidGroup(target, "SIGTERM");
-  return true;
 }
 
 // ── the three health probes (design §3.6) ─────────────────────────────────────────────────────────────
