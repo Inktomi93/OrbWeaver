@@ -321,6 +321,8 @@ export interface GenerateImageParams extends ChatScopedParams {
   /** The semantic size preset — forwarded to `imagery.generatePicture`; when absent
    *  the leaf uses `defaultSizeFor(mode)`. The I5 mode picker surfaces it. */
   readonly size?: SizePresetName | undefined;
+  /** `false` keeps the pictures out of the room character's gallery; absent or `true` joins them to it. */
+  readonly gallery?: boolean | undefined;
 }
 
 /** `selectVariant` — flips messages.selectedVariantId to a sibling swipe (pointer move, zero copy). */

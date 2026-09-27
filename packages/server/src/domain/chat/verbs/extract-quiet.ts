@@ -23,7 +23,7 @@ import type { ChatId } from "@orb/kit/ids";
 import type { MacroRegistry, ProcessMacroOptions } from "@orb/kit/macro";
 import { processMacros } from "@orb/kit/macro";
 import type { ExtractQuiet, ExtractQuietDeps, ExtractQuietParams, ExtractQuietResult } from "../contract/context.ts";
-import { classifyParticipant } from "../persistence/participant.ts";
+import { firstCharacterIdOf } from "../persistence/participant.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";
 import { loadCanonHistory, loadStoredUserMacroValues } from "../persistence/queries.ts";
 import { buildTurnUserMacros } from "../substrate/assembly-access.ts";
@@ -65,11 +65,7 @@ export function createExtractQuiet(deps: ExtractQuietDeps): ExtractQuiet {
     // {{char}} = the subject (or the roster's first present character), read under the HOST's ownership.
     const participants = await loadParticipants(deps.db, p.chatId);
     const hostUserId = hostUserIdOf(participants);
-    const firstPresentCharacterId = participants.flatMap((r) => {
-      const actor = classifyParticipant(r);
-      return actor?.kind === "character" ? [actor.characterId] : [];
-    })[0];
-    const subjectId = p.subjectCharacterId ?? firstPresentCharacterId ?? null;
+    const subjectId = p.subjectCharacterId ?? firstCharacterIdOf(participants);
     const charName = hostUserId !== null && subjectId !== null ? ((await deps.getCard({ ownerId: hostUserId, characterId: subjectId }))?.name ?? "") : "";
 
     // The bounded recent-history window (ineligible rows dropped), as the scene the extractor reads.
