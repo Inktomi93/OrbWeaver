@@ -17,6 +17,7 @@ export const EFFECTIVE_APP_SETTINGS: EffectiveAppSettings = {
   privateEndpointAllowlist: [],
   localMultiUser: false,
   discreetLogin: false,
+  ipCertificate: null,
   maxImageBytes: 5_000_000,
   maxDatabankBytes: 20_971_520,
   promptTransformDeadlineMs: 250,

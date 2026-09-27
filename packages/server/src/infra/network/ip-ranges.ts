@@ -58,3 +58,34 @@ export const DEFAULT_TRUSTED_RANGES: readonly string[] = [
 export function isPrivateOrLoopback(ip: string): boolean {
   return isInRanges(ip, DEFAULT_TRUSTED_RANGES);
 }
+
+// Every block a public certificate authority can never validate: the trusted-private set above plus the IANA
+// special-purpose registries' non-global entries (documentation, reserved, protocol assignments, NAT64, 6to4).
+// An IPv6 address must also sit in 2000::/3, the global unicast block; a v4-mapped one is judged as its IPv4 value.
+const NON_PUBLIC_RANGES: readonly string[] = [
+  ...DEFAULT_TRUSTED_RANGES,
+  "192.0.0.0/24", // IETF protocol assignments
+  "192.0.2.0/24", // TEST-NET-1
+  "192.88.99.0/24", // 6to4 relay anycast (deprecated)
+  "198.51.100.0/24", // TEST-NET-2
+  "203.0.113.0/24", // TEST-NET-3
+  "240.0.0.0/4", // reserved, including the limited broadcast 255.255.255.255
+  "64:ff9b::/96", // NAT64 well-known prefix
+  "64:ff9b:1::/48", // local-use NAT64
+  "100::/64", // discard-only
+  "2001::/23", // IETF protocol assignments, including Teredo and benchmarking
+  "2001:db8::/32", // documentation
+  "3fff::/20", // documentation
+];
+const GLOBAL_UNICAST_V6 = "2000::/3";
+const V4_BITS = 32;
+
+/** True only for an address a stranger on the internet can route to: a parsed IPv4 outside every non-global block,
+ *  or an IPv6 inside 2000::/3 and outside them. LAN, CGNAT, loopback, link-local and unparseable input are false. */
+export function isPublicUnicast(ip: string): boolean {
+  const parsed = parseIp(ip);
+  if (parsed === null || isInRanges(ip, NON_PUBLIC_RANGES)) {
+    return false;
+  }
+  return parsed.bits === V4_BITS || matchesCidr(ip, GLOBAL_UNICAST_V6);
+}

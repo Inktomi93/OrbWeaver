@@ -16,6 +16,12 @@ export const DEFAULT_DATA_DIR = "./data";
 export const DB_FILE_NAME = "orbweaver.db";
 /** The generated boot secrets' file names under `secrets/`; the container entrypoint writes the same names. */
 export const SECRET_FILE_NAMES = { credentialsKey: "credentials_key", sessionSecret: "session_secret" } as const;
+/** The IP certificate's secret files under `secrets/` (D269): the ACME account key, the certificate chain and its key. */
+export const IP_CERTIFICATE_FILE_NAMES = {
+  accountKey: "acme_account_key.pem",
+  certificate: "ip_certificate.pem",
+  certificateKey: "ip_certificate_key.pem",
+} as const;
 /** The generated boot secrets' legacy names at the root, before the layout moved them under `secrets/`. */
 export const LEGACY_SECRET_FILE_NAMES = { credentialsKey: ".credentials-key", sessionSecret: ".session-secret" } as const;
 /** The env key naming the legacy root entries a layout migration leaves in place, comma-separated. */

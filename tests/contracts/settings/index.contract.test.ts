@@ -145,7 +145,7 @@ test("v7→v8 AppSettings lift drops memoryDefaults.recencyBias and carries EVER
   };
   const parsed = parseAppSettings(storedV7);
 
-  expect(APP_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V8);
+  expect(APP_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V9);
   // The knob is GONE — not merely zeroed, absent from the parsed section.
   expect(Object.keys(parsed.memoryDefaults ?? {})).not.toContain("recencyBias");
   // …and the other TEN memoryDefaults knobs survive byte-identically.
@@ -572,9 +572,28 @@ test("a stored prose override round-trips, and a RETIRED slot id is stripped ins
   expect(parsed.prose).toEqual({ "chat.compaction.system": { text: "Summarize like a ship's log.", baseVersion: 1 } });
 });
 
-test("the pinned schema versions: AppSettings v8 (memoryDefaults.recencyBias REMOVED, #321), UserSettings v8 (the regex section's DELETION, D121-E)", () => {
-  expect(APP_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V8);
+test("the pinned schema versions: AppSettings v9 (the additive ipCertificate, D269), UserSettings v8 (the regex section's DELETION, D121-E)", () => {
+  expect(APP_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V9);
   expect(USER_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V9);
+});
+
+// The AppSettings v8→v9 lift. `ipCertificate` (D269) is purely additive, and absent reads as off, so a stored v8 blob
+// keeps every override and reads back with no certificate choice at all.
+test("AppSettings v8→v9: a stored v8 blob keeps its overrides and reads back with NO ipCertificate", () => {
+  const parsed = parseAppSettings({ schemaVersion: SCHEMA_VERSION_V8, localMultiUser: true, discreetLogin: true, promptCacheMinDepth: 2 });
+  expect(parsed).toEqual({ localMultiUser: true, discreetLogin: true, promptCacheMinDepth: 2 });
+  expect(Object.keys(parsed)).not.toContain("ipCertificate");
+});
+
+test("AppSettings ipCertificate: a whole choice parses; a malformed one drops alone and every sibling stays", () => {
+  const choice = { address: "81.2.69.160", httpsPort: 8443, challengePort: 8080 };
+  expect(parseAppSettings({ ipCertificate: choice, localMultiUser: true }).ipCertificate).toEqual(choice);
+  expect(parseAppSettings({ ipCertificate: null }).ipCertificate).toBeNull();
+  for (const malformed of [{ ...choice, httpsPort: 70_000 }, { ...choice, keyPem: "-----BEGIN PRIVATE KEY-----" }, { address: "81.2.69.160" }]) {
+    const parsed = parseAppSettings({ ipCertificate: malformed, localMultiUser: true });
+    expect(parsed.ipCertificate).toBeUndefined();
+    expect(parsed.localMultiUser).toBe(true);
+  }
 });
 
 // The AppSettings v6→v7 lift. `structuredOutputVehicle` is purely additive AND its floor (`auto`) resolves

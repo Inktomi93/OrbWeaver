@@ -1,4 +1,4 @@
-import { DEFAULT_TRUSTED_RANGES, isInRanges, isPrivateOrLoopback, matchesCidr } from "@orb/server/infra/network";
+import { DEFAULT_TRUSTED_RANGES, isInRanges, isPrivateOrLoopback, isPublicUnicast, matchesCidr } from "@orb/server/infra/network";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
@@ -69,5 +69,67 @@ describe("isPrivateOrLoopback / isInRanges", () => {
     // A Teredo address carries a server + obfuscated client v4; the whole 2001::/32 tunnel block is denied.
     expect(isPrivateOrLoopback("2001:0:0:0:0:0:a00:1")).toBe(true);
     expect(isPrivateOrLoopback("2001:0:53aa:64c:8:c0a8:1:1")).toBe(true); // embeds 192.168.x in the client field
+  });
+});
+
+// The IP certificate (D269) is asked for only at an address a public certificate authority can reach.
+describe("isPublicUnicast", () => {
+  test("a public IPv4 and a global unicast IPv6 are public", () => {
+    for (const ip of ["81.2.69.160", "1.1.1.1", "2a00:1450:4001:80b::200e", "2606:4700:4700::1111"]) {
+      expect({ ip, public: isPublicUnicast(ip) }).toEqual({ ip, public: true });
+    }
+  });
+
+  test("LAN, CGNAT, loopback, link-local and unspecified addresses are not", () => {
+    for (const ip of [
+      "10.0.0.5",
+      "172.16.4.1",
+      "192.168.1.20",
+      "100.64.0.1",
+      "100.127.255.254",
+      "127.0.0.1",
+      "169.254.1.1",
+      "0.0.0.0",
+      "::1",
+      "::",
+      "fe80::1",
+      "fd00::1",
+    ]) {
+      expect({ ip, public: isPublicUnicast(ip) }).toEqual({ ip, public: false });
+    }
+  });
+
+  test("documentation, benchmarking, reserved, multicast and broadcast blocks are not", () => {
+    for (const ip of [
+      "192.0.2.1",
+      "198.51.100.7",
+      "203.0.113.9",
+      "198.18.0.1",
+      "192.0.0.8",
+      "224.0.0.1",
+      "240.0.0.1",
+      "255.255.255.255",
+      "2001:db8::1",
+      "3fff::1",
+      "ff02::1",
+      "64:ff9b::808:808",
+      "2002:808:808::1",
+      "2001::1",
+      "100::1",
+    ]) {
+      expect({ ip, public: isPublicUnicast(ip) }).toEqual({ ip, public: false });
+    }
+  });
+
+  test("an IPv6 address outside 2000::/3 is not global unicast", () => {
+    expect(isPublicUnicast("4000::1")).toBe(false);
+    expect(isPublicUnicast("1000::1")).toBe(false);
+  });
+
+  test("an IPv4-mapped address is judged as its IPv4 value, and a name or garbage is not an address", () => {
+    expect(isPublicUnicast("::ffff:192.168.1.1")).toBe(false);
+    expect(isPublicUnicast("example.com")).toBe(false);
+    expect(isPublicUnicast("081.2.69.160")).toBe(false);
+    expect(isPublicUnicast("")).toBe(false);
   });
 });

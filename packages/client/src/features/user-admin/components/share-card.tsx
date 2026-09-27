@@ -1,5 +1,5 @@
-// The owner's Share card: the share preconditions as rows with their fixes, then Start sharing, the live link
-// and its controls. It polls `share.status`; `/api/auth/config` is memoized per session and would go stale here.
+// The owner's Share card: the share preconditions with their fixes, Start sharing, the live link and its controls, then
+// the IP certificate (D269). It polls `share.status`, since `/api/auth/config` is memoized per session and goes stale.
 // Focus never falls to the page when a control it sits on unmounts; `ShareCardBody` names each successor.
 
 import type { CookieAuthMode, RelayDownReason, ShareRelayKind } from "@orb/contracts/identity";
@@ -18,8 +18,9 @@ import { QueryErrorState, SkeletonRows, useAuthConfig, useInvalidation, useTRPC 
 import { useRevokeUserSessions } from "../hooks/use-admin-mutations.ts";
 import { useStartSharing, useStopSharing } from "../hooks/use-share-mutations.ts";
 import type { SHARE_PHASES, ShareLinkMemory } from "../lib/share-model.ts";
-import { dismissLinkChange, EMPTY_SHARE_LINK_MEMORY, rememberShareLink, sharePollMs, shareStartFailure, shareView } from "../lib/share-model.ts";
+import { dismissLinkChange, EMPTY_SHARE_LINK_MEMORY, rememberShareLink, shareStartFailure, shareStatusPollMs, shareView } from "../lib/share-model.ts";
 import { InviteRoomPicker } from "./share-invite-picker.tsx";
+import { ShareIpCertificate } from "./share-ip-certificate.tsx";
 import { SharePreconditions } from "./share-preconditions.tsx";
 import { ShareProse, ShareWarningText } from "./share-prose.tsx";
 
@@ -123,7 +124,7 @@ function ShareCardBody({ localMultiUser, discreetLogin, onEnableSeating }: Share
   const invalidation = useInvalidation();
   const { data: status } = useSuspenseQuery({
     ...trpc.share.status.queryOptions(),
-    refetchInterval: (query): number | false => (query.state.data === undefined ? false : sharePollMs(query.state.data.relay)),
+    refetchInterval: (query): number | false => (query.state.data === undefined ? false : shareStatusPollMs(query.state.data)),
   });
   const authConfig = useAuthConfig().data;
   const start = useStartSharing({ trpc, invalidation });
@@ -245,6 +246,8 @@ function ShareCardBody({ localMultiUser, discreetLogin, onEnableSeating }: Share
         )}
         <SignEveryoneOut />
       </Row>
+      {/* A second way in, beside the relay: https straight to this box's public address when the router forwards to it. */}
+      <ShareIpCertificate mode={authConfig?.mode} certificate={status.certificate} />
       {/* Mounted in every phase: the stop lands as `off`, which unmounts its trigger while this closes. */}
       <ConfirmDialog
         open={stopOpen}

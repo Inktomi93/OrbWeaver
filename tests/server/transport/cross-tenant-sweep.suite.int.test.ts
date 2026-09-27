@@ -2007,6 +2007,10 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "share.start": "owner-gated: role gate at the verb (no input; starts the process-wide relay, reads and returns no row)",
   "share.stop": "owner-gated: role gate at the verb (no input; ends the process-wide relay, reads and returns no row)",
   "share.status": "owner-gated: role gate at the verb (no input; the relay state and a box-wide socket count, no row)",
+  // The IP certificate (D269) is one process-wide https listener and one deployment setting written as the owner; the
+  // input is an address and two ports, never an id, so there is no foreign row to name.
+  "share.enableIpCertificate": "owner-gated: role gate at the verb (input is an address and two ports; writes the owner-gated deployment setting)",
+  "share.disableIpCertificate": "owner-gated: role gate at the verb (no input; clears the owner-gated deployment setting)",
   // plugin (D46/D147) — RECLASSIFIED 2026-08-24. The five management verbs used to be exempt as "admin-gated:
   // the install-authority role gate precedes the pluginId ownership check". That classification is DEAD:
   // plugins are user-scoped, the `can(caller,"admin",{kind:"global"})` gate is gone from every verb, and the

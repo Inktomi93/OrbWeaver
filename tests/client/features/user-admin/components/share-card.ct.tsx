@@ -1,9 +1,10 @@
 // CT: the owner's Share card, mounted inside the real Multi-user section. It proves the precondition rows and their
 // fixes, the link and its copy button on `up`, the "link changed" notice, where focus lands after each action that
-// unmounts its own control, the refusal announcement, and that nothing above the card moves as the relay changes.
-// Assertions ride roles, focus, geometry and the card's data attributes; no copy is asserted.
+// unmounts its own control, the refusal announcement, that nothing above the card moves as the relay changes, and the
+// IP certificate block in its offer, in-progress, active and failed states (D269). Assertions ride roles, focus,
+// geometry and the card's data attributes; no copy is asserted.
 
-import type { AuthMode, ShareStatus } from "@orb/contracts/identity";
+import type { AuthMode, IpCertificateSetting, IpCertificateStatus, ShareStatus } from "@orb/contracts/identity";
 import { copyActionName } from "@orb/ui/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
@@ -20,28 +21,38 @@ const DELEGATED_ADMIN = { userId: "user_admin", handle: "admin", globalRole: "ad
 const FIRST_URL = "https://first-words-here.trycloudflare.com";
 const SECOND_URL = "https://other-words-now.trycloudflare.com";
 
-const OFF: ShareStatus = { relay: { state: "off" }, liveSocketCount: 0, publicAddresses: [] };
+const CERTIFICATE_OFF: IpCertificateStatus = { state: "off" };
+const OFF: ShareStatus = { relay: { state: "off" }, liveSocketCount: 0, publicAddresses: [], certificate: CERTIFICATE_OFF };
 const STARTING: ShareStatus = {
   relay: { state: "starting", relay: "quick", restartAfter: null },
   liveSocketCount: 0,
   publicAddresses: [],
+  certificate: CERTIFICATE_OFF,
 };
-const UP_FIRST: ShareStatus = { relay: { state: "up", relay: "quick", url: FIRST_URL }, liveSocketCount: 3, publicAddresses: [] };
-const UP_SECOND: ShareStatus = { relay: { state: "up", relay: "quick", url: SECOND_URL }, liveSocketCount: 1, publicAddresses: [] };
+const UP_FIRST: ShareStatus = { relay: { state: "up", relay: "quick", url: FIRST_URL }, liveSocketCount: 3, publicAddresses: [], certificate: CERTIFICATE_OFF };
+const UP_SECOND: ShareStatus = {
+  relay: { state: "up", relay: "quick", url: SECOND_URL },
+  liveSocketCount: 1,
+  publicAddresses: [],
+  certificate: CERTIFICATE_OFF,
+};
 const DOWN_RESTARTING: ShareStatus = {
   relay: { state: "down", relay: "quick", reason: "exited", restarting: true },
   liveSocketCount: 0,
   publicAddresses: [],
+  certificate: CERTIFICATE_OFF,
 };
 const RESTART_STARTING: ShareStatus = {
   relay: { state: "starting", relay: "quick", restartAfter: "exited" },
   liveSocketCount: 0,
   publicAddresses: [],
+  certificate: CERTIFICATE_OFF,
 };
 const GAVE_UP: ShareStatus = {
   relay: { state: "down", relay: "quick", reason: "launch_failed", restarting: false },
   liveSocketCount: 0,
   publicAddresses: [],
+  certificate: CERTIFICATE_OFF,
 };
 
 const SEATING_ON: Partial<EffectiveAppSettings> = { localMultiUser: true, discreetLogin: true };
@@ -94,6 +105,19 @@ async function stubShare(page: Page, stub: ShareStub): Promise<ShareServer> {
     "share.status": () => current,
     "share.stop": () => {
       current = OFF;
+      return current;
+    },
+    // The IP certificate: a home-network address is the server's coded refusal, anything else starts an order.
+    "share.enableIpCertificate": (input: unknown) => {
+      const setting = input as IpCertificateSetting;
+      if (setting.address.startsWith("192.168.")) {
+        return trpcError({ code: "BAD_REQUEST", reason: "ip_certificate_not_public", message: `${setting.address} is not a public internet address.` });
+      }
+      current = { ...current, certificate: { state: "obtaining", setting } };
+      return current;
+    },
+    "share.disableIpCertificate": () => {
+      current = { ...current, certificate: CERTIFICATE_OFF };
       return current;
     },
     "share.start": () => {
@@ -541,7 +565,7 @@ test.describe("at the narrowest content width", () => {
   test("the running card stays inside its own width, and its link wraps only after a dot, slash or hyphen", async ({ mount, page }) => {
     await stubShare(page, {
       mode: "local",
-      initial: { relay: { state: "up", relay: "quick", url: LongUrl }, liveSocketCount: 1, publicAddresses: [] },
+      initial: { relay: { state: "up", relay: "quick", url: LongUrl }, liveSocketCount: 1, publicAddresses: [], certificate: CERTIFICATE_OFF },
     });
     await mount(<GovernanceSectionsStory width={360} />);
 
@@ -583,4 +607,114 @@ test.describe("at the narrowest content width", () => {
       })
       .toEqual({ wraps: true, midWord: [] });
   });
+});
+
+const SETTING: IpCertificateSetting = { address: "81.2.69.160", httpsPort: 8443, challengePort: 8080 };
+const HOUR_MS = 3_600_000;
+const ISSUED_AT = 1_750_000_000_000;
+const ACTIVE: IpCertificateStatus = {
+  state: "active",
+  setting: SETTING,
+  url: "https://81.2.69.160",
+  notAfter: ISSUED_AT + 160 * HOUR_MS,
+  renewAt: ISSUED_AT + 80 * HOUR_MS,
+  renewalFailure: null,
+};
+const FAILED: IpCertificateStatus = {
+  state: "failed",
+  setting: SETTING,
+  failure: { code: "validation_failed", message: "Fetching http://81.2.69.160/.well-known/acme-challenge/tok: Timeout during connect" },
+};
+
+function certificateBlock(card: Locator): Locator {
+  return card.locator("[data-ip-certificate-state]");
+}
+
+test("IP certificate offer: a home-network address is refused in an alert; a public one is sent with the two ports", async ({ mount, page }) => {
+  const { trpc } = await stubShare(page, { mode: "local", initial: OFF });
+  await mount(<GovernanceSectionsStory />);
+
+  const block = certificateBlock(shareCard(page));
+  await expect(block).toHaveAttribute("data-ip-certificate-state", "off");
+  await expect(block.locator('[data-ip-certificate-offer="new"]')).toBeVisible();
+  const get = block.getByRole("button", { name: "Get a certificate" });
+  // With no address the form holds the press and names the field; nothing is sent.
+  await get.click();
+  await expect(block.getByRole("textbox", { name: "Public IP address" })).toHaveAttribute("aria-invalid", "true");
+  await expect.poll(() => trpc.count("share.enableIpCertificate")).toBe(0);
+  const address = block.getByRole("textbox", { name: "Public IP address" });
+  await address.fill("192.168.1.20");
+  await get.click();
+  await expect(block.getByRole("alert")).toBeVisible();
+  await expect(block).toHaveAttribute("data-ip-certificate-state", "off");
+
+  await address.fill("81.2.69.160");
+  await get.click();
+  await expect.poll(() => trpc.lastInput("share.enableIpCertificate")).toStrictEqual(SETTING);
+  await expect(block).toHaveAttribute("data-ip-certificate-state", "obtaining");
+});
+
+test("IP certificate in progress: the order shows with only Turn off, which clears it", async ({ mount, page }) => {
+  const { trpc } = await stubShare(page, { mode: "local", initial: { ...OFF, certificate: { state: "obtaining", setting: SETTING } } });
+  await mount(<GovernanceSectionsStory />);
+
+  const block = certificateBlock(shareCard(page));
+  await expect(block).toHaveAttribute("data-ip-certificate-state", "obtaining");
+  await expect(block.locator("[data-ip-certificate-offer]")).toHaveCount(0);
+  await expect(block.getByRole("textbox")).toHaveCount(0);
+  await block.getByRole("button", { name: "Turn off https" }).click();
+  await expect.poll(() => trpc.count("share.disableIpCertificate")).toBe(1);
+  await expect(block).toHaveAttribute("data-ip-certificate-state", "off");
+});
+
+test("IP certificate active: the https address with its copy button and Turn off, and no renewal warning", async ({ mount, page }) => {
+  await stubShare(page, { mode: "local", initial: { ...OFF, certificate: ACTIVE } });
+  await mount(<GovernanceSectionsStory />);
+
+  const block = certificateBlock(shareCard(page));
+  await expect(block).toHaveAttribute("data-ip-certificate-state", "active");
+  await expect(block.locator('[data-ip-certificate-url="https://81.2.69.160"]')).toBeVisible();
+  await expect(block.getByRole("button", { name: copyActionName("the https address https://81.2.69.160"), exact: true })).toBeVisible();
+  await expect(block.locator('[data-ip-certificate-warning="renewal-failed"]')).toHaveCount(0);
+  await expect(block.getByRole("button", { name: "Turn off https" })).toBeVisible();
+});
+
+test("IP certificate active after a failed renewal: still serving, with the failure warned beside the address", async ({ mount, page }) => {
+  await stubShare(page, {
+    mode: "local",
+    initial: { ...OFF, certificate: { ...ACTIVE, renewalFailure: { code: "validation_failed", message: "Timeout during connect" } } },
+  });
+  await mount(<GovernanceSectionsStory />);
+
+  const block = certificateBlock(shareCard(page));
+  await expect(block).toHaveAttribute("data-ip-certificate-state", "active");
+  await expect(block.locator('[data-ip-certificate-url="https://81.2.69.160"]')).toBeVisible();
+  await expect(block.locator('[data-ip-certificate-warning="renewal-failed"]')).toBeVisible();
+});
+
+test("IP certificate failed: the plain-http warning, and Try again resends the setting it tried", async ({ mount, page }) => {
+  const { trpc } = await stubShare(page, { mode: "local", initial: { ...OFF, certificate: FAILED } });
+  await mount(<GovernanceSectionsStory />);
+
+  const block = certificateBlock(shareCard(page));
+  await expect(block).toHaveAttribute("data-ip-certificate-state", "failed");
+  await expect(block.locator('[data-ip-certificate-warning="plain-http"]')).toBeVisible();
+  await expect(block.locator('[data-ip-certificate-warning="plain-http"]').getByRole("alert")).toBeVisible();
+  await expect(block.getByRole("textbox", { name: "Public IP address" })).toHaveValue(SETTING.address);
+  await block.getByRole("button", { name: "Try again" }).click();
+  await expect.poll(() => trpc.lastInput("share.enableIpCertificate")).toStrictEqual(SETTING);
+  await expect(block).toHaveAttribute("data-ip-certificate-state", "obtaining");
+});
+
+test("IP certificate under single-user: the offer is held with its reason, and nothing is sent", async ({ mount, page }) => {
+  const { trpc } = await stubShare(page, { mode: "single-user", resolved: SEATING_OFF, initial: OFF });
+  await mount(<GovernanceSectionsStory />);
+
+  const block = certificateBlock(shareCard(page));
+  await block.getByRole("textbox", { name: "Public IP address" }).fill(SETTING.address);
+  const get = block.getByRole("button", { name: "Get a certificate" });
+  await expect(get).toHaveAttribute("aria-disabled", "true");
+  await expect(get).toHaveAttribute("aria-describedby", /.+/u);
+  await get.click({ force: true });
+  await expect.poll(() => trpc.count("share.enableIpCertificate")).toBe(0);
 });
