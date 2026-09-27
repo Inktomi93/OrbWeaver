@@ -33,6 +33,7 @@ import {
   diagnosticsPostureWarnings,
   env,
   launchedBySupervisor,
+  loopbackCompanion,
   loopbackOrigin,
   ownerFallbackCredentialInput,
   ownerFallbackPeerInput,
@@ -197,6 +198,21 @@ function scheduleInterval(fn: () => void, ms: number): () => void {
   };
 }
 
+/** Serve the app on one address and await the bind: a bind failure (EADDRINUSE) is a server "error" event, not a throw,
+ *  and boot must fail loudly on a dead listener. An omitted `hostname` binds every interface. */
+function listenApp(options: Parameters<typeof serve>[0]): Promise<{ readonly handle: ServerType; readonly address: Readonly<AddressInfo> }> {
+  return new Promise((resolve, reject) => {
+    const onBindError = (err: Error): void => {
+      reject(err);
+    };
+    const handle = serve(options, (info: AddressInfo) => {
+      handle.removeListener("error", onBindError);
+      resolve({ handle, address: { address: info.address, family: info.family, port: info.port } });
+    });
+    handle.once("error", onBindError);
+  });
+}
+
 /** One `setTimeout` as a cancel-function, unref'd so a pending relay restart never holds the process open. */
 function scheduleOnce(run: () => void, ms: number): () => void {
   const handle = setTimeout(run, ms);
@@ -204,14 +220,6 @@ function scheduleOnce(run: () => void, ms: number): () => void {
   return () => {
     clearTimeout(handle);
   };
-}
-
-/** The URL the share relay forwards to: this listener, reached over loopback when it listens on every interface. */
-function relayOrigin(address: Readonly<AddressInfo> | null, port: number): string {
-  if (address === null || address.address === "0.0.0.0" || address.address === "::") {
-    return `http://127.0.0.1:${port}`;
-  }
-  return address.family === "IPv6" ? `http://[${address.address}]:${port}` : `http://${address.address}:${port}`;
 }
 
 /** The log line for the boot start of a stored IP certificate choice; the controller logs what the order does next. */
@@ -412,6 +420,8 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
   let credentialsKeyOk = false;
   let db: Db | null = null;
   let server: ServerType | null = null;
+  // The loopback listener a bind to one named interface adds (`loopbackCompanion`); null on every other bind.
+  let loopbackServer: ServerType | null = null;
   let listenerAddress: Readonly<AddressInfo> | null = null;
   let stopScheduler: (() => void) | null = null;
   let stopScheduleScheduler: (() => void) | null = null;
@@ -650,24 +660,19 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
         spawn: relaySeams.spawn,
       }),
       hosts: relayHosts.writer,
-      origin: () => relayOrigin(listenerAddress, listenPort()),
+      // Over loopback, never the bound interface address, so the app believes the relay's forwarded headers (D255).
+      origin: () => loopbackOrigin(bind.host, listenPort()),
       now,
       schedule: scheduleOnce,
     });
     stopRelay = relay.stop;
     // The IP certificate (D269): its https listener forwards to the app listener over loopback, never the bound interface
     // address, so the app sees a trusted loopback peer (D255); its HTTP-01 responder opens on the app's interface only
-    // while a challenge is pending. A bind to one named interface has no loopback origin, and the enable refuses it.
+    // while a challenge is pending.
     const certificate = createCertificateController({
       issuer: createAcmeIssuer({ directoryUrl: LETS_ENCRYPT_DIRECTORY, openResponder: openChallengeResponder, polling: ACME_POLLING }),
       store: createCertificateStore(env.DATA_LAYOUT.secrets),
-      startHttps: (https) => {
-        const origin = loopbackOrigin(bind.host, listenPort());
-        if (origin === null) {
-          return Promise.reject(new Error(`the app listener on ${String(bind.host)} takes no loopback connection to forward https to`));
-        }
-        return startTlsTerminator({ ...https, host: bind.host, upstream: () => origin });
-      },
+      startHttps: (https) => startTlsTerminator({ ...https, host: bind.host, upstream: () => loopbackOrigin(bind.host, listenPort()) }),
       bindHost: bind.host,
       now,
       schedule: scheduleOnce,
@@ -693,7 +698,6 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
         localSetupUrl: () => `http://localhost:${listenPort()}`,
         appPort: listenPort,
         publicBind: bind.publicBind,
-        loopbackUpstream: loopbackOrigin(bind.host, 0) !== null,
       },
     });
 
@@ -943,31 +947,26 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       }
     }
 
-    // Await the bind, don't assume it: serve() binds asynchronously, and a bind failure (EADDRINUSE)
-    // surfaces as a server "error" event, not a throw. Boot must fail loudly on a dead listener.
-    await new Promise<void>((resolve, reject) => {
-      const onBindError = (err: Error): void => {
-        reject(err);
-      };
-      // overrideGlobalObjects would swap global Response for hono's class, so a native fetch() result fails
-      // `instanceof Response`; transformers.js then never caches a downloaded model file and every local-light load fails.
-      const handle = serve(
-        {
-          fetch: app.fetch,
-          port: options.listenPort ?? env.PORT,
-          overrideGlobalObjects: false,
-          ...(bind.host === undefined ? {} : { hostname: bind.host }),
-        },
-        (info: AddressInfo) => {
-          handle.removeListener("error", onBindError);
-          listenerAddress = { address: info.address, family: info.family, port: info.port };
-          log.info({ port: info.port, address: info.address }, "boot: listening — healthz live");
-          resolve();
-        },
-      );
-      server = handle;
-      handle.once("error", onBindError);
+    // overrideGlobalObjects would swap global Response for hono's class, so a native fetch() result fails
+    // `instanceof Response`; transformers.js then never caches a downloaded model file and every local-light load fails.
+    const primary = await listenApp({
+      fetch: app.fetch,
+      port: options.listenPort ?? env.PORT,
+      overrideGlobalObjects: false,
+      ...(bind.host === undefined ? {} : { hostname: bind.host }),
     });
+    server = primary.handle;
+    listenerAddress = primary.address;
+    log.info({ port: primary.address.port, address: primary.address.address }, "boot: listening — healthz live");
+    // SECURITY: a bind to one named interface also listens on loopback at the same port, so the relay and the https
+    // listener reach the app as a loopback peer (D269). It binds the loopback address only, never a wildcard: it admits
+    // only this machine, as every wildcard bind already does, and each loopback gate still refuses a relay tell.
+    const companion = loopbackCompanion(bind.host);
+    if (companion !== null) {
+      const loopback = await listenApp({ fetch: app.fetch, port: primary.address.port, overrideGlobalObjects: false, hostname: companion });
+      loopbackServer = loopback.handle;
+      log.info({ port: loopback.address.port, address: loopback.address.address }, "boot: also listening on loopback for the relay and https");
+    }
 
     // After the bind: the relay forwards to the listener, so it starts only once there is one to reach.
     if (env.SHARE_RELAY !== undefined) {
@@ -1022,8 +1021,10 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     }
 
     if (server !== null) {
-      await drainHttpServer(server, log);
+      const loopback = loopbackServer;
+      await Promise.all([drainHttpServer(server, log), ...(loopback === null ? [] : [drainHttpServer(loopback, log)])]);
       server = null;
+      loopbackServer = null;
       listenerAddress = null;
       // STAGE BREADCRUMB (#1936). Everything between `draining` and `complete` used to be silent, so when
       // `stack down prod` escalated to SIGKILL the log said only that the process had not finished — never

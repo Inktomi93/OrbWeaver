@@ -37,6 +37,13 @@
 // override on purpose: it is launch-only, warned every boot (`fallback-peers.ts`), and it is what a container
 // needs, because a published port never delivers a loopback peer. Every other mode keeps the arms above.
 //
+// ── THE LOOPBACK LISTENER (D269) ──────────────────────────────────────────────────────────────────────────
+// The share relay and the IP certificate's https listener run on this machine and hand visitors to the app over
+// loopback, the one peer whose forwarded headers the app believes without a declared proxy (D255). A `BIND_HOST` of one
+// named interface takes no loopback connection, so the app also listens on the loopback address of that family, at the
+// same port (`loopbackCompanion`). It opens on loopback only, never a wildcard, so it reaches no peer that a wildcard
+// bind would not; every loopback-gated grant still refuses a request that carries a relay tell.
+//
 // ── WHAT THIS FILE DOES NOT DO ────────────────────────────────────────────────────────────────────────────
 // It is not an authorization control and does not replace the C13 deploy invariant (the server port must not
 // be directly reachable by untrusted networks — `IP_ALLOWLIST` + the reverse proxy remain the perimeter, and
@@ -116,24 +123,46 @@ function isLoopbackHost(host: string): boolean {
   return LOOPBACK_ALIASES.has(normalized) || LOOPBACK_V4_RE.test(normalized);
 }
 
-// Binds that take every interface, loopback included; node's `::` listener is dual-stack, so it takes IPv4 too.
-const WILDCARD_HOSTS: ReadonlySet<string> = new Set(["0.0.0.0", "::", "[::]"]);
-const IPV6_LOOPBACK_SPELLINGS: ReadonlySet<string> = new Set(["::1", "[::1]"]);
+// An unset host makes node listen on `::` with IPV6_V6ONLY cleared by libuv (dual-stack whatever net.ipv6.bindv6only
+// says), or on 0.0.0.0 on a host with no IPv6; IPv4 loopback reaches both. An explicit `::` is reached over IPv6
+// loopback, which a v6 listener takes on every host, so the hop never leans on the dual-stack setting.
+const IPV4_WILDCARD = "0.0.0.0";
+const IPV6_WILDCARD_SPELLINGS: ReadonlySet<string> = new Set(["::", "[::]"]);
+const IPV6_LOOPBACK = "::1";
+const IPV6_LOOPBACK_SPELLINGS: ReadonlySet<string> = new Set([IPV6_LOOPBACK, "[::1]"]);
+// node resolves a `localhost` bind to one loopback address, often ::1; a hop that dials the same name reaches it.
+const LOCALHOST = "localhost";
 
-/** Where a same-host hop reaches a listener bound to `host` over loopback, so the listener sees a loopback peer; null
- *  for a bind to one named interface that is not loopback, which no loopback connect reaches. */
-export function loopbackOrigin(host: string | undefined, port: number): string | null {
+// A wildcard or a loopback host already takes loopback connections; so does an unset host, checked by the caller.
+function takesLoopback(normalized: string): boolean {
+  return normalized === IPV4_WILDCARD || IPV6_WILDCARD_SPELLINGS.has(normalized) || isLoopbackHost(normalized);
+}
+
+/** The loopback address the app also listens on when `host` names one interface that is not loopback: `::1` for an IPv6
+ *  literal, `127.0.0.1` for an IPv4 literal or a host name. Null when the bind already takes loopback. */
+export function loopbackCompanion(host: string | undefined): string | null {
   const normalized = host?.trim().toLowerCase();
-  if (normalized === undefined || WILDCARD_HOSTS.has(normalized)) {
-    return `http://127.0.0.1:${String(port)}`;
-  }
-  if (!isLoopbackHost(normalized)) {
+  if (normalized === undefined || takesLoopback(normalized)) {
     return null;
   }
-  if (IPV6_LOOPBACK_SPELLINGS.has(normalized)) {
-    return `http://[::1]:${String(port)}`;
+  return normalized.includes(":") ? IPV6_LOOPBACK : LOOPBACK_HOST;
+}
+
+/** Where a same-host hop (the relay, the IP certificate's https listener) reaches the app listener bound to `host` over
+ *  loopback, so the app sees a loopback peer: the bind's own loopback address, else its {@link loopbackCompanion}. */
+export function loopbackOrigin(host: string | undefined, port: number): string {
+  const normalized = host?.trim().toLowerCase();
+  const at = (address: string): string => `http://${address.includes(":") ? `[${address}]` : address}:${String(port)}`;
+  if (normalized === undefined || normalized === IPV4_WILDCARD) {
+    return at(LOOPBACK_HOST);
   }
-  return LOOPBACK_V4_RE.test(normalized) ? `http://${normalized}:${String(port)}` : `http://127.0.0.1:${String(port)}`;
+  if (IPV6_WILDCARD_SPELLINGS.has(normalized) || IPV6_LOOPBACK_SPELLINGS.has(normalized)) {
+    return at(IPV6_LOOPBACK);
+  }
+  if (normalized === LOCALHOST || LOOPBACK_V4_RE.test(normalized)) {
+    return at(normalized);
+  }
+  return at(loopbackCompanion(normalized) ?? LOOPBACK_HOST);
 }
 
 function refusalFor(nodeEnv: string, bindHost: string): string {

@@ -1,6 +1,5 @@
 // The Share card's IP certificate block (D269): the offer, the order in progress, the https address while it serves, or
-// the failure that left plain http alone. Only local mode can take it; single-user and forward-header see the offer
-// held with its reason, and an oidc box, which friends reach at its registered address, gets no block.
+// the failure that left plain http alone. Only local mode can take a certificate, so every other mode gets no block.
 
 import type { AuthMode, IpCertificateSetting, IpCertificateStatus } from "@orb/contracts/identity";
 import { Badge } from "@orb/ui/badge";
@@ -9,7 +8,6 @@ import { CopyButton } from "@orb/ui/copy-button";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { useId } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import { useIpCertificateForm } from "../hooks/use-ip-certificate-form.ts";
@@ -40,9 +38,9 @@ export interface ShareIpCertificateProps {
   readonly certificate: IpCertificateStatus;
 }
 
-/** The block, keyed on the certificate's state; nothing under oidc. */
+/** The block, keyed on the certificate's state; nothing outside local mode, or before the mode is known. */
 export function ShareIpCertificate({ mode, certificate }: ShareIpCertificateProps): ReactElement | null {
-  if (mode === "oidc") {
+  if (mode !== "local") {
     return null;
   }
   const badge = STATE_BADGE[certificate.state];
@@ -53,14 +51,14 @@ export function ShareIpCertificate({ mode, certificate }: ShareIpCertificateProp
         <Text voice="label">HTTPS at your public address</Text>
         <Badge intent={badge.intent}>{badge.label}</Badge>
       </Row>
-      <CertificateBody mode={mode} certificate={certificate} />
+      <CertificateBody certificate={certificate} />
     </Stack>
   );
 }
 
-function CertificateBody({ mode, certificate }: ShareIpCertificateProps): ReactElement {
+function CertificateBody({ certificate }: { readonly certificate: IpCertificateStatus }): ReactElement {
   if (certificate.state === "off") {
-    return <Offer mode={mode} initial={null} />;
+    return <Offer initial={null} />;
   }
   if (certificate.state === "obtaining") {
     return (
@@ -83,7 +81,7 @@ function CertificateBody({ mode, certificate }: ShareIpCertificateProps): ReactE
           {`This server answers over plain http only, so a password typed at ${httpAddress(failed.setting.address)} crosses the internet in clear. Check the port forwarding below and try again, or share through the relay instead.`}
         </ShareWarningText>
       </Stack>
-      <Offer mode={mode} initial={failed.setting} />
+      <Offer initial={failed.setting} />
       <TurnOff />
     </Stack>
   );
@@ -125,11 +123,10 @@ function TurnOff(): ReactElement {
 
 // The offer: the address and the two ports, the router's forwarding in one sentence, and the one button. A failed
 // order reopens it seeded with the setting it tried, so Try again sends the same choice or a corrected one.
-function Offer({ mode, initial }: { readonly mode: AuthMode | undefined; readonly initial: IpCertificateSetting | null }): ReactElement {
+function Offer({ initial }: { readonly initial: IpCertificateSetting | null }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const enable = useEnableIpCertificate({ trpc, invalidation });
-  const heldId = useId();
   // The mutation owns the answer: a coded refusal lands in `enable.error` below, anything else toasts.
   const save = (values: IpCertificateFormValues): Promise<IpCertificateFormValues> => {
     if (values.httpsPort !== null && values.challengePort !== null) {
@@ -139,7 +136,6 @@ function Offer({ mode, initial }: { readonly mode: AuthMode | undefined; readonl
   };
   const { form } = useIpCertificateForm({ entityId: `ip-certificate:${initial?.address ?? "new"}`, serverValues: initial ?? undefined, save });
   const refusal = ipCertificateRefusal(enable.error);
-  const held = mode !== "local";
   return (
     <Stack gap="field" data-ip-certificate-offer={initial === null ? "new" : "retry"}>
       {initial === null ? (
@@ -171,25 +167,19 @@ function Offer({ mode, initial }: { readonly mode: AuthMode | undefined; readonl
         one accepts Let's Encrypt's Subscriber Agreement.
       </ShareProse>
       {refusal === null ? null : <ShareProse role="alert">{`https was refused. ${refusal.message}`}</ShareProse>}
-      <Stack gap="tight">
-        <Row gap="field" align="center">
-          <Button
-            type="button"
-            intent={initial === null ? "secondary" : "primary"}
-            size="sm"
-            disabled={held}
-            focusableWhenDisabled={true}
-            aria-describedby={held ? heldId : undefined}
-            loading={enable.isPending}
-            onClick={(): void => {
-              form.handleSubmit().catch(() => notify.error("Couldn't turn on https."));
-            }}
-          >
-            {initial === null ? "Get a certificate" : "Try again"}
-          </Button>
-        </Row>
-        {held ? <ShareProse id={heldId}>https at the public address needs the local sign-in mode; see Sign-in mode above.</ShareProse> : null}
-      </Stack>
+      <Row gap="field" align="center">
+        <Button
+          type="button"
+          intent={initial === null ? "secondary" : "primary"}
+          size="sm"
+          loading={enable.isPending}
+          onClick={(): void => {
+            form.handleSubmit().catch(() => notify.error("Couldn't turn on https."));
+          }}
+        >
+          {initial === null ? "Get a certificate" : "Try again"}
+        </Button>
+      </Row>
     </Stack>
   );
 }
