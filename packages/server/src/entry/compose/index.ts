@@ -1,7 +1,15 @@
 // Front door for the composition root; app/boot/lifecycle import compose factories from here, never an
 // internal file. `services.ts` is the keystone graph; the sibling files are the seams it composes.
 
-export { activePersonaIdFor, buildChatToolOps, createRunChatTurnBridge, createTaskWindowReaders, createTurnPersonaResolver, voicePersonaFor } from "./chat.ts";
+export {
+  activePersonaIdFor,
+  buildChatToolOps,
+  createGeneratePictureOp,
+  createRunChatTurnBridge,
+  createTaskWindowReaders,
+  createTurnPersonaResolver,
+  voicePersonaFor,
+} from "./chat.ts";
 export type { EffectiveConfigWiring } from "./effective-config.ts";
 export { createEffectiveConfigWiring } from "./effective-config.ts";
 export { createChatChangedEmitter } from "./emit-chat-changed.ts";
