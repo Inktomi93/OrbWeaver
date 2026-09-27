@@ -2,11 +2,12 @@
 // (`verbs/read.ts` getChat, `verbs/fork.ts`, `verbs/invites.ts`, `verbs/start-chat.ts`). One shape, no
 // drift: each verb loads its row (`loadChatRow`/`listMemberChats` — both yield the parsed-metadata chat
 // row) + resolves its roster, then hands the pieces here. The viewer-relative fields (`viewerIsHost`,
-// `viewerActivePersonaId`) derive from the roster ⋈ `viewerUserId`.
+// `viewerActivePersonaId`) derive from the roster ⋈ `viewerUserId`; `viewerGalleryCharacterId` needs an
+// ownership read, so the verb resolves it (`substrate/viewer-gallery.ts`) and passes it in.
 
 import type { ChatIdentity, ChatMetadata, ParticipantView } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
-import type { ChatId, PersonaId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { ChatDetail } from "../contract/views.ts";
 import { NO_HISTORY_FLOOR } from "./auth/index.ts";
 import { viewerHoldsHost } from "./member-visibility.ts";
@@ -38,6 +39,8 @@ interface ToChatDetailInput {
   /** The viewer's D16 join-history floor (`substrate/auth::resolveHistoryFloorSeq`). REQUIRED, not defaulted,
    *  so a new `ChatDetail` producer must state the viewer's clamp rather than inherit an open one. */
   readonly viewerHistoryFloorSeq: number;
+  /** `resolveViewerGalleryCharacterId` over the same roster. REQUIRED for the same reason as the floor. */
+  readonly viewerGalleryCharacterId: CharacterId | null;
 }
 
 /** Map a loaded chat row + its resolved roster + chat-identity producer → `ChatDetail`.
@@ -46,7 +49,7 @@ interface ToChatDetailInput {
  *  model-written prose covering canon from seq 1 through `compactedAtSeq`, so ANY clamped viewer
  *  (`viewerHistoryFloorSeq > 0`) would be reading a distillation of the transcript their floor withholds.
  *  Both fields drop together — a `compactedAtSeq` with no summary is a divider anchored to nothing. */
-export function toChatDetail({ chat, participants, identities, viewerUserId, viewerHistoryFloorSeq }: ToChatDetailInput): ChatDetail {
+export function toChatDetail({ chat, participants, identities, viewerUserId, viewerHistoryFloorSeq, viewerGalleryCharacterId }: ToChatDetailInput): ChatDetail {
   const viewer = participants.find((p) => p.userId === viewerUserId);
   const checkpointVisible = viewerHistoryFloorSeq <= NO_HISTORY_FLOOR;
   return {
@@ -67,6 +70,7 @@ export function toChatDetail({ chat, participants, identities, viewerUserId, vie
     // `can()` here; the server gates every host-only surface separately.
     viewerIsHost: viewerHoldsHost(viewer),
     viewerUserId,
+    viewerGalleryCharacterId,
     pendingHostUserId: chat.pendingHostUserId,
     group: chat.metadata.group ?? DEFAULT_GROUP_CONFIG,
     roomOverrides: chat.metadata.roomOverrides ?? DEFAULT_ROOM_OVERRIDES,

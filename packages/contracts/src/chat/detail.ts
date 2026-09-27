@@ -4,7 +4,7 @@
 // tRPC output parser of `invites.redeemInvite` and `invites.acceptInvite`, so a producer that adds a key to
 // the detail, a roster row or an identity entry fails the join response instead of reaching the new member.
 
-import type { ChatId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import type { ChatRpgPointer } from "#rpg";
@@ -48,6 +48,11 @@ export interface ChatDetail {
    *  content" signal for a client-side own-messages filter (e.g. reattribute's `authorUserId` match).
    *  NOT an identity/whoami surface (no handle/avatar/email) — those stay deferred to auth #50. */
   readonly viewerUserId: UserId;
+  /** The character whose gallery a picture the CALLER generates here joins: the room's first present
+   *  character seat, when the caller owns it; `null` otherwise (a guest, or a room with no character).
+   *  Server-resolved with the same pick and the same owner-scoped read `chat.generateImage` uses, so the
+   *  imagine dialog never promises a gallery add the server will not make. */
+  readonly viewerGalleryCharacterId: CharacterId | null;
   /** The pending host-handoff NOMINEE (`chats.pendingHostUserId`, Part III §2) — null when no handoff is
    *  in flight. Drives the Members-panel pending-nomination chip (FINAL-Chats §8.3); room-public (members
    *  already see every participant's userId), refreshed by the `chatUpdated` the nominate/accept verbs emit. */
@@ -129,6 +134,7 @@ export const chatDetailSchema = z.strictObject({
   viewerActivePersonaId: typeIdSchema(ID_PREFIX.persona).nullable(),
   viewerIsHost: z.boolean(),
   viewerUserId: brandedId<UserId>(),
+  viewerGalleryCharacterId: typeIdSchema(ID_PREFIX.character).nullable(),
   pendingHostUserId: brandedId<UserId>().nullable(),
   group: groupConfigSchema,
   roomOverrides: roomOverridesSchema,

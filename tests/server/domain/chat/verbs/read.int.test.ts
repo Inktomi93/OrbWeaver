@@ -24,6 +24,7 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createTurnPersonaResolver, voicePersonaFor } from "@orb/server/entry/compose";
 import { and, eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
+import { cardOf, loadOwnedCharacterRow } from "../../../../../packages/server/src/domain/character/persistence/queries.ts";
 import { createActiveTurns } from "../../../../../packages/server/src/domain/chat/active-turns.ts";
 import { createChatBus } from "../../../../../packages/server/src/domain/chat/bus.ts";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context.ts";
@@ -97,6 +98,15 @@ function makeDeps(overrides?: Partial<Parameters<typeof createRead>[1]>): Parame
     // LAST so a caller can actually override any dep — the spread used to sit ABOVE `resolveForeignInputs`,
     // which silently ignored a foreign-inputs override (a test could not vary the preset).
     ...overrides,
+  };
+}
+
+/** The owner-scoped read production composes `getCard` from (character's `getCard` verb body): a card only
+ *  when `ownerId` owns the row, so a foreign character reads as missing. */
+function ownerScopedGetCard(): ChatContext["getCard"] {
+  return async ({ ownerId, characterId }) => {
+    const row = await loadOwnedCharacterRow(db, ownerId, characterId);
+    return row === undefined ? null : cardOf(row);
   };
 }
 
@@ -984,6 +994,58 @@ describe("read — single reads", () => {
     expect(detail.viewerUserId).toBe(member);
     expect(detail.viewerIsHost).toBe(false);
     expect(detail.viewerActivePersonaId).toBeNull();
+  });
+
+  // The room's gallery subject for THIS viewer: the first present character seat in join order, and only
+  // when the viewer owns it. A generated picture joins exactly that gallery, so the imagine dialog offers
+  // the add only on this signal.
+  test("getChat's viewerGalleryCharacterId names the first character seat the viewer owns", async () => {
+    const host = await seedUser(db, castId<Handle>("gal_host"));
+    const chatId = await seedChat(db, "gal_room");
+    const first = await seedCharacter(db, host, "gal_first");
+    const second = await seedCharacter(db, host, "gal_second");
+    await seedParticipant(db, { chatId, key: "gal_h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "gal_c2", characterId: second, joinSeq: 2 });
+    await seedParticipant(db, { chatId, key: "gal_c1", characterId: first, joinSeq: 1 });
+
+    const { getChat } = createRead(makeChatContext(db, { getCard: ownerScopedGetCard() }), makeDeps());
+    const detail = await getChat({ principal: principal(host), chatId });
+    expect(detail.viewerGalleryCharacterId).toBe(first);
+  });
+
+  test("getChat's viewerGalleryCharacterId skips a departed character seat", async () => {
+    const host = await seedUser(db, castId<Handle>("gal_host_left"));
+    const chatId = await seedChat(db, "gal_room_left");
+    const gone = await seedCharacter(db, host, "gal_gone");
+    const stays = await seedCharacter(db, host, "gal_stays");
+    await seedParticipant(db, { chatId, key: "gal_left_h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "gal_left_c1", characterId: gone, joinSeq: 1, leftSeq: 3 });
+    await seedParticipant(db, { chatId, key: "gal_left_c2", characterId: stays, joinSeq: 2 });
+
+    const { getChat } = createRead(makeChatContext(db, { getCard: ownerScopedGetCard() }), makeDeps());
+    const detail = await getChat({ principal: principal(host), chatId });
+    expect(detail.viewerGalleryCharacterId).toBe(stays);
+  });
+
+  test("getChat's viewerGalleryCharacterId is null for a guest who does not own the room's character", async () => {
+    const host = await seedUser(db, castId<Handle>("gal_host2"));
+    const guest = await seedUser(db, castId<Handle>("gal_guest"));
+    const chatId = await seedRoom("gal_room2", host);
+    await seedParticipant(db, { chatId, key: "gal_room2_g", userId: guest, role: "member" });
+
+    const { getChat } = createRead(makeChatContext(db, { getCard: ownerScopedGetCard() }), makeDeps());
+    expect((await getChat({ principal: principal(guest), chatId })).viewerGalleryCharacterId).toBeNull();
+    // The positive control in the same room: the host owns that character.
+    expect((await getChat({ principal: principal(host), chatId })).viewerGalleryCharacterId).toBe(castId<CharacterId>("character_gal_room2_char"));
+  });
+
+  test("getChat's viewerGalleryCharacterId is null in a room with no character seat", async () => {
+    const host = await seedUser(db, castId<Handle>("gal_host3"));
+    const chatId = await seedChat(db, "gal_room3");
+    await seedParticipant(db, { chatId, key: "gal_room3_h", userId: host, role: "host" });
+
+    const { getChat } = createRead(makeChatContext(db, { getCard: ownerScopedGetCard() }), makeDeps());
+    expect((await getChat({ principal: principal(host), chatId })).viewerGalleryCharacterId).toBeNull();
   });
 
   // #54 — the honest-refusal pre-send gate. The verb resolves the room host, calls the injected

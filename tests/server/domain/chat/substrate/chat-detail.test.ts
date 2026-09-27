@@ -49,6 +49,7 @@ function detailFor(viewerUserId: UserId, participants: readonly ParticipantView[
     identities: [],
     viewerUserId,
     viewerHistoryFloorSeq: 0,
+    viewerGalleryCharacterId: null,
   });
 }
 

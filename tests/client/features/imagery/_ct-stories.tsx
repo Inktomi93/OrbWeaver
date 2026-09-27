@@ -6,9 +6,11 @@
 // the whole app-shell. Ids + the blob url ride in as PROPS (minted node-side in the test, serialized to the
 // page) so recorded tRPC inputs assert against the exact values used. Components only (the _ct-stories rule).
 
+import { useTRPC } from "@orb/client/data";
 import { ImageDetailBody, ImageEditBody, ImagineBody } from "@orb/client/features/imagery";
 import { openImageDetail, openImageEdit, openImagine, useOpenModal } from "@orb/client/state";
 import type { AssetId, ChatId } from "@orb/kit/ids";
+import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect } from "react";
 import { CtAppDataProviders, CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
@@ -30,6 +32,14 @@ function ImageryHost(): ReactElement | null {
   return null;
 }
 
+/** Renders a marker once the room's `getChat` read has landed in the cache the imagine body reads, so a CT
+ *  asserts a roster-dependent ABSENCE only after the roster is there. */
+function RosterLandedProbe({ chatId }: { readonly chatId: ChatId }): ReactElement | null {
+  const trpc = useTRPC();
+  const { data } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  return data === undefined ? null : <span data-testid="ct-roster-landed" />;
+}
+
 /** The imagine modal seeded in FREE mode with an explicit prompt — the fast path. */
 export function ImagineFreeStory({ chatId }: { readonly chatId: ChatId }): ReactElement {
   useEffect(() => {
@@ -38,6 +48,7 @@ export function ImagineFreeStory({ chatId }: { readonly chatId: ChatId }): React
   return (
     <CtDataProviders>
       <ImageryHost />
+      <RosterLandedProbe chatId={chatId} />
     </CtDataProviders>
   );
 }

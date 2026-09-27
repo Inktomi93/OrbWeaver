@@ -166,6 +166,7 @@ import { hostUserIdOf } from "../substrate/participants-host.ts";
 import { humanSeatPersonasOf, onlinePersonaIdsOf, presentAndEnabledHumanUserIdsOf, seatsMultipleHumans } from "../substrate/participants-humans.ts";
 import { regexAllowOf, resolveRegexTiers } from "../substrate/regex-tier.ts";
 import { collectTeaching, resolveTeachingKnobs } from "../substrate/teaching.ts";
+import { resolveViewerGalleryCharacterId } from "../substrate/viewer-gallery.ts";
 import { buildWireHistory, convertsToEmptyWireRow, fitWireHistory } from "../substrate/wire-history.ts";
 
 /** The per-chat DECEPTION-active verdict for the member reasoning-strip (§3.6): `true` ⇒ a non-host viewer loses
@@ -772,6 +773,7 @@ function createGetChat(ctx: ChatContext, deps: ReadDeps): ChatService["getChat"]
       participants,
       identities,
       viewerUserId: principal.userId,
+      viewerGalleryCharacterId: await resolveViewerGalleryCharacterId(ctx.getCard, participants, principal.userId),
       viewerHistoryFloorSeq: membership.historyFloorSeq,
     });
   };

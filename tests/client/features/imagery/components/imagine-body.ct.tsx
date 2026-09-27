@@ -148,7 +148,9 @@ test("#623: the mode strip is ONE named group, not five loose buttons", async ({
 });
 
 // ── The gallery opt-out. A picture generated in chat joins the room character's gallery unless the
-// request says `gallery: false`; the modal names that character and sends the checkbox as the flag.
+// request says `gallery: false`; the modal names that character and sends the checkbox as the flag. The
+// server adds the picture only for the character's owner, so the checkbox renders only when `getChat` names
+// a gallery character for this viewer; a guest sees no promise the server will not keep.
 
 // The room a roster read without an input answers for, and the parse that brands a requested id.
 const UNNAMED_ROOM = mintTypeId(ID_PREFIX.chat);
@@ -160,7 +162,10 @@ function room(input: TrpcInput<"chat.getChat">): TrpcFixtureOutput<"chat.getChat
   return roomWithCharacter(requested === undefined ? UNNAMED_ROOM : CHAT_ID.parse(requested));
 }
 
-function roomWithCharacter(chatId: ChatId): TrpcFixtureOutput<"chat.getChat"> {
+/** The viewer's seat in the room: the host owns Aria, a guest owns nothing here. */
+type Viewer = "host" | "guest";
+
+function roomWithCharacter(chatId: ChatId, viewer: Viewer = "host"): TrpcFixtureOutput<"chat.getChat"> {
   return {
     id: chatId,
     title: null,
@@ -189,7 +194,8 @@ function roomWithCharacter(chatId: ChatId): TrpcFixtureOutput<"chat.getChat"> {
     identities: [],
     group: DEFAULT_GROUP_CONFIG,
     temporary: false,
-    viewerIsHost: true,
+    viewerIsHost: viewer === "host",
+    viewerGalleryCharacterId: viewer === "host" ? "character_ct_aria" : null,
     background: null,
     rpg: null,
   };
@@ -225,5 +231,21 @@ for (const viewport of [
     await cmp.getByRole("button", { name: "Generate" }).click();
     await expect.poll(() => rec.count("chat.generateImage")).toBe(1);
     await expect.poll(() => rec.lastInput("chat.generateImage")).toMatchObject({ mode: "free", gallery: false });
+  });
+
+  test(`${viewport.name}: a guest who owns no character here is offered no gallery add`, async ({ mount, page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    const chatId = mintTypeId(ID_PREFIX.chat);
+    const rec = await routeTrpc(page, { "chat.getChat": roomWithCharacter(chatId, "guest"), "chat.generateImage": { id: "message_ct_generated" } });
+    const cmp = await mount(<ImagineFreeStory chatId={chatId} />);
+
+    // The roster has rendered and still no checkbox: an absence, not a pending read.
+    await expect(cmp.getByTestId("ct-roster-landed")).toBeAttached();
+    const generate = cmp.getByRole("button", { name: "Generate" });
+    await expect(generate).toBeEnabled();
+    await expect(cmp.getByRole("checkbox")).toHaveCount(0);
+    await expect(cmp.getByText("Aria's gallery")).toHaveCount(0);
+    await generate.click();
+    await expect.poll(() => rec.count("chat.generateImage")).toBe(1);
   });
 }

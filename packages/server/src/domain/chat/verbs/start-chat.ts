@@ -52,6 +52,7 @@ import { loadChatRow } from "../persistence/queries.ts";
 import { NO_HISTORY_FLOOR } from "../substrate/auth/index.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
 import { buildGreetingSeed } from "../substrate/greeting-seed.ts";
+import { resolveViewerGalleryCharacterId } from "../substrate/viewer-gallery.ts";
 
 /** The collaborators not on `ChatContext`. `emit` is the chat bus; `loadParticipantViews` resolves the
  *  returned `ChatDetail` roster. */
@@ -256,6 +257,7 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
         participants,
         identities,
         viewerUserId: hostUserId,
+        viewerGalleryCharacterId: await resolveViewerGalleryCharacterId(ctx.getCard, participants, hostUserId),
         // Born-here host: `joinSeq` 0, so the checkpoint clamp is inert by construction (there is no
         // pre-membership canon in a room this call just created).
         viewerHistoryFloorSeq: NO_HISTORY_FLOOR,
