@@ -3,7 +3,7 @@
 // pinned in index.test.ts.
 
 import type { AuthMode } from "@orb/contracts/identity";
-import { bindPostureWarnings, loopbackOrigin, resolveBindPosture, settingInstruction } from "@orb/server/foundation/env";
+import { bindPostureWarnings, loopbackCompanion, loopbackOrigin, resolveBindPosture, settingInstruction } from "@orb/server/foundation/env";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
@@ -165,8 +165,28 @@ describe("resolveBindPosture — single-user serves this machine only, in every 
   });
 });
 
-// The IP certificate's https listener forwards over loopback (D269): the app must see a loopback peer to believe the
-// hop's X-Forwarded-Proto and X-Forwarded-For (D255). A listener on one named interface has no loopback to reach.
+// The relay and the IP certificate's https listener forward over loopback (D269): the app must see a loopback peer to
+// believe the hop's X-Forwarded-Proto and X-Forwarded-For (D255). A bind to one named interface gains a loopback listener.
+describe("loopbackCompanion — the loopback listener a bind to one named interface adds", () => {
+  test("a named IPv4 interface or host name gains 127.0.0.1, a named IPv6 interface gains ::1", () => {
+    for (const [host, companion] of [
+      ["81.2.69.160", "127.0.0.1"],
+      ["192.168.1.5", "127.0.0.1"],
+      ["nas.local", "127.0.0.1"],
+      ["2a00:1450:4001:80b::200e", "::1"],
+      ["[fd00::5]", "::1"],
+    ] as const) {
+      expect({ host, companion: loopbackCompanion(host) }).toEqual({ host, companion });
+    }
+  });
+
+  test("a bind that already takes loopback gains nothing, so no listener ever opens beyond loopback", () => {
+    for (const host of [undefined, "0.0.0.0", "::", "[::]", "127.0.0.1", "127.0.0.2", "::1", "[::1]", "localhost", "::ffff:127.0.0.1"]) {
+      expect({ host, companion: loopbackCompanion(host) }).toEqual({ host, companion: null });
+    }
+  });
+});
+
 describe("loopbackOrigin — where a same-host hop reaches the app listener", () => {
   test("an unset bind and 0.0.0.0 are reached over IPv4 loopback", () => {
     // Unset, node listens on `::` with IPV6_V6ONLY cleared (dual-stack whatever net.ipv6.bindv6only says) or, with no
@@ -184,12 +204,22 @@ describe("loopbackOrigin — where a same-host hop reaches the app listener", ()
 
   test("a loopback bind is reached at its own loopback address", () => {
     expect(loopbackOrigin("127.0.0.1", 8788)).toBe("http://127.0.0.1:8788");
+    expect(loopbackOrigin("127.0.0.2", 8788)).toBe("http://127.0.0.2:8788");
     expect(loopbackOrigin("::1", 8788)).toBe("http://[::1]:8788");
   });
 
-  test("a bind to one named interface, public or LAN, has no loopback origin", () => {
-    for (const host of ["81.2.69.160", "192.168.1.5", "2a00:1450:4001:80b::200e", "nas.local"]) {
-      expect({ host, origin: loopbackOrigin(host, 8788) }).toEqual({ host, origin: null });
+  test("a localhost bind is reached by the same name, whichever loopback address it resolved to", () => {
+    expect(loopbackOrigin("localhost", 8788)).toBe("http://localhost:8788");
+  });
+
+  test("a bind to one named interface, public or LAN, is reached at the loopback listener it gains", () => {
+    for (const [host, origin] of [
+      ["81.2.69.160", "http://127.0.0.1:8788"],
+      ["192.168.1.5", "http://127.0.0.1:8788"],
+      ["nas.local", "http://127.0.0.1:8788"],
+      ["2a00:1450:4001:80b::200e", "http://[::1]:8788"],
+    ] as const) {
+      expect({ host, origin: loopbackOrigin(host, 8788) }).toEqual({ host, origin });
     }
   });
 });

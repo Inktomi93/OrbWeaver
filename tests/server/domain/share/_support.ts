@@ -47,7 +47,6 @@ export function shareHarness(options: {
   readonly publicAddresses?: readonly string[];
   readonly certificateSetting?: IpCertificateSetting;
   readonly publicBind?: boolean;
-  readonly loopbackUpstream?: boolean;
 }): ShareHarness {
   const calls: string[] = [];
   const audits: AuditEntry[] = [];
@@ -98,7 +97,6 @@ export function shareHarness(options: {
       return Promise.resolve();
     },
     publicBind: options.publicBind ?? true,
-    loopbackUpstream: options.loopbackUpstream ?? true,
     appPort: () => APP_PORT,
     enableSeating: (): Promise<() => Promise<void>> => {
       calls.push("enableSeating");

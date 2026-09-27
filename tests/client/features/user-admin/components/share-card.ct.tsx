@@ -734,15 +734,24 @@ test("IP certificate failed: the plain-http warning, and Try again resends the s
   await expect(block).toHaveAttribute("data-ip-certificate-state", "obtaining");
 });
 
-test("IP certificate under single-user: the offer is held with its reason, and nothing is sent", async ({ mount, page }) => {
-  const { trpc } = await stubShare(page, { mode: "single-user", resolved: SEATING_OFF, initial: OFF });
-  await mount(<GovernanceSectionsStory />);
+// Only local mode can take a certificate, so every other mode shows no block at all. Each case first waits on a sign
+// of its own mode, so an absent block is never just a card that has not read its mode yet.
+const NOT_LOCAL: readonly { readonly mode: Exclude<AuthMode, "local">; readonly ready: string }[] = [
+  { mode: "single-user", ready: '[data-precondition="mode"][data-verdict="unmet"]' },
+  { mode: "forward-header", ready: '[data-precondition="mode"][data-verdict="unmet"]' },
+  { mode: "oidc", ready: '[data-share-public="oidc"]' },
+];
 
-  const block = certificateBlock(shareCard(page));
-  await block.getByRole("textbox", { name: "Public IP address" }).fill(SETTING.address);
-  const get = block.getByRole("button", { name: "Get a certificate" });
-  await expect(get).toHaveAttribute("aria-disabled", "true");
-  await expect(get).toHaveAttribute("aria-describedby", /.+/u);
-  await get.click({ force: true });
-  await expect.poll(() => trpc.count("share.enableIpCertificate")).toBe(0);
-});
+for (const { mode, ready } of NOT_LOCAL) {
+  test(`IP certificate under ${mode}: the card shows no certificate block`, async ({ mount, page }) => {
+    const { trpc } = await stubShare(page, { mode, resolved: SEATING_OFF, initial: OFF });
+    await mount(<GovernanceSectionsStory />);
+
+    const card = shareCard(page);
+    await expect(card.locator(ready)).toBeVisible();
+    await expect.poll(() => trpc.count("share.status")).toBeGreaterThan(0);
+    await expect(certificateBlock(card)).toHaveCount(0);
+    await expect(card.getByText("HTTPS at your public address")).toHaveCount(0);
+    await expect(card.getByRole("button", { name: "Get a certificate" })).toHaveCount(0);
+  });
+}

@@ -85,9 +85,8 @@ export type RelayDownReason = (typeof RELAY_DOWN_REASONS)[number];
 /** The coded refusals of `share.start` (the wire's `data.reason`), each naming a fix the Share card shows. A relayed
  *  request is never the owner, so single-user answers 401 to every visitor; a same-host relay delivers each visitor
  *  from a loopback peer, so a loopback-trusted forward-header proxy would take a visitor's forged identity header; an
- *  identity provider returns people only to its registered redirect addresses, which a relay's random name never is;
- *  and a listener bound to one named interface takes no loopback connection for the relay to arrive on. */
-export const SHARE_REFUSALS = ["share_single_user", "share_forward_header", "share_oidc", "share_bind_address", "share_owner_unclaimed"] as const;
+ *  identity provider returns people only to its registered redirect addresses, which a relay's random name never is. */
+export const SHARE_REFUSALS = ["share_single_user", "share_forward_header", "share_oidc", "share_owner_unclaimed"] as const;
 export type ShareRefusal = (typeof SHARE_REFUSALS)[number];
 
 /** The one home for which sign-in modes can share over a relay: null where a relayed visitor can sign in, else the
@@ -151,14 +150,12 @@ export type IpCertificateFailureCode = (typeof IP_CERTIFICATE_FAILURES)[number];
 
 /** The coded refusals of `share.enableIpCertificate`: a sign-in mode a visitor over https cannot use safely, an
  *  unclaimed owner, an address a public certificate authority can never reach, a listener bound to this machine only,
- *  a listener bound to one named interface the https hop cannot reach over loopback, and ports that collide. Nothing is
- *  asked of a certificate authority until every one holds. */
+ *  and ports that collide. Nothing is asked of a certificate authority until every one holds. */
 export const IP_CERTIFICATE_REFUSALS = [
   "ip_certificate_mode",
   "ip_certificate_owner_unclaimed",
   "ip_certificate_not_public",
   "ip_certificate_loopback_bind",
-  "ip_certificate_bind_address",
   "ip_certificate_ports",
 ] as const;
 export type IpCertificateRefusal = (typeof IP_CERTIFICATE_REFUSALS)[number];

@@ -103,9 +103,6 @@ export interface ShareFacts {
   readonly localSetupUrl: () => string;
   /** The addresses a stranger already reaches this server at (`publicAddresses` in `foundation/env`). */
   readonly publicAddresses: readonly string[];
-  /** True when the app listener takes loopback (`loopbackOrigin` is not null), where the relay and the IP certificate's
-   *  https listener hand visitors over: only a loopback peer's forwarded headers are believed without a declared proxy (D255). */
-  readonly loopbackUpstream: boolean;
 }
 
 /** Puts the seating settings back as {@link ShareServiceDeps.enableSeating} found them. */
