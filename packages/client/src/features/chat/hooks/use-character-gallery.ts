@@ -1,18 +1,45 @@
-// The per-character gallery curation mutations — used by the gallery modal reached
-// from the chat ⋯ menu's "[Character]'s Gallery" entry. Each carries its own `invalidates` refetching
-// `assets.listGallery` — gallery curation is NOT on the SSE chat bus (assets are per-user state, not chat
-// canon), so it reconciles itself (the preset-mutations precedent). The list READS are inlined at the two
-// component call sites (`useQuery(trpc.assets.list*.queryOptions(...))`) — a wrapper hook would need to
-// spell the tRPC error type for `useExplicitReturnType`, which the inline read sidesteps. tRPC input/output
-// types are inferred, never re-declared (`no-client-wire-redeclare`).
+// The per-character gallery read and curation mutations behind the gallery dialog. The grid is a keyset-paged
+// `createCollectionSurface` over `assets.listGallery`; every scope and sort is a query INPUT, so a change resets
+// the pages rather than filtering a stale set. Gallery curation is not on the chat bus (assets are per-user
+// state), so each mutation's `invalidates` refetches the gallery itself. tRPC shapes are inferred, never re-declared.
 
+import type { GalleryCursor, GallerySort } from "@orb/contracts/assets";
+import { ASSET_LIST_LIMIT_MAX } from "@orb/contracts/assets";
+import type { CharacterId, ChatId } from "@orb/kit/ids";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
-import { createEntityMutation } from "#data";
+import { createCollectionSurface, createEntityMutation } from "#data";
 
-/** The keyset page size for both gallery reads (§1.3 wire clamp is 1..100). A single page of 100 covers a
- *  character's gallery for v1; the grid virtualizes, and paging past 100 is a follow-up. */
-export const GALLERY_PAGE_LIMIT = 100;
+/** Rows per keyset page — the wire's own ceiling, for both gallery reads (`listGallery` and the add-picker's
+ *  `listOwned`). The grid virtualizes, so a full page costs the DOM nothing. */
+export const GALLERY_PAGE_LIMIT = ASSET_LIST_LIMIT_MAX;
+
+type GalleryPage = inferOutput<Trpc["assets"]["listGallery"]>;
+type GalleryItem = GalleryPage[number];
+
+/** The cursor that continues after `page`, or `undefined` at the end. The read serves no envelope: a short
+ *  page is the last one. */
+function nextGalleryCursor(page: GalleryPage): GalleryCursor | undefined {
+  const last = page.at(-1);
+  return page.length < GALLERY_PAGE_LIMIT || last === undefined ? undefined : { createdAt: last.createdAt, galleryItemId: last.galleryItemId };
+}
+
+/** One character's gallery, paged. `chatId: null` is the whole gallery; a chat narrows it to the pictures
+ *  generated in that room (server-side, inside the caller's own gallery). */
+export const useGalleryCollection = createCollectionSurface({
+  query: (trpc: Trpc, params: { readonly characterId: CharacterId; readonly chatId: ChatId | null; readonly sort: GallerySort }) =>
+    trpc.assets.listGallery.infiniteQueryOptions(
+      {
+        subjectCharacterId: params.characterId,
+        ...(params.chatId === null ? {} : { chatId: params.chatId }),
+        limit: GALLERY_PAGE_LIMIT,
+        sort: params.sort,
+      },
+      { getNextPageParam: nextGalleryCursor },
+    ),
+  itemsOf: (page: GalleryPage) => page,
+  idOf: (item: GalleryItem) => item.galleryItemId,
+});
 
 /** Curate an owned asset into a character's gallery (idempotent server-side). Refetches the gallery. */
 export const useAddToGallery = createEntityMutation<inferInput<Trpc["assets"]["addToGallery"]>, inferOutput<Trpc["assets"]["addToGallery"]>>({

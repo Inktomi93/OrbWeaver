@@ -3,12 +3,13 @@
 // read is owner-scoped in the WHERE, never a post-filter; `metadataForOwnerAndHash` is the sole exception,
 // trusted only because the verb already resolved the owner via `loadCoParticipantOwner`.
 
-import type { AssetBlobRef, AssetKind, AssetListItem, GalleryItemView, StoredAsset } from "@orb/contracts/assets";
+import type { AssetBlobRef, AssetKind, AssetListItem, GalleryCursor, GalleryItemView, GallerySort, StoredAsset } from "@orb/contracts/assets";
 import type { Db } from "@orb/db";
 import { assets, galleryItems, imageryGenerations } from "@orb/db";
 import type { AssetId, CharacterId, ChatId, GalleryItemId, UserId } from "@orb/kit/ids";
 import { sniffImageBytes } from "@orb/kit/image-sniff";
-import { and, asc, desc, eq, exists, inArray, isNull, like, lt, or } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
+import { and, asc, desc, eq, exists, gt, inArray, isNull, like, lt, or } from "drizzle-orm";
 import type { Cas } from "#infra/storage";
 import { assertMagicMatches } from "../substrate/mime.ts";
 
@@ -298,9 +299,27 @@ interface ListGalleryInput {
   readonly subjectCharacterId: CharacterId | undefined;
   readonly chatId: ChatId | undefined;
   readonly limit: number;
-  readonly cursor: number | undefined;
-  readonly cursorId: GalleryItemId | undefined;
+  readonly sort: GallerySort;
+  readonly cursor: GalleryCursor | undefined;
 }
+
+/** One date order over the `(createdAt, id)` keyset: the page order, and the rows strictly past a cursor in
+ *  that order. `id` breaks a `createdAt` tie, so a page boundary inside a tie neither skips nor repeats. */
+interface GalleryOrder {
+  readonly orderBy: readonly [SQL, SQL];
+  readonly after: (cursor: GalleryCursor) => SQL | undefined;
+}
+
+const GALLERY_ORDERS: Record<GallerySort, GalleryOrder> = {
+  newest: {
+    orderBy: [desc(galleryItems.createdAt), desc(galleryItems.id)],
+    after: (c) => or(lt(galleryItems.createdAt, c.createdAt), and(eq(galleryItems.createdAt, c.createdAt), lt(galleryItems.id, c.galleryItemId))),
+  },
+  oldest: {
+    orderBy: [asc(galleryItems.createdAt), asc(galleryItems.id)],
+    after: (c) => or(gt(galleryItems.createdAt, c.createdAt), and(eq(galleryItems.createdAt, c.createdAt), gt(galleryItems.id, c.galleryItemId))),
+  },
+};
 
 interface GalleryExportRow {
   readonly assetId: AssetId;
@@ -355,14 +374,12 @@ export async function importGalleryItem(db: Db, input: ImportGalleryItemInput): 
   return { created: true };
 }
 
-/** Gallery v2: the caller's gallery via the asset join, newest-first, keyset-paged by `(createdAt, id)`.
- *  The room filter is an EXISTS over imagery provenance, never a join: one asset can carry several provenance
- *  rows for the same chat, and a join would list its gallery item once per row. */
+/** Gallery v2: the caller's gallery via the asset join, in `input.sort`'s date order, keyset-paged by
+ *  `(createdAt, id)`. The room filter is an EXISTS over imagery provenance, never a join: one asset can carry
+ *  several provenance rows for the same chat, and a join would list its gallery item once per row. */
 export async function listGalleryViewRows(db: Db, input: ListGalleryInput): Promise<GalleryItemView[]> {
-  const keyset =
-    input.cursor !== undefined && input.cursorId !== undefined
-      ? or(lt(galleryItems.createdAt, input.cursor), and(eq(galleryItems.createdAt, input.cursor), lt(galleryItems.id, input.cursorId)))
-      : undefined;
+  const order = GALLERY_ORDERS[input.sort];
+  const keyset = input.cursor === undefined ? undefined : order.after(input.cursor);
   const bornInRoom =
     input.chatId === undefined
       ? undefined
@@ -392,7 +409,7 @@ export async function listGalleryViewRows(db: Db, input: ListGalleryInput): Prom
         keyset,
       ),
     )
-    .orderBy(desc(galleryItems.createdAt), desc(galleryItems.id))
+    .orderBy(...order.orderBy)
     .limit(input.limit);
   return rows;
 }

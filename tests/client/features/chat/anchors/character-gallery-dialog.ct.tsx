@@ -301,6 +301,11 @@ function galleryFor(input: TrpcInput<"assets.listGallery">): TrpcWireOutput<"ass
   return input?.chatId === STORY_CHAT_ID ? [ROOM_ITEM] : [ITEM, ROOM_ITEM];
 }
 
+/** A recorded gallery read without the paging `direction` tRPC's infinite query adds to every page request. */
+function readInput(input: unknown): unknown {
+  return typeof input === "object" && input !== null ? Object.fromEntries(Object.entries(input).filter(([key]) => key !== "direction")) : input;
+}
+
 test("the scope strip starts on Everywhere and 'This chat' re-reads the gallery for this chat only", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, { "assets.listGallery": galleryFor });
   await mount(<CharacterGalleryDialogStory />);
@@ -308,11 +313,13 @@ test("the scope strip starts on Everywhere and 'This chat' re-reads the gallery 
   const strip = page.getByRole("radiogroup", { name: "Show images from" });
   await expect(strip.getByRole("radio", { name: "Everywhere" })).toHaveAttribute("aria-checked", "true");
   await expect(page.getByRole("gridcell", { name: "Gallery image" })).toHaveCount(2);
-  await expect.poll(() => trpc.lastInput("assets.listGallery")).toEqual({ subjectCharacterId: "character_ct_gallery", limit: 100 });
+  await expect.poll(() => readInput(trpc.lastInput("assets.listGallery"))).toEqual({ subjectCharacterId: "character_ct_gallery", limit: 100, sort: "newest" });
 
   await strip.getByRole("radio", { name: "This chat" }).click();
   await expect(strip.getByRole("radio", { name: "This chat" })).toHaveAttribute("aria-checked", "true");
-  await expect.poll(() => trpc.lastInput("assets.listGallery")).toEqual({ subjectCharacterId: "character_ct_gallery", chatId: STORY_CHAT_ID, limit: 100 });
+  await expect
+    .poll(() => readInput(trpc.lastInput("assets.listGallery")))
+    .toEqual({ subjectCharacterId: "character_ct_gallery", chatId: STORY_CHAT_ID, limit: 100, sort: "newest" });
   await expect(page.getByRole("gridcell", { name: "Gallery image" })).toHaveCount(1);
 });
 
@@ -400,5 +407,90 @@ for (const viewport of [
         }),
       )
       .toBe(true);
+  });
+}
+
+// ── PAGING AND DATE ORDER (item 0236 gap 4). The grid reads one keyset page of 100; "Load more" asks for the
+// next page from the last row's `(createdAt, galleryItemId)`, and leaves once a short page ends the list. The
+// order strip re-reads the gallery in the other date order from the first page.
+
+const PAGE_SIZE = 100;
+const SECOND_PAGE = 20;
+
+/** Gallery row `index` of a newest-first gallery: every row one millisecond older than the one before it. */
+function pagedItem(index: number): TrpcWireOutput<"assets.listGallery">[number] {
+  return {
+    ...ITEM,
+    galleryItemId: `galleryitem_ct_page_${String(index).padStart(3, "0")}`,
+    assetId: `asset_ct_page_${String(index)}`,
+    hash: index.toString(16).padStart(4, "0").repeat(16),
+    createdAt: 10_000 - index,
+  };
+}
+
+const NEWEST_FIRST = Array.from({ length: PAGE_SIZE + SECOND_PAGE }, (_, index) => pagedItem(index));
+
+/** Serves `NEWEST_FIRST` (or its reverse for `oldest`) a page at a time, continuing after the cursor's row. */
+function pagedGallery(input: TrpcInput<"assets.listGallery">): TrpcWireOutput<"assets.listGallery"> {
+  const ordered = input?.sort === "oldest" ? [...NEWEST_FIRST].reverse() : NEWEST_FIRST;
+  const cursor = input?.cursor;
+  const start = cursor === undefined ? 0 : ordered.findIndex((item) => item.galleryItemId === cursor.galleryItemId) + 1;
+  return ordered.slice(start, start + PAGE_SIZE);
+}
+
+/** How many gallery rows the grid lays out: its ARIA row count at its ARIA column count. */
+async function gridCapacity(page: Page): Promise<{ readonly rows: number; readonly columns: number }> {
+  const grid = page.getByRole("grid", { name: "Aria's gallery" });
+  return { rows: Number(await grid.getAttribute("aria-rowcount")), columns: Number(await grid.getAttribute("aria-colcount")) };
+}
+
+for (const viewport of [
+  { name: "mobile", width: 360, height: 780 },
+  { name: "desktop", width: 1440, height: 900 },
+] as const) {
+  test(`${viewport.name}: Load more reads the next page after the last row, and leaves at the end of the gallery`, async ({ mount, page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    const trpc = await routeTrpc(page, { "assets.listGallery": pagedGallery });
+    await mount(<CharacterGalleryDialogStory />);
+
+    const loadMore = page.getByRole("button", { name: "Load more" });
+    await expect(loadMore).toBeVisible();
+    await expect(loadMore).toBeInViewport();
+    await expect.poll(async () => (await gridCapacity(page)).rows * (await gridCapacity(page)).columns).toBeGreaterThanOrEqual(PAGE_SIZE);
+    await loadMore.click();
+
+    const lastOfFirstPage = NEWEST_FIRST[PAGE_SIZE - 1];
+    await expect
+      .poll(() => readInput(trpc.lastInput("assets.listGallery")))
+      .toEqual({
+        subjectCharacterId: "character_ct_gallery",
+        limit: PAGE_SIZE,
+        sort: "newest",
+        cursor: { createdAt: lastOfFirstPage?.createdAt, galleryItemId: lastOfFirstPage?.galleryItemId },
+      });
+    // Both pages are in the grid, and the short second page ended the list.
+    await expect.poll(async () => (await gridCapacity(page)).rows).toBe(Math.ceil((PAGE_SIZE + SECOND_PAGE) / (await gridCapacity(page)).columns));
+    await expect(loadMore).toHaveCount(0);
+  });
+
+  test(`${viewport.name}: the order strip re-reads the gallery oldest first from the first page`, async ({ mount, page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    const trpc = await routeTrpc(page, { "assets.listGallery": pagedGallery });
+    await mount(<CharacterGalleryDialogStory />);
+
+    const order = page.getByRole("radiogroup", { name: "Order" });
+    await expect(order).toBeInViewport({ ratio: 1 });
+    await expect(order.getByRole("radio", { name: "Newest first" })).toHaveAttribute("aria-checked", "true");
+    const firstCell = page.getByRole("gridcell", { name: "Gallery image" }).first().locator("img");
+    const newest = NEWEST_FIRST[0];
+    const oldest = NEWEST_FIRST.at(-1);
+    await expect(firstCell).toHaveAttribute("src", new RegExp(newest?.hash ?? "missing", "u"));
+
+    await order.getByRole("radio", { name: "Oldest first" }).click();
+    await expect(order.getByRole("radio", { name: "Oldest first" })).toHaveAttribute("aria-checked", "true");
+    await expect
+      .poll(() => readInput(trpc.lastInput("assets.listGallery")))
+      .toEqual({ subjectCharacterId: "character_ct_gallery", limit: PAGE_SIZE, sort: "oldest" });
+    await expect(firstCell).toHaveAttribute("src", new RegExp(oldest?.hash ?? "missing", "u"));
   });
 }

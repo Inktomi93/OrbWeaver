@@ -133,14 +133,29 @@ export const galleryAddParamsSchema = z.object({
 });
 export type GalleryAddParams = z.infer<typeof galleryAddParamsSchema>;
 
+/** The gallery's date orders over `createdAt`. No name order exists: a gallery item stores no name. */
+export const GALLERY_SORTS = ["newest", "oldest"] as const;
+export type GallerySort = (typeof GALLERY_SORTS)[number];
+/** The order a `listGallery` read that names none returns. */
+export const DEFAULT_GALLERY_SORT: GallerySort = "newest";
+
+/** The keyset position after one gallery row: the previous page's last `(createdAt, galleryItemId)`. One
+ *  object, because a tRPC infinite query carries exactly one `cursor`. */
+export const galleryCursorSchema = z.object({
+  createdAt: z.number().int(),
+  galleryItemId: galleryItemIdSchema,
+});
+export type GalleryCursor = z.infer<typeof galleryCursorSchema>;
+
 /** `listGallery` wire params. `subjectCharacterId` omitted = the whole gallery. `chatId` narrows to the
- *  pictures generated in that room; it filters inside the owner scope and never widens it. */
+ *  pictures generated in that room; it filters inside the owner scope and never widens it. `sort` omitted =
+ *  {@link DEFAULT_GALLERY_SORT}; a `cursor` continues the same sort it was read under. */
 export const galleryListParamsSchema = z.object({
   subjectCharacterId: characterIdSchema.optional(),
   chatId: (typeIdSchema(ID_PREFIX.chat) satisfies z.ZodType<ChatId>).optional(),
   limit: z.number().int().min(ASSET_LIST_LIMIT_MIN).max(ASSET_LIST_LIMIT_MAX),
-  cursor: z.number().int().optional(),
-  cursorId: galleryItemIdSchema.optional(),
+  sort: z.enum(GALLERY_SORTS).optional(),
+  cursor: galleryCursorSchema.optional(),
 });
 export type GalleryListParams = z.infer<typeof galleryListParamsSchema>;
 
