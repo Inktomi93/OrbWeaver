@@ -4,7 +4,7 @@
 // verbs via use-character-gallery. The grid's scope filter narrows to pictures generated in this chat; the
 // server applies it inside the caller's own gallery, so it can never show another member's pictures. The
 // grid is keyset-paged in a date order: a "Load more" control fetches the next page, because the virtualized
-// grid has no end-of-list callback.
+// grid has no end-of-list callback. Under it, an upload zone takes picked or dropped images straight in.
 
 import type { GallerySort } from "@orb/contracts/assets";
 import { blobUrl, DEFAULT_GALLERY_SORT, GALLERY_SORTS } from "@orb/contracts/assets";
@@ -28,6 +28,7 @@ import { ConfirmDialog } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { GalleryAddPicker } from "../components/gallery-add-picker.tsx";
+import { GalleryUploadZone } from "../components/gallery-upload-zone.tsx";
 import { useGalleryCollection, useRemoveFromGallery } from "../hooks/use-character-gallery.ts";
 import { galleryThumbUrl } from "../lib/gallery-thumb.ts";
 
@@ -130,7 +131,7 @@ function GalleryGridBody(props: GalleryGridBodyProps): ReactElement {
       <EmptyState
         icon={<Icon icon={Images} size="lg" />}
         title="No images yet"
-        description={`Curate images into ${characterName}'s gallery from your uploads.`}
+        description={`Upload images below, or add ones you already have to ${characterName}'s gallery.`}
         action={
           <Button intent="primary" onClick={onAddClick}>
             <Icon icon={ImagePlus} size="sm" />
@@ -263,6 +264,7 @@ export function CharacterGalleryDialog({ open, onOpenChange, characterId, charac
               failed={gallery.error !== null && items.length > 0}
               onLoadMore={gallery.listProps.onEndApproach}
             />
+            <GalleryUploadZone characterId={characterId} characterName={characterName} />
           </Stack>
         </DialogPopup>
       </Dialog>

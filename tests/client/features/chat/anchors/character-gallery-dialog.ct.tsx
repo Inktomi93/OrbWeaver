@@ -7,6 +7,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { dropFiles } from "../../../../support/browser/drop-files.ts";
 import type { TrpcInput, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { CharacterGalleryDialogStory, CharacterGalleryDialogToastStory } from "../_ct-stories.tsx";
@@ -494,3 +495,141 @@ for (const viewport of [
     await expect(firstCell).toHaveAttribute("src", new RegExp(oldest?.hash ?? "missing", "u"));
   });
 }
+
+// ── UPLOAD AND DROP (item 0236 gap 2). The dialog takes picked or dropped images straight into the gallery:
+// the shared asset upload (kind `gallery`), then `assets.addToGallery` for this character. The dropzone
+// refuses a wrong type or an oversize file on its own line and uploads nothing; a server refusal names the
+// file. The image cap is served by `/api/auth/config`, stubbed small here so an oversize file stays tiny.
+
+const UPLOAD_ROUTE = "**/api/assets/upload";
+const IMAGE_CAP_BYTES = 64;
+const UPLOADED = { assetId: "asset_01h455vb4pex5vsknk084sn02q", hash: "9f2c4b1e".repeat(8), size: 8, created: true };
+const UPLOADED_ITEM = { ...ITEM, galleryItemId: "galleryitem_ct_uploaded", assetId: UPLOADED.assetId, hash: UPLOADED.hash };
+const SMALL_PNG = { name: "sunset.png", mimeType: "image/png", content: "PNGBYTES" };
+const LARGE_PNG = { name: "poster.png", mimeType: "image/png", content: "P".repeat(IMAGE_CAP_BYTES + 1) };
+const NOT_AN_IMAGE = { name: "notes.txt", mimeType: "text/plain", content: "hello" };
+
+/** Serve the upload caps with a small image cap; the other caps are irrelevant to this dialog. */
+async function capImageUploads(page: Page): Promise<void> {
+  await page.route("**/api/auth/config", (route) =>
+    route.fulfill({ json: { uploads: { assetUpload: 1_000_000, image: IMAGE_CAP_BYTES, databankUpload: 1_000_000, importTotal: 1_000_000 } } }),
+  );
+}
+
+/** Record every upload POST's multipart body and answer it with `status` (a StoredAsset on 200). */
+async function recordUploads(page: Page, status = 200): Promise<string[]> {
+  const bodies: string[] = [];
+  await page.route(UPLOAD_ROUTE, async (route) => {
+    bodies.push(route.request().postData() ?? "");
+    await route.fulfill(status === 200 ? { json: UPLOADED } : { status, json: { error: "not an image" } });
+  });
+  return bodies;
+}
+
+/** The gallery holds the uploaded picture once `addToGallery` has run for it. */
+function galleryAfterAdd(added: () => boolean): () => TrpcWireOutput<"assets.listGallery"> {
+  return () => (added() ? [UPLOADED_ITEM] : []);
+}
+
+const DROPZONE = '[role="dialog"] [data-slot="file-dropzone"]';
+
+for (const viewport of [
+  { name: "mobile", width: 360, height: 780 },
+  { name: "desktop", width: 1440, height: 900 },
+] as const) {
+  test(`${viewport.name}: a picked image uploads as a gallery asset and joins this character's gallery`, async ({ mount, page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await capImageUploads(page);
+    const uploads = await recordUploads(page);
+    let added = false;
+    const trpc = await routeTrpc(page, {
+      "assets.listGallery": galleryAfterAdd(() => added),
+      "assets.addToGallery": () => {
+        added = true;
+        return UPLOADED_ITEM;
+      },
+    });
+    await mount(<CharacterGalleryDialogStory />);
+
+    await expect(page.getByText("No images yet")).toBeVisible();
+    const zone = page.locator(DROPZONE);
+    await expect(zone).toBeInViewport();
+    await expect(zone.getByText(`Up to ${String(IMAGE_CAP_BYTES)} B per file`)).toBeVisible();
+    await zone.locator('input[type="file"]').setInputFiles({ name: SMALL_PNG.name, mimeType: SMALL_PNG.mimeType, buffer: Buffer.from(SMALL_PNG.content) });
+
+    await expect(page.getByRole("gridcell", { name: "Gallery image" })).toHaveCount(1);
+    await expect.poll(() => uploads.length).toBe(1);
+    await expect.poll(() => uploads[0]).toMatch(/name="kind"\s+gallery/u);
+    await expect.poll(() => trpc.lastInput("assets.addToGallery")).toEqual({ assetId: UPLOADED.assetId, subjectCharacterId: "character_ct_gallery" });
+  });
+
+  test(`${viewport.name}: a dropped image takes the same path into the gallery`, async ({ mount, page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await capImageUploads(page);
+    const uploads = await recordUploads(page);
+    let added = false;
+    const trpc = await routeTrpc(page, {
+      "assets.listGallery": galleryAfterAdd(() => added),
+      "assets.addToGallery": () => {
+        added = true;
+        return UPLOADED_ITEM;
+      },
+    });
+    await mount(<CharacterGalleryDialogStory />);
+
+    const zone = page.locator(DROPZONE);
+    await expect(zone.getByText(`Up to ${String(IMAGE_CAP_BYTES)} B per file`)).toBeVisible();
+    await dropFiles(zone, [SMALL_PNG]);
+
+    await expect(page.getByRole("gridcell", { name: "Gallery image" })).toHaveCount(1);
+    await expect.poll(() => uploads.length).toBe(1);
+    await expect.poll(() => trpc.lastInput("assets.addToGallery")).toEqual({ assetId: UPLOADED.assetId, subjectCharacterId: "character_ct_gallery" });
+  });
+
+  test(`${viewport.name}: a wrong type or an oversize image is refused on the dropzone's line and nothing uploads`, async ({ mount, page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await capImageUploads(page);
+    const uploads = await recordUploads(page);
+    const trpc = await routeTrpc(page, { "assets.listGallery": () => [], "assets.addToGallery": () => UPLOADED_ITEM });
+    await mount(<CharacterGalleryDialogStory />);
+
+    const zone = page.locator(DROPZONE);
+    await expect(zone.getByText(`Up to ${String(IMAGE_CAP_BYTES)} B per file`)).toBeVisible();
+    await dropFiles(zone, [NOT_AN_IMAGE, LARGE_PNG]);
+
+    await expect(page.getByText(`notes.txt isn't an accepted file type · poster.png exceeds the ${String(IMAGE_CAP_BYTES)} B limit`)).toBeVisible();
+    await expect.poll(() => uploads.length).toBe(0);
+    await expect.poll(() => trpc.count("assets.addToGallery")).toBe(0);
+  });
+
+  test(`${viewport.name}: an image the server refuses is named, and nothing joins the gallery`, async ({ mount, page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await capImageUploads(page);
+    const uploads = await recordUploads(page, 415);
+    const trpc = await routeTrpc(page, { "assets.listGallery": () => [], "assets.addToGallery": () => UPLOADED_ITEM });
+    await mount(<CharacterGalleryDialogStory />);
+
+    const zone = page.locator(DROPZONE);
+    await expect(zone.getByText(`Up to ${String(IMAGE_CAP_BYTES)} B per file`)).toBeVisible();
+    await dropFiles(zone, [SMALL_PNG]);
+
+    await expect(page.getByRole("alert").filter({ hasText: "Couldn't upload sunset.png." })).toBeVisible();
+    await expect.poll(() => uploads.length).toBe(1);
+    await expect.poll(() => trpc.count("assets.addToGallery")).toBe(0);
+  });
+}
+
+test("the add-picker with nothing left to add points back to the gallery's upload zone", async ({ mount, page }) => {
+  // The one image the viewer owns is the one already in the gallery.
+  const owned = [
+    { assetId: ITEM.assetId, hash: ITEM.hash, mime: "image/png", size: 1024, uploadedAt: 1, animated: false, kind: "gallery" },
+  ] satisfies TrpcWireOutput<"assets.listOwned">;
+  await routeTrpc(page, { "assets.listGallery": () => [ITEM], "assets.listOwned": () => owned });
+  await mount(<CharacterGalleryDialogStory />);
+
+  await page.getByRole("button", { name: "Add images" }).click();
+  await expect(page.getByText("Nothing left to add")).toBeVisible();
+  await page.getByRole("button", { name: "Upload instead" }).click();
+  await expect(page.getByRole("heading", { name: "Add images to the gallery" })).toHaveCount(0);
+  await expect(page.locator(DROPZONE)).toBeVisible();
+});

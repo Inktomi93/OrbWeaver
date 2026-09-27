@@ -98,7 +98,13 @@ export function GalleryAddPicker({ open, onOpenChange, characterId, existingAsse
       <DialogPopup size="lg">
         <Stack gap="block">
           <DialogTitle>Add images to the gallery</DialogTitle>
-          <OwnedAssetPicker existingAssetIds={existingAssetIds} failure={failure} isOwned={isOwned} onConfirm={confirmAdd} />
+          <OwnedAssetPicker
+            existingAssetIds={existingAssetIds}
+            failure={failure}
+            isOwned={isOwned}
+            onConfirm={confirmAdd}
+            onUploadInstead={(): void => onOpenChange(false)}
+          />
         </Stack>
       </DialogPopup>
     </Dialog>
@@ -111,9 +117,11 @@ interface OwnedAssetPickerProps {
   readonly isOwned: boolean;
   /** Runs the batch and RESOLVES WITH THE IDS STILL OUTSTANDING — an empty array means everything landed. */
   readonly onConfirm: (assetIds: readonly MediaGridKey[]) => Promise<readonly MediaGridKey[]>;
+  /** Close the picker, back to the gallery dialog and its upload zone. */
+  readonly onUploadInstead: () => void;
 }
 
-function OwnedAssetPicker({ existingAssetIds, failure, isOwned, onConfirm }: OwnedAssetPickerProps): ReactElement {
+function OwnedAssetPicker({ existingAssetIds, failure, isOwned, onConfirm, onUploadInstead }: OwnedAssetPickerProps): ReactElement {
   const trpc = useTRPC();
   const owned = useQuery(trpc.assets.listOwned.queryOptions({ limit: GALLERY_PAGE_LIMIT }));
   const [selected, setSelected] = useState<ReadonlySet<MediaGridKey>>(new Set());
@@ -148,8 +156,19 @@ function OwnedAssetPicker({ existingAssetIds, failure, isOwned, onConfirm }: Own
     // with a hundred images that every one of them was already in this gallery.
     body = <QueryErrorState label="your images" onRetry={(): void => void owned.refetch()} />;
   } else if (candidates.length === 0) {
-    // @orb-waive empty-state-has-action(EmptyState): the "Nothing left to add" state — every owned image is already in this gallery, so there is genuinely nothing to do here. Ends when uploading a new image becomes reachable from inside this dialog, which would be the next step this state is missing.
-    body = <EmptyState icon={<Icon icon={Images} size="lg" />} title="Nothing left to add" description="Every image you own is already in this gallery." />;
+    // Every owned image is already in this gallery, so the next step is a new upload: the gallery dialog's zone.
+    body = (
+      <EmptyState
+        icon={<Icon icon={Images} size="lg" />}
+        title="Nothing left to add"
+        description="Every image you own is already in this gallery. Upload a new one from the gallery instead."
+        action={
+          <Button intent="secondary" onClick={onUploadInstead}>
+            Upload instead
+          </Button>
+        }
+      />
+    );
   } else {
     body = <MediaGrid items={gridItems} ariaLabel="Your images" gapToken="row" selection={{ selectedIds: selected, onToggle: toggle }} className="max-h-96" />;
   }
