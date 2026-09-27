@@ -5,8 +5,8 @@ import type { AuthMode, IpCertificateSetting } from "@orb/contracts/identity";
 import { describe } from "vitest";
 import { canonicalAddress, certificateRefusal } from "../../../../../packages/server/src/domain/share/substrate/certificate-refusal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { APP_PORT, LOCAL_SETUP_URL } from "../_support.ts";
 
-const APP_PORT = 8788;
 const SETTING: IpCertificateSetting = { address: "81.2.69.160", httpsPort: 8443, challengePort: 8080 };
 
 function facts(
@@ -15,7 +15,7 @@ function facts(
   return {
     authMode: options.authMode ?? "local",
     ownerNeedsPassword: () => Promise.resolve(options.ownerNeedsPassword ?? false),
-    localSetupUrl: () => "http://localhost:8788",
+    localSetupUrl: () => LOCAL_SETUP_URL,
     publicAddresses: [],
     publicBind: options.publicBind ?? true,
     appPort: () => APP_PORT,
@@ -61,7 +61,7 @@ describe("certificateRefusal", () => {
   test("an unclaimed owner is refused with this machine's setup address", async () => {
     const result = await certificateRefusal(facts({ ownerNeedsPassword: true }), SETTING);
     expect(result.refusal).toMatchObject({ code: "ip_certificate_owner_unclaimed" });
-    expect(result.refusal?.message).toContain("http://localhost:8788");
+    expect(result.refusal?.message).toContain(LOCAL_SETUP_URL);
   });
 
   test("a listener bound to this machine only is refused, because no router can forward to it", async () => {

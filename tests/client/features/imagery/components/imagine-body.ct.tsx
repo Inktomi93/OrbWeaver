@@ -4,7 +4,8 @@
 // the RECORDED tRPC inputs (routeTrpc is the spy) against the exact seed the story used.
 
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import type { ChatId } from "@orb/kit/ids";
+import { ID_PREFIX, mintTypeId, typeIdSchema } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { TrpcFixtureOutput, TrpcInput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
@@ -149,12 +150,17 @@ test("#623: the mode strip is ONE named group, not five loose buttons", async ({
 // ── The gallery opt-out. A picture generated in chat joins the room character's gallery unless the
 // request says `gallery: false`; the modal names that character and sends the checkbox as the flag.
 
+// The room a roster read without an input answers for, and the parse that brands a requested id.
+const UNNAMED_ROOM = mintTypeId(ID_PREFIX.chat);
+const CHAT_ID = typeIdSchema(ID_PREFIX.chat);
+
 /** Every mount reads the roster for the gallery checkbox; the id echoes the request. */
 function room(input: TrpcInput<"chat.getChat">): TrpcFixtureOutput<"chat.getChat"> {
-  return roomWithCharacter(input?.chatId ?? "chat_ct_imagine");
+  const requested = input?.chatId;
+  return roomWithCharacter(requested === undefined ? UNNAMED_ROOM : CHAT_ID.parse(requested));
 }
 
-function roomWithCharacter(chatId: string): TrpcFixtureOutput<"chat.getChat"> {
+function roomWithCharacter(chatId: ChatId): TrpcFixtureOutput<"chat.getChat"> {
   return {
     id: chatId,
     title: null,

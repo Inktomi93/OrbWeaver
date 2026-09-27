@@ -232,6 +232,15 @@ export const REVIEWED_GRANTS_DEPCRUISE_TO_EGRESS: readonly ReviewedGateGrant[] =
     endsWhen: "an admin surface gains an importSkipCharacters write field — central liveness then reports this row stale. Tracker: #2283.",
   },
   {
+    id: "knob-wire-coverage:app-key-ip-certificate",
+    policyId: "knob-wire-coverage",
+    subject: "appSettingsSchema.ipCertificate",
+    operation: "unwritten-admin-key",
+    why: "D269 — wired, not dormant. The Share card (features/user-admin/components/share-ip-certificate.tsx) writes it through share.enableIpCertificate and share.disableIpCertificate, composed in entry/compose/services.ts onto updateAppSettings({ partial: { ipCertificate } }). Arm B2 scans the admin dirs for the key's name and cannot see a dedicated verb. A generic editor field would skip the refusal checks and the certificate controller start, so none exists by design.",
+    endsWhen:
+      "ipCertificate leaves appSettingsSchema, an admin surface names the key in a write field, or arm B2 learns to read a dedicated write verb — central liveness then reports this row stale.",
+  },
+  {
     id: "macro-resolution-home:ghost-message-row",
     policyId: "macro-resolution-home",
     subject: "packages/client/src/features/chat/components/ghost-message-row.tsx",

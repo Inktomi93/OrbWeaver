@@ -27,8 +27,8 @@ export interface NextTurnInputs {
 const NEXT_TURN_STATES = ["named", "checking", "unset", "failed"] as const;
 type NextTurnState = (typeof NEXT_TURN_STATES)[number];
 
-/** A door after the line's sentence: `lead` is prose, `label` is the control that opens Model roles. */
-export interface NextTurnDoor {
+// A door after the line's sentence: `lead` is prose, `label` is the control that opens Model roles.
+interface NextTurnDoor {
   readonly lead: string;
   readonly label: string;
 }

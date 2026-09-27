@@ -10,7 +10,10 @@ import { request as httpRequest } from "node:http";
 import { connect } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { Handle } from "@orb/kit/ids";
+import { brandedId } from "@orb/kit/ids";
 import { afterAll, beforeAll, vi } from "vitest";
+import { z } from "zod";
 import { fakeRelaySeams } from "../../support/fake-relay.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import type { HostResponse } from "../../support/host-request.ts";
@@ -28,6 +31,8 @@ const RELAY_HOST = "calm-river-four-birds.trycloudflare.com";
 const VISITOR = "203.0.113.9";
 const FORM = { "content-type": "application/x-www-form-urlencoded", "x-orb-csrf": "1" };
 const SECURE_SESSION_COOKIE = "__Host-orb_session=";
+// The signed-in half of `GET /api/auth/me`, parsed so the handle arrives branded.
+const AUTH_ME = z.object({ handle: brandedId<Handle>() });
 
 vi.stubEnv("DATA_DIR", TEMP_DIR);
 vi.stubEnv("BIND_HOST", LAN);
@@ -206,7 +211,7 @@ test("share.start runs the relay against the loopback listener, and a visitor it
 });
 
 test("the IP certificate's https hop on this bind reaches the app over loopback, which believes it was https", async () => {
-  const handle = (JSON.parse((await send(LOOPBACK, "/api/auth/me", { headers: { cookie: ownerCookie } })).body) as { handle: string }).handle;
+  const { handle } = AUTH_ME.parse(JSON.parse((await send(LOOPBACK, "/api/auth/me", { headers: { cookie: ownerCookie } })).body));
   await withHttpsHop(async (hop) => {
     const body = new URLSearchParams({ handle, password: OWNER_PASSWORD }).toString();
     const answer = await tlsRequest({ host: LAN, port: hop.port, ca: hop.ca, path: "/api/auth/login", method: "POST", headers: FORM, body });
