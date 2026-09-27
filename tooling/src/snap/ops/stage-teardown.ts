@@ -28,20 +28,71 @@ import process from "node:process";
 import { activeRunSlot } from "../../_shared/artifact-out.ts";
 import { print } from "../../_shared/artifacts.ts";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
-import { runNicedSync } from "../../_shared/proc.ts";
-import type { StagePorts, StageReapArm, StageRow } from "../contract/stage.ts";
-import { missingLauncherRefusal, stageLauncher, stageLauncherSpawn } from "../lib/stage-plan.ts";
+import { listeningPids } from "../../_shared/platform.ts";
+import { stageBandPorts } from "../../_shared/ports.ts";
+import { killPidGroup, runNicedSync } from "../../_shared/proc.ts";
+import { escalateStopSync } from "../../_shared/stop-escalation.ts";
+import type { StageBandView, StagePorts, StageReapArm, StageRow, StageStopDeps, StageStopVerdict } from "../contract/stage.ts";
+import { missingLauncherRefusal, shortSha, stageLauncher, stageLauncherSpawn } from "../lib/stage-plan.ts";
 import { takeBootDeadStage } from "../lib/stage-run-binding.ts";
 import { sweepStrandedBrowsers } from "./browser-sweep.ts";
-import { clearRow } from "./stage-marker.ts";
-import { killProcessGroup, pidIsStageRooted, stageBandPortPid } from "./stage-probe.ts";
+import { clearRow, waitSync } from "./stage-marker.ts";
+import { pidIsStageRooted, processGroupTarget } from "./stage-probe.ts";
 import { recordStageReap } from "./stage-reap-log.ts";
 import { removeStageDir } from "./stage-source.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --stage-down");
 
-/** Stop a stage's stack, and MEAN IT — the two beats of the module header. */
-export function stopStage(dir: string, ports: StagePorts): void {
+const REAL_STOP_DEPS: StageStopDeps = {
+  readPorts: () => listeningPids(),
+  isStageRooted: pidIsStageRooted,
+  groupOf: processGroupTarget,
+  signalGroup: killPidGroup,
+  wait: waitSync,
+};
+
+/** Why `port` could not be shown released, or null once a read shows it free. A stage group still holding it is
+ *  stopped through the shared TERM-then-KILL escalation, polling the table; a signal alone proves nothing. */
+function releasePort(port: number, deps: StageStopDeps): string | null {
+  const bound = deps.readPorts();
+  if (bound.kind === "refused") {
+    return `cannot confirm :${port} was released after the launcher stop — ${bound.reason}`;
+  }
+  const owner = bound.value.get(port);
+  if (owner === undefined) {
+    return null;
+  }
+  if (owner.kind === "unknown") {
+    return `:${port} is still held by an owner the OS will not name`;
+  }
+  const target = deps.isStageRooted(owner.pid) ? deps.groupOf(owner.pid) : null;
+  if (target === null) {
+    return `:${port} is still held by pid ${owner.pid}, not a stage group this could kill`;
+  }
+  // A table that stops answering ends the wait; its reason outranks the wait's own result.
+  const lost: string[] = [];
+  const free = (): boolean => {
+    const read = deps.readPorts();
+    if (read.kind === "refused") {
+      lost.push(read.reason);
+      return true;
+    }
+    return !read.value.has(port);
+  };
+  const freed = escalateStopSync({ signal: (signal) => deps.signalGroup(target, signal), gone: free }, deps.wait);
+  if (lost.length > 0) {
+    return `cannot confirm :${port} was released after stopping pid ${owner.pid} — ${lost.join("; ")}`;
+  }
+  if (!freed) {
+    return `:${port} is still held by pid ${owner.pid} after TERM and KILL to its group`;
+  }
+  print(`[snap-stage] stopped the process group that held :${port} (pid ${owner.pid}) after the launcher stop`);
+  return null;
+}
+
+/** Stop a stage's stack, and MEAN IT — the two beats of the module header. `stopped` only when a read taken after
+ *  every stop shows both band ports free; a signal sent, a group named or a launcher run is not that proof. */
+export function stopStage(dir: string, ports: StagePorts, deps: StageStopDeps = REAL_STOP_DEPS): StageStopVerdict {
   const launcher = existsSync(dir) ? stageLauncher(dir, existsSync) : null;
   if (launcher !== null) {
     const spawn = stageLauncherSpawn(launcher, "down", process.execPath);
@@ -49,20 +100,72 @@ export function stopStage(dir: string, ports: StagePorts): void {
   } else if (existsSync(dir)) {
     print(`[snap-stage] no launcher to stop ${dir} with — falling back to the band's process group. ${missingLauncherRefusal(dir)}`);
   }
-  for (const port of [ports.server, ports.vite]) {
-    const pid = stageBandPortPid(port);
-    if (pid !== null && pidIsStageRooted(pid) && killProcessGroup(pid)) {
-      print(`[snap-stage] killed the process group still holding :${port} (pid ${pid}) after the launcher stop`);
-    }
+  return releaseBand(ports, deps);
+}
+
+/** The port half of a stop, for a band whose holders are stopped by group alone: `stopped` only when a read taken
+ *  after every stop shows both band ports free. */
+export function releaseBand(ports: StagePorts, deps: StageStopDeps = REAL_STOP_DEPS): StageStopVerdict {
+  // Each port reads the table fresh: stopping the server's group usually takes the vite half with it.
+  const survivors = [ports.server, ports.vite].map((port) => releasePort(port, deps)).filter((reason): reason is string => reason !== null);
+  if (survivors.length > 0) {
+    return unconfirmedStop(`${survivors.join("; ")} after the launcher stop`);
   }
+  const after = deps.readPorts();
+  if (after.kind === "refused") {
+    return unconfirmedStop(`cannot confirm :${ports.server} and :${ports.vite} stayed released — ${after.reason}`);
+  }
+  const rebound = [ports.server, ports.vite].filter((port) => after.value.has(port));
+  return rebound.length === 0 ? { kind: "stopped" } : unconfirmedStop(`${rebound.map((port) => `:${port}`).join(" and ")} bound again after the stop`);
+}
+
+function unconfirmedStop(reason: string): StageStopVerdict {
+  print(`[snap-stage] ${reason}`);
+  return { kind: "unconfirmed", reason };
+}
+
+/** Reap a stranded band: the polite stop first when its row names a dir (the stack's own `stop` reaps its
+ *  pidfiles), then the stage groups still on the band's ports, the backstop for the detached-leader case that
+ *  made #324. The row is cleared only when a read after the stop shows the ports free. */
+export function reapStrandedBand(home: string, view: StageBandView, deps: StageStopDeps = REAL_STOP_DEPS): string {
+  const stop =
+    view.row === null ? releaseBand(stageBandPorts(view.band), deps) : stopStage(view.row.dir, { server: view.row.serverPort, vite: view.row.vitePort }, deps);
+  const stage = view.row === null ? "" : ` ${shortSha(view.row.sha)}`;
+  if (stop.kind === "unconfirmed") {
+    return `band ${view.band}: stranded stage${stage} NOT reaped — its stop is not confirmed (${stop.reason}); the row is kept`;
+  }
+  clearRow(home, view.band);
+  if (view.row !== null) {
+    recordStageReap(home, view.row, "sweep");
+  }
+  return `band ${view.band}: reaped a stranded stage (stopped ${view.row === null ? "(no row)" : shortSha(view.row.sha)}, cleared the row)`;
+}
+
+/** The row-less fallback: a band bound by a stage-rooted process no row accounts for (a killed-mid-write
+ *  table, or a pre-#1276 stage). Stop its groups by the band's ports; never touch a holder we could not identify. */
+export function tearDownRowlessBand(view: StageBandView, deps: StageStopDeps = REAL_STOP_DEPS): readonly string[] {
+  if (!(view.bandBound && view.bandIsStageRooted)) {
+    return [];
+  }
+  const stop = releaseBand(stageBandPorts(view.band), deps);
+  return [
+    stop.kind === "stopped"
+      ? `band ${view.band}: row-less teardown — stopped the stage-rooted band process group(s)`
+      : `band ${view.band}: row-less teardown NOT confirmed — ${stop.reason}`,
+  ];
 }
 
 /** Stop it, remove its dir, clear its row, and RECORD WHICH ARM did it (#1163). Ports come from the ROW,
  *  because the stage being removed may sit on a different band than the one a caller is about to boot on;
  *  the dir is removed against the row's OWN checkout, so a sibling's stranded worktree is removable from
  *  here (`git worktree remove` is repo-wide — the #108 rule). */
-export function tearDownStageRow(home: string, row: StageRow, arm: StageReapArm, nowMs: number = Date.now()): void {
-  stopStage(row.dir, { server: row.serverPort, vite: row.vitePort });
+export function tearDownStageRow(home: string, row: StageRow, arm: StageReapArm, nowMs: number = Date.now()): StageStopVerdict {
+  const stop = stopStage(row.dir, { server: row.serverPort, vite: row.vitePort });
+  if (stop.kind === "unconfirmed") {
+    // The row and dir stay: removing them would call the band free while its ports may still be held.
+    print(`[snap-stage] band ${row.band} is NOT torn down — its stop is not confirmed; the row is kept for \`--stage-sweep\``);
+    return stop;
+  }
   // The stage's stack dies by process group; a BROWSER never does (#1848 — playwright sessions it). Every
   // arm that ends a stage therefore also reaps browsers whose own run is gone, which is the state a lane
   // torn down mid-drive leaves behind.
@@ -72,6 +175,7 @@ export function tearDownStageRow(home: string, row: StageRow, arm: StageReapArm,
   removeStageDir(row.checkout, row);
   clearRow(home, row.band);
   recordStageReap(home, row, arm, nowMs);
+  return stop;
 }
 
 /** THE FIFTH ARM, AND THE ONE THAT FIRES INSIDE A RUN (#1837). A stage whose app never settled — warm-up

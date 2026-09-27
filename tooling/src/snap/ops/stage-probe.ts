@@ -2,24 +2,24 @@
 // when that file crossed the tooling line cap (docs/law/Core-Tooling-Law.md §4.3). One command family:
 // read the band ports' owners (ONE socket-table read for the whole table), read the box's ESTABLISHED
 // connections so a band can be asked whether anything is actually DRIVING it (#1163's interaction signal),
-// decide whether a bound port belongs to a STAGE, age a process, kill a process group, take the THREE
+// decide whether a bound port belongs to a STAGE, age a process, name the group a stop signals, take the THREE
 // health probes of design §3.6, and list the stage dirs on disk. Nothing here boots, tears down or judges —
 // ops/stage.ts orchestrates and lib/stage-plan.ts + lib/stage-bands.ts rule; these are the raw signals all
 // of them read, every one through the platform module.
 //
-// Every negative here is "I could not measure", never "it is not there": a socket table or a process table
-// that fails to answer returns null or false, and the callers are written to treat that as unknown rather
-// than as permission to act. That is what keeps the #324 sweep from ever reaping something it merely failed
-// to identify (the #310 liveness-gate lesson).
+// Every negative here is "I could not measure", never "it is not there": a process table that fails to
+// answer returns null or false, and an unreadable socket table arrives as the platform module's refusal.
+// The callers treat both as unknown rather than as permission to act. That is what keeps the #324 sweep
+// from ever reaping something it merely failed to identify (the #310 liveness-gate lesson).
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
 import { httpOkSync } from "../../_shared/http-probe.ts";
 import { budget } from "../../_shared/load-budget.ts";
-import type { EstablishedConnection } from "../../_shared/platform.ts";
-import { establishedConnections, listeningPids, processAgeSeconds, processGroupId, processInfo } from "../../_shared/platform.ts";
-import { killPidGroup, runNicedSync } from "../../_shared/proc.ts";
+import type { EstablishedConnection, PortOwner, SocketTableRead } from "../../_shared/platform.ts";
+import { establishedConnections, processAgeSeconds, processGroupId, processInfo } from "../../_shared/platform.ts";
+import { runNicedSync } from "../../_shared/proc.ts";
 import type { ServedState } from "../../stack/index.ts";
 import type { StagePorts } from "../contract/stage.ts";
 import { STAGE_ROOT_REL, stageBaseUrl, stageServedProbeSpawn } from "../lib/stage-plan.ts";
@@ -44,8 +44,13 @@ const LOOPBACK_HOSTS: ReadonlySet<string> = new Set(["127.0.0.1", "::1", "[::1]"
 export function foreignBandPeer(
   ports: StagePorts,
   isStageOwn: (pid: number) => boolean = pidIsStageRooted,
-  connections: readonly EstablishedConnection[] = establishedConnections(),
+  table: SocketTableRead<readonly EstablishedConnection[]> = establishedConnections(),
 ): string | null {
+  if (table.kind === "refused") {
+    // No table, no way to rule a client out: the same uncertainty the rule above counts as connected.
+    return `an unreadable connection table (${table.reason})`;
+  }
+  const connections = table.value;
   const ownerOfLocalPort = new Map<number, number>();
   for (const row of connections) {
     if (row.pid !== null && !ownerOfLocalPort.has(row.localPort)) {
@@ -71,17 +76,19 @@ export function foreignBandPeer(
   return null;
 }
 
-/** The pid bound to a stage-band port, or null — the row-less teardown's index. `bound` is injectable so a
- *  caller judging the whole table reads ONE snapshot rather than re-reading the socket table per band. */
-export function stageBandPortPid(port: number, bound: ReadonlyMap<number, number> = listeningPids()): number | null {
-  return bound.get(port) ?? null;
+/** The named pid bound to a stage-band port, or null when the port is free or its owner is unnamed. `bound` is
+ *  one read of the socket table, so a caller judging the whole table reads ONE snapshot. Null is never "free":
+ *  ask {@link bandIsBound} for that. */
+export function stageBandPortPid(port: number, bound: ReadonlyMap<number, PortOwner>): number | null {
+  const owner = bound.get(port);
+  return owner?.kind === "pid" ? owner.pid : null;
 }
 
 /** Is EITHER half of a band bound right now? The liveness half of the #108 ownership question —
  *  a foreign row over an unbound band is a corpse to reclaim, over a bound one it is a live sibling.
  *  The #324 sweep asks the same question before judging anything. */
-export function bandIsBound(ports: StagePorts, bound: ReadonlyMap<number, number> = listeningPids()): boolean {
-  return stageBandPortPid(ports.server, bound) !== null || stageBandPortPid(ports.vite, bound) !== null;
+export function bandIsBound(ports: StagePorts, bound: ReadonlyMap<number, PortOwner>): boolean {
+  return bound.has(ports.server) || bound.has(ports.vite);
 }
 
 /** Is the process holding a band port actually a SNAP STAGE? The sweep's one hard fence (#324): a stage
@@ -103,16 +110,11 @@ export function pidElapsedSeconds(pid: number): number | null {
   return processAgeSeconds(pid);
 }
 
-/** Kill a pid's whole PROCESS GROUP — a stage leader is the stack cli with node and vite children, and
- *  killing the leader alone leaves exactly the orphans #324 is about. Returns whether a group was named.
- *  win32 has no group: the pid's tree is terminated instead. */
-export function killProcessGroup(pid: number): boolean {
-  const target = process.platform === "win32" ? pid : processGroupId(pid);
-  if (target === null) {
-    return false;
-  }
-  killPidGroup(target, "SIGTERM");
-  return true;
+/** Where a signal for `pid`'s whole tree goes: its process group, or the pid itself on win32 (whose
+ *  `taskkill /T` takes the tree). Null when the pid is gone. A stage leader is the stack cli with node and vite
+ *  children, and signalling the leader alone leaves exactly the orphans #324 is about. */
+export function processGroupTarget(pid: number): number | null {
+  return process.platform === "win32" ? pid : processGroupId(pid);
 }
 
 // ── the three health probes (design §3.6) ─────────────────────────────────────────────────────────────

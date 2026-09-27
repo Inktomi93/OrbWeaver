@@ -12,14 +12,16 @@ import { EXIT } from "../../_shared/exit-contract.ts";
 import { httpOk } from "../../_shared/http-probe.ts";
 import { budget } from "../../_shared/load-budget.ts";
 import { warn } from "../../_shared/log.ts";
-import { listeningPids } from "../../_shared/platform.ts";
+import type { PortOwner } from "../../_shared/platform.ts";
+import { describePortOwner } from "../../_shared/platform.ts";
 import { spawnFullPriorityChild } from "../../_shared/proc.ts";
 import type { StackContext, StackInvocation } from "../contract/types.ts";
 import { debugConflictMessage, resolveDebugArming } from "../lib/debug-env.ts";
 import { LAUNCH_ID_ENV } from "../lib/leader-record.ts";
 import { pidIsAlive } from "../lib/spawn-lock.ts";
 import { healthzUrl, STACK_CLI_REL, viteUrl } from "../lib/stack-plan.ts";
-import { doDevDown, log, readVerdict, result } from "./dev-down.ts";
+import type { DevPortDeps } from "./dev-down.ts";
+import { doDevDown, log, REAL_PORT_DEPS, readVerdict, refuseUnknownHolder, result } from "./dev-down.ts";
 import { rotateLog, runLeader } from "./leader.ts";
 import { readEnvFile } from "./prod-state.ts";
 import { debugToken } from "./prod-support.ts";
@@ -37,19 +39,24 @@ const LINE_BREAK_RE = /\r?\n/u;
 type Preflight =
   | { readonly kind: "free" }
   | { readonly kind: "already-up"; readonly group: string }
-  | { readonly kind: "port-conflict"; readonly server: number | null; readonly vite: number | null };
+  | { readonly kind: "port-conflict"; readonly server: PortOwner | undefined; readonly vite: PortOwner | undefined }
+  | { readonly kind: "unreadable"; readonly reason: string };
 
 /** May a leader boot? A live record is an idempotent no-op; a bound port that is not a live record is
- *  refused, because two stacks cannot share a pair and an unknown owner is never fought. */
-function preflight(ctx: StackContext): Preflight {
+ *  refused, because two stacks cannot share a pair and an unknown owner is never fought. A socket table that
+ *  cannot be read is not a free pair, and a port bound by an owner the OS will not name is busy. */
+function preflight(ctx: StackContext, deps: DevPortDeps): Preflight {
   const { read, state } = readVerdict(ctx);
   if (read.kind === "record" && state === "live") {
     return { kind: "already-up", group: String(read.record.pgid ?? read.record.pid) };
   }
-  const bound = listeningPids();
-  const server = bound.get(ctx.ports.server) ?? null;
-  const vite = bound.get(ctx.ports.vite) ?? null;
-  return server === null && vite === null ? { kind: "free" } : { kind: "port-conflict", server, vite };
+  const table = deps.readPorts();
+  if (table.kind === "refused") {
+    return { kind: "unreadable", reason: table.reason };
+  }
+  const server = table.value.get(ctx.ports.server);
+  const vite = table.value.get(ctx.ports.vite);
+  return server === undefined && vite === undefined ? { kind: "free" } : { kind: "port-conflict", server, vite };
 }
 
 /** Resolve `--debug` into a spawn overlay, or refuse loudly. `undefined` = not asked for; `null` = refused. */
@@ -129,26 +136,39 @@ async function bootDetached(ctx: StackContext, overlay: Readonly<Record<string, 
   return EXIT.violations;
 }
 
+/** The `RESULT` field for a port's owner: its pid, `0` for a free port, `unknown` for a bound port with no named owner. */
+function ownerField(owner: PortOwner | undefined): string {
+  if (owner === undefined) {
+    return "0";
+  }
+  return owner.kind === "pid" ? String(owner.pid) : "unknown";
+}
+
 function refuseConflict(ctx: StackContext, conflict: Extract<Preflight, { kind: "port-conflict" }>): ExitCode {
-  log(`ports busy (server=${String(conflict.server ?? 0)} vite=${String(conflict.vite ?? 0)}) but not a live stack recorded under ${ctx.runDir}.`);
+  log(
+    `ports busy (server :${String(ctx.ports.server)} ${describePortOwner(conflict.server)}, vite :${String(ctx.ports.vite)} ${describePortOwner(conflict.vite)}) but not a live stack recorded under ${ctx.runDir}.`,
+  );
   log("refusing to fight an unknown owner — inspect with 'status'; 'down' stops a holder from this checkout, or stop it yourself.");
-  result(`status=port-conflict server-pid=${String(conflict.server ?? 0)} vite-pid=${String(conflict.vite ?? 0)} pidfile=${ctx.runDir}`);
+  result(`status=port-conflict server-pid=${ownerField(conflict.server)} vite-pid=${ownerField(conflict.vite)} pidfile=${ctx.runDir}`);
   return EXIT.violations;
 }
 
 /** `up`: idempotent over a live stack; `--force` stops whatever this checkout holds on the ports first. */
-export async function doDevUp(ctx: StackContext, invocation: StackInvocation): Promise<ExitCode> {
+export async function doDevUp(ctx: StackContext, invocation: StackInvocation, deps: DevPortDeps = REAL_PORT_DEPS): Promise<ExitCode> {
   if (invocation.force) {
-    const down = await doDevDown(ctx, { quiet: true });
+    const down = await doDevDown(ctx, { quiet: true }, deps);
     if (down !== EXIT.clean) {
       return down;
     }
   }
-  const pre = preflight(ctx);
+  const pre = preflight(ctx, deps);
   if (pre.kind === "already-up") {
     log(`already running (pgid ${pre.group}) — use 'restart', or 'status' to inspect`);
     result(`status=already-up pgid=${pre.group}`);
     return EXIT.clean;
+  }
+  if (pre.kind === "unreadable") {
+    return refuseUnknownHolder(pre, "pgid=none");
   }
   if (pre.kind === "port-conflict") {
     return refuseConflict(ctx, pre);
@@ -162,12 +182,15 @@ export async function doDevUp(ctx: StackContext, invocation: StackInvocation): P
 
 /** `up-fg`: the same leader body in this terminal, no record; the caller owns and reaps the tree. A live
  *  stack refuses too, because a foreground leader must own what it boots. */
-export async function doDevUpFg(ctx: StackContext, invocation: StackInvocation): Promise<ExitCode> {
-  const pre = preflight(ctx);
+export async function doDevUpFg(ctx: StackContext, invocation: StackInvocation, deps: DevPortDeps = REAL_PORT_DEPS): Promise<ExitCode> {
+  const pre = preflight(ctx, deps);
   if (pre.kind === "already-up") {
     log(`already running (pgid ${pre.group}) — a foreground leader must own the ports it boots`);
     result(`status=already-up pgid=${pre.group}`);
     return EXIT.violations;
+  }
+  if (pre.kind === "unreadable") {
+    return refuseUnknownHolder(pre, "pgid=none");
   }
   if (pre.kind === "port-conflict") {
     return refuseConflict(ctx, pre);

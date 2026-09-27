@@ -1,9 +1,9 @@
 // THE PLATFORM MODULE'S LEAF (`platform.ts` is the rest): every `/proc` and `/sys` read, including the cgroup
-// quota files the load budget needs. It imports nothing from `proc.ts` or `load-budget*`, because the load
+// quota files the load budget needs and the `/proc/net/tcp{,6}` socket table Linux falls back to without `ss`. It imports nothing from `proc.ts` or `load-budget*`, because the load
 // budget sits under the process doors (proc.ts takes its timeouts from it) and reads these files through here.
 import { readdirSync, readFileSync, readlinkSync } from "node:fs";
-import type { ProcessEntry } from "./platform-parse.ts";
-import { nulJoined, parseProcStatCpuMs, parseProcStatGroup, parseProcStatusParent } from "./platform-parse.ts";
+import type { ProcessEntry, SocketRow } from "./platform-parse.ts";
+import { nulJoined, parseProcNetTcp, parseProcStatCpuMs, parseProcStatGroup, parseProcStatusParent, parseSocketInode } from "./platform-parse.ts";
 
 /** The reads a Linux door performs, injected so a test drives them with a fake `/proc`. */
 export interface ProcReads {
@@ -17,6 +17,8 @@ const PROC = "/proc";
 const PROC_VERSION = "/proc/version";
 const PROC_SELF_CGROUP = "/proc/self/cgroup";
 const CGROUP_ROOT = "/sys/fs/cgroup";
+/** The kernel's own TCP socket tables for this network namespace; `tcp6` is absent where IPv6 is off. */
+export const PROC_NET_TCP_TABLES = ["/proc/net/tcp", "/proc/net/tcp6"] as const;
 const WSL2_KERNEL_RE = /microsoft-standard|wsl2/iu;
 const PID_DIR_RE = /^\d+$/u;
 const STATUS_LINE_RE = /^(?:Name|State|Threads|PPid):/u;
@@ -32,7 +34,7 @@ function readFileOrNull(path: string): string | null {
 }
 
 function readLinkOrNull(path: string): string | null {
-  // @orb-waive caught-failure-ownership(catch): an unreadable `/proc/<pid>/cwd` answers null, which every caller reads as "unknown", never as "not ours". Ends if null ever authorizes a signal.
+  // @orb-waive caught-failure-ownership(catch): an unreadable `/proc/<pid>/cwd` or fd link answers null, which every caller reads as "unknown" (no cwd, no socket owner), never as "not ours". Ends if null ever authorizes a signal.
   try {
     return readlinkSync(path);
   } catch {
@@ -116,6 +118,49 @@ export function linuxProcessDiagnostics(pid: number, reads: ProcReads): { readon
     wchan: readFile(`${PROC}/${String(pid)}/wchan`) ?? "<unreadable>",
     fds: (reads.readDir ?? readDirOrEmpty)(`${PROC}/${String(pid)}/fd`).join(","),
   };
+}
+
+/** The pid owning each wanted socket inode, from the `socket:[<inode>]` links under every `/proc/<pid>/fd`. A
+ *  process whose fds this user cannot list owns nothing here, the same blind spot `ss -p` has. */
+function socketOwners(wanted: ReadonlySet<number>, reads: ProcReads): ReadonlyMap<number, number> {
+  const owners = new Map<number, number>();
+  const readDir = reads.readDir ?? readDirOrEmpty;
+  const readLink = reads.readLink ?? readLinkOrNull;
+  for (const name of wanted.size === 0 ? [] : readDir(PROC)) {
+    if (!PID_DIR_RE.test(name)) {
+      continue;
+    }
+    for (const inode of socketInodesOf(name, readDir, readLink)) {
+      if (wanted.has(inode) && !owners.has(inode)) {
+        owners.set(inode, Number(name));
+      }
+    }
+    if (owners.size === wanted.size) {
+      break;
+    }
+  }
+  return owners;
+}
+
+function socketInodesOf(pid: string, readDir: (path: string) => readonly string[], readLink: (path: string) => string | null): readonly number[] {
+  return readDir(`${PROC}/${pid}/fd`).flatMap((fd) => {
+    const link = readLink(`${PROC}/${pid}/fd/${fd}`);
+    const inode = link === null ? null : parseSocketInode(link);
+    return inode === null ? [] : [inode];
+  });
+}
+
+/** Every TCP socket in the asked state from `/proc/net/tcp{,6}`, each owner joined through the fd links; null
+ *  when neither table could be read, which the caller turns into a refusal, never into "no sockets". */
+export function linuxProcSockets(listening: boolean, reads: ProcReads): readonly SocketRow[] | null {
+  const tables = PROC_NET_TCP_TABLES.map(fileOf(reads)).filter((table): table is string => table !== null);
+  if (tables.length === 0) {
+    return null;
+  }
+  const rows = tables.flatMap(parseProcNetTcp).filter((row) => row.listening === listening);
+  // Inode 0 is a socket with no file behind it (an orphaned close); no fd can name it.
+  const owners = socketOwners(new Set(rows.map((row) => row.inode).filter((inode) => inode !== 0)), reads);
+  return rows.map(({ inode, ...row }) => ({ ...row, pid: owners.get(inode) ?? null }));
 }
 
 /** Is this Linux kernel WSL2's? */

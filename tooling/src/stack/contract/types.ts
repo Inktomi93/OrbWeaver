@@ -80,6 +80,10 @@ export interface StackLogs {
 
 /** One stack's whole address: where its record and logs live, which ports it binds, and the env its
  *  leader runs under. Built once from an env record, so the fixture and a sidecar thread their own. */
+/** Why no dev verb can say which process holds the stack's ports: the socket table could not be read, or it
+ *  shows a port bound by an owner the OS will not name. */
+export type HolderUnknown = { readonly kind: "unreadable"; readonly reason: string } | { readonly kind: "owner-unknown"; readonly ports: readonly number[] };
+
 export interface StackContext {
   readonly repoRoot: string;
   /** Absolute; `STACK_RUN_DIR` relative to the repo root, else `<repo>/.cache/stack`. */
