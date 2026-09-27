@@ -2,6 +2,7 @@
 // then the seating a public link needs, then the relay.
 
 import { DomainForbiddenError, DomainOperationError } from "@orb/kit/errors";
+import { loopbackOrigin } from "@orb/server/foundation/env";
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { caller, LIVE_SOCKETS, LOCAL_SETUP_URL, shareHarness } from "../_support.ts";
@@ -62,5 +63,18 @@ describe("share.start", () => {
     expect(h.audits).toEqual([]);
     // A relay that never started leaves the seating as it found it.
     expect(h.calls.slice(-3)).toEqual(["enableSeating", "relay.start", "restoreSeating"]);
+  });
+
+  test("a box bound to its public address alone is refused with share_bind_address, and the relay never starts", async () => {
+    const h = shareHarness({ authMode: "local", loopbackUpstream: loopbackOrigin("81.2.69.160", 8788) !== null });
+    await expect(h.share.start({ principal: caller("owner") })).rejects.toMatchObject({ code: "share_bind_address" });
+    expect(h.calls).not.toContain("relay.start");
+    expect(h.calls).not.toContain("enableSeating");
+  });
+
+  test("a box bound to one LAN address alone is refused the same way", async () => {
+    const h = shareHarness({ authMode: "local", loopbackUpstream: loopbackOrigin("192.168.1.5", 8788) !== null });
+    await expect(h.share.start({ principal: caller("owner") })).rejects.toMatchObject({ code: "share_bind_address" });
+    expect(h.calls).not.toContain("relay.start");
   });
 });

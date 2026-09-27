@@ -70,6 +70,7 @@ export function refusalRow(code: ShareStartRefusal): SharePrecondition {
       return "mode";
     case "share_owner_unclaimed":
       return "owner";
+    case "share_bind_address":
     case "relay_platform_unsupported":
     case "relay_binary_download_failed":
     case "relay_binary_checksum_mismatch":

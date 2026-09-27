@@ -206,14 +206,6 @@ function scheduleOnce(run: () => void, ms: number): () => void {
   };
 }
 
-/** The URL the share relay forwards to: this listener, reached over loopback when it listens on every interface. */
-function relayOrigin(address: Readonly<AddressInfo> | null, port: number): string {
-  if (address === null || address.address === "0.0.0.0" || address.address === "::") {
-    return `http://127.0.0.1:${port}`;
-  }
-  return address.family === "IPv6" ? `http://[${address.address}]:${port}` : `http://${address.address}:${port}`;
-}
-
 /** The log line for the boot start of a stored IP certificate choice; the controller logs what the order does next. */
 function logCertificateBootOutcome(log: ReturnType<typeof getLog>, outcome: CertificateBootOutcome): void {
   switch (outcome.kind) {
@@ -650,7 +642,15 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
         spawn: relaySeams.spawn,
       }),
       hosts: relayHosts.writer,
-      origin: () => relayOrigin(listenerAddress, listenPort()),
+      // Over loopback, never the bound interface address, so the app believes the relay's forwarded headers (D255). A
+      // bind with no loopback origin is refused before any start (`share_bind_address`); this throw is never reached.
+      origin: (): string => {
+        const origin = loopbackOrigin(bind.host, listenPort());
+        if (origin === null) {
+          throw new Error(`the app listener on ${String(bind.host)} takes no loopback connection for the relay`);
+        }
+        return origin;
+      },
       now,
       schedule: scheduleOnce,
     });

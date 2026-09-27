@@ -79,6 +79,10 @@ describe("refusalRow", () => {
     expect(refusalRow("share_forward_header")).toBe("mode");
     expect(refusalRow("share_owner_unclaimed")).toBe("owner");
   });
+
+  test("a bind the relay cannot reach over loopback lands on the relay row", () => {
+    expect(refusalRow("share_bind_address")).toBe("relay");
+  });
 });
 
 describe("shareStartFailure", () => {

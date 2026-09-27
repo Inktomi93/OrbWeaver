@@ -116,16 +116,22 @@ function isLoopbackHost(host: string): boolean {
   return LOOPBACK_ALIASES.has(normalized) || LOOPBACK_V4_RE.test(normalized);
 }
 
-// Binds that take every interface, loopback included; node's `::` listener is dual-stack, so it takes IPv4 too.
-const WILDCARD_HOSTS: ReadonlySet<string> = new Set(["0.0.0.0", "::", "[::]"]);
+// An unset host makes node listen on `::` with IPV6_V6ONLY cleared by libuv (dual-stack whatever net.ipv6.bindv6only
+// says), or on 0.0.0.0 on a host with no IPv6; IPv4 loopback reaches both. An explicit `::` is reached over IPv6
+// loopback, which a v6 listener takes on every host, so the hop never leans on the dual-stack setting.
+const IPV4_WILDCARD = "0.0.0.0";
+const IPV6_WILDCARD_SPELLINGS: ReadonlySet<string> = new Set(["::", "[::]"]);
 const IPV6_LOOPBACK_SPELLINGS: ReadonlySet<string> = new Set(["::1", "[::1]"]);
 
 /** Where a same-host hop reaches a listener bound to `host` over loopback, so the listener sees a loopback peer; null
  *  for a bind to one named interface that is not loopback, which no loopback connect reaches. */
 export function loopbackOrigin(host: string | undefined, port: number): string | null {
   const normalized = host?.trim().toLowerCase();
-  if (normalized === undefined || WILDCARD_HOSTS.has(normalized)) {
+  if (normalized === undefined || normalized === IPV4_WILDCARD) {
     return `http://127.0.0.1:${String(port)}`;
+  }
+  if (IPV6_WILDCARD_SPELLINGS.has(normalized)) {
+    return `http://[::1]:${String(port)}`;
   }
   if (!isLoopbackHost(normalized)) {
     return null;

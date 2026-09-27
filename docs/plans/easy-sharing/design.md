@@ -120,6 +120,7 @@ What must be true before a link goes out, each with its home:
 | the relay host allowed | the Host check refuses every unknown name and has no off switch | `packages/server/src/entry/http/host-allowlist.ts`, the relay registry of leg H |
 | an account per friend | `redeemInvite` needs a principal; `local` has no self-registration | `packages/server/src/transport/trpc/routers/admin.ts`, leg J |
 | the session cookie is `Secure` | the relay sends `X-Forwarded-Proto: https` from a loopback hop, which is the trusted-hop rule | `packages/server/src/infra/auth/transport.ts` |
+| the app listener takes loopback | the relay and the IP certificate's https listener are hops on this machine; arriving from a named interface they are not trusted, so the session cookie is not `Secure` and every visitor shares one throttle bucket | `loopbackOrigin` in `packages/server/src/foundation/env/bind.ts` (an unset or `0.0.0.0` bind at `127.0.0.1`, an explicit `::` at `[::1]`); a `BIND_HOST` of one named interface, public or LAN, is refused as `share_bind_address` and `ip_certificate_bind_address`, at the verb and at boot |
 | per-visitor rate limits | `clientIp` reads `X-Forwarded-For` behind a trusted hop, so the throttles key on the visitor | `packages/server/src/infra/network/ingress.ts`, `packages/server/src/entry/rate-limit-gate.ts` |
 | diagnostics recorders off | prompts and transcripts must not sit behind a public link | the boot disclaimer's warnings |
 

@@ -85,8 +85,9 @@ export type RelayDownReason = (typeof RELAY_DOWN_REASONS)[number];
 /** The coded refusals of `share.start` (the wire's `data.reason`), each naming a fix the Share card shows. A relayed
  *  request is never the owner, so single-user answers 401 to every visitor; a same-host relay delivers each visitor
  *  from a loopback peer, so a loopback-trusted forward-header proxy would take a visitor's forged identity header; an
- *  identity provider returns people only to its registered redirect addresses, which a relay's random name never is. */
-export const SHARE_REFUSALS = ["share_single_user", "share_forward_header", "share_oidc", "share_owner_unclaimed"] as const;
+ *  identity provider returns people only to its registered redirect addresses, which a relay's random name never is;
+ *  and a listener bound to one named interface takes no loopback connection for the relay to arrive on. */
+export const SHARE_REFUSALS = ["share_single_user", "share_forward_header", "share_oidc", "share_bind_address", "share_owner_unclaimed"] as const;
 export type ShareRefusal = (typeof SHARE_REFUSALS)[number];
 
 /** The one home for which sign-in modes can share over a relay: null where a relayed visitor can sign in, else the

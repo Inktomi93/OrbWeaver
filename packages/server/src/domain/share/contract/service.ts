@@ -81,9 +81,6 @@ export interface IpCertificateRefusalNotice {
 export interface CertificateFacts {
   /** True when the app listener admits connections from beyond loopback (`BindPosture.publicBind`). */
   readonly publicBind: boolean;
-  /** True when the app listener also takes loopback, where the https listener forwards (`loopbackOrigin` is not
-   *  null): only a loopback peer's forwarded headers are believed (D255). */
-  readonly loopbackUpstream: boolean;
   /** The port the app listener serves plain http on. */
   readonly appPort: () => number;
 }
@@ -106,6 +103,9 @@ export interface ShareFacts {
   readonly localSetupUrl: () => string;
   /** The addresses a stranger already reaches this server at (`publicAddresses` in `foundation/env`). */
   readonly publicAddresses: readonly string[];
+  /** True when the app listener takes loopback (`loopbackOrigin` is not null), where the relay and the IP certificate's
+   *  https listener hand visitors over: only a loopback peer's forwarded headers are believed without a declared proxy (D255). */
+  readonly loopbackUpstream: boolean;
 }
 
 /** Puts the seating settings back as {@link ShareServiceDeps.enableSeating} found them. */

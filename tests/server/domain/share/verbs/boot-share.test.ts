@@ -2,6 +2,7 @@
 // refused for an unclaimed owner waits for the first-run claim; every other refusal is final for this process.
 
 import { DomainOperationError } from "@orb/kit/errors";
+import { loopbackOrigin } from "@orb/server/foundation/env";
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { LOCAL_SETUP_URL, shareHarness } from "../_support.ts";
@@ -45,5 +46,13 @@ describe("share boot start", () => {
     await h.share.startAtBoot();
     await expect(h.share.resumeAfterOwnerClaim()).resolves.toEqual({ kind: "not_waiting" });
     expect(h.calls.filter((call) => call === "relay.start")).toHaveLength(1);
+  });
+
+  test("a SHARE_RELAY boot on a box bound to its public address alone is refused and never waits for a claim", async () => {
+    const h = shareHarness({ authMode: "local", ownerNeedsPassword: true, loopbackUpstream: loopbackOrigin("81.2.69.160", 8788) !== null });
+    await expect(h.share.startAtBoot()).resolves.toMatchObject({ kind: "refused", refusal: { code: "share_bind_address" } });
+    h.claimOwner();
+    await expect(h.share.resumeAfterOwnerClaim()).resolves.toEqual({ kind: "not_waiting" });
+    expect(h.calls).not.toContain("relay.start");
   });
 });

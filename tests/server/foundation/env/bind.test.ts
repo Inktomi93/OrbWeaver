@@ -168,9 +168,17 @@ describe("resolveBindPosture — single-user serves this machine only, in every 
 // The IP certificate's https listener forwards over loopback (D269): the app must see a loopback peer to believe the
 // hop's X-Forwarded-Proto and X-Forwarded-For (D255). A listener on one named interface has no loopback to reach.
 describe("loopbackOrigin — where a same-host hop reaches the app listener", () => {
-  test("every-interface binds are reached over IPv4 loopback", () => {
-    for (const host of [undefined, "0.0.0.0", "::", "[::]"]) {
+  test("an unset bind and 0.0.0.0 are reached over IPv4 loopback", () => {
+    // Unset, node listens on `::` with IPV6_V6ONLY cleared (dual-stack whatever net.ipv6.bindv6only says) or, with no
+    // IPv6, on 0.0.0.0: IPv4 loopback reaches both, and [::1] would miss the second.
+    for (const host of [undefined, "0.0.0.0"]) {
       expect({ host, origin: loopbackOrigin(host, 8788) }).toEqual({ host, origin: "http://127.0.0.1:8788" });
+    }
+  });
+
+  test("an explicit :: bind is reached over IPv6 loopback, which a v6 listener takes on any host", () => {
+    for (const host of ["::", "[::]"]) {
+      expect({ host, origin: loopbackOrigin(host, 8788) }).toEqual({ host, origin: "http://[::1]:8788" });
     }
   });
 

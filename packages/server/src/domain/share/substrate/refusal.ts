@@ -1,5 +1,6 @@
-// The share preconditions as one ordered decision: a sign-in mode a relayed visitor can use, then (local only) a
-// claimed owner. The first failing one is the refusal, naming its fix; the relay binary refuses on its own at start.
+// The share preconditions as one ordered decision: a sign-in mode a relayed visitor can use, a listener the relay reaches
+// over loopback, then (local only) a claimed owner. The first failing one is the refusal, naming its fix; the relay
+// binary refuses on its own at start.
 
 import type { ShareRefusal, ShareRefusalNotice } from "@orb/contracts/identity";
 import { SHARE_MODE_REFUSAL } from "@orb/contracts/identity";
@@ -19,6 +20,8 @@ function message(code: ShareRefusal, facts: ShareFacts): string {
       return "A relay on this machine delivers every visitor from a loopback address, and forward-header mode trusts a loopback proxy to name the user, so a visitor could claim any account. Friends reach this server through your proxy instead.";
     case "share_oidc":
       return `Your identity provider sends people back only to the addresses registered with it, and a relay's random name is never one of them, so no one could sign in through it. Friends join at ${oidcAddress(facts)} with an invite link.`;
+    case "share_bind_address":
+      return "This server listens on one network address only (BIND_HOST), so the relay on this machine cannot hand visitors to it over loopback, and it would treat every visitor as one plain-http client. Unset BIND_HOST, or set it to 0.0.0.0 (127.0.0.1 keeps the box to this machine and the relay), and restart it first.";
     case "share_owner_unclaimed":
       return `The owner has no password yet, so a shared link would let a stranger reach an unclaimed box. Open ${facts.localSetupUrl()} on this machine, finish setup, then start sharing.`;
     default: {
@@ -38,6 +41,11 @@ export async function shareRefusal(facts: ShareFacts): Promise<ShareRefusalNotic
   const modeRefusal = SHARE_MODE_REFUSAL[facts.authMode];
   if (modeRefusal !== null) {
     return refusal(modeRefusal, facts);
+  }
+  // A named interface, public or LAN, is refused alike: the hop is on this machine, so it arrives over loopback or not
+  // at all, never as a LAN peer whose trust would rest on the private-range rule.
+  if (!facts.loopbackUpstream) {
+    return refusal("share_bind_address", facts);
   }
   if (facts.authMode === "local" && (await facts.ownerNeedsPassword())) {
     return refusal("share_owner_unclaimed", facts);
