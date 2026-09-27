@@ -96,19 +96,6 @@ test("non-TypeScript inputs are explicit not-applicable results", ({ repoRoot })
   expect(plan.subjects.every((subject) => subject.disposition === "not-applicable")).toBe(true);
 });
 
-test("affected routing includes native imported consumers while direct DOM roots remain in their one world", { timeout: scaledBudget(30_000) }, ({
-  repoRoot,
-}) => {
-  const plan = planTypecheckPrograms(repoRoot, [present("packages/kit/src/ids/index.ts"), present("tests/client/agent-nav/index.dom.test.ts")], "affected");
-  const kit = plan.subjects.find((subject) => subject.path === "packages/kit/src/ids/index.ts");
-  const dom = plan.subjects.find((subject) => subject.path === "tests/client/agent-nav/index.dom.test.ts");
-  expect(plan.coverage).toBe("complete-affected-programs");
-  expect(kit?.containedBy).toContain("packages/kit/tsconfig.json");
-  expect(kit?.containedBy).toContain("tsconfig.json");
-  expect(kit?.containedBy).toContain("tsconfig.tests-dom.json");
-  expect(dom?.selectedPrograms).toEqual(["tsconfig.tests-dom.json"]);
-});
-
 test("unknown TS roots and malformed configs refuse while an unused empty template is not applicable", ({ scratch }) => {
   execFixtureGit(scratch, ["init", "--quiet", "--template=", "--initial-branch=main"]);
   const write = (path: string, text: string): void => {
@@ -146,6 +133,38 @@ function program(files: readonly string[]): string {
 function containedBy(plan: ReturnType<typeof planTypecheckPrograms>): Readonly<Record<string, readonly string[]>> {
   return Object.fromEntries(plan.subjects.map((subject) => [subject.path, subject.containedBy]));
 }
+
+// The repository's world split in miniature: the root program's test glob matches the DOM test and excludes it, and
+// only the package program roots the leaf file, so the other two programs reach it through imports alone.
+// Three cold native closure reads. MEASURED: 1.4 s to 1.6 s at per-core load 0.5. The base matches the sibling closure cases.
+test("affected routing includes native imported consumers while direct DOM roots remain in their one world", { timeout: scaledBudget(30_000) }, ({
+  scratch,
+  repoRoot,
+}) => {
+  const leaf = "packages/kit/src/ids/index.ts";
+  const domTest = "tests/client/agent-nav/index.dom.test.ts";
+  closureFixture(scratch, repoRoot, {
+    "packages/kit/tsconfig.json": JSON.stringify({ compilerOptions: { types: [] }, include: ["src"] }),
+    "tsconfig.json": JSON.stringify({ compilerOptions: { types: [] }, include: ["tests/**/*.ts"], exclude: ["tests/**/*.dom.test.ts"] }),
+    "tsconfig.tests-dom.json": JSON.stringify({ compilerOptions: { types: [], lib: ["esnext", "dom"] }, include: ["tests/**/*.dom.test.ts"] }),
+    [leaf]: "export const id = 1;\n",
+    "tests/kit/ids/index.test.ts": 'import { id } from "../../../packages/kit/src/ids/index";\nexport const node = id;\n',
+    [domTest]: 'import { id } from "../../../packages/kit/src/ids/index";\nexport const dom = id;\n',
+  });
+  symlinkSync(join(repoRoot, "scripts/ts7.ts"), join(scratch, "scripts/ts7.ts"), "file");
+
+  const plan = planTypecheckPrograms(scratch, [present(leaf), present(domTest)], "affected");
+  expect(plan.coverage).toBe("complete-affected-programs");
+  expect(plan.subjects).toMatchObject([
+    {
+      path: leaf,
+      rootedBy: ["packages/kit/tsconfig.json"],
+      containedBy: ["packages/kit/tsconfig.json", "tsconfig.json", "tsconfig.tests-dom.json"],
+      selectedPrograms: ["packages/kit/tsconfig.json", "tsconfig.json", "tsconfig.tests-dom.json"],
+    },
+    { path: domTest, rootedBy: ["tsconfig.tests-dom.json"], containedBy: ["tsconfig.tests-dom.json"], selectedPrograms: ["tsconfig.tests-dom.json"] },
+  ]);
+});
 
 // Three cold native closure reads per plan. MEASURED: 2.7 s, and 4.1 s at per-core load 0.8 to 1.4.
 // The base matches the sibling closure cases.
