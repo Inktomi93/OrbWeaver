@@ -1,5 +1,5 @@
 // The IP certificate's preconditions as one ordered decision (D269): the local sign-in mode, a claimed owner, a public
-// address, a listener the router can reach, and three distinct ports. The first failing one is the refusal.
+// address, a listener the router can reach and the https hop can reach over loopback, and three distinct ports.
 // SECURITY: the https listener delivers every visitor from a loopback peer, so under forward-header a visitor's forged
 // identity header would be believed. The mode check runs on every start, the boot start included, because the stored
 // setting outlives the mode it was chosen under.
@@ -61,6 +61,12 @@ export async function certificateRefusal(facts: ShareFacts & CertificateFacts, s
     return notice(
       "ip_certificate_loopback_bind",
       "This server listens on this machine only, so your router cannot forward to it. Remove BIND_HOST=127.0.0.1 from the server's environment and restart it first.",
+    );
+  }
+  if (!facts.loopbackUpstream) {
+    return notice(
+      "ip_certificate_bind_address",
+      "This server listens on one network address only (BIND_HOST), so the https listener cannot hand visitors to it from this machine, and it would treat every visitor as one plain-http client. Unset BIND_HOST, or set it to 0.0.0.0, and restart it first.",
     );
   }
   const ports = [setting.httpsPort, setting.challengePort, facts.appPort()];

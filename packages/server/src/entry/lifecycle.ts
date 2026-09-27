@@ -33,6 +33,7 @@ import {
   diagnosticsPostureWarnings,
   env,
   launchedBySupervisor,
+  loopbackOrigin,
   ownerFallbackCredentialInput,
   ownerFallbackPeerInput,
   ownerFallbackPeerWarnings,
@@ -654,12 +655,19 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       schedule: scheduleOnce,
     });
     stopRelay = relay.stop;
-    // The IP certificate (D269): its https listener forwards to the app listener over the relay's loopback origin, and
-    // its HTTP-01 responder opens on the same interface only while a challenge is pending.
+    // The IP certificate (D269): its https listener forwards to the app listener over loopback, never the bound interface
+    // address, so the app sees a trusted loopback peer (D255); its HTTP-01 responder opens on the app's interface only
+    // while a challenge is pending. A bind to one named interface has no loopback origin, and the enable refuses it.
     const certificate = createCertificateController({
       issuer: createAcmeIssuer({ directoryUrl: LETS_ENCRYPT_DIRECTORY, openResponder: openChallengeResponder, polling: ACME_POLLING }),
       store: createCertificateStore(env.DATA_LAYOUT.secrets),
-      startHttps: (https) => startTlsTerminator({ ...https, host: bind.host, upstream: () => relayOrigin(listenerAddress, listenPort()) }),
+      startHttps: (https) => {
+        const origin = loopbackOrigin(bind.host, listenPort());
+        if (origin === null) {
+          return Promise.reject(new Error(`the app listener on ${String(bind.host)} takes no loopback connection to forward https to`));
+        }
+        return startTlsTerminator({ ...https, host: bind.host, upstream: () => origin });
+      },
       bindHost: bind.host,
       now,
       schedule: scheduleOnce,
@@ -679,7 +687,14 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       holder,
       ...(options.providerSeams === undefined ? {} : { providerSeams: options.providerSeams }),
       serverRestart,
-      share: { relay, certificate, localSetupUrl: () => `http://localhost:${listenPort()}`, appPort: listenPort, publicBind: bind.publicBind },
+      share: {
+        relay,
+        certificate,
+        localSetupUrl: () => `http://localhost:${listenPort()}`,
+        appPort: listenPort,
+        publicBind: bind.publicBind,
+        loopbackUpstream: loopbackOrigin(bind.host, 0) !== null,
+      },
     });
 
     credentialsKeyOk = await built.services.credentials.probeKeyDecrypt();

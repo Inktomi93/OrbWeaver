@@ -134,6 +134,10 @@ export function createCertificateController(deps: CertificateControllerDeps): Ce
   }
 
   async function serve(gen: number, current: IpCertificateSetting, certificate: IssuedCertificate): Promise<void> {
+    // An older generation's certificate must never reach the listener a newer enable opened for another address.
+    if (gen !== generation) {
+      return;
+    }
     if (listener === null) {
       let opened: TlsTerminator;
       // @orb-waive caught-failure-ownership(err): owned by `fail`, which sets the `failed` status the Share card shows and logs the security line naming plain http. Ends if `fail` stops setting that status.
@@ -209,9 +213,21 @@ export function createCertificateController(deps: CertificateControllerDeps): Ce
         return;
       }
       await deps.store.saveCertificate(outcome.certificate);
+      if (gen !== generation) {
+        await discardStale(current);
+        return;
+      }
       await serve(gen, current, outcome.certificate);
     } catch (err) {
       await orderFailed(gen, current, { code: "issuance_failed", message: errorText(err) });
+    }
+  }
+
+  // A save that finished after a disable, or after a switch to another address, wrote files nothing serves: delete them.
+  // A stop keeps its setting, so a save racing a shutdown keeps its valid certificate for the next boot.
+  async function discardStale(saved: IpCertificateSetting): Promise<void> {
+    if (setting === null || setting.address !== saved.address) {
+      await deps.store.removeCertificate();
     }
   }
 
@@ -267,7 +283,6 @@ export function createCertificateController(deps: CertificateControllerDeps): Ce
     },
     stop: async (): Promise<void> => {
       await halt();
-      setting = null;
       status = { state: "off" };
     },
     status: (): IpCertificateStatus => status,

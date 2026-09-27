@@ -150,12 +150,14 @@ export type IpCertificateFailureCode = (typeof IP_CERTIFICATE_FAILURES)[number];
 
 /** The coded refusals of `share.enableIpCertificate`: a sign-in mode a visitor over https cannot use safely, an
  *  unclaimed owner, an address a public certificate authority can never reach, a listener bound to this machine only,
- *  and ports that collide. Nothing is asked of a certificate authority until every one holds. */
+ *  a listener bound to one named interface the https hop cannot reach over loopback, and ports that collide. Nothing is
+ *  asked of a certificate authority until every one holds. */
 export const IP_CERTIFICATE_REFUSALS = [
   "ip_certificate_mode",
   "ip_certificate_owner_unclaimed",
   "ip_certificate_not_public",
   "ip_certificate_loopback_bind",
+  "ip_certificate_bind_address",
   "ip_certificate_ports",
 ] as const;
 export type IpCertificateRefusal = (typeof IP_CERTIFICATE_REFUSALS)[number];

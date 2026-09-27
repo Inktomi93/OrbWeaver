@@ -3,7 +3,7 @@
 // pinned in index.test.ts.
 
 import type { AuthMode } from "@orb/contracts/identity";
-import { bindPostureWarnings, resolveBindPosture, settingInstruction } from "@orb/server/foundation/env";
+import { bindPostureWarnings, loopbackOrigin, resolveBindPosture, settingInstruction } from "@orb/server/foundation/env";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
@@ -162,5 +162,26 @@ describe("resolveBindPosture — single-user serves this machine only, in every 
   test.each(["local", "oidc", "forward-header"] as const)("control: AUTH_MODE=%s in production still binds every interface", (authMode) => {
     const posture = resolveBindPosture({ ...SINGLE_USER, authMode, nodeEnv: "production", bindHost: undefined });
     expect(posture).toMatchObject({ host: undefined, publicBind: true, refusal: null });
+  });
+});
+
+// The IP certificate's https listener forwards over loopback (D269): the app must see a loopback peer to believe the
+// hop's X-Forwarded-Proto and X-Forwarded-For (D255). A listener on one named interface has no loopback to reach.
+describe("loopbackOrigin — where a same-host hop reaches the app listener", () => {
+  test("every-interface binds are reached over IPv4 loopback", () => {
+    for (const host of [undefined, "0.0.0.0", "::", "[::]"]) {
+      expect({ host, origin: loopbackOrigin(host, 8788) }).toEqual({ host, origin: "http://127.0.0.1:8788" });
+    }
+  });
+
+  test("a loopback bind is reached at its own loopback address", () => {
+    expect(loopbackOrigin("127.0.0.1", 8788)).toBe("http://127.0.0.1:8788");
+    expect(loopbackOrigin("::1", 8788)).toBe("http://[::1]:8788");
+  });
+
+  test("a bind to one named interface, public or LAN, has no loopback origin", () => {
+    for (const host of ["81.2.69.160", "192.168.1.5", "2a00:1450:4001:80b::200e", "nas.local"]) {
+      expect({ host, origin: loopbackOrigin(host, 8788) }).toEqual({ host, origin: null });
+    }
   });
 });

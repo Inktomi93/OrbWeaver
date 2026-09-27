@@ -81,6 +81,9 @@ export interface IpCertificateRefusalNotice {
 export interface CertificateFacts {
   /** True when the app listener admits connections from beyond loopback (`BindPosture.publicBind`). */
   readonly publicBind: boolean;
+  /** True when the app listener also takes loopback, where the https listener forwards (`loopbackOrigin` is not
+   *  null): only a loopback peer's forwarded headers are believed (D255). */
+  readonly loopbackUpstream: boolean;
   /** The port the app listener serves plain http on. */
   readonly appPort: () => number;
 }

@@ -32,6 +32,12 @@ describe("share.resumeIpCertificate", () => {
     expect(h.calls.filter((call) => call.startsWith("certificate."))).toEqual([]);
   });
 
+  test("a stored choice on a box now bound to its public address alone is refused at boot", async () => {
+    const h = shareHarness({ authMode: "local", certificateSetting: SETTING, loopbackUpstream: false });
+    await expect(h.share.resumeIpCertificate()).resolves.toMatchObject({ kind: "refused", refusal: { code: "ip_certificate_bind_address" } });
+    expect(h.calls.filter((call) => call.startsWith("certificate."))).toEqual([]);
+  });
+
   test("a stored LAN address written through the generic settings door is refused at boot too", async () => {
     const h = shareHarness({ authMode: "local", certificateSetting: { ...SETTING, address: "192.168.1.20" } });
     await expect(h.share.resumeIpCertificate()).resolves.toMatchObject({ kind: "refused", refusal: { code: "ip_certificate_not_public" } });

@@ -25,6 +25,8 @@ interface Seen {
   readonly url: string | undefined;
   readonly headers: IncomingHttpHeaders;
   readonly body: string;
+  /** The upstream connection's client port: one value per connection this hop opened to the app. */
+  readonly connection: number | undefined;
 }
 
 interface Pair {
@@ -74,13 +76,13 @@ async function start(pair: Pair): Promise<{ readonly seen: Seen[]; readonly port
     const chunks: Buffer[] = [];
     req.on("data", (chunk: Buffer) => chunks.push(chunk));
     req.on("end", () => {
-      seen.push({ method: req.method, url: req.url, headers: req.headers, body: Buffer.concat(chunks).toString("utf-8") });
+      seen.push({ method: req.method, url: req.url, headers: req.headers, body: Buffer.concat(chunks).toString("utf-8"), connection: req.socket.remotePort });
       if (req.url === "/stream") {
         res.writeHead(200, { "content-type": "text/event-stream", connection: "keep-alive" });
         res.write("data: first\n\n");
         return;
       }
-      res.writeHead(200, { "content-type": "text/plain", "set-cookie": ["a=1", "b=2"] });
+      res.writeHead(200, { "content-type": "text/plain", "set-cookie": ["a=1", "b=2"], "x-upstream-url": req.url ?? "" });
       res.end("from the app");
     });
   });
@@ -105,7 +107,8 @@ function get(
         port,
         path: options.path ?? "/",
         method: options.method ?? "GET",
-        headers: options.headers ?? {},
+        // node's client frames a DELETE or OPTIONS body only when told its length, so the visitor here always says it.
+        headers: { ...(options.body === undefined ? {} : { "content-length": String(Buffer.byteLength(options.body)) }), ...options.headers },
         ca: pair.certificatePem,
         agent: false,
       },
@@ -228,5 +231,94 @@ describe("startTlsTerminator", () => {
     const { seen, port } = await start(pair);
     await expect(get(port, selfSigned(3))).rejects.toThrow();
     expect(seen).toEqual([]);
+  });
+});
+
+// Raw bytes on one verified TLS connection, as a visitor can send them; resolves with everything the hop answered.
+function raw(port: number, pair: Pair, bytes: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const socket = tlsConnect({ host: LOOPBACK, port, ca: pair.certificatePem }, () => {
+      socket.write(bytes);
+    });
+    const chunks: Buffer[] = [];
+    socket.on("data", (chunk: Buffer) => chunks.push(chunk));
+    socket.on("end", () => {
+      resolve(Buffer.concat(chunks).toString("latin1"));
+    });
+    socket.on("error", reject);
+  });
+}
+
+// Lets the app finish reading whatever the hop wrote before the test reads what it parsed.
+function settleUpstream(): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, 150);
+  });
+}
+
+const SMUGGLED = "GET /smuggled HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n";
+
+describe("request framing: the app parses exactly the requests the visitor sent, each with this hop's facts", () => {
+  test("a chunked GET whose body is a second request reaches the app as one request", async () => {
+    const pair = selfSigned(1);
+    const { seen, port } = await start(pair);
+    const chunk = `${SMUGGLED.length.toString(16)}\r\n${SMUGGLED}\r\n0\r\n\r\n`;
+    await raw(port, pair, `GET /visible HTTP/1.1\r\nHost: 81.2.69.160\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n${chunk}`);
+    await get(port, pair, { path: "/after" });
+    await settleUpstream();
+    expect(seen.map((request) => request.url)).toEqual(["/visible", "/after"]);
+    expect(seen.every((request) => request.headers["x-forwarded-for"] === LOOPBACK && request.headers["x-forwarded-proto"] === "https")).toBe(true);
+  });
+
+  test("a GET whose Content-Length is listed in Connection reaches the app as one request", async () => {
+    const pair = selfSigned(1);
+    const { seen, port } = await start(pair);
+    await raw(
+      port,
+      pair,
+      `GET /visible HTTP/1.1\r\nHost: 81.2.69.160\r\nContent-Length: ${String(SMUGGLED.length)}\r\nConnection: content-length, close\r\n\r\n${SMUGGLED}`,
+    );
+    await get(port, pair, { path: "/after" });
+    await settleUpstream();
+    expect(seen.map((request) => request.url)).toEqual(["/visible", "/after"]);
+    expect(seen.every((request) => request.headers["x-forwarded-for"] === LOOPBACK)).toBe(true);
+  });
+
+  test("two pipelined requests reach the app as exactly two, each answered in order to its own request", async () => {
+    const pair = selfSigned(1);
+    const { seen, port } = await start(pair);
+    const answer = await raw(
+      port,
+      pair,
+      "GET /first HTTP/1.1\r\nHost: 81.2.69.160\r\n\r\nGET /second HTTP/1.1\r\nHost: 81.2.69.160\r\nConnection: close\r\n\r\n",
+    );
+    await settleUpstream();
+    expect(seen.map((request) => request.url)).toEqual(["/first", "/second"]);
+    expect(seen.every((request) => request.headers["x-forwarded-for"] === LOOPBACK && request.headers["x-forwarded-proto"] === "https")).toBe(true);
+    expect([...answer.matchAll(/x-upstream-url: (\S+)/giu)].map((match) => match[1])).toEqual(["/first", "/second"]);
+  });
+
+  test("a body on any method reaches the app framed, whole, as one request", async () => {
+    const pair = selfSigned(1);
+    const { seen, port } = await start(pair);
+    for (const method of ["DELETE", "OPTIONS", "PATCH"]) {
+      await get(port, pair, { method, path: `/${method.toLowerCase()}`, headers: { "content-type": "application/json" }, body: '{"a":1}' });
+    }
+    await settleUpstream();
+    expect(seen.map((request) => [request.method, request.body])).toEqual([
+      ["DELETE", '{"a":1}'],
+      ["OPTIONS", '{"a":1}'],
+      ["PATCH", '{"a":1}'],
+    ]);
+  });
+
+  test("no upstream connection carries two visitors: each downstream request opens its own", async () => {
+    const pair = selfSigned(1);
+    const { seen, port } = await start(pair);
+    await get(port, pair, { path: "/one" });
+    await get(port, pair, { path: "/two" });
+    await settleUpstream();
+    expect(seen).toHaveLength(2);
+    expect(seen[0]?.connection).not.toBe(seen[1]?.connection);
   });
 });

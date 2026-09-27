@@ -10,7 +10,7 @@ const APP_PORT = 8788;
 const SETTING: IpCertificateSetting = { address: "81.2.69.160", httpsPort: 8443, challengePort: 8080 };
 
 function facts(
-  options: { readonly authMode?: AuthMode; readonly ownerNeedsPassword?: boolean; readonly publicBind?: boolean } = {},
+  options: { readonly authMode?: AuthMode; readonly ownerNeedsPassword?: boolean; readonly publicBind?: boolean; readonly loopbackUpstream?: boolean } = {},
 ): Parameters<typeof certificateRefusal>[0] {
   return {
     authMode: options.authMode ?? "local",
@@ -18,6 +18,7 @@ function facts(
     localSetupUrl: () => "http://localhost:8788",
     publicAddresses: [],
     publicBind: options.publicBind ?? true,
+    loopbackUpstream: options.loopbackUpstream ?? true,
     appPort: () => APP_PORT,
   };
 }
@@ -67,6 +68,12 @@ describe("certificateRefusal", () => {
   test("a listener bound to this machine only is refused, because no router can forward to it", async () => {
     const result = await certificateRefusal(facts({ publicBind: false }), SETTING);
     expect(result.refusal?.code).toBe("ip_certificate_loopback_bind");
+  });
+
+  test("a listener bound to one named interface is refused: the https hop could not reach it over loopback", async () => {
+    const result = await certificateRefusal(facts({ loopbackUpstream: false }), SETTING);
+    expect(result.refusal?.code).toBe("ip_certificate_bind_address");
+    expect(result.refusal?.message).toContain("BIND_HOST");
   });
 
   test("ports that collide with each other or with the app's own port are refused", async () => {

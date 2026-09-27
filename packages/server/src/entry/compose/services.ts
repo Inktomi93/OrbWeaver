@@ -232,6 +232,8 @@ export interface ShareComposeDeps {
   readonly appPort: () => number;
   /** True when the app listener admits connections from beyond loopback (`BindPosture.publicBind`). */
   readonly publicBind: boolean;
+  /** True when the app listener also takes loopback, where the IP certificate's https listener forwards. */
+  readonly loopbackUpstream: boolean;
 }
 
 /** The share deps for a composition that runs no relay and no https listener (a seed script, a test graph): both read
@@ -255,6 +257,7 @@ export const NO_SHARE_RELAY: ShareComposeDeps = {
     throw new Error("compose: this composition serves no local origin");
   },
   publicBind: false,
+  loopbackUpstream: false,
 };
 
 /** The restart port for a composition no supervisor started (a seed script, a test graph). `admin.restart` refuses as
@@ -1297,6 +1300,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
         await settings.updateAppSettings({ principal, partial: { ipCertificate: setting } });
       },
       publicBind: deps.share.publicBind,
+      loopbackUpstream: deps.share.loopbackUpstream,
       appPort: deps.share.appPort,
       enableSeating: createEnableShareSeating({
         seating: () => settings.getEffectiveConfig(),

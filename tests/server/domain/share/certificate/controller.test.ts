@@ -52,9 +52,18 @@ interface Harness {
   readonly live: () => Timer[];
   /** Moves the clock to the earliest live timer and fires it, then lets the work it started settle. */
   readonly runNext: () => Promise<number>;
+  /** Holds the next certificate save before its bytes land, as a slow disk would; the result releases it. */
+  readonly holdNextSave: () => () => void;
 }
 
-function harness(options: { readonly stored?: IssuedCertificate; readonly listenerFails?: boolean } = {}): Harness {
+function harness(
+  options: {
+    readonly stored?: IssuedCertificate;
+    readonly listenerFails?: boolean;
+    /** A certificate already on disk for another address, which that address's enable serves at once. */
+    readonly storedFor?: { readonly address: string; readonly certificate: IssuedCertificate };
+  } = {},
+): Harness {
   const clock = createFrozenClock();
   const timers: Timer[] = [];
   const outcomes: IssueOutcome[] = [];
@@ -63,6 +72,7 @@ function harness(options: { readonly stored?: IssuedCertificate; readonly listen
   const saved: IssuedCertificate[] = [];
   const files: { account: string | null; certificate: IssuedCertificate | null } = { account: null, certificate: options.stored ?? null };
   let serial = 0;
+  let heldSave: Promise<void> | null = null;
   const deps: CertificateControllerDeps = {
     issuer: {
       createAccountKey: () => Promise.resolve("ACCOUNT KEY"),
@@ -82,11 +92,18 @@ function harness(options: { readonly stored?: IssuedCertificate; readonly listen
         files.account = pem;
         return Promise.resolve();
       },
-      loadCertificate: (address) => Promise.resolve(address === SETTING.address ? files.certificate : null),
-      saveCertificate: (certificate) => {
+      loadCertificate: (address) => {
+        if (options.storedFor?.address === address) {
+          return Promise.resolve(options.storedFor.certificate);
+        }
+        return Promise.resolve(address === SETTING.address ? files.certificate : null);
+      },
+      saveCertificate: async (certificate) => {
+        const hold = heldSave;
+        heldSave = null;
+        await hold;
         files.certificate = certificate;
         saved.push(certificate);
-        return Promise.resolve();
       },
       removeCertificate: () => {
         files.certificate = null;
@@ -133,6 +150,13 @@ function harness(options: { readonly stored?: IssuedCertificate; readonly listen
     saved,
     files,
     live,
+    holdNextSave: (): (() => void) => {
+      let release = (): void => undefined;
+      heldSave = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      return release;
+    },
     runNext: async (): Promise<number> => {
       const [next] = live();
       if (next === undefined) {
@@ -335,5 +359,51 @@ describe("createCertificateController", () => {
     expect(h.listeners[0]?.closed).toBe(true);
     expect(h.files.certificate?.certificatePem).toBe("CERT issued-1");
     expect(h.live()).toEqual([]);
+  });
+
+  test("a renewal that lands after the owner switched to another address never touches the new address's https", async () => {
+    const clock = createFrozenClock();
+    const other: IpCertificateSetting = { address: "81.2.69.161", httpsPort: 9443, challengePort: 9080 };
+    // Issued ten hours before the switch, which happens at the first certificate's half-life.
+    const otherCertificate = certificateAt(clock.now() + 70 * HOUR_MS, "other");
+    const h = harness({ storedFor: { address: other.address, certificate: otherCertificate } });
+    await h.controller.enable(SETTING);
+    await settle();
+    const release = h.holdNextSave();
+    await h.runNext();
+    // The renewal for the first address is ordered and now waits on its save; the owner moves to another address.
+    await expect(h.controller.enable(other)).resolves.toMatchObject({ state: "active", setting: other });
+    release();
+    await settle();
+    const serving = h.listeners.filter((listener) => !listener.closed);
+    expect(serving).toEqual([{ port: other.httpsPort, serving: "CERT other", closed: false }]);
+    expect(h.controller.status()).toMatchObject({ state: "active", setting: other, notAfter: otherCertificate.notAfter });
+    expect(h.live().map((timer) => timer.due)).toContain(otherCertificate.notBefore + 80 * HOUR_MS);
+  });
+
+  test("a disable that races a certificate save leaves no certificate on disk", async () => {
+    const h = harness();
+    const release = h.holdNextSave();
+    await h.controller.enable(SETTING);
+    await settle();
+    // The order came back and its save is still in flight when the owner turns https off.
+    expect(h.issued).toHaveLength(1);
+    await h.controller.disable();
+    release();
+    await settle();
+    expect(h.files.certificate).toBeNull();
+    expect(h.listeners).toEqual([]);
+    expect(h.controller.status()).toEqual({ state: "off" });
+  });
+
+  test("control: a stop that races a save keeps the certificate for the next boot", async () => {
+    const h = harness();
+    const release = h.holdNextSave();
+    await h.controller.enable(SETTING);
+    await settle();
+    await h.controller.stop();
+    release();
+    await settle();
+    expect(h.files.certificate?.certificatePem).toBe("CERT issued-1");
   });
 });

@@ -1,5 +1,6 @@
 // infra/crypto/secret-file — replaced secrets are owner-only, whole, and never followed through a symlink (D269).
 
+import { execFileSync } from "node:child_process";
 import { lstat, mkdtemp, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -59,6 +60,12 @@ describe("readSecretFile", () => {
     const path = join(dir, "acme_account_key.pem");
     await symlink(target, path);
     await expect(readSecretFile(path)).rejects.toThrow();
+  });
+
+  test("a planted FIFO is refused at once instead of blocking the read forever", { timeout: 3000 }, async () => {
+    const path = join(dir, "ip_certificate.pem");
+    execFileSync("mkfifo", [path]);
+    await expect(readSecretFile(path)).rejects.toThrow(/not a regular file/u);
   });
 
   test("a group- or world-readable file is narrowed to 0600 as it is read", async () => {
